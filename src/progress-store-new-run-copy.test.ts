@@ -330,6 +330,39 @@ describe("a new run keeps the mountain he left in Saved copies (#480)", () => {
     await expect(restored).resolves.toBe("kept");
   });
 
+  it("starts no run he backed out of while the copy was on its way", async () => {
+    let wanted = true;
+    let land: (result: CloudWriteResult) => void = () => undefined;
+    const memory = createMemoryCloudSave();
+    const cloud: CloudSave = {
+      ...memory,
+      archiveCopy: (args) =>
+        new Promise<CloudWriteResult>((resolve) => {
+          land = (result) => {
+            void memory.archiveCopy?.(args).then(() => {
+              resolve(result);
+            });
+          };
+        }),
+    };
+    const { progress } = await playing(
+      { ...minedMountain(40_000), startedAt: 500 },
+      { cloud },
+    );
+    const started = progress.startOver(() => wanted);
+    wanted = false;
+    land({ kind: "ok" });
+    await expect(started).resolves.toBe(false);
+    expect(progress.getSnapshot().mountain.startedAt).toBe(500);
+    expect(progress.fieldLog().events.at(-1)).toMatchObject({
+      code: "run.refused",
+      data: { id: "start-over", source: "backed-out" },
+    });
+    // The copy is kept all the same.
+    await expect(progress.savedCopies()).resolves.toHaveLength(1);
+    progress.dispose();
+  });
+
   it("starts over at once when nothing has been mined, and keeps no copy", async () => {
     const { progress } = await playing({ ...minedMountain(0), startedAt: 500 });
     const started = progress.startOver();

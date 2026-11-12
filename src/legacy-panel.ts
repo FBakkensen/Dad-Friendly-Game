@@ -155,7 +155,7 @@ export function createLegacyPanel({
     close,
     answers,
   );
-  card.plate(
+  const confirm = card.plate(
     PASS_IT_ON,
     "confirm",
     "legacy-confirm",
@@ -165,15 +165,19 @@ export function createLegacyPanel({
         return;
       }
       passing = true;
-      void progress.passTheMine().then((passed) => {
-        passing = false;
-        failed = !passed;
-        if (passed) {
-          open = false;
-          onPassed();
-        }
-        requestRender();
-      });
+      requestRender();
+      // Not yet or Escape while the copy is on its way backs out of the pass.
+      void progress
+        .passTheMine(() => open)
+        .then((passed) => {
+          passing = false;
+          failed = !passed;
+          if (passed) {
+            open = false;
+            onPassed();
+          }
+          requestRender();
+        });
     },
     answers,
   );
@@ -196,6 +200,7 @@ export function createLegacyPanel({
     );
     paintLines(lines, legacyCardWords(mountain));
     hide(error, !failed);
+    confirm.disabled = passing;
     card.show(open && offered(), cancel);
   };
 

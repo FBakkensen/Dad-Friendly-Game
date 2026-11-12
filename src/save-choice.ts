@@ -147,6 +147,9 @@ export async function restoreCopy(
     return "missing";
   }
   // A mountain with nothing mined is not kept: it would only crowd the shelf.
+  if (!stillOn(ctx, stance)) {
+    return "kept";
+  }
   if (
     minedOut(ctx.session.mountain) > 0 &&
     !(await keepInPlay(ctx, stance, "restore"))
@@ -242,6 +245,8 @@ export type NewRun = {
   readonly reason: "start-over" | "pass";
   /** The new run's mountain from the one in play, or undefined when it cannot start. */
   readonly next: (playing: Mountain) => Mountain | undefined;
+  /** Asked once the copy lands: false when he backed out while it was on its way. */
+  readonly stillWanted?: () => boolean;
 };
 
 const RUN_WORDS = {
@@ -290,8 +295,15 @@ export async function keepThenBegin(
     return false;
   }
   // Another device's run arrived meanwhile: that run is not the one he left.
-  if (runStartedAt(ctx.session.mountain) !== runStartedAt(left)) {
-    record(ctx, "run.refused", { id: run.reason, source: "newer-run" });
+  const why =
+    runStartedAt(ctx.session.mountain) !== runStartedAt(left)
+      ? "newer-run"
+      : run.stillWanted?.() === false
+        ? "backed-out"
+        : undefined;
+  if (why !== undefined) {
+    record(ctx, "run.refused", { id: run.reason, source: why });
+    emit(ctx);
     return false;
   }
   return startRun(ctx, run);

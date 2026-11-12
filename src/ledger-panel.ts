@@ -190,6 +190,8 @@ interface LedgerDoorDeps {
 function wireDoors(deps: LedgerDoorDeps): {
   readonly doors: LedgerDoors;
   readonly startOverPage: ReturnType<typeof createStartOverPage>;
+  /** A Yes is waiting for the mountain to reach Saved copies (#480). */
+  readonly starting: () => boolean;
 } {
   const { board, progress, sheet, door } = deps;
   /** A card takes over from the drawer: it shuts without moving focus. */
@@ -209,10 +211,15 @@ function wireDoors(deps: LedgerDoorDeps): {
         return;
       }
       starting = true;
-      void progress.startOver().then((started) => {
+      startOverPage.paint(false);
+      // Keep, Back or Escape while the copy is on its way backs out of the new run.
+      const stillAsked = (): boolean =>
+        sheet().isOpen() && startOverPage.root.parentElement !== null;
+      void progress.startOver(stillAsked).then((started) => {
         starting = false;
         if (!started) {
           startOverPage.say(false);
+          startOverPage.paint(true);
           return;
         }
         deps.onStartOver();
@@ -257,7 +264,7 @@ function wireDoors(deps: LedgerDoorDeps): {
       },
     },
   });
-  return { doors, startOverPage };
+  return { doors, startOverPage, starting: () => starting };
 }
 
 /**
@@ -369,7 +376,7 @@ export function createLedgerPanel({
     }
     onBoard.paint("account", parts.account, accountRowView(auth.getState()));
     wired.doors.paint({ ready: view.ready, passOffered: legacy.offered() });
-    wired.startOverPage.paint(view.ready);
+    wired.startOverPage.paint(view.ready && !wired.starting());
     paintTonight();
   };
 

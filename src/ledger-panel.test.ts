@@ -389,6 +389,61 @@ describe("the Ledger drawer (#375)", () => {
     screen.progress.dispose();
   });
 
+  it("Keep while the copy is on its way keeps the mountain (#480)", async () => {
+    let clock = 10_000;
+    const user = { uid: "test-dad", label: "Test Dad" };
+    const memory = createMemoryCloudSave();
+    await memory.write({
+      uid: user.uid,
+      mountain: granite(),
+      rev: 1,
+      deviceId: "seed-device",
+      lastSeen: CLOCK,
+    });
+    let land: () => void = () => undefined;
+    const screen = mountScreen({
+      storage: createMemoryStorage(),
+      now: () => CLOCK,
+      tapClock: () => clock,
+      auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+      cloudSave: {
+        ...memory,
+        archiveCopy: () =>
+          new Promise((resolve) => {
+            land = () => {
+              resolve({ kind: "ok" });
+            };
+          }),
+      },
+    });
+    document.body.append(screen.root);
+    await vi.waitFor(() => {
+      expect(screen.progress.getSnapshot().ready).toBe(true);
+    });
+    fingerTap(keyOf(screen));
+    clock += PAST_SETTLE;
+    fingerTap(part(screen, ".ledger-start-over"));
+    clock += PAST_SETTLE;
+    fingerTap(part(screen, ".ledger-yes"));
+    // Yes waits for the copy: it does nothing more until then.
+    expect((part(screen, ".ledger-yes") as HTMLButtonElement).disabled).toBe(
+      true,
+    );
+    clock += PAST_SETTLE;
+    fingerTap(part(screen, ".ledger-keep"));
+    land();
+    await vi.waitFor(() => {
+      expect(
+        screen.progress
+          .fieldLog()
+          .events.some((event) => event.data.source === "backed-out"),
+      ).toBe(true);
+    });
+    expect(screen.progress.getSnapshot().mountain.helpers).toBe(4);
+    expect(isOpen(screen)).toBe(true);
+    screen.progress.dispose();
+  });
+
   it("the Start over page is a group named by its title and described by its warning", () => {
     const screen = mount(granite());
     keyOf(screen).click();

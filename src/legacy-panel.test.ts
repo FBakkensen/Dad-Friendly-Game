@@ -41,7 +41,7 @@ const press = (target: Element | null | undefined): void => {
 
 interface Fixture {
   view: { ready: boolean; mountain: Mountain };
-  passTheMine: Mock<() => Promise<boolean>>;
+  passTheMine: Mock<(stillWanted?: () => boolean) => Promise<boolean>>;
   onPassed: Mock<() => void>;
   beforeOpen: Mock<() => void>;
   panel: ReturnType<typeof createLegacyPanel>;
@@ -50,7 +50,9 @@ interface Fixture {
 function mount(mountain: Mountain): Fixture {
   const fixture = {
     view: { ready: true, mountain },
-    passTheMine: vi.fn<() => Promise<boolean>>(() => Promise.resolve(true)),
+    passTheMine: vi.fn<(stillWanted?: () => boolean) => Promise<boolean>>(() =>
+      Promise.resolve(true),
+    ),
     onPassed: vi.fn<() => void>(),
     beforeOpen: vi.fn<() => void>(),
   } as unknown as Fixture;
@@ -180,6 +182,29 @@ describe("the Pass the mine card (#466)", () => {
     await vi.waitFor(() => {
       expect(fixture.onPassed).toHaveBeenCalledTimes(1);
     });
+    expect(fixture.panel.dialog.hidden).toBe(true);
+  });
+
+  it("Not yet while the mine is being kept backs out of the pass (#480)", async () => {
+    const fixture = mount(finished());
+    let land: (passed: boolean) => void = () => undefined;
+    let asked: (() => boolean) | undefined;
+    fixture.passTheMine.mockImplementationOnce((stillWanted) => {
+      asked = stillWanted;
+      return new Promise<boolean>((resolve) => {
+        land = resolve;
+      });
+    });
+    fixture.panel.open(undefined);
+    advance(DRAWER_SETTLE_MS + 50);
+    press(plate(fixture, "legacy-confirm"));
+    expect(plate(fixture, "legacy-confirm")?.disabled).toBe(true);
+    expect(asked?.()).toBe(true);
+    press(plate(fixture, "legacy-cancel"));
+    expect(asked?.()).toBe(false);
+    land(false);
+    await Promise.resolve();
+    expect(fixture.onPassed).not.toHaveBeenCalled();
     expect(fixture.panel.dialog.hidden).toBe(true);
   });
 
