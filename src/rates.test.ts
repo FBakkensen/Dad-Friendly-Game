@@ -400,6 +400,22 @@ describe("what more hands add (#490)", () => {
     }
   });
 
+  it("never reads below zero when the eighth hand leaves faster drills for a borer", () => {
+    // 15 hands: one borer (8) and 7 drills. The 16th starts the second borer,
+    // and the 7 drills he leaves are each worth more than it (200 drills, every mark).
+    const crew = {
+      ...minedMountain(10_000_000),
+      helpers: 15,
+      drills: 200,
+      borers: 2,
+    };
+    const more = { ...crew, helpers: 16 };
+    expect(effectiveRates(more).running.borer).toBe(2);
+    expect(base(effectiveRates(more))).toBeLessThan(base(effectiveRates(crew)));
+    expect(startedTier(crew)).toBe("borer");
+    expect(handsGain(crew, "helper", 1)).toBe(0);
+  });
+
   it("one worker short of a borer's eight starts nothing yet", () => {
     const crew = { ...minedMountain(10_000_000), helpers: 6, borers: 1 };
     expect(startedTier(crew)).toBe(undefined);

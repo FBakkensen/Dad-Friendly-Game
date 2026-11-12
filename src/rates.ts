@@ -504,7 +504,8 @@ function withHands(
  * What `count` more workers or kids add to the crew (#490): the crew's speed
  * with them less its speed now, before crew timers and the Gold rush. It
  * counts the idle machines they start, so the Ready now plate and the Buys
- * rows say what the crew line will gain, not only their own hands.
+ * rows say what the crew line will gain, not only their own hands. Never
+ * below zero.
  */
 export function handsGain(
   mountain: Mountain,
@@ -517,7 +518,10 @@ export function handsGain(
   const after = baseOutput(
     effectiveRates(withHands(mountain, tier, count), now, trouble),
   );
-  return after - before;
+  // Staffing fills the biggest machine first, so the eighth hand can move
+  // seven off faster drills onto a borer. The gain shown never goes below
+  // nothing.
+  return Math.max(0, after - before);
 }
 
 /** The idle kinds of machine, biggest first, and the rates that say so. */

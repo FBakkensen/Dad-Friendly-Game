@@ -6,7 +6,7 @@
 
 ## Rulings (agent-run sitting)
 
-1. **The gain is the crew's own rise.** `handsGain(mountain, tier, count)` is the crew's speed with `count` more workers (or kids) less its speed now, both before crew timers and the Gold rush (the rows never counted those). It counts the machines they start, the tending floor and a worker mark (25, 50, 100) they reach, so the number is what the crew line will gain. A worker with nothing idle still reads his own speed.
+1. **The gain is the crew's own rise.** `handsGain(mountain, tier, count)` is the crew's speed with `count` more workers (or kids) less its speed now, both before crew timers and the Gold rush (the rows never counted those). It counts the machines they start, the tending floor and a worker mark (25, 50, 100) they reach, so the number is what the crew line will gain. A worker with nothing idle reads his own speed, plus what Helping hands or a mark adds through him. It never reads below zero: staffing fills the biggest machine first, so an eighth hand can move seven off faster drills onto a borer and slow the crew; that order is its own question, filed apart.
 2. **Only the hands' rows change.** Machine rows keep "speed × count" (#358). A ×10 of carts that crosses a mark still shows ten carts' speed; that is left as it is and named in the PR body.
 3. **The plate says what he starts.** A hire that starts an idle machine reads "+24/s · starts an idle cart" ("drill", "borer", "Great Machine"); otherwise "every hand is busy", as today. The Done line keeps "Worker 61 is on the crew" with the new gain.
 4. **No save field, no lab change.** Display only.
