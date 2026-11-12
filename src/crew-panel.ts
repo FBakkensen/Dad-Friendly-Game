@@ -128,7 +128,7 @@ function buildCrewParts(): CrewParts {
   posts.append(postsWords);
   crew.append(crewStatus, posts);
   return {
-    crewSec: legend("Crew", "crew", "per sec"),
+    crewSec: legend("Crew", "crew", "per second"),
     crew,
     crewStatus,
     posts,

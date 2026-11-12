@@ -259,7 +259,7 @@ const BOARD_LEGENDS = [
   ".board-save-words",
   ".board-save-safe",
   ".board-save-why",
-  // The gauge row (#371): Stones a sec, the crew plate, No. 2 Shaft and the
+  // The gauge row (#371): Stones a second, the crew plate, No. 2 Shaft and the
   // Legacy plate's words.
   ".board-gauge-legend",
   ".board-crew-legend",

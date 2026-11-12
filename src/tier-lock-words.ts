@@ -15,10 +15,22 @@ function depthOf(lock: TierLock): number {
   return lock.at;
 }
 
-/** The short line under the name: `Borer · 10M` or `Machine · 120M`. */
-export function lockRateLine(tier: Tier, lock: TierLock): string {
-  const label = lock.kind === "depth" ? tier.shortName : relicShort(lock);
-  return `${label} · ${formatCompact(depthOf(lock))}`;
+/**
+ * The short line under the name (#508): `Opens at 10M stones`, or for a relic's tier `With the
+ * Crown at 259.3M`. The tier's own name is already on the row.
+ */
+export function lockRateLine(lock: TierLock): string {
+  const at = formatCompact(depthOf(lock));
+  return lock.kind === "depth"
+    ? `Opens at ${at} stones`
+    : `With the ${relicShort(lock)} at ${at}`;
+}
+
+/** A narrower line where the first does not fit: `Opens at 10M`. A relic's line has none. */
+export function lockShortLine(lock: TierLock): string | undefined {
+  return lock.kind === "depth"
+    ? `Opens at ${formatCompact(depthOf(lock))}`
+    : undefined;
 }
 
 /** The friendly line on the card body. */

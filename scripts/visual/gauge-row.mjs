@@ -282,7 +282,7 @@ const GAUGE_EXPECT = [
       const contrast = await boardContrast(page);
       const dim = contrast.filter((row) => row.pct < 4.5);
       const want = [
-        "Stones a sec",
+        "Stones a second",
         "Crew",
         "free",
         "No. 2 Shaft",

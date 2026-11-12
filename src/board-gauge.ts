@@ -85,7 +85,7 @@ export function createOutputGauge(): OutputGauge {
   counter.className = "board-gauge-counter";
 
   const read = span("board-gauge-read board-num");
-  const legend = span("board-gauge-legend", "Stones a sec");
+  const legend = span("board-gauge-legend", "Stones a second");
   root.append(unit, counter, read, legend);
 
   let needle: Needle = NEEDLE_REST;
