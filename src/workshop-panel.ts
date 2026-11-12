@@ -54,7 +54,8 @@ import {
 
 /*
  * The Workshop drawer (#374): the material plates, the bench row with its clock, bar and
- * cancel confirm, the live timers and the recipes three a page. The sound key is the Ledger's (#491).
+ * cancel confirm, the live timers and the recipes three a page. Its knock follows the Ledger's
+ * Sound key (#491).
  * Its rows and words come from workshop-rows.ts and its own controls from workshop-parts.ts.
  * The list's order is the board model's layout for "workshop", frozen as the drawer opens, so
  * a craft, a cancel or the tick never moves a row under a finger; pages slice that order.
@@ -366,7 +367,7 @@ export function createWorkshopPanel({
   door: HTMLButtonElement;
   /** The Ledger key: Back focuses it while a re-load holds the Workshop key. */
   fallbackDoor: HTMLButtonElement;
-  /** The game's one sound, turned in the Ledger (#491): a craft that lands knocks while it is on. */
+  /** The game's one sound, turned in the Ledger (#491): a craft that lands knocks while on. */
   sound: Pick<SoundSetting, "on">;
   /** Aborting it removes the drawer's document listeners. */
   signal?: AbortSignal;

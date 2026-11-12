@@ -111,8 +111,9 @@ export function createSoundKey({
       if (decision !== "act") {
         return;
       }
-      sound.turn(!sound.on());
-      playHammer(sound.on());
+      const next = !sound.on();
+      sound.turn(next);
+      playHammer(next);
       paint();
     },
   );

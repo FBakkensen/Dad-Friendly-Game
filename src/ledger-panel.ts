@@ -39,14 +39,15 @@ import {
 import { createSoundKey, type SoundSetting } from "./sound";
 
 /*
- * The Ledger drawer (#375): the game's one Sound key in the head (#491), Tonight's newest lines, the mine (stones left with the materials
- * met, then the relics with the goal, the next layer's hint and the guide bar), the account
- * row, and four plates: Saved copies, Copy field log, Start over and Pass the mine. Start over
- * asks on a page of the drawer, and where the browser refuses the clipboard the field log
- * shows on one. Its rows and lines come from ledger-rows.ts and its own controls from
- * ledger-parts.ts. Every press goes through the board's model, so the settle, the hold and the
- * blink are the board's. Nothing here saves: Start over, signing in and out, Saved copies and
- * Pass the mine are today's calls.
+ * The Ledger drawer (#375): the game's one Sound key in the head (#491), Tonight's newest
+ * lines, the mine (stones left with the materials met, then the relics with the goal, the next
+ * layer's hint and the guide bar), the account row, and four plates: Saved copies, Copy field
+ * log, Start over and Pass the mine. Start over asks on a page of the drawer, and where the
+ * browser refuses the clipboard the field log shows on one. Its rows and lines come from
+ * ledger-rows.ts and its own controls from ledger-parts.ts. Every press goes through the
+ * board's model, so the settle, the hold and the blink are the board's. Nothing here saves:
+ * Start over, signing in and out, Saved copies and Pass the mine are today's calls. The Sound
+ * key's choice is this device's, not the save's (sound.ts).
  */
 
 /** The Ledger's parts, built once and placed in the list in this order. */

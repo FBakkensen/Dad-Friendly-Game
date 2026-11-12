@@ -378,7 +378,7 @@ focus)` (`showCard`, the model's open or close, and the focus once as it
    when the store throws), `createSoundKey` turns it through the board's
    model, and `playHammer` is the knock. `screen-panels` makes the one
    setting and hands it to the Ledger and to the Workshop, whose craft
-   knock reads it. Its parts never reorder, so it sends no `layout`. A page goes in the list's place
+   knock reads it. The Ledger's parts never reorder, so it sends no `layout`. A page goes in the list's place
    through `BoardSheet.showPage(page)` (#375): the head and Back stay, it
    calls `page()` so the settle starts again, and it focuses the page's
    first control; `showPage(undefined)` and `close` bring the list back.

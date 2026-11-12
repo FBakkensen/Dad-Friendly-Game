@@ -452,7 +452,7 @@ describe("the Workshop drawer (#374)", () => {
     ).toBe(false);
   });
 
-  it("sound: no key of its own; a craft knocks only once the Ledger's Sound is on (#491)", () => {
+  it("sound: no key of its own; a craft knocks only while the Ledger's Sound is on (#491)", () => {
     const started: number[] = [];
     class FakeAudio {
       readonly sampleRate = 8_000;
@@ -497,6 +497,27 @@ describe("the Workshop drawer (#374)", () => {
       clock += PAST_SETTLE;
       pageTo(loud, "axle-grease").click();
       expect(started).toHaveLength(1);
+      loud.root.remove();
+
+      // One screen: the Ledger's key turns it on (one knock), and the Workshop's craft hears it.
+      const turned = mount(rich(), { tapClock: () => clock });
+      keyOf(turned, "ledger").click();
+      clock += PAST_SETTLE;
+      turned.root
+        .querySelector<HTMLButtonElement>(
+          '.board-sheet[data-sheet="ledger"] .sound-key',
+        )
+        ?.click();
+      expect(started).toHaveLength(2);
+      escape();
+      clock += PAST_SETTLE;
+      keyOf(turned, "workshop").click();
+      clock += PAST_SETTLE;
+      pageTo(turned, "axle-grease").click();
+      expect(turned.progress.getSnapshot().mountain.bench?.recipe).toBe(
+        "axle-grease",
+      );
+      expect(started).toHaveLength(3);
     } finally {
       window.AudioContext = previous;
     }
