@@ -25,7 +25,14 @@ import {
 import { callTo } from "./expeditions";
 import { tapWithPick } from "./lost-tools";
 import type { Mountain } from "./mountain";
-import { TIERS, owned, tierById, type TierId } from "./tiers";
+import {
+  TIERS,
+  isMachine,
+  owned,
+  tierById,
+  type MachineId,
+  type TierId,
+} from "./tiers";
 import { hasRelic } from "./relics";
 import {
   biggestFirst,
@@ -33,6 +40,7 @@ import {
   staffMachines,
   staffWith,
   type StaffSlot,
+  type Staffing,
 } from "./staffing";
 import { boostById, boostLeft } from "./boosts";
 import { rushPerSecond } from "./gold-rush";
@@ -282,7 +290,7 @@ function staffCrew(
 ): Record<TierId, number> {
   const slots = staffSlots(mountain, steady);
   const hands = mountain.helpers + mountain.kids;
-  const weigh = (staffing: ReadonlyMap<TierId, number>): Weighed => {
+  const weigh = (staffing: Staffing): Weighed => {
     const running = runningOf(mountain, staffing);
     return {
       staffing,
@@ -301,7 +309,7 @@ function staffCrew(
 }
 
 type Weighed = {
-  readonly staffing: ReadonlyMap<TierId, number>;
+  readonly staffing: Staffing;
   readonly running: Record<TierId, number>;
   readonly stones: number;
 };
@@ -314,16 +322,16 @@ function climb(
   slots: readonly StaffSlot[],
   hands: number,
   start: Weighed,
-  weigh: (staffing: ReadonlyMap<TierId, number>) => Weighed,
+  weigh: (staffing: Staffing) => Weighed,
 ): Weighed {
   const steps = climbSteps(slots);
   let best = start;
   for (let moved = true; moved;) {
     moved = false;
     for (const step of steps) {
-      const counts = new Map(best.staffing);
+      const counts = { ...best.staffing };
       for (const [id, by] of step) {
-        counts.set(id, (counts.get(id) ?? 0) + by);
+        counts[id] += by;
       }
       const staffing = staffWith(slots, hands, counts);
       const next = staffing === undefined ? undefined : weigh(staffing);
@@ -339,9 +347,9 @@ function climb(
 /** Each big machine ±1, and each pair of kinds traded one for one. */
 function climbSteps(
   slots: readonly StaffSlot[],
-): readonly (readonly [TierId, number])[][] {
+): readonly (readonly [MachineId, number])[][] {
   const big = slots.filter((slot) => slot.staff > 1).map((slot) => slot.id);
-  const steps: (readonly [TierId, number])[][] = [];
+  const steps: (readonly [MachineId, number])[][] = [];
   for (const id of big) {
     steps.push([[id, 1]], [[id, -1]]);
     for (const other of big) {
@@ -361,21 +369,17 @@ function staffSlots(
   mountain: Mountain,
   steady: Readonly<Record<TierId, number>>,
 ): StaffSlot[] {
-  return [...TIERS].reverse().flatMap((tier) => {
-    const staff = staffNeeded(mountain, tier);
-    if (staff === 0) {
-      return [];
-    }
-    const tenths = scaledTenths(tier.id, engineerTenths(mountain, tier.id));
-    return [
-      {
+  return TIERS.filter(isMachine)
+    .reverse()
+    .map((tier) => {
+      const tenths = scaledTenths(tier.id, engineerTenths(mountain, tier.id));
+      return {
         id: tier.id,
-        staff,
+        staff: staffNeeded(mountain, tier),
         count: owned(mountain, tier),
         speed: (steady[tier.id] * (10 + tenths)) / 10,
-      },
-    ];
-  });
+      };
+    });
 }
 
 /**
@@ -415,7 +419,7 @@ function slotGuesses(
 
 function withSpeed(
   slots: readonly StaffSlot[],
-  id: TierId,
+  id: MachineId,
   speed: number,
 ): StaffSlot[] {
   return slots.map((slot) => (slot.id === id ? { ...slot, speed } : slot));
@@ -423,18 +427,9 @@ function withSpeed(
 
 function runningOf(
   mountain: Mountain,
-  staffing: ReadonlyMap<TierId, number>,
+  staffing: Staffing,
 ): Record<TierId, number> {
-  const running = {
-    helper: mountain.helpers,
-    kid: mountain.kids,
-  } as Record<TierId, number>;
-  for (const tier of TIERS) {
-    if (staffNeeded(mountain, tier) > 0) {
-      running[tier.id] = staffing.get(tier.id) ?? 0;
-    }
-  }
-  return running;
+  return { helper: mountain.helpers, kid: mountain.kids, ...staffing };
 }
 
 /** What the machines and hands mine with this staffing, tending included. */

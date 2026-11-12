@@ -1,13 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { staffMachines, type StaffSlot } from "./staffing";
-import type { TierId } from "./tiers";
+import { staffMachines, type StaffSlot, type Staffing } from "./staffing";
 
-function stonesOf(
-  slots: readonly StaffSlot[],
-  running: ReadonlyMap<TierId, number>,
-): number {
+function stonesOf(slots: readonly StaffSlot[], running: Staffing): number {
   return slots.reduce(
-    (total, slot) => total + (running.get(slot.id) ?? 0) * slot.speed,
+    (total, slot) => total + running[slot.id] * slot.speed,
     0,
   );
 }
@@ -60,10 +56,10 @@ describe("staffMachines (#500)", () => {
     });
     const fifteen = staffMachines(crew, 15);
     const sixteen = staffMachines(crew, 16);
-    expect(fifteen.get("borer")).toBe(0);
-    expect(fifteen.get("drill")).toBe(15);
-    expect(sixteen.get("borer")).toBe(0);
-    expect(sixteen.get("drill")).toBe(16);
+    expect(fifteen.borer).toBe(0);
+    expect(fifteen.drill).toBe(15);
+    expect(sixteen.borer).toBe(0);
+    expect(sixteen.drill).toBe(16);
   });
 
   it("still runs the borer when it beats the drills its hands leave", () => {
@@ -74,8 +70,8 @@ describe("staffMachines (#500)", () => {
       machine: 0,
     });
     const running = staffMachines(crew, 10);
-    expect(running.get("borer")).toBe(1);
-    expect(running.get("drill")).toBe(2);
+    expect(running.borer).toBe(1);
+    expect(running.drill).toBe(2);
   });
 
   it("runs two borers over a machine that would strand six hands", () => {
@@ -86,8 +82,8 @@ describe("staffMachines (#500)", () => {
       machine: 1_000,
     });
     const running = staffMachines(crew, 16);
-    expect(running.get("borer")).toBe(2);
-    expect(running.get("machine")).toBe(0);
+    expect(running.borer).toBe(2);
+    expect(running.machine).toBe(0);
   });
 
   it("keeps the bigger machines on a tie", () => {
@@ -97,7 +93,7 @@ describe("staffMachines (#500)", () => {
       borer: 80,
       machine: 0,
     });
-    expect(staffMachines(crew, 8).get("borer")).toBe(1);
+    expect(staffMachines(crew, 8).borer).toBe(1);
   });
 
   it("is the best staffing there is, and one more hand never mines less", () => {
@@ -126,7 +122,7 @@ describe("staffMachines (#500)", () => {
         const stones = stonesOf(crew, running);
         expect(stones).toBeCloseTo(bruteBest(crew, hands), 6);
         const used = crew.reduce(
-          (total, slot) => total + (running.get(slot.id) ?? 0) * slot.staff,
+          (total, slot) => total + running[slot.id] * slot.staff,
           0,
         );
         expect(used).toBeLessThanOrEqual(hands);

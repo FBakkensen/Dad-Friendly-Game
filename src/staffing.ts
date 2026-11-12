@@ -1,8 +1,8 @@
-import type { TierId } from "./tiers";
+import type { MachineId } from "./tiers";
 
 /** One kind of machine the crew can staff. */
 export type StaffSlot = {
-  readonly id: TierId;
+  readonly id: MachineId;
   /** Hands one of them takes to run. */
   readonly staff: number;
   /** How many are owned. */
@@ -11,10 +11,15 @@ export type StaffSlot = {
   readonly speed: number;
 };
 
+/** How many of each machine run. */
+export type Staffing = Readonly<Record<MachineId, number>>;
+
 type Pick = {
   readonly stones: number;
-  readonly running: ReadonlyMap<TierId, number>;
+  readonly running: Staffing;
 };
+
+const NONE_RUNNING: Staffing = { cart: 0, drill: 0, borer: 0, machine: 0 };
 
 /** Float dust between two equal crews never moves a hand. */
 export function moreStones(stones: number, than: number): boolean {
@@ -33,15 +38,16 @@ export function moreStones(stones: number, than: number): boolean {
 export function staffMachines(
   slots: readonly StaffSlot[],
   hands: number,
-): ReadonlyMap<TierId, number> {
-  const fillers = slots
+): Staffing {
+  const fillers = fastestFirst(slots);
+  const big = slots.filter((slot) => slot.staff > 1);
+  return bestFrom(big, 0, Math.max(0, hands), fillers).running;
+}
+
+function fastestFirst(slots: readonly StaffSlot[]): StaffSlot[] {
+  return slots
     .filter((slot) => slot.staff === 1)
     .sort((a, b) => b.speed - a.speed);
-  const big = slots.filter((slot) => slot.staff > 1);
-  const pick = bestFrom(big, 0, Math.max(0, hands), fillers);
-  return new Map(
-    slots.map((slot) => [slot.id, pick.running.get(slot.id) ?? 0]),
-  );
 }
 
 /**
@@ -57,22 +63,29 @@ function bestFrom(
 ): Pick {
   const slot = big[index];
   if (slot === undefined) {
-    return fill(fillers, hands);
+    return fill(fillers, hands, NONE_RUNNING);
   }
   const most = Math.min(slot.count, Math.floor(hands / slot.staff));
   const counts =
     index === big.length - 1
       ? bendCounts(slot, most, hands, fillers)
       : Array.from({ length: most + 1 }, (_, n) => most - n);
-  let best: Pick | undefined;
-  for (const n of counts) {
+  const tryCount = (n: number): Pick => {
     const rest = bestFrom(big, index + 1, hands - n * slot.staff, fillers);
-    const stones = rest.stones + n * slot.speed;
-    if (best === undefined || moreStones(stones, best.stones)) {
-      best = { stones, running: new Map(rest.running).set(slot.id, n) };
+    return {
+      stones: rest.stones + n * slot.speed,
+      running: { ...rest.running, [slot.id]: n },
+    };
+  };
+  // The counts run most first, so a tie keeps the most.
+  let best = tryCount(most);
+  for (const n of counts) {
+    const next = tryCount(n);
+    if (moreStones(next.stones, best.stones)) {
+      best = next;
     }
   }
-  return best ?? fill(fillers, hands);
+  return best;
 }
 
 /**
@@ -98,18 +111,22 @@ function bendCounts(
   return [...counts].sort((a, b) => b - a);
 }
 
-/** One-hand machines, fastest first, as far as the hands go. */
-function fill(fillers: readonly StaffSlot[], hands: number): Pick {
-  const running = new Map<TierId, number>();
+/** One-hand machines, fastest first, as far as the hands go, on `running`. */
+function fill(
+  fillers: readonly StaffSlot[],
+  hands: number,
+  running: Staffing,
+): Pick {
+  const filled = { ...running };
   let free = hands;
   let stones = 0;
   for (const filler of fillers) {
     const n = Math.min(filler.count, free);
-    running.set(filler.id, n);
+    filled[filler.id] = n;
     free -= n;
     stones += n * filler.speed;
   }
-  return { stones, running };
+  return { stones, running: filled };
 }
 
 /**
@@ -120,33 +137,33 @@ function fill(fillers: readonly StaffSlot[], hands: number): Pick {
 export function biggestFirst(
   slots: readonly StaffSlot[],
   hands: number,
-): ReadonlyMap<TierId, number> {
-  const running = new Map<TierId, number>();
+): Staffing {
+  const running = { ...NONE_RUNNING };
   let free = Math.max(0, hands);
   for (const slot of slots) {
     const n = Math.min(slot.count, Math.floor(free / slot.staff));
-    running.set(slot.id, n);
+    running[slot.id] = n;
     free -= n * slot.staff;
   }
   return running;
 }
 
 /**
- * The staffing with `big` machines running and the one-hand machines
- * filled fastest first from the hands left, or undefined when the hands
- * or the machines owned are too few.
+ * `staffing` with its big machines kept and the one-hand machines filled
+ * fastest first from the hands left, or undefined when the hands or the
+ * machines owned are too few.
  */
 export function staffWith(
   slots: readonly StaffSlot[],
   hands: number,
-  big: ReadonlyMap<TierId, number>,
-): ReadonlyMap<TierId, number> | undefined {
+  staffing: Staffing,
+): Staffing | undefined {
   let free = hands;
   for (const slot of slots) {
-    const n = big.get(slot.id) ?? 0;
-    if (slot.staff === 1 || n === 0) {
+    if (slot.staff === 1) {
       continue;
     }
+    const n = staffing[slot.id];
     if (n < 0 || n > slot.count) {
       return undefined;
     }
@@ -155,14 +172,5 @@ export function staffWith(
   if (free < 0) {
     return undefined;
   }
-  const fillers = slots
-    .filter((slot) => slot.staff === 1)
-    .sort((a, b) => b.speed - a.speed);
-  const running = new Map(fill(fillers, free).running);
-  for (const slot of slots) {
-    if (slot.staff > 1) {
-      running.set(slot.id, big.get(slot.id) ?? 0);
-    }
-  }
-  return running;
+  return fill(fastestFirst(slots), free, staffing).running;
 }
