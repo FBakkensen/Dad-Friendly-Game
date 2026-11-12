@@ -207,7 +207,8 @@ export function createBoostDial({ onOpen }: { onOpen: () => void }): BoostDial {
     const running = boost.kind === "running";
     const clock = running ? chipTime(boost.leftMs) : "rested";
     const mark = multiplierMark(running ? boost.multiplier : 1);
-    name.textContent = running ? boost.name : "Crew";
+    // At rest the dial is the crew's pace, so the crew plate keeps the one CREW label (#508).
+    name.textContent = running ? boost.name : "Pace";
     mul.textContent = mark;
     left.textContent = clock;
     word.textContent = running ? "left" : "";
@@ -216,7 +217,7 @@ export function createBoostDial({ onOpen }: { onOpen: () => void }): BoostDial {
       "aria-label",
       running
         ? `${boost.name}, crew ${mark}, ${clock} left`
-        : `Crew ${mark}, rested`,
+        : `Pace ${mark}, rested`,
     );
   };
   set({ kind: "rested" });

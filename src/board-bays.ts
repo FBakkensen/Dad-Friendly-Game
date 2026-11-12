@@ -29,7 +29,7 @@ import {
   TROUBLE_FIXED,
   workerWords,
 } from "./screen-words";
-import { lockAria, lockRateLine } from "./tier-lock-words";
+import { lockAria, lockRateLine, lockShortLine } from "./tier-lock-words";
 import { tierById, type MachineId } from "./tiers";
 import { watchFixHold } from "./trouble-tap";
 
@@ -82,13 +82,17 @@ export function bandWords(mountain: { readonly remaining: number }): string {
  */
 export function bayLines(view: BayView): readonly string[] {
   switch (view.kind) {
-    case "locked":
-      return [lockRateLine(tierById(view.tier), view.lock)];
+    case "locked": {
+      const short = lockShortLine(view.lock);
+      const line = lockRateLine(view.lock);
+      // Lined up with an open bay's three: the full line twice, then the short one.
+      return short === undefined ? [line] : [line, line, short];
+    }
     case "trouble":
       return [`${troubleShout(view.trouble)} · Hold to fix`];
     case "open": {
       const gain = `+${formatSpeed(view.gain)}/s`;
-      const hands = `${gain} · ${formatCount(view.staff)} ${view.staff === 1 ? "hand" : "hands"}`;
+      const hands = `${gain} · ${formatCount(view.staff)} ${workerWords(view.staff)}`;
       return [
         milestoneLine(view.tier, view.count, formatCompact) ?? hands,
         hands,

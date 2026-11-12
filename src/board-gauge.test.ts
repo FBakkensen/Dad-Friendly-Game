@@ -121,7 +121,7 @@ describe("createOutputGauge", () => {
         (mark) => mark.textContent,
       ),
     ).toEqual(["0", "5", "10", "15"]);
-    expect(text(gauge.root, ".board-gauge-legend")).toBe("Stones a sec");
+    expect(text(gauge.root, ".board-gauge-legend")).toBe("Stones a second");
     const counter = gauge.root.querySelector("img.board-gauge-counter");
     expect(counter?.getAttribute("alt")).toBe("");
     const sheet = gauge.root.querySelector<HTMLElement>(".board-gauge-face");

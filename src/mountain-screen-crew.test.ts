@@ -322,7 +322,7 @@ describe("the Buys drawer (#373)", () => {
               : (part.className.split(" ")[0] ?? ""),
       );
     expect(order).toEqual([
-      "sec:Crewper sec",
+      "sec:Crewper second",
       "crew",
       "row:helper",
       "sec:Machines",
@@ -2745,7 +2745,7 @@ describe("lasting upgrades on screen", () => {
       lastSeen: Date.now() - (2 * 60 + 5) * 60_000,
     });
     const screen = mountScreen({ storage });
-    expect(screen.text(".welcome-mined")).toBe("+11.2 thousand stones");
+    expect(screen.text(".welcome-mined")).toBe("+11.2K stones");
     expect(screen.text(".welcome-detail")).toBe(
       "You were gone 2 hours 5 minutes. Your crew kept digging the whole time.",
     );
@@ -3297,7 +3297,7 @@ describe("Shield of Protection on the welcome card", () => {
       lastSeen: Date.now() - 30 * 3_600_000,
     });
     const screen = mountScreen({ storage });
-    expect(screen.text(".welcome-mined")).toBe("+25.9 thousand stones");
+    expect(screen.text(".welcome-mined")).toBe("+25.9K stones");
     expect(screen.text(".welcome-detail")).toBe(
       "You were gone 1 day 6 hours. Your crew saved a full day's haul for you. Good to have you back.",
     );

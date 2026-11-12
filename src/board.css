@@ -3030,10 +3030,9 @@ button.board-row:focus-visible {
 /* The cards stand at the board card's z-index, in the root's order
    (screen-panels#cardsFrom). */
 
-/* The haul's number never breaks; its unit stands smaller beside it, and
-   drops to the next line only when the two do not fit. */
-.welcome-mined-count,
-.welcome-mined-unit {
+/* The haul is one line (#508): the board's short figure ("+947.1K") and its
+   unit, smaller, beside it. */
+.welcome-mined {
   white-space: nowrap;
 }
 

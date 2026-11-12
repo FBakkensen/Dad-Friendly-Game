@@ -317,13 +317,14 @@ export const crewGrewWords = (joined: number, alone: boolean): string =>
   `${alone ? "" : "Your crew grew: "}${formatCount(joined)} ${workerWords(joined)} joined to run your machines.`;
 
 /**
- * The welcome card's big number and its unit, read together: "+1.2 million stones", "+1 stone".
+ * The welcome card's big number and its unit, read together: "+1.2M stones", "+1 stone".
  * The card sets the unit smaller beside the number.
  */
 export const awayMinedWords = (
   mined: number,
 ): { readonly count: string; readonly unit: "stone" | "stones" } => ({
-  count: `+${formatCount(mined)}`,
+  // The board's short figures (#508): "+947.1K", never "+947.1 thousand".
+  count: `+${formatCompact(mined)}`,
   unit: mined === 1 ? "stone" : "stones",
 });
 
@@ -1497,5 +1498,6 @@ export function veinWords(reward: number, rush: boolean): string {
  * (#468): they come in as the crew digs ×10. Flemming, 11 Nov 2026.
  */
 export function rushHeldWords(held: number): string {
-  return `${formatCount(held)} of them wait for your Gold rush: watch for the golden vein.`;
+  // The welcome card's short figures (#508): "474.8K", like the haul above it.
+  return `${formatCompact(held)} of them wait for your Gold rush: watch for the golden vein.`;
 }

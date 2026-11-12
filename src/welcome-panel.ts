@@ -35,7 +35,7 @@ function welcomeParts(): WelcomeParts {
     el("span", "welcome-ore-use is-quiet", AWAY_MATERIALS_USE),
   );
   ore.append(oreArt, oreText);
-  // The haul: the number kept whole, then its unit, smaller, on the same line when it fits.
+  // The haul: the short figure, then its unit, smaller, on one line (#508).
   const mined = el("p", "board-card-big welcome-mined");
   const minedCount = el("span", "welcome-mined-count");
   const minedUnit = el("span", "welcome-mined-unit");

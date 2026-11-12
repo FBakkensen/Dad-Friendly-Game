@@ -294,7 +294,7 @@ function guidedFace(facts: BuyFacts): Face {
 function lockedFace(tier: Tier, lock: TierLock): Face {
   return {
     state: "locked",
-    info: [lockBodyLine(tier, lock), lockRateLine(tier, lock)],
+    info: [lockBodyLine(tier, lock), lockRateLine(lock)],
     need: "",
     price: "Locked",
     dimTag: true,

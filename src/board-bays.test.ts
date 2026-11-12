@@ -40,7 +40,7 @@ afterEach(() => {
   document.body.replaceChildren();
 });
 
-const fits = (el: HTMLElement): boolean => el.textContent.length <= 16;
+const fits = (el: HTMLElement): boolean => el.textContent.length <= 20;
 
 const mined = (stones: number): { remaining: number } => ({
   remaining: MOUNTAIN_STONES - stones,
@@ -232,18 +232,18 @@ describe("bandWords", () => {
 });
 
 describe("bayLines", () => {
-  it("offers an open bay's milestone, then gain and hands, then gain", () => {
+  it("offers an open bay's milestone, then gain and workers, then gain", () => {
     const lines = bayLines(cart());
     expect(lines).toEqual([
       milestoneLine("cart", 12, formatCompact),
-      "+12/s · 1 hand",
+      "+12/s · 1 worker",
       "+12/s",
     ]);
     expect(lines[0]).toContain("12 of 25");
   });
 
-  it("counts several hands", () => {
-    expect(bayLines(borer())[1]).toBe("+357/s · 8 hands");
+  it("counts several workers (#508)", () => {
+    expect(bayLines(borer())[1]).toBe("+357/s · 8 workers");
   });
 
   it("keeps three options when the tier has no milestone left", () => {
@@ -253,41 +253,54 @@ describe("bayLines", () => {
   });
 
   it("reads the lock, or the trouble to fix", () => {
-    expect(bayLines(lockedBorer)).toEqual(["Borer · 10M"]);
+    expect(bayLines(lockedBorer)).toEqual([
+      "Opens at 10M stones",
+      "Opens at 10M stones",
+      "Opens at 10M",
+    ]);
     expect(bayLines(troubled("cart"))).toEqual(["Cave-in! · Hold to fix"]);
   });
 });
 
 describe("sharedPattern", () => {
-  const short = (_bay: number, text: string): boolean => text.length <= 16;
+  const short = (_bay: number, text: string): boolean => text.length <= 20;
 
   it("picks the first pattern that fits every bay", () => {
+    const locked = [
+      "Opens at 10M stones",
+      "Opens at 10M stones",
+      "Opens at 10M",
+    ];
     expect(
       sharedPattern(
         [
-          ["aaaaaaaaaaaaaaaaaaaa", "+12/s · 1 hand", "+12/s"],
-          ["Borer · 10M"],
-          ["+2.4K/s · 8 hands", "+2.4K/s · 8 hands", "+2.4K/s"],
+          ["a".repeat(24), "+12/s · 1 worker", "+12/s"],
+          locked,
+          ["+12.4K/s · 18 workers", "+12.4K/s · 18 workers", "+12.4K/s"],
         ],
         short,
       ),
-    ).toEqual(["+12/s", "Borer · 10M", "+2.4K/s"]);
+    ).toEqual(["+12/s", "Opens at 10M", "+12.4K/s"]);
     expect(
       sharedPattern(
         [
-          ["aaaaaaaaaaaaaaaaaaaa", "+12/s · 1 hand", "+12/s"],
-          ["Borer · 10M"],
-          ["+357/s · 8 hands", "+357/s · 8 hands", "+357/s"],
+          ["a".repeat(24), "+12/s · 1 worker", "+12/s"],
+          locked,
+          ["+357/s · 8 workers", "+357/s · 8 workers", "+357/s"],
         ],
         short,
       ),
-    ).toEqual(["+12/s · 1 hand", "Borer · 10M", "+357/s · 8 hands"]);
+    ).toEqual([
+      "+12/s · 1 worker",
+      "Opens at 10M stones",
+      "+357/s · 8 workers",
+    ]);
   });
 
   it("falls back to the last pattern when nothing fits", () => {
-    expect(
-      sharedPattern([["aaaaaaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbbbbbb"]], short),
-    ).toEqual(["bbbbbbbbbbbbbbbbbbbb"]);
+    expect(sharedPattern([["a".repeat(24), "b".repeat(24)]], short)).toEqual([
+      "b".repeat(24),
+    ]);
   });
 
   it("asks each bay with its own index", () => {
@@ -351,14 +364,16 @@ describe("createMachineBays", () => {
     expect(q(bay(bays, 0), ".board-bay-name").textContent).toBe("Mine cart");
     expect(q(bay(bays, 1), ".board-bay-name").textContent).toBe("Steam drill");
     expect(q(bay(bays, 2), ".board-bay-name").textContent).toBe("Tunnel borer");
-    // The milestone line is too long for 16, so all three read the gain and hands.
+    // The milestone line is too long for 20, so all three read the gain and workers.
     expect(q(bay(bays, 0), ".board-bay-sub").textContent).toBe(
-      "+12/s · 1 hand",
+      "+12/s · 1 worker",
     );
     expect(q(bay(bays, 1), ".board-bay-sub").textContent).toBe(
-      "+60/s · 2 hands",
+      "+60/s · 2 workers",
     );
-    expect(q(bay(bays, 2), ".board-bay-sub").textContent).toBe("Borer · 10M");
+    expect(q(bay(bays, 2), ".board-bay-sub").textContent).toBe(
+      "Opens at 10M stones",
+    );
   });
 
   it("shortens a name that does not fit", () => {

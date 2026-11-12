@@ -114,11 +114,11 @@ describe("createBoostDial", () => {
     );
   });
 
-  it("rests", () => {
+  it("rests, as the crew's Pace (#508)", () => {
     const dial = createBoostDial({ onOpen: () => undefined });
     dial.set(overtime);
     dial.set({ kind: "rested" });
-    expect(text(dial.root, ".board-dial-name")).toBe("Crew");
+    expect(text(dial.root, ".board-dial-name")).toBe("Pace");
     expect(text(dial.root, ".board-dial-mul")).toBe("×1");
     expect(text(dial.root, ".board-dial-left")).toBe("rested");
     expect(text(dial.root, ".board-dial-word")).toBe("");
@@ -126,7 +126,7 @@ describe("createBoostDial", () => {
       dial.root.querySelector<HTMLElement>(".board-dial-sprite")?.style
         .backgroundPositionX,
     ).toBe("0px");
-    expect(dial.root.getAttribute("aria-label")).toBe("Crew ×1, rested");
+    expect(dial.root.getAttribute("aria-label")).toBe("Pace ×1, rested");
   });
 
   it("a click opens", () => {
