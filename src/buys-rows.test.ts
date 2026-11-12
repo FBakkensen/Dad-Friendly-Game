@@ -13,7 +13,7 @@ import type { Trouble } from "./hazards";
 import { REACHED_LINE } from "./milestones";
 import type { RowLamp, RowState } from "./row-view";
 import { createMountain, type Mountain } from "./mountain";
-import { effectiveRates, tendingGain } from "./rates";
+import { effectiveRates, handsGain, tendingGain } from "./rates";
 import { readyNow, type ReadyPick } from "./ready-now";
 import { MOUNTAIN_STONES } from "./scale";
 import {
@@ -288,6 +288,23 @@ describe("buyRowView", () => {
     expect(row(broke, "drill", { trouble }).state).toBe("dear");
   });
 
+  it("a worker who starts an idle cart shows the cart too (#490)", () => {
+    // 3 workers on 6 carts: the next one starts a cart.
+    const mountain = mountainWith({ helpers: 3, carts: 6, pocket: 1_000 });
+    const rates = effectiveRates(mountain, NOW);
+    const both = rates.tierSpeed.helper + rates.tierSpeed.cart;
+    expect(handsGain(mountain, "helper", 1, NOW)).toBe(both);
+    expect(row(mountain, "helper").gain).toBe(`+${formatSpeed(both)}/s`);
+    // The staffing New row hires that same worker, so it says the same.
+    expect(row(mountain, "cart", { guided: "cart" }).gain).toBe(
+      `+${formatSpeed(both)}/s`,
+    );
+    // With every machine staffed he adds his own hands, as before.
+    expect(row(early, "helper").gain).toBe(
+      `+${formatSpeed(effectiveRates(early, NOW).tierSpeed.helper)}/s`,
+    );
+  });
+
   it("the guided New row hires", () => {
     // 2 workers run 2 carts; 4 stand idle.
     const idle = mountainWith({ helpers: 2, carts: 6 });
@@ -518,7 +535,7 @@ describe("buyRowView: ×10 and Max (#358)", () => {
       state: "ready",
       price: formatCompact(max.cost),
       verb: `Hire ${String(max.count)}`,
-      gain: `+${String(max.count)}/s`,
+      gain: `+${formatSpeed(handsGain(rich, "helper", max.count, NOW))}/s`,
     });
   });
 

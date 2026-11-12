@@ -4,7 +4,7 @@ import { tierLocked } from "./crew";
 import { staffForBuy } from "./engineers";
 import type { Trouble } from "./hazards";
 import { stonesPerSecond, type Mountain } from "./mountain";
-import { effectiveRates } from "./rates";
+import { effectiveRates, handsGain, startedTier, type TendTier } from "./rates";
 import { stretch } from "./scale";
 import {
   MACHINE_IDS,
@@ -20,7 +20,8 @@ export type ReadyTier = MachineId | "helper";
 /**
  * The plate's pick (#372): buy it now, save for it, or nothing left to dig.
  * `gain` is what one more adds, as the Buys card shows it; `free` is the
- * crew plate's free workers.
+ * crew plate's free workers. A worker who would start an idle machine names
+ * it in `starts`, and his gain counts it (#490).
  */
 export type ReadyPick =
   | {
@@ -29,6 +30,7 @@ export type ReadyPick =
       readonly price: number;
       readonly gain: number;
       readonly free: number;
+      readonly starts?: TendTier;
     }
   | {
       readonly kind: "saving";
@@ -36,6 +38,7 @@ export type ReadyPick =
       readonly price: number;
       readonly gain: number;
       readonly free: number;
+      readonly starts?: TendTier;
       /** At the current speed; undefined when that speed gives no time. */
       readonly etaMs: number | undefined;
     }
@@ -78,9 +81,16 @@ export function readyNow(
   const pick: Priced = affordable ??
     cheapest ?? { tier: "helper", price: priceOf("helper") };
 
-  const gain = effectiveRates(mountain, now, trouble).tierSpeed[pick.tier];
+  const { gain, started } = pickGain(mountain, pick.tier, now, trouble);
   if (mountain.pocket >= pick.price) {
-    return { kind: "ready", tier: pick.tier, price: pick.price, gain, free };
+    return {
+      kind: "ready",
+      tier: pick.tier,
+      price: pick.price,
+      gain,
+      free,
+      ...started,
+    };
   }
   // The wait reads the crew without a Gold rush: 90 seconds are not its pace (#468).
   const speed = stonesPerSecond(withoutRush(mountain), now, trouble);
@@ -91,9 +101,30 @@ export function readyNow(
     price: pick.price,
     gain,
     free,
+    ...started,
     etaMs:
       speed > 0 && Number.isFinite(speed) && Number.isFinite(etaMs)
         ? etaMs
         : undefined,
+  };
+}
+
+/** What the pick adds: a machine its own speed, a worker the crew's rise and what he starts. */
+function pickGain(
+  mountain: Mountain,
+  tier: ReadyTier,
+  now: number,
+  trouble: Trouble | undefined,
+): { readonly gain: number; readonly started: { readonly starts?: TendTier } } {
+  if (tier !== "helper") {
+    return {
+      gain: effectiveRates(mountain, now, trouble).tierSpeed[tier],
+      started: {},
+    };
+  }
+  const starts = startedTier(mountain, now, trouble);
+  return {
+    gain: handsGain(mountain, "helper", 1, now, trouble),
+    started: starts === undefined ? {} : { starts },
   };
 }

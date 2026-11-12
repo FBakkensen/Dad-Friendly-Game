@@ -5,7 +5,7 @@ import { formatCompact, formatCount } from "./format";
 import type { Trouble } from "./hazards";
 import { REACHED_LINE, milestoneLine } from "./milestones";
 import type { Mountain } from "./mountain";
-import { effectiveRates, tendingGain } from "./rates";
+import { effectiveRates, handsGain, tendingGain } from "./rates";
 import type { ReadyPick } from "./ready-now";
 import type { RowView } from "./row-view";
 import { stretch } from "./scale";
@@ -420,6 +420,24 @@ function buyAria(
 }
 
 /**
+ * What the row's buy adds. Workers and kids add the crew's rise, with the idle machines they
+ * start (#490); the staffing New row hires one worker. A machine adds its own speed per one.
+ */
+function rowGain(
+  facts: BuyFacts,
+  now: number,
+  trouble: Trouble | undefined,
+): number {
+  const { mountain, id, isGuided, speed, gaining } = facts;
+  if (isGuided) {
+    return handsGain(mountain, "helper", 1, now, trouble);
+  }
+  return id === "helper" || id === "kid"
+    ? handsGain(mountain, id, gaining, now, trouble)
+    : speed * gaining;
+}
+
+/**
  * One tier's Buys row, from what today's card reads. Display only: it reads
  * the mountain and never buys; only a tap buys. Trouble wins, then the
  * staffing New row, then a lock, then too dear, then short of workers.
@@ -427,8 +445,7 @@ function buyAria(
 export function buyRowView(input: BuyInput): BuyRowView {
   const { mountain, now, trouble } = input;
   const facts = buyFacts(input);
-  const { id, tier, lock, troubled, isGuided, count, speed, buying, gaining } =
-    facts;
+  const { id, tier, lock, troubled, isGuided, count, buying } = facts;
   const tending = tendingOf(mountain, tier, now, trouble);
   return {
     tier: id,
@@ -444,7 +461,7 @@ export function buyRowView(input: BuyInput): BuyRowView {
     gain:
       lock !== undefined || troubled !== undefined
         ? ""
-        : `+${formatSpeed(speed * gaining)}/s`,
+        : `+${formatSpeed(rowGain(facts, now, trouble))}/s`,
     pick: facts.isPick,
     aria: buyAria(facts, tending, tierSynergy(mountain, id)),
   };
