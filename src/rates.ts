@@ -484,29 +484,87 @@ export function firstTend(
 
 const STAFFED_TIERS = ["machine", "borer", "drill", "cart"] as const;
 
+/** The crew's speed before crew timers and the Gold rush: what its machines and hands mine. */
+function baseOutput(rates: Rates): number {
+  return outputOf(rates.tierSpeed, rates.running);
+}
+
+/** The mountain with `count` more workers or kids. */
+function withHands(
+  mountain: Mountain,
+  tier: "helper" | "kid",
+  count: number,
+): Mountain {
+  return tier === "helper"
+    ? { ...mountain, helpers: mountain.helpers + count }
+    : { ...mountain, kids: mountain.kids + count };
+}
+
+/**
+ * What `count` more workers or kids add to the crew (#490): the crew's speed
+ * with them less its speed now, before crew timers and the Gold rush. It
+ * counts the idle machines they start, so the Ready now plate and the Buys
+ * rows say what the crew line will gain, not only their own hands.
+ */
+export function handsGain(
+  mountain: Mountain,
+  tier: "helper" | "kid",
+  count: number,
+  now?: number,
+  trouble?: Trouble,
+): number {
+  const before = baseOutput(effectiveRates(mountain, now, trouble));
+  const after = baseOutput(
+    effectiveRates(withHands(mountain, tier, count), now, trouble),
+  );
+  return after - before;
+}
+
+/** The idle kinds of machine, biggest first, and the rates that say so. */
+function idleTiers(
+  mountain: Mountain,
+  now?: number,
+  trouble?: Trouble,
+): { readonly rates: Rates; readonly idle: readonly TendTier[] } {
+  const rates = effectiveRates(mountain, now, trouble);
+  const idle = STAFFED_TIERS.filter(
+    (id) => owned(mountain, tierById(id)) > rates.running[id],
+  );
+  return { rates, idle };
+}
+
+/**
+ * The idle machine one more worker really starts (#490), read from the
+ * rates with him. Undefined when nothing stands idle, or when one more
+ * worker starts nothing yet (a borer still short of its eight).
+ */
+export function startedTier(
+  mountain: Mountain,
+  now?: number,
+  trouble?: Trouble,
+): TendTier | undefined {
+  const { rates, idle } = idleTiers(mountain, now, trouble);
+  if (idle.length === 0) {
+    return undefined;
+  }
+  const hired = effectiveRates(withHands(mountain, "helper", 1), now, trouble);
+  return idle.find((id) => hired.running[id] > rates.running[id]);
+}
+
 /**
  * The first idle machine (#246): the one the next hired worker really
- * starts, read from the rates with one more worker. When one worker starts
- * nothing yet, the biggest idle kind. Undefined when nothing stands idle.
+ * starts. When one worker starts nothing yet, the biggest idle kind.
+ * Undefined when nothing stands idle.
  */
 export function firstIdleTier(
   mountain: Mountain,
   now?: number,
   trouble?: Trouble,
 ): TendTier | undefined {
-  const rates = effectiveRates(mountain, now, trouble);
-  const idle = STAFFED_TIERS.filter(
-    (id) => owned(mountain, tierById(id)) > rates.running[id],
+  return (
+    startedTier(mountain, now, trouble) ??
+    idleTiers(mountain, now, trouble).idle[0]
   );
-  if (idle.length === 0) {
-    return undefined;
-  }
-  const hired = effectiveRates(
-    { ...mountain, helpers: mountain.helpers + 1 },
-    now,
-    trouble,
-  );
-  return idle.find((id) => hired.running[id] > rates.running[id]) ?? idle[0];
 }
 
 /**
