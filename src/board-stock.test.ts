@@ -1,6 +1,11 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createBoostDial, createOdometer } from "./board-stock";
+import {
+  createBoostDial,
+  createOdometer,
+  ODO_DOT_LEFT,
+  ODO_DRUMS,
+} from "./board-stock";
 import type { CrewBoost } from "./crew-boost";
 
 const faces = (root: HTMLElement) =>
@@ -13,6 +18,18 @@ beforeEach(() => {
 });
 afterEach(() => {
   vi.useRealTimers();
+});
+
+describe("the odometer's point", () => {
+  it("stands in the gap between two drums, four art px wide (#507)", () => {
+    // board.css draws the point 4 art px wide (pinned in style.test.ts).
+    ODO_DOT_LEFT.forEach((left, i) => {
+      const [drumLeft = 0, drumWidth = 0] = ODO_DRUMS[i] ?? [];
+      const [nextLeft = 0] = ODO_DRUMS[i + 1] ?? [];
+      expect(left).toBeGreaterThanOrEqual(drumLeft + drumWidth);
+      expect(left + 4).toBeLessThanOrEqual(nextLeft);
+    });
+  });
 });
 
 describe("createOdometer", () => {

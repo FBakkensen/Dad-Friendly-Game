@@ -138,7 +138,7 @@ describe("GAUGE_MARKS", () => {
     expect([zero?.[0], fifteen?.[0]]).toEqual(["0", "15"]);
     // At rest the needle lies from the hub (52, 52) down and left at 45°. This is how far the
     // mark's centre is from that line, on the side the needle rises to, in art px: a figure is
-    // under 4 across its corners and the needle 3 wide.
+    // under 4 across its corners and the needle about 5 wide there.
     const clear =
       (52 - (zero?.[1] ?? 0) - ((zero?.[2] ?? 0) - 52)) / Math.SQRT2;
     expect(clear).toBeGreaterThanOrEqual(5);

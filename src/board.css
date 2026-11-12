@@ -250,7 +250,7 @@ body {
 /* The point fills the gap between two drums, its foot on the figures' baseline (#507). */
 .board-odo-dot {
   left: calc(var(--art) * var(--at));
-  top: calc(var(--art) * 23);
+  top: calc(var(--art) * 22);
   width: calc(var(--art) * 4);
   height: calc(var(--art) * 4);
   z-index: 3;
@@ -1024,17 +1024,17 @@ body {
 }
 
 /* The unit stands on a small plate over the needle, so the needle never hides it (#507).
-   Nowhere among the marks is clear of the needle's sweep. */
+   Nowhere among the marks is clear of the needle's sweep, so the plate is as small as its
+   longest unit: it covers part of the needle's shaft while the needle points between 5 and 10. */
 .board-gauge-unit {
-  width: calc(var(--art) * 22);
-  line-height: calc(var(--art) * 8);
+  width: calc(var(--art) * 20);
   text-align: center;
   background: var(--board-gauge-face);
-  box-shadow: 0 0 0 var(--art) var(--board-gauge-rim);
+  outline: calc(var(--art) * 1) solid var(--board-gauge-rim);
 }
 
 /* The counter fills the wedge the needle never enters: 30 art px hold five characters at
-   20px, and its top corner stops at the needle's rest line (#507). */
+   20px. Its top corner clips the lower edge of the needle at rest, as it always did (#507). */
 .board-gauge-counter.board-skinned {
   position: absolute;
   left: calc(var(--art) * 37);

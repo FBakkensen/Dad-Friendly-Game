@@ -16,7 +16,8 @@ export interface Odometer {
 }
 
 /** Drum left edge and width, in art px. */
-const DRUMS: readonly (readonly [number, number])[] = [
+/** Each drum's left edge and width, in art px. */
+export const ODO_DRUMS: readonly (readonly [number, number])[] = [
   [13, 15],
   [32, 15],
   [52, 16],
@@ -24,7 +25,7 @@ const DRUMS: readonly (readonly [number, number])[] = [
   [92, 15],
 ];
 /** Where the point sits after drum 0..3, in art px. */
-const DOT_LEFT = [28, 48, 68, 88] as const;
+export const ODO_DOT_LEFT = [28, 48, 68, 88] as const;
 const DEC_FACES = [
   { n: 1, url: dec1Url, left: 32 },
   { n: 2, url: dec2Url, left: 52 },
@@ -69,7 +70,7 @@ export function createOdometer(): Odometer {
 
   root.append(image(odometerUrl, "board-odo-body"));
 
-  const drums = DRUMS.map(([left, width]) => {
+  const drums = ODO_DRUMS.map(([left, width]) => {
     const drum = span("board-drum board-num");
     at(drum, left);
     drum.style.setProperty("--w", String(width));
@@ -139,7 +140,7 @@ export function createOdometer(): Odometer {
 
   const set = (pocket: number): void => {
     const face = odometerFace(pocket);
-    const dotLeft = face.point === -1 ? undefined : DOT_LEFT[face.point];
+    const dotLeft = face.point === -1 ? undefined : ODO_DOT_LEFT[face.point];
     dot.hidden = dotLeft === undefined;
     if (dotLeft !== undefined) {
       at(dot, dotLeft);

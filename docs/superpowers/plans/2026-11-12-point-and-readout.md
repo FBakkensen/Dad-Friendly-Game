@@ -55,7 +55,7 @@
 - `SkinKind` gains `"counter"`: `gauge-counter.png` 25×11, corners 3 wide, 3 high at the top and 2 at the foot, its middle column and rows repeated; least height 11.
 - `GAUGE_MARKS` (exported from `src/board-gauge.ts`): `["0", 29.5, 65.5]`, `["5", 32.5, 32.5]`, `["10", 71.5, 32.5]`, `["15", 72, 65.5]`.
 - The counter: `span.board-gauge-counter.board-skinned` at (37, 66), 30×11 art px; the readout at (38, 68), 28×8, `--board-type-20`; the legend at top 78.
-- The unit: 22×8 art px centred on (52, 36), `--board-gauge-face` under a one-art-px `--board-gauge-rim` edge.
+- The unit: 20×7 art px centred on (52, 36.5), `--board-gauge-face` under a one-art-px `--board-gauge-rim` edge.
 
 - [ ] **Step 1: failing tests.** `nineSlicePlan("counter", 30, 11)` stays inside its box and covers every art px once; at 25×11 each blit copies its own place. `skinArtSize("counter", 60, 22)` is 30×11. The gauge's counter is a skinned span with a canvas, not an image. With the hub at (52, 52) and the needle at rest (−135°), the `0` mark's centre is 5 art px or more from the needle's line, on the side the needle rises to; the `15` mark mirrors its height. Style: the readout is `--board-type-20`; the unit has the face token as its background.
 - [ ] **Step 2:** run them, see them fail.
@@ -67,5 +67,5 @@
 ## Rulings while building
 
 - The multiplier stays among the marks, on a small cream plate drawn over the needle. Nowhere on the face is clear of the needle's sweep except the wedge under the hub, which holds the counter and the legend; under the counter `×1000` would read as multiplying the readout.
-- The `0` (and the `15`, to match) moves up beside its tick, so the needle at rest lies under it, not on it. The needle still passes the `0` between about 50 and 110 stones a second, on the first unit only.
-- The counter is 30 art px wide: five characters at 20px need 54px. It is the same art, stretched as the board's other frames are. It sits one art px lower, with the legend, so its corner stays off the resting needle.
+- The `0` (and the `15`, to match) moves up and a little round the dial from its tick, so the needle at rest lies under it, not on it. The needle still passes the `0` between about 50 and 110 stones a second, on the first unit only.
+- The counter is 30 art px wide: five characters at 20px need 54px. It is the same art, stretched as the board's other frames are. It sits one art px lower, with the legend; its corner still clips the lower edge of the resting needle, as it did.

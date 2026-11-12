@@ -527,7 +527,9 @@ describe("today's CSS", () => {
     );
     const unit = declared(".board-gauge-unit");
     expect(unit).toMatch(/background:\s*var\(--board-gauge-face\)/);
-    expect(unit).toMatch(/var\(--board-gauge-rim\)/);
+    expect(unit).toMatch(
+      /outline:\s*calc\(var\(--art\) \* 1\) solid var\(--board-gauge-rim\)/,
+    );
     // A skinned host is relative by default: the counter keeps its place on the face.
     expect(declared(".board-gauge-counter.board-skinned")).toMatch(
       /position:\s*absolute/,

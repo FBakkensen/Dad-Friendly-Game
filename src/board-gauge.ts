@@ -40,8 +40,8 @@ const LAMP_AMBER = 1;
 
 /**
  * The dial's marks and the unit, centred on these points in art px. The 5 and the 10 are the
- * mockup's. The 0 stands beside its tick, above the needle at rest, and the 15 level with it
- * (#507): on the tick's own line the resting needle lay over the 0.
+ * mockup's. The 0 stands above the needle at rest, a little round the dial from its tick,
+ * and the 15 level with it (#507): on the tick's own line the resting needle lay over the 0.
  */
 export const GAUGE_MARKS: readonly (readonly [string, number, number])[] = [
   ["0", 29.5, 65.5],
@@ -49,7 +49,8 @@ export const GAUGE_MARKS: readonly (readonly [string, number, number])[] = [
   ["10", 71.5, 32.5],
   ["15", 72, 65.5],
 ];
-const UNIT_AT = [52, 36] as const;
+/** The unit's plate is 7 art px tall: centred on a half, its edges are on the art grid. */
+const UNIT_AT = [52, 36.5] as const;
 
 /** Positions are art-pixel counts in custom properties; board.css multiplies by --art. */
 const at = (el: HTMLElement, left: number, top: number): void => {
