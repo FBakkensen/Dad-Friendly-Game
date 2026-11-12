@@ -20,8 +20,8 @@ import type { BenchRowView, MaterialPlate } from "./workshop-rows";
 /*
  * The Workshop drawer's own controls (#374): the material plates, the bench row with its bar
  * and its cancel confirm, and the pager (the sound key and the knock are in sound.ts, #491).
- * Built on the shared row, plate button, skin and board presses; only the Workshop has plates, a bench or a pager, so the shared row
- * and shell stay generic. Every press goes through the board's model, so a finger that lands
+ * Built on the shared row, plate button, skin and board presses; only the Workshop has plates,
+ * a bench or a pager, so the shared row and shell stay generic. Every press goes through the board's model, so a finger that lands
  * while the drawer settles is the second tap of the one that opened or paged it.
  */
 
