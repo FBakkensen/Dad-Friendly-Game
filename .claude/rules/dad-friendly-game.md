@@ -8,7 +8,7 @@ A dad-friendly game has at least these characteristics:
 
 - can be played in short interrupted sessions
 - is relaxing for the brain after a long day when the kids are finally asleep
-- can be played everywhere both PC and mobile
+- can be played on the phone, wherever the dad is
 - can survive instant quit and picked up later
 
 ## Session
@@ -27,7 +27,7 @@ Turn-based or idle are both in bounds. Real-time twitch play is not.
 
 ## Devices
 
-- One web app on phone and PC. Touch-first. Fat targets. Mouse uses the same UI.
+- One web app, phone-only (#498). Touch-first. Fat targets. A PC shows the same phone board, scaled and centred, and is not tested or designed for.
 - The phone layout never scrolls (the visual check guards it).
 - Same save on every device from day one. Identity is one-tap Google. Backend is a save blob, not a live world. No SpaceTimeDB.
 

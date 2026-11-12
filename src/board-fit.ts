@@ -1,22 +1,6 @@
 /** The board stage, in CSS px (212 x 462 art pixels at 2x). */
 export const BOARD_WIDTH = 424;
 export const BOARD_HEIGHT = 924;
-/**
- * Wider than any supported phone (412-440): only a PC or tablet is a desk. The scripts
- * (play, ui-audit, the visual check) import it too, so this module imports nothing.
- */
-export const DESK_MIN_WIDTH = 600;
-/** The empty margin kept round the board on a desk. */
-const DESK_LIP = 8;
-/** Half the desk pool's CSS size (340x480 art px at 2x): its centre is the window's (#376). */
-const POOL_HALF_W = 340;
-const POOL_HALF_H = 480;
-
-export interface BoardFit {
-  readonly scale: number;
-  readonly desk: boolean;
-}
-
 /** env(safe-area-inset-*) in CSS px: where a status bar, notch or gesture bar covers the page. */
 export interface SafeInsets {
   readonly top: number;
@@ -30,35 +14,20 @@ const NO_INSETS: SafeInsets = { top: 0, right: 0, bottom: 0, left: 0 };
 /**
  * How much to scale the whole board so it fits the window inside its safe
  * area. Never above 1; rounded down so it never overflows. With no insets
- * (the gate, a PC) the 424x924 phone keeps exact 2x.
+ * (the gate) the 424x924 phone keeps exact 2x. The game is phone-only: a wider
+ * window, such as a PC's, gets the same board, scaled to its height and centred.
  */
 export function boardFit(
   width: number,
   height: number,
   insets: SafeInsets = NO_INSETS,
-): BoardFit {
-  const desk = width >= DESK_MIN_WIDTH;
-  const lip = desk ? DESK_LIP : 0;
+): number {
   const raw = Math.min(
     1,
-    (width - insets.left - insets.right - 2 * lip) / BOARD_WIDTH,
-    (height - insets.top - insets.bottom - 2 * lip) / BOARD_HEIGHT,
+    (width - insets.left - insets.right) / BOARD_WIDTH,
+    (height - insets.top - insets.bottom) / BOARD_HEIGHT,
   );
-  return { scale: Math.floor(raw * 1000) / 1000, desk };
-}
-
-/**
- * Where the desk's pool and tile start (#376): the pool centred on the window, on an even
- * pixel, so the 2x art never lands on a half pixel and the tile's seams line up under it.
- */
-export function deskOrigin(
-  width: number,
-  height: number,
-): { readonly x: number; readonly y: number } {
-  return {
-    x: 2 * Math.round((width / 2 - POOL_HALF_W) / 2),
-    y: 2 * Math.round((height / 2 - POOL_HALF_H) / 2),
-  };
+  return Math.floor(raw * 1000) / 1000;
 }
 
 /**
@@ -89,24 +58,15 @@ export function readSafeInsets(doc: Document = document): SafeInsets {
   return insets;
 }
 
-/**
- * Keeps --board-scale, the desk's origin (--desk-x, --desk-y) and body.desk on the root in
- * step with the window size and its safe area. board-housing.ts mounts the housing body.desk
- * shows.
- */
+/** Keeps --board-scale on the root in step with the window size and its safe area. */
 export function trackBoardFit(
   win: Window = window,
   insets: () => SafeInsets = () => readSafeInsets(win.document),
 ): void {
   const doc = win.document;
   const apply = () => {
-    const { scale, desk } = boardFit(win.innerWidth, win.innerHeight, insets());
-    const origin = deskOrigin(win.innerWidth, win.innerHeight);
-    const root = doc.documentElement.style;
-    root.setProperty("--board-scale", String(scale));
-    root.setProperty("--desk-x", `${String(origin.x)}px`);
-    root.setProperty("--desk-y", `${String(origin.y)}px`);
-    doc.body.classList.toggle("desk", desk);
+    const scale = boardFit(win.innerWidth, win.innerHeight, insets());
+    doc.documentElement.style.setProperty("--board-scale", String(scale));
   };
   apply();
   win.addEventListener("resize", apply);

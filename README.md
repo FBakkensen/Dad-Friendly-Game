@@ -4,12 +4,12 @@ How the game plays is in `docs/DESIGN.md`. How it is built is in `docs/ARCHITECT
 
 ## Play-test in a browser
 
-`npm run play` opens the game in Chrome (puppeteer-core, on its own Vite dev server) on a phone screen and a desktop screen. It starts from a named save, runs a short list of taps, and keeps a shot after each step. It is how an agent proves a sliver in a real browser.
+`npm run play` opens the game in Chrome (puppeteer-core, on its own Vite dev server) on a phone screen (the game is phone-only, #498). It starts from a named save, runs a short list of taps, and keeps a shot after each step. It is how an agent proves a sliver in a real browser.
 
 ```bash
 npm run play -- tap:.board-window*5 label:Buys
-npm run play -- --save heart --search ?trouble=cave-in --screen phone
-npm run play -- --save mid --screen phone label:Engineers
+npm run play -- --save heart --search ?trouble=cave-in
+npm run play -- --save mid label:Engineers
 npm run play -- --help
 ```
 
@@ -66,7 +66,7 @@ npm run lab:sweep -- --morris 4 --sobol 16 --top 4 --days 30
 ## Field log reader
 
 Signed-in games copy a snapshot and the latest event ring to their device's
-`fieldLogs/{uid}/devices/{deviceId}` (#485), so the phone and the PC never
+`fieldLogs/{uid}/devices/{deviceId}` (#485), so two devices never
 overwrite each other. Builds before that wrote one account-wide
 `fieldLogs/{uid}`, which is still read. `tools/field-log.ts` reads those documents with the Firebase Admin SDK. It is
 not part of the game the player runs, and it is not bundled into the app.

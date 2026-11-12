@@ -253,17 +253,9 @@ export async function openPair(
   return { pages: [first, second], context, close: () => context.close() };
 }
 
-/** A tap on the phone, a click on a PC. */
-export async function press(
-  page: Page,
-  selector: string,
-  options: { readonly desk: boolean },
-): Promise<void> {
-  if (options.desk) {
-    await page.click(selector);
-  } else {
-    await page.tap(selector);
-  }
+/** A tap: the game is phone-only. */
+export async function press(page: Page, selector: string): Promise<void> {
+  await page.tap(selector);
 }
 
 interface Box {
@@ -276,36 +268,25 @@ interface Box {
 }
 
 /**
- * A finger (or the mouse button) held on the selector's centre, and lifted once `done(selector)`
- * holds in the page. True when it held before the timeout.
+ * A finger held on the selector's centre, and lifted once `done(selector)` holds in the
+ * page. True when it held before the timeout.
  */
 export async function holdThrough(
   page: Page,
   selector: string,
   done: (selector: string) => boolean,
-  options: { readonly desk: boolean },
 ): Promise<boolean> {
   const at = await page.$eval(selector, (el: Box) => {
     const b = el.getBoundingClientRect();
     return { x: (b.left + b.right) / 2, y: (b.top + b.bottom) / 2 };
   });
-  const desk = options.desk;
-  if (desk) {
-    await page.mouse.move(at.x, at.y);
-    await page.mouse.down();
-  } else {
-    await page.touchscreen.touchStart(at.x, at.y);
-  }
+  await page.touchscreen.touchStart(at.x, at.y);
   const held = await page
     .waitForFunction(done, { timeout: 3_000 }, selector)
     .then(
       () => true,
       () => false,
     );
-  if (desk) {
-    await page.mouse.up();
-  } else {
-    await page.touchscreen.touchEnd();
-  }
+  await page.touchscreen.touchEnd();
   return held;
 }

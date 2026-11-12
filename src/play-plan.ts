@@ -1,10 +1,8 @@
 /**
  * The pure half of `npm run play` (scripts/play.mjs): reads the command line
- * into a plan of one starting save, the screens, and a list of actions.
+ * into a plan of one starting save, the phone's size, and a list of actions.
  * The script owns the browser, the dev server, and the files.
  */
-import { DESK_MIN_WIDTH } from "./board-fit.ts";
-
 /** Something on the page to tap or wait for. */
 type PlayTarget =
   | { readonly by: "selector"; readonly selector: string }
@@ -19,27 +17,21 @@ export type PlayAction =
   | { readonly kind: "wait"; readonly ms: number }
   | { readonly kind: "waitFor"; readonly target: PlayTarget };
 
-export type PlayScreen = "phone" | "desktop";
-
-/** A viewport in CSS pixels: the phone's or the desktop's. */
+/** A viewport in CSS pixels: the phone's. The game is phone-only; a PC shows the same board. */
 type ScreenSize = { readonly width: number; readonly height: number };
 
 /** The phone: the board's own 424x924 stage, the installed app (#370). */
 const DEFAULT_PHONE: ScreenSize = { width: 424, height: 924 };
-/** The desktop: a PC, where the board sits on the desk (#376). */
-const DEFAULT_DESK: ScreenSize = { width: 1366, height: 768 };
 const MAX_SIDE = 4096;
 
 type PlayPlan = {
   readonly kind: "plan";
   readonly save: string;
-  readonly screens: readonly PlayScreen[];
   readonly actions: readonly PlayAction[];
   readonly out: string;
   /** A running app to drive instead of starting Vite. */
   readonly url: string | undefined;
   readonly phone: ScreenSize;
-  readonly desk: ScreenSize;
   /** Appended to the page URL, e.g. ?trouble=cave-in for the dev preview. */
   readonly search: string;
   /** 2 opens the save in two tabs and plays the second: the other-tab card. */
@@ -54,12 +46,9 @@ export const PLAY_USAGE = `Usage: npm run play -- [options] [action ...]
 
 Options:
   --save <name>      starting save (default: fresh)
-  --screen <which>   phone, desktop, or both (default: both)
   --out <dir>        where shots and the log go (default: play-shots)
   --url <url>        drive a running app instead of starting Vite
   --viewport <WxH>   the phone's size (default: 424x924, the board)
-  --desk <WxH>       the desktop's size (default: 1366x768; the PCs are
-                     1280x800, 1366x768 and 1440x900)
   --search <query>   added to the page URL, e.g. ?trouble=cave-in
   --tabs <1|2>       2 opens the save in two tabs and plays the second,
                      which shows the other-tab card (default: 1)
@@ -145,19 +134,6 @@ function parseSize(value: string): ScreenSize | undefined {
   return fits(width) && fits(height) ? { width, height } : undefined;
 }
 
-function parseScreens(value: string): readonly PlayScreen[] | undefined {
-  switch (value) {
-    case "phone":
-      return ["phone"];
-    case "desktop":
-      return ["desktop"];
-    case "both":
-      return ["phone", "desktop"];
-    default:
-      return undefined;
-  }
-}
-
 /** The plan as the flags fill it in. */
 type Draft = {
   -readonly [K in keyof Omit<PlayPlan, "kind" | "actions">]: PlayPlan[K];
@@ -178,14 +154,6 @@ const FLAGS: Readonly<Record<string, FlagSetter>> = {
       );
     }
     draft.save = value;
-    return undefined;
-  },
-  "--screen": (draft, value) => {
-    const chosen = parseScreens(value);
-    if (chosen === undefined) {
-      return playError(`--screen is phone, desktop, or both, not "${value}".`);
-    }
-    draft.screens = chosen;
     return undefined;
   },
   "--out": (draft, value) => {
@@ -217,16 +185,6 @@ const FLAGS: Readonly<Record<string, FlagSetter>> = {
     draft.phone = size;
     return undefined;
   },
-  "--desk": (draft, value) => {
-    const size = parseSize(value);
-    if (size === undefined || size.width < DESK_MIN_WIDTH) {
-      return playError(
-        `--desk is a PC size, ${String(DESK_MIN_WIDTH)} wide or more, e.g. 1280x800, not "${value}".`,
-      );
-    }
-    draft.desk = size;
-    return undefined;
-  },
 };
 
 /** Reads one --flag (and its value, inline or the next word) onto the draft. */
@@ -256,11 +214,9 @@ export function parsePlayArgs(
 ): PlayArgs {
   const draft: Draft = {
     save: "fresh",
-    screens: ["phone", "desktop"],
     out: DEFAULT_OUT,
     url: undefined,
     phone: DEFAULT_PHONE,
-    desk: DEFAULT_DESK,
     search: "",
     tabs: 1,
   };
@@ -328,17 +284,13 @@ function targetText(target: PlayTarget): string {
   return target.by === "selector" ? target.selector : target.label;
 }
 
-/** `phone-03-tap-board-window-x5.png`: screen, step, then what happened. */
-export function shotName(
-  screen: PlayScreen,
-  step: number,
-  action: PlayAction | undefined,
-): string {
+/** `phone-03-tap-board-window-x5.png`: the step, then what happened. */
+export function shotName(step: number, action: PlayAction | undefined): string {
   const label = action === undefined ? "open" : actionSlug(action);
-  return `${screen}-${String(step).padStart(2, "0")}-${label}.png`;
+  return `phone-${String(step).padStart(2, "0")}-${label}.png`;
 }
 
-/** A file an earlier run wrote: a step shot or the log. */
+/** A file an earlier run wrote: a step shot (a desktop one from before #498 too) or the log. */
 export function isPlayOutput(file: string): boolean {
   return (
     file === "log.txt" ||
