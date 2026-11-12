@@ -61,11 +61,6 @@
   --board-hair: 1px;
 }
 
-/* The PC desk (#376): the mockup's desk ground, under the tile. */
-:root {
-  --board-desk: #0a0c0e;
-}
-
 /* The gauge row (#371): the output gauge, the mine window and the crew plate
    stand under the board's top, 176..414. */
 :root {

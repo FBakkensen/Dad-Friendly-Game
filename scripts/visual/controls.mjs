@@ -11,10 +11,7 @@ import {
 import { stepTapClock } from "../../tools/browser/harness.ts";
 import { check, section } from "./registry.mjs";
 import {
-  PHONE,
-  PCS,
   SCREENS,
-  desks,
   press,
   KEY,
   SHEET,
@@ -36,16 +33,15 @@ import {
 import { boardTargets } from "./measure.mjs";
 
 // One wiring check per control family (#441), each pressed by a real finger
-// (or the mouse) in Chrome: a rail key, a drawer row's buy, the ways out of a
+// in Chrome: a rail key, a drawer row's buy, the ways out of a
 // drawer, the "i" cards, the Workshop bench's arm-then-confirm (#374), the
 // Ledger's page that asks (Start over, #375), a row that opens a page (the
 // Engineers' row and her posts, #455), Ready now, an open bay, a troubled bay's fix and the
 // red button, and the drawer's first frame under reduced motion. The decisions
 // behind them (double taps, holds, settles, blinks) are unit tests. Then the
 // press look (#432): a held rail key shows is-down, and its rest frame after
-// the lift, at the phone and one PC size.
+// the lift, at the phone.
 
-const PRESS_SIZES = [PHONE, PCS[0]];
 const KEY_CAP = `${KEY("buys")} .board-key-cap`;
 
 /** A tap at a board point (board px), the way a finger lands there. */
@@ -61,11 +57,7 @@ async function tapBoard(page, x, y) {
     x,
     y,
   );
-  if (desks.get(page) === true) {
-    await page.mouse.click(at.x, at.y);
-  } else {
-    await page.touchscreen.tap(at.x, at.y);
-  }
+  await page.touchscreen.tap(at.x, at.y);
 }
 
 /** Every shown part of an open drawer's list: its top and height in board px. */
@@ -815,7 +807,7 @@ for (const viewport of SCREENS) {
   });
 }
 
-for (const viewport of PRESS_SIZES) {
+for (const viewport of SCREENS) {
   section(`press looks ${JSON.stringify(viewport)}`, async () => {
     const size = `${String(viewport[0])}x${String(viewport[1])}`;
     const label = `${size} press looks:`;

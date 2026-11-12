@@ -9,7 +9,6 @@ import {
   holdThrough as holdThroughOn,
 } from "../../tools/browser/harness.ts";
 import { seedJson, SAVE_KEY } from "../../tools/browser/fixtures.ts";
-import { DESK_MIN_WIDTH } from "../../src/board-fit.ts";
 import { mkdirSync } from "node:fs";
 import { failures } from "./registry.mjs";
 
@@ -18,24 +17,14 @@ const server = await startServer({ port: 4174, url: process.env.VISUAL_URL });
 const BASE = server.base;
 /** The phone: the installed app on the OnePlus 15, the board at scale 1 (#370). */
 const PHONE = [424, 924];
-/** The PC sizes: the same board, scaled to fit on the desk. */
-const PCS = [
-  [1280, 800],
-  [1366, 768],
-  [1440, 900],
-];
-const SCREENS = [PHONE, ...PCS];
-/** A PC is a desk from DESK_MIN_WIDTH wide: mouse, not touch. */
-const isDesk = ([width]) => width >= DESK_MIN_WIDTH;
+/** The game is phone-only: a PC shows the same board, scaled, and is not checked. */
+const SCREENS = [PHONE];
 
 const browser = await launchChrome();
 
-/** Pages opened at a PC size: they take clicks, the phone takes taps. */
-const desks = new WeakMap();
-
-/** A tap on the phone, a click on a PC. */
+/** A tap. */
 async function press(page, selector) {
-  await pressOn(page, selector, { desk: desks.get(page) === true });
+  await pressOn(page, selector);
 }
 
 /** A key on the rail (#373): buys, workshop, engineers, upgrades or ledger. */
@@ -158,7 +147,7 @@ async function openShelf(page) {
 const STANDALONE_INSETS = { top: 24, bottom: 48, left: 0, right: 0 };
 
 /**
- * The board in viewport px: #app's box, its scale on a PC, and the top of the
+ * The board in viewport px: #app's box, its scale, and the top of the
  * save line, where every sheet stops (#370). In-page code calls
  * globalThis.__board(). globalThis.__showVein(spot) shows the golden vein at a
  * veinSpot spot (window art px) as board-window.ts places it, and null hides it.
@@ -208,9 +197,8 @@ async function openScreen(
     tapClock = "real",
   } = {},
 ) {
-  const desk = isDesk([width, height]);
   const { page, close } = await openHarness(browser, BASE, {
-    viewport: { width, height, isMobile: !desk, hasTouch: !desk },
+    viewport: { width, height, isMobile: true, hasTouch: true },
     seed: { kind: "once", guard: "visual-seeded", json: seedJson(save) },
     // A clock the check can push forward, for veins and other timed things; stopped, a crew of
     // thousands cannot reach a relic mid-check. A held tap clock moves only by stepTapClock.
@@ -241,7 +229,6 @@ async function openScreen(
       }
     },
   });
-  desks.set(page, desk);
   return { page, close };
 }
 
@@ -254,8 +241,7 @@ const PAST_SETTLE_MS = 500;
 
 /**
  * The overlay (fixed, or a board card absolute in the board, #464) covers the
- * board down to the save line, and the save line stays on top of it (#370). On
- * a PC the board is a box on the desk.
+ * board down to the save line, and the save line stays on top of it (#370).
  */
 async function coversBoard(page, selector) {
   // A tap's click lands a frame later on a slow runner; let the overlay open first.
@@ -464,13 +450,11 @@ async function storedMountain(page) {
 }
 
 /**
- * A finger (or the mouse button) held on the selector's centre, and lifted once `done(selector)`
- * holds in the page. True when it held before the timeout.
+ * A finger held on the selector's centre, and lifted once `done(selector)` holds in the
+ * page. True when it held before the timeout.
  */
 async function holdThrough(page, selector, done) {
-  return holdThroughOn(page, selector, done, {
-    desk: desks.get(page) === true,
-  });
+  return holdThroughOn(page, selector, done);
 }
 
 /** Waits for the page to paint `count` more frames: what a press set off has painted. */
@@ -555,11 +539,8 @@ export {
   server,
   BASE,
   PHONE,
-  PCS,
   SCREENS,
-  isDesk,
   browser,
-  desks,
   press,
   KEY,
   SHEET,

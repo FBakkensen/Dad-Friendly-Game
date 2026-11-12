@@ -76,16 +76,14 @@ describe("parseAction", () => {
 });
 
 describe("parsePlayArgs", () => {
-  it("defaults to a fresh save on both screens with no actions", () => {
+  it("defaults to a fresh save on the phone with no actions", () => {
     expect(parsePlayArgs([], SAVES)).toEqual({
       kind: "plan",
       save: "fresh",
-      screens: ["phone", "desktop"],
       actions: [],
       out: "play-shots",
       url: undefined,
       phone: { width: 424, height: 924 },
-      desk: { width: 1366, height: 768 },
       search: "",
       tabs: 1,
     });
@@ -138,30 +136,12 @@ describe("parsePlayArgs", () => {
     expect(phone("9000x924")).toBe("error");
   });
 
-  it("shoots the desktop at a chosen PC size, 600 wide or more (#376)", () => {
-    const desk = (value: string) => {
-      const plan = parsePlayArgs(["--desk", value], SAVES);
-      return plan.kind === "plan"
-        ? plan.desk
-        : plan.kind === "error"
-          ? plan.message
-          : plan.kind;
-    };
-    expect(desk("1280x800")).toEqual({ width: 1280, height: 800 });
-    expect(desk("1440x900")).toEqual({ width: 1440, height: 900 });
-    expect(desk("600x400")).toEqual({ width: 600, height: 400 });
-    expect(desk("424x924")).toContain("600 wide or more");
-    expect(desk("big")).toContain("600 wide or more");
-    expect(PLAY_USAGE).toContain("--desk <WxH>");
-    expect(PLAY_USAGE).toContain("1280x800, 1366x768 and 1440x900");
-  });
-
   it("reads options in either form, with actions in order", () => {
     const plan = parsePlayArgs(
       [
         "--save",
         "mid",
-        "--screen=phone",
+        "--viewport=424x830",
         "tap:.board-window*3",
         "--out",
         "shots",
@@ -173,7 +153,6 @@ describe("parsePlayArgs", () => {
     expect(plan).toEqual({
       kind: "plan",
       save: "mid",
-      screens: ["phone"],
       actions: [
         {
           kind: "tap",
@@ -184,21 +163,10 @@ describe("parsePlayArgs", () => {
       ],
       out: "shots",
       url: "http://127.0.0.1:5173/",
-      phone: { width: 424, height: 924 },
-      desk: { width: 1366, height: 768 },
+      phone: { width: 424, height: 830 },
       search: "",
       tabs: 1,
     });
-  });
-
-  it("picks each screen choice", () => {
-    const screens = (value: string) => {
-      const plan = parsePlayArgs(["--screen", value], SAVES);
-      return plan.kind === "plan" ? plan.screens : plan.kind;
-    };
-    expect(screens("desktop")).toEqual(["desktop"]);
-    expect(screens("both")).toEqual(["phone", "desktop"]);
-    expect(screens("tablet")).toBe("error");
   });
 
   it("answers help", () => {
@@ -208,9 +176,9 @@ describe("parsePlayArgs", () => {
     expect(parsePlayArgs(["-h"], SAVES)).toEqual({ kind: "help" });
   });
 
-  it("names the board's phone and the desktop shot in the help (#370)", () => {
+  it("names the board's phone in the help, and no PC (#370)", () => {
     expect(PLAY_USAGE).toContain("424x924");
-    expect(PLAY_USAGE).toContain("1366x768");
+    expect(PLAY_USAGE).not.toMatch(/--desk|--screen|desktop|1366x768/);
     expect(PLAY_USAGE).not.toMatch(/424x830|\b412x|\b440x|\b375x/);
   });
 
@@ -224,7 +192,9 @@ describe("parsePlayArgs", () => {
   it("refuses a missing value, an unknown option, and a bad action", () => {
     expect(parsePlayArgs(["--save"], SAVES).kind).toBe("error");
     expect(parsePlayArgs(["--out="], SAVES).kind).toBe("error");
-    expect(parsePlayArgs(["--save", "--screen"], SAVES).kind).toBe("error");
+    expect(parsePlayArgs(["--save", "--out"], SAVES).kind).toBe("error");
+    expect(parsePlayArgs(["--desk", "1366x768"], SAVES).kind).toBe("error");
+    expect(parsePlayArgs(["--screen", "desktop"], SAVES).kind).toBe("error");
     expect(parsePlayArgs(["--fast", "1"], SAVES)).toEqual({
       kind: "error",
       message: "Unknown option --fast.",
@@ -266,16 +236,16 @@ describe("labelMatch", () => {
 
 describe("shot names", () => {
   it("numbers each step and says what happened", () => {
-    expect(shotName("phone", 0, undefined)).toBe("phone-00-open.png");
+    expect(shotName(0, undefined)).toBe("phone-00-open.png");
     expect(
-      shotName("desktop", 3, {
+      shotName(3, {
         kind: "tap",
         target: { by: "selector", selector: ".board-window" },
         times: 5,
       }),
-    ).toBe("desktop-03-tap-board-window-x5.png");
+    ).toBe("phone-03-tap-board-window-x5.png");
     expect(
-      shotName("phone", 12, {
+      shotName(12, {
         kind: "tap",
         target: { by: "label", label: "Back to the mountain" },
         times: 1,
@@ -314,6 +284,7 @@ describe("isPlayOutput", () => {
   it("matches only what a run writes", () => {
     expect(isPlayOutput("log.txt")).toBe(true);
     expect(isPlayOutput("phone-00-open.png")).toBe(true);
+    // An old run's desktop shot is still cleared away.
     expect(isPlayOutput("desktop-12-tap-board-window-x5.png")).toBe(true);
     expect(isPlayOutput("notes.md")).toBe(false);
     expect(isPlayOutput("phone-open.png")).toBe(false);

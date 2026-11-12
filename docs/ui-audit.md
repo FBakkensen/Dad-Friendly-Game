@@ -1,6 +1,6 @@
 # Screen audit
 
-Measured on the running game by `npm run audit:ui` (`scripts/ui-audit.mjs`) at the phone, 424×924, portrait, device scale 2. That is the installed app on the OnePlus 15 and the control board's own size (#370): the board is drawn at scale 1 there. Other screens scale the whole board and are not audited; `npm run visual` checks the board at 424×924 and on the PC at 1280×800, 1366×768 and 1440×900. The audit also shoots the board on the PC desk at those three sizes (#376): shots only, with no census, since a PC draws the board's 48px targets smaller by design (C4). The audit records; it changes no style, layout, copy or play.
+Measured on the running game by `npm run audit:ui` (`scripts/ui-audit.mjs`) at the phone, 424×924, portrait, device scale 2. That is the installed app on the OnePlus 15 and the control board's own size (#370): the board is drawn at scale 1 there. Other screens scale the whole board and are not audited; `npm run visual` checks the board at 424×924. The audit records; it changes no style, layout, copy or play.
 
 Shots live in [`docs/ui-audit/`](ui-audit/). Each file is `<screen>-<state>-<WxH>.png`. Prices, staff and other numbers in a shot are whatever the game showed when it was taken; today's economy numbers are in [Numbers now](DESIGN.md#numbers-now).
 
@@ -67,13 +67,7 @@ Bars used below:
 
 ## On a PC
 
-| Window   | Shot                                    | What it shows                                                                                                                                                                                                                                                                                                                                                     |
-| -------- | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1280×800 | [shot](ui-audit/desk-rest-1280x800.png) | The board at rest, scaled 0.848, in its riveted steel housing (the frame skin, 8 board px round it, scaled with it), on the dark tiled desk with one dim pool of lamplight under it. The desk and the pool are drawn at exactly 2× outside the board's scale, from one even-pixel origin. No scroll. Controls are 48 board px; the smallest is drawn 45.8px tall. |
-| 1366×768 | [shot](ui-audit/desk-rest-1366x768.png) | The same at scale 0.813, the smallest control drawn 43.9px tall.                                                                                                                                                                                                                                                                                                  |
-| 1440×900 | [shot](ui-audit/desk-rest-1440x900.png) | The same at scale 0.956, the smallest control drawn 51.6px tall.                                                                                                                                                                                                                                                                                                  |
-
-`npm run visual` checks the desk on every PC size and board save: the housing round the board within 1px, its skin painted, and the pool and the tile at 680×960 and 256×192 (exactly 2×). At 424×924 it checks there is no desk and no housing.
+The game is phone-only (#498). A PC window shows the same board, scaled to fit and centred on the board's night, and the audit does not shoot it.
 
 ## What the report still flags
 
@@ -92,7 +86,7 @@ None under 48px and none closer than 8px. The New sign over a key takes no taps 
 - A bay's band tag is a label, not a button. The "Fixed! The crew cheers." note after a bay's fix lets taps through, so the bay under it stays in reach.
 - The golden vein sits on the window's view, so its gap to the window is the one gap not asked for. It stands 8px or more from every other control at each end of its range.
 
-`npm run visual` checks the board's own controls the same way, in board px, at 424×924 and the three PC sizes.
+`npm run visual` checks the board's own controls the same way, in board px, at 424×924.
 
 ### Thumb reach
 
