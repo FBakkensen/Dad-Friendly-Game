@@ -92,7 +92,7 @@
   --board-ink-flap: #e4dcc6;
   --board-type-24: 24px;
   --board-bay-name-lead: 17px;
-  --board-bay-sub-lead: 15px;
+  --board-bay-sub-lead: 17px;
   --board-bay-sub-gap: 3px;
 }
 
@@ -105,6 +105,11 @@
   --board-row-name-lead: 19px;
   --board-row-line-lead: 15px;
   --board-row-gain-lead: 17px;
+}
+
+/* Readable figures (#505): the lead of a drawer row's 15px info and need lines. */
+:root {
+  --board-row-info-lead: 17px;
 }
 
 /* The key rail (#373): a locked key's label. */

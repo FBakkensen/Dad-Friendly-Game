@@ -363,6 +363,72 @@ describe("board.css", () => {
     );
   });
 
+  /** Every declaration of the top-level rules that list this exact selector. */
+  const declared = (selector: string): string =>
+    [...boardCss.matchAll(/^([^{}@/\s][^{}@/]*?)\s*\{([^}]*)\}/gm)]
+      .filter((m) =>
+        (m[1] ?? "")
+          .split(",")
+          .map((one) => one.trim())
+          .includes(selector),
+      )
+      .map((m) => m[2] ?? "")
+      .join("\n");
+
+  it.each([".board-bay-tag", ".board-row-tag"])(
+    "prints %s's figure in bold 17px Barlow with tabular figures (#505)",
+    (tag) => {
+      const rule = declared(tag);
+      expect(rule).toMatch(/font-family:\s*"Barlow Condensed"/);
+      expect(rule).toMatch(/font-size:\s*var\(--board-type-17\)/);
+      expect(rule).toMatch(/font-weight:\s*700/);
+      expect(rule).toMatch(/font-variant-numeric:\s*tabular-nums/);
+    },
+  );
+
+  it("keeps the plate's face on its figure, over the mono of .board-num (#505)", () => {
+    expect(declared(".board-bay-tag-text")).toMatch(/font-family:\s*inherit/);
+    expect(declared(".board-row-price")).toMatch(/font-family:\s*inherit/);
+  });
+
+  it("sets the rate and effect lines at 15px, semi-bold, in the bright ink (#505)", () => {
+    for (const line of [".board-bay-sub", ".board-row-info"]) {
+      expect(declared(line)).toMatch(/font-size:\s*var\(--board-type-15\)/);
+      expect(declared(line)).toMatch(
+        /font-weight:\s*var\(--board-weight-semi\)/,
+      );
+      expect(declared(line)).toMatch(/color:\s*var\(--board-ink\);/);
+    }
+    // A shortfall keeps its rust, at the same size and weight.
+    expect(declared(".board-row-need")).toMatch(
+      /font-size:\s*var\(--board-type-15\)/,
+    );
+    expect(declared(".board-row-need")).toMatch(/color:\s*var\(--board-rust\)/);
+    // The flavour line stays quiet, so the figures above it lead.
+    expect(declared(".board-row-why")).toMatch(
+      /font-size:\s*var\(--board-type-13\)/,
+    );
+    expect(declared(".board-row-why")).toMatch(/color:\s*var\(--board-ink-2\)/);
+  });
+
+  it("makes Ready now's reason and a row's gain bold (#505)", () => {
+    // The reason is worded to fit the plate at 13px: bigger, it would fall back to the gain alone.
+    expect(declared(".board-ready-why")).toMatch(
+      /font-size:\s*var\(--board-type-13\)/,
+    );
+    expect(declared(".board-ready-why")).toMatch(/font-weight:\s*700/);
+    expect(declared(".board-ready-why")).toMatch(
+      /color:\s*var\(--board-ink-plate\);/,
+    );
+    expect(declared(".board-row-gain")).toMatch(
+      /font-family:\s*"Barlow Condensed"/,
+    );
+    expect(declared(".board-row-gain")).toMatch(/font-weight:\s*700/);
+    expect(declared(".board-row-gain")).toMatch(
+      /color:\s*var\(--board-ink-bare\)/,
+    );
+  });
+
   it.each(BOARD_SELECTORS)("styles %s", (selector) => {
     const escaped = selector.replace(".", "\\.");
     expect(boardCss).toMatch(new RegExp(`^${escaped}[\\s,{\\[:.]`, "m"));
