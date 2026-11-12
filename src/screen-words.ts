@@ -1147,6 +1147,10 @@ export const RECIPE_WAITING = "Waiting its turn";
 export const craftPriceWords = (stones: number): string =>
   `Craft · ${formatCompact(stones)}`;
 
+/** A craft whose material this run's mountain no longer holds (#492): "No clay this deep". */
+export const goneMaterialWords = (material: MaterialId): string =>
+  `No ${material} this deep`;
+
 /** What a short craft still needs: "Need 5 more iron". */
 export const needMoreWords = (missing: number, material: string): string =>
   `Need ${formatCompact(missing)} more ${material}`;

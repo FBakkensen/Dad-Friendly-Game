@@ -1090,11 +1090,12 @@ async function main() {
   await capture("workshop-need-more", async (viewport) => {
     const opened = await openAuditPage(
       viewport,
+      // In the Granite, where more iron still comes (#492: past it, "No iron this deep").
       late(
         Date.now(),
-        130_000_000,
+        20_000_000,
         {},
-        { materials: { clay: 40, iron: 0, crystal: 12, heartstone: 3 } },
+        { materials: { clay: 40, iron: 0, crystal: 0, heartstone: 0 } },
       ),
     );
     await openWorkshop(opened.page);

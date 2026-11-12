@@ -153,21 +153,21 @@ describe("a recipe row (#374)", () => {
     );
   });
 
-  it("a short craft: dark, its need instead of the materials, the tag dim, no tap", () => {
+  it("a short craft: dark, its need instead of the materials, the tag dim, no tap (#492: the Granite has no clay)", () => {
     const card = recipe(workshopCards(granite(), NOW), "blasting-charge");
     const row = recipeRowView(card, QUIET);
     expect(row).toMatchObject({
       lamp: "off",
       state: "short",
       verb: "Craft",
-      need: "Need 2 more clay",
+      need: "No clay this deep",
       why: "",
       price: card.stonesTag ?? "",
       dimTag: true,
       can: false,
     });
     expect(row.aria).toBe(
-      `Blasting charge. ${card.effect.replace(/\.?$/, ".")} Need 2 more clay.`,
+      `Blasting charge. ${card.effect.replace(/\.?$/, ".")} No clay this deep.`,
     );
   });
 

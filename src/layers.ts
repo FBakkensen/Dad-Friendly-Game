@@ -223,6 +223,17 @@ export function materialsGained(
   return gained;
 }
 
+/**
+ * Units of `material` the rest of this run's mountain still holds, past `mined` stones (#492).
+ * Each material lives in one band, so clay is gone for the run once the Granite starts.
+ */
+export function materialLeftToDig(material: MaterialId, mined: number): number {
+  const left =
+    materialsFromMined(MOUNTAIN_STONES)[material] -
+    materialsFromMined(mined)[material];
+  return left > 0 ? left : 0;
+}
+
 /** Adds a dig's units onto the pocket. A missing pocket counts as empty. */
 export function addMaterials(
   current: Materials | undefined,

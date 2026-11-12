@@ -682,11 +682,11 @@ for (const viewport of SCREENS) {
             axle?.classes.includes("is-ready") === true &&
             axle.verb === "Craft" &&
             charge?.classes.includes("is-short") === true &&
-            charge.need === "Need 2 more clay" &&
+            charge.need === "No clay this deep" &&
             free.more &&
             second.rows.some((row) => row.id === "sketch") &&
             free.kick === "Turn your clay into gear for the crew.",
-          `${size} workshop free: a green free bench, axle grease to craft, the charge short by 2 clay, More to make with the sketch on page 2, and the teach intro`,
+          `${size} workshop free: a green free bench, axle grease to craft, the charge short of clay the Granite no longer gives ("No clay this deep", #492), More to make with the sketch on page 2, and the teach intro`,
         );
         if (!free.more || axle === undefined || charge === undefined) {
           console.log("workshop free", size, JSON.stringify(free));

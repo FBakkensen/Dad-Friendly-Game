@@ -3,7 +3,12 @@ import { boostById, boostLeft } from "./boosts";
 import { factor } from "./economy/factors";
 import { TUNNELS } from "./expeditions";
 import { formatCompact } from "./format";
-import { LAYERS, materialsFromMined, type MaterialId } from "./layers";
+import {
+  LAYERS,
+  materialLeftToDig,
+  materialsFromMined,
+  type MaterialId,
+} from "./layers";
 import { expeditionAwayMs } from "./lost-tools";
 import type { Mountain } from "./mountain";
 import { minedOut, stretch } from "./scale";
@@ -28,6 +33,7 @@ import {
   craftLevelWords,
   materialCostWords,
   materialCountWords,
+  goneMaterialWords,
   needMoreWords,
   stoneCostWords,
   percent,
@@ -177,6 +183,24 @@ export function craftShortfall(
     return { missing: cost.stones - mountain.pocket, material: "stones" };
   }
   return undefined;
+}
+
+/**
+ * The first material this craft still lacks that the rest of the run's mountain cannot give
+ * (#492): clay, once the Granite starts and the Topsoil's ten are spent. Such a row can never
+ * fill this run, so it says so instead of "Need 4 more clay".
+ */
+function goneMaterial(
+  mountain: Mountain,
+  id: RecipeId,
+): MaterialId | undefined {
+  const cost = recipeCost(id, stretch(mountain));
+  const mined = minedOut(mountain);
+  return MATERIAL_ORDER.find(
+    (material) =>
+      mountain.materials[material] < cost.materials[material] &&
+      materialLeftToDig(material, mined) === 0,
+  );
 }
 
 function finished(recipe: Recipe, mountain: Mountain): boolean {
@@ -648,6 +672,10 @@ function actionFor(
     unknownBench(mountain, now) !== undefined
   ) {
     return { kind: "waiting" };
+  }
+  const gone = goneMaterial(mountain, id);
+  if (gone !== undefined) {
+    return { kind: "short", label: goneMaterialWords(gone) };
   }
   const gap = craftShortfall(mountain, id);
   if (gap !== undefined) {
