@@ -807,8 +807,12 @@ M free`. The crew line, in the Crew section at the top of Buys, names where
   time the copy lands (uid and `hydrateGeneration`, as the resume read checks)
   starts nothing; a restore checks the same. A mountain with no stone mined,
   or a guest's, starts at once with no copy, and a restore keeps no copy of it. The field log
-  snapshot includes `deviceId` and `rev`. A newer service worker shows "Update
-  available" and a reload button. Old cached builds cannot write once a rev
+  snapshot includes `deviceId` and `rev`, and its `version` is the build's
+  short commit (`dev` outside `vite build`). A newer service worker shows "Update
+  available" and a reload button. `vite build` writes the same commit into
+  `sw.js` (`src/build-stamp.ts`, #516), so every deploy ships a worker with new
+  bytes: an open page's update check on visible installs it, and the card
+  opens. The cache name stays, so an old page keeps its hashed assets. Old cached builds cannot write once a rev
   exists. Coming back reads the server before writing. A cached snapshot
   (Firestore persistent cache) does not count as that read. One writer tab per
   device; Play here flushes the phone backup first. Offline writes stay in that

@@ -5,6 +5,10 @@
 // Cross-origin traffic (Firestore, Google sign-in) and Firebase's reserved
 // /__/ paths are never touched.
 const CACHE = "dad-mine-shell-v1";
+// vite build writes the commit on the next line (#516), so every deploy ships
+// new bytes and an open page's update check installs this worker. The cache
+// name stays: an old open page may still load its hashed assets from it.
+// Build: dev
 const SHELL = [
   "/",
   "/manifest.webmanifest",
