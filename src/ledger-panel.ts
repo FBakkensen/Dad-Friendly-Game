@@ -247,9 +247,9 @@ function wireDoors(deps: LedgerDoorDeps): {
 
 /**
  * The Ledger drawer, behind the Ledger key. `render` paints the rows from the save and the
- * account; Tonight reads the field log only while the drawer is open. A save that loads again
- * under the open drawer leaves it open, its mine rows dark and its Copy field log, Start over
- * and Yes disabled. The account row stays live.
+ * account; Tonight reads the field log only while the drawer is open. A save that loads
+ * under the open drawer (another account's) leaves it open, its mine rows dark and its Copy
+ * field log, Start over and Yes disabled. The account row stays live.
  */
 export function createLedgerPanel({
   progress,
@@ -329,15 +329,15 @@ export function createLedgerPanel({
     }
   };
 
-  /** The save the Start over page asked about: ready or not, and whose. */
-  let asked = { ready: getView().ready, account: accountOf(auth.getState()) };
+  /** Whose save the Start over page asked about. */
+  let asked = accountOf(auth.getState());
   /**
-   * A save that came in again, or another account's, puts the list back: the Start over page
-   * asked about another save.
+   * Another account's save puts the list back: the Start over page asked about another save.
+   * The same account reported again changes nothing (#481).
    */
-  const leaveStaleAsk = (ready: boolean): void => {
-    const now = { ready, account: accountOf(auth.getState()) };
-    const stale = (now.ready && !asked.ready) || now.account !== asked.account;
+  const leaveStaleAsk = (): void => {
+    const now = accountOf(auth.getState());
+    const stale = now !== asked;
     asked = now;
     if (stale && wired.startOverPage.root.parentElement !== null) {
       sheet.showPage(undefined);
@@ -346,7 +346,7 @@ export function createLedgerPanel({
 
   const render = (): void => {
     const view = getView();
-    leaveStaleAsk(view.ready);
+    leaveStaleAsk();
     if (view.ready) {
       paintReady(parts, onBoard, view);
     } else {
