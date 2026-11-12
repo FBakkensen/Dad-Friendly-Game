@@ -58,7 +58,8 @@ page is the map, plus the rules that keep it that way.
    tiers, each bay's view and lamp, and the flap digits). The key rail and
    the drawers (#373, #374) read five more, none of which imports art:
    `row-view` (types only: one `RowView` for every drawer row: its words
-   as fit options, lamp, state, and whether a tap acts), `buys-rows`
+   as fit options, lamp, state, and whether a tap acts; every row module
+   sets its lamp by the one lamp rule in `docs/DESIGN.md`, #509), `buys-rows`
    (`buyRowView`: each Buys row's state, words, lamp and icon key, lifted
    out of `crew-panel`'s old render), `upgrade-rows` (the boost, lasting
    upgrade and found-tool rows, and `anyUpgradeAffordable` for the

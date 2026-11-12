@@ -208,6 +208,8 @@ describe("a recipe row (#374)", () => {
     const card = recipe(workshopCards(first, 0), FIRST_CRAFT);
     expect(recipeRowView(card, teach).flag).toEqual(["New"]);
     expect(recipeRowView(card, teach).isNew).toBe(true);
+    // The taught craft is the pick: amber over green (#509).
+    expect(recipeRowView(card, teach).lamp).toBe("amber");
     const short = recipe(workshopCards(granite(), NOW), FIRST_CRAFT);
     expect(recipeRowView(short, teach).flag).toEqual([]);
     expect(recipeRowView(short, teach).isNew).toBe(false);
@@ -250,12 +252,12 @@ describe("the sketch row (#374)", () => {
 });
 
 describe("the bench row (#374)", () => {
-  it("a free bench: green and ready, with no clock, bar or cancel", () => {
+  it("a free bench: dark and ready, with no clock, bar or cancel", () => {
     const row = benchRowView(benchView(granite(), NOW), false);
     expect(row).toMatchObject({
       name: BENCH_FREE,
       info: [WORKSHOP_FREE_ASIDE],
-      lamp: "green",
+      lamp: "off",
       state: "ready",
       gain: "",
       why: "",

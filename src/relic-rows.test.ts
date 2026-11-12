@@ -22,7 +22,7 @@ const relic = (id: RelicId): Relic => {
 const pastRelic = (id: RelicId): Mountain => minedMountain(relic(id).depth);
 
 describe("shelfRowView: one relic on the shelf (#465)", () => {
-  it("a found relic lights green with its virtue and power, and opens its detail", () => {
+  it("a found relic is dark, done, with its virtue and power, and opens its detail", () => {
     const lantern = relic("lantern");
     const view = shelfRowView(pastRelic("lantern"), lantern);
     expect(view.name).toBe("Lantern of Guidance");
@@ -30,7 +30,7 @@ describe("shelfRowView: one relic on the shelf (#465)", () => {
       `The virtue of Guidance. Your power: ${lantern.boost}`,
     );
     expect(view.info[1]).toBe(`Your power: ${lantern.boost}`);
-    expect(view.lamp).toBe("green");
+    expect(view.lamp).toBe("off");
     expect(view.state).toBe("found");
     expect(view.can).toBe(true);
     expect(view.aria).toBe("Lantern of Guidance: see your power");
