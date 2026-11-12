@@ -21,7 +21,8 @@ export type ReadyTier = MachineId | "helper";
  * The plate's pick (#372): buy it now, save for it, or nothing left to dig.
  * `gain` is what one more adds, as the Buys card shows it; `free` is the
  * crew plate's free workers. A worker who would start an idle machine names
- * it in `starts`, and his gain counts it (#490).
+ * it in `starts`, and his gain counts it (#490). A worker on a mountain with
+ * no crew and nothing idle is the `firstWorker` (#517).
  */
 export type ReadyPick =
   | {
@@ -31,6 +32,7 @@ export type ReadyPick =
       readonly gain: number;
       readonly free: number;
       readonly starts?: TendTier;
+      readonly firstWorker?: true;
     }
   | {
       readonly kind: "saving";
@@ -39,6 +41,7 @@ export type ReadyPick =
       readonly gain: number;
       readonly free: number;
       readonly starts?: TendTier;
+      readonly firstWorker?: true;
       /** At the current speed; undefined when that speed gives no time. */
       readonly etaMs: number | undefined;
     }
@@ -61,7 +64,7 @@ export function readyNow(
   if (mountain.remaining === 0) {
     return { kind: "mined-out" };
   }
-  const { free } = crewCounts(mountain, now, trouble);
+  const { free, crew } = crewCounts(mountain, now, trouble);
   const k = stretch(mountain);
   const priceOf = (id: ReadyTier): number => {
     const tier = tierById(id);
@@ -81,7 +84,7 @@ export function readyNow(
   const pick: Priced = affordable ??
     cheapest ?? { tier: "helper", price: priceOf("helper") };
 
-  const { gain, started } = pickGain(mountain, pick.tier, now, trouble);
+  const { gain, started } = pickGain(mountain, pick.tier, now, trouble, crew);
   if (mountain.pocket >= pick.price) {
     return {
       kind: "ready",
@@ -115,7 +118,12 @@ function pickGain(
   tier: ReadyTier,
   now: number,
   trouble: Trouble | undefined,
-): { readonly gain: number; readonly started: { readonly starts?: TendTier } } {
+  crew: number,
+): {
+  readonly gain: number;
+  readonly started:
+    { readonly starts?: TendTier } | { readonly firstWorker: true };
+} {
   if (tier !== "helper") {
     return {
       gain: effectiveRates(mountain, now, trouble).tierSpeed[tier],
@@ -123,8 +131,9 @@ function pickGain(
     };
   }
   const starts = startedTier(mountain, now, trouble);
-  return {
-    gain: handsGain(mountain, "helper", 1, now, trouble),
-    started: starts === undefined ? {} : { starts },
-  };
+  const gain = handsGain(mountain, "helper", 1, now, trouble);
+  if (starts !== undefined) {
+    return { gain, started: { starts } };
+  }
+  return { gain, started: crew === 0 ? { firstWorker: true } : {} };
 }

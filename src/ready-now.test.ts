@@ -186,6 +186,36 @@ describe("readyNow", () => {
     });
   });
 
+  describe("the first worker on a mountain with no crew (#517)", () => {
+    it("says he is the first, since no hand is busy", () => {
+      const fresh = mountainWith({ pocket: 20 });
+      expect(readyNow(fresh, NOW)).toEqual({
+        kind: "ready",
+        tier: "helper",
+        price: 20,
+        gain: handsGain(fresh, "helper", 1, NOW),
+        free: 0,
+        firstWorker: true,
+      });
+    });
+
+    it("names the idle cart he starts instead, when there is one", () => {
+      const idle = mountainWith({ carts: 2, pocket: 20 });
+      const pick = readyNow(idle, NOW);
+      expect(pick).toMatchObject({ tier: "helper", starts: "cart" });
+      expect(pick).not.toHaveProperty("firstWorker");
+    });
+
+    it("is no first worker once one is on the crew", () => {
+      const pick = readyNow(
+        mountainWith({ helpers: 1, carts: 1, pocket: 50 }),
+        NOW,
+      );
+      expect(pick).toMatchObject({ tier: "helper" });
+      expect(pick).not.toHaveProperty("firstWorker");
+    });
+  });
+
   describe("no time when the speed cannot give one", () => {
     it("zero speed shows no time", () => {
       const fresh = createMountain();

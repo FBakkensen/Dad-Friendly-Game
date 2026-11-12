@@ -3008,8 +3008,9 @@ describe("the control board (#370)", () => {
   it("Saving for a worker when no hand is free", () => {
     const price = tierCost(tierById("helper"), 6);
     const screen = readyAt(early({ helpers: 6, pocket: price - 1 }));
-    expect(screen.text(".board-ready-main")).toMatch(
-      /^Saving for a worker · in \d+m$/,
+    // One stone short: the last minute counts seconds (#517).
+    expect(screen.text(".board-ready-main")).toBe(
+      "Saving for a worker · in 1s",
     );
     plateOf(screen).click();
     expect(buysOpen(screen)).toBe(true);
