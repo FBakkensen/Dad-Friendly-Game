@@ -290,7 +290,8 @@ export function fieldSnapshotNow(ctx: StoreContext): FieldLog["snapshot"] {
 }
 
 /**
- * Copies the ring for a signed-in dad. Interval writes wait out the gap;
+ * Copies the ring for a signed-in dad, with the events this device kept for
+ * the account (another tab's too, #484). Interval writes wait out the gap;
  * hide and a new run write immediately. An unchanged log does not write.
  */
 export function persistFieldLog(
@@ -302,12 +303,16 @@ export function persistFieldLog(
     return;
   }
   const now = ctx.ports.now();
-  if (
-    reason === "interval" &&
-    ctx.fieldLogAt !== undefined &&
-    now - ctx.fieldLogAt < ctx.ports.fieldLogWriteGapMs
-  ) {
-    // Not due: skip reading the device's copy on every dig.
+  const due = (changed: boolean): boolean =>
+    shouldWriteFieldLog({
+      changed,
+      lastWrittenAt: ctx.fieldLogAt,
+      now,
+      reason,
+      gapMs: ctx.ports.fieldLogWriteGapMs,
+    });
+  if (!due(true)) {
+    // Not due even if changed: skip reading the device's copy on every dig.
     return;
   }
   const logDocument: FieldLogDocument = {
@@ -319,15 +324,7 @@ export function persistFieldLog(
   const changed =
     ctx.fieldLogFingerprint === undefined ||
     ctx.fieldLogFingerprint !== fingerprint;
-  if (
-    !shouldWriteFieldLog({
-      changed,
-      lastWrittenAt: ctx.fieldLogAt,
-      now,
-      reason,
-      gapMs: ctx.ports.fieldLogWriteGapMs,
-    })
-  ) {
+  if (!due(changed)) {
     return;
   }
   const generation = ctx.hydrateGeneration;

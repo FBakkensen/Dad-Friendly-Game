@@ -153,6 +153,15 @@ export function mergeEvents(
   return all.slice(-limit);
 }
 
+/** This tab's events with what the device kept for `scope`, oldest first. */
+export function withKept(
+  storage: Pick<Storage, "getItem">,
+  scope: RingScope,
+  mine: readonly FieldEvent[],
+): FieldEvent[] {
+  return mergeEvents(readKeptEvents(storage, scope), mine);
+}
+
 /** Folds this tab's events into the device's copy for `scope`. False when storage refused it. */
 export function keepEvents(
   storage: Pick<Storage, "getItem" | "setItem">,
@@ -160,7 +169,7 @@ export function keepEvents(
   mine: readonly FieldEvent[],
 ): boolean {
   try {
-    const events = mergeEvents(readKeptEvents(storage, scope), mine);
+    const events = withKept(storage, scope, mine);
     storage.setItem(fieldRingKey(scope), JSON.stringify({ events }));
     return true;
   } catch {

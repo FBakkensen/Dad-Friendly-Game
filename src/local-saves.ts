@@ -15,6 +15,7 @@ import {
   mergeEvents,
   readKeptEvents,
   sameScope,
+  withKept,
   type RingScope,
 } from "./field-ring";
 import { writePhoneBackup, type PhoneConflict } from "./phone-backup";
@@ -197,7 +198,7 @@ export function fieldEventsToUpload(ctx: StoreContext): readonly FieldEvent[] {
   if (storage === undefined || scope === undefined) {
     return mine;
   }
-  return mergeEvents(readKeptEvents(storage, scope), mine);
+  return withKept(storage, scope, mine);
 }
 
 /**

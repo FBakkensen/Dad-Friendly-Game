@@ -724,8 +724,8 @@ returnsAt, home, find }[]` (≤5, `returnsAt > sentAt`, no longer than the deep
   records relic found, away report, Start over, pass the mine, and save errors. The ring is not a mountain save
   field. The device keeps a copy per account (`field-ring`, key `dad-friendly-field-log:<uid>` or
   `:guest`, #479): `local-saves` restores it when the account is known or changes, and keeps it on
-  the cloud copy's throttle (`shouldWriteFieldLog`) with a 10 s gap, and at once on hide and a new
-  run. An event the field-log rules would refuse is dropped on the way back in. Each write folds in what another tab kept, so tabs never overwrite each other. A
+  the cloud copy's throttle (`shouldWriteFieldLog`) with a 10 s gap, and at once on hide, a new
+  run and a refused one. An event the field-log rules would refuse is dropped on the way back in. Each write folds in what another tab kept, so tabs never overwrite each other. A
   Start over or a pass the store refuses records `run.refused` (`start-over` or `pass`, and why:
   `loading`, `other-tab` or `conflict`), and a signed-in save still loading after 30 s records
   `save.stuck` (the server read's state), then `save.loaded` when it lands; both reach the save line. The Ledger's Copy field log plate copies `{ snapshot, events: last 50 }` as pretty JSON, with a
