@@ -133,7 +133,10 @@ page is the map, plus the rules that keep it that way.
    and lets the crew settle; the next server snapshot (or the same backoff
    as a listener retry) releases the held write. The phone backup still
    records during that read, and a tap in the gap is dug back onto the merged
-   mountain. One tab holds the writer seat (Web Locks, or a localStorage
+   mountain. The same account reported again (a token refresh) changes
+   nothing. A real account change ends the old watch's held read, its give-up
+   timer and retry, and any write still in flight, so the new account loads
+   and saves; their late answers are dropped (#481). One tab holds the writer seat (Web Locks, or a localStorage
    lease and a BroadcastChannel). Pagehide, including Reload, flushes the
    save and then clears that lease and the lock. A back/forward-cache
    restore (`pageshow` with `persisted`) claims the seat again. A tab that
@@ -385,11 +388,11 @@ focus)` (`showCard`, the model's open or close, and the focus once as it
    reads `progress.tonightEvents()` only while the drawer is open: the
    ring's events since its mark. A run's start, a reload, and a copy from
    elsewhere taking the mountain's place (a restore, the cloud's or another
-   device's copy) move the mark up, while the field log keeps them all. A save that
-   loads again leaves the drawer open with the mine rows dark and Copy field
-   log, Start over and Yes disabled; the account row stays live. Once that
-   save is in again, or the account changes, the Start over page gives the
-   list back, and a clipboard answer that comes after the drawer shut shows
+   device's copy) move the mark up, while the field log keeps them all. Another
+   account's save loading leaves the drawer open with the mine rows dark and Copy field
+   log, Start over and Yes disabled; the account row stays live. When the
+   account changes, the Start over page gives the list back; the same
+   account reported again leaves it as it was (#481). A clipboard answer that comes after the drawer shut shows
    nothing. The five drawers
    and the scrim sit in `.board-sheet-clip` at z 29, under the board note
    (30) and the save drawer (31). The clip is `overflow: clip`, so nothing

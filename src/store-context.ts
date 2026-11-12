@@ -162,7 +162,8 @@ export type StoreContext = {
   freshFlight: Promise<void> | undefined;
   unwatch: (() => void) | undefined;
   readonly listenRetry: Retry;
-  watchingCloud: boolean;
+  /** The account whose cloud document this page watches, if any. */
+  watchedUid: string | undefined;
   /** This tab has acted on holding the writer seat. */
   writerAnnounced: boolean;
   fieldLogAt: number | undefined;
@@ -217,7 +218,7 @@ export function createStoreContext(
     freshFlight: undefined,
     unwatch: undefined,
     listenRetry: { timer: undefined, backoffMs: LISTEN_BACKOFF_START_MS },
-    watchingCloud: false,
+    watchedUid: undefined,
     writerAnnounced:
       ports.tabWriter === undefined || ports.tabWriter.seat() === "writer",
     fieldLogAt: undefined,

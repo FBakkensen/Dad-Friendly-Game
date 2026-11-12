@@ -3,15 +3,13 @@ import { settleWithin } from "./settle-within";
 
 describe("settleWithin (#480)", () => {
   it("gives the answer that comes in time, and clears its timer", async () => {
-    const timers: unknown[] = [];
+    const seen: boolean[] = [];
     await expect(
-      settleWithin(Promise.resolve("ok"), 1_000, (timer) => {
-        timers.push(timer);
+      settleWithin(Promise.resolve("ok"), 1_000, (_timer, running) => {
+        seen.push(running);
       }),
     ).resolves.toBe("ok");
-    expect(timers).toHaveLength(2);
-    expect(timers[0]).toBeDefined();
-    expect(timers[1]).toBeUndefined();
+    expect(seen).toEqual([true, false]);
   });
 
   it("gives up after the wait, and a late answer changes nothing", async () => {

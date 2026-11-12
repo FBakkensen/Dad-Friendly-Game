@@ -16,6 +16,7 @@ import { stonesLeft } from "./scale";
 import { saveCounts } from "./session";
 import { settleWithin, type GaveUp } from "./settle-within";
 import {
+  cancelRetry,
   cloudDirty,
   endHold,
   isWriter,
@@ -39,7 +40,9 @@ export function freshServerRead(ctx: StoreContext): Promise<void> {
     return ctx.freshFlight;
   }
   const flight = readServer(ctx).finally(() => {
-    ctx.freshFlight = undefined;
+    if (ctx.freshFlight === flight) {
+      ctx.freshFlight = undefined;
+    }
   });
   ctx.freshFlight = flight;
   return flight;
@@ -62,11 +65,11 @@ function readServer(ctx: StoreContext): Promise<void> {
   cancelQueuedWrite(ctx);
   persistPhoneBackup(ctx);
   return loadOrGiveUp(ctx, uid).then((loaded) => {
-    if (
-      ctx.disposed ||
-      generation !== ctx.hydrateGeneration ||
-      !isWriter(ctx)
-    ) {
+    if (ctx.disposed || generation !== ctx.hydrateGeneration) {
+      // The watch it was for is over, and that ended its hold.
+      return;
+    }
+    if (!isWriter(ctx)) {
       endHold(ctx);
       return;
     }
@@ -87,13 +90,33 @@ function readServer(ctx: StoreContext): Promise<void> {
   });
 }
 
+/**
+ * The watch changed hands (#481): its read on resume, the give-up timer and
+ * the retry end with it, so the next watch starts with nothing held.
+ */
+export function endResumeRead(ctx: StoreContext): void {
+  if (ctx.resumeTimer !== undefined) {
+    clearTimeout(ctx.resumeTimer);
+    ctx.resumeTimer = undefined;
+  }
+  cancelRetry(ctx.resumeRetry);
+  ctx.resumeRetry.backoffMs = LISTEN_BACKOFF_START_MS;
+  ctx.freshFlight = undefined;
+  ctx.read = { kind: "unseen" };
+}
+
 /** The server's answer, or a give-up after the timeout or a rejected read. */
 function loadOrGiveUp(ctx: StoreContext, uid: string): Promise<ReadOutcome> {
   return settleWithin(
     ctx.ports.cloudSave.load({ uid, fresh: true }),
     ctx.ports.resumeReadTimeoutMs,
-    (timer) => {
-      ctx.resumeTimer = timer;
+    (timer, running) => {
+      if (running) {
+        ctx.resumeTimer = timer;
+      } else if (ctx.resumeTimer === timer) {
+        // A read from an account that has gone leaves the next one's timer.
+        ctx.resumeTimer = undefined;
+      }
     },
   );
 }

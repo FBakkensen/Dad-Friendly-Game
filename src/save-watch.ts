@@ -24,7 +24,7 @@ import {
   localMoment,
   openSession,
 } from "./save-load";
-import { freshServerRead } from "./server-read";
+import { endResumeRead, freshServerRead } from "./server-read";
 import { forgetArrivals } from "./session";
 import { clearSessionSave, readSessionSave } from "./session-save";
 import {
@@ -40,12 +40,22 @@ import {
 } from "./store-context";
 import { emit, settleIfPlaying } from "./store-session";
 
-/** Stops following the cloud: late answers from the old watch are dropped. */
-function stopWatch(ctx: StoreContext): void {
+/**
+ * The old watch's reads and writes are over (#481): a write still in flight
+ * or a read on resume still held would otherwise wedge the next watch, which
+ * drops their late answers by generation.
+ */
+function endCloudWork(ctx: StoreContext): void {
   resetWrite(ctx);
   cancelRetry(ctx.listenRetry);
+  endResumeRead(ctx);
   ctx.hydrateGeneration += 1;
   ctx.hydrated = false;
+}
+
+/** Stops following the cloud: late answers from the old watch are dropped. */
+function stopWatch(ctx: StoreContext): void {
+  endCloudWork(ctx);
   ctx.fieldLogAt = undefined;
   ctx.fieldLogFingerprint = undefined;
   ctx.unwatch?.();
@@ -185,11 +195,9 @@ function startCloudWatch(ctx: StoreContext, uid: string): void {
   ctx.phoneDirty = false;
   ctx.saveConflict = undefined;
   ctx.consecutiveRevMerges = 0;
+  endCloudWork(ctx);
   prepareLocal(ctx, uid);
-  cancelRetry(ctx.listenRetry);
   ctx.listenRetry.backoffMs = LISTEN_BACKOFF_START_MS;
-  ctx.hydrateGeneration += 1;
-  ctx.hydrated = false;
   ctx.fieldLogAt = undefined;
   ctx.fieldLogFingerprint = undefined;
   ctx.session = forgetArrivals(ctx.session);
@@ -201,21 +209,26 @@ function startCloudWatch(ctx: StoreContext, uid: string): void {
   attachWatch(ctx);
 }
 
-/** The account changed: watch the new one, or go back to the guest save. */
+/**
+ * The account changed: watch the new one, or go back to the guest save. The
+ * same account reported again (a token refresh) changes nothing (#481).
+ */
 export function onAuthChange(ctx: StoreContext): void {
   /* v8 ignore next 3 -- dispose unsubscribes from the account before anything else can call */
   if (ctx.disposed) {
     return;
   }
-  restoreFieldRing(ctx);
   const uid = uidOf(ctx);
+  if (uid !== undefined && uid === ctx.watchedUid) {
+    return;
+  }
+  restoreFieldRing(ctx);
+  const leaveAccount = ctx.watchedUid !== undefined;
+  ctx.watchedUid = uid;
   if (uid !== undefined) {
-    ctx.watchingCloud = true;
     startCloudWatch(ctx, uid);
     return;
   }
-  const leaveAccount = ctx.watchingCloud;
-  ctx.watchingCloud = false;
   if (leaveAccount) {
     stopWatch(ctx);
     persistSession(ctx);

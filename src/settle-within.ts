@@ -10,8 +10,8 @@ type Timer = ReturnType<typeof setTimeout>;
 export function settleWithin<T>(
   work: Promise<T>,
   ms: number,
-  /** Told the timer while it runs, and undefined once it is done, so a dispose can clear it. */
-  track: (timer: Timer | undefined) => void = () => undefined,
+  /** Told the timer as it starts (running) and once it is done, so a dispose can clear it. */
+  track: (timer: Timer, running: boolean) => void = () => undefined,
 ): Promise<T | GaveUp> {
   return new Promise((resolve) => {
     let settled = false;
@@ -21,13 +21,13 @@ export function settleWithin<T>(
       }
       settled = true;
       clearTimeout(timer);
-      track(undefined);
+      track(timer, false);
       resolve(value);
     };
     const timer = setTimeout(() => {
       finish("timeout");
     }, ms);
-    track(timer);
+    track(timer, true);
     work.then(finish, () => {
       finish("rejected");
     });

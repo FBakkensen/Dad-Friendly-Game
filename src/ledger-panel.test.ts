@@ -562,8 +562,11 @@ describe("the Ledger drawer (#375)", () => {
     expect(isOpen(screen, "upgrades")).toBe(false);
   });
 
-  /** A signed-in screen whose cloud reads wait while `held`, until `release`. */
-  const reloading = () => {
+  /**
+   * A signed-in dad's screen whose cloud reads wait while `held`.
+   * Signing in brings `next` in: another account unless told otherwise.
+   */
+  const reloading = (next = "test-mom") => {
     const gate = { held: false };
     const waiting: (() => void)[] = [];
     const cloudSave: CloudSave = {
@@ -592,36 +595,24 @@ describe("the Ledger drawer (#375)", () => {
     };
     const auth = createMemoryAuth({
       state: { kind: "signed-in", user: { uid: "test-dad", label: "Dad" } },
+      user: { uid: next, label: next === "test-dad" ? "Dad" : "Mom" },
     });
     const screen = mountScreen({ auth, cloudSave, now: () => CLOCK });
     document.body.append(screen.root);
-    const release = (): void => {
-      gate.held = false;
-      for (const each of waiting.splice(0)) {
-        each();
-      }
-    };
-    return { screen, auth, gate, release };
+    return { screen, auth, gate };
   };
 
-  it("while the save loads again", async () => {
+  it("while another account's save loads", async () => {
     const { screen, auth, gate } = reloading();
     await vi.waitFor(() => {
       expect(screen.progress.getSnapshot().ready).toBe(true);
     });
     keyOf(screen).click();
-    part(screen, ".ledger-start-over").click();
-    expect(button(screen, ".ledger-yes").disabled).toBe(false);
-    // The same account comes in again: its save loads again.
     gate.held = true;
     await auth.signIn();
     await Promise.resolve();
     expect(screen.progress.getSnapshot().ready).toBe(false);
     expect(isOpen(screen)).toBe(true);
-    // The page stays, with Yes disabled.
-    expect(shownPage(screen)?.classList).toContain("ledger-start-over-page");
-    expect(button(screen, ".ledger-yes").disabled).toBe(true);
-    part(screen, ".ledger-keep").click();
     expect(part(screen, ".ledger-stones").classList).not.toContain("is-owned");
     expect(part(screen, ".ledger-stones").hasAttribute("title")).toBe(false);
     expect(part(screen, ".ledger-relics .board-row-bar").hidden).toBe(true);
@@ -635,24 +626,18 @@ describe("the Ledger drawer (#375)", () => {
     expect(signOut).toHaveBeenCalledTimes(1);
   });
 
-  it("the Start over page gives the list back once the save is in again", async () => {
-    const { screen, auth, gate, release } = reloading();
+  it("the same account reported again leaves the Start over page and Yes live (#481)", async () => {
+    const { screen, auth } = reloading("test-dad");
     await vi.waitFor(() => {
       expect(screen.progress.getSnapshot().ready).toBe(true);
     });
     keyOf(screen).click();
     part(screen, ".ledger-start-over").click();
-    gate.held = true;
     await auth.signIn();
     await Promise.resolve();
+    expect(screen.progress.getSnapshot().ready).toBe(true);
     expect(shownPage(screen)?.classList).toContain("ledger-start-over-page");
-    release();
-    await vi.waitFor(() => {
-      expect(screen.progress.getSnapshot().ready).toBe(true);
-    });
-    expect(shownPage(screen)).toBeNull();
-    expect(part(screen, ".board-sheet-list").hidden).toBe(false);
-    expect(isOpen(screen)).toBe(true);
+    expect(button(screen, ".ledger-yes").disabled).toBe(false);
   });
 
   it("the Start over page gives the list back when the account changes", async () => {
