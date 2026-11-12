@@ -11,7 +11,6 @@ import {
 import { stepTapClock } from "../../tools/browser/harness.ts";
 import { check, section } from "./registry.mjs";
 import {
-  PHONE,
   SCREENS,
   press,
   KEY,
@@ -43,7 +42,6 @@ import { boardTargets } from "./measure.mjs";
 // press look (#432): a held rail key shows is-down, and its rest frame after
 // the lift, at the phone.
 
-const PRESS_SIZES = [PHONE];
 const KEY_CAP = `${KEY("buys")} .board-key-cap`;
 
 /** A tap at a board point (board px), the way a finger lands there. */
@@ -809,7 +807,7 @@ for (const viewport of SCREENS) {
   });
 }
 
-for (const viewport of PRESS_SIZES) {
+for (const viewport of SCREENS) {
   section(`press looks ${JSON.stringify(viewport)}`, async () => {
     const size = `${String(viewport[0])}x${String(viewport[1])}`;
     const label = `${size} press looks:`;

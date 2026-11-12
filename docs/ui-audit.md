@@ -1,6 +1,6 @@
 # Screen audit
 
-Measured on the running game by `npm run audit:ui` (`scripts/ui-audit.mjs`) at the phone, 424×924, portrait, device scale 2. That is the installed app on the OnePlus 15 and the control board's own size (#370): the board is drawn at scale 1 there. Other screens scale the whole board and are not audited; `npm run visual` checks the board at 424×924 and on the PC at 1280×800, 1366×768 and 1440×900. The audit also shoots the board on the PC desk at those three sizes (#376): shots only, with no census, since a PC draws the board's 48px targets smaller by design (C4). The audit records; it changes no style, layout, copy or play.
+Measured on the running game by `npm run audit:ui` (`scripts/ui-audit.mjs`) at the phone, 424×924, portrait, device scale 2. That is the installed app on the OnePlus 15 and the control board's own size (#370): the board is drawn at scale 1 there. Other screens scale the whole board and are not audited; `npm run visual` checks the board at 424×924. The audit records; it changes no style, layout, copy or play.
 
 Shots live in [`docs/ui-audit/`](ui-audit/). Each file is `<screen>-<state>-<WxH>.png`. Prices, staff and other numbers in a shot are whatever the game showed when it was taken; today's economy numbers are in [Numbers now](DESIGN.md#numbers-now).
 

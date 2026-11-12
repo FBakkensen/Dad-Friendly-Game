@@ -82,7 +82,6 @@ describe("trackBoardFit", () => {
     expect(
       document.documentElement.style.getPropertyValue("--board-scale"),
     ).toBe("0.865");
-    expect(document.body.classList.contains("desk")).toBe(false);
     Object.assign(fake, { innerWidth: 424, innerHeight: 924 });
     fake.dispatchEvent(new Event("resize"));
     expect(

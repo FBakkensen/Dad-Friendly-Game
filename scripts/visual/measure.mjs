@@ -311,7 +311,6 @@ async function boardTargets(page, { vein } = {}) {
           top: (box.top - board.top) / board.scale,
           width: box.width / board.scale,
           height: box.height / board.scale,
-          rendered: [box.width, box.height],
         };
       };
       // A neighbour under the open drawer is out of reach, so it is skipped.
