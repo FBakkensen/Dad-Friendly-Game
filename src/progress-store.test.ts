@@ -10,6 +10,7 @@ import {
   type CloudLoadResult,
   type CloudSave,
   type CloudWriteResult,
+  fieldLogOf,
 } from "./cloud-save";
 import {
   APP_VERSION,
@@ -2108,25 +2109,25 @@ describe("field log cloud copy", () => {
     expect(fieldLogs.size).toBe(0);
 
     progress.applyMutation((mountain) => ({ ...mountain, pocket: 1 }));
-    expect(fieldLogs.get(user.uid)?.snapshot.pocket).toBe(1);
-    expect(fieldLogs.get(user.uid)?.updatedAt).toBe(0);
+    expect(fieldLogOf(fieldLogs, user.uid)?.snapshot.pocket).toBe(1);
+    expect(fieldLogOf(fieldLogs, user.uid)?.updatedAt).toBe(0);
 
     clock += 1_000;
     progress.applyMutation((mountain) => ({ ...mountain, pocket: 2 }));
-    expect(fieldLogs.get(user.uid)?.snapshot.pocket).toBe(1);
+    expect(fieldLogOf(fieldLogs, user.uid)?.snapshot.pocket).toBe(1);
 
     progress.flush();
-    expect(fieldLogs.get(user.uid)?.snapshot.pocket).toBe(2);
-    expect(fieldLogs.get(user.uid)?.updatedAt).toBe(clock);
+    expect(fieldLogOf(fieldLogs, user.uid)?.snapshot.pocket).toBe(2);
+    expect(fieldLogOf(fieldLogs, user.uid)?.updatedAt).toBe(clock);
 
-    const writtenAt = fieldLogs.get(user.uid)?.updatedAt;
+    const writtenAt = fieldLogOf(fieldLogs, user.uid)?.updatedAt;
     progress.flush();
-    expect(fieldLogs.get(user.uid)?.updatedAt).toBe(writtenAt);
+    expect(fieldLogOf(fieldLogs, user.uid)?.updatedAt).toBe(writtenAt);
 
     clock += FIELD_LOG_WRITE_GAP_MS;
     progress.applyMutation((mountain) => ({ ...mountain, pocket: 3 }));
-    expect(fieldLogs.get(user.uid)?.snapshot.pocket).toBe(3);
-    expect(fieldLogs.get(user.uid)?.updatedAt).toBe(clock);
+    expect(fieldLogOf(fieldLogs, user.uid)?.snapshot.pocket).toBe(3);
+    expect(fieldLogOf(fieldLogs, user.uid)?.updatedAt).toBe(clock);
     progress.dispose();
   });
 
@@ -2134,9 +2135,9 @@ describe("field log cloud copy", () => {
     let clock = 8_000;
     const { fieldLogs, progress } = signedIn(() => clock, firstWorker);
     progress.dispatch({ kind: "buyTier", id: "helper" });
-    expect(fieldLogs.get(user.uid)?.events.map((event) => event.code)).toEqual([
-      "tier.buy",
-    ]);
+    expect(
+      fieldLogOf(fieldLogs, user.uid)?.events.map((event) => event.code),
+    ).toEqual(["tier.buy"]);
 
     clock += 10;
     await progress.startOver();
@@ -2144,19 +2145,20 @@ describe("field log cloud copy", () => {
       "tier.buy",
       "run.start-over",
     ]);
-    expect(fieldLogs.get(user.uid)?.events.map((event) => event.code)).toEqual([
-      "tier.buy",
-      "run.start-over",
-    ]);
-    expect(fieldLogs.get(user.uid)?.snapshot.crew.helper).toBe(0);
-    const resetAt = fieldLogs.get(user.uid)?.updatedAt;
+    expect(
+      fieldLogOf(fieldLogs, user.uid)?.events.map((event) => event.code),
+    ).toEqual(["tier.buy", "run.start-over"]);
+    expect(fieldLogOf(fieldLogs, user.uid)?.snapshot.crew.helper).toBe(0);
+    const resetAt = fieldLogOf(fieldLogs, user.uid)?.updatedAt;
     clock += 10;
     await progress.startOver();
-    expect(fieldLogs.get(user.uid)?.updatedAt).toBe((resetAt ?? 0) + 10);
+    expect(fieldLogOf(fieldLogs, user.uid)?.updatedAt).toBe(
+      (resetAt ?? 0) + 10,
+    );
 
     progress.applyMutation((mountain) => ({ ...mountain, remaining: 0 }));
     await expect(progress.passTheMine()).resolves.toBe(true);
-    const passed = fieldLogs.get(user.uid);
+    const passed = fieldLogOf(fieldLogs, user.uid);
     const passedCodes = passed?.events.map((event) => event.code) ?? [];
     expect(passedCodes.slice(0, 3)).toEqual([
       "tier.buy",
@@ -2174,11 +2176,11 @@ describe("field log cloud copy", () => {
     for (let count = 1; count <= 201; count += 1) {
       progress.dispatch({ kind: "buyTier", id: "helper" });
     }
-    expect(fieldLogs.get(user.uid)?.events).toHaveLength(1);
+    expect(fieldLogOf(fieldLogs, user.uid)?.events).toHaveLength(1);
     expect(progress.fieldLog().events).toHaveLength(50);
 
     progress.flush();
-    const log = fieldLogs.get(user.uid);
+    const log = fieldLogOf(fieldLogs, user.uid);
     expect(log?.events).toHaveLength(200);
     expect(log?.events[0]?.data).toEqual({ id: "helper", count: 2 });
     expect(log?.events.at(-1)?.data).toEqual({ id: "helper", count: 201 });

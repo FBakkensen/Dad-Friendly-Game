@@ -327,7 +327,7 @@ export function persistFieldLog(
   ctx.fieldLogAt = now;
   ctx.fieldLogFingerprint = fingerprint;
   void ctx.ports.cloudSave
-    .writeFieldLog({ uid, log: logDocument })
+    .writeFieldLog({ uid, deviceId: ctx.ports.deviceId, log: logDocument })
     .then((result) => {
       if (
         ctx.disposed ||

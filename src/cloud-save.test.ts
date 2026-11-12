@@ -4,6 +4,8 @@ import {
   createMemoryCloudSave,
   createNoopCloudSave,
   createUnavailableCloudSave,
+  fieldLogKey,
+  fieldLogOf,
 } from "./cloud-save";
 import { APP_VERSION, snapshot, type FieldLogDocument } from "./field-log";
 import { createMountain, type Mountain } from "./mountain";
@@ -112,7 +114,7 @@ describe("createMemoryCloudSave", () => {
     stop();
   });
 
-  it("overwrites one field log per uid", async () => {
+  it("overwrites one field log per device, and keeps the other device's (#485)", async () => {
     const fieldLogs = new Map<string, FieldLogDocument>();
     const cloud = createMemoryCloudSave({ fieldLogs });
     const mountain = createMountain();
@@ -121,15 +123,24 @@ describe("createMemoryCloudSave", () => {
       events: [{ at: "2026-01-02T03:04:05.000Z", code: "tier.buy", data: {} }],
       updatedAt: 1,
     };
-    await expect(cloud.writeFieldLog({ uid: "dad", log })).resolves.toEqual({
-      kind: "ok",
-    });
-    expect(fieldLogs.get("dad")).toEqual(log);
+    await expect(
+      cloud.writeFieldLog({ uid: "dad", deviceId: "phone-0001", log }),
+    ).resolves.toEqual({ kind: "ok" });
+    expect(fieldLogs.get(fieldLogKey("dad", "phone-0001"))).toEqual(log);
 
     const next = { ...log, updatedAt: 2 };
-    await cloud.writeFieldLog({ uid: "dad", log: next });
-    expect(fieldLogs.get("dad")).toEqual(next);
-    expect(fieldLogs.size).toBe(1);
+    await cloud.writeFieldLog({
+      uid: "dad",
+      deviceId: "phone-0001",
+      log: next,
+    });
+    const pc = { ...log, updatedAt: 3 };
+    await cloud.writeFieldLog({ uid: "dad", deviceId: "pc-000001", log: pc });
+    expect(fieldLogs.get(fieldLogKey("dad", "phone-0001"))).toEqual(next);
+    expect(fieldLogs.get(fieldLogKey("dad", "pc-000001"))).toEqual(pc);
+    expect(fieldLogs.size).toBe(2);
+    expect(fieldLogOf(fieldLogs, "dad")).toEqual(pc);
+    expect(fieldLogOf(fieldLogs, "mom")).toBeUndefined();
   });
 
   it("keeps three unexpired copies and can refuse the archive", async () => {
@@ -246,6 +257,7 @@ describe("createNoopCloudSave", () => {
     await expect(
       cloud.writeFieldLog({
         uid: "dad",
+        deviceId: "device-dad-1",
         log: {
           snapshot: snapshot(
             createMountain(),
@@ -306,6 +318,7 @@ describe("createUnavailableCloudSave", () => {
     await expect(
       cloud.writeFieldLog({
         uid: "dad",
+        deviceId: "device-dad-1",
         log: {
           snapshot: snapshot(
             createMountain(),

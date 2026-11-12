@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  byPlayer,
+  fieldLogPath,
   formatFieldLogJson,
   formatFieldLogSummary,
   parseFieldLogArgs,
@@ -268,5 +270,87 @@ describe("formatFieldLogJson", () => {
     ) as { uid: string }[];
     expect(list.map((row) => row.uid)).toEqual(["dad", "mom"]);
     expect(formatFieldLogJson([], "list")).toBe("[]");
+  });
+});
+
+describe("each device's log, read together (#485)", () => {
+  const phone: FieldLogRecord = {
+    uid: "dad",
+    device: "phone-1234-abcd",
+    data: {
+      updatedAt: 1,
+      events: [
+        { at: "2026-01-02T03:00:00.000Z", code: "tier.buy", data: {} },
+        { at: "2026-01-02T03:20:00.000Z", code: "run.start-over", data: {} },
+      ],
+    },
+  };
+  const pc: FieldLogRecord = {
+    uid: "dad",
+    device: "pc-98765432-x",
+    data: {
+      updatedAt: 2,
+      events: [
+        { at: "2026-01-02T03:10:00.000Z", code: "vein.tap", data: {} },
+        "not an event",
+      ],
+    },
+  };
+  const older: FieldLogRecord = {
+    uid: "dad",
+    data: { updatedAt: 0, events: [] },
+  };
+
+  it("prints each device, then every event in time order with its device", () => {
+    const text = formatFieldLogSummary(
+      [older, phone, pc, { uid: "mom", data: { updatedAt: 1 } }],
+      "UTC",
+    );
+    expect(text).toContain("fieldLogs/dad\nUpdated");
+    expect(text).toContain("fieldLogs/dad/devices/phone-1234-abcd\nUpdated");
+    expect(text).toContain("fieldLogs/dad/devices/pc-98765432-x\nUpdated");
+    const together = text.slice(text.indexOf("fieldLogs/dad: together"));
+    expect(together.split("\n").slice(0, 5)).toEqual([
+      "fieldLogs/dad: together",
+      "Events",
+      "  2026-01-02 03:00:00  tier.buy  [phone-12]",
+      "  2026-01-02 03:10:00  vein.tap  [pc-98765]",
+      "  2026-01-02 03:20:00  run.start-over  [phone-12]",
+    ]);
+    // One log alone has no Together.
+    expect(text).not.toContain("fieldLogs/mom: together");
+    expect(
+      formatFieldLogSummary([older, { uid: "dad", data: null }], "UTC"),
+    ).toContain("fieldLogs/dad: together\nEvents\n  none");
+  });
+
+  it("keeps the uid and device in JSON, and lists a player's several logs", () => {
+    const rows = JSON.parse(formatFieldLogJson([older, phone], "one")) as {
+      uid: string;
+      device: string | null;
+    }[];
+    expect(rows.map((row) => [row.uid, row.device])).toEqual([
+      ["dad", null],
+      ["dad", "phone-1234-abcd"],
+    ]);
+    const one = JSON.parse(formatFieldLogJson([phone], "one")) as {
+      device: string;
+    };
+    expect(one.device).toBe("phone-1234-abcd");
+  });
+
+  it("names where each log lives, and orders a player's logs", () => {
+    expect(fieldLogPath(older)).toBe("fieldLogs/dad");
+    expect(fieldLogPath(pc)).toBe("fieldLogs/dad/devices/pc-98765432-x");
+    expect(
+      [pc, { uid: "abe", data: null }, phone, older]
+        .sort(byPlayer)
+        .map(fieldLogPath),
+    ).toEqual([
+      "fieldLogs/abe",
+      "fieldLogs/dad",
+      "fieldLogs/dad/devices/pc-98765432-x",
+      "fieldLogs/dad/devices/phone-1234-abcd",
+    ]);
   });
 });

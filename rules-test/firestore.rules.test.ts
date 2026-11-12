@@ -780,6 +780,47 @@ const event = {
   data: { id: "helper", count: 1 },
 };
 
+describe("firestore.rules: fieldLogs/{uid}/devices/{deviceId} (#485)", () => {
+  const PHONE = "phone-device-0001";
+  const PC = "pc-device-000002";
+  const deviceLog = (uid: string, device: string, on = db) =>
+    doc(on, "fieldLogs", uid, "devices", device);
+
+  it("keeps the phone's and the PC's logs side by side", async () => {
+    const phone = fieldLog([event]);
+    const pc = { ...fieldLog(), updatedAt: 2 };
+    await setDoc(deviceLog("dad", PHONE), phone);
+    await setDoc(deviceLog("dad", PC), pc);
+    expect((await getDoc(deviceLog("dad", PHONE))).data()).toEqual(phone);
+    expect((await getDoc(deviceLog("dad", PC))).data()).toEqual(pc);
+    await setDoc(deviceLog("dad", PHONE), fieldLog());
+    expect((await getDoc(deviceLog("dad", PHONE))).data()?.events).toEqual([]);
+    expect((await getDoc(deviceLog("dad", PC))).data()?.updatedAt).toBe(2);
+  });
+
+  it("refuses another user, a bad id, a bad log, and a delete", async () => {
+    await setDoc(deviceLog("dad", PHONE), fieldLog([event]));
+    await expect(getDoc(deviceLog("dad", PHONE, momDb))).rejects.toThrow(
+      /permission|false for/i,
+    );
+    await expect(
+      setDoc(deviceLog("dad", PC, momDb), fieldLog([event])),
+    ).rejects.toThrow(/permission/i);
+    await expect(
+      setDoc(deviceLog("dad", "short"), fieldLog([event])),
+    ).rejects.toThrow(/permission/i);
+    await expect(
+      setDoc(deviceLog("dad", "x".repeat(65)), fieldLog([event])),
+    ).rejects.toThrow(/permission/i);
+    await expect(
+      setDoc(deviceLog("dad", PC), { ...fieldLog(), uid: "dad" }),
+    ).rejects.toThrow(/permission/i);
+    await expect(deleteDoc(deviceLog("dad", PHONE))).rejects.toThrow(
+      /permission/i,
+    );
+  });
+});
+
 describe("firestore.rules: fieldLogs/{uid}", () => {
   it("still accepts a snapshot from an older app with no engineers or expeditions", async () => {
     const older: Record<string, unknown> = { ...gameSnapshot() };

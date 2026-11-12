@@ -75,7 +75,7 @@ page is the map, plus the rules that keep it that way.
    teach id is kept in `kept` and written back instead of dropped), `session-save`
    (guest storage), `phone-backup` (signed-in on-phone copy, never deleted),
    `save-progress` (which copy is ahead), `cloud-save` (interface + memory fake),
-   `firebase-save` (the SDK adapter; mountain save plus `fieldLogs/{uid}`),
+   `firebase-save` (the SDK adapter; mountain save plus `fieldLogs/{uid}/devices/{deviceId}`),
    `firestore.rules` (server-side mirror of the parser and the field log,
    guarded by `rules-drift.test.ts` and the emulator tests).
 3. **State:** `progress-store` composes a pure session core and a sync
@@ -731,7 +731,8 @@ returnsAt, home, find }[]` (≤5, `returnsAt > sentAt`, no longer than the deep
   `loading`, `other-tab` or `conflict`), and a signed-in save still loading after 30 s records
   `save.stuck` (the server read's state), then `save.loaded` when it lands; both reach the save line. The Ledger's Copy field log plate copies `{ snapshot, events: last 50 }` as pretty JSON, with a
   read-only page of the drawer when the clipboard is missing. No email or display name.
-  Signed-in games write `fieldLogs/{uid}` = `{ snapshot, events (≤200),
+  Signed-in games write their device's `fieldLogs/{uid}/devices/{deviceId}`
+  (#485; the account-wide `fieldLogs/{uid}` of older builds stays) = `{ snapshot, events (≤200),
 updatedAt }` at most every 5 minutes, and immediately on hide, Start over, and
   passing the mine (#142). Those two keep the old run's events (#479). Guests write
   nothing. `shouldWriteFieldLog` is the throttle. Rules: owner-only read/write,

@@ -30,6 +30,7 @@ import { parseSaveValue, serializeSave } from "./persist";
 
 const SAVES = "saves";
 const FIELD_LOGS = "fieldLogs";
+const FIELD_LOG_DEVICES = "devices";
 const ARCHIVE = "saveArchive";
 const ARCHIVE_COPIES = "copies";
 const ARCHIVE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -53,7 +54,9 @@ export function createFirebaseCloudSave({
   const app = existing ?? initializeApp(options);
   const db = openFirestore(app);
   const ref = (uid: string) => doc(db, SAVES, uid);
-  const fieldLogRef = (uid: string) => doc(db, FIELD_LOGS, uid);
+  // One document per device (#485), so the phone and the PC never overwrite each other.
+  const fieldLogRef = (uid: string, deviceId: string) =>
+    doc(db, FIELD_LOGS, uid, FIELD_LOG_DEVICES, deviceId);
 
   return {
     load: async ({ uid, fresh = false }) => {
@@ -86,12 +89,16 @@ export function createFirebaseCloudSave({
     },
     archiveCopy: (args) => archiveConflictCopy(db, args),
     listCopies: ({ uid, now }) => listArchivedCopies(db, uid, now),
-    writeFieldLog: async ({ uid, log }): Promise<CloudWriteResult> => {
+    writeFieldLog: async ({
+      uid,
+      deviceId,
+      log,
+    }): Promise<CloudWriteResult> => {
       if (!fieldLogWithinBudget(log)) {
         return { kind: "failed", message: "field-log.size" };
       }
       try {
-        await setDoc(fieldLogRef(uid), log);
+        await setDoc(fieldLogRef(uid, deviceId), log);
         return { kind: "ok" };
       } catch (error: unknown) {
         return { kind: "failed", message: cloudErrorMessage(error) };

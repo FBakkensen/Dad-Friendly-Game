@@ -3,22 +3,29 @@ import { pathToFileURL } from "node:url";
 import type { Firestore } from "firebase-admin/firestore";
 
 /**
- * Reads `fieldLogs/{uid}` for the household. Not part of the game bundle.
+ * Reads the household's field logs: each device's `fieldLogs/{uid}/devices/{deviceId}`
+ * (#485), and the account-wide `fieldLogs/{uid}` that builds before it wrote. Not part of the game bundle.
  * Production uses Application Default Credentials (`gcloud auth
  * application-default login`, or `GOOGLE_APPLICATION_CREDENTIALS`). The
  * Firestore emulator needs neither.
  */
 
 const FIELD_LOGS = "fieldLogs";
+const DEVICES = "devices";
+/** How much of a device id tags its events in the Together timeline. */
+const DEVICE_TAG = 8;
 
-const HELP = `Read fieldLogs documents for household players.
+const HELP = `Read household players' field logs: one per device, read together.
 
 Usage:
   npm run field-log -- [--uid <uid>] [--json] [--project <id>]
   npm run field-log -- <uid>
 
-With no uid, lists every field log. The summary uses this machine's local
-time. --json prints the stored documents.
+With no uid, lists every field log. A player's devices print one by one,
+then Together: every device's events in time order, each tagged with the
+device. The summary uses this machine's local time. --json prints the
+stored documents, each with its uid and device (null for the account-wide
+log of older builds).
 
 Sign in once:
   gcloud auth application-default login
@@ -68,8 +75,25 @@ export type FieldLogEnv = {
 
 export type FieldLogRecord = {
   readonly uid: string;
+  /** The device's id, or undefined for the account-wide log of builds before #485. */
+  readonly device?: string;
   readonly data: unknown;
 };
+
+/** Where a record lives in Firestore. */
+export function fieldLogPath(record: FieldLogRecord): string {
+  return record.device === undefined
+    ? `${FIELD_LOGS}/${record.uid}`
+    : `${FIELD_LOGS}/${record.uid}/${DEVICES}/${record.device}`;
+}
+
+/** The account-wide log first, then the devices by id: one player's order. */
+export function byPlayer(left: FieldLogRecord, right: FieldLogRecord): number {
+  if (left.uid !== right.uid) {
+    return left.uid.localeCompare(right.uid);
+  }
+  return (left.device ?? "").localeCompare(right.device ?? "");
+}
 
 export type ParsedFieldLogArgs =
   | { readonly kind: "help" }
@@ -190,7 +214,10 @@ export function usesApplicationDefaultCredentials(env: FieldLogEnv): boolean {
   return (env.FIRESTORE_EMULATOR_HOST ?? "").trim() === "";
 }
 
-/** One player's log, or every log, as a person would read it. Times are local. */
+/**
+ * One player's logs, or every log, as a person would read it. Times are local.
+ * A player with more than one log also gets Together: every event in time order.
+ */
 export function formatFieldLogSummary(
   records: readonly FieldLogRecord[],
   timeZone: string,
@@ -198,19 +225,66 @@ export function formatFieldLogSummary(
   if (records.length === 0) {
     return "No field logs.";
   }
-  return records.map((record) => formatOne(record, timeZone)).join("\n\n");
+  // The loader gives one player's logs side by side (byPlayer).
+  const sorted = records;
+  const blocks: string[] = [];
+  for (const [index, record] of sorted.entries()) {
+    blocks.push(formatOne(record, timeZone));
+    const next = sorted[index + 1];
+    if (next?.uid !== record.uid) {
+      const mine = sorted.filter((item) => item.uid === record.uid);
+      if (mine.length > 1) {
+        blocks.push(togetherLines(record.uid, mine, timeZone).join("\n"));
+      }
+    }
+  }
+  return blocks.join("\n\n");
 }
 
-/** Stored documents, plus the uid (it is the document id, not a field). */
+/** Stored documents, plus the uid and device (document ids, not fields). One log alone prints bare. */
 export function formatFieldLogJson(
   records: readonly FieldLogRecord[],
   shape: "one" | "list",
 ): string {
   const rows = records.map(withUid);
-  if (shape === "list") {
+  if (shape === "list" || rows.length > 1) {
     return JSON.stringify(rows, null, 2);
   }
   return JSON.stringify(rows[0] ?? {}, null, 2);
+}
+
+/** Every event of one player's logs in time order, each tagged with its device. */
+function togetherLines(
+  uid: string,
+  records: readonly FieldLogRecord[],
+  timeZone: string,
+): string[] {
+  const tagged: { readonly at: number; readonly line: string }[] = [];
+  for (const record of records) {
+    const tag =
+      record.device === undefined
+        ? "account"
+        : record.device.slice(0, DEVICE_TAG);
+    const events = isRecord(record.data) ? record.data.events : undefined;
+    if (!Array.isArray(events)) {
+      continue;
+    }
+    for (const item of events) {
+      if (!isRecord(item)) {
+        continue;
+      }
+      tagged.push({
+        at: coerceDate(item.at)?.getTime() ?? 0,
+        line: `  ${eventText(item, timeZone)}  [${tag}]`,
+      });
+    }
+  }
+  tagged.sort((left, right) => left.at - right.at);
+  return [
+    `${FIELD_LOGS}/${uid}: together`,
+    "Events",
+    ...(tagged.length === 0 ? ["  none"] : tagged.map((item) => item.line)),
+  ];
 }
 
 function namedFlag(arg: string): "--uid" | "--project" | undefined {
@@ -242,29 +316,30 @@ function takeFlag(
 }
 
 function withUid(record: FieldLogRecord): Record<string, unknown> {
+  const ids = { uid: record.uid, device: record.device ?? null };
   if (!isRecord(record.data)) {
-    return { uid: record.uid, data: record.data };
+    return { ...ids, data: record.data };
   }
   const rest: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(record.data)) {
-    if (key !== "uid") {
+    if (key !== "uid" && key !== "device") {
       rest[key] = value;
     }
   }
-  return { uid: record.uid, ...rest };
+  return { ...ids, ...rest };
 }
 
 function formatOne(record: FieldLogRecord, timeZone: string): string {
   if (!isRecord(record.data)) {
     return [
-      `${FIELD_LOGS}/${record.uid}`,
+      fieldLogPath(record),
       "Updated unknown",
       "",
       "Not a field log.",
     ].join("\n");
   }
   const lines = [
-    `${FIELD_LOGS}/${record.uid}`,
+    fieldLogPath(record),
     `Updated ${showTime(record.data.updatedAt, timeZone)}`,
     "",
   ];
@@ -415,12 +490,20 @@ function eventLines(value: unknown, timeZone: string): string[] {
       if (!isRecord(item)) {
         return `  ${showScalar(item)}`;
       }
-      const when = showTime(item.at, timeZone);
-      const code = typeof item.code === "string" ? item.code : "event";
-      const data = formatData(item.data);
-      return data === "" ? `  ${when}  ${code}` : `  ${when}  ${code}  ${data}`;
+      return `  ${eventText(item, timeZone)}`;
     }),
   ];
+}
+
+/** One event: its local time, its code, and its data. */
+function eventText(
+  item: Readonly<Record<string, unknown>>,
+  timeZone: string,
+): string {
+  const when = showTime(item.at, timeZone);
+  const code = typeof item.code === "string" ? item.code : "event";
+  const data = formatData(item.data);
+  return data === "" ? `${when}  ${code}` : `${when}  ${code}  ${data}`;
 }
 
 function formatData(data: unknown): string {
@@ -534,17 +617,39 @@ async function loadFieldLogs(
 > {
   const collection = db.collection(FIELD_LOGS);
   if (uid !== undefined) {
-    const doc = await collection.doc(uid).get();
-    if (!doc.exists) {
+    const [account, devices] = await Promise.all([
+      collection.doc(uid).get(),
+      collection.doc(uid).collection(DEVICES).get(),
+    ]);
+    const records: FieldLogRecord[] = devices.docs.map((doc) => ({
+      uid,
+      device: doc.id,
+      data: doc.data(),
+    }));
+    if (account.exists) {
+      records.push({ uid, data: account.data() });
+    }
+    if (records.length === 0) {
       return { kind: "missing", uid };
     }
-    return { kind: "ok", records: [{ uid, data: doc.data() }] };
+    return { kind: "ok", records: records.sort(byPlayer) };
   }
-  const snap = await collection.get();
-  const records = snap.docs
-    .map((doc) => ({ uid: doc.id, data: doc.data() }))
-    .sort((a, b) => a.uid.localeCompare(b.uid));
-  return { kind: "ok", records };
+  // A device's log needs no account document above it, so devices are read as a group.
+  const [accounts, devices] = await Promise.all([
+    collection.get(),
+    db.collectionGroup(DEVICES).get(),
+  ]);
+  const records: FieldLogRecord[] = accounts.docs.map((doc) => ({
+    uid: doc.id,
+    data: doc.data(),
+  }));
+  for (const doc of devices.docs) {
+    const owner = doc.ref.parent.parent;
+    if (owner?.parent.id === FIELD_LOGS) {
+      records.push({ uid: owner.id, device: doc.id, data: doc.data() });
+    }
+  }
+  return { kind: "ok", records: records.sort(byPlayer) };
 }
 
 function projectFallback(): string {

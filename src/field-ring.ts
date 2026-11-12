@@ -1,6 +1,6 @@
 /**
  * The field log's events kept on this device (#479), so a reload, a crash or
- * a new run never empties what Copy field log and `fieldLogs/{uid}` can show.
+ * a new run never empties what Copy field log and this device's cloud field log can show.
  * One copy per account on the device (the guest is one too), as the phone
  * backup is, so one player's evening never lands in another's log. Each write
  * folds in what another tab kept, so tabs never overwrite each other.
