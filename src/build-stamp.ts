@@ -43,7 +43,10 @@ export function stampServiceWorker(source: string, id: string): string {
   return source.replace(BUILD_PLACEHOLDER, `// Build: ${id}`);
 }
 
-/** The field log's version: the stamped build, or `dev`. */
-export function appVersion(stamp: string | undefined): string {
-  return stamp ?? UNSTAMPED;
+/**
+ * The field log's version: the id `vite build` defined as `__APP_BUILD__`, or
+ * `dev` where nothing did (dev, tests, `play`, and node tools that import src).
+ */
+export function appVersion(): string {
+  return typeof __APP_BUILD__ === "string" ? __APP_BUILD__ : UNSTAMPED;
 }

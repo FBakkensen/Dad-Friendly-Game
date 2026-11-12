@@ -20,9 +20,7 @@ export const FIELD_STONES_CAP = 1_000_000_000_000_000;
  */
 
 /** Named in every snapshot: the build's commit (#516), or `dev` where no build stamped it. */
-export const APP_VERSION = appVersion(
-  typeof __APP_BUILD__ === "string" ? __APP_BUILD__ : undefined,
-);
+export const APP_VERSION = appVersion();
 
 /** How many events the ring remembers. */
 export const EVENT_RING_LIMIT = 200;

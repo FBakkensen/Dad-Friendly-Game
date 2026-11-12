@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   BUILD_PLACEHOLDER,
   appVersion,
@@ -62,11 +62,16 @@ describe("stampServiceWorker", () => {
 });
 
 describe("appVersion", () => {
-  it("is the stamped build", () => {
-    expect(appVersion("ef0459e")).toBe("ef0459e");
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("is the build vite stamped", () => {
+    vi.stubGlobal("__APP_BUILD__", "ef0459e");
+    expect(appVersion()).toBe("ef0459e");
   });
 
   it("reads dev where no build stamped it", () => {
-    expect(appVersion(undefined)).toBe("dev");
+    expect(appVersion()).toBe("dev");
   });
 });
