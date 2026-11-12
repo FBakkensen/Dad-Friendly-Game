@@ -2,7 +2,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   el,
+  figureRuns,
   fitFirst,
+  fitsBox,
   fitsWidth,
   frameX,
   hide,
@@ -12,6 +14,7 @@ import {
   scrollIntoList,
   setAttr,
   write,
+  writeFigures,
 } from "./board-dom";
 
 afterEach(() => {
@@ -235,5 +238,114 @@ describe("scrollIntoList (#373)", () => {
       "Crew",
       "per second",
     ]);
+  });
+});
+
+/** A line's runs as text, each figure in brackets. */
+const marked = (text: string): string =>
+  figureRuns(text)
+    .map((run) => (run.figure ? `[${run.text}]` : run.text))
+    .join("");
+
+describe("figures in a line (#506)", () => {
+  it.each([
+    ["+28/s · 1 worker", "[+28/s] · [1] worker"],
+    ["+3,898/s · 5 workers", "[+3,898/s] · [5] workers"],
+    [
+      "5 of 10 · Every cart hauls twice as fast.",
+      "[5] of [10] · Every cart hauls twice as fast.",
+    ],
+    ["Away pay 30% to 37.5%.", "Away pay [30%] to [37.5%]."],
+    ["Taps 1 to 10.", "Taps [1] to [10]."],
+    ["Crew ×2 for 30 min. 1,172/s.", "Crew [×2] for [30] min. [1,172/s]."],
+    [
+      "Crew 17.2K/s to 34.5K/s for 20 min.",
+      "Crew [17.2K/s] to [34.5K/s] for [20] min.",
+    ],
+    ["Opens at 574.3M stones", "Opens at [574.3M] stones"],
+    ["Needs 1 worker each · 9 idle", "Needs [1] worker each · [9] idle"],
+    ["8:58", "[8:58]"],
+    // The Workshop writes its pace with the × after: the sign is the figure's.
+    ["Crew 2× now · 8:58 left", "Crew [2×] now · [8:58] left"],
+    [
+      "The crew keeps digging at 1.5× for 20 min.",
+      "The crew keeps digging at [1.5×] for [20] min.",
+    ],
+    // A count's scale word is part of its figure.
+    ["Taps 9,999 to 12.3 thousand.", "Taps [9,999] to [12.3 thousand]."],
+    ["1,000+ trillion", "[1,000+ trillion]"],
+    [">999T", "[>999T]"],
+    ["1h 2m left", "[1h] [2m] left"],
+    // Digits inside a name are not a figure.
+    ["Signed in as dad1984@gmail.com", "Signed in as dad1984@gmail.com"],
+    ["Signed in as 1984dad@gmail.com", "Signed in as 1984dad@gmail.com"],
+    ["13 more for x2", "[13] more for x2"],
+    ["Cave-in! · Hold to fix", "Cave-in! · Hold to fix"],
+    ["", ""],
+  ])("finds the figures of %j", (text, want) => {
+    expect(marked(text)).toBe(want);
+    expect(
+      figureRuns(text)
+        .map((run) => run.text)
+        .join(""),
+    ).toBe(text);
+  });
+
+  it("writes each figure in a b.board-fig and keeps the line's text", () => {
+    const box = el("span", "box");
+    writeFigures(box, "+28/s · 1 worker");
+    expect(box.textContent).toBe("+28/s · 1 worker");
+    expect(
+      [...box.querySelectorAll("b.board-fig")].map((b) => b.textContent),
+    ).toEqual(["+28/s", "1"]);
+    writeFigures(box, "Hold to fix");
+    expect(box.textContent).toBe("Hold to fix");
+    expect(box.querySelector("b")).toBeNull();
+  });
+
+  it("writes nothing for the same words, and marks a line written plain", () => {
+    const box = el("span", "box");
+    writeFigures(box, "+28/s · 1 worker");
+    const seen: MutationRecord[] = [];
+    const watch = new MutationObserver((records) => {
+      seen.push(...records);
+    });
+    watch.observe(box, { subtree: true, childList: true, characterData: true });
+    writeFigures(box, "+28/s · 1 worker");
+    seen.push(...watch.takeRecords());
+    watch.disconnect();
+    expect(seen).toEqual([]);
+    // Words written plain (a fit that measured) get their figures back.
+    box.textContent = "+28/s · 1 worker";
+    writeFigures(box, "+28/s · 1 worker");
+    expect(box.querySelectorAll("b.board-fig").length).toBe(2);
+  });
+
+  it("fitFirst measures each option as its writer draws it", () => {
+    const box = laidOut();
+    fitFirst(
+      box,
+      ["+28/s · 1 worker", "+28/s"],
+      (el) => el.querySelectorAll("b").length < 2,
+      writeFigures,
+    );
+    expect(box.textContent).toBe("+28/s");
+    expect(box.querySelector("b.board-fig")?.textContent).toBe("+28/s");
+  });
+
+  it("fitsBox is fitsWidth and no taller than the box", () => {
+    const box = el("span", "box");
+    const size = { sw: 100, cw: 100, sh: 34, ch: 34 };
+    vi.spyOn(box, "scrollWidth", "get").mockImplementation(() => size.sw);
+    vi.spyOn(box, "clientWidth", "get").mockImplementation(() => size.cw);
+    vi.spyOn(box, "scrollHeight", "get").mockImplementation(() => size.sh);
+    vi.spyOn(box, "clientHeight", "get").mockImplementation(() => size.ch);
+    expect(fitsBox(box)).toBe(true);
+    size.sh = 51;
+    expect(fitsBox(box)).toBe(false);
+    size.sh = 35;
+    expect(fitsBox(box)).toBe(true);
+    size.sw = 120;
+    expect(fitsBox(box)).toBe(false);
   });
 });

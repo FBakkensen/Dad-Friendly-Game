@@ -3,6 +3,7 @@
 import {
   freshMountain,
   crewMountain,
+  fleetMountain,
   openMountain,
   shortMountain,
   idleMountain,
@@ -606,6 +607,41 @@ const registerStates = (viewport) => {
       );
       await close();
     }
+    // A Buys row's words read whole (#506): the milestone's payoff on two
+    // lines, or its short form beside a need line, and the engineer's flag
+    // with its number. No info line or flag is cut.
+    for (const [name, save, drill] of [
+      ["mid", openMountain, /^2 of 10 · Every drill mines twice as fast\.$/],
+      ["fleet", fleetMountain, /^30 of 50 · Twice as fast again\.$/],
+      ["heart", heartMountain, /^10 of 25 · Twice as fast/],
+      ["short", shortMountain, /^4 of 10 · Every drill mines twice as fast\.$/],
+    ]) {
+      const { page, close } = await visit(() => save(), "buys");
+      const lines = await page.$$eval(
+        `${OPEN_SHEET("buys")} .board-row:not([hidden]) :is(.board-row-info, .board-row-flag):not([hidden])`,
+        (els) =>
+          els.map((el) => ({
+            tier: el.closest(".board-row")?.dataset.tier ?? "",
+            line: el.classList.contains("board-row-flag") ? "flag" : "info",
+            text: el.textContent,
+            cut:
+              el.scrollWidth > el.clientWidth + 1 ||
+              el.scrollHeight > el.clientHeight + 1,
+          })),
+      );
+      const cut = lines.filter((line) => line.cut);
+      const drillInfo =
+        lines.find((line) => line.tier === "drill" && line.line === "info")
+          ?.text ?? "";
+      check(
+        lines.length >= 5 && cut.length === 0 && drill.test(drillInfo),
+        `${size} ${name} Buys: no info line or flag is cut, and the drill shows its payoff (${drillInfo})`,
+      );
+      if (cut.length > 0) {
+        console.log("cut Buys lines", size, name, cut);
+      }
+      await close();
+    }
     {
       const { close, rows: saving } = await visit(
         () => savingMountain(),
@@ -796,13 +832,13 @@ async function ledgerFacts(page) {
         info: words(info),
         why: words(el?.querySelector(".board-row-why") ?? null),
         verb: words(el?.querySelector(".board-row-verb") ?? null),
-        // One line, cut by an ellipsis if it must be, inside its row.
+        // Two lines at most (#506), cut by an ellipsis if it must be, inside its row.
         infoFits:
           info === null ||
           !shown(info) ||
           (within(info, el) &&
             info.getBoundingClientRect().height <=
-              Number.parseFloat(getComputedStyle(info).lineHeight) + 1 &&
+              Number.parseFloat(getComputedStyle(info).lineHeight) * 2 + 1 &&
             (info.scrollWidth <= info.clientWidth + 1 ||
               getComputedStyle(info).textOverflow === "ellipsis")),
       };
@@ -958,7 +994,7 @@ const registerLedgerStates = (viewport) => {
             heart.stones.infoFits &&
             /^\d of 6 relics found$/.test(heart.relics.name) &&
             heart.relics.info !== "",
-          `${size} ledger heart: four materials on one line inside the stones row (${heart.stones.info}), and the relics row reads "${heart.relics.info}"`,
+          `${size} ledger heart: four materials inside the stones row (${heart.stones.info}), and the relics row reads "${heart.relics.info}"`,
         );
         await close();
       }

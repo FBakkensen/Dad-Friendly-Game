@@ -1747,26 +1747,34 @@ body {
   color: var(--board-ink);
 }
 
-/* The rate line reads as data (#505): 15px, semi-bold, in the bright ink. */
+/* The rate line reads as data (#505, #506): 15px, its words quiet and its
+   figures (.board-fig) bright and bold. */
 .board-bay-sub {
   margin-top: var(--board-bay-sub-gap);
   font-size: var(--board-type-15);
   line-height: var(--board-bay-sub-lead);
+  color: var(--board-ink-2);
+}
+
+/* A figure in a line (#506): the number leads, the words around it stay
+   quiet. board-dom's writeFigures makes them. */
+.board-fig {
+  font-weight: 700;
+  color: var(--board-ink-bare);
+}
+
+/* Trouble has no figure: the whole shout speaks. */
+.board-bay[data-trouble] .board-bay-sub {
   font-weight: var(--board-weight-semi);
   color: var(--board-ink);
 }
 
 /* Two lines have no shorter wording to fall back to, so they keep the old
    13px and are never cut: the trouble shout in a three-flap bay's 100px, and
-   a relic's lock line (`With the Hammer at 49.3M`), which also keeps the
-   board's weight. */
+   a relic's lock line (`With the Hammer at 49.3M`). */
 .board-bay.is-three[data-trouble] .board-bay-sub,
 .board-bay[data-lock="relic"] .board-bay-sub {
   font-size: var(--board-type-13);
-}
-
-.board-bay[data-lock="relic"] .board-bay-sub {
-  font-weight: inherit;
 }
 
 /* The flap counter: flip-counter.png's left cap (columns 0-5), a window
@@ -2023,29 +2031,46 @@ button.board-row:focus-visible {
   margin-left: calc(var(--art) * 3);
 }
 
-/* A row's data lines lead (#505): 15px and semi-bold. The flavour line under them stays quiet. */
+/* A row's data lines lead (#505): 15px. The info line's words are quiet and
+   its figures (.board-fig) bright and bold (#506); a shortfall is semi-bold
+   rust. The flavour line under them stays small. */
 .board-row-info,
 .board-row-need {
   font-size: var(--board-type-15);
   line-height: var(--board-row-info-lead);
-  font-weight: var(--board-weight-semi);
 }
 
 .board-row-info {
-  color: var(--board-ink);
+  color: var(--board-ink-2);
 }
 
 .board-row-need {
+  font-weight: var(--board-weight-semi);
   color: var(--board-rust);
 }
 
+/* A row has three lines at most. With no need and no why under it, the info
+   line takes two (#506, board-row's fitInfo): a milestone's payoff reads
+   whole. A line too long for both still ends in its ellipsis. */
+.board-row-info.is-roomy {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* Trouble has no figure: the whole shout speaks. */
+.board-row.is-trouble .board-row-info {
+  font-weight: var(--board-weight-semi);
+  color: var(--board-ink);
+}
+
 /* A post on an engineer's page is a sentence about her, not a figure: it
-   stays the quiet 13px line. */
+   stays the small 13px line. */
 .engineer-post .board-row-info {
   font-size: var(--board-type-13);
   line-height: var(--board-row-line-lead);
-  font-weight: inherit;
-  color: var(--board-ink-2);
 }
 
 .board-row-why {

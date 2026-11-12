@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { TierId } from "./tiers.ts";
 import {
+  MARK_SHORT,
   MILESTONES,
   type MilestoneTable,
   milestoneLine,
   milestoneMultiplier,
   milestonesReached,
+  nextMark,
 } from "./milestones.ts";
 
 const TABLE: MilestoneTable = {
@@ -90,6 +92,45 @@ describe("owned-count milestones", () => {
         expect(mark.goal.endsWith(".")).toBe(true);
       }
     }
+  });
+
+  it("gives a row the next mark: its progress and the goal's payoff (#506)", () => {
+    expect(nextMark("cart", 5, plain)).toEqual({
+      progress: "5 of 10",
+      payoff: "Every cart hauls twice as fast.",
+    });
+    // A goal of three sentences pays off in its last.
+    expect(nextMark("cart", 120, plain)).toEqual({
+      progress: "120 of 150",
+      payoff: "Twice as fast again.",
+    });
+    expect(nextMark("machine", 1, plain)?.payoff).toBe(
+      "Both run twice as fast.",
+    );
+    expect(nextMark("drill", 22, plain, TABLE)?.progress).toBe("22 of 30");
+    // Past the last mark, and for a tier without marks, there is none.
+    expect(nextMark("cart", 200, plain)).toBeUndefined();
+    expect(nextMark("kid", 3, plain)).toBeUndefined();
+  });
+
+  it("every goal ends in a payoff that says twice as fast, after its scene (#506)", () => {
+    const ids: readonly TierId[] = [
+      "helper",
+      "cart",
+      "drill",
+      "borer",
+      "machine",
+    ];
+    expect(Object.keys(MILESTONES).sort()).toEqual([...ids].sort());
+    for (const id of ids) {
+      for (const mark of MILESTONES[id] ?? []) {
+        const payoff = nextMark(id, mark.at - 1, plain)?.payoff ?? "";
+        expect(payoff).toMatch(/wice as fast( again)?\.$/);
+        expect(mark.goal.endsWith(` ${payoff}`)).toBe(true);
+        expect(payoff.length).toBeLessThanOrEqual(40);
+      }
+    }
+    expect(MARK_SHORT).toBe("Twice as fast");
   });
 
   it("past the last mark the card says twice as fast now", () => {

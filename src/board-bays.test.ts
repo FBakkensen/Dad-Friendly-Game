@@ -377,6 +377,40 @@ describe("createMachineBays", () => {
     );
   });
 
+  it("puts a sub-line's figures in b.board-fig, so the numbers lead (#506)", () => {
+    const { bays } = make();
+    bays.render(early(), "");
+    const figures = (i: number): (string | null)[] =>
+      [...bay(bays, i).querySelectorAll(".board-bay-sub b.board-fig")].map(
+        (b) => b.textContent,
+      );
+    expect(figures(0)).toEqual(["+12/s", "1"]);
+    expect(figures(2)).toEqual(["10M"]);
+    bays.render([troubled("cart"), drill(), lockedBorer], "");
+    expect(figures(0)).toEqual([]);
+    expect(q(bay(bays, 0), ".board-bay-sub").textContent).toBe(
+      "Cave-in! · Hold to fix",
+    );
+  });
+
+  it("measures a sub-line as it is drawn, with its figures in place (#506)", () => {
+    const measured: string[] = [];
+    const bays = createMachineBays({
+      ...wiring(),
+      fits: (el) => {
+        if (el.classList.contains("board-bay-sub")) {
+          measured.push(
+            `${el.textContent}|${String(el.querySelectorAll("b.board-fig").length)}`,
+          );
+        }
+        return el.textContent.length <= 20;
+      },
+    });
+    bays.render(early(), "");
+    expect(measured).toContain("+12/s · 1 worker|2");
+    expect(measured.every((line) => !/\d.*\|0$/.test(line))).toBe(true);
+  });
+
   it("shortens a name that does not fit", () => {
     const bays = createMachineBays({
       ...wiring(),

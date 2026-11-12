@@ -1,12 +1,14 @@
 import {
   el,
   fitFirst,
+  fitsBox,
   frameX,
   hide,
   mark,
   refitAll,
   setAttr,
   write,
+  writeFigures,
 } from "./board-dom";
 import type { BoardHost } from "./board-host";
 import {
@@ -103,7 +105,7 @@ interface RowOptions {
   icon: boolean;
   /** The icon's CSS px, centred in the 64 column; 64 when left out. */
   iconPx?: IconPx;
-  /** How a line is measured; undefined is board-dom's `fitsWidth`. */
+  /** How a line is measured; undefined is board-dom's `fitsWidth`, and `fitsBox` for the info line. */
   fits?: (box: HTMLElement) => boolean;
 }
 
@@ -189,16 +191,38 @@ function buildRowParts({
 
 type Fits = ((box: HTMLElement) => boolean) | undefined;
 
-/** A line fitted to the first option that fits; hidden when every option is empty. */
+/**
+ * A line fitted to the first option that fits; hidden when every option is empty. `put` writes
+ * an option (the info line's figures, #506).
+ */
 function fitLine(
   target: HTMLElement,
   options: readonly string[],
   fits: Fits,
+  put?: (target: HTMLElement, text: string) => void,
 ): void {
   const empty = options.every((option) => option === "");
   // Shown before fitting, so a kept fit is measured on a laid-out box.
   hide(target, empty);
-  fitFirst(target, empty ? [] : options, fits);
+  fitFirst(target, empty ? [] : options, fits, put);
+}
+
+/**
+ * The info line, with its figures (#506). A row has three lines at most, so the info takes two
+ * when no need and no why is shown under it. A change of room fits the same words again.
+ */
+function fitInfo(
+  parts: RowParts,
+  options: readonly string[],
+  fits: Fits,
+): void {
+  const { info, need, why } = parts;
+  const roomy = need.hidden !== false && why.hidden !== false;
+  if (info.classList.contains("is-roomy") !== roomy) {
+    info.classList.toggle("is-roomy", roomy);
+    refitAll(info);
+  }
+  fitLine(info, options, fits ?? fitsBox, writeFigures);
 }
 
 function setLabel(parts: RowParts, label: string): void {
@@ -207,23 +231,43 @@ function setLabel(parts: RowParts, label: string): void {
   }
 }
 
-/** Done: the flag, the verb and the label; the lamp is painted apart. */
-function paintDone(parts: RowParts, fits: Fits): void {
+/** Done: the verb and the label; its flag is fitted with the lines, and the lamp painted apart. */
+function paintDone(parts: RowParts): void {
   mark(parts.root, "is-held", true);
-  fitLine(parts.flag, [DONE], fits);
   line(parts.verb, DONE);
   setLabel(parts, `${parts.nameText.data}. ${DONE}`);
 }
 
-/** Everything the view says but info and gain. */
+/** The words each row's fitted lines were last measured beside. */
+const beside = new WeakMap<HTMLElement, string>();
+
+/**
+ * The flag shares the name's line and the info sits left of the right column, so a kept fit
+ * holds only while the name, the badge, the gain, the price and the verb say the same (#506).
+ */
+function refitBeside(parts: RowParts): void {
+  const { root, nameText, badge, gain, price, verb, info, flag } = parts;
+  const words = [
+    nameText.data,
+    badge.textContent,
+    gain.textContent,
+    price.textContent,
+    verb.textContent,
+  ].join("\n");
+  if (beside.get(root) !== words) {
+    beside.set(root, words);
+    refitAll(info);
+    refitAll(flag);
+  }
+}
+
+/** Everything the view says but the info, the flag and the gain. */
 function paintWords(
   parts: RowParts,
   view: RowView | undefined,
   name: string,
-  fits: Fits,
 ): void {
-  const { root, button, nameText, badge, need, why, flag, price, tagBox } =
-    parts;
+  const { root, button, nameText, badge, need, why, price, tagBox } = parts;
   mark(root, "is-held", false);
   if (button !== undefined && button.disabled !== (view === undefined)) {
     button.disabled = view === undefined;
@@ -235,7 +279,6 @@ function paintWords(
   line(badge, view?.badge ?? "");
   line(need, view?.need ?? "");
   line(why, view?.why ?? "");
-  fitLine(flag, view?.flag ?? [], fits);
   const priced = view?.price ?? "";
   write(price, priced);
   hide(tagBox, priced === "");
@@ -268,13 +311,17 @@ function paintRow(
 ): void {
   const held = view !== undefined && live.held;
   const blink = view === undefined ? undefined : live.blink;
-  fitLine(parts.info, view?.info ?? [], fits);
+  // The gain and the words first: the lines are fitted beside them, and the info line's room
+  // is what the row shows under it.
   line(parts.gain, view?.gain ?? "");
   if (held) {
-    paintDone(parts, fits);
+    paintDone(parts);
   } else {
-    paintWords(parts, view, name, fits);
+    paintWords(parts, view, name);
   }
+  refitBeside(parts);
+  fitLine(parts.flag, held ? [DONE] : (view?.flag ?? []), fits);
+  fitInfo(parts, view?.info ?? [], fits);
   const lamp: RowLamp = blink ?? (held ? "green" : (view?.lamp ?? "off"));
   frameX(parts.lamp, LAMP_FRAME[lamp], LAMP_PX);
 }

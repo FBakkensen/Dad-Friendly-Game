@@ -239,7 +239,11 @@ for (const viewport of SCREENS) {
       const lineCount = (node) => {
         const range = document.createRange();
         range.selectNodeContents(node);
-        return range.getClientRects().length;
+        // A line's figures are boxes of their own (#506): count the lines,
+        // not the boxes on them.
+        return new Set(
+          [...range.getClientRects()].map((rect) => Math.round(rect.top)),
+        ).size;
       };
       const buyLinesOk = [...sheet.querySelectorAll(".board-row-verb")]
         .filter(shown)

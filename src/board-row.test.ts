@@ -148,6 +148,24 @@ describe("the drawer row", () => {
       expect(text(row, ".board-row-info")).toBe("12 owned");
     });
 
+    it("with no fits given, the info line is also no taller than its box (#506)", () => {
+      const row = createBoardRow({
+        tag: "button",
+        className: "board-buy-row",
+        data: {},
+        name: "Cart",
+        icon: true,
+      });
+      const info = part(row, ".board-row-info");
+      // Wide enough, but the first option wraps onto a third line.
+      vi.spyOn(info, "clientHeight", "get").mockReturnValue(34);
+      vi.spyOn(info, "scrollHeight", "get").mockImplementation(() =>
+        info.textContent.length > 10 ? 51 : 17,
+      );
+      row.render(ready(), still);
+      expect(text(row, ".board-row-info")).toBe("12 owned");
+    });
+
     it("an icon is 64 by default; iconPx 48 or 32 sizes it and marks the row (#375)", () => {
       const big = make();
       expect(part(big, "img.board-row-icon").getAttribute("width")).toBe("64");
@@ -237,6 +255,93 @@ describe("the drawer row", () => {
       expect(classes.contains("is-dim-tag")).toBe(false);
       expect(row.root.getAttribute("aria-label")).toBe(view.aria);
       expect((row.root as HTMLButtonElement).disabled).toBe(false);
+    });
+
+    it("puts the info line's figures in b.board-fig, and no other line's (#506)", () => {
+      const row = make();
+      limit = 40;
+      row.render(
+        ready({ need: "Needs 8 workers", flag: ["Ada +86/s"], gain: "+12/s" }),
+        still,
+      );
+      expect(
+        [...row.root.querySelectorAll("b.board-fig")].map((b) => [
+          b.parentElement?.className,
+          b.textContent,
+        ]),
+      ).toEqual([
+        ["board-row-info", "12"],
+        ["board-row-info", "13"],
+      ]);
+      expect(text(row, ".board-row-info")).toBe("12 owned · 13 more for x2");
+    });
+
+    describe("the info line's room (#506)", () => {
+      const roomy = (row: BoardRow): boolean =>
+        part(row, ".board-row-info").classList.contains("is-roomy");
+      /** Two lines hold 40 characters, one holds 16. */
+      const byRoom = (box: HTMLElement): boolean =>
+        box.textContent.length <=
+        (box.classList.contains("is-roomy") ? 40 : 16);
+
+      it("takes two lines when the row has no need and no why under it", () => {
+        const row = make();
+        row.render(ready(), still);
+        expect(roomy(row)).toBe(true);
+        row.render(ready({ need: "Needs 8 workers" }), still);
+        expect(roomy(row)).toBe(false);
+        row.render(ready({ why: "Hauls what the crew cut." }), still);
+        expect(roomy(row)).toBe(false);
+        row.render(undefined, still);
+        expect(roomy(row)).toBe(true);
+      });
+
+      it("fits the line again when its room changes, with the same options", () => {
+        const row = make({ fits: byRoom });
+        laidOut(row);
+        row.render(ready({ need: "Needs 8 workers" }), still);
+        expect(text(row, ".board-row-info")).toBe("12 owned");
+        row.render(ready(), still);
+        expect(text(row, ".board-row-info")).toBe("12 owned · 13 more for x2");
+        row.render(ready({ need: "Needs 8 workers" }), still);
+        expect(text(row, ".board-row-info")).toBe("12 owned");
+      });
+
+      it("fits the info and the flag beside the gain, and again when the right column's words change", () => {
+        // The right column takes its width from the words: a long gain leaves the lines less.
+        const beside = (box: HTMLElement): boolean => {
+          const gain =
+            box.closest(".board-row")?.querySelector(".board-row-gain")
+              ?.textContent ?? "";
+          return box.textContent.length <= (gain.length > 5 ? 10 : 40);
+        };
+        const row = make({ fits: beside });
+        laidOut(row);
+        const flag = ["Ready now · Ada +86/s", "Ready now"];
+        row.render(ready({ gain: "+12,345/s", flag }), still);
+        // Measured with the gain already on the row, not before it.
+        expect(text(row, ".board-row-info")).toBe("12 owned");
+        expect(text(row, ".board-row-flag")).toBe("Ready now");
+        row.render(ready({ gain: "+12/s", flag }), still);
+        expect(text(row, ".board-row-info")).toBe("12 owned · 13 more for x2");
+        expect(text(row, ".board-row-flag")).toBe("Ready now · Ada +86/s");
+        row.render(ready({ gain: "+12,345/s", flag }), still);
+        expect(text(row, ".board-row-info")).toBe("12 owned");
+      });
+
+      it("a Done hold reads the room from the lines the row still shows", () => {
+        const row = make({ fits: byRoom });
+        laidOut(row);
+        row.render(ready({ need: "Needs 8 workers" }), still);
+        // The buy landed: the new view has no need, but Done keeps the row's words.
+        row.render(ready(), held);
+        expect(text(row, ".board-row-need")).toBe("Needs 8 workers");
+        expect(roomy(row)).toBe(false);
+        expect(text(row, ".board-row-info")).toBe("12 owned");
+        row.render(ready(), still);
+        expect(roomy(row)).toBe(true);
+        expect(text(row, ".board-row-info")).toBe("12 owned · 13 more for x2");
+      });
     });
 
     it("an amber pick lights amber and reads as the pick", () => {

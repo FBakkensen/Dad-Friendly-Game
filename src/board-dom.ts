@@ -26,6 +26,64 @@ export function write(target: HTMLElement, text: string): void {
   }
 }
 
+/**
+ * A figure in a line: a count, a rate, a pace, a percent or a time, such as `+28/s`, `1,207`,
+ * `×2`, `1.5×`, `574.3M`, `12.3 thousand`, `37.5%`, `8:58` and `1h`. A full stop after it is
+ * the sentence's, not the figure's.
+ */
+const FIGURE =
+  /[+×>]?\d+(?:[.,:]\d+)*(?:[KMBT]\b|[hmds]\b|\+? (?:thousand|million|billion|trillion)\b)?[%×]?(?:\/s)?/g;
+const LETTER = /[A-Za-z]/;
+
+/** Digits inside a word (an account's name, `x2`) are not a figure. */
+function inWord(text: string, from: number, to: number): boolean {
+  return LETTER.test(text[from - 1] ?? "") || LETTER.test(text[to] ?? "");
+}
+
+/** A line cut into its figures and the words between them, in order. */
+export function figureRuns(
+  text: string,
+): readonly { readonly text: string; readonly figure: boolean }[] {
+  const runs: { text: string; figure: boolean }[] = [];
+  let at = 0;
+  for (const found of text.matchAll(FIGURE)) {
+    const end = found.index + found[0].length;
+    if (inWord(text, found.index, end)) {
+      continue;
+    }
+    if (found.index > at) {
+      runs.push({ text: text.slice(at, found.index), figure: false });
+    }
+    runs.push({ text: found[0], figure: true });
+    at = end;
+  }
+  if (at < text.length) {
+    runs.push({ text: text.slice(at), figure: false });
+  }
+  return runs;
+}
+
+/**
+ * `write` for a line whose numbers lead (#506): each figure goes in a `b.board-fig`, bright and
+ * bold, and the words between stay quiet. The line's text is the same. Written only when the
+ * words change, or when they were last written plain.
+ */
+export function writeFigures(target: HTMLElement, text: string): void {
+  const runs = figureRuns(text);
+  const figures = runs.filter((run) => run.figure).length;
+  if (
+    target.textContent === text &&
+    target.querySelectorAll("b.board-fig").length === figures
+  ) {
+    return;
+  }
+  target.replaceChildren(
+    ...runs.map((run) =>
+      run.figure ? el("b", "board-fig", run.text) : run.text,
+    ),
+  );
+}
+
 /** A box hidden or shown, written only when it changes. */
 export function hide(target: HTMLElement, hidden: boolean): void {
   if (target.hidden !== hidden) {
@@ -82,28 +140,34 @@ export function frameX(target: HTMLElement, n: number, framePx: number): void {
 export const fitsWidth = (box: HTMLElement): boolean =>
   box.scrollWidth <= box.clientWidth + 1;
 
+/** A line that may wrap: no wider than its box, and no taller. */
+export const fitsBox = (box: HTMLElement): boolean =>
+  fitsWidth(box) && box.scrollHeight <= box.clientHeight + 1;
+
 /** The options last fitted into each box, kept only when measured on the page with a width. */
 const fitted = new WeakMap<HTMLElement, string>();
 
 /**
  * Writes the first option that fits, else the last ("" for none). The same options again on a
- * box measured while laid out measure nothing.
+ * box measured while laid out measure nothing. `put` writes an option, so a line is measured
+ * as it is drawn (`writeFigures`).
  */
 export function fitFirst(
   target: HTMLElement,
   options: readonly string[],
   fits: (box: HTMLElement) => boolean = fitsWidth,
+  put: (target: HTMLElement, text: string) => void = write,
 ): void {
   fitKept(target, options.join("\n"), () => {
     let chosen = options[options.length - 1] ?? "";
     for (const option of options) {
-      write(target, option);
+      put(target, option);
       if (fits(target)) {
         chosen = option;
         break;
       }
     }
-    write(target, chosen);
+    put(target, chosen);
   });
 }
 
