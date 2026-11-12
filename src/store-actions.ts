@@ -8,7 +8,11 @@ import {
   persistCloudSoon,
   persistFieldLog,
 } from "./cloud-writer";
-import { persistPhoneBackup, persistSession } from "./local-saves";
+import {
+  keepFieldRing,
+  persistPhoneBackup,
+  persistSession,
+} from "./local-saves";
 import type { Mountain } from "./mountain";
 import { freshServerRead } from "./server-read";
 import {
@@ -25,8 +29,10 @@ import {
   cancelRetry,
   isWriter,
   log,
+  playBlock,
   record,
   signedIn,
+  type PlayBlock,
   type StoreContext,
 } from "./store-context";
 import { emit, runStep, settleCrew, settleIfPlaying } from "./store-session";
@@ -95,6 +101,7 @@ export function dispatchMove(
 
 /** Settles helpers' work for display. A phone backup follows a change. */
 export function tickStore(ctx: StoreContext): void {
+  noteLoading(ctx);
   if (!canPlay(ctx)) {
     return;
   }
@@ -113,6 +120,46 @@ export function tickStore(ctx: StoreContext): void {
   ) {
     emit(ctx);
   }
+}
+
+/** How long the save may stay loading before the field log says so (#479). */
+export const LOADING_LOG_MS = 30_000;
+
+/**
+ * A signed-in save still loading holds play back, and quietly: the board
+ * shows the mountain while nothing can be bought or started over. Once that
+ * lasts, the field log and the save line say so, and say when it ends.
+ */
+function noteLoading(ctx: StoreContext): void {
+  const now = ctx.ports.now();
+  const since = ctx.loadingSince;
+  if (playBlock(ctx) !== "loading") {
+    ctx.loadingSince = undefined;
+    if (since?.logged === true) {
+      record(ctx, "save.loaded", { ms: Math.round(now - since.at) });
+      emit(ctx);
+    }
+    return;
+  }
+  if (since === undefined) {
+    ctx.loadingSince = { at: now, logged: false };
+    return;
+  }
+  if (since.logged || now - since.at < LOADING_LOG_MS) {
+    return;
+  }
+  ctx.loadingSince = { at: since.at, logged: true };
+  record(ctx, "save.stuck", {
+    source: ctx.read.kind,
+    ms: Math.round(now - since.at),
+  });
+  log(ctx, {
+    level: "error",
+    code: "save.stuck",
+    detail: `read ${ctx.read.kind}, write ${ctx.write.kind}`,
+    data: saveCounts(ctx.session.mountain),
+  });
+  emit(ctx);
 }
 
 /** One tap, or a short hold, on a troubled card. */
@@ -144,6 +191,29 @@ export function previewTrouble(ctx: StoreContext, tier: TroubleTier): void {
   emit(ctx);
 }
 
+/**
+ * A new run the store will not start, said in the field log and on the save
+ * line (#479): a press that does nothing must at least leave a trace.
+ */
+function refuseRun(
+  ctx: StoreContext,
+  code: "run.start-over" | "run.pass",
+  block: PlayBlock,
+): void {
+  if (block === "closed") {
+    return;
+  }
+  const id = code === "run.pass" ? "pass" : "start-over";
+  record(ctx, "run.refused", { id, source: block });
+  log(ctx, {
+    level: "error",
+    code: "run.refused",
+    detail: `${id} ${block}`,
+    data: saveCounts(ctx.session.mountain),
+  });
+  emit(ctx);
+}
+
 /** Starts a new run (Start over, or the mine passed down), saved at once. */
 export function beginRun(
   ctx: StoreContext,
@@ -151,12 +221,15 @@ export function beginRun(
   detail: string,
   code: "run.start-over" | "run.pass",
 ): boolean {
-  if (!canPlay(ctx)) {
+  const block = playBlock(ctx);
+  if (block !== undefined) {
+    refuseRun(ctx, code, block);
     return false;
   }
   cancelQueuedWrite(ctx);
   runStep(ctx, { kind: "begin", mountain: next });
-  ctx.ring.clear();
+  // Tonight starts with the new run; the field log keeps the old one (#479).
+  ctx.ring.mark();
   record(ctx, code, {});
   log(ctx, {
     level: "info",
@@ -168,6 +241,7 @@ export function beginRun(
   persistSession(ctx);
   persistCloudSoon(ctx, false, true);
   persistFieldLog(ctx, "reset");
+  keepFieldRing(ctx, "reset");
   emit(ctx);
   return true;
 }
@@ -189,6 +263,7 @@ export function flushStore(ctx: StoreContext): void {
   persistPhoneBackup(ctx);
   persistCloudSoon(ctx, false, true);
   persistFieldLog(ctx, "hide");
+  keepFieldRing(ctx, "hide");
   if (ctx.saveKind === "session") {
     persistSession(ctx);
   }
