@@ -166,6 +166,10 @@ export function restoreFieldRing(ctx: StoreContext): void {
   if (before !== undefined && sameScope(before, scope)) {
     return;
   }
+  if (before !== undefined) {
+    // The account that leaves keeps its last few seconds first.
+    keepFieldRing(ctx, "hide");
+  }
   const storage = ctx.ports.storage;
   const kept = storage === undefined ? [] : readKeptEvents(storage, scope);
   ctx.ring.restore(

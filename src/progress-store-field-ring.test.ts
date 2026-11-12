@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { createMemoryAuth } from "./auth";
 import { createMemoryCloudSave, type CloudSave } from "./cloud-save";
-import { fieldRingKey, readKeptEvents, type RingScope } from "./field-ring";
+import {
+  fieldRingKey,
+  keepEvents,
+  readKeptEvents,
+  type RingScope,
+} from "./field-ring";
 import { FIELD_RING_GAP_MS } from "./local-saves";
 import { createLogger, type LogEvent } from "./log";
 import { createMountain } from "./mountain";
@@ -346,6 +351,10 @@ describe("the field log kept on this device (#479)", () => {
     guestPage.dispatch({ kind: "buyTier", id: "helper" });
     guestPage.flush();
     guestPage.dispose();
+    // The dad's own evening, kept before this reload.
+    keepEvents(storage, dadScope, [
+      { at: "2026-11-11T21:00:00.000Z", code: "vein.tap", data: { stones: 5 } },
+    ]);
 
     const auth = createMemoryAuth();
     const page = createProgressStore({
@@ -355,9 +364,16 @@ describe("the field log kept on this device (#479)", () => {
       now: () => 2_000,
     });
     expect(codes(page.fieldLog().events)).toEqual(["tier.buy"]);
+    page.applyMutation((mountain) => ({ ...mountain, pocket: 2_000 }));
+    page.dispatch({ kind: "buyTier", id: "helper" });
     await auth.signIn();
     await Promise.resolve();
-    expect(codes(page.fieldLog().events)).not.toContain("tier.buy");
+    expect(codes(page.fieldLog().events)).toEqual(["vein.tap"]);
+    // The guest's last purchase was kept before the account took over.
+    expect(codes(readKeptEvents(storage, guestScope))).toEqual([
+      "tier.buy",
+      "tier.buy",
+    ]);
     page.dispose();
   });
 });

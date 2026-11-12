@@ -102,6 +102,7 @@ describe("field ring", () => {
           event(7, "bad", { id: "x".repeat(25) }),
           event(8, "bad", { count: 1.5 }),
           event(9, "bad", { stones: -1 }),
+          event(11, "bad", { count: 1_000_001 }),
           event(10, "x".repeat(25)),
           { at: "soon", code: "bad", data: {} },
           { at: 5, code: "bad", data: {} },

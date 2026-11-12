@@ -33,7 +33,8 @@ export function sameScope(left: RingScope, right: RingScope): boolean {
 }
 
 const STRING_KEYS: ReadonlySet<string> = new Set(["id", "endsAt", "source"]);
-const INTEGER_KEYS: ReadonlySet<string> = new Set(["count", "ms"]);
+/** The field-log rules' ceiling on an event's `count`. */
+const MAX_COUNT = 1_000_000;
 const DATA_KEYS: ReadonlySet<string> = new Set(FIELD_EVENT_DATA_KEYS);
 
 const shortText = (value: unknown): value is string =>
@@ -52,7 +53,10 @@ function dataField(key: string, field: unknown): string | number | undefined {
   if (typeof field !== "number" || !Number.isFinite(field) || field < 0) {
     return undefined;
   }
-  if (INTEGER_KEYS.has(key)) {
+  if (key === "count") {
+    return Number.isInteger(field) && field <= MAX_COUNT ? field : undefined;
+  }
+  if (key === "ms") {
     return Number.isInteger(field) ? field : undefined;
   }
   return Math.min(field, FIELD_STONES_CAP);
