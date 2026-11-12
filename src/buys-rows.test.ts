@@ -321,7 +321,7 @@ describe("buyRowView", () => {
       dimTag: false,
       verb: "Hire",
       info: [staffingLine(1, 4)],
-      lamp: "green",
+      lamp: "amber",
       can: true,
       aria: `Mine cart: 4 idle: each needs 1 worker to run. Tap to hire a worker for ${formatCount(workerPrice)} stones.`,
     });

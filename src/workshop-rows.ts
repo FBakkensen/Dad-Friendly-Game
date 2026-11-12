@@ -175,6 +175,8 @@ export function recipeRowView(
     badge: card.level ?? "",
     info: [card.effect],
     flag: recipeFlag(card, teach),
+    // The taught craft is the board's pick: amber over green, as every New row (#509).
+    lamp: isNewCraft(card, teach) ? "amber" : face.lamp,
     gain: card.time,
     pick: false,
     aria: `${card.name}. ${sentence(card.effect)} ${tail}`,
@@ -218,7 +220,7 @@ function busyBenchRow(
 }
 
 /**
- * The bench as a drawer row, which is also the cancel plate. Free, it is green and takes no
+ * The bench as a drawer row, which is also the cancel plate. Free, it is dark and takes no
  * tap. Busy, a tap arms the cancel and `armed` asks for the second. A bench this build cannot
  * name keeps its clock and bar, and cannot be cancelled.
  */
@@ -231,7 +233,8 @@ export function benchRowView(bench: BenchView, armed: boolean): BenchRowView {
         ...QUIET_ROW,
         name: BENCH_FREE,
         info: [bench.aside],
-        lamp: "green",
+        // Nothing to tap on a free bench: the recipe rows light (#509).
+        lamp: "off",
         state: "ready",
         aria: `${BENCH_FREE}. ${bench.aside}`,
         progress: undefined,

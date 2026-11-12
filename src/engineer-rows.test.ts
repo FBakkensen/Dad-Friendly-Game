@@ -344,7 +344,7 @@ describe("an engineer's row (#455)", () => {
       info: ["Tending the borers", "Tending the borers"],
       why: "",
       flag: [],
-      lamp: "green",
+      lamp: "amber",
       state: "owned",
       verb: "",
       price: "",
@@ -377,10 +377,10 @@ describe("an engineer's row (#455)", () => {
       gain: "+5 stones/sec",
     });
     expect(other.flag).toEqual([]);
-    expect(other.lamp).toBe("green");
+    expect(other.lamp).toBe("amber");
   });
 
-  it("out, she runs green with the trip in words, and walks", () => {
+  it("out, she runs amber with the trip in words, and walks", () => {
     const mountain = adaOut();
     const view = engineerRowView(crew(mountain), ctxOf(mountain), NONE);
     expect(view.info).toEqual([
@@ -388,7 +388,7 @@ describe("an engineer's row (#455)", () => {
       "Exploring a tunnel",
     ]);
     expect(view.state).toBe("running");
-    expect(view.lamp).toBe("green");
+    expect(view.lamp).toBe("amber");
     expect(view.out).toBe(true);
     expect(view.info.join(" ")).not.toMatch(/\d/);
   });
@@ -397,6 +397,16 @@ describe("an engineer's row (#455)", () => {
     const mountain = fiveCrew();
     const nils = engineerRowView(crew(mountain, 1), ctxOf(mountain), NONE);
     expect(nils.lamp).toBe("off");
+    // Her page's camp post is "here now" and dark too: rest is not running (#509).
+    const camp = postRowView(
+      crew(mountain, 1),
+      1,
+      "camp",
+      ctxOf(mountain),
+      NONE,
+    );
+    expect(camp.name).toMatch(/here now$/);
+    expect(camp.lamp).toBe("off");
     expect(nils.state).toBe("ready");
     expect(nils.info[0]).toBe("Resting at camp");
   });
@@ -417,7 +427,7 @@ describe("an engineer's row (#455)", () => {
 
 describe("a post row on her page (#455)", () => {
   // Her own post's gain is the page's kick, so its right column stays clear for the name.
-  it("her own post is here, green, with its real gain in the line, not the column", () => {
+  it("her own post is here, amber, with its real gain in the line, not the column", () => {
     const mountain = withAda({ taught: ["engineers", "tending"] });
     const ctx = ctxOf(mountain);
     const gain = stonesPerSecond(tendingGain(mountain, 0, "borer", NOW));
@@ -425,7 +435,7 @@ describe("a post row on her page (#455)", () => {
     expect(view).toMatchObject({
       name: "The borers · here now",
       gain: "",
-      lamp: "green",
+      lamp: "amber",
       state: "owned",
       can: true,
       flag: [],

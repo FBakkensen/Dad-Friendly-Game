@@ -243,7 +243,7 @@ function paintWords(
   for (const [state, cls] of Object.entries(STATE_CLASS)) {
     mark(root, cls, view?.state === state);
   }
-  // A guided row can be the pick while it lights green under its New flag: the lamp leads.
+  // The lamp leads: only an amber row is the pick (#509).
   mark(
     root,
     "is-pick",

@@ -282,7 +282,7 @@ async function engineersFirstVisit(viewport, size) {
     opened &&
       hers.pageRows.length === 5 &&
       borers?.name === "The borers · here now" &&
-      borers.lamp === LAMP_X.green &&
+      borers.lamp === LAMP_X.amber &&
       borers.pressed === "true" &&
       built.length >= 1 &&
       built.every((row) => /^\+[\d.,]+[KMBT]? stones\/sec$/.test(row.gain)) &&
@@ -294,7 +294,7 @@ async function engineersFirstVisit(viewport, size) {
       hers.pageInside &&
       hers.plates.every((plate) => plate.inside) &&
       (await noScroll(page)),
-    `${size} engineers her page: five posts inside the drawer, the borers here now (green, pressed), real gains, and the guided first trip alone across the plate row in its full words, New; no page scroll`,
+    `${size} engineers her page: five posts inside the drawer, the borers here now (amber, running, pressed), real gains, and the guided first trip alone across the plate row in its full words, New; no page scroll`,
   );
   if (!opened || hers.pageRows.length !== 5 || left === undefined) {
     console.log("engineers her page", size, JSON.stringify(hers));
@@ -677,7 +677,7 @@ for (const viewport of SCREENS) {
         const second = await workshopFacts(page);
         check(
           free.bench.name === "The bench is free" &&
-            free.bench.lamp === LAMP_X.green &&
+            free.bench.lamp === LAMP_X.off &&
             free.bench.bar === -1 &&
             axle?.classes.includes("is-ready") === true &&
             axle.verb === "Craft" &&
@@ -686,7 +686,7 @@ for (const viewport of SCREENS) {
             free.more &&
             second.rows.some((row) => row.id === "sketch") &&
             free.kick === "Turn your clay into gear for the crew.",
-          `${size} workshop free: a green free bench, axle grease to craft, the charge short of clay the Granite no longer gives ("No clay this deep", #492), More to make with the sketch on page 2, and the teach intro`,
+          `${size} workshop free: a dark free bench (nothing to tap there, #509), axle grease to craft, the charge short of clay the Granite no longer gives ("No clay this deep", #492), More to make with the sketch on page 2, and the teach intro`,
         );
         if (!free.more || axle === undefined || charge === undefined) {
           console.log("workshop free", size, JSON.stringify(free));

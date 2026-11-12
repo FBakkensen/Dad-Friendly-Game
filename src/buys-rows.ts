@@ -286,7 +286,8 @@ function guidedFace(facts: BuyFacts): Face {
     price: formatCompact(workerPrice),
     dimTag: short,
     verb: "Hire",
-    lamp: short ? "off" : "green",
+    // The staffing New row is the board's pick: amber, as every New row (#509).
+    lamp: short ? "off" : "amber",
     can: !short,
   };
 }
