@@ -211,6 +211,8 @@ function refuseRun(
     detail: `${id} ${block}`,
     data: saveCounts(ctx.session.mountain),
   });
+  // On the device at once, so the writer tab's next upload carries it (#484).
+  keepFieldRing(ctx, "reset");
   emit(ctx);
 }
 

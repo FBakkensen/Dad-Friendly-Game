@@ -7,6 +7,7 @@ import { parseHomecomingNews, type Homecoming } from "./expeditions";
 import {
   EVENT_RING_LIMIT,
   shouldWriteFieldLog,
+  type FieldEvent,
   type FieldLogWriteReason,
 } from "./field-log";
 import {
@@ -183,6 +184,20 @@ export function restoreFieldRing(ctx: StoreContext): void {
     at: ctx.ports.now(),
     failed: false,
   };
+}
+
+/**
+ * The events the cloud log uploads: this page's ring with what this device
+ * kept for the account, so another tab's events reach the cloud too (#484).
+ */
+export function fieldEventsToUpload(ctx: StoreContext): readonly FieldEvent[] {
+  const mine = ctx.ring.last(EVENT_RING_LIMIT);
+  const storage = ctx.ports.storage;
+  const scope = ctx.ringScope;
+  if (storage === undefined || scope === undefined) {
+    return mine;
+  }
+  return mergeEvents(readKeptEvents(storage, scope), mine);
 }
 
 /**

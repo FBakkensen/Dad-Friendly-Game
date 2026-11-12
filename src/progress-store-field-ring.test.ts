@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { FieldLogDocument } from "./field-log";
 import { createMemoryAuth } from "./auth";
 import { createMemoryCloudSave, type CloudSave } from "./cloud-save";
 import {
@@ -375,5 +376,51 @@ describe("the field log kept on this device (#479)", () => {
       "tier.buy",
     ]);
     page.dispose();
+  });
+
+  it("puts a Start over refused in another tab into the writer's next cloud log (#484)", async () => {
+    const storage = createMemoryStorage();
+    const base = createMemoryCloudSave();
+    const uploads: FieldLogDocument[] = [];
+    const cloud: CloudSave = {
+      ...base,
+      writeFieldLog: (args) => {
+        uploads.push(args.log);
+        return base.writeFieldLog(args);
+      },
+    };
+    const reader: TabWriter = {
+      seat: () => "other",
+      subscribe: () => () => undefined,
+      playHere: () => Promise.resolve(),
+      onYield: () => undefined,
+      confirm: () => undefined,
+      release: () => undefined,
+      restore: () => undefined,
+      dispose: () => undefined,
+    };
+    const signedIn = () =>
+      createMemoryAuth({ state: { kind: "signed-in", user }, user });
+    const writer = createProgressStore({
+      auth: signedIn(),
+      cloudSave: cloud,
+      sessionStorage: storage,
+      now: () => 1_000,
+    });
+    const other = createProgressStore({
+      auth: signedIn(),
+      cloudSave: cloud,
+      sessionStorage: storage,
+      tabWriter: reader,
+      now: () => 2_000,
+    });
+    await Promise.resolve();
+    other.startOver();
+    // Kept on the device at once, not at the next paced write.
+    expect(codes(readKeptEvents(storage, dadScope))).toContain("run.refused");
+    writer.flush();
+    expect(codes(uploads.at(-1)?.events ?? [])).toContain("run.refused");
+    other.dispose();
+    writer.dispose();
   });
 });

@@ -5,7 +5,6 @@
  */
 import {
   APP_VERSION,
-  EVENT_RING_LIMIT,
   fieldErrorId,
   fieldLogFingerprint,
   shouldWriteFieldLog,
@@ -14,7 +13,7 @@ import {
   type FieldLogDocument,
   type FieldLogWriteReason,
 } from "./field-log";
-import { persistPhoneBackup } from "./local-saves";
+import { fieldEventsToUpload, persistPhoneBackup } from "./local-saves";
 import type { Mountain } from "./mountain";
 import { saveEchoKey } from "./phone-backup";
 import { effectiveRates } from "./rates";
@@ -303,9 +302,17 @@ export function persistFieldLog(
     return;
   }
   const now = ctx.ports.now();
+  if (
+    reason === "interval" &&
+    ctx.fieldLogAt !== undefined &&
+    now - ctx.fieldLogAt < ctx.ports.fieldLogWriteGapMs
+  ) {
+    // Not due: skip reading the device's copy on every dig.
+    return;
+  }
   const logDocument: FieldLogDocument = {
     snapshot: fieldSnapshotNow(ctx),
-    events: ctx.ring.last(EVENT_RING_LIMIT),
+    events: fieldEventsToUpload(ctx),
     updatedAt: now,
   };
   const fingerprint = fieldLogFingerprint(logDocument);

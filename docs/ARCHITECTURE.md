@@ -732,7 +732,10 @@ returnsAt, home, find }[]` (≤5, `returnsAt > sentAt`, no longer than the deep
   read-only page of the drawer when the clipboard is missing. No email or display name.
   Signed-in games write `fieldLogs/{uid}` = `{ snapshot, events (≤200),
 updatedAt }` at most every 5 minutes, and immediately on hide, Start over, and
-  passing the mine (#142). Those two keep the old run's events (#479). Guests write
+  passing the mine (#142). Those two keep the old run's events (#479). The events
+  uploaded are the writer tab's ring folded with this device's kept copy, and a
+  refusal is kept on the device at once, so a Start over refused in another tab
+  reaches the cloud at the writer's next upload (#484). Guests write
   nothing. `shouldWriteFieldLog` is the throttle. Rules: owner-only read/write,
   snapshot shape, `events` length ≤ 200, the first event's shape, no delete. The
   rules engine allows 1000 expressions, which is not enough to type-check all
