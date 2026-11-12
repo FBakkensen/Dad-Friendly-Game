@@ -11,6 +11,7 @@ import type { TierLock } from "./crew";
 import { FIX_HOLD_MS, type TroubleTier } from "./hazards";
 import type { BayView } from "./machine-bays";
 import { milestoneLine } from "./milestones";
+import { RELICS } from "./relics";
 import { MOUNTAIN_STONES } from "./scale";
 import { formatCompact } from "./format";
 import { createBoardHost, type BoardHost } from "./board-host";
@@ -555,6 +556,35 @@ describe("createMachineBays", () => {
     expect(iconSrc(b)).toContain("mach-machine");
     expect(q(b, ".board-bay-price-lg").textContent).toBe("Locked");
     expect(q(b, ".board-bay-tag").hidden).toBe(true);
+  });
+
+  it("marks a locked bay with what it waits for, so a relic's longer line keeps its size (#505)", () => {
+    const { bays } = make();
+    const hammer = RELICS.find((relic) => relic.id === "hammer");
+    if (hammer === undefined) {
+      throw new Error("no Hammer");
+    }
+    bays.render(
+      [
+        drill(),
+        lockedBorer,
+        {
+          kind: "locked",
+          tier: "machine",
+          count: 1,
+          lock: { kind: "relic", relic: hammer, at: 25_000_000 },
+        },
+      ],
+      "",
+    );
+    expect(bay(bays, 0).hasAttribute("data-lock")).toBe(false);
+    expect(bay(bays, 1).getAttribute("data-lock")).toBe("depth");
+    expect(bay(bays, 2).getAttribute("data-lock")).toBe("relic");
+    expect(q(bay(bays, 2), ".board-bay-sub").textContent).toBe(
+      "With the Hammer at 25M",
+    );
+    bays.render(early(), "");
+    expect(bay(bays, 0).hasAttribute("data-lock")).toBe(false);
   });
 
   it("reads an open bay's label with its count, price, gain and workers", () => {

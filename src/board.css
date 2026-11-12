@@ -1556,11 +1556,13 @@ body {
   color: var(--board-ink-plate);
 }
 
+/* Bold, in the plate's full ink (#505). It stays 13px: the reason is worded to fit the plate
+   at that size, and any bigger it falls back to the gain alone. */
 .board-ready-why {
   font-size: var(--board-type-13);
   line-height: calc(var(--art) * 8);
-  font-weight: var(--board-weight-semi);
-  color: var(--board-ink-plate-2);
+  font-weight: 700;
+  color: var(--board-ink-plate);
 }
 
 /* The red DIG button: a 56x52 art target whose 56x56 art sprite may hang
@@ -1745,11 +1747,26 @@ body {
   color: var(--board-ink);
 }
 
+/* The rate line reads as data (#505): 15px, semi-bold, in the bright ink. */
 .board-bay-sub {
   margin-top: var(--board-bay-sub-gap);
-  font-size: var(--board-type-13);
+  font-size: var(--board-type-15);
   line-height: var(--board-bay-sub-lead);
-  color: var(--board-ink-2);
+  font-weight: var(--board-weight-semi);
+  color: var(--board-ink);
+}
+
+/* Two lines have no shorter wording to fall back to, so they keep the old
+   13px and are never cut: the trouble shout in a three-flap bay's 100px, and
+   a relic's lock line (`With the Hammer at 49.3M`), which also keeps the
+   board's weight. */
+.board-bay.is-three[data-trouble] .board-bay-sub,
+.board-bay[data-lock="relic"] .board-bay-sub {
+  font-size: var(--board-type-13);
+}
+
+.board-bay[data-lock="relic"] .board-bay-sub {
+  font-weight: inherit;
 }
 
 /* The flap counter: flip-counter.png's left cap (columns 0-5), a window
@@ -1844,7 +1861,11 @@ body {
   justify-content: center;
   width: calc(var(--art) * 42);
   height: calc(var(--art) * 10);
-  font-size: var(--board-type-14);
+  font-family: "Barlow Condensed", sans-serif;
+  font-size: var(--board-type-17);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.03em;
   line-height: calc(var(--art) * 10);
   white-space: nowrap;
   color: var(--board-ink-plate);
@@ -2002,17 +2023,35 @@ button.board-row:focus-visible {
   margin-left: calc(var(--art) * 3);
 }
 
+/* A row's data lines lead (#505): 15px and semi-bold. The flavour line under them stays quiet. */
 .board-row-info,
+.board-row-need {
+  font-size: var(--board-type-15);
+  line-height: var(--board-row-info-lead);
+  font-weight: var(--board-weight-semi);
+}
+
+.board-row-info {
+  color: var(--board-ink);
+}
+
+.board-row-need {
+  color: var(--board-rust);
+}
+
+/* A post on an engineer's page is a sentence about her, not a figure: it
+   stays the quiet 13px line. */
+.engineer-post .board-row-info {
+  font-size: var(--board-type-13);
+  line-height: var(--board-row-line-lead);
+  font-weight: inherit;
+  color: var(--board-ink-2);
+}
+
 .board-row-why {
   font-size: var(--board-type-13);
   line-height: var(--board-row-line-lead);
   color: var(--board-ink-2);
-}
-
-.board-row-need {
-  font-size: var(--board-type-13);
-  line-height: var(--board-row-line-lead);
-  color: var(--board-rust);
 }
 
 .board-row-flag {
@@ -2033,9 +2072,13 @@ button.board-row:focus-visible {
 }
 
 .board-row-gain {
-  font-size: var(--board-type-15);
+  font-family: "Barlow Condensed", sans-serif;
+  font-size: var(--board-type-16);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
   line-height: var(--board-row-gain-lead);
-  color: var(--board-ink);
+  color: var(--board-ink-bare);
   white-space: nowrap;
 }
 
@@ -2048,7 +2091,11 @@ button.board-row:focus-visible {
   height: calc(var(--art) * 10);
   min-width: calc(var(--art) * 34);
   padding: 0 calc(var(--art) * 6.5);
-  font-size: var(--board-type-14);
+  font-family: "Barlow Condensed", sans-serif;
+  font-size: var(--board-type-17);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.03em;
   line-height: calc(var(--art) * 10);
   white-space: nowrap;
   color: var(--board-ink-plate);
@@ -2060,6 +2107,7 @@ button.board-row:focus-visible {
 
 .board-row-price {
   position: relative;
+  font-family: inherit;
 }
 
 .board-row-verb {

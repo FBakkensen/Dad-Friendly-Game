@@ -2,6 +2,7 @@
 /** Controls sections: each family of board controls wired once, in Chrome, and the press look. */
 import {
   crewMountain,
+  fleetMountain,
   openMountain,
   heartMountain,
   savingMountain,
@@ -744,6 +745,66 @@ for (const viewport of SCREENS) {
       );
       if (!thanks.thanked || baysMeasured !== 3) {
         console.log("thanks note", size, { ...thanks, baysMeasured });
+      }
+      await close();
+    }
+    // Trouble on a three-flap bay (120 carts): its text column is narrower,
+    // and the shout still fits whole (#505).
+    {
+      const troubled = '.board-bay.is-three[data-trouble="cave-in"]';
+      const { page, close } = await openScreen(viewport, fleetMountain(), {
+        search: "?trouble=cave-in",
+        stopClock: true,
+        tapClock: "held",
+      });
+      await baysDrawn(page);
+      const sub = await page
+        .waitForSelector(`${troubled} .board-bay-sub`, { timeout: 3_000 })
+        .then((el) =>
+          el.evaluate((line) => ({
+            text: line.textContent,
+            cut: line.scrollWidth > line.clientWidth + 1,
+          })),
+        )
+        .catch(() => null);
+      check(
+        sub !== null && sub.text.endsWith("Hold to fix") && !sub.cut,
+        `${label} a troubled three-flap bay shows Hold to fix whole`,
+      );
+      if (sub === null || sub.cut || !sub.text.endsWith("Hold to fix")) {
+        console.log("three-flap trouble", size, sub);
+      }
+      await close();
+    }
+    // A Great Machine owned before the Hammer (a forced save): its bay is
+    // locked on the relic, and that longer line has no shorter wording (#505).
+    {
+      const open = openMountain();
+      const forced = {
+        ...open,
+        mountain: {
+          ...open.mountain,
+          remaining: 240_000_000 - 20_000_000,
+          machines: 1,
+        },
+      };
+      const { page, close } = await openScreen(viewport, forced, {
+        stopClock: true,
+      });
+      await baysDrawn(page);
+      const subs = await page.$$eval(".board-bay .board-bay-sub", (lines) =>
+        lines.map((line) => ({
+          text: line.textContent,
+          cut: line.scrollWidth > line.clientWidth + 1,
+        })),
+      );
+      const lock = subs.find((line) => line.text.startsWith("With the Hammer"));
+      check(
+        lock !== undefined && subs.every((line) => !line.cut),
+        `${label} a bay locked on the Hammer shows its line whole`,
+      );
+      if (lock === undefined || subs.some((line) => line.cut)) {
+        console.log("relic-locked bay", size, subs);
       }
       await close();
     }
