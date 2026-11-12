@@ -34,7 +34,7 @@ export function parseBootOptions(search: string): {
   previewConflict: boolean;
   /** Dev-only layout hook: hold the save line on loading or unreachable. */
   previewSave: PreviewSave | undefined;
-  /** Dev-only layout hook: two archived copies, one from an earlier run. */
+  /** Dev-only layout hook: two archived copies, one left by a Start over. */
   previewCopies: boolean;
   /** Dev-only layout hook: the update card, as a newer service worker opens it. */
   previewUpdate: boolean;
@@ -107,8 +107,9 @@ function hangCloudWatch(cloudSave: CloudSave): CloudSave {
 }
 
 /**
- * Two archived copies for the Saved copies sheet. The earlier run is greyed
- * out. The kitchen tablet is a later run, so it can still be played.
+ * Two archived copies for the Saved copies sheet: the run an old phone left
+ * by starting over, and the kitchen tablet's copy of this run. Both can be
+ * played; the earlier run comes back as a new run (#480).
  */
 async function seedPreviewCopies(cloudSave: CloudSave): Promise<void> {
   if (cloudSave.archiveCopy === undefined) {
@@ -141,6 +142,7 @@ async function seedPreviewCopies(cloudSave: CloudSave): Promise<void> {
     rev: 2,
     deviceId: "earlier-phone",
     deviceLabel: "Old phone",
+    reason: "start-over",
   });
   await cloudSave.archiveCopy({
     uid: "dev-dad",
@@ -149,6 +151,7 @@ async function seedPreviewCopies(cloudSave: CloudSave): Promise<void> {
     rev: 8,
     deviceId: "kitchen-tablet",
     deviceLabel: "Kitchen tablet",
+    reason: "conflict",
   });
 }
 

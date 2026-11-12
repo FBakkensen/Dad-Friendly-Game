@@ -22,6 +22,7 @@ import {
   snapshot,
   type FieldLogDocument,
 } from "./field-log";
+import { ARCHIVE_REASONS } from "./cloud-save";
 import { createMountain } from "./mountain";
 import { effectiveRates } from "./rates";
 import type { SavedMountain } from "./save-format";
@@ -177,5 +178,13 @@ describe("firestore.rules match the game", () => {
     expect(block).toContain("allow read: if isOwner(userId)");
     expect(block).toContain("isFieldLog(request.resource.data)");
     expect(block).toContain("allow delete: if false");
+  });
+
+  it("takes every reason a copy is archived for (#480)", () => {
+    const match = /data\.reason in \[([^\]]*)\]/.exec(rules);
+    const listedReasons = (match?.[1] ?? "")
+      .split(",")
+      .map((id) => id.trim().replace(/'/g, ""));
+    expect(listedReasons.sort()).toEqual([...ARCHIVE_REASONS].sort());
   });
 });

@@ -1512,8 +1512,14 @@ async function main() {
     await opened.page.waitForSelector(".saved-copies:not([hidden])");
     await drawerGone(opened.page, "ledger");
     await cardRisen(opened.page, "copies");
-    await opened.page.waitForSelector(".is-earlier-run");
-    await expectText(opened.page, /earlier run/, "saved copies");
+    // Both copies play, the earlier run's too (#480).
+    await opened.page.waitForFunction(
+      () =>
+        document.querySelectorAll(".saved-copy .save-conflict-play").length ===
+        2,
+      { timeout: 8_000 },
+    );
+    await expectText(opened.page, /Old phone/, "saved copies");
     return opened;
   });
   await capture("other-tab-playing", async (viewport) => {

@@ -55,6 +55,7 @@ const copy = (id: string, mountain: Partial<Mountain> = {}): ArchivedCopy => ({
   rev: 1,
   deviceId: `device-${id}`,
   deviceLabel: `Safari on iPhone ${id}`,
+  reason: "conflict",
   archivedAt: 1_000,
   expiresAt: 1_000 + 7 * 24 * 3_600_000,
 });
@@ -159,16 +160,17 @@ describe("the Saved copies card (#466)", () => {
     expect(copies(fixture)).toHaveLength(0);
   });
 
-  it("an earlier run's copy says it cannot be played, with no plate", async () => {
+  it("an earlier run's copy can be played too (#480)", async () => {
     const fixture = mount([copy("old", { startedAt: 1 })]);
     fixture.panel.open();
     await advance(0);
     const [old] = copies(fixture);
-    expect(old?.classList.contains("is-earlier-run")).toBe(true);
-    expect(old?.querySelector(".earlier-run")?.textContent).toBe(
-      "From an earlier run – can't be played now",
-    );
-    expect(plays(fixture)).toHaveLength(0);
+    expect(old?.querySelector(".earlier-run")).toBeNull();
+    expect(old?.textContent).not.toMatch(/earlier run/);
+    expect(plays(fixture)).toHaveLength(1);
+    await advance(DRAWER_SETTLE_MS);
+    press(plays(fixture)[0]);
+    expect(fixture.restoreCopy).toHaveBeenCalledWith("old");
   });
 
   it("Play this one plays it past the settle, once, and the card goes", async () => {

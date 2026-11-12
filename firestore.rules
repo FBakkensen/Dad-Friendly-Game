@@ -405,7 +405,7 @@ service cloud.firestore {
     function isArchive(data) {
       return data.keys().hasOnly(['version', 'mountain', 'workshop', 'lastSeen', 'rev', 'deviceId', 'deviceLabel', 'archivedAt', 'expiresAt', 'reason']) &&
         data.version == 7 &&
-        data.reason == 'conflict' &&
+        data.reason in ['conflict', 'restore', 'start-over', 'pass'] &&
         data.archivedAt == request.time &&
         data.expiresAt is timestamp &&
         data.expiresAt > request.time + duration.value(7, 'd') - duration.value(5, 'm') &&
@@ -423,7 +423,9 @@ service cloud.firestore {
         data.workshop is map;
     }
 
-    // The copy that was not chosen. Seven days is shown in the client.
+    // A mountain left behind: the copy not chosen, the one a restore
+    // replaced, or the one a Start over or a pass left (#480). Seven days is
+    // shown in the client.
     // Nothing here deletes an expired copy.
     match /saveArchive/{userId}/copies/{copyId} {
       allow read: if isOwner(userId);

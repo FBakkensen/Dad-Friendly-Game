@@ -14,6 +14,7 @@ import { minedOut } from "./mountain";
 import { applyMerged } from "./save-adopt";
 import { stonesLeft } from "./scale";
 import { saveCounts } from "./session";
+import { settleWithin, type GaveUp } from "./settle-within";
 import {
   cancelRetry,
   cloudDirty,
@@ -31,7 +32,7 @@ import {
 } from "./store-context";
 import { emit } from "./store-session";
 
-type ReadOutcome = CloudLoadResult | "timeout" | "rejected";
+type ReadOutcome = CloudLoadResult | GaveUp;
 
 /** One fresh read at a time: a second ask shares the first. */
 export function freshServerRead(ctx: StoreContext): Promise<void> {
@@ -106,33 +107,18 @@ export function endResumeRead(ctx: StoreContext): void {
 
 /** The server's answer, or a give-up after the timeout or a rejected read. */
 function loadOrGiveUp(ctx: StoreContext, uid: string): Promise<ReadOutcome> {
-  return new Promise((resolve) => {
-    let settled = false;
-    const finish = (value: ReadOutcome): void => {
-      if (settled) {
-        return;
-      }
-      settled = true;
-      clearTimeout(timer);
-      // A read from an account that has gone leaves the next one's timer.
-      if (ctx.resumeTimer === timer) {
+  return settleWithin(
+    ctx.ports.cloudSave.load({ uid, fresh: true }),
+    ctx.ports.resumeReadTimeoutMs,
+    (timer, running) => {
+      if (running) {
+        ctx.resumeTimer = timer;
+      } else if (ctx.resumeTimer === timer) {
+        // A read from an account that has gone leaves the next one's timer.
         ctx.resumeTimer = undefined;
       }
-      resolve(value);
-    };
-    const timer = setTimeout(() => {
-      finish("timeout");
-    }, ctx.ports.resumeReadTimeoutMs);
-    ctx.resumeTimer = timer;
-    ctx.ports.cloudSave.load({ uid, fresh: true }).then(
-      (loaded) => {
-        finish(loaded);
-      },
-      () => {
-        finish("rejected");
-      },
-    );
-  });
+    },
+  );
 }
 
 function resumeLine(

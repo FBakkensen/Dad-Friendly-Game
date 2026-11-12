@@ -20,6 +20,7 @@ import {
   START_OVER_KEEP,
   START_OVER_TITLE,
   START_OVER_YES,
+  SAVE_CONFLICT_ERROR,
   fieldLogCopied,
   fieldLogCopy,
   fieldLogFallback,
@@ -219,6 +220,8 @@ export function createStartOverPage({
   paint(ready: boolean): void;
   /** The drawer moved on: no answer's finger-down time carries over. */
   forget(): void;
+  /** The question again, or (#480) that the mountain could not be kept first. */
+  say(kept: boolean): void;
 } {
   const page = createAskPage({
     board,
@@ -243,7 +246,15 @@ export function createStartOverPage({
     ],
   });
   ledgerFrame(page);
-  return page;
+  return {
+    ...page,
+    say(kept) {
+      page.write(
+        START_OVER_TITLE,
+        kept ? START_OVER_DETAIL : SAVE_CONFLICT_ERROR,
+      );
+    },
+  };
 }
 
 /** Where the browser refuses the clipboard: the log in a read-only box, to copy by hand. */
