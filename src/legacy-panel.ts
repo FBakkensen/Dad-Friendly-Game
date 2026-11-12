@@ -160,11 +160,10 @@ export function createLegacyPanel({
     "confirm",
     "legacy-confirm",
     () => {
-      // One pass at a time. The mine goes to Saved copies first (#480); the card waits for it.
-      if (passing) {
-        return;
-      }
+      // One pass at a time: the plate stays disabled while the mine goes to Saved copies first (#480).
       passing = true;
+      failed = false;
+      confirm.disabled = true;
       requestRender();
       // Not yet or Escape while the copy is on its way backs out of the pass.
       void progress

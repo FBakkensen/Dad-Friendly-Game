@@ -363,6 +363,45 @@ describe("a new run keeps the mountain he left in Saved copies (#480)", () => {
     progress.dispose();
   });
 
+  it("restores nothing when he signed out while the shelf was read", async () => {
+    const memory = createMemoryCloudSave();
+    let listed: () => void = () => undefined;
+    const auth = createMemoryAuth({ state: { kind: "signed-in", user }, user });
+    const { progress } = await playing(
+      { ...minedMountain(40_000), startedAt: 500 },
+      {
+        auth,
+        cloud: {
+          ...memory,
+          listCopies: () =>
+            new Promise((resolve) => {
+              listed = () => {
+                resolve([
+                  {
+                    id: "copy-x",
+                    mountain: { ...minedMountain(9), startedAt: 500 },
+                    lastSeen: 1,
+                    rev: 1,
+                    deviceId: "other-device",
+                    deviceLabel: "Safari on iPhone",
+                    reason: "conflict",
+                    archivedAt: 1,
+                    expiresAt: Number.MAX_SAFE_INTEGER,
+                  },
+                ]);
+              };
+            }),
+        },
+      },
+    );
+    const restored = progress.restoreCopy("copy-x");
+    await auth.signOut();
+    listed();
+    await expect(restored).resolves.toBe("kept");
+    expect(progress.getSnapshot().mountain.pocket).not.toBe(9);
+    progress.dispose();
+  });
+
   it("starts over at once when nothing has been mined, and keeps no copy", async () => {
     const { progress } = await playing({ ...minedMountain(0), startedAt: 500 });
     const started = progress.startOver();

@@ -146,17 +146,15 @@ export async function restoreCopy(
   if (found === undefined) {
     return "missing";
   }
-  // A mountain with nothing mined is not kept: it would only crowd the shelf.
   if (!stillOn(ctx, stance)) {
     return "kept";
   }
+  // A mountain with nothing mined is not kept: it would only crowd the shelf.
+  // A copy that lands checks the save again (keepInPlay).
   if (
     minedOut(ctx.session.mountain) > 0 &&
     !(await keepInPlay(ctx, stance, "restore"))
   ) {
-    return "kept";
-  }
-  if (!stillOn(ctx, stance)) {
     return "kept";
   }
   const { mountain, lastSeen } = comeBack(ctx, found);
