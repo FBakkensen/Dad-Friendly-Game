@@ -101,9 +101,12 @@ const gainText = (gain: number): string => `+${formatSpeed(gain)}/s`;
 /** Why the plate offers a ready pick: the free hands that can run it, or what a worker starts. */
 function readyReason(pick: Extract<ReadyPick, { kind: "ready" }>): string {
   if (pick.tier === "helper") {
-    return pick.starts === undefined
-      ? "every hand is busy"
-      : STARTS[pick.starts];
+    if (pick.starts !== undefined) {
+      return STARTS[pick.starts];
+    }
+    return pick.firstWorker === true
+      ? "your first worker"
+      : "every hand is busy";
   }
   return pick.free === 1
     ? "your free worker can run it"

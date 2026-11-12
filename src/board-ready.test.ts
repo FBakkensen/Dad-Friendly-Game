@@ -94,6 +94,27 @@ describe("readyWords", () => {
     expect(words.why[0]).toBe("+1/s · every hand is busy");
   });
 
+  it("calls the first worker the first, not a busy hand (#517)", () => {
+    const words = readyWords({
+      kind: "ready",
+      tier: "helper",
+      price: 20,
+      gain: 1,
+      free: 0,
+      firstWorker: true,
+    });
+    expect(words.why[0]).toBe("+1/s · your first worker");
+    expect(words.aria).toBe(
+      "Ready now: Hire a worker · 20, +1/s · your first worker",
+    );
+  });
+
+  it("counts seconds in the last minute of saving (#517)", () => {
+    expect(readyWords({ ...savingCart, etaMs: 2_400 }).main[0]).toBe(
+      "Saving for a cart · in 3s",
+    );
+  });
+
   it("says which idle machine the worker starts (#490)", () => {
     const hire = {
       kind: "ready",

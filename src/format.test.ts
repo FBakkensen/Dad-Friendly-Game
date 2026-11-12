@@ -62,7 +62,11 @@ describe("formatCompact", () => {
 
 describe("etaShort", () => {
   it.each([
-    [1, "1m"],
+    // Under a minute it counts seconds, rounded up (#517).
+    [1, "1s"],
+    [2_400, "3s"],
+    [59_000, "59s"],
+    [59_001, "1m"],
     [60_000, "1m"],
     [60_001, "2m"],
     [240_000, "4m"],
