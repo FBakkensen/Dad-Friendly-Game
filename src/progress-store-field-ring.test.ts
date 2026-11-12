@@ -283,7 +283,6 @@ describe("the field log kept on this device (#479)", () => {
     });
     await Promise.resolve();
     expect(progress.getSnapshot().ready).toBe(true);
-    progress.dismiss("homecoming");
     progress.flush();
     progress.dispose();
   });
