@@ -129,14 +129,19 @@ export const stonesASecond = (rate: number): string =>
   rate === 1 ? "1 stone a second" : `${formatCount(rate)} stones a second`;
 
 /**
- * "Your crew mines 586 stones a second", compact once it's big ("154.1K
- * stones/s") so the line never wraps on a phone. Buys' crew line and the
- * dial's note when a crew timer runs out say it the same way (#527).
+ * "Your crew mines 586 stones a second", compact once it's big. Buys' crew
+ * line is a figure, so a big rate carries /s ("154.1K stones/s") and never
+ * wraps; the dial's note when a crew timer runs out is a sentence, so it
+ * keeps "a second" ("154.1K stones a second", Flemming 13 Nov 2026), the
+ * #508 rule (#527).
  */
-export function crewMinesWords(crewPerSecond: number): string {
+export function crewMinesWords(
+  crewPerSecond: number,
+  unit: "/s" | " a second" = "/s",
+): string {
   const rate = Math.max(0, Math.floor(crewPerSecond));
   return rate >= 1_000
-    ? `Your crew mines ${formatCompact(rate)} stones/s`
+    ? `Your crew mines ${formatCompact(rate)} stones${unit}`
     : `Your crew mines ${stonesASecond(rate)}`;
 }
 
@@ -1512,7 +1517,7 @@ export function veinWords(reward: number, held: number): string {
  * ended, and what the crew mines now, so a sudden drop has its reason.
  */
 export function boostOverWords(name: string, crewPerSecond: number): string {
-  return `${name} over.\n${crewMinesWords(crewPerSecond)} now.`;
+  return `${name} over.\n${crewMinesWords(crewPerSecond, " a second")} now.`;
 }
 
 /**
