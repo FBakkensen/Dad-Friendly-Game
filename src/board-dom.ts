@@ -98,7 +98,6 @@ export function mark(target: HTMLElement, name: string, on: boolean): void {
   }
 }
 
-/** A section's legend: its name, engraved, and the column's name at the right. */
 /**
  * Plays a class's CSS animation from its start, on an element that may still be mid-way
  * through it: off, a reflow, and on again.
@@ -109,6 +108,7 @@ export function replay(target: HTMLElement, name: string): void {
   target.classList.add(name);
 }
 
+/** A section's legend: its name, engraved, and the column's name at the right. */
 export function legend(
   name: string,
   key: string,
