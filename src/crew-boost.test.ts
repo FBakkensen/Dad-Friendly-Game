@@ -1,11 +1,6 @@
-import { releaseRush, RUSH_MS, startRush } from "./gold-rush";
+import { RUSH_MS, startRush } from "./gold-rush";
 import { describe, expect, it } from "vitest";
-import {
-  boostRanOut,
-  dialFrame,
-  liveCrewBoost,
-  type CrewBoost,
-} from "./crew-boost";
+import { dialFrame, liveCrewBoost, type CrewBoost } from "./crew-boost";
 import { boostById, NO_BOOSTS } from "./boosts";
 import { effectiveRates } from "./rates";
 import { minedMountain } from "./test-fixtures";
@@ -163,74 +158,5 @@ describe("dialFrame", () => {
     expect(dialFrame(running(29 * MIN, 30 * MIN))).toBe(29);
     expect(dialFrame(running(1000, 30 * MIN))).toBe(1);
     expect(dialFrame(running(30 * MIN, 30 * MIN))).toBe(30);
-  });
-});
-
-describe("boostRanOut (#525)", () => {
-  const SEC = 1000;
-  const seenAt = (m: Mountain, at: number) => ({
-    boost: liveCrewBoost(m, at),
-    at,
-  });
-  const rush = (): Mountain => startRush({ ...crew(), rushBank: 9_000 }, NOW);
-
-  it("names the Gold rush the second it runs out", () => {
-    const m = rush();
-    const seen = seenAt(m, NOW + RUSH_MS - SEC);
-    expect(boostRanOut(seen, m, NOW + RUSH_MS)).toMatchObject({
-      source: "gold-rush",
-      name: "Gold rush",
-    });
-  });
-
-  it("names Overtime when its clock runs out", () => {
-    const m = withOvertime(crew(), 30 * MIN - SEC);
-    const seen = seenAt(m, NOW);
-    expect(seen.boost).toMatchObject({ source: "overtime", leftMs: SEC });
-    expect(boostRanOut(seen, m, NOW + SEC)).toMatchObject({
-      source: "overtime",
-      name: "Overtime",
-    });
-  });
-
-  it("names the rush when Overtime still runs under it", () => {
-    const m: Mountain = {
-      ...rush(),
-      boosts: { ...NO_BOOSTS, overtime: NOW + 10 * MIN },
-    };
-    const seen = seenAt(m, NOW + RUSH_MS - SEC);
-    expect(boostRanOut(seen, m, NOW + RUSH_MS)).toMatchObject({
-      source: "gold-rush",
-    });
-  });
-
-  it("says nothing while the boost still runs", () => {
-    const m = rush();
-    const seen = seenAt(m, NOW + 10 * SEC);
-    expect(boostRanOut(seen, m, NOW + 11 * SEC)).toBeUndefined();
-  });
-
-  it("says nothing when nothing ran", () => {
-    expect(boostRanOut(seenAt(crew(), NOW), crew(), NOW + SEC)).toBeUndefined();
-    expect(boostRanOut(undefined, crew(), NOW)).toBeUndefined();
-  });
-
-  it("says nothing when a bigger boost takes the dial", () => {
-    const m = withOvertime(crew(), MIN);
-    const seen = seenAt(m, NOW);
-    const rushed: Mountain = startRush({ ...m, rushBank: 9_000 }, NOW + SEC);
-    expect(boostRanOut(seen, rushed, NOW + SEC)).toBeUndefined();
-  });
-
-  it("says nothing for a boost that ended while the game was away", () => {
-    const m = rush();
-    const seen = seenAt(m, NOW + RUSH_MS - SEC);
-    expect(boostRanOut(seen, m, NOW + RUSH_MS + 10 * SEC)).toBeUndefined();
-  });
-
-  it("says nothing when the rush was stopped early, not run out", () => {
-    const m = rush();
-    const seen = seenAt(m, NOW + 30 * SEC);
-    expect(boostRanOut(seen, releaseRush(m), NOW + 31 * SEC)).toBeUndefined();
   });
 });

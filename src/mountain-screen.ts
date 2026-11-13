@@ -89,7 +89,6 @@ export function mountMountainScreen(options: ScreenOptions): void {
     closeOtherDrawers: () => {
       keys.closeOthers("relics");
     },
-    covered: () => overlays.boardCovered(),
   });
   const sheets = createSheetPanels(ctx, {
     rail,
