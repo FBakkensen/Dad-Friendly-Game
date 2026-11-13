@@ -3,7 +3,7 @@ import { etaShort, formatCompact, formatCount } from "./format";
 import { shownStones, stonesLeft } from "./scale";
 import { RELICS } from "./relics";
 import { savedMountain } from "./save-format";
-import { RELIC_DARK, RELIC_LIT } from "./board-relics";
+import { RELIC_DARK, RELIC_GOLD, RELIC_LIT } from "./board-relics";
 import { writeSessionSave } from "./session-save";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMemoryAuth } from "./auth";
@@ -1253,9 +1253,9 @@ describe("Lantern of Guidance on screen", () => {
     );
     expect(
       reveal
-        ?.querySelector<HTMLImageElement>(".relic-page-art")
+        ?.querySelector<HTMLImageElement>(".relic-reveal-art")
         ?.getAttribute("src"),
-    ).toBe(RELIC_LIT.lantern);
+    ).toBe(RELIC_GOLD.lantern);
     expect(document.activeElement).toBe(
       reveal?.querySelector(".relic-page-carry"),
     );

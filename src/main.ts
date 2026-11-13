@@ -5,12 +5,7 @@ import drillUrl from "./assets/steam-drill.png";
 import borerUrl from "./assets/tunnel-borer.png";
 import machineUrl from "./assets/great-machine.png";
 import veinUrl from "./assets/gold-nugget.png";
-import relicCrown from "./assets/relics/crown.png";
-import relicHammer from "./assets/relics/hammer.png";
-import relicHeart from "./assets/relics/heart.png";
-import relicLantern from "./assets/relics/lantern.png";
-import relicMantle from "./assets/relics/mantle.png";
-import relicShield from "./assets/relics/shield.png";
+import { RELIC_GOLD } from "./board-relics";
 import { createAppServices, parseBootOptions } from "./boot";
 import { mountMountainScreen, showAppUpdate } from "./mountain-screen";
 import { registerServiceWorker } from "./pwa";
@@ -44,14 +39,7 @@ try {
       machine: machineUrl,
       kid: kidUrl,
     },
-    relicArt: {
-      lantern: relicLantern,
-      shield: relicShield,
-      hammer: relicHammer,
-      heart: relicHeart,
-      crown: relicCrown,
-      mantle: relicMantle,
-    },
+    relicArt: RELIC_GOLD,
     auth,
     progress,
   });

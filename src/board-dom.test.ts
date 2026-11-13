@@ -11,6 +11,7 @@ import {
   legend,
   mark,
   refitAll,
+  replay,
   scrollIntoList,
   setAttr,
   write,
@@ -144,6 +145,23 @@ describe("board-dom", () => {
     }
     // a and deep measure again (2 each); the box outside the root keeps its fit.
     expect(fits).toHaveBeenCalledTimes(4);
+  });
+});
+
+describe("replay", () => {
+  it("takes the class off, measures the element, and puts it back", () => {
+    const target = document.createElement("div");
+    target.classList.add("is-on");
+    const atReflow: boolean[] = [];
+    Object.defineProperty(target, "offsetWidth", {
+      get: () => {
+        atReflow.push(target.classList.contains("is-on"));
+        return 0;
+      },
+    });
+    replay(target, "is-on");
+    expect(atReflow).toEqual([false]);
+    expect(target.classList.contains("is-on")).toBe(true);
   });
 });
 

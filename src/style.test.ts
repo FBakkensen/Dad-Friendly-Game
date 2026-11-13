@@ -64,6 +64,9 @@ const BOARD_SELECTORS = [
   ".relic-page-line",
   ".relic-page-boost",
   ".relic-page-answers",
+  ".relic-reveal-stage",
+  ".relic-reveal-art",
+  ".relic-reveal-light",
   ".relic-legend-shelf",
   ".relic-keepsakes",
   ".relic-keepsake-list",
@@ -352,6 +355,34 @@ describe("board.css", () => {
       .find((body) => body.includes(".engineer-walker"));
     expect(reduced).toBeDefined();
     expect(reduced).toMatch(/\.engineer-walker[^{]*\{[^}]*animation:\s*none/);
+  });
+
+  it("the reveal's rise, light and words hold still under reduced motion (#523)", () => {
+    expect(boardCss).toMatch(
+      /^\.relic-reveal-page\.is-entering \.relic-reveal-art \{[^}]*animation:\s*board-relic-rise [^;]*steps\(/m,
+    );
+    expect(boardCss).toMatch(
+      /^\.relic-reveal-page\.is-entering \.relic-reveal-light \{[^}]*board-relic-shine [^;]*steps\(1\)[^;]*infinite/m,
+    );
+    const reduced =
+      /@media \(prefers-reduced-motion: reduce\) \{([\s\S]*?)\n\}/.exec(
+        boardCss,
+      )?.[1];
+    for (const part of [
+      "\\.relic-reveal-art",
+      "\\.relic-reveal-light",
+      "\\.relic-page-title",
+      "\\.relic-page-line",
+      "\\.relic-page-boost",
+    ]) {
+      expect(reduced).toMatch(
+        // Under .board-sheet: the block stands before the rules it must beat.
+        new RegExp(
+          `^  \\.board-sheet \\.relic-reveal-page\\.is-entering ${part} \\{[^}]*animation:\\s*none`,
+          "m",
+        ),
+      );
+    }
   });
 
   it("the New sign takes no taps: they go through to the plate or the key (#373)", () => {

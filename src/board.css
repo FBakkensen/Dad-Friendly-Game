@@ -807,6 +807,23 @@ body {
   .board-card .board-card-face {
     animation: none;
   }
+  /* The reveal (#523): the relic, its light (the near frame) and its words are simply there.
+     Under .board-sheet, to stand over the entrance's own rules later in this file. */
+  .board-sheet .relic-reveal-page.is-entering .relic-reveal-art {
+    animation: none;
+  }
+  .board-sheet .relic-reveal-page.is-entering .relic-reveal-light {
+    animation: none;
+  }
+  .board-sheet .relic-reveal-page.is-entering .relic-page-title {
+    animation: none;
+  }
+  .board-sheet .relic-reveal-page.is-entering .relic-page-line {
+    animation: none;
+  }
+  .board-sheet .relic-reveal-page.is-entering .relic-page-boost {
+    animation: none;
+  }
 }
 
 /* The save line's spoken separator: in the text, not drawn. */
@@ -3297,7 +3314,7 @@ button.board-row:focus-visible {
 /* ---------- the relics drawer (#465) ---------- */
 
 /* A page of the relics drawer: a found relic's detail, the reveal, or the Legend. Centred, as
-   the old cards were, with the relic at 24 art px. */
+   the old cards were, with the relic at 24 art px (the reveal has its own stage, below). */
 .relic-page {
   position: relative;
   flex: 1 1 auto;
@@ -3367,6 +3384,130 @@ button.board-row:focus-visible {
 .relic-page-boost {
   color: var(--board-ink);
   font-weight: 700;
+}
+
+/* The reveal of a relic just found (#523): the gold sprite at 2× on its stage, with eight
+   dashes of light around it, drawn as art-pixel blocks (no art, no filter). The dashes reach
+   past the stage, so its margin keeps them, on the far frame too, off the kicker and the title. */
+.relic-reveal-stage {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: calc(var(--art) * 64);
+  height: calc(var(--art) * 64);
+  margin: calc(var(--art) * 12) 0;
+}
+
+.relic-reveal-art {
+  position: relative;
+  grid-area: 1 / 1;
+  transform: scale(2);
+  image-rendering: pixelated;
+}
+
+.relic-reveal-light {
+  /* How far out the dashes stand, in art px: the shine swaps both, a whole frame at a time. */
+  --relic-out: 0;
+  --relic-diag: 0;
+  position: relative;
+  grid-area: 1 / 1;
+  width: calc(var(--art) * 2);
+  height: calc(var(--art) * 2);
+  box-shadow:
+    calc(var(--art) * (36 + var(--relic-out))) 0 0 0 var(--board-amber-bare),
+    calc(var(--art) * (-36 - var(--relic-out))) 0 0 0 var(--board-amber-bare),
+    0 calc(var(--art) * (36 + var(--relic-out))) 0 0 var(--board-amber-bare),
+    0 calc(var(--art) * (-36 - var(--relic-out))) 0 0 var(--board-amber-bare),
+    calc(var(--art) * (38 + var(--relic-out))) 0 0 0 var(--board-amber-bare),
+    calc(var(--art) * (-38 - var(--relic-out))) 0 0 0 var(--board-amber-bare),
+    0 calc(var(--art) * (38 + var(--relic-out))) 0 0 var(--board-amber-bare),
+    0 calc(var(--art) * (-38 - var(--relic-out))) 0 0 var(--board-amber-bare),
+    calc(var(--art) * (40 + var(--relic-out))) 0 0 0 var(--board-amber-bare),
+    calc(var(--art) * (-40 - var(--relic-out))) 0 0 0 var(--board-amber-bare),
+    0 calc(var(--art) * (40 + var(--relic-out))) 0 0 var(--board-amber-bare),
+    0 calc(var(--art) * (-40 - var(--relic-out))) 0 0 var(--board-amber-bare),
+    calc(var(--art) * (26 + var(--relic-diag)))
+      calc(var(--art) * (26 + var(--relic-diag))) 0 0 var(--board-amber-bare),
+    calc(var(--art) * (-26 - var(--relic-diag)))
+      calc(var(--art) * (26 + var(--relic-diag))) 0 0 var(--board-amber-bare),
+    calc(var(--art) * (26 + var(--relic-diag)))
+      calc(var(--art) * (-26 - var(--relic-diag))) 0 0 var(--board-amber-bare),
+    calc(var(--art) * (-26 - var(--relic-diag)))
+      calc(var(--art) * (-26 - var(--relic-diag))) 0 0 var(--board-amber-bare),
+    calc(var(--art) * (28 + var(--relic-diag)))
+      calc(var(--art) * (28 + var(--relic-diag))) 0 0 var(--board-amber-bare),
+    calc(var(--art) * (-28 - var(--relic-diag)))
+      calc(var(--art) * (28 + var(--relic-diag))) 0 0 var(--board-amber-bare),
+    calc(var(--art) * (28 + var(--relic-diag)))
+      calc(var(--art) * (-28 - var(--relic-diag))) 0 0 var(--board-amber-bare),
+    calc(var(--art) * (-28 - var(--relic-diag)))
+      calc(var(--art) * (-28 - var(--relic-diag))) 0 0 var(--board-amber-bare),
+    calc(var(--art) * (30 + var(--relic-diag)))
+      calc(var(--art) * (30 + var(--relic-diag))) 0 0 var(--board-amber-bare),
+    calc(var(--art) * (-30 - var(--relic-diag)))
+      calc(var(--art) * (30 + var(--relic-diag))) 0 0 var(--board-amber-bare),
+    calc(var(--art) * (30 + var(--relic-diag)))
+      calc(var(--art) * (-30 - var(--relic-diag))) 0 0 var(--board-amber-bare),
+    calc(var(--art) * (-30 - var(--relic-diag)))
+      calc(var(--art) * (-30 - var(--relic-diag))) 0 0 var(--board-amber-bare);
+}
+
+/* The entrance (#523), in the board's hard steps: the relic rises behind the drawer's own
+   0.24s slide and lands, then the light and the words step in whole, one after another. The
+   plate is there from the start. Each waits at its first frame (backwards) until its turn.
+   The page is always entering once painted, so the light's endless swap is here too. */
+.relic-reveal-page.is-entering .relic-reveal-art {
+  animation: board-relic-rise 0.4s steps(8) 0.24s backwards;
+}
+
+.relic-reveal-page.is-entering .relic-reveal-light {
+  animation:
+    board-relic-in 0.01s steps(1) 0.64s backwards,
+    board-relic-shine 3.2s steps(1) 0.64s infinite;
+}
+
+.relic-reveal-page.is-entering .relic-page-title {
+  animation: board-relic-in 0.01s steps(1) 0.7s backwards;
+}
+
+.relic-reveal-page.is-entering .relic-page-line {
+  animation: board-relic-in 0.01s steps(1) 0.76s backwards;
+}
+
+.relic-reveal-page.is-entering .relic-page-boost {
+  animation: board-relic-in 0.01s steps(1) 0.82s backwards;
+}
+
+@keyframes board-relic-rise {
+  from {
+    transform: translateY(calc(var(--art) * 40)) scale(2);
+  }
+  to {
+    transform: scale(2);
+  }
+}
+
+@keyframes board-relic-in {
+  from {
+    visibility: hidden;
+  }
+  to {
+    visibility: visible;
+  }
+}
+
+/* Two frames: the dashes near, then 4 art px further out (3 on each axis of a diagonal). */
+@keyframes board-relic-shine {
+  0%,
+  100% {
+    --relic-out: 0;
+    --relic-diag: 0;
+  }
+  50% {
+    --relic-out: 4;
+    --relic-diag: 3;
+  }
 }
 
 .relic-legend-shelf {

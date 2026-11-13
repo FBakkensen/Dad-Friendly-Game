@@ -9,6 +9,7 @@ import {
   frameX,
   hide,
   mark,
+  replay,
   setAttr,
   write,
   writeFigures,
@@ -232,10 +233,8 @@ function showFlap(bay: Bay, text: string, animate: boolean): void {
     const changed = before[k] !== now[k];
     write(digit, c);
     if (changed && animate) {
-      digit.classList.remove("is-flipping");
       // Restart the keyframe on a digit still mid-flip.
-      void digit.offsetWidth;
-      digit.classList.add("is-flipping");
+      replay(digit, "is-flipping");
     } else if (!animate) {
       digit.classList.remove("is-flipping");
     }

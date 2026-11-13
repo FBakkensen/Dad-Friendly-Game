@@ -3,10 +3,10 @@ import pebbleUrl from "./assets/board/keepsake-pebble.png";
 import ribbonUrl from "./assets/board/keepsake-ribbon.png";
 import watchUrl from "./assets/board/keepsake-watch.png";
 import whistleUrl from "./assets/board/keepsake-whistle.png";
-import { el, hide, setAttr, write } from "./board-dom";
+import { el, hide, replay, setAttr, write } from "./board-dom";
 import type { BoardHost } from "./board-host";
 import type { Pointer } from "./board-interaction";
-import { RELIC_LIT } from "./board-relics";
+import { RELIC_GOLD, RELIC_LIT } from "./board-relics";
 import { drawerPlate } from "./board-save";
 import { skin } from "./board-skin";
 import { forgetAll, type PressTracker } from "./card-tap";
@@ -182,7 +182,28 @@ export function createDetailPage({
   };
 }
 
-/** A relic just found: its head, what it does, its power, and Carry it with pride. */
+/** The Mantle's reveal says this in place of a power: the Legend page says what it does next. */
+const MANTLE_FOUND =
+  "You reached the bottom of the mountain. Every dad who keeps showing up is a hero.";
+
+/** The reveal's one line under the virtue: the relic's power, said once (#523). */
+export function revealLine(relic: Relic): string {
+  return relic.id === "mantle" ? MANTLE_FOUND : `Your power: ${relic.boost}`;
+}
+
+/** The reveal's stage: the gold relic at 2×, with its light around it (#523). */
+function revealStage(): { root: HTMLElement; art: HTMLImageElement } {
+  const root = el("div", "relic-reveal-stage");
+  const light = el("span", "relic-reveal-light");
+  setAttr(light, "aria-hidden", "true");
+  const art = el("img", "relic-reveal-art");
+  art.alt = "";
+  art.draggable = false;
+  root.append(light, art);
+  return { root, art };
+}
+
+/** A relic just found: the gold relic in its light, its virtue, its one line, and Carry it with pride. */
 export function createRevealPage({
   board,
   onCarry,
@@ -191,18 +212,22 @@ export function createRevealPage({
   onCarry: PageAct;
 }): RelicPage & { paint(relic: Relic): void } {
   const { root, title } = pageFrame("reveal", RELIC_KICKER);
-  const head = relicHead(root, title);
-  const power = el("p", "relic-page-power");
+  const stage = revealStage();
+  const virtue = el("p", "relic-page-line");
+  const boost = el("p", "relic-page-boost");
   const trackers: PressTracker[] = [];
   const carry = pagePlate(board, trackers, [CARRY, "carry"], onCarry);
-  root.append(power, head.boost, carry);
+  root.append(stage.root, title, virtue, boost, carry);
   skin(root, "frame");
   return {
     root,
     paint(relic) {
+      // The entrance plays afresh for each relic (#523), on a page that may still be shown.
+      replay(root, "is-entering");
       write(title, `You found the ${relic.name}`);
-      paintHead(head, relic);
-      write(power, relic.power);
+      setAttr(stage.art, "src", RELIC_GOLD[relic.id]);
+      write(virtue, `The virtue of ${relic.virtue}.`);
+      write(boost, revealLine(relic));
     },
     forget: forgetAll(trackers),
   };

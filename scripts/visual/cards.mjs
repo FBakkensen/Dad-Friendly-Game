@@ -1,4 +1,4 @@
-/* global console, document, innerHeight */
+/* global console, document, innerHeight, getComputedStyle */
 /** Card sections: the one-time cards (crew grew, welcome-back, the heir, trouble), found tools, and the relics drawer's shelf, detail, reveal and Legend (#465). */
 import {
   staffingNoteSave,
@@ -19,6 +19,7 @@ import {
   closeSheet,
   openShelf,
   RELIC_PAGE,
+  pageLanded,
   pressPage,
   sheetSettled,
   STANDALONE_INSETS,
@@ -41,7 +42,10 @@ async function relicPageFits(page, name, { bottom = 0 } = {}) {
       () => true,
       () => false,
     );
-  const settled = shown && (await sheetSettled(page, "relics"));
+  const settled =
+    shown &&
+    (await sheetSettled(page, "relics")) &&
+    (await pageLanded(page, name));
   if (!settled) {
     console.log(`relics drawer: the ${name} page did not open`);
     return false;
@@ -359,6 +363,47 @@ for (const viewport of [[424, 924]]) {
       await relicPageFits(page, "reveal"),
       `${label} the Mantle's reveal fits the relics drawer`,
     );
+    // The longest reveal (#523): the Crown's line is three lines, one stone above its depth.
+    {
+      const seed = mantleSave();
+      const crown = await openScreen(viewport, {
+        ...seed,
+        mountain: { ...seed.mountain, remaining: 170_000_001 },
+      });
+      await crown.page.tap(".board-window");
+      check(
+        (await relicPageFits(crown.page, "reveal")) &&
+          (await crown.page.$eval(
+            `${RELIC_PAGE("reveal")} .relic-page-title`,
+            (el) => el.textContent ?? "",
+          )) === "You found the Crown of Wisdom",
+        `${label} the Crown's reveal, the longest, fits the relics drawer`,
+      );
+      check(
+        await noScroll(crown.page),
+        `${label} the Crown's reveal has no scroll`,
+      );
+      await crown.close();
+    }
+    // Reduced motion (#523): nothing on the reveal moves, and the words are there at once.
+    {
+      const still = await openScreen(viewport, mantleSave(), {
+        reducedMotion: true,
+      });
+      await still.page.tap(".board-window");
+      await still.page.waitForSelector(RELIC_PAGE("reveal"), { visible: true });
+      const seen = await still.page.$eval(RELIC_PAGE("reveal"), (root) => ({
+        moving: root.getAnimations({ subtree: true }).length,
+        shown: [...root.querySelectorAll("h3, p, .relic-reveal-light")].every(
+          (el) => getComputedStyle(el).visibility === "visible",
+        ),
+      }));
+      check(
+        seen.moving === 0 && seen.shown,
+        `${label} the reveal holds still under reduced motion, its words shown`,
+      );
+      await still.close();
+    }
     await pressPage(page, "reveal", "carry");
     check(
       await relicPageFits(page, "legend"),

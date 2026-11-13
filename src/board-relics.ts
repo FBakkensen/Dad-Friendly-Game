@@ -11,6 +11,12 @@ import crownUrl from "./assets/board/relic-crown.png";
 import crownDarkUrl from "./assets/board/relic-crown-dark.png";
 import mantleUrl from "./assets/board/relic-mantle.png";
 import mantleDarkUrl from "./assets/board/relic-mantle-dark.png";
+import goldCrownUrl from "./assets/relics/crown.png";
+import goldHammerUrl from "./assets/relics/hammer.png";
+import goldHeartUrl from "./assets/relics/heart.png";
+import goldLanternUrl from "./assets/relics/lantern.png";
+import goldMantleUrl from "./assets/relics/mantle.png";
+import goldShieldUrl from "./assets/relics/shield.png";
 import { plateButton } from "./board-save";
 import { skin } from "./board-skin";
 import type { BoardNote } from "./board-note";
@@ -33,6 +39,15 @@ export const RELIC_LIT: Readonly<Record<RelicId, string>> = {
   heart: heartUrl,
   crown: crownUrl,
   mantle: mantleUrl,
+};
+/** Each relic's gold sprite, 52 to 62 art px: the reveal of a relic just found shows it at 2× (#523). */
+export const RELIC_GOLD: Readonly<Record<RelicId, string>> = {
+  lantern: goldLanternUrl,
+  shield: goldShieldUrl,
+  hammer: goldHammerUrl,
+  heart: goldHeartUrl,
+  crown: goldCrownUrl,
+  mantle: goldMantleUrl,
 };
 /** Each relic's icon, dark: the next to find (the Ledger's relics row shows it too, #375). */
 export const RELIC_DARK: Readonly<Record<RelicId, string>> = {

@@ -8,8 +8,6 @@ export type Relic = {
   readonly id: RelicId;
   readonly name: string;
   readonly virtue: string;
-  /** What finding it does, in the player's words. */
-  readonly power: string;
   /** A one-line mystery shown before it is found; no numbers. */
   readonly tease: string;
   /** The plain "Your power" line: what finding it changes. No depths. */
@@ -27,8 +25,6 @@ export const RELICS: readonly Relic[] = [
     tease: "A warm light waits in the dark below.",
     name: "Lantern of Guidance",
     virtue: "Guidance",
-    power:
-      "It lights the way to the next relic, and golden veins glint more often.",
     depth: 1_000_000,
   },
   {
@@ -37,8 +33,6 @@ export const RELICS: readonly Relic[] = [
     tease: "A shield rests deep below, keeping watch.",
     name: "Shield of Protection",
     virtue: "Protection",
-    power:
-      "Your crew keeps mining for a whole day while you're away, not just 8 hours.",
     depth: 10_000_000,
   },
   {
@@ -47,7 +41,6 @@ export const RELICS: readonly Relic[] = [
     tease: "Somewhere down there lies the hammer that built great things.",
     name: "Hammer of the Builder",
     virtue: "Building",
-    power: "The Great Machine can be built, the mightiest crew of all.",
     depth: 25_000_000,
   },
   {
@@ -56,8 +49,6 @@ export const RELICS: readonly Relic[] = [
     tease: "A patient heart beats beneath the stone.",
     name: "Heart of Patience",
     virtue: "Patience",
-    power:
-      "The longer you're away, the harder your crew works: up to half again the away pay after 12 hours.",
     depth: 45_000_000,
   },
   {
@@ -67,8 +58,6 @@ export const RELICS: readonly Relic[] = [
     tease: "A crown of wisdom sleeps in the deep.",
     name: "Crown of Wisdom",
     virtue: "Wisdom",
-    power:
-      "Kid workers join the crew: they mine, count as workers, and each one makes every worker and kid 2% faster.",
     depth: 70_000_000,
   },
   {
@@ -78,8 +67,6 @@ export const RELICS: readonly Relic[] = [
     tease: "At the very bottom, a hero's mantle waits.",
     name: "Mantle of the Hero",
     virtue: "Heroism",
-    power:
-      "You reached the bottom of the mountain. Every dad who keeps showing up is a hero.",
     depth: MOUNTAIN_STONES,
   },
 ];
