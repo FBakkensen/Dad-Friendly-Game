@@ -2106,6 +2106,40 @@ describe("the control board (#370)", () => {
     }
   });
 
+  it("lets a boost's end go when the drawer stays open past a minute (#525)", () => {
+    vi.useFakeTimers();
+    try {
+      const at = Date.now();
+      const screen = mountScreen({
+        storage: seeded(
+          {
+            ...minedMountain(0),
+            helpers: 3,
+            boosts: { ...NO_BOOSTS, overtime: at + 3_000 },
+          },
+          at,
+        ),
+        now: () => Date.now(),
+      });
+      document.body.append(screen.root);
+      try {
+        screen.root
+          .querySelector<HTMLButtonElement>(".board-key[data-key=buys]")
+          ?.click();
+        vi.advanceTimersByTime(65_000);
+        document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+        vi.advanceTimersByTime(1_000);
+        const note = screen.root.querySelector<HTMLElement>(".board-note");
+        expect(note?.classList.contains("on")).toBe(false);
+        expect(note?.querySelector(".boost-over-note")).toBeNull();
+      } finally {
+        screen.root.remove();
+      }
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("says nothing on opening after a boost ran out while away (#525)", () => {
     const clock = 5_000_000;
     const screen = mountScreen({

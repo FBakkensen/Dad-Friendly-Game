@@ -393,7 +393,7 @@ function createDialPaint(
   const words = document.createElement("p");
   words.className = "boost-over-note";
   return () => {
-    const { mountain, trouble, ready } = ctx.view();
+    const { mountain, trouble } = ctx.view();
     const at = ctx.now();
     const boost = liveCrewBoost(mountain, at);
     const ended = boostRanOut(seen, mountain, at);
@@ -402,10 +402,10 @@ function createDialPaint(
     if (ended !== undefined) {
       owed = { name: ended.name, at };
     }
-    if (owed === undefined || !ready || covered()) {
-      if (owed !== undefined && at - owed.at > BOOST_OVER_HOLD_MS) {
-        owed = undefined;
-      }
+    if (owed !== undefined && at - owed.at > BOOST_OVER_HOLD_MS) {
+      owed = undefined;
+    }
+    if (owed === undefined || covered()) {
       return;
     }
     words.textContent = boostOverWords(
