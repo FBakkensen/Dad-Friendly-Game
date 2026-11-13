@@ -103,6 +103,8 @@ export function createBoardFace(
     readonly cardUp: () => boolean;
     /** Shuts every drawer but the relics drawer, as a key does (#465). */
     readonly closeOtherDrawers: () => void;
+    /** A card or a drawer is over the board, so the board note would be put away. */
+    readonly covered: () => boolean;
   },
 ): {
   boardNote: BoardNote;
@@ -133,6 +135,7 @@ export function createBoardFace(
     legacy,
     overSave: () => saveLine.isOpen(),
     cardUp,
+    covered: deps.covered,
     beforeOpen: () => {
       closeBoardPopups();
       closeOtherDrawers();
@@ -150,6 +153,8 @@ function createBoardTop(
     readonly legacy: ReturnType<typeof createLegacyPanel>;
     readonly overSave: () => boolean;
     readonly cardUp: () => boolean;
+    /** A card or a drawer is over the board: the board note waits (#525). */
+    readonly covered: () => boolean;
     readonly beforeOpen: () => void;
   },
 ): {
@@ -163,7 +168,7 @@ function createBoardTop(
   paintRelics(): void;
   paintPlate(): void;
 } {
-  const { progress, now, board, signal } = ctx;
+  const { progress, board, signal } = ctx;
   const { note, runningNow, legacy } = deps;
   const relics = createRelicPanels({
     progress,
@@ -185,34 +190,17 @@ function createBoardTop(
   });
   /** The Running now note stays a little longer than a relic's: it is a list. */
   const RUNNING_NOTE_MS = 6000;
-  /** A boost's end stays as long: two short lines, read once. */
-  const BOOST_OVER_NOTE_MS = RUNNING_NOTE_MS;
   const odometer = createOdometer();
   const dial = createBoostDial({
     onOpen: () => {
       note.show(dial.root, runningNow.running, { ms: RUNNING_NOTE_MS });
     },
   });
-  /** The boost on the dial at the last paint: its end is said on the dial (#525). */
-  let seen: SeenBoost | undefined;
-  const overNote = document.createElement("p");
-  overNote.className = "boost-over-note";
-  const paintDial = (): void => {
-    const { mountain, trouble, ready } = ctx.view();
-    const at = now();
-    const boost = liveCrewBoost(mountain, at);
-    const ended = boostRanOut(seen, mountain, at);
-    seen = { boost, at };
-    dial.set(boost);
-    // A sudden drop gets its reason where the pace is read, over a drawer too.
-    if (ended !== undefined && ready && !deps.cardUp()) {
-      overNote.textContent = boostOverWords(
-        ended.name,
-        effectiveRates(mountain, at, trouble).crewPerSecond,
-      );
-      note.show(dial.root, overNote, { ms: BOOST_OVER_NOTE_MS });
-    }
-  };
+  const paintDial = createDialPaint(ctx, {
+    dial,
+    note,
+    covered: deps.covered,
+  });
   return {
     relics,
     relicPlate,
@@ -374,4 +362,57 @@ export function cardsFrom(
     sheets.savedCopies.root,
     sheets.conflictSheet.root,
   ];
+}
+
+/** A boost's end note stays as long as the Running now note: two short lines, read once. */
+const BOOST_OVER_NOTE_MS = 6000;
+/**
+ * A boost that ran out under a drawer or a card is said when the board shows
+ * again, if that is this soon: later, the drop is old news (#525).
+ */
+const BOOST_OVER_HOLD_MS = 60_000;
+
+/**
+ * The Pace dial's paint. When the boost it showed runs out while he plays,
+ * the board note on the dial says so and what the crew mines now, so a
+ * sudden drop has its reason (#525). Under a drawer or a card it waits.
+ */
+function createDialPaint(
+  ctx: ScreenCtx,
+  deps: {
+    readonly dial: ReturnType<typeof createBoostDial>;
+    readonly note: BoardNote;
+    readonly covered: () => boolean;
+  },
+): () => void {
+  const { dial, note, covered } = deps;
+  /** The boost on the dial at the last paint. */
+  let seen: SeenBoost | undefined;
+  /** A boost that ran out and has not been said yet, and when it did. */
+  let owed: { readonly name: string; readonly at: number } | undefined;
+  const words = document.createElement("p");
+  words.className = "boost-over-note";
+  return () => {
+    const { mountain, trouble, ready } = ctx.view();
+    const at = ctx.now();
+    const boost = liveCrewBoost(mountain, at);
+    const ended = boostRanOut(seen, mountain, at);
+    seen = { boost, at };
+    dial.set(boost);
+    if (ended !== undefined) {
+      owed = { name: ended.name, at };
+    }
+    if (owed === undefined || !ready || covered()) {
+      if (owed !== undefined && at - owed.at > BOOST_OVER_HOLD_MS) {
+        owed = undefined;
+      }
+      return;
+    }
+    words.textContent = boostOverWords(
+      owed.name,
+      effectiveRates(mountain, at, trouble).crewPerSecond,
+    );
+    owed = undefined;
+    note.show(dial.root, words, { ms: BOOST_OVER_NOTE_MS });
+  };
 }

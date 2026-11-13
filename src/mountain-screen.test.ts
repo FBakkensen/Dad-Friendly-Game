@@ -2069,6 +2069,43 @@ describe("the control board (#370)", () => {
     }
   });
 
+  it("holds a boost's end under Buys, and says it when the board shows again (#525)", () => {
+    vi.useFakeTimers();
+    try {
+      const at = Date.now();
+      const screen = mountScreen({
+        storage: seeded(
+          {
+            ...minedMountain(0),
+            helpers: 3,
+            boosts: { ...NO_BOOSTS, overtime: at + 3_000 },
+          },
+          at,
+        ),
+        now: () => Date.now(),
+      });
+      document.body.append(screen.root);
+      try {
+        screen.root
+          .querySelector<HTMLButtonElement>(".board-key[data-key=buys]")
+          ?.click();
+        const note = screen.root.querySelector<HTMLElement>(".board-note");
+        vi.advanceTimersByTime(4_000);
+        expect(note?.classList.contains("on")).toBe(false);
+        document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+        vi.advanceTimersByTime(1_000);
+        expect(note?.classList.contains("on")).toBe(true);
+        expect(note?.querySelector(".boost-over-note")?.textContent).toMatch(
+          /^Overtime over\.\nYour crew mines /,
+        );
+      } finally {
+        screen.root.remove();
+      }
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("says nothing on opening after a boost ran out while away (#525)", () => {
     const clock = 5_000_000;
     const screen = mountScreen({
