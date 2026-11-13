@@ -49,7 +49,7 @@ import {
   crewPostsWords,
   grandpaChipWords,
   grandpaSentence,
-  stonesASecond,
+  crewMinesWords,
   workerWords,
 } from "./screen-words";
 import { showsDot } from "./teach";
@@ -205,10 +205,7 @@ function crewSentence(rate: number, idle: number, short: number): string {
   if (rate === 0) {
     return "No crew yet. Hire a worker to mine for you.";
   }
-  // Compact once it's big, so the line never wraps on a phone.
-  return rate >= 1_000
-    ? `Your crew mines ${formatCompact(rate)} stones/s`
-    : `Your crew mines ${stonesASecond(rate)}`;
+  return crewMinesWords(rate);
 }
 
 /** The crew line at `shown` stones a second, or at the crew's own rate. */

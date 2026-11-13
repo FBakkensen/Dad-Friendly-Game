@@ -129,6 +129,18 @@ export const stonesASecond = (rate: number): string =>
   rate === 1 ? "1 stone a second" : `${formatCount(rate)} stones a second`;
 
 /**
+ * "Your crew mines 586 stones a second", compact once it's big ("154.1K
+ * stones/s") so the line never wraps on a phone. Buys' crew line and the
+ * dial's note when a crew timer runs out say it the same way (#527).
+ */
+export function crewMinesWords(crewPerSecond: number): string {
+  const rate = Math.max(0, Math.floor(crewPerSecond));
+  return rate >= 1_000
+    ? `Your crew mines ${formatCompact(rate)} stones/s`
+    : `Your crew mines ${stonesASecond(rate)}`;
+}
+
+/**
  * Buy UI, before and after the tap, when the next machine would sit idle.
  * No counts: the idle line already says how many.
  */
@@ -1500,9 +1512,7 @@ export function veinWords(reward: number, held: number): string {
  * ended, and what the crew mines now, so a sudden drop has its reason.
  */
 export function boostOverWords(name: string, crewPerSecond: number): string {
-  const rate = Math.max(0, Math.floor(crewPerSecond));
-  const mines = rate === 1 ? "1 stone" : `${formatCompact(rate)} stones`;
-  return `${name} over.\nYour crew mines ${mines} a second now.`;
+  return `${name} over.\n${crewMinesWords(crewPerSecond)} now.`;
 }
 
 /**

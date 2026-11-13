@@ -18,6 +18,7 @@ import {
   rushHeldWords,
   veinWords,
   boostOverWords,
+  crewMinesWords,
   crewGrewWords,
   ACCOUNT,
   LEDGER_BACK,
@@ -1132,9 +1133,11 @@ describe("veinWords (#468, #525)", () => {
 
 describe("boostOverWords (#527)", () => {
   it("says what ran out and what the crew mines now", () => {
+    // The same words as Buys' crew line: compact once it's big (#527).
     expect(boostOverWords("Blasting charge", 154_197)).toBe(
-      "Blasting charge over.\nYour crew mines 154.1K stones a second now.",
+      "Blasting charge over.\nYour crew mines 154.1K stones/s now.",
     );
+    expect(crewMinesWords(586.9)).toBe("Your crew mines 586 stones a second");
     expect(boostOverWords("Overtime", 586)).toBe(
       "Overtime over.\nYour crew mines 586 stones a second now.",
     );

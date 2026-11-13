@@ -89,7 +89,7 @@ export function mountMountainScreen(options: ScreenOptions): void {
     closeOtherDrawers: () => {
       keys.closeOthers("relics");
     },
-    covered: () => overlays.boardCovered(),
+    covered: () => overlays.boardBusy(),
   });
   const sheets = createSheetPanels(ctx, {
     rail,
@@ -130,6 +130,8 @@ export function mountMountainScreen(options: ScreenOptions): void {
     sheets.paintCopies();
     saveLine.render();
     overlays.paint();
+    // Last, so this paint's cards and drawers are settled (#527).
+    top.sayTimerOver();
   };
 
   const cards = cardsFrom(early, sheets, {
