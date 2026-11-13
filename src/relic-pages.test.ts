@@ -12,6 +12,7 @@ import {
   createDetailPage,
   createLegendPage,
   createRevealPage,
+  revealLine,
 } from "./relic-pages";
 import { RELICS, type Relic } from "./relics";
 
@@ -163,7 +164,7 @@ describe("the reveal page (#465)", () => {
     expect(page.root.querySelector(".relic-page-art")).toBeNull();
   });
 
-  it("names the relic found, with what it does and its power, and one plate", () => {
+  it("names the relic found, with its power said once, and one plate", () => {
     const page = createRevealPage({ board, onCarry: vi.fn() });
     const shield = relic(1);
     page.paint(shield);
@@ -173,11 +174,30 @@ describe("the reveal page (#465)", () => {
     expect(text(page.root, ".relic-page-line")).toBe(
       "The virtue of Protection.",
     );
-    expect(text(page.root, ".relic-page-power")).toBe(shield.power);
     expect(text(page.root, ".relic-page-boost")).toBe(
-      `Your power: ${shield.boost}`,
+      "Your power: Your crew keeps mining up to 24 hours while you're away.",
     );
+    expect(page.root.querySelector(".relic-page-power")).toBeNull();
     expect(plates(page.root)).toEqual(["Carry it with pride"]);
+  });
+
+  it("says the Mantle's own sentence in place of a power", () => {
+    const page = createRevealPage({ board, onCarry: vi.fn() });
+    page.paint(relic(5));
+    expect(text(page.root, ".relic-page-boost")).toBe(
+      "You reached the bottom of the mountain. Every dad who keeps showing up is a hero.",
+    );
+  });
+
+  it("has one line for each relic", () => {
+    expect(RELICS.map(revealLine)).toEqual([
+      "Your power: Golden veins appear 40% sooner, and it lights the way to the next relic.",
+      "Your power: Your crew keeps mining up to 24 hours while you're away.",
+      "Your power: Unlocks the Great Machine.",
+      "Your power: Away pay grows the longer you're gone, up to ×1.5 after 12 hours.",
+      "Your power: Kid workers join the crew: they mine, count as workers, and make every worker and kid 2% faster.",
+      "You reached the bottom of the mountain. Every dad who keeps showing up is a hero.",
+    ]);
   });
 
   it("Carry it with pride acts past the settle, with how it came", () => {

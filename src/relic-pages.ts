@@ -182,6 +182,15 @@ export function createDetailPage({
   };
 }
 
+/** The Mantle's reveal says this in place of a power: the Legend page says what it does next. */
+const MANTLE_FOUND =
+  "You reached the bottom of the mountain. Every dad who keeps showing up is a hero.";
+
+/** The reveal's one line under the virtue: the relic's power, said once (#523). */
+export function revealLine(relic: Relic): string {
+  return relic.id === "mantle" ? MANTLE_FOUND : `Your power: ${relic.boost}`;
+}
+
 /** The reveal's stage: the gold relic at 2×, with its light around it (#523). */
 function revealStage(): { root: HTMLElement; art: HTMLImageElement } {
   const root = el("div", "relic-reveal-stage");
@@ -194,7 +203,7 @@ function revealStage(): { root: HTMLElement; art: HTMLImageElement } {
   return { root, art };
 }
 
-/** A relic just found: the gold relic in its light, what it does, its power, and Carry it with pride. */
+/** A relic just found: the gold relic in its light, its virtue, its one line, and Carry it with pride. */
 export function createRevealPage({
   board,
   onCarry,
@@ -205,11 +214,10 @@ export function createRevealPage({
   const { root, title } = pageFrame("reveal", RELIC_KICKER);
   const stage = revealStage();
   const virtue = el("p", "relic-page-line");
-  const power = el("p", "relic-page-power");
   const boost = el("p", "relic-page-boost");
   const trackers: PressTracker[] = [];
   const carry = pagePlate(board, trackers, [CARRY, "carry"], onCarry);
-  root.append(stage.root, title, virtue, power, boost, carry);
+  root.append(stage.root, title, virtue, boost, carry);
   skin(root, "frame");
   return {
     root,
@@ -217,8 +225,7 @@ export function createRevealPage({
       write(title, `You found the ${relic.name}`);
       setAttr(stage.art, "src", RELIC_GOLD[relic.id]);
       write(virtue, `The virtue of ${relic.virtue}.`);
-      write(power, relic.power);
-      write(boost, `Your power: ${relic.boost}`);
+      write(boost, revealLine(relic));
     },
     forget: forgetAll(trackers),
   };

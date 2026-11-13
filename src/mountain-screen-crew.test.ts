@@ -3757,7 +3757,7 @@ describe("player-facing workers (#139)", () => {
         crownReveal.querySelector("#relic-reveal-title")?.textContent,
       ).toBe("You found the Crown of Wisdom");
       expect(
-        crownReveal.querySelector(".relic-page-power")?.textContent,
+        crownReveal.querySelector(".relic-page-boost")?.textContent,
       ).toMatch(/count as workers/);
       expect(mentionsHelper(screen.root)).toEqual([]);
       crownReveal
