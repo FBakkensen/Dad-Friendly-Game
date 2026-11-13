@@ -181,6 +181,47 @@ export interface BoostDial {
   set(boost: CrewBoost): void;
 }
 
+/** The dial's legend: its name, its big mark, the clock, and what it says aloud. */
+function dialFace(boost: CrewBoost): {
+  readonly name: string;
+  readonly mark: string;
+  readonly clock: string;
+  readonly word: string;
+  readonly label: string;
+} {
+  if (boost.kind === "rested") {
+    // At rest the dial is the crew's pace, so the crew plate keeps the one CREW label (#508).
+    const mark = multiplierMark(1);
+    return {
+      name: "Pace",
+      mark,
+      clock: "rested",
+      word: "",
+      label: `Pace ${mark}, rested`,
+    };
+  }
+  const clock = chipTime(boost.leftMs);
+  if (boost.kind === "rush") {
+    // The rush's held stones still to come, not a ×: the gauge keeps the crew's own speed (#525).
+    const held = formatCompact(boost.held);
+    return {
+      name: boost.name,
+      mark: `+${held}`,
+      clock,
+      word: "left",
+      label: `${boost.name}, ${held} stones to come, ${clock} left`,
+    };
+  }
+  const mark = multiplierMark(boost.multiplier);
+  return {
+    name: boost.name,
+    mark,
+    clock,
+    word: "left",
+    label: `${boost.name}, pace ${mark}, ${clock} left`,
+  };
+}
+
 /** One dial frame in CSS px: 44 art px at 2 px each. */
 const DIAL_FRAME_PX = 88;
 
@@ -204,21 +245,14 @@ export function createBoostDial({ onOpen }: { onOpen: () => void }): BoostDial {
   root.addEventListener("click", onOpen);
 
   const set = (boost: CrewBoost): void => {
-    const running = boost.kind === "running";
-    const clock = running ? chipTime(boost.leftMs) : "rested";
-    const mark = multiplierMark(running ? boost.multiplier : 1);
-    // At rest the dial is the crew's pace, so the crew plate keeps the one CREW label (#508).
-    name.textContent = running ? boost.name : "Pace";
-    mul.textContent = mark;
-    left.textContent = clock;
-    word.textContent = running ? "left" : "";
+    const face = dialFace(boost);
+    name.textContent = face.name;
+    mul.textContent = face.mark;
+    mul.classList.toggle("is-held", boost.kind === "rush");
+    left.textContent = face.clock;
+    word.textContent = face.word;
     sprite.style.backgroundPositionX = `${String(-dialFrame(boost) * DIAL_FRAME_PX)}px`;
-    root.setAttribute(
-      "aria-label",
-      running
-        ? `${boost.name}, pace ${mark}, ${clock} left`
-        : `Pace ${mark}, rested`,
-    );
+    root.setAttribute("aria-label", face.label);
   };
   set({ kind: "rested" });
   return { root, set };

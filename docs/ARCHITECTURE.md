@@ -222,7 +222,7 @@ focus)` (`showCard`, the model's open or close, and the focus once as it
    `board-skin` (the 9-slice plan that draws a frame, tag or key skin, or the
    output gauge's counter window, on a canvas behind its element; `skin` is told whether its host is down, so a plate key's press repaints its pressed skin), `odometer` (the five drum faces for a
    pocket) and `crew-boost` (the crew timer the crew is running at, and the
-   dial frame; a running Gold rush comes first, #468). DOM parts take `getView` and callbacks like a panel:
+   dial frame; a running Gold rush comes first as its own `rush` kind, with the held stones still to come, #468, #525). DOM parts take `getView` and callbacks like a panel:
    `board-note` (the floating framed note, placed in board coordinates; a
    note that holds a key stays up until the key, an outside pointerdown, or
    Escape; a show with no `ms` and no key has no timer and stays until
@@ -855,15 +855,15 @@ M free`. The crew line, in the Crew section at the top of Buys, names where
   meet in `effectiveRates`, and the crew runs at the strongest of them. A Gold
   rush (`src/gold-rush.ts`, #468) is paid out of the away haul: after an hour
   away `accrueAway` holds part of it back (`holdForRush`, `rushBank`), and the
-  rush adds `rushPerSecond` of those held stones on top of the crew until
+  rush pays `rushPerSecond` of those held stones beside the crew until
   `rushUntil`, both saved in the workshop map beside `axleUntil`. Live `accrue`
-  pays them (`payRush`) and digs only the crew's own share from the mountain.
+  pays them (`payRush`) beside the crew's own digging. `effectiveRates` never
+  counts them (#525), so the gauge and every rate read the crew alone.
   `resumeRush` runs first on every open: a break under an hour shifts the rush
   later (close is pause), and an hour away or an ended rush lands what is held
   (`releaseRush`), as does a missed glint (the `missQuickVein` move). The store's snapshot reports each settled
   time away as `awayGap` (`ms`, and the `at` that names it), and a long one
-  arms the quick vein. `incomePerSecond` reads the crew without the rush
-  (`withoutRush`): 90 seconds are not the crew's speed over a schedule. A
+  arms the quick vein. A
   heartstone ember multiplies the Great Machine by 1.25 until `emberUntil`. A
   crystal flare makes veins 25% more often until `flareUntil`. Crafting a flare,
   an ember, or another grease refreshes that clock and does not stack. None of

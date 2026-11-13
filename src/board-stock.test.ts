@@ -131,10 +131,33 @@ describe("createBoostDial", () => {
     );
   });
 
+  it("counts a Gold rush's held stones down, with no × (#525)", () => {
+    const dial = createBoostDial({ onOpen: () => undefined });
+    dial.set({
+      kind: "rush",
+      name: "Gold rush",
+      held: 62_400_000,
+      leftMs: 45_000,
+      fullMs: 90_000,
+    });
+    expect(text(dial.root, ".board-dial-name")).toBe("Gold rush");
+    expect(text(dial.root, ".board-dial-mul")).toBe("+62.4M");
+    const mul = dial.root.querySelector(".board-dial-mul");
+    expect(mul?.classList.contains("is-held")).toBe(true);
+    expect(text(dial.root, ".board-dial-left")).toBe("0:45");
+    expect(text(dial.root, ".board-dial-word")).toBe("left");
+    expect(dial.root.getAttribute("aria-label")).toBe(
+      "Gold rush, 62.4M stones to come, 0:45 left",
+    );
+  });
+
   it("rests, as the crew's Pace (#508)", () => {
     const dial = createBoostDial({ onOpen: () => undefined });
     dial.set(overtime);
     dial.set({ kind: "rested" });
+    expect(
+      dial.root.querySelector(".board-dial-mul")?.classList.contains("is-held"),
+    ).toBe(false);
     expect(text(dial.root, ".board-dial-name")).toBe("Pace");
     expect(text(dial.root, ".board-dial-mul")).toBe("×1");
     expect(text(dial.root, ".board-dial-left")).toBe("rested");

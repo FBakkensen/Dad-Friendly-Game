@@ -336,17 +336,18 @@ describe("the Gold rush in the rates", () => {
   const T = 5_000_000;
   const rushed = startRush(holdForRush(crew, 1_000_000, 10), T);
 
-  it("adds the held stones on top of the crew, Overtime included, and leaves taps alone", () => {
+  it("never counts in the crew's speed: held stones were dug while away (#525)", () => {
     const plain = effectiveRates(crew, T);
-    expect(effectiveRates(rushed, T).crewPerSecond).toBe(
-      plain.crewPerSecond * 10,
+    expect(effectiveRates(rushed, T).crewPerSecond).toBe(plain.crewPerSecond);
+    expect(effectiveRates(rushed, T).exactCrewPerSecond).toBe(
+      plain.exactCrewPerSecond,
     );
     const both = effectiveRates(
       { ...rushed, boosts: { ...NO_BOOSTS, overtime: T + 60_000 } },
       T,
     );
-    // Overtime's ×2 of the crew, plus the rush's nine crews of held stones
-    expect(both.crewPerSecond).toBe(plain.crewPerSecond * 11);
+    // Overtime's ×2 of the crew, and nothing for the rush
+    expect(both.crewPerSecond).toBe(plain.crewPerSecond * 2);
     expect(both.tapYield).toBe(plain.tapYield);
   });
 

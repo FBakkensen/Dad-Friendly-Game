@@ -1,5 +1,5 @@
 import { boostById, boostLeft } from "./boosts";
-import { RUSH_MS, RUSH_MULTIPLIER, rushLeft } from "./gold-rush";
+import { RUSH_MS, rushLeft } from "./gold-rush";
 import type { Mountain } from "./mountain";
 import {
   axleCrewMultiplier,
@@ -14,10 +14,20 @@ export type CrewBoost =
   | { readonly kind: "rested" }
   | {
       readonly kind: "running";
-      readonly source:
-        "overtime" | "axle-grease" | "blasting-charge" | "gold-rush";
+      readonly source: "overtime" | "axle-grease" | "blasting-charge";
       readonly name: string;
       readonly multiplier: number;
+      readonly leftMs: number;
+      readonly fullMs: number;
+    }
+  | {
+      /**
+       * A Gold rush: held stones coming in, not a crew speed, so the dial
+       * shows how many are still to come instead of a × (#525).
+       */
+      readonly kind: "rush";
+      readonly name: string;
+      readonly held: number;
       readonly leftMs: number;
       readonly fullMs: number;
     };
@@ -54,18 +64,18 @@ function timerBoost(
 /**
  * The crew timer the crew is running at: the strongest of Overtime, axle
  * grease and a blasting charge, the same rule as `effectiveRates`. A tie
- * goes to the one with the most time left. A Gold rush, which multiplies on
- * top of them, shows first.
+ * goes to the one with the most time left. A Gold rush, which pays held
+ * stones beside them, shows first.
  */
 export function liveCrewBoost(mountain: Mountain, now: number): CrewBoost {
-  // The Gold rush multiplies on top of the others, so the dial shows it (#468).
+  // A Gold rush is the event of the moment, so the dial shows it first (#468):
+  // the held stones still to come, while the crew's own speed stays on the gauge.
   const rush = rushLeft(mountain, now);
   if (rush > 0) {
     return {
-      kind: "running",
-      source: "gold-rush",
+      kind: "rush",
       name: GOLD_RUSH_NAME,
-      multiplier: RUSH_MULTIPLIER,
+      held: mountain.rushBank,
       leftMs: rush,
       fullMs: RUSH_MS,
     };

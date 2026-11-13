@@ -50,7 +50,7 @@ import {
   showsDot,
   type TeachId,
 } from "../teach";
-import { releaseRush, rushOwed, startRush, withoutRush } from "../gold-rush";
+import { releaseRush, rushOwed, startRush } from "../gold-rush";
 import {
   VEIN_MAX_GAP_MS,
   VEIN_MIN_GAP_MS,
@@ -880,12 +880,7 @@ export function incomePerSecond(
   context: ValueContext,
   clock?: ValueClock,
 ): number {
-  // A Gold rush lasts 90 seconds, not the schedule: it is left out (#468).
-  const liveRates = effectiveRates(
-    withoutRush(mountain),
-    clock?.now,
-    clock?.trouble,
-  );
+  const liveRates = effectiveRates(mountain, clock?.now, clock?.trouble);
   const awayRates = effectiveRates(mountain);
   const tap = oneTap(mountain, clock?.now, clock?.trouble);
   const liveIncome = liveRates.exactCrewPerSecond + context.tapsPerSecond * tap;

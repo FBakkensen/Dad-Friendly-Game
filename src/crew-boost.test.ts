@@ -114,22 +114,21 @@ describe("liveCrewBoost", () => {
 });
 
 describe("the Gold rush on the dial (#468)", () => {
-  it("shows the rush over Overtime, and the crew runs at both", () => {
+  it("shows the rush's held stones over Overtime, and the crew runs at Overtime alone", () => {
     const m: Mountain = {
       ...startRush({ ...crew(), rushBank: 9_000 }, NOW),
       boosts: { ...NO_BOOSTS, overtime: NOW + 10 * MIN },
     };
     expect(liveCrewBoost(m, NOW)).toEqual({
-      kind: "running",
-      source: "gold-rush",
+      kind: "rush",
       name: "Gold rush",
-      multiplier: 10,
+      held: 9_000,
       leftMs: RUSH_MS,
       fullMs: RUSH_MS,
     });
-    // Overtime's ×2, plus the 9,000 held stones over 90 seconds
+    // Overtime's ×2; the held stones are paid beside the crew, not as its speed (#525)
     expect(effectiveRates(m, NOW).crewPerSecond).toBe(
-      effectiveRates(crew()).crewPerSecond * 2 + 100,
+      effectiveRates(crew()).crewPerSecond * 2,
     );
   });
 
