@@ -61,30 +61,13 @@ function timerBoost(
   };
 }
 
-/**
- * The crew timer the crew is running at: the strongest of Overtime, axle
- * grease and a blasting charge, the same rule as `effectiveRates`. A tie
- * goes to the one with the most time left. A Gold rush, which pays held
- * stones beside them, shows first.
- */
-export function liveCrewBoost(mountain: Mountain, now: number): CrewBoost {
-  // A Gold rush is the event of the moment, so the dial shows it first (#468):
-  // the held stones still to come, while the crew's own speed stays on the gauge.
-  const rush = rushLeft(mountain, now);
-  if (rush > 0) {
-    return {
-      kind: "rush",
-      name: GOLD_RUSH_NAME,
-      held: mountain.rushBank,
-      leftMs: rush,
-      fullMs: RUSH_MS,
-    };
-  }
+/** Every crew timer running now: Overtime, axle grease and a blasting charge. */
+function runningCrewTimers(mountain: Mountain, now: number): Running[] {
+  const running: Running[] = [];
   const overtime = boostById("overtime");
   const left = boostLeft(mountain, "overtime", now);
-  const candidates: Running[] = [];
   if (left > 0 && overtime.multiplier > 1) {
-    candidates.push({
+    running.push({
       kind: "running",
       source: "overtime",
       name: overtime.name,
@@ -103,11 +86,23 @@ export function liveCrewBoost(mountain: Mountain, now: number): CrewBoost {
     ),
   ]) {
     if (found !== undefined) {
-      candidates.push(found);
+      running.push(found);
     }
   }
+  return running;
+}
+
+/**
+ * The crew timer the crew is running at: the strongest of Overtime, axle
+ * grease and a blasting charge, the same rule as `effectiveRates`. A tie
+ * goes to the one with the most time left.
+ */
+export function strongestCrewTimer(
+  mountain: Mountain,
+  now: number,
+): Running | undefined {
   let best: Running | undefined;
-  for (const c of candidates) {
+  for (const c of runningCrewTimers(mountain, now)) {
     if (
       best === undefined ||
       c.multiplier > best.multiplier ||
@@ -116,7 +111,67 @@ export function liveCrewBoost(mountain: Mountain, now: number): CrewBoost {
       best = c;
     }
   }
-  return best ?? { kind: "rested" };
+  return best;
+}
+
+/**
+ * What the Pace dial shows: a Gold rush first, then the crew timer the crew
+ * is running at (`strongestCrewTimer`), else rested.
+ */
+export function liveCrewBoost(mountain: Mountain, now: number): CrewBoost {
+  // A Gold rush is the event of the moment, so the dial shows it first (#468):
+  // the held stones still to come, while the crew's own speed stays on the gauge.
+  const rush = rushLeft(mountain, now);
+  if (rush > 0) {
+    return {
+      kind: "rush",
+      name: GOLD_RUSH_NAME,
+      held: mountain.rushBank,
+      leftMs: rush,
+      fullMs: RUSH_MS,
+    };
+  }
+  return strongestCrewTimer(mountain, now) ?? { kind: "rested" };
+}
+
+/** The crew timer the crew ran at on the last paint, and when (#527). */
+export interface SeenTimer {
+  readonly timer: Running | undefined;
+  readonly at: number;
+}
+
+/**
+ * A paint this long after the last one is a return, not play he watched: a
+ * timer that ended in between ended while he was away (#527).
+ */
+const WATCHED_GAP_MS = 5000;
+/** Leeway for a paint that lands a little late on the 1s tick. */
+const TICK_SLACK_MS = 1000;
+
+/**
+ * The crew timer that has just run out on its clock while he played and left
+ * the crew slower, so the board can say why stones a second fell (#527). A
+ * timer another as strong carries on from, one stopped early, or one that
+ * ended while the game was away says nothing.
+ */
+export function boostRanOut(
+  seen: SeenTimer | undefined,
+  mountain: Mountain,
+  now: number,
+): Running | undefined {
+  const timer = seen?.timer;
+  if (seen === undefined || timer === undefined) {
+    return undefined;
+  }
+  const since = now - seen.at;
+  const strongest = strongestCrewTimer(mountain, now);
+  const ranOut =
+    since >= 0 &&
+    since <= WATCHED_GAP_MS &&
+    timer.leftMs <= since + TICK_SLACK_MS &&
+    strongest?.source !== timer.source &&
+    (strongest?.multiplier ?? 1) < timer.multiplier;
+  return ranOut ? timer : undefined;
 }
 
 /** Dial sheet frame: 0 rested, else 1..30 by the share of time left. */
