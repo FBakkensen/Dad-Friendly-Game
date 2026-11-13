@@ -5,7 +5,14 @@ import type { KeyRail } from "./board-keys";
 import { createBoostDial, createOdometer } from "./board-stock";
 import { createRelicPlate } from "./board-relics";
 import { createSaveLine } from "./board-save";
-import { liveCrewBoost } from "./crew-boost";
+import {
+  boostRanOut,
+  liveCrewBoost,
+  strongestCrewTimer,
+  type SeenTimer,
+} from "./crew-boost";
+import { effectiveRates } from "./rates";
+import { boostOverWords } from "./screen-words";
 import { createRelicPanels } from "./relic-panels";
 import { createArrivalPanel } from "./arrival-panel";
 import { createWelcomePanel } from "./welcome-panel";
@@ -101,6 +108,8 @@ export function createBoardFace(
     readonly cardUp: () => boolean;
     /** Shuts every drawer but the relics drawer, as a key does (#465). */
     readonly closeOtherDrawers: () => void;
+    /** A card, a drawer or another note is up, so the dial's own note waits. */
+    readonly covered: () => boolean;
   },
 ): {
   boardNote: BoardNote;
@@ -131,6 +140,7 @@ export function createBoardFace(
     legacy,
     overSave: () => saveLine.isOpen(),
     cardUp,
+    covered: deps.covered,
     beforeOpen: () => {
       closeBoardPopups();
       closeOtherDrawers();
@@ -138,6 +148,12 @@ export function createBoardFace(
   });
   return { boardNote, saveLine, closeBoardPopups, top };
 }
+
+/**
+ * The Running now note stays a little longer than a relic's: it is a list. A
+ * crew timer's end note on the dial stays as long (#527).
+ */
+const RUNNING_NOTE_MS = 6000;
 
 /** The relics drawer, then the board's top: the relic plate, the odometer and the dial. */
 function createBoardTop(
@@ -148,6 +164,8 @@ function createBoardTop(
     readonly legacy: ReturnType<typeof createLegacyPanel>;
     readonly overSave: () => boolean;
     readonly cardUp: () => boolean;
+    /** A card, a drawer or another note is up: the dial's own note waits (#527). */
+    readonly covered: () => boolean;
     readonly beforeOpen: () => void;
   },
 ): {
@@ -160,8 +178,10 @@ function createBoardTop(
   };
   paintRelics(): void;
   paintPlate(): void;
+  /** Says a crew timer that ran out, once this paint's cards and drawers are settled. */
+  sayTimerOver(): void;
 } {
-  const { progress, now, board, signal } = ctx;
+  const { progress, board, signal } = ctx;
   const { note, runningNow, legacy } = deps;
   const relics = createRelicPanels({
     progress,
@@ -181,13 +201,16 @@ function createBoardTop(
       relics.open(from);
     },
   });
-  /** The Running now note stays a little longer than a relic's: it is a list. */
-  const RUNNING_NOTE_MS = 6000;
   const odometer = createOdometer();
   const dial = createBoostDial({
     onOpen: () => {
       note.show(dial.root, runningNow.running, { ms: RUNNING_NOTE_MS });
     },
+  });
+  const dialPaint = createDialPaint(ctx, {
+    dial,
+    note,
+    covered: deps.covered,
   });
   return {
     relics,
@@ -206,8 +229,9 @@ function createBoardTop(
       relicPlate.render();
       // The odometer and the dial. A spend is shown by `dispatch`, from what the move took.
       odometer.set(ctx.view().mountain.pocket);
-      dial.set(liveCrewBoost(ctx.view().mountain, now()));
+      dialPaint.paint();
     },
+    sayTimerOver: dialPaint.say,
   };
 }
 
@@ -350,4 +374,86 @@ export function cardsFrom(
     sheets.savedCopies.root,
     sheets.conflictSheet.root,
   ];
+}
+
+/**
+ * A crew timer that ran out under a drawer, a card or another note is said
+ * when the board is free again, if that is this soon: later, the drop is old
+ * news (#527).
+ */
+const BOOST_OVER_HOLD_MS = 60_000;
+
+/** A crew timer that ran out and has not been said yet. */
+interface OwedTimer {
+  readonly name: string;
+  readonly multiplier: number;
+  readonly at: number;
+}
+
+/**
+ * The Pace dial's paint. When the crew timer the crew ran at (Overtime, axle
+ * grease or a blasting charge) runs out while he plays, the board note on the
+ * dial says so and what the crew mines now, so a sudden drop in stones a
+ * second has its reason (#527). `say` runs at the end of the screen's paint,
+ * once cards and drawers are settled, and waits while anything covers the
+ * board or another note is up.
+ */
+function createDialPaint(
+  ctx: ScreenCtx,
+  deps: {
+    readonly dial: ReturnType<typeof createBoostDial>;
+    readonly note: BoardNote;
+    readonly covered: () => boolean;
+  },
+): { readonly paint: () => void; readonly say: () => void } {
+  const { dial, note, covered } = deps;
+  /** The crew timer the crew ran at on the last paint. */
+  let seen: SeenTimer | undefined;
+  let owed: OwedTimer | undefined;
+  /** The run the timers belong to: a Start over or a pass forgets them. */
+  let run: number | undefined;
+  const words = document.createElement("p");
+  words.className = "boost-over-note";
+  const paint = (): void => {
+    const { mountain, ready } = ctx.view();
+    const at = ctx.now();
+    dial.set(liveCrewBoost(mountain, at));
+    if (!ready || mountain.startedAt !== run) {
+      run = mountain.startedAt;
+      seen = undefined;
+      owed = undefined;
+    }
+    // A hidden tab still ticks; what ends unseen is time away, not play.
+    const ended =
+      document.visibilityState === "hidden"
+        ? undefined
+        : boostRanOut(seen, mountain, at);
+    seen = ready ? { timer: strongestCrewTimer(mountain, at), at } : undefined;
+    if (ended !== undefined) {
+      owed = { name: ended.name, multiplier: ended.multiplier, at };
+    }
+  };
+  const say = (): void => {
+    if (owed === undefined) {
+      return;
+    }
+    const { mountain, trouble } = ctx.view();
+    const at = ctx.now();
+    // Old news, or a timer as strong is back on (crafted or bought again).
+    const back = strongestCrewTimer(mountain, at)?.multiplier ?? 1;
+    if (at - owed.at > BOOST_OVER_HOLD_MS || back >= owed.multiplier) {
+      owed = undefined;
+      return;
+    }
+    if (covered()) {
+      return;
+    }
+    words.textContent = boostOverWords(
+      owed.name,
+      effectiveRates(mountain, at, trouble).crewPerSecond,
+    );
+    owed = undefined;
+    note.show(dial.root, words, { ms: RUNNING_NOTE_MS });
+  };
+  return { paint, say };
 }

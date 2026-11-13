@@ -7,6 +7,17 @@ import type { BoardNote } from "./board-note";
 import type { KeyRail } from "./board-keys";
 import type { ScreenCtx } from "./screen-context";
 
+interface Overlays {
+  readonly sign: BoardSign;
+  readonly paint: () => void;
+  readonly putSignAway: () => void;
+  /** A card or a drawer is over the board, so the mine window is out of sight. */
+  readonly boardCovered: () => boolean;
+  /** A card, a drawer or the board note is up: a note nobody asked for waits (#527). */
+  readonly boardBusy: () => boolean;
+  readonly listen: () => void;
+}
+
 /**
  * The New sign, what a card does to the drawers and the note, and the key rail's paint. The
  * root hands in the board note, the rail, the cards and the drawers.
@@ -21,14 +32,7 @@ export function createOverlays(
       close(options: { restoreFocus: false; by: "program" }): void;
     }[];
   },
-): {
-  readonly sign: BoardSign;
-  readonly paint: () => void;
-  readonly putSignAway: () => void;
-  /** A card or a drawer is over the board, so the mine window is out of sight. */
-  readonly boardCovered: () => boolean;
-  readonly listen: () => void;
-} {
+): Overlays {
   const { board, now, listening } = ctx;
   const { note: boardNote, rail, cards, drawers } = deps;
   // The New sign stands in the band over its key (#373): a sign, not a button.
@@ -146,6 +150,7 @@ export function createOverlays(
     },
     putSignAway,
     boardCovered: () => cover().putAway,
+    boardBusy: () => cover().holdSign,
     listen: () => {
       // Any tap or Escape puts the New sign away (#373).
       document.addEventListener("pointerdown", putSignAway, listening);

@@ -2050,6 +2050,213 @@ describe("the control board (#370)", () => {
     }
   });
 
+  it("says on the dial when Overtime runs out, and what the crew mines now (#527)", () => {
+    vi.useFakeTimers();
+    try {
+      const at = Date.now();
+      const mountain: Mountain = {
+        ...minedMountain(0),
+        helpers: 3,
+        boosts: { ...NO_BOOSTS, overtime: at + 2_000 },
+      };
+      const screen = mountScreen({
+        storage: seeded(mountain, at),
+        now: () => Date.now(),
+      });
+      document.body.append(screen.root);
+      try {
+        const note = screen.root.querySelector<HTMLElement>(".board-note");
+        vi.advanceTimersByTime(1_000);
+        expect(note?.classList.contains("on")).toBe(false);
+        vi.advanceTimersByTime(1_000);
+        expect(note?.classList.contains("on")).toBe(true);
+        const crew = effectiveRates(mountain).crewPerSecond;
+        expect(note?.querySelector(".boost-over-note")?.textContent).toBe(
+          `Overtime over.\nYour crew mines ${formatCompact(crew)} stones a second now.`,
+        );
+        expect(
+          screen.root.querySelector(".board-dial")?.getAttribute("aria-label"),
+        ).toBe("Pace ×1, rested");
+      } finally {
+        screen.root.remove();
+      }
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("holds a boost's end under Buys, and says it when the board shows again (#527)", () => {
+    vi.useFakeTimers();
+    try {
+      const at = Date.now();
+      const screen = mountScreen({
+        storage: seeded(
+          {
+            ...minedMountain(0),
+            helpers: 3,
+            boosts: { ...NO_BOOSTS, overtime: at + 3_000 },
+          },
+          at,
+        ),
+        now: () => Date.now(),
+      });
+      document.body.append(screen.root);
+      try {
+        screen.root
+          .querySelector<HTMLButtonElement>(".board-key[data-key=buys]")
+          ?.click();
+        const note = screen.root.querySelector<HTMLElement>(".board-note");
+        vi.advanceTimersByTime(4_000);
+        expect(note?.classList.contains("on")).toBe(false);
+        document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+        vi.advanceTimersByTime(1_000);
+        expect(note?.classList.contains("on")).toBe(true);
+        expect(note?.querySelector(".boost-over-note")?.textContent).toMatch(
+          /^Overtime over\.\nYour crew mines /,
+        );
+      } finally {
+        screen.root.remove();
+      }
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("lets a boost's end go when the drawer stays open past a minute (#527)", () => {
+    vi.useFakeTimers();
+    try {
+      const at = Date.now();
+      const screen = mountScreen({
+        storage: seeded(
+          {
+            ...minedMountain(0),
+            helpers: 3,
+            boosts: { ...NO_BOOSTS, overtime: at + 3_000 },
+          },
+          at,
+        ),
+        now: () => Date.now(),
+      });
+      document.body.append(screen.root);
+      try {
+        screen.root
+          .querySelector<HTMLButtonElement>(".board-key[data-key=buys]")
+          ?.click();
+        vi.advanceTimersByTime(65_000);
+        document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+        vi.advanceTimersByTime(1_000);
+        const note = screen.root.querySelector<HTMLElement>(".board-note");
+        expect(note?.classList.contains("on")).toBe(false);
+        expect(note?.querySelector(".boost-over-note")).toBeNull();
+      } finally {
+        screen.root.remove();
+      }
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("says nothing on opening after a boost ran out while away (#527)", () => {
+    const clock = 5_000_000;
+    const screen = mountScreen({
+      storage: seeded(
+        {
+          ...minedMountain(0),
+          helpers: 3,
+          boosts: { ...NO_BOOSTS, overtime: clock - 1_000 },
+        },
+        clock - 60_000,
+      ),
+      now: () => clock,
+    });
+    expect(screen.root.querySelector(".boost-over-note")).toBeNull();
+  });
+
+  describe("a crew timer's end on the dial (#527)", () => {
+    const opened = (overtimeIn: number, pocket = 0) => {
+      const clock = { at: 5_000_000 };
+      const screen = mountScreen({
+        storage: seeded(
+          {
+            ...minedMountain(0),
+            helpers: 3,
+            pocket,
+            boosts: { ...NO_BOOSTS, overtime: clock.at + overtimeIn },
+          },
+          clock.at,
+        ),
+        now: () => clock.at,
+      });
+      document.body.append(screen.root);
+      const tick = (ms: number): void => {
+        for (let left = ms; left > 0; left -= 1_000) {
+          clock.at += 1_000;
+          vi.advanceTimersByTime(1_000);
+        }
+      };
+      const said = (): string | undefined =>
+        screen.root.querySelector(".board-note.on .boost-over-note")
+          ?.textContent ?? undefined;
+      return { clock, screen, tick, said };
+    };
+
+    it("says nothing when the clock jumps past the end: that was time away", () => {
+      vi.useFakeTimers();
+      const { clock, screen, tick, said } = opened(3_000);
+      try {
+        tick(1_000);
+        clock.at += 10_000;
+        tick(1_000);
+        expect(said()).toBeUndefined();
+      } finally {
+        screen.root.remove();
+        vi.useRealTimers();
+      }
+    });
+
+    it("waits for a note he opened, then says it", () => {
+      vi.useFakeTimers();
+      const { screen, tick, said } = opened(3_000);
+      try {
+        tick(1_000);
+        screen.root.querySelector<HTMLButtonElement>(".board-dial")?.click();
+        tick(3_000);
+        // Running now is still up: it is not pushed out.
+        expect(
+          screen.root.querySelector(".board-note.on .board-note-h")
+            ?.textContent,
+        ).toBe("Running now");
+        expect(said()).toBeUndefined();
+        tick(5_000);
+        expect(said()).toMatch(/^Overtime over\.\nYour crew mines /);
+      } finally {
+        screen.root.remove();
+        vi.useRealTimers();
+      }
+    });
+
+    it("lets it go when the timer is back on before the board shows", () => {
+      vi.useFakeTimers();
+      const { screen, tick, said } = opened(3_000, 1_000_000_000);
+      try {
+        screen.root
+          .querySelector<HTMLButtonElement>(".board-key[data-key=buys]")
+          ?.click();
+        tick(4_000);
+        screen.progress.dispatch({ kind: "buyBoost", id: "overtime" });
+        document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+        tick(1_000);
+        expect(
+          screen.root.querySelector(".board-dial")?.getAttribute("aria-label"),
+        ).toMatch(/^Overtime, pace ×2/);
+        expect(said()).toBeUndefined();
+      } finally {
+        screen.root.remove();
+        vi.useRealTimers();
+      }
+    });
+  });
+
   it("the dial reads Nothing running when no clock runs", () => {
     const screen = mountScreen();
     document.body.append(screen.root);

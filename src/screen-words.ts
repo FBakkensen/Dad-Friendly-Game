@@ -129,6 +129,23 @@ export const stonesASecond = (rate: number): string =>
   rate === 1 ? "1 stone a second" : `${formatCount(rate)} stones a second`;
 
 /**
+ * "Your crew mines 586 stones a second", compact once it's big. Buys' crew
+ * line is a figure, so a big rate carries /s ("154.1K stones/s") and never
+ * wraps; the dial's note when a crew timer runs out is a sentence, so it
+ * keeps "a second" ("154.1K stones a second", Flemming 13 Nov 2026), the
+ * #508 rule (#527).
+ */
+export function crewMinesWords(
+  crewPerSecond: number,
+  unit: "/s" | " a second" = "/s",
+): string {
+  const rate = Math.max(0, Math.floor(crewPerSecond));
+  return rate >= 1_000
+    ? `Your crew mines ${formatCompact(rate)} stones${unit}`
+    : `Your crew mines ${stonesASecond(rate)}`;
+}
+
+/**
  * Buy UI, before and after the tap, when the next machine would sit idle.
  * No counts: the idle line already says how many.
  */
@@ -1493,6 +1510,14 @@ export function veinWords(reward: number, held: number): string {
   return held > 0
     ? `${paid}.\nGold rush: ${formatCompact(held)} held stones come in over ${String(RUSH_MS / 1000)} seconds.`
     : paid;
+}
+
+/**
+ * The note on the Pace dial when the crew timer runs out (#527): what
+ * ended, and what the crew mines now, so a sudden drop has its reason.
+ */
+export function boostOverWords(name: string, crewPerSecond: number): string {
+  return `${name} over.\n${crewMinesWords(crewPerSecond, " a second")} now.`;
 }
 
 /**

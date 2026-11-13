@@ -17,6 +17,8 @@ import {
   awayMinedWords,
   rushHeldWords,
   veinWords,
+  boostOverWords,
+  crewMinesWords,
   crewGrewWords,
   ACCOUNT,
   LEDGER_BACK,
@@ -1125,6 +1127,23 @@ describe("veinWords (#468, #525)", () => {
     expect(veinWords(5_000, 0)).toBe("Golden vein! +5,000 stones");
     expect(veinWords(5_000, 100_861_200)).toBe(
       "Golden vein! +5,000 stones.\nGold rush: 100.8M held stones come in over 90 seconds.",
+    );
+  });
+});
+
+describe("boostOverWords (#527)", () => {
+  it("says what ran out and what the crew mines now", () => {
+    // Buys' crew line, but a sentence keeps "a second" (#508, #527).
+    expect(boostOverWords("Blasting charge", 154_197)).toBe(
+      "Blasting charge over.\nYour crew mines 154.1K stones a second now.",
+    );
+    expect(crewMinesWords(154_197)).toBe("Your crew mines 154.1K stones/s");
+    expect(crewMinesWords(586.9)).toBe("Your crew mines 586 stones a second");
+    expect(boostOverWords("Overtime", 586)).toBe(
+      "Overtime over.\nYour crew mines 586 stones a second now.",
+    );
+    expect(boostOverWords("Axle grease", 1)).toBe(
+      "Axle grease over.\nYour crew mines 1 stone a second now.",
     );
   });
 });

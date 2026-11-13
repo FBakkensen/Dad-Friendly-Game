@@ -222,7 +222,7 @@ focus)` (`showCard`, the model's open or close, and the focus once as it
    `board-skin` (the 9-slice plan that draws a frame, tag or key skin, or the
    output gauge's counter window, on a canvas behind its element; `skin` is told whether its host is down, so a plate key's press repaints its pressed skin), `odometer` (the five drum faces for a
    pocket) and `crew-boost` (the crew timer the crew is running at, and the
-   dial frame; a running Gold rush comes first as its own `rush` kind, with the held stones still to come, #468, #525). DOM parts take `getView` and callbacks like a panel:
+   dial frame; a running Gold rush comes first as its own `rush` kind, with the held stones still to come, #468, #525; `strongestCrewTimer` and `boostRanOut`, the timer that just ran out on its clock in play and left the crew slower, #527). DOM parts take `getView` and callbacks like a panel:
    `board-note` (the floating framed note, placed in board coordinates; a
    note that holds a key stays up until the key, an outside pointerdown, or
    Escape; a show with no `ms` and no key has no timer and stays until

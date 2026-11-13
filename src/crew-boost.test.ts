@@ -1,10 +1,21 @@
 import { RUSH_MS, startRush } from "./gold-rush";
 import { describe, expect, it } from "vitest";
-import { dialFrame, liveCrewBoost, type CrewBoost } from "./crew-boost";
+import {
+  boostRanOut,
+  dialFrame,
+  liveCrewBoost,
+  strongestCrewTimer,
+  type CrewBoost,
+} from "./crew-boost";
 import { boostById, NO_BOOSTS } from "./boosts";
 import { effectiveRates } from "./rates";
 import { minedMountain } from "./test-fixtures";
-import { chargeCrewMultiplier, timerDurationMs, COLD_CLOCKS } from "./workshop";
+import {
+  axleCrewMultiplier,
+  chargeCrewMultiplier,
+  timerDurationMs,
+  COLD_CLOCKS,
+} from "./workshop";
 import type { Mountain } from "./mountain";
 
 const NOW = 1_000_000_000_000;
@@ -157,5 +168,88 @@ describe("dialFrame", () => {
     expect(dialFrame(running(29 * MIN, 30 * MIN))).toBe(29);
     expect(dialFrame(running(1000, 30 * MIN))).toBe(1);
     expect(dialFrame(running(30 * MIN, 30 * MIN))).toBe(30);
+  });
+});
+
+describe("boostRanOut (#527)", () => {
+  const SEC = 1000;
+  const seenAt = (m: Mountain, at: number) => ({
+    timer: strongestCrewTimer(m, at),
+    at,
+  });
+  const overtimeLeft = (ms: number): Mountain =>
+    withOvertime(crew(), 30 * MIN - ms);
+
+  it("names Overtime when its clock runs out", () => {
+    const m = overtimeLeft(SEC);
+    const seen = seenAt(m, NOW);
+    expect(seen.timer).toMatchObject({ source: "overtime", leftMs: SEC });
+    expect(boostRanOut(seen, m, NOW + SEC)).toMatchObject({
+      source: "overtime",
+      name: "Overtime",
+    });
+  });
+
+  it("names axle grease when it runs out", () => {
+    const m: Mountain = {
+      ...crew(),
+      clocks: { ...COLD_CLOCKS, "axle-grease": NOW + SEC },
+    };
+    expect(boostRanOut(seenAt(m, NOW), m, NOW + SEC)).toMatchObject({
+      source: "axle-grease",
+    });
+  });
+
+  it("names Overtime running out under a Gold rush: the crew still slows", () => {
+    const m: Mountain = startRush(
+      { ...overtimeLeft(SEC), rushBank: 9_000 },
+      NOW,
+    );
+    expect(liveCrewBoost(m, NOW).kind).toBe("rush");
+    expect(boostRanOut(seenAt(m, NOW), m, NOW + SEC)).toMatchObject({
+      source: "overtime",
+    });
+  });
+
+  it("says nothing when a Gold rush runs out: the crew's speed never had it", () => {
+    const m = startRush({ ...crew(), rushBank: 9_000 }, NOW);
+    expect(seenAt(m, NOW + RUSH_MS - SEC).timer).toBeUndefined();
+    expect(
+      boostRanOut(seenAt(m, NOW + RUSH_MS - SEC), m, NOW + RUSH_MS),
+    ).toBeUndefined();
+  });
+
+  it("says nothing while the timer still runs", () => {
+    const m = overtimeLeft(10 * SEC);
+    expect(boostRanOut(seenAt(m, NOW), m, NOW + SEC)).toBeUndefined();
+  });
+
+  it("says nothing when nothing ran", () => {
+    expect(boostRanOut(seenAt(crew(), NOW), crew(), NOW + SEC)).toBeUndefined();
+    expect(boostRanOut(undefined, crew(), NOW)).toBeUndefined();
+  });
+
+  it("says nothing when a timer as strong carries on", () => {
+    const m: Mountain = {
+      ...overtimeLeft(SEC),
+      clocks: { ...COLD_CLOCKS, "axle-grease": NOW + 10 * MIN },
+    };
+    // Overtime was the one shown; the grease, as strong, carries on.
+    const seen = seenAt(overtimeLeft(SEC), NOW);
+    expect(axleCrewMultiplier(m, NOW + SEC)).toBe(
+      boostById("overtime").multiplier,
+    );
+    expect(boostRanOut(seen, m, NOW + SEC)).toBeUndefined();
+  });
+
+  it("says nothing for a timer that ended while the game was away", () => {
+    const m = overtimeLeft(SEC);
+    expect(boostRanOut(seenAt(m, NOW), m, NOW + 10 * SEC)).toBeUndefined();
+  });
+
+  it("says nothing when a timer was stopped early, not run out", () => {
+    const m = overtimeLeft(20 * SEC);
+    const stopped: Mountain = { ...m, boosts: NO_BOOSTS };
+    expect(boostRanOut(seenAt(m, NOW), stopped, NOW + SEC)).toBeUndefined();
   });
 });
