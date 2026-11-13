@@ -778,7 +778,7 @@ export function firstTend(
 
 const STAFFED_TIERS = ["machine", "borer", "drill", "cart"] as const;
 
-/** The crew's speed before crew timers and the Gold rush: what its machines and hands mine. */
+/** The crew's speed before crew timers: what its machines and hands mine. */
 function baseOutput(rates: Rates): number {
   return outputOf(rates.tierSpeed, rates.running);
 }
@@ -796,7 +796,7 @@ function withHands(
 
 /**
  * What `count` more workers or kids add to the crew (#490): the crew's speed
- * with them less its speed now, before crew timers and the Gold rush. It
+ * with them less its speed now, before crew timers. It
  * counts the idle machines they start, so the Ready now plate and the Buys
  * rows say what the crew line will gain, not only their own hands. Never
  * below zero.

@@ -7,9 +7,9 @@ import type { Mountain } from "./mountain";
  * in over 90 seconds of live play while he watches, beside the crew's own
  * digging. They are not the crew's speed, so no rate counts them (#525). A
  * missed rush pays the held stones anyway, so the total is the same either way
- * and the rush moves no finish day (Flemming's ruling, 11 Nov 2026).
+ * and the rush moves no finish day (Flemming's ruling, 11 Nov 2026). The rush
+ * holds what the crew would dig at `RUSH_MULTIPLIER`: nine crews' worth.
  */
-/** The rush holds what the crew would dig at ×10: nine crews' worth over its time. */
 export const RUSH_MULTIPLIER = 10;
 /** How long a Gold rush lasts, in live play. */
 export const RUSH_MS = 90 * 1000;

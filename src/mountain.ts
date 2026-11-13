@@ -112,7 +112,7 @@ export type Mountain = {
    * fields in the workshop map.
    */
   readonly clocks: Clocks;
-  /** When the Gold rush stops speeding the crew (src/gold-rush.ts); 0 is none. */
+  /** When the Gold rush stops paying its held stones (src/gold-rush.ts); 0 is none. */
   readonly rushUntil: number;
   /** Stones of an away haul held for the Gold rush, paid as it runs (src/gold-rush.ts). */
   readonly rushBank: number;

@@ -980,10 +980,17 @@ describe("golden vein on screen", () => {
           expect(now.rushUntil).toBeGreaterThan(0);
           // 9 × 4 workers × 90 s held from the haul come in as the crew digs
           expect(now.rushBank).toBe(3_240);
+          const dial = (): string | null | undefined =>
+            screen.root
+              .querySelector(".board-dial")
+              ?.getAttribute("aria-label");
           await tick(45_000);
           expect(gauge()).toBe("Output: 4 stones a second");
+          // Half the held stones have come in: the dial counts the rest down.
+          expect(dial()).toBe("Gold rush, 1,620 stones to come, 0:45 left");
           await tick(45_000);
           expect(gauge()).toBe("Output: 4 stones a second");
+          expect(dial()).toBe("Pace ×1, rested");
           const after = screen.progress.getSnapshot().mountain;
           expect(after.rushBank).toBe(0);
           expect(after.pocket - now.pocket).toBe(3_240 + 90 * 4);
