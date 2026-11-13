@@ -4,9 +4,11 @@ import type { Mountain } from "./mountain";
  * The Gold rush (#468, docs/superpowers/specs/2026-11-11-gold-rush-design.md).
  * After at least an hour away, part of the away haul is held back for the
  * rush (`rushBank`). Tapping the quick vein starts it: the held stones come
- * in over 90 seconds of live play, so the crew digs ×10 while he watches. A
+ * in over 90 seconds of live play while he watches, beside the crew's own
+ * digging. They are not the crew's speed, so no rate counts them (#525). A
  * missed rush pays the held stones anyway, so the total is the same either way
- * and the rush moves no finish day (Flemming's ruling, 11 Nov 2026).
+ * and the rush moves no finish day (Flemming's ruling, 11 Nov 2026). The rush
+ * holds what the crew would dig at `RUSH_MULTIPLIER`: nine crews' worth.
  */
 export const RUSH_MULTIPLIER = 10;
 /** How long a Gold rush lasts, in live play. */
@@ -146,12 +148,4 @@ export function resumeRush(
   // Read on the new clock: what was left at `from` is left at `to`, so a
   // device whose clock is behind cannot freeze the rush.
   return { ...mountain, rushUntil: to + rushLeft(mountain, from) };
-}
-
-/**
- * The mountain with no rush running. A 90-second burst is not the crew's
- * speed over hours, so what a buy is worth reads the crew without it.
- */
-export function withoutRush(mountain: Mountain): Mountain {
-  return mountain.rushUntil === 0 ? mountain : { ...mountain, rushUntil: 0 };
 }

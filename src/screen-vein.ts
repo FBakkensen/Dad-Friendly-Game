@@ -139,8 +139,10 @@ export function createVein(
     const rush = quick.take();
     const result = dispatch({ kind: rush ? "tapQuickVein" : "tapVein" });
     const reward = result.kind === "applied" ? result.gained : 0;
+    // The rush's held stones, now coming in (#525).
+    const held = rush ? ctx.view().mountain.rushBank : 0;
     veinState = waitForVein({ now: now(), random, gapScale: gapForVeins() });
-    showNote(veinWords(reward, rush), VEIN_NOTE_MS);
+    showNote(veinWords(reward, held), VEIN_NOTE_MS);
     render();
   };
 

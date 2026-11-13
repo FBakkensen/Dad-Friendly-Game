@@ -96,12 +96,11 @@ describe("runningLabels", () => {
 });
 
 describe("rushLabel (#468)", () => {
-  it("names the Gold rush with its ×10 and its clock, and is off when none runs", () => {
+  it("names the Gold rush with its clock and no ×, and is off when none runs", () => {
     const rushed = startRush({ ...createMountain(), rushBank: 900 }, AT);
     expect(rushLabel(rushed, AT + 30_000)).toEqual({
       short: "Gold rush",
       full: "Gold rush",
-      multiplier: 10,
       leftMs: RUSH_MS - 30_000,
       active: true,
     });

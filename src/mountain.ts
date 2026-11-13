@@ -6,7 +6,6 @@ import {
   holdForRush,
   payRush,
   resumeRush,
-  rushPerSecond,
 } from "./gold-rush";
 import type { Engineer } from "./engineers";
 import {
@@ -113,7 +112,7 @@ export type Mountain = {
    * fields in the workshop map.
    */
   readonly clocks: Clocks;
-  /** When the Gold rush stops speeding the crew (src/gold-rush.ts); 0 is none. */
+  /** When the Gold rush stops paying its held stones (src/gold-rush.ts); 0 is none. */
   readonly rushUntil: number;
   /** Stones of an away haul held for the Gold rush, paid as it runs (src/gold-rush.ts). */
   readonly rushBank: number;
@@ -303,13 +302,11 @@ function accrueCrew({
   live?: boolean;
   trouble?: Trouble;
 }): Accrual {
-  // The rush's share of the crew line is held stones, already dug (#468).
-  const rate =
-    stonesPerSecond(
-      mountain,
-      live ? from : undefined,
-      live ? trouble : undefined,
-    ) - (live ? Math.floor(rushPerSecond(mountain, from) + 1e-9) : 0);
+  const rate = stonesPerSecond(
+    mountain,
+    live ? from : undefined,
+    live ? trouble : undefined,
+  );
   if (rate === 0 || mountain.remaining === 0) {
     return { mountain, mined: 0, settledAt: to };
   }

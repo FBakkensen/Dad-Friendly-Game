@@ -318,6 +318,12 @@ body {
   color: var(--board-amber-bare);
 }
 
+/* A Gold rush's held stones ("+474.8K") are wider than a ×, so a size down keeps
+   them clear of the odometer (#525). */
+.board-dial-mul.is-held {
+  font-size: var(--board-type-20);
+}
+
 .board-dial-left {
   font-size: var(--board-type-20);
   line-height: calc(var(--art) * 12);

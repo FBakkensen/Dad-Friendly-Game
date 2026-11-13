@@ -1,4 +1,3 @@
-import { withoutRush } from "./gold-rush";
 import { boostById, boostLeft } from "./boosts";
 import { factor } from "./economy/factors";
 import { TUNNELS } from "./expeditions";
@@ -470,8 +469,7 @@ function crewFitted(
   if (others > 1 && others + 1e-9 >= scale) {
     return crewAlreadyWords(others);
   }
-  // A Gold rush is over long before the craft: its speed is left out (#468).
-  const speed = effectiveRates(withoutRush(mountain), now).exactCrewPerSecond;
+  const speed = effectiveRates(mountain, now).exactCrewPerSecond;
   if (speed > 0) {
     return `Crew now ${formatCraftSpeed(speed)}/s for ${time}.`;
   }

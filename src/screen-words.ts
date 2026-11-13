@@ -17,7 +17,7 @@ import {
 } from "./expeditions";
 import type { BoostId } from "./boosts";
 import { formatCompact, formatCount, formatDuration } from "./format";
-import { RUSH_MS, RUSH_MULTIPLIER } from "./gold-rush";
+import { RUSH_MS } from "./gold-rush";
 import type { TroubleKind } from "./hazards";
 import type { LayerId, Materials, MaterialId } from "./layers";
 import type { Mountain } from "./mountain";
@@ -1484,18 +1484,20 @@ export const cameHomeLine = (name: string): string => `${name} came home.`;
 
 /**
  * The vein's payout note. A quick vein's also names the Gold rush, on a line
- * of its own so the note stays inside the board (Flemming, 11 Nov 2026).
+ * of its own so the note stays inside the board (Flemming, 11 Nov 2026): the
+ * held stones it brings in, never a × on the crew (#525). `held` is 0 for an
+ * ordinary vein.
  */
-export function veinWords(reward: number, rush: boolean): string {
+export function veinWords(reward: number, held: number): string {
   const paid = `Golden vein! +${formatCount(reward)} ${reward === 1 ? "stone" : "stones"}`;
-  return rush
-    ? `${paid}.\nGold rush: the crew digs ×${String(RUSH_MULTIPLIER)} for ${String(RUSH_MS / 1000)} seconds.`
+  return held > 0
+    ? `${paid}.\nGold rush: ${formatCompact(held)} held stones come in over ${String(RUSH_MS / 1000)} seconds.`
     : paid;
 }
 
 /**
  * The welcome card's line for the stones an hour away held for the Gold rush
- * (#468): they come in as the crew digs ×10. Flemming, 11 Nov 2026.
+ * (#468): they pour in over the rush's 90 seconds. Flemming, 11 Nov 2026.
  */
 export function rushHeldWords(held: number): string {
   // The welcome card's short figures (#508): "474.8K", like the haul above it.

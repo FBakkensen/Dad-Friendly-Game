@@ -2552,7 +2552,7 @@ describe("quick boosts on screen", () => {
     expect(none?.textContent).toBe("Running nowNothing running");
   });
 
-  it("lists a Gold rush in Running now with its ×10 and clock (#468)", () => {
+  it("lists a Gold rush in Running now with its clock and no × (#468, #525)", () => {
     const now = 5_000_000;
     const storage = createMemoryStorage();
     writeSessionSave({
@@ -2572,7 +2572,7 @@ describe("quick boosts on screen", () => {
     screen.progress.dispose();
     expect(chip?.hidden).toBe(false);
     expect(chip?.querySelector(".effect-name")?.textContent).toBe("Gold rush");
-    expect(chip?.querySelector(".effect-mult")?.textContent.trim()).toBe("×10");
+    expect(chip?.querySelector(".effect-mult")?.textContent.trim()).toBe("");
     expect(chip?.querySelector(".effect-time")?.textContent).toBe("1:15");
   });
 

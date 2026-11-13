@@ -59,11 +59,12 @@ describe("the Gold rush", () => {
     expect(startRush(none, T)).toBe(none);
   });
 
-  it("pays the held stones over 90 seconds of live play: the crew digs ×10", () => {
+  it("pays the held stones over 90 seconds of live play, beside the crew's own speed", () => {
     const held = holdForRush({ ...crew(), pocket: 50_000 }, 50_000, 10);
     const rushed = startRush(held, T);
     expect(rushPerSecond(rushed, T)).toBe(90);
-    expect(effectiveRates(rushed, T).crewPerSecond).toBe(100);
+    // The gauge reads the crew alone: the held stones are not its speed (#525).
+    expect(effectiveRates(rushed, T).crewPerSecond).toBe(10);
     expect(effectiveRates(rushed).crewPerSecond).toBe(10);
     const after = play(rushed, T, 90);
     // the crew's own 10/s, plus every held stone

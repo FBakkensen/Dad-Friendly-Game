@@ -16,6 +16,7 @@ import {
   awayGoneWords,
   awayMinedWords,
   rushHeldWords,
+  veinWords,
   crewGrewWords,
   ACCOUNT,
   LEDGER_BACK,
@@ -1114,6 +1115,16 @@ describe("the welcome card's words (#464)", () => {
     );
     expect(awayGoneWords({ ...report, heart: 1.5 })).toMatch(
       /made it ×1\.5\.$/,
+    );
+  });
+});
+
+describe("veinWords (#468, #525)", () => {
+  it("pays a vein, and a quick vein names the held stones its Gold rush brings", () => {
+    expect(veinWords(1, 0)).toBe("Golden vein! +1 stone");
+    expect(veinWords(5_000, 0)).toBe("Golden vein! +5,000 stones");
+    expect(veinWords(5_000, 100_861_200)).toBe(
+      "Golden vein! +5,000 stones.\nGold rush: 100.8M held stones come in over 90 seconds.",
     );
   });
 });

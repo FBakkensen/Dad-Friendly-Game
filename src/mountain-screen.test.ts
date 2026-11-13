@@ -963,13 +963,34 @@ describe("golden vein on screen", () => {
           vein.click();
           const reward = veinReward(crew);
           expect(screen.text(".vein-note")).toBe(
-            `Golden vein! +${formatCount(reward)} stones.\nGold rush: the crew digs ×10 for 90 seconds.`,
+            `Golden vein! +${formatCount(reward)} stones.\nGold rush: 3,240 held stones come in over 90 seconds.`,
           );
+          // The gauge keeps the crew's own 4/s; the dial counts the held stones (#525).
+          const gauge = (): string | null | undefined =>
+            screen.root
+              .querySelector(".board-gauge")
+              ?.getAttribute("aria-label");
+          expect(gauge()).toBe("Output: 4 stones a second");
+          expect(
+            screen.root
+              .querySelector(".board-dial")
+              ?.getAttribute("aria-label"),
+          ).toBe("Gold rush, 3,240 stones to come, 1:30 left");
           const now = screen.progress.getSnapshot().mountain;
           expect(now.rushUntil).toBeGreaterThan(0);
           // 9 × 4 workers × 90 s held from the haul come in as the crew digs
           expect(now.rushBank).toBe(3_240);
-          await tick(90_000);
+          const dial = (): string | null | undefined =>
+            screen.root
+              .querySelector(".board-dial")
+              ?.getAttribute("aria-label");
+          await tick(45_000);
+          expect(gauge()).toBe("Output: 4 stones a second");
+          // Half the held stones have come in: the dial counts the rest down.
+          expect(dial()).toBe("Gold rush, 1,620 stones to come, 0:45 left");
+          await tick(45_000);
+          expect(gauge()).toBe("Output: 4 stones a second");
+          expect(dial()).toBe("Pace ×1, rested");
           const after = screen.progress.getSnapshot().mountain;
           expect(after.rushBank).toBe(0);
           expect(after.pocket - now.pocket).toBe(3_240 + 90 * 4);

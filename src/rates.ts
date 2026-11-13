@@ -46,7 +46,6 @@ import {
   type Staffing,
 } from "./staffing";
 import { boostById, boostLeft } from "./boosts";
-import { rushPerSecond } from "./gold-rush";
 import {
   BOOTS_SPEED_PER_LEVEL,
   STEADY_AWAY_PER_LEVEL,
@@ -262,16 +261,16 @@ function readRates(mountain: Mountain, now?: number, trouble?: Trouble): Rates {
   const bareTap = Math.floor(
     (1 + Math.floor((baseCrew / legacy) * tapShare + 1e-9)) * legacy + 1e-9,
   );
+  // A Gold rush pays held stones on its own (src/gold-rush.ts): they were dug
+  // while away, so the crew's speed never counts them (#525).
   const timer = liveCrewTimer(mountain, now);
-  // The Gold rush adds its held stones on top of the crew (#468).
-  const rush = rushPerSecond(mountain, now);
   return {
     tapYield: tapWithPick(bareTap, mountain) * sharper,
     tierSpeed,
     running,
     helpersShort: Math.max(0, needed - mountain.helpers - mountain.kids),
-    exactCrewPerSecond: exactBase * timer + rush,
-    crewPerSecond: baseCrew * timer + Math.floor(rush + 1e-9),
+    exactCrewPerSecond: exactBase * timer,
+    crewPerSecond: baseCrew * timer,
     awayPay:
       AWAY_PAY_RATE *
       (1 + upgradeLevel(mountain, "steady") * STEADY_AWAY_PER_LEVEL),
@@ -779,7 +778,7 @@ export function firstTend(
 
 const STAFFED_TIERS = ["machine", "borer", "drill", "cart"] as const;
 
-/** The crew's speed before crew timers and the Gold rush: what its machines and hands mine. */
+/** The crew's speed before crew timers: what its machines and hands mine. */
 function baseOutput(rates: Rates): number {
   return outputOf(rates.tierSpeed, rates.running);
 }
@@ -797,7 +796,7 @@ function withHands(
 
 /**
  * What `count` more workers or kids add to the crew (#490): the crew's speed
- * with them less its speed now, before crew timers and the Gold rush. It
+ * with them less its speed now, before crew timers. It
  * counts the idle machines they start, so the Ready now plate and the Buys
  * rows say what the crew line will gain, not only their own hands. Never
  * below zero.
