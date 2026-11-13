@@ -113,6 +113,35 @@ const RELIC_PAGE = (name) =>
   `${OPEN_SHEET("relics")} .board-sheet-page:not([hidden]) > .relic-${name}-page`;
 
 /**
+ * The open relics page's entrance is over (#523): every animation under it that ends has
+ * ended. The reveal's light swaps frames for as long as the page is open, and is not waited for.
+ */
+async function pageLanded(page, name) {
+  return page
+    .waitForFunction(
+      (selector) => {
+        const root = document.querySelector(selector);
+        return (
+          root !== null &&
+          root
+            .getAnimations({ subtree: true })
+            .every(
+              (animation) =>
+                animation.playState === "finished" ||
+                animation.effect?.getComputedTiming().iterations === Infinity,
+            )
+        );
+      },
+      { timeout: 5_000 },
+      RELIC_PAGE(name),
+    )
+    .then(
+      () => true,
+      () => false,
+    );
+}
+
+/**
  * Presses a plate on the open relics page, once the page is up. A keyboard press
  * (a click with no pointer) is never early, so the page's settle keeps it.
  */
@@ -553,6 +582,7 @@ export {
   SHELF_KEY,
   openShelf,
   RELIC_PAGE,
+  pageLanded,
   pressPage,
   STANDALONE_INSETS,
   boardProbe,

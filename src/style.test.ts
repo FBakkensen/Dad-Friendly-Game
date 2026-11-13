@@ -357,6 +357,32 @@ describe("board.css", () => {
     expect(reduced).toMatch(/\.engineer-walker[^{]*\{[^}]*animation:\s*none/);
   });
 
+  it("the reveal's rise, light and words hold still under reduced motion (#523)", () => {
+    expect(boardCss).toMatch(
+      /^\.relic-reveal-page\.is-entering \.relic-reveal-art \{[^}]*animation:\s*board-relic-rise [^;]*steps\(/m,
+    );
+    expect(boardCss).toMatch(
+      /^\.relic-reveal-light \{[^}]*animation:\s*board-relic-shine [^;]*steps\(1\) infinite/m,
+    );
+    const reduced =
+      /@media \(prefers-reduced-motion: reduce\) \{([\s\S]*?)\n\}/.exec(
+        boardCss,
+      )?.[1];
+    for (const part of [
+      "\\.relic-reveal-art",
+      "\\.relic-reveal-light",
+      "\\.relic-page-title",
+      "\\.relic-page-line",
+      "\\.relic-page-boost",
+    ]) {
+      expect(reduced).toMatch(
+        new RegExp(
+          `\\.relic-reveal-page[^{]*${part}[^{]*\\{[^}]*animation:\\s*none`,
+        ),
+      );
+    }
+  });
+
   it("the New sign takes no taps: they go through to the plate or the key (#373)", () => {
     const rule = /^\.board-sign-slot \{([^}]*)\}/m.exec(boardCss)?.[1] ?? "";
     expect(rule).toMatch(/pointer-events:\s*none/);

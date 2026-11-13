@@ -196,6 +196,19 @@ async function relicPageUp(page, name) {
     { visible: true, timeout: 8_000 },
   );
   await settled(page, "relics");
+  // The reveal's entrance is over (#523): its light's endless swap is not waited for.
+  await page.waitForFunction(
+    (selector) =>
+      (
+        document.querySelector(selector)?.getAnimations({ subtree: true }) ?? []
+      ).every(
+        (animation) =>
+          animation.playState === "finished" ||
+          animation.effect?.getComputedTiming().iterations === Infinity,
+      ),
+    { timeout: 8_000 },
+    `${OPEN_SHEET("relics")} .board-sheet-page:not([hidden]) > .relic-${name}-page`,
+  );
 }
 
 /** A keyboard press (a click with no pointer): never early for the drawer's settle. */

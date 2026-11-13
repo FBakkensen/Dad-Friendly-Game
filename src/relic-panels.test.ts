@@ -282,6 +282,20 @@ describe("the reveal opens the drawer itself (#465)", () => {
     expect(fixture.panel.sheet.isOpen()).toBe(false);
   });
 
+  it("Escape while the relic is still rising carries it (#523)", () => {
+    const fixture = mount(
+      minedMountain(relic("lantern").depth),
+      relic("lantern"),
+    );
+    fixture.panel.render();
+    expect(page(fixture, "reveal")?.classList.contains("is-entering")).toBe(
+      true,
+    );
+    advance(50);
+    escape();
+    expect(fixture.dismissReveal).toHaveBeenCalledTimes(1);
+  });
+
   it("Back, Escape and the scrim carry it too: closing it is seen", () => {
     const fixture = mount(
       minedMountain(relic("shield").depth),

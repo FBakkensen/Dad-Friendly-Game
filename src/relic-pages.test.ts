@@ -200,6 +200,17 @@ describe("the reveal page (#465)", () => {
     ]);
   });
 
+  it("plays its entrance afresh each time a relic is painted (#523)", () => {
+    const page = createRevealPage({ board, onCarry: vi.fn() });
+    expect(page.root.classList.contains("is-entering")).toBe(false);
+    page.paint(relic(0));
+    expect(page.root.classList.contains("is-entering")).toBe(true);
+    const removed = vi.spyOn(page.root.classList, "remove");
+    page.paint(relic(1));
+    expect(removed).toHaveBeenCalledWith("is-entering");
+    expect(page.root.classList.contains("is-entering")).toBe(true);
+  });
+
   it("Carry it with pride acts past the settle, with how it came", () => {
     const onCarry = vi.fn();
     const page = createRevealPage({ board, onCarry });

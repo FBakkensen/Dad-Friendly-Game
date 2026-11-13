@@ -222,6 +222,10 @@ export function createRevealPage({
   return {
     root,
     paint(relic) {
+      // The entrance plays afresh for each relic (#523): off, a reflow, and on again.
+      root.classList.remove("is-entering");
+      void root.offsetWidth;
+      root.classList.add("is-entering");
       write(title, `You found the ${relic.name}`);
       setAttr(stage.art, "src", RELIC_GOLD[relic.id]);
       write(virtue, `The virtue of ${relic.virtue}.`);
