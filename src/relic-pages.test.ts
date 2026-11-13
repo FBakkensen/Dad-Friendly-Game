@@ -6,7 +6,7 @@ import {
   type BoardSheet,
 } from "./board-drawer";
 import { createBoardHost, type BoardHost } from "./board-host";
-import { RELIC_LIT } from "./board-relics";
+import { RELIC_GOLD, RELIC_LIT } from "./board-relics";
 import {
   KEEPSAKE_ART,
   createDetailPage,
@@ -149,6 +149,20 @@ describe("a found relic's detail page (#465)", () => {
 });
 
 describe("the reveal page (#465)", () => {
+  it("shows the gold relic in its stage, with its light", () => {
+    const page = createRevealPage({ board, onCarry: vi.fn() });
+    page.paint(relic(0));
+    const art = find(page.root, ".relic-reveal-stage > img.relic-reveal-art");
+    expect(art.getAttribute("src")).toBe(RELIC_GOLD.lantern);
+    expect(art.hasAttribute("width")).toBe(false);
+    expect(
+      find(page.root, ".relic-reveal-stage > .relic-reveal-light").getAttribute(
+        "aria-hidden",
+      ),
+    ).toBe("true");
+    expect(page.root.querySelector(".relic-page-art")).toBeNull();
+  });
+
   it("names the relic found, with what it does and its power, and one plate", () => {
     const page = createRevealPage({ board, onCarry: vi.fn() });
     const shield = relic(1);

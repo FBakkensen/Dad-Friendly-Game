@@ -3369,6 +3369,58 @@ button.board-row:focus-visible {
   font-weight: 700;
 }
 
+/* The reveal of a relic just found (#523): the gold sprite at 2× on its stage, with eight
+   dashes of light around it, drawn as art-pixel blocks (no art, no filter). The dashes reach
+   past the stage, so its margin keeps them off the kicker and the title. */
+.relic-reveal-stage {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: calc(var(--art) * 64);
+  height: calc(var(--art) * 64);
+  margin: calc(var(--art) * 8) 0;
+}
+
+.relic-reveal-art {
+  position: relative;
+  grid-area: 1 / 1;
+  transform: scale(2);
+  image-rendering: pixelated;
+}
+
+.relic-reveal-light {
+  position: relative;
+  grid-area: 1 / 1;
+  width: calc(var(--art) * 2);
+  height: calc(var(--art) * 2);
+  box-shadow:
+    calc(var(--art) * 36) calc(var(--art) * 0) 0 0 var(--board-amber-bare),
+    calc(var(--art) * -36) calc(var(--art) * 0) 0 0 var(--board-amber-bare),
+    calc(var(--art) * 0) calc(var(--art) * 36) 0 0 var(--board-amber-bare),
+    calc(var(--art) * 0) calc(var(--art) * -36) 0 0 var(--board-amber-bare),
+    calc(var(--art) * 38) calc(var(--art) * 0) 0 0 var(--board-amber-bare),
+    calc(var(--art) * -38) calc(var(--art) * 0) 0 0 var(--board-amber-bare),
+    calc(var(--art) * 0) calc(var(--art) * 38) 0 0 var(--board-amber-bare),
+    calc(var(--art) * 0) calc(var(--art) * -38) 0 0 var(--board-amber-bare),
+    calc(var(--art) * 40) calc(var(--art) * 0) 0 0 var(--board-amber-bare),
+    calc(var(--art) * -40) calc(var(--art) * 0) 0 0 var(--board-amber-bare),
+    calc(var(--art) * 0) calc(var(--art) * 40) 0 0 var(--board-amber-bare),
+    calc(var(--art) * 0) calc(var(--art) * -40) 0 0 var(--board-amber-bare),
+    calc(var(--art) * 26) calc(var(--art) * 26) 0 0 var(--board-amber-bare),
+    calc(var(--art) * -26) calc(var(--art) * 26) 0 0 var(--board-amber-bare),
+    calc(var(--art) * 26) calc(var(--art) * -26) 0 0 var(--board-amber-bare),
+    calc(var(--art) * -26) calc(var(--art) * -26) 0 0 var(--board-amber-bare),
+    calc(var(--art) * 28) calc(var(--art) * 28) 0 0 var(--board-amber-bare),
+    calc(var(--art) * -28) calc(var(--art) * 28) 0 0 var(--board-amber-bare),
+    calc(var(--art) * 28) calc(var(--art) * -28) 0 0 var(--board-amber-bare),
+    calc(var(--art) * -28) calc(var(--art) * -28) 0 0 var(--board-amber-bare),
+    calc(var(--art) * 30) calc(var(--art) * 30) 0 0 var(--board-amber-bare),
+    calc(var(--art) * -30) calc(var(--art) * 30) 0 0 var(--board-amber-bare),
+    calc(var(--art) * 30) calc(var(--art) * -30) 0 0 var(--board-amber-bare),
+    calc(var(--art) * -30) calc(var(--art) * -30) 0 0 var(--board-amber-bare);
+}
+
 .relic-legend-shelf {
   position: relative;
   flex: none;
