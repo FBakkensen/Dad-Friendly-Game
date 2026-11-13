@@ -5,7 +5,9 @@ import type { KeyRail } from "./board-keys";
 import { createBoostDial, createOdometer } from "./board-stock";
 import { createRelicPlate } from "./board-relics";
 import { createSaveLine } from "./board-save";
-import { liveCrewBoost } from "./crew-boost";
+import { boostRanOut, liveCrewBoost, type SeenBoost } from "./crew-boost";
+import { effectiveRates } from "./rates";
+import { boostOverWords } from "./screen-words";
 import { createRelicPanels } from "./relic-panels";
 import { createArrivalPanel } from "./arrival-panel";
 import { createWelcomePanel } from "./welcome-panel";
@@ -183,12 +185,34 @@ function createBoardTop(
   });
   /** The Running now note stays a little longer than a relic's: it is a list. */
   const RUNNING_NOTE_MS = 6000;
+  /** A boost's end stays as long: two short lines, read once. */
+  const BOOST_OVER_NOTE_MS = RUNNING_NOTE_MS;
   const odometer = createOdometer();
   const dial = createBoostDial({
     onOpen: () => {
       note.show(dial.root, runningNow.running, { ms: RUNNING_NOTE_MS });
     },
   });
+  /** The boost on the dial at the last paint: its end is said on the dial (#525). */
+  let seen: SeenBoost | undefined;
+  const overNote = document.createElement("p");
+  overNote.className = "boost-over-note";
+  const paintDial = (): void => {
+    const { mountain, trouble, ready } = ctx.view();
+    const at = now();
+    const boost = liveCrewBoost(mountain, at);
+    const ended = boostRanOut(seen, mountain, at);
+    seen = { boost, at };
+    dial.set(boost);
+    // A sudden drop gets its reason where the pace is read, over a drawer too.
+    if (ended !== undefined && ready && !deps.cardUp()) {
+      overNote.textContent = boostOverWords(
+        ended.name,
+        effectiveRates(mountain, at, trouble).crewPerSecond,
+      );
+      note.show(dial.root, overNote, { ms: BOOST_OVER_NOTE_MS });
+    }
+  };
   return {
     relics,
     relicPlate,
@@ -206,7 +230,7 @@ function createBoardTop(
       relicPlate.render();
       // The odometer and the dial. A spend is shown by `dispatch`, from what the move took.
       odometer.set(ctx.view().mountain.pocket);
-      dial.set(liveCrewBoost(ctx.view().mountain, now()));
+      paintDial();
     },
   };
 }

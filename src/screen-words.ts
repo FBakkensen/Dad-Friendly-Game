@@ -1494,6 +1494,16 @@ export function veinWords(reward: number, rush: boolean): string {
 }
 
 /**
+ * The note on the Pace dial when the boost it showed runs out (#525): what
+ * ended, and what the crew mines now, so a sudden drop has its reason.
+ */
+export function boostOverWords(name: string, crewPerSecond: number): string {
+  const rate = Math.max(0, Math.floor(crewPerSecond));
+  const mines = rate === 1 ? "1 stone" : `${formatCompact(rate)} stones`;
+  return `${name} over.\nYour crew mines ${mines} a second now.`;
+}
+
+/**
  * The welcome card's line for the stones an hour away held for the Gold rush
  * (#468): they come in as the crew digs ×10. Flemming, 11 Nov 2026.
  */

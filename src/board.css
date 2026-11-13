@@ -1406,8 +1406,10 @@ body {
 /* The vein's payout and the quiet away line, in the board note under the
    window: one line in the Legacy plate's condensed face, so the note ends
    well above the key rail and never covers a key (#371, #373). A quick
-   vein's Gold rush takes a second line of its own (#468). */
-.vein-note {
+   vein's Gold rush takes a second line of its own (#468). A boost that runs
+   out says so on the dial in the same face (#525). */
+.vein-note,
+.boost-over-note {
   margin: 0;
   font-family: "Barlow Condensed", sans-serif;
   font-weight: 700;

@@ -16,6 +16,7 @@ import {
   awayGoneWords,
   awayMinedWords,
   rushHeldWords,
+  boostOverWords,
   crewGrewWords,
   ACCOUNT,
   LEDGER_BACK,
@@ -1114,6 +1115,20 @@ describe("the welcome card's words (#464)", () => {
     );
     expect(awayGoneWords({ ...report, heart: 1.5 })).toMatch(
       /made it ×1\.5\.$/,
+    );
+  });
+});
+
+describe("boostOverWords (#525)", () => {
+  it("says what ran out and what the crew mines now", () => {
+    expect(boostOverWords("Gold rush", 154_197)).toBe(
+      "Gold rush over.\nYour crew mines 154.1K stones a second now.",
+    );
+    expect(boostOverWords("Overtime", 586)).toBe(
+      "Overtime over.\nYour crew mines 586 stones a second now.",
+    );
+    expect(boostOverWords("Axle grease", 1)).toBe(
+      "Axle grease over.\nYour crew mines 1 stone a second now.",
     );
   });
 });

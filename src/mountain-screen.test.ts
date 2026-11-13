@@ -2029,6 +2029,62 @@ describe("the control board (#370)", () => {
     }
   });
 
+  it("says on the dial when the Gold rush runs out, and what the crew mines now (#525)", () => {
+    vi.useFakeTimers();
+    try {
+      const at = Date.now();
+      const mountain: Mountain = {
+        ...minedMountain(0),
+        helpers: 3,
+        rushUntil: at + 2_000,
+        rushBank: 2_000,
+      };
+      const screen = mountScreen({
+        storage: seeded(mountain, at),
+        now: () => Date.now(),
+      });
+      document.body.append(screen.root);
+      try {
+        const note = screen.root.querySelector<HTMLElement>(".board-note");
+        vi.advanceTimersByTime(1_000);
+        expect(note?.classList.contains("on")).toBe(false);
+        vi.advanceTimersByTime(1_000);
+        expect(note?.classList.contains("on")).toBe(true);
+        const crew = effectiveRates({
+          ...mountain,
+          rushUntil: 0,
+          rushBank: 0,
+        }).crewPerSecond;
+        expect(note?.querySelector(".boost-over-note")?.textContent).toBe(
+          `Gold rush over.\nYour crew mines ${formatCompact(crew)} stones a second now.`,
+        );
+        expect(
+          screen.root.querySelector(".board-dial")?.getAttribute("aria-label"),
+        ).toBe("Pace ×1, rested");
+      } finally {
+        screen.root.remove();
+      }
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("says nothing on opening after a boost ran out while away (#525)", () => {
+    const clock = 5_000_000;
+    const screen = mountScreen({
+      storage: seeded(
+        {
+          ...minedMountain(0),
+          helpers: 3,
+          boosts: { ...NO_BOOSTS, overtime: clock - 1_000 },
+        },
+        clock - 60_000,
+      ),
+      now: () => clock,
+    });
+    expect(screen.root.querySelector(".boost-over-note")).toBeNull();
+  });
+
   it("the dial reads Nothing running when no clock runs", () => {
     const screen = mountScreen();
     document.body.append(screen.root);
