@@ -809,9 +809,6 @@ body {
   }
   /* The reveal (#523): the relic, its light (the near frame) and its words are simply there.
      Under .board-sheet, to stand over the entrance's own rules later in this file. */
-  .board-sheet .relic-reveal-light {
-    animation: none;
-  }
   .board-sheet .relic-reveal-page.is-entering .relic-reveal-art {
     animation: none;
   }
@@ -3317,7 +3314,7 @@ button.board-row:focus-visible {
 /* ---------- the relics drawer (#465) ---------- */
 
 /* A page of the relics drawer: a found relic's detail, the reveal, or the Legend. Centred, as
-   the old cards were, with the relic at 24 art px. */
+   the old cards were, with the relic at 24 art px (the reveal has its own stage, below). */
 .relic-page {
   position: relative;
   flex: 1 1 auto;
@@ -3454,12 +3451,12 @@ button.board-row:focus-visible {
       calc(var(--art) * (-30 - var(--relic-diag))) 0 0 var(--board-amber-bare),
     calc(var(--art) * (-30 - var(--relic-diag)))
       calc(var(--art) * (-30 - var(--relic-diag))) 0 0 var(--board-amber-bare);
-  animation: board-relic-shine 3.2s steps(1) infinite;
 }
 
 /* The entrance (#523), in the board's hard steps: the relic rises behind the drawer's own
    0.24s slide and lands, then the light and the words step in whole, one after another. The
-   plate is there from the start. Each waits at its first frame (backwards) until its turn. */
+   plate is there from the start. Each waits at its first frame (backwards) until its turn.
+   The page is always entering once painted, so the light's endless swap is here too. */
 .relic-reveal-page.is-entering .relic-reveal-art {
   animation: board-relic-rise 0.4s steps(8) 0.24s backwards;
 }

@@ -362,7 +362,7 @@ describe("board.css", () => {
       /^\.relic-reveal-page\.is-entering \.relic-reveal-art \{[^}]*animation:\s*board-relic-rise [^;]*steps\(/m,
     );
     expect(boardCss).toMatch(
-      /^\.relic-reveal-light \{[^}]*animation:\s*board-relic-shine [^;]*steps\(1\) infinite/m,
+      /^\.relic-reveal-page\.is-entering \.relic-reveal-light \{[^}]*board-relic-shine [^;]*steps\(1\)[^;]*infinite/m,
     );
     const reduced =
       /@media \(prefers-reduced-motion: reduce\) \{([\s\S]*?)\n\}/.exec(
@@ -376,8 +376,10 @@ describe("board.css", () => {
       "\\.relic-page-boost",
     ]) {
       expect(reduced).toMatch(
+        // Under .board-sheet: the block stands before the rules it must beat.
         new RegExp(
-          `\\.relic-reveal-page[^{]*${part}[^{]*\\{[^}]*animation:\\s*none`,
+          `^  \\.board-sheet \\.relic-reveal-page\\.is-entering ${part} \\{[^}]*animation:\\s*none`,
+          "m",
         ),
       );
     }

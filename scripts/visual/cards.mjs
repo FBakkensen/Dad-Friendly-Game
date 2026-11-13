@@ -385,6 +385,25 @@ for (const viewport of [[424, 924]]) {
       );
       await crown.close();
     }
+    // Reduced motion (#523): nothing on the reveal moves, and the words are there at once.
+    {
+      const still = await openScreen(viewport, mantleSave(), {
+        reducedMotion: true,
+      });
+      await still.page.tap(".board-window");
+      await still.page.waitForSelector(RELIC_PAGE("reveal"), { visible: true });
+      const seen = await still.page.$eval(RELIC_PAGE("reveal"), (root) => ({
+        moving: root.getAnimations({ subtree: true }).length,
+        shown: [...root.querySelectorAll("h3, p, .relic-reveal-light")].every(
+          (el) => getComputedStyle(el).visibility === "visible",
+        ),
+      }));
+      check(
+        seen.moving === 0 && seen.shown,
+        `${label} the reveal holds still under reduced motion, its words shown`,
+      );
+      await still.close();
+    }
     await pressPage(page, "reveal", "carry");
     check(
       await relicPageFits(page, "legend"),

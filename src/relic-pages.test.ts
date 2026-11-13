@@ -205,9 +205,17 @@ describe("the reveal page (#465)", () => {
     expect(page.root.classList.contains("is-entering")).toBe(false);
     page.paint(relic(0));
     expect(page.root.classList.contains("is-entering")).toBe(true);
-    const removed = vi.spyOn(page.root.classList, "remove");
+    // The class comes off, the page is measured (the reflow that restarts the keyframes on a
+    // page still shown), and the class goes back on.
+    const atReflow: boolean[] = [];
+    Object.defineProperty(page.root, "offsetWidth", {
+      get: () => {
+        atReflow.push(page.root.classList.contains("is-entering"));
+        return 0;
+      },
+    });
     page.paint(relic(1));
-    expect(removed).toHaveBeenCalledWith("is-entering");
+    expect(atReflow).toEqual([false]);
     expect(page.root.classList.contains("is-entering")).toBe(true);
   });
 
