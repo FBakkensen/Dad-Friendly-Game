@@ -1,4 +1,4 @@
-/* global console, document, innerHeight */
+/* global console, document, innerHeight, getComputedStyle */
 /** Card sections: the one-time cards (crew grew, welcome-back, the heir, trouble), found tools, and the relics drawer's shelf, detail, reveal and Legend (#465). */
 import {
   staffingNoteSave,
