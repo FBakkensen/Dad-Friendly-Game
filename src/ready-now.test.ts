@@ -4,7 +4,7 @@ import type { Trouble } from "./hazards";
 import { createMountain, stonesPerSecond, type Mountain } from "./mountain";
 import { effectiveRates, handsGain } from "./rates";
 import { readyNow } from "./ready-now";
-import { MOUNTAIN_STONES } from "./scale";
+import { MOUNTAIN_STONES, stonesLeft } from "./scale";
 import { tierById, tierCost, type TierId } from "./tiers";
 import { NO_BOOSTS } from "./boosts";
 
@@ -247,6 +247,50 @@ describe("readyNow", () => {
           kind: "saving",
           etaMs: undefined,
         });
+      });
+    });
+
+    it("a price past the stones left shows no time (#610)", () => {
+      const mountain = mountainWith({
+        helpers: 18,
+        carts: 6,
+        pocket: 100,
+        remaining: 1,
+      });
+      const price = priceOf(mountain, "cart", 6);
+      expect(price - 100).toBeGreaterThan(stonesLeft(mountain));
+      expect(readyNow(mountain, NOW)).toMatchObject({
+        kind: "saving",
+        tier: "cart",
+        price,
+        etaMs: undefined,
+      });
+    });
+
+    it("a price the stones left can still pay keeps its time", () => {
+      const mountain = mountainWith({
+        helpers: 18,
+        carts: 6,
+        pocket: 100,
+        remaining: 50,
+      });
+      const price = priceOf(mountain, "cart", 6);
+      expect(stonesLeft(mountain)).toBeGreaterThanOrEqual(price - 100);
+      expect(readyNow(mountain, NOW)).toMatchObject({
+        kind: "saving",
+        tier: "cart",
+        etaMs: ((price - 100) / stonesPerSecond(mountain, NOW)) * 1000,
+      });
+    });
+
+    it("a price exactly the stones left away keeps its time", () => {
+      const base = mountainWith({ helpers: 18, carts: 6, remaining: 30 });
+      const price = priceOf(base, "cart", 6);
+      const mountain = { ...base, pocket: price - stonesLeft(base) };
+      expect(readyNow(mountain, NOW)).toMatchObject({
+        kind: "saving",
+        tier: "cart",
+        etaMs: (stonesLeft(base) / stonesPerSecond(mountain, NOW)) * 1000,
       });
     });
 

@@ -122,6 +122,13 @@ const SAVES = {
     note: "a free hand and nothing affordable: Saving for a cart",
     save: savingMountain,
   },
+  bottom: {
+    note: "saving near the bottom: the cart costs more than the stones left, so no time (#610)",
+    save: () => {
+      const saving = savingMountain();
+      return { ...saving, mountain: { ...saving.mountain, remaining: 30 } };
+    },
+  },
   fleet: {
     note: "120 carts: three flaps on the cart bay",
     save: fleetMountain,
