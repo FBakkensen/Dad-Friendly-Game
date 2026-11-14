@@ -13,6 +13,7 @@
     "coverage": "vitest run --coverage",
     "field-log": "node tools/field-log.ts",
     "lab": "node --import ./tools/lab-register.mjs tools/strategy-lab.ts",
+    "lab:ledger": "node --import ./tools/lab-register.mjs tools/strategy-lab.ts --ci --ledger write",
     "lab:sweep": "node --import ./tools/lab-register.mjs tools/sweep/cli.ts",
     "typecheck": "tsc --noEmit --incremental --tsBuildInfoFile .gate/app.tsbuildinfo && tsc --noEmit --incremental --tsBuildInfoFile .gate/tools.tsbuildinfo -p tools/tsconfig.json",
     "lint": "eslint . --cache --max-warnings 0",

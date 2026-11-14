@@ -9,7 +9,13 @@ import {
   LOCAL_SEEDS,
   TARGETS,
 } from "../src/lab/targets";
-import { executeLab, parseLabArgs, seedsFromCount } from "./strategy-lab";
+import {
+  LEDGER_PATH,
+  executeLab,
+  ledgerVerdict,
+  parseLabArgs,
+  seedsFromCount,
+} from "./strategy-lab";
 
 describe("strategy lab command", () => {
   it("defaults to the seed count and the day cap in targets.ts", () => {
@@ -21,6 +27,7 @@ describe("strategy lab command", () => {
       days: DEFAULT_MAX_DAYS,
       outDir: "reports",
       factors: {},
+      ledger: "off",
     });
     expect(seedsFromCount(LOCAL_SEEDS)).toHaveLength(LOCAL_SEEDS);
     expect(seedsFromCount(CI_SEEDS)).toHaveLength(CI_SEEDS);
@@ -69,6 +76,54 @@ describe("strategy lab command", () => {
     expect(parseLabArgs(["--factors", "line.off=x"]).kind).toBe("error");
   });
 
+  it("checks or writes the pacing ledger only on the gate's run (#554)", () => {
+    expect(parseLabArgs(["--ci", "--ledger", "check"])).toMatchObject({
+      kind: "run",
+      ledger: "check",
+    });
+    expect(parseLabArgs(["--ci", "--ledger", "write"])).toMatchObject({
+      ledger: "write",
+    });
+    expect(parseLabArgs(["--ci", "--ledger", "maybe"]).kind).toBe("error");
+    expect(parseLabArgs(["--ledger", "check"]).kind).toBe("error");
+    expect(
+      parseLabArgs(["--ci", "--ledger", "check", "--policy", "tap-only"]).kind,
+    ).toBe("error");
+    expect(
+      parseLabArgs(["--ci", "--ledger", "check", "--factors", "line.off=0"])
+        .kind,
+    ).toBe("error");
+    expect(
+      parseLabArgs(["--ci", "--ledger", "check", "--days", "4"]).kind,
+    ).toBe("error");
+  });
+
+  it("passes a matching ledger, and fails a moved or missing one with the diff (#554)", () => {
+    const committed = "# Pacing ledger\n\n| alpha | 1 | 5.00 |\n";
+    expect(ledgerVerdict(committed, committed).code).toBe(0);
+    const moved = ledgerVerdict(
+      committed,
+      "# Pacing ledger\n\n| alpha | 1 | 5.25 |\n",
+    );
+    expect(moved.code).toBe(1);
+    expect(moved.lines).toEqual(
+      expect.arrayContaining([
+        "- | alpha | 1 | 5.00 |",
+        "+ | alpha | 1 | 5.25 |",
+      ]),
+    );
+    expect(moved.lines.join("\n")).toContain("npm run lab:ledger");
+    expect(
+      ledgerVerdict(
+        "# Pacing ledger\n\n| beta | 1 |\n| alpha | 1 |\n",
+        "# Pacing ledger\n\n| alpha | 1 |\n| beta | 1 |\n",
+      ).code,
+    ).toBe(1);
+    const missing = ledgerVerdict(undefined, committed);
+    expect(missing.code).toBe(1);
+    expect(missing.lines[0]).toContain(LEDGER_PATH);
+  });
+
   it("writes a markdown and json report for one short policy", async () => {
     const outDir = mkdtempSync(path.join(tmpdir(), "strategy-lab-"));
     const parsed = parseLabArgs([
@@ -98,6 +153,8 @@ describe("strategy lab command", () => {
       readFileSync(path.join(outDir, "strategy-lab.json"), "utf8"),
     ) as { readonly rows: readonly { readonly id: string }[] };
     expect(json.rows.map((row) => row.id)).toEqual(["five-min-a-day"]);
+    const ledger = readFileSync(path.join(outDir, "pacing-ledger.md"), "utf8");
+    expect(ledger).toContain("| five-min-a-day | 1 |");
   });
 
   it("plays the line under --factors line.off=0 and says so in the report (#534)", async () => {

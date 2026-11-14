@@ -600,6 +600,61 @@ describe("tournament", () => {
     );
   });
 
+  it("shows the worst seed beside the mean, or the seeds' range with no guardrail (#554)", () => {
+    const casual = dad({ id: "alpha", label: "Alpha", kind: "casual" });
+    const count = defineMeasure({
+      id: "count",
+      label: "Count",
+      unit: "count",
+      why: "How many moments the dad looked at the table.",
+      aggregate: (samples) => samples.length,
+    });
+    const result = judge({
+      policies: [casual],
+      measures: [finishDayMeasure, count],
+      targets: TARGETS.filter((target) => target.id === "casual-finish"),
+      seeds: [1, 2, 3],
+      runs: [
+        run(casual, 1, [decision({ finishDay: 8 })]),
+        run(casual, 2, [decision({ finishDay: 4 }), decision({})]),
+        run(casual, 3, [
+          decision({ finishDay: 9 }),
+          decision({}),
+          decision({}),
+        ]),
+      ],
+    });
+    const [finish, moments] = result.rows[0]?.cells ?? [];
+    expect(finish?.judgements[0]?.worst).toEqual({ seed: 2, value: 4 });
+    expect(moments?.spread).toEqual({ low: 1, high: 3 });
+    const report = renderReport(result);
+    expect(report).toContain("7 pass (worst 4, seed 2)");
+    expect(report).toContain("| 2 (seeds 1–3) |");
+  });
+
+  it("collects each run's pacing ledger row, and none from runs without one (#554)", () => {
+    const casual = dad({ id: "alpha", label: "Alpha", kind: "casual" });
+    const row = {
+      policyId: "alpha",
+      seed: 1,
+      bands: { topsoil: 1 },
+      machines: {},
+      relics: {},
+      finishDay: 6,
+      endHash: "0000abcd",
+    };
+    const result = judge({
+      policies: [casual],
+      measures: [],
+      seeds: [1, 2],
+      runs: [
+        { ...run(casual, 1, [decision({})]), ledger: row },
+        run(casual, 2, [decision({})]),
+      ],
+    });
+    expect(result.ledger).toEqual([row]);
+  });
+
   it("snapshots the report structure without the numbers", () => {
     const casual = dad({ id: "alpha", label: "Alpha", kind: "casual" });
     const count = defineMeasure({
