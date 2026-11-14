@@ -232,6 +232,23 @@ export async function open(
   return { page, context, close: () => context.close() };
 }
 
+/**
+ * The tab killed and the game opened again in a new one, as a phone does
+ * (#558): the device's storage stays, and nothing is seeded again.
+ */
+export async function reopenTab(
+  context: BrowserContext,
+  page: Page,
+  base: string,
+  options: OpenOptions,
+): Promise<Page> {
+  await page.close();
+  const next = await context.newPage();
+  await prepare(next, { ...options, seed: { kind: "none" } });
+  await load(next, base, options);
+  return next;
+}
+
 /** One context with two pages, loaded one after the other: the second shows the other-tab card. */
 export async function openPair(
   browser: Browser,
