@@ -25,7 +25,7 @@ import {
   gearMultiplier,
 } from "./workshop";
 import { callTo } from "./expeditions";
-import { handsSpeed, lineOn, lineSpeed, stageSpeeds } from "./line";
+import { handsSpeed, lineOf, lineOn } from "./line";
 import { tapWithPick } from "./lost-tools";
 import type { Mountain } from "./mountain";
 import {
@@ -41,7 +41,9 @@ import {
 import { hasRelic } from "./relics";
 import {
   biggestFirst,
+  fillForLine,
   moreStones,
+  staffForLine,
   staffMachines,
   staffWith,
   type StaffSlot,
@@ -302,13 +304,15 @@ function keptStaffing(
   }
   const key = scratchKey.slice();
   const slots = staffSlots(mountain, steady);
-  const running = tendingStaysPut(mountain)
-    ? // The tenths are the slots' own, so the best for them is the best.
-      runningOf(
-        mountain,
-        staffMachines(slots, mountain.helpers + mountain.kids),
-      )
-    : staffCrew(mountain, steady, slots);
+  // With the line on, staffing weighs the line (#534), so it always searches.
+  const running =
+    !lineOn() && tendingStaysPut(mountain)
+      ? // The tenths are the slots' own, so the best for them is the best.
+        runningOf(
+          mountain,
+          staffMachines(slots, mountain.helpers + mountain.kids),
+        )
+      : staffCrew(mountain, steady, slots);
   if (staffings.size >= STAFFINGS_KEPT) {
     staffings.clear();
   }
@@ -371,7 +375,10 @@ function staffCrew(
   slots: readonly StaffSlot[],
 ): Record<TierId, number> {
   const hands = mountain.helpers + mountain.kids;
-  const old = biggestFirst(slots, hands);
+  // With the line on, the one-hand machines fill the line (#534).
+  const line = lineOn()
+    ? handsSpeed(steady, runningOf(mountain, biggestFirst(slots, 0)))
+    : undefined;
   const weighed = new Map<string, Weighed>();
   const weigh = (staffing: Staffing): Weighed => {
     const key = MACHINE_IDS.map((id) => String(staffing[id])).join(" ");
@@ -388,14 +395,33 @@ function staffCrew(
     weighed.set(key, next);
     return next;
   };
-  let best = weigh(old);
-  for (const guess of slotGuesses(mountain, slots)) {
-    const next = weigh(staffMachines(guess, hands));
+  // With the line on, each staffing is weighed as the hands fill it today
+  // and as they fill the line, with spare hands above the line or not.
+  const fills = (staffing: Staffing): Weighed => {
+    let best = weigh(staffing);
+    if (line === undefined) {
+      return best;
+    }
+    for (const spareAbove of [true, false]) {
+      const next = weigh(fillForLine(slots, hands, staffing, line, spareAbove));
+      if (moreStones(next.stones, best.stones)) {
+        best = next;
+      }
+    }
+    return best;
+  };
+  let best = fills(biggestFirst(slots, hands));
+  const starts = [
+    ...slotGuesses(mountain, slots).map((guess) => staffMachines(guess, hands)),
+    ...(line === undefined ? [] : staffForLine(slots, hands, line)),
+  ];
+  for (const start of starts) {
+    const next = fills(start);
     if (moreStones(next.stones, best.stones)) {
       best = next;
     }
   }
-  return climb(slots, hands, best, weigh).running;
+  return climb(slots, hands, best, (staffing) => fills(staffing)).running;
 }
 
 /**
@@ -551,7 +577,7 @@ function tendedOutput(
 ): number {
   const speed = { ...steady };
   applyTendingFloor(mountain, steady, speed, running);
-  return outputOf(speed, running);
+  return crewOutput(speed, running);
 }
 
 /**
@@ -666,15 +692,13 @@ function applyAllTenths(
 /**
  * What the crew moves, before crew timers: the sum of its machines and
  * hands, or, with the line on (#532, off in play), what the line moves
- * (`src/line.ts`). Staffing and the tending floor still weigh the sum.
+ * (`src/line.ts`). Staffing weighs it too (#534).
  */
 function crewOutput(
   speed: Readonly<Record<TierId, number>>,
   running: Readonly<Record<TierId, number>>,
 ): number {
-  return lineOn()
-    ? lineSpeed(stageSpeeds(speed, running), handsSpeed(speed, running))
-    : outputOf(speed, running);
+  return lineOn() ? lineOf(speed, running) : outputOf(speed, running);
 }
 
 function outputOf(

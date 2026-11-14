@@ -23,6 +23,7 @@ import type { ValueContext } from "../economy/actions";
 import { minedOut } from "../scale";
 import type { Mountain } from "../mountain";
 import { TIERS, owned } from "../tiers";
+import { narrowAt, zeroGainBuysBetween } from "./line-view";
 import { runPolicy } from "./run";
 import { scoreDecision } from "./score";
 import { mean, median } from "./stats";
@@ -174,6 +175,7 @@ function samplePolicy(
   const sittingLog = createSittingLog();
   const context = valueContext(policy.params);
   let ownedBefore = 0;
+  let before: Mountain | undefined;
   const run = runPolicy({
     policy,
     seed,
@@ -200,8 +202,14 @@ function samplePolicy(
           owned: ownedCount(world.mountain),
           tiers: TIERS.map((tier) => owned(world.mountain, tier)),
           open: () => openingView(world.mountain, world.clock, policy, context),
+          narrow: () => narrowAt(world.mountain, world.clock),
+          zeroGainBuys:
+            before === undefined
+              ? undefined
+              : zeroGainBuysBetween(before, world.mountain, world.clock),
         }),
       );
+      before = world.mountain;
       if (isSampleSecond(live)) {
         const trouble =
           world.hazards.phase === "trouble" ? world.hazards.trouble : undefined;

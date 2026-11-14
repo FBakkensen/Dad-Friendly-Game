@@ -1,6 +1,7 @@
 import { mkdirSync, realpathSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { withFactors } from "../src/economy/factors";
 import { parseMeasureExport } from "../src/lab/measure";
 import { parsePolicyExport } from "../src/lab/policy";
 import {
@@ -11,6 +12,7 @@ import {
 import { renderReport, reportJson } from "../src/lab/report";
 import { discover } from "../src/lab/registry";
 import { runTournament } from "../src/lab/tournament";
+import { parseFactors } from "./lab-factors";
 import {
   CI_SEEDS,
   DEFAULT_MAX_DAYS,
@@ -31,10 +33,12 @@ Usage:
   npm run lab -- --ci
   npm run lab -- --policy <id> [--policy <id>]
   npm run lab -- --seeds <n> --days <n> --out <dir>
+  npm run lab -- --factors line.off=0,layer.3.cart.hardness=0.8
 
 Seeds default to ${String(LOCAL_SEEDS)} (1 through that count). --ci uses ${String(CI_SEEDS)}.
 --seeds wins over both. Days default to ${String(DEFAULT_MAX_DAYS)}.
 --policy limits the rows. The columns are still every registered measure.
+--factors holds sweep factors for every run (line.off=0 plays the line, #534).
 A missed guardrail is a warning unless LAB_STRICT=1, which exits 1.
 Reports land in reports/strategy-lab.md and reports/strategy-lab.json.`;
 
@@ -47,6 +51,7 @@ export type LabArgs =
       readonly seeds: number;
       readonly days: number;
       readonly outDir: string;
+      readonly factors: Readonly<Record<string, number>>;
     };
 
 export function seedsFromCount(count: number): readonly number[] {
@@ -66,6 +71,7 @@ export function parseLabArgs(
   let ci = false;
   let days = DEFAULT_MAX_DAYS;
   let outDir = defaults?.outDir ?? "reports";
+  let factors: Readonly<Record<string, number>> = {};
   let index = 0;
   while (index < argv.length) {
     const arg = argv[index];
@@ -87,6 +93,19 @@ export function parseLabArgs(
         return { kind: "error", message: "--policy needs a player-type id." };
       }
       policyIds.push(value);
+      index += 2;
+      continue;
+    }
+    if (arg === "--factors") {
+      const parsed = parseFactors(argv[index + 1]);
+      if (parsed === undefined) {
+        return {
+          kind: "error",
+          message: "--factors needs id=number pairs, split by commas.",
+        };
+      }
+      // A second --factors adds to the first.
+      factors = { ...factors, ...parsed };
       index += 2;
       continue;
     }
@@ -122,6 +141,7 @@ export function parseLabArgs(
     seeds: seeds ?? (ci ? CI_SEEDS : LOCAL_SEEDS),
     days,
     outDir,
+    factors,
   };
 }
 
@@ -151,24 +171,46 @@ export async function executeLab(
     targets: TARGETS,
   });
   const started = performance.now();
-  const result = runTournament({
-    policies,
-    measures,
-    targets: TARGETS,
-    seeds: seedsFromCount(args.seeds),
-    days: args.days,
+  // The run and the report read the factors (#534); the checks read none.
+  const { result, markdown, json } = withFactors(args.factors, () => {
+    const played = runTournament({
+      policies,
+      measures,
+      targets: TARGETS,
+      seeds: seedsFromCount(args.seeds),
+      days: args.days,
+    });
+    return {
+      result: played,
+      markdown: withFactorLine(renderReport(played), args.factors),
+      json: reportJson(played),
+    };
   });
   const elapsedMs = performance.now() - started;
-  const markdown = renderReport(result);
   const checks = guardrailChecks(TARGETS, result.rows);
   const outDir = path.resolve(args.outDir);
   mkdirSync(outDir, { recursive: true });
   writeFileSync(path.join(outDir, "strategy-lab.md"), markdown);
   writeFileSync(
     path.join(outDir, "strategy-lab.json"),
-    `${JSON.stringify(reportJson(result), null, 2)}\n`,
+    `${JSON.stringify(json, null, 2)}\n`,
   );
   return { markdown, elapsedMs, checks };
+}
+
+/** Names the factors under the report's title, so a swept report says so. */
+function withFactorLine(
+  markdown: string,
+  factors: Readonly<Record<string, number>>,
+): string {
+  const pairs = Object.entries(factors).map(
+    ([id, value]) => `${id}=${String(value)}`,
+  );
+  if (pairs.length === 0) {
+    return markdown;
+  }
+  const [title = "", ...rest] = markdown.split("\n");
+  return [title, "", `Factors: ${pairs.join(", ")}`, ...rest].join("\n");
 }
 
 function positiveInt(text: string): number | undefined {
