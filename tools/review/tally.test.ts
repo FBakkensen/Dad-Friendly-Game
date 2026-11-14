@@ -36,6 +36,16 @@ describe("tallyThreads", () => {
     expect(tally).toEqual({ fixed: 1, answered: 0, open: 0 });
   });
 
+  it("reads a fix named with backticks or the word commit", () => {
+    const tally = tallyThreads([
+      finding(1),
+      reply(2, 1, "Fixed in `5bbde5e`."),
+      finding(3),
+      reply(4, 3, "fixed in commit 5bbde5e4177dcd2888bae48caa0aee6336e557ef"),
+    ]);
+    expect(tally).toEqual({ fixed: 2, answered: 0, open: 0 });
+  });
+
   it("counts a thread answered without a fix as answered", () => {
     const tally = tallyThreads([
       finding(1, "Minor"),
@@ -78,6 +88,14 @@ describe("findingsOf", () => {
     expect(findingsOf(review("Findings: 1 Important, 2 Minor.", "0.10"))).toBe(
       3,
     );
+  });
+
+  it("reads the counts line, not a summary line that starts the same way", () => {
+    const body = review(
+      "Findings: 2 are pre-existing.\n\nFindings: 1 Critical.",
+      "0.10",
+    );
+    expect(findingsOf(body)).toBe(1);
   });
 
   it("reads no findings as zero", () => {
@@ -124,17 +142,17 @@ describe("tallyTable", () => {
         number: 2,
         title: "c",
         reviews: 2,
-        findings: 1,
+        findings: 3,
         threads: { fixed: 0, answered: 0, open: 1 },
         cost: 0.5,
       },
     ]);
     expect(table.split("\n")).toEqual([
-      "| PR | Title | Reviews | Findings | Fixed | Answered, kept | No answer | Cost |",
-      "| --- | --- | --- | --- | --- | --- | --- | --- |",
-      "| #1 | a \\| b | 1 | 2 | 1 | 1 | 0 | $0.25 |",
-      "| #2 | c | 2 | 1 | 0 | 0 | 1 | $0.50 |",
-      "| **All** | 2 PRs | 3 | 3 | 1 | 1 | 1 | $0.75 |",
+      "| PR | Title | Reviews | Findings | Fixed | Answered, kept | No answer | Not a thread | Cost |",
+      "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+      "| #1 | a \\| b | 1 | 2 | 1 | 1 | 0 | 0 | $0.25 |",
+      "| #2 | c | 2 | 3 | 0 | 0 | 1 | 2 | $0.50 |",
+      "| **All** | 2 PRs | 3 | 5 | 1 | 1 | 1 | 2 | $0.75 |",
     ]);
   });
 });

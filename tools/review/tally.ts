@@ -18,7 +18,8 @@ export type Comment = {
 export type ThreadTally = { fixed: number; answered: number; open: number };
 
 const BOT = "github-actions[bot]";
-const FIXED = /\bfixed in [0-9a-f]{7,40}\b/i;
+/** A reply that names the fixing commit: "Fixed in 5bbde5e", with or without backticks or "commit". */
+const FIXED = /\bfixed in (?:commit )?`?[0-9a-f]{7,40}\b/i;
 const SEVERITY =
   /^\*\*(Critical|Important|Minor|Pre-existing|Needs Flemming)\*\*:/;
 
@@ -49,7 +50,8 @@ export function costOf(body: string): number | undefined {
 
 /** Findings a review body counts ("Findings: 1 Important, 2 Minor."). */
 export function findingsOf(body: string): number {
-  const line = /^Findings: (.+)\.$/m.exec(body)?.[1];
+  // The last such line: the model's summary above it could start with the word too.
+  const line = [...body.matchAll(/^Findings: (.+)\.$/gm)].at(-1)?.[1];
   if (line === undefined) return 0;
   return line
     .split(", ")
@@ -86,19 +88,41 @@ export function tallyPr(input: {
   };
 }
 
+/** Findings that never became a thread: outside the PR's files, or in a fallback comment. */
+function notThreads(pr: PrTally): number {
+  const { fixed, answered, open } = pr.threads;
+  return Math.max(0, pr.findings - fixed - answered - open);
+}
+
+const COLUMNS: readonly (readonly [string, (pr: PrTally) => number])[] = [
+  ["Reviews", (pr) => pr.reviews],
+  ["Findings", (pr) => pr.findings],
+  ["Fixed", (pr) => pr.threads.fixed],
+  ["Answered, kept", (pr) => pr.threads.answered],
+  ["No answer", (pr) => pr.threads.open],
+  ["Not a thread", notThreads],
+];
+
+/** What the columns can and cannot see, printed under the table. */
+export const TALLY_NOTE =
+  'Fixed: a reply names the fixing commit ("Fixed in <sha>"). Answered, kept: any other reply; whether the thread was resolved is not read. Not a thread: findings in the review body or a fallback comment.';
+
 export function tallyTable(prs: readonly PrTally[]): string {
+  const cells = (pick: (pr: PrTally) => number, pr: PrTally) =>
+    String(pick(pr));
   const rows = prs.map(
     (pr) =>
-      `| #${String(pr.number)} | ${pr.title.replaceAll("|", "\\|")} | ${String(pr.reviews)} | ${String(pr.findings)} | ${String(pr.threads.fixed)} | ${String(pr.threads.answered)} | ${String(pr.threads.open)} | $${pr.cost.toFixed(2)} |`,
+      `| #${String(pr.number)} | ${pr.title.replaceAll("|", "\\|")} | ${COLUMNS.map(([, pick]) => cells(pick, pr)).join(" | ")} | $${pr.cost.toFixed(2)} |`,
   );
   const sum = (pick: (pr: PrTally) => number) =>
     prs.reduce((total, pr) => total + pick(pr), 0);
-  const total = `| **All** | ${String(prs.length)} PRs | ${String(sum((p) => p.reviews))} | ${String(sum((p) => p.findings))} | ${String(sum((p) => p.threads.fixed))} | ${String(sum((p) => p.threads.answered))} | ${String(sum((p) => p.threads.open))} | $${sum((p) => p.cost).toFixed(2)} |`;
+  const totals = COLUMNS.map(([, pick]) => String(sum(pick))).join(" | ");
+  const names = COLUMNS.map(([name]) => name);
   return [
-    "| PR | Title | Reviews | Findings | Fixed | Answered, kept | No answer | Cost |",
-    "| --- | --- | --- | --- | --- | --- | --- | --- |",
+    `| PR | Title | ${names.join(" | ")} | Cost |`,
+    `|${" --- |".repeat(names.length + 3)}`,
     ...rows,
-    total,
+    `| **All** | ${String(prs.length)} PRs | ${totals} | $${sum((p) => p.cost).toFixed(2)} |`,
   ].join("\n");
 }
 
@@ -167,6 +191,7 @@ function main(args: readonly string[]): void {
       prs.filter((pr) => pr.reviews > 0).sort((a, b) => a.number - b.number),
     ),
   );
+  console.log(`\n${TALLY_NOTE}`);
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href)

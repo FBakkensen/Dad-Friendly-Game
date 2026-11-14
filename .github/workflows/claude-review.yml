@@ -63,6 +63,11 @@ jobs:
           # from the API and takes its tools from the commit it was started on.
           gh api "repos/$REPO/pulls/$NUMBER" > "$RUNNER_TEMP/pr.json"
           if [ "$REPLAY" = "true" ]; then
+            # A fork's text never goes in front of the model with the key in its env.
+            if [ "$(jq -r .head.repo.full_name "$RUNNER_TEMP/pr.json")" != "$REPO" ]; then
+              echo "::error::PR $NUMBER comes from a fork, so it is not replayed."
+              exit 1
+            fi
             base=$(jq -r .base.sha "$RUNNER_TEMP/pr.json")
             head=$(jq -r .head.sha "$RUNNER_TEMP/pr.json")
             tools_from="$WORKFLOW_SHA"
@@ -328,25 +333,42 @@ jobs:
         id: replay
         if: ${{ !cancelled() && steps.key.outputs.present == 'true' && github.event_name == 'workflow_dispatch' }}
         env:
+          KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           KIND: ${{ steps.plan.outputs.kind }}
           LENSES: ${{ steps.plan.outputs.lenses }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          keep="$RUNNER_TEMP/replay"
-          mkdir -p "$keep/post"
+          stage="$RUNNER_TEMP/replay-stage"
+          mkdir -p "$stage/post"
           out="$RUNNER_TEMP/review.json"
-          cp "$RUNNER_TEMP/prompt.md" "$out" "$RUNNER_TEMP/review.err" "$keep/" 2>/dev/null || true
+          for file in prompt.md review.json review.err skip.txt; do
+            [ -f "$RUNNER_TEMP/$file" ] && cp "$RUNNER_TEMP/$file" "$stage/"
+          done
           printf '{"pr":%s,"base":"%s","head":"%s","tools":"%s","kind":"%s","lenses":"%s"}\n' \
-            "$PR" "$BASE" "$HEAD" "$TOOLS_FROM" "$KIND" "$LENSES" > "$keep/target.json"
+            "$PR" "$BASE" "$HEAD" "$TOOLS_FROM" "$KIND" "$LENSES" > "$stage/target.json"
           cost=$(jq -r '.total_cost_usd // 0' "$out" 2>/dev/null) || cost=0
+          subtype=$(jq -r '.subtype // "no answer"' "$out" 2>/dev/null) || subtype="no answer"
+          status=0
           if [ "$KIND" = "review" ] && node "$RUNNER_TEMP/base/tools/review/findings.ts" post --answer "$out" \
-              --diff "$RUNNER_TEMP/diff.txt" --head "$HEAD" --lenses "$LENSES" --cost "$cost" --run "$RUN_URL" --out "$keep/post"; then
-            { printf '# Replay of PR #%s\n\n' "$PR"; cat "$keep/post/fallback.md"; } >> "$GITHUB_STEP_SUMMARY"
+              --diff "$RUNNER_TEMP/diff.txt" --head "$HEAD" --lenses "$LENSES" --cost "$cost" --run "$RUN_URL" --out "$stage/post"; then
+            { printf '# Replay of PR #%s\n\n' "$PR"; cat "$stage/post/fallback.md"; } > "$stage/summary.md"
+          elif [ "$KIND" = "review" ]; then
+            printf '# Replay of PR #%s\n\nFailed (`%s`, $%s). See the artifact.\n' "$PR" "$subtype" "$cost" > "$stage/summary.md"
+            status=1
           else
-            printf '# Replay of PR #%s\n\nNo answer (kind `%s`). See the artifact.\n' "$PR" "$KIND" >> "$GITHUB_STEP_SUMMARY"
+            printf '# Replay of PR #%s\n\nNot reviewed (`%s`): %s\n' "$PR" "$KIND" "$(cat "$RUNNER_TEMP/skip.txt" 2>/dev/null)" > "$stage/summary.md"
           fi
+          # The repo is public: never publish a secret, whatever the model or the CLI wrote.
+          if grep -rqF "$KEY" "$stage" || grep -rqE 'sk-ant-[A-Za-z0-9_-]{20}|gh[psu]_[A-Za-z0-9]{20}' "$stage"; then
+            echo "::error::The replay holds a secret, so it was not kept."
+            exit 1
+          fi
+          cat "$stage/summary.md" >> "$GITHUB_STEP_SUMMARY"
+          mv "$stage" "$RUNNER_TEMP/replay"
+          exit "$status"
 
       - uses: actions/upload-artifact@v4
+        # Only what passed the secret check above is uploaded.
         if: ${{ !cancelled() && steps.replay.outcome != 'skipped' && github.event_name == 'workflow_dispatch' }}
         with:
           name: replay-pr-${{ inputs.pr }}
