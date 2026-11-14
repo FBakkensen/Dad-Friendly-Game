@@ -402,7 +402,7 @@ describe("listActions", () => {
       listActions(mountain, NOW).some(
         (action) => action.kind === "buyTier" && action.id === "cart",
       );
-    // The cart waits for twelve workers (#536).
+    // The cart waits for eight workers (#536).
     expect(listsCart(withHelper)).toBe(false);
     expect(
       listsCart({

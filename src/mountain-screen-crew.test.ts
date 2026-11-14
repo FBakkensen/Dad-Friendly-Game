@@ -1339,7 +1339,7 @@ describe("the Buys drawer (#373)", () => {
       .querySelector<HTMLButtonElement>(".board-sheet-back")
       ?.click();
     expect(chipsOf(screen).hidden).toBe(false);
-    // The cart waits for twelve workers (#536).
+    // The cart waits for eight workers (#536).
     expect(rowOf(screen, "cart").hidden).toBe(true);
   });
 

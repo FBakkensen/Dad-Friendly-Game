@@ -17,12 +17,13 @@ const depth = (id: string) =>
 // new curve (#356) opens the borer at the Granite start. On the #357 retune
 // for the milestone marks the plain dad reached the bottom on day 4.5 and the
 // upgrade dads on day 3.5. On the line (#536, with #543's numbers) the plain
-// dad reaches it on day 6, the upgrade dad on day 5.5 and the boost dad on
-// day 5, and every dad finds the Hammer on day 2.5. These are regression
+// dad reaches it on day 6 and both upgrade dads on day 5, and every dad
+// finds the Hammer on day 2.5. Every engineer at home tends where the line
+// gains most, as the lab's dads do (#543). These are regression
 // pins, not limits: the run length is not graded. This sim does not craft.
 describe.each([
   ["a plain dad (crew only)", {}, 6, 2.5],
-  ["a dad who also buys lasting upgrades", { buysUpgrades: true }, 5.5, 2.5],
+  ["a dad who also buys lasting upgrades", { buysUpgrades: true }, 5, 2.5],
   [
     "a dad who buys upgrades and starts every boost he can afford",
     { buysUpgrades: true, buysBoosts: true },
@@ -88,7 +89,7 @@ function expectPaidForNils(
 }
 
 // Second run (M6): the kid's crew is ×1.5. On the line (#536) the bottom
-// is day 4, still a shorter climb than the first (day 5.5).
+// is day 4, still a shorter climb than the first (day 5).
 describe("pacing: a second run with one Legacy (×1.5)", () => {
   const run = simulateDadRun({
     milestones: [depth("mantle")],
@@ -127,23 +128,23 @@ function quietStretch(run: DadRun, until: number): number {
 describe.each([
   // The borer opens at the Granite start (#356). On the line (#536) every
   // dad hires Nils in the borer's sitting, still in the Granite. The first
-  // Great Machine comes on day 4 (day 3.5 with boosts), and no dad goes more
-  // than half a day without a buy after the first borer. Each owns 5 by the
-  // bottom; the plain dad has hands for 3 of them. Ada tends where the line
-  // gains most (#543): the borers for the plain dad, the carts for the
-  // upgrade dads.
-  ["a plain dad", {}, 6, 0.5, 5, 3, 0, 1, 4, "borer"],
+  // Great Machine comes on day 4 for the plain dad and day 3.5 for the
+  // upgrade dads, and no dad goes more than half a day without a buy after
+  // the first borer. Each owns 5 by the bottom; the plain dad has hands for
+  // 4 of them. Ada tends where the line gains most (#543): the drills for the
+  // plain dad, the borers for the upgrade dad, the carts with boosts.
+  ["a plain dad", {}, 6, 0.5, 5, 4, 0, 1, 4, "drill"],
   [
     "an upgrade-buying dad",
     { buysUpgrades: true },
-    5.5,
+    5,
     0.5,
     5,
     5,
     0,
     1,
-    4,
-    "cart",
+    3.5,
+    "borer",
   ],
   [
     "a dad who buys upgrades and boosts",
@@ -206,23 +207,16 @@ describe("pacing: lost tools (#148)", () => {
     buysUpgrades: true,
   });
 
-  it("keeps Ada tending and sends the others on the old shaft and the deep dark", () => {
-    // On the line she tends where it gains most (#543): the carts.
-    expect(run.mountain.engineers[0]).toEqual({
-      name: "Ada",
-      rank: 0,
-      trips: 0,
-      post: "cart",
-    });
-    const scouts = run.mountain.engineers.slice(1);
-    expect(scouts.length).toBeGreaterThan(0);
-    // On the line (#536) Nils joins on day 2.5 of a 5.5-day run, so he walks
-    // the tunnels six times, brings three finds home, and ranks up once.
-    expect(scouts.reduce((trips, engineer) => trips + engineer.trips, 0)).toBe(
-      6,
-    );
-    expect(scouts.every((engineer) => engineer.rank === 1)).toBe(true);
-    expect(run.mountain.finds).toHaveLength(3);
+  it("keeps every engineer tending, so none walks the tunnels", () => {
+    // On the line (#536) each engineer at home tends where the line gains
+    // most, as the lab's dads do (#543): Ada the borers, Nils the carts. A
+    // post that lifts the line beats a trip, so this dad finds no lost tools;
+    // the tunnels' own tests cover the finds (expeditions, lost-tools).
+    expect(run.mountain.engineers).toEqual([
+      { name: "Ada", rank: 0, trips: 0, post: "borer" },
+      { name: "Nils", rank: 0, trips: 0, post: "cart" },
+    ]);
+    expect(run.mountain.finds).toHaveLength(0);
   });
 });
 
@@ -244,21 +238,17 @@ describe("pacing: the borer's worker bill and the Great Machine (#140)", () => {
       shortCost: 0,
     });
     const machine = run.buys.find((buy) => buy.id === "machine");
-    expect(machine?.short).toBe(5);
-    // Was 0.1715 on the #357 curve: on the line the first machine comes five
-    // hands short, 32,693,539 on 96.48M (0.3389).
-    expect((machine?.shortCost ?? 0) / (machine?.price ?? 1)).toBeCloseTo(
-      0.3389,
-      4,
-    );
+    // Was 0.1715 on the #357 curve: on the line (#536) the first machine
+    // finds its ten hands spare, so none are hired.
+    expect(machine).toMatchObject({ short: 0, shortCost: 0 });
   });
 
-  it("runs a Great Machine after the Deep Heart opens, and the bottom is day 5.5", () => {
+  it("runs a Great Machine after the Deep Heart opens, and the bottom is day 5", () => {
     const bottom = run.reached.get(depth("mantle"));
     const machine = run.buys.find((buy) => buy.id === "machine");
-    expect(bottom).toBeCloseTo(5.5, 1);
+    expect(bottom).toBeCloseTo(5, 1);
     expect(machine).toMatchObject({ count: 1, price: 96_480_000 });
-    expect(machine?.day).toBeCloseTo(4, 2);
+    expect(machine?.day).toBeCloseTo(3.5, 2);
     expect(machine?.day).toBeLessThan(bottom ?? 0);
     // On the line (#536) he buys five by the bottom.
     expect(run.mountain.owned.machine).toBe(5);
@@ -281,8 +271,8 @@ describe("pacing: a dad who never fixes trouble (#149)", () => {
     expect(hammer).toBeGreaterThanOrEqual(2);
     expect(hammer).toBeLessThanOrEqual(4.5);
     // On the line (#536) the usual upgrade dad's bottom moved from day 3.5
-    // to 5.5, and the window moved with it. Measured: day 5.5.
-    expect(bottom).toBeGreaterThanOrEqual(5.5);
+    // to 5, and the window moved with it. Measured: day 5.
+    expect(bottom).toBeGreaterThanOrEqual(5);
     expect(bottom).toBeLessThanOrEqual(7.5);
   });
 });

@@ -735,7 +735,7 @@ describe("crew tiers on screen", () => {
         formatCompact(second),
       );
       expect(hire.classList.contains("is-dear")).toBe(true);
-      // The cart waits for twelve workers (#536).
+      // The cart waits for eight workers (#536).
       expect(cart.hidden).toBe(true);
       expect(hire.getAttribute("aria-label")).toBe(
         `Buy a worker for ${formatCount(second)} stones, mines 1 stone a second. You have 1.`,

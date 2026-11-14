@@ -509,28 +509,32 @@ describe("the line's prices (#543, in play since #536)", () => {
   });
 });
 
-describe("the cart waits for twelve workers (#536)", () => {
-  it("is shown at twelve workers owned, or with a cart, never before", () => {
+describe("the cart waits for eight workers (#536)", () => {
+  it("is shown at eight workers owned, or with a cart, never before", () => {
     const cart = tierById("cart");
     const hands = (helper: number, carts = 0) =>
       at({ owned: { ...NONE_OWNED, helper, cart: carts } });
-    expect(CART_SHOWN_AT).toBe(12);
+    expect(CART_SHOWN_AT).toBe(8);
     expect(tierShown(hands(0), cart)).toBe(false);
-    expect(tierShown(hands(11), cart)).toBe(false);
-    expect(tierShown(hands(12), cart)).toBe(true);
+    expect(tierShown(hands(7), cart)).toBe(false);
+    expect(tierShown(hands(8), cart)).toBe(true);
     // A cart he owns stays shown, whatever the hands.
     expect(tierShown(hands(0, 1), cart)).toBe(true);
   });
 
-  it("reads its full +6 a second as the first buy at twelve workers", () => {
-    const twelve = at({ owned: { ...NONE_OWNED, helper: 12 } });
-    const before = effectiveRates(twelve).exactCrewPerSecond;
-    const after = effectiveRates({
-      ...twelve,
-      owned: { ...twelve.owned, cart: 1 },
-    }).exactCrewPerSecond;
-    expect(before).toBeCloseTo(12);
-    expect(after - before).toBeCloseTo(6);
+  it("reads +4 a second as the first buy at eight workers, and its full +6 at twelve", () => {
+    const gain = (helper: number) => {
+      const hands = at({ owned: { ...NONE_OWNED, helper } });
+      const before = effectiveRates(hands).exactCrewPerSecond;
+      const after = effectiveRates({
+        ...hands,
+        owned: { ...hands.owned, cart: 1 },
+      }).exactCrewPerSecond;
+      expect(before).toBeCloseTo(helper);
+      return after - before;
+    };
+    expect(gain(8)).toBeCloseTo(4);
+    expect(gain(12)).toBeCloseTo(6);
   });
 });
 

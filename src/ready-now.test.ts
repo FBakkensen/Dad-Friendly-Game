@@ -134,12 +134,12 @@ describe("readyNow", () => {
       // Before the cart shows, a free hand has no machine to save for.
       const mountain = mountainWith({
         stock: { stones: 1_000 },
-        owned: { ...NONE_OWNED, helper: 11 },
+        owned: { ...NONE_OWNED, helper: 7 },
       });
       expect(readyNow(mountain, NOW)).toMatchObject({
         kind: "ready",
         tier: "helper",
-        free: 11,
+        free: 7,
         gain: handsGain(mountain, "helper", 1, NOW),
       });
     });

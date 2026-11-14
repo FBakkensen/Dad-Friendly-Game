@@ -10,9 +10,9 @@ describe("generations lab (M13, #253)", () => {
     const runs = runGenerations({ policy: casual, seed: 1, runs: 2 });
     expect(runs.map((run) => run.run)).toEqual([1, 2]);
     expect(runs.map((run) => run.k)).toEqual([1, kidStretch(1)]);
-    // Regression pin. On the line (#536) run 1 ends on day 6 (was 4) and
+    // Regression pin. On the line (#536) run 1 ends on day 5.5 (was 4) and
     // run 2 on day 8.5 (was 6.5).
-    expect(runs[0]?.finishDay).toBeCloseTo(6, 2);
+    expect(runs[0]?.finishDay).toBeCloseTo(5.5, 2);
     expect(runs[1]?.finishDay).toBe(8.5);
     expect(runs[0]?.unbought).toEqual([]);
     expect(MACHINE_IDS).toContain("borer");

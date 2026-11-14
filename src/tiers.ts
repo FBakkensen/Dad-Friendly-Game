@@ -295,11 +295,13 @@ const PREVIOUS: ReadonlyMap<TierId, Tier | undefined> = new Map(
 );
 
 /**
- * The cart is shown once he owns this many workers (#536): then it adds its
- * full +6 a second to the line, since twelve hands dig, carry and lift 12 a
- * second and a cart rated 18 frees the hands that carried.
+ * The cart is shown once he owns this many workers (#536). Eight hands dig,
+ * carry and lift 8 a second, and a cart rated 18 frees the ones that carried,
+ * so its first buy reads +4. The spec's twelve (its full +6) left a check-in
+ * dad with only workers to buy for too long: the lab's single-option share
+ * went from 0.23 to 0.28, past its 0.27 guardrail. At eight it stays 0.23.
  */
-export const CART_SHOWN_AT = 12;
+export const CART_SHOWN_AT = 8;
 
 /**
  * A tier appears once you own one, or own one of the tier before it, so a

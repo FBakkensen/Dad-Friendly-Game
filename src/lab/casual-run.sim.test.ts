@@ -23,18 +23,18 @@ describe("casual run", { timeout: 120_000 }, () => {
     // Since away pay splits at a band crossing (#592), the night before the
     // Deep Heart's next Great Machine is quiet on the payback table too.
     // On the line (#536) the climb ends on day 6, and the longest quiet
-    // night is 11.98 h from day 5 on both tables, inside the half-day limit
+    // night is 11.98 h from day 3 on both tables, inside the half-day limit
     // by about a minute.
     expect(run.finishDay).toBe(6);
     expect(readFinishDay(run.samples)).toBe(6);
-    expect(report.value.singleShare).toBeCloseTo(0.32, 3);
+    expect(report.value.singleShare).toBeCloseTo(0.27, 3);
     expect(report.value.deadHours).toBeCloseTo(11.98, 2);
     expect(report.value.deadHours / HOURS_PER_DAY).toBeLessThanOrEqual(0.5);
-    expect(report.value.deadStartDay).toBeCloseTo(5, 1);
-    expect(report.payback.singleShare).toBeCloseTo(0.16, 3);
+    expect(report.value.deadStartDay).toBeCloseTo(3, 1);
+    expect(report.payback.singleShare).toBeCloseTo(0.28, 3);
     expect(report.payback.deadHours).toBeCloseTo(11.98, 2);
     expect(report.payback.deadHours / HOURS_PER_DAY).toBeLessThanOrEqual(0.5);
-    expect(report.payback.deadStartDay).toBeCloseTo(5, 1);
+    expect(report.payback.deadStartDay).toBeCloseTo(3, 1);
   });
 
   it("keeps the payback wait to half a day at most after the first borer", () => {
@@ -65,16 +65,13 @@ describe("casual run", { timeout: 120_000 }, () => {
     // Report-only (#252 follow-up): the value-per-stone dad saves at most a
     // day. Pinned so a change shows.
     expect(value.value).toBeLessThanOrEqual(HOURS_PER_DAY);
-    // On the line (#536) two nights are the long waits, each logged once
-    // for each score: for a train from day 2.5 (11.97 h) and for a hoist from
-    // day 3.5 (11.85 h).
-    expect(result.deadStretches).toHaveLength(4);
+    // On the line (#536) one night is the long wait, logged once for each
+    // score: for a hoist from day 3.5 (11.98 h).
+    expect(result.deadStretches).toHaveLength(2);
     expect(
       result.deadStretches.map((note) => [note.savingFor, note.score]),
     ).toEqual([
-      ["buyTier:train", "payback"],
       ["buyTier:hoist", "payback"],
-      ["buyTier:train", "value"],
       ["buyTier:hoist", "value"],
     ]);
   }, 120_000);

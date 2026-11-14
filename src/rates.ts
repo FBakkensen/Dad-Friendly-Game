@@ -759,29 +759,30 @@ export function moveGain(
 const GUIDED_POSTS = ["machine", "borer", "drill", "cart"] as const;
 
 /**
- * Where a best-tending dad sends his tender (#543): the first engineer at
- * home goes to the post where the line gains most, as her page shows it,
- * since a post on a stage that is not narrow adds nothing. The others walk
- * the tunnels. The lab's dads and the pacing dad both tend this way (#536).
+ * Where a best-tending dad sends his engineers (#543): each one at home, in
+ * turn, goes to the post where the line gains most, as her page shows it,
+ * since a post on a stage that is not narrow adds nothing. The lab's dads
+ * and the pacing dad both tend this way (#536).
  */
 export function tendBest(mountain: Mountain): Mountain {
-  const index = mountain.engineers.findIndex(
-    (engineer) => !onTrip(mountain, engineer.name),
-  );
-  if (index < 0) {
-    return mountain;
-  }
-  let best = mountain;
-  let line = effectiveRates(mountain).exactCrewPerSecond;
-  for (const post of ENGINEER_POSTS) {
-    const moved = station(mountain, index, post);
-    const speed = effectiveRates(moved).exactCrewPerSecond;
-    if (moreStones(speed, line)) {
-      best = moved;
-      line = speed;
+  let next = mountain;
+  for (const [index, engineer] of mountain.engineers.entries()) {
+    if (onTrip(next, engineer.name)) {
+      continue;
     }
+    let best = next;
+    let line = effectiveRates(next).exactCrewPerSecond;
+    for (const post of ENGINEER_POSTS) {
+      const moved = station(next, index, post);
+      const speed = effectiveRates(moved).exactCrewPerSecond;
+      if (moreStones(speed, line)) {
+        best = moved;
+        line = speed;
+      }
+    }
+    next = best;
   }
-  return best;
+  return next;
 }
 
 /**
