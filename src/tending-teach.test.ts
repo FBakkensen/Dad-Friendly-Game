@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createUnconfiguredAuth } from "./auth";
 import { createMountain, type Mountain } from "./mountain";
 import { mountMountainScreen } from "./mountain-screen";
@@ -8,6 +8,13 @@ import { createProgressStore } from "./progress-store";
 import { effectiveRates, firstTend } from "./rates";
 import { stonesPerSecond, tendingIntro } from "./screen-words";
 import { noteFor, showsDot } from "./teach";
+
+/** Each test's screens stop their timers before the next test (and before teardown). */
+let screens = new AbortController();
+afterEach(() => {
+  screens.abort();
+  screens = new AbortController();
+});
 
 beforeEach(() => {
   window.matchMedia = ((query: string) => ({
@@ -47,6 +54,7 @@ function mount(now: () => number) {
     now,
   });
   mountMountainScreen({
+    signal: screens.signal,
     root,
     veinUrl: tile,
     tierArt: {

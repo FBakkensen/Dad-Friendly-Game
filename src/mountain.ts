@@ -293,12 +293,14 @@ function accrueCrew({
       const last = digFor(state, seconds * rate * pay, seconds, cursor, to);
       return { ...last, mined: mined + last.mined };
     }
-    const part = digFor(state, crossing * rate * pay, crossing, cursor, to);
-    if (part.mined === 0) {
-      // Float dust left this pass empty: pay the rest at this speed.
-      const last = digFor(state, seconds * rate * pay, seconds, cursor, to);
-      return { ...last, mined: mined + last.mined };
-    }
+    // At least the stones to the band, so float dust never leaves it short.
+    const part = digFor(
+      state,
+      Math.max(crossing * rate * pay, toBand),
+      crossing,
+      cursor,
+      to,
+    );
     state = part.mountain;
     mined += part.mined;
     cursor = part.settledAt;
