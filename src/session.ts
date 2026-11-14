@@ -516,7 +516,7 @@ function noteHazards(
   if (
     was !== undefined &&
     (next === undefined || next.startedAt !== was.startedAt) &&
-    !(after.phase === "idle" && mountain.borers < 1)
+    !(after.phase === "idle" && mountain.owned.borer < 1)
   ) {
     out.record("trouble.fix", { id: was.tier, source: fixBy });
   }

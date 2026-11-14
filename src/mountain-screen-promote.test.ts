@@ -32,10 +32,13 @@ describe("a promotion on screen", () => {
     // pocket covers either price, so only the shown price can stop the dearer promotion.
     const mountain: Mountain = {
       ...minedMountain(9_999_999),
-      helpers: 20,
-      carts: 2,
-      drills: 1,
-      borers: 1,
+      owned: {
+        ...minedMountain(9_999_999).owned,
+        helper: 20,
+        cart: 2,
+        drill: 1,
+        borer: 1,
+      },
       pocket: 9_000_000,
       engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
     };
@@ -66,7 +69,7 @@ describe("a promotion on screen", () => {
     const after = screen.progress.getSnapshot().mountain;
     expect(oneOffStretch(after)).toBeGreaterThan(oneOffStretch(before));
     expect(after.engineers).toHaveLength(1);
-    expect(after.helpers).toBe(20);
+    expect(after.owned.helper).toBe(20);
     expect(after.pocket).toBeGreaterThanOrEqual(before.pocket);
     const dearer = promoteCost(after);
     expect(dearer).toBeGreaterThan(shown);

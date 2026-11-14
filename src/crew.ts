@@ -75,7 +75,7 @@ export function buyCrew(mountain: Mountain, id: TierId): Mountain {
     !tierInPlay(tier) || tierLocked(mountain, tier)
       ? mountain
       : buyTier(mountain, id);
-  if (mountain.borers > 0 || bought.borers === 0) {
+  if (mountain.owned.borer > 0 || bought.owned.borer === 0) {
     return bought;
   }
   return grantFirstEngineer(bought).mountain;

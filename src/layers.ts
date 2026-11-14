@@ -1,5 +1,6 @@
 import { factor } from "./economy/factors";
-import { lineOn, stageOf } from "./line";
+import { stageOf } from "./line";
+import { lineOn } from "./line-switch";
 import { BAND_STARTS, MOUNTAIN_STONES, minedOut } from "./scale";
 import type { TierId } from "./tiers";
 

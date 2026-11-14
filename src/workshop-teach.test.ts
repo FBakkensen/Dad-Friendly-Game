@@ -19,7 +19,7 @@ function opening(): Mountain {
   return {
     ...minedMountain(GRANITE),
     pocket: 400_000,
-    helpers: 40,
+    owned: { ...minedMountain(GRANITE).owned, helper: 40 },
     materials: materialsFromMined(GRANITE),
   };
 }

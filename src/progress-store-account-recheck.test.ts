@@ -169,7 +169,14 @@ const pocketIn = async (cloud: CloudSave, uid: string): Promise<number> => {
 describe("the account reported again (#481)", () => {
   it("keeps playing when the same account reports in during the read on resume", async () => {
     const docs = new Map<string, Mountain>([
-      [dad.uid, { ...createMountain(), remaining: 0, helpers: 5 }],
+      [
+        dad.uid,
+        {
+          ...createMountain(),
+          remaining: 0,
+          owned: { ...createMountain().owned, helper: 5 },
+        },
+      ],
     ]);
     const { cloud, releaseReads } = slowReadCloud(docs);
     const { auth, report } = reportingAuth(dad);

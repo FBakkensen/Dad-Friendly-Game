@@ -3,7 +3,7 @@ import { LAYERS } from "../layers";
 import { createMountain, type Mountain } from "../mountain";
 import { MOUNTAIN_STONES } from "../scale";
 import { RELICS } from "../relics";
-import { machinesInPlay, tierById } from "../tiers";
+import { machinesInPlay } from "../tiers";
 import {
   createLedgerLog,
   endHash,
@@ -34,7 +34,12 @@ describe("pacing ledger", () => {
     log.observe(at(0, createMountain()));
     log.observe(at(6 * HOUR_MS, dug(lantern.depth)));
     log.observe(
-      at(DAY_MS, dug(granite.from, { [tierById(machine).field]: 1 })),
+      at(
+        DAY_MS,
+        dug(granite.from, {
+          owned: { ...createMountain().owned, [machine]: 1 },
+        }),
+      ),
     );
     log.observe(at(2 * DAY_MS, dug(granite.from + 1)));
     const end = at(3 * DAY_MS, dug(MOUNTAIN_STONES));

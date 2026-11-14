@@ -7,7 +7,11 @@ import { LIVE_GAP_MS, advance, timeInput } from "./session-time";
 const ada = { name: "Ada", rank: 0, trips: 0, post: "borer" } as const;
 
 function crew(): Mountain {
-  return { ...createMountain(), helpers: 8, borers: 1, engineers: [ada] };
+  return {
+    ...createMountain(),
+    engineers: [ada],
+    owned: { ...createMountain().owned, helper: 8, borer: 1 },
+  };
 }
 
 describe("timeInput", () => {
@@ -57,7 +61,7 @@ describe("advance", () => {
   it("pays a live stretch with the trouble that is up, and the player's fix time", () => {
     const trouble = { kind: "cave-in", tier: "cart", startedAt: 0 } as const;
     const hazards = { phase: "trouble", seed: 1, taps: 0, trouble } as const;
-    const mountain = { ...crew(), carts: 3 };
+    const mountain = { ...crew(), owned: { ...crew().owned, cart: 3 } };
     const live = advance(
       { mountain, hazards },
       { kind: "live", from: 0, to: 4_000, playerFixMs: 3_000 },
@@ -75,7 +79,7 @@ describe("advance", () => {
   });
 
   it("pays time away like a closed game and clears trouble", () => {
-    const mountain = { ...crew(), carts: 2 };
+    const mountain = { ...crew(), owned: { ...crew().owned, cart: 2 } };
     const hazards = freshHazards(5);
     const away = advance(
       { mountain, hazards },

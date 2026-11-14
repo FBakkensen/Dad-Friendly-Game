@@ -110,7 +110,7 @@ describe("legendStats: the finale's one line", () => {
   it("names the stones moved and the crew beside you", () => {
     const mountain = {
       ...minedMountain(MOUNTAIN_STONES),
-      helpers: 3,
+      owned: { ...minedMountain(MOUNTAIN_STONES).owned, helper: 3 },
     } as Mountain;
     expect(legendStats(mountain)).toMatch(
       /^[\d,.]+( billion)? stones moved\. Six relics found\. A crew of \d[\d,]* beside you\.$/,

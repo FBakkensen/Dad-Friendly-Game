@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import { patched, type MountainPatch } from "./test-fixtures";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMemoryAuth } from "./auth";
 import { DRAWER_SETTLE_MS } from "./board-drawer";
@@ -29,19 +30,20 @@ afterEach(stopScreens);
 const CLOCK = 1_700_000_000_000;
 const PAST_SETTLE = DRAWER_SETTLE_MS + 100;
 
-function granite(over: Partial<Mountain> = {}): Mountain {
-  return {
-    ...createMountain(),
-    remaining: MOUNTAIN_STONES - 12_000_000,
-    pocket: 200_000,
-    helpers: 4,
-    carts: 1,
-    materials: { clay: 2, iron: 1, crystal: 0, heartstone: 0 },
-    recipes: recipesForMined(12_000_000),
-    seen: ["workshop"],
-    taught: ["workshop"],
-    ...over,
-  };
+function granite(over: MountainPatch = {}): Mountain {
+  return patched(
+    {
+      ...createMountain(),
+      remaining: MOUNTAIN_STONES - 12_000_000,
+      pocket: 200_000,
+      owned: { ...createMountain().owned, helper: 4, cart: 1 },
+      materials: { clay: 2, iron: 1, crystal: 0, heartstone: 0 },
+      recipes: recipesForMined(12_000_000),
+      seen: ["workshop"],
+      taught: ["workshop"],
+    },
+    over,
+  );
 }
 
 /** Sturdy props on the bench, with nothing in the shed. */
@@ -54,7 +56,7 @@ function busy(at: number): Mountain {
 }
 
 /** Enough in the shed for every Granite craft. */
-function rich(over: Partial<Mountain> = {}): Mountain {
+function rich(over: MountainPatch = {}): Mountain {
   return granite({
     pocket: 80_000_000,
     materials: { clay: 40, iron: 40, crystal: 0, heartstone: 0 },
@@ -553,7 +555,7 @@ describe("the Workshop drawer (#374)", () => {
     const screen = mount(
       granite({
         pocket: 400_000,
-        helpers: 40,
+        owned: { helper: 40 },
         materials: { clay: 10, iron: 0, crystal: 0, heartstone: 0 },
         seen: [],
         taught: [],

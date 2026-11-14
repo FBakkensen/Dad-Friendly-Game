@@ -45,22 +45,28 @@ import {
   stonesPerSecond,
   tendingIntro,
 } from "./screen-words";
-import { minedMountain } from "./test-fixtures";
+import { minedMountain, patched, type MountainPatch } from "./test-fixtures";
 
 const NOW = 5_000_000;
 const MINUTE = 60_000;
 
 /** The depths suite's Ada: one Apprentice on the borers, and a pocket for a promotion. */
-const withAda = (patch: Partial<Mountain> = {}): Mountain => ({
-  ...minedMountain(0),
-  pocket: 5_000_000,
-  helpers: 20,
-  carts: 2,
-  drills: 1,
-  borers: 1,
-  engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
-  ...patch,
-});
+const withAda = (patch: MountainPatch = {}): Mountain =>
+  patched(
+    {
+      ...minedMountain(0),
+      pocket: 5_000_000,
+      owned: {
+        ...minedMountain(0).owned,
+        helper: 20,
+        cart: 2,
+        drill: 1,
+        borer: 1,
+      },
+      engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
+    },
+    patch,
+  );
 
 const trip = (
   engineer: Engineer["name"],
@@ -75,7 +81,7 @@ const trip = (
 });
 
 /** Ada out in the old shaft, as the trip save has her. */
-const adaOut = (patch: Partial<Mountain> = {}): Mountain =>
+const adaOut = (patch: MountainPatch = {}): Mountain =>
   withAda({
     engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
     expeditions: [trip("Ada")],
@@ -83,7 +89,7 @@ const adaOut = (patch: Partial<Mountain> = {}): Mountain =>
   });
 
 /** The camp-posts save's five engineers, Otto out, two keepsakes home. */
-const fiveCrew = (patch: Partial<Mountain> = {}): Mountain =>
+const fiveCrew = (patch: MountainPatch = {}): Mountain =>
   withAda({
     engineers: [
       { name: "Ada", rank: 1, trips: 3, post: "borer" },
@@ -488,9 +494,7 @@ describe("a post row on her page (#455)", () => {
     // Ada tends the borers, and the first tend proposes the Great Machine: the move gains the
     // machine's tending less the borers' she leaves.
     const mountain = withAda({
-      carts: 10,
-      drills: 6,
-      machines: 1,
+      owned: { cart: 10, drill: 6, machine: 1 },
       taught: ["engineers"],
     });
     expect(firstTend(mountain, NOW)).toEqual({ index: 0, post: "machine" });
@@ -589,9 +593,9 @@ describe("the Promote row (#455)", () => {
   });
 
   it("no free worker says so", () => {
-    expect(promoteRowView(ctxOf(withAda({ helpers: 0 })), NONE).info).toEqual([
-      PROMOTE_NEEDS_WORKER,
-    ]);
+    expect(
+      promoteRowView(ctxOf(withAda({ owned: { helper: 0 } })), NONE).info,
+    ).toEqual([PROMOTE_NEEDS_WORKER]);
   });
 
   it("a full crew keeps the row, with no tag and no verb", () => {
@@ -691,9 +695,13 @@ describe("moved from the panel (#455)", () => {
   it("promoteWhyLine says why a promotion waits, or why it is worth it", () => {
     const mountain = withAda();
     expect(promoteWhyLine(mountain, false, 1)).toBe(PROMOTE_CREW_FULL);
-    expect(promoteWhyLine({ ...mountain, helpers: 0 }, true, 1)).toBe(
-      PROMOTE_NEEDS_WORKER,
-    );
+    expect(
+      promoteWhyLine(
+        { ...mountain, owned: { ...mountain.owned, helper: 0 } },
+        true,
+        1,
+      ),
+    ).toBe(PROMOTE_NEEDS_WORKER);
     expect(promoteWhyLine(mountain, true, 9_000_000)).toBe(
       promoteNeeds(9_000_000),
     );
@@ -705,7 +713,7 @@ describe("moved from the panel (#455)", () => {
 const noCrew = (): Mountain => ({
   ...minedMountain(0),
   pocket: 5_000_000,
-  helpers: 20,
+  owned: { ...minedMountain(0).owned, helper: 20 },
 });
 
 describe("what a press reads (#455)", () => {

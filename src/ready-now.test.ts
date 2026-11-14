@@ -1,3 +1,4 @@
+import { NONE_OWNED } from "./test-fixtures";
 import { describe, expect, it } from "vitest";
 import { withFactors } from "./economy/factors";
 import type { Trouble } from "./hazards";
@@ -26,7 +27,9 @@ function at(depth: number): Pick<Mountain, "remaining"> {
 
 describe("readyNow", () => {
   it("the biggest machine he can run and afford", () => {
-    const crew = { helpers: 24, carts: 6, drills: 2, borers: 1 };
+    const crew = {
+      owned: { ...NONE_OWNED, helper: 24, cart: 6, drill: 2, borer: 1 },
+    };
     const borerPrice = priceOf(createMountain(), "borer", 1);
     const drillPrice = priceOf(createMountain(), "drill", 2);
 
@@ -54,7 +57,9 @@ describe("readyNow", () => {
 
   it("exactly enough", () => {
     // 8 free and a borer takes 8; the pocket is the borer's price to the stone.
-    const crew = { helpers: 24, carts: 6, drills: 2, borers: 1 };
+    const crew = {
+      owned: { ...NONE_OWNED, helper: 24, cart: 6, drill: 2, borer: 1 },
+    };
     const price = priceOf(createMountain(), "borer", 1);
 
     const exact = readyNow(mountainWith({ ...crew, pocket: price }), NOW);
@@ -64,7 +69,11 @@ describe("readyNow", () => {
     expect(short).toMatchObject({ kind: "ready", tier: "drill" });
 
     const shortHand = readyNow(
-      mountainWith({ ...crew, helpers: 23, pocket: price }),
+      mountainWith({
+        ...crew,
+        pocket: price,
+        owned: { ...crew.owned, helper: 23 },
+      }),
       NOW,
     );
     expect(shortHand).toMatchObject({ kind: "ready", tier: "drill", free: 7 });
@@ -73,10 +82,7 @@ describe("readyNow", () => {
   it("a machine he can afford but not staff is passed over", () => {
     const pocket = priceOf(createMountain(), "borer", 1);
     const mountain = mountainWith({
-      helpers: 19,
-      carts: 6,
-      drills: 2,
-      borers: 1,
+      owned: { ...NONE_OWNED, helper: 19, cart: 6, drill: 2, borer: 1 },
       pocket,
     });
 
@@ -93,7 +99,12 @@ describe("readyNow", () => {
     const pocket = priceOf(fresh, "helper", 1) + 1;
     expect(pocket).toBeLessThan(priceOf(fresh, "cart", 0));
 
-    expect(readyNow(mountainWith({ helpers: 1, pocket }), NOW)).toMatchObject({
+    expect(
+      readyNow(
+        mountainWith({ pocket, owned: { ...NONE_OWNED, helper: 1 } }),
+        NOW,
+      ),
+    ).toMatchObject({
       kind: "saving",
       tier: "cart",
       price: priceOf(fresh, "cart", 0),
@@ -102,7 +113,10 @@ describe("readyNow", () => {
   });
 
   it("saving for the cheapest machine a free hand can run", () => {
-    const mountain = mountainWith({ helpers: 18, carts: 6, pocket: 100 });
+    const mountain = mountainWith({
+      pocket: 100,
+      owned: { ...NONE_OWNED, helper: 18, cart: 6 },
+    });
     const price = priceOf(mountain, "cart", 6);
 
     expect(readyNow(mountain, NOW)).toEqual({
@@ -122,10 +136,16 @@ describe("readyNow", () => {
       expect(priceOf(fresh, "drill", 0)).toBe(731);
 
       expect(
-        readyNow(mountainWith({ helpers: 2, pocket: 700 }), NOW),
+        readyNow(
+          mountainWith({ pocket: 700, owned: { ...NONE_OWNED, helper: 2 } }),
+          NOW,
+        ),
       ).toMatchObject({ kind: "saving", tier: "cart", price: 731 });
       expect(
-        readyNow(mountainWith({ helpers: 2, pocket: 731 }), NOW),
+        readyNow(
+          mountainWith({ pocket: 731, owned: { ...NONE_OWNED, helper: 2 } }),
+          NOW,
+        ),
       ).toMatchObject({ kind: "ready", tier: "drill", price: 731 });
     });
   });
@@ -134,7 +154,10 @@ describe("readyNow", () => {
     it("is ready when the pocket covers one", () => {
       const fresh = createMountain();
       const pocket = priceOf(fresh, "cart", 6) + priceOf(fresh, "helper", 6);
-      const mountain = mountainWith({ helpers: 6, carts: 6, pocket });
+      const mountain = mountainWith({
+        pocket,
+        owned: { ...NONE_OWNED, helper: 6, cart: 6 },
+      });
 
       expect(readyNow(mountain, NOW)).toEqual({
         kind: "ready",
@@ -146,7 +169,10 @@ describe("readyNow", () => {
     });
 
     it("is saved for, with its time, when it does not", () => {
-      const mountain = mountainWith({ helpers: 6, carts: 6, pocket: 5 });
+      const mountain = mountainWith({
+        pocket: 5,
+        owned: { ...NONE_OWNED, helper: 6, cart: 6 },
+      });
       const price = priceOf(mountain, "helper", 6);
 
       expect(readyNow(mountain, NOW)).toEqual({
@@ -163,7 +189,10 @@ describe("readyNow", () => {
   describe("a worker who starts an idle machine (#490)", () => {
     it("adds the machine he starts, and names it", () => {
       // 3 workers on 6 carts: no hand free, and the next one starts a cart.
-      const mountain = mountainWith({ helpers: 3, carts: 6, pocket: 1_000 });
+      const mountain = mountainWith({
+        pocket: 1_000,
+        owned: { ...NONE_OWNED, helper: 3, cart: 6 },
+      });
       const rates = effectiveRates(mountain, NOW);
       expect(readyNow(mountain, NOW)).toEqual({
         kind: "ready",
@@ -176,7 +205,10 @@ describe("readyNow", () => {
     });
 
     it("saving for him reads the same gain", () => {
-      const mountain = mountainWith({ helpers: 3, carts: 6, pocket: 1 });
+      const mountain = mountainWith({
+        pocket: 1,
+        owned: { ...NONE_OWNED, helper: 3, cart: 6 },
+      });
       expect(readyNow(mountain, NOW)).toMatchObject({
         kind: "saving",
         tier: "helper",
@@ -200,7 +232,10 @@ describe("readyNow", () => {
     });
 
     it("names the idle cart he starts instead, when there is one", () => {
-      const idle = mountainWith({ carts: 2, pocket: 20 });
+      const idle = mountainWith({
+        pocket: 20,
+        owned: { ...NONE_OWNED, cart: 2 },
+      });
       const pick = readyNow(idle, NOW);
       expect(pick).toMatchObject({ tier: "helper", starts: "cart" });
       expect(pick).not.toHaveProperty("firstWorker");
@@ -208,7 +243,10 @@ describe("readyNow", () => {
 
     it("is no first worker once one is on the crew", () => {
       const pick = readyNow(
-        mountainWith({ helpers: 1, carts: 1, pocket: 50 }),
+        mountainWith({
+          pocket: 50,
+          owned: { ...NONE_OWNED, helper: 1, cart: 1 },
+        }),
         NOW,
       );
       expect(pick).toMatchObject({ tier: "helper" });
@@ -230,7 +268,9 @@ describe("readyNow", () => {
 
     it("an endless speed shows no time", () => {
       withFactors({ "output.helper": Infinity }, () => {
-        const mountain = mountainWith({ helpers: 6, carts: 6 });
+        const mountain = mountainWith({
+          owned: { ...NONE_OWNED, helper: 6, cart: 6 },
+        });
         expect(stonesPerSecond(mountain, NOW)).toBe(Infinity);
         expect(readyNow(mountain, NOW)).toMatchObject({
           kind: "saving",
@@ -241,7 +281,9 @@ describe("readyNow", () => {
 
     it("a broken speed shows no time", () => {
       withFactors({ "output.helper": Number.NaN }, () => {
-        const mountain = mountainWith({ helpers: 6, carts: 6 });
+        const mountain = mountainWith({
+          owned: { ...NONE_OWNED, helper: 6, cart: 6 },
+        });
         expect(stonesPerSecond(mountain, NOW)).toBeNaN();
         expect(readyNow(mountain, NOW)).toMatchObject({
           kind: "saving",
@@ -252,8 +294,7 @@ describe("readyNow", () => {
 
     it("a price past the stones left shows no time (#610)", () => {
       const mountain = mountainWith({
-        helpers: 18,
-        carts: 6,
+        owned: { ...NONE_OWNED, helper: 18, cart: 6 },
         pocket: 100,
         remaining: 1,
       });
@@ -269,8 +310,7 @@ describe("readyNow", () => {
 
     it("a price the stones left can still pay keeps its time", () => {
       const mountain = mountainWith({
-        helpers: 18,
-        carts: 6,
+        owned: { ...NONE_OWNED, helper: 18, cart: 6 },
         pocket: 100,
         remaining: 50,
       });
@@ -284,7 +324,10 @@ describe("readyNow", () => {
     });
 
     it("a price exactly the stones left away keeps its time", () => {
-      const base = mountainWith({ helpers: 18, carts: 6, remaining: 30 });
+      const base = mountainWith({
+        remaining: 30,
+        owned: { ...NONE_OWNED, helper: 18, cart: 6 },
+      });
       const price = priceOf(base, "cart", 6);
       const mountain = { ...base, pocket: price - stonesLeft(base) };
       expect(readyNow(mountain, NOW)).toMatchObject({
@@ -296,8 +339,7 @@ describe("readyNow", () => {
 
     it("a broken pocket shows no time", () => {
       const mountain = mountainWith({
-        helpers: 6,
-        carts: 6,
+        owned: { ...NONE_OWNED, helper: 6, cart: 6 },
         pocket: Number.NaN,
       });
       expect(readyNow(mountain, NOW)).toMatchObject({
@@ -311,7 +353,10 @@ describe("readyNow", () => {
   describe("locked tiers and kids are never offered", () => {
     it("passes over the borer in the Topsoil", () => {
       const pocket = priceOf(createMountain(), "borer", 0) + 1;
-      const mountain = mountainWith({ helpers: 40, pocket });
+      const mountain = mountainWith({
+        pocket,
+        owned: { ...NONE_OWNED, helper: 40 },
+      });
 
       expect(readyNow(mountain, NOW)).toMatchObject({
         kind: "ready",
@@ -326,7 +371,7 @@ describe("readyNow", () => {
         const pocket = priceOf(createMountain(), "machine", 0) * 2;
         const mountain = mountainWith({
           ...at(15_000_000),
-          helpers: 40,
+          owned: { ...NONE_OWNED, helper: 40 },
           pocket,
         });
 
@@ -346,7 +391,11 @@ describe("readyNow", () => {
       expect(poor).toMatchObject({ kind: "saving", tier: "helper" });
 
       const crewed = readyNow(
-        mountainWith({ ...deep, helpers: 20, kids: 2, pocket }),
+        mountainWith({
+          ...deep,
+          pocket,
+          owned: { ...NONE_OWNED, helper: 20, kid: 2 },
+        }),
         NOW,
       );
       expect(crewed).toMatchObject({ kind: "ready", tier: "machine" });
@@ -355,7 +404,11 @@ describe("readyNow", () => {
 
   it("the Great Machine's tended bill", () => {
     const price = priceOf(createMountain(), "machine", 0);
-    const onSale = { ...at(120_000_000), helpers: 5, pocket: price + 1 };
+    const onSale = {
+      ...at(120_000_000),
+      pocket: price + 1,
+      owned: { ...NONE_OWNED, helper: 5 },
+    };
 
     const tended = readyNow(
       mountainWith({
@@ -393,7 +446,7 @@ describe("readyNow", () => {
 
   it("a troubled machine stays in the pick, at its troubled gain", () => {
     const mountain = mountainWith({
-      helpers: 1,
+      owned: { ...NONE_OWNED, helper: 1 },
       pocket: priceOf(createMountain(), "cart", 0),
     });
     const trouble: Trouble = { kind: "cave-in", tier: "cart", startedAt: NOW };
@@ -410,19 +463,23 @@ describe("readyNow", () => {
   });
 
   it("mined out", () => {
-    const mountain = mountainWith({ remaining: 0, helpers: 40, pocket: 1e12 });
+    const mountain = mountainWith({
+      remaining: 0,
+      pocket: 1e12,
+      owned: { ...NONE_OWNED, helper: 40 },
+    });
     expect(readyNow(mountain, NOW)).toEqual({ kind: "mined-out" });
   });
 
   it("display only", () => {
     const ready = mountainWith({
-      helpers: 24,
-      carts: 6,
-      drills: 2,
-      borers: 1,
+      owned: { ...NONE_OWNED, helper: 24, cart: 6, drill: 2, borer: 1 },
       pocket: priceOf(createMountain(), "borer", 1),
     });
-    const saving = mountainWith({ helpers: 18, carts: 6, pocket: 100 });
+    const saving = mountainWith({
+      pocket: 100,
+      owned: { ...NONE_OWNED, helper: 18, cart: 6 },
+    });
     for (const mountain of [ready, saving]) {
       const before = structuredClone(mountain);
       const frozen = Object.freeze({
@@ -440,8 +497,7 @@ describe("readyNow", () => {
   it("a boost shortens the time", () => {
     const overtimeEnds = NOW + 60_000;
     const mountain = mountainWith({
-      helpers: 18,
-      carts: 6,
+      owned: { ...NONE_OWNED, helper: 18, cart: 6 },
       pocket: 100,
       boosts: { ...NO_BOOSTS, overtime: overtimeEnds },
     });

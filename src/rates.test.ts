@@ -14,16 +14,19 @@ import {
   tendingGain,
 } from "./rates";
 import { send } from "./expeditions";
-import { LINE_OFF, handsSpeed, lineSpeed, stageSpeeds } from "./line";
-import type { Mountain } from "./mountain";
-import { minedMountain } from "./test-fixtures";
+import { handsSpeed, lineSpeed, stageSpeeds } from "./line";
+import { LINE_OFF } from "./line-switch";
+import { minedMountain, patched, type MountainPatch } from "./test-fixtures";
 import { TIERS } from "./tiers";
 import { NO_BOOSTS } from "./boosts";
 import { NO_UPGRADES } from "./upgrades";
 
 describe("effectiveRates", () => {
   it("reads one mountain once when no clock is passed", () => {
-    const mountain = { ...minedMountain(0), helpers: 3, carts: 1, kids: 0 };
+    const mountain = {
+      ...minedMountain(0),
+      owned: { ...minedMountain(0).owned, helper: 3, cart: 1, kid: 0 },
+    };
     const first = effectiveRates(mountain);
     expect(effectiveRates(mountain)).toBe(first);
     expect(effectiveRates({ ...mountain })).not.toBe(first);
@@ -31,7 +34,10 @@ describe("effectiveRates", () => {
   });
 
   it("reads the same mountain again under a sweep, then puts it back", () => {
-    const mountain = { ...minedMountain(0), helpers: 3, carts: 1, kids: 0 };
+    const mountain = {
+      ...minedMountain(0),
+      owned: { ...minedMountain(0).owned, helper: 3, cart: 1, kid: 0 },
+    };
     const plain = effectiveRates(mountain);
     withFactors({ "output.cart": 2 }, () => {
       expect(effectiveRates(mountain).tierSpeed.cart).toBe(
@@ -44,10 +50,14 @@ describe("effectiveRates", () => {
   it("is the plain table with no upgrades: taps 1, tiers at list speed", () => {
     const rates = effectiveRates({
       ...minedMountain(0),
-      helpers: 11, // staffs the cart (1) and the Great Machine (10)
-      carts: 1,
-      machines: 1,
-      kids: 0,
+      // 11 workers staff the cart (1) and the Great Machine (10).
+      owned: {
+        ...minedMountain(0).owned,
+        helper: 11,
+        cart: 1,
+        machine: 1,
+        kid: 0,
+      },
     });
     expect(rates.tapYield).toBe(1);
     expect(rates.tierSpeed).toEqual(
@@ -61,8 +71,7 @@ describe("effectiveRates", () => {
   it("keeps the fraction the crew line floors away", () => {
     const rates = effectiveRates({
       ...minedMountain(0),
-      helpers: 11,
-      kids: 0,
+      owned: { ...minedMountain(0).owned, helper: 11, kid: 0 },
       upgrades: { ...NO_UPGRADES, boots: 1 },
     });
     expect(rates.exactCrewPerSecond).toBeCloseTo(11 * 2.36, 10);
@@ -72,10 +81,13 @@ describe("effectiveRates", () => {
   it("slows the troubled tier from a quarter toward a half, and not the others", () => {
     const crew = {
       ...minedMountain(0),
-      helpers: 9,
-      carts: 1,
-      borers: 1,
-      kids: 0,
+      owned: {
+        ...minedMountain(0).owned,
+        helper: 9,
+        cart: 1,
+        borer: 1,
+        kid: 0,
+      },
     };
     const trouble: Trouble = { kind: "cave-in", tier: "cart", startedAt: 0 };
     const plain = effectiveRates(crew, 0);
@@ -94,10 +106,13 @@ describe("effectiveRates", () => {
   it("Grandfather's pick makes taps a little stronger and leaves the crew alone", () => {
     const crew = {
       ...minedMountain(0),
-      helpers: 9,
-      carts: 1,
-      borers: 1,
-      kids: 0,
+      owned: {
+        ...minedMountain(0).owned,
+        helper: 9,
+        cart: 1,
+        borer: 1,
+        kid: 0,
+      },
     };
     const plain = effectiveRates(crew);
     const picked = effectiveRates({ ...crew, finds: ["pick"] });
@@ -123,11 +138,10 @@ describe("tendingGain", () => {
   it("is the staffed stones a second her tending adds, from effectiveRates", () => {
     const idle = {
       ...minedMountain(0),
-      helpers: 8,
-      borers: 1,
+      owned: { ...minedMountain(0).owned, helper: 8, borer: 1 },
       engineers: [{ ...ada, post: "borer" as const }],
     };
-    const unstaffed = { ...idle, helpers: 0 };
+    const unstaffed = { ...idle, owned: { ...idle.owned, helper: 0 } };
     expect(tendingGain(unstaffed, 0, "borer")).toBe(0);
     const staffed = idle;
     const atCamp = station(staffed, 0, "camp");
@@ -137,7 +151,10 @@ describe("tendingGain", () => {
         effectiveRates(atCamp).crewPerSecond,
     );
     expect(tendingGain(staffed, 0, "borer")).toBe(78);
-    const two = { ...staffed, helpers: 16, borers: 2 };
+    const two = {
+      ...staffed,
+      owned: { ...staffed.owned, helper: 16, borer: 2 },
+    };
     expect(tendingGain(two, 0, "borer")).toBe(156);
     expect(tendingGain(staffed, 9, "borer")).toBe(0);
   });
@@ -145,8 +162,7 @@ describe("tendingGain", () => {
   it("prices a post the same while she is out on a trip: the tap calls her back (#415)", () => {
     const home = {
       ...minedMountain(0),
-      helpers: 80,
-      borers: 10,
+      owned: { ...minedMountain(0).owned, helper: 80, borer: 10 },
       engineers: [ada],
     };
     const away = send(home, 0, "side-seam", 0);
@@ -159,8 +175,7 @@ describe("tendingGain", () => {
   it("counts a Great Machine she starts, and not a rank already covered", () => {
     const waiting = {
       ...minedMountain(0),
-      helpers: 5,
-      machines: 1,
+      owned: { ...minedMountain(0).owned, helper: 5, machine: 1 },
       engineers: [ada],
     };
     const tended = station(waiting, 0, "machine");
@@ -171,8 +186,7 @@ describe("tendingGain", () => {
     expect(tendingGain(waiting, 0, "machine")).toBeGreaterThan(2_000);
     const covered = {
       ...waiting,
-      borers: 1,
-      helpers: 18,
+      owned: { ...waiting.owned, borer: 1, helper: 18 },
       engineers: [
         { ...ada, post: "borer" as const },
         {
@@ -204,11 +218,14 @@ describe("tendingGain", () => {
     // carts adds his tier's tenth and his own floor, nothing more.
     const crew = {
       ...minedMountain(0),
-      helpers: 40,
-      carts: 4,
-      drills: 2,
-      borers: 1,
-      machines: 1,
+      owned: {
+        ...minedMountain(0).owned,
+        helper: 40,
+        cart: 4,
+        drill: 2,
+        borer: 1,
+        machine: 1,
+      },
       engineers: [{ ...ada, post: "borer" as const }],
     };
     const pair = {
@@ -241,11 +258,14 @@ describe("tendingGain", () => {
     // The machine dwarfs one borer, so +10% of the borer is under 9%.
     const crew = {
       ...minedMountain(0),
-      helpers: 40,
-      carts: 4,
-      drills: 2,
-      borers: 1,
-      machines: 1,
+      owned: {
+        ...minedMountain(0).owned,
+        helper: 40,
+        cart: 4,
+        drill: 2,
+        borer: 1,
+        machine: 1,
+      },
       engineers: [{ ...ada, post: "borer" as const }],
     };
     const rested = effectiveRates(station(crew, 0, "camp"));
@@ -321,8 +341,11 @@ describe("tendingGain", () => {
   });
 
   it("an old save with 30 drills mines x4 at once", () => {
-    const old = { ...minedMountain(0), helpers: 40, drills: 30 };
-    const few = { ...old, drills: 9 };
+    const old = {
+      ...minedMountain(0),
+      owned: { ...minedMountain(0).owned, helper: 40, drill: 30 },
+    };
+    const few = { ...old, owned: { ...old.owned, drill: 9 } };
     expect(milestoneMultiplier("drill", 30)).toBe(4);
     const drill = TIERS.find((tier) => tier.id === "drill");
     expect(drill).toBeDefined();
@@ -334,7 +357,10 @@ describe("tendingGain", () => {
 });
 
 describe("the Gold rush in the rates", () => {
-  const crew = { ...minedMountain(0), helpers: 10, kids: 0 };
+  const crew = {
+    ...minedMountain(0),
+    owned: { ...minedMountain(0).owned, helper: 10, kid: 0 },
+  };
   const T = 5_000_000;
   const rushed = startRush(holdForRush(crew, 1_000_000, 10), T);
 
@@ -369,7 +395,10 @@ describe("what more hands add (#490)", () => {
     );
 
   it("a worker with nothing idle adds his own hands", () => {
-    const crew = { ...minedMountain(0), helpers: 6, carts: 6 };
+    const crew = {
+      ...minedMountain(0),
+      owned: { ...minedMountain(0).owned, helper: 6, cart: 6 },
+    };
     expect(handsGain(crew, "helper", 1)).toBe(
       effectiveRates(crew).tierSpeed.helper,
     );
@@ -377,7 +406,10 @@ describe("what more hands add (#490)", () => {
   });
 
   it("a worker who starts an idle cart adds the cart too", () => {
-    const crew = { ...minedMountain(0), helpers: 3, carts: 6 };
+    const crew = {
+      ...minedMountain(0),
+      owned: { ...minedMountain(0).owned, helper: 3, cart: 6 },
+    };
     const rates = effectiveRates(crew);
     expect(handsGain(crew, "helper", 1)).toBe(
       rates.tierSpeed.helper + rates.tierSpeed.cart,
@@ -387,7 +419,10 @@ describe("what more hands add (#490)", () => {
   });
 
   it("is the crew's own rise, before timers, for many hands and for kids", () => {
-    const crew = { ...minedMountain(0), helpers: 20, carts: 30, kids: 2 };
+    const crew = {
+      ...minedMountain(0),
+      owned: { ...minedMountain(0).owned, helper: 20, cart: 30, kid: 2 },
+    };
     const timed = { ...crew, boosts: { ...NO_BOOSTS, overtime: 9e15 } };
     for (const [tier, count] of [
       ["helper", 10],
@@ -395,8 +430,11 @@ describe("what more hands add (#490)", () => {
     ] as const) {
       const more =
         tier === "helper"
-          ? { ...crew, helpers: crew.helpers + count }
-          : { ...crew, kids: crew.kids + count };
+          ? {
+              ...crew,
+              owned: { ...crew.owned, helper: crew.owned.helper + count },
+            }
+          : { ...crew, owned: { ...crew.owned, kid: crew.owned.kid + count } };
       const rise = base(effectiveRates(more)) - base(effectiveRates(crew));
       expect(handsGain(crew, tier, count)).toBeCloseTo(rise, 9);
       expect(handsGain(timed, tier, count)).toBeCloseTo(rise, 9);
@@ -408,11 +446,14 @@ describe("what more hands add (#490)", () => {
     // eighth of a borer, so the borers stay idle and the 16th hand runs a drill.
     const crew = {
       ...minedMountain(10_000_000),
-      helpers: 15,
-      drills: 200,
-      borers: 2,
+      owned: {
+        ...minedMountain(10_000_000).owned,
+        helper: 15,
+        drill: 200,
+        borer: 2,
+      },
     };
-    const more = { ...crew, helpers: 16 };
+    const more = { ...crew, owned: { ...crew.owned, helper: 16 } };
     const rates = effectiveRates(crew);
     expect(rates.running.borer).toBe(0);
     expect(rates.running.drill).toBe(15);
@@ -427,7 +468,10 @@ describe("what more hands add (#490)", () => {
   });
 
   it("one worker short of a borer's eight starts nothing yet", () => {
-    const crew = { ...minedMountain(10_000_000), helpers: 6, borers: 1 };
+    const crew = {
+      ...minedMountain(10_000_000),
+      owned: { ...minedMountain(10_000_000).owned, helper: 6, borer: 1 },
+    };
     expect(startedTier(crew)).toBe(undefined);
     expect(firstIdleTier(crew)).toBe("borer");
     expect(handsGain(crew, "helper", 1)).toBe(
@@ -467,10 +511,10 @@ describe("staffing never slows the crew (#500)", () => {
                 };
                 const now = effectiveRates(crew).exactCrewPerSecond;
                 for (const more of [
-                  { ...crew, helpers: helpers + 1 },
-                  { ...crew, drills: drills + 1 },
-                  { ...crew, borers: borers + 1 },
-                  { ...crew, machines: machines + 1 },
+                  { ...crew, owned: { ...crew.owned, helper: helpers + 1 } },
+                  { ...crew, owned: { ...crew.owned, drill: drills + 1 } },
+                  { ...crew, owned: { ...crew.owned, borer: borers + 1 } },
+                  { ...crew, owned: { ...crew.owned, machine: machines + 1 } },
                 ]) {
                   expect(
                     effectiveRates(more).exactCrewPerSecond,
@@ -494,14 +538,20 @@ describe("staffing for the line (#534)", () => {
       // second. The machine alone (one stage) would move only 24.
       const crew = {
         ...minedMountain(50_000_000),
-        helpers: 16,
-        borers: 1,
-        trains: 2,
+        owned: {
+          ...minedMountain(50_000_000).owned,
+          helper: 16,
+          borer: 1,
+          train: 2,
+        },
         legacy: 0,
         engineers: [],
       };
       const before = effectiveRates(crew);
-      const after = effectiveRates({ ...crew, machines: 1 });
+      const after = effectiveRates({
+        ...crew,
+        owned: { ...crew.owned, machine: 1 },
+      });
       expect(before.exactCrewPerSecond).toBe(48);
       expect(after.exactCrewPerSecond).toBe(48);
       expect(after.running).toMatchObject({ borer: 1, train: 1, machine: 0 });
@@ -524,7 +574,10 @@ describe("the line's rule behind its factor (#532)", () => {
     );
 
   it("with no machines the line moves what the hands move today", () => {
-    const crew = { ...minedMountain(0), helpers: 12, kids: 3 };
+    const crew = {
+      ...minedMountain(0),
+      owned: { ...minedMountain(0).owned, helper: 12, kid: 3 },
+    };
     const today = effectiveRates(crew);
     const line = withFactors(LINE_ON, () => effectiveRates(crew));
     expect(line.exactCrewPerSecond).toBeCloseTo(today.exactCrewPerSecond, 9);
@@ -534,10 +587,13 @@ describe("the line's rule behind its factor (#532)", () => {
   it("with machines the crew moves what the line moves, not the sum", () => {
     const crew = {
       ...minedMountain(10_000_000),
-      helpers: 40,
-      carts: 12,
-      drills: 9,
-      borers: 2,
+      owned: {
+        ...minedMountain(10_000_000).owned,
+        helper: 40,
+        cart: 12,
+        drill: 9,
+        borer: 2,
+      },
     };
     const today = effectiveRates(crew);
     const line = withFactors(LINE_ON, () => effectiveRates(crew));
@@ -551,13 +607,19 @@ describe("the line's rule behind its factor (#532)", () => {
 
   it("rates each machine at three times today's, so the first cart, hoist and drill add 6, 9 and 27 (#543)", () => {
     withFactors(LINE_ON, () => {
-      const crew = { ...minedMountain(0), helpers: 12 };
-      const line = (more: Partial<Mountain>): number =>
-        effectiveRates({ ...crew, ...more }).exactCrewPerSecond;
+      const crew = {
+        ...minedMountain(0),
+        owned: { ...minedMountain(0).owned, helper: 12 },
+      };
+      const line = (more: MountainPatch): number =>
+        effectiveRates(patched(crew, more)).exactCrewPerSecond;
       expect(line({})).toBeCloseTo(12, 9);
-      expect(line({ carts: 1 })).toBeCloseTo(18, 9);
-      expect(line({ carts: 1, hoists: 1 })).toBeCloseTo(27, 9);
-      expect(line({ carts: 1, hoists: 1, drills: 1 })).toBeCloseTo(54, 9);
+      expect(line({ owned: { cart: 1 } })).toBeCloseTo(18, 9);
+      expect(line({ owned: { cart: 1, hoist: 1 } })).toBeCloseTo(27, 9);
+      expect(line({ owned: { cart: 1, hoist: 1, drill: 1 } })).toBeCloseTo(
+        54,
+        9,
+      );
       const speed = effectiveRates(crew).tierSpeed;
       expect(speed.cart).toBe(18);
       expect(speed.hoist).toBe(60);
@@ -576,12 +638,15 @@ describe("the line's rule behind its factor (#532)", () => {
       // stages it rises by less; engineers by stage are #539.
       const crew = {
         ...minedMountain(130_000_000),
-        helpers: 60,
-        carts: 10,
-        drills: 20,
-        borers: 2,
-        hoists: 20,
-        machines: 1,
+        owned: {
+          ...minedMountain(130_000_000).owned,
+          helper: 60,
+          cart: 10,
+          drill: 20,
+          borer: 2,
+          hoist: 20,
+          machine: 1,
+        },
         legacy: 0,
       };
       const at = (post: "camp" | "cart" | "borer"): number =>
@@ -598,9 +663,12 @@ describe("the line's rule behind its factor (#532)", () => {
 
   it("a hired hand's gain is the line's rise", () => {
     // Three of six carts run; a fourth hand starts one more.
-    const crew = { ...minedMountain(0), helpers: 3, carts: 6 };
+    const crew = {
+      ...minedMountain(0),
+      owned: { ...minedMountain(0).owned, helper: 3, cart: 6 },
+    };
     withFactors(LINE_ON, () => {
-      const more = { ...crew, helpers: 4 };
+      const more = { ...crew, owned: { ...crew.owned, helper: 4 } };
       expect(handsGain(crew, "helper", 1)).toBeCloseTo(
         parts(effectiveRates(more)) - parts(effectiveRates(crew)),
         9,

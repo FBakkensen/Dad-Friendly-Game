@@ -29,7 +29,7 @@ import { onDuty, type DutyEngineer, type Engineer } from "./engineers";
 import { TUNNELS, type Expedition } from "./expeditions";
 import type { Mountain } from "./mountain";
 import { TEND_POSTS } from "./screen-words";
-import { minedMountain } from "./test-fixtures";
+import { minedMountain, patched, type MountainPatch } from "./test-fixtures";
 
 const NOW = 5_000_000;
 const MINUTE = 60_000;
@@ -90,16 +90,22 @@ const trip = (
   ...patch,
 });
 
-const withAda = (patch: Partial<Mountain> = {}): Mountain => ({
-  ...minedMountain(0),
-  pocket: 5_000_000,
-  helpers: 20,
-  carts: 2,
-  drills: 1,
-  borers: 1,
-  engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
-  ...patch,
-});
+const withAda = (patch: MountainPatch = {}): Mountain =>
+  patched(
+    {
+      ...minedMountain(0),
+      pocket: 5_000_000,
+      owned: {
+        ...minedMountain(0).owned,
+        helper: 20,
+        cart: 2,
+        drill: 1,
+        borer: 1,
+      },
+      engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
+    },
+    patch,
+  );
 
 const adaOut = (): Mountain =>
   withAda({

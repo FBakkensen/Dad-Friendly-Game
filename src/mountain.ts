@@ -18,6 +18,7 @@ import {
 import { NO_UPGRADES, type Upgrades } from "./upgrades";
 import { EMPTY_MATERIALS, addMaterials, materialsGained } from "./layers";
 import type { TeachId } from "./teach";
+import { tierRecord, type TierId } from "./tiers";
 import type { Materials } from "./layers";
 import {
   COLD_CLOCKS,
@@ -51,17 +52,12 @@ export type Mountain = {
   readonly remaining: number;
   /** Stones mined and not yet spent. */
   readonly pocket: number;
-  /** Owned per tier (src/tiers.ts). */
-  readonly helpers: number;
-  readonly carts: number;
-  /** The line's hoists and pit trains (#533): 0 until the line is on. */
-  readonly hoists: number;
-  readonly drills: number;
-  readonly borers: number;
-  readonly trains: number;
-  readonly machines: number;
-  /** Crown of Wisdom kid helpers. */
-  readonly kids: number;
+  /**
+   * How many he owns of each row of the tier table (src/tiers.ts), the
+   * save's shape (#559). The line's hoists and pit trains stay 0 until the
+   * line is on.
+   */
+  readonly owned: Readonly<Record<TierId, number>>;
   /** Permanent upgrade levels (src/upgrades.ts); 0 is none. */
   readonly upgrades: Upgrades;
   /**
@@ -128,14 +124,7 @@ export function runStartedAt(mountain: Mountain): number {
 export const BARE_MOUNTAIN: Mountain = {
   remaining: MOUNTAIN_STONES,
   pocket: 0,
-  helpers: 0,
-  carts: 0,
-  hoists: 0,
-  drills: 0,
-  borers: 0,
-  trains: 0,
-  machines: 0,
-  kids: 0,
+  owned: tierRecord(0),
   upgrades: NO_UPGRADES,
   boosts: NO_BOOSTS,
   startedAt: 0,

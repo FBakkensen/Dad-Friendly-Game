@@ -68,7 +68,7 @@ const SIM_FIX_MS = 3_000;
  */
 function promoteScout(mountain: Mountain): Mountain {
   const engineers = mountain.engineers;
-  if (engineers.length !== 1 || mountain.borers < 1) {
+  if (engineers.length !== 1 || mountain.owned.borer < 1) {
     return mountain;
   }
   return promote(mountain);
@@ -314,8 +314,8 @@ function promoteAndRecord(world: World, promotions: DadPromotion[]): World {
       day: dayOf(next),
       name: hired.name,
       price: promoteCost(beforeScout),
-      helpersBefore: beforeScout.helpers,
-      helpersAfter: promoted.helpers,
+      helpersBefore: beforeScout.owned.helper,
+      helpersAfter: promoted.owned.helper,
       pocketBefore: beforeScout.pocket,
       pocketAfter: promoted.pocket,
     });

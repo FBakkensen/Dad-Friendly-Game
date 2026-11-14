@@ -57,8 +57,7 @@ function shed(materials: NonNullable<Mountain["materials"]>): Mountain {
     ...createMountain(),
     remaining: MOUNTAIN_STONES - 12_000_000,
     pocket: 0,
-    helpers: 4,
-    carts: 1,
+    owned: { ...createMountain().owned, helper: 4, cart: 1 },
     materials,
     recipes: recipesForMined(12_000_000),
   };

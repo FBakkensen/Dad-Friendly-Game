@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { withFactors } from "./economy/factors";
-import { LINE_OFF } from "./line";
-import type { Mountain } from "./mountain";
+import { LINE_OFF } from "./line-switch";
 import { effectiveRates } from "./rates";
 import { minedMountain } from "./test-fixtures";
 
@@ -14,52 +13,49 @@ import { minedMountain } from "./test-fixtures";
  */
 const TENDED_SLIP = 0.05;
 
-type Crew = Pick<
-  Mountain,
-  | "helpers"
-  | "carts"
-  | "hoists"
-  | "drills"
-  | "borers"
-  | "trains"
-  | "machines"
-  | "legacy"
->;
+type Counted =
+  "helper" | "cart" | "hoist" | "drill" | "borer" | "train" | "machine";
+
+type Crew = Readonly<Record<Counted | "legacy", number>>;
 
 type Grid = { readonly [K in keyof Crew]: readonly number[] };
 
-const MORE: readonly (readonly [string, (crew: Crew) => Crew])[] = [
-  ["helper", (crew) => ({ ...crew, helpers: crew.helpers + 1 })],
-  ["cart", (crew) => ({ ...crew, carts: crew.carts + 1 })],
-  ["hoist", (crew) => ({ ...crew, hoists: crew.hoists + 1 })],
-  ["drill", (crew) => ({ ...crew, drills: crew.drills + 1 })],
-  ["borer", (crew) => ({ ...crew, borers: crew.borers + 1 })],
-  ["train", (crew) => ({ ...crew, trains: crew.trains + 1 })],
-  ["machine", (crew) => ({ ...crew, machines: crew.machines + 1 })],
+const COUNTED: readonly Counted[] = [
+  "helper",
+  "cart",
+  "hoist",
+  "drill",
+  "borer",
+  "train",
+  "machine",
 ];
+
+const MORE: readonly (readonly [string, (crew: Crew) => Crew])[] = COUNTED.map(
+  (id) => [id, (crew: Crew) => ({ ...crew, [id]: crew[id] + 1 })],
+);
 
 /** Early crews: every fifth count of workers, and where a big crew just fits. */
 const EARLY: Grid = {
   legacy: [0, 1],
-  carts: [0, 10],
-  hoists: [0, 5],
-  drills: [0, 50],
-  borers: [0, 1, 3],
-  trains: [0, 2],
-  machines: [0, 1, 2],
-  helpers: [...Array.from({ length: 13 }, (_, at) => at * 5), 16, 17, 33],
+  cart: [0, 10],
+  hoist: [0, 5],
+  drill: [0, 50],
+  borer: [0, 1, 3],
+  train: [0, 2],
+  machine: [0, 1, 2],
+  helper: [...Array.from({ length: 13 }, (_, at) => at * 5), 16, 17, 33],
 };
 
 /** Late crews, with hundreds of ways to staff the big machines. */
 const LATE: Grid = {
   legacy: [0, 1],
-  carts: [10, 40],
-  hoists: [5, 60],
-  drills: [20, 100],
-  borers: [5, 9],
-  trains: [3, 9],
-  machines: [2, 6],
-  helpers: [47, 83, 99],
+  cart: [10, 40],
+  hoist: [5, 60],
+  drill: [20, 100],
+  borer: [5, 9],
+  train: [3, 9],
+  machine: [2, 6],
+  helper: [47, 83, 99],
 };
 
 function crews(grid: Grid): Crew[] {
@@ -82,9 +78,16 @@ function sweep(grid: Grid): { checked: number; misses: string[] } {
         post === "camp"
           ? []
           : [{ name: "Ada" as const, rank: 0 as const, trips: 0, post }];
-      const rate = (crew: Crew): number =>
-        effectiveRates({ ...minedMountain(50_000_000), ...crew, engineers })
-          .exactCrewPerSecond;
+      const rate = (crew: Crew): number => {
+        const { legacy, ...counts } = crew;
+        const base = minedMountain(50_000_000);
+        return effectiveRates({
+          ...base,
+          legacy,
+          owned: { ...base.owned, ...counts },
+          engineers,
+        }).exactCrewPerSecond;
+      };
       for (const crew of crews(grid)) {
         const now = rate(crew);
         const tended = crew.legacy > 0;

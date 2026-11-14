@@ -445,12 +445,15 @@ describe("helpers mining live", () => {
       recipes: recipesForMined(500),
       remaining: MOUNTAIN_STONES - 500,
       pocket: 0,
-      helpers: 3,
-      carts: 0,
-      drills: 0,
-      borers: 0,
-      machines: 0,
-      kids: 0,
+      owned: {
+        ...BARE_MOUNTAIN.owned,
+        helper: 3,
+        cart: 0,
+        drill: 0,
+        borer: 0,
+        machine: 0,
+        kid: 0,
+      },
     }));
 
     const logged = progress.getSnapshot().log;
@@ -463,12 +466,15 @@ describe("helpers mining live", () => {
         ...BARE_MOUNTAIN,
         remaining: MOUNTAIN_STONES - 506,
         pocket: 6,
-        helpers: 3,
-        carts: 0,
-        drills: 0,
-        borers: 0,
-        machines: 0,
-        kids: 0,
+        owned: {
+          ...BARE_MOUNTAIN.owned,
+          helper: 3,
+          cart: 0,
+          drill: 0,
+          borer: 0,
+          machine: 0,
+          kid: 0,
+        },
         materials: { clay: 0, iron: 0, crystal: 0, heartstone: 0 },
         recipes: recipesForMined(506),
       },
@@ -487,12 +493,15 @@ describe("helpers mining live", () => {
       ...BARE_MOUNTAIN,
       remaining: 500,
       pocket: 0,
-      helpers: 1,
-      carts: 0,
-      drills: 0,
-      borers: 0,
-      machines: 0,
-      kids: 0,
+      owned: {
+        ...BARE_MOUNTAIN.owned,
+        helper: 1,
+        cart: 0,
+        drill: 0,
+        borer: 0,
+        machine: 0,
+        kid: 0,
+      },
     }));
     clock += 10_000;
 
@@ -533,12 +542,15 @@ describe("away earnings", () => {
     recipes: recipesForMined(0),
     remaining: MOUNTAIN_STONES,
     pocket: 5,
-    helpers: 3,
-    carts: 0,
-    drills: 0,
-    borers: 0,
-    machines: 0,
-    kids: 0,
+    owned: {
+      ...BARE_MOUNTAIN.owned,
+      helper: 3,
+      cart: 0,
+      drill: 0,
+      borer: 0,
+      machine: 0,
+      kid: 0,
+    },
   };
 
   it("pays a guest 30% of the crew's speed for time away, saves it, and shows the card only once", () => {
@@ -566,12 +578,15 @@ describe("away earnings", () => {
         ...BARE_MOUNTAIN,
         remaining: MOUNTAIN_STONES - 540,
         pocket: 545,
-        helpers: 3,
-        carts: 0,
-        drills: 0,
-        borers: 0,
-        machines: 0,
-        kids: 0,
+        owned: {
+          ...BARE_MOUNTAIN.owned,
+          helper: 3,
+          cart: 0,
+          drill: 0,
+          borer: 0,
+          machine: 0,
+          kid: 0,
+        },
         materials: { clay: 0, iron: 0, crystal: 0, heartstone: 0 },
         recipes: ["iron-rails", "sturdy-props", "blasting-charge"],
       },
@@ -596,7 +611,7 @@ describe("away earnings", () => {
     const storage = createMemoryStorage();
     writeSessionSave({
       storage,
-      mountain: { ...crew, helpers: 0 },
+      mountain: { ...crew, owned: { ...crew.owned, helper: 0 } },
       lastSeen: 0,
     });
     const progress = createProgressStore({
@@ -864,7 +879,10 @@ describe("relic reveals", () => {
     const storage = createMemoryStorage();
     writeSessionSave({
       storage,
-      mountain: { ...minedMountain(999_000), helpers: 10 },
+      mountain: {
+        ...minedMountain(999_000),
+        owned: { ...minedMountain(999_000).owned, helper: 10 },
+      },
       lastSeen: 0,
     });
     const progress = createProgressStore({
@@ -950,12 +968,15 @@ describe("start over", () => {
       storage,
       mountain: {
         ...minedMountain(2_000_000),
-        helpers: 5,
-        carts: 2,
-        drills: 0,
-        borers: 0,
-        machines: 0,
-        kids: 0,
+        owned: {
+          ...minedMountain(2_000_000).owned,
+          helper: 5,
+          cart: 2,
+          drill: 0,
+          borer: 0,
+          machine: 0,
+          kid: 0,
+        },
         legacy: 2,
       },
       lastSeen: 0,
@@ -1113,10 +1134,13 @@ describe("a loaded save gets no grant (#558)", () => {
     const storage = createMemoryStorage();
     const mountain = {
       ...minedMountain(1_000),
-      helpers: 2,
-      carts: 3,
-      drills: 1,
-      borers: 1,
+      owned: {
+        ...minedMountain(1_000).owned,
+        helper: 2,
+        cart: 3,
+        drill: 1,
+        borer: 1,
+      },
     };
     writeSessionSave({ storage, mountain, lastSeen: 0 });
     const before = storage.getItem(SESSION_SAVE_KEY);
@@ -1125,7 +1149,7 @@ describe("a loaded save gets no grant (#558)", () => {
       sessionStorage: storage,
       now: () => 0,
     });
-    expect(progress.getSnapshot().mountain.helpers).toBe(2);
+    expect(progress.getSnapshot().mountain.owned.helper).toBe(2);
     expect(progress.getSnapshot().mountain.engineers).toEqual([]);
     expect(progress.getSnapshot().notices).toEqual([]);
     expect(storage.getItem(SESSION_SAVE_KEY)).toBe(before);
@@ -1270,7 +1294,10 @@ describe("save status on the unhappy paths (#114 coverage)", () => {
       sessionStorage: storage,
       now: () => clock,
     });
-    progress.applyMutation(() => ({ ...minedMountain(2), helpers: 3 }));
+    progress.applyMutation(() => ({
+      ...minedMountain(2),
+      owned: { ...minedMountain(2).owned, helper: 3 },
+    }));
     expect(progress.getSnapshot().saveKind).toBe("session");
     storage.setItem = () => {
       throw new Error("QuotaExceededError");
@@ -1289,7 +1316,10 @@ describe("save status on the unhappy paths (#114 coverage)", () => {
     const storage = createMemoryStorage();
     writeSessionSave({
       storage,
-      mountain: { ...minedMountain(2), helpers: 3 },
+      mountain: {
+        ...minedMountain(2),
+        owned: { ...minedMountain(2).owned, helper: 3 },
+      },
       lastSeen: 1_000,
     });
     let clock = 1_000;
@@ -1427,7 +1457,7 @@ describe("field log", () => {
     // Three carts open Strong arms (#250). The set-up is not a move.
     progress.applyMutation((mountain) => ({
       ...mountain,
-      carts: 3,
+      owned: { ...mountain.owned, cart: 3 },
       pocket: upgradeCost(upgradeById("tap"), 0) ?? Number.NaN,
     }));
     const from = progress.fieldLog().events.length;
@@ -1458,7 +1488,7 @@ describe("field log", () => {
     progress.applyMutation((mountain) =>
       buyTier({ ...mountain, pocket: firstWorker }, "helper"),
     );
-    expect(progress.getSnapshot().mountain.helpers).toBe(1);
+    expect(progress.getSnapshot().mountain.owned.helper).toBe(1);
     expect(progress.fieldLog().events).toEqual([]);
   });
 
@@ -1466,7 +1496,7 @@ describe("field log", () => {
     const progress = guest(() => 5_000);
     progress.applyMutation((mountain) => ({
       ...mountain,
-      carts: 1,
+      owned: { ...mountain.owned, cart: 1 },
       engineers: [{ name: "Ada", rank: 0, trips: 0, post: "cart" }],
     }));
     const before = progress.fieldLog().events;
@@ -1484,7 +1514,10 @@ describe("field log", () => {
     const storage = createMemoryStorage();
     writeSessionSave({
       storage,
-      mountain: { ...createMountain(), helpers: 1 },
+      mountain: {
+        ...createMountain(),
+        owned: { ...createMountain().owned, helper: 1 },
+      },
       lastSeen: 0,
     });
     const progress = createProgressStore({
@@ -1566,7 +1599,7 @@ describe("field log", () => {
       now: () => 1,
     });
     expect(again.fieldLog().events).toEqual([]);
-    expect(again.getSnapshot().mountain.helpers).toBe(1);
+    expect(again.getSnapshot().mountain.owned.helper).toBe(1);
   });
 
   it("leaves email and display name out of the log", () => {
@@ -1616,7 +1649,7 @@ describe("field log events for the deep (#150)", () => {
     ]);
 
     progress.applyMutation((mountain) => {
-      const ready = { ...mountain, helpers: 2 };
+      const ready = { ...mountain, owned: { ...mountain.owned, helper: 2 } };
       // Exactly the second engineer's Granite price.
       return { ...ready, pocket: promoteCost(ready) };
     });
@@ -1664,7 +1697,7 @@ describe("field log events for the deep (#150)", () => {
     const { progress, advance } = guest();
     progress.applyMutation((mountain) => ({
       ...mountain,
-      borers: 1,
+      owned: { ...mountain.owned, borer: 1 },
       engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
     }));
     progress.dispatch({ kind: "send", index: 0, tunnel: "side-seam" });
@@ -1771,7 +1804,7 @@ describe("field log events for the deep (#150)", () => {
     const { progress, advance, at } = guest();
     progress.applyMutation((mountain) => ({
       ...mountain,
-      borers: 1,
+      owned: { ...mountain.owned, borer: 1 },
       engineers: [{ name: "Ada", rank: 1, trips: 3, post: "camp" }],
     }));
     const cases: readonly {
@@ -1819,7 +1852,7 @@ describe("field log events for the deep (#150)", () => {
     const { progress, advance, at } = guest();
     progress.applyMutation((mountain) => ({
       ...mountain,
-      borers: 1,
+      owned: { ...mountain.owned, borer: 1 },
       engineers: [{ name: "Nils", rank: 0, trips: 0, post: "camp" }],
     }));
     const sentAt = at();
@@ -1860,8 +1893,7 @@ describe("field log events for the deep (#150)", () => {
     const { progress, advance } = guest();
     progress.applyMutation((mountain) => ({
       ...mountain,
-      borers: 1,
-      carts: 1,
+      owned: { ...mountain.owned, borer: 1, cart: 1 },
     }));
     progress.layoutPreview.trouble("cart");
     for (let tap = 0; tap < 5; tap += 1) {
@@ -1918,10 +1950,13 @@ describe("field log events for the deep (#150)", () => {
     const seed = 4;
     const pit = {
       ...createMountain(),
-      borers: 1,
-      carts: 1,
-      drills: 1,
-      machines: 1,
+      owned: {
+        ...createMountain().owned,
+        borer: 1,
+        cart: 1,
+        drill: 1,
+        machine: 1,
+      },
     };
     const first = nextTrouble(seed, 0, pit);
     if (first === undefined) {
@@ -1963,16 +1998,25 @@ describe("field log events for the deep (#150)", () => {
 
   it("does not call closing the game, or losing the borer, a fix", () => {
     const { progress, advance } = guest();
-    progress.applyMutation((mountain) => ({ ...mountain, borers: 1 }));
+    progress.applyMutation((mountain) => ({
+      ...mountain,
+      owned: { ...mountain.owned, borer: 1 },
+    }));
     progress.layoutPreview.trouble("cart");
     advance(60_000);
     progress.tick();
     expect(progress.getSnapshot().trouble).toBeUndefined();
     expect(codes(progress)).not.toContain("trouble.fix");
 
-    progress.applyMutation((mountain) => ({ ...mountain, borers: 1 }));
+    progress.applyMutation((mountain) => ({
+      ...mountain,
+      owned: { ...mountain.owned, borer: 1 },
+    }));
     progress.layoutPreview.trouble("borer");
-    progress.applyMutation((mountain) => ({ ...mountain, borers: 0 }));
+    progress.applyMutation((mountain) => ({
+      ...mountain,
+      owned: { ...mountain.owned, borer: 0 },
+    }));
     advance(1_000);
     progress.tick();
     expect(progress.getSnapshot().trouble).toBeUndefined();
@@ -2197,12 +2241,15 @@ describe("trouble at the machines (#149)", () => {
     ...BARE_MOUNTAIN,
     remaining: 50_000_000,
     pocket: 0,
-    helpers: 9,
-    carts: 1,
-    drills: 0,
-    borers: 1,
-    machines: 0,
-    kids: 0,
+    owned: {
+      ...BARE_MOUNTAIN.owned,
+      helper: 9,
+      cart: 1,
+      drill: 0,
+      borer: 1,
+      machine: 0,
+      kid: 0,
+    },
   };
 
   function open(seed = 1) {
@@ -2270,7 +2317,10 @@ describe("trouble at the machines (#149)", () => {
 
   it("starts during live play only once a borer is owned, one at a time", () => {
     const quiet = open();
-    quiet.progress.applyMutation((mountain) => ({ ...mountain, borers: 0 }));
+    quiet.progress.applyMutation((mountain) => ({
+      ...mountain,
+      owned: { ...mountain.owned, borer: 0 },
+    }));
     for (let second = 0; second < 400; second += 1) {
       quiet.advance(1_000);
       quiet.progress.tick();
@@ -2342,8 +2392,7 @@ describe("expeditions through the save", () => {
     const sent = send(
       {
         ...createMountain(),
-        helpers: 8,
-        borers: 1,
+        owned: { ...createMountain().owned, helper: 8, borer: 1 },
         engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
       },
       0,
@@ -2407,8 +2456,7 @@ describe("expeditions through the save", () => {
     const sent = send(
       {
         ...createMountain(),
-        helpers: 8,
-        borers: 1,
+        owned: { ...createMountain().owned, helper: 8, borer: 1 },
         engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
       },
       0,
@@ -2441,7 +2489,7 @@ describe("expeditions through the save", () => {
     const sent = send(
       {
         ...createMountain(),
-        helpers: 4,
+        owned: { ...createMountain().owned, helper: 4 },
         engineers: [{ name: "Ada", rank: 0, trips: 0, post: "camp" }],
       },
       0,
@@ -2659,8 +2707,7 @@ describe("layer card and craft-done notice", () => {
 
   const shed = (): Mountain => ({
     ...minedMountain(12_000_000),
-    helpers: 1,
-    carts: 1,
+    owned: { ...minedMountain(12_000_000).owned, helper: 1, cart: 1 },
     pocket: 5_000_000,
     materials: { clay: 20, iron: 20, crystal: 0, heartstone: 0 },
     recipes: recipesForMined(12_000_000),
@@ -2758,7 +2805,10 @@ describe("layer card and craft-done notice", () => {
     const storage = createMemoryStorage();
     writeSessionSave({
       storage,
-      mountain: { ...minedMountain(9_990_000), helpers: 20 },
+      mountain: {
+        ...minedMountain(9_990_000),
+        owned: { ...minedMountain(9_990_000).owned, helper: 20 },
+      },
       lastSeen: 0,
     });
     const progress = guest(storage, () => 1_800_000);
@@ -2861,7 +2911,7 @@ describe("layer card and craft-done notice", () => {
       storage: awayStore,
       mountain: {
         ...shed(),
-        helpers: 4,
+        owned: { ...shed().owned, helper: 4 },
         bench: { recipe: "iron-rails", startedAt: 0, endsAt: 60_000 },
       },
       lastSeen: 0,
@@ -4571,7 +4621,10 @@ describe("fresh read, one writer, and a pending offline write", () => {
         }
         return Promise.resolve({
           kind: "found",
-          mountain: { ...minedMountain(1), helpers: 1 },
+          mountain: {
+            ...minedMountain(1),
+            owned: { ...minedMountain(1).owned, helper: 1 },
+          },
           rev: 1,
           lastSeen: clock,
         });
@@ -4585,7 +4638,10 @@ describe("fresh read, one writer, and a pending offline write", () => {
         deliver = onChange;
         onChange({
           kind: "found",
-          mountain: { ...minedMountain(1), helpers: 1 },
+          mountain: {
+            ...minedMountain(1),
+            owned: { ...minedMountain(1).owned, helper: 1 },
+          },
           rev: 1,
           lastSeen: clock,
         });
@@ -4625,7 +4681,10 @@ describe("fresh read, one writer, and a pending offline write", () => {
     expect(written).toEqual([]);
     deliver({
       kind: "found",
-      mountain: { ...minedMountain(1), helpers: 1 },
+      mountain: {
+        ...minedMountain(1),
+        owned: { ...minedMountain(1).owned, helper: 1 },
+      },
       rev: 1,
       lastSeen: 20_000,
     });
@@ -4837,9 +4896,7 @@ describe("two saves found (#226)", () => {
     const otherMaterials = { clay: 9, iron: 4, crystal: 0, heartstone: 0 };
     second.applyMutation((mountain) => ({
       ...mountain,
-      carts: 2,
-      drills: 1,
-      helpers: 4,
+      owned: { ...mountain.owned, cart: 2, drill: 1, helper: 4 },
       pocket: 80,
       materials: otherMaterials,
     }));
@@ -4847,14 +4904,14 @@ describe("two saves found (#226)", () => {
       expect(second.getSnapshot().saveConflict).toBeDefined();
     });
     const conflict = second.getSnapshot().saveConflict;
-    expect(conflict?.local.mountain.carts).toBe(2);
+    expect(conflict?.local.mountain.owned.cart).toBe(2);
     expect(conflict?.local.mountain.pocket).toBe(80);
     expect(conflict?.local.mountain.materials).toEqual(otherMaterials);
     expect(conflict?.remote.mountain.upgrades).toEqual({
       ...NO_UPGRADES,
       tap: 1,
     });
-    expect(conflict?.remote.mountain.carts).toBe(0);
+    expect(conflict?.remote.mountain.owned.cart).toBe(0);
     expect(first.getSnapshot().saveConflict).toBeUndefined();
     const server = await cloud.load({ uid: user.uid });
     expect(server.kind === "found" && server.rev).toBe(2);
@@ -4862,7 +4919,7 @@ describe("two saves found (#226)", () => {
     second.applyMutation((mountain) => ({ ...mountain, pocket: 1 }));
     second.tick();
     expect(second.getSnapshot().mountain.pocket).toBe(80);
-    expect(second.getSnapshot().mountain.carts).toBe(2);
+    expect(second.getSnapshot().mountain.owned.cart).toBe(2);
     expect(firstNotice(second.getSnapshot(), "away")?.report).toBeUndefined();
     expect((await cloud.load({ uid: user.uid })).kind === "found").toBe(true);
     const still = await cloud.load({ uid: user.uid });
@@ -4871,7 +4928,9 @@ describe("two saves found (#226)", () => {
     second.dispose();
     const reloaded = open(cloud, storageB);
     await vi.waitFor(() => {
-      expect(reloaded.getSnapshot().saveConflict?.local.mountain.carts).toBe(2);
+      expect(
+        reloaded.getSnapshot().saveConflict?.local.mountain.owned.cart,
+      ).toBe(2);
     });
     expect(
       reloaded.getSnapshot().saveConflict?.remote.mountain.upgrades,
@@ -4890,16 +4949,16 @@ describe("two saves found (#226)", () => {
       expect(saved.kind === "found" && saved.rev).toBe(3);
     });
     expect(reloaded.getSnapshot().saveConflict).toBeUndefined();
-    expect(reloaded.getSnapshot().mountain.carts).toBe(2);
-    expect(reloaded.getSnapshot().mountain.drills).toBe(1);
-    expect(reloaded.getSnapshot().mountain.helpers).toBe(4);
+    expect(reloaded.getSnapshot().mountain.owned.cart).toBe(2);
+    expect(reloaded.getSnapshot().mountain.owned.drill).toBe(1);
+    expect(reloaded.getSnapshot().mountain.owned.helper).toBe(4);
     expect(reloaded.getSnapshot().mountain.pocket).toBe(80);
     expect(reloaded.getSnapshot().mountain.materials).toEqual(otherMaterials);
     expect(reloaded.getSnapshot().mountain.upgrades).toEqual(NO_UPGRADES);
     const copies = await reloaded.savedCopies();
     expect(copies).toHaveLength(1);
     expect(copies[0]?.mountain.upgrades).toEqual({ ...NO_UPGRADES, tap: 1 });
-    expect(copies[0]?.mountain.carts).toBe(0);
+    expect(copies[0]?.mountain.owned.cart).toBe(0);
     const events = reloaded.fieldLog().events.map((event) => event.code);
     expect(events).toContain("save.conflict");
     const choice = reloaded
@@ -4926,7 +4985,7 @@ describe("two saves found (#226)", () => {
         tap: 1,
       });
     });
-    expect(reloaded.getSnapshot().mountain.carts).toBe(0);
+    expect(reloaded.getSnapshot().mountain.owned.cart).toBe(0);
     expect(reloaded.getSnapshot().mountain.pocket).toBe(500);
     expect(reloaded.fieldLog().events.map((event) => event.code)).toContain(
       "save.restore",
@@ -4934,7 +4993,7 @@ describe("two saves found (#226)", () => {
     const restored = await reloaded.savedCopies();
     expect(
       restored.some(
-        (copy) => copy.mountain.carts === 2 && copy.mountain.pocket === 80,
+        (copy) => copy.mountain.owned.cart === 2 && copy.mountain.pocket === 80,
       ),
     ).toBe(true);
     first.dispose();
@@ -4962,8 +5021,7 @@ describe("two saves found (#226)", () => {
     });
     here.applyMutation((mountain) => ({
       ...mountain,
-      carts: 3,
-      machines: 1,
+      owned: { ...mountain.owned, cart: 3, machine: 1 },
       pocket: 40,
       materials: { clay: 1, iron: 0, crystal: 0, heartstone: 0 },
     }));
@@ -4973,7 +5031,7 @@ describe("two saves found (#226)", () => {
     });
     there.applyMutation((mountain) => ({
       ...mountain,
-      drills: 2,
+      owned: { ...mountain.owned, drill: 2 },
       pocket: 70,
       materials: { clay: 8, iron: 2, crystal: 1, heartstone: 0 },
     }));
@@ -4986,9 +5044,9 @@ describe("two saves found (#226)", () => {
       expect(there.getSnapshot().saveConflict).toBeUndefined();
     });
     const chosen = there.getSnapshot().mountain;
-    expect(chosen.carts).toBe(3);
-    expect(chosen.machines).toBe(1);
-    expect(chosen.drills).toBe(0);
+    expect(chosen.owned.cart).toBe(3);
+    expect(chosen.owned.machine).toBe(1);
+    expect(chosen.owned.drill).toBe(0);
     expect(chosen.pocket).toBe(40);
     expect(chosen.materials).toEqual({
       clay: 1,
@@ -5000,7 +5058,7 @@ describe("two saves found (#226)", () => {
     expect(
       archived.some(
         (copy) =>
-          copy.mountain.drills === 2 &&
+          copy.mountain.owned.drill === 2 &&
           copy.mountain.pocket === 70 &&
           copy.mountain.materials.crystal === 1,
       ),
@@ -5039,7 +5097,10 @@ describe("two saves found (#226)", () => {
       ...mountain,
       upgrades: { ...NO_UPGRADES, tap: 1 },
     }));
-    other.applyMutation((mountain) => ({ ...mountain, carts: 1 }));
+    other.applyMutation((mountain) => ({
+      ...mountain,
+      owned: { ...mountain.owned, cart: 1 },
+    }));
     await vi.waitFor(() => {
       expect(
         progress.getSnapshot().saveConflict ?? other.getSnapshot().saveConflict,
@@ -5090,7 +5151,7 @@ describe("two saves found (#226)", () => {
     progress.applyMutation((mountain) => ({ ...mountain, pocket: 40 }));
     deliver({
       kind: "found",
-      mountain: { ...base(), carts: 5 },
+      mountain: { ...base(), owned: { ...base().owned, cart: 5 } },
       rev: 6,
       lastSeen: clock,
       deviceId: readDeviceId(storage),
@@ -5098,7 +5159,7 @@ describe("two saves found (#226)", () => {
     });
     expect(progress.getSnapshot().saveConflict).toBeUndefined();
     expect(progress.getSnapshot().mountain.pocket).toBe(40);
-    expect(progress.getSnapshot().mountain.carts).toBe(0);
+    expect(progress.getSnapshot().mountain.owned.cart).toBe(0);
     progress.dispose();
   });
 
@@ -5112,11 +5173,11 @@ describe("two saves found (#226)", () => {
     const conflict = progress.getSnapshot().saveConflict;
     expect(conflict?.local.deviceLabel).toBe("Chrome on Android");
     expect(conflict?.remote.deviceLabel).toBe("Safari on iPhone");
-    expect(conflict?.local.mountain.helpers).toBe(28);
-    expect(conflict?.remote.mountain.carts).toBe(2);
+    expect(conflict?.local.mountain.owned.helper).toBe(28);
+    expect(conflict?.remote.mountain.owned.cart).toBe(2);
     progress.applyMutation(() => minedMountain(3));
     progress.tick();
-    expect(progress.getSnapshot().mountain.carts).toBe(6);
+    expect(progress.getSnapshot().mountain.owned.cart).toBe(6);
     expect(firstNotice(progress.getSnapshot(), "away")?.report).toBeUndefined();
     progress.dispose();
   });
@@ -5171,7 +5232,7 @@ describe("two saves found (#226)", () => {
       expect(progress.getSnapshot().ready).toBe(true);
     });
     server = {
-      mountain: { ...base(), carts: 2 },
+      mountain: { ...base(), owned: { ...base().owned, cart: 2 } },
       rev: 2,
       deviceId: "other-device",
       deviceLabel: "Safari on iPhone",
@@ -5182,7 +5243,7 @@ describe("two saves found (#226)", () => {
       ...server,
     });
     expect(progress.getSnapshot().saveConflict).toBeUndefined();
-    expect(progress.getSnapshot().mountain.carts).toBe(2);
+    expect(progress.getSnapshot().mountain.owned.cart).toBe(2);
 
     progress.applyMutation((mountain) => ({
       ...mountain,
@@ -5190,7 +5251,7 @@ describe("two saves found (#226)", () => {
     }));
     expect(writes).toBe(1);
     server = {
-      mountain: { ...base(), drills: 1 },
+      mountain: { ...base(), owned: { ...base().owned, drill: 1 } },
       rev: 3,
       deviceId: "other-device",
       deviceLabel: "Safari on iPhone",
@@ -5204,12 +5265,14 @@ describe("two saves found (#226)", () => {
     expect(
       progress.getSnapshot().saveConflict?.local.mountain.upgrades,
     ).toEqual({ ...NO_UPGRADES, tap: 1 });
-    expect(progress.getSnapshot().saveConflict?.remote.mountain.drills).toBe(1);
+    expect(
+      progress.getSnapshot().saveConflict?.remote.mountain.owned.drill,
+    ).toBe(1);
     const writesAtSheet = writes;
     progress.flush();
     deliver({
       kind: "found",
-      mountain: { ...base(), borers: 1 },
+      mountain: { ...base(), owned: { ...base().owned, borer: 1 } },
       rev: 4,
       lastSeen: at,
       deviceId: "other-device",
@@ -5219,7 +5282,7 @@ describe("two saves found (#226)", () => {
       ...NO_UPGRADES,
       tap: 1,
     });
-    expect(progress.getSnapshot().mountain.borers).toBe(0);
+    expect(progress.getSnapshot().mountain.owned.borer).toBe(0);
     expect(writes).toBe(writesAtSheet);
     deliver({ kind: "unavailable" });
     expect(
@@ -5270,7 +5333,7 @@ describe("two saves found (#226)", () => {
     }));
     deliver({
       kind: "found",
-      mountain: { ...base(), carts: 3 },
+      mountain: { ...base(), owned: { ...base().owned, cart: 3 } },
       rev: 2,
       deviceId: "other-device",
       deviceLabel: "Safari on iPhone",
@@ -5278,7 +5341,9 @@ describe("two saves found (#226)", () => {
     expect(
       progress.getSnapshot().saveConflict?.local.mountain.upgrades,
     ).toEqual({ ...NO_UPGRADES, boots: 1 });
-    expect(progress.getSnapshot().saveConflict?.remote.mountain.carts).toBe(3);
+    expect(
+      progress.getSnapshot().saveConflict?.remote.mountain.owned.cart,
+    ).toBe(3);
     expect(progress.getSnapshot().saveKind).toBe("account");
     progress.dispose();
   });
@@ -5308,7 +5373,7 @@ describe("two saves found (#226)", () => {
       progress.dispatch({ kind: "buyTier", id: "helper" });
       await vi.waitFor(async () => {
         const saved = await cloud.load({ uid: user.uid });
-        expect(saved.kind === "found" && saved.mountain.helpers).toBe(1);
+        expect(saved.kind === "found" && saved.mountain.owned.helper).toBe(1);
       });
       expect(codes(progress.tonightEvents())).toContain("tier.buy");
       return { cloud, progress };
@@ -5318,7 +5383,7 @@ describe("two saves found (#226)", () => {
       const { cloud, progress } = await boughtTonight();
       await cloud.archiveCopy?.({
         uid: user.uid,
-        mountain: { ...base(), carts: 1 },
+        mountain: { ...base(), owned: { ...base().owned, cart: 1 } },
         lastSeen: clock,
         rev: 1,
         deviceId: "other-device",
@@ -5392,7 +5457,7 @@ describe("two saves found (#226)", () => {
     archiveGate.fail = false;
     await cloud.archiveCopy?.({
       uid: user.uid,
-      mountain: { ...base(), carts: 1 },
+      mountain: { ...base(), owned: { ...base().owned, cart: 1 } },
       lastSeen: clock,
       rev: 1,
       deviceId: "other-device",
@@ -5405,7 +5470,7 @@ describe("two saves found (#226)", () => {
     await expect(progress.restoreCopy(copies[0]?.id ?? "")).resolves.toBe(
       "kept",
     );
-    expect(progress.getSnapshot().mountain.carts).toBe(0);
+    expect(progress.getSnapshot().mountain.owned.cart).toBe(0);
     const guest = createProgressStore({
       auth: createMemoryAuth({ state: { kind: "signed-out" } }),
       sessionStorage: createMemoryStorage(),
@@ -5419,13 +5484,17 @@ describe("two saves found (#226)", () => {
   it("restores a copy from the same run", async () => {
     const cloud = createMemoryCloudSave();
     const storage = createMemoryStorage();
-    const playing = { ...base(), pocket: 3, startedAt: 5, carts: 1 };
+    const playing = {
+      ...base(),
+      pocket: 3,
+      startedAt: 5,
+      owned: { ...base().owned, cart: 1 },
+    };
     const archived = {
       ...base(),
       pocket: 9,
       startedAt: 5,
-      carts: 4,
-      drills: 2,
+      owned: { ...base().owned, cart: 4, drill: 2 },
     };
     await cloud.write({
       uid: user.uid,
@@ -5454,15 +5523,15 @@ describe("two saves found (#226)", () => {
     await vi.waitFor(() => {
       expect(progress.getSnapshot().mountain.pocket).toBe(9);
     });
-    expect(progress.getSnapshot().mountain.carts).toBe(4);
-    expect(progress.getSnapshot().mountain.drills).toBe(2);
+    expect(progress.getSnapshot().mountain.owned.cart).toBe(4);
+    expect(progress.getSnapshot().mountain.owned.drill).toBe(2);
     expect(progress.getSnapshot().mountain.startedAt).toBe(5);
     const restored = await cloud.load({ uid: user.uid });
     expect(restored.kind === "found" && restored.mountain.pocket).toBe(9);
     const kept = await progress.savedCopies();
     expect(
       kept.some(
-        (copy) => copy.mountain.pocket === 3 && copy.mountain.carts === 1,
+        (copy) => copy.mountain.pocket === 3 && copy.mountain.owned.cart === 1,
       ),
     ).toBe(true);
     progress.dispose();
@@ -5484,11 +5553,13 @@ describe("dispatch (#409)", () => {
     });
     progress.applyMutation((mountain) => ({ ...mountain, pocket: 1_000 }));
     const heard: number[] = [];
-    progress.subscribe((snapshot) => heard.push(snapshot.mountain.helpers));
+    progress.subscribe((snapshot) =>
+      heard.push(snapshot.mountain.owned.helper),
+    );
     const result = progress.dispatch({ kind: "buyTier", id: "helper" });
     expect(result).toEqual({ kind: "applied", spent: 20, gained: 0 });
-    expect(progress.getSnapshot().mountain.helpers).toBe(1);
-    expect(guestSave(sessionStorage)?.mountain.helpers).toBe(1);
+    expect(progress.getSnapshot().mountain.owned.helper).toBe(1);
+    expect(guestSave(sessionStorage)?.mountain.owned.helper).toBe(1);
     expect(heard.at(-1)).toBe(1);
   });
 
@@ -5543,10 +5614,13 @@ describe("dispatch (#409)", () => {
       });
       progress.applyMutation(() => ({
         ...minedMountain(5_000_000),
-        helpers: 40,
-        carts: 10,
-        drills: 4,
-        borers: 2,
+        owned: {
+          ...minedMountain(5_000_000).owned,
+          helper: 40,
+          cart: 10,
+          drill: 4,
+          borer: 2,
+        },
         // A tap takes a share of the crew's speed, so a slowed machine digs less.
         upgrades: { ...NO_UPGRADES, tap: 5 },
       }));

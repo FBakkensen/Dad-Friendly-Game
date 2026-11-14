@@ -23,9 +23,7 @@ const MIN = 60_000;
 
 const crew = (): Mountain => ({
   ...minedMountain(0),
-  helpers: 3,
-  carts: 4,
-  kids: 0,
+  owned: { ...minedMountain(0).owned, helper: 3, cart: 4, kid: 0 },
 });
 const withOvertime = (m: Mountain, startedAgo: number): Mountain => ({
   ...m,

@@ -21,20 +21,26 @@ function tenthsOf(mountain: Mountain, tierId: TierId): number {
   return tendingTenths(mountain, tierId, effectiveRates(mountain).running);
 }
 
-const kidRun = { ...minedMountain(1_000), legacy: 1, helpers: 4, carts: 2 };
+const kidRun = {
+  ...minedMountain(1_000),
+  legacy: 1,
+  owned: { ...minedMountain(1_000).owned, helper: 4, cart: 2 },
+};
 
 describe("grandpa (#338)", () => {
   it("is only on the crew after a pass, and only with a machine to tend", () => {
     expect(postOf({ ...kidRun, legacy: 0 })).toBeUndefined();
-    expect(postOf({ ...kidRun, carts: 0 })).toBeUndefined();
+    expect(
+      postOf({ ...kidRun, owned: { ...kidRun.owned, cart: 0 } }),
+    ).toBeUndefined();
     expect(postOf(kidRun)).toBe("cart");
   });
 
   it("never moves to a machine short of workers, so a buy never slows the crew", () => {
     // Two workers run the carts; a borer (8) and a Great Machine (25) idle.
-    const small = { ...kidRun, helpers: 2, carts: 2 };
+    const small = { ...kidRun, owned: { ...kidRun.owned, helper: 2, cart: 2 } };
     expect(postOf(small)).toBe("cart");
-    const idle = { ...small, borers: 1, machines: 1 };
+    const idle = { ...small, owned: { ...small.owned, borer: 1, machine: 1 } };
     expect(postOf(idle)).toBe("cart");
     expect(effectiveRates(idle).crewPerSecond).toBeGreaterThanOrEqual(
       effectiveRates(small).crewPerSecond,
@@ -42,14 +48,19 @@ describe("grandpa (#338)", () => {
   });
 
   it("tends the biggest running machine no engineer is tending", () => {
-    const deep = { ...kidRun, helpers: 40, drills: 1, borers: 1 };
+    const deep = {
+      ...kidRun,
+      owned: { ...kidRun.owned, helper: 40, drill: 1, borer: 1 },
+    };
     expect(postOf(deep)).toBe("borer");
     const borerTended = {
       ...deep,
       engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }] as const,
     };
     expect(postOf(borerTended)).toBe("drill");
-    expect(postOf({ ...deep, helpers: 80, machines: 1 })).toBe("machine");
+    expect(
+      postOf({ ...deep, owned: { ...deep.owned, helper: 80, machine: 1 } }),
+    ).toBe("machine");
   });
 
   it("tends at his rank on his post, and adds nothing elsewhere", () => {
@@ -64,9 +75,14 @@ describe("grandpa (#338)", () => {
   });
 
   it("tends his biggest group by base output, not the newest machine (#356)", () => {
-    const many = { ...kidRun, helpers: 400, drills: 60, borers: 1 };
+    const many = {
+      ...kidRun,
+      owned: { ...kidRun.owned, helper: 400, drill: 60, borer: 1 },
+    };
     expect(postOf(many)).toBe("drill");
-    expect(postOf({ ...many, borers: 10 })).toBe("borer");
+    expect(postOf({ ...many, owned: { ...many.owned, borer: 10 } })).toBe(
+      "borer",
+    );
     const drillsTended = {
       ...many,
       engineers: [{ name: "Ada", rank: 0, trips: 0, post: "drill" }] as const,
@@ -77,13 +93,19 @@ describe("grandpa (#338)", () => {
 
   it("takes the higher tier when two groups put out the same (#356)", () => {
     // Six carts at 6/s and one drill at 36/s: a tie goes to the drill.
-    const tie = { ...kidRun, helpers: 7, carts: 6, drills: 1 };
+    const tie = {
+      ...kidRun,
+      owned: { ...kidRun.owned, helper: 7, cart: 6, drill: 1 },
+    };
     expect(postOf(tie)).toBe("drill");
   });
 
   it("a first borer never lowers the crew's income (#356)", () => {
-    const drills = { ...kidRun, helpers: 400, drills: 60 };
-    const bought = { ...drills, borers: 1 };
+    const drills = {
+      ...kidRun,
+      owned: { ...kidRun.owned, helper: 400, drill: 60 },
+    };
+    const bought = { ...drills, owned: { ...drills.owned, borer: 1 } };
     expect(effectiveRates(bought).crewPerSecond).toBeGreaterThanOrEqual(
       effectiveRates(drills).crewPerSecond,
     );

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { tierLocked } from "./crew";
-import { minedMountain, reloaded } from "./test-fixtures";
+import { minedMountain, reloaded, NONE_OWNED } from "./test-fixtures";
 import {
   accrue,
   accrueAway,
@@ -13,12 +13,16 @@ import { MOUNTAIN_STONES, stonesLeft } from "./scale";
 import { withFactors } from "./economy/factors";
 import { listActions } from "./economy/actions";
 import { buyCrew } from "./crew";
-import { LINE_OFF } from "./line";
+import { LINE_OFF } from "./line-switch";
 import {
   HELPER_COST_GROWTH,
   LINE_MACHINE_COST_GROWTH,
   MACHINE_COST_GROWTH,
   MACHINE_IDS,
+  TIER_IDS,
+  machineRecord,
+  setOwned,
+  tierRecord,
   TIERS,
   isShownTier,
   machinesInPlay,
@@ -37,12 +41,15 @@ const at = (
   ...BARE_MOUNTAIN,
   remaining: 240_000_000,
   pocket: 0,
-  helpers: 0,
-  carts: 0,
-  drills: 0,
-  borers: 0,
-  machines: 0,
-  kids: 0,
+  owned: {
+    ...BARE_MOUNTAIN.owned,
+    helper: 0,
+    cart: 0,
+    drill: 0,
+    borer: 0,
+    machine: 0,
+    kid: 0,
+  },
   ...fields,
 });
 
@@ -104,22 +111,30 @@ describe("tiers", () => {
     const poor = at({ pocket: first - 1 });
     expect(buyTier(poor, "cart")).toBe(poor);
     const one = buyTier(at({ pocket: first + second + 110 }), "cart");
-    expect(one).toEqual(at({ pocket: second + 110, carts: 1 }));
-    expect(buyTier(one, "cart")).toEqual(at({ pocket: 110, carts: 2 }));
+    expect(one).toEqual(
+      at({ pocket: second + 110, owned: { ...NONE_OWNED, cart: 1 } }),
+    );
+    expect(buyTier(one, "cart")).toEqual(
+      at({ pocket: 110, owned: { ...NONE_OWNED, cart: 2 } }),
+    );
     const worker = tierCost(tierById("helper"), 0);
     expect(buyTier(at({ pocket: worker + 5 }), "helper")).toEqual(
-      at({ pocket: 5, helpers: 1 }),
+      at({ pocket: 5, owned: { ...NONE_OWNED, helper: 1 } }),
     );
   });
 
   it("adds every tier into the speed, and accrue pays them all", () => {
     const crew = at({
-      helpers: 21, // 2 carts + 1 + 8 + 10
-      carts: 2,
-      drills: 1,
-      borers: 1,
-      machines: 1,
-      kids: 0,
+      // 21 workers: 2 carts + 1 + 8 + 10.
+      owned: {
+        ...NONE_OWNED,
+        helper: 21,
+        cart: 2,
+        drill: 1,
+        borer: 1,
+        machine: 1,
+        kid: 0,
+      },
     });
     expect(stonesPerSecond(crew)).toBe(21 + 12 + 36 + 357 + 2_100);
     expect(
@@ -134,12 +149,30 @@ describe("tiers", () => {
   it("shows each tier once the one before it is owned", () => {
     expect(tierShown(at({}), tierById("helper"))).toBe(true);
     expect(tierShown(at({ pocket: 10_000 }), tierById("cart"))).toBe(false);
-    expect(tierShown(at({ helpers: 1 }), tierById("cart"))).toBe(true);
-    expect(tierShown(at({ helpers: 5 }), tierById("drill"))).toBe(false);
-    expect(tierShown(at({ carts: 1 }), tierById("drill"))).toBe(true);
-    expect(tierShown(at({ drills: 1 }), tierById("borer"))).toBe(true);
-    expect(tierShown(at({ borers: 1 }), tierById("machine"))).toBe(true);
-    expect(tierShown(at({ machines: 1 }), tierById("machine"))).toBe(true);
+    expect(
+      tierShown(at({ owned: { ...NONE_OWNED, helper: 1 } }), tierById("cart")),
+    ).toBe(true);
+    expect(
+      tierShown(at({ owned: { ...NONE_OWNED, helper: 5 } }), tierById("drill")),
+    ).toBe(false);
+    expect(
+      tierShown(at({ owned: { ...NONE_OWNED, cart: 1 } }), tierById("drill")),
+    ).toBe(true);
+    expect(
+      tierShown(at({ owned: { ...NONE_OWNED, drill: 1 } }), tierById("borer")),
+    ).toBe(true);
+    expect(
+      tierShown(
+        at({ owned: { ...NONE_OWNED, borer: 1 } }),
+        tierById("machine"),
+      ),
+    ).toBe(true);
+    expect(
+      tierShown(
+        at({ owned: { ...NONE_OWNED, machine: 1 } }),
+        tierById("machine"),
+      ),
+    ).toBe(true);
   });
 });
 
@@ -158,8 +191,10 @@ describe("crew staffing", () => {
   });
 
   it("leaves machines without helpers idle", () => {
-    expect(stonesPerSecond(at({ carts: 5 }))).toBe(0);
-    const rates = effectiveRates(at({ helpers: 3, carts: 5 }));
+    expect(stonesPerSecond(at({ owned: { ...NONE_OWNED, cart: 5 } }))).toBe(0);
+    const rates = effectiveRates(
+      at({ owned: { ...NONE_OWNED, helper: 3, cart: 5 } }),
+    );
     expect(rates.running.cart).toBe(3);
     expect(rates.helpersShort).toBe(2);
     expect(rates.crewPerSecond).toBe(3 + 18);
@@ -168,7 +203,7 @@ describe("crew staffing", () => {
   it("staffs the fastest machines first", () => {
     // 11 workers: the borer takes 8, the drill 1, two carts run.
     const rates = effectiveRates(
-      at({ helpers: 11, carts: 3, drills: 1, borers: 1 }),
+      at({ owned: { ...NONE_OWNED, helper: 11, cart: 3, drill: 1, borer: 1 } }),
     );
     expect(rates.running).toEqual({
       helper: 11,
@@ -187,7 +222,7 @@ describe("crew staffing", () => {
   it("idles a machine rather than half-run it, and away pay agrees", () => {
     // 9 workers can't run a Great Machine (10); they run the carts instead.
     const crew = {
-      ...at({ helpers: 9, carts: 4, machines: 1 }),
+      ...at({ owned: { ...NONE_OWNED, helper: 9, cart: 4, machine: 1 } }),
       remaining: 1e6,
     };
     const rates = effectiveRates(crew);
@@ -197,7 +232,10 @@ describe("crew staffing", () => {
     expect(accrueAway({ mountain: crew, lastSeen: 0, now: 10_000 }).mined).toBe(
       Math.floor(10 * 33 * AWAY_PAY_RATE),
     );
-    const staffed = effectiveRates({ ...crew, helpers: 14 });
+    const staffed = effectiveRates({
+      ...crew,
+      owned: { ...crew.owned, helper: 14 },
+    });
     expect(staffed.crewPerSecond).toBe(14 + 24 + 2_310);
     expect(staffed.helpersShort).toBe(0);
   });
@@ -218,7 +256,16 @@ describe("Crown of Wisdom: kid helpers", () => {
   it("mine, staff machines, and make every helper and kid 2% faster each", () => {
     // 5 kids: ×1.1 for helpers and kids; kids staff the cart and the drill.
     const rates = effectiveRates(
-      at({ helpers: 10, kids: 5, carts: 1, drills: 1, borers: 1 }),
+      at({
+        owned: {
+          ...NONE_OWNED,
+          helper: 10,
+          kid: 5,
+          cart: 1,
+          drill: 1,
+          borer: 1,
+        },
+      }),
     );
     expect(rates.tierSpeed.helper).toBeCloseTo(1.1);
     expect(rates.tierSpeed.kid).toBeCloseTo(27.5);
@@ -272,7 +319,9 @@ describe("cost curves (#356)", () => {
 
   it("an old crew still prices every machine and the mountain is not smaller", () => {
     const old = {
-      ...at({ helpers: 32, carts: 13, drills: 11, borers: 0 }),
+      ...at({
+        owned: { ...NONE_OWNED, helper: 32, cart: 13, drill: 11, borer: 0 },
+      }),
       remaining: MOUNTAIN_STONES - 12_000_000,
     };
     const m = reloaded(old);
@@ -281,7 +330,7 @@ describe("cost curves (#356)", () => {
     }
     for (const id of ["cart", "drill", "borer"] as const) {
       const t = tierById(id);
-      const cost = tierCost(t, m[t.field]);
+      const cost = tierCost(t, m.owned[t.id]);
       expect(Number.isFinite(cost)).toBe(true);
       expect(cost).toBeGreaterThan(0);
     }
@@ -297,7 +346,7 @@ describe("tierQuote: what ×1, ×10 and Max cost (#358)", () => {
   ).reduce((sum, price) => sum + price, 0);
 
   it("×1 is one at today's price", () => {
-    const m = at({ carts: 6, pocket: 0, stretch: 2 });
+    const m = at({ pocket: 0, stretch: 2, owned: { ...NONE_OWNED, cart: 6 } });
     expect(tierQuote(m, cart, "one")).toEqual({
       count: 1,
       cost: tierCost(cart, 6, 2),
@@ -305,18 +354,21 @@ describe("tierQuote: what ×1, ×10 and Max cost (#358)", () => {
   });
 
   it("×10 is exactly ten, the sum buyTier would charge, affordable or not", () => {
-    const m = at({ carts: 6, pocket: 0, stretch: 2 });
+    const m = at({ pocket: 0, stretch: 2, owned: { ...NONE_OWNED, cart: 6 } });
     expect(tierQuote(m, cart, "ten")).toEqual({ count: 10, cost: tenFrom6 });
     let bought = { ...m, pocket: tenFrom6 };
     for (let i = 0; i < 10; i += 1) {
       bought = buyTier(bought, "cart");
     }
-    expect(bought).toMatchObject({ carts: 16, pocket: 0 });
+    expect(bought).toMatchObject({
+      pocket: 0,
+      owned: { cart: 16 },
+    });
   });
 
   it("Max is as many as the pocket holds", () => {
     const m = at({
-      carts: 6,
+      owned: { ...NONE_OWNED, cart: 6 },
       pocket: tenFrom6 + tierCost(cart, 16, 2) - 1,
       stretch: 2,
     });
@@ -324,7 +376,7 @@ describe("tierQuote: what ×1, ×10 and Max cost (#358)", () => {
   });
 
   it("Max with nothing affordable quotes one, at its price", () => {
-    const m = at({ carts: 6, pocket: 5, stretch: 2 });
+    const m = at({ pocket: 5, stretch: 2, owned: { ...NONE_OWNED, cart: 6 } });
     expect(tierQuote(m, cart, "max")).toEqual({
       count: 1,
       cost: tierCost(cart, 6, 2),
@@ -333,7 +385,7 @@ describe("tierQuote: what ×1, ×10 and Max cost (#358)", () => {
 
   it("Max on the workers' gentle curve counts every hand the pocket holds", () => {
     const worker = tierById("helper");
-    const m = at({ helpers: 40, pocket: 1e12 });
+    const m = at({ pocket: 1e12, owned: { ...NONE_OWNED, helper: 40 } });
     const { count, cost } = tierQuote(m, worker, "max");
     expect(cost).toBeLessThanOrEqual(1e12);
     expect(cost + tierCost(worker, 40 + count)).toBeGreaterThan(1e12);
@@ -348,7 +400,7 @@ describe("the line's machines, off in play (#533)", () => {
   it("are the spec's hoist (the lift) and pit train (the haul)", () => {
     expect(hoist).toMatchObject({
       name: "Hoist",
-      field: "hoists",
+      stage: "lift",
       firstCost: 6_000,
       staff: 1,
       line: true,
@@ -356,7 +408,7 @@ describe("the line's machines, off in play (#533)", () => {
     expect(hoist.opensAt).toBeUndefined();
     expect(train).toMatchObject({
       name: "Pit train",
-      field: "trains",
+      stage: "haul",
       firstCost: 30_000_000,
       staff: 8,
       // The Crystal Caves.
@@ -371,19 +423,22 @@ describe("the line's machines, off in play (#533)", () => {
   it("with the line off: never shown, never bought, no hands, nothing mined", () => {
     expect(tierInPlay(hoist)).toBe(false);
     expect(machinesInPlay()).toEqual(["cart", "drill", "borer", "machine"]);
-    const crew = at({ helpers: 30, carts: 4, borers: 1, pocket: 1e9 });
+    const crew = at({
+      pocket: 1e9,
+      owned: { ...NONE_OWNED, helper: 30, cart: 4, borer: 1 },
+    });
     expect(tierShown(crew, hoist)).toBe(false);
     // The drill still follows the cart.
     expect(tierShown(crew, tierById("drill"))).toBe(true);
     expect(buyCrew(crew, "hoist")).toBe(crew);
-    expect(buyCrew(minedMountain(50_000_000), "train").trains).toBe(0);
+    expect(buyCrew(minedMountain(50_000_000), "train").owned.train).toBe(0);
     const offered = listActions(crew, 0).flatMap((action) =>
       action.kind === "buyTier" ? [action.id] : [],
     );
     expect(offered).not.toContain("hoist");
     expect(offered).not.toContain("train");
     // A save that holds them mines what it mines without them.
-    const holding = { ...crew, hoists: 5, trains: 2 };
+    const holding = { ...crew, owned: { ...crew.owned, hoist: 5, train: 2 } };
     const rates = effectiveRates(holding);
     expect(rates.running.hoist).toBe(0);
     expect(rates.running.train).toBe(0);
@@ -394,7 +449,16 @@ describe("the line's machines, off in play (#533)", () => {
   });
 
   it("staffs the same counts again once the line turns on (the staffing table keys the line)", () => {
-    const crew = at({ helpers: 30, carts: 4, hoists: 5, trains: 2, borers: 1 });
+    const crew = at({
+      owned: {
+        ...NONE_OWNED,
+        helper: 30,
+        cart: 4,
+        hoist: 5,
+        train: 2,
+        borer: 1,
+      },
+    });
     expect(effectiveRates(crew).running.hoist).toBe(0);
     const on = withFactors(LINE_ON, () => effectiveRates({ ...crew }));
     expect(on.running.hoist).toBe(5);
@@ -405,25 +469,37 @@ describe("the line's machines, off in play (#533)", () => {
   it("with the line on: shown in price order, bought, and running in their stages", () => {
     withFactors(LINE_ON, () => {
       expect(machinesInPlay()).toEqual(MACHINE_IDS);
-      const carts = at({ helpers: 12, carts: 1, pocket: 1e9 });
+      const carts = at({
+        pocket: 1e9,
+        owned: { ...NONE_OWNED, helper: 12, cart: 1 },
+      });
       expect(tierShown(carts, hoist)).toBe(true);
       // The drill now follows the hoist (spec: "once he owns a hoist").
       expect(tierShown(carts, tierById("drill"))).toBe(false);
       const bought = buyCrew(carts, "hoist");
-      expect(bought.hoists).toBe(1);
+      expect(bought.owned.hoist).toBe(1);
       expect(tierShown(bought, tierById("drill"))).toBe(true);
       const offered = listActions(carts, 0).flatMap((action) =>
         action.kind === "buyTier" ? [action.id] : [],
       );
       expect(offered).toContain("hoist");
       // The train shows after a borer and waits for the Crystal Caves.
-      const granite = { ...minedMountain(20_000_000), borers: 1 };
+      const granite = {
+        ...minedMountain(20_000_000),
+        owned: { ...minedMountain(20_000_000).owned, borer: 1 },
+      };
       expect(tierShown(granite, train)).toBe(true);
       expect(tierLocked(granite, train)).toBe(true);
-      const caves = { ...minedMountain(45_000_000), borers: 1 };
+      const caves = {
+        ...minedMountain(45_000_000),
+        owned: { ...minedMountain(45_000_000).owned, borer: 1 },
+      };
       expect(tierLocked(caves, train)).toBe(false);
       // A hoist runs on a hand and lifts with the hands.
-      const rates = effectiveRates({ ...bought, helpers: 13 });
+      const rates = effectiveRates({
+        ...bought,
+        owned: { ...bought.owned, helper: 13 },
+      });
       expect(rates.running.hoist).toBe(1);
       expect(rates.running.cart).toBe(1);
     });
@@ -443,5 +519,59 @@ describe("the line's prices, labs only (#543)", () => {
     });
     expect(tierCost(tierById("machine"), 0)).toBe(120_600_000);
     expect(tierCost(tierById("cart"), 1)).toBe(690);
+  });
+});
+
+describe("counts by id (#559)", () => {
+  it("every machine row names its stage, and only the machines do", () => {
+    const stages = Object.fromEntries(
+      TIERS.flatMap((tier) =>
+        tier.stage === undefined ? [] : [[tier.id, tier.stage]],
+      ),
+    );
+    expect(stages).toEqual({
+      cart: "haul",
+      hoist: "lift",
+      drill: "face",
+      borer: "face",
+      train: "haul",
+      machine: "lift",
+    });
+    expect(Object.keys(stages)).toEqual([...MACHINE_IDS]);
+  });
+
+  it("the records are built from the table, one entry per id", () => {
+    expect(Object.keys(tierRecord(0))).toEqual(TIER_IDS);
+    expect(Object.keys(machineRecord(0))).toEqual([...MACHINE_IDS]);
+    expect(Object.values(machineRecord("x"))).toEqual(
+      MACHINE_IDS.map(() => "x"),
+    );
+    expect(Object.keys(BARE_MOUNTAIN.owned)).toEqual(TIER_IDS);
+  });
+
+  it("a buy moves its own count and leaves every other one", () => {
+    const start: Mountain = {
+      ...BARE_MOUNTAIN,
+      pocket: 1e12,
+      owned: { ...NONE_OWNED, helper: 9, cart: 2, hoist: 1, kid: 3 },
+    };
+    const bought = buyTier(start, "cart");
+    expect(bought.owned).toEqual({ ...start.owned, cart: 3 });
+    expect(setOwned(start, "train", 4).owned).toEqual({
+      ...start.owned,
+      train: 4,
+    });
+    // The original is untouched.
+    expect(start.owned.cart).toBe(2);
+  });
+
+  it("a save keeps every count by id, the line's machines included", () => {
+    const counted: Mountain = {
+      ...minedMountain(50_000_000),
+      owned: Object.fromEntries(
+        TIER_IDS.map((id, at) => [id, at + 1]),
+      ) as Mountain["owned"],
+    };
+    expect(reloaded(counted)?.owned).toEqual(counted.owned);
   });
 });

@@ -1,8 +1,9 @@
-import { lineOn, lineView, type Stage } from "../line";
+import { lineView, type Stage } from "../line";
+import { lineOn } from "../line-switch";
 import type { Mountain } from "../mountain";
 import { effectiveRates } from "../rates";
 import { moreStones } from "../staffing";
-import { TIERS, isMachine, owned } from "../tiers";
+import { TIERS, isMachine, owned, setOwned } from "../tiers";
 import type { DecisionSample } from "./measure";
 import type { SittingEvent } from "./sittings";
 import { median } from "./stats";
@@ -44,7 +45,7 @@ export function zeroGainBuysBetween(
       continue;
     }
     line ??= effectiveRates(after, now).exactCrewPerSecond;
-    const without = { ...after, [tier.field]: owned(before, tier) };
+    const without = setOwned(after, tier.id, owned(before, tier));
     if (!moreStones(line, effectiveRates(without, now).exactCrewPerSecond)) {
       zero += bought;
     }

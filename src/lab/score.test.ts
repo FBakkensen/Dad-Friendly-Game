@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { listActions } from "../economy/actions";
 import { withFactors } from "../economy/factors";
-import { LINE_OFF } from "../line";
+import { LINE_OFF } from "../line-switch";
 import { effectiveRates } from "../rates";
 import { createMountain } from "../mountain";
 import { DAD_SCHEDULE } from "../pacing";
@@ -39,7 +39,11 @@ describe("scoreDecision", () => {
 
   it("scores the whole table when the caller does not pass one", () => {
     // An unstaffed cart opens Sharper picks and Steady hands (#250).
-    const mountain = { ...createMountain(), carts: 1, pocket: 100 };
+    const mountain = {
+      ...createMountain(),
+      pocket: 100,
+      owned: { ...createMountain().owned, cart: 1 },
+    };
     const sample = scoreDecision({
       mountain,
       now: 0,
@@ -55,8 +59,7 @@ describe("scoreDecision", () => {
   it("splits tending out of the borer's output", () => {
     const mountain = {
       ...createMountain(),
-      helpers: 8,
-      borers: 1,
+      owned: { ...createMountain().owned, helper: 8, borer: 1 },
       pocket: 1,
       engineers: [ada],
     };
@@ -81,10 +84,13 @@ describe("scoreDecision", () => {
   it("with the line on, keeps the machines' shares in the line's units and reads the line (#534)", () => {
     const mountain = {
       ...createMountain(),
-      helpers: 4,
-      carts: 2,
-      hoists: 1,
-      drills: 1,
+      owned: {
+        ...createMountain().owned,
+        helper: 4,
+        cart: 2,
+        hoist: 1,
+        drill: 1,
+      },
       crafted: { ...NOTHING_CRAFTED, "iron-rails": 1 as const },
     };
     const context = { ...DAD_SCHEDULE, tapsPerSecond: 0 };
@@ -122,8 +128,7 @@ describe("scoreDecision", () => {
   it("splits crafted gear out of the crew", () => {
     const mountain = {
       ...createMountain(),
-      helpers: 4,
-      carts: 2,
+      owned: { ...createMountain().owned, helper: 4, cart: 2 },
       crafted: { ...NOTHING_CRAFTED, "iron-rails": 1 as const },
     };
     const sample = scoreDecision({
@@ -150,8 +155,7 @@ describe("scoreDecision", () => {
   it("treats a free improvement as infinitely good per stone", () => {
     const mountain = {
       ...createMountain(),
-      helpers: 8,
-      borers: 1,
+      owned: { ...createMountain().owned, helper: 8, borer: 1 },
       pocket: 1,
       engineers: [{ ...ada, post: "camp" as const }],
     };

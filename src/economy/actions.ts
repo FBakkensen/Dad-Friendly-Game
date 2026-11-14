@@ -77,6 +77,7 @@ import { effectiveRates, heartBonus, paidAwayMs } from "../rates";
 import {
   TIERS,
   owned,
+  setOwned,
   tierById,
   tierCost,
   tierInPlay,
@@ -207,7 +208,7 @@ function boostActions(mountain: Mountain, now: number): readonly Action[] {
 }
 
 function promoteActions(mountain: Mountain): readonly Action[] {
-  return mountain.engineers.length < MAX_ENGINEERS && mountain.helpers >= 1
+  return mountain.engineers.length < MAX_ENGINEERS && mountain.owned.helper >= 1
     ? [{ kind: "promote", price: promoteCost(mountain) }]
     : [];
 }
@@ -275,7 +276,7 @@ export function sinkRecipes(mountain: Mountain): readonly RecipeId[] {
 export function buyWithTeach(mountain: Mountain, id: TierId): Mountain {
   const next = buyCrew(mountain, id);
   return id === "helper" &&
-    next.helpers > mountain.helpers &&
+    next.owned.helper > mountain.owned.helper &&
     showsDot(mountain, "staffing")
     ? markTaught(next, "staffing")
     : next;
@@ -739,8 +740,8 @@ function machineGain(
       total + (owned(mountain, item) + 1) * staffNeeded(mountain, item),
     0,
   );
-  const rested = { ...mountain, helpers: mountain.helpers + pad };
-  const running = { ...rested, [tier.field]: owned(rested, tier) + 1 };
+  const rested = setOwned(mountain, "helper", mountain.owned.helper + pad);
+  const running = setOwned(rested, tier.id, owned(rested, tier) + 1);
   return incomeGain(rested, running, context);
 }
 
@@ -834,7 +835,7 @@ export function helperBill(mountain: Mountain, count: number): number {
   const helper = tierById("helper");
   let cost = 0;
   for (let extra = 0; extra < count; extra += 1) {
-    cost += tierCost(helper, mountain.helpers + extra, stretch(mountain));
+    cost += tierCost(helper, mountain.owned.helper + extra, stretch(mountain));
   }
   return cost;
 }
@@ -847,7 +848,7 @@ export function freeHelpers(mountain: Mountain): number {
       total + rates.running[tier.id] * staffNeeded(mountain, tier),
     0,
   );
-  return mountain.helpers + mountain.kids - used;
+  return mountain.owned.helper + mountain.owned.kid - used;
 }
 
 function incomeGain(
@@ -1405,7 +1406,7 @@ function propsGain(
   after: Mountain,
   context: ValueContext,
 ): number {
-  if (before.borers < 1) {
+  if (before.owned.borer < 1) {
     return 0;
   }
   return troubleLossPerSec(before, context) - troubleLossPerSec(after, context);

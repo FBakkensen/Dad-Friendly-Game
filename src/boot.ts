@@ -15,6 +15,7 @@ import { createMountain, type Mountain } from "./mountain";
 import { createProgressStore, type ProgressStore } from "./progress-store";
 import { MOUNTAIN_STONES } from "./scale";
 import { createBrowserTabWriter, type TabWriter } from "./tab-writer";
+import { tierRecord } from "./tiers";
 
 export type AppServices = {
   readonly auth: AuthController;
@@ -120,18 +121,14 @@ async function seedPreviewCopies(cloudSave: CloudSave): Promise<void> {
     ...createMountain(),
     remaining: MOUNTAIN_STONES - 2_400_000,
     pocket: 18_000,
-    helpers: 6,
-    carts: 2,
+    owned: { ...tierRecord(0), helper: 6, cart: 2 },
     startedAt: 1,
   };
   const playable: Mountain = {
     ...createMountain(),
     remaining: MOUNTAIN_STONES - 48_000_000,
     pocket: 3_200_000,
-    helpers: 36,
-    carts: 10,
-    drills: 4,
-    borers: 1,
+    owned: { ...tierRecord(0), helper: 36, cart: 10, drill: 4, borer: 1 },
     engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
     startedAt: now,
   };

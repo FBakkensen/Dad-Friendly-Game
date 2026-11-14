@@ -36,7 +36,10 @@ describe("crewCounts", () => {
   });
 
   it("leaves the workers the carts do not need free", () => {
-    const mountain = { ...createMountain(), helpers: 18, carts: 6 };
+    const mountain = {
+      ...createMountain(),
+      owned: { ...createMountain().owned, helper: 18, cart: 6 },
+    };
     expect(crewCounts(mountain, NOW)).toEqual({
       crew: 18,
       spare: 12,
@@ -47,27 +50,34 @@ describe("crewCounts", () => {
   it("has none free when the carts and drills take every worker", () => {
     const mountain = {
       ...createMountain(),
-      helpers: 18,
-      carts: 13,
-      drills: 5,
+      owned: { ...createMountain().owned, helper: 18, cart: 13, drill: 5 },
     };
     expect(crewCounts(mountain, NOW)).toEqual({ crew: 18, spare: 0, free: 0 });
   });
 
   it("counts kids as crew", () => {
-    const mountain = { ...createMountain(), helpers: 2, kids: 3, carts: 1 };
+    const mountain = {
+      ...createMountain(),
+      owned: { ...createMountain().owned, helper: 2, kid: 3, cart: 1 },
+    };
     expect(crewCounts(mountain, NOW)).toEqual({ crew: 5, spare: 4, free: 4 });
   });
 
   it("has none free on a mountain short of workers", () => {
-    const mountain = { ...createMountain(), helpers: 2, carts: 6 };
+    const mountain = {
+      ...createMountain(),
+      owned: { ...createMountain().owned, helper: 2, cart: 6 },
+    };
     expect(crewCounts(mountain, NOW)).toEqual({ crew: 2, spare: 0, free: 0 });
   });
 
   it("never shows a negative spare as free", () => {
     forced.running = { cart: 6 };
     try {
-      const mountain = { ...createMountain(), helpers: 2, carts: 6 };
+      const mountain = {
+        ...createMountain(),
+        owned: { ...createMountain().owned, helper: 2, cart: 6 },
+      };
       expect(crewCounts(mountain, NOW)).toEqual({
         crew: 2,
         spare: -4,

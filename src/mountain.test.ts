@@ -1,5 +1,6 @@
 import { EMPTY_MATERIALS } from "./layers";
 import { minedMountain } from "./test-fixtures";
+import { setOwned } from "./tiers";
 import { SHIELD_AWAY_CAP_MS, heartBonus } from "./rates";
 import { describe, expect, it } from "vitest";
 import { BAND_SCALE, BAND_STARTS, shownStones, stonesLeft } from "./scale";
@@ -23,12 +24,15 @@ describe("mountain", () => {
       ...BARE_MOUNTAIN,
       remaining: MOUNTAIN_STONES,
       pocket: 0,
-      helpers: 0,
-      carts: 0,
-      drills: 0,
-      borers: 0,
-      machines: 0,
-      kids: 0,
+      owned: {
+        ...BARE_MOUNTAIN.owned,
+        helper: 0,
+        cart: 0,
+        drill: 0,
+        borer: 0,
+        machine: 0,
+        kid: 0,
+      },
       materials: EMPTY_MATERIALS,
       recipes: [...STARTING_RECIPE_IDS],
     });
@@ -53,12 +57,15 @@ describe("mountain", () => {
       ...BARE_MOUNTAIN,
       remaining: 0,
       pocket: 5,
-      helpers: 0,
-      carts: 0,
-      drills: 0,
-      borers: 0,
-      machines: 0,
-      kids: 0,
+      owned: {
+        ...BARE_MOUNTAIN.owned,
+        helper: 0,
+        cart: 0,
+        drill: 0,
+        borer: 0,
+        machine: 0,
+        kid: 0,
+      },
     };
     expect(mineByHand(empty)).toBe(empty);
   });
@@ -82,7 +89,7 @@ describe("materials from digging", () => {
     // From 7M to 14M, so the dig crosses into the Granite and the away pay
     // divides whole seconds (3M + 4M x 2.625 = 13.5M stones, #357 tune).
     const depth = 14_000_000;
-    const mountain = { ...minedMountain(7_000_000), helpers };
+    const mountain = setOwned(minedMountain(7_000_000), "helper", helpers);
     const stones =
       shownStones(mountain, depth) - shownStones(mountain, 7_000_000);
     // 1,500 workers hold the top three marks, so each digs 8 a second.
@@ -122,7 +129,7 @@ describe("materials from digging", () => {
       ...createMountain(),
       remaining: MOUNTAIN_STONES - 999_700,
       pocket: 999_700,
-      helpers: 10,
+      owned: { ...createMountain().owned, helper: 10 },
     };
     let stepped = start;
     let at = 0;
@@ -147,12 +154,15 @@ describe("accrue", () => {
     ...BARE_MOUNTAIN,
     remaining: MOUNTAIN_STONES - 1000,
     pocket: 0,
-    helpers: 2,
-    carts: 0,
-    drills: 0,
-    borers: 0,
-    machines: 0,
-    kids: 0,
+    owned: {
+      ...BARE_MOUNTAIN.owned,
+      helper: 2,
+      cart: 0,
+      drill: 0,
+      borer: 0,
+      machine: 0,
+      kid: 0,
+    },
   };
 
   it("mines whole seconds and keeps the leftover part-second unspent", () => {
@@ -161,12 +171,15 @@ describe("accrue", () => {
         ...crew,
         remaining: MOUNTAIN_STONES - 1_004,
         pocket: 4,
-        helpers: 2,
-        carts: 0,
-        drills: 0,
-        borers: 0,
-        machines: 0,
-        kids: 0,
+        owned: {
+          ...crew.owned,
+          helper: 2,
+          cart: 0,
+          drill: 0,
+          borer: 0,
+          machine: 0,
+          kid: 0,
+        },
         materials: EMPTY_MATERIALS,
       },
       mined: 4,
@@ -195,12 +208,15 @@ describe("accrue", () => {
       ...BARE_MOUNTAIN,
       remaining: 3,
       pocket: 0,
-      helpers: 2,
-      carts: 0,
-      drills: 0,
-      borers: 0,
-      machines: 0,
-      kids: 0,
+      owned: {
+        ...BARE_MOUNTAIN.owned,
+        helper: 2,
+        cart: 0,
+        drill: 0,
+        borer: 0,
+        machine: 0,
+        kid: 0,
+      },
     };
     expect(
       accrue({ mountain: almost, from: 0, to: (left / 2 + 0.5) * 1_000 }),
@@ -209,12 +225,15 @@ describe("accrue", () => {
         ...almost,
         remaining: 0,
         pocket: left,
-        helpers: 2,
-        carts: 0,
-        drills: 0,
-        borers: 0,
-        machines: 0,
-        kids: 0,
+        owned: {
+          ...almost.owned,
+          helper: 2,
+          cart: 0,
+          drill: 0,
+          borer: 0,
+          machine: 0,
+          kid: 0,
+        },
         materials: { ...EMPTY_MATERIALS, heartstone: 1 },
       },
       mined: left,
@@ -227,12 +246,15 @@ describe("accrue", () => {
       ...BARE_MOUNTAIN,
       remaining: 10,
       pocket: 0,
-      helpers: 0,
-      carts: 0,
-      drills: 0,
-      borers: 0,
-      machines: 0,
-      kids: 0,
+      owned: {
+        ...BARE_MOUNTAIN.owned,
+        helper: 0,
+        cart: 0,
+        drill: 0,
+        borer: 0,
+        machine: 0,
+        kid: 0,
+      },
     };
     expect(accrue({ mountain: idle, from: 0, to: 9_000 })).toEqual({
       mountain: idle,
@@ -252,12 +274,15 @@ describe("accrueAway", () => {
     ...BARE_MOUNTAIN,
     remaining: MOUNTAIN_STONES,
     pocket: 0,
-    helpers: 2,
-    carts: 0,
-    drills: 0,
-    borers: 0,
-    machines: 0,
-    kids: 0,
+    owned: {
+      ...BARE_MOUNTAIN.owned,
+      helper: 2,
+      cart: 0,
+      drill: 0,
+      borer: 0,
+      machine: 0,
+      kid: 0,
+    },
   };
 
   it("pays for the whole absence under the cap", () => {
@@ -322,8 +347,14 @@ describe("accrueAway", () => {
 });
 
 describe("Shield of Protection: away cap", () => {
-  const crew = { ...minedMountain(0), helpers: 10 };
-  const shielded = { ...minedMountain(10_000_000), helpers: 10 };
+  const crew = {
+    ...minedMountain(0),
+    owned: { ...minedMountain(0).owned, helper: 10 },
+  };
+  const shielded = {
+    ...minedMountain(10_000_000),
+    owned: { ...minedMountain(10_000_000).owned, helper: 10 },
+  };
   const DAY = 24 * 3_600_000;
 
   it("pays 13.2 hours of a long absence without the Shield, and a whole day with it", () => {
@@ -346,8 +377,14 @@ describe("Shield of Protection: away cap", () => {
 });
 
 describe("Heart of Patience: away pay grows", () => {
-  const crew = { ...minedMountain(10_000_000), helpers: 10 };
-  const hearty = { ...minedMountain(45_000_000), helpers: 10 };
+  const crew = {
+    ...minedMountain(10_000_000),
+    owned: { ...minedMountain(10_000_000).owned, helper: 10 },
+  };
+  const hearty = {
+    ...minedMountain(45_000_000),
+    owned: { ...minedMountain(45_000_000).owned, helper: 10 },
+  };
   const HOUR = 3_600_000;
 
   it("climbs from ×1 to ×1.5 over 12 hours, and only with the Heart", () => {
@@ -370,9 +407,7 @@ describe("Heart of Patience: away pay grows", () => {
     const crew = {
       ...createMountain(),
       remaining: 1_000_000,
-      helpers: 9,
-      carts: 1,
-      borers: 1,
+      owned: { ...createMountain().owned, helper: 9, cart: 1, borer: 1 },
     };
     const trouble = {
       kind: "cave-in" as const,
@@ -438,7 +473,7 @@ describe("digging through band scales (#356)", () => {
   it("an hour in the Granite moves depth by stones over the band scale", () => {
     const granite = {
       ...minedMountain(BAND_STARTS[1] + 1_000),
-      helpers: 2,
+      owned: { ...minedMountain(BAND_STARTS[1] + 1_000).owned, helper: 2 },
     };
     const result = accrue({ mountain: granite, from: 0, to: 3_600_000 });
     expect(result.mined).toBeGreaterThan(0);

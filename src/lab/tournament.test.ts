@@ -807,8 +807,7 @@ describe("openingView", () => {
   const granite: Mountain = {
     ...createMountain(),
     remaining: MOUNTAIN_STONES - LAYERS[1].from,
-    helpers: 10,
-    carts: 3,
+    owned: { ...createMountain().owned, helper: 10, cart: 3 },
     pocket: 0,
     materials: { ...EMPTY_MATERIALS, iron: 5 },
   };

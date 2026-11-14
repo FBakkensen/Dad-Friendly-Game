@@ -22,14 +22,7 @@ describe("the game map (#558)", () => {
     const homes = {
       remaining: "run",
       pocket: "stock",
-      helpers: "owned",
-      carts: "owned",
-      hoists: "owned",
-      drills: "owned",
-      borers: "owned",
-      trains: "owned",
-      machines: "owned",
-      kids: "owned",
+      owned: "owned",
       upgrades: "levels",
       boosts: "clocks",
       startedAt: "envelope",
@@ -53,14 +46,17 @@ describe("the game map (#558)", () => {
       ...fresh,
       remaining: MOUNTAIN_STONES - 5_000,
       pocket: 7,
-      helpers: 9,
-      carts: 2,
-      hoists: 3,
-      drills: 1,
-      borers: 1,
-      trains: 2,
-      machines: 1,
-      kids: 1,
+      owned: {
+        ...fresh.owned,
+        helper: 9,
+        cart: 2,
+        hoist: 3,
+        drill: 1,
+        borer: 1,
+        train: 2,
+        machine: 1,
+        kid: 1,
+      },
       upgrades: { ...fresh.upgrades, tap: 1 },
       boosts: { ...fresh.boosts, sharper: 9_000 },
       startedAt: 500,
@@ -97,8 +93,7 @@ describe("the game map (#558)", () => {
     const fresh = createMountain();
     const game = writeGame({
       ...fresh,
-      helpers: 3,
-      hoists: 1,
+      owned: { ...fresh.owned, helper: 3, hoist: 1 },
       pocket: 40,
       upgrades: { ...fresh.upgrades, tap: 2 },
       crafted: { ...fresh.crafted, "iron-rails": 1 },
@@ -126,7 +121,7 @@ describe("the game map (#558)", () => {
     } as const;
     const mountain: Mountain = {
       ...createMountain(),
-      borers: 1,
+      owned: { ...createMountain().owned, borer: 1 },
       engineers: [ADA],
       expeditions: [trip],
     };
@@ -160,7 +155,7 @@ describe("the game map (#558)", () => {
   it("a trip whose find has the wrong types is bad; an unknown find is newer", () => {
     const mountain: Mountain = {
       ...createMountain(),
-      borers: 1,
+      owned: { ...createMountain().owned, borer: 1 },
       engineers: [ADA],
       expeditions: [
         {

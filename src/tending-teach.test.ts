@@ -80,11 +80,14 @@ function crew(): Mountain {
     ...createMountain(),
     remaining: 200_000_000,
     pocket: 2_000_000,
-    helpers: 60,
-    carts: 10,
-    drills: 6,
-    borers: 2,
-    machines: 1,
+    owned: {
+      ...createMountain().owned,
+      helper: 60,
+      cart: 10,
+      drill: 6,
+      borer: 2,
+      machine: 1,
+    },
     engineers: [ada],
     seen: ["workshop", "engineers"],
     taught: ["workshop", "engineers"],
@@ -109,7 +112,9 @@ describe("tending teach (#246)", () => {
       ),
     ).toBe(false);
     expect(firstTend(crew())).toEqual({ index: 0, post: "machine" });
-    expect(firstTend({ ...crew(), machines: 0 })).toEqual({
+    expect(
+      firstTend({ ...crew(), owned: { ...crew().owned, machine: 0 } }),
+    ).toEqual({
       index: 0,
       post: "borer",
     });

@@ -19,12 +19,17 @@ import { TARGETS } from "./targets";
 const GRANITE = 10_000_000;
 const CRYSTAL = 45_000_000;
 
-function at(mined: number, extra: Partial<Mountain> = {}): Mountain {
+type Extra = Partial<Omit<Mountain, "owned">> & {
+  readonly owned?: Partial<Mountain["owned"]>;
+};
+
+function at(mined: number, extra: Extra = {}): Mountain {
+  const fresh = createMountain();
   return {
-    ...createMountain(),
-    helpers: 1,
+    ...fresh,
     remaining: MOUNTAIN_STONES - mined,
     ...extra,
+    owned: { ...fresh.owned, helper: 1, ...extra.owned },
   };
 }
 
@@ -61,7 +66,7 @@ describe("createBandLog", () => {
       },
     ]);
     expect(log(at(0, { pocket: cart }))).toEqual([]);
-    const bought = log(at(GRANITE, { carts: 2 }));
+    const bought = log(at(GRANITE, { owned: { cart: 2 } }));
     expect(bought).toContainEqual({
       kind: "bought",
       tier: "cart",
@@ -81,7 +86,7 @@ describe("createBandLog", () => {
 
   it("skips a machine still waiting on its relic", () => {
     const log = createBandLog();
-    const events = log(at(0, { borers: 1, pocket: 1e12 }));
+    const events = log(at(0, { owned: { borer: 1 }, pocket: 1e12 }));
     expect(events.some((event) => event.tier === "machine")).toBe(false);
   });
 });
