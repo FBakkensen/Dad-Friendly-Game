@@ -184,6 +184,15 @@
 
 ## Rulings
 
+- **A reset archive keeps the old document whole under `raw`.** The rules take that shape only for reason `reset`; the other reasons keep their v8 copy shape. The old document is never parsed, so nothing about v7 lives on in this build.
+- **A reset keeps a copy of this version from as late a run.** `resetFresh` keeps the phone's own v8 copy if it has progress and its run stamp is at least the stamp set aside; otherwise a fresh mountain starts at the latest stamp, so a device that played stays ahead of one that reset to blank.
+- **Set-aside is recorded as `save.set-aside` with `id: vN`.** A field event has no `version` key, and the ring stays as it is.
+- **A failed move aside on the phone records `save.error` (source `set-aside`) and still resets.** The old text stays where it was; it is never deleted and never played.
+- **`npm run play` gained `reload` and `reopen`**, so the done-when's reload and kill-and-reopen are seen in a real browser.
+- **Seeds keep their authoring shape (a mountain and a workshop half), and `seedJson` converts them.** Old v4 seeds keep the depth they had on main (main deepened a v4 mountain from 100M on load), so each screen opens where it did.
+- **Stale seeds and sections went.** `unknownBenchSave` and `staffingNoteSave` checked a v6 read that no longer exists; `crewV4Save` is now `boostedCrewSave`.
+- **`parseMaterials`, `parseFinds` and `MAX_MATERIAL` went**, with the band constants only they used. The game map reader replaces them.
+- **An older cloud copy is archived before the first write.** The fresh mountain writes at the old rev + 1, so the rules' rev check holds. A failed archive keeps the board held and shows the save error.
 - **A right-typed value the build refuses reads as `newer`, not `bad`.** The existing parsers say no to an unknown name, post, tunnel or a count past a cap the same way; on well-typed data that is what a newer build would write. `bad` is kept for wrong types, negatives, broken numbers and a missing envelope.
 - **The save line while read-only says "Loading your save..."**, with `save.newer` as its log. The update card says the rest. No new line of copy.
 - **The field-log ring gets a new key too**, so Tonight in the Ledger starts empty after the fresh start; a later reset records `save.set-aside`, which Tonight starts after.
