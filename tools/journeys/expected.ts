@@ -25,14 +25,22 @@ import {
 /** How often the open game folds the crew's work in (src/screen-run.ts). */
 export const TICK_MS = 1000;
 
+/** What the game last wrote to the phone: it saves on every move, not on every tick. */
+type Saved = {
+  readonly mountain: Mountain;
+  readonly lastSeen: number | undefined;
+};
+
 export class Expected {
   private session: Session;
   /** The last moment the game's one-second tick ran, on the page's clock. */
   private ticked: number;
+  private saved: Saved;
 
   private constructor(session: Session, at: number) {
     this.session = session;
     this.ticked = at;
+    this.saved = { mountain: session.mountain, lastSeen: session.lastSeen };
   }
 
   /** A first open with nothing saved, at `at`: the store's fresh mountain, seeded the same. */
@@ -58,8 +66,26 @@ export class Expected {
     if (parsed === undefined) {
       throw new Error("The journey's save does not parse");
     }
+    return Expected.openSave(parsed, at);
+  }
+
+  /**
+   * The tab was killed and the game opens again at `at`: what it last saved, opened as any
+   * stored save is. The crew's work since that save is time away to the rules.
+   */
+  reopened(at: number): {
+    expected: Expected;
+    report: AwayReport | undefined;
+  } {
+    return Expected.openSave(this.saved, at);
+  }
+
+  private static openSave(
+    saved: Saved,
+    at: number,
+  ): { expected: Expected; report: AwayReport | undefined } {
     const staffed = step(
-      createSession(parsed.mountain, at),
+      createSession(saved.mountain, at),
       { kind: "loaded" },
       at,
     ).session;
@@ -68,7 +94,7 @@ export class Expected {
       { kind: "recall", homecomings: [] },
       at,
     ).session;
-    const paid = step(recalled, { kind: "away", since: parsed.lastSeen }, at);
+    const paid = step(recalled, { kind: "away", since: saved.lastSeen }, at);
     return {
       expected: new Expected(markWelcomed(paid.session), at),
       report: firstNotice(paid.session.news, "away")?.report,
@@ -104,6 +130,11 @@ export class Expected {
     );
     if (applied) {
       this.session = moved.session;
+      // Every move that changes the mountain is saved at once (store-actions.ts `commit`).
+      this.saved = {
+        mountain: moved.session.mountain,
+        lastSeen: moved.session.lastSeen,
+      };
     }
     return applied;
   }
