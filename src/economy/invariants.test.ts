@@ -22,7 +22,7 @@ import { describe, expect, it } from "vitest";
 import { fix, freshHazards, type HazardState } from "../hazards";
 import { LAYERS } from "../layers";
 import { accrueAway, createMountain, type Mountain } from "../mountain";
-import { parseSaveValue, serializeSave } from "../persist";
+import { readSave, serializeSave } from "../persist";
 import { AWAY_FULL_MS, SHIELD_AWAY_CAP_MS, effectiveRates } from "../rates";
 import { hasRelic } from "../relics";
 import { MOUNTAIN_STONES, minedOut } from "../scale";
@@ -316,13 +316,18 @@ function roundTrips(world: World): void {
       serializeSave({ mountain: world.mountain, lastSeen: world.lastSeen }),
     ),
   ) as unknown;
-  const back = parseSaveValue(saved);
+  const back = readSave(saved);
   // By design (save-format.ts): the cloud keeps whole depth, rounded up.
-  expect(back?.mountain).toEqual({
-    ...world.mountain,
-    remaining: Math.ceil(world.mountain.remaining),
+  expect(back).toEqual({
+    kind: "ok",
+    save: {
+      mountain: {
+        ...world.mountain,
+        remaining: Math.ceil(world.mountain.remaining),
+      },
+      lastSeen: world.lastSeen,
+    },
   });
-  expect(back?.lastSeen).toBe(world.lastSeen);
 }
 
 /**

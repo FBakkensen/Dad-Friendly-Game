@@ -85,19 +85,11 @@ describe("firestore persistent cache", () => {
     firestore.getDocFromServer.mockResolvedValue({
       exists: () => true,
       data: () => ({
-        version: 7,
+        version: 8,
         rev: 2,
         deviceId: "device-123",
         lastSeen: 10,
-        mountain: {
-          remaining: 240_000_000,
-          pocket: 4,
-          helpers: 0,
-        },
-        workshop: {
-          materials: { clay: 0, iron: 0, crystal: 0, heartstone: 0 },
-          recipes: [],
-        },
+        game: { stock: { stones: 4 } },
       }),
       metadata: { fromCache: false, hasPendingWrites: false },
     });
@@ -137,19 +129,11 @@ describe("firestore persistent cache", () => {
     listener?.({
       exists: () => true,
       data: () => ({
-        version: 7,
+        version: 8,
         rev: 3,
         deviceId: "device-123",
         lastSeen: 11,
-        mountain: {
-          remaining: 240_000_000,
-          pocket: 5,
-          helpers: 0,
-        },
-        workshop: {
-          materials: { clay: 0, iron: 0, crystal: 0, heartstone: 0 },
-          recipes: [],
-        },
+        game: { stock: { stones: 5 } },
       }),
       metadata: { fromCache: true, hasPendingWrites: true },
     });

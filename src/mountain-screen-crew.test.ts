@@ -26,7 +26,7 @@ import { createMemoryAuth } from "./auth";
 import { type CloudLoadResult, type CloudSave } from "./cloud-save";
 import { BUYS_SETTLE_MS, showAppUpdate } from "./mountain-screen";
 import { shownRows, upgradeRowId } from "./upgrade-reveal";
-import { minedMountain, unstaffedSave } from "./test-fixtures";
+import { minedMountain, saveText, unstaffedSave } from "./test-fixtures";
 import { tierById, tierCost, tierQuote } from "./tiers";
 import {
   UPGRADES,
@@ -82,9 +82,8 @@ describe("what the crew gives", () => {
     const storage = createMemoryStorage();
     storage.setItem(
       SESSION_SAVE_KEY,
-      JSON.stringify({
-        version: 5,
-        mountain: {
+      saveText(
+        {
           ...minedMountain(2_500),
           helpers: 4,
           carts: 3,
@@ -93,8 +92,8 @@ describe("what the crew gives", () => {
           machines: 0,
           kids: 0,
         },
-        lastSeen: Date.now(),
-      }),
+        Date.now(),
+      ),
     );
     return storage;
   };
@@ -189,10 +188,7 @@ describe("what the crew gives", () => {
       carts: 300,
       upgrades: { ...NO_UPGRADES, tap: 1 },
     };
-    storage.setItem(
-      SESSION_SAVE_KEY,
-      JSON.stringify({ version: 5, mountain: deep, lastSeen: Date.now() }),
-    );
+    storage.setItem(SESSION_SAVE_KEY, saveText(deep, Date.now()));
     const screen = mountScreen({ storage });
     const yieldStones = effectiveRates(deep).tapYield;
     expect(yieldStones).toBeGreaterThan(1);
@@ -3343,10 +3339,7 @@ describe("crew line at a big crew", () => {
 describe("Mantle of the Hero finale (#103)", () => {
   const seeded = (mountain: Mountain) => {
     const storage = createMemoryStorage();
-    storage.setItem(
-      SESSION_SAVE_KEY,
-      JSON.stringify({ version: 5, mountain, lastSeen: Date.now() }),
-    );
+    storage.setItem(SESSION_SAVE_KEY, saveText(mountain, Date.now()));
     return storage;
   };
 
@@ -3401,10 +3394,7 @@ describe("Mantle of the Hero finale (#103)", () => {
 describe("relic powers on the cards (shelf detail)", () => {
   const seeded = (mountain: Mountain) => {
     const storage = createMemoryStorage();
-    storage.setItem(
-      SESSION_SAVE_KEY,
-      JSON.stringify({ version: 5, mountain, lastSeen: Date.now() }),
-    );
+    storage.setItem(SESSION_SAVE_KEY, saveText(mountain, Date.now()));
     return storage;
   };
 
@@ -3526,10 +3516,7 @@ describe("relic powers on the cards (shelf detail)", () => {
 describe("pass the mine to your kid (#131)", () => {
   const seeded = (mountain: Mountain) => {
     const storage = createMemoryStorage();
-    storage.setItem(
-      SESSION_SAVE_KEY,
-      JSON.stringify({ version: 5, mountain, lastSeen: Date.now() }),
-    );
+    storage.setItem(SESSION_SAVE_KEY, saveText(mountain, Date.now()));
     return storage;
   };
   const dialog = (screen: ReturnType<typeof mountScreen>) =>

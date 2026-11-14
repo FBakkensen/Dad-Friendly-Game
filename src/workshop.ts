@@ -752,7 +752,7 @@ export function cancelCraft(mountain: Mountain, now: number): Mountain {
 }
 
 /** Live buffs the sheet can count down. A charge, grease, flare, or ember. */
-const TIMER_IDS = [
+export const TIMER_IDS = [
   "blasting-charge",
   "axle-grease",
   "crystal-flare",

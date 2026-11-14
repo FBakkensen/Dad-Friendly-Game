@@ -23,9 +23,8 @@ import {
 import { RELICS } from "./relics";
 import { MOUNTAIN_STONES } from "./scale";
 import { TIERS, tierById } from "./tiers";
-import { parseSaveValue } from "./persist";
 import { effectiveRates } from "./rates";
-import { minedMountain } from "./test-fixtures";
+import { minedMountain, reloaded } from "./test-fixtures";
 
 /** The design table, written out here so the module cannot drift from it. */
 const BANDS = [
@@ -174,45 +173,11 @@ describe("layers", () => {
     expect(layerOf(mountain).id).toBe("granite");
     expect(mountain).not.toHaveProperty("layer");
 
-    const grid = {
-      width: 3,
-      height: 3,
-      cells: Array.from({ length: 9 }, () => ({ kind: "covered" })),
-    };
-    const fresh = parseSaveValue({ version: 1, grid });
-    const gridSave = parseSaveValue({ version: 2, grid, lastSeen: 1 });
-    const scaled = parseSaveValue({
-      version: 3,
-      mountain: { remaining: 900_000, pocket: 0, helpers: 0 },
-      lastSeen: 1,
-    });
-    const deepened = parseSaveValue({
-      version: 4,
-      mountain: { remaining: 90_000_000, pocket: 0, helpers: 0 },
-      lastSeen: 1,
-    });
-    const current = parseSaveValue({
-      version: 5,
-      mountain,
-      lastSeen: 1,
-    });
-    if (
-      fresh === undefined ||
-      gridSave === undefined ||
-      scaled === undefined ||
-      deepened === undefined ||
-      current === undefined
-    ) {
-      throw new Error("an older save did not load");
-    }
-    expect(layerOf(fresh.mountain).id).toBe("topsoil");
-    expect(layerOf(gridSave.mountain).id).toBe("topsoil");
-    expect(layerOf(scaled.mountain).id).toBe("granite");
-    expect(layerOf(deepened.mountain).id).toBe("granite");
-    expect(layerOf(current.mountain).id).toBe("granite");
-    for (const save of [fresh, gridSave, scaled, deepened, current]) {
-      expect(save.mountain).not.toHaveProperty("layer");
-    }
+    const loaded = reloaded(mountain);
+    expect(loaded === undefined ? undefined : layerOf(loaded).id).toBe(
+      "granite",
+    );
+    expect(loaded).not.toHaveProperty("layer");
   });
 });
 

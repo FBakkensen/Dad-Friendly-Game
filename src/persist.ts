@@ -1,54 +1,65 @@
-import { materialsFromMined } from "./layers";
-import {
-  MOUNTAIN_STONES,
-  createMountain,
-  minedOut,
-  type Mountain,
-} from "./mountain";
-import {
-  parseMountain,
-  savedMountain,
-  savedWorkshop,
-  withWorkshop,
-  type SavedMountain,
-  type WorkshopSave,
-} from "./save-format";
-import { NOTHING_CRAFTED, recipesForMined } from "./workshop";
+/**
+ * The save's envelope (#558): its version, the clocks that order two copies,
+ * the device that wrote it, and the game map from `save-format.ts`.
+ *
+ * Reading answers one of four: `ok` plays; `newer` came from a later build
+ * and is never written over; `older` came before version 8 and is set aside
+ * for a fresh mountain; `bad` is nonsense.
+ */
+import type { Mountain } from "./mountain";
+import { readGame, writeGame, type SaveGame } from "./save-format";
 
-/** v3 saves were a 1,000,000-stone mountain. v4 placed that on 100,000,000. */
-const V3_MOUNTAIN_STONES = 1_000_000;
-const V4_MOUNTAIN_STONES = 100_000_000;
-/** Frozen at the v4 depth so a v3 dad is not stretched again when the bottom moves. */
-const V3_SCALE = V4_MOUNTAIN_STONES / V3_MOUNTAIN_STONES;
+export const SAVE_VERSION = 8;
 
-export type MountainSaveV6 = {
-  readonly version: 6;
-  readonly mountain: SavedMountain;
-  readonly workshop: WorkshopSave;
+export type SaveDocument = {
+  readonly version: typeof SAVE_VERSION;
   readonly lastSeen: number;
-};
-
-/** v7 adds a rev that only increases, plus the device that wrote it. */
-export type MountainSaveV7 = Omit<MountainSaveV6, "version"> & {
-  readonly version: 7;
-  readonly rev: number;
-  readonly deviceId: string;
+  /** When this run began. Left out at 0. */
+  readonly startedAt?: number;
+  readonly rev?: number;
+  readonly deviceId?: string;
   readonly deviceLabel?: string;
+  readonly game: SaveGame;
 };
 
 /** Same bounds as `firestore.rules`. */
 const SAVE_DEVICE_ID_MIN = 8;
 const SAVE_DEVICE_ID_MAX = 64;
 
+/** The envelope keys this build knows. The rules' `savedAt` is read and ignored. */
+const ENVELOPE_KEYS: readonly string[] = [
+  "version",
+  "lastSeen",
+  "startedAt",
+  "rev",
+  "deviceId",
+  "deviceLabel",
+  "savedAt",
+  "game",
+];
+
 export type ParsedSave = {
   readonly mountain: Mountain;
   readonly lastSeen: number | undefined;
-  /** Missing on a v6 document. The rules treat that as rev 0. */
+  /** Missing when the copy was never written with a device. The rules treat that as rev 0. */
   readonly rev?: number;
   readonly deviceId?: string;
   /** Friendly name stored with the device id. Never the raw id. */
   readonly deviceLabel?: string;
 };
+
+export type SaveRead =
+  | { readonly kind: "ok"; readonly save: ParsedSave }
+  | { readonly kind: "newer"; readonly version: number }
+  | {
+      readonly kind: "older";
+      readonly version: number;
+      /** The run stamp on the old envelope, else 0. */
+      readonly startedAt: number;
+      /** The old copy's rev, else 0. */
+      readonly rev: number;
+    }
+  | { readonly kind: "bad" };
 
 function validDeviceId(deviceId: unknown): deviceId is string {
   return (
@@ -72,6 +83,10 @@ function validLabel(label: unknown): string | undefined {
     : undefined;
 }
 
+function isStamp(value: unknown): value is number {
+  return Number.isSafeInteger(value) && (value as number) >= 0;
+}
+
 export function serializeSave({
   mountain,
   lastSeen,
@@ -81,203 +96,101 @@ export function serializeSave({
 }: {
   mountain: Mountain;
   lastSeen: number;
-  /** When set with a device id, the document is v7. Otherwise it stays v6. */
+  /** Written only with a valid device id, and the id only with a valid rev. */
   rev?: number | undefined;
   deviceId?: string | undefined;
   deviceLabel?: string | undefined;
-}): MountainSaveV6 | MountainSaveV7 {
-  const saved: MountainSaveV6 = {
-    version: 6,
-    mountain: savedMountain(mountain),
-    workshop: savedWorkshop(mountain),
-    lastSeen,
-  };
-  if (!validRev(rev) || !validDeviceId(deviceId)) {
-    return saved;
-  }
-  const label = validLabel(deviceLabel);
+}): SaveDocument {
+  const identity =
+    validRev(rev) && validDeviceId(deviceId) ? { rev, deviceId } : undefined;
+  const label = identity === undefined ? undefined : validLabel(deviceLabel);
   return {
-    ...saved,
-    version: 7,
-    rev,
-    deviceId,
+    version: SAVE_VERSION,
+    lastSeen,
+    ...(mountain.startedAt === 0 ? {} : { startedAt: mountain.startedAt }),
+    ...identity,
     ...(label === undefined ? {} : { deviceLabel: label }),
+    game: writeGame(mountain),
   };
 }
 
-/**
- * Accepts v6 (materials, bench, crafted, recipes, and the live buff clocks). A v5 save keeps every
- * stone already mined and is granted the materials those stones would have
- * dug. v4 keeps that place and gains the depth below the old bottom. v3
- * scales onto that same place. Legacy v1/v2 3x3 grids still migrate. v1
- * through v5 all arrive as v6 in memory.
- */
-export function parseSaveValue(value: unknown): ParsedSave | undefined {
-  if (typeof value !== "object" || value === null || !("version" in value)) {
-    return undefined;
-  }
-  const record = value as Record<string, unknown>;
-  switch (record["version"]) {
-    case 1: {
-      const mountain = migrateLegacyGrid(record["grid"]);
-      return mountain === undefined
-        ? undefined
-        : { mountain: grantFromStones(mountain), lastSeen: undefined };
-    }
-    case 2:
-    case 3:
-    case 4:
-    case 5:
-      return loadOlderSave(record);
-    case 6:
-    case 7:
-      return loadCurrentSave(record);
-    default:
-      return undefined;
-  }
+/** What a copy from before version 8 keeps through a reset: its stamp and rev. */
+function olderRead(record: Record<string, unknown>, version: number): SaveRead {
+  const startedAt = record["startedAt"];
+  const rev = record["rev"];
+  return {
+    kind: "older",
+    version,
+    startedAt: isStamp(startedAt) ? startedAt : 0,
+    rev: isStamp(rev) ? rev : 0,
+  };
 }
 
-function loadOlderSave(
+/** The envelope's identity: both, neither, or `bad` for one without the other. */
+function readIdentity(
   record: Record<string, unknown>,
-): ParsedSave | undefined {
-  const loaded = loadOlderMountain(record);
-  return loaded === undefined
-    ? undefined
-    : { mountain: grantFromStones(loaded.mountain), lastSeen: loaded.lastSeen };
+): { readonly rev: number; readonly deviceId: string } | "none" | "bad" {
+  const rev = record["rev"];
+  const deviceId = record["deviceId"];
+  if (rev === undefined && deviceId === undefined) {
+    return "none";
+  }
+  return validRev(rev) && validDeviceId(deviceId) ? { rev, deviceId } : "bad";
 }
 
-/** v6 and v7: the mountain map, its workshop sibling, and v7's identity. */
-function loadCurrentSave(
-  record: Record<string, unknown>,
-): ParsedSave | undefined {
+function readCurrent(record: Record<string, unknown>): SaveRead {
   const lastSeen = record["lastSeen"];
-  if (typeof lastSeen !== "number" || !Number.isFinite(lastSeen)) {
-    return undefined;
+  const startedAt = record["startedAt"] ?? 0;
+  const identity = readIdentity(record);
+  if (
+    typeof lastSeen !== "number" ||
+    !Number.isFinite(lastSeen) ||
+    !isStamp(startedAt) ||
+    identity === "bad"
+  ) {
+    return { kind: "bad" };
   }
-  const identity = record["version"] === 7 ? readV7Identity(record) : "none";
-  if (identity === undefined) {
-    return undefined;
+  const game = readGame(record["game"], startedAt);
+  if (game.kind !== "ok") {
+    return game.kind === "newer"
+      ? { kind: "newer", version: SAVE_VERSION }
+      : game;
   }
-  const base = parseMountain(record["mountain"]);
-  const mountain =
-    base === undefined ? undefined : withWorkshop(base, record["workshop"]);
-  if (mountain === undefined) {
-    return undefined;
+  if (Object.keys(record).some((key) => !ENVELOPE_KEYS.includes(key))) {
+    return { kind: "newer", version: SAVE_VERSION };
   }
   const label = validLabel(record["deviceLabel"]);
   return {
-    mountain,
-    lastSeen,
-    ...(identity === "none" ? {} : identity),
-    ...(label === undefined ? {} : { deviceLabel: label }),
+    kind: "ok",
+    save: {
+      mountain: game.mountain,
+      lastSeen,
+      ...(identity === "none" ? {} : identity),
+      ...(label === undefined ? {} : { deviceLabel: label }),
+    },
   };
 }
 
-function readV7Identity(
-  record: Record<string, unknown>,
-): { readonly rev: number; readonly deviceId: string } | undefined {
-  const rev = record["rev"];
-  const deviceId = record["deviceId"];
-  return validRev(rev) && validDeviceId(deviceId)
-    ? { rev, deviceId }
-    : undefined;
+/** Any stored value, read as one of the four answers. */
+export function readSave(value: unknown): SaveRead {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return { kind: "bad" };
+  }
+  const record = value as Record<string, unknown>;
+  const version = record["version"];
+  if (!Number.isSafeInteger(version) || (version as number) < 1) {
+    return { kind: "bad" };
+  }
+  if ((version as number) > SAVE_VERSION) {
+    return { kind: "newer", version: version as number };
+  }
+  return (version as number) < SAVE_VERSION
+    ? olderRead(record, version as number)
+    : readCurrent(record);
 }
 
-function loadOlderMountain(
-  record: Record<string, unknown>,
-): { mountain: Mountain; lastSeen: number } | undefined {
-  const lastSeen = record["lastSeen"];
-  if (typeof lastSeen !== "number" || !Number.isFinite(lastSeen)) {
-    return undefined;
-  }
-  const mountain =
-    record["version"] === 2
-      ? migrateLegacyGrid(record["grid"])
-      : record["version"] === 3
-        ? scaleV3(parseMountain(record["mountain"], V3_MOUNTAIN_STONES))
-        : record["version"] === 4
-          ? deepen(
-              parseMountain(record["mountain"], V4_MOUNTAIN_STONES),
-              V4_MOUNTAIN_STONES,
-            )
-          : parseMountain(record["mountain"]);
-  return mountain === undefined ? undefined : { mountain, lastSeen };
-}
-
-/**
- * What that digging would have earned. The bench is empty and nothing is
- * crafted. Recipes are the starting three, plus Reinforce once the Granite
- * is reached, plus the layer recipe for each band already reached.
- * A materials field already on the document is not trusted: v1–v5 did not
- * have one.
- */
-function grantFromStones(mountain: Mountain): Mountain {
-  return {
-    ...mountain,
-    bench: undefined,
-    crafted: NOTHING_CRAFTED,
-    materials: materialsFromMined(minedOut(mountain)),
-    recipes: recipesForMined(minedOut(mountain)),
-  };
-}
-
-const LEGACY_CELL_STONES = { covered: 0, dug: 0, stone: 1, chunk: 2 } as const;
-
-/**
- * The old 3x3 grid becomes a head start: every dug cell is a stone already out
- * of the mountain, and stones (1) and chunks (2) on the grid go to the pocket.
- */
-export function migrateLegacyGrid(grid: unknown): Mountain | undefined {
-  if (typeof grid !== "object" || grid === null) {
-    return undefined;
-  }
-  const { width, height, cells } = grid as Record<string, unknown>;
-  if (
-    width !== 3 ||
-    height !== 3 ||
-    !Array.isArray(cells) ||
-    cells.length !== 9
-  ) {
-    return undefined;
-  }
-  let dug = 0;
-  let pocket = 0;
-  for (const cell of cells as unknown[]) {
-    const kind =
-      typeof cell === "object" && cell !== null
-        ? (cell as Record<string, unknown>)["kind"]
-        : undefined;
-    if (typeof kind !== "string" || !Object.hasOwn(LEGACY_CELL_STONES, kind)) {
-      return undefined;
-    }
-    if (kind !== "covered") {
-      dug += 1;
-    }
-    pocket += LEGACY_CELL_STONES[kind as keyof typeof LEGACY_CELL_STONES];
-  }
-  return { ...createMountain(), remaining: MOUNTAIN_STONES - dug, pocket };
-}
-
-/**
- * Keeps a v3 dad at the same place in the deeper mountain: stones mined are
- * scaled up, so relics already found stay found. Pocket and crew are kept.
- */
-function scaleV3(mountain: Mountain | undefined): Mountain | undefined {
-  if (mountain === undefined) {
-    return undefined;
-  }
-  const mined = (V3_MOUNTAIN_STONES - mountain.remaining) * V3_SCALE;
-  return { ...mountain, remaining: MOUNTAIN_STONES - mined };
-}
-
-/** Keeps stones already mined and puts the new depth under them. */
-function deepen(
-  mountain: Mountain | undefined,
-  oldTotal: number,
-): Mountain | undefined {
-  if (mountain === undefined) {
-    return undefined;
-  }
-  const mined = oldTotal - mountain.remaining;
-  return { ...mountain, remaining: MOUNTAIN_STONES - mined };
+/** Until the callers take the four answers (#558, Task 3): the `ok` save, else nothing. */
+export function parseSaveValue(value: unknown): ParsedSave | undefined {
+  const read = readSave(value);
+  return read.kind === "ok" ? read.save : undefined;
 }

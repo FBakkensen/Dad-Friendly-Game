@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { MOUNTAIN_STONES, createMountain } from "./mountain";
+import { createMountain } from "./mountain";
 import { minedMountain } from "./test-fixtures";
 import {
   clearSessionSave,
@@ -38,29 +38,6 @@ describe("session save", () => {
 
     expect(writeSessionSave({ storage, mountain, lastSeen: 1234 })).toBe(true);
     expect(readSessionSave({ storage })).toEqual({ mountain, lastSeen: 1234 });
-  });
-
-  it("grants materials when an older local save is opened (#195)", () => {
-    const storage = createMemoryStorage();
-    storage.setItem(
-      SESSION_SAVE_KEY,
-      JSON.stringify({
-        version: 5,
-        mountain: {
-          remaining: MOUNTAIN_STONES - 12_000_000,
-          pocket: 12_000_000,
-          helpers: 0,
-        },
-        lastSeen: 4,
-      }),
-    );
-    expect(readSessionSave({ storage })?.mountain.materials).toEqual({
-      clay: 10,
-      iron: 2,
-      crystal: 0,
-      heartstone: 0,
-    });
-    expect(readSessionSave({ storage })?.mountain.pocket).toBe(12_000_000);
   });
 
   it("round-trips a placed stone", () => {

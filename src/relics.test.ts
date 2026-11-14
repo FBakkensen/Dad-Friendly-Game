@@ -61,25 +61,6 @@ describe("relics", () => {
   });
 });
 
-describe("relics after the 100M rescale", () => {
-  it("keeps a v3 dad's found relics found", async () => {
-    const { parseSaveValue } = await import("./persist");
-    const v3 = (remaining: number) =>
-      parseSaveValue({
-        version: 3,
-        mountain: { remaining, pocket: 0, helpers: 0 },
-        lastSeen: 0,
-      })?.mountain;
-    const justLantern = v3(1_000_000 - 20_000);
-    const old = v3(1_000_000 - 100_000);
-    if (justLantern === undefined || old === undefined) {
-      throw new Error("v3 save did not parse");
-    }
-    expect(foundRelics(justLantern).map((r) => r.id)).toEqual(["lantern"]);
-    expect(foundRelics(old).map((r) => r.id)).toEqual(["lantern", "shield"]);
-  });
-});
-
 describe("depthHint", () => {
   it("says how near the next relic is in words, never numbers", () => {
     expect(depthHint(minedMountain(1_000_000))).toBe("Far below");
