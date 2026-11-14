@@ -1,10 +1,5 @@
 import { oneOffStretch, stretch } from "./scale";
-import {
-  onTrip,
-  promote,
-  promoteCost,
-  staffForBuy,
-} from "./engineers";
+import { onTrip, promote, promoteCost, staffForBuy } from "./engineers";
 import { tendBest } from "./rates";
 import {
   send,

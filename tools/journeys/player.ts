@@ -10,7 +10,7 @@ import {
   type Page,
 } from "@playwright/test";
 import { DRAWER_SETTLE_MS } from "../../src/board-interaction.ts";
-import type { ShownTierId } from "../../src/tiers.ts";
+import type { TierId } from "../../src/tiers.ts";
 import { seedJson, type SeedSave } from "../browser/fixtures.ts";
 import { SAVE_KEY, seedScript } from "../browser/harness.ts";
 import { createRng } from "../sweep/random.ts";
@@ -169,7 +169,7 @@ export class Player {
   }
 
   /** Taps a tier's row in the open Buys drawer. */
-  async buy(tier: ShownTierId): Promise<void> {
+  async buy(tier: TierId): Promise<void> {
     await this.page.locator(`${OPEN_BUYS} .tier[data-tier="${tier}"]`).tap();
   }
 

@@ -3,13 +3,7 @@ import { grantFirstEngineer } from "./engineers";
 import type { Mountain } from "./mountain";
 import { hasRelic, RELICS, type Relic } from "./relics";
 import { KID_MACHINE_OPENS, minedOut, shownStones } from "./scale";
-import {
-  buyTier,
-  owned,
-  tierById,
-  type Tier,
-  type TierId,
-} from "./tiers";
+import { buyTier, owned, tierById, type Tier, type TierId } from "./tiers";
 
 /** What a locked tier waits for: a depth (M12-2, #250) or a relic. */
 export type TierLock =
@@ -69,9 +63,7 @@ export function tierLocked(mountain: Mountain, tier: Tier): boolean {
  */
 export function buyCrew(mountain: Mountain, id: TierId): Mountain {
   const tier = tierById(id);
-  const bought = tierLocked(mountain, tier)
-    ? mountain
-    : buyTier(mountain, id);
+  const bought = tierLocked(mountain, tier) ? mountain : buyTier(mountain, id);
   if (mountain.owned.borer > 0 || bought.owned.borer === 0) {
     return bought;
   }

@@ -1,11 +1,6 @@
 import { applyAction, buyEveryBoost, type Action } from "../economy/actions";
 import { QUICK_VEIN_AWAY_MS, startRush } from "../gold-rush";
-import {
-  onTrip,
-  promote,
-  promoteCost,
-  type EngineerPost,
-} from "../engineers";
+import { onTrip, promote, promoteCost, type EngineerPost } from "../engineers";
 import { send, settle, TUNNELS, type TunnelId } from "../expeditions";
 import { mineByHand, type Mountain } from "../mountain";
 import { tendBest } from "../rates";

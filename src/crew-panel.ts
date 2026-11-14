@@ -56,13 +56,7 @@ import {
   workerWords,
 } from "./screen-words";
 import { showsDot } from "./teach";
-import {
-  TIERS,
-  owned,
-  tierById,
-  type BuyAmount,
-  type TierId,
-} from "./tiers";
+import { TIERS, owned, tierById, type BuyAmount, type TierId } from "./tiers";
 import { watchFixHold } from "./trouble-tap";
 
 /*

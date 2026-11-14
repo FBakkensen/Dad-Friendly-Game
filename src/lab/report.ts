@@ -598,21 +598,15 @@ function bandSection(result: TournamentResult): readonly string[] {
     "",
     `Where each machine first shows, and the wait to its first buy in live minutes and in sittings started since. ${WARN} marks a worst wait over ${String(REPORT_MACHINE_SITTINGS)} sittings.`,
     "",
-    `| Player | ${MACHINE_IDS
-      .map((id) => tierById(id).name)
-      .join(" | ")} |`,
-    `|---|${MACHINE_IDS
-      .map(() => "---")
-      .join("|")}|`,
+    `| Player | ${MACHINE_IDS.map((id) => tierById(id).name).join(" | ")} |`,
+    `|---|${MACHINE_IDS.map(() => "---").join("|")}|`,
     ...result.bands.map(
       (row) =>
-        `| ${row.label} | ${MACHINE_IDS
-          .map((id) =>
-            revealText(
-              row.summary.machines.find((entry) => entry.machine === id),
-            ),
-          )
-          .join(" | ")} |`,
+        `| ${row.label} | ${MACHINE_IDS.map((id) =>
+          revealText(
+            row.summary.machines.find((entry) => entry.machine === id),
+          ),
+        ).join(" | ")} |`,
     ),
     "",
     "### Small things waiting more than one sitting",

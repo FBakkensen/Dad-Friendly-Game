@@ -65,7 +65,6 @@ export const BAND_STARTS = [0, 10_000_000, 45_000_000, 120_000_000] as const;
  */
 export const BAND_SCALE = [1, 2.625, 6.3, 39.204] as const;
 
-
 type Band = 0 | 1 | 2 | 3;
 const BANDS: readonly Band[] = [0, 1, 2, 3];
 
