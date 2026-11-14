@@ -110,20 +110,37 @@ export function parseAnswer(value: unknown): Answer | undefined {
   return { summary: value.summary, findings: sorted };
 }
 
-/** Each file in a unified diff, with the new-side lines its hunks show. */
-export function commentableLines(diff: string): Map<string, Set<number>> {
-  const files = new Map<string, Set<number>>();
+/** A path from a `--- a/x` or `+++ b/x` line: no prefix, tab or quotes. */
+function headerPath(text: string): string {
+  const raw = text.slice(4).replace(/\t$/, "");
+  const bare = /^"(.*)"$/.exec(raw)?.[1] ?? raw;
+  return bare === "/dev/null" ? bare : bare.replace(/^[ab]\//, "");
+}
+
+type ParsedDiff = {
+  /** The new-side lines each hunk shows, by the file's new path. */
+  lines: Map<string, Set<number>>;
+  /** The files a comment may name: new paths, and deleted files' old ones. */
+  touched: Set<string>;
+};
+
+function parseDiff(diff: string): ParsedDiff {
+  const parsed: ParsedDiff = { lines: new Map(), touched: new Set() };
   let lines: Set<number> | undefined;
   let header = false;
+  let old = "";
   let next = 0;
   for (const text of diff.split("\n")) {
     if (text.startsWith("diff --git ")) {
       lines = undefined;
       header = true;
+    } else if (header && text.startsWith("--- ")) {
+      old = headerPath(text);
     } else if (header && text.startsWith("+++ ")) {
-      const path = text.slice(4).replace(/^b\//, "");
+      const path = headerPath(text);
       lines = new Set();
-      if (path !== "/dev/null") files.set(path, lines);
+      if (path !== "/dev/null") parsed.lines.set(path, lines);
+      parsed.touched.add(path === "/dev/null" ? old : path);
     } else if (text.startsWith("@@")) {
       header = false;
       next = Number(/\+(\d+)/.exec(text)?.[1] ?? 0);
@@ -131,17 +148,12 @@ export function commentableLines(diff: string): Map<string, Set<number>> {
       lines.add(next++);
     }
   }
-  return files;
+  return parsed;
 }
 
-/** Files the diff names, deleted ones included (`--- a/<path>`). */
-function touchedFiles(diff: string): Set<string> {
-  const found = new Set<string>();
-  for (const match of diff.matchAll(/^diff --git a\/(.+?) b\/(.+)$/gm)) {
-    found.add(match[1] ?? "");
-    found.add(match[2] ?? "");
-  }
-  return found;
+/** Each file in a unified diff, with the new-side lines its hunks show. */
+export function commentableLines(diff: string): Map<string, Set<number>> {
+  return parseDiff(diff).lines;
 }
 
 const ASK =
@@ -205,8 +217,7 @@ export function reviewPost(
   diff: string,
   header: Header,
 ): ReviewPost {
-  const lines = commentableLines(diff);
-  const touched = touchedFiles(diff);
+  const { lines, touched } = parseDiff(diff);
   const comments: ReviewPost["review"]["comments"] = [];
   const fileComments: ReviewPost["fileComments"] = [];
   const outside: Finding[] = [];

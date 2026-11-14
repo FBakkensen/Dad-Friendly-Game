@@ -58,6 +58,43 @@ const finding = (
 });
 
 describe("commentableLines", () => {
+  it("reads paths git ends with a tab or wraps in quotes", () => {
+    const diff = [
+      "diff --git a/foo bar.ts b/foo bar.ts",
+      "--- a/foo bar.ts\t",
+      "+++ b/foo bar.ts\t",
+      "@@ -1 +1 @@",
+      "+x",
+      'diff --git "a/\\303\\251.ts" "b/\\303\\251.ts"',
+      '--- "a/q.ts"',
+      '+++ "b/q.ts"',
+      "@@ -1 +1 @@",
+      "+y",
+    ].join("\n");
+    const lines = commentableLines(diff);
+    expect([...lines.keys()]).toEqual(["foo bar.ts", "q.ts"]);
+  });
+
+  it("names a renamed file by its new path only", () => {
+    const diff = [
+      "diff --git a/ren.ts b/ren2.ts",
+      "similarity index 90%",
+      "rename from ren.ts",
+      "rename to ren2.ts",
+      "--- a/ren.ts",
+      "+++ b/ren2.ts",
+      "@@ -1 +1 @@",
+      "+z",
+    ].join("\n");
+    const post = reviewPost(
+      answer([finding({ path: "ren.ts", line: 1 })]),
+      diff,
+      HEADER,
+    );
+    expect(post.fileComments).toEqual([]);
+    expect(post.review.body).toContain("`ren.ts:1`");
+  });
+
   it("lists the new-side lines of every hunk, context included", () => {
     const lines = commentableLines(DIFF);
     expect([...(lines.get("src/a.ts") ?? [])]).toEqual([10, 11, 12, 13, 14]);

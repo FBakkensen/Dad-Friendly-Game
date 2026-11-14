@@ -92,7 +92,7 @@ jobs:
           git diff --name-only --no-renames "$BASE...HEAD" > "$RUNNER_TEMP/paths.txt"
           # The diff as GitHub shows it (renames found, three lines of context),
           # to tell which lines a review comment may sit on.
-          git diff --no-color --no-ext-diff --no-textconv "$BASE...HEAD" > "$RUNNER_TEMP/diff.txt"
+          git -c core.quotePath=false diff --no-color --no-ext-diff --no-textconv "$BASE...HEAD" > "$RUNNER_TEMP/diff.txt"
           plan=$(node "$tools/tools/review/prompt.ts" build --paths "$RUNNER_TEMP/paths.txt" \
             --intent "$intent" --base "$BASE" --head "$HEAD" --pr "$PR" --out "$RUNNER_TEMP/prompt.md")
           echo "$plan"
@@ -179,15 +179,22 @@ jobs:
             exit 1
           fi
           if [ -f "$post/review.json" ] && gh api "repos/$REPO/pulls/$PR/reviews" --input "$post/review.json" --silent; then
+            # A file thread GitHub refuses goes in one comment, with only those findings.
+            left="$RUNNER_TEMP/left.md"
+            : > "$left"
             for comment in "$post"/file-*.json; do
               [ -e "$comment" ] || continue
               if ! gh api "repos/$REPO/pulls/$PR/comments" --input "$comment" --silent; then
-                echo "::warning::A finding could not be put on its file; it is in the comment below."
-                gh api "repos/$REPO/issues/$PR/comments" -F "body=@$body" --silent
-                break
+                echo "::warning::GitHub refused a file thread on $(jq -r .path "$comment")."
+                jq -r '"- `\(.path)`: \(.body)\n"' "$comment" >> "$left"
               fi
             done
+            if [ -s "$left" ]; then
+              { printf '## Claude review: findings that could not go on their file\n\nAnswer each in a reply to this comment.\n\n'; cat "$left"; } > "$body"
+              gh api "repos/$REPO/issues/$PR/comments" -F "body=@$body" --silent
+            fi
           else
+            [ -f "$post/review.json" ] && echo "::warning::GitHub refused the review, so every finding is in one comment."
             gh api "repos/$REPO/issues/$PR/comments" -F "body=@$body" --silent
           fi
           exit "$status"
