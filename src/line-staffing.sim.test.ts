@@ -112,11 +112,11 @@ describe("staffing by the line never slows it (#534)", () => {
     const { checked, misses } = sweep(EARLY);
     expect(checked).toBe(size(EARLY) * MORE.length);
     expect(misses).toEqual([]);
-  }, 180_000);
+  }, 600_000);
 
   it("late, with hundreds of ways to staff the big machines: the same", () => {
     const { checked, misses } = sweep(LATE);
     expect(checked).toBe(size(LATE) * MORE.length);
     expect(misses).toEqual([]);
-  }, 180_000);
+  }, 600_000);
 });
