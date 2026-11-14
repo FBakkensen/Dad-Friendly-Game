@@ -1,0 +1,713 @@
+<title>Slice 1 Prototype</title>
+<style>
+  /* Layout: a 424px phone board scaled to the screen. A thin frame (order, piles, Next, places)
+     around one full-bleed scene per place: earth for the mine, fire for the works, wood and
+     blueprint for the workshop, night sky for the village. */
+  @font-face { font-family: "Barlow Condensed"; font-weight: 600; src: url(__BARLOW600__) format("woff2"); }
+  @font-face { font-family: "Barlow Condensed"; font-weight: 700; src: url(__BARLOW700__) format("woff2"); }
+  @font-face { font-family: "Share Tech Mono"; font-weight: 400; src: url(__MONO__) format("woff2"); }
+  :root {
+    color-scheme: dark;
+    --page: #0b0d10; --frame: #14181d; --edge: #2b333c; --ink: #ece3cf; --quiet: #a9a492;
+    --amber: #f2b441; --green: #6fd66a; --red: #e2552d; --blue: #5aa2ea; --moon: #c3ccff;
+    --dark: #0d1014; --wood: #c4955d; --paper: #2f5f9a;
+    --text: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+    --mono: "Share Tech Mono", ui-monospace, Menlo, monospace;
+  }
+  html, body { height: 100%; margin: 0; }
+  [hidden] { display: none !important; }
+  body { background: var(--page); color: var(--ink); font-family: var(--text); font-weight: 600; overflow: hidden;
+    touch-action: none; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
+  button { font: inherit; color: inherit; background: none; border: 0; padding: 0; margin: 0; text-align: left; cursor: pointer; touch-action: none; }
+  button:focus-visible { outline: 2px solid var(--amber); outline-offset: -2px; }
+  canvas { image-rendering: pixelated; display: block; }
+  #fit { position: relative; width: 100%; height: 100%; overflow: hidden; }
+  #stage { position: absolute; left: 0; top: 0; width: 424px; height: 760px; transform-origin: 0 0; background: var(--frame); overflow: hidden; font-size: 16px; line-height: 1.15; }
+  .num { font-family: var(--mono); font-weight: 400; }
+  .stg, #p-works .plate, .bp { display: flex; flex-direction: column; justify-content: flex-start; align-items: stretch; }
+  .ico { display: inline-block; width: 16px; height: 16px; background-size: 100% 100%; image-rendering: pixelated; vertical-align: -3px; }
+  .ico.big { width: 32px; height: 32px; }
+
+  /* the frame */
+  #order { position: absolute; left: 0; right: 0; top: 0; height: 54px; padding: 6px 10px 0 12px; background: var(--dark); border-bottom: 2px solid var(--edge); width: 100%; }
+  #order .l1 { display: flex; align-items: baseline; gap: 8px; }
+  #order .name { font-weight: 700; font-size: 20px; letter-spacing: .04em; text-transform: uppercase; }
+  #order .step { color: var(--amber); font-size: 17px; }
+  #order .pips { margin-left: auto; display: flex; gap: 4px; align-self: center; }
+  #order .pips i { width: 22px; height: 7px; background: #2a3138; }
+  #order .pips i.done { background: var(--green); }
+  #order .pips i.now { background: var(--amber); }
+  #order .l2 { color: var(--quiet); font-size: 15px; margin-top: 3px; white-space: nowrap; }
+  #order .l2 b { color: var(--ink); font-weight: 600; }
+  #piles { position: absolute; left: 0; right: 0; top: 54px; height: 44px; display: flex; background: #10141a; border-bottom: 2px solid var(--edge); }
+  #piles .pile { flex: 1; position: relative; padding: 5px 0 0 8px; border-right: 2px solid var(--edge); white-space: nowrap; }
+  #piles .pile:last-child { border-right: 0; }
+  #piles .v { font-size: 18px; margin-left: 4px; }
+  #piles .of { font-size: 12px; color: var(--quiet); margin-left: 4px; }
+  #piles .bar { position: absolute; left: 8px; right: 8px; bottom: 5px; height: 4px; background: #262d35; }
+  #piles .bar i { display: block; height: 100%; width: 0; background: #8f9aa5; }
+  #piles .pile.full .bar i { background: var(--red); }
+  #piles .pile.full .of { color: var(--red); }
+  #scenes { position: absolute; left: 0; right: 0; top: 98px; bottom: 118px; overflow: hidden; background: #000; }
+  .place { position: absolute; inset: 0; transition: transform .26s ease-out; overflow: hidden; }
+  .place canvas { position: absolute; left: 0; top: 0; width: 424px; }
+  .ov { position: absolute; inset: 0; }
+  #next { position: absolute; left: 6px; right: 6px; bottom: 66px; height: 48px; padding: 3px 10px; background: var(--dark); border: 2px solid var(--edge); display: flex; align-items: center; gap: 10px; }
+  #next.go { border-color: var(--green); }
+  #next .what { flex: 1; min-width: 0; }
+  #next .k { font-size: 12px; letter-spacing: .12em; color: var(--amber); text-transform: uppercase; }
+  #next .t { font-size: 18px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #next .n { text-align: center; color: var(--green); font-size: 12px; line-height: 1; }
+  #next .n b { display: block; font-family: var(--mono); font-weight: 400; font-size: 22px; }
+  #tabs { position: absolute; left: 0; right: 0; bottom: 0; height: 62px; display: flex; gap: 4px; padding: 0 6px 6px; }
+  #tabs button { flex: 1; position: relative; background: #1a2027; border: 2px solid var(--edge); border-top-width: 4px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; font-size: 14px; letter-spacing: .08em; text-transform: uppercase; color: var(--quiet); }
+  #tabs button .ico { width: 24px; height: 24px; opacity: .75; }
+  #tabs button.on { color: var(--ink); background: #232b33; border-color: var(--acc); }
+  #tabs button.on .ico { opacity: 1; }
+  .lamp { position: absolute; right: 5px; top: 4px; width: 10px; height: 10px; border-radius: 50%; background: #2a3138; box-shadow: inset 0 0 0 2px #11151a; }
+  .lamp.green { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .lamp.amber { background: var(--amber); box-shadow: 0 0 6px var(--amber); }
+  #say { position: absolute; left: 20px; right: 20px; bottom: 124px; padding: 8px 12px; background: #000c; border: 2px solid var(--amber); font-size: 17px; text-align: center; pointer-events: none; opacity: 0; transition: opacity .2s; z-index: 5; }
+  #say.on { opacity: 1; }
+  #card { position: absolute; inset: 0; background: #000b; display: flex; align-items: center; justify-content: center; z-index: 9; }
+  #card .box { width: 344px; background: #171c22; border: 2px solid var(--amber); padding: 18px 18px 16px; }
+  #card h2 { margin: 0 0 8px; font-size: 26px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+  #card p { margin: 0 0 10px; font-size: 18px; color: var(--ink); }
+  #card p.q { color: var(--quiet); font-size: 16px; }
+  #card .row { display: flex; gap: 8px; margin-top: 14px; }
+  #card .row button { flex: 1; height: 52px; text-align: center; font-size: 20px; font-weight: 700; background: #23402a; border: 2px solid var(--green); color: #d9ffd2; }
+  #card .row button.alt { background: #22282f; border-color: var(--edge); color: var(--quiet); }
+  .float { position: absolute; font-family: var(--mono); font-size: 18px; color: #ffe08a; pointer-events: none; animation: rise .8s ease-out forwards; text-shadow: 0 2px 0 #000; z-index: 4; }
+  @keyframes rise { to { transform: translateY(-40px); opacity: 0; } }
+  .pulse { animation: pulse .5s 3; }
+  @keyframes pulse { 50% { box-shadow: 0 0 0 4px var(--green); } }
+  #ghost { position: absolute; z-index: 8; width: 76px; height: 40px; margin: -20px 0 0 -38px; background: #000a; border: 2px solid var(--amber); color: var(--amber); text-align: center; line-height: 36px; font-weight: 700; letter-spacing: .08em; pointer-events: none; }
+
+  /* the mine: earth and lamplight */
+  #p-mine .lv { position: absolute; left: 78px; right: 6px; height: 56px; padding: 4px 8px; background: #0009; }
+  #p-mine .lv .a { display: flex; align-items: baseline; gap: 8px; }
+  #p-mine .lv .nm { font-size: 21px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+  #p-mine .lv .rt { font-size: 18px; margin-left: auto; color: #ffd98a; }
+  #p-mine .lv .b { font-size: 15px; color: #d9cdb4; margin-top: 2px; white-space: nowrap; }
+  #p-mine .lv .b em { font-style: normal; color: var(--amber); }
+  .berth { position: absolute; width: 68px; height: 64px; }
+  .berth.free::after { content: "send a gang"; position: absolute; inset: 6px 4px 4px; border: 2px dashed #f2b44188; color: #f2b441cc; font-size: 13px; line-height: 1; display: flex; align-items: center; justify-content: center; text-align: center; letter-spacing: .04em; }
+  #p-mine .deep { position: absolute; left: 10px; right: 10px; color: #8d93b8; font-size: 15px; text-align: center; }
+  .stg { position: absolute; width: 96px; height: 100px; background: #000a; border: 2px solid #3b4450; padding: 3px 5px; }
+  .stg.narrow { border-color: var(--amber); background: #2a1c00cc; }
+  .stg .h { display: flex; align-items: center; gap: 3px; font-size: 16px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+  .stg .r { font-size: 16px; }
+  .stg .w { font-size: 12px; color: var(--quiet); height: 14px; white-space: nowrap; }
+  .stg.narrow .w { color: var(--amber); }
+  .stg .p { position: absolute; left: 3px; right: 3px; bottom: 3px; height: 22px; background: #22282f; color: var(--quiet); font-size: 13px; text-align: center; line-height: 22px; white-space: nowrap; }
+  .can { background: #23402a !important; color: #d9ffd2 !important; box-shadow: inset 0 0 0 2px var(--green); }
+  #dig { position: absolute; width: 112px; height: 112px; }
+  #dig i { position: absolute; inset: 0; background-size: 336px 112px; image-rendering: pixelated; }
+  #dig.down i { background-position: -112px 0; }
+  #dig span { position: absolute; left: 0; right: 0; bottom: -2px; text-align: center; font-size: 13px; letter-spacing: .1em; color: var(--ink); text-shadow: 0 1px 0 #000; }
+
+  /* the works: brick and fire */
+  #p-works .in { position: absolute; top: 2px; width: 150px; font-size: 16px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #ffd9c2; text-shadow: 0 2px 0 #000; }
+  #p-works .in .num { color: #fff; font-size: 16px; }
+  #p-works .mach { position: absolute; width: 140px; height: 132px; }
+  #p-works .plate { position: absolute; width: 180px; height: 76px; background: #170b09ee; border: 2px solid #6b3324; padding: 3px 6px; }
+  #p-works .plate .a { font-size: 17px; font-weight: 700; letter-spacing: .04em; white-space: nowrap; }
+  #p-works .plate .b { font-size: 13px; color: #e6b9a4; white-space: nowrap; }
+  #p-works .plate .p { position: absolute; left: 3px; right: 3px; bottom: 3px; height: 22px; background: #2a1814; color: #c7a393; font-size: 14px; text-align: center; line-height: 22px; white-space: nowrap; }
+  #p-works .mid { position: absolute; left: 164px; width: 96px; text-align: center; font-size: 13px; color: #d7d2c8; background: #170b09dd; border: 2px solid #4a4038; padding: 2px 0; line-height: 1.1; }
+  #p-works .bay { position: absolute; width: 132px; text-align: center; font-size: 13px; letter-spacing: .06em; color: #e9d9c8; text-shadow: 0 1px 0 #000; line-height: 1.1; }
+  #p-works .bay .num { display: block; font-size: 13px; color: #fff; letter-spacing: 0; }
+  #p-works .bay.full .num { color: #ff8d6a; }
+  #p-works .ext { position: absolute; left: 6px; right: 6px; height: 44px; background: #170b09ee; border: 2px solid #6b3324; display: flex; align-items: center; padding: 0 10px; gap: 8px; }
+  #p-works .ext .t { flex: 1; font-size: 16px; line-height: 1; }
+  #p-works .ext .t small { display: block; font-size: 12px; color: #e6b9a4; margin-top: 2px; }
+  #p-works .ext .p { padding: 0 10px; height: 30px; line-height: 30px; background: #2a1814; color: #c7a393; font-size: 15px; white-space: nowrap; }
+
+  /* the workshop: wood and blueprint */
+  #p-workshop .tray { position: absolute; width: 190px; white-space: nowrap; font-size: 13px; color: #f1dcb8; text-align: center; font-weight: 700; letter-spacing: .04em; }
+  #p-workshop .tray .num { font-size: 13px; }
+  #p-workshop .rack { position: absolute; right: 8px; top: 6px; font-size: 13px; color: #f1dcb8; text-align: right; line-height: 1.15; text-shadow: 0 1px 0 #000; }
+  #p-workshop .job { position: absolute; left: 30px; right: 30px; text-align: center; color: #dff3ea; }
+  #p-workshop .job .a { font-size: 22px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+  #p-workshop .job .b { font-size: 15px; color: #a9c9bd; }
+  #p-workshop .time { position: absolute; font-size: 30px; color: #fff; text-shadow: 0 2px 0 #000; }
+  #p-workshop .fit { position: absolute; left: 30px; width: 170px; height: 56px; text-align: center; font-size: 22px; font-weight: 700; background: #23402a; border: 2px solid var(--green); color: #d9ffd2; }
+  .bp { position: absolute; width: 128px; height: 160px; padding: 60px 8px 0; color: #eaf3ff; z-index: 2; }
+  .bp .a { font-size: 17px; font-weight: 700; letter-spacing: .03em; line-height: 1; }
+  .bp .b { font-size: 12.5px; color: #cfe2ff; margin-top: 3px; line-height: 1.15; }
+  .bp .c { font-size: 12.5px; margin-top: 3px; line-height: 1.2; }
+  .bp .c span { white-space: nowrap; }
+  .bp .c .no { color: #ffb19c; }
+  .bp .s { position: absolute; right: 8px; top: 8px; font-size: 14px; color: #cfe2ff; }
+  .bp.off { opacity: .62; }
+  .bp.drag { z-index: 7; transition: none; filter: drop-shadow(0 8px 0 #0007); }
+  .bp.back { transition: transform .2s; }
+
+  /* the village: night sky and a road */
+  #p-village .tag { position: absolute; text-align: center; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: #f4ead2; text-shadow: 0 1px 0 #000, 0 0 4px #000; line-height: 1.05; }
+  #p-village .tag small { display: block; letter-spacing: 0; text-transform: none; color: var(--moon); font-size: 12px; }
+  #p-village .plot { position: absolute; }
+  #p-village .bub { position: absolute; left: 30px; right: 30px; padding: 8px 10px; background: #0a1030ee; border: 2px solid var(--moon); font-size: 17px; text-align: center; pointer-events: none; opacity: 0; transition: opacity .2s; }
+  #p-village .bub.on { opacity: 1; }
+  #board { position: absolute; left: 6px; right: 6px; background: #3b2a1c; border: 2px solid #7a5a36; box-shadow: inset 0 0 0 2px #2a1d12; padding: 5px 9px; }
+  #board .h { display: flex; align-items: baseline; gap: 8px; }
+  #board .h b { font-size: 19px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
+  #board .h span { font-size: 15px; color: #cdb48a; }
+  #board .h span.now { color: var(--amber); }
+  #board .h span.ok { color: var(--green); }
+  #board .g { display: flex; align-items: center; gap: 6px; height: 42px; margin-top: 4px; }
+  #board .g .w { flex: 1; min-width: 0; }
+  #board .g .w div { font-size: 15px; white-space: nowrap; }
+  #board .g .w i { display: block; height: 5px; background: #20160e; margin-top: 3px; }
+  #board .g .w i u { display: block; height: 100%; background: var(--amber); }
+  #board .g button { width: 128px; height: 40px; background: #2a1d12; color: #a89674; text-align: center; font-size: 17px; font-weight: 700; line-height: 1; }
+  #board .g button small { display: block; font-family: var(--mono); font-weight: 400; font-size: 13px; }
+  #board .f { font-size: 14px; color: #e3d2b0; margin-top: 4px; }
+  #reset { position: absolute; right: 4px; top: 30px; height: 22px; padding: 0 6px; font-size: 12px; color: #6f7780; z-index: 3; }
+</style>
+
+<div id="fit"><div id="stage">
+  <button id="order"></button>
+  <button id="reset">Start over</button>
+  <div id="piles"></div>
+  <div id="scenes">
+    <section class="place" id="p-mine"><canvas></canvas><div class="ov"></div></section>
+    <section class="place" id="p-works"><canvas></canvas><div class="ov"></div></section>
+    <section class="place" id="p-workshop"><canvas></canvas><div class="ov"></div></section>
+    <section class="place" id="p-village"><canvas></canvas><div class="ov"></div></section>
+  </div>
+  <div id="say"></div>
+  <button id="next"></button>
+  <nav id="tabs"></nav>
+  <div id="ghost" hidden>GANG</div>
+  <div id="card" hidden></div>
+</div></div>
+
+<script>
+"use strict";
+/* A throwaway prototype of slice 1's four places. Fake numbers, real taps. Not the game's code. */
+const IMGS = __IMG__;
+const im = {};
+const $ = (s, r = document) => r.querySelector(s);
+const el = (tag, cls, parent, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; if (parent) parent.appendChild(e); return e; };
+const W = 212, SURF = 40, LH = 74;
+const PLACES = ["mine", "works", "workshop", "village"];
+const ACC = { mine: "#f2b441", works: "#e2552d", workshop: "#5aa2ea", village: "#c3ccff" };
+const GN = { stones: "stones", bricks: "bricks", cut: "cut stone", clay: "clay", iron: "iron" };
+const GC = { stones: "Stones", bricks: "Bricks", cut: "Cut stone" };
+const STG = {
+  face: { n: "Face", mach: "Drill", icon: "mach-drill", base: 900, per: 600, price: 40000, good: "stones", gear: "props", start: 3 },
+  haul: { n: "Haul", mach: "Pit train", icon: "mach-train", base: 500, per: 800, price: 5000, good: "cut", gear: "rails", start: 3 },
+  lift: { n: "Lift", mach: "Hoist", icon: "mach-hoist", base: 1000, per: 1200, price: 60000, good: "stones", start: 2 },
+};
+const REC = {
+  rails: { n: "Iron rails", cost: { stones: 20000, iron: 4 }, s: 30, max: 2, does: "The haul carries 15% more", verb: "Lay them" },
+  props: { n: "Sturdy props", cost: { stones: 10000, clay: 6, iron: 4 }, s: 30, max: 1, does: "The face digs 15% more", verb: "Set them" },
+  charge: { n: "Blasting charge", cost: { stones: 5000, clay: 5 }, s: 20, does: "The line runs double for a minute", verb: "Light it" },
+};
+const BLD = [
+  { id: "beacon", n: "The Beacon", gives: "Golden veins come 40% sooner.", steps: [] },
+  { id: "store", n: "The Storehouse", gives: "The yard holds twice as much.", steps: [{ stones: 30000 }, { stones: 60000, bricks: 20000 }, { bricks: 40000 }] },
+  { id: "forge", n: "The Forge", gives: "The Great Machine can be built.", steps: [{ bricks: 30000, cut: 10000 }, { bricks: 50000, cut: 30000 }, { bricks: 60000, cut: 60000 }] },
+];
+const STEPN = ["Footings", "Walls", "Roof"];
+const fresh = () => ({
+  v: 2, stones: 46000, bricks: 12000, cut: 3000, yard: 0, m: { face: 3, haul: 3, lift: 2 }, gangs: [2, 2], kilns: 4, saws: 2,
+  clay: 6, iron: 9, bench: null, gear: { rails: 0, props: 0 }, charge: 0,
+  b: { beacon: { step: 3, given: {} }, store: { step: 1, given: { stones: 22000, bricks: 3000 } }, forge: { step: 0, given: {} } },
+  intro: false, ended: false, place: 0,
+});
+let S = fresh();
+try { const raw = localStorage.getItem("slice1-proto"); if (raw) { const o = JSON.parse(raw); if (o && o.v === 2) S = o; } } catch (e) { /* plays without it */ }
+const save = () => { try { localStorage.setItem("slice1-proto", JSON.stringify(S)); } catch (e) { /* plays without it */ } };
+
+/* ---------- numbers ---------- */
+const fmt = (n) => { n = Math.floor(n); if (n >= 1e6) return (n / 1e6).toFixed(2).replace(/\.?0+$/, "") + "M"; if (n >= 1e4) return (n / 1e3).toFixed(1).replace(/\.0$/, "") + "K"; return n.toLocaleString("en-US"); };
+const rate = (n) => Math.round(n).toLocaleString("en-US") + "/s";
+const nice = (n) => { const p = Math.pow(10, Math.max(0, Math.floor(Math.log10(n)) - 1)); return Math.round(n / p) * p; };
+const stagePrice = (k) => nice(STG[k].price * Math.pow(1.25, S.m[k] - STG[k].start));
+const kilnPrice = () => nice(20000 * Math.pow(1.2, S.kilns - 4));
+const sawPrice = () => nice(12000 * Math.pow(1.2, S.saws - 2));
+const yardPrice = () => 30000 * Math.pow(3, S.yard);
+const caps = () => { const k = Math.pow(3, S.yard) * (S.b.store.step >= 3 ? 2 : 1); return { stones: 400000 * k, bricks: 80000 * k, cut: 40000 * k }; };
+const lc = (t) => t.charAt(0).toLowerCase() + t.slice(1);
+const low = (n) => n.replace(/^The /, "the ");
+const inHand = () => BLD.find((b) => S.b[b.id].step < 3);
+function flows() {
+  const f = {}; let narrow = "face";
+  for (const k in STG) { f[k] = (STG[k].base + STG[k].per * S.m[k]) * (1 + 0.15 * (STG[k].gear ? S.gear[STG[k].gear] : 0)); if (f[k] < f[narrow]) narrow = k; }
+  const line = f[narrow] * (S.charge > 0 ? 2 : 1), cap = caps();
+  const rock = [line * S.gangs[0] / 4, line * S.gangs[1] / 4];
+  const mk = [S.kilns * 100, S.saws * 120];
+  const take = [Math.min(rock[0], mk[0]), Math.min(rock[1], mk[1])];
+  const full = { stones: S.stones >= cap.stones, bricks: S.bricks >= cap.bricks, cut: S.cut >= cap.cut };
+  const made = [full.bricks ? 0 : take[0], full.cut ? 0 : take[1]];
+  const over = [full.stones ? 0 : rock[0] - made[0], full.stones ? 0 : rock[1] - made[1]];
+  const holds = [rock[0] <= mk[0] ? "gangs" : "kilns", rock[1] <= mk[1] ? "gangs" : "saws"];
+  return { f, narrow, line, rock, take, made, over, cap, full, holds };
+}
+function tick(dt) {
+  const F = flows();
+  S.bricks = Math.min(F.cap.bricks, S.bricks + F.made[0] * dt);
+  S.cut = Math.min(F.cap.cut, S.cut + F.made[1] * dt);
+  S.stones = Math.min(F.cap.stones, S.stones + (F.over[0] + F.over[1]) * dt);
+  S.clay = Math.min(10, S.clay + S.gangs[0] * dt / 6);
+  S.iron = Math.min(35, S.iron + S.gangs[1] * dt / 5);
+  if (S.charge > 0) S.charge = Math.max(0, S.charge - dt);
+  if (S.bench && !S.bench.done) { S.bench.left -= dt; if (S.bench.left <= 0) { S.bench.left = 0; S.bench.done = true; } }
+}
+
+/* ---------- what he can do ---------- */
+const canPay = (cost) => Object.keys(cost).every((g) => Math.floor(S[g]) >= cost[g]);
+const pay = (cost) => { for (const g in cost) S[g] -= cost[g]; };
+let sayT = 0;
+function say(t) { const s = $("#say"); s.textContent = t; s.classList.add("on"); clearTimeout(sayT); sayT = setTimeout(() => s.classList.remove("on"), 2600); }
+const lacks = (cost) => { const g = Object.keys(cost).find((k) => Math.floor(S[k]) < cost[k]); return g ? "Needs " + fmt(cost[g]) + " " + GN[g] + "." : ""; };
+function buyStage(k) { const c = { [STG[k].good]: stagePrice(k) }; if (!canPay(c)) return say(lacks(c)); pay(c); S.m[k]++; after(); }
+function buyKiln() { const c = { stones: kilnPrice() }; if (!canPay(c)) return say(lacks(c)); pay(c); S.kilns++; after(); }
+function buySaw() { const c = { bricks: sawPrice() }; if (!canPay(c)) return say(lacks(c)); pay(c); S.saws++; after(); }
+function extendYard() { const c = { bricks: yardPrice() }; if (!canPay(c)) return say(lacks(c)); pay(c); S.yard++; after(); say("The yard is bigger. Every pile holds three times as much."); }
+function moveGang(to) { const from = 1 - to; if (S.gangs[from] < 1) return; S.gangs[from]--; S.gangs[to]++; after(); say(S.gangs[0] + " on the Topsoil, " + S.gangs[1] + " on the Granite."); }
+function dig(x, y) { const cap = caps().stones; S.stones = Math.min(cap, S.stones + 250); bursts.push({ t: 0 }); floatText("+250", x, y); ui(); }
+function startJob(id) {
+  const r = REC[id];
+  if (S.bench) return say(S.bench.done ? "Take the finished job off the bench first." : "The bench is busy. One job at a time.");
+  if (r.max && S.gear[id] >= r.max) return say("Nothing more to gain from " + r.n.toLowerCase() + ".");
+  if (!canPay(r.cost)) return say(lacks(r.cost));
+  pay(r.cost); S.bench = { id, left: r.s, total: r.s, done: false }; after();
+}
+function fitJob() {
+  if (!S.bench || !S.bench.done) return; const id = S.bench.id;
+  if (id === "charge") { S.charge = 60; say("The charge is lit. The line runs double for a minute."); } else { S.gear[id]++; say(REC[id].does + "."); }
+  S.bench = null; after();
+}
+function send(good) {
+  const b = inHand(); if (!b) return; const st = S.b[b.id], need = b.steps[st.step];
+  const rem = need[good] - (st.given[good] || 0), amt = Math.min(Math.floor(S[good]), rem);
+  if (amt <= 0) return say(rem <= 0 ? "That part is delivered." : "No " + GN[good] + " in the yard yet.");
+  S[good] -= amt; st.given[good] = (st.given[good] || 0) + amt; carts.push({ x: W + 4, good }, { x: W + 30, good });
+  if (Object.keys(need).every((g) => (st.given[g] || 0) >= need[g])) {
+    st.step++; st.given = {};
+    if (st.step >= 3) {
+      const last = !inHand();
+      card(b.n + " stands", [b.gives, last ? "The first village stands. The road goes on." : "Next on the road: " + low(inHand().n) + "."], "Good");
+    } else say(b.n + ": " + STEPN[st.step - 1].toLowerCase() + " done. Now the " + STEPN[st.step].toLowerCase() + ".");
+  }
+  after();
+}
+function actions() {
+  const F = flows(), a = [], h = inHand();
+  if (S.bench && S.bench.done) a.push({ p: 2, pri: 100, t: REC[S.bench.id].n + " ready on the bench" });
+  if (h) { const st = S.b[h.id], need = h.steps[st.step]; for (const g in need) { const rem = need[g] - (st.given[g] || 0), amt = Math.min(Math.floor(S[g]), rem); if (rem > 0 && amt > 0) a.push({ p: 3, pri: amt >= rem ? 90 : 35, t: "Send " + fmt(amt) + " " + GN[g] + " to " + low(h.n) }); } }
+  for (const k in STG) if (canPay({ [STG[k].good]: stagePrice(k) })) a.push({ p: 0, pri: k === F.narrow ? 80 : 15, t: STG[k].mach + " · " + fmt(stagePrice(k)) + " " + GN[STG[k].good] });
+  if (canPay({ stones: kilnPrice() })) a.push({ p: 1, pri: F.holds[0] === "kilns" ? 70 : 10, t: "Kiln · " + fmt(kilnPrice()) + " stones" });
+  if (canPay({ bricks: sawPrice() })) a.push({ p: 1, pri: F.holds[1] === "saws" ? 65 : 10, t: "Saw · " + fmt(sawPrice()) + " bricks" });
+  if (canPay({ bricks: yardPrice() })) a.push({ p: 1, pri: ["stones", "bricks", "cut"].some((g) => S[g] >= F.cap[g] * 0.85) ? 60 : 5, t: "Extend the yard · " + fmt(yardPrice()) + " bricks" });
+  if (!S.bench) for (const id in REC) if (canPay(REC[id].cost) && !(REC[id].max && S.gear[id] >= REC[id].max)) a.push({ p: 2, pri: 30, t: REC[id].n + " on the bench" });
+  return a.sort((x, y) => y.pri - x.pri);
+}
+function after() { save(); ui(); }
+
+/* ---------- pixel helpers ---------- */
+const mk = (w, h) => { const c = document.createElement("canvas"); c.width = w; c.height = h; const x = c.getContext("2d"); x.imageSmoothingEnabled = false; return x; };
+const R = (c, x, y, w, h, col) => { c.fillStyle = col; c.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); };
+const hash = (x, y, s) => { let n = (Math.imul(x | 0, 374761393) + Math.imul(y | 0, 668265263) + Math.imul(s | 0, 1442695041)) | 0; n = Math.imul(n ^ (n >>> 13), 1274126177); return ((n ^ (n >>> 16)) >>> 0) / 4294967296; };
+function line(c, x0, y0, x1, y1, col, th = 1) { x0 = Math.round(x0); y0 = Math.round(y0); x1 = Math.round(x1); y1 = Math.round(y1); const dx = Math.abs(x1 - x0), dy = Math.abs(y1 - y0), sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1; let e = dx - dy; c.fillStyle = col; for (;;) { c.fillRect(x0, y0, th, th); if (x0 === x1 && y0 === y1) break; const e2 = 2 * e; if (e2 > -dy) { e -= dy; x0 += sx; } if (e2 < dx) { e += dx; y0 += sy; } } }
+function disc(c, cx, cy, r, col) { c.fillStyle = col; for (let y = -r; y <= r; y++) { const w = Math.floor(Math.sqrt(r * r - y * y + r * 0.8)); c.fillRect(cx - w, cy + y, w * 2 + 1, 1); } }
+function glow(c, cx, cy, r, col, seed, k = 1) { c.fillStyle = col; for (let y = -r; y <= r; y++) for (let x = -r; x <= r; x++) { const d = Math.sqrt(x * x + y * y) / r; if (d < 1 && hash(cx + x, cy + y, seed) < (1 - d) * (1 - d) * k) c.fillRect(cx + x, cy + y, 1, 1); } }
+function grain(c, x0, y0, w, h, pal, seed) { for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) { const r = hash(x >> 1, y >> 1, seed), q = hash(x, y, seed + 9); c.fillStyle = r < 0.07 ? pal.p : r < 0.3 ? pal.d : r < 0.5 || q < 0.06 ? pal.l : pal.b; c.fillRect(x, y, 1, 1); } }
+function sprite(c, name, fw, frame, x, y, flip) { const i = im[name], fh = i.height; if (flip) { c.save(); c.translate(Math.round(x) + fw, Math.round(y)); c.scale(-1, 1); c.drawImage(i, frame * fw, 0, fw, fh, 0, 0, fw, fh); c.restore(); } else c.drawImage(i, frame * fw, 0, fw, fh, Math.round(x), Math.round(y), fw, fh); }
+const brickCol = (x, y, pal, seed, bw = 6, bh = 3) => { const row = Math.floor(y / bh), off = row % 2 ? Math.floor(bw / 2) : 0, col = Math.floor((x + off) / bw); return y % bh === bh - 1 || (x + off) % bw === bw - 1 ? pal.m : pal.c[Math.floor(hash(col, row, seed) * pal.c.length)]; };
+function bricks(c, x0, y0, w, h, pal, seed, bw = 6, bh = 3) { for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) R(c, x0 + x, y0 + y, 1, 1, brickCol(x, y, pal, seed, bw, bh)); }
+const RED = { m: "#4a1c12", c: ["#a4492c", "#b4502f", "#8f3d25", "#c05a34"] };
+const GREY = { m: "#3a3f4a", c: ["#8d93a0", "#7c8391", "#9aa1ad", "#6e7482"] };
+
+/* ---------- small icons ---------- */
+function icons() {
+  const out = {};
+  let c = mk(16, 16); R(c, 2, 8, 12, 6, "#2a0e0a"); R(c, 3, 9, 10, 4, "#b4502f"); R(c, 3, 9, 10, 1, "#e07a48"); R(c, 4, 2, 10, 6, "#2a0e0a"); R(c, 5, 3, 8, 4, "#a4492c"); R(c, 5, 3, 8, 1, "#d8703f"); out.bricks = c.canvas.toDataURL();
+  c = mk(16, 16); R(c, 2, 3, 12, 11, "#20242c"); R(c, 3, 4, 10, 9, "#c3ccd6"); R(c, 3, 4, 10, 2, "#eef3f8"); R(c, 11, 6, 2, 7, "#96a1ad"); R(c, 5, 8, 2, 1, "#96a1ad"); R(c, 7, 10, 2, 1, "#96a1ad"); out.cut = c.canvas.toDataURL();
+  c = mk(16, 16); for (let y = 0; y < 9; y++) { const w = Math.round(6 * Math.sqrt(1 - Math.pow((8 - y) / 9, 2))); R(c, 8 - w, 4 + y, w * 2, 1, y % 3 === 2 ? "#4a1c12" : "#b4502f"); } R(c, 9, 1, 3, 4, "#8f3d25"); R(c, 6, 9, 4, 4, "#1a0b08"); R(c, 7, 10, 2, 3, "#ffb13a"); R(c, 1, 13, 14, 1, "#2a1512"); out.works = c.canvas.toDataURL();
+  c = mk(16, 16); disc(c, 12, 3, 2, "#f3efd8"); R(c, 3, 8, 10, 6, "#8d93a0"); for (let i = 0; i < 6; i++) R(c, 2 + i, 7 - i, 12 - i * 2, 1, "#b0562f"); R(c, 7, 10, 2, 4, "#3a2415"); R(c, 4, 10, 2, 2, "#ffcf6a"); R(c, 10, 10, 2, 2, "#ffcf6a"); R(c, 1, 14, 14, 1, "#3f7a4c"); out.village = c.canvas.toDataURL();
+  for (const n of ["res-stone", "res-clay", "res-iron", "res-pick", "icon-workshop", "mach-drill", "mach-train", "mach-hoist"]) out[n] = IMGS[n];
+  out.stones = IMGS["res-stone"]; out.clay = IMGS["res-clay"]; out.iron = IMGS["res-iron"]; out.mine = IMGS["res-pick"]; out.workshop = IMGS["icon-workshop"];
+  return out;
+}
+let ICO = {};
+const ico = (name, big) => `<i class="ico${big ? " big" : ""}" style="background-image:url(${ICO[name]})"></i>`;
+
+/* ---------- the mine: a mountain cut open ---------- */
+const EARTH = [{ b: "#5b3b22", d: "#4a2f1b", l: "#6d4a2b", p: "#8a6a44" }, { b: "#3f4755", d: "#333a47", l: "#4c5666", p: "#74808f" }, { b: "#1c1f2a", d: "#161822", l: "#232838", p: "#2f3150" }];
+function mineBG(h) {
+  const c = mk(W, h), sky = ["#141a2e", "#1a2238", "#232a44", "#34304c", "#4c3850", "#7a4a4a", "#b0643e", "#d98a44"];
+  for (let y = 0; y < SURF; y++) { const t = (y / SURF) * (sky.length - 1), i = t | 0, f = t - i; for (let x = 0; x < W; x++) R(c, x, y, 1, 1, hash(x, y, 1) < f ? sky[Math.min(i + 1, 7)] : sky[i]); }
+  for (let i = 0; i < 26; i++) R(c, hash(i, 1, 2) * W, hash(i, 2, 2) * 16, 1, 1, "#cfd6ff");
+  for (let x = 0; x < W; x++) { const hy = SURF - 7 - 5 * Math.sin(x / 31 + 1) - 2 * Math.sin(x / 9); R(c, x, hy, 1, SURF - hy, "#2b2334"); }
+  for (let y = SURF; y < h; y++) for (let x = 0; x < W; x++) { const wob = Math.round(2 * Math.sin(x / 11) + 1.5 * Math.sin(x / 5 + 2)), i = y < SURF + LH + wob ? 0 : y < SURF + 2 * LH + wob ? 1 : 2, pal = EARTH[i], r = hash(x >> 1, y >> 1, 7), q = hash(x, y, 8); let col = r < 0.06 ? pal.p : r < 0.3 ? pal.d : r < 0.5 || q < 0.05 ? pal.l : pal.b; if ((y + wob) % 11 === 0 && hash(x >> 2, y, 3) < 0.6) col = pal.d; R(c, x, y, 1, 1, col); }
+  for (let x = 0; x < W; x++) { R(c, x, SURF - 1, 1, 2, hash(x, 0, 4) < 0.5 ? "#3d5a2e" : "#2c4423"); if (hash(x, 1, 4) < 0.25) R(c, x, SURF - 2, 1, 1, "#4d6e38"); }
+  // the shaft
+  const shaftEnd = SURF + LH + 66; R(c, 14, SURF - 1, 22, shaftEnd - SURF + 1, "#0f0c0a"); R(c, 14, SURF - 1, 2, shaftEnd - SURF + 1, "#6b4a2a"); R(c, 34, SURF - 1, 2, shaftEnd - SURF + 1, "#6b4a2a");
+  for (let y = SURF + 4; y < shaftEnd; y += 9) R(c, 16, y, 18, 1, "#2a1d12");
+  for (let i = 0; i < 2; i++) {
+    const y0 = SURF + i * LH, top = y0 + 34, fl = y0 + 66, dark = i ? "#12151b" : "#1a120d", back = i ? "#1f2630" : "#2c1f15", back2 = i ? "#262e3a" : "#35261a";
+    R(c, 34, top, 168, 32, dark); R(c, 36, top + 3, 166, 22, back);
+    for (let y = top + 3; y < top + 25; y++) for (let x = 36; x < 202; x++) if (hash(x >> 1, y >> 1, 20 + i) < 0.3) R(c, x, y, 1, 1, back2);
+    for (let k = 0; k < 4; k++) { const lx = 40 + k * 34 + 17; glow(c, lx, top + 12, 16, i ? "#3b4a5c" : "#5a3d1e", 30 + k, 0.9); glow(c, lx, top + 8, 8, "#c98a3a", 40 + k, 0.8); R(c, lx, top + 2, 1, 4, "#2a1d12"); R(c, lx - 1, top + 6, 3, 3, "#ffcf6a"); R(c, lx, top + 7, 1, 1, "#fff3c4"); }
+    for (let k = 0; k <= 4; k++) { const px = 38 + k * 34; R(c, px, top, 2, 31, "#7a5530"); R(c, px + 2, top, 1, 31, "#4d351d"); }
+    R(c, 36, top, 166, 2, "#6b4a2a"); R(c, 36, top + 2, 166, 1, "#3a2817");
+    R(c, 36, fl - 1, 166, 1, "#0c0a08"); for (let x = 36; x < 202; x += 4) R(c, x, fl - 2, 2, 1, "#4a3420"); R(c, 36, fl - 3, 166, 1, "#9aa1ab");
+    for (let y = top; y < fl; y++) { const w = 1 + Math.floor(hash(1, y, 50 + i) * 4); R(c, 202 - w, y, w + 1, 1, EARTH[i].l); if (hash(2, y, 51 + i) < 0.3) R(c, 201 - w, y, 1, 1, EARTH[i].p); }
+  }
+  // the headframe and the winding house
+  line(c, 11, SURF - 2, 21, 8, "#7a5530", 2); line(c, 37, SURF - 2, 28, 8, "#7a5530", 2); R(c, 19, 7, 13, 2, "#7a5530"); R(c, 14, 26, 22, 1, "#5a3d22"); R(c, 17, 16, 16, 1, "#5a3d22"); line(c, 15, 26, 32, 16, "#5a3d22"); line(c, 35, 26, 18, 16, "#5a3d22");
+  R(c, 52, 24, 30, SURF - 26, "#4a3323"); R(c, 52, 24, 30, 1, "#2a1d12"); for (let i = 0; i < 7; i++) R(c, 50 + i, 23 - i, 34 - i * 2, 1, "#33241a"); R(c, 76, 12, 4, 8, "#3a2a22");
+  R(c, 58, 28, 6, 6, "#ffcf6a"); R(c, 60, 28, 1, 6, "#8a5a1e"); R(c, 70, 28, 6, 10, "#2a1d12"); glow(c, 61, 31, 10, "#c98a3a", 60, 0.5); line(c, 31, 6, 52, 22, "#1a1a1a");
+  return c.canvas;
+}
+const bursts = [];
+function mineDraw(c, h, t, F) {
+  // the wheel
+  disc(c, 25, 7, 6, "#4b5360"); disc(c, 25, 7, 5, "#232a44"); for (let a = 0; a < 4; a++) { const an = t * (F.line > 0 ? 2.2 : 0) + (a * Math.PI) / 4; line(c, 25 - Math.cos(an) * 5, 7 - Math.sin(an) * 5, 25 + Math.cos(an) * 5, 7 + Math.sin(an) * 5, "#9aa1ab"); } R(c, 25, 7, 1, 1, "#e9eef3");
+  const deep = S.gangs[1] > 0 ? 1 : 0, yTop = SURF - 26, yBot = SURF + deep * LH + 66 - 26, ph = (t / 5) % 2, u = ph < 1 ? ph : 2 - ph, cy = yTop + (yBot - yTop) * (0.5 - 0.5 * Math.cos(u * Math.PI));
+  line(c, 25, 12, 25, cy, "#1a1a1a"); c.drawImage(im.cage, 15, Math.round(cy)); if (ph >= 1) c.drawImage(im["tub-full"], 18, Math.round(cy) + 8);
+  for (let i = 0; i < 2; i++) {
+    const g = S.gangs[i], fl = SURF + i * LH + 66;
+    if (g > 0 && F.rock[i] > 0) {
+      const gap = Math.max(20, Math.min(70, 52000 / F.rock[i])), off = (t * 16) % gap; for (let x = 172 - off; x > 36; x -= gap) c.drawImage(im["tub-full"], Math.round(x), fl - 18);
+      sprite(c, "drill-work-4f", 23, Math.floor(t * 8) % 4, 178, fl - 18); sprite(c, "dust-burst-4f", 16, Math.floor(t * 6 + i * 2) % 4, 190, fl - 26);
+    }
+    for (let k = 4 - g; k < 4; k++) { const bx = 40 + k * 34; for (let m = 0; m < 3; m++) { const pace = Math.sin(t * 1.3 + m * 2.1 + k) * 3; sprite(c, "miner-18f", 12, Math.floor(t * 9 + m * 5 + k * 3) % 18, bx + 2 + m * 9 + pace, fl - 24, Math.cos(t * 1.3 + m * 2.1 + k) < 0); } }
+  }
+  for (const b of bursts) { b.t += 0.06; for (let i = 0; i < 2; i++) sprite(c, "dust-burst-4f", 16, Math.min(3, Math.floor(b.t * 4)), 186, SURF + i * LH + 40 + i * 4); }
+  while (bursts.length && bursts[0].t > 1) bursts.shift();
+}
+function mineDOM(ov) {
+  ov.innerHTML = "";
+  ["Topsoil", "Granite"].forEach((n, i) => {
+    const lv = el("div", "lv", ov, `<div class="a"><span class="nm">${n}</span><span class="rt num" id="lv-r${i}"></span></div><div class="b" id="lv-b${i}"></div>`); lv.style.top = (SURF + i * LH + 3) * 2 + "px";
+    for (let k = 0; k < 4; k++) {
+      const b = el("button", "berth", ov); b.id = `be-${i}-${k}`; b.style.left = (40 + k * 34) * 2 + "px"; b.style.top = (SURF + i * LH + 34) * 2 + "px"; b.setAttribute("aria-label", `${n} gang spot ${k + 1}`);
+      drag(b, { start: () => { if (b.classList.contains("free")) return false; $("#ghost").hidden = false; }, move: (p) => { const g = $("#ghost"); g.style.left = p.x + "px"; g.style.top = p.y + "px"; },
+        drop: (p) => { $("#ghost").hidden = true; const ay = (p.y - 98) / 2, to = ay >= SURF && ay < SURF + LH ? 0 : ay >= SURF + LH && ay < SURF + 2 * LH ? 1 : -1; if (to >= 0 && to !== i) moveGang(to); },
+        tap: () => { if (b.classList.contains("free")) moveGang(i); else say("Drag the gang to the other level, or tap a free spot there."); } });
+    }
+  });
+  const deep = el("div", "deep", ov, "Harder rock lies below. The village has to grow first."); deep.style.top = (SURF + 2 * LH + 4) * 2 + "px";
+  Object.keys(STG).forEach((k, n) => { const s = el("button", "stg", ov, `<div class="h">${ico(STG[k].icon)}${STG[k].n}</div><div class="r num"></div><div class="w"></div><div class="p"></div>`); s.id = "stg-" + k; s.style.left = 6 + n * 100 + "px"; s.style.bottom = "8px"; tap(s, () => buyStage(k)); });
+  const d = el("button", "", ov, `<i style="background-image:url(${IMGS["dig-button"]})"></i><span>DIG +250</span>`); d.id = "dig"; d.style.left = "308px"; d.style.bottom = "4px"; d.setAttribute("aria-label", "Dig");
+  d.addEventListener("pointerdown", (e) => { e.preventDefault(); d.classList.add("down"); const p = pt(e); dig(p.x - 20, p.y - 40); setTimeout(() => d.classList.remove("down"), 90); });
+}
+function mineUI(F) {
+  for (let i = 0; i < 2; i++) {
+    const g = S.gangs[i], good = i ? "cut" : "bricks", mk = i ? "saws" : "kilns", cnt = i ? S.saws : S.kilns;
+    $("#lv-r" + i).textContent = g ? rate(F.rock[i]) : "no gang";
+    let b;
+    if (!g) b = "No gang here. Its rock stays in the mountain.";
+    else if (!cnt) b = `No ${mk} yet. The rock is stacked as stones.`;
+    else if (F.full[good] && F.full.stones) b = `<em>The gangs rest: the yard is full.</em>`;
+    else if (F.full[good]) b = `<em>The ${GN[good]} pile is full.</em> The rock is stacked as stones.`;
+    else b = `${g} of 4 gangs · ${GN[good]} ${rate(F.made[i])} · <em>the ${F.holds[i]} hold</em>`;
+    $("#lv-b" + i).innerHTML = b;
+    for (let k = 0; k < 4; k++) $(`#be-${i}-${k}`).classList.toggle("free", k < 4 - g);
+  }
+  for (const k in STG) { const s = $("#stg-" + k), pr = stagePrice(k), ok = canPay({ [STG[k].good]: pr }); s.classList.toggle("narrow", F.narrow === k); s.children[1].textContent = rate(F.f[k]); s.children[2].textContent = F.narrow === k ? "holds the line" : rate(F.f[k] - F.f[F.narrow]) + " spare"; s.children[3].innerHTML = `+${STG[k].mach} ${fmt(pr)} ${ico(STG[k].good)}`; s.children[3].classList.toggle("can", ok); }
+}
+
+/* ---------- the works: rock falls through the makers into the yard ---------- */
+const yardY = (h) => h - 78;
+function chute(c, x, y0, y1) { R(c, x - 6, y0, 12, y1 - y0, "#0f1114"); R(c, x - 7, y0, 2, y1 - y0, "#6b7480"); R(c, x + 5, y0, 2, y1 - y0, "#4b5360"); for (let y = y0 + 3; y < y1; y += 8) R(c, x - 5, y, 10, 1, "#1b1e23"); }
+function worksBG(h) {
+  const c = mk(W, h), Y = yardY(h);
+  bricks(c, 0, 0, W, Y, { m: "#170b09", c: ["#2a1714", "#301a16", "#27130f", "#35201a"] }, 3, 8, 4);
+  for (let y = 0; y < Y; y++) for (let x = 0; x < W; x++) if (hash(x, y, 5) < 0.04) R(c, x, y, 1, 1, "#170b09");
+  // hoppers, chutes, the overflow down the middle
+  for (const s of [-1, 1]) {
+    const cx = s < 0 ? 42 : 170, mx = s < 0 ? 100 : 112;
+    chute(c, cx, 30, 60);
+    for (let i = 0; i <= 30; i++) { const x = cx + ((mx - cx) * i) / 30 - 5, y = 40 + i; R(c, x, y - 1, 11, 9, "#0f1114"); R(c, x, y - 2, 11, 1, "#6b7480"); R(c, x, y + 8, 11, 1, "#4b5360"); }
+    for (let y = 0; y < 20; y++) { const w = 22 - Math.floor(y * 0.7); R(c, cx - w, 12 + y, w * 2, 1, y < 2 ? "#aab4bf" : "#59606a"); R(c, cx - w, 12 + y, 2, 1, "#7b848f"); R(c, cx + w - 2, 12 + y, 2, 1, "#2e3238"); } R(c, cx - 22, 11, 44, 1, "#d7dee5");
+    chute(c, cx, 122, Y + 6);
+  }
+  chute(c, 100, 70, Y + 6); chute(c, 112, 70, Y + 6); R(c, 105, 70, 2, Y - 64, "#0f1114");
+  // the kiln
+  R(c, 58, 46, 9, 26, "#6f3220"); R(c, 57, 45, 11, 2, "#3a1610"); R(c, 58, 47, 2, 24, "#8f3d25");
+  for (let y = 0; y < 62; y++) { const w = Math.round(33 * Math.sqrt(1 - Math.pow((61 - y) / 64, 2))), yy = 60 + y; if (w > 2) { for (let x = -w; x < w; x++) R(c, 42 + x, yy, 1, 1, brickCol(x + 40, y, RED, 11, 8, 4)); R(c, 42 - w, yy, 1, 1, "#1a0806"); R(c, 42 + w - 1, yy, 1, 1, "#1a0806"); if (w > 8 && y % 4 !== 3) R(c, 42 - w + 1, yy, 2, 1, "#e07a48"); } }
+  R(c, 31, 98, 22, 24, "#2e3238"); R(c, 33, 100, 18, 22, "#120706"); R(c, 33, 100, 18, 1, "#59606a"); R(c, 6, 122, 72, 2, "#1a0806");
+  // the saw
+  R(c, 140, 62, 4, 60, "#59606a"); R(c, 196, 62, 4, 60, "#59606a"); R(c, 140, 62, 2, 60, "#7b848f"); R(c, 198, 62, 2, 60, "#2e3238"); R(c, 138, 60, 64, 5, "#59606a"); R(c, 138, 60, 64, 1, "#aab4bf"); R(c, 138, 64, 64, 1, "#2e3238");
+  R(c, 138, 108, 64, 5, "#4b5360"); R(c, 138, 108, 64, 1, "#7b848f"); R(c, 144, 113, 3, 9, "#2e3238"); R(c, 193, 113, 3, 9, "#2e3238"); R(c, 136, 122, 68, 2, "#1a0806");
+  R(c, 144, 92, 22, 16, "#566170"); grain(c, 145, 93, 20, 14, EARTH[1], 70); R(c, 144, 92, 22, 1, "#8d99a8");
+  R(c, 176, 100, 18, 8, "#c3ccd6"); R(c, 176, 100, 18, 2, "#eef3f8"); R(c, 192, 102, 2, 6, "#96a1ad"); R(c, 178, 96, 14, 4, "#c3ccd6"); R(c, 178, 96, 14, 1, "#eef3f8"); R(c, 169, 66, 3, 10, "#2e3238");
+  // the yard
+  grain(c, 0, Y, W, h - Y, { b: "#3b2c22", d: "#32251c", l: "#463529", p: "#5a4634" }, 90); R(c, 0, Y, W, 2, "#170b09"); R(c, 0, Y + 2, W, 1, "#5a4634");
+  for (const x of [0, 70, 139, 208]) { R(c, x, Y + 3, 4, h - Y - 26, "#7a5530"); R(c, x, Y + 3, 1, h - Y - 26, "#a5773f"); R(c, x - 1, Y + 2, 6, 2, "#4d351d"); }
+  return c.canvas;
+}
+function stream(c, pts, flow, t, draw, seed) {
+  if (flow <= 0) return; let len = 0; const seg = []; for (let i = 1; i < pts.length; i++) { const d = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); seg.push(d); len += d; }
+  const n = Math.max(2, Math.min(40, Math.round((flow / 2700) * len * 0.35)));
+  for (let k = 0; k < n; k++) { let d = (((k + hash(k, 1, seed) * 0.6) / n + (t * 46) / len) % 1) * len, i = 0; while (i < seg.length - 1 && d > seg[i]) { d -= seg[i]; i++; } const f = d / seg[i], x = pts[i][0] + (pts[i + 1][0] - pts[i][0]) * f + Math.round(hash(k, 2, seed) * 6 - 3), y = pts[i][1] + (pts[i + 1][1] - pts[i][1]) * f; draw(Math.round(x), Math.round(y), k); }
+}
+const rockDraw = (c, pal) => (x, y, k) => { R(c, x - 1, y - 1, 3, 3, pal[k % pal.length]); R(c, x - 1, y - 1, 2, 1, pal[(k + 1) % pal.length]); };
+const TOPR = ["#8a6a44", "#6d4a2b", "#a37a4c"], GRAR = ["#74808f", "#566170", "#8d99a8"], STNR = ["#8f9aa5", "#6f7b8c", "#aab4bf"];
+function worksDraw(c, h, t, F) {
+  const Y = yardY(h);
+  stream(c, [[42, 0], [42, 30]], F.rock[0], t, rockDraw(c, TOPR), 1); stream(c, [[170, 0], [170, 30]], F.rock[1], t, rockDraw(c, GRAR), 2);
+  stream(c, [[42, 30], [42, 60]], F.made[0], t, rockDraw(c, TOPR), 3); stream(c, [[170, 30], [170, 62]], F.made[1], t, rockDraw(c, GRAR), 4);
+  stream(c, [[46, 42], [100, 74], [100, Y + 6]], F.over[0], t, rockDraw(c, TOPR), 5); stream(c, [[166, 42], [112, 74], [112, Y + 6]], F.over[1], t, rockDraw(c, GRAR), 6);
+  stream(c, [[42, 124], [42, Y + 6]], F.made[0], t, (x, y) => { R(c, x - 2, y - 1, 5, 3, "#4a1c12"); R(c, x - 2, y - 1, 4, 2, "#c05a34"); }, 7);
+  stream(c, [[170, 124], [170, Y + 6]], F.made[1], t, (x, y) => { R(c, x - 2, y - 2, 5, 4, "#96a1ad"); R(c, x - 2, y - 2, 4, 3, "#e3eaf1"); }, 8);
+  // fire and smoke
+  const hot = S.kilns > 0 && F.made[0] > 0;
+  if (hot) { for (let x = 0; x < 16; x++) { const fh = 6 + Math.floor(8 * Math.abs(Math.sin(t * 9 + x * 1.7)) + hash(x, Math.floor(t * 12), 9) * 5); R(c, 34 + x, 122 - fh, 1, fh, "#e2552d"); R(c, 34 + x, 122 - fh * 0.66, 1, fh * 0.66, "#ff9a2e"); R(c, 34 + x, 122 - fh * 0.33, 1, fh * 0.33, "#ffe07a"); } glow(c, 42, 124, 22, "#ff9a2e", Math.floor(t * 8), 0.35); for (let p = 0; p < 3; p++) { const a = (t * 0.5 + p / 3) % 1; sprite(c, "steam-4f", 11, Math.min(3, Math.floor(a * 4)), 57 + Math.sin(a * 6 + p) * 3, 40 - a * 34); } }
+  else R(c, 34, 116, 16, 6, "#3a1610");
+  // the blade
+  const sp = S.saws > 0 && F.made[1] > 0 ? t * 14 : 0; disc(c, 170, 88, 15, "#aab4bf"); disc(c, 170, 88, 12, "#8a94a0"); for (let a = 0; a < 14; a++) { const an = sp + (a * Math.PI * 2) / 14; R(c, 170 + Math.cos(an) * 16, 88 + Math.sin(an) * 16, 2, 2, "#dfe6ec"); if (a % 2) line(c, 170 + Math.cos(an) * 4, 88 + Math.sin(an) * 4, 170 + Math.cos(an) * 11, 88 + Math.sin(an) * 11, "#6b7480"); } disc(c, 170, 88, 3, "#2e3238");
+  if (sp) for (let i = 0; i < 6; i++) { const a = (t * 2 + i / 6) % 1; R(c, 168 - a * 16 - hash(i, 1, 3) * 6, 104 - Math.sin(a * 3.1) * 10, 1, 1, "#bfe3ff"); }
+  // the heaps
+  const cap = F.cap, bay = [[6, 62, "bricks"], [76, 61, "stones"], [145, 61, "cut"]], top = Y + 18, base = h - 25;
+  for (const [x0, w, g] of bay) {
+    const f = Math.min(1, S[g] / cap[g]), hh = Math.round((base - top) * (0.12 + 0.88 * f)); if (S[g] < 1) continue;
+    if (g === "stones") { for (let y = 0; y < hh; y++) { const ww = Math.round((w / 2) * Math.sqrt(1 - Math.pow(1 - y / hh, 2)) * 0.98); for (let x = -ww; x < ww; x++) { const r = hash((x0 + x) >> 1, y >> 1, 12); R(c, x0 + w / 2 + x, base - hh + y, 1, 1, r < 0.2 ? "#566170" : r < 0.55 ? "#8f9aa5" : r < 0.8 ? "#74808f" : "#b4bec8"); } } }
+    else { const bw = g === "bricks" ? 7 : 9, bh = g === "bricks" ? 4 : 6, rows = Math.max(1, Math.round(hh / bh)); for (let r = 0; r < rows; r++) { const n = Math.max(1, Math.floor(w / bw) - Math.floor(r * (g === "bricks" ? 0.45 : 0.7))), off = (w - n * bw) / 2; for (let k = 0; k < n; k++) { const x = x0 + off + k * bw + (r % 2 ? 1 : 0), y = base - (r + 1) * bh; if (g === "bricks") { R(c, x, y, bw - 1, bh - 1, RED.c[Math.floor(hash(k, r, 13) * 4)]); R(c, x, y, bw - 1, 1, "#d8703f"); } else { R(c, x, y, bw - 1, bh - 1, "#c3ccd6"); R(c, x, y, bw - 1, 1, "#eef3f8"); R(c, x + bw - 2, y + 1, 1, bh - 2, "#96a1ad"); } } } }
+  }
+}
+function worksDOM(ov, h) {
+  ov.innerHTML = ""; const Y = yardY(h) * 2;
+  el("div", "in", ov, `Topsoil <span class="num" id="in0"></span>`).style.left = "8px";
+  const r = el("div", "in", ov, `Granite <span class="num" id="in1"></span>`); r.style.right = "8px"; r.style.textAlign = "right";
+  [["kiln", 12, 6, buyKiln], ["saw", 272, 238, buySaw]].forEach(([id, mx, px, fn]) => {
+    const m = el("button", "mach", ov); m.style.left = mx + "px"; m.style.top = "114px"; m.setAttribute("aria-label", "Add a " + id); tap(m, fn);
+    const p = el("button", "plate", ov, `<div class="a"></div><div class="b"></div><div class="p"></div>`); p.id = "pl-" + id; p.style.left = px + "px"; p.style.top = "250px"; tap(p, fn);
+  });
+  const mid = el("div", "mid", ov, `to stones<br><span class="num" id="mid-r"></span>`); mid.style.top = "150px";
+  [["bricks", 6], ["stones", 146], ["cut", 284]].forEach(([g, x]) => { const b = el("div", "bay", ov, `${GC[g]}<span class="num"></span>`); b.id = "bay-" + g; b.style.left = x + "px"; b.style.top = Y + 6 + "px"; });
+  const e = el("button", "ext", ov, `<div class="t">Extend the yard<small>Every pile holds three times as much</small></div><div class="p"></div>`); e.id = "ext"; e.style.top = h * 2 - 48 + "px"; tap(e, extendYard);
+}
+function worksUI(F) {
+  $("#in0").textContent = S.gangs[0] ? rate(F.rock[0]) : "no gang"; $("#in1").textContent = S.gangs[1] ? rate(F.rock[1]) : "no gang";
+  [["kiln", "kilns", S.kilns, 0, "bricks", kilnPrice(), "stones", 100], ["saw", "saws", S.saws, 1, "cut", sawPrice(), "bricks", 120]].forEach(([id, pl, n, i, g, pr, pg, per]) => {
+    const p = $("#pl-" + id); p.children[0].innerHTML = `${n} ${pl.toUpperCase()} <span class="num">take ${rate(F.take[i])}</span>`;
+    p.children[1].textContent = !S.gangs[i] ? "No rock comes in. No gang digs it." : F.full[g] ? `The ${GN[g]} pile is full.` : F.holds[i] === "gangs" ? `The gangs hold the ${GN[g]}: more ${pl} add nothing.` : `The ${pl} hold the ${GN[g]}.`;
+    p.children[2].innerHTML = `+1 ${id} · ${fmt(pr)} ${ico(pg)} · +${per}/s`; p.children[2].classList.toggle("can", canPay({ [pg]: pr }));
+  });
+  $("#mid-r").textContent = F.full.stones ? "full" : rate(F.over[0] + F.over[1]);
+  for (const g of ["stones", "bricks", "cut"]) { const b = $("#bay-" + g); b.children[0].textContent = fmt(S[g]) + " of " + fmt(F.cap[g]); b.classList.toggle("full", F.full[g]); }
+  const e = $("#ext"); e.children[1].innerHTML = `${fmt(yardPrice())} ${ico("bricks")}`; e.children[1].classList.toggle("can", canPay({ bricks: yardPrice() }));
+}
+
+/* ---------- the workshop: a bench seen from above ---------- */
+function drawItem(c, id, x, y, s, lineCol) {
+  const P = (px, py, w, h, col) => R(c, x + px * s, y + py * s, w * s, h * s, lineCol || col);
+  if (id === "rails") { for (const sx of [2, 7, 12, 17, 21]) P(sx, 3, 2, 18, "#8a6238"); P(0, 6, 24, 2, "#c9d2db"); P(0, 16, 24, 2, "#c9d2db"); if (!lineCol) { P(0, 7, 24, 1, "#7b848f"); P(0, 17, 24, 1, "#7b848f"); } }
+  if (id === "props") { P(3, 4, 3, 19, "#b98a55"); P(18, 4, 3, 19, "#b98a55"); P(1, 2, 22, 3, "#d8a25e"); for (let i = 0; i < 6; i++) { P(6 + i, 10 - i, 1, 2, "#8a6238"); P(17 - i, 10 - i, 1, 2, "#8a6238"); } if (!lineCol) { P(3, 4, 1, 19, "#8a6238"); P(18, 4, 1, 19, "#8a6238"); } }
+  if (id === "charge") { for (const sy of [9, 13, 17]) { P(4, sy, 16, 3, "#b03a2e"); if (!lineCol) P(4, sy, 16, 1, "#d8573f"); } P(10, 8, 4, 13, "#d8c08a"); P(12, 4, 1, 4, "#3a2a1a"); P(13, 3, 3, 1, "#3a2a1a"); P(16, 1, 2, 2, "#ffcf6a"); }
+}
+const matBox = (h) => ({ x: 10, y: 74, w: 192, h: h - 74 - 90 });
+function shopBG(h) {
+  const c = mk(W, h), tones = ["#b98a55", "#c4955d", "#ad7f4c", "#be8f58"];
+  for (let y = 0; y < h; y++) { const pl = Math.floor(y / 13); for (let x = 0; x < W; x++) { const sh = Math.floor(hash(pl, 0, 21) * 90), seam = y % 13 === 12 || (x + sh) % 90 === 0; let col = seam ? "#7d5933" : tones[Math.floor(hash(pl, Math.floor((x + sh) / 90), 22) * 4)]; if (!seam && hash((x + sh) >> 3, y, 23) < 0.12) col = "#9a6f42"; R(c, x, y, 1, 1, col); } }
+  R(c, 0, 0, W, 2, "#5c3f24"); R(c, 0, 0, 2, h, "#5c3f24"); R(c, W - 2, 0, 2, h, "#5c3f24"); R(c, 0, h - 2, W, 2, "#5c3f24");
+  // the tool rail
+  R(c, 4, 4, 204, 18, "#6b4a2c"); R(c, 4, 4, 204, 1, "#8a6238"); R(c, 4, 21, 204, 2, "#4a321c");
+  R(c, 10, 10, 14, 3, "#d8a25e"); R(c, 22, 7, 6, 9, "#aab4bf"); R(c, 22, 7, 6, 2, "#dfe6ec");
+  R(c, 36, 9, 16, 2, "#aab4bf"); R(c, 36, 14, 16, 2, "#aab4bf"); R(c, 50, 8, 4, 9, "#59606a");
+  R(c, 62, 8, 3, 11, "#d8a25e"); R(c, 62, 6, 3, 3, "#aab4bf"); R(c, 72, 8, 20, 4, "#aab4bf"); for (let x = 72; x < 92; x += 2) R(c, x, 12, 1, 1, "#aab4bf"); R(c, 90, 7, 8, 7, "#d8a25e");
+  // the trays
+  for (const x of [6, 108]) { R(c, x, 26, 98, 42, "#5c3f24"); R(c, x + 2, 28, 94, 38, "#2e1f12"); R(c, x + 2, 28, 94, 2, "#1d130a"); R(c, x, 26, 98, 1, "#8a6238"); }
+  // the bench plate
+  const m = matBox(h); R(c, m.x - 2, m.y - 2, m.w + 4, m.h + 4, "#16211e"); R(c, m.x, m.y, m.w, m.h, "#24352f"); for (let x = m.x + 12; x < m.x + m.w; x += 12) R(c, x, m.y, 1, m.h, "#2c4038"); for (let y = m.y + 12; y < m.y + m.h; y += 12) R(c, m.x, y, m.w, 1, "#2c4038"); R(c, m.x, m.y, m.w, 1, "#3d574d");
+  for (const [bx, by] of [[m.x + 3, m.y + 3], [m.x + m.w - 6, m.y + 3], [m.x + 3, m.y + m.h - 6], [m.x + m.w - 6, m.y + m.h - 6]]) { R(c, bx, by, 3, 3, "#59606a"); R(c, bx, by, 1, 1, "#aab4bf"); }
+  return c.canvas;
+}
+function paper(id) { const c = mk(64, 80); R(c, 0, 0, 64, 80, "#1d3f6e"); R(c, 1, 1, 62, 78, "#2f5f9a"); for (let x = 8; x < 64; x += 8) R(c, x, 1, 1, 78, "#3a6dab"); for (let y = 8; y < 80; y += 8) R(c, 1, y, 62, 1, "#3a6dab"); drawItem(c, id, 20, 3, 1, "#e6f0ff"); R(c, 31, 1, 3, 3, "#e2552d"); R(c, 56, 72, 7, 7, "#1d3f6e"); line(c, 56, 78, 62, 72, "#9fc0ea"); return c.canvas.toDataURL(); }
+function shopDraw(c, h, t) {
+  for (let i = 0; i < Math.floor(S.clay); i++) c.drawImage(im["res-clay"], 10 + (i % 5) * 18 + (i > 4 ? 6 : 0), 29 + (i > 4 ? 8 : 0));
+  for (let i = 0; i < Math.min(18, Math.floor(S.iron)); i++) c.drawImage(im["res-iron"], 111 + (i % 9) * 10, 29 + Math.floor(i / 9) * 8);
+  const m = matBox(h), b = S.bench, cy = m.y + Math.floor(m.h / 2) + 8;
+  if (!b) { for (let x = m.x + 14; x < m.x + m.w - 14; x += 6) { R(c, x, m.y + 30, 3, 1, "#5f8a7b"); R(c, x, m.y + m.h - 12, 3, 1, "#5f8a7b"); } for (let y = m.y + 30; y < m.y + m.h - 12; y += 6) { R(c, m.x + 14, y, 1, 3, "#5f8a7b"); R(c, m.x + m.w - 15, y, 1, 3, "#5f8a7b"); } return; }
+  const p = 1 - b.left / b.total, ix = m.x + 14, iy = cy - 24;
+  drawItem(c, b.id, ix, iy, 2, "#3d574d"); c.save(); c.beginPath(); c.rect(ix, iy, Math.round(48 * p), 48); c.clip(); drawItem(c, b.id, ix, iy, 2); c.restore();
+  if (!b.done && Math.floor(t * 6) % 2) { R(c, ix + 48 * p - 1, iy + 10 + hash(Math.floor(t * 6), 1, 3) * 28, 2, 2, "#ffe07a"); R(c, ix + 48 * p + 2, iy + 8 + hash(Math.floor(t * 6), 2, 3) * 30, 1, 1, "#ff9a2e"); }
+  // the clock
+  const kx = m.x + m.w - 34, r = 20; disc(c, kx, cy, r + 3, "#8a6420"); disc(c, kx, cy, r + 1, "#e0b04a"); disc(c, kx, cy, r - 1, "#efe2c2"); R(c, kx - 2, cy - r - 6, 5, 4, "#e0b04a");
+  for (let a = 0; a < 12; a++) { const an = (a * Math.PI) / 6; R(c, kx + Math.sin(an) * (r - 4), cy - Math.cos(an) * (r - 4), a % 3 ? 1 : 2, a % 3 ? 1 : 2, "#5c3f24"); }
+  const steps = 60; c.fillStyle = "#c8452f"; for (let i = 0; i < Math.round(steps * p); i++) { const an = (i / steps) * Math.PI * 2; for (let q = 4; q < r - 6; q++) c.fillRect(Math.round(kx + Math.sin(an) * q), Math.round(cy - Math.cos(an) * q), 1, 1); }
+  const an = p * Math.PI * 2; line(c, kx, cy, kx + Math.sin(an) * (r - 5), cy - Math.cos(an) * (r - 5), "#2a1a0c", 2); R(c, kx - 1, cy - 1, 3, 3, "#2a1a0c");
+}
+function shopDOM(ov, h) {
+  ov.innerHTML = ""; const m = matBox(h);
+  const a = el("div", "tray", ov, `CLAY <span class="num" id="tr-clay"></span> · from the Topsoil`); a.style.left = "12px"; a.style.top = "111px";
+  const b = el("div", "tray", ov, `IRON <span class="num" id="tr-iron"></span> · from the Granite`); b.style.left = "216px"; b.style.top = "111px";
+  el("div", "rack", ov).id = "rack";
+  const j = el("div", "job", ov, `<div class="a"></div><div class="b"></div>`); j.id = "job"; j.style.top = m.y * 2 + 8 + "px";
+  const tm = el("div", "time num", ov); tm.id = "time"; tm.style.left = "150px"; tm.style.top = (m.y + m.h / 2) * 2 - 2 + "px";
+  const f = el("button", "fit", ov); f.id = "fitbtn"; f.style.top = (m.y + m.h) * 2 - 68 + "px"; tap(f, fitJob);
+  Object.keys(REC).forEach((id, n) => {
+    const r = REC[id], bp = el("button", "bp", ov, `<div class="a">${r.n}</div><div class="b">${r.does}</div><div class="c"></div><div class="s num">${r.s} s</div>`); bp.id = "bp-" + id; bp.style.left = 12 + n * 136 + "px"; bp.style.top = (h - 84) * 2 + "px"; bp.style.background = `url(${paper(id)}) 0 0/100% 100%`; bp.style.imageRendering = "pixelated";
+    drag(bp, { start: () => { bp.classList.remove("back"); bp.classList.add("drag"); }, move: (p, dx, dy) => { bp.style.transform = `translate(${dx}px,${dy}px) rotate(-3deg)`; },
+      drop: (p) => { const ax = p.x / 2, ay = (p.y - 98) / 2; bp.classList.remove("drag"); bp.classList.add("back"); bp.style.transform = ""; if (ax > m.x && ax < m.x + m.w && ay > m.y && ay < m.y + m.h) startJob(id); else say("Drop the drawing on the bench to start the job."); },
+      tap: () => startJob(id) });
+  });
+}
+function shopUI() {
+  $("#tr-clay").textContent = Math.floor(S.clay) + "/10"; $("#tr-iron").textContent = Math.floor(S.iron) + "/35";
+  $("#rack").innerHTML = `Fitted: rails ${S.gear.rails} of 2 · props ${S.gear.props} of 1` + (S.charge > 0 ? `<br>Charge burning: ${Math.ceil(S.charge)} s` : "");
+  const b = S.bench, j = $("#job"), tm = $("#time"), f = $("#fitbtn");
+  if (!b) { j.children[0].textContent = "The bench is free"; j.children[1].textContent = "Drag a drawing onto the bench"; tm.hidden = true; f.hidden = true; }
+  else if (b.done) { j.children[0].textContent = REC[b.id].n + " ready"; j.children[1].textContent = REC[b.id].does; tm.hidden = true; f.hidden = false; f.textContent = REC[b.id].verb; }
+  else { j.children[0].textContent = REC[b.id].n; j.children[1].textContent = "On the bench. One job at a time."; tm.hidden = false; f.hidden = true; const s = Math.ceil(b.left); tm.textContent = Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); }
+  for (const id in REC) { const r = REC[id], bp = $("#bp-" + id), maxed = r.max && S.gear[id] >= r.max; bp.classList.toggle("off", !!S.bench || maxed || !canPay(r.cost)); bp.children[2].innerHTML = maxed ? "All fitted" : Object.keys(r.cost).map((g) => `<span class="${Math.floor(S[g]) < r.cost[g] ? "no" : ""}">${fmt(r.cost[g])} ${ico(g)}</span>`).join(" "); }
+}
+
+/* ---------- the village: a skyline that grows ---------- */
+const groundY = (h) => h - 92;
+function villageBG(h) {
+  const c = mk(W, h), G = groundY(h), sky = ["#0b1030", "#101a44", "#1a2660", "#2b2f78", "#4a3a84", "#7a4a7e", "#b8607a", "#e8906a"];
+  for (let y = 0; y < G; y++) { const t = Math.pow(y / G, 1.6) * (sky.length - 1), i = t | 0, f = t - i; for (let x = 0; x < W; x++) R(c, x, y, 1, 1, hash(x, y, 1) < f ? sky[Math.min(i + 1, 7)] : sky[i]); }
+  for (let i = 0; i < 70; i++) { const y = hash(i, 2, 5) * G * 0.6; R(c, hash(i, 1, 5) * W, y, 1, 1, hash(i, 3, 5) < 0.3 ? "#ffffff" : "#aab6ff"); }
+  glow(c, 170, 28, 22, "#8f9ae0", 6, 0.5); disc(c, 170, 28, 9, "#f3efd8"); disc(c, 167, 26, 2, "#d9d3b4"); R(c, 173, 31, 2, 2, "#d9d3b4"); R(c, 170, 22, 1, 1, "#d9d3b4");
+  for (let x = 0; x < W; x++) { const a = G - 34 - 18 * Math.abs(Math.sin(x / 37 + 0.6)) - 6 * Math.sin(x / 11), b = G - 16 - 12 * Math.abs(Math.sin(x / 23 + 2)) - 3 * Math.sin(x / 6); R(c, x, a, 1, G - a, "#2a2c66"); R(c, x, b, 1, G - b, "#1c2050"); }
+  // the mine on the far hill
+  line(c, 186, G - 30, 190, G - 42, "#0f1230"); line(c, 196, G - 30, 192, G - 42, "#0f1230"); R(c, 189, G - 43, 5, 1, "#0f1230"); disc(c, 191, G - 45, 2, "#0f1230"); R(c, 198, G - 34, 8, 5, "#0f1230"); R(c, 200, G - 32, 2, 2, "#ffcf6a");
+  // the ground and the road
+  for (let y = G; y < h; y++) for (let x = 0; x < W; x++) { const r = hash(x >> 1, y >> 1, 31); R(c, x, y, 1, 1, y < G + 3 ? (hash(x, y, 32) < 0.5 ? "#3f7a4c" : "#2f5a3c") : r < 0.3 ? "#1b2a22" : r < 0.6 ? "#22352b" : "#1f2f27"); }
+  for (let x = 0; x < W; x++) if (hash(x, 3, 33) < 0.3) R(c, x, G - 1, 1, 1, "#4f8f5a");
+  R(c, 0, G + 4, W, 11, "#7a6646"); for (let x = 0; x < W; x++) { if (hash(x, 1, 34) < 0.5) R(c, x, G + 4 + hash(x, 2, 34) * 11, 2, 1, "#8f7a55"); if (hash(x, 4, 34) < 0.2) R(c, x, G + 5 + hash(x, 5, 34) * 9, 1, 1, "#5f4f36"); } R(c, 0, G + 4, W, 1, "#5f4f36"); R(c, 0, G + 15, W, 1, "#16221c");
+  return c.canvas;
+}
+function beacon(c, G, t) {
+  const cx = 34; for (let y = 0; y < 56; y++) { const w = 11 - Math.floor(y / 14); for (let x = -w; x < w; x++) R(c, cx + x, G - 1 - y, 1, 1, brickCol(x + 20, y, GREY, 100, 6, 4)); R(c, cx - w, G - 1 - y, 1, 1, "#b9bfca"); R(c, cx + w - 1, G - 1 - y, 1, 1, "#3a3f4a"); }
+  R(c, cx - 11, G - 60, 22, 3, "#6e7482"); R(c, cx - 12, G - 61, 24, 1, "#b9bfca"); for (let x = cx - 11; x < cx + 11; x += 4) R(c, x, G - 64, 2, 3, "#8d93a0");
+  R(c, cx - 3, G - 10, 6, 10, "#2a1d12"); R(c, cx - 2, G - 11, 4, 1, "#2a1d12"); R(c, cx - 1, G - 30, 2, 4, "#ffcf6a"); R(c, cx - 1, G - 46, 2, 4, "#ffcf6a");
+  R(c, cx - 5, G - 66, 10, 2, "#2e3238"); glow(c, cx, G - 72, 26, "#ffb13a", Math.floor(t * 7), 0.28);
+  for (let x = -4; x < 4; x++) { const fh = 5 + Math.floor(6 * Math.abs(Math.sin(t * 8 + x * 1.3)) + hash(x, Math.floor(t * 10), 2) * 4); R(c, cx + x, G - 66 - fh, 1, fh, "#e2552d"); R(c, cx + x, G - 66 - fh * 0.6, 1, fh * 0.6, "#ffb13a"); R(c, cx + x, G - 66 - fh * 0.3, 1, fh * 0.3, "#fff0a8"); }
+}
+function plotStakes(c, x0, w, G) { for (const x of [x0, x0 + w - 2]) { R(c, x, G - 7, 2, 7, "#b98a55"); R(c, x, G - 7, 2, 1, "#e2552d"); } for (let x = x0 + 2; x < x0 + w - 2; x += 3) R(c, x, G - 5, 2, 1, "#d8c08a"); }
+function scaffold(c, x0, w, G, top) { for (const x of [x0 - 4, x0 + w + 2]) { R(c, x, G - top - 6, 2, top + 6, "#b98a55"); R(c, x, G - top - 6, 1, top + 6, "#d8a25e"); } for (let y = 9; y < top + 4; y += 10) { R(c, x0 - 6, G - y, 6, 1, "#d8a25e"); R(c, x0 + w, G - y, 6, 1, "#d8a25e"); } for (let y = 2; y < Math.min(top, 30); y += 3) R(c, x0 + w + 4, G - y, 3, 1, "#8a6238"); }
+/* A building drawn up to its progress p: 0 to 1 footings, 1 to 2 walls, 2 to 3 roof. */
+function building(c, kind, x0, w, G, p, t) {
+  const store = kind === "store", wallH = store ? 30 : 26, roofH = store ? 16 : 22, pal = store ? RED : GREY;
+  const f0 = Math.min(1, p), f1 = Math.min(1, Math.max(0, p - 1)), f2 = Math.min(1, Math.max(0, p - 2));
+  if (p <= 0) return plotStakes(c, x0, w, G);
+  bricks(c, x0 - 1, G - 4, Math.round((w + 2) * f0), 4, GREY, 41, 5, 2); R(c, x0 - 1, G - 4, Math.round((w + 2) * f0), 1, "#b9bfca");
+  const rows = Math.round(wallH * f1);
+  if (rows > 0) {
+    bricks(c, x0, G - 4 - rows, w, rows, pal, 42, 6, 3); R(c, x0, G - 4 - rows, 1, rows, store ? "#d8703f" : "#b9bfca"); R(c, x0 + w - 1, G - 4 - rows, 1, rows, store ? "#4a1c12" : "#3a3f4a");
+    const dw = store ? 16 : 12, dh = Math.min(rows, store ? 20 : 16), dx = x0 + (store ? Math.floor((w - dw) / 2) : 6); R(c, dx, G - 4 - dh, dw, dh, "#150e0a");
+    if (rows > 16) for (const wx of store ? [x0 + 6, x0 + w - 14] : [x0 + 26]) { const wh = Math.min(8, rows - 16); R(c, wx, G - 4 - 16 - wh, 8, wh, "#150e0a"); }
+  }
+  const wt = G - 4 - wallH;
+  if (f2 > 0) {
+    const half = Math.floor(w / 2) + 3, tr = Math.min(1, f2 * 2), ti = Math.max(0, f2 * 2 - 1);
+    R(c, x0 - 3, wt - 1, w + 6, 2, "#8a6238");
+    for (let k = 0; k <= Math.round(6 * tr); k++) { const bx = x0 - 3 + Math.round(((w + 5) * k) / 6); line(c, bx, wt - 1, x0 + w / 2, wt - roofH, "#b98a55"); }
+    const rr = Math.round(roofH * ti); for (let y = 0; y < rr; y++) { const ww = Math.round(half * (1 - y / roofH)); for (let x = -ww; x < ww; x++) R(c, x0 + w / 2 + x, wt - 1 - y, 1, 1, (x + y * 2) % 5 === 0 || y % 4 === 3 ? (store ? "#3a4a66" : "#5a2416") : store ? "#5a6f96" : "#a4492c"); R(c, x0 + w / 2 - ww, wt - 1 - y, 1, 1, store ? "#8aa0c8" : "#d8703f"); }
+  }
+  if (!store) { const ch = Math.round(50 * Math.min(1, p / 3 + (p >= 1 ? 0.15 : 0))); if (p >= 1) { bricks(c, x0 + w - 13, G - 4 - ch, 9, ch, GREY, 43, 4, 3); R(c, x0 + w - 13, G - 4 - ch, 1, ch, "#b9bfca"); if (p >= 3) R(c, x0 + w - 14, G - 6 - ch, 11, 2, "#4a4f5c"); } }
+  if (p >= 3) {
+    if (store) { R(c, x0 + 26, G - 24, 16, 20, "#6b4a2c"); R(c, x0 + 33, G - 24, 1, 20, "#2a1d12"); R(c, x0 + 26, G - 24, 16, 1, "#8a6238"); for (const wx of [x0 + 6, x0 + w - 14]) { R(c, wx, G - 28, 8, 8, "#ffcf6a"); R(c, wx + 3, G - 28, 1, 8, "#8a5a1e"); R(c, wx, G - 25, 8, 1, "#8a5a1e"); } R(c, x0 - 9, G - 8, 7, 8, "#8a6238"); R(c, x0 - 9, G - 8, 7, 1, "#b98a55"); }
+    else { R(c, x0 + 6, G - 20, 12, 16, "#2a0e0a"); const fl = 4 + Math.floor(5 * Math.abs(Math.sin(t * 7))); R(c, x0 + 8, G - 4 - fl, 8, fl, "#ff9a2e"); R(c, x0 + 10, G - 4 - fl * 0.6, 4, fl * 0.6, "#ffe07a"); glow(c, x0 + 12, G - 8, 16, "#ff9a2e", Math.floor(t * 8), 0.3); R(c, x0 + 26, G - 28, 8, 8, "#ffb13a"); for (let k = 0; k < 3; k++) { const a = (t * 0.4 + k / 3) % 1; sprite(c, "steam-4f", 11, Math.min(3, Math.floor(a * 4)), x0 + w - 14 + Math.sin(a * 5 + k) * 3, G - 62 - a * 30); } }
+  } else if (p > 0) { scaffold(c, x0, w, G, Math.max(8, rows + (f2 > 0 ? roofH * f2 : 0) + 4)); const sx = x0 + w + 9; for (let k = 0; k < 3; k++) R(c, sx + k * 4 - (k === 2 ? 6 : 0), G - 3 - (k === 2 ? 3 : 0), 3, 3, store || p < 1 ? "#8f9aa5" : "#c3ccd6"); }
+}
+const shown = { store: null, forge: null }, carts = [];
+const progressOf = (id) => { const b = BLD.find((x) => x.id === id), st = S.b[id]; if (st.step >= 3) return 3; const need = b.steps[st.step], ks = Object.keys(need); return st.step + ks.reduce((a, g) => a + Math.min(1, (st.given[g] || 0) / need[g]), 0) / ks.length; };
+function villageDraw(c, h, t) {
+  const G = groundY(h);
+  for (let i = 0; i < 8; i++) if (Math.sin(t * 2 + i * 1.7) > 0.6) R(c, hash(i, 1, 77) * W, hash(i, 2, 77) * G * 0.5, 1, 1, "#ffffff");
+  beacon(c, G, t);
+  for (const id of ["store", "forge"]) { const p = progressOf(id); if (shown[id] == null) shown[id] = p; shown[id] += (p - shown[id]) * 0.06; if (Math.abs(p - shown[id]) < 0.004) shown[id] = p; }
+  building(c, "store", 76, 66, G, shown.store, t); building(c, "forge", 158, 46, G, shown.forge, t);
+  const h2 = inHand(), tx = h2 ? (h2.id === "store" ? 150 : 208) : -40;
+  for (const k of carts) { k.x -= 0.9; c.drawImage(im["mach-cart"], Math.round(k.x), G - 16); }
+  while (carts.length && carts[0].x < tx - 30) carts.shift();
+}
+function villageDOM(ov, h) {
+  ov.innerHTML = ""; const G = groundY(h) * 2;
+  [["beacon", 0, 140], ["store", 140, 164], ["forge", 304, 120]].forEach(([id, x, w]) => {
+    const p = el("button", "plot", ov); p.style.left = x + "px"; p.style.width = w + "px"; p.style.top = G - 150 + "px"; p.style.height = "150px"; p.setAttribute("aria-label", id);
+    tap(p, () => { const b = BLD.find((q) => q.id === id), st = S.b[id], bub = $("#bub"); bub.textContent = st.step >= 3 ? b.n + " stands. " + b.gives : inHand() === b ? b.n + " is being built. When the roof is on: " + lc(b.gives) : "A free plot. The smith asks about it."; bub.classList.add("on"); clearTimeout(bub._t); bub._t = setTimeout(() => bub.classList.remove("on"), 3200); });
+    const tg = el("div", "tag", ov); tg.id = "tag-" + id; tg.style.left = x + "px"; tg.style.width = w + "px"; tg.style.top = G + 6 + "px";
+  });
+  const bub = el("div", "bub", ov); bub.id = "bub"; bub.style.top = "60px";
+  const bd = el("div", "", ov); bd.id = "board"; bd.style.top = G + 38 + "px"; bd.style.height = h * 2 - G - 44 + "px";
+}
+function villageUI() {
+  const h = inHand();
+  for (const b of BLD) { const st = S.b[b.id], t = $("#tag-" + b.id); t.innerHTML = st.step >= 3 ? `${b.n}<small>stands</small>` : h === b ? `${b.n}<small>${STEPN[st.step].toLowerCase()}</small>` : `A free plot<small>the smith asks</small>`; }
+  const bd = $("#board"), key = h ? h.id + S.b[h.id].step : "done";
+  if (bd.dataset.key !== key) {
+    bd.dataset.key = key;
+    if (!h) bd.innerHTML = `<div class="h"><b>The first village stands</b></div><div class="f">The Beacon, the Storehouse and the Forge. The road goes on from here: more levels, more goods, more plots, and one day a pad.</div>`;
+    else { const st = S.b[h.id], need = h.steps[st.step]; bd.innerHTML = `<div class="h"><b>${h.n}</b>${STEPN.map((n, i) => `<span class="${i < st.step ? "ok" : i === st.step ? "now" : ""}">${n}${i < st.step ? " ✓" : ""}</span>`).join("")}</div>` + Object.keys(need).map((g) => `<div class="g" data-g="${g}">${ico(g, 1)}<div class="w"><div></div><i><u></u></i></div><button><span>Send</span><small></small></button></div>`).join("") + `<div class="f">When the roof is on: ${lc(h.gives)}</div>`; bd.querySelectorAll(".g").forEach((r) => tap(r.querySelector("button"), () => send(r.dataset.g))); }
+  }
+  if (h) { const st = S.b[h.id], need = h.steps[st.step]; bd.querySelectorAll(".g").forEach((r) => { const g = r.dataset.g, got = st.given[g] || 0, rem = need[g] - got, amt = Math.min(Math.floor(S[g]), rem), btn = r.querySelector("button"); r.querySelector(".w div").innerHTML = `${GC[g]} <span class="num">${fmt(got)} of ${fmt(need[g])}</span>`; r.querySelector("u").style.width = (100 * got) / need[g] + "%"; btn.classList.toggle("can", amt > 0); btn.children[0].textContent = rem <= 0 ? "Delivered" : "Send"; btn.children[1].textContent = rem <= 0 ? "" : amt > 0 ? fmt(amt) + " " + GN[g] : "none in the yard"; }); }
+}
+
+/* ---------- the frame ---------- */
+let scale = 1, H = 760, hA = 272, stageX = 0, stageY = 0;
+const pt = (e) => ({ x: (e.clientX - stageX) / scale, y: (e.clientY - stageY) / scale });
+function tap(elm, fn) { elm.addEventListener("click", (e) => { e.preventDefault(); fn(e); }); }
+function drag(elm, o) {
+  elm.addEventListener("pointerdown", (e) => {
+    e.preventDefault(); try { elm.setPointerCapture(e.pointerId); } catch (x) { /* fine */ }
+    const s = pt(e); let moved = false, dead = false;
+    const mv = (ev) => { const p = pt(ev); if (!moved && Math.hypot(p.x - s.x, p.y - s.y) > 8) { moved = true; if (o.start && o.start(p) === false) dead = true; } if (moved && !dead) o.move(p, p.x - s.x, p.y - s.y); };
+    const up = (ev) => { elm.removeEventListener("pointermove", mv); elm.removeEventListener("pointerup", up); elm.removeEventListener("pointercancel", up); if (moved && !dead) o.drop(pt(ev)); else if (ev.type === "pointerup") o.tap(pt(ev)); };
+    elm.addEventListener("pointermove", mv); elm.addEventListener("pointerup", up); elm.addEventListener("pointercancel", up);
+  });
+}
+function floatText(t, x, y) { const f = el("div", "float", $("#stage"), t); f.style.left = x + "px"; f.style.top = y + "px"; setTimeout(() => f.remove(), 800); }
+function card(title, lines, ok, alt, onOk) {
+  const c = $("#card"); c.hidden = false; c.innerHTML = `<div class="box"><h2>${title}</h2>${lines.map((l, i) => `<p class="${i ? "q" : ""}">${l}</p>`).join("")}<div class="row">${alt ? `<button class="alt" id="card-alt">${alt}</button>` : ""}<button id="card-ok">${ok}</button></div></div>`;
+  tap($("#card-ok"), () => { c.hidden = true; if (onOk) onOk(); }); if (alt) tap($("#card-alt"), () => { c.hidden = true; });
+}
+function go(i) { S.place = i; PLACES.forEach((p, n) => { $("#p-" + p).style.transform = `translateX(${(n - i) * 100}%)`; }); document.querySelectorAll("#tabs button").forEach((b, n) => b.classList.toggle("on", n === i)); save(); }
+const BG = {}, CTX = {};
+function build() {
+  const f = $("#fit"), vw = f.clientWidth, vh = f.clientHeight; scale = vw / 424; H = vh / scale; if (H < 736) { scale = vh / 736; H = 736; } if (H > 900) H = 900;
+  const st = $("#stage"); st.style.height = H + "px"; stageX = Math.max(0, (vw - 424 * scale) / 2); stageY = Math.max(0, (vh - H * scale) / 2); st.style.transform = `translate(${stageX}px,${stageY}px) scale(${scale})`;
+  hA = Math.floor((H - 216) / 2);
+  BG.mine = mineBG(hA); BG.works = worksBG(hA); BG.workshop = shopBG(hA); BG.village = villageBG(hA);
+  for (const p of PLACES) { const cv = $("#p-" + p + " canvas"); cv.width = W; cv.height = hA; cv.style.height = hA * 2 + "px"; CTX[p] = cv.getContext("2d"); CTX[p].imageSmoothingEnabled = false; }
+  mineDOM($("#p-mine .ov")); worksDOM($("#p-works .ov"), hA); shopDOM($("#p-workshop .ov"), hA); villageDOM($("#p-village .ov"), hA);
+  go(S.place); ui();
+}
+function frame() {
+  $("#order").innerHTML = `<div class="l1"><span class="name"></span><span class="step"></span><span class="pips"><i></i><i></i><i></i></span></div><div class="l2"></div>`; tap($("#order"), () => go(3));
+  $("#piles").innerHTML = ["stones", "bricks", "cut"].map((g) => `<div class="pile" id="pile-${g}">${ico(g)}<span class="v num"></span><span class="of"></span><div class="bar"><i></i></div></div>`).join("");
+  $("#next").innerHTML = `<div class="what"><div class="k"></div><div class="t"></div></div><div class="n"><b></b>ready</div>`; tap($("#next"), () => { const a = actions()[0]; if (a) { go(a.p); const s = $("#scenes"); s.classList.remove("pulse"); void s.offsetWidth; s.classList.add("pulse"); } });
+  PLACES.forEach((p, i) => { const b = el("button", "", $("#tabs"), `${ico(p)}<span>${p}</span><i class="lamp"></i>`); b.style.setProperty("--acc", ACC[p]); tap(b, () => go(i)); });
+  tap($("#reset"), () => card("Start over?", ["The prototype goes back to its first evening."], "Start over", "Keep playing", () => { S = fresh(); S.intro = true; shown.store = shown.forge = null; after(); go(0); }));
+}
+function ui() {
+  const F = flows(), h = inHand(), o = $("#order");
+  if (h) { const st = S.b[h.id], need = h.steps[st.step]; o.querySelector(".name").textContent = h.n; o.querySelector(".step").textContent = STEPN[st.step]; o.querySelectorAll(".pips i").forEach((p, i) => { p.className = i < st.step ? "done" : i === st.step ? "now" : ""; }); o.querySelector(".l2").innerHTML = "Asks " + Object.keys(need).map((g) => `<b>${GC[g]}</b> <span class="num">${fmt(st.given[g] || 0)} of ${fmt(need[g])}</span>`).join(" &nbsp; "); }
+  else { o.querySelector(".name").textContent = "The first village stands"; o.querySelector(".step").textContent = ""; o.querySelectorAll(".pips i").forEach((p) => { p.className = "done"; }); o.querySelector(".l2").textContent = "The road goes on."; }
+  for (const g of ["stones", "bricks", "cut"]) { const p = $("#pile-" + g); p.querySelector(".v").textContent = fmt(S[g]); p.querySelector(".of").textContent = F.full[g] ? "full" : "of " + fmt(F.cap[g]); p.querySelector(".bar i").style.width = Math.min(100, (100 * S[g]) / F.cap[g]) + "%"; p.classList.toggle("full", F.full[g]); }
+  const a = actions(), n = $("#next"); n.classList.toggle("go", a.length > 0);
+  n.querySelector(".k").textContent = a.length ? "Next · in the " + PLACES[a[0].p] : "Next"; n.querySelector(".t").textContent = a.length ? a[0].t : "Nothing to buy yet. The mine is working."; n.querySelector(".n b").textContent = a.length;
+  document.querySelectorAll("#tabs button").forEach((b, i) => { const l = b.querySelector(".lamp"); l.className = "lamp" + (a.some((x) => x.p === i) ? " green" : i === 2 && S.bench ? " amber" : ""); });
+  mineUI(F); worksUI(F); shopUI(); villageUI();
+}
+let last = 0, uiT = 0, saveT = 0;
+function loop(ms) {
+  const t = ms / 1000, dt = Math.min(0.25, t - last || 0); last = t;
+  if ($("#card").hidden) tick(dt);
+  const F = flows(), p = PLACES[S.place], c = CTX[p]; c.drawImage(BG[p], 0, 0);
+  if (p === "mine") mineDraw(c, hA, t, F); else if (p === "works") worksDraw(c, hA, t, F); else if (p === "workshop") shopDraw(c, hA, t); else villageDraw(c, hA, t);
+  if (t - uiT > 0.2) { uiT = t; ui(); } if (t - saveT > 3) { saveT = t; save(); }
+  requestAnimationFrame(loop);
+}
+async function boot() {
+  await Promise.all(Object.keys(IMGS).map((k) => new Promise((res) => { const i = new Image(); i.onload = res; i.onerror = res; i.src = IMGS[k]; im[k] = i; })));
+  try { await document.fonts.ready; } catch (e) { /* fine */ }
+  ICO = icons(); frame(); build();
+  for (const p of PLACES) { const c = CTX[p]; c.drawImage(BG[p], 0, 0); }
+  let rz = 0; addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(build, 120); });
+  addEventListener("visibilitychange", save); addEventListener("pagehide", save);
+  if (!S.intro) card("Slice 1, to play", ["Four places, each its own kind of work: the mine, the works, the workshop and the village.", "The numbers are made up and run fast. The taps are real: move a gang, add a kiln, put a job on the bench, send goods and watch the Storehouse rise."], "Play", null, () => { S.intro = true; save(); });
+  requestAnimationFrame(loop);
+}
+boot();
+</script>
