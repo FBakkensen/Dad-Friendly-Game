@@ -103,7 +103,8 @@ export function parseLabArgs(
           message: "--factors needs id=number pairs, split by commas.",
         };
       }
-      factors = parsed;
+      // A second --factors adds to the first.
+      factors = { ...factors, ...parsed };
       index += 2;
       continue;
     }
@@ -152,11 +153,17 @@ function parseFactors(
   }
   const factors: Record<string, number> = {};
   for (const pair of text.split(",")) {
-    const match = /^([\w.]+)=(-?\d+(?:\.\d+)?)$/.exec(pair.trim());
-    if (match?.[1] === undefined || match[2] === undefined) {
+    const [id = "", value = "", ...rest] = pair.trim().split("=");
+    const number = Number(value);
+    if (
+      rest.length > 0 ||
+      !/^[\w.]+$/.test(id) ||
+      value.trim() === "" ||
+      !Number.isFinite(number)
+    ) {
       return undefined;
     }
-    factors[match[1]] = Number(match[2]);
+    factors[id] = number;
   }
   return factors;
 }
@@ -187,7 +194,7 @@ export async function executeLab(
     targets: TARGETS,
   });
   const started = performance.now();
-  // The run, the report and the checks all read the factors (#534).
+  // The run and the report read the factors (#534); the checks read none.
   const { result, markdown, json } = withFactors(args.factors, () => {
     const played = runTournament({
       policies,

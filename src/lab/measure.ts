@@ -33,7 +33,11 @@ export type DecisionSample = {
   readonly pocket: number;
   /** Share of output by source. Includes `tending`, `crafted`, and `tap` when they pay. */
   readonly outputShare: Readonly<Record<string, number>>;
-  /** The line at this moment, while it is on (#534). */
+  /**
+   * The line at this moment, while it is on (#534), with any live trouble.
+   * A sitting's narrow stage is read at its open, where away time has
+   * cleared the trouble.
+   */
   readonly line?: LineView;
   /** Rock band at this moment. Scopes such as "from the Granite on" read it. */
   readonly layer?: LayerId;

@@ -91,6 +91,10 @@ describe("the line's readings in the lab (#534)", () => {
       const free = { ...mountain, helpers: 6 };
       expect(zeroGainBuysBetween(free, { ...free, hoists: 1 }, 0)).toBe(0);
       expect(zeroGainBuysBetween(free, free, 0)).toBe(0);
+      // A worker bought in the same second lifts the line, but not the cart.
+      expect(
+        zeroGainBuysBetween(mountain, { ...mountain, helpers: 5, carts: 5 }, 0),
+      ).toBe(1);
     });
   });
 });

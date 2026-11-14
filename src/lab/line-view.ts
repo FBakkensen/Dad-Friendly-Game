@@ -22,9 +22,11 @@ export function narrowAt(mountain: Mountain, now: number): Stage | undefined {
 }
 
 /**
- * Machines bought between `before` and `after` when the line moves no
- * faster for them (both weighed at `now`); 0 when it does, or nothing was
- * bought. Undefined with the line off.
+ * Machines bought between `before` and `after` that the line does not need:
+ * each kind bought is weighed alone, as `after` with that kind set back to
+ * its count before, at `now`, so a worker bought in the same second does not
+ * hide a machine that moved nothing. 0 when nothing was bought. Undefined
+ * with the line off.
  */
 export function zeroGainBuysBetween(
   before: Mountain,
@@ -34,19 +36,20 @@ export function zeroGainBuysBetween(
   if (!lineOn()) {
     return undefined;
   }
-  let bought = 0;
+  let zero = 0;
+  let line: number | undefined;
   for (const tier of TIERS.filter(isMachine)) {
-    bought += Math.max(0, owned(after, tier) - owned(before, tier));
+    const bought = owned(after, tier) - owned(before, tier);
+    if (bought <= 0) {
+      continue;
+    }
+    line ??= effectiveRates(after, now).exactCrewPerSecond;
+    const without = { ...after, [tier.field]: owned(before, tier) };
+    if (!moreStones(line, effectiveRates(without, now).exactCrewPerSecond)) {
+      zero += bought;
+    }
   }
-  if (bought === 0) {
-    return 0;
-  }
-  return moreStones(
-    effectiveRates(after, now).exactCrewPerSecond,
-    effectiveRates(before, now).exactCrewPerSecond,
-  )
-    ? 0
-    : bought;
+  return zero;
 }
 
 function narrows(events: readonly SittingEvent[]): readonly Stage[] {

@@ -42,6 +42,7 @@ import { hasRelic } from "./relics";
 import {
   biggestFirst,
   moreStones,
+  staffForLine,
   staffMachines,
   staffWith,
   type StaffSlot,
@@ -393,18 +394,26 @@ function staffCrew(
     weighed.set(key, next);
     return next;
   };
+  // With the line on, each staffing is weighed as the hands fill it today
+  // and as they fill the line, with spare hands above the line or not.
   const fills = (staffing: Staffing): Weighed => {
-    const plain = weigh(staffing);
-    const lined =
-      line === undefined ? undefined : staffWith(slots, hands, staffing, line);
-    const next = lined === undefined ? undefined : weigh(lined);
-    return next !== undefined && moreStones(next.stones, plain.stones)
-      ? next
-      : plain;
+    let best = weigh(staffing);
+    for (const spareAbove of line === undefined ? [] : [true, false]) {
+      const lined = staffWith(slots, hands, staffing, line, spareAbove);
+      const next = lined === undefined ? undefined : weigh(lined);
+      if (next !== undefined && moreStones(next.stones, best.stones)) {
+        best = next;
+      }
+    }
+    return best;
   };
   let best = fills(biggestFirst(slots, hands));
-  for (const guess of slotGuesses(mountain, slots)) {
-    const next = fills(staffMachines(guess, hands));
+  const starts = [
+    ...slotGuesses(mountain, slots).map((guess) => staffMachines(guess, hands)),
+    ...(line === undefined ? [] : staffForLine(slots, hands, line)),
+  ];
+  for (const start of starts) {
+    const next = fills(start);
     if (moreStones(next.stones, best.stones)) {
       best = next;
     }

@@ -195,13 +195,15 @@ export function biggestFirst(
  * `staffing` with its big machines kept and the one-hand machines filled
  * from the hands left, or undefined when the hands or the machines owned
  * are too few. Fastest first; with the line on (`lineHands`, the hands'
- * stones a second, #534), so the line moves the most.
+ * stones a second, #534), so the line moves the most, with spare hands
+ * on stages above the line too unless `spareAbove` is false.
  */
 export function staffWith(
   slots: readonly StaffSlot[],
   hands: number,
   staffing: Staffing,
   lineHands?: number,
+  spareAbove = true,
 ): Staffing | undefined {
   let free = hands;
   for (const slot of slots) {
@@ -219,7 +221,7 @@ export function staffWith(
   }
   return lineHands === undefined
     ? fill(fastestFirst(slots), free, staffing)
-    : fillLine(slots, free, staffing, lineHands);
+    : fillLine(slots, free, staffing, lineHands, spareAbove);
 }
 
 /** What each stage's big machines move with these counts. */
@@ -313,14 +315,15 @@ function picksFor(
 /**
  * The one-hand machines that move the line the most (#534): the highest
  * level the free hands can reach, found by halving, then any spare hands on
- * the idle machines left, fastest first. It need not be the exact best, but
- * a hand or a machine more never lowers the level it finds.
+ * the idle machines left. For these big counts the level is the best the
+ * hands can reach; the search over big counts is where it can miss.
  */
 function fillLine(
   slots: readonly StaffSlot[],
   free: number,
   staffing: Staffing,
   lineHands: number,
+  spareAbove: boolean,
 ): Staffing {
   const fillers = fastestFirst(slots);
   const owned = fillers.reduce((total, filler) => total + filler.count, 0);
@@ -350,19 +353,26 @@ function fillLine(
     running[filler.id] = picks.get(filler.id) ?? 0;
     spare -= running[filler.id];
   }
-  return spareToLowest(base, fillers, running, spare);
+  return spareToLowest(base, fillers, running, spare, {
+    lineHands,
+    spareAbove,
+  });
 }
 
 /**
  * Hands left over once the level is reached go to the lowest stage that
  * still has an idle machine, up to the next stage, so a stage the tending
- * raises later finds the next one ready.
+ * raises later finds the next one ready. Unless `spareAbove`, a stage
+ * already above the line gets none: a machine there moves nothing, and it
+ * could pull Grandpa off the group he tends. Which is better depends on
+ * where the tending lands, so the search weighs both.
  */
 function spareToLowest(
   base: StageSpeeds,
   fillers: readonly StaffSlot[],
   running: Record<MachineId, number>,
   spare: number,
+  line: { readonly lineHands: number; readonly spareAbove: boolean },
 ): Staffing {
   let left = spare;
   while (left > 0) {
@@ -371,7 +381,14 @@ function spareToLowest(
     const [low] = idle.sort(
       (a, b) => stages[MACHINE_STAGE[a.id]] - stages[MACHINE_STAGE[b.id]],
     );
-    if (low === undefined) {
+    if (
+      low === undefined ||
+      (!line.spareAbove &&
+        moreStones(
+          stages[MACHINE_STAGE[low.id]],
+          lineSpeed(stages, line.lineHands),
+        ))
+    ) {
       break;
     }
     const above = STAGES.map((stage) => stages[stage]).filter(
@@ -390,4 +407,71 @@ function spareToLowest(
     left -= n;
   }
   return running;
+}
+
+/** At most this many big-machine counts are tried for the line (#534). */
+const LINE_COUNTS_TRIED = 64;
+
+/** Of the counts that tie for the line, at most this many are weighed. */
+const LINE_TIES_KEPT = 8;
+
+/**
+ * With the line on (#534): every count of the big machines the hands can
+ * run, each filled for the line, and the ones that move the line the most
+ * on these speeds (a few, when they tie: the tending, weighed later, tells
+ * them apart). The line is flat while a stage is empty, so a climb from
+ * the sum's best can stall there; while there are few counts, all are
+ * tried. None when there are more than `LINE_COUNTS_TRIED`.
+ */
+export function staffForLine(
+  slots: readonly StaffSlot[],
+  hands: number,
+  lineHands: number,
+): readonly Staffing[] {
+  const big = slots.filter((slot) => slot.staff > 1);
+  const most = big.map((slot) =>
+    Math.min(slot.count, Math.floor(Math.max(0, hands) / slot.staff)),
+  );
+  if (most.reduce((total, n) => total * (n + 1), 1) > LINE_COUNTS_TRIED) {
+    return [];
+  }
+  const fillers = fastestFirst(slots);
+  let best: Staffing[] = [];
+  let bestLine = -1;
+  const visit = (counts: Staffing): void => {
+    const staffing = staffWith(slots, hands, counts, lineHands);
+    if (staffing === undefined) {
+      return;
+    }
+    const line = lineSpeed(
+      withFillers(bigStages(slots, staffing), fillers, staffing),
+      lineHands,
+    );
+    if (moreStones(line, bestLine)) {
+      best = [staffing];
+      bestLine = line;
+    } else if (!moreStones(bestLine, line) && best.length < LINE_TIES_KEPT) {
+      best.push(staffing);
+    }
+  };
+  eachBigCount(big, most, 0, { ...NONE_RUNNING }, visit);
+  return best;
+}
+
+function eachBigCount(
+  big: readonly StaffSlot[],
+  most: readonly number[],
+  index: number,
+  counts: Record<MachineId, number>,
+  visit: (counts: Staffing) => void,
+): void {
+  const slot = big[index];
+  if (slot === undefined) {
+    visit({ ...counts });
+    return;
+  }
+  for (let n = most[index] ?? 0; n >= 0; n -= 1) {
+    counts[slot.id] = n;
+    eachBigCount(big, most, index + 1, counts, visit);
+  }
 }

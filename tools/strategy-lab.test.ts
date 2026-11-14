@@ -58,6 +58,9 @@ describe("strategy lab command", () => {
       kind: "run",
       factors: { "line.off": 0, "layer.3.cart.hardness": 0.8 },
     });
+    expect(
+      parseLabArgs(["--factors", "a=.5,b=1e-3", "--factors", "c=2"]),
+    ).toMatchObject({ factors: { a: 0.5, b: 0.001, c: 2 } });
     expect(parseLabArgs(["--factors"]).kind).toBe("error");
     expect(parseLabArgs(["--factors", "line.off"]).kind).toBe("error");
     expect(parseLabArgs(["--factors", "line.off=x"]).kind).toBe("error");

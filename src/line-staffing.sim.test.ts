@@ -7,10 +7,18 @@ import { minedMountain } from "./test-fixtures";
 
 /**
  * How far one more hand or machine may lower the line while Grandpa's tenth
- * still goes to the biggest group, not to a stage (docs/DESIGN.md; the
- * engineers by stage are #539).
+ * and an engineer's floor still go by machine, not by stage (docs/DESIGN.md;
+ * the engineers by stage are #539). With neither, it may not lower it at all.
  */
-const GRANDPA_SLIP = 0.05;
+const TENDED_SLIP = 0.05;
+
+/** Every fourth count of workers, and the counts where a big machine's crew just fits. */
+const HELPERS = [
+  ...Array.from({ length: 16 }, (_, at) => at * 4),
+  15,
+  17,
+  33,
+].sort((a, b) => a - b);
 
 type Crew = Pick<
   Mountain,
@@ -39,11 +47,11 @@ function crews(): Crew[] {
   for (const legacy of [0, 1])
     for (const carts of [0, 10])
       for (const hoists of [0, 5])
-        for (const drills of [0, 10, 50])
+        for (const drills of [0, 50])
           for (const borers of [0, 1, 3])
             for (const trains of [0, 2])
-              for (const machines of [0, 1])
-                for (let helpers = 0; helpers <= 60; helpers += 5)
+              for (const machines of [0, 1, 2])
+                for (const helpers of HELPERS)
                   all.push({
                     helpers,
                     carts,
@@ -58,11 +66,11 @@ function crews(): Crew[] {
 }
 
 describe("staffing by the line never slows it (#534)", () => {
-  it("one more worker or machine of any kind never slows the line; with Grandpa, at most a small slip", () => {
+  it("one more worker or machine of any kind never slows the line; with Grandpa or an engineer, at most a small slip", () => {
     const misses: string[] = [];
     let checked = 0;
     withFactors({ [LINE_OFF]: 0 }, () => {
-      for (const post of ["borer", "camp"] as const) {
+      for (const post of ["borer", "machine", "camp"] as const) {
         const engineers =
           post === "camp"
             ? []
@@ -74,7 +82,8 @@ describe("staffing by the line never slows it (#534)", () => {
           const now = rate(crew);
           for (const [what, more] of MORE) {
             const after = rate(more(crew));
-            const allowed = crew.legacy === 0 ? 0 : now * GRANDPA_SLIP;
+            const tended = crew.legacy > 0 || post !== "camp";
+            const allowed = tended ? now * TENDED_SLIP : 0;
             if (after < now - allowed - 1e-6) {
               misses.push(
                 `${what} on ${JSON.stringify({ post, ...crew })}: ${String(now)} to ${String(after)}`,
@@ -85,7 +94,7 @@ describe("staffing by the line never slows it (#534)", () => {
         }
       }
     });
-    expect(checked).toBe(2 * 2 * 2 * 2 * 3 * 3 * 2 * 2 * 13 * 7);
+    expect(checked).toBe(3 * 2 * 2 * 2 * 2 * 3 * 2 * 3 * HELPERS.length * 7);
     expect(misses).toEqual([]);
   }, 120_000);
 });
