@@ -12,6 +12,7 @@ import {
 import { renderReport, reportJson } from "../src/lab/report";
 import { discover } from "../src/lab/registry";
 import { runTournament } from "../src/lab/tournament";
+import { parseFactors } from "./lab-factors";
 import {
   CI_SEEDS,
   DEFAULT_MAX_DAYS,
@@ -142,30 +143,6 @@ export function parseLabArgs(
     outDir,
     factors,
   };
-}
-
-/** `a=1,b.c=0.8` as a factor map, or undefined when a pair is not id=number. */
-function parseFactors(
-  text: string | undefined,
-): Readonly<Record<string, number>> | undefined {
-  if (text === undefined || text.trim() === "") {
-    return undefined;
-  }
-  const factors: Record<string, number> = {};
-  for (const pair of text.split(",")) {
-    const [id = "", value = "", ...rest] = pair.trim().split("=");
-    const number = Number(value);
-    if (
-      rest.length > 0 ||
-      !/^[\w.]+$/.test(id) ||
-      value.trim() === "" ||
-      !Number.isFinite(number)
-    ) {
-      return undefined;
-    }
-    factors[id] = number;
-  }
-  return factors;
 }
 
 export async function executeLab(

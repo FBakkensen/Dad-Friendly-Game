@@ -10,7 +10,8 @@ import { minedMountain } from "./test-fixtures";
  * and an engineer's floor still go by machine, not by stage: the floor is a
  * share of the plain sum, so it pays for idle surplus on a stage that is not
  * narrow (docs/DESIGN.md; the engineers by stage are #539). The worst seen
- * is about 9%. With neither, it may not lower it at all.
+ * is about 9%. With neither, or an engineer on the Great Machine, it may not
+ * lower it at all.
  */
 const TENDED_SLIP = 0.1;
 
@@ -87,7 +88,7 @@ function sweep(grid: Grid): { checked: number; misses: string[] } {
           .exactCrewPerSecond;
       for (const crew of crews(grid)) {
         const now = rate(crew);
-        const tended = crew.legacy > 0 || post !== "camp";
+        const tended = crew.legacy > 0 || post === "borer";
         const allowed = tended ? now * TENDED_SLIP : 0;
         for (const [what, more] of MORE) {
           const after = rate(more(crew));

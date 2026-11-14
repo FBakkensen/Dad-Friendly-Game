@@ -61,6 +61,9 @@ describe("strategy lab command", () => {
     expect(
       parseLabArgs(["--factors", "a=.5,b=1e-3", "--factors", "c=2"]),
     ).toMatchObject({ factors: { a: 0.5, b: 0.001, c: 2 } });
+    expect(
+      parseLabArgs(["--factors", "recipe.iron-rails.cost=0.5"]),
+    ).toMatchObject({ factors: { "recipe.iron-rails.cost": 0.5 } });
     expect(parseLabArgs(["--factors"]).kind).toBe("error");
     expect(parseLabArgs(["--factors", "line.off"]).kind).toBe("error");
     expect(parseLabArgs(["--factors", "line.off=x"]).kind).toBe("error");
