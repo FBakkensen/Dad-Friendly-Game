@@ -110,7 +110,7 @@ jobs:
             echo "present=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: steps.key.outputs.present == 'true'
         with:
           ref: ${{ env.CHECKOUT }}
@@ -367,7 +367,7 @@ jobs:
           mv "$stage" "$RUNNER_TEMP/replay"
           exit "$status"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         # Only what passed the secret check above is uploaded.
         if: ${{ !cancelled() && steps.replay.outcome != 'skipped' && github.event_name == 'workflow_dispatch' }}
         with:
