@@ -98,6 +98,9 @@ const TEACH_LINE =
   "Tap it to send the crew to any level the shaft has reached. Clay is still at the Topsoil.";
 const WELCOME_LINE =
   "The crew stayed on the Granite, so the shaft went no deeper.";
+/** Today's dream line for the Deep Heart, where the shaft is (screen-words#awayCheerWords). */
+const WELCOME_DREAM =
+  "While you were gone, the Deep Heart beat slow and steady.";
 const HOW_STEPS: readonly (readonly [string, string, 32 | 64])[] = [
   [
     cageUrl,
@@ -106,7 +109,7 @@ const HOW_STEPS: readonly (readonly [string, string, 32 | 64])[] = [
   ],
   [
     ironUrl,
-    "Each level brings up its own material, and its rock is hard on one stage.",
+    "Each level brings up its own material. Below the Topsoil, its rock is hard on one stage.",
     32,
   ],
   [
@@ -530,6 +533,10 @@ function addWelcomeLine(root: HTMLElement): void {
   } else {
     gone.after(line);
   }
+  // The dream reads the shaft, not the crew's level: the shaft is in the Deep Heart.
+  need(body, ".welcome-cheer").textContent = WELCOME_DREAM;
+  // Nine hours away at 30% of the parked line's 10.4K/s, as the board behind shows.
+  need(body, ".welcome-mined-count").textContent = "+84.2M";
 }
 
 /** The cage's card is the first under the Ledger's "i"; today's first card moves down. */
