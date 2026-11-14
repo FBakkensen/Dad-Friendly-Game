@@ -206,6 +206,7 @@ describe("gateSteps", () => {
       "coverage",
       "rules",
       "visual",
+      "journeys",
       "mockups",
     ]);
     // Coverage names no project, so it measures unit and sim together.
@@ -215,7 +216,7 @@ describe("gateSteps", () => {
     ]);
     const statics = plan.steps.filter((each) => each.after.length === 0);
     const late = plan.steps.filter((each) => each.after.length > 0);
-    expect(names(late)).toEqual(["rules", "visual", "mockups"]);
+    expect(names(late)).toEqual(["rules", "visual", "journeys", "mockups"]);
     const staticNames = names(statics).filter((name) => name !== "coverage");
     // The emulator is light: it runs beside the tests.
     expect(late[0]?.after).toEqual(staticNames);
@@ -256,9 +257,22 @@ describe("the strategy lab in the full tier", () => {
     ]);
   });
 
-  it("puts the visual check and both labs in the heavy lane, visual first", () => {
+  it("puts the browser checks and both labs in the heavy lane, visual first", () => {
     const heavy = steps(true).filter((each) => each.lane === "heavy");
-    expect(names(heavy)).toEqual(["visual", "lab", "lab:generations"]);
+    expect(names(heavy)).toEqual([
+      "visual",
+      "journeys",
+      "lab",
+      "lab:generations",
+    ]);
+  });
+
+  it("runs the gameplay journeys with Playwright Test's own config (#552)", () => {
+    const journeys = steps(false).find((each) => each.name === "journeys");
+    expect(journeys?.command).toBe("node_modules/.bin/playwright");
+    expect(journeys?.args).toEqual(["test", "-c", "tools/journeys"]);
+    expect(journeys?.tiers).toEqual(["full"]);
+    expect(journeys?.reusable).toBe(false);
   });
 
   it("reuses only the two labs", () => {

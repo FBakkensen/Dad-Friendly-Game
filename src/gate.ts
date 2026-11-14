@@ -251,9 +251,13 @@ export function economyChanged(
 
 const LAB = ["--import", "./tools/lab-register.mjs"];
 
-/** The steps that fill every core, in the order they take turns: visual first (#403). */
+/**
+ * The steps that fill every core, in the order they take turns: visual first (#403). The
+ * journeys' Chrome on a jumping clock is heavy too, and its timing must not starve (#552).
+ */
 const HEAVY: ReadonlySet<string> = new Set([
   "visual",
+  "journeys",
   "lab",
   "lab:generations",
 ]);
@@ -380,6 +384,15 @@ export function gateSteps(
     step("coverage", `${BIN}/vitest`, ["run", "--coverage"], full),
     step("rules", "node", ["scripts/test-rules.mjs"], full, STATIC),
     step("visual", "node", ["scripts/visual-check.mjs"], full, AFTER_TESTS),
+    // Gameplay journeys in a real browser, read against the rules (#552). A failure keeps a
+    // trace in .gate/journeys/.
+    step(
+      "journeys",
+      `${BIN}/playwright`,
+      ["test", "-c", "tools/journeys"],
+      full,
+      AFTER_TESTS,
+    ),
     step("mockups", "node", ["scripts/mockup-check.mjs"], full, AFTER_TESTS),
     ...lab,
   ];

@@ -24,7 +24,7 @@ Score every option against:
 - Types + Vitest + proof in a real browser
 - No placeholders. If the sliver needs art, the sitting includes asking first then PixelLab MCP, not boxes
 - Turn-based or idle only, never real-time twitch play
-- No SpaceTimeDB, no live world, no Playwright unless asked
+- No SpaceTimeDB, no live world. Playwright Test only for gameplay journeys
 - Runtime AI only as optional spice
 - Fits in one GitHub issue. If it does not, split first, then offer the small piece
 

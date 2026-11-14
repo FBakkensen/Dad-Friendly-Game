@@ -157,6 +157,8 @@ export function createOdometer(): Odometer {
     });
     painted = true;
     root.setAttribute("aria-label", `Stones ${face.words}`);
+    // The exact pocket the drums round down, for the gameplay journeys (#552).
+    root.dataset["count"] = String(pocket);
   };
 
   let spendTimer: ReturnType<typeof setTimeout> | undefined;
