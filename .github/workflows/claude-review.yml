@@ -25,7 +25,9 @@ permissions:
 
 concurrency:
   group: claude-review-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
+  # A push mid-run waits: cancelling would lose a paid review, or half-post
+  # one. GitHub keeps only the newest pending run, so pushes still collapse.
+  cancel-in-progress: false
 
 jobs:
   review:
@@ -93,6 +95,7 @@ jobs:
           done
           # The commit the last review covered (#585). An older base has no re-check.
           last=""
+          reviewed=""
           if [ -f "$tools/tools/review/recheck.ts" ]; then
             {
               gh api "repos/$REPO/pulls/$PR/reviews" --paginate \
@@ -101,6 +104,7 @@ jobs:
                 --jq '.[] | select(.user.login == "github-actions[bot]") | {body: (.body // ""), at: .created_at} | tojson'
             } > "$RUNNER_TEMP/posts.jsonl"
             last=$(node "$tools/tools/review/recheck.ts" last < "$RUNNER_TEMP/posts.jsonl")
+            reviewed="$last"
             if [ -n "$last" ] && ! git cat-file -e "$last^{commit}" 2>/dev/null; then
               echo "::notice::The last reviewed commit ${last:0:7} is gone, so this is a full review."
               last=""
@@ -113,7 +117,8 @@ jobs:
             exit 0
           fi
           since=()
-          if [ -n "$last" ]; then
+          # The threads go to any review after the first, so none is raised twice.
+          if [ -n "$reviewed" ]; then
             gh api graphql -F number="$PR" -f owner="${REPO%%/*}" -f name="${REPO#*/}" -f query='
               query($owner: String!, $name: String!, $number: Int!) {
                 repository(owner: $owner, name: $name) {
@@ -128,6 +133,8 @@ jobs:
                 }
               }' > "$RUNNER_TEMP/threads.json"
             node "$tools/tools/review/recheck.ts" threads --in "$RUNNER_TEMP/threads.json" --out "$intent/threads.md"
+          fi
+          if [ -n "$last" ]; then
             since=(--last "$last")
           fi
           git diff --name-only --no-renames "$BASE...HEAD" > "$RUNNER_TEMP/paths.txt"

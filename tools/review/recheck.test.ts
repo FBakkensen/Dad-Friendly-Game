@@ -107,6 +107,19 @@ describe("threadsText", () => {
     );
   });
 
+  it("cuts a very long comment", () => {
+    const text = threadsText([
+      {
+        isResolved: false,
+        path: "a",
+        line: 1,
+        comments: [{ author: "x", body: "y".repeat(5_000) }],
+      },
+    ]);
+    expect(text).toContain("[cut]");
+    expect(text.length).toBeLessThan(1_600);
+  });
+
   it("is empty with no threads or a bad answer", () => {
     expect(threadsText(threadsOf({}))).toBe("");
     expect(threadsOf({ data: null })).toEqual([]);

@@ -81,6 +81,15 @@ export function threadsOf(answer: unknown): Thread[] {
   });
 }
 
+/** One comment's share of the prompt, so a long thread cannot crowd out the rest. */
+const MAX_COMMENT = 1_500;
+
+function clip(text: string): string {
+  return text.length <= MAX_COMMENT
+    ? text
+    : `${text.slice(0, MAX_COMMENT)} [cut]`;
+}
+
 /** The threads as Markdown for the reviewer: open ones first, replies kept. */
 export function threadsText(threads: readonly Thread[]): string {
   if (threads.length === 0) return "";
@@ -95,7 +104,7 @@ export function threadsText(threads: readonly Thread[]): string {
           : `${thread.path}:${String(thread.line)}`;
       const state = thread.isResolved ? "resolved" : "open";
       const said = thread.comments
-        .map((c) => `**${c.author}:** ${c.body.trim()}`)
+        .map((c) => `**${c.author}:** ${clip(c.body.trim())}`)
         .join("\n\n");
       return `### ${where} (${state})\n\n${said}`;
     })
