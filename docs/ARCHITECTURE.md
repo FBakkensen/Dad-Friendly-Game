@@ -6,9 +6,16 @@ page is the map, plus the rules that keep it that way.
 ## Layers (imports point down only)
 
 1. **Rules of the game (pure, no DOM):** `scale` → `mountain`, `tiers`,
-   `relics`, `layers`, `upgrades`, `boosts`, `veins`, `crew`, `line`, `rates` (the one place
+   `relics`, `layers`, `stock`, `upgrades`, `boosts`, `veins`, `crew`, `line`, `rates` (the one place
    every multiplier is applied: live ticks, away pay, taps, the UI), and
-   `field-log` (a JSON snapshot and an event ring). `rates.exactCrewPerSecond`
+   `field-log` (a JSON snapshot and an event ring). `stock` (#560) is the
+   goods table (stones, then each band's material, with where it comes from),
+   the mountain's one `stock` record of them, and the `Price` every buy asks: a
+   short list of goods and amounts. It is the one module that pays (`pay`,
+   which refuses unless every line is covered), adds (`add`), refunds and
+   takes back; the rules modules quote a `Price` (`tierPrice`, `upgradePrice`,
+   `boostPrice`, `promotePrice`, `recipePrice`) and never subtract a good
+   themselves. `rates.exactCrewPerSecond`
    is the crew speed before the whole-stone floor. `economy/actions` lists
    every legal move, including a craft and a cancel, applies the existing
    functions, and values income from that speed, taps, and away pay. A `Move`
@@ -21,8 +28,9 @@ page is the map, plus the rules that keep it that way.
    which R1 (#420) folds in. A lasting upgrade's buy and a promotion carry the
    price the player was shown (`price`), and a different price today refuses
    the move: a band crossed while the tap settles the crew cannot charge more
-   (#367). `listActions` quotes today's price. It says `applied` (with what the move took from the
-   pocket and put in) or `refused`, and it holds the UI's rules too: a worker bought beside an idle
+   (#367). Both prices are a `Price`, and every good must match (`samePrice`).
+   `listActions` quotes today's price. It says `applied` (with what the move spent and
+   gained, good by good, as two stock records, #560) or `refused`, and it holds the UI's rules too: a worker bought beside an idle
    machine marks staffing taught, a real station marks tending taught and first
    calls a party back, and a recall with no expedition sends the hand to camp. A craft's
    payback adds the bench time. `lab/world` steps one seeded clock for the
@@ -98,7 +106,7 @@ page is the map, plus the rules that keep it that way.
    service (#414), and is the store's public surface. The UI changes the game
    only with `dispatch(move)`, which settles the crew, runs `applyMove` with the
    clock and the trouble as that settle left them, and commits, and says
-   `applied` (spent, gained) or `refused` (`not-playing` or `no-change`) (#409).
+   `applied` (spent and gained, each a stock record) or `refused` (`not-playing` or `no-change`) (#409).
    `applyMove` also returns the move's typed events (`MoveEvent`), and `dispatch`
    records them in the field log; a refused move has none (#413).
    `session` is the core: `step(session, input, now)` returns the next session
@@ -528,7 +536,7 @@ paths are read-only.
 
 - **Local spends (#370, #409):** the odometer shows a spend only for the
   player's own moves. `screen-context` hands every panel one `Dispatch`
-  wrapper around `progress.dispatch`: a move that applied with `spent >= 1`
+  wrapper around `progress.dispatch`: a move that applied with `spent.stones >= 1`
   rolls the spend mark and kicks the needle. A cloud copy, a chosen or
   restored copy, Start over or Pass the mine never comes through it, so
   `renderStock` only sets the drums and the dial.
@@ -930,7 +938,7 @@ M free`. The crew line, in the Crew section at the top of Buys, names where
   (Firestore persistent cache) does not count as that read. One writer tab per
   device; Play here flushes the phone backup first. Offline writes stay in that
   cache until the next open, and a stale queued rev is rejected like any other.
-- The workshop's state lives on the mountain in memory: `materials`, `bench`,
+- The workshop's state lives on the mountain in memory: the materials in `stock`, `bench`,
   `crafted`, `recipes`, and the craft clocks (`mountain.clocks`, keyed by
   recipe id; 0 is cold). The save keeps them in the game map: the materials in
   `stock`, crafted levels in `levels`, the clocks in `clocks`, the recipes in
@@ -939,8 +947,9 @@ M free`. The crew line, in the Crew section at the top of Buys, names where
   Built (#195, #196).
 - `workshop` (rules layer, pure): one bench. A recipe this build cannot name
   makes the whole save `newer`, so the bench always holds a known craft (#558).
-  `startCraft` spends stones and materials when
-  the Granite is open, the recipe is known, and the pocket can pay.
+  `startCraft` pays the recipe's price (`recipePrice`: stones and materials as
+  one `Price`, #560) when the Granite is open, the recipe is known, and the
+  stock covers every line. A cancel refunds a `Price` the same way.
   `settleBench` fits a craft whose clock has rung, once, including inside
   `accrue` and `accrueAway`. `cancelCraft` returns lasting gear in full, because
   its effect has not started, and only the unused share of a live timer (axle
