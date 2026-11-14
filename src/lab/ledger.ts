@@ -109,10 +109,7 @@ function dayText(day: number | undefined): string {
 
 /** Code-unit order, the same on every machine whatever its locale. */
 function byText(left: string, right: string): number {
-  if (left === right) {
-    return 0;
-  }
-  return left < right ? -1 : 1;
+  return Number(left > right) - Number(left < right);
 }
 
 /** The committed ledger: one row per player type and seed, sorted. */

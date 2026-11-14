@@ -475,7 +475,7 @@ function cellFor(
         ? Number.NaN
         : displayValue(unscoped, judgements),
     judgements,
-    ...(unavailable ? {} : spreadOf(judgements, numbersOf(unscopedSeeds))),
+    ...spreadOf(judgements, unavailable, numbersOf(unscopedSeeds)),
   };
 }
 
@@ -539,12 +539,16 @@ function worstSeed(
   return worst;
 }
 
-/** A measure no guardrail reads has no wrong side: its seeds' range instead. */
+/**
+ * A measure no guardrail reads has no wrong side: its seeds' range instead.
+ * None on a guarded cell whose guardrails all came back n/a.
+ */
 function spreadOf(
   judgements: readonly Judgement[],
+  unavailable: boolean,
   seeds: readonly SeedValue[],
 ): { readonly spread?: { readonly low: number; readonly high: number } } {
-  if (judgements.length > 0 || seeds.length <= 1) {
+  if (unavailable || judgements.length > 0 || seeds.length <= 1) {
     return {};
   }
   const values = seeds.map((seed) => seed.value);
