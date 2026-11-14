@@ -65,7 +65,7 @@ These would make it a failure even if it works:
 - The field log keeps its path.
 - What belongs to a run starts over with it: the homecoming news (`dad-friendly-homecomings`) and Tonight in the Ledger must not show the old run after the fresh start, or after a later reset. How is the builder's choice.
 
-**The envelope.** As today: `version`, `rev`, `savedAt`, `deviceId`, an optional `deviceLabel`, `lastSeen`, and one map with the game in it. `version` starts at 8, so it can't be mistaken for an old one. The run's stamp (`startedAt`) moves up into the envelope, where the rules and every later build can read it whatever shape the game has **(my call)**. `rev`, `savedAt` and the device fields are the cloud's, as today: a phone or guest copy has only the version, the run's stamp, `lastSeen` and the game.
+**The envelope.** As today: `version`, `rev`, `savedAt`, `deviceId`, an optional `deviceLabel`, `lastSeen`, and one map with the game in it. `version` starts at 8, so it can't be mistaken for an old one. The run's stamp (`startedAt`) moves up into the envelope, where the rules and every later build can read it whatever shape the game has **(my call)**. Which copy carries what is as today: `savedAt` and `deviceLabel` are the cloud's, the phone copy keeps `rev` and `deviceId`, and the guest copy has neither.
 
 **The game, by kind of fact.** The save says five kinds of thing about an id, each in one map:
 
@@ -86,7 +86,7 @@ These would make it a failure even if it works:
 **One parser, four answers.** Reading a save returns one of:
 
 - `ok`, with a complete game state: every id present, zero where the save said nothing.
-- `newer`: the save holds more than this build knows. The version is above this build's; or there is an id, a key or a named value (a post, a tunnel) it does not know; or a count is above this build's cap for it (a level past the top level, a sixth engineer). An amount in `stock` has no cap but the safe-integer limit: a good's ceiling is a rule of play, and a pile over its room is a legal save (line spec, step 2).
+- `newer`: the save holds more than this build knows. The version is above this build's; or there is an id, a key or a named value (a post, a tunnel) it does not know; or a count is above this build's cap for it (a level past the top level, a sixth engineer). An amount in `stock` has no cap but the safe-integer limit: a good's ceiling is a rule of play, and a pile over its room is a legal save (line spec, step 2). So the parser's `MAX_MATERIAL` check goes; play can't pass it anyway.
 - `older`: the version is below this build's.
 - `bad`: nonsense. A wrong type, a negative or broken number, a missing envelope. Handled as an unreadable copy is today.
 
@@ -104,9 +104,9 @@ The parser keeps today's caps, so the rules of play can trust the state it retur
 `older` means the shape changed under a save. While Flemming is the only player, that is a reset **(my reading of his answer; he can end it any day)**:
 
 - The old copy is set aside, never deleted: the cloud copy goes to the archive with a new reason, and the phone copy moves to a side key that carries its version. Then a fresh mountain starts. The field log records it under a new code (`save.reset` is taken: Start over and the pass use it). A copy set aside is for the record: no screen lists it or restores it.
-- The old cloud copy lands in the archive before the fresh mountain's first cloud write. `keepThenBegin` (`src/save-choice.ts`) is the mechanism to extend. Until it lands the board holds, as it does while loading.
+- The old cloud copy lands in the archive before the fresh mountain's first cloud write. `keepThenBegin` and its `keepInPlay` (`src/save-choice.ts`) are the mechanism to extend: the copy is kept as it was read, since it can't be parsed, and the board holds until it lands, with the wait and the give-up that `keepInPlay` has today.
 - **The fresh mountain keeps the run stamp (my call):** the highest stamp among the copies it set aside, the phone's and the cloud's, read from the envelope. So the rules' "not an older run" check passes, and the fresh mountain is not a later run than what another device has played since.
-- **A blank mountain from a reset is not a copy until something is played on it.** Its stamp alone is not progress. So when it meets a cloud copy of this version, the cloud copy is kept, and between two played copies the one with more stones mined is ahead, as today. A device that resets while offline can't overwrite the other's play.
+- **A blank mountain from a reset is not a copy until something is played on it.** Its stamp alone is not progress. So when it meets a cloud copy of this version, the cloud copy is kept, and between two played copies with the same stamp the one with more stones mined is ahead, as today. A device that resets while offline can't overwrite the other's play.
 - The first sliver's own fresh start needs none of this: the old save stays at the old path.
 - **Adding never resets.** A new id, a new key with a default, a new mark kind, a higher cap: old saves load, and the version stays.
 - **Changing what a fact means, lowering a cap, or retiring an id or a named value, resets.** The version goes up.
@@ -180,19 +180,19 @@ Add the next machine after F and count the files. The aim: its row, its view row
 
 Each is one sitting and one PR, keeps the game booting with every gate green, and deletes what it replaces.
 
-1. **The fresh save** (A, B, C and Resets). Resets the save. In memory, only `staffed` and `kept` leave the game state, with the grants. The counts, the pocket and the rates are not touched, so the labs and every screen are as they were.
+1. **The fresh save** (#558; A, B, C and Resets). Resets the save. In memory, only `staffed` and `kept` leave the game state, with the grants. The counts, the pocket and the rates are not touched, so the labs and every screen are as they were.
    - Blocked by nothing. It can run beside #534 and #543, which are lab work.
    - Proof: the round-trip property; the emulator tests above; a test that a `newer` save writes nothing; a test of a reset (the old copy is set aside, the run stamp is kept, and a device that has played is ahead of one that reset to a blank mountain); `npm run play` on a fresh game, then a reload, then a kill and reopen. The lab reports read as on `main`.
-2. **Counts by id** (D). No change he can see. Flemming picked this work ([Decided](#decided-flemming-14-nov-2026), 1), which is what `.claude/rules/dad-friendly-work.md` asks of a sitting with nothing to see. The same holds for 3 and 4.
+2. **Counts by id** (#559; D). No change he can see. Flemming picked this work ([Decided](#decided-flemming-14-nov-2026), 1), which is what `.claude/rules/dad-friendly-work.md` asks of a sitting with nothing to see. The same holds for 3 and 4.
    - Blocked by 1, by #543 (so the line's numbers are not being tuned under a wide move), and by #554 (the pacing ledger is the proof).
    - Proof: the pacing ledger does not move, both labs print the same rows as `main`, the visual check passes with no shot updated, and one lab job is timed against `main`.
-3. **One stock, and prices as lists** (E). No change he can see.
+3. **One stock, and prices as lists** (#560; E). No change he can see.
    - Blocked by 2. Same proof.
-4. **A row carries the rest, and the id check** (F).
+4. **A row carries the rest, and the id check** (#561; F).
    - Blocked by 3 and by #537, #538 and #539.
    - Proof: the id check is in the gate and green; the same ledger and lab proof.
 
-**The line waits for 2 and 3.** #536 turns the line on in play, and it gets "blocked by" sliver 3. So #536 to #539 and the cage are written once, on the new shape. None of them touches the rules file, and what the cage adds to the save (#545) is added as A says. #539 turns the engineers' posts from machines into stages, which retires saved values: its builder gives each old post a reading or resets the save, and says which in the PR. The cost is about two sittings before the line turns on **(my call, from "just now")**. Step 2 of the line spec is split after sliver 4.
+**The line waits for 2 and 3.** #536 turns the line on in play, and it is blocked by #560. So #536 to #539 and the cage are written once, on the new shape. None of them touches the rules file, and what the cage adds to the save (#545) is added as A says. #539 turns the engineers' posts from machines into stages, which retires saved values: its builder gives each old post a reading or resets the save, and says which in the PR. The cost is about two sittings before the line turns on **(my call, from "just now")**. Step 2 of the line spec is split after sliver 4.
 
 The journeys of #552 and #553 are not blockers. If they have merged, slivers 1 to 4 run them.
 
