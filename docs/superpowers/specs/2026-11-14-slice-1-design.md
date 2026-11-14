@@ -43,7 +43,7 @@ The loop: the village asks for goods, he decides what the mine digs and makes, a
 - No third level, and no good past cut stone. They are slice 2 and later.
 - No second order at a time, no order choice, no market.
 - No slider, and no roster of named workers. The gangs move with plus and minus.
-- No village to walk around. The village is a part of the screen that opens to a list.
+- No village to walk around. The village is a place with a tile for each plot.
 - No new engine, tileset or map.
 
 ## Anti-goals
@@ -144,42 +144,47 @@ When the Forge's roof is on, a card says the first village stands and that the r
 
 ## What he sees
 
-Flemming's answer to the first mock (14 Nov 2026): he agrees in principle, and the slice must not be held to today's board. Today's board was built for one line and one pile: an odometer, a gauge, a window, three bays and five keys. The road-to-Mars game is a mine of several levels, a yard of several goods and a village that grows until a rocket stands in it. So slice 1 gets a new screen. The layout below is proposed and waits for his yes. The first mock, drawn on today's board, stays in `mockups/slice-1/shots/` as the record of what he answered.
+Flemming on the first mock (14 Nov 2026): he agrees in principle, and the slice must not be held to today's board. On the second (the mountain, one screen for everything): "there should be some real difference depending on whether the work is mine, city, refinement, manufacturing". He is right. Both mocks showed every kind of work as the same row with a price on it. The layout below is proposed and waits for his yes.
 
-### The mountain (recommended)
+### Four kinds of work, four places
 
-One screen, read from the top down, the way the rock travels up: the village on the surface, the yard, the mine, and the mine's levels under it.
+The game has four kinds of work. Each asks a different question, moves at its own pace, and has its own place with its own shape on the screen. A place joins the tab bar when its work opens, so a new tab is a new kind of work.
 
-1. **The goal is on top.** The village's open order is the first thing on the screen: the building, its step, a row for each good it asks for with what is sent, and a Send on each row.
-2. **The yard is a row of piles**, one for each good, each with its room. Before the Beacon stands it is one pile with no room.
-3. **The mine is the line and its levels.** Three stage plates (the face, the haul, the lift) show each stage's rock a second, and the one that holds the line is lit. Under them each level has a row: its picture, its rock a second, its gangs with minus and plus, and its good with what holds it. A level with a price shows the price and "Sink the shaft". The level below that is a hint.
-4. **Next is always there.** One plate names the best thing he can buy now, what it costs, what it gives and why, with a count of everything that is ready. A tap buys it. The dig button is beside it.
-5. **A part opens full size when tapped**, and one fat key leads back. The line opens to its buys by stage, with keys for Upgrades, the Workshop and Engineers. The village opens to the building in hand, the buildings that stand with their powers, the hint of what comes next, Keepsakes and the Ledger. A level opens to its maker and its materials. The yard opens to "Extend the yard".
+| Place        | The work      | What he decides                                           | Its pace                             | Its shape on the screen                                   | Opens in slice 1         |
+| ------------ | ------------- | --------------------------------------------------------- | ------------------------------------ | --------------------------------------------------------- | ------------------------ |
+| The mine     | digging       | where the crew digs, and which stage to widen             | every sitting, it never stops        | the mountain cut open: the stages, then a row for a level | part 1                   |
+| The works    | refining      | what the rock becomes, and how much of it                 | set now and then, it runs by itself  | a flow: the rock in, what the makers take, the good out   | part 2 (kilns, the yard) |
+| The workshop | manufacturing | what goes on the bench next                               | one job at a time, in real minutes   | a bench with a clock, and a list of jobs                  | part 3, as today         |
+| The village  | building      | what the goods are sent to, and what stands when it is up | a building every day or two, forever | plots on the surface, and the building in hand            | part 1                   |
 
-What a sitting does is on the first screen: Send, move a gang, buy the next thing, dig. Nothing on it is a closed set: a new good is a pile, a new level is a row, a new building is a line in the village.
+- **The mine** has the three stage plates, with the stage that holds the line lit, and a row for each level: its picture, its rock a second, its gangs with minus and plus, and its good. A level with a price shows "Sink the shaft". The dig button and the golden veins are here and nowhere else.
+- **The works** has one box for each maker. It shows a level's rock coming in, what the makers take, and the good that comes out, with a bar for the share of the rock they take and the words for what holds the good. A maker is bought here. The yard is here too, with "Extend the yard".
+- **The workshop** is the bench as it is today (one bench, real time, recipes that take stones and materials), drawn as a place: what is on the bench and when it is done, the materials, and the jobs that can go on next.
+- **The village** has a tile for each plot (stands, in hand, or empty with a hint), the building in hand with its three steps and a Send for each good, and what each standing building gives. Keepsakes and the Ledger are here.
 
-What it keeps from today: the art, the steel, the lamps and their rule (green can be spent, amber is a pick or running, red is trouble), the type, real numbers for decisions, the save line, and a phone that never scrolls.
+Three things are the same in every place, so he never loses the thread: the open order on top (in the village it is the building in hand), the yard's piles under it, and **Next** at the foot. Next names the best thing he can buy now and the place it is in, with a count of everything ready. A lamp on each tab says where a tap is waiting (green: something can be bought or sent; amber: something is running).
 
-What goes from today's board: the odometer, the output gauge, the mine window, and the five-key rail. Buys becomes the line. Upgrades, the Workshop and Engineers are keys inside the line. The Ledger is in the village. The pace dial becomes a plate in the mine's head that shows while a boost, a Gold rush or a vein runs, with its countdown. A golden vein glints on the picture of a level where gangs work, and a tap there takes it.
+**How it reaches Mars.** The mine gets more levels. The works gets more makers, and the day a rock has two uses, refining becomes a choice of what the rock goes to. The workshop gets more benches and bigger things to make, up to the parts of the rocket. The village gets more plots, and the last place to join the tab bar is the pad. Each of those is a later slice's design, not a rule of slice 1.
 
-**How far it reaches.** Four levels and four piles fit on the 424×924 phone (the hint row gives way to the fourth level). The shorter phone (424×830) holds three levels. A fifth level or a fifth good needs pages or a second row, and that is asked for when its slice is designed.
+**What slice 1 does not have yet.** In slice 1 a level's rock has one maker, so the works has one decision: how many makers each good gets. The workshop's rules are today's. So the mine and the village are where slice 1's decisions are, and the works and the workshop are small, real places that later slices fill.
 
-### The other layout: three rooms
+What it keeps from today: the art, the steel, the lamps and their rule, the type, real numbers for decisions, the save line, and a phone that never scrolls.
 
-A tab bar with the village, the yard and the mine, and no first screen that shows all three. Each room has more space, and it never runs out of room for rows. He never sees the mine and the village together, so a lamp on each tab has to say where a tap is waiting, and a Send is two taps away from a move of gangs. I do not recommend it for slice 1. It is the fallback when the mountain runs out of room.
+What goes from today's board: the odometer, the output gauge, the mine window and the five-key rail. Buys becomes the mine's line (a tap on the stage plates opens the machines by stage, with Upgrades and Engineers). The pace dial becomes a plate in the mine's head that shows while a boost, a Gold rush or a vein runs.
 
 ### The pictures
 
-`mockups/slice-1/mountain/shots/` (six pictures, the 424×924 phone at 2x), drawn with art that exists. The buildings, the kilns, the saws, the bricks and the cut stone have no pictures yet, so no picture shows one. The numbers are made up to read like one evening, and the words are drafts.
+`mockups/slice-1/mountain/shots/` (the 424×924 phone at 2x), drawn with art that exists. The buildings, the kilns, the saws, the bricks and the cut stone have no pictures yet, so no picture shows one, and the four places do not yet look as different as they should. The numbers are made up to read like one evening, and the words are drafts.
 
-- **`start.png`, the first evening.** The Beacon's footings ask for stones. One pile, one level, the whole crew on it.
-- **`shaft.png`, the Beacon stands.** The Storehouse's footings ask for stones and bricks. Two piles. The Granite has a price and "Sink the shaft".
-- **`home.png`, two levels.** Three piles. Two gangs on each level, with minus and plus. The face holds the line, and Next offers a borer.
-- **`line.png`, the line opened.** The three stages, their machines, and each price in its good.
-- **`village.png`, the village opened.** The Storehouse's three steps, the Beacon and its power, and a hint.
-- **`rooms.png`, the other layout.** The mine's room, with the tab bar.
+- **`place-first.png`, the first evening.** Two places: the mine and the village. The Beacon's footings ask for stones.
+- **`place-mine.png`, the mine.** Two levels, two gangs on each. The face holds the line.
+- **`place-works.png`, the works.** The kilns and the saws, each with its flow, and the yard.
+- **`place-workshop.png`, the workshop.** Iron rails on the bench, clay and iron, and three jobs.
+- **`place-village.png`, the village.** Three plots, the Storehouse in hand, and what the Beacon gives.
 
-Left to the builder and a later mock: a level opened, the yard opened, the welcome card (its words are the first mock's `welcome.png`), the end card, trouble on a stage plate, and the pace plate while something runs.
+The two earlier rounds stay as the record of what he answered: `mockups/slice-1/shots/` (the slice drawn on today's board), and `start`, `shaft`, `home`, `line`, `village` and `rooms` in the same folder as the places (the mountain on one screen, and three rooms).
+
+Left to the builder and a later mock: the mine's machines by stage on this layout (the earlier `line.png` shows the rows), the welcome card, the end card, trouble on a stage plate, and the pace plate while something runs.
 
 ## What goes, and what stays
 
@@ -187,7 +192,7 @@ Left to the builder and a later mock: a level opened, the yard opened, the welco
 
 **Stays:** taps, golden veins and the Gold rush; workers and the six machines of the line; ownership marks; upgrades; the Workshop and its gear; engineers, expeditions and trouble; the art, the steel and the lamps; one save for each Google account and everything in `observable-saves.md`.
 
-**Today's board goes** when part 1 is switched on: the odometer, the output gauge, the mine window, the bays and the key rail. The mountain screen takes its place (What he sees).
+**Today's board goes** when part 1 is switched on: the odometer, the output gauge, the mine window, the bays and the key rail. The places take its place (What he sees).
 
 **Keepsakes** stay as expedition finds. Their page moves from a relic's page to the village.
 
@@ -243,19 +248,20 @@ What it does not prove: anything about fun, the first hour's pace, the Workshop,
 | Close is pause             | Every tap is saved at once. Time away is worked out from timestamps and the pile-full moments.                                                       |
 | Real numbers for decisions | Prices, rooms, each level's rock and goods a second, what an order still needs.                                                                      |
 | Vague discoveries          | The next building and the level below are hints.                                                                                                     |
-| The phone never scrolls    | The mountain screen fits four levels and four piles. An opened part scrolls inside when its list is long.                                            |
+| The phone never scrolls    | Each place fits the phone. The mine holds four levels, and the pile row four goods. A long list (jobs, plots) scrolls inside its box.                |
 | No placeholders            | The mock uses art that exists. New pictures are asked for before they are made.                                                                      |
 
 ## Risks
 
 1. **The lift sticks.** It has one machine until the Forge. The lab measures `narrowRun`. The levers are the hoist's marks, a gear for the hoist, or the Great Machine one building earlier.
 2. **The share is set once and forgotten.** The model's dad hardly moves it. If play shows the same, orders can lean harder on one good, and a full pile already makes yesterday's share wrong.
-3. **The mountain runs out of room.** It holds four levels and four piles. A fifth of either needs pages, a second row, or the three rooms.
-4. **A new screen is a bigger part 1.** Today's board, its browser checks and its journeys are written again for the mountain screen in the part that switches it on.
+3. **A place runs out of room.** The mine holds four levels and the pile row four goods. A fifth of either needs pages or a second row.
+4. **A new screen is a bigger part 1.** Today's board, its browser checks and its journeys are written again for the places in the part that switches them on.
 5. **The game is short for a while**: it ends at the Forge until slice 2 is built.
 6. **A lot goes at once**: relics, the pass, depth. They leave play together, when part 1 is switched on, so the game on his phone is whole before and after.
 7. **Cut stone has few uses before the Forge**: borers and pit trains. The lab checks that it never piles up dead.
 8. **The paper model is rough.** Its dad stops buying line machines when they pay back slower than six hours, so the line's late growth is too flat.
+9. **The places look alike until they have art.** Their shapes differ, and their pictures do not yet. The works and the village need their pictures to feel like places.
 
 ## Calls I made
 
@@ -270,13 +276,14 @@ These are mine, not Flemming's. Any of them can be turned over.
 7. The pit train opens with the Granite, and the Great Machine with the Forge.
 8. Borers and pit trains cost cut stone. Saws, the yard and the shaft cost bricks.
 9. The Beacon opens the kilns and the yard as well as the Granite's price.
-10. The screen is the mountain: the order on top, the yard, the line and the levels, with Next and the dig button at the foot. Today's board goes.
-11. The village is a part of the mountain screen and opens to a list. No picture of the whole village in this slice.
+10. The screen is four places with a tab bar: the mine, the works, the workshop and the village. The order, the piles and Next are in every place. Today's board goes.
+11. The village is a place with a tile for each plot. No picture of the whole village in this slice.
 12. The line shows rock a second on three stage plates. The gauge and the odometer go.
-13. Upgrades, the Workshop and Engineers are keys inside the line. The Ledger and Keepsakes are in the village.
-14. Which copy of a save is ahead: a later run stamp (Start over, or a reset), else more rock dug in all, a count that only grows, else the newer `lastSeen`. The run stamp stays the first key, as today. Kid runs are gone, and "more stones mined" becomes "more rock dug in all".
-15. The first evenings keep today's eight-hour clock, until the yard opens.
-16. Kid workers wait for the building that brings them (the School, a later slice).
+13. Which copy of a save is ahead: a later run stamp (Start over, or a reset), else more rock dug in all, a count that only grows, else the newer `lastSeen`. The run stamp stays the first key, as today. Kid runs are gone, and "more stones mined" becomes "more rock dug in all".
+14. The first evenings keep today's eight-hour clock, until the yard opens.
+15. Kid workers wait for the building that brings them (the School, a later slice).
+16. The yard and its "Extend the yard" are in the works. Upgrades and Engineers are in the mine. The Ledger and Keepsakes are in the village. The dig button and the veins are in the mine only.
+17. A place joins the tab bar when its work opens: the mine and the village in part 1, the works in part 2, the workshop in part 3.
 
 ## What it changes in the line spec
 
@@ -292,18 +299,18 @@ After his yes, this spec ships as a PR, and slice 1 is split into sliver issues 
 
 **The slice goes live in three parts, and each part is a game he can play.** A part's rules are built off in play, as the line's were (#532), the lab plays them, and the part's last sliver switches it on. Between switch-ons the game on his phone does not change. So no sliver leaves a hole: nothing that opened at a depth is taken out before the part with its new door is switched on.
 
-| Part | Goes live                                                                                                       | The game then ends at |
-| ---- | --------------------------------------------------------------------------------------------------------------- | --------------------- |
-| 1    | The mountain screen. The fresh mine: the Topsoil, the line, the Beacon's orders. Relics, the pass and depth go. | the Beacon's roof     |
-| 2    | Kilns, bricks, the yard, time away that fills the yard, the Storehouse's orders.                                | the Storehouse's roof |
-| 3    | The shaft and the Granite, saws, cut stone, borers, pit trains, the gangs, the Forge, the Great Machine.        | the Forge's roof      |
+| Part | Goes live                                                                                                                         | The game then ends at |
+| ---- | --------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
+| 1    | The places (the mine and the village). The fresh mine: the Topsoil, the line, the Beacon's orders. Relics, the pass and depth go. | the Beacon's roof     |
+| 2    | Kilns, bricks, the yard, time away that fills the yard, the Storehouse's orders.                                                  | the Storehouse's roof |
+| 3    | The shaft and the Granite, saws, cut stone, borers, pit trains, the gangs, the Forge, the Great Machine.                          | the Forge's roof      |
 
 - Until part 3 is live, the Granite's price is not shown, and the Beacon opens only the kilns and the yard. Each part ends with the end card, in words that say more is being built.
 - **Resets the save** when part 1 is switched on. Parts 2 and 3 add facts to the save and should not reset it. If one must, its issue, its PR and the chat say so first.
 - Before part 1: one sliver where the lab plays the whole slice, off in play, and sets the starting numbers (as #534 and #543 did for the line). It reports each part's end as well as the slice's.
 - The pass, Legacy, kid runs and Grandpa (#642) and the relics leave play at part 1's switch-on. Their code is deleted by slivers after it.
 - The lean of the rock leaves play at part 1's switch-on too: the Topsoil has none, and no other level is in play until part 3.
-- The mountain screen is built beside today's board and takes its place at part 1's switch-on. #537 and #538 draw the stages and the buys on today's board and are not started: they are built on the mountain screen instead, as part 1's stage plates and its opened line. #539's card for a stage lands there too. #536, the line's rules, goes on unchanged.
+- The places are built beside today's board and take its place at part 1's switch-on. #537 and #538 draw the stages and the buys on today's board and are not started: they are built in the mine instead, as part 1's stage plates and its machines by stage. #539's card for a stage lands there too. #536, the line's rules, goes on unchanged.
 
 A plan keeps each screen's browser checks green in the sliver that changes that screen. `docs/DESIGN.md`, `docs/design-intent.md`, `docs/ARCHITECTURE.md`, `docs/ui-audit.md`, `.claude/rules/observable-saves.md` and the github-issues skill's road section are updated by the slivers that change what they describe.
 
