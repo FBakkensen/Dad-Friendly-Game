@@ -125,8 +125,8 @@ type TargetBase = {
   readonly why: string;
   /**
    * A miss is still in the report. It does not fail `LAB_STRICT`.
-   * The finish-day rows set it for good: the run length is not a limit
-   * (Flemming, 7 Nov 2026). every-tier-bought sets it as a report row
+   * The finish-day rows set it until the line's tune (#543) makes the
+   * five-day floor strict (#556). every-tier-bought sets it as a report row
    * for the milestones sliver (#357).
    */
   readonly reportOnly?: boolean;
@@ -202,22 +202,22 @@ export const TARGETS: readonly Target[] = [
     id: "casual-finish",
     measure: "finishDay",
     scope: { kind: "policyKinds", kinds: ["casual"] },
-    op: "between",
-    value: [5, 7],
-    why: "Every casual dad finishes inside a quiet week, and not before day five.",
-    // Flemming, 7 Nov 2026: the run length is not a limit. The game is
-    // endless, and each pass to the kid is harder (the generations lab
-    // keeps that strict). Reported so a retune can still see the day.
+    op: "gte",
+    value: 5,
+    why: "A run takes at least five days and has no ceiling: a meaningful decision at all times matters more than the day count.",
+    // Flemming, 14 Nov 2026 (#556): the 3-5 day target is gone. Not less
+    // than five days, likely weeks in the end. Report only, as since 7 Nov:
+    // the generations lab keeps each pass to the kid strict.
     reportOnly: true,
   },
   {
     id: "thin-habit-finish",
     measure: "finishDay",
     scope: { kind: "policies", ids: ["five-min-a-day"] },
-    op: "lte",
-    value: 14,
-    why: "Five minutes a day still finishes inside two weeks.",
-    // Report only for the same reason as casual-finish (7 Nov 2026).
+    op: "gte",
+    value: 5,
+    why: "Five minutes a day also takes at least five days, with no ceiling.",
+    // Ruling (#556): the 14-day ceiling went with the 3-5 day target.
     reportOnly: true,
   },
   {

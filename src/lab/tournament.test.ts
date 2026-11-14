@@ -12,7 +12,7 @@ import {
 } from "./measure";
 import { neverBest } from "./measures/typeEverBest";
 import liveMedian from "./measures/liveMedian";
-import { readFinishDay } from "./measures/finishDay";
+import finishDayMeasure, { readFinishDay } from "./measures/finishDay";
 import { plainPolicy, type PlainSpec } from "./plain";
 import { valueContext, type Policy } from "./policy";
 import {
@@ -571,6 +571,33 @@ describe("tournament", () => {
       }[];
     };
     expect(json.rows[1]?.cells["extremeWin"]?.value).toBe("-Infinity");
+  });
+
+  it("reads each casual finish day against a floor of five days and no ceiling (#556)", () => {
+    const early = dad({ id: "early", label: "Early dad", kind: "casual" });
+    const late = dad({ id: "late", label: "Late dad", kind: "casual" });
+    const never = dad({ id: "never", label: "Never dad", kind: "casual" });
+    const result = judge({
+      policies: [early, late, never],
+      measures: [finishDayMeasure],
+      targets: TARGETS.filter((target) => target.id === "casual-finish"),
+      runs: [
+        run(early, 1, [decision({ finishDay: 4 })]),
+        run(late, 1, [decision({ finishDay: 30 })]),
+        run(never, 1, [decision({})]),
+      ],
+    });
+    const verdicts = result.rows.map((row) =>
+      row.cells[0]?.judgements.map((judgement) => judgement.pass),
+    );
+    expect(verdicts).toEqual([[false], [true], [true]]);
+    const report = renderReport(result);
+    expect(report).toContain("4 fail");
+    expect(report).toContain("30 pass");
+    expect(report).toContain("unfinished pass");
+    expect(report).toContain(
+      "casual-finish misses for Early dad. Finish day is 4 days; the bound is at least 5.",
+    );
   });
 
   it("snapshots the report structure without the numbers", () => {
