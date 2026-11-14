@@ -4,7 +4,7 @@ import { staffForBuy } from "./engineers";
 import type { Trouble } from "./hazards";
 import { stonesPerSecond, type Mountain } from "./mountain";
 import { effectiveRates, handsGain, startedTier, type TendTier } from "./rates";
-import { stretch } from "./scale";
+import { stonesLeft, stretch } from "./scale";
 import {
   MACHINE_IDS,
   owned,
@@ -97,8 +97,6 @@ export function readyNow(
       ...started,
     };
   }
-  const speed = stonesPerSecond(mountain, now, trouble);
-  const etaMs = ((pick.price - mountain.pocket) / speed) * 1000;
   return {
     kind: "saving",
     tier: pick.tier,
@@ -106,11 +104,30 @@ export function readyNow(
     gain,
     free,
     ...started,
-    etaMs:
-      speed > 0 && Number.isFinite(speed) && Number.isFinite(etaMs)
-        ? etaMs
-        : undefined,
+    etaMs: savingEta(mountain, pick.price, now, trouble),
   };
+}
+
+/**
+ * When the pocket reaches the price at the current speed (D1), or undefined
+ * when no time is true: a speed that gives none, or a price past the pocket
+ * plus the stones left, since digging stops at the bottom first (#610).
+ */
+function savingEta(
+  mountain: Mountain,
+  price: number,
+  now: number,
+  trouble: Trouble | undefined,
+): number | undefined {
+  const short = price - mountain.pocket;
+  if (short > stonesLeft(mountain)) {
+    return undefined;
+  }
+  const speed = stonesPerSecond(mountain, now, trouble);
+  const etaMs = (short / speed) * 1000;
+  return speed > 0 && Number.isFinite(speed) && Number.isFinite(etaMs)
+    ? etaMs
+    : undefined;
 }
 
 /** What the pick adds: a machine its own speed, a worker the crew's rise and what he starts. */
