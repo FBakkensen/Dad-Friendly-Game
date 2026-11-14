@@ -1,14 +1,19 @@
 import { applyAction, buyEveryBoost, type Action } from "../economy/actions";
 import { QUICK_VEIN_AWAY_MS, startRush } from "../gold-rush";
 import {
+  ENGINEER_POSTS,
   onTrip,
   promote,
   promoteCost,
+  station,
   tendBestTier,
   type EngineerPost,
 } from "../engineers";
 import { send, settle, TUNNELS, type TunnelId } from "../expeditions";
 import { mineByHand, type Mountain } from "../mountain";
+import { lineOn } from "../line";
+import { effectiveRates } from "../rates";
+import { moreStones } from "../staffing";
 import { tierById } from "../tiers";
 import { createWorld, step, type World } from "./world";
 import { canPay, sendWorthIt, sticker } from "./decide";
@@ -179,11 +184,41 @@ function buyWhileAffordable(
     if (next === before) {
       break;
     }
-    const tended = tendsAfter(params, action) ? tendBestTier(next) : next;
+    const tended = tendsAfter(params, action) ? tendBest(next) : next;
     remember(world, before, action, tended, buys, promotions);
     world = { ...world, mountain: tended };
   }
   return world;
+}
+
+/**
+ * Where a best-tending dad sends his engineers. On the line (#543) each one
+ * at home goes to the post where the line gains most, as her page shows it,
+ * since a post on a stage that is not narrow adds nothing. Off the line,
+ * the Great Machine, else the borers, as always.
+ */
+export function tendBest(mountain: Mountain): Mountain {
+  if (!lineOn()) {
+    return tendBestTier(mountain);
+  }
+  let next = mountain;
+  for (const [index, engineer] of mountain.engineers.entries()) {
+    if (onTrip(next, engineer.name)) {
+      continue;
+    }
+    let best = next;
+    let line = effectiveRates(next).exactCrewPerSecond;
+    for (const post of ENGINEER_POSTS) {
+      const moved = station(next, index, post);
+      const speed = effectiveRates(moved).exactCrewPerSecond;
+      if (moreStones(speed, line)) {
+        best = moved;
+        line = speed;
+      }
+    }
+    next = best;
+  }
+  return next;
 }
 
 /** A best-tending player re-tends after buying a staffed machine. */
@@ -217,8 +252,10 @@ function playSecond(
     params.boosts === "always"
       ? buyEveryBoost(world.mountain, world.clock)
       : world.mountain;
-  if (params.tend === "best") {
-    mountain = tendBestTier(mountain);
+  // On the line she is weighed post by post, so only as he sits down and
+  // after a staffed buy (tendsAfter), not every second.
+  if (params.tend === "best" && (second === 0 || !lineOn())) {
+    mountain = tendBest(mountain);
   }
   if (second === 0 && params.explore !== "never") {
     mountain = sendExplorers(

@@ -31,9 +31,28 @@ export type StageSpeeds = Readonly<Record<Stage, number>>;
  */
 export const LINE_OFF = "line.off";
 
+/**
+ * Machines are rated three times today's on the line, because a hand on one
+ * job does three times his share (rule 3): so a first cart still adds 6 a
+ * second to twelve workers (spec, Machines; #543).
+ */
+export const LINE_RATING = 3;
+
 /** True when the crew moves what the line moves, not the sum of its parts. */
 export function lineOn(): boolean {
   return factor(LINE_OFF) === 0;
+}
+
+/** A machine's stage, or none for the hands. */
+export function stageOf(tierId: TierId): Stage | undefined {
+  return Object.hasOwn(MACHINE_STAGE, tierId)
+    ? MACHINE_STAGE[tierId as MachineId]
+    : undefined;
+}
+
+/** A machine's rating on the line, times today's; the hands keep theirs. */
+export function lineRating(tierId: TierId): number {
+  return lineOn() && stageOf(tierId) !== undefined ? LINE_RATING : 1;
 }
 
 /** What each stage moves: running × speed over its machines. */

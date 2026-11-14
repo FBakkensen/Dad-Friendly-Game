@@ -17,6 +17,7 @@ import { buyCrew } from "./crew";
 import { LINE_OFF } from "./line";
 import {
   HELPER_COST_GROWTH,
+  LINE_MACHINE_COST_GROWTH,
   MACHINE_COST_GROWTH,
   MACHINE_IDS,
   TIERS,
@@ -430,5 +431,21 @@ describe("the line's machines, off in play (#533)", () => {
       expect(rates.running.hoist).toBe(1);
       expect(rates.running.cart).toBe(1);
     });
+  });
+});
+
+describe("the line's prices, labs only (#543)", () => {
+  it("climbs ×1.219 a machine, prices the first worker at 60 and the Great Machine at 96.48M", () => {
+    withFactors({ [LINE_OFF]: 0 }, () => {
+      const cart = tierById("cart");
+      expect(tierCost(cart, 0)).toBe(600);
+      expect(tierCost(cart, 1)).toBe(Math.ceil(600 * LINE_MACHINE_COST_GROWTH));
+      const helper = tierById("helper");
+      expect(tierCost(helper, 0)).toBe(60);
+      expect(tierCost(helper, 1)).toBe(Math.ceil(60 * HELPER_COST_GROWTH));
+      expect(tierCost(tierById("machine"), 0)).toBe(96_480_000);
+    });
+    expect(tierCost(tierById("machine"), 0)).toBe(120_600_000);
+    expect(tierCost(tierById("cart"), 1)).toBe(690);
   });
 });

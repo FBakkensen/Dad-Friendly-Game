@@ -14,6 +14,7 @@ import {
 import { mineVein } from "./veins";
 import { parseSaveValue, serializeSave } from "./persist";
 import { withFactors } from "./economy/factors";
+import { LINE_OFF } from "./line";
 import {
   BAND_SCALE,
   BAND_STARTS,
@@ -484,5 +485,17 @@ describe("the stretch cap keeps every count a safe integer (#366)", () => {
     // stops the one above.
     const cheap = { ...full, upgrades: { ...NO_UPGRADES, tap: 0 } };
     expect(buyUpgrade(cheap, "tap").upgrades.tap).toBe(1);
+  });
+});
+
+describe("the line's Deep Heart, labs only (#543)", () => {
+  it("takes 1.21 times the stones per stone of depth while the line is on", () => {
+    const deep = { remaining: MOUNTAIN_STONES - BAND_STARTS[3] };
+    const off = oneOffStretch(deep);
+    expect(off).toBe(BAND_SCALE[3]);
+    withFactors({ [LINE_OFF]: 0 }, () => {
+      expect(oneOffStretch(deep)).toBeCloseTo(39.204, 9);
+      expect(oneOffStretch({ remaining: MOUNTAIN_STONES })).toBe(1);
+    });
   });
 });

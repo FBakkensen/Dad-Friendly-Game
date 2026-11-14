@@ -5,12 +5,16 @@ import {
   FAVOURED_SPEED,
   LAYERS,
   LAYER_FAVOURS,
+  LINE_TOUGH,
+  ROCK_STAGE_OFF,
   SLOWED_SPEED,
   MATERIAL_EVERY,
   MAX_MATERIAL,
   addMaterials,
   hardnessFactorId,
+  bandSuits,
   hardnessOf,
+  layerFavours,
   layerOf,
   layersEntered,
   materialsFromMined,
@@ -20,6 +24,7 @@ import {
   type LayerId,
   type MaterialId,
 } from "./layers";
+import { LINE_OFF } from "./line";
 import { RELICS } from "./relics";
 import { MOUNTAIN_STONES } from "./scale";
 import { TIERS, tierById } from "./tiers";
@@ -142,6 +147,56 @@ describe("layers", () => {
     expect(hardnessOf(4, "kid")).toBe(1);
     expect(hardnessOf(4, "machine")).toBe(1.1);
     expect(hardnessOf(1, "borer")).toBe(1);
+  });
+
+  it("uses table A while the line is on, at the line's own tough factor (#543)", () => {
+    withFactors({ [LINE_OFF]: 0 }, () => {
+      expect(layerFavours(2)).toEqual({ suits: "borer", tough: "drill" });
+      expect(layerFavours(3)).toEqual({ suits: "train", tough: "cart" });
+      expect(layerFavours(4)).toEqual({ suits: "machine", tough: "hoist" });
+      expect(hardnessOf(2, "drill")).toBe(LINE_TOUGH);
+      expect(hardnessOf(2, "borer")).toBe(FAVOURED_SPEED);
+      expect(hardnessOf(3, "cart")).toBe(LINE_TOUGH);
+      expect(hardnessOf(3, "train")).toBe(FAVOURED_SPEED);
+      expect(hardnessOf(3, "borer")).toBe(1);
+      expect(hardnessOf(4, "hoist")).toBe(LINE_TOUGH);
+      expect(hardnessOf(4, "borer")).toBe(1);
+      expect(hardnessOf(4, "machine")).toBe(FAVOURED_SPEED);
+      expect(hardnessOf(1, "cart")).toBe(1);
+    });
+    expect(layerFavours(3)).toEqual({ suits: "drill", tough: "borer" });
+    expect(hardnessOf(4, "hoist")).toBe(1);
+  });
+
+  it("slows the tough stage's every machine in the whole-stage form, and suits none (#543)", () => {
+    withFactors({ [LINE_OFF]: 0, [ROCK_STAGE_OFF]: 0 }, () => {
+      for (const tier of ["drill", "borer"] as const) {
+        expect(hardnessOf(2, tier)).toBe(LINE_TOUGH);
+      }
+      for (const tier of ["cart", "train"] as const) {
+        expect(hardnessOf(3, tier)).toBe(LINE_TOUGH);
+      }
+      for (const tier of ["hoist", "machine"] as const) {
+        expect(hardnessOf(4, tier)).toBe(LINE_TOUGH);
+      }
+      expect(hardnessOf(2, "cart")).toBe(1);
+      expect(hardnessOf(3, "drill")).toBe(1);
+      expect(hardnessOf(4, "helper")).toBe(1);
+      expect(hardnessOf(1, "drill")).toBe(1);
+    });
+    withFactors({ [LINE_OFF]: 0, [ROCK_STAGE_OFF]: 0 }, () => {
+      expect(bandSuits(2)).toBeUndefined();
+      expect(bandSuits(4)).toBeUndefined();
+    });
+    withFactors({ [LINE_OFF]: 0 }, () => {
+      expect(bandSuits(3)).toBe("train");
+    });
+    // With the line off the knob does nothing.
+    withFactors({ [ROCK_STAGE_OFF]: 0 }, () => {
+      expect(hardnessOf(4, "machine")).toBe(FAVOURED_SPEED);
+      expect(bandSuits(3)).toBe("drill");
+    });
+    expect(bandSuits(1)).toBeUndefined();
   });
 
   it("scales one tier in the current band and leaves the other bands at 1", () => {

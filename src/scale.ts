@@ -1,6 +1,7 @@
 import { factor } from "./economy/factors";
+import { lineOn } from "./line";
 
-/** Stones in the whole mountain. A leaf module, so relics and rates can share it without an import cycle. */
+/** Stones in the whole mountain. Near-leaf (it reads only factors and line), so relics and rates can share it without an import cycle. */
 export const MOUNTAIN_STONES = 240_000_000;
 
 /**
@@ -60,12 +61,21 @@ export const BAND_STARTS = [0, 10_000_000, 45_000_000, 120_000_000] as const;
  */
 export const BAND_SCALE = [1, 2.625, 6.3, 32.4] as const;
 
+/**
+ * On the line (#543, labs only until #536) the Deep Heart is 1.21 times
+ * deeper (39.204): the optimizer's run ends a sitting later and stays within
+ * a quarter of the evening dad's, and the 3-hour marathon no longer finishes
+ * inside its day-4 sitting, a day and a half before the casual dad.
+ */
+const LINE_BAND_SCALE = [1, 2.625, 6.3, 39.204] as const;
+
 type Band = 0 | 1 | 2 | 3;
 const BANDS: readonly Band[] = [0, 1, 2, 3];
 
 /** A band's scale: `BAND_SCALE` times the lab's knob (1 in play). */
 function bandScale(band: Band): number {
-  return BAND_SCALE[band] * factor(`band.${String(band + 1)}.scale`);
+  const scale = lineOn() ? LINE_BAND_SCALE : BAND_SCALE;
+  return scale[band] * factor(`band.${String(band + 1)}.scale`);
 }
 
 /**
