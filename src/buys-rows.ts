@@ -30,8 +30,6 @@ import {
 } from "./screen-words";
 import { lockAria, lockBodyLine, lockRateLine } from "./tier-lock-words";
 import {
-  isMachine,
-  isShownTier,
   owned,
   tierById,
   tierCost,
@@ -254,15 +252,11 @@ function gainingCount(
 /** The best-ranked engineer on this machine, and what she adds. */
 function tendingOf(
   mountain: Mountain,
-  tier: Tier,
+  id: ShownTierId,
   now: number,
   trouble: Trouble | undefined,
 ): Tending | undefined {
-  if (!isMachine(tier)) {
-    return undefined;
-  }
-  const id = tier.id;
-  if (!isShownTier(id)) {
+  if (id === "helper" || id === "kid") {
     return undefined;
   }
   const who = tendingEngineer(atHome(mountain), id);
@@ -468,7 +462,7 @@ export function buyRowView(input: BuyInput): BuyRowView {
   const { mountain, now, trouble } = input;
   const facts = buyFacts(input);
   const { id, tier, lock, troubled, isGuided, count, buying } = facts;
-  const tending = tendingOf(mountain, tier, now, trouble);
+  const tending = tendingOf(mountain, id, now, trouble);
   return {
     tier: id,
     shown: tierShown(mountain, tier),

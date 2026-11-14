@@ -17,7 +17,7 @@ service cloud.firestore {
     //       check here, beside a full crew, crosses the expression cap.
     //   - savedAt: timestamp, must be request.time (v7, required)
     //   - mountain: map (required iff version is 3, 4, 5, or 6)
-    //       - remaining: int 0..240000000 (v4: 0..100000000, v3: 0..1000000), pocket: int >= 0, helpers: int >= 0, carts, drills, borers, machines, kids, hoists, trains: optional int >= 0 (hoists and trains: the line's machines, #533), upgrades: optional map of known ids to int levels, boosts: optional map of known ids to int end times,
+    //       - remaining: int 0..240000000 (v4: 0..100000000, v3: 0..1000000), pocket: int >= 0, helpers: int >= 0, carts, drills, borers, machines, kids: optional int >= 0, upgrades: optional map of known ids to int levels, boosts: optional map of known ids to int end times,
     //         startedAt: optional int >= 0 (run start; updates may not lower it)
     //         staffed: optional true or 1 (#89 grant) or 2 (M7 top-up). true stays valid for old clients.
     //         engineers: optional list, size 0..5. Each: name from the closed list, rank 0..2 matching trips (0 until 3, 1 until 9, then 2), trips 0..1000000, post a machine tier or camp or tunnel. The client parser rejects a duplicate name. Pairwise name checks in these rules cross the 1000-expression budget on a full late-game save.
@@ -30,7 +30,8 @@ service cloud.firestore {
     //       ids the client writes back), bench (recipe, times; an unknown
     //       recipe is kept and written back), crafted levels 0..1000, and
     //       optional chargeUntil, flareUntil, emberUntil, and axleUntil (whole epoch ms),
-    //       and stretch (M13: the run's size, 1..100000000; values above MAX_STRETCH, 1000000 since #366, load at MAX_STRETCH).
+    //       and stretch (M13: the run's size, 1..100000000; values above MAX_STRETCH, 1000000 since #366, load at MAX_STRETCH),
+    //       and hoists and trains (#533: the line's machines, optional int >= 0).
     //       The parser checks those.
     //   - grid: map (required iff version is 1 or 2; legacy, read-migrated by the client)
     //       - width: int (required, must be 3)
@@ -153,7 +154,7 @@ service cloud.firestore {
     function isValidMountain(mountain, total) {
       return mountain is map &&
         mountain.keys().hasAll(['remaining', 'pocket', 'helpers']) &&
-        mountain.keys().hasOnly(['remaining', 'pocket', 'helpers', 'carts', 'drills', 'borers', 'machines', 'kids', 'hoists', 'trains', 'upgrades', 'boosts', 'startedAt', 'staffed', 'legacy', 'engineers', 'expeditions', 'finds']) &&
+        mountain.keys().hasOnly(['remaining', 'pocket', 'helpers', 'carts', 'drills', 'borers', 'machines', 'kids', 'upgrades', 'boosts', 'startedAt', 'staffed', 'legacy', 'engineers', 'expeditions', 'finds']) &&
         mountain.remaining is int &&
         mountain.remaining >= 0 &&
         mountain.remaining <= total &&
@@ -166,8 +167,6 @@ service cloud.firestore {
         (!('borers' in mountain) || (mountain.borers is int && mountain.borers >= 0)) &&
         (!('machines' in mountain) || (mountain.machines is int && mountain.machines >= 0)) &&
         (!('kids' in mountain) || (mountain.kids is int && mountain.kids >= 0)) &&
-        (!('hoists' in mountain) || (mountain.hoists is int && mountain.hoists >= 0)) &&
-        (!('trains' in mountain) || (mountain.trains is int && mountain.trains >= 0)) &&
         (!('upgrades' in mountain) || (mountain.upgrades is map &&
           mountain.upgrades.keys().hasOnly(['tap', 'boots', 'steady', 'cartSyn', 'drillSyn', 'borerSyn', 'machineSyn']) &&
           (!('tap' in mountain.upgrades) || (mountain.upgrades.tap is int && mountain.upgrades.tap >= 0 && mountain.upgrades.tap <= 10)) &&

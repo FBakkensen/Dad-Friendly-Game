@@ -49,11 +49,15 @@ describe("owned-count milestones", () => {
 
   it("every staffed tier has the spec marks", () => {
     const ats = (id: TierId) => MILESTONES[id]?.map((mark) => mark.at);
-    for (const id of ["cart", "drill"] as const) {
+    // The hoist takes the cart's marks (#533).
+    for (const id of ["cart", "hoist", "drill"] as const) {
       expect(ats(id)).toEqual([10, 25, 50, 100, 150, 200]);
     }
     // Flemming's ruling after the Task 3 stop (#357): borers keep their 5.
-    expect(ats("borer")).toEqual([5, 10, 25, 50, 100, 150, 200]);
+    // The pit train takes the borer's marks (#533).
+    for (const id of ["borer", "train"] as const) {
+      expect(ats(id)).toEqual([5, 10, 25, 50, 100, 150, 200]);
+    }
     expect(ats("machine")).toEqual([2, 3, 5, 10, 25, 50]);
     expect(ats("helper")).toEqual([25, 50, 100]);
     expect(MILESTONES.kid).toBeUndefined();
@@ -117,8 +121,10 @@ describe("owned-count milestones", () => {
     const ids: readonly TierId[] = [
       "helper",
       "cart",
+      "hoist",
       "drill",
       "borer",
+      "train",
       "machine",
     ];
     expect(Object.keys(MILESTONES).sort()).toEqual([...ids].sort());

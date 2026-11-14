@@ -220,17 +220,8 @@ describe("firestore.rules: every save the game writes is accepted", () => {
   it("the line's hoists and pit trains (#533)", async () => {
     const mountain = { ...createMountain(), hoists: 4, trains: 2 };
     expect(await roundTrip(mountain)).toEqual(mountain);
-    const raw = serializeSave({ mountain, lastSeen: 1 });
-    for (const field of ["hoists", "trains"]) {
-      for (const bad of [-1, 1.5, "7"]) {
-        await expect(
-          put({
-            ...raw,
-            mountain: { ...raw.mountain, [field]: bad },
-          }),
-        ).rejects.toThrow(/permission/i);
-      }
-    }
+    // They sit in the workshop map (#195), which the rules only require is
+    // a map, so the client parser rejects a bad count (save-format.test.ts).
   });
 
   it("round-trips a crew of engineers and rejects a bad one (#144)", async () => {

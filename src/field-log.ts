@@ -7,7 +7,7 @@ import type { Mountain } from "./mountain";
 import type { Rates } from "./rates";
 import { foundRelics, type RelicId } from "./relics";
 import { minedOut } from "./scale";
-import { TIERS, owned, type TierId } from "./tiers";
+import { TIERS, isShownTier, owned, type ShownTierId } from "./tiers";
 import { UPGRADES, upgradeLevel, type UpgradeId } from "./upgrades";
 
 /** Most stones one event or the pocket may carry; the rules cap both here. */
@@ -85,7 +85,7 @@ export type FieldSnapshot = {
   readonly mined: number;
   readonly left: number;
   readonly pocket: number;
-  readonly crew: Readonly<Record<TierId, number>>;
+  readonly crew: Readonly<Record<ShownTierId, number>>;
   readonly crewSpeed: number;
   readonly tapYield: number;
   /** Owned machines with nobody to run them, per tier. */
@@ -134,11 +134,14 @@ export function snapshot(
   version: string,
   stamp: { readonly deviceId?: string; readonly rev?: number } = {},
 ): FieldSnapshot {
+  // The rules hold the log to the tiers the screens show. The line's
+  // machines join it when the line turns on (#536).
+  const shown = TIERS.filter((tier) => isShownTier(tier.id));
   const crew = Object.fromEntries(
-    TIERS.map((tier) => [tier.id, owned(mountain, tier)]),
-  ) as Record<TierId, number>;
+    shown.map((tier) => [tier.id, owned(mountain, tier)]),
+  ) as Record<ShownTierId, number>;
   const idle: Record<string, number> = {};
-  for (const tier of TIERS) {
+  for (const tier of shown) {
     if (tier.staff === 0) {
       continue;
     }
@@ -435,14 +438,12 @@ export function maxFieldLogDocumentBytes(): number {
   const crew = {
     helper: 1,
     cart: 1,
-    hoist: 1,
     drill: 1,
     borer: 1,
-    train: 1,
     machine: 1,
     kid: 1,
   };
-  const idle = { cart: 1, hoist: 1, drill: 1, borer: 1, train: 1, machine: 1 };
+  const idle = { cart: 1, drill: 1, borer: 1, machine: 1 };
   const upgrades = {
     tap: 10,
     boots: 1,
