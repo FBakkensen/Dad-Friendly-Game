@@ -224,6 +224,21 @@ export function staffWith(
     : fillLine(slots, free, staffing, lineHands, spareAbove);
 }
 
+/**
+ * `staffing`'s big machines with the one-hand machines filled for the line
+ * (#534); `staffing` itself when its big machines need more hands than
+ * there are.
+ */
+export function fillForLine(
+  slots: readonly StaffSlot[],
+  hands: number,
+  staffing: Staffing,
+  lineHands: number,
+  spareAbove: boolean,
+): Staffing {
+  return staffWith(slots, hands, staffing, lineHands, spareAbove) ?? staffing;
+}
+
 /** What each stage's big machines move with these counts. */
 function bigStages(
   slots: readonly StaffSlot[],

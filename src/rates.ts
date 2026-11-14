@@ -41,6 +41,7 @@ import {
 import { hasRelic } from "./relics";
 import {
   biggestFirst,
+  fillForLine,
   moreStones,
   staffForLine,
   staffMachines,
@@ -398,10 +399,12 @@ function staffCrew(
   // and as they fill the line, with spare hands above the line or not.
   const fills = (staffing: Staffing): Weighed => {
     let best = weigh(staffing);
-    for (const spareAbove of line === undefined ? [] : [true, false]) {
-      const lined = staffWith(slots, hands, staffing, line, spareAbove);
-      const next = lined === undefined ? undefined : weigh(lined);
-      if (next !== undefined && moreStones(next.stones, best.stones)) {
+    if (line === undefined) {
+      return best;
+    }
+    for (const spareAbove of [true, false]) {
+      const next = weigh(fillForLine(slots, hands, staffing, line, spareAbove));
+      if (moreStones(next.stones, best.stones)) {
         best = next;
       }
     }
