@@ -835,10 +835,10 @@ describe("upgrade card before and after (#324)", () => {
   });
 
   it("a synergy says one boosted machine's speed before and after, bought or not", () => {
-    expect(line("cartSyn", crew)).toBe("Carts 6/s to 6.7/s.");
+    expect(line("cartSyn", crew)).toBe("Carts 18/s to 20/s.");
     expect(
       line("cartSyn", { ...crew, upgrades: { ...NO_UPGRADES, cartSyn: 1 } }),
-    ).toBe("Carts 6/s to 6.7/s.");
+    ).toBe("Carts 18/s to 20/s.");
   });
 
   it("a synergy with none of its source tier says the rule", () => {

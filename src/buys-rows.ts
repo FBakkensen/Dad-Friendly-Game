@@ -33,6 +33,7 @@ import {
 import { lockAria, lockBodyLine, lockRateLine } from "./tier-lock-words";
 import {
   owned,
+  setOwned,
   tierById,
   tierCost,
   tierQuote,
@@ -158,6 +159,11 @@ type BuyFacts = {
   readonly buying: number;
   /** How many the row's gain counts: one on ×1, else those the free hands can run. */
   readonly gaining: number;
+  /**
+   * The workers the gaining ones still lack. A row short of hands shows what
+   * it adds once they are hired (#536), never the nothing an idle one adds.
+   */
+  readonly missing: number;
   readonly price: number;
   readonly lock: TierLock | undefined;
   readonly troubled: Trouble | undefined;
@@ -226,6 +232,7 @@ function buyFacts({
     count,
     buying,
     gaining,
+    missing: Math.max(0, (staff / buying) * gaining - spare),
     price,
     lock,
     troubled,
@@ -482,7 +489,8 @@ function buyAria(
 /**
  * What the row's buy adds. Workers and kids add the crew's rise, with the idle machines they
  * start (#490); the staffing New row hires one worker. A machine adds what the line gains from
- * it (#536), which is nothing when its stage already has room to spare.
+ * it (#536), with the workers it still lacks, which is nothing when its stage already has room
+ * to spare.
  */
 function rowGain(
   facts: BuyFacts,
@@ -493,9 +501,14 @@ function rowGain(
   if (isGuided) {
     return handsGain(mountain, "helper", 1, now, trouble);
   }
-  return id === "helper" || id === "kid"
-    ? handsGain(mountain, id, gaining, now, trouble)
-    : machineGain(mountain, id, gaining, now, trouble);
+  if (id === "helper" || id === "kid") {
+    return handsGain(mountain, id, gaining, now, trouble);
+  }
+  const staffed =
+    facts.missing > 0
+      ? setOwned(mountain, "helper", mountain.owned.helper + facts.missing)
+      : mountain;
+  return machineGain(staffed, id, gaining, now, trouble);
 }
 
 /**

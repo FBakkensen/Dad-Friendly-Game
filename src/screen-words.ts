@@ -65,10 +65,21 @@ export type CrewPost = {
 /** Where busy workers sit. Hands and kids are the pool, not a post. */
 export function crewPostLabel(
   id: TierId,
-): "carts" | "drills" | "borers" | "the machine" | undefined {
+):
+  | "carts"
+  | "hoists"
+  | "drills"
+  | "borers"
+  | "trains"
+  | "the machine"
+  | undefined {
   switch (id) {
     case "cart":
       return "carts";
+    case "hoist":
+      return "hoists";
+    case "train":
+      return "trains";
     case "drill":
       return "drills";
     case "borer":
@@ -77,10 +88,6 @@ export function crewPostLabel(
       return "the machine";
     case "helper":
     case "kid":
-      return undefined;
-    // The line's machines have no post words until Buys by stage (#538).
-    case "hoist":
-    case "train":
       return undefined;
     default: {
       const never: never = id;

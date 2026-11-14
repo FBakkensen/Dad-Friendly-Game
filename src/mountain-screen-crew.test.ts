@@ -9,7 +9,7 @@ import {
   stretch,
 } from "./scale";
 import { formatCompact, formatCount } from "./format";
-import { effectiveRates } from "./rates";
+import { effectiveRates, handsGain, machineGain } from "./rates";
 import { RELICS } from "./relics";
 import { writeSessionSave } from "./session-save";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -18,6 +18,7 @@ import { SESSION_SAVE_KEY } from "./session-save";
 import { FIX_HOLD_MS } from "./hazards";
 import {
   NEEDS_MORE_WORKERS,
+  formatSpeed,
   troubleAria,
   upgradeEffectLine,
   upgradeWhyLine,
@@ -84,6 +85,10 @@ afterEach(stopScreens);
 const LAST_STONE = MOUNTAIN_STONES - 1;
 
 describe("what the crew gives", () => {
+  /**
+   * Six workers on a cart, a hoist and a drill: the haul (18) is the lowest
+   * stage, lifted by the three free hands to 36 (#536). A cart adds 18.
+   */
   const seededCrew = () => {
     const storage = createMemoryStorage();
     storage.setItem(
@@ -93,9 +98,10 @@ describe("what the crew gives", () => {
           ...minedMountain(2_500),
           owned: {
             ...minedMountain(2_500).owned,
-            helper: 4,
-            cart: 3,
-            drill: 0,
+            helper: 6,
+            cart: 1,
+            hoist: 1,
+            drill: 1,
             borer: 0,
             machine: 0,
             kid: 0,
@@ -110,9 +116,11 @@ describe("what the crew gives", () => {
   it("shows each tier's output per unit", () => {
     const screen = mountScreen({ storage: seededCrew() });
     expect(screen.text('.tier[data-tier="helper"] .board-row-gain')).toBe(
-      "+1/s",
+      "+3/s",
     );
-    expect(screen.text('.tier[data-tier="cart"] .board-row-gain')).toBe("+6/s");
+    expect(screen.text('.tier[data-tier="cart"] .board-row-gain')).toBe(
+      "+18/s",
+    );
     const big = mountScreen({
       storage: (() => {
         const storage = createMemoryStorage();
@@ -127,8 +135,14 @@ describe("what the crew gives", () => {
         return storage;
       })(),
     });
-    // 150 carts hold five marks: 6 × 32 each.
-    expect(big.text('.tier[data-tier="cart"] .board-row-gain')).toBe("+192/s");
+    // 150 carts hold five marks: 18 × 32 each, on the line's rating. The
+    // haul has room to spare, so one more adds nothing.
+    expect(
+      big.root
+        .querySelector('.tier[data-tier="cart"]')
+        ?.getAttribute("aria-label"),
+    ).toContain("mines 576 stones a second");
+    expect(big.text('.tier[data-tier="cart"] .board-row-gain')).toBe("+0/s");
   });
 
   it("counts the crew line up after a bought cart", async () => {
@@ -141,18 +155,19 @@ describe("what the crew gives", () => {
       );
       cart?.click();
       expect(screen.text(".crew-status")).toBe(
-        "Your crew mines 22 stones a second",
+        "Your crew mines 36 stones a second",
       );
       await vi.advanceTimersByTimeAsync(240);
       const midway = screen.text(".crew-status");
-      expect(midway).not.toBe("Your crew mines 22 stones a second");
-      expect(midway).not.toBe("Your crew mines 28 stones a second");
+      expect(midway).not.toBe("Your crew mines 36 stones a second");
+      expect(midway).not.toBe("Your crew mines 54 stones a second");
       await vi.advanceTimersByTimeAsync(400);
       expect(screen.text(".crew-status")).toBe(
-        "Your crew mines 28 stones a second",
+        "Your crew mines 54 stones a second",
       );
+      // One more cart now lifts the haul past the lift's 60: the two share.
       expect(screen.text('.tier[data-tier="cart"] .board-row-gain')).toBe(
-        "+6/s",
+        "+12/s",
       );
     } finally {
       vi.useRealTimers();
@@ -169,7 +184,7 @@ describe("what the crew gives", () => {
       expect(screen.root.querySelector(".crew-float")).toBeNull();
       expect(
         screen.root.querySelector(".board-gauge")?.getAttribute("aria-label"),
-      ).toBe("Output: 22 stones a second");
+      ).toBe("Output: 36 stones a second");
     } finally {
       vi.useRealTimers();
       setReducedMotion(true);
@@ -226,7 +241,7 @@ describe("what the crew gives", () => {
       );
       cart?.click();
       expect(screen.text(".crew-status")).toBe(
-        "Your crew mines 28 stones a second",
+        "Your crew mines 54 stones a second",
       );
       await vi.advanceTimersByTimeAsync(1_000);
       expect(screen.root.querySelector(".crew-float")).toBeNull();
@@ -249,16 +264,27 @@ describe("the Buys drawer (#373)", () => {
     writeSessionSave({ storage, mountain, lastSeen: at });
     return storage;
   };
-  /** play's early save: a crewed Topsoil, 18 workers and 6 carts. */
+  /**
+   * A crewed Topsoil: 18 workers on 6 carts, 2 hoists and 2 drills. The haul
+   * moves the least, so a seventh cart is the pick (#536).
+   */
   const early = (over: MountainPatch = {}): Mountain =>
     patched(
       {
         ...minedMountain(500_000),
         stock: { ...minedMountain(500_000).stock, stones: 6_854 },
-        owned: { ...minedMountain(500_000).owned, helper: 18, cart: 6 },
+        owned: {
+          ...minedMountain(500_000).owned,
+          helper: 18,
+          cart: 6,
+          hoist: 2,
+          drill: 2,
+        },
       },
       over,
     );
+  /** 18 workers on 6 carts only: the hoist shows, and the drill waits for it. */
+  const CARTS_ONLY = { hoist: 0, drill: 0 } as const;
   /** Granite with no borer yet: the borer opens but the crew is short of hands. */
   const shortMountain = (): Mountain => ({
     ...minedMountain(12_000_000),
@@ -343,7 +369,9 @@ describe("the Buys drawer (#373)", () => {
       "row:helper",
       "sec:Machines",
       "row:cart",
+      "row:hoist",
       "row:drill",
+      "row:borer",
       "board-spare",
     ]);
     // The footnote stands under the list, over Back, out of the list's scroll (#373).
@@ -664,7 +692,7 @@ describe("the Buys drawer (#373)", () => {
       vi.advanceTimersByTime(140);
       expect(lampOf(drill)).toBe("0px");
       expect(screen.progress.getSnapshot().mountain.stock.stones).toBe(pocket);
-      expect(screen.progress.getSnapshot().mountain.owned.drill).toBe(0);
+      expect(screen.progress.getSnapshot().mountain.owned.drill).toBe(2);
       // A locked row blinks too, and buys nothing.
       clock += 1_000;
       vi.advanceTimersByTime(1_000);
@@ -1004,7 +1032,7 @@ describe("the Buys drawer (#373)", () => {
         "button.board-row",
       ),
     ];
-    expect(rows.length).toBe(6);
+    expect(rows.length).toBe(8);
     // The Crew section and its legend keep their boxes, blank: nothing moves, nothing of the
     // old save shows.
     const crewBox = drawerOf(screen).querySelector<HTMLElement>("section.crew");
@@ -1075,6 +1103,8 @@ describe("the Buys drawer (#373)", () => {
       cart: 10,
       drill: 6,
       borer: 2,
+      // A train shows the Great Machine (#536).
+      train: 1,
     },
     engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
   });
@@ -1173,7 +1203,8 @@ describe("the Buys drawer (#373)", () => {
 
   it("a post the crew empties while the drawer is open reads zero in its place", () => {
     let clock = 10_000;
-    // The first borer takes the hands off the cart: the borer runs first.
+    // The first borer takes the hands off the drill: the empty lift and the
+    // cart's haul hold the line, so the cart keeps its hand (#536).
     const screen = mountScreen({
       storage: seededWith({
         ...minedMountain(10_000_000),
@@ -1194,14 +1225,14 @@ describe("the Buys drawer (#373)", () => {
       [...chipsOf(screen).querySelectorAll(".crew-bit")].map(
         (chip) => chip.textContent,
       );
-    expect(chipWords()).toContain("1 on carts");
+    expect(chipWords()).toContain("1 on drills");
     fingerTap(rowOf(screen, "borer"));
     expect(screen.progress.getSnapshot().mountain.owned.borer).toBe(1);
-    expect(chipWords()).toContain("0 on carts");
+    expect(chipWords()).toContain("0 on drills");
     drawerOf(screen)
       .querySelector<HTMLButtonElement>(".board-sheet-back")
       ?.click();
-    expect(chipWords()).not.toContain("0 on carts");
+    expect(chipWords()).not.toContain("0 on drills");
     expect(chipWords().some((words) => /on borers$/.test(words))).toBe(true);
   });
 
@@ -1272,21 +1303,23 @@ describe("the Buys drawer (#373)", () => {
 
   it("a row held in place but no longer shown buys nothing", () => {
     const screen = mountScreen({
-      storage: seededWith(early({ stock: { stones: 1_000_000 } })),
+      storage: seededWith(
+        early({ stock: { stones: 1_000_000 }, owned: CARTS_ONLY }),
+      ),
       now: () => CLOCK,
     });
     openBuys(screen);
-    const drill = rowOf(screen, "drill");
-    expect(drill.hidden).toBe(false);
-    // Another copy of the save lands: no carts, so the drill is not shown, but the open drawer
+    const hoist = rowOf(screen, "hoist");
+    expect(hoist.hidden).toBe(false);
+    // Another copy of the save lands: no carts, so the hoist is not shown, but the open drawer
     // keeps its row in place.
     screen.progress.applyMutation((m) => ({
       ...m,
       owned: { ...m.owned, cart: 0 },
     }));
-    expect(drill.hidden).toBe(false);
-    drill.click();
-    expect(screen.progress.getSnapshot().mountain.owned.drill).toBe(0);
+    expect(hoist.hidden).toBe(false);
+    hoist.click();
+    expect(screen.progress.getSnapshot().mountain.owned.hoist).toBe(0);
   });
 
   it("a first hire while the drawer is open keeps the empty crew line closed until the next open", () => {
@@ -1306,7 +1339,8 @@ describe("the Buys drawer (#373)", () => {
       .querySelector<HTMLButtonElement>(".board-sheet-back")
       ?.click();
     expect(chipsOf(screen).hidden).toBe(false);
-    expect(rowOf(screen, "cart").hidden).toBe(false);
+    // The cart waits for twelve workers (#536).
+    expect(rowOf(screen, "cart").hidden).toBe(true);
   });
 
   /** A signed-in screen whose save loads again on `reload`, and lands on `land`. */
@@ -1349,51 +1383,53 @@ describe("the Buys drawer (#373)", () => {
   };
 
   it("a drawer opened while the save loads lays out once as it lands", async () => {
-    const { screen, reload, land } = reloadable(early());
-    expect(rowOf(screen, "drill").hidden).toBe(false);
+    const { screen, reload, land } = reloadable(early({ owned: CARTS_ONLY }));
+    expect(rowOf(screen, "hoist").hidden).toBe(false);
     await reload();
     openBuys(screen);
-    // The save that lands has no carts: no drill to show.
-    await land(early({ owned: { cart: 0 } }));
-    expect(rowOf(screen, "drill").hidden).toBe(true);
+    // The save that lands has no carts: no hoist to show.
+    await land(early({ owned: { ...CARTS_ONLY, cart: 0 } }));
+    expect(rowOf(screen, "hoist").hidden).toBe(true);
     expect(chipsOf(screen).classList.contains("is-frozen")).toBe(true);
     // From here the open drawer holds what it laid out.
     screen.progress.applyMutation((m) => ({
       ...m,
       owned: { ...m.owned, cart: 6 },
     }));
-    expect(rowOf(screen, "drill").hidden).toBe(true);
+    expect(rowOf(screen, "hoist").hidden).toBe(true);
     drawerOf(screen)
       .querySelector<HTMLButtonElement>(".board-sheet-back")
       ?.click();
-    expect(rowOf(screen, "drill").hidden).toBe(false);
+    expect(rowOf(screen, "hoist").hidden).toBe(false);
   });
 
   it("a reload while open keeps the rows in place and blinks nothing while loading", async () => {
     setReducedMotion(false);
     try {
       let clock = 10_000;
-      const { screen, reload, land } = reloadable(early(), () => clock);
+      // A thin pocket: the hoist is too dear.
+      const thin = { stock: { stones: 1_000 }, owned: CARTS_ONLY };
+      const { screen, reload, land } = reloadable(early(thin), () => clock);
       openBuys(screen);
       clock += BUYS_SETTLE_MS + 100;
       const before = listParts(screen);
-      const drill = rowOf(screen, "drill");
-      fingerTap(drill);
-      expect(lampOf(drill)).toBe("-120px");
+      const hoist = rowOf(screen, "hoist");
+      fingerTap(hoist);
+      expect(lampOf(hoist)).toBe("-120px");
       await reload();
-      expect(lampOf(drill)).toBe("0px");
-      fingerTap(drill);
-      expect(lampOf(drill)).toBe("0px");
+      expect(lampOf(hoist)).toBe("0px");
+      fingerTap(hoist);
+      expect(lampOf(hoist)).toBe("0px");
       expect(listParts(screen)).toEqual(before);
-      // The save that lands has no carts. The drill keeps its place, and the blink from before
+      // The save that lands has no carts. The hoist keeps its place, and the blink from before
       // the reload is over.
-      await land(early({ owned: { cart: 0 } }));
+      await land(early({ ...thin, owned: { ...CARTS_ONLY, cart: 0 } }));
       expect(listParts(screen)).toEqual(before);
-      expect(lampOf(drill)).toBe("0px");
+      expect(lampOf(hoist)).toBe("0px");
       // A row held in place for a tier no longer shown blinks, and buys nothing.
-      fingerTap(drill);
-      expect(lampOf(drill)).toBe("-120px");
-      expect(screen.progress.getSnapshot().mountain.owned.drill).toBe(0);
+      fingerTap(hoist);
+      expect(lampOf(hoist)).toBe("-120px");
+      expect(screen.progress.getSnapshot().mountain.owned.hoist).toBe(0);
     } finally {
       setReducedMotion(true);
     }
@@ -2917,7 +2953,7 @@ describe("crew synergies on screen", () => {
       "Helping hands",
     );
     expect(screen.text('[data-upgrade="cartSyn"] .board-row-info')).toBe(
-      "Carts 6/s to 6.7/s.",
+      "Carts 18/s to 20/s.",
     );
     expect(
       screen.root.querySelector<HTMLElement>('[data-upgrade="drillSyn"]')
@@ -2927,11 +2963,15 @@ describe("crew synergies on screen", () => {
       .querySelector<HTMLButtonElement>('.board-row[data-upgrade="cartSyn"]')
       ?.click();
     expect(screen.text('[data-upgrade="cartSyn"] .board-row-info')).toBe(
-      "Carts 6/s to 6.7/s.",
+      "Carts 18/s to 20/s.",
     );
-    expect(screen.text('.tier[data-tier="cart"] .board-row-gain')).toBe(
-      "+6.7/s",
-    );
+    // Each cart mines its 18 and 12% more (the haul has room to spare, so
+    // one more adds nothing to the line).
+    expect(
+      screen.root
+        .querySelector('.tier[data-tier="cart"]')
+        ?.getAttribute("aria-label"),
+    ).toContain("mines 20 stones a second");
     expect(
       screen.root
         .querySelector('.tier[data-tier="cart"]')
@@ -2967,14 +3007,24 @@ describe("crew staffing on screen", () => {
       mountain: {
         ...minedMountain(0),
         stock: { ...minedMountain(0).stock, stones: 1_000 },
-        owned: { ...minedMountain(0).owned, helper: 3, cart: 3, drill: 2 },
+        owned: {
+          ...minedMountain(0).owned,
+          helper: 3,
+          cart: 3,
+          hoist: 1,
+          drill: 1,
+        },
       },
       lastSeen: Date.now(),
     });
     const screen = mountScreen({ storage });
-    // 3 workers: both drills (1 each), then one cart; two carts idle.
-    // The cart's staffing New row hires a worker: his hand and the cart he starts (#490).
-    expect(screen.text('.tier[data-tier="cart"] .board-row-gain')).toBe("+7/s");
+    // 3 workers: one on each stage's machine; two carts idle. The haul (18)
+    // holds the line, lifted by the hands' 9 to 27 (#536).
+    // The cart's staffing New row hires a worker: his hand and the cart he
+    // starts lift the haul to 48 (#490).
+    expect(screen.text('.tier[data-tier="cart"] .board-row-gain')).toBe(
+      "+21/s",
+    );
     expect(
       screen.root
         .querySelector('.tier[data-tier="cart"]')
@@ -2986,19 +3036,20 @@ describe("crew staffing on screen", () => {
         .querySelector('.tier[data-tier="drill"]')
         ?.getAttribute("aria-label"),
     ).toContain(NEEDS_MORE_WORKERS);
+    // The face has room to spare: a second drill, with its worker, adds nothing.
     expect(screen.text('.tier[data-tier="drill"] .board-row-gain')).toBe(
-      "+36/s",
+      "+0/s",
     );
     expect(screen.text('.tier[data-tier="drill"] .board-row-verb')).toBe(
       "1 worker",
     );
-    expect(screen.text(".crew-status")).toBe("81/s · 2 idle, need 2 workers");
+    expect(screen.text(".crew-status")).toBe("27/s · 2 idle, need 2 workers");
 
     // Hiring one worker starts another cart; one still waits.
     screen.root
       .querySelector<HTMLButtonElement>('.tier[data-tier="helper"]')
       ?.click();
-    expect(screen.text(".crew-status")).toBe("88/s · 1 idle, need 1 worker");
+    expect(screen.text(".crew-status")).toBe("48/s · 1 idle, need 1 worker");
   });
 
   it("says a machine would need more workers before you buy it, with no new numbers", () => {
@@ -3009,20 +3060,25 @@ describe("crew staffing on screen", () => {
         // The borer opens at 10M stones (#250).
         ...minedMountain(10_000_000),
         stock: { ...EMPTY_STOCK, stones: 20_000_000 },
+        // A train and a Great Machine outrun the face, so the face holds
+        // the line; 20 of 27 workers are busy, 7 free.
         owned: {
           ...minedMountain(10_000_000).owned,
-          helper: 9,
+          helper: 27,
           cart: 1,
           drill: 1,
+          train: 1,
+          machine: 1,
         },
       },
       lastSeen: Date.now(),
     });
     const screen = mountScreen({ storage });
     const borer = screen.root.querySelector('.tier[data-tier="borer"]');
-    // The Granite suits borers (×1.1, D3).
+    // The Granite suits borers (×1.1, D3): 1,071 on the line, and 1,178 here,
+    // counted with the worker it still lacks (#536).
     expect(screen.text('.tier[data-tier="borer"] .board-row-gain')).toBe(
-      "+392/s",
+      `+${formatSpeed(1_071 * 1.1)}/s`,
     );
     expect(screen.text('.tier[data-tier="borer"] .board-row-need')).toBe(
       "Needs 8 workers",
@@ -3030,7 +3086,7 @@ describe("crew staffing on screen", () => {
     expect(borer?.getAttribute("aria-label")).toContain(NEEDS_MORE_WORKERS);
     // The Granite is tough on drills (×0.8, D3).
     expect(screen.text('.tier[data-tier="drill"] .board-row-gain')).toBe(
-      "+28/s",
+      `+${formatSpeed(108 * 0.8)}/s`,
     );
   });
 
@@ -3053,7 +3109,8 @@ describe("crew staffing on screen", () => {
       );
       cart?.click();
       expect(screen.progress.getSnapshot().mountain.owned.cart).toBe(2);
-      expect(screen.text(".crew-status")).toBe("7/s · 1 idle, need 1 worker");
+      // One hand and one cart: the empty face and lift share his 3 a second.
+      expect(screen.text(".crew-status")).toBe("1/s · 1 idle, need 1 worker");
     } finally {
       setReducedMotion(true);
     }
@@ -3063,44 +3120,46 @@ describe("crew staffing on screen", () => {
 describe("Flemming's cart (#216)", () => {
   it("shows what one more cart adds, and where the borer opens", () => {
     const storage = createMemoryStorage();
-    writeSessionSave({
-      storage,
-      mountain: {
-        ...minedMountain(4_500_000),
-        stock: { ...minedMountain(4_500_000).stock, stones: 255_200 },
-        owned: {
-          ...minedMountain(4_500_000).owned,
-          helper: 18,
-          cart: 13,
-          drill: 5,
-        },
-        upgrades: { ...NO_UPGRADES, boots: 1, cartSyn: 1 },
+    // His carts and drills, with the three hoists the line asks for (#536).
+    const mountain: Mountain = {
+      ...minedMountain(4_500_000),
+      stock: { ...minedMountain(4_500_000).stock, stones: 255_200 },
+      owned: {
+        ...minedMountain(4_500_000).owned,
+        helper: 21,
+        cart: 13,
+        hoist: 3,
+        drill: 5,
       },
-      lastSeen: Date.now(),
-    });
+      upgrades: { ...NO_UPGRADES, boots: 1, cartSyn: 1 },
+    };
+    writeSessionSave({ storage, mountain, lastSeen: Date.now() });
     const screen = mountScreen({ storage });
-    // Better boots makes him 2.4/s, and Helping hands makes the 13 carts 1% faster
-    // for him: the crew's rise (#490).
+    // Each row says what the line gains: the crew's rise (#490, #536).
+    const gain = (speed: number) => `+${formatSpeed(speed)}/s`;
     expect(screen.text('.tier[data-tier="helper"] .board-row-gain')).toBe(
-      "+3.9/s",
+      gain(handsGain(mountain, "helper", 1)),
     );
     expect(screen.text('.tier[data-tier="cart"] .board-row-gain')).toBe(
-      "+14/s",
+      gain(machineGain(mountain, "cart", 1)),
     );
     expect(screen.text('.tier[data-tier="drill"] .board-row-gain')).toBe(
-      "+36/s",
+      gain(machineGain(mountain, "drill", 1)),
+    );
+    expect(screen.text('.tier[data-tier="hoist"] .board-row-gain')).not.toBe(
+      "+0/s",
     );
     // Above the Granite the borer is a locked preview that says where it opens (#250, #356).
     expect(screen.text('.tier[data-tier="borer"] .board-row-info')).toBe(
       "The Tunnel borer joins your crew at 10M stones. Keep digging, Dad!",
     );
     expect(screen.root.querySelector(".crew-posts-words")?.textContent).toBe(
-      "18 workers: 13 on carts, 5 on drills, 0 free",
+      "21 workers: 13 on carts, 3 on hoists, 5 on drills, 0 free",
     );
     const chipWords = [...screen.root.querySelectorAll(".crew-bit")]
       .map((chip) => chip.textContent)
       .join(" ");
-    expect(chipWords).toContain("18 workers");
+    expect(chipWords).toContain("21 workers");
     expect(chipWords).toContain("13 on carts");
     expect(chipWords).toContain("5 on drills");
     // The free count is the crew plate's alone on the board (#371); only the spoken sentence
@@ -3466,7 +3525,7 @@ describe("pass the mine to your kid (#131)", () => {
       [...(dialog(screen)?.querySelectorAll(".legacy-rates li") ?? [])].map(
         (item) => item.textContent,
       ),
-    ).toEqual(["Workers 1/s to 1.5/s", "Carts 6/s to 9/s"]);
+    ).toEqual(["Workers 1/s to 1.5/s", "Carts 18/s to 27/s"]);
     expect(screen.text(".legacy-keeps")).toMatch(
       /^A bigger mountain for your kid, with the Legacy and \d+ recipes\.$/,
     );
@@ -3563,15 +3622,16 @@ describe("player-facing workers (#139)", () => {
         // One stone short of the Crown. A crew of this size, on 23.5h of
         // Shield away pay (under the 24h cap), reaches the bottom through the
         // banded stones, so the welcome card, the Crown, and the Legend
-        // finale all render.
+        // finale all render. On the line every stage needs its machines.
         ...minedMountain(69_999_999),
         stock: { ...EMPTY_STOCK, stones: 80_000_000 },
         owned: {
           ...minedMountain(69_999_999).owned,
-          helper: 200,
-          cart: 50,
-          borer: 10,
-          machine: 20,
+          // Short of hands, so the crew line asks for workers.
+          helper: 2_400,
+          borer: 200,
+          train: 50,
+          machine: 50,
           kid: 10,
         },
         upgrades: { ...NO_UPGRADES, boots: 1, steady: 1, cartSyn: 1, tap: 2 },
@@ -3720,16 +3780,18 @@ describe("trouble on a tier row (#149)", () => {
     cart.dispatchEvent(
       new PointerEvent("pointerdown", { bubbles: true, button: 2 }),
     );
+    // The empty lift and the cart's haul (18) share the 12 hands' 36 (#536).
     expect(screen.text(".crew-status")).toBe(
-      "Your crew mines 339 stones a second",
+      "Your crew mines 27 stones a second",
     );
     screen.progress.layoutPreview.trouble("cart");
     expect(cart.dataset["trouble"]).toBe("cave-in");
     expect(screen.text('.tier[data-tier="cart"] .board-row-info')).toBe(
       "Cave-in! · Hold to fix",
     );
+    // The cave-in slows the cart to three quarters: (13.5 + 36) / 2.
     expect(screen.text(".crew-status")).toBe(
-      "Your crew mines 338 stones a second",
+      "Your crew mines 24 stones a second",
     );
     expect(cart.getAttribute("aria-label")).toBe(
       troubleAria("cave-in", tierById("cart")),
@@ -3750,7 +3812,7 @@ describe("trouble on a tier row (#149)", () => {
     expect(screen.progress.getSnapshot().mountain.owned.cart).toBe(1);
     expect(screen.progress.getSnapshot().trouble).toBeUndefined();
     expect(screen.text(".crew-status")).toBe(
-      "Your crew mines 339 stones a second",
+      "Your crew mines 27 stones a second",
     );
   });
 
