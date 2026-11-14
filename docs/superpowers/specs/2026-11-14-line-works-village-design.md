@@ -141,7 +141,9 @@ So two lines of advice change: "The Crystal Caves suit trains. Tough on carts." 
 
 Until the cage is built the crew works the deepest band, so this table is what the rock does to him. With the cage it is what a level costs him when he chooses it ([The levels and the cage](#the-levels-and-the-cage)).
 
-**One open form, for the lab.** A paper check of the cage ([Paper check](#paper-check)) found that rock which slows only a stage's first machine hardly moves the line, because the stage's second machine soon carries it. The other form slows the whole stage: the Granite the face, the Crystal Caves the haul, the Deep Heart the lift, at the same factor, with no ×1.1. The lab (#534) reports `narrowRun` and the run's length for both forms. The cage's rules sliver picks one from those rows. The whole-stage form is the one this spec recommends once the cage is in. If it is taken, the band tags and the advice lines change ("The Granite · Hard rock"), and those words are Flemming's at build time.
+**One open form, for the lab.** A paper check of the cage ([Paper check](#paper-check)) found that rock which slows only a stage's first machine hardly moves the line, because the stage's second machine soon carries it. The other form slows the whole stage: the Granite the face, the Crystal Caves the haul, the Deep Heart the lift, at the same factor, with no ×1.1. This spec recommends the whole-stage form.
+
+The form is picked where the line's numbers are tuned (#543), before the line turns on (#536). So the economy is switched on once: the cage never changes the rock's form, no save loads slower because of it, and no lab row moves when the cage is added. #543 reports `narrowRun` and the run's length for both forms. It takes the whole-stage form if every strict row and the generations lab pass with it and its `narrowRun` is at most one sitting longer than the table's form. Otherwise it keeps the table's form and says why. If the whole-stage form is taken, the band tags and the advice lines change ("The Granite · Hard rock"), and those words are Flemming's: #536 stops for them.
 
 ### What he sees
 
@@ -180,6 +182,8 @@ Added on 14 Nov 2026 after Flemming's concern: with one shaft that digs down thr
 2. **The cage stops at one level.** That is where the crew works. He moves it with a tap. The move is free and instant, it is saved at once, and it holds while he is away.
 3. **The line's rock is that level's rock.** Its tough and suits (or its slowed stage) apply to the machines, wherever the shaft's foot is. Its material is what comes up.
 4. **The shaft goes deeper only at the lowest level**, called the heading in this spec. Stones dug at a level above it go to the pocket as today. They are not depth, so they find no relic and open no band.
+   - While the mountain still has a bottom (steps 1 and 2), a shaft at the bottom ends the digging at every level, as a mined-out mountain does today. No level pays after it.
+   - The pocket has always been smaller than the mountain, and `MAX_STRETCH` leans on that. Digging above the heading breaks it, so a level above the heading pays only while the pocket is under 4.5e15 stones, the size of the largest mountain today. No real play comes near it. From step 2 the yard is the limit.
 5. **The machines are one fleet.** A machine bought once works at every level. What is on sale, every "Opens at", and every price that scales with the band go by the depth of the shaft, as today, never by where the crew stands.
 
 The crew is at the heading by default, and a crew at the heading follows the shaft into a new band. So a save that never touches the cage plays as it would without it. The cage appears when the shaft reaches the Granite, the first time there are two levels. The Topsoil evening is as simple as today.
@@ -209,17 +213,18 @@ No new key, no new bay and no slider. Names, lines and the card's layout are Fle
 
 **Where today's parts land with the cage**
 
-| Part                       | With the cage                                                                                                                                                                                                                                               |
-| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Depth and relics           | Move only at the heading. A night on an upper level finds no relic.                                                                                                                                                                                         |
-| Materials                  | The working level's material comes up, one unit for the same number of stones dug as when that band was the heading. In step 1 a material stops at the cap it has today and refills up to it, so no material is gone for good and the bench is not flooded. |
-| Time away                  | Pays 30% of the line's speed at the level he left the crew on. Depth moves only if that is the heading.                                                                                                                                                     |
-| Taps, veins, the Gold rush | Unchanged. They read the line's speed where the crew works. A tap digs at the working level.                                                                                                                                                                |
-| Trouble, engineers, gear   | Unchanged. They belong to machines and stages, not to a level.                                                                                                                                                                                              |
-| Upgrades and promotions    | Priced by the band the shaft stands in, as today, so moving the crew up never makes anything cheaper.                                                                                                                                                       |
-| Kid runs                   | The levels are the bands this run's shaft has reached. A new run starts with the Topsoil alone.                                                                                                                                                             |
-| Old saves                  | Load with the crew at the heading. The save gets one field for where the crew works. It can say "the heading" or name a level above it. A named level the shaft has not reached reads as the heading. The field is mirrored in `firestore.rules`.           |
-| The lab                    | Every player type of today stays at the heading, so their rows do not move when the cage is added. One new player type leaves the crew on its fastest level.                                                                                                |
+| Part                       | With the cage                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Depth and relics           | Move only at the heading. A night on an upper level finds no relic.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| Materials                  | The working level's material comes up, one unit for the same number of stones dug as when that band was the heading. Above the heading a material stops when the pocket holds what its band gives in a whole run today (10 clay, 35 iron, 15 crystal, 12 heartstone on a first run), and refills up to that. At the heading it comes as today. So no material is gone for good. That number is a starting value: iron that refills can keep axle grease running, so the new player type crafts whenever it can and the lab's rows say if the number must come down. |
+| Time away                  | Pays 30% of the line's speed at the level he left the crew on. Depth moves only if that is the heading.                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| Taps, veins, the Gold rush | Unchanged. They read the line's speed where the crew works. A tap digs at the working level.                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| Trouble, engineers, gear   | Unchanged. They belong to machines and stages, not to a level.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| Upgrades and promotions    | Priced by the band the shaft stands in, as today, so moving the crew up never makes anything cheaper.                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| Kid runs                   | The levels are the bands this run's shaft has reached. A new run starts with the Topsoil alone.                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| Old saves                  | Load with the crew at the heading. The save says where the crew works: "the heading", or a named level above it. A named level the shaft has not reached reads as the heading. It also keeps the stones dug above the heading in this run (below), and what a material's count needs to carry a part-unit. Every new field is mirrored in `firestore.rules`.                                                                                                                                                                                                        |
+| Which copy is ahead        | Today the later run wins, else more stones mined, else a newer `lastSeen`, and stones mined is depth. A night above the heading moves no depth, so a stale copy one stone deeper would beat it. The save therefore counts the stones dug above the heading in this run, a number that only grows, and "more stones mined" adds it to the depth. `.claude/rules/observable-saves.md` and the conflict card's figures are updated in the same sliver. Step 3's closed doors need the same count.                                                                      |
+| The lab                    | Every player type of today stays at the heading, so their rows do not move when the cage is added. One new player type leaves the crew on its fastest level.                                                                                                                                                                                                                                                                                                                                                                                                        |
 
 In step 1 the choice is honest but small. Stones are the only good, so the cage is for the bench's materials and for a few percent of speed. It gets its weight in step 2, where each level's rock makes its own good.
 
@@ -472,9 +477,11 @@ These are mine, not Flemming's. Any of them can be turned over.
 25. The cage appears at the Granite, and the band tag is its control.
 26. The cage is built as the last slivers of step 1, though its weight comes in step 2.
 27. In step 1 a material refills up to today's cap.
-28. The rock should slow a whole stage once the cage is in. The lab reports both forms first.
+28. The rock should slow a whole stage. The lab reports both forms, and the form is picked before the line turns on, by a rule on the lab's rows.
 29. A maker opens one band after its rock, and runs only while the crew works its level.
 30. Seams found by engineers, the night timetable and a "wanted" mark on an order are named in the proposal and not designed.
+31. With a bottom still in the mountain, a shaft at the bottom ends the digging at every level. Above the heading the pocket and a material's count each have a ceiling.
+32. The save counts the stones dug above the heading, and the rule for which copy is ahead adds them.
 
 ## Decided (Flemming, 14 Nov 2026)
 
@@ -502,7 +509,7 @@ Each line is about one sitting. Each step's economy is probed in the lab behind 
 
 1. #532: the line's rule in one module, off in play.
 2. #533: the hoist and the pit train in the save.
-3. #534: the lab plays the line and sets its numbers.
+3. #534: the lab plays the line. #543, split from it, sets the line's numbers and picks the rock's form.
 4. #535: a mock of the stage bays and Buys by stage, with the hoist and pit train art. It can run beside 1 to 3.
 5. #536: the line turns on in play, with the old-save grant.
 6. #537: the three bays become the three stages.
@@ -511,7 +518,7 @@ Each line is about one sitting. Each step's economy is probed in the lab behind 
 
 Then the cage, as the last slivers of step 1 (issues under #530):
 
-9. The working level in the rules and the save, off in play: the rock by level, depth only at the heading, materials by level, the new save field, one new player type in the lab, and the form of the rock picked from #534's rows.
+9. The working level in the rules and the save, off in play: the rock by level, depth only at the heading, materials by level, the new save fields and the rule for which copy is ahead, and one new player type in the lab. It does not change the rock's form (#543 picked it).
 10. A mock of the cage plate and the level card. It can run beside 9.
 11. The cage on the board, turned on in play: the plate, the card, the window, the arrival and welcome lines, and the How it works card.
 
@@ -533,7 +540,7 @@ New measures, report-only first. Any bound on them is Flemming's to set.
 - `zeroGainBuys`: buys that added nothing to the line.
 - From step 2: `yardRest`, the share of time away the crew spends resting on a full yard.
 - With the cage: `levelShare`, the share of a run the crew spends on each level, and `levelMoves`, the moves of the cage a sitting. One new player type leaves the crew on its fastest level. Today's player types stay at the heading.
-- From #534: `narrowRun` and the run's length for both forms of the rock (a stage's first machine, or the whole stage).
+- From #543: `narrowRun` and the run's length for both forms of the rock (a stage's first machine, or the whole stage), and the pick.
 
 No existing bound moves to go green. The check-in guardrails, the generations lab and extreme win are measured again in every step.
 
