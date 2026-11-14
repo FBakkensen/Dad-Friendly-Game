@@ -1,0 +1,26 @@
+# Dependabot (#605). Security updates are on in the repo settings and come
+# as soon as an alert is raised. These are the routine bumps: once a month,
+# minor and patch grouped into one PR per ecosystem. Majors go through an
+# issue first (Flemming, #605): a major's PR is turned into an issue and
+# closed, never merged (ship-sitting, Bot PRs). They are not ignored here,
+# because an ignore rule also holds back a security update that needs one.
+# A thread runs the full gate and signoff on a green bot PR and merges it
+# (ship-sitting, Bot PRs).
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 2
+    groups:
+      npm-minor-and-patch:
+        update-types: [minor, patch]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 2
+    groups:
+      actions-minor-and-patch:
+        update-types: [minor, patch]
