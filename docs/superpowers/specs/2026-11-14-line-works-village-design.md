@@ -4,7 +4,7 @@ Status: approved by Flemming on 14 Nov 2026 (his four answers are under [Decided
 
 ## Why
 
-On 14 Nov 2026 Flemming's first run ended while he slept. The Crown, the Deep Heart and the Mantle all landed in time away, and he woke to 2.36B stones with nothing to spend them on. He said it felt flat, unlike Factorio. The diagnosis (`ideas/2026-11-14-time-away-diagnosis.md` in the project files) found the causes:
+On 14 Nov 2026 Flemming's first run ended while he slept. The Crown, the Deep Heart and the Mantle all landed in time away, and he woke to 2.36B stones with nothing to spend them on. He said it felt flat, unlike Factorio. The diagnosis (`ideas/2026-11-14-time-away-diagnosis.md` in the project's shared files, not in this repo) found the causes:
 
 1. Every goal is a mark on stones mined, so time away plays the story for him.
 2. Waiting and deciding do the same job: both only make the one number bigger.
@@ -12,7 +12,7 @@ On 14 Nov 2026 Flemming's first run ended while he slept. The Crown, the Deep He
 4. Nothing ever starves, so there is nothing to diagnose.
 5. He has built nothing he can look at.
 
-He said yes to one combined design from three ideas: a bottleneck mine, stones that become goods, and village orders. He then added that the relics probably go away in the new design. This spec takes that as the working assumption and says what it costs.
+He said yes to one combined design from three ideas: a bottleneck mine, stones that become goods, and village orders. He then added that the relics probably go away in the new design. He has since said yes to it ([Decided](#decided-flemming-14-nov-2026)), and this spec says what it costs.
 
 ## Where this is going: the rocket
 
@@ -25,7 +25,7 @@ This spec is the first stretch of that road: three goods and six buildings. It i
 - **A maker has inputs and one output.** Kilns and saws take rock. A later maker can take goods, which is what refined and manufactured mean.
 - **A stage holds a list of machines.** Two each now, more later.
 - **A price is a short list of goods.** In this spec it is one good. Later, dearer things may ask for two or three, and for manufactured goods.
-- **The bands are a list, and the mountain has no bottom.** Deeper bands with new rock can be added under the Deep Heart.
+- **The bands are a list, and the mountain has no bottom.** Deeper bands with new rock can be added under the Deep Heart, each behind a door like step 3's. With no bottom, the step 3 builder keeps every count in the save inside the safe-integer limit, as `MAX_STRETCH` does for kid runs today (#366).
 - **A save keeps its place when the list grows.** A run that had built the old last building gets the next order. Nothing it built is taken back.
 
 The seeds are already in the mountain. Clay, iron, crystal and heartstone are band materials today, a trickle for the bench. A later stretch can mine one in volume as a good of its own. As a sketch only: iron for a hull, crystal for glass, heartstone for fuel. Nothing past the six buildings is designed here.
@@ -95,7 +95,7 @@ Three steps, each one playable and better than the game before it:
 4. The line's speed is the level the hands reach. That is what the gauge reads, what is mined, and what time away pays 30% of.
 5. A machine in a stage that already stands above that level adds nothing. Its Buys row says so before the tap.
 
-So with no machines the game is today's: twelve workers dig 12 stones a second. The first cart (rated 18) lets the hands stop carrying and adds 6. A machine is first shown when the crew is big enough for it to add that third, so a first buy never reads +0. While hands still cover a stage, a machine there adds a third of its rating. As machines take over, the hands matter less and the lowest stage rules. The bottleneck arrives by itself as the mine grows, with no moment where a rule switches on.
+So with no machines the game is today's: twelve workers dig 12 stones a second. The first cart (rated 18) lets the hands stop carrying and adds 6. A stage's first machine always adds something, because it frees the hands that did that job. With twelve workers and a cart, the first hoist adds 9, and the first drill after it adds 27. So a first buy never reads +0. The +0 row of rule 5 comes only later, in a stage that machines already hold above the line. As machines take over, the hands matter less and the lowest stage rules. The bottleneck arrives by itself as the mine grows, with no moment where a rule switches on.
 
 Exact form, for the builder: with machine capacities F, C, L and hand work U = 3 × (the hands' stones a second), the line's speed T is the largest T with max(0, T − F) + max(0, T − C) + max(0, T − L) ≤ U.
 
@@ -103,29 +103,36 @@ Exact form, for the builder: with machine capacities F, C, L and hand work U = 3
 
 Every stage gets two machines. The paper check below shows why: a stage with one machine becomes the narrow one and stays there.
 
-| Stage | Machine         | Opens                                                                          | First price | Rated a second | Workers         |
-| ----- | --------------- | ------------------------------------------------------------------------------ | ----------- | -------------- | --------------- |
-| Haul  | Mine cart       | once the crew is big enough for it to add its full 6 a second (twelve workers) | 600         | 18             | 1               |
-| Lift  | Hoist (new)     | once he owns a cart                                                            | 6,000       | 60             | 1               |
-| Face  | Steam drill     | once he owns a hoist                                                           | 73,080      | 108            | 1               |
-| Face  | Tunnel borer    | the Granite                                                                    | 4,940,000   | 1,071          | 8               |
-| Haul  | Pit train (new) | the Crystal Caves                                                              | 30,000,000  | 3,200          | 8               |
-| Lift  | Great Machine   | the Deep Heart, with the Hammer                                                | 120,600,000 | 6,300          | 10, or 5 tended |
+| Stage | Machine         | Opens                                                         | First price | Rated a second | Workers         |
+| ----- | --------------- | ------------------------------------------------------------- | ----------- | -------------- | --------------- |
+| Haul  | Mine cart       | once he owns twelve workers, so it reads its full +6 a second | 600         | 18             | 1               |
+| Lift  | Hoist (new)     | once he owns a cart                                           | 6,000       | 60             | 1               |
+| Face  | Steam drill     | once he owns a hoist                                          | 73,080      | 108            | 1               |
+| Face  | Tunnel borer    | the Granite                                                   | 4,940,000   | 1,071          | 8               |
+| Haul  | Pit train (new) | the Crystal Caves                                             | 30,000,000  | 3,200          | 8               |
+| Lift  | Great Machine   | the Deep Heart, with the Hammer                               | 120,600,000 | 6,300          | 10, or 5 tended |
 
 Ratings are three times today's because of rule 3, so a first cart still shows +6 a second. The Great Machine becomes the great winding engine at the pithead, where its picture already stands in the mine window. Workers and kids are the hands. Prices, growth and ownership marks keep today's shape, and the new machines get marks like their neighbours.
 
 ### The rock moves the narrow stage too
 
-Each band is hard on one stage's first machine and opens that stage's second machine.
+Each band is tough on one stage's first machine and opens that stage's second machine.
 
-| Band              | Hard on (×0.7)        | Opens and suits (×1.1) | Band tag                                 |
-| ----------------- | --------------------- | ---------------------- | ---------------------------------------- |
-| The Topsoil       | nothing               | cart, hoist, drill     | The Topsoil                              |
-| The Granite       | drills: hard rock     | Tunnel borer           | The Granite · Suits borers               |
-| The Crystal Caves | carts: long galleries | Pit train              | The Crystal Caves · Suits trains         |
-| The Deep Heart    | hoists: a deep shaft  | Great Machine          | The Deep Heart · Suits the Great Machine |
+| Band              | Tough on              | Opens and suits    | Band tag                                 |
+| ----------------- | --------------------- | ------------------ | ---------------------------------------- |
+| The Topsoil       | nothing               | cart, hoist, drill | The Topsoil                              |
+| The Granite       | drills: hard rock     | Tunnel borer       | The Granite · Suits borers               |
+| The Crystal Caves | carts: long galleries | Pit train          | The Crystal Caves · Suits trains         |
+| The Deep Heart    | hoists: a deep shaft  | Great Machine      | The Deep Heart · Suits the Great Machine |
 
-The Granite and the Deep Heart read as they do today. The Crystal Caves change from drills to trains. This replaces decision D3's table.
+Suits is ×1.1, as today. Tough is ×0.8 today, and the paper model used ×0.7: the stronger the rock, the more it moves the narrow stage. At ×0.8 the model's check-in dad opened 8 sittings in a row on one stage. At ×0.7 it was 5. The lab (#534) sets the number.
+
+Against today's table (decision D3, #246) the Granite does not change, and three cells do:
+
+- The Crystal Caves suit pit trains, not drills, and are tough on carts, not borers.
+- The Deep Heart is tough on hoists, not borers. It still suits the Great Machine.
+
+So two lines of advice change: "The Crystal Caves suit trains. Tough on carts." and "The Deep Heart suits the Great Machine. Tough on hoists." Which machine a band favours is Flemming's call (D3), so this table waits on his yes ([Waiting on Flemming](#waiting-on-flemming)). The lab probe (#534) may use it. The line is not turned on in play (#536) before he has answered.
 
 ### What he sees
 
@@ -138,21 +145,21 @@ The Granite and the Deep Heart read as they do today. The Crystal Caves change f
 
 ### Where today's parts land in step 1
 
-| Part                       | In step 1                                                                                                                                                                                                                                                                                            |
-| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Stones, prices, the pocket | Unchanged. Stones are the money.                                                                                                                                                                                                                                                                     |
-| Relics and their powers    | Unchanged.                                                                                                                                                                                                                                                                                           |
-| Time away                  | Unchanged: 30% of the line, today's caps.                                                                                                                                                                                                                                                            |
-| Ownership marks            | Unchanged, per machine. A mark is now a jump in one stage, which is what moves the narrow place.                                                                                                                                                                                                     |
-| Staffing                   | The foreman staffs the machines that move the most rock through the whole line (#500's rule, read against the line).                                                                                                                                                                                 |
-| Engineers                  | They tend a stage, not a machine type: the face, the haul, the lift, the Great Machine (its smaller crew), or camp. Moving one to the narrow stage is the free, instant fix.                                                                                                                         |
-| Trouble                    | A cave-in is at the haul, a flood at the face, a jam at the lift. It slows that stage, so it bites only where the line is tight. Still live only, still fixed by hand.                                                                                                                               |
-| Workshop gear              | Unchanged: rails on carts, bits on drills, the core on the Great Machine. Each widens its stage.                                                                                                                                                                                                     |
-| Synergies, upgrades        | Unchanged.                                                                                                                                                                                                                                                                                           |
-| Overtime, grease, a charge | Unchanged: they speed the whole line.                                                                                                                                                                                                                                                                |
-| Veins and the Gold rush    | Unchanged: they read the line's speed.                                                                                                                                                                                                                                                               |
-| Old saves                  | A one-time grant, like the staffing grants. No save loads slower than it was: each stage is topped up to the crew's old speed with the machines that stage has open (hoists, trains from the Crystal Caves, borers where the Great Machines used to dig). The welcome card says the crew built them. |
-| Kid runs                   | Unchanged.                                                                                                                                                                                                                                                                                           |
+| Part                       | In step 1                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Stones, prices, the pocket | Unchanged. Stones are the money.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| Relics and their powers    | Unchanged.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| Time away                  | Unchanged: 30% of the line, today's caps.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| Ownership marks            | Unchanged, per machine. A mark is now a jump in one stage, which is what moves the narrow place.                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| Staffing                   | The foreman staffs the machines that move the most rock through the whole line: #500's rule, with the line's speed as what it weighs. It need not find the exact best split. It must keep today's promise, tested on the saves `rates.test.ts` sweeps: one more hand or machine never slows the line, and any rare exception is listed in `docs/DESIGN.md`, as today. #532 leaves staffing as it is (a stage is the sum of what today's rule runs). #534 changes what it weighs.                                                                                              |
+| Engineers                  | They tend a stage, not a machine type. The posts are the face, the haul, the lift, the Great Machine and camp. On a stage she gives her rank's tenths to every machine of that stage. The lift post speeds hoists only. The Great Machine post speeds it and halves its crew, as today. The borer's seven quarters and the tending floor stay per machine, unless the lab (#534) shows a problem. Moving her to the narrow stage is the free, instant fix. Grandpa is unchanged: he tends the biggest running group no engineer tends, and hoists and trains count as groups. |
+| Trouble                    | A cave-in is at the haul, a flood at the face, a jam at the lift. It slows that stage, so it bites only where the line is tight. Still live only, still fixed by hand.                                                                                                                                                                                                                                                                                                                                                                                                        |
+| Workshop gear              | Unchanged: rails on carts, bits on drills, the core on the Great Machine. Each widens its stage. Reinforce's next machine follows the price order: cart, hoist, drill, borer, pit train, Great Machine.                                                                                                                                                                                                                                                                                                                                                                       |
+| Synergies, upgrades        | Unchanged. The four synergy pairs stay as they are. The hoist and the pit train get none in this step.                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| Overtime, grease, a charge | Unchanged: they speed the whole line.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| Veins and the Gold rush    | Unchanged: they read the line's speed.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| Old saves                  | A one-time grant, like the staffing grants. No save loads slower than it was: each stage is topped up to the crew's old speed with the machines that stage has open (hoists, trains from the Crystal Caves, borers where the Great Machines used to dig). Granted machines come with the hands to run them, and count as owned for the price curve and the marks. The welcome card says the crew built them.                                                                                                                                                                  |
+| Kid runs                   | Unchanged.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 
 ### Why it stands alone
 
@@ -172,7 +179,7 @@ There are three goods. Stones stay, as the everyday good. The works adds two.
 | Bricks    | kilns                | the Granite       | borers, saws, yard levels, promotions, the Granite's upgrades                                      |
 | Cut stone | saws                 | the Crystal Caves | pit trains, the Great Machine, kids, the deep upgrades                                             |
 
-Two rules set every price. A thing costs the good of the band where it first opens. A works machine costs the good below the one it makes: kilns cost stones, saws cost bricks. In these steps every thing costs one good, and different things cost different goods, as Flemming asked. Nothing changes its money mid-run.
+Two rules set every price. A thing costs the good of the band where it first opens: stones in the Topsoil, bricks in the Granite, cut stone from the Crystal Caves on down. A works machine costs the good below the one it makes: kilns cost stones, saws cost bricks. In these steps every thing costs one good, and different things cost different goods, as Flemming asked. Nothing changes its money mid-run.
 
 ### The lever
 
@@ -254,7 +261,7 @@ Once the story is in the village, nothing ties it to depth, and a dad could reac
 | The Crystal Caves | the Forge stands  | The Storehouse and the Forge ask for stones and bricks, and bricks come from the Granite         |
 | The Deep Heart    | the School stands | The Mill and the School ask for bricks and cut stone, and cut stone comes from the Crystal Caves |
 
-The Home's roof also asks for a few heartstone, the Deep Heart's own material, for its hearth. So a run cannot end without the last band, and heartstone gets a meaning.
+The Home's roof also asks for a few heartstone, the Deep Heart's own material, for its hearth. So a run cannot end without the last band, and heartstone gets a meaning. A later last building brings a tie of its own.
 
 ### Old saves at step 3
 
@@ -283,7 +290,7 @@ Step 3 is the step that changes the goal. It needs steps 1 and 2 under it, but n
 
 ## Paper check
 
-A rough model, not the game's lab: `designs/line-model.py` in the project files. It plays step 1's rule with the table's numbers, a dad who spends on the best gain per stone, and today's away pay. It answers one question: does the narrow stage keep moving?
+A rough model, not the game's lab: `designs/line-model.py` in the project's shared files, not in this repo. It plays step 1's rule with the table's numbers, a dad who spends on the best gain per stone, and today's away pay. It answers one question: does the narrow stage keep moving?
 
 | Dad                 | Run 1 ends | Sittings | Longest run of sittings that open on one narrow stage | Sittings opened on face / haul / lift |
 | ------------------- | ---------- | -------- | ----------------------------------------------------- | ------------------------------------- |
@@ -301,7 +308,7 @@ He opens on face 14.8K, haul 5.7K, lift 10.6K. The hands lift the haul, and the 
 
 1. Two pit trains (30M, 34.5M). Haul 12.8K. Now the lift is lowest. Line 13.8K.
 2. Six hoists (2.8M to 6.5M). The sixth is his fiftieth, and the mark doubles them all. Lift 24.0K. The haul is lowest again. Line 16.0K.
-3. A borer and three drills. Face 17.6K. Line 17.5K.
+3. A borer and three drills, with the workers they need. Face 17.6K. The haul is still lowest, and the hands lift it. Line 17.5K.
 
 One sitting, 10.1K to 17.5K, and the narrow stage went haul, lift, haul. Three different machines were the right buy, and one of them was right because of a mark.
 
@@ -351,7 +358,7 @@ These are mine, not Flemming's. Any of them can be turned over.
 
 1. Hands fill in, so the bottleneck is soft early and hard late, rather than a hard minimum from the first cart.
 2. Two machines in every stage. The Great Machine becomes the lift's second machine.
-3. The band table: the Crystal Caves suit trains and the Deep Heart is hard on hoists (D3 changes).
+3. The band table: the Crystal Caves suit trains and are tough on carts, and the Deep Heart is tough on hoists. This one changes decision D3, which is Flemming's, so it waits on his yes.
 4. The narrow stage's lamp is amber, not red.
 5. Engineers tend a stage. Trouble belongs to a stage.
 6. One lever with three positions. What the works cannot take becomes stones.
@@ -361,11 +368,14 @@ These are mine, not Flemming's. Any of them can be turned over.
 10. Six buildings in the relics' order with the relics' powers, three orders each. The list stays open.
 11. The relics stay through steps 1 and 2, so no step leaves a hole where the story was.
 12. The kid inherits the village, and a brass number counts the generations.
-13. A machine is first shown when it can add its third, and Ready now never offers a buy that adds nothing.
+13. The cart is shown at twelve workers, so it reads its full +6. Ready now never offers a buy that adds nothing.
 14. Kilns and saws take no workers, engineers, gear or trouble.
 15. The Heart, and the Mill after it, give a rested crew: ×1.5 for ten minutes after 8 hours away.
 16. Each band's door opens with a building, and the Home asks for heartstone.
 17. Old saves never load slower, and keep a building for every relic they found.
+18. The Shield's power, and the Storehouse's after it: the yard holds twice as much.
+19. What is in the yard at the pass goes into the kid's first order.
+20. The Lantern's guide half (the next relic and the bar toward it) goes at step 3. The open order on the board takes its place.
 
 ## Decided (Flemming, 14 Nov 2026)
 
@@ -375,6 +385,10 @@ These are mine, not Flemming's. Any of them can be turned over.
 4. **Stones stay as the everyday good.** Yes. Different buildings and machines should cost different resources, with refined or manufactured ones late in the game.
 
 He also stopped the relic-door work, so this spec does not lean on it. The band doors of step 3 are their own part of this design.
+
+## Waiting on Flemming
+
+**The band table.** Which machine a band favours is his call (decision D3). The line needs the rock to move the narrow stage, so [the table above](#the-rock-moves-the-narrow-stage-too) changes three cells of today's and two lines of advice. If he says no, today's table stays: the rock then never touches the haul or the lift, and the pit train has no band of its own. It must be settled before the line turns on (#536).
 
 ## How it would be built
 
@@ -413,6 +427,6 @@ No existing bound moves to go green. The check-in guardrails, the generations la
 
 ## Art (PixelLab, asked for before each step)
 
-- Step 1: the hoist and the pit train, each as a bay icon, a dim icon and a Buys icon.
+- Step 1: the hoist and the pit train, each as a bay icon, a dim icon and a Buys icon, and any stage icons the mock (#535) calls for.
 - Step 2: the kiln and the saw, icons for bricks and cut stone, the lever, the piles.
 - Step 3: the village picture, six buildings in three states each, and one brass number plate.
