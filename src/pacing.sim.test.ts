@@ -123,8 +123,10 @@ describe.each([
   // dad hires Nils in the borer's sitting on day 2: the plain dad still in
   // the Granite, the upgrade dads already in the Crystal Caves. The first
   // Great Machine comes on day 3 (day 2.5 with boosts), and no dad goes
-  // more than half a day without a buy after the first borer.
-  ["a plain dad", {}, 4.5, 0.5, 12, 0, 1, 3],
+  // more than half a day without a buy after the first borer. Since away pay
+  // splits at a band crossing (#592), the plain dad's comes on day 3.5 and
+  // he runs 9 by the bottom (was day 3 and 12).
+  ["a plain dad", {}, 4.5, 0.5, 9, 0, 1, 3.5],
   ["an upgrade-buying dad", { buysUpgrades: true }, 3.5, 0.5, 6, 0, 2, 3],
   [
     "a dad who buys upgrades and boosts",

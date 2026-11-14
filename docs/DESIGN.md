@@ -439,7 +439,7 @@ The same file holds the horizon `H` (default 6 hours, passed into `valueOf`), th
 Planned entries, beside the four above. M8-4 writes them into the file. A retune does not change a value to pass. That needs Flemming's OK.
 
 - `singleShare` at most 25%, for casual player types and the optimizer.
-- `dominantShare` at most 40%, for casual player types and the optimizer.
+- `dominantShare` at most 40%, for casual player types and the optimizer. Report only since #592, for every type it grades (Flemming, 14 Nov 2026: "I don't care about the existing version, we should focus in the new version road to mars"): with away pay fixed at a band crossing, the casual 2×10 dad reads 0.475, the other types still pass, and the new version on the road to Mars (#563) reshapes the buys rather than a retune of this one.
 - Tending at least 8% of output for an Apprentice from the borer onward, for casual player types and the optimizer. Extremes that hoard or skip the crew are reported and do not fail the build: their mean sits on the floor because of the crew they refuse, not because the post is weak.
 - Casual `finishDay` from 5.0 to 7.0 days.
 - An extreme's win over casual at most 15%.

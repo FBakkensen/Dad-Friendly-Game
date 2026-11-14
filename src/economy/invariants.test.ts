@@ -8,9 +8,6 @@
  * Known gaps, each pinned by its own test, so a fix turns that test red and
  * takes its line off this list:
  * - "part-stone": each stretch away pays whole stones and drops the part stone.
- * - "band-crossing": an absence that crosses into a new band keeps the old
- *   band's speed for the whole stretch (`accrueAway` reads the rates once).
- *   Its fix is #592.
  *
  * Rules by design, which the checks allow for rather than flag:
  * - the save keeps whole depth, rounded up (save-format.ts);
@@ -532,23 +529,6 @@ describe("time away pays the same however it is sliced (#555)", () => {
     const twice = minedAway(deep, [START + 3 * HOUR, START + 6 * HOUR]);
     expect(once).toBeGreaterThan(twice);
   });
-});
-
-describe("known gaps, pinned (#555)", () => {
-  it("part-stone: three 1 s stretches away pay less than one 3 s stretch", () => {
-    const crew = {
-      ...createMountain(),
-      owned: { ...createMountain().owned, helper: 23 },
-    };
-    const once = minedAway(crew, [START + 3 * SECOND]);
-    const thrice = minedAway(crew, [
-      START + SECOND,
-      START + 2 * SECOND,
-      START + 3 * SECOND,
-    ]);
-    expect(once).toBeGreaterThan(thrice);
-    expect(once - thrice).toBeLessThanOrEqual(tolerance(once, 3));
-  });
 
   const GRANITE = LAYERS[1];
 
@@ -579,19 +559,33 @@ describe("known gaps, pinned (#555)", () => {
     };
   }
 
-  it("band-crossing: an absence into the Granite keeps the Topsoil's speed", () => {
-    const drills = atGranite("drill");
-    const borers = atGranite("borer");
-    expect(minedOut(awayThrough(drills, START, [START + HOUR]))).toBe(
-      GRANITE.from,
-    );
-    // One 6 h absence against the same absence split where it crosses: the
-    // drills are paid over a tenth too much, the borers a twentieth too little.
-    // Far beyond the part-stone tolerance, so the fix (#592) turns both red.
-    const split = [START + HOUR, START + 6 * HOUR];
-    const once = (mountain: Mountain) =>
-      minedAway(mountain, [START + 6 * HOUR]);
-    expect(once(drills) / minedAway(drills, split)).toBeGreaterThan(1.1);
-    expect(once(borers) / minedAway(borers, split)).toBeLessThan(0.95);
+  it("band-crossing: an absence into the Granite pays the Granite's speed from its first stone (#592)", () => {
+    for (const field of ["drill", "borer"] as const) {
+      const crew = atGranite(field);
+      expect(minedOut(awayThrough(crew, START, [START + HOUR]))).toBe(
+        GRANITE.from,
+      );
+      // One 6 h absence against the same absence split where it crosses.
+      const once = minedAway(crew, [START + 6 * HOUR]);
+      const split = minedAway(crew, [START + HOUR, START + 6 * HOUR]);
+      expect(Math.abs(once - split)).toBeLessThanOrEqual(tolerance(once, 2));
+    }
+  });
+});
+
+describe("known gaps, pinned (#555)", () => {
+  it("part-stone: three 1 s stretches away pay less than one 3 s stretch", () => {
+    const crew = {
+      ...createMountain(),
+      owned: { ...createMountain().owned, helper: 23 },
+    };
+    const once = minedAway(crew, [START + 3 * SECOND]);
+    const thrice = minedAway(crew, [
+      START + SECOND,
+      START + 2 * SECOND,
+      START + 3 * SECOND,
+    ]);
+    expect(once).toBeGreaterThan(thrice);
+    expect(once - thrice).toBeLessThanOrEqual(tolerance(once, 3));
   });
 });

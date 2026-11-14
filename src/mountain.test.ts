@@ -14,6 +14,7 @@ import {
   digStones,
   mineByHand,
   minedOut,
+  stonesPerSecond,
   BARE_MOUNTAIN,
 } from "./mountain";
 import { STARTING_RECIPE_IDS } from "./workshop";
@@ -266,6 +267,65 @@ describe("accrue", () => {
       mined: 0,
       settledAt: 5_000,
     });
+  });
+});
+
+describe("a stretch that crosses into a new band (#592)", () => {
+  // 500 stones above the Granite, which slows drills.
+  const drillCrew = {
+    ...createMountain(),
+    remaining: MOUNTAIN_STONES - (BAND_STARTS[1] - 500),
+    owned: {
+      ...createMountain().owned,
+      helper: 30,
+      cart: 10,
+      hoist: 10,
+      drill: 20,
+    },
+  };
+
+  it("pays what the same time pays a second at a time", () => {
+    const once = accrue({ mountain: drillCrew, from: 0, to: 120_000 });
+    let stepped = drillCrew;
+    for (let second = 0; second < 120; second += 1) {
+      stepped = accrue({
+        mountain: stepped,
+        from: second * 1000,
+        to: (second + 1) * 1000,
+      }).mountain;
+    }
+    expect(minedOut(once.mountain)).toBeGreaterThan(BAND_STARTS[1]);
+    expect(
+      Math.abs(minedOut(once.mountain) - minedOut(stepped)),
+    ).toBeLessThanOrEqual(120);
+    expect(once.settledAt).toBe(120_000);
+  });
+
+  it("digs at the new band's speed past the crossing", () => {
+    const topsoilSpeed = stonesPerSecond(drillCrew);
+    const once = accrue({ mountain: drillCrew, from: 0, to: 120_000 });
+    expect(once.mined).toBeLessThan(Math.floor(120 * topsoilSpeed));
+    const crossed = digStones(drillCrew, 500);
+    expect(stonesPerSecond(crossed)).toBeLessThan(topsoilSpeed);
+  });
+
+  it("a slow crew a part stone above the band keeps digging past it", () => {
+    // A stretched run, one worker at away pay: under a stone a second, and
+    // the depth a part stone short of the Granite.
+    for (const stretch of [1, 1.5, 2.84]) {
+      const slow = {
+        ...createMountain(),
+        stretch,
+        owned: { ...createMountain().owned, helper: 1 },
+        remaining: MOUNTAIN_STONES - (BAND_STARTS[1] - 0.3 / stretch),
+      };
+      const rate = stonesPerSecond(slow);
+      const hour = accrue({ mountain: slow, from: 0, to: 3_600_000, pay: 0.3 });
+      expect(minedOut(hour.mountain)).toBeGreaterThan(BAND_STARTS[1]);
+      expect(hour.mined).toBeGreaterThanOrEqual(
+        Math.floor(3600 * rate * 0.3) - 2,
+      );
+    }
   });
 });
 

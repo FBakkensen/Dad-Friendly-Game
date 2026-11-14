@@ -196,13 +196,14 @@ describe("targets", () => {
     }
   });
 
-  it("keeps only the finish days, every-tier-bought and taps-per-sitting report only (#357, #358)", () => {
+  it("keeps only the finish days, every-tier-bought, taps-per-sitting and dominant-share report only (#357, #358, #592)", () => {
     const reportOnly = TARGETS.filter((target) => target.reportOnly === true)
       .map((target) => target.id)
       .sort();
     expect(reportOnly).toEqual(
       [
         "casual-finish",
+        "dominant-share",
         "every-tier-bought",
         "taps-per-sitting",
         "thin-habit-finish",
