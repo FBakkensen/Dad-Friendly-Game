@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
+import { reviewedMarker } from "./recheck.ts";
 
 /**
  * Turns the reviewer's structured answer into one PR review (#584): each
@@ -193,6 +194,8 @@ export type Header = {
   head: string;
   cost: number;
   runUrl: string;
+  /** On a re-check (#585), the commit the last review covered. */
+  since?: string;
 };
 
 function counts(findings: readonly Finding[]): string {
@@ -209,7 +212,12 @@ function footer(header: Header): string {
 }
 
 function heading(header: Header): string {
-  return `## Claude review\n\nReviewed as: ${header.lenses}, at commit ${header.head.slice(0, 7)}.`;
+  const at = `at commit ${header.head.slice(0, 7)}`;
+  const what =
+    header.since === undefined
+      ? `Reviewed as: ${header.lenses}, ${at}.`
+      : `Re-checked the changes since ${header.since.slice(0, 7)} as: ${header.lenses}, ${at}.`;
+  return `${reviewedMarker(header.head)}\n## Claude review\n\n${what}`;
 }
 
 export function reviewPost(
@@ -276,6 +284,7 @@ const HELP = `Usage:
   node tools/review/findings.ts post --answer <review.json> --diff <file> --head <sha> --lenses <text> --cost <usd> --run <url> --out <dir>
 
 schema prints the JSON Schema for claude -p --json-schema.
+With --since <sha>, the review is headed as a re-check of the changes since that commit.
 post reads claude's JSON output and writes <dir>/review.json, <dir>/file-<n>.json and <dir>/fallback.md.
 It exits 3 when the output holds no valid answer.`;
 
@@ -299,6 +308,7 @@ function post(args: readonly string[]): void {
       lenses: option(args, "lenses"),
       cost: Number(option(args, "cost")),
       runUrl: option(args, "run"),
+      ...(args.includes("--since") ? { since: option(args, "since") } : {}),
     },
   );
   writeFileSync(join(out, "review.json"), JSON.stringify(result.review));
