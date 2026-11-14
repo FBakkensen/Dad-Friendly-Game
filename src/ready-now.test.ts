@@ -283,6 +283,17 @@ describe("readyNow", () => {
       });
     });
 
+    it("a price exactly the stones left away keeps its time", () => {
+      const base = mountainWith({ helpers: 18, carts: 6, remaining: 30 });
+      const price = priceOf(base, "cart", 6);
+      const mountain = { ...base, pocket: price - stonesLeft(base) };
+      expect(readyNow(mountain, NOW)).toMatchObject({
+        kind: "saving",
+        tier: "cart",
+        etaMs: (stonesLeft(base) / stonesPerSecond(mountain, NOW)) * 1000,
+      });
+    });
+
     it("a broken pocket shows no time", () => {
       const mountain = mountainWith({
         helpers: 6,
