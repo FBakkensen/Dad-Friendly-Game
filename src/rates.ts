@@ -413,7 +413,13 @@ function staffCrew(
     }
   }
   const settled = climb(slots, hands, best, (staffing) => fills(staffing));
-  return runningOf(mountain, runSpare(slots, hands, settled.staffing));
+  // Spare hands run the idle machines too, unless that mines less: Grandpa
+  // goes to the biggest group running (#338), which may leave the narrow
+  // stage, so a machine he would take stays idle instead (#536).
+  const spared = weigh(runSpare(slots, hands, settled.staffing));
+  return moreStones(settled.stones, spared.stones)
+    ? settled.running
+    : spared.running;
 }
 
 type Weighed = {
@@ -751,6 +757,33 @@ export function moveGain(
 }
 
 const GUIDED_POSTS = ["machine", "borer", "drill", "cart"] as const;
+
+/**
+ * Where a best-tending dad sends his engineers (#543): each one at home goes
+ * to the post where the line gains most, as her page shows it, since a post
+ * on a stage that is not narrow adds nothing. The lab's dads and the pacing
+ * dad both tend this way (#536).
+ */
+export function tendBest(mountain: Mountain): Mountain {
+  let next = mountain;
+  for (const [index, engineer] of mountain.engineers.entries()) {
+    if (onTrip(next, engineer.name)) {
+      continue;
+    }
+    let best = next;
+    let line = effectiveRates(next).exactCrewPerSecond;
+    for (const post of ENGINEER_POSTS) {
+      const moved = station(next, index, post);
+      const speed = effectiveRates(moved).exactCrewPerSecond;
+      if (moreStones(speed, line)) {
+        best = moved;
+        line = speed;
+      }
+    }
+    next = best;
+  }
+  return next;
+}
 
 /**
  * The guided first tend (#246): the first engineer at home with a move that

@@ -170,7 +170,7 @@ function fill(
  * biggest first (#536). On the line a machine above the narrow stage adds
  * nothing, so the search may leave it idle on a tie; the player reads idle
  * as short of hands, and a hand runs it at no cost, since he still lends
- * his hands to the line.
+ * his hands to the line. The caller weighs it before keeping it.
  */
 export function runSpare(
   slots: readonly StaffSlot[],

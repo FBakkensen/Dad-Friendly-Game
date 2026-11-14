@@ -75,9 +75,18 @@ describe("grandpa (#338)", () => {
   });
 
   it("tends his biggest group by base output, not the newest machine (#356)", () => {
+    // Carts and hoists give the haul and the lift their share, so the hands
+    // fill every stage and a tend anywhere lifts the line (#536).
     const many = {
       ...kidRun,
-      owned: { ...kidRun.owned, helper: 400, drill: 60, borer: 1 },
+      owned: {
+        ...kidRun.owned,
+        helper: 400,
+        cart: 30,
+        hoist: 15,
+        drill: 60,
+        borer: 1,
+      },
     };
     expect(postOf(many)).toBe("drill");
     expect(postOf({ ...many, owned: { ...many.owned, borer: 10 } })).toBe(
@@ -87,7 +96,11 @@ describe("grandpa (#338)", () => {
       ...many,
       engineers: [{ name: "Ada", rank: 0, trips: 0, post: "drill" }] as const,
     };
-    expect(postOf(drillsTended)).toBe("borer");
+    // With Ada on the drills, a running borer would pull him off the hoists,
+    // where his tend lifts the line more, so the hands leave the one borer
+    // idle and he tends the hoists (#536): a buy never slows the crew.
+    expect(postOf(drillsTended)).toBe("hoist");
+    expect(effectiveRates(drillsTended).running.borer).toBe(0);
     expect(postOf({ ...many, legacy: 0 })).toBeUndefined();
   });
 

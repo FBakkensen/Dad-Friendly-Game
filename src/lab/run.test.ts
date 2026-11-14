@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { RUSH_MS } from "../gold-rush";
 import { minedMountain } from "../test-fixtures";
-import { tapQuickVein, tendBest } from "./run";
+import { tendBest } from "../rates";
+import { tapQuickVein } from "./run";
 import { createWorld } from "./world";
 
 describe("the lab's quick vein (#468)", () => {

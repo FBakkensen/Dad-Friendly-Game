@@ -21,7 +21,6 @@ import {
   staffNeeded,
   station,
   TENDED_MACHINE_STAFF,
-  tendBestTier,
   tendingTenths,
   type Engineer,
 } from "./engineers";
@@ -287,27 +286,6 @@ describe("Great Machine crew", () => {
     expect(staffForBuy(createMountain(), machine)).toBe(10);
     expect(staffForBuy(outOn(createMountain()), machine)).toBe(10);
     expect(staffForBuy(posted, tierById("cart"))).toBe(1);
-  });
-
-  it("posts the pacing dad on the Great Machine once he owns one, else the borers", () => {
-    const fresh = createMountain();
-    expect(tendBestTier(fresh)).toBe(fresh);
-    const onBorer = {
-      ...fresh,
-      engineers: [ada],
-      owned: { ...fresh.owned, borer: 1 },
-    };
-    expect(tendBestTier(onBorer)).toBe(onBorer);
-    const atCamp = station(onBorer, 0, "camp");
-    expect(tendBestTier(atCamp).engineers[0]?.post).toBe("borer");
-    const withMachine = { ...onBorer, owned: { ...onBorer.owned, machine: 1 } };
-    expect(tendBestTier(withMachine).engineers[0]?.post).toBe("machine");
-    const already = tendBestTier(withMachine);
-    expect(tendBestTier(already)).toBe(already);
-    const waiting = { ...fresh, engineers: [ada] };
-    expect(tendBestTier(waiting)).toBe(waiting);
-    const away = outOn({ ...withMachine, engineers: [ada] });
-    expect(tendBestTier(away)).toBe(away);
   });
 });
 

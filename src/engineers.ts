@@ -268,37 +268,6 @@ export function staffForBuy(
   return staffNeeded(mountain, tier);
 }
 
-/**
- * The pacing dad's one engineer. A Great Machine comes first, because that
- * is what lets it run on a small crew; otherwise the borers. Someone already
- * in a tunnel stays there.
- */
-export function tendBestTier(mountain: Mountain): Mountain {
-  const engineers = mountain.engineers;
-  if (engineers.length === 0) {
-    return mountain;
-  }
-  const wanted: EngineerPost | undefined =
-    mountain.owned.machine > 0
-      ? "machine"
-      : mountain.owned.borer > 0
-        ? "borer"
-        : undefined;
-  if (
-    wanted === undefined ||
-    atHome(mountain).some((engineer) => engineer.post === wanted)
-  ) {
-    return mountain;
-  }
-  const index = engineers.findIndex(
-    (engineer) => !onTrip(mountain, engineer.name),
-  );
-  if (index < 0) {
-    return mountain;
-  }
-  return station(mountain, index, wanted);
-}
-
 function machineTended(mountain: Mountain): boolean {
   return atHome(mountain).some((engineer) => engineer.post === "machine");
 }

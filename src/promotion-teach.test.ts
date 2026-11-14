@@ -217,7 +217,7 @@ describe("promotion teach (#246)", () => {
     expect(row?.querySelector(".board-row-info")?.textContent).toBe(
       promotionPayoff(
         "Nils",
-        payoff?.post ?? "camp",
+        payoff?.post ?? "machine",
         stonesPerSecond(payoff?.gain ?? 0),
       ),
     );

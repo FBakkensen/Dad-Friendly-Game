@@ -4,8 +4,8 @@ import {
   promote,
   promoteCost,
   staffForBuy,
-  tendBestTier,
 } from "./engineers";
+import { tendBest } from "./rates";
 import {
   send,
   settle as settleExpeditions,
@@ -271,7 +271,7 @@ function buyPick(world: World, pick: Pick, buys: DadPurchase[]): World {
   const short = staffed ? Math.max(0, staffForBuy(mountain, tier) - spare) : 0;
   let next = applyAction(mountain, pick.action, world.clock);
   if (staffed) {
-    next = tendBestTier(next);
+    next = tendBest(next);
   }
   const bought = { ...world, mountain: next };
   buys.push({
@@ -344,7 +344,10 @@ function liveSecond(
   let world = options.buysBoosts
     ? { ...start, mountain: buyEveryBoost(start.mountain, start.clock) }
     : start;
-  world = { ...world, mountain: tendBestTier(world.mountain) };
+  if (second === 0) {
+    // As the lab's dads: re-tended as he sits down, and after a staffed buy.
+    world = { ...world, mountain: tendBest(world.mountain) };
+  }
   if (second === 0) {
     world = {
       ...world,
