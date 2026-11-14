@@ -12,6 +12,7 @@ import {
   keepFieldRing,
   persistPhoneBackup,
   persistSession,
+  persistSessionQuietly,
 } from "./local-saves";
 import type { Mountain } from "./mountain";
 import { endResumeRead, freshServerRead } from "./server-read";
@@ -99,7 +100,7 @@ export function dispatchMove(
   return { kind: "refused", reason: "no-change" };
 }
 
-/** Settles helpers' work for display. A phone backup follows a change. */
+/** Settles helpers' work for display. The device's copy follows a change. */
 export function tickStore(ctx: StoreContext): void {
   noteLoading(ctx);
   if (!canPlay(ctx)) {
@@ -111,6 +112,7 @@ export function tickStore(ctx: StoreContext): void {
   const moved = ctx.session.mountain !== before.mountain;
   if (moved || ctx.session.lastSeen !== before.lastSeen) {
     persistPhoneBackup(ctx);
+    persistSessionQuietly(ctx);
   }
   if (
     mined > 0 ||

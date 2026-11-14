@@ -38,9 +38,29 @@ const HOMECOMING_NEWS_KEY = "dad-friendly-homecomings";
 
 /** The guest's save on this device. Signed in, the phone backup is the device's copy instead. */
 export function persistSession(ctx: StoreContext): void {
+  if (writeGuestSave(ctx)) {
+    ctx.saveKind = "session";
+    logCounts(ctx, "save.session", "ok");
+  }
+}
+
+/**
+ * The guest's save on each tick, with no log line, once there is a guest save
+ * to keep current (the same check as hide): a phone that kills the tab then
+ * loses at most one tick at the away rate (#573). An untouched mountain is not
+ * saved. Signed in, the phone backup is written on each tick instead.
+ */
+export function persistSessionQuietly(ctx: StoreContext): void {
+  if (ctx.saveKind === "session") {
+    writeGuestSave(ctx);
+  }
+}
+
+/** True when the guest's save was written. A failed write is recorded. */
+function writeGuestSave(ctx: StoreContext): boolean {
   const storage = ctx.ports.storage;
   if (!isWriter(ctx) || signedIn(ctx) || storage === undefined) {
-    return;
+    return false;
   }
   const { mountain, lastSeen } = ctx.session;
   if (
@@ -51,10 +71,9 @@ export function persistSession(ctx: StoreContext): void {
     })
   ) {
     record(ctx, "save.error", { source: "session" });
-    return;
+    return false;
   }
-  ctx.saveKind = "session";
-  logCounts(ctx, "save.session", "ok");
+  return true;
 }
 
 /** The other copy of an open conflict, as the phone backup keeps it. */
