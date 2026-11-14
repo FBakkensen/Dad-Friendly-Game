@@ -8,4 +8,4 @@ Strict TypeScript, typescript-eslint, the function limits and the coverage floor
 - Time and numbers: eight hours away in one step, a rate of zero, `NaN` or `Infinity` reaching the save or the screen, rounding in prices.
 - Order of events: a write that must finish before the page hides, a listener that is never removed, a tap handled twice.
 - Tests that can fail: a test that only mirrors the code, or one loosened until it passes, is a finding.
-- Too much: needless machinery, and a copy of a mechanism the codebase already has. Search with `git grep` before you report a copy; a real copy is Important.
+- Too much: needless machinery, and a copy of a mechanism the codebase already has. Search with `review-git grep` before you report a copy; a real copy is Important.

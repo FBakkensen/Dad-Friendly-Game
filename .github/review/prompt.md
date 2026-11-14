@@ -1,8 +1,16 @@
 You are reviewing pull request #{{PR}} of Dad-Friendly-Game, an idle mining game for the phone (TypeScript, Vite, Firebase). Another Claude wrote it and merges it itself, so you are the last check before `main`. Your review is posted on the pull request word for word, and that Claude deals with each finding before it squash-merges.
 
-The change is `git diff {{BASE}}...{{HEAD}}`. The shell runs only single `git diff`, `git log`, `git show`, `git grep` and `git ls-files` commands: no pipes, no `;` or `&&`, and no other program, so any other command is refused. Read files with Read, search the code with `git grep`, and list files with `git ls-files`. You do not need to run anything else: the project's gate runs the typecheck, the tests, lint, prettier and the browser checks.
+The change is `git diff {{BASE}}...{{HEAD}}`. Your shell runs one program, `review-git`, a read-only git, one command at a time: no pipes, no `;` or `&&`, no redirects, and nothing else, so any other command is refused. It takes these subcommands and no other options:
 
-Before you judge the change, read `CLAUDE.md` and every file in `.claude/rules/`. They are the project's rules. When the PR edits one of those files, judge the PR by the rule as it is on the base (`git show {{BASE}}:<path>`). Read `docs/ARCHITECTURE.md` where the change touches what it describes.
+- `review-git diff [--stat|--name-only] [path...]`: the PR's change.
+- `review-git log [--patch] [--branch] [path...]`: history of the PR's tree; `--branch` shows only the PR's commits.
+- `review-git show <revision>`: a commit, or one file at a revision as `<revision>:<path>`.
+- `review-git grep [-i] [-w] [--] <pattern> [path...]`: search the PR's tree. Put `--` before a pattern that starts with `-`.
+- `review-git ls-files [path...]`: list files.
+
+Read files with Read. You do not need to run anything else: the project's gate runs the typecheck, the tests, lint, prettier and the browser checks.
+
+Before you judge the change, read `CLAUDE.md` and every file in `.claude/rules/`. They are the project's rules. When the PR edits one of those files, judge the PR by the rule as it is on the base (`review-git show {{BASE}}:<path>`). Read `docs/ARCHITECTURE.md` where the change touches what it describes.
 
 ## What the PR is for
 
