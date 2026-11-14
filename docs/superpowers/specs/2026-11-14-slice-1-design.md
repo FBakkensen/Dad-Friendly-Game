@@ -1,6 +1,6 @@
 # Slice 1, the first city: design (14 Nov 2026)
 
-Status: approved for its PR. Flemming agreed to the rules in principle (14 Nov 2026, 19:30Z), amended them three times the same evening, and said "That is right" to the playable prototype that plays them (21:35Z). The names are approved. Nothing in it is built except the line it stands on (#536 to #539) and the save groundwork (#560, #561). Every number is a starting value for the lab, not a tuned one.
+Status: approved for its PR. Flemming agreed to the rules in principle (14 Nov 2026, 19:30Z), amended them three times the same evening, and said "That is right" to the playable prototype that plays them (21:35Z). The names are approved. Nothing in it is built. It stands on the line (#532 to #535 and #543 are merged, and #536 is in review as PR #650) and on the save groundwork (#560 is merged, #561 is open). Every number is a starting value for the lab, not a tuned one.
 
 **Amended 14 Nov 2026, 20:30Z.** Flemming: "The golden veins as they were should go, something the player should click as it was, do not fit road to Mars." Golden veins go, and the Gold rush goes with them (a vein's tap starts it). The Beacon (now the Light Tower) had a power about veins, so a new one is proposed below. He also asked for playable prototypes in place of mock pictures: the slice 1 prototype is in `prototypes/slice-1/` on branch `claude/project-thread-eextfa`, and it settles the screens ([What he sees](#what-he-sees)).
 
@@ -16,6 +16,8 @@ Status: approved for its PR. Flemming agreed to the rules in principle (14 Nov 2
 The new rule is [Transport and build time](#7-transport-and-build-time). His four decisions are its first four lines. How slice 1 does them is mine, and is listed under [Calls I made](#calls-i-made).
 
 **Approved 14 Nov 2026, 21:35Z.** The prototype's fourth version plays rule 7 from the first evening: he orders a building once, one fleet delivers, the order says its limit and can be put on hold, nights keep delivering, and a work order is done when its materials are there. Flemming: "That is right". With that the screens are settled, and [What he sees](#what-he-sees) is written from that version.
+
+**One call is open and is his:** the prototype he played has no workers to hire, and the rules he approved earlier the same day have. See [Open: the workforce](#open-the-workforce).
 
 This design covers many slivers. It ships as its own PR and is split into sliver issues (`.claude/rules/superpowers.md`). It amends `2026-11-14-line-works-village-design.md` (the line spec): [What it changes in the line spec](#what-it-changes-in-the-line-spec) lists every place.
 
@@ -103,6 +105,8 @@ The line is the line spec's step 1 as #536 to #539 build it: three stages, hands
 - **The rock no longer leans on a stage.** The line is the same on every level. "Tough on drills" and "Suits borers" go, and so does the band tag's advice. With the workforce on several levels at once, a lean would give each level its own bottleneck, and the screen could no longer give one answer to "where is the bottleneck". What a level changes is what comes up.
 - **The locomotive opens with the Granite**, not with a third level. The paper check shows why: with carts as haulage's only machine, haulage is the bottleneck for 9 to 18 sittings in a row.
 
+**Until part 1 is switched on**, the line lives in today's game. #536 turns it on there, on today's board, with the lean and with today's relics, depth and taps (PR #650). #537 and #538 are not built on today's board, and neither is #539's card: they are built on the new screens (How it would be built). #539's rules, engineers and trouble by stage, go on as they are. So for a while his phone has the bottleneck rule with little of it on screen. That is accepted: he has said the old version does not matter.
+
 ### 3. Goods and makers
 
 Three goods. Stone is the everyday good.
@@ -110,7 +114,7 @@ Three goods. Stone is the everyday good.
 | Good      | Comes from                           | Buys                                                                                                               |
 | --------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
 | Stone     | any level's rock that no maker takes | workers, carts, hoists, drills, kilns, horse wagons, upgrades, the stone part of a work order, projects, the shaft |
-| Brick     | kilns, from the Topsoil's rock       | saws, trucks, stockyard levels, projects, the shaft                                                                |
+| Brick     | kilns, from the Topsoil's rock       | saws, trucks, stockyard levels, promotions, projects, the shaft                                                    |
 | Cut stone | saws, from the Granite's rock        | borers, locomotives, the winding engine, projects                                                                  |
 
 - **A maker takes one level's rock.** The rock a level's crews dig goes to that level's maker, as fast as the maker can take it. One rock makes one brick or one cut stone. What the maker cannot take bypasses to stone.
@@ -127,7 +131,8 @@ As the line spec's step 2, from the day the Light Tower is operational.
 - There is no dig tap (amended 14 Nov 2026).
 - A price above a stockpile's room reads "Needs a bigger stockyard".
 - **Unattended**, the mine runs at the night shift output (30%, and 45% once the Light Tower is operational) until the stockyard is full. Transport keeps delivering to what he ordered (rule 7), so a night with a project open runs longer than one without. The clock cap goes. The shift report says what came in, what was delivered, and what stopped it.
-- Before the Light Tower is operational there is no stockyard. The pocket has no limit, transport delivers from it, and unattended time keeps today's rule (30%, eight hours), so the first evening is as simple as now.
+- **Before the Light Tower is operational** there is no stockyard, and the pocket has no limit. Unattended, the mine keeps today's rule: 30%, for at most eight hours. The clock stops the mine only. Transport goes on delivering from the pocket until the order has what it requires or the pocket is empty (as the prototype plays it). When the Light Tower's roof goes on, at night or not, the stockyard opens in that moment and the clock goes: the mine runs from then until the stockyard is full.
+- When the stockyard opens, or when a stockpile holds more than its room for any other reason, nothing is taken away. The stockpile takes no more until it is under its room again.
 
 ### 5. The crews
 
@@ -212,7 +217,7 @@ From top to bottom:
 1. **The order strip.** The project in hand, its step and its state ("Foundation · not ordered", "Roof · delivering", "on hold"), what the step requires with its counts, and a pip for each of the three steps.
 2. **The stockpiles.** One for each good he has met, with its room once the stockyard is open ("48K of 400K"), and "full" in red.
 3. **The site's scene**, which fills the middle.
-4. **Next.** The best buy or order right now and the site it is on ("Next · City: Order the Light Tower"), with a count of everything ready. A tap goes there.
+4. **Next.** One thing that is ready and the site it is on ("Next · City: Order the Light Tower"), with a count of everything he can afford or start now. A tap goes there. With nothing ready it reads "Nothing affordable yet. Production is running." Next is a pointer in a fixed order, not advice on payback: which thing to buy stays his (the line spec). The order is the prototype's: install gear that is done; order the building when none is ordered; sink the shaft; the bottleneck stage's next buy; a maker that is its good's limit; expand the stockyard when a stockpile is nearly full; a vehicle while an order is open; resume an order on hold; a work order; then everything else he can afford. It takes the Ready now plate's place, and "Saving for" goes with it.
 5. **The site bar.** A tab for each open site, with its lamp. A site joins the bar when its work opens: the mine and the city on the first evening, the refinery with the Light Tower, the factory with the shaft. A swipe changes site too.
 
 ### The mine (`first-evening.png`, `mine.png`)
@@ -221,7 +226,8 @@ From top to bottom:
 - A level's plate has its name, its rock a second, and one line: its crews, its good and its limit ("2 of 4 crews · brick 400/s · limit: kilns"). With one level it reads "4 crews · all rock is hoisted as stone".
 - A crew is moved by a tap on an empty spot in a gallery ("assign crew") or by a drag from one level to the other.
 - A level that is not reached says what it waits for ("The shaft can be sunk once the Light Tower is operational"), and then its price. Under the last level: "Deeper strata: not yet surveyed. The city has to grow first."
-- At the foot are the three stage plates: drilling, haulage, hoisting. Each has its rate, "bottleneck" or its headroom ("+200/s headroom"), and its next machine with the price. The bottleneck is lit.
+- At the foot are the three stage plates: drilling, haulage, hoisting. Each has its rate, "bottleneck" or its headroom ("+200/s headroom"), and a key for its next machine with the price. The bottleneck is lit. The key buys, as he played it. A machine that is not on sale yet says what it waits for on the key ("Cart: at 12 workers"), and a machine with no free workers to run it says that ("Needs 8 free workers"). A tap on the rest of the plate opens the stage's full list.
+- **The workforce plate** is over the stage plates: how many workers there are, where the free hands help ("14 workers · the hands help haulage"), and a key to hire one with its price. It is not in the prototype, and it is the open call ([Open: the workforce](#open-the-workforce)).
 
 ### The refinery (`refinery.png`)
 
@@ -278,6 +284,22 @@ These are in the game today and have no place in the prototype. Where they go is
 **Goes:** the dig button and every tap that mines (Flemming, 14 Nov 2026); the Send on a project and the factory's fixed craft times (Flemming, 14 Nov 2026: he orders, transport delivers, and time comes from the resources); golden veins and the Gold rush (Flemming, 14 Nov 2026: a thing to click as it glints does not fit the road to Mars); the relics, their plate, shelf, reveal pictures and Ledger rows; the Lantern's guide bar (the project takes its place); the pass, Legacy, kid runs, Grandpa and the generations lab (#642); depth, the mountain's size and bottom, "stones left", the mined-out state; the band tag's advice and the rock's lean; the away clock once the stockyard is open; relic glimmers from expeditions; kid workers until the building that brings them back.
 
 **Stays:** workers and the six machines of the line; ownership marks; upgrades; the factory and its gear, without its clock (rule 7); engineers, expeditions and trouble; the art, the steel and the lamps; one save for each Google account and everything in `observable-saves.md`.
+
+**Where today's parts land.** Part 1's reset fixes the ids of the new save, so each of today's parts is placed here. A part not named stays as it is.
+
+| Today                                                            | In slice 1                                                                                       |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| Workers, Better boots                                            | Stay, on the workforce plate and in its list (open: the workforce)                               |
+| Machine upgrades, ownership marks, the amount key (×1, ×10, Max) | Stay, in their stage's list. A price that scaled with the band scales with the deepest level     |
+| Strong arms, Sharper picks, Grandfather's pick                   | Go with the dig button: they only make a tap stronger                                            |
+| Old miner's lamp, Crystal flare, Miner's crystal lamp            | Go with the golden veins                                                                         |
+| Steady hands                                                     | Goes. The Light Tower has its job, so "night shift output 45%, up from 30%" is true for everyone |
+| The Heart of Patience and the other relic powers                 | Go with the relics. A building's power is the one in rule 6                                      |
+| Overtime                                                         | Goes. A live boost is made in the factory (blasting charge, axle grease), so it has one home     |
+| Iron rails, pit props, Reinforce, blasting charge, axle grease   | Stay as work orders, without a clock (rule 7.12)                                                 |
+| Engineers, expeditions, trouble                                  | Stay, from part 3. A promotion costs brick (the line spec)                                       |
+| The Ready now plate                                              | Becomes Next                                                                                     |
+| The Ledger, the sound switch, Start over, the save line          | Stay (What the prototype does not show)                                                          |
 
 **Today's board goes** when part 1 is switched on: the odometer, the output gauge, the mine window, the bays and the key rail. The prototype's screens take its place (What he sees).
 
@@ -430,8 +452,24 @@ These are mine, not Flemming's. Any of them can be turned over.
 24. The factory's fixed craft times go with the city's: a work order is done when what it requires has arrived (rule 7.12). His words were about building. I read them as covering the factory too.
 25. Machines, makers, vehicles, stockyard levels and the shaft stay instant purchases (rule 7.13).
 26. "The workforce" is my word. "Site", "order", "on hold" and "resume" are the prototype's (Names).
+27. The clock before the stockyard stops the mine only, and the stockyard opens the moment the Light Tower's roof goes on (rule 4). It is how the prototype plays.
+28. Next is a pointer in the prototype's fixed order, not a best buy (What he sees, The frame).
+29. Steady hands and Overtime go, with the tap-only and vein-only upgrades (Where today's parts land).
+30. The lab plays each part before that part is switched on. The five-day floor is checked when it can play the whole slice (Lab).
+31. Workers stay, with a workforce plate in the mine. This one is open and is his (below).
 
 Calls 18 to 24 are played in the prototype's fourth version, and he said "That is right" to it. So is the Light Tower's new power (night shift output at 45%, up from 30%), which is on its card and in the shift report. They stay on this list so that he can still turn one over.
+
+### Open: the workforce
+
+The one place where the prototype he played and the rules he approved disagree.
+
+- **The rules** (the line spec, approved 14 Nov 2026, built in #532 to #536 and tuned in #543): he hires workers. A worker does every job by hand, the free hands go to the slowest stage, and a machine needs workers to run it. The cart opens at twelve workers.
+- **The prototype** has no workers to hire. Each stage has machines only, and all three are on sale in the first minute.
+
+This spec keeps the workers (call 31), for three reasons. With no dig button, the first minutes need something small to buy often, and a worker at 60 stone is that. The hands that fill in at the slowest stage are what keeps a bad buy from being a punishment. And the line's rules and numbers are built and tuned with them. The cost is one more plate in the mine that he has not played.
+
+Until he answers, no sliver builds the mine's foot. The question to him is: keep the workers, with a workforce plate that he plays in the prototype's next version before it is built, or drop them and buy machines only, as he played. If he drops them, rule 2, rule 1.5's table, the starting numbers and the lab's line are written again, and part 1 is later by that work.
 
 ## What it changes in the line spec
 
@@ -446,7 +484,7 @@ Calls 18 to 24 are played in the prototype's fourth version, and he said "That i
 
 ## How it would be built
 
-This spec ships as a PR, and slice 1 is then split into sliver issues under #530. The line (#536 to #539) and the save groundwork (#560, #561) go on unchanged.
+This spec ships as a PR, and slice 1 is then split into sliver issues under #530. #536 (PR #650), #539's rules and #561 go on unchanged. #537, #538 and #539's card move to the new screens (below).
 
 **The slice goes live in three parts, and each part is a game he can play.** A part's rules are built off in play, as the line's were (#532), the lab plays them, and the part's last sliver switches it on. Between switch-ons the game on his phone does not change. So no sliver leaves a hole: nothing that opened at a depth is taken out before the part with its new door is switched on.
 
@@ -458,17 +496,81 @@ This spec ships as a PR, and slice 1 is then split into sliver issues under #530
 
 - Until part 3 is live, the Granite's price is not shown, the Light Tower opens only the kilns and the stockyard, and the Warehouse does not open trucks. Each part ends with the end card, in words that say more is being built.
 - **Resets the save** when part 1 is switched on. Parts 2 and 3 add facts to the save and should not reset it. If one must, its issue, its PR and the chat say so first.
-- Before part 1: one sliver where the lab plays the whole slice, off in play, and sets the starting numbers (as #534 and #543 did for the line). It reports each part's end as well as the slice's.
+- Each part's rules are played by the lab before that part is switched on, and the lab sets that part's numbers (as #534 and #543 did for the line). The lab cannot play the whole slice before part 3's rules exist, so part 1 does not wait for it.
 - The pass, Legacy, kid runs and Grandpa (#642), the relics, the dig button, golden veins and the Gold rush leave play at part 1's switch-on. Their code is deleted by slivers after it.
 - The lean of the rock leaves play at part 1's switch-on too: the Topsoil has none, and no other level is in play until part 3.
-- The new screens are built beside today's board, to What he sees, and take its place at part 1's switch-on. They are built with the game's own parts and art, not from the prototype's code. #537 and #538 draw the stages and the buys on today's board and are not started: they are built in the mine instead, as part 1's stage plates and its machines by stage. #539's card for a stage lands there too. #536, the line's rules, goes on unchanged.
+- The new screens are built beside today's board, to What he sees, and take its place at part 1's switch-on. They are built with the game's own parts and art, not from the prototype's code. #537 and #538 draw the stages and the buys on today's board and are not started: they are built in the mine instead, as part 1's stage plates and its machines by stage. #539's card for a stage lands there too. Those three issues are rewritten for the new screens when the slice is split.
+
+### The slivers, in order
+
+Each becomes an issue under #530 when this spec is merged. The list is the order, not the final cut: a sliver that grows past one sitting is split when it is planned. A sliver marked "off in play" changes nothing on his phone. It is rules, tests and the lab. Every other one is seen in `npm run play`, and on his phone at its part's switch-on.
+
+Part 1, the first evenings:
+
+1. A fresh mine's rules, off in play: one level, no depth, machines that open by what he owns (rule 1), and what leaves the rules with it.
+2. Orders and transport, off in play: the Light Tower's project, the fleet, on hold, and unattended time before the stockyard (rules 4, 6, 7).
+3. The lab plays part 1 and sets its numbers: the starting workers, the horse wagon, the Light Tower.
+4. Art: the Light Tower and a horse wagon. Asked for first.
+5. The frame and the mine, beside today's board: the order strip, the stockpiles, Next, the site bar, the mountain, the stage plates and a stage's list (#537, #538 and #539's card, rewritten). Waits for his answer on the workforce.
+6. The city: the skyline, the transport plate, the project's card and the order key.
+7. The shift report and the cards.
+8. Part 1 is switched on. **Resets the save.** Today's board goes, and its journeys and visual sections move to the new screens.
+9. What part 1 left behind is deleted: relics, the pass, Legacy and kid runs, the generations lab, golden veins and the Gold rush, the dig button, and the upgrades that went.
+
+Part 2, brick and nights:
+
+10. Goods, makers and the stockyard, off in play, with the Warehouse's project (rules 3, 4).
+11. The lab plays parts 1 and 2.
+12. Art: a kiln, a brick and the Warehouse. Asked for first.
+13. The refinery and the stockyard, and the shift report's night bar.
+14. Part 2 is switched on.
+
+Part 3, two levels:
+
+15. The shaft, the Granite and the crews, off in play, with saws, cut stone, borers, locomotives and trucks (rules 1, 3, 5, 7).
+16. The factory without a clock, off in play (rule 7.12).
+17. The lab plays the whole slice, and the five-day floor is checked.
+18. Art: a saw, a cut stone, a truck and the Foundry. Asked for first.
+19. The mine with two levels: the galleries, moving a crew, and the card for a level reached. Saws in the refinery, and trucks in the city.
+20. The factory.
+21. Part 3 is switched on, with the slice's end card.
+
+### The save
+
+Part 1's switch-on is a new save version, and it resets the save. Each new fact goes in the game map (`src/save-format.ts`) and the ledger (`src/save-ledger.test.ts`), as `observable-saves.md` asks.
+
+| Fact                                                                                                 | From part        |
+| ---------------------------------------------------------------------------------------------------- | ---------------- |
+| The levels he has opened                                                                             | 1 (one level), 3 |
+| Vehicles owned, by kind                                                                              | 1                |
+| The buildings that are operational. The project in hand: its step, and what has arrived of each good | 1                |
+| The order's state: not ordered, delivering, or on hold                                               | 1                |
+| Rock dug in all (for which copy of a save is ahead, call 13)                                         | 1                |
+| Makers owned, by kind. The stockyard's level. A stock of each good (#560)                            | 2                |
+| The crews on each level                                                                              | 3                |
+| The work order: its blueprint, what has arrived, and its state                                       | 3                |
+
+- Leaves the save at part 1: relics, the pass, Legacy and kid runs, depth and the mountain's size, the Gold rush and its bank, and the upgrades that went.
+- An order's state is a discriminated union, not a bag of flags. The crews on the levels always add up to four, and the save reader refuses a save where they do not.
+- Parts 2 and 3 add facts and bump no version, unless one of them has to take out an id that part 1 shipped. That would be a reset and is said first.
+
+### Proof
+
+| What                                                                       | Its proof                                                                                                                                                                              |
+| -------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The rules (levels, goods, makers, the stockyard, crews, orders, transport) | Unit tests on pure rules modules, written first. Property tests where a sum must hold: four crews, no rock lost while the stone stockpile has room, never more delivered than required |
+| Unattended time                                                            | Unit tests from timestamps: the clock before the stockyard, the stockpile-full moments, a step and a building finished at night, an order on hold                                      |
+| The pace and the decisions                                                 | The lab's named measures (Lab), and the five-day floor (#556) once the lab can play the whole slice                                                                                    |
+| Each site and each card                                                    | A visual section for each at 424×924 and 424×830, with no page scroll, and `npm run play` from a save for each part's states                                                           |
+| Each part as a game                                                        | A journey for each part: the first evening to the Light Tower's roof; a night that fills the stockyard and one that builds; the shaft, a crew moved, and the Foundry's roof            |
+| The save                                                                   | The ledger and the emulator round trip for each new fact, and the reset at part 1                                                                                                      |
 
 A plan keeps each screen's browser checks green in the sliver that changes that screen. `docs/DESIGN.md`, `docs/design-intent.md`, `docs/ARCHITECTURE.md`, `docs/ui-audit.md`, `.claude/rules/observable-saves.md` and the github-issues skill's road section are updated by the slivers that change what they describe.
 
 ## Lab
 
-- The strategy lab plays slice 1 from a fresh mine to the Foundry's roof. One player type shares the crews by need. One leaves them at two and two. One moves the whole workforce, to keep the old cage's cost in view. Every type buys vehicles when a site's limit is transport, and puts the project on hold when a machine pays back sooner. One never uses on hold, to show what it is worth.
-- Named measures, report-only at first: `sliceDays`, `narrowRun`, `shareMoves` a sitting, `nightFull` (how many long nights end at a full stockyard, and how far into the night), `deadGood` (time a stockpile is full with nothing to spend it on), `transportLimit` (the share of a project's time that transport is its limit), and `starved` (time he cannot afford the cheapest buy while a site takes more than half of what the mine makes).
+- The strategy lab plays slice 1 from a fresh mine, as far as the slice is built: to the Light Tower's roof for part 1, the Warehouse's for part 2, and the Foundry's for part 3. The lab's players do not follow Next. One player type shares the crews by need. One leaves them at two and two. One moves the whole workforce, to keep the old cage's cost in view. Every type buys vehicles when an order's limit is transport, and puts the project on hold when a machine pays back sooner. One never uses on hold, to show what it is worth.
+- Named measures, report-only at first: `sliceDays`, `narrowRun`, `shareMoves` a sitting, `nightFull` (how many long nights end at a full stockyard, and how far into the night), `deadGood` (time a stockpile is full with nothing to spend it on), `transportLimit` (the share of a project's time that transport is its limit), and `starved` (time he cannot afford the cheapest buy while an order takes more than half of what the mine makes).
 - The generations lab goes with the pass.
 - The finish floor is Flemming's rule of 14 Nov 2026 (#556): a run takes at least five days, with no ceiling. For slice 1 the run ends at the Foundry's roof, so the lab tunes the numbers until every player type needs five days or more. Parts 1 and 2 have no floor of their own.
 - Today's other strict rows (regret, the extreme win, the check-in guardrails) carry over, with the Foundry's roof as the finish. The rows about kid runs and relic days go with the pass and the relics. Any other change to a bound in `src/lab/targets.ts` is a stop, and is asked.
