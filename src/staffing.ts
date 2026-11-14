@@ -166,6 +166,36 @@ function fill(
 }
 
 /**
+ * `staffing` with every idle machine the spare hands can staff set running,
+ * biggest first (#536). On the line a machine above the narrow stage adds
+ * nothing, so the search may leave it idle on a tie; the player reads idle
+ * as short of hands, and a hand runs it at no cost, since he still lends
+ * his hands to the line.
+ */
+export function runSpare(
+  slots: readonly StaffSlot[],
+  hands: number,
+  staffing: Staffing,
+): Staffing {
+  const running = { ...staffing };
+  let free = slots.reduce(
+    (left, slot) => left - running[slot.id] * slot.staff,
+    hands,
+  );
+  for (const slot of slots) {
+    const more = Math.min(
+      slot.count - running[slot.id],
+      Math.floor(Math.max(0, free) / slot.staff),
+    );
+    if (more > 0) {
+      running[slot.id] += more;
+      free -= more * slot.staff;
+    }
+  }
+  return running;
+}
+
+/**
  * The old rule, biggest machine first (#89): each kind runs as many as the
  * hands left can staff. `effectiveRates` weighs it with the others, so the
  * crew is never slower than it was.

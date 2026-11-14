@@ -145,11 +145,12 @@ describe("snapshot", () => {
     });
     expect(shot.crewSpeed).toBe(rates.crewPerSecond);
     expect(shot.tapYield).toBe(rates.tapYield);
-    // Two kids run both drills (1 each since #252), so the cart idles.
+    // Two kids run two machines (1 each since #252). On the line the empty
+    // haul wants the cart first, so one drill idles (#536).
     expect(shot.idle).toEqual({
-      cart: 1,
+      cart: 0,
       hoist: 0,
-      drill: 0,
+      drill: 1,
       borer: 0,
       train: 0,
       machine: 0,

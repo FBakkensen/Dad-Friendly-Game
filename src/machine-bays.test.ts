@@ -11,7 +11,7 @@ import {
   type BayView,
 } from "./machine-bays";
 import { createMountain, type Mountain } from "./mountain";
-import { effectiveRates } from "./rates";
+import { machineGain } from "./rates";
 import { readyNow } from "./ready-now";
 import type { RelicId } from "./relics";
 import { MOUNTAIN_STONES, shownStones } from "./scale";
@@ -52,10 +52,13 @@ function views(
   return bayViews(mountain, NOW, trouble, readyNow(mountain, NOW, trouble));
 }
 
-/** The early save: 18 workers, 6 carts, 12 free. */
+/**
+ * The early save: 18 workers, 6 carts, 3 hoists and 3 drills, 6 free. The
+ * hoists and drills outrun the haul, so carts are the pick (#536).
+ */
 const early = mountainWith({
   stock: { stones: 6_854 },
-  owned: { ...NONE_OWNED, helper: 18, cart: 6 },
+  owned: { ...NONE_OWNED, helper: 18, cart: 6, hoist: 3, drill: 3 },
 });
 
 describe("bayTiers", () => {
@@ -113,16 +116,17 @@ describe("bayViews", () => {
       tier: "cart",
       count: 6,
       price: priceOf(early, "cart", 6),
-      gain: effectiveRates(early, NOW).tierSpeed.cart,
+      // What one more adds to the line, as its Buys row reads it (#536).
+      gain: machineGain(early, "cart", 1, NOW),
       staff: 1,
       lamp: "amber",
     });
     expect(drill).toEqual({
       kind: "open",
       tier: "drill",
-      count: 0,
-      price: priceOf(early, "drill", 0),
-      gain: effectiveRates(early, NOW).tierSpeed.drill,
+      count: 3,
+      price: priceOf(early, "drill", 3),
+      gain: machineGain(early, "drill", 1, NOW),
       staff: staffForBuy(early, tierById("drill")),
       lamp: "off",
     });
@@ -142,14 +146,14 @@ describe("bayViews", () => {
   it("green is ready but not the pick", () => {
     const mountain = {
       ...early,
-      stock: { ...early.stock, stones: priceOf(early, "drill", 0) + 1 },
+      stock: { ...early.stock, stones: priceOf(early, "drill", 3) + 1 },
     };
     expect(mountain.stock.stones).toBeGreaterThan(priceOf(early, "cart", 6));
-    expect(crewCounts(mountain, NOW).free).toBe(12);
+    expect(crewCounts(mountain, NOW).free).toBe(6);
 
     const [cart, drill] = views(mountain);
-    expect(bayLamp(drill)).toBe("amber");
-    expect(bayLamp(cart)).toBe("green");
+    expect(bayLamp(cart)).toBe("amber");
+    expect(bayLamp(drill)).toBe("green");
   });
 
   it("short of hands is dark", () => {
@@ -201,7 +205,7 @@ describe("bayViews", () => {
       tier: "cart",
       count: 6,
       price: priceOf(early, "cart", 6),
-      gain: effectiveRates(early, NOW, caveIn).tierSpeed.cart,
+      gain: machineGain(early, "cart", 1, NOW, caveIn),
       staff: 1,
       trouble: "cave-in",
     });
@@ -227,7 +231,7 @@ describe("bayViews", () => {
     const mountain = {
       ...early,
       remaining: 0,
-      stock: { ...early.stock, stones: priceOf(early, "drill", 0) },
+      stock: { ...early.stock, stones: priceOf(early, "drill", 3) },
     };
     const pick = readyNow(mountain, NOW);
     expect(pick.kind).toBe("mined-out");

@@ -3,7 +3,7 @@ import { tierLock, type TierLock } from "./crew";
 import { staffForBuy } from "./engineers";
 import type { Trouble, TroubleKind } from "./hazards";
 import type { Mountain } from "./mountain";
-import { effectiveRates } from "./rates";
+import { machineGain } from "./rates";
 import type { ReadyPick } from "./ready-now";
 import { stretch } from "./scale";
 import { owned, tierById, tierCost, type ShownMachineId } from "./tiers";
@@ -73,7 +73,6 @@ export function bayViews(
   pick: ReadyPick,
 ): readonly [BayView, BayView, BayView] {
   const { free } = crewCounts(mountain, now, trouble);
-  const { tierSpeed } = effectiveRates(mountain, now, trouble);
   const k = stretch(mountain);
   const view = (id: ShownMachineId): BayView => {
     const tier = tierById(id);
@@ -83,8 +82,16 @@ export function bayViews(
       return { kind: "locked", tier: id, count, lock };
     }
     const price = tierCost(tier, count, k);
-    const gain = tierSpeed[id];
     const staff = staffForBuy(mountain, tier);
+    // What one more adds to the line, as its Buys row reads it (#536).
+    const gain = machineGain(
+      mountain,
+      id,
+      1,
+      now,
+      trouble,
+      Math.max(0, staff - free),
+    );
     if (trouble?.tier === id) {
       return {
         kind: "trouble",

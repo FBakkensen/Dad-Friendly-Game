@@ -233,14 +233,15 @@ function heart(remaining: number): Mountain {
 describe("stonesRowView (#375)", () => {
   it("reads the stones left, with the exact count on its title, and four materials", () => {
     const view = stonesRowView(heart(12_729));
-    expect(view.name).toBe("412.4K stones left");
-    expect(view.title).toBe("412,420 of 4,462,375,000");
+    expect(view.name).toBe("499K stones left");
+    // 12,729 × the Heart's 39.204 (#543).
+    expect(view.title).toBe("499,028 of 5,278,855,000");
     expect(view.info).toHaveLength(1);
     expect(view.info[0]?.split(" · ")).toHaveLength(4);
     expect(view.info[0]).toMatch(
       /^Clay \S+ · Iron \S+ · Crystal \S+ · Heartstone \S+$/,
     );
-    expect(view.aria).toBe(`412.4K stones left. ${view.info[0] ?? ""}`);
+    expect(view.aria).toBe(`499K stones left. ${view.info[0] ?? ""}`);
     expect(view).toMatchObject({
       lamp: "off",
       state: "owned",

@@ -33,7 +33,6 @@ import {
 import { lockAria, lockBodyLine, lockRateLine } from "./tier-lock-words";
 import {
   owned,
-  setOwned,
   tierById,
   tierCost,
   tierQuote,
@@ -504,11 +503,7 @@ function rowGain(
   if (id === "helper" || id === "kid") {
     return handsGain(mountain, id, gaining, now, trouble);
   }
-  const staffed =
-    facts.missing > 0
-      ? setOwned(mountain, "helper", mountain.owned.helper + facts.missing)
-      : mountain;
-  return machineGain(staffed, id, gaining, now, trouble);
+  return machineGain(mountain, id, gaining, now, trouble, facts.missing);
 }
 
 /**

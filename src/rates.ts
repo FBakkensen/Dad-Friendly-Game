@@ -43,6 +43,7 @@ import {
   biggestFirst,
   fillForLine,
   moreStones,
+  runSpare,
   staffForLine,
   staffMachines,
   staffWith,
@@ -411,9 +412,9 @@ function staffCrew(
       best = next;
     }
   }
-  return climb(slots, hands, best, (staffing) => fills(staffing)).running;
+  const settled = climb(slots, hands, best, (staffing) => fills(staffing));
+  return runningOf(mountain, runSpare(slots, hands, settled.staffing));
 }
-
 
 type Weighed = {
   readonly staffing: Staffing;
@@ -674,7 +675,6 @@ function crewOutput(
   return lineOf(speed, running);
 }
 
-
 function primaryTender(
   mountain: Mountain,
   plain: Readonly<Record<TierId, number>>,
@@ -832,7 +832,9 @@ export function handsGain(
  * What `count` more of a machine add to the line (#536): 0 when its stage
  * already stands at or above the level the hands lift the lowest stage to,
  * so its Buys row can say so before the tap. A stage's first machine always
- * adds something, since it frees the hands that did that job.
+ * adds something, since it frees the hands that did that job. `hired` is
+ * the workers the buy still lacks, counted as hired on both sides, so a
+ * machine short of hands reads what it adds once they come.
  */
 export function machineGain(
   mountain: Mountain,
@@ -840,8 +842,13 @@ export function machineGain(
   count: number,
   now?: number,
   trouble?: Trouble,
+  hired = 0,
 ): number {
-  return crewGain(mountain, id, count, now, trouble);
+  const staffed =
+    hired > 0
+      ? setOwned(mountain, "helper", mountain.owned.helper + hired)
+      : mountain;
+  return crewGain(staffed, id, count, now, trouble);
 }
 
 /** The idle kinds of machine, biggest first, and the rates that say so. */

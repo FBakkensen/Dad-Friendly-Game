@@ -568,7 +568,16 @@ describe("clock skew", () => {
 describe("away pay", () => {
   const base = {
     ...createMountain(),
-    owned: { ...createMountain().owned, helper: 11, borer: 1, drill: 1 },
+    // A train and the Great Machine outrun the face, so the tends on the
+    // borers and drills lift the line (#536).
+    owned: {
+      ...createMountain().owned,
+      helper: 30,
+      borer: 1,
+      drill: 1,
+      train: 1,
+      machine: 1,
+    },
     engineers: [
       ada,
       {
@@ -653,7 +662,19 @@ describe("away pay", () => {
         Math.floor(6 * 3_600 * effectiveRates(tended).crewPerSecond * pay),
     );
 
-    const seam = send(crew(), 0, "side-seam", 0);
+    // Ada alone, on a drill that holds the line (#536): carts and hoists
+    // outrun the face, and the stay ends before the Granite.
+    const lifted = {
+      ...crew([{ ...ada, post: "drill" }]),
+      owned: {
+        ...createMountain().owned,
+        helper: 20,
+        drill: 1,
+        cart: 14,
+        hoist: 5,
+      },
+    };
+    const seam = send(lifted, 0, "side-seam", 0);
     const long = accrueAway({ mountain: seam, lastSeen: 0, now: 20 * HOUR });
     const home = { ...seam, expeditions: [] };
     expect(long.mined).toBe(

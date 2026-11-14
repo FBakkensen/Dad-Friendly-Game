@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   fillForLine,
+  runSpare,
   staffMachines,
   type StaffSlot,
   type Staffing,
@@ -174,5 +175,31 @@ describe("fillForLine (#534)", () => {
     expect(
       fillForLine(slots(5, 5, 2, 0, SPEEDS), 10, staffing, 20, false),
     ).toBe(staffing);
+  });
+});
+
+describe("runSpare (#536)", () => {
+  const speeds = { cart: 18, drill: 108, borer: 1071, machine: 6300 };
+
+  it("runs the idle machines the spare hands can staff, biggest first", () => {
+    const owned = slots(2, 60, 1, 1, speeds);
+    const idle: Staffing = {
+      cart: 2,
+      hoist: 0,
+      drill: 60,
+      borer: 0,
+      train: 0,
+      machine: 0,
+    };
+    // 400 hands: 62 already at work, so the borer (8) and the machine (10) run too.
+    expect(runSpare(owned, 400, idle)).toEqual({
+      ...idle,
+      borer: 1,
+      machine: 1,
+    });
+    // 70 hands: 8 spare run the borer; the machine would need 10.
+    expect(runSpare(owned, 70, idle)).toEqual({ ...idle, borer: 1 });
+    // None spare: nothing changes.
+    expect(runSpare(owned, 62, idle)).toEqual(idle);
   });
 });
