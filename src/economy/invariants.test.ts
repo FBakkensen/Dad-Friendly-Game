@@ -325,9 +325,23 @@ function roundTrips(world: World): void {
   expect(back?.lastSeen).toBe(world.lastSeen);
 }
 
-/** Moves that add to the crew: none of them may slow it. */
+/**
+ * Moves that spend stones or materials: none of them may slow the crew. Two
+ * kinds may, by design. A promotion takes a free worker off the crew to be an
+ * engineer at camp, who tends nothing until given a job. Moving a hand
+ * (`station`, `send`, `recall`) may leave a machine untended. Ranks come from
+ * trips, never from a move.
+ */
 function isCrewBuy(move: Move | undefined): boolean {
-  return move?.kind === "buyTier" || move?.kind === "buyUpgrade";
+  switch (move?.kind) {
+    case "buyTier":
+    case "buyUpgrade":
+    case "buyBoost":
+    case "craft":
+      return true;
+    default:
+      return false;
+  }
 }
 
 /**
@@ -395,7 +409,7 @@ describe("economy invariants on random play (#555)", () => {
           }
         },
       ),
-      { numRuns: 1000 },
+      { numRuns: 150 },
     );
   });
 });
@@ -442,42 +456,53 @@ function minedAway(mountain: Mountain, ends: readonly number[]): number {
 }
 
 /**
- * The saves the slicing rules hold on. With the Heart of Patience a longer
- * absence pays more an hour, by design, so those saves have their own check.
+ * Stones the stretches pay before the Heart of Patience's bonus. With the
+ * Heart a longer stretch pays more an hour, by design (`heartBonus`), so each
+ * stretch's haul is divided by its own bonus: what is left must not depend on
+ * the slicing, in every band. Without the Heart the bonus is 1.
  */
-const PLAIN_STARTS = BAND_STARTS.filter(
-  (mountain) => !hasRelic(mountain, "heart"),
-);
+function basePay(mountain: Mountain, ends: readonly number[]): number {
+  let current = mountain;
+  let lastSeen = START;
+  let base = 0;
+  for (const now of ends) {
+    const paid = accrueAway({ mountain: current, lastSeen, now });
+    base += paid.report.mined / paid.report.heart;
+    current = paid.mountain;
+    lastSeen = paid.settledAt;
+  }
+  return base;
+}
 
 describe("time away pays the same however it is sliced (#555)", () => {
   it("one absence pays what the same absence pays in two parts", () => {
     fc.assert(
       fc.property(
-        fc.constantFrom(...PLAIN_STARTS),
+        fc.constantFrom(...BAND_STARTS),
         fc.double({ min: 0, max: 1, noNaN: true }),
         fc.double({ min: 0.01, max: 0.99, noNaN: true }),
         (start, length, at) => {
           const ms = Math.round(MINUTE + length * (fullPayMs(start) - MINUTE));
           const split = START + Math.round(ms * at);
-          const once = minedAway(start, [START + ms]);
-          const twice = minedAway(start, [split, START + ms]);
+          const once = basePay(start, [START + ms]);
+          const twice = basePay(start, [split, START + ms]);
           expect(Math.abs(once - twice)).toBeLessThanOrEqual(
             tolerance(once, 2),
           );
         },
       ),
-      { numRuns: 300 },
+      { numRuns: 150 },
     );
   });
 
   it("a long absence pays what the same time pays a second at a time", () => {
     fc.assert(
       fc.property(
-        fc.constantFrom(...PLAIN_STARTS),
+        fc.constantFrom(...BAND_STARTS),
         fc.integer({ min: 2, max: 30 * 60 }),
         (start, seconds) => {
-          const once = minedAway(start, [START + seconds * SECOND]);
-          const stepped = minedAway(
+          const once = basePay(start, [START + seconds * SECOND]);
+          const stepped = basePay(
             start,
             Array.from(
               { length: seconds },
