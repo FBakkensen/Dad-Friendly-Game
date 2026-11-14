@@ -962,3 +962,249 @@ button {
 .tab.on {
   outline-offset: -2px;
 }
+
+/* ---------- the places: each kind of work has its own room ---------- */
+
+.tabs.places .tab {
+  flex-direction: column;
+  gap: 2px;
+  font-size: 15px;
+}
+
+.ostrip {
+  box-sizing: border-box;
+  min-height: 56px;
+  padding: 7px 12px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.ostrip-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.ostrip-name {
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.ostrip-asks {
+  display: flex;
+  gap: 18px;
+  font-size: 16px;
+}
+
+.ostrip-ask {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.ostrip-ask b {
+  font-weight: 700;
+}
+
+.maker {
+  gap: 6px;
+  padding-bottom: 12px;
+}
+
+.flow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.plate {
+  flex: 1;
+  min-width: 0;
+  height: 52px;
+  box-sizing: border-box;
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+}
+
+.plate .num {
+  font-size: 19px;
+  line-height: 1;
+}
+
+.plate.rock {
+  background-color: #000;
+  border: 2px solid #46534f;
+  text-shadow:
+    0 1px 0 #000,
+    0 0 4px #000;
+}
+
+.plate.rock .label {
+  color: var(--ink);
+}
+
+.arrow {
+  font-size: 24px;
+  line-height: 1;
+  color: var(--amber);
+}
+
+.split {
+  height: 10px;
+  background: #5d6b66;
+}
+
+.split i {
+  display: block;
+  height: 100%;
+  background: var(--amber);
+}
+
+.maker .words,
+.bench .words {
+  font-size: 15px;
+  color: var(--quiet);
+}
+
+.maker-buy {
+  display: grid;
+  grid-template-columns: 1fr 116px;
+  gap: 8px;
+  align-items: center;
+}
+
+.maker-buy .name,
+.recipe .name {
+  font-weight: 700;
+  font-size: 18px;
+}
+
+.maker-buy .own,
+.recipe .own,
+.bench .own {
+  font-size: 15px;
+  color: var(--quiet);
+}
+
+.pile.material {
+  display: grid;
+  grid-template-columns: 32px auto 1fr;
+  gap: 4px 8px;
+  align-items: center;
+}
+
+.pile.material .icon {
+  width: 32px;
+  height: 32px;
+  background-size: 32px 32px;
+}
+
+.pile.material .have {
+  text-align: right;
+  font-size: 20px;
+}
+
+.pile.material .bar {
+  grid-column: 1 / span 3;
+}
+
+.bench {
+  gap: 5px;
+}
+
+.bench .bar {
+  height: 10px;
+}
+
+.recipe {
+  display: grid;
+  grid-template-columns: 20px 1fr auto;
+  gap: 8px;
+  align-items: center;
+  min-height: 72px;
+  border-top: 2px solid var(--edge);
+}
+
+.recipe .needs {
+  font-size: 15px;
+}
+
+.recipe .time {
+  font-size: 16px;
+  color: var(--quiet);
+}
+
+.plots {
+  display: flex;
+  gap: 6px;
+}
+
+.plot {
+  flex: 1;
+  min-width: 0;
+  height: 108px;
+  box-sizing: border-box;
+  padding: 8px 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  text-align: center;
+}
+
+.plot.on {
+  outline: 2px solid var(--amber);
+  outline-offset: -2px;
+}
+
+.plot .icon {
+  width: 48px;
+  height: 40px;
+  background-size: contain;
+  background-position: center;
+}
+
+.plot .name {
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 1.05;
+}
+
+.plot .state {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  color: var(--quiet);
+}
+
+.ostrip-asks {
+  gap: 12px;
+  white-space: nowrap;
+}
+
+.ostrip-asks::before {
+  content: "Asks";
+  color: var(--quiet);
+}
+
+.plot .state {
+  white-space: nowrap;
+}
+
+.pile.material .have {
+  white-space: nowrap;
+  font-size: 18px;
+}
+
+.plate.rock {
+  flex: 1.15;
+}

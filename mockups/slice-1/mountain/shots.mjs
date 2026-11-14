@@ -12,7 +12,19 @@ import {
   startServer,
 } from "../../../tools/browser/harness.ts";
 
-const SCENES = ["start", "shaft", "home", "line", "village", "rooms"];
+const SCENES = [
+  "start",
+  "shaft",
+  "home",
+  "line",
+  "village",
+  "rooms",
+  "place-first",
+  "place-mine",
+  "place-works",
+  "place-workshop",
+  "place-village",
+];
 const OUT = "mockups/slice-1/mountain/shots";
 const PHONE = {
   width: 424,

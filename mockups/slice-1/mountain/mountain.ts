@@ -11,8 +11,12 @@
  *   npm run dev, then /mockups/slice-1/mountain/index.html?scene=home
  *   node mockups/slice-1/mountain/shots.mjs writes mockups/slice-1/mountain/shots/<scene>.png
  *
- * Scenes: start, shaft, home (the mountain, the layout I recommend), line and village (a part
- * opened), rooms (the other layout: three rooms and a tab bar).
+ * Scenes, first round: start, shaft, home (the mountain on one screen), line and village (a part
+ * opened), rooms (three rooms and a tab bar).
+ *
+ * Scenes, second round, after Flemming said each kind of work should be really different: the
+ * places. place-first (the first evening, two places), then one evening in four places:
+ * place-mine, place-works (refining), place-workshop (manufacturing) and place-village.
  */
 import "./mountain.css";
 import digUrl from "../../../src/assets/board/dig-button.png";
@@ -31,9 +35,24 @@ import workerUrl from "../../../src/assets/board/mach-worker.png";
 import crystalUrl from "../../../src/assets/board/mine-view-crystal.png";
 import graniteUrl from "../../../src/assets/board/mine-view-granite.png";
 import topsoilUrl from "../../../src/assets/board/mine-view-topsoil.png";
+import clayUrl from "../../../src/assets/board/res-clay.png";
+import ironUrl from "../../../src/assets/board/res-iron.png";
+import nuggetUrl from "../../../src/assets/gold-nugget.png";
+import stoneUrl from "../../../src/assets/stone.png";
 import { skin, type SkinKind } from "../../../src/board-skin";
 
-type Scene = "start" | "shaft" | "home" | "line" | "village" | "rooms";
+type Scene =
+  | "start"
+  | "shaft"
+  | "home"
+  | "line"
+  | "village"
+  | "rooms"
+  | "place-first"
+  | "place-mine"
+  | "place-works"
+  | "place-workshop"
+  | "place-village";
 const SCENES: readonly Scene[] = [
   "start",
   "shaft",
@@ -41,6 +60,11 @@ const SCENES: readonly Scene[] = [
   "line",
   "village",
   "rooms",
+  "place-first",
+  "place-mine",
+  "place-works",
+  "place-workshop",
+  "place-village",
 ];
 
 type Lamp = "off" | "amber" | "green" | "red";
@@ -174,7 +198,7 @@ const EVENING_LEVELS: readonly Level[] = [
     gangs: 2,
     moves: true,
     rock: "1,350/s",
-    made: "Bricks 96/s",
+    made: "Bricks 396/s",
     holds: "the kilns hold",
   },
   {
@@ -184,7 +208,7 @@ const EVENING_LEVELS: readonly Level[] = [
     gangs: 2,
     moves: true,
     rock: "1,350/s",
-    made: "Cut stone 60/s",
+    made: "Cut stone 360/s",
     holds: "the saws hold",
   },
   { kind: "hint", view: crystalUrl },
@@ -876,6 +900,448 @@ function roomsScreen(): HTMLElement {
   );
 }
 
+/* ---------- the places: each kind of work has its own room ---------- */
+
+type Place = "mine" | "works" | "workshop" | "village";
+
+interface Tab {
+  readonly place: Place;
+  readonly name: string;
+  readonly lamp: Lamp;
+}
+
+/** The first evening has two places. A place is added when its work opens. */
+const TWO_TABS: readonly Tab[] = [
+  { place: "mine", name: "Mine", lamp: "green" },
+  { place: "village", name: "Village", lamp: "green" },
+];
+
+const FOUR_TABS: readonly Tab[] = [
+  { place: "mine", name: "Mine", lamp: "green" },
+  { place: "works", name: "Works", lamp: "green" },
+  { place: "workshop", name: "Workshop", lamp: "amber" },
+  { place: "village", name: "Village", lamp: "green" },
+];
+
+function tabBar(tabs: readonly Tab[], on: Place): HTMLElement {
+  return h(
+    "nav",
+    "tabs places",
+    ...tabs.map((tab) =>
+      h(
+        "button",
+        tab.place === on ? "tab on" : "tab",
+        lamp(tab.lamp),
+        tab.name,
+      ),
+    ),
+  );
+}
+
+/** What the village asks for, in every place: the goal stays on top. */
+function orderStrip(order: Order): HTMLElement {
+  const asks = h("div", "ostrip-asks");
+  for (const ask of order.asks) {
+    asks.append(
+      h(
+        "span",
+        "ostrip-ask",
+        h("b", "", ask.good),
+        num(`${ask.sent} of ${ask.of}`),
+      ),
+    );
+  }
+  const head = h(
+    "div",
+    "ostrip-head",
+    h("span", "ostrip-name", order.building),
+    h("span", "amber", order.step),
+    steps(order.done),
+  );
+  return h("button", "ostrip", head, asks);
+}
+
+/** Next, where the dig button is not: it names the place the buy is in. */
+function nextWide(next: NextBuy, where: string): HTMLElement {
+  const card = nextCard(next);
+  const label = card.querySelector(".label");
+  if (label !== null) {
+    label.textContent = `${NEXT} · ${where}`;
+  }
+  return h("div", "foot", card);
+}
+
+function placeScreen(
+  parts: readonly HTMLElement[],
+  tabs: readonly Tab[],
+  on: Place,
+): HTMLElement {
+  return h("main", "screen", ...parts, tabBar(tabs, on), saveLine());
+}
+
+function minePlace(home: Home, tabs: readonly Tab[]): HTMLElement {
+  return placeScreen(
+    [orderStrip(home.order), yard(home.piles), mine(home), foot(home.next)],
+    tabs,
+    "mine",
+  );
+}
+
+/* ---------- the works: refining ---------- */
+
+interface Maker {
+  readonly title: string;
+  readonly owned: string;
+  readonly level: string;
+  readonly view: string;
+  readonly rock: string;
+  readonly takeWords: string;
+  readonly takes: string;
+  readonly good: string;
+  readonly out: string;
+  /** The share of the level's rock the makers take. */
+  readonly share: number;
+  readonly words: string;
+  readonly buy: string;
+  readonly gain: string;
+  readonly price: string;
+  readonly priceGood: string;
+}
+
+const MAKERS: readonly Maker[] = [
+  {
+    title: "The kilns",
+    owned: "33 kilns",
+    level: "Topsoil",
+    view: topsoilUrl,
+    rock: "1,350/s",
+    takeWords: "Kilns take",
+    takes: "396/s",
+    good: "Bricks",
+    out: "396/s",
+    share: 0.29,
+    words:
+      "The kilns hold the bricks. The other 954 rock a second is stacked as stones.",
+    buy: "Kiln",
+    gain: "+12 bricks/s",
+    price: "10.3M",
+    priceGood: "stones",
+  },
+  {
+    title: "The saws",
+    owned: "12 saws",
+    level: "Granite",
+    view: graniteUrl,
+    rock: "1,350/s",
+    takeWords: "Saws take",
+    takes: "360/s",
+    good: "Cut stone",
+    out: "360/s",
+    share: 0.27,
+    words:
+      "The saws hold the cut stone. The other 990 rock a second is stacked as stones.",
+    buy: "Saw",
+    gain: "+30 cut stone/s",
+    price: "269K",
+    priceGood: "bricks",
+  },
+];
+
+function flowPlate(label: string, value: string): HTMLElement {
+  return h("div", "plate", h("span", "label", label), num(value));
+}
+
+function makerBox(maker: Maker): HTMLElement {
+  const rock = view("plate rock", maker.view, SPINE_LEFT, GALLERY_TOP);
+  rock.append(h("span", "label", maker.level), num(maker.rock));
+  const flow = h(
+    "div",
+    "flow",
+    rock,
+    h("span", "arrow", "›"),
+    flowPlate(maker.takeWords, maker.takes),
+    h("span", "arrow", "›"),
+    flowPlate(maker.good, maker.out),
+  );
+  const split = h("div", "split", document.createElement("i"));
+  const taken = split.firstElementChild;
+  if (taken instanceof HTMLElement) {
+    taken.style.width = `${String(Math.round(maker.share * 100))}%`;
+  }
+  const head = h(
+    "div",
+    "mine-head",
+    h("span", "label", maker.title),
+    num(maker.owned),
+  );
+  const buy = h(
+    "div",
+    "maker-buy",
+    h("div", "", h("div", "name", maker.buy), h("div", "own", maker.gain)),
+    h(
+      "button",
+      "price ready",
+      num(maker.price),
+      h("span", "of", maker.priceGood),
+    ),
+  );
+  return h(
+    "section",
+    "mine maker",
+    head,
+    flow,
+    split,
+    h("div", "words", maker.words),
+    buy,
+  );
+}
+
+function yardBox(): HTMLElement {
+  const buy = h(
+    "div",
+    "maker-buy",
+    h(
+      "div",
+      "",
+      h("div", "name", "Extend the yard"),
+      h("div", "own", "Every pile holds three times as much"),
+    ),
+    h("button", "price", num("1.35M"), h("span", "of", "bricks")),
+  );
+  return h(
+    "section",
+    "mine maker",
+    h("div", "mine-head", h("span", "label", "The yard"), num("level 2")),
+    buy,
+  );
+}
+
+function worksPlace(): HTMLElement {
+  return placeScreen(
+    [
+      orderStrip(STOREHOUSE_WALLS),
+      yard(EVENING_PILES),
+      ...MAKERS.map(makerBox),
+      yardBox(),
+      nextWide(EVENING_NEXT, "in the mine"),
+    ],
+    FOUR_TABS,
+    "works",
+  );
+}
+
+/* ---------- the workshop: manufacturing ---------- */
+
+interface Recipe {
+  readonly name: string;
+  readonly gives: string;
+  readonly needs: string;
+  readonly time: string;
+  /** What is missing, or null when it can go on the bench. */
+  readonly short: string | null;
+}
+
+const RECIPES: readonly Recipe[] = [
+  {
+    name: "Reinforce",
+    gives: "Pit trains 1,600/s to 1,680/s each",
+    needs: "5 iron",
+    time: "10 min",
+    short: null,
+  },
+  {
+    name: "Blasting charge",
+    gives: "Crew 2,700/s to 5,400/s for 20 min",
+    needs: "100K stones · 4 clay",
+    time: "10 min",
+    short: null,
+  },
+  {
+    name: "Sturdy props",
+    gives: "Trouble comes 30% less often",
+    needs: "250K stones · 10 clay · 4 iron",
+    time: "10 min",
+    short: "3 clay short",
+  },
+];
+
+function material(
+  art: string,
+  name: string,
+  have: string,
+  fill: number,
+): HTMLElement {
+  return h(
+    "div",
+    "pile material",
+    icon(art),
+    h("span", "label", name),
+    h("span", "num have", have),
+    bar(fill),
+  );
+}
+
+function recipeRow(recipe: Recipe): HTMLElement {
+  const needs = h("div", "needs", recipe.needs);
+  if (recipe.short !== null) {
+    needs.append(h("span", "amber", ` · ${recipe.short}`));
+  }
+  return h(
+    "div",
+    "recipe",
+    lamp(recipe.short === null ? "green" : "off"),
+    h(
+      "div",
+      "",
+      h("div", "name", recipe.name),
+      h("div", "own", recipe.gives),
+      needs,
+    ),
+    h("span", "time num", recipe.time),
+  );
+}
+
+function workshopPlace(): HTMLElement {
+  const bench = h(
+    "section",
+    "mine bench",
+    h(
+      "div",
+      "mine-head",
+      h("span", "label amber", "On the bench"),
+      lamp("amber"),
+    ),
+    h("div", "order-name", "Iron rails"),
+    h("div", "own", "Mine carts 34/s to 42.5/s each"),
+    bar(0.4),
+    h("div", "words", "Done in 6 min. The bench works on while you are away."),
+  );
+  const list = h(
+    "section",
+    "mine",
+    h(
+      "div",
+      "mine-head",
+      h("span", "label", "Next on the bench"),
+      h("span", "quiet", "One job at a time"),
+    ),
+    ...RECIPES.map(recipeRow),
+  );
+  return placeScreen(
+    [
+      orderStrip(STOREHOUSE_WALLS),
+      h(
+        "section",
+        "yard",
+        material(clayUrl, "Clay", "7 of 10", 0.7),
+        material(ironUrl, "Iron", "22 of 35", 0.63),
+      ),
+      bench,
+      list,
+      nextWide(EVENING_NEXT, "in the mine"),
+    ],
+    FOUR_TABS,
+    "workshop",
+  );
+}
+
+/* ---------- the village: building ---------- */
+
+interface Plot {
+  readonly art: string | null;
+  readonly name: string;
+  readonly state: string;
+  readonly lamp: Lamp;
+  readonly on: boolean;
+}
+
+const PLOTS: readonly Plot[] = [
+  {
+    art: nuggetUrl,
+    name: "The Beacon",
+    state: "Stands",
+    lamp: "green",
+    on: false,
+  },
+  {
+    art: stoneUrl,
+    name: "The Storehouse",
+    state: "Walls",
+    lamp: "amber",
+    on: true,
+  },
+  {
+    art: null,
+    name: "An empty plot",
+    state: "The smith asks",
+    lamp: "off",
+    on: false,
+  },
+];
+
+function plotTile(plot: Plot): HTMLElement {
+  const art = plot.art === null ? h("span", "icon") : icon(plot.art);
+  return h(
+    "button",
+    plot.on ? "plot on" : "plot",
+    art,
+    h("span", "name", plot.name),
+    h("span", "state", lamp(plot.lamp), plot.state),
+  );
+}
+
+function villagePlace(): HTMLElement {
+  const surface = view("surface wide", graniteUrl, 0, SURFACE_TOP);
+  const stepWords = h(
+    "div",
+    "step-words",
+    h("span", "done", "Footings ✓"),
+    h("span", "now", "Walls"),
+    h("span", "", "Roof"),
+  );
+  const power = h("div", "power");
+  power.append(
+    "When the roof is on: ",
+    h("b", "", "the yard holds twice as much."),
+  );
+  const building = h(
+    "section",
+    "card",
+    h(
+      "div",
+      "order-head",
+      h("span", "order-name", STOREHOUSE_WALLS.building),
+      steps(STOREHOUSE_WALLS.done),
+    ),
+    stepWords,
+    ...STOREHOUSE_WALLS.asks.map(askRow),
+    power,
+  );
+  const beacon = h(
+    "div",
+    "row",
+    lamp("green"),
+    h(
+      "div",
+      "stack",
+      h("span", "name", "The Beacon gives"),
+      h("span", "words", "Golden veins come 40% sooner."),
+    ),
+  );
+  return placeScreen(
+    [
+      surface,
+      yard(EVENING_PILES),
+      h("div", "plots", ...PLOTS.map(plotTile)),
+      building,
+      beacon,
+      nextWide(EVENING_NEXT, "in the mine"),
+    ],
+    FOUR_TABS,
+    "village",
+  );
+}
+
 /* ---------- the page ---------- */
 
 function sceneOf(search: string): Scene {
@@ -899,6 +1365,21 @@ function show(root: HTMLElement, scene: Scene): void {
     case "rooms":
       root.append(roomsScreen());
       return;
+    case "place-first":
+      root.append(minePlace(HOMES.start, TWO_TABS));
+      return;
+    case "place-mine":
+      root.append(minePlace(HOMES.home, FOUR_TABS));
+      return;
+    case "place-works":
+      root.append(worksPlace());
+      return;
+    case "place-workshop":
+      root.append(workshopPlace());
+      return;
+    case "place-village":
+      root.append(villagePlace());
+      return;
   }
 }
 
@@ -906,6 +1387,7 @@ function show(root: HTMLElement, scene: Scene): void {
 const STEEL: readonly (readonly [string, SkinKind])[] = [
   [".village, .mine, .group, .card", "frame"],
   [".pile, .stage, .sum, .row, .next, .back, .key, .tab", "counter"],
+  [".ostrip, .plate:not(.rock), .plot", "counter"],
   [".stepper", "key"],
   [".tag", "tag"],
 ];
