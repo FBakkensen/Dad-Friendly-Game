@@ -497,7 +497,7 @@ export function shortMountain(): Seed {
     ...open,
     mountain: {
       remaining: 240_000_000 - 25_000_000,
-      pocket: 6_000_000,
+      pocket: 7_000_000,
       helpers: 21,
       carts: 6,
       drills: 4,
@@ -605,7 +605,12 @@ export function machinePickMountain(): Seed {
     mountain: {
       ...machine.mountain,
       pocket: 200_000_000,
-      helpers: 90,
+      helpers: 120,
+      // On the line (#536) three pit trains and twenty drills carry the haul
+      // and the face past the lift, so the lift is the stage to raise and the
+      // Great Machine the pick.
+      drills: 20,
+      trains: 3,
       engineers: [{ name: "Ada", rank: 0, trips: 0, post: "machine" }],
     },
   };

@@ -588,8 +588,12 @@ for (const viewport of SCREENS) {
     // press is early by load.
 
     // Ready now: a tap buys exactly one cart for one price and paints Done.
+    // With no cart yet the haul is the stage to lift (#536), so the plate
+    // offers the first cart.
     {
-      const { page, close } = await openScreen(viewport, crewMountain(), {
+      const crew = crewMountain();
+      const noCart = { ...crew, mountain: { ...crew.mountain, carts: 0 } };
+      const { page, close } = await openScreen(viewport, noCart, {
         stopClock: true,
         tapClock: "held",
       });

@@ -96,11 +96,24 @@ const ENGINEERS_LOCKED = new Set([
  */
 const FULL_ENGINEERS_ROWS = 7;
 /**
- * Late-game Buys runs longer than the drawer and scrolls inside it (C1): the
- * Great Machine's era, with the Kid row. Up to the borer it fits, its
- * footnote stepping aside when it would push the list into a scroll (#373).
+ * Buys runs longer than the drawer and scrolls inside it (C1) from the borer
+ * on: on the line (#536) the hoist and the pit train add two rows, and the
+ * pit train shows, locked, once a borer is owned. Before the borer it fits,
+ * its footnote stepping aside when it would push the list into a scroll
+ * (#373). Buys by stage (#538) lays the rows out again.
  */
-const LONG_BUYS = new Set(["machine", "machine, the Great Machine the pick"]);
+const LONG_BUYS = new Set([
+  "mid",
+  "short",
+  "tools",
+  "crew",
+  "mid, the borer the pick",
+  "mid, two chip rows",
+  "machine",
+  "machine, the Great Machine the pick",
+  "engineers, five",
+  "engineers, out",
+]);
 /**
  * A full Upgrades scrolls inside its drawer too (C1, the spec's "a full
  * Upgrades"): from six rows, more than the drawer holds at 76px each.
@@ -580,10 +593,12 @@ const registerStates = (viewport) => {
     {
       const { close, rows: early } = await visit(() => crewMountain(), "buys");
       check(
-        early.cart?.classes.includes("is-pick") === true &&
-          early.cart.lamp === LAMP_X.amber &&
+        // On the line (#536) six carts leave the haul with room to spare, so
+        // the hoist is the pick.
+        early.hoist?.classes.includes("is-pick") === true &&
+          early.hoist.lamp === LAMP_X.amber &&
           early.drill?.classes.includes("is-dear") === true,
-        `${size} early Buys: the cart is the amber pick and the drill is dear`,
+        `${size} early Buys: the hoist is the amber pick and the drill is dear`,
       );
       await close();
     }
@@ -610,11 +625,24 @@ const registerStates = (viewport) => {
     // A Buys row's words read whole (#506): the milestone's payoff on two
     // lines, or its short form beside a need line, and the engineer's flag
     // with its number. No info line or flag is cut.
-    for (const [name, save, drill] of [
-      ["mid", openMountain, /^2 of 10 · Every drill mines twice as fast\.$/],
-      ["fleet", fleetMountain, /^30 of 50 · Twice as fast again\.$/],
-      ["heart", heartMountain, /^10 of 25 · Twice as fast/],
-      ["short", shortMountain, /^4 of 10 · Every drill mines twice as fast\.$/],
+    // On the line (#536) a machine on a stage with room to spare reads that
+    // instead of its mark, so each save reads the payoff on a row that lifts
+    // the line: the hoist, the carts' second mark, the pit train short of hands.
+    for (const [name, save, tier, payoff] of [
+      [
+        "mid",
+        openMountain,
+        "hoist",
+        /^0 of 10 · Every hoist lifts twice as fast\.$/,
+      ],
+      ["fleet", fleetMountain, "cart", /^120 of 150 · Twice as fast again\.$/],
+      ["heart", heartMountain, "train", /^0 of 5 · They haul twice as fast\.$/],
+      [
+        "short",
+        shortMountain,
+        "hoist",
+        /^0 of 10 · Every hoist lifts twice as fast\.$/,
+      ],
     ]) {
       const { page, close } = await visit(() => save(), "buys");
       const lines = await page.$$eval(
@@ -630,12 +658,12 @@ const registerStates = (viewport) => {
           })),
       );
       const cut = lines.filter((line) => line.cut);
-      const drillInfo =
-        lines.find((line) => line.tier === "drill" && line.line === "info")
+      const info =
+        lines.find((line) => line.tier === tier && line.line === "info")
           ?.text ?? "";
       check(
-        lines.length >= 5 && cut.length === 0 && drill.test(drillInfo),
-        `${size} ${name} Buys: no info line or flag is cut, and the drill shows its payoff (${drillInfo})`,
+        lines.length >= 5 && cut.length === 0 && payoff.test(info),
+        `${size} ${name} Buys: no info line or flag is cut, and the ${tier} shows its payoff (${info})`,
       );
       if (cut.length > 0) {
         console.log("cut Buys lines", size, name, cut);
@@ -648,8 +676,9 @@ const registerStates = (viewport) => {
         "buys",
       );
       check(
-        saving.cart?.flag === "Saving for",
-        `${size} saving Buys: the cart row is flagged Saving for (${String(saving.cart?.flag)})`,
+        // On the line (#536) six carts hold the haul, so he saves for a hoist.
+        saving.hoist?.flag === "Saving for",
+        `${size} saving Buys: the hoist row is flagged Saving for (${String(saving.hoist?.flag)})`,
       );
       await close();
     }

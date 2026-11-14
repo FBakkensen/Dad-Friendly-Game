@@ -212,7 +212,7 @@ const EXPECTED = {
     lastSeen: 1700000000000,
     mountain: {
       remaining: 215000000,
-      pocket: 6000000,
+      pocket: 7000000,
       helpers: 21,
       carts: 6,
       drills: 4,
@@ -333,11 +333,12 @@ const EXPECTED = {
     mountain: {
       remaining: 180000000,
       pocket: 200000000,
-      helpers: 90,
+      helpers: 120,
       kids: 0,
       carts: 20,
-      drills: 10,
+      drills: 20,
       borers: 4,
+      trains: 3,
       machines: 1,
       engineers: [{ name: "Ada", rank: 0, trips: 0, post: "machine" }],
     },
