@@ -8,6 +8,7 @@
  */
 import { defineConfig } from "@playwright/test";
 import { chromePath } from "../browser/harness.ts";
+import { PHONE } from "./phone.ts";
 
 /** Away from the other scripts' Vite ports (4174, and 4175 upward when that one is taken). */
 const PORT = 4186;
@@ -27,10 +28,7 @@ export default defineConfig({
   reporter: "line",
   use: {
     baseURL: BASE,
-    // The board: the game is phone-only.
-    viewport: { width: 424, height: 924 },
-    isMobile: true,
-    hasTouch: true,
+    ...PHONE,
     trace: "retain-on-failure",
     launchOptions: { executablePath: chromePath(), args: ["--no-sandbox"] },
   },

@@ -607,8 +607,14 @@ focus)` (`showCard`, the model's open or close, and the focus once as it
 - Gameplay journeys (#552): Playwright Test (`@playwright/test`, pinned) drives
   a phone-sized Chrome (424×924, touch) through stored player journeys,
   `tools/journeys/*.journey.ts`: the first two minutes on a fresh mountain
-  (taps, the first worker, ten workers, the first cart) and back after eight
-  hours (the welcome card's haul). `npm run journeys` runs them, and the full
+  (taps, the first worker, ten workers, the first cart), back after eight
+  hours (the welcome card's haul), kill the tab and reopen (#553: the
+  renderer crashes through CDP `Page.crash`, so no pagehide or unload handler
+  runs, and a new tab opens the same moment), and the tab left open all night
+  (the clock jumps eight hours at once on an open tab, and the board pays what
+  a cold open of the same save pays on a second phone, `otherPhone()`). A kill
+  while the crew digs with no move since hands their work back at the away
+  rate; that journey pins the gap as known (#573). `npm run journeys` runs them, and the full
   gate's `journeys` step (heavy lane) does too; a failure keeps a trace in
   `.gate/journeys/`. The config (`tools/journeys/playwright.config.ts`) starts
   its own Vite on port 4186 and launches the same Chrome as the harness

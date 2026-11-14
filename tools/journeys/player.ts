@@ -3,13 +3,19 @@
  * named save, taps, buys and reads the numbers the player sees, and never reaches into the
  * game. The save, the clock and Math.random are set before the page boots.
  */
-import { test as base, expect, type Page } from "@playwright/test";
+import {
+  test as base,
+  expect,
+  type BrowserContext,
+  type Page,
+} from "@playwright/test";
 import { DRAWER_SETTLE_MS } from "../../src/board-interaction.ts";
 import type { ShownTierId } from "../../src/tiers.ts";
 import { seedJson, type SeedSave } from "../browser/fixtures.ts";
 import { SAVE_KEY, seedScript } from "../browser/harness.ts";
 import { createRng } from "../sweep/random.ts";
-import { TICK_MS } from "./expected.ts";
+import { TICK_MS, type Expected } from "./expected.ts";
+import { PHONE } from "./phone.ts";
 
 /** 9 pm on a weekday: the kids are asleep. Every journey's clock starts here. */
 export const NINE_PM = Date.UTC(2026, 10, 16, 21, 0, 0);
@@ -26,14 +32,23 @@ const BUYS_KEY = '.board-key[data-key="buys"]';
 const OPEN_BUYS = '.board-sheet[data-sheet="buys"].is-open';
 
 export class Player {
-  readonly page: Page;
+  private tab: Page;
   /** The page's clock: it stands still between the journey's waits. */
   private at = NINE_PM;
   /** Every error the page threw: any one fails the journey. */
   readonly pageErrors: Error[] = [];
 
   constructor(page: Page) {
-    this.page = page;
+    this.tab = page;
+    this.watch(page);
+  }
+
+  /** The tab the player has open now. */
+  get page(): Page {
+    return this.tab;
+  }
+
+  private watch(page: Page): void {
     page.on("pageerror", (error) => {
       this.pageErrors.push(error);
     });
@@ -45,24 +60,55 @@ export class Player {
   }
 
   /**
-   * Opens the game at nine o'clock on `save`, or on nothing saved. The stored JSON is
-   * returned, so the journey can ask the rules what that save is owed.
+   * Opens the game at `at` (nine o'clock unless a journey says otherwise) on `save`, or on
+   * nothing saved. The stored JSON is returned, so the journey can ask the rules what that save
+   * is owed.
    */
-  async open(save?: SeedSave): Promise<string | undefined> {
+  async open(save?: SeedSave, at = NINE_PM): Promise<string | undefined> {
     const json = save === undefined ? undefined : seedJson(save);
-    // The clock stands at nine and moves only when the journey waits.
-    await this.page.clock.install({ time: this.at - TICK_MS });
-    await this.page.clock.pauseAt(this.at);
-    // The sweep's own seeded stream, put in before any of the game's code runs.
-    await this.page.addInitScript({
-      content: `Math.random = (${createRng.toString()})(${String(RANDOM_SEED)});`,
-    });
+    this.at = at;
     const seed = seedScript(
       json === undefined
         ? { kind: "remove" }
         : { kind: "once", guard: "journey-seeded", json },
       SAVE_KEY,
     );
+    await this.boot(seed);
+    return json;
+  }
+
+  /**
+   * The tab is killed the way a phone kills it: the renderer crashes, so no pagehide, no
+   * visibilitychange and no unload handler runs. Only what the game already saved survives.
+   */
+  async kill(): Promise<void> {
+    const crashed = this.page.waitForEvent("crash");
+    const cdp = await this.page.context().newCDPSession(this.page);
+    // Page.crash never answers: the renderer is gone before it can.
+    void cdp.send("Page.crash").catch(() => undefined);
+    await crashed;
+    await this.page.close();
+  }
+
+  /** Opens the game again in a new tab of the same phone, at the moment on the clock now. */
+  async reopen(): Promise<void> {
+    this.tab = await this.page.context().newPage();
+    this.watch(this.tab);
+    await this.boot(undefined);
+    // The killed tab's writer lease outlives it; the new tab plays once it holds the seat,
+    // and until then it shows the other-tab card.
+    await expect(this.page.locator(".other-tab")).toBeHidden();
+  }
+
+  /** The clock, the seeded random and the save go in, then the game boots. */
+  private async boot(seed: string | undefined): Promise<void> {
+    // The clock stands where the journey says and moves only when the journey waits.
+    await this.page.clock.install({ time: this.at - TICK_MS });
+    await this.page.clock.pauseAt(this.at);
+    // The sweep's own seeded stream, put in before any of the game's code runs.
+    await this.page.addInitScript({
+      content: `Math.random = (${createRng.toString()})(${String(RANDOM_SEED)});`,
+    });
     if (seed !== undefined) {
       await this.page.addInitScript(seed);
     }
@@ -71,7 +117,15 @@ export class Player {
     await expect(this.page.locator(".save-status")).not.toHaveText(
       /^$|Loading/,
     );
-    return json;
+  }
+
+  /**
+   * The clock jumps `ms` at once, as a phone left on all night does: every due timer, the
+   * game's tick among them, runs once at the far end.
+   */
+  async jump(ms: number): Promise<void> {
+    await this.page.clock.fastForward(ms);
+    this.at += ms;
   }
 
   /**
@@ -149,12 +203,59 @@ export class Player {
   }
 }
 
-/** The journeys' test: a `player` on a phone page, failed by any page error. */
-export const test = base.extend<{ player: Player }>({
+/**
+ * Digs by hand until the rules say a worker is affordable, opens Buys and hires him: the
+ * opening every fresh journey shares. Buys is left open.
+ */
+export async function hireFirstWorker(
+  player: Player,
+  rules: Expected,
+): Promise<void> {
+  let taps = 0;
+  while (!rules.allows({ kind: "buyTier", id: "helper" }, player.now)) {
+    rules.move({ kind: "dig" }, player.now);
+    taps += 1;
+    expect(taps, "taps to the first worker").toBeLessThan(200);
+  }
+  await player.dig(taps);
+  await player.expectStones(rules.pocket);
+  await player.openBuys();
+  rules.until(player.now);
+  expect(rules.move({ kind: "buyTier", id: "helper" }, player.now)).toBe(true);
+  await player.buy("helper");
+  await player.expectStones(rules.pocket);
+}
+
+/**
+ * The journeys' test: a `player` on a phone page, and `otherPhone()` for a second phone with its
+ * own storage (a cold open beside a tab left open). Any page error on either fails the journey.
+ */
+export const test = base.extend<{
+  player: Player;
+  otherPhone: () => Promise<Player>;
+}>({
   player: async ({ page }, use) => {
     const player = new Player(page);
     await use(player);
     expect(player.pageErrors, "page errors").toEqual([]);
+  },
+  otherPhone: async ({ browser, baseURL }, use) => {
+    const phones: { player: Player; context: BrowserContext }[] = [];
+    await use(async () => {
+      const context = await browser.newContext({
+        ...PHONE,
+        ...(baseURL === undefined ? {} : { baseURL }),
+      });
+      const player = new Player(await context.newPage());
+      phones.push({ player, context });
+      return player;
+    });
+    for (const { context } of phones) {
+      await context.close();
+    }
+    for (const { player } of phones) {
+      expect(player.pageErrors, "page errors on the other phone").toEqual([]);
+    }
   },
 });
 
