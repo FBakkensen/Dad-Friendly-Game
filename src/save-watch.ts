@@ -222,8 +222,11 @@ function prepareLocal(ctx: StoreContext, uid: string): void {
   if (backup.kind === "unreadable") {
     return;
   }
+  if (ctx.asideHeld.has(phoneBackupKey(uid))) {
+    return;
+  }
   if (!hasLocalProgress(ctx)) {
-    clearSessionSave({ storage });
+    clearGuest(ctx, storage);
     return;
   }
   const { mountain, lastSeen } = ctx.session;
@@ -239,6 +242,13 @@ function prepareLocal(ctx: StoreContext, uid: string): void {
     ...phoneConflict(ctx.saveConflict),
   });
   if (wrote !== "failed") {
+    clearGuest(ctx, storage);
+  }
+}
+
+/** Drops the guest key, unless its copy from before this version could not move aside. */
+function clearGuest(ctx: StoreContext, storage: Storage): void {
+  if (!ctx.asideHeld.has(SESSION_SAVE_KEY)) {
     clearSessionSave({ storage });
   }
 }

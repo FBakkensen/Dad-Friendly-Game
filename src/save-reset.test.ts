@@ -14,7 +14,7 @@ import {
 import { createMountain, minedOut, type Mountain } from "./mountain";
 import { createProgressStore } from "./progress-store";
 import { SESSION_SAVE_KEY } from "./session-save";
-import { minedMountain } from "./test-fixtures";
+import { minedMountain, saveText } from "./test-fixtures";
 
 const user = { uid: "test-dad", label: "Test Dad" };
 const BACKUP_KEY = `dad-friendly-game-backup:${user.uid}`;
@@ -204,5 +204,61 @@ describe("a blank reset meets a copy of this version (#558)", () => {
     expect(progress.getSnapshot().mountain).toBe(tied);
     expect(docs.get(user.uid)).toBe(tied);
     progress.dispose();
+  });
+});
+
+describe("a set-aside never costs a played copy (#558)", () => {
+  it("a played copy of this version is kept, at the later run stamp", async () => {
+    const storage = createMemoryStorage();
+    olderBackup(storage, 500);
+    storage.setItem(SESSION_SAVE_KEY, saveText(minedMountain(5_000), 9));
+    const docs = new Map<string, Mountain>();
+    const progress = signedIn(createMemoryCloudSave({ docs }), storage);
+    await vi.waitFor(() => {
+      expect(progress.getSnapshot().saveKind).toBe("account");
+    });
+    expect(minedOut(progress.getSnapshot().mountain)).toBe(5_000);
+    expect(progress.getSnapshot().mountain.startedAt).toBe(500);
+    expect(storage.getItem(BACKUP_KEY) ?? "").toContain('"startedAt":500');
+    await vi.waitFor(() => {
+      expect(minedOut(docs.get(user.uid) ?? createMountain())).toBe(5_000);
+    });
+    progress.dispose();
+  });
+
+  it("a move aside that fails keeps the old text where it was", () => {
+    const storage = createMemoryStorage();
+    const raw = JSON.stringify({ version: 7, lastSeen: 1, startedAt: 40 });
+    storage.setItem(SESSION_SAVE_KEY, raw);
+    const full: Storage = {
+      get length() {
+        return storage.length;
+      },
+      clear: () => {
+        storage.clear();
+      },
+      key: (index) => storage.key(index),
+      getItem: (key) => storage.getItem(key),
+      removeItem: (key) => {
+        storage.removeItem(key);
+      },
+      setItem: (key, value) => {
+        if (key.endsWith(":v7")) {
+          throw new Error("QuotaExceededError");
+        }
+        storage.setItem(key, value);
+      },
+    };
+    const progress = createProgressStore({
+      auth: createMemoryAuth(),
+      sessionStorage: full,
+    });
+    progress.dispatch({ kind: "dig" });
+    progress.flush();
+    progress.dispose();
+    expect(storage.getItem(SESSION_SAVE_KEY)).toBe(raw);
+    expect(
+      progress.fieldLog().events.filter((event) => event.code === "save.error"),
+    ).toEqual([expect.objectContaining({ data: { source: "set-aside" } })]);
   });
 });

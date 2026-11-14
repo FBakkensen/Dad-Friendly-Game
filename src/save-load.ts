@@ -104,10 +104,10 @@ export type SetAside = {
 };
 
 /**
- * Copies from before this version were set aside: Tonight starts again, and
- * unless a copy of this version is already in play from as late a run, a
- * fresh mountain does, stamped with the latest of their runs so it is never
- * an earlier run than the one it replaced. It is not a copy until it is
+ * Copies from before this version were set aside: Tonight starts again. A
+ * played copy of this version stays in play; otherwise a fresh mountain
+ * does. Either is stamped with the latest of their runs, so it is never an
+ * earlier run than the one it replaced. A fresh one is not a copy until it is
  * played (`blankReset`).
  */
 export function resetFresh(
@@ -128,7 +128,10 @@ export function resetFresh(
     runStartedAt(playing),
     ...aside.map((each) => each.startedAt),
   );
-  if (hasLocalProgress(ctx) && runStartedAt(playing) >= startedAt) {
+  if (hasLocalProgress(ctx)) {
+    // A played copy of this version is never given up for a blank one: it
+    // only takes the later run stamp, so it is never an earlier run either.
+    ctx.session = { ...ctx.session, mountain: { ...playing, startedAt } };
     return;
   }
   adopt(ctx, { ...createMountain(), startedAt }, undefined);

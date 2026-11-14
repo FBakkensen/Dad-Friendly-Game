@@ -473,16 +473,20 @@ paths are read-only.
   has shipped. Adding a line is fine. Removing one or lowering a cap needs a
   version bump, or an older save would read `newer` on a build that should
   play it.
-- **The writer reads back what it sends** (`cloud-writer`): a payload that
-  would not read `ok` is not sent; `save.shape` is logged as an error and the
-  save line shows the error.
+- **Every writer reads back what it sends** (`save-shape`): a save that
+  would not read `ok` goes to neither the cloud, the phone backup nor the
+  guest key; `save.shape` is logged once as an error and the save line shows
+  the error.
 - **A reset sets the old save aside.** An `older` guest save or phone backup
   moves byte for byte to `{key}:v{version}`. An `older` cloud copy holds the
   board while it goes to Saved copies as it was stored (`archiveRaw`, reason
   `reset`, within the archive wait); a copy that does not land keeps the hold
-  and logs `save.archive`. Then `resetFresh` puts a fresh mountain in play,
-  stamped with the latest of the old runs, so it is never an earlier run than
-  the one it replaced, and the cloud gets it at the old rev plus one.
+  and logs `save.archive`. A move on the phone that fails (a full phone)
+  holds that key: nothing writes or clears it, and the next open tries again.
+  Then `resetFresh` keeps a played copy of this version in play, or else puts
+  a fresh mountain in play, stamped with the latest of the old runs, so it is
+  never an earlier run than the one it replaced, and the cloud gets it at the
+  old rev plus one.
   `save.set-aside` starts Tonight again. While nothing is played on it, the
   fresh mountain is not a copy (`blankReset`): a device that played the same
   run is ahead, and a cloud copy that ties it is kept.

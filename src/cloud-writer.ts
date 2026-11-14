@@ -15,8 +15,8 @@ import {
 } from "./field-log";
 import { fieldEventsToUpload, persistPhoneBackup } from "./local-saves";
 import type { Mountain } from "./mountain";
-import { readSave, serializeSave } from "./persist";
 import { saveEchoKey } from "./phone-backup";
+import { shapeRefused } from "./save-shape";
 import { effectiveRates } from "./rates";
 import { saveCounts } from "./session";
 import {
@@ -135,33 +135,6 @@ export function healCloud(ctx: StoreContext): void {
     return;
   }
   persistCloudSoon(ctx);
-}
-
-/**
- * The writer reads back what it is about to send (#558): a save this build
- * could not read is never written. It says so on the save line and in the log.
- */
-function shapeRefused(
-  ctx: StoreContext,
-  mountain: Mountain,
-  lastSeen: number,
-): boolean {
-  const read = readSave(
-    JSON.parse(JSON.stringify(serializeSave({ mountain, lastSeen }))),
-  );
-  if (read.kind === "ok") {
-    return false;
-  }
-  record(ctx, "save.shape", { source: read.kind });
-  log(ctx, {
-    level: "error",
-    code: "save.shape",
-    detail: read.kind,
-    data: saveCounts(mountain),
-  });
-  ctx.saveKind = "error";
-  ctx.hooks.emit();
-  return true;
 }
 
 /** Sends one write now, unless a hold, an unseen server, or the conflict sheet keeps it waiting. */

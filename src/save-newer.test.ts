@@ -209,6 +209,58 @@ describe("the writer reads back what it sends (#558)", () => {
     progress.dispose();
   });
 
+  it("refuses it on the phone backup too, so a relaunch still plays", async () => {
+    const docs = new Map<string, Mountain>();
+    docs.set(user.uid, minedMountain(5));
+    const storage = createMemoryStorage();
+    const open = () =>
+      createProgressStore({
+        auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+        cloudSave: createMemoryCloudSave({ docs }),
+        sessionStorage: storage,
+        cloudWriteGapMs: 0,
+      });
+    const progress = open();
+    await vi.waitFor(() => {
+      expect(progress.getSnapshot().saveKind).toBe("account");
+    });
+    progress.applyMutation((mountain) => ({
+      ...mountain,
+      pocket: mountain.pocket + 10,
+      recipes: [...mountain.recipes, "kiln" as RecipeId],
+    }));
+    progress.applyMutation((mountain) => ({ ...mountain, pocket: 1 }));
+    progress.flush();
+    progress.dispose();
+    expect(storage.getItem(BACKUP_KEY) ?? "").not.toContain("kiln");
+    expect(
+      progress.fieldLog().events.filter((event) => event.code === "save.shape"),
+    ).toHaveLength(1);
+    const again = open();
+    await vi.waitFor(() => {
+      expect(again.getSnapshot().saveKind).toBe("account");
+    });
+    expect(again.getSnapshot().newer).toBe(false);
+    again.dispose();
+  });
+
+  it("refuses it on the guest save too", () => {
+    const storage = createMemoryStorage();
+    const progress = createProgressStore({
+      auth: createMemoryAuth(),
+      sessionStorage: storage,
+    });
+    progress.applyMutation((mountain) => ({
+      ...mountain,
+      pocket: mountain.pocket + 10,
+      recipes: [...mountain.recipes, "kiln" as RecipeId],
+    }));
+    progress.flush();
+    expect(storage.getItem(SESSION_SAVE_KEY) ?? "").not.toContain("kiln");
+    expect(progress.getSnapshot().log).toContain("save.shape");
+    progress.dispose();
+  });
+
   it("a fresh guest save text reads ok", () => {
     expect(
       JSON.parse(saveText(minedMountain(2), 1)) as { version: number },

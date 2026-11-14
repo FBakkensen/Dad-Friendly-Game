@@ -182,6 +182,13 @@ export type StoreContext = {
   blankReset: boolean;
   /** The watch generation whose older cloud copy is on its way to Saved copies (#558). */
   settingAside: number | undefined;
+  /** The last save a writer read back was refused (#558); said once until one reads ok. */
+  shapeRefused: boolean;
+  /**
+   * Keys whose copy from before this version could not be moved aside (#558):
+   * nothing writes or clears them, so the old text stays where it was.
+   */
+  readonly asideHeld: Set<string>;
   /** Whose kept events the ring holds (#479); undefined until the account is known. */
   ringScope: RingScope | undefined;
   /** The ring as last kept on this device: its push count, when, and whether that write failed. */
@@ -239,6 +246,8 @@ export function createStoreContext(
     keepingLeft: false,
     blankReset: false,
     settingAside: undefined,
+    shapeRefused: false,
+    asideHeld: new Set(),
     ringScope: undefined,
     ringKept: { pushes: 0, at: undefined, failed: false },
     loadingSince: undefined,

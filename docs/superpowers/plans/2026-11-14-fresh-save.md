@@ -184,10 +184,14 @@
 
 ## Rulings
 
+- **`lastSeen` reads as any finite number on the phone.** The tests play set-back and fractional clocks through the reader; the cloud rules still take only a whole number from 0, and the clock the game writes is one.
+- **Every writer reads back what it writes**, not only the cloud: the guest save and the phone backup go through the same `shapeRefused` (`save-shape.ts`), so a refused save never reaches the phone and the next open still plays. `save.shape` is recorded once until a save reads ok again (review finding).
+- **The cloud field log still writes while a newer save holds play.** It is how a held phone is diagnosed, and it is not a save.
+- **A set-aside retried in one watch is not doubled**: `settingAside` guards it per watch. A copy queued offline past the archive wait may still land twice on a later watch; a second raw copy in Saved copies is harmless.
 - **A reset archive keeps the old document whole under `raw`.** The rules take that shape only for reason `reset`; the other reasons keep their v8 copy shape. The old document is never parsed, so nothing about v7 lives on in this build.
-- **A reset keeps a copy of this version from as late a run.** `resetFresh` keeps the phone's own v8 copy if it has progress and its run stamp is at least the stamp set aside; otherwise a fresh mountain starts at the latest stamp, so a device that played stays ahead of one that reset to blank.
+- **A reset never gives up a played copy of this version.** `resetFresh` keeps it in play and lifts its run stamp to the latest stamp set aside (the stamp only names the run, so the rules' run check holds); only an unplayed device starts a fresh mountain at that stamp, so a device that played stays ahead of one that reset to blank (review finding).
 - **Set-aside is recorded as `save.set-aside` with `id: vN`.** A field event has no `version` key, and the ring stays as it is.
-- **A failed move aside on the phone records `save.error` (source `set-aside`) and still resets.** The old text stays where it was; it is never deleted and never played.
+- **A failed move aside on the phone holds that key.** It records and logs `save.error` (source `set-aside`), and nothing this session writes or clears that key, so the old text stays where it was and the next open tries again (review finding).
 - **`npm run play` gained `reload` and `reopen`**, so the done-when's reload and kill-and-reopen are seen in a real browser.
 - **Seeds keep their authoring shape (a mountain and a workshop half), and `seedJson` converts them.** Old v4 seeds keep the depth they had on main (main deepened a v4 mountain from 100M on load), so each screen opens where it did.
 - **Stale seeds and sections went.** `unknownBenchSave` and `staffingNoteSave` checked a v6 read that no longer exists; `crewV4Save` is now `boostedCrewSave`.

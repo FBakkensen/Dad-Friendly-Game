@@ -18,9 +18,14 @@ import {
   withKept,
   type RingScope,
 } from "./field-ring";
-import { writePhoneBackup, type PhoneConflict } from "./phone-backup";
+import {
+  phoneBackupKey,
+  writePhoneBackup,
+  type PhoneConflict,
+} from "./phone-backup";
+import { shapeRefused } from "./save-shape";
 import { saveCounts } from "./session";
-import { writeSessionSave } from "./session-save";
+import { SESSION_SAVE_KEY, writeSessionSave } from "./session-save";
 import {
   cloudDirty,
   canWrite,
@@ -59,17 +64,20 @@ export function persistSessionQuietly(ctx: StoreContext): void {
 /** True when the guest's save was written. A failed write is recorded. */
 function writeGuestSave(ctx: StoreContext): boolean {
   const storage = ctx.ports.storage;
-  if (!canWrite(ctx) || signedIn(ctx) || storage === undefined) {
+  if (
+    !canWrite(ctx) ||
+    signedIn(ctx) ||
+    storage === undefined ||
+    ctx.asideHeld.has(SESSION_SAVE_KEY)
+  ) {
     return false;
   }
-  const { mountain, lastSeen } = ctx.session;
-  if (
-    !writeSessionSave({
-      storage,
-      mountain,
-      lastSeen: lastSeen ?? ctx.ports.now(),
-    })
-  ) {
+  const { mountain } = ctx.session;
+  const lastSeen = ctx.session.lastSeen ?? ctx.ports.now();
+  if (shapeRefused(ctx, mountain, lastSeen)) {
+    return false;
+  }
+  if (!writeSessionSave({ storage, mountain, lastSeen })) {
     record(ctx, "save.error", { source: "session" });
     return false;
   }
@@ -105,16 +113,21 @@ export function persistPhoneBackup(ctx: StoreContext): void {
     !canWrite(ctx) ||
     uid === undefined ||
     storage === undefined ||
-    !ctx.hydrated
+    !ctx.hydrated ||
+    ctx.asideHeld.has(phoneBackupKey(uid))
   ) {
     return;
   }
-  const { mountain, lastSeen } = ctx.session;
+  const { mountain } = ctx.session;
+  const lastSeen = ctx.session.lastSeen ?? ctx.ports.now();
+  if (shapeRefused(ctx, mountain, lastSeen)) {
+    return;
+  }
   const result = writePhoneBackup({
     storage,
     uid,
     mountain,
-    lastSeen: lastSeen ?? ctx.ports.now(),
+    lastSeen,
     rev: ctx.rev,
     deviceId: ctx.ports.deviceId,
     syncedRev: ctx.syncedRev,
@@ -161,7 +174,8 @@ export function clearHomecomings(ctx: StoreContext): void {
 /**
  * Moves a copy from before this version to `{key}:v{version}`, byte for
  * byte, and frees the key for this version's save (#558). A failed move
- * leaves the key as it was and is recorded.
+ * (a full phone) leaves the old text where it was: the key is held, so
+ * nothing this session writes or clears it, and the next open tries again.
  */
 export function setAsideLocal(
   ctx: StoreContext,
@@ -177,7 +191,14 @@ export function setAsideLocal(
     storage.setItem(`${key}:v${String(version)}`, raw);
     storage.removeItem(key);
   } catch {
+    ctx.asideHeld.add(key);
     record(ctx, "save.error", { source: "set-aside" });
+    log(ctx, {
+      level: "error",
+      code: "save.error",
+      detail: "set-aside",
+      data: { version },
+    });
   }
 }
 
