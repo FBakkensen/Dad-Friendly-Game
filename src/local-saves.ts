@@ -45,12 +45,15 @@ export function persistSession(ctx: StoreContext): void {
 }
 
 /**
- * The guest's save on a tick the crew moved it, with no log line: a phone
- * that kills the tab then loses at most one tick at the away rate (#573).
- * Signed in, the phone backup does the same on each tick.
+ * The guest's save on each tick, with no log line, once there is a guest save
+ * to keep current (the same check as hide): a phone that kills the tab then
+ * loses at most one tick at the away rate (#573). An untouched mountain is not
+ * saved. Signed in, the phone backup is written on each tick instead.
  */
 export function persistSessionQuietly(ctx: StoreContext): void {
-  writeGuestSave(ctx);
+  if (ctx.saveKind === "session") {
+    writeGuestSave(ctx);
+  }
 }
 
 /** True when the guest's save was written. A failed write is recorded. */

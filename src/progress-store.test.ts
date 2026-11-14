@@ -87,6 +87,20 @@ describe("createProgressStore", () => {
     });
   });
 
+  it("does not save an untouched guest mountain on a tick (#573)", () => {
+    const storage = createMemoryStorage();
+    let clock = 1_000;
+    const progress = createProgressStore({
+      auth: createMemoryAuth(),
+      sessionStorage: storage,
+      now: () => clock,
+    });
+    clock += 3_000;
+    progress.tick();
+    expect(readSessionSave({ storage })).toBeUndefined();
+    expect(progress.getSnapshot().saveKind).toBe("unsigned");
+  });
+
   it("writes unsigned digs to this tab and restores them", () => {
     const storage = createMemoryStorage();
     const auth = createMemoryAuth();

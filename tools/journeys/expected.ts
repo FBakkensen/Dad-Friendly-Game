@@ -26,10 +26,10 @@ import {
 export const TICK_MS = 1000;
 
 /**
- * What the game last wrote to the phone: it saves on every move, and on every tick that moves
- * the mountain or its clock (#573). Exact once a move or a tick has run: before that, a fresh
- * open has saved nothing and an opened save is written again only when its open paid or
- * staffed. A band's recipe grant also saves; the journeys never reach one before a kill.
+ * What the game last wrote to the phone: it saves on every move, and, once a guest save
+ * exists, on every tick (#573: a tick always moves the clock). A fresh open saves nothing until
+ * its first move; an opened save is kept current from its open. A band's recipe grant also
+ * saves; the journeys never reach one before a kill.
  */
 type Saved = {
   readonly mountain: Mountain;
@@ -41,11 +41,14 @@ export class Expected {
   /** The last moment the game's one-second tick ran, on the page's clock. */
   private ticked: number;
   private saved: Saved;
+  /** A guest save exists, so each tick writes it (store-actions.ts `tickStore`). */
+  private saving: boolean;
 
-  private constructor(session: Session, at: number) {
+  private constructor(session: Session, at: number, saving: boolean) {
     this.session = session;
     this.ticked = at;
     this.saved = { mountain: session.mountain, lastSeen: session.lastSeen };
+    this.saving = saving;
   }
 
   /** A first open with nothing saved, at `at`: the store's fresh mountain, seeded the same. */
@@ -55,7 +58,7 @@ export class Expected {
       { kind: "tick" },
       at,
     );
-    return new Expected(opened.session, at);
+    return new Expected(opened.session, at, false);
   }
 
   /**
@@ -101,7 +104,7 @@ export class Expected {
     ).session;
     const paid = step(recalled, { kind: "away", since: saved.lastSeen }, at);
     return {
-      expected: new Expected(markWelcomed(paid.session), at),
+      expected: new Expected(markWelcomed(paid.session), at, true),
       report: firstNotice(paid.session.news, "away")?.report,
     };
   }
@@ -118,13 +121,8 @@ export class Expected {
   until(now: number): void {
     while (this.ticked + TICK_MS <= now) {
       this.ticked += TICK_MS;
-      const before = this.session;
-      this.session = step(before, { kind: "tick" }, this.ticked).session;
-      // A tick that moves the mountain or its clock is saved (store-actions.ts `tickStore`).
-      if (
-        this.session.mountain !== before.mountain ||
-        this.session.lastSeen !== before.lastSeen
-      ) {
+      this.session = step(this.session, { kind: "tick" }, this.ticked).session;
+      if (this.saving) {
         this.saved = {
           mountain: this.session.mountain,
           lastSeen: this.session.lastSeen,
@@ -146,6 +144,7 @@ export class Expected {
     );
     if (applied) {
       this.session = moved.session;
+      this.saving = true;
       // Every move that changes the mountain is saved at once (store-actions.ts `commit`).
       this.saved = {
         mountain: moved.session.mountain,
@@ -164,7 +163,7 @@ export class Expected {
     now: number,
     limitMs: number,
   ): number | undefined {
-    const probe = new Expected(this.session, this.ticked);
+    const probe = new Expected(this.session, this.ticked, this.saving);
     probe.until(now);
     for (let at = probe.ticked + TICK_MS; at <= now + limitMs; at += TICK_MS) {
       probe.until(at);
@@ -177,6 +176,6 @@ export class Expected {
 
   /** Whether the rules would apply `move` at `now`, without making it. */
   allows(move: Move, now: number): boolean {
-    return new Expected(this.session, this.ticked).move(move, now);
+    return new Expected(this.session, this.ticked, this.saving).move(move, now);
   }
 }
