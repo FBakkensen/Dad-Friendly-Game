@@ -6,11 +6,18 @@ name: security-report
 # morning before the 06:00 UTC triage, which files a fast-lane issue for
 # each alert that has none (github-issues skill, Triage), and on demand.
 # The repo is public: the artifact holds only each alert's id, rule or
-# package, severity, file and fix version, and is kept for one day.
+# package, severity, file and fix version, and is kept for one day. Anyone
+# could get the same from the public code with CodeQL and npm audit; the
+# issues the triage files name none of it.
 on:
   schedule:
     - cron: "40 5 * * *"
   workflow_dispatch:
+  # A PR that changes this file runs it, so the change is proven before
+  # it merges (a dispatch only reaches the copy on main).
+  pull_request:
+    paths:
+      - .github/workflows/security-report.yml
 
 permissions:
   contents: read

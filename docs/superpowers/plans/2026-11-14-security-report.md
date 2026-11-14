@@ -16,3 +16,4 @@
 - Security-pass issues skip the "Build this?" step: Flemming chose this report (option A), added the token, and asked for the automation (14 Nov 2026: nothing waits on him).
 - The issue's title carries the alert's number as a stable key, so a second pass never files it twice.
 - The workflow runs 20 minutes before the 06:00 triage, so the report is fresh when the pass reads it.
+- A PR that changes the workflow runs it, because a dispatch only reaches the copy on `main`.
