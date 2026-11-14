@@ -99,5 +99,5 @@ Dependabot opens two kinds of PR (#605, `.github/dependabot.yml`): a security up
 
 - A thread takes a bot PR like its own: check out the branch, run `npm ci` and the full gate, then signoff, and squash-merge it when both are green. The Claude review gets no API key on a Dependabot PR, so it posts nothing, costs nothing, and its status turns green. A security update goes before anything else.
 - A red gate is fixed on the bot's branch only when the fix is small and in the same packages. Otherwise, close the PR with a comment and file an issue for the upgrade.
-- A major bump is never merged from a bot PR (Flemming, 14 Nov 2026: majors go through an issue first). File an issue for it, link the PR, and close the PR. A major that fixes a security alert gets a `fast-lane` issue at once.
+- A major bump is never merged from a bot PR (Flemming, 14 Nov 2026: majors go through an issue first). File an issue for it, link the PR, and close the PR. The issue gets `ready-for-agent` at once (github-issues, Triage: a dependency upgrade is an engineering call). A major that fixes a security alert gets a `fast-lane` issue at once. A major too disruptive to take now (a tool in the chain does not support it yet) swaps `ready-for-agent` for `maybe`, with the reason and what to wait for on the issue.
 - Never merge a bot PR without the full gate: the bot cannot run it.
