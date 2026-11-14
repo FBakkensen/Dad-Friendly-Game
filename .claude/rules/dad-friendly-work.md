@@ -25,12 +25,12 @@ How we build is dad-friendly too. The superpowers plugin is the workflow (`super
 
 - Strongly typed TypeScript. Illegal save states should be hard to represent (discriminated unions, not optional-field bags).
 - `tsc` clean. TDD with Vitest (`superpowers:test-driven-development`), with tests for every behavior change. Keep the coverage floors; never lower one to go green. A test that plays the economy for over a second goes in a `*.sim.test.ts` file (the `sim` project, full tier only). A test file that needs the DOM opens with `// @vitest-environment happy-dom`.
-- The gate has two tiers (`scripts/gate.mjs`, steps in `src/gate.ts`). Run `npm run gate -- fast` where superpowers says to verify, before calling a task done: incremental typecheck, plus lint, `vitest related` and a prettier check on the files changed since `origin/main`. Before opening the PR, run `npm run gate -- full` (`npm run check` is the same thing): every check, independent steps in parallel. The visual check and the two labs each fill every core, so they take turns. A lab run whose inputs (every file it imports, the lock file, Node) passed before is reused, not run again. Each prints one line per step. A failed step prints its log tail, and every full log is in `.gate/logs/`. After the push, `npm run gate -- signoff` posts the `signoff` status that `main` requires (#397). Agents never post that status any other way, and never start the `signoff` workflow by hand.
+- The gate has two tiers (`scripts/gate.mjs`, steps in `src/gate.ts`). Run `npm run gate -- fast` where superpowers says to verify, before calling a task done: incremental typecheck, plus lint, `vitest related` and a prettier check on the files changed since `origin/main`. Before opening the PR, run `npm run gate -- full` (`npm run check` is the same thing): every check, independent steps in parallel. The visual check, the gameplay journeys and the two labs each fill every core, so they take turns. A lab run whose inputs (every file it imports, the lock file, Node) passed before is reused, not run again. Each prints one line per step. A failed step prints its log tail, and every full log is in `.gate/logs/`. After the push, `npm run gate -- signoff` posts the `signoff` status that `main` requires (#397). Agents never post that status any other way, and never start the `signoff` workflow by hand.
 - No function in non-test `src` is over 150 lines or a cognitive complexity of 15 (`npm run functions`, in both gate tiers). There are no exceptions and no allow-list (#422): a function over a limit fails the gate. Split or simplify it.
 - Prove a change with the cheapest check that covers it, and climb only as far as you need:
   1. the test file you touched (`npx vitest run <file>`);
   2. `npm run gate -- fast`;
-  3. for anything the player sees, the one visual section that covers it (`VISUAL_ONLY='<section>' npm run visual`) and `npm run play` on its save;
+  3. for anything the player sees, the one visual section that covers it (`VISUAL_ONLY='<section>' npm run visual`) and `npm run play` on its save, and for a change to how the game plays over time, the journey that covers it (`npm run journeys -- <file>`);
   4. `npm run gate -- full`, once, before the PR, and again only after a fix to a step it failed.
 - Briefs and plans quote this ladder rather than setting their own tiers. A full gate never proves a single fix.
 - A plan keeps each screen's browser checks green in the task that changes that screen, never in a later "fix the checks" task.
@@ -38,7 +38,7 @@ How we build is dad-friendly too. The superpowers plugin is the workflow (`super
 - Commit and push the sitting's branch as work lands (`CLAUDE.md`). The ship-sitting skill has the details.
 - Verify in a real browser with `npm run play` (`scripts/play.mjs`, Chrome through puppeteer-core): start from a named save, tap the fat target by selector or aria-label, and look at the phone shots. Read `log.txt` for the console, failed requests, and the save line. Any page error fails the run. `npm run play -- --help` lists the saves and actions.
 - `superpowers:verification-before-completion` applies. The gate and `npm run play` are the evidence; code inspection alone never proves a sliver.
-- Do not add Playwright unless asked.
+- Playwright Test is for gameplay journeys (`tools/journeys/`, `npm run journeys`); the visual check and `npm run play` stay on puppeteer-core.
 
 ## Finish the sitting, not the idea pile
 

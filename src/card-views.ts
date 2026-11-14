@@ -41,6 +41,8 @@ export function welcomeNews(view: ProgressSnapshot): boolean {
 export interface WelcomeAway {
   /** "+1.2M" and "stones" */
   readonly mined: ReturnType<typeof awayMinedWords>;
+  /** The exact haul behind `mined`'s words, for the gameplay journeys (#552). */
+  readonly stones: number;
   /** "You were gone 9 hours. … ×1.25." */
   readonly gone: string;
   readonly cheer: string;
@@ -72,6 +74,7 @@ function awayOf(view: ProgressSnapshot): WelcomeAway | undefined {
   const first = AWAY_ORE.find((id) => report.materials[id] > 0);
   return {
     mined: awayMinedWords(report.mined),
+    stones: report.mined,
     gone: awayGoneWords(report),
     cheer: awayCheerWords(report.awayMs, layerOf(view.mountain).id),
     rush:

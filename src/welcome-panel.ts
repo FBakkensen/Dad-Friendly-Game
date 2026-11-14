@@ -69,6 +69,11 @@ function paintLine(line: HTMLElement, words: string | undefined): void {
 function paintAway(parts: WelcomeParts, away: WelcomeAway | undefined): void {
   write(parts.minedCount, away?.mined.count ?? "");
   write(parts.minedUnit, away?.mined.unit ?? "");
+  if (away === undefined) {
+    delete parts.minedCount.dataset["count"];
+  } else {
+    parts.minedCount.dataset["count"] = String(away.stones);
+  }
   hide(parts.mined, away === undefined);
   paintLine(parts.detail, away?.gone);
   paintLine(parts.rush, away?.rush);

@@ -573,7 +573,7 @@ focus)` (`showCard`, the model's open or close, and the focus once as it
   listed), every upgrade id with its max level, and every boost id.
 - `knip` (strict): no unused files, exports or dependencies.
 - `prettier --check .` covers docs too; coverage floors per critical module. The fast tier runs `prettier --check` on every file changed since `origin/main` (`format:changed`).
-- Scheduling (#403): independent steps run in parallel, but the heavy lane (`visual`, `lab`, `lab:generations`, each filling every core) runs one at a time, visual first, so the timing checks never run under the labs' load. The labs are seeded, so a green run records the sha256 of its inputs (the lab's import closure, `package-lock.json`, the Node version, and the step's command, args and env) in `.gate/reuse/<step>.json`. A later run with the same inputs prints `reused (same inputs passed on <sha>)` instead of running, and counts as green for signoff. A red run deletes its record, and CI starts with none.
+- Scheduling (#403): independent steps run in parallel, but the heavy lane (`visual`, `journeys`, `lab`, `lab:generations`, each filling every core) runs one at a time, visual first, so the timing checks never run under the labs' load. The labs are seeded, so a green run records the sha256 of its inputs (the lab's import closure, `package-lock.json`, the Node version, and the step's command, args and env) in `.gate/reuse/<step>.json`. A later run with the same inputs prints `reused (same inputs passed on <sha>)` instead of running, and counts as green for signoff. A red run deletes its record, and CI starts with none.
 - `scripts/function-limits.mjs` (`npm run functions`, both gate tiers, #408,
   #418, #422): every function in non-test `src` is held to two measures, 150
   lines and a cognitive complexity of 15 (`sonarjs/cognitive-complexity` from
@@ -604,6 +604,31 @@ focus)` (`showCard`, the model's open or close, and the focus once as it
   it. The saves they seed come from `tools/browser/fixtures.ts` (#439), typed
   as `SeedSave`; no script writes a versioned save literal, and
   `fixtures.test.ts` pins every save's value.
+- Gameplay journeys (#552): Playwright Test (`@playwright/test`, pinned) drives
+  a phone-sized Chrome (424×924, touch) through stored player journeys,
+  `tools/journeys/*.journey.ts`: the first two minutes on a fresh mountain
+  (taps, the first worker, ten workers, the first cart) and back after eight
+  hours (the welcome card's haul). `npm run journeys` runs them, and the full
+  gate's `journeys` step (heavy lane) does too; a failure keeps a trace in
+  `.gate/journeys/`. The config (`tools/journeys/playwright.config.ts`) starts
+  its own Vite on port 4186 and launches the same Chrome as the harness
+  (`chromePath`), so no browser is downloaded. One player driver,
+  `tools/journeys/player.ts`, holds every selector: it seeds a save from
+  `tools/browser/fixtures.ts`, puts in a seeded `Math.random`, and installs
+  Playwright's clock paused at 9 pm, all before the page boots; it taps, opens
+  and shuts Buys, buys a tier's row, and reads the numbers the player sees.
+  Whole-tick waits jump the clock a tick at a time (`clock.fastForward`), so
+  the game's one-second tick runs as it would, about thirty times faster than
+  running every frame. A journey never types an expected number: `Expected`
+  (`tools/journeys/expected.ts`) steps the game's own session (`createSession`
+  and `step` in `src/session.ts`) beside the page on the same clock, so a
+  retune moves both and only a broken rule turns a journey red. The readouts
+  a journey reads carry their exact number as a data attribute: the
+  odometer's `data-count` is the pocket, and the welcome card's
+  `.welcome-mined-count` carries the haul. There is no debug object on
+  `window`. The player acts on whole ticks: a Buys row judges what is
+  affordable by the board last painted, not by the crew's work since. The
+  visual check and `npm run play` stay on puppeteer-core.
 - The visual check (#440): `scripts/visual-check.mjs` is only the runner. It
   imports the section modules in `scripts/visual/` in queue order, then runs
   the queue `VISUAL_JOBS` at a time and sets the exit code. Three modules are

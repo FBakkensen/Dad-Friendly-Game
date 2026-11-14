@@ -28,6 +28,7 @@
     "check:fast": "node scripts/gate.mjs fast",
     "visual": "node scripts/visual-check.mjs",
     "play": "node scripts/play.mjs",
+    "journeys": "playwright test -c tools/journeys",
     "audit:ui": "node scripts/ui-audit.mjs",
     "mockups": "node scripts/mockup-check.mjs",
     "test:rules": "node scripts/test-rules.mjs",
@@ -36,6 +37,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "1.63.0",
     "@vitest/coverage-v8": "^4.1.10",
     "eslint": "^10.8.1",
     "eslint-config-prettier": "^10.1.8",

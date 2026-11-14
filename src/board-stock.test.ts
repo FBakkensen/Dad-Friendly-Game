@@ -40,6 +40,8 @@ describe("createOdometer", () => {
     expect(odo.root.getAttribute("role")).toBe("img");
     expect(odo.root.getAttribute("aria-label")).toBe("Stones 412.4K");
     expect(faces(odo.root)).toEqual(["4", "1", "2", "4", "K"]);
+    // The journeys read the exact pocket the drums round down (#552).
+    expect(odo.root.dataset["count"]).toBe("412489");
     const dot = odo.root.querySelector<HTMLElement>(".board-odo-dot");
     expect(dot?.hidden).toBe(false);
     expect(dot?.style.getPropertyValue("--at")).toBe("68");
@@ -52,6 +54,13 @@ describe("createOdometer", () => {
     expect(odo.root.querySelector<HTMLElement>(".odo-dec-1")?.hidden).toBe(
       true,
     );
+  });
+
+  it("carries the exact pocket, fractions too, for the journeys (#552)", () => {
+    const odo = createOdometer();
+    odo.set(20.5);
+    expect(odo.root.dataset["count"]).toBe("20.5");
+    expect(odo.root.getAttribute("aria-label")).toBe("Stones 20");
   });
 
   it("hides the point and decimal faces for whole numbers", () => {
