@@ -12,6 +12,10 @@ name: claude-review
 # Claude answers in a fixed shape, and tools/review/findings.ts turns it into
 # one PR review with a thread per finding (#584), which the thread that wrote
 # the code answers and resolves before it merges (ship-sitting).
+# The commit status `claude-review` (#587) is pending while the job runs and
+# green only once this head commit's review has posted, been kept, or been
+# skipped for art or a used-up credit, so a required check on it keeps a
+# merge from racing the review. An empty credit never blocks a merge.
 on:
   pull_request:
     # A push (synchronize) re-checks only what changed since the last review,
@@ -22,6 +26,7 @@ permissions:
   contents: read
   issues: read
   pull-requests: write
+  statuses: write
 
 concurrency:
   group: claude-review-${{ github.event.pull_request.number }}
@@ -36,6 +41,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
+      - name: Mark the review pending
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh api "repos/$REPO/statuses/$HEAD" -f state=pending -f context=claude-review \
+            -f description="Claude is reviewing this commit." -f target_url="$RUN_URL" --silent
+
       - name: Check for the API key
         id: key
         env:
@@ -178,6 +193,7 @@ jobs:
           cat "$RUNNER_TEMP/review.err"
 
       - name: Post the review
+        id: post
         # Also after a failed or timed-out Review step, so the PR hears why.
         if: ${{ !cancelled() && steps.key.outputs.present == 'true' }}
         env:
@@ -192,8 +208,15 @@ jobs:
           EVENT: ${{ github.event.action }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
+          # What the claude-review status says when this step succeeds (#587).
+          said="$RUNNER_TEMP/status.txt"
           # A kept review needs no post, and an art-only PR hears so once.
-          if [ "$KIND" = "kept" ] || { [ "$KIND" = "skip" ] && [ "$EVENT" = "synchronize" ]; }; then
+          if [ "$KIND" = "kept" ]; then
+            printf 'Kept the review of %s: the PR'"'"'s own change is the same.' "${LAST:0:7}" > "$said"
+            exit 0
+          fi
+          if [ "$KIND" = "skip" ] && [ "$EVENT" = "synchronize" ]; then
+            printf 'Not reviewed: art or other binary files only.' > "$said"
             exit 0
           fi
           out="$RUNNER_TEMP/review.json"
@@ -216,14 +239,20 @@ jobs:
           fi
           if [ "$KIND" = "skip" ]; then
             printf '## Claude review\n\nNot reviewed at commit %s: %s ([run](%s))\n' "${HEAD:0:7}" "$(cat "$RUNNER_TEMP/skip.txt")" "$RUN_URL" > "$body"
+            desc="Not reviewed: art or other binary files only."
             status=0
           elif [ "$posted" = true ]; then
             # One review, a thread per finding (#584). If GitHub refuses it,
             # every finding goes in one comment instead.
             cp "$post/fallback.md" "$body"
+            desc="Reviewed ${HEAD:0:7}${LAST:+ (a re-check since ${LAST:0:7})}. Resolve every thread before the merge."
             status=0
-          elif grep -qi "credit balance" "$out" "$RUNNER_TEMP/review.err"; then
+          elif grep -qi "credit balance" "$RUNNER_TEMP/review.err" 2>/dev/null ||
+              jq -e '.is_error == true and ((.result // "") | test("credit balance"; "i"))' "$out" > /dev/null 2>&1; then
+            # Only the API's own error counts (stderr, or a result marked is_error),
+            # never words in a review: a real answer never has is_error.
             printf '## Claude review\n\nSkipped: the monthly API credit is used up. It refills with the next billing month. ([run](%s))\n' "$RUN_URL" > "$body"
+            desc="Skipped: the monthly API credit is used up."
             status=0
           else
             printf '## Claude review\n\nFailed (`%s`), so this PR has no CI review. See the [run](%s).\n' "$subtype" "$RUN_URL" > "$body"
@@ -253,4 +282,35 @@ jobs:
             [ -f "$post/review.json" ] && echo "::warning::GitHub refused the review, so every finding is in one comment."
             gh api "repos/$REPO/issues/$PR/comments" -F "body=@$body" --silent
           fi
+          if [ "$status" = 0 ]; then printf '%s' "$desc" > "$said"; fi
           exit "$status"
+
+      - name: Set the review status
+        # Always, so a failed, timed-out or cancelled run never leaves it pending.
+        if: ${{ always() }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+          PRESENT: ${{ steps.key.outputs.present }}
+          POSTED: ${{ steps.post.outcome }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          state=failure
+          desc="The Claude review failed or was stopped. Re-run the job."
+          # Only an explicit "false": an empty value means the key check never ran.
+          if [ "$PRESENT" = "false" ]; then
+            state=success
+            desc="No API key, so no Claude review."
+          elif [ "$POSTED" = "success" ] && [ -s "$RUNNER_TEMP/status.txt" ]; then
+            state=success
+            desc=$(cat "$RUNNER_TEMP/status.txt")
+          fi
+          for try in 1 2; do
+            if gh api "repos/$REPO/statuses/$HEAD" -f state="$state" -f context=claude-review \
+                -f description="${desc:0:140}" -f target_url="$RUN_URL" --silent; then
+              exit 0
+            fi
+            [ "$try" = 2 ] || sleep 10
+          done
+          exit 1
