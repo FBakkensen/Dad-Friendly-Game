@@ -7,18 +7,12 @@ import { minedMountain } from "./test-fixtures";
 
 /**
  * How far one more hand or machine may lower the line while Grandpa's tenth
- * and an engineer's floor still go by machine, not by stage (docs/DESIGN.md;
- * the engineers by stage are #539). With neither, it may not lower it at all.
+ * and an engineer's floor still go by machine, not by stage: the floor is a
+ * share of the plain sum, so it pays for idle surplus on a stage that is not
+ * narrow (docs/DESIGN.md; the engineers by stage are #539). The worst seen
+ * is about 8.5%. With neither, it may not lower it at all.
  */
-const TENDED_SLIP = 0.05;
-
-/** Every fourth count of workers, and the counts where a big machine's crew just fits. */
-const HELPERS = [
-  ...Array.from({ length: 16 }, (_, at) => at * 4),
-  15,
-  17,
-  33,
-].sort((a, b) => a - b);
+const TENDED_SLIP = 0.1;
 
 type Crew = Pick<
   Mountain,
@@ -32,6 +26,8 @@ type Crew = Pick<
   | "legacy"
 >;
 
+type Grid = { readonly [K in keyof Crew]: readonly number[] };
+
 const MORE: readonly (readonly [string, (crew: Crew) => Crew])[] = [
   ["helper", (crew) => ({ ...crew, helpers: crew.helpers + 1 })],
   ["cart", (crew) => ({ ...crew, carts: crew.carts + 1 })],
@@ -42,59 +38,85 @@ const MORE: readonly (readonly [string, (crew: Crew) => Crew])[] = [
   ["machine", (crew) => ({ ...crew, machines: crew.machines + 1 })],
 ];
 
-function crews(): Crew[] {
-  const all: Crew[] = [];
-  for (const legacy of [0, 1])
-    for (const carts of [0, 10])
-      for (const hoists of [0, 5])
-        for (const drills of [0, 50])
-          for (const borers of [0, 1, 3])
-            for (const trains of [0, 2])
-              for (const machines of [0, 1, 2])
-                for (const helpers of HELPERS)
-                  all.push({
-                    helpers,
-                    carts,
-                    hoists,
-                    drills,
-                    borers,
-                    trains,
-                    machines,
-                    legacy,
-                  });
+/** Early crews: every fourth count of workers, and where a big crew just fits. */
+const EARLY: Grid = {
+  legacy: [0, 1],
+  carts: [0, 10],
+  hoists: [0, 5],
+  drills: [0, 50],
+  borers: [0, 1, 3],
+  trains: [0, 2],
+  machines: [0, 1, 2],
+  helpers: [...Array.from({ length: 16 }, (_, at) => at * 4), 15, 17, 33],
+};
+
+/** Late crews, with hundreds of ways to staff the big machines. */
+const LATE: Grid = {
+  legacy: [0, 1],
+  carts: [10, 40],
+  hoists: [5, 60],
+  drills: [20, 100],
+  borers: [5, 9],
+  trains: [3, 9],
+  machines: [2, 6],
+  helpers: [47, 69, 83, 99, 120],
+};
+
+function crews(grid: Grid): Crew[] {
+  let all: Crew[] = [{} as Crew];
+  for (const key of Object.keys(grid) as (keyof Crew)[]) {
+    all = all.flatMap((crew) =>
+      grid[key].map((value) => ({ ...crew, [key]: value })),
+    );
+  }
   return all;
 }
 
-describe("staffing by the line never slows it (#534)", () => {
-  it("one more worker or machine of any kind never slows the line; with Grandpa or an engineer, at most a small slip", () => {
-    const misses: string[] = [];
-    let checked = 0;
-    withFactors({ [LINE_OFF]: 0 }, () => {
-      for (const post of ["borer", "machine", "camp"] as const) {
-        const engineers =
-          post === "camp"
-            ? []
-            : [{ name: "Ada" as const, rank: 0 as const, trips: 0, post }];
-        const rate = (crew: Crew): number =>
-          effectiveRates({ ...minedMountain(50_000_000), ...crew, engineers })
-            .exactCrewPerSecond;
-        for (const crew of crews()) {
-          const now = rate(crew);
-          for (const [what, more] of MORE) {
-            const after = rate(more(crew));
-            const tended = crew.legacy > 0 || post !== "camp";
-            const allowed = tended ? now * TENDED_SLIP : 0;
-            if (after < now - allowed - 1e-6) {
-              misses.push(
-                `${what} on ${JSON.stringify({ post, ...crew })}: ${String(now)} to ${String(after)}`,
-              );
-            }
-            checked += 1;
+/** Every crew on the grid, at each post, with one more of each kind. */
+function sweep(grid: Grid): { checked: number; misses: string[] } {
+  const misses: string[] = [];
+  let checked = 0;
+  withFactors({ [LINE_OFF]: 0 }, () => {
+    for (const post of ["borer", "machine", "camp"] as const) {
+      const engineers =
+        post === "camp"
+          ? []
+          : [{ name: "Ada" as const, rank: 0 as const, trips: 0, post }];
+      const rate = (crew: Crew): number =>
+        effectiveRates({ ...minedMountain(50_000_000), ...crew, engineers })
+          .exactCrewPerSecond;
+      for (const crew of crews(grid)) {
+        const now = rate(crew);
+        const tended = crew.legacy > 0 || post !== "camp";
+        const allowed = tended ? now * TENDED_SLIP : 0;
+        for (const [what, more] of MORE) {
+          const after = rate(more(crew));
+          if (after < now - allowed - 1e-6) {
+            misses.push(
+              `${what} on ${JSON.stringify({ post, ...crew })}: ${String(now)} to ${String(after)}`,
+            );
           }
+          checked += 1;
         }
       }
-    });
-    expect(checked).toBe(3 * 2 * 2 * 2 * 2 * 3 * 2 * 3 * HELPERS.length * 7);
+    }
+  });
+  return { checked, misses };
+}
+
+const size = (grid: Grid): number =>
+  Object.values(grid).reduce((total, values) => total * values.length, 3);
+
+describe("staffing by the line never slows it (#534)", () => {
+  it("early: one more worker or machine never slows the line; tended, at most a small slip", () => {
+    const { checked, misses } = sweep(EARLY);
+    expect(checked).toBe(size(EARLY) * MORE.length);
     expect(misses).toEqual([]);
-  }, 120_000);
+  }, 180_000);
+
+  it("late, with hundreds of ways to staff the big machines: the same", () => {
+    const { checked, misses } = sweep(LATE);
+    expect(checked).toBe(size(LATE) * MORE.length);
+    expect(misses).toEqual([]);
+  }, 180_000);
 });

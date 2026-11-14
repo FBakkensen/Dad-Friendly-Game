@@ -425,18 +425,18 @@ function spareToLowest(
 }
 
 /** At most this many big-machine counts are tried for the line (#534). */
-const LINE_COUNTS_TRIED = 64;
+const LINE_COUNTS_TRIED = 512;
 
-/** Of the counts that tie for the line, at most this many are weighed. */
-const LINE_TIES_KEPT = 8;
+/** The counts that move the line the most: this many are weighed. */
+const LINE_COUNTS_KEPT = 8;
 
 /**
  * With the line on (#534): every count of the big machines the hands can
- * run, each filled for the line, and the ones that move the line the most
- * on these speeds (a few, when they tie: the tending, weighed later, tells
- * them apart). The line is flat while a stage is empty, so a climb from
- * the sum's best can stall there; while there are few counts, all are
- * tried. None when there are more than `LINE_COUNTS_TRIED`.
+ * run, each filled for the line, and the few that move the line the most
+ * on these speeds, best first: the tending floor and Grandpa, weighed
+ * later, can reorder them. The line is flat while a stage is empty, so a climb from
+ * the sum's best can stall there; while the hands can staff at most
+ * `LINE_COUNTS_TRIED` counts, all are tried. None when there are more.
  */
 export function staffForLine(
   slots: readonly StaffSlot[],
@@ -444,49 +444,49 @@ export function staffForLine(
   lineHands: number,
 ): readonly Staffing[] {
   const big = slots.filter((slot) => slot.staff > 1);
-  const most = big.map((slot) =>
-    Math.min(slot.count, Math.floor(Math.max(0, hands) / slot.staff)),
-  );
-  if (most.reduce((total, n) => total * (n + 1), 1) > LINE_COUNTS_TRIED) {
+  const counts: Staffing[] = [];
+  if (!eachBigCount(big, 0, hands, { ...NONE_RUNNING }, counts)) {
     return [];
   }
   const fillers = fastestFirst(slots);
-  let best: Staffing[] = [];
-  let bestLine = -1;
-  const visit = (counts: Staffing): void => {
-    const staffing = staffWith(slots, hands, counts, lineHands);
-    if (staffing === undefined) {
-      return;
-    }
+  const kept: { readonly staffing: Staffing; readonly line: number }[] = [];
+  for (const count of counts) {
+    const staffing = fillForLine(slots, hands, count, lineHands, true);
     const line = lineSpeed(
       withFillers(bigStages(slots, staffing), fillers, staffing),
       lineHands,
     );
-    if (moreStones(line, bestLine)) {
-      best = [staffing];
-      bestLine = line;
-    } else if (!moreStones(bestLine, line) && best.length < LINE_TIES_KEPT) {
-      best.push(staffing);
+    const at = kept.findIndex((one) => moreStones(line, one.line));
+    if (at >= 0 || kept.length < LINE_COUNTS_KEPT) {
+      kept.splice(at >= 0 ? at : kept.length, 0, { staffing, line });
+      kept.length = Math.min(kept.length, LINE_COUNTS_KEPT);
     }
-  };
-  eachBigCount(big, most, 0, { ...NONE_RUNNING }, visit);
-  return best;
+  }
+  return kept.map((one) => one.staffing);
 }
 
+/**
+ * Adds to `found` every count of `big[index..]` the hands left can staff;
+ * false, as soon as there are more than `LINE_COUNTS_TRIED`.
+ */
 function eachBigCount(
   big: readonly StaffSlot[],
-  most: readonly number[],
   index: number,
+  hands: number,
   counts: Record<MachineId, number>,
-  visit: (counts: Staffing) => void,
-): void {
+  found: Staffing[],
+): boolean {
   const slot = big[index];
   if (slot === undefined) {
-    visit({ ...counts });
-    return;
+    found.push({ ...counts });
+    return found.length <= LINE_COUNTS_TRIED;
   }
-  for (let n = most[index] ?? 0; n >= 0; n -= 1) {
+  const most = Math.min(slot.count, Math.floor(hands / slot.staff));
+  for (let n = most; n >= 0; n -= 1) {
     counts[slot.id] = n;
-    eachBigCount(big, most, index + 1, counts, visit);
+    if (!eachBigCount(big, index + 1, hands - n * slot.staff, counts, found)) {
+      return false;
+    }
   }
+  return true;
 }
