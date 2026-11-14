@@ -58,7 +58,7 @@ import {
   tunnelLock,
   type TendPost,
 } from "./screen-words";
-import { stonesPrice, type Price } from "./stock";
+import { UNSHOWN_PRICE, stonesPrice, type Price } from "./stock";
 
 /*
  * The Engineers drawer's rules as views (#455): its rows, the page it shows, the kick, and
@@ -199,11 +199,11 @@ export function pageEngineer(page: EngineerPage): EngineerName | undefined {
 }
 
 /**
- * The price the promote ask was opened at (#367), as a price; an empty one on
- * any other page, which matches no promotion and buys nothing.
+ * The price the promote ask was opened at (#367), as a price; the unshown
+ * price on any other page, which matches no promotion and buys nothing.
  */
 export function askedPrice(page: EngineerPage): Price {
-  return page.kind === "promote" ? stonesPrice(page.price) : [];
+  return page.kind === "promote" ? stonesPrice(page.price) : UNSHOWN_PRICE;
 }
 
 /** The promote ask's line: who steps up, or nothing for a full crew. */

@@ -13,6 +13,8 @@ import {
   stockMoved,
   stonesPrice,
   take,
+  materialsOf,
+  UNSHOWN_PRICE,
   type Price,
   type Stock,
 } from "./stock";
@@ -71,6 +73,19 @@ describe("prices", () => {
       ]),
     ).toBe(false);
     expect(samePrice(stonesPrice(0), [])).toBe(true);
+  });
+
+  it("the unshown price matches no price, not even a free one", () => {
+    expect(samePrice(UNSHOWN_PRICE, [])).toBe(false);
+    expect(samePrice(UNSHOWN_PRICE, stonesPrice(0))).toBe(false);
+    expect(samePrice(UNSHOWN_PRICE, UNSHOWN_PRICE)).toBe(false);
+    expect(samePrice(UNSHOWN_PRICE, rails)).toBe(false);
+  });
+
+  it("reads the four materials out of a stock, without the stones", () => {
+    expect(
+      materialsOf({ ...EMPTY_STOCK, stones: 9, clay: 1, heartstone: 2 }),
+    ).toEqual({ clay: 1, iron: 0, crystal: 0, heartstone: 2 });
   });
 });
 

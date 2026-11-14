@@ -31,7 +31,7 @@ import {
   TENDING_SOURCE,
   VALUE_TIE,
 } from "./targets";
-import { canPay } from "../stock";
+import { canPay, materialsOf } from "../stock";
 
 export type ScoreInput = {
   readonly mountain: Mountain;
@@ -403,7 +403,7 @@ export function scoreDecision(input: ScoreInput): DecisionSample {
     layer: layerOf(input.mountain).id,
     workshopOpen: workshopUnlocked(input.mountain),
     benchFree: input.mountain.bench === undefined,
-    materials: input.mountain.stock,
+    materials: materialsOf(input.mountain.stock),
     openRecipes: sinkRecipes(input.mountain),
     knownRecipes: knownRecipeIds(input.mountain),
     crafted: input.mountain.crafted,

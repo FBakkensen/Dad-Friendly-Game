@@ -1,4 +1,4 @@
-import type { LayerId, MaterialId } from "./layers";
+import type { LayerId, MaterialId, Materials } from "./layers";
 
 /**
  * Everything he can hold, and the one place that takes from it or adds to it
@@ -42,6 +42,22 @@ export type Price = readonly PriceLine[];
 
 export function stonesPrice(amount: number): Price {
   return [{ good: "stones", amount }];
+}
+
+/**
+ * The price on a buy whose price was never shown (another page, no level
+ * left). It matches no price, not even a free one, so it buys nothing (#367).
+ */
+export const UNSHOWN_PRICE: Price = stonesPrice(Number.NaN);
+
+/** The four materials a stock holds, without the stones. */
+export function materialsOf(stock: Stock): Materials {
+  return {
+    clay: stock.clay,
+    iron: stock.iron,
+    crystal: stock.crystal,
+    heartstone: stock.heartstone,
+  };
 }
 
 /** How much of `good` the price asks: 0 when it asks none. */

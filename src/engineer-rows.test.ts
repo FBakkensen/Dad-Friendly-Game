@@ -23,10 +23,12 @@ import {
   type EngineerPage,
   type EngineerTeach,
 } from "./engineer-rows";
+import { samePrice } from "./stock";
 import {
   MAX_ENGINEERS,
   onDuty,
   promoteCost,
+  promotePrice,
   type DutyEngineer,
   type Engineer,
 } from "./engineers";
@@ -754,7 +756,10 @@ describe("what a press reads (#455)", () => {
     expect(askedPrice({ kind: "promote", price: 2_000_000 })).toEqual([
       { good: "stones", amount: 2_000_000 },
     ]);
-    expect(askedPrice({ kind: "list" })).toEqual([]);
+    expect(
+      samePrice(askedPrice({ kind: "list" }), promotePrice(withAda())),
+    ).toBe(false);
+    expect(samePrice(askedPrice({ kind: "list" }), [])).toBe(false);
   });
 
   it("the promote ask names the next hand, and a full crew asks nothing", () => {

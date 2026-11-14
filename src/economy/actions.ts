@@ -101,6 +101,8 @@ import {
   priceAmount,
   samePrice,
   stockMoved,
+  UNSHOWN_PRICE,
+  type GoodId,
   type Price,
   type Stock,
 } from "../stock";
@@ -439,7 +441,10 @@ function actionApplied(
       return buyWithTeach(mountain, action.id);
     case "buyUpgrade":
       // The price moved since it was shown (a band crossed at the tap): no buy (#367).
-      return samePrice(action.price, upgradePrice(mountain, action.id) ?? [])
+      return samePrice(
+        action.price,
+        upgradePrice(mountain, action.id) ?? UNSHOWN_PRICE,
+      )
         ? buyUpgrade(mountain, action.id)
         : mountain;
     case "buyBoost":
@@ -1303,17 +1308,14 @@ function fundCraft(mountain: Mountain, id: RecipeId): Mountain {
   // The stones on top of the pocket; each material only up to the price.
   const cost = recipePrice(id, stretch(mountain));
   const have = mountain.stock;
-  return add(
-    grantDepthRecipe(mountain, id),
-    Object.fromEntries(
-      cost.map((line) => [
-        line.good,
-        line.good === "stones"
-          ? line.amount
-          : Math.max(0, line.amount - have[line.good]),
-      ]),
-    ),
-  );
+  const gains: Partial<Record<GoodId, number>> = {};
+  for (const line of cost) {
+    gains[line.good] =
+      line.good === "stones"
+        ? line.amount
+        : Math.max(0, line.amount - have[line.good]);
+  }
+  return add(grantDepthRecipe(mountain, id), gains);
 }
 
 /**

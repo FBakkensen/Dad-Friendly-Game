@@ -52,7 +52,7 @@ import {
   type Upgrade,
   type UpgradeId,
 } from "./upgrades";
-import type { Price } from "./stock";
+import { UNSHOWN_PRICE, type Price } from "./stock";
 
 /*
  * The Upgrades drawer (#373): Quick boosts, Lasting upgrades and Brought home as board rows,
@@ -206,7 +206,7 @@ function buildRows(taps: BuyTaps): UpgradesRows {
       () => ({
         kind: "buyUpgrade",
         id: upgrade.id,
-        price: taps.shownPrices.get(upgrade.id) ?? [],
+        price: taps.shownPrices.get(upgrade.id) ?? UNSHOWN_PRICE,
       }),
     );
     return { upgrade, id, row };

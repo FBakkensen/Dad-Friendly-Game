@@ -217,11 +217,11 @@ const EARLY_SAVE = {
   mountain: {
     staffed: 2,
     remaining: 239_500_000,
-    stock: { stones: 76_412 },
+    pocket: 76_412,
     owned: { ...tierRecord(0), helper: 12, cart: 1 },
   },
   workshop: {
-    stock: { clay: 0, iron: 0, crystal: 0, heartstone: 0 },
+    materials: { clay: 0, iron: 0, crystal: 0, heartstone: 0 },
     recipes: ["iron-rails", "sturdy-props", "blasting-charge"],
   },
 };
@@ -230,12 +230,12 @@ const MID_SAVE = {
   mountain: {
     staffed: 2,
     remaining: 180_000_000,
-    stock: { stones: 64_500_000 },
+    pocket: 64_500_000,
     owned: { ...tierRecord(0), helper: 96, cart: 52, drill: 30, borer: 9 },
     engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
   },
   workshop: {
-    stock: { clay: 0, iron: 0, crystal: 0, heartstone: 0 },
+    materials: { clay: 0, iron: 0, crystal: 0, heartstone: 0 },
     recipes: [
       "iron-rails",
       "sturdy-props",
@@ -675,7 +675,7 @@ function sceneBoard(scene: Scene): readonly [Board, object] {
           ...MID_SAVE,
           mountain: {
             ...MID_SAVE.mountain,
-            stock: { ...MID_SAVE.mountain.stock, stones: 3_180_000 },
+            pocket: 3_180_000,
             owned: { ...MID_SAVE.mountain.owned, helper: 112 },
           },
         },
