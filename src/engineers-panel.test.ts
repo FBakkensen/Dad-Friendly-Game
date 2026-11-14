@@ -26,8 +26,8 @@ import {
   stationCheer,
   stonesPerSecond,
 } from "./screen-words";
-import { readSessionSave, writeSessionSave } from "./session-save";
-import { minedMountain } from "./test-fixtures";
+import { writeSessionSave } from "./session-save";
+import { guestSave, minedMountain } from "./test-fixtures";
 
 /*
  * The Engineers drawer on the mounted screen (#455): its doors, its rows and pages, and every
@@ -351,7 +351,7 @@ describe("the Engineers drawer (#455)", () => {
     expect(part(screen, ".engineer-explore").hidden).toBe(true);
     postRow(screen, "camp").click();
     expect(kick(screen)).toBe("Ada puts the kettle on at camp.");
-    const mountain = readSessionSave({ storage })?.mountain;
+    const mountain = guestSave(storage)?.mountain;
     expect(mountain?.expeditions).toEqual([]);
     expect(mountain?.engineers[0]).toEqual({
       name: "Ada",
@@ -387,9 +387,7 @@ describe("the Engineers drawer (#455)", () => {
     postRow(screen, "cart").click();
     expect(kick(screen)).toBe("Ada heads to the carts! +1 stones/sec");
     expect(postRow(screen, "cart").classList).toContain("is-held");
-    expect(readSessionSave({ storage })?.mountain.engineers[0]?.post).toBe(
-      "cart",
-    );
+    expect(guestSave(storage)?.mountain.engineers[0]?.post).toBe("cart");
 
     postRow(screen, "camp").click();
     expect(saved(screen).engineers[0]?.post).toBe("camp");
@@ -401,9 +399,7 @@ describe("the Engineers drawer (#455)", () => {
     expect(saved(screen).engineers[0]?.post).toBe("cart");
     cart?.click();
     expect(saved(screen).carts).toBe(3);
-    expect(readSessionSave({ storage })?.mountain.engineers[0]?.post).toBe(
-      "cart",
-    );
+    expect(guestSave(storage)?.mountain.engineers[0]?.post).toBe("cart");
   });
 
   it("calls an engineer home from a tunnel", () => {
@@ -430,7 +426,7 @@ describe("the Engineers drawer (#455)", () => {
     part(screen, ".recall-yes").click();
     expect(kick(screen)).toBe("Ada is home, empty-handed.");
     expect(screen.engineersPage()?.classList).toContain("engineer-page");
-    const home = readSessionSave({ storage })?.mountain;
+    const home = guestSave(storage)?.mountain;
     expect(home?.engineers[0]?.post).toBe("borer");
     expect(home?.expeditions).toEqual([]);
   });
@@ -530,7 +526,7 @@ describe("the Engineers drawer (#455)", () => {
     expect(kick(screen)).toBe("Nils steps up. The crew cheers.");
     expect(herRow(screen, "Nils").classList).toContain("is-held");
     expect(listRows(screen)).toEqual(["Ada", "Nils", "promote"]);
-    expect(readSessionSave({ storage })?.mountain.engineers).toEqual([
+    expect(guestSave(storage)?.mountain.engineers).toEqual([
       { name: "Ada", rank: 0, trips: 0, post: "borer" },
       { name: "Nils", rank: 0, trips: 0, post: "camp" },
     ]);

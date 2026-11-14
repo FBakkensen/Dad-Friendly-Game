@@ -5,6 +5,7 @@ import {
   createNoopCloudSave,
   createUnavailableCloudSave,
   fieldLogKey,
+  isArchiveReason,
   fieldLogOf,
 } from "./cloud-save";
 import { APP_VERSION, snapshot, type FieldLogDocument } from "./field-log";
@@ -333,5 +334,61 @@ describe("createUnavailableCloudSave", () => {
         },
       }),
     ).resolves.toEqual({ kind: "failed", message: "unavailable" });
+  });
+});
+
+describe("a save from another version (#558)", () => {
+  const local = minedMountain(1);
+
+  it("keeps the phone and uploads nothing while the cloud holds another version", () => {
+    for (const remote of [
+      { kind: "newer" as const },
+      { kind: "older" as const, version: 7, startedAt: 3, rev: 2, raw: {} },
+    ]) {
+      expect(applySignedInSave({ local, remote })).toEqual({
+        mountain: local,
+        upload: false,
+      });
+    }
+  });
+
+  it("refuses a write over a newer cloud copy", async () => {
+    const cloud = createMemoryCloudSave({
+      docs: new Map(),
+      newerDocs: new Set(["dad"]),
+    });
+    expect(
+      await cloud.write({
+        uid: "dad",
+        mountain: local,
+        lastSeen: 1,
+        rev: 1,
+        deviceId: "device-0001",
+        deviceLabel: "Phone",
+      }),
+    ).toEqual({ kind: "rejected", message: "permission-denied" });
+  });
+
+  it("takes every archive reason, a reset among them, and nothing else", () => {
+    expect(isArchiveReason("reset")).toBe(true);
+    expect(isArchiveReason("conflict")).toBe(true);
+    expect(isArchiveReason("migrate")).toBe(false);
+  });
+
+  it("the stand-ins answer a raw archive as they answer a copy", async () => {
+    const raw = {
+      uid: "dad",
+      raw: {},
+      version: 7,
+      rev: 2,
+      reason: "reset" as const,
+    };
+    expect(await createNoopCloudSave().archiveRaw?.(raw)).toEqual({
+      kind: "ok",
+    });
+    expect(await createUnavailableCloudSave().archiveRaw?.(raw)).toEqual({
+      kind: "failed",
+      message: "unavailable",
+    });
   });
 });

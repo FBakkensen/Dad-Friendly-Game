@@ -4,7 +4,6 @@ import type { Mountain } from "./mountain";
 import type { RowView } from "./row-view";
 import {
   BENCH_FREE,
-  BENCH_UNKNOWN,
   CRAFT_WORD,
   RECIPE_ON_BENCH,
   SKETCH_NAME,
@@ -238,18 +237,6 @@ export function benchRowView(bench: BenchView, armed: boolean): BenchRowView {
         state: "ready",
         aria: `${BENCH_FREE}. ${bench.aside}`,
         progress: undefined,
-        canCancel: false,
-      };
-    case "unknown":
-      return {
-        ...QUIET_ROW,
-        name: BENCH_UNKNOWN,
-        info: [bench.aside],
-        gain: bench.clock,
-        lamp: "amber",
-        state: "running",
-        aria: `${bench.title}. ${bench.aside}`,
-        progress: bench.progress,
         canCancel: false,
       };
   }

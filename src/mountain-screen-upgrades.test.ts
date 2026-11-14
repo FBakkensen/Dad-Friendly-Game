@@ -113,7 +113,6 @@ describe("an Upgrades buy on screen", () => {
       ...minedMountain(30_000),
       helpers: 20,
       carts: 2,
-      staffed: 2,
       pocket: 10_000_000,
       seen: ["upgrade:tap"],
     };

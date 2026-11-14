@@ -15,13 +15,11 @@ import { effectiveRates } from "./rates";
 import {
   BENCH_BUSY_ASIDE,
   BENCH_FREE,
-  BENCH_UNKNOWN_ASIDE,
   CRAFT_WORD,
   UNFOUND_DEEPER,
   UNFOUND_HINT,
   WORKSHOP_FREE_ASIDE,
   benchBusyWords,
-  benchUnknownWords,
   craftPriceWords,
   craftTimeWords,
   craftSpeedPair,
@@ -55,7 +53,6 @@ import {
   recipeWindowMs,
   reinforceTier,
   troubleGapScale,
-  unknownBench,
   veinOftenScale,
   withClock,
   type Recipe,
@@ -130,13 +127,6 @@ export type BenchView =
       readonly clock: string;
       readonly cancel: string;
       readonly recipe: RecipeId;
-    }
-  | {
-      readonly kind: "unknown";
-      readonly title: string;
-      readonly aside: string;
-      readonly progress: number;
-      readonly clock: string;
     };
 
 const TIER_WORD: Readonly<
@@ -585,16 +575,6 @@ function benchProgress(startedAt: number, endsAt: number, now: number): number {
 /** Bench line, the bar, and the cancel that names the refund. */
 export function benchView(mountain: Mountain, now: number): BenchView {
   const bench = mountain.bench;
-  const held = unknownBench(mountain, now);
-  if (bench === undefined && held !== undefined) {
-    return {
-      kind: "unknown",
-      title: benchUnknownWords(held.endsAt - now),
-      aside: BENCH_UNKNOWN_ASIDE,
-      progress: benchProgress(held.startedAt, held.endsAt, now),
-      clock: benchClock(held.endsAt - now),
-    };
-  }
   if (bench === undefined) {
     return {
       kind: "free",
@@ -632,14 +612,9 @@ export function benchLeftMs(
   now: number,
 ): number | undefined {
   const bench = mountain.bench;
-  if (bench !== undefined && now < bench.endsAt) {
-    return bench.endsAt - now;
-  }
-  const held = unknownBench(mountain, now);
-  if (held === undefined) {
-    return undefined;
-  }
-  return held.endsAt - now;
+  return bench !== undefined && now < bench.endsAt
+    ? bench.endsAt - now
+    : undefined;
 }
 
 function hiddenHint(mountain: Mountain): string | undefined {
@@ -660,15 +635,11 @@ function actionFor(
   mountain: Mountain,
   id: RecipeId,
   stones: number,
-  now: number,
 ): CraftAction {
   if (mountain.bench?.recipe === id) {
     return { kind: "on-bench" };
   }
-  if (
-    mountain.bench !== undefined ||
-    unknownBench(mountain, now) !== undefined
-  ) {
+  if (mountain.bench !== undefined) {
     return { kind: "waiting" };
   }
   const gone = goneMaterial(mountain, id);
@@ -709,7 +680,7 @@ function recipeCard(
     stonesTag: cost.stones > 0 ? formatCompact(cost.stones) : undefined,
     costs,
     time: craftTimeWords(recipe.craftMs),
-    action: actionFor(mountain, recipe.id, cost.stones, now),
+    action: actionFor(mountain, recipe.id, cost.stones),
   };
 }
 

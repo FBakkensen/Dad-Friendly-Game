@@ -68,7 +68,6 @@ import {
   settleBench,
   startCraft,
   troubleGapScale,
-  unknownBench,
   veinOftenScale,
   recipeOpen,
   workshopUnlocked,
@@ -237,9 +236,6 @@ function handActions(
 
 function workshopActions(mountain: Mountain, now: number): readonly Action[] {
   const bench = mountain.bench;
-  if (bench === undefined && unknownBench(mountain, now) !== undefined) {
-    return [];
-  }
   if (bench !== undefined) {
     return now < bench.endsAt ? [{ kind: "cancelCraft" }] : [];
   }

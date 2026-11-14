@@ -31,11 +31,9 @@ import {
   createMountain,
   type Mountain,
 } from "./mountain";
-import { parseMountain } from "./save-format";
-import { parseSaveValue, serializeSave } from "./persist";
 import { BAND_SCALE, kidStretch, oneOffStretch } from "./scale";
 import { effectiveRates } from "./rates";
-import { minedMountain } from "./test-fixtures";
+import { gameOf, minedMountain, reloaded } from "./test-fixtures";
 import { tierById } from "./tiers";
 
 /** A tier's tending tenths as the crew is staffed now. */
@@ -216,12 +214,7 @@ describe("promote", () => {
           expect(Number.isSafeInteger(price)).toBe(true);
           const hired = promote(mountain);
           expect(hired.pocket).toBe(mountain.pocket - price);
-          const parsed = parseSaveValue(
-            JSON.parse(
-              JSON.stringify(serializeSave({ mountain: hired, lastSeen: 1 })),
-            ),
-          );
-          expect(parsed?.mountain.pocket).toBe(hired.pocket);
+          expect(reloaded(hired)?.pocket).toBe(hired.pocket);
         }
       }
     },
@@ -371,17 +364,6 @@ describe("tending", () => {
 });
 
 describe("parseEngineers", () => {
-  const base = {
-    remaining: 10,
-    pocket: 0,
-    helpers: 0,
-    carts: 0,
-    drills: 0,
-    borers: 0,
-    machines: 0,
-    kids: 0,
-  };
-
   it("accepts a closed crew and omits an empty list", () => {
     const engineers: Engineer[] = ENGINEER_NAMES.map((name, index) => ({
       name,
@@ -390,10 +372,10 @@ describe("parseEngineers", () => {
       post: ENGINEER_POSTS[index] ?? "camp",
     }));
     expect(parseEngineers(engineers)).toEqual(engineers);
-    expect(parseMountain({ ...base, engineers })?.engineers).toEqual(engineers);
+    expect(gameOf({ engineers })?.engineers).toEqual(engineers);
     expect(parseEngineers([])).toEqual([]);
-    expect(parseMountain({ ...base, engineers: [] })?.engineers).toEqual([]);
-    expect(parseMountain(base)?.engineers).toEqual([]);
+    expect(gameOf({ engineers: [] })?.engineers).toEqual([]);
+    expect(gameOf({})?.engineers).toEqual([]);
   });
 
   it("rejects a bad shape, a stranger, a duplicate, and a rank that lies about trips", () => {
@@ -401,7 +383,7 @@ describe("parseEngineers", () => {
     expect(
       parseEngineers(new Array(MAX_ENGINEERS + 1).fill(ada)),
     ).toBeUndefined();
-    expect(parseMountain({ ...base, engineers: [ada, ada] })).toBeUndefined();
+    expect(gameOf({ engineers: [ada, ada] })).toBeUndefined();
     for (const engineers of [
       [{ ...ada, name: "Bob" }],
       [{ ...ada, post: "helper" }],
@@ -416,7 +398,7 @@ describe("parseEngineers", () => {
       [{ name: "Ada", rank: 0, trips: 0 }],
     ]) {
       expect(parseEngineers(engineers)).toBeUndefined();
-      expect(parseMountain({ ...base, engineers })).toBeUndefined();
+      expect(gameOf({ engineers })).toBeUndefined();
     }
   });
 });

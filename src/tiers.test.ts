@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { tierLocked } from "./crew";
-import { minedMountain } from "./test-fixtures";
+import { minedMountain, reloaded } from "./test-fixtures";
 import {
   accrue,
   accrueAway,
@@ -10,7 +10,6 @@ import {
 } from "./mountain";
 import { AWAY_PAY_RATE, effectiveRates } from "./rates";
 import { MOUNTAIN_STONES, stonesLeft } from "./scale";
-import { parseSaveValue, serializeSave } from "./persist";
 import { withFactors } from "./economy/factors";
 import { listActions } from "./economy/actions";
 import { buyCrew } from "./crew";
@@ -275,13 +274,10 @@ describe("cost curves (#356)", () => {
       ...at({ helpers: 32, carts: 13, drills: 11, borers: 0 }),
       remaining: MOUNTAIN_STONES - 12_000_000,
     };
-    const loaded = parseSaveValue(
-      serializeSave({ mountain: old, lastSeen: 1 }),
-    );
-    if (loaded === undefined) {
+    const m = reloaded(old);
+    if (m === undefined) {
       throw new Error("the old crew did not load");
     }
-    const m = loaded.mountain;
     for (const id of ["cart", "drill", "borer"] as const) {
       const t = tierById(id);
       const cost = tierCost(t, m[t.field]);

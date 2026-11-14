@@ -16,12 +16,14 @@ import {
 import { fieldEventsToUpload, persistPhoneBackup } from "./local-saves";
 import type { Mountain } from "./mountain";
 import { saveEchoKey } from "./phone-backup";
+import { shapeRefused } from "./save-shape";
 import { effectiveRates } from "./rates";
 import { saveCounts } from "./session";
 import {
   cloudDirty,
   deviceLabel,
   holding,
+  canWrite,
   isWriter,
   log,
   record,
@@ -139,7 +141,7 @@ export function healCloud(ctx: StoreContext): void {
 function persistCloud(ctx: StoreContext, retry: boolean): void {
   cancelQueuedWrite(ctx);
   const uid = uidOf(ctx);
-  if (uid === undefined || !ctx.hydrated || ctx.disposed || !isWriter(ctx)) {
+  if (uid === undefined || !ctx.hydrated || ctx.disposed || !canWrite(ctx)) {
     return;
   }
   if (holding(ctx) || !serverSeen(ctx) || ctx.saveConflict !== undefined) {
@@ -155,6 +157,9 @@ function persistCloud(ctx: StoreContext, retry: boolean): void {
     deviceId: ctx.ports.deviceId,
     deviceLabel: deviceLabel(ctx),
   };
+  if (shapeRefused(ctx, mountain, sent.lastSeen)) {
+    return;
+  }
   const echo = saveEchoKey(mountain, sent.lastSeen, sent.rev, sent.deviceId);
   ctx.echoes.push(echo);
   if (ctx.echoes.length > 8) {
@@ -240,7 +245,7 @@ function writeFailed(ctx: StoreContext, flight: Flight, message: string): void {
 /** The write returned. A newer mountain that waited goes next. */
 function finishFlight(ctx: StoreContext): void {
   landWrite(ctx);
-  if (!cloudDirty(ctx) || !isWriter(ctx) || holding(ctx) || !serverSeen(ctx)) {
+  if (!cloudDirty(ctx) || !canWrite(ctx) || holding(ctx) || !serverSeen(ctx)) {
     return;
   }
   persistCloudSoon(ctx);

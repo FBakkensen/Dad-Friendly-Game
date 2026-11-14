@@ -12,7 +12,8 @@ import {
   type Mountain,
 } from "./mountain";
 import { mineVein } from "./veins";
-import { parseSaveValue, serializeSave } from "./persist";
+import { serializeSave } from "./persist";
+import { gameOf, reloaded } from "./test-fixtures";
 import { withFactors } from "./economy/factors";
 import {
   BAND_SCALE,
@@ -124,17 +125,11 @@ describe("kid-run stretch (M13, #253)", () => {
     const kid = digStones({ ...createMountain(), stretch: 1.75 }, 1);
     expect(Number.isInteger(kid.remaining)).toBe(false);
     const saved = serializeSave({ mountain: kid, lastSeen: 1 });
-    expect(saved.mountain.remaining).toBe(MOUNTAIN_STONES);
-    expect(parseSaveValue(saved)?.mountain.stretch).toBe(1.75);
-    const old = serializeSave({ mountain: createMountain(), lastSeen: 1 });
-    expect(parseSaveValue(old)?.mountain.stretch).toBe(1);
-    for (const bad of [0.5, 1e9, "2"]) {
-      expect(
-        parseSaveValue({
-          ...saved,
-          workshop: { ...saved.workshop, stretch: bad },
-        }),
-      ).toBeUndefined();
+    expect(saved.game.run).toEqual({ stretch: 1.75 });
+    expect(reloaded(kid)?.stretch).toBe(1.75);
+    expect(reloaded(createMountain())?.stretch).toBe(1);
+    for (const stretch of [0.5, 1e9, "2"]) {
+      expect(gameOf({ run: { stretch } })).toBeUndefined();
     }
   });
 
@@ -163,11 +158,7 @@ describe("kid-run stretch (M13, #253)", () => {
       const priciest = tierCost(tierById("machine"), 3, k);
       expect(Number.isSafeInteger(Math.round(priciest))).toBe(true);
       expect(formatCompact(priciest).length).toBeLessThanOrEqual(6);
-      const saved = serializeSave({
-        mountain: digStones(kid, 1e9),
-        lastSeen: 1,
-      });
-      expect(parseSaveValue(saved)?.mountain.stretch).toBe(k);
+      expect(reloaded(digStones(kid, 1e9))?.stretch).toBe(k);
     }
   });
 });
@@ -210,10 +201,7 @@ describe("band scales (#356)", () => {
     expect(Number.isInteger(m.pocket)).toBe(true);
   };
   const roundTrips = (m: Mountain) => {
-    const back = parseSaveValue(
-      JSON.parse(JSON.stringify(serializeSave({ mountain: m, lastSeen: 1 }))),
-    );
-    expect(back).toBeDefined();
+    expect(reloaded(m)).toBeDefined();
   };
 
   it.each([
@@ -363,10 +351,7 @@ describe("one-off stretch (#356)", () => {
 });
 
 describe("the stretch cap keeps every count a safe integer (#366)", () => {
-  const roundTrip = (m: Mountain) =>
-    parseSaveValue(
-      JSON.parse(JSON.stringify(serializeSave({ mountain: m, lastSeen: 1 }))),
-    )?.mountain;
+  const roundTrip = (m: Mountain) => reloaded(m);
 
   it("stops growing at MAX_STRETCH, where the whole mountain is still a safe count", () => {
     const whole = shownStones({ stretch: MAX_STRETCH }, MOUNTAIN_STONES);
@@ -397,13 +382,6 @@ describe("the stretch cap keeps every count a safe integer (#366)", () => {
     expect(back?.pocket).toBe(dug.pocket);
     expect(back?.stretch).toBe(MAX_STRETCH);
     expect(back?.legacy).toBe(1_000);
-  });
-
-  it("loads a stretch an older build wrote above the cap at the cap", () => {
-    const saved = serializeSave({ mountain: createMountain(), lastSeen: 1 });
-    // Before #366 a Legacy-1000 kid run carried about 70.8M.
-    const old = { ...saved, workshop: { ...saved.workshop, stretch: 70.8e6 } };
-    expect(parseSaveValue(old)?.mountain.stretch).toBe(MAX_STRETCH);
   });
 
   const ks = [

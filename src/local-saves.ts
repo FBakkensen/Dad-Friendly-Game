@@ -18,12 +18,17 @@ import {
   withKept,
   type RingScope,
 } from "./field-ring";
-import { writePhoneBackup, type PhoneConflict } from "./phone-backup";
+import {
+  phoneBackupKey,
+  writePhoneBackup,
+  type PhoneConflict,
+} from "./phone-backup";
+import { shapeRefused } from "./save-shape";
 import { saveCounts } from "./session";
-import { writeSessionSave } from "./session-save";
+import { SESSION_SAVE_KEY, writeSessionSave } from "./session-save";
 import {
   cloudDirty,
-  isWriter,
+  canWrite,
   log,
   logCounts,
   record,
@@ -34,7 +39,7 @@ import {
 } from "./store-context";
 
 /** Undismissed return notices. Not a mountain field, so a reload can still show them. */
-const HOMECOMING_NEWS_KEY = "dad-friendly-homecomings";
+const HOMECOMING_NEWS_KEY = "dad-friendly-game-homecomings";
 
 /** The guest's save on this device. Signed in, the phone backup is the device's copy instead. */
 export function persistSession(ctx: StoreContext): void {
@@ -59,17 +64,20 @@ export function persistSessionQuietly(ctx: StoreContext): void {
 /** True when the guest's save was written. A failed write is recorded. */
 function writeGuestSave(ctx: StoreContext): boolean {
   const storage = ctx.ports.storage;
-  if (!isWriter(ctx) || signedIn(ctx) || storage === undefined) {
+  if (
+    !canWrite(ctx) ||
+    signedIn(ctx) ||
+    storage === undefined ||
+    ctx.asideHeld.has(SESSION_SAVE_KEY)
+  ) {
     return false;
   }
-  const { mountain, lastSeen } = ctx.session;
-  if (
-    !writeSessionSave({
-      storage,
-      mountain,
-      lastSeen: lastSeen ?? ctx.ports.now(),
-    })
-  ) {
+  const { mountain } = ctx.session;
+  const lastSeen = ctx.session.lastSeen ?? ctx.ports.now();
+  if (shapeRefused(ctx, mountain, lastSeen)) {
+    return false;
+  }
+  if (!writeSessionSave({ storage, mountain, lastSeen })) {
     record(ctx, "save.error", { source: "session" });
     return false;
   }
@@ -102,19 +110,24 @@ export function persistPhoneBackup(ctx: StoreContext): void {
   const storage = ctx.ports.storage;
   const uid = uidOf(ctx);
   if (
-    !isWriter(ctx) ||
+    !canWrite(ctx) ||
     uid === undefined ||
     storage === undefined ||
-    !ctx.hydrated
+    !ctx.hydrated ||
+    ctx.asideHeld.has(phoneBackupKey(uid))
   ) {
     return;
   }
-  const { mountain, lastSeen } = ctx.session;
+  const { mountain } = ctx.session;
+  const lastSeen = ctx.session.lastSeen ?? ctx.ports.now();
+  if (shapeRefused(ctx, mountain, lastSeen)) {
+    return;
+  }
   const result = writePhoneBackup({
     storage,
     uid,
     mountain,
-    lastSeen: lastSeen ?? ctx.ports.now(),
+    lastSeen,
     rev: ctx.rev,
     deviceId: ctx.ports.deviceId,
     syncedRev: ctx.syncedRev,
@@ -148,6 +161,37 @@ export function rememberHomecomings(ctx: StoreContext): void {
     storage.setItem(HOMECOMING_NEWS_KEY, JSON.stringify(homecomings));
   } catch {
     return;
+  }
+}
+
+/** No homecomings are waiting: a fresh mountain sent nobody out (#558). */
+export function clearHomecomings(ctx: StoreContext): void {
+  const news = ctx.session.news;
+  ctx.session = { ...ctx.session, news: { ...news, homecomings: [] } };
+  rememberHomecomings(ctx);
+}
+
+/**
+ * Moves a copy from before this version to `{key}:v{version}`, byte for
+ * byte, and frees the key for this version's save (#558). A failed move
+ * (a full phone) leaves the old text where it was: the key is held, so
+ * nothing this session writes or clears it, and the next open tries again.
+ * `resetFresh` logs it.
+ */
+export function setAsideLocal(
+  ctx: StoreContext,
+  storage: Storage,
+  key: string,
+  raw: string,
+  version: number,
+): void {
+  try {
+    storage.setItem(`${key}:v${String(version)}`, raw);
+    storage.removeItem(key);
+  } catch {
+    // Logged by resetFresh after the set-aside lines, so the save line ends on it.
+    ctx.asideHeld.add(key);
+    record(ctx, "save.error", { source: "set-aside" });
   }
 }
 

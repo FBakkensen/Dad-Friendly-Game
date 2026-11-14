@@ -15,7 +15,11 @@ export type PlayAction =
       readonly times: number;
     }
   | { readonly kind: "wait"; readonly ms: number }
-  | { readonly kind: "waitFor"; readonly target: PlayTarget };
+  | { readonly kind: "waitFor"; readonly target: PlayTarget }
+  /** Reload the page, as a pull-to-refresh does. */
+  | { readonly kind: "reload" }
+  /** Kill the tab and open the game again in a new one, as a phone does. */
+  | { readonly kind: "reopen" };
 
 /** A viewport in CSS pixels: the phone's. The game is phone-only; a PC shows the same board. */
 type ScreenSize = { readonly width: number; readonly height: number };
@@ -61,6 +65,8 @@ Actions run in order; a shot is taken after opening and after each one:
                      e.g. label:Upgrades
   wait:<ms>          wait that many milliseconds, e.g. wait:500
   wait:<css>         wait until a match is visible, e.g. wait:.board-sheet.is-open
+  reload             reload the page
+  reopen             close the tab and open the game in a new one
 Add *N to a tap to repeat it, e.g. tap:.board-window*5`;
 
 const DEFAULT_OUT = "play-shots";
@@ -77,11 +83,16 @@ const playError = (message: string): PlayError => ({ kind: "error", message });
 
 /** One action word, or why it is not one. */
 export function parseAction(word: string): PlayAction | PlayError {
+  if (word === "reload" || word === "reopen") {
+    return { kind: word };
+  }
   const colon = word.indexOf(":");
   const kind = colon === -1 ? word : word.slice(0, colon);
   const body = colon === -1 ? "" : word.slice(colon + 1).trim();
   if (kind !== "tap" && kind !== "label" && kind !== "wait") {
-    return playError(`Unknown action "${word}". Use tap:, label:, or wait:.`);
+    return playError(
+      `Unknown action "${word}". Use tap:, label:, wait:, reload, or reopen.`,
+    );
   }
   if (body === "") {
     return playError(`"${word}" needs something after the colon.`);
@@ -265,6 +276,9 @@ export function labelMatch(names: readonly string[], label: string): number {
 
 /** A short, file-safe name for an action, for the shot after it. */
 export function actionSlug(action: PlayAction): string {
+  if (action.kind === "reload" || action.kind === "reopen") {
+    return action.kind;
+  }
   const raw =
     action.kind === "wait"
       ? `wait-${String(action.ms)}ms`

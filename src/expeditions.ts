@@ -154,6 +154,21 @@ const EXPEDITION_RECIPES = {
 type ExpeditionRecipeId =
   (typeof EXPEDITION_RECIPES)[keyof typeof EXPEDITION_RECIPES];
 
+/**
+ * Every find a saved trip may carry, by kind (#558). The save reader takes
+ * these and no others, so the ledger of what has shipped pins them.
+ */
+export const TRIP_FIND_IDS: Readonly<
+  Record<FindKind | "quiet", readonly string[]>
+> = {
+  quiet: [],
+  glimmer: RELICS.map((relic) => relic.id),
+  tool: LOST_TOOLS,
+  keepsake: KEEPSAKES,
+  engineer: ENGINEER_NAMES,
+  recipe: Object.values(EXPEDITION_RECIPES),
+};
+
 function tunnelRecipe(tunnel: TunnelId): ExpeditionRecipeId | undefined {
   if (tunnel === "old-shaft" || tunnel === "deep-dark") {
     return EXPEDITION_RECIPES[tunnel];
@@ -162,7 +177,7 @@ function tunnelRecipe(tunnel: TunnelId): ExpeditionRecipeId | undefined {
 }
 
 function isExpeditionRecipe(value: string): value is ExpeditionRecipeId {
-  return value === "crystal-lamp" || value === "engineers-kit";
+  return TRIP_FIND_IDS.recipe.includes(value);
 }
 
 /** Still out there: not in the book, and not already in someone's pocket. */
@@ -332,24 +347,6 @@ export function parseExpeditions(
     }
     seen.add(trip.engineer);
     parsed.push(trip);
-  }
-  return parsed;
-}
-
-/**
- * Untrusted shelf. Unknown ids and duplicates are dropped, so a newer
- * client cannot lock this one out of the save. A non-list still fails.
- */
-export function parseFinds(value: unknown): readonly FindId[] | undefined {
-  if (!Array.isArray(value)) {
-    return undefined;
-  }
-  const parsed: FindId[] = [];
-  for (const item of value) {
-    if (!isFindId(item) || parsed.includes(item)) {
-      continue;
-    }
-    parsed.push(item);
   }
   return parsed;
 }
@@ -718,12 +715,6 @@ function namedFind(kind: unknown, id: string): StoredFind | undefined {
     return { kind, id };
   }
   return undefined;
-}
-
-function isFindId(value: unknown): value is FindId {
-  return (
-    typeof value === "string" && (FIND_IDS as readonly string[]).includes(value)
-  );
 }
 
 function isToolId(value: string): value is ToolId {
