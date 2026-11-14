@@ -8,6 +8,8 @@
     "src/lab/measures/*.ts",
     "src/lab/policies/*.ts",
     "src/lab/fixtures/**/*.ts",
-    "mockups/preview.html"
+    "mockups/preview.html",
+    "mockups/line/line.ts",
+    "mockups/line/shots.mjs"
   ]
 }
