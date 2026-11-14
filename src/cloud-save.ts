@@ -23,6 +23,7 @@ export type CloudLoadResult =
   /** From before this version: set aside, with its rev and run stamp, for a fresh mountain. */
   | {
       readonly kind: "older";
+      readonly version: number;
       readonly rev: number;
       readonly startedAt: number;
       readonly raw: unknown;
@@ -38,14 +39,16 @@ export type CloudWriteResult =
 
 /**
  * Why a mountain went to Saved copies: the side not chosen in a conflict,
- * the one in play when a copy was restored, or the one left by a Start over
- * or a pass (#480).
+ * the one in play when a copy was restored, the one left by a Start over or
+ * a pass (#480), or a copy from before this version, kept as it was stored
+ * (#558).
  */
 export const ARCHIVE_REASONS = [
   "conflict",
   "restore",
   "start-over",
   "pass",
+  "reset",
 ] as const;
 
 export type ArchiveReason = (typeof ARCHIVE_REASONS)[number];
@@ -74,6 +77,11 @@ export type CloudSave = {
     deviceLabel: string;
     reason: ArchiveReason;
   }) => Promise<CloudWriteResult>;
+  /**
+   * Keeps a copy from before this version as it was stored, for seven days
+   * (#558). This build cannot read it, so Saved copies never lists it.
+   */
+  readonly archiveRaw?: (args: RawArchive) => Promise<CloudWriteResult>;
   /** Up to three copies that have not reached their expiry. */
   readonly listCopies?: (args: {
     uid: string;
@@ -89,6 +97,15 @@ export type CloudSave = {
     uid: string;
     onChange: (remote: CloudLoadResult) => void;
   }) => () => void;
+};
+
+/** A stored copy this build cannot read, on its way to Saved copies. */
+export type RawArchive = {
+  readonly uid: string;
+  readonly raw: unknown;
+  readonly version: number;
+  readonly rev: number;
+  readonly reason: ArchiveReason;
 };
 
 export type ArchivedCopy = {
@@ -154,6 +171,7 @@ export function createNoopCloudSave(): CloudSave {
     write: () => Promise.resolve({ kind: "ok" }),
     writeFieldLog: () => Promise.resolve({ kind: "ok" }),
     archiveCopy: () => Promise.resolve({ kind: "ok" }),
+    archiveRaw: () => Promise.resolve({ kind: "ok" }),
     listCopies: () => Promise.resolve([]),
     watch: ({ onChange }) => {
       onChange({ kind: "disabled" });
@@ -184,7 +202,8 @@ export function fieldLogOf(
 /** The memory cloud's Saved copies: kept a week, newest first, three listed. */
 function memoryArchive(
   archiveGate: { fail: boolean } | undefined,
-): Pick<CloudSave, "archiveCopy" | "listCopies"> {
+  rawArchives: RawArchive[],
+): Pick<CloudSave, "archiveCopy" | "archiveRaw" | "listCopies"> {
   const archives: {
     uid: string;
     copy: ArchivedCopy;
@@ -221,6 +240,13 @@ function memoryArchive(
       });
       return Promise.resolve({ kind: "ok" });
     },
+    archiveRaw: (copy) => {
+      if (archiveGate?.fail) {
+        return Promise.resolve({ kind: "failed", message: "unavailable" });
+      }
+      rawArchives.push(copy);
+      return Promise.resolve({ kind: "ok" });
+    },
     listCopies: ({ uid, now }) => {
       const fresh = archives
         .filter((item) => item.uid === uid && item.copy.expiresAt > now)
@@ -232,9 +258,19 @@ function memoryArchive(
   };
 }
 
+/** A document from before this version, as the memory cloud holds it. */
+type OlderDoc = {
+  readonly version: number;
+  readonly rev: number;
+  readonly startedAt: number;
+  readonly raw: unknown;
+};
+
 export function createMemoryCloudSave({
   docs = new Map<string, Mountain>(),
   newerDocs = new Set<string>(),
+  olderDocs = new Map<string, OlderDoc>(),
+  rawArchives = [],
   fieldLogs = new Map<string, FieldLogDocument>(),
   holdEcho,
   archiveGate,
@@ -242,6 +278,10 @@ export function createMemoryCloudSave({
   docs?: Map<string, Mountain>;
   /** Accounts whose document a later build wrote: it reads `newer` and takes no write. */
   newerDocs?: Set<string>;
+  /** Accounts whose document an earlier version wrote: it reads `older` until a write lands. */
+  olderDocs?: Map<string, OlderDoc>;
+  /** Where `archiveRaw` keeps what it was given, in order. */
+  rawArchives?: RawArchive[];
   fieldLogs?: Map<string, FieldLogDocument>;
   /** While held, a write does not fan out to other tabs. */
   holdEcho?: { held: boolean };
@@ -257,6 +297,10 @@ export function createMemoryCloudSave({
   const current = (uid: string): CloudLoadResult => {
     if (newerDocs.has(uid)) {
       return { kind: "newer" };
+    }
+    const older = olderDocs.get(uid);
+    if (older !== undefined) {
+      return { kind: "older", ...older };
     }
     const mountain = docs.get(uid);
     if (mountain === undefined) {
@@ -299,24 +343,24 @@ export function createMemoryCloudSave({
           message: "permission-denied",
         });
       }
-      const stored = revByUid.get(uid) ?? 0;
-      const expected = stored + 1;
-      if (!Number.isInteger(rev) || rev !== expected) {
-        return Promise.resolve({
-          kind: "rejected",
-          message: "permission-denied",
-        });
-      }
+      const older = olderDocs.get(uid);
+      const stored = revByUid.get(uid) ?? older?.rev ?? 0;
       const storedMountain = docs.get(uid);
+      const storedStamp =
+        storedMountain === undefined
+          ? (older?.startedAt ?? 0)
+          : runStartedAt(storedMountain);
       if (
-        storedMountain !== undefined &&
-        runStartedAt(mountain) < runStartedAt(storedMountain)
+        !Number.isInteger(rev) ||
+        rev !== stored + 1 ||
+        runStartedAt(mountain) < storedStamp
       ) {
         return Promise.resolve({
           kind: "rejected",
           message: "permission-denied",
         });
       }
+      olderDocs.delete(uid);
       docs.set(uid, mountain);
       revByUid.set(uid, rev);
       deviceByUid.set(uid, deviceId);
@@ -333,7 +377,7 @@ export function createMemoryCloudSave({
       fieldLogs.set(fieldLogKey(uid, deviceId), log);
       return Promise.resolve({ kind: "ok" });
     },
-    ...memoryArchive(archiveGate),
+    ...memoryArchive(archiveGate, rawArchives),
     watch: ({ uid, onChange }) => {
       let listeners = watchers.get(uid);
       if (listeners === undefined) {
@@ -356,6 +400,8 @@ export function createUnavailableCloudSave(): CloudSave {
     writeFieldLog: () =>
       Promise.resolve({ kind: "failed", message: "unavailable" }),
     archiveCopy: () =>
+      Promise.resolve({ kind: "failed", message: "unavailable" }),
+    archiveRaw: () =>
       Promise.resolve({ kind: "failed", message: "unavailable" }),
     listCopies: () => Promise.resolve([]),
     watch: ({ onChange }) => {

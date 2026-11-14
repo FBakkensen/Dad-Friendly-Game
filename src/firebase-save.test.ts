@@ -20,6 +20,9 @@ const firestore = vi.hoisted(() => ({
   setDoc: vi.fn(),
   onSnapshot: vi.fn(),
   serverTimestamp: vi.fn(() => "server-time"),
+  collection: vi.fn((_db: unknown, ...path: string[]) => path.join("/")),
+  addDoc: vi.fn(),
+  Timestamp: { fromMillis: (ms: number) => ({ ms }) },
 }));
 
 vi.mock("firebase/app", () => ({
@@ -173,6 +176,7 @@ describe("the save's home (#558)", () => {
     firestore.getDocFromServer.mockResolvedValueOnce(snap(old));
     await expect(save.load({ uid: "dad", fresh: true })).resolves.toEqual({
       kind: "older",
+      version: 7,
       rev: 5,
       startedAt: 70,
       raw: old,
@@ -181,5 +185,41 @@ describe("the save's home (#558)", () => {
     await expect(save.load({ uid: "dad", fresh: true })).resolves.toEqual({
       kind: "unavailable",
     });
+  });
+
+  it("keeps an older copy as it was stored in gameArchive, under raw", async () => {
+    const save = createFirebaseCloudSave({ options });
+    const old = { version: 7, rev: 5, mountain: { pocket: 3 } };
+    firestore.addDoc.mockResolvedValueOnce({ id: "copy" });
+    await expect(
+      save.archiveRaw?.({
+        uid: "dad",
+        raw: old,
+        version: 7,
+        rev: 5,
+        reason: "reset",
+      }),
+    ).resolves.toEqual({ kind: "ok" });
+    expect(firestore.addDoc).toHaveBeenLastCalledWith(
+      "gameArchive/dad/copies",
+      {
+        version: 7,
+        rev: 5,
+        raw: old,
+        archivedAt: "server-time",
+        expiresAt: { ms: expect.any(Number) as number },
+        reason: "reset",
+      },
+    );
+    firestore.addDoc.mockRejectedValueOnce(new Error("offline"));
+    await expect(
+      save.archiveRaw?.({
+        uid: "dad",
+        raw: old,
+        version: 7,
+        rev: 5,
+        reason: "reset",
+      }),
+    ).resolves.toMatchObject({ kind: "failed" });
   });
 });

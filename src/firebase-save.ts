@@ -24,6 +24,7 @@ import {
   type CloudLoadResult,
   type CloudSave,
   type CloudWriteResult,
+  type RawArchive,
 } from "./cloud-save";
 import { fieldLogWithinBudget } from "./field-log";
 import { readSave, serializeSave, type ParsedSave } from "./persist";
@@ -88,6 +89,7 @@ export function createFirebaseCloudSave({
       }
     },
     archiveCopy: (args) => archiveConflictCopy(db, args),
+    archiveRaw: (args) => archiveRawCopy(db, args),
     listCopies: ({ uid, now }) => listArchivedCopies(db, uid, now),
     writeFieldLog: async ({
       uid,
@@ -134,6 +136,7 @@ function readSnap(snap: SaveSnap): CloudLoadResult {
     case "older":
       return {
         kind: "older",
+        version: read.version,
         rev: read.rev,
         startedAt: read.startedAt,
         raw: data,
@@ -189,6 +192,30 @@ async function archiveConflictCopy(
       rev,
       deviceId,
       deviceLabel,
+      archivedAt: serverTimestamp(),
+      expiresAt: Timestamp.fromMillis(Date.now() + ARCHIVE_MS),
+      reason,
+    });
+    return { kind: "ok" };
+  } catch (error: unknown) {
+    return { kind: "failed", message: cloudErrorMessage(error) };
+  }
+}
+
+/**
+ * Keeps a document from before this version as it was stored, under `raw`,
+ * for a week (#558). `listCopies` never reads it back: it is not this
+ * version's save.
+ */
+async function archiveRawCopy(
+  db: Firestore,
+  { uid, raw, version, rev, reason }: RawArchive,
+): Promise<CloudWriteResult> {
+  try {
+    await addDoc(collection(db, ARCHIVE, uid, ARCHIVE_COPIES), {
+      version,
+      rev,
+      raw,
       archivedAt: serverTimestamp(),
       expiresAt: Timestamp.fromMillis(Date.now() + ARCHIVE_MS),
       reason,

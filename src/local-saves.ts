@@ -151,6 +151,36 @@ export function rememberHomecomings(ctx: StoreContext): void {
   }
 }
 
+/** No homecomings are waiting: a fresh mountain sent nobody out (#558). */
+export function clearHomecomings(ctx: StoreContext): void {
+  const news = ctx.session.news;
+  ctx.session = { ...ctx.session, news: { ...news, homecomings: [] } };
+  rememberHomecomings(ctx);
+}
+
+/**
+ * Moves a copy from before this version to `{key}:v{version}`, byte for
+ * byte, and frees the key for this version's save (#558). A failed move
+ * leaves the key as it was and is recorded.
+ */
+export function setAsideLocal(
+  ctx: StoreContext,
+  key: string,
+  raw: string,
+  version: number,
+): void {
+  const storage = ctx.ports.storage;
+  if (storage === undefined) {
+    return;
+  }
+  try {
+    storage.setItem(`${key}:v${String(version)}`, raw);
+    storage.removeItem(key);
+  } catch {
+    record(ctx, "save.error", { source: "set-aside" });
+  }
+}
+
 /** The homecomings a reload left unread, or none. */
 export function readHomecomings(ctx: StoreContext): readonly Homecoming[] {
   const storage = ctx.ports.storage;

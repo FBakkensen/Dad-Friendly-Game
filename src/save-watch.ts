@@ -9,9 +9,11 @@ import {
   persistSession,
   phoneConflict,
   restoreFieldRing,
+  setAsideLocal,
 } from "./local-saves";
 import { minedOut } from "./mountain";
 import {
+  phoneBackupKey,
   readPhoneBackup,
   writePhoneBackup,
   type PhoneBackup,
@@ -23,10 +25,17 @@ import {
   hasLocalProgress,
   localMoment,
   openSession,
+  resetFresh,
+  type SetAside,
 } from "./save-load";
 import { endResumeRead, freshServerRead } from "./server-read";
 import { forgetArrivals } from "./session";
-import { clearSessionSave, readSessionSave } from "./session-save";
+import {
+  clearSessionSave,
+  readSessionSave,
+  SESSION_SAVE_KEY,
+  type SessionRead,
+} from "./session-save";
 import {
   cancelRetry,
   holdNewer,
@@ -76,6 +85,9 @@ function resumeFromSession(ctx: StoreContext): void {
     emit(ctx);
     return;
   }
+  if (read.kind === "older") {
+    resetFresh(ctx, setAsideOlder(ctx, read, undefined));
+  }
   if (read.kind !== "ok") {
     ctx.saveKind = "unsigned";
     emit(ctx);
@@ -107,6 +119,32 @@ function resumeFromSession(ctx: StoreContext): void {
     persistSession(ctx);
   }
   emit(ctx);
+}
+
+/**
+ * Moves the guest save and the phone backup from before this version aside
+ * on the phone (#558), and says which went.
+ */
+function setAsideOlder(
+  ctx: StoreContext,
+  guest: SessionRead,
+  backup: { readonly uid: string; readonly read: PhoneBackup } | undefined,
+): readonly SetAside[] {
+  const aside: SetAside[] = [];
+  if (guest.kind === "older") {
+    setAsideLocal(ctx, SESSION_SAVE_KEY, guest.raw, guest.version);
+    aside.push({ source: "guest", ...guest });
+  }
+  const phone = backup?.read;
+  if (backup !== undefined && phone?.kind === "older") {
+    setAsideLocal(ctx, phoneBackupKey(backup.uid), phone.raw, phone.version);
+    aside.push({ source: "phone", ...phone });
+  }
+  return aside.map(({ source, version, startedAt }) => ({
+    source,
+    version,
+    startedAt,
+  }));
 }
 
 /** Plays a local copy that is ahead of the one in play. */
@@ -177,7 +215,11 @@ function prepareLocal(ctx: StoreContext, uid: string): void {
   takeIfAhead(ctx, backup.kind === "present" ? backup.save : undefined);
   takeRevs(ctx, session, backup);
   takeConflict(ctx, backup);
-  if (backup.kind === "unreadable" || backup.kind === "older") {
+  const aside = setAsideOlder(ctx, guest, { uid, read: backup });
+  if (aside.length > 0) {
+    resetFresh(ctx, aside);
+  }
+  if (backup.kind === "unreadable") {
     return;
   }
   if (!hasLocalProgress(ctx)) {

@@ -35,7 +35,8 @@ export type PhoneBackup =
 
 export type PhoneBackupWrite = "wrote" | "kept" | "failed";
 
-function backupKey(uid: string): string {
+/** Where the phone backup for an account lives. */
+export function phoneBackupKey(uid: string): string {
   return `${PHONE_BACKUP_PREFIX}${uid}`;
 }
 
@@ -143,7 +144,7 @@ export function readPhoneBackup({
   uid: string;
 }): PhoneBackup {
   try {
-    const raw = storage.getItem(backupKey(uid));
+    const raw = storage.getItem(phoneBackupKey(uid));
     if (raw === null) {
       return { kind: "absent" };
     }
@@ -171,7 +172,7 @@ type PhoneBackupInput = {
  */
 export function writePhoneBackup(input: PhoneBackupInput): PhoneBackupWrite {
   const { storage, uid } = input;
-  const key = backupKey(uid);
+  const key = phoneBackupKey(uid);
   let raw: string;
   try {
     raw = JSON.stringify(backupRecord(input));

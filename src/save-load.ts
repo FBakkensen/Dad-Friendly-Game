@@ -3,16 +3,27 @@
  * device's newer save, an echo of our own write, or a failure to reach it.
  * Launch keeps the copy that is ahead (`observable-saves.md`).
  */
+import { archiveWithin } from "./archive-wait";
 import { applySignedInSave, type CloudLoadResult } from "./cloud-save";
 import { healCloud, persistCloudSoon, takeEcho } from "./cloud-writer";
-import { persistPhoneBackup, readHomecomings } from "./local-saves";
-import { minedOut, runStartedAt, type Mountain } from "./mountain";
+import {
+  clearHomecomings,
+  persistPhoneBackup,
+  readHomecomings,
+} from "./local-saves";
+import {
+  createMountain,
+  minedOut,
+  runStartedAt,
+  type Mountain,
+} from "./mountain";
 import { applyMerged } from "./save-adopt";
 import { compareSaveProgress, type SaveMoment } from "./save-progress";
 import { freshServerRead } from "./server-read";
 import { markWelcomed, openBaselines, saveCounts } from "./session";
 import {
   adopt,
+  canWrite,
   cloudDirty,
   holdNewer,
   holding,
@@ -37,16 +48,20 @@ export function localMoment(ctx: StoreContext): SaveMoment {
   return { mountain: ctx.session.mountain, lastSeen: ctx.session.lastSeen };
 }
 
-/** A phone that has never saved is not a copy: anything played or bought makes it one. */
+/**
+ * A phone that has never saved is not a copy: anything played or bought makes
+ * it one. So does a later run, unless a set-aside only stamped a fresh
+ * mountain with the run it replaced (#558).
+ */
 export function hasLocalProgress(ctx: StoreContext): boolean {
   const { mountain, lastSeen } = ctx.session;
-  return lastSeen !== undefined || anyProgress(mountain);
+  return lastSeen !== undefined || anyProgress(mountain, !ctx.blankReset);
 }
 
-function anyProgress(mountain: Mountain): boolean {
+function anyProgress(mountain: Mountain, countStamp: boolean): boolean {
   return (
     minedOut(mountain) > 0 ||
-    runStartedAt(mountain) > 0 ||
+    (countStamp && runStartedAt(mountain) > 0) ||
     [
       mountain.pocket,
       mountain.helpers,
@@ -78,6 +93,47 @@ export function openSession(
   const paid = options.pay ? payAway(ctx, options.since) : 0;
   ctx.session = markWelcomed(ctx.session);
   return { paid };
+}
+
+/** A copy from before this version, and where it was (#558). */
+export type SetAside = {
+  readonly source: "guest" | "phone" | "cloud";
+  readonly version: number;
+  /** Its run stamp, else 0. */
+  readonly startedAt: number;
+};
+
+/**
+ * Copies from before this version were set aside: Tonight starts again, and
+ * unless a copy of this version is already in play from as late a run, a
+ * fresh mountain does, stamped with the latest of their runs so it is never
+ * an earlier run than the one it replaced. It is not a copy until it is
+ * played (`blankReset`).
+ */
+export function resetFresh(
+  ctx: StoreContext,
+  aside: readonly SetAside[],
+): void {
+  for (const { source, version, startedAt } of aside) {
+    record(ctx, "save.set-aside", { source, id: `v${String(version)}` });
+    log(ctx, {
+      level: "info",
+      code: "save.set-aside",
+      detail: `${source} v${String(version)}`,
+      data: { version, startedAt },
+    });
+  }
+  const playing = ctx.session.mountain;
+  const startedAt = Math.max(
+    runStartedAt(playing),
+    ...aside.map((each) => each.startedAt),
+  );
+  if (hasLocalProgress(ctx) && runStartedAt(playing) >= startedAt) {
+    return;
+  }
+  adopt(ctx, { ...createMountain(), startedAt }, undefined);
+  ctx.blankReset = true;
+  clearHomecomings(ctx);
 }
 
 /** Pays the time a save says we were gone, unless a fresh read or the conflict sheet holds play. */
@@ -221,8 +277,7 @@ function applyRemote(ctx: StoreContext, remote: CloudLoadResult): void {
     return;
   }
   if (remote.kind === "older") {
-    // Set aside in a later step of #558; until then it cannot be played.
-    noteRemoteFailure(ctx, "unavailable");
+    void setAsideCloud(ctx, remote);
     return;
   }
   if (ctx.saveConflict !== undefined) {
@@ -251,6 +306,60 @@ function applyRemote(ctx: StoreContext, remote: CloudLoadResult): void {
       persistCloudSoon(ctx);
     }
   }
+}
+
+/**
+ * A cloud copy from before this version (#558): the board is held while it
+ * goes to Saved copies as it was stored, then the fresh mountain (or this
+ * phone's copy of this version) is written over it at the next rev. A copy
+ * that does not land keeps the hold and says so on the save line.
+ */
+async function setAsideCloud(
+  ctx: StoreContext,
+  remote: Extract<CloudLoadResult, { kind: "older" }>,
+): Promise<void> {
+  const uid = uidOf(ctx);
+  const generation = ctx.hydrateGeneration;
+  if (uid === undefined || !canWrite(ctx) || ctx.settingAside === generation) {
+    return;
+  }
+  ctx.settingAside = generation;
+  ctx.hydrated = false;
+  ctx.saveKind = "loading";
+  emit(ctx);
+  const archiveRaw = ctx.ports.cloudSave.archiveRaw;
+  const { version, rev, startedAt } = remote;
+  const write =
+    archiveRaw === undefined
+      ? Promise.resolve({ kind: "failed", message: "no archive" } as const)
+      : archiveRaw({ uid, raw: remote.raw, version, rev, reason: "reset" });
+  const landed = await archiveWithin(
+    ctx,
+    write,
+    "reset",
+    0,
+    () =>
+      !ctx.disposed &&
+      generation === ctx.hydrateGeneration &&
+      uidOf(ctx) === uid &&
+      !ctx.hydrated,
+  ).finally(() => {
+    if (ctx.settingAside === generation) {
+      ctx.settingAside = undefined;
+    }
+  });
+  if (!landed) {
+    if (!ctx.disposed && generation === ctx.hydrateGeneration) {
+      ctx.saveKind = "error";
+      emit(ctx);
+    }
+    return;
+  }
+  ctx.rev = Math.max(ctx.rev, rev);
+  ctx.syncedRev = rev;
+  resetFresh(ctx, [{ source: "cloud", version, startedAt }]);
+  noteServerSeen(ctx, true);
+  openFresh(ctx, ctx.session.lastSeen, true, "set aside");
 }
 
 /** The server's own copy (not the cache, not a pending write). */

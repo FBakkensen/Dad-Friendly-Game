@@ -175,6 +175,13 @@ export type StoreContext = {
   readonly ring: EventRing;
   /** A Start over or a pass is keeping the left mountain in Saved copies (#480). */
   keepingLeft: boolean;
+  /**
+   * The mountain in play is a fresh one a set-aside left (#558): its run stamp
+   * alone does not make it a copy. Cleared when another mountain comes into play.
+   */
+  blankReset: boolean;
+  /** The watch generation whose older cloud copy is on its way to Saved copies (#558). */
+  settingAside: number | undefined;
   /** Whose kept events the ring holds (#479); undefined until the account is known. */
   ringScope: RingScope | undefined;
   /** The ring as last kept on this device: its push count, when, and whether that write failed. */
@@ -230,6 +237,8 @@ export function createStoreContext(
     fieldLogFingerprint: undefined,
     ring: new EventRing(),
     keepingLeft: false,
+    blankReset: false,
+    settingAside: undefined,
     ringScope: undefined,
     ringKept: { pushes: 0, at: undefined, failed: false },
     loadingSince: undefined,
@@ -348,6 +357,7 @@ export function setGame(
   lastSeen: number | undefined,
 ): void {
   ctx.session = { ...ctx.session, mountain, lastSeen };
+  ctx.blankReset = false;
 }
 
 /** A copy from elsewhere comes into play: Tonight starts fresh, unless it is this mountain. */
