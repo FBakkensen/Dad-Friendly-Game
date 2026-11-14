@@ -1,6 +1,5 @@
 import { factor } from "./economy/factors";
 import { stageOf } from "./line";
-import { lineOn } from "./line-switch";
 import { BAND_STARTS, MOUNTAIN_STONES, minedOut } from "./scale";
 import type { TierId } from "./tiers";
 
@@ -114,10 +113,11 @@ export function layersEntered(before: number, after: number): readonly Layer[] {
 }
 
 /**
- * Decision D3 (#246): each deeper band suits one machine and is tough on
- * one other. A band only favours a machine that unlocks in it or earlier,
- * and the bonus stays small, so a newly unlocked machine is still clearly
- * the strongest. The Topsoil is plain rock.
+ * Table A (spec `2026-11-14-line-works-village-design.md`, "The rock moves
+ * the narrow stage too"; Flemming, 14 Nov 2026; on in play since #536):
+ * each deeper band is tough on one stage's first machine and suits that
+ * stage's second, so the rock moves the narrow stage. The Topsoil is plain
+ * rock. A suited machine runs ×1.1 and a slowed one ×0.8 (#543 kept 0.8).
  */
 export const FAVOURED_SPEED = 1.1;
 export const SLOWED_SPEED = 0.8;
@@ -130,43 +130,27 @@ export const LAYER_FAVOURS: Readonly<
 > = {
   1: undefined,
   2: { suits: "borer", tough: "drill" },
-  3: { suits: "drill", tough: "borer" },
-  4: { suits: "machine", tough: "borer" },
-};
-
-/**
- * Table A (spec `2026-11-14-line-works-village-design.md`, "The rock moves
- * the narrow stage too"; Flemming, 14 Nov 2026): each band is tough on one
- * stage's first machine and suits that stage's second. It is the table while
- * the line is on (#543); today's table stays until the line turns on (#536).
- */
-const LINE_FAVOURS: typeof LAYER_FAVOURS = {
-  1: undefined,
-  2: { suits: "borer", tough: "drill" },
   3: { suits: "train", tough: "cart" },
   4: { suits: "machine", tough: "hoist" },
 };
 
-/** How tough a band's rock is on the line (#543). Today's stays at 0.8. */
-export const LINE_TOUGH = 0.8;
-
 /**
  * The sweep factor for the rock's whole-stage form (#543, a lab knob): 1
  * (unset) is the table's form, 0 slows every machine of the band's tough
- * stage, with no band suiting any. Read only while the line is on.
+ * stage, with no band suiting any. #543 kept the table's form in play.
  */
 export const ROCK_STAGE_OFF = "rock.stage.off";
 
-/** Which machine this band suits and which it is tough on, by the line. */
+/** Which machine this band suits and which it is tough on. */
 export function layerFavours(
   index: LayerIndex,
 ): { readonly suits: TierId; readonly tough: TierId } | undefined {
-  return (lineOn() ? LINE_FAVOURS : LAYER_FAVOURS)[index];
+  return LAYER_FAVOURS[index];
 }
 
-/** The rock's whole-stage form, a lab knob read only on the line. */
+/** The rock's whole-stage form, a lab knob. */
 function wholeStage(): boolean {
-  return lineOn() && factor(ROCK_STAGE_OFF) === 0;
+  return factor(ROCK_STAGE_OFF) === 0;
 }
 
 /**
@@ -180,23 +164,16 @@ export function bandSuits(index: LayerIndex): TierId | undefined {
 /** This band's rock on this tier. Missing entries, workers, and kids are 1. */
 export function hardnessOf(index: LayerIndex, tierId: TierId): number {
   const favours = layerFavours(index);
-  if (!lineOn()) {
-    return favours?.suits === tierId
-      ? FAVOURED_SPEED
-      : favours?.tough === tierId
-        ? SLOWED_SPEED
-        : 1;
-  }
   if (favours === undefined) {
     return 1;
   }
   if (wholeStage()) {
-    return stageOf(tierId) === stageOf(favours.tough) ? LINE_TOUGH : 1;
+    return stageOf(tierId) === stageOf(favours.tough) ? SLOWED_SPEED : 1;
   }
   if (favours.suits === tierId) {
     return FAVOURED_SPEED;
   }
-  return favours.tough === tierId ? LINE_TOUGH : 1;
+  return favours.tough === tierId ? SLOWED_SPEED : 1;
 }
 
 /**

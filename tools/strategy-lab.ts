@@ -45,14 +45,14 @@ Usage:
   npm run lab -- --ci
   npm run lab -- --policy <id> [--policy <id>]
   npm run lab -- --seeds <n> --days <n> --out <dir>
-  npm run lab -- --factors line.off=0,layer.3.cart.hardness=0.8
+  npm run lab -- --factors rock.stage.off=0,layer.3.cart.hardness=0.8
   npm run lab -- --ci --ledger check
   npm run lab:ledger
 
 Seeds default to ${String(LOCAL_SEEDS)} (1 through that count). --ci uses ${String(CI_SEEDS)}.
 --seeds wins over both. Days default to ${String(DEFAULT_MAX_DAYS)}.
 --policy limits the rows. The columns are still every registered measure.
---factors holds sweep factors for every run (line.off=0 plays the line, #534).
+--factors holds sweep factors for every run (rock.stage.off=0 plays the rock's whole-stage form, #543).
 A missed guardrail is a warning unless LAB_STRICT=1, which exits 1.
 --ledger check fails when the run's pacing ledger differs from ${LEDGER_PATH};
 --ledger write (npm run lab:ledger) writes it. Both need the gate's run: --ci,

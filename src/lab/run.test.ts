@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { RUSH_MS } from "../gold-rush";
 import { minedMountain } from "../test-fixtures";
-import { withFactors } from "../economy/factors";
-import { LINE_OFF } from "../line-switch";
 import { tapQuickVein, tendBest } from "./run";
 import { createWorld } from "./world";
 
@@ -47,9 +45,7 @@ describe("where a best-tending dad sends her (#543)", () => {
   };
 
   it("on the line, to the post where the line gains most", () => {
-    withFactors({ [LINE_OFF]: 0 }, () => {
-      expect(tendBest(crew).engineers[0]?.post).toBe("cart");
-    });
+    expect(tendBest(crew).engineers[0]?.post).toBe("cart");
   });
 
   it("off the line, to the Great Machine as always", () => {
@@ -57,37 +53,33 @@ describe("where a best-tending dad sends her (#543)", () => {
   });
 
   it("leaves an engineer who is out exploring where she is", () => {
-    withFactors({ [LINE_OFF]: 0 }, () => {
-      const away = {
-        ...crew,
-        expeditions: [
-          {
-            engineer: "Ada" as const,
-            tunnel: "side-seam" as const,
-            sentAt: 0,
-            returnsAt: 60_000,
-            find: { kind: "quiet" as const },
-          },
-        ],
-      };
-      expect(tendBest(away)).toBe(away);
-    });
+    const away = {
+      ...crew,
+      expeditions: [
+        {
+          engineer: "Ada" as const,
+          tunnel: "side-seam" as const,
+          sentAt: 0,
+          returnsAt: 60_000,
+          find: { kind: "quiet" as const },
+        },
+      ],
+    };
+    expect(tendBest(away)).toBe(away);
   });
 
   it("leaves her where she is when no post lifts the line", () => {
-    withFactors({ [LINE_OFF]: 0 }, () => {
-      const idle = {
-        ...crew,
-        owned: {
-          ...crew.owned,
-          cart: 0,
-          drill: 0,
-          borer: 0,
-          hoist: 0,
-          machine: 0,
-        },
-      };
-      expect(tendBest(idle)).toBe(idle);
-    });
+    const idle = {
+      ...crew,
+      owned: {
+        ...crew.owned,
+        cart: 0,
+        drill: 0,
+        borer: 0,
+        hoist: 0,
+        machine: 0,
+      },
+    };
+    expect(tendBest(idle)).toBe(idle);
   });
 });

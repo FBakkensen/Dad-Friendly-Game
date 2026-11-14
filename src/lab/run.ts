@@ -6,12 +6,10 @@ import {
   promote,
   promoteCost,
   station,
-  tendBestTier,
   type EngineerPost,
 } from "../engineers";
 import { send, settle, TUNNELS, type TunnelId } from "../expeditions";
 import { mineByHand, type Mountain } from "../mountain";
-import { lineOn } from "../line-switch";
 import { effectiveRates } from "../rates";
 import { moreStones } from "../staffing";
 import { tierById } from "../tiers";
@@ -192,15 +190,11 @@ function buyWhileAffordable(
 }
 
 /**
- * Where a best-tending dad sends his engineers. On the line (#543) each one
- * at home goes to the post where the line gains most, as her page shows it,
- * since a post on a stage that is not narrow adds nothing. Off the line,
- * the Great Machine, else the borers, as always.
+ * Where a best-tending dad sends his engineers (#543): each one at home goes
+ * to the post where the line gains most, as her page shows it, since a post
+ * on a stage that is not narrow adds nothing.
  */
 export function tendBest(mountain: Mountain): Mountain {
-  if (!lineOn()) {
-    return tendBestTier(mountain);
-  }
   let next = mountain;
   for (const [index, engineer] of mountain.engineers.entries()) {
     if (onTrip(next, engineer.name)) {
@@ -252,9 +246,9 @@ function playSecond(
     params.boosts === "always"
       ? buyEveryBoost(world.mountain, world.clock)
       : world.mountain;
-  // On the line she is weighed post by post, so only as he sits down and
-  // after a staffed buy (tendsAfter), not every second.
-  if (params.tend === "best" && (second === 0 || !lineOn())) {
+  // She is weighed post by post, so only as he sits down and after a
+  // staffed buy (tendsAfter), not every second.
+  if (params.tend === "best" && second === 0) {
     mountain = tendBest(mountain);
   }
   if (second === 0 && params.explore !== "never") {

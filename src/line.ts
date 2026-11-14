@@ -1,11 +1,10 @@
-import { lineOn } from "./line-switch";
 import { MACHINE_IDS, tierById, type MachineId, type TierId } from "./tiers";
 
 /**
  * The line (M15, spec `2026-11-14-line-works-village-design.md`, step 1):
  * rock goes through three stages, the face (dig), the haul (carry to the
  * shaft) and the lift (raise it). The line moves as fast as the level the
- * hands lift its lowest stage to. Off in play until #536.
+ * hands lift its lowest stage to. On in play since #536.
  */
 export type Stage = "face" | "haul" | "lift";
 
@@ -47,7 +46,7 @@ export function stageOf(tierId: TierId): Stage | undefined {
 
 /** A machine's rating on the line, times today's; the hands keep theirs. */
 export function lineRating(tierId: TierId): number {
-  return lineOn() && stageOf(tierId) !== undefined ? LINE_RATING : 1;
+  return stageOf(tierId) !== undefined ? LINE_RATING : 1;
 }
 
 /** What each stage moves: running × speed over its machines. */

@@ -1,6 +1,6 @@
 import { LAYERS, layerOf, type LayerId } from "../layers";
 import { RELICS, hasRelic, type RelicId } from "../relics";
-import { machinesInPlay, owned, tierById, type MachineId } from "../tiers";
+import { MACHINE_IDS, owned, tierById, type MachineId } from "../tiers";
 import { dayNumber } from "./casual";
 import {
   LEDGER_DAY_DIGITS as DAY_DIGITS,
@@ -39,7 +39,7 @@ export type LedgerLog = {
 
 /** Watches one run. Only a new mountain is read, so a still second costs nothing. */
 export function createLedgerLog(): LedgerLog {
-  const machineIds = machinesInPlay();
+  const machineIds = MACHINE_IDS;
   const bands: Partial<Record<LayerId, number>> = {};
   const machines: Partial<Record<MachineId, number>> = Object.fromEntries(
     machineIds.map((id) => [id, undefined]),
@@ -114,7 +114,7 @@ function byText(left: string, right: string): number {
 
 /** The committed ledger: one row per player type and seed, sorted. */
 export function renderLedger(entries: readonly LedgerEntry[]): string {
-  const machineIds = machinesInPlay();
+  const machineIds = MACHINE_IDS;
   const headers = [
     "Policy",
     "Seed",

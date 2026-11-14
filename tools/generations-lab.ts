@@ -33,7 +33,6 @@ import {
 } from "../src/lab/targets";
 import { kidStretch } from "../src/scale";
 import { withFactors } from "../src/economy/factors";
-import { LINE_OFF } from "../src/line-switch";
 import { parseFactors } from "./lab-factors";
 import { inOrder } from "./lab-pool";
 
@@ -108,9 +107,8 @@ if (job === undefined) {
     policy,
     seed: Number(seed),
     runs: runCount,
-    // Only the line's runs take weeks (#543); with the line off a run past
-    // the usual 30 days still counts as unfinished.
-    ...(factors[LINE_OFF] === 0 ? { maxDays: KID_RUN_MAX_DAYS } : {}),
+    // The line's runs take weeks (#543).
+    maxDays: KID_RUN_MAX_DAYS,
     factors,
   });
   // Disconnect once the runs are sent, so the parent has them before the exit.

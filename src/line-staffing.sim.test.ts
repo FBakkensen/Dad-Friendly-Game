@@ -1,6 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { withFactors } from "./economy/factors";
-import { LINE_OFF } from "./line-switch";
 import { effectiveRates } from "./rates";
 import { minedMountain } from "./test-fixtures";
 
@@ -72,38 +70,37 @@ function crews(grid: Grid): Crew[] {
 function sweep(grid: Grid): { checked: number; misses: string[] } {
   const misses: string[] = [];
   let checked = 0;
-  withFactors({ [LINE_OFF]: 0 }, () => {
-    for (const post of ["borer", "machine", "camp"] as const) {
-      const engineers =
-        post === "camp"
-          ? []
-          : [{ name: "Ada" as const, rank: 0 as const, trips: 0, post }];
-      const rate = (crew: Crew): number => {
-        const { legacy, ...counts } = crew;
-        const base = minedMountain(50_000_000);
-        return effectiveRates({
-          ...base,
-          legacy,
-          owned: { ...base.owned, ...counts },
-          engineers,
-        }).exactCrewPerSecond;
-      };
-      for (const crew of crews(grid)) {
-        const now = rate(crew);
-        const tended = crew.legacy > 0;
-        const allowed = tended ? now * TENDED_SLIP : 0;
-        for (const [what, more] of MORE) {
-          const after = rate(more(crew));
-          if (after < now - allowed - 1e-6) {
-            misses.push(
-              `${what} on ${JSON.stringify({ post, ...crew })}: ${String(now)} to ${String(after)}`,
-            );
-          }
-          checked += 1;
+  for (const post of ["borer", "machine", "camp"] as const) {
+    const engineers =
+      post === "camp"
+        ? []
+        : [{ name: "Ada" as const, rank: 0 as const, trips: 0, post }];
+    const rate = (crew: Crew): number => {
+      const { legacy, ...counts } = crew;
+      const base = minedMountain(50_000_000);
+      return effectiveRates({
+        ...base,
+        legacy,
+        owned: { ...base.owned, ...counts },
+        engineers,
+      }).exactCrewPerSecond;
+    };
+    for (const crew of crews(grid)) {
+      const now = rate(crew);
+      const tended = crew.legacy > 0;
+      const allowed = tended ? now * TENDED_SLIP : 0;
+      for (const [what, more] of MORE) {
+        const after = rate(more(crew));
+        if (after < now - allowed - 1e-6) {
+          misses.push(
+            `${what} on ${JSON.stringify({ post, ...crew })}: ${String(now)} to ${String(after)}`,
+          );
         }
+        checked += 1;
       }
     }
-  });
+  }
+
   return { checked, misses };
 }
 

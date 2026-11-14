@@ -1,6 +1,5 @@
 import { BAND_STARTS, stretch } from "./scale";
 import { factor } from "./economy/factors";
-import { lineOn } from "./line-switch";
 import type { Stage } from "./line";
 import type { Mountain } from "./mountain";
 import type { RelicId } from "./relics";
@@ -8,36 +7,15 @@ import { pay, stonesPrice, type Price } from "./stock";
 
 /** All tier numbers live here. See docs/DESIGN.md "M2: Automation". */
 /**
- * #357: carts, drills, borers, and the Great Machine climb ×1.15 a unit, the
- * top of the 1.10–1.15 genre band, so the milestone marks do not let a
- * cart or drill stack crowd the borer out.
+ * The line (#543, on in play since #536): machines climb ×1.219 a unit (the
+ * old ×1.15 times 1.06), so a casual dad's run takes at least five days with
+ * machines rated three times the old. Workers keep ×1.06 (#357), and kids
+ * share their curve: a steeper one priced the 200th worker of a late kid run
+ * like a Great Machine, and the optimizer stalled for a month.
  */
-export const MACHINE_COST_GROWTH = 1.15;
+export const MACHINE_COST_GROWTH = 1.219;
 /** #357: workers climb ×1.06 a unit, and kids share the curve. */
 export const HELPER_COST_GROWTH = 1.06;
-
-/**
- * On the line (#543, labs only until #536): machines climb ×1.219 a unit
- * (today's ×1.15 times 1.06), so a casual dad's run takes at least five days
- * with machines rated three times today's. Workers keep today's curve: a
- * steeper one priced the 200th worker of a late kid run like a Great
- * Machine, and the optimizer stalled for a month.
- */
-export const LINE_MACHINE_COST_GROWTH = 1.219;
-
-/**
- * First prices that differ on the line (#543). A worker is 60, three times
- * today's: it keeps the optimizer within a quarter of the evening dad's run
- * (regret) without the steeper worker curve that stalled late kid runs. It
- * costs the opening: the first ten minutes mine about 42K, not 247K, and the
- * Hammer comes half a day later (the Lantern does not move). The Great
- * Machine is 0.8 of today's, so a checker's best buy is in reach within two
- * check-ins.
- */
-const LINE_FIRST_COST: Readonly<Partial<Record<TierId, number>>> = {
-  helper: 60,
-  machine: 96_480_000,
-};
 /**
  * Kids follow the workers' curve from a late-game price. #327: cheap and
  * quick enough (25/s) that one pays back in hours, not days.
@@ -69,11 +47,6 @@ type TierRow = {
    * predictable point on the way down, never a share of the pocket.
    */
   readonly opensAt?: number;
-  /**
-   * A machine of the line (M15, #533): on sale and running only where the
-   * line's rule is on (`lineOn`, src/line-switch.ts). Off in play until #536.
-   */
-  readonly line?: true;
 };
 
 /** Cheapest first. Each tier is 6–10× the speed of the last; tuned by src/pacing.test.ts. */
@@ -82,7 +55,9 @@ const TIER_ROWS = [
     id: "helper",
     name: "Worker",
     shortName: "Worker",
-    firstCost: 20,
+    // #543: three times the old 20, so the optimizer stays within a quarter
+    // of the evening dad's run. The first ten minutes mine about 42K.
+    firstCost: 60,
     perSecond: 1,
     staff: 0,
   },
@@ -97,9 +72,8 @@ const TIER_ROWS = [
     stage: "haul",
   },
   {
-    // The lift's first machine (M15, #533). The spec rates it 60 at the
-    // line's ×3 (rule 3); 20 is that in today's units, which #534 moves
-    // with every other machine. Shown once a cart is owned.
+    // The lift's first machine (M15, #533): 60 a second at the line's ×3
+    // (rule 3, `lineRating`). Shown once a cart is owned.
     id: "hoist",
     name: "Hoist",
     shortName: "Hoist",
@@ -107,7 +81,6 @@ const TIER_ROWS = [
     perSecond: 20,
     staff: 1,
     stage: "lift",
-    line: true,
   },
   {
     id: "drill",
@@ -135,8 +108,8 @@ const TIER_ROWS = [
     opensAt: BAND_STARTS[1],
   },
   {
-    // The haul's second machine (M15, #533): 3,200 at the line's ×3, about
-    // 1,067 in today's units. Opens at the Crystal Caves.
+    // The haul's second machine (M15, #533): about 3,200 a second at the
+    // line's ×3. Opens at the Crystal Caves.
     id: "train",
     name: "Pit train",
     shortName: "Train",
@@ -145,15 +118,14 @@ const TIER_ROWS = [
     staff: 8,
     stage: "haul",
     opensAt: BAND_STARTS[2],
-    line: true,
   },
   {
     id: "machine",
     name: "Great Machine",
     shortName: "Machine",
-    // #357 tune: three times dearer, so its marks at 2/3/5/10 do not let the
-    // marathon dad finish ahead of the casual dad.
-    firstCost: 120_600_000,
+    // #543: 0.8 of the old 120,600,000, so a checker's best buy is in reach
+    // within two check-ins.
+    firstCost: 96_480_000,
     perSecond: 2_100,
     staff: 10,
     stage: "lift",
@@ -221,15 +193,6 @@ export const MACHINE_IDS: readonly MachineId[] = TIERS.filter(isMachine).map(
   (tier) => tier.id,
 );
 
-/**
- * The machines in play: `MACHINE_IDS` less the line's machines while the
- * line is off (#533). What the lab measures and reports, so a run with the
- * line off reads as before.
- */
-export function machinesInPlay(): readonly MachineId[] {
-  return MACHINE_IDS.filter((id) => tierInPlay(tierById(id)));
-}
-
 /** A complete record over the tier ids, every entry `value`. */
 export function tierRecord<T>(value: T): Record<TierId, T> {
   return Object.fromEntries(TIER_IDS.map((id) => [id, value])) as Record<
@@ -267,23 +230,15 @@ export function setOwned(
   return { ...mountain, owned: { ...mountain.owned, [id]: count } };
 }
 
-/** Cookie Clicker curve: machines climb ×1.15, helpers ×1.06. */
+/** Cookie Clicker curve: machines climb ×1.219, helpers ×1.06. */
 export function tierCost(tier: Tier, ownedCount: number, k = 1): number {
   // toPrecision drops float dust (500 × 1.6² is 1280.0000000000002, not 1,281).
   // A sweep multiplies the sticker and the growth. Both factors are 1 in play.
   const workerCurve = tier.staff === 0;
-  const line = lineOn();
-  const base = workerCurve
-    ? HELPER_COST_GROWTH
-    : line
-      ? LINE_MACHINE_COST_GROWTH
-      : MACHINE_COST_GROWTH;
+  const base = workerCurve ? HELPER_COST_GROWTH : MACHINE_COST_GROWTH;
   const growth =
     base * factor(workerCurve ? "growth.worker" : "growth.machine");
-  const sticker = line
-    ? (LINE_FIRST_COST[tier.id] ?? tier.firstCost)
-    : tier.firstCost;
-  const first = sticker * factor(`price.${tier.id}`) * k;
+  const first = tier.firstCost * factor(`price.${tier.id}`) * k;
   return Math.ceil(Number((first * growth ** ownedCount).toPrecision(12)));
 }
 
@@ -337,43 +292,30 @@ export function buyTier(mountain: Mountain, id: TierId): Mountain {
     : setOwned(paid, id, mountain.owned[id] + 1);
 }
 
+/** Each tier's previous tier in the table: the machine chain a tier is shown by. */
+const PREVIOUS: ReadonlyMap<TierId, Tier | undefined> = new Map(
+  TIERS.map((tier, index) => [tier.id, TIERS[index - 1]]),
+);
+
 /**
- * False for a machine of the line while the line's rule is off (#533): it is
- * never shown, never for sale, takes no hands and moves nothing.
+ * The cart is shown once he owns this many workers (#536): then it adds its
+ * full +6 a second to the line, since twelve hands dig, carry and lift 12 a
+ * second and a cart rated 18 frees the hands that carried.
  */
-export function tierInPlay(tier: Tier): boolean {
-  return tier.line !== true || lineOn();
-}
-
-/** Each tier's previous tier in play, with the line off and on (#533). */
-function previousTiers(
-  inPlay: (tier: Tier) => boolean,
-): ReadonlyMap<TierId, Tier | undefined> {
-  return new Map(
-    TIERS.map((tier, index) => [
-      tier.id,
-      TIERS.slice(0, index).filter(inPlay).at(-1),
-    ]),
-  );
-}
-
-const PREVIOUS = {
-  off: previousTiers((tier) => tier.line !== true),
-  on: previousTiers(() => true),
-} as const;
+export const CART_SHOWN_AT = 12;
 
 /**
- * A tier appears once you own one, or own one of the tier in play before
- * it. With the line off the hoist is skipped, so the drill follows the cart.
+ * A tier appears once you own one, or own one of the tier before it, so a
+ * hoist follows the cart and a drill the hoist. The cart waits for
+ * `CART_SHOWN_AT` workers, so a first buy never reads +0.
  */
 export function tierShown(mountain: Mountain, tier: Tier): boolean {
-  if (!tierInPlay(tier)) {
-    return false;
+  if (tier.id === "helper" || owned(mountain, tier) > 0) {
+    return true;
   }
-  const previous = (lineOn() ? PREVIOUS.on : PREVIOUS.off).get(tier.id);
-  return (
-    tier.id === "helper" ||
-    owned(mountain, tier) > 0 ||
-    (previous !== undefined && owned(mountain, previous) > 0)
-  );
+  if (tier.id === "cart") {
+    return mountain.owned.helper >= CART_SHOWN_AT;
+  }
+  const previous = PREVIOUS.get(tier.id);
+  return previous !== undefined && owned(mountain, previous) > 0;
 }

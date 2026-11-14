@@ -1,5 +1,5 @@
 import { LAYERS, type LayerId } from "../layers";
-import { machinesInPlay, tierById } from "../tiers";
+import { MACHINE_IDS, tierById } from "../tiers";
 import type { BandSummary, Spread } from "./bands";
 import type { MeasureValue, ScoreMethod } from "./measure";
 import {
@@ -598,15 +598,15 @@ function bandSection(result: TournamentResult): readonly string[] {
     "",
     `Where each machine first shows, and the wait to its first buy in live minutes and in sittings started since. ${WARN} marks a worst wait over ${String(REPORT_MACHINE_SITTINGS)} sittings.`,
     "",
-    `| Player | ${machinesInPlay()
+    `| Player | ${MACHINE_IDS
       .map((id) => tierById(id).name)
       .join(" | ")} |`,
-    `|---|${machinesInPlay()
+    `|---|${MACHINE_IDS
       .map(() => "---")
       .join("|")}|`,
     ...result.bands.map(
       (row) =>
-        `| ${row.label} | ${machinesInPlay()
+        `| ${row.label} | ${MACHINE_IDS
           .map((id) =>
             revealText(
               row.summary.machines.find((entry) => entry.machine === id),

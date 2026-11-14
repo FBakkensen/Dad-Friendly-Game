@@ -4,7 +4,7 @@ import { LAYERS } from "../layers";
 import { createMountain, type Mountain } from "../mountain";
 import { MOUNTAIN_STONES } from "../scale";
 import { RELICS } from "../relics";
-import { machinesInPlay } from "../tiers";
+import { MACHINE_IDS } from "../tiers";
 import {
   createLedgerLog,
   endHash,
@@ -30,7 +30,7 @@ describe("pacing ledger", () => {
   it("stamps the day each band, machine and relic first shows up, and the finish", () => {
     const granite = LAYERS[1];
     const lantern = RELICS[0];
-    const machine = machinesInPlay()[0];
+    const machine = MACHINE_IDS[0];
     if (lantern === undefined || machine === undefined) {
       throw new Error("the game has no lantern or machine");
     }
@@ -62,7 +62,7 @@ describe("pacing ledger", () => {
     expect(entry.machines[machine]).toBe(2);
     expect(entry.finishDay).toBe(4);
     expect(entry.endHash).toBe(endHash(end));
-    expect(Object.keys(entry.machines)).toEqual([...machinesInPlay()]);
+    expect(Object.keys(entry.machines)).toEqual([...MACHINE_IDS]);
   });
 
   it("leaves a milestone the run never reached empty, and an unfinished run has no finish", () => {

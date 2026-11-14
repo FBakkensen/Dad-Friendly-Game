@@ -26,7 +26,6 @@ import {
 } from "./workshop";
 import { callTo } from "./expeditions";
 import { handsSpeed, lineOf, lineRating } from "./line";
-import { lineOn } from "./line-switch";
 import { tapWithPick } from "./lost-tools";
 import type { Mountain } from "./mountain";
 import {
@@ -36,7 +35,6 @@ import {
   owned,
   setOwned,
   tierById,
-  tierInPlay,
   type MachineId,
   type TierId,
 } from "./tiers";
@@ -249,7 +247,7 @@ function readRates(mountain: Mountain, now?: number, trouble?: Trouble): Rates {
   // machine short of its crew sits idle. Helpers still mine by hand while
   // they run a machine. Kids count as staff too (Crown of Wisdom).
   const running = keptStaffing(mountain, steady);
-  const needed = TIERS.filter(tierInPlay).reduce(
+  const needed = TIERS.reduce(
     (total, tier) =>
       total + owned(mountain, tier) * staffNeeded(mountain, tier),
     0,
@@ -295,7 +293,7 @@ const staffings = new Map<
   { readonly key: Float64Array; readonly running: Record<TierId, number> }
 >();
 const STAFFINGS_KEPT = 4096;
-const KEY_LENGTH = 4 + TIERS.length + MACHINE_IDS.length + 2 * MAX_ENGINEERS;
+const KEY_LENGTH = 3 + TIERS.length + MACHINE_IDS.length + 2 * MAX_ENGINEERS;
 const scratchKey = new Float64Array(KEY_LENGTH);
 const scratchWords = new Uint32Array(scratchKey.buffer);
 
@@ -310,15 +308,8 @@ function keptStaffing(
   }
   const key = scratchKey.slice();
   const slots = staffSlots(mountain, steady);
-  // With the line on, staffing weighs the line (#534), so it always searches.
-  const running =
-    !lineOn() && tendingStaysPut(mountain)
-      ? // The tenths are the slots' own, so the best for them is the best.
-        runningOf(
-          mountain,
-          staffMachines(slots, mountain.owned.helper + mountain.owned.kid),
-        )
-      : staffCrew(mountain, steady, slots);
+  // Staffing weighs the line (#534), so it always searches.
+  const running = staffCrew(mountain, steady, slots);
   if (staffings.size >= STAFFINGS_KEPT) {
     staffings.clear();
   }
@@ -339,9 +330,7 @@ function writeStaffingKey(
   scratchKey[0] = mountain.owned.helper + mountain.owned.kid;
   scratchKey[1] = mountain.legacy;
   scratchKey[2] = factor("tending.gain");
-  // The line's machines take hands only while the line is on (#533).
-  scratchKey[3] = lineOn() ? 1 : 0;
-  let at = 4;
+  let at = 3;
   for (const tier of TIERS) {
     scratchKey[at] = steady[tier.id];
     at += 1;
@@ -381,10 +370,8 @@ function staffCrew(
   slots: readonly StaffSlot[],
 ): Record<TierId, number> {
   const hands = mountain.owned.helper + mountain.owned.kid;
-  // With the line on, the one-hand machines fill the line (#534).
-  const line = lineOn()
-    ? handsSpeed(steady, runningOf(mountain, biggestFirst(slots, 0)))
-    : undefined;
+  // The one-hand machines fill the line (#534).
+  const line = handsSpeed(steady, runningOf(mountain, biggestFirst(slots, 0)));
   const weighed = new Map<string, Weighed>();
   const weigh = (staffing: Staffing): Weighed => {
     const key = MACHINE_IDS.map((id) => String(staffing[id])).join(" ");
@@ -401,13 +388,10 @@ function staffCrew(
     weighed.set(key, next);
     return next;
   };
-  // With the line on, each staffing is weighed as the hands fill it today
-  // and as they fill the line, with spare hands above the line or not.
+  // Each staffing is weighed as the hands fill it biggest first and as they
+  // fill the line, with spare hands above the line or not.
   const fills = (staffing: Staffing): Weighed => {
     let best = weigh(staffing);
-    if (line === undefined) {
-      return best;
-    }
     for (const spareAbove of [true, false]) {
       const next = weigh(fillForLine(slots, hands, staffing, line, spareAbove));
       if (moreStones(next.stones, best.stones)) {
@@ -419,7 +403,7 @@ function staffCrew(
   let best = fills(biggestFirst(slots, hands));
   const starts = [
     ...slotGuesses(mountain, slots).map((guess) => staffMachines(guess, hands)),
-    ...(line === undefined ? [] : staffForLine(slots, hands, line)),
+    ...staffForLine(slots, hands, line),
   ];
   for (const start of starts) {
     const next = fills(start);
@@ -430,24 +414,6 @@ function staffCrew(
   return climb(slots, hands, best, (staffing) => fills(staffing)).running;
 }
 
-/**
- * No Grandpa, and at most one engineer's post, with no floor to top it up
- * (before the Great Machine, or on it): each machine runs at its slot's own
- * speed, whatever else runs (#178).
- */
-function tendingStaysPut(mountain: Mountain): boolean {
-  if (mountain.legacy >= 1) {
-    return false;
-  }
-  const posts = new Set(
-    atHome(mountain).flatMap((one) => (one.post === "camp" ? [] : [one.post])),
-  );
-  const [post, ...more] = posts;
-  return (
-    post === undefined ||
-    (more.length === 0 && (mountain.owned.machine < 1 || post === "machine"))
-  );
-}
 
 type Weighed = {
   readonly staffing: Staffing;
@@ -510,9 +476,7 @@ function staffSlots(
   mountain: Mountain,
   steady: Readonly<Record<TierId, number>>,
 ): StaffSlot[] {
-  // A machine of the line takes no hands while the line is off (#533).
   return TIERS.filter(isMachine)
-    .filter(tierInPlay)
     .reverse()
     .map((tier) => {
       const tenths = scaledTenths(tier.id, engineerTenths(mountain, tier.id));
@@ -700,26 +664,16 @@ function applyAllTenths(
 }
 
 /**
- * What the crew moves, before crew timers: the sum of its machines and
- * hands, or, with the line on (#532, off in play), what the line moves
- * (`src/line.ts`). Staffing weighs it too (#534).
+ * What the crew moves, before crew timers: what the line moves
+ * (`src/line.ts`, #532, on in play since #536). Staffing weighs it too (#534).
  */
 function crewOutput(
   speed: Readonly<Record<TierId, number>>,
   running: Readonly<Record<TierId, number>>,
 ): number {
-  return lineOn() ? lineOf(speed, running) : outputOf(speed, running);
+  return lineOf(speed, running);
 }
 
-function outputOf(
-  speed: Readonly<Record<TierId, number>>,
-  running: Readonly<Record<TierId, number>>,
-): number {
-  return TIERS.reduce(
-    (total, tier) => total + running[tier.id] * speed[tier.id],
-    0,
-  );
-}
 
 function primaryTender(
   mountain: Mountain,

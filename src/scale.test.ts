@@ -16,7 +16,6 @@ import { mineVein } from "./veins";
 import { serializeSave } from "./persist";
 import { gameOf, reloaded } from "./test-fixtures";
 import { withFactors } from "./economy/factors";
-import { LINE_OFF } from "./line-switch";
 import {
   BAND_SCALE,
   BAND_STARTS,
@@ -516,9 +515,7 @@ describe("the line's Deep Heart, labs only (#543)", () => {
     const deep = { remaining: MOUNTAIN_STONES - BAND_STARTS[3] };
     const off = oneOffStretch(deep);
     expect(off).toBe(BAND_SCALE[3]);
-    withFactors({ [LINE_OFF]: 0 }, () => {
-      expect(oneOffStretch(deep)).toBeCloseTo(39.204, 9);
-      expect(oneOffStretch({ remaining: MOUNTAIN_STONES })).toBe(1);
-    });
+    expect(oneOffStretch(deep)).toBeCloseTo(39.204, 9);
+    expect(oneOffStretch({ remaining: MOUNTAIN_STONES })).toBe(1);
   });
 });
