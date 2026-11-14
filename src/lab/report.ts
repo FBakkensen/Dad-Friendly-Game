@@ -204,26 +204,44 @@ function table(result: TournamentResult): string {
 
 function cellText(cell: Cell): string {
   if (cell.judgements.length === 0) {
-    return formatMeasure(cell.value, cell.unit);
-  }
-  const first = cell.judgements[0];
-  if (first === undefined) {
-    return formatMeasure(cell.value, cell.unit);
+    return `${formatMeasure(cell.value, cell.unit)}${spreadText(cell)}`;
   }
   if (cell.judgements.length > 1) {
     return cell.judgements
       .map((judgement) =>
         coloured(
-          `${judgement.targetId} ${formatMeasure(judgement.value, cell.unit)} ${word(judgement.pass)}`,
+          `${judgement.targetId} ${judgementText(judgement, cell.unit)}`,
           judgement.pass,
         ),
       )
       .join(", ");
   }
-  return coloured(
-    `${formatMeasure(first.value, cell.unit)} ${word(first.pass)}`,
-    first.pass,
-  );
+  const [only] = cell.judgements;
+  return only === undefined
+    ? formatMeasure(cell.value, cell.unit)
+    : coloured(judgementText(only, cell.unit), only.pass);
+}
+
+/** The seed mean, pass or fail, and the worst seed when it differs (#554). */
+function judgementText(judgement: Judgement, unit: string): string {
+  const text = `${formatMeasure(judgement.value, unit)} ${word(judgement.pass)}`;
+  const worst = judgement.worst;
+  const shown = worst === undefined ? "" : formatMeasure(worst.value, unit);
+  if (worst === undefined || shown === formatMeasure(judgement.value, unit)) {
+    return text;
+  }
+  return `${text} (worst ${shown}, seed ${String(worst.seed)})`;
+}
+
+/** The seeds' range beside the mean of a measure no guardrail reads (#554). */
+function spreadText(cell: Cell): string {
+  const spread = cell.spread;
+  if (spread === undefined) {
+    return "";
+  }
+  const low = formatMeasure(spread.low, cell.unit);
+  const high = formatMeasure(spread.high, cell.unit);
+  return low === high ? "" : ` (seeds ${low}–${high})`;
 }
 
 function word(pass: boolean): string {

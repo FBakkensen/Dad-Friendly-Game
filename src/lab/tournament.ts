@@ -17,6 +17,7 @@ import {
   type BandEvent,
   type BandSummary,
 } from "./bands";
+import { createLedgerLog, type LedgerEntry } from "./ledger";
 import { createRevealLog, type RevealEvent } from "./reveal";
 import { createSittingLog, placeSittings, type SittingOpen } from "./sittings";
 import type { ValueContext } from "../economy/actions";
@@ -56,6 +57,8 @@ export type PolicySeedRun = {
   readonly policy: Policy;
   readonly seed: number;
   readonly samples: readonly DecisionSample[];
+  /** The run's pacing ledger row (#554). Tests that hand in samples leave it out. */
+  readonly ledger?: LedgerEntry;
 };
 
 type Column = {
@@ -65,11 +68,16 @@ type Column = {
   readonly why: string;
 };
 
+/** One seed's figure for a numeric measure. */
+type SeedValue = { readonly seed: number; readonly value: number };
+
 type JudgementBase = {
   readonly targetId: string;
   readonly why: string;
   readonly value: number;
   readonly pass: boolean;
+  /** The seed furthest on the guardrail's wrong side, with two seeds or more (#554). */
+  readonly worst?: SeedValue;
 };
 
 export type Judgement = JudgementBase &
@@ -85,6 +93,8 @@ export type Cell = {
   readonly why: string;
   readonly value: MeasureValue;
   readonly judgements: readonly Judgement[];
+  /** With no guardrail, the seeds' lowest and highest, when they differ (#554). */
+  readonly spread?: { readonly low: number; readonly high: number };
 };
 
 export type PolicyRow = {
@@ -129,6 +139,8 @@ export type TournamentResult = {
   readonly deadStretches: readonly DeadStretchNote[];
   /** Per-band report (#249), one entry per policy. Report only. */
   readonly bands: readonly BandRow[];
+  /** The pacing ledger (#554): one row per run that carries one. */
+  readonly ledger: readonly LedgerEntry[];
 };
 
 type BandRow = {
@@ -157,12 +169,15 @@ function ownedCount(mountain: Mountain): number {
   return crew + engineers + engineers + levels;
 }
 
-/** One policy on one seed, sampled every play-minute, with the finish day stamped on. */
+/**
+ * One policy on one seed, sampled every play-minute, with the finish day
+ * stamped on, and its pacing ledger row.
+ */
 function samplePolicy(
   policy: Policy,
   seed: number,
   days: number,
-): readonly DecisionSample[] {
+): PolicySeedRun {
   const samples: DecisionSample[] = [];
   let live = 0;
   let liveSec = 0;
@@ -173,6 +188,7 @@ function samplePolicy(
   const bands = createBandLog();
   const sittingAt = createSittingClock();
   const sittingLog = createSittingLog();
+  const ledger = createLedgerLog();
   const context = valueContext(policy.params);
   let ownedBefore = 0;
   let before: Mountain | undefined;
@@ -185,6 +201,7 @@ function samplePolicy(
         liveSec += 1;
       }
       lastClock = world.clock;
+      ledger.observe(world);
       const sitting = sittingAt(world.clock);
       const mined = minedOut(world.mountain);
       pending.push(
@@ -245,7 +262,17 @@ function samplePolicy(
   });
   placeSittings(samples, sittingLog.flush());
   attach(samples, pending, pendingBands);
-  return withFinish(samples, run.finishDay);
+  return {
+    policy,
+    seed,
+    samples: withFinish(samples, run.finishDay),
+    ledger: ledger.entry({
+      policyId: policy.id,
+      seed,
+      finishDay: run.finishDay,
+      end: run.world,
+    }),
+  };
 }
 
 /** Hangs the events on the newest sample. */
@@ -303,11 +330,7 @@ export function runTournament(input: TournamentInput): TournamentResult {
   const runs: PolicySeedRun[] = [];
   for (const policy of input.policies) {
     for (const seed of input.seeds) {
-      runs.push({
-        policy,
-        seed,
-        samples: samplePolicy(policy, seed, input.days),
-      });
+      runs.push(samplePolicy(policy, seed, input.days));
     }
   }
   return judgeTournament({ ...input, runs });
@@ -350,6 +373,9 @@ export function judgeTournament(input: JudgedInput): TournamentResult {
         (grouped.get(policy.id) ?? []).map((run) => runBands(run.samples)),
       ),
     })),
+    ledger: input.runs.flatMap((run) =>
+      run.ledger === undefined ? [] : [run.ledger],
+    ),
   };
 }
 
@@ -407,30 +433,31 @@ function cellFor(
   targets: readonly Target[],
   context: MeasureContext,
 ): Cell {
-  const unscoped = across(measure, runs, (run) => run.samples, context);
+  const all: RunSamples = (run) => run.samples;
+  const unscopedSeeds = perSeed(measure, runs, all, context);
+  const unscoped = across(measure, runs, all, unscopedSeeds, context);
   const judgements: Judgement[] = [];
   let unavailable = false;
   for (const target of targets) {
     if (target.measure !== measure.id || !coversPolicy(target, policy)) {
       continue;
     }
-    const judged = across(
-      measure,
-      runs,
-      (run) => applyScope(target.scope, run.samples),
-      context,
-    );
+    const scoped: RunSamples = (run) => applyScope(target.scope, run.samples);
+    const seeds = perSeed(measure, runs, scoped, context);
+    const judged = across(measure, runs, scoped, seeds, context);
     if (typeof judged !== "number" || Number.isNaN(judged)) {
       if (Number.isNaN(judged)) {
         unavailable = true;
       }
       continue;
     }
+    const worst = worstSeed(target, numbersOf(seeds));
     const shared = {
       targetId: target.id,
       why: target.why,
       value: judged,
       pass: meetsTarget(target, judged),
+      ...(worst === undefined ? {} : { worst }),
     };
     if (target.op === "between") {
       judgements.push({ ...shared, op: target.op, limit: target.value });
@@ -448,7 +475,86 @@ function cellFor(
         ? Number.NaN
         : displayValue(unscoped, judgements),
     judgements,
+    ...spreadOf(judgements, unavailable, numbersOf(unscopedSeeds)),
   };
+}
+
+type RunSamples = (run: PolicySeedRun) => readonly DecisionSample[];
+
+/** Each run's figure, in run order. */
+function perSeed(
+  measure: Measure,
+  runs: readonly PolicySeedRun[],
+  samplesOf: RunSamples,
+  context: MeasureContext,
+): readonly { readonly seed: number; readonly value: MeasureValue }[] {
+  return runs.map((run) => ({
+    seed: run.seed,
+    value: measure.aggregate(samplesOf(run), context),
+  }));
+}
+
+/** The numeric seeds with a figure. */
+function numbersOf(
+  seeds: readonly { readonly seed: number; readonly value: MeasureValue }[],
+): readonly SeedValue[] {
+  const numbers: SeedValue[] = [];
+  for (const { seed, value } of seeds) {
+    if (typeof value === "number" && !Number.isNaN(value)) {
+      numbers.push({ seed, value });
+    }
+  }
+  return numbers;
+}
+
+/** How far a figure sits on the guardrail's wrong side; higher is worse. */
+function badness(target: Target, value: number): number {
+  if (target.op === "lte") {
+    return value;
+  }
+  if (target.op === "gte") {
+    return -value;
+  }
+  const [low, high] = target.value;
+  return Math.max(low - value, value - high);
+}
+
+/** The worst seed, with two seeds or more. The first seed wins a tie. */
+function worstSeed(
+  target: Target,
+  seeds: readonly SeedValue[],
+): SeedValue | undefined {
+  if (seeds.length <= 1) {
+    return undefined;
+  }
+  let worst: SeedValue | undefined;
+  for (const seed of seeds) {
+    if (
+      worst === undefined ||
+      badness(target, seed.value) > badness(target, worst.value)
+    ) {
+      worst = seed;
+    }
+  }
+  return worst;
+}
+
+/**
+ * A measure no guardrail reads has no wrong side: its seeds' range instead.
+ * None on a guarded cell whose guardrails all came back n/a.
+ */
+function spreadOf(
+  judgements: readonly Judgement[],
+  unavailable: boolean,
+  seeds: readonly SeedValue[],
+): { readonly spread?: { readonly low: number; readonly high: number } } {
+  if (unavailable || judgements.length > 0 || seeds.length <= 1) {
+    return {};
+  }
+  const values = seeds.map((seed) => seed.value);
+  const low = Math.min(...values);
+  const high = Math.max(...values);
+  return low === high ? {} : { spread: { low, high } };
 }
 
 function coversPolicy(target: Target, policy: Policy): boolean {
@@ -484,16 +590,18 @@ function displayValue(
   return only === undefined ? unscoped : only.value;
 }
 
+/** The seed mean of a numeric measure; a list measure pools every seed's samples. */
 function across(
   measure: Measure,
   runs: readonly PolicySeedRun[],
-  samplesOf: (run: PolicySeedRun) => readonly DecisionSample[],
+  samplesOf: RunSamples,
+  seeds: readonly { readonly value: MeasureValue }[],
   context: MeasureContext,
 ): MeasureValue {
   if (runs.length === 0) {
     return measure.aggregate([], context);
   }
-  const values = runs.map((run) => measure.aggregate(samplesOf(run), context));
+  const values = seeds.map((seed) => seed.value);
   if (isNumbers(values)) {
     const defined: number[] = [];
     for (const value of values) {

@@ -181,13 +181,16 @@ function tsc(project: string, name: string): readonly string[] {
 
 /**
  * Where the strategy lab starts: both commands, their loader, and the policy
- * and measure folders it discovers at run time.
+ * and measure folders it discovers at run time. The committed pacing ledger
+ * (#554) is an input too: the `lab` step checks its run against it, so a
+ * changed ledger runs the lab again and is never reused.
  */
 export const LAB_ENTRIES: readonly string[] = [
   "tools/strategy-lab.ts",
   "tools/generations-lab.ts",
   "tools/lab-register.mjs",
   "tools/lab-hooks.mjs",
+  "docs/pacing-ledger.md",
 ];
 export const LAB_DIRS: readonly string[] = [
   "src/lab/policies",
@@ -306,7 +309,7 @@ export function gateSteps(
         step(
           "lab",
           "node",
-          [...LAB, "tools/strategy-lab.ts", "--ci"],
+          [...LAB, "tools/strategy-lab.ts", "--ci", "--ledger", "check"],
           full,
           AFTER_TESTS,
           { LAB_STRICT: "1" },

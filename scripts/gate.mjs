@@ -88,7 +88,10 @@ function labClosure() {
 }
 // Only the full tier asks whether this branch touches code the lab runs.
 const closure = tier === "full" ? labClosure() : new Set();
-const economy = tier === "full" && economyChanged(changed, closure);
+// Every touched file, not only code: a hand edit of the pacing ledger (#554) runs the lab.
+const economy =
+  tier === "full" &&
+  economyChanged([...changed, ...touchedSinceMain()], closure);
 
 // A reusable step that passed records the fingerprint of its inputs here; the same
 // fingerprint later reuses that pass instead of running it again (#403).
