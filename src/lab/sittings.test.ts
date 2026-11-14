@@ -52,6 +52,40 @@ describe("createSittingLog", () => {
     expect(log.flush()).toEqual([]);
   });
 
+  it("carries the narrow stage at the open and the zero-gain buys while the line is on (#534)", () => {
+    const log = createSittingLog();
+    const open = (): SittingOpen => AFFORDABLE;
+    const narrow = (): "haul" => "haul";
+    log.observe({ clock: 1000, owned: 1, tiers: [], open, narrow });
+    log.observe({
+      clock: 2000,
+      owned: 2,
+      tiers: [],
+      open,
+      narrow,
+      zeroGainBuys: 1,
+    });
+    log.observe({
+      clock: 3000,
+      owned: 3,
+      tiers: [],
+      open,
+      narrow,
+      zeroGainBuys: 0,
+    });
+    expect(log.flush()).toEqual([
+      {
+        sitting: 0,
+        openedAtMs: 1000,
+        buys: 2,
+        taps: 2,
+        open: AFFORDABLE,
+        narrow: "haul",
+        zeroGainBuys: 1,
+      },
+    ]);
+  });
+
   it("drops a sitting that opened after the last gap and was never played", () => {
     const log = createSittingLog();
     const open = (): SittingOpen => AFFORDABLE;

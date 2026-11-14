@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { listActions } from "../economy/actions";
+import { withFactors } from "../economy/factors";
+import { LINE_OFF } from "../line";
+import { effectiveRates } from "../rates";
 import { createMountain } from "../mountain";
 import { DAD_SCHEDULE } from "../pacing";
 import { singleShareOf } from "./measures/singleShare";
@@ -73,6 +76,47 @@ describe("scoreDecision", () => {
     expect(sum).toBeCloseTo(1, 5);
     expect(sample.liveCount).toBe(0);
     expect(sample.nextPaybackRatio).toBe(Number.POSITIVE_INFINITY);
+  });
+
+  it("with the line on, keeps the machines' shares in the line's units and reads the line (#534)", () => {
+    const mountain = {
+      ...createMountain(),
+      helpers: 4,
+      carts: 2,
+      hoists: 1,
+      drills: 1,
+      crafted: { ...NOTHING_CRAFTED, "iron-rails": 1 as const },
+    };
+    const context = { ...DAD_SCHEDULE, tapsPerSecond: 0 };
+    const off = scoreDecision({
+      mountain,
+      now: 0,
+      context,
+      actions: [],
+      atMs: 0,
+    });
+    expect(off.line).toBeUndefined();
+    withFactors({ [LINE_OFF]: 0 }, () => {
+      const sample = scoreDecision({
+        mountain,
+        now: 0,
+        context,
+        actions: [],
+        atMs: 0,
+      });
+      const bare = effectiveRates({ ...mountain, crafted: NOTHING_CRAFTED });
+      const gear =
+        effectiveRates(mountain).exactCrewPerSecond - bare.exactCrewPerSecond;
+      expect(gear).toBeGreaterThan(0);
+      expect(sample.outputShare[CRAFTED_SOURCE]).toBeCloseTo(
+        gear / (bare.exactCrewPerSecond + gear),
+        9,
+      );
+      // Two carts are the narrow stage, and the rails speed them up.
+      expect(sample.line?.narrow).toBe("haul");
+      expect(sample.line?.handsCarry).toBeGreaterThan(0);
+      expect(sample.line?.handsCarry).toBeLessThan(1);
+    });
   });
 
   it("splits crafted gear out of the crew", () => {

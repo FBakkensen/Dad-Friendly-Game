@@ -28,6 +28,7 @@ import { LEGACY_STEP } from "../src/rates";
 import { CI_SEEDS, KID_RUNS_CI, LOCAL_SEEDS } from "../src/lab/targets";
 import { kidStretch } from "../src/scale";
 import { withFactors } from "../src/economy/factors";
+import { parseFactors } from "./lab-factors";
 import { inOrder } from "./lab-pool";
 
 const POLICIES = [casual, checker, evening, marathon, optimizer];
@@ -44,15 +45,13 @@ const seeds = Number(
 const misses: string[] = [];
 const only = arg("policy");
 // --factors price.machine=0.8,growth.machine=1.1 holds sweep factors for every run.
-const factors = Object.fromEntries(
-  (arg("factors") ?? "")
-    .split(",")
-    .filter((pair) => pair.includes("="))
-    .map((pair) => {
-      const [id = "", value = "1"] = pair.split("=");
-      return [id, Number(value)];
-    }),
-);
+const factorsArg = arg("factors");
+const parsedFactors = parseFactors(factorsArg);
+if (factorsArg !== undefined && parsedFactors === undefined) {
+  console.error("--factors needs id=number pairs, split by commas.");
+  process.exit(1);
+}
+const factors = parsedFactors ?? {};
 
 /** Children still playing, so a failed job can stop the rest. */
 const children = new Set<ChildProcess>();
