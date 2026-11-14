@@ -196,20 +196,17 @@ describe("targets", () => {
     }
   });
 
-  it("keeps only the finish days, every-tier-bought, taps-per-sitting and dominant-share report only (#357, #358, #592)", () => {
+  it("keeps only every-tier-bought, taps-per-sitting and dominant-share report only (#357, #358, #592, #536)", () => {
     const reportOnly = TARGETS.filter((target) => target.reportOnly === true)
       .map((target) => target.id)
       .sort();
     expect(reportOnly).toEqual(
-      [
-        "casual-finish",
-        "dominant-share",
-        "every-tier-bought",
-        "taps-per-sitting",
-        "thin-habit-finish",
-      ].sort(),
+      ["dominant-share", "every-tier-bought", "taps-per-sitting"].sort(),
     );
+    // The five-day floor is strict since the line is on in play (#536).
     for (const id of [
+      "casual-finish",
+      "thin-habit-finish",
       "zero-buy-sittings",
       "buys-per-sitting",
       "best-open-share",

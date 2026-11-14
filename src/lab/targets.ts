@@ -218,9 +218,8 @@ export const TARGETS: readonly Target[] = [
     value: 5,
     why: "A run takes at least five days and has no ceiling: a meaningful decision at all times matters more than the day count.",
     // Flemming, 14 Nov 2026 (#556): the 3-5 day target is gone. Not less
-    // than five days, likely weeks in the end. Report only, as since 7 Nov:
-    // the generations lab keeps each pass to the kid strict.
-    reportOnly: true,
+    // than five days, likely weeks in the end. Report only from 7 Nov; strict
+    // since the line turned on in play (#536), which meets it (#543).
   },
   {
     id: "thin-habit-finish",
@@ -230,7 +229,7 @@ export const TARGETS: readonly Target[] = [
     value: 5,
     why: "Five minutes a day also takes at least five days, with no ceiling.",
     // Ruling (#556): the 14-day ceiling went with the 3-5 day target.
-    reportOnly: true,
+    // Strict since the line turned on in play (#536).
   },
   {
     id: "extreme-win",
