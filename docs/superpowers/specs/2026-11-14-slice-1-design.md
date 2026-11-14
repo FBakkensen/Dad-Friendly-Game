@@ -43,7 +43,7 @@ The loop: the village asks for goods, he decides what the mine digs and makes, a
 - No third level, and no good past cut stone. They are slice 2 and later.
 - No second order at a time, no order choice, no market.
 - No slider, and no roster of named workers. The gangs move with plus and minus.
-- No village to walk around. The village is a drawer.
+- No village to walk around. The village is a part of the screen that opens to a list.
 - No new engine, tileset or map.
 
 ## Anti-goals
@@ -58,7 +58,7 @@ The loop: the village asks for goods, he decides what the mine digs and makes, a
 
 1. The mine is a list of **levels**. Slice 1 has two: the Topsoil and the Granite. A level never runs out and never closes.
 2. **Depth goes.** Nothing counts stones mined out of the mountain. There is no bottom, no "stones left" and no mined-out state.
-3. **A level is opened by buying it** (#645). "Sink the shaft" is on the level card, with a real price in goods. The buy is instant and shows the arrival card that a new band shows today.
+3. **A level is opened by buying it** (#645). "Sink the shaft" is on the level's row, with a real price in goods. The buy is instant and shows the arrival card that a new band shows today.
 4. **A building is the door** (the line spec's band doors). The Granite can be sunk once the Beacon stands. The level below the Granite waits for the Forge and for slice 2.
 5. What opened at a depth now opens with a level, a building, or a thing he owns:
 
@@ -79,7 +79,7 @@ The loop: the village asks for goods, he decides what the mine digs and makes, a
 
 The line is the line spec's step 1 as #536 to #539 build it: three stages, hands that fill in at the lowest, the stage bays, Buys by stage, engineers and trouble by stage. Slice 1 changes two things.
 
-- **The rock no longer leans on a stage.** The line is the same on every level. "Tough on drills" and "Suits borers" go, and so does the band tag's advice. With the crew on several levels at once, a lean would give each level its own narrow stage, and the board could no longer give one answer to "what holds the line". What a level changes is what comes up.
+- **The rock no longer leans on a stage.** The line is the same on every level. "Tough on drills" and "Suits borers" go, and so does the band tag's advice. with the crew on several levels at once, a lean would give each level its own narrow stage, and the screen could no longer give one answer to "what holds the line". What a level changes is what comes up.
 - **The pit train opens with the Granite**, not with a third level. The paper check shows why: with carts as the haul's only machine, the haul holds the line for 9 to 18 sittings in a row.
 
 ### 3. Goods and makers
@@ -94,7 +94,7 @@ Three goods. Stones are the everyday good.
 
 - **A maker takes one level's rock.** The rock a level's gangs dig goes to that level's maker, as fast as the maker can take it. One rock makes one brick or one cut stone. What the maker cannot take is stacked as stones.
 - **A maker is bought like a machine** and has ownership marks. It takes no workers, no engineer, no gear and no trouble.
-- **A level's good has two limits**: the rock its gangs dig there, and its maker. The level card says which one holds the good ("the kilns hold the bricks").
+- **A level's good has two limits**: the rock its gangs dig there, and its maker. The level's row says which one holds the good ("the kilns hold the bricks").
 - **A price is a short list of goods** (#560). In slice 1 only the shaft and the orders ask for two goods.
 
 ### 4. The yard and time away
@@ -113,11 +113,11 @@ As the line spec's step 2, from the day the Beacon stands.
 1. The crew works in **four gangs**. A gang is a quarter of the whole line: the hands and the machines together, not named workers.
 2. Each gang works one open level. A level's rock a second is the line's speed times its gangs, divided by four.
 3. With one level open, all four gangs are there and nothing can be moved.
-4. When the Granite opens, two gangs go there and two stay. He is told once, by a teach note on the level plate.
-5. He moves gangs on the level card with plus and minus. A move is free and instant, it is saved at once, and it holds while he is away.
+4. When the Granite opens, two gangs go there and two stay. He is told once, by a teach note on the Granite's row.
+5. He moves gangs on a level's row with plus and minus. A move is free and instant, it is saved at once, and it holds while he is away.
 6. The four gangs are always placed. Plus on a level takes a gang from the level that has the most. Minus gives one to the level that has the fewest. So no gang is ever left without a level by a tap, and with two levels a plus on one is a minus on the other.
 7. The machines are one fleet. A machine bought once works for every gang.
-8. **The share holds.** A level whose own pile and the stone pile are both full can stack nothing, so its gangs rest. They do not move by themselves to a level that still has room: where they work is his call, and a night ends at his yard. The level card says it on that level's row ("The gangs rest: the yard is full"), and the welcome card says when it happened.
+8. **The share holds.** A level whose own pile and the stone pile are both full can stack nothing, so its gangs rest. They do not move by themselves to a level that still has room: where they work is his call, and a night ends at his yard. That level's row says it ("The gangs rest: the yard is full"), and the welcome card says when it happened.
 9. Materials for the Workshop come from the level a gang digs: clay at the Topsoil, iron at the Granite, at today's rate for the rock dug there, each up to what its band gives in a run today (10 clay, 35 iron), and refilled up to that.
 
 Why gangs and not a slider: four steps are enough to match an order, a step is a fat tap, and a number he can say ("three on the Granite") is easier to hold than a percent. More gangs can come later as a building's power, which gives a finer share when there are more levels.
@@ -132,7 +132,7 @@ One order at a time. A building rises in three orders: footings, walls, roof. It
 | The Storehouse | stones, bricks    | The yard holds twice as much     | nothing more                                       |
 | The Forge      | bricks, cut stone | The Great Machine can be built   | The level below, in slice 2. The slice's end card. |
 
-- The order is on the board from the first minute: the top plate's tag names it.
+- The order is on the screen from the first minute, at the top.
 - **He delivers.** Each good has its own Send, which sends what the pile holds, up to what the order still needs. Part deliveries count.
 - What comes next stays vague: the next building is a hint in the village's words, never a list.
 - The Storehouse can be built before or after the shaft is sunk. Both ask for bricks, so which comes first is his call.
@@ -144,24 +144,52 @@ When the Forge's roof is on, a card says the first village stands and that the r
 
 ## What he sees
 
-The mock is `mockups/slice-1/shots/` (six pictures, the 424×924 phone at 2x). It is drawn on today's board with art that exists. The buildings, the kilns and the saws have no pictures yet, so no picture shows one.
+Flemming's answer to the first mock (14 Nov 2026): he agrees in principle, and the slice must not be held to today's board. Today's board was built for one line and one pile: an odometer, a gauge, a window, three bays and five keys. The road-to-Mars game is a mine of several levels, a yard of several goods and a village that grows until a rocket stands in it. So slice 1 gets a new screen. The layout below is proposed and waits for his yes. The first mock, drawn on today's board, stays in `mockups/slice-1/shots/` as the record of what he answered.
 
-- **`start.png`, the first evening.** The top plate, where the relics were, holds the open order: "The village asks for 150K stones", what is sent, and a bar. Its tag names the order.
-- **`shaft.png`, the Beacon stands.** The top plate now holds the yard's two made piles, each with its room. The stone pile's room stands beside the odometer's legend. The level card has the Topsoil's row and the Granite's price with "Sink the shaft".
-- **`board.png`, two levels.** The band tag is the level plate: "Topsoil 2 · Granite 2". The gauge reads rock a second. The bays are the approved stage bays.
-- **`levels.png`, the level card.** One row for each level: its gangs with minus and plus, its rock a second, its good and what holds it, and its stones. The level below is a hint.
-- **`order.png`, the order.** A row for each good the order asks for, with what is sent, a bar and Send.
-- **`welcome.png`, a night.** What came in, when each pile filled, and that the rock was stacked as stones after that.
+### The mountain (recommended)
 
-Left to the builder and a later mock: Buys with a group for the works and prices in three goods, the buildings in the drawer and on the reveal, the end card, the Ledger without relics, and where the boost dial's clock goes now that no clock ends a night.
+One screen, read from the top down, the way the rock travels up: the village on the surface, the yard, the mine, and the mine's levels under it.
+
+1. **The goal is on top.** The village's open order is the first thing on the screen: the building, its step, a row for each good it asks for with what is sent, and a Send on each row.
+2. **The yard is a row of piles**, one for each good, each with its room. Before the Beacon stands it is one pile with no room.
+3. **The mine is the line and its levels.** Three stage plates (the face, the haul, the lift) show each stage's rock a second, and the one that holds the line is lit. Under them each level has a row: its picture, its rock a second, its gangs with minus and plus, and its good with what holds it. A level with a price shows the price and "Sink the shaft". The level below that is a hint.
+4. **Next is always there.** One plate names the best thing he can buy now, what it costs, what it gives and why, with a count of everything that is ready. A tap buys it. The dig button is beside it.
+5. **A part opens full size when tapped**, and one fat key leads back. The line opens to its buys by stage, with keys for Upgrades, the Workshop and Engineers. The village opens to the building in hand, the buildings that stand with their powers, the hint of what comes next, Keepsakes and the Ledger. A level opens to its maker and its materials. The yard opens to "Extend the yard".
+
+What a sitting does is on the first screen: Send, move a gang, buy the next thing, dig. Nothing on it is a closed set: a new good is a pile, a new level is a row, a new building is a line in the village.
+
+What it keeps from today: the art, the steel, the lamps and their rule (green can be spent, amber is a pick or running, red is trouble), the type, real numbers for decisions, the save line, and a phone that never scrolls.
+
+What goes from today's board: the odometer, the output gauge, the mine window, and the five-key rail. Buys becomes the line. Upgrades, the Workshop and Engineers are keys inside the line. The Ledger is in the village. The pace dial becomes a plate in the mine's head that shows while a boost, a Gold rush or a vein runs, with its countdown. A golden vein glints on the picture of a level where gangs work, and a tap there takes it.
+
+**How far it reaches.** Four levels and four piles fit on the 424×924 phone (the hint row gives way to the fourth level). The shorter phone (424×830) holds three levels. A fifth level or a fifth good needs pages or a second row, and that is asked for when its slice is designed.
+
+### The other layout: three rooms
+
+A tab bar with the village, the yard and the mine, and no first screen that shows all three. Each room has more space, and it never runs out of room for rows. He never sees the mine and the village together, so a lamp on each tab has to say where a tap is waiting, and a Send is two taps away from a move of gangs. I do not recommend it for slice 1. It is the fallback when the mountain runs out of room.
+
+### The pictures
+
+`mockups/slice-1/mountain/shots/` (six pictures, the 424×924 phone at 2x), drawn with art that exists. The buildings, the kilns, the saws, the bricks and the cut stone have no pictures yet, so no picture shows one. The numbers are made up to read like one evening, and the words are drafts.
+
+- **`start.png`, the first evening.** The Beacon's footings ask for stones. One pile, one level, the whole crew on it.
+- **`shaft.png`, the Beacon stands.** The Storehouse's footings ask for stones and bricks. Two piles. The Granite has a price and "Sink the shaft".
+- **`home.png`, two levels.** Three piles. Two gangs on each level, with minus and plus. The face holds the line, and Next offers a borer.
+- **`line.png`, the line opened.** The three stages, their machines, and each price in its good.
+- **`village.png`, the village opened.** The Storehouse's three steps, the Beacon and its power, and a hint.
+- **`rooms.png`, the other layout.** The mine's room, with the tab bar.
+
+Left to the builder and a later mock: a level opened, the yard opened, the welcome card (its words are the first mock's `welcome.png`), the end card, trouble on a stage plate, and the pace plate while something runs.
 
 ## What goes, and what stays
 
 **Goes:** the relics, their plate, shelf, reveal pictures and Ledger rows; the Lantern's guide bar (the order takes its place); the pass, Legacy, kid runs, Grandpa and the generations lab (#642); depth, the mountain's size and bottom, "stones left", the mined-out state; the band tag's advice and the rock's lean; the away clock once the yard is open; relic glimmers from expeditions; kid workers until the building that brings them back.
 
-**Stays:** taps, golden veins and the Gold rush; workers and the six machines of the line; ownership marks; upgrades; the Workshop and its gear; engineers, expeditions and trouble; the key rail, the drawers and the board's look; one save for each Google account and everything in `observable-saves.md`.
+**Stays:** taps, golden veins and the Gold rush; workers and the six machines of the line; ownership marks; upgrades; the Workshop and its gear; engineers, expeditions and trouble; the art, the steel and the lamps; one save for each Google account and everything in `observable-saves.md`.
 
-**Keepsakes** stay as expedition finds. Their page moves from a relic's page to the village drawer.
+**Today's board goes** when part 1 is switched on: the odometer, the output gauge, the mine window, the bays and the key rail. The mountain screen takes its place (What he sees).
+
+**Keepsakes** stay as expedition finds. Their page moves from a relic's page to the village.
 
 **Recipes that need a material no open level gives** (crystal, heartstone) are held back: they are not shown, and an expedition does not bring one home, until the slice that opens their level. The Great Machine's heartstone core waits the same way. So an expedition in slice 1 finds a lost tool, a keepsake, an engineer, or a recipe he can make.
 
@@ -202,7 +230,7 @@ What it shows:
 - **The share matters, and it is not a chore.** Three gangs on the Granite cost 4 to 33% more days than two and two. One gang there ends half a day sooner for the check-in dad and a day later for the evening dad. A dad who changes the share only when it brings the next need 15% sooner ends on the same day as two and two. So the share is set a few times in a slice. The decisions of every sitting are the narrow stage, the order or the machines, and makers or gangs.
 - **The narrow stage needs the pit train.** Without it the haul holds the line for 9 to 18 sittings in a row. With it the longest run is 5 to 11, and the lift, which has only hoists until the Forge, is the stage that sticks.
 - **Nights end at the yard**: about half the long nights, after 16 to 45% of the night. That is too early. The yard's room, or what a level adds, has to grow.
-- **A dead end exists and is not a lock.** All four gangs on the Granite with no saws makes no bricks, and saws cost bricks. A free move leaves it. The level card must say it: "No saws yet. The rock is stacked as stones."
+- **A dead end exists and is not a lock.** All four gangs on the Granite with no saws makes no bricks, and saws cost bricks. A free move leaves it. The level's row must say it: "No saws yet. The rock is stacked as stones."
 
 What it does not prove: anything about fun, the first hour's pace, the Workshop, engineers, upgrades, or the Great Machine. The lab has to play the slice before any of it is switched on.
 
@@ -215,18 +243,19 @@ What it does not prove: anything about fun, the first hour's pace, the Workshop,
 | Close is pause             | Every tap is saved at once. Time away is worked out from timestamps and the pile-full moments.                                                       |
 | Real numbers for decisions | Prices, rooms, each level's rock and goods a second, what an order still needs.                                                                      |
 | Vague discoveries          | The next building and the level below are hints.                                                                                                     |
-| The phone never scrolls    | The top plate and the band tag are reused. Cards and drawers scroll inside.                                                                          |
+| The phone never scrolls    | The mountain screen fits four levels and four piles. An opened part scrolls inside when its list is long.                                            |
 | No placeholders            | The mock uses art that exists. New pictures are asked for before they are made.                                                                      |
 
 ## Risks
 
 1. **The lift sticks.** It has one machine until the Forge. The lab measures `narrowRun`. The levers are the hoist's marks, a gear for the hoist, or the Great Machine one building earlier.
 2. **The share is set once and forgotten.** The model's dad hardly moves it. If play shows the same, orders can lean harder on one good, and a full pile already makes yesterday's share wrong.
-3. **Three goods on a small board.** The top plate holds two piles. A fourth good needs a new answer, in slice 2.
-4. **The game is short for a while**: it ends at the Forge until slice 2 is built.
-5. **A lot goes at once**: relics, the pass, depth. They leave play together, when part 1 is switched on, so the game on his phone is whole before and after.
-6. **Cut stone has few uses before the Forge**: borers and pit trains. The lab checks that it never piles up dead.
-7. **The paper model is rough.** Its dad stops buying line machines when they pay back slower than six hours, so the line's late growth is too flat.
+3. **The mountain runs out of room.** It holds four levels and four piles. A fifth of either needs pages, a second row, or the three rooms.
+4. **A new screen is a bigger part 1.** Today's board, its browser checks and its journeys are written again for the mountain screen in the part that switches it on.
+5. **The game is short for a while**: it ends at the Forge until slice 2 is built.
+6. **A lot goes at once**: relics, the pass, depth. They leave play together, when part 1 is switched on, so the game on his phone is whole before and after.
+7. **Cut stone has few uses before the Forge**: borers and pit trains. The lab checks that it never piles up dead.
+8. **The paper model is rough.** Its dad stops buying line machines when they pay back slower than six hours, so the line's late growth is too flat.
 
 ## Calls I made
 
@@ -241,12 +270,13 @@ These are mine, not Flemming's. Any of them can be turned over.
 7. The pit train opens with the Granite, and the Great Machine with the Forge.
 8. Borers and pit trains cost cut stone. Saws, the yard and the shaft cost bricks.
 9. The Beacon opens the kilns and the yard as well as the Granite's price.
-10. The top plate holds the order before the yard opens, and the two made piles after it, with the order on its tag.
-11. The village is a drawer. No picture of the whole village in this slice.
-12. The gauge reads rock a second.
-13. Which copy of a save is ahead: a later run stamp (Start over, or a reset), else more rock dug in all, a count that only grows, else the newer `lastSeen`. The run stamp stays the first key, as today. Kid runs are gone, and "more stones mined" becomes "more rock dug in all".
-14. The first evenings keep today's eight-hour clock, until the yard opens.
-15. Kid workers wait for the building that brings them (the School, a later slice).
+10. The screen is the mountain: the order on top, the yard, the line and the levels, with Next and the dig button at the foot. Today's board goes.
+11. The village is a part of the mountain screen and opens to a list. No picture of the whole village in this slice.
+12. The line shows rock a second on three stage plates. The gauge and the odometer go.
+13. Upgrades, the Workshop and Engineers are keys inside the line. The Ledger and Keepsakes are in the village.
+14. Which copy of a save is ahead: a later run stamp (Start over, or a reset), else more rock dug in all, a count that only grows, else the newer `lastSeen`. The run stamp stays the first key, as today. Kid runs are gone, and "more stones mined" becomes "more rock dug in all".
+15. The first evenings keep today's eight-hour clock, until the yard opens.
+16. Kid workers wait for the building that brings them (the School, a later slice).
 
 ## What it changes in the line spec
 
@@ -262,17 +292,18 @@ After his yes, this spec ships as a PR, and slice 1 is split into sliver issues 
 
 **The slice goes live in three parts, and each part is a game he can play.** A part's rules are built off in play, as the line's were (#532), the lab plays them, and the part's last sliver switches it on. Between switch-ons the game on his phone does not change. So no sliver leaves a hole: nothing that opened at a depth is taken out before the part with its new door is switched on.
 
-| Part | Goes live                                                                                                | The game then ends at |
-| ---- | -------------------------------------------------------------------------------------------------------- | --------------------- |
-| 1    | The fresh mine: the Topsoil, the line, the Beacon's orders. Relics, the pass and depth go.               | the Beacon's roof     |
-| 2    | Kilns, bricks, the yard, time away that fills the yard, the Storehouse's orders.                         | the Storehouse's roof |
-| 3    | The shaft and the Granite, saws, cut stone, borers, pit trains, the gangs, the Forge, the Great Machine. | the Forge's roof      |
+| Part | Goes live                                                                                                       | The game then ends at |
+| ---- | --------------------------------------------------------------------------------------------------------------- | --------------------- |
+| 1    | The mountain screen. The fresh mine: the Topsoil, the line, the Beacon's orders. Relics, the pass and depth go. | the Beacon's roof     |
+| 2    | Kilns, bricks, the yard, time away that fills the yard, the Storehouse's orders.                                | the Storehouse's roof |
+| 3    | The shaft and the Granite, saws, cut stone, borers, pit trains, the gangs, the Forge, the Great Machine.        | the Forge's roof      |
 
 - Until part 3 is live, the Granite's price is not shown, and the Beacon opens only the kilns and the yard. Each part ends with the end card, in words that say more is being built.
 - **Resets the save** when part 1 is switched on. Parts 2 and 3 add facts to the save and should not reset it. If one must, its issue, its PR and the chat say so first.
 - Before part 1: one sliver where the lab plays the whole slice, off in play, and sets the starting numbers (as #534 and #543 did for the line). It reports each part's end as well as the slice's.
 - The pass, Legacy, kid runs and Grandpa (#642) and the relics leave play at part 1's switch-on. Their code is deleted by slivers after it.
 - The lean of the rock leaves play at part 1's switch-on too: the Topsoil has none, and no other level is in play until part 3.
+- The mountain screen is built beside today's board and takes its place at part 1's switch-on. #537 and #538 draw the stages and the buys on today's board and are not started: they are built on the mountain screen instead, as part 1's stage plates and its opened line. #539's card for a stage lands there too. #536, the line's rules, goes on unchanged.
 
 A plan keeps each screen's browser checks green in the sliver that changes that screen. `docs/DESIGN.md`, `docs/design-intent.md`, `docs/ARCHITECTURE.md`, `docs/ui-audit.md`, `.claude/rules/observable-saves.md` and the github-issues skill's road section are updated by the slivers that change what they describe.
 
@@ -288,8 +319,8 @@ A plan keeps each screen's browser checks green in the sliver that changes that 
 
 Seven small pictures, each asked for with its prompt and size before it is made, one a sitting:
 
-- The Beacon, the Storehouse and the Forge, for the drawer and the reveal.
+- The Beacon, the Storehouse and the Forge, for the village and the reveal.
 - A kiln and a saw, for Buys.
 - A brick and a cut stone, for piles and prices.
 
-Everything else the slice shows exists: the machines, the two mine windows, the plates, cards and lamps.
+Everything else the slice shows exists: the machines, the mine pictures the level rows and the surface are cut from, the steel, and the lamps.
