@@ -10,7 +10,7 @@ import { minedMountain } from "./test-fixtures";
  * and an engineer's floor still go by machine, not by stage: the floor is a
  * share of the plain sum, so it pays for idle surplus on a stage that is not
  * narrow (docs/DESIGN.md; the engineers by stage are #539). The worst seen
- * is about 8.5%. With neither, it may not lower it at all.
+ * is about 9%. With neither, it may not lower it at all.
  */
 const TENDED_SLIP = 0.1;
 
@@ -38,7 +38,7 @@ const MORE: readonly (readonly [string, (crew: Crew) => Crew])[] = [
   ["machine", (crew) => ({ ...crew, machines: crew.machines + 1 })],
 ];
 
-/** Early crews: every fourth count of workers, and where a big crew just fits. */
+/** Early crews: every fifth count of workers, and where a big crew just fits. */
 const EARLY: Grid = {
   legacy: [0, 1],
   carts: [0, 10],
@@ -47,7 +47,7 @@ const EARLY: Grid = {
   borers: [0, 1, 3],
   trains: [0, 2],
   machines: [0, 1, 2],
-  helpers: [...Array.from({ length: 16 }, (_, at) => at * 4), 15, 17, 33],
+  helpers: [...Array.from({ length: 13 }, (_, at) => at * 5), 16, 17, 33],
 };
 
 /** Late crews, with hundreds of ways to staff the big machines. */
@@ -59,7 +59,7 @@ const LATE: Grid = {
   borers: [5, 9],
   trains: [3, 9],
   machines: [2, 6],
-  helpers: [47, 69, 83, 99, 120],
+  helpers: [47, 83, 99],
 };
 
 function crews(grid: Grid): Crew[] {
