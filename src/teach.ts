@@ -123,6 +123,9 @@ function isTeachId(value: string): value is TeachId {
   return TEACH_SPECS.some((spec) => spec.id === value);
 }
 
+/** Every teach id, in the order their notes take turns. */
+export const TEACH_IDS: readonly TeachId[] = TEACH_SPECS.map((spec) => spec.id);
+
 /** Used now or before. */
 function isTaught(mountain: Mountain, id: TeachId): boolean {
   const spec = specOf(id);

@@ -205,6 +205,17 @@ describe("tonightLines (#375)", () => {
     expect(tonightLines(events.slice(0, 2))).toEqual([]);
   });
 
+  it("starts again after a save set aside for a fresh mountain (#558)", () => {
+    const events = [
+      event("tier.buy", { id: "helper", count: 9 }, 20, 0),
+      event("save.set-aside", { source: "phone", id: "v7" }, 20, 1),
+      event("tier.buy", { id: "helper", count: 1 }, 20, 2),
+    ];
+    expect(tonightLines(events)).toEqual([
+      { time: "20:02", text: "Hired worker 1." },
+    ]);
+  });
+
   it("says nothing for an empty ring", () => {
     expect(tonightLines([])).toEqual([]);
   });

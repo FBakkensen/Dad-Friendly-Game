@@ -10,6 +10,7 @@ import {
   stopScreens,
 } from "./mountain-screen.harness";
 import { SESSION_SAVE_KEY } from "./session-save";
+import { saveText } from "./test-fixtures";
 
 /**
  * The taps that buy or dig nothing (#431): a plate or window tap before the save is in, on a
@@ -33,10 +34,7 @@ const tapAnyway = (button: HTMLButtonElement | null): void => {
 
 const seeded = (mountain: Mountain) => {
   const storage = createMemoryStorage();
-  storage.setItem(
-    SESSION_SAVE_KEY,
-    JSON.stringify({ version: 5, mountain, lastSeen: Date.now() }),
-  );
+  storage.setItem(SESSION_SAVE_KEY, saveText(mountain, Date.now()));
   return storage;
 };
 

@@ -20,7 +20,8 @@ export type RingScope =
   | { readonly kind: "guest" }
   | { readonly kind: "account"; readonly uid: string };
 
-const FIELD_RING_PREFIX = "dad-friendly-field-log";
+/** The field ring's key prefix, new with the version 8 save (#558). */
+const FIELD_RING_PREFIX = "dad-friendly-game-log";
 
 export function fieldRingKey(scope: RingScope): string {
   return scope.kind === "guest"

@@ -129,8 +129,8 @@ for (const viewport of SCREENS) {
       const bought = await page
         .waitForFunction(
           (key, carts) =>
-            JSON.parse(localStorage.getItem(key) ?? "{}").mountain?.carts ===
-            carts,
+            (JSON.parse(localStorage.getItem(key) ?? "{}").game?.owned?.cart ??
+              0) === carts,
           { timeout: 2_000 },
           SAVE_KEY,
           before.carts + 1,
@@ -327,8 +327,7 @@ for (const viewport of SCREENS) {
       const storedBench = () =>
         page.evaluate(
           (key) =>
-            JSON.parse(localStorage.getItem(key) ?? "{}").workshop?.bench ??
-            null,
+            JSON.parse(localStorage.getItem(key) ?? "{}").game?.bench ?? null,
           SAVE_KEY,
         );
       await press(page, bench);
@@ -354,7 +353,7 @@ for (const viewport of SCREENS) {
       const cancelled = await page
         .waitForFunction(
           (key) =>
-            JSON.parse(localStorage.getItem(key) ?? "{}").workshop?.bench ===
+            JSON.parse(localStorage.getItem(key) ?? "{}").game?.bench ===
             undefined,
           { timeout: 2_000 },
           SAVE_KEY,
@@ -412,12 +411,11 @@ for (const viewport of SCREENS) {
       const fresh = await page
         .waitForFunction(
           (key, sheet) => {
-            const mountain = JSON.parse(
-              localStorage.getItem(key) ?? "{}",
-            ).mountain;
+            const game = JSON.parse(localStorage.getItem(key) ?? "{}").game;
             return (
-              mountain?.remaining === 240_000_000 &&
-              (mountain.helpers ?? 0) === 0 &&
+              game !== undefined &&
+              (game.run?.dug ?? 0) === 0 &&
+              (game.owned?.helper ?? 0) === 0 &&
               document.querySelector(sheet) === null
             );
           },
@@ -512,8 +510,8 @@ for (const viewport of SCREENS) {
       const posted = await page
         .waitForFunction(
           (key) =>
-            JSON.parse(localStorage.getItem(key) ?? "{}").mountain
-              ?.engineers?.[0]?.post === "drill",
+            JSON.parse(localStorage.getItem(key) ?? "{}").game?.engineers?.[0]
+              ?.post === "drill",
           { timeout: 2_000 },
           SAVE_KEY,
         )
@@ -622,8 +620,8 @@ for (const viewport of SCREENS) {
       await page
         .waitForFunction(
           (key, carts) =>
-            JSON.parse(localStorage.getItem(key) ?? "{}").mountain?.carts ===
-            carts,
+            (JSON.parse(localStorage.getItem(key) ?? "{}").game?.owned?.cart ??
+              0) === carts,
           { timeout: 2_000 },
           SAVE_KEY,
           storedBefore.carts + 1,
@@ -854,8 +852,8 @@ for (const viewport of SCREENS) {
       await page
         .waitForFunction(
           (key, was) =>
-            JSON.parse(localStorage.getItem(key) ?? "{}").mountain?.pocket !==
-            was,
+            (JSON.parse(localStorage.getItem(key) ?? "{}").game?.stock
+              ?.stones ?? 0) !== was,
           { timeout: 2_000 },
           SAVE_KEY,
           before,

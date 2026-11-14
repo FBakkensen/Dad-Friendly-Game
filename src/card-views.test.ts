@@ -8,8 +8,6 @@ import type { ProgressSnapshot } from "./progress-store";
 import { RELICS } from "./relics";
 import {
   AWAY_CHEER,
-  CREW_GREW_TITLE,
-  ENGINEER_WELCOME,
   WELCOME_AWAY_TITLE,
   WELCOME_HOME_TITLE,
   awayMaterialsWords,
@@ -51,8 +49,6 @@ const away = (over: Partial<AwayReport> = {}): Notice => ({
   kind: "away",
   report: report(over),
 });
-const crew = (helpers: number): Notice => ({ kind: "crew-joined", helpers });
-const ENGINEER: Notice = { kind: "engineer-joined" };
 
 const home = (engineer: "Ada" | "Nils", text: string): Homecoming => ({
   engineer,
@@ -85,10 +81,8 @@ describe("welcomeNews", () => {
     expect(welcomeNews(plain)).toBe(false);
   });
 
-  it("is true for an away haul, the crew, the engineer and a homecoming", () => {
+  it("is true for an away haul and a homecoming", () => {
     expect(welcomeNews(news(away()))).toBe(true);
-    expect(welcomeNews(news(crew(2)))).toBe(true);
-    expect(welcomeNews(news(ENGINEER))).toBe(true);
     expect(welcomeNews(snap({ homecomings: [home("Ada", "Quiet.")] }))).toBe(
       true,
     );
@@ -103,10 +97,9 @@ describe("welcomeView", () => {
   it("follows today's title chain", () => {
     const title = (view: ProgressSnapshot) => welcomeView(view)?.title;
     const homes = [home("Ada", "Q.")];
-    expect(title(news(away(), crew(2)))).toBe(WELCOME_AWAY_TITLE);
-    expect(title(news(crew(2), ENGINEER))).toBe(CREW_GREW_TITLE);
-    expect(title(snap({ notices: [ENGINEER], homecomings: homes }))).toBe(
-      ENGINEER_WELCOME,
+    expect(title(news(away()))).toBe(WELCOME_AWAY_TITLE);
+    expect(title(snap({ notices: [away()], homecomings: homes }))).toBe(
+      WELCOME_AWAY_TITLE,
     );
     expect(title(snap({ homecomings: homes }))).toBe(WELCOME_HOME_TITLE);
   });
@@ -138,26 +131,6 @@ describe("welcomeView", () => {
     expect(gone(1.25)).toMatch(/The Heart of Patience made it ×1\.25\.$/);
     expect(gone(1.5)).toMatch(/The Heart of Patience made it ×1\.5\.$/);
     expect(welcomeView(news(away()))?.away?.cheer).toBe(AWAY_CHEER);
-  });
-
-  it("names the crew alone, and under an away haul with the title's words", () => {
-    const alone = welcomeView(news(crew(1)));
-    expect(alone?.crew).toBe("1 worker joined to run your machines.");
-    expect(alone?.away).toBeUndefined();
-    expect(welcomeView(news(crew(3), away()))?.crew).toBe(
-      "Your crew grew: 3 workers joined to run your machines.",
-    );
-    expect(welcomeView(news(away()))?.crew).toBeUndefined();
-  });
-
-  it("speaks of the engineer only under an away or crew line", () => {
-    expect(welcomeView(news(ENGINEER))?.engineer).toBeUndefined();
-    expect(welcomeView(news(ENGINEER, away()))?.engineer).toBe(
-      ENGINEER_WELCOME,
-    );
-    expect(welcomeView(news(ENGINEER, crew(1)))?.engineer).toBe(
-      ENGINEER_WELCOME,
-    );
   });
 
   it("lists two returns in order", () => {
@@ -203,7 +176,6 @@ describe("arrivalCard", () => {
 
   it("waits while the welcome has news or a relic is revealed", () => {
     expect(arrivalCard(news(granite, away()))).toBeUndefined();
-    expect(arrivalCard(news(granite, crew(1)))).toBeUndefined();
     const relic = RELICS[0];
     if (relic === undefined) {
       throw new Error("no relics");

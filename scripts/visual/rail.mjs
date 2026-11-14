@@ -55,14 +55,14 @@ async function railFacts(page) {
   return page.evaluate(
     async (keyRules, saveRules, saveKey, ids, capX) => {
       const { keyViews } = await import(keyRules);
-      const { parseSaveValue } = await import(saveRules);
-      const parsed = parseSaveValue(
+      const { readSave } = await import(saveRules);
+      const read = readSave(
         JSON.parse(localStorage.getItem(saveKey) ?? "null"),
       );
       const views =
-        parsed === undefined
-          ? undefined
-          : keyViews(parsed.mountain, Date.now(), undefined);
+        read.kind === "ok"
+          ? keyViews(read.save.mountain, Date.now(), undefined)
+          : undefined;
       const board = globalThis.__board();
       const clock = /^\d+:\d\d(:\d\d)?$/;
       return ids.map((id, index) => {

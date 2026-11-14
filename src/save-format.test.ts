@@ -1,174 +1,53 @@
 import { describe, expect, it } from "vitest";
 import { boostById } from "./boosts";
-import { staffExisting } from "./crew";
 import { onTrip } from "./engineers";
 import { createMountain, MOUNTAIN_STONES, type Mountain } from "./mountain";
-import { parseSaveValue, serializeSave } from "./persist";
-import {
-  parseMountain,
-  savedMountain,
-  savedWorkshop,
-  withWorkshop,
-} from "./save-format";
+import { readGame, writeGame } from "./save-format";
 import { boostUsed } from "./upgrade-reveal";
 
 const ADA = { name: "Ada", rank: 0, trips: 0, post: "borer" } as const;
 
-/** Saves and loads a mountain through the v6 document. */
+/** Writes and reads a mountain's game map through JSON. */
 function roundTrip(mountain: Mountain): Mountain | undefined {
-  const doc: unknown = JSON.parse(
-    JSON.stringify(serializeSave({ mountain, lastSeen: 1_000 })),
+  const read = readGame(
+    JSON.parse(JSON.stringify(writeGame(mountain))),
+    mountain.startedAt,
   );
-  return parseSaveValue(doc)?.mountain;
+  return read.kind === "ok" ? read.mountain : undefined;
 }
 
-describe("save format", () => {
-  it("writes a fresh mountain exactly as before (#415)", () => {
-    expect(
-      JSON.stringify(
-        serializeSave({ mountain: createMountain(), lastSeen: 1000 }),
-      ),
-    ).toBe(
-      '{"version":6,"mountain":{"remaining":240000000,"pocket":0,"helpers":0,"carts":0,"drills":0,"borers":0,"machines":0,"kids":0,"staffed":2},"workshop":{"materials":{"clay":0,"iron":0,"crystal":0,"heartstone":0},"recipes":["iron-rails","sturdy-props","blasting-charge"]},"lastSeen":1000}',
-    );
-  });
-
-  it("writes back the ids a newer build saved and this one does not know", () => {
-    const workshop = {
-      materials: { clay: 1, iron: 2, crystal: 0, heartstone: 0 },
-      recipes: ["iron-rails", "future-recipe"],
-      bench: { recipe: "future-bench", startedAt: 10, endsAt: 20 },
-      crafted: { "iron-rails": 1, "future-bit": 3 },
-      seen: ["future-note", "workshop"],
-      taught: ["engineers", "future-system"],
-    };
-    const loaded = parseSaveValue({
-      version: 6,
-      mountain: savedMountain(createMountain()),
-      workshop,
-      lastSeen: 5,
-    })?.mountain;
-    expect(loaded?.recipes).toEqual(["iron-rails"]);
-    expect(loaded?.bench).toBeUndefined();
-    expect(loaded?.seen).toEqual(["workshop"]);
-    expect(loaded?.taught).toEqual(["engineers"]);
-    expect(loaded?.kept).toEqual({
-      recipes: ["future-recipe"],
-      bench: { recipe: "future-bench", startedAt: 10, endsAt: 20 },
-      crafted: { "future-bit": 3 },
-      seen: ["future-note"],
-      taught: ["future-system"],
-    });
-    if (loaded === undefined) {
-      throw new Error("the save loads");
-    }
-    const written = savedWorkshop(loaded);
-    expect(written.recipes).toEqual(["iron-rails", "future-recipe"]);
-    expect(written.bench).toEqual(workshop.bench);
-    expect(written.crafted).toEqual({ "future-bit": 3, "iron-rails": 1 });
-    expect(written.seen).toEqual(["workshop", "future-note"]);
-    expect(written.taught).toEqual(["engineers", "future-system"]);
-  });
-
-  it("saves an engineer on a trip in the tunnel, and loads them back on the trip", () => {
-    const trip = {
-      engineer: "Ada",
-      tunnel: "side-seam",
-      sentAt: 100,
-      returnsAt: 200,
-      find: { kind: "quiet" },
-    } as const;
-    const mountain: Mountain = {
-      ...createMountain(),
-      borers: 1,
-      engineers: [ADA],
-      expeditions: [trip],
-    };
-    const saved = savedMountain(mountain);
-    expect(saved.engineers).toEqual([{ ...ADA, post: "tunnel" }]);
-    expect(saved.expeditions).toEqual([{ ...trip, home: "borer" }]);
-    expect(Object.keys(saved.expeditions?.[0] ?? {})).toEqual([
-      "engineer",
-      "tunnel",
-      "sentAt",
-      "returnsAt",
-      "home",
-      "find",
-    ]);
-    const loaded = roundTrip(mountain);
-    expect(loaded?.engineers).toEqual([ADA]);
-    expect(loaded?.expeditions).toEqual([trip]);
-    expect(loaded !== undefined && onTrip(loaded, "Ada")).toBe(true);
-  });
-
-  it("loads a v5 save as a complete mountain that still gets its free crew", () => {
-    // An older save never wrote `staffed`.
-    const older = savedMountain({
-      ...createMountain(),
-      remaining: MOUNTAIN_STONES - 1_000,
-      drills: 3,
-      staffed: 0,
-    });
-    expect(older).not.toHaveProperty("staffed");
-    const loaded = parseSaveValue({
-      version: 5,
-      mountain: older,
-      lastSeen: 8,
-    })?.mountain;
-    expect(loaded?.staffed).toBe(0);
-    expect(loaded?.clocks).toEqual(createMountain().clocks);
-    expect(loaded?.kept).toEqual(createMountain().kept);
-    expect(
-      loaded === undefined ? 0 : staffExisting(loaded).joined,
-    ).toBeGreaterThan(0);
-  });
-
-  it("keeps a boost's row once it has run, long after it ends", () => {
-    const ran: Mountain = {
-      ...createMountain(),
-      boosts: { ...createMountain().boosts, overtime: 5_000 },
-    };
-    const loaded = roundTrip(ran);
-    expect(loaded?.boosts.overtime).toBe(5_000);
-    expect(
-      loaded !== undefined && boostUsed(loaded, boostById("overtime")),
-    ).toBe(true);
-    expect(roundTrip(createMountain())?.boosts.overtime).toBe(0);
-  });
-
+describe("the game map (#558)", () => {
   it("saves every field of the mountain: a mountain with none at its default comes back whole", () => {
     // A new Mountain field must be named here, with the map it is saved in.
     const homes = {
-      remaining: "mountain",
-      pocket: "mountain",
-      helpers: "mountain",
-      carts: "mountain",
-      drills: "mountain",
-      borers: "mountain",
-      machines: "mountain",
-      kids: "mountain",
-      hoists: "workshop",
-      trains: "workshop",
-      upgrades: "mountain",
-      boosts: "mountain",
-      startedAt: "mountain",
-      staffed: "mountain",
-      legacy: "mountain",
-      engineers: "mountain",
-      expeditions: "mountain",
-      finds: "mountain",
-      stretch: "workshop",
-      materials: "workshop",
-      bench: "workshop",
-      crafted: "workshop",
-      recipes: "workshop",
-      clocks: "workshop",
-      rushUntil: "workshop",
-      rushBank: "workshop",
-      seen: "workshop",
-      taught: "workshop",
-      kept: "workshop",
-    } as const satisfies Record<keyof Mountain, "mountain" | "workshop">;
+      remaining: "run",
+      pocket: "stock",
+      helpers: "owned",
+      carts: "owned",
+      hoists: "owned",
+      drills: "owned",
+      borers: "owned",
+      trains: "owned",
+      machines: "owned",
+      kids: "owned",
+      upgrades: "levels",
+      boosts: "clocks",
+      startedAt: "envelope",
+      legacy: "run",
+      engineers: "engineers",
+      expeditions: "expeditions",
+      finds: "marks",
+      stretch: "run",
+      materials: "stock",
+      bench: "bench",
+      crafted: "levels",
+      recipes: "marks",
+      clocks: "clocks",
+      rushUntil: "clocks",
+      rushBank: "run",
+      seen: "marks",
+      taught: "marks",
+    } as const satisfies Record<keyof Mountain, string>;
     const fresh = createMountain();
     const full: Mountain = {
       ...fresh,
@@ -176,16 +55,15 @@ describe("save format", () => {
       pocket: 7,
       helpers: 9,
       carts: 2,
+      hoists: 3,
       drills: 1,
       borers: 1,
+      trains: 2,
       machines: 1,
       kids: 1,
-      hoists: 3,
-      trains: 2,
       upgrades: { ...fresh.upgrades, tap: 1 },
       boosts: { ...fresh.boosts, sharper: 9_000 },
       startedAt: 500,
-      staffed: 1,
       legacy: 1,
       stretch: 2,
       engineers: [ADA],
@@ -208,13 +86,6 @@ describe("save format", () => {
       rushBank: 40,
       seen: ["workshop"],
       taught: ["engineers"],
-      kept: {
-        recipes: ["future-recipe"],
-        bench: undefined,
-        crafted: { "future-bit": 1 },
-        seen: ["future-note"],
-        taught: ["future-system"],
-      },
     };
     for (const key of Object.keys(homes) as (keyof Mountain)[]) {
       expect(full[key], key).not.toEqual(fresh[key]);
@@ -222,40 +93,119 @@ describe("save format", () => {
     expect(roundTrip(full)).toEqual(full);
   });
 
-  it("rejects a map that is not an object, on either side", () => {
-    expect(parseMountain(null)).toBeUndefined();
-    expect(parseMountain("stones")).toBeUndefined();
-    expect(withWorkshop(createMountain(), null)).toBeUndefined();
-    expect(withWorkshop(createMountain(), 7)).toBeUndefined();
+  it("keys each fact by id, in the five maps", () => {
+    const fresh = createMountain();
+    const game = writeGame({
+      ...fresh,
+      helpers: 3,
+      hoists: 1,
+      pocket: 40,
+      upgrades: { ...fresh.upgrades, tap: 2 },
+      crafted: { ...fresh.crafted, "iron-rails": 1 },
+      boosts: { ...fresh.boosts, overtime: 9 },
+      clocks: { ...fresh.clocks, "blasting-charge": 7 },
+      rushUntil: 11,
+    });
+    expect(game.owned).toEqual({ helper: 3, hoist: 1 });
+    expect(game.stock).toEqual({ stones: 40 });
+    expect(game.levels).toEqual({ tap: 2, "iron-rails": 1 });
+    expect(game.clocks).toEqual({
+      overtime: 9,
+      "blasting-charge": 7,
+      "gold-rush": 11,
+    });
   });
-});
 
-describe("the line's hoists and pit trains in the save (#533)", () => {
-  it("an old save without them loads with none, and writes no new keys", () => {
-    const old = { ...createMountain(), helpers: 12, carts: 3 };
-    for (const saved of [savedMountain(old), savedWorkshop(old)]) {
-      expect(saved).not.toHaveProperty("hoists");
-      expect(saved).not.toHaveProperty("trains");
-    }
-    const loaded = withWorkshop(old, savedWorkshop(old));
-    expect(loaded?.hoists).toBe(0);
-    expect(loaded?.trains).toBe(0);
-    expect(roundTrip(old)).toEqual(old);
+  it("saves an engineer on a trip in the tunnel, and loads them back on the trip", () => {
+    const trip = {
+      engineer: "Ada",
+      tunnel: "side-seam",
+      sentAt: 100,
+      returnsAt: 200,
+      find: { kind: "quiet" },
+    } as const;
+    const mountain: Mountain = {
+      ...createMountain(),
+      borers: 1,
+      engineers: [ADA],
+      expeditions: [trip],
+    };
+    const saved = writeGame(mountain);
+    expect(saved.engineers).toEqual([{ ...ADA, post: "tunnel" }]);
+    expect(saved.expeditions).toEqual([{ ...trip, home: "borer" }]);
+    const loaded = roundTrip(mountain);
+    expect(loaded?.engineers).toEqual([ADA]);
+    expect(loaded?.expeditions).toEqual([trip]);
+    expect(loaded !== undefined && onTrip(loaded, "Ada")).toBe(true);
   });
 
-  it("round-trips them once owned, in the workshop map, and rejects a bad count", () => {
-    const line = { ...createMountain(), hoists: 4, trains: 2 };
-    expect(savedWorkshop(line)).toMatchObject({ hoists: 4, trains: 2 });
-    expect(savedMountain(line)).not.toHaveProperty("hoists");
-    expect(roundTrip(line)).toEqual(line);
-    const sheet = savedWorkshop(createMountain());
-    for (const field of ["hoists", "trains"]) {
-      for (const bad of [-1, 1.5, "7"]) {
-        expect(
-          withWorkshop(createMountain(), { ...sheet, [field]: bad }),
-          field,
-        ).toBeUndefined();
-      }
+  it("keeps a boost's row once it has run, long after it ends", () => {
+    const ran: Mountain = {
+      ...createMountain(),
+      boosts: { ...createMountain().boosts, overtime: 5_000 },
+    };
+    const loaded = roundTrip(ran);
+    expect(loaded?.boosts.overtime).toBe(5_000);
+    expect(
+      loaded !== undefined && boostUsed(loaded, boostById("overtime")),
+    ).toBe(true);
+  });
+
+  it("a game map that is not a map is bad", () => {
+    for (const value of [null, "stones", 7, [], undefined]) {
+      expect(readGame(value, 0).kind).toBe("bad");
     }
+  });
+
+  it("a trip whose find has the wrong types is bad; an unknown find is newer", () => {
+    const mountain: Mountain = {
+      ...createMountain(),
+      borers: 1,
+      engineers: [ADA],
+      expeditions: [
+        {
+          engineer: "Ada",
+          tunnel: "side-seam",
+          sentAt: 100,
+          returnsAt: 200,
+          find: { kind: "quiet" },
+        },
+      ],
+    };
+    const game = writeGame(mountain);
+    const trip = { ...game.expeditions?.[0] };
+    expect(
+      readGame({ ...game, expeditions: [{ ...trip, find: "quiet" }] }, 0).kind,
+    ).toBe("bad");
+    expect(
+      readGame(
+        { ...game, expeditions: [{ ...trip, find: { kind: "comet" } }] },
+        0,
+      ).kind,
+    ).toBe("newer");
+    expect(
+      readGame({ ...game, expeditions: [{ ...trip, tunnel: "moon" }] }, 0).kind,
+    ).toBe("newer");
+  });
+
+  it("a bench with the wrong types is bad; an unknown recipe on it is newer", () => {
+    const bench = { recipe: "iron-rails", startedAt: 10, endsAt: 20 };
+    expect(readGame({ bench }, 0).kind).toBe("ok");
+    expect(readGame({ bench: { ...bench, endsAt: "20" } }, 0).kind).toBe("bad");
+    expect(readGame({ bench: { ...bench, recipe: "kiln" } }, 0).kind).toBe(
+      "newer",
+    );
+  });
+
+  it("a stretch past its cap is newer, below 1 is bad", () => {
+    expect(readGame({ run: { stretch: 2_000_000 } }, 0).kind).toBe("newer");
+    expect(readGame({ run: { stretch: 0.5 } }, 0).kind).toBe("bad");
+    expect(readGame({ run: { stretch: 2.5 } }, 0).kind).toBe("ok");
+  });
+
+  it("a mark twice is newer", () => {
+    expect(
+      readGame({ marks: { seen: ["workshop", "workshop"] } }, 0).kind,
+    ).toBe("newer");
   });
 });

@@ -98,13 +98,16 @@ export function mark(target: HTMLElement, name: string, on: boolean): void {
   }
 }
 
+/** Reads the element's width, which makes the browser lay it out now. */
+const reflow = (target: HTMLElement): number => target.offsetWidth;
+
 /**
  * Plays a class's CSS animation from its start, on an element that may still be mid-way
  * through it: off, a reflow, and on again.
  */
 export function replay(target: HTMLElement, name: string): void {
   target.classList.remove(name);
-  void target.offsetWidth;
+  reflow(target);
   target.classList.add(name);
 }
 

@@ -111,9 +111,14 @@ function contrast(a: string, b: string): number {
   return ((hi ?? 0) + 0.05) / ((lo ?? 0) + 0.05);
 }
 
+/** Text with every RegExp metacharacter escaped, so it matches only itself. */
+function escapeRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 /** A selector escaped for a RegExp that matches its rule's head. */
 function ruleHead(selector: string): string {
-  return `^${selector.replace(/[.]/g, "\\.")} \\{`;
+  return `^${escapeRegExp(selector)} \\{`;
 }
 
 /** Every declaration of board.css's top-level rules that list this exact selector. */
@@ -270,7 +275,7 @@ describe("board.css", () => {
         boardCss,
       )?.[1];
     for (const selector of animated) {
-      const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const escaped = escapeRegExp(selector);
       expect(reduced).toMatch(
         new RegExp(`${escaped} \\{[^}]*animation:\\s*none`),
       );
@@ -500,7 +505,7 @@ describe("board.css", () => {
   });
 
   it.each(BOARD_SELECTORS)("styles %s", (selector) => {
-    const escaped = selector.replace(".", "\\.");
+    const escaped = escapeRegExp(selector);
     expect(boardCss).toMatch(new RegExp(`^${escaped}[\\s,{\\[:.]`, "m"));
   });
 });

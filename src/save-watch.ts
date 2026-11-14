@@ -9,9 +9,11 @@ import {
   persistSession,
   phoneConflict,
   restoreFieldRing,
+  setAsideLocal,
 } from "./local-saves";
 import { minedOut } from "./mountain";
 import {
+  phoneBackupKey,
   readPhoneBackup,
   writePhoneBackup,
   type PhoneBackup,
@@ -23,12 +25,20 @@ import {
   hasLocalProgress,
   localMoment,
   openSession,
+  resetFresh,
+  type SetAside,
 } from "./save-load";
 import { endResumeRead, freshServerRead } from "./server-read";
 import { forgetArrivals } from "./session";
-import { clearSessionSave, readSessionSave } from "./session-save";
+import {
+  clearSessionSave,
+  readSessionSave,
+  SESSION_SAVE_KEY,
+  type SessionRead,
+} from "./session-save";
 import {
   cancelRetry,
+  holdNewer,
   isWriter,
   LISTEN_BACKOFF_START_MS,
   localSide,
@@ -66,13 +76,26 @@ function stopWatch(ctx: StoreContext): void {
 function resumeFromSession(ctx: StoreContext): void {
   stopWatch(ctx);
   const storage = ctx.ports.storage;
-  const stored =
-    storage === undefined ? undefined : readSessionSave({ storage });
-  if (stored === undefined) {
+  if (storage === undefined) {
     ctx.saveKind = "unsigned";
     emit(ctx);
     return;
   }
+  const read = readSessionSave({ storage });
+  if (read.kind === "newer") {
+    holdNewer(ctx, "guest");
+    emit(ctx);
+    return;
+  }
+  if (read.kind === "older") {
+    resetFresh(ctx, setAsideOlder(ctx, storage, read, undefined));
+  }
+  if (read.kind !== "ok") {
+    ctx.saveKind = "unsigned";
+    emit(ctx);
+    return;
+  }
+  const stored = read.save;
   if (!isWriter(ctx)) {
     setGame(ctx, stored.mountain, stored.lastSeen);
     ctx.session = {
@@ -88,17 +111,49 @@ function resumeFromSession(ctx: StoreContext): void {
   }
   setGame(ctx, stored.mountain, ctx.session.lastSeen);
   const opened = openSession(ctx, {
-    staff: true,
     pay: true,
     since: stored.lastSeen,
     rebase: true,
   });
   ctx.saveKind = "session";
   logCounts(ctx, "save.session", "resume");
-  if (opened.paid > 0 || opened.staffed) {
+  if (opened.paid > 0) {
     persistSession(ctx);
   }
   emit(ctx);
+}
+
+/**
+ * Moves the guest save and the phone backup from before this version aside
+ * on the phone (#558), and says which went.
+ */
+function setAsideOlder(
+  ctx: StoreContext,
+  storage: Storage,
+  guest: SessionRead,
+  backup: { readonly uid: string; readonly read: PhoneBackup } | undefined,
+): readonly SetAside[] {
+  const aside: SetAside[] = [];
+  if (guest.kind === "older") {
+    setAsideLocal(ctx, storage, SESSION_SAVE_KEY, guest.raw, guest.version);
+    aside.push({ source: "guest", ...guest });
+  }
+  if (backup?.read.kind === "older") {
+    const phone = backup.read;
+    setAsideLocal(
+      ctx,
+      storage,
+      phoneBackupKey(backup.uid),
+      phone.raw,
+      phone.version,
+    );
+    aside.push({ source: "phone", ...phone });
+  }
+  return aside.map(({ source, version, startedAt }) => ({
+    source,
+    version,
+    startedAt,
+  }));
 }
 
 /** Plays a local copy that is ahead of the one in play. */
@@ -158,17 +213,29 @@ function prepareLocal(ctx: StoreContext, uid: string): void {
   if (storage === undefined) {
     return;
   }
-  const session = readSessionSave({ storage });
-  takeIfAhead(ctx, session);
+  const guest = readSessionSave({ storage });
   const backup = readPhoneBackup({ storage, uid });
+  if (guest.kind === "newer" || backup.kind === "newer") {
+    holdNewer(ctx, guest.kind === "newer" ? "guest" : "phone");
+    return;
+  }
+  const session = guest.kind === "ok" ? guest.save : undefined;
+  takeIfAhead(ctx, session);
   takeIfAhead(ctx, backup.kind === "present" ? backup.save : undefined);
   takeRevs(ctx, session, backup);
   takeConflict(ctx, backup);
+  const aside = setAsideOlder(ctx, storage, guest, { uid, read: backup });
+  if (aside.length > 0) {
+    resetFresh(ctx, aside);
+  }
   if (backup.kind === "unreadable") {
     return;
   }
+  if (ctx.asideHeld.has(phoneBackupKey(uid))) {
+    return;
+  }
   if (!hasLocalProgress(ctx)) {
-    clearSessionSave({ storage });
+    clearGuest(ctx, storage);
     return;
   }
   const { mountain, lastSeen } = ctx.session;
@@ -184,6 +251,13 @@ function prepareLocal(ctx: StoreContext, uid: string): void {
     ...phoneConflict(ctx.saveConflict),
   });
   if (wrote !== "failed") {
+    clearGuest(ctx, storage);
+  }
+}
+
+/** Drops the guest key, unless its copy from before this version could not move aside. */
+function clearGuest(ctx: StoreContext, storage: Storage): void {
+  if (!ctx.asideHeld.has(SESSION_SAVE_KEY)) {
     clearSessionSave({ storage });
   }
 }
@@ -245,6 +319,11 @@ function pullPhoneIfAhead(ctx: StoreContext, uid: string): void {
     return;
   }
   const backup = readPhoneBackup({ storage, uid });
+  if (backup.kind === "newer") {
+    holdNewer(ctx, "phone");
+    emit(ctx);
+    return;
+  }
   if (
     backup.kind !== "present" ||
     compareSaveProgress(backup.save, localMoment(ctx)) <= 0

@@ -1,6 +1,6 @@
 /* global console, document, innerWidth, innerHeight, getComputedStyle */
 /** Main screen sections: the board fits, the tier cards and the standalone shell. */
-import { crewV4Save, buysFitSave } from "../../tools/browser/fixtures.ts";
+import { boostedCrewSave, buysFitSave } from "../../tools/browser/fixtures.ts";
 import { check, section, table } from "./registry.mjs";
 import {
   PHONE,
@@ -77,7 +77,7 @@ async function veinInView(page) {
 for (const viewport of SCREENS) {
   section(`section 1 (main screen) ${JSON.stringify(viewport)}`, async () => {
     const size = `${String(viewport[0])}x${String(viewport[1])}`;
-    const { page, close } = await openScreen(viewport, crewV4Save());
+    const { page, close } = await openScreen(viewport, boostedCrewSave());
     check(await noScroll(page), `${size} main screen has no scroll`);
     // A dig's "+N" rises inside the window; the page stays still (#371).
     await press(page, ".board-window");
@@ -409,7 +409,13 @@ for (const viewport of [PHONE]) {
       ],
       // Before the Hammer: the Great Machine card is locked.
       [
-        { helpers: 9, carts: 9, drills: 9, borers: 9, remaining: 80_000_000 },
+        {
+          helpers: 9,
+          carts: 9,
+          drills: 9,
+          borers: 9,
+          remaining: 240_000_000 - 20_000_000,
+        },
         "DejaVu Sans",
       ],
     ]) {
@@ -581,7 +587,7 @@ table({
   section: (viewport) => `section 3 (standalone) ${JSON.stringify(viewport)}`,
   prefix: ({ size }) => `${size} standalone`,
   open: async (viewport) => {
-    const opened = await openScreen(viewport, crewV4Save(), {
+    const opened = await openScreen(viewport, boostedCrewSave(), {
       standalone: true,
     });
     // The save is in before the page is measured.

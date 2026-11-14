@@ -10,13 +10,12 @@ import {
 import { formatCompact, formatCount } from "./format";
 import { effectiveRates } from "./rates";
 import { RELICS } from "./relics";
-import { readSessionSave, writeSessionSave } from "./session-save";
+import { writeSessionSave } from "./session-save";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MOUNTAIN_STONES, createMountain, type Mountain } from "./mountain";
 import { SESSION_SAVE_KEY } from "./session-save";
 import { FIX_HOLD_MS } from "./hazards";
 import {
-  ENGINEER_WELCOME,
   NEEDS_MORE_WORKERS,
   troubleAria,
   upgradeEffectLine,
@@ -26,7 +25,7 @@ import { createMemoryAuth } from "./auth";
 import { type CloudLoadResult, type CloudSave } from "./cloud-save";
 import { BUYS_SETTLE_MS, showAppUpdate } from "./mountain-screen";
 import { shownRows, upgradeRowId } from "./upgrade-reveal";
-import { minedMountain, unstaffedSave } from "./test-fixtures";
+import { guestSave, minedMountain, saveText } from "./test-fixtures";
 import { tierById, tierCost, tierQuote } from "./tiers";
 import {
   UPGRADES,
@@ -82,9 +81,8 @@ describe("what the crew gives", () => {
     const storage = createMemoryStorage();
     storage.setItem(
       SESSION_SAVE_KEY,
-      JSON.stringify({
-        version: 5,
-        mountain: {
+      saveText(
+        {
           ...minedMountain(2_500),
           helpers: 4,
           carts: 3,
@@ -93,8 +91,8 @@ describe("what the crew gives", () => {
           machines: 0,
           kids: 0,
         },
-        lastSeen: Date.now(),
-      }),
+        Date.now(),
+      ),
     );
     return storage;
   };
@@ -189,10 +187,7 @@ describe("what the crew gives", () => {
       carts: 300,
       upgrades: { ...NO_UPGRADES, tap: 1 },
     };
-    storage.setItem(
-      SESSION_SAVE_KEY,
-      JSON.stringify({ version: 5, mountain: deep, lastSeen: Date.now() }),
-    );
+    storage.setItem(SESSION_SAVE_KEY, saveText(deep, Date.now()));
     const screen = mountScreen({ storage });
     const yieldStones = effectiveRates(deep).tapYield;
     expect(yieldStones).toBeGreaterThan(1);
@@ -786,7 +781,6 @@ describe("the Buys drawer (#373)", () => {
         ...minedMountain(500_000),
         helpers: 18,
         carts: 6,
-        staffed: 2,
         legacy: 1,
       }),
       now: () => CLOCK,
@@ -1037,7 +1031,6 @@ describe("the Buys drawer (#373)", () => {
     carts: 10,
     drills: 6,
     borers: 2,
-    staffed: 2,
     engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
   });
   const listParts = (screen: ReturnType<typeof mountScreen>) =>
@@ -1143,7 +1136,6 @@ describe("the Buys drawer (#373)", () => {
         helpers: 9,
         carts: 1,
         drills: 1,
-        staffed: 2,
       }),
       now: () => CLOCK,
       tapClock: () => clock,
@@ -1547,7 +1539,6 @@ describe("upgrades on screen", () => {
     helpers: 20,
     carts: 3,
     drills: 1,
-    staffed: 2,
     pocket,
   });
   const sharperPrice = (mountain: Mountain): number =>
@@ -2028,7 +2019,6 @@ describe("upgrades on screen", () => {
             ...minedMountain(12_000_000),
             helpers: 20,
             carts: 2,
-            staffed: 2,
             seen: ["workshop"],
             taught: ["workshop"],
           },
@@ -2190,7 +2180,6 @@ describe("upgrades on screen", () => {
       ...minedMountain(30_000),
       helpers: 20,
       carts: 3,
-      staffed: 2,
     };
     const m: Mountain = {
       ...base,
@@ -2235,7 +2224,6 @@ describe("upgrades on screen", () => {
         helpers: 500,
         carts: 3,
         drills: 1,
-        staffed: 2,
         // Sharper picks was used: Overtime and the upgrades carry the dots.
         boosts: { ...NO_BOOSTS, sharper: CLOCK - 1 },
         pocket: 0,
@@ -2280,7 +2268,6 @@ describe("upgrades on screen", () => {
       helpers: 500,
       carts: 3,
       drills: 1,
-      staffed: 2,
       boosts: { ...NO_BOOSTS, sharper: CLOCK - 1 },
       pocket: 0,
     };
@@ -2516,7 +2503,6 @@ describe("quick boosts on screen", () => {
       helpers: 20,
       carts: 2,
       borers: 1,
-      staffed: 2,
       engineers: [
         { name: "Ada", rank: 0 as const, trips: 0, post: "camp" as const },
       ],
@@ -2588,7 +2574,6 @@ describe("quick boosts on screen", () => {
         helpers: 20,
         carts: 2,
         borers: 1,
-        staffed: 2,
         boosts: { sharper: now + 10 * 60_000, overtime: now + 20 * 60_000 },
         clocks: {
           ...COLD_CLOCKS,
@@ -3107,187 +3092,6 @@ describe("Flemming's cart (#216)", () => {
   });
 });
 
-describe("free helpers note (#89 grant)", () => {
-  const oldSave = (fields: Partial<Mountain>): Mountain => {
-    return unstaffedSave({
-      ...minedMountain(0),
-      ...fields,
-    });
-  };
-
-  it("greets an older save with how many helpers joined, once", () => {
-    const storage = createMemoryStorage();
-    writeSessionSave({
-      storage,
-      mountain: oldSave({ helpers: 4, carts: 6, drills: 6 }),
-      lastSeen: Date.now(),
-    });
-    const screen = mountScreen({ storage });
-    expect(
-      screen.root.querySelector<HTMLElement>(".welcome-back")?.hidden,
-    ).toBe(false);
-    expect(screen.text("#welcome-back-title")).toBe("Your crew grew");
-    expect(screen.text(".welcome-crew")).toBe(
-      "8 workers joined to run your machines.",
-    );
-    expect(
-      screen.root.querySelector<HTMLElement>(".welcome-mined")?.hidden,
-    ).toBe(true);
-    screen.root.querySelector<HTMLButtonElement>(".welcome-continue")?.click();
-    expect(
-      screen.root.querySelector<HTMLElement>(".welcome-back")?.hidden,
-    ).toBe(true);
-    expect(screen.text('.tier[data-tier="helper"] .board-row-info')).toMatch(
-      /^12 of 25 /,
-    );
-  });
-
-  it("tops up a first-grant save and reuses the crew-grew card", () => {
-    const storage = createMemoryStorage();
-    writeSessionSave({
-      storage,
-      mountain: {
-        ...minedMountain(0),
-        helpers: 10,
-        carts: 6,
-        drills: 6,
-        staffed: true,
-      },
-      lastSeen: Date.now(),
-    });
-    const screen = mountScreen({ storage });
-    expect(screen.text("#welcome-back-title")).toBe("Your crew grew");
-    expect(screen.text(".welcome-crew")).toBe(
-      "2 workers joined to run your machines.",
-    );
-    expect(screen.text('.tier[data-tier="helper"] .board-row-info')).toMatch(
-      /^12 of 25 /,
-    );
-  });
-
-  it("leaves a save that already has the new grant alone", () => {
-    const storage = createMemoryStorage();
-    writeSessionSave({
-      storage,
-      mountain: {
-        ...minedMountain(0),
-        helpers: 10,
-        carts: 6,
-        drills: 2,
-        staffed: 2,
-      },
-      lastSeen: Date.now(),
-    });
-    const screen = mountScreen({ storage });
-    expect(
-      screen.root.querySelector<HTMLElement>(".welcome-back")?.hidden,
-    ).toBe(true);
-    expect(screen.text('.tier[data-tier="helper"] .board-row-info')).toMatch(
-      /^10 of 25 /,
-    );
-  });
-});
-
-describe("first engineer note (#144)", () => {
-  it("greets an older save that already owns a borer, once", () => {
-    const storage = createMemoryStorage();
-    writeSessionSave({
-      storage,
-      mountain: { ...minedMountain(0), borers: 1, helpers: 8 },
-      lastSeen: Date.now(),
-    });
-    const screen = mountScreen({ storage });
-    expect(
-      screen.root.querySelector<HTMLElement>(".welcome-back")?.hidden,
-    ).toBe(false);
-    expect(screen.text("#welcome-back-title")).toBe(ENGINEER_WELCOME);
-    expect(
-      screen.root.querySelector<HTMLElement>(".welcome-engineer")?.hidden,
-    ).toBe(true);
-    expect(
-      screen.root.querySelector<HTMLElement>(".welcome-mined")?.hidden,
-    ).toBe(true);
-    screen.root.querySelector<HTMLButtonElement>(".welcome-continue")?.click();
-    expect(
-      screen.root.querySelector<HTMLElement>(".welcome-back")?.hidden,
-    ).toBe(true);
-    expect(screen.text('.tier[data-tier="borer"] .board-row-gain')).toBe(
-      "+435/s",
-    );
-  });
-
-  it("adds the line under the crew-grew card when both happen", () => {
-    const storage = createMemoryStorage();
-    writeSessionSave({
-      storage,
-      mountain: unstaffedSave({
-        ...minedMountain(0),
-        helpers: 0,
-        borers: 1,
-      }),
-      lastSeen: Date.now(),
-    });
-    const screen = mountScreen({ storage });
-    expect(screen.text("#welcome-back-title")).toBe("Your crew grew");
-    expect(screen.text(".welcome-crew")).toBe(
-      "8 workers joined to run your machines.",
-    );
-    expect(screen.text(".welcome-engineer")).toBe(ENGINEER_WELCOME);
-  });
-
-  it("steps an engineer up when the first borer is bought, with no card", () => {
-    const storage = createMemoryStorage();
-    writeSessionSave({
-      storage,
-      mountain: {
-        ...minedMountain(10_000_000),
-        pocket: 10_000_000,
-        helpers: 11,
-        drills: 1,
-      },
-      lastSeen: Date.now(),
-    });
-    const screen = mountScreen({ storage });
-    screen.root
-      .querySelector<HTMLButtonElement>('.tier[data-tier="borer"]')
-      ?.click();
-    expect(
-      screen.root.querySelector<HTMLElement>(".welcome-back")?.hidden,
-    ).toBe(true);
-    expect(screen.progress.getSnapshot().mountain.borers).toBe(1);
-    // Bought in the Granite, which suits borers (×1.1, D3).
-    expect(screen.text('.tier[data-tier="borer"] .board-row-gain')).toBe(
-      "+478/s",
-    );
-    expect(screen.text('.tier[data-tier="helper"] .board-row-info')).toMatch(
-      /^11 of 25 /,
-    );
-  });
-});
-
-describe("free helpers note with time away (#89 grant)", () => {
-  it("adds the note under the away report when both happen", () => {
-    const storage = createMemoryStorage();
-    writeSessionSave({
-      storage,
-      mountain: unstaffedSave({
-        ...minedMountain(0),
-        helpers: 0,
-        carts: 1,
-      }),
-      lastSeen: Date.now() - 2 * 3_600_000,
-    });
-    const screen = mountScreen({ storage });
-    expect(screen.text("#welcome-back-title")).toBe("While you were away");
-    expect(screen.text(".welcome-crew")).toBe(
-      "Your crew grew: 1 worker joined to run your machines.",
-    );
-    expect(
-      screen.root.querySelector<HTMLElement>(".welcome-mined")?.hidden,
-    ).toBe(false);
-  });
-});
-
 describe("Shield of Protection on the welcome card", () => {
   it("says the crew mined for a whole day", () => {
     const storage = createMemoryStorage();
@@ -3343,10 +3147,7 @@ describe("crew line at a big crew", () => {
 describe("Mantle of the Hero finale (#103)", () => {
   const seeded = (mountain: Mountain) => {
     const storage = createMemoryStorage();
-    storage.setItem(
-      SESSION_SAVE_KEY,
-      JSON.stringify({ version: 5, mountain, lastSeen: Date.now() }),
-    );
+    storage.setItem(SESSION_SAVE_KEY, saveText(mountain, Date.now()));
     return storage;
   };
 
@@ -3401,10 +3202,7 @@ describe("Mantle of the Hero finale (#103)", () => {
 describe("relic powers on the cards (shelf detail)", () => {
   const seeded = (mountain: Mountain) => {
     const storage = createMemoryStorage();
-    storage.setItem(
-      SESSION_SAVE_KEY,
-      JSON.stringify({ version: 5, mountain, lastSeen: Date.now() }),
-    );
+    storage.setItem(SESSION_SAVE_KEY, saveText(mountain, Date.now()));
     return storage;
   };
 
@@ -3526,10 +3324,7 @@ describe("relic powers on the cards (shelf detail)", () => {
 describe("pass the mine to your kid (#131)", () => {
   const seeded = (mountain: Mountain) => {
     const storage = createMemoryStorage();
-    storage.setItem(
-      SESSION_SAVE_KEY,
-      JSON.stringify({ version: 5, mountain, lastSeen: Date.now() }),
-    );
+    storage.setItem(SESSION_SAVE_KEY, saveText(mountain, Date.now()));
     return storage;
   };
   const dialog = (screen: ReturnType<typeof mountScreen>) =>
@@ -3589,7 +3384,7 @@ describe("pass the mine to your kid (#131)", () => {
       "Legacy 1: your crew and taps are ×1.5",
     );
     expect(screen.text(RELICS_GOAL)).toContain("Your kid's mine");
-    expect(readSessionSave({ storage })?.mountain.legacy).toBe(1);
+    expect(guestSave(storage)?.mountain.legacy).toBe(1);
     screen.root.remove();
   });
 

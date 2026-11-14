@@ -19,6 +19,7 @@ import {
   cancelRetry,
   cloudDirty,
   endHold,
+  holdNewer,
   isWriter,
   LISTEN_BACKOFF_START_MS,
   log,
@@ -173,6 +174,12 @@ function readAnswered(
     persistPhoneBackup(ctx);
     emit(ctx);
     return true;
+  }
+  if (loaded.kind === "newer") {
+    holdNewer(ctx, "cloud");
+    endHold(ctx);
+    emit(ctx);
+    return false;
   }
   if (loaded.kind === "missing") {
     noteServerSeen(ctx, true);

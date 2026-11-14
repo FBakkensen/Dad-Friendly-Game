@@ -1,119 +1,145 @@
 /**
- * The saved shape of a mountain, and the one place it meets the complete
- * mountain the game plays with. The document leaves out what is empty, zero
- * or unset, so older builds and `firestore.rules` read it as they always
- * have. `toSaved` drops those defaults; the readers fill them back in.
+ * The game map of a save (#558): five kinds of fact, each keyed by id, and
+ * the few records that are not a count. The one place the saved shape meets
+ * the complete mountain the game plays with. Zero and empty are left out;
+ * a missing key reads as its default, so adding a fact needs no new version.
+ *
+ * Reading answers `ok`, `newer` or `bad`. More than this build knows (an id,
+ * a key, a named value, a count past its cap) is `newer`: the build goes
+ * read-only rather than write back a save it does not fully understand.
+ * Nonsense (a wrong type, a negative, a broken number) is `bad`.
  */
-import { NO_BOOSTS, parseBoosts, type BoostId } from "./boosts";
+import { BOOSTS, NO_BOOSTS, type BoostId, type Boosts } from "./boosts";
 import {
+  ENGINEER_NAMES,
+  ENGINEER_POSTS,
+  MAX_ENGINEERS,
+  MAX_ENGINEER_TRIPS,
   onDuty,
   parseEngineers,
   type DutyEngineer,
   type Engineer,
 } from "./engineers";
 import {
+  FIND_IDS,
+  MAX_EXPEDITIONS,
+  MAX_EXPEDITION_MS,
+  TRIP_FIND_IDS,
+  TUNNELS,
   parseExpeditions,
-  parseFinds,
   type Expedition,
   type FindId,
   type SavedExpedition,
 } from "./expeditions";
-import type { Materials } from "./layers";
+import { EMPTY_MATERIALS, LAYERS, type MaterialId } from "./layers";
 import {
   BARE_MOUNTAIN,
   MAX_LEGACY,
   MOUNTAIN_STONES,
-  isStaffedMark,
   type Mountain,
-  type StaffedMark,
 } from "./mountain";
 import { MAX_STRETCH } from "./scale";
-import { parseTeachIds } from "./teach";
-import { NO_UPGRADES, parseUpgrades, type UpgradeId } from "./upgrades";
+import { TEACH_IDS, type TeachId } from "./teach";
+import { TIERS, tierById, type TierId } from "./tiers";
+import { NO_UPGRADES, UPGRADES, type UpgradeId } from "./upgrades";
 import {
   COLD_CLOCKS,
   MAX_CRAFTED_LEVEL,
+  MAX_CRAFT_MS,
   NOTHING_CRAFTED,
-  isRecipeId,
+  RECIPE_IDS,
+  TIMER_IDS,
   parseBench,
-  parseChargeUntil,
-  parseCrafted,
-  parseMaterials,
-  parseRecipes,
   type Bench,
-  type Crafted,
-  type KeptBench,
   type RecipeId,
   type TimerId,
 } from "./workshop";
 
-/** The mountain map of a save document. Missing means empty, zero or unset. */
-export type SavedMountain = {
-  readonly remaining: number;
-  readonly pocket: number;
-  readonly helpers: number;
-  readonly carts: number;
-  readonly drills: number;
-  readonly borers: number;
-  readonly machines: number;
-  readonly kids: number;
-  readonly upgrades?: Readonly<Partial<Record<UpgradeId, number>>>;
-  readonly boosts?: Readonly<Partial<Record<BoostId, number>>>;
-  readonly startedAt?: number;
-  readonly staffed?: StaffedMark;
-  readonly legacy?: number;
+/** The good the pocket holds, beside the four materials. */
+const STONES = "stones";
+/** The Gold rush's end time, in the clocks map. */
+const GOLD_RUSH = "gold-rush";
+
+type StockId = typeof STONES | MaterialId;
+type LevelId = UpgradeId | RecipeId;
+type ClockId = BoostId | TimerId | typeof GOLD_RUSH;
+
+const OWNED_IDS: readonly TierId[] = TIERS.map((tier) => tier.id);
+const STOCK_IDS: readonly StockId[] = [
+  STONES,
+  ...LAYERS.map((layer) => layer.material),
+];
+const LEVEL_IDS: readonly LevelId[] = [
+  ...UPGRADES.map((upgrade) => upgrade.id),
+  ...RECIPE_IDS,
+];
+const CLOCK_IDS: readonly ClockId[] = [
+  ...BOOSTS.map((boost) => boost.id),
+  ...TIMER_IDS,
+  GOLD_RUSH,
+];
+
+/** The mark kinds, each a list of ids that have happened. */
+const MARK_IDS = {
+  seen: TEACH_IDS,
+  taught: TEACH_IDS,
+  recipes: RECIPE_IDS,
+  finds: FIND_IDS,
+} as const;
+type MarkKind = keyof typeof MARK_IDS;
+const MARK_KINDS = Object.keys(MARK_IDS) as readonly MarkKind[];
+
+type RunKey = "generation" | "stretch" | "dug" | "rushBank";
+
+const GAME_KEYS = [
+  "owned",
+  "stock",
+  "levels",
+  "clocks",
+  "marks",
+  "run",
+  "engineers",
+  "expeditions",
+  "bench",
+] as const;
+
+/** The game map as saved. Every key is left out when it would be zero or empty. */
+export type SaveGame = {
+  readonly owned?: Readonly<Partial<Record<TierId, number>>>;
+  readonly stock?: Readonly<Partial<Record<StockId, number>>>;
+  readonly levels?: Readonly<Partial<Record<LevelId, number>>>;
+  readonly clocks?: Readonly<Partial<Record<ClockId, number>>>;
+  readonly marks?: {
+    readonly seen?: readonly TeachId[];
+    readonly taught?: readonly TeachId[];
+    readonly recipes?: readonly RecipeId[];
+    readonly finds?: readonly FindId[];
+  };
+  readonly run?: Readonly<Partial<Record<RunKey, number>>>;
   /** An engineer away on a trip is saved at post "tunnel". */
   readonly engineers?: readonly DutyEngineer[];
   /** Each trip keeps the post its engineer left, as `home`. */
   readonly expeditions?: readonly SavedExpedition[];
-  readonly finds?: readonly FindId[];
+  readonly bench?: Bench;
 };
 
-/**
- * The workshop map, one sibling of the mountain. Four extra document keys,
- * or four extra mountain keys, push a full crew past the Firestore
- * expression budget.
- */
-export type WorkshopSave = {
-  readonly materials: Materials;
-  readonly recipes: readonly string[];
-  readonly bench?: Bench | KeptBench;
-  readonly crafted?: Readonly<Record<string, number>>;
-  /** When a blasting charge cools. Missing means none is hot. */
-  readonly chargeUntil?: number;
-  /** When a crystal flare cools. Missing means none is hot. */
-  readonly flareUntil?: number;
-  /** When a heartstone ember cools. Missing means none is hot. */
-  readonly emberUntil?: number;
-  readonly axleUntil?: number;
-  /** When a Gold rush ends (src/gold-rush.ts). Missing means none runs. */
-  readonly rushUntil?: number;
-  /** Stones held for the Gold rush. Missing means none. */
-  readonly rushBank?: number;
-  /** The run's stretch (M13). Missing means 1. */
-  readonly stretch?: number;
-  /**
-   * The line's machines (#533). Here, not in the mountain map, which is at
-   * the rules' expression budget (#195). Missing means none.
-   */
-  readonly hoists?: number;
-  readonly trains?: number;
-  /** Notes opened (src/teach.ts). Missing means none. */
-  readonly seen?: readonly string[];
-  /** Systems used once (src/teach.ts). Missing means none written down. */
-  readonly taught?: readonly string[];
-};
+// ---------------------------------------------------------------------------
+// Writing
 
-/** The four craft clocks' field names in the workshop map. */
-const CLOCK_FIELDS = {
-  "blasting-charge": "chargeUntil",
-  "crystal-flare": "flareUntil",
-  "heartstone-ember": "emberUntil",
-  "axle-grease": "axleUntil",
-} as const satisfies Record<TimerId, keyof WorkshopSave>;
-
-/** In the order the workshop map has always written them (`CLOCK_FIELDS`' key order). */
-const CLOCK_ORDER = Object.keys(CLOCK_FIELDS) as readonly TimerId[];
+/** The non-zero entries, in the table's order. */
+function positives<K extends string>(
+  ids: readonly K[],
+  value: (id: K) => number,
+): Partial<Record<K, number>> {
+  const out: Partial<Record<K, number>> = {};
+  for (const id of ids) {
+    const amount = value(id);
+    if (amount !== 0) {
+      out[id] = amount;
+    }
+  }
+  return out;
+}
 
 function only<K extends string, V>(
   key: K,
@@ -123,49 +149,40 @@ function only<K extends string, V>(
   return keep ? ({ [key]: value } as Record<K, V>) : {};
 }
 
-function positives<K extends string>(
-  levels: Readonly<Record<K, number>>,
-): Partial<Record<K, number>> {
-  return Object.fromEntries(
-    Object.entries<number>(levels).filter(([, level]) => level > 0),
-  ) as Partial<Record<K, number>>;
+function some<K extends string, V extends object>(
+  key: K,
+  value: V,
+): Partial<Record<K, V>> {
+  const empty = Array.isArray(value)
+    ? value.length === 0
+    : Object.keys(value).length === 0;
+  return only(key, value, !empty);
 }
 
-function nonEmpty(map: object): boolean {
-  return Object.keys(map).length > 0;
+function tierCount(mountain: Mountain, id: TierId): number {
+  return mountain[tierById(id).field];
 }
 
-/** The mountain map this mountain writes. */
-export function savedMountain(mountain: Mountain): SavedMountain {
-  const upgrades = positives(mountain.upgrades);
-  const boosts = positives(mountain.boosts);
-  return {
-    // A stretched run digs in fractions of a depth stone. The cloud keeps
-    // whole numbers, so round up: at most one stone of depth comes back.
-    remaining: Math.ceil(mountain.remaining),
-    pocket: mountain.pocket,
-    helpers: mountain.helpers,
-    carts: mountain.carts,
-    drills: mountain.drills,
-    borers: mountain.borers,
-    machines: mountain.machines,
-    kids: mountain.kids,
-    ...only("upgrades", upgrades, nonEmpty(upgrades)),
-    ...only("boosts", boosts, nonEmpty(boosts)),
-    ...only("startedAt", mountain.startedAt, mountain.startedAt !== 0),
-    ...(mountain.staffed === 0 ? {} : { staffed: mountain.staffed }),
-    ...only("legacy", mountain.legacy, mountain.legacy !== 0),
-    ...only("engineers", onDuty(mountain), mountain.engineers.length > 0),
-    ...only(
-      "expeditions",
-      mountain.expeditions.map((trip) => savedTrip(mountain, trip)),
-      mountain.expeditions.length > 0,
-    ),
-    ...only("finds", mountain.finds, mountain.finds.length > 0),
-  };
+function stockOf(mountain: Mountain, id: StockId): number {
+  return id === STONES ? mountain.pocket : mountain.materials[id];
 }
 
-/** A trip with the post its engineer will come back to, in the saved key order. */
+function levelOf(mountain: Mountain, id: LevelId): number {
+  return id in mountain.upgrades
+    ? mountain.upgrades[id as UpgradeId]
+    : mountain.crafted[id as RecipeId];
+}
+
+function clockOf(mountain: Mountain, id: ClockId): number {
+  if (id === GOLD_RUSH) {
+    return mountain.rushUntil;
+  }
+  return id in mountain.boosts
+    ? mountain.boosts[id as BoostId]
+    : mountain.clocks[id as TimerId];
+}
+
+/** A trip with the post its engineer will come back to. */
 function savedTrip(mountain: Mountain, trip: Expedition): SavedExpedition {
   const hand = mountain.engineers.find((one) => one.name === trip.engineer);
   return {
@@ -178,6 +195,284 @@ function savedTrip(mountain: Mountain, trip: Expedition): SavedExpedition {
   };
 }
 
+function savedMarks(mountain: Mountain): NonNullable<SaveGame["marks"]> {
+  return {
+    ...some("seen", mountain.seen),
+    ...some("taught", mountain.taught),
+    ...some("recipes", mountain.recipes),
+    ...some("finds", mountain.finds),
+  };
+}
+
+function savedRun(mountain: Mountain): NonNullable<SaveGame["run"]> {
+  // A stretched run digs in fractions of a depth stone. The save keeps whole
+  // numbers, so the stones left round up: at most one stone of depth comes back.
+  const dug = MOUNTAIN_STONES - Math.ceil(mountain.remaining);
+  return {
+    ...only("generation", mountain.legacy, mountain.legacy !== 0),
+    ...only("stretch", mountain.stretch, mountain.stretch !== 1),
+    ...only("dug", dug, dug !== 0),
+    ...only("rushBank", mountain.rushBank, mountain.rushBank !== 0),
+  };
+}
+
+/** The game map this mountain writes. */
+export function writeGame(mountain: Mountain): SaveGame {
+  return {
+    ...some(
+      "owned",
+      positives(OWNED_IDS, (id) => tierCount(mountain, id)),
+    ),
+    ...some(
+      "stock",
+      positives(STOCK_IDS, (id) => stockOf(mountain, id)),
+    ),
+    ...some(
+      "levels",
+      positives(LEVEL_IDS, (id) => levelOf(mountain, id)),
+    ),
+    ...some(
+      "clocks",
+      positives(CLOCK_IDS, (id) => clockOf(mountain, id)),
+    ),
+    ...some("marks", savedMarks(mountain)),
+    ...some("run", savedRun(mountain)),
+    ...some("engineers", onDuty(mountain)),
+    ...some(
+      "expeditions",
+      mountain.expeditions.map((trip) => savedTrip(mountain, trip)),
+    ),
+    ...(mountain.bench === undefined ? {} : { bench: mountain.bench }),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Reading
+
+/** What a part of the save says: its value, or why it cannot be played. */
+type Part<T> = T | "newer" | "bad";
+
+export type GameRead =
+  | { readonly kind: "ok"; readonly mountain: Mountain }
+  | { readonly kind: "newer" }
+  | { readonly kind: "bad" };
+
+type Entries = Readonly<Record<string, unknown>>;
+
+function isRecord(value: unknown): value is Entries {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isCount(value: unknown): value is number {
+  return Number.isSafeInteger(value) && (value as number) >= 0;
+}
+
+/** `bad` wins over `newer`: nonsense is never a newer build's save. */
+function worst(parts: readonly unknown[]): "newer" | "bad" | undefined {
+  if (parts.includes("bad")) {
+    return "bad";
+  }
+  return parts.includes("newer") ? "newer" : undefined;
+}
+
+/** Keys this build does not know make the record `newer`. */
+function unknownKeys(record: Entries, known: readonly string[]): boolean {
+  return Object.keys(record).some((key) => !known.includes(key));
+}
+
+/**
+ * A map of whole counts by id. Missing is all zero. A count past `cap` or an
+ * id this build does not know is `newer`.
+ */
+function readCounts<K extends string>(
+  value: unknown,
+  ids: readonly K[],
+  cap: (id: K) => number,
+): Part<Record<K, number>> {
+  const counts = Object.fromEntries(ids.map((id) => [id, 0])) as Record<
+    K,
+    number
+  >;
+  if (value === undefined) {
+    return counts;
+  }
+  if (!isRecord(value)) {
+    return "bad";
+  }
+  let newer = false;
+  for (const [key, amount] of Object.entries(value)) {
+    if (!isCount(amount)) {
+      return "bad";
+    }
+    if (!(ids as readonly string[]).includes(key) || amount > cap(key as K)) {
+      newer = true;
+      continue;
+    }
+    counts[key as K] = amount;
+  }
+  return newer ? "newer" : counts;
+}
+
+const UNCAPPED = (): number => Number.MAX_SAFE_INTEGER;
+
+function levelCap(id: LevelId): number {
+  return (
+    UPGRADES.find((upgrade) => upgrade.id === id)?.maxLevel ?? MAX_CRAFTED_LEVEL
+  );
+}
+
+/** A list of ids that have happened. An id it does not know, or twice, is `newer`. */
+function readIds<K extends string>(
+  value: unknown,
+  ids: readonly K[],
+): Part<readonly K[]> {
+  if (value === undefined) {
+    return [];
+  }
+  if (!Array.isArray(value)) {
+    return "bad";
+  }
+  const read: K[] = [];
+  for (const item of value as readonly unknown[]) {
+    if (typeof item !== "string") {
+      return "bad";
+    }
+    if (
+      !(ids as readonly string[]).includes(item) ||
+      read.includes(item as K)
+    ) {
+      return "newer";
+    }
+    read.push(item as K);
+  }
+  return read;
+}
+
+type Marks = Pick<Mountain, "seen" | "taught" | "recipes" | "finds">;
+
+function readMarks(value: unknown): Part<Marks> {
+  if (value === undefined) {
+    return { seen: [], taught: [], recipes: [], finds: [] };
+  }
+  if (!isRecord(value)) {
+    return "bad";
+  }
+  const seen = readIds(value["seen"], MARK_IDS.seen);
+  const taught = readIds(value["taught"], MARK_IDS.taught);
+  const recipes = readIds(value["recipes"], MARK_IDS.recipes);
+  const finds = readIds(value["finds"], MARK_IDS.finds);
+  const failed = worst([seen, taught, recipes, finds]);
+  if (failed === "bad") {
+    return "bad";
+  }
+  if (failed === "newer" || unknownKeys(value, MARK_KINDS)) {
+    return "newer";
+  }
+  return {
+    seen: seen as readonly TeachId[],
+    taught: taught as readonly TeachId[],
+    recipes: recipes as readonly RecipeId[],
+    finds: finds as readonly FindId[],
+  };
+}
+
+type Run = Pick<Mountain, "legacy" | "stretch" | "remaining" | "rushBank">;
+
+function readStretch(value: unknown): Part<number> {
+  if (value === undefined) {
+    return 1;
+  }
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 1) {
+    return "bad";
+  }
+  return value > MAX_STRETCH ? "newer" : value;
+}
+
+function readRun(value: unknown): Part<Run> {
+  if (value === undefined) {
+    return { legacy: 0, stretch: 1, remaining: MOUNTAIN_STONES, rushBank: 0 };
+  }
+  if (!isRecord(value)) {
+    return "bad";
+  }
+  const counts = readCounts(
+    Object.fromEntries(
+      Object.entries(value).filter(([key]) => key !== "stretch"),
+    ),
+    ["generation", "dug", "rushBank"] as const,
+    (id) =>
+      id === "generation"
+        ? MAX_LEGACY
+        : id === "dug"
+          ? MOUNTAIN_STONES
+          : Number.MAX_SAFE_INTEGER,
+  );
+  const stretch = readStretch(value["stretch"]);
+  const failed = worst([counts, stretch]);
+  if (failed !== undefined) {
+    return failed;
+  }
+  const run = counts as Record<"generation" | "dug" | "rushBank", number>;
+  return {
+    legacy: run.generation,
+    stretch: stretch as number,
+    remaining: MOUNTAIN_STONES - run.dug,
+    rushBank: run.rushBank,
+  };
+}
+
+/** Right types for an engineer; whether this build knows the names is the parser's call. */
+function engineerTyped(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    typeof value["name"] === "string" &&
+    isCount(value["rank"]) &&
+    isCount(value["trips"]) &&
+    typeof value["post"] === "string"
+  );
+}
+
+function tripTyped(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    typeof value["engineer"] === "string" &&
+    typeof value["tunnel"] === "string" &&
+    Number.isSafeInteger(value["sentAt"]) &&
+    Number.isSafeInteger(value["returnsAt"]) &&
+    typeof value["home"] === "string" &&
+    findTyped(value["find"])
+  );
+}
+
+/** A find is its kind, and the id of what was found unless it was quiet. */
+function findTyped(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    typeof value["kind"] === "string" &&
+    (value["id"] === undefined || typeof value["id"] === "string")
+  );
+}
+
+/** A list whose items have the right types, else `bad`; then this build's parser, else `newer`. */
+function readList<T>(
+  value: unknown,
+  typed: (item: unknown) => boolean,
+  parse: (value: unknown) => readonly T[] | undefined,
+): Part<readonly T[]> {
+  if (value === undefined) {
+    return [];
+  }
+  if (!Array.isArray(value)) {
+    return "bad";
+  }
+  if (!(value as readonly unknown[]).every(typed)) {
+    return "bad";
+  }
+  return parse(value) ?? "newer";
+}
+
+type Crew = Pick<Mountain, "engineers" | "expeditions">;
+
 /**
  * The crew in memory: an engineer saved in the tunnel stands on the post
  * their trip left, or at camp when no trip holds them (#409).
@@ -185,7 +480,7 @@ function savedTrip(mountain: Mountain, trip: Expedition): SavedExpedition {
 function crewAtHome(
   saved: readonly DutyEngineer[],
   trips: readonly SavedExpedition[],
-): Pick<Mountain, "engineers" | "expeditions"> {
+): Crew {
   const engineers = saved.map((one): Engineer => {
     if (one.post !== "tunnel") {
       return { ...one, post: one.post };
@@ -203,445 +498,198 @@ function crewAtHome(
   return { engineers, expeditions };
 }
 
-/** The workshop map this mountain writes, with a newer build's ids put back. */
-export function savedWorkshop(mountain: Mountain): WorkshopSave {
-  const kept = mountain.kept;
-  const bench = mountain.bench ?? kept.bench;
-  const crafted = { ...kept.crafted, ...positives(mountain.crafted) };
-  const seen = [...mountain.seen, ...kept.seen];
-  const taught = [...mountain.taught, ...kept.taught];
-  return {
-    materials: mountain.materials,
-    ...(bench === undefined ? {} : { bench }),
-    ...only("crafted", crafted, nonEmpty(crafted)),
-    recipes: [
-      ...mountain.recipes,
-      ...kept.recipes.filter(
-        (id) => !new Set<string>(mountain.recipes).has(id),
-      ),
-    ],
-    ...savedClocks(mountain),
-    ...only("stretch", mountain.stretch, mountain.stretch !== 1),
-    ...only("hoists", mountain.hoists, mountain.hoists > 0),
-    ...only("trains", mountain.trains, mountain.trains > 0),
-    ...only("seen", seen, seen.length > 0),
-    ...only("taught", taught, taught.length > 0),
-  };
-}
-
-type SavedClockField = (typeof CLOCK_FIELDS)[TimerId];
-
-function savedClocks(mountain: Mountain): Partial<WorkshopSave> {
-  const clocks: Partial<Record<SavedClockField, number>> = {};
-  for (const id of CLOCK_ORDER) {
-    if (mountain.clocks[id] !== 0) {
-      clocks[CLOCK_FIELDS[id]] = mountain.clocks[id];
-    }
-  }
-  return {
-    ...clocks,
-    ...only("rushUntil", mountain.rushUntil, mountain.rushUntil !== 0),
-    ...only("rushBank", mountain.rushBank, mountain.rushBank !== 0),
-  };
-}
-
-// ---------------------------------------------------------------------------
-// Reading
-
-type Read<T> = T | "bad";
-
-function isCount(value: unknown): value is number {
-  return Number.isSafeInteger(value) && (value as number) >= 0;
-}
-
-/** A missing field is its default; a present one must parse. */
-function field<T>(
-  value: unknown,
-  fallback: T,
-  parse: (value: unknown) => T | undefined,
-): Read<T> {
-  if (value === undefined) {
-    return fallback;
-  }
-  return parse(value) ?? "bad";
-}
-
-/** A whole count up to `max`; missing is `fallback`. */
-function count(
-  value: unknown,
-  fallback = 0,
-  max = Number.MAX_SAFE_INTEGER,
-): Read<number> {
-  return field(value, fallback, (raw) =>
-    isCount(raw) && raw <= max ? raw : undefined,
+function readCrew(record: Entries): Part<Crew> {
+  const engineers = readList(record["engineers"], engineerTyped, (raw) =>
+    parseEngineers(raw),
   );
+  if (engineers === "bad" || engineers === "newer") {
+    return engineers;
+  }
+  const trips = readList(record["expeditions"], tripTyped, (raw) =>
+    parseExpeditions(raw, engineers),
+  );
+  if (trips === "bad" || trips === "newer") {
+    return trips;
+  }
+  return crewAtHome(engineers, trips);
 }
 
-/** A count every save has. */
-function needed(value: unknown, max = Number.MAX_SAFE_INTEGER): Read<number> {
-  return isCount(value) && value <= max ? value : "bad";
+function readBench(value: unknown): Part<Bench | undefined> {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (
+    !isRecord(value) ||
+    typeof value["recipe"] !== "string" ||
+    !isCount(value["startedAt"]) ||
+    !isCount(value["endsAt"])
+  ) {
+    return "bad";
+  }
+  return parseBench(value) ?? "newer";
 }
 
-type Counts = Pick<
+type Facts = Pick<
   Mountain,
-  | "remaining"
-  | "pocket"
   | "helpers"
   | "carts"
+  | "hoists"
   | "drills"
   | "borers"
+  | "trains"
   | "machines"
   | "kids"
->;
-
-/** The crew and the stones. `total` is the mountain's size in that version. */
-function readCounts(
-  record: Readonly<Record<string, unknown>>,
-  total: number,
-): Counts | undefined {
-  const remaining = needed(record["remaining"], total);
-  const pocket = needed(record["pocket"]);
-  const helpers = needed(record["helpers"]);
-  const carts = count(record["carts"]);
-  const drills = count(record["drills"]);
-  const borers = count(record["borers"]);
-  const machines = count(record["machines"]);
-  const kids = count(record["kids"]);
-  if (
-    remaining === "bad" ||
-    pocket === "bad" ||
-    helpers === "bad" ||
-    carts === "bad" ||
-    drills === "bad" ||
-    borers === "bad" ||
-    machines === "bad" ||
-    kids === "bad"
-  ) {
-    return undefined;
-  }
-  return { remaining, pocket, helpers, carts, drills, borers, machines, kids };
-}
-
-/** Only checks that a present value parses. */
-function checked(parse: (value: unknown) => unknown) {
-  return (value: unknown): true | undefined =>
-    parse(value) === undefined ? undefined : true;
-}
-
-/**
- * Workshop fields an old document kept on the mountain map. Every version
- * overwrites them, but a bad one still rejects the save, as it always has.
- */
-function oldWorkshopFieldsBad(
-  record: Readonly<Record<string, unknown>>,
-): boolean {
-  return [
-    field(record["materials"], true, checked(parseMaterials)),
-    field(record["recipes"], true, checked(parseRecipes)),
-    field(record["bench"], true, (raw) =>
-      raw === null ? true : checked(parseBench)(raw),
-    ),
-    field(record["crafted"], true, checked(parseCrafted)),
-  ].includes("bad");
-}
-
-type Owned = Pick<
-  Mountain,
+  | "pocket"
+  | "materials"
   | "upgrades"
+  | "crafted"
   | "boosts"
-  | "startedAt"
-  | "staffed"
-  | "legacy"
-  | "engineers"
-  | "expeditions"
-  | "finds"
+  | "clocks"
+  | "rushUntil"
 >;
 
-function readOwned(
-  record: Readonly<Record<string, unknown>>,
-): Owned | undefined {
-  const upgrades = field(record["upgrades"], NO_UPGRADES, parseUpgrades);
-  const boosts = field(record["boosts"], NO_BOOSTS, parseBoosts);
-  const startedAt = count(record["startedAt"]);
-  const staffed = field<StaffedMark | 0>(record["staffed"], 0, (raw) =>
-    isStaffedMark(raw) ? raw : undefined,
-  );
-  const legacy = count(record["legacy"], 0, MAX_LEGACY);
-  const engineers = field(record["engineers"], [], parseEngineers);
-  // A trip needs its engineer on the crew: none saved means none can be out.
-  const expeditions = field(record["expeditions"], [], (raw) =>
-    parseExpeditions(
-      raw,
-      record["engineers"] === undefined || engineers === "bad"
-        ? undefined
-        : engineers,
-    ),
-  );
-  const finds = field(record["finds"], [], parseFinds);
-  if (
-    upgrades === "bad" ||
-    boosts === "bad" ||
-    startedAt === "bad" ||
-    staffed === "bad" ||
-    legacy === "bad" ||
-    engineers === "bad" ||
-    expeditions === "bad" ||
-    finds === "bad"
-  ) {
-    return undefined;
+/** The four count maps, laid onto the mountain's own fields. */
+function readFacts(record: Entries): Part<Facts> {
+  const owned = readCounts(record["owned"], OWNED_IDS, UNCAPPED);
+  const stock = readCounts(record["stock"], STOCK_IDS, UNCAPPED);
+  const levels = readCounts(record["levels"], LEVEL_IDS, levelCap);
+  const clocks = readCounts(record["clocks"], CLOCK_IDS, UNCAPPED);
+  const failed = worst([owned, stock, levels, clocks]);
+  if (failed !== undefined) {
+    return failed;
   }
   return {
-    upgrades,
-    boosts,
-    startedAt,
-    staffed,
-    legacy,
-    ...crewAtHome(engineers, expeditions),
-    finds,
+    ...crewCounts(owned as Record<TierId, number>),
+    ...stockCounts(stock as Record<StockId, number>),
+    ...levelCounts(levels as Record<LevelId, number>),
+    ...clockCounts(clocks as Record<ClockId, number>),
   };
 }
 
-/**
- * The mountain map of any version, as a complete mountain. The workshop's
- * fields are left at their defaults for the caller to fill in. Every field
- * must be a sane whole number, and a bad one rejects the save.
- */
-export function parseMountain(
-  value: unknown,
-  total: number = MOUNTAIN_STONES,
-): Mountain | undefined {
-  if (typeof value !== "object" || value === null) {
-    return undefined;
-  }
-  const record = value as Readonly<Record<string, unknown>>;
-  const counts = readCounts(record, total);
-  const owned = readOwned(record);
-  if (
-    counts === undefined ||
-    owned === undefined ||
-    oldWorkshopFieldsBad(record)
-  ) {
-    return undefined;
-  }
-  return { ...BARE_MOUNTAIN, ...counts, ...owned };
+function crewCounts(
+  owned: Record<TierId, number>,
+): Pick<Mountain, (typeof TIERS)[number]["field"]> {
+  return Object.fromEntries(
+    TIERS.map((tier) => [tier.field, owned[tier.id]]),
+  ) as Pick<Mountain, (typeof TIERS)[number]["field"]>;
 }
 
-/** Builds before #366 wrote stretches up to this. They load at MAX_STRETCH. */
-const OLD_MAX_STRETCH = 100_000_000;
-
-function readStretch(value: unknown): Read<number> {
-  return field(value, 1, (raw) =>
-    typeof raw === "number" && raw >= 1 && raw <= OLD_MAX_STRETCH
-      ? Math.min(raw, MAX_STRETCH)
-      : undefined,
-  );
-}
-
-/** Missing means that buff is cold. Anything else must be a whole time. */
-function readClock(value: unknown): Read<number> {
-  return field(value, 0, parseChargeUntil);
-}
-
-type Timers = Pick<Mountain, "clocks" | "rushUntil" | "rushBank" | "stretch">;
-
-/** The line's hoists and pit trains (#533); a bad count rejects the save. */
-function readLineMachines(
-  sheet: Readonly<Record<string, unknown>>,
-): Pick<Mountain, "hoists" | "trains"> | undefined {
-  const hoists = count(sheet["hoists"]);
-  const trains = count(sheet["trains"]);
-  return hoists === "bad" || trains === "bad" ? undefined : { hoists, trains };
-}
-
-/** Every clock the workshop map holds; one bad clock rejects the save. */
-function readTimers(
-  sheet: Readonly<Record<string, unknown>>,
-): Timers | undefined {
-  const clocks: Record<TimerId, number> = { ...COLD_CLOCKS };
-  for (const id of CLOCK_ORDER) {
-    const at = readClock(sheet[CLOCK_FIELDS[id]]);
-    if (at === "bad") {
-      return undefined;
-    }
-    clocks[id] = at;
+function stockCounts(
+  stock: Record<StockId, number>,
+): Pick<Mountain, "pocket" | "materials"> {
+  const materials = { ...EMPTY_MATERIALS };
+  for (const layer of LAYERS) {
+    materials[layer.material] = stock[layer.material];
   }
-  const rushUntil = readClock(sheet["rushUntil"]);
-  const rushBank = readClock(sheet["rushBank"]);
-  const stretch = readStretch(sheet["stretch"]);
-  if (rushUntil === "bad" || rushBank === "bad" || stretch === "bad") {
-    return undefined;
-  }
-  return { clocks, rushUntil, rushBank, stretch };
+  return { pocket: stock[STONES], materials };
 }
 
-/** Lays the workshop map over a mountain map; undefined when the save is bad. */
-export function withWorkshop(
-  base: Mountain,
-  value: unknown,
-): Mountain | undefined {
-  if (typeof value !== "object" || value === null) {
-    return undefined;
+function levelCounts(
+  levels: Record<LevelId, number>,
+): Pick<Mountain, "upgrades" | "crafted"> {
+  const upgrades: Record<UpgradeId, number> = { ...NO_UPGRADES };
+  for (const upgrade of UPGRADES) {
+    upgrades[upgrade.id] = levels[upgrade.id];
   }
-  const sheet = value as Readonly<Record<string, unknown>>;
-  const materials = parseMaterials(sheet["materials"]);
-  const recipes = readRecipes(sheet["recipes"]);
-  const bench = readBench(sheet["bench"]);
-  const crafted = readCrafted(sheet["crafted"]);
-  const seen = parseTeachIds(sheet["seen"]);
-  const taught = parseTeachIds(sheet["taught"]);
-  const timers = readTimers(sheet);
-  const line = readLineMachines(sheet);
-  if (
-    materials === undefined ||
-    recipes === "bad" ||
-    bench === "bad" ||
-    crafted === "bad" ||
-    seen === "bad" ||
-    taught === "bad" ||
-    timers === undefined ||
-    line === undefined
-  ) {
-    return undefined;
+  const crafted: Record<RecipeId, number> = { ...NOTHING_CRAFTED };
+  for (const id of RECIPE_IDS) {
+    crafted[id] = levels[id];
+  }
+  return { upgrades, crafted };
+}
+
+function clockCounts(
+  clocks: Record<ClockId, number>,
+): Pick<Mountain, "boosts" | "clocks" | "rushUntil"> {
+  const boosts: Record<BoostId, number> = { ...NO_BOOSTS };
+  for (const boost of BOOSTS) {
+    boosts[boost.id] = clocks[boost.id];
+  }
+  const timers: Record<TimerId, number> = { ...COLD_CLOCKS };
+  for (const id of TIMER_IDS) {
+    timers[id] = clocks[id];
   }
   return {
-    ...base,
-    ...timers,
-    ...line,
-    materials,
-    recipes: recipes.known,
-    bench: bench.bench,
-    crafted: crafted.crafted,
-    seen: seen.known,
-    taught: taught.known,
-    kept: {
-      recipes: recipes.kept,
-      bench: bench.kept,
-      crafted: crafted.kept,
-      seen: seen.kept,
-      taught: taught.kept,
+    boosts: boosts satisfies Boosts,
+    clocks: timers,
+    rushUntil: clocks[GOLD_RUSH],
+  };
+}
+
+/** The game map as a complete mountain, on the run that began at `startedAt`. */
+export function readGame(value: unknown, startedAt: number): GameRead {
+  if (!isRecord(value)) {
+    return { kind: "bad" };
+  }
+  const facts = readFacts(value);
+  const marks = readMarks(value["marks"]);
+  const run = readRun(value["run"]);
+  const crew = readCrew(value);
+  const bench = readBench(value["bench"]);
+  const failed = worst([facts, marks, run, crew, bench]);
+  if (failed !== undefined) {
+    return { kind: failed };
+  }
+  if (unknownKeys(value, GAME_KEYS)) {
+    return { kind: "newer" };
+  }
+  return {
+    kind: "ok",
+    mountain: {
+      ...BARE_MOUNTAIN,
+      ...(facts as Facts),
+      ...(marks as Marks),
+      ...(run as Run),
+      ...(crew as Crew),
+      bench: bench as Bench | undefined,
+      startedAt,
     },
   };
 }
 
-/** An id this build can write back without treating it as a recipe it knows. */
-const MAX_KEPT_ID = 40;
-const MAX_KEPT_RECIPES = 8;
-/** Wider than today's longest craft, so a newer timer still comes home. */
-const MAX_KEPT_BENCH_MS = 7 * 24 * 60 * 60 * 1000;
+// ---------------------------------------------------------------------------
+// What has shipped
 
-function keptId(value: string): boolean {
-  return value.length >= 1 && value.length <= MAX_KEPT_ID;
-}
-
-type RecipesRead = {
-  readonly known: readonly RecipeId[];
-  readonly kept: readonly string[];
+/** Every id, named value and cap this build reads, for the ledger of what has shipped. */
+export type ShippedFacts = {
+  readonly gameKeys: readonly string[];
+  readonly owned: readonly string[];
+  readonly stock: readonly string[];
+  readonly levels: Readonly<Record<string, number>>;
+  readonly clocks: readonly string[];
+  readonly marks: Readonly<Record<string, readonly string[]>>;
+  readonly run: Readonly<Record<string, number>>;
+  readonly engineerNames: readonly string[];
+  readonly posts: readonly string[];
+  readonly tunnels: readonly string[];
+  readonly tripFinds: Readonly<Record<string, readonly string[]>>;
+  readonly caps: Readonly<Record<string, number>>;
 };
 
-/**
- * Known ids stay playable. An id this build has never heard of is kept,
- * so the next write does not forget a newer recipe.
- */
-function readRecipes(value: unknown): Read<RecipesRead> {
-  if (!Array.isArray(value)) {
-    return "bad";
-  }
-  const known: RecipeId[] = [];
-  const kept: string[] = [];
-  for (const item of value) {
-    if (typeof item !== "string") {
-      continue;
-    }
-    if (isRecipeId(item)) {
-      if (!known.includes(item)) {
-        known.push(item);
-      }
-      continue;
-    }
-    if (
-      keptId(item) &&
-      kept.length < MAX_KEPT_RECIPES &&
-      !kept.includes(item)
-    ) {
-      kept.push(item);
-    }
-  }
-  return { known, kept };
-}
-
-type BenchRead = {
-  readonly bench: Bench | undefined;
-  readonly kept: KeptBench | undefined;
-};
-
-const FREE_BENCH: BenchRead = { bench: undefined, kept: undefined };
-
-/**
- * `null` is an empty bench. A recipe this client does not know stays on
- * the bench until its clock ends, and the next write puts it back.
- */
-function readBench(value: unknown): Read<BenchRead> {
-  if (value === undefined || value === null) {
-    return FREE_BENCH;
-  }
-  if (typeof value !== "object" || Array.isArray(value)) {
-    return "bad";
-  }
-  const recipe = (value as Record<string, unknown>)["recipe"];
-  if (typeof recipe === "string" && !isRecipeId(recipe)) {
-    return { bench: undefined, kept: keptBench(recipe, value) };
-  }
-  const bench = parseBench(value);
-  return bench === undefined ? "bad" : { bench, kept: undefined };
-}
-
-function keptBench(recipe: string, value: object): KeptBench | undefined {
-  const { startedAt, endsAt } = value as Record<string, unknown>;
-  if (
-    !keptId(recipe) ||
-    !isCount(startedAt) ||
-    !isCount(endsAt) ||
-    endsAt <= startedAt ||
-    endsAt - startedAt > MAX_KEPT_BENCH_MS
-  ) {
-    return undefined;
-  }
-  return { recipe, startedAt, endsAt };
-}
-
-type CraftedRead = {
-  readonly crafted: Crafted;
-  readonly kept: Readonly<Record<string, number>>;
-};
-
-/**
- * Missing means nothing crafted. A level this build knows is playable.
- * A level it does not know is written back. A bad level on a known id
- * rejects the save; a bad level on an unknown id is skipped.
- */
-function readCrafted(value: unknown): Read<CraftedRead> {
-  if (value === undefined) {
-    return { crafted: NOTHING_CRAFTED, kept: {} };
-  }
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    return "bad";
-  }
-  const crafted: Record<RecipeId, number> = { ...NOTHING_CRAFTED };
-  const kept: Record<string, number> = {};
-  for (const [key, level] of Object.entries(value)) {
-    const whole = isCount(level) && level <= MAX_CRAFTED_LEVEL;
-    if (isRecipeId(key)) {
-      if (!whole) {
-        return "bad";
-      }
-      crafted[key] = level;
-    } else if (
-      whole &&
-      keptId(key) &&
-      Object.keys(kept).length < MAX_KEPT_RECIPES
-    ) {
-      kept[key] = level;
-    }
-  }
-  return { crafted, kept };
+export function shippedFacts(): ShippedFacts {
+  return {
+    gameKeys: GAME_KEYS,
+    owned: OWNED_IDS,
+    stock: STOCK_IDS,
+    levels: Object.fromEntries(LEVEL_IDS.map((id) => [id, levelCap(id)])),
+    clocks: CLOCK_IDS,
+    marks: MARK_IDS,
+    run: {
+      generation: MAX_LEGACY,
+      stretch: MAX_STRETCH,
+      dug: MOUNTAIN_STONES,
+      rushBank: Number.MAX_SAFE_INTEGER,
+    },
+    engineerNames: ENGINEER_NAMES,
+    posts: [...ENGINEER_POSTS, "tunnel"],
+    tunnels: TUNNELS.map((tunnel) => tunnel.id),
+    tripFinds: TRIP_FIND_IDS,
+    caps: {
+      engineers: MAX_ENGINEERS,
+      engineerTrips: MAX_ENGINEER_TRIPS,
+      expeditions: MAX_EXPEDITIONS,
+      expeditionMs: MAX_EXPEDITION_MS,
+      craftMs: MAX_CRAFT_MS,
+    },
+  };
 }

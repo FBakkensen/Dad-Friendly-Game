@@ -3,6 +3,7 @@
  * One quiet gate, two tiers. One line per step; each full log goes to
  * .gate/logs/<step>.log, and a failed step prints its tail.
  *   npm run gate -- fast   the edit loop (npm run check:fast)
+ *   npm run gate -- merge  what merge-check.yml runs on each PR merged with main
  *   npm run gate -- full   before the PR is opened (npm run check)
  *   npm run gate -- signoff  after the push: the signoff status (signoff.mjs)
  * The step table and its rules are in src/gate.ts.
@@ -126,6 +127,8 @@ if (tier === "fast") {
       ? "gate fast: no changed code files; typecheck only."
       : `gate fast: ${String(changed.length)} changed code file(s).`,
   );
+} else if (tier === "merge") {
+  console.log("gate merge: the whole-tree checks and the unit tests (#617).");
 } else {
   console.log(
     economy

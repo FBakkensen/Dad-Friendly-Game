@@ -8,7 +8,7 @@ import {
 import { createBoardHost, type BoardHost } from "./board-host";
 import { rowsOnBoard, type RowsOnBoard } from "./board-row";
 import { createMountain, MOUNTAIN_STONES, type Mountain } from "./mountain";
-import { recipesForMined, NOTHING_KEPT } from "./workshop";
+import { recipesForMined } from "./workshop";
 import { benchView } from "./workshop-sheet";
 import {
   benchRowView,
@@ -361,28 +361,6 @@ describe("the bench row (#374)", () => {
     expect(page).not.toHaveBeenCalled();
     expect(onCancel).not.toHaveBeenCalled();
     expect(board.view().blinking.size).toBe(0);
-  });
-
-  it("an unknown bench shows its clock and bar, and no cancel", () => {
-    mountBench({
-      ...shed({ clay: 10, iron: 4, crystal: 0, heartstone: 0 }),
-      kept: {
-        ...NOTHING_KEPT,
-        bench: { recipe: "future-bit", startedAt: NOW, endsAt: NOW + 600_000 },
-      },
-    });
-    expect(bench.root.querySelector(".board-row-name")?.textContent).toBe(
-      "Something is on the bench",
-    );
-    expect(
-      bench.root.querySelector(".board-row-info")?.textContent,
-    ).not.toMatch(/Cancel/);
-    expect(bar().hidden).toBe(false);
-    openSheet();
-    advance(DRAWER_SETTLE_MS + 100);
-    press(bench.root);
-    expect(bench.armed()).toBe(false);
-    expect(onCancel).not.toHaveBeenCalled();
   });
 
   it("while the save loads again it is dark and disabled, with no bar", () => {

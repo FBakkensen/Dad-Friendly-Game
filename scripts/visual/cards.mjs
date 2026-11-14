@@ -1,14 +1,13 @@
 /* global console, document, innerHeight, getComputedStyle */
-/** Card sections: the one-time cards (crew grew, welcome-back, the heir, trouble), found tools, and the relics drawer's shelf, detail, reveal and Legend (#465). */
+/** Card sections: the one-time cards (welcome-back, the heir, trouble), found tools, and the relics drawer's shelf, detail, reveal and Legend (#465). */
 import {
-  staffingNoteSave,
   welcomeBackSave,
   playAwaySave,
   foundBelowSave,
   fullShelfSave,
   mantleSave,
   lastStoneSave,
-  crewV4Save,
+  boostedCrewSave,
   toolHomeSave,
 } from "../../tools/browser/fixtures.ts";
 import { check, section, table } from "./registry.mjs";
@@ -99,59 +98,6 @@ const standaloneLabel = ({ size, scenario }) =>
   `${size}${scenario.standalone ? " standalone" : ""}`;
 const insetsOf = ({ standalone }) =>
   standalone ? STANDALONE_INSETS : { top: 0, bottom: 0 };
-
-// A save from before staffing: the one-time "Your crew grew" card, at the
-// smallest phone, over the game and dismissable, with no scroll.
-table({
-  screens: [PHONE],
-  scenarios: STANDALONE,
-  section: (_viewport, { standalone }) =>
-    `section 4 (line 816) ${JSON.stringify(standalone)}`,
-  prefix: standaloneLabel,
-  open: (viewport, { standalone }) =>
-    openScreen(viewport, staffingNoteSave(), { standalone, tapClock: "held" }),
-  expect: [
-    {
-      run: async ({ page }) => {
-        const crewText = await page.$eval(
-          ".welcome-crew",
-          (el) => el.textContent,
-        );
-        const engineerText = await page.$eval(
-          ".welcome-engineer",
-          (el) => el.textContent,
-        );
-        return [
-          [
-            crewText?.endsWith("joined to run your machines.") === true,
-            "crew-grew note shows for an old save",
-          ],
-          [
-            engineerText === "Your best worker steps up as engineer.",
-            "engineer note shows for an old save that owns a borer",
-          ],
-          [
-            await coversBoard(page, ".welcome-back"),
-            "crew-grew card is laid over the game",
-          ],
-          [await noScroll(page), "crew-grew card has no scroll"],
-        ];
-      },
-    },
-    {
-      run: async ({ page }) => {
-        await stepTapClock(page, PAST_SETTLE_MS);
-        await page.tap(".welcome-continue");
-        return [
-          [
-            await page.$eval(".welcome-back", (el) => el.hidden),
-            "crew-grew card closes",
-          ],
-        ];
-      },
-    },
-  ],
-});
 
 // Welcome-back, then the relic it uncovered.
 section("section 5 (line 856)", async () => {
@@ -546,7 +492,7 @@ table({
     `section 10 (line 1138) ${JSON.stringify(standalone)}`,
   prefix: standaloneLabel,
   open: (viewport, { standalone }) =>
-    openScreen(viewport, crewV4Save(), {
+    openScreen(viewport, boostedCrewSave(), {
       standalone,
       search: "?trouble=cave-in",
     }),

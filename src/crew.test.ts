@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { buyCrew, staffExisting, tierLock, tierLocked } from "./crew";
-import { createMountain, type Mountain } from "./mountain";
+import { buyCrew, tierLock, tierLocked } from "./crew";
+import { createMountain } from "./mountain";
 import { shownStones } from "./scale";
 import { effectiveRates } from "./rates";
-import { minedMountain, unstaffedSave } from "./test-fixtures";
+import { minedMountain } from "./test-fixtures";
 import { tierById, tierCost } from "./tiers";
 
 describe("crew unlocks", () => {
@@ -107,76 +107,5 @@ describe("crew unlocks", () => {
     expect(withMachine.machines).toBe(1);
     expect(withMachine.engineers[0]?.post).toBe("borer");
     expect(effectiveRates(withMachine).running.machine).toBe(0);
-  });
-});
-
-/** A save from before #89: no `staffed` mark. */
-const oldSave = (fields: Partial<Mountain>): Mountain => {
-  return unstaffedSave({ ...minedMountain(0), ...fields });
-};
-
-describe("staffExisting (one-time grants, #89 and #140)", () => {
-  it("hires free workers to run every machine, keeping everything else", () => {
-    const before = oldSave({
-      pocket: 777,
-      helpers: 20,
-      carts: 12,
-      drills: 7,
-      borers: 1,
-    });
-    const { mountain, joined } = staffExisting(before);
-    // 12 carts + 7 drills + 8 borer = 27.
-    expect(joined).toBe(7);
-    expect(mountain).toEqual({ ...before, helpers: 27, staffed: 2 });
-    expect(effectiveRates(mountain).helpersShort).toBe(0);
-  });
-
-  it("tops up a save that already had the first grant", () => {
-    const before = {
-      ...oldSave({
-        helpers: 22,
-        carts: 12,
-        drills: 7,
-        borers: 1,
-      }),
-      staffed: true as const,
-    };
-    const { mountain, joined } = staffExisting(before);
-    expect(joined).toBe(5);
-    expect(mountain.staffed).toBe(2);
-    expect(mountain.helpers).toBe(27);
-    expect(effectiveRates(mountain).helpersShort).toBe(0);
-    expect(staffExisting({ ...before, staffed: 1 })).toMatchObject({
-      joined: 5,
-      mountain: { staffed: 2, helpers: 27 },
-    });
-  });
-
-  it("counts kids already on the crew, so they are not hired again", () => {
-    const before = {
-      ...oldSave({ helpers: 0, kids: 4, carts: 3 }),
-      staffed: true as const,
-    };
-    expect(staffExisting(before)).toMatchObject({
-      joined: 0,
-      mountain: { helpers: 0, kids: 4, staffed: 2 },
-    });
-  });
-
-  it("only marks a save that already has enough workers", () => {
-    const before = oldSave({ helpers: 50, carts: 3 });
-    expect(staffExisting(before)).toEqual({
-      mountain: { ...before, staffed: 2 },
-      joined: 0,
-    });
-  });
-
-  it("never runs twice, and a save already at 2 is the same object", () => {
-    const once = staffExisting(oldSave({ helpers: 0, carts: 5 })).mountain;
-    const later = { ...once, carts: 9 };
-    expect(staffExisting(later)).toEqual({ mountain: later, joined: 0 });
-    const done = { ...later, helpers: 0 };
-    expect(staffExisting(done)).toEqual({ mountain: done, joined: 0 });
-    expect(staffExisting(done).mountain).toBe(done);
   });
 });

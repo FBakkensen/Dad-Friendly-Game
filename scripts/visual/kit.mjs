@@ -8,7 +8,11 @@ import {
   open as openHarness,
   holdThrough as holdThroughOn,
 } from "../../tools/browser/harness.ts";
-import { seedJson, SAVE_KEY } from "../../tools/browser/fixtures.ts";
+import {
+  seedJson,
+  storedCounts,
+  SAVE_KEY,
+} from "../../tools/browser/fixtures.ts";
 import { mkdirSync } from "node:fs";
 import { failures } from "./registry.mjs";
 
@@ -470,12 +474,13 @@ async function railFoot(page) {
   });
 }
 
-/** The stored save's mountain, as the last write left it. */
+/** The stored save's counts, as the last write left them. */
 async function storedMountain(page) {
-  return page.evaluate(
-    (key) => JSON.parse(localStorage.getItem(key) ?? "{}").mountain ?? {},
+  const stored = await page.evaluate(
+    (key) => JSON.parse(localStorage.getItem(key) ?? "null"),
     SAVE_KEY,
   );
+  return storedCounts(stored);
 }
 
 /**

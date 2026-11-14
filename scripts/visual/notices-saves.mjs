@@ -1,8 +1,10 @@
-/* global console, innerWidth, innerHeight, getComputedStyle, document */
+/* global console, innerWidth, innerHeight, getComputedStyle, document, localStorage */
 /** Notice and save sections: the welcome fold and craft notice, the other-tab card and the two-saves conflict sheet. */
 import {
   late,
   lastStoneSave,
+  newerSave,
+  SAVE_KEY,
   noticeSave,
   playAwaySave,
   playCraftSave,
@@ -650,6 +652,13 @@ const CARD_SCENARIOS = [
     seed: () => ({}),
     search: "?update=shown",
   },
+  // A save a later build wrote (#558): the same card, and the save stays as it was.
+  {
+    name: "newer save",
+    card: "update",
+    focus: "update-reload",
+    seed: () => newerSave(Date.now()),
+  },
   // The two the Ledger and the Legend open (#466): Pass the mine, through the last stone's
   // Mantle and the Legend, and Saved copies, signed in with two copies (a dev hook).
   {
@@ -885,6 +894,21 @@ const cardTable = (screens, scenarios) =>
             [
               contrast.length >= 2 && dim.length === 0,
               `${String(contrast.length)} legends at 4.5:1 or more (lowest ${String(contrast.length === 0 ? "-" : Math.min(...contrast.map((one) => one.pct)))}:1 at p10/p90)`,
+            ],
+          ];
+        },
+      },
+      {
+        when: (at) => at.scenario.name === "newer save",
+        run: async ({ page }) => {
+          const stored = await page.evaluate(
+            (key) => JSON.parse(localStorage.getItem(key) ?? "null"),
+            SAVE_KEY,
+          );
+          return [
+            [
+              stored?.version === 9 && stored.game !== undefined,
+              `a later build's save is left as it was (${JSON.stringify(stored)})`,
             ],
           ];
         },
