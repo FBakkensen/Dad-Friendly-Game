@@ -154,6 +154,21 @@ const EXPEDITION_RECIPES = {
 type ExpeditionRecipeId =
   (typeof EXPEDITION_RECIPES)[keyof typeof EXPEDITION_RECIPES];
 
+/**
+ * Every find a saved trip may carry, by kind (#558). The save reader takes
+ * these and no others, so the ledger of what has shipped pins them.
+ */
+export const TRIP_FIND_IDS: Readonly<
+  Record<FindKind | "quiet", readonly string[]>
+> = {
+  quiet: [],
+  glimmer: RELICS.map((relic) => relic.id),
+  tool: LOST_TOOLS,
+  keepsake: KEEPSAKES,
+  engineer: ENGINEER_NAMES,
+  recipe: Object.values(EXPEDITION_RECIPES),
+};
+
 function tunnelRecipe(tunnel: TunnelId): ExpeditionRecipeId | undefined {
   if (tunnel === "old-shaft" || tunnel === "deep-dark") {
     return EXPEDITION_RECIPES[tunnel];
@@ -162,7 +177,7 @@ function tunnelRecipe(tunnel: TunnelId): ExpeditionRecipeId | undefined {
 }
 
 function isExpeditionRecipe(value: string): value is ExpeditionRecipeId {
-  return value === "crystal-lamp" || value === "engineers-kit";
+  return TRIP_FIND_IDS.recipe.includes(value);
 }
 
 /** Still out there: not in the book, and not already in someone's pocket. */

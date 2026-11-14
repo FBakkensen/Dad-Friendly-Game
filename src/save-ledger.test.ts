@@ -128,6 +128,14 @@ const LEDGER = {
   engineerNames: ["Ada", "Nils", "Ruth", "Otto", "Mae"],
   posts: ["cart", "drill", "borer", "machine", "camp", "tunnel"],
   tunnels: ["side-seam", "old-shaft", "deep-dark"],
+  tripFinds: {
+    quiet: [],
+    glimmer: ["lantern", "shield", "hammer", "heart", "crown", "mantle"],
+    tool: ["pick", "lamp", "map", "boots"],
+    keepsake: ["drawing", "watch", "whistle", "pebble", "ribbon"],
+    engineer: ["Ada", "Nils", "Ruth", "Otto", "Mae"],
+    recipe: ["crystal-lamp", "engineers-kit"],
+  },
   caps: {
     engineers: 5,
     engineerTrips: 1000000,
@@ -154,6 +162,8 @@ describe("the ledger of what has shipped (#558)", () => {
       facts.engineerNames,
       facts.posts,
       facts.tunnels,
+      Object.keys(facts.tripFinds),
+      ...Object.values(facts.tripFinds),
     ];
     for (const list of lists) {
       expect(new Set(list).size).toBe(list.length);

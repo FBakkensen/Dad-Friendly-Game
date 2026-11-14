@@ -3,6 +3,7 @@ import {
   KEEPSAKES,
   LOST_TOOLS,
   MAX_EXPEDITION_MS,
+  TRIP_FIND_IDS,
   TUNNELS,
   glimmerText,
   parseExpeditions,
@@ -916,6 +917,29 @@ describe("parseExpeditions reads only a whole trip (#558)", () => {
 
   it("takes a whole trip", () => {
     expect(parseExpeditions([trip], away)).toEqual([trip]);
+  });
+
+  it("takes every find the ledger lists, and no other", () => {
+    for (const [kind, ids] of Object.entries(TRIP_FIND_IDS)) {
+      const finds =
+        kind === "quiet"
+          ? [{ kind }]
+          : ids.filter((id) => id !== "Ada").map((id) => ({ kind, id }));
+      for (const find of finds) {
+        expect(parseExpeditions([{ ...trip, find }], away)).toEqual([
+          { ...trip, find },
+        ]);
+      }
+      expect(
+        parseExpeditions([{ ...trip, find: { kind, id: "kiln" } }], away),
+      ).toBeUndefined();
+    }
+    expect(
+      parseExpeditions(
+        [{ ...trip, find: { kind: "sketch", id: "pick" } }],
+        away,
+      ),
+    ).toBeUndefined();
   });
 
   it("refuses trips with no crew, a trip that is not a record, and a find with no name", () => {

@@ -24,6 +24,7 @@ import {
   FIND_IDS,
   MAX_EXPEDITIONS,
   MAX_EXPEDITION_MS,
+  TRIP_FIND_IDS,
   TUNNELS,
   parseExpeditions,
   type Expedition,
@@ -661,6 +662,7 @@ export type ShippedFacts = {
   readonly engineerNames: readonly string[];
   readonly posts: readonly string[];
   readonly tunnels: readonly string[];
+  readonly tripFinds: Readonly<Record<string, readonly string[]>>;
   readonly caps: Readonly<Record<string, number>>;
 };
 
@@ -681,6 +683,7 @@ export function shippedFacts(): ShippedFacts {
     engineerNames: ENGINEER_NAMES,
     posts: [...ENGINEER_POSTS, "tunnel"],
     tunnels: TUNNELS.map((tunnel) => tunnel.id),
+    tripFinds: TRIP_FIND_IDS,
     caps: {
       engineers: MAX_ENGINEERS,
       engineerTrips: MAX_ENGINEER_TRIPS,
