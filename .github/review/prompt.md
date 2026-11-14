@@ -26,21 +26,16 @@ Report real defects only. Do not report formatting, naming taste, or anything li
 
 ## Your answer
 
-Answer with Markdown only, nothing before or after it. Use these sections, and leave out a section with no findings:
+Answer in the structured form you are given: a `summary` and a list of `findings`. Each finding becomes a thread on the PR, and the Claude that wrote the PR must fix it or answer it before it merges, so a finding that is not real costs a round trip.
 
-### Critical
+- `summary`: one or two sentences on what you checked and the verdict. With no findings, say what you checked.
+- `severity`:
+  - `critical` or `important`: a defect this PR introduces that must be fixed before the merge.
+  - `minor`: at most five, the ones most worth fixing.
+  - `pre-existing`: a real bug the PR did not introduce but sits next to.
+  - `needs-flemming`: a call only Flemming may make (a guardrail limit, an approved line of copy, milestone mark or piece of art, PixelLab spend, a design choice that is his), when the PR makes it without his recorded approval.
+- `path` and `line`: the file, and the line in the PR's version of it (`review-git show {{HEAD}}:<path>` shows it). Use a line the diff changes or shows where you can; use 0 for the whole file.
+- `title`: what is wrong, in one line.
+- `body`: the input or state that makes it fail, and the fix. Markdown, a few sentences.
 
-### Important
-
-### Minor
-
-### Pre-existing
-
-### Needs Flemming
-
-- **Critical** and **Important**: defects this PR introduces that must be fixed before the merge.
-- **Minor**: at most five, the ones most worth fixing.
-- **Pre-existing**: a real bug the PR did not introduce but sits next to.
-- **Needs Flemming**: a call only Flemming may make (a guardrail limit, an approved line of copy, milestone mark or piece of art, PixelLab spend, a design choice that is his), when the PR makes it without his recorded approval.
-
-Each finding is one bullet: `path:line`, what is wrong, the input or state that makes it fail, and the fix. If you find nothing, answer `No findings.` and then, in one or two sentences, what you checked. Keep the whole answer under 700 words.
+Keep the whole answer under 700 words.
