@@ -41,7 +41,13 @@ page is the map, plus the rules that keep it that way.
    compares the run with the committed `docs/pacing-ledger.md` and fails on a
    difference, and `--ledger write` (`npm run lab:ledger`) writes it. The
    ledger is one of the lab's inputs (`LAB_ENTRIES`), so a changed ledger
-   runs the lab again.
+   runs the lab again. `economy/invariants.test.ts` (#555, fast-check, in the
+   `unit` project) plays random legal moves, live waits and time away from a
+   save in each band, and checks after each step that counts stay whole and
+   finite, lifetime figures never fall, a buy spends its price and never slows
+   the crew, the save round-trips, and time away pays the same however it is
+   sliced. Its known gaps (part-stone, band-crossing) are listed at its top,
+   each pinned by its own test.
    The full gate (`npm run check`, run before a PR is opened) runs it and
    `lab:generations` with `--ci` and `LAB_STRICT=1` when the branch changes
    a file the lab imports, and a miss fails the gate. `tools/generations-lab.ts`
