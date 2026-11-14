@@ -22,9 +22,14 @@ const GUARDS: readonly RegExp[] = [
   /^\.claude\//,
   /^CLAUDE\.md$/,
   /^tools\/review\//,
-  /^scripts\/(gate|signoff|changed|function-limits|knip-strict|check-cycles|token-check)\./,
-  /^src\/(gate|signoff)\.ts$/,
+  /^scripts\/(gate|signoff|changed|function-limits|knip-strict|check-cycles|token-check|visual-check|test-rules|mockup-check)\./,
+  /^scripts\/visual\//,
+  /^src\/(gate|signoff|function-limits|token-check)\.ts$/,
   /^src\/lab\/targets\.ts$/,
+  /^tools\/journeys\//,
+  /(^|\/)vitest\.config\.ts$/,
+  // A skipped or loosened test is a weaker guard.
+  /\.test\.ts$/,
   /^(vite\.config\.ts|eslint\.config\.js|knip\.json|package(-lock)?\.json)$/,
   /(^|\/)tsconfig\.json$/,
   /^\.prettier(rc\.json|ignore)$/,
@@ -32,8 +37,10 @@ const GUARDS: readonly RegExp[] = [
 
 const SAVE: readonly RegExp[] = [
   /^src\/[^/]*save[^/]*\.ts$/,
-  /^src\/(persist|phone-backup|cloud-writer)\.ts$/,
+  /^src\/(persist|phone-backup|cloud-writer|progress-store|server-read|tab-writer|tab-lease|log)\.ts$/,
   /^firestore\.rules$/,
+  /^firebase\.json$/,
+  /^public\/sw\.js$/,
   /^rules-test\//,
 ];
 
@@ -109,9 +116,13 @@ export type ReviewPlan =
 
 const MAX_PART = 20_000;
 
-/** The author's text, cut to size, unable to close the block it sits in. */
+/**
+ * The author's text, cut to size, unable to close the block it sits in: the
+ * tag's name is changed wherever it appears, which (unlike removing it)
+ * cannot join two halves into a new one.
+ */
 function asData(text: string): string {
-  const safe = text.replaceAll(/<\/?pr-intent>/gi, "");
+  const safe = text.replaceAll(/pr-intent/gi, "pr_intent");
   return safe.length <= MAX_PART
     ? safe
     : `${safe.slice(0, MAX_PART)}\n[cut after ${String(MAX_PART)} characters]`;

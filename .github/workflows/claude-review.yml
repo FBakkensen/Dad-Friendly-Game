@@ -81,7 +81,7 @@ jobs:
           for n in $(node "$tools/tools/review/prompt.ts" issues < "$intent/body.md"); do
             gh api "repos/$REPO/issues/$n" --jq '.body // ""' > "$intent/issue-$n.md" || rm -f "$intent/issue-$n.md"
           done
-          git diff --name-only "$BASE...HEAD" > "$RUNNER_TEMP/paths.txt"
+          git diff --name-only --no-renames "$BASE...HEAD" > "$RUNNER_TEMP/paths.txt"
           plan=$(node "$tools/tools/review/prompt.ts" build --paths "$RUNNER_TEMP/paths.txt" \
             --intent "$intent" --base "$BASE" --head "$HEAD" --pr "$PR" --out "$RUNNER_TEMP/prompt.md")
           echo "$plan"
@@ -100,13 +100,14 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           set +e
+          # The prompt goes in on stdin: as one argument it could pass Linux's 128 KiB cap.
           claude -p --bare --no-session-persistence \
             --model claude-opus-5-5 \
             --max-budget-usd 2 \
             --tools "Read" "Bash" \
             --allowedTools "Read" "Bash(git diff:*)" "Bash(git log:*)" "Bash(git show:*)" "Bash(git grep:*)" "Bash(git ls-files:*)" \
             --output-format json \
-            "$(cat "$RUNNER_TEMP/prompt.md")" > "$RUNNER_TEMP/review.json" 2> "$RUNNER_TEMP/review.err"
+            < "$RUNNER_TEMP/prompt.md" > "$RUNNER_TEMP/review.json" 2> "$RUNNER_TEMP/review.err"
           echo "claude exited $?"
           cat "$RUNNER_TEMP/review.err"
 
