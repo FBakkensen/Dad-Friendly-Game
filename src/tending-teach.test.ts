@@ -84,7 +84,10 @@ function mount(now: () => number) {
 }
 
 const ada = { name: "Ada", rank: 0, trips: 1, post: "camp" } as const;
-/** After the first trip, Ada waiting at camp, a Great Machine to tend. */
+/**
+ * After the first trip, Ada waiting at camp, a Great Machine to tend. The
+ * borers and trains outrun the lift, so the machine holds the line (#536).
+ */
 function crew(): Mountain {
   return {
     ...createMountain(),
@@ -92,10 +95,11 @@ function crew(): Mountain {
     stock: { ...createMountain().stock, stones: 2_000_000 },
     owned: {
       ...createMountain().owned,
-      helper: 60,
+      helper: 100,
       cart: 10,
       drill: 6,
-      borer: 2,
+      borer: 6,
+      train: 3,
       machine: 1,
     },
     engineers: [ada],
@@ -108,10 +112,10 @@ describe("tending teach (#246)", () => {
   it("is small: a dot with no note, only once there is a step up", () => {
     expect(showsDot(crew(), "tending")).toBe(true);
     expect(noteFor(crew())).toBe(undefined);
-    // On the borers nothing pays more: no dot asks for a step down.
+    // On the Great Machine nothing pays more: no dot asks for a step down.
     expect(
       showsDot(
-        { ...crew(), engineers: [{ ...ada, post: "borer" }] },
+        { ...crew(), engineers: [{ ...ada, post: "machine" }] },
         "tending",
       ),
     ).toBe(false);
@@ -122,12 +126,11 @@ describe("tending teach (#246)", () => {
       ),
     ).toBe(false);
     expect(firstTend(crew())).toEqual({ index: 0, post: "machine" });
+    // Without the machine the empty lift holds the line, so no tend pays
+    // and nothing is proposed (#536).
     expect(
       firstTend({ ...crew(), owned: { ...crew().owned, machine: 0 } }),
-    ).toEqual({
-      index: 0,
-      post: "borer",
-    });
+    ).toBeUndefined();
     // A save with no crew at all has no first tend.
     const noCrew = { ...crew(), engineers: [] };
     expect(firstTend(noCrew)).toBeUndefined();

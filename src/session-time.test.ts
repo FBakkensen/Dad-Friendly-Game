@@ -37,14 +37,27 @@ describe("timeInput", () => {
 
 describe("advance", () => {
   it("brings a party home before a live stretch is paid, then steps the hazards", () => {
-    const sent = send(crew(), 0, "side-seam", 0);
+    // Ada on a drill that holds the line: carts and hoists outrun the face,
+    // so her tend counts (#536).
+    const lifted: Mountain = {
+      ...createMountain(),
+      engineers: [{ ...ada, post: "drill" }],
+      owned: {
+        ...createMountain().owned,
+        helper: 20,
+        drill: 1,
+        cart: 14,
+        hoist: 5,
+      },
+    };
+    const sent = send(lifted, 0, "side-seam", 0);
     const returnsAt = sent.expeditions[0]?.returnsAt ?? 0;
     const world = { mountain: sent, hazards: freshHazards(3) };
     const from = returnsAt - 1_000;
     const live = advance(world, { kind: "live", from, to: returnsAt });
     expect(live.homecomings.map((home) => home.engineer)).toEqual(["Ada"]);
     expect(live.mountain.expeditions).toEqual([]);
-    // The stretch ending on the return is paid with Ada back on her borer.
+    // The stretch ending on the return is paid with Ada back on her drill.
     const away = accrue({ mountain: sent, from, to: returnsAt, live: true });
     expect(live.mined).toBeGreaterThan(away.mined);
     expect(live.settledAt).toBe(returnsAt);

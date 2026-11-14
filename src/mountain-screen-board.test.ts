@@ -48,11 +48,20 @@ const find = <T extends HTMLElement>(
 
 describe("the Ready plate on the board's model", () => {
   const CLOCK = 5_000_000;
-  /** play's early save: a crewed Topsoil, 18 workers and 6 carts. */
+  /**
+   * play's early save: a crewed Topsoil, 18 workers and 6 carts, with 3
+   * hoists and 3 drills that outrun the haul, so carts are the pick (#536).
+   */
   const early: Mountain = {
     ...minedMountain(500_000),
     stock: { ...minedMountain(500_000).stock, stones: 6_854 },
-    owned: { ...minedMountain(500_000).owned, helper: 18, cart: 6 },
+    owned: {
+      ...minedMountain(500_000).owned,
+      helper: 18,
+      cart: 6,
+      hoist: 3,
+      drill: 3,
+    },
   };
   /** The early save on a tap clock the test moves. */
   const onClock = () => {

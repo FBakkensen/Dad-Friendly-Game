@@ -2960,7 +2960,7 @@ describe("layer card and craft-done notice", () => {
       { id: "iron-rails", level: 1 },
     ]);
     expect(fitted.map(craftLine)).toEqual([
-      "Your Iron rails are fitted. Carts now 7.5/s.",
+      "Your Iron rails are fitted. Carts now 22.5/s.",
     ]);
     expect(progress.fieldLog().events).toContainEqual(
       expect.objectContaining({
@@ -3001,7 +3001,7 @@ describe("layer card and craft-done notice", () => {
       noticesOf(away.getSnapshot(), "craft")
         .map(({ craft }) => craft)
         .map(craftLine),
-    ).toEqual(["Your Iron rails are fitted. Carts now 7.5/s."]);
+    ).toEqual(["Your Iron rails are fitted. Carts now 22.5/s."]);
     // Two minutes is a quiet absence (#334): the fit is the craft-done notice.
     away.dismiss("craft");
     expect(
@@ -5667,7 +5667,7 @@ describe("dispatch (#409)", () => {
     const result = progress.dispatch({ kind: "buyTier", id: "helper" });
     expect(result).toEqual({
       kind: "applied",
-      spent: { ...EMPTY_STOCK, stones: 20 },
+      spent: { ...EMPTY_STOCK, stones: 60 },
       gained: EMPTY_STOCK,
     });
     expect(progress.getSnapshot().mountain.owned.helper).toBe(1);

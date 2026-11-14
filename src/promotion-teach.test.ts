@@ -105,6 +105,9 @@ function crew(): Mountain {
       cart: 10,
       drill: 6,
       borer: 2,
+      // A train and the Great Machine: the lift is Nils's best post (#536).
+      train: 1,
+      machine: 1,
     },
     engineers: [ada],
     seen: ["workshop", "engineers"],
@@ -145,7 +148,17 @@ describe("promotion teach (#246)", () => {
     // No machine for the new hand to tend: no nudge to lose a worker.
     expect(
       showsDot(
-        { ...crew(), owned: { ...crew().owned, cart: 0, drill: 0, borer: 1 } },
+        {
+          ...crew(),
+          owned: {
+            ...crew().owned,
+            cart: 0,
+            drill: 0,
+            borer: 1,
+            train: 0,
+            machine: 0,
+          },
+        },
         "promotion",
       ),
     ).toBe(false);
@@ -154,10 +167,10 @@ describe("promotion teach (#246)", () => {
   it("counts the worker who steps up in the payoff", () => {
     const payoff = promotePayoff(crew(), 0);
     expect(payoff?.name).toBe("Nils");
-    expect(payoff?.post).toBe("drill");
+    expect(payoff?.post).toBe("machine");
     const promoted = promote(crew());
     const after = effectiveRates(
-      station(promoted, 1, "drill"),
+      station(promoted, 1, "machine"),
       0,
     ).crewPerSecond;
     expect(payoff?.gain).toBeCloseTo(
@@ -202,7 +215,11 @@ describe("promotion teach (#246)", () => {
     );
     expect(payoff).toBeDefined();
     expect(row?.querySelector(".board-row-info")?.textContent).toBe(
-      promotionPayoff("Nils", "drill", stonesPerSecond(payoff?.gain ?? 0)),
+      promotionPayoff(
+        "Nils",
+        payoff?.post ?? "camp",
+        stonesPerSecond(payoff?.gain ?? 0),
+      ),
     );
     const cost = promoteCost(screen.progress.getSnapshot().mountain);
     expect(row?.querySelector(".board-row-price")?.textContent).toBe(

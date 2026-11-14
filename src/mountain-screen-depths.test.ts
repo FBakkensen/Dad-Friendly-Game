@@ -340,26 +340,34 @@ describe("side tunnels (#147)", () => {
       storage,
       mountain: withAda({
         stock: { stones: 30_000_000 },
-        owned: { helper: 16 },
+        // A train and the Great Machine outrun the face, so the borers hold
+        // the line and Ada's tend counts in full (#536).
+        owned: { helper: 40, train: 1, machine: 1 },
       }),
       lastSeen: Date.now(),
     });
     const screen = mountScreen({ storage });
     expect(screen.text('.tier[data-tier="borer"] .board-row-flag')).toMatch(
-      /Ada \+78\/s$/,
+      /Ada \+234\/s$/,
     );
     expect(
       screen.root
         .querySelector('.tier[data-tier="borer"]')
         ?.getAttribute("aria-label"),
-    ).toContain("+78 stones/sec");
+    ).toContain("+234 stones/sec");
     screen.openEngineer("Ada");
     const page = screen.engineersPage();
     expect(page?.textContent).toContain(
-      "+78 stones/sec. They dig faster, and she clears any jam herself.",
+      "+234 stones/sec. They dig faster, and she clears any jam herself.",
     );
-    expect(page?.textContent).toContain("None built yet. ");
-    expect(page?.textContent).not.toContain("+0 stones/sec");
+    // The drills share the face, so tending them lifts the line too; the
+    // carts and the Great Machine stand above it and add nothing (#536).
+    expect(page?.textContent).toContain(
+      "They bite deeper, and she pumps out floods herself.+212 stones/sec",
+    );
+    expect(page?.textContent).toContain(
+      "They roll faster, and she shores up cave-ins herself.+0 stones/sec",
+    );
     screen.root
       .querySelector<HTMLButtonElement>('.tier[data-tier="borer"]')
       ?.click();
@@ -367,9 +375,9 @@ describe("side tunnels (#147)", () => {
     vi.advanceTimersByTime(1_900);
     vi.useRealTimers();
     expect(screen.text('.tier[data-tier="borer"] .board-row-flag')).toMatch(
-      /Ada \+156\/s$/,
+      /Ada \+468\/s$/,
     );
-    expect(page?.textContent).toContain("+156 stones/sec");
+    expect(page?.textContent).toContain("+468 stones/sec");
     screen.root
       .querySelector<HTMLButtonElement>(".board-key[data-key=upgrades]")
       ?.click();
@@ -704,7 +712,7 @@ describe("layer card, material line, and craft-done notice", () => {
     const notice = screen.root.querySelector<HTMLElement>(".craft-notice");
     expect(notice?.hidden).toBe(false);
     expect(screen.text("#craft-notice-line")).toBe(
-      "Your Iron rails are fitted. Carts now 7.5/s.",
+      "Your Iron rails are fitted. Carts now 22.5/s.",
     );
     expect(screen.text(".craft-accept")).toBe("The crew feels it");
     screen.root.querySelector<HTMLButtonElement>(".craft-accept")?.click();
@@ -744,7 +752,7 @@ describe("layer card, material line, and craft-done notice", () => {
       screen.root.querySelector<HTMLElement>(".welcome-back")?.hidden,
     ).toBe(false);
     expect(screen.text(".welcome-craft")).toBe(
-      "Your Iron rails are fitted. Carts now 7.5/s.",
+      "Your Iron rails are fitted. Carts now 22.5/s.",
     );
     expect(
       screen.root.querySelector<HTMLElement>(".craft-notice")?.hidden,
@@ -955,6 +963,7 @@ describe("sheet buys", () => {
           ...minedMountain(12_000_000).owned,
           helper: 13,
           cart: 5,
+          hoist: 3,
           drill: 2,
         },
         stock: { ...minedMountain(12_000_000).stock, stones: 2_500_000 },
@@ -979,7 +988,10 @@ describe("sheet buys", () => {
         .querySelector(".board-key[data-key=engineers]")
         ?.hasAttribute("hidden"),
     ).toBe(false);
-    expect(screen.text('.tier[data-tier="cart"] .board-row-gain')).toBe("+6/s");
+    // The hoists and drills outrun the haul, so a cart lifts the line (#536).
+    expect(screen.text('.tier[data-tier="cart"] .board-row-gain')).toBe(
+      "+18/s",
+    );
     expect(
       screen.root
         .querySelector('.tier[data-tier="borer"] .board-row-gain')
@@ -988,9 +1000,13 @@ describe("sheet buys", () => {
     expect(screen.text('.tier[data-tier="borer"] .board-row-name')).toBe(
       "Tunnel borer",
     );
-    // The drill's first owned-count mark shows as a plain goal (#252).
-    expect(screen.text('.tier[data-tier="drill"] .board-row-info')).toMatch(
-      /^\d+ of 10 · Every drill mines/,
+    // The cart's first owned-count mark shows as a plain goal (#252).
+    expect(screen.text('.tier[data-tier="cart"] .board-row-info')).toMatch(
+      /^\d+ of 10 · Every cart /,
+    );
+    // A drill adds nothing while the face outruns the haul, and says so (#536).
+    expect(screen.text('.tier[data-tier="drill"] .board-row-info')).toBe(
+      "The face has room to spare",
     );
     expect(screen.text('.tier[data-tier="borer"] .board-row-info')).toMatch(
       /^0 of 5 · /,
@@ -1023,7 +1039,7 @@ describe("sheet buys", () => {
     const tiers = [
       ...screen.root.querySelectorAll('.board-sheet[data-sheet="buys"] .tier'),
     ];
-    expect(tiers.length).toBe(6);
+    expect(tiers.length).toBe(8);
     for (const row of tiers) {
       expect(row.classList.contains("board-row")).toBe(true);
       expect(row.classList.contains("sheet-card")).toBe(false);
