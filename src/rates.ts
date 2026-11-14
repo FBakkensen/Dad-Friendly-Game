@@ -302,13 +302,15 @@ function keptStaffing(
   }
   const key = scratchKey.slice();
   const slots = staffSlots(mountain, steady);
-  const running = tendingStaysPut(mountain)
-    ? // The tenths are the slots' own, so the best for them is the best.
-      runningOf(
-        mountain,
-        staffMachines(slots, mountain.helpers + mountain.kids),
-      )
-    : staffCrew(mountain, steady, slots);
+  // With the line on, staffing weighs the line (#534), so it always searches.
+  const running =
+    !lineOn() && tendingStaysPut(mountain)
+      ? // The tenths are the slots' own, so the best for them is the best.
+        runningOf(
+          mountain,
+          staffMachines(slots, mountain.helpers + mountain.kids),
+        )
+      : staffCrew(mountain, steady, slots);
   if (staffings.size >= STAFFINGS_KEPT) {
     staffings.clear();
   }
@@ -371,7 +373,10 @@ function staffCrew(
   slots: readonly StaffSlot[],
 ): Record<TierId, number> {
   const hands = mountain.helpers + mountain.kids;
-  const old = biggestFirst(slots, hands);
+  // With the line on, the one-hand machines fill the line (#534).
+  const line = lineOn()
+    ? handsSpeed(steady, runningOf(mountain, biggestFirst(slots, 0)))
+    : undefined;
   const weighed = new Map<string, Weighed>();
   const weigh = (staffing: Staffing): Weighed => {
     const key = MACHINE_IDS.map((id) => String(staffing[id])).join(" ");
@@ -388,14 +393,23 @@ function staffCrew(
     weighed.set(key, next);
     return next;
   };
-  let best = weigh(old);
+  const fills = (staffing: Staffing): Weighed => {
+    const plain = weigh(staffing);
+    const lined =
+      line === undefined ? undefined : staffWith(slots, hands, staffing, line);
+    const next = lined === undefined ? undefined : weigh(lined);
+    return next !== undefined && moreStones(next.stones, plain.stones)
+      ? next
+      : plain;
+  };
+  let best = fills(biggestFirst(slots, hands));
   for (const guess of slotGuesses(mountain, slots)) {
-    const next = weigh(staffMachines(guess, hands));
+    const next = fills(staffMachines(guess, hands));
     if (moreStones(next.stones, best.stones)) {
       best = next;
     }
   }
-  return climb(slots, hands, best, weigh).running;
+  return climb(slots, hands, best, (staffing) => fills(staffing)).running;
 }
 
 /**
@@ -551,7 +565,7 @@ function tendedOutput(
 ): number {
   const speed = { ...steady };
   applyTendingFloor(mountain, steady, speed, running);
-  return outputOf(speed, running);
+  return crewOutput(speed, running);
 }
 
 /**

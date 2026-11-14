@@ -1,3 +1,10 @@
+import {
+  MACHINE_STAGE,
+  STAGES,
+  lineSpeed,
+  type Stage,
+  type StageSpeeds,
+} from "./line";
 import type { MachineId } from "./tiers";
 
 /** One kind of machine the crew can staff. */
@@ -186,13 +193,15 @@ export function biggestFirst(
 
 /**
  * `staffing` with its big machines kept and the one-hand machines filled
- * fastest first from the hands left, or undefined when the hands or the
- * machines owned are too few.
+ * from the hands left, or undefined when the hands or the machines owned
+ * are too few. Fastest first; with the line on (`lineHands`, the hands'
+ * stones a second, #534), so the line moves the most.
  */
 export function staffWith(
   slots: readonly StaffSlot[],
   hands: number,
   staffing: Staffing,
+  lineHands?: number,
 ): Staffing | undefined {
   let free = hands;
   for (const slot of slots) {
@@ -208,5 +217,177 @@ export function staffWith(
   if (free < 0) {
     return undefined;
   }
-  return fill(fastestFirst(slots), free, staffing);
+  return lineHands === undefined
+    ? fill(fastestFirst(slots), free, staffing)
+    : fillLine(slots, free, staffing, lineHands);
+}
+
+/** What each stage's big machines move with these counts. */
+function bigStages(
+  slots: readonly StaffSlot[],
+  staffing: Staffing,
+): Record<Stage, number> {
+  const stages = { face: 0, haul: 0, lift: 0 };
+  for (const slot of slots) {
+    if (slot.staff > 1) {
+      stages[MACHINE_STAGE[slot.id]] += staffing[slot.id] * slot.speed;
+    }
+  }
+  return stages;
+}
+
+/** Each stage with every one of these one-hand machines running. */
+function withFillers(
+  base: StageSpeeds,
+  fillers: readonly StaffSlot[],
+  running: Staffing,
+): StageSpeeds {
+  const stages = { ...base };
+  for (const filler of fillers) {
+    stages[MACHINE_STAGE[filler.id]] += running[filler.id] * filler.speed;
+  }
+  return stages;
+}
+
+/** A run of one-hand machines that each cover `value` of a stage's gap. */
+type Cover = {
+  readonly id: MachineId;
+  readonly value: number;
+  readonly count: number;
+};
+
+/** What the one-hand machines can cover of each stage's gap below `level`. */
+function coversFor(
+  base: StageSpeeds,
+  fillers: readonly StaffSlot[],
+  level: number,
+): Cover[] {
+  const covers: Cover[] = [];
+  for (const stage of STAGES) {
+    let gap = Math.max(0, level - base[stage]);
+    for (const filler of fillers) {
+      if (MACHINE_STAGE[filler.id] !== stage || gap <= 0) {
+        continue;
+      }
+      const full = Math.min(filler.count, Math.floor(gap / filler.speed));
+      covers.push({ id: filler.id, value: filler.speed, count: full });
+      gap -= full * filler.speed;
+      if (filler.count > full && gap > 0) {
+        covers.push({ id: filler.id, value: gap, count: 1 });
+        gap = 0;
+      }
+    }
+  }
+  return covers.sort((a, b) => b.value - a.value);
+}
+
+/**
+ * The one-hand machines `free` hands run so the line reaches `level`, or
+ * undefined when it cannot: every hand runs the machine that covers the
+ * most of a gap, and the hands' own work covers the rest.
+ */
+function picksFor(
+  base: StageSpeeds,
+  fillers: readonly StaffSlot[],
+  level: number,
+  free: number,
+  lineHands: number,
+): Map<MachineId, number> | undefined {
+  const gaps = STAGES.reduce(
+    (total, stage) => total + Math.max(0, level - base[stage]),
+    0,
+  );
+  const picks = new Map<MachineId, number>();
+  let left = free;
+  let covered = 0;
+  for (const cover of coversFor(base, fillers, level)) {
+    const n = Math.min(cover.count, left);
+    picks.set(cover.id, (picks.get(cover.id) ?? 0) + n);
+    covered += n * cover.value;
+    left -= n;
+  }
+  const work = STAGES.length * lineHands;
+  return gaps - covered <= work + 1e-9 * Math.max(1, gaps) ? picks : undefined;
+}
+
+/**
+ * The one-hand machines that move the line the most (#534): the highest
+ * level the free hands can reach, found by halving, then any spare hands on
+ * the idle machines left, fastest first. It need not be the exact best, but
+ * a hand or a machine more never lowers the level it finds.
+ */
+function fillLine(
+  slots: readonly StaffSlot[],
+  free: number,
+  staffing: Staffing,
+  lineHands: number,
+): Staffing {
+  const fillers = fastestFirst(slots);
+  const owned = fillers.reduce((total, filler) => total + filler.count, 0);
+  if (free >= owned) {
+    return fill(fillers, free, staffing);
+  }
+  const base = bigStages(slots, staffing);
+  let low = lineSpeed(base, lineHands);
+  let high = lineSpeed(
+    withFillers(base, fillers, fill(fillers, owned, staffing)),
+    lineHands,
+  );
+  for (let step = 0; step < 60 && high - low > 1e-9 * high; step += 1) {
+    const mid = (low + high) / 2;
+    if (picksFor(base, fillers, mid, free, lineHands) === undefined) {
+      high = mid;
+    } else {
+      low = mid;
+    }
+  }
+  const picks =
+    picksFor(base, fillers, low, free, lineHands) ??
+    new Map<MachineId, number>();
+  const running = { ...staffing };
+  let spare = free;
+  for (const filler of fillers) {
+    running[filler.id] = picks.get(filler.id) ?? 0;
+    spare -= running[filler.id];
+  }
+  return spareToLowest(base, fillers, running, spare);
+}
+
+/**
+ * Hands left over once the level is reached go to the lowest stage that
+ * still has an idle machine, up to the next stage, so a stage the tending
+ * raises later finds the next one ready.
+ */
+function spareToLowest(
+  base: StageSpeeds,
+  fillers: readonly StaffSlot[],
+  running: Record<MachineId, number>,
+  spare: number,
+): Staffing {
+  let left = spare;
+  while (left > 0) {
+    const stages = withFillers(base, fillers, running);
+    const idle = fillers.filter((filler) => running[filler.id] < filler.count);
+    const [low] = idle.sort(
+      (a, b) => stages[MACHINE_STAGE[a.id]] - stages[MACHINE_STAGE[b.id]],
+    );
+    if (low === undefined) {
+      break;
+    }
+    const above = STAGES.map((stage) => stages[stage]).filter(
+      (speed) => speed > stages[MACHINE_STAGE[low.id]],
+    );
+    const reach =
+      above.length === 0
+        ? Number.POSITIVE_INFINITY
+        : (Math.min(...above) - stages[MACHINE_STAGE[low.id]]) / low.speed;
+    const n = Math.min(
+      left,
+      low.count - running[low.id],
+      Math.max(1, Math.ceil(reach)),
+    );
+    running[low.id] += n;
+    left -= n;
+  }
+  return running;
 }
