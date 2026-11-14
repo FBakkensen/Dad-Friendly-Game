@@ -74,7 +74,7 @@ describe("send and recall", () => {
     const sent = send(before, 0, "side-seam", 5_000);
     expect(sent.engineers[0]).toMatchObject({ post: "borer", trips: 0 });
     expect(onTrip(sent, "Ada")).toBe(true);
-    expect(sent.pocket).toBe(before.pocket);
+    expect(sent.stock.stones).toBe(before.stock.stones);
     expect(sent.owned.helper).toBe(before.owned.helper);
     expect(sent.expeditions).toEqual([
       {
@@ -144,7 +144,7 @@ describe("send and recall", () => {
     expect(back.engineers[0]).toEqual(ada);
     expect(back.expeditions).toEqual([]);
     expect(back.finds).toEqual([]);
-    expect(back.pocket).toBe(sent.pocket);
+    expect(back.stock.stones).toBe(sent.stock.stones);
     expect(recall(back, 0)).toBe(back);
     const idle = crew();
     expect(recall(idle, 0)).toBe(idle);

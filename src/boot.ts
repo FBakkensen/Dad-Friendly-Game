@@ -120,14 +120,14 @@ async function seedPreviewCopies(cloudSave: CloudSave): Promise<void> {
   const earlier: Mountain = {
     ...createMountain(),
     remaining: MOUNTAIN_STONES - 2_400_000,
-    pocket: 18_000,
+    stock: { ...createMountain().stock, stones: 18_000 },
     owned: { ...tierRecord(0), helper: 6, cart: 2 },
     startedAt: 1,
   };
   const playable: Mountain = {
     ...createMountain(),
     remaining: MOUNTAIN_STONES - 48_000_000,
-    pocket: 3_200_000,
+    stock: { ...createMountain().stock, stones: 3_200_000 },
     owned: { ...tierRecord(0), helper: 36, cart: 10, drill: 4, borer: 1 },
     engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
     startedAt: now,

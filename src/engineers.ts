@@ -2,6 +2,7 @@ import { oneOffStretch } from "./scale";
 import { factor } from "./economy/factors";
 import type { Mountain } from "./mountain";
 import { TIERS, setOwned, type TierId } from "./tiers";
+import { pay, stonesPrice, type Price } from "./stock";
 
 /**
  * Engineers (M7 §3). A few named hands, never a second currency.
@@ -125,6 +126,11 @@ export function promoteCost(mountain: Mountain): number {
   );
 }
 
+/** The next promotion's price (#560): its stones, as a list. */
+export function promotePrice(mountain: Mountain): Price {
+  return stonesPrice(promoteCost(mountain));
+}
+
 /** The first warm name no engineer has yet, or undefined when all are taken. */
 export function nextEngineerName(
   engineers: readonly Engineer[],
@@ -142,7 +148,7 @@ export function canPromote(mountain: Mountain): boolean {
   return (
     nextEngineerName(mountain.engineers) !== undefined &&
     mountain.owned.helper >= 1 &&
-    mountain.pocket >= promoteCost(mountain)
+    mountain.stock.stones >= promoteCost(mountain)
   );
 }
 
@@ -156,13 +162,16 @@ export function promote(mountain: Mountain): Mountain {
   if (
     name === undefined ||
     mountain.owned.helper < 1 ||
-    mountain.pocket < promoteCost(mountain)
+    mountain.stock.stones < promoteCost(mountain)
   ) {
     return mountain;
   }
   return {
-    ...setOwned(mountain, "helper", mountain.owned.helper - 1),
-    pocket: mountain.pocket - promoteCost(mountain),
+    ...setOwned(
+      pay(mountain, promotePrice(mountain)),
+      "helper",
+      mountain.owned.helper - 1,
+    ),
     engineers: [...engineers, { name, rank: 0, trips: 0, post: "camp" }],
   };
 }

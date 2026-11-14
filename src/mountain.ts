@@ -16,7 +16,8 @@ import {
   type Homecoming,
 } from "./expeditions";
 import { NO_UPGRADES, type Upgrades } from "./upgrades";
-import { EMPTY_MATERIALS, addMaterials, materialsGained } from "./layers";
+import { materialsGained } from "./layers";
+import { EMPTY_STOCK, addedStock, type Stock } from "./stock";
 import type { TeachId } from "./teach";
 import { tierRecord, type TierId } from "./tiers";
 import type { Materials } from "./layers";
@@ -51,8 +52,11 @@ export { MOUNTAIN_STONES };
 export type Mountain = {
   /** Stones still in the mountain. 0..MOUNTAIN_STONES. */
   readonly remaining: number;
-  /** Stones mined and not yet spent. */
-  readonly pocket: number;
+  /**
+   * What he holds, by good (src/stock.ts): the stones mined and not yet
+   * spent, and the clay, iron, crystal and heartstone dug with them (#560).
+   */
+  readonly stock: Stock;
   /**
    * How many he owns of each row of the tier table (src/tiers.ts), the
    * save's shape (#559). The line's hoists and pit trains stay 0 until the
@@ -90,8 +94,6 @@ export type Mountain = {
    * Glimmers are not stored; they are a line, not a thing on the shelf.
    */
   readonly finds: readonly FindId[];
-  /** Clay, iron, crystal, and heartstone dug with the stones (M9). */
-  readonly materials: Materials;
   /** The craft on the one bench. A required key: undefined is a free bench. */
   readonly bench: Bench | undefined;
   /** Levels already crafted; 0 is not made. */
@@ -124,7 +126,7 @@ export function runStartedAt(mountain: Mountain): number {
 /** A mountain with nothing dug and nothing owned. */
 export const BARE_MOUNTAIN: Mountain = {
   remaining: MOUNTAIN_STONES,
-  pocket: 0,
+  stock: EMPTY_STOCK,
   owned: tierRecord(0),
   upgrades: NO_UPGRADES,
   boosts: NO_BOOSTS,
@@ -134,7 +136,6 @@ export const BARE_MOUNTAIN: Mountain = {
   engineers: [],
   expeditions: [],
   finds: [],
-  materials: EMPTY_MATERIALS,
   bench: undefined,
   crafted: NOTHING_CRAFTED,
   recipes: [],
@@ -148,7 +149,6 @@ export const BARE_MOUNTAIN: Mountain = {
 export function createMountain(): Mountain {
   return {
     ...BARE_MOUNTAIN,
-    materials: materialsGained(0, 0),
     recipes: recipesForMined(0),
   };
 }
@@ -178,14 +178,14 @@ export function digStones(mountain: Mountain, mined: number): Mountain {
     mined >= stonesLeft(mountain)
       ? 0
       : MOUNTAIN_STONES - depthAfterStones(mountain, mined);
+  // One copy of the mountain: digging is the labs' hottest write.
   return {
     ...mountain,
     remaining,
-    pocket: mountain.pocket + mined,
-    materials: addMaterials(
-      mountain.materials,
-      materialsGained(before, MOUNTAIN_STONES - remaining),
-    ),
+    stock: addedStock(mountain.stock, {
+      ...materialsGained(before, MOUNTAIN_STONES - remaining),
+      stones: mined,
+    }),
   };
 }
 

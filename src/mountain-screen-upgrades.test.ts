@@ -12,7 +12,7 @@ import { writeSessionSave } from "./session-save";
 import { minedMountain } from "./test-fixtures";
 import { formatCompact } from "./format";
 import { oneOffStretch } from "./scale";
-import { upgradePrice } from "./upgrades";
+import { nextUpgradeCost } from "./upgrades";
 
 /*
  * The Upgrades drawer's buys on the mounted screen, beside the crew suite (which is at its
@@ -55,7 +55,7 @@ describe("an Upgrades buy on screen", () => {
     const mountain: Mountain = {
       ...minedMountain(9_999_999),
       owned: { ...minedMountain(9_999_999).owned, helper: 20, cart: 3 },
-      pocket: 9_000_000,
+      stock: { ...minedMountain(9_999_999).stock, stones: 9_000_000 },
     };
     let at = CLOCK;
     let clock = 10_000;
@@ -76,7 +76,7 @@ describe("an Upgrades buy on screen", () => {
     const priceOf = () =>
       row.querySelector<HTMLElement>(".board-row-price")?.textContent;
     const before = screen.progress.getSnapshot().mountain;
-    const shown = upgradePrice(before, "tap") ?? Number.NaN;
+    const shown = nextUpgradeCost(before, "tap") ?? Number.NaN;
     expect(priceOf()).toBe(formatCompact(shown));
 
     // Two seconds on, unpainted: the tap's settle crosses into the Granite.
@@ -86,21 +86,21 @@ describe("an Upgrades buy on screen", () => {
     const after = screen.progress.getSnapshot().mountain;
     expect(oneOffStretch(after)).toBeGreaterThan(oneOffStretch(before));
     expect(after.upgrades.tap).toBe(0);
-    expect(after.pocket).toBeGreaterThanOrEqual(before.pocket);
+    expect(after.stock.stones).toBeGreaterThanOrEqual(before.stock.stones);
     expect(
       row.querySelector<HTMLElement>(".board-lamp")?.style.backgroundPositionX,
     ).toBe("-120px");
-    const dearer = upgradePrice(after, "tap") ?? Number.NaN;
+    const dearer = nextUpgradeCost(after, "tap") ?? Number.NaN;
     expect(dearer).toBeGreaterThan(shown);
     expect(priceOf()).toBe(formatCompact(dearer));
 
     // Tapped again at the price now on the row, it buys at that price.
     clock += 1_000;
-    const pocket = after.pocket;
+    const pocket = after.stock.stones;
     fingerTap(row);
     const bought = screen.progress.getSnapshot().mountain;
     expect(bought.upgrades.tap).toBe(1);
-    expect(bought.pocket).toBe(pocket - dearer);
+    expect(bought.stock.stones).toBe(pocket - dearer);
     screen.root.remove();
     setReducedMotion(true);
   });
@@ -111,7 +111,7 @@ describe("an Upgrades buy on screen", () => {
     const mountain: Mountain = {
       ...minedMountain(30_000),
       owned: { ...minedMountain(30_000).owned, helper: 20, cart: 2 },
-      pocket: 10_000_000,
+      stock: { ...minedMountain(30_000).stock, stones: 10_000_000 },
       seen: ["upgrade:tap"],
     };
     let clock = 10_000;
@@ -136,7 +136,7 @@ describe("an Upgrades buy on screen", () => {
     fingerTap(row);
 
     const after = screen.progress.getSnapshot().mountain;
-    expect(after.pocket).toBe(before.pocket);
+    expect(after.stock.stones).toBe(before.stock.stones);
     expect(after.upgrades).toEqual(before.upgrades);
     expect(row.classList.contains("is-held")).toBe(false);
     expect(row.querySelector<HTMLElement>(".board-row-verb")?.textContent).toBe(

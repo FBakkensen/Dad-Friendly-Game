@@ -1,3 +1,4 @@
+import { EMPTY_STOCK, priceAmount, stonesPrice, UNSHOWN_PRICE } from "../stock";
 import { milestoneMultiplier } from "../milestones";
 import { RUSH_MS } from "../gold-rush";
 import { describe, expect, it } from "vitest";
@@ -6,6 +7,7 @@ import { buyCrew } from "../crew";
 import {
   promote,
   promoteCost,
+  promotePrice,
   staffForBuy,
   staffNeeded,
   station,
@@ -49,7 +51,7 @@ import {
   MAX_CRAFTED_LEVEL,
   cancelCraft,
   recipeById,
-  recipeCost,
+  recipePrice,
   recipesForMined,
   startCraft,
   NOTHING_CRAFTED,
@@ -103,9 +105,9 @@ const ada: Engineer = { name: "Ada", rank: 0, trips: 0, post: "borer" };
  */
 const FIXTURES = {
   buyTier: { kind: "buyTier", id: "helper" },
-  buyUpgrade: { kind: "buyUpgrade", id: "tap", price: 0 },
+  buyUpgrade: { kind: "buyUpgrade", id: "tap", price: [] },
   buyBoost: { kind: "buyBoost", id: "sharper" },
-  promote: { kind: "promote", price: 0 },
+  promote: { kind: "promote", price: [] },
   station: { kind: "station", index: 0, post: "drill" },
   send: { kind: "send", index: 0, tunnel: "old-shaft" },
   recall: { kind: "recall", index: 0 },
@@ -124,10 +126,10 @@ function quoted<A extends Action>(mountain: Mountain, action: A): A {
     case "buyUpgrade":
       return {
         ...action,
-        price: upgradePrice(mountain, action.id) ?? Number.NaN,
+        price: upgradePrice(mountain, action.id) ?? [],
       };
     case "promote":
-      return { ...action, price: promoteCost(mountain) };
+      return { ...action, price: promotePrice(mountain) };
     default:
       return action;
   }
@@ -135,11 +137,11 @@ function quoted<A extends Action>(mountain: Mountain, action: A): A {
 
 /** An upgrade buy at this mountain's price, for the moves the price does not change. */
 const upgradeAt = (mountain: Mountain, id: UpgradeId) =>
-  quoted(mountain, { kind: "buyUpgrade", id, price: 0 });
+  quoted(mountain, { kind: "buyUpgrade", id, price: [] });
 
 /** A promotion at this mountain's price. */
 const promoteAt = (mountain: Mountain) =>
-  quoted(mountain, { kind: "promote", price: 0 });
+  quoted(mountain, { kind: "promote", price: [] });
 
 function direct(mountain: Mountain, action: Action, now: number): Mountain {
   switch (action.kind) {
@@ -227,7 +229,10 @@ function simTier(
   const tier = tierById(id);
   const price = tierCost(tier, owned(mountain, tier));
   if (tier.staff === 0) {
-    const bought = buyCrew({ ...mountain, pocket: price }, id);
+    const bought = buyCrew(
+      { ...mountain, stock: { ...mountain.stock, stones: price } },
+      id,
+    );
     return {
       gain:
         effectiveRates(bought).exactCrewPerSecond -
@@ -266,7 +271,7 @@ function crewDelta(before: Mountain, after: Mountain): number {
 const fresh = createMountain();
 const withHelper = {
   ...fresh,
-  pocket: 0,
+  stock: { ...fresh.stock, stones: 0 },
   owned: { ...fresh.owned, helper: 1 },
 };
 const STOCK = {
@@ -285,11 +290,10 @@ const rich: Mountain = {
     drill: 2,
     borer: 1,
   },
-  pocket: 1e15,
-  materials: STOCK,
+  stock: { ...minedMountain(25_000_000).stock, stones: 1e15, ...STOCK },
   engineers: [ada],
 };
-const broke: Mountain = { ...rich, pocket: 0 };
+const broke: Mountain = { ...rich, stock: { ...rich.stock, stones: 0 } };
 const travelling = send(rich, 0, "old-shaft", NOW);
 const lockedMachine: Mountain = {
   ...minedMountain(24_999_999),
@@ -300,7 +304,7 @@ const lockedMachine: Mountain = {
     drill: 1,
     borer: 1,
   },
-  pocket: 1e15,
+  stock: { ...minedMountain(24_999_999).stock, stones: 1e15 },
   engineers: [ada],
 };
 const crowned: Mountain = {
@@ -313,7 +317,7 @@ const crowned: Mountain = {
     borer: 1,
     machine: 1,
   },
-  pocket: 1e15,
+  stock: { ...minedMountain(70_000_000).stock, stones: 1e15 },
   engineers: [{ ...ada, post: "machine" }],
 };
 
@@ -321,11 +325,14 @@ function fullCrew(): Mountain {
   let mountain: Mountain = {
     ...fresh,
     owned: { ...fresh.owned, helper: 10, cart: 1, drill: 1, borer: 1 },
-    pocket: 1e15,
+    stock: { ...fresh.stock, stones: 1e15 },
     engineers: [ada],
   };
   while (mountain.engineers.length < 5) {
-    mountain = promote({ ...mountain, pocket: promoteCost(mountain) });
+    mountain = promote({
+      ...mountain,
+      stock: { ...mountain.stock, stones: promoteCost(mountain) },
+    });
   }
   return mountain;
 }
@@ -357,7 +364,9 @@ describe("listActions", () => {
       );
     expect(names(fresh)).toEqual(["buyTier:helper"]);
     // A full pocket opens nothing (#250); the crew it owns does.
-    expect(names({ ...fresh, pocket: 1e12 })).toEqual(["buyTier:helper"]);
+    expect(
+      names({ ...fresh, stock: { ...fresh.stock, stones: 1e12 } }),
+    ).toEqual(["buyTier:helper"]);
     expect(
       names({ ...fresh, owned: { ...fresh.owned, helper: 1, cart: 3 } }),
     ).toEqual(
@@ -596,7 +605,7 @@ describe("applyAction", () => {
       ...fresh,
       ...minedMountain(10_000_000),
       owned: { ...minedMountain(10_000_000).owned, drill: 1, helper: 8 },
-      pocket: 10_000_000,
+      stock: { ...fresh.stock, stones: 10_000_000 },
     };
     const bought = applyAction(funded, { kind: "buyTier", id: "borer" }, NOW);
     expect(bought.owned.borer).toBe(1);
@@ -634,7 +643,7 @@ describe("valueOf", () => {
       paybackSec: Number.POSITIVE_INFINITY,
     });
     const covered = score(
-      { ...fresh, pocket: worker },
+      { ...fresh, stock: { ...fresh.stock, stones: worker } },
       FIXTURES.buyTier,
       HORIZON,
     );
@@ -666,13 +675,16 @@ describe("valueOf", () => {
     expect(borer.cost).toBeGreaterThan(sticker);
     const staffed: Mountain = {
       ...bare,
-      pocket: 0,
+      stock: { ...bare.stock, stones: 0 },
       owned: { ...bare.owned, helper: 11 },
     };
     const tended = score(staffed, { kind: "buyTier", id: "borer" }, HORIZON);
     expect(tended.gainPerSec).toBeCloseTo(392.7, 8);
     expect(tended.cost).toBe(sticker);
-    const applied = buyCrew({ ...staffed, pocket: 10_000_000 }, "borer");
+    const applied = buyCrew(
+      { ...staffed, stock: { ...staffed.stock, stones: 10_000_000 } },
+      "borer",
+    );
     expect(crewDelta(staffed, applied)).toBe(479);
 
     const hammer: Mountain = {
@@ -684,7 +696,7 @@ describe("valueOf", () => {
         drill: 1,
         borer: 1,
       },
-      pocket: 0,
+      stock: { ...minedMountain(120_000_000).stock, stones: 0 },
       engineers: [ada],
     };
     const machine = score(hammer, { kind: "buyTier", id: "machine" }, HORIZON);
@@ -729,7 +741,10 @@ describe("valueOf", () => {
           continue;
         }
         const bought = buyUpgrade(
-          { ...mountain, pocket: mountain.pocket + price },
+          {
+            ...mountain,
+            stock: { ...mountain.stock, stones: mountain.stock.stones + price },
+          },
           action.id,
         );
         const value = score(mountain, action, HORIZON);
@@ -748,7 +763,7 @@ describe("valueOf", () => {
       ...fresh,
       owned: { ...fresh.owned, helper: 10, cart: 5 },
     };
-    const boots = score(ten, { kind: "buyUpgrade", id: "boots", price: 0 });
+    const boots = score(ten, { kind: "buyUpgrade", id: "boots", price: [] });
     expect(boots.gainPerSec).toBeCloseTo(
       10 * effectiveRates(ten).tierSpeed.helper * BOOTS_SPEED_PER_LEVEL,
       8,
@@ -759,7 +774,7 @@ describe("valueOf", () => {
       owned: { ...fresh.owned, helper: 11 },
     };
     expect(
-      score(eleven, { kind: "buyUpgrade", id: "boots", price: 0 }).gainPerSec,
+      score(eleven, { kind: "buyUpgrade", id: "boots", price: [] }).gainPerSec,
     ).toBeCloseTo(11 * BOOTS_SPEED_PER_LEVEL, 10);
     const quietSchedule: ValueContext = {
       tapsPerSecond: 0,
@@ -769,7 +784,7 @@ describe("valueOf", () => {
     expect(
       score(
         eleven,
-        { kind: "buyUpgrade", id: "boots", price: 0 },
+        { kind: "buyUpgrade", id: "boots", price: [] },
         HORIZON,
         quietSchedule,
       ).gainPerSec,
@@ -777,21 +792,21 @@ describe("valueOf", () => {
 
     const heir: Mountain = { ...ten, legacy: 1 };
     expect(
-      score(heir, { kind: "buyUpgrade", id: "boots", price: 0 }).gainPerSec,
+      score(heir, { kind: "buyUpgrade", id: "boots", price: [] }).gainPerSec,
     ).toBeCloseTo(
       10 * effectiveRates(heir).tierSpeed.helper * BOOTS_SPEED_PER_LEVEL,
       8,
     );
 
     expect(
-      score(ten, { kind: "buyUpgrade", id: "cartSyn", price: 0 }).gainPerSec,
+      score(ten, { kind: "buyUpgrade", id: "cartSyn", price: [] }).gainPerSec,
     ).toBeCloseTo(10 * SYNERGY_PER_UNIT * 5 * tierById("cart").perSecond, 8);
     const half: Mountain = {
       ...fresh,
       owned: { ...fresh.owned, helper: 5, cart: 5 },
     };
     expect(
-      score(half, { kind: "buyUpgrade", id: "cartSyn", price: 0 }).gainPerSec,
+      score(half, { kind: "buyUpgrade", id: "cartSyn", price: [] }).gainPerSec,
     ).toBeCloseTo(1.5, 8);
     const short: Mountain = {
       ...fresh,
@@ -800,7 +815,7 @@ describe("valueOf", () => {
     const shortHands = score(short, {
       kind: "buyUpgrade",
       id: "cartSyn",
-      price: 0,
+      price: [],
     });
     expect(shortHands.gainPerSec).toBeCloseTo(0.96, 8);
     expect(shortHands.gainPerSec).not.toBeCloseTo(1.2, 8);
@@ -812,7 +827,7 @@ describe("valueOf", () => {
       liveSeconds: 1,
       awaySeconds: 0,
     };
-    const arms = { kind: "buyUpgrade", id: "tap", price: 0 } as const;
+    const arms = { kind: "buyUpgrade", id: "tap", price: [] } as const;
     const crew: Mountain = {
       ...fresh,
       owned: { ...fresh.owned, helper: 100, cart: 3 },
@@ -829,7 +844,7 @@ describe("valueOf", () => {
       ...fresh,
       owned: { ...fresh.owned, helper: 10, cart: 1 },
     };
-    const steady = { kind: "buyUpgrade", id: "steady", price: 0 } as const;
+    const steady = { kind: "buyUpgrade", id: "steady", price: [] } as const;
     const aMinute: ValueContext = {
       tapsPerSecond: 0,
       liveSeconds: 0,
@@ -861,7 +876,7 @@ describe("valueOf", () => {
   it("spreads a boost across the horizon and leaves a permanent gain alone", () => {
     const crew: Mountain = {
       ...fresh,
-      pocket: 1e15,
+      stock: { ...fresh.stock, stones: 1e15 },
       owned: { ...fresh.owned, helper: 10 },
     };
     const overtime = { kind: "buyBoost", id: "overtime" } as const;
@@ -924,7 +939,7 @@ describe("valueOf", () => {
   });
 
   it("scores promote, send, and recall from the crew before and after", () => {
-    const stepUp = score(rich, { kind: "promote", price: 0 }, HORIZON);
+    const stepUp = score(rich, { kind: "promote", price: [] }, HORIZON);
     // 25M mined is the Granite: one-off buys cost its band scale (#356).
     expect(stepUp.cost).toBe(promoteCost(rich));
     expect(oneOffStretch(rich)).toBe(BAND_SCALE[1]);
@@ -969,19 +984,19 @@ describe("valueOf", () => {
     expect(early.cost).toBeGreaterThan(0);
     const brokePromote = score(
       { ...fresh, owned: { ...fresh.owned, helper: 0 } },
-      { kind: "promote", price: 0 },
+      { kind: "promote", price: [] },
       HORIZON,
     );
     expect(brokePromote.gainPerSec).toBe(0);
     expect(
       score(
         { ...rich, owned: { ...rich.owned, helper: 0 } },
-        { kind: "promote", price: 0 },
+        { kind: "promote", price: [] },
         HORIZON,
       ).gainPerSec,
     ).toBe(0);
     expect(
-      score(rich, { kind: "promote", price: 0 }, 0).gainPerSec,
+      score(rich, { kind: "promote", price: [] }, 0).gainPerSec,
     ).toBeGreaterThan(0);
     const home: Mountain = {
       ...rich,
@@ -1004,7 +1019,7 @@ describe("valueOf", () => {
   it("gives a locked or maxed buy no crew gain", () => {
     const lockedBoots = score(
       fresh,
-      { kind: "buyUpgrade", id: "boots", price: 0 },
+      { kind: "buyUpgrade", id: "boots", price: [] },
       HORIZON,
     );
     expect(lockedBoots.gainPerSec).toBe(0);
@@ -1019,7 +1034,7 @@ describe("valueOf", () => {
     expect(machine.paybackSec).toBe(Number.POSITIVE_INFINITY);
     const maxed = score(
       { ...rich, upgrades: { ...NO_UPGRADES, tap: 10 } },
-      { kind: "buyUpgrade", id: "tap", price: 0 },
+      { kind: "buyUpgrade", id: "tap", price: [] },
       HORIZON,
     );
     expect(maxed.gainPerSec).toBe(0);
@@ -1047,7 +1062,7 @@ describe("valueOf", () => {
     };
     const boots = score(
       eleven,
-      { kind: "buyUpgrade", id: "boots", price: 0 },
+      { kind: "buyUpgrade", id: "boots", price: [] },
       HORIZON,
       CASUAL,
     );
@@ -1062,7 +1077,7 @@ describe("valueOf", () => {
     };
     const steady = score(
       yard,
-      { kind: "buyUpgrade", id: "steady", price: 0 },
+      { kind: "buyUpgrade", id: "steady", price: [] },
       HORIZON,
       CASUAL,
     );
@@ -1077,7 +1092,7 @@ describe("valueOf", () => {
     const small: Mountain = { ...fresh, owned: { ...fresh.owned, helper: 50 } };
     const arms = score(
       small,
-      { kind: "buyUpgrade", id: "tap", price: 0 },
+      { kind: "buyUpgrade", id: "tap", price: [] },
       HORIZON,
       CASUAL,
     );
@@ -1092,7 +1107,7 @@ describe("valueOf", () => {
     };
     const bigArms = score(
       hundred,
-      { kind: "buyUpgrade", id: "tap", price: 0 },
+      { kind: "buyUpgrade", id: "tap", price: [] },
       HORIZON,
       CASUAL,
     );
@@ -1107,7 +1122,7 @@ describe("valueOf", () => {
     };
     const hands = score(
       idle,
-      { kind: "buyUpgrade", id: "cartSyn", price: 0 },
+      { kind: "buyUpgrade", id: "cartSyn", price: [] },
       HORIZON,
       CASUAL,
     );
@@ -1135,8 +1150,7 @@ describe("valueOf", () => {
             drill: 1,
             borer: 1,
           },
-          pocket: 1e15,
-          materials: STOCK,
+          stock: { ...minedMountain(12_000_000).stock, stones: 1e15, ...STOCK },
           engineers: [ada],
         },
         extra,
@@ -1174,11 +1188,12 @@ describe("valueOf", () => {
     const yard = shed({ engineers: [], owned: { drill: 0, borer: 0 } });
     const rails = score(yard, { kind: "craft", recipe: "iron-rails" });
     expect(rails.gainPerSec).toBeGreaterThan(0);
-    const railsBill = recipeCost("iron-rails");
+    const railsBill = recipePrice("iron-rails");
     // Iron is priced by its best other use, never by the stones it took to dig.
-    expect(rails.cost).toBeGreaterThanOrEqual(railsBill.stones);
+    expect(rails.cost).toBeGreaterThanOrEqual(priceAmount(railsBill, "stones"));
     expect(rails.cost).toBeLessThan(
-      railsBill.stones + railsBill.materials.iron * MATERIAL_EVERY.iron,
+      priceAmount(railsBill, "stones") +
+        priceAmount(railsBill, "iron") * MATERIAL_EVERY.iron,
     );
     expect(rails.paybackSec).toBeCloseTo(
       rails.cost / rails.gainPerSec + recipeById("iron-rails").craftMs / 1000,
@@ -1187,7 +1202,7 @@ describe("valueOf", () => {
     expect(
       score(fresh, { kind: "craft", recipe: "iron-rails" }).paybackSec,
     ).toBe(Number.POSITIVE_INFINITY);
-    const noPocket = { ...yard, materials: EMPTY_MATERIALS };
+    const noPocket = { ...yard, stock: { ...yard.stock, ...EMPTY_MATERIALS } };
     expect(
       score(noPocket, { kind: "craft", recipe: "iron-rails" }).gainPerSec,
     ).toBeGreaterThan(0);
@@ -1219,8 +1234,8 @@ describe("valueOf", () => {
     });
     const reinforce = score(armed, { kind: "craft", recipe: "reinforce" });
     expect(reinforce.gainPerSec).toBeGreaterThan(0);
-    const ironBill = recipeCost("reinforce");
-    expect(ironBill.stones).toBe(0);
+    const ironBill = recipePrice("reinforce");
+    expect(priceAmount(ironBill, "stones")).toBe(0);
     // The iron could have gone into rails, so that is what it costs here.
     expect(reinforce.cost).toBeGreaterThan(0);
     // With no horizon to spend it in, the iron has no other use to price.
@@ -1346,8 +1361,11 @@ describe("applyMove (#409)", () => {
     expect(bought.kind).toBe("applied");
     if (bought.kind !== "applied") return;
     expect(bought.mountain.owned.cart).toBe(rich.owned.cart + 1);
-    expect(bought.spent).toBe(rich.pocket - bought.mountain.pocket);
-    expect(bought.gained).toBe(0);
+    expect(bought.spent).toEqual({
+      ...EMPTY_STOCK,
+      stones: rich.stock.stones - bought.mountain.stock.stones,
+    });
+    expect(bought.gained).toEqual(EMPTY_STOCK);
     expect(applyMove(broke, cart, NOW, calm)).toEqual({ kind: "refused" });
   });
 
@@ -1360,14 +1378,17 @@ describe("applyMove (#409)", () => {
       mountain: {
         ...rich,
         owned: { ...rich.owned, cart: rich.owned.cart + 10 },
-        pocket: rich.pocket - quote.cost,
+        stock: { ...rich.stock, stones: rich.stock.stones - quote.cost },
       },
-      spent: quote.cost,
-      gained: 0,
+      spent: { ...EMPTY_STOCK, stones: quote.cost },
+      gained: EMPTY_STOCK,
       events: [{ kind: "tierBought", id: "cart", count: rich.owned.cart + 10 }],
     });
     // Nine affordable is not ten: nothing is bought.
-    const short: Mountain = { ...rich, pocket: quote.cost - 1 };
+    const short: Mountain = {
+      ...rich,
+      stock: { ...rich.stock, stones: quote.cost - 1 },
+    };
     expect(applyMove(short, tenCarts, NOW, calm)).toEqual({ kind: "refused" });
   });
 
@@ -1437,9 +1458,9 @@ describe("applyMove (#409)", () => {
     const calmDig = applyMove(tapper, { kind: "dig" }, NOW, calm);
     const caveIn = applyMove(tapper, { kind: "dig" }, NOW, { trouble });
     const gained = (result: typeof calmDig) =>
-      result.kind === "applied" ? result.gained : -1;
+      result.kind === "applied" ? result.gained.stones : -1;
     expect(gained(caveIn)).toBe(
-      mineByHand(tapper, NOW, trouble).pocket - tapper.pocket,
+      mineByHand(tapper, NOW, trouble).stock.stones - tapper.stock.stones,
     );
     expect(gained(caveIn)).toBeGreaterThan(0);
     expect(gained(caveIn)).toBeLessThan(gained(calmDig));
@@ -1447,18 +1468,18 @@ describe("applyMove (#409)", () => {
 
   it("digs by hand with what it mined, and taps a vein", () => {
     const dug = applyMove(fresh, { kind: "dig" }, NOW, calm);
-    expect(dug.kind === "applied" && dug.gained).toBeGreaterThan(0);
-    expect(dug.kind === "applied" && dug.spent).toBe(0);
+    expect(dug.kind === "applied" && dug.gained.stones).toBeGreaterThan(0);
+    expect(dug.kind === "applied" && dug.spent.stones).toBe(0);
     const vein = applyMove(rich, { kind: "tapVein" }, NOW, calm);
-    expect(vein.kind === "applied" && vein.gained).toBeGreaterThan(0);
+    expect(vein.kind === "applied" && vein.gained.stones).toBeGreaterThan(0);
   });
 
   it("pays a quick vein like a vein, then starts a Gold rush", () => {
     const owed = { ...rich, rushBank: 8_100 };
     const vein = applyMove(rich, { kind: "tapVein" }, NOW, calm);
     const quick = applyMove(owed, { kind: "tapQuickVein" }, NOW, calm);
-    expect(quick.kind === "applied" && quick.gained).toBe(
-      vein.kind === "applied" ? vein.gained : -1,
+    expect(quick.kind === "applied" && quick.gained.stones).toBe(
+      vein.kind === "applied" ? vein.gained.stones : -1,
     );
     expect(quick.kind === "applied" && quick.mountain.rushUntil).toBe(
       NOW + RUSH_MS,
@@ -1466,7 +1487,7 @@ describe("applyMove (#409)", () => {
     expect(quick.kind === "applied" && quick.events).toEqual([
       {
         kind: "quickVeinTapped",
-        stones: quick.kind === "applied" ? quick.gained : -1,
+        stones: quick.kind === "applied" ? quick.gained.stones : -1,
       },
     ]);
   });
@@ -1474,7 +1495,7 @@ describe("applyMove (#409)", () => {
   it("lands the held stones when the quick vein is missed, once", () => {
     const owed = { ...rich, rushBank: 8_100 };
     const missed = applyMove(owed, { kind: "missQuickVein" }, NOW, calm);
-    expect(missed.kind === "applied" && missed.gained).toBe(8_100);
+    expect(missed.kind === "applied" && missed.gained.stones).toBe(8_100);
     expect(missed.kind === "applied" && missed.events).toEqual([
       { kind: "rushLanded", stones: 8_100 },
     ]);
@@ -1560,8 +1581,8 @@ describe("applyMove (#409)", () => {
       ...rich,
       remaining: minedMountain(10_000_000).remaining,
     };
-    const armsShown = upgradePrice(topsoil, "tap") ?? Number.NaN;
-    const promoteShown = promoteCost(topsoil);
+    const armsShown = upgradePrice(topsoil, "tap") ?? [];
+    const promoteShown = promotePrice(topsoil);
     expect(oneOffStretch(granite)).toBeGreaterThan(oneOffStretch(topsoil));
     const arms = { kind: "buyUpgrade", id: "tap", price: armsShown } as const;
     const stepUp = { kind: "promote", price: promoteShown } as const;
@@ -1570,24 +1591,46 @@ describe("applyMove (#409)", () => {
     expect(applyMove(granite, stepUp, NOW, calm)).toEqual({ kind: "refused" });
     // At the price he saw, it buys, and that is what it takes.
     const bought = applyMove(topsoil, arms, NOW, calm);
-    expect(bought.kind === "applied" && bought.spent).toBe(armsShown);
+    expect(bought.kind === "applied" && bought.spent.stones).toBe(
+      priceAmount(armsShown, "stones"),
+    );
+    // An upgrade with no level left has no price today: nothing it was
+    // shown, not even a free price, buys it.
+    const maxed: Mountain = { ...rich, upgrades: { ...NO_UPGRADES, tap: 10 } };
+    for (const price of [[], UNSHOWN_PRICE, armsShown]) {
+      expect(
+        applyMove(maxed, { kind: "buyUpgrade", id: "tap", price }, NOW, calm),
+      ).toEqual({ kind: "refused" });
+    }
+    // Every good of the shown price must match, not only the stones.
+    const plusClay = {
+      kind: "promote",
+      price: [...promoteShown, { good: "clay", amount: 1 }],
+    } as const;
+    expect(applyMove(topsoil, plusClay, NOW, calm)).toEqual({
+      kind: "refused",
+    });
     const promoted = applyMove(topsoil, stepUp, NOW, calm);
-    expect(promoted.kind === "applied" && promoted.spent).toBe(promoteShown);
+    expect(promoted.kind === "applied" && promoted.spent.stones).toBe(
+      priceAmount(promoteShown, "stones"),
+    );
   });
 
   it("lists each upgrade and the promotion at today's price (#367)", () => {
     for (const action of listActions(rich, NOW)) {
       if (action.kind === "buyUpgrade") {
-        expect(action.price).toBe(
-          upgradeCost(
-            upgradeById(action.id),
-            upgradeLevel(rich, action.id),
-            oneOffStretch(rich),
+        expect(action.price).toEqual(
+          stonesPrice(
+            upgradeCost(
+              upgradeById(action.id),
+              upgradeLevel(rich, action.id),
+              oneOffStretch(rich),
+            ) ?? Number.NaN,
           ),
         );
       }
       if (action.kind === "promote") {
-        expect(action.price).toBe(promoteCost(rich));
+        expect(action.price).toEqual(promotePrice(rich));
       }
     }
     expect(listActions(rich, NOW).some((a) => a.kind === "promote")).toBe(true);
@@ -1596,7 +1639,7 @@ describe("applyMove (#409)", () => {
   it("promotes the first engineer from a mountain with no crew yet", () => {
     const bare: Mountain = {
       ...fresh,
-      pocket: 1e15,
+      stock: { ...fresh.stock, stones: 1e15 },
       owned: { ...fresh.owned, helper: 1 },
     };
     expect(bare.engineers).toEqual([]);
@@ -1632,7 +1675,7 @@ describe("applyMove (#409)", () => {
     expect(vein.kind === "applied" && vein.events).toEqual([
       {
         kind: "veinTapped",
-        stones: vein.kind === "applied" ? vein.gained : -1,
+        stones: vein.kind === "applied" ? vein.gained.stones : -1,
       },
     ]);
     expect(eventsOf(fresh, { kind: "dig" })).toEqual([]);
@@ -1655,7 +1698,10 @@ describe("applyMove (#409)", () => {
       calm,
     );
     if (first.kind !== "applied") throw new Error("boost refused");
-    const topped = { ...first.mountain, pocket: 1e15 };
+    const topped = {
+      ...first.mountain,
+      stock: { ...first.mountain.stock, stones: 1e15 },
+    };
     const later = NOW + boostById("sharper").durationMs + 1;
     const again = applyMove(
       topped,
@@ -1685,7 +1731,10 @@ describe("buyEveryBoost", () => {
   const NOW = 1_000_000;
 
   it("starts every boost the pocket can pay, in catalogue order", () => {
-    const rich = { ...createMountain(), pocket: 1_000_000 };
+    const rich = {
+      ...createMountain(),
+      stock: { ...createMountain().stock, stones: 1_000_000 },
+    };
     const one = buyBoost({
       mountain: rich,
       id: "sharper",
@@ -1707,7 +1756,7 @@ describe("buyEveryBoost", () => {
   it("leaves a running boost, and one the pocket cannot pay", () => {
     const running = {
       ...createMountain(),
-      pocket: 0,
+      stock: { ...createMountain().stock, stones: 0 },
       boosts: { ...NO_BOOSTS, sharper: NOW + 1_000 },
     };
     expect(buyEveryBoost(running, NOW)).toBe(running);

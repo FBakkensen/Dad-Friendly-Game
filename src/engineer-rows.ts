@@ -58,6 +58,7 @@ import {
   tunnelLock,
   type TendPost,
 } from "./screen-words";
+import { UNSHOWN_PRICE, stonesPrice, type Price } from "./stock";
 
 /*
  * The Engineers drawer's rules as views (#455): its rows, the page it shows, the kick, and
@@ -173,7 +174,7 @@ export function promoteWhyLine(
   if (current.owned.helper < 1) {
     return PROMOTE_NEEDS_WORKER;
   }
-  return current.pocket < cost ? promoteNeeds(cost) : PROMOTE_WHY;
+  return current.stock.stones < cost ? promoteNeeds(cost) : PROMOTE_WHY;
 }
 
 /** The crew now, in its order: none before the first borer. Away reads "tunnel". */
@@ -197,9 +198,12 @@ export function pageEngineer(page: EngineerPage): EngineerName | undefined {
   return "name" in page ? page.name : undefined;
 }
 
-/** The price the promote ask was opened at (#367); NaN on any other page, which buys nothing. */
-export function askedPrice(page: EngineerPage): number {
-  return page.kind === "promote" ? page.price : Number.NaN;
+/**
+ * The price the promote ask was opened at (#367), as a price; the unshown
+ * price on any other page, which matches no promotion and buys nothing.
+ */
+export function askedPrice(page: EngineerPage): Price {
+  return page.kind === "promote" ? stonesPrice(page.price) : UNSHOWN_PRICE;
 }
 
 /** The promote ask's line: who steps up, or nothing for a full crew. */

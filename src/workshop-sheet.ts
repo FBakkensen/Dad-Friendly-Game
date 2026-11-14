@@ -48,7 +48,7 @@ import {
   craftedLevel,
   hotTimers,
   recipeById,
-  recipeCost,
+  recipePrice,
   recipeStrengthId,
   recipeWindowMs,
   reinforceTier,
@@ -59,6 +59,7 @@ import {
   type RecipeId,
   recipeOpen,
 } from "./workshop";
+import { priceAmount } from "./stock";
 
 /**
  * What the Workshop sheet says. Pure: the panel paints it. Costs, times,
@@ -144,7 +145,7 @@ const TIER_WORD: Readonly<
  * zero still shows). A later band, and a band with only a remainder, stay off.
  */
 export function metMaterialChips(mountain: Mountain): readonly MaterialChip[] {
-  const have = mountain.materials;
+  const have = mountain.stock;
   const earned = materialsFromMined(minedOut(mountain));
   return LAYERS.filter((layer) => {
     const id = layer.material;
@@ -160,16 +161,19 @@ export function craftShortfall(
   mountain: Mountain,
   id: RecipeId,
 ): { readonly missing: number; readonly material: string } | undefined {
-  const cost = recipeCost(id, stretch(mountain));
-  const have = mountain.materials;
+  const cost = recipePrice(id, stretch(mountain));
+  const have = mountain.stock;
   for (const material of MATERIAL_ORDER) {
-    const need = cost.materials[material];
+    const need = priceAmount(cost, material);
     if (have[material] < need) {
       return { missing: need - have[material], material };
     }
   }
-  if (mountain.pocket < cost.stones) {
-    return { missing: cost.stones - mountain.pocket, material: "stones" };
+  if (mountain.stock.stones < priceAmount(cost, "stones")) {
+    return {
+      missing: priceAmount(cost, "stones") - mountain.stock.stones,
+      material: "stones",
+    };
   }
   return undefined;
 }
@@ -183,11 +187,11 @@ function goneMaterial(
   mountain: Mountain,
   id: RecipeId,
 ): MaterialId | undefined {
-  const cost = recipeCost(id, stretch(mountain));
+  const cost = recipePrice(id, stretch(mountain));
   const mined = minedOut(mountain);
   return MATERIAL_ORDER.find(
     (material) =>
-      mountain.materials[material] < cost.materials[material] &&
+      mountain.stock[material] < priceAmount(cost, material) &&
       materialLeftToDig(material, mined) === 0,
   );
 }
@@ -550,11 +554,12 @@ function refundParts(mountain: Mountain, now: number): readonly string[] {
     return [];
   }
   const parts: string[] = [];
-  if (refund.stones > 0) {
-    parts.push(`${formatCompact(refund.stones)} stones`);
+  const stones = priceAmount(refund, "stones");
+  if (stones > 0) {
+    parts.push(`${formatCompact(stones)} stones`);
   }
   for (const material of MATERIAL_ORDER) {
-    const count = refund.materials[material];
+    const count = priceAmount(refund, material);
     if (count > 0) {
       parts.push(materialCostWords(count, material));
     }
@@ -661,26 +666,35 @@ function recipeCard(
   mountain: Mountain,
   now: number,
 ): RecipeCard {
-  const cost = recipeCost(recipe.id, stretch(mountain));
+  const cost = recipePrice(recipe.id, stretch(mountain));
   const level = craftedLevel(mountain, recipe.id);
   const costs = MATERIAL_ORDER.filter(
-    (material) => cost.materials[material] > 0,
+    (material) => priceAmount(cost, material) > 0,
   ).map((material) => ({
     id: material,
-    text: materialCostWords(cost.materials[material], material),
+    text: materialCostWords(priceAmount(cost, material), material),
   }));
   return {
     kind: "recipe",
     id: recipe.id,
     name: recipe.name,
-    price: cost.stones > 0 ? craftPriceWords(cost.stones) : CRAFT_WORD,
+    price:
+      priceAmount(cost, "stones") > 0
+        ? craftPriceWords(priceAmount(cost, "stones"))
+        : CRAFT_WORD,
     level: levelLine(recipe, level),
     effect: craftEffect(recipe, mountain, now),
-    stones: cost.stones > 0 ? stoneCostWords(cost.stones) : undefined,
-    stonesTag: cost.stones > 0 ? formatCompact(cost.stones) : undefined,
+    stones:
+      priceAmount(cost, "stones") > 0
+        ? stoneCostWords(priceAmount(cost, "stones"))
+        : undefined,
+    stonesTag:
+      priceAmount(cost, "stones") > 0
+        ? formatCompact(priceAmount(cost, "stones"))
+        : undefined,
     costs,
     time: craftTimeWords(recipe.craftMs),
-    action: actionFor(mountain, recipe.id, cost.stones),
+    action: actionFor(mountain, recipe.id, priceAmount(cost, "stones")),
   };
 }
 

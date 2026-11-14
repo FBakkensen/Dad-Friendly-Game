@@ -20,7 +20,13 @@ function setup(
   let view = {
     saveKind: initial.kind ?? "account",
     log: initial.log,
-    mountain: { ...createMountain(), pocket: initial.pocket ?? 412_400 },
+    mountain: {
+      ...createMountain(),
+      stock: {
+        ...createMountain().stock,
+        stones: initial.pocket ?? 412_400,
+      },
+    },
   } as unknown as ProgressSnapshot;
   let authState: AuthState = initial.auth ?? {
     kind: "signed-in",

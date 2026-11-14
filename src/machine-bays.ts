@@ -99,7 +99,7 @@ export function bayViews(
     const lamp =
       pick.kind === "ready" && pick.tier === id
         ? "amber"
-        : mountain.pocket >= price && free >= staff
+        : mountain.stock.stones >= price && free >= staff
           ? "green"
           : "off";
     return { kind: "open", tier: id, count, price, gain, staff, lamp };

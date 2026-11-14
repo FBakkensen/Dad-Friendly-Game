@@ -808,8 +808,12 @@ describe("openingView", () => {
     ...createMountain(),
     remaining: MOUNTAIN_STONES - LAYERS[1].from,
     owned: { ...createMountain().owned, helper: 10, cart: 3 },
-    pocket: 0,
-    materials: { ...EMPTY_MATERIALS, iron: 5 },
+    stock: {
+      ...createMountain().stock,
+      stones: 0,
+      ...EMPTY_MATERIALS,
+      iron: 5,
+    },
   };
 
   function crafter(spend?: PlainSpec["spend"]): Policy {
@@ -847,7 +851,12 @@ describe("openingView", () => {
     expect(open.kind === "waiting" && open.waitSec > 0).toBe(true);
     // With the stones for a helper in the pocket, the same open is affordable.
     expect(
-      openingView({ ...granite, pocket: 100 }, 0, policy, context),
+      openingView(
+        { ...granite, stock: { ...granite.stock, stones: 100 } },
+        0,
+        policy,
+        context,
+      ),
     ).toEqual({ kind: "affordable" });
   });
 
@@ -859,7 +868,7 @@ describe("openingView", () => {
       boost: 1,
       promote: 0,
     });
-    const rich = { ...granite, pocket: 1_000_000 };
+    const rich = { ...granite, stock: { ...granite.stock, stones: 1_000_000 } };
     const kinds = actionsOnTable(rich, 0, policy.params).map(
       (action) => action.kind,
     );

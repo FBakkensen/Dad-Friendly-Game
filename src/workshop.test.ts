@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { withFactors } from "./economy/factors";
 import { nextTrouble } from "./hazards";
-import { LAYERS, type MaterialId, EMPTY_MATERIALS } from "./layers";
+import {
+  LAYERS,
+  type MaterialId,
+  type Materials,
+  EMPTY_MATERIALS,
+} from "./layers";
+import { priceAmount } from "./stock";
 import { expeditionAwayMs } from "./lost-tools";
 import {
   MOUNTAIN_STONES,
@@ -11,7 +17,12 @@ import {
   type Mountain,
   BARE_MOUNTAIN,
 } from "./mountain";
-import { reloaded, NONE_OWNED } from "./test-fixtures";
+import {
+  reloaded,
+  NONE_OWNED,
+  patched,
+  type MountainPatch,
+} from "./test-fixtures";
 import { effectiveRates } from "./rates";
 import {
   CHARGE_MS,
@@ -39,7 +50,7 @@ import {
   recipeById,
   grantRecipes,
   layerRecipeIds,
-  recipeCost,
+  recipePrice,
   recipesForMined,
   settleBench,
   startCraft,
@@ -53,6 +64,14 @@ import {
 } from "./workshop";
 import { NO_BOOSTS } from "./boosts";
 import { NO_UPGRADES } from "./upgrades";
+
+/** The four materials a mountain holds (#560: they live in its stock). */
+const materialsIn = (mountain: Mountain): Materials => ({
+  clay: mountain.stock.clay,
+  iron: mountain.stock.iron,
+  crystal: mountain.stock.crystal,
+  heartstone: mountain.stock.heartstone,
+});
 
 describe("recipes granted from stones mined", () => {
   it("starts with three, and adds a layer recipe when that band is reached", () => {
@@ -211,7 +230,7 @@ describe("workshop save fields", () => {
   });
 });
 
-const FULL: Mountain["materials"] = {
+const FULL: Materials = {
   clay: 80,
   iron: 80,
   crystal: 80,
@@ -219,15 +238,16 @@ const FULL: Mountain["materials"] = {
 };
 
 /** Granite is open, the pocket can pay, and every recipe is known. */
-function openShed(extra: Partial<Mountain> = {}): Mountain {
-  return {
-    ...createMountain(),
-    remaining: MOUNTAIN_STONES - LAYERS[1].from,
-    pocket: 80_000_000,
-    materials: FULL,
-    recipes: [...RECIPE_IDS],
-    ...extra,
-  };
+function openShed(extra: MountainPatch = {}): Mountain {
+  return patched(
+    {
+      ...createMountain(),
+      remaining: MOUNTAIN_STONES - LAYERS[1].from,
+      stock: { ...createMountain().stock, stones: 80_000_000, ...FULL },
+      recipes: [...RECIPE_IDS],
+    },
+    extra,
+  );
 }
 
 describe("workshop rules", () => {
@@ -268,11 +288,9 @@ describe("workshop rules", () => {
       bonus: 0.25,
       durationMs: CHARGE_MS,
     });
-    expect(recipeCost("crystal-lamp").stones).toBe(0);
-    expect(recipeCost("engineers-kit").materials).toMatchObject({
-      iron: 4,
-      crystal: 4,
-    });
+    expect(priceAmount(recipePrice("crystal-lamp"), "stones")).toBe(0);
+    expect(priceAmount(recipePrice("engineers-kit"), "iron")).toBe(4);
+    expect(priceAmount(recipePrice("engineers-kit"), "crystal")).toBe(4);
     for (const recipe of RECIPES) {
       expect([600_000, 3_600_000, 14_400_000]).toContain(recipe.craftMs);
     }
@@ -300,8 +318,7 @@ describe("workshop rules", () => {
   it("stays shut until the Granite, and spends nothing it cannot pay", () => {
     const locked = {
       ...createMountain(),
-      pocket: 80_000_000,
-      materials: FULL,
+      stock: { ...createMountain().stock, stones: 80_000_000, ...FULL },
     };
     expect(workshopUnlocked(locked)).toBe(false);
     expect(workshopUnlocked(openShed())).toBe(true);
@@ -323,18 +340,24 @@ describe("workshop rules", () => {
       crafted: { ...NOTHING_CRAFTED, "crystal-flare": MAX_CRAFTED_LEVEL },
     };
     expect(startCraft(capped, "crystal-flare", 1)).toBe(capped);
-    const poor = { ...shed, pocket: 10 };
+    const poor = { ...shed, stock: { ...shed.stock, stones: 10 } };
     expect(startCraft(poor, "iron-rails", 1)).toBe(poor);
-    expect(shed.materials).toEqual(FULL);
-    const bare = { ...shed, materials: EMPTY_MATERIALS };
+    expect(materialsIn(shed)).toEqual(FULL);
+    const bare = { ...shed, stock: { ...shed.stock, ...EMPTY_MATERIALS } };
     expect(startCraft(bare, "reinforce", 1)).toBe(bare);
-    const shortClay = { ...shed, materials: { ...FULL, clay: 0 } };
+    const shortClay = { ...shed, stock: { ...shed.stock, ...FULL, clay: 0 } };
     expect(startCraft(shortClay, "blasting-charge", 1)).toBe(shortClay);
-    const shortIron = { ...shed, materials: { ...FULL, iron: 0 } };
+    const shortIron = { ...shed, stock: { ...shed.stock, ...FULL, iron: 0 } };
     expect(startCraft(shortIron, "reinforce", 1)).toBe(shortIron);
-    const shortCrystal = { ...shed, materials: { ...FULL, crystal: 0 } };
+    const shortCrystal = {
+      ...shed,
+      stock: { ...shed.stock, ...FULL, crystal: 0 },
+    };
     expect(startCraft(shortCrystal, "crystal-flare", 1)).toBe(shortCrystal);
-    const shortHeart = { ...shed, materials: { ...FULL, heartstone: 0 } };
+    const shortHeart = {
+      ...shed,
+      stock: { ...shed.stock, ...FULL, heartstone: 0 },
+    };
     expect(startCraft(shortHeart, "heartstone-ember", 1)).toBe(shortHeart);
   });
 
@@ -342,24 +365,24 @@ describe("workshop rules", () => {
     const shed = openShed();
     const started = startCraft(shed, "sturdy-props", 5_000);
     expect(started).not.toBe(shed);
-    expect(shed.pocket).toBe(80_000_000);
-    expect(started.pocket).toBe(shed.pocket - 250_000);
-    expect(started.materials).toEqual({ ...FULL, clay: 70, iron: 76 });
+    expect(shed.stock.stones).toBe(80_000_000);
+    expect(started.stock.stones).toBe(shed.stock.stones - 250_000);
+    expect(materialsIn(started)).toEqual({ ...FULL, clay: 70, iron: 76 });
     expect(started.bench).toEqual({
       recipe: "sturdy-props",
       startedAt: 5_000,
       endsAt: 5_000 + 600_000,
     });
     const back = cancelCraft(started, 5_000);
-    expect(back.pocket).toBe(shed.pocket);
-    expect(back.materials).toEqual(FULL);
+    expect(back.stock.stones).toBe(shed.stock.stones);
+    expect(materialsIn(back)).toEqual(FULL);
     expect(back.bench).toBeUndefined();
     expect(back.crafted).toEqual(NOTHING_CRAFTED);
     expect(cancelCraft(shed, 1)).toBe(shed);
     const late = cancelCraft(started, started.bench?.endsAt ?? 0);
     expect(late.crafted["sturdy-props"]).toBe(1);
-    expect(late.pocket).toBe(started.pocket);
-    expect(late.materials).toEqual(started.materials);
+    expect(late.stock.stones).toBe(started.stock.stones);
+    expect(materialsIn(late)).toEqual(materialsIn(started));
     expect(late.bench).toBeUndefined();
   });
 
@@ -598,7 +621,7 @@ describe("workshop rules", () => {
     const crew = {
       ...openShed(),
       owned: { ...openShed().owned, helper: 0, cart: 4 },
-      materials: { ...FULL, iron: 40 },
+      stock: { ...openShed().stock, ...FULL, iron: 40 },
     };
     const horizon = AXLE_MS;
     const kept = accrue({
@@ -616,7 +639,7 @@ describe("workshop rules", () => {
     });
     const cancelled = cancelCraft(mid.mountain, halfway);
     expect(axleCrewMultiplier(cancelled, halfway + 1)).toBe(1);
-    expect(cancelled.materials.iron).toBeLessThan(40);
+    expect(cancelled.stock.iron).toBeLessThan(40);
     const restarted = startCraft(cancelled, "axle-grease", halfway);
     const again = accrue({
       mountain: restarted,
@@ -624,11 +647,11 @@ describe("workshop rules", () => {
       to: horizon,
       live: true,
     });
-    const keptWorth = kept.mined + kept.mountain.pocket;
-    const againWorth = mid.mined + again.mined + again.mountain.pocket;
+    const keptWorth = kept.mined + kept.mountain.stock.stones;
+    const againWorth = mid.mined + again.mined + again.mountain.stock.stones;
     expect(againWorth).toBeLessThanOrEqual(keptWorth);
-    expect(again.mountain.materials.iron).toBeLessThanOrEqual(
-      kept.mountain.materials.iron,
+    expect(again.mountain.stock.iron).toBeLessThanOrEqual(
+      kept.mountain.stock.iron,
     );
   });
 
@@ -636,43 +659,42 @@ describe("workshop rules", () => {
     const crew = {
       ...openShed(),
       owned: { ...openShed().owned, helper: 4 },
-      materials: { ...FULL, clay: 20 },
-      pocket: 500_000,
+      stock: { ...openShed().stock, ...FULL, clay: 20, stones: 500_000 },
     };
     const started = startCraft(crew, "blasting-charge", 0);
     const halfway = 5 * 60_000;
     const cancelled = cancelCraft(started, halfway);
     expect(chargeCrewMultiplier(cancelled, halfway + 1)).toBe(1);
     expect(cancelled.bench).toBeUndefined();
-    expect(cancelled.pocket).toBeGreaterThan(crew.pocket - 100_000);
-    expect(cancelled.pocket).toBeLessThan(crew.pocket);
-    expect(cancelled.materials.clay).toBeGreaterThan(16);
-    expect(cancelled.materials.clay).toBeLessThan(20);
+    expect(cancelled.stock.stones).toBeGreaterThan(crew.stock.stones - 100_000);
+    expect(cancelled.stock.stones).toBeLessThan(crew.stock.stones);
+    expect(cancelled.stock.clay).toBeGreaterThan(16);
+    expect(cancelled.stock.clay).toBeLessThan(20);
   });
 
   it("refunds the unused share of a flare and an ember", () => {
     const flare = startCraft(
-      { ...openShed(), materials: { ...FULL, crystal: 10 } },
+      { ...openShed(), stock: { ...openShed().stock, ...FULL, crystal: 10 } },
       "crystal-flare",
       0,
     );
     const flareBack = cancelCraft(flare, 60_000);
     expect(flareBack.bench).toBeUndefined();
-    expect(flareBack.materials.crystal).toBeGreaterThan(6);
-    expect(flareBack.materials.crystal).toBeLessThan(10);
+    expect(flareBack.stock.crystal).toBeGreaterThan(6);
+    expect(flareBack.stock.crystal).toBeLessThan(10);
     const ember = startCraft(
       {
         ...openShed(),
         owned: { ...openShed().owned, helper: 25, machine: 1 },
-        materials: { ...FULL, heartstone: 10 },
+        stock: { ...openShed().stock, ...FULL, heartstone: 10 },
       },
       "heartstone-ember",
       0,
     );
     const emberBack = cancelCraft(ember, 60_000);
     expect(emberBack.bench).toBeUndefined();
-    expect(emberBack.materials.heartstone).toBeGreaterThan(8);
-    expect(emberBack.materials.heartstone).toBeLessThan(10);
+    expect(emberBack.stock.heartstone).toBeGreaterThan(8);
+    expect(emberBack.stock.heartstone).toBeLessThan(10);
   });
 
   it("changes the crew the gear names, and stays quiet when nothing is fitted", () => {
@@ -680,7 +702,7 @@ describe("workshop rules", () => {
     const plain = effectiveRates(shed);
     const stocked = effectiveRates({
       ...shed,
-      materials: { clay: 1, iron: 1, crystal: 1, heartstone: 1 },
+      stock: { ...shed.stock, clay: 1, iron: 1, crystal: 1, heartstone: 1 },
       crafted: NOTHING_CRAFTED,
     });
     expect(stocked).toEqual(plain);
@@ -791,9 +813,12 @@ describe("workshop rules", () => {
     expect(doubled).toBeCloseTo(1.5);
     expect(
       withFactors({ "recipe.iron-rails.cost": 2 }, () =>
-        recipeCost("iron-rails"),
+        recipePrice("iron-rails"),
       ),
-    ).toMatchObject({ stones: 1_000_000, materials: { iron: 8 } });
+    ).toEqual([
+      { good: "stones", amount: 1_000_000 },
+      { good: "iron", amount: 8 },
+    ]);
     expect(
       withFactors({ "recipe.sturdy-props.strength": 10 }, () =>
         troubleGapScale({ crafted: { ...NOTHING_CRAFTED, "sturdy-props": 1 } }),
@@ -915,8 +940,7 @@ describe("workshop rules", () => {
       heartstone: 10_000,
     };
     const crew = openShed({
-      pocket: 400_000_000,
-      materials: rich,
+      stock: { stones: 400_000_000, ...rich },
       owned: { ...NONE_OWNED, helper: 25, machine: 1 },
     });
     let mountain = crew;
@@ -996,17 +1020,18 @@ describe("workshop rules", () => {
   it("names the refund and the hot timers", () => {
     expect(cancelRefund(openShed(), 1)).toBeUndefined();
     const props = startCraft(openShed(), "sturdy-props", 1_000);
-    expect(cancelRefund(props, 1_000)).toEqual({
-      stones: 250_000,
-      materials: { clay: 10, iron: 4, crystal: 0, heartstone: 0 },
-    });
-    expect(cancelRefund(props, props.bench?.endsAt ?? 0)?.stones).toBe(0);
+    expect(cancelRefund(props, 1_000)).toEqual([
+      { good: "stones", amount: 250_000 },
+      { good: "clay", amount: 10 },
+      { good: "iron", amount: 4 },
+    ]);
+    expect(cancelRefund(props, props.bench?.endsAt ?? 0)).toEqual([]);
     const charge = startCraft(openShed(), "blasting-charge", 0);
     const halfway = cancelRefund(charge, 5 * 60_000);
-    expect(halfway?.stones).toBe(75_000);
-    expect(halfway?.materials.clay).toBe(3);
+    expect(priceAmount(halfway ?? [], "stones")).toBe(75_000);
+    expect(priceAmount(halfway ?? [], "clay")).toBe(3);
     const early = cancelRefund(charge, -5);
-    expect(early?.stones).toBe(100_000);
+    expect(priceAmount(early ?? [], "stones")).toBe(100_000);
     const stored = openShed({
       clocks: {
         ...COLD_CLOCKS,

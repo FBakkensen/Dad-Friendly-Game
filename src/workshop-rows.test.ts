@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { LAYERS, materialsFromMined, EMPTY_MATERIALS } from "./layers";
+import {
+  LAYERS,
+  materialsFromMined,
+  EMPTY_MATERIALS,
+  type Materials,
+} from "./layers";
 import { MOUNTAIN_STONES, createMountain, type Mountain } from "./mountain";
 import {
   BENCH_FREE,
@@ -45,9 +50,15 @@ function granite(): Mountain {
   return {
     ...createMountain(),
     remaining: MOUNTAIN_STONES - 12_000_000,
-    pocket: 200_000,
+    stock: {
+      ...createMountain().stock,
+      stones: 200_000,
+      clay: 2,
+      iron: 1,
+      crystal: 0,
+      heartstone: 0,
+    },
     owned: { ...createMountain().owned, helper: 4, cart: 1 },
-    materials: { clay: 2, iron: 1, crystal: 0, heartstone: 0 },
     recipes: recipesForMined(12_000_000),
   };
 }
@@ -56,8 +67,14 @@ function granite(): Mountain {
 function busy(): Mountain {
   return {
     ...granite(),
-    pocket: 0,
-    materials: { clay: 0, iron: 0, crystal: 0, heartstone: 0 },
+    stock: {
+      ...granite().stock,
+      stones: 0,
+      clay: 0,
+      iron: 0,
+      crystal: 0,
+      heartstone: 0,
+    },
     bench: {
       recipe: "sturdy-props",
       startedAt: NOW,
@@ -71,9 +88,12 @@ function opening(): Mountain {
   const granite = LAYERS[1].from;
   return {
     ...minedMountain(granite),
-    pocket: 400_000,
+    stock: {
+      ...minedMountain(granite).stock,
+      stones: 400_000,
+      ...materialsFromMined(granite),
+    },
     owned: { ...minedMountain(granite).owned, helper: 40 },
-    materials: materialsFromMined(granite),
   };
 }
 
@@ -129,8 +149,14 @@ describe("a recipe row (#374)", () => {
   it("names the level as its badge, the materials on the third line and 500K on the tag", () => {
     const rich: Mountain = {
       ...granite(),
-      pocket: 80_000_000,
-      materials: { clay: 40, iron: 40, crystal: 0, heartstone: 0 },
+      stock: {
+        ...granite().stock,
+        stones: 80_000_000,
+        clay: 40,
+        iron: 40,
+        crystal: 0,
+        heartstone: 0,
+      },
     };
     const row = recipeRowView(
       recipe(workshopCards(rich, NOW), "iron-rails"),
@@ -308,10 +334,10 @@ describe("the bench row (#374)", () => {
 });
 
 describe("the material plates (#374)", () => {
-  const shed = (materials: NonNullable<Mountain["materials"]>): Mountain => ({
-    ...granite(),
-    materials,
-  });
+  const shed = (materials: Materials): Mountain => {
+    const base = granite();
+    return { ...base, stock: { ...base.stock, ...materials } };
+  };
 
   it("two plates: clay then iron, their counts, words and labels", () => {
     expect(
@@ -369,7 +395,7 @@ describe("the material plates (#374)", () => {
     const old: Mountain = {
       ...createMountain(),
       remaining: MOUNTAIN_STONES - 1_000_000,
-      materials: EMPTY_MATERIALS,
+      stock: { ...createMountain().stock, ...EMPTY_MATERIALS },
     };
     expect(materialPlates(old)).toEqual([
       {

@@ -1,15 +1,20 @@
 import { factor } from "./economy/factors";
 import {
-  EMPTY_MATERIALS,
   LAYERS,
   MATERIAL_EVERY,
-  addMaterials,
   type LayerId,
   type MaterialId,
-  type Materials,
 } from "./layers";
 import type { Mountain } from "./mountain";
 import { minedOut, stretch } from "./scale";
+import {
+  GOOD_IDS,
+  pay,
+  refund,
+  priceAmount,
+  type GoodId,
+  type Price,
+} from "./stock";
 import type { TierId } from "./tiers";
 
 /**
@@ -274,22 +279,14 @@ export const NOTHING_CRAFTED: Crafted = Object.fromEntries(
   RECIPE_IDS.map((id) => [id, 0]),
 ) as Record<RecipeId, number>;
 
-export type RecipeCost = {
-  readonly stones: number;
-  readonly materials: Materials;
-};
-
 /**
  * Clay-only recipes work in the Topsoil (D1, #244): the bench opens once the
  * Topsoil has dug the clay for one Blasting charge. Everything that needs a
  * deeper material waits for the full workshop in the Granite.
  */
 function clayOnly(id: RecipeId): boolean {
-  const materials = recipeCost(id).materials;
-  return (
-    materials.iron === 0 &&
-    materials.crystal === 0 &&
-    materials.heartstone === 0
+  return recipePrice(id).every(
+    (line) => line.good === "stones" || line.good === "clay",
   );
 }
 
@@ -411,22 +408,31 @@ function scaledCount(base: number, scale: number): number {
 }
 
 /**
- * Stones and materials a craft spends right now. The cost factor defaults to 1.
- * `k` is the run's stretch (M13): only the stone price grows with the mountain;
- * materials stay the same count.
+ * Stones and materials a craft spends right now, as a price (#560): the
+ * goods it asks, stones first, none at 0. The cost factor defaults to 1.
+ * `k` is the run's stretch (M13): only the stone price grows with the
+ * mountain; materials stay the same count.
  */
-export function recipeCost(id: RecipeId, k = 1): RecipeCost {
+export function recipePrice(id: RecipeId, k = 1): Price {
   const recipe = recipeById(id);
   const scale = factor(recipeCostId(id));
-  return {
-    stones: scaledCount(recipe.stones, scale * k),
-    materials: {
-      clay: scaledCount(recipe.materials.clay ?? 0, scale),
-      iron: scaledCount(recipe.materials.iron ?? 0, scale),
-      crystal: scaledCount(recipe.materials.crystal ?? 0, scale),
-      heartstone: scaledCount(recipe.materials.heartstone ?? 0, scale),
-    },
-  };
+  return pricedGoods((good) =>
+    good === "stones"
+      ? scaledCount(recipe.stones, scale * k)
+      : scaledCount(recipe.materials[good] ?? 0, scale),
+  );
+}
+
+/** The goods with an amount above 0, in the goods table's order. */
+function pricedGoods(amountOf: (good: GoodId) => number): Price {
+  const price: { good: GoodId; amount: number }[] = [];
+  for (const good of GOOD_IDS) {
+    const amount = amountOf(good);
+    if (amount > 0) {
+      price.push({ good, amount });
+    }
+  }
+  return price;
 }
 
 export function craftedLevel(
@@ -451,28 +457,6 @@ function strengthOf(id: RecipeId): number {
 /** First-cut number times this recipe's strength factor. 1 leaves it alone. */
 function tuned(base: number, id: RecipeId): number {
   return base * strengthOf(id);
-}
-
-function materialsOf(mountain: Mountain): Materials {
-  return mountain.materials;
-}
-
-function canAfford(have: Materials, cost: Materials): boolean {
-  return (
-    have.clay >= cost.clay &&
-    have.iron >= cost.iron &&
-    have.crystal >= cost.crystal &&
-    have.heartstone >= cost.heartstone
-  );
-}
-
-function spendMaterials(have: Materials, cost: Materials): Materials {
-  return {
-    clay: have.clay - cost.clay,
-    iron: have.iron - cost.iron,
-    crystal: have.crystal - cost.crystal,
-    heartstone: have.heartstone - cost.heartstone,
-  };
 }
 
 function atCap(recipe: Recipe, mountain: Mountain): boolean {
@@ -503,15 +487,12 @@ export function startCraft(
   if (atCap(recipe, mountain)) {
     return mountain;
   }
-  const cost = recipeCost(id, stretch(mountain));
-  const have = materialsOf(mountain);
-  if (mountain.pocket < cost.stones || !canAfford(have, cost.materials)) {
+  const paid = pay(mountain, recipePrice(id, stretch(mountain)));
+  if (paid === mountain) {
     return mountain;
   }
   return {
-    ...mountain,
-    pocket: mountain.pocket - cost.stones,
-    materials: spendMaterials(have, cost.materials),
+    ...paid,
     bench: {
       recipe: id,
       startedAt: now,
@@ -620,31 +601,17 @@ function refundUnits(
   return Math.floor((amount * unusedMs) / durationMs);
 }
 
-/** Stones and materials a cancel would put back. Nothing once the clock has rung. */
-export type CraftRefund = {
-  readonly stones: number;
-  readonly materials: Materials;
-};
-
-const NO_REFUND: CraftRefund = { stones: 0, materials: EMPTY_MATERIALS };
-
-/** What is still owed if this craft leaves the bench before it finishes. */
-function owed(mountain: Mountain, bench: Bench, now: number): CraftRefund {
-  const cost = recipeCost(bench.recipe, stretch(mountain));
+/** What is still owed if this craft leaves the bench before it finishes, as a price. */
+function owed(mountain: Mountain, bench: Bench, now: number): Price {
+  const cost = recipePrice(bench.recipe, stretch(mountain));
   const duration = liveTimerMs(recipeById(bench.recipe));
   if (duration === undefined) {
-    return { stones: cost.stones, materials: cost.materials };
+    return cost;
   }
   const unusedMs = Math.max(0, duration - Math.max(0, now - bench.startedAt));
-  return {
-    stones: refundUnits(cost.stones, unusedMs, duration),
-    materials: {
-      clay: refundUnits(cost.materials.clay, unusedMs, duration),
-      iron: refundUnits(cost.materials.iron, unusedMs, duration),
-      crystal: refundUnits(cost.materials.crystal, unusedMs, duration),
-      heartstone: refundUnits(cost.materials.heartstone, unusedMs, duration),
-    },
-  };
+  return pricedGoods((good) =>
+    refundUnits(priceAmount(cost, good), unusedMs, duration),
+  );
 }
 
 /**
@@ -654,13 +621,13 @@ function owed(mountain: Mountain, bench: Bench, now: number): CraftRefund {
 export function cancelRefund(
   mountain: Mountain,
   now: number,
-): CraftRefund | undefined {
+): Price | undefined {
   const bench = mountain.bench;
   if (bench === undefined) {
     return undefined;
   }
   if (now >= bench.endsAt) {
-    return NO_REFUND;
+    return [];
   }
   return owed(mountain, bench, now);
 }
@@ -680,13 +647,7 @@ export function cancelCraft(mountain: Mountain, now: number): Mountain {
   if (now >= bench.endsAt) {
     return settleBench(mountain, now);
   }
-  const refund = owed(mountain, bench, now);
-  const cleared = dropBench(mountain);
-  return {
-    ...cleared,
-    pocket: mountain.pocket + refund.stones,
-    materials: addMaterials(materialsOf(mountain), refund.materials),
-  };
+  return refund(dropBench(mountain), owed(mountain, bench, now));
 }
 
 /** Live buffs the sheet can count down. A charge, grease, flare, or ember. */

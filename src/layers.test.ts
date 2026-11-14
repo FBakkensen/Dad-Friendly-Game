@@ -9,7 +9,6 @@ import {
   ROCK_STAGE_OFF,
   SLOWED_SPEED,
   MATERIAL_EVERY,
-  addMaterials,
   hardnessFactorId,
   bandSuits,
   hardnessOf,
@@ -316,13 +315,6 @@ describe("materials", () => {
       crystal: 0,
       heartstone: 0,
     });
-    expect(addMaterials(undefined, EMPTY_MATERIALS)).toEqual(EMPTY_MATERIALS);
-    expect(
-      addMaterials(
-        { clay: 2, iron: 0, crystal: 0, heartstone: 0 },
-        { clay: 1, iron: 4, crystal: 0, heartstone: 0 },
-      ),
-    ).toEqual({ clay: 3, iron: 4, crystal: 0, heartstone: 0 });
   });
 });
 

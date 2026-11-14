@@ -13,7 +13,7 @@ import {
   gearMultiplier,
   axleCrewMultiplier,
   recipeById,
-  recipeCost,
+  recipePrice,
   troubleGapScale,
   veinOftenScale,
   COLD_CLOCKS,
@@ -26,7 +26,7 @@ import { KNOBS } from "./knobs";
 const posted = {
   ...BARE_MOUNTAIN,
   remaining: 1_000,
-  pocket: 0,
+  stock: { ...BARE_MOUNTAIN.stock, stones: 0 },
   owned: {
     ...BARE_MOUNTAIN.owned,
     helper: 0,
@@ -65,14 +65,7 @@ function reading(factorId: string): number {
   }
   if (factorId.startsWith("recipe.") && factorId.endsWith(".cost")) {
     const id = factorId.slice("recipe.".length, -".cost".length) as RecipeId;
-    const cost = recipeCost(id);
-    return (
-      cost.stones +
-      cost.materials.clay +
-      cost.materials.iron +
-      cost.materials.crystal +
-      cost.materials.heartstone
-    );
+    return recipePrice(id).reduce((total, line) => total + line.amount, 0);
   }
   if (factorId.startsWith("recipe.") && factorId.endsWith(".strength")) {
     const id = factorId.slice(

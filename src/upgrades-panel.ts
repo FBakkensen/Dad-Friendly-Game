@@ -52,6 +52,7 @@ import {
   type Upgrade,
   type UpgradeId,
 } from "./upgrades";
+import { UNSHOWN_PRICE, type Price } from "./stock";
 
 /*
  * The Upgrades drawer (#373): Quick boosts, Lasting upgrades and Brought home as board rows,
@@ -88,7 +89,7 @@ interface BuyTaps {
   readonly now: () => number;
   readonly onBoard: RowsOnBoard;
   /** Each lasting upgrade's exact price as the last ready paint showed it (#367). */
-  readonly shownPrices: Map<UpgradeId, number | undefined>;
+  readonly shownPrices: Map<UpgradeId, Price | undefined>;
   /** Paints the drawer again from the store. */
   readonly repaint: () => void;
 }
@@ -205,7 +206,7 @@ function buildRows(taps: BuyTaps): UpgradesRows {
       () => ({
         kind: "buyUpgrade",
         id: upgrade.id,
-        price: taps.shownPrices.get(upgrade.id) ?? Number.NaN,
+        price: taps.shownPrices.get(upgrade.id) ?? UNSHOWN_PRICE,
       }),
     );
     return { upgrade, id, row };
@@ -382,7 +383,7 @@ function paintReady(
     at: number;
     newId: RevealRowId | undefined;
     onBoard: RowsOnBoard;
-    shownPrices: Map<UpgradeId, number | undefined>;
+    shownPrices: Map<UpgradeId, Price | undefined>;
   },
 ): void {
   const boostsShowing = paintBuyRows(
@@ -493,7 +494,7 @@ export function createUpgradesPanel({
   });
   sheet.kick(UPGRADES_KICK);
 
-  const shownPrices = new Map<UpgradeId, number | undefined>();
+  const shownPrices = new Map<UpgradeId, Price | undefined>();
   const rows = buildRows({
     progress,
     dispatch,

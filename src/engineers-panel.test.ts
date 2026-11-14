@@ -63,7 +63,7 @@ const withAda = (patch: MountainPatch = {}): Mountain =>
   patched(
     {
       ...adaCrew,
-      pocket: nilsPrice + 3_000_000,
+      stock: { ...adaCrew.stock, stones: nilsPrice + 3_000_000 },
     },
     patch,
   );
@@ -329,7 +329,7 @@ describe("the Engineers drawer (#455)", () => {
   it("keeps Engineers on the rail, and opens the drawer once a borer arrives", () => {
     const screen = mount({
       ...minedMountain(10_000_000),
-      pocket: 10_000_000,
+      stock: { ...minedMountain(10_000_000).stock, stones: 10_000_000 },
       owned: { ...minedMountain(10_000_000).owned, helper: 4, drill: 1 },
     });
     const key = keyOf(screen);
@@ -555,12 +555,15 @@ describe("the Engineers drawer (#455)", () => {
     expect(screen.engineersPage()?.classList).toContain(
       "engineer-promote-page",
     );
-    screen.progress.applyMutation((current) => ({ ...current, pocket: 0 }));
+    screen.progress.applyMutation((current) => ({
+      ...current,
+      stock: { ...current.stock, stones: 0 },
+    }));
     // The page that can no longer promote gives way to the list.
     expect(screen.engineersPage()).toBeUndefined();
     expect(kick(screen)).toBe(ENGINEER_SHEET_SUB);
     expect(saved(screen).engineers).toHaveLength(1);
-    expect(saved(screen).pocket).toBe(0);
+    expect(saved(screen).stock.stones).toBe(0);
     expect(saved(screen).owned.helper).toBe(20);
   });
 
@@ -646,7 +649,7 @@ describe("the Engineers drawer (#455)", () => {
 
   it("greys promotion when the pocket is light, and a tap blinks red", () => {
     setReducedMotion(false);
-    const screen = mount(taughtAda({ pocket: 10 }));
+    const screen = mount(taughtAda({ stock: { stones: 10 } }));
     keyOf(screen).click();
     const promote = part(screen, ".engineer-promote");
     expect(rowPart(promote, "price")).toBe(formatCompact(nilsPrice));

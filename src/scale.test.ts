@@ -1,3 +1,4 @@
+import { priceAmount } from "./stock";
 import { describe, expect, it } from "vitest";
 import { BOOSTS, boostById, boostCost } from "./boosts";
 import { tierLock } from "./crew";
@@ -44,7 +45,7 @@ import {
 import { veinReward } from "./veins";
 import {
   RECIPE_IDS,
-  recipeCost,
+  recipePrice,
   startCraft,
   TOPSOIL_BENCH_FROM,
 } from "./workshop";
@@ -71,7 +72,7 @@ describe("kid-run stretch (M13, #253)", () => {
     const kid = { ...createMountain(), stretch: 2 };
     expect(stonesLeft(kid)).toBe(2 * stonesLeft(createMountain()));
     const dug = digStones(kid, 1_000);
-    expect(dug.pocket).toBe(1_000);
+    expect(dug.stock.stones).toBe(1_000);
     expect(kid.remaining - dug.remaining).toBe(500);
     expect(digStones(kid, stonesLeft(kid)).remaining).toBe(0);
     const cart = tierById("cart");
@@ -136,20 +137,28 @@ describe("kid-run stretch (M13, #253)", () => {
   });
 
   it("stretches workshop recipe stones with the mountain, not materials", () => {
-    expect(recipeCost("blasting-charge").stones).toBe(100_000);
-    expect(recipeCost("blasting-charge", 2).stones).toBe(200_000);
-    expect(recipeCost("blasting-charge", 2).materials.clay).toBe(
-      recipeCost("blasting-charge").materials.clay,
+    expect(priceAmount(recipePrice("blasting-charge"), "stones")).toBe(100_000);
+    expect(priceAmount(recipePrice("blasting-charge", 2), "stones")).toBe(
+      200_000,
+    );
+    expect(priceAmount(recipePrice("blasting-charge", 2), "clay")).toBe(
+      priceAmount(recipePrice("blasting-charge"), "clay"),
     );
     const kid = {
       ...minedMountain(TOPSOIL_BENCH_FROM),
       stretch: 2,
-      pocket: 250_000,
-      materials: { clay: 10, iron: 0, crystal: 0, heartstone: 0 },
+      stock: {
+        ...minedMountain(TOPSOIL_BENCH_FROM).stock,
+        stones: 250_000,
+        clay: 10,
+        iron: 0,
+        crystal: 0,
+        heartstone: 0,
+      },
     };
     const spent = startCraft(kid, "blasting-charge", 1);
     expect(spent).not.toBe(kid);
-    expect(spent.pocket).toBe(50_000);
+    expect(spent.stock.stones).toBe(50_000);
   });
 
   it("keeps run 10-12 numbers sane: short text, safe whole numbers, a good save", () => {
@@ -227,8 +236,8 @@ describe("band scales (#356)", () => {
     expect(depthAfterStones(m, stonesLeft(m) * 2)).toBe(MOUNTAIN_STONES);
   });
 
-  const whole = (m: { pocket: number; remaining: number }) => {
-    expect(Number.isInteger(m.pocket)).toBe(true);
+  const whole = (m: Pick<Mountain, "stock" | "remaining">) => {
+    expect(Number.isInteger(m.stock.stones)).toBe(true);
   };
   const roundTrips = (m: Mountain) => {
     expect(reloaded(m)).toBeDefined();
@@ -361,16 +370,21 @@ describe("one-off stretch (#356)", () => {
   });
 
   it("prices Better boots and a promotion by the band", () => {
-    const caves = { ...at(45_000_000), pocket: 1e12 };
+    const base = at(45_000_000);
+    const caves = { ...base, stock: { ...base.stock, stones: 1e12 } };
     const boots = upgradeById("boots").firstCost * BAND_SCALE[2];
     expect(upgradeCost(upgradeById("boots"), 0, oneOffStretch(caves))).toBe(
       boots,
     );
     const bought = buyUpgrade(
-      { ...caves, pocket: boots, owned: { ...caves.owned, helper: 10 } },
+      {
+        ...caves,
+        stock: { ...caves.stock, stones: boots },
+        owned: { ...caves.owned, helper: 10 },
+      },
       "boots",
     );
-    expect(bought.pocket).toBe(0);
+    expect(bought.stock.stones).toBe(0);
     const granite = {
       ...at(10_000_000),
       engineers: [{ name: "Ada", rank: 0, trips: 0, post: "camp" }],
@@ -407,9 +421,9 @@ describe("the stretch cap keeps every count a safe integer (#366)", () => {
     };
     const dug = digStones(kid, stonesLeft(kid));
     expect(dug.remaining).toBe(0);
-    expect(Number.isSafeInteger(dug.pocket)).toBe(true);
+    expect(Number.isSafeInteger(dug.stock.stones)).toBe(true);
     const back = roundTrip(dug);
-    expect(back?.pocket).toBe(dug.pocket);
+    expect(back?.stock.stones).toBe(dug.stock.stones);
     expect(back?.stretch).toBe(MAX_STRETCH);
     expect(back?.legacy).toBe(1_000);
   });
@@ -449,7 +463,7 @@ describe("the stretch cap keeps every count a safe integer (#366)", () => {
         }),
       ),
       ...BOOSTS.map((boost) => boostCost(boost, crew, k)),
-      ...RECIPE_IDS.map((id) => recipeCost(id, k).stones),
+      ...RECIPE_IDS.map((id) => priceAmount(recipePrice(id, k), "stones")),
       veinReward(m),
     ];
   }
@@ -482,7 +496,10 @@ describe("the stretch cap keeps every count a safe integer (#366)", () => {
     // The most a pocket can hold: every stone of this run.
     const full = {
       ...deep,
-      pocket: stonesLeft({ ...deep, remaining: MOUNTAIN_STONES }),
+      stock: {
+        ...deep.stock,
+        stones: stonesLeft({ ...deep, remaining: MOUNTAIN_STONES }),
+      },
     };
     const tap = upgradeCost(upgradeById("tap"), 9, oneOffStretch(deep)) ?? 0;
     expect(tap).toBeGreaterThan(Number.MAX_SAFE_INTEGER);

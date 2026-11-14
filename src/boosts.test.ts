@@ -15,7 +15,7 @@ import { NO_UPGRADES } from "./upgrades";
 const MIN = 60_000;
 const crew = {
   ...minedMountain(0),
-  pocket: 1_000_000,
+  stock: { ...minedMountain(0).stock, stones: 1_000_000 },
   owned: { ...minedMountain(0).owned, helper: 500 },
 }; // 500 workers, x8 at the 100 mark: 4,000/s
 
@@ -119,8 +119,8 @@ describe("quick boosts", () => {
       pricing: { crewPerSecond: 500, tapYield: 500 },
     });
     // Its taps' worth at 500 a tap.
-    expect(sharp.pocket).toBe(
-      crew.pocket - boostById("sharper").priceUnits * 500,
+    expect(sharp.stock.stones).toBe(
+      crew.stock.stones - boostById("sharper").priceUnits * 500,
     );
     expect(sharp.boosts).toEqual({ ...NO_BOOSTS, sharper: 1_000 + 10 * MIN });
     expect(boostLeft(sharp, "sharper", 1_000 + 4 * MIN)).toBe(6 * MIN);
@@ -156,7 +156,7 @@ describe("quick boosts", () => {
       }).boosts.sharper,
     ).toBe(later + 10 * MIN);
     // Too poor: nothing happens.
-    const poor = { ...crew, pocket: 99 };
+    const poor = { ...crew, stock: { ...crew.stock, stones: 99 } };
     expect(
       buyBoost({
         mountain: poor,
@@ -176,7 +176,7 @@ describe("quick boosts", () => {
     expect(effectiveRates(strong).tapYield).toBe(133);
     expect(effectiveRates(strong, 5 * MIN).tapYield).toBe(266);
     expect(effectiveRates(strong, 10 * MIN).tapYield).toBe(133);
-    expect(mineByHand(strong, 0).pocket - strong.pocket).toBe(266);
+    expect(mineByHand(strong, 0).stock.stones - strong.stock.stones).toBe(266);
   });
 
   it("Overtime doubles the crew while playing, but never away earnings", () => {

@@ -32,7 +32,7 @@ function lived(): Mountain {
   return {
     ...fresh,
     remaining: MOUNTAIN_STONES - 80_000,
-    pocket: 1_234,
+    stock: { ...fresh.stock, stones: 1_234 },
     owned: { ...fresh.owned, helper: 30, cart: 12, drill: 4, borer: 1, kid: 2 },
     legacy: 3,
     startedAt: 1_700,
@@ -204,7 +204,7 @@ describe("the version 8 save (#558)", () => {
 
   it("stock has no cap but the safe-integer limit", () => {
     const read = readSave(withGame({ stock: { clay: 10 ** 12 } }));
-    expect(okMountain(read)?.materials.clay).toBe(10 ** 12);
+    expect(okMountain(read)?.stock.clay).toBe(10 ** 12);
     expect(
       readSave(withGame({ stock: { clay: Number.MAX_SAFE_INTEGER + 2 } })).kind,
     ).toBe("bad");

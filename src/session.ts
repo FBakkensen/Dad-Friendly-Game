@@ -222,7 +222,7 @@ export function saveCounts(mountain: Mountain): {
   mined: number;
   pocket: number;
 } {
-  return { mined: minedOut(mountain), pocket: mountain.pocket };
+  return { mined: minedOut(mountain), pocket: mountain.stock.stones };
 }
 
 /** The trouble that is up, if any. */

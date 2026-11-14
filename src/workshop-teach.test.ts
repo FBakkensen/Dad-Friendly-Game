@@ -18,9 +18,12 @@ const GRANITE = LAYERS[1].from;
 function opening(): Mountain {
   return {
     ...minedMountain(GRANITE),
-    pocket: 400_000,
+    stock: {
+      ...minedMountain(GRANITE).stock,
+      stones: 400_000,
+      ...materialsFromMined(GRANITE),
+    },
     owned: { ...minedMountain(GRANITE).owned, helper: 40 },
-    materials: materialsFromMined(GRANITE),
   };
 }
 
@@ -33,7 +36,7 @@ describe("Workshop first visit (#243)", () => {
 
   it("can pay for the first craft the moment the Workshop opens", () => {
     const at = opening();
-    expect(at.materials.clay).toBe(10);
+    expect(at.stock.clay).toBe(10);
     expect(startCraft(at, FIRST_CRAFT, 0).bench?.recipe).toBe(FIRST_CRAFT);
     const card = workshopCards(at, 0).find(
       (item) => item.kind === "recipe" && item.id === FIRST_CRAFT,

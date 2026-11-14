@@ -497,7 +497,7 @@ describe("design token mocks (#234)", () => {
     const drillPrice = buyPriceWords(
       tierCost(drillTier, owned(mountainB, drillTier)),
     );
-    expect(shown.textContent).toContain(formatCompact(mountainB.pocket));
+    expect(shown.textContent).toContain(formatCompact(mountainB.stock.stones));
     expect(shown.textContent).toContain(
       `${formatCompact(rates.crewPerSecond)} stones/s`,
     );

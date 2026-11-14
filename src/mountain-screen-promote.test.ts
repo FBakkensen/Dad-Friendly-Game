@@ -39,7 +39,7 @@ describe("a promotion on screen", () => {
         drill: 1,
         borer: 1,
       },
-      pocket: 9_000_000,
+      stock: { ...minedMountain(9_999_999).stock, stones: 9_000_000 },
       engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
     };
     const storage = createMemoryStorage();
@@ -70,10 +70,10 @@ describe("a promotion on screen", () => {
     expect(oneOffStretch(after)).toBeGreaterThan(oneOffStretch(before));
     expect(after.engineers).toHaveLength(1);
     expect(after.owned.helper).toBe(20);
-    expect(after.pocket).toBeGreaterThanOrEqual(before.pocket);
+    expect(after.stock.stones).toBeGreaterThanOrEqual(before.stock.stones);
     const dearer = promoteCost(after);
     expect(dearer).toBeGreaterThan(shown);
-    expect(after.pocket).toBeGreaterThanOrEqual(dearer);
+    expect(after.stock.stones).toBeGreaterThanOrEqual(dearer);
     // Back on the list, with no cheer, and the row's tag at the new price.
     expect(screen.engineersPage()).toBeUndefined();
     expect(row.hidden).toBe(false);
@@ -81,12 +81,12 @@ describe("a promotion on screen", () => {
     expect(row.getAttribute("aria-label")).toContain(promoteOffer(dearer));
 
     // Stepped up again at the price now on the row, Nils joins at that price.
-    const pocket = after.pocket;
+    const pocket = after.stock.stones;
     row.click();
     sheet.querySelector<HTMLButtonElement>(".engineer-confirm-yes")?.click();
     const promoted = screen.progress.getSnapshot().mountain;
     expect(promoted.engineers).toHaveLength(2);
-    expect(promoted.pocket).toBe(pocket - dearer);
+    expect(promoted.stock.stones).toBe(pocket - dearer);
     screen.root.remove();
   });
 });

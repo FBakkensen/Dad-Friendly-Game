@@ -104,7 +104,9 @@ function mustPrice(price: number | undefined): number {
 describe("rows open at a fixed point in the climb (#250)", () => {
   it("shows an upgrade at its owned count, never for a full pocket", () => {
     const start = createMountain();
-    expect(upgradeShown({ ...start, pocket: 1e12 }, arms)).toBe(false);
+    expect(
+      upgradeShown({ ...start, stock: { ...start.stock, stones: 1e12 } }, arms),
+    ).toBe(false);
     expect(
       upgradeShown({ ...start, owned: { ...start.owned, cart: 2 } }, arms),
     ).toBe(false);
@@ -114,7 +116,11 @@ describe("rows open at a fixed point in the climb (#250)", () => {
     const boots = upgradeById("boots");
     expect(
       upgradeShown(
-        { ...start, pocket: 1e12, owned: { ...start.owned, helper: 9 } },
+        {
+          ...start,
+          stock: { ...start.stock, stones: 1e12 },
+          owned: { ...start.owned, helper: 9 },
+        },
         boots,
       ),
     ).toBe(false);
@@ -127,7 +133,12 @@ describe("rows open at a fixed point in the climb (#250)", () => {
     const start = createMountain();
     const sharper = boostById("sharper");
     const overtime = boostById("overtime");
-    expect(boostShown({ ...start, pocket: 1e12 }, sharper)).toBe(false);
+    expect(
+      boostShown(
+        { ...start, stock: { ...start.stock, stones: 1e12 } },
+        sharper,
+      ),
+    ).toBe(false);
     expect(
       boostShown({ ...start, owned: { ...start.owned, cart: 1 } }, sharper),
     ).toBe(true);
@@ -237,7 +248,7 @@ describe("upgrades drawer reveal (#245)", () => {
       ...createMountain(),
       remaining: MOUNTAIN_STONES - 45_000_000,
       owned: { ...createMountain().owned, helper: 10 },
-      pocket,
+      stock: { ...createMountain().stock, stones: pocket },
     });
     screen.progress.applyMutation(() => caves(price - 1));
     screen.root
@@ -260,7 +271,7 @@ describe("upgrades drawer reveal (#245)", () => {
       ...createMountain(),
       remaining: MOUNTAIN_STONES - 45_000_000,
       owned: { ...createMountain().owned, helper: 10, cart: 3 },
-      pocket: 0,
+      stock: { ...createMountain().stock, stones: 0 },
     }));
     screen.root
       .querySelector<HTMLElement>(".board-key[data-key=upgrades]")
@@ -305,7 +316,10 @@ describe("upgrades drawer reveal (#245)", () => {
       ...createMountain(),
       owned: { ...createMountain().owned, cart: 3 },
       // Short of the first level, so the button is greyed.
-      pocket: Math.floor(mustPrice(upgradeCost(arms, 0)) * 0.65),
+      stock: {
+        ...createMountain().stock,
+        stones: Math.floor(mustPrice(upgradeCost(arms, 0)) * 0.65),
+      },
       upgrades: { ...NO_UPGRADES, steady: 1 },
       boosts: { sharper: 1, overtime: 1 },
     }));
@@ -331,11 +345,14 @@ describe("upgrades drawer reveal (#245)", () => {
     expect(screen.progress.getSnapshot().mountain.seen).toContain(
       "upgrade:tap",
     );
-    screen.progress.applyMutation((current) => ({ ...current, pocket: 0 }));
+    screen.progress.applyMutation((current) => ({
+      ...current,
+      stock: { ...current.stock, stones: 0 },
+    }));
     expect(row(screen.root, "tap")?.hidden).toBe(false);
     screen.progress.applyMutation((current) => ({
       ...current,
-      pocket: mustPrice(upgradeCost(arms, 0)),
+      stock: { ...current.stock, stones: mustPrice(upgradeCost(arms, 0)) },
     }));
     row(screen.root, "tap")?.click();
     expect(screen.progress.getSnapshot().mountain.upgrades.tap).toBe(1);
@@ -352,7 +369,7 @@ describe("upgrades drawer reveal (#245)", () => {
     screen.progress.applyMutation(() => ({
       ...createMountain(),
       owned: { ...createMountain().owned, cart: 1 },
-      pocket: 400,
+      stock: { ...createMountain().stock, stones: 400 },
       upgrades: { ...NO_UPGRADES, tap: 1 },
     }));
     screen.root
@@ -374,7 +391,7 @@ describe("upgrades drawer reveal (#245)", () => {
     screen.progress.applyMutation(() => ({
       ...createMountain(),
       owned: { ...createMountain().owned, cart: 1 },
-      pocket: 400,
+      stock: { ...createMountain().stock, stones: 400 },
       upgrades: { ...NO_UPGRADES, tap: 1 },
     }));
     screen.root
@@ -400,7 +417,7 @@ describe("upgrades drawer reveal (#245)", () => {
     screen.progress.applyMutation(() => ({
       ...createMountain(),
       owned: { ...createMountain().owned, cart: 1 },
-      pocket: 400,
+      stock: { ...createMountain().stock, stones: 400 },
       upgrades: { ...NO_UPGRADES, tap: 1 },
     }));
     const key = screen.root.querySelector<HTMLElement>(
@@ -414,7 +431,7 @@ describe("upgrades drawer reveal (#245)", () => {
     ];
     screen.progress.applyMutation((current) => ({
       ...current,
-      pocket: 50_000_000,
+      stock: { ...current.stock, stones: 50_000_000 },
       owned: { ...current.owned, cart: 5 },
     }));
     const seen = screen.progress.getSnapshot().mountain.seen;
@@ -432,7 +449,7 @@ describe("upgrades drawer reveal (#245)", () => {
     const screen = mount(() => clock);
     screen.progress.applyMutation(() => ({
       ...createMountain(),
-      pocket: 30_000,
+      stock: { ...createMountain().stock, stones: 30_000 },
     }));
     screen.root
       .querySelector<HTMLElement>(".board-key[data-key=upgrades]")
@@ -479,13 +496,13 @@ describe("upgrades drawer reveal (#245)", () => {
       owned: { ...createMountain().owned, cart: 3 },
       upgrades: { ...NO_UPGRADES, steady: 1 },
       boosts: { ...NO_BOOSTS, sharper: 1 },
-      pocket: 0,
+      stock: { ...createMountain().stock, stones: 0 },
     }));
     expect(key("buys")?.classList.contains("is-lit")).toBe(false);
     expect(key("upgrades")?.classList.contains("is-lit")).toBe(false);
     screen.progress.applyMutation((current) => ({
       ...current,
-      pocket: 60_000,
+      stock: { ...current.stock, stones: 60_000 },
     }));
     clock += 1000;
     // The Ready now plate and the bay lamps say what Buys can buy.
@@ -501,7 +518,10 @@ describe("upgrades drawer reveal (#245)", () => {
     const workshop = key("workshop");
     expect(workshop?.disabled).toBe(true);
     expect(workshop?.classList.contains("is-lit")).toBe(false);
-    screen.progress.applyMutation((current) => ({ ...current, pocket: 0 }));
+    screen.progress.applyMutation((current) => ({
+      ...current,
+      stock: { ...current.stock, stones: 0 },
+    }));
     expect(upgrades?.classList.contains("is-lit")).toBe(false);
     screen.root.remove();
   });

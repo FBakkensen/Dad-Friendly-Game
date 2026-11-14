@@ -1,3 +1,4 @@
+import { EMPTY_STOCK } from "./stock";
 // @vitest-environment happy-dom
 import { BOOSTS, boostById, boostCost, NO_BOOSTS } from "./boosts";
 import {
@@ -65,7 +66,7 @@ import { COLD_CLOCKS } from "./workshop";
 import { firstNotice } from "./session";
 
 /** An upgrade level's stone price on a Topsoil first run (k = 1). */
-function upgradePrice(id: UpgradeId, level = 0): number {
+function nextUpgradeCost(id: UpgradeId, level = 0): number {
   const price = upgradeCost(upgradeById(id), level);
   if (price === undefined) {
     throw new Error(`${id} has no level ${String(level)}`);
@@ -253,7 +254,7 @@ describe("the Buys drawer (#373)", () => {
     patched(
       {
         ...minedMountain(500_000),
-        pocket: 6_854,
+        stock: { ...minedMountain(500_000).stock, stones: 6_854 },
         owned: { ...minedMountain(500_000).owned, helper: 18, cart: 6 },
       },
       over,
@@ -261,7 +262,7 @@ describe("the Buys drawer (#373)", () => {
   /** Granite with no borer yet: the borer opens but the crew is short of hands. */
   const shortMountain = (): Mountain => ({
     ...minedMountain(12_000_000),
-    pocket: 50_000_000,
+    stock: { ...minedMountain(12_000_000).stock, stones: 50_000_000 },
     owned: {
       ...minedMountain(12_000_000).owned,
       helper: 12,
@@ -393,7 +394,10 @@ describe("the Buys drawer (#373)", () => {
     openBuys(screen);
     expect(foot.hidden).toBe(true);
     // A render while open keeps it aside; shut, it comes back for the next open to measure.
-    screen.progress.applyMutation((m) => ({ ...m, pocket: m.pocket + 1 }));
+    screen.progress.applyMutation((m) => ({
+      ...m,
+      stock: { ...m.stock, stones: m.stock.stones + 1 },
+    }));
     expect(foot.hidden).toBe(true);
     drawer.querySelector<HTMLButtonElement>(".board-sheet-back")?.click();
     expect(foot.hidden).toBe(false);
@@ -430,7 +434,7 @@ describe("the Buys drawer (#373)", () => {
   it("a finger that landed in the settle buys nothing, even when a busy page hands it over after (#373)", () => {
     let clock = 10_000;
     const screen = mountScreen({
-      storage: seededWith(early({ pocket: 1_000_000 })),
+      storage: seededWith(early({ stock: { stones: 1_000_000 } })),
       now: () => CLOCK,
       tapClock: () => clock,
       // Every press waited 100ms in the queue before its handler ran.
@@ -460,7 +464,7 @@ describe("the Buys drawer (#373)", () => {
 
     it("one key in the Buys header cycles ×1, ×10 and Max, and each row buys that many", () => {
       let clock = 10_000;
-      const storage = seededWith(early({ pocket: 10_000_000 }));
+      const storage = seededWith(early({ stock: { stones: 10_000_000 } }));
       const screen = mountScreen({
         storage,
         now: () => CLOCK,
@@ -486,8 +490,8 @@ describe("the Buys drawer (#373)", () => {
       expect(partOf(cart, "price")).toBe(formatCompact(ten.cost));
       fingerTap(cart);
       expect(carts(screen)).toBe(16);
-      expect(screen.progress.getSnapshot().mountain.pocket).toBe(
-        mountain.pocket - ten.cost,
+      expect(screen.progress.getSnapshot().mountain.stock.stones).toBe(
+        mountain.stock.stones - ten.cost,
       );
 
       clock += 2_000;
@@ -539,7 +543,7 @@ describe("the Buys drawer (#373)", () => {
 
     it("the amount is remembered on this device", () => {
       let clock = 10_000;
-      const storage = seededWith(early({ pocket: 10_000_000 }));
+      const storage = seededWith(early({ stock: { stones: 10_000_000 } }));
       const first = mountScreen({
         storage,
         now: () => CLOCK,
@@ -577,7 +581,7 @@ describe("the Buys drawer (#373)", () => {
     try {
       let clock = 10_000;
       const screen = mountScreen({
-        storage: seededWith(early({ pocket: 1_000_000 })),
+        storage: seededWith(early({ stock: { stones: 1_000_000 } })),
         now: () => CLOCK,
         tapClock: () => clock,
       });
@@ -611,7 +615,7 @@ describe("the Buys drawer (#373)", () => {
       let clock = 10_000;
       let age = 0;
       const screen = mountScreen({
-        storage: seededWith(early({ pocket: 1_000_000 })),
+        storage: seededWith(early({ stock: { stones: 1_000_000 } })),
         now: () => CLOCK,
         tapClock: () => clock,
         pressAge: () => age,
@@ -652,14 +656,14 @@ describe("the Buys drawer (#373)", () => {
       openBuys(screen);
       clock += BUYS_SETTLE_MS + 100;
       const drill = rowOf(screen, "drill");
-      const pocket = screen.progress.getSnapshot().mountain.pocket;
+      const pocket = screen.progress.getSnapshot().mountain.stock.stones;
       fingerTap(drill);
       expect(lampOf(drill)).toBe("-120px");
       // The blink runs on the board's own clock: move it with the timers.
       clock += 140;
       vi.advanceTimersByTime(140);
       expect(lampOf(drill)).toBe("0px");
-      expect(screen.progress.getSnapshot().mountain.pocket).toBe(pocket);
+      expect(screen.progress.getSnapshot().mountain.stock.stones).toBe(pocket);
       expect(screen.progress.getSnapshot().mountain.owned.drill).toBe(0);
       // A locked row blinks too, and buys nothing.
       clock += 1_000;
@@ -708,7 +712,9 @@ describe("the Buys drawer (#373)", () => {
         lamps.push(lamp());
       }
       expect(lamps.every((each) => each === rest)).toBe(true);
-      expect(screen.progress.getSnapshot().mountain.pocket).toBe(before.pocket);
+      expect(screen.progress.getSnapshot().mountain.stock.stones).toBe(
+        before.stock.stones,
+      );
       expect(screen.progress.getSnapshot().mountain.owned.drill).toBe(
         before.owned.drill,
       );
@@ -739,7 +745,7 @@ describe("the Buys drawer (#373)", () => {
       let clock = 10_000;
       const era: Mountain = {
         ...minedMountain(130_000_000),
-        pocket: 50_000_000,
+        stock: { ...minedMountain(130_000_000).stock, stones: 50_000_000 },
         owned: {
           ...minedMountain(130_000_000).owned,
           helper: 60,
@@ -853,7 +859,7 @@ describe("the Buys drawer (#373)", () => {
     const withCrown = mountScreen({
       storage: seededWith({
         ...minedMountain(130_000_000),
-        pocket: 1e12,
+        stock: { ...minedMountain(130_000_000).stock, stones: 1e12 },
         owned: {
           ...minedMountain(130_000_000).owned,
           helper: 200,
@@ -877,7 +883,7 @@ describe("the Buys drawer (#373)", () => {
     const noCrown = mountScreen({
       storage: seededWith({
         ...minedMountain(50_000_000),
-        pocket: 1e12,
+        stock: { ...minedMountain(50_000_000).stock, stones: 1e12 },
         owned: {
           ...minedMountain(50_000_000).owned,
           helper: 200,
@@ -950,7 +956,10 @@ describe("the Buys drawer (#373)", () => {
       const real = screen.progress.getSnapshot();
       const read = vi.spyOn(screen.progress, "getSnapshot").mockReturnValue({
         ...real,
-        mountain: { ...real.mountain, pocket: 0 },
+        mountain: {
+          ...real.mountain,
+          stock: { ...real.mountain.stock, stones: 0 },
+        },
       });
       const apply = vi.spyOn(screen.progress, "applyMutation");
       cart.click();
@@ -1056,7 +1065,10 @@ describe("the Buys drawer (#373)", () => {
   /** The Deep Heart after the Hammer, one Great Machine short: the kid row waits for it. */
   const machineShort = (): Mountain => ({
     ...minedMountain(130_000_000),
-    pocket: tierCost(tierById("machine"), 0) + 1_000,
+    stock: {
+      ...minedMountain(130_000_000).stock,
+      stones: tierCost(tierById("machine"), 0) + 1_000,
+    },
     owned: {
       ...minedMountain(130_000_000).owned,
       helper: 60,
@@ -1165,7 +1177,7 @@ describe("the Buys drawer (#373)", () => {
     const screen = mountScreen({
       storage: seededWith({
         ...minedMountain(10_000_000),
-        pocket: 20_000_000,
+        stock: { ...minedMountain(10_000_000).stock, stones: 20_000_000 },
         owned: {
           ...minedMountain(10_000_000).owned,
           helper: 9,
@@ -1196,7 +1208,7 @@ describe("the Buys drawer (#373)", () => {
   it("chip words that grow while the drawer is open never add a chip row", () => {
     let clock = 10_000;
     const screen = mountScreen({
-      storage: seededWith(early({ pocket: 1_000_000 })),
+      storage: seededWith(early({ stock: { stones: 1_000_000 } })),
       now: () => CLOCK,
       tapClock: () => clock,
     });
@@ -1239,7 +1251,7 @@ describe("the Buys drawer (#373)", () => {
     vi.useFakeTimers();
     try {
       const screen = mountScreen({
-        storage: seededWith(early({ pocket: 1_000_000 })),
+        storage: seededWith(early({ stock: { stones: 1_000_000 } })),
         now: () => CLOCK,
       });
       const cart = rowOf(screen, "cart");
@@ -1260,7 +1272,7 @@ describe("the Buys drawer (#373)", () => {
 
   it("a row held in place but no longer shown buys nothing", () => {
     const screen = mountScreen({
-      storage: seededWith(early({ pocket: 1_000_000 })),
+      storage: seededWith(early({ stock: { stones: 1_000_000 } })),
       now: () => CLOCK,
     });
     openBuys(screen);
@@ -1390,7 +1402,7 @@ describe("the Buys drawer (#373)", () => {
   it("after a buy, a reload within the Done hold ends it, and the next press acts", async () => {
     let clock = 10_000;
     const { screen, reload, land } = reloadable(
-      early({ pocket: 1_000_000 }),
+      early({ stock: { stones: 1_000_000 } }),
       () => clock,
     );
     openBuys(screen);
@@ -1401,7 +1413,7 @@ describe("the Buys drawer (#373)", () => {
     expect(partOf(rowOf(screen, "cart"), "verb")).toBe("Done");
     clock += 500;
     await reload();
-    await land(early({ pocket: 1_000_000 }));
+    await land(early({ stock: { stones: 1_000_000 } }));
     expect(partOf(rowOf(screen, "cart"), "verb")).toBe("Buy");
     rowOf(screen, "cart").click();
     expect(carts()).toBe(7);
@@ -1410,7 +1422,7 @@ describe("the Buys drawer (#373)", () => {
 
   it("trouble presses count during a Done hold", () => {
     const screen = mountScreen({
-      storage: seededWith(early({ pocket: 1_000_000 })),
+      storage: seededWith(early({ stock: { stones: 1_000_000 } })),
       now: () => CLOCK,
     });
     const cart = rowOf(screen, "cart");
@@ -1426,7 +1438,7 @@ describe("the Buys drawer (#373)", () => {
     vi.useFakeTimers();
     try {
       const screen = mountScreen({
-        storage: seededWith(early({ pocket: 1_000_000 })),
+        storage: seededWith(early({ stock: { stones: 1_000_000 } })),
         now: () => CLOCK,
       });
       screen.progress.layoutPreview.trouble("cart");
@@ -1447,7 +1459,7 @@ describe("the Buys drawer (#373)", () => {
     vi.useFakeTimers();
     try {
       const screen = mountScreen({
-        storage: seededWith(early({ pocket: 1_000_000 })),
+        storage: seededWith(early({ stock: { stones: 1_000_000 } })),
         now: () => CLOCK,
       });
       screen.progress.layoutPreview.trouble("cart");
@@ -1489,7 +1501,7 @@ describe("the Buys drawer (#373)", () => {
     setReducedMotion(false);
     try {
       const screen = mountScreen({
-        storage: seededWith(early({ pocket: 1_000_000 })),
+        storage: seededWith(early({ stock: { stones: 1_000_000 } })),
         now: () => CLOCK,
       });
       rowOf(screen, "helper").click();
@@ -1579,7 +1591,7 @@ describe("upgrades on screen", () => {
   const boostsOpen = (pocket: number): Mountain => ({
     ...minedMountain(30_000),
     owned: { ...minedMountain(30_000).owned, helper: 20, cart: 3, drill: 1 },
-    pocket,
+    stock: { ...minedMountain(30_000).stock, stones: pocket },
   });
   const sharperPrice = (mountain: Mountain): number =>
     boostCost(
@@ -1653,7 +1665,7 @@ describe("upgrades on screen", () => {
         tapClock: () => clock,
       });
       document.body.append(screen.root);
-      const pocket = screen.progress.getSnapshot().mountain.pocket;
+      const pocket = screen.progress.getSnapshot().mountain.stock.stones;
       const price = sharperPrice(screen.progress.getSnapshot().mountain);
       openUpgrades(screen);
       clock += BUYS_SETTLE_MS + 100;
@@ -1665,7 +1677,7 @@ describe("upgrades on screen", () => {
       expect(after.boosts.sharper).toBe(
         CLOCK + boostById("sharper").durationMs,
       );
-      expect(after.pocket).toBe(pocket - price);
+      expect(after.stock.stones).toBe(pocket - price);
       expect(partOf(sharper, "verb")?.textContent).toBe("Done");
       expect(partOf(sharper, "flag")?.textContent).toBe("Done");
       expect(sharper.getAttribute("aria-label")).toBe("Sharper picks. Done");
@@ -1727,7 +1739,7 @@ describe("upgrades on screen", () => {
         tapClock: () => clock,
       });
       document.body.append(screen.root);
-      const pocket = screen.progress.getSnapshot().mountain.pocket;
+      const pocket = screen.progress.getSnapshot().mountain.stock.stones;
       openUpgrades(screen);
       clock += BUYS_SETTLE_MS + 100;
       const sharper = rowOf(screen, '[data-boost="sharper"]');
@@ -1740,7 +1752,7 @@ describe("upgrades on screen", () => {
       vi.advanceTimersByTime(140);
       frames.push(lamp?.style.backgroundPositionX ?? "");
       expect(frames).toEqual(["-120px", "0px"]);
-      expect(screen.progress.getSnapshot().mountain.pocket).toBe(pocket);
+      expect(screen.progress.getSnapshot().mountain.stock.stones).toBe(pocket);
       expect(screen.progress.getSnapshot().mountain.boosts.sharper).toBe(0);
       screen.root.remove();
     } finally {
@@ -1762,9 +1774,13 @@ describe("upgrades on screen", () => {
     const sharper = rowOf(screen, '[data-boost="sharper"]');
     expect(sharper.classList.contains("is-can")).toBe(true);
     const real = screen.progress.getSnapshot();
-    const read = vi
-      .spyOn(screen.progress, "getSnapshot")
-      .mockReturnValue({ ...real, mountain: { ...real.mountain, pocket: 0 } });
+    const read = vi.spyOn(screen.progress, "getSnapshot").mockReturnValue({
+      ...real,
+      mountain: {
+        ...real.mountain,
+        stock: { ...real.mountain.stock, stones: 0 },
+      },
+    });
     const apply = vi.spyOn(screen.progress, "applyMutation");
     fingerTap(sharper);
     expect(apply).not.toHaveBeenCalled();
@@ -1780,12 +1796,12 @@ describe("upgrades on screen", () => {
       now: () => CLOCK,
       tapClock: () => clock,
     });
-    const pocket = screen.progress.getSnapshot().mountain.pocket;
+    const pocket = screen.progress.getSnapshot().mountain.stock.stones;
     openUpgrades(screen);
     clock += 100;
     const sharper = rowOf(screen, '[data-boost="sharper"]');
     fingerTap(sharper);
-    expect(screen.progress.getSnapshot().mountain.pocket).toBe(pocket);
+    expect(screen.progress.getSnapshot().mountain.stock.stones).toBe(pocket);
     expect(screen.progress.getSnapshot().mountain.boosts.sharper).toBe(0);
     // Back shares the settle: the double tap does not close it either.
     const back =
@@ -1823,7 +1839,7 @@ describe("upgrades on screen", () => {
       upgradeWhyLine(upgradeById("tap"), saved, CLOCK),
     );
     expect(partOf(arms, "price")?.textContent).toBe(
-      formatCompact(upgradePrice("tap", 2)),
+      formatCompact(nextUpgradeCost("tap", 2)),
     );
     const boots = rowOf(screen, '[data-upgrade="boots"]');
     expect(partOf(boots, "price")?.textContent).toBe("Owned");
@@ -1843,7 +1859,11 @@ describe("upgrades on screen", () => {
             // Three carts open Strong arms (#250). The pocket covers two
             // levels with stones to spare.
             owned: { ...minedMountain(30_000).owned, helper: 500, cart: 3 },
-            pocket: upgradePrice("tap", 0) + upgradePrice("tap", 1) + 86_000,
+            stock: {
+              ...minedMountain(30_000).stock,
+              stones:
+                nextUpgradeCost("tap", 0) + nextUpgradeCost("tap", 1) + 86_000,
+            },
           },
           clock,
         ),
@@ -1866,7 +1886,7 @@ describe("upgrades on screen", () => {
       expect(partOf(arms, "badge")?.textContent).toBe("Lv 0/10");
       expect(partOf(arms, "info")?.textContent).toBe("Taps 1 to 67.");
       expect(partOf(arms, "price")?.textContent).toBe(
-        formatCompact(upgradePrice("tap", 0)),
+        formatCompact(nextUpgradeCost("tap", 0)),
       );
       arms.click();
       expect(screen.progress.getSnapshot().mountain.upgrades.tap).toBe(1);
@@ -1874,7 +1894,7 @@ describe("upgrades on screen", () => {
       await vi.advanceTimersByTimeAsync(1_900);
       expect(partOf(arms, "badge")?.textContent).toBe("Lv 1/10");
       expect(partOf(arms, "price")?.textContent).toBe(
-        formatCompact(upgradePrice("tap", 1)),
+        formatCompact(nextUpgradeCost("tap", 1)),
       );
       expect(arms.classList.contains("is-can")).toBe(true);
 
@@ -2223,7 +2243,10 @@ describe("upgrades on screen", () => {
     };
     const m: Mountain = {
       ...base,
-      pocket: sharperPrice(base) + upgradePrice("tap", 0) + 1_000,
+      stock: {
+        ...base.stock,
+        stones: sharperPrice(base) + nextUpgradeCost("tap", 0) + 1_000,
+      },
     };
     let clock = 10_000;
     const screen = mountScreen({
@@ -2269,14 +2292,14 @@ describe("upgrades on screen", () => {
         },
         // Sharper picks was used: Overtime and the upgrades carry the dots.
         boosts: { ...NO_BOOSTS, sharper: CLOCK - 1 },
-        pocket: 0,
+        stock: { ...minedMountain(30_000).stock, stones: 0 },
       };
       const overtimePrice = boostCost(
         boostById("overtime"),
         effectiveRates(base),
         stretch(base),
       );
-      expect(upgradePrice("tap", 0)).toBeLessThan(overtimePrice);
+      expect(nextUpgradeCost("tap", 0)).toBeLessThan(overtimePrice);
       const screen = mountScreen({
         storage: seededWith(base, CLOCK),
         now: () => CLOCK,
@@ -2292,7 +2315,7 @@ describe("upgrades on screen", () => {
       // The pocket covers Strong arms, not Overtime: Strong arms becomes New.
       screen.progress.applyMutation((current) => ({
         ...current,
-        pocket: upgradePrice("tap", 0),
+        stock: { ...current.stock, stones: nextUpgradeCost("tap", 0) },
       }));
       await vi.advanceTimersByTimeAsync(1_000);
       expect(
@@ -2310,7 +2333,7 @@ describe("upgrades on screen", () => {
       ...minedMountain(30_000),
       owned: { ...minedMountain(30_000).owned, helper: 500, cart: 3, drill: 1 },
       boosts: { ...NO_BOOSTS, sharper: CLOCK - 1 },
-      pocket: 0,
+      stock: { ...minedMountain(30_000).stock, stones: 0 },
     };
     let landWith: (result: CloudLoadResult) => void = () => {
       throw new Error("load was not pending");
@@ -2328,7 +2351,13 @@ describe("upgrades on screen", () => {
     const screen = mountScreen({
       auth,
       cloudSave,
-      storage: seededWith({ ...base, pocket: upgradePrice("tap", 0) }, CLOCK),
+      storage: seededWith(
+        {
+          ...base,
+          stock: { ...base.stock, stones: nextUpgradeCost("tap", 0) },
+        },
+        CLOCK,
+      ),
       now: () => CLOCK,
     });
     // The parts, without the spare plate under them, whose fit changes as the drawer opens.
@@ -2389,9 +2418,9 @@ describe("upgrades on screen", () => {
       drawerOf(screen)?.querySelector<HTMLElement>(".board-sheet-list")?.hidden,
     ).toBe(false);
     clock += 100;
-    const pocket = screen.progress.getSnapshot().mountain.pocket;
+    const pocket = screen.progress.getSnapshot().mountain.stock.stones;
     fingerTap(rowOf(screen, '[data-boost="sharper"]'));
-    expect(screen.progress.getSnapshot().mountain.pocket).toBe(pocket);
+    expect(screen.progress.getSnapshot().mountain.stock.stones).toBe(pocket);
     expect(screen.progress.getSnapshot().mountain.boosts.sharper).toBe(0);
   });
 });
@@ -2543,7 +2572,7 @@ describe("quick boosts on screen", () => {
     const now = 5_000_000;
     const open: Mountain = {
       ...minedMountain(12_000_000),
-      pocket: 5_000_000,
+      stock: { ...minedMountain(12_000_000).stock, stones: 5_000_000 },
       owned: {
         ...minedMountain(12_000_000).owned,
         helper: 20,
@@ -2617,7 +2646,7 @@ describe("quick boosts on screen", () => {
       storage,
       mountain: {
         ...minedMountain(12_000_000),
-        pocket: 5_000_000,
+        stock: { ...minedMountain(12_000_000).stock, stones: 5_000_000 },
         owned: {
           ...minedMountain(12_000_000).owned,
           helper: 20,
@@ -2722,8 +2751,11 @@ describe("lasting upgrades on screen", () => {
       // Enough for the tenth worker and Better boots, with a little spare.
       mountain: {
         ...minedMountain(30_000),
-        pocket:
-          tierCost(tierById("helper"), 9) + upgradePrice("boots") + 50_000,
+        stock: {
+          ...minedMountain(30_000).stock,
+          stones:
+            tierCost(tierById("helper"), 9) + nextUpgradeCost("boots") + 50_000,
+        },
         owned: { ...minedMountain(30_000).owned, helper: 9 },
       },
       lastSeen: Date.now(),
@@ -2747,7 +2779,7 @@ describe("lasting upgrades on screen", () => {
     screen.root
       .querySelector<HTMLButtonElement>('.tier[data-tier="helper"]')
       ?.click();
-    expect(price()).toBe(formatCompact(upgradePrice("boots")));
+    expect(price()).toBe(formatCompact(nextUpgradeCost("boots")));
     expect(screen.text('[data-upgrade="boots"] .board-row-info')).toBe(
       "Workers 1/s to 2.4/s.",
     );
@@ -2869,7 +2901,10 @@ describe("crew synergies on screen", () => {
       storage,
       mountain: {
         ...minedMountain(1_000_000),
-        pocket: upgradePrice("cartSyn"),
+        stock: {
+          ...minedMountain(1_000_000).stock,
+          stones: nextUpgradeCost("cartSyn"),
+        },
         owned: { ...minedMountain(1_000_000).owned, helper: 12, cart: 5 },
       },
       lastSeen: Date.now(),
@@ -2931,7 +2966,7 @@ describe("crew staffing on screen", () => {
       storage,
       mountain: {
         ...minedMountain(0),
-        pocket: 1_000,
+        stock: { ...minedMountain(0).stock, stones: 1_000 },
         owned: { ...minedMountain(0).owned, helper: 3, cart: 3, drill: 2 },
       },
       lastSeen: Date.now(),
@@ -2973,7 +3008,7 @@ describe("crew staffing on screen", () => {
       mountain: {
         // The borer opens at 10M stones (#250).
         ...minedMountain(10_000_000),
-        pocket: 20_000_000,
+        stock: { ...EMPTY_STOCK, stones: 20_000_000 },
         owned: {
           ...minedMountain(10_000_000).owned,
           helper: 9,
@@ -3007,7 +3042,7 @@ describe("crew staffing on screen", () => {
         storage,
         mountain: {
           ...minedMountain(0),
-          pocket: 1_000,
+          stock: { ...minedMountain(0).stock, stones: 1_000 },
           owned: { ...minedMountain(0).owned, helper: 1, cart: 1 },
         },
         lastSeen: Date.now(),
@@ -3032,7 +3067,7 @@ describe("Flemming's cart (#216)", () => {
       storage,
       mountain: {
         ...minedMountain(4_500_000),
-        pocket: 255_200,
+        stock: { ...minedMountain(4_500_000).stock, stones: 255_200 },
         owned: {
           ...minedMountain(4_500_000).owned,
           helper: 18,
@@ -3162,7 +3197,7 @@ describe("Shield of Protection on the welcome card", () => {
       storage,
       mountain: {
         ...minedMountain(10_000_000),
-        pocket: 0,
+        stock: { ...minedMountain(10_000_000).stock, stones: 0 },
         owned: { ...minedMountain(10_000_000).owned, helper: 1 },
       },
       lastSeen: Date.now() - 30 * 3_600_000,
@@ -3182,7 +3217,7 @@ describe("Heart of Patience on the welcome card", () => {
       storage,
       mountain: {
         ...minedMountain(45_000_000),
-        pocket: 0,
+        stock: { ...minedMountain(45_000_000).stock, stones: 0 },
         owned: { ...minedMountain(45_000_000).owned, helper: 1 },
       },
       lastSeen: Date.now() - 6 * 3_600_000,
@@ -3201,7 +3236,7 @@ describe("crew line at a big crew", () => {
       storage,
       mountain: {
         ...minedMountain(30_000_000),
-        pocket: 0,
+        stock: { ...minedMountain(30_000_000).stock, stones: 0 },
         owned: {
           ...minedMountain(30_000_000).owned,
           helper: 98,
@@ -3530,7 +3565,7 @@ describe("player-facing workers (#139)", () => {
         // banded stones, so the welcome card, the Crown, and the Legend
         // finale all render.
         ...minedMountain(69_999_999),
-        pocket: 80_000_000,
+        stock: { ...EMPTY_STOCK, stones: 80_000_000 },
         owned: {
           ...minedMountain(69_999_999).owned,
           helper: 200,
@@ -3656,7 +3691,7 @@ describe("trouble on a tier row (#149)", () => {
   const crew = (): Mountain => ({
     ...minedMountain(0),
     remaining: 50_000_000,
-    pocket: 50_000_000,
+    stock: { ...minedMountain(0).stock, stones: 50_000_000 },
     owned: {
       ...minedMountain(0).owned,
       helper: 12,

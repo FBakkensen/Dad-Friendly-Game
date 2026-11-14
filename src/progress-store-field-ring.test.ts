@@ -62,7 +62,10 @@ describe("the field log kept on this device (#479)", () => {
       sessionStorage: storage,
       now: () => clock,
     });
-    first.applyMutation((mountain) => ({ ...mountain, pocket: 1_000 }));
+    first.applyMutation((mountain) => ({
+      ...mountain,
+      stock: { ...mountain.stock, stones: 1_000 },
+    }));
     first.dispatch({ kind: "buyTier", id: "helper" });
     clock += 5;
     await first.startOver();
@@ -94,7 +97,10 @@ describe("the field log kept on this device (#479)", () => {
       sessionStorage: storage,
       now: () => clock,
     });
-    progress.applyMutation((mountain) => ({ ...mountain, pocket: 10_000 }));
+    progress.applyMutation((mountain) => ({
+      ...mountain,
+      stock: { ...mountain.stock, stones: 10_000 },
+    }));
     progress.dispatch({ kind: "buyTier", id: "helper" });
     expect(storage.getItem(fieldRingKey(guestScope))).toBeNull();
     clock += FIELD_RING_GAP_MS;
@@ -234,7 +240,10 @@ describe("the field log kept on this device (#479)", () => {
       sessionStorage: storage,
       now: () => 1_000,
     });
-    progress.applyMutation((mountain) => ({ ...mountain, pocket: 1_000 }));
+    progress.applyMutation((mountain) => ({
+      ...mountain,
+      stock: { ...mountain.stock, stones: 1_000 },
+    }));
     progress.dispatch({ kind: "buyTier", id: "helper" });
     progress.flush();
     expect(logged).toContainEqual(
@@ -253,7 +262,10 @@ describe("the field log kept on this device (#479)", () => {
       auth: createMemoryAuth(),
       now: () => 1_000,
     });
-    progress.applyMutation((mountain) => ({ ...mountain, pocket: 1_000 }));
+    progress.applyMutation((mountain) => ({
+      ...mountain,
+      stock: { ...mountain.stock, stones: 1_000 },
+    }));
     progress.dispatch({ kind: "buyTier", id: "helper" });
     progress.flush();
     expect(codes(progress.fieldLog().events)).toEqual(["tier.buy"]);
@@ -309,7 +321,10 @@ describe("the field log kept on this device (#479)", () => {
       now: () => 1_000,
     });
     await Promise.resolve();
-    asDad.applyMutation((mountain) => ({ ...mountain, pocket: 1_000 }));
+    asDad.applyMutation((mountain) => ({
+      ...mountain,
+      stock: { ...mountain.stock, stones: 1_000 },
+    }));
     asDad.dispatch({ kind: "buyTier", id: "helper" });
     asDad.flush();
     asDad.dispose();
@@ -348,7 +363,10 @@ describe("the field log kept on this device (#479)", () => {
       sessionStorage: storage,
       now: () => 1_000,
     });
-    guestPage.applyMutation((mountain) => ({ ...mountain, pocket: 1_000 }));
+    guestPage.applyMutation((mountain) => ({
+      ...mountain,
+      stock: { ...mountain.stock, stones: 1_000 },
+    }));
     guestPage.dispatch({ kind: "buyTier", id: "helper" });
     guestPage.flush();
     guestPage.dispose();
@@ -365,7 +383,10 @@ describe("the field log kept on this device (#479)", () => {
       now: () => 2_000,
     });
     expect(codes(page.fieldLog().events)).toEqual(["tier.buy"]);
-    page.applyMutation((mountain) => ({ ...mountain, pocket: 2_000 }));
+    page.applyMutation((mountain) => ({
+      ...mountain,
+      stock: { ...mountain.stock, stones: 2_000 },
+    }));
     page.dispatch({ kind: "buyTier", id: "helper" });
     await auth.signIn();
     await Promise.resolve();

@@ -80,7 +80,7 @@ export function createBandLog(): (mountain: Mountain) => readonly BandEvent[] {
         events.push({ kind: "available", tier: id, layer });
       }
       const covers =
-        mountain.pocket >= tierCost(tier, count, stretch(mountain));
+        mountain.stock.stones >= tierCost(tier, count, stretch(mountain));
       if ((covers || bought > 0) && !seen.has(`p:${layer}:${id}`)) {
         seen.add(`p:${layer}:${id}`);
         events.push({ kind: "affordable", tier: id, layer, share, count: 0 });

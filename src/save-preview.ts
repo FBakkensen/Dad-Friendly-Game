@@ -15,7 +15,7 @@ export function previewConflictView(
   const local: Mountain = {
     ...createMountain(),
     remaining: MOUNTAIN_STONES - 12_400_000,
-    pocket: 1_200_000,
+    stock: { ...createMountain().stock, stones: 1_200_000 },
     owned: { ...tierRecord(0), cart: 6, drill: 4, borer: 1, helper: 28 },
     engineers: [
       { name: "Ada", rank: 1, trips: 2, post: "drill" },
@@ -27,7 +27,7 @@ export function previewConflictView(
   const remote: Mountain = {
     ...createMountain(),
     remaining: MOUNTAIN_STONES - 800_000,
-    pocket: 40_000,
+    stock: { ...createMountain().stock, stones: 40_000 },
     owned: { ...tierRecord(0), cart: 2, drill: 1, helper: 8 },
     engineers: [{ name: "Ada", rank: 0, trips: 0, post: "cart" }],
   };

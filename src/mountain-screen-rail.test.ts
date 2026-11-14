@@ -37,7 +37,7 @@ describe("the key rail (#373)", () => {
     patched(
       {
         ...minedMountain(500_000),
-        pocket: 6_854,
+        stock: { ...minedMountain(500_000).stock, stones: 6_854 },
         owned: { ...minedMountain(500_000).owned, helper: 18, cart: 6 },
       },
       over,
@@ -45,9 +45,15 @@ describe("the key rail (#373)", () => {
   /** play's workshop save: a craft on the bench, axle grease running. */
   const benchBusy = (at: number): Mountain => ({
     ...minedMountain(12_000_000),
-    pocket: 50_000,
+    stock: {
+      ...minedMountain(12_000_000).stock,
+      stones: 50_000,
+      clay: 0,
+      iron: 0,
+      crystal: 0,
+      heartstone: 0,
+    },
     owned: { ...minedMountain(12_000_000).owned, helper: 4, cart: 1 },
-    materials: { clay: 0, iron: 0, crystal: 0, heartstone: 0 },
     recipes: [
       "iron-rails",
       "sturdy-props",
@@ -69,7 +75,7 @@ describe("the key rail (#373)", () => {
     patched(
       {
         ...minedMountain(12_000_000),
-        pocket: 0,
+        stock: { ...minedMountain(12_000_000).stock, stones: 0 },
         owned: {
           ...minedMountain(12_000_000).owned,
           helper: 30,
@@ -200,7 +206,7 @@ describe("the key rail (#373)", () => {
 
   it("a double tap on a key never closes or buys in the drawer it opens", () => {
     let clock = 10_000;
-    const rich = early({ pocket: 5_000_000 });
+    const rich = early({ stock: { stones: 5_000_000 } });
     const screen = mountScreen({
       storage: seeded(rich, CLOCK),
       now: () => CLOCK,
@@ -238,7 +244,9 @@ describe("the key rail (#373)", () => {
     );
     row.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 1 }));
     expect(isOpen(screen, "upgrades")).toBe(true);
-    expect(screen.progress.getSnapshot().mountain.pocket).toBe(before.pocket);
+    expect(screen.progress.getSnapshot().mountain.stock.stones).toBe(
+      before.stock.stones,
+    );
     expect(screen.progress.getSnapshot().mountain.upgrades).toEqual(
       before.upgrades,
     );
@@ -275,7 +283,7 @@ describe("the key rail (#373)", () => {
     const short = mountScreen({
       storage: seeded({
         ...minedMountain(20_000_000),
-        pocket: 2_000_000,
+        stock: { ...minedMountain(20_000_000).stock, stones: 2_000_000 },
         owned: { ...minedMountain(20_000_000).owned, helper: 6, cart: 10 },
         seen: ["workshop"],
         taught: ["workshop"],
@@ -287,7 +295,7 @@ describe("the key rail (#373)", () => {
     const screen = mountScreen({
       storage: seeded({
         ...minedMountain(125_000_000),
-        pocket: 0,
+        stock: { ...minedMountain(125_000_000).stock, stones: 0 },
         owned: {
           ...minedMountain(125_000_000).owned,
           helper: 40,
@@ -516,7 +524,11 @@ describe("the key rail (#373)", () => {
       auth,
       cloudSave,
       storage: seeded(
-        crewed({ ...benchBusy(CLOCK), pocket: 5_000_000, taught: [] }),
+        crewed({
+          ...benchBusy(CLOCK),
+          stock: { ...benchBusy(CLOCK).stock, stones: 5_000_000 },
+          taught: [],
+        }),
         CLOCK,
       ),
       now: () => CLOCK,

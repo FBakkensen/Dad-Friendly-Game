@@ -31,8 +31,8 @@ describe("welcome-back ore (#247)", () => {
       materialsGained(12_000_000, minedOut(result.mountain)),
     );
     expect(result.report.materials.iron).toBeGreaterThan(0);
-    expect(result.mountain.materials.iron).toBe(
-      mountain.materials.iron + result.report.materials.iron,
+    expect(result.mountain.stock.iron).toBe(
+      mountain.stock.iron + result.report.materials.iron,
     );
   });
 

@@ -74,7 +74,7 @@ describe("golden veins", () => {
       veinReward({
         ...BARE_MOUNTAIN,
         remaining: 1_000,
-        pocket: 0,
+        stock: { ...BARE_MOUNTAIN.stock, stones: 0 },
         owned: {
           ...BARE_MOUNTAIN.owned,
           helper: 0,
@@ -90,7 +90,7 @@ describe("golden veins", () => {
       veinReward({
         ...BARE_MOUNTAIN,
         remaining: 1_000,
-        pocket: 0,
+        stock: { ...BARE_MOUNTAIN.stock, stones: 0 },
         owned: {
           ...BARE_MOUNTAIN.owned,
           helper: 3,
@@ -106,7 +106,7 @@ describe("golden veins", () => {
       veinReward({
         ...BARE_MOUNTAIN,
         remaining: 1,
-        pocket: 0,
+        stock: { ...BARE_MOUNTAIN.stock, stones: 0 },
         owned: {
           ...BARE_MOUNTAIN.owned,
           helper: 3,
@@ -123,7 +123,7 @@ describe("golden veins", () => {
       mineVein({
         ...BARE_MOUNTAIN,
         remaining: MOUNTAIN_STONES - 1_000,
-        pocket: 7,
+        stock: { ...BARE_MOUNTAIN.stock, stones: 7 },
         owned: {
           ...BARE_MOUNTAIN.owned,
           helper: 3,
@@ -137,7 +137,7 @@ describe("golden veins", () => {
     ).toEqual({
       ...BARE_MOUNTAIN,
       remaining: MOUNTAIN_STONES - 1_180,
-      pocket: 187,
+      stock: { ...BARE_MOUNTAIN.stock, stones: 187, ...EMPTY_MATERIALS },
       owned: {
         ...BARE_MOUNTAIN.owned,
         helper: 3,
@@ -147,12 +147,11 @@ describe("golden veins", () => {
         machine: 0,
         kid: 0,
       },
-      materials: EMPTY_MATERIALS,
     });
     const empty = {
       ...BARE_MOUNTAIN,
       remaining: 0,
-      pocket: 7,
+      stock: { ...BARE_MOUNTAIN.stock, stones: 7 },
       owned: {
         ...BARE_MOUNTAIN.owned,
         helper: 3,
@@ -170,19 +169,19 @@ describe("golden veins", () => {
     const mountain = {
       ...createMountain(),
       remaining: MOUNTAIN_STONES - 999_960,
-      pocket: 999_960,
+      stock: { ...createMountain().stock, stones: 999_960 },
     };
     const tapped = mineVein(mountain);
     expect(minedOut(tapped)).toBe(1_000_010);
-    expect(tapped.materials).toEqual({ ...EMPTY_MATERIALS, clay: 1 });
-    expect(tapped.pocket).toBe(1_000_010);
+    expect(tapped.stock).toMatchObject({ ...EMPTY_MATERIALS, clay: 1 });
+    expect(tapped.stock.stones).toBe(1_000_010);
   });
 
   it("matches materialsFromMined when a tap, the crew, time away, and a vein dig together", () => {
     let mountain = {
       ...createMountain(),
       remaining: MOUNTAIN_STONES - 39_900,
-      pocket: 39_900,
+      stock: { ...createMountain().stock, stones: 39_900 },
       owned: { ...createMountain().owned, helper: 2 },
     };
     for (let tap = 0; tap < 10; tap += 1) {
@@ -196,7 +195,9 @@ describe("golden veins", () => {
     }).mountain;
     mountain = mineVein(mountain);
     expect(minedOut(mountain)).toBeGreaterThan(40_000);
-    expect(mountain.materials).toEqual(materialsFromMined(minedOut(mountain)));
+    expect(mountain.stock).toMatchObject(
+      materialsFromMined(minedOut(mountain)),
+    );
   });
 
   it("lets a golden vein linger longer once the old miner's lamp is home", () => {

@@ -43,10 +43,14 @@ describe("the Gold rush", () => {
   it("holds back what the crew would dig on top of itself, never more than the haul", () => {
     expect(RUSH_MULTIPLIER).toBe(10);
     expect(RUSH_MS).toBe(90_000);
-    const held = holdForRush({ ...crew(), pocket: 100_000 }, 50_000, 10);
+    const held = holdForRush(
+      { ...crew(), stock: { ...crew().stock, stones: 100_000 } },
+      50_000,
+      10,
+    );
     // 9 × 10/s × 90 s
     expect(held.rushBank).toBe(8_100);
-    expect(held.pocket).toBe(100_000 - 8_100);
+    expect(held.stock.stones).toBe(100_000 - 8_100);
     expect(holdForRush(crew(), 500, 10).rushBank).toBe(500);
     const none = crew();
     expect(holdForRush(none, 0, 10)).toBe(none);
@@ -63,7 +67,11 @@ describe("the Gold rush", () => {
   });
 
   it("pays the held stones over 90 seconds of live play, beside the crew's own speed", () => {
-    const held = holdForRush({ ...crew(), pocket: 50_000 }, 50_000, 10);
+    const held = holdForRush(
+      { ...crew(), stock: { ...crew().stock, stones: 50_000 } },
+      50_000,
+      10,
+    );
     const rushed = startRush(held, T);
     expect(rushPerSecond(rushed, T)).toBe(90);
     // The gauge reads the crew alone: the held stones are not its speed (#525).
@@ -71,7 +79,7 @@ describe("the Gold rush", () => {
     expect(effectiveRates(rushed).crewPerSecond).toBe(10);
     const after = play(rushed, T, 90);
     // the crew's own 10/s, plus every held stone
-    expect(after.pocket - held.pocket).toBe(90 * 10 + 8_100);
+    expect(after.stock.stones - held.stock.stones).toBe(90 * 10 + 8_100);
     expect(after).toHaveProperty("rushBank", 0);
     expect(after).toHaveProperty("rushUntil", 0);
     // the mountain only gave the crew's own stones: the held ones were dug away
@@ -86,7 +94,11 @@ describe("the Gold rush", () => {
   it("pays what is left at once when the mountain bottoms out", () => {
     const rushed = startRush(
       {
-        ...holdForRush({ ...crew(), pocket: 50_000 }, 50_000, 10),
+        ...holdForRush(
+          { ...crew(), stock: { ...crew().stock, stones: 50_000 } },
+          50_000,
+          10,
+        ),
         remaining: 0,
       },
       T,
@@ -94,7 +106,7 @@ describe("the Gold rush", () => {
     expect(rushLeft(rushed, T)).toBe(0);
     const paid = payRush(rushed, T, 1);
     expect(paid.paid).toBe(8_100);
-    expect(paid.mountain.pocket).toBe(50_000);
+    expect(paid.mountain.stock.stones).toBe(50_000);
   });
 
   it("holds nothing on a dug-out mountain, and lands an owed hold at the bottom", () => {
@@ -121,9 +133,13 @@ describe("the Gold rush", () => {
   });
 
   it("lands every held stone when it is missed", () => {
-    const held = holdForRush({ ...crew(), pocket: 1_000 }, 50_000, 10);
+    const held = holdForRush(
+      { ...crew(), stock: { ...crew().stock, stones: 1_000 } },
+      50_000,
+      10,
+    );
     const missed = releaseRush(held);
-    expect(missed.pocket).toBe(1_000);
+    expect(missed.stock.stones).toBe(1_000);
     expect(missed).toHaveProperty("rushBank", 0);
   });
 
@@ -134,7 +150,7 @@ describe("the Gold rush", () => {
     const gone = resumeRush(rushed, T + 1_000, T + 1_000 + QUICK_VEIN_AWAY_MS);
     expect(gone).toHaveProperty("rushUntil", 0);
     expect(gone).toHaveProperty("rushBank", 0);
-    expect(gone.pocket).toBe(rushed.pocket + 8_100);
+    expect(gone.stock.stones).toBe(rushed.stock.stones + 8_100);
     const ended = resumeRush(rushed, T + RUSH_MS, T + RUSH_MS + 1_000);
     expect(ended).toHaveProperty("rushBank", 0);
     const plain = crew();
@@ -142,11 +158,11 @@ describe("the Gold rush", () => {
   });
 
   it("holds part of an hour's haul on the open, and the total stays the same", () => {
-    const start = { ...crew(), pocket: 0 };
+    const start = { ...crew(), stock: { ...crew().stock, stones: 0 } };
     const away = accrueAway({ mountain: start, lastSeen: T, now: T + HOUR });
     expect(away.report.heldForRush).toBe(8_100);
     expect(away.mountain.rushBank).toBe(8_100);
-    expect(away.mountain.pocket).toBe(away.mined - 8_100);
+    expect(away.mountain.stock.stones).toBe(away.mined - 8_100);
     // a short break holds nothing
     const brief = accrueAway({
       mountain: start,
@@ -159,7 +175,7 @@ describe("the Gold rush", () => {
     const at = T + HOUR;
     const played = play(startRush(away.mountain, at), at, 90);
     const missed = play(releaseRush(away.mountain), at, 90);
-    expect(played.pocket).toBe(missed.pocket);
+    expect(played.stock.stones).toBe(missed.stock.stones);
   });
 
   it("pauses through a short break without speeding the away pay", () => {
@@ -182,7 +198,9 @@ describe("the Gold rush", () => {
     expect(brief.mountain.rushBank).toBe(8_100);
     const long = accrueAway({ mountain: held, lastSeen: T, now: T + 2 * HOUR });
     // the old hold landed, and a fresh one waits
-    expect(long.mountain.pocket).toBe(held.pocket + 8_100 + long.mined - 8_100);
+    expect(long.mountain.stock.stones).toBe(
+      held.stock.stones + 8_100 + long.mined - 8_100,
+    );
     expect(long.mountain.rushBank).toBe(8_100);
   });
 });

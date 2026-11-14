@@ -295,7 +295,7 @@ function buyBestValues(
   let next = world;
   for (
     let pick = bestValue(next.mountain, next.clock, buysUpgrades);
-    pick !== undefined && pick.cost <= next.mountain.pocket;
+    pick !== undefined && pick.cost <= next.mountain.stock.stones;
     pick = bestValue(next.mountain, next.clock, buysUpgrades)
   ) {
     next = buyPick(next, pick, buys);
@@ -316,8 +316,8 @@ function promoteAndRecord(world: World, promotions: DadPromotion[]): World {
       price: promoteCost(beforeScout),
       helpersBefore: beforeScout.owned.helper,
       helpersAfter: promoted.owned.helper,
-      pocketBefore: beforeScout.pocket,
-      pocketAfter: promoted.pocket,
+      pocketBefore: beforeScout.stock.stones,
+      pocketAfter: promoted.stock.stones,
     });
   }
   return next;

@@ -20,7 +20,7 @@ function tenthsOf(mountain: Mountain, tierId: TierId): number {
 const posted = {
   ...BARE_MOUNTAIN,
   remaining: 1_000,
-  pocket: 0,
+  stock: { ...BARE_MOUNTAIN.stock, stones: 0 },
   owned: {
     ...BARE_MOUNTAIN.owned,
     helper: 8,

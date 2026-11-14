@@ -45,7 +45,8 @@ import { SESSION_SAVE_KEY, writeSessionSave } from "./session-save";
 import { buyTier, tierById, tierCost } from "./tiers";
 import { upgradeById, upgradeCost, NO_UPGRADES } from "./upgrades";
 import { recipesForMined } from "./workshop";
-import { onTrip, promoteCost } from "./engineers";
+import { onTrip, promoteCost, promotePrice } from "./engineers";
+import { EMPTY_STOCK, stonesPrice } from "./stock";
 import { send, type Expedition } from "./expeditions";
 import { ENGINEER_FIX_MS, nextTrouble } from "./hazards";
 import { firstNotice, noticesOf } from "./session";
@@ -160,7 +161,7 @@ describe("createProgressStore", () => {
     await auth.signIn();
 
     await vi.waitFor(() => {
-      expect(docs.get("test-dad")?.pocket).toBe(1);
+      expect(docs.get("test-dad")?.stock.stones).toBe(1);
     });
     expect(progress.getSnapshot().saveKind).toBe("account");
   });
@@ -181,7 +182,7 @@ describe("createProgressStore", () => {
 
     progress.applyMutation(() => minedMountain(1));
 
-    expect(docs.get("test-dad")?.pocket).toBe(1);
+    expect(docs.get("test-dad")?.stock.stones).toBe(1);
   });
 
   it("keeps the session mountain when the cloud is down", async () => {
@@ -251,7 +252,7 @@ describe("createProgressStore", () => {
     });
     await Promise.resolve();
 
-    expect(progress.getSnapshot().mountain.pocket).toBe(9);
+    expect(progress.getSnapshot().mountain.stock.stones).toBe(9);
     expect(progress.getSnapshot().ready).toBe(true);
   });
 
@@ -280,7 +281,7 @@ describe("createProgressStore", () => {
     first.applyMutation(() => minedMountain(1));
 
     await vi.waitFor(() => {
-      expect(second.getSnapshot().mountain.pocket).toBe(1);
+      expect(second.getSnapshot().mountain.stock.stones).toBe(1);
     });
   });
 
@@ -300,7 +301,7 @@ describe("createProgressStore", () => {
     progress.applyMutation(() => minedMountain(1));
     docs.delete("test-dad");
     progress.flush();
-    expect(docs.get("test-dad")?.pocket).toBe(1);
+    expect(docs.get("test-dad")?.stock.stones).toBe(1);
   });
 
   it("clears the tab scratch on sign-in and restores it on sign-out", async () => {
@@ -344,7 +345,7 @@ describe("createProgressStore", () => {
     progress.applyMutation(() => minedMountain(2));
 
     expect(guestSave(storage)).toBeUndefined();
-    expect(docs.get("test-dad")?.pocket).toBe(2);
+    expect(docs.get("test-dad")?.stock.stones).toBe(2);
   });
 });
 
@@ -444,7 +445,7 @@ describe("helpers mining live", () => {
       ...BARE_MOUNTAIN,
       recipes: recipesForMined(500),
       remaining: MOUNTAIN_STONES - 500,
-      pocket: 0,
+      stock: { ...BARE_MOUNTAIN.stock, stones: 0 },
       owned: {
         ...BARE_MOUNTAIN.owned,
         helper: 3,
@@ -459,13 +460,20 @@ describe("helpers mining live", () => {
     const logged = progress.getSnapshot().log;
     clock += 2_500;
     progress.tick();
-    expect(progress.getSnapshot().mountain.pocket).toBe(6);
+    expect(progress.getSnapshot().mountain.stock.stones).toBe(6);
     expect(progress.getSnapshot().log).toBe(logged);
     expect(guestSave(storage)).toEqual({
       mountain: {
         ...BARE_MOUNTAIN,
         remaining: MOUNTAIN_STONES - 506,
-        pocket: 6,
+        stock: {
+          ...BARE_MOUNTAIN.stock,
+          stones: 6,
+          clay: 0,
+          iron: 0,
+          crystal: 0,
+          heartstone: 0,
+        },
         owned: {
           ...BARE_MOUNTAIN.owned,
           helper: 3,
@@ -475,7 +483,6 @@ describe("helpers mining live", () => {
           machine: 0,
           kid: 0,
         },
-        materials: { clay: 0, iron: 0, crystal: 0, heartstone: 0 },
         recipes: recipesForMined(506),
       },
       lastSeen: 3_000,
@@ -492,7 +499,7 @@ describe("helpers mining live", () => {
     progress.applyMutation(() => ({
       ...BARE_MOUNTAIN,
       remaining: 500,
-      pocket: 0,
+      stock: { ...BARE_MOUNTAIN.stock, stones: 0 },
       owned: {
         ...BARE_MOUNTAIN.owned,
         helper: 1,
@@ -507,11 +514,11 @@ describe("helpers mining live", () => {
 
     let seen = -1;
     progress.applyMutation((mountain) => {
-      seen = mountain.pocket;
+      seen = mountain.stock.stones;
       return mountain;
     });
     expect(seen).toBe(10);
-    expect(progress.getSnapshot().mountain.pocket).toBe(10);
+    expect(progress.getSnapshot().mountain.stock.stones).toBe(10);
   });
 
   it("does not tick before the cloud save has loaded", () => {
@@ -541,7 +548,7 @@ describe("away earnings", () => {
     ...BARE_MOUNTAIN,
     recipes: recipesForMined(0),
     remaining: MOUNTAIN_STONES,
-    pocket: 5,
+    stock: { ...BARE_MOUNTAIN.stock, stones: 5 },
     owned: {
       ...BARE_MOUNTAIN.owned,
       helper: 3,
@@ -563,7 +570,7 @@ describe("away earnings", () => {
       sessionStorage: storage,
       now: () => clock,
     });
-    expect(progress.getSnapshot().mountain.pocket).toBe(5 + 540);
+    expect(progress.getSnapshot().mountain.stock.stones).toBe(5 + 540);
     expect(firstNotice(progress.getSnapshot(), "away")?.report).toEqual({
       mined: 540,
       heldForRush: 0,
@@ -577,7 +584,14 @@ describe("away earnings", () => {
       mountain: {
         ...BARE_MOUNTAIN,
         remaining: MOUNTAIN_STONES - 540,
-        pocket: 545,
+        stock: {
+          ...BARE_MOUNTAIN.stock,
+          stones: 545,
+          clay: 0,
+          iron: 0,
+          crystal: 0,
+          heartstone: 0,
+        },
         owned: {
           ...BARE_MOUNTAIN.owned,
           helper: 3,
@@ -587,7 +601,6 @@ describe("away earnings", () => {
           machine: 0,
           kid: 0,
         },
-        materials: { clay: 0, iron: 0, crystal: 0, heartstone: 0 },
         recipes: ["iron-rails", "sturdy-props", "blasting-charge"],
       },
       lastSeen: 600_000,
@@ -604,7 +617,7 @@ describe("away earnings", () => {
       now: () => clock,
     });
     expect(firstNotice(reopened.getSnapshot(), "away")?.report).toBeUndefined();
-    expect(reopened.getSnapshot().mountain.pocket).toBe(545);
+    expect(reopened.getSnapshot().mountain.stock.stones).toBe(545);
   });
 
   it("shows no card when nothing was mined", () => {
@@ -620,7 +633,7 @@ describe("away earnings", () => {
       now: () => 3_600_000,
     });
     expect(firstNotice(progress.getSnapshot(), "away")?.report).toBeUndefined();
-    expect(progress.getSnapshot().mountain.pocket).toBe(5);
+    expect(progress.getSnapshot().mountain.stock.stones).toBe(5);
   });
 
   it("pays a signed-in dad from the cloud save once and writes it back", async () => {
@@ -646,8 +659,8 @@ describe("away earnings", () => {
       expect(progress.getSnapshot().saveKind).toBe("account");
     });
     expect(firstNotice(progress.getSnapshot(), "quiet")?.stones).toBe(72);
-    expect(docs.get("test-dad")?.pocket).toBe(77);
-    expect(progress.getSnapshot().mountain.pocket).toBe(77);
+    expect(docs.get("test-dad")?.stock.stones).toBe(77);
+    expect(progress.getSnapshot().mountain.stock.stones).toBe(77);
   });
 
   it("pays time in the background like time away, not as live play", () => {
@@ -661,11 +674,11 @@ describe("away earnings", () => {
     });
     clock = 1_000;
     progress.tick();
-    expect(progress.getSnapshot().mountain.pocket).toBe(5 + 3);
+    expect(progress.getSnapshot().mountain.stock.stones).toBe(5 + 3);
     // Phone locked for five minutes: ticks stop, then one late tick.
     clock += 5 * 60_000;
     progress.tick();
-    expect(progress.getSnapshot().mountain.pocket).toBe(5 + 3 + 270);
+    expect(progress.getSnapshot().mountain.stock.stones).toBe(5 + 3 + 270);
   });
 
   it("reports each settled time away, so a long one can bring a quick vein (#468)", () => {
@@ -706,14 +719,14 @@ describe("away earnings", () => {
     });
     clock = 1_000;
     progress.tick();
-    expect(progress.getSnapshot().mountain.pocket).toBe(5 + 3);
+    expect(progress.getSnapshot().mountain.stock.stones).toBe(5 + 3);
     // The phone's clock jumps back an hour (time zone fix, manual change).
     clock -= 60 * 60_000;
     progress.tick();
-    expect(progress.getSnapshot().mountain.pocket).toBe(5 + 3);
+    expect(progress.getSnapshot().mountain.stock.stones).toBe(5 + 3);
     clock += 1_000;
     progress.tick();
-    expect(progress.getSnapshot().mountain.pocket).toBe(5 + 3 + 3);
+    expect(progress.getSnapshot().mountain.stock.stones).toBe(5 + 3 + 3);
   });
 
   it("doesn't save a future lastSeen after the clock is set back (#116)", () => {
@@ -741,7 +754,7 @@ describe("away earnings", () => {
       now: () => WELCOME_MIN_AWAY_MS - 1_000,
     });
     expect(firstNotice(progress.getSnapshot(), "away")?.report).toBeUndefined();
-    expect(progress.getSnapshot().mountain.pocket).toBe(5 + 53);
+    expect(progress.getSnapshot().mountain.stock.stones).toBe(5 + 53);
   });
 
   it("pays a gap of a minute or two with a small note, not the card (#334)", () => {
@@ -755,7 +768,7 @@ describe("away earnings", () => {
     const snapshot = progress.getSnapshot();
     expect(firstNotice(snapshot, "away")?.report).toBeUndefined();
     expect(firstNotice(snapshot, "quiet")?.stones).toBe(
-      snapshot.mountain.pocket - 5,
+      snapshot.mountain.stock.stones - 5,
     );
     expect(firstNotice(snapshot, "quiet")?.stones).toBeGreaterThan(0);
     progress.dismiss("quiet");
@@ -812,15 +825,19 @@ describe("away earnings", () => {
     await Promise.resolve();
     push({ kind: "found", mountain: crew, lastSeen: 40_000, rev: 1 });
     await Promise.resolve();
-    expect(progress.getSnapshot().mountain.pocket).toBe(5);
+    expect(progress.getSnapshot().mountain.stock.stones).toBe(5);
 
     push({
       kind: "found",
-      mountain: { ...crew, remaining: MOUNTAIN_STONES - 30, pocket: 35 },
+      mountain: {
+        ...crew,
+        remaining: MOUNTAIN_STONES - 30,
+        stock: { ...crew.stock, stones: 35 },
+      },
       lastSeen: 40_000,
       rev: 2,
     });
-    expect(progress.getSnapshot().mountain.pocket).toBe(44);
+    expect(progress.getSnapshot().mountain.stock.stones).toBe(44);
     expect(firstNotice(progress.getSnapshot(), "away")?.report).toBeUndefined();
   });
 });
@@ -1017,7 +1034,7 @@ describe("start over", () => {
     });
     progress.applyMutation((mountain) => ({
       ...mountain,
-      pocket: mountain.pocket + 1,
+      stock: { ...mountain.stock, stones: mountain.stock.stones + 1 },
     }));
     await Promise.resolve();
     clock += 10;
@@ -1176,7 +1193,10 @@ describe("save status on the unhappy paths (#114 coverage)", () => {
     await vi.waitFor(() => {
       expect(progress.getSnapshot().saveKind).toBe("account");
     });
-    progress.applyMutation((current) => ({ ...current, pocket: 99 }));
+    progress.applyMutation((current) => ({
+      ...current,
+      stock: { ...current.stock, stones: 99 },
+    }));
     await vi.waitFor(() => {
       expect(progress.getSnapshot().saveKind).toBe("error");
     });
@@ -1221,13 +1241,16 @@ describe("save status on the unhappy paths (#114 coverage)", () => {
     await vi.waitFor(() => {
       expect(progress.getSnapshot().saveKind).toBe("account");
     });
-    progress.applyMutation((current) => ({ ...current, pocket: 99 }));
+    progress.applyMutation((current) => ({
+      ...current,
+      stock: { ...current.stock, stones: 99 },
+    }));
     await vi.waitFor(() => {
       expect(writes).toBe(2);
     });
     expect(progress.getSnapshot().saveKind).toBe("error");
     deliver?.({ kind: "found", mountain: server, lastSeen: 1 });
-    expect(progress.getSnapshot().mountain.pocket).toBe(99);
+    expect(progress.getSnapshot().mountain.stock.stones).toBe(99);
     expect(progress.getSnapshot().saveKind).toBe("error");
     expect(progress.fieldLog().events).toContainEqual(
       expect.objectContaining({
@@ -1332,11 +1355,11 @@ describe("save status on the unhappy paths (#114 coverage)", () => {
     clock += 5_000;
     progress.tick();
     expect(guestSave(storage)?.lastSeen).toBe(6_000);
-    expect(guestSave(storage)?.mountain.pocket).toBe(
-      progress.getSnapshot().mountain.pocket,
+    expect(guestSave(storage)?.mountain.stock.stones).toBe(
+      progress.getSnapshot().mountain.stock.stones,
     );
-    expect(progress.getSnapshot().mountain.pocket).toBeGreaterThan(
-      minedMountain(2).pocket,
+    expect(progress.getSnapshot().mountain.stock.stones).toBeGreaterThan(
+      minedMountain(2).stock.stones,
     );
   });
 
@@ -1400,10 +1423,10 @@ describe("save status on the unhappy paths (#114 coverage)", () => {
     callbacks[0]?.({ kind: "found", mountain: minedMountain(77) });
     expect(progress.getSnapshot().mountain).not.toEqual(minedMountain(77));
     callbacks[1]?.({ kind: "found", mountain: minedMountain(88) });
-    expect(progress.getSnapshot().mountain.pocket).toBe(88);
+    expect(progress.getSnapshot().mountain.stock.stones).toBe(88);
     progress.dispose();
     callbacks[1]?.({ kind: "found", mountain: minedMountain(99) });
-    expect(progress.getSnapshot().mountain.pocket).toBe(88);
+    expect(progress.getSnapshot().mountain.stock.stones).toBe(88);
   });
 
   it("treats dismissing nothing, and starting over after dispose, as no-ops", async () => {
@@ -1443,7 +1466,7 @@ describe("field log", () => {
     const progress = guest(() => at);
     progress.applyMutation((mountain) => ({
       ...mountain,
-      pocket: firstWorker,
+      stock: { ...mountain.stock, stones: firstWorker },
     }));
     progress.dispatch({ kind: "buyTier", id: "helper" });
     expect(progress.fieldLog().events.map((event) => event.code)).toEqual([
@@ -1458,15 +1481,21 @@ describe("field log", () => {
     progress.applyMutation((mountain) => ({
       ...mountain,
       owned: { ...mountain.owned, cart: 3 },
-      pocket: upgradeCost(upgradeById("tap"), 0) ?? Number.NaN,
+      stock: {
+        ...mountain.stock,
+        stones: upgradeCost(upgradeById("tap"), 0) ?? Number.NaN,
+      },
     }));
     const from = progress.fieldLog().events.length;
     progress.dispatch({
       kind: "buyUpgrade",
       id: "tap",
-      price: upgradeCost(upgradeById("tap"), 0) ?? Number.NaN,
+      price: stonesPrice(upgradeCost(upgradeById("tap"), 0) ?? Number.NaN),
     });
-    progress.applyMutation((mountain) => ({ ...mountain, pocket: 1_000 }));
+    progress.applyMutation((mountain) => ({
+      ...mountain,
+      stock: { ...mountain.stock, stones: 1_000 },
+    }));
     progress.dispatch({ kind: "buyBoost", id: "sharper" });
 
     const moves = progress.fieldLog().events.slice(from);
@@ -1486,7 +1515,10 @@ describe("field log", () => {
   it("records no move events for the applyMutation seam", () => {
     const progress = guest();
     progress.applyMutation((mountain) =>
-      buyTier({ ...mountain, pocket: firstWorker }, "helper"),
+      buyTier(
+        { ...mountain, stock: { ...mountain.stock, stones: firstWorker } },
+        "helper",
+      ),
     );
     expect(progress.getSnapshot().mountain.owned.helper).toBe(1);
     expect(progress.fieldLog().events).toEqual([]);
@@ -1542,7 +1574,10 @@ describe("field log", () => {
   it("keeps the old run's events through Start over and a pass, and starts Tonight afresh", async () => {
     const progress = guest(() => 8_000);
     progress.applyMutation((mountain) =>
-      buyTier({ ...mountain, pocket: firstWorker }, "helper"),
+      buyTier(
+        { ...mountain, stock: { ...mountain.stock, stones: firstWorker } },
+        "helper",
+      ),
     );
     progress.dispatch({ kind: "buyTier", id: "helper" });
     const before = progress.fieldLog().events.map((event) => event.code);
@@ -1567,7 +1602,10 @@ describe("field log", () => {
 
   it("copies the newest 50 events", () => {
     const progress = guest();
-    progress.applyMutation((mountain) => ({ ...mountain, pocket: 1_000_000 }));
+    progress.applyMutation((mountain) => ({
+      ...mountain,
+      stock: { ...mountain.stock, stones: 1_000_000 },
+    }));
     for (let count = 1; count <= 60; count += 1) {
       progress.dispatch({ kind: "buyTier", id: "helper" });
     }
@@ -1586,7 +1624,7 @@ describe("field log", () => {
     });
     progress.applyMutation((mountain) => ({
       ...mountain,
-      pocket: firstWorker,
+      stock: { ...mountain.stock, stones: firstWorker },
     }));
     progress.dispatch({ kind: "buyTier", id: "helper" });
     expect(progress.fieldLog().events).toHaveLength(1);
@@ -1639,7 +1677,10 @@ describe("field log events for the deep (#150)", () => {
       // The borer opens at 10M stones (#250).
       remaining: mountain.remaining - 10_000_000,
       // The borer and the workers it needs.
-      pocket: tierCost(tierById("borer"), 0) + 5_000_000,
+      stock: {
+        ...mountain.stock,
+        stones: tierCost(tierById("borer"), 0) + 5_000_000,
+      },
     }));
     progress.dispatch({ kind: "buyTier", id: "borer" });
     expect(codes(progress)).toContain("tier.buy");
@@ -1651,11 +1692,14 @@ describe("field log events for the deep (#150)", () => {
     progress.applyMutation((mountain) => {
       const ready = { ...mountain, owned: { ...mountain.owned, helper: 2 } };
       // Exactly the second engineer's Granite price.
-      return { ...ready, pocket: promoteCost(ready) };
+      return {
+        ...ready,
+        stock: { ...ready.stock, stones: promoteCost(ready) },
+      };
     });
     progress.dispatch({
       kind: "promote",
-      price: promoteCost(progress.getSnapshot().mountain),
+      price: promotePrice(progress.getSnapshot().mountain),
     });
     progress.dispatch({ kind: "station", index: 1, post: "drill" });
     progress.dispatch({ kind: "station", index: 1, post: "camp" });
@@ -2033,7 +2077,15 @@ describe("field log cloud copy", () => {
     const progress = createProgressStore({
       auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
       cloudSave: createMemoryCloudSave({
-        docs: new Map([[user.uid, { ...createMountain(), pocket }]]),
+        docs: new Map([
+          [
+            user.uid,
+            {
+              ...createMountain(),
+              stock: { ...createMountain().stock, stones: pocket },
+            },
+          ],
+        ]),
         fieldLogs,
       }),
       sessionStorage: createMemoryStorage(),
@@ -2050,7 +2102,10 @@ describe("field log cloud copy", () => {
       sessionStorage: createMemoryStorage(),
       now: () => 1,
     });
-    progress.applyMutation((mountain) => ({ ...mountain, pocket: 1 }));
+    progress.applyMutation((mountain) => ({
+      ...mountain,
+      stock: { ...mountain.stock, stones: 1 },
+    }));
     await progress.startOver();
     progress.flush();
     expect(fieldLogs.size).toBe(0);
@@ -2062,12 +2117,18 @@ describe("field log cloud copy", () => {
     const { fieldLogs, progress } = signedIn(() => clock);
     expect(fieldLogs.size).toBe(0);
 
-    progress.applyMutation((mountain) => ({ ...mountain, pocket: 1 }));
+    progress.applyMutation((mountain) => ({
+      ...mountain,
+      stock: { ...mountain.stock, stones: 1 },
+    }));
     expect(fieldLogOf(fieldLogs, user.uid)?.snapshot.pocket).toBe(1);
     expect(fieldLogOf(fieldLogs, user.uid)?.updatedAt).toBe(0);
 
     clock += 1_000;
-    progress.applyMutation((mountain) => ({ ...mountain, pocket: 2 }));
+    progress.applyMutation((mountain) => ({
+      ...mountain,
+      stock: { ...mountain.stock, stones: 2 },
+    }));
     expect(fieldLogOf(fieldLogs, user.uid)?.snapshot.pocket).toBe(1);
 
     progress.flush();
@@ -2079,7 +2140,10 @@ describe("field log cloud copy", () => {
     expect(fieldLogOf(fieldLogs, user.uid)?.updatedAt).toBe(writtenAt);
 
     clock += FIELD_LOG_WRITE_GAP_MS;
-    progress.applyMutation((mountain) => ({ ...mountain, pocket: 3 }));
+    progress.applyMutation((mountain) => ({
+      ...mountain,
+      stock: { ...mountain.stock, stones: 3 },
+    }));
     expect(fieldLogOf(fieldLogs, user.uid)?.snapshot.pocket).toBe(3);
     expect(fieldLogOf(fieldLogs, user.uid)?.updatedAt).toBe(clock);
     progress.dispose();
@@ -2168,7 +2232,10 @@ describe("field log cloud copy", () => {
       sessionStorage: createMemoryStorage(),
       now: () => 1,
     });
-    progress.applyMutation((mountain) => ({ ...mountain, pocket: 4 }));
+    progress.applyMutation((mountain) => ({
+      ...mountain,
+      stock: { ...mountain.stock, stones: 4 },
+    }));
     await Promise.resolve();
     expect(calls).toBe(1);
     expect(progress.getSnapshot().saveKind).toBe("account");
@@ -2211,7 +2278,10 @@ describe("field log cloud copy", () => {
       sessionStorage: createMemoryStorage(),
       now: () => 1,
     });
-    progress.applyMutation((mountain) => ({ ...mountain, pocket: 2 }));
+    progress.applyMutation((mountain) => ({
+      ...mountain,
+      stock: { ...mountain.stock, stones: 2 },
+    }));
     progress.dispose();
     finish({ kind: "failed", message: "denied" });
     await Promise.resolve();
@@ -2223,7 +2293,10 @@ describe("field log cloud copy", () => {
       sessionStorage: createMemoryStorage(),
       now: () => 1,
     });
-    again.applyMutation((mountain) => ({ ...mountain, pocket: 3 }));
+    again.applyMutation((mountain) => ({
+      ...mountain,
+      stock: { ...mountain.stock, stones: 3 },
+    }));
     await auth.signOut();
     finish({ kind: "failed", message: "denied" });
     await Promise.resolve();
@@ -2240,7 +2313,7 @@ describe("trouble at the machines (#149)", () => {
   const crew = {
     ...BARE_MOUNTAIN,
     remaining: 50_000_000,
-    pocket: 0,
+    stock: { ...BARE_MOUNTAIN.stock, stones: 0 },
     owned: {
       ...BARE_MOUNTAIN.owned,
       helper: 9,
@@ -2279,8 +2352,8 @@ describe("trouble at the machines (#149)", () => {
     plain.advance(1_000);
     slowed.progress.tick();
     plain.progress.tick();
-    expect(slowed.progress.getSnapshot().mountain.pocket).toBeLessThan(
-      plain.progress.getSnapshot().mountain.pocket,
+    expect(slowed.progress.getSnapshot().mountain.stock.stones).toBeLessThan(
+      plain.progress.getSnapshot().mountain.stock.stones,
     );
 
     const awaySlow = open();
@@ -2290,8 +2363,8 @@ describe("trouble at the machines (#149)", () => {
     awayPlain.advance(60_000);
     awaySlow.progress.tick();
     awayPlain.progress.tick();
-    expect(awaySlow.progress.getSnapshot().mountain.pocket).toBe(
-      awayPlain.progress.getSnapshot().mountain.pocket,
+    expect(awaySlow.progress.getSnapshot().mountain.stock.stones).toBe(
+      awayPlain.progress.getSnapshot().mountain.stock.stones,
     );
     expect(awaySlow.progress.getSnapshot().trouble).toBeUndefined();
   });
@@ -2708,8 +2781,14 @@ describe("layer card and craft-done notice", () => {
   const shed = (): Mountain => ({
     ...minedMountain(12_000_000),
     owned: { ...minedMountain(12_000_000).owned, helper: 1, cart: 1 },
-    pocket: 5_000_000,
-    materials: { clay: 20, iron: 20, crystal: 0, heartstone: 0 },
+    stock: {
+      ...minedMountain(12_000_000).stock,
+      stones: 5_000_000,
+      clay: 20,
+      iron: 20,
+      crystal: 0,
+      heartstone: 0,
+    },
     recipes: recipesForMined(12_000_000),
   });
 
@@ -2969,7 +3048,7 @@ describe("save integrity: the phone keeps every tap (#222)", () => {
       });
       expect(second.getSnapshot().ready).toBe(true);
       expect(minedOut(second.getSnapshot().mountain)).toBe(150);
-      expect(second.getSnapshot().mountain.pocket).toBe(150);
+      expect(second.getSnapshot().mountain.stock.stones).toBe(150);
       await Promise.resolve();
       expect(minedOut(docs.get("test-dad") ?? createMountain())).toBe(150);
       second.dispose();
@@ -3159,9 +3238,9 @@ describe("save integrity: the phone keeps every tap (#222)", () => {
         });
       }
       expect(minedOut(progress.getSnapshot().mountain)).toBe(tap);
-      expect(progress.getSnapshot().mountain.pocket).toBeGreaterThanOrEqual(
-        tap,
-      );
+      expect(
+        progress.getSnapshot().mountain.stock.stones,
+      ).toBeGreaterThanOrEqual(tap);
     }
     expect(minedOut(docs.get("test-dad") ?? createMountain())).toBe(150);
     progress.dispose();
@@ -3596,7 +3675,7 @@ describe("fresh read, one writer, and a pending offline write", () => {
   const user = { uid: "test-dad", label: "Test Dad" };
   const phonePocket = (storage: Storage): number => {
     const phone = readPhoneBackup({ storage, uid: user.uid });
-    return phone.kind === "present" ? phone.save.mountain.pocket : -1;
+    return phone.kind === "present" ? phone.save.mountain.stock.stones : -1;
   };
 
   it("reads the server on resume before a cloud write, and keeps a tap from the gap", async () => {
@@ -3659,7 +3738,7 @@ describe("fresh read, one writer, and a pending offline write", () => {
     await vi.waitFor(() => {
       expect(progress.getSnapshot().ready).toBe(true);
     });
-    expect(progress.getSnapshot().mountain.pocket).toBe(2);
+    expect(progress.getSnapshot().mountain.stock.stones).toBe(2);
     server = {
       mountain: minedMountain(10),
       rev: 2,
@@ -3672,14 +3751,16 @@ describe("fresh read, one writer, and a pending offline write", () => {
     progress.applyMutation((mountain) => minedMountain(minedOut(mountain) + 1));
     expect(writes).toBe(before);
     const phone = readPhoneBackup({ storage, uid: user.uid });
-    expect(phone.kind === "present" && phone.save.mountain.pocket).toBe(3);
+    expect(phone.kind === "present" && phone.save.mountain.stock.stones).toBe(
+      3,
+    );
     if (resume.kind === "reading") {
       release?.();
       await resume.done;
     }
     expect(minedOut(progress.getSnapshot().mountain)).toBe(11);
     await vi.waitFor(() => {
-      expect(server.mountain.pocket).toBe(11);
+      expect(server.mountain.stock.stones).toBe(11);
       expect(server.rev).toBe(3);
     });
     expect(progress.fieldLog().events.map((event) => event.code)).toContain(
@@ -3774,14 +3855,14 @@ describe("fresh read, one writer, and a pending offline write", () => {
         await resume.done;
       }
       const after = progress.getSnapshot().mountain;
-      expect(after.pocket).toBe(ahead.pocket + 1);
-      expect(Number.isSafeInteger(after.pocket)).toBe(true);
+      expect(after.stock.stones).toBe(ahead.stock.stones + 1);
+      expect(Number.isSafeInteger(after.stock.stones)).toBe(true);
       expect(after.remaining).toBe(digStones(ahead, 1).remaining);
       const phone = readPhoneBackup({ storage, uid: user.uid });
       expect(phone.kind).toBe("present");
-      expect(phonePocket(storage)).toBe(ahead.pocket + 1);
+      expect(phonePocket(storage)).toBe(ahead.stock.stones + 1);
       await vi.waitFor(() => {
-        expect(server.mountain.pocket).toBe(ahead.pocket + 1);
+        expect(server.mountain.stock.stones).toBe(ahead.stock.stones + 1);
       });
       progress.dispose();
     },
@@ -3802,7 +3883,7 @@ describe("fresh read, one writer, and a pending offline write", () => {
         return Promise.resolve({ kind: "missing" });
       },
       write: (args) => {
-        written.push(args.mountain.pocket);
+        written.push(args.mountain.stock.stones);
         return Promise.resolve({ kind: "ok" });
       },
       writeFieldLog: () => Promise.resolve({ kind: "ok" }),
@@ -3835,14 +3916,14 @@ describe("fresh read, one writer, and a pending offline write", () => {
     expect(written.length).toBe(before);
     expect(readPhoneBackup({ storage, uid: user.uid })).toMatchObject({
       kind: "present",
-      save: { mountain: { pocket: 3 } },
+      save: { mountain: { stock: { stones: 3 } } },
     });
     mode = "throw";
     const thrown = progress.resume();
     if (thrown.kind === "reading") {
       await thrown.done;
     }
-    expect(progress.getSnapshot().mountain.pocket).toBe(3);
+    expect(progress.getSnapshot().mountain.stock.stones).toBe(3);
     mode = "missing";
     const uploaded = progress.resume();
     if (uploaded.kind === "reading") {
@@ -3982,7 +4063,7 @@ describe("fresh read, one writer, and a pending offline write", () => {
       tabWriter: other,
     });
     expect(second.getSnapshot().elsewhere).toBe(true);
-    expect(second.getSnapshot().mountain.pocket).toBe(6);
+    expect(second.getSnapshot().mountain.stock.stones).toBe(6);
     const raw = storage.getItem("dad-friendly-game");
     second.applyMutation(() => minedMountain(9));
     expect(storage.getItem("dad-friendly-game")).toBe(raw);
@@ -4031,20 +4112,20 @@ describe("fresh read, one writer, and a pending offline write", () => {
       expect(second.getSnapshot().elsewhere).toBe(true);
     });
     second.applyMutation(() => minedMountain(9));
-    expect(second.getSnapshot().mountain.pocket).toBe(0);
+    expect(second.getSnapshot().mountain.stock.stones).toBe(0);
     first.applyMutation(() => minedMountain(4));
     await vi.waitFor(() => {
-      expect(docs.get(user.uid)?.pocket).toBe(4);
+      expect(docs.get(user.uid)?.stock.stones).toBe(4);
     });
     await second.playHere();
     await vi.waitFor(() => {
       expect(second.getSnapshot().playing).toBe(true);
-      expect(second.getSnapshot().mountain.pocket).toBe(4);
+      expect(second.getSnapshot().mountain.stock.stones).toBe(4);
     });
     expect(first.getSnapshot().elsewhere).toBe(true);
     second.applyMutation(() => minedMountain(5));
     await vi.waitFor(() => {
-      expect(docs.get(user.uid)?.pocket).toBe(5);
+      expect(docs.get(user.uid)?.stock.stones).toBe(5);
     });
     const rev = docs.get(user.uid);
     first.applyMutation(() => minedMountain(99));
@@ -4131,13 +4212,15 @@ describe("fresh read, one writer, and a pending offline write", () => {
     });
     first.applyMutation(() => minedMountain(3));
     await vi.waitFor(() => {
-      expect(server?.mountain.pocket).toBe(3);
+      expect(server?.mountain.stock.stones).toBe(3);
     });
     online = false;
     first.applyMutation(() => minedMountain(5));
-    expect(queued.map((doc) => doc.mountain.pocket)).toContain(5);
+    expect(queued.map((doc) => doc.mountain.stock.stones)).toContain(5);
     const phone = readPhoneBackup({ storage, uid: user.uid });
-    expect(phone.kind === "present" && phone.save.mountain.pocket).toBe(5);
+    expect(phone.kind === "present" && phone.save.mountain.stock.stones).toBe(
+      5,
+    );
     first.dispose();
     online = true;
     for (const doc of queued) {
@@ -4156,11 +4239,11 @@ describe("fresh read, one writer, and a pending offline write", () => {
     await vi.waitFor(() => {
       expect(second.getSnapshot().ready).toBe(true);
     });
-    expect(second.getSnapshot().mountain.pocket).toBe(5);
+    expect(second.getSnapshot().mountain.stock.stones).toBe(5);
     const revBefore = server?.rev ?? 0;
     second.applyMutation(() => minedMountain(6));
     await vi.waitFor(() => {
-      expect(server?.mountain.pocket).toBe(6);
+      expect(server?.mountain.stock.stones).toBe(6);
     });
     expect(server?.rev).toBe(revBefore + 1);
     second.dispose();
@@ -4203,7 +4286,7 @@ describe("fresh read, one writer, and a pending offline write", () => {
       now: () => 5_000,
     });
     await vi.waitFor(() => {
-      expect(progress.getSnapshot().mountain.pocket).toBe(8);
+      expect(progress.getSnapshot().mountain.stock.stones).toBe(8);
     });
     progress.applyMutation(() => minedMountain(9));
     await vi.waitFor(() => {
@@ -4215,7 +4298,7 @@ describe("fresh read, one writer, and a pending offline write", () => {
       rev: 1,
       pending: true,
     });
-    expect(progress.getSnapshot().mountain.pocket).toBe(9);
+    expect(progress.getSnapshot().mountain.stock.stones).toBe(9);
     progress.dispose();
   });
 
@@ -4266,7 +4349,7 @@ describe("fresh read, one writer, and a pending offline write", () => {
       now: () => 5_000,
     });
     await vi.waitFor(() => {
-      expect(progress.getSnapshot().mountain.pocket).toBe(4);
+      expect(progress.getSnapshot().mountain.stock.stones).toBe(4);
     });
     progress.applyMutation(() => minedMountain(5));
     await vi.waitFor(() => {
@@ -4282,7 +4365,7 @@ describe("fresh read, one writer, and a pending offline write", () => {
         pending: true,
       });
     }
-    expect(progress.getSnapshot().mountain.pocket).toBe(5);
+    expect(progress.getSnapshot().mountain.stock.stones).toBe(5);
     progress.dispose();
   });
 
@@ -4311,7 +4394,7 @@ describe("fresh read, one writer, and a pending offline write", () => {
         });
       },
       write: (args) => {
-        written.push(args.mountain.pocket);
+        written.push(args.mountain.stock.stones);
         return Promise.resolve({ kind: "ok" });
       },
       writeFieldLog: () => Promise.resolve({ kind: "ok" }),
@@ -4392,7 +4475,7 @@ describe("fresh read, one writer, and a pending offline write", () => {
     });
     first.applyMutation(() => minedMountain(4));
     await vi.waitFor(() => {
-      expect(docs.get(user.uid)?.pocket).toBe(4);
+      expect(docs.get(user.uid)?.stock.stones).toBe(4);
     });
     writePhoneBackup({
       storage,
@@ -4405,7 +4488,9 @@ describe("fresh read, one writer, and a pending offline write", () => {
     await second.playHere();
     await vi.waitFor(() => {
       expect(second.getSnapshot().playing).toBe(true);
-      expect(second.getSnapshot().mountain.pocket).toBeGreaterThanOrEqual(8);
+      expect(second.getSnapshot().mountain.stock.stones).toBeGreaterThanOrEqual(
+        8,
+      );
     });
     first.dispose();
     second.dispose();
@@ -4552,7 +4637,7 @@ describe("fresh read, one writer, and a pending offline write", () => {
     progress.applyMutation(() => minedMountain(6));
     releaseWrite?.();
     await vi.waitFor(() => {
-      expect(progress.getSnapshot().mountain.pocket).toBe(6);
+      expect(progress.getSnapshot().mountain.stock.stones).toBe(6);
     });
     progress.dispose();
   });
@@ -4604,7 +4689,7 @@ describe("fresh read, one writer, and a pending offline write", () => {
     second.applyMutation(() => minedMountain(9));
     second.tick();
     expect(storage.getItem(`dad-friendly-game-backup:${user.uid}`)).toBe(saved);
-    expect(second.getSnapshot().mountain.pocket).not.toBe(9);
+    expect(second.getSnapshot().mountain.stock.stones).not.toBe(9);
     first.dispose();
     second.dispose();
   });
@@ -4630,7 +4715,7 @@ describe("fresh read, one writer, and a pending offline write", () => {
         });
       },
       write: (args) => {
-        written.push(args.mountain.pocket);
+        written.push(args.mountain.stock.stones);
         return Promise.resolve({ kind: "ok" });
       },
       writeFieldLog: () => Promise.resolve({ kind: "ok" }),
@@ -4663,21 +4748,23 @@ describe("fresh read, one writer, and a pending offline write", () => {
     expect(reading.kind).toBe("reading");
     progress.applyMutation((mountain) => ({
       ...mountain,
-      pocket: mountain.pocket + 1,
+      stock: { ...mountain.stock, stones: mountain.stock.stones + 1 },
       remaining: mountain.remaining - 1,
     }));
     expect(phonePocket(storage)).toBe(2);
     expect(written).toEqual([]);
     clock = 22_000;
     progress.tick();
-    expect(progress.getSnapshot().mountain.pocket).toBe(2);
+    expect(progress.getSnapshot().mountain.stock.stones).toBe(2);
     if (reading.kind === "reading") {
       await reading.done;
     }
     expect(progress.getSnapshot().log).toContain("save.resume timeout");
     progress.tick();
-    expect(progress.getSnapshot().mountain.pocket).toBeGreaterThan(2);
-    expect(phonePocket(storage)).toBe(progress.getSnapshot().mountain.pocket);
+    expect(progress.getSnapshot().mountain.stock.stones).toBeGreaterThan(2);
+    expect(phonePocket(storage)).toBe(
+      progress.getSnapshot().mountain.stock.stones,
+    );
     expect(written).toEqual([]);
     deliver({
       kind: "found",
@@ -4691,7 +4778,7 @@ describe("fresh read, one writer, and a pending offline write", () => {
     await vi.waitFor(() => {
       expect(written.length).toBeGreaterThan(0);
     });
-    expect(written.at(-1)).toBe(progress.getSnapshot().mountain.pocket);
+    expect(written.at(-1)).toBe(progress.getSnapshot().mountain.stock.stones);
     progress.dispose();
   });
 
@@ -4709,7 +4796,7 @@ describe("fresh read, one writer, and a pending offline write", () => {
               rev: 1,
             }),
       write: (args) => {
-        written.push(args.mountain.pocket);
+        written.push(args.mountain.stock.stones);
         return Promise.resolve({ kind: "ok" });
       },
       writeFieldLog: () => Promise.resolve({ kind: "ok" }),
@@ -4785,10 +4872,10 @@ describe("fresh read, one writer, and a pending offline write", () => {
       await reading.done;
     }
     expect(progress.getSnapshot().log).toContain("save.resume timeout");
-    const pocket = progress.getSnapshot().mountain.pocket;
+    const pocket = progress.getSnapshot().mountain.stock.stones;
     resolveLoad?.({ kind: "found", mountain: minedMountain(50), rev: 9 });
     await Promise.resolve();
-    expect(progress.getSnapshot().mountain.pocket).toBe(pocket);
+    expect(progress.getSnapshot().mountain.stock.stones).toBe(pocket);
     const again = progress.resume();
     await vi.advanceTimersByTimeAsync(500);
     if (again.kind === "reading") {
@@ -4826,14 +4913,14 @@ describe("fresh read, one writer, and a pending offline write", () => {
     });
     progress.applyMutation(() => minedMountain(4));
     await vi.waitFor(() => {
-      expect(docs.get(user.uid)?.pocket).toBe(4);
+      expect(docs.get(user.uid)?.stock.stones).toBe(4);
     });
     docs.delete(user.uid);
     storage.removeItem(`dad-friendly-game-backup:${user.uid}`);
     window.dispatchEvent(new Event("pagehide"));
     expect(phonePocket(storage)).toBe(4);
     await vi.waitFor(() => {
-      expect(docs.get(user.uid)?.pocket).toBe(4);
+      expect(docs.get(user.uid)?.stock.stones).toBe(4);
     });
     window.removeEventListener("pagehide", onHide);
     unbind();
@@ -4847,8 +4934,7 @@ describe("two saves found (#226)", () => {
   const materials = { clay: 3, iron: 1, crystal: 0, heartstone: 0 } as const;
   const base = (): Mountain => ({
     ...minedMountain(1_000),
-    pocket: 500,
-    materials: { ...materials },
+    stock: { ...minedMountain(1_000).stock, stones: 500, ...materials },
   });
 
   const open = (
@@ -4897,16 +4983,15 @@ describe("two saves found (#226)", () => {
     second.applyMutation((mountain) => ({
       ...mountain,
       owned: { ...mountain.owned, cart: 2, drill: 1, helper: 4 },
-      pocket: 80,
-      materials: otherMaterials,
+      stock: { ...mountain.stock, stones: 80, ...otherMaterials },
     }));
     await vi.waitFor(() => {
       expect(second.getSnapshot().saveConflict).toBeDefined();
     });
     const conflict = second.getSnapshot().saveConflict;
     expect(conflict?.local.mountain.owned.cart).toBe(2);
-    expect(conflict?.local.mountain.pocket).toBe(80);
-    expect(conflict?.local.mountain.materials).toEqual(otherMaterials);
+    expect(conflict?.local.mountain.stock.stones).toBe(80);
+    expect(conflict?.local.mountain.stock).toMatchObject(otherMaterials);
     expect(conflict?.remote.mountain.upgrades).toEqual({
       ...NO_UPGRADES,
       tap: 1,
@@ -4916,9 +5001,12 @@ describe("two saves found (#226)", () => {
     const server = await cloud.load({ uid: user.uid });
     expect(server.kind === "found" && server.rev).toBe(2);
 
-    second.applyMutation((mountain) => ({ ...mountain, pocket: 1 }));
+    second.applyMutation((mountain) => ({
+      ...mountain,
+      stock: { ...mountain.stock, stones: 1 },
+    }));
     second.tick();
-    expect(second.getSnapshot().mountain.pocket).toBe(80);
+    expect(second.getSnapshot().mountain.stock.stones).toBe(80);
     expect(second.getSnapshot().mountain.owned.cart).toBe(2);
     expect(firstNotice(second.getSnapshot(), "away")?.report).toBeUndefined();
     expect((await cloud.load({ uid: user.uid })).kind === "found").toBe(true);
@@ -4952,8 +5040,8 @@ describe("two saves found (#226)", () => {
     expect(reloaded.getSnapshot().mountain.owned.cart).toBe(2);
     expect(reloaded.getSnapshot().mountain.owned.drill).toBe(1);
     expect(reloaded.getSnapshot().mountain.owned.helper).toBe(4);
-    expect(reloaded.getSnapshot().mountain.pocket).toBe(80);
-    expect(reloaded.getSnapshot().mountain.materials).toEqual(otherMaterials);
+    expect(reloaded.getSnapshot().mountain.stock.stones).toBe(80);
+    expect(reloaded.getSnapshot().mountain.stock).toMatchObject(otherMaterials);
     expect(reloaded.getSnapshot().mountain.upgrades).toEqual(NO_UPGRADES);
     const copies = await reloaded.savedCopies();
     expect(copies).toHaveLength(1);
@@ -4986,14 +5074,15 @@ describe("two saves found (#226)", () => {
       });
     });
     expect(reloaded.getSnapshot().mountain.owned.cart).toBe(0);
-    expect(reloaded.getSnapshot().mountain.pocket).toBe(500);
+    expect(reloaded.getSnapshot().mountain.stock.stones).toBe(500);
     expect(reloaded.fieldLog().events.map((event) => event.code)).toContain(
       "save.restore",
     );
     const restored = await reloaded.savedCopies();
     expect(
       restored.some(
-        (copy) => copy.mountain.owned.cart === 2 && copy.mountain.pocket === 80,
+        (copy) =>
+          copy.mountain.owned.cart === 2 && copy.mountain.stock.stones === 80,
       ),
     ).toBe(true);
     first.dispose();
@@ -5022,8 +5111,14 @@ describe("two saves found (#226)", () => {
     here.applyMutation((mountain) => ({
       ...mountain,
       owned: { ...mountain.owned, cart: 3, machine: 1 },
-      pocket: 40,
-      materials: { clay: 1, iron: 0, crystal: 0, heartstone: 0 },
+      stock: {
+        ...mountain.stock,
+        stones: 40,
+        clay: 1,
+        iron: 0,
+        crystal: 0,
+        heartstone: 0,
+      },
     }));
     await vi.waitFor(async () => {
       const saved = await cloud.load({ uid: user.uid });
@@ -5032,8 +5127,14 @@ describe("two saves found (#226)", () => {
     there.applyMutation((mountain) => ({
       ...mountain,
       owned: { ...mountain.owned, drill: 2 },
-      pocket: 70,
-      materials: { clay: 8, iron: 2, crystal: 1, heartstone: 0 },
+      stock: {
+        ...mountain.stock,
+        stones: 70,
+        clay: 8,
+        iron: 2,
+        crystal: 1,
+        heartstone: 0,
+      },
     }));
     await vi.waitFor(() => {
       expect(there.getSnapshot().saveConflict).toBeDefined();
@@ -5047,8 +5148,8 @@ describe("two saves found (#226)", () => {
     expect(chosen.owned.cart).toBe(3);
     expect(chosen.owned.machine).toBe(1);
     expect(chosen.owned.drill).toBe(0);
-    expect(chosen.pocket).toBe(40);
-    expect(chosen.materials).toEqual({
+    expect(chosen.stock.stones).toBe(40);
+    expect(chosen.stock).toMatchObject({
       clay: 1,
       iron: 0,
       crystal: 0,
@@ -5059,8 +5160,8 @@ describe("two saves found (#226)", () => {
       archived.some(
         (copy) =>
           copy.mountain.owned.drill === 2 &&
-          copy.mountain.pocket === 70 &&
-          copy.mountain.materials.crystal === 1,
+          copy.mountain.stock.stones === 70 &&
+          copy.mountain.stock.crystal === 1,
       ),
     ).toBe(true);
     const choice = there
@@ -5148,7 +5249,10 @@ describe("two saves found (#226)", () => {
     await vi.waitFor(() => {
       expect(progress.getSnapshot().ready).toBe(true);
     });
-    progress.applyMutation((mountain) => ({ ...mountain, pocket: 40 }));
+    progress.applyMutation((mountain) => ({
+      ...mountain,
+      stock: { ...mountain.stock, stones: 40 },
+    }));
     deliver({
       kind: "found",
       mountain: { ...base(), owned: { ...base().owned, cart: 5 } },
@@ -5158,7 +5262,7 @@ describe("two saves found (#226)", () => {
       deviceLabel: "Chrome on Android",
     });
     expect(progress.getSnapshot().saveConflict).toBeUndefined();
-    expect(progress.getSnapshot().mountain.pocket).toBe(40);
+    expect(progress.getSnapshot().mountain.stock.stones).toBe(40);
     expect(progress.getSnapshot().mountain.owned.cart).toBe(0);
     progress.dispose();
   });
@@ -5368,7 +5472,7 @@ describe("two saves found (#226)", () => {
       });
       progress.applyMutation((mountain) => ({
         ...mountain,
-        pocket: firstWorker,
+        stock: { ...mountain.stock, stones: firstWorker },
       }));
       progress.dispatch({ kind: "buyTier", id: "helper" });
       await vi.waitFor(async () => {
@@ -5486,13 +5590,13 @@ describe("two saves found (#226)", () => {
     const storage = createMemoryStorage();
     const playing = {
       ...base(),
-      pocket: 3,
+      stock: { ...base().stock, stones: 3 },
       startedAt: 5,
       owned: { ...base().owned, cart: 1 },
     };
     const archived = {
       ...base(),
-      pocket: 9,
+      stock: { ...base().stock, stones: 9 },
       startedAt: 5,
       owned: { ...base().owned, cart: 4, drill: 2 },
     };
@@ -5514,24 +5618,25 @@ describe("two saves found (#226)", () => {
     });
     const progress = open(cloud, storage);
     await vi.waitFor(() => {
-      expect(progress.getSnapshot().mountain.pocket).toBe(3);
+      expect(progress.getSnapshot().mountain.stock.stones).toBe(3);
     });
     const copies = await progress.savedCopies();
     await expect(progress.restoreCopy(copies[0]?.id ?? "")).resolves.toBe(
       "saved",
     );
     await vi.waitFor(() => {
-      expect(progress.getSnapshot().mountain.pocket).toBe(9);
+      expect(progress.getSnapshot().mountain.stock.stones).toBe(9);
     });
     expect(progress.getSnapshot().mountain.owned.cart).toBe(4);
     expect(progress.getSnapshot().mountain.owned.drill).toBe(2);
     expect(progress.getSnapshot().mountain.startedAt).toBe(5);
     const restored = await cloud.load({ uid: user.uid });
-    expect(restored.kind === "found" && restored.mountain.pocket).toBe(9);
+    expect(restored.kind === "found" && restored.mountain.stock.stones).toBe(9);
     const kept = await progress.savedCopies();
     expect(
       kept.some(
-        (copy) => copy.mountain.pocket === 3 && copy.mountain.owned.cart === 1,
+        (copy) =>
+          copy.mountain.stock.stones === 3 && copy.mountain.owned.cart === 1,
       ),
     ).toBe(true);
     progress.dispose();
@@ -5551,13 +5656,20 @@ describe("dispatch (#409)", () => {
       auth: createMemoryAuth(),
       sessionStorage,
     });
-    progress.applyMutation((mountain) => ({ ...mountain, pocket: 1_000 }));
+    progress.applyMutation((mountain) => ({
+      ...mountain,
+      stock: { ...mountain.stock, stones: 1_000 },
+    }));
     const heard: number[] = [];
     progress.subscribe((snapshot) =>
       heard.push(snapshot.mountain.owned.helper),
     );
     const result = progress.dispatch({ kind: "buyTier", id: "helper" });
-    expect(result).toEqual({ kind: "applied", spent: 20, gained: 0 });
+    expect(result).toEqual({
+      kind: "applied",
+      spent: { ...EMPTY_STOCK, stones: 20 },
+      gained: EMPTY_STOCK,
+    });
     expect(progress.getSnapshot().mountain.owned.helper).toBe(1);
     expect(guestSave(sessionStorage)?.mountain.owned.helper).toBe(1);
     expect(heard.at(-1)).toBe(1);
@@ -5592,7 +5704,7 @@ describe("dispatch (#409)", () => {
     const progress = store();
     progress.applyMutation((mountain) => ({
       ...mountain,
-      pocket: firstWorker,
+      stock: { ...mountain.stock, stones: firstWorker },
     }));
     progress.dispose();
     const before = progress.fieldLog().events;
@@ -5659,9 +5771,11 @@ describe("dispatch (#409)", () => {
   it("digs by hand, with what it mined", () => {
     const progress = store();
     const result = progress.dispatch({ kind: "dig" });
-    expect(result.kind === "applied" && result.gained).toBeGreaterThan(0);
-    expect(progress.getSnapshot().mountain.pocket).toBe(
-      result.kind === "applied" ? result.gained : -1,
+    expect(result.kind === "applied" && result.gained.stones).toBeGreaterThan(
+      0,
+    );
+    expect(progress.getSnapshot().mountain.stock.stones).toBe(
+      result.kind === "applied" ? result.gained.stones : -1,
     );
   });
 
@@ -5674,7 +5788,7 @@ describe("dispatch (#409)", () => {
       .fieldLog()
       .events.find((event) => event.code === "vein.tap");
     expect(tap?.data["stones"]).toBe(
-      result.kind === "applied" ? result.gained : -1,
+      result.kind === "applied" ? result.gained.stones : -1,
     );
   });
 });

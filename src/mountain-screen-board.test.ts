@@ -51,7 +51,7 @@ describe("the Ready plate on the board's model", () => {
   /** play's early save: a crewed Topsoil, 18 workers and 6 carts. */
   const early: Mountain = {
     ...minedMountain(500_000),
-    pocket: 6_854,
+    stock: { ...minedMountain(500_000).stock, stones: 6_854 },
     owned: { ...minedMountain(500_000).owned, helper: 18, cart: 6 },
   };
   /** The early save on a tap clock the test moves. */
@@ -131,7 +131,7 @@ describe("the bays on the board's model", () => {
   /** play's early save: a crewed cart bay, with no card coming up over the board. */
   const crewed: Mountain = {
     ...minedMountain(500_000),
-    pocket: 6_854,
+    stock: { ...minedMountain(500_000).stock, stones: 6_854 },
     owned: { ...minedMountain(500_000).owned, helper: 18, cart: 6 },
   };
   const onClock = () => {

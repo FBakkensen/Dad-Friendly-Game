@@ -40,9 +40,14 @@ function shed(extra: MountainPatch = {}): Mountain {
     {
       ...createMountain(),
       remaining: MOUNTAIN_STONES - 12_000_000,
-      pocket: 80_000_000,
+      stock: {
+        ...createMountain().stock,
+        stones: 80_000_000,
+        ...FULL,
+        crystal: 0,
+        heartstone: 0,
+      },
       owned: { ...createMountain().owned, helper: 4, cart: 1 },
-      materials: { ...FULL, crystal: 0, heartstone: 0 },
       recipes: recipesForMined(12_000_000),
     },
     extra,
@@ -104,13 +109,25 @@ describe("workshop sheet (#199)", () => {
       metMaterialChips({
         ...createMountain(),
         remaining: MOUNTAIN_STONES - 1_000_000,
-        materials: { clay: 0, iron: 0, crystal: 0, heartstone: 0 },
+        stock: {
+          ...createMountain().stock,
+          clay: 0,
+          iron: 0,
+          crystal: 0,
+          heartstone: 0,
+        },
       }).map((chip) => chip.text),
     ).toEqual(["Clay 0"]);
     expect(
       metMaterialChips({
         ...createMountain(),
-        materials: { clay: 3, iron: 0, crystal: 0, heartstone: 0 },
+        stock: {
+          ...createMountain().stock,
+          clay: 3,
+          iron: 0,
+          crystal: 0,
+          heartstone: 0,
+        },
       }).map((chip) => chip.text),
     ).toEqual(["Clay 3"]);
     const cards = workshopCards(mountain, 1_000);
@@ -163,8 +180,7 @@ describe("workshop sheet (#199)", () => {
 
   it("greys a short craft with the first missing material", () => {
     const poor = shed({
-      pocket: 200_000,
-      materials: { clay: 2, iron: 1, crystal: 0, heartstone: 0 },
+      stock: { stones: 200_000, clay: 2, iron: 1, crystal: 0, heartstone: 0 },
     });
     expect(craftShortfall(poor, "iron-rails")).toEqual({
       missing: 3,
@@ -175,8 +191,7 @@ describe("workshop sheet (#199)", () => {
       material: "clay",
     });
     const stones = shed({
-      pocket: 50_000,
-      materials: { ...FULL },
+      stock: { stones: 50_000, ...FULL },
     });
     expect(craftShortfall(stones, "iron-rails")).toEqual({
       missing: 450_000,
@@ -193,7 +208,7 @@ describe("workshop sheet (#199)", () => {
 
   it("says the clay is gone for the run once the Granite starts (#492)", () => {
     const spent = { clay: 0, iron: 0, crystal: 0, heartstone: 0 };
-    const granite = shed({ materials: spent });
+    const granite = shed({ stock: { ...spent } });
     expect(recipe(workshopCards(granite, 0), "blasting-charge").action).toEqual(
       { kind: "short", label: "No clay this deep" },
     );
@@ -208,7 +223,7 @@ describe("workshop sheet (#199)", () => {
       label: "Need 4 more iron",
     });
     // Enough clay kept from the Topsoil still crafts.
-    const kept = shed({ materials: { ...spent, clay: 4 } });
+    const kept = shed({ stock: { ...spent, clay: 4 } });
     expect(recipe(workshopCards(kept, 0), "blasting-charge").action).toEqual({
       kind: "craft",
       label: "Craft · 100K",
@@ -216,7 +231,7 @@ describe("workshop sheet (#199)", () => {
     // Still in the Topsoil, more clay is on its way.
     const topsoil = shed({
       remaining: MOUNTAIN_STONES - 5_000_000,
-      materials: spent,
+      stock: { ...spent },
       recipes: recipesForMined(5_000_000),
     });
     expect(recipe(workshopCards(topsoil, 0), "blasting-charge").action).toEqual(
@@ -233,7 +248,7 @@ describe("workshop sheet (#199)", () => {
     });
     expect(benchLeftMs(shed(), 0)).toBeUndefined();
     const started = {
-      ...shed({ materials: { clay: 0, iron: 0, crystal: 0, heartstone: 0 } }),
+      ...shed({ stock: { clay: 0, iron: 0, crystal: 0, heartstone: 0 } }),
       bench: {
         recipe: "sturdy-props" as const,
         startedAt: 0,
@@ -329,7 +344,7 @@ describe("workshop sheet (#199)", () => {
     const deep = shed({
       remaining: MOUNTAIN_STONES - 130_000_000,
       owned: { borer: 1, drill: 1, cart: 2, helper: 20, machine: 1 },
-      materials: { ...FULL },
+      stock: { ...FULL },
       recipes: [...RECIPE_IDS],
     });
     expect(recipe(workshopCards(deep, 0), "reinforce").effect).toMatch(
@@ -380,7 +395,7 @@ describe("workshop sheet (#199)", () => {
     expect(workshopPages([])).toEqual([[]]);
     const flareHot = shed({
       recipes: [...RECIPE_IDS],
-      materials: { ...FULL },
+      stock: { ...FULL },
       clocks: {
         ...COLD_CLOCKS,
         "crystal-flare": 2 * 60 * 60_000,
@@ -400,7 +415,7 @@ describe("workshop sheet (#199)", () => {
 
 describe("the drawer's bench clock, stones tag and pages (#374)", () => {
   const started = (): Mountain => ({
-    ...shed({ materials: { clay: 0, iron: 0, crystal: 0, heartstone: 0 } }),
+    ...shed({ stock: { clay: 0, iron: 0, crystal: 0, heartstone: 0 } }),
     bench: { recipe: "sturdy-props", startedAt: 0, endsAt: 600_000 },
   });
 

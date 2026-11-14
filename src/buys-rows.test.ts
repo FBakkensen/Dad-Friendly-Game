@@ -1,4 +1,4 @@
-import { NONE_OWNED } from "./test-fixtures";
+import { NONE_OWNED, patched, type MountainPatch } from "./test-fixtures";
 import { describe, expect, it } from "vitest";
 import {
   BUY_SECTIONS,
@@ -45,8 +45,8 @@ import { tierSynergy, NO_UPGRADES } from "./upgrades";
 
 const NOW = 1_700_000_000_000;
 
-function mountainWith(fields: Partial<Mountain>): Mountain {
-  return { ...createMountain(), ...fields };
+function mountainWith(fields: MountainPatch): Mountain {
+  return patched(createMountain(), fields);
 }
 
 /** Stones mined out so far: this deep. */
@@ -104,7 +104,7 @@ function words(view: BuyRowView): readonly string[] {
 
 /** The early save: 18 workers, 6 carts, 12 free. */
 const early = mountainWith({
-  pocket: 6_854,
+  stock: { stones: 6_854 },
   owned: { ...NONE_OWNED, helper: 18, cart: 6 },
 });
 
@@ -192,7 +192,10 @@ describe("buyRowView", () => {
       ...at(10_000_000),
       owned: { ...NONE_OWNED, helper: 5, cart: 1, drill: 1 },
     });
-    const mountain = { ...base, pocket: priceOf(base, "borer", 0) + 1 };
+    const mountain = {
+      ...base,
+      stock: { ...base.stock, stones: priceOf(base, "borer", 0) + 1 },
+    };
     expect(crewCounts(mountain, NOW).free).toBe(3);
 
     const borer = row(mountain, "borer");
@@ -215,7 +218,10 @@ describe("buyRowView", () => {
   });
 
   it("green is ready but not the pick", () => {
-    const mountain = { ...early, pocket: priceOf(early, "drill", 0) };
+    const mountain = {
+      ...early,
+      stock: { ...early.stock, stones: priceOf(early, "drill", 0) },
+    };
     expect(row(mountain, "drill")).toMatchObject({
       state: "ready",
       lamp: "amber",
@@ -231,7 +237,7 @@ describe("buyRowView", () => {
   });
 
   it("Saving for flags the row, dark", () => {
-    const broke = { ...early, pocket: 0 };
+    const broke = { ...early, stock: { ...early.stock, stones: 0 } };
     const pick = readyNow(broke, NOW);
     expect(pick).toMatchObject({ kind: "saving", tier: "cart" });
 
@@ -249,7 +255,7 @@ describe("buyRowView", () => {
 
   it("the next mark's payoff, then the short payoff, then the progress alone (#506)", () => {
     const carts = mountainWith({
-      pocket: 1e9,
+      stock: { stones: 1e9 },
       owned: { ...NONE_OWNED, helper: 12, cart: 12 },
     });
     // Past a mark the row no longer leads with the reached line: "again" says it.
@@ -266,7 +272,10 @@ describe("buyRowView", () => {
     // Past the last mark, the reached line alone.
     expect(
       row(
-        mountainWith({ pocket: 1e9, owned: { ...NONE_OWNED, helper: 120 } }),
+        mountainWith({
+          stock: { stones: 1e9 },
+          owned: { ...NONE_OWNED, helper: 120 },
+        }),
         "helper",
       ).info,
     ).toEqual([REACHED_LINE]);
@@ -274,7 +283,7 @@ describe("buyRowView", () => {
     // Kids have no marks: the count and the tier's quiet line.
     const kids = mountainWith({
       ...at(70_000_000),
-      pocket: 1e12,
+      stock: { stones: 1e12 },
       owned: { ...NONE_OWNED, kid: 3 },
     });
     expect(row(kids, "kid").info).toEqual([
@@ -290,7 +299,7 @@ describe("buyRowView", () => {
       tier: "cart",
       startedAt: NOW - 1_000,
     };
-    const broke = { ...early, pocket: 0 };
+    const broke = { ...early, stock: { ...early.stock, stones: 0 } };
     const cart = row(broke, "cart", { trouble });
     expect(cart).toMatchObject({
       state: "trouble",
@@ -311,7 +320,7 @@ describe("buyRowView", () => {
   it("a worker who starts an idle cart shows the cart too (#490)", () => {
     // 3 workers on 6 carts: the next one starts a cart.
     const mountain = mountainWith({
-      pocket: 1_000,
+      stock: { stones: 1_000 },
       owned: { ...NONE_OWNED, helper: 3, cart: 6 },
     });
     const rates = effectiveRates(mountain, NOW);
@@ -332,7 +341,7 @@ describe("buyRowView", () => {
     // 2 workers run 2 carts; 4 stand idle.
     const idle = mountainWith({ owned: { ...NONE_OWNED, helper: 2, cart: 6 } });
     const workerPrice = priceOf(idle, "helper", 2);
-    const mountain = { ...idle, pocket: workerPrice };
+    const mountain = { ...idle, stock: { ...idle.stock, stones: workerPrice } };
     expect(6 - effectiveRates(mountain, NOW).running.cart).toBe(4);
 
     const cart = row(mountain, "cart", { guided: "cart" });
@@ -349,9 +358,13 @@ describe("buyRowView", () => {
       aria: `Mine cart: 4 idle: each needs 1 worker to run. Tap to hire a worker for ${formatCount(workerPrice)} stones.`,
     });
 
-    const short = row({ ...mountain, pocket: workerPrice - 1 }, "cart", {
-      guided: "cart",
-    });
+    const short = row(
+      { ...mountain, stock: { ...mountain.stock, stones: workerPrice - 1 } },
+      "cart",
+      {
+        guided: "cart",
+      },
+    );
     expect(short).toMatchObject({
       state: "dear",
       dimTag: true,
@@ -379,7 +392,10 @@ describe("buyRowView", () => {
       owned: { ...NONE_OWNED, helper: 20, cart: 2, drill: 1, borer: 1 },
       engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
     });
-    const mountain = { ...crew, pocket: priceOf(crew, "borer", 1) };
+    const mountain = {
+      ...crew,
+      stock: { ...crew.stock, stones: priceOf(crew, "borer", 1) },
+    };
     const gain = tendingGain(mountain, 0, "borer", NOW);
     const borer = row(mountain, "borer");
     expect(borer.pick).toBe(true);
@@ -393,7 +409,10 @@ describe("buyRowView", () => {
     );
 
     // Not the pick: who tends and what she adds, then the number alone (#506).
-    const broke = row({ ...mountain, pocket: 0 }, "borer");
+    const broke = row(
+      { ...mountain, stock: { ...mountain.stock, stones: 0 } },
+      "borer",
+    );
     expect(broke.flag).toEqual([
       `Ada +${formatSpeed(gain)}/s`,
       `+${formatSpeed(gain)}/s`,
@@ -442,7 +461,7 @@ describe("buyRowView", () => {
     // Idle machines and the workers they need.
     const idle = mountainWith({
       owned: { ...NONE_OWNED, helper: 3, cart: 3, drill: 2 },
-      pocket: 1_000,
+      stock: { stones: 1_000 },
     });
     expect(row(idle, "cart").aria).toContain(
       "You have 3, 2 idle: each needs 1 worker to run.",
@@ -452,7 +471,7 @@ describe("buyRowView", () => {
     // Crew synergy names its percent.
     const synergy = mountainWith({
       owned: { ...NONE_OWNED, helper: 12, cart: 6 },
-      pocket: 6_854,
+      stock: { stones: 6_854 },
       upgrades: { ...NO_UPGRADES, cartSyn: 1 },
     });
     const share = tierSynergy(synergy, "cart");
@@ -483,7 +502,7 @@ describe("buyRowView", () => {
     const mountain = mountainWith({
       ...at(30_000_000),
       owned: { ...NONE_OWNED, helper: 20, cart: 2, drill: 1, borer: 1 },
-      pocket: 5_000_000,
+      stock: { stones: 5_000_000 },
       engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
       upgrades: { ...NO_UPGRADES, cartSyn: 1 },
     });
@@ -522,7 +541,7 @@ describe("buyRowView: ×10 and Max (#358)", () => {
 
   it("×10 shows ten's total, the count on the verb, and ten's output", () => {
     const ten = quote(early, "cart", "ten");
-    const mountain = { ...early, pocket: ten.cost };
+    const mountain = { ...early, stock: { ...early.stock, stones: ten.cost } };
     const cart = row(mountain, "cart", { amount: "ten" });
     expect(cart).toMatchObject({
       state: "ready",
@@ -541,7 +560,10 @@ describe("buyRowView: ×10 and Max (#358)", () => {
 
   it("×10 the pocket cannot pay is too dear, and still says ten", () => {
     const ten = quote(early, "cart", "ten");
-    const mountain = { ...early, pocket: ten.cost - 1 };
+    const mountain = {
+      ...early,
+      stock: { ...early.stock, stones: ten.cost - 1 },
+    };
     expect(row(mountain, "cart", { amount: "ten" })).toMatchObject({
       state: "dear",
       price: formatCompact(ten.cost),
@@ -552,7 +574,7 @@ describe("buyRowView: ×10 and Max (#358)", () => {
   });
 
   it("Max counts what the pocket holds, and hires on the workers' row", () => {
-    const rich = { ...early, pocket: 1_000_000 };
+    const rich = { ...early, stock: { ...early.stock, stones: 1_000_000 } };
     const max = quote(rich, "helper", "max");
     expect(max.count).toBeGreaterThan(10);
     expect(row(rich, "helper", { amount: "max" })).toMatchObject({
@@ -564,7 +586,7 @@ describe("buyRowView: ×10 and Max (#358)", () => {
   });
 
   it("Max with nothing affordable shows one's price, dimmed", () => {
-    const broke = { ...early, pocket: 0 };
+    const broke = { ...early, stock: { ...early.stock, stones: 0 } };
     expect(row(broke, "cart", { amount: "max" })).toMatchObject({
       state: "dear",
       price: formatCompact(priceOf(broke, "cart", 6)),
@@ -581,7 +603,7 @@ describe("buyRowView: ×10 and Max (#358)", () => {
     const ten = quote(base, "drill", "ten");
     const mountain = {
       ...base,
-      pocket: ten.cost,
+      stock: { ...base.stock, stones: ten.cost },
       owned: { ...base.owned, cart: 15 },
     };
     expect(crewCounts(mountain, NOW).free).toBe(3);
@@ -601,7 +623,9 @@ describe("buyRowView: ×10 and Max (#358)", () => {
     expect(cart.flag).toEqual([]);
     const ten = quote(early, "cart", "ten");
     expect(
-      row({ ...early, pocket: ten.cost }, "cart", { amount: "ten" }),
+      row({ ...early, stock: { ...early.stock, stones: ten.cost } }, "cart", {
+        amount: "ten",
+      }),
     ).toMatchObject({ lamp: "amber", pick: true, flag: ["Ready now"] });
   });
 
@@ -610,7 +634,10 @@ describe("buyRowView: ×10 and Max (#358)", () => {
     const base = mountainWith({
       owned: { ...NONE_OWNED, helper: 18, cart: 15 },
     });
-    const mountain = { ...base, pocket: quote(base, "drill", "ten").cost };
+    const mountain = {
+      ...base,
+      stock: { ...base.stock, stones: quote(base, "drill", "ten").cost },
+    };
     expect(readyNow(mountain, NOW)).toMatchObject({
       kind: "ready",
       tier: "drill",
@@ -623,7 +650,7 @@ describe("buyRowView: ×10 and Max (#358)", () => {
 
   it("the guided New row still hires one, whatever the amount", () => {
     const idle = mountainWith({ owned: { ...NONE_OWNED, helper: 2, cart: 6 } });
-    const mountain = { ...idle, pocket: 1e9 };
+    const mountain = { ...idle, stock: { ...idle.stock, stones: 1e9 } };
     const one = row(mountain, "cart", { guided: "cart" });
     expect(row(mountain, "cart", { guided: "cart", amount: "max" })).toEqual(
       one,

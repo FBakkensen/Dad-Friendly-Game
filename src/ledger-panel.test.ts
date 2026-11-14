@@ -66,7 +66,13 @@ function granite(over: MountainPatch = {}): Mountain {
     {
       ...minedMountain(12_000_000),
       owned: { ...minedMountain(12_000_000).owned, helper: 4 },
-      materials: { clay: 10, iron: 4, crystal: 0, heartstone: 0 },
+      stock: {
+        ...minedMountain(12_000_000).stock,
+        clay: 10,
+        iron: 4,
+        crystal: 0,
+        heartstone: 0,
+      },
     },
     over,
   );
@@ -183,7 +189,7 @@ describe("the Ledger drawer (#375)", () => {
 
   it("Tonight shows the newest three lines", () => {
     const screen = mount(
-      granite({ pocket: 900_000_000, owned: { drill: 1, cart: 2 } }),
+      granite({ stock: { stones: 900_000_000 }, owned: { drill: 1, cart: 2 } }),
     );
     keyOf(screen).click();
     // With nothing worded, the legend and the box hide.
@@ -337,7 +343,7 @@ describe("the Ledger drawer (#375)", () => {
     clock += PAST_SETTLE;
     fingerTap(part(screen, ".ledger-yes"));
     const fresh = screen.progress.getSnapshot().mountain;
-    expect(fresh.pocket).toBe(0);
+    expect(fresh.stock.stones).toBe(0);
     expect(fresh.owned.helper).toBe(0);
     expect(fresh.remaining).toBe(createMountain().remaining);
     // The page waits for the new run (#480), then closes onto the key.

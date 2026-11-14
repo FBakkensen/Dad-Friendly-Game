@@ -35,7 +35,7 @@ export function saveCardLines(
   const band = layerOf(mountain).name.replace(/^The /, "");
   return {
     depth: `${band}, ${formatCompact(shownStones(mountain, minedOut(mountain)))} deep`,
-    pocket: `${formatCompact(mountain.pocket)} stones in the pocket`,
+    pocket: `${formatCompact(mountain.stock.stones)} stones in the pocket`,
     machines: machineLine(mountain),
     crew: crewLine(mountain),
     played:

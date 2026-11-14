@@ -24,7 +24,7 @@ describe("save card lines", () => {
     const lines = saveCardLines(
       {
         ...minedMountain(12_400_000),
-        pocket: 1_200_000,
+        stock: { ...minedMountain(12_400_000).stock, stones: 1_200_000 },
         owned: {
           ...minedMountain(12_400_000).owned,
           cart: 6,

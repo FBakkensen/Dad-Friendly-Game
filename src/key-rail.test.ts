@@ -1,4 +1,4 @@
-import { NONE_OWNED } from "./test-fixtures";
+import { NONE_OWNED, patched, type MountainPatch } from "./test-fixtures";
 import { describe, expect, it, vi } from "vitest";
 import { canCraftNow } from "./afford-glow";
 import { boostById, boostCost } from "./boosts";
@@ -17,8 +17,8 @@ import { recipesForMined } from "./workshop";
 const NOW = 1_700_000_000_000;
 const MINUTE = 60_000;
 
-function mountainWith(fields: Partial<Mountain>): Mountain {
-  return { ...createMountain(), ...fields };
+function mountainWith(fields: MountainPatch): Mountain {
+  return patched(createMountain(), fields);
 }
 
 /** Stones mined out so far: this deep. */
@@ -32,7 +32,7 @@ const ada = { name: "Ada", rank: 0, trips: 1, post: "borer" } as const;
 function crew(): Mountain {
   return mountainWith({
     remaining: 200_000_000,
-    pocket: 6_500_000,
+    stock: { stones: 6_500_000 },
     owned: { ...NONE_OWNED, helper: 60, cart: 10, drill: 6, borer: 2 },
     engineers: [ada],
     seen: ["workshop", "engineers"],
@@ -45,8 +45,7 @@ function shed(): Mountain {
   return mountainWith({
     ...at(12_000_000),
     owned: { ...NONE_OWNED, helper: 4, cart: 1 },
-    pocket: 1_000_000,
-    materials: { clay: 10, iron: 10, crystal: 0, heartstone: 0 },
+    stock: { stones: 1_000_000, clay: 10, iron: 10, crystal: 0, heartstone: 0 },
     recipes: recipesForMined(12_000_000),
   });
 }
@@ -55,7 +54,7 @@ function shed(): Mountain {
 function shortHanded(): Mountain {
   return mountainWith({
     remaining: 220_000_000,
-    pocket: 2_000_000,
+    stock: { stones: 2_000_000 },
     owned: { ...NONE_OWNED, helper: 6, cart: 10 },
     seen: ["workshop"],
     taught: ["workshop"],
@@ -123,10 +122,18 @@ describe("the key rail (#373)", () => {
       stretch(carts),
     );
     expect(
-      keyViews({ ...carts, pocket: sharper }, NOW, undefined).upgrades,
+      keyViews(
+        { ...carts, stock: { ...carts.stock, stones: sharper } },
+        NOW,
+        undefined,
+      ).upgrades,
     ).toMatchObject({ cap: "lit", aria: "Upgrades, one is affordable" });
     expect(
-      keyViews({ ...carts, pocket: sharper - 1 }, NOW, undefined).upgrades,
+      keyViews(
+        { ...carts, stock: { ...carts.stock, stones: sharper - 1 } },
+        NOW,
+        undefined,
+      ).upgrades,
     ).toMatchObject({ cap: "rest", aria: "Upgrades" });
 
     // A craft that can start.
@@ -138,8 +145,14 @@ describe("the key rail (#373)", () => {
     });
     const broke = {
       ...shed(),
-      pocket: 0,
-      materials: { clay: 0, iron: 0, crystal: 0, heartstone: 0 },
+      stock: {
+        ...shed().stock,
+        stones: 0,
+        clay: 0,
+        iron: 0,
+        crystal: 0,
+        heartstone: 0,
+      },
     };
     expect(keyViews(broke, NOW, undefined).workshop).toMatchObject({
       cap: "rest",
@@ -155,13 +168,17 @@ describe("the key rail (#373)", () => {
       aria: "Engineers, a promotion is affordable",
     });
     expect(
-      keyViews({ ...crew(), pocket: 0 }, NOW, undefined).engineers,
+      keyViews(
+        { ...crew(), stock: { ...crew().stock, stones: 0 } },
+        NOW,
+        undefined,
+      ).engineers,
     ).toMatchObject({ cap: "rest", aria: "Engineers" });
 
     // Buys is never lit, even with every tier affordable.
     const rich = mountainWith({
       ...at(MOUNTAIN_STONES - 1),
-      pocket: Number.MAX_SAFE_INTEGER,
+      stock: { stones: Number.MAX_SAFE_INTEGER },
       owned: {
         ...NONE_OWNED,
         helper: 500,
@@ -171,7 +188,7 @@ describe("the key rail (#373)", () => {
         machine: 1,
       },
     });
-    expect(rich.pocket).toBeGreaterThan(
+    expect(rich.stock.stones).toBeGreaterThan(
       tierCost(tierById("cart"), rich.owned.cart, stretch(rich)),
     );
     expect(keyViews(rich, NOW, undefined).buys.cap).toBe("rest");
@@ -206,7 +223,7 @@ describe("the key rail (#373)", () => {
     // Tending: Ada waits at camp beside a Great Machine, promotion out of reach.
     const tend = {
       ...crew(),
-      pocket: 0,
+      stock: { ...crew().stock, stones: 0 },
       owned: { ...crew().owned, machine: 1 },
       engineers: [{ ...ada, post: "camp" as const }],
     };
@@ -224,7 +241,7 @@ describe("the key rail (#373)", () => {
     expect(keyViews(promo, NOW, undefined).engineers.dot).toBe(true);
 
     // Neither.
-    const quiet = { ...promo, pocket: 0 };
+    const quiet = { ...promo, stock: { ...promo.stock, stones: 0 } };
     expect(keyViews(quiet, NOW, undefined).engineers.dot).toBe(false);
 
     // An unbought upgrade row: Steady hands shows with the first cart.
@@ -299,7 +316,7 @@ describe("the key rail (#373)", () => {
     // Two trips back in 12:03 and 30:00, and one already home.
     const away = {
       ...crew(),
-      pocket: 0,
+      stock: { ...crew().stock, stones: 0 },
       expeditions: [
         trip("Nils", NOW + 30 * MINUTE),
         trip("Ada", NOW + 12 * MINUTE + 3_000),
@@ -312,7 +329,11 @@ describe("the key rail (#373)", () => {
       aria: "Engineers, back in 12:03",
     });
     expect(
-      keyViews({ ...away, pocket: 6_500_000 }, NOW, undefined).engineers,
+      keyViews(
+        { ...away, stock: { ...away.stock, stones: 6_500_000 } },
+        NOW,
+        undefined,
+      ).engineers,
     ).toMatchObject({
       cap: "lit",
       sub: "12:03",

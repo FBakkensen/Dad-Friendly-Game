@@ -2,9 +2,10 @@ import type { MaterialId, Materials } from "../../layers";
 import { LAYERS } from "../../layers";
 import type { CraftRule } from "../policy";
 import { NOTHING_CRAFTED, type Crafted, type RecipeId } from "../../workshop";
-import { recipeById, recipeCost } from "../../workshop";
+import { recipeById, recipePrice } from "../../workshop";
 import { defineMeasure, type DecisionSample } from "../measure";
 import { DAY_MS } from "../targets";
+import { priceAmount } from "../../stock";
 
 /**
  * Repeatable sinks are unlimited only when this dad actually uses them:
@@ -57,7 +58,7 @@ export function materialDemand(
   const open = new Set(unlimited);
   let total = 0;
   for (const id of known) {
-    const cost = recipeCost(id).materials[material];
+    const cost = priceAmount(recipePrice(id), material);
     if (!(cost > 0)) {
       continue;
     }

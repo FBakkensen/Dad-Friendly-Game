@@ -1,3 +1,4 @@
+import { patched, type MountainPatch } from "../test-fixtures";
 import { describe, expect, it } from "vitest";
 import { LAYERS } from "../layers";
 import { createMountain, type Mountain } from "../mountain";
@@ -18,8 +19,11 @@ function at(clock: number, mountain: Mountain): World {
   return { ...createWorld(1, mountain), clock };
 }
 
-function dug(mined: number, over: Partial<Mountain> = {}): Mountain {
-  return { ...createMountain(), remaining: MOUNTAIN_STONES - mined, ...over };
+function dug(mined: number, over: MountainPatch = {}): Mountain {
+  return patched(
+    { ...createMountain(), remaining: MOUNTAIN_STONES - mined },
+    over,
+  );
 }
 
 describe("pacing ledger", () => {

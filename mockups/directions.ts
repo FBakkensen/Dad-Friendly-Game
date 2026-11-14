@@ -191,7 +191,7 @@ export function boardB(): Mountain {
   return {
     ...createMountain(),
     remaining: MOUNTAIN_STONES - 12_000_000,
-    pocket: 2_500_000,
+    stock: { ...createMountain().stock, stones: 2_500_000 },
     owned: {
       ...tierRecord(0),
       helper: 13,
@@ -396,7 +396,7 @@ function tierState(mountain: Mountain, id: ShownTierId): CardState {
     return "locked";
   }
   const cost = tierCost(tier, owned(mountain, tier));
-  if (mountain.pocket < cost) {
+  if (mountain.stock.stones < cost) {
     return "dear";
   }
   const staff = staffForBuy(mountain, tier);
@@ -455,7 +455,7 @@ function mountainCards(view: DirectionView, mountain: Mountain): string {
 function pocketBlock(mountain: Mountain): string {
   const rates = effectiveRates(mountain);
   return `<div class="dir-pocket">
-    <p class="dir-hero-num">${escapeHtml(formatCompact(mountain.pocket))}</p>
+    <p class="dir-hero-num">${escapeHtml(formatCompact(mountain.stock.stones))}</p>
     <p class="dir-rate">${escapeHtml(formatCompact(rates.crewPerSecond))} stones/s</p>
   </div>`;
 }
@@ -536,7 +536,7 @@ function upgradeCard(
   }
   const cost = upgradeCost(upgrade, upgradeLevel(mountain, upgrade.id));
   const state =
-    cost !== undefined && mountain.pocket >= cost ? "ready" : "dear";
+    cost !== undefined && mountain.stock.stones >= cost ? "ready" : "dear";
   return buyCard(
     view,
     upgrade.id,
@@ -575,7 +575,9 @@ function renderUpgradesB(view: DirectionView): string {
       "arms",
       "Strong arms",
       buyPriceWords(priced(armsCost, "Strong arms")),
-      armsCost !== undefined && mountain.pocket >= armsCost ? "ready" : "dear",
+      armsCost !== undefined && mountain.stock.stones >= armsCost
+        ? "ready"
+        : "dear",
       [upgradeSpan(mountain, "tap")],
       `Buys Strong arms. ${upgradeSpan(mountain, "tap")} ${UPGRADE_DOES.tap ?? ""}`,
       ART.upgrades,
@@ -587,7 +589,7 @@ function renderUpgradesB(view: DirectionView): string {
         boost.id,
         boost.name,
         buyPriceWords(cost),
-        mountain.pocket >= cost ? "ready" : "dear",
+        mountain.stock.stones >= cost ? "ready" : "dear",
         [boost.effect],
         `${boost.name}. ${boost.effect} ${BOOST_DOES[boost.id]}`,
         boost.id === "sharper" ? ART.stone : ART.worker,
@@ -598,7 +600,7 @@ function renderUpgradesB(view: DirectionView): string {
       "hands",
       hands.name,
       buyPriceWords(priced(handsCost, hands.name)),
-      handsCost !== undefined && mountain.pocket >= handsCost
+      handsCost !== undefined && mountain.stock.stones >= handsCost
         ? "ready"
         : "dear",
       [upgradeSpan(mountain, "cartSyn")],

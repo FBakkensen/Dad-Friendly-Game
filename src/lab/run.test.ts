@@ -15,7 +15,7 @@ describe("the lab's quick vein (#468)", () => {
     };
     const world = { ...createWorld(1, mountain), clock: 5_000 };
     const tapped = tapQuickVein(world);
-    expect(tapped.mountain.pocket).toBe(mountain.pocket);
+    expect(tapped.mountain.stock.stones).toBe(mountain.stock.stones);
     expect(tapped.mountain.rushUntil).toBe(5_000 + RUSH_MS);
     // nothing held, no rush
     const none = { ...createWorld(1, minedMountain(0)), clock: 5_000 };

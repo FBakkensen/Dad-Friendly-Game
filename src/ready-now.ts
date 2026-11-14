@@ -82,7 +82,7 @@ export function readyNow(
 
   const affordable = [...runnable]
     .reverse()
-    .find(({ price }) => mountain.pocket >= price);
+    .find(({ price }) => mountain.stock.stones >= price);
   // A stable sort keeps tier order on a tie. Every machine takes a hand, so
   // with none free nothing is runnable and the pick falls to a worker.
   const cheapest = [...runnable].sort((a, b) => a.price - b.price)[0];
@@ -90,7 +90,7 @@ export function readyNow(
     cheapest ?? { tier: "helper", price: priceOf("helper") };
 
   const { gain, started } = pickGain(mountain, pick.tier, now, trouble, crew);
-  if (mountain.pocket >= pick.price) {
+  if (mountain.stock.stones >= pick.price) {
     return {
       kind: "ready",
       tier: pick.tier,
@@ -122,7 +122,7 @@ function savingEta(
   now: number,
   trouble: Trouble | undefined,
 ): number | undefined {
-  const short = price - mountain.pocket;
+  const short = price - mountain.stock.stones;
   if (short > stonesLeft(mountain)) {
     return undefined;
   }

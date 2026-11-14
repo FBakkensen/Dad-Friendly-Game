@@ -81,8 +81,8 @@ export function createScreenCtx(
    */
   const dispatch: Dispatch = (move) => {
     const result = progress.dispatch(move);
-    if (result.kind === "applied" && result.spent >= 1) {
-      late.spent(result.spent);
+    if (result.kind === "applied" && result.spent.stones >= 1) {
+      late.spent(result.spent.stones);
     }
     return result;
   };

@@ -96,7 +96,7 @@ describe("world step", () => {
     const clock = world.clock + 1_000;
     const next = step(world, 1_000, "live");
     expect(next.clock).toBe(clock);
-    expect(next.mountain.pocket).toBe(accrued.mountain.pocket);
+    expect(next.mountain.stock.stones).toBe(accrued.mountain.stock.stones);
     expect(next.hazards).toEqual(
       stepHazards(world.hazards, {
         now: clock,
@@ -154,8 +154,14 @@ describe("world step", () => {
     const shed: Mountain = {
       ...createMountain(),
       remaining: MOUNTAIN_STONES - 12_000_000,
-      pocket: 50_000_000,
-      materials: { clay: 40, iron: 40, crystal: 0, heartstone: 0 },
+      stock: {
+        ...createMountain().stock,
+        stones: 50_000_000,
+        clay: 40,
+        iron: 40,
+        crystal: 0,
+        heartstone: 0,
+      },
       owned: { ...createMountain().owned, helper: 4, cart: 1 },
     };
     const started = startCraft(shed, "iron-rails", 0);

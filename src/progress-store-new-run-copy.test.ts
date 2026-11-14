@@ -96,7 +96,7 @@ describe("a new run keeps the mountain he left in Saved copies (#480)", () => {
 
     clock += 60_000;
     await expect(progress.startOver()).resolves.toBe(true);
-    expect(progress.getSnapshot().mountain.pocket).toBe(0);
+    expect(progress.getSnapshot().mountain.stock.stones).toBe(0);
     const fresh = progress.getSnapshot().mountain.startedAt;
     expect(fresh).toBe(clock);
     const copies = await progress.savedCopies();
@@ -161,11 +161,11 @@ describe("a new run keeps the mountain he left in Saved copies (#480)", () => {
     const { progress } = await playing(left, { now: () => clock });
     await expect(progress.startOver()).resolves.toBe(true);
     const [copy] = await progress.savedCopies();
-    const pocket = copy?.mountain.pocket ?? -1;
+    const pocket = copy?.mountain.stock.stones ?? -1;
 
     clock += 6 * 60 * 60 * 1000;
     await expect(progress.restoreCopy(copy?.id ?? "")).resolves.toBe("saved");
-    expect(progress.getSnapshot().mountain.pocket).toBe(pocket);
+    expect(progress.getSnapshot().mountain.stock.stones).toBe(pocket);
     progress.dispose();
   });
 
@@ -264,7 +264,7 @@ describe("a new run keeps the mountain he left in Saved copies (#480)", () => {
     );
     const [copy] = await progress.savedCopies();
     await expect(progress.restoreCopy(copy?.id ?? "")).resolves.toBe("kept");
-    expect(progress.getSnapshot().mountain.pocket).toBe(40_000);
+    expect(progress.getSnapshot().mountain.stock.stones).toBe(40_000);
     progress.dispose();
   });
 
@@ -414,7 +414,7 @@ describe("a new run keeps the mountain he left in Saved copies (#480)", () => {
     await auth.signOut();
     listed();
     await expect(restored).resolves.toBe("kept");
-    expect(progress.getSnapshot().mountain.pocket).not.toBe(9);
+    expect(progress.getSnapshot().mountain.stock.stones).not.toBe(9);
     progress.dispose();
   });
 
@@ -456,7 +456,7 @@ describe("a new run keeps the mountain he left in Saved copies (#480)", () => {
     land({ kind: "ok" });
     await expect(started).resolves.toBe(false);
     expect(progress.getSnapshot().mountain.startedAt).toBe(900);
-    expect(progress.getSnapshot().mountain.pocket).toBe(7);
+    expect(progress.getSnapshot().mountain.stock.stones).toBe(7);
     progress.dispose();
   });
 

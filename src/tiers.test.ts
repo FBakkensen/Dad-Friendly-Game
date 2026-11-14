@@ -1,3 +1,4 @@
+import { EMPTY_STOCK } from "./stock";
 import { describe, expect, it } from "vitest";
 import { tierLocked } from "./crew";
 import { minedMountain, reloaded, NONE_OWNED } from "./test-fixtures";
@@ -40,7 +41,7 @@ const at = (
 ): Mountain => ({
   ...BARE_MOUNTAIN,
   remaining: 240_000_000,
-  pocket: 0,
+  stock: { ...BARE_MOUNTAIN.stock, stones: 0 },
   owned: {
     ...BARE_MOUNTAIN.owned,
     helper: 0,
@@ -108,18 +109,32 @@ describe("tiers", () => {
     const cart = tierById("cart");
     const first = tierCost(cart, 0);
     const second = tierCost(cart, 1);
-    const poor = at({ pocket: first - 1 });
+    const poor = at({ stock: { ...EMPTY_STOCK, stones: first - 1 } });
     expect(buyTier(poor, "cart")).toBe(poor);
-    const one = buyTier(at({ pocket: first + second + 110 }), "cart");
+    const one = buyTier(
+      at({ stock: { ...EMPTY_STOCK, stones: first + second + 110 } }),
+      "cart",
+    );
     expect(one).toEqual(
-      at({ pocket: second + 110, owned: { ...NONE_OWNED, cart: 1 } }),
+      at({
+        stock: { ...EMPTY_STOCK, stones: second + 110 },
+        owned: { ...NONE_OWNED, cart: 1 },
+      }),
     );
     expect(buyTier(one, "cart")).toEqual(
-      at({ pocket: 110, owned: { ...NONE_OWNED, cart: 2 } }),
+      at({
+        stock: { ...EMPTY_STOCK, stones: 110 },
+        owned: { ...NONE_OWNED, cart: 2 },
+      }),
     );
     const worker = tierCost(tierById("helper"), 0);
-    expect(buyTier(at({ pocket: worker + 5 }), "helper")).toEqual(
-      at({ pocket: 5, owned: { ...NONE_OWNED, helper: 1 } }),
+    expect(
+      buyTier(at({ stock: { ...EMPTY_STOCK, stones: worker + 5 } }), "helper"),
+    ).toEqual(
+      at({
+        stock: { ...EMPTY_STOCK, stones: 5 },
+        owned: { ...NONE_OWNED, helper: 1 },
+      }),
     );
   });
 
@@ -148,7 +163,12 @@ describe("tiers", () => {
 
   it("shows each tier once the one before it is owned", () => {
     expect(tierShown(at({}), tierById("helper"))).toBe(true);
-    expect(tierShown(at({ pocket: 10_000 }), tierById("cart"))).toBe(false);
+    expect(
+      tierShown(
+        at({ stock: { ...EMPTY_STOCK, stones: 10_000 } }),
+        tierById("cart"),
+      ),
+    ).toBe(false);
     expect(
       tierShown(at({ owned: { ...NONE_OWNED, helper: 1 } }), tierById("cart")),
     ).toBe(true);
@@ -346,7 +366,11 @@ describe("tierQuote: what ×1, ×10 and Max cost (#358)", () => {
   ).reduce((sum, price) => sum + price, 0);
 
   it("×1 is one at today's price", () => {
-    const m = at({ pocket: 0, stretch: 2, owned: { ...NONE_OWNED, cart: 6 } });
+    const m = at({
+      stock: { ...EMPTY_STOCK, stones: 0 },
+      stretch: 2,
+      owned: { ...NONE_OWNED, cart: 6 },
+    });
     expect(tierQuote(m, cart, "one")).toEqual({
       count: 1,
       cost: tierCost(cart, 6, 2),
@@ -354,14 +378,18 @@ describe("tierQuote: what ×1, ×10 and Max cost (#358)", () => {
   });
 
   it("×10 is exactly ten, the sum buyTier would charge, affordable or not", () => {
-    const m = at({ pocket: 0, stretch: 2, owned: { ...NONE_OWNED, cart: 6 } });
+    const m = at({
+      stock: { ...EMPTY_STOCK, stones: 0 },
+      stretch: 2,
+      owned: { ...NONE_OWNED, cart: 6 },
+    });
     expect(tierQuote(m, cart, "ten")).toEqual({ count: 10, cost: tenFrom6 });
-    let bought = { ...m, pocket: tenFrom6 };
+    let bought = { ...m, stock: { ...m.stock, stones: tenFrom6 } };
     for (let i = 0; i < 10; i += 1) {
       bought = buyTier(bought, "cart");
     }
     expect(bought).toMatchObject({
-      pocket: 0,
+      stock: { stones: 0 },
       owned: { cart: 16 },
     });
   });
@@ -369,14 +397,18 @@ describe("tierQuote: what ×1, ×10 and Max cost (#358)", () => {
   it("Max is as many as the pocket holds", () => {
     const m = at({
       owned: { ...NONE_OWNED, cart: 6 },
-      pocket: tenFrom6 + tierCost(cart, 16, 2) - 1,
+      stock: { ...EMPTY_STOCK, stones: tenFrom6 + tierCost(cart, 16, 2) - 1 },
       stretch: 2,
     });
     expect(tierQuote(m, cart, "max")).toEqual({ count: 10, cost: tenFrom6 });
   });
 
   it("Max with nothing affordable quotes one, at its price", () => {
-    const m = at({ pocket: 5, stretch: 2, owned: { ...NONE_OWNED, cart: 6 } });
+    const m = at({
+      stock: { ...EMPTY_STOCK, stones: 5 },
+      stretch: 2,
+      owned: { ...NONE_OWNED, cart: 6 },
+    });
     expect(tierQuote(m, cart, "max")).toEqual({
       count: 1,
       cost: tierCost(cart, 6, 2),
@@ -385,7 +417,10 @@ describe("tierQuote: what ×1, ×10 and Max cost (#358)", () => {
 
   it("Max on the workers' gentle curve counts every hand the pocket holds", () => {
     const worker = tierById("helper");
-    const m = at({ pocket: 1e12, owned: { ...NONE_OWNED, helper: 40 } });
+    const m = at({
+      stock: { ...EMPTY_STOCK, stones: 1e12 },
+      owned: { ...NONE_OWNED, helper: 40 },
+    });
     const { count, cost } = tierQuote(m, worker, "max");
     expect(cost).toBeLessThanOrEqual(1e12);
     expect(cost + tierCost(worker, 40 + count)).toBeGreaterThan(1e12);
@@ -424,7 +459,7 @@ describe("the line's machines, off in play (#533)", () => {
     expect(tierInPlay(hoist)).toBe(false);
     expect(machinesInPlay()).toEqual(["cart", "drill", "borer", "machine"]);
     const crew = at({
-      pocket: 1e9,
+      stock: { ...EMPTY_STOCK, stones: 1e9 },
       owned: { ...NONE_OWNED, helper: 30, cart: 4, borer: 1 },
     });
     expect(tierShown(crew, hoist)).toBe(false);
@@ -470,7 +505,7 @@ describe("the line's machines, off in play (#533)", () => {
     withFactors(LINE_ON, () => {
       expect(machinesInPlay()).toEqual(MACHINE_IDS);
       const carts = at({
-        pocket: 1e9,
+        stock: { ...EMPTY_STOCK, stones: 1e9 },
         owned: { ...NONE_OWNED, helper: 12, cart: 1 },
       });
       expect(tierShown(carts, hoist)).toBe(true);
@@ -552,7 +587,7 @@ describe("counts by id (#559)", () => {
   it("a buy moves its own count and leaves every other one", () => {
     const start: Mountain = {
       ...BARE_MOUNTAIN,
-      pocket: 1e12,
+      stock: { ...BARE_MOUNTAIN.stock, stones: 1e12 },
       owned: { ...NONE_OWNED, helper: 9, cart: 2, hoist: 1, kid: 3 },
     };
     const bought = buyTier(start, "cart");
