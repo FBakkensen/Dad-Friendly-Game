@@ -4,8 +4,8 @@ The superpowers plugin (`superpowers@claude-plugins-official`, enabled in `.clau
 
 ## A sitting, start to finish
 
-1. **Pick:** the what-next skill (ours; superpowers has no work picker). A thread started on an issue has its pick. Claim it with the triage labels (github-issues).
-2. **Issue:** the github-issues skill (ours). Every sliver has an issue before code.
+1. **Pick:** the what-next skill (ours; superpowers has no work picker). A thread started on an issue has its pick. Claim it with the triage labels (github-issues). Work is picked in the road's order (#563), foundations first.
+2. **Issue:** the github-issues skill (ours). Every sliver has an issue before code. An idea of Flemming's is recorded as an `idea` issue and answered at once (github-issues, Ideas). It reaches Design only when its turn on the road comes.
 3. **Design:** `superpowers:brainstorming`.
 4. **Plan:** `superpowers:writing-plans`, for one sliver only. A design that spans several slivers is split first (Specs and plans, below).
 5. **Build:** `superpowers:subagent-driven-development`, or `superpowers:executing-plans` for a plan of a few tasks. `superpowers:test-driven-development` and `superpowers:systematic-debugging` as they say.

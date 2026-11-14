@@ -7,6 +7,7 @@ How we build is dad-friendly too. The superpowers plugin is the workflow (`super
 - One sitting produces one user-visible sliver. The game still boots. Next sitting starts from a running game.
 - Chores (lint, folders, vendor setup) are not a sitting by themselves unless they unblock that same sliver, or the human picks them.
 - GitHub is the backbone: issues, PRs, and the dependency graph. An issue is a sliver: work worth its own sitting and PR. Use the github-issues skill.
+- The game is built in the road's order (#563), foundations first. An idea of Flemming's is recorded at once and gets an honest answer on what it needs first. It is never built just because it was said (github-issues, Ideas).
 
 ## Docs
 
