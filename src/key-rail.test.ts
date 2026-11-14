@@ -1,3 +1,4 @@
+import { NONE_OWNED } from "./test-fixtures";
 import { describe, expect, it, vi } from "vitest";
 import { canCraftNow } from "./afford-glow";
 import { boostById, boostCost } from "./boosts";
@@ -32,10 +33,7 @@ function crew(): Mountain {
   return mountainWith({
     remaining: 200_000_000,
     pocket: 6_500_000,
-    helpers: 60,
-    carts: 10,
-    drills: 6,
-    borers: 2,
+    owned: { ...NONE_OWNED, helper: 60, cart: 10, drill: 6, borer: 2 },
     engineers: [ada],
     seen: ["workshop", "engineers"],
     taught: ["workshop", "engineers", "staffing"],
@@ -46,8 +44,7 @@ function crew(): Mountain {
 function shed(): Mountain {
   return mountainWith({
     ...at(12_000_000),
-    helpers: 4,
-    carts: 1,
+    owned: { ...NONE_OWNED, helper: 4, cart: 1 },
     pocket: 1_000_000,
     materials: { clay: 10, iron: 10, crystal: 0, heartstone: 0 },
     recipes: recipesForMined(12_000_000),
@@ -59,8 +56,7 @@ function shortHanded(): Mountain {
   return mountainWith({
     remaining: 220_000_000,
     pocket: 2_000_000,
-    helpers: 6,
-    carts: 10,
+    owned: { ...NONE_OWNED, helper: 6, cart: 10 },
     seen: ["workshop"],
     taught: ["workshop"],
   });
@@ -118,7 +114,9 @@ describe("the key rail (#373)", () => {
 
   it("lit caps take today's afford glow, except Buys", () => {
     // The pocket over Sharper picks.
-    const carts = mountainWith({ helpers: 1, carts: 1 });
+    const carts = mountainWith({
+      owned: { ...NONE_OWNED, helper: 1, cart: 1 },
+    });
     const sharper = boostCost(
       boostById("sharper"),
       effectiveRates(carts),
@@ -164,14 +162,17 @@ describe("the key rail (#373)", () => {
     const rich = mountainWith({
       ...at(MOUNTAIN_STONES - 1),
       pocket: Number.MAX_SAFE_INTEGER,
-      helpers: 500,
-      carts: 50,
-      drills: 50,
-      borers: 50,
-      machines: 1,
+      owned: {
+        ...NONE_OWNED,
+        helper: 500,
+        cart: 50,
+        drill: 50,
+        borer: 50,
+        machine: 1,
+      },
     });
     expect(rich.pocket).toBeGreaterThan(
-      tierCost(tierById("cart"), rich.carts, stretch(rich)),
+      tierCost(tierById("cart"), rich.owned.cart, stretch(rich)),
     );
     expect(keyViews(rich, NOW, undefined).buys.cap).toBe("rest");
   });
@@ -187,7 +188,10 @@ describe("the key rail (#373)", () => {
     });
 
     // The Workshop note unseen: the dot stays until the first craft.
-    const open = mountainWith({ ...at(12_000_000), helpers: 4, carts: 1 });
+    const open = mountainWith({
+      ...at(12_000_000),
+      owned: { ...NONE_OWNED, helper: 4, cart: 1 },
+    });
     expect(showsDot(open, "workshop")).toBe(true);
     expect(keyViews(open, NOW, undefined).workshop.dot).toBe(true);
     expect(
@@ -203,7 +207,7 @@ describe("the key rail (#373)", () => {
     const tend = {
       ...crew(),
       pocket: 0,
-      machines: 1,
+      owned: { ...crew().owned, machine: 1 },
       engineers: [{ ...ada, post: "camp" as const }],
     };
     expect(showsDot(tend, "tending")).toBe(true);
@@ -224,7 +228,7 @@ describe("the key rail (#373)", () => {
     expect(keyViews(quiet, NOW, undefined).engineers.dot).toBe(false);
 
     // An unbought upgrade row: Steady hands shows with the first cart.
-    const cart = mountainWith({ helpers: 1, carts: 1 });
+    const cart = mountainWith({ owned: { ...NONE_OWNED, helper: 1, cart: 1 } });
     expect(showsDot(cart, "upgrade:steady")).toBe(true);
     expect(keyViews(cart, NOW, undefined).upgrades.dot).toBe(true);
     // A boost row alone lights it too.
@@ -251,10 +255,7 @@ describe("the key rail (#373)", () => {
     // In the Great Machine era the bays are drill, borer and machine.
     const late = mountainWith({
       ...at(125_000_000),
-      helpers: 40,
-      carts: 10,
-      drills: 4,
-      borers: 2,
+      owned: { ...NONE_OWNED, helper: 40, cart: 10, drill: 4, borer: 2 },
       taught: ["staffing"],
     });
     expect(showsDot(late, "staffing")).toBe(false);

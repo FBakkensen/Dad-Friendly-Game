@@ -4,7 +4,8 @@ import { mineByHand, type Mountain } from "../mountain";
 import { effectiveRates } from "../rates";
 import { onTrip, station } from "../engineers";
 import { layerOf } from "../layers";
-import { lineOf, lineOn, lineView } from "../line";
+import { lineOf, lineView } from "../line";
+import { lineOn } from "../line-switch";
 import { TIERS } from "../tiers";
 import {
   knownRecipeIds,

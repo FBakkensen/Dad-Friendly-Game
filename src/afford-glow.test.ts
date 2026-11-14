@@ -11,8 +11,7 @@ describe("afford glow (#282)", () => {
     const shed = {
       ...createMountain(),
       remaining: MOUNTAIN_STONES - 12_000_000,
-      helpers: 4,
-      carts: 1,
+      owned: { ...createMountain().owned, helper: 4, cart: 1 },
       pocket: 1_000_000,
       materials: { clay: 10, iron: 10, crystal: 0, heartstone: 0 },
       recipes: recipesForMined(12_000_000),

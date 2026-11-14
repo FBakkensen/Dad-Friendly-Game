@@ -239,7 +239,7 @@ function crewPosts(
   trouble: ProgressSnapshot["trouble"],
 ): { readonly words: string; readonly bits: readonly ChipBit[] } {
   const rates = effectiveRates(mountain, at, trouble);
-  const pool = mountain.helpers + mountain.kids;
+  const pool = mountain.owned.helper + mountain.owned.kid;
   const { spare: free } = crewCounts(mountain, at, trouble);
   const stations = TIERS.flatMap((tier) => {
     const label = crewPostLabel(tier.id);

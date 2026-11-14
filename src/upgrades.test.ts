@@ -23,7 +23,10 @@ function mustCost(price: number | undefined): number {
   return price;
 }
 
-const crew = { ...minedMountain(0), helpers: 500 }; // 500 workers, x8 at the 100 mark: 4,000 a second
+const crew = {
+  ...minedMountain(0),
+  owned: { ...minedMountain(0).owned, helper: 500 },
+}; // 500 workers, x8 at the 100 mark: 4,000 a second
 
 describe("Strong arms (tap power)", () => {
   const arms = upgradeById("tap");
@@ -43,9 +46,9 @@ describe("Strong arms (tap power)", () => {
 
   it("buys one level at a time from the pocket", () => {
     // Strong arms opens with the third cart (#250).
-    const shut = { ...crew, carts: 2, pocket: 1e9 };
+    const shut = { ...crew, pocket: 1e9, owned: { ...crew.owned, cart: 2 } };
     expect(buyUpgrade(shut, "tap")).toBe(shut);
-    const open = { ...crew, carts: 3 };
+    const open = { ...crew, owned: { ...crew.owned, cart: 3 } };
     const first = mustCost(upgradeCost(arms, 0));
     const second = mustCost(upgradeCost(arms, 1));
     const poor = { ...open, pocket: first - 1 };
@@ -125,17 +128,26 @@ describe("lasting upgrades: Better boots and Steady hands", () => {
   it("unlock from the crew: boots at 10 helpers, steady hands with a first cart", () => {
     const boots = upgradeById("boots");
     const steady = upgradeById("steady");
-    expect(upgradeUnlocked({ ...base, helpers: 9 }, boots)).toBe(false);
-    expect(upgradeUnlocked({ ...base, helpers: 10 }, boots)).toBe(true);
+    expect(
+      upgradeUnlocked({ ...base, owned: { ...base.owned, helper: 9 } }, boots),
+    ).toBe(false);
+    expect(
+      upgradeUnlocked({ ...base, owned: { ...base.owned, helper: 10 } }, boots),
+    ).toBe(true);
     expect(upgradeUnlocked(base, steady)).toBe(false);
-    expect(upgradeUnlocked({ ...base, carts: 1 }, steady)).toBe(true);
+    expect(
+      upgradeUnlocked({ ...base, owned: { ...base.owned, cart: 1 } }, steady),
+    ).toBe(true);
     // Locked: buying does nothing.
     expect(buyUpgrade(base, "boots")).toBe(base);
     expect(buyUpgrade(base, "steady")).toBe(base);
   });
 
   it("are one-time buys", () => {
-    const once = buyUpgrade({ ...base, helpers: 10 }, "boots");
+    const once = buyUpgrade(
+      { ...base, owned: { ...base.owned, helper: 10 } },
+      "boots",
+    );
     expect(once.upgrades).toEqual({ ...NO_UPGRADES, boots: 1 });
     expect(once.pocket).toBe(
       20_000_000 - mustCost(upgradeCost(upgradeById("boots"), 0)),
@@ -147,8 +159,7 @@ describe("lasting upgrades: Better boots and Steady hands", () => {
   it("Better boots makes helpers 10% faster, in whole stones a second", () => {
     const crew = {
       ...base,
-      helpers: 15,
-      carts: 2,
+      owned: { ...base.owned, helper: 15, cart: 2 },
       upgrades: { ...NO_UPGRADES, boots: 1 },
     };
     const rates = effectiveRates(crew);
@@ -156,13 +167,14 @@ describe("lasting upgrades: Better boots and Steady hands", () => {
     expect(rates.tierSpeed.cart).toBe(effectiveRates(base).tierSpeed.cart);
     // 15 × 2.36 = 35.4 → 35, plus 2 carts.
     expect(rates.crewPerSecond).toBe(35 + 2 * rates.tierSpeed.cart);
-    expect(effectiveRates({ ...crew, helpers: 10 }).crewPerSecond).toBe(
-      23 + 2 * rates.tierSpeed.cart,
-    );
+    expect(
+      effectiveRates({ ...crew, owned: { ...crew.owned, helper: 10 } })
+        .crewPerSecond,
+    ).toBe(23 + 2 * rates.tierSpeed.cart);
   });
 
   it("Steady hands pays time away 25% more, and live play is untouched", () => {
-    const crew = { ...base, helpers: 100 };
+    const crew = { ...base, owned: { ...base.owned, helper: 100 } };
     const steady = { ...crew, upgrades: { ...NO_UPGRADES, steady: 1 } };
     expect(effectiveRates(steady).awayPay).toBeCloseTo(AWAY_PAY_RATE * 1.25);
     expect(
@@ -194,11 +206,17 @@ describe("crew synergies", () => {
   it("are one-time buys, unlocked by owning enough of the boosted tier", () => {
     const helping = upgradeById("cartSyn");
     expect(helping.name).toBe("Helping hands");
-    expect(upgradeUnlocked({ ...rich, carts: 4 }, helping)).toBe(false);
-    expect(buyUpgrade({ ...rich, carts: 4 }, "cartSyn").upgrades).toEqual(
-      NO_UPGRADES,
+    expect(
+      upgradeUnlocked({ ...rich, owned: { ...rich.owned, cart: 4 } }, helping),
+    ).toBe(false);
+    expect(
+      buyUpgrade({ ...rich, owned: { ...rich.owned, cart: 4 } }, "cartSyn")
+        .upgrades,
+    ).toEqual(NO_UPGRADES);
+    const bought = buyUpgrade(
+      { ...rich, owned: { ...rich.owned, cart: 5 } },
+      "cartSyn",
     );
-    const bought = buyUpgrade({ ...rich, carts: 5 }, "cartSyn");
     expect(bought.upgrades).toEqual({ ...NO_UPGRADES, cartSyn: 1 });
     expect(bought.pocket).toBe(
       90_000_000 - mustCost(upgradeCost(upgradeById("cartSyn"), 0)),
@@ -227,7 +245,10 @@ describe("crew synergies", () => {
   });
 
   it("each unit of the tier below adds 1% to the boosted tier, only once bought", () => {
-    const crew = { ...rich, helpers: 20, carts: 10, drills: 4 };
+    const crew = {
+      ...rich,
+      owned: { ...rich.owned, helper: 20, cart: 10, drill: 4 },
+    };
     expect(synergyBonus(crew, upgradeById("cartSyn"))).toBeCloseTo(0.2);
     expect(tierSynergy(crew, "cart")).toBe(0);
     const boosted = { ...crew, upgrades: { ...NO_UPGRADES, cartSyn: 1 } };
@@ -247,9 +268,8 @@ describe("crew synergies", () => {
   it("stacks with Better boots and other synergies", () => {
     const crew = {
       ...rich,
-      helpers: 40, // staffs 10 carts (10) and 10 drills (10), 20 spare
-      carts: 10,
-      drills: 10,
+      // 40 workers staff 10 carts (10) and 10 drills (10), 20 spare.
+      owned: { ...rich.owned, helper: 40, cart: 10, drill: 10 },
       upgrades: { ...NO_UPGRADES, boots: 1, cartSyn: 1, drillSyn: 1 },
     };
     const rates = effectiveRates(crew);

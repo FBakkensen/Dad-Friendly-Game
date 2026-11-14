@@ -618,11 +618,15 @@ describe("the first engineer", () => {
     "agrees with grantFirstEngineer: %s",
     (label) => {
       const raw = inputs[label] ?? {};
+      const { borers, ...rest } = raw;
       const mountain = {
         ...BARE_MOUNTAIN,
-        ...base,
-        borers: 0,
-        ...raw,
+        ...rest,
+        owned: {
+          ...BARE_MOUNTAIN.owned,
+          helper: base.helpers,
+          borer: typeof borers === "number" ? borers : 0,
+        },
       } as unknown as Mountain;
       const fromSrc = grantFirstEngineer(mountain).mountain;
       const seeded = JSON.parse(

@@ -1,5 +1,5 @@
-import { factor } from "./economy/factors";
-import type { MachineId, TierId } from "./tiers";
+import { lineOn } from "./line-switch";
+import { MACHINE_IDS, tierById, type MachineId, type TierId } from "./tiers";
 
 /**
  * The line (M15, spec `2026-11-14-line-works-village-design.md`, step 1):
@@ -12,24 +12,26 @@ export type Stage = "face" | "haul" | "lift";
 /** In the order rock goes through them. */
 export const STAGES: readonly Stage[] = ["face", "haul", "lift"];
 
-/** Every machine belongs to one stage. */
-export const MACHINE_STAGE: Readonly<Record<MachineId, Stage>> = {
-  cart: "haul",
-  hoist: "lift",
-  drill: "face",
-  borer: "face",
-  train: "haul",
-  machine: "lift",
-};
+/** Every machine's stage, read from its row of the tier table (#559). */
+const MACHINE_STAGES: readonly (readonly [MachineId, Stage])[] =
+  MACHINE_IDS.map((id) => [id, machineStage(id)]);
+
+/** The same, as a record for the staffing search's hot loops. */
+export const MACHINE_STAGE: Readonly<Record<MachineId, Stage>> =
+  Object.fromEntries(MACHINE_STAGES) as Record<MachineId, Stage>;
+
+function machineStage(id: MachineId): Stage {
+  const stage = tierById(id).stage;
+  if (stage === undefined) {
+    throw new Error(`Machine ${id} has no stage`);
+  }
+  return stage;
+}
+
+const STAGE_OF: ReadonlyMap<TierId, Stage> = new Map(MACHINE_STAGES);
 
 /** Stones a second each stage's running machines can move. */
 export type StageSpeeds = Readonly<Record<Stage, number>>;
-
-/**
- * The sweep factor that switches the line. A factor reads 1 when no sweep
- * runs, so 1 is off (play today) and a lab run sets it to 0 to play the line.
- */
-export const LINE_OFF = "line.off";
 
 /**
  * Machines are rated three times today's on the line, because a hand on one
@@ -38,16 +40,9 @@ export const LINE_OFF = "line.off";
  */
 const LINE_RATING = 3;
 
-/** True when the crew moves what the line moves, not the sum of its parts. */
-export function lineOn(): boolean {
-  return factor(LINE_OFF) === 0;
-}
-
 /** A machine's stage, or none for the hands. */
 export function stageOf(tierId: TierId): Stage | undefined {
-  return Object.hasOwn(MACHINE_STAGE, tierId)
-    ? MACHINE_STAGE[tierId as MachineId]
-    : undefined;
+  return STAGE_OF.get(tierId);
 }
 
 /** A machine's rating on the line, times today's; the hands keep theirs. */
@@ -61,10 +56,7 @@ export function stageSpeeds(
   running: Readonly<Record<TierId, number>>,
 ): StageSpeeds {
   const stages = { face: 0, haul: 0, lift: 0 };
-  for (const [id, stage] of Object.entries(MACHINE_STAGE) as [
-    MachineId,
-    Stage,
-  ][]) {
+  for (const [id, stage] of MACHINE_STAGES) {
     stages[stage] += running[id] * speed[id];
   }
   return stages;

@@ -1,7 +1,7 @@
 import { oneOffStretch } from "./scale";
 import { factor } from "./economy/factors";
 import type { Mountain } from "./mountain";
-import { TIERS, type TierId } from "./tiers";
+import { TIERS, setOwned, type TierId } from "./tiers";
 
 /**
  * Engineers (M7 §3). A few named hands, never a second currency.
@@ -141,7 +141,7 @@ export function nextEngineerName(
 export function canPromote(mountain: Mountain): boolean {
   return (
     nextEngineerName(mountain.engineers) !== undefined &&
-    mountain.helpers >= 1 &&
+    mountain.owned.helper >= 1 &&
     mountain.pocket >= promoteCost(mountain)
   );
 }
@@ -155,15 +155,14 @@ export function promote(mountain: Mountain): Mountain {
   const name = nextEngineerName(engineers);
   if (
     name === undefined ||
-    mountain.helpers < 1 ||
+    mountain.owned.helper < 1 ||
     mountain.pocket < promoteCost(mountain)
   ) {
     return mountain;
   }
   return {
-    ...mountain,
+    ...setOwned(mountain, "helper", mountain.owned.helper - 1),
     pocket: mountain.pocket - promoteCost(mountain),
-    helpers: mountain.helpers - 1,
     engineers: [...engineers, { name, rank: 0, trips: 0, post: "camp" }],
   };
 }
@@ -177,7 +176,7 @@ export function grantFirstEngineer(mountain: Mountain): {
   readonly mountain: Mountain;
   readonly joined: boolean;
 } {
-  if (mountain.borers < 1 || mountain.engineers.length > 0) {
+  if (mountain.owned.borer < 1 || mountain.engineers.length > 0) {
     return { mountain, joined: false };
   }
   return {
@@ -266,9 +265,9 @@ export function tendBestTier(mountain: Mountain): Mountain {
     return mountain;
   }
   const wanted: EngineerPost | undefined =
-    mountain.machines > 0
+    mountain.owned.machine > 0
       ? "machine"
-      : mountain.borers > 0
+      : mountain.owned.borer > 0
         ? "borer"
         : undefined;
   if (

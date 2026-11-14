@@ -27,7 +27,12 @@ import {
   stonesPerSecond,
 } from "./screen-words";
 import { writeSessionSave } from "./session-save";
-import { guestSave, minedMountain } from "./test-fixtures";
+import {
+  guestSave,
+  minedMountain,
+  patched,
+  type MountainPatch,
+} from "./test-fixtures";
 
 /*
  * The Engineers drawer on the mounted screen (#455): its doors, its rows and pages, and every
@@ -48,22 +53,22 @@ const PAST_SETTLE = DRAWER_SETTLE_MS + 100;
 
 const adaCrew: Mountain = {
   ...minedMountain(0),
-  helpers: 20,
-  carts: 2,
-  drills: 1,
-  borers: 1,
+  owned: { ...minedMountain(0).owned, helper: 20, cart: 2, drill: 1, borer: 1 },
   engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
 };
 // Nils's price, and a pocket that covers it with 3M to spare.
 const nilsPrice = promoteCost(adaCrew);
 /** Ada at the borers with a pocket for Nils; the first trip still to teach. */
-const withAda = (patch: Partial<Mountain> = {}): Mountain => ({
-  ...adaCrew,
-  pocket: nilsPrice + 3_000_000,
-  ...patch,
-});
+const withAda = (patch: MountainPatch = {}): Mountain =>
+  patched(
+    {
+      ...adaCrew,
+      pocket: nilsPrice + 3_000_000,
+    },
+    patch,
+  );
 /** The same, past the first trip's lesson. */
-const taughtAda = (patch: Partial<Mountain> = {}): Mountain =>
+const taughtAda = (patch: MountainPatch = {}): Mountain =>
   withAda({
     engineers: [{ name: "Ada", rank: 0, trips: 1, post: "borer" }],
     seen: ["engineers"],
@@ -325,8 +330,7 @@ describe("the Engineers drawer (#455)", () => {
     const screen = mount({
       ...minedMountain(10_000_000),
       pocket: 10_000_000,
-      helpers: 4,
-      drills: 1,
+      owned: { ...minedMountain(10_000_000).owned, helper: 4, drill: 1 },
     });
     const key = keyOf(screen);
     expect(key.hidden).toBe(false);
@@ -398,7 +402,7 @@ describe("the Engineers drawer (#455)", () => {
     postRow(screen, "cart").click();
     expect(saved(screen).engineers[0]?.post).toBe("cart");
     cart?.click();
-    expect(saved(screen).carts).toBe(3);
+    expect(saved(screen).owned.cart).toBe(3);
     expect(guestSave(storage)?.mountain.engineers[0]?.post).toBe("cart");
   });
 
@@ -454,7 +458,7 @@ describe("the Engineers drawer (#455)", () => {
 
   it("the guided New post and its cheer read the move's net gain", () => {
     // Ada tends the borers, and the first tend proposes the Great Machine.
-    const mountain = taughtAda({ carts: 10, drills: 6, machines: 1 });
+    const mountain = taughtAda({ owned: { cart: 10, drill: 6, machine: 1 } });
     expect(firstTend(mountain, CLOCK)).toEqual({ index: 0, post: "machine" });
     const net = stonesPerSecond(moveGain(mountain, 0, "machine", CLOCK));
     expect(net).not.toBe(
@@ -506,7 +510,7 @@ describe("the Engineers drawer (#455)", () => {
     );
     part(screen, ".engineer-confirm-no").click();
     expect(screen.engineersPage()).toBeUndefined();
-    expect(saved(screen).helpers).toBe(20);
+    expect(saved(screen).owned.helper).toBe(20);
     expect(screen.pocket()).toBe(
       `Stones ${odometerFace(nilsPrice + 3_000_000).words}`,
     );
@@ -515,13 +519,13 @@ describe("the Engineers drawer (#455)", () => {
     part(screen, ".engineer-promote").click();
     escape();
     expect(engineersOpen(screen.root)).toBe(false);
-    expect(saved(screen).helpers).toBe(20);
+    expect(saved(screen).owned.helper).toBe(20);
 
     keyOf(screen).click();
     part(screen, ".engineer-promote").click();
     part(screen, ".engineer-confirm-yes").click();
     expect(screen.pocket()).toBe("Stones 3.000M");
-    expect(saved(screen).helpers).toBe(19);
+    expect(saved(screen).owned.helper).toBe(19);
     expect(screen.engineersPage()).toBeUndefined();
     expect(kick(screen)).toBe("Nils steps up. The crew cheers.");
     expect(herRow(screen, "Nils").classList).toContain("is-held");
@@ -557,7 +561,7 @@ describe("the Engineers drawer (#455)", () => {
     expect(kick(screen)).toBe(ENGINEER_SHEET_SUB);
     expect(saved(screen).engineers).toHaveLength(1);
     expect(saved(screen).pocket).toBe(0);
-    expect(saved(screen).helpers).toBe(20);
+    expect(saved(screen).owned.helper).toBe(20);
   });
 
   it("shows the rank word and a near-rank hint instead of a trip count", () => {
@@ -597,7 +601,7 @@ describe("the Engineers drawer (#455)", () => {
 
   it("refuses a promotion when no worker is free, or the crew is full", () => {
     setReducedMotion(false);
-    const broke = mount(taughtAda({ helpers: 0 }));
+    const broke = mount(taughtAda({ owned: { helper: 0 } }));
     keyOf(broke).click();
     const promote = part(broke, ".engineer-promote");
     expect(rowPart(promote, "price")).toBe(formatCompact(nilsPrice));
@@ -609,7 +613,7 @@ describe("the Engineers drawer (#455)", () => {
 
     const full = mount(
       taughtAda({
-        helpers: 5,
+        owned: { helper: 5 },
         engineers: [
           { name: "Ada", rank: 0, trips: 1, post: "borer" },
           { name: "Nils", rank: 0, trips: 0, post: "camp" },

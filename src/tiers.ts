@@ -1,6 +1,7 @@
 import { BAND_STARTS, stretch } from "./scale";
 import { factor } from "./economy/factors";
-import { lineOn } from "./line";
+import { lineOn } from "./line-switch";
+import type { Stage } from "./line";
 import type { Mountain } from "./mountain";
 import type { RelicId } from "./relics";
 
@@ -42,23 +43,9 @@ const LINE_FIRST_COST: Readonly<Partial<Record<TierId, number>>> = {
  */
 const KID_FIRST_COST = 250_000;
 
-export type TierId =
-  "helper" | "cart" | "hoist" | "drill" | "borer" | "train" | "machine" | "kid";
-
-type CrewField =
-  | "helpers"
-  | "carts"
-  | "hoists"
-  | "drills"
-  | "borers"
-  | "trains"
-  | "machines"
-  | "kids";
-
-export type Tier = {
-  readonly id: TierId;
-  /** Save field counting how many are owned. */
-  readonly field: CrewField;
+/** A row of the tier table: one thing he can own and buy in Buys. */
+type TierRow = {
+  readonly id: string;
   readonly name: string;
   /** For the compact, three-to-a-row card. */
   readonly shortName: string;
@@ -68,6 +55,11 @@ export type Tier = {
   readonly perSecond: number;
   /** Helpers it takes to run one; without them it sits idle (see rates.ts). */
   readonly staff: number;
+  /**
+   * The line's stage a machine works (M15, #532; the rule is in
+   * src/line.ts). Every machine has one; the hands have none.
+   */
+  readonly stage?: Stage;
   /** A relic that must be found before it can be built (see crew.ts). */
   readonly needs?: RelicId;
   /**
@@ -78,16 +70,15 @@ export type Tier = {
   readonly opensAt?: number;
   /**
    * A machine of the line (M15, #533): on sale and running only where the
-   * line's rule is on (`lineOn`, src/line.ts). Off in play until #536.
+   * line's rule is on (`lineOn`, src/line-switch.ts). Off in play until #536.
    */
   readonly line?: true;
 };
 
 /** Cheapest first. Each tier is 6–10× the speed of the last; tuned by src/pacing.test.ts. */
-export const TIERS: readonly Tier[] = [
+const TIER_ROWS = [
   {
     id: "helper",
-    field: "helpers",
     name: "Worker",
     shortName: "Worker",
     firstCost: 20,
@@ -96,30 +87,29 @@ export const TIERS: readonly Tier[] = [
   },
   {
     id: "cart",
-    field: "carts",
     name: "Mine cart",
     shortName: "Cart",
     // #357 tune: dearer again, so the cart's marks do not crowd out the borer.
     firstCost: 600,
     perSecond: 6,
     staff: 1,
+    stage: "haul",
   },
   {
     // The lift's first machine (M15, #533). The spec rates it 60 at the
     // line's ×3 (rule 3); 20 is that in today's units, which #534 moves
     // with every other machine. Shown once a cart is owned.
     id: "hoist",
-    field: "hoists",
     name: "Hoist",
     shortName: "Hoist",
     firstCost: 6_000,
     perSecond: 20,
     staff: 1,
+    stage: "lift",
     line: true,
   },
   {
     id: "drill",
-    field: "drills",
     name: "Steam drill",
     shortName: "Drill",
     // #357 tune: dearer, with the cart, yet cheap enough that a 2-minute
@@ -127,10 +117,10 @@ export const TIERS: readonly Tier[] = [
     firstCost: 73_080,
     perSecond: 36,
     staff: 1,
+    stage: "face",
   },
   {
     id: "borer",
-    field: "borers",
     name: "Tunnel borer",
     shortName: "Borer",
     // #356 tune: cheap enough that every casual dad buys one early in the
@@ -138,6 +128,7 @@ export const TIERS: readonly Tier[] = [
     firstCost: 4_940_000,
     perSecond: 357,
     staff: 8,
+    stage: "face",
     // Opens at the Granite start, the band that suits borers (D3), so no
     // dad meets it in the Topsoil (#356).
     opensAt: BAND_STARTS[1],
@@ -146,18 +137,17 @@ export const TIERS: readonly Tier[] = [
     // The haul's second machine (M15, #533): 3,200 at the line's ×3, about
     // 1,067 in today's units. Opens at the Crystal Caves.
     id: "train",
-    field: "trains",
     name: "Pit train",
     shortName: "Train",
     firstCost: 30_000_000,
     perSecond: 1_067,
     staff: 8,
+    stage: "haul",
     opensAt: BAND_STARTS[2],
     line: true,
   },
   {
     id: "machine",
-    field: "machines",
     name: "Great Machine",
     shortName: "Machine",
     // #357 tune: three times dearer, so its marks at 2/3/5/10 do not let the
@@ -165,6 +155,7 @@ export const TIERS: readonly Tier[] = [
     firstCost: 120_600_000,
     perSecond: 2_100,
     staff: 10,
+    stage: "lift",
     needs: "hammer",
     // M12 retune (#252): the Deep Heart entrance, the band that suits it.
     opensAt: 120_000_000,
@@ -172,7 +163,6 @@ export const TIERS: readonly Tier[] = [
   {
     // Crown of Wisdom: kids mine, staff machines, and teach the crew (rates.ts).
     id: "kid",
-    field: "kids",
     name: "Kid worker",
     shortName: "Kid",
     firstCost: KID_FIRST_COST,
@@ -180,10 +170,23 @@ export const TIERS: readonly Tier[] = [
     staff: 0,
     needs: "crown",
   },
-];
+] as const satisfies readonly TierRow[];
 
-/** A tier that takes helpers to run (staff > 0): every machine. */
-export type MachineId = Exclude<TierId, "helper" | "kid">;
+/** Every id he can own: the table's, so a typo is a type error. */
+export type TierId = (typeof TIER_ROWS)[number]["id"];
+
+export type Tier = Omit<TierRow, "id"> & { readonly id: TierId };
+
+export const TIERS: readonly Tier[] = TIER_ROWS;
+
+/** The table's ids, in its order. */
+export const TIER_IDS: readonly TierId[] = TIERS.map((tier) => tier.id);
+
+/** A tier that works a stage of the line and takes helpers to run: every machine. */
+export type MachineId = Extract<
+  (typeof TIER_ROWS)[number],
+  { readonly stage: Stage }
+>["id"];
 
 /**
  * The machines of the line (#533). Off in play, so no screen shows them
@@ -226,6 +229,22 @@ export function machinesInPlay(): readonly MachineId[] {
   return MACHINE_IDS.filter((id) => tierInPlay(tierById(id)));
 }
 
+/** A complete record over the tier ids, every entry `value`. */
+export function tierRecord<T>(value: T): Record<TierId, T> {
+  return Object.fromEntries(TIER_IDS.map((id) => [id, value])) as Record<
+    TierId,
+    T
+  >;
+}
+
+/** A complete record over the machine ids, every entry `value`. */
+export function machineRecord<T>(value: T): Record<MachineId, T> {
+  return Object.fromEntries(MACHINE_IDS.map((id) => [id, value])) as Record<
+    MachineId,
+    T
+  >;
+}
+
 export function tierById(id: TierId): Tier {
   const tier = TIERS.find((candidate) => candidate.id === id);
   if (tier === undefined) {
@@ -235,7 +254,16 @@ export function tierById(id: TierId): Tier {
 }
 
 export function owned(mountain: Mountain, tier: Tier): number {
-  return mountain[tier.field];
+  return mountain.owned[tier.id];
+}
+
+/** The mountain with `count` of one tier owned, every other count kept. */
+export function setOwned(
+  mountain: Mountain,
+  id: TierId,
+  count: number,
+): Mountain {
+  return { ...mountain, owned: { ...mountain.owned, [id]: count } };
 }
 
 /** Cookie Clicker curve: machines climb ×1.15, helpers ×1.06. */
@@ -301,11 +329,11 @@ export function buyTier(mountain: Mountain, id: TierId): Mountain {
   if (mountain.pocket < cost) {
     return mountain;
   }
-  return {
-    ...mountain,
-    pocket: mountain.pocket - cost,
-    [tier.field]: count + 1,
-  };
+  return setOwned(
+    { ...mountain, pocket: mountain.pocket - cost },
+    id,
+    count + 1,
+  );
 }
 
 /**

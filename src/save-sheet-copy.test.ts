@@ -25,11 +25,14 @@ describe("save card lines", () => {
       {
         ...minedMountain(12_400_000),
         pocket: 1_200_000,
-        carts: 6,
-        drills: 4,
-        borers: 1,
-        machines: 1,
-        helpers: 28,
+        owned: {
+          ...minedMountain(12_400_000).owned,
+          cart: 6,
+          drill: 4,
+          borer: 1,
+          machine: 1,
+          helper: 28,
+        },
         engineers: [
           { name: "Ada", rank: 0, trips: 0, post: "borer" },
           { name: "Nils", rank: 0, trips: 0, post: "camp" },
@@ -57,12 +60,18 @@ describe("save card lines", () => {
       "1 Oct 09:04",
     );
     expect(machineLine(minedMountain(1))).toBe("No machines yet");
-    expect(machineLine({ ...minedMountain(1), machines: 2 })).toBe(
-      "2 Great Machines",
-    );
-    expect(crewLine({ ...minedMountain(1), helpers: 1 })).toBe(
-      "1 worker · 0 engineers",
-    );
+    expect(
+      machineLine({
+        ...minedMountain(1),
+        owned: { ...minedMountain(1).owned, machine: 2 },
+      }),
+    ).toBe("2 Great Machines");
+    expect(
+      crewLine({
+        ...minedMountain(1),
+        owned: { ...minedMountain(1).owned, helper: 1 },
+      }),
+    ).toBe("1 worker · 0 engineers");
     expect(keptUntilWords(at(2026, 10, 29, 14, 32))).toBe("Until 29 Oct");
     expect(
       saveCardLines(minedMountain(0), undefined, at(2026, 10, 22, 8, 0)).played,

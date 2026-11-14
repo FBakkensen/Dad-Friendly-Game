@@ -18,7 +18,7 @@ import {
 import { createProgressStore } from "./progress-store";
 import { SOUND_KEY, soundSetting } from "./sound";
 import { writeSessionSave } from "./session-save";
-import { minedMountain } from "./test-fixtures";
+import { minedMountain, patched, type MountainPatch } from "./test-fixtures";
 
 /*
  * The Ledger drawer on the mounted screen (#375): its parts in order, Tonight, the mine's two
@@ -61,13 +61,15 @@ function mount(
 }
 
 /** A Granite mountain with clay and iron met and two relics found. */
-function granite(over: Partial<Mountain> = {}): Mountain {
-  return {
-    ...minedMountain(12_000_000),
-    helpers: 4,
-    materials: { clay: 10, iron: 4, crystal: 0, heartstone: 0 },
-    ...over,
-  };
+function granite(over: MountainPatch = {}): Mountain {
+  return patched(
+    {
+      ...minedMountain(12_000_000),
+      owned: { ...minedMountain(12_000_000).owned, helper: 4 },
+      materials: { clay: 10, iron: 4, crystal: 0, heartstone: 0 },
+    },
+    over,
+  );
 }
 
 const ledgerOf = (screen: Screen): HTMLElement => {
@@ -180,7 +182,9 @@ describe("the Ledger drawer (#375)", () => {
   });
 
   it("Tonight shows the newest three lines", () => {
-    const screen = mount(granite({ pocket: 900_000_000, drills: 1, carts: 2 }));
+    const screen = mount(
+      granite({ pocket: 900_000_000, owned: { drill: 1, cart: 2 } }),
+    );
     keyOf(screen).click();
     // With nothing worded, the legend and the box hide.
     expect(part(screen, '.board-sec[data-sec="tonight"]').hidden).toBe(true);
@@ -334,7 +338,7 @@ describe("the Ledger drawer (#375)", () => {
     fingerTap(part(screen, ".ledger-yes"));
     const fresh = screen.progress.getSnapshot().mountain;
     expect(fresh.pocket).toBe(0);
-    expect(fresh.helpers).toBe(0);
+    expect(fresh.owned.helper).toBe(0);
     expect(fresh.remaining).toBe(createMountain().remaining);
     // The page waits for the new run (#480), then closes onto the key.
     await vi.waitFor(() => {
@@ -380,7 +384,7 @@ describe("the Ledger drawer (#375)", () => {
       expect(line()).toBe("Couldn't store the other save yet – try again");
     });
     expect(isOpen(screen)).toBe(true);
-    expect(screen.progress.getSnapshot().mountain.helpers).toBe(4);
+    expect(screen.progress.getSnapshot().mountain.owned.helper).toBe(4);
     // Back on the list and in again: the page asks its question afresh.
     clock += PAST_SETTLE;
     fingerTap(part(screen, ".ledger-keep"));
@@ -440,7 +444,7 @@ describe("the Ledger drawer (#375)", () => {
           .events.some((event) => event.data.source === "backed-out"),
       ).toBe(true);
     });
-    expect(screen.progress.getSnapshot().mountain.helpers).toBe(4);
+    expect(screen.progress.getSnapshot().mountain.owned.helper).toBe(4);
     expect(isOpen(screen)).toBe(true);
     screen.progress.dispose();
   });
@@ -713,7 +717,7 @@ describe("the Ledger drawer (#375)", () => {
     part(screen, ".ledger-start-over").click();
     screen.root.querySelector<HTMLElement>(".board-scrim")?.click();
     expect(isOpen(screen)).toBe(false);
-    expect(screen.progress.getSnapshot().mountain.helpers).toBe(4);
+    expect(screen.progress.getSnapshot().mountain.owned.helper).toBe(4);
   });
 });
 

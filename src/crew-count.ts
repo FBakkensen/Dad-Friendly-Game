@@ -18,7 +18,7 @@ export function crewCounts(
   trouble?: Trouble,
 ): CrewCounts {
   const { running } = effectiveRates(mountain, now, trouble);
-  const crew = mountain.helpers + mountain.kids;
+  const crew = mountain.owned.helper + mountain.owned.kid;
   const spare =
     crew -
     TIERS.reduce(

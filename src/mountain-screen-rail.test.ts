@@ -12,7 +12,7 @@ import {
 } from "./mountain-screen.harness";
 import { engineersNote } from "./screen-words";
 import { writeSessionSave } from "./session-save";
-import { minedMountain } from "./test-fixtures";
+import { minedMountain, patched, type MountainPatch } from "./test-fixtures";
 import { COLD_CLOCKS } from "./workshop";
 
 /*
@@ -33,19 +33,20 @@ describe("the key rail (#373)", () => {
     return storage;
   };
   /** play's early save: a crewed Topsoil, 18 workers and 6 carts. */
-  const early = (over: Partial<Mountain> = {}): Mountain => ({
-    ...minedMountain(500_000),
-    pocket: 6_854,
-    helpers: 18,
-    carts: 6,
-    ...over,
-  });
+  const early = (over: MountainPatch = {}): Mountain =>
+    patched(
+      {
+        ...minedMountain(500_000),
+        pocket: 6_854,
+        owned: { ...minedMountain(500_000).owned, helper: 18, cart: 6 },
+      },
+      over,
+    );
   /** play's workshop save: a craft on the bench, axle grease running. */
   const benchBusy = (at: number): Mountain => ({
     ...minedMountain(12_000_000),
     pocket: 50_000,
-    helpers: 4,
-    carts: 1,
+    owned: { ...minedMountain(12_000_000).owned, helper: 4, cart: 1 },
     materials: { clay: 0, iron: 0, crystal: 0, heartstone: 0 },
     recipes: [
       "iron-rails",
@@ -64,18 +65,24 @@ describe("the key rail (#373)", () => {
     taught: ["workshop"],
   });
   /** A borer and its engineer, with every note already seen. */
-  const crewed = (over: Partial<Mountain> = {}): Mountain => ({
-    ...minedMountain(12_000_000),
-    pocket: 0,
-    helpers: 30,
-    carts: 10,
-    drills: 6,
-    borers: 1,
-    engineers: [{ name: "Ada", rank: 0, trips: 1, post: "borer" }],
-    seen: ["workshop", "engineers"],
-    taught: ["workshop", "engineers", "staffing", "tending"],
-    ...over,
-  });
+  const crewed = (over: MountainPatch = {}): Mountain =>
+    patched(
+      {
+        ...minedMountain(12_000_000),
+        pocket: 0,
+        owned: {
+          ...minedMountain(12_000_000).owned,
+          helper: 30,
+          cart: 10,
+          drill: 6,
+          borer: 1,
+        },
+        engineers: [{ name: "Ada", rank: 0, trips: 1, post: "borer" }],
+        seen: ["workshop", "engineers"],
+        taught: ["workshop", "engineers", "staffing", "tending"],
+      },
+      over,
+    );
   /** The workshop save with the crew's engineer. */
   const busyCrew = (at: number): Mountain => ({
     ...benchBusy(at),
@@ -269,8 +276,7 @@ describe("the key rail (#373)", () => {
       storage: seeded({
         ...minedMountain(20_000_000),
         pocket: 2_000_000,
-        helpers: 6,
-        carts: 10,
+        owned: { ...minedMountain(20_000_000).owned, helper: 6, cart: 10 },
         seen: ["workshop"],
         taught: ["workshop"],
       }),
@@ -282,10 +288,13 @@ describe("the key rail (#373)", () => {
       storage: seeded({
         ...minedMountain(125_000_000),
         pocket: 0,
-        helpers: 40,
-        carts: 10,
-        drills: 4,
-        borers: 2,
+        owned: {
+          ...minedMountain(125_000_000).owned,
+          helper: 40,
+          cart: 10,
+          drill: 4,
+          borer: 2,
+        },
         taught: ["workshop", "staffing"],
         seen: ["workshop"],
       }),
@@ -346,7 +355,7 @@ describe("the key rail (#373)", () => {
         storage: seeded(
           crewed({
             engineers: [],
-            borers: 0,
+            owned: { borer: 0 },
             seen: ["workshop"],
             taught: ["workshop"],
           }),
@@ -362,7 +371,7 @@ describe("the key rail (#373)", () => {
       // The first engineer arrives under the open drawer.
       screen.progress.applyMutation((current) => ({
         ...current,
-        borers: 1,
+        owned: { ...current.owned, borer: 1 },
         engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
       }));
       vi.advanceTimersByTime(1_000);

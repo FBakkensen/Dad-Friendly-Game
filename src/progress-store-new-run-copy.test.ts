@@ -87,7 +87,11 @@ function archiveAnswers(answer: CloudWriteResult | undefined): CloudSave {
 describe("a new run keeps the mountain he left in Saved copies (#480)", () => {
   it("Start over keeps it, and Play this one brings it back as a new run", async () => {
     let clock = 1_000_000;
-    const left = { ...minedMountain(40_000), helpers: 3, startedAt: 500 };
+    const left = {
+      ...minedMountain(40_000),
+      startedAt: 500,
+      owned: { ...minedMountain(40_000).owned, helper: 3 },
+    };
     const { cloud, progress } = await playing(left, { now: () => clock });
 
     clock += 60_000;
@@ -98,7 +102,7 @@ describe("a new run keeps the mountain he left in Saved copies (#480)", () => {
     const copies = await progress.savedCopies();
     expect(copies).toHaveLength(1);
     expect(copies[0]?.reason).toBe("start-over");
-    expect(copies[0]?.mountain.helpers).toBe(3);
+    expect(copies[0]?.mountain.owned.helper).toBe(3);
     // The field log keeps the left run (#479): the copy, then the new run.
     expect(codes(progress.fieldLog().events).slice(-2)).toEqual([
       "save.archive",
@@ -114,14 +118,14 @@ describe("a new run keeps the mountain he left in Saved copies (#480)", () => {
       "saved",
     );
     const back = progress.getSnapshot().mountain;
-    expect(back.helpers).toBe(3);
+    expect(back.owned.helper).toBe(3);
     expect(back.remaining).toBe(left.remaining);
     // A new run: later than the one in play, so the later-run rule keeps it.
     expect(back.startedAt).toBe(clock);
     expect(back.startedAt).toBeGreaterThan(fresh);
     await vi.waitFor(async () => {
       const saved = await cloud.load({ uid: user.uid });
-      expect(saved.kind === "found" && saved.mountain.helpers).toBe(3);
+      expect(saved.kind === "found" && saved.mountain.owned.helper).toBe(3);
       expect(saved.kind === "found" && saved.mountain.startedAt).toBe(clock);
     });
     const after = await progress.savedCopies();
@@ -149,7 +153,11 @@ describe("a new run keeps the mountain he left in Saved copies (#480)", () => {
 
   it("pays no time away to an earlier run brought back", async () => {
     let clock = 1_000_000;
-    const left = { ...minedMountain(40_000), helpers: 50, startedAt: 500 };
+    const left = {
+      ...minedMountain(40_000),
+      startedAt: 500,
+      owned: { ...minedMountain(40_000).owned, helper: 50 },
+    };
     const { progress } = await playing(left, { now: () => clock });
     await expect(progress.startOver()).resolves.toBe(true);
     const [copy] = await progress.savedCopies();
@@ -187,12 +195,16 @@ describe("a new run keeps the mountain he left in Saved copies (#480)", () => {
   });
 
   it("keeps the mountain in play when the copy is refused, and says so", async () => {
-    const left = { ...minedMountain(40_000), helpers: 3, startedAt: 500 };
+    const left = {
+      ...minedMountain(40_000),
+      startedAt: 500,
+      owned: { ...minedMountain(40_000).owned, helper: 3 },
+    };
     const { progress, logger } = await playing(left, {
       cloud: archiveAnswers({ kind: "failed", message: "unavailable" }),
     });
     await expect(progress.startOver()).resolves.toBe(false);
-    expect(progress.getSnapshot().mountain.helpers).toBe(3);
+    expect(progress.getSnapshot().mountain.owned.helper).toBe(3);
     expect(progress.getSnapshot().mountain.startedAt).toBe(500);
     expect(logger.latest()).toMatchObject({
       level: "error",
@@ -257,7 +269,11 @@ describe("a new run keeps the mountain he left in Saved copies (#480)", () => {
   });
 
   it("gives up on a copy that does not land in time", async () => {
-    const left = { ...minedMountain(40_000), helpers: 3, startedAt: 500 };
+    const left = {
+      ...minedMountain(40_000),
+      startedAt: 500,
+      owned: { ...minedMountain(40_000).owned, helper: 3 },
+    };
     const { progress, logger } = await playing(left, {
       cloud: archiveAnswers(undefined),
     });
@@ -269,7 +285,7 @@ describe("a new run keeps the mountain he left in Saved copies (#480)", () => {
       data: { id: "start-over", source: "keeping" },
     });
     await expect(started).resolves.toBe(false);
-    expect(progress.getSnapshot().mountain.helpers).toBe(3);
+    expect(progress.getSnapshot().mountain.owned.helper).toBe(3);
     expect(logger.latest()?.detail).toBe("start-over timeout");
     progress.dispose();
   });

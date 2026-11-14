@@ -36,7 +36,7 @@ describe("createRevealLog", () => {
     expect(ids(first, "appeared")).not.toContain("system:workshop");
     expect(log(start, 1)).toEqual([]);
 
-    const hired: Mountain = { ...start, helpers: 1 };
+    const hired: Mountain = { ...start, owned: { ...start.owned, helper: 1 } };
     const next = log(hired, 2);
     expect(next).toContainEqual({
       kind: "firstUse",
@@ -55,25 +55,29 @@ describe("createRevealLog", () => {
     const log = createRevealLog();
     const drilling: Mountain = {
       ...createMountain(),
-      helpers: 1,
-      carts: 1,
-      drills: 1,
+      owned: { ...createMountain().owned, helper: 1, cart: 1, drill: 1 },
     };
     expect(ids(log(drilling, 0), "appeared")).not.toContain("tier:borer");
     const near = {
       ...drilling,
       ...minedMountain(9_999_999),
-      helpers: 1,
-      carts: 1,
-      drills: 1,
+      owned: {
+        ...minedMountain(9_999_999).owned,
+        helper: 1,
+        cart: 1,
+        drill: 1,
+      },
     };
     expect(ids(log(near, 10), "appeared")).not.toContain("tier:borer");
     const open = {
       ...drilling,
       ...minedMountain(10_000_000),
-      helpers: 1,
-      carts: 1,
-      drills: 1,
+      owned: {
+        ...minedMountain(10_000_000).owned,
+        helper: 1,
+        cart: 1,
+        drill: 1,
+      },
     };
     expect(log(open, 20)).toContainEqual({
       kind: "appeared",

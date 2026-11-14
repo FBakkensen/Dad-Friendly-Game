@@ -35,7 +35,13 @@ import {
 } from "./screen-words";
 import { FIX_HOLD_MS } from "./hazards";
 import { lockBodyLine } from "./tier-lock-words";
-import { minedMountain, saveText } from "./test-fixtures";
+import {
+  minedMountain,
+  saveText,
+  NONE_OWNED,
+  patched,
+  type MountainPatch,
+} from "./test-fixtures";
 import {
   bindWriterPageHide,
   createMemoryBus,
@@ -127,8 +133,7 @@ describe("mountMountainScreen", () => {
           ...createMountain(),
           remaining: MOUNTAIN_STONES - 500_000,
           pocket: 6_854,
-          helpers: 18,
-          carts: 6,
+          owned: { ...createMountain().owned, helper: 18, cart: 6 },
         },
         lastSeen: Date.now(),
       });
@@ -157,7 +162,7 @@ describe("mountMountainScreen", () => {
       screen.root
         .querySelector<HTMLButtonElement>(".board-dig-button")
         ?.click();
-      expect(screen.progress.getSnapshot().mountain.carts).toBe(7);
+      expect(screen.progress.getSnapshot().mountain.owned.cart).toBe(7);
       expect(vi.getTimerCount()).toBeGreaterThan(1);
 
       stop.abort();
@@ -378,12 +383,15 @@ describe("mountMountainScreen", () => {
       ...BARE_MOUNTAIN,
       remaining: 0,
       pocket: MOUNTAIN_STONES,
-      helpers: 0,
-      carts: 0,
-      drills: 0,
-      borers: 0,
-      machines: 0,
-      kids: 0,
+      owned: {
+        ...BARE_MOUNTAIN.owned,
+        helper: 0,
+        cart: 0,
+        drill: 0,
+        borer: 0,
+        machine: 0,
+        kid: 0,
+      },
     };
     storage.setItem(SESSION_SAVE_KEY, saveText(done, 1));
 
@@ -567,10 +575,13 @@ describe("crew tiers on screen", () => {
       storage,
       mountain: {
         ...minedMountain(400),
-        helpers: 21,
-        carts: 2,
-        drills: 1,
-        borers: 2,
+        owned: {
+          ...minedMountain(400).owned,
+          helper: 21,
+          cart: 2,
+          drill: 1,
+          borer: 2,
+        },
         engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
       },
       lastSeen: Date.now(),
@@ -600,8 +611,7 @@ describe("crew tiers on screen", () => {
       mountain: {
         ...minedMountain(24_999_999),
         pocket: 10_000_000,
-        drills: 1,
-        borers: 1,
+        owned: { ...minedMountain(24_999_999).owned, drill: 1, borer: 1 },
       },
       lastSeen: Date.now(),
     });
@@ -623,7 +633,7 @@ describe("crew tiers on screen", () => {
       `Joins your crew at ${formatCount(shownStones(createMountain(), 120_000_000))} stones down`,
     );
     machine.click();
-    expect(screen.progress.getSnapshot().mountain.machines).toBe(0);
+    expect(screen.progress.getSnapshot().mountain.owned.machine).toBe(0);
   });
 
   it("sells the Great Machine at the Deep Heart, after the Hammer (#252)", () => {
@@ -633,8 +643,7 @@ describe("crew tiers on screen", () => {
       mountain: {
         ...minedMountain(120_000_000),
         pocket: tierCost(tierById("machine"), 0) + 800_000,
-        drills: 1,
-        borers: 1,
+        owned: { ...minedMountain(120_000_000).owned, drill: 1, borer: 1 },
       },
       lastSeen: Date.now(),
     });
@@ -646,7 +655,7 @@ describe("crew tiers on screen", () => {
       formatCompact(tierCost(tierById("machine"), 0)),
     );
     machine.click();
-    expect(screen.progress.getSnapshot().mountain.machines).toBe(1);
+    expect(screen.progress.getSnapshot().mountain.owned.machine).toBe(1);
     expect(screen.pocket()).toBe("Stones 800.0K");
   });
 
@@ -681,7 +690,7 @@ describe("crew tiers on screen", () => {
 
       hire.click();
       expect(screen.pocket()).toBe("Stones 0");
-      expect(screen.progress.getSnapshot().mountain.helpers).toBe(1);
+      expect(screen.progress.getSnapshot().mountain.owned.helper).toBe(1);
       expect(screen.text(".crew-status")).toBe(
         "Your crew mines 1 stone a second",
       );
@@ -717,7 +726,10 @@ describe("crew tiers on screen", () => {
         saveText(
           {
             ...minedMountain(tierCost(tierById("cart"), 0)),
-            helpers: 1,
+            owned: {
+              ...minedMountain(tierCost(tierById("cart"), 0)).owned,
+              helper: 1,
+            },
           },
           Date.now(),
         ),
@@ -731,7 +743,7 @@ describe("crew tiers on screen", () => {
 
       cart.click();
       expect(screen.pocket()).toBe("Stones 0");
-      expect(screen.progress.getSnapshot().mountain.carts).toBe(1);
+      expect(screen.progress.getSnapshot().mountain.owned.cart).toBe(1);
       expect(screen.text(".crew-status")).toBe(
         "Your crew mines 7 stones a second",
       );
@@ -762,12 +774,15 @@ describe("crew tiers on screen", () => {
         {
           remaining: 240_000_000,
           pocket: 0,
-          helpers: 4,
-          carts: 0,
-          drills: 0,
-          borers: 0,
-          machines: 0,
-          kids: 0,
+          owned: {
+            ...NONE_OWNED,
+            helper: 4,
+            cart: 0,
+            drill: 0,
+            borer: 0,
+            machine: 0,
+            kid: 0,
+          },
         },
         Date.now() - (2 * 60 + 5) * 60_000,
       ),
@@ -812,7 +827,11 @@ describe("crew tiers on screen", () => {
     const storage = createMemoryStorage();
     writeSessionSave({
       storage,
-      mountain: { ...minedMountain(0), pocket: 0, helpers: 1 },
+      mountain: {
+        ...minedMountain(0),
+        pocket: 0,
+        owned: { ...minedMountain(0).owned, helper: 1 },
+      },
       lastSeen: Date.now() - 10 * 3_600_000,
     });
     const screen = mountScreen({ storage });
@@ -829,12 +848,15 @@ describe("crew tiers on screen", () => {
         {
           remaining: 240_000_000,
           pocket: 0,
-          helpers: 1,
-          carts: 0,
-          drills: 0,
-          borers: 0,
-          machines: 0,
-          kids: 0,
+          owned: {
+            ...NONE_OWNED,
+            helper: 1,
+            cart: 0,
+            drill: 0,
+            borer: 0,
+            machine: 0,
+            kid: 0,
+          },
         },
         Date.now() - 26 * 3_600_000,
       ),
@@ -898,7 +920,10 @@ describe("golden vein on screen", () => {
     { timeout: 20_000 },
     () => {
       const HOUR = 60 * 60_000;
-      const crew = { ...minedMountain(0), helpers: 4, kids: 0 };
+      const crew = {
+        ...minedMountain(0),
+        owned: { ...minedMountain(0).owned, helper: 4, kid: 0 },
+      };
       const opened = (awayMs: number) => {
         const storage = createMemoryStorage();
         const start = 10 * HOUR;
@@ -1306,7 +1331,10 @@ describe("Lantern of Guidance on screen", () => {
     const storage = createMemoryStorage();
     writeSessionSave({
       storage,
-      mountain: { ...minedMountain(2_000_000), helpers: 10 },
+      mountain: {
+        ...minedMountain(2_000_000),
+        owned: { ...minedMountain(2_000_000).owned, helper: 10 },
+      },
       lastSeen: 0,
     });
     const screen = mountScreen({ storage, now: () => 2 * 60_000 });
@@ -1329,7 +1357,10 @@ describe("Lantern of Guidance on screen", () => {
 
   it("shows the welcome-back card before a relic found while away", () => {
     const storage = seeded(
-      { ...minedMountain(999_000), helpers: 10 },
+      {
+        ...minedMountain(999_000),
+        owned: { ...minedMountain(999_000).owned, helper: 10 },
+      },
       Date.now() - 400_000,
     );
     const screen = mountScreen({ storage });
@@ -1465,12 +1496,15 @@ describe("start over", () => {
       saveText(
         {
           ...minedMountain(12_000_000),
-          helpers: 4,
-          carts: 1,
-          drills: 0,
-          borers: 0,
-          machines: 0,
-          kids: 0,
+          owned: {
+            ...minedMountain(12_000_000).owned,
+            helper: 4,
+            cart: 1,
+            drill: 0,
+            borer: 0,
+            machine: 0,
+            kid: 0,
+          },
         },
         Date.now(),
       ),
@@ -1767,7 +1801,10 @@ describe("the control board (#370)", () => {
 
   it("the crew line lives in the Buys drawer", () => {
     const screen = mountScreen({
-      storage: seeded({ ...minedMountain(400), helpers: 3, carts: 1 }),
+      storage: seeded({
+        ...minedMountain(400),
+        owned: { ...minedMountain(400).owned, helper: 3, cart: 1 },
+      }),
     });
     const drawer = screen.root.querySelector('.board-sheet[data-sheet="buys"]');
     const line = drawer?.querySelector(
@@ -1792,7 +1829,10 @@ describe("the control board (#370)", () => {
 
   it("the crew plate counts the crew and the free hands", () => {
     const screen = mountScreen({
-      storage: seeded({ ...minedMountain(400), helpers: 18, carts: 6 }),
+      storage: seeded({
+        ...minedMountain(400),
+        owned: { ...minedMountain(400).owned, helper: 18, cart: 6 },
+      }),
     });
     const plate = screen.root.querySelector(".board-gauge-row .board-crew");
     expect(plate?.getAttribute("aria-label")).toBe("Crew: 18 workers, 12 free");
@@ -1807,8 +1847,7 @@ describe("the control board (#370)", () => {
       storage: seeded({
         ...minedMountain(400),
         pocket: price,
-        helpers: 2,
-        carts: 1,
+        owned: { ...minedMountain(400).owned, helper: 2, cart: 1 },
       }),
     });
     expect(screen.text(".board-crew-free")).toBe("1 free");
@@ -1841,7 +1880,15 @@ describe("the control board (#370)", () => {
       const price = tierCost(tierById("helper"), 20);
       const screen = mountScreen({
         storage: seeded(
-          { ...minedMountain(25_000_000), helpers: 20, carts: 5, drills: 2 },
+          {
+            ...minedMountain(25_000_000),
+            owned: {
+              ...minedMountain(25_000_000).owned,
+              helper: 20,
+              cart: 5,
+              drill: 2,
+            },
+          },
           clock,
         ),
         now: () => clock,
@@ -1857,7 +1904,7 @@ describe("the control board (#370)", () => {
       screen.root
         .querySelector<HTMLButtonElement>('.tier[data-tier="helper"]')
         ?.click();
-      expect(screen.progress.getSnapshot().mountain.helpers).toBe(21);
+      expect(screen.progress.getSnapshot().mountain.owned.helper).toBe(21);
       expect(screen.text(".board-spend")).toBe(
         `−${price.toLocaleString("en-US")}`,
       );
@@ -1947,7 +1994,7 @@ describe("the control board (#370)", () => {
       storage: seeded(
         {
           ...minedMountain(0),
-          helpers: 3,
+          owned: { ...minedMountain(0).owned, helper: 3 },
           boosts: { ...NO_BOOSTS, overtime: clock + 20 * 60_000 },
         },
         clock,
@@ -1988,9 +2035,7 @@ describe("the control board (#370)", () => {
         storage: seeded(
           {
             ...minedMountain(0),
-            helpers: 0,
-            carts: 0,
-            drills: 0,
+            owned: { ...minedMountain(0).owned, helper: 0, cart: 0, drill: 0 },
             boosts: { ...NO_BOOSTS, overtime: at + 90_000 },
           },
           at,
@@ -2018,7 +2063,7 @@ describe("the control board (#370)", () => {
       const at = Date.now();
       const mountain: Mountain = {
         ...minedMountain(0),
-        helpers: 3,
+        owned: { ...minedMountain(0).owned, helper: 3 },
         boosts: { ...NO_BOOSTS, overtime: at + 2_000 },
       };
       const screen = mountScreen({
@@ -2055,7 +2100,7 @@ describe("the control board (#370)", () => {
         storage: seeded(
           {
             ...minedMountain(0),
-            helpers: 3,
+            owned: { ...minedMountain(0).owned, helper: 3 },
             boosts: { ...NO_BOOSTS, overtime: at + 3_000 },
           },
           at,
@@ -2092,7 +2137,7 @@ describe("the control board (#370)", () => {
         storage: seeded(
           {
             ...minedMountain(0),
-            helpers: 3,
+            owned: { ...minedMountain(0).owned, helper: 3 },
             boosts: { ...NO_BOOSTS, overtime: at + 3_000 },
           },
           at,
@@ -2124,7 +2169,7 @@ describe("the control board (#370)", () => {
       storage: seeded(
         {
           ...minedMountain(0),
-          helpers: 3,
+          owned: { ...minedMountain(0).owned, helper: 3 },
           boosts: { ...NO_BOOSTS, overtime: clock - 1_000 },
         },
         clock - 60_000,
@@ -2141,7 +2186,7 @@ describe("the control board (#370)", () => {
         storage: seeded(
           {
             ...minedMountain(0),
-            helpers: 3,
+            owned: { ...minedMountain(0).owned, helper: 3 },
             pocket,
             boosts: { ...NO_BOOSTS, overtime: clock.at + overtimeIn },
           },
@@ -2346,16 +2391,22 @@ describe("the control board (#370)", () => {
 
   it("the bays show cart, drill and borer, then the Great Machine's", () => {
     const early = mountScreen({
-      storage: seeded({ ...minedMountain(400), helpers: 3, carts: 1 }),
+      storage: seeded({
+        ...minedMountain(400),
+        owned: { ...minedMountain(400).owned, helper: 3, cart: 1 },
+      }),
     });
     expect(bayTiersOf(early)).toEqual(["cart", "drill", "borer"]);
     const heart = mountScreen({
       storage: seeded({
         ...minedMountain(125_000_000),
-        helpers: 40,
-        carts: 10,
-        drills: 6,
-        borers: 2,
+        owned: {
+          ...minedMountain(125_000_000).owned,
+          helper: 40,
+          cart: 10,
+          drill: 6,
+          borer: 2,
+        },
       }),
     });
     expect(bayTiersOf(heart)).toEqual(["drill", "borer", "machine"]);
@@ -2363,7 +2414,10 @@ describe("the control board (#370)", () => {
 
   it("a tap on a bay opens Buys", () => {
     const screen = mountScreen({
-      storage: seeded({ ...minedMountain(400), helpers: 3, carts: 1 }),
+      storage: seeded({
+        ...minedMountain(400),
+        owned: { ...minedMountain(400).owned, helper: 3, cart: 1 },
+      }),
     });
     const dialog = screen.root.querySelector<HTMLElement>(
       '.board-sheet[data-sheet="buys"]',
@@ -2379,9 +2433,12 @@ describe("the control board (#370)", () => {
     const screen = mountScreen({
       storage: seeded({
         ...minedMountain(12_000_000),
-        helpers: 20,
-        carts: 6,
-        borers: 1,
+        owned: {
+          ...minedMountain(12_000_000).owned,
+          helper: 20,
+          cart: 6,
+          borer: 1,
+        },
       }),
     });
     const dialog = screen.root.querySelector<HTMLElement>(
@@ -2407,7 +2464,7 @@ describe("the control board (#370)", () => {
     expect(screen.text(".board-note.on")).not.toBe(TROUBLE_FIXED);
     bay().click();
     expect(screen.progress.getSnapshot().trouble).toBeUndefined();
-    expect(screen.progress.getSnapshot().mountain.carts).toBe(6);
+    expect(screen.progress.getSnapshot().mountain.owned.cart).toBe(6);
     expect(dialog?.classList.contains("is-open")).toBe(false);
     expect(screen.text(".board-note.on")).toBe(TROUBLE_FIXED);
     expect(bay().hasAttribute("data-trouble")).toBe(false);
@@ -2425,7 +2482,7 @@ describe("the control board (#370)", () => {
       expect(screen.text(".board-note.on")).toBe(TROUBLE_FIXED);
       bay().click();
       expect(dialog?.classList.contains("is-open")).toBe(false);
-      expect(screen.progress.getSnapshot().mountain.carts).toBe(6);
+      expect(screen.progress.getSnapshot().mountain.owned.cart).toBe(6);
     } finally {
       vi.useRealTimers();
     }
@@ -2435,11 +2492,14 @@ describe("the control board (#370)", () => {
     const screen = mountScreen({
       storage: seeded({
         ...minedMountain(125_000_000),
-        helpers: 40,
-        carts: 10,
-        drills: 2,
-        borers: 1,
-        machines: 1,
+        owned: {
+          ...minedMountain(125_000_000).owned,
+          helper: 40,
+          cart: 10,
+          drill: 2,
+          borer: 1,
+          machine: 1,
+        },
       }),
     });
     screen.progress.layoutPreview.trouble("cart");
@@ -2453,16 +2513,19 @@ describe("the control board (#370)", () => {
       card?.click();
     }
     expect(screen.progress.getSnapshot().trouble).toBeUndefined();
-    expect(screen.progress.getSnapshot().mountain.carts).toBe(10);
+    expect(screen.progress.getSnapshot().mountain.owned.cart).toBe(10);
   });
 
   const firstEngineer = (): Mountain => ({
     ...minedMountain(12_000_000),
     pocket: 2_000_000,
-    helpers: 30,
-    carts: 10,
-    drills: 6,
-    borers: 1,
+    owned: {
+      ...minedMountain(12_000_000).owned,
+      helper: 30,
+      cart: 10,
+      drill: 6,
+      borer: 1,
+    },
     engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
     seen: ["workshop"],
     taught: ["workshop"],
@@ -2628,7 +2691,11 @@ describe("the control board (#370)", () => {
     vi.useFakeTimers();
     try {
       const screen = mountScreen({
-        storage: seeded({ ...firstEngineer(), engineers: [], borers: 0 }),
+        storage: seeded({
+          ...firstEngineer(),
+          engineers: [],
+          owned: { ...firstEngineer().owned, borer: 0 },
+        }),
       });
       screen.root
         .querySelector<HTMLButtonElement>(".board-key[data-key=buys]")
@@ -2636,7 +2703,7 @@ describe("the control board (#370)", () => {
       // The first borer brings the first engineer while Buys is open.
       screen.progress.applyMutation((m) => ({
         ...m,
-        borers: 1,
+        owned: { ...m.owned, borer: 1 },
         engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
       }));
       vi.advanceTimersByTime(1_000);
@@ -2684,7 +2751,10 @@ describe("the control board (#370)", () => {
     expect(screen.text(".board-band")).toBe("");
     finishLoad({
       kind: "found",
-      mountain: { ...minedMountain(400), helpers: 3, carts: 6 },
+      mountain: {
+        ...minedMountain(400),
+        owned: { ...minedMountain(400).owned, helper: 3, cart: 6 },
+      },
     });
     await Promise.resolve();
     expect(bays.every((bay) => !bay.disabled)).toBe(true);
@@ -2695,7 +2765,7 @@ describe("the control board (#370)", () => {
     const screen = mountScreen({
       storage: seeded({
         ...minedMountain(12_000_000),
-        helpers: 20,
+        owned: { ...minedMountain(12_000_000).owned, helper: 20 },
         engineers: [{ name: "Ada", rank: 0, trips: 0, post: "camp" }],
       }),
     });
@@ -2754,8 +2824,7 @@ describe("the control board (#370)", () => {
     const clock = 5_000_000;
     const m: Mountain = {
       ...minedMountain(30_000),
-      helpers: 500,
-      carts: 3,
+      owned: { ...minedMountain(30_000).owned, helper: 500, cart: 3 },
       upgrades: { ...NO_UPGRADES, tap: 1 },
     };
     const screen = mountScreen({ storage: seeded(m, clock), now: () => clock });
@@ -2779,7 +2848,10 @@ describe("the control board (#370)", () => {
 
   it("a dig's +N is the tap's own stones, not the crew's since the last tick", () => {
     let clock = 5_000_000;
-    const m: Mountain = { ...minedMountain(400), helpers: 3, carts: 1 };
+    const m: Mountain = {
+      ...minedMountain(400),
+      owned: { ...minedMountain(400).owned, helper: 3, cart: 1 },
+    };
     const screen = mountScreen({
       storage: seeded(m, clock),
       now: () => clock,
@@ -2854,8 +2926,7 @@ describe("the control board (#370)", () => {
       let clock = 5_000_000;
       const m: Mountain = {
         ...minedMountain(MOUNTAIN_STONES),
-        helpers: 3,
-        carts: 1,
+        owned: { ...minedMountain(MOUNTAIN_STONES).owned, helper: 3, cart: 1 },
       };
       const screen = mountScreen({
         storage: seeded(m, clock),
@@ -2893,7 +2964,10 @@ describe("the control board (#370)", () => {
     vi.useFakeTimers();
     try {
       let clock = 5_000_000;
-      const m: Mountain = { ...minedMountain(400), helpers: 3, carts: 1 };
+      const m: Mountain = {
+        ...minedMountain(400),
+        owned: { ...minedMountain(400).owned, helper: 3, cart: 1 },
+      };
       const screen = mountScreen({
         storage: seeded(m, clock),
         now: () => clock,
@@ -2978,7 +3052,10 @@ describe("the control board (#370)", () => {
 
   it("Start over brings the tarp back", () => {
     const screen = mountScreen({
-      storage: seeded({ ...minedMountain(12_000_000), helpers: 4, borers: 1 }),
+      storage: seeded({
+        ...minedMountain(12_000_000),
+        owned: { ...minedMountain(12_000_000).owned, helper: 4, borer: 1 },
+      }),
     });
     const part = (name: string) =>
       screen.root.querySelector<HTMLElement>(`.board-window-${name}`);
@@ -3006,7 +3083,10 @@ describe("the control board (#370)", () => {
     beats.mockClear();
     push({
       kind: "found",
-      mountain: { ...minedMountain(40_000), helpers: 2, carts: 1 },
+      mountain: {
+        ...minedMountain(40_000),
+        owned: { ...minedMountain(40_000).owned, helper: 2, cart: 1 },
+      },
       rev: 1,
     });
     await Promise.resolve();
@@ -3015,23 +3095,29 @@ describe("the control board (#370)", () => {
 
     push({
       kind: "found",
-      mountain: { ...minedMountain(60_000), helpers: 2, carts: 26 },
+      mountain: {
+        ...minedMountain(60_000),
+        owned: { ...minedMountain(60_000).owned, helper: 2, cart: 26 },
+      },
       rev: 2,
     });
     await Promise.resolve();
-    expect(screen.progress.getSnapshot().mountain.carts).toBe(26);
+    expect(screen.progress.getSnapshot().mountain.owned.cart).toBe(26);
     expect(beats.mock.calls.map(([, beat]) => beat)).toEqual(["cart"]);
 
     beats.mockClear();
     push({
       kind: "found",
-      mountain: { ...minedMountain(80_000), helpers: 2, carts: 3 },
+      mountain: {
+        ...minedMountain(80_000),
+        owned: { ...minedMountain(80_000).owned, helper: 2, cart: 3 },
+      },
       rev: 3,
     });
     await Promise.resolve();
-    expect(screen.progress.getSnapshot().mountain.carts).toBe(3);
+    expect(screen.progress.getSnapshot().mountain.owned.cart).toBe(3);
     screen.startOver();
-    expect(screen.progress.getSnapshot().mountain.carts).toBe(0);
+    expect(screen.progress.getSnapshot().mountain.owned.cart).toBe(0);
     expect(beats).not.toHaveBeenCalled();
   });
 
@@ -3042,10 +3128,13 @@ describe("the control board (#370)", () => {
     const screen = mountScreen({
       storage: seeded({
         ...minedMountain(MOUNTAIN_STONES),
-        helpers: 40,
-        carts: 12,
-        drills: 3,
-        borers: 1,
+        owned: {
+          ...minedMountain(MOUNTAIN_STONES).owned,
+          helper: 40,
+          cart: 12,
+          drill: 3,
+          borer: 1,
+        },
       }),
     });
     expect(beats).not.toHaveBeenCalled();
@@ -3060,13 +3149,15 @@ describe("the control board (#370)", () => {
 
   const CLOCK = 5_000_000;
   /** play's early save: a crewed Topsoil, 18 workers and 6 carts. */
-  const early = (over: Partial<Mountain> = {}): Mountain => ({
-    ...minedMountain(500_000),
-    pocket: 6_854,
-    helpers: 18,
-    carts: 6,
-    ...over,
-  });
+  const early = (over: MountainPatch = {}): Mountain =>
+    patched(
+      {
+        ...minedMountain(500_000),
+        pocket: 6_854,
+        owned: { ...minedMountain(500_000).owned, helper: 18, cart: 6 },
+      },
+      over,
+    );
   const readyAt = (mountain: Mountain) =>
     mountScreen({ storage: seeded(mountain, CLOCK), now: () => CLOCK });
   const plateOf = (screen: ReturnType<typeof mountScreen>) => {
@@ -3080,7 +3171,7 @@ describe("the control board (#370)", () => {
     return button;
   };
   const cartsOf = (screen: ReturnType<typeof mountScreen>) =>
-    screen.progress.getSnapshot().mountain.carts;
+    screen.progress.getSnapshot().mountain.owned.cart;
   const pocketOf = (screen: ReturnType<typeof mountScreen>) =>
     screen.progress.getSnapshot().mountain.pocket;
   const buysOpen = (screen: ReturnType<typeof mountScreen>) =>
@@ -3197,14 +3288,14 @@ describe("the control board (#370)", () => {
 
   it("Saving for a worker when no hand is free", () => {
     const price = tierCost(tierById("helper"), 6);
-    const screen = readyAt(early({ helpers: 6, pocket: price - 1 }));
+    const screen = readyAt(early({ pocket: price - 1, owned: { helper: 6 } }));
     // One stone short: the last minute counts seconds (#517).
     expect(screen.text(".board-ready-main")).toBe(
       "Saving for a worker · in 1s",
     );
     plateOf(screen).click();
     expect(buysOpen(screen)).toBe(true);
-    expect(screen.progress.getSnapshot().mountain.helpers).toBe(6);
+    expect(screen.progress.getSnapshot().mountain.owned.helper).toBe(6);
   });
 
   it("a new mountain saves with no time", () => {
@@ -3238,7 +3329,7 @@ describe("the control board (#370)", () => {
       );
       for (let i = 0; i < 20; i += 1) {
         const m = screen.progress.getSnapshot().mountain;
-        if (m.pocket < tierCost(tierById("cart"), m.carts)) break;
+        if (m.pocket < tierCost(tierById("cart"), m.owned.cart)) break;
         card?.click();
         // Each buy holds Done on its row; the next tap waits it out.
         vi.advanceTimersByTime(2_000);
@@ -3304,11 +3395,11 @@ describe("the control board (#370)", () => {
     clock += 120;
     fingerTap(cardOf(screen, "helper"));
     expect(pocketOf(screen)).toBe(workerPrice);
-    expect(screen.progress.getSnapshot().mountain.helpers).toBe(18);
+    expect(screen.progress.getSnapshot().mountain.owned.helper).toBe(18);
     // A deliberate tap once the sheet has settled still hires.
     clock += BUYS_SETTLE_MS;
     fingerTap(cardOf(screen, "helper"));
-    expect(screen.progress.getSnapshot().mountain.helpers).toBe(19);
+    expect(screen.progress.getSnapshot().mountain.owned.helper).toBe(19);
     expect(pocketOf(screen)).toBe(0);
   });
 
@@ -3362,7 +3453,7 @@ describe("the control board (#370)", () => {
     );
     fingerClick(cardOf(screen, "cart"));
     expect(cartsOf(screen)).toBe(6);
-    expect(screen.progress.getSnapshot().mountain.helpers).toBe(18);
+    expect(screen.progress.getSnapshot().mountain.owned.helper).toBe(18);
     expect(pocketOf(screen)).toBe(6_854);
     // A key press is never early, settle or not.
     cardOf(screen, "cart").click();
@@ -3501,7 +3592,7 @@ describe("the control board (#370)", () => {
     const screen = mountScreen({
       auth,
       cloudSave,
-      storage: seeded(early({ drills: 1, kids: 1, legacy: 1 }), CLOCK),
+      storage: seeded(early({ legacy: 1, owned: { drill: 1, kid: 1 } }), CLOCK),
       now: () => CLOCK,
     });
     const plate = plateOf(screen);
@@ -3585,8 +3676,7 @@ describe("the control board (#370)", () => {
     try {
       const m: Mountain = {
         ...minedMountain(30_000),
-        helpers: 500,
-        carts: 3,
+        owned: { ...minedMountain(30_000).owned, helper: 500, cart: 3 },
         upgrades: { ...NO_UPGRADES, tap: 1 },
       };
       const screen = readyAt(m);

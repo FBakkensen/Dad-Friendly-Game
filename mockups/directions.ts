@@ -23,6 +23,7 @@ import {
   tierCost,
   TIERS,
   type ShownTierId,
+  tierRecord,
 } from "../src/tiers.ts";
 import {
   NO_UPGRADES,
@@ -191,12 +192,15 @@ export function boardB(): Mountain {
     ...createMountain(),
     remaining: MOUNTAIN_STONES - 12_000_000,
     pocket: 2_500_000,
-    helpers: 13,
-    carts: 5,
-    drills: 2,
-    borers: 0,
-    machines: 0,
-    kids: 0,
+    owned: {
+      ...tierRecord(0),
+      helper: 13,
+      cart: 5,
+      drill: 2,
+      borer: 0,
+      machine: 0,
+      kid: 0,
+    },
     upgrades: { ...NO_UPGRADES, tap: 2, boots: 1 },
   };
 }
@@ -265,7 +269,7 @@ function crewArt(id: ShownTierId): string {
 
 function spareWorkers(mountain: Mountain): number {
   const rates = effectiveRates(mountain);
-  let free = mountain.helpers + mountain.kids;
+  let free = mountain.owned.helper + mountain.owned.kid;
   for (const tier of [...TIERS].reverse()) {
     const staff = staffNeeded(mountain, tier);
     if (staff === 0) {
@@ -283,7 +287,7 @@ function crewBit(src: string, text: string): string {
 /** One pool, with a face on each post. Free hands appear only here. */
 function crewLine(mountain: Mountain, brief: boolean): string {
   const rates = effectiveRates(mountain);
-  const total = mountain.helpers + mountain.kids;
+  const total = mountain.owned.helper + mountain.owned.kid;
   const bits = [
     crewBit(ART.worker, `${formatCompact(total)} ${workerWords(total)}`),
   ];

@@ -357,7 +357,7 @@ function staffShort(mountain: Mountain): number {
       total + owned(mountain, tier) * staffNeeded(mountain, tier),
     0,
   );
-  return Math.max(0, needed - mountain.helpers - mountain.kids);
+  return Math.max(0, needed - mountain.owned.helper - mountain.owned.kid);
 }
 
 function isPurchase(

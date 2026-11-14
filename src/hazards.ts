@@ -101,7 +101,7 @@ export function nextTrouble(
   mountain: Mountain,
   boots = false,
 ): ScheduledTrouble | undefined {
-  if (mountain.borers < 1) {
+  if (mountain.owned.borer < 1) {
     return undefined;
   }
   const gapRoll = roll(seed);
@@ -208,7 +208,7 @@ export function stepHazards(
 ): HazardState {
   const boots = options.boots === true;
   const liveMs = Math.max(0, options.liveMs);
-  if (options.mountain.borers < 1) {
+  if (options.mountain.owned.borer < 1) {
     return { phase: "idle", seed: state.seed };
   }
 
@@ -283,14 +283,14 @@ function schedule(
 function troubleTiers(mountain: Mountain): readonly TroubleTier[] {
   // Caller already knows a borer is owned, so that tier is always eligible.
   const tiers: TroubleTier[] = [];
-  if (mountain.carts > 0) {
+  if (mountain.owned.cart > 0) {
     tiers.push("cart");
   }
-  if (mountain.drills > 0) {
+  if (mountain.owned.drill > 0) {
     tiers.push("drill");
   }
   tiers.push("borer");
-  if (mountain.machines > 0) {
+  if (mountain.owned.machine > 0) {
     tiers.push("machine");
   }
   return tiers;

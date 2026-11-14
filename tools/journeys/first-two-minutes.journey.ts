@@ -25,10 +25,10 @@ test("a fresh mountain: taps, the first worker, the first cart", async ({
 
   // Dig by hand to the first worker, and hire him.
   await hireFirstWorker(player, rules);
-  expect(rules.mountain.helpers).toBe(1);
+  expect(rules.mountain.owned.helper).toBe(1);
 
   // The crew digs on its own: he hires to ten workers as each is affordable.
-  while (rules.mountain.helpers < WORKERS) {
+  while (rules.mountain.owned.helper < WORKERS) {
     const hire = rules.firstTickAllowing(
       { kind: "buyTier", id: "helper" },
       player.now + BETWEEN_BUYS_MS - TICK_MS,
@@ -64,7 +64,7 @@ test("a fresh mountain: taps, the first worker, the first cart", async ({
   expect(player.now - start, "the first cart's moment").toBeLessThan(
     CART_WITHIN_MS,
   );
-  expect(rules.mountain.carts).toBe(1);
+  expect(rules.mountain.owned.cart).toBe(1);
 
   // A cart's worth of time on: the board still reads what the rules say.
   await player.wait(10 * TICK_MS);

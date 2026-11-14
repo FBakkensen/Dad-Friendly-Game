@@ -4,6 +4,7 @@
  */
 import { MOUNTAIN_STONES, createMountain, type Mountain } from "./mountain";
 import type { SaveConflictView } from "./store-context";
+import { tierRecord } from "./tiers";
 
 const DAY_MS = 86_400_000;
 
@@ -15,10 +16,7 @@ export function previewConflictView(
     ...createMountain(),
     remaining: MOUNTAIN_STONES - 12_400_000,
     pocket: 1_200_000,
-    carts: 6,
-    drills: 4,
-    borers: 1,
-    helpers: 28,
+    owned: { ...tierRecord(0), cart: 6, drill: 4, borer: 1, helper: 28 },
     engineers: [
       { name: "Ada", rank: 1, trips: 2, post: "drill" },
       { name: "Nils", rank: 0, trips: 1, post: "cart" },
@@ -30,9 +28,7 @@ export function previewConflictView(
     ...createMountain(),
     remaining: MOUNTAIN_STONES - 800_000,
     pocket: 40_000,
-    carts: 2,
-    drills: 1,
-    helpers: 8,
+    owned: { ...tierRecord(0), cart: 2, drill: 1, helper: 8 },
     engineers: [{ name: "Ada", rank: 0, trips: 0, post: "cart" }],
   };
   return {

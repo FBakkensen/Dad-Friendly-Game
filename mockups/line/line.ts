@@ -36,6 +36,7 @@ import { RELIC_GOLD } from "../../src/board-relics";
 import { LAMP_FRAME, LAMP_PX } from "../../src/board-row";
 import { skin } from "../../src/board-skin";
 import type { Stage } from "../../src/line";
+import { tierRecord } from "../../src/tiers";
 import { mountMountainScreen } from "../../src/mountain-screen";
 import {
   gaugeAngle,
@@ -217,8 +218,7 @@ const EARLY_SAVE = {
     staffed: 2,
     remaining: 239_500_000,
     pocket: 76_412,
-    helpers: 12,
-    carts: 1,
+    owned: { ...tierRecord(0), helper: 12, cart: 1 },
   },
   workshop: {
     materials: { clay: 0, iron: 0, crystal: 0, heartstone: 0 },
@@ -231,10 +231,7 @@ const MID_SAVE = {
     staffed: 2,
     remaining: 180_000_000,
     pocket: 64_500_000,
-    helpers: 96,
-    carts: 52,
-    drills: 30,
-    borers: 9,
+    owned: { ...tierRecord(0), helper: 96, cart: 52, drill: 30, borer: 9 },
     engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
   },
   workshop: {
@@ -676,7 +673,11 @@ function sceneBoard(scene: Scene): readonly [Board, object] {
         MID_AFTER,
         {
           ...MID_SAVE,
-          mountain: { ...MID_SAVE.mountain, helpers: 112, pocket: 3_180_000 },
+          mountain: {
+            ...MID_SAVE.mountain,
+            pocket: 3_180_000,
+            owned: { ...MID_SAVE.mountain.owned, helper: 112 },
+          },
         },
       ];
     default:

@@ -25,7 +25,8 @@ import {
   gearMultiplier,
 } from "./workshop";
 import { callTo } from "./expeditions";
-import { handsSpeed, lineOf, lineOn, lineRating } from "./line";
+import { handsSpeed, lineOf, lineRating } from "./line";
+import { lineOn } from "./line-switch";
 import { tapWithPick } from "./lost-tools";
 import type { Mountain } from "./mountain";
 import {
@@ -33,6 +34,7 @@ import {
   isMachine,
   MACHINE_IDS,
   owned,
+  setOwned,
   tierById,
   tierInPlay,
   type MachineId,
@@ -201,7 +203,7 @@ function readRates(mountain: Mountain, now?: number, trouble?: Trouble): Rates {
     now !== undefined && boostLeft(mountain, "sharper", now) > 0
       ? boostById("sharper").multiplier
       : 1;
-  const taught = 1 + mountain.kids * KID_TEACH_PER_KID;
+  const taught = 1 + mountain.owned.kid * KID_TEACH_PER_KID;
   const layer = layerOf(mountain);
   const tierSpeed = Object.fromEntries(
     TIERS.map((tier) => {
@@ -270,7 +272,10 @@ function readRates(mountain: Mountain, now?: number, trouble?: Trouble): Rates {
     tapYield: tapWithPick(bareTap, mountain) * sharper,
     tierSpeed,
     running,
-    helpersShort: Math.max(0, needed - mountain.helpers - mountain.kids),
+    helpersShort: Math.max(
+      0,
+      needed - mountain.owned.helper - mountain.owned.kid,
+    ),
     exactCrewPerSecond: exactBase * timer,
     crewPerSecond: baseCrew * timer,
     awayPay:
@@ -311,7 +316,7 @@ function keptStaffing(
       ? // The tenths are the slots' own, so the best for them is the best.
         runningOf(
           mountain,
-          staffMachines(slots, mountain.helpers + mountain.kids),
+          staffMachines(slots, mountain.owned.helper + mountain.owned.kid),
         )
       : staffCrew(mountain, steady, slots);
   if (staffings.size >= STAFFINGS_KEPT) {
@@ -331,7 +336,7 @@ function writeStaffingKey(
   steady: Readonly<Record<TierId, number>>,
 ): number {
   scratchKey.fill(-1);
-  scratchKey[0] = mountain.helpers + mountain.kids;
+  scratchKey[0] = mountain.owned.helper + mountain.owned.kid;
   scratchKey[1] = mountain.legacy;
   scratchKey[2] = factor("tending.gain");
   // The line's machines take hands only while the line is on (#533).
@@ -375,7 +380,7 @@ function staffCrew(
   steady: Readonly<Record<TierId, number>>,
   slots: readonly StaffSlot[],
 ): Record<TierId, number> {
-  const hands = mountain.helpers + mountain.kids;
+  const hands = mountain.owned.helper + mountain.owned.kid;
   // With the line on, the one-hand machines fill the line (#534).
   const line = lineOn()
     ? handsSpeed(steady, runningOf(mountain, biggestFirst(slots, 0)))
@@ -440,7 +445,7 @@ function tendingStaysPut(mountain: Mountain): boolean {
   const [post, ...more] = posts;
   return (
     post === undefined ||
-    (more.length === 0 && (mountain.machines < 1 || post === "machine"))
+    (more.length === 0 && (mountain.owned.machine < 1 || post === "machine"))
   );
 }
 
@@ -548,7 +553,7 @@ function slotGuesses(
         withSpeed(slots, slot.id, (slot.speed * (10 + tenths)) / 10),
       );
     }
-    if (posts.has(slot.id) && mountain.machines >= 1) {
+    if (posts.has(slot.id) && mountain.owned.machine >= 1) {
       guesses.push(withSpeed(slots, slot.id, slot.speed + all));
     }
   }
@@ -567,7 +572,11 @@ function runningOf(
   mountain: Mountain,
   staffing: Staffing,
 ): Record<TierId, number> {
-  return { helper: mountain.helpers, kid: mountain.kids, ...staffing };
+  return {
+    helper: mountain.owned.helper,
+    kid: mountain.owned.kid,
+    ...staffing,
+  };
 }
 
 /** What the machines and hands mine with this staffing, tending included. */
@@ -608,7 +617,7 @@ function applyTendingFloor(
   // Before the Great Machine, today's tenths keep the checker on day 5.
   // Standing on the machine already pays its own tenth.
   if (
-    mountain.machines < 1 ||
+    mountain.owned.machine < 1 ||
     primary.post === "machine" ||
     primaryBonus >= floorStones
   ) {
@@ -831,9 +840,7 @@ function withHands(
   tier: "helper" | "kid",
   count: number,
 ): Mountain {
-  return tier === "helper"
-    ? { ...mountain, helpers: mountain.helpers + count }
-    : { ...mountain, kids: mountain.kids + count };
+  return setOwned(mountain, tier, mountain.owned[tier] + count);
 }
 
 /**

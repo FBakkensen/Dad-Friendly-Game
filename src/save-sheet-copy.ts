@@ -47,26 +47,26 @@ export function saveCardLines(
 
 export function machineLine(mountain: Mountain): string {
   const parts: string[] = [];
-  if (mountain.carts > 0) {
-    parts.push(count(mountain.carts, "cart", "carts"));
+  if (mountain.owned.cart > 0) {
+    parts.push(count(mountain.owned.cart, "cart", "carts"));
   }
-  if (mountain.drills > 0) {
-    parts.push(count(mountain.drills, "drill", "drills"));
+  if (mountain.owned.drill > 0) {
+    parts.push(count(mountain.owned.drill, "drill", "drills"));
   }
-  if (mountain.borers > 0) {
-    parts.push(count(mountain.borers, "borer", "borers"));
+  if (mountain.owned.borer > 0) {
+    parts.push(count(mountain.owned.borer, "borer", "borers"));
   }
-  if (mountain.machines === 1) {
+  if (mountain.owned.machine === 1) {
     parts.push("the Great Machine");
-  } else if (mountain.machines > 1) {
-    parts.push(`${String(mountain.machines)} Great Machines`);
+  } else if (mountain.owned.machine > 1) {
+    parts.push(`${String(mountain.owned.machine)} Great Machines`);
   }
   return parts.length === 0 ? "No machines yet" : parts.join(" · ");
 }
 
 export function crewLine(mountain: Mountain): string {
   const engineers = mountain.engineers.length;
-  return `${count(mountain.helpers, "worker", "workers")} · ${count(engineers, "engineer", "engineers")}`;
+  return `${count(mountain.owned.helper, "worker", "workers")} · ${count(engineers, "engineer", "engineers")}`;
 }
 
 /** Local time. Today, yesterday, or a short date. */

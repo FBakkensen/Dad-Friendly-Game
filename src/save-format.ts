@@ -40,7 +40,7 @@ import {
 } from "./mountain";
 import { MAX_STRETCH } from "./scale";
 import { TEACH_IDS, type TeachId } from "./teach";
-import { TIERS, tierById, type TierId } from "./tiers";
+import { TIERS, type TierId } from "./tiers";
 import { NO_UPGRADES, UPGRADES, type UpgradeId } from "./upgrades";
 import {
   COLD_CLOCKS,
@@ -160,7 +160,7 @@ function some<K extends string, V extends object>(
 }
 
 function tierCount(mountain: Mountain, id: TierId): number {
-  return mountain[tierById(id).field];
+  return mountain.owned[id];
 }
 
 function stockOf(mountain: Mountain, id: StockId): number {
@@ -531,14 +531,7 @@ function readBench(value: unknown): Part<Bench | undefined> {
 
 type Facts = Pick<
   Mountain,
-  | "helpers"
-  | "carts"
-  | "hoists"
-  | "drills"
-  | "borers"
-  | "trains"
-  | "machines"
-  | "kids"
+  | "owned"
   | "pocket"
   | "materials"
   | "upgrades"
@@ -559,19 +552,11 @@ function readFacts(record: Entries): Part<Facts> {
     return failed;
   }
   return {
-    ...crewCounts(owned as Record<TierId, number>),
+    owned: owned as Record<TierId, number>,
     ...stockCounts(stock as Record<StockId, number>),
     ...levelCounts(levels as Record<LevelId, number>),
     ...clockCounts(clocks as Record<ClockId, number>),
   };
-}
-
-function crewCounts(
-  owned: Record<TierId, number>,
-): Pick<Mountain, (typeof TIERS)[number]["field"]> {
-  return Object.fromEntries(
-    TIERS.map((tier) => [tier.field, owned[tier.id]]),
-  ) as Pick<Mountain, (typeof TIERS)[number]["field"]>;
 }
 
 function stockCounts(

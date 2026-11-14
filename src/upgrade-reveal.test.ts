@@ -97,13 +97,22 @@ describe("rows open at a fixed point in the climb (#250)", () => {
   it("shows an upgrade at its owned count, never for a full pocket", () => {
     const start = createMountain();
     expect(upgradeShown({ ...start, pocket: 1e12 }, arms)).toBe(false);
-    expect(upgradeShown({ ...start, carts: 2 }, arms)).toBe(false);
-    expect(upgradeShown({ ...start, carts: 3 }, arms)).toBe(true);
+    expect(
+      upgradeShown({ ...start, owned: { ...start.owned, cart: 2 } }, arms),
+    ).toBe(false);
+    expect(
+      upgradeShown({ ...start, owned: { ...start.owned, cart: 3 } }, arms),
+    ).toBe(true);
     const boots = upgradeById("boots");
-    expect(upgradeShown({ ...start, pocket: 1e12, helpers: 9 }, boots)).toBe(
-      false,
-    );
-    expect(upgradeShown({ ...start, helpers: 10 }, boots)).toBe(true);
+    expect(
+      upgradeShown(
+        { ...start, pocket: 1e12, owned: { ...start.owned, helper: 9 } },
+        boots,
+      ),
+    ).toBe(false);
+    expect(
+      upgradeShown({ ...start, owned: { ...start.owned, helper: 10 } }, boots),
+    ).toBe(true);
   });
 
   it("shows a boost with the first machine of its tier, never for a full pocket", () => {
@@ -111,9 +120,15 @@ describe("rows open at a fixed point in the climb (#250)", () => {
     const sharper = boostById("sharper");
     const overtime = boostById("overtime");
     expect(boostShown({ ...start, pocket: 1e12 }, sharper)).toBe(false);
-    expect(boostShown({ ...start, carts: 1 }, sharper)).toBe(true);
-    expect(boostShown({ ...start, carts: 1 }, overtime)).toBe(false);
-    expect(boostShown({ ...start, drills: 1 }, overtime)).toBe(true);
+    expect(
+      boostShown({ ...start, owned: { ...start.owned, cart: 1 } }, sharper),
+    ).toBe(true);
+    expect(
+      boostShown({ ...start, owned: { ...start.owned, cart: 1 } }, overtime),
+    ).toBe(false);
+    expect(
+      boostShown({ ...start, owned: { ...start.owned, drill: 1 } }, overtime),
+    ).toBe(true);
   });
 
   it("keeps a row once bought or seen", () => {
@@ -134,7 +149,10 @@ describe("rows open at a fixed point in the climb (#250)", () => {
   });
 
   it("lists the rows showing, and says when some still hide", () => {
-    const climbing = { ...createMountain(), carts: 3, drills: 1 };
+    const climbing = {
+      ...createMountain(),
+      owned: { ...createMountain().owned, cart: 3, drill: 1 },
+    };
     expect(shownRows(climbing)).toEqual([
       "boost:sharper",
       "boost:overtime",
@@ -145,11 +163,14 @@ describe("rows open at a fixed point in the climb (#250)", () => {
     expect(anyHiddenRow(createMountain())).toBe(true);
     const maxed: Mountain = {
       ...createMountain(),
-      helpers: 10,
-      carts: 5,
-      drills: 5,
-      borers: 3,
-      machines: 1,
+      owned: {
+        ...createMountain().owned,
+        helper: 10,
+        cart: 5,
+        drill: 5,
+        borer: 3,
+        machine: 1,
+      },
       upgrades: {
         tap: 10,
         boots: 1,
@@ -165,7 +186,10 @@ describe("rows open at a fixed point in the climb (#250)", () => {
   });
 
   it("puts a dot on each row that shows and is not bought yet", () => {
-    const open = { ...createMountain(), carts: 3 };
+    const open = {
+      ...createMountain(),
+      owned: { ...createMountain().owned, cart: 3 },
+    };
     expect(showsDot(open, "upgrade:tap")).toBe(true);
     expect(showsDot(createMountain(), "upgrade:tap")).toBe(false);
     expect(
@@ -204,7 +228,7 @@ describe("upgrades drawer reveal (#245)", () => {
     const caves = (pocket: number): Mountain => ({
       ...createMountain(),
       remaining: MOUNTAIN_STONES - 45_000_000,
-      helpers: 10,
+      owned: { ...createMountain().owned, helper: 10 },
       pocket,
     });
     screen.progress.applyMutation(() => caves(price - 1));
@@ -227,8 +251,7 @@ describe("upgrades drawer reveal (#245)", () => {
     screen.progress.applyMutation(() => ({
       ...createMountain(),
       remaining: MOUNTAIN_STONES - 45_000_000,
-      helpers: 10,
-      carts: 3,
+      owned: { ...createMountain().owned, helper: 10, cart: 3 },
       pocket: 0,
     }));
     screen.root
@@ -272,7 +295,7 @@ describe("upgrades drawer reveal (#245)", () => {
     const screen = mount(() => clock);
     screen.progress.applyMutation(() => ({
       ...createMountain(),
-      carts: 3,
+      owned: { ...createMountain().owned, cart: 3 },
       // Short of the first level, so the button is greyed.
       pocket: Math.floor(mustPrice(upgradeCost(arms, 0)) * 0.65),
       upgrades: { ...NO_UPGRADES, steady: 1 },
@@ -320,7 +343,7 @@ describe("upgrades drawer reveal (#245)", () => {
     const screen = mount(() => clock);
     screen.progress.applyMutation(() => ({
       ...createMountain(),
-      carts: 1,
+      owned: { ...createMountain().owned, cart: 1 },
       pocket: 400,
       upgrades: { ...NO_UPGRADES, tap: 1 },
     }));
@@ -342,7 +365,7 @@ describe("upgrades drawer reveal (#245)", () => {
     const screen = mount(() => clock);
     screen.progress.applyMutation(() => ({
       ...createMountain(),
-      carts: 1,
+      owned: { ...createMountain().owned, cart: 1 },
       pocket: 400,
       upgrades: { ...NO_UPGRADES, tap: 1 },
     }));
@@ -368,7 +391,7 @@ describe("upgrades drawer reveal (#245)", () => {
     const screen = mount(() => clock);
     screen.progress.applyMutation(() => ({
       ...createMountain(),
-      carts: 1,
+      owned: { ...createMountain().owned, cart: 1 },
       pocket: 400,
       upgrades: { ...NO_UPGRADES, tap: 1 },
     }));
@@ -384,7 +407,7 @@ describe("upgrades drawer reveal (#245)", () => {
     screen.progress.applyMutation((current) => ({
       ...current,
       pocket: 50_000_000,
-      carts: 5,
+      owned: { ...current.owned, cart: 5 },
     }));
     const seen = screen.progress.getSnapshot().mountain.seen;
     key?.click();
@@ -445,7 +468,7 @@ describe("upgrades drawer reveal (#245)", () => {
       );
     screen.progress.applyMutation(() => ({
       ...createMountain(),
-      carts: 3,
+      owned: { ...createMountain().owned, cart: 3 },
       upgrades: { ...NO_UPGRADES, steady: 1 },
       boosts: { ...NO_BOOSTS, sharper: 1 },
       pocket: 0,

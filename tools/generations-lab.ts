@@ -33,7 +33,7 @@ import {
 } from "../src/lab/targets";
 import { kidStretch } from "../src/scale";
 import { withFactors } from "../src/economy/factors";
-import { LINE_OFF } from "../src/line";
+import { LINE_OFF } from "../src/line-switch";
 import { parseFactors } from "./lab-factors";
 import { inOrder } from "./lab-pool";
 

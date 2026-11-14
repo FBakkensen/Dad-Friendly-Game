@@ -23,7 +23,7 @@ import {
   type LayerId,
   type MaterialId,
 } from "./layers";
-import { LINE_OFF } from "./line";
+import { LINE_OFF } from "./line-switch";
 import { RELICS } from "./relics";
 import { MOUNTAIN_STONES } from "./scale";
 import { TIERS, tierById } from "./tiers";
@@ -200,9 +200,12 @@ describe("layers", () => {
   it("scales one tier in the current band and leaves the other bands at 1", () => {
     const mountain = {
       ...minedMountain(45_000_000),
-      helpers: 3,
-      carts: 1,
-      drills: 1,
+      owned: {
+        ...minedMountain(45_000_000).owned,
+        helper: 3,
+        cart: 1,
+        drill: 1,
+      },
     };
     expect(layerOf(mountain).id).toBe("crystal");
     const plain = effectiveRates(mountain);

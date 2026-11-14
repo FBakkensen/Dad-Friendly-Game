@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { withFactors } from "../economy/factors";
-import { LINE_OFF } from "../line";
+import { LINE_OFF } from "../line-switch";
 import { minedMountain } from "../test-fixtures";
 import {
   handsCarryOf,
@@ -65,10 +65,17 @@ describe("the line's readings in the lab (#534)", () => {
   });
 
   it("reads nothing while the line is off", () => {
-    const mountain = { ...minedMountain(1_000_000), helpers: 4, carts: 2 };
+    const mountain = {
+      ...minedMountain(1_000_000),
+      owned: { ...minedMountain(1_000_000).owned, helper: 4, cart: 2 },
+    };
     expect(narrowAt(mountain, 0)).toBeUndefined();
     expect(
-      zeroGainBuysBetween(mountain, { ...mountain, carts: 3 }, 0),
+      zeroGainBuysBetween(
+        mountain,
+        { ...mountain, owned: { ...mountain.owned, cart: 3 } },
+        0,
+      ),
     ).toBeUndefined();
   });
 
@@ -76,24 +83,41 @@ describe("the line's readings in the lab (#534)", () => {
     withFactors(ON, () => {
       const mountain = {
         ...minedMountain(1_000_000),
-        helpers: 4,
-        carts: 4,
-        drills: 0,
+        owned: {
+          ...minedMountain(1_000_000).owned,
+          helper: 4,
+          cart: 4,
+          drill: 0,
+        },
       };
       // Four carts and no drill or hoist: the face and the lift are narrow,
       // and the face comes first in rock order.
       expect(narrowAt(mountain, 0)).toBe("face");
       // A fifth cart: the haul is not narrow and no hand is free for it.
-      expect(zeroGainBuysBetween(mountain, { ...mountain, carts: 5 }, 0)).toBe(
-        1,
-      );
+      expect(
+        zeroGainBuysBetween(
+          mountain,
+          { ...mountain, owned: { ...mountain.owned, cart: 5 } },
+          0,
+        ),
+      ).toBe(1);
       // A hoist with a free hand lifts the line.
-      const free = { ...mountain, helpers: 6 };
-      expect(zeroGainBuysBetween(free, { ...free, hoists: 1 }, 0)).toBe(0);
+      const free = { ...mountain, owned: { ...mountain.owned, helper: 6 } };
+      expect(
+        zeroGainBuysBetween(
+          free,
+          { ...free, owned: { ...free.owned, hoist: 1 } },
+          0,
+        ),
+      ).toBe(0);
       expect(zeroGainBuysBetween(free, free, 0)).toBe(0);
       // A worker bought in the same second lifts the line, but not the cart.
       expect(
-        zeroGainBuysBetween(mountain, { ...mountain, helpers: 5, carts: 5 }, 0),
+        zeroGainBuysBetween(
+          mountain,
+          { ...mountain, owned: { ...mountain.owned, helper: 5, cart: 5 } },
+          0,
+        ),
       ).toBe(1);
     });
   });

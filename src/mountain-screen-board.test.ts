@@ -52,8 +52,7 @@ describe("the Ready plate on the board's model", () => {
   const early: Mountain = {
     ...minedMountain(500_000),
     pocket: 6_854,
-    helpers: 18,
-    carts: 6,
+    owned: { ...minedMountain(500_000).owned, helper: 18, cart: 6 },
   };
   /** The early save on a tap clock the test moves. */
   const onClock = () => {
@@ -70,7 +69,7 @@ describe("the Ready plate on the board's model", () => {
   const plateOf = (screen: Screen) =>
     find(screen, ".board-ready", HTMLButtonElement);
   const cartsOf = (screen: Screen) =>
-    screen.progress.getSnapshot().mountain.carts;
+    screen.progress.getSnapshot().mountain.owned.cart;
 
   it("a finger that came down inside Done buys nothing, even when its click comes after", () => {
     vi.useFakeTimers();
@@ -133,8 +132,7 @@ describe("the bays on the board's model", () => {
   const crewed: Mountain = {
     ...minedMountain(500_000),
     pocket: 6_854,
-    helpers: 18,
-    carts: 6,
+    owned: { ...minedMountain(500_000).owned, helper: 18, cart: 6 },
   };
   const onClock = () => {
     const clock = { value: 10_000 };

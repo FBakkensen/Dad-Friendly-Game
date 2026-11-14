@@ -90,8 +90,7 @@ function crew(): Mountain {
     ...createMountain(),
     remaining: 220_000_000,
     pocket: 2_000_000,
-    helpers: 6,
-    carts: 10,
+    owned: { ...createMountain().owned, helper: 6, cart: 10 },
     seen: ["workshop"],
     taught: ["workshop"],
   };
@@ -102,7 +101,12 @@ describe("staffing teach (#246)", () => {
     expect(firstIdleTier(crew())).toBe("cart");
     expect(showsDot(crew(), "staffing")).toBe(true);
     expect(noteFor(crew())).toBe(undefined);
-    expect(showsDot({ ...crew(), helpers: 40 }, "staffing")).toBe(false);
+    expect(
+      showsDot(
+        { ...crew(), owned: { ...crew().owned, helper: 40 } },
+        "staffing",
+      ),
+    ).toBe(false);
     expect(
       showsDot({ ...crew(), taught: ["workshop", "staffing"] }, "staffing"),
     ).toBe(false);
@@ -180,14 +184,14 @@ describe("staffing teach (#246)", () => {
     expect(screen.root.querySelector(".teach-point")).toBeNull();
     row?.click();
     const mountain = screen.progress.getSnapshot().mountain;
-    expect(mountain.carts).toBe(10);
-    expect(mountain.helpers).toBe(7);
+    expect(mountain.owned.cart).toBe(10);
+    expect(mountain.owned.helper).toBe(7);
     expect(mountain.taught).toContain("staffing");
     expect(buys?.querySelector(".board-key-dot:not([hidden])")).toBeNull();
     expect(row?.classList.contains("teach-new")).toBe(false);
     // The hire holds Done: a second sleepy tap never buys the machine under it.
     row?.click();
-    expect(screen.progress.getSnapshot().mountain.carts).toBe(10);
+    expect(screen.progress.getSnapshot().mountain.owned.cart).toBe(10);
     expect(screen.root.querySelector(".teach-point")).toBeNull();
   });
 
@@ -229,14 +233,14 @@ describe("buyWithTeach", () => {
     const before = crew();
     expect(showsDot(before, "staffing")).toBe(true);
     const after = buyWithTeach(before, "helper");
-    expect(after.helpers).toBe(before.helpers + 1);
+    expect(after.owned.helper).toBe(before.owned.helper + 1);
     expect(after.taught).toContain("staffing");
   });
 
   it("a cart is bought, and staffing stays untaught", () => {
     const before = crew();
     const after = buyWithTeach(before, "cart");
-    expect(after.carts).toBe(before.carts + 1);
+    expect(after.owned.cart).toBe(before.owned.cart + 1);
     expect(after.taught).not.toContain("staffing");
   });
 

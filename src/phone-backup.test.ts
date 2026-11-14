@@ -27,7 +27,11 @@ function memory(): Storage {
 describe("phone backup", () => {
   it("round-trips the full save and leaves an equal write in place", () => {
     const storage = memory();
-    const mountain = { ...minedMountain(12), helpers: 2, legacy: 1 };
+    const mountain = {
+      ...minedMountain(12),
+      legacy: 1,
+      owned: { ...minedMountain(12).owned, helper: 2 },
+    };
     expect(
       writePhoneBackup({
         storage,
