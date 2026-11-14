@@ -25,7 +25,7 @@ import {
   gearMultiplier,
 } from "./workshop";
 import { callTo } from "./expeditions";
-import { handsSpeed, lineOf, lineOn } from "./line";
+import { handsSpeed, lineOf, lineOn, lineRating } from "./line";
 import { tapWithPick } from "./lost-tools";
 import type { Mountain } from "./mountain";
 import {
@@ -211,6 +211,7 @@ function readRates(mountain: Mountain, now?: number, trouble?: Trouble): Rates {
         tier.id === "machine" ? emberMachineMultiplier(mountain, now) : 1;
       const output =
         tier.perSecond *
+        lineRating(tier.id) *
         factor(`output.${tier.id}`) *
         factor(hardnessFactorId(layer.index, tier.id)) *
         hardnessOf(layer.index, tier.id) *

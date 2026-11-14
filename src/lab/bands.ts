@@ -1,6 +1,12 @@
 import { stretch } from "../scale";
 import { tierLocked } from "../crew";
-import { LAYER_FAVOURS, LAYERS, layerOf, type LayerId } from "../layers";
+import {
+  LAYERS,
+  layerFavours,
+  layerOf,
+  type LayerId,
+  type LayerIndex,
+} from "../layers";
 import type { Mountain } from "../mountain";
 import { MOUNTAIN_STONES, minedOut } from "../scale";
 import {
@@ -113,15 +119,14 @@ export type RunBands = {
   }[];
 };
 
-const FAVOURED: ReadonlyMap<LayerId, MachineId | undefined> = new Map(
-  LAYERS.map((layer) => [
-    layer.id,
-    machinesInPlay().find((id) => id === LAYER_FAVOURS[layer.index]?.suits),
-  ]),
-);
+const BAND_INDEX = Object.fromEntries(
+  LAYERS.map((layer) => [layer.id, layer.index]),
+) as Readonly<Record<LayerId, LayerIndex>>;
 
+/** The machine this band suits, by the table in force (#543). */
 function favouredOf(layer: LayerId): MachineId | undefined {
-  return FAVOURED.get(layer);
+  const suits = layerFavours(BAND_INDEX[layer])?.suits;
+  return machinesInPlay().find((id) => id === suits);
 }
 
 const MACHINE_PREFIX = "tier:";

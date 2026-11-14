@@ -15,6 +15,7 @@ import {
 } from "./rates";
 import { send } from "./expeditions";
 import { LINE_OFF, handsSpeed, lineSpeed, stageSpeeds } from "./line";
+import type { Mountain } from "./mountain";
 import { minedMountain } from "./test-fixtures";
 import { TIERS } from "./tiers";
 import { NO_BOOSTS } from "./boosts";
@@ -546,6 +547,25 @@ describe("the line's rule behind its factor (#532)", () => {
     expect(line.crewPerSecond).toBeLessThan(today.crewPerSecond);
     // Staffing is left as it is: the same machines run.
     expect(line.running).toEqual(today.running);
+  });
+
+  it("rates each machine at three times today's, so the first cart, hoist and drill add 6, 9 and 27 (#543)", () => {
+    withFactors(LINE_ON, () => {
+      const crew = { ...minedMountain(0), helpers: 12 };
+      const line = (more: Partial<Mountain>): number =>
+        effectiveRates({ ...crew, ...more }).exactCrewPerSecond;
+      expect(line({})).toBeCloseTo(12, 9);
+      expect(line({ carts: 1 })).toBeCloseTo(18, 9);
+      expect(line({ carts: 1, hoists: 1 })).toBeCloseTo(27, 9);
+      expect(line({ carts: 1, hoists: 1, drills: 1 })).toBeCloseTo(54, 9);
+      const speed = effectiveRates(crew).tierSpeed;
+      expect(speed.cart).toBe(18);
+      expect(speed.hoist).toBe(60);
+      expect(speed.drill).toBe(108);
+      expect(speed.helper).toBe(1);
+      expect(speed.kid).toBe(25);
+    });
+    expect(effectiveRates(minedMountain(0)).tierSpeed.cart).toBe(6);
   });
 
   it("a hired hand's gain is the line's rise", () => {
