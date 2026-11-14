@@ -77,6 +77,7 @@ In a cloud session, subscribe to the PR (`subscribe_pr_activity`) and let events
 1. Refresh live PR state each pass. Do not act on stale state.
 2. Conflicts first, then unresolved review comments.
 3. Handle review comments with `superpowers:receiving-code-review`. Fix real in-scope issues. Dismiss invalid ones with a reason. Ask the human on auth, secrets, security, or a real product question. Nits do not block merge.
+   - The `claude-review` workflow (#572) posts a comment headed "Claude review" a few minutes after the PR is opened, reopened or marked ready for review, not after each push. Wait for its run before merging. Its Critical and Important findings are review comments like any other; its Minor ones are nits. If it says the credit is used up, or the job skipped for want of the secret, go on without it.
 4. Run the fast gate on every fix, commit, and push. Before merging, after any push (a fix, or `main` merged into the branch with `update_pull_request_branch` and pulled), run `npm run gate -- full`, then `npm run gate -- signoff`. Never force-push.
 
 When the PR is mergeable, its head commit has a green `signoff` (`gh api repos/{owner}/{repo}/commits/<sha>/status`), and every non-nit comment is fixed or dismissed, it is ready. Squash-merge it. Do not wait for Flemming's "merge": he made Claude responsible for reviews and merges (2026-11-11). Wait only when a product or design call is still open on the PR: then swap the issue's `agent-working` for `needs-you` and ask (github-issues, Triage).
