@@ -125,8 +125,8 @@ type TargetBase = {
   readonly why: string;
   /**
    * A miss is still in the report. It does not fail `LAB_STRICT`.
-   * The finish-day rows set it for good: the run length is not a limit
-   * (Flemming, 7 Nov 2026). every-tier-bought sets it as a report row
+   * The finish-day rows set it until the line's tune (#543) makes the
+   * five-day floor strict (#556). every-tier-bought sets it as a report row
    * for the milestones sliver (#357).
    */
   readonly reportOnly?: boolean;
