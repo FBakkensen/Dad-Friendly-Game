@@ -1,5 +1,4 @@
 import { EMPTY_STOCK, priceAmount, stonesPrice, UNSHOWN_PRICE } from "../stock";
-import { milestoneMultiplier } from "../milestones";
 import { RUSH_MS } from "../gold-rush";
 import { describe, expect, it } from "vitest";
 import { BOOSTS, boostById, buyBoost, boostLeft, NO_BOOSTS } from "../boosts";
@@ -25,6 +24,7 @@ import {
   paidAwayMs,
 } from "../rates";
 import {
+  CART_SHOWN_AT,
   TIERS,
   owned,
   tierById,
@@ -46,6 +46,7 @@ import {
   NO_UPGRADES,
 } from "../upgrades";
 import { MATERIAL_EVERY, EMPTY_MATERIALS } from "../layers";
+import { lineRating } from "../line";
 import { BAND_SCALE, minedOut, oneOffStretch } from "../scale";
 import {
   MAX_CRAFTED_LEVEL,
@@ -219,8 +220,8 @@ function freeHelpers(mountain: Mountain): number {
 
 /**
  * Gain and cost `bestValue` would score for this tier today.
- * Workers: crew delta of one hire. Machines: current unit speed, plus the
- * workers still needed on the cost.
+ * Workers: crew delta of one hire. Machines: the line's rise with one more
+ * running, plus the workers still needed on the cost.
  */
 function simTier(
   mountain: Mountain,
@@ -249,15 +250,22 @@ function simTier(
   for (let extra = 0; extra < short; extra += 1) {
     crewCost += tierCost(helper, mountain.owned.helper + extra);
   }
-  // Crossing an owned-count mark speeds up every one already owned too.
-  const count = owned(mountain, tier);
-  const before = milestoneMultiplier(id, count);
-  const after = milestoneMultiplier(id, count + 1);
+  // What the line gains with one more running (#536), with hands enough
+  // that every machine owned and the new one all run. A mark it crosses
+  // speeds up every one already owned too.
+  const pad = TIERS.reduce(
+    (total, item) =>
+      total + (owned(mountain, item) + 1) * staffNeeded(mountain, item),
+    0,
+  );
+  const rested = patched(mountain, {
+    owned: { helper: mountain.owned.helper + pad },
+  });
+  const running = patched(rested, { owned: { [id]: owned(rested, tier) + 1 } });
   return {
     gain:
-      (effectiveRates(mountain).tierSpeed[id] *
-        (after * (count + 1) - before * count)) /
-      before,
+      effectiveRates(running).exactCrewPerSecond -
+      effectiveRates(rested).exactCrewPerSecond,
     cost: price + crewCost,
   };
 }
@@ -281,28 +289,36 @@ const STOCK = {
   heartstone: 500,
 };
 
+/**
+ * A Granite crew whose train and Great Machine outrun its face, so the face
+ * holds the line and Ada's borer, a jam on it, and her trips all count (#536).
+ */
 const rich: Mountain = {
   ...minedMountain(25_000_000),
   owned: {
     ...minedMountain(25_000_000).owned,
-    helper: 30,
+    helper: 48,
     cart: 4,
     drill: 2,
     borer: 1,
+    train: 1,
+    machine: 1,
   },
   stock: { ...minedMountain(25_000_000).stock, stones: 1e15, ...STOCK },
   engineers: [ada],
 };
 const broke: Mountain = { ...rich, stock: { ...rich.stock, stones: 0 } };
 const travelling = send(rich, 0, "old-shaft", NOW);
+/** A train is owned, so the Great Machine shows, but it is still locked. */
 const lockedMachine: Mountain = {
   ...minedMountain(24_999_999),
   owned: {
     ...minedMountain(24_999_999).owned,
-    helper: 10,
+    helper: 18,
     cart: 1,
     drill: 1,
     borer: 1,
+    train: 1,
   },
   stock: { ...minedMountain(24_999_999).stock, stones: 1e15 },
   engineers: [ada],
@@ -382,10 +398,17 @@ describe("listActions", () => {
   });
 
   it("shows the next tier once the previous one is owned, and hides a locked one", () => {
-    expect(
-      listActions(withHelper, NOW).some(
+    const listsCart = (mountain: Mountain) =>
+      listActions(mountain, NOW).some(
         (action) => action.kind === "buyTier" && action.id === "cart",
-      ),
+      );
+    // The cart waits for twelve workers (#536).
+    expect(listsCart(withHelper)).toBe(false);
+    expect(
+      listsCart({
+        ...withHelper,
+        owned: { ...withHelper.owned, helper: CART_SHOWN_AT },
+      }),
     ).toBe(true);
     const locked = listActions(lockedMachine, NOW).filter(
       (action) => action.kind === "buyTier",
@@ -628,7 +651,7 @@ describe("valueOf", () => {
         const value = score(mountain, action, HORIZON);
         // A tender's 9% floor moves the marginal a little off the bare tier.
         const gap = Math.abs(value.gainPerSec - expected.gain);
-        expect(gap / expected.gain).toBeLessThan(0.15);
+        expect(gap).toBeLessThanOrEqual(0.15 * expected.gain + 1e-9);
         expect(value.cost).toBe(expected.cost);
         expect(score(mountain, action, 60).gainPerSec).toBe(value.gainPerSec);
       }
@@ -648,14 +671,25 @@ describe("valueOf", () => {
       HORIZON,
     );
     expect(covered.paybackSec).toBe(worker);
+    // 25 workers run the Great Machine, the borer and the cart; the train
+    // waits. Past the workers' first mark each hand moves 2, so 6 on one
+    // job: the haul's one cart (18) holds the line, lifted by 150.
     const idleDrill: Mountain = {
       ...fresh,
-      owned: { ...fresh.owned, helper: 9, machine: 1, cart: 1 },
+      owned: {
+        ...fresh.owned,
+        helper: 25,
+        cart: 1,
+        borer: 1,
+        train: 1,
+        machine: 1,
+      },
     };
     const hired = score(idleDrill, { kind: "buyTier", id: "helper" }, HORIZON);
-    // The tenth worker starts the Great Machine and the cart loses its hand.
-    expect(hired.gainPerSec).toBe(1 + 2_100 - 6);
-    expect(hired.cost).toBe(tierCost(tierById("helper"), 9));
+    // The 26th starts the train and the cart loses its hand: the face (one
+    // borer, 1,071) holds the line now, lifted by 156.
+    expect(hired.gainPerSec).toBe(1_071 + 6 * 26 - (18 + 6 * 25));
+    expect(hired.cost).toBe(tierCost(tierById("helper"), 25));
     expect(hired.paybackSec).toBe(
       hired.cost / effectiveRates(idleDrill).crewPerSecond +
         hired.cost / hired.gainPerSec,
@@ -663,47 +697,61 @@ describe("valueOf", () => {
   });
 
   it("bundles the workers a machine still needs, and ignores the first engineer's tend", () => {
-    // At 10M the borer is in the Granite, which suits it (×1.1).
+    // At 10M the borer is in the Granite, which suits it (×1.1). A train
+    // and a Great Machine outrun the face, so a borer adds all its 1,178.1.
     const bare: Mountain = {
       ...fresh,
       ...minedMountain(10_000_000),
-      owned: { ...minedMountain(10_000_000).owned, drill: 1 },
+      owned: {
+        ...minedMountain(10_000_000).owned,
+        drill: 1,
+        train: 1,
+        machine: 1,
+      },
     };
     const borer = score(bare, { kind: "buyTier", id: "borer" }, HORIZON);
-    expect(borer.gainPerSec).toBeCloseTo(392.7, 8);
+    expect(borer.gainPerSec).toBeCloseTo(1_071 * 1.1, 8);
     const sticker = tierCost(tierById("borer"), 0);
     expect(borer.cost).toBeGreaterThan(sticker);
     const staffed: Mountain = {
       ...bare,
       stock: { ...bare.stock, stones: 0 },
-      owned: { ...bare.owned, helper: 11 },
+      // 19 run the drill, the train and the machine: 8 free.
+      owned: { ...bare.owned, helper: 27 },
     };
     const tended = score(staffed, { kind: "buyTier", id: "borer" }, HORIZON);
-    expect(tended.gainPerSec).toBeCloseTo(392.7, 8);
+    expect(tended.gainPerSec).toBeCloseTo(1_071 * 1.1, 8);
     expect(tended.cost).toBe(sticker);
     const applied = buyCrew(
       { ...staffed, stock: { ...staffed.stock, stones: 10_000_000 } },
       "borer",
     );
-    expect(crewDelta(staffed, applied)).toBe(479);
+    // On the line the first borer and Ada's tend (×1.21875) both count.
+    expect(crewDelta(staffed, applied)).toBe(
+      Math.floor(86.4 + 1_071 * 1.1 * 1.21875 + 3 * 27) -
+        Math.floor(86.4 + 3 * 27),
+    );
 
+    // Nine borers and four trains outrun any lift, so a first Great
+    // Machine adds all it moves.
     const hammer: Mountain = {
       ...minedMountain(120_000_000),
       owned: {
         ...minedMountain(120_000_000).owned,
-        helper: 8,
+        // Two hands run the cart and the drill: none is free.
+        helper: 2,
         cart: 1,
         drill: 1,
-        borer: 1,
+        borer: 9,
+        train: 4,
       },
       stock: { ...minedMountain(120_000_000).stock, stones: 0 },
       engineers: [ada],
     };
     const machine = score(hammer, { kind: "buyTier", id: "machine" }, HORIZON);
     expect(staffForBuy(hammer, tierById("machine"))).toBe(5);
-    // 2,310 in the Deep Heart, plus the floor the bigger crew gives Ada's borer.
-    expect(machine.gainPerSec).toBeGreaterThan(2_310);
-    expect(machine.gainPerSec).toBeLessThan(2_310 * 1.15);
+    // 6,930 in the Deep Heart (its 2,100 rated ×3, and ×1.1 for the band).
+    expect(machine.gainPerSec).toBeCloseTo(6_930, 6);
     let bill = 0;
     for (let extra = 0; extra < 5; extra += 1) {
       bill += tierCost(tierById("helper"), hammer.owned.helper + extra);
@@ -763,9 +811,12 @@ describe("valueOf", () => {
       ...fresh,
       owned: { ...fresh.owned, helper: 10, cart: 5 },
     };
+    // The carts run the haul; the hands share the face and the lift, so
+    // the line rises by half of what their three jobs' worth adds (#536).
     const boots = score(ten, { kind: "buyUpgrade", id: "boots", price: [] });
     expect(boots.gainPerSec).toBeCloseTo(
-      10 * effectiveRates(ten).tierSpeed.helper * BOOTS_SPEED_PER_LEVEL,
+      (3 * 10 * effectiveRates(ten).tierSpeed.helper * BOOTS_SPEED_PER_LEVEL) /
+        2,
       8,
     );
 
@@ -794,31 +845,35 @@ describe("valueOf", () => {
     expect(
       score(heir, { kind: "buyUpgrade", id: "boots", price: [] }).gainPerSec,
     ).toBeCloseTo(
-      10 * effectiveRates(heir).tierSpeed.helper * BOOTS_SPEED_PER_LEVEL,
+      (3 * 10 * effectiveRates(heir).tierSpeed.helper * BOOTS_SPEED_PER_LEVEL) /
+        2,
       8,
     );
 
-    expect(
-      score(ten, { kind: "buyUpgrade", id: "cartSyn", price: [] }).gainPerSec,
-    ).toBeCloseTo(10 * SYNERGY_PER_UNIT * 5 * tierById("cart").perSecond, 8);
-    const half: Mountain = {
+    // Cart synergy lifts the line only where the haul holds it (#536): a
+    // borer and a Great Machine run the face and the lift here.
+    const cartSyn = { kind: "buyUpgrade", id: "cartSyn", price: [] } as const;
+    const cartSpeed = tierById("cart").perSecond * lineRating("cart");
+    const hauling: Mountain = {
       ...fresh,
-      owned: { ...fresh.owned, helper: 5, cart: 5 },
+      owned: { ...fresh.owned, helper: 23, cart: 5, borer: 1, machine: 1 },
     };
-    expect(
-      score(half, { kind: "buyUpgrade", id: "cartSyn", price: [] }).gainPerSec,
-    ).toBeCloseTo(1.5, 8);
+    expect(score(hauling, cartSyn).gainPerSec).toBeCloseTo(
+      23 * SYNERGY_PER_UNIT * 5 * cartSpeed,
+      8,
+    );
+    // Two workers fewer: three carts run, and only those count.
     const short: Mountain = {
-      ...fresh,
-      owned: { ...fresh.owned, helper: 4, cart: 5 },
+      ...hauling,
+      owned: { ...hauling.owned, helper: 21 },
     };
-    const shortHands = score(short, {
-      kind: "buyUpgrade",
-      id: "cartSyn",
-      price: [],
-    });
-    expect(shortHands.gainPerSec).toBeCloseTo(0.96, 8);
-    expect(shortHands.gainPerSec).not.toBeCloseTo(1.2, 8);
+    expect(effectiveRates(short).running.cart).toBe(3);
+    expect(score(short, cartSyn).gainPerSec).toBeCloseTo(
+      21 * SYNERGY_PER_UNIT * 3 * cartSpeed,
+      8,
+    );
+    // Where the haul has room to spare, it adds nothing.
+    expect(score(ten, cartSyn).gainPerSec).toBe(0);
   });
 
   it("pays Strong arms for taps, Steady hands for time away, and Sharper picks for both", () => {
@@ -1101,9 +1156,11 @@ describe("valueOf", () => {
       effectiveRates(small).exactCrewPerSecond * TAP_SHARE_PER_LEVEL,
     ).toBeCloseTo(3.3, 6);
 
+    // Carts and hoists run the haul and the lift; the hands' 72 go to the
+    // empty face, a crew big enough for a stronger tap.
     const hundred: Mountain = {
       ...fresh,
-      owned: { ...fresh.owned, helper: 24, cart: 9 },
+      owned: { ...fresh.owned, helper: 24, cart: 9, hoist: 2 },
     };
     const bigArms = score(
       hundred,
@@ -1116,9 +1173,11 @@ describe("valueOf", () => {
       4,
     );
 
+    // The haul holds the line, and 21 workers run three of five carts:
+    // synergy counts those three, never the idle two (#536).
     const idle: Mountain = {
       ...fresh,
-      owned: { ...fresh.owned, helper: 4, cart: 5 },
+      owned: { ...fresh.owned, helper: 21, cart: 5, borer: 1, machine: 1 },
     };
     const hands = score(
       idle,
@@ -1126,8 +1185,10 @@ describe("valueOf", () => {
       HORIZON,
       CASUAL,
     );
-    expect(perDay(hands.gainPerSec)).toBeCloseTo(0.96 * crewDay, 3);
-    expect(perDay(hands.gainPerSec)).not.toBeCloseTo(1.2 * crewDay, 3);
+    const each =
+      21 * SYNERGY_PER_UNIT * tierById("cart").perSecond * lineRating("cart");
+    expect(perDay(hands.gainPerSec)).toBeCloseTo(3 * each * crewDay, 3);
+    expect(perDay(hands.gainPerSec)).not.toBeCloseTo(5 * each * crewDay, 3);
 
     const sharper = score(
       fresh,
@@ -1185,16 +1246,26 @@ describe("valueOf", () => {
       ),
     ).not.toContain("blasting-charge");
 
-    const yard = shed({ engineers: [], owned: { drill: 0, borer: 0 } });
+    // A borer and a hoist run the face and the lift, so the haul (two
+    // carts) holds the line and rails lift it (#536).
+    const yard = shed({
+      engineers: [],
+      owned: { helper: 11, drill: 0, borer: 1, hoist: 1 },
+    });
     const rails = score(yard, { kind: "craft", recipe: "iron-rails" });
     expect(rails.gainPerSec).toBeGreaterThan(0);
     const railsBill = recipePrice("iron-rails");
-    // Iron is priced by its best other use, never by the stones it took to dig.
+    // Iron is priced by its best other use over the horizon, never by the
+    // stones it took to dig: a shorter horizon prices it lower. (On the line
+    // Reinforce is worth more than the digging, so no bound by dig cost.)
     expect(rails.cost).toBeGreaterThanOrEqual(priceAmount(railsBill, "stones"));
-    expect(rails.cost).toBeLessThan(
+    expect(rails.cost).not.toBe(
       priceAmount(railsBill, "stones") +
         priceAmount(railsBill, "iron") * MATERIAL_EVERY.iron,
     );
+    expect(
+      score(yard, { kind: "craft", recipe: "iron-rails" }, HORIZON / 2).cost,
+    ).toBeLessThan(rails.cost);
     expect(rails.paybackSec).toBeCloseTo(
       rails.cost / rails.gainPerSec + recipeById("iron-rails").craftMs / 1000,
       5,
@@ -1229,8 +1300,10 @@ describe("valueOf", () => {
       ).gainPerSec,
     ).toBe(0);
 
+    // Reinforce speeds the Great Machine: borers and trains outrun the
+    // lift here, so it lifts the line (#536).
     const armed = shed({
-      owned: { helper: 30, cart: 0, drill: 0, borer: 0, machine: 1 },
+      owned: { helper: 80, cart: 0, drill: 0, borer: 6, train: 3, machine: 1 },
     });
     const reinforce = score(armed, { kind: "craft", recipe: "reinforce" });
     expect(reinforce.gainPerSec).toBeGreaterThan(0);
@@ -1245,8 +1318,8 @@ describe("valueOf", () => {
     expect(reinforce.paybackSec).toBeGreaterThan(
       recipeById("reinforce").craftMs / 1000,
     );
-    const cart = score(armed, { kind: "buyTier", id: "cart" });
-    expect(cart.paybackSec).toBeLessThan(reinforce.paybackSec);
+    const hoist = score(armed, { kind: "buyTier", id: "hoist" });
+    expect(hoist.paybackSec).toBeLessThan(reinforce.paybackSec);
     expect(
       score(shed({ owned: { cart: 0, drill: 0, borer: 0 } }), {
         kind: "craft",
@@ -1273,14 +1346,23 @@ describe("valueOf", () => {
         "heartstone-ember",
       ],
     });
+    // Bits speed the drills, so they count where the face holds the line;
+    // the core speeds the Great Machine, where the lift does (#536).
+    const faceHolds = { ...deep, owned: { ...deep.owned, train: 1 } };
     expect(
-      score(deep, { kind: "craft", recipe: "diamond-bits" }).gainPerSec,
+      score(faceHolds, { kind: "craft", recipe: "diamond-bits" }).gainPerSec,
     ).toBeGreaterThan(0);
+    const liftHolds = {
+      ...deep,
+      owned: { ...deep.owned, helper: 80, borer: 6, train: 3 },
+    };
     expect(
-      score(deep, { kind: "craft", recipe: "heartstone-core" }).gainPerSec,
+      score(liftHolds, { kind: "craft", recipe: "heartstone-core" }).gainPerSec,
     ).toBeGreaterThan(0);
+    // The ember warms the Great Machine too.
     expect(
-      score(deep, { kind: "craft", recipe: "heartstone-ember" }).gainPerSec,
+      score(liftHolds, { kind: "craft", recipe: "heartstone-ember" })
+        .gainPerSec,
     ).toBeGreaterThan(0);
     expect(
       score(deep, { kind: "craft", recipe: "crystal-flare" }, HORIZON, CASUAL)
