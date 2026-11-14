@@ -25,7 +25,7 @@ import {
   gearMultiplier,
 } from "./workshop";
 import { callTo } from "./expeditions";
-import { handsSpeed, lineOn, lineSpeed, stageSpeeds } from "./line";
+import { handsSpeed, lineOf, lineOn } from "./line";
 import { tapWithPick } from "./lost-tools";
 import type { Mountain } from "./mountain";
 import {
@@ -680,15 +680,13 @@ function applyAllTenths(
 /**
  * What the crew moves, before crew timers: the sum of its machines and
  * hands, or, with the line on (#532, off in play), what the line moves
- * (`src/line.ts`). Staffing and the tending floor still weigh the sum.
+ * (`src/line.ts`). Staffing weighs it too (#534).
  */
 function crewOutput(
   speed: Readonly<Record<TierId, number>>,
   running: Readonly<Record<TierId, number>>,
 ): number {
-  return lineOn()
-    ? lineSpeed(stageSpeeds(speed, running), handsSpeed(speed, running))
-    : outputOf(speed, running);
+  return lineOn() ? lineOf(speed, running) : outputOf(speed, running);
 }
 
 function outputOf(

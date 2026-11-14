@@ -135,12 +135,15 @@ describe("measures", () => {
       "featureShare",
       "fewestMachineBuys",
       "finishDay",
+      "handsCarry",
       "liveMedian",
       "liveP10",
       "longestDeadStretch",
       "longestValueStretch",
       "machineRevealSittings",
       "materialIdle",
+      "narrowRun",
+      "narrowShare",
       "regret",
       "revealNeverUsed",
       "revealSlowest",
@@ -152,6 +155,7 @@ describe("measures", () => {
       "tapsPerSitting",
       "typeEverBest",
       "zeroBuySittings",
+      "zeroGainBuys",
     ]);
     for (const measure of measures) {
       expect(measure.why.includes(" ")).toBe(true);

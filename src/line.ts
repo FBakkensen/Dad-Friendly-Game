@@ -82,3 +82,42 @@ export function lineSpeed(stages: StageSpeeds, hands: number): number {
   }
   return filled / lifted;
 }
+
+/** What a crew with these speeds and these running moves on the line. */
+export function lineOf(
+  speed: Readonly<Record<TierId, number>>,
+  running: Readonly<Record<TierId, number>>,
+): number {
+  return lineSpeed(stageSpeeds(speed, running), handsSpeed(speed, running));
+}
+
+/** The narrow stage: the one that moves the least (the first in rock order on a tie). */
+export function narrowStage(stages: StageSpeeds): Stage {
+  let narrow: Stage = "face";
+  for (const stage of STAGES) {
+    if (stages[stage] < stages[narrow]) {
+      narrow = stage;
+    }
+  }
+  return narrow;
+}
+
+/** What the lab reads off the line at one moment (#534). */
+export type LineView = {
+  readonly narrow: Stage;
+  /** Share of the line's speed that the hands carry on the narrow stage. */
+  readonly handsCarry: number;
+};
+
+export function lineView(
+  speed: Readonly<Record<TierId, number>>,
+  running: Readonly<Record<TierId, number>>,
+): LineView {
+  const stages = stageSpeeds(speed, running);
+  const narrow = narrowStage(stages);
+  const level = lineOf(speed, running);
+  return {
+    narrow,
+    handsCarry: level > 0 ? Math.max(0, level - stages[narrow]) / level : 0,
+  };
+}
