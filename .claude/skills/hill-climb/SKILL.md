@@ -57,6 +57,8 @@ Show one table: stream, title, score, verdict, one line of evidence. Then the de
 - One sub-issue per promising idea or seen bug, sized to one sitting, ending with an **Evidence:** line.
 - The top six `maybe` items by score after probing become sub-issues labelled `maybe`, each naming the probe that would settle it. Every other `maybe` goes on the parent's parked list, one line each. The next round may promote them.
 
+When Flemming promotes a `maybe`, it swaps that label for `idea` and takes the path of his own ideas: the honest answer, a place on the road (#563), and shaping when its turn comes (github-issues, Ideas and Triage).
+
 The round ends with the parent's URL. Picking the next sitting is what-next's job, when asked.
 
 ## Common mistakes
