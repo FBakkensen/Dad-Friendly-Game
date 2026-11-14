@@ -143,6 +143,25 @@ So two lines of advice change: "The Crystal Caves suit trains. Tough on carts." 
 - **The crew line** says where the hands help: "Hands help at the haul".
 - The mine window already shows the run from the face to the cage. A pile where the line is held is a later nicety, not part of this step.
 
+### The approved mock (#535)
+
+Flemming approved the mock of all this on 14 Nov 2026: the pictures in `mockups/line/shots/`. #537 and #538 build what they show. Where they say more than the list above, the mock rules. The pictures are the record, not the page that drew them (`/mockups/line/index.html?scene=mid` on the dev server): it is typechecked against today's `src` and reads today's markup, so the first sliver that breaks it deletes `index.html`, `line.ts`, `line.css`, `shots.mjs` and their two `knip.json` entries. `mockups/line/art/` and `mockups/line/shots/` stay.
+
+- **A bay** keeps its lamp, its icon and its two lines of words. Five flaps read what the stage's machines move a second, in the gauge's own figures, with "/s" beside them. The count flaps and the Next price leave the bays: both are in Buys.
+- **A bay's line** is "Holds the line" on the lowest stage (in the lamp's amber), "4,700/s spare" on a stage above the line, and "Hands add 9/s" on a stage the hands lift that is not the lowest.
+- **A bay's icon** is the biggest machine he owns in that stage. While he owns none it is the stage's first machine, dim.
+- **A bay's lamp** is amber on the lowest stage, green on a stage where a machine he can afford would add something, and dark where there is room to spare. One picture breaks this rule and the rule stands: after two trains (`mid-after.png`) the haul reads "Hands add 1,000/s" with a dark lamp, though a cart he can afford would still add a little. The builder lights it green.
+- **Ready now's second line** names the stage: "+2,025/s · the haul holds the line".
+- **Buys** goes Crew, The face, The haul, The lift. A stage's legend says "Holds the line" or "Room to spare" at its right. The crew line reads "10,100/s · Hands help at the haul", and the chips count the crew by stage: "38 at the face".
+- **The line's How it works card** is the first card under Buys' "i", over Staffing. Two cards fill the drawer, so Layers and hardness moves to the Ledger's "i".
+
+Two lines of words are not the mock's to rule:
+
+- **A machine row's second line** is today's `nextMark` line from `src/milestones.ts`. The mock typed its rows by hand, and the Pit train's reads "0 of 5 · Every train hauls twice as fast." where the game says "0 of 5 · They haul twice as fast." The game's words stand.
+- **The Buys footnote** is in no picture: the footnote hides while the list scrolls, and it scrolls in both Buys pictures. Its words for the line are not approved yet. A draft for #538 to put to Flemming: "Ready now offers the biggest machine for the stage that holds the line, if your free workers can run it and you can afford it. It never buys for you."
+
+The mock leaves four things to the builder: what the bays read before the first cart, when every stage is by hand and level; which stage is the lowest on a tie; the legend in Buys of a stage the hands lift that is not the lowest, which is neither "Holds the line" nor "Room to spare" (no Buys picture shows one); and the trouble shout on a stage bay (#539).
+
 ### Where today's parts land in step 1
 
 | Part                       | In step 1                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
