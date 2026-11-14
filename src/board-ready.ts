@@ -77,16 +77,20 @@ export interface DigButton {
 
 const ONE: Readonly<Record<ReadyTier, string>> = {
   cart: "a cart",
+  hoist: "a hoist",
   drill: "a drill",
   borer: "a borer",
+  train: "a pit train",
   machine: "a Great Machine",
   helper: "a worker",
 };
 
 const AT_WORK: Readonly<Record<ReadyTier, (count: string) => string>> = {
   cart: (n) => `Cart ${n} is rolling`,
+  hoist: (n) => `Hoist ${n} is lifting`,
   drill: (n) => `Drill ${n} is drilling`,
   borer: (n) => `Borer ${n} is boring in`,
+  train: (n) => `Train ${n} is hauling`,
   machine: (n) => `Great Machine ${n} is running`,
   helper: (n) => `Worker ${n} is on the crew`,
 };

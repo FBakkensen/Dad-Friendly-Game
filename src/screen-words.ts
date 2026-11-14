@@ -25,6 +25,7 @@ import { AWAY_END_MS, effectiveRates, type Rates } from "./rates";
 import { RELICS } from "./relics";
 import { owned, tierById, type TierId } from "./tiers";
 import { upgradeLevel, type Upgrade, type UpgradeId } from "./upgrades";
+import type { Stage } from "./line";
 
 // Player-facing wording shared by the screen's panels.
 
@@ -150,6 +151,14 @@ export function crewMinesWords(
  * No counts: the idle line already says how many.
  */
 export const NEEDS_MORE_WORKERS = "Needs more workers to run";
+
+/**
+ * A machine's Buys row when one more adds nothing (#536): its stage already
+ * moves more than the line can use, so the tap still buys, for later.
+ */
+export function roomToSpare(stage: Stage): string {
+  return `The ${stage} has room to spare`;
+}
 
 /** "1%", "1.65%", "133%". Keeps a second decimal only when the tenth needs it. */
 const shareWords = (share: number): string => {

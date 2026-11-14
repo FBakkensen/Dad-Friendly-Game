@@ -112,6 +112,14 @@ export function narrowStage(stages: StageSpeeds): Stage {
   return narrow;
 }
 
+/**
+ * The stages, lowest first by what their running machines move (#536): where
+ * Ready now looks first. A tie keeps rock order: face, haul, lift.
+ */
+export function stagesLowFirst(stages: StageSpeeds): readonly Stage[] {
+  return [...STAGES].sort((a, b) => stages[a] - stages[b]);
+}
+
 /** What the lab reads off the line at one moment (#534). */
 export type LineView = {
   readonly narrow: Stage;

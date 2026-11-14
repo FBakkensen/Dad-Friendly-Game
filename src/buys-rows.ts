@@ -10,7 +10,8 @@ import {
   nextMark,
 } from "./milestones";
 import type { Mountain } from "./mountain";
-import { effectiveRates, handsGain, tendingGain } from "./rates";
+import { effectiveRates, handsGain, machineGain, tendingGain } from "./rates";
+import type { Stage } from "./line";
 import type { ReadyPick } from "./ready-now";
 import type { RowView } from "./row-view";
 import { stretch } from "./scale";
@@ -18,6 +19,7 @@ import {
   NEEDS_MORE_WORKERS,
   formatSpeed,
   percent,
+  roomToSpare,
   staffBillWords,
   staffingLine,
   stonesASecond,
@@ -329,8 +331,25 @@ function lockedFace(tier: Tier, lock: TierLock): Face {
   };
 }
 
+/**
+ * A ready machine that adds nothing (#536): its stage has room to spare, so the row says so,
+ * keeps its lamp dark, and still buys.
+ */
+function roomFace(stage: Stage, facts: BuyFacts): Face {
+  return {
+    state: "ready",
+    info: [roomToSpare(stage)],
+    need: "",
+    price: formatCompact(facts.price),
+    dimTag: false,
+    verb: facts.buyVerb,
+    lamp: "off",
+    can: true,
+  };
+}
+
 /** An unlocked tier: too dear, short of workers, or ready. */
-function pricedFace(facts: BuyFacts): Face {
+function pricedFace(facts: BuyFacts, gain: number): Face {
   const { id, count, price, shortOf, dear, buyVerb, handsVerb, isPick } = facts;
   const info = milestoneOptions(id, count);
   const shown = formatCompact(price);
@@ -358,6 +377,10 @@ function pricedFace(facts: BuyFacts): Face {
       can: true,
     };
   }
+  const { stage } = facts.tier;
+  if (gain <= 0 && stage !== undefined) {
+    return roomFace(stage, facts);
+  }
   return {
     state: "ready",
     info,
@@ -370,7 +393,7 @@ function pricedFace(facts: BuyFacts): Face {
   };
 }
 
-function buyFace(facts: BuyFacts): Face {
+function buyFace(facts: BuyFacts, gain: number): Face {
   const { troubled, isGuided, lock, tier } = facts;
   if (troubled !== undefined) {
     return troubleFace(troubled);
@@ -378,7 +401,7 @@ function buyFace(facts: BuyFacts): Face {
   if (isGuided) {
     return guidedFace(facts);
   }
-  return lock === undefined ? pricedFace(facts) : lockedFace(tier, lock);
+  return lock === undefined ? pricedFace(facts, gain) : lockedFace(tier, lock);
 }
 
 /** Who tends and what she adds, then the number alone (#506): it is what the flag is for. */
@@ -426,6 +449,14 @@ function buyingAria(facts: BuyFacts, synergy: number): string {
   return `${buyingWhat(tier, buying)} for ${formatCount(price)} stones, ${mines} ${stonesASecond(speed)}${faster}. You have ${formatCount(count)}${idleWords}${more}.`;
 }
 
+/** " The haul has room to spare." on a machine that adds nothing, else nothing. */
+function roomAria(facts: BuyFacts, gain: number | undefined): string {
+  const { stage } = facts.tier;
+  return gain === 0 && stage !== undefined && !facts.isGuided
+    ? ` ${roomToSpare(stage)}.`
+    : "";
+}
+
 function buyAria(
   facts: BuyFacts,
   tending: Tending | undefined,
@@ -450,20 +481,21 @@ function buyAria(
 
 /**
  * What the row's buy adds. Workers and kids add the crew's rise, with the idle machines they
- * start (#490); the staffing New row hires one worker. A machine adds its own speed per one.
+ * start (#490); the staffing New row hires one worker. A machine adds what the line gains from
+ * it (#536), which is nothing when its stage already has room to spare.
  */
 function rowGain(
   facts: BuyFacts,
   now: number,
   trouble: Trouble | undefined,
 ): number {
-  const { mountain, id, isGuided, speed, gaining } = facts;
+  const { mountain, id, isGuided, gaining } = facts;
   if (isGuided) {
     return handsGain(mountain, "helper", 1, now, trouble);
   }
   return id === "helper" || id === "kid"
     ? handsGain(mountain, id, gaining, now, trouble)
-    : speed * gaining;
+    : machineGain(mountain, id, gaining, now, trouble);
 }
 
 /**
@@ -476,6 +508,10 @@ export function buyRowView(input: BuyInput): BuyRowView {
   const facts = buyFacts(input);
   const { id, tier, lock, troubled, isGuided, count, buying } = facts;
   const tending = tendingOf(mountain, id, now, trouble);
+  const gain =
+    lock !== undefined || troubled !== undefined
+      ? undefined
+      : rowGain(facts, now, trouble);
   return {
     tier: id,
     shown: tierShown(mountain, tier),
@@ -484,14 +520,11 @@ export function buyRowView(input: BuyInput): BuyRowView {
     buying,
     name: tier.name,
     badge: "",
-    ...buyFace(facts),
+    ...buyFace(facts, gain ?? 0),
     why: "",
     flag: buyFlag(facts, tending),
-    gain:
-      lock !== undefined || troubled !== undefined
-        ? ""
-        : `+${formatSpeed(rowGain(facts, now, trouble))}/s`,
+    gain: gain === undefined ? "" : `+${formatSpeed(gain)}/s`,
     pick: facts.isPick,
-    aria: buyAria(facts, tending, tierSynergy(mountain, id)),
+    aria: `${buyAria(facts, tending, tierSynergy(mountain, id))}${roomAria(facts, gain)}`,
   };
 }

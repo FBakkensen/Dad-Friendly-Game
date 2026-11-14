@@ -3,10 +3,10 @@ import { describe, expect, it } from "vitest";
 import { withFactors } from "./economy/factors";
 import type { Trouble } from "./hazards";
 import { createMountain, stonesPerSecond, type Mountain } from "./mountain";
-import { effectiveRates, handsGain } from "./rates";
+import { handsGain, machineGain } from "./rates";
 import { readyNow } from "./ready-now";
 import { MOUNTAIN_STONES, stonesLeft } from "./scale";
-import { tierById, tierCost, type TierId } from "./tiers";
+import { tierById, tierCost, tierShown, type TierId } from "./tiers";
 import { NO_BOOSTS } from "./boosts";
 
 const NOW = 1_700_000_000_000;
@@ -25,143 +25,151 @@ function at(depth: number): Pick<Mountain, "remaining"> {
   return { remaining: MOUNTAIN_STONES - depth };
 }
 
-describe("readyNow", () => {
-  it("the biggest machine he can run and afford", () => {
-    const crew = {
-      owned: { ...NONE_OWNED, helper: 24, cart: 6, drill: 2, borer: 1 },
-    };
-    const borerPrice = priceOf(createMountain(), "borer", 1);
-    const drillPrice = priceOf(createMountain(), "drill", 2);
+/** Topsoil with every stage running: the face (one drill) moves the least. */
+const faceLow = {
+  owned: { ...NONE_OWNED, helper: 40, cart: 10, hoist: 3, drill: 1 },
+};
 
-    expect(
-      readyNow(mountainWith({ ...crew, stock: { stones: borerPrice } }), NOW),
-    ).toEqual(
-      expect.objectContaining({
+/** Granite with every stage running and the face the lowest: drill and borer both on sale. */
+const graniteFaceLow = {
+  ...at(10_000_000),
+  owned: { ...NONE_OWNED, helper: 30, cart: 10, hoist: 3, drill: 1 },
+};
+
+/** Every machine up to the train running, so the Great Machine shows; the lift moves the least. */
+const LIFT_LOW = {
+  ...NONE_OWNED,
+  cart: 10,
+  hoist: 1,
+  drill: 3,
+  borer: 1,
+  train: 1,
+};
+
+describe("readyNow", () => {
+  describe("the lowest stage first (#536)", () => {
+    it("looks at the stage that moves the least, a tie in rock order", () => {
+      // A cart and nothing else: the face and the lift move nothing. The face
+      // comes first, but its drill is not shown before a hoist, so the lift.
+      const mountain = mountainWith({
+        owned: { ...NONE_OWNED, helper: 20, cart: 1 },
+        stock: { stones: 1e9 },
+      });
+      expect(readyNow(mountain, NOW)).toMatchObject({
         kind: "ready",
-        tier: "borer",
-        price: borerPrice,
-        free: 8,
-      }),
-    );
-    expect(
-      readyNow(mountainWith({ ...crew, stock: { stones: drillPrice } }), NOW),
-    ).toEqual(
-      expect.objectContaining({
+        tier: "hoist",
+        gain: machineGain(mountain, "hoist", 1, NOW),
+      });
+
+      const hoisted = mountainWith({
+        owned: { ...NONE_OWNED, helper: 20, cart: 1, hoist: 1 },
+        stock: { stones: 1e9 },
+      });
+      expect(readyNow(hoisted, NOW)).toMatchObject({
         kind: "ready",
         tier: "drill",
-        price: drillPrice,
-        free: 8,
-      }),
-    );
-  });
-
-  it("exactly enough", () => {
-    // 8 free and a borer takes 8; the pocket is the borer's price to the stone.
-    const crew = {
-      owned: { ...NONE_OWNED, helper: 24, cart: 6, drill: 2, borer: 1 },
-    };
-    const price = priceOf(createMountain(), "borer", 1);
-
-    const exact = readyNow(
-      mountainWith({ ...crew, stock: { stones: price } }),
-      NOW,
-    );
-    expect(exact).toMatchObject({ kind: "ready", tier: "borer", free: 8 });
-
-    const short = readyNow(
-      mountainWith({ ...crew, stock: { stones: price - 1 } }),
-      NOW,
-    );
-    expect(short).toMatchObject({ kind: "ready", tier: "drill" });
-
-    const shortHand = readyNow(
-      mountainWith({
-        ...crew,
-        stock: { stones: price },
-        owned: { ...crew.owned, helper: 23 },
-      }),
-      NOW,
-    );
-    expect(shortHand).toMatchObject({ kind: "ready", tier: "drill", free: 7 });
-  });
-
-  it("a machine he can afford but not staff is passed over", () => {
-    const pocket = priceOf(createMountain(), "borer", 1);
-    const mountain = mountainWith({
-      owned: { ...NONE_OWNED, helper: 19, cart: 6, drill: 2, borer: 1 },
-      stock: { stones: pocket },
+      });
     });
 
-    expect(readyNow(mountain, NOW)).toMatchObject({
-      kind: "ready",
-      tier: "drill",
-      price: priceOf(mountain, "drill", 2),
-      free: 3,
-    });
-  });
-
-  it("a free hand saves for a machine, never a worker", () => {
-    const fresh = createMountain();
-    const pocket = priceOf(fresh, "helper", 1) + 1;
-    expect(pocket).toBeLessThan(priceOf(fresh, "cart", 0));
-
-    expect(
-      readyNow(
-        mountainWith({
-          stock: { stones: pocket },
-          owned: { ...NONE_OWNED, helper: 1 },
-        }),
-        NOW,
-      ),
-    ).toMatchObject({
-      kind: "saving",
-      tier: "cart",
-      price: priceOf(fresh, "cart", 0),
-      free: 1,
-    });
-  });
-
-  it("saving for the cheapest machine a free hand can run", () => {
-    const mountain = mountainWith({
-      stock: { stones: 100 },
-      owned: { ...NONE_OWNED, helper: 18, cart: 6 },
-    });
-    const price = priceOf(mountain, "cart", 6);
-
-    expect(readyNow(mountain, NOW)).toEqual({
-      kind: "saving",
-      tier: "cart",
-      price,
-      gain: effectiveRates(mountain, NOW).tierSpeed.cart,
-      free: 12,
-      etaMs: ((price - 100) / stonesPerSecond(mountain, NOW)) * 1000,
-    });
-  });
-
-  it("a tie on price goes to the lower tier", () => {
-    withFactors({ "price.cart": 1.218, "price.drill": 0.01 }, () => {
-      const fresh = createMountain();
-      expect(priceOf(fresh, "cart", 0)).toBe(731);
-      expect(priceOf(fresh, "drill", 0)).toBe(731);
-
+    it("the biggest machine there he can run and afford", () => {
+      const borerPrice = priceOf(createMountain(), "borer", 0);
+      const drillPrice = priceOf(createMountain(), "drill", 1);
+      expect(
+        readyNow(
+          mountainWith({ ...graniteFaceLow, stock: { stones: borerPrice } }),
+          NOW,
+        ),
+      ).toMatchObject({ kind: "ready", tier: "borer", price: borerPrice });
       expect(
         readyNow(
           mountainWith({
-            stock: { stones: 700 },
-            owned: { ...NONE_OWNED, helper: 2 },
+            ...graniteFaceLow,
+            stock: { stones: borerPrice - 1 },
           }),
           NOW,
         ),
-      ).toMatchObject({ kind: "saving", tier: "cart", price: 731 });
+      ).toMatchObject({ kind: "ready", tier: "drill", price: drillPrice });
       expect(
         readyNow(
           mountainWith({
-            stock: { stones: 731 },
-            owned: { ...NONE_OWNED, helper: 2 },
+            ...graniteFaceLow,
+            stock: { stones: drillPrice - 1 },
           }),
           NOW,
         ),
-      ).toMatchObject({ kind: "ready", tier: "drill", price: 731 });
+      ).toMatchObject({ kind: "saving", tier: "drill", price: drillPrice });
+    });
+
+    it("a machine he can afford but not staff is passed over", () => {
+      // 14 run machines, so 7 free and a borer takes 8.
+      const pocket = priceOf(createMountain(), "borer", 0);
+      const mountain = mountainWith({
+        ...graniteFaceLow,
+        owned: { ...graniteFaceLow.owned, helper: 21 },
+        stock: { stones: pocket },
+      });
+      expect(readyNow(mountain, NOW)).toMatchObject({
+        kind: "ready",
+        tier: "drill",
+        free: 7,
+      });
+    });
+
+    it("never offers a machine that adds nothing", () => {
+      // Twelve workers and a cart: a second cart adds nothing, so with a
+      // cart's price in the pocket the plate saves for a hoist instead.
+      const base = mountainWith({
+        owned: { ...NONE_OWNED, helper: 12, cart: 1 },
+      });
+      const cart = priceOf(base, "cart", 1);
+      const mountain = { ...base, stock: { ...base.stock, stones: cart } };
+      expect(machineGain(mountain, "cart", 1, NOW)).toBe(0);
+      expect(readyNow(mountain, NOW)).toMatchObject({
+        kind: "saving",
+        tier: "hoist",
+      });
+    });
+
+    it("with nothing shown that helps, a worker", () => {
+      // Before the cart shows, a free hand has no machine to save for.
+      const mountain = mountainWith({
+        stock: { stones: 1_000 },
+        owned: { ...NONE_OWNED, helper: 11 },
+      });
+      expect(readyNow(mountain, NOW)).toMatchObject({
+        kind: "ready",
+        tier: "helper",
+        free: 11,
+        gain: handsGain(mountain, "helper", 1, NOW),
+      });
+    });
+
+    it("the plate and the Buys row agree on what a machine adds", () => {
+      const mountain = mountainWith({
+        ...faceLow,
+        stock: { stones: 1e9 },
+      });
+      const pick = readyNow(mountain, NOW);
+      if (pick.kind === "mined-out" || pick.tier === "helper") {
+        throw new Error("expected a machine");
+      }
+      expect(pick.gain).toBe(machineGain(mountain, pick.tier, 1, NOW));
+      expect(pick.gain).toBeGreaterThan(0);
+    });
+
+    it("a tie on price goes to the lower tier", () => {
+      const drill = priceOf(createMountain(), "drill", 1);
+      const borer = priceOf(createMountain(), "borer", 0);
+      withFactors({ "price.borer": drill / borer }, () => {
+        const fresh = mountainWith(graniteFaceLow);
+        expect(priceOf(fresh, "borer", 0)).toBe(priceOf(fresh, "drill", 1));
+        expect(
+          readyNow(
+            mountainWith({ ...graniteFaceLow, stock: { stones: 1 } }),
+            NOW,
+          ),
+        ).toMatchObject({ kind: "saving", tier: "drill" });
+      });
     });
   });
 
@@ -178,7 +186,7 @@ describe("readyNow", () => {
         kind: "ready",
         tier: "helper",
         price: priceOf(mountain, "helper", 6),
-        gain: effectiveRates(mountain, NOW).tierSpeed.helper,
+        gain: handsGain(mountain, "helper", 1, NOW),
         free: 0,
       });
     });
@@ -194,7 +202,7 @@ describe("readyNow", () => {
         kind: "saving",
         tier: "helper",
         price,
-        gain: effectiveRates(mountain, NOW).tierSpeed.helper,
+        gain: handsGain(mountain, "helper", 1, NOW),
         free: 0,
         etaMs: ((price - 5) / stonesPerSecond(mountain, NOW)) * 1000,
       });
@@ -208,12 +216,11 @@ describe("readyNow", () => {
         stock: { stones: 1_000 },
         owned: { ...NONE_OWNED, helper: 3, cart: 6 },
       });
-      const rates = effectiveRates(mountain, NOW);
       expect(readyNow(mountain, NOW)).toEqual({
         kind: "ready",
         tier: "helper",
         price: priceOf(mountain, "helper", 3),
-        gain: rates.tierSpeed.helper + rates.tierSpeed.cart,
+        gain: handsGain(mountain, "helper", 1, NOW),
         free: 0,
         starts: "cart",
       });
@@ -235,11 +242,11 @@ describe("readyNow", () => {
 
   describe("the first worker on a mountain with no crew (#517)", () => {
     it("says he is the first, since no hand is busy", () => {
-      const fresh = mountainWith({ stock: { stones: 20 } });
+      const fresh = mountainWith({ stock: { stones: 60 } });
       expect(readyNow(fresh, NOW)).toEqual({
         kind: "ready",
         tier: "helper",
-        price: 20,
+        price: 60,
         gain: handsGain(fresh, "helper", 1, NOW),
         free: 0,
         firstWorker: true,
@@ -278,7 +285,7 @@ describe("readyNow", () => {
         price: priceOf(fresh, "helper", 0),
         etaMs: undefined,
       });
-      expect(priceOf(fresh, "helper", 0)).toBe(20);
+      expect(priceOf(fresh, "helper", 0)).toBe(60);
     });
 
     it("an endless speed shows no time", () => {
@@ -313,11 +320,11 @@ describe("readyNow", () => {
         stock: { stones: 100 },
         remaining: 1,
       });
-      const price = priceOf(mountain, "cart", 6);
+      const price = priceOf(mountain, "hoist", 0);
       expect(price - 100).toBeGreaterThan(stonesLeft(mountain));
       expect(readyNow(mountain, NOW)).toMatchObject({
         kind: "saving",
-        tier: "cart",
+        tier: "hoist",
         price,
         etaMs: undefined,
       });
@@ -327,13 +334,13 @@ describe("readyNow", () => {
       const mountain = mountainWith({
         owned: { ...NONE_OWNED, helper: 18, cart: 6 },
         stock: { stones: 100 },
-        remaining: 50,
+        remaining: 10_000,
       });
-      const price = priceOf(mountain, "cart", 6);
+      const price = priceOf(mountain, "hoist", 0);
       expect(stonesLeft(mountain)).toBeGreaterThanOrEqual(price - 100);
       expect(readyNow(mountain, NOW)).toMatchObject({
         kind: "saving",
-        tier: "cart",
+        tier: "hoist",
         etaMs: ((price - 100) / stonesPerSecond(mountain, NOW)) * 1000,
       });
     });
@@ -343,14 +350,14 @@ describe("readyNow", () => {
         remaining: 30,
         owned: { ...NONE_OWNED, helper: 18, cart: 6 },
       });
-      const price = priceOf(base, "cart", 6);
+      const price = priceOf(base, "hoist", 0);
       const mountain = {
         ...base,
         stock: { ...base.stock, stones: price - stonesLeft(base) },
       };
       expect(readyNow(mountain, NOW)).toMatchObject({
         kind: "saving",
-        tier: "cart",
+        tier: "hoist",
         etaMs: (stonesLeft(base) / stonesPerSecond(mountain, NOW)) * 1000,
       });
     });
@@ -372,14 +379,14 @@ describe("readyNow", () => {
     it("passes over the borer in the Topsoil", () => {
       const pocket = priceOf(createMountain(), "borer", 0) + 1;
       const mountain = mountainWith({
+        ...faceLow,
+        owned: { ...faceLow.owned, borer: 0 },
         stock: { stones: pocket },
-        owned: { ...NONE_OWNED, helper: 40 },
       });
 
       expect(readyNow(mountain, NOW)).toMatchObject({
         kind: "ready",
         tier: "drill",
-        free: 40,
       });
     });
 
@@ -387,14 +394,16 @@ describe("readyNow", () => {
       // Its depth is lifted, so only the missing Hammer holds it back.
       withFactors({ "opens.machine": 0 }, () => {
         const pocket = priceOf(createMountain(), "machine", 0) * 2;
+        // The lift moves the least, and its Great Machine is shown.
         const mountain = mountainWith({
           ...at(15_000_000),
-          owned: { ...NONE_OWNED, helper: 40 },
+          owned: { ...LIFT_LOW, helper: 60 },
           stock: { stones: pocket },
         });
 
+        expect(tierShown(mountain, tierById("machine"))).toBe(true);
         const pick = readyNow(mountain, NOW);
-        expect(pick).toMatchObject({ kind: "ready", tier: "borer" });
+        expect(pick).toMatchObject({ kind: "ready", tier: "hoist" });
       });
     });
 
@@ -422,7 +431,8 @@ describe("readyNow", () => {
         }),
         NOW,
       );
-      expect(crewed).toMatchObject({ kind: "ready", tier: "machine" });
+      // Only the cart is shown to twenty workers.
+      expect(crewed).toMatchObject({ kind: "ready", tier: "cart" });
     });
   });
 
@@ -431,7 +441,8 @@ describe("readyNow", () => {
     const onSale = {
       ...at(120_000_000),
       stock: { stones: price + 1 },
-      owned: { ...NONE_OWNED, helper: 5 },
+      // Thirty run the line's machines: five free.
+      owned: { ...LIFT_LOW, helper: 35 },
     };
 
     const tended = readyNow(
@@ -465,24 +476,24 @@ describe("readyNow", () => {
       }),
       NOW,
     );
-    expect(away).toMatchObject({ kind: "ready", tier: "drill" });
+    expect(away).toMatchObject({ kind: "ready", tier: "hoist" });
   });
 
   it("a troubled machine stays in the pick, at its troubled gain", () => {
     const mountain = mountainWith({
-      owned: { ...NONE_OWNED, helper: 1 },
+      owned: { ...NONE_OWNED, helper: 12 },
       stock: { stones: priceOf(createMountain(), "cart", 0) },
     });
     const trouble: Trouble = { kind: "cave-in", tier: "cart", startedAt: NOW };
-    const gain = effectiveRates(mountain, NOW, trouble).tierSpeed.cart;
-    expect(gain).toBeLessThan(effectiveRates(mountain, NOW).tierSpeed.cart);
+    const gain = machineGain(mountain, "cart", 1, NOW, trouble);
+    expect(gain).toBeLessThan(machineGain(mountain, "cart", 1, NOW));
 
     expect(readyNow(mountain, NOW, trouble)).toEqual({
       kind: "ready",
       tier: "cart",
       price: priceOf(mountain, "cart", 0),
       gain,
-      free: 1,
+      free: 12,
     });
   });
 
@@ -497,8 +508,8 @@ describe("readyNow", () => {
 
   it("display only", () => {
     const ready = mountainWith({
-      owned: { ...NONE_OWNED, helper: 24, cart: 6, drill: 2, borer: 1 },
-      stock: { stones: priceOf(createMountain(), "borer", 1) },
+      ...graniteFaceLow,
+      stock: { stones: priceOf(createMountain(), "borer", 0) },
     });
     const saving = mountainWith({
       stock: { stones: 100 },
@@ -525,7 +536,7 @@ describe("readyNow", () => {
       stock: { stones: 100 },
       boosts: { ...NO_BOOSTS, overtime: overtimeEnds },
     });
-    const price = priceOf(mountain, "cart", 6);
+    const price = priceOf(mountain, "hoist", 0);
     const later = overtimeEnds + 1;
 
     const boosted = readyNow(mountain, NOW);

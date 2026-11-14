@@ -14,7 +14,7 @@ import type { Trouble } from "./hazards";
 import { REACHED_LINE } from "./milestones";
 import type { RowLamp, RowState } from "./row-view";
 import { createMountain, type Mountain } from "./mountain";
-import { effectiveRates, handsGain, tendingGain } from "./rates";
+import { effectiveRates, handsGain, machineGain, tendingGain } from "./rates";
 import { readyNow, type ReadyPick } from "./ready-now";
 import { MOUNTAIN_STONES } from "./scale";
 import {
@@ -28,7 +28,6 @@ import {
 import { lockAria, lockBodyLine, lockRateLine } from "./tier-lock-words";
 import {
   TIERS,
-  isShownTier,
   tierById,
   tierCost,
   tierQuote,
@@ -36,11 +35,8 @@ import {
   type TierId,
 } from "./tiers";
 
-/** The rows Buys shows today: the line's machines join with #538. */
-const SHOWN_TIERS = TIERS.flatMap((tier) => {
-  const id = tier.id;
-  return isShownTier(id) ? [{ ...tier, id }] : [];
-});
+/** The rows Buys shows: every tier, the hoist and the train with them since #536. */
+const SHOWN_TIERS = TIERS;
 import { tierSynergy, NO_UPGRADES } from "./upgrades";
 
 const NOW = 1_700_000_000_000;
@@ -657,5 +653,49 @@ describe("buyRowView: ×10 and Max (#358)", () => {
     expect(row(mountain, "cart", { guided: "cart", amount: "max" })).toEqual(
       one,
     );
+  });
+});
+
+describe("a machine's row says what the line gains (#536)", () => {
+  it("a second cart with twelve workers and one cart adds nothing, and still buys", () => {
+    const base = mountainWith({
+      owned: { ...NONE_OWNED, helper: 12, cart: 1 },
+    });
+    const mountain = {
+      ...base,
+      stock: { ...base.stock, stones: priceOf(base, "cart", 1) * 2 },
+    };
+    expect(row(mountain, "cart")).toMatchObject({
+      state: "ready",
+      gain: "+0/s",
+      info: ["The haul has room to spare"],
+      lamp: "off",
+      can: true,
+      pick: false,
+    });
+    expect(row(mountain, "cart").aria).toContain("The haul has room to spare.");
+  });
+
+  it("a stage's first machine always adds something", () => {
+    const mountain = mountainWith({
+      stock: { stones: 1e12 },
+      owned: { ...NONE_OWNED, helper: 40 },
+    });
+    for (const id of ["cart", "hoist", "drill"] as const) {
+      expect(row(mountain, id).gain, id).not.toBe("+0/s");
+      expect(row(mountain, id).lamp, id).not.toBe("off");
+    }
+  });
+
+  it("a machine's row and the line agree on what one adds", () => {
+    const mountain = mountainWith({
+      stock: { stones: 1e9 },
+      owned: { ...NONE_OWNED, helper: 30, cart: 2, drill: 1 },
+    });
+    for (const id of ["cart", "hoist", "drill"] as const) {
+      expect(row(mountain, id).gain, id).toBe(
+        `+${formatSpeed(machineGain(mountain, id, 1, NOW))}/s`,
+      );
+    }
   });
 });

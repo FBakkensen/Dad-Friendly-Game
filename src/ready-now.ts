@@ -3,19 +3,26 @@ import { tierLocked } from "./crew";
 import { staffForBuy } from "./engineers";
 import type { Trouble } from "./hazards";
 import { stonesPerSecond, type Mountain } from "./mountain";
-import { effectiveRates, handsGain, startedTier, type TendTier } from "./rates";
+import { MACHINE_STAGE, stageSpeeds, stagesLowFirst } from "./line";
+import {
+  effectiveRates,
+  handsGain,
+  machineGain,
+  startedTier,
+  type TendTier,
+} from "./rates";
 import { stonesLeft, stretch } from "./scale";
 import {
   MACHINE_IDS,
   owned,
   tierById,
   tierCost,
-  isShownTier,
-  type ShownMachineId,
+  tierShown,
+  type MachineId,
 } from "./tiers";
 
 /** What the Ready now plate can offer: a machine, or a worker. Never a kid. */
-export type ReadyTier = ShownMachineId | "helper";
+export type ReadyTier = MachineId | "helper";
 
 /**
  * The plate's pick (#372): buy it now, save for it, or nothing left to dig.
@@ -50,14 +57,66 @@ export type ReadyPick =
     }
   | { readonly kind: "mined-out" };
 
-type Priced = { readonly tier: ReadyTier; readonly price: number };
+type Priced = {
+  readonly tier: ReadyTier;
+  readonly price: number;
+  readonly gain?: number;
+};
+
+/** What a candidate needs before the plate weighs it: shown, unlocked, and hands to run it. */
+type Weigh = {
+  readonly mountain: Mountain;
+  readonly now: number;
+  readonly trouble: Trouble | undefined;
+  readonly free: number;
+  readonly priceOf: (id: ReadyTier) => number;
+};
 
 /**
- * The machine to buy next. Display only: it reads the mountain and never
- * buys; only a tap buys.
- * 1. The biggest unlocked machine the free hands can run and the pocket covers.
- * 2. Else the cheapest one they can run, to save for (a tie keeps tier order).
- * 3. Else, with no hand free, a worker.
+ * The machine Ready now offers (#536): stage by stage, lowest first by what
+ * its running machines move, the first stage with a machine that is shown,
+ * unlocked, runnable by the free hands, and adds something to the line. In
+ * it, the biggest the pocket covers, else the cheapest to save for (a tie
+ * keeps tier order). Undefined when no stage has one.
+ */
+function machinePick(weigh: Weigh): Priced | undefined {
+  const { mountain, now, trouble, free, priceOf } = weigh;
+  const rates = effectiveRates(mountain, now, trouble);
+  const order = stagesLowFirst(stageSpeeds(rates.tierSpeed, rates.running));
+  const runnable = MACHINE_IDS.filter((id) => {
+    const tier = tierById(id);
+    return (
+      tierShown(mountain, tier) &&
+      !tierLocked(mountain, tier) &&
+      free >= staffForBuy(mountain, tier)
+    );
+  });
+  for (const stage of order) {
+    const helps: readonly Priced[] = runnable
+      .filter((id) => MACHINE_STAGE[id] === stage)
+      .map((id) => ({
+        tier: id,
+        price: priceOf(id),
+        gain: machineGain(mountain, id, 1, now, trouble),
+      }))
+      .filter(({ gain }) => gain > 0);
+    const affordable = [...helps]
+      .reverse()
+      .find(({ price }) => mountain.stock.stones >= price);
+    // A stable sort keeps tier order on a tie.
+    const pick = affordable ?? [...helps].sort((a, b) => a.price - b.price)[0];
+    if (pick !== undefined) {
+      return pick;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * The thing to buy next. Display only: it reads the mountain and never
+ * buys; only a tap buys. A machine for the lowest stage that one can lift
+ * (`machinePick`), else a worker. It never offers a machine that adds
+ * nothing (#536).
  */
 export function readyNow(
   mountain: Mountain,
@@ -73,23 +132,17 @@ export function readyNow(
     const tier = tierById(id);
     return tierCost(tier, owned(mountain, tier), k);
   };
-  const runnable: readonly Priced[] = MACHINE_IDS.filter(isShownTier)
-    .filter((id) => {
-      const tier = tierById(id);
-      return !tierLocked(mountain, tier) && free >= staffForBuy(mountain, tier);
-    })
-    .map((id) => ({ tier: id, price: priceOf(id) }));
+  // Every machine takes a hand, so with none free, or none that helps, the
+  // pick falls to a worker.
+  const pick: Priced = machinePick({
+    mountain,
+    now,
+    trouble,
+    free,
+    priceOf,
+  }) ?? { tier: "helper", price: priceOf("helper") };
 
-  const affordable = [...runnable]
-    .reverse()
-    .find(({ price }) => mountain.stock.stones >= price);
-  // A stable sort keeps tier order on a tie. Every machine takes a hand, so
-  // with none free nothing is runnable and the pick falls to a worker.
-  const cheapest = [...runnable].sort((a, b) => a.price - b.price)[0];
-  const pick: Priced = affordable ??
-    cheapest ?? { tier: "helper", price: priceOf("helper") };
-
-  const { gain, started } = pickGain(mountain, pick.tier, now, trouble, crew);
+  const { gain, started } = pickGain(mountain, pick, now, trouble, crew);
   if (mountain.stock.stones >= pick.price) {
     return {
       kind: "ready",
@@ -133,10 +186,10 @@ function savingEta(
     : undefined;
 }
 
-/** What the pick adds: a machine its own speed, a worker the crew's rise and what he starts. */
+/** What the pick adds: a machine the line's gain, a worker the crew's rise and what he starts. */
 function pickGain(
   mountain: Mountain,
-  tier: ReadyTier,
+  { tier, gain: machine }: Priced,
   now: number,
   trouble: Trouble | undefined,
   crew: number,
@@ -147,7 +200,7 @@ function pickGain(
 } {
   if (tier !== "helper") {
     return {
-      gain: effectiveRates(mountain, now, trouble).tierSpeed[tier],
+      gain: machine ?? machineGain(mountain, tier, 1, now, trouble),
       started: {},
     };
   }
