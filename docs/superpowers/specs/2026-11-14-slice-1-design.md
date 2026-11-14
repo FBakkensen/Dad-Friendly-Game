@@ -431,7 +431,7 @@ These are mine, not Flemming's. Any of them can be turned over.
 3. Saws come with the Granite, not one level later.
 4. Four crews, always placed, moved one at a time.
 5. Two crews go to the Granite when it opens.
-6. The rock's lean goes. This turns over the band table he approved (decision D3), because of the shared workforce.
+6. The rock's lean goes, because of the shared workforce. This turns over the band table he approved (decision D3), which is his call. It was put to him on 14 Nov 2026 at 19:30Z ("A level's rock no longer speeds or slows machines ('Suits borers' goes), so one stage holds the line, whatever the levels"), and he answered "In principle agree" at 19:31Z.
 7. The locomotive opens with the Granite, and the winding engine with the Foundry.
 8. Borers and locomotives cost cut stone. Saws, the stockyard and the shaft cost brick.
 9. The Light Tower opens the kilns and the stockyard as well as the Granite's price.
@@ -494,7 +494,8 @@ This spec ships as a PR, and slice 1 is then split into sliver issues under #530
 | 2    | Kilns, brick, the stockyard, a night shift that fills the stockyard, the Warehouse's project.                                                                                   | the Warehouse's roof   |
 | 3    | The shaft and the Granite, saws, cut stone, borers, locomotives, the crews, the factory's work orders, trucks, the Foundry, the winding engine.                                 | the Foundry's roof     |
 
-- Until part 3 is live, the Granite's price is not shown, the Light Tower opens only the kilns and the stockyard, and the Warehouse does not open trucks. Each part ends with the end card, in words that say more is being built.
+- **Until part 2 is live**, the Light Tower opens nothing. Its power counts: the night shift output is 45%. The eight-hour clock stays and the pocket has no limit, so a night after the Light Tower's roof is today's night at 45%. The stockyard, and the rule that the clock goes when it opens (rule 4), come with part 2.
+- **Until part 3 is live**, the Granite's price is not shown, the Light Tower opens only the kilns and the stockyard, and the Warehouse does not open trucks. Each part ends with the end card, in words that say more is being built.
 - **Resets the save** when part 1 is switched on. Parts 2 and 3 add facts to the save and should not reset it. If one must, its issue, its PR and the chat say so first.
 - Each part's rules are played by the lab before that part is switched on, and the lab sets that part's numbers (as #534 and #543 did for the line). The lab cannot play the whole slice before part 3's rules exist, so part 1 does not wait for it.
 - The pass, Legacy, kid runs and Grandpa (#642), the relics, the dig button, golden veins and the Gold rush leave play at part 1's switch-on. Their code is deleted by slivers after it.
@@ -556,14 +557,14 @@ Part 1's switch-on is a new save version, and it resets the save. Each new fact 
 
 ### Proof
 
-| What                                                                       | Its proof                                                                                                                                                                              |
-| -------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| The rules (levels, goods, makers, the stockyard, crews, orders, transport) | Unit tests on pure rules modules, written first. Property tests where a sum must hold: four crews, no rock lost while the stone stockpile has room, never more delivered than required |
-| Unattended time                                                            | Unit tests from timestamps: the clock before the stockyard, the stockpile-full moments, a step and a building finished at night, an order on hold                                      |
-| The pace and the decisions                                                 | The lab's named measures (Lab), and the five-day floor (#556) once the lab can play the whole slice                                                                                    |
-| Each site and each card                                                    | A visual section for each at 424×924 and 424×830, with no page scroll, and `npm run play` from a save for each part's states                                                           |
-| Each part as a game                                                        | A journey for each part: the first evening to the Light Tower's roof; a night that fills the stockyard and one that builds; the shaft, a crew moved, and the Foundry's roof            |
-| The save                                                                   | The ledger and the emulator round trip for each new fact, and the reset at part 1                                                                                                      |
+| What                                                                       | Its proof                                                                                                                                                                                                                         |
+| -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The rules (levels, goods, makers, the stockyard, crews, orders, transport) | Unit tests on pure rules modules, written first. Property tests where a sum must hold: four crews, no rock lost while the stone stockpile has room, never more delivered than required                                            |
+| Unattended time                                                            | Unit tests from timestamps: the clock before the stockyard, part 1's night after the Light Tower's roof (eight hours at 45%, no stockyard), the stockpile-full moments, a step and a building finished at night, an order on hold |
+| The pace and the decisions                                                 | The lab's named measures (Lab), and the five-day floor (#556) once the lab can play the whole slice                                                                                                                               |
+| Each site and each card                                                    | A visual section for each at 424×924 and 424×830, with no page scroll, and `npm run play` from a save for each part's states                                                                                                      |
+| Each part as a game                                                        | A journey for each part: the first evening to the Light Tower's roof; a night that fills the stockyard and one that builds; the shaft, a crew moved, and the Foundry's roof                                                       |
+| The save                                                                   | The ledger and the emulator round trip for each new fact, and the reset at part 1                                                                                                                                                 |
 
 A plan keeps each screen's browser checks green in the sliver that changes that screen. `docs/DESIGN.md`, `docs/design-intent.md`, `docs/ARCHITECTURE.md`, `docs/ui-audit.md`, `.claude/rules/observable-saves.md` and the github-issues skill's road section are updated by the slivers that change what they describe.
 
@@ -571,9 +572,10 @@ A plan keeps each screen's browser checks green in the sliver that changes that 
 
 - The strategy lab plays slice 1 from a fresh mine, as far as the slice is built: to the Light Tower's roof for part 1, the Warehouse's for part 2, and the Foundry's for part 3. The lab's players do not follow Next. One player type shares the crews by need. One leaves them at two and two. One moves the whole workforce, to keep the old cage's cost in view. Every type buys vehicles when an order's limit is transport, and puts the project on hold when a machine pays back sooner. One never uses on hold, to show what it is worth.
 - Named measures, report-only at first: `sliceDays`, `narrowRun`, `shareMoves` a sitting, `nightFull` (how many long nights end at a full stockyard, and how far into the night), `deadGood` (time a stockpile is full with nothing to spend it on), `transportLimit` (the share of a project's time that transport is its limit), and `starved` (time he cannot afford the cheapest buy while an order takes more than half of what the mine makes).
-- The generations lab goes with the pass.
-- The finish floor is Flemming's rule of 14 Nov 2026 (#556): a run takes at least five days, with no ceiling. For slice 1 the run ends at the Foundry's roof, so the lab tunes the numbers until every player type needs five days or more. Parts 1 and 2 have no floor of their own.
-- Today's other strict rows (regret, the extreme win, the check-in guardrails) carry over, with the Foundry's roof as the finish. The rows about kid runs and relic days go with the pass and the relics. Any other change to a bound in `src/lab/targets.ts` is a stop, and is asked.
+- The generations lab goes with the pass (#642, Flemming, 14 Nov 2026: the pass goes).
+- The finish floor is Flemming's rule of 14 Nov 2026 (#556): a run takes at least five days, with no ceiling. For slice 1 the run ends at the Foundry's roof. He was told so on 14 Nov 2026 at 19:30Z ("At the Forge's roof the slice ends", "tuned to your rule of at least five") and agreed in principle. So the lab tunes the numbers until every player type needs five days or more to the Foundry's roof.
+- **Open, and his:** whether the five-day floor also counts for part 1 and for part 2 while each is the end of the game. This spec proposes that it does not: a part is a stretch of the slice, and the floor is checked on the whole slice. It is asked with the workforce ([Open: the workforce](#open-the-workforce)).
+- Today's other strict rows (regret, the extreme win, the check-in guardrails) are proposed to carry over, with the Foundry's roof as the finish. The rows about kid runs and relic days (`KID_RUNS_CI`, `KID_RUN_MAX_DAYS` and the like) are proposed to go with the pass and the relics, which he took out (#642, and the relics in the line spec). Nothing here changes `src/lab/targets.ts`. Every change to a bound in it is a stop, and is asked in the lab sliver that makes it (slivers 3, 11 and 17).
 
 ## Art (PixelLab, asked for before each)
 
