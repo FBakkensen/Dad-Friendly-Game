@@ -428,7 +428,7 @@ function spareToLowest(
 const LINE_COUNTS_TRIED = 512;
 
 /** The counts that move the line the most: this many are weighed. */
-const LINE_COUNTS_KEPT = 8;
+const LINE_COUNTS_KEPT = 16;
 
 /**
  * With the line on (#534): every count of the big machines the hands can
