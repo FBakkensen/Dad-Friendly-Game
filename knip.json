@@ -7,6 +7,7 @@
     "tools/vitest.config.ts",
     "tools/review/prompt.ts",
     "tools/review/git.ts",
+    "tools/review/findings.ts",
     "tools/journeys/playwright.config.ts",
     "tools/journeys/*.journey.ts",
     "src/lab/measures/*.ts",

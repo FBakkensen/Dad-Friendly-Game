@@ -9,6 +9,9 @@ name: claude-review
 # on the PR, and nothing is charged (the Console has no card).
 # The prompt and the lenses (#582) come from the PR's base commit, built by
 # tools/review/prompt.ts from the changed paths and the PR's own words.
+# Claude answers in a fixed shape, and tools/review/findings.ts turns it into
+# one PR review with a thread per finding (#584), which the thread that wrote
+# the code answers and resolves before it merges (ship-sitting).
 on:
   pull_request:
     types: [opened, reopened, ready_for_review]
@@ -68,7 +71,7 @@ jobs:
           # the review it gets (#576). A base without them gets no review.
           tools="$RUNNER_TEMP/base"
           mkdir -p "$tools"
-          for file in tools/review/prompt.ts tools/review/git.ts; do
+          for file in tools/review/prompt.ts tools/review/git.ts tools/review/findings.ts; do
             if ! git cat-file -e "$BASE:$file" 2>/dev/null; then
               echo "::error::The base commit has no $file, so there is no review to run."
               exit 1
@@ -87,6 +90,9 @@ jobs:
             gh api "repos/$REPO/issues/$n" --jq '.body // ""' > "$intent/issue-$n.md" || rm -f "$intent/issue-$n.md"
           done
           git diff --name-only --no-renames "$BASE...HEAD" > "$RUNNER_TEMP/paths.txt"
+          # The diff as GitHub shows it (renames found, three lines of context),
+          # to tell which lines a review comment may sit on.
+          git diff --no-color --no-ext-diff --no-textconv "$BASE...HEAD" > "$RUNNER_TEMP/diff.txt"
           plan=$(node "$tools/tools/review/prompt.ts" build --paths "$RUNNER_TEMP/paths.txt" \
             --intent "$intent" --base "$BASE" --head "$HEAD" --pr "$PR" --out "$RUNNER_TEMP/prompt.md")
           echo "$plan"
@@ -117,6 +123,7 @@ jobs:
             --tools "Read" "Bash" \
             --allowedTools "Bash(review-git:*)" \
             --output-format json \
+            --json-schema "$(node "$RUNNER_TEMP/base/tools/review/findings.ts" schema)" \
             < "$RUNNER_TEMP/prompt.md" > "$RUNNER_TEMP/review.json" 2> "$RUNNER_TEMP/review.err"
           echo "claude exited $?"
           cat "$RUNNER_TEMP/review.err"
@@ -136,18 +143,28 @@ jobs:
         run: |
           out="$RUNNER_TEMP/review.json"
           body="$RUNNER_TEMP/body.md"
-          result=$(jq -r 'select(.is_error == false and .subtype == "success") | .result // empty' "$out" 2>/dev/null) || result=""
+          findings="$RUNNER_TEMP/base/tools/review/findings.ts"
+          post="$RUNNER_TEMP/post"
+          mkdir -p "$post"
           subtype=$(jq -r '.subtype // "no result"' "$out" 2>/dev/null) || subtype=""
           [ -n "$subtype" ] || subtype="no result"
           cost=$(jq -r '.total_cost_usd // 0' "$out" 2>/dev/null) || cost=0
+          posted=false
+          if [ "$KIND" = "review" ] && [ "$subtype" = "success" ]; then
+            if node "$findings" post --answer "$out" --diff "$RUNNER_TEMP/diff.txt" \
+                --head "$HEAD" --lenses "$LENSES" --cost "$cost" --run "$RUN_URL" --out "$post"; then
+              posted=true
+            else
+              subtype="no valid answer"
+            fi
+          fi
           if [ "$KIND" = "skip" ]; then
             printf '## Claude review\n\nNot reviewed at commit %s: %s ([run](%s))\n' "${HEAD:0:7}" "$(cat "$RUNNER_TEMP/skip.txt")" "$RUN_URL" > "$body"
             status=0
-          elif [ -n "$result" ]; then
-            {
-              printf '## Claude review\n\nReviewed as: %s, at commit %s.\n\n%s\n\n---\n' "$LENSES" "${HEAD:0:7}" "$result"
-              printf '_Opus 5.5 via `claude -p`, paid from the monthly API credit: $%.2f. ([run](%s))_\n' "$cost" "$RUN_URL"
-            } > "$body"
+          elif [ "$posted" = true ]; then
+            # One review, a thread per finding (#584). If GitHub refuses it,
+            # every finding goes in one comment instead.
+            cp "$post/fallback.md" "$body"
             status=0
           elif grep -qi "credit balance" "$out" "$RUNNER_TEMP/review.err"; then
             printf '## Claude review\n\nSkipped: the monthly API credit is used up. It refills with the next billing month. ([run](%s))\n' "$RUN_URL" > "$body"
@@ -156,10 +173,21 @@ jobs:
             printf '## Claude review\n\nFailed (`%s`), so this PR has no CI review. See the [run](%s).\n' "$subtype" "$RUN_URL" > "$body"
             status=1
           fi
-          # The model could read its own environment; never post a secret.
-          if grep -qF "$KEY" "$body" || grep -qE 'sk-ant-[A-Za-z0-9_-]{20}|gh[psu]_[A-Za-z0-9]{20}' "$body"; then
+          # Never post a secret, whatever the model wrote.
+          if grep -rqF "$KEY" "$body" "$post" || grep -rqE 'sk-ant-[A-Za-z0-9_-]{20}|gh[psu]_[A-Za-z0-9]{20}' "$body" "$post"; then
             echo "::error::The review text holds a secret, so it was not posted."
             exit 1
           fi
-          gh api "repos/$REPO/issues/$PR/comments" -F "body=@$body" --silent
+          if [ -f "$post/review.json" ] && gh api "repos/$REPO/pulls/$PR/reviews" --input "$post/review.json" --silent; then
+            for comment in "$post"/file-*.json; do
+              [ -e "$comment" ] || continue
+              if ! gh api "repos/$REPO/pulls/$PR/comments" --input "$comment" --silent; then
+                echo "::warning::A finding could not be put on its file; it is in the comment below."
+                gh api "repos/$REPO/issues/$PR/comments" -F "body=@$body" --silent
+                break
+              fi
+            done
+          else
+            gh api "repos/$REPO/issues/$PR/comments" -F "body=@$body" --silent
+          fi
           exit "$status"
