@@ -41,8 +41,19 @@ page is the map, plus the rules that keep it that way.
    compares the run with the committed `docs/pacing-ledger.md` and fails on a
    difference, and `--ledger write` (`npm run lab:ledger`) writes it. The
    ledger is one of the lab's inputs (`LAB_ENTRIES`), so a changed ledger
-   runs the lab again.
-   The full gate (`npm run check`, run before a PR is opened) runs it and
+   runs the lab again. `economy/invariants.test.ts` (#555, fast-check, in the
+   `unit` project) plays random legal moves, live waits, trouble and time away
+   from a save in each band, and checks after each step that counts stay whole
+   and finite, lifetime figures never fall, an upgrade or a promotion spends
+   its shown price and a machine or boost spends some stones, a buy of a
+   machine, upgrade, boost or craft never slows the crew, and the save
+   round-trips. It also checks, in every band, that time away inside the
+   full-pay length pays the same however it is sliced, once each stretch's
+   Heart of Patience bonus is divided out (a long absence earns more, by
+   design). Its known
+   gaps (part-stone, band-crossing) are listed at its top, each pinned by its
+   own test.
+   The full gate (`npm run check`, run on the PR's final commit before the merge) runs the strategy lab and
    `lab:generations` with `--ci` and `LAB_STRICT=1` when the branch changes
    a file the lab imports, and a miss fails the gate. `tools/generations-lab.ts`
    plays each policy and seed in its own child process, one per core

@@ -43,6 +43,7 @@
     "eslint": "^10.8.1",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-sonarjs": "^4.2.2",
+    "fast-check": "4.10.2",
     "firebase-admin": "^14.5.0",
     "firebase-tools": "^15.33.0",
     "happy-dom": "^20.11.2",
