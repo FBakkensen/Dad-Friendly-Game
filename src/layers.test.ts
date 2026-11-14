@@ -12,6 +12,7 @@ import {
   MAX_MATERIAL,
   addMaterials,
   hardnessFactorId,
+  bandSuits,
   hardnessOf,
   layerFavours,
   layerOf,
@@ -183,10 +184,19 @@ describe("layers", () => {
       expect(hardnessOf(4, "helper")).toBe(1);
       expect(hardnessOf(1, "drill")).toBe(1);
     });
+    withFactors({ [LINE_OFF]: 0, [ROCK_STAGE_OFF]: 0 }, () => {
+      expect(bandSuits(2)).toBeUndefined();
+      expect(bandSuits(4)).toBeUndefined();
+    });
+    withFactors({ [LINE_OFF]: 0 }, () => {
+      expect(bandSuits(3)).toBe("train");
+    });
     // With the line off the knob does nothing.
     withFactors({ [ROCK_STAGE_OFF]: 0 }, () => {
       expect(hardnessOf(4, "machine")).toBe(FAVOURED_SPEED);
+      expect(bandSuits(3)).toBe("drill");
     });
+    expect(bandSuits(1)).toBeUndefined();
   });
 
   it("scales one tier in the current band and leaves the other bands at 1", () => {

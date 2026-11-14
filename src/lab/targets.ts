@@ -130,8 +130,8 @@ type TargetBase = {
   readonly why: string;
   /**
    * A miss is still in the report. It does not fail `LAB_STRICT`.
-   * The finish-day rows set it until the line's tune (#543) makes the
-   * five-day floor strict (#556). every-tier-bought sets it as a report row
+   * The finish-day rows set it until the line turns on in play (#536) and
+   * the five-day floor turns strict (#556; the line's numbers meet it, #543). every-tier-bought sets it as a report row
    * for the milestones sliver (#357).
    */
   readonly reportOnly?: boolean;
@@ -473,8 +473,9 @@ export const REPORT_MACHINE_SITTINGS = 2;
 export const KID_RUNS_CI = 8;
 
 /**
- * Days each kid run may take before the generations lab calls it
- * unfinished. 30 suited runs of 3 to 5 days; since #556 a run takes at least
- * five days and kid runs grow to weeks, so run 8 lands past day 30 (#543).
+ * Days each kid run may take, with the line on, before the generations lab
+ * calls it unfinished (#543). With the line off it keeps runPolicy's 30.
+ * Since #556 a run takes at least five days and kid runs grow to weeks: with
+ * the line's numbers run 8 lands past day 30.
  */
 export const KID_RUN_MAX_DAYS = 60;

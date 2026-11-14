@@ -25,9 +25,12 @@ export const LINE_MACHINE_COST_GROWTH = 1.219;
 
 /**
  * First prices that differ on the line (#543). A worker is 60, three times
- * today's, as his hands do three times the work on one job (rule 3). The
- * Great Machine is 0.8 of today's, so a checker's best buy is in reach
- * within two check-ins.
+ * today's: it keeps the optimizer within a quarter of the evening dad's run
+ * (regret) without the steeper worker curve that stalled late kid runs. It
+ * costs the opening: the first ten minutes mine about 42K, not 247K, and the
+ * Hammer comes half a day later (the Lantern does not move). The Great
+ * Machine is 0.8 of today's, so a checker's best buy is in reach within two
+ * check-ins.
  */
 const LINE_FIRST_COST: Readonly<Partial<Record<TierId, number>>> = {
   helper: 60,

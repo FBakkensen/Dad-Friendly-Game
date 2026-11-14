@@ -10,6 +10,7 @@ import {
   lineSpeed,
   lineView,
   narrowStage,
+  stageOf,
   stageSpeeds,
   type StageSpeeds,
 } from "./line";
@@ -37,7 +38,10 @@ describe("the stages", () => {
     });
     for (const id of MACHINE_IDS) {
       expect(STAGES).toContain(MACHINE_STAGE[id]);
+      expect(stageOf(id)).toBe(MACHINE_STAGE[id]);
     }
+    expect(stageOf("helper")).toBeUndefined();
+    expect(stageOf("kid")).toBeUndefined();
   });
 
   it("a stage moves what its running machines move; the hands are workers and kids", () => {

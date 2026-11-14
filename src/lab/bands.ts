@@ -2,7 +2,7 @@ import { stretch } from "../scale";
 import { tierLocked } from "../crew";
 import {
   LAYERS,
-  layerFavours,
+  bandSuits,
   layerOf,
   type LayerId,
   type LayerIndex,
@@ -125,7 +125,7 @@ const BAND_INDEX = Object.fromEntries(
 
 /** The machine this band suits, by the table in force (#543). */
 function favouredOf(layer: LayerId): MachineId | undefined {
-  const suits = layerFavours(BAND_INDEX[layer])?.suits;
+  const suits = bandSuits(BAND_INDEX[layer]);
   return machinesInPlay().find((id) => id === suits);
 }
 

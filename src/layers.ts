@@ -1,5 +1,5 @@
 import { factor } from "./economy/factors";
-import { MACHINE_STAGE, lineOn, type Stage } from "./line";
+import { lineOn, stageOf } from "./line";
 import { BAND_STARTS, MOUNTAIN_STONES, minedOut } from "./scale";
 import type { TierId } from "./tiers";
 
@@ -163,6 +163,19 @@ export function layerFavours(
   return (lineOn() ? LINE_FAVOURS : LAYER_FAVOURS)[index];
 }
 
+/** The rock's whole-stage form, a lab knob read only on the line. */
+function wholeStage(): boolean {
+  return lineOn() && factor(ROCK_STAGE_OFF) === 0;
+}
+
+/**
+ * The machine this band suits, by the table in force: none in the rock's
+ * whole-stage form, where the band slows a stage and suits nothing.
+ */
+export function bandSuits(index: LayerIndex): TierId | undefined {
+  return wholeStage() ? undefined : layerFavours(index)?.suits;
+}
+
 /** This band's rock on this tier. Missing entries, workers, and kids are 1. */
 export function hardnessOf(index: LayerIndex, tierId: TierId): number {
   const favours = layerFavours(index);
@@ -176,18 +189,13 @@ export function hardnessOf(index: LayerIndex, tierId: TierId): number {
   if (favours === undefined) {
     return 1;
   }
-  if (factor(ROCK_STAGE_OFF) === 0) {
+  if (wholeStage()) {
     return stageOf(tierId) === stageOf(favours.tough) ? LINE_TOUGH : 1;
   }
   if (favours.suits === tierId) {
     return FAVOURED_SPEED;
   }
   return favours.tough === tierId ? LINE_TOUGH : 1;
-}
-
-/** A machine's stage, or none for the hands. */
-function stageOf(tierId: TierId): Stage | undefined {
-  return (MACHINE_STAGE as Readonly<Partial<Record<TierId, Stage>>>)[tierId];
 }
 
 /**

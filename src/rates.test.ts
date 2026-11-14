@@ -570,8 +570,10 @@ describe("the line's rule behind its factor (#532)", () => {
 
   it("tops a tender up to her floor in the line's units, not the plain sum (#543)", () => {
     withFactors(LINE_ON, () => {
-      // The haul is narrow. Ada on the carts lifts the line by her floor,
-      // 12% times the tending gain of the untended line: 15% of 1,080.
+      // The haul is the only stage below the line. Ada's floor, 12% times
+      // the tending gain of the untended line, goes to the carts, so the line
+      // rises by all of it: 15% of 1,080. Where the hands level two or three
+      // stages it rises by less; engineers by stage are #539.
       const crew = {
         ...minedMountain(130_000_000),
         helpers: 60,
