@@ -58,9 +58,9 @@ page is the map, plus the rules that keep it that way.
    round-trips. It also checks, in every band, that time away inside the
    full-pay length pays the same however it is sliced, once each stretch's
    Heart of Patience bonus is divided out (a long absence earns more, by
-   design). Its known
-   gaps (part-stone, band-crossing) are listed at its top, each pinned by its
-   own test.
+   design), and that an absence into a new band pays what the same absence
+   split at the crossing pays (#592). Its known gap (part-stone) is listed at
+   its top, pinned by its own test.
    The full gate (`npm run check`, run on the PR's final commit before the merge) runs the strategy lab and
    `lab:generations` with `--ci` and `LAB_STRICT=1` when the branch changes
    a file the lab imports, and a miss fails the gate. `tools/generations-lab.ts`
@@ -897,7 +897,7 @@ M free`. The crew line, in the Crew section at the top of Buys, names where
   snapshot: it is never saved. Choosing a post while a party is out records the
   recall and, when the new post is not the one they left, the station.
 - `lost-tools` (rules layer, pure): `hasLostTool`, `tapWithPick`, `glintScale`, `expeditionAwayMs`, `wearsSteelToes`. The old miner's lamp doubles a golden vein's glint (`veinGlintMs`). Keepsake stories live in `screen-words`. No new save field: the shelf is still `finds`. Built (#148).
-- `layers` (rules layer, pure): four bands from stones mined: the Topsoil, the Granite, the Crystal Caves and the Deep Heart through the bottom, starting at `BAND_STARTS` ([Numbers now](DESIGN.md#numbers-now)). `layerOf` reads `minedOut`. Entering a band includes its first stone, so 10M is the Granite, beside the Shield. Hardness is a per-tier speed in `effectiveRates`, and the sweep factor `layer.<n>.<tier>.hardness` multiplies it. Workers and kids stay at 1. No layer field. Each band drops its material on the tuned gap in `MATERIAL_EVERY` (1,000,000 clay, 1,000,000 iron, 5,000,000 crystal, 10,000,000 heartstone). `accrue`, `accrueAway`, and a hand tap add the units. The remainder stays in the stone total. `materialLeftToDig` counts what the rest of the run's mountain still holds of one material; `workshop-sheet`'s `goneMaterial` uses it to turn a recipe that lacks clay past the Topsoil into "No clay this deep" instead of "Need 4 more clay" (and iron, crystal or heartstone once their band is dug, #492). Built (#194, #195, #198).
+- `layers` (rules layer, pure): four bands from stones mined: the Topsoil, the Granite, the Crystal Caves and the Deep Heart through the bottom, starting at `BAND_STARTS` ([Numbers now](DESIGN.md#numbers-now)). `layerOf` reads `minedOut`. Entering a band includes its first stone, so 10M is the Granite, beside the Shield. Hardness is a per-tier speed in `effectiveRates`, and the sweep factor `layer.<n>.<tier>.hardness` multiplies it. `accrue` (live ticks and time away alike) splits a stretch at the whole second the crew digs past a band's start (`stonesToNextBand`) and reads the new band's speed from there, as live play does a second at a time (#592). Workers and kids stay at 1. No layer field. Each band drops its material on the tuned gap in `MATERIAL_EVERY` (1,000,000 clay, 1,000,000 iron, 5,000,000 crystal, 10,000,000 heartstone). `accrue`, `accrueAway`, and a hand tap add the units. The remainder stays in the stone total. `materialLeftToDig` counts what the rest of the run's mountain still holds of one material; `workshop-sheet`'s `goneMaterial` uses it to turn a recipe that lacks clay past the Topsoil into "No clay this deep" instead of "Need 4 more clay" (and iron, crystal or heartstone once their band is dug, #492). Built (#194, #195, #198).
 - The envelope carries `rev`, `deviceId`, and `savedAt` (first in v7). `rev`
   starts at 1 on a new doc and the rules accept only `stored + 1`. `savedAt`
   must be `request.time`. One cloud write is in flight, at most one a second, and the

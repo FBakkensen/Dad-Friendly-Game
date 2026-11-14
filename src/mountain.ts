@@ -38,6 +38,7 @@ import {
   depthAfterStones,
   minedOut,
   stonesLeft,
+  stonesToNextBand,
 } from "./scale";
 
 export { MOUNTAIN_STONES };
@@ -267,26 +268,61 @@ function accrueCrew({
   live?: boolean;
   trouble?: Trouble;
 }): Accrual {
-  const rate = stonesPerSecond(
-    mountain,
-    live ? from : undefined,
-    live ? trouble : undefined,
-  );
-  if (rate === 0 || mountain.remaining === 0) {
-    return { mountain, mined: 0, settledAt: to };
+  // A stretch that crosses into a new band pays the new band's speed from the
+  // second it crosses, as live play does a second at a time (#592).
+  let state = mountain;
+  let cursor = from;
+  let mined = 0;
+  for (;;) {
+    const rate = stonesPerSecond(
+      state,
+      live ? from : undefined,
+      live ? trouble : undefined,
+    );
+    if (rate === 0 || state.remaining === 0) {
+      return { mountain: state, mined, settledAt: to };
+    }
+    // Whole stones to dig past the band's start (the depth can be a part
+    // stone short of it), and at least one, so every pass moves.
+    const toBand = Math.max(1, Math.ceil(stonesToNextBand(state) - 1e-6));
+    const seconds = Math.floor((to - cursor) / 1000);
+    const crossing = Math.ceil(toBand / (rate * pay));
+    if (seconds * rate * pay <= toBand || crossing >= seconds) {
+      const last = digFor(state, seconds * rate * pay, seconds, cursor, to);
+      return { ...last, mined: mined + last.mined };
+    }
+    // At least the stones to the band, so float dust never leaves it short.
+    const part = digFor(
+      state,
+      Math.max(crossing * rate * pay, toBand),
+      crossing,
+      cursor,
+      to,
+    );
+    state = part.mountain;
+    mined += part.mined;
+    cursor = part.settledAt;
   }
-  const seconds = Math.floor((to - from) / 1000);
+}
+
+/**
+ * Whole seconds of digging, `stones` of them paid (seconds × speed × pay, in
+ * that order, as it always was), capped at the bottom.
+ */
+function digFor(
+  mountain: Mountain,
+  stones: number,
+  seconds: number,
+  from: number,
+  to: number,
+): Accrual {
   const left = stonesLeft(mountain);
-  const mined = Math.min(left, Math.floor(seconds * rate * pay));
+  const mined = Math.min(left, Math.floor(stones));
   const settledAt = mined === left ? to : from + seconds * 1000;
   if (mined === 0) {
     return { mountain, mined: 0, settledAt };
   }
-  return {
-    mountain: digStones(mountain, mined),
-    mined,
-    settledAt,
-  };
+  return { mountain: digStones(mountain, mined), mined, settledAt };
 }
 
 export type AwayReport = {
