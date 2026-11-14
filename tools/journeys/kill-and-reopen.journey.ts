@@ -27,7 +27,7 @@ test("kill the tab and reopen: the same moment", async ({ player }) => {
   await player.expectStones(reopened.pocket);
 });
 
-test("kill the tab while the crew digs: their work since the last move is paid as time away", async ({
+test("kill the tab while the crew digs: the same moment (#573)", async ({
   player,
 }) => {
   await player.open();
@@ -37,13 +37,13 @@ test("kill the tab while the crew digs: their work since the last move is paid a
   // A few seconds of the crew at work, no move, then the kill.
   await player.wait(5 * TICK_MS);
   rules.until(player.now);
-  await player.expectStones(rules.pocket);
+  const atKill = rules.pocket;
+  await player.expectStones(atKill);
   await player.kill();
   await player.reopen();
 
-  // Known gap (#573): the game saves on moves, not ticks, so those seconds come back at the
-  // away rate. The board reads exactly what the rules pay for that, no more and no less.
+  // Each tick saved the crew's work, so the reopened tab reads what the board showed.
   const reopened = rules.reopened(player.now).expected;
-  expect(reopened.pocket).toBeLessThan(rules.pocket);
-  await player.expectStones(reopened.pocket);
+  expect(reopened.pocket, "the rules reopen the same moment").toBe(atKill);
+  await player.expectStones(atKill);
 });
