@@ -1,6 +1,6 @@
 # The line, the works and the village: design (14 Nov 2026)
 
-Status: approved by Flemming on 14 Nov 2026 (his four answers are under [Decided](#decided-flemming-14-nov-2026)). Nothing here is built. This spec covers many slivers in three steps. It ships as its own PR on a parent issue and is split into sliver issues (`.claude/rules/superpowers.md`). Every number in it is a starting value for the lab, not a tuned one.
+Status: approved by Flemming on 14 Nov 2026 (his answers are under [Decided](#decided-flemming-14-nov-2026)). Later the same day he approved an amendment, the cage ([The levels and the cage](#the-levels-and-the-cage)): he chooses which level the crew works, and each good comes from one level's rock. When this spec was written nothing in it was built. This spec covers many slivers in three steps. It ships as its own PR on a parent issue and is split into sliver issues (`.claude/rules/superpowers.md`). Every number in it is a starting value for the lab, not a tuned one.
 
 ## Why
 
@@ -25,10 +25,11 @@ This spec is the first stretch of that road: three goods and six buildings. It i
 - **A maker has inputs and one output.** Kilns and saws take rock. A later maker can take goods, which is what refined and manufactured mean.
 - **A stage holds a list of machines.** Two each now, more later.
 - **A price is a short list of goods.** In this spec it is one good. Later, dearer things may ask for two or three, and for manufactured goods.
-- **The bands are a list, and the mountain has no bottom.** Deeper bands with new rock can be added under the Deep Heart, each behind a door like step 3's. With no bottom, the step 3 builder keeps every count in the save inside the safe-integer limit, as `MAX_STRETCH` does for kid runs today (#366).
+- **The bands are a list, and the mountain has no bottom.** Deeper bands with new rock can be added under the Deep Heart, each behind a door like step 3's.
+- **A band he has reached stays open as a level.** He chooses which level the crew works, so he chooses the rock. A new band is one more level, and a level can get more than one maker. Nothing may assume the crew works the deepest band. With no bottom, the step 3 builder keeps every count in the save inside the safe-integer limit, as `MAX_STRETCH` does for kid runs today (#366).
 - **A save keeps its place when the list grows.** A run that had built the old last building gets the next order. Nothing it built is taken back.
 
-The seeds are already in the mountain. Clay, iron, crystal and heartstone are band materials today, a trickle for the bench. A later stretch can mine one in volume as a good of its own. As a sketch only: iron for a hull, crystal for glass, heartstone for fuel. Nothing past the six buildings is designed here.
+The seeds are already in the mountain. Clay, iron, crystal and heartstone are band materials today, a trickle for the bench. A later stretch can mine one in volume as a good of its own, by giving its level a maker. As a sketch only: iron for a hull, crystal for glass, heartstone for fuel. Nothing past the six buildings is designed here.
 
 ## The loop in one picture
 
@@ -38,7 +39,8 @@ The village asks. The works makes. The line feeds the works.
 flowchart LR
   F[The face: dig] --> H[The haul: carry]
   H --> L[The lift: raise]
-  L --> W[The works: his lever picks the good]
+  C[The cage: he picks the level] --> F
+  L --> W[The works: the level's maker makes its good]
   W --> Y[The yard: stones, bricks, cut stone]
   Y --> M[Machines for the narrow stage]
   M --> F
@@ -47,23 +49,25 @@ flowchart LR
   P --> F
 ```
 
+- **The cage** stops at the level he picks. That level's rock is what the line moves.
 - **The line** is three stages: the face, the haul and the lift. It moves as fast as its slowest stage.
-- **The works** is the fourth stage. It turns the line's rock into bricks and cut stone. One lever says which.
+- **The works** is the fourth stage. It turns a level's rock into that level's good: the Topsoil's into bricks, the Granite's into cut stone.
 - **The yard** holds the goods. When it is full the crew rests, so time away fills a yard he sized and then stops.
 - **The village** asks for goods, one order at a time. A filled order raises a building, and a finished building gives the power a relic gives today. Only his tap delivers.
 
 Three steps, each one playable and better than the game before it:
 
-| Step                      | Adds                                                             | Stays as it is                              |
-| ------------------------- | ---------------------------------------------------------------- | ------------------------------------------- |
-| 1. The line               | Three stages and the narrow one                                  | Stones are the money, the relics, time away |
-| 2. The works and the yard | Bricks, cut stone, the lever, the yard as the limit of time away | The relics                                  |
-| 3. The village            | Six buildings in the relics' place, orders as the goal           | The line, the works, the yard               |
+| Step                      | Adds                                                                         | Stays as it is                              |
+| ------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------- |
+| 1. The line               | Three stages and the narrow one, then the cage                               | Stones are the money, the relics, time away |
+| 2. The works and the yard | Bricks, cut stone, the cage as the lever, the yard as the limit of time away | The relics                                  |
+| 3. The village            | Six buildings in the relics' place, orders as the goal                       | The line, the works, the yard               |
 
 ## Goals
 
 - A check-in has a diagnosis: which stage holds the line now, and what is the cheapest way to widen it.
-- The narrow stage keeps moving, from his buys and from the rock he digs into.
+- The narrow stage keeps moving, from his buys and from the rock he chooses to dig.
+- He chooses what the mine digs. No rock is gone for good because the shaft passed it.
 - Time away fills the yard and stops. No building, band or order moves on without his tap.
 - Surplus always has a use: the next machine, a bigger yard, or the village.
 - He builds something he can look at: a village of six buildings.
@@ -75,7 +79,8 @@ Three steps, each one playable and better than the game before it:
 - No second order, no order choice, no market, no prices that move.
 - No more than four stages and three goods in these three steps. Later stretches add more (the rocket, above).
 - No new engine, no tileset world. The village is one picture with its buildings on it.
-- No sliders and no crew rosters. The one new control is the lever.
+- No sliders and no crew rosters. The one new control is the cage.
+- No second mine in these steps. Separate mines are kept for one place on the road: Mars, after the rocket.
 
 ## Anti-goals
 
@@ -132,7 +137,11 @@ Against today's table (decision D3, #246) the Granite does not change, and three
 - The Crystal Caves suit pit trains, not drills, and are tough on carts, not borers.
 - The Deep Heart is tough on hoists, not borers. It still suits the Great Machine.
 
-So two lines of advice change: "The Crystal Caves suit trains. Tough on carts." and "The Deep Heart suits the Great Machine. Tough on hoists." Which machine a band favours is Flemming's call (D3), so this table waits on his yes ([Waiting on Flemming](#waiting-on-flemming)). The lab probe (#534) may use it. The line is not turned on in play (#536) before he has answered.
+So two lines of advice change: "The Crystal Caves suit trains. Tough on carts." and "The Deep Heart suits the Great Machine. Tough on hoists." Which machine a band favours is Flemming's call (D3). He said yes to this table on 14 Nov 2026, as part of the cage ([Decided](#decided-flemming-14-nov-2026)). The lab probe (#534) and the switch-on (#536) use it.
+
+Until the cage is built the crew works the deepest band, so this table is what the rock does to him. With the cage it is what a level costs him when he chooses it ([The levels and the cage](#the-levels-and-the-cage)).
+
+**One open form, for the lab.** A paper check of the cage ([Paper check](#paper-check)) found that rock which slows only a stage's first machine hardly moves the line, because the stage's second machine soon carries it. The other form slows the whole stage: the Granite the face, the Crystal Caves the haul, the Deep Heart the lift, at the same factor, with no ×1.1. The lab (#534) reports `narrowRun` and the run's length for both forms. The cage's rules sliver picks one from those rows. The whole-stage form is the one this spec recommends once the cage is in. If it is taken, the band tags and the advice lines change ("The Granite · Hard rock"), and those words are Flemming's at build time.
 
 ### What he sees
 
@@ -161,9 +170,62 @@ So two lines of advice change: "The Crystal Caves suit trains. Tough on carts." 
 | Old saves                  | A one-time grant, like the staffing grants. No save loads slower than it was: each stage is topped up to the crew's old speed with the machines that stage has open (hoists, trains from the Crystal Caves, borers where the Great Machines used to dig). Granted machines come with the hands to run them, and count as owned for the price curve and the marks. The welcome card says the crew built them.                                                                                                                                                                                                                                                                               |
 | Kid runs                   | Unchanged.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 
+### The levels and the cage
+
+Added on 14 Nov 2026 after Flemming's concern: with one shaft that digs down through fixed bands, the rock picks itself, and he has no say in which resource is mined. A band's material is gone for good once the shaft passes it (the Workshop says "No clay this deep"). The research and the eleven options that were weighed are in the project's shared files, not in this repo (`ideas/2026-11-14-resource-choice-research.md`, `designs/2026-11-14-working-levels-design.md`). A real mine is one shaft with many levels, and that is the answer taken here. It is built as the last slivers of step 1, after the line is on.
+
+**The rule**
+
+1. **Every band the shaft has reached is a level.** The levels are a list, like the bands. A level never closes.
+2. **The cage stops at one level.** That is where the crew works. He moves it with a tap. The move is free and instant, it is saved at once, and it holds while he is away.
+3. **The line's rock is that level's rock.** Its tough and suits (or its slowed stage) apply to the machines, wherever the shaft's foot is. Its material is what comes up.
+4. **The shaft goes deeper only at the lowest level**, called the heading in this spec. Stones dug at a level above it go to the pocket as today. They are not depth, so they find no relic and open no band.
+5. **The machines are one fleet.** A machine bought once works at every level. What is on sale, every "Opens at", and every price that scales with the band go by the depth of the shaft, as today, never by where the crew stands.
+
+The crew is at the heading by default, and a crew at the heading follows the shaft into a new band. So a save that never touches the cage plays as it would without it. The cage appears when the shaft reaches the Granite, the first time there are two levels. The Topsoil evening is as simple as today.
+
+**What each level is**
+
+| Level             | Its rock leans on        | Material   | Its rock makes, from step 2                     |
+| ----------------- | ------------------------ | ---------- | ----------------------------------------------- |
+| The Topsoil       | nothing                  | clay       | bricks, in kilns                                |
+| The Granite       | the face: hard rock      | iron       | cut stone, at saws                              |
+| The Crystal Caves | the haul: long galleries | crystal    | nothing in these steps (a later stretch: glass) |
+| The Deep Heart    | the lift: a deep shaft   | heartstone | nothing in these steps (a later stretch: fuel)  |
+
+"Leans on" is the band table above, in whichever of its two forms the lab's rows favour.
+
+**What he sees**
+
+- **The band tag on the bays becomes the cage plate.** It reads where the crew works, in the tag's words. A tap opens the level card.
+- **The level card** is a board card with one row per level and real numbers: the line's speed there, the stage that holds the line there, and what comes up. The heading's row says the shaft goes deeper there. A tap on a row moves the crew and closes the card. When the list outgrows the card, it pages like a drawer's list.
+- **The mine window shows the level he chose.** Each band has its own picture today, so this needs no new art.
+- **The bays, Buys and Ready now read the level he is on**, as they read the band today. Every gain stays a real number for where the crew stands.
+- **Depth, the guide bar and "Opens at" lines** keep reading the shaft, not the crew.
+- **The arrival card** for a new band gets one line: the cage stops here now, and at every level above. The first time, a teach note points at the plate.
+- **The welcome card** names the level when the crew spent the time away above the heading.
+
+No new key, no new bay and no slider. Names, lines and the card's layout are Flemming's to approve from a mock.
+
+**Where today's parts land with the cage**
+
+| Part                       | With the cage                                                                                                                                                                                                                                               |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Depth and relics           | Move only at the heading. A night on an upper level finds no relic.                                                                                                                                                                                         |
+| Materials                  | The working level's material comes up, one unit for the same number of stones dug as when that band was the heading. In step 1 a material stops at the cap it has today and refills up to it, so no material is gone for good and the bench is not flooded. |
+| Time away                  | Pays 30% of the line's speed at the level he left the crew on. Depth moves only if that is the heading.                                                                                                                                                     |
+| Taps, veins, the Gold rush | Unchanged. They read the line's speed where the crew works. A tap digs at the working level.                                                                                                                                                                |
+| Trouble, engineers, gear   | Unchanged. They belong to machines and stages, not to a level.                                                                                                                                                                                              |
+| Upgrades and promotions    | Priced by the band the shaft stands in, as today, so moving the crew up never makes anything cheaper.                                                                                                                                                       |
+| Kid runs                   | The levels are the bands this run's shaft has reached. A new run starts with the Topsoil alone.                                                                                                                                                             |
+| Old saves                  | Load with the crew at the heading. The save gets one field for where the crew works. It can say "the heading" or name a level above it. A named level the shaft has not reached reads as the heading. The field is mirrored in `firestore.rules`.           |
+| The lab                    | Every player type of today stays at the heading, so their rows do not move when the cage is added. One new player type leaves the crew on its fastest level.                                                                                                |
+
+In step 1 the choice is honest but small. Stones are the only good, so the cage is for the bench's materials and for a few percent of speed. It gets its weight in step 2, where each level's rock makes its own good.
+
 ### Why it stands alone
 
-After step 1 every sitting has a question that a single sort cannot answer: the narrow stage, and whether to widen it with a machine, a mark three buys away, an engineer, a craft or more hands. Nothing else has moved, so if the line is not fun we stop here and have lost little.
+After step 1 every sitting has a question that a single sort cannot answer: the narrow stage, and whether to widen it with a machine, a mark three buys away, an engineer, a craft or more hands. With the cage he also decides which rock comes up. Nothing else has moved, so if the line is not fun we stop here and have lost little.
 
 ---
 
@@ -173,21 +235,29 @@ After step 1 every sitting has a question that a single sort cannot answer: the 
 
 There are three goods. Stones stay, as the everyday good. The works adds two.
 
-| Good      | Made by              | Opens             | Buys                                                                                               |
-| --------- | -------------------- | ----------------- | -------------------------------------------------------------------------------------------------- |
-| Stones    | the line, by default | the start         | workers, carts, hoists, drills, kilns, boosts, the Topsoil's upgrades, the stones part of a recipe |
-| Bricks    | kilns                | the Granite       | borers, saws, yard levels, promotions, the Granite's upgrades                                      |
-| Cut stone | saws                 | the Crystal Caves | pit trains, the Great Machine, kids, the deep upgrades                                             |
+| Good      | Made by              | From               | Opens             | Buys                                                                                               |
+| --------- | -------------------- | ------------------ | ----------------- | -------------------------------------------------------------------------------------------------- |
+| Stones    | the line, by default | any level's rock   | the start         | workers, carts, hoists, drills, kilns, boosts, the Topsoil's upgrades, the stones part of a recipe |
+| Bricks    | kilns                | the Topsoil's rock | the Granite       | borers, saws, yard levels, promotions, the Granite's upgrades                                      |
+| Cut stone | saws                 | the Granite's rock | the Crystal Caves | pit trains, the Great Machine, kids, the deep upgrades                                             |
 
 Two rules set every price. A thing costs the good of the band where it first opens: stones in the Topsoil, bricks in the Granite, cut stone from the Crystal Caves on down. A works machine costs the good below the one it makes: kilns cost stones, saws cost bricks. In these steps every thing costs one good, and different things cost different goods, as Flemming asked. Nothing changes its money mid-run.
 
-### The lever
+### The cage is the lever
 
-The works has one lever with three positions: **Stones, Bricks, Cut stone**. The line's rock goes to the chosen good, as fast as the kilns or the saws can take it. What they cannot take is stacked as stones. So a rock is never wasted, the works never slows the dig, and the lever only decides the mix. One rock makes one brick or one cut stone.
+As first approved, the works had one lever with three positions (Stones, Bricks, Cut stone), and any rock made any good. Flemming changed that on 14 Nov 2026: **each good comes from one level's rock.** So the works needs no control of its own in these steps. The cage ([The levels and the cage](#the-levels-and-the-cage)) is the lever, and its positions are places.
+
+- **A maker takes one level's rock.** Kilns take the Topsoil's rock and make bricks. Saws take the Granite's rock and make cut stone. A maker runs only while the crew works its level.
+- **The rock goes to the level's maker, as fast as the maker can take it.** What it cannot take is stacked as stones. So a rock is never wasted, the works never slows the dig, and the cage decides the mix. One rock makes one brick or one cut stone.
+- **A level with no maker gives stones.** In these steps that is the Crystal Caves and the Deep Heart, and any level before its maker is on sale. So the heading always gives stones, and the way down.
+- **A maker opens one band after its rock**, as in the table above: kilns when the shaft reaches the Granite, saws at the Crystal Caves. The Granite's arrival teaches the whole idea at once: the yard opens, the kilns go on sale, and the cage can go back up for bricks.
+- **Going deeper and making goods compete for the crew.** That is real mining: sinking earns stones, and the levels above earn the goods.
+
+The lever comes back only when one level has two makers (say the Granite: cut stone or iron bars). Then it picks among that level's makers, and "stack it all as stones" is one of its positions. A flat lever would not have survived twelve goods.
 
 Kilns and saws are bought like machines and have ownership marks. They take no workers, no engineer, no gear and no trouble, and the band's rock does not touch them. That keeps the foreman's job to the line, where "the most rock" has one meaning. Everything runs at the resting pace while he is away, the works too.
 
-For a chosen good the works is a true fourth stage: bricks a second = the lower of the line and the kilns. The board says which one holds the bricks.
+For a level's good the works is a true fourth stage: bricks a second = the lower of the line at the Topsoil and the kilns. The board says which one holds the bricks.
 
 ### The yard
 
@@ -196,13 +266,13 @@ From the Granite on, goods sit in the yard: one pile for each good. One yard lev
 - A full pile takes no more. Rock for it is stacked as stones. When the stone pile is full too, that flow stops. When nothing can flow, **the crew rests**. Depth stops with it.
 - Taps and golden veins always land. They are his own hands.
 - A price above a pile's room reads "Needs a bigger yard", the same kind of line as "Needs 8 workers". The next yard level never costs more than the brick pile holds.
-- Nothing can lock: stones always come, kilns cost stones, saws cost bricks, and a full pile is always spendable.
+- Nothing can lock: stones come at every level, kilns cost stones, saws cost bricks, an opened level never closes, and a full pile is always spendable.
 
 ### Time away
 
 From the Granite on, time away runs at the resting pace **until the yard is full**, and the clock cap goes. Before the Granite the Topsoil keeps today's rule, so the first evening is as simple as now. The welcome card says what came in and what stopped it: "The stone pile filled at 02:04, the cut stone at 04:17."
 
-This is the heart of the fix. The limit of a night is his own yard and his own lever. Goods left in the piles at bedtime take room from the night, so the evening sitting has a point: spend, and from step 3 deliver.
+This is the heart of the fix. The limit of a night is his own yard and where he left the cage. Goods left in the piles at bedtime take room from the night, so the evening sitting has a point: spend, and from step 3 deliver.
 
 ### Where today's parts land in step 2
 
@@ -213,13 +283,13 @@ This is the heart of the fix. The limit of a night is his own yard and his own l
 | Steady hands               | Unchanged: a faster resting pace. It helps the gaps between check-ins and adds nothing to a night that fills the yard. The lab may re-aim it.                                                                                                                                                                                                        |
 | The other relics           | Unchanged.                                                                                                                                                                                                                                                                                                                                           |
 | The odometer               | Shows a pile and its room. All three piles must be readable on the board without a drawer. A mock settles how.                                                                                                                                                                                                                                       |
-| Materials and the Workshop | Unchanged. Clay, iron, crystal and heartstone stay a trickle for the bench.                                                                                                                                                                                                                                                                          |
+| Materials and the Workshop | Clay, iron, crystal and heartstone stay a trickle for the bench, from the level the crew works (step 1's cage). The lab looks again at the recipes, which were sized for a band that ends.                                                                                                                                                           |
 | The Gold rush              | The held part comes from the night's stones, as today, and lands even on a full pile.                                                                                                                                                                                                                                                                |
-| Old saves                  | The pocket becomes the stone pile. A pile over its room keeps what it has and takes no more. The save is granted kilns (from the Granite) and saws (from the Crystal Caves) that can take a third of its line, so the lever matters on its first day. Prices in bricks and cut stone start from that day.                                            |
+| Old saves                  | The pocket becomes the stone pile. A pile over its room keeps what it has and takes no more. The save is granted kilns (from the Granite) and saws (from the Crystal Caves) that can take a third of its line, so the cage matters on its first day. Prices in bricks and cut stone start from that day.                                             |
 
 ### Why it stands alone
 
-After step 2 a night away ends at a full yard, not at a finished mountain. Surplus stones turn into bricks and cut stone, and the big machines need them. The lever is one real choice in every sitting. The village is not needed for any of that.
+After step 2 a night away ends at a full yard, not at a finished mountain. Surplus stones turn into bricks and cut stone, and the big machines need them. Where the cage stops is one real choice in every sitting, and it moves the narrow stage with it. The village is not needed for any of that.
 
 ---
 
@@ -245,6 +315,7 @@ The Home's power is the last building's power. When a later building takes the l
 ### Orders
 
 - **One order at a time.** A building rises in three orders: footings, walls, roof. Each asks for real amounts: "The School, walls: 30M bricks, 20M cut stone."
+- **An order names its levels.** Each good comes from one level, so an order for two goods is a plan for two nights, and the split is his.
 - **He delivers.** Each good has its own Send, which sends what the pile holds, up to what the order still needs. Part deliveries count. To keep bricks for a borer, he buys the borer first.
 - **A roof is the reveal.** The building's last order gives its power, in the moment the relic reveal has today.
 - **What comes next stays vague.** The next building is a hint in the village's words, never a list.
@@ -253,7 +324,7 @@ The Home's power is the last building's power. When a later building takes the l
 
 ### Buildings open the bands
 
-Once the story is in the village, nothing ties it to depth, and a dad could reach the Deep Heart with no Forge and so no Great Machine. So each band has a door, new in step 3, that opens with a building. At a closed door only depth waits: the line keeps making goods.
+Once the story is in the village, nothing ties it to depth, and a dad could reach the Deep Heart with no Forge and so no Great Machine. So each band has a door, new in step 3, that opens with a building. At a closed door only depth waits: the line keeps making goods, and the heading still gives stones. Between doors, sinking the shaft through a band takes the crew away from the goods. The lab sets how long a band takes to sink. It should be a night or two, because the story is in the village.
 
 | Door              | Opens when        | Why it can never lock                                                                            |
 | ----------------- | ----------------- | ------------------------------------------------------------------------------------------------ |
@@ -261,7 +332,7 @@ Once the story is in the village, nothing ties it to depth, and a dad could reac
 | The Crystal Caves | the Forge stands  | The Storehouse and the Forge ask for stones and bricks, and bricks come from the Granite         |
 | The Deep Heart    | the School stands | The Mill and the School ask for bricks and cut stone, and cut stone comes from the Crystal Caves |
 
-The Home's roof also asks for a few heartstone, the Deep Heart's own material, for its hearth. So a run cannot end without the last band, and heartstone gets a meaning. A later last building brings a tie of its own.
+The Home's roof also asks for a few heartstone, the Deep Heart's own material, for its hearth. He gets it by sending the crew to the Deep Heart. So a run cannot end without the last band, and heartstone gets a meaning. A later last building brings a tie of its own.
 
 ### Old saves at step 3
 
@@ -314,34 +385,48 @@ One sitting, 10.1K to 17.5K, and the narrow stage went haul, lift, haul. Three d
 
 ### One night in the finished design (worked by hand)
 
-Evening, the Crystal Caves. The line moves 18K a second, 5,400 at the resting pace. The saws take 2,400, or 720 resting. The yard holds 80M stones, 40M bricks and 15M cut stone. The order is the School's walls: 30M bricks (sent) and 20M cut stone (6M sent).
+Evening. The shaft stands in the Crystal Caves. At the Granite level the line moves 18K a second, 5,400 at the resting pace. The saws take 2,400, or 720 resting. The yard holds 80M stones, 40M bricks and 15M cut stone. The order is the School's walls: 30M bricks (sent) and 20M cut stone (6M sent).
 
-- 22:30. He sends the 4M cut stone in the pile. He spends stones down to 20M. Lever on Cut stone. He leaves.
+- 22:30. He sends the 4M cut stone in the pile. He spends stones down to 20M. He sends the cage to the Granite, for cut stone. He leaves.
 - Cut stone comes at 720 a second. The other 4,680 a second is stacked as stones.
 - 02:04. The stone pile is full. Only the 720 a second for the saws still moves.
 - 04:17. The cut stone pile is full. The crew rests.
 - 06:30. The card: "+60M stones, +15M cut stone. The stone pile filled at 02:04, the cut stone at 04:17."
 - He sends 10M cut stone. The walls go up. The roof asks for 45M cut stone and 20M bricks.
-- The saws are now the narrow place for what the village wants, and saws cost bricks. He buys two saws, spends the stones on the line, and leaves the lever where it is.
+- The saws are now the narrow place for what the village wants, and saws cost bricks. He buys two saws, spends the stones on the line, and leaves the cage at the Granite. The roof's bricks are a night at the Topsoil, and when to take it is his call.
 
-What it shows: the night stopped at his yard, the card says when and why, the building needed his tap, and the new order moved the narrow place from the haul to the saws. Two minutes.
+What it shows: the night stopped at his yard, the card says when and why, the building needed his tap, and the new order moved the narrow place from the haul to the saws. Where the crew dug was his choice, not the rock's. Two minutes.
+
+### The cage on paper
+
+A second rough model, `designs/levels-model.py` in the project's shared files, adds a working level to the step 1 model. Stones are the only good in it.
+
+| Rock                                                  | Sitting ends where the levels have different narrow stages (check-in / casual / evening) | Fastest level against slowest | Run 1 ends          |
+| ----------------------------------------------------- | ---------------------------------------------------------------------------------------- | ----------------------------- | ------------------- |
+| Slows a stage's first machine ×0.7 (the table's form) | 5 of 15 / 2 of 8 / 1 of 5                                                                | 5% on average, 11% at most    | day 4.3 / 4.5 / 6.0 |
+| Slows the whole stage ×0.7                            | 12 of 16 / 6 of 9 / 3 of 5                                                               | 13% on average, 23% at most   | day 4.5 / 5.0 / 6.0 |
+
+- **Parking is not an exploit.** A dad who always leaves the crew on the fastest level ends run 1 on the same day or half a day later than one who always digs the heading (day 4.5 against 4.3, 5.0 against 4.5, 6.0 against 6.0).
+- **With the table's form, where he works hardly moves the line.** The second machine soon carries the stage. If choosing a level should also choose tonight's narrow stage, the rock has to slow the whole stage. That is why the lab reports both forms.
 
 ### What the check does not prove
+
+Nothing about step 2 with the cage: goods by level have no model. Step 2's lab probe has to grade it before anything is switched on.
 
 It does not prove the line is fun. It shows the structure moves. Hands may be too strong in the model: kids alone carried the haul for a while. If hands carry too much, the stages stop mattering. If too little, the early game gets traps. The lab has to grade that, and step 1 is built first so Flemming can feel it.
 
 ## Against the dad-friendly rules
 
-| Rule                       | How the design meets it                                                                              |
-| -------------------------- | ---------------------------------------------------------------------------------------------------- |
-| Two minutes                | A check-in is: read the card, Send, Ready now or Max on the narrow stage, the lever.                 |
-| Never punishing            | A full yard loses nothing earned. No buy slows the line. Trouble stays live only.                    |
-| Close is pause             | The lever, a delivery and a buy are saved as they happen. Fill times are worked out from timestamps. |
-| Real numbers for decisions | Stage speeds, spare, pile room, order amounts and prices are all real.                               |
-| Vague discoveries          | The next band and the next building stay hints.                                                      |
-| No payback, no best buy    | The amber mark is a reading of three numbers. Which fix to buy stays his.                            |
-| The phone never scrolls    | Step 1 reuses the three bays. Step 3 reuses the six sockets and the relics drawer.                   |
-| No placeholders            | Each step lists its art below. PixelLab is asked for before any of it.                               |
+| Rule                       | How the design meets it                                                                                 |
+| -------------------------- | ------------------------------------------------------------------------------------------------------- |
+| Two minutes                | A check-in is: read the card, Send, Ready now or Max on the narrow stage, the cage.                     |
+| Never punishing            | A full yard loses nothing earned. No buy slows the line. A level never closes. Trouble stays live only. |
+| Close is pause             | The cage, a delivery and a buy are saved as they happen. Fill times are worked out from timestamps.     |
+| Real numbers for decisions | Stage speeds, spare, each level's speed, pile room, order amounts and prices are all real.              |
+| Vague discoveries          | The next band and the next building stay hints.                                                         |
+| No payback, no best buy    | The amber mark is a reading of three numbers. Which fix to buy stays his.                               |
+| The phone never scrolls    | Step 1 reuses the three bays and the band tag. Step 3 reuses the six sockets and the relics drawer.     |
+| No placeholders            | Each step lists its art below. PixelLab is asked for before any of it.                                  |
 
 ## Risks
 
@@ -351,6 +436,10 @@ It does not prove the line is fun. It shows the structure moves. Hands may be to
 4. **Three goods on one board.** The odometer shows one number today. Step 2 needs a mock before any code.
 5. **Wonder.** Step 3 trades found for earned.
 6. **Speed of the lab.** `effectiveRates` is the labs' hot path, and the line's rule and the staffing search sit inside it.
+7. **Moving the cage every sitting.** If that becomes the best play, the cage is a chore. Orders ask for a night's worth of a good, and the yard ends a night anyway. The lab counts moves a sitting.
+8. **One resource at a time.** It may feel thin once there are five goods or more. Held in reserve, and not designed here: a night timetable, an ordered list of levels where the crew moves on when a pile is full.
+9. **Materials that come back.** Recipes were sized for a band that ends. Today's caps hold the bench in step 1.
+10. **Step 2 is changed without a model.** The cage as the lever is right on paper only.
 
 ## Calls I made
 
@@ -358,10 +447,10 @@ These are mine, not Flemming's. Any of them can be turned over.
 
 1. Hands fill in, so the bottleneck is soft early and hard late, rather than a hard minimum from the first cart.
 2. Two machines in every stage. The Great Machine becomes the lift's second machine.
-3. The band table: the Crystal Caves suit trains and are tough on carts, and the Deep Heart is tough on hoists. This one changes decision D3, which is Flemming's, so it waits on his yes.
+3. The band table: the Crystal Caves suit trains and are tough on carts, and the Deep Heart is tough on hoists. This one changed decision D3, which is Flemming's. He said yes to it with the cage.
 4. The narrow stage's lamp is amber, not red.
 5. Engineers tend a stage. Trouble belongs to a stage.
-6. One lever with three positions. What the works cannot take becomes stones.
+6. What the works cannot take becomes stones. (The lever with three positions that stood here is gone: the cage is the lever, by Flemming's choice.)
 7. One yard level sets three piles. The yard starts at the Granite, and the clock cap ends there.
 8. In these steps each thing costs one good, by the two price rules.
 9. Taps and veins always land.
@@ -376,6 +465,16 @@ These are mine, not Flemming's. Any of them can be turned over.
 18. The Shield's power, and the Storehouse's after it: the yard holds twice as much.
 19. What is in the yard at the pass goes into the kid's first order.
 20. The Lantern's guide half (the next relic and the bar toward it) goes at step 3. The open order on the board takes its place.
+21. One crew and one working level at a time. No split and no shares.
+22. Moving the cage is free and instant.
+23. The shaft goes deeper only at the heading.
+24. One fleet of machines. What is on sale and what a band-scaled price costs go by the shaft, not by the crew.
+25. The cage appears at the Granite, and the band tag is its control.
+26. The cage is built as the last slivers of step 1, though its weight comes in step 2.
+27. In step 1 a material refills up to today's cap.
+28. The rock should slow a whole stage once the cage is in. The lab reports both forms first.
+29. A maker opens one band after its rock, and runs only while the crew works its level.
+30. Seams found by engineers, the night timetable and a "wanted" mark on an order are named in the proposal and not designed.
 
 ## Decided (Flemming, 14 Nov 2026)
 
@@ -386,9 +485,14 @@ These are mine, not Flemming's. Any of them can be turned over.
 
 He also stopped the relic-door work, so this spec does not lean on it. The band doors of step 3 are their own part of this design.
 
+Later the same day, on the band table question, he said the design left the player no control over which resource is mined, and floated different mines. He was shown three ways (the cage, separate mines, old workings that keep producing) and said yes to both recommendations:
+
+5. **One mountain, and the cage.** Every band the shaft has reached stays open as a level, and he sends the crew to the level he wants. This also settles the band table: [the table above](#the-rock-moves-the-narrow-stage-too) stands, as what each level costs him. Separate mines are kept for Mars.
+6. **Each good comes from one level's rock.** Bricks from the Topsoil, cut stone from the Granite. The three-way lever becomes the cage.
+
 ## Waiting on Flemming
 
-**The band table.** Which machine a band favours is his call (decision D3). The line needs the rock to move the narrow stage, so [the table above](#the-rock-moves-the-narrow-stage-too) changes three cells of today's and two lines of advice. If he says no, today's table stays: the rock then never touches the haul, and the pit train has no band of its own. It must be settled before the line turns on (#536).
+Nothing. The band table that waited here is settled (Decided, 5). Names, lines, pictures and lab bounds are his at build time, as each section says.
 
 ## How it would be built
 
@@ -405,13 +509,19 @@ Each line is about one sitting. Each step's economy is probed in the lab behind 
 7. #538: Buys by stage, and where the hands help.
 8. #539: engineers and trouble by stage.
 
+Then the cage, as the last slivers of step 1 (issues under #530):
+
+9. The working level in the rules and the save, off in play: the rock by level, depth only at the heading, materials by level, the new save field, one new player type in the lab, and the form of the rock picked from #534's rows.
+10. A mock of the cage plate and the level card. It can run beside 9.
+11. The cage on the board, turned on in play: the plate, the card, the window, the arrival and welcome lines, and the How it works card.
+
 Steps 2 and 3 are split when the step before has been played.
 
-**Step 2.** A lab probe of the works and the yard. A mock of the piles and the lever. Kilns and bricks. Saws and cut stone. The yard and the new rule for time away, with the welcome card. Prices by good and the old-save grant.
+**Step 2.** A lab probe of the works and the yard, with the cage as the lever. A mock of the piles. Kilns and bricks. Saws and cut stone. The yard and the new rule for time away, with the welcome card. Prices by good and the old-save grant.
 
 **Step 3.** A mock of the village plate and drawer, with the art. Orders and Send. The six buildings' powers in place of the relics'. The village drawer and the reveal. The run's end at the Home and the mountain with no bottom. The kid's village. Taking the relics out.
 
-The rules for stages, the lever and the yard go in one new module that `effectiveRates` reads, so live play, time away, the screens and the lab keep one home for every speed. Each new save field is mirrored in `firestore.rules` in the sliver that adds it.
+The rules for stages, levels and the yard go in one new module that `effectiveRates` reads (the line's module from #532), so live play, time away, the screens and the lab keep one home for every speed. Each new save field is mirrored in `firestore.rules` in the sliver that adds it.
 
 ## Lab
 
@@ -422,11 +532,14 @@ New measures, report-only first. Any bound on them is Flemming's to set.
 - `handsCarry`: the share of the narrow stage that hands carry.
 - `zeroGainBuys`: buys that added nothing to the line.
 - From step 2: `yardRest`, the share of time away the crew spends resting on a full yard.
+- With the cage: `levelShare`, the share of a run the crew spends on each level, and `levelMoves`, the moves of the cage a sitting. One new player type leaves the crew on its fastest level. Today's player types stay at the heading.
+- From #534: `narrowRun` and the run's length for both forms of the rock (a stage's first machine, or the whole stage).
 
 No existing bound moves to go green. The check-in guardrails, the generations lab and extreme win are measured again in every step.
 
 ## Art (PixelLab, asked for before each step)
 
 - Step 1: the hoist and the pit train, each as a bay icon, a dim icon and a Buys icon, and any stage icons the mock (#535) calls for.
-- Step 2: the kiln and the saw, icons for bricks and cut stone, the lever, the piles.
+- The cage: none expected. The four window pictures exist, and the plate reuses the band tag. The mock says if a small mark for the plate is needed.
+- Step 2: the kiln and the saw, icons for bricks and cut stone, the piles.
 - Step 3: the village picture, six buildings in three states each, and one brass number plate.
