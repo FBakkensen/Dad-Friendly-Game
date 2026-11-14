@@ -63,8 +63,9 @@ These would make it a failure even if it works:
 - The old document (`saves/{uid}`), its archive and the old phone keys are left where they are and never deleted. The rules make the old path read-only for its owner: an old build's save fails where he can see it, and a reload brings the new build **(my call)**.
 - Suggested names: `games/{uid}` and `gameArchive/{uid}/copies`, with the phone and guest keys renamed to match. Builder's choice.
 - The field log keeps its path.
+- What belongs to a run starts over with it: the homecoming news (`dad-friendly-homecomings`) and Tonight in the Ledger must not show the old run after the fresh start, or after a later reset. How is the builder's choice.
 
-**The envelope.** As today: `version`, `rev`, `savedAt`, `deviceId`, an optional `deviceLabel`, `lastSeen`, and one map with the game in it. `version` starts at 8, so it can't be mistaken for an old one. The run's stamp (`startedAt`) moves up into the envelope, where the rules and every later build can read it whatever shape the game has **(my call)**.
+**The envelope.** As today: `version`, `rev`, `savedAt`, `deviceId`, an optional `deviceLabel`, `lastSeen`, and one map with the game in it. `version` starts at 8, so it can't be mistaken for an old one. The run's stamp (`startedAt`) moves up into the envelope, where the rules and every later build can read it whatever shape the game has **(my call)**. `rev`, `savedAt` and the device fields are the cloud's, as today: a phone or guest copy has only the version, the run's stamp, `lastSeen` and the game.
 
 **The game, by kind of fact.** The save says five kinds of thing about an id, each in one map:
 
@@ -73,10 +74,10 @@ These would make it a failure even if it works:
 | `owned`  | how many he owns    | workers, each machine, the kids                     | kilns, saws, buildings                |
 | `stock`  | how much he holds   | stones, clay, iron, crystal, heartstone             | bricks, cut stone, manufactured goods |
 | `levels` | what level it is    | upgrades, Workshop gear                             | anything with levels                  |
-| `clocks` | when it ends        | boosts, the bench, the craft clocks, the Gold rush  | anything on a timer                   |
+| `clocks` | when it ends        | boosts, what a craft leaves running, the Gold rush  | anything on a timer                   |
 | `marks`  | whether it happened | seen, taught, found, known recipes, by kind of mark | orders sent, doors opened             |
 
-- Beside the maps are the few records that are not a count: the run (the generation, the stretch, how far the shaft has gone, the rush's banked stones), the engineers, the parties out, and the bench's job.
+- Beside the maps are the few records that are not a count: the run (the generation, the stretch, how far the shaft has gone, the rush's banked stones), the engineers, the parties out, and the bench's job with its own end time (so a job and its clock can't come apart).
 - **The save says how far the shaft has gone, not how much mountain is left (my call).** The mountain will have no bottom (line spec, step 3), and #545 and #548 count stones dug. The game state in memory keeps `remaining` for now, and the writer turns one into the other.
 - Zero and empty are left out, as today. A fresh game is a few lines.
 - **Ids.** Today's ids are kept as they are spelled (`cartSyn`, `machine`): nothing is renamed **(my call)**. A new id is lowercase words joined by hyphens. An id is unique within the map it is saved in, and a test checks that. Where two tables that share a map would clash, the builder gives each its own map. An id is never renamed, and never used again for something else.
@@ -85,28 +86,31 @@ These would make it a failure even if it works:
 **One parser, four answers.** Reading a save returns one of:
 
 - `ok`, with a complete game state: every id present, zero where the save said nothing.
-- `newer`: the save holds more than this build knows. The version is above this build's; or there is an id, a key or a named value (a post, a tunnel) it does not know; or a count is above this build's cap for it (a level past the top level, a sixth engineer).
+- `newer`: the save holds more than this build knows. The version is above this build's; or there is an id, a key or a named value (a post, a tunnel) it does not know; or a count is above this build's cap for it (a level past the top level, a sixth engineer). An amount in `stock` has no cap but the safe-integer limit: a good's ceiling is a rule of play, and a pile over its room is a legal save (line spec, step 2).
 - `older`: the version is below this build's.
 - `bad`: nonsense. A wrong type, a negative or broken number, a missing envelope. Handled as an unreadable copy is today.
 
 The parser keeps today's caps, so the rules of play can trust the state it returns. More than it knows is `newer`; nonsense is `bad` **(my call)**. So a later build can add an id or raise a cap without a new version: an old build goes read-only by itself.
 
-**The guard: `newer` is read-only.** The build shows the "Update available" card that exists today (#464: `UPDATE_TITLE`, `UPDATE_RELOAD`, raised by `showAppUpdate`) and writes nothing: not the cloud document, not the phone backup, not the archive. It records `save.newer` on the save line. Boot HTML is sent uncached, so Reload brings the build that understands the save. Offline, the service worker may serve the old build again: the card comes back, and still nothing is written.
+**The guard: `newer` is read-only.** The build shows the "Update available" card that exists today (#464: `UPDATE_TITLE`, `UPDATE_RELOAD`, raised by `showAppUpdate`) and writes nothing: not the cloud document, not the phone backup, not the archive. The hold is one more block in `playBlock` (`src/store-context.ts`), beside the other-tab and conflict blocks. It records `save.newer` on the save line. Boot HTML is sent uncached, so Reload brings the build that understands the save. Offline, the service worker may serve the old build again: the card comes back, and still nothing is written.
 
 - This replaces the `kept` bag, which carried a few kinds of unknown id through an old build. Nothing is carried now, because nothing is written **(my call)**.
 - A missing key is never `newer` or `bad`: it reads as its default. So adding a fact to the save needs no version change and resets nothing.
 
-**The id ledger.** One test holds the list of every id shipped under the current version. Adding an id adds a line. Taking one out fails the test until the version goes up, because a save that holds a retired id would read as `newer` for ever.
+**The ledger of what has shipped.** One test holds every id, every named value and every cap shipped under the current version. Adding an id or a value adds a line, and raising a cap changes one. Taking one out, or lowering a cap, fails the test until the version goes up or the old value is given a reading ([Resets](#resets)). Without it, the newest build would read its own save as `newer`, and Reload would change nothing.
 
 ### Resets
 
 `older` means the shape changed under a save. While Flemming is the only player, that is a reset **(my reading of his answer; he can end it any day)**:
 
-- The old copy is set aside, never deleted: the cloud copy goes to the archive with a new reason, and the phone copy moves to a side key. Then a fresh mountain starts. The field log records it under a new code (`save.reset` is taken: Start over and the pass use it).
-- **The fresh mountain keeps the old copy's run stamp (my call).** It is read from the envelope, which is why the stamp lives there. So the rules' "not an older run" check passes, and the fresh mountain is not a later run than what another device has played since: between two devices, the one with more stones mined is ahead, as today. A device that resets while offline can't overwrite the other's play.
+- The old copy is set aside, never deleted: the cloud copy goes to the archive with a new reason, and the phone copy moves to a side key that carries its version. Then a fresh mountain starts. The field log records it under a new code (`save.reset` is taken: Start over and the pass use it). A copy set aside is for the record: no screen lists it or restores it.
+- The old cloud copy lands in the archive before the fresh mountain's first cloud write. `keepThenBegin` (`src/save-choice.ts`) is the mechanism to extend. Until it lands the board holds, as it does while loading.
+- **The fresh mountain keeps the run stamp (my call):** the highest stamp among the copies it set aside, the phone's and the cloud's, read from the envelope. So the rules' "not an older run" check passes, and the fresh mountain is not a later run than what another device has played since.
+- **A blank mountain from a reset is not a copy until something is played on it.** Its stamp alone is not progress. So when it meets a cloud copy of this version, the cloud copy is kept, and between two played copies the one with more stones mined is ahead, as today. A device that resets while offline can't overwrite the other's play.
 - The first sliver's own fresh start needs none of this: the old save stays at the old path.
 - **Adding never resets.** A new id, a new key with a default, a new mark kind, a higher cap: old saves load, and the version stays.
-- **Changing what a fact means, lowering a cap, or retiring an id, resets.** The version goes up.
+- **Changing what a fact means, lowering a cap, or retiring an id or a named value, resets.** The version goes up.
+- **A reset is allowed, not owed.** Where an old value has an obvious reading that is one line in the parser (#539: a post saved as `borer` reads as the face), the builder may keep the save and add the reading. The ledger lists it, and the next reset deletes it.
 - **A sliver that resets says so first**: "Resets the save" in its issue and its PR body, so he reads it in the chat before his run ends. This goes in `.claude/rules/dad-friendly-work.md`.
 - **The day there is a second player, resets end.** From then a shape change needs a migration step from each version to the next, and a kept sample save for each. That is Flemming's call to make, and a new design.
 
@@ -125,10 +129,10 @@ There is no line on screen for a reset **(my call)**: he is told in the chat, an
 What the rules gave up, the writer takes on:
 
 - **The writer checks its own work.** Before a cloud write, the store parses what it is about to send. Anything but `ok` is not written: it records `save.shape` as an error and shows on the save line. The cloud keeps its last good copy, which is what a refused write did before.
-- **A round-trip property.** For any state random play can reach, reading what was written and writing it again gives the same save. (The writer rounds the depth up to a whole stone, as today, so the state itself can differ by that rounding.) It runs on the generator of #555 if that has merged, or on a small one of its own.
+- **A round-trip property.** For any state random play can reach, reading what was written gives the same state, once the stones left are rounded up to a whole stone as the writer rounds them today. So a fact the writer forgets fails the test. It runs on the generator of #555 if that has merged, or on a small one of its own.
 - The emulator test stays: a full save goes through the real rules, a lower version is refused, an older run is refused, and the old path takes no write.
 
-`.claude/rules/observable-saves.md` changes with it. "Mirror every new or changed save field in `firestore.rules`" becomes the three lines above: the rules check the envelope, the parser checks the game, the writer parses before it writes. `src/rules-drift.test.ts` shrinks to the envelope and the field log.
+`.claude/rules/observable-saves.md` changes with it. "Mirror every new or changed save field in `firestore.rules`" becomes the three lines above: the rules check the envelope, the parser checks the game, the writer parses before it writes. Its save line and its launch paragraph gain the two new cases: a read-only save, and a copy set aside by a reset. `src/rules-drift.test.ts` shrinks to the envelope and the field log.
 
 ### C. What goes
 
@@ -179,7 +183,7 @@ Each is one sitting and one PR, keeps the game booting with every gate green, an
 1. **The fresh save** (A, B, C and Resets). Resets the save. In memory, only `staffed` and `kept` leave the game state, with the grants. The counts, the pocket and the rates are not touched, so the labs and every screen are as they were.
    - Blocked by nothing. It can run beside #534 and #543, which are lab work.
    - Proof: the round-trip property; the emulator tests above; a test that a `newer` save writes nothing; a test of a reset (the old copy is set aside, the run stamp is kept, and a device that has played is ahead of one that reset to a blank mountain); `npm run play` on a fresh game, then a reload, then a kill and reopen. The lab reports read as on `main`.
-2. **Counts by id** (D). No change he can see.
+2. **Counts by id** (D). No change he can see. Flemming picked this work ([Decided](#decided-flemming-14-nov-2026), 1), which is what `.claude/rules/dad-friendly-work.md` asks of a sitting with nothing to see. The same holds for 3 and 4.
    - Blocked by 1, by #543 (so the line's numbers are not being tuned under a wide move), and by #554 (the pacing ledger is the proof).
    - Proof: the pacing ledger does not move, both labs print the same rows as `main`, the visual check passes with no shot updated, and one lab job is timed against `main`.
 3. **One stock, and prices as lists** (E). No change he can see.
@@ -188,7 +192,7 @@ Each is one sitting and one PR, keeps the game booting with every gate green, an
    - Blocked by 3 and by #537, #538 and #539.
    - Proof: the id check is in the gate and green; the same ledger and lab proof.
 
-**The line waits for 2 and 3.** #536 turns the line on in play, and it gets "blocked by" sliver 3. So #536 to #539 and the cage are written once, on the new shape, and none of them touches the save code or the rules file. The cost is about two sittings before the line turns on **(my call, from "just now")**. Step 2 of the line spec is split after sliver 4.
+**The line waits for 2 and 3.** #536 turns the line on in play, and it gets "blocked by" sliver 3. So #536 to #539 and the cage are written once, on the new shape. None of them touches the rules file, and what the cage adds to the save (#545) is added as A says. #539 turns the engineers' posts from machines into stages, which retires saved values: its builder gives each old post a reading or resets the save, and says which in the PR. The cost is about two sittings before the line turns on **(my call, from "just now")**. Step 2 of the line spec is split after sliver 4.
 
 The journeys of #552 and #553 are not blockers. If they have merged, slivers 1 to 4 run them.
 
@@ -196,8 +200,8 @@ The journeys of #552 and #553 are not blockers. If they have merged, slivers 1 t
 
 `2026-11-14-line-works-village-design.md` is changed in this PR, only where Flemming's answer overrules it:
 
-- Step 1's "Old saves" row, rule 17's first half, and "#536 ... with the old-save grant": there is no grant. Saves start fresh.
-- The cage's "Old saves" row and the last line of "How it would be built": a new fact is added to the save as this spec says, not mirrored in `firestore.rules`.
+- Step 1's "Old saves" row, rule 17's first half, and "#536 ... with the old-save grant": there is no grant. A save played since the fresh start meets the line as it is, and may run slower than it did.
+- The cage's "Old saves" row and the last line of "How it would be built": a save from before the cage loads with the crew at the heading, since a missing fact reads as its default. A new fact is added to the save as this spec says, not mirrored in `firestore.rules`.
 - Steps 2 and 3 keep their old-save rows, with a note: when the step is split, the builder asks whether Flemming is still the only player. If he is, a reset may take the place of a grant.
 
 #536's issue loses its old-save line.
@@ -225,11 +229,13 @@ For Flemming to check. Each is easy to turn back before its sliver is built.
 9. Today's ids keep their spelling.
 10. A fresh mountain after a reset keeps the old run stamp, so it never outranks another device's play.
 11. A count above a build's cap reads as `newer`, so raising a cap needs no new version.
+12. A reset is allowed, not owed: where one line in the parser can read an old value, the builder may keep the save.
+13. With no grant, a save played before the line turns on may run slower on the day it does.
 
 ## Left to the builder
 
 - The path, key, map and record names, and the file layout under `src/`.
-- How the id ledger and the id check are written.
+- How the ledger of what has shipped and the id check are written.
 - Whether the writer's check also runs on phone backup writes, as long as every cloud write has it.
 - Whether "tier" stays the word in the code for a thing bought in Buys.
 - The order of moves inside a sliver.
