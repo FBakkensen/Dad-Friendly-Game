@@ -1,3 +1,4 @@
+import { NONE_OWNED, patched, type MountainPatch } from "../test-fixtures";
 import { describe, expect, it } from "vitest";
 import { MOUNTAIN_STONES, createMountain, type Mountain } from "../mountain";
 import { promoteCost } from "../engineers";
@@ -73,10 +74,7 @@ const nilsPrice = promoteCost(withPocket(0, { engineers: [ada] }));
 function pricedOut(pocket: number): Mountain {
   return withPocket(pocket, {
     // Pinned on the tuned curve (#356).
-    helpers: 160,
-    carts: 80,
-    drills: 40,
-    borers: 1,
+    owned: { ...NONE_OWNED, helper: 160, cart: 80, drill: 40, borer: 1 },
     engineers: [ada],
   });
 }
@@ -85,9 +83,8 @@ describe("spend table", () => {
   it("leaves out a free post and an upgrade this dad will not buy", () => {
     const mountain = {
       ...createMountain(),
-      helpers: 4,
       // Three carts open Strong arms (#250).
-      carts: 3,
+      owned: { ...createMountain().owned, helper: 4, cart: 3 },
       pocket: 23_000,
       engineers: [{ name: "Ada", rank: 0, trips: 0, post: "camp" } as const],
     };
@@ -157,7 +154,9 @@ describe("other schedules", () => {
 describe("extremes", () => {
   it("never hires a worker except to staff a machine already owned", () => {
     // The third cart opens Strong arms (#250).
-    const rich = withPocket(1_000_000_000, { carts: 3, helpers: 10 });
+    const rich = withPocket(1_000_000_000, {
+      owned: { ...NONE_OWNED, cart: 3, helper: 10 },
+    });
     const first = neverWorkers.decide({
       mountain: rich,
       now: 0,
@@ -170,7 +169,9 @@ describe("extremes", () => {
       expect(first.id).not.toBe("helper");
       expect(first.id).not.toBe("kid");
     }
-    const short = withPocket(1_000_000_000, { carts: 1 });
+    const short = withPocket(1_000_000_000, {
+      owned: { ...NONE_OWNED, cart: 1 },
+    });
     expect(
       neverWorkers.decide({
         mountain: short,
@@ -178,7 +179,9 @@ describe("extremes", () => {
         params: neverWorkers.params,
       }),
     ).toMatchObject({ kind: "buyTier", id: "helper" });
-    const staffed = withPocket(1_000_000_000, { carts: 1, helpers: 1 });
+    const staffed = withPocket(1_000_000_000, {
+      owned: { ...NONE_OWNED, cart: 1, helper: 1 },
+    });
     const next = neverWorkers.decide({
       mountain: staffed,
       now: 0,
@@ -191,8 +194,7 @@ describe("extremes", () => {
 
   it("taps, and never buys", () => {
     const rich = withPocket(1_000_000_000, {
-      helpers: 40,
-      borers: 1,
+      owned: { ...NONE_OWNED, helper: 40, borer: 1 },
       engineers: [ada],
     });
     expect(
@@ -210,7 +212,9 @@ describe("extremes", () => {
   });
 
   it("buys machines, and workers only for those machines", () => {
-    const rich = withPocket(1_000_000_000, { helpers: 40 });
+    const rich = withPocket(1_000_000_000, {
+      owned: { ...NONE_OWNED, helper: 40 },
+    });
     const action = machinesOnly.decide({
       mountain: rich,
       now: 0,
@@ -283,8 +287,7 @@ describe("extremes", () => {
     const hired = promoteAsap(
       // Covers Nils, Ruth, Otto and Mae (2 + 4 + 8 + 16 base prices), with spare.
       withPocket(nilsPrice * 15 + 10_000_000, {
-        helpers: 10,
-        borers: 1,
+        owned: { ...NONE_OWNED, helper: 10, borer: 1 },
         engineers: [ada],
       }),
       allIn.params,
@@ -306,7 +309,10 @@ describe("extremes", () => {
   });
 
   it("leaves trouble up past the fast dad's three seconds", () => {
-    const start = withPocket(0, { helpers: 8, borers: 1, engineers: [ada] });
+    const start = withPocket(0, {
+      engineers: [ada],
+      owned: { ...NONE_OWNED, helper: 8, borer: 1 },
+    });
     const lasted = (policy: Policy): { saw: boolean; pastFast: boolean } => {
       let saw = false;
       let pastFast = false;
@@ -343,7 +349,7 @@ describe("extremes", () => {
     const run = runPolicy({
       policy: boostJunkie,
       seed: 1,
-      mountain: withPocket(10_000, { helpers: 4 }),
+      mountain: withPocket(10_000, { owned: { ...NONE_OWNED, helper: 4 } }),
       maxLiveSeconds: 1,
     });
     expect(run.world.mountain.boosts.sharper).toBeGreaterThan(0);
@@ -461,8 +467,7 @@ describe("policy shape", () => {
 
   it("prices a sticker, including a free post", () => {
     const mountain = withPocket(100, {
-      helpers: 1,
-      borers: 1,
+      owned: { ...NONE_OWNED, helper: 1, borer: 1 },
       engineers: [ada],
     });
     expect(
@@ -541,8 +546,7 @@ describe("policy shape", () => {
       policy: onValue,
       seed: 1,
       mountain: withPocket(5_000_000, {
-        helpers: 3,
-        borers: 1,
+        owned: { ...NONE_OWNED, helper: 3, borer: 1 },
         engineers: [ada],
       }),
       maxLiveSeconds: 1,
@@ -553,7 +557,7 @@ describe("policy shape", () => {
     const firstEngineer = runPolicy({
       policy: onValue,
       seed: 1,
-      mountain: withPocket(5_000_000, { helpers: 3 }),
+      mountain: withPocket(5_000_000, { owned: { ...NONE_OWNED, helper: 3 } }),
       maxLiveSeconds: 1,
     });
     expect(firstEngineer.promotions.map((promotion) => promotion.name)).toEqual(
@@ -616,8 +620,7 @@ describe("policy shape", () => {
       spend: { worker: 1, machine: 1, upgrade: 0, boost: 1, promote: 1 },
     });
     const mountain = withPocket(1_000_000, {
-      helpers: 8,
-      borers: 1,
+      owned: { ...NONE_OWNED, helper: 8, borer: 1 },
       engineers: [ada, { name: "Nils", rank: 0, trips: 0, post: "camp" }],
     });
     const run = runPolicy({
@@ -643,16 +646,17 @@ function withRecipes(mountain: Mountain, extra: readonly RecipeId[]): Mountain {
   return { ...mountain, recipes: [...mountain.recipes, ...extra] };
 }
 
-function workshop(extra: Partial<Mountain> = {}): Mountain {
-  return {
-    ...createMountain(),
-    remaining: MOUNTAIN_STONES - 12_000_000,
-    pocket: 50_000_000,
-    materials: POCKET,
-    helpers: 4,
-    carts: 1,
-    ...extra,
-  };
+function workshop(extra: MountainPatch = {}): Mountain {
+  return patched(
+    {
+      ...createMountain(),
+      remaining: MOUNTAIN_STONES - 12_000_000,
+      pocket: 50_000_000,
+      materials: POCKET,
+      owned: { ...createMountain().owned, helper: 4, cart: 1 },
+    },
+    extra,
+  );
 }
 
 describe("crafting", () => {
@@ -688,11 +692,7 @@ describe("crafting", () => {
     expect(affordable?.kind).toBe("buyTier");
     const saving = workshop({
       pocket: 0,
-      helpers: 30,
-      carts: 0,
-      drills: 0,
-      borers: 0,
-      machines: 1,
+      owned: { helper: 30, cart: 0, drill: 0, borer: 0, machine: 1 },
     });
     const waiting = casual.decide({
       mountain: saving,
@@ -704,11 +704,7 @@ describe("crafting", () => {
     // workers left the next one too cheap to wait on; 100 is well clear.
     const late = workshop({
       pocket: 0,
-      helpers: 100,
-      carts: 40,
-      drills: 30,
-      borers: 0,
-      machines: 1,
+      owned: { helper: 100, cart: 40, drill: 30, borer: 0, machine: 1 },
     });
     const worthIt = casual.decide({
       mountain: late,
@@ -742,11 +738,7 @@ describe("crafting", () => {
       })?.kind,
     ).toBe("craft");
     const bare = workshop({
-      helpers: 0,
-      carts: 0,
-      drills: 0,
-      borers: 0,
-      machines: 0,
+      owned: { helper: 0, cart: 0, drill: 0, borer: 0, machine: 0 },
     });
     expect(
       craftingHeavy.decide({
@@ -842,11 +834,7 @@ describe("crafting", () => {
   it("lets the optimizer see a craft, and skip one it cannot feed", () => {
     const late = workshop({
       pocket: 0,
-      helpers: 50,
-      carts: 12,
-      drills: 6,
-      borers: 0,
-      machines: 1,
+      owned: { helper: 50, cart: 12, drill: 6, borer: 0, machine: 1 },
       upgrades: {
         tap: 10,
         boots: 1,

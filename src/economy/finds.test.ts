@@ -44,7 +44,10 @@ describe("expectedFindStones", () => {
   });
 
   it("counts a free engineer as the promotion plus the post they could tend", () => {
-    const mountain: Mountain = { ...createMountain(), helpers: 8, borers: 1 };
+    const mountain: Mountain = {
+      ...createMountain(),
+      owned: { ...createMountain().owned, helper: 8, borer: 1 },
+    };
     const idle = expectedFindStones(mountain, [ada], "deep-dark", 100, () => 0);
     const busy = expectedFindStones(
       mountain,

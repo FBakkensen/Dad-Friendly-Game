@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { RUSH_MS } from "../gold-rush";
 import { minedMountain } from "../test-fixtures";
 import { withFactors } from "../economy/factors";
-import { LINE_OFF } from "../line";
+import { LINE_OFF } from "../line-switch";
 import { tapQuickVein, tendBest } from "./run";
 import { createWorld } from "./world";
 
@@ -10,8 +10,7 @@ describe("the lab's quick vein (#468)", () => {
   it("starts the Gold rush on the held stones, and leaves the vein's pay out", () => {
     const mountain = {
       ...minedMountain(0),
-      helpers: 10,
-      kids: 0,
+      owned: { ...minedMountain(0).owned, helper: 10, kid: 0 },
       rushBank: 8_100,
     };
     const world = { ...createWorld(1, mountain), clock: 5_000 };
@@ -27,12 +26,15 @@ describe("the lab's quick vein (#468)", () => {
 describe("where a best-tending dad sends her (#543)", () => {
   const crew = {
     ...minedMountain(130_000_000),
-    helpers: 60,
-    carts: 10,
-    drills: 20,
-    borers: 2,
-    hoists: 20,
-    machines: 1,
+    owned: {
+      ...minedMountain(130_000_000).owned,
+      helper: 60,
+      cart: 10,
+      drill: 20,
+      borer: 2,
+      hoist: 20,
+      machine: 1,
+    },
     legacy: 0,
     engineers: [
       {
@@ -76,11 +78,14 @@ describe("where a best-tending dad sends her (#543)", () => {
     withFactors({ [LINE_OFF]: 0 }, () => {
       const idle = {
         ...crew,
-        carts: 0,
-        drills: 0,
-        borers: 0,
-        hoists: 0,
-        machines: 0,
+        owned: {
+          ...crew.owned,
+          cart: 0,
+          drill: 0,
+          borer: 0,
+          hoist: 0,
+          machine: 0,
+        },
       };
       expect(tendBest(idle)).toBe(idle);
     });

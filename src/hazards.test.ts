@@ -1,3 +1,4 @@
+import { patched, type MountainPatch } from "./test-fixtures";
 import { describe, expect, it } from "vitest";
 import {
   BOOTS_GAP_SCALE,
@@ -21,15 +22,21 @@ import {
 import { createMountain, type Mountain } from "./mountain";
 import type { Engineer } from "./engineers";
 
-const pit = (extra: Partial<Mountain> = {}): Mountain => ({
-  ...createMountain(),
-  helpers: 40,
-  carts: 2,
-  drills: 2,
-  borers: 1,
-  machines: 1,
-  ...extra,
-});
+const pit = (extra: MountainPatch = {}): Mountain =>
+  patched(
+    {
+      ...createMountain(),
+      owned: {
+        ...createMountain().owned,
+        helper: 40,
+        cart: 2,
+        drill: 2,
+        borer: 1,
+        machine: 1,
+      },
+    },
+    extra,
+  );
 
 const ada = (post: Engineer["post"], rank: Engineer["rank"] = 0): Engineer => ({
   name: "Ada",
@@ -57,7 +64,7 @@ function waitingFor(
 
 describe("nextTrouble", () => {
   it("waits until a borer is owned", () => {
-    const bare = pit({ borers: 0, machines: 0 });
+    const bare = pit({ owned: { borer: 0, machine: 0 } });
     expect(nextTrouble(1, 0, bare)).toBeUndefined();
     expect(
       stepHazards(freshHazards(1), {
@@ -88,7 +95,7 @@ describe("nextTrouble", () => {
   });
 
   it("only jams a borer when that is the only machine", () => {
-    const mountain = pit({ carts: 0, drills: 0, machines: 0 });
+    const mountain = pit({ owned: { cart: 0, drill: 0, machine: 0 } });
     for (let seed = 1; seed <= 30; seed += 1) {
       expect(nextTrouble(seed, 0, mountain)?.trouble).toEqual({
         kind: "jam",
@@ -324,13 +331,13 @@ describe("live play only", () => {
     if (closed.phase === "waiting") {
       expect(closed.playedMs).toBe(0);
     }
-    expect(closeHazards(freshHazards(1), pit({ borers: 0 })).phase).toBe(
-      "idle",
-    );
+    expect(
+      closeHazards(freshHazards(1), pit({ owned: { borer: 0 } })).phase,
+    ).toBe("idle");
     const dropped = stepHazards(started, {
       now: 10,
       liveMs: 1_000,
-      mountain: pit({ borers: 0, machines: 0 }),
+      mountain: pit({ owned: { borer: 0, machine: 0 } }),
     });
     expect(dropped.phase).toBe("idle");
   });

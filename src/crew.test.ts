@@ -14,12 +14,12 @@ describe("crew unlocks", () => {
   const nearHammer = {
     ...minedMountain(119_999_999),
     pocket,
-    borers: 1,
+    owned: { ...minedMountain(119_999_999).owned, borer: 1 },
   };
   const atHammer = {
     ...minedMountain(120_000_000),
     pocket,
-    borers: 1,
+    owned: { ...minedMountain(120_000_000).owned, borer: 1 },
   };
 
   it("locks the Great Machine until the Hammer is found and the Deep Heart is reached", () => {
@@ -37,11 +37,10 @@ describe("crew unlocks", () => {
   it("won't sell a locked tier, even with stones to spare", () => {
     expect(buyCrew(nearHammer, "machine")).toBe(nearHammer);
     expect(buyCrew(atHammer, "machine")).toMatchObject({
-      machines: 1,
-      kids: 0,
+      owned: { machine: 1, kid: 0 },
       pocket: spare,
     });
-    expect(buyCrew(nearHammer, "borer")).toMatchObject({ borers: 2 });
+    expect(buyCrew(nearHammer, "borer")).toMatchObject({ owned: { borer: 2 } });
   });
 
   it("brings the first engineer with the first borer, and not with the second", () => {
@@ -49,13 +48,13 @@ describe("crew unlocks", () => {
       { ...minedMountain(10_000_000), pocket: 10_000_000 },
       "borer",
     );
-    expect(bought.borers).toBe(1);
-    expect(bought.helpers).toBe(0);
+    expect(bought.owned.borer).toBe(1);
+    expect(bought.owned.helper).toBe(0);
     expect(bought.engineers).toEqual([
       { name: "Ada", rank: 0, trips: 0, post: "borer" },
     ]);
     const again = buyCrew({ ...bought, pocket: 20_000_000 }, "borer");
-    expect(again.borers).toBe(2);
+    expect(again.owned.borer).toBe(2);
     expect(again.engineers).toEqual(bought.engineers);
     const fresh = minedMountain(0);
     expect(buyCrew(fresh, "borer")).toBe(fresh);
@@ -76,7 +75,7 @@ describe("crew unlocks", () => {
       pocket: 50_000_000,
     };
     expect(tierLock(deep, tierById("borer"))).toBeUndefined();
-    expect(buyCrew(deep, "borer").borers).toBe(1);
+    expect(buyCrew(deep, "borer").owned.borer).toBe(1);
     expect(tierLock(deep, tierById("machine"))).toEqual({
       kind: "depth",
       depth: 120_000_000,
@@ -84,9 +83,9 @@ describe("crew unlocks", () => {
     });
     expect(tierLock(deep, tierById("helper"))).toBeUndefined();
     // An older save that already owns a borer keeps buying them.
-    const older = { ...shallow, borers: 1 };
+    const older = { ...shallow, owned: { ...shallow.owned, borer: 1 } };
     expect(tierLock(older, tierById("borer"))).toBeUndefined();
-    expect(buyCrew(older, "borer").borers).toBe(2);
+    expect(buyCrew(older, "borer").owned.borer).toBe(2);
   });
 
   it("leaves an engineer's post alone when a Great Machine is bought", () => {
@@ -98,13 +97,13 @@ describe("crew unlocks", () => {
           tierCost(tierById("borer"), 0) +
           tierCost(tierById("machine"), 0) +
           5_000_000,
-        helpers: 5,
+        owned: { ...minedMountain(120_000_000).owned, helper: 5 },
       },
       "borer",
     );
     expect(withBorer.engineers[0]?.post).toBe("borer");
     const withMachine = buyCrew(withBorer, "machine");
-    expect(withMachine.machines).toBe(1);
+    expect(withMachine.owned.machine).toBe(1);
     expect(withMachine.engineers[0]?.post).toBe("borer");
     expect(effectiveRates(withMachine).running.machine).toBe(0);
   });

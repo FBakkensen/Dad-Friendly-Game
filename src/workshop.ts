@@ -807,13 +807,13 @@ export function gearMultiplier(mountain: Mountain, tierId: TierId): number {
 
 /** The next tier Reinforce lifts, or none until a cart is running. */
 export function reinforceTier(mountain: Mountain): TierId | undefined {
-  if (mountain.machines > 0 || mountain.borers > 0) {
+  if (mountain.owned.machine > 0 || mountain.owned.borer > 0) {
     return "machine";
   }
-  if (mountain.drills > 0) {
+  if (mountain.owned.drill > 0) {
     return "borer";
   }
-  if (mountain.carts > 0) {
+  if (mountain.owned.cart > 0) {
     return "drill";
   }
   return undefined;

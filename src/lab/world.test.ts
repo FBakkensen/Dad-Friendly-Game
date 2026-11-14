@@ -16,8 +16,7 @@ const ada = { name: "Ada", rank: 0, trips: 0, post: "borer" } as const;
 function withBorer(): Mountain {
   return {
     ...createMountain(),
-    helpers: 8,
-    borers: 1,
+    owned: { ...createMountain().owned, helper: 8, borer: 1 },
     engineers: [ada],
   };
 }
@@ -157,8 +156,7 @@ describe("world step", () => {
       remaining: MOUNTAIN_STONES - 12_000_000,
       pocket: 50_000_000,
       materials: { clay: 40, iron: 40, crystal: 0, heartstone: 0 },
-      helpers: 4,
-      carts: 1,
+      owned: { ...createMountain().owned, helper: 4, cart: 1 },
     };
     const started = startCraft(shed, "iron-rails", 0);
     const endsAt = started.bench?.endsAt ?? 0;

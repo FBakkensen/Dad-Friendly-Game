@@ -11,7 +11,7 @@ import {
   type Mountain,
   BARE_MOUNTAIN,
 } from "./mountain";
-import { reloaded } from "./test-fixtures";
+import { reloaded, NONE_OWNED } from "./test-fixtures";
 import { effectiveRates } from "./rates";
 import {
   CHARGE_MS,
@@ -396,8 +396,7 @@ describe("workshop rules", () => {
   it("fits gear that is already done before the window, and a charge while idle", () => {
     const due = {
       ...openShed(),
-      helpers: 1,
-      carts: 1,
+      owned: { ...openShed().owned, helper: 1, cart: 1 },
       bench: {
         recipe: "iron-rails" as const,
         startedAt: 0,
@@ -408,7 +407,7 @@ describe("workshop rules", () => {
     expect(fitted.mountain.crafted["iron-rails"]).toBe(1);
     expect(fitted.mined).toBe(80);
     const working = startCraft(
-      { ...openShed(), helpers: 1, carts: 1 },
+      { ...openShed(), owned: { ...openShed().owned, helper: 1, cart: 1 } },
       "iron-rails",
       0,
     );
@@ -464,7 +463,7 @@ describe("workshop rules", () => {
   });
 
   it("doubles the live crew for a hot charge and leaves time away alone", () => {
-    const cool = { ...openShed(), helpers: 10 };
+    const cool = { ...openShed(), owned: { ...openShed().owned, helper: 10 } };
     const crew = withClock(cool, "blasting-charge", 1_000_000);
     expect(accrueAway({ mountain: crew, lastSeen: 0, now: 10_000 }).mined).toBe(
       accrueAway({ mountain: cool, lastSeen: 0, now: 10_000 }).mined,
@@ -492,12 +491,12 @@ describe("workshop rules", () => {
     expect(veinOftenScale(flare)).toBe(1);
     expect(veinOftenScale(flare, 999)).toBe(1);
     const ember = startCraft(
-      { ...openShed(), helpers: 25, machines: 1 },
+      { ...openShed(), owned: { ...openShed().owned, helper: 25, machine: 1 } },
       "heartstone-ember",
       1_000,
     );
     const plain = effectiveRates(
-      { ...openShed(), helpers: 25, machines: 1 },
+      { ...openShed(), owned: { ...openShed().owned, helper: 25, machine: 1 } },
       1_000,
     );
     expect(effectiveRates(ember, 1_000).tierSpeed.machine).toBeCloseTo(
@@ -508,7 +507,7 @@ describe("workshop rules", () => {
     );
     const early = {
       ...openShed(),
-      helpers: 10,
+      owned: { ...openShed().owned, helper: 10 },
       bench: {
         recipe: "blasting-charge" as const,
         startedAt: 5_000,
@@ -517,11 +516,19 @@ describe("workshop rules", () => {
     };
     expect(chargeCrewMultiplier(early, 4_999)).toBe(1);
     expect(chargeCrewMultiplier(early, 5_000 + CHARGE_MS)).toBe(1);
-    expect(chargeCrewMultiplier({ ...openShed(), helpers: 10 }, 1)).toBe(1);
+    expect(
+      chargeCrewMultiplier(
+        { ...openShed(), owned: { ...openShed().owned, helper: 10 } },
+        1,
+      ),
+    ).toBe(1);
   });
 
   it("speeds the crew while axle grease is hot and does not stack a second coat", () => {
-    const crew = { ...openShed(), helpers: 0, carts: 4 };
+    const crew = {
+      ...openShed(),
+      owned: { ...openShed().owned, helper: 0, cart: 4 },
+    };
     const plain = effectiveRates(crew, 1).crewPerSecond;
     const started = startCraft(crew, "axle-grease", 0);
     expect(axleCrewMultiplier(started, 1)).toBeCloseTo(2);
@@ -538,7 +545,7 @@ describe("workshop rules", () => {
 
   it("runs the crew at the strongest timer when grease, a charge, and Overtime overlap", () => {
     const now = 1;
-    const cool = { ...openShed(), helpers: 500 };
+    const cool = { ...openShed(), owned: { ...openShed().owned, helper: 500 } };
     const plain = effectiveRates(cool, now);
     expect(plain.crewPerSecond).toBe(4_000); // 500 workers x8
     const until = 30 * 60_000;
@@ -590,8 +597,7 @@ describe("workshop rules", () => {
   it("does not come out ahead by cancelling a live timer and starting it again", () => {
     const crew = {
       ...openShed(),
-      helpers: 0,
-      carts: 4,
+      owned: { ...openShed().owned, helper: 0, cart: 4 },
       materials: { ...FULL, iron: 40 },
     };
     const horizon = AXLE_MS;
@@ -629,7 +635,7 @@ describe("workshop rules", () => {
   it("refunds only the unused share of a blasting charge", () => {
     const crew = {
       ...openShed(),
-      helpers: 4,
+      owned: { ...openShed().owned, helper: 4 },
       materials: { ...FULL, clay: 20 },
       pocket: 500_000,
     };
@@ -657,8 +663,7 @@ describe("workshop rules", () => {
     const ember = startCraft(
       {
         ...openShed(),
-        helpers: 25,
-        machines: 1,
+        owned: { ...openShed().owned, helper: 25, machine: 1 },
         materials: { ...FULL, heartstone: 10 },
       },
       "heartstone-ember",
@@ -710,17 +715,25 @@ describe("workshop rules", () => {
     ).toBeCloseTo(plain.tierSpeed.machine * 1.1);
     const emberHot = {
       ...withClock(shed, "heartstone-ember", 500),
-      helpers: 25,
-      machines: 1,
+      owned: {
+        ...withClock(shed, "heartstone-ember", 500).owned,
+        helper: 25,
+        machine: 1,
+      },
     };
     expect(effectiveRates(emberHot, 100).tierSpeed.machine).toBeCloseTo(
-      effectiveRates({ ...shed, helpers: 25, machines: 1 }, 100).tierSpeed
-        .machine * 1.25,
+      effectiveRates(
+        { ...shed, owned: { ...shed.owned, helper: 25, machine: 1 } },
+        100,
+      ).tierSpeed.machine * 1.25,
     );
     expect(effectiveRates(emberHot).tierSpeed.machine).toBe(
-      effectiveRates({ ...shed, helpers: 25, machines: 1 }).tierSpeed.machine,
+      effectiveRates({
+        ...shed,
+        owned: { ...shed.owned, helper: 25, machine: 1 },
+      }).tierSpeed.machine,
     );
-    const pit = { ...shed, borers: 1 };
+    const pit = { ...shed, owned: { ...shed.owned, borer: 1 } };
     const open = nextTrouble(1, 0, pit);
     const propped = nextTrouble(1, 0, {
       ...pit,
@@ -799,29 +812,50 @@ describe("workshop rules", () => {
     const level = { crafted: { ...NOTHING_CRAFTED, reinforce: 2 } };
     expect(gearMultiplier({ ...openShed(), ...level }, "drill")).toBe(1);
     expect(
-      gearMultiplier({ ...openShed(), carts: 1, ...level }, "drill"),
-    ).toBeCloseTo(1.05 ** 2);
-    expect(gearMultiplier({ ...openShed(), carts: 1, ...level }, "cart")).toBe(
-      1,
-    );
-    expect(
-      gearMultiplier({ ...openShed(), drills: 1, ...level }, "borer"),
-    ).toBeCloseTo(1.05 ** 2);
-    expect(
-      gearMultiplier({ ...openShed(), borers: 1, ...level }, "machine"),
+      gearMultiplier(
+        { ...openShed(), ...level, owned: { ...openShed().owned, cart: 1 } },
+        "drill",
+      ),
     ).toBeCloseTo(1.05 ** 2);
     expect(
       gearMultiplier(
-        { ...openShed(), machines: 1, borers: 0, ...level },
+        { ...openShed(), ...level, owned: { ...openShed().owned, cart: 1 } },
+        "cart",
+      ),
+    ).toBe(1);
+    expect(
+      gearMultiplier(
+        { ...openShed(), ...level, owned: { ...openShed().owned, drill: 1 } },
+        "borer",
+      ),
+    ).toBeCloseTo(1.05 ** 2);
+    expect(
+      gearMultiplier(
+        { ...openShed(), ...level, owned: { ...openShed().owned, borer: 1 } },
         "machine",
       ),
     ).toBeCloseTo(1.05 ** 2);
-    expect(gearMultiplier({ ...openShed(), carts: 1 }, "drill")).toBe(1);
     expect(
       gearMultiplier(
         {
           ...openShed(),
-          machines: 1,
+          ...level,
+          owned: { ...openShed().owned, machine: 1, borer: 0 },
+        },
+        "machine",
+      ),
+    ).toBeCloseTo(1.05 ** 2);
+    expect(
+      gearMultiplier(
+        { ...openShed(), owned: { ...openShed().owned, cart: 1 } },
+        "drill",
+      ),
+    ).toBe(1);
+    expect(
+      gearMultiplier(
+        {
+          ...openShed(),
+          owned: { ...openShed().owned, machine: 1 },
           crafted: { ...NOTHING_CRAFTED, reinforce: 9 },
         },
         "machine",
@@ -883,8 +917,7 @@ describe("workshop rules", () => {
     const crew = openShed({
       pocket: 400_000_000,
       materials: rich,
-      helpers: 25,
-      machines: 1,
+      owned: { ...NONE_OWNED, helper: 25, machine: 1 },
     });
     let mountain = crew;
     let clock = 1_000_000;
@@ -925,24 +958,21 @@ describe("workshop rules", () => {
     expect(away.crewPerSecond).toBe(effectiveRates(capped).crewPerSecond);
     expect(reinforceTier(capped)).toBe("machine");
     expect(
-      reinforceTier({ ...capped, machines: 0, borers: 0, drills: 1 }),
+      reinforceTier({
+        ...capped,
+        owned: { ...capped.owned, machine: 0, borer: 0, drill: 1 },
+      }),
     ).toBe("borer");
     expect(
       reinforceTier({
         ...capped,
-        machines: 0,
-        borers: 0,
-        drills: 0,
-        carts: 1,
+        owned: { ...capped.owned, machine: 0, borer: 0, drill: 0, cart: 1 },
       }),
     ).toBe("drill");
     expect(
       reinforceTier({
         ...capped,
-        machines: 0,
-        borers: 0,
-        drills: 0,
-        carts: 0,
+        owned: { ...capped.owned, machine: 0, borer: 0, drill: 0, cart: 0 },
       }),
     ).toBeUndefined();
     expect(recipeWindowMs("iron-rails")).toBeUndefined();

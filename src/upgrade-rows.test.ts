@@ -1,3 +1,4 @@
+import { NONE_OWNED } from "./test-fixtures";
 import { describe, expect, it } from "vitest";
 import { boostById, boostCost, NO_BOOSTS } from "./boosts";
 import { formatCompact, formatCount } from "./format";
@@ -54,7 +55,7 @@ function upgradePrice(
 
 describe("boost rows", () => {
   it("a boost ready, dear and running", () => {
-    const base = mountainWith({ carts: 1 });
+    const base = mountainWith({ owned: { ...NONE_OWNED, cart: 1 } });
     const cost = boostPrice(base, "sharper");
 
     const ready = boostRowView(
@@ -149,19 +150,27 @@ describe("boost rows", () => {
       false,
     );
     expect(
-      boostRowView(mountainWith({ carts: 1 }), NOW, overtime, false).shown,
+      boostRowView(
+        mountainWith({ owned: { ...NONE_OWNED, cart: 1 } }),
+        NOW,
+        overtime,
+        false,
+      ).shown,
     ).toBe(false);
     expect(
-      boostRowView(mountainWith({ drills: 1 }), NOW, overtime, false).shown,
+      boostRowView(
+        mountainWith({ owned: { ...NONE_OWNED, drill: 1 } }),
+        NOW,
+        overtime,
+        false,
+      ).shown,
     ).toBe(true);
   });
 
   it("Overtime names the crew it would really have", () => {
     // Axle grease already runs the crew at ×2. Overtime would not make it ×4.
     const greased = mountainWith({
-      helpers: 4,
-      carts: 3,
-      drills: 1,
+      owned: { ...NONE_OWNED, helper: 4, cart: 3, drill: 1 },
       clocks: { ...COLD_CLOCKS, "axle-grease": NOW + 12 * 60_000 },
     });
     const would = effectiveRates(
@@ -209,7 +218,7 @@ describe("boost rows", () => {
 describe("lasting upgrade rows", () => {
   it("a lasting upgrade", () => {
     const climbing = mountainWith({
-      carts: 3,
+      owned: { ...NONE_OWNED, cart: 3 },
       upgrades: { ...NO_UPGRADES, tap: 2 },
     });
     const cost = upgradePrice(climbing, "tap", 2);
@@ -260,7 +269,7 @@ describe("lasting upgrade rows", () => {
 
     const bought = upgradeRowView(
       mountainWith({
-        helpers: 10,
+        owned: { ...NONE_OWNED, helper: 10 },
         upgrades: { ...NO_UPGRADES, boots: 1 },
         pocket: 1e15,
       }),
@@ -284,7 +293,10 @@ describe("lasting upgrade rows", () => {
 
   it("every level bought still reads Owned, with its badge", () => {
     const maxed = upgradeRowView(
-      mountainWith({ carts: 3, upgrades: { ...NO_UPGRADES, tap: 10 } }),
+      mountainWith({
+        upgrades: { ...NO_UPGRADES, tap: 10 },
+        owned: { ...NONE_OWNED, cart: 3 },
+      }),
       NOW,
       arms,
       false,
@@ -337,8 +349,7 @@ describe("the New row", () => {
     // Strong arms and boots bought; Steady hands (dear) comes before
     // Helping hands (cheaper). Sharper picks is used, so it has no dot.
     const open = mountainWith({
-      helpers: 10,
-      carts: 5,
+      owned: { ...NONE_OWNED, helper: 10, cart: 5 },
       upgrades: { ...NO_UPGRADES, tap: 1, boots: 1 },
       boosts: { ...NO_BOOSTS, sharper: 1 },
     });
@@ -352,7 +363,10 @@ describe("the New row", () => {
     expect(newRowId(createMountain(), NOW)).toBeUndefined();
 
     // A dotted boost he can afford leads over every upgrade.
-    const boostFirst = mountainWith({ carts: 3, pocket: 1e9 });
+    const boostFirst = mountainWith({
+      pocket: 1e9,
+      owned: { ...NONE_OWNED, cart: 3 },
+    });
     expect(newRowId(boostFirst, NOW)).toBe("boost:sharper");
 
     expect(boostRowView(open, NOW, sharper, true).flag).toEqual(["New"]);
@@ -367,7 +381,7 @@ describe("the New row", () => {
 
 describe("the Upgrades key's glow", () => {
   it("anything affordable", () => {
-    const base = mountainWith({ carts: 1 });
+    const base = mountainWith({ owned: { ...NONE_OWNED, cart: 1 } });
     const cost = boostPrice(base, "sharper");
     expect(anyUpgradeAffordable({ ...base, pocket: cost }, NOW)).toBe(true);
     expect(anyUpgradeAffordable({ ...base, pocket: 0 }, NOW)).toBe(false);
@@ -388,7 +402,7 @@ describe("the Upgrades key's glow", () => {
     ).toBe(false);
     // An affordable shown upgrade counts.
     const arms3 = mountainWith({
-      carts: 3,
+      owned: { ...NONE_OWNED, cart: 3 },
       boosts: { ...NO_BOOSTS, sharper: NOW + 60_000 },
     });
     expect(
@@ -413,9 +427,7 @@ function deepFreeze<T>(value: T): T {
 describe("display only", () => {
   it("display only", () => {
     const fields: Partial<Mountain> = {
-      helpers: 10,
-      carts: 5,
-      drills: 1,
+      owned: { ...NONE_OWNED, helper: 10, cart: 5, drill: 1 },
       pocket: 5_000_000,
       upgrades: { ...NO_UPGRADES, tap: 2, boots: 1 },
       boosts: { ...NO_BOOSTS, overtime: NOW + 60_000 },

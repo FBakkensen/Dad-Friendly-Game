@@ -2,6 +2,7 @@ import { MOUNTAIN_STONES, createMountain, type Mountain } from "./mountain";
 import { readSave, serializeSave, type ParsedSave } from "./persist";
 import { readSessionSave } from "./session-save";
 import { readGame } from "./save-format";
+import { tierRecord, type TierId } from "./tiers";
 
 /** A mountain after `count` hand taps. */
 export function minedMountain(count: number): Mountain {
@@ -43,4 +44,17 @@ export function saveText(
 export function guestSave(storage: Storage): ParsedSave | undefined {
   const read = readSessionSave({ storage });
   return read.kind === "ok" ? read.save : undefined;
+}
+
+/** Nothing owned: the base for a test's `owned` record (#559). */
+export const NONE_OWNED: Readonly<Record<TierId, number>> = tierRecord(0);
+
+/** A change to a mountain, where `owned` names only the counts it changes. */
+export type MountainPatch = Partial<Omit<Mountain, "owned">> & {
+  readonly owned?: Partial<Mountain["owned"]>;
+};
+
+/** `base` with `patch` on top; the counts `patch` leaves out stay as they were. */
+export function patched(base: Mountain, patch: MountainPatch): Mountain {
+  return { ...base, ...patch, owned: { ...base.owned, ...patch.owned } };
 }

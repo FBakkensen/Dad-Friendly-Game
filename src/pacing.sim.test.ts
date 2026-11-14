@@ -163,7 +163,7 @@ describe.each([
       expect(machine).toMatchObject({ count: 1, price: 120_600_000 });
       expect(machine?.day).toBeCloseTo(machineDay, 2);
       expect(machine?.day).toBeLessThan(bottom);
-      expect(run.mountain.machines).toBe(machines);
+      expect(run.mountain.owned.machine).toBe(machines);
       expect(effectiveRates(run.mountain).running.machine).toBe(machines);
       expect(run.mountain.engineers[0]).toEqual({
         name: ENGINEER_NAMES[0],
@@ -239,7 +239,7 @@ describe("pacing: the borer's worker bill and the Great Machine (#140)", () => {
     expect(machine?.day).toBeCloseTo(3, 2);
     expect(machine?.day).toBeLessThan(bottom ?? 0);
     // The #357 curve buys six by the bottom.
-    expect(run.mountain.machines).toBe(6);
+    expect(run.mountain.owned.machine).toBe(6);
     expect(effectiveRates(run.mountain).running.machine).toBe(6);
   });
 });

@@ -1,3 +1,4 @@
+import { NONE_OWNED } from "./test-fixtures";
 import { describe, expect, it, vi } from "vitest";
 import { crewCounts } from "./crew-count";
 import { staffForBuy } from "./engineers";
@@ -52,7 +53,10 @@ function views(
 }
 
 /** The early save: 18 workers, 6 carts, 12 free. */
-const early = mountainWith({ helpers: 18, carts: 6, pocket: 6_854 });
+const early = mountainWith({
+  pocket: 6_854,
+  owned: { ...NONE_OWNED, helper: 18, cart: 6 },
+});
 
 describe("bayTiers", () => {
   it("cart, drill and borer until the Great Machine is on sale", () => {
@@ -73,12 +77,22 @@ describe("bayTiers", () => {
 
     // A cloud copy that already runs one keeps its bay, before the Deep Heart
     // and even before the Hammer.
-    expect(bayTiers(mountainWith({ ...at(30_000_000), machines: 1 }))).toEqual(
-      late3,
-    );
-    expect(bayTiers(mountainWith({ ...at(20_000_000), machines: 1 }))).toEqual(
-      late3,
-    );
+    expect(
+      bayTiers(
+        mountainWith({
+          ...at(30_000_000),
+          owned: { ...NONE_OWNED, machine: 1 },
+        }),
+      ),
+    ).toEqual(late3);
+    expect(
+      bayTiers(
+        mountainWith({
+          ...at(20_000_000),
+          owned: { ...NONE_OWNED, machine: 1 },
+        }),
+      ),
+    ).toEqual(late3);
 
     // A kid's run opens the machine at 0.9 of its depth: 108M.
     expect(bayTiers(mountainWith({ ...at(109_000_000), stretch: 2 }))).toEqual(
@@ -137,8 +151,7 @@ describe("bayViews", () => {
 
   it("short of hands is dark", () => {
     const mountain = mountainWith({
-      helpers: 6,
-      carts: 6,
+      owned: { ...NONE_OWNED, helper: 6, cart: 6 },
       pocket: priceOf(early, "cart", 6) + 1,
     });
     expect(crewCounts(mountain, NOW).free).toBe(0);
@@ -151,11 +164,14 @@ describe("bayViews", () => {
   it("the Great Machine era shows drill, borer and machine", () => {
     const mountain = mountainWith({
       ...at(125_000_000),
-      helpers: 40,
-      carts: 6,
-      drills: 4,
-      borers: 2,
-      machines: 1,
+      owned: {
+        ...NONE_OWNED,
+        helper: 40,
+        cart: 6,
+        drill: 4,
+        borer: 2,
+        machine: 1,
+      },
       pocket: 1_000,
     });
     const shown = views(mountain);

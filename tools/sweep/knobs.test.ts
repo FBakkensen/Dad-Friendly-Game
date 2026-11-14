@@ -27,12 +27,15 @@ const posted = {
   ...BARE_MOUNTAIN,
   remaining: 1_000,
   pocket: 0,
-  helpers: 0,
-  carts: 0,
-  drills: 0,
-  borers: 1,
-  machines: 0,
-  kids: 0,
+  owned: {
+    ...BARE_MOUNTAIN.owned,
+    helper: 0,
+    cart: 0,
+    drill: 0,
+    borer: 1,
+    machine: 0,
+    kid: 0,
+  },
   engineers: [
     {
       name: "Ada" as const,
@@ -78,11 +81,14 @@ function reading(factorId: string): number {
     ) as RecipeId;
     const geared = {
       ...createMountain(),
-      helpers: 1,
-      carts: 1,
-      drills: 1,
-      borers: 1,
-      machines: 1,
+      owned: {
+        ...createMountain().owned,
+        helper: 1,
+        cart: 1,
+        drill: 1,
+        borer: 1,
+        machine: 1,
+      },
       crafted: { ...NOTHING_CRAFTED, [id]: 1 },
       clocks: {
         ...COLD_CLOCKS,

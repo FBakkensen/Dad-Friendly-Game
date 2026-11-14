@@ -54,8 +54,7 @@ describe("an Upgrades buy on screen", () => {
     // pocket covers either price, so only the shown price can stop the dearer buy.
     const mountain: Mountain = {
       ...minedMountain(9_999_999),
-      helpers: 20,
-      carts: 3,
+      owned: { ...minedMountain(9_999_999).owned, helper: 20, cart: 3 },
       pocket: 9_000_000,
     };
     let at = CLOCK;
@@ -111,8 +110,7 @@ describe("an Upgrades buy on screen", () => {
     // but with two carts the game turns the buy down.
     const mountain: Mountain = {
       ...minedMountain(30_000),
-      helpers: 20,
-      carts: 2,
+      owned: { ...minedMountain(30_000).owned, helper: 20, cart: 2 },
       pocket: 10_000_000,
       seen: ["upgrade:tap"],
     };

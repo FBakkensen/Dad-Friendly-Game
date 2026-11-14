@@ -223,7 +223,7 @@ function play(world: World, step: Step): Played {
 function wholeCounts(mountain: Mountain): readonly [string, number][] {
   return [
     ...TIERS.map(
-      (tier) => [tier.field, mountain[tier.field]] as [string, number],
+      (tier) => [tier.id, mountain.owned[tier.id]] as [string, number],
     ),
     ["legacy", mountain.legacy],
     ["pocket", mountain.pocket],
@@ -536,13 +536,16 @@ describe("time away pays the same however it is sliced (#555)", () => {
    * A crew with drills or borers, placed so one hour away ends exactly on the
    * Granite's first stone. Granite slows drills and suits borers.
    */
-  function atGranite(field: "drills" | "borers"): Mountain {
+  function atGranite(field: "drill" | "borer"): Mountain {
     const crew = {
       ...createMountain(),
-      helpers: 30,
-      carts: 10,
-      hoists: 10,
-      [field]: 20,
+      owned: {
+        ...createMountain().owned,
+        helper: 30,
+        cart: 10,
+        hoist: 10,
+        [field]: 20,
+      },
     };
     const hour = accrueAway({
       mountain: crew,
@@ -557,7 +560,7 @@ describe("time away pays the same however it is sliced (#555)", () => {
   }
 
   it("band-crossing: an absence into the Granite pays the Granite's speed from its first stone (#592)", () => {
-    for (const field of ["drills", "borers"] as const) {
+    for (const field of ["drill", "borer"] as const) {
       const crew = atGranite(field);
       expect(minedOut(awayThrough(crew, START, [START + HOUR]))).toBe(
         GRANITE.from,
@@ -572,7 +575,10 @@ describe("time away pays the same however it is sliced (#555)", () => {
 
 describe("known gaps, pinned (#555)", () => {
   it("part-stone: three 1 s stretches away pay less than one 3 s stretch", () => {
-    const crew = { ...createMountain(), helpers: 23 };
+    const crew = {
+      ...createMountain(),
+      owned: { ...createMountain().owned, helper: 23 },
+    };
     const once = minedAway(crew, [START + 3 * SECOND]);
     const thrice = minedAway(crew, [
       START + SECOND,

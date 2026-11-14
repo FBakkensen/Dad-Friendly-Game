@@ -1,3 +1,4 @@
+import { NONE_OWNED } from "./test-fixtures";
 import { describe, expect, it } from "vitest";
 import {
   BUY_SECTIONS,
@@ -102,7 +103,10 @@ function words(view: BuyRowView): readonly string[] {
 }
 
 /** The early save: 18 workers, 6 carts, 12 free. */
-const early = mountainWith({ helpers: 18, carts: 6, pocket: 6_854 });
+const early = mountainWith({
+  pocket: 6_854,
+  owned: { ...NONE_OWNED, helper: 18, cart: 6 },
+});
 
 describe("buyRowView", () => {
   it("the four card states", () => {
@@ -186,9 +190,7 @@ describe("buyRowView", () => {
     // 5 workers on a cart and a drill: 3 free, and a borer takes 8.
     const base = mountainWith({
       ...at(10_000_000),
-      helpers: 5,
-      carts: 1,
-      drills: 1,
+      owned: { ...NONE_OWNED, helper: 5, cart: 1, drill: 1 },
     });
     const mountain = { ...base, pocket: priceOf(base, "borer", 0) + 1 };
     expect(crewCounts(mountain, NOW).free).toBe(3);
@@ -246,7 +248,10 @@ describe("buyRowView", () => {
   });
 
   it("the next mark's payoff, then the short payoff, then the progress alone (#506)", () => {
-    const carts = mountainWith({ helpers: 12, carts: 12, pocket: 1e9 });
+    const carts = mountainWith({
+      pocket: 1e9,
+      owned: { ...NONE_OWNED, helper: 12, cart: 12 },
+    });
     // Past a mark the row no longer leads with the reached line: "again" says it.
     expect(row(carts, "cart").info).toEqual([
       "12 of 25 · Twice as fast again.",
@@ -260,11 +265,18 @@ describe("buyRowView", () => {
     ]);
     // Past the last mark, the reached line alone.
     expect(
-      row(mountainWith({ helpers: 120, pocket: 1e9 }), "helper").info,
+      row(
+        mountainWith({ pocket: 1e9, owned: { ...NONE_OWNED, helper: 120 } }),
+        "helper",
+      ).info,
     ).toEqual([REACHED_LINE]);
 
     // Kids have no marks: the count and the tier's quiet line.
-    const kids = mountainWith({ ...at(70_000_000), kids: 3, pocket: 1e12 });
+    const kids = mountainWith({
+      ...at(70_000_000),
+      pocket: 1e12,
+      owned: { ...NONE_OWNED, kid: 3 },
+    });
     expect(row(kids, "kid").info).toEqual([
       `3 owned · ${TIER_WHY.kid}`,
       "3 owned",
@@ -298,7 +310,10 @@ describe("buyRowView", () => {
 
   it("a worker who starts an idle cart shows the cart too (#490)", () => {
     // 3 workers on 6 carts: the next one starts a cart.
-    const mountain = mountainWith({ helpers: 3, carts: 6, pocket: 1_000 });
+    const mountain = mountainWith({
+      pocket: 1_000,
+      owned: { ...NONE_OWNED, helper: 3, cart: 6 },
+    });
     const rates = effectiveRates(mountain, NOW);
     const both = rates.tierSpeed.helper + rates.tierSpeed.cart;
     expect(handsGain(mountain, "helper", 1, NOW)).toBe(both);
@@ -315,7 +330,7 @@ describe("buyRowView", () => {
 
   it("the guided New row hires", () => {
     // 2 workers run 2 carts; 4 stand idle.
-    const idle = mountainWith({ helpers: 2, carts: 6 });
+    const idle = mountainWith({ owned: { ...NONE_OWNED, helper: 2, cart: 6 } });
     const workerPrice = priceOf(idle, "helper", 2);
     const mountain = { ...idle, pocket: workerPrice };
     expect(6 - effectiveRates(mountain, NOW).running.cart).toBe(4);
@@ -361,10 +376,7 @@ describe("buyRowView", () => {
   it("the tending mark", () => {
     const crew = mountainWith({
       ...at(10_000_000),
-      helpers: 20,
-      carts: 2,
-      drills: 1,
-      borers: 1,
+      owned: { ...NONE_OWNED, helper: 20, cart: 2, drill: 1, borer: 1 },
       engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
     });
     const mountain = { ...crew, pocket: priceOf(crew, "borer", 1) };
@@ -397,14 +409,21 @@ describe("buyRowView", () => {
       [early, "cart", "cart"],
       [early, "drill", "drill"],
       [mountainWith(at(10_000_000)), "borer", "tarp"],
-      [mountainWith({ borers: 2 }), "borer", "borer"],
+      [mountainWith({ owned: { ...NONE_OWNED, borer: 2 } }), "borer", "borer"],
       // Past the Hammer, before the Deep Heart: the Great Machine waits.
       [
-        mountainWith({ ...at(30_000_000), borers: 1 }),
+        mountainWith({ ...at(30_000_000), owned: { ...NONE_OWNED, borer: 1 } }),
         "machine",
         "machine-dim",
       ],
-      [mountainWith({ ...at(30_000_000), machines: 1 }), "machine", "machine"],
+      [
+        mountainWith({
+          ...at(30_000_000),
+          owned: { ...NONE_OWNED, machine: 1 },
+        }),
+        "machine",
+        "machine",
+      ],
     ];
     for (const [mountain, tier, icon] of icons) {
       expect(row(mountain, tier).icon, tier).toBe(icon);
@@ -422,9 +441,7 @@ describe("buyRowView", () => {
 
     // Idle machines and the workers they need.
     const idle = mountainWith({
-      helpers: 3,
-      carts: 3,
-      drills: 2,
+      owned: { ...NONE_OWNED, helper: 3, cart: 3, drill: 2 },
       pocket: 1_000,
     });
     expect(row(idle, "cart").aria).toContain(
@@ -434,8 +451,7 @@ describe("buyRowView", () => {
 
     // Crew synergy names its percent.
     const synergy = mountainWith({
-      helpers: 12,
-      carts: 6,
+      owned: { ...NONE_OWNED, helper: 12, cart: 6 },
       pocket: 6_854,
       upgrades: { ...NO_UPGRADES, cartSyn: 1 },
     });
@@ -448,8 +464,7 @@ describe("buyRowView", () => {
     // A locked machine names why, its pace and who tends it.
     const tended = mountainWith({
       ...at(30_000_000),
-      borers: 1,
-      helpers: 20,
+      owned: { ...NONE_OWNED, borer: 1, helper: 20 },
       engineers: [{ name: "Ada", rank: 0, trips: 0, post: "machine" }],
     });
     const machine = tierById("machine");
@@ -467,10 +482,7 @@ describe("buyRowView", () => {
   it("display only", () => {
     const mountain = mountainWith({
       ...at(30_000_000),
-      helpers: 20,
-      carts: 2,
-      drills: 1,
-      borers: 1,
+      owned: { ...NONE_OWNED, helper: 20, cart: 2, drill: 1, borer: 1 },
       pocket: 5_000_000,
       engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
       upgrades: { ...NO_UPGRADES, cartSyn: 1 },
@@ -563,9 +575,15 @@ describe("buyRowView: ×10 and Max (#358)", () => {
 
   it("short of hands for ten says ten's bill, and the verb still counts ten", () => {
     // 18 workers on 15 carts leave 3 free, and ten drills take 10.
-    const base = mountainWith({ helpers: 18, carts: 6 });
+    const base = mountainWith({
+      owned: { ...NONE_OWNED, helper: 18, cart: 6 },
+    });
     const ten = quote(base, "drill", "ten");
-    const mountain = { ...base, carts: 15, pocket: ten.cost };
+    const mountain = {
+      ...base,
+      pocket: ten.cost,
+      owned: { ...base.owned, cart: 15 },
+    };
     expect(crewCounts(mountain, NOW).free).toBe(3);
     expect(row(mountain, "drill", { amount: "ten" })).toMatchObject({
       state: "short",
@@ -589,7 +607,9 @@ describe("buyRowView: ×10 and Max (#358)", () => {
 
   it("a ready pick the free hands cannot run ten of is not offered on its row", () => {
     // 18 workers on 15 carts leave 3 free: the drill is the pick for one, not for ten.
-    const base = mountainWith({ helpers: 18, carts: 15 });
+    const base = mountainWith({
+      owned: { ...NONE_OWNED, helper: 18, cart: 15 },
+    });
     const mountain = { ...base, pocket: quote(base, "drill", "ten").cost };
     expect(readyNow(mountain, NOW)).toMatchObject({
       kind: "ready",
@@ -602,7 +622,7 @@ describe("buyRowView: ×10 and Max (#358)", () => {
   });
 
   it("the guided New row still hires one, whatever the amount", () => {
-    const idle = mountainWith({ helpers: 2, carts: 6 });
+    const idle = mountainWith({ owned: { ...NONE_OWNED, helper: 2, cart: 6 } });
     const mountain = { ...idle, pocket: 1e9 };
     const one = row(mountain, "cart", { guided: "cart" });
     expect(row(mountain, "cart", { guided: "cart", amount: "max" })).toEqual(

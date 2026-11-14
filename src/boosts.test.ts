@@ -9,11 +9,15 @@ import {
 } from "./boosts";
 import { accrue, accrueAway, mineByHand, stonesPerSecond } from "./mountain";
 import { effectiveRates } from "./rates";
-import { minedMountain } from "./test-fixtures";
+import { minedMountain, NONE_OWNED } from "./test-fixtures";
 import { NO_UPGRADES } from "./upgrades";
 
 const MIN = 60_000;
-const crew = { ...minedMountain(0), helpers: 500, pocket: 1_000_000 }; // 500 workers, x8 at the 100 mark: 4,000/s
+const crew = {
+  ...minedMountain(0),
+  pocket: 1_000_000,
+  owned: { ...minedMountain(0).owned, helper: 500 },
+}; // 500 workers, x8 at the 100 mark: 4,000/s
 
 describe("quick boosts", () => {
   it("are priced from what they boost, with a floor for new dads", () => {
@@ -39,25 +43,26 @@ describe("quick boosts", () => {
   const SESSION_S = 10 * 60;
   const TAPS_PER_S = 1;
   it.each([
-    ["a first helper", { helpers: 1 }],
-    ["a small crew", { helpers: 40, carts: 10 }],
+    ["a first helper", { owned: { ...NONE_OWNED, helper: 1 } }],
+    ["a small crew", { owned: { ...NONE_OWNED, helper: 40, cart: 10 } }],
     [
       "mid game",
       {
-        helpers: 120,
-        carts: 40,
-        drills: 15,
+        owned: { ...NONE_OWNED, helper: 120, cart: 40, drill: 15 },
         upgrades: { ...NO_UPGRADES, tap: 3 },
       },
     ],
     [
       "late game",
       {
-        helpers: 400,
-        carts: 60,
-        drills: 30,
-        borers: 10,
-        machines: 4,
+        owned: {
+          ...NONE_OWNED,
+          helper: 400,
+          cart: 60,
+          drill: 30,
+          borer: 10,
+          machine: 4,
+        },
         upgrades: { ...NO_UPGRADES, tap: 10 },
       },
     ],

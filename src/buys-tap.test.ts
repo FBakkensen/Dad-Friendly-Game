@@ -3,20 +3,21 @@ import { buysTap } from "./buys-tap";
 import type { Trouble } from "./hazards";
 import type { Mountain } from "./mountain";
 import { readyNow } from "./ready-now";
-import { minedMountain } from "./test-fixtures";
+import { minedMountain, patched, type MountainPatch } from "./test-fixtures";
 import { tierById, tierQuote, type BuyAmount, type ShownTierId } from "./tiers";
 
 const NOW = 1_700_000_000_000;
 
 /** A crewed Topsoil, 18 workers and 6 carts, with a cart's price and more in the pocket. */
-function crewed(over: Partial<Mountain> = {}): Mountain {
-  return {
-    ...minedMountain(500_000),
-    helpers: 18,
-    carts: 6,
-    pocket: 1_000_000,
-    ...over,
-  };
+function crewed(over: MountainPatch = {}): Mountain {
+  return patched(
+    {
+      ...minedMountain(500_000),
+      owned: { ...minedMountain(500_000).owned, helper: 18, cart: 6 },
+      pocket: 1_000_000,
+    },
+    over,
+  );
 }
 
 function tap(
@@ -64,7 +65,7 @@ describe("buysTap", () => {
   });
 
   it("the staffing New row hires one worker in any amount (#358)", () => {
-    const idle = crewed({ helpers: 2 });
+    const idle = crewed({ owned: { helper: 2 } });
     expect(tap(idle, "cart", { guided: "cart", amount: "max" })).toEqual({
       kind: "hire",
     });
@@ -76,12 +77,16 @@ describe("buysTap", () => {
 
   it("a row held in place but no longer shown blinks", () => {
     // No carts: the drill is not shown, though the open drawer may still hold its row.
-    expect(tap(crewed({ carts: 0 }), "drill")).toEqual({ kind: "blink" });
+    expect(tap(crewed({ owned: { cart: 0 } }), "drill")).toEqual({
+      kind: "blink",
+    });
   });
 
   it("the staffing New row hires a worker", () => {
     // 2 workers run 2 carts; 4 stand idle, so another cart would stand idle too.
-    expect(tap(crewed({ helpers: 2 }), "cart", { guided: "cart" })).toEqual({
+    expect(
+      tap(crewed({ owned: { helper: 2 } }), "cart", { guided: "cart" }),
+    ).toEqual({
       kind: "hire",
     });
   });

@@ -1,11 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { withFactors } from "./economy/factors";
 import {
-  LINE_OFF,
   MACHINE_STAGE,
   STAGES,
   handsSpeed,
-  lineOn,
   lineOf,
   lineSpeed,
   lineView,
@@ -14,6 +12,7 @@ import {
   stageSpeeds,
   type StageSpeeds,
 } from "./line";
+import { LINE_OFF, lineOn } from "./line-switch";
 import { MACHINE_IDS, type TierId } from "./tiers";
 
 const stages = (face: number, haul: number, lift: number): StageSpeeds => ({

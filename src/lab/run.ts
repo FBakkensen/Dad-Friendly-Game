@@ -11,7 +11,7 @@ import {
 } from "../engineers";
 import { send, settle, TUNNELS, type TunnelId } from "../expeditions";
 import { mineByHand, type Mountain } from "../mountain";
-import { lineOn } from "../line";
+import { lineOn } from "../line-switch";
 import { effectiveRates } from "../rates";
 import { moreStones } from "../staffing";
 import { tierById } from "../tiers";
@@ -139,7 +139,7 @@ export function promoteAsap(
   const limit = 1 + params.promoteCap;
   while (next.engineers.length < limit) {
     const count = next.engineers.length;
-    if (count < 1 || next.borers < 1) {
+    if (count < 1 || next.owned.borer < 1) {
       break;
     }
     const price = promoteCost(next);

@@ -14,10 +14,13 @@ import { recipesForMined } from "./workshop";
 /** A Granite crew: 12M mined, enough machines to bring up iron in an hour. */
 const granite = (): Mountain => ({
   ...minedMountain(12_000_000),
-  helpers: 60,
-  carts: 10,
-  drills: 6,
-  borers: 2,
+  owned: {
+    ...minedMountain(12_000_000).owned,
+    helper: 60,
+    cart: 10,
+    drill: 6,
+    borer: 2,
+  },
 });
 
 describe("welcome-back ore (#247)", () => {

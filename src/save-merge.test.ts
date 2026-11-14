@@ -82,8 +82,7 @@ describe("mergeSaves", () => {
         crafted: { ...NOTHING_CRAFTED, "iron-rails": 1 },
         engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
         finds: ["pick"],
-        carts: 2,
-        helpers: 4,
+        owned: { ...minedMountain(30).owned, cart: 2, helper: 4 },
       },
       3,
       8,
@@ -143,7 +142,10 @@ describe("mergeSaves", () => {
   it("treats more machines with equal stones as a conflict", () => {
     const local = copy(minedMountain(100), 2, 4);
     const remote = copy(
-      { ...minedMountain(100), carts: 6, drills: 4, borers: 1 },
+      {
+        ...minedMountain(100),
+        owned: { ...minedMountain(100).owned, cart: 6, drill: 4, borer: 1 },
+      },
       3,
       4,
     );
@@ -152,8 +154,8 @@ describe("mergeSaves", () => {
     if (merged.kind !== "conflict") {
       return;
     }
-    expect(merged.local.mountain.carts).toBe(0);
-    expect(merged.remote.mountain.carts).toBe(6);
+    expect(merged.local.mountain.owned.cart).toBe(0);
+    expect(merged.remote.mountain.owned.cart).toBe(6);
     expect(minedOut(merged.local.mountain)).toBe(
       minedOut(merged.remote.mountain),
     );

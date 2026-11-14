@@ -90,7 +90,10 @@ describe("session step", () => {
   it("presses only the troubled tier, and the fifth press fixes it", () => {
     const trouble = { kind: "cave-in", tier: "cart", startedAt: 0 } as const;
     let session: Session = {
-      ...playing({ ...createMountain(), borers: 1, carts: 1 }),
+      ...playing({
+        ...createMountain(),
+        owned: { ...createMountain().owned, borer: 1, cart: 1 },
+      }),
       hazards: { phase: "trouble", seed: 1, taps: 0, trouble },
     };
     const wrong = step(session, { kind: "press", tier: "drill" }, 0);

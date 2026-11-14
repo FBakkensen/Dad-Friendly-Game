@@ -170,7 +170,7 @@ export function promoteWhyLine(
   if (!nameFree) {
     return PROMOTE_CREW_FULL;
   }
-  if (current.helpers < 1) {
+  if (current.owned.helper < 1) {
     return PROMOTE_NEEDS_WORKER;
   }
   return current.pocket < cost ? promoteNeeds(cost) : PROMOTE_WHY;

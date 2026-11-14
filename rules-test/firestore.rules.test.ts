@@ -93,14 +93,16 @@ function lateCrew(): Mountain {
     ...fresh,
     remaining: MOUNTAIN_STONES - 80_000,
     pocket: 80_000_000,
-    helpers: 40,
-    carts: 12,
-    drills: 8,
-    borers: 4,
-    machines: 2,
-    kids: 6,
-    hoists: 9,
-    trains: 3,
+    owned: {
+      helper: 40,
+      cart: 12,
+      drill: 8,
+      borer: 4,
+      machine: 2,
+      kid: 6,
+      hoist: 9,
+      train: 3,
+    },
     legacy: 3,
     startedAt: 1_700,
     engineers: [
@@ -352,14 +354,16 @@ function maximalMountain(): Mountain {
     ...createMountain(),
     remaining: 0,
     pocket: 80_000_000,
-    helpers: 40,
-    carts: 12,
-    drills: 8,
-    borers: 4,
-    machines: 2,
-    kids: 6,
-    hoists: 9,
-    trains: 3,
+    owned: {
+      helper: 40,
+      cart: 12,
+      drill: 8,
+      borer: 4,
+      machine: 2,
+      kid: 6,
+      hoist: 9,
+      train: 3,
+    },
     upgrades: Object.fromEntries(
       UPGRADES.map((upgrade) => [upgrade.id, upgrade.maxLevel]),
     ) as Upgrades,
@@ -540,6 +544,38 @@ describe("firestore.rules: fieldLogs/{uid}", () => {
     expect((await getDoc(doc(db, "fieldLogs", "dad"))).data()?.events).toEqual(
       [],
     );
+  });
+
+  it("holds crew and idle to maps by id, the line's machines included (#559)", async () => {
+    const shot = gameSnapshot();
+    const lined = {
+      ...fieldLog([event]),
+      snapshot: {
+        ...shot,
+        crew: { ...shot.crew, hoist: 3, train: 1 },
+        idle: { ...shot.idle, hoist: 1, train: 1 },
+      },
+    };
+    await setDoc(doc(db, "fieldLogs", "dad"), lined);
+    expect((await getDoc(doc(db, "fieldLogs", "dad"))).data()).toEqual(lined);
+
+    const crowded = Object.fromEntries(
+      Array.from({ length: 17 }, (_, at) => [`tier${String(at)}`, 1]),
+    );
+    for (const field of ["crew", "idle"] as const) {
+      await expect(
+        setDoc(doc(db, "fieldLogs", "dad"), {
+          ...fieldLog([event]),
+          snapshot: { ...shot, [field]: crowded },
+        }),
+      ).rejects.toThrow(/permission/i);
+      await expect(
+        setDoc(doc(db, "fieldLogs", "dad"), {
+          ...fieldLog([event]),
+          snapshot: { ...shot, [field]: [1, 2] },
+        }),
+      ).rejects.toThrow(/permission/i);
+    }
   });
 
   it("refuses another user, and still lets that user write their own", async () => {

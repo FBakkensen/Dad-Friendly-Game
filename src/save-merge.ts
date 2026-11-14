@@ -174,11 +174,11 @@ function facts(mountain: Mountain): Facts {
     recipes: [...mountain.recipes],
     finds: [...mountain.finds],
     engineers,
-    crew: mountain.helpers,
-    carts: mountain.carts,
-    drills: mountain.drills,
-    borers: mountain.borers,
-    machines: mountain.machines,
+    crew: mountain.owned.helper,
+    carts: mountain.owned.cart,
+    drills: mountain.owned.drill,
+    borers: mountain.owned.borer,
+    machines: mountain.owned.machine,
   };
 }
 

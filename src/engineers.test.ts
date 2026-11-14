@@ -48,8 +48,7 @@ const crew = (
 ): ReturnType<typeof createMountain> => ({
   ...createMountain(),
   pocket: 100_000_000,
-  helpers: 10,
-  borers: 1,
+  owned: { ...createMountain().owned, helper: 10, borer: 1 },
   engineers,
 });
 
@@ -108,10 +107,14 @@ describe("ranks", () => {
 
 describe("the first engineer", () => {
   it("joins free with the first borer, tending it, and does not take a worker", () => {
-    const before = { ...createMountain(), borers: 1, helpers: 8, pocket: 50 };
+    const before = {
+      ...createMountain(),
+      pocket: 50,
+      owned: { ...createMountain().owned, borer: 1, helper: 8 },
+    };
     const { mountain, joined } = grantFirstEngineer(before);
     expect(joined).toBe(true);
-    expect(mountain.helpers).toBe(8);
+    expect(mountain.owned.helper).toBe(8);
     expect(mountain.pocket).toBe(50);
     expect(mountain.engineers).toEqual([ada]);
     expect(grantFirstEngineer(mountain)).toEqual({ mountain, joined: false });
@@ -135,7 +138,7 @@ describe("promote", () => {
       trips: 0,
       post: "camp",
     });
-    expect(hired.helpers).toBe(9);
+    expect(hired.owned.helper).toBe(9);
     expect(hired.pocket).toBe(100_000_000 - PROMOTE_BASE_COST * 2);
     // The base price is pinned in src/tuning.test.ts; it doubles per engineer.
     expect(promoteCost(crew([]))).toBe(PROMOTE_BASE_COST);
@@ -145,12 +148,12 @@ describe("promote", () => {
     let mountain: ReturnType<typeof createMountain> = {
       ...createMountain(),
       pocket: PROMOTE_BASE_COST,
-      helpers: 1,
+      owned: { ...createMountain().owned, helper: 1 },
     };
     expect(promoteCost(mountain)).toBe(PROMOTE_BASE_COST);
     mountain = promote(mountain);
     expect(mountain.engineers[0]?.name).toBe("Ada");
-    expect(mountain.helpers).toBe(0);
+    expect(mountain.owned.helper).toBe(0);
     expect(mountain.pocket).toBe(0);
   });
 
@@ -169,7 +172,7 @@ describe("promote", () => {
     const noWorkers = {
       ...createMountain(),
       pocket: PROMOTE_BASE_COST,
-      helpers: 0,
+      owned: { ...createMountain().owned, helper: 0 },
     };
     expect(promote(noWorkers)).toBe(noWorkers);
   });
@@ -184,12 +187,20 @@ describe("promote", () => {
       })),
     );
     const broke = { ...crew([ada]), pocket: PROMOTE_BASE_COST * 2 - 1 };
-    const noWorkers = { ...crew([ada]), helpers: 0 };
+    const noWorkers = {
+      ...crew([ada]),
+      owned: { ...crew([ada]).owned, helper: 0 },
+    };
     for (const mountain of [crew([]), crew([ada]), full, broke, noWorkers]) {
       expect(canPromote(mountain)).toBe(promote(mountain) !== mountain);
     }
     expect(canPromote(crew([ada]))).toBe(true);
-    expect(canPromote({ ...createMountain(), helpers: 1 })).toBe(false);
+    expect(
+      canPromote({
+        ...createMountain(),
+        owned: { ...createMountain().owned, helper: 1 },
+      }),
+    ).toBe(false);
     expect(nextEngineerName([])).toBe("Ada");
     expect(nextEngineerName([ada])).toBe("Nils");
     expect(nextEngineerName([{ ...ada, name: "Nils" }])).toBe("Ada");
@@ -253,8 +264,11 @@ describe("Great Machine crew", () => {
   it("needs 5 workers while tended, and the full 10 otherwise", () => {
     const tended = {
       ...createMountain(),
-      helpers: TENDED_MACHINE_STAFF,
-      machines: 1,
+      owned: {
+        ...createMountain().owned,
+        helper: TENDED_MACHINE_STAFF,
+        machine: 1,
+      },
       engineers: [ada],
     };
     const posted = station(tended, 0, "machine");
@@ -271,11 +285,15 @@ describe("Great Machine crew", () => {
   it("posts the pacing dad on the Great Machine once he owns one, else the borers", () => {
     const fresh = createMountain();
     expect(tendBestTier(fresh)).toBe(fresh);
-    const onBorer = { ...fresh, borers: 1, engineers: [ada] };
+    const onBorer = {
+      ...fresh,
+      engineers: [ada],
+      owned: { ...fresh.owned, borer: 1 },
+    };
     expect(tendBestTier(onBorer)).toBe(onBorer);
     const atCamp = station(onBorer, 0, "camp");
     expect(tendBestTier(atCamp).engineers[0]?.post).toBe("borer");
-    const withMachine = { ...onBorer, machines: 1 };
+    const withMachine = { ...onBorer, owned: { ...onBorer.owned, machine: 1 } };
     expect(tendBestTier(withMachine).engineers[0]?.post).toBe("machine");
     const already = tendBestTier(withMachine);
     expect(tendBestTier(already)).toBe(already);
@@ -289,9 +307,7 @@ describe("Great Machine crew", () => {
 describe("tending", () => {
   const base = {
     ...minedMountain(0),
-    helpers: 8,
-    borers: 1,
-    drills: 1,
+    owned: { ...minedMountain(0).owned, helper: 8, borer: 1, drill: 1 },
     remaining: 100_000_000,
     pocket: 0,
   };
@@ -407,16 +423,19 @@ describe("Flemming's save (63 workers, 16 carts, 9 drills, 1 borer)", () => {
   it("keeps every machine running once Ada steps up, and needs no worker for her", () => {
     const save = {
       ...createMountain(),
-      helpers: 63,
-      carts: 16,
-      drills: 9,
-      borers: 1,
+      owned: {
+        ...createMountain().owned,
+        helper: 63,
+        cart: 16,
+        drill: 9,
+        borer: 1,
+      },
     };
     const before = effectiveRates(save);
     const { mountain, joined } = grantFirstEngineer(save);
     const after = effectiveRates(mountain);
     expect(joined).toBe(true);
-    expect(mountain.helpers).toBe(63);
+    expect(mountain.owned.helper).toBe(63);
     expect(after.running).toMatchObject({ cart: 16, drill: 9, borer: 1 });
     expect(after.crewPerSecond).toBeGreaterThan(before.crewPerSecond);
     expect(grantFirstEngineer(mountain).joined).toBe(false);

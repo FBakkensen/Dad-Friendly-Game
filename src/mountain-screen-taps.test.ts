@@ -76,6 +76,6 @@ describe("taps that do nothing", () => {
     screen.root.querySelector<HTMLButtonElement>(".board-ready")?.click();
     expect(dispatch).toHaveBeenCalledTimes(1);
     expect(dispatch.mock.calls[0]?.[0].kind).toBe("buyTier");
-    expect(screen.progress.getSnapshot().mountain.carts).toBe(0);
+    expect(screen.progress.getSnapshot().mountain.owned.cart).toBe(0);
   });
 });

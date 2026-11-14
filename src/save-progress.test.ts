@@ -25,7 +25,13 @@ describe("compareSaveProgress", () => {
 
   it("lets a newer lastSeen win when the run and the stones match", () => {
     const bought = moment(minedMountain(40), 20);
-    const idle = moment({ ...minedMountain(40), helpers: 3 }, 10);
+    const idle = moment(
+      {
+        ...minedMountain(40),
+        owned: { ...minedMountain(40).owned, helper: 3 },
+      },
+      10,
+    );
     expect(compareSaveProgress(bought, idle)).toBeGreaterThan(0);
   });
 

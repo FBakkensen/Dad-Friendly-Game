@@ -1,5 +1,5 @@
 import { factor } from "./economy/factors";
-import { lineOn } from "./line";
+import { lineOn } from "./line-switch";
 
 /** Stones in the whole mountain. Near-leaf (it reads only factors and line), so relics and rates can share it without an import cycle. */
 export const MOUNTAIN_STONES = 240_000_000;

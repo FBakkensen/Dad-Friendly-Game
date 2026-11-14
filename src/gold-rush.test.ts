@@ -20,7 +20,10 @@ const T = 1_000_000;
 const HOUR = 60 * 60 * 1000;
 
 /** A crew of 10 workers: 10 stones a second. */
-const crew = (): Mountain => ({ ...minedMountain(0), helpers: 10, kids: 0 });
+const crew = (): Mountain => ({
+  ...minedMountain(0),
+  owned: { ...minedMountain(0).owned, helper: 10, kid: 0 },
+});
 
 /** Plays `seconds` of live time one second at a time, as the screen's tick does. */
 function play(mountain: Mountain, from: number, seconds: number): Mountain {

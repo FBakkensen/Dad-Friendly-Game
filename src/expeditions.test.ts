@@ -39,8 +39,7 @@ const crew = (
   engineers: readonly Engineer[] = [ada],
 ): ReturnType<typeof createMountain> => ({
   ...createMountain(),
-  helpers: 8,
-  borers: 1,
+  owned: { ...createMountain().owned, helper: 8, borer: 1 },
   engineers,
 });
 
@@ -76,7 +75,7 @@ describe("send and recall", () => {
     expect(sent.engineers[0]).toMatchObject({ post: "borer", trips: 0 });
     expect(onTrip(sent, "Ada")).toBe(true);
     expect(sent.pocket).toBe(before.pocket);
-    expect(sent.helpers).toBe(before.helpers);
+    expect(sent.owned.helper).toBe(before.owned.helper);
     expect(sent.expeditions).toEqual([
       {
         engineer: "Ada",
@@ -219,8 +218,12 @@ describe("finds", () => {
 
     const two: ReturnType<typeof createMountain> = {
       ...crew([ada, { name: "Nils", rank: 0, trips: 0, post: "drill" }]),
-      drills: 1,
-      helpers: 11,
+      owned: {
+        ...crew([ada, { name: "Nils", rank: 0, trips: 0, post: "drill" }])
+          .owned,
+        drill: 1,
+        helper: 11,
+      },
       finds: LOST_TOOLS.filter((id) => id !== "pick"),
     };
     let pickSeed = -1;
@@ -286,7 +289,7 @@ describe("finds", () => {
           trips: 0,
           post: "camp",
         });
-        expect(back.mountain.helpers).toBe(mountain.helpers);
+        expect(back.mountain.owned.helper).toBe(mountain.owned.helper);
         break;
       }
     }
@@ -565,9 +568,7 @@ describe("clock skew", () => {
 describe("away pay", () => {
   const base = {
     ...createMountain(),
-    helpers: 11,
-    borers: 1,
-    drills: 1,
+    owned: { ...createMountain().owned, helper: 11, borer: 1, drill: 1 },
     engineers: [
       ada,
       {

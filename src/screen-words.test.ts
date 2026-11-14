@@ -803,13 +803,16 @@ describe("a machine's crew", () => {
 
 describe("upgrade card before and after (#324)", () => {
   const at = Date.now();
-  const crew = { ...minedMountain(1_000_000), helpers: 12, carts: 5 };
+  const crew = {
+    ...minedMountain(1_000_000),
+    owned: { ...minedMountain(1_000_000).owned, helper: 12, cart: 5 },
+  };
   const line = (id: UpgradeId, mountain: Mountain): string =>
     upgradeEffectLine(upgradeById(id), mountain, at);
 
   it("Strong arms says taps now, then with one more level", () => {
     expect(line("tap", crew)).toBe("Taps 1 to 1.");
-    const big = line("tap", { ...crew, helpers: 500 });
+    const big = line("tap", { ...crew, owned: { ...crew.owned, helper: 500 } });
     const match = /^Taps 1 to (\d+)\.$/.exec(big);
     expect(Number(match?.[1])).toBeGreaterThan(1);
   });
@@ -818,7 +821,7 @@ describe("upgrade card before and after (#324)", () => {
     expect(
       line("tap", {
         ...crew,
-        helpers: 500,
+        owned: { ...crew.owned, helper: 500 },
         upgrades: { ...NO_UPGRADES, tap: 10 },
       }),
     ).toMatch(/^Taps now \d+\.$/);
@@ -839,13 +842,16 @@ describe("upgrade card before and after (#324)", () => {
   });
 
   it("a synergy with none of its source tier says the rule", () => {
-    expect(line("cartSyn", { ...crew, helpers: 0 })).toBe(
-      "Each worker makes carts 1% faster.",
-    );
+    expect(
+      line("cartSyn", { ...crew, owned: { ...crew.owned, helper: 0 } }),
+    ).toBe("Each worker makes carts 1% faster.");
   });
 
   it("the Great Machine synergy names the Great Machine", () => {
-    const deep = { ...crew, helpers: 200, borers: 3, machines: 1 };
+    const deep = {
+      ...crew,
+      owned: { ...crew.owned, helper: 200, borer: 3, machine: 1 },
+    };
     expect(line("machineSyn", deep)).toMatch(
       /^Great Machine \S+\/s to \S+\/s\.$/,
     );
@@ -856,7 +862,7 @@ describe("upgrade card before and after (#324)", () => {
   });
 
   it("Strong arms with Legacy running says both taps with Legacy in them", () => {
-    const big = { ...crew, helpers: 500 };
+    const big = { ...crew, owned: { ...crew.owned, helper: 500 } };
     const bare = /^Taps (\d+) to (\d+)\.$/.exec(line("tap", big));
     const proud = /^Taps (\d+) to (\d+)\.$/.exec(
       line("tap", { ...big, legacy: 2 }),
@@ -868,7 +874,7 @@ describe("upgrade card before and after (#324)", () => {
   });
 
   it("Strong arms with Sharper picks running doubles both taps", () => {
-    const big = { ...crew, helpers: 500 };
+    const big = { ...crew, owned: { ...crew.owned, helper: 500 } };
     const bare = /^Taps (\d+) to (\d+)\.$/.exec(line("tap", big));
     const sharp = /^Taps (\d+) to (\d+)\.$/.exec(
       line("tap", { ...big, boosts: { ...NO_BOOSTS, sharper: at + 60_000 } }),
@@ -878,7 +884,10 @@ describe("upgrade card before and after (#324)", () => {
   });
 
   it("only Strong arms ever says taps", () => {
-    const deep = { ...crew, helpers: 200, borers: 3, machines: 1 };
+    const deep = {
+      ...crew,
+      owned: { ...crew.owned, helper: 200, borer: 3, machine: 1 },
+    };
     for (const upgrade of Object.values(UPGRADES)) {
       if (upgrade.id === "tap") {
         continue;
@@ -894,15 +903,24 @@ describe("upgrade card before and after (#324)", () => {
 
 describe("upgrade card why line (#342)", () => {
   const at = Date.now();
-  const crew = { ...minedMountain(1_000_000), helpers: 12, carts: 5 };
-  const empty = { ...minedMountain(0), helpers: 0, carts: 0 };
+  const crew = {
+    ...minedMountain(1_000_000),
+    owned: { ...minedMountain(1_000_000).owned, helper: 12, cart: 5 },
+  };
+  const empty = {
+    ...minedMountain(0),
+    owned: { ...minedMountain(0).owned, helper: 0, cart: 0 },
+  };
   const deep = {
     ...minedMountain(100_000_000),
-    helpers: 200,
-    carts: 20,
-    drills: 6,
-    borers: 3,
-    machines: 1,
+    owned: {
+      ...minedMountain(100_000_000).owned,
+      helper: 200,
+      cart: 20,
+      drill: 6,
+      borer: 3,
+      machine: 1,
+    },
   };
 
   it("never repeats the effect line, on any card, crewed or not", () => {
@@ -936,11 +954,15 @@ describe("upgrade card why line (#342)", () => {
       "It grows with your crew's speed.",
     );
     expect(
-      upgradeWhyLine(upgradeById("tap"), { ...crew, helpers: 500 }, at),
+      upgradeWhyLine(
+        upgradeById("tap"),
+        { ...crew, owned: { ...crew.owned, helper: 500 } },
+        at,
+      ),
     ).toBe("Each tap takes a little more.");
     const maxed = {
       ...crew,
-      helpers: 500,
+      owned: { ...crew.owned, helper: 500 },
       upgrades: { ...NO_UPGRADES, tap: 10 },
     };
     expect(upgradeEffectLine(upgradeById("tap"), maxed, at)).toMatch(

@@ -62,14 +62,17 @@ export function windowScene(
 ): WindowScene {
   return {
     band: layerOf(mountain).id,
-    run: mountain.helpers > 0 || mountain.kids > 0 || mountain.carts > 0,
-    drill: mountain.drills > 0,
-    borer: mountain.borers > 0,
-    machine: mountain.machines > 0,
-    kid: mountain.kids > 0,
-    carts: mountain.carts,
-    drills: mountain.drills,
-    borers: mountain.borers,
+    run:
+      mountain.owned.helper > 0 ||
+      mountain.owned.kid > 0 ||
+      mountain.owned.cart > 0,
+    drill: mountain.owned.drill > 0,
+    borer: mountain.owned.borer > 0,
+    machine: mountain.owned.machine > 0,
+    kid: mountain.owned.kid > 0,
+    carts: mountain.owned.cart,
+    drills: mountain.owned.drill,
+    borers: mountain.owned.borer,
     trouble: trouble?.tier,
     legacy: mountain.legacy > 0,
     rush: now !== undefined && rushLeft(mountain, now) > 0,

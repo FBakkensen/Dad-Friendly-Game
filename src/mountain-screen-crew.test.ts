@@ -25,7 +25,13 @@ import { createMemoryAuth } from "./auth";
 import { type CloudLoadResult, type CloudSave } from "./cloud-save";
 import { BUYS_SETTLE_MS, showAppUpdate } from "./mountain-screen";
 import { shownRows, upgradeRowId } from "./upgrade-reveal";
-import { guestSave, minedMountain, saveText } from "./test-fixtures";
+import {
+  guestSave,
+  minedMountain,
+  saveText,
+  patched,
+  type MountainPatch,
+} from "./test-fixtures";
 import { tierById, tierCost, tierQuote } from "./tiers";
 import {
   UPGRADES,
@@ -84,12 +90,15 @@ describe("what the crew gives", () => {
       saveText(
         {
           ...minedMountain(2_500),
-          helpers: 4,
-          carts: 3,
-          drills: 0,
-          borers: 0,
-          machines: 0,
-          kids: 0,
+          owned: {
+            ...minedMountain(2_500).owned,
+            helper: 4,
+            cart: 3,
+            drill: 0,
+            borer: 0,
+            machine: 0,
+            kid: 0,
+          },
         },
         Date.now(),
       ),
@@ -108,7 +117,10 @@ describe("what the crew gives", () => {
         const storage = createMemoryStorage();
         writeSessionSave({
           storage,
-          mountain: { ...minedMountain(0), helpers: 150, carts: 150 },
+          mountain: {
+            ...minedMountain(0),
+            owned: { ...minedMountain(0).owned, helper: 150, cart: 150 },
+          },
           lastSeen: Date.now(),
         });
         return storage;
@@ -183,8 +195,11 @@ describe("what the crew gives", () => {
     const storage = createMemoryStorage();
     const deep = {
       ...minedMountain(BAND_STARTS[2] + 1_000),
-      helpers: 400,
-      carts: 300,
+      owned: {
+        ...minedMountain(BAND_STARTS[2] + 1_000).owned,
+        helper: 400,
+        cart: 300,
+      },
       upgrades: { ...NO_UPGRADES, tap: 1 },
     };
     storage.setItem(SESSION_SAVE_KEY, saveText(deep, Date.now()));
@@ -234,20 +249,25 @@ describe("the Buys drawer (#373)", () => {
     return storage;
   };
   /** play's early save: a crewed Topsoil, 18 workers and 6 carts. */
-  const early = (over: Partial<Mountain> = {}): Mountain => ({
-    ...minedMountain(500_000),
-    pocket: 6_854,
-    helpers: 18,
-    carts: 6,
-    ...over,
-  });
+  const early = (over: MountainPatch = {}): Mountain =>
+    patched(
+      {
+        ...minedMountain(500_000),
+        pocket: 6_854,
+        owned: { ...minedMountain(500_000).owned, helper: 18, cart: 6 },
+      },
+      over,
+    );
   /** Granite with no borer yet: the borer opens but the crew is short of hands. */
   const shortMountain = (): Mountain => ({
     ...minedMountain(12_000_000),
     pocket: 50_000_000,
-    helpers: 12,
-    carts: 6,
-    drills: 4,
+    owned: {
+      ...minedMountain(12_000_000).owned,
+      helper: 12,
+      cart: 6,
+      drill: 4,
+    },
   });
   const drawerOf = (screen: ReturnType<typeof mountScreen>) => {
     const drawer = screen.root.querySelector<HTMLElement>(
@@ -418,7 +438,7 @@ describe("the Buys drawer (#373)", () => {
     });
     openBuys(screen);
     clock += BUYS_SETTLE_MS + 50;
-    const carts = () => screen.progress.getSnapshot().mountain.carts;
+    const carts = () => screen.progress.getSnapshot().mountain.owned.cart;
     const before = carts();
     fingerTap(rowOf(screen, "cart"));
     expect(carts()).toBe(before);
@@ -436,7 +456,7 @@ describe("the Buys drawer (#373)", () => {
       return key;
     };
     const carts = (screen: ReturnType<typeof mountScreen>) =>
-      screen.progress.getSnapshot().mountain.carts;
+      screen.progress.getSnapshot().mountain.owned.cart;
 
     it("one key in the Buys header cycles ×1, ×10 and Max, and each row buys that many", () => {
       let clock = 10_000;
@@ -482,7 +502,7 @@ describe("the Buys drawer (#373)", () => {
       expect(max.count).toBeGreaterThan(1);
       expect(partOf(worker, "verb")).toBe(`Hire ${String(max.count)}`);
       fingerTap(worker);
-      expect(screen.progress.getSnapshot().mountain.helpers).toBe(
+      expect(screen.progress.getSnapshot().mountain.owned.helper).toBe(
         18 + max.count,
       );
 
@@ -564,7 +584,7 @@ describe("the Buys drawer (#373)", () => {
       openBuys(screen);
       clock += BUYS_SETTLE_MS + 100;
       const cart = rowOf(screen, "cart");
-      const carts = () => screen.progress.getSnapshot().mountain.carts;
+      const carts = () => screen.progress.getSnapshot().mountain.owned.cart;
       cart.click();
       cart.click();
       expect(carts()).toBe(7);
@@ -599,7 +619,7 @@ describe("the Buys drawer (#373)", () => {
       openBuys(screen);
       clock += BUYS_SETTLE_MS + 100;
       const cart = rowOf(screen, "cart");
-      const carts = () => screen.progress.getSnapshot().mountain.carts;
+      const carts = () => screen.progress.getSnapshot().mountain.owned.cart;
       cart.click();
       expect(carts()).toBe(7);
       // A busy phone: the finger came down 1.8s into the hold, and the page got to the press
@@ -640,14 +660,14 @@ describe("the Buys drawer (#373)", () => {
       vi.advanceTimersByTime(140);
       expect(lampOf(drill)).toBe("0px");
       expect(screen.progress.getSnapshot().mountain.pocket).toBe(pocket);
-      expect(screen.progress.getSnapshot().mountain.drills).toBe(0);
+      expect(screen.progress.getSnapshot().mountain.owned.drill).toBe(0);
       // A locked row blinks too, and buys nothing.
       clock += 1_000;
       vi.advanceTimersByTime(1_000);
       const borer = rowOf(screen, "borer");
       borer.click();
       expect(lampOf(borer)).toBe("-120px");
-      expect(screen.progress.getSnapshot().mountain.borers).toBe(0);
+      expect(screen.progress.getSnapshot().mountain.owned.borer).toBe(0);
     } finally {
       vi.useRealTimers();
       setReducedMotion(true);
@@ -689,7 +709,9 @@ describe("the Buys drawer (#373)", () => {
       }
       expect(lamps.every((each) => each === rest)).toBe(true);
       expect(screen.progress.getSnapshot().mountain.pocket).toBe(before.pocket);
-      expect(screen.progress.getSnapshot().mountain.drills).toBe(before.drills);
+      expect(screen.progress.getSnapshot().mountain.owned.drill).toBe(
+        before.owned.drill,
+      );
     } finally {
       vi.useRealTimers();
     }
@@ -704,7 +726,7 @@ describe("the Buys drawer (#373)", () => {
     expect(borer.classList.contains("is-short")).toBe(true);
     borer.click();
     const after = screen.progress.getSnapshot().mountain;
-    expect(after.borers).toBe(1);
+    expect(after.owned.borer).toBe(1);
     expect(effectiveRates(after, CLOCK).helpersShort).toBeGreaterThan(0);
     expect(screen.text(".crew-status")).toMatch(
       /^[\d.,K]+\/s · \d+ idle, need \d+ workers?$/,
@@ -718,11 +740,14 @@ describe("the Buys drawer (#373)", () => {
       const era: Mountain = {
         ...minedMountain(130_000_000),
         pocket: 50_000_000,
-        helpers: 60,
-        carts: 4,
-        drills: 2,
-        borers: 1,
-        machines: 1,
+        owned: {
+          ...minedMountain(130_000_000).owned,
+          helper: 60,
+          cart: 4,
+          drill: 2,
+          borer: 1,
+          machine: 1,
+        },
       };
       const screen = mountScreen({
         storage: seededWith(era),
@@ -744,7 +769,7 @@ describe("the Buys drawer (#373)", () => {
       expect(screen.progress.getSnapshot().trouble?.kind).toBe("cave-in");
       cart.click();
       expect(screen.progress.getSnapshot().trouble).toBeUndefined();
-      expect(screen.progress.getSnapshot().mountain.carts).toBe(4);
+      expect(screen.progress.getSnapshot().mountain.owned.cart).toBe(4);
       expect(kick(screen)).toBe("Fixed! The crew cheers.");
       expect(
         drawerOf(screen)
@@ -769,7 +794,7 @@ describe("the Buys drawer (#373)", () => {
         new PointerEvent("pointerup", { bubbles: true, button: 0 }),
       );
       cart.click();
-      expect(screen.progress.getSnapshot().mountain.carts).toBe(4);
+      expect(screen.progress.getSnapshot().mountain.owned.cart).toBe(4);
     } finally {
       vi.useRealTimers();
     }
@@ -779,8 +804,7 @@ describe("the Buys drawer (#373)", () => {
     const screen = mountScreen({
       storage: seededWith({
         ...minedMountain(500_000),
-        helpers: 18,
-        carts: 6,
+        owned: { ...minedMountain(500_000).owned, helper: 18, cart: 6 },
         legacy: 1,
       }),
       now: () => CLOCK,
@@ -830,11 +854,14 @@ describe("the Buys drawer (#373)", () => {
       storage: seededWith({
         ...minedMountain(130_000_000),
         pocket: 1e12,
-        helpers: 200,
-        carts: 20,
-        drills: 10,
-        borers: 5,
-        machines: 1,
+        owned: {
+          ...minedMountain(130_000_000).owned,
+          helper: 200,
+          cart: 20,
+          drill: 10,
+          borer: 5,
+          machine: 1,
+        },
       }),
       now: () => CLOCK,
     });
@@ -846,16 +873,19 @@ describe("the Buys drawer (#373)", () => {
     );
     expect(kid.querySelector("img")?.getAttribute("src")).not.toMatch(/dim/);
     kid.click();
-    expect(withCrown.progress.getSnapshot().mountain.kids).toBe(1);
+    expect(withCrown.progress.getSnapshot().mountain.owned.kid).toBe(1);
     const noCrown = mountScreen({
       storage: seededWith({
         ...minedMountain(50_000_000),
         pocket: 1e12,
-        helpers: 200,
-        carts: 20,
-        drills: 10,
-        borers: 5,
-        machines: 1,
+        owned: {
+          ...minedMountain(50_000_000).owned,
+          helper: 200,
+          cart: 20,
+          drill: 10,
+          borer: 5,
+          machine: 1,
+        },
       }),
       now: () => CLOCK,
     });
@@ -927,7 +957,7 @@ describe("the Buys drawer (#373)", () => {
       expect(apply).not.toHaveBeenCalled();
       read.mockRestore();
       expect(lampOf(cart)).toBe("-120px");
-      expect(screen.progress.getSnapshot().mountain.carts).toBe(6);
+      expect(screen.progress.getSnapshot().mountain.owned.cart).toBe(6);
     } finally {
       setReducedMotion(true);
     }
@@ -1027,10 +1057,13 @@ describe("the Buys drawer (#373)", () => {
   const machineShort = (): Mountain => ({
     ...minedMountain(130_000_000),
     pocket: tierCost(tierById("machine"), 0) + 1_000,
-    helpers: 60,
-    carts: 10,
-    drills: 6,
-    borers: 2,
+    owned: {
+      ...minedMountain(130_000_000).owned,
+      helper: 60,
+      cart: 10,
+      drill: 6,
+      borer: 2,
+    },
     engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
   });
   const listParts = (screen: ReturnType<typeof mountScreen>) =>
@@ -1075,7 +1108,7 @@ describe("the Buys drawer (#373)", () => {
       // The machine's own chip would wrap the line: it waits for the next open.
       wide = 500;
       fingerTap(rowOf(screen, "machine"));
-      expect(screen.progress.getSnapshot().mountain.machines).toBe(1);
+      expect(screen.progress.getSnapshot().mountain.owned.machine).toBe(1);
       vi.advanceTimersByTime(3_000);
       expect(rowOf(screen, "kid").hidden).toBe(true);
       expect(listParts(screen)).toEqual(before);
@@ -1133,9 +1166,12 @@ describe("the Buys drawer (#373)", () => {
       storage: seededWith({
         ...minedMountain(10_000_000),
         pocket: 20_000_000,
-        helpers: 9,
-        carts: 1,
-        drills: 1,
+        owned: {
+          ...minedMountain(10_000_000).owned,
+          helper: 9,
+          cart: 1,
+          drill: 1,
+        },
       }),
       now: () => CLOCK,
       tapClock: () => clock,
@@ -1148,7 +1184,7 @@ describe("the Buys drawer (#373)", () => {
       );
     expect(chipWords()).toContain("1 on carts");
     fingerTap(rowOf(screen, "borer"));
-    expect(screen.progress.getSnapshot().mountain.borers).toBe(1);
+    expect(screen.progress.getSnapshot().mountain.owned.borer).toBe(1);
     expect(chipWords()).toContain("0 on carts");
     drawerOf(screen)
       .querySelector<HTMLButtonElement>(".board-sheet-back")
@@ -1184,7 +1220,7 @@ describe("the Buys drawer (#373)", () => {
     // A hire changes only words; they now run past the line.
     wide = 500;
     fingerTap(rowOf(screen, "helper"));
-    expect(screen.progress.getSnapshot().mountain.helpers).toBe(19);
+    expect(screen.progress.getSnapshot().mountain.owned.helper).toBe(19);
     expect(posts.textContent).toContain("19 workers");
     expect(posts.querySelectorAll(".crew-row").length).toBe(chipRows);
     expect(listParts(screen)).toEqual(before);
@@ -1208,7 +1244,7 @@ describe("the Buys drawer (#373)", () => {
       });
       const cart = rowOf(screen, "cart");
       cart.click();
-      expect(screen.progress.getSnapshot().mountain.carts).toBe(7);
+      expect(screen.progress.getSnapshot().mountain.owned.cart).toBe(7);
       vi.advanceTimersByTime(1_500);
       screen.progress.layoutPreview.trouble("cart");
       for (let tap = 0; tap < 5; tap += 1) cart.click();
@@ -1216,7 +1252,7 @@ describe("the Buys drawer (#373)", () => {
       // The first hold would have ended here; the fix's hold has not.
       vi.advanceTimersByTime(1_000);
       cart.click();
-      expect(screen.progress.getSnapshot().mountain.carts).toBe(7);
+      expect(screen.progress.getSnapshot().mountain.owned.cart).toBe(7);
     } finally {
       vi.useRealTimers();
     }
@@ -1232,10 +1268,13 @@ describe("the Buys drawer (#373)", () => {
     expect(drill.hidden).toBe(false);
     // Another copy of the save lands: no carts, so the drill is not shown, but the open drawer
     // keeps its row in place.
-    screen.progress.applyMutation((m) => ({ ...m, carts: 0 }));
+    screen.progress.applyMutation((m) => ({
+      ...m,
+      owned: { ...m.owned, cart: 0 },
+    }));
     expect(drill.hidden).toBe(false);
     drill.click();
-    expect(screen.progress.getSnapshot().mountain.drills).toBe(0);
+    expect(screen.progress.getSnapshot().mountain.owned.drill).toBe(0);
   });
 
   it("a first hire while the drawer is open keeps the empty crew line closed until the next open", () => {
@@ -1247,7 +1286,7 @@ describe("the Buys drawer (#373)", () => {
     const before = listParts(screen);
     expect(chipsOf(screen).hidden).toBe(true);
     rowOf(screen, "helper").click();
-    expect(screen.progress.getSnapshot().mountain.helpers).toBe(1);
+    expect(screen.progress.getSnapshot().mountain.owned.helper).toBe(1);
     expect(chipsOf(screen).hidden).toBe(true);
     // The cart row waits too.
     expect(listParts(screen)).toEqual(before);
@@ -1303,11 +1342,14 @@ describe("the Buys drawer (#373)", () => {
     await reload();
     openBuys(screen);
     // The save that lands has no carts: no drill to show.
-    await land(early({ carts: 0 }));
+    await land(early({ owned: { cart: 0 } }));
     expect(rowOf(screen, "drill").hidden).toBe(true);
     expect(chipsOf(screen).classList.contains("is-frozen")).toBe(true);
     // From here the open drawer holds what it laid out.
-    screen.progress.applyMutation((m) => ({ ...m, carts: 6 }));
+    screen.progress.applyMutation((m) => ({
+      ...m,
+      owned: { ...m.owned, cart: 6 },
+    }));
     expect(rowOf(screen, "drill").hidden).toBe(true);
     drawerOf(screen)
       .querySelector<HTMLButtonElement>(".board-sheet-back")
@@ -1333,13 +1375,13 @@ describe("the Buys drawer (#373)", () => {
       expect(listParts(screen)).toEqual(before);
       // The save that lands has no carts. The drill keeps its place, and the blink from before
       // the reload is over.
-      await land(early({ carts: 0 }));
+      await land(early({ owned: { cart: 0 } }));
       expect(listParts(screen)).toEqual(before);
       expect(lampOf(drill)).toBe("0px");
       // A row held in place for a tier no longer shown blinks, and buys nothing.
       fingerTap(drill);
       expect(lampOf(drill)).toBe("-120px");
-      expect(screen.progress.getSnapshot().mountain.drills).toBe(0);
+      expect(screen.progress.getSnapshot().mountain.owned.drill).toBe(0);
     } finally {
       setReducedMotion(true);
     }
@@ -1353,7 +1395,7 @@ describe("the Buys drawer (#373)", () => {
     );
     openBuys(screen);
     clock += BUYS_SETTLE_MS + 100;
-    const carts = () => screen.progress.getSnapshot().mountain.carts;
+    const carts = () => screen.progress.getSnapshot().mountain.owned.cart;
     rowOf(screen, "cart").click();
     expect(carts()).toBe(7);
     expect(partOf(rowOf(screen, "cart"), "verb")).toBe("Done");
@@ -1373,11 +1415,11 @@ describe("the Buys drawer (#373)", () => {
     });
     const cart = rowOf(screen, "cart");
     cart.click();
-    expect(screen.progress.getSnapshot().mountain.carts).toBe(7);
+    expect(screen.progress.getSnapshot().mountain.owned.cart).toBe(7);
     screen.progress.layoutPreview.trouble("cart");
     for (let tap = 0; tap < 5; tap += 1) cart.click();
     expect(screen.progress.getSnapshot().trouble).toBeUndefined();
-    expect(screen.progress.getSnapshot().mountain.carts).toBe(7);
+    expect(screen.progress.getSnapshot().mountain.owned.cart).toBe(7);
   });
 
   it("a sixth quick tap after the fix buys nothing", () => {
@@ -1392,10 +1434,10 @@ describe("the Buys drawer (#373)", () => {
       for (let tap = 0; tap < 5; tap += 1) cart.click();
       expect(screen.progress.getSnapshot().trouble).toBeUndefined();
       cart.click();
-      expect(screen.progress.getSnapshot().mountain.carts).toBe(6);
+      expect(screen.progress.getSnapshot().mountain.owned.cart).toBe(6);
       vi.advanceTimersByTime(1_900);
       cart.click();
-      expect(screen.progress.getSnapshot().mountain.carts).toBe(7);
+      expect(screen.progress.getSnapshot().mountain.owned.cart).toBe(7);
     } finally {
       vi.useRealTimers();
     }
@@ -1421,7 +1463,7 @@ describe("the Buys drawer (#373)", () => {
       cart.click();
       // A quick tap after the hold's own click.
       fingerTap(cart);
-      expect(screen.progress.getSnapshot().mountain.carts).toBe(6);
+      expect(screen.progress.getSnapshot().mountain.owned.cart).toBe(6);
     } finally {
       vi.useRealTimers();
     }
@@ -1455,8 +1497,8 @@ describe("the Buys drawer (#373)", () => {
       rowOf(screen, "cart").click();
       await vi.advanceTimersByTimeAsync(1_000);
       const after = screen.progress.getSnapshot().mountain;
-      expect(after.helpers).toBe(19);
-      expect(after.carts).toBe(7);
+      expect(after.owned.helper).toBe(19);
+      expect(after.owned.cart).toBe(7);
       expect(screen.text(".crew-status")).toBe(
         `Your crew mines ${String(effectiveRates(after, CLOCK).crewPerSecond)} stones a second`,
       );
@@ -1536,9 +1578,7 @@ describe("upgrades on screen", () => {
   /** Both boosts and Strong arms show: a cart, a drill and three carts. */
   const boostsOpen = (pocket: number): Mountain => ({
     ...minedMountain(30_000),
-    helpers: 20,
-    carts: 3,
-    drills: 1,
+    owned: { ...minedMountain(30_000).owned, helper: 20, cart: 3, drill: 1 },
     pocket,
   });
   const sharperPrice = (mountain: Mountain): number =>
@@ -1653,7 +1693,10 @@ describe("upgrades on screen", () => {
     document.body.append(screen.root);
     openUpgrades(screen);
     // A row comes in while the drawer is open: the fifth cart shows Helping hands, unseen.
-    screen.progress.applyMutation((mountain) => ({ ...mountain, carts: 5 }));
+    screen.progress.applyMutation((mountain) => ({
+      ...mountain,
+      owned: { ...mountain.owned, cart: 5 },
+    }));
     const atTap = shownRows(screen.progress.getSnapshot().mountain);
     expect(atTap).toContain("upgrade:cartSyn");
     expect(screen.progress.getSnapshot().mountain.seen).not.toContain(
@@ -1760,7 +1803,7 @@ describe("upgrades on screen", () => {
   it("lasting rows", () => {
     const m: Mountain = {
       ...boostsOpen(0),
-      helpers: 20,
+      owned: { ...boostsOpen(0).owned, helper: 20 },
       upgrades: { ...NO_UPGRADES, tap: 2, boots: 1 },
     };
     const screen = mountScreen({
@@ -1797,10 +1840,9 @@ describe("upgrades on screen", () => {
         storage: seededWith(
           {
             ...minedMountain(30_000),
-            helpers: 500,
             // Three carts open Strong arms (#250). The pocket covers two
             // levels with stones to spare.
-            carts: 3,
+            owned: { ...minedMountain(30_000).owned, helper: 500, cart: 3 },
             pocket: upgradePrice("tap", 0) + upgradePrice("tap", 1) + 86_000,
           },
           clock,
@@ -2017,8 +2059,7 @@ describe("upgrades on screen", () => {
         storage: seededWith(
           {
             ...minedMountain(12_000_000),
-            helpers: 20,
-            carts: 2,
+            owned: { ...minedMountain(12_000_000).owned, helper: 20, cart: 2 },
             seen: ["workshop"],
             taught: ["workshop"],
           },
@@ -2031,7 +2072,7 @@ describe("upgrades on screen", () => {
       // The first borer brings the first engineer while Upgrades is open.
       screen.progress.applyMutation((m) => ({
         ...m,
-        borers: 1,
+        owned: { ...m.owned, borer: 1 },
         engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
       }));
       vi.advanceTimersByTime(2_000);
@@ -2178,8 +2219,7 @@ describe("upgrades on screen", () => {
     // Sharper picks is the New row; Strong arms waits, dotted and affordable.
     const base: Mountain = {
       ...minedMountain(30_000),
-      helpers: 20,
-      carts: 3,
+      owned: { ...minedMountain(30_000).owned, helper: 20, cart: 3 },
     };
     const m: Mountain = {
       ...base,
@@ -2221,9 +2261,12 @@ describe("upgrades on screen", () => {
     try {
       const base: Mountain = {
         ...minedMountain(30_000),
-        helpers: 500,
-        carts: 3,
-        drills: 1,
+        owned: {
+          ...minedMountain(30_000).owned,
+          helper: 500,
+          cart: 3,
+          drill: 1,
+        },
         // Sharper picks was used: Overtime and the upgrades carry the dots.
         boosts: { ...NO_BOOSTS, sharper: CLOCK - 1 },
         pocket: 0,
@@ -2265,9 +2308,7 @@ describe("upgrades on screen", () => {
     // Sharper picks was used. With the pocket on Strong arms it is New, and Lasting leads.
     const base: Mountain = {
       ...minedMountain(30_000),
-      helpers: 500,
-      carts: 3,
-      drills: 1,
+      owned: { ...minedMountain(30_000).owned, helper: 500, cart: 3, drill: 1 },
       boosts: { ...NO_BOOSTS, sharper: CLOCK - 1 },
       pocket: 0,
     };
@@ -2409,7 +2450,10 @@ describe("quick boosts on screen", () => {
       const storage = createMemoryStorage();
       writeSessionSave({
         storage,
-        mountain: { ...minedMountain(40_000), helpers: 500, carts: 1 },
+        mountain: {
+          ...minedMountain(40_000),
+          owned: { ...minedMountain(40_000).owned, helper: 500, cart: 1 },
+        },
         lastSeen: clock,
       });
       const screen = mountScreen({ storage, now: () => clock });
@@ -2481,7 +2525,7 @@ describe("quick boosts on screen", () => {
       storage,
       mountain: {
         ...minedMountain(0),
-        helpers: 3,
+        owned: { ...minedMountain(0).owned, helper: 3 },
         boosts: { ...NO_BOOSTS, overtime: clock + 20 * 60_000 },
       },
       lastSeen: clock,
@@ -2500,9 +2544,12 @@ describe("quick boosts on screen", () => {
     const open: Mountain = {
       ...minedMountain(12_000_000),
       pocket: 5_000_000,
-      helpers: 20,
-      carts: 2,
-      borers: 1,
+      owned: {
+        ...minedMountain(12_000_000).owned,
+        helper: 20,
+        cart: 2,
+        borer: 1,
+      },
       engineers: [
         { name: "Ada", rank: 0 as const, trips: 0, post: "camp" as const },
       ],
@@ -2545,7 +2592,7 @@ describe("quick boosts on screen", () => {
       storage,
       mountain: {
         ...minedMountain(12_000_000),
-        helpers: 20,
+        owned: { ...minedMountain(12_000_000).owned, helper: 20 },
         rushUntil: now + 75_000,
         rushBank: 7_500,
       },
@@ -2571,9 +2618,12 @@ describe("quick boosts on screen", () => {
       mountain: {
         ...minedMountain(12_000_000),
         pocket: 5_000_000,
-        helpers: 20,
-        carts: 2,
-        borers: 1,
+        owned: {
+          ...minedMountain(12_000_000).owned,
+          helper: 20,
+          cart: 2,
+          borer: 1,
+        },
         boosts: { sharper: now + 10 * 60_000, overtime: now + 20 * 60_000 },
         clocks: {
           ...COLD_CLOCKS,
@@ -2641,7 +2691,7 @@ describe("quick boosts on screen", () => {
       storage,
       mountain: {
         ...minedMountain(0),
-        helpers: 10,
+        owned: { ...minedMountain(0).owned, helper: 10 },
         clocks: {
           ...COLD_CLOCKS,
           "blasting-charge": until,
@@ -2674,7 +2724,7 @@ describe("lasting upgrades on screen", () => {
         ...minedMountain(30_000),
         pocket:
           tierCost(tierById("helper"), 9) + upgradePrice("boots") + 50_000,
-        helpers: 9,
+        owned: { ...minedMountain(30_000).owned, helper: 9 },
       },
       lastSeen: Date.now(),
     });
@@ -2724,7 +2774,7 @@ describe("lasting upgrades on screen", () => {
       storage,
       mountain: {
         ...minedMountain(0),
-        helpers: 4,
+        owned: { ...minedMountain(0).owned, helper: 4 },
         upgrades: { ...NO_UPGRADES, steady: 1 },
       },
       lastSeen: Date.now() - (2 * 60 + 5) * 60_000,
@@ -2820,8 +2870,7 @@ describe("crew synergies on screen", () => {
       mountain: {
         ...minedMountain(1_000_000),
         pocket: upgradePrice("cartSyn"),
-        helpers: 12,
-        carts: 5,
+        owned: { ...minedMountain(1_000_000).owned, helper: 12, cart: 5 },
       },
       lastSeen: Date.now(),
     });
@@ -2861,7 +2910,10 @@ describe("a synergy row before the tier exists", () => {
     const storage = createMemoryStorage();
     writeSessionSave({
       storage,
-      mountain: { ...minedMountain(0), helpers: 3 },
+      mountain: {
+        ...minedMountain(0),
+        owned: { ...minedMountain(0).owned, helper: 3 },
+      },
       lastSeen: Date.now(),
     });
     const screen = mountScreen({ storage });
@@ -2880,9 +2932,7 @@ describe("crew staffing on screen", () => {
       mountain: {
         ...minedMountain(0),
         pocket: 1_000,
-        helpers: 3,
-        carts: 3,
-        drills: 2,
+        owned: { ...minedMountain(0).owned, helper: 3, cart: 3, drill: 2 },
       },
       lastSeen: Date.now(),
     });
@@ -2924,9 +2974,12 @@ describe("crew staffing on screen", () => {
         // The borer opens at 10M stones (#250).
         ...minedMountain(10_000_000),
         pocket: 20_000_000,
-        helpers: 9,
-        carts: 1,
-        drills: 1,
+        owned: {
+          ...minedMountain(10_000_000).owned,
+          helper: 9,
+          cart: 1,
+          drill: 1,
+        },
       },
       lastSeen: Date.now(),
     });
@@ -2952,7 +3005,11 @@ describe("crew staffing on screen", () => {
       const storage = createMemoryStorage();
       writeSessionSave({
         storage,
-        mountain: { ...minedMountain(0), pocket: 1_000, helpers: 1, carts: 1 },
+        mountain: {
+          ...minedMountain(0),
+          pocket: 1_000,
+          owned: { ...minedMountain(0).owned, helper: 1, cart: 1 },
+        },
         lastSeen: Date.now(),
       });
       const screen = mountScreen({ storage });
@@ -2960,7 +3017,7 @@ describe("crew staffing on screen", () => {
         '.tier[data-tier="cart"]',
       );
       cart?.click();
-      expect(screen.progress.getSnapshot().mountain.carts).toBe(2);
+      expect(screen.progress.getSnapshot().mountain.owned.cart).toBe(2);
       expect(screen.text(".crew-status")).toBe("7/s · 1 idle, need 1 worker");
     } finally {
       setReducedMotion(true);
@@ -2976,9 +3033,12 @@ describe("Flemming's cart (#216)", () => {
       mountain: {
         ...minedMountain(4_500_000),
         pocket: 255_200,
-        helpers: 18,
-        carts: 13,
-        drills: 5,
+        owned: {
+          ...minedMountain(4_500_000).owned,
+          helper: 18,
+          cart: 13,
+          drill: 5,
+        },
         upgrades: { ...NO_UPGRADES, boots: 1, cartSyn: 1 },
       },
       lastSeen: Date.now(),
@@ -3053,9 +3113,12 @@ describe("Flemming's cart (#216)", () => {
       storage,
       mountain: {
         ...minedMountain(4_500_000),
-        helpers: 18,
-        carts: 13,
-        drills: 5,
+        owned: {
+          ...minedMountain(4_500_000).owned,
+          helper: 18,
+          cart: 13,
+          drill: 5,
+        },
       },
       lastSeen: Date.now(),
     });
@@ -3097,7 +3160,11 @@ describe("Shield of Protection on the welcome card", () => {
     const storage = createMemoryStorage();
     writeSessionSave({
       storage,
-      mountain: { ...minedMountain(10_000_000), pocket: 0, helpers: 1 },
+      mountain: {
+        ...minedMountain(10_000_000),
+        pocket: 0,
+        owned: { ...minedMountain(10_000_000).owned, helper: 1 },
+      },
       lastSeen: Date.now() - 30 * 3_600_000,
     });
     const screen = mountScreen({ storage });
@@ -3113,7 +3180,11 @@ describe("Heart of Patience on the welcome card", () => {
     const storage = createMemoryStorage();
     writeSessionSave({
       storage,
-      mountain: { ...minedMountain(45_000_000), pocket: 0, helpers: 1 },
+      mountain: {
+        ...minedMountain(45_000_000),
+        pocket: 0,
+        owned: { ...minedMountain(45_000_000).owned, helper: 1 },
+      },
       lastSeen: Date.now() - 6 * 3_600_000,
     });
     const screen = mountScreen({ storage });
@@ -3131,9 +3202,12 @@ describe("crew line at a big crew", () => {
       mountain: {
         ...minedMountain(30_000_000),
         pocket: 0,
-        helpers: 98,
-        borers: 6,
-        machines: 2,
+        owned: {
+          ...minedMountain(30_000_000).owned,
+          helper: 98,
+          borer: 6,
+          machine: 2,
+        },
       },
       lastSeen: Date.now(),
     });
@@ -3155,7 +3229,7 @@ describe("Mantle of the Hero finale (#103)", () => {
     const screen = mountScreen({
       storage: seeded({
         ...minedMountain(LAST_STONE),
-        helpers: 1_000,
+        owned: { ...minedMountain(LAST_STONE).owned, helper: 1_000 },
         upgrades: { ...NO_UPGRADES, tap: 3 },
       }),
     });
@@ -3335,7 +3409,7 @@ describe("pass the mine to your kid (#131)", () => {
   it("is offered on the Legend card, asks first, and hands down a Legacy", () => {
     const storage = seeded({
       ...minedMountain(LAST_STONE),
-      helpers: 1_000,
+      owned: { ...minedMountain(LAST_STONE).owned, helper: 1_000 },
       upgrades: { ...NO_UPGRADES, tap: 3 },
     });
     const screen = mountScreen({ storage });
@@ -3457,11 +3531,14 @@ describe("player-facing workers (#139)", () => {
         // finale all render.
         ...minedMountain(69_999_999),
         pocket: 80_000_000,
-        helpers: 200,
-        carts: 50,
-        borers: 10,
-        machines: 20,
-        kids: 10,
+        owned: {
+          ...minedMountain(69_999_999).owned,
+          helper: 200,
+          cart: 50,
+          borer: 10,
+          machine: 20,
+          kid: 10,
+        },
         upgrades: { ...NO_UPGRADES, boots: 1, steady: 1, cartSyn: 1, tap: 2 },
       },
       lastSeen: Date.now() - 23.5 * 3_600_000,
@@ -3580,12 +3657,15 @@ describe("trouble on a tier row (#149)", () => {
     ...minedMountain(0),
     remaining: 50_000_000,
     pocket: 50_000_000,
-    helpers: 12,
-    carts: 1,
-    drills: 1,
-    borers: 1,
-    machines: 0,
-    kids: 0,
+    owned: {
+      ...minedMountain(0).owned,
+      helper: 12,
+      cart: 1,
+      drill: 1,
+      borer: 1,
+      machine: 0,
+      kid: 0,
+    },
   });
 
   const card = (screen: ReturnType<typeof mountScreen>, id: string) => {
@@ -3627,12 +3707,12 @@ describe("trouble on a tier row (#149)", () => {
     expect(screen.text('.tier[data-tier="cart"] .board-row-info')).toBe(
       "Cave-in! · Hold to fix",
     );
-    expect(screen.progress.getSnapshot().mountain.carts).toBe(1);
+    expect(screen.progress.getSnapshot().mountain.owned.cart).toBe(1);
     cart.click();
     expect(
       screen.text('.board-sheet[data-sheet="buys"] .board-sheet-kick'),
     ).toBe("Fixed! The crew cheers.");
-    expect(screen.progress.getSnapshot().mountain.carts).toBe(1);
+    expect(screen.progress.getSnapshot().mountain.owned.cart).toBe(1);
     expect(screen.progress.getSnapshot().trouble).toBeUndefined();
     expect(screen.text(".crew-status")).toBe(
       "Your crew mines 339 stones a second",
@@ -3693,9 +3773,9 @@ describe("trouble on a tier row (#149)", () => {
       expect(
         screen.text('.board-sheet[data-sheet="buys"] .board-sheet-kick'),
       ).toBe("Fixed! The crew cheers.");
-      expect(screen.progress.getSnapshot().mountain.carts).toBe(1);
+      expect(screen.progress.getSnapshot().mountain.owned.cart).toBe(1);
       cart.click();
-      expect(screen.progress.getSnapshot().mountain.carts).toBe(1);
+      expect(screen.progress.getSnapshot().mountain.owned.cart).toBe(1);
     } finally {
       vi.useRealTimers();
     }

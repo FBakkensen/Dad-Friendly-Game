@@ -13,7 +13,12 @@ import { BUYS_SETTLE_MS } from "./mountain-screen";
 import { createWelcomePanel } from "./welcome-panel";
 import { mineView } from "./mine-window";
 import { createProgressStore } from "./progress-store";
-import { guestSave, minedMountain } from "./test-fixtures";
+import {
+  guestSave,
+  minedMountain,
+  patched,
+  type MountainPatch,
+} from "./test-fixtures";
 import { recipesForMined, startCraft } from "./workshop";
 import {
   ENGINEERS_KICK,
@@ -39,18 +44,24 @@ beforeEach(() => {
 afterEach(stopScreens);
 
 describe("side tunnels (#147)", () => {
-  const withAda = (patch: Partial<Mountain> = {}): Mountain => ({
-    ...minedMountain(0),
-    pocket: 5_000_000,
-    helpers: 20,
-    carts: 2,
-    drills: 1,
-    borers: 1,
-    engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
-    ...patch,
-  });
+  const withAda = (patch: MountainPatch = {}): Mountain =>
+    patched(
+      {
+        ...minedMountain(0),
+        pocket: 5_000_000,
+        owned: {
+          ...minedMountain(0).owned,
+          helper: 20,
+          cart: 2,
+          drill: 1,
+          borer: 1,
+        },
+        engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
+      },
+      patch,
+    );
   /** Past the first trip's lesson: Send exploring opens the tunnels page. */
-  const taughtAda = (patch: Partial<Mountain> = {}): Mountain =>
+  const taughtAda = (patch: MountainPatch = {}): Mountain =>
     withAda({ seen: ["engineers"], taught: ["engineers"], ...patch });
 
   type Screen = ReturnType<typeof mountScreen>;
@@ -327,7 +338,7 @@ describe("side tunnels (#147)", () => {
     const storage = createMemoryStorage();
     writeSessionSave({
       storage,
-      mountain: withAda({ helpers: 16, pocket: 30_000_000 }),
+      mountain: withAda({ pocket: 30_000_000, owned: { helper: 16 } }),
       lastSeen: Date.now(),
     });
     const screen = mountScreen({ storage });
@@ -620,7 +631,10 @@ describe("layer card, material line, and craft-done notice", () => {
     const storage = createMemoryStorage();
     writeSessionSave({
       storage,
-      mountain: { ...minedMountain(9_990_000), helpers: 20 },
+      mountain: {
+        ...minedMountain(9_990_000),
+        owned: { ...minedMountain(9_990_000).owned, helper: 20 },
+      },
       lastSeen: 0,
     });
     const screen = mountScreen({ storage, now: () => 1_800_000 });
@@ -655,8 +669,7 @@ describe("layer card, material line, and craft-done notice", () => {
       storage,
       mountain: {
         ...minedMountain(12_000_000),
-        helpers: 1,
-        carts: 1,
+        owned: { ...minedMountain(12_000_000).owned, helper: 1, cart: 1 },
         pocket: 5_000_000,
         materials: { clay: 20, iron: 20, crystal: 0, heartstone: 0 },
         recipes: recipesForMined(12_000_000),
@@ -696,8 +709,7 @@ describe("layer card, material line, and craft-done notice", () => {
       storage,
       mountain: {
         ...minedMountain(12_000_000),
-        helpers: 4,
-        carts: 1,
+        owned: { ...minedMountain(12_000_000).owned, helper: 4, cart: 1 },
         pocket: 5_000_000,
         materials: { clay: 20, iron: 20, crystal: 0, heartstone: 0 },
         recipes: recipesForMined(12_000_000),
@@ -868,11 +880,11 @@ describe("layer card, material line, and craft-done notice", () => {
       ...mountain,
       remaining: mountain.remaining - 12_000,
       pocket: 12,
-      carts: 2,
+      owned: { ...mountain.owned, cart: 2 },
     }));
     clock += 1_000;
     await expect(screen.progress.startOver()).resolves.toBe(true);
-    expect(screen.progress.getSnapshot().mountain.carts).toBe(0);
+    expect(screen.progress.getSnapshot().mountain.owned.cart).toBe(0);
     clock += 1_000;
     screen.root
       .querySelector<HTMLButtonElement>(".board-key[data-key=ledger]")
@@ -890,12 +902,12 @@ describe("layer card, material line, and craft-done notice", () => {
     expect(play).not.toBeNull();
     play?.click();
     await vi.waitFor(() => {
-      expect(screen.progress.getSnapshot().mountain.carts).toBe(2);
+      expect(screen.progress.getSnapshot().mountain.owned.cart).toBe(2);
     });
     expect(screen.progress.getSnapshot().mountain.startedAt).toBe(clock);
     await vi.waitFor(async () => {
       const saved = await cloud.load({ uid: "test-dad" });
-      expect(saved.kind === "found" && saved.mountain.carts).toBe(2);
+      expect(saved.kind === "found" && saved.mountain.owned.cart).toBe(2);
     });
     screen.progress.dispose();
   });
@@ -912,9 +924,12 @@ describe("sheet buys", () => {
       storage,
       mountain: {
         ...minedMountain(12_000_000),
-        helpers: 13,
-        carts: 5,
-        drills: 2,
+        owned: {
+          ...minedMountain(12_000_000).owned,
+          helper: 13,
+          cart: 5,
+          drill: 2,
+        },
         pocket: 2_500_000,
       },
       lastSeen: Date.now(),
@@ -1012,9 +1027,12 @@ describe("sheet buys", () => {
       storage,
       mountain: {
         ...minedMountain(1_000_000),
-        helpers: 18,
-        carts: 7,
-        drills: 2,
+        owned: {
+          ...minedMountain(1_000_000).owned,
+          helper: 18,
+          cart: 7,
+          drill: 2,
+        },
         pocket: 32_500,
       },
       lastSeen: Date.now(),
@@ -1063,7 +1081,11 @@ describe("sheet buys", () => {
     const storage = createMemoryStorage();
     writeSessionSave({
       storage,
-      mountain: { ...minedMountain(1_000), pocket: 32_500, helpers: 4 },
+      mountain: {
+        ...minedMountain(1_000),
+        pocket: 32_500,
+        owned: { ...minedMountain(1_000).owned, helper: 4 },
+      },
       lastSeen: Date.now(),
     });
     const screen = mountScreen({ storage });
@@ -1096,9 +1118,12 @@ describe("sheet buys", () => {
       storage,
       mountain: {
         ...minedMountain(12_000_000),
-        helpers: 18,
-        carts: 7,
-        drills: 2,
+        owned: {
+          ...minedMountain(12_000_000).owned,
+          helper: 18,
+          cart: 7,
+          drill: 2,
+        },
         pocket: 2_500_000,
         materials: { clay: 10, iron: 4, crystal: 0, heartstone: 0 },
       },
@@ -1127,7 +1152,8 @@ describe("sheet buys", () => {
         new MouseEvent("click", { bubbles: true, clientX: 4, clientY: 4 }),
       );
     };
-    const carts = (): number => screen.progress.getSnapshot().mountain.carts;
+    const carts = (): number =>
+      screen.progress.getSnapshot().mountain.owned.cart;
     const before = carts();
     const cartWhy = screen.root.querySelector(
       '.tier[data-tier="cart"] .board-row-info',
@@ -1143,7 +1169,7 @@ describe("sheet buys", () => {
     if (drag === null) {
       throw new Error("worker name did not render");
     }
-    const helpers = screen.progress.getSnapshot().mountain.helpers;
+    const helpers = screen.progress.getSnapshot().mountain.owned.helper;
     drag.dispatchEvent(
       new PointerEvent("pointerdown", {
         bubbles: true,
@@ -1171,9 +1197,11 @@ describe("sheet buys", () => {
     drag.dispatchEvent(
       new MouseEvent("click", { bubbles: true, clientX: 40, clientY: 0 }),
     );
-    expect(screen.progress.getSnapshot().mountain.helpers).toBe(helpers);
+    expect(screen.progress.getSnapshot().mountain.owned.helper).toBe(helpers);
     tap(drag);
-    expect(screen.progress.getSnapshot().mountain.helpers).toBe(helpers + 1);
+    expect(screen.progress.getSnapshot().mountain.owned.helper).toBe(
+      helpers + 1,
+    );
     screen.root
       .querySelector<HTMLButtonElement>(".board-key[data-key=upgrades]")
       ?.click();
@@ -1251,10 +1279,13 @@ describe("sheet buys", () => {
       storage,
       mountain: {
         ...minedMountain(12_000_000),
-        helpers: 13,
-        carts: 5,
-        drills: 2,
-        borers: 1,
+        owned: {
+          ...minedMountain(12_000_000).owned,
+          helper: 13,
+          cart: 5,
+          drill: 2,
+          borer: 1,
+        },
         pocket: 2_500_000,
         engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
       },
@@ -1312,7 +1343,10 @@ describe("the board cards (#464)", () => {
     const storage = createMemoryStorage();
     writeSessionSave({
       storage,
-      mountain: { ...minedMountain(2_000_000), helpers: 4 },
+      mountain: {
+        ...minedMountain(2_000_000),
+        owned: { ...minedMountain(2_000_000).owned, helper: 4 },
+      },
       lastSeen: 0,
     });
     return mountScreen({ storage, now: () => 30 * 60_000, tapClock });
@@ -1385,8 +1419,7 @@ describe("the board cards (#464)", () => {
       storage,
       mountain: {
         ...minedMountain(12_000_000),
-        helpers: 1,
-        carts: 1,
+        owned: { ...minedMountain(12_000_000).owned, helper: 1, cart: 1 },
         pocket: 5_000_000,
         materials: { clay: 20, iron: 20, crystal: 0, heartstone: 0 },
         recipes: recipesForMined(12_000_000),

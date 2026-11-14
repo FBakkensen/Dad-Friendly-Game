@@ -89,10 +89,13 @@ function crew(): Mountain {
     remaining: 200_000_000,
     // 40M mined is the Granite: the second engineer costs 2M × 3 (#356).
     pocket: 6_500_000,
-    helpers: 60,
-    carts: 10,
-    drills: 6,
-    borers: 2,
+    owned: {
+      ...createMountain().owned,
+      helper: 60,
+      cart: 10,
+      drill: 6,
+      borer: 2,
+    },
     engineers: [ada],
     seen: ["workshop", "engineers"],
     taught: ["workshop", "engineers", "staffing"],
@@ -108,7 +111,12 @@ describe("promotion teach (#246)", () => {
     expect(showsDot(crew(), "promotion")).toBe(true);
     expect(noteFor(crew())).toBe(undefined);
     expect(showsDot({ ...crew(), pocket: 1_000_000 }, "promotion")).toBe(false);
-    expect(showsDot({ ...crew(), helpers: 0 }, "promotion")).toBe(false);
+    expect(
+      showsDot(
+        { ...crew(), owned: { ...crew().owned, helper: 0 } },
+        "promotion",
+      ),
+    ).toBe(false);
     expect(
       showsDot(
         {
@@ -121,7 +129,10 @@ describe("promotion teach (#246)", () => {
     ).toBe(false);
     // No machine for the new hand to tend: no nudge to lose a worker.
     expect(
-      showsDot({ ...crew(), carts: 0, drills: 0, borers: 1 }, "promotion"),
+      showsDot(
+        { ...crew(), owned: { ...crew().owned, cart: 0, drill: 0, borer: 1 } },
+        "promotion",
+      ),
     ).toBe(false);
   });
 

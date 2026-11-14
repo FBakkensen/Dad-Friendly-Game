@@ -64,12 +64,12 @@ function anyProgress(mountain: Mountain, countStamp: boolean): boolean {
     (countStamp && runStartedAt(mountain) > 0) ||
     [
       mountain.pocket,
-      mountain.helpers,
-      mountain.carts,
-      mountain.drills,
-      mountain.borers,
-      mountain.machines,
-      mountain.kids,
+      mountain.owned.helper,
+      mountain.owned.cart,
+      mountain.owned.drill,
+      mountain.owned.borer,
+      mountain.owned.machine,
+      mountain.owned.kid,
       mountain.legacy,
     ].some((count) => count > 0)
   );

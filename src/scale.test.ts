@@ -15,7 +15,7 @@ import { mineVein } from "./veins";
 import { serializeSave } from "./persist";
 import { gameOf, reloaded } from "./test-fixtures";
 import { withFactors } from "./economy/factors";
-import { LINE_OFF } from "./line";
+import { LINE_OFF } from "./line-switch";
 import {
   BAND_SCALE,
   BAND_STARTS,
@@ -244,7 +244,7 @@ describe("band scales (#356)", () => {
       let m: Mountain = {
         ...minedMountain(at),
         stretch: k,
-        helpers: 3,
+        owned: { ...minedMountain(at).owned, helper: 3 },
         remaining: MOUNTAIN_STONES - at - 1 / 3,
       };
       for (let step = 0; step < 5_000 && m.remaining > 0; step += 1) {
@@ -253,16 +253,16 @@ describe("band scales (#356)", () => {
           m = mineByHand({
             ...m,
             upgrades: { ...NO_UPGRADES, tap: 5 },
-            helpers: 500,
+            owned: { ...m.owned, helper: 500 },
           });
         } else if (turn === 1) {
           m = accrueAway({
-            mountain: { ...m, helpers: haul },
+            mountain: { ...m, owned: { ...m.owned, helper: haul } },
             lastSeen: 0,
             now: 7_000,
           }).mountain;
         } else {
-          m = mineVein({ ...m, helpers: 40 });
+          m = mineVein({ ...m, owned: { ...m.owned, helper: 40 } });
         }
         whole(m);
         roundTrips(m);
@@ -367,7 +367,7 @@ describe("one-off stretch (#356)", () => {
       boots,
     );
     const bought = buyUpgrade(
-      { ...caves, helpers: 10, pocket: boots },
+      { ...caves, pocket: boots, owned: { ...caves.owned, helper: 10 } },
       "boots",
     );
     expect(bought.pocket).toBe(0);
@@ -476,8 +476,7 @@ describe("the stretch cap keeps every count a safe integer (#366)", () => {
       ...createMountain(),
       remaining: MOUNTAIN_STONES - BAND_STARTS[3],
       stretch: MAX_STRETCH,
-      helpers: 10,
-      carts: 3,
+      owned: { ...createMountain().owned, helper: 10, cart: 3 },
       upgrades: { ...NO_UPGRADES, tap: 9 },
     };
     // The most a pocket can hold: every stone of this run.

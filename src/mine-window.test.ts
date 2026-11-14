@@ -25,8 +25,14 @@ const mined = (stones: number): Mountain => ({
   remaining: MOUNTAIN_STONES - stones,
 });
 
-const scene = (over: Partial<Mountain>, trouble?: Trouble): WindowScene =>
-  windowScene({ ...createMountain(), ...over }, trouble);
+const scene = (
+  over: Partial<Mountain["owned"]>,
+  trouble?: Trouble,
+): WindowScene =>
+  windowScene(
+    { ...createMountain(), owned: { ...createMountain().owned, ...over } },
+    trouble,
+  );
 
 const trouble = (tier: Trouble["tier"]): Trouble => ({
   kind: tier === "cart" ? "cave-in" : tier === "drill" ? "flood" : "jam",
@@ -103,28 +109,32 @@ describe("mine window", () => {
       legacy: false,
       rush: false,
     });
-    const crew = scene({ helpers: 18, carts: 6 });
+    const crew = scene({ helper: 18, cart: 6 });
     expect(crew.run).toBe(true);
     expect(crew.carts).toBe(6);
-    expect(scene({ helpers: 1 }).run).toBe(true);
-    expect(scene({ kids: 1 }).run).toBe(true);
-    expect(scene({ carts: 1 }).run).toBe(true);
+    expect(scene({ helper: 1 }).run).toBe(true);
+    expect(scene({ kid: 1 }).run).toBe(true);
+    expect(scene({ cart: 1 }).run).toBe(true);
     expect(windowScene(mined(25_000_000), undefined).band).toBe("granite");
     expect(windowScene(mined(60_000_000), undefined).band).toBe("crystal");
     const heart = windowScene(
-      { ...mined(130_000_000), machines: 1, kids: 2, legacy: 1 },
+      {
+        ...mined(130_000_000),
+        owned: { ...createMountain().owned, machine: 1, kid: 2 },
+        legacy: 1,
+      },
       undefined,
     );
     expect(heart.band).toBe("heart");
     expect(heart.machine).toBe(true);
     expect(heart.kid).toBe(true);
     expect(heart.legacy).toBe(true);
-    const machines = scene({ drills: 2, borers: 1 });
+    const machines = scene({ drill: 2, borer: 1 });
     expect(machines.drill).toBe(true);
     expect(machines.drills).toBe(2);
     expect(machines.borer).toBe(true);
     expect(machines.borers).toBe(1);
-    expect(scene({ carts: 6 }, trouble("cart")).trouble).toBe("cart");
+    expect(scene({ cart: 6 }, trouble("cart")).trouble).toBe("cart");
     // the Gold rush shows only with a clock, while it runs (#468)
     const rushing = { ...createMountain(), rushUntil: 90_000, rushBank: 900 };
     expect(windowScene(rushing, undefined).rush).toBe(false);
@@ -133,9 +143,7 @@ describe("mine window", () => {
 
     const mountain = deepFreeze({
       ...mined(130_000_000),
-      helpers: 18,
-      carts: 6,
-      machines: 1,
+      owned: { ...createMountain().owned, helper: 18, cart: 6, machine: 1 },
       legacy: 1,
     });
     const copy = structuredClone(mountain);
@@ -144,31 +152,31 @@ describe("mine window", () => {
   });
 
   it("beats", () => {
-    expect(windowBeats(undefined, scene({ carts: 6 }))).toEqual([]);
-    expect(windowBeats(scene({ carts: 5 }), scene({ carts: 6 }))).toEqual([
+    expect(windowBeats(undefined, scene({ cart: 6 }))).toEqual([]);
+    expect(windowBeats(scene({ cart: 5 }), scene({ cart: 6 }))).toEqual([
       "cart",
     ]);
-    expect(windowBeats(scene({ carts: 5 }), scene({ carts: 30 }))).toEqual([
+    expect(windowBeats(scene({ cart: 5 }), scene({ cart: 30 }))).toEqual([
       "cart",
     ]);
-    expect(windowBeats(scene({ drills: 2 }), scene({ drills: 3 }))).toEqual([
+    expect(windowBeats(scene({ drill: 2 }), scene({ drill: 3 }))).toEqual([
       "drill",
     ]);
-    expect(windowBeats(scene({ borers: 0 }), scene({ borers: 1 }))).toEqual([
+    expect(windowBeats(scene({ borer: 0 }), scene({ borer: 1 }))).toEqual([
       "first-borer",
     ]);
-    expect(windowBeats(scene({ borers: 1 }), scene({ borers: 2 }))).toEqual([]);
-    expect(windowBeats(scene({ carts: 6 }), scene({ carts: 0 }))).toEqual([]);
+    expect(windowBeats(scene({ borer: 1 }), scene({ borer: 2 }))).toEqual([]);
+    expect(windowBeats(scene({ cart: 6 }), scene({ cart: 0 }))).toEqual([]);
     expect(
       windowBeats(
-        scene({ carts: 6, drills: 3, borers: 1 }),
-        scene({ carts: 0, drills: 0, borers: 0 }),
+        scene({ cart: 6, drill: 3, borer: 1 }),
+        scene({ cart: 0, drill: 0, borer: 0 }),
       ),
     ).toEqual([]);
     expect(
       windowBeats(
-        scene({ carts: 1, drills: 0, borers: 0 }),
-        scene({ carts: 2, drills: 1, borers: 3 }),
+        scene({ cart: 1, drill: 0, borer: 0 }),
+        scene({ cart: 2, drill: 1, borer: 3 }),
       ),
     ).toEqual(["cart", "drill", "first-borer"]);
   });
@@ -223,7 +231,7 @@ describe("mine window", () => {
   });
 
   it("a drill strokes six times, nine after a new one", () => {
-    const one = scene({ drills: 1 });
+    const one = scene({ drill: 1 });
     const strokes = viewsAt(
       machinesRest(),
       one,
@@ -244,7 +252,7 @@ describe("mine window", () => {
   });
 
   it("a drill beat puffs dust at the drill", () => {
-    const one = scene({ drills: 1 });
+    const one = scene({ drill: 1 });
     const beat = machinesBeat(machinesRest(), "drill");
     const first = machinesStep(beat, 0.01, one, () => 0.5);
     expect(first.events).toEqual([{ kind: "fill", x: 69, y: 53 }]);
@@ -252,7 +260,7 @@ describe("mine window", () => {
   });
 
   it("the run's fills come out as events", () => {
-    const crew = scene({ helpers: 1, carts: 1 });
+    const crew = scene({ helper: 1, cart: 1 });
     let m = machinesRest();
     const fills: unknown[] = [];
     for (let i = 0; i < 1500; i += 1) {
@@ -264,7 +272,7 @@ describe("mine window", () => {
   });
 
   it("a new cart's hoist winds the sheave fast", () => {
-    const crew = scene({ helpers: 6, carts: 6 });
+    const crew = scene({ helper: 6, cart: 6 });
     const kinds = new Set<string>();
     let m = machinesBeat(machinesRest(), "cart");
     for (let i = 0; i < 5497; i += 1) {
@@ -287,7 +295,7 @@ describe("mine window", () => {
     const empty = scene({});
     const still = after(machinesRest(), empty, 3);
     expect(machinesView(still, empty).run).toEqual(haulagePose(haulageRest()));
-    const crew = scene({ helpers: 1 });
+    const crew = scene({ helper: 1 });
     const moving = after(machinesRest(), crew, 3);
     expect(machinesView(moving, crew).run.tubX).toBeGreaterThan(14);
     // Start over: the run goes home
@@ -296,12 +304,12 @@ describe("mine window", () => {
   });
 
   it("trouble stops its machine", () => {
-    const flood = scene({ drills: 1 }, trouble("drill"));
+    const flood = scene({ drill: 1 }, trouble("drill"));
     const flooded = viewsAt(machinesRest(), flood, [0.21, 0.35, 0.49, 2]);
     expect(flooded.views.map((v) => v.drill)).toEqual([0, 0, 0, 0]);
 
-    const borer = scene({ borers: 1 });
-    const jam = scene({ borers: 1 }, trouble("borer"));
+    const borer = scene({ borer: 1 });
+    const jam = scene({ borer: 1 }, trouble("borer"));
     const cutting = after(machinesRest(), borer, 3.45);
     expect(machinesView(cutting, borer).borerDust).toBe(0);
     const jammed = viewsAt(cutting, jam, [0.01, 0.2, 0.4, 5]);
@@ -310,8 +318,8 @@ describe("mine window", () => {
       expect(view.borerDust).toBeUndefined();
     }
 
-    const crew = scene({ helpers: 6, carts: 6 });
-    const caveIn = scene({ helpers: 6, carts: 6 }, trouble("cart"));
+    const crew = scene({ helper: 6, cart: 6 });
+    const caveIn = scene({ helper: 6, cart: 6 }, trouble("cart"));
     const running = after(machinesRest(), crew, 5);
     const pose = machinesView(running, crew).run;
     expect(machinesView(running, crew).caveIn).toBeUndefined();
@@ -351,7 +359,7 @@ describe("mine window", () => {
       y: 55,
     });
 
-    const one = scene({ borers: 1 });
+    const one = scene({ borer: 1 });
     const beat = machinesBeat(machinesRest(), "first-borer");
     expect(machinesView(beat, one).tarp).toEqual({ x: 7, y: 55 });
     const drag = viewsAt(
@@ -403,7 +411,7 @@ describe("mine window", () => {
   });
 
   it("the tarp comes back after Start over", () => {
-    const one = scene({ borers: 1 });
+    const one = scene({ borer: 1 });
     const none = scene({});
     const gone = after(machinesBeat(machinesRest(), "first-borer"), one, 3);
     expect(machinesView(gone, one).tarp).toBeUndefined();
@@ -433,7 +441,7 @@ describe("mine window", () => {
   });
 
   it("time that jumps", () => {
-    const crew = scene({ helpers: 6, carts: 6, drills: 1, borers: 1 });
+    const crew = scene({ helper: 6, cart: 6, drill: 1, borer: 1 });
     const rest = machinesView(machinesRest(), crew).run;
     for (const dt of [0.1, 5, 3_600, Number.POSITIVE_INFINITY]) {
       const run = machinesView(
@@ -460,7 +468,7 @@ describe("mine window", () => {
   });
 
   it("never changes the machines it is given", () => {
-    const crew = scene({ helpers: 6, carts: 6, drills: 1, borers: 1 });
+    const crew = scene({ helper: 6, cart: 6, drill: 1, borer: 1 });
     const m = deepFreeze(after(machinesRest(), crew, 4));
     const before = machinesView(m, crew);
     machinesStep(m, 0.1, crew, () => 0.5);

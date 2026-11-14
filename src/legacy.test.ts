@@ -14,12 +14,15 @@ import { NO_UPGRADES } from "./upgrades";
 const bottom: Mountain = {
   ...minedMountain(MOUNTAIN_STONES),
   pocket: 123_456,
-  helpers: 400,
-  carts: 50,
-  drills: 20,
-  borers: 5,
-  machines: 2,
-  kids: 7,
+  owned: {
+    ...minedMountain(MOUNTAIN_STONES).owned,
+    helper: 400,
+    cart: 50,
+    drill: 20,
+    borer: 5,
+    machine: 2,
+    kid: 7,
+  },
   upgrades: { ...NO_UPGRADES, tap: 3, boots: 1 },
   boosts: { ...NO_BOOSTS, overtime: 9_999_999 },
   startedAt: 1_000,
@@ -36,7 +39,7 @@ describe("legacy bonus", () => {
   it("speeds up the crew and every tap, but not the away pay share", () => {
     const crew = {
       ...createMountain(),
-      helpers: 100,
+      owned: { ...createMountain().owned, helper: 100 },
       // No machines: Grandpa (#338) has nothing to tend, so this compares
       // the Legacy alone. A cart's own speed still shows the Legacy.
       upgrades: { ...NO_UPGRADES, tap: 5 },

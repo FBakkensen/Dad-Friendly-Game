@@ -46,8 +46,7 @@ function granite(): Mountain {
     ...createMountain(),
     remaining: MOUNTAIN_STONES - 12_000_000,
     pocket: 200_000,
-    helpers: 4,
-    carts: 1,
+    owned: { ...createMountain().owned, helper: 4, cart: 1 },
     materials: { clay: 2, iron: 1, crystal: 0, heartstone: 0 },
     recipes: recipesForMined(12_000_000),
   };
@@ -73,7 +72,7 @@ function opening(): Mountain {
   return {
     ...minedMountain(granite),
     pocket: 400_000,
-    helpers: 40,
+    owned: { ...minedMountain(granite).owned, helper: 40 },
     materials: materialsFromMined(granite),
   };
 }
