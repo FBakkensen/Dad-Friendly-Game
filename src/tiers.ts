@@ -13,6 +13,23 @@ import type { RelicId } from "./relics";
 export const MACHINE_COST_GROWTH = 1.15;
 /** #357: workers climb ×1.06 a unit, and kids share the curve. */
 export const HELPER_COST_GROWTH = 1.06;
+
+/**
+ * On the line (#543, labs only until #536): machines climb ×1.219 a unit
+ * (today's ×1.15 times 1.06) and workers ×1.0812 (×1.06 times 1.02), so a
+ * casual dad's run takes at least five days with machines rated three times
+ * today's.
+ */
+export const LINE_MACHINE_COST_GROWTH = 1.219;
+export const LINE_HELPER_COST_GROWTH = 1.0812;
+
+/**
+ * First prices that differ on the line (#543): the Great Machine at 0.8 of
+ * today's, so a checker's best buy is in reach within two check-ins.
+ */
+const LINE_FIRST_COST: Readonly<Partial<Record<TierId, number>>> = {
+  machine: 96_480_000,
+};
 /**
  * Kids follow the workers' curve from a late-game price. #327: cheap and
  * quick enough (25/s) that one pays back in hours, not days.
@@ -220,10 +237,20 @@ export function tierCost(tier: Tier, ownedCount: number, k = 1): number {
   // toPrecision drops float dust (500 × 1.6² is 1280.0000000000002, not 1,281).
   // A sweep multiplies the sticker and the growth. Both factors are 1 in play.
   const workerCurve = tier.staff === 0;
-  const base = workerCurve ? HELPER_COST_GROWTH : MACHINE_COST_GROWTH;
+  const line = lineOn();
+  const base = workerCurve
+    ? line
+      ? LINE_HELPER_COST_GROWTH
+      : HELPER_COST_GROWTH
+    : line
+      ? LINE_MACHINE_COST_GROWTH
+      : MACHINE_COST_GROWTH;
   const growth =
     base * factor(workerCurve ? "growth.worker" : "growth.machine");
-  const first = tier.firstCost * factor(`price.${tier.id}`) * k;
+  const sticker = line
+    ? (LINE_FIRST_COST[tier.id] ?? tier.firstCost)
+    : tier.firstCost;
+  const first = sticker * factor(`price.${tier.id}`) * k;
   return Math.ceil(Number((first * growth ** ownedCount).toPrecision(12)));
 }
 

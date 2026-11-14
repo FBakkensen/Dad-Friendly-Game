@@ -568,6 +568,32 @@ describe("the line's rule behind its factor (#532)", () => {
     expect(effectiveRates(minedMountain(0)).tierSpeed.cart).toBe(6);
   });
 
+  it("tops a tender up to her floor in the line's units, not the plain sum (#543)", () => {
+    withFactors(LINE_ON, () => {
+      // The haul is narrow. Ada on the carts lifts the line by her floor,
+      // 12% times the tending gain of the untended line: 15% of 1,080.
+      const crew = {
+        ...minedMountain(130_000_000),
+        helpers: 60,
+        carts: 10,
+        drills: 20,
+        borers: 2,
+        hoists: 20,
+        machines: 1,
+        legacy: 0,
+      };
+      const at = (post: "camp" | "cart" | "borer"): number =>
+        effectiveRates({
+          ...crew,
+          engineers: [{ name: "Ada", rank: 0, trips: 0, post }],
+        }).exactCrewPerSecond;
+      expect(at("camp")).toBeCloseTo(1_080, 9);
+      expect(at("cart")).toBeCloseTo(1_080 * 1.15, 9);
+      // The face is not narrow, so the borers' post adds nothing.
+      expect(at("borer")).toBeCloseTo(1_080, 9);
+    });
+  });
+
   it("a hired hand's gain is the line's rise", () => {
     // Three of six carts run; a fourth hand starts one more.
     const crew = { ...minedMountain(0), helpers: 3, carts: 6 };

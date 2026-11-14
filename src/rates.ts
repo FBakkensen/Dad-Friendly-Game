@@ -599,7 +599,7 @@ function applyTendingFloor(
     return;
   }
   const scale = factor("tending.gain") * TENDING_GAIN;
-  const plainTotal = outputOf(plain, running);
+  const plainTotal = crewOutput(plain, running);
   const floorStones =
     (plainTotal * TENDING_FLOOR_PERCENT[primary.rank] * scale) / 100;
   const tenths = tenthsFor(mountain, primary.post, running);
@@ -639,7 +639,7 @@ function addExtraPosts(
   primaryPost: TierId,
   scale: number,
 ): void {
-  const plainTotal = outputOf(plain, running);
+  const plainTotal = crewOutput(plain, running);
   const seen = new Set<TierId>();
   for (const engineer of atHome(mountain)) {
     const post = engineer.post;
