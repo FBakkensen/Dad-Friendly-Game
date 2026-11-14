@@ -4,7 +4,7 @@ import type { Trouble } from "./hazards";
 import type { Mountain } from "./mountain";
 import { readyNow } from "./ready-now";
 import { minedMountain } from "./test-fixtures";
-import { tierById, tierQuote, type BuyAmount, type TierId } from "./tiers";
+import { tierById, tierQuote, type BuyAmount, type ShownTierId } from "./tiers";
 
 const NOW = 1_700_000_000_000;
 
@@ -21,14 +21,14 @@ function crewed(over: Partial<Mountain> = {}): Mountain {
 
 function tap(
   mountain: Mountain,
-  tier: TierId,
+  tier: ShownTierId,
   {
     trouble,
     guided,
     amount = "one",
   }: {
     trouble?: Trouble;
-    guided?: TierId | undefined;
+    guided?: ShownTierId | undefined;
     amount?: BuyAmount;
   } = {},
 ) {

@@ -66,6 +66,13 @@ The one home for the economy's current numbers. Other docs link here instead of 
 
 The tended Great Machine's 5 is `TENDED_MACHINE_STAFF` in `src/engineers.ts`.
 
+The line's machines (#533) are in `TIERS` too, but off in play: never shown, never for sale, they take no hands and move nothing until the line turns on (#536). Their speeds are in today's units; the spec rates every machine at three times that once the line is on.
+
+| Tier      | First price (stones) | Stones a second each | Workers to run one | Stage    | Unlock (with the line on)                                                     |
+| --------- | -------------------- | -------------------- | ------------------ | -------- | ----------------------------------------------------------------------------- |
+| Hoist     | 6,000                | 20                   | 1                  | the lift | shown once you own a cart; the drill then follows it                          |
+| Pit train | 30,000,000           | 1,067                | 8                  | the haul | shown once you own a borer; on sale from 45,000,000 mined (the Crystal Caves) |
+
 **Growth** (`tierCost` in `src/tiers.ts`): a machine costs `ceil(firstPrice × 1.15^owned)` (`MACHINE_COST_GROWTH`). A worker or a kid costs `ceil(firstPrice × 1.06^owned)` (`HELPER_COST_GROWTH`). So the 2nd cart costs 690 and the 13th 3,211. Machines and workers scale with the kid-run stretch k only, never with the band.
 
 **Bands** (`src/scale.ts`): `BAND_STARTS` is 0 / 10M / 45M / 120M, in run-1 stones of depth (the Topsoil, the Granite, the Crystal Caves, the Deep Heart; 240M in all). `BAND_SCALE` is 1 / 2.625 / 6.3 / 32.4: the stones a band takes per stone of depth, at stretch 1. Upgrades and promotions are priced with `oneOffStretch` = k × the scale of the band the run stands in. A Buy or Promote pays the price it showed: if a band is crossed at the tap, it buys nothing and shows the new price (#367).

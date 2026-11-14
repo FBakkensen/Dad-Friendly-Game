@@ -14,6 +14,7 @@ import {
   tendingGain,
 } from "./rates";
 import { send } from "./expeditions";
+import { LINE_OFF, handsSpeed, lineSpeed, stageSpeeds } from "./line";
 import { minedMountain } from "./test-fixtures";
 import { TIERS } from "./tiers";
 import { NO_BOOSTS } from "./boosts";
@@ -482,5 +483,62 @@ describe("staffing never slows the crew (#500)", () => {
       }
     }
     expect(checked).toBe(2 * 3 * 3 * 3 * 3 * 21 * 4);
+  });
+});
+
+describe("the line's rule behind its factor (#532)", () => {
+  const LINE_ON = { [LINE_OFF]: 0 };
+  const parts = (rates: ReturnType<typeof effectiveRates>): number =>
+    lineSpeed(
+      stageSpeeds(rates.tierSpeed, rates.running),
+      handsSpeed(rates.tierSpeed, rates.running),
+    );
+  const sum = (rates: ReturnType<typeof effectiveRates>): number =>
+    TIERS.reduce(
+      (total, tier) =>
+        total + rates.running[tier.id] * rates.tierSpeed[tier.id],
+      0,
+    );
+
+  it("with no machines the line moves what the hands move today", () => {
+    const crew = { ...minedMountain(0), helpers: 12, kids: 3 };
+    const today = effectiveRates(crew);
+    const line = withFactors(LINE_ON, () => effectiveRates(crew));
+    expect(line.exactCrewPerSecond).toBeCloseTo(today.exactCrewPerSecond, 9);
+    expect(line.crewPerSecond).toBe(today.crewPerSecond);
+  });
+
+  it("with machines the crew moves what the line moves, not the sum", () => {
+    const crew = {
+      ...minedMountain(10_000_000),
+      helpers: 40,
+      carts: 12,
+      drills: 9,
+      borers: 2,
+    };
+    const today = effectiveRates(crew);
+    const line = withFactors(LINE_ON, () => effectiveRates(crew));
+    expect(today.exactCrewPerSecond).toBeCloseTo(sum(today), 9);
+    expect(line.exactCrewPerSecond).toBeCloseTo(parts(line), 9);
+    expect(line.crewPerSecond).toBe(Math.floor(parts(line) + 1e-9));
+    expect(line.crewPerSecond).toBeLessThan(today.crewPerSecond);
+    // Staffing is left as it is: the same machines run.
+    expect(line.running).toEqual(today.running);
+  });
+
+  it("a hired hand's gain is the line's rise", () => {
+    // Three of six carts run; a fourth hand starts one more.
+    const crew = { ...minedMountain(0), helpers: 3, carts: 6 };
+    withFactors(LINE_ON, () => {
+      const more = { ...crew, helpers: 4 };
+      expect(handsGain(crew, "helper", 1)).toBeCloseTo(
+        parts(effectiveRates(more)) - parts(effectiveRates(crew)),
+        9,
+      );
+    });
+    const today = effectiveRates(crew);
+    expect(handsGain(crew, "helper", 1)).toBe(
+      today.tierSpeed.helper + today.tierSpeed.cart,
+    );
   });
 });

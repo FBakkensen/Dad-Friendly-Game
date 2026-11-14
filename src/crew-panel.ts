@@ -53,7 +53,13 @@ import {
   workerWords,
 } from "./screen-words";
 import { showsDot } from "./teach";
-import { TIERS, owned, tierById, type BuyAmount, type TierId } from "./tiers";
+import {
+  TIERS,
+  owned,
+  tierById,
+  type BuyAmount,
+  type ShownTierId,
+} from "./tiers";
 import { watchFixHold } from "./trouble-tap";
 
 /*
@@ -83,7 +89,7 @@ const BUY_ICON: Readonly<Record<BuyIcon, string>> = {
 };
 
 /** What a row shows before the save is in: the tier's own art, never a lock read from a save. */
-const FIRST_ICON: Readonly<Record<TierId, BuyIcon>> = {
+const FIRST_ICON: Readonly<Record<ShownTierId, BuyIcon>> = {
   helper: "worker",
   kid: "kid",
   cart: "cart",
@@ -100,7 +106,7 @@ const SEC_MACHINES = "sec:machines";
 const FOOT = "foot";
 
 interface TierRow {
-  readonly id: TierId;
+  readonly id: ShownTierId;
   readonly row: BoardRow;
 }
 
@@ -148,7 +154,7 @@ function placeParts(
   parts: CrewParts,
   rows: readonly TierRow[],
 ): ReadonlyMap<string, HTMLElement> {
-  const inSection = (section: readonly TierId[]) =>
+  const inSection = (section: readonly ShownTierId[]) =>
     rows
       .filter(({ id }) => section.includes(id))
       .map(({ id, row }) => [id, row.root] as const);
@@ -170,10 +176,10 @@ function placeParts(
 
 /** The ids of the parts the save shows, in list order. The footnote shows under every list. */
 function shownParts(
-  shown: readonly TierId[],
+  shown: readonly ShownTierId[],
   crewed: boolean,
 ): readonly string[] {
-  const inSection = (section: readonly TierId[]) =>
+  const inSection = (section: readonly ShownTierId[]) =>
     section.filter((id) => shown.includes(id));
   return [
     SEC_CREW,
@@ -191,7 +197,7 @@ function guidedOf(
   mountain: Mountain,
   at: number,
   trouble: ProgressSnapshot["trouble"],
-): TierId | undefined {
+): ShownTierId | undefined {
   return showsDot(mountain, "staffing")
     ? firstIdleTier(mountain, at, trouble)
     : undefined;
@@ -284,10 +290,13 @@ function paintRows(
     onBoard,
     amount,
   }: { at: number; pick: ReadyPick; onBoard: RowsOnBoard; amount: BuyAmount },
-): { readonly shown: readonly TierId[]; readonly fresh: TierId | undefined } {
+): {
+  readonly shown: readonly ShownTierId[];
+  readonly fresh: ShownTierId | undefined;
+} {
   const guided = guidedOf(mountain, at, trouble);
-  const shown: TierId[] = [];
-  let fresh: TierId | undefined;
+  const shown: ShownTierId[] = [];
+  let fresh: ShownTierId | undefined;
   for (const { id, row } of rows) {
     const view = buyRowView({
       mountain,
@@ -334,12 +343,12 @@ interface RowWiring {
   /** How many a tap buys now (#358). */
   readonly amount: () => BuyAmount;
   /** Buys `count` of `what` from the row `id`: Done holds that row. */
-  readonly buy: (id: TierId, what: TierId, count: number) => void;
+  readonly buy: (id: ShownTierId, what: ShownTierId, count: number) => void;
 }
 
 function troubledHere(
   snapshot: ProgressSnapshot,
-  id: TierId,
+  id: ShownTierId,
 ): TroubleTier | undefined {
   return snapshot.trouble?.tier === id ? snapshot.trouble.tier : undefined;
 }
@@ -351,7 +360,7 @@ function troubledHere(
  */
 function wireTierRow(
   button: HTMLButtonElement,
-  id: TierId,
+  id: ShownTierId,
   { progress, onBoard, now, pick, amount, buy }: RowWiring,
 ): void {
   // A fix holds the row again: the burst of presses that fixed it must not run on into a buy,
@@ -409,7 +418,7 @@ function wireTierRow(
 
 /** One of a tier is today's buy; ×10 and Max buy several in one move (#358). */
 function buyMove(
-  what: TierId,
+  what: ShownTierId,
   count: number,
 ): Extract<Move, { kind: "buyTier" | "buyTiers" }> {
   return count === 1
@@ -418,7 +427,7 @@ function buyMove(
 }
 
 /** A tier's row, built once, with its own art until the save is in. */
-function tierRow(id: TierId, wiring: RowWiring): TierRow {
+function tierRow(id: ShownTierId, wiring: RowWiring): TierRow {
   const row = createBoardRow({
     tag: "button",
     className: "tier",
@@ -631,7 +640,7 @@ export function createCrewPanel({
   });
   const crewSpeed = (): number =>
     effectiveRates(getView().mountain, now(), getView().trouble).crewPerSecond;
-  const buy = (id: TierId, what: TierId, count: number): void => {
+  const buy = (id: ShownTierId, what: ShownTierId, count: number): void => {
     const before = crewSpeed();
     if (dispatch(buyMove(what, count)).kind === "applied") {
       onBoard.result(id, "applied");
@@ -650,7 +659,7 @@ export function createCrewPanel({
     parts,
   );
   /** The staffing New row the last render painted. */
-  let fresh: TierId | undefined;
+  let fresh: ShownTierId | undefined;
 
   const render = (): void => {
     const view = getView();

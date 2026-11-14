@@ -8,6 +8,7 @@ import {
   buyTier,
   owned,
   tierById,
+  tierInPlay,
   type Tier,
   type TierId,
 } from "./tiers";
@@ -69,9 +70,12 @@ export function tierLocked(mountain: Mountain, tier: Tier): boolean {
  * The pacing sim still moves her, through tendBestTier.
  */
 export function buyCrew(mountain: Mountain, id: TierId): Mountain {
-  const bought = tierLocked(mountain, tierById(id))
-    ? mountain
-    : buyTier(mountain, id);
+  const tier = tierById(id);
+  // A machine of the line is not for sale while the line is off (#533).
+  const bought =
+    !tierInPlay(tier) || tierLocked(mountain, tier)
+      ? mountain
+      : buyTier(mountain, id);
   if (mountain.borers > 0 || bought.borers === 0) {
     return bought;
   }
@@ -92,7 +96,7 @@ export function staffExisting(mountain: Mountain): {
   if (mountain.staffed === STAFF_GRANT) {
     return { mountain, joined: 0 };
   }
-  const needed = TIERS.reduce(
+  const needed = TIERS.filter(tierInPlay).reduce(
     (total, tier) => total + owned(mountain, tier) * tier.staff,
     0,
   );

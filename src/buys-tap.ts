@@ -2,7 +2,7 @@ import { buyRowView } from "./buys-rows";
 import type { TroubleTier } from "./hazards";
 import type { ProgressSnapshot } from "./progress-store";
 import type { ReadyPick } from "./ready-now";
-import type { BuyAmount, TierId } from "./tiers";
+import type { BuyAmount, ShownTierId } from "./tiers";
 
 /** What a Buys row's tap does, once the board's model lets it act. */
 export type BuysTap =
@@ -26,11 +26,11 @@ export function buysTap({
   amount,
 }: {
   snapshot: Pick<ProgressSnapshot, "mountain" | "trouble">;
-  tier: TierId;
+  tier: ShownTierId;
   pick: ReadyPick;
   now: number;
   /** The staffing New row's tier, if one shows. */
-  guided: TierId | undefined;
+  guided: ShownTierId | undefined;
   /** How many the drawer buys a tap. */
   amount: BuyAmount;
 }): BuysTap {

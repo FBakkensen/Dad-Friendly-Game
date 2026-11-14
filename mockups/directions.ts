@@ -16,7 +16,14 @@ import {
   layerCardWords,
   workerWords,
 } from "../src/screen-words.ts";
-import { owned, tierById, tierCost, TIERS, type TierId } from "../src/tiers.ts";
+import {
+  isShownTier,
+  owned,
+  tierById,
+  tierCost,
+  TIERS,
+  type ShownTierId,
+} from "../src/tiers.ts";
 import {
   NO_UPGRADES,
   upgradeById,
@@ -212,7 +219,7 @@ function milestonePreview(
   return `Preview · ${String(ownedCount)} of ${String(mark)} ${plural}: at ${String(mark)}, every ${plural.replace(/s$/, "")} digs twice as fast.`;
 }
 
-const DOES: Record<TierId, string> = {
+const DOES: Record<ShownTierId, string> = {
   helper: "Another pair of hands on the rock.",
   cart: "Hauls what the crew already cut.",
   drill: "Bites the wall while you rest.",
@@ -236,7 +243,7 @@ const BOOST_DOES = {
   overtime: "Twice as fast, then they rest.",
 } as const;
 
-function crewArt(id: TierId): string {
+function crewArt(id: ShownTierId): string {
   switch (id) {
     case "cart":
       return ART.cart;
@@ -283,6 +290,9 @@ function crewLine(mountain: Mountain, brief: boolean): string {
   ];
   if (!brief) {
     for (const tier of TIERS) {
+      if (!isShownTier(tier.id)) {
+        continue;
+      }
       const label = crewPostLabel(tier.id);
       const staff = staffNeeded(mountain, tier);
       if (label === undefined || staff === 0) {
@@ -302,7 +312,7 @@ function crewLine(mountain: Mountain, brief: boolean): string {
   return `<p class="dir-crew">${bits.join("")}</p>`;
 }
 
-function needsLine(mountain: Mountain, id: TierId): string | undefined {
+function needsLine(mountain: Mountain, id: ShownTierId): string | undefined {
   const staff = staffForBuy(mountain, tierById(id));
   if (staff <= 0) {
     return undefined;
@@ -310,7 +320,7 @@ function needsLine(mountain: Mountain, id: TierId): string | undefined {
   return `Needs ${formatCompact(staff)} ${workerWords(staff)}`;
 }
 
-function eachLine(mountain: Mountain, id: TierId): string {
+function eachLine(mountain: Mountain, id: ShownTierId): string {
   const speed = effectiveRates(mountain).tierSpeed[id];
   return `+${formatSpeed(speed)}/s each`;
 }
@@ -377,7 +387,7 @@ function buyCard(
 }
 
 /** Locked before the price, then the price, then short hands, then ready. */
-function tierState(mountain: Mountain, id: TierId): CardState {
+function tierState(mountain: Mountain, id: ShownTierId): CardState {
   const tier = tierById(id);
   if (tierLocked(mountain, tier)) {
     return "locked";
@@ -394,7 +404,7 @@ function tierState(mountain: Mountain, id: TierId): CardState {
 }
 
 /** Thumb reaches the ready buy last, so it sits nearest the bottom. */
-const OPEN_BUYS: readonly TierId[] = ["borer", "drill", "cart"];
+const OPEN_BUYS: readonly ShownTierId[] = ["borer", "drill", "cart"];
 
 function mountainCards(view: DirectionView, mountain: Mountain): string {
   return OPEN_BUYS.map((id) => {

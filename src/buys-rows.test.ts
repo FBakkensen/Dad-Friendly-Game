@@ -27,12 +27,19 @@ import {
 import { lockAria, lockBodyLine, lockRateLine } from "./tier-lock-words";
 import {
   TIERS,
+  isShownTier,
   tierById,
   tierCost,
   tierQuote,
   type BuyAmount,
-  type TierId,
+  type ShownTierId,
 } from "./tiers";
+
+/** The rows Buys shows today: the line's machines join with #538. */
+const SHOWN_TIERS = TIERS.flatMap((tier) => {
+  const id = tier.id;
+  return isShownTier(id) ? [{ ...tier, id }] : [];
+});
 import { tierSynergy, NO_UPGRADES } from "./upgrades";
 
 const NOW = 1_700_000_000_000;
@@ -47,14 +54,14 @@ function at(depth: number): Pick<Mountain, "remaining"> {
 }
 
 /** What the next one of a tier costs on this mountain. */
-function priceOf(mountain: Mountain, id: TierId, owned: number): number {
+function priceOf(mountain: Mountain, id: ShownTierId, owned: number): number {
   return tierCost(tierById(id), owned, mountain.stretch);
 }
 
 /** One row, read as the drawer would: with this frame's Ready pick. */
 function row(
   mountain: Mountain,
-  tier: TierId,
+  tier: ShownTierId,
   {
     trouble,
     pick,
@@ -63,7 +70,7 @@ function row(
   }: {
     trouble?: Trouble;
     pick?: ReadyPick;
-    guided?: TierId;
+    guided?: ShownTierId;
     amount?: BuyAmount;
   } = {},
 ): BuyRowView {
@@ -161,7 +168,7 @@ describe("buyRowView", () => {
     expect(row(early, "machine").shown).toBe(false);
 
     // Every row at once: what the drawer paints.
-    const faces: Readonly<Record<TierId, readonly [RowState, RowLamp]>> = {
+    const faces: Readonly<Record<ShownTierId, readonly [RowState, RowLamp]>> = {
       helper: ["ready", "green"],
       cart: ["ready", "amber"],
       drill: ["dear", "off"],
@@ -169,7 +176,7 @@ describe("buyRowView", () => {
       machine: ["locked", "off"],
       kid: ["locked", "off"],
     };
-    for (const tier of TIERS) {
+    for (const tier of SHOWN_TIERS) {
       const view = row(early, tier.id);
       expect([view.state, view.lamp], tier.id).toEqual(faces[tier.id]);
     }
@@ -198,7 +205,7 @@ describe("buyRowView", () => {
       icon: "tarp",
     });
     expect(borer.aria).toContain(NEEDS_MORE_WORKERS);
-    for (const tier of TIERS) {
+    for (const tier of SHOWN_TIERS) {
       for (const line of words(row(mountain, tier.id))) {
         expect(line).not.toMatch(/free/i);
       }
@@ -382,7 +389,7 @@ describe("buyRowView", () => {
   });
 
   it("icons", () => {
-    const icons: readonly (readonly [Mountain, TierId, BuyIcon])[] = [
+    const icons: readonly (readonly [Mountain, ShownTierId, BuyIcon])[] = [
       [early, "helper", "worker"],
       // Without the Crown, the kid is locked.
       [createMountain(), "kid", "kid-dim"],
@@ -476,7 +483,7 @@ describe("buyRowView", () => {
       ),
       upgrades: Object.freeze({ ...mountain.upgrades }),
     });
-    for (const tier of TIERS) {
+    for (const tier of SHOWN_TIERS) {
       row(frozen, tier.id, { guided: "cart" });
     }
     expect(frozen).toEqual(before);
@@ -489,15 +496,16 @@ describe("BUY_SECTIONS", () => {
       crew: ["helper", "kid"],
       machines: ["cart", "drill", "borer", "machine"],
     });
+    // The line's machines join Buys by stage (#538).
     expect([...BUY_SECTIONS.crew, ...BUY_SECTIONS.machines].sort()).toEqual(
-      TIERS.map((tier) => tier.id).sort(),
+      SHOWN_TIERS.map((tier) => tier.id).sort(),
     );
   });
 });
 
 describe("buyRowView: ×10 and Max (#358)", () => {
   /** What `amount` of a tier costs on this mountain, from the shared quote. */
-  const quote = (mountain: Mountain, id: TierId, amount: BuyAmount) =>
+  const quote = (mountain: Mountain, id: ShownTierId, amount: BuyAmount) =>
     tierQuote(mountain, tierById(id), amount);
 
   it("×10 shows ten's total, the count on the verb, and ten's output", () => {

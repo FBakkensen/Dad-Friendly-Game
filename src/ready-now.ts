@@ -10,11 +10,12 @@ import {
   owned,
   tierById,
   tierCost,
-  type MachineId,
+  isShownTier,
+  type ShownMachineId,
 } from "./tiers";
 
 /** What the Ready now plate can offer: a machine, or a worker. Never a kid. */
-export type ReadyTier = MachineId | "helper";
+export type ReadyTier = ShownMachineId | "helper";
 
 /**
  * The plate's pick (#372): buy it now, save for it, or nothing left to dig.
@@ -69,10 +70,12 @@ export function readyNow(
     const tier = tierById(id);
     return tierCost(tier, owned(mountain, tier), k);
   };
-  const runnable: readonly Priced[] = MACHINE_IDS.filter((id) => {
-    const tier = tierById(id);
-    return !tierLocked(mountain, tier) && free >= staffForBuy(mountain, tier);
-  }).map((id) => ({ tier: id, price: priceOf(id) }));
+  const runnable: readonly Priced[] = MACHINE_IDS.filter(isShownTier)
+    .filter((id) => {
+      const tier = tierById(id);
+      return !tierLocked(mountain, tier) && free >= staffForBuy(mountain, tier);
+    })
+    .map((id) => ({ tier: id, price: priceOf(id) }));
 
   const affordable = [...runnable]
     .reverse()

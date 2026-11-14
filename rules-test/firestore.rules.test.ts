@@ -217,6 +217,13 @@ describe("firestore.rules: every save the game writes is accepted", () => {
     }
   });
 
+  it("the line's hoists and pit trains (#533)", async () => {
+    const mountain = { ...createMountain(), hoists: 4, trains: 2 };
+    expect(await roundTrip(mountain)).toEqual(mountain);
+    // They sit in the workshop map (#195), which the rules only require is
+    // a map, so the client parser rejects a bad count (save-format.test.ts).
+  });
+
   it("round-trips a crew of engineers and rejects a bad one (#144)", async () => {
     const engineers: Engineer[] = ENGINEER_NAMES.map((name, index) => ({
       name,
@@ -716,6 +723,8 @@ function maximalMountain(): Mountain {
     borers: 4,
     machines: 2,
     kids: 6,
+    hoists: 9,
+    trains: 3,
     upgrades: Object.fromEntries(
       UPGRADES.map((upgrade) => [upgrade.id, upgrade.maxLevel]),
     ) as Upgrades,

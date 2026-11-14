@@ -40,7 +40,7 @@ import {
   workerWords,
 } from "./screen-words";
 import { lockAria, lockRateLine, lockShortLine } from "./tier-lock-words";
-import { tierById, type MachineId } from "./tiers";
+import { tierById, type ShownMachineId } from "./tiers";
 import { watchFixHold } from "./trouble-tap";
 
 /*
@@ -58,7 +58,7 @@ export interface MachineBays {
 }
 
 /** The bays before the save is in: their art shows, nothing from the save does. */
-const START: readonly MachineId[] = ["cart", "drill", "borer"];
+const START: readonly ShownMachineId[] = ["cart", "drill", "borer"];
 /** One lamp frame in CSS px: 20 art px at 2 px each. */
 const LAMP_PX = 40;
 const LAMP_FRAME: Readonly<Record<BayLamp, number>> = {
@@ -142,7 +142,7 @@ const ICON_URL: Readonly<Record<Exclude<IconKey, "drill">, string>> = {
 };
 
 /** The borer stays under its tarp until the first one arrives. */
-function iconKey(tier: MachineId, count: number): IconKey {
+function iconKey(tier: ShownMachineId, count: number): IconKey {
   if (tier === "borer") {
     return count > 0 ? "borer" : "tarp";
   }
@@ -304,7 +304,7 @@ function createDrill(): Drill {
 }
 
 /** One bay's button and its parts, showing the start art for `tier`. */
-function buildBay(tier: MachineId, i: number, drill: Drill): Bay {
+function buildBay(tier: ShownMachineId, i: number, drill: Drill): Bay {
   const button = el("button", "board-bay");
   button.type = "button";
   button.style.setProperty("--i", String(i));

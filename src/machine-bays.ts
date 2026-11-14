@@ -6,9 +6,9 @@ import type { Mountain } from "./mountain";
 import { effectiveRates } from "./rates";
 import type { ReadyPick } from "./ready-now";
 import { stretch } from "./scale";
-import { owned, tierById, tierCost, type MachineId } from "./tiers";
+import { owned, tierById, tierCost, type ShownMachineId } from "./tiers";
 
-type BayTiers = readonly [MachineId, MachineId, MachineId];
+type BayTiers = readonly [ShownMachineId, ShownMachineId, ShownMachineId];
 
 const EARLY_BAYS: BayTiers = ["cart", "drill", "borer"];
 const MACHINE_BAYS: BayTiers = ["drill", "borer", "machine"];
@@ -26,13 +26,13 @@ export type BayLamp = "off" | "amber" | "green" | "red";
 export type BayView =
   | {
       readonly kind: "locked";
-      readonly tier: MachineId;
+      readonly tier: ShownMachineId;
       readonly count: number;
       readonly lock: TierLock;
     }
   | {
       readonly kind: "open";
-      readonly tier: MachineId;
+      readonly tier: ShownMachineId;
       readonly count: number;
       readonly price: number;
       readonly gain: number;
@@ -41,7 +41,7 @@ export type BayView =
     }
   | {
       readonly kind: "trouble";
-      readonly tier: MachineId;
+      readonly tier: ShownMachineId;
       readonly count: number;
       readonly price: number;
       readonly gain: number;
@@ -75,7 +75,7 @@ export function bayViews(
   const { free } = crewCounts(mountain, now, trouble);
   const { tierSpeed } = effectiveRates(mountain, now, trouble);
   const k = stretch(mountain);
-  const view = (id: MachineId): BayView => {
+  const view = (id: ShownMachineId): BayView => {
     const tier = tierById(id);
     const count = owned(mountain, tier);
     const lock = tierLock(mountain, tier);
