@@ -92,6 +92,12 @@ export type WorkshopSave = {
   readonly rushBank?: number;
   /** The run's stretch (M13). Missing means 1. */
   readonly stretch?: number;
+  /**
+   * The line's machines (#533). Here, not in the mountain map, which is at
+   * the rules' expression budget (#195). Missing means none.
+   */
+  readonly hoists?: number;
+  readonly trains?: number;
   /** Notes opened (src/teach.ts). Missing means none. */
   readonly seen?: readonly string[];
   /** Systems used once (src/teach.ts). Missing means none written down. */
@@ -216,6 +222,8 @@ export function savedWorkshop(mountain: Mountain): WorkshopSave {
     ],
     ...savedClocks(mountain),
     ...only("stretch", mountain.stretch, mountain.stretch !== 1),
+    ...only("hoists", mountain.hoists, mountain.hoists > 0),
+    ...only("trains", mountain.trains, mountain.trains > 0),
     ...only("seen", seen, seen.length > 0),
     ...only("taught", taught, taught.length > 0),
   };
@@ -436,6 +444,15 @@ function readClock(value: unknown): Read<number> {
 
 type Timers = Pick<Mountain, "clocks" | "rushUntil" | "rushBank" | "stretch">;
 
+/** The line's hoists and pit trains (#533); a bad count rejects the save. */
+function readLineMachines(
+  sheet: Readonly<Record<string, unknown>>,
+): Pick<Mountain, "hoists" | "trains"> | undefined {
+  const hoists = count(sheet["hoists"]);
+  const trains = count(sheet["trains"]);
+  return hoists === "bad" || trains === "bad" ? undefined : { hoists, trains };
+}
+
 /** Every clock the workshop map holds; one bad clock rejects the save. */
 function readTimers(
   sheet: Readonly<Record<string, unknown>>,
@@ -473,6 +490,7 @@ export function withWorkshop(
   const seen = parseTeachIds(sheet["seen"]);
   const taught = parseTeachIds(sheet["taught"]);
   const timers = readTimers(sheet);
+  const line = readLineMachines(sheet);
   if (
     materials === undefined ||
     recipes === "bad" ||
@@ -480,13 +498,15 @@ export function withWorkshop(
     crafted === "bad" ||
     seen === "bad" ||
     taught === "bad" ||
-    timers === undefined
+    timers === undefined ||
+    line === undefined
   ) {
     return undefined;
   }
   return {
     ...base,
     ...timers,
+    ...line,
     materials,
     recipes: recipes.known,
     bench: bench.bench,

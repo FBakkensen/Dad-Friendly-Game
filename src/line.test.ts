@@ -22,12 +22,14 @@ const stages = (face: number, haul: number, lift: number): StageSpeeds => ({
 const TWELVE = 12;
 
 describe("the stages", () => {
-  it("carts haul, drills and borers work the face, the Great Machine lifts", () => {
+  it("carts and pit trains haul, drills and borers work the face, hoists and the Great Machine lift", () => {
     expect(STAGES).toEqual(["face", "haul", "lift"]);
     expect(MACHINE_STAGE).toEqual({
       cart: "haul",
+      hoist: "lift",
       drill: "face",
       borer: "face",
+      train: "haul",
       machine: "lift",
     });
     for (const id of MACHINE_IDS) {
@@ -39,23 +41,27 @@ describe("the stages", () => {
     const speed: Record<TierId, number> = {
       helper: 2,
       cart: 6,
+      hoist: 20,
       drill: 36,
       borer: 357,
+      train: 1067,
       machine: 2100,
       kid: 25,
     };
     const running: Record<TierId, number> = {
       helper: 30,
       cart: 4,
+      hoist: 5,
       drill: 3,
       borer: 2,
+      train: 1,
       machine: 1,
       kid: 2,
     };
     expect(stageSpeeds(speed, running)).toEqual({
       face: 3 * 36 + 2 * 357,
-      haul: 4 * 6,
-      lift: 2100,
+      haul: 4 * 6 + 1067,
+      lift: 5 * 20 + 2100,
     });
     expect(handsSpeed(speed, running)).toBe(30 * 2 + 2 * 25);
   });

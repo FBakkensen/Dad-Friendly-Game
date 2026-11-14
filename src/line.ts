@@ -15,8 +15,10 @@ export const STAGES: readonly Stage[] = ["face", "haul", "lift"];
 /** Every machine belongs to one stage. */
 export const MACHINE_STAGE: Readonly<Record<MachineId, Stage>> = {
   cart: "haul",
+  hoist: "lift",
   drill: "face",
   borer: "face",
+  train: "haul",
   machine: "lift",
 };
 

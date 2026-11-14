@@ -25,8 +25,11 @@ describe("tuned prices", () => {
     expect(TIERS.map(({ id, firstCost }) => [id, firstCost])).toEqual([
       ["helper", 20],
       ["cart", 600],
+      // The line's machines (#533), off in play until #536.
+      ["hoist", 6_000],
       ["drill", 73_080],
       ["borer", 4_940_000],
+      ["train", 30_000_000],
       ["machine", 120_600_000],
       // #327: cheap enough that a kid pays back in hours.
       ["kid", 250_000],

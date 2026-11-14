@@ -81,6 +81,10 @@ export function crewPostLabel(
     case "helper":
     case "kid":
       return undefined;
+    // The line's machines have no post words until Buys by stage (#538).
+    case "hoist":
+    case "train":
+      return undefined;
     default: {
       const never: never = id;
       return never;

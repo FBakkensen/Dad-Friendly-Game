@@ -14,7 +14,14 @@ export type StaffSlot = {
 /** How many of each machine run. */
 export type Staffing = Readonly<Record<MachineId, number>>;
 
-const NONE_RUNNING: Staffing = { cart: 0, drill: 0, borer: 0, machine: 0 };
+const NONE_RUNNING: Staffing = {
+  cart: 0,
+  hoist: 0,
+  drill: 0,
+  borer: 0,
+  train: 0,
+  machine: 0,
+};
 
 /** Float dust between two equal crews never moves a hand. */
 export function moreStones(stones: number, than: number): boolean {

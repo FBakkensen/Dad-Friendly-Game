@@ -45,6 +45,32 @@ export const MILESTONES: MilestoneTable = {
       goal: "Two hundred carts. The old mine was never this busy. Twice as fast again.",
     },
   ],
+  // The line's machines (#533) take their neighbours' marks: the hoist the
+  // cart's, the pit train the borer's. Their lines show with Buys by stage
+  // (#538), where Flemming approves the words.
+  hoist: [
+    {
+      at: 10,
+      goal: "Ten hoists at the shaft. Every hoist lifts twice as fast.",
+    },
+    { at: 25, goal: "Twenty-five hoists. Twice as fast again." },
+    { at: 50, goal: "Fifty hoists. Twice as fast again." },
+    { at: 100, goal: "A hundred hoists. Twice as fast again." },
+    { at: 150, goal: "A hundred and fifty hoists. Twice as fast again." },
+    { at: 200, goal: "Two hundred hoists. Twice as fast again." },
+  ],
+  train: [
+    {
+      at: 5,
+      goal: "Five pit trains on the rails. They haul twice as fast.",
+    },
+    { at: 10, goal: "Ten pit trains. Twice as fast again." },
+    { at: 25, goal: "Twenty-five pit trains. Twice as fast again." },
+    { at: 50, goal: "Fifty pit trains. Twice as fast again." },
+    { at: 100, goal: "A hundred pit trains. Twice as fast again." },
+    { at: 150, goal: "A hundred and fifty pit trains. Twice as fast again." },
+    { at: 200, goal: "Two hundred pit trains. Twice as fast again." },
+  ],
   drill: [
     {
       at: 10,

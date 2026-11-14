@@ -56,8 +56,11 @@ export type Mountain = {
   /** Owned per tier (src/tiers.ts). */
   readonly helpers: number;
   readonly carts: number;
+  /** The line's hoists and pit trains (#533): 0 until the line is on. */
+  readonly hoists: number;
   readonly drills: number;
   readonly borers: number;
+  readonly trains: number;
   readonly machines: number;
   /** Crown of Wisdom kid helpers. */
   readonly kids: number;
@@ -151,8 +154,10 @@ export const BARE_MOUNTAIN: Mountain = {
   pocket: 0,
   helpers: 0,
   carts: 0,
+  hoists: 0,
   drills: 0,
   borers: 0,
+  trains: 0,
   machines: 0,
   kids: 0,
   upgrades: NO_UPGRADES,

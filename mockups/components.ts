@@ -1,5 +1,5 @@
 import { chipTime, formatCompact } from "../src/format.ts";
-import { tierById, tierCost, type TierId } from "../src/tiers.ts";
+import { tierById, tierCost, type ShownTierId } from "../src/tiers.ts";
 
 /**
  * M10-3 component mocks (#235). Not the game. One card, three buttons,
@@ -57,7 +57,7 @@ function icon(src: string, extra = ""): string {
 type CardState = "ready" | "dear" | "locked";
 
 type CardSpec = {
-  readonly id: TierId;
+  readonly id: ShownTierId;
   readonly owned: number;
   readonly adds: string;
   readonly why: string;
