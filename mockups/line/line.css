@@ -1,0 +1,63 @@
+/*
+ * The stage bays mock (#535). Only what the line adds to src/board.css: the
+ * builder of #537 and #538 moves these rules there, on the board's tokens.
+ * Lengths are art pixels (--art is 2px), as in board.css.
+ */
+
+/* ---------- a stage bay ----------
+   A bay is still 204 x 27 art: lamp, icon, the stage's name and its line, then
+   five flaps that read what the stage moves, and the unit. The count flaps
+   and the price tag are gone: both live in Buys. */
+.line-bay > .board-bay-text {
+  width: calc(var(--art) * 66);
+}
+
+.line-bay > .board-flap {
+  right: calc(var(--art) * 12);
+}
+
+.line-bay > .line-per {
+  right: calc(var(--art) * 1);
+  top: calc(var(--art) * 14);
+  width: calc(var(--art) * 10);
+  text-align: center;
+  text-transform: none;
+}
+
+/* The stage that holds the line: its words in the lamp's amber. */
+.line-bay.is-hold .board-bay-sub {
+  font-weight: var(--board-weight-semi);
+  color: var(--board-amber);
+}
+
+/* The new icons stand on their visible pixels, like the others. */
+.line-bay[data-icon="hoist"] > .board-bay-icon {
+  top: calc(var(--art) * -1);
+}
+
+.line-bay[data-icon="train"] > .board-bay-icon {
+  top: calc(var(--art) * -4);
+}
+
+/* ---------- Buys by stage ----------
+   A stage's legend: its name, and at the right what the bay says. */
+.board-sec.line-sec.is-hold > .board-lg:last-child {
+  color: var(--board-amber);
+}
+
+/* A row that adds nothing: its gain is quiet, and so is its verb. */
+.board-row.line-zero .board-row-gain,
+.board-row.line-zero .board-row-verb {
+  color: var(--board-ink-2);
+}
+
+/* The crew's line when the hands help: plain ink, it is no warning. */
+.board-sheet .crew-status.line-hands {
+  color: var(--board-ink);
+}
+
+/* The mock's seeds have not been taught: no teach dots, no New sign. */
+.line-mock .board-key-dot,
+.line-mock .board-sign-slot {
+  display: none;
+}
