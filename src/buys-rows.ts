@@ -195,7 +195,7 @@ function buyFacts({
   // What the buy needs. The Great Machine's bill drops when an engineer
   // would tend it.
   const staff = staffForBuy(mountain, tier) * buying;
-  const bill = staffBillWords(staff, spare);
+  const bill = staffBillWords(staff);
   const worker = tierById("helper");
   // Workers (helper, kid) are hired; machines are bought. ×10 and Max say how many.
   const buyVerb = `${tier.staff === 0 ? "Hire" : "Buy"}${asked === "one" ? "" : ` ${formatCompact(buying)}`}`;
