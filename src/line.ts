@@ -36,7 +36,7 @@ export const LINE_OFF = "line.off";
  * job does three times his share (rule 3): so a first cart still adds 6 a
  * second to twelve workers (spec, Machines; #543).
  */
-export const LINE_RATING = 3;
+const LINE_RATING = 3;
 
 /** True when the crew moves what the line moves, not the sum of its parts. */
 export function lineOn(): boolean {
