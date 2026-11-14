@@ -156,6 +156,23 @@ describe("guardrails", () => {
 });
 
 describe("targets", () => {
+  it("reads a between bound inclusively at both ends, though no guardrail uses one since #556", () => {
+    const band: Target = {
+      id: "band",
+      measure: "finishDay",
+      scope: { kind: "policyKinds", kinds: ["casual"] },
+      op: "between",
+      value: [5, 7],
+      why: "A band with both ends.",
+    };
+    expect([4, 5, 7, 8].map((day) => meetsTarget(band, day))).toEqual([
+      false,
+      true,
+      true,
+      false,
+    ]);
+  });
+
   it("gives every guardrail one line of why and a known comparison", () => {
     const ids = new Set<string>();
     for (const target of TARGETS) {
