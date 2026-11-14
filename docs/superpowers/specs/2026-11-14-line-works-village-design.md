@@ -143,6 +143,20 @@ So two lines of advice change: "The Crystal Caves suit trains. Tough on carts." 
 - **The crew line** says where the hands help: "Hands help at the haul".
 - The mine window already shows the run from the face to the cage. A pile where the line is held is a later nicety, not part of this step.
 
+### The approved mock (#535)
+
+Flemming approved the mock of all this on 14 Nov 2026: `mockups/line/` (open `/mockups/line/index.html?scene=mid` on the dev server; pictures in `mockups/line/shots/`). #537 and #538 build what it shows. Where it says more than the list above, the mock rules:
+
+- **A bay** keeps its lamp, its icon and its two lines of words. Five flaps read what the stage's machines move a second, in the gauge's own figures, with "/s" beside them. The count flaps and the Next price leave the bays: both are in Buys.
+- **A bay's line** is "Holds the line" on the lowest stage (in the lamp's amber), "4,700/s spare" on a stage above the line, and "Hands add 9/s" on a stage the hands lift that is not the lowest.
+- **A bay's icon** is the biggest machine he owns in that stage. While he owns none it is the stage's first machine, dim.
+- **A bay's lamp** is amber on the lowest stage, green on a stage where a machine he can afford would add something, and dark where there is room to spare.
+- **Ready now's second line** names the stage: "+2,025/s · the haul holds the line".
+- **Buys** goes Crew, The face, The haul, The lift. A stage's legend says "Holds the line" or "Room to spare" at its right. The crew line reads "10,100/s · Hands help at the haul", and the chips count the crew by stage: "38 at the face".
+- **The line's How it works card** is the first card under Buys' "i", over Staffing. Two cards fill the drawer, so Layers and hardness moves to the Ledger's "i".
+
+The mock leaves three things to the builder: what the bays read before the first cart, when every stage is by hand and level; which stage is the lowest on a tie; and the trouble shout on a stage bay (#539).
+
 ### Where today's parts land in step 1
 
 | Part                       | In step 1                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
