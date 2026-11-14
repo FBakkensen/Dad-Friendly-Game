@@ -7,13 +7,12 @@ import { minedMountain } from "./test-fixtures";
 
 /**
  * How far one more hand or machine may lower the line while Grandpa's tenth
- * and an engineer's floor still go by machine, not by stage: the floor is a
- * share of the plain sum, so it pays for idle surplus on a stage that is not
- * narrow (docs/DESIGN.md; the engineers by stage are #539). The worst seen
- * is about 9%. With neither, or an engineer on the Great Machine, it may not
- * lower it at all.
+ * still goes by machine group, not by stage (docs/DESIGN.md; the engineers
+ * by stage are #539). The worst seen is about 4%. With no Grandpa, posted
+ * engineer or not, it may not lower it at all: her floor is a share of the
+ * line since #543.
  */
-const TENDED_SLIP = 0.1;
+const TENDED_SLIP = 0.05;
 
 type Crew = Pick<
   Mountain,
@@ -88,7 +87,7 @@ function sweep(grid: Grid): { checked: number; misses: string[] } {
           .exactCrewPerSecond;
       for (const crew of crews(grid)) {
         const now = rate(crew);
-        const tended = crew.legacy > 0 || post === "borer";
+        const tended = crew.legacy > 0;
         const allowed = tended ? now * TENDED_SLIP : 0;
         for (const [what, more] of MORE) {
           const after = rate(more(crew));
