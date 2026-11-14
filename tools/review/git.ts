@@ -12,7 +12,8 @@ import { pathToFileURL } from "node:url";
  * The job runs it from the PR's base commit, like the prompt.
  */
 
-export type Range = { base: string; head: string };
+/** The PR's commits, and on a re-check (#585) the one last reviewed. */
+export type Range = { base: string; head: string; last?: string };
 
 export type GitCall =
   { kind: "run"; args: string[] } | { kind: "refuse"; message: string };
@@ -56,16 +57,16 @@ function takeFlags(
 }
 
 function diff(range: Range, args: readonly string[]): GitCall {
-  const parsed = takeFlags(args, ["--stat", "--name-only"]);
+  const parsed = takeFlags(args, ["--stat", "--name-only", "--since-last"]);
   if (typeof parsed === "string") return refuse(parsed);
-  return run(
-    "diff",
-    ...QUIET,
-    ...parsed.flags,
-    `${range.base}...${range.head}`,
-    "--",
-    ...parsed.rest,
-  );
+  const since = parsed.flags.delete("--since-last");
+  if (since && range.last === undefined)
+    return refuse("--since-last needs a re-check; this is a first review");
+  const span =
+    since && range.last !== undefined
+      ? [range.last, range.head]
+      : [`${range.base}...${range.head}`];
+  return run("diff", ...QUIET, ...parsed.flags, ...span, "--", ...parsed.rest);
 }
 
 function log(range: Range, args: readonly string[]): GitCall {
@@ -144,7 +145,7 @@ export function gitCall(range: Range, args: readonly string[]): GitCall {
 }
 
 const HELP = `review-git: the reviewer's read-only git.
-  review-git diff [--stat|--name-only] [path...]   the PR's change
+  review-git diff [--stat|--name-only] [--since-last] [path...]   the PR's change (--since-last: since the last review)
   review-git log [--patch] [--branch] [path...]    history (--branch: only the PR's commits)
   review-git show <revision>                        a commit, or <revision>:<path>
   review-git grep [-i] [-w] [--] <pattern> [path...]  search the PR's tree (-- before a pattern that starts with -)
@@ -157,7 +158,8 @@ function main(args: readonly string[]): void {
     console.error("review-git: REVIEW_BASE and REVIEW_HEAD must be set");
     process.exit(2);
   }
-  const call = gitCall({ base, head }, args);
+  const last = process.env.REVIEW_LAST;
+  const call = gitCall({ base, head, ...(last ? { last } : {}) }, args);
   if (call.kind === "refuse") {
     console.error(call.message);
     process.exit(2);

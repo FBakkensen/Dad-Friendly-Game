@@ -29,16 +29,16 @@ A cloud session can be given a branch whose last PR was already squash-merged. S
 
 ## The gate
 
-No checks run on GitHub for a PR. The proof is the gate, run by hand, and the `signoff` status that records it:
+The proof is the gate, run by hand, and the `signoff` status that records it. The only check GitHub runs on a PR is the Claude review (Babysit).
 
-- `npm run gate -- fast` where superpowers says to verify, before calling a task done.
-- `npm run gate -- full` before opening the PR. It adds the strict strategy lab when economy code changed. Red means no PR. Green on a clean, committed HEAD leaves the signoff marker.
+- `npm run gate -- fast` where superpowers says to verify, before calling a task done, and before the PR is opened.
+- `npm run gate -- full` on the PR's final commit, before the merge (#585). It starts in the background as soon as the PR is open, so it runs while the Claude review does, and runs again after any later push. It adds the strict strategy lab when economy code changed. Red means no merge. Green on a clean, committed HEAD leaves the signoff marker.
 - `npm run gate -- signoff` after the push. It starts the `signoff` workflow, which posts the `signoff` status on HEAD. The ruleset on `main` requires that status on an up-to-date branch, so any later push needs the full gate and the signoff again. Never post `signoff` any other way, and never start the workflow by hand.
 - After the merge, `deploy-hosting` runs the full gate on `main` before it deploys. If it goes red, fix `main` first.
 
 ## Commit
 
-- Before the PR, the work is proven: gate green, and `npm run play` seen for anything the player sees.
+- Before the PR, the work is proven: the fast gate green, and `npm run play` seen for anything the player sees.
 - On the sitting's branch, not `main`.
 - Stage only this issue's files. No secrets (`.env`, Firebase, PixelLab tokens).
 - If a second sliver snuck in, stop. That work gets its own issue, not this PR.
@@ -52,7 +52,7 @@ Do not open the PR until the review returns only Minor findings, or none. Every 
 
 ## Open the PR
 
-Use `superpowers:finishing-a-development-branch` with "Push and create a Pull Request" already chosen, against `main`. Its full test suite is `npm run gate -- full`: run it and see it green, push, and see `npm run gate -- signoff` end with `signoff is green` before the PR is opened. The title matches the sliver. The PR body:
+Use `superpowers:finishing-a-development-branch` with "Push and create a Pull Request" already chosen, against `main`. Its test suite here is `npm run gate -- fast`: see it green, push, and open the PR, so the Claude review starts at once (#585). Then start `npm run gate -- full` in the background and babysit while both run. The title matches the sliver. The PR body:
 
 ```markdown
 ## Summary
@@ -77,11 +77,11 @@ In a cloud session, subscribe to the PR (`subscribe_pr_activity`) and let events
 1. Refresh live PR state each pass. Do not act on stale state.
 2. Conflicts first, then unresolved review comments.
 3. Handle review comments with `superpowers:receiving-code-review`. Fix real in-scope issues. Dismiss invalid ones with a reason. Every review thread, from the Claude review, a person or another bot, is answered and resolved before the merge, nits too (below).
-   - The `claude-review` workflow (#572) posts a PR review headed "Claude review" a few minutes after the PR is opened, reopened or marked ready for review, not after each push. Its body says which lenses it reviewed with and at which commit, and each finding is its own review thread, on its line or on its file (#584). A finding in a file the PR does not touch is listed in the body. When it did not review (art only, credit used up, no secret, a failure), it posts a plain comment that says why. If GitHub refused the review or a file thread, the findings come as a plain "Claude review" comment instead: answer each one, point by point, in one PR comment. Wait for its run before merging.
+   - The `claude-review` workflow (#572) posts a PR review headed "Claude review" a few minutes after the PR is opened, reopened or marked ready for review, and a re-check after each push (step 4). Its body says which lenses it reviewed with and at which commit, and each finding is its own review thread, on its line or on its file (#584). A finding in a file the PR does not touch is listed in the body. When it did not review (art only, credit used up, no secret, a failure), it posts a plain comment that says why. If GitHub refused the review or a file thread, the findings come as a plain "Claude review" comment instead: answer each one, point by point, in one PR comment. Wait for its run before merging.
    - **Every review thread is answered and resolved before the merge, Minor ones too (Flemming, 14 Nov 2026).** For each thread: fix it and reply with the commit that fixes it, or reply with the reason it stays as it is (wrong, out of scope with the issue you filed, or a ruling). Then resolve the thread (`resolve_review_thread`; replies with `add_reply_to_pull_request_comment`). Answer the findings listed in the review body in one PR comment. A `Needs Flemming` finding (one of the three stops in `.claude/rules/superpowers.md`, or a product or design call that is his) goes to Flemming, and its thread stays open until he answers. No other finding waits for a person.
-4. Run the fast gate on every fix, commit, and push. Before merging, after any push (a fix, or `main` merged into the branch with `update_pull_request_branch` and pulled), run `npm run gate -- full`, then `npm run gate -- signoff`. Never force-push.
+4. Run the fast gate on every fix, commit, and push. Each push gets a re-check from the Claude review: it looks only at what changed since the commit it last reviewed, reads the replies on the threads, and posts new findings only. A push that only merges `main` keeps the earlier review with no model call. Batch the fixes for one review into one push where you can. Before merging, run `npm run gate -- full` on the final commit, then `npm run gate -- signoff`. Any later push (a fix, or `main` merged into the branch with `update_pull_request_branch` and pulled) needs both again. Never force-push.
 
-When the PR is mergeable, its head commit has a green `signoff` (`gh api repos/{owner}/{repo}/commits/<sha>/status`), no review thread is open (`pull_request_read` with `get_review_comments` shows each thread's state), and every other non-nit comment is fixed or dismissed, it is ready. Squash-merge it. Do not wait for Flemming's "merge": he made Claude responsible for reviews and merges (2026-11-11). Wait only when a `Needs Flemming` finding, or another product or design call, is still open on the PR: then swap the issue's `agent-working` for `needs-you` and ask (github-issues, Triage).
+When the PR is mergeable, its head commit has been reviewed or kept by the Claude review, has a green `signoff` (`gh api repos/{owner}/{repo}/commits/<sha>/status`), no review thread is open (`pull_request_read` with `get_review_comments` shows each thread's state), and every other non-nit comment is fixed or dismissed, it is ready. Squash-merge it. Do not wait for Flemming's "merge": he made Claude responsible for reviews and merges (2026-11-11). Wait only when a `Needs Flemming` finding, or another product or design call, is still open on the PR: then swap the issue's `agent-working` for `needs-you` and ask (github-issues, Triage).
 
 Merge with the GitHub MCP `merge_pull_request` tool (squash) in a cloud session, or `gh pr merge --squash` elsewhere. Then:
 

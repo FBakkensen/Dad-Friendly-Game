@@ -32,7 +32,7 @@ How we build is dad-friendly too. The superpowers plugin is the workflow (`super
   1. the test file you touched (`npx vitest run <file>`);
   2. `npm run gate -- fast`;
   3. for anything the player sees, the one visual section that covers it (`VISUAL_ONLY='<section>' npm run visual`) and `npm run play` on its save, and for a change to how the game plays over time, the journey that covers it (`npm run journeys -- <file>`);
-  4. `npm run gate -- full`, once, before the PR, and again only after a fix to a step it failed.
+  4. `npm run gate -- full`, once, on the PR's final commit before the merge (the PR opens after the fast gate, #585), and again only after a fix to a step it failed or a later push.
 - Briefs and plans quote this ladder rather than setting their own tiers. A full gate never proves a single fix.
 - A plan keeps each screen's browser checks green in the task that changes that screen, never in a later "fix the checks" task.
 - A full gate takes 10–14 minutes. Start it in the background and wait for it to finish. Never wrap it in `timeout`, and never poll it in a sleep loop.

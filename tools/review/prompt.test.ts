@@ -102,7 +102,8 @@ describe("issuesFixed", () => {
 
 const TEXTS: LensTexts = {
   prompt:
-    "PR #{{PR}} is `git diff {{BASE}}...{{HEAD}}`. Lenses: {{LENSES}}.\n\n{{LENS_TEXTS}}\n\nAnswer.",
+    "{{RECHECK}}\n\nPR #{{PR}} is `git diff {{BASE}}...{{HEAD}}`. Lenses: {{LENSES}}.\n\n{{LENS_TEXTS}}\n\nAnswer.",
+  recheck: "RECHECK SINCE {{LAST}}",
   lens: {
     guards: "GUARDS TEXT",
     save: "SAVE TEXT",
@@ -181,6 +182,35 @@ describe("planReview", () => {
     if (result.kind !== "review") throw new Error("expected a review");
     expect(result.prompt.match(/pr-intent/gi)).toHaveLength(2);
     expect(result.prompt.trimEnd().endsWith("</pr-intent>")).toBe(true);
+  });
+
+  it("asks for a re-check of the changes since the last review, with the threads", () => {
+    const result = planReview({
+      paths: ["src/board-row.ts"],
+      base: "b".repeat(40),
+      head: "h".repeat(40),
+      pr: 7,
+      intent: { ...INTENT, threads: "### src/a.ts:3 (open)\n\n**bot:** x" },
+      texts: TEXTS,
+      last: "l".repeat(40),
+    });
+    if (result.kind !== "review") throw new Error("expected a review");
+    expect(result.prompt.startsWith(`RECHECK SINCE ${"l".repeat(40)}`)).toBe(
+      true,
+    );
+    expect(result.prompt).toContain(
+      "## Review threads so far\n\n### src/a.ts:3 (open)",
+    );
+    expect(result.prompt.indexOf("## Review threads so far")).toBeLessThan(
+      result.prompt.indexOf("</pr-intent>"),
+    );
+  });
+
+  it("leaves the re-check out of a first review", () => {
+    const result = plan(["src/board-row.ts"]);
+    if (result.kind !== "review") throw new Error("expected a review");
+    expect(result.prompt).not.toContain("RECHECK");
+    expect(result.prompt).not.toContain("Review threads so far");
   });
 
   it("says so when the PR fixes no issue", () => {

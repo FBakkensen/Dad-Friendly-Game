@@ -106,6 +106,32 @@ describe("gitCall", () => {
   });
 });
 
+describe("gitCall on a re-check", () => {
+  it("diffs from the last reviewed commit with --since-last", () => {
+    const call = gitCall({ ...RANGE, last: "c".repeat(40) }, [
+      "diff",
+      "--since-last",
+      "--stat",
+    ]);
+    expect(call).toEqual({
+      kind: "run",
+      args: [
+        ...SAFE,
+        "diff",
+        ...QUIET,
+        "--stat",
+        "c".repeat(40),
+        RANGE.head,
+        "--",
+      ],
+    });
+  });
+
+  it("refuses --since-last on a first review", () => {
+    expect(refused("diff", "--since-last")).toContain("first review");
+  });
+});
+
 describe("gitCall paths and limits", () => {
   it("shows a file whose path has spaces and brackets", () => {
     expect(args("show", "HEAD:docs/a b (1).md").at(-1)).toBe(
