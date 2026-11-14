@@ -9,7 +9,7 @@ const assets = join(here, "../../src/assets");
 const sprites = [
   "miner-18f", "cage", "tub-full", "steam-4f", "drill-work-4f", "dust-burst-4f",
   "mach-drill", "mach-train", "mach-hoist", "mach-cart", "res-stone", "res-clay",
-  "res-iron", "res-pick", "icon-workshop", "dig-button",
+  "res-iron", "res-pick", "icon-workshop",
 ];
 const uri = (file, mime) => `data:${mime};base64,${readFileSync(file).toString("base64")}`;
 const img = Object.fromEntries(
