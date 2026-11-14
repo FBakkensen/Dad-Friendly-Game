@@ -26,10 +26,10 @@ import {
 export const TICK_MS = 1000;
 
 /**
- * What the game last wrote to the phone: it saves on every move, not on every tick. Exact once
- * a move has been applied: before that, a fresh open has saved nothing and an opened save is
- * written again only when its open paid or staffed. A band's recipe grant also saves; the
- * journeys never reach one between a move and a kill.
+ * What the game last wrote to the phone: it saves on every move, and on every tick that moves
+ * the mountain or its clock (#573). Exact once a move or a tick has run: before that, a fresh
+ * open has saved nothing and an opened save is written again only when its open paid or
+ * staffed. A band's recipe grant also saves; the journeys never reach one before a kill.
  */
 type Saved = {
   readonly mountain: Mountain;
@@ -118,7 +118,18 @@ export class Expected {
   until(now: number): void {
     while (this.ticked + TICK_MS <= now) {
       this.ticked += TICK_MS;
-      this.session = step(this.session, { kind: "tick" }, this.ticked).session;
+      const before = this.session;
+      this.session = step(before, { kind: "tick" }, this.ticked).session;
+      // A tick that moves the mountain or its clock is saved (store-actions.ts `tickStore`).
+      if (
+        this.session.mountain !== before.mountain ||
+        this.session.lastSeen !== before.lastSeen
+      ) {
+        this.saved = {
+          mountain: this.session.mountain,
+          lastSeen: this.session.lastSeen,
+        };
+      }
     }
   }
 

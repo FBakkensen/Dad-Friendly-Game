@@ -104,7 +104,8 @@ page is the map, plus the rules that keep it that way.
    the effects through the ports, as functions over one `StoreContext`
    (`store-context`): `store-session` (run a step, emit one snapshot),
    `store-actions` (tick, moves, trouble taps, a new run, hide, dispose),
-   `local-saves` (the guest session save, the phone backup, the homecomings
+   `local-saves` (the guest session save and the phone backup, both written on
+   each move and on each tick the crew moves the mountain, the homecomings
    key), `cloud-writer` (the write pipeline and the field log copy),
    `save-adopt` (fast-forward or open the conflict sheet, recover a refused
    rev), `server-read` (the fresh read on resume), `save-load` (each cloud
@@ -613,8 +614,9 @@ focus)` (`showCard`, the model's open or close, and the focus once as it
   runs, and a new tab opens the same moment), and the tab left open all night
   (the clock jumps eight hours at once on an open tab, and the board pays what
   a cold open of the same save pays on a second phone, `otherPhone()`). A kill
-  while the crew digs with no move since hands their work back at the away
-  rate; that journey pins the gap as known (#573). `npm run journeys` runs them, and the full
+  while the crew digs with no move since also reopens the same moment: each
+  tick that moves the mountain writes the guest save quietly, as it writes the
+  signed-in phone backup (#573). `npm run journeys` runs them, and the full
   gate's `journeys` step (heavy lane) does too; a failure keeps a trace in
   `.gate/journeys/`. The config (`tools/journeys/playwright.config.ts`) starts
   its own Vite on port 4186 and launches the same Chrome as the harness

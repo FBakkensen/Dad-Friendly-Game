@@ -418,7 +418,7 @@ describe("cloud write throttle", () => {
 });
 
 describe("helpers mining live", () => {
-  it("ticks helpers' stones into the snapshot without saving, then saves on flush", () => {
+  it("ticks helpers' stones into the snapshot and the guest save, with no log line (#573)", () => {
     const storage = createMemoryStorage();
     let clock = 1_000;
     const progress = createProgressStore({
@@ -439,12 +439,11 @@ describe("helpers mining live", () => {
       kids: 0,
     }));
 
+    const logged = progress.getSnapshot().log;
     clock += 2_500;
     progress.tick();
     expect(progress.getSnapshot().mountain.pocket).toBe(6);
-    expect(readSessionSave({ storage })?.mountain.pocket).toBe(0);
-
-    progress.flush();
+    expect(progress.getSnapshot().log).toBe(logged);
     expect(readSessionSave({ storage })).toEqual({
       mountain: {
         ...BARE_MOUNTAIN,
