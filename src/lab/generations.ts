@@ -49,11 +49,13 @@ export function runGenerations({
       }),
     );
     const bought = new Set(played.buys.map((buy) => buy.id));
+    // Read under the run's factors, so a run with the line on lists them.
+    const machines = withFactors(factors, machinesInPlay);
     runs.push({
       run: index + 1,
       k: stretch(mountain),
       finishDay: played.finishDay,
-      unbought: machinesInPlay().filter((id) => !bought.has(id)),
+      unbought: machines.filter((id) => !bought.has(id)),
     });
     const next = withFactors(factors, () =>
       passTheMine(played.world.mountain, played.world.clock),

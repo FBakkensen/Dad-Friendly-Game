@@ -285,6 +285,23 @@ export function tierInPlay(tier: Tier): boolean {
   return tier.line !== true || lineOn();
 }
 
+/** Each tier's previous tier in play, with the line off and on (#533). */
+function previousTiers(
+  inPlay: (tier: Tier) => boolean,
+): ReadonlyMap<TierId, Tier | undefined> {
+  return new Map(
+    TIERS.map((tier, index) => [
+      tier.id,
+      TIERS.slice(0, index).filter(inPlay).at(-1),
+    ]),
+  );
+}
+
+const PREVIOUS = {
+  off: previousTiers((tier) => tier.line !== true),
+  on: previousTiers(() => true),
+} as const;
+
 /**
  * A tier appears once you own one, or own one of the tier in play before
  * it. With the line off the hoist is skipped, so the drill follows the cart.
@@ -293,10 +310,9 @@ export function tierShown(mountain: Mountain, tier: Tier): boolean {
   if (!tierInPlay(tier)) {
     return false;
   }
-  const index = TIERS.indexOf(tier);
-  const previous = TIERS.slice(0, index).filter(tierInPlay).at(-1);
+  const previous = (lineOn() ? PREVIOUS.on : PREVIOUS.off).get(tier.id);
   return (
-    index === 0 ||
+    tier.id === "helper" ||
     owned(mountain, tier) > 0 ||
     (previous !== undefined && owned(mountain, previous) > 0)
   );

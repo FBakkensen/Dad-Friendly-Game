@@ -96,7 +96,7 @@ export function staffExisting(mountain: Mountain): {
   if (mountain.staffed === STAFF_GRANT) {
     return { mountain, joined: 0 };
   }
-  const needed = TIERS.reduce(
+  const needed = TIERS.filter(tierInPlay).reduce(
     (total, tier) => total + owned(mountain, tier) * tier.staff,
     0,
   );

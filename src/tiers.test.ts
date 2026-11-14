@@ -393,6 +393,16 @@ describe("the line's machines, off in play (#533)", () => {
     expect(rates.exactCrewPerSecond).toBe(
       effectiveRates(crew).exactCrewPerSecond,
     );
+    expect(rates.helpersShort).toBe(effectiveRates(crew).helpersShort);
+  });
+
+  it("staffs the same counts again once the line turns on (the staffing table keys the line)", () => {
+    const crew = at({ helpers: 30, carts: 4, hoists: 5, trains: 2, borers: 1 });
+    expect(effectiveRates(crew).running.hoist).toBe(0);
+    const on = withFactors(LINE_ON, () => effectiveRates({ ...crew }));
+    expect(on.running.hoist).toBe(5);
+    expect(on.running.train).toBe(2);
+    expect(effectiveRates({ ...crew }).running.hoist).toBe(0);
   });
 
   it("with the line on: shown in price order, bought, and running in their stages", () => {

@@ -244,7 +244,7 @@ function readRates(mountain: Mountain, now?: number, trouble?: Trouble): Rates {
   // machine short of its crew sits idle. Helpers still mine by hand while
   // they run a machine. Kids count as staff too (Crown of Wisdom).
   const running = keptStaffing(mountain, steady);
-  const needed = TIERS.reduce(
+  const needed = TIERS.filter(tierInPlay).reduce(
     (total, tier) =>
       total + owned(mountain, tier) * staffNeeded(mountain, tier),
     0,
@@ -287,7 +287,7 @@ const staffings = new Map<
   { readonly key: Float64Array; readonly running: Record<TierId, number> }
 >();
 const STAFFINGS_KEPT = 4096;
-const KEY_LENGTH = 3 + TIERS.length + MACHINE_IDS.length + 2 * MAX_ENGINEERS;
+const KEY_LENGTH = 4 + TIERS.length + MACHINE_IDS.length + 2 * MAX_ENGINEERS;
 const scratchKey = new Float64Array(KEY_LENGTH);
 const scratchWords = new Uint32Array(scratchKey.buffer);
 
@@ -329,7 +329,9 @@ function writeStaffingKey(
   scratchKey[0] = mountain.helpers + mountain.kids;
   scratchKey[1] = mountain.legacy;
   scratchKey[2] = factor("tending.gain");
-  let at = 3;
+  // The line's machines take hands only while the line is on (#533).
+  scratchKey[3] = lineOn() ? 1 : 0;
+  let at = 4;
   for (const tier of TIERS) {
     scratchKey[at] = steady[tier.id];
     at += 1;
@@ -372,7 +374,7 @@ function staffCrew(
   const old = biggestFirst(slots, hands);
   const weighed = new Map<string, Weighed>();
   const weigh = (staffing: Staffing): Weighed => {
-    const key = `${String(staffing.cart)} ${String(staffing.drill)} ${String(staffing.borer)} ${String(staffing.machine)}`;
+    const key = MACHINE_IDS.map((id) => String(staffing[id])).join(" ");
     const kept = weighed.get(key);
     if (kept !== undefined) {
       return kept;
