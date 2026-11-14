@@ -277,4 +277,3 @@ export function materialLeftToDig(material: MaterialId, mined: number): number {
     materialsFromMined(mined)[material];
   return left > 0 ? left : 0;
 }
-
