@@ -20,5 +20,7 @@ An agent-run sitting under M16 (#551).
 - **The ledger is not formatted by prettier** (`.prettierignore`): the check compares it byte for byte with what the lab writes.
 - **A hand edit of the ledger runs the lab.** The economy test now reads every touched file, not only code, against the lab's closure.
 - **Proof the gate goes red:** a 10% dearer first cart (600 to 660) fails `--ledger check` with 90 moved lines; the plain dad's finish moves from day 4.0 to 4.5.
+- **The check is exact** (review): the gate passes only a ledger identical to what the lab writes; the moved-lines diff is only the printout. Rows sort in code-unit order, not the machine's locale.
+- **A guarded cell whose guardrails all came back n/a shows no seeds' range** (review), and a worst seed or range that prints the same as the mean is left out.
 - **Time:** one CI lab run on `main` took 70.2 s; with the ledger, 72.0 s.
 - **The report is otherwise unchanged:** with the worst-seed notes stripped, this branch's report matches `main`'s.

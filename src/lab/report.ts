@@ -226,10 +226,11 @@ function cellText(cell: Cell): string {
 function judgementText(judgement: Judgement, unit: string): string {
   const text = `${formatMeasure(judgement.value, unit)} ${word(judgement.pass)}`;
   const worst = judgement.worst;
-  if (worst === undefined || worst.value === judgement.value) {
+  const shown = worst === undefined ? "" : formatMeasure(worst.value, unit);
+  if (worst === undefined || shown === formatMeasure(judgement.value, unit)) {
     return text;
   }
-  return `${text} (worst ${formatMeasure(worst.value, unit)}, seed ${String(worst.seed)})`;
+  return `${text} (worst ${shown}, seed ${String(worst.seed)})`;
 }
 
 /** The seeds' range beside the mean of a measure no guardrail reads (#554). */
@@ -238,7 +239,9 @@ function spreadText(cell: Cell): string {
   if (spread === undefined) {
     return "";
   }
-  return ` (seeds ${formatMeasure(spread.low, cell.unit)}–${formatMeasure(spread.high, cell.unit)})`;
+  const low = formatMeasure(spread.low, cell.unit);
+  const high = formatMeasure(spread.high, cell.unit);
+  return low === high ? "" : ` (seeds ${low}–${high})`;
 }
 
 function word(pass: boolean): string {

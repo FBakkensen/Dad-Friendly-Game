@@ -475,7 +475,7 @@ function cellFor(
         ? Number.NaN
         : displayValue(unscoped, judgements),
     judgements,
-    ...spreadOf(judgements, numbersOf(unscopedSeeds)),
+    ...(unavailable ? {} : spreadOf(judgements, numbersOf(unscopedSeeds))),
   };
 }
 

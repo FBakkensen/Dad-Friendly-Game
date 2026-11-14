@@ -209,9 +209,18 @@ export function ledgerVerdict(
       lines: [`No pacing ledger at ${LEDGER_PATH}.`, again],
     };
   }
+  if (committed === fresh) {
+    return { code: 0, lines: [`The pace matches ${LEDGER_PATH}.`] };
+  }
   const diff = ledgerDiff(committed, fresh);
   if (diff.length === 0) {
-    return { code: 0, lines: [`The pace matches ${LEDGER_PATH}.`] };
+    return {
+      code: 1,
+      lines: [
+        `${LEDGER_PATH} holds this run's lines, but not as the lab writes them (order or blank lines).`,
+        again,
+      ],
+    };
   }
   return {
     code: 1,

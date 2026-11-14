@@ -107,6 +107,14 @@ function dayText(day: number | undefined): string {
   return day === undefined ? NONE : day.toFixed(DAY_DIGITS);
 }
 
+/** Code-unit order, the same on every machine whatever its locale. */
+function byText(left: string, right: string): number {
+  if (left === right) {
+    return 0;
+  }
+  return left < right ? -1 : 1;
+}
+
 /** The committed ledger: one row per player type and seed, sorted. */
 export function renderLedger(entries: readonly LedgerEntry[]): string {
   const machineIds = machinesInPlay();
@@ -121,7 +129,7 @@ export function renderLedger(entries: readonly LedgerEntry[]): string {
   ];
   const sorted = [...entries].sort(
     (left, right) =>
-      left.policyId.localeCompare(right.policyId) || left.seed - right.seed,
+      byText(left.policyId, right.policyId) || left.seed - right.seed,
   );
   const rows = sorted.map((entry) =>
     [

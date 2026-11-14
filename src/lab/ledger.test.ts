@@ -92,20 +92,23 @@ describe("pacing ledger", () => {
     });
     const markdown = renderLedger([
       entry("beta", 1),
+      entry("Zeta", 1),
       entry("alpha", 2),
       entry("alpha", 1),
     ]);
     const rows = markdown
       .split("\n")
-      .filter((line) => /^\| (alpha|beta) /.test(line));
+      .filter((line) => /^\| (alpha|beta|Zeta) /.test(line));
+    // Code-unit order, whatever the machine's locale: upper case first.
     expect(rows.map((line) => line.split(" | ").slice(0, 2))).toEqual([
+      ["| Zeta", "1"],
       ["| alpha", "1"],
       ["| alpha", "2"],
       ["| beta", "1"],
     ]);
-    expect(rows[0]).toContain("| 2.35 |");
-    expect(rows[0]).toContain("| 6.50 |");
-    expect(rows[1]).toContain("| — | 0000abcd |");
+    expect(rows[1]).toContain("| 2.35 |");
+    expect(rows[1]).toContain("| 6.50 |");
+    expect(rows[2]).toContain("| — | 0000abcd |");
     expect(markdown.endsWith("\n")).toBe(true);
   });
 

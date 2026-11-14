@@ -113,6 +113,12 @@ describe("strategy lab command", () => {
       ]),
     );
     expect(moved.lines.join("\n")).toContain("npm run lab:ledger");
+    expect(
+      ledgerVerdict(
+        "# Pacing ledger\n\n| beta | 1 |\n| alpha | 1 |\n",
+        "# Pacing ledger\n\n| alpha | 1 |\n| beta | 1 |\n",
+      ).code,
+    ).toBe(1);
     const missing = ledgerVerdict(undefined, committed);
     expect(missing.code).toBe(1);
     expect(missing.lines[0]).toContain(LEDGER_PATH);
