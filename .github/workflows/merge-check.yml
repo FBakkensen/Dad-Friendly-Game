@@ -13,6 +13,7 @@ name: merge-check
 # on main before every deploy, so the slow checks of the combination run before it ships.
 on:
   pull_request:
+    branches: [main]
     types: [opened, reopened, ready_for_review, synchronize]
   push:
     branches: [main]
@@ -105,6 +106,7 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - name: Install
+        id: install
         if: steps.merge.outputs.result == 'merged'
         run: npm ci
       - name: Gate, merge tier
@@ -119,9 +121,15 @@ jobs:
           NUMBER: ${{ matrix.pr.number }}
           HEAD: ${{ matrix.pr.head }}
           MERGE: ${{ steps.merge.outputs.result }}
+          INSTALL: ${{ steps.install.outcome }}
           GATE: ${{ steps.gate.outcome }}
         run: |
           total=$(grep -E '^gate merge: ' "$RUNNER_TEMP/gate.log" 2>/dev/null | tail -n 1 || true)
+          # Two lock file edits can merge cleanly and still not install: a break, not a retry.
+          if [ "$INSTALL" = "failure" ]; then
+            total="npm ci failed on the merged tree"
+            GATE=failure
+          fi
           case "$MERGE/$GATE" in
             merged/success) result=passed ;;
             merged/failure) result=failed ;;
@@ -187,3 +195,14 @@ jobs:
             gh api "repos/$REPO/statuses/$head" -f state="$state" -f context=merge-check \
               -f description="${text:0:140}" -f target_url="$RUN_URL" --silent
           done
+          # A run for one PR's push is not cancelled by a newer main. If main moved while this
+          # posted, the green above is already stale: take it back until the newer run reports.
+          after=$(gh api "repos/$REPO/commits/main" --jq .sha)
+          if [ "$after" != "$MAIN" ]; then
+            echo "main moved to ${after:0:7} while posting; marking these pending again."
+            for head in $(printf '%s' "$PRS" | jq -r '.[].head'); do
+              gh api "repos/$REPO/statuses/$head" -f state=pending -f context=merge-check \
+                -f description="main moved to ${after:0:7}; waiting for its merge-check." \
+                -f target_url="$RUN_URL" --silent
+            done
+          fi
