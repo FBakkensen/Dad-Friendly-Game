@@ -57,6 +57,7 @@ jobs:
 
       - name: Review
         if: steps.key.outputs.present == 'true'
+        timeout-minutes: 15
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           BASE: ${{ github.event.pull_request.base.sha }}
@@ -67,14 +68,16 @@ jobs:
           claude -p --bare --no-session-persistence \
             --model claude-opus-5-5 \
             --max-budget-usd 2 \
-            --allowedTools "Read" "Grep" "Glob" "Bash(git diff:*)" "Bash(git log:*)" "Bash(git show:*)" \
+            --tools "Read" "Bash" \
+            --allowedTools "Read" "Bash(git diff:*)" "Bash(git log:*)" "Bash(git show:*)" "Bash(git grep:*)" "Bash(git ls-files:*)" \
             --output-format json \
             "$prompt" > "$RUNNER_TEMP/review.json" 2> "$RUNNER_TEMP/review.err"
           echo "claude exited $?"
           cat "$RUNNER_TEMP/review.err"
 
       - name: Post the review
-        if: steps.key.outputs.present == 'true'
+        # Also after a failed or timed-out Review step, so the PR hears why.
+        if: ${{ !cancelled() && steps.key.outputs.present == 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
           KEY: ${{ secrets.ANTHROPIC_API_KEY }}
