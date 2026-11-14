@@ -1411,6 +1411,54 @@ describe("save status on the unhappy paths (#114 coverage)", () => {
     );
   });
 
+  it("records a tick's guest save the device refuses once the device fills (#573)", () => {
+    const storage = createMemoryStorage();
+    let clock = 1_000;
+    const progress = createProgressStore({
+      auth: createMemoryAuth(),
+      sessionStorage: storage,
+      now: () => clock,
+    });
+    progress.applyMutation(() => ({ ...minedMountain(2), helpers: 3 }));
+    expect(progress.getSnapshot().saveKind).toBe("session");
+    storage.setItem = () => {
+      throw new Error("QuotaExceededError");
+    };
+    clock += 2_000;
+    progress.tick();
+    expect(progress.fieldLog().events).toContainEqual(
+      expect.objectContaining({
+        code: "save.error",
+        data: { source: "session" },
+      }),
+    );
+  });
+
+  it("keeps a reopened guest save current on ticks before any move (#573)", () => {
+    const storage = createMemoryStorage();
+    writeSessionSave({
+      storage,
+      mountain: { ...minedMountain(2), helpers: 3 },
+      lastSeen: 1_000,
+    });
+    let clock = 1_000;
+    const progress = createProgressStore({
+      auth: createMemoryAuth(),
+      sessionStorage: storage,
+      now: () => clock,
+    });
+    expect(progress.getSnapshot().saveKind).toBe("session");
+    clock += 5_000;
+    progress.tick();
+    expect(readSessionSave({ storage })?.lastSeen).toBe(6_000);
+    expect(readSessionSave({ storage })?.mountain.pocket).toBe(
+      progress.getSnapshot().mountain.pocket,
+    );
+    expect(progress.getSnapshot().mountain.pocket).toBeGreaterThan(
+      minedMountain(2).pocket,
+    );
+  });
+
   it("logs a phone backup the device refuses, and keeps the cloud copy", async () => {
     const docs = new Map([["test-dad", minedMountain(3)]]);
     const auth = createMemoryAuth();
