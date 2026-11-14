@@ -135,7 +135,8 @@ service cloud.firestore {
 
     // Counts by tier id. The table names the ids and the client writes
     // them, so the rules hold only the map's size (room for the table to
-    // grow); the 50 KB cap below holds the rest.
+    // grow). The values are not typed here: the client writes whole counts
+    // and refuses a field log over 50 KB.
     function isCrewCounts(crew) {
       return crew is map && crew.size() <= 16;
     }

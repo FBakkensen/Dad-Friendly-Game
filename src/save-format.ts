@@ -40,7 +40,7 @@ import {
 } from "./mountain";
 import { MAX_STRETCH } from "./scale";
 import { TEACH_IDS, type TeachId } from "./teach";
-import { TIERS, type TierId } from "./tiers";
+import { TIER_IDS, type TierId } from "./tiers";
 import { NO_UPGRADES, UPGRADES, type UpgradeId } from "./upgrades";
 import {
   COLD_CLOCKS,
@@ -64,7 +64,6 @@ type StockId = typeof STONES | MaterialId;
 type LevelId = UpgradeId | RecipeId;
 type ClockId = BoostId | TimerId | typeof GOLD_RUSH;
 
-const OWNED_IDS: readonly TierId[] = TIERS.map((tier) => tier.id);
 const STOCK_IDS: readonly StockId[] = [
   STONES,
   ...LAYERS.map((layer) => layer.material),
@@ -221,7 +220,7 @@ export function writeGame(mountain: Mountain): SaveGame {
   return {
     ...some(
       "owned",
-      positives(OWNED_IDS, (id) => tierCount(mountain, id)),
+      positives(TIER_IDS, (id) => tierCount(mountain, id)),
     ),
     ...some(
       "stock",
@@ -543,7 +542,7 @@ type Facts = Pick<
 
 /** The four count maps, laid onto the mountain's own fields. */
 function readFacts(record: Entries): Part<Facts> {
-  const owned = readCounts(record["owned"], OWNED_IDS, UNCAPPED);
+  const owned = readCounts(record["owned"], TIER_IDS, UNCAPPED);
   const stock = readCounts(record["stock"], STOCK_IDS, UNCAPPED);
   const levels = readCounts(record["levels"], LEVEL_IDS, levelCap);
   const clocks = readCounts(record["clocks"], CLOCK_IDS, UNCAPPED);
@@ -654,7 +653,7 @@ export type ShippedFacts = {
 export function shippedFacts(): ShippedFacts {
   return {
     gameKeys: GAME_KEYS,
-    owned: OWNED_IDS,
+    owned: TIER_IDS,
     stock: STOCK_IDS,
     levels: Object.fromEntries(LEVEL_IDS.map((id) => [id, levelCap(id)])),
     clocks: CLOCK_IDS,

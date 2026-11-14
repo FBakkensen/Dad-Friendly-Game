@@ -347,7 +347,7 @@ function writeStaffingKey(
     at += 1;
   }
   for (const id of MACHINE_IDS) {
-    scratchKey[at] = owned(mountain, tierById(id));
+    scratchKey[at] = mountain.owned[id];
     at += 1;
   }
   for (const one of atHome(mountain)) {
