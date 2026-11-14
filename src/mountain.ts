@@ -295,7 +295,9 @@ function accrueCrew({
     if (rate === 0 || state.remaining === 0) {
       return { mountain: state, mined, settledAt: to };
     }
-    const toBand = stonesToNextBand(state);
+    // Whole stones to dig past the band's start (the depth can be a part
+    // stone short of it), and at least one, so every pass moves.
+    const toBand = Math.max(1, Math.ceil(stonesToNextBand(state) - 1e-6));
     const seconds = Math.floor((to - cursor) / 1000);
     const crossing = Math.ceil(toBand / (rate * pay));
     if (seconds * rate * pay <= toBand || crossing >= seconds) {
@@ -303,6 +305,11 @@ function accrueCrew({
       return { ...last, mined: mined + last.mined };
     }
     const part = digFor(state, crossing * rate * pay, crossing, cursor, to);
+    if (part.mined === 0) {
+      // Float dust left this pass empty: pay the rest at this speed.
+      const last = digFor(state, seconds * rate * pay, seconds, cursor, to);
+      return { ...last, mined: mined + last.mined };
+    }
     state = part.mountain;
     mined += part.mined;
     cursor = part.settledAt;

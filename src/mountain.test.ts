@@ -284,11 +284,23 @@ describe("a stretch that crosses into a new band (#592)", () => {
     expect(stonesPerSecond(crossed)).toBeLessThan(topsoilSpeed);
   });
 
-  it("stops at the bottom inside the last band", () => {
-    const deep = { ...drillCrew, remaining: 3 };
-    const dug = accrue({ mountain: deep, from: 0, to: 60_000 });
-    expect(dug.mountain.remaining).toBe(0);
-    expect(dug.settledAt).toBe(60_000);
+  it("a slow crew a part stone above the band keeps digging past it", () => {
+    // A stretched run, one worker at away pay: under a stone a second, and
+    // the depth a part stone short of the Granite.
+    for (const stretch of [1, 1.5, 2.84]) {
+      const slow = {
+        ...createMountain(),
+        stretch,
+        helpers: 1,
+        remaining: MOUNTAIN_STONES - (BAND_STARTS[1] - 0.3 / stretch),
+      };
+      const rate = stonesPerSecond(slow);
+      const hour = accrue({ mountain: slow, from: 0, to: 3_600_000, pay: 0.3 });
+      expect(minedOut(hour.mountain)).toBeGreaterThan(BAND_STARTS[1]);
+      expect(hour.mined).toBeGreaterThanOrEqual(
+        Math.floor(3600 * rate * 0.3) - 2,
+      );
+    }
   });
 });
 

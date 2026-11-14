@@ -529,20 +529,6 @@ describe("time away pays the same however it is sliced (#555)", () => {
     const twice = minedAway(deep, [START + 3 * HOUR, START + 6 * HOUR]);
     expect(once).toBeGreaterThan(twice);
   });
-});
-
-describe("known gaps, pinned (#555)", () => {
-  it("part-stone: three 1 s stretches away pay less than one 3 s stretch", () => {
-    const crew = { ...createMountain(), helpers: 23 };
-    const once = minedAway(crew, [START + 3 * SECOND]);
-    const thrice = minedAway(crew, [
-      START + SECOND,
-      START + 2 * SECOND,
-      START + 3 * SECOND,
-    ]);
-    expect(once).toBeGreaterThan(thrice);
-    expect(once - thrice).toBeLessThanOrEqual(tolerance(once, 3));
-  });
 
   const GRANITE = LAYERS[1];
 
@@ -581,5 +567,19 @@ describe("known gaps, pinned (#555)", () => {
       const split = minedAway(crew, [START + HOUR, START + 6 * HOUR]);
       expect(Math.abs(once - split)).toBeLessThanOrEqual(tolerance(once, 2));
     }
+  });
+});
+
+describe("known gaps, pinned (#555)", () => {
+  it("part-stone: three 1 s stretches away pay less than one 3 s stretch", () => {
+    const crew = { ...createMountain(), helpers: 23 };
+    const once = minedAway(crew, [START + 3 * SECOND]);
+    const thrice = minedAway(crew, [
+      START + SECOND,
+      START + 2 * SECOND,
+      START + 3 * SECOND,
+    ]);
+    expect(once).toBeGreaterThan(thrice);
+    expect(once - thrice).toBeLessThanOrEqual(tolerance(once, 3));
   });
 });
