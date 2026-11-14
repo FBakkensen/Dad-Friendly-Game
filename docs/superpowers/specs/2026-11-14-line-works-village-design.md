@@ -126,7 +126,7 @@ The Granite and the Deep Heart read as they do today. The Crystal Caves change f
 | -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Stones, prices, the pocket | Unchanged. Stones are the money.                                                                                                                                                                                                                                                                     |
 | Relics and their powers    | Unchanged.                                                                                                                                                                                                                                                                                           |
-| Time away                  | Unchanged: 30% of the line, today's caps. The door sliver (the crew waits at a chamber) applies as built.                                                                                                                                                                                            |
+| Time away                  | Unchanged: 30% of the line, today's caps.                                                                                                                                                                                                                                                            |
 | Ownership marks            | Unchanged, per machine. A mark is now a jump in one stage, which is what moves the narrow place.                                                                                                                                                                                                     |
 | Staffing                   | The foreman staffs the machines that move the most rock through the whole line (#500's rule, read against the line).                                                                                                                                                                                 |
 | Engineers                  | They tend a stage, not a machine type: the face, the haul, the lift, the Great Machine (its smaller crew), or camp. Moving one to the narrow stage is the free, instant fix.                                                                                                                         |
@@ -228,7 +228,7 @@ The names are suggestions. Names, lines and pictures are Flemming's to approve w
 
 ### Buildings open the bands
 
-Once the story is in the village, nothing ties it to depth, and a dad could reach the Deep Heart with no Forge and so no Great Machine. So each band's door opens with a building. At a closed door only depth waits: the line keeps making goods.
+Once the story is in the village, nothing ties it to depth, and a dad could reach the Deep Heart with no Forge and so no Great Machine. So each band has a door, new in step 3, that opens with a building. At a closed door only depth waits: the line keeps making goods.
 
 | Door              | Opens when        | Why it can never lock                                                                            |
 | ----------------- | ----------------- | ------------------------------------------------------------------------------------------------ |
@@ -253,7 +253,6 @@ Passing the mine: the kid inherits the village. The buildings stand as he left t
 - **The premise and the name.** "The Legendary Relics of Fatherhood", left by the great dads of history, goes. The vision line and the title need new words.
 - **Wonder.** A relic is found. A building is earned. The vague tease of something old in the dark is the one thing this design makes weaker. What is left of it: bands unknown until reached, expedition finds, and the hint of the next building.
 - **Work already done.** The relic plate, the shelf, the reveal built last week (#523), the relic pictures, the Ledger's relic rows and its guide bar, and the relics card. The sockets, the drawer, the reveal's staging and the powers' code are reused. The pictures are not.
-- **The door sliver** being built now loses its relic doors at step 3. Band edges stay doors.
 - **Keepsakes** move from a relic's page to the Home. Expedition glimmers become word from the village.
 
 What is kept: six virtues in the same order, six powers nearly word for word, six sockets on the board, a reveal for each, and the Legend at the end. What it gains: the story stops being a count the crew passes while he sleeps.
@@ -266,7 +265,7 @@ Step 3 is the step that changes the goal. It needs steps 1 and 2 under it, but n
 
 ## Paper check
 
-A rough model, not the game's lab: `designs/line-model.py` in the project files. It plays step 1's rule with the table's numbers, a dad who spends on the best gain per stone, today's away pay and no doors. It answers one question: does the narrow stage keep moving?
+A rough model, not the game's lab: `designs/line-model.py` in the project files. It plays step 1's rule with the table's numbers, a dad who spends on the best gain per stone, and today's away pay. It answers one question: does the narrow stage keep moving?
 
 | Dad                 | Run 1 ends | Sittings | Longest run of sittings that open on one narrow stage | Sittings opened on face / haul / lift |
 | ------------------- | ---------- | -------- | ----------------------------------------------------- | ------------------------------------- |
