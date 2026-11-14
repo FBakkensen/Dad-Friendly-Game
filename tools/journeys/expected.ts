@@ -1,7 +1,10 @@
 /**
  * What the rules say a journey's board should read: the game's own session, stepped beside the
  * page with the same clock. A journey compares the board to this, never to a typed-in number,
- * so a retune moves both together and only a broken rule turns a journey red (#552).
+ * so a retune moves both together. A journey turns red when the page does not follow the
+ * rules (the store, the screen, its timers and wiring), not when a rule itself is wrong: that
+ * is the unit tests' and the labs' job (#552). The store also steps `notice` on every render;
+ * it grants recipes and never moves the pocket, so the journeys leave it out.
  */
 import type { Move } from "../../src/economy/actions.ts";
 import {
@@ -13,6 +16,8 @@ import { parseSaveValue } from "../../src/persist.ts";
 import {
   createSession,
   firstNotice,
+  markWelcomed,
+  openBaselines,
   step,
   type Session,
 } from "../../src/session.ts";
@@ -41,8 +46,9 @@ export class Expected {
   }
 
   /**
-   * A stored save opened at `at`: parsed the way the game parses it, then its time away paid.
-   * `report` is what the welcome card shows.
+   * A stored save opened at `at`: parsed the way the game parses it, then opened step for step
+   * as `openSession` (src/save-load.ts) opens it: the one-time staff, the news baselines, no
+   * homecomings from a reload, and the time away paid. `report` is what the welcome card shows.
    */
   static opened(
     json: string,
@@ -52,13 +58,19 @@ export class Expected {
     if (parsed === undefined) {
       throw new Error("The journey's save does not parse");
     }
-    const paid = step(
+    const staffed = step(
       createSession(parsed.mountain, at),
-      { kind: "away", since: parsed.lastSeen },
+      { kind: "loaded" },
       at,
-    );
+    ).session;
+    const recalled = step(
+      openBaselines(staffed, false),
+      { kind: "recall", homecomings: [] },
+      at,
+    ).session;
+    const paid = step(recalled, { kind: "away", since: parsed.lastSeen }, at);
     return {
-      expected: new Expected(paid.session, at),
+      expected: new Expected(markWelcomed(paid.session), at),
       report: firstNotice(paid.session.news, "away")?.report,
     };
   }

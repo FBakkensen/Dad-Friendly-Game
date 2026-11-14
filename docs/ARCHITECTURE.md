@@ -614,15 +614,18 @@ focus)` (`showCard`, the model's open or close, and the focus once as it
   its own Vite on port 4186 and launches the same Chrome as the harness
   (`chromePath`), so no browser is downloaded. One player driver,
   `tools/journeys/player.ts`, holds every selector: it seeds a save from
-  `tools/browser/fixtures.ts`, puts in a seeded `Math.random`, and installs
+  `tools/browser/fixtures.ts`, puts in a seeded `Math.random` (the sweep's
+  `createRng`), and installs
   Playwright's clock paused at 9 pm, all before the page boots; it taps, opens
   and shuts Buys, buys a tier's row, and reads the numbers the player sees.
   Whole-tick waits jump the clock a tick at a time (`clock.fastForward`), so
   the game's one-second tick runs as it would, about thirty times faster than
   running every frame. A journey never types an expected number: `Expected`
   (`tools/journeys/expected.ts`) steps the game's own session (`createSession`
-  and `step` in `src/session.ts`) beside the page on the same clock, so a
-  retune moves both and only a broken rule turns a journey red. The readouts
+  and `step` in `src/session.ts`, opened step for step as `openSession`)
+  beside the page on the same clock, so a retune moves both. A journey turns
+  red when the page does not follow the rules (the store, the screen, its
+  timers and wiring); a wrong rule is the unit tests' and the labs' to catch. The readouts
   a journey reads carry their exact number as a data attribute: the
   odometer's `data-count` is the pocket, and the welcome card's
   `.welcome-mined-count` carries the haul. There is no debug object on

@@ -8,6 +8,7 @@ import { DRAWER_SETTLE_MS } from "../../src/board-interaction.ts";
 import type { ShownTierId } from "../../src/tiers.ts";
 import { seedJson, type SeedSave } from "../browser/fixtures.ts";
 import { SAVE_KEY, seedScript } from "../browser/harness.ts";
+import { createRng } from "../sweep/random.ts";
 import { TICK_MS } from "./expected.ts";
 
 /** 9 pm on a weekday: the kids are asleep. Every journey's clock starts here. */
@@ -18,17 +19,8 @@ export const HOUR_MS = 60 * 60 * 1000;
 /** The seed of the page's Math.random, so a vein or a wobble lands the same every run. */
 const RANDOM_SEED = 552;
 
-/** Math.random as a seeded mulberry32, put in before any of the game's code runs. */
-function seedRandom(seed: number): void {
-  let state = seed >>> 0;
-  Math.random = () => {
-    state = (state + 0x6d2b79f5) >>> 0;
-    let t = state;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
+/** The whole ticks a drawer or a card takes to settle, so the next tap counts. */
+const PAST_SETTLE_MS = Math.ceil((DRAWER_SETTLE_MS + 1) / TICK_MS) * TICK_MS;
 
 const BUYS_KEY = '.board-key[data-key="buys"]';
 const OPEN_BUYS = '.board-sheet[data-sheet="buys"].is-open';
@@ -61,7 +53,10 @@ export class Player {
     // The clock stands at nine and moves only when the journey waits.
     await this.page.clock.install({ time: this.at - TICK_MS });
     await this.page.clock.pauseAt(this.at);
-    await this.page.addInitScript(seedRandom, RANDOM_SEED);
+    // The sweep's own seeded stream, put in before any of the game's code runs.
+    await this.page.addInitScript({
+      content: `Math.random = (${createRng.toString()})(${String(RANDOM_SEED)});`,
+    });
     const seed = seedScript(
       json === undefined
         ? { kind: "remove" }
@@ -72,7 +67,7 @@ export class Player {
       await this.page.addInitScript(seed);
     }
     await this.page.goto("/");
-    await expect(this.page.locator(".board-rail .board-key")).toHaveCount(5);
+    await expect(this.page.locator(".board-odo[data-count]")).toBeAttached();
     await expect(this.page.locator(".save-status")).not.toHaveText(
       /^$|Loading/,
     );
@@ -110,7 +105,7 @@ export class Player {
   async openBuys(): Promise<void> {
     await this.page.locator(BUYS_KEY).tap();
     await expect(this.page.locator(OPEN_BUYS)).toBeVisible();
-    await this.wait(Math.ceil((DRAWER_SETTLE_MS + 1) / TICK_MS) * TICK_MS);
+    await this.wait(PAST_SETTLE_MS);
   }
 
   /** Shuts the open Buys drawer by its Back plate. */
@@ -144,11 +139,11 @@ export class Player {
   }
 
   /**
-   * Back to the mountain: the welcome card's plate, a tick after the card rose (a card ignores
-   * the finger that was already down as it opened).
+   * Back to the mountain: the welcome card's plate, once the card has settled (a card, like a
+   * drawer, ignores the finger that was already down as it opened).
    */
   async closeWelcome(): Promise<void> {
-    await this.wait(TICK_MS);
+    await this.wait(PAST_SETTLE_MS);
     await this.page.locator(".welcome-continue").tap();
     await expect(this.page.locator(".welcome-back")).toBeHidden();
   }

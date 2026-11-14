@@ -19,4 +19,8 @@ An agent-run sitting under M16 (#551). The issue carries the design; this record
 - **The player acts on whole ticks.** A Buys row judges what is affordable from the board last painted, while a move settles the crew's work since the last tick first. A tap half a second after a tick can therefore see a worker the board does not yet light: that is how the game works, not a fault, and the journey taps where the board was painted.
 - **Rows keep their places while Buys is open** (`createBuysLayout`), so the cart's row appears only when Buys opens again. The journey shuts Buys while saving for the cart, as a player would.
 - **The first two minutes' policy:** dig to the first worker, hire to ten workers as each becomes affordable, then save for the cart. With today's numbers the cart lands a little over two minutes in; the journey allows ten minutes, so a retune moves the moment but does not break the journey.
+- **Seeded `Math.random`:** the sweep's own mulberry32 (`createRng` in `tools/sweep/random.ts`), put in as its source text, since an init script cannot import.
+- **`TICK_MS` stays a journey constant** (1000, the interval in `src/screen-run.ts`). Moving it into a shared rule module would put the change in the strategy lab's import closure and run both strict labs for a constant; a later sitting that touches that module can move it.
+- **`forbidOnly` always:** nothing runs on a PR, so a stray `test.only` must fail the local full gate, not the deploy after the merge.
+- **What a journey catches:** the page not following the rules (the store, the screen, its timers and wiring). A wrong rule moves both sides; that is the unit tests' and the labs' job.
 - **Port 4186**, away from the other scripts' Vite ports (4174, and 4175 upward).

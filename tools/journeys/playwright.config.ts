@@ -18,7 +18,8 @@ export default defineConfig({
   testMatch: "*.journey.ts",
   // A failure keeps its trace here (git-ignored): npx playwright show-trace <it>/trace.zip
   outputDir: "../../.gate/journeys",
-  forbidOnly: process.env["CI"] !== undefined,
+  // Nothing runs on a PR, so a stray test.only must fail here, not after the merge.
+  forbidOnly: true,
   retries: 0,
   // One Chrome at a time: the gate's heavy lane already shares the cores out.
   workers: 1,
