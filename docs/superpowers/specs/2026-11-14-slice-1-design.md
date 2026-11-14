@@ -512,7 +512,7 @@ Part 1, the first evenings:
 
 1. A fresh mine's rules, off in play: one level, no depth, machines that open by what he owns (rule 1), and what leaves the rules with it.
 2. Orders and transport, off in play: the Light Tower's project, the fleet, on hold, and unattended time before the stockyard (rules 4, 6, 7).
-3. The lab plays part 1 and sets its numbers: the starting workers, the horse wagon, the Light Tower.
+3. The lab plays part 1 and sets its numbers: the starting workers, the horse wagon, the Light Tower. Waits for his answers on the floor and the workforce.
 4. Art: the Light Tower and a horse wagon. Asked for first.
 5. The frame and the mine, beside today's board: the order strip, the stockpiles, Next, the site bar, the mountain, the stage plates and a stage's list (#537, #538 and #539's card, rewritten). Waits for his answer on the workforce.
 6. The city: the skyline, the transport plate, the project's card and the order key.
