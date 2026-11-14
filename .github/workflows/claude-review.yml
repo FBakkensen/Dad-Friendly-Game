@@ -68,10 +68,12 @@ jobs:
           # the review it gets (#576). A base without them gets no review.
           tools="$RUNNER_TEMP/base"
           mkdir -p "$tools"
-          if ! git cat-file -e "$BASE:tools/review/prompt.ts" 2>/dev/null; then
-            echo "::error::The base commit has no tools/review/prompt.ts, so there is no review to run."
-            exit 1
-          fi
+          for file in tools/review/prompt.ts tools/review/git.ts; do
+            if ! git cat-file -e "$BASE:$file" 2>/dev/null; then
+              echo "::error::The base commit has no $file, so there is no review to run."
+              exit 1
+            fi
+          done
           git archive "$BASE" tools/review .github/review | tar -x -C "$tools"
           # The reviewer's only shell command (#583), from the base like the rest.
           mkdir -p "$RUNNER_TEMP/bin"

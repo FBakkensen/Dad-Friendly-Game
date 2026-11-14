@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { realpathSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 
 /**
@@ -17,9 +18,11 @@ export type GitCall =
   { kind: "run"; args: string[] } | { kind: "refuse"; message: string };
 
 const MAX_LOG = 200;
+/** Patches cost tokens: the $2 budget should not go on one log. */
+const MAX_PATCHES = 20;
 
-/** A revision the reviewer may name: a sha, a ref, `HEAD~2`, `abc:path`. */
-const REVISION = /^[A-Za-z0-9_][A-Za-z0-9_./~^@{}:-]*$/;
+/** A revision the reviewer may name: a sha, a ref, `HEAD~2`. */
+const REVISION = /^[A-Za-z0-9_][A-Za-z0-9_./~^@{}-]*$/;
 
 const SAFE = ["--no-pager", "-c", "core.quotePath=false"];
 const QUIET = ["--no-color", "--no-ext-diff", "--no-textconv"];
@@ -74,7 +77,7 @@ function log(range: Range, args: readonly string[]): GitCall {
   const patch = parsed.flags.has("--patch") ? ["--patch", ...QUIET] : [];
   return run(
     "log",
-    `--max-count=${String(MAX_LOG)}`,
+    `--max-count=${String(parsed.flags.has("--patch") ? MAX_PATCHES : MAX_LOG)}`,
     "--format=%h %ad %s",
     "--date=short",
     ...patch,
@@ -89,7 +92,13 @@ function show(args: readonly string[]): GitCall {
   const [revision, ...extra] = args;
   if (revision === undefined || extra.length > 0)
     return refuse("show takes one revision, such as HEAD~1 or <sha>:<path>");
-  if (!REVISION.test(revision)) return refuse(`not a revision: ${revision}`);
+  // The part after the first `:` is a path in that tree, and may hold any
+  // character but a line break.
+  const colon = revision.indexOf(":");
+  const name = colon < 0 ? revision : revision.slice(0, colon);
+  const path = colon < 0 ? "" : revision.slice(colon + 1);
+  if (!REVISION.test(name) || /[\r\n]/.test(path))
+    return refuse(`not a revision: ${revision}`);
   return run("show", ...QUIET, "--end-of-options", revision);
 }
 
@@ -138,7 +147,7 @@ const HELP = `review-git: the reviewer's read-only git.
   review-git diff [--stat|--name-only] [path...]   the PR's change
   review-git log [--patch] [--branch] [path...]    history (--branch: only the PR's commits)
   review-git show <revision>                        a commit, or <revision>:<path>
-  review-git grep [-i] [-w] <pattern> [path...]     search the PR's tree
+  review-git grep [-i] [-w] [--] <pattern> [path...]  search the PR's tree (-- before a pattern that starts with -)
   review-git ls-files [path...]                     list files`;
 
 function main(args: readonly string[]): void {
@@ -156,7 +165,15 @@ function main(args: readonly string[]): void {
   try {
     execFileSync("git", call.args, {
       stdio: "inherit",
-      env: { ...process.env, GIT_PAGER: "cat", PAGER: "cat" },
+      // Only what git needs: no API key, and no GIT_* variable that could
+      // set config (core.fsmonitor runs a program) or an external diff.
+      env: {
+        PATH: process.env.PATH,
+        HOME: process.env.HOME,
+        LANG: process.env.LANG,
+        GIT_PAGER: "cat",
+        PAGER: "cat",
+      },
     });
   } catch (error) {
     const status = (error as { status?: number | null }).status;
@@ -164,5 +181,16 @@ function main(args: readonly string[]): void {
   }
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href)
-  main(process.argv.slice(2));
+// Through a symlinked path, argv[1] is the link and import.meta.url the
+// real file; comparing real paths keeps the CLI from exiting silently.
+function isMain(): boolean {
+  const script = process.argv[1];
+  if (script === undefined) return false;
+  try {
+    return import.meta.url === pathToFileURL(realpathSync(script)).href;
+  } catch {
+    return false;
+  }
+}
+
+if (isMain()) main(process.argv.slice(2));

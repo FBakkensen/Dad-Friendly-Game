@@ -1,4 +1,7 @@
 import { execFileSync } from "node:child_process";
+import { mkdtempSync, symlinkSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { gitCall } from "./git.ts";
 
@@ -35,7 +38,7 @@ describe("gitCall", () => {
     expect(args("log", "--branch", "--patch", "src/a.ts")).toEqual([
       ...SAFE,
       "log",
-      "--max-count=200",
+      "--max-count=20",
       "--format=%h %ad %s",
       "--date=short",
       "--patch",
@@ -90,6 +93,9 @@ describe("gitCall", () => {
     [["diff", "--output=/tmp/x"], "unknown option --output=/tmp/x"],
     [["log", "--output=/tmp/x"], "unknown option --output=/tmp/x"],
     [["show", "--output=/tmp/x"], "not a revision"],
+    [["show", ":/text"], "not a revision"],
+    [["show", "@{-1}"], "not a revision"],
+    [["show", "HEAD:a\nb"], "not a revision"],
     [["show", "HEAD", "--ext-diff"], "show takes one revision"],
     [["show"], "show takes one revision"],
     [["grep"], "grep needs a pattern"],
@@ -97,6 +103,19 @@ describe("gitCall", () => {
     [["config", "core.pager", "x"], "review-git:"],
   ])("refuses %j", (input, message) => {
     expect(refused(...input)).toContain(message);
+  });
+});
+
+describe("gitCall paths and limits", () => {
+  it("shows a file whose path has spaces and brackets", () => {
+    expect(args("show", "HEAD:docs/a b (1).md").at(-1)).toBe(
+      "HEAD:docs/a b (1).md",
+    );
+  });
+
+  it("caps a log with patches at 20 commits", () => {
+    expect(args("log", "--patch")).toContain("--max-count=20");
+    expect(args("log")).toContain("--max-count=200");
   });
 });
 
@@ -111,6 +130,20 @@ describe("the command line", () => {
     expect(run("ls-files", "tools/review/prompt.ts")).toBe(
       "tools/review/prompt.ts\n",
     );
+  });
+
+  it("runs through a symlinked path too", () => {
+    const dir = mkdtempSync(join(tmpdir(), "review-git-"));
+    symlinkSync(resolve("tools/review"), join(dir, "review"));
+    const out = execFileSync(
+      process.execPath,
+      [join(dir, "review/git.ts"), "ls-files", "tools/review/prompt.ts"],
+      {
+        encoding: "utf8",
+        env: { ...process.env, REVIEW_BASE: "HEAD", REVIEW_HEAD: "HEAD" },
+      },
+    );
+    expect(out).toBe("tools/review/prompt.ts\n");
   });
 
   it("refuses with exit code 2 and runs nothing", () => {
