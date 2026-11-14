@@ -19,6 +19,10 @@ import {
   LINE_MACHINE_COST_GROWTH,
   MACHINE_COST_GROWTH,
   MACHINE_IDS,
+  TIER_IDS,
+  machineRecord,
+  setOwned,
+  tierRecord,
   TIERS,
   isShownTier,
   machinesInPlay,
@@ -515,5 +519,59 @@ describe("the line's prices, labs only (#543)", () => {
     });
     expect(tierCost(tierById("machine"), 0)).toBe(120_600_000);
     expect(tierCost(tierById("cart"), 1)).toBe(690);
+  });
+});
+
+describe("counts by id (#559)", () => {
+  it("every machine row names its stage, and only the machines do", () => {
+    const stages = Object.fromEntries(
+      TIERS.flatMap((tier) =>
+        tier.stage === undefined ? [] : [[tier.id, tier.stage]],
+      ),
+    );
+    expect(stages).toEqual({
+      cart: "haul",
+      hoist: "lift",
+      drill: "face",
+      borer: "face",
+      train: "haul",
+      machine: "lift",
+    });
+    expect(Object.keys(stages)).toEqual([...MACHINE_IDS]);
+  });
+
+  it("the records are built from the table, one entry per id", () => {
+    expect(Object.keys(tierRecord(0))).toEqual(TIER_IDS);
+    expect(Object.keys(machineRecord(0))).toEqual([...MACHINE_IDS]);
+    expect(Object.values(machineRecord("x"))).toEqual(
+      MACHINE_IDS.map(() => "x"),
+    );
+    expect(Object.keys(BARE_MOUNTAIN.owned)).toEqual(TIER_IDS);
+  });
+
+  it("a buy moves its own count and leaves every other one", () => {
+    const start: Mountain = {
+      ...BARE_MOUNTAIN,
+      pocket: 1e12,
+      owned: { ...NONE_OWNED, helper: 9, cart: 2, hoist: 1, kid: 3 },
+    };
+    const bought = buyTier(start, "cart");
+    expect(bought.owned).toEqual({ ...start.owned, cart: 3 });
+    expect(setOwned(start, "train", 4).owned).toEqual({
+      ...start.owned,
+      train: 4,
+    });
+    // The original is untouched.
+    expect(start.owned.cart).toBe(2);
+  });
+
+  it("a save keeps every count by id, the line's machines included", () => {
+    const counted: Mountain = {
+      ...minedMountain(50_000_000),
+      owned: Object.fromEntries(
+        TIER_IDS.map((id, at) => [id, at + 1]),
+      ) as Mountain["owned"],
+    };
+    expect(reloaded(counted)?.owned).toEqual(counted.owned);
   });
 });

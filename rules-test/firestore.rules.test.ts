@@ -542,6 +542,38 @@ describe("firestore.rules: fieldLogs/{uid}", () => {
     );
   });
 
+  it("holds crew and idle to maps by id, the line's machines included (#559)", async () => {
+    const shot = gameSnapshot();
+    const lined = {
+      ...fieldLog([event]),
+      snapshot: {
+        ...shot,
+        crew: { ...shot.crew, hoist: 3, train: 1 },
+        idle: { ...shot.idle, hoist: 1, train: 1 },
+      },
+    };
+    await setDoc(doc(db, "fieldLogs", "dad"), lined);
+    expect((await getDoc(doc(db, "fieldLogs", "dad"))).data()).toEqual(lined);
+
+    const crowded = Object.fromEntries(
+      Array.from({ length: 17 }, (_, at) => [`tier${String(at)}`, 1]),
+    );
+    for (const field of ["crew", "idle"] as const) {
+      await expect(
+        setDoc(doc(db, "fieldLogs", "dad"), {
+          ...fieldLog([event]),
+          snapshot: { ...shot, [field]: crowded },
+        }),
+      ).rejects.toThrow(/permission/i);
+      await expect(
+        setDoc(doc(db, "fieldLogs", "dad"), {
+          ...fieldLog([event]),
+          snapshot: { ...shot, [field]: [1, 2] },
+        }),
+      ).rejects.toThrow(/permission/i);
+    }
+  });
+
   it("refuses another user, and still lets that user write their own", async () => {
     await setDoc(doc(db, "fieldLogs", "dad"), fieldLog([event]));
     await expect(getDoc(doc(momDb, "fieldLogs", "dad"))).rejects.toThrow(

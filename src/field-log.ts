@@ -7,7 +7,13 @@ import type { Mountain } from "./mountain";
 import type { Rates } from "./rates";
 import { foundRelics, type RelicId } from "./relics";
 import { minedOut } from "./scale";
-import { TIERS, isShownTier, owned, type ShownTierId } from "./tiers";
+import {
+  MACHINE_IDS,
+  machineRecord,
+  tierRecord,
+  type MachineId,
+  type TierId,
+} from "./tiers";
 import { UPGRADES, upgradeLevel, type UpgradeId } from "./upgrades";
 
 /** Most stones one event or the pocket may carry; the rules cap both here. */
@@ -85,11 +91,12 @@ export type FieldSnapshot = {
   readonly mined: number;
   readonly left: number;
   readonly pocket: number;
-  readonly crew: Readonly<Record<ShownTierId, number>>;
+  /** Every tier's count, by id, the line's machines included. */
+  readonly crew: Readonly<Record<TierId, number>>;
   readonly crewSpeed: number;
   readonly tapYield: number;
-  /** Owned machines with nobody to run them, per tier. */
-  readonly idle: Readonly<Record<string, number>>;
+  /** Owned machines with nobody to run them, by machine id. */
+  readonly idle: Readonly<Record<MachineId, number>>;
   readonly relics: readonly RelicId[];
   readonly upgrades: Readonly<Record<UpgradeId, number>>;
   /** Boosts still running, with ISO end times. */
@@ -134,18 +141,10 @@ export function snapshot(
   version: string,
   stamp: { readonly deviceId?: string; readonly rev?: number } = {},
 ): FieldSnapshot {
-  // The rules hold the log to the tiers the screens show. The line's
-  // machines join it when the line turns on (#536).
-  const shown = TIERS.filter((tier) => isShownTier(tier.id));
-  const crew = Object.fromEntries(
-    shown.map((tier) => [tier.id, owned(mountain, tier)]),
-  ) as Record<ShownTierId, number>;
-  const idle: Record<string, number> = {};
-  for (const tier of shown) {
-    if (tier.staff === 0) {
-      continue;
-    }
-    idle[tier.id] = owned(mountain, tier) - rates.running[tier.id];
+  const crew = { ...mountain.owned };
+  const idle = machineRecord(0);
+  for (const id of MACHINE_IDS) {
+    idle[id] = mountain.owned[id] - rates.running[id];
   }
   const upgrades = Object.fromEntries(
     UPGRADES.map((upgrade) => [upgrade.id, upgradeLevel(mountain, upgrade.id)]),
@@ -435,15 +434,8 @@ const maxText = (): string => "x".repeat(FIELD_LOG_TEXT_MAX);
 
 /** Largest document the rules still allow. Must stay under {@link FIELD_LOG_MAX_BYTES}. */
 export function maxFieldLogDocumentBytes(): number {
-  const crew = {
-    helper: 1,
-    cart: 1,
-    drill: 1,
-    borer: 1,
-    machine: 1,
-    kid: 1,
-  };
-  const idle = { cart: 1, drill: 1, borer: 1, machine: 1 };
+  const crew = tierRecord(1);
+  const idle = machineRecord(1);
   const upgrades = {
     tap: 10,
     boots: 1,
