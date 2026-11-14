@@ -12,6 +12,7 @@ import { formatCompact, formatDuration } from "./format";
 import { ENGINEER_FIX_MS, FIX_TAPS } from "./hazards";
 import { LAYERS } from "./layers";
 import { AWAY_PAY_RATE, AWAY_END_MS, LEGACY_STEP } from "./rates";
+import { lineRating } from "./line";
 import { tierById } from "./tiers";
 import { STEADY_AWAY_PER_LEVEL, UPGRADES } from "./upgrades";
 import { VEIN_GLINT_MS } from "./veins";
@@ -162,11 +163,11 @@ function crewCards({
       steps: [
         [
           "mine-cart",
-          `A mine cart costs ${stones(cart.firstCost)}, digs ${String(cart.perSecond)}/s and needs ${String(cart.staff)} worker.`,
+          `A mine cart costs ${stones(cart.firstCost)}, digs ${String(cart.perSecond * lineRating(cart.id))}/s and needs ${String(cart.staff)} worker.`,
         ],
         [
           "steam-drill",
-          `A steam drill digs ${String(drill.perSecond)}/s with ${String(drill.staff)} workers on it.`,
+          `A steam drill digs ${String(drill.perSecond * lineRating(drill.id))}/s with ${String(drill.staff)} workers on it.`,
         ],
         [
           "helper-miner",

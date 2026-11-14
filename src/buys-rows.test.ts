@@ -705,6 +705,19 @@ describe("a machine's row says what the line gains (#536)", () => {
     expect(row(mountain, "cart").aria).toContain("The haul has room to spare.");
   });
 
+  it("a row whose free hands run none of its buys never claims room to spare", () => {
+    // Every hand runs a machine, so ten more carts would all stand idle: the
+    // ×10 row reads +0 for want of hands, while the haul still holds the line.
+    const mountain = mountainWith({
+      stock: { stones: 1e12 },
+      owned: { ...NONE_OWNED, helper: 3, cart: 1, hoist: 1, drill: 1 },
+    });
+    expect(row(mountain, "cart").gain).not.toBe("+0/s");
+    const ten = row(mountain, "cart", { amount: "ten" });
+    expect(ten.gain).toBe("+0/s");
+    expect(ten.aria).not.toContain("room to spare");
+  });
+
   it("a stage's first machine always adds something", () => {
     const mountain = mountainWith({
       stock: { stones: 1e12 },

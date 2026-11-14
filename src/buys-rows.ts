@@ -455,10 +455,17 @@ function buyingAria(facts: BuyFacts, synergy: number): string {
   return `${buyingWhat(tier, buying)} for ${formatCount(price)} stones, ${mines} ${stonesASecond(speed)}${faster}. You have ${formatCount(count)}${idleWords}${more}.`;
 }
 
-/** " The haul has room to spare." on a machine that adds nothing, else nothing. */
+/**
+ * " The haul has room to spare." on a machine that adds nothing, else
+ * nothing. A row whose free hands run none of the ones it buys reads +0 for
+ * want of hands, not room, so it says nothing here.
+ */
 function roomAria(facts: BuyFacts, gain: number | undefined): string {
   const { stage } = facts.tier;
-  return gain === 0 && stage !== undefined && !facts.isGuided
+  return gain === 0 &&
+    facts.gaining > 0 &&
+    stage !== undefined &&
+    !facts.isGuided
     ? ` ${roomToSpare(stage)}.`
     : "";
 }

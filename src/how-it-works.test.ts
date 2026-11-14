@@ -50,6 +50,9 @@ describe("How it works copy", () => {
     expect(words("machines")).toContain(
       `${formatCompact(tierById("cart").firstCost)} stones`,
     );
+    // On the line a machine runs at three times its table speed (#536).
+    expect(words("machines")).toContain("digs 18/s");
+    expect(words("machines")).toContain("digs 108/s");
     expect(words("engineers")).toContain(formatCompact(PROMOTE_BASE_COST));
     expect(words("tending")).toContain(String(TENDED_MACHINE_STAFF));
     expect(words("staffing")).toContain(String(tierById("machine").staff));

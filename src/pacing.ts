@@ -341,12 +341,10 @@ function liveSecond(
     : start;
   if (second === 0) {
     // As the lab's dads: re-tended as he sits down, and after a staffed buy.
-    world = { ...world, mountain: tendBest(world.mountain) };
-  }
-  if (second === 0) {
+    const tended = tendBest(world.mountain);
     world = {
       ...world,
-      mountain: sendScouts(world.mountain, world.clock, "old-shaft"),
+      mountain: sendScouts(tended, world.clock, "old-shaft"),
     };
   }
   world = step(
