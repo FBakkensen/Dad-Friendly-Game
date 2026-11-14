@@ -790,12 +790,12 @@ describe("layer card and craft-done copy", () => {
 
 describe("a machine's crew", () => {
   it("names the real crew a machine needs, and where the workers are", () => {
-    expect(staffBillWords(0, 4)).toBeUndefined();
-    expect(staffBillWords(1, 3)).toBe("Needs 1 worker");
-    expect(staffBillWords(3, 5)).toBe("Needs 3 workers");
-    expect(staffBillWords(8, 5)).toBe("Needs 8 workers");
-    expect(staffBillWords(25, 0)).toBe("Needs 25 workers");
-    expect(staffBillWords(5, 5)).toBe("Needs 5 workers");
+    expect(staffBillWords(0)).toBeUndefined();
+    expect(staffBillWords(1)).toBe("Needs 1 worker");
+    expect(staffBillWords(3)).toBe("Needs 3 workers");
+    expect(staffBillWords(8)).toBe("Needs 8 workers");
+    expect(staffBillWords(25)).toBe("Needs 25 workers");
+    expect(staffBillWords(5)).toBe("Needs 5 workers");
     expect(
       crewPostsWords(28, 0, [
         { label: "carts", workers: 13 },
