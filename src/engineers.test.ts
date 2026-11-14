@@ -1,3 +1,4 @@
+import { lineRating } from "./line";
 import { describe, expect, it } from "vitest";
 import type { TierId } from "./tiers";
 import {
@@ -317,6 +318,12 @@ describe("tending", () => {
     remaining: 100_000_000,
     stock: { ...minedMountain(0).stock, stones: 0 },
   };
+  // A train and the Great Machine outrun the face, so a tend on the borers
+  // lifts the line (#536); with no lift, the empty lift would hold it.
+  const lifted = {
+    ...base,
+    owned: { ...base.owned, helper: 30, train: 1, machine: 1 },
+  };
 
   it("speeds the posted tier by rank, live and away, and not a tunnel", () => {
     const plain = effectiveRates(base);
@@ -326,7 +333,9 @@ describe("tending", () => {
       8,
     );
     expect(apprentice.tierSpeed.drill).toBe(plain.tierSpeed.drill);
-    expect(apprentice.crewPerSecond).toBeGreaterThan(plain.crewPerSecond);
+    expect(
+      effectiveRates({ ...lifted, engineers: [ada] }).crewPerSecond,
+    ).toBeGreaterThan(effectiveRates(lifted).crewPerSecond);
 
     const journeyman = effectiveRates({
       ...base,
@@ -346,9 +355,13 @@ describe("tending", () => {
       8,
     );
 
-    const awayPlain = accrueAway({ mountain: base, lastSeen: 0, now: 10_000 });
+    const awayPlain = accrueAway({
+      mountain: lifted,
+      lastSeen: 0,
+      now: 10_000,
+    });
     const awayTended = accrueAway({
-      mountain: { ...base, engineers: [ada] },
+      mountain: { ...lifted, engineers: [ada] },
       lastSeen: 0,
       now: 10_000,
     });
@@ -379,7 +392,7 @@ describe("tending", () => {
     };
     expect(tenthsOf(both, "borer")).toBe(3.75);
     expect(effectiveRates(both).tierSpeed.borer).toBeCloseTo(
-      357 * 0.8 * 1.65625,
+      357 * lineRating("borer") * 1.65625,
       8,
     );
   });
@@ -443,7 +456,9 @@ describe("Flemming's save (63 workers, 16 carts, 9 drills, 1 borer)", () => {
     expect(joined).toBe(true);
     expect(mountain.owned.helper).toBe(63);
     expect(after.running).toMatchObject({ cart: 16, drill: 9, borer: 1 });
-    expect(after.crewPerSecond).toBeGreaterThan(before.crewPerSecond);
+    // With no hoist the empty lift holds the line, so her tend on the
+    // borers cannot lift it; it never slows the crew (#536).
+    expect(after.crewPerSecond).toBeGreaterThanOrEqual(before.crewPerSecond);
     expect(grantFirstEngineer(mountain).joined).toBe(false);
   });
 });

@@ -53,7 +53,17 @@ const PAST_SETTLE = DRAWER_SETTLE_MS + 100;
 
 const adaCrew: Mountain = {
   ...minedMountain(0),
-  owned: { ...minedMountain(0).owned, helper: 20, cart: 2, drill: 1, borer: 1 },
+  // A train and the Great Machine outrun the face, so the borers hold the
+  // line and Ada's tend counts in full (#536).
+  owned: {
+    ...minedMountain(0).owned,
+    helper: 30,
+    cart: 2,
+    drill: 1,
+    borer: 1,
+    train: 1,
+    machine: 1,
+  },
   engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
 };
 // Nils's price, and a pocket that covers it with 3M to spare.
@@ -376,12 +386,13 @@ describe("the Engineers drawer (#455)", () => {
       '.tier[data-tier="cart"]',
     );
     screen.openEngineer("Ada");
-    expect(kick(screen)).toBe("Ada is tending the borers: +78 stones/sec.");
+    expect(kick(screen)).toBe("Ada is tending the borers: +234 stones/sec.");
     expect(rowPart(postRow(screen, "borer"), "name")).toBe(
       "The borers · here now",
     );
     expect(postRow(screen, "borer").getAttribute("aria-pressed")).toBe("true");
-    expect(rowPart(postRow(screen, "cart"), "gain")).toBe("+1 stones/sec");
+    // The haul is not what holds the line, so tending carts adds nothing.
+    expect(rowPart(postRow(screen, "cart"), "gain")).toBe("+0 stones/sec");
     expect(sheetOf(screen).textContent).toContain(
       "They roll faster, and she shores up cave-ins herself.",
     );
@@ -389,7 +400,7 @@ describe("the Engineers drawer (#455)", () => {
       "Rests by the fire, ready for the next job.",
     );
     postRow(screen, "cart").click();
-    expect(kick(screen)).toBe("Ada heads to the carts! +1 stones/sec");
+    expect(kick(screen)).toBe("Ada heads to the carts! +0 stones/sec");
     expect(postRow(screen, "cart").classList).toContain("is-held");
     expect(guestSave(storage)?.mountain.engineers[0]?.post).toBe("cart");
 
@@ -457,8 +468,18 @@ describe("the Engineers drawer (#455)", () => {
   });
 
   it("the guided New post and its cheer read the move's net gain", () => {
-    // Ada tends the borers, and the first tend proposes the Great Machine.
-    const mountain = taughtAda({ owned: { cart: 10, drill: 6, machine: 1 } });
+    // Ada tends the borers, and the first tend proposes the Great Machine. The hands lift
+    // the face up to the lift, so both hold the line and both count (#536).
+    const mountain = taughtAda({
+      owned: {
+        helper: 80,
+        cart: 10,
+        drill: 11,
+        borer: 4,
+        train: 2,
+        machine: 1,
+      },
+    });
     expect(firstTend(mountain, CLOCK)).toEqual({ index: 0, post: "machine" });
     const net = stonesPerSecond(moveGain(mountain, 0, "machine", CLOCK));
     expect(net).not.toBe(
@@ -510,7 +531,7 @@ describe("the Engineers drawer (#455)", () => {
     );
     part(screen, ".engineer-confirm-no").click();
     expect(screen.engineersPage()).toBeUndefined();
-    expect(saved(screen).owned.helper).toBe(20);
+    expect(saved(screen).owned.helper).toBe(30);
     expect(screen.pocket()).toBe(
       `Stones ${odometerFace(nilsPrice + 3_000_000).words}`,
     );
@@ -519,13 +540,13 @@ describe("the Engineers drawer (#455)", () => {
     part(screen, ".engineer-promote").click();
     escape();
     expect(engineersOpen(screen.root)).toBe(false);
-    expect(saved(screen).owned.helper).toBe(20);
+    expect(saved(screen).owned.helper).toBe(30);
 
     keyOf(screen).click();
     part(screen, ".engineer-promote").click();
     part(screen, ".engineer-confirm-yes").click();
     expect(screen.pocket()).toBe("Stones 3.000M");
-    expect(saved(screen).owned.helper).toBe(19);
+    expect(saved(screen).owned.helper).toBe(29);
     expect(screen.engineersPage()).toBeUndefined();
     expect(kick(screen)).toBe("Nils steps up. The crew cheers.");
     expect(herRow(screen, "Nils").classList).toContain("is-held");
@@ -564,7 +585,7 @@ describe("the Engineers drawer (#455)", () => {
     expect(kick(screen)).toBe(ENGINEER_SHEET_SUB);
     expect(saved(screen).engineers).toHaveLength(1);
     expect(saved(screen).stock.stones).toBe(0);
-    expect(saved(screen).owned.helper).toBe(20);
+    expect(saved(screen).owned.helper).toBe(30);
   });
 
   it("shows the rank word and a near-rank hint instead of a trip count", () => {
@@ -701,13 +722,13 @@ describe("the Engineers drawer (#455)", () => {
       postRow(screen, "borer").click();
       expect(dispatched).not.toHaveBeenCalled();
       expect(postRow(screen, "borer").classList).not.toContain("is-held");
-      expect(kick(screen)).toBe("Ada is tending the borers: +78 stones/sec.");
+      expect(kick(screen)).toBe("Ada is tending the borers: +234 stones/sec.");
       postRow(screen, "cart").click();
-      expect(kick(screen)).toBe("Ada heads to the carts! +1 stones/sec");
+      expect(kick(screen)).toBe("Ada heads to the carts! +0 stones/sec");
       vi.advanceTimersByTime(READY_HOLD_MS + 100);
       expect(postRow(screen, "cart").classList).not.toContain("is-held");
       vi.advanceTimersByTime(CHEER_MS);
-      expect(kick(screen)).toBe("Ada is tending the carts: +1 stones/sec.");
+      expect(kick(screen)).toBe("Ada is tending the carts: +0 stones/sec.");
     } finally {
       vi.useRealTimers();
     }

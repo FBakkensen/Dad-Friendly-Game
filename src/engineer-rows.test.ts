@@ -494,9 +494,17 @@ describe("a post row on her page (#455)", () => {
 
   it("the guided New post reads the move's net gain, as today's guided button did", () => {
     // Ada tends the borers, and the first tend proposes the Great Machine: the move gains the
-    // machine's tending less the borers' she leaves.
+    // machine's tending less the borers' she leaves. The hands lift the face up to the lift,
+    // so both hold the line and both count (#536).
     const mountain = withAda({
-      owned: { cart: 10, drill: 6, machine: 1 },
+      owned: {
+        helper: 80,
+        cart: 10,
+        drill: 11,
+        borer: 4,
+        train: 2,
+        machine: 1,
+      },
       taught: ["engineers"],
     });
     expect(firstTend(mountain, NOW)).toEqual({ index: 0, post: "machine" });

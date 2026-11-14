@@ -105,8 +105,8 @@ describe("buysTap", () => {
       kind: "trouble",
       tier: "cart",
     });
-    // The drill beside it buys as usual.
-    expect(tap(crewed(), "drill", { trouble })).toEqual({
+    // The hoist beside it buys as usual.
+    expect(tap(crewed(), "hoist", { trouble })).toEqual({
       kind: "buy",
       count: 1,
     });
