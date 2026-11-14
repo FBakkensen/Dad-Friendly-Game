@@ -123,6 +123,14 @@ export function resetFresh(
       data: { version, startedAt },
     });
   }
+  if (ctx.asideHeld.size > 0) {
+    log(ctx, {
+      level: "error",
+      code: "save.error",
+      detail: "set-aside",
+      data: { held: ctx.asideHeld.size },
+    });
+  }
   const playing = ctx.session.mountain;
   const startedAt = Math.max(
     runStartedAt(playing),

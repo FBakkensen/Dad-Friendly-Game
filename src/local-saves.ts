@@ -176,6 +176,7 @@ export function clearHomecomings(ctx: StoreContext): void {
  * byte, and frees the key for this version's save (#558). A failed move
  * (a full phone) leaves the old text where it was: the key is held, so
  * nothing this session writes or clears it, and the next open tries again.
+ * `resetFresh` logs it.
  */
 export function setAsideLocal(
   ctx: StoreContext,
@@ -191,14 +192,9 @@ export function setAsideLocal(
     storage.setItem(`${key}:v${String(version)}`, raw);
     storage.removeItem(key);
   } catch {
+    // Logged by resetFresh after the set-aside lines, so the save line ends on it.
     ctx.asideHeld.add(key);
     record(ctx, "save.error", { source: "set-aside" });
-    log(ctx, {
-      level: "error",
-      code: "save.error",
-      detail: "set-aside",
-      data: { version },
-    });
   }
 }
 

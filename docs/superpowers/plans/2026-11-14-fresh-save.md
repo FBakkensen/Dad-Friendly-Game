@@ -184,6 +184,7 @@
 
 ## Rulings
 
+- **A guest on a full phone whose old save could not move aside is not saved on the phone that session.** The trigger is narrow (signed out, a full phone, an older guest save); the save line ends on the `save.error` set-aside line, and the next open tries the move again. Writing over the old text instead would lose the copy this reset promised to keep.
 - **`lastSeen` reads as any finite number on the phone.** The tests play set-back and fractional clocks through the reader; the cloud rules still take only a whole number from 0, and the clock the game writes is one.
 - **Every writer reads back what it writes**, not only the cloud: the guest save and the phone backup go through the same `shapeRefused` (`save-shape.ts`), so a refused save never reaches the phone and the next open still plays. `save.shape` is recorded once until a save reads ok again (review finding).
 - **The cloud field log still writes while a newer save holds play.** It is how a held phone is diagnosed, and it is not a save.

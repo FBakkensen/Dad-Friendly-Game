@@ -257,6 +257,7 @@ describe("a set-aside never costs a played copy (#558)", () => {
     progress.flush();
     progress.dispose();
     expect(storage.getItem(SESSION_SAVE_KEY)).toBe(raw);
+    expect(progress.getSnapshot().log).toContain("error save.error set-aside");
     expect(
       progress.fieldLog().events.filter((event) => event.code === "save.error"),
     ).toEqual([expect.objectContaining({ data: { source: "set-aside" } })]);
