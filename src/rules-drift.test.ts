@@ -75,6 +75,8 @@ describe("firestore.rules match the game", () => {
       borers: 0,
       machines: 0,
       kids: 0,
+      hoists: 0,
+      trains: 0,
       upgrades: { tap: 1 },
       boosts: { sharper: 1 },
       startedAt: 1,

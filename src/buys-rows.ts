@@ -31,6 +31,7 @@ import {
 import { lockAria, lockBodyLine, lockRateLine } from "./tier-lock-words";
 import {
   isMachine,
+  isShownTier,
   owned,
   tierById,
   tierCost,
@@ -38,7 +39,7 @@ import {
   tierShown,
   type BuyAmount,
   type Tier,
-  type TierId,
+  type ShownTierId,
 } from "./tiers";
 import { tierSynergy } from "./upgrades";
 
@@ -56,7 +57,7 @@ export type BuyIcon =
 
 /** One Buys row (#373): a tier's row, with its art and whether it shows. */
 export interface BuyRowView extends RowView {
-  readonly tier: TierId;
+  readonly tier: ShownTierId;
   readonly shown: boolean;
   readonly icon: BuyIcon;
   /** The staffing New row: a tap hires a worker, never another machine. */
@@ -72,7 +73,7 @@ export const BUY_SECTIONS = {
 } as const;
 
 /** Each tier's quiet line, where it has no milestone line. */
-export const TIER_WHY: Readonly<Record<TierId, string>> = {
+export const TIER_WHY: Readonly<Record<ShownTierId, string>> = {
   helper: "Another pair of hands on the rock.",
   cart: "Hauls what the crew already cut.",
   drill: "Bites the wall while you rest.",
@@ -97,7 +98,7 @@ function workersVerb(staff: number): string {
  * lines, then with the short payoff, then the progress alone. Past the last mark, the reached
  * line. A tier without marks shows its count and its quiet line.
  */
-function milestoneOptions(id: TierId, count: number): readonly string[] {
+function milestoneOptions(id: ShownTierId, count: number): readonly string[] {
   const next = nextMark(id, count, formatCompact);
   if (next !== undefined) {
     return [
@@ -113,7 +114,7 @@ function milestoneOptions(id: TierId, count: number): readonly string[] {
   return [`${owns} · ${TIER_WHY[id]}`, owns];
 }
 
-function buyIcon(id: TierId, count: number, locked: boolean): BuyIcon {
+function buyIcon(id: ShownTierId, count: number, locked: boolean): BuyIcon {
   switch (id) {
     case "helper":
       return "worker";
@@ -133,16 +134,16 @@ type BuyInput = {
   mountain: Mountain;
   now: number;
   trouble: Trouble | undefined;
-  tier: TierId;
+  tier: ShownTierId;
   pick: ReadyPick;
-  guided: TierId | undefined;
+  guided: ShownTierId | undefined;
   /** How many a tap buys (#358). The staffing New row hires one whatever it says. */
   amount: BuyAmount;
 };
 
 type BuyFacts = {
   readonly mountain: Mountain;
-  readonly id: TierId;
+  readonly id: ShownTierId;
   readonly tier: Tier;
   readonly count: number;
   /** How many a tap buys now, and `price` is all of them together (#358). */
@@ -260,7 +261,11 @@ function tendingOf(
   if (!isMachine(tier)) {
     return undefined;
   }
-  const who = tendingEngineer(atHome(mountain), tier.id);
+  const id = tier.id;
+  if (!isShownTier(id)) {
+    return undefined;
+  }
+  const who = tendingEngineer(atHome(mountain), id);
   return who === undefined
     ? undefined
     : {
@@ -268,7 +273,7 @@ function tendingOf(
         gain: tendingGain(
           mountain,
           mountain.engineers.indexOf(who),
-          tier.id,
+          id,
           now,
           trouble,
         ),

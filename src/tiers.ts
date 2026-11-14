@@ -1,5 +1,6 @@
 import { BAND_STARTS, stretch } from "./scale";
 import { factor } from "./economy/factors";
+import { lineOn } from "./line";
 import type { Mountain } from "./mountain";
 import type { RelicId } from "./relics";
 
@@ -18,10 +19,18 @@ export const HELPER_COST_GROWTH = 1.06;
  */
 const KID_FIRST_COST = 250_000;
 
-export type TierId = "helper" | "cart" | "drill" | "borer" | "machine" | "kid";
+export type TierId =
+  "helper" | "cart" | "hoist" | "drill" | "borer" | "train" | "machine" | "kid";
 
 type CrewField =
-  "helpers" | "carts" | "drills" | "borers" | "machines" | "kids";
+  | "helpers"
+  | "carts"
+  | "hoists"
+  | "drills"
+  | "borers"
+  | "trains"
+  | "machines"
+  | "kids";
 
 export type Tier = {
   readonly id: TierId;
@@ -44,6 +53,11 @@ export type Tier = {
    * predictable point on the way down, never a share of the pocket.
    */
   readonly opensAt?: number;
+  /**
+   * A machine of the line (M15, #533): on sale and running only where the
+   * line's rule is on (`lineOn`, src/line.ts). Off in play until #536.
+   */
+  readonly line?: true;
 };
 
 /** Cheapest first. Each tier is 6–10× the speed of the last; tuned by src/pacing.test.ts. */
@@ -66,6 +80,19 @@ export const TIERS: readonly Tier[] = [
     firstCost: 600,
     perSecond: 6,
     staff: 1,
+  },
+  {
+    // The lift's first machine (M15, #533). The spec rates it 60 at the
+    // line's ×3 (rule 3); 20 is that in today's units, which #534 moves
+    // with every other machine. Shown once a cart is owned.
+    id: "hoist",
+    field: "hoists",
+    name: "Hoist",
+    shortName: "Hoist",
+    firstCost: 6_000,
+    perSecond: 20,
+    staff: 1,
+    line: true,
   },
   {
     id: "drill",
@@ -91,6 +118,19 @@ export const TIERS: readonly Tier[] = [
     // Opens at the Granite start, the band that suits borers (D3), so no
     // dad meets it in the Topsoil (#356).
     opensAt: BAND_STARTS[1],
+  },
+  {
+    // The haul's second machine (M15, #533): 3,200 at the line's ×3, about
+    // 1,067 in today's units. Opens at the Crystal Caves.
+    id: "train",
+    field: "trains",
+    name: "Pit train",
+    shortName: "Train",
+    firstCost: 30_000_000,
+    perSecond: 1_067,
+    staff: 8,
+    opensAt: BAND_STARTS[2],
+    line: true,
   },
   {
     id: "machine",
@@ -119,8 +159,26 @@ export const TIERS: readonly Tier[] = [
   },
 ];
 
-/** A tier that takes helpers to run (staff > 0): cart, drill, borer, machine. */
+/** A tier that takes helpers to run (staff > 0): every machine. */
 export type MachineId = Exclude<TierId, "helper" | "kid">;
+
+/**
+ * The machines of the line (#533). Off in play, so no screen shows them
+ * yet: the stage bays and Buys by stage (#537, #538) widen the screens.
+ */
+export type LineTierId = "hoist" | "train";
+
+/** A tier the screens show today. */
+export type ShownTierId = Exclude<TierId, LineTierId>;
+
+/** A machine the screens show today. */
+export type ShownMachineId = Exclude<MachineId, LineTierId>;
+
+export function isShownTier<T extends TierId>(
+  id: T,
+): id is Exclude<T, LineTierId> {
+  return id !== "hoist" && id !== "train";
+}
 
 export function isMachine(
   tier: Tier,
@@ -135,6 +193,15 @@ export function isMachine(
 export const MACHINE_IDS: readonly MachineId[] = TIERS.filter(isMachine).map(
   (tier) => tier.id,
 );
+
+/**
+ * The machines in play: `MACHINE_IDS` less the line's machines while the
+ * line is off (#533). What the lab measures and reports, so a run with the
+ * line off reads as before.
+ */
+export function machinesInPlay(): readonly MachineId[] {
+  return MACHINE_IDS.filter((id) => tierInPlay(tierById(id)));
+}
 
 export function tierById(id: TierId): Tier {
   const tier = TIERS.find((candidate) => candidate.id === id);
@@ -210,10 +277,24 @@ export function buyTier(mountain: Mountain, id: TierId): Mountain {
   };
 }
 
-/** A tier appears once you own one, or own one of the tier before it. */
+/**
+ * False for a machine of the line while the line's rule is off (#533): it is
+ * never shown, never for sale, takes no hands and moves nothing.
+ */
+export function tierInPlay(tier: Tier): boolean {
+  return tier.line !== true || lineOn();
+}
+
+/**
+ * A tier appears once you own one, or own one of the tier in play before
+ * it. With the line off the hoist is skipped, so the drill follows the cart.
+ */
 export function tierShown(mountain: Mountain, tier: Tier): boolean {
+  if (!tierInPlay(tier)) {
+    return false;
+  }
   const index = TIERS.indexOf(tier);
-  const previous = TIERS[index - 1];
+  const previous = TIERS.slice(0, index).filter(tierInPlay).at(-1);
   return (
     index === 0 ||
     owned(mountain, tier) > 0 ||

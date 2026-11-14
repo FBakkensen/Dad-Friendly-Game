@@ -71,14 +71,16 @@ describe("snapshot", () => {
       crew: {
         helper: 0,
         cart: 0,
+        hoist: 0,
         drill: 0,
         borer: 0,
+        train: 0,
         machine: 0,
         kid: 0,
       },
       crewSpeed: rates.crewPerSecond,
       tapYield: rates.tapYield,
-      idle: { cart: 0, drill: 0, borer: 0, machine: 0 },
+      idle: { cart: 0, hoist: 0, drill: 0, borer: 0, train: 0, machine: 0 },
       relics: [],
       upgrades: {
         tap: 0,
@@ -130,15 +132,24 @@ describe("snapshot", () => {
     expect(shot.crew).toEqual({
       helper: 0,
       cart: 1,
+      hoist: 0,
       drill: 2,
       borer: 0,
+      train: 0,
       machine: 0,
       kid: 2,
     });
     expect(shot.crewSpeed).toBe(rates.crewPerSecond);
     expect(shot.tapYield).toBe(rates.tapYield);
     // Two kids run both drills (1 each since #252), so the cart idles.
-    expect(shot.idle).toEqual({ cart: 1, drill: 0, borer: 0, machine: 0 });
+    expect(shot.idle).toEqual({
+      cart: 1,
+      hoist: 0,
+      drill: 0,
+      borer: 0,
+      train: 0,
+      machine: 0,
+    });
     expect(shot.relics).toEqual(["lantern"]);
     expect(shot.upgrades.tap).toBe(2);
     expect(shot.upgrades.boots).toBe(0);

@@ -147,6 +147,8 @@ describe("save format", () => {
       borers: "mountain",
       machines: "mountain",
       kids: "mountain",
+      hoists: "mountain",
+      trains: "mountain",
       upgrades: "mountain",
       boosts: "mountain",
       startedAt: "mountain",
@@ -178,6 +180,8 @@ describe("save format", () => {
       borers: 1,
       machines: 1,
       kids: 1,
+      hoists: 3,
+      trains: 2,
       upgrades: { ...fresh.upgrades, tap: 1 },
       boosts: { ...fresh.boosts, sharper: 9_000 },
       startedAt: 500,
@@ -223,5 +227,33 @@ describe("save format", () => {
     expect(parseMountain("stones")).toBeUndefined();
     expect(withWorkshop(createMountain(), null)).toBeUndefined();
     expect(withWorkshop(createMountain(), 7)).toBeUndefined();
+  });
+});
+
+describe("the line's hoists and pit trains in the save (#533)", () => {
+  it("an old save without them loads with none, and writes no new keys", () => {
+    const old = { ...createMountain(), helpers: 12, carts: 3 };
+    const saved = savedMountain(old);
+    expect(saved).not.toHaveProperty("hoists");
+    expect(saved).not.toHaveProperty("trains");
+    const loaded = parseMountain(saved);
+    expect(loaded?.hoists).toBe(0);
+    expect(loaded?.trains).toBe(0);
+    expect(roundTrip(old)).toEqual(old);
+  });
+
+  it("round-trips them once owned, and rejects a bad count", () => {
+    const line = { ...createMountain(), hoists: 4, trains: 2 };
+    expect(savedMountain(line)).toMatchObject({ hoists: 4, trains: 2 });
+    expect(roundTrip(line)).toEqual(line);
+    const saved = savedMountain(createMountain());
+    for (const field of ["hoists", "trains"]) {
+      for (const bad of [-1, 1.5, "7"]) {
+        expect(
+          parseMountain({ ...saved, [field]: bad }),
+          field,
+        ).toBeUndefined();
+      }
+    }
   });
 });

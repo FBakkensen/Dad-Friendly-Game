@@ -57,6 +57,9 @@ export type SavedMountain = {
   readonly borers: number;
   readonly machines: number;
   readonly kids: number;
+  /** The line's machines (#533), written only once one is owned. */
+  readonly hoists?: number;
+  readonly trains?: number;
   readonly upgrades?: Readonly<Partial<Record<UpgradeId, number>>>;
   readonly boosts?: Readonly<Partial<Record<BoostId, number>>>;
   readonly startedAt?: number;
@@ -144,6 +147,8 @@ export function savedMountain(mountain: Mountain): SavedMountain {
     borers: mountain.borers,
     machines: mountain.machines,
     kids: mountain.kids,
+    ...only("hoists", mountain.hoists, mountain.hoists > 0),
+    ...only("trains", mountain.trains, mountain.trains > 0),
     ...only("upgrades", upgrades, nonEmpty(upgrades)),
     ...only("boosts", boosts, nonEmpty(boosts)),
     ...only("startedAt", mountain.startedAt, mountain.startedAt !== 0),
@@ -280,8 +285,10 @@ type Counts = Pick<
   | "pocket"
   | "helpers"
   | "carts"
+  | "hoists"
   | "drills"
   | "borers"
+  | "trains"
   | "machines"
   | "kids"
 >;
@@ -295,8 +302,10 @@ function readCounts(
   const pocket = needed(record["pocket"]);
   const helpers = needed(record["helpers"]);
   const carts = count(record["carts"]);
+  const hoists = count(record["hoists"]);
   const drills = count(record["drills"]);
   const borers = count(record["borers"]);
+  const trains = count(record["trains"]);
   const machines = count(record["machines"]);
   const kids = count(record["kids"]);
   if (
@@ -304,14 +313,27 @@ function readCounts(
     pocket === "bad" ||
     helpers === "bad" ||
     carts === "bad" ||
+    hoists === "bad" ||
     drills === "bad" ||
     borers === "bad" ||
+    trains === "bad" ||
     machines === "bad" ||
     kids === "bad"
   ) {
     return undefined;
   }
-  return { remaining, pocket, helpers, carts, drills, borers, machines, kids };
+  return {
+    remaining,
+    pocket,
+    helpers,
+    carts,
+    hoists,
+    drills,
+    borers,
+    trains,
+    machines,
+    kids,
+  };
 }
 
 /** Only checks that a present value parses. */

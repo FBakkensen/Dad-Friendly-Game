@@ -34,6 +34,7 @@ import {
   MACHINE_IDS,
   owned,
   tierById,
+  tierInPlay,
   type MachineId,
   type TierId,
 } from "./tiers";
@@ -475,7 +476,9 @@ function staffSlots(
   mountain: Mountain,
   steady: Readonly<Record<TierId, number>>,
 ): StaffSlot[] {
+  // A machine of the line takes no hands while the line is off (#533).
   return TIERS.filter(isMachine)
+    .filter(tierInPlay)
     .reverse()
     .map((tier) => {
       const tenths = scaledTenths(tier.id, engineerTenths(mountain, tier.id));

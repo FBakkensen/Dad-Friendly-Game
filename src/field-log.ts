@@ -435,12 +435,14 @@ export function maxFieldLogDocumentBytes(): number {
   const crew = {
     helper: 1,
     cart: 1,
+    hoist: 1,
     drill: 1,
     borer: 1,
+    train: 1,
     machine: 1,
     kid: 1,
   };
-  const idle = { cart: 1, drill: 1, borer: 1, machine: 1 };
+  const idle = { cart: 1, hoist: 1, drill: 1, borer: 1, train: 1, machine: 1 };
   const upgrades = {
     tap: 10,
     boots: 1,

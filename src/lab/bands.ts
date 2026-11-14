@@ -4,7 +4,7 @@ import { LAYER_FAVOURS, LAYERS, layerOf, type LayerId } from "../layers";
 import type { Mountain } from "../mountain";
 import { MOUNTAIN_STONES, minedOut } from "../scale";
 import {
-  MACHINE_IDS,
+  machinesInPlay,
   owned,
   tierById,
   tierCost,
@@ -61,7 +61,7 @@ export function createBandLog(): (mountain: Mountain) => readonly BandEvent[] {
     const events: BandEvent[] = [];
     const layer = layerOf(mountain).id;
     const share = bandShare(minedOut(mountain));
-    for (const id of MACHINE_IDS) {
+    for (const id of machinesInPlay()) {
       const tier = tierById(id);
       const count = owned(mountain, tier);
       const bought = count - (last.get(id) ?? 0);
@@ -116,7 +116,7 @@ export type RunBands = {
 const FAVOURED: ReadonlyMap<LayerId, MachineId | undefined> = new Map(
   LAYERS.map((layer) => [
     layer.id,
-    MACHINE_IDS.find((id) => id === LAYER_FAVOURS[layer.index]?.suits),
+    machinesInPlay().find((id) => id === LAYER_FAVOURS[layer.index]?.suits),
   ]),
 );
 
@@ -157,7 +157,7 @@ function revealsOf(events: readonly RevealEvent[]): {
   const small: { id: string; sittings: number; minutes: number }[] = [];
   const start = new Map<string, RevealEvent>();
   for (const event of events) {
-    const machine = MACHINE_IDS.find(
+    const machine = machinesInPlay().find(
       (id) => `${MACHINE_PREFIX}${id}` === event.id,
     );
     if (event.kind === "appeared") {
@@ -270,7 +270,7 @@ export function summarizeBands(runs: readonly RunBands[]): BandSummary {
   const unbought: BandSummary["unbought"][number][] = [];
   const buys: BandSummary["buys"][number][] = [];
   for (const layer of LAYERS) {
-    for (const machine of MACHINE_IDS) {
+    for (const machine of machinesInPlay()) {
       const counts = runs.flatMap((run) => {
         const count = run.buys.get(layer.id)?.get(machine);
         return count === undefined ? [] : [count];
@@ -290,7 +290,7 @@ export function summarizeBands(runs: readonly RunBands[]): BandSummary {
       }
     }
   }
-  const machines = MACHINE_IDS.flatMap((machine) => {
+  const machines = machinesInPlay().flatMap((machine) => {
     const seen = runs.flatMap((run) => {
       const entry = run.machines.get(machine);
       return entry === undefined ? [] : [entry];
@@ -376,7 +376,7 @@ export function fewestMachineBuys(samples: readonly DecisionSample[]): number {
     }
   }
   let fewest = Number.POSITIVE_INFINITY;
-  for (const id of MACHINE_IDS) {
+  for (const id of machinesInPlay()) {
     fewest = Math.min(fewest, totals.get(id) ?? 0);
   }
   return fewest;
@@ -392,7 +392,7 @@ export function fewestMachineBuys(samples: readonly DecisionSample[]): number {
 export function scopedRule3Misses(samples: readonly DecisionSample[]): number {
   const { opened, affordable, bought } = bandLedger(samples);
   let misses = 0;
-  for (const id of MACHINE_IDS) {
+  for (const id of machinesInPlay()) {
     for (const layer of scopedBands(id, opened)) {
       const key = `${layer}:${id}`;
       if (affordable.has(key) && !bought.has(key)) {

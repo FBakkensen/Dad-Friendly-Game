@@ -80,6 +80,7 @@ import {
   owned,
   tierById,
   tierCost,
+  tierInPlay,
   tierShown,
   type Tier,
   type TierId,
@@ -736,7 +737,8 @@ function machineGain(
   // more of this tier runs too. The same hands are on both sides, so their
   // own mining cancels and the gain is this tier. The first borer's
   // engineer is not posted here.
-  const pad = TIERS.reduce(
+  // A machine of the line takes no hands while the line is off (#533).
+  const pad = TIERS.filter(tierInPlay).reduce(
     (total, item) =>
       total + (owned(mountain, item) + 1) * staffNeeded(mountain, item),
     0,

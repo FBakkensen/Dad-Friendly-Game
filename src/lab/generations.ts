@@ -4,7 +4,7 @@ import { createMountain, type Mountain } from "../mountain";
 import type { Policy } from "./policy";
 import { runPolicy } from "./run";
 import { stretch } from "../scale";
-import { MACHINE_IDS } from "../tiers";
+import { machinesInPlay } from "../tiers";
 
 export type GenerationRun = {
   /** 1-based run number. Run N plays with Legacy N-1. */
@@ -12,7 +12,7 @@ export type GenerationRun = {
   readonly k: number;
   readonly finishDay: number | undefined;
   /**
-   * Machines from `MACHINE_IDS` (src/tiers.ts) this run never bought. Every
+   * Machines in play (`machinesInPlay`, src/tiers.ts) this run never bought. Every
    * run should still buy each one (D3: each one worth buying).
    */
   readonly unbought: readonly string[];
@@ -53,7 +53,7 @@ export function runGenerations({
       run: index + 1,
       k: stretch(mountain),
       finishDay: played.finishDay,
-      unbought: MACHINE_IDS.filter((id) => !bought.has(id)),
+      unbought: machinesInPlay().filter((id) => !bought.has(id)),
     });
     const next = withFactors(factors, () =>
       passTheMine(played.world.mountain, played.world.clock),

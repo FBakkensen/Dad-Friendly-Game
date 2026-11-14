@@ -217,6 +217,22 @@ describe("firestore.rules: every save the game writes is accepted", () => {
     }
   });
 
+  it("the line's hoists and pit trains (#533)", async () => {
+    const mountain = { ...createMountain(), hoists: 4, trains: 2 };
+    expect(await roundTrip(mountain)).toEqual(mountain);
+    const raw = serializeSave({ mountain, lastSeen: 1 });
+    for (const field of ["hoists", "trains"]) {
+      for (const bad of [-1, 1.5, "7"]) {
+        await expect(
+          put({
+            ...raw,
+            mountain: { ...raw.mountain, [field]: bad },
+          }),
+        ).rejects.toThrow(/permission/i);
+      }
+    }
+  });
+
   it("round-trips a crew of engineers and rejects a bad one (#144)", async () => {
     const engineers: Engineer[] = ENGINEER_NAMES.map((name, index) => ({
       name,
@@ -716,6 +732,8 @@ function maximalMountain(): Mountain {
     borers: 4,
     machines: 2,
     kids: 6,
+    hoists: 9,
+    trains: 3,
     upgrades: Object.fromEntries(
       UPGRADES.map((upgrade) => [upgrade.id, upgrade.maxLevel]),
     ) as Upgrades,

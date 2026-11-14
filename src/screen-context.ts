@@ -7,13 +7,13 @@ import {
   type ProgressStore,
 } from "./progress-store";
 import type { RelicId } from "./relics";
-import type { TierId } from "./tiers";
+import type { ShownTierId } from "./tiers";
 
 /** What the app and the tests hand the screen. */
 export type ScreenOptions = {
   root: HTMLElement;
   veinUrl: string;
-  tierArt: Readonly<Record<TierId, string>>;
+  tierArt: Readonly<Record<ShownTierId, string>>;
   relicArt: Readonly<Record<RelicId, string>>;
   auth?: AuthController;
   progress?: ProgressStore;
