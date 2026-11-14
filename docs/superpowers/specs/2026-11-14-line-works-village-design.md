@@ -1,6 +1,6 @@
 # The line, the works and the village: design (14 Nov 2026)
 
-Status: draft for Flemming. Nothing here is built. This spec covers many slivers in three steps. Once it is approved it ships as its own PR on a parent issue and is split into sliver issues (`.claude/rules/superpowers.md`). Every number in it is a starting value for the lab, not a tuned one.
+Status: approved by Flemming on 14 Nov 2026 (his four answers are under [Decided](#decided-flemming-14-nov-2026)). Nothing here is built. This spec covers many slivers in three steps. It ships as its own PR on a parent issue and is split into sliver issues (`.claude/rules/superpowers.md`). Every number in it is a starting value for the lab, not a tuned one.
 
 ## Why
 
@@ -13,6 +13,22 @@ On 14 Nov 2026 Flemming's first run ended while he slept. The Crown, the Deep He
 5. He has built nothing he can look at.
 
 He said yes to one combined design from three ideas: a bottleneck mine, stones that become goods, and village orders. He then added that the relics probably go away in the new design. This spec takes that as the working assumption and says what it costs.
+
+## Where this is going: the rocket
+
+Flemming, 14 Nov 2026: the long game is a progression that ends with building a rocket and sending people to Mars. On the way the mine digs more kinds of resource, gets more machines, and makes goods that are refined or manufactured. The last building of a run will move as the game is developed. In the end it is the rocket.
+
+This spec is the first stretch of that road: three goods and six buildings. It is written so the road can go on without a rewrite. These are rules for the builder:
+
+- **The buildings are a list.** Six is what this spec builds, not a limit. A run ends at the last building on the list, whichever it is. The Legend and the pass belong to "the last building", never to the Home by name.
+- **Goods are rows in a table.** A row says where the good comes from, which pile holds it and what it buys. There are three rows now.
+- **A maker has inputs and one output.** Kilns and saws take rock. A later maker can take goods, which is what refined and manufactured mean.
+- **A stage holds a list of machines.** Two each now, more later.
+- **A price is a short list of goods.** In this spec it is one good. Later, dearer things may ask for two or three, and for manufactured goods.
+- **The bands are a list, and the mountain has no bottom.** Deeper bands with new rock can be added under the Deep Heart.
+- **A save keeps its place when the list grows.** A run that had built the old last building gets the next order. Nothing it built is taken back.
+
+The seeds are already in the mountain. Clay, iron, crystal and heartstone are band materials today, a trickle for the bench. A later stretch can mine one in volume as a good of its own. As a sketch only: iron for a hull, crystal for glass, heartstone for fuel. Nothing past the six buildings is designed here.
 
 ## The loop in one picture
 
@@ -57,8 +73,8 @@ Three steps, each one playable and better than the game before it:
 
 - No map, no layout to draw, no belts. The line is three numbers and a mark on the lowest.
 - No second order, no order choice, no market, no prices that move.
-- No more than four stages and three goods.
-- No new engine, no tileset world. The village is one picture with six buildings on it.
+- No more than four stages and three goods in these three steps. Later stretches add more (the rocket, above).
+- No new engine, no tileset world. The village is one picture with its buildings on it.
 - No sliders and no crew rosters. The one new control is the lever.
 
 ## Anti-goals
@@ -156,7 +172,7 @@ There are three goods. Stones stay, as the everyday good. The works adds two.
 | Bricks    | kilns                | the Granite       | borers, saws, yard levels, promotions, the Granite's upgrades                                      |
 | Cut stone | saws                 | the Crystal Caves | pit trains, the Great Machine, kids, the deep upgrades                                             |
 
-Two rules set every price. A thing costs the good of the band where it first opens. A works machine costs the good below the one it makes: kilns cost stones, saws cost bricks. Every thing costs one good, for good. Nothing changes its money mid-run.
+Two rules set every price. A thing costs the good of the band where it first opens. A works machine costs the good below the one it makes: kilns cost stones, saws cost bricks. In these steps every thing costs one good, and different things cost different goods, as Flemming asked. Nothing changes its money mid-run.
 
 ### The lever
 
@@ -217,13 +233,15 @@ The relics go. Their six virtues, their order and their powers move to six build
 
 The names are suggestions. Names, lines and pictures are Flemming's to approve when they are built.
 
+The Home's power is the last building's power. When a later building takes the last place, the Legend and the pass move to it, and the Home gets a power of its own.
+
 ### Orders
 
 - **One order at a time.** A building rises in three orders: footings, walls, roof. Each asks for real amounts: "The School, walls: 30M bricks, 20M cut stone."
 - **He delivers.** Each good has its own Send, which sends what the pile holds, up to what the order still needs. Part deliveries count. To keep bricks for a borer, he buys the borer first.
 - **A roof is the reveal.** The building's last order gives its power, in the moment the relic reveal has today.
 - **What comes next stays vague.** The next building is a hint in the village's words, never a list.
-- The order's goods and bar show on the board. The six sockets at the top hold the six buildings, with the tag "The village · 2 of 6".
+- The order's goods and bar show on the board. The six sockets at the top hold the six buildings, with the tag "The village · 2 of 6". When the list grows past six, the plate shows the six around the open order and the drawer shows them all.
 - The relics drawer becomes the village drawer: one picture of the village, each building in its state, and the order under it.
 
 ### Buildings open the bands
@@ -244,7 +262,7 @@ A save keeps what it earned. Each relic it had found becomes that relic's buildi
 
 ### The end of a run
 
-A run ends when the Home's roof is on, not at the bottom. So the mountain gets no bottom: the Deep Heart goes on down, and "stones left" leaves the Ledger. Depth is a place, not a goal. The bands still open in order, each at its door.
+A run ends when the last building's roof is on, not at the bottom. In this spec that is the Home. So the mountain gets no bottom: the Deep Heart goes on down, and "stones left" leaves the Ledger. Depth is a place, not a goal. The bands still open in order, each at its door.
 
 Passing the mine: the kid inherits the village. The buildings stand as he left them, and a brass number on each counts the generations that raised it. There is no new picture for a generation. The kid's orders raise each one again, in bigger amounts, and each power comes back with its roof. So the lab's rule holds as it does for relics today, which also start again. The kid-run stretch scales the band depths, the prices and the order amounts together. What is in the yard at the pass goes into the kid's first order, so the last night's goods are never dead.
 
@@ -338,9 +356,9 @@ These are mine, not Flemming's. Any of them can be turned over.
 5. Engineers tend a stage. Trouble belongs to a stage.
 6. One lever with three positions. What the works cannot take becomes stones.
 7. One yard level sets three piles. The yard starts at the Granite, and the clock cap ends there.
-8. Each thing costs one good, by the two price rules.
+8. In these steps each thing costs one good, by the two price rules.
 9. Taps and veins always land.
-10. Six buildings in the relics' order with the relics' powers, three orders each.
+10. Six buildings in the relics' order with the relics' powers, three orders each. The list stays open.
 11. The relics stay through steps 1 and 2, so no step leaves a hole where the story was.
 12. The kid inherits the village, and a brass number counts the generations.
 13. A machine is first shown when it can add its third, and Ready now never offers a buy that adds nothing.
@@ -349,18 +367,31 @@ These are mine, not Flemming's. Any of them can be turned over.
 16. Each band's door opens with a building, and the Home asks for heartstone.
 17. Old saves never load slower, and keep a building for every relic they found.
 
-## Choices for Flemming
+## Decided (Flemming, 14 Nov 2026)
 
-1. **The relics become six buildings.** Recommended: yes, at step 3, as in the table.
-2. **A run ends at the Home, and the mountain has no bottom.** Recommended: yes. It follows from 1.
-3. **Two new machines, the hoist and the pit train.** Recommended: yes. Without them the narrow stage sticks.
-4. **Stones stay as the everyday good.** Recommended: yes. The other way, everything in bricks and cut stone, makes the first evening harder and changes every price twice.
+1. **The relics become village buildings.** Yes. Six is not a limit: more buildings come later.
+2. **A run ends at the last building, and the mountain has no bottom.** Yes. Which building is last moves as the game is developed. In the end it is the rocket to Mars.
+3. **Two new machines, the hoist and the pit train.** Yes, and probably more in the long run.
+4. **Stones stay as the everyday good.** Yes. Different buildings and machines should cost different resources, with refined or manufactured ones late in the game.
+
+He also stopped the relic-door work, so this spec does not lean on it. The band doors of step 3 are their own part of this design.
 
 ## How it would be built
 
-Each line is about one sitting. The split is fixed when the parent issue is filed. Each step's economy is probed in the lab behind a factor before it is turned on in play, as the generations work was.
+Each line is about one sitting. Each step's economy is probed in the lab behind a factor before it is turned on in play, as the generations work was.
 
-**Step 1.** A lab probe of the line's rule and three report-only measures. A mock of the stage bays and Buys by stage. The hoist and the pit train (save fields, Firestore rules, art). The line's rule on, with the retune and the old-save grant. The stage bays, Buys by stage, the Ready now rule and the How it works card. Engineers and trouble by stage.
+**Step 1** is split into issues under #530:
+
+1. #532: the line's rule in one module, off in play.
+2. #533: the hoist and the pit train in the save.
+3. #534: the lab plays the line and sets its numbers.
+4. #535: a mock of the stage bays and Buys by stage, with the hoist and pit train art. It can run beside 1 to 3.
+5. #536: the line turns on in play, with the old-save grant.
+6. #537: the three bays become the three stages.
+7. #538: Buys by stage, and where the hands help.
+8. #539: engineers and trouble by stage.
+
+Steps 2 and 3 are split when the step before has been played.
 
 **Step 2.** A lab probe of the works and the yard. A mock of the piles and the lever. Kilns and bricks. Saws and cut stone. The yard and the new rule for time away, with the welcome card. Prices by good and the old-save grant.
 
