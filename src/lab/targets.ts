@@ -190,10 +190,12 @@ export const TARGETS: readonly Target[] = [
     op: "lte",
     value: 0.4,
     why: "One move should not be the right buy for most of the run.",
-    // Flemming, 14 Nov 2026 (#592): with away pay fixed at a band crossing,
-    // the casual 2x10 dad's top move is the best buy 0.475 of the time (0.392
-    // before, held under by the bug). Report only: the focus is the new
-    // version on the road to Mars (#563), which reshapes the buys.
+    // Report only since #592. With away pay fixed at a band crossing, the
+    // casual 2x10 dad's top move is the best buy 0.475 of the time (0.392
+    // before, held under by the bug); the other types still pass. Flemming,
+    // 14 Nov 2026: "I don't care about the existing version, we should focus
+    // in the new version road to mars". The new version's buys (#563) are
+    // where it is fixed, and this turns strict again there.
     reportOnly: true,
   },
   {
