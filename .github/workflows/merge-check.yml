@@ -112,7 +112,7 @@ jobs:
       matrix:
         pr: ${{ fromJSON(needs.targets.outputs.prs) }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.targets.outputs.main }}
           fetch-depth: 0
@@ -175,7 +175,7 @@ jobs:
           jq -n --argjson number "$NUMBER" --arg head "$HEAD" --arg result "$result" --arg total "$total" \
             '{number: $number, head: $head, result: $result, total: $total}' > "answer/pr-$NUMBER.json"
           cat "answer/pr-$NUMBER.json"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: merge-check-pr-${{ matrix.pr.number }}
