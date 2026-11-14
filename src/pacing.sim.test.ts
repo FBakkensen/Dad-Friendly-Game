@@ -65,10 +65,15 @@ const NILS_PRICE = promoteCost({
 /**
  * The sim dad spends the sheet's price and one worker for Nils. One-offs cost
  * more in deeper rock (#356), so the price is the Topsoil price times the
- * scale of the band he is hired in (1 the Granite, 2 the Crystal Caves).
- * `gapDays` is the pinned wait after the first borer: 0 in the same sitting.
+ * scale of the band he is hired in (1 the Granite, 2 the Crystal Caves,
+ * 3 the Deep Heart). `gapDays` is the pinned wait after the first borer: 0
+ * in the same sitting.
  */
-function expectPaidForNils(run: DadRun, gapDays: number, band: 1 | 2): void {
+function expectPaidForNils(
+  run: DadRun,
+  gapDays: number,
+  band: 1 | 2 | 3,
+): void {
   expect(NILS_PRICE).toBe(2_000_000);
   const bandPrice = NILS_PRICE * BAND_SCALE[band];
   expect(run.promotions).toHaveLength(1);
@@ -94,10 +99,10 @@ describe("pacing: a second run with one Legacy (×1.5)", () => {
     expect(run.reached.get(depth("mantle"))).toBe(4);
   });
 
-  // Grandpa (#338) tends from the first cart; Nils joins half a day after
-  // the borer, in the Crystal Caves.
+  // Grandpa (#338) tends from the first cart; Nils joins a day and a half
+  // after the borer, in the Deep Heart.
   it("pays the real promotion for Nils", () => {
-    expectPaidForNils(run, 0.5, 2);
+    expectPaidForNils(run, 1.5007, 3);
   });
 });
 
@@ -120,24 +125,37 @@ function quietStretch(run: DadRun, until: number): number {
 }
 
 describe.each([
-  // The borer opens at the Granite start (#356). On the line (#536) the
-  // upgrade dads hire Nils in the borer's sitting, still in the Granite; the
-  // plain dad a day after his, in the Crystal Caves. The first Great Machine
-  // comes on day 4 (day 3.5 with boosts), and no dad goes more than half a
-  // day without a buy after the first borer. Each owns 5 by the bottom; the
-  // upgrade dads have hands for 3 of them.
-  ["a plain dad", {}, 6, 0.5, 5, 5, 1.007, 2, 4],
-  ["an upgrade-buying dad", { buysUpgrades: true }, 5.5, 0.5, 5, 3, 0, 1, 4],
+  // The borer opens at the Granite start (#356). On the line (#536) every
+  // dad hires Nils in the borer's sitting, still in the Granite. The first
+  // Great Machine comes on day 4 (day 3.5 with boosts), and no dad goes more
+  // than half a day without a buy after the first borer. Each owns 5 by the
+  // bottom; the plain dad has hands for 3 of them. Ada tends where the line
+  // gains most (#543): the borers for the plain dad, the carts for the
+  // upgrade dads.
+  ["a plain dad", {}, 6, 0.5, 5, 3, 0, 1, 4, "borer"],
+  [
+    "an upgrade-buying dad",
+    { buysUpgrades: true },
+    5.5,
+    0.5,
+    5,
+    5,
+    0,
+    1,
+    4,
+    "cart",
+  ],
   [
     "a dad who buys upgrades and boosts",
     { buysUpgrades: true, buysBoosts: true },
     5,
     0.5,
     5,
-    3,
+    5,
     0,
     1,
     3.5,
+    "cart",
   ],
 ] as const)(
   "pacing: no dead zone for %s (#140)",
@@ -151,6 +169,7 @@ describe.each([
     nilsGapDays,
     nilsBand,
     machineDay,
+    adaPost,
   ) => {
     const run = simulateDadRun({
       milestones: [depth("mantle")],
@@ -171,7 +190,7 @@ describe.each([
         name: ENGINEER_NAMES[0],
         rank: 0,
         trips: 0,
-        post: "machine",
+        post: adaPost,
       });
     });
 
@@ -188,11 +207,12 @@ describe("pacing: lost tools (#148)", () => {
   });
 
   it("keeps Ada tending and sends the others on the old shaft and the deep dark", () => {
+    // On the line she tends where it gains most (#543): the carts.
     expect(run.mountain.engineers[0]).toEqual({
       name: "Ada",
       rank: 0,
       trips: 0,
-      post: "machine",
+      post: "cart",
     });
     const scouts = run.mountain.engineers.slice(1);
     expect(scouts.length).toBeGreaterThan(0);
@@ -226,9 +246,9 @@ describe("pacing: the borer's worker bill and the Great Machine (#140)", () => {
     const machine = run.buys.find((buy) => buy.id === "machine");
     expect(machine?.short).toBe(5);
     // Was 0.1715 on the #357 curve: on the line the first machine comes five
-    // hands short, 24,430,515 on 96.48M (0.2532).
+    // hands short, 32,693,539 on 96.48M (0.3389).
     expect((machine?.shortCost ?? 0) / (machine?.price ?? 1)).toBeCloseTo(
-      0.2532,
+      0.3389,
       4,
     );
   });
@@ -240,9 +260,9 @@ describe("pacing: the borer's worker bill and the Great Machine (#140)", () => {
     expect(machine).toMatchObject({ count: 1, price: 96_480_000 });
     expect(machine?.day).toBeCloseTo(4, 2);
     expect(machine?.day).toBeLessThan(bottom ?? 0);
-    // On the line (#536) he buys five by the bottom, with hands for three.
+    // On the line (#536) he buys five by the bottom.
     expect(run.mountain.owned.machine).toBe(5);
-    expect(effectiveRates(run.mountain).running.machine).toBe(3);
+    expect(effectiveRates(run.mountain).running.machine).toBe(5);
   });
 });
 

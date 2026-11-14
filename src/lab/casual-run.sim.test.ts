@@ -21,18 +21,20 @@ describe("casual run", { timeout: 120_000 }, () => {
     // about a minute until the Gold rush (#468); now he taps the quick vein
     // and the held stones come in with no dead minute.
     // Since away pay splits at a band crossing (#592), the night before the
-    // Deep Heart's next Great Machine is quiet on the payback table too:
-    // 11.98 h from day 3.5, inside the half-day limit by about a minute.
-    expect(run.finishDay).toBe(4.5);
-    expect(readFinishDay(run.samples)).toBe(4.5);
-    expect(report.value.singleShare).toBeCloseTo(0.443, 3);
+    // Deep Heart's next Great Machine is quiet on the payback table too.
+    // On the line (#536) the climb ends on day 6, and the longest quiet
+    // night is 11.98 h from day 5 on both tables, inside the half-day limit
+    // by about a minute.
+    expect(run.finishDay).toBe(6);
+    expect(readFinishDay(run.samples)).toBe(6);
+    expect(report.value.singleShare).toBeCloseTo(0.32, 3);
     expect(report.value.deadHours).toBeCloseTo(11.98, 2);
     expect(report.value.deadHours / HOURS_PER_DAY).toBeLessThanOrEqual(0.5);
-    expect(report.value.deadStartDay).toBeCloseTo(3.5, 1);
-    expect(report.payback.singleShare).toBeCloseTo(0.314, 3);
+    expect(report.value.deadStartDay).toBeCloseTo(5, 1);
+    expect(report.payback.singleShare).toBeCloseTo(0.16, 3);
     expect(report.payback.deadHours).toBeCloseTo(11.98, 2);
     expect(report.payback.deadHours / HOURS_PER_DAY).toBeLessThanOrEqual(0.5);
-    expect(report.payback.deadStartDay).toBeCloseTo(3.5, 1);
+    expect(report.payback.deadStartDay).toBeCloseTo(5, 1);
   });
 
   it("keeps the payback wait to half a day at most after the first borer", () => {
@@ -63,14 +65,17 @@ describe("casual run", { timeout: 120_000 }, () => {
     // Report-only (#252 follow-up): the value-per-stone dad saves at most a
     // day. Pinned so a change shows.
     expect(value.value).toBeLessThanOrEqual(HOURS_PER_DAY);
-    // #357 tune: the night on day 3 before the next Great Machine is the one
-    // long wait (about 11.95 h in the value-per-stone score), logged once for
-    // each score.
-    expect(result.deadStretches).toHaveLength(2);
+    // On the line (#536) two nights are the long waits, each logged once
+    // for each score: for a train from day 2.5 (11.97 h) and for a hoist from
+    // day 3.5 (11.85 h).
+    expect(result.deadStretches).toHaveLength(4);
     expect(
-      result.deadStretches.every(
-        (note) => note.savingFor === "buyTier:machine",
-      ),
-    ).toBe(true);
+      result.deadStretches.map((note) => [note.savingFor, note.score]),
+    ).toEqual([
+      ["buyTier:train", "payback"],
+      ["buyTier:hoist", "payback"],
+      ["buyTier:train", "value"],
+      ["buyTier:hoist", "value"],
+    ]);
   }, 120_000);
 });

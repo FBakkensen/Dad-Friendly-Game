@@ -49,6 +49,20 @@ describe("where a best-tending dad sends her (#543)", () => {
     expect(tendBest(crew).engineers[0]?.post).toBe("cart");
   });
 
+  it("posts only the first engineer at home, so the others walk the tunnels (#536)", () => {
+    const nils = {
+      name: "Nils" as const,
+      rank: 0 as const,
+      trips: 0,
+      post: "camp" as const,
+    };
+    const two = { ...crew, engineers: [...crew.engineers, nils] };
+    expect(tendBest(two).engineers.map((one) => one.post)).toEqual([
+      "cart",
+      "camp",
+    ]);
+  });
+
   it("leaves an engineer who is out exploring where she is", () => {
     const away = {
       ...crew,
