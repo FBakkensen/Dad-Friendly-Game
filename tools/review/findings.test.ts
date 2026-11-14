@@ -224,6 +224,22 @@ describe("reviewPost", () => {
     expect(post.review.body).toContain("$0.40");
   });
 
+  it("marks the commit it reviewed, and heads a re-check as one", () => {
+    const post = reviewPost(answer([]), DIFF, {
+      ...HEADER,
+      since: "c".repeat(40),
+    });
+    expect(
+      post.review.body.startsWith(
+        `<!-- claude-review reviewed=${HEADER.head} -->`,
+      ),
+    ).toBe(true);
+    expect(post.review.body).toContain(
+      "Re-checked the changes since ccccccc as: code, spec, at commit aaaaaaa.",
+    );
+    expect(post.fallback).toContain(`reviewed=${HEADER.head}`);
+  });
+
   it("says No findings and posts no threads when there are none", () => {
     const post = reviewPost(answer([]), DIFF, HEADER);
     expect(post.review.body).toContain("No findings.");

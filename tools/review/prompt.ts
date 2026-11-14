@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -105,12 +105,16 @@ export function issuesFixed(body: string): number[] {
 export type LensTexts = {
   prompt: string;
   lens: Readonly<Record<Lens, string>>;
+  /** What a re-check after a push asks (#585), with `{{LAST}}`. */
+  recheck: string;
 };
 
 export type Intent = {
   title: string;
   body: string;
   issues: readonly { number: number; body: string }[];
+  /** The PR's review threads and their replies, on a re-check (#585). */
+  threads?: string;
 };
 
 export type ReviewPlan =
@@ -139,6 +143,8 @@ function intentBlock(intent: Intent): string {
   for (const issue of intent.issues)
     parts.push(`## Issue #${String(issue.number)}\n\n${asData(issue.body)}`);
   if (intent.issues.length === 0) parts.push("The PR names no issue it fixes.");
+  if (intent.threads !== undefined && intent.threads.trim().length > 0)
+    parts.push(`## Review threads so far\n\n${asData(intent.threads)}`);
   return `<pr-intent>\n${parts.join("\n\n")}\n</pr-intent>\n`;
 }
 
@@ -149,6 +155,8 @@ export function planReview(input: {
   pr: number;
   intent: Intent;
   texts: LensTexts;
+  /** The commit the last review covered, when this is a re-check. */
+  last?: string;
 }): ReviewPlan {
   const lenses = lensesFor(input.paths);
   if (lenses.length === 0) {
@@ -158,7 +166,12 @@ export function planReview(input: {
         "This PR changes only art or other binary files, so there is nothing for a text review to judge.",
     };
   }
+  const recheck =
+    input.last === undefined
+      ? ""
+      : input.texts.recheck.trim().replaceAll("{{LAST}}", input.last);
   const body = input.texts.prompt
+    .replaceAll("{{RECHECK}}", recheck)
     .replaceAll("{{PR}}", String(input.pr))
     .replaceAll("{{BASE}}", input.base)
     .replaceAll("{{HEAD}}", input.head)
@@ -187,7 +200,7 @@ function readTexts(): LensTexts {
   const lens = Object.fromEntries(
     LENSES.map((name) => [name, read(name)]),
   ) as Record<Lens, string>;
-  return { prompt: read("prompt"), lens };
+  return { prompt: read("prompt"), lens, recheck: read("recheck") };
 }
 
 function lines(text: string): string[] {
@@ -197,7 +210,10 @@ function lines(text: string): string[] {
     .filter((line) => line.length > 0);
 }
 
-/** The intent folder the workflow writes: `title.txt`, `body.md`, `issue-<n>.md`. */
+/**
+ * The intent folder the workflow writes: `title.txt`, `body.md`,
+ * `issue-<n>.md`, and on a re-check `threads.md`.
+ */
 function readIntent(dir: string): Intent {
   const read = (name: string) => readFileSync(join(dir, name), "utf8");
   const issues = readdirSync(dir)
@@ -205,7 +221,15 @@ function readIntent(dir: string): Intent {
     .filter((match) => match !== null)
     .map((match) => ({ number: Number(match[1]), body: read(match[0]) }))
     .sort((a, b) => a.number - b.number);
-  return { title: read("title.txt").trim(), body: read("body.md"), issues };
+  const threads = existsSync(join(dir, "threads.md"))
+    ? read("threads.md")
+    : undefined;
+  return {
+    title: read("title.txt").trim(),
+    body: read("body.md"),
+    issues,
+    ...(threads === undefined ? {} : { threads }),
+  };
 }
 
 function option(args: readonly string[], name: string): string {
@@ -218,10 +242,11 @@ function option(args: readonly string[], name: string): string {
 const HELP = `Usage:
   git diff --name-only origin/main...HEAD | node tools/review/prompt.ts lenses
   node tools/review/prompt.ts issues < pr-body.md
-  node tools/review/prompt.ts build --paths <file> --intent <dir> --base <sha> --head <sha> --pr <n> --out <file>
+  node tools/review/prompt.ts build --paths <file> --intent <dir> --base <sha> --head <sha> --pr <n> --out <file> [--last <sha>]
 
 lenses prints the lenses a change needs, or "none". Their texts are .github/review/<lens>.md.
 issues prints the issues a PR body closes, one per line.
+With --last, build writes a re-check of the changes since that commit (#585).
 build writes the review prompt to --out and prints {"kind":"review","lenses":[...]} or {"kind":"skip","reason":...}.`;
 
 function main(args: readonly string[]): void {
@@ -240,6 +265,7 @@ function main(args: readonly string[]): void {
       pr: Number(option(args, "pr")),
       intent: readIntent(option(args, "intent")),
       texts: readTexts(),
+      ...(args.includes("--last") ? { last: option(args, "last") } : {}),
     });
     if (plan.kind === "review") writeFileSync(option(args, "out"), plan.prompt);
     console.log(
