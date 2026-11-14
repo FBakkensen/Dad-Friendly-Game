@@ -63,5 +63,11 @@ The code, save and game lenses now ask the reviewer to walk each changed behavio
 
 ### What this says
 
-- **Keep the state walk.** It costs less ($5.34 against $6.86), shows no rise in wrong findings, and moved findings from docs toward behaviour. It found one real bug no one had seen.
+- **Keep the state walk, knowing what it trades.** It shows no rise in wrong findings, moved findings from docs toward behaviour, and found one real bug no one had seen. It also dropped some right findings from the first run, three of them checked:
+  - the `trouble-tap.ts` comment on #402;
+  - the dead `firstCraftLabel` on #461;
+  - #476's `v8 ignore` and its silent guest-save failure.
+
+  Part of the lower cost ($5.34 against $6.86) is the walk reporting less, most of all on #476 ($0.93 against $1.99). The `rushUntil` gap on #472 is still caught. It is still on `main`, and it is #612.
+
 - **The review alone will not catch these known bugs.** Each needs following several steps of play with real timing: a second sign-in during a hold, a kill with no pagehide, crew that ticks on while the board is open. Those are what the gameplay journeys (#552, #553) and the economy invariants (#555) are for. #573 was found by a journey, and #592 by the invariants. The review is the net for rules, guards and single-step logic. The journeys and invariants are the net for play over time.
