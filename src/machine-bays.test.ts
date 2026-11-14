@@ -53,8 +53,9 @@ function views(
 }
 
 /**
- * The early save: 18 workers, 6 carts, 3 hoists and 3 drills, 6 free. The
- * hoists and drills outrun the haul, so carts are the pick (#536).
+ * The early save: 18 workers, 6 carts, 3 hoists and 3 drills. The hoists and
+ * drills outrun the haul, so carts are the pick (#536), and the third drill
+ * adds nothing, so its hand is free with six others: 7 free.
  */
 const early = mountainWith({
   stock: { stones: 6_854 },
@@ -149,7 +150,7 @@ describe("bayViews", () => {
       stock: { ...early.stock, stones: priceOf(early, "drill", 3) + 1 },
     };
     expect(mountain.stock.stones).toBeGreaterThan(priceOf(early, "cart", 6));
-    expect(crewCounts(mountain, NOW).free).toBe(6);
+    expect(crewCounts(mountain, NOW).free).toBe(7);
 
     const [cart, drill] = views(mountain);
     expect(bayLamp(cart)).toBe("amber");
@@ -158,7 +159,8 @@ describe("bayViews", () => {
 
   it("short of hands is dark", () => {
     const mountain = mountainWith({
-      owned: { ...NONE_OWNED, helper: 6, cart: 6 },
+      // Three workers on a cart, a hoist and a drill: every hand is needed.
+      owned: { ...NONE_OWNED, helper: 3, cart: 1, hoist: 1, drill: 1 },
       stock: { stones: priceOf(early, "cart", 6) + 1 },
     });
     expect(crewCounts(mountain, NOW).free).toBe(0);

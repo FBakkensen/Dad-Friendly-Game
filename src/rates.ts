@@ -128,6 +128,12 @@ export type Rates = {
   readonly tierSpeed: Readonly<Record<TierId, number>>;
   /** How many of each tier have the helpers to run (helpers always run). */
   readonly running: Readonly<Record<TierId, number>>;
+  /**
+   * Of `running`, the machines the crew needs (#536): on the line a machine
+   * on a stage with room to spare moves nothing, so its hands are as good as
+   * free. Buys, Ready now and the crew plate count free hands from it.
+   */
+  readonly needed: Readonly<Record<TierId, number>>;
   /** Helpers short of running every machine; 0 when all are staffed. */
   readonly helpersShort: number;
   /**
@@ -247,7 +253,7 @@ function readRates(mountain: Mountain, now?: number, trouble?: Trouble): Rates {
   // Staffing: the hands run the machines that mine the most (#500); a
   // machine short of its crew sits idle. Helpers still mine by hand while
   // they run a machine. Kids count as staff too (Crown of Wisdom).
-  const running = keptStaffing(mountain, steady);
+  const { running, needed: lineNeeds } = keptStaffing(mountain, steady);
   const needed = TIERS.reduce(
     (total, tier) =>
       total + owned(mountain, tier) * staffNeeded(mountain, tier),
@@ -271,6 +277,7 @@ function readRates(mountain: Mountain, now?: number, trouble?: Trouble): Rates {
     tapYield: tapWithPick(bareTap, mountain) * sharper,
     tierSpeed,
     running,
+    needed: lineNeeds,
     helpersShort: Math.max(
       0,
       needed - mountain.owned.helper - mountain.owned.kid,
@@ -289,10 +296,12 @@ function readRates(mountain: Mountain, now?: number, trouble?: Trouble): Rates {
  * times. When the tending cannot move, the slots' best is the answer;
  * otherwise the staffing is weighed in full.
  */
-const staffings = new Map<
-  number,
-  { readonly key: Float64Array; readonly running: Record<TierId, number> }
->();
+type Kept = {
+  readonly running: Record<TierId, number>;
+  readonly needed: Record<TierId, number>;
+};
+
+const staffings = new Map<number, Kept & { readonly key: Float64Array }>();
 const STAFFINGS_KEPT = 4096;
 const KEY_LENGTH = 3 + TIERS.length + MACHINE_IDS.length + 2 * MAX_ENGINEERS;
 const scratchKey = new Float64Array(KEY_LENGTH);
@@ -301,21 +310,21 @@ const scratchWords = new Uint32Array(scratchKey.buffer);
 function keptStaffing(
   mountain: Mountain,
   steady: Readonly<Record<TierId, number>>,
-): Record<TierId, number> {
+): Kept {
   const hash = writeStaffingKey(mountain, steady);
   const kept = staffings.get(hash);
   if (kept !== undefined && sameKey(kept.key, scratchKey)) {
-    return { ...kept.running };
+    return { running: { ...kept.running }, needed: { ...kept.needed } };
   }
   const key = scratchKey.slice();
   const slots = staffSlots(mountain, steady);
   // Staffing weighs the line (#534), so it always searches.
-  const running = staffCrew(mountain, steady, slots);
+  const found = staffCrew(mountain, steady, slots);
   if (staffings.size >= STAFFINGS_KEPT) {
     staffings.clear();
   }
-  staffings.set(hash, { key, running });
-  return { ...running };
+  staffings.set(hash, { key, ...found });
+  return { running: { ...found.running }, needed: { ...found.needed } };
 }
 
 /**
@@ -369,7 +378,7 @@ function staffCrew(
   mountain: Mountain,
   steady: Readonly<Record<TierId, number>>,
   slots: readonly StaffSlot[],
-): Record<TierId, number> {
+): Kept {
   const hands = mountain.owned.helper + mountain.owned.kid;
   // The one-hand machines fill the line (#534).
   const line = handsSpeed(steady, runningOf(mountain, biggestFirst(slots, 0)));
@@ -417,9 +426,51 @@ function staffCrew(
   // goes to the biggest group running (#338), which may leave the narrow
   // stage, so a machine he would take stays idle instead (#536).
   const spared = weigh(runSpare(slots, hands, settled.staffing));
-  return moreStones(settled.stones, spared.stones)
-    ? settled.running
-    : spared.running;
+  const kept = moreStones(settled.stones, spared.stones) ? settled : spared;
+  return {
+    running: kept.running,
+    needed: neededOf(slots, kept, weigh).running,
+  };
+}
+
+/**
+ * Of a staffing, the machines the crew needs (#536): on the line a machine
+ * on a stage with room to spare moves nothing, and spare hands or the search
+ * may still run it. Each kind, biggest first, keeps as few running as mine
+ * as much, so the hands on the rest count as free for Buys and Ready now.
+ */
+function neededOf(
+  slots: readonly StaffSlot[],
+  from: Weighed,
+  weigh: (staffing: Staffing) => Weighed,
+): Weighed {
+  let kept = from;
+  for (const slot of slots) {
+    kept = fewestOf(slot.id, kept, weigh);
+  }
+  return kept;
+}
+
+/** The fewest of one kind running that mine as much, found by halving. */
+function fewestOf(
+  id: MachineId,
+  from: Weighed,
+  weigh: (staffing: Staffing) => Weighed,
+): Weighed {
+  let low = 0;
+  let high = from.staffing[id];
+  while (low < high) {
+    const mid = Math.floor((low + high) / 2);
+    if (
+      moreStones(from.stones, weigh({ ...from.staffing, [id]: mid }).stones)
+    ) {
+      low = mid + 1;
+    } else {
+      high = mid;
+    }
+  }
+  const fewest = weigh({ ...from.staffing, [id]: low });
+  return moreStones(from.stones, fewest.stones) ? from : fewest;
 }
 
 type Weighed = {

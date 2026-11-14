@@ -250,7 +250,9 @@ function crewPosts(
       : [
           {
             label,
-            workers: rates.running[tier.id] * staffNeeded(mountain, tier),
+            // The posts the crew needs: a hand on a machine that moves
+            // nothing counts as free (#536).
+            workers: rates.needed[tier.id] * staffNeeded(mountain, tier),
           },
         ];
   });

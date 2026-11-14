@@ -11,18 +11,19 @@ export type CrewCounts = {
   readonly free: number;
 };
 
-/** Helpers and kids, less the staff every running machine needs. */
+/** Helpers and kids, less the staff of every machine the crew needs (#536). */
 export function crewCounts(
   mountain: Mountain,
   now: number,
   trouble?: Trouble,
 ): CrewCounts {
-  const { running } = effectiveRates(mountain, now, trouble);
+  // A hand on a machine that moves nothing is as good as free (#536).
+  const { needed } = effectiveRates(mountain, now, trouble);
   const crew = mountain.owned.helper + mountain.owned.kid;
   const spare =
     crew -
     TIERS.reduce(
-      (used, tier) => used + running[tier.id] * staffNeeded(mountain, tier),
+      (used, tier) => used + needed[tier.id] * staffNeeded(mountain, tier),
       0,
     );
   return { crew, spare, free: Math.max(0, Math.floor(spare)) };

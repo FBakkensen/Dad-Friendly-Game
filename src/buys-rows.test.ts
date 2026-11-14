@@ -258,8 +258,10 @@ describe("buyRowView", () => {
   });
 
   it("the next mark's payoff, then the short payoff, then the progress alone (#506)", () => {
+    // Saving for the cart: the haul has room to spare, but a dear row still
+    // shows its marks.
     const carts = mountainWith({
-      stock: { stones: 1e9 },
+      stock: { stones: 0 },
       owned: { ...NONE_OWNED, helper: 12, cart: 12 },
     });
     // Past a mark the row no longer leads with the reached line: "again" says it.
@@ -482,7 +484,12 @@ describe("buyRowView", () => {
     expect(row(idle, "cart").aria).toContain(
       "You have 3, 2 idle: each needs 1 worker to run.",
     );
-    expect(row(idle, "drill").aria).toContain(`. ${NEEDS_MORE_WORKERS}.`);
+    // Three workers on a cart, a hoist and a drill: no hand free.
+    const busy = mountainWith({
+      owned: { ...NONE_OWNED, helper: 3, cart: 1, hoist: 1, drill: 1 },
+      stock: { stones: 1e9 },
+    });
+    expect(row(busy, "drill").aria).toContain(`. ${NEEDS_MORE_WORKERS}.`);
 
     // Crew synergy names its percent.
     const synergy = mountainWith({
@@ -617,15 +624,15 @@ describe("buyRowView: ×10 and Max (#358)", () => {
   });
 
   it("short of hands for ten says ten's bill, and the verb still counts ten", () => {
-    // 18 workers on 15 carts leave 3 free, and ten drills take 10.
+    // 11 workers on 13 carts, 3 hoists and a drill: the line needs 8 of
+    // them, so 3 are free, and ten drills take 10.
     const base = mountainWith({
-      owned: { ...NONE_OWNED, helper: 18, cart: 6 },
+      owned: { ...NONE_OWNED, helper: 11, cart: 13, hoist: 3, drill: 1 },
     });
     const ten = quote(base, "drill", "ten");
     const mountain = {
       ...base,
       stock: { ...base.stock, stones: ten.cost },
-      owned: { ...base.owned, cart: 15 },
     };
     expect(crewCounts(mountain, NOW).free).toBe(3);
     expect(row(mountain, "drill", { amount: "ten" })).toMatchObject({
@@ -656,10 +663,11 @@ describe("buyRowView: ×10 and Max (#358)", () => {
   });
 
   it("a ready pick the free hands cannot run ten of is not offered on its row", () => {
-    // 20 workers on 13 carts, 3 hoists and a drill leave 3 free. The face
-    // moves the least: the drill is the pick for one, not for ten.
+    // 11 workers on 13 carts, 3 hoists and a drill: the line needs 8, so 3
+    // are free. The face moves the least: the drill is the pick for one, not
+    // for ten.
     const base = mountainWith({
-      owned: { ...NONE_OWNED, helper: 20, cart: 13, hoist: 3, drill: 1 },
+      owned: { ...NONE_OWNED, helper: 11, cart: 13, hoist: 3, drill: 1 },
     });
     const mountain = {
       ...base,
