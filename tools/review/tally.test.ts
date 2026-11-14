@@ -7,6 +7,7 @@ import {
   tallyThreads,
   type Comment,
 } from "./tally.ts";
+import { reviewPost } from "./findings.ts";
 
 const BOT = "github-actions[bot]";
 
@@ -123,6 +124,65 @@ describe("tallyPr", () => {
       findings: 4,
       threads: { fixed: 1, answered: 0, open: 0 },
       cost: 0.55,
+    });
+  });
+});
+
+describe("tally against what findings.ts writes", () => {
+  it("counts the reviews, findings, threads and cost of a real post", () => {
+    const diff = [
+      "diff --git a/src/a.ts b/src/a.ts",
+      "--- a/src/a.ts",
+      "+++ b/src/a.ts",
+      "@@ -1,1 +1,2 @@",
+      " one",
+      "+two",
+    ].join("\n");
+    const post = reviewPost(
+      {
+        summary: "Findings: this summary line must not be read as the counts.",
+        findings: [
+          {
+            severity: "important",
+            path: "src/a.ts",
+            line: 2,
+            title: "Wrong",
+            body: "Why.",
+          },
+          {
+            severity: "minor",
+            path: "src/other.ts",
+            line: 1,
+            title: "Elsewhere",
+            body: "Why.",
+          },
+        ],
+      },
+      diff,
+      {
+        lenses: "code",
+        head: "b".repeat(40),
+        cost: 0.42,
+        runUrl: "https://example.test",
+      },
+    );
+    const comments = post.review.comments.map((c, i): Comment => ({
+      id: i + 1,
+      author: BOT,
+      body: c.body,
+      inReplyTo: null,
+    }));
+    const pr = tallyPr({
+      number: 7,
+      title: "t",
+      posts: [{ author: BOT, body: post.review.body }],
+      comments: [...comments, reply(99, 1, "Fixed in abcdef1.")],
+    });
+    expect(pr).toMatchObject({
+      reviews: 1,
+      findings: 2,
+      threads: { fixed: 1, answered: 0, open: 0 },
+      cost: 0.42,
     });
   });
 });
