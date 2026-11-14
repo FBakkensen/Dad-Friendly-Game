@@ -11,7 +11,7 @@ This is how dad-friendly decisions get made. Same shape as the project interview
 
 ## Agent-run sittings
 
-A thread started on an issue has its pick: skip this skill. An agent choosing work with no one to ask takes a `ready-for-agent` issue (github-issues, Triage) instead of asking. Road work comes first: an issue whose theme is under Now in #563. Among those, prefer the one that unblocks the most, then the oldest. A fast-lane issue is taken only while no other fast-lane issue is being built. It claims it before the branch. With no `ready-for-agent` issue left, it stops and says so: it does not run hill-climb or invent issues. The interview below is for when Flemming asks.
+A thread started on an issue has its pick: skip this skill. An agent choosing work with no one to ask takes a `ready-for-agent` issue (github-issues, Triage) instead of asking. If a `fast-lane` issue is ready and none is being built, take it (Triage has the cap). Otherwise take road work: prefer the one that unblocks the most, then the oldest. It claims it before the branch. With no `ready-for-agent` issue left, it stops and says so: it does not run hill-climb or invent issues. The interview below is for when Flemming asks.
 
 ## Before you ask
 

@@ -39,18 +39,24 @@ Do not fake links in markdown instead.
 
 ## The road
 
-#563 is the build order. The game is built foundations first, a stage at a time: its text lists the stages under Now, Next and Later, and the themes are its sub-issues, in order. A stage ends when Flemming has played it on his phone. The next stage is split into issues only then.
+#563 is the build order. The game is built foundations first, a stage at a time. Its text lists the stages under Now, Next and Later, and the themes are its sub-issues, in order. A theme can span stages: #563 says which of its steps are Now. A stage ends when Flemming has played it on his phone. The next stage is split into issues only then.
 
-Read #563 before you place an idea or pick work. The triage keeps it true: the stage lists, the order of the sub-issues, and one line per waiting idea under "Ideas waiting". It never closes.
+Read #563 before you place an idea or pick work. Every leaf belongs to a stage, through its theme, or is in the fast lane (Triage). #563 never closes.
+
+Only #563's stage lists are ever edited, and only when a stage ends or Flemming changes the order: read the body, change it, and write it back with `gh api -X PATCH repos/FBakkensen/Dad-Friendly-Game/issues/563 -F body=@<file>`. The MCP `sub_issue_write` tool adds a theme (`add`) and sets its place in the order (`reprioritize`). The waiting ideas are not listed in the text: they are the open sub-issues labelled `idea`, under #563 and under each theme.
 
 ## Ideas
 
 Flemming has ideas faster than the game can take them. Every idea is recorded at once. None is built because it was said. The agent is the sensible senior architect and game designer here: it says honestly where an idea fits and what it needs first, and it does not take a shortcut to please him.
 
+An idea is something new he wants the game to have or to do differently, outside what is being built. These are not ideas: a bug he hit (file it as a bug, in the fast lane), his answer to a question, and a correction to a sliver that is being built (it goes to the thread building it). When in doubt, it is an idea.
+
 **Record it in the same turn.** One issue per idea, labelled `idea`. First search the open and closed issues, the specs and the idea notes (`ideas/` in the project files). If the idea is already an issue, add his words to it as a comment and answer from that issue. The body:
 
 ```markdown
-> His words, as he wrote them. (Flemming, 14 Nov 2026)
+> His words, as he wrote them.
+
+(Flemming, <date>)
 
 **What I heard:** one sentence, so a misreading is caught at once.
 **Where it fits:** the stage on the road (#563) and the theme.
@@ -61,19 +67,17 @@ Flemming has ideas faster than the game can take them. Every idea is recorded at
 **References:** related issues, the spec section, the idea notes, anything he pointed at.
 ```
 
-Those five lines are the honest answer. They go on the issue and, whole, to Flemming, ending with "Nothing has been started".
+The first five lines are the honest answer. They go on the issue and, whole, to Flemming, ending with "Nothing has been started".
 
-| Verdict              | When                                                                      | Then                                                                                      |
-| -------------------- | ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| **Build now**        | On the road's current stage and unblocked, or in the fast lane (Triage)   | Shape it now.                                                                             |
-| **Next**             | It fits right after something named                                       | Set `blocked-by` that issue. Shape it when the blocker closes.                            |
-| **Later**            | It belongs to a later stage                                               | It waits. It is shaped when that stage is designed, with the other ideas waiting there.   |
-| **Not as stated**    | It breaks a hard rule (hill-climb, step 3) or fights a design he approved | Say why, and offer the version that would work.                                           |
-| **Changes the plan** | It touches a foundation that is being built now                           | Ask him at once: one question, three options, one recommended. Deciding later costs more. |
+| Verdict              | When                                                                      | Then                                                                                |
+| -------------------- | ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| **Build now**        | Its stage is under Now and nothing blocks it, or it is fast-lane work     | Shape it now.                                                                       |
+| **Next**             | It fits right after something named                                       | Set `blocked-by` that issue. Shape it when the blocker closes.                      |
+| **Later**            | It belongs to a later stage                                               | It waits. It is shaped when its stage comes up, with the other ideas waiting there. |
+| **Not as stated**    | It breaks a hard rule (hill-climb, step 3) or fights a design he approved | Say why, and offer the version that would work. Add `needs-you`.                    |
+| **Changes the plan** | It touches a foundation that is being built now                           | Ask him at once: one question, three options, one recommended. Add `needs-you`.     |
 
-An idea whose verdict is a question to him also carries `needs-you` until he answers.
-
-Then place it. Its parent is the theme it belongs to (#530 for the line, the works and the village), or #563 when its stage has no theme yet. Add its line under its stage in #563. Set `blocked-by` only for a real dependency: an idea inside a later stage waits because of its stage, not because of a link.
+Then place it. Its parent is the theme of its stage (the themes are #563's sub-issues), or #563 when its stage has no theme yet. Set `blocked-by` only for a real dependency: an idea on a later stage waits because of its stage, not because of a link.
 
 How to push back:
 
@@ -84,27 +88,29 @@ How to push back:
 - An idea never changes work that is being built, except through **Changes the plan**. The work in flight goes on unchanged until he answers.
 - When two ideas pull against each other, say so and ask which one wins.
 
-**Shape it when its turn comes:** now for **Build now**, when the blocker closes for **Next**, and when its stage is designed for **Later**. Shaping is `superpowers:brainstorming`, with hill-climb's hard rules and a probe for anything built on numbers. It ends with one question to Flemming: build it this way, yes or no.
+**Shape it when its turn comes:** now for **Build now**, when the blocker closes for **Next**, and for **Later** when its stage comes up, before that stage is split into issues. A thread started on an `idea` shapes it. It does not build it.
 
-- **Yes, and it is one sliver:** the issue gets its **Done when** line and swaps `idea` for its triage label.
-- **Yes, and it is bigger:** the issue drops `idea` and becomes the parent of its slivers, with a spec (`superpowers.md`). It stays open until the last sliver merges, so the line from his words to the merged PRs is unbroken.
+Shaping is the Design step (`superpowers.md`, step 3) done ahead of the sitting: `superpowers:brainstorming`, with hill-climb's hard rules and a probe for anything built on numbers. It ends with one question to Flemming: build it this way, yes or no. The issue carries `needs-you` with that question until he answers. A shaped design is never self-approved, also in an agent-run sitting.
+
+- **Yes, and it is one sliver:** the short design goes on the issue as a comment, and the body gets its **Done when** line. The issue drops `idea` and `needs-you` and is triaged like any leaf. Its build sitting starts at Plan, from that comment.
+- **Yes, and it is bigger:** the issue drops `idea` and `needs-you` and becomes a parent. The spec is its first sliver, an issue of its own that the spec's PR closes (`superpowers.md`, Specs for big designs). The parent stays open until its last sliver merges, so the line from his words to the merged PRs is unbroken.
 - **No:** close it as not planned, with the reason. A dropped idea is never deleted.
 
 An idea of the agent's own is not an `idea`. It follows One issue is one sliver, below, or a hill-climb round.
 
 ## Triage
 
-Flemming writes every issue that gets built. Triage sorts open issues by readiness, keeps claims truthful and keeps the road (#563) true. It never rewrites an issue. Three labels say where a leaf issue stands. A leaf is an open issue with no open sub-issues.
+Flemming writes every issue that gets built. Triage sorts open issues by readiness and stage, and keeps claims truthful. It never rewrites an issue. The one exception is #563's stage lists (The road). Three labels say where a leaf issue stands. A leaf is an open issue with no open sub-issues.
 
-- **`ready-for-agent`:** no open `blocked-by`, a **Done when** line, and none of the three stops in `superpowers.md` up front, nor a design call that is Flemming's. Its theme is on the road's current stage (Now in #563), or it is in the fast lane. If it began as an `idea`, it has been shaped and Flemming said yes. Any thread may claim it.
+- **`ready-for-agent`:** no open `blocked-by`, a **Done when** line, and none of the three stops in `superpowers.md` up front, nor a design call that is Flemming's. Its stage is under Now in #563, or it is in the fast lane. If it began as an `idea`, it has been shaped and Flemming said yes (Ideas). Any thread may claim it.
 - **`needs-you`:** it waits for Flemming: a design or product call, a line of copy, art or PixelLab spend, or a guardrail limit. The label goes with a comment that asks the question in one sentence.
 - **`agent-working`:** a thread has claimed it and is building it now.
 
-A leaf carries at most one of the three. A blocked issue and a parent carry none: the graph already says why they wait. So does a leaf whose theme is on a later stage: the road says why it waits. An `idea` carries none, or `needs-you` while its verdict waits on his answer (Ideas). A hill-climb `maybe` issue carries none until Flemming promotes it. A promoted one swaps `maybe` for `idea`, and is answered and placed like any idea. An issue an agent filed without Flemming's yes is `needs-you` with a one-line "Build this?" comment, so nothing gets built that Flemming has not seen. An issue that may hit a stop partway (say, art only if a measured trigger fires) is still `ready-for-agent`; the thread asks at the stop.
+A leaf carries at most one of the three. A blocked issue and a parent carry none: the graph already says why they wait. So does a leaf on a later stage: the road says why it waits. An `idea` carries none, or `needs-you` while a question on it waits for his answer (Ideas). A hill-climb `maybe` issue carries none until Flemming promotes it. A promoted one swaps `maybe` for `idea`, and is answered and placed like any idea: `sub_issue_write` with `replace_parent` moves it from its round to its theme, and the round's table keeps its row. An issue an agent filed without Flemming's yes is `needs-you` with a one-line "Build this?" comment, so nothing gets built that Flemming has not seen. On his yes it is placed like the rest: under the theme of its stage, or in the fast lane. An issue that may hit a stop partway (say, art only if a measured trigger fires) is still `ready-for-agent`; the thread asks at the stop.
 
-**The fast lane.** A bug Flemming hit while playing, and small polish that touches neither the save, the economy nor anything being built, does not wait for the road. At most one fast-lane issue carries `agent-working` at a time, so the road always moves.
+**The fast lane.** Two kinds of work do not wait for their stage: a bug Flemming hit while playing, and small polish. Small means under one sitting, no save field, no number in the economy, and no file a running sitting is changing. Triage marks it with the `fast-lane` label, beside its triage label, and it needs no theme. Everything else about it is the same: it needs `ready-for-agent`, and it counts as one of the two issues being built. At most one issue carries both `fast-lane` and `agent-working`, so the road always moves. A leaf with no stage that is not fast-lane work is `needs-you`, with the question of where it belongs.
 
-The thread that merges triages the issues its merge unblocked (its `blocking` list), and the scheduled triage pass catches the rest. The scheduled pass also reads every `idea`. One whose blocker has closed, or whose stage is now the current one, is due for shaping, and the pass says so. When Flemming has played a stage, the ideas waiting on the next one are read together before that stage is split into issues.
+The thread that merges triages the issues its merge unblocked (its `blocking` list), and the scheduled triage pass catches the rest. The scheduled pass also reads every `idea`. One whose blocker has closed, or whose stage has come up, is due for shaping: the pass starts a thread on it, or comments `Due for shaping: <why>` on it when it cannot start one. When Flemming has played a stage, the ideas waiting on the next one are shaped together before that stage is split into issues.
 
 Read and set labels one at a time with the REST API. The MCP `issue_write` tool replaces the whole label list, so two writers can drop each other's labels. A DELETE of a label that is already gone returns 404.
 
@@ -157,7 +163,7 @@ EOF
 )" --parent N --blocked-by N,M --blocking P
 ```
 
-In a cloud session, create it with the MCP `issue_write` tool (it takes `parent_issue_number`), then set `blocked-by` with `gh api` as above. Give it its triage label (Triage, above).
+In a cloud session, create it with the MCP `issue_write` tool (it takes `parent_issue_number`), then set `blocked-by` with `gh api` as above. Give it its triage label (Triage, above). An `idea` has none.
 
 Omit flags you do not need. Body stays that short. No design doc in the issue.
 
