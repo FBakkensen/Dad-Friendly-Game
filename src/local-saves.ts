@@ -23,7 +23,7 @@ import { saveCounts } from "./session";
 import { writeSessionSave } from "./session-save";
 import {
   cloudDirty,
-  isWriter,
+  canWrite,
   log,
   logCounts,
   record,
@@ -34,7 +34,7 @@ import {
 } from "./store-context";
 
 /** Undismissed return notices. Not a mountain field, so a reload can still show them. */
-const HOMECOMING_NEWS_KEY = "dad-friendly-homecomings";
+const HOMECOMING_NEWS_KEY = "dad-friendly-game-homecomings";
 
 /** The guest's save on this device. Signed in, the phone backup is the device's copy instead. */
 export function persistSession(ctx: StoreContext): void {
@@ -59,7 +59,7 @@ export function persistSessionQuietly(ctx: StoreContext): void {
 /** True when the guest's save was written. A failed write is recorded. */
 function writeGuestSave(ctx: StoreContext): boolean {
   const storage = ctx.ports.storage;
-  if (!isWriter(ctx) || signedIn(ctx) || storage === undefined) {
+  if (!canWrite(ctx) || signedIn(ctx) || storage === undefined) {
     return false;
   }
   const { mountain, lastSeen } = ctx.session;
@@ -102,7 +102,7 @@ export function persistPhoneBackup(ctx: StoreContext): void {
   const storage = ctx.ports.storage;
   const uid = uidOf(ctx);
   if (
-    !isWriter(ctx) ||
+    !canWrite(ctx) ||
     uid === undefined ||
     storage === undefined ||
     !ctx.hydrated

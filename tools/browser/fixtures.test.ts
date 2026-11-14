@@ -21,7 +21,7 @@ const EXPECTED = {
     borers: 2,
     boosts: { sharper: 1700003600000, overtime: 1700003600000 },
   },
-  SAVE_KEY: "dad-friendly-session",
+  SAVE_KEY: "dad-friendly-game",
   workshopBusy: {
     version: 6,
     lastSeen: 1700000000000,

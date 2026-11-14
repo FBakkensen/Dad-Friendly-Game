@@ -207,6 +207,20 @@ describe("mountMountainScreen", () => {
     );
   });
 
+  it("asks for the update when the save came from a later build (#558)", () => {
+    const storage = createMemoryStorage();
+    const raw = JSON.stringify({ version: 9, lastSeen: 1 });
+    storage.setItem(SESSION_SAVE_KEY, raw);
+    const screen = mountScreen({ storage });
+    expect(
+      screen.root.querySelector<HTMLElement>(".update-prompt")?.hidden,
+    ).toBe(false);
+    expect(screen.text("#update-prompt-title")).toBe("Update available");
+    screen.dig.click();
+    expect(screen.pocket()).toBe("Stones 0");
+    expect(storage.getItem(SESSION_SAVE_KEY)).toBe(raw);
+  });
+
   it("shows an update prompt and reloads", () => {
     const screen = mountScreen();
     const reload = vi

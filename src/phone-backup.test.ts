@@ -100,7 +100,7 @@ describe("phone backup", () => {
 
   it("leaves an unreadable backup byte for byte", () => {
     const storage = memory();
-    const key = "dad-friendly-phone-backup:dad";
+    const key = "dad-friendly-game-backup:dad";
     storage.setItem(key, "{not json");
     expect(
       writePhoneBackup({
@@ -116,7 +116,7 @@ describe("phone backup", () => {
 
   it("does not read a non-object, a partial wrapper, or another account's blob", () => {
     const storage = memory();
-    const key = "dad-friendly-phone-backup:dad";
+    const key = "dad-friendly-game-backup:dad";
     storage.setItem(key, "5");
     expect(readPhoneBackup({ storage, uid: "dad" }).kind).toBe("unreadable");
     storage.setItem(key, "null");
@@ -131,9 +131,43 @@ describe("phone backup", () => {
       }),
     );
     expect(readPhoneBackup({ storage, uid: "dad" }).kind).toBe("unreadable");
-    storage.setItem(key, JSON.stringify({ uid: "dad", save: { version: 1 } }));
+    storage.setItem(key, JSON.stringify({ uid: "dad", save: { version: 8 } }));
     expect(readPhoneBackup({ storage, uid: "dad" }).kind).toBe("unreadable");
     expect(readPhoneBackup({ storage, uid: "other" }).kind).toBe("absent");
+  });
+
+  it("reads a later build's backup as newer and writes nothing over it (#558)", () => {
+    const storage = memory();
+    const key = "dad-friendly-game-backup:dad";
+    const raw = JSON.stringify({ uid: "dad", save: { version: 9 } });
+    storage.setItem(key, raw);
+    expect(readPhoneBackup({ storage, uid: "dad" })).toEqual({
+      kind: "newer",
+    });
+    expect(
+      writePhoneBackup({
+        storage,
+        uid: "dad",
+        mountain: minedMountain(9),
+        lastSeen: 2,
+      }),
+    ).toBe("kept");
+    expect(storage.getItem(key)).toBe(raw);
+  });
+
+  it("reads an earlier build's backup as older, with its stamp and text (#558)", () => {
+    const storage = memory();
+    const raw = JSON.stringify({
+      uid: "dad",
+      save: { version: 7, startedAt: 30 },
+    });
+    storage.setItem("dad-friendly-game-backup:dad", raw);
+    expect(readPhoneBackup({ storage, uid: "dad" })).toEqual({
+      kind: "older",
+      version: 7,
+      startedAt: 30,
+      raw,
+    });
   });
 
   it("reports a value that cannot be serialized", () => {
@@ -260,16 +294,16 @@ describe("phone backup", () => {
         remote: { rev: 4, deviceId: "device-other", lastSeen: 8 },
       },
     });
-    const raw = storage.getItem("dad-friendly-phone-backup:dad");
+    const raw = storage.getItem("dad-friendly-game-backup:dad");
     if (raw === null) {
       throw new Error("missing backup");
     }
     const broken = JSON.parse(raw) as { conflict: { deviceLabel: string } };
     broken.conflict.deviceLabel = "";
-    storage.setItem("dad-friendly-phone-backup:dad", JSON.stringify(broken));
+    storage.setItem("dad-friendly-game-backup:dad", JSON.stringify(broken));
     expect(readPhoneBackup({ storage, uid: "dad" }).kind).toBe("unreadable");
     broken.conflict.deviceLabel = "x".repeat(41);
-    storage.setItem("dad-friendly-phone-backup:dad", JSON.stringify(broken));
+    storage.setItem("dad-friendly-game-backup:dad", JSON.stringify(broken));
     expect(readPhoneBackup({ storage, uid: "dad" }).kind).toBe("unreadable");
     const again = JSON.parse(raw) as {
       syncedRev: unknown;
@@ -279,22 +313,22 @@ describe("phone backup", () => {
     again.syncedRev = 1.5;
     again.dirty = false;
     again.conflict = { remote: { version: 1 } };
-    storage.setItem("dad-friendly-phone-backup:dad", JSON.stringify(again));
+    storage.setItem("dad-friendly-game-backup:dad", JSON.stringify(again));
     const dropped = readPhoneBackup({ storage, uid: "dad" });
     expect(dropped.kind).toBe("unreadable");
     again.conflict = "nope";
-    storage.setItem("dad-friendly-phone-backup:dad", JSON.stringify(again));
+    storage.setItem("dad-friendly-game-backup:dad", JSON.stringify(again));
     expect(readPhoneBackup({ storage, uid: "dad" }).kind).toBe("unreadable");
     again.conflict = { deviceLabel: "Chrome on Android" };
-    storage.setItem("dad-friendly-phone-backup:dad", JSON.stringify(again));
+    storage.setItem("dad-friendly-game-backup:dad", JSON.stringify(again));
     expect(readPhoneBackup({ storage, uid: "dad" }).kind).toBe("unreadable");
     again.conflict = null;
     again.syncedRev = "nope";
-    storage.setItem("dad-friendly-phone-backup:dad", JSON.stringify(again));
+    storage.setItem("dad-friendly-game-backup:dad", JSON.stringify(again));
     expect(readPhoneBackup({ storage, uid: "dad" }).kind).toBe("unreadable");
     delete (again as { conflict?: unknown }).conflict;
     again.syncedRev = -1;
-    storage.setItem("dad-friendly-phone-backup:dad", JSON.stringify(again));
+    storage.setItem("dad-friendly-game-backup:dad", JSON.stringify(again));
     const kept = readPhoneBackup({ storage, uid: "dad" });
     expect(kept.kind).toBe("present");
     if (kept.kind === "present") {

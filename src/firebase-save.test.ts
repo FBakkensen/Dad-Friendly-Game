@@ -151,3 +151,35 @@ describe("firestore persistent cache", () => {
     );
   });
 });
+
+describe("the save's home (#558)", () => {
+  it("reads games/{uid}, and answers newer or older for a copy this build will not play", async () => {
+    const save = createFirebaseCloudSave({ options });
+    const snap = (data: unknown) => ({
+      exists: () => true,
+      data: () => data,
+      metadata: { fromCache: false, hasPendingWrites: false },
+    });
+    firestore.getDocFromServer.mockResolvedValueOnce(snap({ version: 9 }));
+    await expect(save.load({ uid: "dad", fresh: true })).resolves.toEqual({
+      kind: "newer",
+    });
+    expect(firestore.doc).toHaveBeenLastCalledWith(
+      expect.anything(),
+      "games",
+      "dad",
+    );
+    const old = { version: 7, rev: 5, startedAt: 70, mountain: {} };
+    firestore.getDocFromServer.mockResolvedValueOnce(snap(old));
+    await expect(save.load({ uid: "dad", fresh: true })).resolves.toEqual({
+      kind: "older",
+      rev: 5,
+      startedAt: 70,
+      raw: old,
+    });
+    firestore.getDocFromServer.mockResolvedValueOnce(snap({ version: "8" }));
+    await expect(save.load({ uid: "dad", fresh: true })).resolves.toEqual({
+      kind: "unavailable",
+    });
+  });
+});

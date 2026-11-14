@@ -26,12 +26,12 @@ import {
   type CloudWriteResult,
 } from "./cloud-save";
 import { fieldLogWithinBudget } from "./field-log";
-import { parseSaveValue, serializeSave } from "./persist";
+import { readSave, serializeSave, type ParsedSave } from "./persist";
 
-const SAVES = "saves";
+const SAVES = "games";
 const FIELD_LOGS = "fieldLogs";
 const FIELD_LOG_DEVICES = "devices";
-const ARCHIVE = "saveArchive";
+const ARCHIVE = "gameArchive";
 const ARCHIVE_COPIES = "copies";
 const ARCHIVE_MS = 7 * 24 * 60 * 60 * 1000;
 const LISTED_COPIES = 3;
@@ -126,10 +126,30 @@ function readSnap(snap: SaveSnap): CloudLoadResult {
   if (!snap.exists()) {
     return cached ? { kind: "missing", cached: true } : { kind: "missing" };
   }
-  const parsed = parseSaveValue(snap.data());
-  if (parsed === undefined) {
-    return { kind: "unavailable" };
+  const data = snap.data();
+  const read = readSave(data);
+  switch (read.kind) {
+    case "newer":
+      return { kind: "newer" };
+    case "older":
+      return {
+        kind: "older",
+        rev: read.rev,
+        startedAt: read.startedAt,
+        raw: data,
+      };
+    case "bad":
+      return { kind: "unavailable" };
+    case "ok":
+      return found(read.save, pending, cached);
   }
+}
+
+function found(
+  parsed: ParsedSave,
+  pending: boolean,
+  cached: boolean,
+): CloudLoadResult {
   return {
     kind: "found",
     mountain: parsed.mountain,
@@ -166,7 +186,6 @@ async function archiveConflictCopy(
     });
     await addDoc(collection(db, ARCHIVE, uid, ARCHIVE_COPIES), {
       ...saved,
-      version: 7,
       rev,
       deviceId,
       deviceLabel,
@@ -211,12 +230,17 @@ function readArchivedCopy(
   if (typeof data !== "object" || data === null) {
     return undefined;
   }
-  const parsed = parseSaveValue(data);
-  const record = data as Record<string, unknown>;
-  const archivedAt = timestampMillis(record["archivedAt"]);
-  const expiresAt = timestampMillis(record["expiresAt"]);
-  const deviceLabel = record["deviceLabel"];
-  const reason = record["reason"];
+  const {
+    archivedAt: archivedStamp,
+    expiresAt: expiresStamp,
+    reason,
+    ...envelope
+  } = data as Record<string, unknown>;
+  const read = readSave(envelope);
+  const parsed = read.kind === "ok" ? read.save : undefined;
+  const archivedAt = timestampMillis(archivedStamp);
+  const expiresAt = timestampMillis(expiresStamp);
+  const deviceLabel = envelope["deviceLabel"];
   if (
     parsed === undefined ||
     !isArchiveReason(reason) ||

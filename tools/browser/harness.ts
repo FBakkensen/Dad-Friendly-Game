@@ -65,7 +65,7 @@ export async function newWindow(
 }
 
 /** The localStorage key the game keeps its save under; tools/browser/fixtures.ts re-exports it. */
-export const SAVE_KEY = "dad-friendly-session";
+export const SAVE_KEY = "dad-friendly-game";
 
 /** How a page's save is put in localStorage before the game boots. */
 export type SeedMode =

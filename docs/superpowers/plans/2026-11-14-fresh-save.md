@@ -23,16 +23,16 @@
 
 ## Names (the builder's choices the spec left open)
 
-| What | Name |
-| --- | --- |
-| Cloud document | `games/{uid}` |
-| Cloud archive | `gameArchive/{uid}/copies/{id}` |
-| Guest save key | `dad-friendly-game` |
-| Phone backup key | `dad-friendly-game-backup:{uid}` |
-| Homecomings key | `dad-friendly-game-homecomings` |
-| Field-log ring key | `dad-friendly-game-log:{uid}` / `:guest` (the cloud field log keeps its path) |
-| A copy set aside on the phone | `{its key}:v{version}` |
-| Game map | `game: { owned, stock, levels, clocks, marks: { seen, taught, recipes, finds }, run: { generation, stretch, dug, rushBank }, engineers, expeditions, bench }` |
+| What                          | Name                                                                                                                                                          |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Cloud document                | `games/{uid}`                                                                                                                                                 |
+| Cloud archive                 | `gameArchive/{uid}/copies/{id}`                                                                                                                               |
+| Guest save key                | `dad-friendly-game`                                                                                                                                           |
+| Phone backup key              | `dad-friendly-game-backup:{uid}`                                                                                                                              |
+| Homecomings key               | `dad-friendly-game-homecomings`                                                                                                                               |
+| Field-log ring key            | `dad-friendly-game-log:{uid}` / `:guest` (the cloud field log keeps its path)                                                                                 |
+| A copy set aside on the phone | `{its key}:v{version}`                                                                                                                                        |
+| Game map                      | `game: { owned, stock, levels, clocks, marks: { seen, taught, recipes, finds }, run: { generation, stretch, dug, rushBank }, engineers, expeditions, bench }` |
 
 `owned` is keyed by tier id (`helper`, `cart`, ...). `stock` by `stones` and the four material ids. `levels` holds upgrade ids and recipe ids (crafted levels). `clocks` holds boost ids, the four timer ids and `gold-rush`. `run.dug` is depth dug, `MOUNTAIN_STONES - ceil(remaining)`. The envelope gains `startedAt` (left out at 0).
 
@@ -49,11 +49,13 @@
 ### Task 1: The version 8 shape and the four answers
 
 **Files:**
+
 - Modify: `src/save-format.ts` (rewrite), `src/persist.ts` (rewrite)
 - Test: `src/save-format.test.ts`, `src/persist.test.ts` (both rewritten; the old-version tests go), new `src/save-ledger.test.ts`, `src/economy/invariants.test.ts` (`roundTrips` on the new API)
 - Modify: the round-trip tests that call `parseSaveValue`/`serializeSave` (`engineers`, `expeditions`, `layers`, `relics`, `scale`, `tiers`, `workshop` tests)
 
 **Interfaces:**
+
 - Produces, in `src/persist.ts`:
   - `SAVE_VERSION = 8`
   - `type SaveDocument = { version: 8; lastSeen: number; startedAt?: number; rev?: number; deviceId?: string; deviceLabel?: string; game: SaveGame }`
@@ -83,9 +85,11 @@
 ### Task 2: The load-time grants, `staffed` and `kept` go
 
 **Files:**
+
 - Modify: `src/mountain.ts` (`staffed`, `StaffedMark`, `STAFF_GRANT`, `isStaffedMark`, `kept` go), `src/crew.ts` (`staffExisting` goes), `src/session.ts` (the `loaded` step, `crew-joined`, `engineer-joined` and their welcome lines go), `src/save-load.ts` (`openSession` loses `staff`), `src/workshop.ts` (`KeptWorkshop`, `KeptBench`, `NOTHING_KEPT` go), `src/test-fixtures.ts` (`unstaffedSave` goes), every test and tool that names them (`grep -rn "staffed\|kept\|crew-joined\|engineer-joined\|\"loaded\""`).
 
 **Interfaces:**
+
 - Consumes: Task 1's reader, which no longer fills `staffed` or `kept`.
 - Produces: `Mountain` without `staffed` and `kept`. `openSession(ctx, { pay, since, rebase }): { paid: number }`.
 
@@ -97,9 +101,11 @@
 ### Task 3: The new home, and `newer` is read-only
 
 **Files:**
+
 - Modify: `src/session-save.ts` (key, `readSessionSave` returns `SaveRead | { kind: "absent" }`), `src/phone-backup.ts` (key, `PhoneBackup` gains `newer` and `older`), `src/local-saves.ts` (homecomings key), `src/field-ring.ts` (ring key), `src/firebase-save.ts` (paths `games`, `gameArchive`; a snapshot read with `readSave`), `src/cloud-save.ts` (`CloudLoadResult` gains `{ kind: "newer" }`; the memory cloud gains `newerDocs: Set<string>` that makes `current` answer `newer`), `src/store-context.ts` (`ctx.newer`, `PlayBlock` gains `"newer"`, checked right after `"closed"`; `canWrite(ctx) = isWriter(ctx) && !ctx.newer`; snapshot gains `newer: boolean`), every save write (`writeGuestSave`, `persistPhoneBackup`, `persistCloud`, `keepInPlay`, `chooseSave`) uses `canWrite`, `src/save-load.ts` / `src/save-watch.ts` (each read's `newer` sets `ctx.newer`, records and logs `save.newer`, `saveKind` "loading", emits), `src/mountain-screen.ts` (a snapshot with `newer` opens the update card through `showAppUpdate`), `src/cloud-writer.ts` (`persistCloud` reads back what it would send; not `ok` records `save.shape` as an error, logs it, sets `saveKind` "error", and does not write), `tools/browser/harness.ts` and `tools/browser/fixtures.test.ts` (`SAVE_KEY`), `scripts/visual/rail.mjs` and `tools/journeys/expected.ts` (`readSave`). Delete `parseSaveValue`.
 
 **Interfaces:**
+
 - Consumes: Task 1's `readSave`, `SaveRead`.
 - Produces: `CloudLoadResult` `| { kind: "newer" } | { kind: "older"; rev: number; startedAt: number; raw: unknown }` (`older` is passed up here and handled in Task 4; until then the store treats it as `unavailable`), `PhoneBackup` `| { kind: "newer" } | { kind: "older"; version: number; startedAt: number; raw: string }`, `readSessionSave(): SaveRead | { kind: "absent" }` with the raw text on `older`.
 
@@ -118,9 +124,11 @@
 ### Task 4: An older save is set aside, and a fresh mountain keeps its stamp
 
 **Files:**
+
 - Modify: `src/cloud-save.ts` (`ARCHIVE_REASONS` gains `"reset"`; `CloudSave.archiveRaw?: ({ uid, raw, reason }) => Promise<CloudWriteResult>`; the memory cloud gains `olderDocs: Map<string, { rev; startedAt; raw }>` and records raw archives; `listCopies` skips what does not read `ok`), `src/firebase-save.ts` (`archiveRaw` adds the raw document to `gameArchive` with `archivedAt`, `expiresAt`, `reason`), `src/save-watch.ts` (an `older` guest save or phone backup moves its raw text to `{key}:v{version}`, then a fresh mountain), `src/save-load.ts` (an `older` cloud copy: hold the board, `archiveRaw` within `ARCHIVE_WAIT_MS` as `keepInPlay` does, then a fresh mountain written over it with `rev` = its rev + 1; a failed archive logs `save.archive` and keeps the hold), `src/save-choice.ts` (the wait-and-give-up helper is shared, not copied), `src/store-context.ts` (`ctx.blankReset`), `src/local-saves.ts` / `src/ledger-rows.ts` (homecomings cleared; `tonightLines` also starts after `save.set-aside`).
 
 **Interfaces:**
+
 - Consumes: Task 3's `older` results.
 - Produces: `resetFresh(ctx, stamps: readonly number[]): void` in `src/save-load.ts`: a fresh mountain with `startedAt = max(stamps)`, `lastSeen` undefined, `ctx.blankReset = true`, homecomings cleared, `save.set-aside` recorded and logged with `{ source, version }`. `hasLocalProgress` ignores the run stamp while `ctx.blankReset`; any applied move or stones mined clear it.
 
@@ -139,9 +147,11 @@
 ### Task 5: The rules check the envelope
 
 **Files:**
+
 - Modify: `firestore.rules` (new `games/{uid}` and `gameArchive/{uid}/copies/{id}`; `saves/{uid}` and `saveArchive/...` read-only; versions 1 to 7, `isValidMountain` and its helpers, `isValidGrid` and the long field comment go), `rules-test/firestore.rules.test.ts`, `src/rules-drift.test.ts` (envelope and field log only).
 
 **Interfaces:**
+
 - The game document: keys only `version, rev, savedAt, deviceId, deviceLabel, lastSeen, startedAt, game`; `version` int ≥ 8 and ≥ the stored one; `rev` == 1 on create, stored + 1 on update; `savedAt == request.time`; `deviceId` string 8..64; `deviceLabel` optional 1..40; `lastSeen` int ≥ 0; `startedAt` optional int ≥ 0 and ≥ the stored one; `game` is a map.
 - The archive: keys only the envelope's plus `archivedAt, expiresAt, reason`; `version` int ≥ 8; `reason` in `conflict, restore, start-over, pass, reset`; the seven-day expiry as today; `rev` int ≥ 0; `deviceId` 8..64; `deviceLabel` optional 1..40; `savedAt` optional timestamp; `game` is a map.
 
@@ -154,6 +164,7 @@
 ### Task 6: Fixtures in the new shape, and the browser checks
 
 **Files:**
+
 - Modify: `tools/browser/fixtures.ts` (seeds become version 8 documents through one local `toDocument(seed)`; the old-version and `legacy` seeds become plain version 8 seeds), `tools/browser/fixtures.test.ts` (every fixture reads `ok` with the real `readSave`, and the real writer writes its mountain back as the same document), `tools/journeys/*` where a save is read.
 
 - [ ] **Step 1: Write the fixture test first** and see it fail on the version 6 seeds.
@@ -164,6 +175,7 @@
 ### Task 7: Docs and rules files
 
 **Files:**
+
 - Modify: `.claude/rules/observable-saves.md` (the rules check the envelope, the parser checks the game, the writer parses before it writes; the save line and launch paragraph gain a read-only save and a copy set aside), `.claude/rules/dad-friendly-work.md` (a sliver that resets says "Resets the save" in its issue and PR body first), `docs/ARCHITECTURE.md` (the save, its home, the four answers, resets), `docs/DESIGN.md` where it names a save field, this plan's Rulings.
 
 - [ ] **Step 1: Write them.**

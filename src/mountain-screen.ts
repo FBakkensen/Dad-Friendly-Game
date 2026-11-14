@@ -2,7 +2,11 @@ import { createScreenCtx, type ScreenOptions } from "./screen-context";
 import { createRunningNow } from "./screen-running";
 import { createVein } from "./screen-vein";
 import { SPEND_KICK, createBays, createDigRows, readyPick } from "./screen-dig";
-import { createOtherTab, createUpdatePrompt } from "./screen-prompts";
+import {
+  createOtherTab,
+  createUpdatePrompt,
+  showAppUpdate,
+} from "./screen-prompts";
 import { createOverlays } from "./screen-overlays";
 import { createRail, wireKeys } from "./screen-keys";
 import {
@@ -132,7 +136,13 @@ export function mountMountainScreen(options: ScreenOptions): void {
     overlays.paint();
     // Last, so this paint's cards and drawers are settled (#527).
     top.sayTimerOver();
+    // A save from a later build (#558): the update card, once.
+    if (ctx.view().newer && !updateAsked) {
+      updateAsked = true;
+      showAppUpdate(root);
+    }
   };
+  let updateAsked = false;
 
   const cards = cardsFrom(early, sheets, {
     updatePrompt,

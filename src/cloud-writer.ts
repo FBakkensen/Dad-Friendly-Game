@@ -15,6 +15,7 @@ import {
 } from "./field-log";
 import { fieldEventsToUpload, persistPhoneBackup } from "./local-saves";
 import type { Mountain } from "./mountain";
+import { readSave, serializeSave } from "./persist";
 import { saveEchoKey } from "./phone-backup";
 import { effectiveRates } from "./rates";
 import { saveCounts } from "./session";
@@ -22,6 +23,7 @@ import {
   cloudDirty,
   deviceLabel,
   holding,
+  canWrite,
   isWriter,
   log,
   record,
@@ -135,11 +137,38 @@ export function healCloud(ctx: StoreContext): void {
   persistCloudSoon(ctx);
 }
 
+/**
+ * The writer reads back what it is about to send (#558): a save this build
+ * could not read is never written. It says so on the save line and in the log.
+ */
+function shapeRefused(
+  ctx: StoreContext,
+  mountain: Mountain,
+  lastSeen: number,
+): boolean {
+  const read = readSave(
+    JSON.parse(JSON.stringify(serializeSave({ mountain, lastSeen }))),
+  );
+  if (read.kind === "ok") {
+    return false;
+  }
+  record(ctx, "save.shape", { source: read.kind });
+  log(ctx, {
+    level: "error",
+    code: "save.shape",
+    detail: read.kind,
+    data: saveCounts(mountain),
+  });
+  ctx.saveKind = "error";
+  ctx.hooks.emit();
+  return true;
+}
+
 /** Sends one write now, unless a hold, an unseen server, or the conflict sheet keeps it waiting. */
 function persistCloud(ctx: StoreContext, retry: boolean): void {
   cancelQueuedWrite(ctx);
   const uid = uidOf(ctx);
-  if (uid === undefined || !ctx.hydrated || ctx.disposed || !isWriter(ctx)) {
+  if (uid === undefined || !ctx.hydrated || ctx.disposed || !canWrite(ctx)) {
     return;
   }
   if (holding(ctx) || !serverSeen(ctx) || ctx.saveConflict !== undefined) {
@@ -155,6 +184,9 @@ function persistCloud(ctx: StoreContext, retry: boolean): void {
     deviceId: ctx.ports.deviceId,
     deviceLabel: deviceLabel(ctx),
   };
+  if (shapeRefused(ctx, mountain, sent.lastSeen)) {
+    return;
+  }
   const echo = saveEchoKey(mountain, sent.lastSeen, sent.rev, sent.deviceId);
   ctx.echoes.push(echo);
   if (ctx.echoes.length > 8) {
@@ -240,7 +272,7 @@ function writeFailed(ctx: StoreContext, flight: Flight, message: string): void {
 /** The write returned. A newer mountain that waited goes next. */
 function finishFlight(ctx: StoreContext): void {
   landWrite(ctx);
-  if (!cloudDirty(ctx) || !isWriter(ctx) || holding(ctx) || !serverSeen(ctx)) {
+  if (!cloudDirty(ctx) || !canWrite(ctx) || holding(ctx) || !serverSeen(ctx)) {
     return;
   }
   persistCloudSoon(ctx);

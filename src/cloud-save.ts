@@ -18,6 +18,15 @@ export type CloudLoadResult =
       readonly cached?: boolean;
     }
   | { readonly kind: "missing"; readonly cached?: boolean }
+  /** A later build wrote it: this build never writes over it (#558). */
+  | { readonly kind: "newer" }
+  /** From before this version: set aside, with its rev and run stamp, for a fresh mountain. */
+  | {
+      readonly kind: "older";
+      readonly rev: number;
+      readonly startedAt: number;
+      readonly raw: unknown;
+    }
   | { readonly kind: "unavailable" }
   | { readonly kind: "disabled" };
 
@@ -127,6 +136,8 @@ export function applySignedInSave({
     }
     case "missing":
       return { mountain: local, upload: true };
+    case "newer":
+    case "older":
     case "unavailable":
     case "disabled":
       return { mountain: local, upload: false };
@@ -170,99 +181,16 @@ export function fieldLogOf(
   return mine[0]?.[1];
 }
 
-export function createMemoryCloudSave({
-  docs = new Map<string, Mountain>(),
-  fieldLogs = new Map<string, FieldLogDocument>(),
-  holdEcho,
-  archiveGate,
-}: {
-  docs?: Map<string, Mountain>;
-  fieldLogs?: Map<string, FieldLogDocument>;
-  /** While held, a write does not fan out to other tabs. */
-  holdEcho?: { held: boolean };
-  /** When fail is set, the archive write is refused and nothing is stored. */
-  archiveGate?: { fail: boolean };
-} = {}): CloudSave {
-  const watchers = new Map<string, Set<(remote: CloudLoadResult) => void>>();
-  const lastSeenByUid = new Map<string, number>();
-  const revByUid = new Map<string, number>();
-  const deviceByUid = new Map<string, string>();
-  const labelByUid = new Map<string, string>();
+/** The memory cloud's Saved copies: kept a week, newest first, three listed. */
+function memoryArchive(
+  archiveGate: { fail: boolean } | undefined,
+): Pick<CloudSave, "archiveCopy" | "listCopies"> {
   const archives: {
     uid: string;
     copy: ArchivedCopy;
   }[] = [];
   let archiveSeq = 0;
-
-  const current = (uid: string): CloudLoadResult => {
-    const mountain = docs.get(uid);
-    if (mountain === undefined) {
-      return { kind: "missing" };
-    }
-    const deviceId = deviceByUid.get(uid);
-    const deviceLabel = labelByUid.get(uid);
-    const lastSeen = lastSeenByUid.get(uid);
-    return {
-      kind: "found",
-      mountain,
-      rev: revByUid.get(uid) ?? 0,
-      ...(lastSeen === undefined ? {} : { lastSeen }),
-      ...(deviceId === undefined ? {} : { deviceId }),
-      ...(deviceLabel === undefined ? {} : { deviceLabel }),
-    };
-  };
-
-  const emit = (uid: string): void => {
-    if (holdEcho?.held) {
-      return;
-    }
-    const remote = current(uid);
-    const listeners = watchers.get(uid);
-    if (listeners === undefined) {
-      return;
-    }
-    for (const listener of listeners) {
-      listener(remote);
-    }
-  };
-
   return {
-    load: ({ uid }) => Promise.resolve(current(uid)),
-    write: ({ uid, mountain, lastSeen, rev, deviceId, deviceLabel }) => {
-      const stored = revByUid.get(uid) ?? 0;
-      const expected = stored + 1;
-      if (!Number.isInteger(rev) || rev !== expected) {
-        return Promise.resolve({
-          kind: "rejected",
-          message: "permission-denied",
-        });
-      }
-      const storedMountain = docs.get(uid);
-      if (
-        storedMountain !== undefined &&
-        runStartedAt(mountain) < runStartedAt(storedMountain)
-      ) {
-        return Promise.resolve({
-          kind: "rejected",
-          message: "permission-denied",
-        });
-      }
-      docs.set(uid, mountain);
-      revByUid.set(uid, rev);
-      deviceByUid.set(uid, deviceId);
-      if (deviceLabel !== undefined) {
-        labelByUid.set(uid, deviceLabel);
-      }
-      if (lastSeen !== undefined) {
-        lastSeenByUid.set(uid, lastSeen);
-      }
-      emit(uid);
-      return Promise.resolve({ kind: "ok" });
-    },
-    writeFieldLog: ({ uid, deviceId, log }) => {
-      fieldLogs.set(fieldLogKey(uid, deviceId), log);
-      return Promise.resolve({ kind: "ok" });
-    },
     archiveCopy: ({
       uid,
       mountain,
@@ -301,6 +229,111 @@ export function createMemoryCloudSave({
         .map((item) => item.copy);
       return Promise.resolve(fresh);
     },
+  };
+}
+
+export function createMemoryCloudSave({
+  docs = new Map<string, Mountain>(),
+  newerDocs = new Set<string>(),
+  fieldLogs = new Map<string, FieldLogDocument>(),
+  holdEcho,
+  archiveGate,
+}: {
+  docs?: Map<string, Mountain>;
+  /** Accounts whose document a later build wrote: it reads `newer` and takes no write. */
+  newerDocs?: Set<string>;
+  fieldLogs?: Map<string, FieldLogDocument>;
+  /** While held, a write does not fan out to other tabs. */
+  holdEcho?: { held: boolean };
+  /** When fail is set, the archive write is refused and nothing is stored. */
+  archiveGate?: { fail: boolean };
+} = {}): CloudSave {
+  const watchers = new Map<string, Set<(remote: CloudLoadResult) => void>>();
+  const lastSeenByUid = new Map<string, number>();
+  const revByUid = new Map<string, number>();
+  const deviceByUid = new Map<string, string>();
+  const labelByUid = new Map<string, string>();
+
+  const current = (uid: string): CloudLoadResult => {
+    if (newerDocs.has(uid)) {
+      return { kind: "newer" };
+    }
+    const mountain = docs.get(uid);
+    if (mountain === undefined) {
+      return { kind: "missing" };
+    }
+    const deviceId = deviceByUid.get(uid);
+    const deviceLabel = labelByUid.get(uid);
+    const lastSeen = lastSeenByUid.get(uid);
+    return {
+      kind: "found",
+      mountain,
+      rev: revByUid.get(uid) ?? 0,
+      ...(lastSeen === undefined ? {} : { lastSeen }),
+      ...(deviceId === undefined ? {} : { deviceId }),
+      ...(deviceLabel === undefined ? {} : { deviceLabel }),
+    };
+  };
+
+  const emit = (uid: string): void => {
+    if (holdEcho?.held) {
+      return;
+    }
+    const remote = current(uid);
+    const listeners = watchers.get(uid);
+    if (listeners === undefined) {
+      return;
+    }
+    for (const listener of listeners) {
+      listener(remote);
+    }
+  };
+
+  return {
+    load: ({ uid }) => Promise.resolve(current(uid)),
+    write: ({ uid, mountain, lastSeen, rev, deviceId, deviceLabel }) => {
+      if (newerDocs.has(uid)) {
+        // The rules refuse a version that goes down.
+        return Promise.resolve({
+          kind: "rejected",
+          message: "permission-denied",
+        });
+      }
+      const stored = revByUid.get(uid) ?? 0;
+      const expected = stored + 1;
+      if (!Number.isInteger(rev) || rev !== expected) {
+        return Promise.resolve({
+          kind: "rejected",
+          message: "permission-denied",
+        });
+      }
+      const storedMountain = docs.get(uid);
+      if (
+        storedMountain !== undefined &&
+        runStartedAt(mountain) < runStartedAt(storedMountain)
+      ) {
+        return Promise.resolve({
+          kind: "rejected",
+          message: "permission-denied",
+        });
+      }
+      docs.set(uid, mountain);
+      revByUid.set(uid, rev);
+      deviceByUid.set(uid, deviceId);
+      if (deviceLabel !== undefined) {
+        labelByUid.set(uid, deviceLabel);
+      }
+      if (lastSeen !== undefined) {
+        lastSeenByUid.set(uid, lastSeen);
+      }
+      emit(uid);
+      return Promise.resolve({ kind: "ok" });
+    },
+    writeFieldLog: ({ uid, deviceId, log }) => {
+      fieldLogs.set(fieldLogKey(uid, deviceId), log);
+      return Promise.resolve({ kind: "ok" });
+    },
+    ...memoryArchive(archiveGate),
     watch: ({ uid, onChange }) => {
       let listeners = watchers.get(uid);
       if (listeners === undefined) {

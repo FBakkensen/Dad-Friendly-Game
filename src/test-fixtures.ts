@@ -1,5 +1,6 @@
 import { MOUNTAIN_STONES, createMountain, type Mountain } from "./mountain";
-import { readSave, serializeSave } from "./persist";
+import { readSave, serializeSave, type ParsedSave } from "./persist";
+import { readSessionSave } from "./session-save";
 import { readGame } from "./save-format";
 
 /** A mountain after `count` hand taps. */
@@ -36,4 +37,10 @@ export function saveText(
   return JSON.stringify(
     serializeSave({ mountain: { ...createMountain(), ...mountain }, lastSeen }),
   );
+}
+
+/** The guest save on this storage when it reads `ok`, else undefined. */
+export function guestSave(storage: Storage): ParsedSave | undefined {
+  const read = readSessionSave({ storage });
+  return read.kind === "ok" ? read.save : undefined;
 }

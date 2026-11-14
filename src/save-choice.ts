@@ -18,7 +18,7 @@ import {
   adopt,
   canPlay,
   deviceLabel,
-  isWriter,
+  canWrite,
   log,
   record,
   uidOf,
@@ -60,7 +60,7 @@ export async function chooseSave(
   const archiveCopy = ctx.ports.cloudSave.archiveCopy;
   if (
     conflict === undefined ||
-    !isWriter(ctx) ||
+    !canWrite(ctx) ||
     uid === undefined ||
     archiveCopy === undefined
   ) {

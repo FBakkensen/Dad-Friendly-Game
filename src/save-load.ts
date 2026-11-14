@@ -14,6 +14,7 @@ import { markWelcomed, openBaselines, saveCounts } from "./session";
 import {
   adopt,
   cloudDirty,
+  holdNewer,
   holding,
   isWriter,
   LISTEN_BACKOFF_START_MS,
@@ -213,6 +214,17 @@ function provisional(ctx: StoreContext, remote: CloudLoadResult): boolean {
 }
 
 function applyRemote(ctx: StoreContext, remote: CloudLoadResult): void {
+  if (ctx.newer || remote.kind === "newer") {
+    // Once a copy came from a later build, this one only waits for the update.
+    holdNewer(ctx, "cloud");
+    emit(ctx);
+    return;
+  }
+  if (remote.kind === "older") {
+    // Set aside in a later step of #558; until then it cannot be played.
+    noteRemoteFailure(ctx, "unavailable");
+    return;
+  }
   if (ctx.saveConflict !== undefined) {
     remoteUnderConflict(ctx, remote);
     return;

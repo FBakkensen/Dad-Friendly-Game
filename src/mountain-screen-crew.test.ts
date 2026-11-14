@@ -10,7 +10,7 @@ import {
 import { formatCompact, formatCount } from "./format";
 import { effectiveRates } from "./rates";
 import { RELICS } from "./relics";
-import { readSessionSave, writeSessionSave } from "./session-save";
+import { writeSessionSave } from "./session-save";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MOUNTAIN_STONES, createMountain, type Mountain } from "./mountain";
 import { SESSION_SAVE_KEY } from "./session-save";
@@ -25,7 +25,7 @@ import { createMemoryAuth } from "./auth";
 import { type CloudLoadResult, type CloudSave } from "./cloud-save";
 import { BUYS_SETTLE_MS, showAppUpdate } from "./mountain-screen";
 import { shownRows, upgradeRowId } from "./upgrade-reveal";
-import { minedMountain, saveText } from "./test-fixtures";
+import { guestSave, minedMountain, saveText } from "./test-fixtures";
 import { tierById, tierCost, tierQuote } from "./tiers";
 import {
   UPGRADES,
@@ -3384,7 +3384,7 @@ describe("pass the mine to your kid (#131)", () => {
       "Legacy 1: your crew and taps are ×1.5",
     );
     expect(screen.text(RELICS_GOAL)).toContain("Your kid's mine");
-    expect(readSessionSave({ storage })?.mountain.legacy).toBe(1);
+    expect(guestSave(storage)?.mountain.legacy).toBe(1);
     screen.root.remove();
   });
 

@@ -29,6 +29,7 @@ import { forgetArrivals } from "./session";
 import { clearSessionSave, readSessionSave } from "./session-save";
 import {
   cancelRetry,
+  holdNewer,
   isWriter,
   LISTEN_BACKOFF_START_MS,
   localSide,
@@ -66,13 +67,21 @@ function stopWatch(ctx: StoreContext): void {
 function resumeFromSession(ctx: StoreContext): void {
   stopWatch(ctx);
   const storage = ctx.ports.storage;
-  const stored =
-    storage === undefined ? undefined : readSessionSave({ storage });
-  if (stored === undefined) {
+  const read =
+    storage === undefined
+      ? ({ kind: "absent" } as const)
+      : readSessionSave({ storage });
+  if (read.kind === "newer") {
+    holdNewer(ctx, "guest");
+    emit(ctx);
+    return;
+  }
+  if (read.kind !== "ok") {
     ctx.saveKind = "unsigned";
     emit(ctx);
     return;
   }
+  const stored = read.save;
   if (!isWriter(ctx)) {
     setGame(ctx, stored.mountain, stored.lastSeen);
     ctx.session = {
@@ -157,13 +166,18 @@ function prepareLocal(ctx: StoreContext, uid: string): void {
   if (storage === undefined) {
     return;
   }
-  const session = readSessionSave({ storage });
-  takeIfAhead(ctx, session);
+  const guest = readSessionSave({ storage });
   const backup = readPhoneBackup({ storage, uid });
+  if (guest.kind === "newer" || backup.kind === "newer") {
+    holdNewer(ctx, guest.kind === "newer" ? "guest" : "phone");
+    return;
+  }
+  const session = guest.kind === "ok" ? guest.save : undefined;
+  takeIfAhead(ctx, session);
   takeIfAhead(ctx, backup.kind === "present" ? backup.save : undefined);
   takeRevs(ctx, session, backup);
   takeConflict(ctx, backup);
-  if (backup.kind === "unreadable") {
+  if (backup.kind === "unreadable" || backup.kind === "older") {
     return;
   }
   if (!hasLocalProgress(ctx)) {
@@ -244,6 +258,11 @@ function pullPhoneIfAhead(ctx: StoreContext, uid: string): void {
     return;
   }
   const backup = readPhoneBackup({ storage, uid });
+  if (backup.kind === "newer") {
+    holdNewer(ctx, "phone");
+    emit(ctx);
+    return;
+  }
   if (
     backup.kind !== "present" ||
     compareSaveProgress(backup.save, localMoment(ctx)) <= 0

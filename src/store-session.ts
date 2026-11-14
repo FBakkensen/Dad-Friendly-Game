@@ -19,7 +19,7 @@ import {
 import {
   canPlay,
   holding,
-  isWriter,
+  canWrite,
   log,
   ready,
   record,
@@ -82,8 +82,9 @@ export function snapshot(ctx: StoreContext): ProgressSnapshot {
     awayGap: news.awayGap,
     homecomings: news.homecomings,
     trouble: activeTrouble(ctx.session),
-    playing: isWriter(ctx) && ready(ctx),
+    playing: canWrite(ctx) && ready(ctx),
     elsewhere: tabWriter !== undefined && tabWriter.seat() === "other",
+    newer: ctx.newer,
     ...(ctx.saveConflict === undefined
       ? {}
       : { saveConflict: ctx.saveConflict }),

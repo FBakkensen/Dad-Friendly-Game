@@ -188,9 +188,3 @@ export function readSave(value: unknown): SaveRead {
     ? olderRead(record, version as number)
     : readCurrent(record);
 }
-
-/** Until the callers take the four answers (#558, Task 3): the `ok` save, else nothing. */
-export function parseSaveValue(value: unknown): ParsedSave | undefined {
-  const read = readSave(value);
-  return read.kind === "ok" ? read.save : undefined;
-}

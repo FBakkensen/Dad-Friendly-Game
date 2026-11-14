@@ -28,7 +28,7 @@ import {
   type Mountain,
   BARE_MOUNTAIN,
 } from "./mountain";
-import { minedMountain } from "./test-fixtures";
+import { guestSave, minedMountain } from "./test-fixtures";
 import { readDeviceId } from "./device-id";
 import { readPhoneBackup, writePhoneBackup } from "./phone-backup";
 import {
@@ -41,11 +41,7 @@ import {
   WELCOME_MIN_AWAY_MS,
   createProgressStore,
 } from "./progress-store";
-import {
-  SESSION_SAVE_KEY,
-  readSessionSave,
-  writeSessionSave,
-} from "./session-save";
+import { SESSION_SAVE_KEY, writeSessionSave } from "./session-save";
 import { buyTier, tierById, tierCost } from "./tiers";
 import { upgradeById, upgradeCost, NO_UPGRADES } from "./upgrades";
 import { recipesForMined } from "./workshop";
@@ -101,7 +97,7 @@ describe("createProgressStore", () => {
     });
     clock += 3_000;
     progress.tick();
-    expect(readSessionSave({ storage })).toBeUndefined();
+    expect(guestSave(storage)).toBeUndefined();
     expect(progress.getSnapshot().saveKind).toBe("unsigned");
   });
 
@@ -118,7 +114,7 @@ describe("createProgressStore", () => {
 
     expect(progress.getSnapshot().saveKind).toBe("session");
     expect(progress.getSnapshot().mountain).toEqual(dug);
-    expect(readSessionSave({ storage })?.mountain).toEqual(dug);
+    expect(guestSave(storage)?.mountain).toEqual(dug);
     expect(progress.getSnapshot().log).toContain("save.session ok");
 
     progress.dispose();
@@ -323,12 +319,12 @@ describe("createProgressStore", () => {
     await vi.waitFor(() => {
       expect(progress.getSnapshot().saveKind).toBe("account");
     });
-    expect(readSessionSave({ storage })).toBeUndefined();
+    expect(guestSave(storage)).toBeUndefined();
 
     await auth.signOut();
     expect(progress.getSnapshot().mountain).toEqual(dug);
     expect(progress.getSnapshot().saveKind).toBe("session");
-    expect(readSessionSave({ storage })?.mountain).toEqual(dug);
+    expect(guestSave(storage)?.mountain).toEqual(dug);
   });
 
   it("does not write unsigned digs to a signed-in session scratch", async () => {
@@ -347,7 +343,7 @@ describe("createProgressStore", () => {
     });
     progress.applyMutation(() => minedMountain(2));
 
-    expect(readSessionSave({ storage })).toBeUndefined();
+    expect(guestSave(storage)).toBeUndefined();
     expect(docs.get("test-dad")?.pocket).toBe(2);
   });
 });
@@ -462,7 +458,7 @@ describe("helpers mining live", () => {
     progress.tick();
     expect(progress.getSnapshot().mountain.pocket).toBe(6);
     expect(progress.getSnapshot().log).toBe(logged);
-    expect(readSessionSave({ storage })).toEqual({
+    expect(guestSave(storage)).toEqual({
       mountain: {
         ...BARE_MOUNTAIN,
         remaining: MOUNTAIN_STONES - 506,
@@ -565,7 +561,7 @@ describe("away earnings", () => {
       heart: 1,
       materials: EMPTY_MATERIALS,
     });
-    expect(readSessionSave({ storage })).toEqual({
+    expect(guestSave(storage)).toEqual({
       mountain: {
         ...BARE_MOUNTAIN,
         remaining: MOUNTAIN_STONES - 540,
@@ -717,7 +713,7 @@ describe("away earnings", () => {
     clock = -60 * 60_000;
     progress.tick();
     progress.flush();
-    const saved = readSessionSave({ storage });
+    const saved = guestSave(storage);
     expect(saved?.lastSeen).toBeLessThanOrEqual(clock);
   });
 
@@ -982,7 +978,7 @@ describe("start over", () => {
     expect(
       firstNotice(progress.getSnapshot(), "reveal")?.relic,
     ).toBeUndefined();
-    expect(readSessionSave({ storage })).toEqual({
+    expect(guestSave(storage)).toEqual({
       mountain: fresh,
       lastSeen: 60_000,
     });
@@ -1305,8 +1301,8 @@ describe("save status on the unhappy paths (#114 coverage)", () => {
     expect(progress.getSnapshot().saveKind).toBe("session");
     clock += 5_000;
     progress.tick();
-    expect(readSessionSave({ storage })?.lastSeen).toBe(6_000);
-    expect(readSessionSave({ storage })?.mountain.pocket).toBe(
+    expect(guestSave(storage)?.lastSeen).toBe(6_000);
+    expect(guestSave(storage)?.mountain.pocket).toBe(
       progress.getSnapshot().mountain.pocket,
     );
     expect(progress.getSnapshot().mountain.pocket).toBeGreaterThan(
@@ -1320,7 +1316,7 @@ describe("save status on the unhappy paths (#114 coverage)", () => {
     const refusing = createMemoryStorage();
     const setItem = refusing.setItem.bind(refusing);
     refusing.setItem = (key, value) => {
-      if (key.startsWith("dad-friendly-phone-backup:")) {
+      if (key.startsWith("dad-friendly-game-backup:")) {
         throw new Error("QuotaExceededError");
       }
       setItem(key, value);
@@ -1561,9 +1557,7 @@ describe("field log", () => {
     }));
     progress.dispatch({ kind: "buyTier", id: "helper" });
     expect(progress.fieldLog().events).toHaveLength(1);
-    expect(JSON.stringify(readSessionSave({ storage }))).not.toContain(
-      "tier.buy",
-    );
+    expect(JSON.stringify(guestSave(storage))).not.toContain("tier.buy");
     progress.dispose();
 
     const again = createProgressStore({
@@ -2259,9 +2253,7 @@ describe("trouble at the machines (#149)", () => {
     const { progress, storage } = open();
     progress.layoutPreview.trouble("cart");
     progress.flush();
-    expect(JSON.stringify(readSessionSave({ storage }))).not.toContain(
-      "cave-in",
-    );
+    expect(JSON.stringify(guestSave(storage))).not.toContain("cave-in");
     progress.dispose();
     const again = createProgressStore({
       auth: createMemoryAuth(),
@@ -2436,7 +2428,7 @@ describe("expeditions through the save", () => {
     clock = -60 * 60_000;
     progress.tick();
     progress.flush();
-    const saved = readSessionSave({ storage });
+    const saved = guestSave(storage);
     expect(saved?.lastSeen).toBeLessThanOrEqual(clock);
     expect(saved?.mountain.expeditions[0]?.sentAt).toBe(clock);
     expect(saved?.mountain.expeditions[0]?.returnsAt).toBe(clock + 10 * 60_000);
@@ -2579,7 +2571,7 @@ describe("expeditions through the save", () => {
     second.tick();
     expect(second.getSnapshot().homecomings).toHaveLength(1);
     second.dismiss("away");
-    expect(storage.getItem("dad-friendly-homecomings")).toBeNull();
+    expect(storage.getItem("dad-friendly-game-homecomings")).toBeNull();
     second.dispose();
 
     const remembered = [
@@ -2602,7 +2594,10 @@ describe("expeditions through the save", () => {
         find: { kind: "quiet", text: "Safe." },
       },
     ];
-    storage.setItem("dad-friendly-homecomings", JSON.stringify(remembered));
+    storage.setItem(
+      "dad-friendly-game-homecomings",
+      JSON.stringify(remembered),
+    );
     writeSessionSave({ storage, mountain: soon, lastSeen: 0 });
     const merged = createProgressStore({
       auth: createMemoryAuth(),
@@ -2612,7 +2607,7 @@ describe("expeditions through the save", () => {
     expect(merged.getSnapshot().homecomings).toHaveLength(3);
     merged.dispose();
 
-    storage.setItem("dad-friendly-homecomings", "not json");
+    storage.setItem("dad-friendly-game-homecomings", "not json");
     writeSessionSave({ storage, mountain: createMountain(), lastSeen: clock });
     const broken = createProgressStore({
       auth: createMemoryAuth(),
@@ -2623,7 +2618,7 @@ describe("expeditions through the save", () => {
     broken.dispose();
 
     storage.setItem(
-      "dad-friendly-homecomings",
+      "dad-friendly-game-homecomings",
       JSON.stringify([{ engineer: "nope" }]),
     );
     const empty = createProgressStore({
@@ -2638,7 +2633,7 @@ describe("expeditions through the save", () => {
     writeSessionSave({ storage: blocking, mountain: soon, lastSeen: 0 });
     const setItem = blocking.setItem.bind(blocking);
     blocking.setItem = (key, value) => {
-      if (key === "dad-friendly-homecomings") {
+      if (key === "dad-friendly-game-homecomings") {
         throw new Error("full");
       }
       setItem(key, value);
@@ -3938,9 +3933,9 @@ describe("fresh read, one writer, and a pending offline write", () => {
     });
     expect(second.getSnapshot().elsewhere).toBe(true);
     expect(second.getSnapshot().mountain.pocket).toBe(6);
-    const raw = storage.getItem("dad-friendly-session");
+    const raw = storage.getItem("dad-friendly-game");
     second.applyMutation(() => minedMountain(9));
-    expect(storage.getItem("dad-friendly-session")).toBe(raw);
+    expect(storage.getItem("dad-friendly-game")).toBe(raw);
     expect(second.resume().kind).toBe("idle");
     first.dispose();
     second.dispose();
@@ -4555,12 +4550,10 @@ describe("fresh read, one writer, and a pending offline write", () => {
     await vi.waitFor(() => {
       expect(phonePocket(storage)).toBe(4);
     });
-    const saved = storage.getItem(`dad-friendly-phone-backup:${user.uid}`);
+    const saved = storage.getItem(`dad-friendly-game-backup:${user.uid}`);
     second.applyMutation(() => minedMountain(9));
     second.tick();
-    expect(storage.getItem(`dad-friendly-phone-backup:${user.uid}`)).toBe(
-      saved,
-    );
+    expect(storage.getItem(`dad-friendly-game-backup:${user.uid}`)).toBe(saved);
     expect(second.getSnapshot().mountain.pocket).not.toBe(9);
     first.dispose();
     second.dispose();
@@ -4777,7 +4770,7 @@ describe("fresh read, one writer, and a pending offline write", () => {
       expect(docs.get(user.uid)?.pocket).toBe(4);
     });
     docs.delete(user.uid);
-    storage.removeItem(`dad-friendly-phone-backup:${user.uid}`);
+    storage.removeItem(`dad-friendly-game-backup:${user.uid}`);
     window.dispatchEvent(new Event("pagehide"));
     expect(phonePocket(storage)).toBe(4);
     await vi.waitFor(() => {
@@ -5495,9 +5488,7 @@ describe("dispatch (#409)", () => {
     const result = progress.dispatch({ kind: "buyTier", id: "helper" });
     expect(result).toEqual({ kind: "applied", spent: 20, gained: 0 });
     expect(progress.getSnapshot().mountain.helpers).toBe(1);
-    expect(readSessionSave({ storage: sessionStorage })?.mountain.helpers).toBe(
-      1,
-    );
+    expect(guestSave(sessionStorage)?.mountain.helpers).toBe(1);
     expect(heard.at(-1)).toBe(1);
   });
 
@@ -5518,12 +5509,12 @@ describe("dispatch (#409)", () => {
       sessionStorage,
     });
     progress.dispose();
-    const saved = readSessionSave({ storage: sessionStorage });
+    const saved = guestSave(sessionStorage);
     expect(progress.dispatch({ kind: "dig" })).toEqual({
       kind: "refused",
       reason: "not-playing",
     });
-    expect(readSessionSave({ storage: sessionStorage })).toEqual(saved);
+    expect(guestSave(sessionStorage)).toEqual(saved);
   });
 
   it("records nothing for a move while the session is not playing", () => {
