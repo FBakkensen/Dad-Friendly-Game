@@ -17,6 +17,7 @@ import {
   getFirestore,
   serverTimestamp,
   setDoc,
+  type EmulatorMockTokenOptions,
   type Firestore,
 } from "firebase/firestore";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -68,16 +69,21 @@ let db: Firestore;
 let momApp: FirebaseApp;
 let momDb: Firestore;
 
+// Typed apart from the call: the call's `mockUserToken` also accepts a string, and
+// lint then reads `sub` as the deprecated String.prototype.sub.
+const dadToken: EmulatorMockTokenOptions = { user_id: "dad", sub: "dad" };
+const momToken: EmulatorMockTokenOptions = { user_id: "mom", sub: "mom" };
+
 beforeAll(() => {
   app = initializeApp({ projectId: "demo-dad-friendly" }, "rules-test");
   db = getFirestore(app);
   connectFirestoreEmulator(db, host, Number(port), {
-    mockUserToken: { user_id: "dad", sub: "dad" },
+    mockUserToken: dadToken,
   });
   momApp = initializeApp({ projectId: "demo-dad-friendly" }, "rules-mom");
   momDb = getFirestore(momApp);
   connectFirestoreEmulator(momDb, host, Number(port), {
-    mockUserToken: { user_id: "mom", sub: "mom" },
+    mockUserToken: momToken,
   });
 });
 

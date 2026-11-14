@@ -49,11 +49,7 @@ export const formatSpeed = (speed: number): string =>
  * Workers one more of this machine needs. The free count lives on the crew
  * line, so a card never repeats it.
  */
-export function staffBillWords(
-  staff: number,
-  spare: number,
-): string | undefined {
-  void spare;
+export function staffBillWords(staff: number): string | undefined {
   if (staff <= 0) {
     return undefined;
   }
