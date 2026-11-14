@@ -115,9 +115,18 @@ Every stage gets two machines. The paper check below shows why: a stage with one
 | Face  | Steam drill     | once he owns a hoist                                          | 73,080      | 108            | 1               |
 | Face  | Tunnel borer    | the Granite                                                   | 4,940,000   | 1,071          | 8               |
 | Haul  | Pit train (new) | the Crystal Caves                                             | 30,000,000  | 3,200          | 8               |
-| Lift  | Great Machine   | the Deep Heart, with the Hammer                               | 120,600,000 | 6,300          | 10, or 5 tended |
+| Lift  | Great Machine   | the Deep Heart, with the Hammer                               | 96,480,000  | 6,300          | 10, or 5 tended |
 
-Ratings are three times today's because of rule 3, so a first cart still shows +6 a second. The Great Machine becomes the great winding engine at the pithead, where its picture already stands in the mine window. Workers and kids are the hands. Prices, growth and ownership marks keep today's shape, and the new machines get marks like their neighbours.
+Ratings are three times today's because of rule 3, so a first cart still shows +6 a second. The Great Machine becomes the great winding engine at the pithead, where its picture already stands in the mine window. Workers and kids are the hands. Ownership marks keep today's shape, and the new machines get marks like their neighbours.
+
+The lab tuned the line's prices (#543), because tripled machines at today's prices ended run 1 on day 2 to 3:
+
+- A machine's price grows ×1.219 a buy (today ×1.15). First prices alone could not reach the five-day floor without stalling the kid runs.
+- Workers keep today's ×1.06, and the first worker costs 60 (today 20). A steeper worker curve made the 200th worker cost about 4.7B and stalled a kid run for a month. A first worker of 20 let the optimizer finish on day 4.5, a quarter too fast against the evening dad. The price is the opening: about 42K mined in the first ten minutes instead of 247K, and the Hammer half a day later.
+- The first Great Machine costs 96,480,000 (the table above), so the last band has a real buy.
+- The Deep Heart is 1.21 times deeper (band scale 39.204, today 32.4), so the optimizer's run ends a sitting later and the 3-hour marathon does not finish a day and a half before the casual dad.
+
+These numbers read only while the line is on. The switch-on (#536) brings them into play.
 
 ### The rock moves the narrow stage too
 
@@ -130,7 +139,7 @@ Each band is tough on one stage's first machine and opens that stage's second ma
 | The Crystal Caves | carts: long galleries | Pit train          | The Crystal Caves · Suits trains         |
 | The Deep Heart    | hoists: a deep shaft  | Great Machine      | The Deep Heart · Suits the Great Machine |
 
-Suits is ×1.1, as today. Tough is ×0.8 today, and the paper model used ×0.7: the stronger the rock, the more it moves the narrow stage. At ×0.8 the model's check-in dad opened 8 sittings in a row on one stage. At ×0.7 it was 5. The lab (#543) sets the number.
+Suits is ×1.1, as today. Tough is ×0.8 today, and the paper model used ×0.7: the stronger the rock, the more it moves the narrow stage. At ×0.8 the model's check-in dad opened 8 sittings in a row on one stage. At ×0.7 it was 5. The lab (#543) sets the number: it stays ×0.8, because the other levers met every row without it.
 
 Against today's table (decision D3, #246) the Granite does not change, and three cells do:
 
@@ -143,7 +152,7 @@ Until the cage is built the crew works the deepest band, so this table is what t
 
 **One open form, for the lab.** A paper check of the cage ([Paper check](#paper-check)) found that rock which slows only a stage's first machine hardly moves the line, because the stage's second machine soon carries it. The other form slows the whole stage: the Granite the face, the Crystal Caves the haul, the Deep Heart the lift, at the same factor, with no ×1.1. This spec recommends the whole-stage form.
 
-The form is settled where the line's numbers are tuned (#543), before the line turns on (#536). So the economy is switched on once: the cage never changes the rock's form, no save loads slower because of it, and no lab row moves when the cage is added. The table's form is what Flemming approved, so it stays unless he says otherwise. #543 reports `narrowRun` and the run's length for both forms. If every strict row and the generations lab pass with the whole-stage form and its `narrowRun` is at most one sitting longer, #543 stops and puts the rows to him as one question, with the band tags and advice lines that would change ("The Granite · Hard rock"). It tunes to his answer. If the whole-stage form does not pass, the table's form stays and the PR says why.
+The form is settled where the line's numbers are tuned (#543), before the line turns on (#536). So the economy is switched on once: the cage never changes the rock's form, no save loads slower because of it, and no lab row moves when the cage is added. The table's form is what Flemming approved, so it stays unless he says otherwise. #543 reports `narrowRun` and the run's length for both forms. If every strict row and the generations lab pass with the whole-stage form and its `narrowRun` is at most one sitting longer, #543 stops and puts the rows to him as one question, with the band tags and advice lines that would change ("The Granite · Hard rock"). It tunes to his answer. If the whole-stage form does not pass, the table's form stays and the PR says why. **Settled (#543):** the whole-stage form fails optimizer regret for the evening dad, so the table's form stays, and the band tags and advice lines are as above.
 
 ### What he sees
 

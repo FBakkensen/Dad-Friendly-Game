@@ -489,12 +489,12 @@ describe("the stretch cap keeps every count a safe integer (#366)", () => {
 });
 
 describe("the line's Deep Heart, labs only (#543)", () => {
-  it("takes 1.1 times the stones per stone of depth while the line is on", () => {
+  it("takes 1.21 times the stones per stone of depth while the line is on", () => {
     const deep = { remaining: MOUNTAIN_STONES - BAND_STARTS[3] };
     const off = oneOffStretch(deep);
     expect(off).toBe(BAND_SCALE[3]);
     withFactors({ [LINE_OFF]: 0 }, () => {
-      expect(oneOffStretch(deep)).toBeCloseTo(35.64, 9);
+      expect(oneOffStretch(deep)).toBeCloseTo(39.204, 9);
       expect(oneOffStretch({ remaining: MOUNTAIN_STONES })).toBe(1);
     });
   });

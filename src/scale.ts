@@ -62,11 +62,12 @@ export const BAND_STARTS = [0, 10_000_000, 45_000_000, 120_000_000] as const;
 export const BAND_SCALE = [1, 2.625, 6.3, 32.4] as const;
 
 /**
- * On the line (#543, labs only until #536) the Deep Heart is 1.1 times
- * deeper (35.64), so the optimizer's run ends a sitting later and stays
- * within a quarter of the evening dad's.
+ * On the line (#543, labs only until #536) the Deep Heart is 1.21 times
+ * deeper (39.204): the optimizer's run ends a sitting later and stays within
+ * a quarter of the evening dad's, and the 3-hour marathon no longer finishes
+ * inside its day-4 sitting, a day and a half before the casual dad.
  */
-const LINE_BAND_SCALE = [1, 2.625, 6.3, 35.64] as const;
+const LINE_BAND_SCALE = [1, 2.625, 6.3, 39.204] as const;
 
 type Band = 0 | 1 | 2 | 3;
 const BANDS: readonly Band[] = [0, 1, 2, 3];
