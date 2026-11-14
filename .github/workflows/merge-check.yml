@@ -1,0 +1,189 @@
+name: merge-check
+
+# Lets green PRs merge one after another without each re-running the full gate (#617).
+# The full gate proves a PR on its own head (signoff). This proves it still works on top
+# of what has landed since: it merges the PR into the current main and runs the quick
+# whole-tree checks (`npm run gate -- merge`: typechecks, lint, knip, the unit tests).
+# It runs on every PR push, and again for every open PR each time main moves, so a PR
+# never needs main merged in, a new head, or a new full gate just because another PR
+# merged. The PR's head does not change, so its `signoff` and `claude-review` stand.
+# It posts the commit status `merge-check` on the PR head: pending while it runs, then
+# green or red, naming the main commit it tested. The ruleset on main requires it in
+# place of "Require branches to be up to date". deploy-hosting still runs the full gate
+# on main before every deploy, so the slow checks of the combination run before it ships.
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review, synchronize]
+  push:
+    branches: [main]
+
+permissions: {}
+
+concurrency:
+  # A newer push to the PR, or a newer main, makes the older run's answer stale.
+  group: merge-check-${{ github.event.pull_request.number || 'main' }}
+  cancel-in-progress: true
+
+jobs:
+  targets:
+    # Drafts wait for ready_for_review. Forks are not checked.
+    if: ${{ github.event_name == 'push' || (!github.event.pull_request.draft && github.event.pull_request.head.repo.full_name == github.repository) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pull-requests: read
+      statuses: write
+    outputs:
+      prs: ${{ steps.list.outputs.prs }}
+      main: ${{ steps.list.outputs.main }}
+    steps:
+      - name: List the PRs to check and mark them pending
+        id: list
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          EVENT: ${{ github.event_name }}
+          NUMBER: ${{ github.event.pull_request.number }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          main=$(gh api "repos/$REPO/commits/main" --jq .sha)
+          if [ "$EVENT" = "pull_request" ]; then
+            prs=$(jq -cn --argjson number "$NUMBER" --arg head "$HEAD" '[{number: $number, head: $head}]')
+          else
+            prs=$(gh api "repos/$REPO/pulls?state=open&base=main&per_page=100" | jq -c --arg repo "$REPO" \
+              '[.[] | select(.draft | not) | select(.head.repo.full_name == $repo) | {number, head: .head.sha}]')
+          fi
+          echo "main $main; PRs: $prs"
+          for head in $(printf '%s' "$prs" | jq -r '.[].head'); do
+            gh api "repos/$REPO/statuses/$head" -f state=pending -f context=merge-check \
+              -f description="Testing this PR merged into main ${main:0:7}." -f target_url="$RUN_URL" --silent
+          done
+          {
+            echo "main=$main"
+            echo "prs=$prs"
+          } >> "$GITHUB_OUTPUT"
+
+  check:
+    needs: targets
+    if: needs.targets.outputs.prs != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # The PR's code runs here, so this job's token only reads.
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        pr: ${{ fromJSON(needs.targets.outputs.prs) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.targets.outputs.main }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Merge the PR into main
+        id: merge
+        env:
+          NUMBER: ${{ matrix.pr.number }}
+          HEAD: ${{ matrix.pr.head }}
+        run: |
+          git fetch --no-tags origin "+refs/pull/$NUMBER/head:refs/remotes/pr/head"
+          if [ "$(git rev-parse refs/remotes/pr/head)" != "$HEAD" ]; then
+            echo "The PR moved on since this run started; its own run checks the new head."
+            echo "result=moved" >> "$GITHUB_OUTPUT"
+          elif git -c user.name=merge-check -c user.email=merge-check@users.noreply.github.com \
+              merge --no-edit --no-ff "$HEAD"; then
+            echo "result=merged" >> "$GITHUB_OUTPUT"
+          else
+            git merge --abort
+            echo "result=conflict" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/setup-node@v4
+        if: steps.merge.outputs.result == 'merged'
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install
+        if: steps.merge.outputs.result == 'merged'
+        run: npm ci
+      - name: Gate, merge tier
+        id: gate
+        if: steps.merge.outputs.result == 'merged'
+        run: |
+          set -o pipefail
+          npm run gate -- merge 2>&1 | tee "$RUNNER_TEMP/gate.log"
+      - name: Keep the answer
+        if: always()
+        env:
+          NUMBER: ${{ matrix.pr.number }}
+          HEAD: ${{ matrix.pr.head }}
+          MERGE: ${{ steps.merge.outputs.result }}
+          GATE: ${{ steps.gate.outcome }}
+        run: |
+          total=$(grep -E '^gate merge: ' "$RUNNER_TEMP/gate.log" 2>/dev/null | tail -n 1 || true)
+          case "$MERGE/$GATE" in
+            merged/success) result=passed ;;
+            merged/failure) result=failed ;;
+            conflict/*) result=conflict ;;
+            moved/*) result=moved ;;
+            *) result=unfinished ;;
+          esac
+          mkdir -p answer
+          jq -n --argjson number "$NUMBER" --arg head "$HEAD" --arg result "$result" --arg total "$total" \
+            '{number: $number, head: $head, result: $result, total: $total}' > "answer/pr-$NUMBER.json"
+          cat "answer/pr-$NUMBER.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: merge-check-pr-${{ matrix.pr.number }}
+          path: answer/
+          retention-days: 1
+
+  report:
+    needs: [targets, check]
+    # A cancelled run was replaced by a newer one, which posts instead.
+    if: ${{ !cancelled() && needs.targets.result == 'success' && needs.targets.outputs.prs != '[]' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # Runs no PR code: it only reads the answers and posts them.
+    permissions:
+      statuses: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: merge-check-pr-*
+          path: answers
+          merge-multiple: true
+      - name: Post merge-check on each PR head
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PRS: ${{ needs.targets.outputs.prs }}
+          MAIN: ${{ needs.targets.outputs.main }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          now=$(gh api "repos/$REPO/commits/main" --jq .sha)
+          if [ "$now" != "$MAIN" ]; then
+            # The run for the newer main posts instead; it has already marked these pending.
+            echo "main moved from ${MAIN:0:7} to ${now:0:7}; posting nothing."
+            exit 0
+          fi
+          short=${MAIN:0:7}
+          printf '%s' "$PRS" | jq -c '.[]' | while read -r pr; do
+            number=$(printf '%s' "$pr" | jq -r .number)
+            head=$(printf '%s' "$pr" | jq -r .head)
+            file="answers/pr-$number.json"
+            result=$( [ -f "$file" ] && jq -r .result "$file" || echo unfinished )
+            total=$( [ -f "$file" ] && jq -r .total "$file" || echo "" )
+            case "$result" in
+              passed) state=success; text="Merged into main $short: ${total#gate merge: }." ;;
+              failed) state=failure; text="Breaks when merged into main $short: ${total#gate merge: }. Merge main in and fix." ;;
+              conflict) state=failure; text="Conflicts with main $short. Merge main into the branch and fix." ;;
+              moved) echo "PR #$number moved on; its own run posts."; continue ;;
+              *) state=error; text="The check on main $short did not finish. Re-run the job." ;;
+            esac
+            echo "PR #$number ${head:0:7}: $state, $text"
+            gh api "repos/$REPO/statuses/$head" -f state="$state" -f context=merge-check \
+              -f description="${text:0:140}" -f target_url="$RUN_URL" --silent
+          done

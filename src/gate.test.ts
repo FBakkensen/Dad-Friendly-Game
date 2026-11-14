@@ -353,10 +353,57 @@ describe("importClosure and economyChanged", () => {
   });
 });
 
+describe("the merge tier (#617)", () => {
+  const merge = (changed: readonly string[], economy = false) => {
+    const plan = planTier("merge", gateSteps(changed, { economy }));
+    if (plan.kind !== "ok") throw new Error(plan.message);
+    return plan.steps;
+  };
+
+  it("runs the whole-tree checks that catch two PRs breaking each other", () => {
+    expect(names(merge(["src/a.ts"], true))).toEqual([
+      "typecheck",
+      "typecheck:tools",
+      "functions",
+      "lint",
+      "cycles",
+      "format",
+      "knip",
+      "tokens",
+      "test:unit",
+    ]);
+  });
+
+  it("tests the unit project only, after nothing, beside the static checks", () => {
+    const unit = merge([]).find((each) => each.name === "test:unit");
+    expect(unit?.command).toBe("node_modules/.bin/vitest");
+    expect(unit?.args).toEqual(["run", "--project", "unit"]);
+    expect(unit?.after).toEqual([]);
+    expect(unit?.tiers).toEqual(["merge"]);
+  });
+
+  it("leaves the browsers, the emulator and the labs to the full tier", () => {
+    const steps = merge(["src/a.ts"], true);
+    for (const heavy of ["visual", "journeys", "rules", "coverage", "lab"]) {
+      expect(names(steps)).not.toContain(heavy);
+    }
+    expect(steps.every((each) => each.lane === "shared")).toBe(true);
+  });
+
+  it("is not in the fast or full tier", () => {
+    for (const tier of ["fast", "full"] as const) {
+      const plan = planTier(tier, gateSteps(["src/a.ts"], { economy: true }));
+      if (plan.kind !== "ok") throw new Error(plan.message);
+      expect(names(plan.steps)).not.toContain("test:unit");
+    }
+  });
+});
+
 describe("parseArgs", () => {
   it("takes one tier", () => {
     expect(parseArgs(["fast"])).toEqual({ kind: "tier", tier: "fast" });
     expect(parseArgs(["full"])).toEqual({ kind: "tier", tier: "full" });
+    expect(parseArgs(["merge"])).toEqual({ kind: "tier", tier: "merge" });
   });
 
   it("takes signoff alone", () => {
@@ -376,7 +423,7 @@ describe("parseArgs", () => {
   it("rejects a missing, unknown, or extra argument", () => {
     expect(parseArgs([])).toEqual({
       kind: "invalid",
-      message: "Pick a tier: fast or full.",
+      message: "Pick a tier: fast, merge or full.",
     });
     expect(parseArgs(["slow"])).toEqual({
       kind: "invalid",

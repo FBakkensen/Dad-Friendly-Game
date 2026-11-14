@@ -3,13 +3,15 @@
  * the order they may run in, and the one line each prints.
  *
  *   npm run gate -- fast   the edit loop: typecheck, lint and tests on changes
+ *   npm run gate -- merge  the quick whole-tree checks, run by merge-check.yml on
+ *                          each PR merged with main (#617)
  *   npm run gate -- full   everything, before the PR (`npm run check`)
  *   npm run gate -- signoff  the signoff status on HEAD (src/signoff.ts)
  */
 
-export type Tier = "fast" | "full";
+export type Tier = "fast" | "merge" | "full";
 
-const TIERS: readonly Tier[] = ["fast", "full"];
+const TIERS: readonly Tier[] = ["fast", "merge", "full"];
 
 export interface Step {
   readonly name: string;
@@ -284,8 +286,12 @@ export function gateSteps(
     readonly touched?: readonly string[];
   },
 ): readonly Step[] {
-  const both: readonly Tier[] = ["fast", "full"];
+  const both: readonly Tier[] = ["fast", "merge", "full"];
   const full: readonly Tier[] = ["full"];
+  // The checks that catch two green PRs breaking each other once merged (#617): a renamed
+  // export, a broken import, a test of one PR against the other's code. The browsers, the
+  // emulator and the labs stay in the full tier, which deploy-hosting runs on main.
+  const whole: readonly Tier[] = ["merge", "full"];
   const step = (
     name: string,
     command: string,
@@ -378,12 +384,14 @@ export function gateSteps(
       "lint",
       `${BIN}/eslint`,
       [".", "--cache", "--max-warnings", "0"],
-      full,
+      whole,
     ),
-    step("cycles", "node", ["scripts/check-cycles.mjs"], full),
-    step("format", `${BIN}/prettier`, ["--check", "."], full),
-    step("knip", "node", ["scripts/knip-strict.js"], full),
-    step("tokens", "node", ["scripts/token-check.mjs"], full),
+    step("cycles", "node", ["scripts/check-cycles.mjs"], whole),
+    step("format", `${BIN}/prettier`, ["--check", "."], whole),
+    step("knip", "node", ["scripts/knip-strict.js"], whole),
+    step("tokens", "node", ["scripts/token-check.mjs"], whole),
+    // Unit only: the sim project's long economy runs are the full tier's.
+    step("test:unit", `${BIN}/vitest`, ["run", "--project", "unit"], ["merge"]),
     step("coverage", `${BIN}/vitest`, ["run", "--coverage"], full),
     step("rules", "node", ["scripts/test-rules.mjs"], full, STATIC),
     step("visual", "node", ["scripts/visual-check.mjs"], full, AFTER_TESTS),
@@ -407,8 +415,9 @@ export type Parsed =
   | { readonly kind: "help" }
   | { readonly kind: "invalid"; readonly message: string };
 
-export const USAGE = `npm run gate -- <fast|full|signoff>
+export const USAGE = `npm run gate -- <fast|merge|full|signoff>
   fast     typecheck, plus lint and vitest related on the code changed since origin/main
+  merge    the quick whole-tree checks and the unit tests (merge-check.yml runs it on each PR merged with main)
   full     every check (npm run check)
   signoff  post the signoff status on HEAD after a green full run on it
 Logs go to ${GATE_DIR}/logs/. A failed step prints its log tail.`;
@@ -417,7 +426,7 @@ export function parseArgs(args: readonly string[]): Parsed {
   if (args.includes("--help") || args.includes("-h")) return { kind: "help" };
   const [first, ...rest] = args;
   if (first === undefined) {
-    return { kind: "invalid", message: "Pick a tier: fast or full." };
+    return { kind: "invalid", message: "Pick a tier: fast, merge or full." };
   }
   if (rest.length > 0) {
     return { kind: "invalid", message: `Unexpected: ${rest.join(" ")}` };
