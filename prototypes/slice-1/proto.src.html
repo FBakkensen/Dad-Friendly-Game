@@ -83,6 +83,8 @@
   #card .nl span:last-child { color: var(--moon); }
   #card .marks { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 14px; }
   #card .row { display: flex; gap: 8px; margin-top: 14px; }
+  #card .row + .row { margin-top: 8px; }
+  #card .row + .row button { height: 40px; font-size: 17px; }
   #card .row button { flex: 1; height: 52px; text-align: center; font-size: 20px; font-weight: 700; background: #23402a; border: 2px solid var(--green); color: #d9ffd2; }
   #card .row button.alt { background: #22282f; border-color: var(--edge); color: var(--quiet); }
   .float { position: absolute; font-family: var(--mono); font-size: 18px; color: #ffe08a; pointer-events: none; animation: rise .8s ease-out forwards; text-shadow: 0 2px 0 #000; z-index: 4; }
@@ -108,6 +110,10 @@
   .stg .w { font-size: 12px; color: var(--quiet); height: 14px; white-space: nowrap; }
   .stg.narrow .w { color: var(--amber); }
   .stg .p { position: absolute; left: 3px; right: 3px; bottom: 3px; height: 22px; background: #22282f; color: var(--quiet); font-size: 13px; text-align: center; line-height: 22px; white-space: nowrap; }
+  #sink { position: absolute; left: 6px; right: 6px; height: 60px; background: #000b; border: 2px solid #3b4450; display: flex; align-items: center; padding: 0 8px 0 10px; gap: 8px; }
+  #sink .t { flex: 1; font-size: 18px; font-weight: 700; line-height: 1; letter-spacing: .03em; }
+  #sink .t small { display: block; font-size: 13px; font-weight: 600; letter-spacing: 0; color: var(--quiet); margin-top: 4px; }
+  #sink .p { padding: 0 8px; height: 36px; line-height: 36px; background: #22282f; color: var(--quiet); font-size: 14px; white-space: nowrap; }
   .can { background: #23402a !important; color: #d9ffd2 !important; box-shadow: inset 0 0 0 2px var(--green); }
 
   /* the works: brick and fire */
@@ -126,6 +132,9 @@
   #p-works .ext .t { flex: 1; font-size: 16px; line-height: 1; }
   #p-works .ext .t small { display: block; font-size: 12px; color: #e6b9a4; margin-top: 2px; }
   #p-works .ext .p { padding: 0 10px; height: 30px; line-height: 30px; background: #2a1814; color: #c7a393; font-size: 15px; white-space: nowrap; }
+
+  #p-works .lock { position: absolute; right: 0; top: 0; width: 160px; background: #0b0605e0; border-left: 2px solid #4a4038; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; font-size: 17px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #c7a393; }
+  #p-works .lock small { display: block; font-size: 13px; font-weight: 600; text-transform: none; letter-spacing: 0; padding: 4px 16px 0; }
 
   /* the workshop: wood and blueprint */
   #p-workshop .tray { position: absolute; width: 190px; white-space: nowrap; font-size: 13px; color: #f1dcb8; text-align: center; font-weight: 700; letter-spacing: .04em; }
@@ -167,6 +176,21 @@
   #board .g button { width: 128px; height: 40px; background: #2a1d12; color: #a89674; text-align: center; font-size: 17px; font-weight: 700; line-height: 1; }
   #board .g button small { display: block; font-family: var(--mono); font-weight: 400; font-size: 13px; }
   #board .f { font-size: 14px; color: #e3d2b0; margin-top: 4px; }
+  #board .body { display: flex; gap: 6px; align-items: stretch; }
+  #board .gs { flex: 1; min-width: 0; }
+  #ord { width: 140px; min-height: 70px; margin-top: 4px; background: #2a1d12; color: #a89674; text-align: center; font-size: 18px; font-weight: 700; line-height: 1.05; }
+  #ord small { display: block; font-family: var(--mono); font-weight: 400; font-size: 12px; margin-top: 2px; white-space: nowrap; }
+  #ord small:empty { display: none; }
+  #ord small + small { font-family: var(--text); font-weight: 600; font-size: 13px; }
+  #ord small + small + small { color: var(--quiet); }
+  #ord.run { box-shadow: inset 0 0 0 2px var(--amber); color: var(--amber); }
+  #fleet { position: absolute; left: 6px; right: 6px; top: 6px; background: #0a1030e6; border: 2px solid #3a4590; padding: 4px 6px 5px; }
+  #fleet .a { display: flex; align-items: baseline; gap: 8px; font-size: 15px; color: var(--moon); white-space: nowrap; }
+  #fleet .a b { font-size: 17px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #f4ead2; }
+  #fleet .a .num { color: #fff; }
+  #fleet .a span:last-child { margin-left: auto; color: var(--amber); }
+  #fleet .b { display: flex; gap: 6px; margin-top: 4px; }
+  #fleet .b button { flex: 1; height: 32px; background: #141a44; color: #aab3e6; text-align: center; font-size: 14px; white-space: nowrap; }
   #reset, #sleep { position: absolute; right: 4px; top: 30px; height: 24px; padding: 0 6px; font-size: 13px; color: #8a93a0; z-index: 3; }
   #sleep { right: 46px; color: var(--moon); }
 </style>
@@ -203,9 +227,9 @@ const GN = { stones: "stone", bricks: "brick", cut: "cut stone", clay: "clay", i
 const GC = { stones: "Stone", bricks: "Brick", cut: "Cut stone" };
 const PLACE_N = { mine: "Mine", works: "Refinery", workshop: "Factory", village: "City" };
 const STG = {
-  face: { n: "Drilling", mach: "Drill", icon: "mach-drill", base: 900, per: 600, price: 40000, good: "stones", gear: "props", start: 3 },
-  haul: { n: "Haulage", mach: "Locomotive", icon: "mach-train", base: 500, per: 800, price: 5000, good: "cut", gear: "rails", start: 3 },
-  lift: { n: "Hoisting", mach: "Hoist", icon: "mach-hoist", base: 1000, per: 1200, price: 60000, good: "stones", start: 2 },
+  face: { n: "Drilling", mach: "Drill", short: "Drill", icon: "mach-drill", base: 900, per: 600, price: 8000, gear: "props" },
+  haul: { n: "Haulage", mach: "Mine cart", short: "Cart", icon: "mach-train", base: 500, per: 800, price: 6000, gear: "rails" },
+  lift: { n: "Hoisting", mach: "Hoist", short: "Hoist", icon: "mach-hoist", base: 1000, per: 1200, price: 12000 },
 };
 const REC = {
   rails: { n: "Iron rails", cost: { stones: 20000, iron: 4 }, s: 30, max: 2, does: "Haulage capacity +15%", verb: "Install" },
@@ -213,19 +237,32 @@ const REC = {
   charge: { n: "Blasting charge", cost: { stones: 5000, clay: 5 }, s: 20, does: "Throughput ×2 for 60 s", verb: "Detonate" },
 };
 const BLD = [
-  { id: "beacon", n: "The Light Tower", gives: "Night shift output 45%, up from 30%.", steps: [] },
-  { id: "store", n: "The Warehouse", gives: "Stockyard capacity ×2.", steps: [{ stones: 30000 }, { stones: 60000, bricks: 20000 }, { bricks: 40000 }] },
+  { id: "beacon", n: "The Light Tower", gives: "Night shift output 45%, up from 30%.", also: "Opens the refinery.", opens: "New site: the refinery. Kilns turn Topsoil rock into brick, and a stockyard holds the output. The shaft to the Granite can now be sunk.", steps: [{ stones: 15000 }, { stones: 40000 }, { stones: 90000 }] },
+  { id: "store", n: "The Warehouse", gives: "Stockyard capacity ×2.", also: "Opens trucks.", steps: [{ stones: 30000 }, { stones: 60000, bricks: 20000 }, { bricks: 40000 }] },
   { id: "forge", n: "The Foundry", gives: "Unlocks the winding engine, for hoisting.", steps: [{ bricks: 30000, cut: 10000 }, { bricks: 50000, cut: 30000 }, { bricks: 60000, cut: 60000 }] },
 ];
 const STEPN = ["Foundation", "Structure", "Roof"];
+const SHAFT = { stones: 150000, bricks: 40000 };
+/* Transport: one fleet moves ordered materials from stock to the city and the factory. */
+const VEH = {
+  wagons: { one: "horse wagon", n: "horse wagons", per: 400, good: "stones", price: 4000 },
+  trucks: { one: "truck", n: "trucks", per: 1600, good: "bricks", price: 20000 },
+};
+const WGT = { clay: 500, iron: 500 }; // what one clay or iron takes of a load, in stone
+/* The first evening: one level, stone only, the mine and the city. */
 const fresh = () => ({
-  v: 4, stones: 46000, bricks: 12000, cut: 3000, yard: 0, m: { face: 3, haul: 3, lift: 2, great: 0 }, gangs: [2, 2], kilns: 4, saws: 2,
-  clay: 6, iron: 9, bench: null, gear: { rails: 0, props: 0 }, charge: 0,
-  b: { beacon: { step: 3, given: {} }, store: { step: 1, given: { stones: 22000, bricks: 3000 } }, forge: { step: 0, given: {} } },
+  v: 5, stones: 2000, bricks: 0, cut: 0, yard: 0, m: { face: 1, haul: 1, lift: 1, great: 0 }, loco: 0, fleet: { wagons: 1, trucks: 0 }, shaft: false, gangs: [4, 0], kilns: 0, saws: 0,
+  clay: 0, iron: 0, bench: null, gear: { rails: 0, props: 0 }, charge: 0,
+  b: { beacon: { step: 0, given: {} }, store: { step: 0, given: {} }, forge: { step: 0, given: {} } },
   intro: false, place: 0, seen: 0,
 });
+/* Mid game: all four sites open, the Warehouse half built. */
+const mid = () => Object.assign(fresh(), {
+  stones: 46000, bricks: 12000, cut: 3000, m: { face: 3, haul: 3, lift: 2, great: 0 }, shaft: true, fleet: { wagons: 3, trucks: 0 }, gangs: [2, 2], kilns: 4, saws: 2, clay: 6, iron: 9,
+  b: { beacon: { step: 3, given: {} }, store: { step: 1, given: { stones: 22000, bricks: 3000 }, on: true }, forge: { step: 0, given: {} } },
+});
 let S = fresh();
-try { const raw = localStorage.getItem("slice1-proto"); if (raw) { const o = JSON.parse(raw); if (o && o.v === 4) S = o; } } catch (e) { /* plays without it */ }
+try { const raw = localStorage.getItem("slice1-proto"); if (raw) { const o = JSON.parse(raw); if (o && o.v === 5) S = o; } } catch (e) { /* plays without it */ }
 const GONE = S.seen ? (Date.now() - S.seen) / 1000 : 0; // how long he was away, read before anything saves
 const save = () => { S.seen = Date.now(); try { localStorage.setItem("slice1-proto", JSON.stringify(S)); } catch (e) { /* plays without it */ } };
 
@@ -236,17 +273,20 @@ const nice = (n) => { const p = Math.pow(10, Math.max(0, Math.floor(Math.log10(n
 const forgeUp = () => S.b.forge.step >= 3;
 const stageBuy = (k) => k === "lift" && forgeUp()
   ? { mach: "Winding engine", short: "Engine", good: "cut", price: nice(30000 * Math.pow(1.25, S.m.great)), key: "great", per: 3000 }
-  : { mach: STG[k].mach, short: STG[k].mach, good: STG[k].good, price: nice(STG[k].price * Math.pow(1.25, S.m[k] - STG[k].start)), key: k, per: STG[k].per };
-const kilnPrice = () => nice(20000 * Math.pow(1.2, S.kilns - 4));
-const sawPrice = () => nice(12000 * Math.pow(1.2, S.saws - 2));
+  : k === "haul" && S.shaft ? { mach: "Locomotive", short: "Loco", good: "cut", price: nice(5000 * Math.pow(1.25, S.loco)), key: "loco", per: 1600 }
+  : { mach: STG[k].mach, short: STG[k].short, good: "stones", price: nice(STG[k].price * Math.pow(1.3, S.m[k] - 1)), key: k, per: STG[k].per };
+const worksOpen = () => S.b.beacon.step >= 3; // the Light Tower opens the refinery and the stockyard
+const avail = (i) => [true, worksOpen(), S.shaft, true][i];
+const kilnPrice = () => nice(10000 * Math.pow(1.2, S.kilns));
+const sawPrice = () => nice(8000 * Math.pow(1.2, S.saws));
 const yardPrice = () => 30000 * Math.pow(3, S.yard);
-const caps = () => { const k = Math.pow(3, S.yard) * (S.b.store.step >= 3 ? 2 : 1); return { stones: 400000 * k, bricks: 80000 * k, cut: 40000 * k }; };
+const caps = () => { if (!worksOpen()) return { stones: Infinity, bricks: Infinity, cut: Infinity }; const k = Math.pow(3, S.yard) * (S.b.store.step >= 3 ? 2 : 1); return { stones: 400000 * k, bricks: 80000 * k, cut: 40000 * k }; };
 const lc = (t) => t.charAt(0).toLowerCase() + t.slice(1);
 const low = (n) => n.replace(/^The /, "the ");
 const inHand = () => BLD.find((b) => S.b[b.id].step < 3);
 function flows() {
   const f = {}; let narrow = "face";
-  for (const k in STG) { f[k] = (STG[k].base + STG[k].per * S.m[k] + (k === "lift" ? 3000 * S.m.great : 0)) * (1 + 0.15 * (STG[k].gear ? S.gear[STG[k].gear] : 0)); if (f[k] < f[narrow]) narrow = k; }
+  for (const k in STG) { f[k] = (STG[k].base + STG[k].per * S.m[k] + (k === "lift" ? 3000 * S.m.great : 0) + (k === "haul" ? 1600 * S.loco : 0)) * (1 + 0.15 * (STG[k].gear ? S.gear[STG[k].gear] : 0)); if (f[k] < f[narrow]) narrow = k; }
   const line = f[narrow] * (S.charge > 0 ? 2 : 1), cap = caps();
   const rock = [line * S.gangs[0] / 4, line * S.gangs[1] / 4];
   const mk = [S.kilns * 100, S.saws * 120];
@@ -258,52 +298,92 @@ function flows() {
   const holds = [rock[0] <= mk[0] ? "crews" : "kilns", rock[1] <= mk[1] ? "crews" : "saws"];
   return { f, narrow, line, rock, take, made, over, cap, full, holds, moving };
 }
-function tick(dt) {
-  const F = flows();
-  S.bricks = Math.min(F.cap.bricks, S.bricks + F.made[0] * dt);
-  S.cut = Math.min(F.cap.cut, S.cut + F.made[1] * dt);
-  if (S.stones < F.cap.stones) S.stones = Math.min(F.cap.stones, S.stones + (F.over[0] + F.over[1]) * dt);
-  S.clay = Math.min(10, S.clay + S.gangs[0] * dt / 6);
-  S.iron = Math.min(35, S.iron + S.gangs[1] * dt / 5);
+const fleetRate = () => S.fleet.wagons * VEH.wagons.per + S.fleet.trucks * VEH.trucks.per;
+const vehPrice = (k) => nice(VEH[k].price * Math.pow(1.3, S.fleet[k] - (k === "wagons" ? 1 : 0)));
+const trucksOpen = () => S.b.store.step >= 3;
+const awayPace = () => (S.b.beacon.step >= 3 ? 0.45 : 0.3);
+const jobP = (need, given) => { let a = 0, b = 0; for (const g in need) { const w = WGT[g] || 1; a += Math.min(need[g], given[g] || 0) * w; b += need[g] * w; } return a / b; };
+/* The orders transport is serving: the city's phase once he has ordered it, and the factory's work order. */
+function jobs() {
+  const j = [], h = inHand();
+  if (h && S.b[h.id].on) j.push({ k: "city", id: h.id, need: h.steps[S.b[h.id].step], given: S.b[h.id].given });
+  if (S.bench && !S.bench.done) j.push({ k: "bench", id: S.bench.id, need: REC[S.bench.id].cost, given: S.bench.given });
+  return j;
+}
+/* One step: production into stock, then transport from stock to the orders. An order is complete when its materials have arrived. */
+function tick(dt, pp, hp, log) {
+  const F = flows(), b0 = S.bricks, c0 = S.cut, s0 = S.stones;
+  S.bricks = Math.min(F.cap.bricks, S.bricks + F.made[0] * pp * dt);
+  S.cut = Math.min(F.cap.cut, S.cut + F.made[1] * pp * dt);
+  if (S.stones < F.cap.stones) S.stones = Math.min(F.cap.stones, S.stones + (F.over[0] + F.over[1]) * pp * dt);
+  S.clay = Math.min(10, S.clay + S.gangs[0] * pp * dt / 6);
+  S.iron = Math.min(35, S.iron + S.gangs[1] * pp * dt / 5);
   if (S.charge > 0) S.charge = Math.max(0, S.charge - dt);
-  if (S.bench && !S.bench.done) { S.bench.left -= dt; if (S.bench.left <= 0) { S.bench.left = 0; S.bench.done = true; } }
+  const made = { bricks: S.bricks - b0, cut: S.cut - c0, stones: S.stones - s0 };
+  if (log.made) for (const g in made) log.made[g] += made[g];
+  const rate = { city: 0, bench: 0, good: null }, J = jobs();
+  const carry = (j, left) => {
+    for (const g in j.need) {
+      const w = WGT[g] || 1, amt = Math.min(left / w, j.need[g] - (j.given[g] || 0), S[g]);
+      if (amt > 0) { S[g] -= amt; j.given[g] = (j.given[g] || 0) + amt; left -= amt * w; rate[j.k] += (amt * w) / dt; if (j.k === "city") rate.good = g; log.sent[g] = (log.sent[g] || 0) + amt; }
+    }
+    return left;
+  };
+  let spare = 0; for (const j of J) spare += carry(j, (fleetRate() * hp * dt) / J.length); for (const j of J) spare = carry(j, spare);
+  for (const j of J) if (Object.keys(j.need).every((g) => (j.given[g] || 0) >= j.need[g] - 1e-6)) {
+    if (j.k === "bench") { S.bench.done = true; log.ev.push({ k: "bench", id: j.id }); }
+    else { const st = S.b[j.id]; st.step++; st.given = {}; if (st.step >= 3) st.on = false; log.ev.push({ k: "phase", id: j.id, step: st.step }); }
+  }
+  return { rate, worked: made.bricks + made.cut + made.stones > 1e-9 };
+}
+let HAUL = { city: 0, bench: 0, good: null };
+function events(ev) {
+  for (const e of ev) {
+    if (e.k === "bench") { say(REC[e.id].n + ": materials arrived, complete. Install it."); continue; }
+    const b = BLD.find((x) => x.id === e.id);
+    if (e.step >= 3) { const last = !inHand(); card(b.n + ": operational", [b.gives].concat(b.opens ? [b.opens] : b.also ? [b.also] : [], [last ? "Phase 1 complete: three buildings operational. The road to Mars goes on." : "Next project: " + low(inHand().n) + "."]), b.opens ? "To the refinery" : "Continue", null, b.opens ? () => go(1) : null); }
+    else say(b.n + ": " + STEPN[e.step - 1].toLowerCase() + " complete. The " + STEPN[e.step].toLowerCase() + " is next.");
+  }
+  if (ev.length) after();
 }
 
-/* ---------- time away: the resting pace, until the yard is full ---------- */
+/* ---------- time away: the night shift, until the stockyard is full ---------- */
 const dur = (sec) => { sec = Math.round(sec); if (sec < 90) return sec + " s"; const m = Math.round(sec / 60); if (m < 90) return m + " min"; const h = Math.floor(m / 60), r = m % 60; return h + " h" + (r ? " " + r + " min" : ""); };
-const awayPace = () => (S.b.beacon.step >= 3 ? 0.45 : 0.3);
-/* What a time away brings, without changing anything: the piles after it, when each filled, and when the gangs rested. */
-function night(sec) {
-  const keep = { stones: S.stones, bricks: S.bricks, cut: S.cut, charge: S.charge }, pace = awayPace(), fullAt = {}; let t = 0, rest = null; S.charge = 0;
-  for (let n = 0; n < 8 && t < sec; n++) {
-    const F = flows(), r = { bricks: F.made[0] * pace, cut: F.made[1] * pace, stones: (F.over[0] + F.over[1]) * pace };
-    if (r.bricks + r.cut + r.stones <= 0) { rest = t; break; }
-    let dt = sec - t; for (const g in r) if (r[g] > 0) dt = Math.min(dt, Math.max(0.001, (F.cap[g] - S[g]) / r[g]));
-    for (const g in r) if (r[g] > 0) { S[g] = Math.min(F.cap[g], S[g] + r[g] * dt); if (fullAt[g] == null && S[g] >= F.cap[g] - 0.5) { S[g] = F.cap[g]; fullAt[g] = t + dt; } }
-    t += dt;
+/* Plays a time away in 1200 steps at the night pace. Without apply, nothing is changed: it only tells what the time would bring. */
+function simulate(sec, apply) {
+  const keep = apply ? null : JSON.stringify(S), n = 1200, dt = sec / n, ch = S.charge;
+  const log = { made: { stones: 0, bricks: 0, cut: 0 }, sent: {}, ev: [], fullAt: {}, worked: 0, stop: null };
+  S.charge = 0;
+  for (let i = 0; i < n; i++) {
+    const t = i * dt, r = tick(dt, !worksOpen() && t >= 8 * 3600 ? 0 : awayPace(), awayPace(), log); // no stockyard yet: a night shift runs eight hours
+    if (r.worked) log.worked += dt; else if (log.stop == null) log.stop = t;
+    if (worksOpen()) { const cap = caps(); for (const g of ["stones", "bricks", "cut"]) if (log.fullAt[g] == null && S[g] >= cap[g] - 0.5) log.fullAt[g] = t + dt; }
   }
-  const out = { piles: { stones: S.stones, bricks: S.bricks, cut: S.cut }, fullAt, rest, worked: rest == null ? sec : rest };
-  Object.assign(S, keep); return out;
+  S.charge = Math.max(0, ch - sec);
+  if (!apply) S = JSON.parse(keep);
+  return log;
 }
 function away(sec) {
-  const N = night(sec), was = { stones: S.stones, bricks: S.bricks, cut: S.cut }, pace = awayPace();
-  Object.assign(S, N.piles); S.charge = Math.max(0, S.charge - sec);
-  S.clay = Math.min(10, S.clay + (S.gangs[0] * N.worked * pace) / 6); S.iron = Math.min(35, S.iron + (S.gangs[1] * N.worked * pace) / 5);
-  let bench = false; if (S.bench && !S.bench.done) { S.bench.left -= sec; if (S.bench.left <= 0) { S.bench.left = 0; S.bench.done = true; bench = true; } }
-  const got = ["stones", "bricks", "cut"].filter((g) => S[g] - was[g] >= 1).map((g) => `<b>${fmt(S[g] - was[g])}</b> ${GN[g]}`);
-  const early = N.rest != null && N.rest < sec, pct = Math.max(3, Math.round((100 * N.worked) / sec));
-  const marks = ["bricks", "cut", "stones"].filter((g) => N.fullAt[g] != null).map((g) => `<span>${GC[g]} full at ${dur(N.fullAt[g])}</span>`).join("");
+  const pace = awayPace(), L = simulate(sec, true);
+  const list = (o) => Object.keys(o).filter((g) => o[g] >= 1).map((g) => `<b>${fmt(o[g])}</b> ${GN[g]}`);
+  const got = list(L.made), sent = list(L.sent), early = L.worked < sec * 0.985, pct = Math.max(3, Math.round((100 * L.worked) / sec));
+  const marks = ["bricks", "cut", "stones"].filter((g) => L.fullAt[g] != null).map((g) => `<span>${GC[g]} full at ${dur(L.fullAt[g])}</span>`).join("");
   const lines = [
     `Unattended ${dur(sec)}. Night shift output: ${Math.round(pace * 100)}%.`,
-    `<span class="night"><i style="width:${pct}%"></i></span><span class="nl"><span>${early ? "production " + dur(N.worked) : "production, no downtime"}</span><span>${early ? "idle " + dur(sec - N.worked) : ""}</span></span>`,
-    got.length ? "Produced: " + got.join(", ") + "." : "No output: the stockyard was already full.",
+    `<span class="night"><i style="width:${pct}%"></i></span><span class="nl"><span>${early ? "production " + dur(L.worked) : "production, no downtime"}</span><span>${early ? "idle " + dur(sec - L.worked) : ""}</span></span>`,
+    got.length ? "Produced: " + got.join(", ") + "." : "No output.",
   ];
+  if (sent.length) lines.push("Transport delivered to orders: " + sent.join(", ") + ".");
+  for (const e of L.ev) {
+    if (e.k === "bench") { lines.push(`Factory: ${REC[e.id].n.toLowerCase()} complete. Install it.`); continue; }
+    const b = BLD.find((x) => x.id === e.id);
+    lines.push(e.step >= 3 ? `<em>${b.n}: operational.</em> ${b.gives}${b.also ? " " + b.also : ""}` : `${b.n}: ${STEPN[e.step - 1].toLowerCase()} complete.`);
+  }
   if (marks) lines.push(`<span class="marks">${marks}</span>`);
-  if (early) lines.push(`<em>Stockyard full: production stopped.</em> Expand the stockyard to run longer.`);
-  if (bench) lines.push(`Factory: ${REC[S.bench.id].n.toLowerCase()} complete.`);
+  if (early) lines.push(worksOpen() ? `<em>Stockyard full: production stopped.</em> Expand the stockyard, or keep an order running, to run longer.` : `<em>A night shift runs 8 h.</em> Production stopped after that.`);
   save(); ui();
-  if (early) card("Shift report", lines, "To the stockyard", "Close", () => { go(1); const x = $("#ext"); x.classList.remove("pulse"); void x.offsetWidth; x.classList.add("pulse"); });
-  else card("Shift report", lines, "Resume");
+  if (early && worksOpen()) card("Shift report", lines, "To the stockyard", "Close", () => { go(1); const x = $("#ext"); x.classList.remove("pulse"); void x.offsetWidth; x.classList.add("pulse"); });
+  else card("Shift report", lines, "Resume", null, () => events(L.ev.filter((e) => e.k === "phase" && e.step >= 3)));
 }
 
 /* ---------- what he can do ---------- */
@@ -312,46 +392,47 @@ const pay = (cost) => { for (const g in cost) S[g] -= cost[g]; };
 let sayT = 0;
 function say(t) { const s = $("#say"); s.textContent = t; s.classList.add("on"); clearTimeout(sayT); sayT = setTimeout(() => s.classList.remove("on"), 2600); }
 const lacks = (cost) => { const g = Object.keys(cost).find((k) => Math.floor(S[k]) < cost[k]); return g ? "Requires " + fmt(cost[g]) + " " + GN[g] + "." : ""; };
-function buyStage(k) { const b = stageBuy(k), c = { [b.good]: b.price }; if (!canPay(c)) return say(lacks(c)); pay(c); S.m[b.key]++; after(); }
+function buyStage(k) { const b = stageBuy(k), c = { [b.good]: b.price }; if (!canPay(c)) return say(lacks(c)); pay(c); if (b.key === "loco") S.loco++; else S.m[b.key]++; after(); }
+function sinkShaft() {
+  if (S.shaft || !worksOpen()) return; if (!canPay(SHAFT)) return say(lacks(SHAFT));
+  pay(SHAFT); S.shaft = true; S.gangs = [2, 2]; build(); after();
+  card("The Granite: reached", ["Two crews moved down. Two stay on the Topsoil.", "Topsoil rock makes brick. Granite rock makes cut stone. Drag a crew between the levels to shift the output.", "Opened: saws in the refinery, the factory, and locomotives for haulage."], "Continue");
+}
 function buyKiln() { const c = { stones: kilnPrice() }; if (!canPay(c)) return say(lacks(c)); pay(c); S.kilns++; after(); }
 function buySaw() { const c = { bricks: sawPrice() }; if (!canPay(c)) return say(lacks(c)); pay(c); S.saws++; after(); }
 function extendYard() { const c = { bricks: yardPrice() }; if (!canPay(c)) return say(lacks(c)); pay(c); S.yard++; after(); say("Stockyard expanded. Capacity ×3."); }
-function moveGang(to) { const from = 1 - to; if (S.gangs[from] < 1) return; S.gangs[from]--; S.gangs[to]++; after(); say("Crews: " + S.gangs[0] + " on Topsoil, " + S.gangs[1] + " on Granite."); }
+function moveGang(to) { if (!S.shaft) return say("One level so far. A second level needs the shaft."); const from = 1 - to; if (S.gangs[from] < 1) return; S.gangs[from]--; S.gangs[to]++; after(); say("Crews: " + S.gangs[0] + " on Topsoil, " + S.gangs[1] + " on Granite."); }
 function startJob(id) {
   const r = REC[id];
   if (S.bench) return say(S.bench.done ? "Install the finished work order first." : "Station busy. One work order at a time.");
   if (r.max && S.gear[id] >= r.max) return say(r.n + ": fully installed.");
-  if (!canPay(r.cost)) return say(lacks(r.cost));
-  pay(r.cost); S.bench = { id, left: r.s, total: r.s, done: false }; after();
+  S.bench = { id, given: {}, done: false }; after(); say("Work order placed. Transport moves the materials to the station.");
 }
 function fitJob() {
   if (!S.bench || !S.bench.done) return; const id = S.bench.id;
   if (id === "charge") { S.charge = 60; say("Charge detonated. Throughput ×2 for 60 s."); } else { S.gear[id]++; say(REC[id].does + "."); }
   S.bench = null; after();
 }
-function send(good) {
-  const b = inHand(); if (!b) return; const st = S.b[b.id], need = b.steps[st.step];
-  const rem = need[good] - (st.given[good] || 0), amt = Math.min(Math.floor(S[good]), rem);
-  if (amt <= 0) return say(rem <= 0 ? "Already delivered." : "No " + GN[good] + " in stock.");
-  S[good] -= amt; st.given[good] = (st.given[good] || 0) + amt; carts.push({ x: W + 4, good }, { x: W + 30, good });
-  if (Object.keys(need).every((g) => (st.given[g] || 0) >= need[g])) {
-    st.step++; st.given = {};
-    if (st.step >= 3) {
-      const last = !inHand();
-      card(b.n + ": operational", [b.gives, last ? "Phase 1 complete: three buildings operational. The road to Mars goes on." : "Next project: " + low(inHand().n) + "."], "Continue");
-    } else say(b.n + ": " + STEPN[st.step - 1].toLowerCase() + " complete. Next phase: " + STEPN[st.step].toLowerCase() + ".");
-  }
-  after();
+/* The order is his. Transport then moves the materials, and the building rises as they arrive. */
+function order() {
+  const b = inHand(); if (!b) return; const st = S.b[b.id]; st.on = !st.on; st.held = !st.on;
+  say(st.on ? "Ordered: " + low(b.n) + ". Transport moves the materials, and it rises as they arrive." : "On hold. The materials stay in stock."); after();
+}
+function addVehicle(k) {
+  if (k === "trucks" && !trucksOpen()) return say("Trucks open when the Warehouse is operational.");
+  const c = { [VEH[k].good]: vehPrice(k) }; if (!canPay(c)) return say(lacks(c)); pay(c); S.fleet[k]++; after();
 }
 function actions() {
   const F = flows(), a = [], h = inHand();
   if (S.bench && S.bench.done) a.push({ p: 2, pri: 100, t: "Install: " + REC[S.bench.id].n.toLowerCase(), sel: "#fitbtn" });
-  if (h) { const st = S.b[h.id], need = h.steps[st.step]; for (const g in need) { const rem = need[g] - (st.given[g] || 0), amt = Math.min(Math.floor(S[g]), rem); if (rem > 0 && amt > 0) a.push({ p: 3, pri: amt >= rem ? 90 : 35, t: "Deliver " + fmt(amt) + " " + GN[g] + " to " + low(h.n), sel: `#board .g[data-g=${g}] button` }); } }
+  if (h && !S.b[h.id].on) { const held = S.b[h.id].held; a.push({ p: 3, pri: held ? 35 : 90, t: (held ? "Resume: " : "Order ") + low(h.n), sel: "#ord" }); }
+  for (const k in VEH) if ((k === "wagons" || trucksOpen()) && canPay({ [VEH[k].good]: vehPrice(k) })) a.push({ p: 3, pri: jobs().length ? 45 : 8, t: "+1 " + VEH[k].one + " · " + fmt(vehPrice(k)) + " " + GN[VEH[k].good], sel: "#fl-" + k });
   for (const k in STG) { const b = stageBuy(k); if (canPay({ [b.good]: b.price })) a.push({ p: 0, pri: k === F.narrow ? 80 : 15, t: b.mach + " · " + fmt(b.price) + " " + GN[b.good], sel: "#stg-" + k }); }
-  if (canPay({ stones: kilnPrice() })) a.push({ p: 1, pri: F.holds[0] === "kilns" ? 70 : 10, t: "Kiln · " + fmt(kilnPrice()) + " stone", sel: "#pl-kiln" });
-  if (canPay({ bricks: sawPrice() })) a.push({ p: 1, pri: F.holds[1] === "saws" ? 65 : 10, t: "Saw · " + fmt(sawPrice()) + " brick", sel: "#pl-saw" });
-  if (canPay({ bricks: yardPrice() })) a.push({ p: 1, pri: ["stones", "bricks", "cut"].some((g) => S[g] >= F.cap[g] * 0.85) ? 60 : 5, t: "Expand the stockyard · " + fmt(yardPrice()) + " brick", sel: "#ext" });
-  if (!S.bench) for (const id in REC) if (canPay(REC[id].cost) && !(REC[id].max && S.gear[id] >= REC[id].max)) a.push({ p: 2, pri: 30, t: "Work order: " + REC[id].n.toLowerCase(), sel: "#bp-" + id });
+  if (worksOpen() && !S.shaft && canPay(SHAFT)) a.push({ p: 0, pri: 85, t: "Sink the shaft to the Granite", sel: "#sink" });
+  if (worksOpen() && canPay({ stones: kilnPrice() })) a.push({ p: 1, pri: F.holds[0] === "kilns" ? 70 : 10, t: "Kiln · " + fmt(kilnPrice()) + " stone", sel: "#pl-kiln" });
+  if (S.shaft && canPay({ bricks: sawPrice() })) a.push({ p: 1, pri: F.holds[1] === "saws" ? 65 : 10, t: "Saw · " + fmt(sawPrice()) + " brick", sel: "#pl-saw" });
+  if (worksOpen() && canPay({ bricks: yardPrice() })) a.push({ p: 1, pri: ["stones", "bricks", "cut"].some((g) => S[g] >= F.cap[g] * 0.85) ? 60 : 5, t: "Expand the stockyard · " + fmt(yardPrice()) + " brick", sel: "#ext" });
+  if (S.shaft && !S.bench) for (const id in REC) if (canPay(REC[id].cost) && !(REC[id].max && S.gear[id] >= REC[id].max)) a.push({ p: 2, pri: 30, t: "Work order: " + REC[id].n.toLowerCase(), sel: "#bp-" + id });
   return a.sort((x, y) => y.pri - x.pri);
 }
 function after() { save(); ui(); }
@@ -377,7 +458,7 @@ function icons() {
   c = mk(16, 16); R(c, 2, 3, 12, 11, "#20242c"); R(c, 3, 4, 10, 9, "#c3ccd6"); R(c, 3, 4, 10, 2, "#eef3f8"); R(c, 11, 6, 2, 7, "#96a1ad"); R(c, 5, 8, 2, 1, "#96a1ad"); R(c, 7, 10, 2, 1, "#96a1ad"); out.cut = c.canvas.toDataURL();
   c = mk(16, 16); for (let y = 0; y < 9; y++) { const w = Math.round(6 * Math.sqrt(1 - Math.pow((8 - y) / 9, 2))); R(c, 8 - w, 4 + y, w * 2, 1, y % 3 === 2 ? "#4a1c12" : "#b4502f"); } R(c, 9, 1, 3, 4, "#8f3d25"); R(c, 6, 9, 4, 4, "#1a0b08"); R(c, 7, 10, 2, 3, "#ffb13a"); R(c, 1, 13, 14, 1, "#2a1512"); out.works = c.canvas.toDataURL();
   c = mk(16, 16); disc(c, 12, 3, 2, "#f3efd8"); R(c, 3, 8, 10, 6, "#8d93a0"); for (let i = 0; i < 6; i++) R(c, 2 + i, 7 - i, 12 - i * 2, 1, "#b0562f"); R(c, 7, 10, 2, 4, "#3a2415"); R(c, 4, 10, 2, 2, "#ffcf6a"); R(c, 10, 10, 2, 2, "#ffcf6a"); R(c, 1, 14, 14, 1, "#3f7a4c"); out.village = c.canvas.toDataURL();
-  for (const n of ["res-stone", "res-clay", "res-iron", "res-pick", "icon-workshop", "mach-drill", "mach-train", "mach-hoist"]) out[n] = IMGS[n];
+  for (const n of ["res-stone", "res-clay", "res-iron", "res-pick", "icon-workshop", "mach-drill", "mach-train", "mach-hoist", "mach-cart"]) out[n] = IMGS[n];
   out.stones = IMGS["res-stone"]; out.clay = IMGS["res-clay"]; out.iron = IMGS["res-iron"]; out.mine = IMGS["res-pick"]; out.workshop = IMGS["icon-workshop"];
   return out;
 }
@@ -394,9 +475,9 @@ function mineBG(h) {
   for (let y = SURF; y < h; y++) for (let x = 0; x < W; x++) { const wob = Math.round(2 * Math.sin(x / 11) + 1.5 * Math.sin(x / 5 + 2)), i = y < SURF + LH + wob ? 0 : y < SURF + 2 * LH + wob ? 1 : 2, pal = EARTH[i], r = hash(x >> 1, y >> 1, 7), q = hash(x, y, 8); let col = r < 0.06 ? pal.p : r < 0.3 ? pal.d : r < 0.5 || q < 0.05 ? pal.l : pal.b; if ((y + wob) % 11 === 0 && hash(x >> 2, y, 3) < 0.6) col = pal.d; R(c, x, y, 1, 1, col); }
   for (let x = 0; x < W; x++) { R(c, x, SURF - 1, 1, 2, hash(x, 0, 4) < 0.5 ? "#3d5a2e" : "#2c4423"); if (hash(x, 1, 4) < 0.25) R(c, x, SURF - 2, 1, 1, "#4d6e38"); }
   // the shaft
-  const shaftEnd = SURF + LH + 66; R(c, 14, SURF - 1, 22, shaftEnd - SURF + 1, "#0f0c0a"); R(c, 14, SURF - 1, 2, shaftEnd - SURF + 1, "#6b4a2a"); R(c, 34, SURF - 1, 2, shaftEnd - SURF + 1, "#6b4a2a");
+  const lvs = S.shaft ? 2 : 1, shaftEnd = SURF + (lvs - 1) * LH + 66; R(c, 14, SURF - 1, 22, shaftEnd - SURF + 1, "#0f0c0a"); R(c, 14, SURF - 1, 2, shaftEnd - SURF + 1, "#6b4a2a"); R(c, 34, SURF - 1, 2, shaftEnd - SURF + 1, "#6b4a2a");
   for (let y = SURF + 4; y < shaftEnd; y += 9) R(c, 16, y, 18, 1, "#2a1d12");
-  for (let i = 0; i < 2; i++) {
+  for (let i = 0; i < lvs; i++) {
     const y0 = SURF + i * LH, top = y0 + 34, fl = y0 + 66, dark = i ? "#12151b" : "#1a120d", back = i ? "#1f2630" : "#2c1f15", back2 = i ? "#262e3a" : "#35261a";
     R(c, 34, top, 168, 32, dark); R(c, 36, top + 3, 166, 22, back);
     for (let y = top + 3; y < top + 25; y++) for (let x = 36; x < 202; x++) if (hash(x >> 1, y >> 1, 20 + i) < 0.3) R(c, x, y, 1, 1, back2);
@@ -430,22 +511,28 @@ function mineDOM(ov) {
   ov.innerHTML = "";
   ["Topsoil", "Granite"].forEach((n, i) => {
     const lv = el("div", "lv", ov, `<div class="a"><span class="nm">${n}</span><span class="rt num" id="lv-r${i}"></span></div><div class="b" id="lv-b${i}"></div>`); lv.style.top = (SURF + i * LH + 3) * 2 + "px";
+    if (i && !S.shaft) { lv.style.left = "6px"; const s = el("button", "", ov, `<div class="t">Sink the shaft to the Granite<small>A second level. Opens saws, the factory, locomotives.</small></div><div class="p"></div>`); s.id = "sink"; s.style.top = (SURF + LH + 36) * 2 + "px"; tap(s, sinkShaft); return; }
     for (let k = 0; k < 4; k++) {
       const b = el("button", "berth", ov); b.id = `be-${i}-${k}`; b.style.left = (40 + k * 34) * 2 + "px"; b.style.top = (SURF + i * LH + 34) * 2 + "px"; b.setAttribute("aria-label", `${n} crew slot ${k + 1}`);
-      drag(b, { start: () => { if (b.classList.contains("free")) return false; $("#ghost").hidden = false; }, move: (p) => { const g = $("#ghost"); g.style.left = p.x + "px"; g.style.top = p.y + "px"; },
+      drag(b, { start: () => { if (!S.shaft || b.classList.contains("free")) return false; $("#ghost").hidden = false; }, move: (p) => { const g = $("#ghost"); g.style.left = p.x + "px"; g.style.top = p.y + "px"; },
         drop: (p) => { $("#ghost").hidden = true; const ay = (p.y - 98) / 2, to = ay >= SURF && ay < SURF + LH ? 0 : ay >= SURF + LH && ay < SURF + 2 * LH ? 1 : -1; if (to >= 0 && to !== i) moveGang(to); },
-        tap: () => { if (b.classList.contains("free")) moveGang(i); else say("Drag the crew to the other level, or tap a free slot there."); } });
+        tap: () => { if (b.classList.contains("free")) moveGang(i); else say(S.shaft ? "Drag the crew to the other level, or tap a free slot there." : "All four crews work the Topsoil. A second level needs the shaft."); } });
     }
   });
   const deep = el("div", "deep", ov, "Deeper strata: not yet surveyed. The city has to grow first."); deep.style.top = (SURF + 2 * LH + 4) * 2 + "px";
-  Object.keys(STG).forEach((k, n) => { const s = el("button", "stg", ov, `<div class="h">${ico(STG[k].icon)}${STG[k].n}</div><div class="r num"></div><div class="w"></div><div class="p"></div>`); s.id = "stg-" + k; s.style.left = 6 + n * 139 + "px"; s.style.bottom = "8px"; tap(s, () => buyStage(k)); });
+  Object.keys(STG).forEach((k, n) => { const s = el("button", "stg", ov, `<div class="h">${ico(k === "haul" && !S.shaft ? "mach-cart" : STG[k].icon)}${STG[k].n}</div><div class="r num"></div><div class="w"></div><div class="p"></div>`); s.id = "stg-" + k; s.style.left = 6 + n * 139 + "px"; s.style.bottom = "8px"; tap(s, () => buyStage(k)); });
 }
 function mineUI(F) {
   for (let i = 0; i < 2; i++) {
+    if (i && !S.shaft) {
+      $("#lv-r1").textContent = "not reached"; $("#lv-b1").textContent = worksOpen() ? "Harder rock, for cut stone." : "The shaft can be sunk once the Light Tower is operational.";
+      const s = $("#sink"); s.hidden = !worksOpen(); s.children[1].innerHTML = Object.keys(SHAFT).map((g) => fmt(SHAFT[g]) + " " + ico(g)).join(" "); s.children[1].classList.toggle("can", canPay(SHAFT)); continue;
+    }
     const g = S.gangs[i], good = i ? "cut" : "bricks", mk = i ? "saws" : "kilns", cnt = i ? S.saws : S.kilns;
     $("#lv-r" + i).textContent = g ? rate(F.rock[i]) : "no crew";
     let b;
     if (!g) b = "No crew assigned. No output.";
+    else if (!worksOpen()) b = `${g} crews · all rock is hoisted as stone`;
     else if (!cnt) b = `No ${mk}. All rock bypasses to stone.`;
     else if (F.full[good] && F.full.stones) b = `<em>Crews idle: stockyard full.</em>`;
     else if (F.full[good]) b = `<em>${GC[good]} stockpile full.</em> Rock bypasses to stone.`;
@@ -520,23 +607,27 @@ function worksDOM(ov, h) {
   el("div", "in", ov, `Topsoil <span class="num" id="in0"></span>`).style.left = "8px";
   const r = el("div", "in", ov, `Granite <span class="num" id="in1"></span>`); r.style.right = "8px"; r.style.textAlign = "right";
   [["kiln", 12, 6, buyKiln], ["saw", 272, 238, buySaw]].forEach(([id, mx, px, fn]) => {
-    const m = el("button", "mach", ov); m.style.left = mx + "px"; m.style.top = "114px"; m.setAttribute("aria-label", "Add a " + id); tap(m, fn);
+    const m = el("button", "mach", ov); m.style.left = mx + "px"; m.style.top = "114px"; m.id = "mach-" + id; m.setAttribute("aria-label", "Add a " + id); tap(m, fn);
     const p = el("button", "plate", ov, `<div class="a"></div><div class="b"></div><div class="p"></div>`); p.id = "pl-" + id; p.style.left = px + "px"; p.style.top = "250px"; tap(p, fn);
   });
+  const lk = el("div", "lock", ov, "Granite line<small>Opens when the shaft is sunk.</small>"); lk.id = "saw-lock"; lk.style.height = Y + "px";
   const mid = el("div", "mid", ov, `bypass to stone<br><span class="num" id="mid-r"></span>`); mid.style.top = "150px";
   [["bricks", 6], ["stones", 146], ["cut", 284]].forEach(([g, x]) => { const b = el("div", "bay", ov, `${GC[g]}<span class="num"></span>`); b.id = "bay-" + g; b.style.left = x + "px"; b.style.top = Y + 6 + "px"; });
   const e = el("button", "ext", ov, `<div class="t">Expand the stockyard<small id="ext-n"></small></div><div class="p"></div>`); e.id = "ext"; e.style.top = h * 2 - 48 + "px"; tap(e, extendYard);
 }
+let fcT = -1e9, FC = "";
 function worksUI(F) {
   $("#in0").textContent = S.gangs[0] ? rate(F.rock[0]) : "no crew"; $("#in1").textContent = S.gangs[1] ? rate(F.rock[1]) : "no crew";
+  $("#saw-lock").hidden = S.shaft; $("#pl-saw").hidden = !S.shaft; $("#mach-saw").hidden = !S.shaft;
   [["kiln", "kilns", S.kilns, 0, "bricks", kilnPrice(), "stones", 100], ["saw", "saws", S.saws, 1, "cut", sawPrice(), "bricks", 120]].forEach(([id, pl, n, i, g, pr, pg, per]) => {
     const p = $("#pl-" + id); p.children[0].innerHTML = `${n} ${pl.toUpperCase()} <span class="num">${rate(n * per)} max</span>`;
-    p.children[1].textContent = !S.gangs[i] ? "No feed. No crew on this level." : F.full[g] ? `${GC[g]} stockpile full.` : F.holds[i] === "crews" ? `Bottleneck: crews. More ${pl} add nothing.` : `Bottleneck: ${pl}. Running at ${rate(F.take[i])}.`;
+    p.children[1].textContent = !S.gangs[i] ? "No feed. No crew on this level." : !n ? `No ${pl} yet. All rock bypasses to stone.` : F.full[g] ? `${GC[g]} stockpile full.` : F.holds[i] === "crews" ? `Bottleneck: crews. More ${pl} add nothing.` : `Bottleneck: ${pl}. Running at ${rate(F.take[i])}.`;
     p.children[2].innerHTML = `+1 ${id} · ${fmt(pr)} ${ico(pg)} · +${per}/s`; p.children[2].classList.toggle("can", canPay({ [pg]: pr }));
   });
   $("#mid-r").textContent = F.full.stones ? "full" : rate(F.over[0] + F.over[1]);
-  for (const g of ["stones", "bricks", "cut"]) { const b = $("#bay-" + g); b.children[0].textContent = fmt(S[g]) + " of " + fmt(F.cap[g]); b.classList.toggle("full", F.full[g]); }
-  const N = night(12 * 3600); $("#ext-n").textContent = (N.rest == null ? "Holds 12 h unattended." : N.rest < 1 ? "Full now: crews idle." : "Full after " + dur(N.rest) + " unattended.") + " Expansion: capacity ×3.";
+  for (const g of ["stones", "bricks", "cut"]) { const b = $("#bay-" + g); b.children[0].textContent = g === "cut" && !S.shaft ? "after the shaft" : fmt(S[g]) + " of " + fmt(F.cap[g]); b.classList.toggle("full", F.full[g]); }
+  if (performance.now() - fcT > 1000) { fcT = performance.now(); const L = simulate(12 * 3600, false); FC = L.stop == null ? "Holds 12 h unattended." : L.stop < 40 ? "Full now: crews idle." : "Full after " + dur(L.stop) + " unattended."; }
+  $("#ext-n").textContent = FC + " Expansion: capacity ×3.";
   const e = $("#ext"); e.children[1].innerHTML = `${fmt(yardPrice())} ${ico("bricks")}`; e.children[1].classList.toggle("can", canPay({ bricks: yardPrice() }));
 }
 
@@ -570,7 +661,7 @@ function shopDraw(c, h, t) {
   for (let i = 0; i < Math.min(18, Math.floor(S.iron)); i++) c.drawImage(im["res-iron"], 111 + (i % 9) * 10, 29 + Math.floor(i / 9) * 8);
   const m = matBox(h), b = S.bench, cy = m.y + Math.floor(m.h / 2) + 8;
   if (!b) { for (let x = m.x + 14; x < m.x + m.w - 14; x += 6) { R(c, x, m.y + 30, 3, 1, "#5f8a7b"); R(c, x, m.y + m.h - 12, 3, 1, "#5f8a7b"); } for (let y = m.y + 30; y < m.y + m.h - 12; y += 6) { R(c, m.x + 14, y, 1, 3, "#5f8a7b"); R(c, m.x + m.w - 15, y, 1, 3, "#5f8a7b"); } return; }
-  const p = 1 - b.left / b.total, ix = m.x + 14, iy = cy - 24;
+  const p = b.done ? 1 : jobP(REC[b.id].cost, b.given), ix = m.x + 14, iy = cy - 24;
   drawItem(c, b.id, ix, iy, 2, "#3d574d"); c.save(); c.beginPath(); c.rect(ix, iy, Math.round(48 * p), 48); c.clip(); drawItem(c, b.id, ix, iy, 2); c.restore();
   if (!b.done && Math.floor(t * 6) % 2) { R(c, ix + 48 * p - 1, iy + 10 + hash(Math.floor(t * 6), 1, 3) * 28, 2, 2, "#ffe07a"); R(c, ix + 48 * p + 2, iy + 8 + hash(Math.floor(t * 6), 2, 3) * 30, 1, 1, "#ff9a2e"); }
   // the clock
@@ -588,7 +679,7 @@ function shopDOM(ov, h) {
   const tm = el("div", "time num", ov); tm.id = "time"; tm.style.left = "150px"; tm.style.top = (m.y + m.h / 2) * 2 - 2 + "px";
   const f = el("button", "fit", ov); f.id = "fitbtn"; f.style.top = (m.y + m.h) * 2 - 68 + "px"; tap(f, fitJob);
   Object.keys(REC).forEach((id, n) => {
-    const r = REC[id], bp = el("button", "bp", ov, `<div class="a">${r.n}</div><div class="b">${r.does}</div><div class="c"></div><div class="s num">${r.s} s</div>`); bp.id = "bp-" + id; bp.style.left = 12 + n * 136 + "px"; bp.style.top = (h - 84) * 2 + "px"; bp.style.background = `url(${paper(id)}) 0 0/100% 100%`; bp.style.imageRendering = "pixelated";
+    const r = REC[id], bp = el("button", "bp", ov, `<div class="a">${r.n}</div><div class="b">${r.does}</div><div class="c"></div>`); bp.id = "bp-" + id; bp.style.left = 12 + n * 136 + "px"; bp.style.top = (h - 84) * 2 + "px"; bp.style.background = `url(${paper(id)}) 0 0/100% 100%`; bp.style.imageRendering = "pixelated";
     drag(bp, { start: () => { bp.classList.remove("back"); bp.classList.add("drag"); }, move: (p, dx, dy) => { bp.style.transform = `translate(${dx}px,${dy}px) rotate(-3deg)`; },
       drop: (p) => { const ax = p.x / 2, ay = (p.y - 98) / 2; bp.classList.remove("drag"); bp.classList.add("back"); bp.style.transform = ""; if (ax > m.x && ax < m.x + m.w && ay > m.y && ay < m.y + m.h) startJob(id); else say("Drop the blueprint on the station to start the work order."); },
       tap: () => startJob(id) });
@@ -598,10 +689,10 @@ function shopUI() {
   $("#tr-clay").textContent = Math.floor(S.clay) + "/10"; $("#tr-iron").textContent = Math.floor(S.iron) + "/35";
   $("#rack").innerHTML = `Installed: rails ${S.gear.rails}/2 · props ${S.gear.props}/1` + (S.charge > 0 ? `<br>Throughput ×2: ${Math.ceil(S.charge)} s` : "");
   const b = S.bench, j = $("#job"), tm = $("#time"), f = $("#fitbtn");
-  if (!b) { j.children[0].textContent = "Station idle"; j.children[1].textContent = "Drag a blueprint here to start a work order"; tm.hidden = true; f.hidden = true; }
+  if (!b) { j.children[0].textContent = "Station idle"; j.children[1].textContent = "Drag a blueprint here. Transport brings the materials."; tm.hidden = true; f.hidden = true; }
   else if (b.done) { j.children[0].textContent = REC[b.id].n + ": complete"; j.children[1].textContent = REC[b.id].does; tm.hidden = true; f.hidden = false; f.textContent = REC[b.id].verb; }
-  else { j.children[0].textContent = REC[b.id].n; j.children[1].textContent = "In production. One work order at a time."; tm.hidden = false; f.hidden = true; const s = Math.ceil(b.left); tm.textContent = Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); }
-  for (const id in REC) { const r = REC[id], bp = $("#bp-" + id), maxed = r.max && S.gear[id] >= r.max; bp.classList.toggle("off", !!S.bench || maxed || !canPay(r.cost)); bp.children[2].innerHTML = maxed ? "Fully installed" : Object.keys(r.cost).map((g) => `<span class="${Math.floor(S[g]) < r.cost[g] ? "no" : ""}">${fmt(r.cost[g])} ${ico(g)}</span>`).join(" "); }
+  else { j.children[0].textContent = REC[b.id].n; const need = REC[b.id].cost, miss = Object.keys(need).find((g) => (b.given[g] || 0) < need[g] - 1e-6 && S[g] < 0.01); j.children[1].textContent = HAUL.bench > 0 ? "Materials arriving · " + rate(HAUL.bench) : miss ? "Waiting: no " + GN[miss] + " in stock." : "Waiting for transport."; tm.hidden = false; f.hidden = true; tm.textContent = Math.floor(100 * jobP(need, b.given)) + "%"; }
+  for (const id in REC) { const r = REC[id], bp = $("#bp-" + id), maxed = r.max && S.gear[id] >= r.max; bp.classList.toggle("off", !!S.bench || !!maxed); bp.children[2].innerHTML = maxed ? "Fully installed" : Object.keys(r.cost).map((g) => `<span class="${Math.floor(S[g]) < r.cost[g] ? "no" : ""}">${fmt(r.cost[g])} ${ico(g)}</span>`).join(" "); }
 }
 
 /* ---------- the village: a skyline that grows ---------- */
@@ -610,7 +701,7 @@ function villageBG(h) {
   const c = mk(W, h), G = groundY(h), sky = ["#0b1030", "#101a44", "#1a2660", "#2b2f78", "#4a3a84", "#7a4a7e", "#b8607a", "#e8906a"];
   for (let y = 0; y < G; y++) { const t = Math.pow(y / G, 1.6) * (sky.length - 1), i = t | 0, f = t - i; for (let x = 0; x < W; x++) R(c, x, y, 1, 1, hash(x, y, 1) < f ? sky[Math.min(i + 1, 7)] : sky[i]); }
   for (let i = 0; i < 70; i++) { const y = hash(i, 2, 5) * G * 0.6; R(c, hash(i, 1, 5) * W, y, 1, 1, hash(i, 3, 5) < 0.3 ? "#ffffff" : "#aab6ff"); }
-  glow(c, 170, 28, 22, "#8f9ae0", 6, 0.5); disc(c, 170, 28, 9, "#f3efd8"); disc(c, 167, 26, 2, "#d9d3b4"); R(c, 173, 31, 2, 2, "#d9d3b4"); R(c, 170, 22, 1, 1, "#d9d3b4");
+  glow(c, 170, 56, 22, "#8f9ae0", 6, 0.5); disc(c, 170, 56, 9, "#f3efd8"); disc(c, 167, 54, 2, "#d9d3b4"); R(c, 173, 59, 2, 2, "#d9d3b4"); R(c, 170, 50, 1, 1, "#d9d3b4");
   for (let x = 0; x < W; x++) { const a = G - 34 - 18 * Math.abs(Math.sin(x / 37 + 0.6)) - 6 * Math.sin(x / 11), b = G - 16 - 12 * Math.abs(Math.sin(x / 23 + 2)) - 3 * Math.sin(x / 6); R(c, x, a, 1, G - a, "#2a2c66"); R(c, x, b, 1, G - b, "#1c2050"); }
   // the mine on the far hill
   line(c, 186, G - 30, 190, G - 42, "#0f1230"); line(c, 196, G - 30, 192, G - 42, "#0f1230"); R(c, 189, G - 43, 5, 1, "#0f1230"); disc(c, 191, G - 45, 2, "#0f1230"); R(c, 198, G - 34, 8, 5, "#0f1230"); R(c, 200, G - 32, 2, 2, "#ffcf6a");
@@ -620,11 +711,18 @@ function villageBG(h) {
   R(c, 0, G + 4, W, 11, "#7a6646"); for (let x = 0; x < W; x++) { if (hash(x, 1, 34) < 0.5) R(c, x, G + 4 + hash(x, 2, 34) * 11, 2, 1, "#8f7a55"); if (hash(x, 4, 34) < 0.2) R(c, x, G + 5 + hash(x, 5, 34) * 9, 1, 1, "#5f4f36"); } R(c, 0, G + 4, W, 1, "#5f4f36"); R(c, 0, G + 15, W, 1, "#16221c");
   return c.canvas;
 }
-function beacon(c, G, t) {
-  const cx = 34; for (let y = 0; y < 56; y++) { const w = 11 - Math.floor(y / 14); for (let x = -w; x < w; x++) R(c, cx + x, G - 1 - y, 1, 1, brickCol(x + 20, y, GREY, 100, 6, 4)); R(c, cx - w, G - 1 - y, 1, 1, "#b9bfca"); R(c, cx + w - 1, G - 1 - y, 1, 1, "#3a3f4a"); }
-  R(c, cx - 11, G - 60, 22, 3, "#6e7482"); R(c, cx - 12, G - 61, 24, 1, "#b9bfca"); for (let x = cx - 11; x < cx + 11; x += 4) R(c, x, G - 64, 2, 3, "#8d93a0");
-  R(c, cx - 3, G - 10, 6, 10, "#2a1d12"); R(c, cx - 2, G - 11, 4, 1, "#2a1d12"); R(c, cx - 1, G - 30, 2, 4, "#ffcf6a"); R(c, cx - 1, G - 46, 2, 4, "#ffcf6a");
-  R(c, cx - 5, G - 66, 10, 2, "#2e3238"); glow(c, cx, G - 72, 26, "#ffb13a", Math.floor(t * 7), 0.28);
+/* The Light Tower drawn up to its progress p: 0 to 1 foundation, 1 to 2 the tower, 2 to 3 the lantern. */
+function beacon(c, G, t, p) {
+  const cx = 34; if (p <= 0) return plotStakes(c, 22, 24, G);
+  const f0 = Math.min(1, p), f1 = Math.min(1, Math.max(0, p - 1)), f2 = Math.min(1, Math.max(0, p - 2)), rows = Math.round(56 * f1), fw = Math.round(28 * f0);
+  bricks(c, cx - 14, G - 3, fw, 3, GREY, 99, 5, 2); R(c, cx - 14, G - 3, fw, 1, "#b9bfca");
+  for (let y = 0; y < rows; y++) { const w = 11 - Math.floor(y / 14); for (let x = -w; x < w; x++) R(c, cx + x, G - 1 - y, 1, 1, brickCol(x + 20, y, GREY, 100, 6, 4)); R(c, cx - w, G - 1 - y, 1, 1, "#b9bfca"); R(c, cx + w - 1, G - 1 - y, 1, 1, "#3a3f4a"); }
+  if (rows >= 12) { R(c, cx - 3, G - 10, 6, 10, "#2a1d12"); R(c, cx - 2, G - 11, 4, 1, "#2a1d12"); } if (rows >= 36) R(c, cx - 1, G - 30, 2, 4, p >= 3 ? "#ffcf6a" : "#150e0a"); if (rows >= 52) R(c, cx - 1, G - 46, 2, 4, p >= 3 ? "#ffcf6a" : "#150e0a");
+  if (f2 > 0) { R(c, cx - 11, G - 60, 22, 3, "#6e7482"); R(c, cx - 12, G - 61, 24, 1, "#b9bfca"); }
+  if (f2 > 0.35) for (let x = cx - 11; x < cx + 11; x += 4) R(c, x, G - 64, 2, 3, "#8d93a0");
+  if (f2 > 0.7) R(c, cx - 5, G - 66, 10, 2, "#2e3238");
+  if (p < 3) return scaffold(c, cx - 11, 22, G, Math.max(8, rows + 4 + Math.round(8 * f2)));
+  glow(c, cx, G - 72, 26, "#ffb13a", Math.floor(t * 7), 0.28);
   for (let x = -4; x < 4; x++) { const fh = 5 + Math.floor(6 * Math.abs(Math.sin(t * 8 + x * 1.3)) + hash(x, Math.floor(t * 10), 2) * 4); R(c, cx + x, G - 66 - fh, 1, fh, "#e2552d"); R(c, cx + x, G - 66 - fh * 0.6, 1, fh * 0.6, "#ffb13a"); R(c, cx + x, G - 66 - fh * 0.3, 1, fh * 0.3, "#fff0a8"); }
 }
 function plotStakes(c, x0, w, G) { for (const x of [x0, x0 + w - 2]) { R(c, x, G - 7, 2, 7, "#b98a55"); R(c, x, G - 7, 2, 1, "#e2552d"); } for (let x = x0 + 2; x < x0 + w - 2; x += 3) R(c, x, G - 5, 2, 1, "#d8c08a"); }
@@ -654,17 +752,34 @@ function building(c, kind, x0, w, G, p, t) {
     else { R(c, x0 + 6, G - 20, 12, 16, "#2a0e0a"); const fl = 4 + Math.floor(5 * Math.abs(Math.sin(t * 7))); R(c, x0 + 8, G - 4 - fl, 8, fl, "#ff9a2e"); R(c, x0 + 10, G - 4 - fl * 0.6, 4, fl * 0.6, "#ffe07a"); glow(c, x0 + 12, G - 8, 16, "#ff9a2e", Math.floor(t * 8), 0.3); R(c, x0 + 26, G - 28, 8, 8, "#ffb13a"); for (let k = 0; k < 3; k++) { const a = (t * 0.4 + k / 3) % 1; sprite(c, "steam-4f", 11, Math.min(3, Math.floor(a * 4)), x0 + w - 14 + Math.sin(a * 5 + k) * 3, G - 62 - a * 30); } }
   } else if (p > 0) { scaffold(c, x0, w, G, Math.max(8, rows + (f2 > 0 ? roofH * f2 : 0) + 4)); const sx = x0 + w + 9; for (let k = 0; k < 3; k++) R(c, sx + k * 4 - (k === 2 ? 6 : 0), G - 3 - (k === 2 ? 3 : 0), 3, 3, store || p < 1 ? "#8f9aa5" : "#c3ccd6"); }
 }
-const shown = { store: null, forge: null }, carts = [];
+const shown = { beacon: null, store: null, forge: null }, carts = [];
+const LOAD = { stones: "#8f9aa5", bricks: "#b4502f", cut: "#dfe6ec" };
+let spawnT = 0;
+/* A vehicle on the road, heading left to the site: a horse and cart, a truck, or a train. */
+function vehicle(c, k, G, t) {
+  const x = Math.round(k.x), B = G + 13, ld = LOAD[k.good] || LOAD.stones;
+  if (k.tier === 0) {
+    const lg = Math.floor(t * 8 + k.x / 3) % 2, hc = "#8a5a34", hd = "#4a2f1b";
+    R(c, x + 2, B - 11, 10, 5, hc); R(c, x, B - 14, 3, 6, hc); R(c, x - 3, B - 15, 5, 3, hc); R(c, x, B - 16, 1, 1, hd); R(c, x + 2, B - 15, 1, 4, hd); R(c, x + 12, B - 11, 1, 5, hd);
+    R(c, x + 2 + lg, B - 6, 1, 6, hd); R(c, x + 5 - lg, B - 6, 1, 6, hd); R(c, x + 8 + lg, B - 6, 1, 6, hd); R(c, x + 11 - lg, B - 6, 1, 6, hd);
+    R(c, x + 12, B - 8, 5, 1, "#2a1d12");
+    R(c, x + 16, B - 10, 14, 6, "#8a6238"); R(c, x + 16, B - 10, 14, 1, "#b98a55"); R(c, x + 16, B - 5, 14, 1, "#4d351d"); R(c, x + 17, B - 13, 12, 3, ld); R(c, x + 18, B - 14, 9, 1, ld);
+    disc(c, x + 19, B - 2, 2, "#2a1d12"); disc(c, x + 27, B - 2, 2, "#2a1d12");
+  } else if (k.tier === 1) {
+    R(c, x, B - 12, 8, 10, "#c8452f"); R(c, x, B - 12, 8, 1, "#e8735a"); R(c, x + 1, B - 10, 5, 4, "#bfe3ff"); R(c, x - 1, B - 5, 2, 2, "#ffe07a");
+    R(c, x + 8, B - 14, 20, 12, "#59606a"); R(c, x + 8, B - 14, 20, 1, "#aab4bf"); R(c, x + 9, B - 17, 18, 3, ld); R(c, x + 11, B - 18, 13, 1, ld);
+    R(c, x, B - 3, 28, 1, "#2e3238"); disc(c, x + 4, B - 2, 2, "#15171a"); disc(c, x + 17, B - 2, 2, "#15171a"); disc(c, x + 23, B - 2, 2, "#15171a");
+  }
+}
 const progressOf = (id) => { const b = BLD.find((x) => x.id === id), st = S.b[id]; if (st.step >= 3) return 3; const need = b.steps[st.step], ks = Object.keys(need); return st.step + ks.reduce((a, g) => a + Math.min(1, (st.given[g] || 0) / need[g]), 0) / ks.length; };
 function villageDraw(c, h, t) {
   const G = groundY(h);
   for (let i = 0; i < 8; i++) if (Math.sin(t * 2 + i * 1.7) > 0.6) R(c, hash(i, 1, 77) * W, hash(i, 2, 77) * G * 0.5, 1, 1, "#ffffff");
-  beacon(c, G, t);
-  for (const id of ["store", "forge"]) { const p = progressOf(id); if (shown[id] == null) shown[id] = p; shown[id] += (p - shown[id]) * 0.06; if (Math.abs(p - shown[id]) < 0.004) shown[id] = p; }
-  building(c, "store", 76, 66, G, shown.store, t); building(c, "forge", 158, 46, G, shown.forge, t);
-  const h2 = inHand(), tx = h2 ? (h2.id === "store" ? 150 : 208) : -40;
-  for (const k of carts) { k.x -= 0.9; c.drawImage(im["mach-cart"], Math.round(k.x), G - 16); }
-  while (carts.length && carts[0].x < tx - 30) carts.shift();
+  for (const id of ["beacon", "store", "forge"]) { const p = progressOf(id); if (shown[id] == null) shown[id] = p; shown[id] += (p - shown[id]) * 0.06; if (Math.abs(p - shown[id]) < 0.004) shown[id] = p; }
+  beacon(c, G, t, shown.beacon); building(c, "store", 76, 66, G, shown.store, t); building(c, "forge", 158, 46, G, shown.forge, t);
+  const h2 = inHand(), tx = h2 ? (h2.id === "beacon" ? 62 : h2.id === "store" ? 150 : 208) : -40;
+  if (HAUL.city > 0 && t - spawnT > Math.max(0.55, Math.min(3, 1300 / HAUL.city))) { spawnT = t; carts.push({ x: W + 4, tier: Math.random() < (S.fleet.trucks * VEH.trucks.per) / fleetRate() ? 1 : 0, good: HAUL.good }); }
+  for (let i = carts.length - 1; i >= 0; i--) { const k = carts[i]; k.x -= k.tier ? 1 : 0.55; if (k.x < tx - 6) carts.splice(i, 1); else vehicle(c, k, G, t); }
 }
 function villageDOM(ov, h) {
   ov.innerHTML = ""; const G = groundY(h) * 2;
@@ -673,7 +788,8 @@ function villageDOM(ov, h) {
     tap(p, () => { const b = BLD.find((q) => q.id === id), st = S.b[id], bub = $("#bub"); bub.textContent = st.step >= 3 ? b.n + ": operational. " + b.gives : inHand() === b ? b.n + ": under construction. On completion: " + lc(b.gives) : "Vacant plot. Reserved for the next project."; bub.classList.add("on"); clearTimeout(bub._t); bub._t = setTimeout(() => bub.classList.remove("on"), 3200); });
     const tg = el("div", "tag", ov); tg.id = "tag-" + id; tg.style.left = x + "px"; tg.style.width = w + "px"; tg.style.top = G + 6 + "px";
   });
-  const bub = el("div", "bub", ov); bub.id = "bub"; bub.style.top = "60px";
+  const fl = el("div", "", ov, `<div class="a"><b>Transport</b><span id="fl-n"></span><span class="num" id="fl-r"></span><span id="fl-s"></span></div><div class="b"><button id="fl-wagons"></button><button id="fl-trucks"></button></div>`); fl.id = "fleet"; tap($("#fl-wagons"), () => addVehicle("wagons")); tap($("#fl-trucks"), () => addVehicle("trucks"));
+  const bub = el("div", "bub", ov); bub.id = "bub"; bub.style.top = "88px";
   const bd = el("div", "", ov); bd.id = "board"; bd.style.top = G + 38 + "px"; bd.style.height = h * 2 - G - 44 + "px";
 }
 function villageUI() {
@@ -683,9 +799,20 @@ function villageUI() {
   if (bd.dataset.key !== key) {
     bd.dataset.key = key;
     if (!h) bd.innerHTML = `<div class="h"><b>Phase 1 complete</b></div><div class="f">The Light Tower, the Warehouse and the Foundry are operational. Next phases: deeper levels, new materials, more plots, and one day a launch pad.</div>`;
-    else { const st = S.b[h.id], need = h.steps[st.step]; bd.innerHTML = `<div class="h"><b>${h.n}</b>${STEPN.map((n, i) => `<span class="${i < st.step ? "ok" : i === st.step ? "now" : ""}">${n}${i < st.step ? " ✓" : ""}</span>`).join("")}</div>` + Object.keys(need).map((g) => `<div class="g" data-g="${g}">${ico(g, 1)}<div class="w"><div></div><i><u></u></i></div><button><span>Send</span><small></small></button></div>`).join("") + `<div class="f">On completion: ${lc(h.gives)}</div>`; bd.querySelectorAll(".g").forEach((r) => tap(r.querySelector("button"), () => send(r.dataset.g))); }
+    else { const st = S.b[h.id], need = h.steps[st.step]; bd.innerHTML = `<div class="h"><b>${h.n}</b>${STEPN.map((n, i) => `<span class="${i < st.step ? "ok" : i === st.step ? "now" : ""}">${n}${i < st.step ? " ✓" : ""}</span>`).join("")}</div><div class="body"><div class="gs">` + Object.keys(need).map((g) => `<div class="g" data-g="${g}">${ico(g, 1)}<div class="w"><div></div><i><u></u></i></div></div>`).join("") + `</div><button id="ord"><span></span><small></small><small></small><small></small></button></div>` + `<div class="f">On completion: ${lc(h.gives)}${h.also ? " " + h.also : ""}</div>`; tap($("#ord"), order); }
   }
-  if (h) { const st = S.b[h.id], need = h.steps[st.step]; bd.querySelectorAll(".g").forEach((r) => { const g = r.dataset.g, got = st.given[g] || 0, rem = need[g] - got, amt = Math.min(Math.floor(S[g]), rem), btn = r.querySelector("button"); r.querySelector(".w div").innerHTML = `${GC[g]} <span class="num">${fmt(got)} of ${fmt(need[g])}</span>`; r.querySelector("u").style.width = (100 * got) / need[g] + "%"; btn.classList.toggle("can", amt > 0); btn.children[0].textContent = rem <= 0 ? "Delivered" : "Deliver"; btn.children[1].textContent = rem <= 0 ? "" : amt > 0 ? fmt(amt) + " " + GN[g] : "none in stock"; }); }
+  if (h) {
+    const st = S.b[h.id], need = h.steps[st.step], o = $("#ord"), held = Object.keys(st.given).length > 0;
+    bd.querySelectorAll(".g").forEach((r) => { const g = r.dataset.g, got = st.given[g] || 0; r.querySelector(".w div").innerHTML = `${GC[g]} <span class="num">${fmt(got)} of ${fmt(need[g])}</span>`; r.querySelector("u").style.width = (100 * got) / need[g] + "%"; });
+    const J = jobs().length || 1, left = Object.keys(need).reduce((a, g) => a + need[g] - (st.given[g] || 0), 0), dry = Object.keys(need).find((g) => need[g] - (st.given[g] || 0) > 1 && S[g] < fleetRate());
+    o.classList.toggle("can", !st.on); o.classList.toggle("run", st.on); o.children[0].textContent = st.on ? "Delivering" : st.held ? "Resume" : "Place order";
+    o.children[1].textContent = st.on ? (HAUL.city > 0 ? rate(HAUL.city) + " · " + dur(left / HAUL.city) : "waiting for stock") : st.held ? "on hold" : "the whole building";
+    o.children[2].textContent = st.on ? (HAUL.city >= (fleetRate() / J) * 0.97 ? "limit: transport" : "limit: " + GN[dry || HAUL.good || Object.keys(need)[0]]) : ""; o.children[3].textContent = st.on ? "tap to hold" : "";
+  }
+  const J = jobs();
+  $("#fl-n").textContent = S.fleet.wagons + " " + (S.fleet.wagons === 1 ? VEH.wagons.one : VEH.wagons.n) + (S.fleet.trucks ? ", " + S.fleet.trucks + " " + (S.fleet.trucks === 1 ? VEH.trucks.one : VEH.trucks.n) : ""); $("#fl-r").textContent = rate(fleetRate());
+  $("#fl-s").textContent = !J.length ? (h && S.b[h.id].held ? "on hold" : "idle: no order") : J.length > 1 ? "shared: city, factory" : J[0].k === "city" ? "serving the city" : "serving the factory";
+  for (const k in VEH) { const v = VEH[k], b = $("#fl-" + k), open = k === "wagons" || trucksOpen(); b.innerHTML = open ? `+1 ${v.one} · ${fmt(vehPrice(k))} ${ico(v.good)} · +${v.per.toLocaleString("en-US")}/s` : "Trucks: after the Warehouse"; b.classList.toggle("can", open && canPay({ [v.good]: vehPrice(k) })); }
 }
 
 /* ---------- the frame ---------- */
@@ -702,11 +829,11 @@ function drag(elm, o) {
   });
 }
 function floatText(t, x, y) { const f = el("div", "float", $("#stage"), t); f.style.left = x + "px"; f.style.top = y + "px"; setTimeout(() => f.remove(), 800); }
-function card(title, lines, ok, alt, onOk) {
-  const c = $("#card"); c.hidden = false; c.innerHTML = `<div class="box"><h2>${title}</h2>${lines.map((l, i) => `<p class="${i ? "q" : ""}">${l}</p>`).join("")}<div class="row">${alt ? `<button class="alt" id="card-alt">${alt}</button>` : ""}<button id="card-ok">${ok}</button></div></div>`;
-  tap($("#card-ok"), () => { c.hidden = true; if (onOk) onOk(); }); if (alt) tap($("#card-alt"), () => { c.hidden = true; });
+function card(title, lines, ok, alt, onOk, onAlt, cancel) {
+  const c = $("#card"); c.hidden = false; c.innerHTML = `<div class="box"><h2>${title}</h2>${lines.map((l, i) => `<p class="${i ? "q" : ""}">${l}</p>`).join("")}<div class="row">${alt ? `<button class="alt" id="card-alt">${alt}</button>` : ""}<button id="card-ok">${ok}</button></div>${cancel ? `<div class="row"><button class="alt" id="card-x">${cancel}</button></div>` : ""}</div>`;
+  tap($("#card-ok"), () => { c.hidden = true; if (onOk) onOk(); }); if (alt) tap($("#card-alt"), () => { c.hidden = true; if (onAlt) onAlt(); }); if (cancel) tap($("#card-x"), () => { c.hidden = true; });
 }
-function go(i) { S.place = i; PLACES.forEach((p, n) => { $("#p-" + p).style.transform = `translateX(${(n - i) * 100}%)`; }); document.querySelectorAll("#tabs button").forEach((b, n) => b.classList.toggle("on", n === i)); save(); }
+function go(i) { if (!avail(i)) i = 0; S.place = i; PLACES.forEach((p, n) => { $("#p-" + p).style.transform = `translateX(${(n - i) * 100}%)`; }); document.querySelectorAll("#tabs button").forEach((b, n) => b.classList.toggle("on", n === i)); save(); }
 const BG = {}, CTX = {};
 function build() {
   const f = $("#fit"), vw = f.clientWidth, vh = f.clientHeight; scale = vw / 424; H = vh / scale; if (H < 736) { scale = vh / 736; H = 736; } if (H > 900) H = 900;
@@ -720,7 +847,7 @@ function build() {
 function swipes() {
   const sc = $("#scenes"); let s = null;
   sc.addEventListener("pointerdown", (e) => { s = e.target.closest("button") ? null : pt(e); });
-  sc.addEventListener("pointerup", (e) => { if (!s) return; const p = pt(e), dx = p.x - s.x, dy = p.y - s.y; s = null; if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) go(Math.max(0, Math.min(3, S.place + (dx < 0 ? 1 : -1)))); });
+  sc.addEventListener("pointerup", (e) => { if (!s) return; const p = pt(e), dx = p.x - s.x, dy = p.y - s.y; s = null; if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) { const d = dx < 0 ? 1 : -1; let n = S.place + d; while (n >= 0 && n <= 3 && !avail(n)) n += d; if (n >= 0 && n <= 3) go(n); } });
 }
 function frame() {
   $("#order").innerHTML = `<div class="l1"><span class="name"></span><span class="step"></span><span class="pips"><i></i><i></i><i></i></span></div><div class="l2"></div>`; tap($("#order"), () => go(3));
@@ -728,22 +855,24 @@ function frame() {
   $("#next").innerHTML = `<div class="what"><div class="k"></div><div class="t"></div></div><div class="n"><b></b>ready</div>`; tap($("#next"), () => { const a = actions()[0]; if (a) { go(a.p); const s = a.sel && $(a.sel); if (s) { s.classList.remove("pulse"); void s.offsetWidth; s.classList.add("pulse"); } } });
   PLACES.forEach((p, i) => { const b = el("button", "", $("#tabs"), `${ico(p)}<span>${PLACE_N[p]}</span><i class="lamp"></i>`); b.style.setProperty("--acc", ACC[p]); tap(b, () => go(i)); });
   tap($("#sleep"), () => away(8 * 3600));
-  tap($("#reset"), () => card("Reset the prototype?", ["Everything goes back to the first evening."], "Reset", "Keep playing", () => { S = fresh(); S.intro = true; shown.store = shown.forge = null; after(); go(0); }));
+  const restart = (s) => { S = s; S.intro = true; shown.beacon = shown.store = shown.forge = null; carts.length = 0; build(); go(0); after(); };
+  tap($("#reset"), () => card("Restart the prototype?", ["Pick where to start.", "First evening: one level, stone, the mine and the city. All four sites: mid game, the shaft sunk, the Warehouse half built."], "First evening", "All four sites", () => restart(fresh()), () => restart(mid()), "Keep playing"));
 }
 function ui() {
   const F = flows(), h = inHand(), o = $("#order");
-  if (h) { const st = S.b[h.id], need = h.steps[st.step]; o.querySelector(".name").textContent = h.n; o.querySelector(".step").textContent = STEPN[st.step]; o.querySelectorAll(".pips i").forEach((p, i) => { p.className = i < st.step ? "done" : i === st.step ? "now" : ""; }); o.querySelector(".l2").innerHTML = "Requires " + Object.keys(need).map((g) => `<b>${GC[g]}</b> <span class="num">${fmt(st.given[g] || 0)} of ${fmt(need[g])}</span>`).join(" &nbsp; "); }
+  if (h) { const st = S.b[h.id], need = h.steps[st.step]; o.querySelector(".name").textContent = h.n; o.querySelector(".step").textContent = STEPN[st.step] + (st.on ? " · delivering" : " · not ordered"); o.querySelectorAll(".pips i").forEach((p, i) => { p.className = i < st.step ? "done" : i === st.step ? "now" : ""; }); o.querySelector(".l2").innerHTML = "Requires " + Object.keys(need).map((g) => `<b>${GC[g]}</b> <span class="num">${fmt(st.given[g] || 0)} of ${fmt(need[g])}</span>`).join(" &nbsp; "); }
   else { o.querySelector(".name").textContent = "Phase 1 complete"; o.querySelector(".step").textContent = ""; o.querySelectorAll(".pips i").forEach((p) => { p.className = "done"; }); o.querySelector(".l2").textContent = "The road to Mars goes on."; }
-  for (const g of ["stones", "bricks", "cut"]) { const p = $("#pile-" + g); p.querySelector(".v").textContent = fmt(S[g]); p.querySelector(".of").textContent = F.full[g] ? "full" : "of " + fmt(F.cap[g]); p.querySelector(".bar i").style.width = Math.min(100, (100 * S[g]) / F.cap[g]) + "%"; p.classList.toggle("full", F.full[g]); }
+  for (const g of ["stones", "bricks", "cut"]) { const p = $("#pile-" + g); p.querySelector(".v").textContent = fmt(S[g]); p.querySelector(".of").textContent = F.full[g] ? "full" : isFinite(F.cap[g]) ? "of " + fmt(F.cap[g]) : ""; p.querySelector(".bar i").style.width = Math.min(100, (100 * S[g]) / F.cap[g]) + "%"; p.classList.toggle("full", F.full[g]); }
+  $("#pile-bricks").hidden = !worksOpen(); $("#pile-cut").hidden = !S.shaft;
   const a = actions(), n = $("#next"); n.classList.toggle("go", a.length > 0);
   n.querySelector(".k").textContent = a.length ? "Next · " + PLACE_N[PLACES[a[0].p]] : "Next"; n.querySelector(".t").textContent = a.length ? a[0].t : "Nothing affordable yet. Production is running."; n.querySelector(".n b").textContent = a.length;
-  document.querySelectorAll("#tabs button").forEach((b, i) => { const l = b.querySelector(".lamp"); l.className = "lamp" + (a.some((x) => x.p === i) ? " green" : i === 2 && S.bench ? " amber" : ""); });
-  mineUI(F); worksUI(F); shopUI(); villageUI();
+  document.querySelectorAll("#tabs button").forEach((b, i) => { b.hidden = !avail(i); const l = b.querySelector(".lamp"); l.className = "lamp" + (a.some((x) => x.p === i) ? " green" : (i === 2 && S.bench) || (i === 3 && h && S.b[h.id].on) ? " amber" : ""); });
+  mineUI(F); if (worksOpen()) worksUI(F); if (S.shaft) shopUI(); villageUI();
 }
 let last = 0, uiT = 0, saveT = 0;
 function loop(ms) {
   const t = ms / 1000, dt = Math.min(0.25, t - last || 0); last = t;
-  if ($("#card").hidden) tick(dt);
+  if ($("#card").hidden) { const L = { sent: {}, ev: [] }, r = tick(dt, 1, 1, L); HAUL = r.rate; events(L.ev); }
   const F = flows(), p = PLACES[S.place], c = CTX[p]; c.drawImage(BG[p], 0, 0);
   if (p === "mine") mineDraw(c, hA, t, F); else if (p === "works") worksDraw(c, hA, t, F); else if (p === "workshop") shopDraw(c, hA, t); else villageDraw(c, hA, t);
   if (t - uiT > 0.2) { uiT = t; ui(); } if (t - saveT > 3) { saveT = t; save(); }
@@ -757,7 +886,7 @@ async function boot() {
   let rz = 0; addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(build, 120); });
   addEventListener("visibilitychange", save); addEventListener("pagehide", save);
   if (S.intro && GONE > 90) away(GONE);
-  if (!S.intro) card("Slice 1 prototype", ["Four sites, four kinds of engineering: the mine, the refinery, the factory and the city.", "The numbers are made up and run fast. Assign crews, add kilns, start a work order, deliver materials and watch the Warehouse go up. Skip 8 h, top right, gives a night's shift report: production stops when the stockyard is full."], "Start", null, () => { S.intro = true; save(); });
+  if (!S.intro) card("The first evening", ["One level, one material, two sites: the mine and the city. The city's first project is the Light Tower.", "Order the tower in the city. Transport moves the stone at its own rate, and the tower rises as it arrives. Each finished building opens the next site. The numbers are made up and run fast. Reset, top right, can also jump to all four sites."], "Start", null, () => { S.intro = true; save(); });
   requestAnimationFrame(loop);
 }
 boot();
