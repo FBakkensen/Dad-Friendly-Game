@@ -43,11 +43,13 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
+          # The model can read the work tree; keep the job token out of .git.
+          persist-credentials: false
 
       - uses: actions/setup-node@v4
         if: steps.key.outputs.present == 'true'
         with:
-          node-version: 22
+          node-version-file: .nvmrc
 
       - name: Install Claude Code
         if: steps.key.outputs.present == 'true'
@@ -75,26 +77,33 @@ jobs:
         if: steps.key.outputs.present == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
+          KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           REPO: ${{ github.repository }}
           PR: ${{ github.event.pull_request.number }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           out="$RUNNER_TEMP/review.json"
           body="$RUNNER_TEMP/body.md"
-          result=$(jq -r 'select(.is_error == false and .subtype == "success") | .result // empty' "$out" 2>/dev/null)
-          cost=$(jq -r '.total_cost_usd // 0' "$out" 2>/dev/null || echo 0)
-          if grep -qi "credit balance" "$out" "$RUNNER_TEMP/review.err"; then
-            printf '**Claude review** skipped: the monthly API credit is used up. It refills with the next billing month. ([run](%s))\n' "$RUN_URL" > "$body"
-            status=0
-          elif [ -z "$result" ]; then
-            printf '**Claude review** failed, so this PR has no CI review. See the [run](%s).\n' "$RUN_URL" > "$body"
-            status=1
-          else
+          result=$(jq -r 'select(.is_error == false and .subtype == "success") | .result // empty' "$out" 2>/dev/null) || result=""
+          subtype=$(jq -r '.subtype // "no result"' "$out" 2>/dev/null) || subtype="no result"
+          cost=$(jq -r '.total_cost_usd // 0' "$out" 2>/dev/null) || cost=0
+          if [ -n "$result" ]; then
             {
               printf '## Claude review\n\n%s\n\n---\n' "$result"
               printf '_Opus 5.5 via `claude -p`, paid from the monthly API credit: $%.2f. ([run](%s))_\n' "$cost" "$RUN_URL"
             } > "$body"
             status=0
+          elif grep -qi "credit balance" "$out" "$RUNNER_TEMP/review.err"; then
+            printf '## Claude review\n\nSkipped: the monthly API credit is used up. It refills with the next billing month. ([run](%s))\n' "$RUN_URL" > "$body"
+            status=0
+          else
+            printf '## Claude review\n\nFailed (`%s`), so this PR has no CI review. See the [run](%s).\n' "$subtype" "$RUN_URL" > "$body"
+            status=1
+          fi
+          # The model could read its own environment; never post a secret.
+          if grep -qF "$KEY" "$body" || grep -qE 'sk-ant-[A-Za-z0-9_-]{20}|gh[psu]_[A-Za-z0-9]{20}' "$body"; then
+            echo "::error::The review text holds a secret, so it was not posted."
+            exit 1
           fi
           gh api "repos/$REPO/issues/$PR/comments" -F "body=@$body" --silent
           exit "$status"
