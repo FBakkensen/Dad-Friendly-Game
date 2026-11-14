@@ -69,7 +69,7 @@ type Column = {
 };
 
 /** One seed's figure for a numeric measure. */
-export type SeedValue = { readonly seed: number; readonly value: number };
+type SeedValue = { readonly seed: number; readonly value: number };
 
 type JudgementBase = {
   readonly targetId: string;
