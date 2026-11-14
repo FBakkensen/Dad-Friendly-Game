@@ -17,6 +17,8 @@
     "src/lab/fixtures/**/*.ts",
     "mockups/preview.html",
     "mockups/line/line.ts",
-    "mockups/line/shots.mjs"
+    "mockups/line/shots.mjs",
+    "mockups/slice-1/slice.ts",
+    "mockups/slice-1/shots.mjs"
   ]
 }
