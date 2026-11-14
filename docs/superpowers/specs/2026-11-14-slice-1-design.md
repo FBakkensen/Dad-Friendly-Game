@@ -49,7 +49,7 @@ The loop: the village asks for goods, he decides what the mine digs and makes, a
 ## Anti-goals
 
 - A chore before bed. If moving gangs every sitting is the best play, the slice failed.
-- A trap. A share of the crew must never lose rock: what a maker cannot take is stacked as stones.
+- A trap. A share of the crew must never lose rock while the stone pile has room: what a maker cannot take is stacked as stones.
 - A lock. No state may exist that he cannot leave with a free move or with goods he can still make.
 
 ## The rules
@@ -115,9 +115,10 @@ As the line spec's step 2, from the day the Beacon stands.
 3. With one level open, all four gangs are there and nothing can be moved.
 4. When the Granite opens, two gangs go there and two stay. He is told once, by a teach note on the level plate.
 5. He moves gangs on the level card with plus and minus. A move is free and instant, it is saved at once, and it holds while he is away.
-6. The four gangs are always at work. Plus on a level takes a gang from the level that has the most. Minus gives one to the level that has the fewest. So no gang ever rests because of a tap, and with two levels a plus on one is a minus on the other.
+6. The four gangs are always placed. Plus on a level takes a gang from the level that has the most. Minus gives one to the level that has the fewest. So no gang is ever left without a level by a tap, and with two levels a plus on one is a minus on the other.
 7. The machines are one fleet. A machine bought once works for every gang.
-8. Materials for the Workshop come from the level a gang digs: clay at the Topsoil, iron at the Granite, at today's rate for the rock dug there, each up to what its band gives in a run today (10 clay, 35 iron), and refilled up to that.
+8. **The share holds.** A level whose own pile and the stone pile are both full can stack nothing, so its gangs rest. They do not move by themselves to a level that still has room: where they work is his call, and a night ends at his yard. The level card says it on that level's row ("The gangs rest: the yard is full"), and the welcome card says when it happened.
+9. Materials for the Workshop come from the level a gang digs: clay at the Topsoil, iron at the Granite, at today's rate for the rock dug there, each up to what its band gives in a run today (10 clay, 35 iron), and refilled up to that.
 
 Why gangs and not a slider: four steps are enough to match an order, a step is a fat tap, and a number he can say ("three on the Granite") is easier to hold than a percent. More gangs can come later as a building's power, which gives a finer share when there are more levels.
 
@@ -162,6 +163,10 @@ Left to the builder and a later mock: Buys with a group for the works and prices
 
 **Keepsakes** stay as expedition finds. Their page moves from a relic's page to the village drawer.
 
+**Recipes that need a material no open level gives** (crystal, heartstone) are held back: they are not shown, and an expedition does not bring one home, until the slice that opens their level. The Great Machine's heartstone core waits the same way. So an expedition in slice 1 finds a lost tool, a keepsake, an engineer, or a recipe he can make.
+
+**Start over** stays as it is today, and so does the run stamp it sets.
+
 ## Starting numbers
 
 All for the lab to set. They are the numbers the paper check played.
@@ -203,15 +208,15 @@ What it does not prove: anything about fun, the first hour's pace, the Workshop,
 
 ## Against the dad-friendly rules
 
-| Rule                       | How the slice meets it                                                                          |
-| -------------------------- | ----------------------------------------------------------------------------------------------- |
-| Two minutes                | A sitting is a few buys, a Send and at times a move of gangs. Every choice holds until changed. |
-| Never punishing            | No rock is lost to a bad share. A level never closes. A move is free.                           |
-| Close is pause             | Every tap is saved at once. Time away is worked out from timestamps and the pile-full moments.  |
-| Real numbers for decisions | Prices, rooms, each level's rock and goods a second, what an order still needs.                 |
-| Vague discoveries          | The next building and the level below are hints.                                                |
-| The phone never scrolls    | The top plate and the band tag are reused. Cards and drawers scroll inside.                     |
-| No placeholders            | The mock uses art that exists. New pictures are asked for before they are made.                 |
+| Rule                       | How the slice meets it                                                                                                                               |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Two minutes                | A sitting is a few buys, a Send and at times a move of gangs. Every choice holds until changed.                                                      |
+| Never punishing            | No rock is lost to a bad share while the stone pile has room. A full yard rests gangs, and the cards say when. A level never closes. A move is free. |
+| Close is pause             | Every tap is saved at once. Time away is worked out from timestamps and the pile-full moments.                                                       |
+| Real numbers for decisions | Prices, rooms, each level's rock and goods a second, what an order still needs.                                                                      |
+| Vague discoveries          | The next building and the level below are hints.                                                                                                     |
+| The phone never scrolls    | The top plate and the band tag are reused. Cards and drawers scroll inside.                                                                          |
+| No placeholders            | The mock uses art that exists. New pictures are asked for before they are made.                                                                      |
 
 ## Risks
 
@@ -219,7 +224,7 @@ What it does not prove: anything about fun, the first hour's pace, the Workshop,
 2. **The share is set once and forgotten.** The model's dad hardly moves it. If play shows the same, orders can lean harder on one good, and a full pile already makes yesterday's share wrong.
 3. **Three goods on a small board.** The top plate holds two piles. A fourth good needs a new answer, in slice 2.
 4. **The game is short for a while**: it ends at the Forge until slice 2 is built.
-5. **A lot goes at once**: relics, the pass, depth. Each is its own sliver, and the game boots after every one.
+5. **A lot goes at once**: relics, the pass, depth. They leave play together, when part 1 is switched on, so the game on his phone is whole before and after.
 6. **Cut stone has few uses before the Forge**: borers and pit trains. The lab checks that it never piles up dead.
 7. **The paper model is rough.** Its dad stops buying line machines when they pay back slower than six hours, so the line's late growth is too flat.
 
@@ -239,7 +244,7 @@ These are mine, not Flemming's. Any of them can be turned over.
 10. The top plate holds the order before the yard opens, and the two made piles after it, with the order on its tag.
 11. The village is a drawer. No picture of the whole village in this slice.
 12. The gauge reads rock a second.
-13. Which copy of a save is ahead: the one that has dug more rock in all, a count that only grows, else the newer `lastSeen`. Runs are gone.
+13. Which copy of a save is ahead: a later run stamp (Start over, or a reset), else more rock dug in all, a count that only grows, else the newer `lastSeen`. The run stamp stays the first key, as today. Kid runs are gone, and "more stones mined" becomes "more rock dug in all".
 14. The first evenings keep today's eight-hour clock, until the yard opens.
 15. Kid workers wait for the building that brings them (the School, a later slice).
 
@@ -249,20 +254,25 @@ These are mine, not Flemming's. Any of them can be turned over.
 - "The rock moves the narrow stage too": the lean goes (call 6). #536 turns the line on with the lean, as #543 tuned it. A slice 1 sliver takes it out, and the lab sets the numbers again.
 - Step 2 ("The cage is the lever", "a maker opens one band after its rock") and step 3 ("Six buildings", "Buildings open the bands", "The end of a run"): slice 1 builds its part of each, with the changes above. The rest waits for its slice.
 - Decisions 12 and 19 (the kid inherits the village) go with the pass (#642).
-- `observable-saves.md`: "a later run, else more stones mined" becomes "more rock dug in all" (call 13).
+- `observable-saves.md`: "else more stones mined" becomes "else more rock dug in all" (call 13). The later run still comes first.
 
 ## How it would be built
 
-After his yes, this spec ships as a PR, and slice 1 is split into sliver issues under #530. The line (#536 to #539) and the save groundwork (#560, #561) go on unchanged. A sketch of the order, each line one sliver or more:
+After his yes, this spec ships as a PR, and slice 1 is split into sliver issues under #530. The line (#536 to #539) and the save groundwork (#560, #561) go on unchanged.
 
-1. The lab plays slice 1's rules, off in play, and sets the numbers (as #534 and #543 did for the line).
-2. The pass, Legacy, kid runs and Grandpa go (#642). **Resets the save.**
-3. Levels take depth's place: no bottom, the Topsoil alone, and what opened at a depth opens as the table above says. The save counts rock dug in all.
-4. The Beacon's orders take the relics' place: the top plate, the order card, the reveal. The relics go in the same sliver, so the story never has a hole.
-5. Kilns, bricks and the yard, with time away that fills the yard and the new welcome card.
-6. The shaft is bought: the level card, the Granite, saws, cut stone, borers and pit trains in goods.
-7. The gangs.
-8. The Storehouse and the Forge, the Great Machine at the Forge, and the end card.
+**The slice goes live in three parts, and each part is a game he can play.** A part's rules are built off in play, as the line's were (#532), the lab plays them, and the part's last sliver switches it on. Between switch-ons the game on his phone does not change. So no sliver leaves a hole: nothing that opened at a depth is taken out before the part with its new door is switched on.
+
+| Part | Goes live                                                                                                | The game then ends at |
+| ---- | -------------------------------------------------------------------------------------------------------- | --------------------- |
+| 1    | The fresh mine: the Topsoil, the line, the Beacon's orders. Relics, the pass and depth go.               | the Beacon's roof     |
+| 2    | Kilns, bricks, the yard, time away that fills the yard, the Storehouse's orders.                         | the Storehouse's roof |
+| 3    | The shaft and the Granite, saws, cut stone, borers, pit trains, the gangs, the Forge, the Great Machine. | the Forge's roof      |
+
+- Until part 3 is live, the Granite's price is not shown, and the Beacon opens only the kilns and the yard. Each part ends with the end card, in words that say more is being built.
+- **Resets the save** when part 1 is switched on. Parts 2 and 3 add facts to the save and should not reset it. If one must, its issue, its PR and the chat say so first.
+- Before part 1: one sliver where the lab plays the whole slice, off in play, and sets the starting numbers (as #534 and #543 did for the line). It reports each part's end as well as the slice's.
+- The pass, Legacy, kid runs and Grandpa (#642) and the relics leave play at part 1's switch-on. Their code is deleted by slivers after it.
+- The lean of the rock leaves play at part 1's switch-on too: the Topsoil has none, and no other level is in play until part 3.
 
 A plan keeps each screen's browser checks green in the sliver that changes that screen. `docs/DESIGN.md`, `docs/design-intent.md`, `docs/ARCHITECTURE.md`, `docs/ui-audit.md`, `.claude/rules/observable-saves.md` and the github-issues skill's road section are updated by the slivers that change what they describe.
 
@@ -271,7 +281,8 @@ A plan keeps each screen's browser checks green in the sliver that changes that 
 - The strategy lab plays slice 1 from a fresh mine to the Forge's roof. One player type shares the gangs by need. One leaves them at two and two. One moves the whole crew, to keep the old cage's cost in view.
 - Named measures, report-only at first: `sliceDays`, `narrowRun`, `shareMoves` a sitting, `nightFull` (how many long nights end at a full yard, and how far into the night), and `deadGood` (time a pile is full with nothing to spend it on).
 - The generations lab goes with the pass.
-- The finish bounds in `src/lab/targets.ts` are Flemming's. The first number to ask him for: how many days slice 1 should take the casual dad at least.
+- The finish floor is Flemming's rule of 14 Nov 2026 (#556): a run takes at least five days, with no ceiling. For slice 1 the run ends at the Forge's roof, so the lab tunes the numbers until every player type needs five days or more (the paper model's check-in dad needs 4.8). Parts 1 and 2 have no floor of their own.
+- Today's other strict rows (regret, the extreme win, the check-in guardrails) carry over, with the Forge's roof as the finish. The rows about kid runs and relic days go with the pass and the relics. Any other change to a bound in `src/lab/targets.ts` is a stop, and is asked.
 
 ## Art (PixelLab, asked for before each)
 
