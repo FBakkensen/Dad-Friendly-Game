@@ -10,6 +10,7 @@
  * - "part-stone": each stretch away pays whole stones and drops the part stone.
  * - "band-crossing": an absence that crosses into a new band keeps the old
  *   band's speed for the whole stretch (`accrueAway` reads the rates once).
+ *   Its fix is #592.
  *
  * Rules by design, which the checks allow for rather than flag:
  * - the save keeps whole depth, rounded up (save-format.ts);
@@ -18,7 +19,7 @@
  */
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { freshHazards, type HazardState } from "../hazards";
+import { fix, freshHazards, type HazardState } from "../hazards";
 import { LAYERS } from "../layers";
 import { accrueAway, createMountain, type Mountain } from "../mountain";
 import { parseSaveValue, serializeSave } from "../persist";
@@ -38,7 +39,10 @@ const START = Date.UTC(2026, 10, 16, 21);
 type World = {
   readonly mountain: Mountain;
   readonly hazards: HazardState;
+  /** The wall clock: moves happen now. */
   readonly clock: number;
+  /** The moment the crew is paid up to, as the game keeps it (`settledAt`). */
+  readonly lastSeen: number;
 };
 
 type Step =
@@ -46,7 +50,10 @@ type Step =
   | { readonly kind: "live"; readonly seconds: number }
   | { readonly kind: "away"; readonly ms: number };
 
-/** Buys the cheapest thing on the table until the pocket runs dry: a crew a dad could own. */
+/**
+ * Buys machines and upgrades in turn, each buy starting one further along the
+ * table, until the pocket runs dry: a mixed crew a dad could own.
+ */
 function crewed(start: Mountain, buys: number): Mountain {
   let mountain = start;
   for (let bought = 0; bought < buys; bought += 1) {
@@ -54,9 +61,13 @@ function crewed(start: Mountain, buys: number): Mountain {
       (action) => action.kind === "buyTier" || action.kind === "buyUpgrade",
     );
     let next = mountain;
-    for (const move of moves) {
-      const result = applyMove(mountain, move, START, { trouble: undefined });
-      if (result.kind === "applied") {
+    for (let tried = 0; tried < moves.length; tried += 1) {
+      const move = moves[(bought + tried) % moves.length];
+      const result =
+        move === undefined
+          ? undefined
+          : applyMove(mountain, move, START, { trouble: undefined });
+      if (result?.kind === "applied") {
         next = result.mountain;
         break;
       }
@@ -77,8 +88,28 @@ const BAND_STARTS: readonly Mountain[] = LAYERS.map((layer) => {
     remaining: MOUNTAIN_STONES - mined,
     pocket: Math.max(1000, Math.floor(mined / 10)),
   };
-  return { ...crewed(rich, 60), pocket: 500 };
+  return crewed(rich, 60);
 });
+
+/**
+ * What the dad has to spend when a run starts: a little, a fair amount, or a
+ * fortune, so cheap buys, upgrades, promotions and crafts all get played.
+ */
+const pocketArb = fc.oneof(
+  fc.nat(1000),
+  fc.nat(1_000_000),
+  fc.nat(100_000_000),
+);
+
+/** The same count of every material: none, a few, or plenty. */
+const materialsArb = fc
+  .oneof(fc.constant(0), fc.nat(10), fc.nat(200))
+  .map((count) => ({
+    clay: count,
+    iron: count,
+    crystal: count,
+    heartstone: count,
+  }));
 
 const stepArb: fc.Arbitrary<Step> = fc.oneof(
   {
@@ -92,7 +123,8 @@ const stepArb: fc.Arbitrary<Step> = fc.oneof(
     weight: 2,
     arbitrary: fc.record({
       kind: fc.constant("live" as const),
-      seconds: fc.integer({ min: 1, max: 10 }),
+      // Up to five minutes, so trouble (after three minutes live) comes.
+      seconds: fc.integer({ min: 1, max: 300 }),
     }),
   },
   {
@@ -115,12 +147,19 @@ function movesOn(world: World): readonly Move[] {
   ];
 }
 
-function timed(world: World, input: TimeInput, to: number): World {
+/** Time passes to `to`, paid from `lastSeen`, so part seconds carry as in the game. */
+function timed(world: World, kind: "live" | "away", to: number): World {
+  const input: TimeInput = { kind, from: world.lastSeen, to };
   const next = advance(
     { mountain: world.mountain, hazards: world.hazards },
     input,
   );
-  return { mountain: next.mountain, hazards: next.hazards, clock: to };
+  return {
+    mountain: next.mountain,
+    hazards: next.hazards,
+    clock: to,
+    lastSeen: next.settledAt,
+  };
 }
 
 type Played = {
@@ -137,6 +176,18 @@ function play(world: World, step: Step): Played {
     case "move": {
       const moves = movesOn(world);
       const move = moves[step.pick % moves.length] ?? { kind: "dig" };
+      if (move.kind === "fixTrouble") {
+        // The hold on the troubled card: the hazards clear, the mountain stays.
+        const hazards = fix(world.hazards, world.mountain);
+        expect(hazards.phase).not.toBe("trouble");
+        return {
+          before: world,
+          after: { ...world, hazards },
+          move,
+          applied: true,
+          spent: 0,
+        };
+      }
       const result = applyMove(world.mountain, move, world.clock, {
         trouble: troubleOf(world.hazards),
       });
@@ -154,7 +205,7 @@ function play(world: World, step: Step): Played {
       const to = world.clock + step.seconds * SECOND;
       return {
         before: world,
-        after: timed(world, { kind: "live", from: world.clock, to }, to),
+        after: timed(world, "live", to),
         applied: true,
         spent: 0,
       };
@@ -163,7 +214,7 @@ function play(world: World, step: Step): Played {
       const to = world.clock + step.ms;
       return {
         before: world,
-        after: timed(world, { kind: "away", from: world.clock, to }, to),
+        after: timed(world, "away", to),
         applied: true,
         spent: 0,
       };
@@ -178,6 +229,8 @@ function wholeCounts(mountain: Mountain): readonly [string, number][] {
       (tier) => [tier.field, mountain[tier.field]] as [string, number],
     ),
     ["legacy", mountain.legacy],
+    ["pocket", mountain.pocket],
+    ["rushBank", mountain.rushBank],
     ...Object.entries(mountain.upgrades).map(
       ([id, level]) => [`upgrades.${id}`, level] as [string, number],
     ),
@@ -257,10 +310,10 @@ function lowered(before: Mountain, after: Mountain): readonly string[] {
   return Object.keys(was).filter((key) => (now[key] ?? 0) < (was[key] ?? 0));
 }
 
-function roundTrips(world: World): boolean {
+function roundTrips(world: World): void {
   const saved = JSON.parse(
     JSON.stringify(
-      serializeSave({ mountain: world.mountain, lastSeen: world.clock }),
+      serializeSave({ mountain: world.mountain, lastSeen: world.lastSeen }),
     ),
   ) as unknown;
   const back = parseSaveValue(saved);
@@ -269,26 +322,24 @@ function roundTrips(world: World): boolean {
     ...world.mountain,
     remaining: Math.ceil(world.mountain.remaining),
   });
-  return true;
+  expect(back?.lastSeen).toBe(world.lastSeen);
 }
 
 /** Moves that add to the crew: none of them may slow it. */
 function isCrewBuy(move: Move | undefined): boolean {
-  return (
-    move?.kind === "buyTier" ||
-    move?.kind === "buyUpgrade" ||
-    move?.kind === "buyTiers"
-  );
+  return move?.kind === "buyTier" || move?.kind === "buyUpgrade";
 }
 
-/** Moves with a price. A shown price is what it costs (#367); every buy costs stones. */
+/**
+ * Moves with a price. A shown price is what it costs (#367); every buy of a
+ * machine or a boost costs stones. A craft may cost only materials.
+ */
 function priceOf(move: Move | undefined): number | "some" | undefined {
   switch (move?.kind) {
     case "buyUpgrade":
     case "promote":
       return move.price;
     case "buyTier":
-    case "buyTiers":
     case "buyBoost":
       return "some";
     default:
@@ -322,13 +373,20 @@ describe("economy invariants on random play (#555)", () => {
     fc.assert(
       fc.property(
         fc.constantFrom(...BAND_STARTS.keys()),
+        pocketArb,
+        materialsArb,
         fc.nat(1000),
-        fc.array(stepArb, { minLength: 1, maxLength: 40 }),
-        (band, seed, steps) => {
+        fc.array(stepArb, { minLength: 1, maxLength: 40, size: "max" }),
+        (band, pocket, materials, seed, steps) => {
           let world: World = {
-            mountain: BAND_STARTS[band] ?? createMountain(),
+            mountain: {
+              ...(BAND_STARTS[band] ?? createMountain()),
+              pocket,
+              materials,
+            },
             hazards: freshHazards(seed),
             clock: START,
+            lastSeen: START,
           };
           for (const step of steps) {
             const played = play(world, step);
@@ -491,13 +549,13 @@ describe("known gaps, pinned (#555)", () => {
     expect(minedOut(awayThrough(drills, START, [START + HOUR]))).toBe(
       GRANITE.from,
     );
-    // One 6 h absence against the same absence split where it crosses.
+    // One 6 h absence against the same absence split where it crosses: the
+    // drills are paid over a tenth too much, the borers a twentieth too little.
+    // Far beyond the part-stone tolerance, so the fix (#592) turns both red.
     const split = [START + HOUR, START + 6 * HOUR];
-    expect(minedAway(drills, [START + 6 * HOUR])).toBeGreaterThan(
-      minedAway(drills, split),
-    );
-    expect(minedAway(borers, [START + 6 * HOUR])).toBeLessThan(
-      minedAway(borers, split),
-    );
+    const once = (mountain: Mountain) =>
+      minedAway(mountain, [START + 6 * HOUR]);
+    expect(once(drills) / minedAway(drills, split)).toBeGreaterThan(1.1);
+    expect(once(borers) / minedAway(borers, split)).toBeLessThan(0.95);
   });
 });
