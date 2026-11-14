@@ -91,3 +91,12 @@ git pull
 ```
 
 Remove `agent-working` from the closed issue, and triage the issues it was blocking (github-issues, Triage). Do not delete the local feature branch unless asked. The sitting ends here: return the PR URL.
+
+## Bot PRs
+
+Dependabot opens two kinds of PR (#605, `.github/dependabot.yml`): a security update as soon as an alert is raised, and once a month one grouped minor-and-patch bump per ecosystem (npm, GitHub Actions), with any major as its own PR. No issue is filed for them; the PR is the sliver.
+
+- A thread takes a bot PR like its own: check out the branch, run `npm ci` and the full gate, then signoff, and squash-merge it when both are green. The Claude review gets no API key on a Dependabot PR, so it posts nothing, costs nothing, and its status turns green. A security update goes before anything else.
+- A red gate is fixed on the bot's branch only when the fix is small and in the same packages. Otherwise, close the PR with a comment and file an issue for the upgrade.
+- A major bump is merged only when the gate is green and its release notes break nothing the game uses. Otherwise, close it and file an issue.
+- Never merge a bot PR without the full gate: the bot cannot run it.
