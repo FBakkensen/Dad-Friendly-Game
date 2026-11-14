@@ -98,10 +98,13 @@ function words(view: BuyRowView): readonly string[] {
   ];
 }
 
-/** The early save: 18 workers, 6 carts, 12 free. */
+/**
+ * The early save: 18 workers on 6 carts, 2 hoists and 2 drills, 8 free. The
+ * haul (108) moves the least, so a seventh cart is the pick (#536).
+ */
 const early = mountainWith({
   stock: { stones: 6_854 },
-  owned: { ...NONE_OWNED, helper: 18, cart: 6 },
+  owned: { ...NONE_OWNED, helper: 18, cart: 6, hoist: 2, drill: 2 },
 });
 
 describe("buyRowView", () => {
@@ -119,7 +122,9 @@ describe("buyRowView", () => {
       verb: "Buy",
       can: true,
       need: "",
-      gain: "+6/s",
+      // The haul's 108 and the hands' 54 rise to 141 with the lift; one more
+      // cart lifts the two of them by 9.
+      gain: "+9/s",
       icon: "cart",
       shown: true,
       guided: false,
@@ -128,7 +133,7 @@ describe("buyRowView", () => {
     const drill = row(early, "drill");
     expect(drill).toMatchObject({
       state: "dear",
-      price: formatCompact(priceOf(early, "drill", 0)),
+      price: formatCompact(priceOf(early, "drill", 2)),
       dimTag: true,
       verb: "1 worker",
       lamp: "off",
@@ -154,8 +159,8 @@ describe("buyRowView", () => {
       lamp: "off",
       can: false,
       icon: "tarp",
-      // No drill yet, so the drawer keeps the borer hidden.
-      shown: false,
+      // A drill is owned, so the drawer shows the borer, locked.
+      shown: true,
     });
 
     // A worker the pocket covers hires; the machine past the borer is hidden.
@@ -216,17 +221,18 @@ describe("buyRowView", () => {
   });
 
   it("green is ready but not the pick", () => {
+    // The pocket covers a hoist too, but the haul is the lowest stage.
     const mountain = {
       ...early,
-      stock: { ...early.stock, stones: priceOf(early, "drill", 0) },
+      stock: { ...early.stock, stones: priceOf(early, "hoist", 2) },
     };
-    expect(row(mountain, "drill")).toMatchObject({
+    expect(row(mountain, "cart")).toMatchObject({
       state: "ready",
       lamp: "amber",
       pick: true,
       flag: ["Ready now"],
     });
-    expect(row(mountain, "cart")).toMatchObject({
+    expect(row(mountain, "hoist")).toMatchObject({
       state: "ready",
       lamp: "green",
       pick: false,
@@ -316,22 +322,24 @@ describe("buyRowView", () => {
   });
 
   it("a worker who starts an idle cart shows the cart too (#490)", () => {
-    // 3 workers on 6 carts: the next one starts a cart.
+    // A borer and a Great Machine run the face and the lift, and 3 workers
+    // 3 of 6 carts: the haul holds the line, and the next one starts a cart.
     const mountain = mountainWith({
       stock: { stones: 1_000 },
-      owned: { ...NONE_OWNED, helper: 3, cart: 6 },
+      owned: { ...NONE_OWNED, helper: 21, cart: 6, borer: 1, machine: 1 },
     });
     const rates = effectiveRates(mountain, NOW);
-    const both = rates.tierSpeed.helper + rates.tierSpeed.cart;
+    const both = 3 * rates.tierSpeed.helper + rates.tierSpeed.cart;
     expect(handsGain(mountain, "helper", 1, NOW)).toBe(both);
     expect(row(mountain, "helper").gain).toBe(`+${formatSpeed(both)}/s`);
     // The staffing New row hires that same worker, so it says the same.
     expect(row(mountain, "cart", { guided: "cart" }).gain).toBe(
       `+${formatSpeed(both)}/s`,
     );
-    // With every machine staffed he adds his own hands, as before.
+    // With every machine staffed he adds his own hands: his 3 a second
+    // lift the haul and the lift together, by half of it.
     expect(row(early, "helper").gain).toBe(
-      `+${formatSpeed(effectiveRates(early, NOW).tierSpeed.helper)}/s`,
+      `+${formatSpeed((3 * effectiveRates(early, NOW).tierSpeed.helper) / 2)}/s`,
     );
   });
 
@@ -387,7 +395,17 @@ describe("buyRowView", () => {
   it("the tending mark", () => {
     const crew = mountainWith({
       ...at(10_000_000),
-      owned: { ...NONE_OWNED, helper: 20, cart: 2, drill: 1, borer: 1 },
+      // A train and a Great Machine run the haul and the lift, so the face
+      // holds the line and a second borer helps.
+      owned: {
+        ...NONE_OWNED,
+        helper: 40,
+        cart: 2,
+        drill: 1,
+        borer: 1,
+        train: 1,
+        machine: 1,
+      },
       engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
     });
     const mountain = {
@@ -450,7 +468,7 @@ describe("buyRowView", () => {
   it("the aria sentences are today's", () => {
     // The buy sentence, as crew-panel.ts builds it today.
     expect(row(early, "cart").aria).toBe(
-      `Buy a mine cart for ${formatCount(priceOf(early, "cart", 6))} stones, mines 6 stones a second. You have 6.`,
+      `Buy a mine cart for ${formatCount(priceOf(early, "cart", 6))} stones, mines 18 stones a second. You have 6.`,
     );
     expect(row(early, "helper").aria).toBe(
       `Buy a worker for ${formatCount(priceOf(early, "helper", 18))} stones, mines 1 stone a second. You have 18.`,
@@ -523,9 +541,9 @@ describe("BUY_SECTIONS", () => {
   it("crew first, then the machines, every tier once", () => {
     expect(BUY_SECTIONS).toEqual({
       crew: ["helper", "kid"],
-      machines: ["cart", "drill", "borer", "machine"],
+      machines: ["cart", "hoist", "drill", "borer", "train", "machine"],
     });
-    // The line's machines join Buys by stage (#538).
+    // The line's machines are on sale since #536, in price order.
     expect([...BUY_SECTIONS.crew, ...BUY_SECTIONS.machines].sort()).toEqual(
       SHOWN_TIERS.map((tier) => tier.id).sort(),
     );
@@ -538,14 +556,19 @@ describe("buyRowView: ×10 and Max (#358)", () => {
     tierQuote(mountain, tierById(id), amount);
 
   it("×10 shows ten's total, the count on the verb, and ten's output", () => {
+    // Four more workers, so twelve free hands can run all ten.
     const ten = quote(early, "cart", "ten");
-    const mountain = { ...early, stock: { ...early.stock, stones: ten.cost } };
+    const mountain = {
+      ...early,
+      owned: { ...early.owned, helper: early.owned.helper + 4 },
+      stock: { ...early.stock, stones: ten.cost },
+    };
     const cart = row(mountain, "cart", { amount: "ten" });
     expect(cart).toMatchObject({
       state: "ready",
       price: formatCompact(ten.cost),
       verb: "Buy 10",
-      gain: "+60/s",
+      gain: `+${formatSpeed(machineGain(mountain, "cart", 10, NOW))}/s`,
       can: true,
       dimTag: false,
     });
@@ -611,26 +634,32 @@ describe("buyRowView: ×10 and Max (#358)", () => {
       verb: "Buy 10",
       can: true,
       // Three of the ten can run: the gain counts those, never the idle seven.
-      gain: `+${formatSpeed(effectiveRates(mountain, NOW).tierSpeed.drill * 3)}/s`,
+      gain: `+${formatSpeed(machineGain(mountain, "drill", 3, NOW))}/s`,
     });
   });
 
   it("a ready pick whose ×10 is too dear is not offered on its row", () => {
-    const cart = row(early, "cart", { amount: "ten" });
+    // Four more workers, so twelve free hands can run all ten.
+    const crewed = {
+      ...early,
+      owned: { ...early.owned, helper: early.owned.helper + 4 },
+    };
+    const cart = row(crewed, "cart", { amount: "ten" });
     expect(cart).toMatchObject({ state: "dear", lamp: "off", pick: false });
     expect(cart.flag).toEqual([]);
-    const ten = quote(early, "cart", "ten");
+    const ten = quote(crewed, "cart", "ten");
     expect(
-      row({ ...early, stock: { ...early.stock, stones: ten.cost } }, "cart", {
+      row({ ...crewed, stock: { ...crewed.stock, stones: ten.cost } }, "cart", {
         amount: "ten",
       }),
     ).toMatchObject({ lamp: "amber", pick: true, flag: ["Ready now"] });
   });
 
   it("a ready pick the free hands cannot run ten of is not offered on its row", () => {
-    // 18 workers on 15 carts leave 3 free: the drill is the pick for one, not for ten.
+    // 20 workers on 13 carts, 3 hoists and a drill leave 3 free. The face
+    // moves the least: the drill is the pick for one, not for ten.
     const base = mountainWith({
-      owned: { ...NONE_OWNED, helper: 18, cart: 15 },
+      owned: { ...NONE_OWNED, helper: 20, cart: 13, hoist: 3, drill: 1 },
     });
     const mountain = {
       ...base,
