@@ -28,6 +28,7 @@ import {
   oneOffStretch,
   shownStones,
   stonesLeft,
+  stonesToNextBand,
   stretch,
 } from "./scale";
 import { minedMountain } from "./test-fixtures";
@@ -161,6 +162,34 @@ describe("kid-run stretch (M13, #253)", () => {
       expect(formatCompact(priciest).length).toBeLessThanOrEqual(6);
       expect(reloaded(digStones(kid, 1e9))?.stretch).toBe(k);
     }
+  });
+});
+
+describe("stones to the next band (#592)", () => {
+  const at = (mined: number, k = 1) => ({
+    remaining: MOUNTAIN_STONES - mined,
+    stretch: k,
+  });
+
+  it("counts the stones left in this band, at its scale and the run's stretch", () => {
+    expect(stonesToNextBand(at(0))).toBe(BAND_STARTS[1] * BAND_SCALE[0]);
+    expect(stonesToNextBand(at(BAND_STARTS[1] - 500))).toBe(500);
+    expect(stonesToNextBand(at(BAND_STARTS[2] - 100, 2))).toBeCloseTo(
+      100 * BAND_SCALE[1] * 2,
+      6,
+    );
+  });
+
+  it("from a band's first stone, counts to the band after it", () => {
+    expect(stonesToNextBand(at(BAND_STARTS[1]))).toBeCloseTo(
+      (BAND_STARTS[2] - BAND_STARTS[1]) * BAND_SCALE[1],
+      3,
+    );
+  });
+
+  it("is endless in the last band", () => {
+    expect(stonesToNextBand(at(BAND_STARTS[3]))).toBe(Infinity);
+    expect(stonesToNextBand(at(MOUNTAIN_STONES))).toBe(Infinity);
   });
 });
 

@@ -13,6 +13,7 @@ import {
   digStones,
   mineByHand,
   minedOut,
+  stonesPerSecond,
   BARE_MOUNTAIN,
 } from "./mountain";
 import { STARTING_RECIPE_IDS } from "./workshop";
@@ -244,6 +245,50 @@ describe("accrue", () => {
       mined: 0,
       settledAt: 5_000,
     });
+  });
+});
+
+describe("a stretch that crosses into a new band (#592)", () => {
+  // 500 stones above the Granite, which slows drills.
+  const drillCrew = {
+    ...createMountain(),
+    remaining: MOUNTAIN_STONES - (BAND_STARTS[1] - 500),
+    helpers: 30,
+    carts: 10,
+    hoists: 10,
+    drills: 20,
+  };
+
+  it("pays what the same time pays a second at a time", () => {
+    const once = accrue({ mountain: drillCrew, from: 0, to: 120_000 });
+    let stepped = drillCrew;
+    for (let second = 0; second < 120; second += 1) {
+      stepped = accrue({
+        mountain: stepped,
+        from: second * 1000,
+        to: (second + 1) * 1000,
+      }).mountain;
+    }
+    expect(minedOut(once.mountain)).toBeGreaterThan(BAND_STARTS[1]);
+    expect(
+      Math.abs(minedOut(once.mountain) - minedOut(stepped)),
+    ).toBeLessThanOrEqual(120);
+    expect(once.settledAt).toBe(120_000);
+  });
+
+  it("digs at the new band's speed past the crossing", () => {
+    const topsoilSpeed = stonesPerSecond(drillCrew);
+    const once = accrue({ mountain: drillCrew, from: 0, to: 120_000 });
+    expect(once.mined).toBeLessThan(Math.floor(120 * topsoilSpeed));
+    const crossed = digStones(drillCrew, 500);
+    expect(stonesPerSecond(crossed)).toBeLessThan(topsoilSpeed);
+  });
+
+  it("stops at the bottom inside the last band", () => {
+    const deep = { ...drillCrew, remaining: 3 };
+    const dug = accrue({ mountain: deep, from: 0, to: 60_000 });
+    expect(dug.mountain.remaining).toBe(0);
+    expect(dug.settledAt).toBe(60_000);
   });
 });
 

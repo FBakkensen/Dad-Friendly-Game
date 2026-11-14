@@ -136,6 +136,18 @@ export function stonesLeft(mountain: Sized): number {
 }
 
 /**
+ * Pocket stones to dig before the next band begins, where the crew's speed
+ * changes (#592), or Infinity in the last band.
+ */
+export function stonesToNextBand(mountain: Sized): number {
+  const mined = minedOut(mountain);
+  const next = BAND_STARTS.find((start) => start > mined);
+  return next === undefined
+    ? Infinity
+    : shownStones(mountain, next) - shownStones(mountain, mined);
+}
+
+/**
  * The mined-out depth after digging `stones` more pocket stones, walking
  * band by band from where the run stands. Capped at the bottom.
  */
