@@ -14,6 +14,6 @@ export default defineMeasure({
   id: "finishDay",
   label: "Finish day",
   unit: "days",
-  why: "Finish days come second, and they still have to land in the week.",
+  why: "Finish days come second: at least five days, with no ceiling.",
   aggregate: (samples) => readFinishDay(samples),
 });

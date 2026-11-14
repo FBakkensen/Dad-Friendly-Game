@@ -816,6 +816,12 @@ describe("crew tiers on screen", () => {
     // The number stays whole; its unit is set smaller beside it.
     expect(screen.text(".welcome-mined-count")).toBe("+9,000");
     expect(screen.text(".welcome-mined-unit")).toBe("stones");
+    // The journeys read the exact haul beside its words (#552).
+    expect(
+      screen.root.querySelector<HTMLElement>(".welcome-mined-count")?.dataset[
+        "count"
+      ],
+    ).toBe("9000");
     expect(screen.text(".welcome-detail")).toBe(
       "You were gone 2 hours 5 minutes. Your crew kept digging the whole time.",
     );

@@ -1,0 +1,118 @@
+name: claude-review
+
+# A second review of each PR by Claude (#572), paid by the monthly API credit
+# of the Console organization linked to Flemming's plan. It runs `claude -p`
+# with an API key, not anthropics/claude-code-action, because the credit does
+# not cover the action's runs. `--bare` takes only ANTHROPIC_API_KEY, so it can
+# never draw on the plan. Claude gets read-only tools; a later step posts its
+# answer. With no secret the job skips. When the credit is used up it says so
+# on the PR, and nothing is charged (the Console has no card).
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: claude-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    # Drafts wait for ready_for_review. Forks get no secrets.
+    if: ${{ !github.event.pull_request.draft && github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check for the API key
+        id: key
+        env:
+          KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          if [ -n "$KEY" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::No ANTHROPIC_API_KEY secret, so no Claude review."
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.key.outputs.present == 'true'
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          # The model can read the work tree; keep the job token out of .git.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        if: steps.key.outputs.present == 'true'
+        with:
+          node-version-file: .nvmrc
+
+      - name: Install Claude Code
+        if: steps.key.outputs.present == 'true'
+        run: npm install -g @anthropic-ai/claude-code@2.1.325
+
+      - name: Review
+        if: steps.key.outputs.present == 'true'
+        timeout-minutes: 15
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          set +e
+          # The prompt comes from the base: a branch cut before it existed has
+          # none, and a PR should not edit the prompt it is reviewed with (#576).
+          prompt=$(git show "$BASE:.github/claude-review.md" | sed -e "s/{{BASE}}/$BASE/g" -e "s/{{PR}}/$PR/g")
+          if [ -z "$prompt" ]; then
+            echo "No review prompt at $BASE" > "$RUNNER_TEMP/review.err"
+            exit 0
+          fi
+          claude -p --bare --no-session-persistence \
+            --model claude-opus-5-5 \
+            --max-budget-usd 2 \
+            --tools "Read" "Bash" \
+            --allowedTools "Read" "Bash(git diff:*)" "Bash(git log:*)" "Bash(git show:*)" "Bash(git grep:*)" "Bash(git ls-files:*)" \
+            --output-format json \
+            "$prompt" > "$RUNNER_TEMP/review.json" 2> "$RUNNER_TEMP/review.err"
+          echo "claude exited $?"
+          cat "$RUNNER_TEMP/review.err"
+
+      - name: Post the review
+        # Also after a failed or timed-out Review step, so the PR hears why.
+        if: ${{ !cancelled() && steps.key.outputs.present == 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          out="$RUNNER_TEMP/review.json"
+          body="$RUNNER_TEMP/body.md"
+          result=$(jq -r 'select(.is_error == false and .subtype == "success") | .result // empty' "$out" 2>/dev/null) || result=""
+          subtype=$(jq -r '.subtype // "no result"' "$out" 2>/dev/null) || subtype="no result"
+          cost=$(jq -r '.total_cost_usd // 0' "$out" 2>/dev/null) || cost=0
+          if [ -n "$result" ]; then
+            {
+              printf '## Claude review\n\n%s\n\n---\n' "$result"
+              printf '_Opus 5.5 via `claude -p`, paid from the monthly API credit: $%.2f. ([run](%s))_\n' "$cost" "$RUN_URL"
+            } > "$body"
+            status=0
+          elif grep -qi "credit balance" "$out" "$RUNNER_TEMP/review.err"; then
+            printf '## Claude review\n\nSkipped: the monthly API credit is used up. It refills with the next billing month. ([run](%s))\n' "$RUN_URL" > "$body"
+            status=0
+          else
+            printf '## Claude review\n\nFailed (`%s`), so this PR has no CI review. See the [run](%s).\n' "$subtype" "$RUN_URL" > "$body"
+            status=1
+          fi
+          # The model could read its own environment; never post a secret.
+          if grep -qF "$KEY" "$body" || grep -qE 'sk-ant-[A-Za-z0-9_-]{20}|gh[psu]_[A-Za-z0-9]{20}' "$body"; then
+            echo "::error::The review text holds a secret, so it was not posted."
+            exit 1
+          fi
+          gh api "repos/$REPO/issues/$PR/comments" -F "body=@$body" --silent
+          exit "$status"

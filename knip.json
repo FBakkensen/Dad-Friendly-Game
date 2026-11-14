@@ -5,9 +5,13 @@
     "public/sw.js",
     "rules-test/vitest.config.ts",
     "tools/vitest.config.ts",
+    "tools/journeys/playwright.config.ts",
+    "tools/journeys/*.journey.ts",
     "src/lab/measures/*.ts",
     "src/lab/policies/*.ts",
     "src/lab/fixtures/**/*.ts",
-    "mockups/preview.html"
+    "mockups/preview.html",
+    "mockups/line/line.ts",
+    "mockups/line/shots.mjs"
   ]
 }
