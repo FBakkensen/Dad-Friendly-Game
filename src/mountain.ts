@@ -17,7 +17,7 @@ import {
 } from "./expeditions";
 import { NO_UPGRADES, type Upgrades } from "./upgrades";
 import { materialsGained } from "./layers";
-import { EMPTY_STOCK, add, type Stock } from "./stock";
+import { EMPTY_STOCK, addedStock, type Stock } from "./stock";
 import type { TeachId } from "./teach";
 import { tierRecord, type TierId } from "./tiers";
 import type { Materials } from "./layers";
@@ -178,13 +178,15 @@ export function digStones(mountain: Mountain, mined: number): Mountain {
     mined >= stonesLeft(mountain)
       ? 0
       : MOUNTAIN_STONES - depthAfterStones(mountain, mined);
-  return add(
-    { ...mountain, remaining },
-    {
-      stones: mined,
+  // One copy of the mountain: digging is the labs' hottest write.
+  return {
+    ...mountain,
+    remaining,
+    stock: addedStock(mountain.stock, {
       ...materialsGained(before, MOUNTAIN_STONES - remaining),
-    },
-  );
+      stones: mined,
+    }),
+  };
 }
 
 /** The crew's speed; pass `now` while playing to count running boosts. */

@@ -144,6 +144,14 @@ describe("paying and adding", () => {
     });
   });
 
+  it("adds to every good in the goods table", () => {
+    const one = Object.fromEntries(GOOD_IDS.map((id) => [id, 1]));
+    const twice = add(add(holding({}), one), one).stock;
+    for (const id of GOOD_IDS) {
+      expect(twice[id]).toBe(2);
+    }
+  });
+
   it("reports what a move spent and gained, by good", () => {
     const before = { ...EMPTY_STOCK, stones: 100, clay: 4 };
     const after = { ...EMPTY_STOCK, stones: 40, clay: 4, iron: 2 };

@@ -425,10 +425,14 @@ export function recipePrice(id: RecipeId, k = 1): Price {
 
 /** The goods with an amount above 0, in the goods table's order. */
 function pricedGoods(amountOf: (good: GoodId) => number): Price {
-  return GOOD_IDS.flatMap((good) => {
+  const price: { good: GoodId; amount: number }[] = [];
+  for (const good of GOOD_IDS) {
     const amount = amountOf(good);
-    return amount > 0 ? [{ good, amount }] : [];
-  });
+    if (amount > 0) {
+      price.push({ good, amount });
+    }
+  }
+  return price;
 }
 
 export function craftedLevel(

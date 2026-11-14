@@ -30,9 +30,13 @@ export const GOOD_IDS: readonly GoodId[] = GOOD_ROWS.map((row) => row.id);
 /** How much of every good he holds. Complete: a good he has none of is 0. */
 export type Stock = Readonly<Record<GoodId, number>>;
 
-export const EMPTY_STOCK: Stock = Object.fromEntries(
-  GOOD_IDS.map((id) => [id, 0]),
-) as Record<GoodId, number>;
+export const EMPTY_STOCK: Stock = {
+  stones: 0,
+  clay: 0,
+  iron: 0,
+  crystal: 0,
+  heartstone: 0,
+};
 
 /** One good and how much of it a price asks. */
 type PriceLine = { readonly good: GoodId; readonly amount: number };
@@ -96,11 +100,22 @@ export function pay<T extends { readonly stock: Stock }>(
   if (!canPay(holder.stock, price)) {
     return holder;
   }
-  const stock: Record<GoodId, number> = { ...holder.stock };
-  for (const line of price) {
-    stock[line.good] -= line.amount;
-  }
-  return { ...holder, stock };
+  return { ...holder, stock: addedStock(holder.stock, lines(price, -1)) };
+}
+
+/**
+ * The stock with these gains added. Goods left out are unchanged. Every dig
+ * and tick runs it, so it writes the record out in one literal, not a loop
+ * (#560); the `Stock` type makes a new good a compile error here.
+ */
+export function addedStock(stock: Stock, gains: Partial<Stock>): Stock {
+  return {
+    stones: stock.stones + (gains.stones ?? 0),
+    clay: stock.clay + (gains.clay ?? 0),
+    iron: stock.iron + (gains.iron ?? 0),
+    crystal: stock.crystal + (gains.crystal ?? 0),
+    heartstone: stock.heartstone + (gains.heartstone ?? 0),
+  };
 }
 
 /** The holder with these gains added. Goods left out are unchanged. */
@@ -108,11 +123,7 @@ export function add<T extends { readonly stock: Stock }>(
   holder: T,
   gains: Partial<Stock>,
 ): T {
-  const stock: Record<GoodId, number> = { ...holder.stock };
-  for (const id of GOOD_IDS) {
-    stock[id] += gains[id] ?? 0;
-  }
-  return { ...holder, stock };
+  return { ...holder, stock: addedStock(holder.stock, gains) };
 }
 
 /**
@@ -124,10 +135,7 @@ export function take<T extends { readonly stock: Stock }>(
   holder: T,
   price: Price,
 ): T {
-  return refund(
-    holder,
-    price.map((line) => ({ ...line, amount: -line.amount })),
-  );
+  return { ...holder, stock: addedStock(holder.stock, lines(price, -1)) };
 }
 
 /** The holder with every line of the price put back: a refund. */
@@ -135,11 +143,16 @@ export function refund<T extends { readonly stock: Stock }>(
   holder: T,
   price: Price,
 ): T {
-  const stock: Record<GoodId, number> = { ...holder.stock };
+  return { ...holder, stock: addedStock(holder.stock, lines(price, 1)) };
+}
+
+/** A price's lines as gains, each times `sign`. */
+function lines(price: Price, sign: 1 | -1): Partial<Stock> {
+  const gains: Partial<Record<GoodId, number>> = {};
   for (const line of price) {
-    stock[line.good] += line.amount;
+    gains[line.good] = (gains[line.good] ?? 0) + sign * line.amount;
   }
-  return { ...holder, stock };
+  return gains;
 }
 
 /** What a move took and what it put in, good by good, each at least 0. */
