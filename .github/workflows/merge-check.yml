@@ -14,11 +14,13 @@ name: merge-check
 on:
   pull_request:
     branches: [main]
-    types: [opened, reopened, ready_for_review, synchronize]
+    # labeled: the `fixes-main` label lets a PR through while main is red.
+    types: [opened, reopened, ready_for_review, synchronize, labeled]
   push:
     branches: [main]
   # A red deploy gate on main turns every open PR red ("main is red"), so nothing merges on
-  # top of it unseen; the next green deploy turns them back.
+  # top of it unseen; the next green deploy turns them back. A PR labelled `fixes-main` is
+  # checked as usual, so the fix itself can merge.
   workflow_run:
     workflows: [deploy-hosting]
     types: [completed]
@@ -26,14 +28,16 @@ on:
 permissions: {}
 
 concurrency:
-  # A newer push to the PR, or a newer main, makes the older run's answer stale.
-  group: merge-check-${{ github.event.pull_request.number || 'main' }}
+  # A newer push to the PR, or a newer main, makes the older run's answer stale. A finished
+  # deploy gets its own group, so it never cancels a main run that is still checking. Any
+  # other label (agent-working, ...) runs nothing, in a group of its own, so it cancels nothing.
+  group: merge-check-${{ github.event.pull_request.number || github.event_name }}${{ github.event.action == 'labeled' && github.event.label.name != 'fixes-main' && '-label' || '' }}
   cancel-in-progress: true
 
 jobs:
   targets:
-    # Drafts wait for ready_for_review. Forks are not checked.
-    if: ${{ github.event_name != 'pull_request' || (!github.event.pull_request.draft && github.event.pull_request.head.repo.full_name == github.repository) }}
+    # Drafts wait for ready_for_review. Forks are not checked. Of labels, only fixes-main counts.
+    if: ${{ github.event_name != 'pull_request' || (!github.event.pull_request.draft && github.event.pull_request.head.repo.full_name == github.repository && (github.event.action != 'labeled' || github.event.label.name == 'fixes-main')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -52,6 +56,7 @@ jobs:
           EVENT: ${{ github.event_name }}
           NUMBER: ${{ github.event.pull_request.number }}
           HEAD: ${{ github.event.pull_request.head.sha }}
+          LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           main=$(gh api "repos/$REPO/commits/main" --jq .sha)
@@ -68,21 +73,22 @@ jobs:
             exit 0
           fi
           if [ "$EVENT" = "pull_request" ]; then
-            prs=$(jq -cn --argjson number "$NUMBER" --arg head "$HEAD" '[{number: $number, head: $head}]')
+            prs=$(jq -cn --argjson number "$NUMBER" --arg head "$HEAD" --argjson labels "$LABELS" \
+              '[{number: $number, head: $head, fix: ($labels | index("fixes-main") != null)}]')
           else
             prs=$(gh api "repos/$REPO/pulls?state=open&base=main&per_page=100" | jq -c --arg repo "$REPO" \
-              '[.[] | select(.draft | not) | select(.head.repo.full_name == $repo) | {number, head: .head.sha}]')
+              '[.[] | select(.draft | not) | select(.head.repo.full_name == $repo)
+                | {number, head: .head.sha, fix: ([.labels[].name] | index("fixes-main") != null)}]')
           fi
-          echo "main $main; PRs: $prs"
+          echo "main $main; red: ${red:-no}; PRs: $prs"
           if [ -n "$red" ]; then
-            # Nothing is worth testing on a red main: say so on every PR, and check nothing.
-            for head in $(printf '%s' "$prs" | jq -r '.[].head'); do
+            # Nothing but the fix is worth testing on a red main: say so on every other PR.
+            for head in $(printf '%s' "$prs" | jq -r '.[] | select(.fix | not) | .head'); do
               gh api "repos/$REPO/statuses/$head" -f state=failure -f context=merge-check \
                 -f description="main is red: deploy-hosting's full gate failed on ${red:0:7}. Fix main first." \
                 -f target_url="$RUN_URL" --silent
             done
-            echo "prs=[]" >> "$GITHUB_OUTPUT"
-            exit 0
+            prs=$(printf '%s' "$prs" | jq -c '[.[] | select(.fix)]')
           fi
           for head in $(printf '%s' "$prs" | jq -r '.[].head'); do
             gh api "repos/$REPO/statuses/$head" -f state=pending -f context=merge-check \
@@ -184,6 +190,7 @@ jobs:
     timeout-minutes: 5
     # Runs no PR code: it only reads the answers and posts them.
     permissions:
+      actions: read
       statuses: write
     steps:
       - uses: actions/download-artifact@v4
@@ -206,9 +213,19 @@ jobs:
             exit 0
           fi
           short=${MAIN:0:7}
+          # A deploy may have gone red since targets looked; its run marks the PRs red, so a
+          # green from here must not overwrite that.
+          red=$(gh api "repos/$REPO/actions/workflows/deploy-hosting.yml/runs?branch=main&event=push&status=completed&per_page=10" \
+            | jq -r '[.workflow_runs[] | select(.conclusion == "success" or .conclusion == "failure")][0]
+              | if .conclusion == "failure" then .head_sha else "" end')
           printf '%s' "$PRS" | jq -c '.[]' | while read -r pr; do
             number=$(printf '%s' "$pr" | jq -r .number)
             head=$(printf '%s' "$pr" | jq -r .head)
+            fix=$(printf '%s' "$pr" | jq -r .fix)
+            if [ -n "$red" ] && [ "$fix" != "true" ]; then
+              echo "PR #$number: main is red; leaving its red status."
+              continue
+            fi
             file="answers/pr-$number.json"
             result=$( [ -f "$file" ] && jq -r .result "$file" || echo unfinished )
             total=$( [ -f "$file" ] && jq -r .total "$file" || echo "" )
