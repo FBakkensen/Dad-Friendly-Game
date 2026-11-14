@@ -23,30 +23,31 @@ import { UPGRADES } from "./upgrades";
 describe("tuned prices", () => {
   it("prices the first of each tier", () => {
     expect(TIERS.map(({ id, firstCost }) => [id, firstCost])).toEqual([
-      ["helper", 20],
+      // The line's numbers (#543), in play since #536.
+      ["helper", 60],
       ["cart", 600],
-      // The line's machines (#533), off in play until #536.
+      // The line's machines (#533).
       ["hoist", 6_000],
       ["drill", 73_080],
       ["borer", 4_940_000],
       ["train", 30_000_000],
-      ["machine", 120_600_000],
+      ["machine", 96_480_000],
       // #327: cheap enough that a kid pays back in hours.
       ["kid", 250_000],
     ]);
   });
 
-  it("climbs machines x1.15 a unit, and workers and kids x1.06", () => {
-    expect(MACHINE_COST_GROWTH).toBe(1.15);
+  it("climbs machines x1.219 a unit, and workers and kids x1.06", () => {
+    expect(MACHINE_COST_GROWTH).toBe(1.219);
     expect(HELPER_COST_GROWTH).toBe(1.06);
-    // One anchor on the rounded curve: ceil(600 x 1.15^12).
-    expect(tierCost(tierById("cart"), 12)).toBe(3_211);
-    expect(tierCost(tierById("helper"), 50)).toBe(369);
+    // One anchor on the rounded curve: ceil(600 x 1.219^12).
+    expect(tierCost(tierById("cart"), 12)).toBe(6_460);
+    expect(tierCost(tierById("helper"), 50)).toBe(1_106);
   });
 
   it("scales one-off prices and depth by band", () => {
     expect(BAND_STARTS).toEqual([0, 10_000_000, 45_000_000, 120_000_000]);
-    expect(BAND_SCALE).toEqual([1, 2.625, 6.3, 32.4]);
+    expect(BAND_SCALE).toEqual([1, 2.625, 6.3, 39.204]);
   });
 
   it("prices each upgrade and its growth", () => {

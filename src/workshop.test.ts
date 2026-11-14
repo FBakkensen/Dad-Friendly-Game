@@ -417,9 +417,18 @@ describe("workshop rules", () => {
   });
 
   it("fits gear that is already done before the window, and a charge while idle", () => {
+    // A hoist and a drill outrun the haul, so the cart holds the line and
+    // its rails count (#536).
+    const crew = {
+      ...openShed().owned,
+      helper: 3,
+      cart: 1,
+      hoist: 1,
+      drill: 1,
+    };
     const due = {
       ...openShed(),
-      owned: { ...openShed().owned, helper: 1, cart: 1 },
+      owned: crew,
       bench: {
         recipe: "iron-rails" as const,
         startedAt: 0,
@@ -428,18 +437,17 @@ describe("workshop rules", () => {
     };
     const fitted = accrue({ mountain: due, from: 0, to: 10_000 });
     expect(fitted.mountain.crafted["iron-rails"]).toBe(1);
-    expect(fitted.mined).toBe(80);
-    const working = startCraft(
-      { ...openShed(), owned: { ...openShed().owned, helper: 1, cart: 1 } },
-      "iron-rails",
-      0,
-    );
+    // The rails' 22.5 a second on the haul, plus the 3 workers' 9 on one
+    // job: 31.5 → 31, for 10 seconds.
+    expect(fitted.mined).toBe(310);
+    const working = startCraft({ ...openShed(), owned: crew }, "iron-rails", 0);
     const during = accrue({
       mountain: working,
       from: 0,
       to: working.bench?.endsAt ?? 0,
     });
-    expect(during.mined).toBe(7 * 600);
+    // Unfitted while the craft runs: 18 + 9 = 27 a second.
+    expect(during.mined).toBe(27 * 600);
     expect(during.mountain.crafted["iron-rails"]).toBe(1);
     const idle = startCraft(openShed(), "blasting-charge", 0);
     const done = accrue({

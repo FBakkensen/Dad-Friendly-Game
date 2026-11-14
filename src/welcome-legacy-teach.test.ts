@@ -20,6 +20,10 @@ const granite = (): Mountain => ({
     cart: 10,
     drill: 6,
     borer: 2,
+    // A train and the Great Machine give the haul and the lift their share
+    // of the line (#536).
+    train: 1,
+    machine: 1,
   },
 });
 
@@ -91,7 +95,7 @@ describe("pass-to-kid card (#247)", () => {
   it("states the first Legacy with real crew numbers, and no tap that rounds away", () => {
     const words = legacyCardWords(bottom(0));
     expect(words.lead).toBe("Legacy ×1.5, for good");
-    expect(words.rates).toEqual(["Workers 1/s to 1.5/s", "Carts 6/s to 9/s"]);
+    expect(words.rates).toEqual(["Workers 1/s to 1.5/s", "Carts 18/s to 27/s"]);
     expect(words.keeps).toBe(
       `A bigger mountain for your kid, with the Legacy and ${String(recipesForMined(MOUNTAIN_STONES).length)} recipes.`,
     );
@@ -108,7 +112,7 @@ describe("pass-to-kid card (#247)", () => {
     expect(words.lead).toBe("Legacy ×1.5 to ×2, for good");
     expect(words.rates).toEqual([
       "Workers 1.5/s to 2/s",
-      "Carts 9/s to 12/s",
+      "Carts 27/s to 36/s",
       "Taps 1 to 2 stones",
     ]);
   });

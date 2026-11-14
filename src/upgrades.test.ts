@@ -177,12 +177,17 @@ describe("lasting upgrades: Better boots and Steady hands", () => {
     const rates = effectiveRates(crew);
     expect(rates.tierSpeed.helper).toBeCloseTo(2.36);
     expect(rates.tierSpeed.cart).toBe(effectiveRates(base).tierSpeed.cart);
-    // 15 × 2.36 = 35.4 → 35, plus 2 carts.
-    expect(rates.crewPerSecond).toBe(35 + 2 * rates.tierSpeed.cart);
+    // On the line (#536): 15 × 2.36 = 35.4 of hand work is 106.2 on one
+    // job. It lifts the empty face and lift past the carts' 36, so all three
+    // level at (36 + 106.2) / 3 = 47.4 → 47.
+    expect(rates.tierSpeed.cart).toBe(18);
+    expect(rates.crewPerSecond).toBe(47);
+    // Ten workers: 70.8 on one job lifts the face and lift to 35.4, under
+    // the carts → 35.
     expect(
       effectiveRates({ ...crew, owned: { ...crew.owned, helper: 10 } })
         .crewPerSecond,
-    ).toBe(23 + 2 * rates.tierSpeed.cart);
+    ).toBe(35);
   });
 
   it("Steady hands pays time away 25% more, and live play is untouched", () => {
@@ -269,15 +274,17 @@ describe("crew synergies", () => {
     const boosted = { ...crew, upgrades: { ...NO_UPGRADES, cartSyn: 1 } };
     expect(tierSynergy(boosted, "cart")).toBeCloseTo(0.2);
     const rates = effectiveRates(boosted);
-    // Ten carts is the first mark, so the carts run twice as fast: 7.2 × 2.
-    expect(rates.tierSpeed.cart).toBeCloseTo(14.4);
-    expect(rates.tierSpeed.drill).toBe(36);
-    // 4 drills take 4 workers, so all 10 carts run: 20 + 10×14.4 + 4×36.
-    expect(rates.crewPerSecond).toBe(20 + 144 + 144);
+    // Ten carts is the first mark, so the carts run twice as fast: 7.2 × 2,
+    // times the line's rating of 3 (#536).
+    expect(rates.tierSpeed.cart).toBeCloseTo(43.2);
+    expect(rates.tierSpeed.drill).toBe(108);
+    // 4 drills take 4 workers, so all 10 carts run. With no lift the empty
+    // lift holds the line: the 20 workers' 20 a second on one job is 60.
+    expect(rates.crewPerSecond).toBe(60);
     // Away pay uses the same rates.
     expect(
       accrueAway({ mountain: boosted, lastSeen: 0, now: 10_000 }).mined,
-    ).toBe(924);
+    ).toBe(180);
   });
 
   it("stacks with Better boots and other synergies", () => {
@@ -290,9 +297,12 @@ describe("crew synergies", () => {
     const rates = effectiveRates(crew);
     // 40 workers, 10 carts and 10 drills each hold one ×2 mark.
     expect(rates.tierSpeed.helper).toBeCloseTo(4.72);
-    expect(rates.tierSpeed.cart).toBeCloseTo(16.8);
-    expect(rates.tierSpeed.drill).toBeCloseTo(79.2);
-    expect(rates.crewPerSecond).toBe(188 + 168 + 792);
+    expect(rates.tierSpeed.cart).toBeCloseTo(50.4);
+    expect(rates.tierSpeed.drill).toBeCloseTo(237.6);
+    // On the line (#536): 188.8 of hand work is 566.4 on one job. It lifts
+    // the empty lift past the carts' 504, so the two level at
+    // (504 + 566.4) / 2 = 535.2 → 535, under the drills' 2,376.
+    expect(rates.crewPerSecond).toBe(535);
   });
 
   it("save and load", () => {

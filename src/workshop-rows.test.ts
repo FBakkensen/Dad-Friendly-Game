@@ -167,7 +167,7 @@ describe("a recipe row (#374)", () => {
     expect(row.price).toBe("500K");
     expect(row.gain).toBe("10 min");
     expect(row.aria).toBe(
-      "Iron rails. Carts 6/s to 7.5/s. Craft: 500K stones, 4 iron.",
+      "Iron rails. Carts 18/s to 22.5/s. Craft: 500K stones, 4 iron.",
     );
   });
 
