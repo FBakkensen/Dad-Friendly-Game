@@ -1,6 +1,6 @@
 # Slice 1, the first city: design (14 Nov 2026)
 
-Status: the rules are agreed in principle (Flemming, 14 Nov 2026, 19:30Z) and amended three times since, below. The names are approved. The screens are being settled in the playable prototype, not here, and this spec ships as its own PR once he has said yes to them. Nothing in it is built except the line it stands on (#536 to #539) and the save groundwork (#560, #561). Every number is a starting value for the lab, not a tuned one.
+Status: approved for its PR. Flemming agreed to the rules in principle (14 Nov 2026, 19:30Z), amended them three times the same evening, and said "That is right" to the playable prototype that plays them (21:35Z). The names are approved. Nothing in it is built except the line it stands on (#536 to #539) and the save groundwork (#560, #561). Every number is a starting value for the lab, not a tuned one.
 
 **Amended 14 Nov 2026, 20:30Z.** Flemming: "The golden veins as they were should go, something the player should click as it was, do not fit road to Mars." Golden veins go, and the Gold rush goes with them (a vein's tap starts it). The Beacon (now the Light Tower) had a power about veins, so a new one is proposed below. He also asked for playable prototypes in place of mock pictures: the slice 1 prototype is in `prototypes/slice-1/` on branch `claude/project-thread-eextfa`, and it settles the screens ([What he sees](#what-he-sees)).
 
@@ -15,7 +15,9 @@ Status: the rules are agreed in principle (Flemming, 14 Nov 2026, 19:30Z) and am
 
 The new rule is [Transport and build time](#7-transport-and-build-time). His four decisions are its first four lines. How slice 1 does them is mine, and is listed under [Calls I made](#calls-i-made).
 
-This design covers many slivers. After his yes it ships as its own PR and is split into sliver issues (`.claude/rules/superpowers.md`). It amends `2026-11-14-line-works-village-design.md` (the line spec): [What it changes in the line spec](#what-it-changes-in-the-line-spec) lists every place.
+**Approved 14 Nov 2026, 21:35Z.** The prototype's fourth version plays rule 7 from the first evening: he orders a building once, one fleet delivers, the order says its limit and can be put on hold, nights keep delivering, and a work order is done when its materials are there. Flemming: "That is right". With that the screens are settled, and [What he sees](#what-he-sees) is written from that version.
+
+This design covers many slivers. It ships as its own PR and is split into sliver issues (`.claude/rules/superpowers.md`). It amends `2026-11-14-line-works-village-design.md` (the line spec): [What it changes in the line spec](#what-it-changes-in-the-line-spec) lists every place.
 
 ## Why
 
@@ -124,7 +126,7 @@ As the line spec's step 2, from the day the Light Tower is operational.
 - A full stockpile takes no more. Rock for it bypasses to stone. When the stone stockpile is full too, that flow stops. When nothing can flow, the crews idle. (Flemming, 14 Nov 2026: "production should stop when stock is full".)
 - There is no dig tap (amended 14 Nov 2026).
 - A price above a stockpile's room reads "Needs a bigger stockyard".
-- **Unattended**, the mine runs at the night shift output (30%, and 45% once the Light Tower is operational: proposed) until the stockyard is full. Transport keeps delivering to what he ordered (rule 7), so a night with a project open runs longer than one without. The clock cap goes. The shift report says what came in, what was delivered, and what stopped it.
+- **Unattended**, the mine runs at the night shift output (30%, and 45% once the Light Tower is operational) until the stockyard is full. Transport keeps delivering to what he ordered (rule 7), so a night with a project open runs longer than one without. The clock cap goes. The shift report says what came in, what was delivered, and what stopped it.
 - Before the Light Tower is operational there is no stockyard. The pocket has no limit, transport delivers from it, and unattended time keeps today's rule (30%, eight hours), so the first evening is as simple as now.
 
 ### 5. The crews
@@ -145,11 +147,11 @@ Why crews and not a slider: four steps are enough to match a project, a step is 
 
 One project at a time. A project is a building, and a building rises in three steps: foundation, structure, roof. With its roof on it is operational: it gives its power and opens the next thing, in the moment a relic's reveal has today.
 
-| Building        | Requires         | Power (the relic's, as approved)                                                           | Opens                                              |
-| --------------- | ---------------- | ------------------------------------------------------------------------------------------ | -------------------------------------------------- |
-| The Light Tower | stone            | Lights the night: night shift output is 45%, up from 30% (proposed 14 Nov, the veins went) | Kilns, the stockyard, and the Granite's price      |
-| The Warehouse   | stone, brick     | The stockyard holds twice as much                                                          | Trucks (proposed)                                  |
-| The Foundry     | brick, cut stone | The winding engine can be built                                                            | The level below, in slice 2. The slice's end card. |
+| Building        | Requires         | Power (the relic's, as approved)                                                              | Opens                                              |
+| --------------- | ---------------- | --------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| The Light Tower | stone            | Lights the night: night shift output is 45%, up from 30% (new on 14 Nov, when the veins went) | Kilns, the stockyard, and the Granite's price      |
+| The Warehouse   | stone, brick     | The stockyard holds twice as much                                                             | Trucks                                             |
+| The Foundry     | brick, cut stone | The winding engine can be built                                                               | The level below, in slice 2. The slice's end card. |
 
 - The project is on the screen from the first minute.
 - **He orders, and transport delivers** (rule 7). One order covers the whole building: its three steps follow each other with no tap. The next building waits for his order.
@@ -172,12 +174,12 @@ How slice 1 does it (mine, under Calls I made):
 
 5. **One fleet, one number.** Transport is a count of vehicles and the goods a second they carry together. A vehicle is bought like a machine and has ownership marks. It takes no workers, no engineer, no gear and no trouble. There are no routes and nothing to dispatch.
 6. **Horse wagons from the first evening.** They cost stone. Nothing is dug or carried by hand, so a fresh mine starts with a few workers and one horse wagon. **Trucks** cost brick and open when the Warehouse is operational. Trains wait for a later slice.
-7. **A site is where goods go**: the city's project and the factory's work order. Transport carries only what the step in hand still requires, and only what the stockpiles hold. With both sites open each gets half, and what one cannot use goes to the other.
+7. **An order is what transport serves**: the city's project and the factory's work order, once he has placed them. Transport carries only what the step in hand still requires, and only what the stockpiles hold. With both open each gets half, and what one cannot use goes to the other.
 8. **What has arrived stays.** Part deliveries count, and nothing is taken back from a building.
-9. **On hold.** He can put a site on hold and resume it. Both are free and instant, are saved at once, and hold while he is away. On hold, nothing leaves the stockyard for that site. This keeps "the project or the machines" a decision now that goods leave by themselves, and it is the free way out when transport takes all the mine makes (the anti-goal's lock).
-10. **A site says its limit**, in real numbers, with the time left at this rate: "Limit: transport, 600/s", "Limit: brick, 396/s", "On hold". So he can see whether to buy vehicles, makers or line machines.
-11. **Unattended**, transport runs at the night shift output and delivers to what he ordered. The stockyard drains into the site, so the night goes on until the stockyard is full and nothing more is required. A step can finish at night, and the next step of the same building starts. A building whose roof goes on at night becomes operational when he opens the game: the reveal is his to see, and its power counts from then. Nothing new is ordered without him.
-12. **The factory.** A work order requires stone and a material. Transport carries the stone, and the material comes from the rock at its own slow rate (rule 5). The work order is done when both are there, so it can wait for the material ("Limit: clay"). Today's fixed craft times (ten minutes, an hour, four hours) go. It is still one station and one work order at a time, and a cancelled work order gives back what arrived, as today. How long gear's effect lasts once it is installed (a blasting charge's twenty minutes) is not a build time and stays.
+9. **On hold.** He can put an order on hold and resume it. Both are free and instant, are saved at once, and hold while he is away. On hold, nothing leaves the stockyard for that order. This keeps "the project or the machines" a decision now that goods leave by themselves, and it is the free way out when transport takes all the mine makes (the anti-goal's lock).
+10. **An order says its limit**, in real numbers, with the time left at this rate: "Delivering · 800/s · 56 s · limit: transport", "limit: brick", "on hold". So he can see whether to buy vehicles, makers or line machines.
+11. **Unattended**, transport runs at the night shift output and delivers to what he ordered. The stockyard drains into the order, so the night goes on until the stockyard is full and nothing more is required. A step can finish at night, and the next step of the same building starts. A building whose roof goes on at night is operational from that moment: its power counts for the rest of the night, the shift report says so, and its card is shown after the report. Nothing new is ordered without him.
+12. **The factory.** A work order requires stone and a material. The material comes from the rock at its own slow rate (rule 5), and transport carries both to the station: one clay or one iron counts as 500 stone of a load. The work order is done when everything it requires is there, so it can wait for a material that is short. Today's fixed craft times (ten minutes, an hour, four hours) go. It is still one station and one work order at a time, and a cancelled work order gives back what arrived, as today. How long gear's effect lasts once it is installed (a blasting charge's twenty minutes) is not a build time and stays.
 13. **Buying stays instant.** Machines, makers, vehicles, stockyard levels and the shaft are bought from the stockyard, at the mine, and are there at once. Whether sinking the shaft should be a project with transport is his call. I kept it a purchase, because the goods are already at the mine.
 
 ### 8. The end of the slice
@@ -186,30 +188,90 @@ When the Foundry's roof is on, a card says the first city is operational and tha
 
 ## What he sees
 
-The screens are settled in the playable prototype, not in this document. Flemming asked for prototypes in place of pictures on 14 Nov 2026, after three rounds of mock pictures that he rejected. The prototype is in `prototypes/slice-1/` on branch `claude/project-thread-eextfa`. The rejected mocks stay in `mockups/slice-1/` as a record only. When he has said yes to the prototype, its screens are written in here, and the spec ships.
+The screens were settled in a playable prototype, not in pictures. Flemming rejected three rounds of mock pictures on 14 Nov 2026 and asked for a prototype in their place. He played four versions of it that evening: "That has potential", "It works great" (the third), and "That is right" (the fourth, 21:35Z).
 
-What stands from his answers: the game has four kinds of work, and each is its own place (his words: "mine, city, refinement, manufacturing").
+- The prototype is a throwaway outside the game: `prototypes/slice-1/` on branch `claude/project-thread-eextfa`, commit `bae1b36`. Its numbers are made up and run fast. It is drawn with sprites that exist and shapes made in code.
+- What it settles is the layout, the flow and the words. This section writes them down. The pictures of it are in `docs/superpowers/specs/slice-1/`.
+- What it does not settle is the art (see Art) and the numbers (the lab).
 
-| Place        | The work      | What he decides                                             | Its pace                                                  | Opens in slice 1              |
+### Four sites
+
+The game has four kinds of work (his words: "mine, city, refinement, manufacturing"), and each is a site with its own scene.
+
+| Site         | The work      | What he decides                                             | Its pace                                                  | Opens in slice 1              |
 | ------------ | ------------- | ----------------------------------------------------------- | --------------------------------------------------------- | ----------------------------- |
 | The mine     | digging       | how many crews on each level, and which stage gets capacity | every sitting, it never stops                             | part 1                        |
 | The refinery | refining      | what the rock becomes, and how much of it                   | set now and then, it runs by itself                       | part 2 (kilns, the stockyard) |
 | The factory  | manufacturing | which work order goes on the station next                   | one work order at a time, as fast as its materials arrive | part 3                        |
 | The city     | building      | what is built, and how much transport it gets               | a building every day or two, forever                      | part 1                        |
 
-What any screen has to meet, whatever the prototype settles:
+### The frame, the same on every site
+
+From top to bottom:
+
+1. **The order strip.** The project in hand, its step and its state ("Foundation · not ordered", "Roof · delivering", "on hold"), what the step requires with its counts, and a pip for each of the three steps.
+2. **The stockpiles.** One for each good he has met, with its room once the stockyard is open ("48K of 400K"), and "full" in red.
+3. **The site's scene**, which fills the middle.
+4. **Next.** The best buy or order right now and the site it is on ("Next · City: Order the Light Tower"), with a count of everything ready. A tap goes there.
+5. **The site bar.** A tab for each open site, with its lamp. A site joins the bar when its work opens: the mine and the city on the first evening, the refinery with the Light Tower, the factory with the shaft. A swipe changes site too.
+
+### The mine (`first-evening.png`, `mine.png`)
+
+- The mountain cut open: the winding tower on the surface, the shaft down the left side, and a gallery for each level with its crews at work in it.
+- A level's plate has its name, its rock a second, and one line: its crews, its good and its limit ("2 of 4 crews · brick 400/s · limit: kilns"). With one level it reads "4 crews · all rock is hoisted as stone".
+- A crew is moved by a tap on an empty spot in a gallery ("assign crew") or by a drag from one level to the other.
+- A level that is not reached says what it waits for ("The shaft can be sunk once the Light Tower is operational"), and then its price. Under the last level: "Deeper strata: not yet surveyed. The city has to grow first."
+- At the foot are the three stage plates: drilling, haulage, hoisting. Each has its rate, "bottleneck" or its headroom ("+200/s headroom"), and its next machine with the price. The bottleneck is lit.
+
+### The refinery (`refinery.png`)
+
+- A flow from top to bottom. Each level's rock falls from its hopper into its maker: the kilns under the Topsoil, the saws under the Granite. What a maker cannot take joins the middle chute ("bypass to stone 2,060/s").
+- A maker's plate has its count, what it can take, what limits it ("Bottleneck: kilns. Running at 400/s."), and the next one with its price and gain ("+1 kiln · 21K stone · +100/s").
+- The stockyard is at the foot: the three stockpiles drawn as piles, and "Expand the stockyard" with its price, how long a night lasts now ("Full after 19 min unattended") and what the level gives.
+
+### The factory (`factory.png`)
+
+- Seen from above: the tools on the wall, a bin for each material with its count and its source ("Clay 7/10 · source: Topsoil"), and the station in the middle.
+- A work order on the station shows its blueprint, "Materials arriving · 400/s" and how far it is.
+- The blueprints lie under the station, each with its effect and what it requires. A drag onto the station places the work order.
+- What is installed is in the head ("Installed: rails 0/2 · props 0/1").
+
+### The city (`city.png`)
+
+- A skyline at night with a plot for each building: operational, in hand with its scaffold, or vacant ("Vacant plot · unassigned"). The wagons drive along the road in front.
+- The transport plate is on top: the fleet and its goods a second ("2 horse wagons · 800/s"), what it is doing ("serving the city", "idle: no order"), and a key for one more wagon and one more truck. Before trucks open, their key reads "Trucks: after the Warehouse".
+- The project's card is under the skyline: its three steps with a tick on each one done, a bar for each good the step requires, and "On completion:" with its power and what it opens.
+- The order key is on the card. Before the order it reads "Place order · the whole building". After, it is the state of the order: "Delivering · 800/s · 56 s · limit: transport · tap to hold".
+
+### The cards (`shift-report.png`)
+
+- **The shift report** after unattended time: how long he was away and the night shift output, a bar that shows how much of the night was production and how much was idle, what was produced, what transport delivered to orders, the steps and buildings that were finished, when each stockpile was full, and what stopped the night, with a key to the fix ("To the stockyard").
+- **A building is operational**: its power and what it opens. After the Foundry it is the slice's end card.
+- **A level is reached**: where the crews went, what each level's rock makes, and what opened.
+- **The first evening**: one card that says what there is and what to do first.
+
+### What the prototype does not show
+
+These are in the game today and have no place in the prototype. Where they go is mine (call 16), and part 1's plan may move them:
+
+- **A stage's full list.** A stage plate shows one machine. A tap on the plate opens that stage's list: its workers and machines with ownership marks, its upgrades, its gear, its engineer and its trouble. They are the rows #537 to #539 specify, built here.
+- **Engineers and expeditions** open from the mine.
+- **The Ledger, keepsakes, the sound switch and Start over** open from one key on the order strip.
+- **The save line** stays in view on every site (`observable-saves.md`).
+
+### What any screen has to meet
 
 - The phone never scrolls. A long list scrolls inside its box.
 - The project in hand is in view from the first minute.
-- A decision shows real numbers: prices, rooms, each level's rock and goods a second, transport's goods a second, what a site still requires.
-- A level, a maker and a site each say their limit in words ("Limit: kilns", "Limit: transport, 600/s").
+- A decision shows real numbers: prices, rooms, each level's rock and goods a second, transport's goods a second, what an order still requires.
+- A level, a maker and an order each say their limit in words.
 - No button mines, and no button delivers.
 - The lamp rule stays: green for something he can afford, amber for something running, red for trouble, dark for rest.
 - No placeholders in the game. A picture that does not exist is asked for first.
 
-**How it reaches Mars.** The mine gets more levels. The refinery gets more makers, and the day a rock has two uses, refining becomes a choice of what the rock goes to. The factory gets more stations and bigger things to make, up to the parts of the rocket. The city gets more plots, and the last place to open is the pad. Transport gets trains. Each of those is a later slice's design, not a rule of slice 1.
+**How it reaches Mars.** The mine gets more levels. The refinery gets more makers, and the day a rock has two uses, refining becomes a choice of what the rock goes to. The factory gets more stations and bigger things to make, up to the parts of the rocket. The city gets more plots, and the last site to open is the pad. Transport gets trains. Each of those is a later slice's design, not a rule of slice 1.
 
-**What slice 1 does not have yet.** In slice 1 a level's rock has one maker, so the refinery has one decision: how many makers each good gets. The mine and the city are where slice 1's decisions are. The refinery and the factory are small, real places that later slices fill.
+**What slice 1 does not have yet.** In slice 1 a level's rock has one maker, so the refinery has one decision: how many makers each good gets. The mine and the city are where slice 1's decisions are. The refinery and the factory are small, real sites that later slices fill.
 
 ## What goes, and what stays
 
@@ -254,16 +316,17 @@ Flemming at 20:42Z: "this an engineering game". At 21:03Z, on this list: "I thin
 | time away, the resting pace                     | unattended, night shift output                  |
 | the welcome card                                | the shift report                                |
 
-The four places follow his own words of 14 Nov 2026 ("mine, city, refinement, manufacturing"). "Deliver" is what transport does. There is no Deliver button (rule 7).
+The four sites follow his own words of 14 Nov 2026 ("mine, city, refinement, manufacturing"). "Deliver" is what transport does. There is no Deliver button (rule 7).
 
-Words that came after the list he read. They are his to veto:
+Words that came after the list he read. All but the first were in the prototype he said "That is right" to, and each is still his to veto:
 
-| Word                          | For                                                                                                                     |
-| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| the workforce                 | all the workers together. It was "the crew", and a crew is now one of the four.                                         |
-| transport, horse wagon, truck | what carries goods to a site. His own words: "horse to truck, trains". Not "haulage", which is the line's second stage. |
-| a site                        | where goods are delivered: the city's project and the factory's work order                                              |
-| on hold, resume               | a site he has stopped deliveries to, and started again                                                                  |
+| Word                          | For                                                                                                                       |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| the workforce                 | all the workers together. It was "the crew", and a crew is now one of the four.                                           |
+| transport, horse wagon, truck | what carries goods to an order. His own words: "horse to truck, trains". Not "haulage", which is the line's second stage. |
+| a site                        | one of the four: the mine, the refinery, the factory, the city                                                            |
+| an order, place order         | a project or a work order he has placed                                                                                   |
+| on hold, resume               | an order he has stopped deliveries to, and started again                                                                  |
 
 A train on the surface will need a name that is not "locomotive", which is the pit train. That is for the slice that brings it.
 
@@ -313,15 +376,15 @@ What it does not prove: anything about fun, the first hour's pace, the factory, 
 
 ## Against the dad-friendly rules
 
-| Rule                       | How the slice meets it                                                                                                                                                                                                |
-| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Two minutes                | A sitting is a few buys, a look at what limits the site, and at times a move of crews or a project put on hold. Every choice holds until changed.                                                                     |
-| Never punishing            | No rock is lost to a bad share while the stone stockpile has room. A full stockyard idles crews, and the cards say when. A level never closes. What has arrived at a site stays. A move, on hold and resume are free. |
-| Close is pause             | Every tap is saved at once. Unattended time is worked out from timestamps: the stockpile-full moments and what transport delivered.                                                                                   |
-| Real numbers for decisions | Prices, rooms, each level's rock and goods a second, transport's goods a second, what a project still requires and how long that takes at this rate.                                                                  |
-| Vague discoveries          | The next building and the level below are hints.                                                                                                                                                                      |
-| The phone never scrolls    | The prototype's screens are held to it. A long list (work orders, plots) scrolls inside its box.                                                                                                                      |
-| No placeholders            | The prototype is a throwaway outside the game. In the game, a new picture is asked for before it is made.                                                                                                             |
+| Rule                       | How the slice meets it                                                                                                                                                                                                   |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Two minutes                | A sitting is a few buys, a look at what limits the order, and at times a move of crews or a project put on hold. Every choice holds until changed.                                                                       |
+| Never punishing            | No rock is lost to a bad share while the stone stockpile has room. A full stockyard idles crews, and the cards say when. A level never closes. What has arrived for an order stays. A move, on hold and resume are free. |
+| Close is pause             | Every tap is saved at once. Unattended time is worked out from timestamps: the stockpile-full moments and what transport delivered.                                                                                      |
+| Real numbers for decisions | Prices, rooms, each level's rock and goods a second, transport's goods a second, what a project still requires and how long that takes at this rate.                                                                     |
+| Vague discoveries          | The next building and the level below are hints.                                                                                                                                                                         |
+| The phone never scrolls    | The prototype's screens are held to it. A long list (work orders, plots) scrolls inside its box.                                                                                                                         |
+| No placeholders            | The prototype is a throwaway outside the game. In the game, a new picture is asked for before it is made.                                                                                                                |
 
 ## Risks
 
@@ -341,7 +404,7 @@ What it does not prove: anything about fun, the first hour's pace, the factory, 
 
 These are mine, not Flemming's. Any of them can be turned over.
 
-1. Depth goes. A level is a place he buys, and a building is its door (#645).
+1. Depth goes. A level is something he buys, and a building is its door (#645).
 2. The slice has three goods, two makers, two levels and three buildings. My first sketch had brick alone and two buildings. With the shaft bought, the lower level needs a good of its own, or sharing the workforce is no decision.
 3. Saws come with the Granite, not one level later.
 4. Four crews, always placed, moved one at a time.
@@ -350,25 +413,25 @@ These are mine, not Flemming's. Any of them can be turned over.
 7. The locomotive opens with the Granite, and the winding engine with the Foundry.
 8. Borers and locomotives cost cut stone. Saws, the stockyard and the shaft cost brick.
 9. The Light Tower opens the kilns and the stockyard as well as the Granite's price.
-10. Withdrawn. It was the screen as four places with a tab bar. The four kinds of work stand, in his words. How they look is the prototype's.
-11. Withdrawn. It was the city as a tile for each plot. The prototype's.
-12. Withdrawn. It was the three stage plates. The prototype's.
+10. Settled by the prototype: four sites with a site bar, and the order strip, the stockpiles and Next on every site (What he sees). Today's board goes.
+11. Settled by the prototype: the city is a skyline with a plot for each building.
+12. Settled by the prototype: the line is three stage plates with rock a second. The gauge and the odometer go.
 13. Which copy of a save is ahead: a later run stamp (Start over, or a reset), else more rock dug in all, a count that only grows, else the newer `lastSeen`. The run stamp stays the first key, as today. Kid runs are gone, and "more stones mined" becomes "more rock dug in all".
 14. The first evenings keep today's eight-hour clock, until the stockyard opens.
 15. Kid workers wait for the building that brings them (the School, a later slice).
-16. Withdrawn. It was where the stockyard, Upgrades, Engineers, the Ledger and Keepsakes are on the screen. The prototype's.
-17. A kind of work opens with its part: the mine and the city in part 1, the refinery in part 2, the factory in part 3.
+16. The stockyard is in the refinery and transport is in the city (the prototype). A stage's full list opens from its plate, engineers open from the mine, and the Ledger, keepsakes, the sound switch and Start over open from one key on the order strip (mine: the prototype does not show them).
+17. A site opens with its part: the mine and the city in part 1, the refinery in part 2, the factory in part 3.
 18. Transport is one fleet with one number, bought like a machine. No routes, and nothing to dispatch (rule 7.5).
 19. Horse wagons from the first evening, and a fresh mine starts with a few workers and one wagon. Trucks cost brick and open with the Warehouse. Trains wait for a later slice (rule 7.6).
-20. Transport is shared evenly between the city's project and the factory's work order (rule 7.7).
-21. A site can be put on hold and resumed, free (rule 7.9).
+20. Transport is shared evenly between the city's project and the factory's work order, and a work order's clay and iron ride along (rule 7.7 and 7.12).
+21. An order can be put on hold and resumed, free (rule 7.9).
 22. A building is one order with three steps. The next building waits for his order (rule 6).
-23. At night transport runs at the night shift output and delivers. A building finished at night becomes operational when he opens the game (rule 7.11).
+23. At night transport runs at the night shift output and delivers. A building finished at night is operational from that moment (rule 7.11).
 24. The factory's fixed craft times go with the city's: a work order is done when what it requires has arrived (rule 7.12). His words were about building. I read them as covering the factory too.
 25. Machines, makers, vehicles, stockyard levels and the shaft stay instant purchases (rule 7.13).
-26. "The workforce", "a site", "on hold" and "resume" are my words (Names).
+26. "The workforce" is my word. "Site", "order", "on hold" and "resume" are the prototype's (Names).
 
-Not mine, and still open: the Light Tower's power (night shift output at 45%, up from 30%) was proposed with the prototype when the veins went, and waits for his yes.
+Calls 18 to 24 are played in the prototype's fourth version, and he said "That is right" to it. So is the Light Tower's new power (night shift output at 45%, up from 30%), which is on its card and in the shift report. They stay on this list so that he can still turn one over.
 
 ## What it changes in the line spec
 
@@ -383,7 +446,7 @@ Not mine, and still open: the Light Tower's power (night shift output at 45%, up
 
 ## How it would be built
 
-After his yes to the prototype's screens, this spec ships as a PR, and slice 1 is split into sliver issues under #530. The line (#536 to #539) and the save groundwork (#560, #561) go on unchanged.
+This spec ships as a PR, and slice 1 is then split into sliver issues under #530. The line (#536 to #539) and the save groundwork (#560, #561) go on unchanged.
 
 **The slice goes live in three parts, and each part is a game he can play.** A part's rules are built off in play, as the line's were (#532), the lab plays them, and the part's last sliver switches it on. Between switch-ons the game on his phone does not change. So no sliver leaves a hole: nothing that opened at a depth is taken out before the part with its new door is switched on.
 
@@ -398,7 +461,7 @@ After his yes to the prototype's screens, this spec ships as a PR, and slice 1 i
 - Before part 1: one sliver where the lab plays the whole slice, off in play, and sets the starting numbers (as #534 and #543 did for the line). It reports each part's end as well as the slice's.
 - The pass, Legacy, kid runs and Grandpa (#642), the relics, the dig button, golden veins and the Gold rush leave play at part 1's switch-on. Their code is deleted by slivers after it.
 - The lean of the rock leaves play at part 1's switch-on too: the Topsoil has none, and no other level is in play until part 3.
-- The new screens are built beside today's board, to the prototype he said yes to, and take its place at part 1's switch-on. #537 and #538 draw the stages and the buys on today's board and are not started: they are built in the mine instead, as part 1's stage plates and its machines by stage. #539's card for a stage lands there too. #536, the line's rules, goes on unchanged.
+- The new screens are built beside today's board, to What he sees, and take its place at part 1's switch-on. They are built with the game's own parts and art, not from the prototype's code. #537 and #538 draw the stages and the buys on today's board and are not started: they are built in the mine instead, as part 1's stage plates and its machines by stage. #539's card for a stage lands there too. #536, the line's rules, goes on unchanged.
 
 A plan keeps each screen's browser checks green in the sliver that changes that screen. `docs/DESIGN.md`, `docs/design-intent.md`, `docs/ARCHITECTURE.md`, `docs/ui-audit.md`, `.claude/rules/observable-saves.md` and the github-issues skill's road section are updated by the slivers that change what they describe.
 

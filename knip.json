@@ -17,10 +17,6 @@
     "src/lab/fixtures/**/*.ts",
     "mockups/preview.html",
     "mockups/line/line.ts",
-    "mockups/line/shots.mjs",
-    "mockups/slice-1/slice.ts",
-    "mockups/slice-1/shots.mjs",
-    "mockups/slice-1/mountain/mountain.ts",
-    "mockups/slice-1/mountain/shots.mjs"
+    "mockups/line/shots.mjs"
   ]
 }
