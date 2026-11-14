@@ -291,7 +291,7 @@ export function createSaveLine({
     const state = authState();
     account.textContent =
       state.kind === "signed-in" ? state.user.label : NOT_SIGNED_IN;
-    phone.textContent = formatCompact(view.mountain.pocket);
+    phone.textContent = formatCompact(view.mountain.stock.stones);
     last.textContent = lastTry === undefined ? "—" : formatTimeOfDay(lastTry);
     const label = state.kind === "signed-in" ? "Try again" : SIGN_IN;
     const span = actBtn.querySelector(".board-platebtn-text");

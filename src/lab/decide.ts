@@ -18,7 +18,7 @@ import {
   MAX_CRAFTED_LEVEL,
   craftedLevel,
   recipeById,
-  recipeCost,
+  recipePrice,
   recipesForMined,
   recipeOpen,
   type RecipeId,
@@ -36,6 +36,7 @@ import {
   SAMPLE_INTERVAL_SEC,
   VALUE_TIE,
 } from "./targets";
+import { canPay as stockCovers, priceAmount } from "../stock";
 
 /**
  * The purchase this dad wants most, or nothing if every legal spend is
@@ -187,7 +188,7 @@ export function optimizerDecide(input: DecideInput): Action | undefined {
     if (!Number.isFinite(priced.paybackSec)) {
       continue;
     }
-    const wait = affordSeconds(mountain.pocket, income, priced.cost);
+    const wait = affordSeconds(mountain.stock.stones, income, priced.cost);
     if (wait > windowSec) {
       continue;
     }
@@ -227,13 +228,13 @@ export function canPay(
     return false;
   }
   const price = sticker(mountain, action);
-  if (!(price <= mountain.pocket)) {
+  if (!(price <= mountain.stock.stones)) {
     return false;
   }
   if (!(hoardK > 1)) {
     return true;
   }
-  return mountain.pocket >= hoardK * price;
+  return mountain.stock.stones >= hoardK * price;
 }
 
 /**
@@ -263,7 +264,10 @@ export function sticker(mountain: Mountain, action: Action): number {
     case "promote":
       return promoteCost(mountain);
     case "craft":
-      return recipeCost(action.recipe, stretch(mountain)).stones;
+      return priceAmount(
+        recipePrice(action.recipe, stretch(mountain)),
+        "stones",
+      );
     case "station":
     case "send":
     case "recall":
@@ -375,7 +379,7 @@ function isPurchase(
 }
 
 function paidNow(mountain: Mountain, action: Action): boolean {
-  return sticker(mountain, action) <= mountain.pocket;
+  return sticker(mountain, action) <= mountain.stock.stones;
 }
 
 function affordSeconds(pocket: number, income: number, cost: number): number {
@@ -415,14 +419,10 @@ function craftHasRoom(mountain: Mountain, id: RecipeId): boolean {
 }
 
 function materialsCover(mountain: Mountain, id: RecipeId): boolean {
-  const cost = recipeCost(id, stretch(mountain)).materials;
-  const have = mountain.materials;
-  return (
-    have.clay >= cost.clay &&
-    have.iron >= cost.iron &&
-    have.crystal >= cost.crystal &&
-    have.heartstone >= cost.heartstone
+  const materials = recipePrice(id, stretch(mountain)).filter(
+    (line) => line.good !== "stones",
   );
+  return stockCovers(mountain.stock, materials);
 }
 
 function outranks(candidate: number, current: number): boolean {

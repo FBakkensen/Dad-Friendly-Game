@@ -78,7 +78,7 @@ function crew(): Mountain {
   return {
     ...createMountain(),
     remaining: 228_000_000,
-    pocket: 2_000_000,
+    stock: { ...createMountain().stock, stones: 2_000_000 },
     owned: {
       ...createMountain().owned,
       helper: 30,

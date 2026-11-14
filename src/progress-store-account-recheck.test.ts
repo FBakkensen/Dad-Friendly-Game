@@ -163,7 +163,7 @@ const resumeLines = (progress: {
 
 const pocketIn = async (cloud: CloudSave, uid: string): Promise<number> => {
   const saved = await cloud.load({ uid });
-  return saved.kind === "found" ? saved.mountain.pocket : -1;
+  return saved.kind === "found" ? saved.mountain.stock.stones : -1;
 };
 
 describe("the account reported again (#481)", () => {
@@ -203,9 +203,22 @@ describe("the account reported again (#481)", () => {
 
   it("loads the new account when another one signs in during the read on resume", async () => {
     const docs = new Map<string, Mountain>([
-      [dad.uid, { ...createMountain(), pocket: 10 }],
+      [
+        dad.uid,
+        {
+          ...createMountain(),
+          stock: { ...createMountain().stock, stones: 10 },
+        },
+      ],
       // A later run, so mom's copy is ahead of the dad's game still in play.
-      [mom.uid, { ...createMountain(), startedAt: 40_000, pocket: 77 }],
+      [
+        mom.uid,
+        {
+          ...createMountain(),
+          startedAt: 40_000,
+          stock: { ...createMountain().stock, stones: 77 },
+        },
+      ],
     ]);
     const { cloud, releaseReads } = slowReadCloud(docs);
     const { auth, report } = reportingAuth(dad);
@@ -223,7 +236,7 @@ describe("the account reported again (#481)", () => {
     releaseReads();
     await settle();
     expect(progress.getSnapshot().ready).toBe(true);
-    expect(progress.getSnapshot().mountain.pocket).toBe(77);
+    expect(progress.getSnapshot().mountain.stock.stones).toBe(77);
     expect(await pocketIn(cloud, dad.uid)).toBe(10);
     progress.dispose();
   });
@@ -241,13 +254,19 @@ describe("the account reported again (#481)", () => {
     await settle();
     releaseWrites();
     await settle();
-    progress.applyMutation((mountain) => ({ ...mountain, pocket: 50 }));
+    progress.applyMutation((mountain) => ({
+      ...mountain,
+      stock: { ...mountain.stock, stones: 50 },
+    }));
     await settle();
     report(dad);
     await settle();
     releaseWrites();
     await settle();
-    progress.applyMutation((mountain) => ({ ...mountain, pocket: 99 }));
+    progress.applyMutation((mountain) => ({
+      ...mountain,
+      stock: { ...mountain.stock, stones: 99 },
+    }));
     await settle();
     releaseWrites();
     await settle();
@@ -266,13 +285,19 @@ describe("the account reported again (#481)", () => {
       now: () => 50_000,
     });
     await settle();
-    progress.applyMutation((mountain) => ({ ...mountain, pocket: 50 }));
+    progress.applyMutation((mountain) => ({
+      ...mountain,
+      stock: { ...mountain.stock, stones: 50 },
+    }));
     await settle();
     report(mom);
     await settle();
     releaseWrites();
     await settle();
-    progress.applyMutation((mountain) => ({ ...mountain, pocket: 33 }));
+    progress.applyMutation((mountain) => ({
+      ...mountain,
+      stock: { ...mountain.stock, stones: 33 },
+    }));
     await settle();
     releaseWrites();
     await settle();
@@ -282,7 +307,13 @@ describe("the account reported again (#481)", () => {
 
   it("drops a read on resume that answers after another tab took the seat", async () => {
     const docs = new Map<string, Mountain>([
-      [dad.uid, { ...createMountain(), pocket: 10 }],
+      [
+        dad.uid,
+        {
+          ...createMountain(),
+          stock: { ...createMountain().stock, stones: 10 },
+        },
+      ],
     ]);
     const { cloud, releaseReads } = slowReadCloud(docs);
     const { tabWriter, move } = movableSeat();
@@ -344,8 +375,21 @@ describe("the account reported again (#481)", () => {
     try {
       const base = createMemoryCloudSave({
         docs: new Map<string, Mountain>([
-          [dad.uid, { ...createMountain(), pocket: 10 }],
-          [mom.uid, { ...createMountain(), startedAt: 40_000, pocket: 77 }],
+          [
+            dad.uid,
+            {
+              ...createMountain(),
+              stock: { ...createMountain().stock, stones: 10 },
+            },
+          ],
+          [
+            mom.uid,
+            {
+              ...createMountain(),
+              startedAt: 40_000,
+              stock: { ...createMountain().stock, stones: 77 },
+            },
+          ],
         ]),
       });
       let answerDad: (() => void) | undefined;

@@ -1,7 +1,8 @@
 import { NONE_OWNED, patched, type MountainPatch } from "../test-fixtures";
 import { describe, expect, it } from "vitest";
 import { MOUNTAIN_STONES, createMountain, type Mountain } from "../mountain";
-import { promoteCost } from "../engineers";
+import { promoteCost, promotePrice } from "../engineers";
+import { priceAmount, stonesPrice } from "../stock";
 import { tierById, tierCost } from "../tiers";
 import {
   actionsOnTable,
@@ -40,7 +41,7 @@ import {
 } from "./policy";
 import {
   MAX_CRAFTED_LEVEL,
-  recipeCost,
+  recipePrice,
   startCraft,
   workshopUnlocked,
   type RecipeId,
@@ -63,8 +64,14 @@ const ada = {
   post: "borer",
 } as const;
 
-function withPocket(pocket: number, extra: Partial<Mountain> = {}): Mountain {
-  return { ...createMountain(), pocket, ...extra };
+function withPocket(pocket: number, extra: MountainPatch = {}): Mountain {
+  return patched(
+    {
+      ...createMountain(),
+      stock: { ...createMountain().stock, stones: pocket },
+    },
+    extra,
+  );
 }
 
 /** Nils's price: the second engineer, on a Topsoil first run. */
@@ -85,7 +92,7 @@ describe("spend table", () => {
       ...createMountain(),
       // Three carts open Strong arms (#250).
       owned: { ...createMountain().owned, helper: 4, cart: 3 },
-      pocket: 23_000,
+      stock: { ...createMountain().stock, stones: 23_000 },
       engineers: [{ name: "Ada", rank: 0, trips: 0, post: "camp" } as const],
     };
     const weighed = actionsOnTable(mountain, 0, casual.params);
@@ -474,18 +481,24 @@ describe("policy shape", () => {
       sticker(mountain, { kind: "buyTier", id: "helper" }),
     ).toBeGreaterThan(0);
     expect(
-      sticker(mountain, { kind: "buyUpgrade", id: "tap", price: 0 }),
+      sticker(mountain, {
+        kind: "buyUpgrade",
+        id: "tap",
+        price: stonesPrice(0),
+      }),
     ).toBeGreaterThan(0);
     expect(
       sticker(
         { ...mountain, upgrades: { ...NO_UPGRADES, tap: 10 } },
-        { kind: "buyUpgrade", id: "tap", price: 0 },
+        { kind: "buyUpgrade", id: "tap", price: stonesPrice(0) },
       ),
     ).toBe(Number.POSITIVE_INFINITY);
     expect(
       sticker(mountain, { kind: "buyBoost", id: "sharper" }),
     ).toBeGreaterThan(0);
-    expect(sticker(mountain, { kind: "promote", price: 0 })).toBe(nilsPrice);
+    expect(sticker(mountain, { kind: "promote", price: stonesPrice(0) })).toBe(
+      nilsPrice,
+    );
     expect(sticker(mountain, { kind: "station", index: 0, post: "camp" })).toBe(
       0,
     );
@@ -576,7 +589,7 @@ describe("policy shape", () => {
       // At its real price: the only thing missing is a worker to step up.
       decide: ({ mountain }) => ({
         kind: "promote",
-        price: promoteCost(mountain),
+        price: promotePrice(mountain),
       }),
     });
     const missed = runPolicy({
@@ -651,8 +664,7 @@ function workshop(extra: MountainPatch = {}): Mountain {
     {
       ...createMountain(),
       remaining: MOUNTAIN_STONES - 12_000_000,
-      pocket: 50_000_000,
-      materials: POCKET,
+      stock: { ...createMountain().stock, stones: 50_000_000, ...POCKET },
       owned: { ...createMountain().owned, helper: 4, cart: 1 },
     },
     extra,
@@ -691,7 +703,7 @@ describe("crafting", () => {
     });
     expect(affordable?.kind).toBe("buyTier");
     const saving = workshop({
-      pocket: 0,
+      stock: { stones: 0 },
       owned: { helper: 30, cart: 0, drill: 0, borer: 0, machine: 1 },
     });
     const waiting = casual.decide({
@@ -703,7 +715,7 @@ describe("crafting", () => {
     // Pinned on the tuned curve (#357): on the x1.06 worker curve, 80
     // workers left the next one too cheap to wait on; 100 is well clear.
     const late = workshop({
-      pocket: 0,
+      stock: { stones: 0 },
       owned: { helper: 100, cart: 40, drill: 30, borer: 0, machine: 1 },
     });
     const worthIt = casual.decide({
@@ -780,35 +792,62 @@ describe("crafting", () => {
     expect(canPay(open, charge, 1)).toBe(true);
     expect(canPay(open, rails, 1)).toBe(true);
     expect(
-      canPay({ ...open, materials: { ...POCKET, clay: 0 } }, charge, 1),
+      canPay(
+        { ...open, stock: { ...open.stock, ...POCKET, clay: 0 } },
+        charge,
+        1,
+      ),
     ).toBe(false);
     expect(
-      canPay({ ...open, materials: { ...POCKET, iron: 0 } }, rails, 1),
+      canPay(
+        { ...open, stock: { ...open.stock, ...POCKET, iron: 0 } },
+        rails,
+        1,
+      ),
     ).toBe(false);
     const crystal = withRecipes(open, ["diamond-bits", "heartstone-ember"]);
     expect(
-      canPay({ ...crystal, materials: { ...POCKET, crystal: 0 } }, bits, 1),
+      canPay(
+        { ...crystal, stock: { ...crystal.stock, ...POCKET, crystal: 0 } },
+        bits,
+        1,
+      ),
     ).toBe(false);
     expect(
       canPay(
         {
           ...crystal,
-          materials: { ...POCKET, heartstone: 0 },
+          stock: { ...crystal.stock, ...POCKET, heartstone: 0 },
         },
         ember,
         1,
       ),
     ).toBe(false);
     expect(canPay(open, lamp, 1)).toBe(false);
-    const noMaterials = { ...open, materials: EMPTY_MATERIALS };
+    const noMaterials = {
+      ...open,
+      stock: { ...open.stock, ...EMPTY_MATERIALS },
+    };
     expect(canPay(noMaterials, charge, 1)).toBe(false);
     const unlisted = { ...open, recipes: [] };
     expect(canPay(unlisted, lamp, 1)).toBe(false);
     const found = withRecipes(open, ["crystal-lamp"]);
     expect(canPay(found, lamp, 1)).toBe(true);
-    const chargeStones = recipeCost("blasting-charge").stones;
-    expect(canPay({ ...open, pocket: chargeStones }, charge, 8)).toBe(false);
-    expect(canPay({ ...open, pocket: chargeStones * 8 }, charge, 8)).toBe(true);
+    const chargeStones = priceAmount(recipePrice("blasting-charge"), "stones");
+    expect(
+      canPay(
+        { ...open, stock: { ...open.stock, stones: chargeStones } },
+        charge,
+        8,
+      ),
+    ).toBe(false);
+    expect(
+      canPay(
+        { ...open, stock: { ...open.stock, stones: chargeStones * 8 } },
+        charge,
+        8,
+      ),
+    ).toBe(true);
     const busy = startCraft(open, "iron-rails", 0);
     expect(canPay(busy, charge, 1)).toBe(false);
     expect(canPay(createMountain(), charge, 1)).toBe(false);
@@ -833,7 +872,7 @@ describe("crafting", () => {
 
   it("lets the optimizer see a craft, and skip one it cannot feed", () => {
     const late = workshop({
-      pocket: 0,
+      stock: { stones: 0 },
       owned: { helper: 50, cart: 12, drill: 6, borer: 0, machine: 1 },
       upgrades: {
         tap: 10,
@@ -854,7 +893,7 @@ describe("crafting", () => {
     expect(picked).not.toEqual({ kind: "craft", recipe: "reinforce" });
     const buying = optimizerDecide({
       mountain: workshop({
-        materials: { clay: 0, iron: 0, crystal: 0, heartstone: 0 },
+        stock: { clay: 0, iron: 0, crystal: 0, heartstone: 0 },
       }),
       now: 0,
       params: optimizer.params,

@@ -172,7 +172,7 @@ describe("an older save is set aside (#558)", () => {
       playing: false,
       saveKind: "error",
     });
-    expect(progress.getSnapshot().mountain.pocket).toBe(0);
+    expect(progress.getSnapshot().mountain.stock.stones).toBe(0);
     progress.dispose();
   });
 });

@@ -128,7 +128,9 @@ describe("session step", () => {
     });
     expect(codes(refused.effects)).toEqual([]);
     expect(refused.session.mountain.taught).toContain("engineers");
-    expect(refused.session.mountain.pocket).toBe(session.mountain.pocket);
+    expect(refused.session.mountain.stock.stones).toBe(
+      session.mountain.stock.stones,
+    );
     expect(step(refused.session, move, 0).session).toBe(refused.session);
   });
 

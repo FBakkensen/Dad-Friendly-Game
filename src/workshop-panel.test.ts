@@ -35,9 +35,15 @@ function granite(over: MountainPatch = {}): Mountain {
     {
       ...createMountain(),
       remaining: MOUNTAIN_STONES - 12_000_000,
-      pocket: 200_000,
+      stock: {
+        ...createMountain().stock,
+        stones: 200_000,
+        clay: 2,
+        iron: 1,
+        crystal: 0,
+        heartstone: 0,
+      },
       owned: { ...createMountain().owned, helper: 4, cart: 1 },
-      materials: { clay: 2, iron: 1, crystal: 0, heartstone: 0 },
       recipes: recipesForMined(12_000_000),
       seen: ["workshop"],
       taught: ["workshop"],
@@ -49,8 +55,7 @@ function granite(over: MountainPatch = {}): Mountain {
 /** Sturdy props on the bench, with nothing in the shed. */
 function busy(at: number): Mountain {
   return granite({
-    pocket: 0,
-    materials: { clay: 0, iron: 0, crystal: 0, heartstone: 0 },
+    stock: { stones: 0, clay: 0, iron: 0, crystal: 0, heartstone: 0 },
     bench: { recipe: "sturdy-props", startedAt: at, endsAt: at + 600_000 },
   });
 }
@@ -58,8 +63,14 @@ function busy(at: number): Mountain {
 /** Enough in the shed for every Granite craft. */
 function rich(over: MountainPatch = {}): Mountain {
   return granite({
-    pocket: 80_000_000,
-    materials: { clay: 40, iron: 40, crystal: 0, heartstone: 0 },
+    stock: {
+      ...over.stock,
+      stones: 80_000_000,
+      clay: 40,
+      iron: 40,
+      crystal: 0,
+      heartstone: 0,
+    },
     ...over,
   });
 }
@@ -275,9 +286,9 @@ describe("the Workshop drawer (#374)", () => {
       fingerTap(bench);
       const mountain = screen.progress.getSnapshot().mountain;
       expect(mountain.bench).toBeUndefined();
-      expect(mountain.pocket).toBe(250_000);
-      expect(mountain.materials.clay).toBe(10);
-      expect(mountain.materials.iron).toBe(4);
+      expect(mountain.stock.stones).toBe(250_000);
+      expect(mountain.stock.clay).toBe(10);
+      expect(mountain.stock.iron).toBe(4);
       expect(partOf(bench, "verb")).toBe("Done");
 
       // Armed and left alone, it disarms after four seconds.
@@ -554,9 +565,14 @@ describe("the Workshop drawer (#374)", () => {
     let clock = CLOCK;
     const screen = mount(
       granite({
-        pocket: 400_000,
+        stock: {
+          stones: 400_000,
+          clay: 10,
+          iron: 0,
+          crystal: 0,
+          heartstone: 0,
+        },
         owned: { helper: 40 },
-        materials: { clay: 10, iron: 0, crystal: 0, heartstone: 0 },
         seen: [],
         taught: [],
       }),
@@ -613,7 +629,7 @@ describe("the Workshop drawer (#374)", () => {
     bench.click();
     const mountain = screen.progress.getSnapshot().mountain;
     expect(mountain.bench).toBeUndefined();
-    expect(mountain.pocket).toBe(250_000);
+    expect(mountain.stock.stones).toBe(250_000);
   });
 
   it("one drawer at a time", () => {

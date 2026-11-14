@@ -9,12 +9,13 @@ import { UPGRADES, upgradeLevel } from "../upgrades";
 import { boostShown, upgradeShown } from "../upgrade-reveal";
 import {
   craftedLevel,
-  recipeCost,
+  recipePrice,
   recipeOpen,
   workshopUnlocked,
   type RecipeId,
 } from "../workshop";
 import { HOUR_MS, MS_PER_SECOND } from "./targets";
+import { canPay, priceAmount } from "../stock";
 
 /**
  * When a thing first shows on screen and when the dad first uses it.
@@ -45,22 +46,15 @@ function knownRecipes(mountain: Mountain): readonly RecipeId[] {
 
 /** The pocket and the materials cover one craft of this recipe. */
 function recipeAffordable(mountain: Mountain, id: RecipeId): boolean {
-  const cost = recipeCost(id, stretch(mountain));
-  const have = mountain.materials;
-  return (
-    mountain.pocket >= cost.stones &&
-    have.clay >= cost.materials.clay &&
-    have.iron >= cost.materials.iron &&
-    have.crystal >= cost.materials.crystal &&
-    have.heartstone >= cost.materials.heartstone
-  );
+  return canPay(mountain.stock, recipePrice(id, stretch(mountain)));
 }
 
 /** A known recipe that spends this material is affordable right now. */
 function materialAffordable(mountain: Mountain, material: MaterialId): boolean {
   return knownRecipes(mountain).some(
     (id) =>
-      recipeCost(id).materials[material] > 0 && recipeAffordable(mountain, id),
+      priceAmount(recipePrice(id), material) > 0 &&
+      recipeAffordable(mountain, id),
   );
 }
 
@@ -71,7 +65,7 @@ function materialUsed(mountain: Mountain, material: MaterialId): boolean {
     mountain.bench !== undefined ||
     knownRecipes(mountain).some(
       (id) =>
-        recipeCost(id).materials[material] > 0 &&
+        priceAmount(recipePrice(id), material) > 0 &&
         (craftedLevel(mountain, id) > 0 || bench === id),
     )
   );

@@ -278,16 +278,3 @@ export function materialLeftToDig(material: MaterialId, mined: number): number {
   return left > 0 ? left : 0;
 }
 
-/** Adds a dig's units onto the pocket. A missing pocket counts as empty. */
-export function addMaterials(
-  current: Materials | undefined,
-  gained: Materials,
-): Materials {
-  const base = current ?? EMPTY_MATERIALS;
-  return {
-    clay: base.clay + gained.clay,
-    iron: base.iron + gained.iron,
-    crystal: base.crystal + gained.crystal,
-    heartstone: base.heartstone + gained.heartstone,
-  };
-}

@@ -228,7 +228,7 @@ function createBoardTop(
     paintPlate: () => {
       relicPlate.render();
       // The odometer and the dial. A spend is shown by `dispatch`, from what the move took.
-      odometer.set(ctx.view().mountain.pocket);
+      odometer.set(ctx.view().mountain.stock.stones);
       dialPaint.paint();
     },
     sayTimerOver: dialPaint.say,

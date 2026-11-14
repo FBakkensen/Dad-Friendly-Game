@@ -181,27 +181,42 @@ describe("mergeSaves", () => {
   });
 
   it("keeps a tied pocket as a conflict instead of blending it", () => {
-    const local = copy({ ...createMountain(), pocket: 5 }, 3, 4);
-    const remote = copy({ ...createMountain(), pocket: 9 }, 3, 4);
+    const local = copy(
+      { ...createMountain(), stock: { ...createMountain().stock, stones: 5 } },
+      3,
+      4,
+    );
+    const remote = copy(
+      { ...createMountain(), stock: { ...createMountain().stock, stones: 9 } },
+      3,
+      4,
+    );
     const merged = mergeSaves(local, remote);
     expect(merged.kind).toBe("conflict");
     if (merged.kind !== "conflict") {
       return;
     }
-    expect(merged.local.mountain.pocket).toBe(5);
-    expect(merged.remote.mountain.pocket).toBe(9);
+    expect(merged.local.mountain.stock.stones).toBe(5);
+    expect(merged.remote.mountain.stock.stones).toBe(9);
   });
 
   it("breaks a tied run on lastSeen without calling it a conflict", () => {
     const local = copy(minedMountain(12), 3, 4);
-    const remote = copy({ ...minedMountain(12), pocket: 4 }, 3, 9);
+    const remote = copy(
+      {
+        ...minedMountain(12),
+        stock: { ...minedMountain(12).stock, stones: 4 },
+      },
+      3,
+      9,
+    );
     const merged = mergeSaves(local, remote);
     expect(merged.kind).toBe("fast-forward");
     if (merged.kind !== "fast-forward") {
       return;
     }
     expect(merged.lastSeen).toBe(9);
-    expect(merged.mountain.pocket).toBe(4);
+    expect(merged.mountain.stock.stones).toBe(4);
   });
 
   it("fast-forwards two identical copies", () => {

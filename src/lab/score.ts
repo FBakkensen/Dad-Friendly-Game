@@ -18,7 +18,7 @@ import {
 import {
   COLD_CLOCKS,
   NOTHING_CRAFTED,
-  recipeCost,
+  recipePrice,
   workshopUnlocked,
 } from "../workshop";
 import { MOVE_KINDS, type DecisionSample } from "./measure";
@@ -31,6 +31,7 @@ import {
   TENDING_SOURCE,
   VALUE_TIE,
 } from "./targets";
+import { canPay } from "../stock";
 
 export type ScoreInput = {
   readonly mountain: Mountain;
@@ -125,15 +126,7 @@ function craftIsReady(mountain: Mountain, action: Action): boolean {
   if (action.kind !== "craft") {
     return false;
   }
-  const cost = recipeCost(action.recipe, stretch(mountain));
-  const have = mountain.materials;
-  return (
-    mountain.pocket >= cost.stones &&
-    have.clay >= cost.materials.clay &&
-    have.iron >= cost.materials.iron &&
-    have.crystal >= cost.materials.crystal &&
-    have.heartstone >= cost.materials.heartstone
-  );
+  return canPay(mountain.stock, recipePrice(action.recipe, stretch(mountain)));
 }
 
 function price(
@@ -155,8 +148,8 @@ function price(
     perStone,
     waitSec: ready
       ? 0
-      : waitToAfford(mountain.pocket, cost, gain, priced.paybackSec),
-    affordable: ready || !(cost > mountain.pocket),
+      : waitToAfford(mountain.stock.stones, cost, gain, priced.paybackSec),
+    affordable: ready || !(cost > mountain.stock.stones),
   };
 }
 
@@ -278,7 +271,9 @@ function tapStones(
   now: number,
   trouble: Trouble | undefined,
 ): number {
-  return mineByHand(mountain, now, trouble).pocket - mountain.pocket;
+  return (
+    mineByHand(mountain, now, trouble).stock.stones - mountain.stock.stones
+  );
 }
 
 function withoutGear(mountain: Mountain): Mountain {
@@ -397,7 +392,7 @@ export function scoreDecision(input: ScoreInput): DecisionSample {
     bestKind: payback.bestKind,
     waitToAffordSec: payback.waitToAffordSec,
     crewPerSec: rates.exactCrewPerSecond,
-    pocket: input.mountain.pocket,
+    pocket: input.mountain.stock.stones,
     outputShare: outputShare(
       input.mountain,
       input.now,
@@ -408,7 +403,7 @@ export function scoreDecision(input: ScoreInput): DecisionSample {
     layer: layerOf(input.mountain).id,
     workshopOpen: workshopUnlocked(input.mountain),
     benchFree: input.mountain.bench === undefined,
-    materials: input.mountain.materials,
+    materials: input.mountain.stock,
     openRecipes: sinkRecipes(input.mountain),
     knownRecipes: knownRecipeIds(input.mountain),
     crafted: input.mountain.crafted,

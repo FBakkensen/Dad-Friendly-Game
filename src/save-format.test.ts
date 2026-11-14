@@ -21,7 +21,7 @@ describe("the game map (#558)", () => {
     // A new Mountain field must be named here, with the map it is saved in.
     const homes = {
       remaining: "run",
-      pocket: "stock",
+      stock: "stock",
       owned: "owned",
       upgrades: "levels",
       boosts: "clocks",
@@ -31,7 +31,6 @@ describe("the game map (#558)", () => {
       expeditions: "expeditions",
       finds: "marks",
       stretch: "run",
-      materials: "stock",
       bench: "bench",
       crafted: "levels",
       recipes: "marks",
@@ -45,7 +44,14 @@ describe("the game map (#558)", () => {
     const full: Mountain = {
       ...fresh,
       remaining: MOUNTAIN_STONES - 5_000,
-      pocket: 7,
+      stock: {
+        ...fresh.stock,
+        stones: 7,
+        clay: 3,
+        iron: 2,
+        crystal: 1,
+        heartstone: 0,
+      },
       owned: {
         ...fresh.owned,
         helper: 9,
@@ -73,7 +79,6 @@ describe("the game map (#558)", () => {
         },
       ],
       finds: ["pick"],
-      materials: { clay: 3, iron: 2, crystal: 1, heartstone: 0 },
       bench: { recipe: "iron-rails", startedAt: 10, endsAt: 20 },
       crafted: { ...fresh.crafted, "sturdy-props": 1 },
       recipes: [...fresh.recipes, "reinforce"],
@@ -94,7 +99,7 @@ describe("the game map (#558)", () => {
     const game = writeGame({
       ...fresh,
       owned: { ...fresh.owned, helper: 3, hoist: 1 },
-      pocket: 40,
+      stock: { ...fresh.stock, stones: 40 },
       upgrades: { ...fresh.upgrades, tap: 2 },
       crafted: { ...fresh.crafted, "iron-rails": 1 },
       boosts: { ...fresh.boosts, overtime: 9 },

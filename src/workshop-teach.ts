@@ -8,10 +8,11 @@ import type { WorkshopCard } from "./workshop-sheet";
 import {
   chargeCrewMultiplier,
   recipeById,
-  recipeCost,
+  recipePrice,
   type RecipeId,
   withClock,
 } from "./workshop";
+import { priceAmount } from "./stock";
 
 /**
  * The Workshop's first visit (M11, #243), the hybrid pattern from #240.
@@ -39,12 +40,13 @@ export type WorkshopTeach = {
 
 /** "Craft Blasting charge · 4 clay · 100K", from the live price. */
 export function firstCraftLabel(id: RecipeId, mountain: Mountain): string {
-  const cost = recipeCost(id, stretch(mountain));
-  const parts = Object.entries(cost.materials)
-    .filter(([, count]) => count > 0)
-    .map(([material, count]) => `${formatCount(count)} ${material}`);
-  if (cost.stones > 0) {
-    parts.push(formatCompact(cost.stones));
+  const cost = recipePrice(id, stretch(mountain));
+  const parts = cost
+    .filter((line) => line.good !== "stones")
+    .map((line) => `${formatCount(line.amount)} ${line.good}`);
+  const stones = priceAmount(cost, "stones");
+  if (stones > 0) {
+    parts.push(formatCompact(stones));
   }
   return [`Craft ${recipeById(id).name}`, ...parts].join(" · ");
 }

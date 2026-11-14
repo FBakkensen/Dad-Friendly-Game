@@ -89,7 +89,7 @@ function crew(): Mountain {
   return {
     ...createMountain(),
     remaining: 220_000_000,
-    pocket: 2_000_000,
+    stock: { ...createMountain().stock, stones: 2_000_000 },
     owned: { ...createMountain().owned, helper: 6, cart: 10 },
     seen: ["workshop"],
     taught: ["workshop"],
@@ -245,7 +245,7 @@ describe("buyWithTeach", () => {
   });
 
   it("an unaffordable tier returns the same mountain", () => {
-    const broke = { ...crew(), pocket: 0 };
+    const broke = { ...crew(), stock: { ...crew().stock, stones: 0 } };
     expect(buyWithTeach(broke, "helper")).toBe(broke);
     expect(buyWithTeach(broke, "cart")).toBe(broke);
   });

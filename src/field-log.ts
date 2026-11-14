@@ -176,7 +176,7 @@ export function snapshot(
     // Depth in run-1 stones, whole, as the rules want (a kid run digs fractions).
     mined: Math.floor(minedOut(mountain)),
     left: Math.ceil(mountain.remaining),
-    pocket: Math.min(mountain.pocket, FIELD_STONES_CAP),
+    pocket: Math.min(mountain.stock.stones, FIELD_STONES_CAP),
     crew,
     crewSpeed: rates.crewPerSecond,
     tapYield: rates.tapYield,

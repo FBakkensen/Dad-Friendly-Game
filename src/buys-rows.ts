@@ -205,7 +205,10 @@ function buyFacts({
   const pickHere =
     pick.kind !== "mined-out" &&
     pick.tier === id &&
-    !(pick.kind === "ready" && (mountain.pocket < price || gaining < buying));
+    !(
+      pick.kind === "ready" &&
+      (mountain.stock.stones < price || gaining < buying)
+    );
   return {
     mountain,
     id,
@@ -228,7 +231,9 @@ function buyFacts({
     staff,
     shortOf: lock === undefined && spare < staff ? bill : undefined,
     dear:
-      lock === undefined && troubled === undefined && mountain.pocket < price,
+      lock === undefined &&
+      troubled === undefined &&
+      mountain.stock.stones < price,
   };
 }
 
@@ -289,7 +294,7 @@ function troubleFace(troubled: Trouble): Face {
 
 function guidedFace(facts: BuyFacts): Face {
   const { mountain, workerPrice, crewEach, idle } = facts;
-  const short = mountain.pocket < workerPrice;
+  const short = mountain.stock.stones < workerPrice;
   return {
     state: short ? "dear" : "ready",
     info: [staffingLine(crewEach, idle)],

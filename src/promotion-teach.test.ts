@@ -88,7 +88,7 @@ function crew(): Mountain {
     ...createMountain(),
     remaining: 200_000_000,
     // 40M mined is the Granite: the second engineer costs 2M × 3 (#356).
-    pocket: 6_500_000,
+    stock: { ...createMountain().stock, stones: 6_500_000 },
     owned: {
       ...createMountain().owned,
       helper: 60,
@@ -110,7 +110,12 @@ describe("promotion teach (#246)", () => {
   it("is small: a dot with no note, only when he can pay and it pays", () => {
     expect(showsDot(crew(), "promotion")).toBe(true);
     expect(noteFor(crew())).toBe(undefined);
-    expect(showsDot({ ...crew(), pocket: 1_000_000 }, "promotion")).toBe(false);
+    expect(
+      showsDot(
+        { ...crew(), stock: { ...crew().stock, stones: 1_000_000 } },
+        "promotion",
+      ),
+    ).toBe(false);
     expect(
       showsDot(
         { ...crew(), owned: { ...crew().owned, helper: 0 } },
@@ -150,7 +155,9 @@ describe("promotion teach (#246)", () => {
     );
     // With no engineer yet, the first hand is Ada, and any post is free.
     expect(promotePayoff(withoutEngineers(), 0)?.name).toBe("Ada");
-    expect(promotePayoff({ ...crew(), pocket: 0 }, 0)).toBe(undefined);
+    expect(
+      promotePayoff({ ...crew(), stock: { ...crew().stock, stones: 0 } }, 0),
+    ).toBe(undefined);
     expect(promotionPayoff("Nils", "drill", "+217 stones/sec")).toBe(
       "Nils could tend the drills: +217 stones/sec",
     );
@@ -218,7 +225,11 @@ describe("promotion teach (#246)", () => {
   it("quotes the band's promotion price on the how card, as the row does (#356)", () => {
     const screen = mount(() => 1_700_000_000_000);
     // 45M mined is the Crystal Caves: one-offs cost 6.3 times as much (#357).
-    const caves = { ...crew(), remaining: 195_000_000, pocket: 0 };
+    const caves = {
+      ...crew(),
+      remaining: 195_000_000,
+      stock: { ...crew().stock, stones: 0 },
+    };
     screen.progress.applyMutation(() => caves);
     closeArrivals(screen.root);
     screen.root

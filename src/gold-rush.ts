@@ -1,4 +1,5 @@
 import type { Mountain } from "./mountain";
+import { add, stonesPrice, take } from "./stock";
 
 /**
  * The Gold rush (#468, docs/superpowers/specs/2026-11-11-gold-rush-design.md).
@@ -33,7 +34,8 @@ export function holdForRush(
   if (bank <= 0 || mountain.remaining === 0) {
     return mountain;
   }
-  return { ...mountain, pocket: mountain.pocket - bank, rushBank: bank };
+  // The bank comes out of the stones this absence just paid.
+  return { ...take(mountain, stonesPrice(bank)), rushBank: bank };
 }
 
 /** Stones held for a rush that has not started: a quick vein is owed. */
@@ -81,8 +83,7 @@ export function releaseRush(mountain: Mountain): Mountain {
     return mountain;
   }
   return {
-    ...mountain,
-    pocket: mountain.pocket + mountain.rushBank,
+    ...add(mountain, { stones: mountain.rushBank }),
     rushBank: 0,
     rushUntil: 0,
   };
@@ -116,11 +117,7 @@ export function payRush(
   return paid === 0
     ? { mountain, paid: 0 }
     : {
-        mountain: {
-          ...mountain,
-          pocket: mountain.pocket + paid,
-          rushBank: bank - paid,
-        },
+        mountain: { ...add(mountain, { stones: paid }), rushBank: bank - paid },
         paid,
       };
 }

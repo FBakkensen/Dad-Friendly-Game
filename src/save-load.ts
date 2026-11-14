@@ -63,7 +63,7 @@ function anyProgress(mountain: Mountain, countStamp: boolean): boolean {
     minedOut(mountain) > 0 ||
     (countStamp && runStartedAt(mountain) > 0) ||
     [
-      mountain.pocket,
+      mountain.stock.stones,
       mountain.owned.helper,
       mountain.owned.cart,
       mountain.owned.drill,

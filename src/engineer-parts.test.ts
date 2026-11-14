@@ -94,7 +94,7 @@ const withAda = (patch: MountainPatch = {}): Mountain =>
   patched(
     {
       ...minedMountain(0),
-      pocket: 5_000_000,
+      stock: { ...minedMountain(0).stock, stones: 5_000_000 },
       owned: {
         ...minedMountain(0).owned,
         helper: 20,

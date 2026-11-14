@@ -38,13 +38,14 @@ import {
 } from "./store-context";
 import { emit, runStep, settleCrew, settleIfPlaying } from "./store-session";
 import type { TroubleTier } from "./hazards";
+import type { Stock } from "./stock";
 
-/** What a dispatched move did (#409): applied, with what it spent and gained, or why not. */
+/** What a dispatched move did (#409): applied, with what it spent and gained by good, or why not. */
 export type DispatchResult =
   | {
       readonly kind: "applied";
-      readonly spent: number;
-      readonly gained: number;
+      readonly spent: Stock;
+      readonly gained: Stock;
     }
   | { readonly kind: "refused"; readonly reason: "not-playing" | "no-change" };
 

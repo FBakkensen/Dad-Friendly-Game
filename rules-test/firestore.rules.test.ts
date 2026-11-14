@@ -92,7 +92,7 @@ function lateCrew(): Mountain {
   return {
     ...fresh,
     remaining: MOUNTAIN_STONES - 80_000,
-    pocket: 80_000_000,
+    stock: { ...fresh.stock, stones: 80_000_000 },
     owned: {
       helper: 40,
       cart: 12,
@@ -353,7 +353,14 @@ function maximalMountain(): Mountain {
   return {
     ...createMountain(),
     remaining: 0,
-    pocket: 80_000_000,
+    stock: {
+      ...createMountain().stock,
+      stones: 80_000_000,
+      clay: 1_000_000_000,
+      iron: 1_000_000_000,
+      crystal: 1_000_000_000,
+      heartstone: 1_000_000_000,
+    },
     owned: {
       helper: 40,
       cart: 12,
@@ -375,12 +382,6 @@ function maximalMountain(): Mountain {
     engineers,
     expeditions,
     finds: [...FIND_IDS],
-    materials: {
-      clay: 1_000_000_000,
-      iron: 1_000_000_000,
-      crystal: 1_000_000_000,
-      heartstone: 1_000_000_000,
-    },
     recipes: [...RECIPE_IDS],
     bench: {
       recipe: "iron-rails",

@@ -1,4 +1,4 @@
-import { EMPTY_MATERIALS } from "./layers";
+import { EMPTY_MATERIALS, type Materials } from "./layers";
 import { minedMountain } from "./test-fixtures";
 import { setOwned } from "./tiers";
 import { SHIELD_AWAY_CAP_MS, heartBonus } from "./rates";
@@ -15,15 +15,24 @@ import {
   mineByHand,
   minedOut,
   BARE_MOUNTAIN,
+  type Mountain,
 } from "./mountain";
 import { STARTING_RECIPE_IDS } from "./workshop";
+
+/** The four materials a mountain holds (#560: they live in its stock). */
+const materialsIn = (mountain: Mountain): Materials => ({
+  clay: mountain.stock.clay,
+  iron: mountain.stock.iron,
+  crystal: mountain.stock.crystal,
+  heartstone: mountain.stock.heartstone,
+});
 
 describe("mountain", () => {
   it("starts with a million stones, an empty pocket, and no helpers", () => {
     expect(createMountain()).toEqual({
       ...BARE_MOUNTAIN,
       remaining: MOUNTAIN_STONES,
-      pocket: 0,
+      stock: { ...BARE_MOUNTAIN.stock, stones: 0, ...EMPTY_MATERIALS },
       owned: {
         ...BARE_MOUNTAIN.owned,
         helper: 0,
@@ -33,7 +42,6 @@ describe("mountain", () => {
         machine: 0,
         kid: 0,
       },
-      materials: EMPTY_MATERIALS,
       recipes: [...STARTING_RECIPE_IDS],
     });
     expect(minedOut(createMountain())).toBe(0);
@@ -47,7 +55,7 @@ describe("mountain", () => {
     expect(mountain).toEqual({
       ...createMountain(),
       remaining: MOUNTAIN_STONES - 3,
-      pocket: 3,
+      stock: { ...createMountain().stock, stones: 3 },
     });
     expect(minedOut(mountain)).toBe(3);
   });
@@ -56,7 +64,7 @@ describe("mountain", () => {
     const empty = {
       ...BARE_MOUNTAIN,
       remaining: 0,
-      pocket: 5,
+      stock: { ...BARE_MOUNTAIN.stock, stones: 5 },
       owned: {
         ...BARE_MOUNTAIN.owned,
         helper: 0,
@@ -76,12 +84,12 @@ describe("materials from digging", () => {
     const mountain = {
       ...createMountain(),
       remaining: MOUNTAIN_STONES - 999_999,
-      pocket: 999_999,
+      stock: { ...createMountain().stock, stones: 999_999 },
     };
     const tapped = mineByHand(mountain);
     expect(minedOut(tapped)).toBe(1_000_000);
-    expect(tapped.materials).toEqual({ ...EMPTY_MATERIALS, clay: 1 });
-    expect(tapped.pocket).toBe(1_000_000);
+    expect(materialsIn(tapped)).toEqual({ ...EMPTY_MATERIALS, clay: 1 });
+    expect(tapped.stock.stones).toBe(1_000_000);
   });
 
   it("pays the same units live, away, and in small slices", () => {
@@ -107,9 +115,9 @@ describe("materials from digging", () => {
     expect(live.mined).toBe(stones);
     expect(away.mined).toBe(stones);
     expect(closed.mined).toBe(stones);
-    expect(live.mountain.materials).toEqual(expected);
-    expect(away.mountain.materials).toEqual(expected);
-    expect(closed.mountain.materials).toEqual(expected);
+    expect(materialsIn(live.mountain)).toEqual(expected);
+    expect(materialsIn(away.mountain)).toEqual(expected);
+    expect(materialsIn(closed.mountain)).toEqual(expected);
 
     let sliced = mountain;
     let at = 0;
@@ -121,14 +129,14 @@ describe("materials from digging", () => {
       at = part.settledAt;
     }
     expect(minedOut(sliced)).toBeCloseTo(depth, 3);
-    expect(sliced.materials).toEqual(expected);
+    expect(materialsIn(sliced)).toEqual(expected);
   });
 
   it("keeps the remainder, so one-stone digs match one dig", () => {
     const start = {
       ...createMountain(),
       remaining: MOUNTAIN_STONES - 999_700,
-      pocket: 999_700,
+      stock: { ...createMountain().stock, stones: 999_700 },
       owned: { ...createMountain().owned, helper: 10 },
     };
     let stepped = start;
@@ -142,9 +150,9 @@ describe("materials from digging", () => {
     const away = accrueAway({ mountain: start, lastSeen: 0, now: 100_000 });
     expect(once.mined).toBe(300);
     expect(away.mined).toBe(300);
-    expect(stepped.materials).toEqual(once.mountain.materials);
-    expect(away.mountain.materials).toEqual(once.mountain.materials);
-    expect(once.mountain.materials.clay).toBe(1);
+    expect(materialsIn(stepped)).toEqual(materialsIn(once.mountain));
+    expect(materialsIn(away.mountain)).toEqual(materialsIn(once.mountain));
+    expect(once.mountain.stock.clay).toBe(1);
   });
 });
 
@@ -153,7 +161,7 @@ describe("accrue", () => {
   const crew = {
     ...BARE_MOUNTAIN,
     remaining: MOUNTAIN_STONES - 1000,
-    pocket: 0,
+    stock: { ...BARE_MOUNTAIN.stock, stones: 0 },
     owned: {
       ...BARE_MOUNTAIN.owned,
       helper: 2,
@@ -170,7 +178,7 @@ describe("accrue", () => {
       mountain: {
         ...crew,
         remaining: MOUNTAIN_STONES - 1_004,
-        pocket: 4,
+        stock: { ...crew.stock, stones: 4, ...EMPTY_MATERIALS },
         owned: {
           ...crew.owned,
           helper: 2,
@@ -180,7 +188,6 @@ describe("accrue", () => {
           machine: 0,
           kid: 0,
         },
-        materials: EMPTY_MATERIALS,
       },
       mined: 4,
       settledAt: 2_000,
@@ -207,7 +214,7 @@ describe("accrue", () => {
     const almost = {
       ...BARE_MOUNTAIN,
       remaining: 3,
-      pocket: 0,
+      stock: { ...BARE_MOUNTAIN.stock, stones: 0 },
       owned: {
         ...BARE_MOUNTAIN.owned,
         helper: 2,
@@ -224,7 +231,12 @@ describe("accrue", () => {
       mountain: {
         ...almost,
         remaining: 0,
-        pocket: left,
+        stock: {
+          ...almost.stock,
+          stones: left,
+          ...EMPTY_MATERIALS,
+          heartstone: 1,
+        },
         owned: {
           ...almost.owned,
           helper: 2,
@@ -234,7 +246,6 @@ describe("accrue", () => {
           machine: 0,
           kid: 0,
         },
-        materials: { ...EMPTY_MATERIALS, heartstone: 1 },
       },
       mined: left,
       settledAt: (left / 2 + 0.5) * 1_000,
@@ -245,7 +256,7 @@ describe("accrue", () => {
     const idle = {
       ...BARE_MOUNTAIN,
       remaining: 10,
-      pocket: 0,
+      stock: { ...BARE_MOUNTAIN.stock, stones: 0 },
       owned: {
         ...BARE_MOUNTAIN.owned,
         helper: 0,
@@ -273,7 +284,7 @@ describe("accrueAway", () => {
   const crew = {
     ...BARE_MOUNTAIN,
     remaining: MOUNTAIN_STONES,
-    pocket: 0,
+    stock: { ...BARE_MOUNTAIN.stock, stones: 0 },
     owned: {
       ...BARE_MOUNTAIN.owned,
       helper: 2,
@@ -445,10 +456,10 @@ describe("digging through band scales (#356)", () => {
       5_000_000 * BAND_SCALE[2];
     const dug = digStones(start, stones);
     expect(minedOut(dug)).toBe(BAND_STARTS[2] + 5_000_000);
-    expect(dug.pocket - start.pocket).toBe(stones);
+    expect(dug.stock.stones - start.stock.stones).toBe(stones);
     const gained = materialsGained(9_000_000, minedOut(dug));
-    const before = start.materials;
-    expect(dug.materials).toEqual({
+    const before = materialsIn(start);
+    expect(materialsIn(dug)).toEqual({
       ...before,
       clay: before.clay + gained.clay,
       iron: before.iron + gained.iron,
@@ -465,7 +476,7 @@ describe("digging through band scales (#356)", () => {
     expect(exact.remaining).toBe(0);
     const over = digStones(m, left + 5);
     expect(over.remaining).toBe(0);
-    expect(over.pocket - m.pocket).toBe(left + 5);
+    expect(over.stock.stones - m.stock.stones).toBe(left + 5);
     const tapped = mineByHand({ ...m, remaining: 0 });
     expect(tapped.remaining).toBe(0);
   });

@@ -14,7 +14,7 @@ function crewed(over: MountainPatch = {}): Mountain {
     {
       ...minedMountain(500_000),
       owned: { ...minedMountain(500_000).owned, helper: 18, cart: 6 },
-      pocket: 1_000_000,
+      stock: { ...minedMountain(500_000).stock, stones: 1_000_000 },
     },
     over,
   );
@@ -59,7 +59,9 @@ describe("buysTap", () => {
       kind: "buy",
       count: max,
     });
-    expect(tap(crewed({ pocket: 0 }), "cart", { amount: "ten" })).toEqual({
+    expect(
+      tap(crewed({ stock: { stones: 0 } }), "cart", { amount: "ten" }),
+    ).toEqual({
       kind: "blink",
     });
   });
@@ -72,7 +74,9 @@ describe("buysTap", () => {
   });
 
   it("a row too dear blinks", () => {
-    expect(tap(crewed({ pocket: 0 }), "cart")).toEqual({ kind: "blink" });
+    expect(tap(crewed({ stock: { stones: 0 } }), "cart")).toEqual({
+      kind: "blink",
+    });
   });
 
   it("a row held in place but no longer shown blinks", () => {
@@ -97,7 +101,7 @@ describe("buysTap", () => {
       tier: "cart",
       startedAt: NOW - 1_000,
     };
-    expect(tap(crewed({ pocket: 0 }), "cart", { trouble })).toEqual({
+    expect(tap(crewed({ stock: { stones: 0 } }), "cart", { trouble })).toEqual({
       kind: "trouble",
       tier: "cart",
     });

@@ -4,6 +4,7 @@ import { lineOn } from "./line-switch";
 import type { Stage } from "./line";
 import type { Mountain } from "./mountain";
 import type { RelicId } from "./relics";
+import { pay, stonesPrice, type Price } from "./stock";
 
 /** All tier numbers live here. See docs/DESIGN.md "M2: Automation". */
 /**
@@ -313,7 +314,7 @@ export function tierQuote(
   const enough =
     amount === "ten"
       ? () => bought >= 10
-      : () => cost + tierCost(tier, count + bought, k) > mountain.pocket;
+      : () => cost + tierCost(tier, count + bought, k) > mountain.stock.stones;
   while (!enough()) {
     cost += tierCost(tier, count + bought, k);
     bought += 1;
@@ -321,19 +322,19 @@ export function tierQuote(
   return { count: bought, cost };
 }
 
-/** Pays for one of the tier from the pocket; unaffordable returns the same mountain. */
-export function buyTier(mountain: Mountain, id: TierId): Mountain {
-  const tier = tierById(id);
-  const count = owned(mountain, tier);
-  const cost = tierCost(tier, count, stretch(mountain));
-  if (mountain.pocket < cost) {
-    return mountain;
-  }
-  return setOwned(
-    { ...mountain, pocket: mountain.pocket - cost },
-    id,
-    count + 1,
+/** The next one of the tier, as a price (#560). Every tier is priced in stones. */
+function tierPrice(mountain: Mountain, id: TierId): Price {
+  return stonesPrice(
+    tierCost(tierById(id), mountain.owned[id], stretch(mountain)),
   );
+}
+
+/** Pays for one of the tier from the stock; unaffordable returns the same mountain. */
+export function buyTier(mountain: Mountain, id: TierId): Mountain {
+  const paid = pay(mountain, tierPrice(mountain, id));
+  return paid === mountain
+    ? mountain
+    : setOwned(paid, id, mountain.owned[id] + 1);
 }
 
 /**

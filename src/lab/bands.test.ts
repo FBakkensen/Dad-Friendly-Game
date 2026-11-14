@@ -15,22 +15,21 @@ import {
 import type { DecisionSample } from "./measure";
 import type { RevealEvent } from "./reveal";
 import { TARGETS } from "./targets";
+import { patched, type MountainPatch } from "../test-fixtures";
 
 const GRANITE = 10_000_000;
 const CRYSTAL = 45_000_000;
 
-type Extra = Partial<Omit<Mountain, "owned">> & {
-  readonly owned?: Partial<Mountain["owned"]>;
-};
-
-function at(mined: number, extra: Extra = {}): Mountain {
+function at(mined: number, extra: MountainPatch = {}): Mountain {
   const fresh = createMountain();
-  return {
-    ...fresh,
-    remaining: MOUNTAIN_STONES - mined,
-    ...extra,
-    owned: { ...fresh.owned, helper: 1, ...extra.owned },
-  };
+  return patched(
+    {
+      ...fresh,
+      remaining: MOUNTAIN_STONES - mined,
+      owned: { ...fresh.owned, helper: 1 },
+    },
+    extra,
+  );
 }
 
 function sample(
@@ -54,7 +53,7 @@ describe("createBandLog", () => {
     const log = createBandLog();
     // Exactly the first cart's price.
     const cart = tierCost(tierById("cart"), 0);
-    const first = log(at(0, { pocket: cart }));
+    const first = log(at(0, { stock: { stones: cart } }));
     expect(first).toEqual([
       { kind: "available", tier: "cart", layer: "topsoil" },
       {
@@ -65,7 +64,7 @@ describe("createBandLog", () => {
         count: 0,
       },
     ]);
-    expect(log(at(0, { pocket: cart }))).toEqual([]);
+    expect(log(at(0, { stock: { stones: cart } }))).toEqual([]);
     const bought = log(at(GRANITE, { owned: { cart: 2 } }));
     expect(bought).toContainEqual({
       kind: "bought",
@@ -86,7 +85,7 @@ describe("createBandLog", () => {
 
   it("skips a machine still waiting on its relic", () => {
     const log = createBandLog();
-    const events = log(at(0, { owned: { borer: 1 }, pocket: 1e12 }));
+    const events = log(at(0, { owned: { borer: 1 }, stock: { stones: 1e12 } }));
     expect(events.some((event) => event.tier === "machine")).toBe(false);
   });
 });

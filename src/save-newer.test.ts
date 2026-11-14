@@ -91,7 +91,7 @@ describe("a save from a later build (#558)", () => {
       playing: false,
       saveKind: "loading",
     });
-    expect(progress.getSnapshot().mountain.pocket).toBe(0);
+    expect(progress.getSnapshot().mountain.stock.stones).toBe(0);
     expect(progress.getSnapshot().log).toContain("save.newer");
     expect(
       progress.fieldLog().events.filter((event) => event.code === "save.newer"),
@@ -207,7 +207,7 @@ describe("a save from a later build (#558)", () => {
     tryToSave(progress, clock);
     expect(storage.getItem(SESSION_SAVE_KEY)).toBe(raw);
     expect(saveWrites(storage)).toEqual([]);
-    expect(progress.getSnapshot().mountain.pocket).toBe(0);
+    expect(progress.getSnapshot().mountain.stock.stones).toBe(0);
     progress.dispose();
   });
 
@@ -278,7 +278,7 @@ describe("a save from a later build (#558)", () => {
     progress.dispatch({ kind: "dig" });
     progress.flush();
     expect(progress.getSnapshot().newer).toBe(false);
-    expect(progress.getSnapshot().mountain.pocket).toBeGreaterThan(0);
+    expect(progress.getSnapshot().mountain.stock.stones).toBeGreaterThan(0);
     expect(storage.getItem("dad-friendly-session")).toBe(oldGuest);
     expect(storage.getItem(`dad-friendly-phone-backup:${user.uid}`)).toBe(
       oldBackup,
@@ -323,7 +323,7 @@ describe("the writer reads back what it sends (#558)", () => {
     });
     progress.applyMutation((mountain) => ({
       ...mountain,
-      pocket: mountain.pocket + 10,
+      stock: { ...mountain.stock, stones: mountain.stock.stones + 10 },
       // A recipe no build has: the reader would call this save newer.
       recipes: [...mountain.recipes, "kiln" as RecipeId],
     }));
@@ -355,10 +355,13 @@ describe("the writer reads back what it sends (#558)", () => {
     });
     progress.applyMutation((mountain) => ({
       ...mountain,
-      pocket: mountain.pocket + 10,
+      stock: { ...mountain.stock, stones: mountain.stock.stones + 10 },
       recipes: [...mountain.recipes, "kiln" as RecipeId],
     }));
-    progress.applyMutation((mountain) => ({ ...mountain, pocket: 1 }));
+    progress.applyMutation((mountain) => ({
+      ...mountain,
+      stock: { ...mountain.stock, stones: 1 },
+    }));
     progress.flush();
     progress.dispose();
     expect(storage.getItem(BACKUP_KEY) ?? "").not.toContain("kiln");
@@ -381,7 +384,7 @@ describe("the writer reads back what it sends (#558)", () => {
     });
     progress.applyMutation((mountain) => ({
       ...mountain,
-      pocket: mountain.pocket + 10,
+      stock: { ...mountain.stock, stones: mountain.stock.stones + 10 },
       recipes: [...mountain.recipes, "kiln" as RecipeId],
     }));
     progress.flush();

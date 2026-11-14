@@ -55,7 +55,7 @@ const withAda = (patch: MountainPatch = {}): Mountain =>
   patched(
     {
       ...minedMountain(0),
-      pocket: 5_000_000,
+      stock: { ...minedMountain(0).stock, stones: 5_000_000 },
       owned: {
         ...minedMountain(0).owned,
         helper: 20,
@@ -281,7 +281,7 @@ describe("settlePage (#455)", () => {
   it("a promote page that can no longer promote gives way to the list", () => {
     const page = { kind: "promote", price: 2_000_000 } as const;
     expect(settlePage(page, withAda(), true)).toBe(page);
-    expect(settlePage(page, withAda({ pocket: 0 }), true)).toEqual({
+    expect(settlePage(page, withAda({ stock: { stones: 0 } }), true)).toEqual({
       kind: "list",
     });
   });
@@ -581,7 +581,10 @@ describe("the Promote row (#455)", () => {
   });
 
   it("a light pocket dims the tag and says what it needs", () => {
-    const view = promoteRowView(ctxOf(withAda({ pocket: 10 })), NONE);
+    const view = promoteRowView(
+      ctxOf(withAda({ stock: { stones: 10 } })),
+      NONE,
+    );
     expect(view).toMatchObject({
       price: "2M",
       dimTag: true,
@@ -712,7 +715,7 @@ describe("moved from the panel (#455)", () => {
 /** A mountain before its first borer: no crew at all. */
 const noCrew = (): Mountain => ({
   ...minedMountain(0),
-  pocket: 5_000_000,
+  stock: { ...minedMountain(0).stock, stones: 5_000_000 },
   owned: { ...minedMountain(0).owned, helper: 20 },
 });
 
@@ -748,8 +751,10 @@ describe("what a press reads (#455)", () => {
   });
 
   it("the price the promote ask was opened at, and none on another page", () => {
-    expect(askedPrice({ kind: "promote", price: 2_000_000 })).toBe(2_000_000);
-    expect(askedPrice({ kind: "list" })).toBeNaN();
+    expect(askedPrice({ kind: "promote", price: 2_000_000 })).toEqual([
+      { good: "stones", amount: 2_000_000 },
+    ]);
+    expect(askedPrice({ kind: "list" })).toEqual([]);
   });
 
   it("the promote ask names the next hand, and a full crew asks nothing", () => {

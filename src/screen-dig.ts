@@ -68,7 +68,7 @@ function createGaugeRow(
       return 0;
     }
     const result = ctx.dispatch({ kind: "dig" });
-    const mined = result.kind === "applied" ? result.gained : 0;
+    const mined = result.kind === "applied" ? result.gained.stones : 0;
     if (mined > 0) {
       gauge.kick(DIG_KICK);
     }

@@ -120,8 +120,14 @@ describe("createRevealLog", () => {
 describe("a busy bench counts as use", () => {
   const rich: Mountain = {
     ...minedMountain(5_000_000),
-    pocket: 1e12,
-    materials: { clay: 1000, iron: 1000, crystal: 1000, heartstone: 1000 },
+    stock: {
+      ...minedMountain(5_000_000).stock,
+      stones: 1e12,
+      clay: 1000,
+      iron: 1000,
+      crystal: 1000,
+      heartstone: 1000,
+    },
     recipes: ["axle-grease", "blasting-charge"],
   };
 

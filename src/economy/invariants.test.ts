@@ -29,6 +29,7 @@ import { MOUNTAIN_STONES, minedOut } from "../scale";
 import { advance, type TimeInput } from "../session-time";
 import { TIERS } from "../tiers";
 import { applyMove, listActions, type Move } from "./actions";
+import { priceAmount } from "../stock";
 
 const SECOND = 1000;
 const MINUTE = 60 * SECOND;
@@ -86,7 +87,10 @@ const BAND_STARTS: readonly Mountain[] = LAYERS.map((layer) => {
   const rich = {
     ...createMountain(),
     remaining: MOUNTAIN_STONES - mined,
-    pocket: Math.max(1000, Math.floor(mined / 10)),
+    stock: {
+      ...createMountain().stock,
+      stones: Math.max(1000, Math.floor(mined / 10)),
+    },
   };
   return crewed(rich, 60);
 });
@@ -197,7 +201,7 @@ function play(world: World, step: Step): Played {
             after: { ...world, mountain: result.mountain },
             move,
             applied: true,
-            spent: result.spent,
+            spent: result.spent.stones,
           }
         : { before: world, after: world, move, applied: false, spent: 0 };
     }
@@ -229,7 +233,7 @@ function wholeCounts(mountain: Mountain): readonly [string, number][] {
       (tier) => [tier.id, mountain.owned[tier.id]] as [string, number],
     ),
     ["legacy", mountain.legacy],
-    ["pocket", mountain.pocket],
+    ["pocket", mountain.stock.stones],
     ["rushBank", mountain.rushBank],
     ...Object.entries(mountain.upgrades).map(
       ([id, level]) => [`upgrades.${id}`, level] as [string, number],
@@ -357,7 +361,7 @@ function priceOf(move: Move | undefined): number | "some" | undefined {
   switch (move?.kind) {
     case "buyUpgrade":
     case "promote":
-      return move.price;
+      return priceAmount(move.price, "stones");
     case "buyTier":
     case "buyBoost":
       return "some";
@@ -400,8 +404,7 @@ describe("economy invariants on random play (#555)", () => {
           let world: World = {
             mountain: {
               ...(BAND_STARTS[band] ?? createMountain()),
-              pocket,
-              materials,
+              stock: { stones: pocket, ...materials },
             },
             hazards: freshHazards(seed),
             clock: START,

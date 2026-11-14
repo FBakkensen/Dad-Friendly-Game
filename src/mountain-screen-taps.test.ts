@@ -60,7 +60,11 @@ describe("taps that do nothing", () => {
   });
 
   it("a tap on the plate of a mined-out mountain buys nothing", () => {
-    const done: Mountain = { ...createMountain(), remaining: 0, pocket: 1e9 };
+    const done: Mountain = {
+      ...createMountain(),
+      remaining: 0,
+      stock: { ...createMountain().stock, stones: 1e9 },
+    };
     const screen = mountScreen({ storage: seeded(done) });
     const dispatch = vi.spyOn(screen.progress, "dispatch");
     tapAnyway(screen.root.querySelector<HTMLButtonElement>(".board-ready"));
@@ -68,7 +72,10 @@ describe("taps that do nothing", () => {
   });
 
   it("a buy the store refuses leaves the plate as it was", () => {
-    const rich: Mountain = { ...createMountain(), pocket: 1e9 };
+    const rich: Mountain = {
+      ...createMountain(),
+      stock: { ...createMountain().stock, stones: 1e9 },
+    };
     const screen = mountScreen({ storage: seeded(rich) });
     const dispatch = vi
       .spyOn(screen.progress, "dispatch")

@@ -27,7 +27,12 @@ import {
   upgradeShown,
   type RevealRowId,
 } from "./upgrade-reveal";
-import { UPGRADES, upgradeLevel, upgradePrice, type Upgrade } from "./upgrades";
+import {
+  UPGRADES,
+  upgradeLevel,
+  nextUpgradeCost,
+  type Upgrade,
+} from "./upgrades";
 
 /** An Upgrades row (#373), and whether it shows. */
 export type UpgradeRowView = RowView & { readonly shown: boolean };
@@ -122,7 +127,7 @@ export function boostRowView(
           lamp: "amber" as const,
           can: false,
         }
-      : buyFace(mountain.pocket, cost);
+      : buyFace(mountain.stock.stones, cost);
   return {
     name: boost.name,
     badge: "",
@@ -155,7 +160,7 @@ export function upgradeRowView(
   isNew: boolean,
 ): UpgradeRowView {
   const level = upgradeLevel(mountain, upgrade.id);
-  const cost = upgradePrice(mountain, upgrade.id);
+  const cost = nextUpgradeCost(mountain, upgrade.id);
   const info = upgradeEffectLine(upgrade, mountain, now);
   const face =
     cost === undefined
@@ -167,7 +172,7 @@ export function upgradeRowView(
           lamp: "off" as const,
           can: false,
         }
-      : buyFace(mountain.pocket, cost);
+      : buyFace(mountain.stock.stones, cost);
   return {
     name: upgrade.name,
     badge:
@@ -232,14 +237,14 @@ function priced(
       shown: boostShown(mountain, boost),
       can:
         boostLeft(mountain, boost.id, now) === 0 &&
-        mountain.pocket >= boostPrice(mountain, boost),
+        mountain.stock.stones >= boostPrice(mountain, boost),
     })),
     ...UPGRADES.map((upgrade) => {
-      const cost = upgradePrice(mountain, upgrade.id);
+      const cost = nextUpgradeCost(mountain, upgrade.id);
       return {
         id: upgradeRowId(upgrade),
         shown: upgradeShown(mountain, upgrade),
-        can: cost !== undefined && mountain.pocket >= cost,
+        can: cost !== undefined && mountain.stock.stones >= cost,
       };
     }),
   ];

@@ -13,6 +13,7 @@ import {
   promote,
   onTrip,
   promoteCost,
+  promotePrice,
   staffForBuy,
   staffNeeded,
   station,
@@ -63,7 +64,7 @@ import {
   craftedLevel,
   expeditionCraftScale,
   recipeById,
-  recipeCost,
+  recipePrice,
   recipesForMined,
   settleBench,
   startCraft,
@@ -95,6 +96,14 @@ import {
   upgradeUnlocked,
   type UpgradeId,
 } from "../upgrades";
+import {
+  add,
+  priceAmount,
+  samePrice,
+  stockMoved,
+  type Price,
+  type Stock,
+} from "../stock";
 
 /**
  * One legal player move. A new kind has to be handled in `listActions`,
@@ -106,13 +115,13 @@ export type Action =
       readonly kind: "buyUpgrade";
       readonly id: UpgradeId;
       /** The price the player was shown: a different price today refuses the buy (#367). */
-      readonly price: number;
+      readonly price: Price;
     }
   | { readonly kind: "buyBoost"; readonly id: BoostId }
   | {
       readonly kind: "promote";
       /** The price the player was shown: a different price today refuses it (#367). */
-      readonly price: number;
+      readonly price: Price;
     }
   | {
       readonly kind: "station";
@@ -209,7 +218,7 @@ function boostActions(mountain: Mountain, now: number): readonly Action[] {
 
 function promoteActions(mountain: Mountain): readonly Action[] {
   return mountain.engineers.length < MAX_ENGINEERS && mountain.owned.helper >= 1
-    ? [{ kind: "promote", price: promoteCost(mountain) }]
+    ? [{ kind: "promote", price: promotePrice(mountain) }]
     : [];
 }
 
@@ -357,16 +366,16 @@ export type MoveEvent =
   | { readonly kind: "rushLanded"; readonly stones: number };
 
 /**
- * What a move did: applied, with what it took from the pocket and what it put in (each at
- * least 0: a dig's or a vein's stones, a cancelled craft's refund), or refused because it
- * changed nothing.
+ * What a move did: applied, with what it took from the stock and what it put in, good by
+ * good (each at least 0: a dig's or a vein's stones and materials, a cancelled craft's
+ * refund), or refused because it changed nothing.
  */
 export type MoveResult =
   | {
       readonly kind: "applied";
       readonly mountain: Mountain;
-      readonly spent: number;
-      readonly gained: number;
+      readonly spent: Stock;
+      readonly gained: Stock;
       readonly events: readonly MoveEvent[];
     }
   | { readonly kind: "refused" };
@@ -430,7 +439,7 @@ function actionApplied(
       return buyWithTeach(mountain, action.id);
     case "buyUpgrade":
       // The price moved since it was shown (a band crossed at the tap): no buy (#367).
-      return action.price === upgradePrice(mountain, action.id)
+      return samePrice(action.price, upgradePrice(mountain, action.id) ?? [])
         ? buyUpgrade(mountain, action.id)
         : mountain;
     case "buyBoost":
@@ -441,7 +450,7 @@ function actionApplied(
         pricing: effectiveRates(mountain),
       });
     case "promote":
-      return action.price === promoteCost(mountain)
+      return samePrice(action.price, promotePrice(mountain))
         ? promote(mountain)
         : mountain;
     case "station": {
@@ -487,12 +496,10 @@ export function applyMove(
   if (next === mountain) {
     return { kind: "refused" };
   }
-  const gained = next.pocket - mountain.pocket;
   return {
     kind: "applied",
     mountain: next,
-    spent: Math.max(0, -gained),
-    gained: Math.max(0, gained),
+    ...stockMoved(mountain.stock, next.stock),
     events: moveEvents(mountain, next, move),
   };
 }
@@ -617,11 +624,20 @@ function moveEvents(
 ): readonly MoveEvent[] {
   switch (move.kind) {
     case "tapVein":
-      return [{ kind: "veinTapped", stones: next.pocket - before.pocket }];
+      return [
+        { kind: "veinTapped", stones: next.stock.stones - before.stock.stones },
+      ];
     case "tapQuickVein":
-      return [{ kind: "quickVeinTapped", stones: next.pocket - before.pocket }];
+      return [
+        {
+          kind: "quickVeinTapped",
+          stones: next.stock.stones - before.stock.stones,
+        },
+      ];
     case "missQuickVein":
-      return [{ kind: "rushLanded", stones: next.pocket - before.pocket }];
+      return [
+        { kind: "rushLanded", stones: next.stock.stones - before.stock.stones },
+      ];
     case "buyTiers":
       return actionEvents(before, next, { kind: "buyTier", id: move.id });
     case "dig":
@@ -898,7 +914,9 @@ export function incomePerSecond(
 
 /** What one tap adds to the pocket. Zero on an empty mountain. */
 function oneTap(mountain: Mountain, now?: number, trouble?: Trouble): number {
-  return mineByHand(mountain, now, trouble).pocket - mountain.pocket;
+  return (
+    mineByHand(mountain, now, trouble).stock.stones - mountain.stock.stones
+  );
 }
 
 /** The pay fraction `accrueAway` applies, including the Heart of Patience. */
@@ -1069,7 +1087,7 @@ function valueCraft(
 ): ActionValue {
   const recipe = recipeById(id);
   const stones =
-    recipeCost(id, stretch(mountain)).stones +
+    priceAmount(recipePrice(id, stretch(mountain)), "stones") +
     (pricing === "best-use"
       ? materialsPrice(mountain, id, horizon, context, now)
       : 0);
@@ -1250,18 +1268,18 @@ function materialsPrice(
   if (!Number.isFinite(horizon) || horizon <= 0) {
     return 0;
   }
-  const cost = recipeCost(id, stretch(mountain));
+  const cost = recipePrice(id, stretch(mountain));
   const others = sinkRecipes(mountain).filter((other) => other !== id);
   let price = 0;
   for (const layer of LAYERS) {
-    const units = cost.materials[layer.material];
+    const units = priceAmount(cost, layer.material);
     if (units <= 0) {
       continue;
     }
     let best = 0;
     for (const other of others) {
-      const otherCost = recipeCost(other, stretch(mountain));
-      const otherUnits = otherCost.materials[layer.material];
+      const otherCost = recipePrice(other, stretch(mountain));
+      const otherUnits = priceAmount(otherCost, layer.material);
       if (otherUnits <= 0) {
         continue;
       }
@@ -1273,7 +1291,7 @@ function materialsPrice(
         now,
         "stones-only",
       );
-      const net = made.gainPerSec * horizon - otherCost.stones;
+      const net = made.gainPerSec * horizon - priceAmount(otherCost, "stones");
       best = Math.max(best, net / otherUnits);
     }
     price += units * best;
@@ -1282,18 +1300,20 @@ function materialsPrice(
 }
 
 function fundCraft(mountain: Mountain, id: RecipeId): Mountain {
-  const cost = recipeCost(id, stretch(mountain));
-  const have = mountain.materials;
-  return {
-    ...grantDepthRecipe(mountain, id),
-    pocket: mountain.pocket + cost.stones,
-    materials: {
-      clay: Math.max(have.clay, cost.materials.clay),
-      iron: Math.max(have.iron, cost.materials.iron),
-      crystal: Math.max(have.crystal, cost.materials.crystal),
-      heartstone: Math.max(have.heartstone, cost.materials.heartstone),
-    },
-  };
+  // The stones on top of the pocket; each material only up to the price.
+  const cost = recipePrice(id, stretch(mountain));
+  const have = mountain.stock;
+  return add(
+    grantDepthRecipe(mountain, id),
+    Object.fromEntries(
+      cost.map((line) => [
+        line.good,
+        line.good === "stones"
+          ? line.amount
+          : Math.max(0, line.amount - have[line.good]),
+      ]),
+    ),
+  );
 }
 
 /**
@@ -1465,7 +1485,7 @@ function liveShare(context: ValueContext): number {
 }
 
 function funded(mountain: Mountain, price: number): Mountain {
-  return { ...mountain, pocket: mountain.pocket + price };
+  return add(mountain, { stones: price });
 }
 
 function clockAfterBoosts(mountain: Mountain): number {
@@ -1491,7 +1511,7 @@ function rateValue(
     gainPerSec,
     cost,
     paybackSec: payback(
-      mountain.pocket,
+      mountain.stock.stones,
       incomePerSecond(mountain, context),
       cost,
       gainPerSec,

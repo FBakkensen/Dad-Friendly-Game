@@ -104,7 +104,7 @@ describe("snapshot", () => {
     const mountain: Mountain = {
       ...createMountain(),
       remaining: MOUNTAIN_STONES - 1_000_000,
-      pocket: 1234,
+      stock: { ...createMountain().stock, stones: 1234 },
       owned: {
         ...createMountain().owned,
         helper: 0,

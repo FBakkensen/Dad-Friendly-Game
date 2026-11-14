@@ -1,6 +1,7 @@
 import { oneOffStretch } from "./scale";
 import type { Mountain } from "./mountain";
 import { owned, tierById, type TierId } from "./tiers";
+import { pay, stonesPrice, type Price } from "./stock";
 
 /** Permanent, one-level-at-a-time purchases. See docs/DESIGN.md "M3: Strategy". */
 export type UpgradeId =
@@ -170,8 +171,8 @@ export function upgradeCost(
       );
 }
 
-/** The next level's price at this mountain's band, or undefined once maxed: the one the Buy shows. */
-export function upgradePrice(
+/** The next level's stones at this mountain's band, or undefined once maxed: the one the Buy shows. */
+export function nextUpgradeCost(
   mountain: Mountain,
   id: UpgradeId,
 ): number | undefined {
@@ -182,22 +183,26 @@ export function upgradePrice(
   );
 }
 
+/** The next level's price (#560), or undefined once maxed. */
+export function upgradePrice(
+  mountain: Mountain,
+  id: UpgradeId,
+): Price | undefined {
+  const cost = nextUpgradeCost(mountain, id);
+  return cost === undefined ? undefined : stonesPrice(cost);
+}
+
 /** Buys the next level if affordable; otherwise the same mountain. */
 export function buyUpgrade(mountain: Mountain, id: UpgradeId): Mountain {
   const level = upgradeLevel(mountain, id);
-  const cost = upgradePrice(mountain, id);
-  if (
-    cost === undefined ||
-    mountain.pocket < cost ||
-    !upgradeUnlocked(mountain, upgradeById(id))
-  ) {
+  const price = upgradePrice(mountain, id);
+  if (price === undefined || !upgradeUnlocked(mountain, upgradeById(id))) {
     return mountain;
   }
-  return {
-    ...mountain,
-    pocket: mountain.pocket - cost,
-    upgrades: { ...mountain.upgrades, [id]: level + 1 },
-  };
+  const paid = pay(mountain, price);
+  return paid === mountain
+    ? mountain
+    : { ...paid, upgrades: { ...mountain.upgrades, [id]: level + 1 } };
 }
 
 /** Untrusted save data: only known ids, whole levels within range. */

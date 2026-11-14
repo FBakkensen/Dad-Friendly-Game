@@ -50,7 +50,12 @@ interface Fixture {
 
 const copy = (id: string, mountain: Partial<Mountain> = {}): ArchivedCopy => ({
   id,
-  mountain: { ...createMountain(), startedAt: 50, pocket: 12, ...mountain },
+  mountain: {
+    ...createMountain(),
+    startedAt: 50,
+    stock: { ...createMountain().stock, stones: 12 },
+    ...mountain,
+  },
   lastSeen: 1_000,
   rev: 1,
   deviceId: `device-${id}`,

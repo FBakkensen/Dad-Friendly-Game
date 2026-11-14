@@ -109,7 +109,7 @@ export class Expected {
   }
 
   get pocket(): number {
-    return this.session.mountain.pocket;
+    return this.session.mountain.stock.stones;
   }
 
   /** The page's clock reached `now`: run every one-second tick the game ran on the way. */

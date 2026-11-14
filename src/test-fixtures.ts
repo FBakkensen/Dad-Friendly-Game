@@ -9,7 +9,7 @@ export function minedMountain(count: number): Mountain {
   return {
     ...createMountain(),
     remaining: MOUNTAIN_STONES - count,
-    pocket: count,
+    stock: { ...createMountain().stock, stones: count },
   };
 }
 
@@ -49,12 +49,18 @@ export function guestSave(storage: Storage): ParsedSave | undefined {
 /** Nothing owned: the base for a test's `owned` record (#559). */
 export const NONE_OWNED: Readonly<Record<TierId, number>> = tierRecord(0);
 
-/** A change to a mountain, where `owned` names only the counts it changes. */
-export type MountainPatch = Partial<Omit<Mountain, "owned">> & {
+/** A change to a mountain, where `owned` and `stock` name only the entries they change. */
+export type MountainPatch = Partial<Omit<Mountain, "owned" | "stock">> & {
   readonly owned?: Partial<Mountain["owned"]>;
+  readonly stock?: Partial<Mountain["stock"]>;
 };
 
-/** `base` with `patch` on top; the counts `patch` leaves out stay as they were. */
+/** `base` with `patch` on top; the counts and goods `patch` leaves out stay as they were. */
 export function patched(base: Mountain, patch: MountainPatch): Mountain {
-  return { ...base, ...patch, owned: { ...base.owned, ...patch.owned } };
+  return {
+    ...base,
+    ...patch,
+    owned: { ...base.owned, ...patch.owned },
+    stock: { ...base.stock, ...patch.stock },
+  };
 }

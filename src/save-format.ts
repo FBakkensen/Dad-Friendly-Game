@@ -31,7 +31,6 @@ import {
   type FindId,
   type SavedExpedition,
 } from "./expeditions";
-import { EMPTY_MATERIALS, LAYERS, type MaterialId } from "./layers";
 import {
   BARE_MOUNTAIN,
   MAX_LEGACY,
@@ -54,20 +53,14 @@ import {
   type RecipeId,
   type TimerId,
 } from "./workshop";
+import { GOOD_IDS, type GoodId } from "./stock";
 
-/** The good the pocket holds, beside the four materials. */
-const STONES = "stones";
 /** The Gold rush's end time, in the clocks map. */
 const GOLD_RUSH = "gold-rush";
 
-type StockId = typeof STONES | MaterialId;
 type LevelId = UpgradeId | RecipeId;
 type ClockId = BoostId | TimerId | typeof GOLD_RUSH;
 
-const STOCK_IDS: readonly StockId[] = [
-  STONES,
-  ...LAYERS.map((layer) => layer.material),
-];
 const LEVEL_IDS: readonly LevelId[] = [
   ...UPGRADES.map((upgrade) => upgrade.id),
   ...RECIPE_IDS,
@@ -105,7 +98,7 @@ const GAME_KEYS = [
 /** The game map as saved. Every key is left out when it would be zero or empty. */
 export type SaveGame = {
   readonly owned?: Readonly<Partial<Record<TierId, number>>>;
-  readonly stock?: Readonly<Partial<Record<StockId, number>>>;
+  readonly stock?: Readonly<Partial<Record<GoodId, number>>>;
   readonly levels?: Readonly<Partial<Record<LevelId, number>>>;
   readonly clocks?: Readonly<Partial<Record<ClockId, number>>>;
   readonly marks?: {
@@ -160,10 +153,6 @@ function some<K extends string, V extends object>(
 
 function tierCount(mountain: Mountain, id: TierId): number {
   return mountain.owned[id];
-}
-
-function stockOf(mountain: Mountain, id: StockId): number {
-  return id === STONES ? mountain.pocket : mountain.materials[id];
 }
 
 function levelOf(mountain: Mountain, id: LevelId): number {
@@ -224,7 +213,7 @@ export function writeGame(mountain: Mountain): SaveGame {
     ),
     ...some(
       "stock",
-      positives(STOCK_IDS, (id) => stockOf(mountain, id)),
+      positives(GOOD_IDS, (id) => mountain.stock[id]),
     ),
     ...some(
       "levels",
@@ -530,20 +519,13 @@ function readBench(value: unknown): Part<Bench | undefined> {
 
 type Facts = Pick<
   Mountain,
-  | "owned"
-  | "pocket"
-  | "materials"
-  | "upgrades"
-  | "crafted"
-  | "boosts"
-  | "clocks"
-  | "rushUntil"
+  "owned" | "stock" | "upgrades" | "crafted" | "boosts" | "clocks" | "rushUntil"
 >;
 
 /** The four count maps, laid onto the mountain's own fields. */
 function readFacts(record: Entries): Part<Facts> {
   const owned = readCounts(record["owned"], TIER_IDS, UNCAPPED);
-  const stock = readCounts(record["stock"], STOCK_IDS, UNCAPPED);
+  const stock = readCounts(record["stock"], GOOD_IDS, UNCAPPED);
   const levels = readCounts(record["levels"], LEVEL_IDS, levelCap);
   const clocks = readCounts(record["clocks"], CLOCK_IDS, UNCAPPED);
   const failed = worst([owned, stock, levels, clocks]);
@@ -552,20 +534,10 @@ function readFacts(record: Entries): Part<Facts> {
   }
   return {
     owned: owned as Record<TierId, number>,
-    ...stockCounts(stock as Record<StockId, number>),
+    stock: stock as Record<GoodId, number>,
     ...levelCounts(levels as Record<LevelId, number>),
     ...clockCounts(clocks as Record<ClockId, number>),
   };
-}
-
-function stockCounts(
-  stock: Record<StockId, number>,
-): Pick<Mountain, "pocket" | "materials"> {
-  const materials = { ...EMPTY_MATERIALS };
-  for (const layer of LAYERS) {
-    materials[layer.material] = stock[layer.material];
-  }
-  return { pocket: stock[STONES], materials };
 }
 
 function levelCounts(
@@ -654,7 +626,7 @@ export function shippedFacts(): ShippedFacts {
   return {
     gameKeys: GAME_KEYS,
     owned: TIER_IDS,
-    stock: STOCK_IDS,
+    stock: GOOD_IDS,
     levels: Object.fromEntries(LEVEL_IDS.map((id) => [id, levelCap(id)])),
     clocks: CLOCK_IDS,
     marks: MARK_IDS,

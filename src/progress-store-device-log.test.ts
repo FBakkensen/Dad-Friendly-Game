@@ -56,7 +56,10 @@ describe("each device's field log in the cloud (#485)", () => {
       expect(phone.getSnapshot().ready).toBe(true);
       expect(pc.getSnapshot().ready).toBe(true);
     });
-    phone.applyMutation((mountain) => ({ ...mountain, pocket: 1_000 }));
+    phone.applyMutation((mountain) => ({
+      ...mountain,
+      stock: { ...mountain.stock, stones: 1_000 },
+    }));
     phone.dispatch({ kind: "buyTier", id: "helper" });
     phone.flush();
     pc.flush();

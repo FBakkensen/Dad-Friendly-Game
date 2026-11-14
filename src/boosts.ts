@@ -1,6 +1,7 @@
 import { stretch } from "./scale";
 import type { Mountain } from "./mountain";
 import type { TierId } from "./tiers";
+import { pay, stonesPrice, type Price } from "./stock";
 
 /** Quick, timed boosts. See docs/DESIGN.md "M3: Strategy". */
 export type BoostId = "sharper" | "overtime";
@@ -94,7 +95,12 @@ export function boostCost(boost: Boost, pricing: BoostPricing, k = 1): number {
   return Math.max(Math.ceil(boost.minCost * k), priced);
 }
 
-/** Starts a boost if it isn't already running and the pocket covers it. */
+/** A boost's price (#560): its stones, as a list. */
+function boostPrice(boost: Boost, pricing: BoostPricing, k = 1): Price {
+  return stonesPrice(boostCost(boost, pricing, k));
+}
+
+/** Starts a boost if it isn't already running and the stock covers it. */
 export function buyBoost({
   mountain,
   id,
@@ -107,15 +113,13 @@ export function buyBoost({
   pricing: BoostPricing;
 }): Mountain {
   const boost = boostById(id);
-  const cost = boostCost(boost, pricing, stretch(mountain));
-  if (boostLeft(mountain, id, now) > 0 || mountain.pocket < cost) {
+  if (boostLeft(mountain, id, now) > 0) {
     return mountain;
   }
-  return {
-    ...mountain,
-    pocket: mountain.pocket - cost,
-    boosts: { ...mountain.boosts, [id]: now + boost.durationMs },
-  };
+  const paid = pay(mountain, boostPrice(boost, pricing, stretch(mountain)));
+  return paid === mountain
+    ? mountain
+    : { ...paid, boosts: { ...mountain.boosts, [id]: now + boost.durationMs } };
 }
 
 /** Untrusted save data: only known ids, whole non-negative end times. */

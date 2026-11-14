@@ -202,8 +202,8 @@ describe("createMemoryCloudSave", () => {
     const now = Date.now();
     const listed = await cloud.listCopies?.({ uid: "dad", now });
     expect(listed).toHaveLength(3);
-    expect(listed?.[0]?.mountain.pocket).toBe(4);
-    expect(listed?.[2]?.mountain.pocket).toBe(2);
+    expect(listed?.[0]?.mountain.stock.stones).toBe(4);
+    expect(listed?.[2]?.mountain.stock.stones).toBe(2);
     await expect(
       cloud.listCopies?.({ uid: "dad", now: now + 8 * 24 * 60 * 60 * 1000 }),
     ).resolves.toEqual([]);
@@ -211,7 +211,11 @@ describe("createMemoryCloudSave", () => {
 
   it("refuses a write from an older run and keeps the stored one", async () => {
     const cloud = createMemoryCloudSave();
-    const newer = { ...createMountain(), startedAt: 20, pocket: 3 };
+    const newer = {
+      ...createMountain(),
+      startedAt: 20,
+      stock: { ...createMountain().stock, stones: 3 },
+    };
     await expect(
       cloud.write({
         uid: "dad",
@@ -224,7 +228,11 @@ describe("createMemoryCloudSave", () => {
     await expect(
       cloud.write({
         uid: "dad",
-        mountain: { ...createMountain(), startedAt: 5, pocket: 9 },
+        mountain: {
+          ...createMountain(),
+          startedAt: 5,
+          stock: { ...createMountain().stock, stones: 9 },
+        },
         rev: 2,
         deviceId: "device-dad-1",
       }),
@@ -232,12 +240,12 @@ describe("createMemoryCloudSave", () => {
     await expect(cloud.load({ uid: "dad" })).resolves.toMatchObject({
       kind: "found",
       rev: 1,
-      mountain: { pocket: 3, startedAt: 20 },
+      mountain: { stock: { stones: 3 }, startedAt: 20 },
     });
     await expect(
       cloud.write({
         uid: "dad",
-        mountain: { ...newer, pocket: 4 },
+        mountain: { ...newer, stock: { ...newer.stock, stones: 4 } },
         rev: 2,
         deviceId: "device-dad-1",
       }),

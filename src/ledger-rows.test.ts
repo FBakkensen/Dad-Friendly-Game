@@ -223,7 +223,11 @@ describe("tonightLines (#375)", () => {
 
 /** A mountain deep in the Heart, `remaining` stones of the deepest band still in it. */
 function heart(remaining: number): Mountain {
-  return { ...createMountain(), remaining, pocket: 0 };
+  return {
+    ...createMountain(),
+    remaining,
+    stock: { ...createMountain().stock, stones: 0 },
+  };
 }
 
 describe("stonesRowView (#375)", () => {
@@ -249,7 +253,13 @@ describe("stonesRowView (#375)", () => {
   it("names the materials met, with their counts", () => {
     const view = stonesRowView({
       ...minedMountain(12_000_000),
-      materials: { clay: 10, iron: 4, crystal: 0, heartstone: 0 },
+      stock: {
+        ...minedMountain(12_000_000).stock,
+        clay: 10,
+        iron: 4,
+        crystal: 0,
+        heartstone: 0,
+      },
     });
     expect(view.info).toEqual(["Clay 10 · Iron 4"]);
   });

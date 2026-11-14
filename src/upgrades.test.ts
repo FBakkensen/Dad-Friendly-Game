@@ -46,22 +46,29 @@ describe("Strong arms (tap power)", () => {
 
   it("buys one level at a time from the pocket", () => {
     // Strong arms opens with the third cart (#250).
-    const shut = { ...crew, pocket: 1e9, owned: { ...crew.owned, cart: 2 } };
+    const shut = {
+      ...crew,
+      stock: { ...crew.stock, stones: 1e9 },
+      owned: { ...crew.owned, cart: 2 },
+    };
     expect(buyUpgrade(shut, "tap")).toBe(shut);
     const open = { ...crew, owned: { ...crew.owned, cart: 3 } };
     const first = mustCost(upgradeCost(arms, 0));
     const second = mustCost(upgradeCost(arms, 1));
-    const poor = { ...open, pocket: first - 1 };
+    const poor = { ...open, stock: { ...open.stock, stones: first - 1 } };
     expect(buyUpgrade(poor, "tap")).toBe(poor);
-    const one = buyUpgrade({ ...open, pocket: first + second }, "tap");
+    const one = buyUpgrade(
+      { ...open, stock: { ...open.stock, stones: first + second } },
+      "tap",
+    );
     expect(upgradeLevel(one, "tap")).toBe(1);
-    expect(one.pocket).toBe(second);
+    expect(one.stock.stones).toBe(second);
     const two = buyUpgrade(one, "tap");
     expect(upgradeLevel(two, "tap")).toBe(2);
-    expect(two.pocket).toBe(0);
+    expect(two.stock.stones).toBe(0);
     const maxed = {
       ...crew,
-      pocket: 1e15,
+      stock: { ...crew.stock, stones: 1e15 },
       upgrades: { ...NO_UPGRADES, tap: 10 },
     };
     expect(buyUpgrade(maxed, "tap")).toBe(maxed);
@@ -81,7 +88,7 @@ describe("Strong arms (tap power)", () => {
       ...crew,
       upgrades: { ...NO_UPGRADES, tap: 3 },
     });
-    expect(tapped.pocket).toBe(199);
+    expect(tapped.stock.stones).toBe(199);
     expect(tapped.remaining).toBe(crew.remaining - 199);
     // A tap never digs past the bottom.
     // One depth left in the Heart band is BAND_SCALE[3] stones, rounded up to
@@ -96,7 +103,9 @@ describe("Strong arms (tap power)", () => {
         .tapYield,
     ).toBeGreaterThanOrEqual(Math.ceil(BAND_SCALE[3]));
     expect(last.remaining).toBe(0);
-    expect(last.pocket).toBe(crew.pocket + Math.ceil(BAND_SCALE[3]));
+    expect(last.stock.stones).toBe(
+      crew.stock.stones + Math.ceil(BAND_SCALE[3]),
+    );
   });
 
   it("doesn't change the crew's own speed or away pay", () => {
@@ -123,7 +132,10 @@ describe("Strong arms (tap power)", () => {
 });
 
 describe("lasting upgrades: Better boots and Steady hands", () => {
-  const base = { ...minedMountain(0), pocket: 20_000_000 };
+  const base = {
+    ...minedMountain(0),
+    stock: { ...minedMountain(0).stock, stones: 20_000_000 },
+  };
 
   it("unlock from the crew: boots at 10 helpers, steady hands with a first cart", () => {
     const boots = upgradeById("boots");
@@ -149,7 +161,7 @@ describe("lasting upgrades: Better boots and Steady hands", () => {
       "boots",
     );
     expect(once.upgrades).toEqual({ ...NO_UPGRADES, boots: 1 });
-    expect(once.pocket).toBe(
+    expect(once.stock.stones).toBe(
       20_000_000 - mustCost(upgradeCost(upgradeById("boots"), 0)),
     );
     expect(buyUpgrade(once, "boots")).toBe(once);
@@ -201,7 +213,10 @@ describe("lasting upgrades: Better boots and Steady hands", () => {
 });
 
 describe("crew synergies", () => {
-  const rich = { ...minedMountain(0), pocket: 90_000_000 };
+  const rich = {
+    ...minedMountain(0),
+    stock: { ...minedMountain(0).stock, stones: 90_000_000 },
+  };
 
   it("are one-time buys, unlocked by owning enough of the boosted tier", () => {
     const helping = upgradeById("cartSyn");
@@ -218,7 +233,7 @@ describe("crew synergies", () => {
       "cartSyn",
     );
     expect(bought.upgrades).toEqual({ ...NO_UPGRADES, cartSyn: 1 });
-    expect(bought.pocket).toBe(
+    expect(bought.stock.stones).toBe(
       90_000_000 - mustCost(upgradeCost(upgradeById("cartSyn"), 0)),
     );
     expect(buyUpgrade(bought, "cartSyn")).toBe(bought);

@@ -48,7 +48,7 @@ describe("side tunnels (#147)", () => {
     patched(
       {
         ...minedMountain(0),
-        pocket: 5_000_000,
+        stock: { ...minedMountain(0).stock, stones: 5_000_000 },
         owned: {
           ...minedMountain(0).owned,
           helper: 20,
@@ -338,7 +338,10 @@ describe("side tunnels (#147)", () => {
     const storage = createMemoryStorage();
     writeSessionSave({
       storage,
-      mountain: withAda({ pocket: 30_000_000, owned: { helper: 16 } }),
+      mountain: withAda({
+        stock: { stones: 30_000_000 },
+        owned: { helper: 16 },
+      }),
       lastSeen: Date.now(),
     });
     const screen = mountScreen({ storage });
@@ -556,7 +559,13 @@ describe("layer card, material line, and craft-done notice", () => {
 
     screen.progress.applyMutation(() => ({
       ...minedMountain(12_000_000),
-      materials: { clay: 10, iron: 2, crystal: 0, heartstone: 0 },
+      stock: {
+        ...minedMountain(12_000_000).stock,
+        clay: 10,
+        iron: 2,
+        crystal: 0,
+        heartstone: 0,
+      },
     }));
     dismissOpen(screen.root);
     expect(screen.text(STONES_INFO)).toContain("Clay 10");
@@ -670,8 +679,14 @@ describe("layer card, material line, and craft-done notice", () => {
       mountain: {
         ...minedMountain(12_000_000),
         owned: { ...minedMountain(12_000_000).owned, helper: 1, cart: 1 },
-        pocket: 5_000_000,
-        materials: { clay: 20, iron: 20, crystal: 0, heartstone: 0 },
+        stock: {
+          ...minedMountain(12_000_000).stock,
+          stones: 5_000_000,
+          clay: 20,
+          iron: 20,
+          crystal: 0,
+          heartstone: 0,
+        },
         recipes: recipesForMined(12_000_000),
       },
       lastSeen: 0,
@@ -710,8 +725,14 @@ describe("layer card, material line, and craft-done notice", () => {
       mountain: {
         ...minedMountain(12_000_000),
         owned: { ...minedMountain(12_000_000).owned, helper: 4, cart: 1 },
-        pocket: 5_000_000,
-        materials: { clay: 20, iron: 20, crystal: 0, heartstone: 0 },
+        stock: {
+          ...minedMountain(12_000_000).stock,
+          stones: 5_000_000,
+          clay: 20,
+          iron: 20,
+          crystal: 0,
+          heartstone: 0,
+        },
         recipes: recipesForMined(12_000_000),
         bench: { recipe: "iron-rails", startedAt: 0, endsAt: 60_000 },
       },
@@ -836,7 +857,13 @@ describe("layer card, material line, and craft-done notice", () => {
       expect(screen.progress.getSnapshot().ready).toBe(true);
       await cloud.archiveCopy?.({
         uid: "test-dad",
-        mountain: { ...screen.progress.getSnapshot().mountain, pocket: 12 },
+        mountain: {
+          ...screen.progress.getSnapshot().mountain,
+          stock: {
+            ...screen.progress.getSnapshot().mountain.stock,
+            stones: 12,
+          },
+        },
         lastSeen: 1,
         rev: 1,
         deviceId: "other-device",
@@ -879,7 +906,7 @@ describe("layer card, material line, and craft-done notice", () => {
     screen.progress.applyMutation((mountain) => ({
       ...mountain,
       remaining: mountain.remaining - 12_000,
-      pocket: 12,
+      stock: { ...mountain.stock, stones: 12 },
       owned: { ...mountain.owned, cart: 2 },
     }));
     clock += 1_000;
@@ -930,7 +957,7 @@ describe("sheet buys", () => {
           cart: 5,
           drill: 2,
         },
-        pocket: 2_500_000,
+        stock: { ...minedMountain(12_000_000).stock, stones: 2_500_000 },
       },
       lastSeen: Date.now(),
     });
@@ -1033,7 +1060,7 @@ describe("sheet buys", () => {
           cart: 7,
           drill: 2,
         },
-        pocket: 32_500,
+        stock: { ...minedMountain(1_000_000).stock, stones: 32_500 },
       },
       lastSeen: Date.now(),
     });
@@ -1083,7 +1110,7 @@ describe("sheet buys", () => {
       storage,
       mountain: {
         ...minedMountain(1_000),
-        pocket: 32_500,
+        stock: { ...minedMountain(1_000).stock, stones: 32_500 },
         owned: { ...minedMountain(1_000).owned, helper: 4 },
       },
       lastSeen: Date.now(),
@@ -1092,7 +1119,7 @@ describe("sheet buys", () => {
     document.body.append(screen.root);
     screen.progress.applyMutation((mountain) => ({
       ...mountain,
-      pocket: 999_900_000_000_000,
+      stock: { ...mountain.stock, stones: 999_900_000_000_000 },
       clocks: { ...mountain.clocks, "blasting-charge": Date.now() + 60_000 },
       bench: {
         recipe: "iron-rails",
@@ -1124,8 +1151,14 @@ describe("sheet buys", () => {
           cart: 7,
           drill: 2,
         },
-        pocket: 2_500_000,
-        materials: { clay: 10, iron: 4, crystal: 0, heartstone: 0 },
+        stock: {
+          ...minedMountain(12_000_000).stock,
+          stones: 2_500_000,
+          clay: 10,
+          iron: 4,
+          crystal: 0,
+          heartstone: 0,
+        },
       },
       lastSeen: Date.now(),
     });
@@ -1286,7 +1319,7 @@ describe("sheet buys", () => {
           drill: 2,
           borer: 1,
         },
-        pocket: 2_500_000,
+        stock: { ...minedMountain(12_000_000).stock, stones: 2_500_000 },
         engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
       },
       lastSeen: Date.now(),
@@ -1420,8 +1453,14 @@ describe("the board cards (#464)", () => {
       mountain: {
         ...minedMountain(12_000_000),
         owned: { ...minedMountain(12_000_000).owned, helper: 1, cart: 1 },
-        pocket: 5_000_000,
-        materials: { clay: 20, iron: 20, crystal: 0, heartstone: 0 },
+        stock: {
+          ...minedMountain(12_000_000).stock,
+          stones: 5_000_000,
+          clay: 20,
+          iron: 20,
+          crystal: 0,
+          heartstone: 0,
+        },
         recipes: recipesForMined(12_000_000),
       },
       lastSeen: 0,

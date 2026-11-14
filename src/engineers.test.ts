@@ -47,7 +47,7 @@ const crew = (
   engineers: readonly Engineer[],
 ): ReturnType<typeof createMountain> => ({
   ...createMountain(),
-  pocket: 100_000_000,
+  stock: { ...createMountain().stock, stones: 100_000_000 },
   owned: { ...createMountain().owned, helper: 10, borer: 1 },
   engineers,
 });
@@ -109,13 +109,13 @@ describe("the first engineer", () => {
   it("joins free with the first borer, tending it, and does not take a worker", () => {
     const before = {
       ...createMountain(),
-      pocket: 50,
+      stock: { ...createMountain().stock, stones: 50 },
       owned: { ...createMountain().owned, borer: 1, helper: 8 },
     };
     const { mountain, joined } = grantFirstEngineer(before);
     expect(joined).toBe(true);
     expect(mountain.owned.helper).toBe(8);
-    expect(mountain.pocket).toBe(50);
+    expect(mountain.stock.stones).toBe(50);
     expect(mountain.engineers).toEqual([ada]);
     expect(grantFirstEngineer(mountain)).toEqual({ mountain, joined: false });
   });
@@ -139,7 +139,7 @@ describe("promote", () => {
       post: "camp",
     });
     expect(hired.owned.helper).toBe(9);
-    expect(hired.pocket).toBe(100_000_000 - PROMOTE_BASE_COST * 2);
+    expect(hired.stock.stones).toBe(100_000_000 - PROMOTE_BASE_COST * 2);
     // The base price is pinned in src/tuning.test.ts; it doubles per engineer.
     expect(promoteCost(crew([]))).toBe(PROMOTE_BASE_COST);
     expect(promoteCost(crew([ada]))).toBe(PROMOTE_BASE_COST * 2);
@@ -147,14 +147,14 @@ describe("promote", () => {
 
     let mountain: ReturnType<typeof createMountain> = {
       ...createMountain(),
-      pocket: PROMOTE_BASE_COST,
+      stock: { ...createMountain().stock, stones: PROMOTE_BASE_COST },
       owned: { ...createMountain().owned, helper: 1 },
     };
     expect(promoteCost(mountain)).toBe(PROMOTE_BASE_COST);
     mountain = promote(mountain);
     expect(mountain.engineers[0]?.name).toBe("Ada");
     expect(mountain.owned.helper).toBe(0);
-    expect(mountain.pocket).toBe(0);
+    expect(mountain.stock.stones).toBe(0);
   });
 
   it("refuses a full crew, an empty pool, or a short pocket", () => {
@@ -167,11 +167,14 @@ describe("promote", () => {
       })),
     );
     expect(promote(full)).toBe(full);
-    const broke = { ...crew([ada]), pocket: PROMOTE_BASE_COST * 2 - 1 };
+    const broke = {
+      ...crew([ada]),
+      stock: { ...crew([ada]).stock, stones: PROMOTE_BASE_COST * 2 - 1 },
+    };
     expect(promote(broke)).toBe(broke);
     const noWorkers = {
       ...createMountain(),
-      pocket: PROMOTE_BASE_COST,
+      stock: { ...createMountain().stock, stones: PROMOTE_BASE_COST },
       owned: { ...createMountain().owned, helper: 0 },
     };
     expect(promote(noWorkers)).toBe(noWorkers);
@@ -186,7 +189,10 @@ describe("promote", () => {
         post: "camp" as const,
       })),
     );
-    const broke = { ...crew([ada]), pocket: PROMOTE_BASE_COST * 2 - 1 };
+    const broke = {
+      ...crew([ada]),
+      stock: { ...crew([ada]).stock, stones: PROMOTE_BASE_COST * 2 - 1 },
+    };
     const noWorkers = {
       ...crew([ada]),
       owned: { ...crew([ada]).owned, helper: 0 },
@@ -216,7 +222,7 @@ describe("promote", () => {
         for (const engineers of [[], [ada]]) {
           const mountain = {
             ...crew(engineers),
-            pocket: 10_000_000_000,
+            stock: { ...crew(engineers).stock, stones: 10_000_000_000 },
             remaining: MOUNTAIN_STONES - depth,
             legacy,
             stretch: kidStretch(legacy),
@@ -224,8 +230,8 @@ describe("promote", () => {
           const price = promoteCost(mountain);
           expect(Number.isSafeInteger(price)).toBe(true);
           const hired = promote(mountain);
-          expect(hired.pocket).toBe(mountain.pocket - price);
-          expect(reloaded(hired)?.pocket).toBe(hired.pocket);
+          expect(hired.stock.stones).toBe(mountain.stock.stones - price);
+          expect(reloaded(hired)?.stock.stones).toBe(hired.stock.stones);
         }
       }
     },
@@ -309,7 +315,7 @@ describe("tending", () => {
     ...minedMountain(0),
     owned: { ...minedMountain(0).owned, helper: 8, borer: 1, drill: 1 },
     remaining: 100_000_000,
-    pocket: 0,
+    stock: { ...minedMountain(0).stock, stones: 0 },
   };
 
   it("speeds the posted tier by rank, live and away, and not a tunnel", () => {

@@ -103,6 +103,6 @@ describe("advance", () => {
     expect(back.settledAt).toBe(20_000);
     expect(back.hazards).toBe(hazards);
     expect(back.mountain.expeditions[0]?.sentAt).toBe(20_000);
-    expect(back.mountain.pocket).toBe(sent.pocket);
+    expect(back.mountain.stock.stones).toBe(sent.stock.stones);
   });
 });

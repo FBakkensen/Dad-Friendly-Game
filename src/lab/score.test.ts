@@ -14,7 +14,10 @@ const ada = { name: "Ada", rank: 0, trips: 0, post: "borer" } as const;
 
 describe("scoreDecision", () => {
   it("gives singleShare 1 when the only crew buy is affordable", () => {
-    const mountain = { ...createMountain(), pocket: 100 };
+    const mountain = {
+      ...createMountain(),
+      stock: { ...createMountain().stock, stones: 100 },
+    };
     const actions = listActions(mountain, 0).filter(
       (action) => action.kind === "buyTier",
     );
@@ -41,7 +44,7 @@ describe("scoreDecision", () => {
     // An unstaffed cart opens Sharper picks and Steady hands (#250).
     const mountain = {
       ...createMountain(),
-      pocket: 100,
+      stock: { ...createMountain().stock, stones: 100 },
       owned: { ...createMountain().owned, cart: 1 },
     };
     const sample = scoreDecision({
@@ -60,7 +63,7 @@ describe("scoreDecision", () => {
     const mountain = {
       ...createMountain(),
       owned: { ...createMountain().owned, helper: 8, borer: 1 },
-      pocket: 1,
+      stock: { ...createMountain().stock, stones: 1 },
       engineers: [ada],
     };
     const sample = scoreDecision({
@@ -156,7 +159,7 @@ describe("scoreDecision", () => {
     const mountain = {
       ...createMountain(),
       owned: { ...createMountain().owned, helper: 8, borer: 1 },
-      pocket: 1,
+      stock: { ...createMountain().stock, stones: 1 },
       engineers: [{ ...ada, post: "camp" as const }],
     };
     const helpful = scoreDecision({

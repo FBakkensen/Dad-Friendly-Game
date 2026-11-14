@@ -178,7 +178,7 @@ describe("phone backup", () => {
     const storage = memory();
     const mountain = {
       ...createMountain(),
-      pocket: 1n as unknown as number,
+      stock: { ...createMountain().stock, stones: 1n as unknown as number },
     };
     expect(
       writePhoneBackup({
@@ -213,7 +213,7 @@ describe("phone backup", () => {
     expect(readPhoneBackup({ storage, uid: "dad" }).kind).toBe("present");
     const kept = readPhoneBackup({ storage, uid: "dad" });
     expect(kept.kind === "present" && kept.save.rev).toBe(5);
-    expect(kept.kind === "present" && kept.save.mountain.pocket).toBe(4);
+    expect(kept.kind === "present" && kept.save.mountain.stock.stones).toBe(4);
     expect(
       writePhoneBackup({
         storage,

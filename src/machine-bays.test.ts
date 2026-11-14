@@ -1,4 +1,4 @@
-import { NONE_OWNED } from "./test-fixtures";
+import { NONE_OWNED, patched, type MountainPatch } from "./test-fixtures";
 import { describe, expect, it, vi } from "vitest";
 import { crewCounts } from "./crew-count";
 import { staffForBuy } from "./engineers";
@@ -31,8 +31,8 @@ vi.mock("./relics", async (importOriginal) => {
 
 const NOW = 1_700_000_000_000;
 
-function mountainWith(fields: Partial<Mountain>): Mountain {
-  return { ...createMountain(), ...fields };
+function mountainWith(fields: MountainPatch): Mountain {
+  return patched(createMountain(), fields);
 }
 
 /** Stones mined out so far: this deep. */
@@ -54,7 +54,7 @@ function views(
 
 /** The early save: 18 workers, 6 carts, 12 free. */
 const early = mountainWith({
-  pocket: 6_854,
+  stock: { stones: 6_854 },
   owned: { ...NONE_OWNED, helper: 18, cart: 6 },
 });
 
@@ -140,8 +140,11 @@ describe("bayViews", () => {
   });
 
   it("green is ready but not the pick", () => {
-    const mountain = { ...early, pocket: priceOf(early, "drill", 0) + 1 };
-    expect(mountain.pocket).toBeGreaterThan(priceOf(early, "cart", 6));
+    const mountain = {
+      ...early,
+      stock: { ...early.stock, stones: priceOf(early, "drill", 0) + 1 },
+    };
+    expect(mountain.stock.stones).toBeGreaterThan(priceOf(early, "cart", 6));
     expect(crewCounts(mountain, NOW).free).toBe(12);
 
     const [cart, drill] = views(mountain);
@@ -152,7 +155,7 @@ describe("bayViews", () => {
   it("short of hands is dark", () => {
     const mountain = mountainWith({
       owned: { ...NONE_OWNED, helper: 6, cart: 6 },
-      pocket: priceOf(early, "cart", 6) + 1,
+      stock: { stones: priceOf(early, "cart", 6) + 1 },
     });
     expect(crewCounts(mountain, NOW).free).toBe(0);
 
@@ -172,7 +175,7 @@ describe("bayViews", () => {
         borer: 2,
         machine: 1,
       },
-      pocket: 1_000,
+      stock: { stones: 1_000 },
     });
     const shown = views(mountain);
 
@@ -224,7 +227,7 @@ describe("bayViews", () => {
     const mountain = {
       ...early,
       remaining: 0,
-      pocket: priceOf(early, "drill", 0),
+      stock: { ...early.stock, stones: priceOf(early, "drill", 0) },
     };
     const pick = readyNow(mountain, NOW);
     expect(pick.kind).toBe("mined-out");

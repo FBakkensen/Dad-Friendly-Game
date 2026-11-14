@@ -13,7 +13,7 @@ import { NO_UPGRADES } from "./upgrades";
 
 const bottom: Mountain = {
   ...minedMountain(MOUNTAIN_STONES),
-  pocket: 123_456,
+  stock: { ...minedMountain(MOUNTAIN_STONES).stock, stones: 123_456 },
   owned: {
     ...minedMountain(MOUNTAIN_STONES).owned,
     helper: 400,
@@ -89,7 +89,7 @@ describe("passing the mine to your kid", () => {
   it("keeps the recipes and clears materials, the bench, and crafted gear", () => {
     const parent = {
       ...bottom,
-      materials: { clay: 9, iron: 8, crystal: 7, heartstone: 6 },
+      stock: { ...bottom.stock, clay: 9, iron: 8, crystal: 7, heartstone: 6 },
       bench: {
         recipe: "heartstone-core" as const,
         startedAt: 1,
@@ -113,7 +113,7 @@ describe("passing the mine to your kid", () => {
     };
     const next = passTheMine(parent, 5_000);
     expect(next?.recipes).toEqual([...parent.recipes]);
-    expect(next?.materials).toEqual({
+    expect(next?.stock).toMatchObject({
       clay: 0,
       iron: 0,
       crystal: 0,

@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import type { Materials } from "./layers";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   DRAWER_SETTLE_MS,
@@ -52,13 +53,12 @@ const openSheet = (): void => {
 
 const NOW = 1_700_000_000_000;
 
-function shed(materials: NonNullable<Mountain["materials"]>): Mountain {
+function shed(materials: Materials): Mountain {
   return {
     ...createMountain(),
     remaining: MOUNTAIN_STONES - 12_000_000,
-    pocket: 0,
+    stock: { ...createMountain().stock, stones: 0, ...materials },
     owned: { ...createMountain().owned, helper: 4, cart: 1 },
-    materials,
     recipes: recipesForMined(12_000_000),
   };
 }

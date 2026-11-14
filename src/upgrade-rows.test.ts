@@ -1,4 +1,5 @@
-import { NONE_OWNED } from "./test-fixtures";
+import { EMPTY_STOCK } from "./stock";
+import { NONE_OWNED, patched, type MountainPatch } from "./test-fixtures";
 import { describe, expect, it } from "vitest";
 import { boostById, boostCost, NO_BOOSTS } from "./boosts";
 import { formatCompact, formatCount } from "./format";
@@ -32,8 +33,8 @@ const overtime = boostById("overtime");
 const arms = upgradeById("tap");
 const boots = upgradeById("boots");
 
-function mountainWith(fields: Partial<Mountain>): Mountain {
-  return { ...createMountain(), ...fields };
+function mountainWith(fields: MountainPatch): Mountain {
+  return patched(createMountain(), fields);
 }
 
 /** What a boost costs now: priced from the unboosted crew, as the buy is. */
@@ -41,7 +42,7 @@ function boostPrice(mountain: Mountain, id: "sharper" | "overtime"): number {
   return boostCost(boostById(id), effectiveRates(mountain), stretch(mountain));
 }
 
-function upgradePrice(
+function nextUpgradeCost(
   mountain: Mountain,
   id: "tap" | "steady" | "cartSyn",
   level = 0,
@@ -59,7 +60,7 @@ describe("boost rows", () => {
     const cost = boostPrice(base, "sharper");
 
     const ready = boostRowView(
-      { ...base, pocket: cost + 1 },
+      { ...base, stock: { ...base.stock, stones: cost + 1 } },
       NOW,
       sharper,
       false,
@@ -85,7 +86,10 @@ describe("boost rows", () => {
         "sharper",
         sharper.effect,
         sharper.multiplier,
-        effectiveRates({ ...base, pocket: cost + 1 }, NOW),
+        effectiveRates(
+          { ...base, stock: { ...base.stock, stones: cost + 1 } },
+          NOW,
+        ),
         false,
       ),
     ]);
@@ -94,7 +98,7 @@ describe("boost rows", () => {
     );
 
     const dear = boostRowView(
-      { ...base, pocket: cost - 1 },
+      { ...base, stock: { ...base.stock, stones: cost - 1 } },
       NOW,
       sharper,
       false,
@@ -111,7 +115,7 @@ describe("boost rows", () => {
     const running = boostRowView(
       {
         ...base,
-        pocket: cost * 10,
+        stock: { ...base.stock, stones: cost * 10 },
         boosts: { ...NO_BOOSTS, sharper: NOW + (4 * 60 + 12) * 1000 },
       },
       NOW,
@@ -221,9 +225,9 @@ describe("lasting upgrade rows", () => {
       owned: { ...NONE_OWNED, cart: 3 },
       upgrades: { ...NO_UPGRADES, tap: 2 },
     });
-    const cost = upgradePrice(climbing, "tap", 2);
+    const cost = nextUpgradeCost(climbing, "tap", 2);
     const view = upgradeRowView(
-      { ...climbing, pocket: cost },
+      { ...climbing, stock: { ...climbing.stock, stones: cost } },
       NOW,
       arms,
       false,
@@ -244,17 +248,25 @@ describe("lasting upgrade rows", () => {
       shown: true,
     });
     expect(view.info).toEqual([
-      upgradeEffectLine(arms, { ...climbing, pocket: cost }, NOW),
+      upgradeEffectLine(
+        arms,
+        { ...climbing, stock: { ...climbing.stock, stones: cost } },
+        NOW,
+      ),
     ]);
     expect(view.why).toBe(
-      upgradeWhyLine(arms, { ...climbing, pocket: cost }, NOW),
+      upgradeWhyLine(
+        arms,
+        { ...climbing, stock: { ...climbing.stock, stones: cost } },
+        NOW,
+      ),
     );
     expect(view.aria).toBe(
       `Strong arms. ${view.info[0] ?? ""} Buy for ${formatCount(cost)} stones`,
     );
 
     const dear = upgradeRowView(
-      { ...climbing, pocket: cost - 1 },
+      { ...climbing, stock: { ...climbing.stock, stones: cost - 1 } },
       NOW,
       arms,
       false,
@@ -271,7 +283,7 @@ describe("lasting upgrade rows", () => {
       mountainWith({
         owned: { ...NONE_OWNED, helper: 10 },
         upgrades: { ...NO_UPGRADES, boots: 1 },
-        pocket: 1e15,
+        stock: { stones: 1e15 },
       }),
       NOW,
       boots,
@@ -353,18 +365,22 @@ describe("the New row", () => {
       upgrades: { ...NO_UPGRADES, tap: 1, boots: 1 },
       boosts: { ...NO_BOOSTS, sharper: 1 },
     });
-    const steady = upgradePrice(open, "steady");
-    const helping = upgradePrice(open, "cartSyn");
+    const steady = nextUpgradeCost(open, "steady");
+    const helping = nextUpgradeCost(open, "cartSyn");
     expect(helping).toBeLessThan(steady);
 
-    expect(newRowId({ ...open, pocket: helping }, NOW)).toBe("upgrade:cartSyn");
-    expect(newRowId({ ...open, pocket: 0 }, NOW)).toBe("upgrade:steady");
+    expect(
+      newRowId({ ...open, stock: { ...open.stock, stones: helping } }, NOW),
+    ).toBe("upgrade:cartSyn");
+    expect(
+      newRowId({ ...open, stock: { ...open.stock, stones: 0 } }, NOW),
+    ).toBe("upgrade:steady");
     // A fresh mountain has no dotted row.
     expect(newRowId(createMountain(), NOW)).toBeUndefined();
 
     // A dotted boost he can afford leads over every upgrade.
     const boostFirst = mountainWith({
-      pocket: 1e9,
+      stock: { stones: 1e9 },
       owned: { ...NONE_OWNED, cart: 3 },
     });
     expect(newRowId(boostFirst, NOW)).toBe("boost:sharper");
@@ -383,14 +399,24 @@ describe("the Upgrades key's glow", () => {
   it("anything affordable", () => {
     const base = mountainWith({ owned: { ...NONE_OWNED, cart: 1 } });
     const cost = boostPrice(base, "sharper");
-    expect(anyUpgradeAffordable({ ...base, pocket: cost }, NOW)).toBe(true);
-    expect(anyUpgradeAffordable({ ...base, pocket: 0 }, NOW)).toBe(false);
+    expect(
+      anyUpgradeAffordable(
+        { ...base, stock: { ...base.stock, stones: cost } },
+        NOW,
+      ),
+    ).toBe(true);
+    expect(
+      anyUpgradeAffordable(
+        { ...base, stock: { ...base.stock, stones: 0 } },
+        NOW,
+      ),
+    ).toBe(false);
     // Sharper picks is running; nothing else is open or affordable.
     expect(
       anyUpgradeAffordable(
         {
           ...base,
-          pocket: cost,
+          stock: { ...base.stock, stones: cost },
           boosts: { ...NO_BOOSTS, sharper: NOW + 60_000 },
         },
         NOW,
@@ -398,7 +424,13 @@ describe("the Upgrades key's glow", () => {
     ).toBe(false);
     // A boost not shown yet does not count, however full the pocket.
     expect(
-      anyUpgradeAffordable({ ...createMountain(), pocket: 1e6 }, NOW),
+      anyUpgradeAffordable(
+        {
+          ...createMountain(),
+          stock: { ...createMountain().stock, stones: 1e6 },
+        },
+        NOW,
+      ),
     ).toBe(false);
     // An affordable shown upgrade counts.
     const arms3 = mountainWith({
@@ -407,7 +439,10 @@ describe("the Upgrades key's glow", () => {
     });
     expect(
       anyUpgradeAffordable(
-        { ...arms3, pocket: upgradePrice(arms3, "tap") },
+        {
+          ...arms3,
+          stock: { ...arms3.stock, stones: nextUpgradeCost(arms3, "tap") },
+        },
         NOW,
       ),
     ).toBe(true);
@@ -428,7 +463,7 @@ describe("display only", () => {
   it("display only", () => {
     const fields: Partial<Mountain> = {
       owned: { ...NONE_OWNED, helper: 10, cart: 5, drill: 1 },
-      pocket: 5_000_000,
+      stock: { ...EMPTY_STOCK, stones: 5_000_000 },
       upgrades: { ...NO_UPGRADES, tap: 2, boots: 1 },
       boosts: { ...NO_BOOSTS, overtime: NOW + 60_000 },
       finds: ["pick", "map"],

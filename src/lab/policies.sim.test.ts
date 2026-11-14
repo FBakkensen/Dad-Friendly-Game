@@ -49,8 +49,9 @@ describe("other schedules", () => {
     expect(checker.schedule.gapMs(0, 1)).not.toBe(checker.schedule.gapMs(0, 2));
     const again = runPolicy({ policy: checker, seed: 3, maxDays: 1 });
     expect(again).toEqual(runPolicy({ policy: checker, seed: 3, maxDays: 1 }));
-    expect(again.world.mountain.pocket).not.toBe(
-      runPolicy({ policy: checker, seed: 9, maxDays: 1 }).world.mountain.pocket,
+    expect(again.world.mountain.stock.stones).not.toBe(
+      runPolicy({ policy: checker, seed: 9, maxDays: 1 }).world.mountain.stock
+        .stones,
     );
     // Three one-day runs: about 1s alone, over 5s on a busy CI runner.
   }, 30_000);
@@ -87,7 +88,7 @@ describe("crafting", () => {
               craft: casual.params.craft,
             }),
           );
-          iron = Math.max(iron, world.mountain.materials.iron);
+          iron = Math.max(iron, world.mountain.stock.iron);
         }
         live += 1;
       },
