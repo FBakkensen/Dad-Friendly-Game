@@ -1,0 +1,158 @@
+/*
+ * The cage mock (#546). Only what the cage adds to src/board.css; the builder
+ * of #547 moves these rules there, on the board's tokens. The stage bays'
+ * rules are #535's, copied from mockups/line/line.css. Lengths are art pixels
+ * (--art is 2px), as in board.css.
+ */
+
+/* ---------- the stage bays, as #535 approved them ---------- */
+.line-bay > .board-bay-text {
+  width: calc(var(--art) * 66);
+}
+
+.line-bay > .board-flap {
+  right: calc(var(--art) * 12);
+}
+
+.line-bay > .line-per {
+  right: calc(var(--art) * 1);
+  top: calc(var(--art) * 14);
+  width: calc(var(--art) * 10);
+  text-align: center;
+  text-transform: none;
+}
+
+.line-bay.is-hold .board-bay-sub {
+  font-weight: var(--board-weight-semi);
+  color: var(--board-amber);
+}
+
+.line-bay[data-icon="hoist"] > .board-bay-icon {
+  top: calc(var(--art) * -1);
+}
+
+.line-bay[data-icon="train"] > .board-bay-icon {
+  top: calc(var(--art) * -4);
+}
+
+/* ---------- the cage plate ----------
+   The band tag, now a plate that takes a tap: the shaft's cage, then the
+   working level in the tag's words. Its tap area is the bays frame's top
+   edge, taller than the tag (the builder's to size to --target-min). */
+.cage-plate-row {
+  pointer-events: auto;
+}
+
+.cage-plate {
+  position: relative;
+  gap: calc(var(--art) * 3);
+}
+
+/* The window's own cage, in the plate's dark ink. */
+.cage-plate-icon {
+  width: calc(var(--art) * 8);
+  height: calc(var(--art) * 10);
+  image-rendering: pixelated;
+  filter: brightness(0.3);
+}
+
+.cage-plate > .cage-plate-dot {
+  right: calc(var(--art) * -4);
+  top: calc(var(--art) * -4);
+}
+
+/* ---------- the level card ----------
+   One inset per level, in a list that scrolls inside the face when the
+   levels outgrow it, as Saved copies' list does. The face never scrolls. */
+.cage-card .board-card-body {
+  flex-shrink: 1;
+  min-height: 0;
+}
+
+.cage-levels {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--art) * 3);
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+
+.cage-levels::-webkit-scrollbar {
+  display: none;
+}
+
+.cage-level {
+  position: relative;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 0;
+  min-height: var(--target-min);
+  margin: 0;
+  /* Clear of the inset's edges: 9 art px at the bottom, as Saved copies. */
+  padding: calc(var(--art) * 5) calc(var(--art) * 8) calc(var(--art) * 9)
+    calc(var(--art) * 8);
+  border: 0;
+  background: none;
+  color: var(--board-ink);
+  font: inherit;
+  text-align: left;
+}
+
+.cage-level-head {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--art) * 3);
+}
+
+.cage-level-head > .board-lamp {
+  position: static;
+  flex: none;
+}
+
+.cage-level-name {
+  flex: 1 1 auto;
+  font-size: var(--board-type-16);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.cage-level.is-crew .cage-level-name,
+.cage-level-mark {
+  color: var(--board-amber);
+}
+
+.cage-level-mark {
+  flex: none;
+  font-size: var(--board-type-13);
+  font-weight: var(--board-weight-semi);
+}
+
+.cage-level-line {
+  font-size: var(--board-type-14);
+  line-height: var(--board-note-lead);
+}
+
+.cage-level-line.is-quiet {
+  color: var(--board-ink-2);
+}
+
+.cage-level-line.is-deeper {
+  font-weight: var(--board-weight-semi);
+  color: var(--board-ink);
+}
+
+/* ---------- the cards' new lines ---------- */
+.cage-arrival,
+.cage-welcome {
+  font-weight: var(--board-weight-semi);
+}
+
+/* The mock's seeds have not been taught: no teach dots but the plate's, no New sign. */
+.cage-mock .board-key-dot:not(.cage-plate-dot),
+.cage-mock .board-sign-slot {
+  display: none;
+}
