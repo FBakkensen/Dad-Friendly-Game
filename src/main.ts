@@ -1,6 +1,8 @@
 import helperUrl from "./assets/helper-miner.png";
 import kidUrl from "./assets/kid-helper.png";
 import cartUrl from "./assets/mine-cart.png";
+import hoistUrl from "./assets/board/mach-hoist.png";
+import trainUrl from "./assets/board/mach-train.png";
 import drillUrl from "./assets/steam-drill.png";
 import borerUrl from "./assets/tunnel-borer.png";
 import machineUrl from "./assets/great-machine.png";
@@ -34,6 +36,8 @@ try {
     tierArt: {
       helper: helperUrl,
       cart: cartUrl,
+      hoist: hoistUrl,
+      train: trainUrl,
       drill: drillUrl,
       borer: borerUrl,
       machine: machineUrl,

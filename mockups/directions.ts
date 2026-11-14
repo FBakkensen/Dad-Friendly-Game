@@ -22,7 +22,8 @@ import {
   tierById,
   tierCost,
   TIERS,
-  type ShownTierId,
+  type LineTierId,
+  type TierId,
   tierRecord,
 } from "../src/tiers.ts";
 import {
@@ -34,6 +35,9 @@ import {
   type Upgrade,
   type UpgradeId,
 } from "../src/upgrades.ts";
+
+/** The tiers these old mocks drew: none of the line's machines. */
+type ShownTierId = Exclude<TierId, LineTierId>;
 
 /**
  * Three mountain directions for the M10-2 exploration. Same save, same

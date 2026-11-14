@@ -31,6 +31,13 @@ export const ENGINEER_POSTS = [...MACHINE_POSTS, "camp"] as const;
 
 export type EngineerPost = (typeof ENGINEER_POSTS)[number];
 
+/** A machine an engineer can tend: not the hoist or the train, which have no engineers yet. */
+export function isTendTier(
+  id: TierId,
+): id is (typeof MACHINE_POSTS)[number] {
+  return (MACHINE_POSTS as readonly TierId[]).includes(id);
+}
+
 /** Where an engineer is now: their post, or "tunnel" while away. The save writes this. */
 const DUTIES = [...ENGINEER_POSTS, "tunnel"] as const;
 

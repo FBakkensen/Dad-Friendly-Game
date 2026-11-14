@@ -27,6 +27,8 @@ describe("the screen as main.ts mounts it", () => {
       tierArt: {
         helper: tile,
         cart: tile,
+        hoist: tile,
+        train: tile,
         drill: tile,
         borer: tile,
         machine: tile,

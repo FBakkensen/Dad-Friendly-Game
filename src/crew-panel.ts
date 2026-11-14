@@ -2,10 +2,13 @@ import borerUrl from "./assets/board/mach-borer.png";
 import tarpUrl from "./assets/board/mach-borer-tarp.png";
 import cartUrl from "./assets/board/mach-cart.png";
 import drillUrl from "./assets/board/mach-drill.png";
+import hoistUrl from "./assets/board/mach-hoist.png";
 import kidDimUrl from "./assets/board/mach-kid-dim.png";
 import kidUrl from "./assets/board/mach-kid.png";
 import machineDimUrl from "./assets/board/mach-machine-dim.png";
 import machineUrl from "./assets/board/mach-machine.png";
+import trainDimUrl from "./assets/board/mach-train-dim.png";
+import trainUrl from "./assets/board/mach-train.png";
 import workerUrl from "./assets/board/mach-worker.png";
 import {
   el,
@@ -58,7 +61,7 @@ import {
   owned,
   tierById,
   type BuyAmount,
-  type ShownTierId,
+  type TierId,
 } from "./tiers";
 import { watchFixHold } from "./trouble-tap";
 
@@ -81,20 +84,25 @@ const BUY_ICON: Readonly<Record<BuyIcon, string>> = {
   kid: kidUrl,
   "kid-dim": kidDimUrl,
   cart: cartUrl,
+  hoist: hoistUrl,
   drill: drillUrl,
   borer: borerUrl,
   tarp: tarpUrl,
+  train: trainUrl,
+  "train-dim": trainDimUrl,
   machine: machineUrl,
   "machine-dim": machineDimUrl,
 };
 
 /** What a row shows before the save is in: the tier's own art, never a lock read from a save. */
-const FIRST_ICON: Readonly<Record<ShownTierId, BuyIcon>> = {
+const FIRST_ICON: Readonly<Record<TierId, BuyIcon>> = {
   helper: "worker",
   kid: "kid",
   cart: "cart",
+  hoist: "hoist",
   drill: "drill",
   borer: "borer",
+  train: "train",
   machine: "machine",
 };
 
@@ -106,7 +114,7 @@ const SEC_MACHINES = "sec:machines";
 const FOOT = "foot";
 
 interface TierRow {
-  readonly id: ShownTierId;
+  readonly id: TierId;
   readonly row: BoardRow;
 }
 
@@ -154,7 +162,7 @@ function placeParts(
   parts: CrewParts,
   rows: readonly TierRow[],
 ): ReadonlyMap<string, HTMLElement> {
-  const inSection = (section: readonly ShownTierId[]) =>
+  const inSection = (section: readonly TierId[]) =>
     rows
       .filter(({ id }) => section.includes(id))
       .map(({ id, row }) => [id, row.root] as const);
@@ -176,10 +184,10 @@ function placeParts(
 
 /** The ids of the parts the save shows, in list order. The footnote shows under every list. */
 function shownParts(
-  shown: readonly ShownTierId[],
+  shown: readonly TierId[],
   crewed: boolean,
 ): readonly string[] {
-  const inSection = (section: readonly ShownTierId[]) =>
+  const inSection = (section: readonly TierId[]) =>
     section.filter((id) => shown.includes(id));
   return [
     SEC_CREW,
@@ -197,7 +205,7 @@ function guidedOf(
   mountain: Mountain,
   at: number,
   trouble: ProgressSnapshot["trouble"],
-): ShownTierId | undefined {
+): TierId | undefined {
   return showsDot(mountain, "staffing")
     ? firstIdleTier(mountain, at, trouble)
     : undefined;
@@ -291,12 +299,12 @@ function paintRows(
     amount,
   }: { at: number; pick: ReadyPick; onBoard: RowsOnBoard; amount: BuyAmount },
 ): {
-  readonly shown: readonly ShownTierId[];
-  readonly fresh: ShownTierId | undefined;
+  readonly shown: readonly TierId[];
+  readonly fresh: TierId | undefined;
 } {
   const guided = guidedOf(mountain, at, trouble);
-  const shown: ShownTierId[] = [];
-  let fresh: ShownTierId | undefined;
+  const shown: TierId[] = [];
+  let fresh: TierId | undefined;
   for (const { id, row } of rows) {
     const view = buyRowView({
       mountain,
@@ -343,12 +351,12 @@ interface RowWiring {
   /** How many a tap buys now (#358). */
   readonly amount: () => BuyAmount;
   /** Buys `count` of `what` from the row `id`: Done holds that row. */
-  readonly buy: (id: ShownTierId, what: ShownTierId, count: number) => void;
+  readonly buy: (id: TierId, what: TierId, count: number) => void;
 }
 
 function troubledHere(
   snapshot: ProgressSnapshot,
-  id: ShownTierId,
+  id: TierId,
 ): TroubleTier | undefined {
   return snapshot.trouble?.tier === id ? snapshot.trouble.tier : undefined;
 }
@@ -360,7 +368,7 @@ function troubledHere(
  */
 function wireTierRow(
   button: HTMLButtonElement,
-  id: ShownTierId,
+  id: TierId,
   { progress, onBoard, now, pick, amount, buy }: RowWiring,
 ): void {
   // A fix holds the row again: the burst of presses that fixed it must not run on into a buy,
@@ -418,7 +426,7 @@ function wireTierRow(
 
 /** One of a tier is today's buy; ×10 and Max buy several in one move (#358). */
 function buyMove(
-  what: ShownTierId,
+  what: TierId,
   count: number,
 ): Extract<Move, { kind: "buyTier" | "buyTiers" }> {
   return count === 1
@@ -427,7 +435,7 @@ function buyMove(
 }
 
 /** A tier's row, built once, with its own art until the save is in. */
-function tierRow(id: ShownTierId, wiring: RowWiring): TierRow {
+function tierRow(id: TierId, wiring: RowWiring): TierRow {
   const row = createBoardRow({
     tag: "button",
     className: "tier",
@@ -640,7 +648,7 @@ export function createCrewPanel({
   });
   const crewSpeed = (): number =>
     effectiveRates(getView().mountain, now(), getView().trouble).crewPerSecond;
-  const buy = (id: ShownTierId, what: ShownTierId, count: number): void => {
+  const buy = (id: TierId, what: TierId, count: number): void => {
     const before = crewSpeed();
     if (dispatch(buyMove(what, count)).kind === "applied") {
       onBoard.result(id, "applied");
@@ -659,7 +667,7 @@ export function createCrewPanel({
     parts,
   );
   /** The staffing New row the last render painted. */
-  let fresh: ShownTierId | undefined;
+  let fresh: TierId | undefined;
 
   const render = (): void => {
     const view = getView();

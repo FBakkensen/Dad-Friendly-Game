@@ -788,21 +788,35 @@ function baseOutput(rates: Rates): number {
   return crewOutput(rates.tierSpeed, rates.running);
 }
 
-/** The mountain with `count` more workers or kids. */
-function withHands(
+/**
+ * What `count` more of a tier add to the crew, before crew timers: the
+ * crew's speed with them, staffed as the foreman would (#500), less its
+ * speed now. Never below zero.
+ */
+function crewGain(
   mountain: Mountain,
-  tier: "helper" | "kid",
+  tier: TierId,
   count: number,
-): Mountain {
-  return setOwned(mountain, tier, mountain.owned[tier] + count);
+  now?: number,
+  trouble?: Trouble,
+): number {
+  const before = baseOutput(effectiveRates(mountain, now, trouble));
+  const after = baseOutput(
+    effectiveRates(
+      setOwned(mountain, tier, mountain.owned[tier] + count),
+      now,
+      trouble,
+    ),
+  );
+  // Staffing mines the most it can find (#500), so a buy rarely slows the
+  // crew; the gain shown never goes below nothing.
+  return Math.max(0, after - before);
 }
 
 /**
- * What `count` more workers or kids add to the crew (#490): the crew's speed
- * with them less its speed now, before crew timers. It
- * counts the idle machines they start, so the Ready now plate and the Buys
- * rows say what the crew line will gain, not only their own hands. Never
- * below zero.
+ * What `count` more workers or kids add to the crew (#490). It counts the
+ * idle machines they start, so the Ready now plate and the Buys rows say
+ * what the crew line will gain, not only their own hands.
  */
 export function handsGain(
   mountain: Mountain,
@@ -811,13 +825,23 @@ export function handsGain(
   now?: number,
   trouble?: Trouble,
 ): number {
-  const before = baseOutput(effectiveRates(mountain, now, trouble));
-  const after = baseOutput(
-    effectiveRates(withHands(mountain, tier, count), now, trouble),
-  );
-  // Staffing mines the most it can find (#500), so a hand rarely slows the
-  // crew; the gain shown never goes below nothing.
-  return Math.max(0, after - before);
+  return crewGain(mountain, tier, count, now, trouble);
+}
+
+/**
+ * What `count` more of a machine add to the line (#536): 0 when its stage
+ * already stands at or above the level the hands lift the lowest stage to,
+ * so its Buys row can say so before the tap. A stage's first machine always
+ * adds something, since it frees the hands that did that job.
+ */
+export function machineGain(
+  mountain: Mountain,
+  id: MachineId,
+  count: number,
+  now?: number,
+  trouble?: Trouble,
+): number {
+  return crewGain(mountain, id, count, now, trouble);
 }
 
 /** The idle kinds of machine, biggest first, and the rates that say so. */
@@ -847,7 +871,11 @@ export function startedTier(
   if (idle.length === 0) {
     return undefined;
   }
-  const hired = effectiveRates(withHands(mountain, "helper", 1), now, trouble);
+  const hired = effectiveRates(
+    setOwned(mountain, "helper", mountain.owned.helper + 1),
+    now,
+    trouble,
+  );
   return idle.find((id) => hired.running[id] > rates.running[id]);
 }
 

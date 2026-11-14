@@ -1,5 +1,13 @@
 import { chipTime, formatCompact } from "../src/format.ts";
-import { tierById, tierCost, type ShownTierId } from "../src/tiers.ts";
+import {
+  tierById,
+  tierCost,
+  type LineTierId,
+  type TierId,
+} from "../src/tiers.ts";
+
+/** The tiers these old mocks drew: none of the line's machines. */
+type ShownTierId = Exclude<TierId, LineTierId>;
 
 /**
  * M10-3 component mocks (#235). Not the game. One card, three buttons,

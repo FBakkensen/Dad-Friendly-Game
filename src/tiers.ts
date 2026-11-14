@@ -162,15 +162,12 @@ export type MachineId = Extract<
 >["id"];
 
 /**
- * The machines of the line (#533). Off in play, so no screen shows them
- * yet: the stage bays and Buys by stage (#537, #538) widen the screens.
+ * The machines of the line (#533). On sale in Buys and offered by Ready now
+ * since #536; the machine bays show them from #537, the stage bays.
  */
 export type LineTierId = "hoist" | "train";
 
-/** A tier the screens show today. */
-export type ShownTierId = Exclude<TierId, LineTierId>;
-
-/** A machine the screens show today. */
+/** A machine the bays show until the stage bays (#537). */
 export type ShownMachineId = Exclude<MachineId, LineTierId>;
 
 export function isShownTier<T extends TierId>(

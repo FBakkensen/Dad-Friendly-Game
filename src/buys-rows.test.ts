@@ -33,7 +33,7 @@ import {
   tierCost,
   tierQuote,
   type BuyAmount,
-  type ShownTierId,
+  type TierId,
 } from "./tiers";
 
 /** The rows Buys shows today: the line's machines join with #538. */
@@ -55,14 +55,14 @@ function at(depth: number): Pick<Mountain, "remaining"> {
 }
 
 /** What the next one of a tier costs on this mountain. */
-function priceOf(mountain: Mountain, id: ShownTierId, owned: number): number {
+function priceOf(mountain: Mountain, id: TierId, owned: number): number {
   return tierCost(tierById(id), owned, mountain.stretch);
 }
 
 /** One row, read as the drawer would: with this frame's Ready pick. */
 function row(
   mountain: Mountain,
-  tier: ShownTierId,
+  tier: TierId,
   {
     trouble,
     pick,
@@ -71,7 +71,7 @@ function row(
   }: {
     trouble?: Trouble;
     pick?: ReadyPick;
-    guided?: ShownTierId;
+    guided?: TierId;
     amount?: BuyAmount;
   } = {},
 ): BuyRowView {
@@ -172,11 +172,13 @@ describe("buyRowView", () => {
     expect(row(early, "machine").shown).toBe(false);
 
     // Every row at once: what the drawer paints.
-    const faces: Readonly<Record<ShownTierId, readonly [RowState, RowLamp]>> = {
+    const faces: Readonly<Record<TierId, readonly [RowState, RowLamp]>> = {
       helper: ["ready", "green"],
       cart: ["ready", "amber"],
+      hoist: ["dear", "off"],
       drill: ["dear", "off"],
       borer: ["locked", "off"],
+      train: ["locked", "off"],
       machine: ["locked", "off"],
       kid: ["locked", "off"],
     };
@@ -420,7 +422,7 @@ describe("buyRowView", () => {
   });
 
   it("icons", () => {
-    const icons: readonly (readonly [Mountain, ShownTierId, BuyIcon])[] = [
+    const icons: readonly (readonly [Mountain, TierId, BuyIcon])[] = [
       [early, "helper", "worker"],
       // Without the Crown, the kid is locked.
       [createMountain(), "kid", "kid-dim"],
@@ -536,7 +538,7 @@ describe("BUY_SECTIONS", () => {
 
 describe("buyRowView: ×10 and Max (#358)", () => {
   /** What `amount` of a tier costs on this mountain, from the shared quote. */
-  const quote = (mountain: Mountain, id: ShownTierId, amount: BuyAmount) =>
+  const quote = (mountain: Mountain, id: TierId, amount: BuyAmount) =>
     tierQuote(mountain, tierById(id), amount);
 
   it("×10 shows ten's total, the count on the verb, and ten's output", () => {

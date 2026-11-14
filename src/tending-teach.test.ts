@@ -60,6 +60,8 @@ function mount(now: () => number) {
     tierArt: {
       helper: tile,
       cart: tile,
+      hoist: tile,
+      train: tile,
       drill: tile,
       borer: tile,
       machine: tile,

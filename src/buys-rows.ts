@@ -1,6 +1,6 @@
 import { tierLock, type TierLock } from "./crew";
 import { crewCounts } from "./crew-count";
-import { atHome, staffForBuy, staffNeeded } from "./engineers";
+import { atHome, isTendTier, staffForBuy, staffNeeded } from "./engineers";
 import { formatCompact, formatCount } from "./format";
 import type { Trouble } from "./hazards";
 import {
@@ -37,7 +37,7 @@ import {
   tierShown,
   type BuyAmount,
   type Tier,
-  type ShownTierId,
+  type TierId,
 } from "./tiers";
 import { tierSynergy } from "./upgrades";
 
@@ -47,15 +47,18 @@ export type BuyIcon =
   | "kid"
   | "kid-dim"
   | "cart"
+  | "hoist"
   | "drill"
   | "borer"
   | "tarp"
+  | "train"
+  | "train-dim"
   | "machine"
   | "machine-dim";
 
 /** One Buys row (#373): a tier's row, with its art and whether it shows. */
 export interface BuyRowView extends RowView {
-  readonly tier: ShownTierId;
+  readonly tier: TierId;
   readonly shown: boolean;
   readonly icon: BuyIcon;
   /** The staffing New row: a tap hires a worker, never another machine. */
@@ -67,15 +70,17 @@ export interface BuyRowView extends RowView {
 /** The Buys drawer's two sections, in row order. */
 export const BUY_SECTIONS = {
   crew: ["helper", "kid"],
-  machines: ["cart", "drill", "borer", "machine"],
+  machines: ["cart", "hoist", "drill", "borer", "train", "machine"],
 } as const;
 
 /** Each tier's quiet line, where it has no milestone line. */
-export const TIER_WHY: Readonly<Record<ShownTierId, string>> = {
+export const TIER_WHY: Readonly<Record<TierId, string>> = {
   helper: "Another pair of hands on the rock.",
   cart: "Hauls what the crew already cut.",
+  hoist: "Lifts the haul up the shaft.",
   drill: "Bites the wall while you rest.",
   borer: "Chews a tunnel you can walk from.",
+  train: "Hauls by the wagonload, deep down.",
   machine: "The big one, with a crew of its own.",
   kid: "Mines, and teaches the others a little.",
 };
@@ -96,7 +101,7 @@ function workersVerb(staff: number): string {
  * lines, then with the short payoff, then the progress alone. Past the last mark, the reached
  * line. A tier without marks shows its count and its quiet line.
  */
-function milestoneOptions(id: ShownTierId, count: number): readonly string[] {
+function milestoneOptions(id: TierId, count: number): readonly string[] {
   const next = nextMark(id, count, formatCompact);
   if (next !== undefined) {
     return [
@@ -112,17 +117,20 @@ function milestoneOptions(id: ShownTierId, count: number): readonly string[] {
   return [`${owns} · ${TIER_WHY[id]}`, owns];
 }
 
-function buyIcon(id: ShownTierId, count: number, locked: boolean): BuyIcon {
+function buyIcon(id: TierId, count: number, locked: boolean): BuyIcon {
   switch (id) {
     case "helper":
       return "worker";
     case "kid":
       return locked ? "kid-dim" : "kid";
     case "cart":
+    case "hoist":
     case "drill":
       return id;
     case "borer":
       return count === 0 ? "tarp" : "borer";
+    case "train":
+      return locked ? "train-dim" : "train";
     case "machine":
       return locked ? "machine-dim" : "machine";
   }
@@ -132,16 +140,16 @@ type BuyInput = {
   mountain: Mountain;
   now: number;
   trouble: Trouble | undefined;
-  tier: ShownTierId;
+  tier: TierId;
   pick: ReadyPick;
-  guided: ShownTierId | undefined;
+  guided: TierId | undefined;
   /** How many a tap buys (#358). The staffing New row hires one whatever it says. */
   amount: BuyAmount;
 };
 
 type BuyFacts = {
   readonly mountain: Mountain;
-  readonly id: ShownTierId;
+  readonly id: TierId;
   readonly tier: Tier;
   readonly count: number;
   /** How many a tap buys now, and `price` is all of them together (#358). */
@@ -257,11 +265,11 @@ function gainingCount(
 /** The best-ranked engineer on this machine, and what she adds. */
 function tendingOf(
   mountain: Mountain,
-  id: ShownTierId,
+  id: TierId,
   now: number,
   trouble: Trouble | undefined,
 ): Tending | undefined {
-  if (id === "helper" || id === "kid") {
+  if (!isTendTier(id)) {
     return undefined;
   }
   const who = tendingEngineer(atHome(mountain), id);

@@ -109,6 +109,8 @@ export function mountScreen({
     tierArt: {
       helper: "helper.png",
       cart: "cart.png",
+      hoist: "hoist.png",
+      train: "train.png",
       drill: "drill.png",
       borer: "borer.png",
       machine: "machine.png",
