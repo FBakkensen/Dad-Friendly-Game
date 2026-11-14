@@ -17,6 +17,11 @@ on:
     types: [opened, reopened, ready_for_review, synchronize]
   push:
     branches: [main]
+  # A red deploy gate on main turns every open PR red ("main is red"), so nothing merges on
+  # top of it unseen; the next green deploy turns them back.
+  workflow_run:
+    workflows: [deploy-hosting]
+    types: [completed]
 
 permissions: {}
 
@@ -28,10 +33,11 @@ concurrency:
 jobs:
   targets:
     # Drafts wait for ready_for_review. Forks are not checked.
-    if: ${{ github.event_name == 'push' || (!github.event.pull_request.draft && github.event.pull_request.head.repo.full_name == github.repository) }}
+    if: ${{ github.event_name != 'pull_request' || (!github.event.pull_request.draft && github.event.pull_request.head.repo.full_name == github.repository) }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
+      actions: read
       pull-requests: read
       statuses: write
     outputs:
@@ -49,6 +55,18 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           main=$(gh api "repos/$REPO/commits/main" --jq .sha)
+          # The last two finished deploy gates on main (#617): main is red while the newest failed.
+          deploys=$(gh api "repos/$REPO/actions/workflows/deploy-hosting.yml/runs?branch=main&event=push&status=completed&per_page=10" \
+            | jq -c '[.workflow_runs[] | select(.conclusion == "success" or .conclusion == "failure") | {conclusion, sha: .head_sha}] | .[0:2]')
+          newest=$(printf '%s' "$deploys" | jq -r '.[0].conclusion // "success"')
+          before=$(printf '%s' "$deploys" | jq -r '.[1].conclusion // "success"')
+          red=$(printf '%s' "$deploys" | jq -r 'if .[0].conclusion == "failure" then .[0].sha else "" end')
+          if [ "$EVENT" = "workflow_run" ] && [ "$newest" = "$before" ]; then
+            # A deploy finished and main's colour did not change: every answer still stands.
+            echo "Deploy gate still $newest on main; nothing to re-check."
+            echo "prs=[]" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           if [ "$EVENT" = "pull_request" ]; then
             prs=$(jq -cn --argjson number "$NUMBER" --arg head "$HEAD" '[{number: $number, head: $head}]')
           else
@@ -56,6 +74,16 @@ jobs:
               '[.[] | select(.draft | not) | select(.head.repo.full_name == $repo) | {number, head: .head.sha}]')
           fi
           echo "main $main; PRs: $prs"
+          if [ -n "$red" ]; then
+            # Nothing is worth testing on a red main: say so on every PR, and check nothing.
+            for head in $(printf '%s' "$prs" | jq -r '.[].head'); do
+              gh api "repos/$REPO/statuses/$head" -f state=failure -f context=merge-check \
+                -f description="main is red: deploy-hosting's full gate failed on ${red:0:7}. Fix main first." \
+                -f target_url="$RUN_URL" --silent
+            done
+            echo "prs=[]" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           for head in $(printf '%s' "$prs" | jq -r '.[].head'); do
             gh api "repos/$REPO/statuses/$head" -f state=pending -f context=merge-check \
               -f description="Testing this PR merged into main ${main:0:7}." -f target_url="$RUN_URL" --silent
