@@ -478,7 +478,7 @@ The first measure files are `liveMedian`, `liveP10`, `singleShare`, `longestDead
 
 `npm run lab` (`tools/strategy-lab.ts`) loads the registries and writes `reports/strategy-lab.md` and `.json` (gitignored). Built (#174).
 
-The pacing ledger (#554), `docs/pacing-ledger.md`, is committed: for each player type and seed of the gate's run, the day each band is reached, each machine first bought and each relic found, the day the run ends, and a hash of where it ended. It sets no limit. The gate's `lab` step (`--ci --ledger check`) fails when a fresh run differs and prints the moved rows, so a change that moves the pace shows as a diff of that file; `npm run lab:ledger` writes it again. A 10% dearer first cart, for example, moves the plain dad's finish from day 4.0 to 4.5.
+The pacing ledger (#554), `docs/pacing-ledger.md`, is committed: for each player type and seed of the gate's run, the day each band is reached, each machine first bought and each relic found, the day the run ends, and a hash of where it ended. It sets no limit. The gate's `lab` step (`--ci --ledger check`) fails when a fresh run differs and prints the moved rows, so a change that moves the pace shows as a diff of that file; `npm run lab:ledger` writes it again. A dearer first cart, for example, shows as moved finish days.
 
 #### How to read the report
 
