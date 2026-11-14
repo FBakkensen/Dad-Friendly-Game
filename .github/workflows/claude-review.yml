@@ -63,8 +63,14 @@ jobs:
           BASE: ${{ github.event.pull_request.base.sha }}
           PR: ${{ github.event.pull_request.number }}
         run: |
-          prompt=$(sed -e "s/{{BASE}}/$BASE/g" -e "s/{{PR}}/$PR/g" .github/claude-review.md)
           set +e
+          # The prompt comes from the base: a branch cut before it existed has
+          # none, and a PR should not edit the prompt it is reviewed with (#576).
+          prompt=$(git show "$BASE:.github/claude-review.md" | sed -e "s/{{BASE}}/$BASE/g" -e "s/{{PR}}/$PR/g")
+          if [ -z "$prompt" ]; then
+            echo "No review prompt at $BASE" > "$RUNNER_TEMP/review.err"
+            exit 0
+          fi
           claude -p --bare --no-session-persistence \
             --model claude-opus-5-5 \
             --max-budget-usd 2 \
