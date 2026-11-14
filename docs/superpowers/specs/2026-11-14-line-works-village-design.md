@@ -457,7 +457,7 @@ It does not prove the line is fun. It shows the structure moves. Hands may be to
 
 ## Risks
 
-1. **Size.** Step 1 retunes the whole economy: every lab guardrail is measured again. This is a new middle of the game, not a feature.
+1. **Size.** Step 1 retunes the whole economy: every lab guardrail is measured again. This is a new middle of the game, not a feature. It tunes to the run's floor: at least five days, with no ceiling, and a meaningful decision at all times first (Flemming, 14 Nov 2026, #556).
 2. **Hands.** Too strong or too weak breaks step 1 in opposite ways (above).
 3. **The yard as homework.** If a night's yard needs minding every evening, it fails the anti-goal. The first tune: with the piles emptied in the evening, an eight-hour night fits.
 4. **Three goods on one board.** The odometer shows one number today. Step 2 needs a mock before any code.

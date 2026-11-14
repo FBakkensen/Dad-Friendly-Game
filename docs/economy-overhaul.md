@@ -121,7 +121,7 @@ S2 is the big one. A alone still misses the check-in rows (28% of check-ins buy 
 
 ## Decided
 
-- **The run length is not a limit (Flemming, 7 Nov 2026).** "The run is endless, with each pass to the kid being harder." `casual-finish` (days 5–7) and `thin-habit-finish` (14 days) are report-only rows from now on. The kid-run rule stays strict: every run finishes later than the one before, with every machine bought. The pacing tests that pin a finish day are regression pins: S2 re-pins them and does not treat them as limits.
+- **The run length is not a limit (Flemming, 7 Nov 2026).** "The run is endless, with each pass to the kid being harder." `casual-finish` and `thin-habit-finish` are report-only rows from now on. (Their bounds were then days 5–7 and 14 days. Since 14 Nov 2026, #556, both read at least five days with no ceiling.) The kid-run rule stays strict: every run finishes later than the one before, with every machine bought. The pacing tests that pin a finish day are regression pins: S2 re-pins them and does not treat them as limits.
 
 - **The new numbers apply to the run in progress (Flemming, 7 Nov 2026).** No "new runs only" flag. The rest of today's run gets more stones per stretch in the deeper bands and cheaper machines. Kid runs keep their stretch k on top.
 
