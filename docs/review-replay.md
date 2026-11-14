@@ -42,4 +42,26 @@ Replayed on 14 Nov 2026 with the tools at e445c4c, one run at a time, for $6.86 
 - **Behaviour over time: weak.** Every missed bug needs following the game's state through a sequence: a second sign-in during the resume hold, a tab killed without pagehide, a new mountain with no crew, the last minute before a buy, a material that runs out past its band, a boost that ends mid-play. Its findings on those PRs were about the code's shape and docs instead. The game lens caught no play bug.
 - **Cost.** These are large PRs (up to 8,000 changed lines); they averaged $0.86 a review, and #476 used almost all of its $2 cap. Day-to-day reviews so far average about $0.38 (`node tools/review/tally.ts`).
 
-What this suggests for the prompt is #597, filed for Flemming; changing the prompt here was out of scope (#586).
+What this suggested for the prompt is #597, tried in the second replay below.
+
+## Second replay: the state walk (#597)
+
+The code, save and game lenses now ask the reviewer to walk each changed behaviour through its states: none, the first and the last, again, interrupted, elsewhere, and changed underneath. The wording names kinds of state, never the eight bugs above. Replayed on the same eight PRs on 14 Nov 2026, for $5.34.
+
+**Of 8 known bugs it caught 1 again (#576). Of its 14 findings, none was shown wrong, and 5 are about behaviour over time instead of 1 or 2.** Six findings were checked. One of them is a live bug that is still on `main`.
+
+| PR           | Cost  | Findings                         | Known bugs        | What changed                                                                                                                                                                                                                            |
+| ------------ | ----- | -------------------------------- | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| #574         | $0.17 | 1 Needs Flemming, 2 Minor        | #576 caught       | Same catch. New: a job that times out posts nothing, while ship-sitting says to wait for the review. It missed the `git grep -O` hole this time.                                                                                        |
+| #476         | $0.93 | 1 Critical                       | #481, #573 missed | Only the coverage-floor finding, for half the cost.                                                                                                                                                                                     |
+| #402         | $1.19 | 1 Important                      | #490, #517 missed | New and checked: the Ready plate's "Saving for … in 20m" ignores how many stones are left, so near the bottom it counts down to a buy that never comes. Still on `main` (`src/ready-now.ts`); filed as #610.                            |
+| #482         | $0.50 | 1 Minor                          | #484 missed       | New: `save.stuck` counts the time the phone was locked, so a locked phone logs a stuck save that never happened.                                                                                                                        |
+| #472         | $0.67 | 1 Critical, 1 Important, 2 Minor | #525 missed       | New: the Pace dial shows a fixed ×10 and hides another timer's countdown, near #525 but not it. A Critical for the `single-share` guardrail move (0.26 to 0.27): the PR names Flemming but does not quote him, which the rules ask for. |
+| #461         | $0.83 | 1 Critical, 1 Minor              | #492 missed       | New and checked: the board CSS test was loosened for every selector. The menu's Workshop row closes everything during a reload and opens nothing.                                                                                       |
+| #501 (clean) | $0.35 | 1 Minor                          | –                 | A comment still places the sound key in the Workshop.                                                                                                                                                                                   |
+| #513 (clean) | $0.70 | 1 Needs Flemming                 | –                 | The same copy question as before.                                                                                                                                                                                                       |
+
+### What this says
+
+- **Keep the state walk.** It costs less ($5.34 against $6.86), shows no rise in wrong findings, and moved findings from docs toward behaviour. It found one real bug no one had seen.
+- **The review alone will not catch these known bugs.** Each needs following several steps of play with real timing: a second sign-in during a hold, a kill with no pagehide, crew that ticks on while the board is open. Those are what the gameplay journeys (#552, #553) and the economy invariants (#555) are for. #573 was found by a journey, and #592 by the invariants. The review is the net for rules, guards and single-step logic. The journeys and invariants are the net for play over time.
