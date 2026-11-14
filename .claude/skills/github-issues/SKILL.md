@@ -77,7 +77,7 @@ The first five lines are the honest answer. They go on the issue and, whole, to 
 | **Not as stated**    | It breaks a hard rule (hill-climb, step 3) or fights a design he approved | Say why, and offer the version that would work. Add `needs-you`.                    |
 | **Changes the plan** | It touches a foundation that is being built now                           | Ask him at once: one question, three options, one recommended. Add `needs-you`.     |
 
-Then place it. Its parent is the theme of its stage (the themes are #563's sub-issues), or #563 when its stage has no theme yet. Set `blocked-by` only for a real dependency: an idea on a later stage waits because of its stage, not because of a link.
+Then place it. Its parent is the theme of its stage (the themes are #563's sub-issues), or #563 when its stage has no theme yet. A fast-lane idea needs no parent. Set `blocked-by` only for a real dependency: an idea on a later stage waits because of its stage, not because of a link.
 
 How to push back:
 
@@ -88,7 +88,7 @@ How to push back:
 - An idea never changes work that is being built, except through **Changes the plan**. The work in flight goes on unchanged until he answers.
 - When two ideas pull against each other, say so and ask which one wins.
 
-**Shape it when its turn comes:** now for **Build now**, when the blocker closes for **Next**, and for **Later** when its stage comes up, before that stage is split into issues. A thread started on an `idea` shapes it. It does not build it.
+**Shape it when its turn comes:** now for **Build now**, when the blocker closes for **Next**, and for **Later** when its stage comes up, before that stage is split into issues. A thread started on an `idea` shapes it. It does not build it, whoever started it. A shaping thread does not claim: it comments `Shaping in <thread link>` on the idea, the idea keeps its labels, and shaping does not count as one of the two issues being built.
 
 Shaping is the Design step (`superpowers.md`, step 3) done ahead of the sitting: `superpowers:brainstorming`, with hill-climb's hard rules and a probe for anything built on numbers. It ends with one question to Flemming: build it this way, yes or no. The issue carries `needs-you` with that question until he answers. A shaped design is never self-approved, also in an agent-run sitting.
 
@@ -108,9 +108,11 @@ Flemming writes every issue that gets built. Triage sorts open issues by readine
 
 A leaf carries at most one of the three. A blocked issue and a parent carry none: the graph already says why they wait. So does a leaf on a later stage: the road says why it waits. An `idea` carries none, or `needs-you` while a question on it waits for his answer (Ideas). A hill-climb `maybe` issue carries none until Flemming promotes it. A promoted one swaps `maybe` for `idea`, and is answered and placed like any idea: `sub_issue_write` with `replace_parent` moves it from its round to its theme, and the round's table keeps its row. An issue an agent filed without Flemming's yes is `needs-you` with a one-line "Build this?" comment, so nothing gets built that Flemming has not seen. On his yes it is placed like the rest: under the theme of its stage, or in the fast lane. An issue that may hit a stop partway (say, art only if a measured trigger fires) is still `ready-for-agent`; the thread asks at the stop.
 
-**The fast lane.** Two kinds of work do not wait for their stage: a bug Flemming hit while playing, and small polish. Small means under one sitting, no save field, no number in the economy, and no file a running sitting is changing. Triage marks it with the `fast-lane` label, beside its triage label, and it needs no theme. Everything else about it is the same: it needs `ready-for-agent`, and it counts as one of the two issues being built. At most one issue carries both `fast-lane` and `agent-working`, so the road always moves. A leaf with no stage that is not fast-lane work is `needs-you`, with the question of where it belongs.
+**The fast lane.** Two kinds of work do not wait for their stage: a bug Flemming hit while playing, and small polish. Small means under one sitting, no save field, no number in the economy, and no file a running sitting is changing. Triage marks it with the `fast-lane` label, beside its triage label, and it needs no theme. Everything else about it is the same: it needs `ready-for-agent`, and it counts as one of the two issues being built. At most one issue carries both `fast-lane` and `agent-working`, so the road always moves. A leaf with no stage that is not fast-lane work, and is neither an `idea` nor a `maybe`, is `needs-you`, with the question of where it belongs.
 
-The thread that merges triages the issues its merge unblocked (its `blocking` list), and the scheduled triage pass catches the rest. The scheduled pass also reads every `idea`. One whose blocker has closed, or whose stage has come up, is due for shaping: the pass starts a thread on it, or comments `Due for shaping: <why>` on it when it cannot start one. When Flemming has played a stage, the ideas waiting on the next one are shaped together before that stage is split into issues.
+The thread that merges triages the issues its merge unblocked (its `blocking` list), and the scheduled triage pass catches the rest.
+
+**The ideas pass.** The scheduled triage pass also reads #563 and every `idea`, each time it runs. It never starts the building of an `idea`. One whose blocker has closed, or whose stage has come up, is due for shaping: the pass starts a thread on it, or comments `Due for shaping: <why>` on it when it cannot start one. When Flemming has played a stage, the ideas waiting on the next one are shaped together before that stage is split into issues.
 
 Read and set labels one at a time with the REST API. The MCP `issue_write` tool replaces the whole label list, so two writers can drop each other's labels. A DELETE of a label that is already gone returns 404.
 
@@ -126,7 +128,7 @@ gh api -X DELETE repos/FBakkensen/Dad-Friendly-Game/issues/<n>/labels/ready-for-
 2. Add `agent-working`, remove the other triage label, and comment `Claimed by <thread link>, branch <branch>`.
 3. Read the comments. A claim is live until a `Released <same thread link>` comment follows it. If another thread's claim is live and came first, it holds the issue: comment `Released <your thread link>`, leave the labels, and pick again.
 
-A thread Flemming started on an issue takes it whatever its label (his start is the answer). If another thread's claim is live, it tells him which thread holds it and waits. A thread an agent started on an issue that loses the claim stops and says so. An agent claims self-chosen work only while fewer than two open issues carry `agent-working`; the check races, so about two.
+A thread Flemming started on an issue takes it whatever its label (his start is the answer). On an `idea`, taking it means shaping it (Ideas). If another thread's claim is live, it tells him which thread holds it and waits. A thread an agent started on an issue that loses the claim stops and says so. An agent claims self-chosen work only while fewer than two open issues carry `agent-working`; the check races, so about two.
 
 **Release:**
 
@@ -172,7 +174,8 @@ Not every idea is an issue. A review nit or small follow-up goes in the PR body 
 ## Work and PRs
 
 - No issue, no implementation. File it, then code.
-- Do not start an issue that is still blocked, or one labelled `idea`, `agent-working` or `needs-you` unless Flemming started the thread on it. Claim it first (Triage).
+- Do not start an issue that is still blocked, or one labelled `agent-working` or `needs-you` unless Flemming started the thread on it. Claim it first (Triage).
+- Never build an issue labelled `idea`. A thread on one shapes it (Ideas).
 - One branch and one PR per sitting. Never a second branch or a stacked PR for the same sitting. Several sittings may run at once, each on its own claimed issue.
 - One PR closes one issue (`Fixes #N`).
 - If the diff grows a second sliver, stop. File the second issue. Do not start it. Keep this PR on `#N`.

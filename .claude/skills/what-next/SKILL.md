@@ -60,4 +60,4 @@ Put the star on the recommended row. Keep each "what it means" to two or three s
 
 ## After they pick
 
-If the pick has no issue yet, create it with the github-issues skill, including dependencies. Then start that sliver with `superpowers:brainstorming`, or with `superpowers:writing-plans` from the parent spec when the issue belongs to an approved spec. Do not chain a second what-next in the same sitting unless they ask. Mid-sitting ideas are not extra scope. One worth its own sitting becomes an issue. Smaller ones follow the github-issues skill.
+If the pick has no issue yet, create it with the github-issues skill, including dependencies. Then start that sliver with `superpowers:brainstorming`, or with `superpowers:writing-plans` from the parent spec when the issue belongs to an approved spec, or from its shaping comment when it began as an `idea` (github-issues, Ideas). Do not chain a second what-next in the same sitting unless they ask. Mid-sitting ideas are not extra scope. One worth its own sitting becomes an issue. Smaller ones follow the github-issues skill.
