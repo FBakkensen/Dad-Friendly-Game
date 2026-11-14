@@ -25,6 +25,7 @@ import {
   gearMultiplier,
 } from "./workshop";
 import { callTo } from "./expeditions";
+import { handsSpeed, lineOn, lineSpeed, stageSpeeds } from "./line";
 import { tapWithPick } from "./lost-tools";
 import type { Mountain } from "./mountain";
 import {
@@ -248,10 +249,7 @@ function readRates(mountain: Mountain, now?: number, trouble?: Trouble): Rates {
     0,
   );
   applyTendingFloor(mountain, plain, tierSpeed, running);
-  const exactBase = TIERS.reduce(
-    (total, tier) => total + running[tier.id] * tierSpeed[tier.id],
-    0,
-  );
+  const exactBase = crewOutput(tierSpeed, running);
   // Whole stones a second, so what the crew line says is what gets mined.
   const baseCrew = Math.floor(exactBase + 1e-9);
   // Tap power takes its share of the unboosted crew, before any crew timer.
@@ -660,6 +658,20 @@ function applyAllTenths(
   }
 }
 
+/**
+ * What the crew moves, before crew timers: the sum of its machines and
+ * hands, or, with the line on (#532, off in play), what the line moves
+ * (`src/line.ts`). Staffing and the tending floor still weigh the sum.
+ */
+function crewOutput(
+  speed: Readonly<Record<TierId, number>>,
+  running: Readonly<Record<TierId, number>>,
+): number {
+  return lineOn()
+    ? lineSpeed(stageSpeeds(speed, running), handsSpeed(speed, running))
+    : outputOf(speed, running);
+}
+
 function outputOf(
   speed: Readonly<Record<TierId, number>>,
   running: Readonly<Record<TierId, number>>,
@@ -780,7 +792,7 @@ const STAFFED_TIERS = ["machine", "borer", "drill", "cart"] as const;
 
 /** The crew's speed before crew timers: what its machines and hands mine. */
 function baseOutput(rates: Rates): number {
-  return outputOf(rates.tierSpeed, rates.running);
+  return crewOutput(rates.tierSpeed, rates.running);
 }
 
 /** The mountain with `count` more workers or kids. */
