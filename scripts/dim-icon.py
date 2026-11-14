@@ -7,6 +7,8 @@ it was. This is how mach-hoist-dim, mach-train-dim, mach-cart-dim and
 mach-drill-dim were made.
 
     python3 scripts/dim-icon.py src/assets/board/mach-hoist.png src/assets/board/mach-hoist-dim.png
+
+Needs Pillow 12.1 or later (Image.get_flattened_data).
 """
 
 import sys

@@ -9,7 +9,11 @@
  *   npm run dev, then /mockups/line/index.html?scene=mid
  *   node mockups/line/shots.mjs writes mockups/line/shots/<scene>.png
  *
- * Scenes: early, mid, mid-after, buys, buys-haul, how. Delete this folder once #537 and #538 have shipped.
+ * Scenes: early, mid, mid-after, buys, buys-haul, how.
+ *
+ * The pictures in shots/ are the record, not this page. It is typechecked against today's src
+ * and reads today's markup, so #537 or #538 will break it: the first sliver that does deletes
+ * index.html, line.ts, line.css, shots.mjs and their two knip.json entries. art/ and shots/ stay.
  */
 import "../../src/tokens.css";
 import "../../src/board.css";
@@ -26,10 +30,12 @@ import cartUrl from "../../src/assets/board/mach-cart.png";
 import drillUrl from "../../src/assets/board/mach-drill.png";
 import pickUrl from "../../src/assets/board/res-pick.png";
 import { createUnconfiguredAuth } from "../../src/auth";
-import { el, writeFigures } from "../../src/board-dom";
+import { el, frameX, legend, writeFigures } from "../../src/board-dom";
 import { trackBoardFit } from "../../src/board-fit";
 import { RELIC_GOLD } from "../../src/board-relics";
+import { LAMP_FRAME, LAMP_PX } from "../../src/board-row";
 import { skin } from "../../src/board-skin";
+import type { Stage } from "../../src/line";
 import { mountMountainScreen } from "../../src/mountain-screen";
 import {
   gaugeAngle,
@@ -55,19 +61,12 @@ const SCENES: readonly Scene[] = [
 ];
 
 type Lamp = "off" | "amber" | "green";
-/** One lamp frame in CSS px, and lamp.png's frames. */
-const LAMP_PX = 40;
-const LAMP_FRAME: Readonly<Record<Lamp, number>> = {
-  off: 0,
-  amber: 1,
-  green: 2,
-};
 /** One gauge sheet frame in CSS px, and the sheet's columns. */
 const FACE_PX = 208;
 const FACE_COLS = 11;
 
 interface StageBay {
-  readonly stage: "face" | "haul" | "lift";
+  readonly stage: Stage;
   readonly name: string;
   /** The stage's biggest machine he owns, or its first machine, dim, while he owns none. */
   readonly icon: "drill" | "drill-dim" | "borer" | "cart" | "hoist" | "train";
@@ -284,7 +283,7 @@ function need(root: ParentNode, selector: string): HTMLElement {
 }
 
 function lampAt(lamp: HTMLElement, state: Lamp): void {
-  lamp.style.backgroundPositionX = `${String(-LAMP_FRAME[state] * LAMP_PX)}px`;
+  frameX(lamp, LAMP_FRAME[state], LAMP_PX);
 }
 
 /** A skin drawn again on a copy: a copied canvas is blank. */
@@ -508,14 +507,14 @@ function buyRow(list: HTMLElement, row: BuyRow): HTMLElement {
 
 /** A stage's legend: its name, and what its bay says. */
 function stageLegend(bay: StageBay): HTMLElement {
-  const legend = el("div", "board-sec line-sec");
-  legend.classList.toggle("is-hold", bay.hold);
-  legend.dataset["sec"] = bay.stage;
-  legend.append(
-    el("span", "board-lg", bay.name),
-    el("span", "board-lg", bay.hold ? "Holds the line" : "Room to spare"),
+  const sec = legend(
+    bay.name,
+    bay.stage,
+    bay.hold ? "Holds the line" : "Room to spare",
   );
-  return legend;
+  sec.classList.add("line-sec");
+  sec.classList.toggle("is-hold", bay.hold);
+  return sec;
 }
 
 /** The crew's line and its chips, by stage. */
@@ -574,11 +573,6 @@ function paintBuys(root: HTMLElement, board: Board): HTMLElement {
   }
   // The Great Machine's own row closes the lift: locked, as it is today.
   machine.before(...made);
-  const foot = sheet.querySelector(".board-sheet-foot");
-  if (foot !== null) {
-    foot.textContent =
-      "Ready now offers the biggest machine for the stage that holds the line, if your free workers can run it and you can afford it. It never buys for you.";
-  }
   return list;
 }
 
@@ -703,6 +697,8 @@ async function show(root: HTMLElement, scene: Scene): Promise<void> {
   }
   // The game stops here: from now on the board is a still picture.
   stop();
+  // A still picture takes no taps.
+  root.inert = true;
   root.classList.add("line-mock");
   paintBoard(root, board);
   if (scene === "how") {
