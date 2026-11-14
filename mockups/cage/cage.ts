@@ -535,8 +535,9 @@ function addWelcomeLine(root: HTMLElement): void {
   }
   // The dream reads the shaft, not the crew's level: the shaft is in the Deep Heart.
   need(body, ".welcome-cheer").textContent = WELCOME_DREAM;
-  // Nine hours away at 30% of the parked line's 10.4K/s, as the board behind shows.
-  need(body, ".welcome-mined-count").textContent = "+84.2M";
+  // Nine hours away at 30% of the parked line's 10.4K/s, as the board behind shows. The Shield
+  // is on the shelf, so the crew digs the whole nine hours: 9 × 3,600 × 10,400 × 0.3.
+  need(body, ".welcome-mined-count").textContent = "+101.1M";
 }
 
 /** The cage's card is the first under the Ledger's "i"; today's first card moves down. */
