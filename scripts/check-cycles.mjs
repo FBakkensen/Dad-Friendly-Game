@@ -21,6 +21,26 @@ function walk(dir) {
   return found;
 }
 
+/**
+ * True when an import or export clause brings in types only: `type X`, or
+ * braces where every name is `type Y`. Split in code, not one regex, so no
+ * nested quantifier can backtrack (CodeQL js/redos, #606).
+ */
+const typeOnly = (clause) => {
+  if (/^type\s/.test(clause)) {
+    return true;
+  }
+  if (!clause.startsWith("{") || !clause.endsWith("}")) {
+    return false;
+  }
+  const names = clause
+    .slice(1, -1)
+    .split(",")
+    .map((one) => one.trim())
+    .filter((one) => one !== "");
+  return names.length > 0 && names.every((one) => /^type\s+\w+$/.test(one));
+};
+
 const files = walk(root);
 const graph = new Map();
 for (const file of files) {
@@ -29,10 +49,7 @@ for (const file of files) {
   for (const [, clause, spec] of text.matchAll(
     /^(?:import|export)\s+([^;]*?)\s+from\s+"(\.[^"]+)";/gms,
   )) {
-    if (
-      /^type\s/.test(clause) ||
-      /^\{\s*(type\s+\w+\s*,?\s*)+\}$/.test(clause)
-    ) {
+    if (typeOnly(clause)) {
       continue;
     }
     const resolved = path.posix.normalize(

@@ -113,7 +113,7 @@ function contrast(a: string, b: string): number {
 
 /** A selector escaped for a RegExp that matches its rule's head. */
 function ruleHead(selector: string): string {
-  return `^${selector.replace(/[.]/g, "\\.")} \\{`;
+  return `^${selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} \\{`;
 }
 
 /** Every declaration of board.css's top-level rules that list this exact selector. */
