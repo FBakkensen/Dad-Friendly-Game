@@ -11,11 +11,11 @@ This is how dad-friendly decisions get made. Same shape as the project interview
 
 ## Agent-run sittings
 
-A thread started on an issue has its pick: skip this skill. An agent choosing work with no one to ask takes a `ready-for-agent` issue (github-issues, Triage) instead of asking. Prefer the one that unblocks the most, then the oldest. It claims it before the branch. With no `ready-for-agent` issue left, it stops and says so: it does not run hill-climb or invent issues. The interview below is for when Flemming asks.
+A thread started on an issue has its pick: skip this skill. An agent choosing work with no one to ask takes a `ready-for-agent` issue (github-issues, Triage) instead of asking. If a `fast-lane` issue is ready and none is being built, take it (Triage has the cap). Otherwise take road work: prefer the one that unblocks the most, then the oldest. It claims it before the branch. With no `ready-for-agent` issue left, it stops and says so: it does not run hill-climb or invent issues. The interview below is for when Flemming asks.
 
 ## Before you ask
 
-Read the project rules in `.claude/rules/` (dad-friendly game, dad-friendly work) and the current repo. Load open GitHub issues with the github-issues skill. The three options should be unblocked issues when those exist.
+Read the project rules in `.claude/rules/` (dad-friendly game, dad-friendly work) and the current repo. Load open GitHub issues and the road (#563) with the github-issues skill. The three options should be unblocked issues on the road's current stage when those exist. An `idea` is not an option until it has been shaped. If Flemming asks for one out of order, say what it needs first (github-issues, Ideas).
 
 Score every option against:
 
@@ -60,4 +60,4 @@ Put the star on the recommended row. Keep each "what it means" to two or three s
 
 ## After they pick
 
-If the pick has no issue yet, create it with the github-issues skill, including dependencies. Then start that sliver with `superpowers:brainstorming`, or with `superpowers:writing-plans` from the parent spec when the issue belongs to an approved spec. Do not chain a second what-next in the same sitting unless they ask. Mid-sitting ideas are not extra scope. One worth its own sitting becomes an issue. Smaller ones follow the github-issues skill.
+If the pick has no issue yet, create it with the github-issues skill, including dependencies. Then start that sliver with `superpowers:brainstorming`, or with `superpowers:writing-plans` from the parent spec when the issue belongs to an approved spec, or from its shaping comment when it began as an `idea` (github-issues, Ideas). Do not chain a second what-next in the same sitting unless they ask. Mid-sitting ideas are not extra scope. One worth its own sitting becomes an issue. Smaller ones follow the github-issues skill.
