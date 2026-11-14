@@ -20,15 +20,19 @@ describe("casual run", { timeout: 120_000 }, () => {
     // about 3 minutes to spare (0.498 of a day). The payback score waited
     // about a minute until the Gold rush (#468); now he taps the quick vein
     // and the held stones come in with no dead minute.
+    // Since away pay splits at a band crossing (#592), the night before the
+    // Deep Heart's next Great Machine is quiet on the payback table too:
+    // 11.98 h from day 3.5, inside the half-day limit by about a minute.
     expect(run.finishDay).toBe(4.5);
     expect(readFinishDay(run.samples)).toBe(4.5);
-    expect(report.value.singleShare).toBeCloseTo(0.343, 3);
-    expect(report.value.deadHours).toBeCloseTo(11.95, 2);
+    expect(report.value.singleShare).toBeCloseTo(0.443, 3);
+    expect(report.value.deadHours).toBeCloseTo(11.98, 2);
     expect(report.value.deadHours / HOURS_PER_DAY).toBeLessThanOrEqual(0.5);
     expect(report.value.deadStartDay).toBeCloseTo(3.5, 1);
-    expect(report.payback.singleShare).toBeCloseTo(0.114, 3);
-    expect(report.payback.deadHours).toBe(0);
-    expect(report.payback.deadStartDay).toBeUndefined();
+    expect(report.payback.singleShare).toBeCloseTo(0.314, 3);
+    expect(report.payback.deadHours).toBeCloseTo(11.98, 2);
+    expect(report.payback.deadHours / HOURS_PER_DAY).toBeLessThanOrEqual(0.5);
+    expect(report.payback.deadStartDay).toBeCloseTo(3.5, 1);
   });
 
   it("keeps the payback wait to half a day at most after the first borer", () => {
