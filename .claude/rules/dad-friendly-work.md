@@ -39,6 +39,8 @@ How we build is dad-friendly too. The superpowers plugin is the workflow (`super
 - Commit and push the sitting's branch as work lands (`CLAUDE.md`). The ship-sitting skill has the details.
 - Verify in a real browser with `npm run play` (`scripts/play.mjs`, Chrome through puppeteer-core): start from a named save, tap the fat target by selector or aria-label, and look at the phone shots. Read `log.txt` for the console, failed requests, and the save line. Any page error fails the run. `npm run play -- --help` lists the saves and actions.
 - `superpowers:verification-before-completion` applies. The gate and `npm run play` are the evidence; code inspection alone never proves a sliver.
+- A surprise in real play (a field log, Flemming's own evening) becomes a named lab measure or a journey before the fix, so the fix is proven against it and it cannot come back unseen.
+- The pacing ledger (`docs/pacing-ledger.md`) records the pace, not a limit. A PR that moves it writes it again with `npm run lab:ledger` and says why in its body.
 - Playwright Test is for gameplay journeys (`tools/journeys/`, `npm run journeys`); the visual check and `npm run play` stay on puppeteer-core.
 
 ## Finish the sitting, not the idea pile

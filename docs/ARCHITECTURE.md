@@ -37,6 +37,11 @@ page is the map, plus the rules that keep it that way.
    given and scores every measure. `lab/guardrails` turns `targets.ts` into
    one check per entry. `tools/strategy-lab.ts` (`npm run lab`) loads the
    registries, writes the report, and warns on a miss unless `LAB_STRICT=1`.
+   `lab/ledger` keeps each run's pacing ledger row (#554); `--ledger check`
+   compares the run with the committed `docs/pacing-ledger.md` and fails on a
+   difference, and `--ledger write` (`npm run lab:ledger`) writes it. The
+   ledger is one of the lab's inputs (`LAB_ENTRIES`), so a changed ledger
+   runs the lab again.
    The full gate (`npm run check`, run before a PR is opened) runs it and
    `lab:generations` with `--ci` and `LAB_STRICT=1` when the branch changes
    a file the lab imports, and a miss fails the gate. `tools/generations-lab.ts`
