@@ -26,7 +26,8 @@ function at(mined: number, extra: MountainPatch = {}): Mountain {
     {
       ...fresh,
       remaining: MOUNTAIN_STONES - mined,
-      owned: { ...fresh.owned, helper: 1 },
+      // Twelve workers: the cart shows (#536).
+      owned: { ...fresh.owned, helper: 12 },
     },
     extra,
   );
@@ -184,9 +185,10 @@ describe("summarizeBands", () => {
   it("is empty with no runs", () => {
     const summary = summarizeBands([]);
     expect(summary.runs).toBe(0);
+    // Table A (#559): the Granite suits the borer, the Caves the train.
     expect(summary.favoured.map((entry) => entry.machine)).toEqual([
       "borer",
-      "drill",
+      "train",
       "machine",
     ]);
     expect(summary.favoured[0]?.afford).toEqual({ mean: 0, max: 0, runs: 0 });
@@ -299,7 +301,7 @@ describe("createSittingClock", () => {
 
 describe("fewestMachineBuys", () => {
   const buy = (
-    tier: "cart" | "drill" | "borer" | "machine",
+    tier: "cart" | "hoist" | "drill" | "borer" | "train" | "machine",
     layer: "topsoil" | "granite",
     count: number,
   ): BandEvent => ({ kind: "bought", tier, layer, share: 0, count });
@@ -308,14 +310,18 @@ describe("fewestMachineBuys", () => {
     const samples = [
       sample([
         buy("cart", "topsoil", 30),
+        buy("hoist", "topsoil", 10),
         buy("drill", "topsoil", 25),
         buy("borer", "topsoil", 6),
+        buy("train", "topsoil", 12),
         buy("machine", "topsoil", 9),
       ]),
       sample([
         buy("cart", "granite", 20),
+        buy("hoist", "granite", 8),
         buy("drill", "granite", 20),
         buy("borer", "granite", 10),
+        buy("train", "granite", 6),
         buy("machine", "granite", 10),
       ]),
     ];

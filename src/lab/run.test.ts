@@ -48,10 +48,6 @@ describe("where a best-tending dad sends her (#543)", () => {
     expect(tendBest(crew).engineers[0]?.post).toBe("cart");
   });
 
-  it("off the line, to the Great Machine as always", () => {
-    expect(tendBest(crew).engineers[0]?.post).toBe("machine");
-  });
-
   it("leaves an engineer who is out exploring where she is", () => {
     const away = {
       ...crew,

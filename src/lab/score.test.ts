@@ -10,6 +10,15 @@ import { NOTHING_CRAFTED } from "../workshop";
 
 const ada = { name: "Ada", rank: 0, trips: 0, post: "borer" } as const;
 
+/** A borer that holds the line: a train and the Great Machine outrun the face (#536). */
+const faceBound = {
+  ...createMountain().owned,
+  helper: 30,
+  borer: 1,
+  train: 1,
+  machine: 1,
+};
+
 describe("scoreDecision", () => {
   it("gives singleShare 1 when the only crew buy is affordable", () => {
     const mountain = {
@@ -60,7 +69,7 @@ describe("scoreDecision", () => {
   it("splits tending out of the borer's output", () => {
     const mountain = {
       ...createMountain(),
-      owned: { ...createMountain().owned, helper: 8, borer: 1 },
+      owned: faceBound,
       stock: { ...createMountain().stock, stones: 1 },
       engineers: [ada],
     };
@@ -82,7 +91,7 @@ describe("scoreDecision", () => {
     expect(sample.nextPaybackRatio).toBe(Number.POSITIVE_INFINITY);
   });
 
-  it("with the line on, keeps the machines' shares in the line's units and reads the line (#534)", () => {
+  it("keeps the machines' shares in the line's units and reads the line (#534)", () => {
     const mountain = {
       ...createMountain(),
       owned: {
@@ -95,14 +104,6 @@ describe("scoreDecision", () => {
       crafted: { ...NOTHING_CRAFTED, "iron-rails": 1 as const },
     };
     const context = { ...DAD_SCHEDULE, tapsPerSecond: 0 };
-    const off = scoreDecision({
-      mountain,
-      now: 0,
-      context,
-      actions: [],
-      atMs: 0,
-    });
-    expect(off.line).toBeUndefined();
     const sample = scoreDecision({
       mountain,
       now: 0,
@@ -125,9 +126,16 @@ describe("scoreDecision", () => {
   });
 
   it("splits crafted gear out of the crew", () => {
+    // A hoist and a drill outrun the haul, so the rails on the carts count (#536).
     const mountain = {
       ...createMountain(),
-      owned: { ...createMountain().owned, helper: 4, cart: 2 },
+      owned: {
+        ...createMountain().owned,
+        helper: 4,
+        cart: 2,
+        hoist: 1,
+        drill: 1,
+      },
       crafted: { ...NOTHING_CRAFTED, "iron-rails": 1 as const },
     };
     const sample = scoreDecision({
@@ -154,7 +162,7 @@ describe("scoreDecision", () => {
   it("treats a free improvement as infinitely good per stone", () => {
     const mountain = {
       ...createMountain(),
-      owned: { ...createMountain().owned, helper: 8, borer: 1 },
+      owned: faceBound,
       stock: { ...createMountain().stock, stones: 1 },
       engineers: [{ ...ada, post: "camp" as const }],
     };

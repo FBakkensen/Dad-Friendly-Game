@@ -36,7 +36,8 @@ describe("createRevealLog", () => {
     expect(ids(first, "appeared")).not.toContain("system:workshop");
     expect(log(start, 1)).toEqual([]);
 
-    const hired: Mountain = { ...start, owned: { ...start.owned, helper: 1 } };
+    // The cart shows at twelve workers (#536).
+    const hired: Mountain = { ...start, owned: { ...start.owned, helper: 12 } };
     const next = log(hired, 2);
     expect(next).toContainEqual({
       kind: "firstUse",

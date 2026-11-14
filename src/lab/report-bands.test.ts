@@ -90,7 +90,7 @@ describe("band report", () => {
       "- Casual: Cart in The Granite, unbought in 1 of 2 runs",
     );
     expect(markdown).toContain(
-      "| Casual | never shown | The Topsoil 0%, 5 min, 0.0 sittings (worst 0) | The Granite 5%, 24 min, 2.5 sittings (worst 3) ⚠ | The Crystal Caves 50%, never bought |",
+      "| Casual | never shown | never shown | The Topsoil 0%, 5 min, 0.0 sittings (worst 0) | The Granite 5%, 24 min, 2.5 sittings (worst 3) ⚠ | never shown | The Crystal Caves 50%, never bought |",
     );
     expect(markdown).toContain(
       "- Casual: system:workshop, worst 3 sittings (9 live min)",

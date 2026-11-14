@@ -80,8 +80,16 @@ const nilsPrice = promoteCost(withPocket(0, { engineers: [ada] }));
 /** Next buys are all past `pocket`, so the second can only promote. */
 function pricedOut(pocket: number): Mountain {
   return withPocket(pocket, {
-    // Pinned on the tuned curve (#356).
-    owned: { ...NONE_OWNED, helper: 160, cart: 80, drill: 40, borer: 1 },
+    // Pinned on the tuned curve (#356): every next buy costs more than
+    // the pocket, the line's hoists too (#536).
+    owned: {
+      ...NONE_OWNED,
+      helper: 160,
+      cart: 80,
+      hoist: 30,
+      drill: 40,
+      borer: 1,
+    },
     engineers: [ada],
   });
 }
@@ -713,10 +721,19 @@ describe("crafting", () => {
     });
     expect(waiting?.kind).toBe("buyTier");
     // Pinned on the tuned curve (#357): on the x1.06 worker curve, 80
-    // workers left the next one too cheap to wait on; 100 is well clear.
+    // workers left the next one too cheap to wait on. On the line a worker
+    // lifts every stage he works (#536), so 160 are needed to clear it.
+    // Thirty hoists put the line's cheap machine out of reach too (#536).
     const late = workshop({
       stock: { stones: 0 },
-      owned: { helper: 100, cart: 40, drill: 30, borer: 0, machine: 1 },
+      owned: {
+        helper: 160,
+        cart: 40,
+        hoist: 30,
+        drill: 30,
+        borer: 0,
+        machine: 1,
+      },
     });
     const worthIt = casual.decide({
       mountain: late,

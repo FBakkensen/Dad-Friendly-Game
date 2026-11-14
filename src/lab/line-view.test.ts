@@ -60,21 +60,6 @@ describe("the line's readings in the lab (#534)", () => {
     expect(handsCarryOf([sample()])).toBeNaN();
   });
 
-  it("reads nothing while the line is off", () => {
-    const mountain = {
-      ...minedMountain(1_000_000),
-      owned: { ...minedMountain(1_000_000).owned, helper: 4, cart: 2 },
-    };
-    expect(narrowAt(mountain, 0)).toBeUndefined();
-    expect(
-      zeroGainBuysBetween(
-        mountain,
-        { ...mountain, owned: { ...mountain.owned, cart: 3 } },
-        0,
-      ),
-    ).toBeUndefined();
-  });
-
   it("names the narrow stage, and counts a machine that adds nothing", () => {
     const mountain = {
       ...minedMountain(1_000_000),

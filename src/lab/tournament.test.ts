@@ -852,7 +852,7 @@ describe("openingView", () => {
     // With the stones for a helper in the pocket, the same open is affordable.
     expect(
       openingView(
-        { ...granite, stock: { ...granite.stock, stones: 100 } },
+        { ...granite, stock: { ...granite.stock, stones: 1_000 } },
         0,
         policy,
         context,
