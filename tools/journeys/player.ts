@@ -14,7 +14,7 @@ import type { ShownTierId } from "../../src/tiers.ts";
 import { seedJson, type SeedSave } from "../browser/fixtures.ts";
 import { SAVE_KEY, seedScript } from "../browser/harness.ts";
 import { createRng } from "../sweep/random.ts";
-import { TICK_MS } from "./expected.ts";
+import { TICK_MS, type Expected } from "./expected.ts";
 import { PHONE } from "./phone.ts";
 
 /** 9 pm on a weekday: the kids are asleep. Every journey's clock starts here. */
@@ -95,6 +95,9 @@ export class Player {
     this.tab = await this.page.context().newPage();
     this.watch(this.tab);
     await this.boot(undefined);
+    // The killed tab's writer lease outlives it; the new tab plays once it holds the seat,
+    // and until then it shows the other-tab card.
+    await expect(this.page.locator(".other-tab")).toBeHidden();
   }
 
   /** The clock, the seeded random and the save go in, then the game boots. */
@@ -201,6 +204,29 @@ export class Player {
 }
 
 /**
+ * Digs by hand until the rules say a worker is affordable, opens Buys and hires him: the
+ * opening every fresh journey shares. Buys is left open.
+ */
+export async function hireFirstWorker(
+  player: Player,
+  rules: Expected,
+): Promise<void> {
+  let taps = 0;
+  while (!rules.allows({ kind: "buyTier", id: "helper" }, player.now)) {
+    rules.move({ kind: "dig" }, player.now);
+    taps += 1;
+    expect(taps, "taps to the first worker").toBeLessThan(200);
+  }
+  await player.dig(taps);
+  await player.expectStones(rules.pocket);
+  await player.openBuys();
+  rules.until(player.now);
+  expect(rules.move({ kind: "buyTier", id: "helper" }, player.now)).toBe(true);
+  await player.buy("helper");
+  await player.expectStones(rules.pocket);
+}
+
+/**
  * The journeys' test: a `player` on a phone page, and `otherPhone()` for a second phone with its
  * own storage (a cold open beside a tab left open). Any page error on either fails the journey.
  */
@@ -224,8 +250,10 @@ export const test = base.extend<{
       phones.push({ player, context });
       return player;
     });
-    for (const { player, context } of phones) {
+    for (const { context } of phones) {
       await context.close();
+    }
+    for (const { player } of phones) {
       expect(player.pageErrors, "page errors on the other phone").toEqual([]);
     }
   },

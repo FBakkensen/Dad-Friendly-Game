@@ -4,41 +4,26 @@
  * pay what they pay for the time in between.
  */
 import { Expected, TICK_MS } from "./expected.ts";
-import { expect, test } from "./player.ts";
+import { expect, hireFirstWorker, test } from "./player.ts";
 
 test("kill the tab and reopen: the same moment", async ({ player }) => {
   await player.open();
   const rules = Expected.fresh(player.now);
 
-  // Dig to the first worker, hire him, and dig once more.
-  let taps = 0;
-  while (!rules.allows({ kind: "buyTier", id: "helper" }, player.now)) {
-    rules.move({ kind: "dig" }, player.now);
-    taps += 1;
-    expect(taps, "taps to the first worker").toBeLessThan(200);
-  }
-  await player.dig(taps);
-  await player.openBuys();
-  rules.until(player.now);
-  expect(rules.move({ kind: "buyTier", id: "helper" }, player.now)).toBe(true);
-  await player.buy("helper");
-  await player.closeBuys();
-  expect(rules.move({ kind: "dig" }, player.now)).toBe(true);
-  await player.dig(1);
-  await player.expectStones(rules.pocket);
-
-  // The phone kills the tab the moment after the tap, and he opens the game again.
+  // Digs and the first worker, then the phone kills the tab the moment after the buy.
+  await hireFirstWorker(player, rules);
   const atKill = rules.pocket;
   await player.kill();
+
   await player.reopen();
   const reopened = rules.reopened(player.now).expected;
-  expect(reopened.pocket, "the same moment").toBe(atKill);
+  expect(reopened.pocket, "the rules reopen the same moment").toBe(atKill);
   await player.expectStones(atKill);
-  expect(reopened.mountain.helpers).toBe(1);
 
-  // The reopened tab plays on.
+  // The worker survived the kill: the reopened tab's crew digs on at his speed.
   await player.wait(5 * TICK_MS);
   reopened.until(player.now);
+  expect(reopened.pocket).toBeGreaterThan(atKill);
   await player.expectStones(reopened.pocket);
 });
 
@@ -47,17 +32,7 @@ test("kill the tab while the crew digs: their work since the last move is paid a
 }) => {
   await player.open();
   const rules = Expected.fresh(player.now);
-  let taps = 0;
-  while (!rules.allows({ kind: "buyTier", id: "helper" }, player.now)) {
-    rules.move({ kind: "dig" }, player.now);
-    taps += 1;
-    expect(taps, "taps to the first worker").toBeLessThan(200);
-  }
-  await player.dig(taps);
-  await player.openBuys();
-  rules.until(player.now);
-  expect(rules.move({ kind: "buyTier", id: "helper" }, player.now)).toBe(true);
-  await player.buy("helper");
+  await hireFirstWorker(player, rules);
 
   // A few seconds of the crew at work, no move, then the kill.
   await player.wait(5 * TICK_MS);

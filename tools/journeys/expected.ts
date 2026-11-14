@@ -25,7 +25,12 @@ import {
 /** How often the open game folds the crew's work in (src/screen-run.ts). */
 export const TICK_MS = 1000;
 
-/** What the game last wrote to the phone: it saves on every move, not on every tick. */
+/**
+ * What the game last wrote to the phone: it saves on every move, not on every tick. Exact once
+ * a move has been applied: before that, a fresh open has saved nothing and an opened save is
+ * written again only when its open paid or staffed. A band's recipe grant also saves; the
+ * journeys never reach one between a move and a kill.
+ */
 type Saved = {
   readonly mountain: Mountain;
   readonly lastSeen: number | undefined;

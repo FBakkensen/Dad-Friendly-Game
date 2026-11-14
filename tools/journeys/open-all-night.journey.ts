@@ -13,8 +13,11 @@ test("the tab left open all night pays what a cold reopen pays", async ({
 }) => {
   const save = { ...openMountain(), lastSeen: NINE_PM };
   const json = await player.open(save);
+  if (json === undefined) {
+    throw new Error("The all-night save was not stored");
+  }
   const morning = NINE_PM + 8 * HOUR_MS;
-  const { expected: rules, report } = Expected.opened(json ?? "", morning);
+  const { expected: rules, report } = Expected.opened(json, morning);
   expect(report?.awayMs).toBe(8 * HOUR_MS);
 
   // The phone stays on all night, the game open.
@@ -26,7 +29,11 @@ test("the tab left open all night pays what a cold reopen pays", async ({
   await cold.open(save, morning);
   expect(await cold.welcomeHaul()).toBe(report?.mined);
   await cold.closeWelcome();
-  expect(await player.stones()).toBe(rules.pocket);
+  // Both phones read what the rules say: the cold one a settle's tick later.
+  const coldRules = Expected.opened(json, morning).expected;
+  coldRules.until(cold.now);
+  await cold.expectStones(coldRules.pocket);
+  await player.expectStones(rules.pocket);
 
   // Nothing stalled: the open tab's crew digs on at the board's speed.
   await player.wait(5 * TICK_MS);

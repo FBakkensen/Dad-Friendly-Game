@@ -4,7 +4,7 @@
  */
 import { READY_HOLD_MS } from "../../src/board-interaction.ts";
 import { Expected, TICK_MS } from "./expected.ts";
-import { expect, test } from "./player.ts";
+import { expect, hireFirstWorker, test } from "./player.ts";
 
 /** Workers he hires before saving for the cart: enough to have it inside about two minutes. */
 const WORKERS = 10;
@@ -23,21 +23,8 @@ test("a fresh mountain: taps, the first worker, the first cart", async ({
   const rules = Expected.fresh(player.now);
   await player.expectStones(0);
 
-  // Dig by hand until the rules say a worker is affordable.
-  let taps = 0;
-  while (!rules.allows({ kind: "buyTier", id: "helper" }, player.now)) {
-    rules.move({ kind: "dig" }, player.now);
-    taps += 1;
-    expect(taps, "taps to the first worker").toBeLessThan(200);
-  }
-  await player.dig(taps);
-  await player.expectStones(rules.pocket);
-
-  await player.openBuys();
-  rules.until(player.now);
-  expect(rules.move({ kind: "buyTier", id: "helper" }, player.now)).toBe(true);
-  await player.buy("helper");
-  await player.expectStones(rules.pocket);
+  // Dig by hand to the first worker, and hire him.
+  await hireFirstWorker(player, rules);
   expect(rules.mountain.helpers).toBe(1);
 
   // The crew digs on its own: he hires to ten workers as each is affordable.
