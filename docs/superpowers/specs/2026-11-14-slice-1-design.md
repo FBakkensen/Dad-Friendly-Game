@@ -2,6 +2,8 @@
 
 Status: proposed. It waits for Flemming's yes or no. Nothing in it is built except the line it stands on (#536 to #539) and the save groundwork (#560, #561), which are in flight. Every number is a starting value for the lab, not a tuned one.
 
+**Amended 14 Nov 2026, 20:30Z.** Flemming: "The golden veins as they were should go, something the player should click as it was, do not fit road to Mars." Golden veins go, and the Gold rush goes with them (a vein's tap starts it). The Beacon's power was about veins, so a new one is proposed below. He also asked for playable prototypes in place of mock pictures: the slice 1 prototype is in `prototypes/slice-1/` on branch `claude/project-thread-eextfa`, and What he sees below is superseded by it where they differ.
+
 This design covers many slivers. After his yes it ships as its own PR and is split into sliver issues (`.claude/rules/superpowers.md`). It amends `2026-11-14-line-works-village-design.md` (the line spec): [What it changes in the line spec](#what-it-changes-in-the-line-spec) lists every place.
 
 ## Why
@@ -103,9 +105,9 @@ As the line spec's step 2, from the day the Beacon stands.
 
 - The yard has one pile for each good. One yard level sets the room of all three, and "Extend the yard" (bricks) raises it. The next yard level never costs more than the brick pile holds.
 - A full pile takes no more. Rock for it is stacked as stones. When the stone pile is full too, that flow stops. When nothing can flow, the crew rests.
-- Taps, golden veins and the Gold rush always land, also on a full pile.
+- A dig tap always lands, also on a full pile.
 - A price above a pile's room reads "Needs a bigger yard".
-- **Time away** runs at the resting pace (30%) until the yard is full. The clock cap goes. The welcome card says what came in and what stopped it.
+- **Time away** runs at the resting pace (30%, and 45% once the Beacon stands: proposed) until the yard is full. The clock cap goes. The welcome card says what came in and what stopped it.
 - Before the Beacon stands there is no yard. The pocket has no room, and time away keeps today's rule (30%, eight hours), so the first evening is as simple as now.
 
 ### 5. The gangs
@@ -126,11 +128,11 @@ Why gangs and not a slider: four steps are enough to match an order, a step is a
 
 One order at a time. A building rises in three orders: footings, walls, roof. Its last order gives its power and opens the next thing, in the moment a relic's reveal has today.
 
-| Building       | Asks for          | Power (the relic's, as approved) | Opens                                              |
-| -------------- | ----------------- | -------------------------------- | -------------------------------------------------- |
-| The Beacon     | stones            | Golden veins come 40% sooner     | Kilns, the yard, and the Granite's price           |
-| The Storehouse | stones, bricks    | The yard holds twice as much     | nothing more                                       |
-| The Forge      | bricks, cut stone | The Great Machine can be built   | The level below, in slice 2. The slice's end card. |
+| Building       | Asks for          | Power (the relic's, as approved)                                                       | Opens                                              |
+| -------------- | ----------------- | -------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| The Beacon     | stones            | Lights the night: time away runs at 45%, up from 30% (proposed 14 Nov, the veins went) | Kilns, the yard, and the Granite's price           |
+| The Storehouse | stones, bricks    | The yard holds twice as much                                                           | nothing more                                       |
+| The Forge      | bricks, cut stone | The Great Machine can be built                                                         | The level below, in slice 2. The slice's end card. |
 
 - The order is on the screen from the first minute, at the top.
 - **He delivers.** Each good has its own Send, which sends what the pile holds, up to what the order still needs. Part deliveries count.
@@ -157,7 +159,7 @@ The game has four kinds of work. Each asks a different question, moves at its ow
 | The workshop | manufacturing | what goes on the bench next                               | one job at a time, in real minutes   | a bench with a clock, and a list of jobs                  | part 3, as today         |
 | The village  | building      | what the goods are sent to, and what stands when it is up | a building every day or two, forever | plots on the surface, and the building in hand            | part 1                   |
 
-- **The mine** has the three stage plates, with the stage that holds the line lit, and a row for each level: its picture, its rock a second, its gangs with minus and plus, and its good. A level with a price shows "Sink the shaft". The dig button and the golden veins are here and nowhere else.
+- **The mine** has the three stage plates, with the stage that holds the line lit, and a row for each level: its picture, its rock a second, its gangs with minus and plus, and its good. A level with a price shows "Sink the shaft". The dig button is here and nowhere else.
 - **The works** has one box for each maker. It shows a level's rock coming in, what the makers take, and the good that comes out, with a bar for the share of the rock they take and the words for what holds the good. A maker is bought here. The yard is here too, with "Extend the yard".
 - **The workshop** is the bench as it is today (one bench, real time, recipes that take stones and materials), drawn as a place: what is on the bench and when it is done, the materials, and the jobs that can go on next.
 - **The village** has a tile for each plot (stands, in hand, or empty with a hint), the building in hand with its three steps and a Send for each good, and what each standing building gives. Keepsakes and the Ledger are here.
@@ -170,7 +172,7 @@ Three things are the same in every place, so he never loses the thread: the open
 
 What it keeps from today: the art, the steel, the lamps and their rule, the type, real numbers for decisions, the save line, and a phone that never scrolls.
 
-What goes from today's board: the odometer, the output gauge, the mine window and the five-key rail. Buys becomes the mine's line (a tap on the stage plates opens the machines by stage, with Upgrades and Engineers). The pace dial becomes a plate in the mine's head that shows while a boost, a Gold rush or a vein runs.
+What goes from today's board: the odometer, the output gauge, the mine window and the five-key rail. Buys becomes the mine's line (a tap on the stage plates opens the machines by stage, with Upgrades and Engineers). The pace dial becomes a plate in the mine's head that shows while a boost runs.
 
 ### The pictures
 
@@ -188,9 +190,9 @@ Left to the builder and a later mock: the mine's machines by stage on this layou
 
 ## What goes, and what stays
 
-**Goes:** the relics, their plate, shelf, reveal pictures and Ledger rows; the Lantern's guide bar (the order takes its place); the pass, Legacy, kid runs, Grandpa and the generations lab (#642); depth, the mountain's size and bottom, "stones left", the mined-out state; the band tag's advice and the rock's lean; the away clock once the yard is open; relic glimmers from expeditions; kid workers until the building that brings them back.
+**Goes:** golden veins and the Gold rush (Flemming, 14 Nov 2026: a thing to click as it glints does not fit the road to Mars); the relics, their plate, shelf, reveal pictures and Ledger rows; the Lantern's guide bar (the order takes its place); the pass, Legacy, kid runs, Grandpa and the generations lab (#642); depth, the mountain's size and bottom, "stones left", the mined-out state; the band tag's advice and the rock's lean; the away clock once the yard is open; relic glimmers from expeditions; kid workers until the building that brings them back.
 
-**Stays:** taps, golden veins and the Gold rush; workers and the six machines of the line; ownership marks; upgrades; the Workshop and its gear; engineers, expeditions and trouble; the art, the steel and the lamps; one save for each Google account and everything in `observable-saves.md`.
+**Stays:** taps; workers and the six machines of the line; ownership marks; upgrades; the Workshop and its gear; engineers, expeditions and trouble; the art, the steel and the lamps; one save for each Google account and everything in `observable-saves.md`.
 
 **Today's board goes** when part 1 is switched on: the odometer, the output gauge, the mine window, the bays and the key rail. The places take its place (What he sees).
 
@@ -282,7 +284,7 @@ These are mine, not Flemming's. Any of them can be turned over.
 13. Which copy of a save is ahead: a later run stamp (Start over, or a reset), else more rock dug in all, a count that only grows, else the newer `lastSeen`. The run stamp stays the first key, as today. Kid runs are gone, and "more stones mined" becomes "more rock dug in all".
 14. The first evenings keep today's eight-hour clock, until the yard opens.
 15. Kid workers wait for the building that brings them (the School, a later slice).
-16. The yard and its "Extend the yard" are in the works. Upgrades and Engineers are in the mine. The Ledger and Keepsakes are in the village. The dig button and the veins are in the mine only.
+16. The yard and its "Extend the yard" are in the works. Upgrades and Engineers are in the mine. The Ledger and Keepsakes are in the village. The dig button is in the mine only.
 17. A place joins the tab bar when its work opens: the mine and the village in part 1, the works in part 2, the workshop in part 3.
 
 ## What it changes in the line spec
