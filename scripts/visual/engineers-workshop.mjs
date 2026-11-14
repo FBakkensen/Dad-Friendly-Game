@@ -7,7 +7,6 @@ import {
   firstCraftSave,
   heartMountain,
   openMountain,
-  unknownBenchSave,
   workshopSave,
 } from "../../tools/browser/fixtures.ts";
 import { stepTapClock } from "../../tools/browser/harness.ts";
@@ -717,22 +716,6 @@ for (const viewport of SCREENS) {
         check(
           /\/s now$/.test(flag) || flag === "Your crew feels it now",
           `${size} workshop payoff: the charge's row shows what it pays (${flag})`,
-        );
-        await close();
-      }
-      {
-        const { page, close } = await openWorkshop(
-          viewport,
-          unknownBenchSave(now),
-        );
-        const unknown = await workshopFacts(page);
-        const recipes = unknown.rows.filter((row) => row.id !== "sketch");
-        check(
-          unknown.bench.name === "Something is on the bench" &&
-            !unknown.bench.info.includes("Cancel ·") &&
-            recipes.length >= 1 &&
-            recipes.every((row) => row.verb === "Bench busy"),
-          `${size} workshop unknown: something is on the bench, with no cancel, and every recipe waits`,
         );
         await close();
       }

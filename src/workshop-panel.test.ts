@@ -13,12 +13,7 @@ import {
 } from "./mountain-screen.harness";
 import { writeSessionSave } from "./session-save";
 import { SOUND_KEY } from "./sound";
-import {
-  recipesForMined,
-  type RecipeId,
-  NOTHING_KEPT,
-  COLD_CLOCKS,
-} from "./workshop";
+import { recipesForMined, type RecipeId, COLD_CLOCKS } from "./workshop";
 
 /*
  * The Workshop drawer on the mounted screen (#374): its doors, its rows' taps through the
@@ -521,41 +516,6 @@ describe("the Workshop drawer (#374)", () => {
     } finally {
       window.AudioContext = previous;
     }
-  });
-
-  it("shows a craft this build cannot name and will not replace it", () => {
-    const screen = mount(
-      rich({
-        kept: {
-          ...NOTHING_KEPT,
-          bench: {
-            recipe: "future-bit",
-            startedAt: CLOCK,
-            endsAt: CLOCK + 8 * 60_000,
-          },
-        },
-      }),
-    );
-    keyOf(screen, "workshop").click();
-    const bench = benchRow(screen);
-    expect(partOf(bench, "name")).toBe("Something is on the bench");
-    expect(partOf(bench, "gain")).toBe("8:00");
-    expect(bench.textContent).not.toContain("Cancel ·");
-    expect(bench.querySelector<HTMLElement>(".workshop-bar")?.hidden).toBe(
-      false,
-    );
-    const row = drawerOf(screen).querySelector<HTMLButtonElement>(
-      ".workshop-recipe:not([hidden])",
-    );
-    expect(row?.querySelector(".board-row-verb")?.textContent).toBe(
-      "Bench busy",
-    );
-    row?.click();
-    bench.click();
-    expect(screen.progress.getSnapshot().mountain.bench).toBeUndefined();
-    expect(screen.progress.getSnapshot().mountain.kept.bench?.recipe).toBe(
-      "future-bit",
-    );
   });
 
   it("stays locked until the Granite, then crafts for real", () => {

@@ -564,7 +564,8 @@ function movingParts(viewport) {
       const pocket = () =>
         page.evaluate(
           (key) =>
-            JSON.parse(localStorage.getItem(key) ?? "{}").mountain?.pocket,
+            JSON.parse(localStorage.getItem(key) ?? "{}").game?.stock?.stones ??
+            0,
           SAVE_KEY,
         );
       const before = await pocket();
@@ -588,8 +589,8 @@ function movingParts(viewport) {
       await page
         .waitForFunction(
           (key, want) =>
-            JSON.parse(localStorage.getItem(key) ?? "{}").mountain?.pocket ===
-            want,
+            (JSON.parse(localStorage.getItem(key) ?? "{}").game?.stock
+              ?.stones ?? 0) === want,
           { timeout: 2_000 },
           SAVE_KEY,
           before + 3 * each,

@@ -328,14 +328,9 @@ export const grandpaSentence = (post: TierId): string =>
 export const quietAwayWords = (stones: number): string =>
   `+${formatCount(stones)} ${stones === 1 ? "stone" : "stones"} while you were away`;
 
-/** The welcome card's titles: an away haul, the crew grew alone, someone came home (#464). */
+/** The welcome card's titles: an away haul, someone came home (#464). */
 export const WELCOME_AWAY_TITLE = "While you were away";
-export const CREW_GREW_TITLE = "Your crew grew";
 export const WELCOME_HOME_TITLE = "Welcome home";
-
-/** Helpers who joined an older save's machines (#89); alone, the title already says the crew grew. */
-export const crewGrewWords = (joined: number, alone: boolean): string =>
-  `${alone ? "" : "Your crew grew: "}${formatCount(joined)} ${workerWords(joined)} joined to run your machines.`;
 
 /**
  * The welcome card's big number and its unit, read together: "+1.2M stones", "+1 stone".
@@ -391,9 +386,6 @@ export function awayCheerWords(awayMs: number, band: LayerId): string {
 
 export const tapWords = (stones: number): string =>
   stones === 1 ? "one stone" : `${formatCount(stones)} stones`;
-
-/** Older saves that already own a borer, the one time their first engineer arrives. */
-export const ENGINEER_WELCOME = "Your best worker steps up as engineer.";
 
 /** The card's shout. No counts, no timers. */
 export function troubleShout(kind: TroubleKind): string {
@@ -971,20 +963,6 @@ export const CRAFT_WORD = "Craft";
 
 /** Unfound, and the sketch is still out on a trip. No name, no question. */
 export const UNFOUND_DEEPER = "Deeper rock keeps a quiet gift.";
-
-/** A craft this build cannot name. The countdown is the only number. */
-export const BENCH_UNKNOWN = "Something is on the bench";
-
-/** It is working. This build does not pretend to know what it will be. */
-export const BENCH_UNKNOWN_ASIDE = "It keeps working while you rest.";
-
-/** "Something is on the bench · 8:12 left", or ready when the clock has rung. */
-export function benchUnknownWords(leftMs: number): string {
-  if (leftMs <= 0) {
-    return `${BENCH_UNKNOWN} · ready`;
-  }
-  return `${BENCH_UNKNOWN} · ${formatClock(leftMs)} left`;
-}
 
 /** "On the bench: Iron rails · 8:12 left", or ready when the clock has rung. */
 export function benchBusyWords(name: string, leftMs: number): string {

@@ -12,7 +12,7 @@ import {
   type AwayReport,
   type Mountain,
 } from "../../src/mountain.ts";
-import { parseSaveValue } from "../../src/persist.ts";
+import { readSave } from "../../src/persist.ts";
 import {
   createSession,
   firstNotice,
@@ -63,18 +63,18 @@ export class Expected {
 
   /**
    * A stored save opened at `at`: parsed the way the game parses it, then opened step for step
-   * as `openSession` (src/save-load.ts) opens it: the one-time staff, the news baselines, no
-   * homecomings from a reload, and the time away paid. `report` is what the welcome card shows.
+   * as `openSession` (src/save-load.ts) opens it: the news baselines, no homecomings from a
+   * reload, and the time away paid. `report` is what the welcome card shows.
    */
   static opened(
     json: string,
     at: number,
   ): { expected: Expected; report: AwayReport | undefined } {
-    const parsed = parseSaveValue(JSON.parse(json));
-    if (parsed === undefined) {
-      throw new Error("The journey's save does not parse");
+    const read = readSave(JSON.parse(json));
+    if (read.kind !== "ok") {
+      throw new Error(`The journey's save reads ${read.kind}`);
     }
-    return Expected.openSave(parsed, at);
+    return Expected.openSave(read.save, at);
   }
 
   /**
@@ -92,13 +92,8 @@ export class Expected {
     saved: Saved,
     at: number,
   ): { expected: Expected; report: AwayReport | undefined } {
-    const staffed = step(
-      createSession(saved.mountain, at),
-      { kind: "loaded" },
-      at,
-    ).session;
     const recalled = step(
-      openBaselines(staffed, false),
+      openBaselines(createSession(saved.mountain, at), false),
       { kind: "recall", homecomings: [] },
       at,
     ).session;

@@ -1,8 +1,9 @@
 import type { Mountain } from "./mountain";
-import { parseSaveValue, serializeSave, type ParsedSave } from "./persist";
+import { readSave, serializeSave, type ParsedSave } from "./persist";
 import { compareSaveProgress } from "./save-progress";
 
-const PHONE_BACKUP_PREFIX = "dad-friendly-phone-backup:";
+/** The phone backup's key prefix (#558). Keys from before version 8 are never read or touched. */
+const PHONE_BACKUP_PREFIX = "dad-friendly-game-backup:";
 
 export type PhoneConflict = {
   readonly remote: ParsedSave;
@@ -12,6 +13,15 @@ export type PhoneConflict = {
 export type PhoneBackup =
   | { readonly kind: "absent" }
   | { readonly kind: "unreadable" }
+  /** A later build wrote it: this build never writes over it. */
+  | { readonly kind: "newer" }
+  /** From before this version: set aside, with its run stamp, for a fresh mountain. */
+  | {
+      readonly kind: "older";
+      readonly version: number;
+      readonly startedAt: number;
+      readonly raw: string;
+    }
   | {
       readonly kind: "present";
       readonly save: ParsedSave;
@@ -25,8 +35,32 @@ export type PhoneBackup =
 
 export type PhoneBackupWrite = "wrote" | "kept" | "failed";
 
-function backupKey(uid: string): string {
+/** Where the phone backup for an account lives. */
+export function phoneBackupKey(uid: string): string {
   return `${PHONE_BACKUP_PREFIX}${uid}`;
+}
+
+/** The backup record's save, as one of the backup's answers. */
+function readStoredSave(
+  value: unknown,
+  raw: string,
+): PhoneBackup | { readonly kind: "ok"; readonly save: ParsedSave } {
+  const read = readSave(value);
+  switch (read.kind) {
+    case "ok":
+      return read;
+    case "newer":
+      return { kind: "newer" };
+    case "older":
+      return {
+        kind: "older",
+        version: read.version,
+        startedAt: read.startedAt,
+        raw,
+      };
+    case "bad":
+      return { kind: "unreadable" };
+  }
 }
 
 function parseStored(raw: string, uid: string): PhoneBackup {
@@ -45,10 +79,11 @@ function parseStored(raw: string, uid: string): PhoneBackup {
   if (value.uid !== uid) {
     return { kind: "unreadable" };
   }
-  const save = parseSaveValue(value.save);
-  if (save === undefined) {
-    return { kind: "unreadable" };
+  const stored = readStoredSave(value.save, raw);
+  if (stored.kind !== "ok") {
+    return stored;
   }
+  const save = stored.save;
   const extra = value as {
     syncedRev?: unknown;
     dirty?: unknown;
@@ -86,7 +121,8 @@ function readConflict(value: unknown): PhoneConflict | undefined {
   if (!("remote" in value) || !("deviceLabel" in value)) {
     return undefined;
   }
-  const remote = parseSaveValue(value.remote);
+  const read = readSave(value.remote);
+  const remote = read.kind === "ok" ? read.save : undefined;
   const deviceLabel = value.deviceLabel;
   if (
     remote === undefined ||
@@ -108,7 +144,7 @@ export function readPhoneBackup({
   uid: string;
 }): PhoneBackup {
   try {
-    const raw = storage.getItem(backupKey(uid));
+    const raw = storage.getItem(phoneBackupKey(uid));
     if (raw === null) {
       return { kind: "absent" };
     }
@@ -136,7 +172,7 @@ type PhoneBackupInput = {
  */
 export function writePhoneBackup(input: PhoneBackupInput): PhoneBackupWrite {
   const { storage, uid } = input;
-  const key = backupKey(uid);
+  const key = phoneBackupKey(uid);
   let raw: string;
   try {
     raw = JSON.stringify(backupRecord(input));

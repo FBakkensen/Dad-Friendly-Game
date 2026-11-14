@@ -14,6 +14,7 @@ import { conflictIsReal, mergeSaves, type MergeResult } from "./save-merge";
 import {
   adopt,
   cloudDirty,
+  holdNewer,
   isWriter,
   localSide,
   log,
@@ -150,6 +151,12 @@ export function reconcileRev(
 ): Promise<void> {
   return ctx.ports.cloudSave.load({ uid, fresh: true }).then((loaded) => {
     if (ctx.disposed || generation !== ctx.hydrateGeneration) {
+      return;
+    }
+    if (loaded.kind === "newer") {
+      landWrite(ctx);
+      holdNewer(ctx, "cloud");
+      emit(ctx);
       return;
     }
     if (loaded.kind !== "found" || loaded.pending === true) {

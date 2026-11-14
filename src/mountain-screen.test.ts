@@ -2,7 +2,6 @@
 import { etaShort, formatCompact, formatCount } from "./format";
 import { shownStones, stonesLeft } from "./scale";
 import { RELICS } from "./relics";
-import { savedMountain } from "./save-format";
 import { RELIC_DARK, RELIC_GOLD, RELIC_LIT } from "./board-relics";
 import { writeSessionSave } from "./session-save";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -36,7 +35,7 @@ import {
 } from "./screen-words";
 import { FIX_HOLD_MS } from "./hazards";
 import { lockBodyLine } from "./tier-lock-words";
-import { minedMountain } from "./test-fixtures";
+import { minedMountain, saveText } from "./test-fixtures";
 import {
   bindWriterPageHide,
   createMemoryBus,
@@ -208,6 +207,20 @@ describe("mountMountainScreen", () => {
     );
   });
 
+  it("asks for the update when the save came from a later build (#558)", () => {
+    const storage = createMemoryStorage();
+    const raw = JSON.stringify({ version: 9, lastSeen: 1 });
+    storage.setItem(SESSION_SAVE_KEY, raw);
+    const screen = mountScreen({ storage });
+    expect(
+      screen.root.querySelector<HTMLElement>(".update-prompt")?.hidden,
+    ).toBe(false);
+    expect(screen.text("#update-prompt-title")).toBe("Update available");
+    screen.dig.click();
+    expect(screen.pocket()).toBe("Stones 0");
+    expect(storage.getItem(SESSION_SAVE_KEY)).toBe(raw);
+  });
+
   it("shows an update prompt and reloads", () => {
     const screen = mountScreen();
     const reload = vi
@@ -359,34 +372,6 @@ describe("mountMountainScreen", () => {
     expect(again.text(".save-status")).toBe("Saved on this device");
   });
 
-  it("turns an old grid save into a head start", () => {
-    const storage = createMemoryStorage();
-    storage.setItem(
-      SESSION_SAVE_KEY,
-      JSON.stringify({
-        version: 2,
-        lastSeen: 1,
-        grid: {
-          width: 3,
-          height: 3,
-          cells: [
-            { kind: "chunk" },
-            { kind: "stone" },
-            { kind: "dug" },
-            ...Array.from({ length: 6 }, () => ({ kind: "covered" })),
-          ],
-        },
-      }),
-    );
-
-    const allStones = stonesLeft(createMountain());
-    const screen = mountScreen({ storage });
-    expect(screen.pocket()).toBe("Stones 3");
-    expect(screen.root.querySelector(STONES_ROW)?.getAttribute("title")).toBe(
-      `${(allStones - 3).toLocaleString("en-US")} of ${allStones.toLocaleString("en-US")}`,
-    );
-  });
-
   it("disables the mountain once it is mined out", () => {
     const storage = createMemoryStorage();
     const done: Mountain = {
@@ -400,14 +385,7 @@ describe("mountMountainScreen", () => {
       machines: 0,
       kids: 0,
     };
-    storage.setItem(
-      SESSION_SAVE_KEY,
-      JSON.stringify({
-        version: 5,
-        mountain: savedMountain(done),
-        lastSeen: 1,
-      }),
-    );
+    storage.setItem(SESSION_SAVE_KEY, saveText(done, 1));
 
     const screen = mountScreen({ storage });
     expect(screen.text(STONES_NAME)).toBe("0 stones left");
@@ -593,6 +571,7 @@ describe("crew tiers on screen", () => {
         carts: 2,
         drills: 1,
         borers: 2,
+        engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
       },
       lastSeen: Date.now(),
     });
@@ -679,12 +658,7 @@ describe("crew tiers on screen", () => {
       const storage = createMemoryStorage();
       storage.setItem(
         SESSION_SAVE_KEY,
-        JSON.stringify({
-          version: 5,
-          // One tap short of the first worker.
-          mountain: minedMountain(first - 1),
-          lastSeen: Date.now(),
-        }),
+        saveText(minedMountain(first - 1), Date.now()),
       );
       const screen = mountScreen({ storage });
       const hire = tierCard(screen.root, "helper");
@@ -740,14 +714,13 @@ describe("crew tiers on screen", () => {
       const storage = createMemoryStorage();
       storage.setItem(
         SESSION_SAVE_KEY,
-        JSON.stringify({
-          version: 5,
-          mountain: {
+        saveText(
+          {
             ...minedMountain(tierCost(tierById("cart"), 0)),
             helpers: 1,
           },
-          lastSeen: Date.now(),
-        }),
+          Date.now(),
+        ),
       );
       const screen = mountScreen({ storage });
       const cart = tierCard(screen.root, "cart");
@@ -785,9 +758,8 @@ describe("crew tiers on screen", () => {
     const storage = createMemoryStorage();
     storage.setItem(
       SESSION_SAVE_KEY,
-      JSON.stringify({
-        version: 5,
-        mountain: {
+      saveText(
+        {
           remaining: 240_000_000,
           pocket: 0,
           helpers: 4,
@@ -797,8 +769,8 @@ describe("crew tiers on screen", () => {
           machines: 0,
           kids: 0,
         },
-        lastSeen: Date.now() - (2 * 60 + 5) * 60_000,
-      }),
+        Date.now() - (2 * 60 + 5) * 60_000,
+      ),
     );
     const screen = mountScreen({ storage });
     const card = screen.root.querySelector(".welcome-back");
@@ -853,9 +825,8 @@ describe("crew tiers on screen", () => {
     const storage = createMemoryStorage();
     storage.setItem(
       SESSION_SAVE_KEY,
-      JSON.stringify({
-        version: 5,
-        mountain: {
+      saveText(
+        {
           remaining: 240_000_000,
           pocket: 0,
           helpers: 1,
@@ -865,8 +836,8 @@ describe("crew tiers on screen", () => {
           machines: 0,
           kids: 0,
         },
-        lastSeen: Date.now() - 26 * 3_600_000,
-      }),
+        Date.now() - 26 * 3_600_000,
+      ),
     );
     const screen = mountScreen({ storage });
     expect(screen.text(".welcome-mined")).toBe("+14.2K stones");
@@ -1245,10 +1216,7 @@ describe("golden vein on screen", () => {
 describe("Lantern of Guidance on screen", () => {
   const seeded = (mountain: Mountain, lastSeen = Date.now()) => {
     const storage = createMemoryStorage();
-    storage.setItem(
-      SESSION_SAVE_KEY,
-      JSON.stringify({ version: 5, mountain, lastSeen }),
-    );
+    storage.setItem(SESSION_SAVE_KEY, saveText(mountain, lastSeen));
     return storage;
   };
 
@@ -1378,10 +1346,7 @@ describe("Lantern of Guidance on screen", () => {
 describe("relic shelf", () => {
   const seeded = (mountain: Mountain) => {
     const storage = createMemoryStorage();
-    storage.setItem(
-      SESSION_SAVE_KEY,
-      JSON.stringify({ version: 5, mountain, lastSeen: Date.now() }),
-    );
+    storage.setItem(SESSION_SAVE_KEY, saveText(mountain, Date.now()));
     return storage;
   };
 
@@ -1497,9 +1462,8 @@ describe("start over", () => {
     const storage = createMemoryStorage();
     storage.setItem(
       SESSION_SAVE_KEY,
-      JSON.stringify({
-        version: 5,
-        mountain: {
+      saveText(
+        {
           ...minedMountain(12_000_000),
           helpers: 4,
           carts: 1,
@@ -1508,8 +1472,8 @@ describe("start over", () => {
           machines: 0,
           kids: 0,
         },
-        lastSeen: Date.now(),
-      }),
+        Date.now(),
+      ),
     );
     return storage;
   };
@@ -1558,7 +1522,7 @@ describe("start over", () => {
       expect(screen.text(".board-tag")).toBe("Relics of Fatherhood · 2 of 6");
       expect(
         JSON.parse(storage.getItem(SESSION_SAVE_KEY) ?? "{}"),
-      ).toMatchObject({ mountain: { helpers: 4 } });
+      ).toMatchObject({ game: { owned: { helper: 4 } } });
     } finally {
       screen.root.remove();
     }
@@ -1585,22 +1549,14 @@ describe("start over", () => {
     expect(screen.text(".board-tag")).toBe("Relics of Fatherhood · 0 of 6");
     expect(relicPage(screen.root, REVEAL_PAGE)).toBeNull();
     const saved = JSON.parse(storage.getItem(SESSION_SAVE_KEY) ?? "{}") as {
-      mountain: { startedAt?: unknown };
+      startedAt?: unknown;
+      game?: { owned?: unknown; stock?: unknown; run?: unknown };
     };
-    expect(saved).toMatchObject({
-      version: 6,
-      mountain: {
-        remaining: 240_000_000,
-        pocket: 0,
-        helpers: 0,
-        carts: 0,
-        drills: 0,
-        borers: 0,
-        machines: 0,
-        kids: 0,
-      },
-    });
-    expect(typeof saved.mountain.startedAt).toBe("number");
+    expect(saved).toMatchObject({ version: 8 });
+    expect(saved.game?.owned).toBeUndefined();
+    expect(saved.game?.stock).toBeUndefined();
+    expect(saved.game?.run).toBeUndefined();
+    expect(typeof saved.startedAt).toBe("number");
   });
 });
 

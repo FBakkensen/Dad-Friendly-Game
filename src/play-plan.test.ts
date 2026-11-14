@@ -63,6 +63,14 @@ describe("parseAction", () => {
     });
   });
 
+  it("reads a reload and a kill-and-reopen of the tab (#558)", () => {
+    expect(parseAction("reload")).toEqual({ kind: "reload" });
+    expect(parseAction("reopen")).toEqual({ kind: "reopen" });
+    expect(parseAction("reload:now").kind).toBe("error");
+    expect(actionSlug({ kind: "reload" })).toBe("reload");
+    expect(shotName(4, { kind: "reopen" })).toBe("phone-04-reopen.png");
+  });
+
   it("refuses unknown, empty, and out-of-range actions", () => {
     expect(parseAction("click:.board-window").kind).toBe("error");
     expect(parseAction("tap").kind).toBe("error");

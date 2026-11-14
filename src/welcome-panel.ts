@@ -17,8 +17,6 @@ interface WelcomeParts {
   readonly oreArt: HTMLImageElement;
   readonly oreLine: HTMLElement;
   readonly cheer: HTMLElement;
-  readonly crew: HTMLElement;
-  readonly engineer: HTMLElement;
   readonly returns: HTMLElement;
   readonly layers: HTMLElement;
   readonly crafts: HTMLElement;
@@ -50,9 +48,6 @@ function welcomeParts(): WelcomeParts {
     oreArt,
     oreLine,
     cheer: cardLine("welcome-cheer is-quiet"),
-    // One-time note for saves from before machines needed helpers (#89).
-    crew: cardLine("welcome-crew"),
-    engineer: cardLine("welcome-engineer"),
     returns: el("div", "welcome-returns"),
     layers: el("div", "welcome-layers"),
     crafts: el("div", "welcome-crafts"),
@@ -89,16 +84,14 @@ function paintAway(parts: WelcomeParts, away: WelcomeAway | undefined): void {
   }
 }
 
-/** The crew, the engineer, who came home, the bands and the crafts. */
+/** Who came home, the bands and the crafts. */
 function paintNews(parts: WelcomeParts, view: WelcomeView): void {
-  paintLine(parts.crew, view.crew);
-  paintLine(parts.engineer, view.engineer);
   cardLines(parts.returns, "welcome-return", view.returns);
   cardLines(parts.layers, "welcome-layer", view.layers);
   cardLines(parts.crafts, "welcome-craft", view.crafts);
 }
 
-/** The welcome-back card: what the crew mined while you were away, and helpers who joined. */
+/** The welcome-back card: what the crew mined while you were away, and who came home. */
 export function createWelcomePanel({
   progress,
   getView,
@@ -121,8 +114,6 @@ export function createWelcomePanel({
     parts.rush,
     parts.ore,
     parts.cheer,
-    parts.crew,
-    parts.engineer,
     parts.returns,
     parts.layers,
     parts.crafts,

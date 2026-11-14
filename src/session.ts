@@ -5,8 +5,6 @@
  * event, log a line, remember the homecomings, save a grant) comes back as
  * effects, and the store runs them through its ports.
  */
-import { staffExisting } from "./crew";
-import { grantFirstEngineer } from "./engineers";
 import type { Homecoming } from "./expeditions";
 import {
   engineerFixDelay,
@@ -78,11 +76,7 @@ export type Notice =
   /** A band broken into. A loaded save already in a band does not announce it again. */
   | { readonly kind: "layer"; readonly layer: Layer }
   /** A craft fitted, with the mountain at the moment it finished. */
-  | { readonly kind: "craft"; readonly craft: CraftNotice }
-  /** Free helpers hired on load so an older save's machines run (#89). */
-  | { readonly kind: "crew-joined"; readonly helpers: number }
-  /** An older save's first borer brought their first engineer. */
-  | { readonly kind: "engineer-joined" };
+  | { readonly kind: "craft"; readonly craft: CraftNotice };
 
 export type NoticeKind = Notice["kind"];
 export type NoticeOf<K extends NoticeKind> = Extract<Notice, { kind: K }>;
@@ -109,11 +103,7 @@ export function firstNotice<K extends NoticeKind>(
 }
 
 /** The welcome-back card's own news. Closing the card also clears bands and crafts it listed. */
-const WELCOME_KINDS: readonly NoticeKind[] = [
-  "away",
-  "crew-joined",
-  "engineer-joined",
-];
+const WELCOME_KINDS: readonly NoticeKind[] = ["away"];
 const CARD_KINDS: readonly NoticeKind[] = [...WELCOME_KINDS, "layer", "craft"];
 
 /** What this open has to tell, and has not shown yet. None of it is saved. */
@@ -156,10 +146,7 @@ type MountainChange = {
  * What a tap closes: the oldest notice of that kind, or for `"away"` the
  * whole welcome-back card (its crew news, homecomings, bands and crafts).
  */
-export type DismissTarget = Exclude<
-  NoticeKind,
-  "crew-joined" | "engineer-joined"
->;
+export type DismissTarget = NoticeKind;
 
 export type SessionInput =
   /** Helpers' work up to now, live or away by the gap. */
@@ -182,8 +169,6 @@ export type SessionInput =
   | { readonly kind: "preview-trouble"; readonly tier: TroubleTier }
   /** Relics, bands and crafts reached since the baselines. */
   | { readonly kind: "notice" }
-  /** The one-time free staff and first engineer for a loaded save. */
-  | { readonly kind: "loaded" }
   /** A new run (Start over, or the mine passed down). */
   | { readonly kind: "begin"; readonly mountain: Mountain }
   /** Homecomings remembered on the device from before a reload. */
@@ -345,8 +330,6 @@ export function step(
       return done(previewTrouble(session, input.tier, now, out));
     case "notice":
       return done(notice(session, now, out));
-    case "loaded":
-      return done(loaded(session, out));
     case "begin":
       return done(beginRun(session, input.mountain, now, out));
     case "recall":
@@ -726,48 +709,6 @@ function noteCrafts(session: Session, now: number, out: Effects): Session {
       ...session.baselines,
       craft: { ...session.mountain.crafted },
     },
-  };
-}
-
-/** The one-time free staff, then the first borer's engineer, for a loaded save. */
-function loaded(session: Session, out: Effects): Session {
-  const staffed = staffExisting(session.mountain);
-  let next = session;
-  if (staffed.mountain !== session.mountain) {
-    next = { ...next, mountain: staffed.mountain };
-    if (staffed.joined > 0) {
-      next = {
-        ...next,
-        news: setNotice(next.news, {
-          kind: "crew-joined",
-          helpers:
-            (firstNotice(next.news, "crew-joined")?.helpers ?? 0) +
-            staffed.joined,
-        }),
-      };
-      out.record("crew.staff", { count: staffed.joined });
-      out.log({
-        level: "info",
-        code: "save.staffed",
-        detail: `${String(staffed.joined)} workers joined`,
-        data: saveCounts(next.mountain),
-      });
-    }
-  }
-  const engineer = grantFirstEngineer(next.mountain);
-  if (engineer.mountain === next.mountain) {
-    return next;
-  }
-  out.log({
-    level: "info",
-    code: "save.engineer",
-    detail: "first engineer",
-    data: saveCounts(engineer.mountain),
-  });
-  return {
-    ...next,
-    mountain: engineer.mountain,
-    news: setNotice(next.news, { kind: "engineer-joined" }),
   };
 }
 

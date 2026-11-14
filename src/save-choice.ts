@@ -3,11 +3,8 @@
  * shelf, or a new run. The mountain left behind is archived first, so
  * nothing is lost.
  */
-import type {
-  ArchiveReason,
-  ArchivedCopy,
-  CloudWriteResult,
-} from "./cloud-save";
+import { archiveWithin } from "./archive-wait";
+import type { ArchiveReason, ArchivedCopy } from "./cloud-save";
 import { markCloudDirty, persistCloudSoon } from "./cloud-writer";
 import { persistPhoneBackup } from "./local-saves";
 import { minedOut, runStartedAt, type Mountain } from "./mountain";
@@ -18,7 +15,7 @@ import {
   adopt,
   canPlay,
   deviceLabel,
-  isWriter,
+  canWrite,
   log,
   record,
   uidOf,
@@ -26,7 +23,6 @@ import {
 } from "./store-context";
 import { beginRun } from "./store-actions";
 import { emit } from "./store-session";
-import { settleWithin, type GaveUp } from "./settle-within";
 
 /** How long a move waits for the mountain it leaves to reach Saved copies (#480). */
 export const ARCHIVE_WAIT_MS = 10_000;
@@ -60,7 +56,7 @@ export async function chooseSave(
   const archiveCopy = ctx.ports.cloudSave.archiveCopy;
   if (
     conflict === undefined ||
-    !isWriter(ctx) ||
+    !canWrite(ctx) ||
     uid === undefined ||
     archiveCopy === undefined
   ) {
@@ -183,9 +179,7 @@ function comeBack(
 }
 
 /**
- * Keeps the mountain in play in Saved copies, and says how it went in the
- * field log and on the save line. A copy that does not land within the
- * archive wait fails, so a move never waits on an offline phone. False when
+ * Keeps the mountain in play in Saved copies (`archiveWithin`). False when
  * it failed, or the save moved on (another account, a dispose) meanwhile.
  */
 async function keepInPlay(
@@ -198,8 +192,8 @@ async function keepInPlay(
     return false;
   }
   const { mountain, lastSeen } = ctx.session;
-  const mined = minedOut(mountain);
-  const answer = await settleWithin(
+  return archiveWithin(
+    ctx,
     archiveCopy({
       uid: stance.uid,
       mountain,
@@ -209,33 +203,10 @@ async function keepInPlay(
       deviceLabel: deviceLabel(ctx),
       reason,
     }),
-    ctx.ports.archiveWaitMs,
+    reason,
+    minedOut(mountain),
+    () => stillOn(ctx, stance),
   );
-  if (!stillOn(ctx, stance)) {
-    return false;
-  }
-  const failed = archiveFailure(answer);
-  if (failed !== undefined) {
-    record(ctx, "save.archive", { id: reason, source: failed });
-    log(ctx, {
-      level: "error",
-      code: "save.archive",
-      detail: `${reason} ${failed}`,
-      data: { mined },
-    });
-    emit(ctx);
-    return false;
-  }
-  record(ctx, "save.archive", { id: reason, stones: mined });
-  return true;
-}
-
-/** Why the copy did not land, or undefined when it did. */
-function archiveFailure(answer: CloudWriteResult | GaveUp): string | undefined {
-  if (typeof answer === "string") {
-    return answer;
-  }
-  return answer.kind === "ok" ? undefined : answer.message;
 }
 
 /** A new run: Start over, or the mine passed down. */

@@ -213,11 +213,12 @@ export function tonightText(event: FieldEvent): string | undefined {
 export function tonightLines(
   events: readonly FieldEvent[],
 ): readonly TonightLine[] {
-  // A Start over or a pass begins a new Tonight.
+  // A Start over, a pass, or a save set aside for a fresh mountain begins a new Tonight.
   const codes = events.map((each) => each.code);
   const start = Math.max(
     codes.lastIndexOf("run.start-over"),
     codes.lastIndexOf("run.pass"),
+    codes.lastIndexOf("save.set-aside"),
   );
   const lines: TonightLine[] = [];
   for (const each of events.slice(start + 1).reverse()) {

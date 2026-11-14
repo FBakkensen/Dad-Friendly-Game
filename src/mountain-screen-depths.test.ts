@@ -2,7 +2,7 @@
 import { onTrip } from "./engineers";
 import { createBoardHost } from "./board-host";
 import { send } from "./expeditions";
-import { readSessionSave, writeSessionSave } from "./session-save";
+import { writeSessionSave } from "./session-save";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMemoryCloudSave } from "./cloud-save";
 import { EMPTY_MATERIALS, LAYERS } from "./layers";
@@ -13,7 +13,7 @@ import { BUYS_SETTLE_MS } from "./mountain-screen";
 import { createWelcomePanel } from "./welcome-panel";
 import { mineView } from "./mine-window";
 import { createProgressStore } from "./progress-store";
-import { minedMountain } from "./test-fixtures";
+import { guestSave, minedMountain } from "./test-fixtures";
 import { recipesForMined, startCraft } from "./workshop";
 import {
   ENGINEERS_KICK,
@@ -120,7 +120,7 @@ describe("side tunnels (#147)", () => {
     expect(chip?.getAttribute("aria-label")).toContain(
       "Ada will be gone about an hour.",
     );
-    const saved = readSessionSave({ storage })?.mountain;
+    const saved = guestSave(storage)?.mountain;
     expect(saved?.expeditions[0]?.tunnel).toBe("old-shaft");
     expect(saved?.expeditions[0]?.engineer).toBe("Ada");
     expect(saved?.engineers[0]?.post).toBe("borer");
@@ -1256,6 +1256,7 @@ describe("sheet buys", () => {
         drills: 2,
         borers: 1,
         pocket: 2_500_000,
+        engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
       },
       lastSeen: Date.now(),
     });

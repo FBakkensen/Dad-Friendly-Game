@@ -52,6 +52,8 @@ export type ProgressSnapshot = {
   readonly elsewhere: boolean;
   /** Two real copies. Play waits until the player picks one. */
   readonly saveConflict?: SaveConflictView;
+  /** A later build wrote the save: play waits, nothing is written, and the update card shows (#558). */
+  readonly newer: boolean;
 };
 
 export type SaveSide = {
@@ -150,6 +152,8 @@ export type StoreContext = {
   syncedRev: number;
   /** Unconfirmed changes, including ones reloaded from the phone backup. */
   phoneDirty: boolean;
+  /** A later build wrote a copy this build read: it writes nothing until it is updated (#558). */
+  newer: boolean;
   consecutiveRevMerges: number;
   saveConflict: SaveConflictView | undefined;
   write: CloudWrite;
@@ -171,6 +175,20 @@ export type StoreContext = {
   readonly ring: EventRing;
   /** A Start over or a pass is keeping the left mountain in Saved copies (#480). */
   keepingLeft: boolean;
+  /**
+   * The mountain in play is a fresh one a set-aside left (#558): its run stamp
+   * alone does not make it a copy. Cleared when another mountain comes into play.
+   */
+  blankReset: boolean;
+  /** The watch generation whose older cloud copy is on its way to Saved copies (#558). */
+  settingAside: number | undefined;
+  /** The last save a writer read back was refused (#558); said once until one reads ok. */
+  shapeRefused: boolean;
+  /**
+   * Keys whose copy from before this version could not be moved aside (#558):
+   * nothing writes or clears them, so the old text stays where it was.
+   */
+  readonly asideHeld: Set<string>;
   /** Whose kept events the ring holds (#479); undefined until the account is known. */
   ringScope: RingScope | undefined;
   /** The ring as last kept on this device: its push count, when, and whether that write failed. */
@@ -207,6 +225,7 @@ export function createStoreContext(
     rev: 0,
     syncedRev: 0,
     phoneDirty: false,
+    newer: false,
     consecutiveRevMerges: 0,
     saveConflict: undefined,
     write: { kind: "clean", expedite: false },
@@ -225,6 +244,10 @@ export function createStoreContext(
     fieldLogFingerprint: undefined,
     ring: new EventRing(),
     keepingLeft: false,
+    blankReset: false,
+    settingAside: undefined,
+    shapeRefused: false,
+    asideHeld: new Set(),
     ringScope: undefined,
     ringKept: { pushes: 0, at: undefined, failed: false },
     loadingSince: undefined,
@@ -252,12 +275,21 @@ export function ready(ctx: StoreContext): boolean {
   return !signedIn(ctx) || ctx.hydrated;
 }
 
+/** This tab may write a save: it holds the seat, and no copy came from a later build. */
+export function canWrite(ctx: StoreContext): boolean {
+  return isWriter(ctx) && !ctx.newer;
+}
+
 /** Why play is held back now, or undefined while it runs. */
-export type PlayBlock = "closed" | "conflict" | "other-tab" | "loading";
+export type PlayBlock =
+  "closed" | "newer" | "conflict" | "other-tab" | "loading";
 
 export function playBlock(ctx: StoreContext): PlayBlock | undefined {
   if (ctx.disposed) {
     return "closed";
+  }
+  if (ctx.newer) {
+    return "newer";
   }
   if (ctx.saveConflict !== undefined) {
     return "conflict";
@@ -294,6 +326,25 @@ export function log(ctx: StoreContext, event: LogEvent): void {
   ctx.ports.logger.record(event);
 }
 
+/**
+ * A copy from a later build (#558): play stops, nothing is written again,
+ * and the screen asks for the update. Said once in the field log.
+ */
+export function holdNewer(ctx: StoreContext, source: string): void {
+  if (!ctx.newer) {
+    ctx.newer = true;
+    record(ctx, "save.newer", { source });
+  }
+  // On the save line each time, so it stays the latest word.
+  log(ctx, {
+    level: "error",
+    code: "save.newer",
+    detail: source,
+    data: saveCounts(ctx.session.mountain),
+  });
+  ctx.saveKind = "loading";
+}
+
 /** An info line with the mountain's counts. */
 export function logCounts(
   ctx: StoreContext,
@@ -315,6 +366,7 @@ export function setGame(
   lastSeen: number | undefined,
 ): void {
   ctx.session = { ...ctx.session, mountain, lastSeen };
+  ctx.blankReset = false;
 }
 
 /** A copy from elsewhere comes into play: Tonight starts fresh, unless it is this mountain. */

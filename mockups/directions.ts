@@ -197,7 +197,6 @@ export function boardB(): Mountain {
     borers: 0,
     machines: 0,
     kids: 0,
-    staffed: 2,
     upgrades: { ...NO_UPGRADES, tap: 2, boots: 1 },
   };
 }

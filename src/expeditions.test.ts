@@ -3,8 +3,10 @@ import {
   KEEPSAKES,
   LOST_TOOLS,
   MAX_EXPEDITION_MS,
+  TRIP_FIND_IDS,
   TUNNELS,
   glimmerText,
+  parseExpeditions,
   parseHomecomingNews,
   send,
   settle,
@@ -19,10 +21,9 @@ import {
 } from "./engineers";
 import { knownRecipeIds } from "./economy/actions";
 import { accrueAway, createMountain } from "./mountain";
-import { parseMountain, savedMountain } from "./save-format";
-import { parseSaveValue, serializeSave } from "./persist";
 import { AWAY_PAY_RATE, effectiveRates } from "./rates";
 import { RELICS } from "./relics";
+import { gameOf, reloaded } from "./test-fixtures";
 import { MOUNTAIN_STONES } from "./scale";
 import { recipesForMined } from "./workshop";
 
@@ -134,11 +135,8 @@ describe("send and recall", () => {
   });
 
   it("loads a saved tunnel post with no expedition at camp (#409)", () => {
-    const saved = {
-      ...savedMountain(crew()),
-      engineers: [{ ...ada, post: "tunnel" }],
-    };
-    expect(parseMountain(saved)?.engineers[0]?.post).toBe("camp");
+    const saved = { engineers: [{ ...ada, post: "tunnel" }] };
+    expect(gameOf(saved)?.engineers[0]?.post).toBe("camp");
   });
 
   it("recalls empty-handed, back at the old post, with no trip and no find", () => {
@@ -175,11 +173,7 @@ describe("finds", () => {
 
   it("is fixed when the party leaves, so a reload or a second settle cannot reroll it", () => {
     const sent = send(crew(), 0, "side-seam", 40);
-    const saved = parseSaveValue(
-      JSON.parse(
-        JSON.stringify(serializeSave({ mountain: sent, lastSeen: 40 })),
-      ),
-    )?.mountain;
+    const saved = reloaded(sent, 40);
     expect(saved).toEqual(sent);
     if (saved === undefined) {
       return;
@@ -667,21 +661,17 @@ describe("away pay", () => {
     expect(long.mined).not.toBe(
       Math.floor(11.6 * 3_600 * effectiveRates(seam).crewPerSecond * pay),
     );
-    const saved = parseSaveValue(
-      JSON.parse(
-        JSON.stringify(serializeSave({ mountain: seam, lastSeen: 0 })),
-      ),
-    )?.mountain;
+    const saved = reloaded(seam, 0);
     expect(saved).toEqual(seam);
     if (saved !== undefined) {
-      const reloaded = accrueAway({
+      const again = accrueAway({
         mountain: saved,
         lastSeen: 0,
         now: 20 * HOUR,
       });
-      expect(reloaded.mined).toBe(long.mined);
-      expect(reloaded.mountain.finds).toEqual(long.mountain.finds);
-      expect(reloaded.mountain.engineers).toEqual(long.mountain.engineers);
+      expect(again.mined).toBe(long.mined);
+      expect(again.mountain.finds).toEqual(long.mountain.finds);
+      expect(again.mountain.engineers).toEqual(long.mountain.engineers);
     }
   });
 
@@ -714,24 +704,14 @@ describe("parse", () => {
     home: "borer" as const,
     find: { kind: "tool" as const, id: "lamp" as const },
   };
-  const base = {
-    remaining: 10,
-    pocket: 0,
-    helpers: 8,
-    carts: 0,
-    drills: 0,
-    borers: 1,
-    machines: 0,
-    kids: 0,
-    engineers: [leader],
-  };
+  const base = { owned: { helper: 8, borer: 1 }, engineers: [leader] };
 
   it("accepts a closed trip and a closed shelf, and an older save is unchanged", () => {
     expect(
-      parseMountain({
+      gameOf({
         ...base,
         expeditions: [trip],
-        finds: ["pick", "whistle"],
+        marks: { finds: ["pick", "whistle"] },
       }),
     ).toMatchObject({
       engineers: [{ ...leader, post: "borer" }],
@@ -746,27 +726,27 @@ describe("parse", () => {
       ],
       finds: ["pick", "whistle"],
     });
-    const older = parseMountain(base);
+    const older = gameOf(base);
     expect(older?.expeditions).toEqual([]);
     expect(older?.finds).toEqual([]);
     expect(
-      parseMountain({ ...base, expeditions: [], finds: [] })?.expeditions,
+      gameOf({ ...base, expeditions: [], marks: { finds: [] } })?.expeditions,
     ).toEqual([]);
     expect(
-      parseMountain({
+      gameOf({
         ...base,
         expeditions: [{ ...trip, find: { kind: "quiet" } }],
       })?.expeditions[0]?.find,
     ).toEqual({ kind: "quiet" });
     expect(
-      parseMountain({
+      gameOf({
         ...base,
         expeditions: [
           { ...trip, find: { kind: "recipe", id: "engineers-kit" } },
         ],
       })?.expeditions[0]?.find,
     ).toEqual({ kind: "recipe", id: "engineers-kit" });
-    const negative = parseMountain({
+    const negative = gameOf({
       ...base,
       expeditions: [{ ...trip, sentAt: -20, returnsAt: -10 }],
     });
@@ -795,44 +775,34 @@ describe("parse", () => {
       new Array(6).fill(trip),
       "Ada",
     ]) {
-      expect(parseMountain({ ...base, expeditions })).toBeUndefined();
+      expect(gameOf({ ...base, expeditions })).toBeUndefined();
     }
     expect(
-      parseMountain({
+      gameOf({
         ...base,
         expeditions: [trip, { ...trip, engineer: "Nils" }],
       }),
     ).toBeUndefined();
+    expect(gameOf({ expeditions: [trip] })).toBeUndefined();
     expect(
-      parseMountain({
-        remaining: 10,
-        pocket: 0,
-        helpers: 0,
-        expeditions: [trip],
-      }),
-    ).toBeUndefined();
-    expect(
-      parseMountain({
+      gameOf({
         ...base,
         engineers: [{ ...ada, post: "tunnel" }],
         expeditions: [trip],
       }),
     ).toBeUndefined();
     expect(
-      parseMountain({
+      gameOf({
         ...base,
         engineers: [{ ...journeyman, post: "borer" }],
         expeditions: [trip],
       }),
     ).toBeUndefined();
-    expect(parseMountain({ ...base, finds: "pick" })).toBeUndefined();
-    expect(
-      parseMountain({ ...base, finds: ["turbo", "pick", "pick"] })?.finds,
-    ).toEqual(["pick"]);
-    expect(parseMountain({ ...base, finds: ["turbo"] })?.finds).toEqual([]);
-    expect(
-      parseMountain({ ...base, finds: new Array(10).fill("pick") })?.finds,
-    ).toEqual(["pick"]);
+    // A find this build does not know, or the same find twice, is a newer
+    // build's save (#558): it does not play here.
+    for (const finds of ["pick", ["turbo"], ["pick", "pick"]]) {
+      expect(gameOf({ ...base, marks: { finds } })).toBeUndefined();
+    }
   });
 
   it("drops a trip whose leader is gone and still comes home", () => {
@@ -928,6 +898,64 @@ describe("parseHomecomingNews", () => {
       [tool, { engineer: "Ada" }],
     ]) {
       expect(parseHomecomingNews(bad)).toEqual([]);
+    }
+  });
+});
+
+describe("parseExpeditions reads only a whole trip (#558)", () => {
+  const away: DutyEngineer[] = [
+    { name: "Ada", rank: 0, trips: 0, post: "tunnel" },
+  ];
+  const trip = {
+    engineer: "Ada",
+    tunnel: "old-shaft",
+    sentAt: 1_000,
+    returnsAt: 1_000 + HOUR,
+    home: "borer",
+    find: { kind: "tool", id: "pick" },
+  };
+
+  it("takes a whole trip", () => {
+    expect(parseExpeditions([trip], away)).toEqual([trip]);
+  });
+
+  it("takes every find the ledger lists, and no other", () => {
+    for (const [kind, ids] of Object.entries(TRIP_FIND_IDS)) {
+      const finds =
+        kind === "quiet"
+          ? [{ kind }]
+          : ids.filter((id) => id !== "Ada").map((id) => ({ kind, id }));
+      for (const find of finds) {
+        expect(parseExpeditions([{ ...trip, find }], away)).toEqual([
+          { ...trip, find },
+        ]);
+      }
+      expect(
+        parseExpeditions([{ ...trip, find: { kind, id: "kiln" } }], away),
+      ).toBeUndefined();
+    }
+    expect(
+      parseExpeditions(
+        [{ ...trip, find: { kind: "sketch", id: "pick" } }],
+        away,
+      ),
+    ).toBeUndefined();
+  });
+
+  it("refuses trips with no crew, a trip that is not a record, and a find with no name", () => {
+    expect(parseExpeditions([trip], undefined)).toBeUndefined();
+    for (const item of [null, "trip", [trip]]) {
+      expect(parseExpeditions([item], away)).toBeUndefined();
+    }
+    for (const find of [
+      null,
+      [],
+      "pick",
+      { kind: "tool", id: 3 },
+      { kind: "tool", name: "pick" },
+      { kind: "quiet", id: "pick" },
+    ]) {
+      expect(parseExpeditions([{ ...trip, find }], away)).toBeUndefined();
     }
   });
 });

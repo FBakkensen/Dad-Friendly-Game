@@ -20,6 +20,9 @@ const firestore = vi.hoisted(() => ({
   setDoc: vi.fn(),
   onSnapshot: vi.fn(),
   serverTimestamp: vi.fn(() => "server-time"),
+  collection: vi.fn((_db: unknown, ...path: string[]) => path.join("/")),
+  addDoc: vi.fn(),
+  Timestamp: { fromMillis: (ms: number) => ({ ms }) },
 }));
 
 vi.mock("firebase/app", () => ({
@@ -85,19 +88,11 @@ describe("firestore persistent cache", () => {
     firestore.getDocFromServer.mockResolvedValue({
       exists: () => true,
       data: () => ({
-        version: 7,
+        version: 8,
         rev: 2,
         deviceId: "device-123",
         lastSeen: 10,
-        mountain: {
-          remaining: 240_000_000,
-          pocket: 4,
-          helpers: 0,
-        },
-        workshop: {
-          materials: { clay: 0, iron: 0, crystal: 0, heartstone: 0 },
-          recipes: [],
-        },
+        game: { stock: { stones: 4 } },
       }),
       metadata: { fromCache: false, hasPendingWrites: false },
     });
@@ -137,19 +132,11 @@ describe("firestore persistent cache", () => {
     listener?.({
       exists: () => true,
       data: () => ({
-        version: 7,
+        version: 8,
         rev: 3,
         deviceId: "device-123",
         lastSeen: 11,
-        mountain: {
-          remaining: 240_000_000,
-          pocket: 5,
-          helpers: 0,
-        },
-        workshop: {
-          materials: { clay: 0, iron: 0, crystal: 0, heartstone: 0 },
-          recipes: [],
-        },
+        game: { stock: { stones: 5 } },
       }),
       metadata: { fromCache: true, hasPendingWrites: true },
     });
@@ -165,5 +152,74 @@ describe("firestore persistent cache", () => {
       expect.any(Function),
       expect.any(Function),
     );
+  });
+});
+
+describe("the save's home (#558)", () => {
+  it("reads games/{uid}, and answers newer or older for a copy this build will not play", async () => {
+    const save = createFirebaseCloudSave({ options });
+    const snap = (data: unknown) => ({
+      exists: () => true,
+      data: () => data,
+      metadata: { fromCache: false, hasPendingWrites: false },
+    });
+    firestore.getDocFromServer.mockResolvedValueOnce(snap({ version: 9 }));
+    await expect(save.load({ uid: "dad", fresh: true })).resolves.toEqual({
+      kind: "newer",
+    });
+    expect(firestore.doc).toHaveBeenLastCalledWith(
+      expect.anything(),
+      "games",
+      "dad",
+    );
+    const old = { version: 7, rev: 5, startedAt: 70, mountain: {} };
+    firestore.getDocFromServer.mockResolvedValueOnce(snap(old));
+    await expect(save.load({ uid: "dad", fresh: true })).resolves.toEqual({
+      kind: "older",
+      version: 7,
+      rev: 5,
+      startedAt: 70,
+      raw: old,
+    });
+    firestore.getDocFromServer.mockResolvedValueOnce(snap({ version: "8" }));
+    await expect(save.load({ uid: "dad", fresh: true })).resolves.toEqual({
+      kind: "unavailable",
+    });
+  });
+
+  it("keeps an older copy as it was stored in gameArchive, under raw", async () => {
+    const save = createFirebaseCloudSave({ options });
+    const old = { version: 7, rev: 5, mountain: { pocket: 3 } };
+    firestore.addDoc.mockResolvedValueOnce({ id: "copy" });
+    await expect(
+      save.archiveRaw?.({
+        uid: "dad",
+        raw: old,
+        version: 7,
+        rev: 5,
+        reason: "reset",
+      }),
+    ).resolves.toEqual({ kind: "ok" });
+    expect(firestore.addDoc).toHaveBeenLastCalledWith(
+      "gameArchive/dad/copies",
+      {
+        version: 7,
+        rev: 5,
+        raw: old,
+        archivedAt: "server-time",
+        expiresAt: { ms: expect.any(Number) as number },
+        reason: "reset",
+      },
+    );
+    firestore.addDoc.mockRejectedValueOnce(new Error("offline"));
+    await expect(
+      save.archiveRaw?.({
+        uid: "dad",
+        raw: old,
+        version: 7,
+        rev: 5,
+        reason: "reset",
+      }),
+    ).resolves.toMatchObject({ kind: "failed" });
   });
 });

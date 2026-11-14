@@ -1,12 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { withFactors } from "./economy/factors";
 import { nextTrouble } from "./hazards";
-import {
-  LAYERS,
-  MAX_MATERIAL,
-  type MaterialId,
-  EMPTY_MATERIALS,
-} from "./layers";
+import { LAYERS, type MaterialId, EMPTY_MATERIALS } from "./layers";
 import { expeditionAwayMs } from "./lost-tools";
 import {
   MOUNTAIN_STONES,
@@ -16,7 +11,7 @@ import {
   type Mountain,
   BARE_MOUNTAIN,
 } from "./mountain";
-import { parseSaveValue, serializeSave } from "./persist";
+import { reloaded } from "./test-fixtures";
 import { effectiveRates } from "./rates";
 import {
   CHARGE_MS,
@@ -40,7 +35,6 @@ import {
   parseBench,
   parseChargeUntil,
   parseCrafted,
-  parseMaterials,
   parseRecipes,
   recipeById,
   grantRecipes,
@@ -54,14 +48,11 @@ import {
   workshopUnlocked,
   type RecipeId,
   NOTHING_CRAFTED,
-  NOTHING_KEPT,
   COLD_CLOCKS,
   withClock,
 } from "./workshop";
 import { NO_BOOSTS } from "./boosts";
 import { NO_UPGRADES } from "./upgrades";
-
-const materials = { clay: 1, iron: 2, crystal: 3, heartstone: 4 };
 
 describe("recipes granted from stones mined", () => {
   it("starts with three, and adds a layer recipe when that band is reached", () => {
@@ -141,26 +132,6 @@ describe("workshop save fields", () => {
     expect(isRecipeId("turbo")).toBe(false);
     expect(isRecipeId(1)).toBe(false);
     expect(RECIPE_IDS).toHaveLength(11);
-  });
-
-  it("accepts the four materials and rejects a bad pocket", () => {
-    expect(parseMaterials(materials)).toEqual(materials);
-    expect(
-      parseMaterials({ ...materials, clay: MAX_MATERIAL.clay }),
-    ).toMatchObject({ clay: MAX_MATERIAL.clay });
-    for (const bad of [
-      null,
-      "clay",
-      [],
-      {},
-      { ...materials, gold: 1 },
-      { clay: 1, iron: 2, crystal: 3 },
-      { ...materials, clay: 1.5 },
-      { ...materials, clay: -1 },
-      { ...materials, iron: MAX_MATERIAL.iron + 1 },
-    ]) {
-      expect(parseMaterials(bad)).toBeUndefined();
-    }
   });
 
   it("accepts one bench and rejects a bad craft", () => {
@@ -367,58 +338,6 @@ describe("workshop rules", () => {
     expect(startCraft(shortHeart, "heartstone-ember", 1)).toBe(shortHeart);
   });
 
-  it("holds an unknown bench until its clock ends, then a known craft may take it", () => {
-    const shed = openShed({
-      kept: {
-        ...NOTHING_KEPT,
-        recipes: ["future-bit"],
-        bench: { recipe: "future-bit", startedAt: 1, endsAt: 2 },
-        crafted: { "future-bit": 2 },
-      },
-    });
-    expect(startCraft(shed, "iron-rails", 1)).toBe(shed);
-    expect(cancelCraft(shed, 1)).toBe(shed);
-    expect(
-      serializeSave({ mountain: shed, lastSeen: 1 }).workshop.bench,
-    ).toEqual({ recipe: "future-bit", startedAt: 1, endsAt: 2 });
-    const started = startCraft(shed, "iron-rails", 2);
-    expect(started.bench?.recipe).toBe("iron-rails");
-    expect(started.kept).toEqual({
-      ...NOTHING_KEPT,
-      recipes: ["future-bit"],
-      crafted: { "future-bit": 2 },
-    });
-    const onlyBench = openShed({
-      kept: {
-        ...NOTHING_KEPT,
-        bench: { recipe: "future-bit", startedAt: 1, endsAt: 2 },
-      },
-    });
-    expect(startCraft(onlyBench, "iron-rails", 1)).toBe(onlyBench);
-    expect(startCraft(onlyBench, "iron-rails", 2).kept).toEqual(NOTHING_KEPT);
-    const onlyRecipes = openShed({
-      kept: { ...NOTHING_KEPT, recipes: ["future-bit"] },
-    });
-    expect(startCraft(onlyRecipes, "iron-rails", 1).kept).toEqual({
-      ...NOTHING_KEPT,
-      recipes: ["future-bit"],
-    });
-    const onlyCrafted = openShed({
-      kept: {
-        ...NOTHING_KEPT,
-        crafted: { "future-bit": 1 },
-      },
-    });
-    expect(startCraft(onlyCrafted, "iron-rails", 1).kept).toEqual({
-      ...NOTHING_KEPT,
-      crafted: { "future-bit": 1 },
-    });
-    const written = serializeSave({ mountain: started, lastSeen: 1 });
-    expect(written.workshop.bench?.recipe).toBe("iron-rails");
-    expect(written.workshop.recipes).toContain("future-bit");
-    expect(written.workshop.crafted).toMatchObject({ "future-bit": 2 });
-  });
-
   it("puts one craft on the bench and returns every stone and material on cancel", () => {
     const shed = openShed();
     const started = startCraft(shed, "sturdy-props", 5_000);
@@ -455,11 +374,7 @@ describe("workshop rules", () => {
     });
     expect(away.mountain.crafted["iron-rails"]).toBe(1);
     expect(away.mountain.bench).toBeUndefined();
-    const saved = serializeSave({
-      mountain: away.mountain,
-      lastSeen: endsAt,
-    });
-    const loaded = parseSaveValue(saved)?.mountain ?? started;
+    const loaded = reloaded(away.mountain, endsAt) ?? started;
     const again = accrueAway({
       mountain: loaded,
       lastSeen: endsAt,

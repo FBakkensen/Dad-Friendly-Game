@@ -84,17 +84,16 @@ page is the map, plus the rules that keep it that way.
    cards, bench and pages) and `key-rail` (`keyViews`: each key's cap
    (rest, locked or lit), sub-line (an unlock line, the bench clock or the
    soonest trip), red dot and label).
-2. **Saves:** `persist` (the save versions and their migrations), `save-format`
-   (#415: the saved shape, `SavedMountain` and `WorkshopSave`, and the one
-   place it meets the complete mountain: `savedMountain` and `savedWorkshop`
-   leave out what is empty, zero or unset, and `parseMountain` and
-   `withWorkshop` fill it back in; an unknown recipe, bench, crafted level or
-   teach id is kept in `kept` and written back instead of dropped), `session-save`
-   (guest storage), `phone-backup` (signed-in on-phone copy, never deleted),
-   `save-progress` (which copy is ahead), `cloud-save` (interface + memory fake),
-   `firebase-save` (the SDK adapter; mountain save plus `fieldLogs/{uid}/devices/{deviceId}`),
-   `firestore.rules` (server-side mirror of the parser and the field log,
-   guarded by `rules-drift.test.ts` and the emulator tests).
+2. **Saves:** `persist` (the version 8 envelope and `readSave`'s four
+   answers, #558), `save-format` (the game map: the one place the saved shape
+   meets the complete mountain; `writeGame` leaves out what is zero or empty,
+   `readGame` fills it back in, and `shippedFacts` is the ledger of what has
+   shipped), `session-save` (guest storage), `phone-backup` (signed-in on-phone
+   copy, never deleted), `save-progress` (which copy is ahead), `cloud-save`
+   (interface + memory fake), `firebase-save` (the SDK adapter: `games/{uid}`,
+   `gameArchive/{uid}/copies` and `fieldLogs/{uid}/devices/{deviceId}`),
+   `firestore.rules` (the envelope and the field log, guarded by
+   `rules-drift.test.ts` and the emulator tests). See [The save](#the-save-558).
 3. **State:** `progress-store` composes a pure session core and a sync
    service (#414), and is the store's public surface. The UI changes the game
    only with `dispatch(move)`, which settles the crew, runs `applyMove` with the
@@ -107,10 +106,10 @@ page is the map, plus the rules that keep it that way.
    band's recipe grant, the move's result). It covers ticks, away pay, moves,
    trouble presses and fixes, the news and a new run. The `Mountain` it holds
    is complete (#415): every field is present, with 0 for a cold clock or a
-   boost that never ran, `staffed: 0` for a save never granted its crew, and
-   `undefined` only for a free bench. The news is one queue of typed
-   `Notice`s (away, quiet, reveal, layer, craft, crew-joined,
-   engineer-joined), in arrival order; screens read it with `firstNotice` and
+   boost that never ran, and `undefined` only for a free bench. A loaded save
+   is played as it was: no grant is added on load (#558). The news is one
+   queue of typed `Notice`s (away, quiet, reveal, layer, craft), in arrival
+   order; screens read it with `firstNotice` and
    `noticesOf`, and `dismiss(kind)` closes the oldest of a kind (`"away"`
    closes the whole welcome card). Homecomings stay their own list, since the
    device remembers them across a reload. `session-time`'s `advance` is the
@@ -135,7 +134,7 @@ page is the map, plus the rules that keep it that way.
    sheet, `?trouble=cave-in` and `?saves=two`, with the sheet's mountains in
    `save-preview`) are test seams: ESLint (`no-restricted-properties`) bans
    them in non-test `src`, except `layoutPreview` in `boot`. The store owns settling time, away
-   pay, reveals, migrations, and when/where to save. A rejected cloud write
+   pay, reveals, setting an older save aside, and when/where to save. A rejected cloud write
    keeps that mountain, shows the save error, retries once, and records the
    server error on `save.error`. A snapshot is adopted only when it is strictly
    ahead (#219, #222). Ahead means a later run (`startedAt`, missing counts as 0),
@@ -440,6 +439,60 @@ focus)` (`showCard`, the model's open or close, and the focus once as it
    switch included) the bays, the plate and the red button show only their
    frames and art.
 
+## The save (#558)
+
+One shape everywhere: the guest save (`dad-friendly-game` in localStorage),
+the phone backup (`dad-friendly-game-backup:{uid}`), the cloud document
+(`games/{uid}`) and Saved copies (`gameArchive/{uid}/copies`). The keys and
+paths from before version 8 are never read or written again; the old cloud
+paths are read-only.
+
+- **The envelope** (`persist.ts`): `version` (8), `lastSeen`, `startedAt`
+  (left out at 0), `rev` and `deviceId` (both or neither), `deviceLabel`, and
+  `game`. The rules check only this: `version >= 8` and never lower than the
+  stored one, `rev` one past the stored one, `startedAt` never lower,
+  `savedAt == request.time`, the device id and label sizes, `game` a map, and
+  no other key. A new game fact never needs a rules change.
+- **The game map** (`save-format.ts`): `owned` (by tier id), `stock` (stones
+  and the four materials), `levels` (upgrade and recipe levels), `clocks`
+  (boost ends, craft timers and the Gold rush), `marks` (`seen`, `taught`,
+  `recipes`, `finds`), `run` (`generation`, `stretch`, `dug`, `rushBank`),
+  `engineers` (post `"tunnel"` while away), `expeditions` (each with the
+  `home` post) and `bench`. Zero and empty are left out; a missing key reads
+  as its default, so a new fact needs no version bump. `dug` is the stones
+  mined, rounded so the stones left round up.
+- **Four answers** (`readSave`): `ok` plays. `newer` came from a later build:
+  a version above 8, or a right-typed value this build refuses (an unknown id,
+  key or named value, a count past its cap). The store then holds play
+  (`playBlock` `"newer"`), records and logs `save.newer`, shows the update
+  card once, and writes nothing to the cloud, the phone or the archive
+  (`canWrite`). `older` came before version 8: it is set aside (below).
+  `bad` is nonsense (a wrong type, a negative, a broken number, a missing
+  envelope field) and reads like no save. `bad` wins over `newer`.
+- **The ledger** (`save-ledger.test.ts`): every id, named value and cap that
+  has shipped. Adding a line is fine. Removing one or lowering a cap needs a
+  version bump, or an older save would read `newer` on a build that should
+  play it.
+- **Every writer reads back what it sends** (`save-shape`): a save that
+  would not read `ok` goes to neither the cloud, the phone backup nor the
+  guest key; `save.shape` is logged once as an error and the save line shows
+  the error.
+- **A reset sets the old save aside.** An `older` guest save or phone backup
+  moves byte for byte to `{key}:v{version}`. An `older` cloud copy holds the
+  board while it goes to Saved copies as it was stored (`archiveRaw`, reason
+  `reset`, within the archive wait); a copy that does not land keeps the hold
+  and logs `save.archive`. A move on the phone that fails (a full phone)
+  holds that key: nothing writes or clears it, and the next open tries again.
+  Then `resetFresh` keeps a played copy of this version in play, or else puts
+  a fresh mountain in play, stamped with the latest of the old runs, so it is
+  never an earlier run than the one it replaced, and the cloud gets it at the
+  old rev plus one.
+  `save.set-aside` starts Tonight again. While nothing is played on it, the
+  fresh mountain is not a copy (`blankReset`): a device that played the same
+  run is ahead, and a cloud copy that ties it is kept.
+- A sliver that resets the save says "Resets the save" in its issue and PR
+  body first (`dad-friendly-work.md`).
+
 ## Findings
 
 - **Single source for rates holds.** All speed, tap and away math goes
@@ -715,13 +768,13 @@ Staffing (#140), the workers' name (#139), the field log (#141–#143), engineer
 
 - **Names:** player text says "worker"; `helpers`, `TierId "helper"` and the rules keep their names (no save migration). All copy comes from `screen-words`. Built (#139).
 - `scale` (leaf, #356; retuned #357): `MOUNTAIN_STONES`, the kid-run stretch (`KID_RUN_GROWTH`, `kidStretch`, `MAX_STRETCH`) and the band scales. `BAND_STARTS` and `BAND_SCALE` say how many stones a band takes per stone of depth, times k. Their values are in [Numbers now](DESIGN.md#numbers-now). Depth stays in run-1 units, so `remaining` and the save format do not change. The pure functions `shownStones(depth)`, `stonesLeft`, `depthAfterStones(stones)` and `minedOut` convert between depth and the stones a run shows; `oneOffStretch` = k × the current band's scale prices upgrades and promotions. Machines and workers use k only (`tierCost`).
-- `tiers`: each tier's first price, speed, `staff` and opening depth, and the two growth curves (`MACHINE_COST_GROWTH`, `HELPER_COST_GROWTH`) that `tierCost` applies. `tierQuote` (#358) prices ×1, ×10 or Max of a tier as the sum of `tierCost` unit by unit, the price `buyTier` charges for each in turn. The values are in [Numbers now](DESIGN.md#numbers-now). The `milestones` module (#357) doubles a tier's output at owned-count marks, stacking; the marks are in [Numbers now](DESIGN.md#numbers-now) too. `crew.staffExisting` grants once more (`staffed: 2`; `true` and `1` are the #89 grant). Built (#140). History (#140): the Great Machine's staff was 25, as staff 15 never ran one in the sim then and reopened a 2.5-day gap with no purchase.
-- The line's machines (#533): the hoist (`hoists`) and the pit train (`trains`) are tiers with `line: true`. `tierInPlay(tier)` in `tiers` is false for them while `lineOn()` is false, and every place that offers or runs a machine reads it: `tierShown` (so the drill follows the cart, and with the line on the hoist), `buyCrew`, `staffSlots` (no hands), the lab's staffing pad in `economy/actions`, and `machinesInPlay()`, the machines the lab measures and reports. `MACHINE_IDS` keeps all six. The screens are typed on `ShownTierId` / `ShownMachineId` (every tier but the line's), so no row, bay or art map can show them by accident; #537 and #538 widen them. Save: optional `hoists` and `trains` ints in the workshop map (the mountain map is at the rules' 1000-expression budget, #195), written only once one is owned, so an older save writes the same document. The rules only require the workshop map to be a map (their comment lists the two); the client parser rejects a bad count. The field log keeps to the shown tiers, since its rules hold a closed crew list; the line's machines join it with #536. Marks: the hoist takes the cart's, the pit train the borer's.
+- `tiers`: each tier's first price, speed, `staff` and opening depth, and the two growth curves (`MACHINE_COST_GROWTH`, `HELPER_COST_GROWTH`) that `tierCost` applies. `tierQuote` (#358) prices ×1, ×10 or Max of a tier as the sum of `tierCost` unit by unit, the price `buyTier` charges for each in turn. The values are in [Numbers now](DESIGN.md#numbers-now). The `milestones` module (#357) doubles a tier's output at owned-count marks, stacking; the marks are in [Numbers now](DESIGN.md#numbers-now) too. Built (#140). The one-time staffing grants for older saves (#89, #140) went with the fresh save (#558). History (#140): the Great Machine's staff was 25, as staff 15 never ran one in the sim then and reopened a 2.5-day gap with no purchase.
+- The line's machines (#533): the hoist (`hoists`) and the pit train (`trains`) are tiers with `line: true`. `tierInPlay(tier)` in `tiers` is false for them while `lineOn()` is false, and every place that offers or runs a machine reads it: `tierShown` (so the drill follows the cart, and with the line on the hoist), `buyCrew`, `staffSlots` (no hands), the lab's staffing pad in `economy/actions`, and `machinesInPlay()`, the machines the lab measures and reports. `MACHINE_IDS` keeps all six. The screens are typed on `ShownTierId` / `ShownMachineId` (every tier but the line's), so no row, bay or art map can show them by accident; #537 and #538 widen them. Save: `hoist` and `train` in the game map's `owned`, left out at 0 (#558). The field log keeps to the shown tiers, since its rules hold a closed crew list; the line's machines join it with #536. Marks: the hoist takes the cart's, the pit train the borer's.
 - The lab plays the line (#534): `npm run lab -- --factors line.off=0` (or any sweep factors, `id=value` pairs) runs the strategy lab with the line on; the run and the report sit inside `withFactors`, and the report names the factors under its title. With the line on, `staffCrew` in `rates` also weighs `staffWith(..., lineHands)` (`fillLine` in `staffing`) for every staffing it tries: the big machines as the search left them, then the one-hand machines picked to lift the line as high as the hands allow (halving on the level, exact for those big counts), and spare hands on the lowest stage that has an idle machine, once with and once without stages already above the line. Because the line is flat while a stage is empty, `staffForLine` also tries every count of the big machines the hands can staff while there are at most 512 (above that, #500's climb alone), and hands the 8 that move the line most to the weighing, where the tending can reorder them. `outputShare` in `lab/score` scales the machines' parts to what the line moves, so the tending and crafted deltas stay in the same units. Four report-only measures read it, NaN with the line off: `narrowRun` and `narrowShare` from the narrow stage each sitting opens on (`SittingEvent.narrow`), `handsCarry` from each sample's `line` view (`lineView` in `line`), and `zeroGainBuys`, machines bought that the line did not need, each kind weighed alone against the same moment without it (`SittingEvent.zeroGainBuys`, `lab/line-view`). Which band's rock applies stays one input: `effectiveRates` reads it from the mountain's band, and the lab sets the spec's table through the `layer.<i>.<tier>.hardness` factors.
 - `staffing` (#500): `staffMachines` picks how many of each machine the hands run (a `Staffing`, one count per machine): the staffing that mines the most stones a second for given machine speeds, each machine fully staffed or idle. It tries every count of the bigger machines and, for the last one, only the counts where the one-hand machines (carts, drills) run out, so it stays cheap. A tie keeps the bigger machines. `staffWith` fills the one-hand machines around set counts of the big ones, and `biggestFirst` is the old rule. `effectiveRates` (`staffCrew`) weighs each candidate with the real tending (Grandpa and the floor, which move with what runs): the old rule, `staffMachines` on the engineers' tenths, with Grandpa's tenth on each machine, and with each engineer's post kept running. From the best it climbs, one big machine more, fewer or traded at a time, while the crew mines more. It is weighed on steady speed, not live trouble. With no Grandpa and at most one post that no floor tops up, `staffMachines` alone is exact and the search is skipped. Each answer is kept in a small table keyed by what can change it (hands, Legacy, tending gain, steady speeds, machines owned, engineers at home), since the labs ask about the same crew on many mountains. `rates.test.ts` sweeps saves with Grandpa and engineers and checks one more worker, drill, borer or machine never mines less there; a local search, it can still miss in rare crews with engineers on carts or drills.
 - `line` (leaf, #532; spec `docs/superpowers/specs/2026-11-14-line-works-village-design.md`, step 1): the face, the haul and the lift. `MACHINE_STAGE` puts each machine in one stage (carts and pit trains haul, drills and borers work the face, hoists and the Great Machine lift). `stageSpeeds(speed, running)` sums each stage's running machines, `handsSpeed` is every worker and kid (those on a machine still lend their hands), and `lineSpeed(stages, hands)` is the largest T with Σ max(0, T − stage) ≤ 3 × hands: the hands fill the lowest stage up to the next, then both. More hands or a faster stage never lower it (`line.test.ts`). It is off in play: the sweep factor `line.off` reads 1 outside a sweep, and a lab run sets it to 0 (`lineOn()`). With it on, `effectiveRates` and `handsGain` read the crew as `lineSpeed` of its parts; staffing weighs the line too (#534), and the tending floor still tops up a share of the plain sum (engineers by stage are #539).
 - Grandpa (#338, in `engineers`): `grandpaPost(mountain, running)` is the biggest running machine no engineer tends, once the Legacy is at least 1, read from the `running` that `effectiveRates` staffed. `tendingTenths(mountain, tier, running)` counts him at `GRANDPA_RANK` (apprentice) on that post; `engineerTenths` is the engineers alone. Nothing is saved.
-- `engineers` (rules layer, pure): `Engineer = { name, rank: 0 | 1 | 2, trips, post: TierId | "camp" }`. In memory an engineer on a trip keeps the post they left, and `onTrip(mountain, name)` is the one test for "away" (#415). `onDuty` gives the crew as the save and the screens see it, with post `"tunnel"` for the ones away; `promote(mountain)`, `station(mountain, i, post)`, `rankOf`, `addTrip`. `promote` takes no `now`: the price does not depend on the clock. Save: `engineers?: Engineer[]` (max 5, names Ada, Nils, Ruth, Otto, Mae). The first engineer arrives with the first borer, already tending it, without spending a worker; `grantFirstEngineer` does that once for an older save. Rules check the first two hands. A later hand, and a duplicate name, are rejected by the parser: checking them beside a full v6 save crosses the 1000-expression budget (#219). Rules + drift guard + emulator tests. Built (#144). Buying a machine does not call `tendBestTier` (#145); the sheet's post sticks. The pacing sim still calls it.
+- `engineers` (rules layer, pure): `Engineer = { name, rank: 0 | 1 | 2, trips, post: TierId | "camp" }`. In memory an engineer on a trip keeps the post they left, and `onTrip(mountain, name)` is the one test for "away" (#415). `onDuty` gives the crew as the save and the screens see it, with post `"tunnel"` for the ones away; `promote(mountain)`, `station(mountain, i, post)`, `rankOf`, `addTrip`. `promote` takes no `now`: the price does not depend on the clock. Save: `engineers?: Engineer[]` (max 5, names Ada, Nils, Ruth, Otto, Mae). The first engineer arrives with the first borer, already tending it, without spending a worker. The save reader refuses an unknown name, a duplicate, a sixth hand or a post it does not know as `newer` (#558); the rules leave the game map to it. Built (#144). Buying a machine does not call `tendBestTier` (#145); the sheet's post sticks. The pacing sim still calls it.
 - `expeditions` (rules layer, pure): `TUNNELS` (a side seam, 10 min; the old
   shaft, 1 h; the deep dark, 4 h, Journeyman+). `send(mountain, engineer,
 tunnel, now)` stores the trip and its find, seeded from `sentAt`. The engineer
@@ -739,11 +792,9 @@ returnsAt, home, find }[]` (≤5, `returnsAt > sentAt`, no longer than the deep
   dark, closed tunnel and find ids, one trip per name) and `finds?: FindId[]`
   (lost tools and keepsakes, no duplicates). `home` and `find` are stored
   because `"tunnel"` would forget the machine, and clamping `sentAt` would
-  reroll a find that was only recomputed from it. Rules cap the list at 5 and
-  check the tunnel and `returnsAt > sentAt` on the first two trips. Shelf ids
-  are a closed list. The parser rejects a bad trip, a duplicate shelf id, and
-  anything past those two checks: doing all of that in rules, beside five
-  engineers, crosses the 1000-expression budget. Built (#146). The worn map
+  reroll a find that was only recomputed from it. Shelf ids
+  are a closed list. The save reader refuses a trip, tunnel or shelf id it
+  does not know as `newer`, and a broken one as `bad` (#558). Built (#146). The worn map
   shortens the next send to three quarters of the tunnel time
   (`expeditionAwayMs`); a party already out keeps its clock. Built (#148).
 - `rates`: `effectiveRates` with no clock and no trouble is kept per mountain
@@ -814,8 +865,7 @@ field-log` lists every log; `--uid` or a positional uid reads one. The default
   `engineer.promote`, `engineer.station` (a machine post, or `camp` when called
   back), `expedition.send`, `expedition.return` (find id in `source`; `quiet`
   when the tunnel was empty), `expedition.recall`, `trouble.start`,
-  `trouble.fix` (`hand` or `engineer`), `crew.staff` (workers granted by the
-  one-time top-up), `layer.enter` (the band id), `craft.start` (the recipe id),
+  `trouble.fix` (`hand` or `engineer`), `layer.enter` (the band id), `craft.start` (the recipe id),
   `craft.done` (the recipe id and the new level). A layer card and a craft-done
   card (`card-views#arrivalCard` picks which) are session news, like a relic reveal: the baseline is the loaded save,
   so a band you already sit in, or a craft already fitted, is not announced
@@ -833,11 +883,9 @@ M free`. The crew line, in the Crew section at the top of Buys, names where
   recall and, when the new post is not the one they left, the station.
 - `lost-tools` (rules layer, pure): `hasLostTool`, `tapWithPick`, `glintScale`, `expeditionAwayMs`, `wearsSteelToes`. The old miner's lamp doubles a golden vein's glint (`veinGlintMs`). Keepsake stories live in `screen-words`. No new save field: the shelf is still `finds`. Built (#148).
 - `layers` (rules layer, pure): four bands from stones mined: the Topsoil, the Granite, the Crystal Caves and the Deep Heart through the bottom, starting at `BAND_STARTS` ([Numbers now](DESIGN.md#numbers-now)). `layerOf` reads `minedOut`. Entering a band includes its first stone, so 10M is the Granite, beside the Shield. Hardness is a per-tier speed in `effectiveRates`, and the sweep factor `layer.<n>.<tier>.hardness` multiplies it. Workers and kids stay at 1. No layer field. Each band drops its material on the tuned gap in `MATERIAL_EVERY` (1,000,000 clay, 1,000,000 iron, 5,000,000 crystal, 10,000,000 heartstone). `accrue`, `accrueAway`, and a hand tap add the units. The remainder stays in the stone total. `materialLeftToDig` counts what the rest of the run's mountain still holds of one material; `workshop-sheet`'s `goneMaterial` uses it to turn a recipe that lacks clay past the Topsoil into "No clay this deep" instead of "Need 4 more clay" (and iron, crystal or heartstone once their band is dug, #492). Built (#194, #195, #198).
-- Save v7 adds `rev`, `deviceId`, and `savedAt` beside the workshop. `rev`
-  starts at 1 (a new doc, or the first write of a v6 doc, which counts as rev 0)
-  and the rules accept only `stored + 1`. The compare is before the mountain
-  walk so a stale write stays under the expression cap. `savedAt` must be
-  `request.time`. One cloud write is in flight, at most one a second, and the
+- The envelope carries `rev`, `deviceId`, and `savedAt` (first in v7). `rev`
+  starts at 1 on a new doc and the rules accept only `stored + 1`. `savedAt`
+  must be `request.time`. One cloud write is in flight, at most one a second, and the
   newest mountain is the next payload. A rev refusal reads the server doc. A
   later run wins whole. A lower rev is never adopted. One copy fast-forwards
   when it is at least as far on stones mined, upgrade levels, crafts, recipes,
@@ -845,16 +893,17 @@ M free`. The crew line, in the Crew section at the top of Buys, names where
   crew, and further on one of the progress facts. A lead that is only machines
   or crew, or a split where each side has something the other lacks, is not
   blended. The phone keeps its copy. The sheet "Two saves found" asks which to
-  play. The other copy is archived first at `saveArchive/{uid}/copies/{id}` for
+  play. The other copy is archived first at `gameArchive/{uid}/copies/{id}` for
   seven days (owner create and read, no update, no delete). Then the chosen copy
   is written at the server rev plus one. A failed archive leaves both copies and
   the sheet. `syncedRev` on the phone backup is the last confirmed rev.
   `save.conflict` logs the revs, device ids, stones mined, and the choice. Saved
   copies, opened from the Ledger, restore one the same way and log `save.restore`. A copy
   from an earlier run comes back as a new run (#480): `startedAt` is
-  `max(now, playing + 1)`, so `notOlderRun` passes, and `lastSeen` is now, so no
+  `max(now, playing + 1)`, so the rules' run check passes, and `lastSeen` is now, so no
   time away is paid. Each copy stores its `reason` (`conflict`, `restore`,
-  `start-over`, `pass`; `firestore.rules` lists the same four). Signed in,
+  `start-over`, `pass`, and `reset` for a copy from before the current
+  version; `firestore.rules` lists the same five). Signed in,
   `startOver` and `passTheMine` go through `keepThenBegin` in `save-choice.ts`:
   the mountain in play is archived, then `beginRun` starts the new run. A copy
   refused or not answered within `archiveWaitMs` (`settle-within.ts`, shared
@@ -869,35 +918,21 @@ M free`. The crew line, in the Crew section at the top of Buys, names where
   available" and a reload button. `vite build` writes the same commit into
   `sw.js` (`src/build-stamp.ts`, #516), so every deploy ships a worker with new
   bytes: an open page's update check on visible installs it, and the card
-  opens. The cache name stays, so an old page keeps its hashed assets. Old cached builds cannot write once a rev
-  exists. Coming back reads the server before writing. A cached snapshot
+  opens. The cache name stays, so an old page keeps its hashed assets. A build from before version 8 cannot write
+  at all: its path is read-only (#558). Coming back reads the server before writing. A cached snapshot
   (Firestore persistent cache) does not count as that read. One writer tab per
   device; Play here flushes the phone backup first. Offline writes stay in that
   cache until the next open, and a stale queued rev is rejected like any other.
-- Save v6 keeps `materials`, `bench`, `crafted`, `recipes`, and the craft
-  clocks (`mountain.clocks`, keyed by recipe id; 0 is cold) on the mountain in
-  memory, and writes them as one `workshop` map beside the mountain, each hot
-  clock under its saved name (`chargeUntil`, `flareUntil`, `emberUntil`,
-  `axleUntil`). The mountain key list in `firestore.rules` cannot grow,
-  and a full crew is already at the expression budget, so the rules only require
-  that map. The parser checks the four material ints (each capped at that band's
-  width), the bench times, crafted levels, and a whole `chargeUntil`. An unknown
-  shelf id is dropped. An unknown recipe id, a craft level, and a bench this
-  build cannot name are written back, so a newer id cannot lock an older client
-  out of the save. While that bench's clock is still running, the Workshop says
-  "Something is on the bench" and a new craft waits (#202). A v1–v5 save, local
-  or cloud, keeps the stones already mined and is granted the materials those
-  stones would have dug. Recipes are the starting three, plus Reinforce once the
-  Granite is reached, plus Diamond bits and Crystal flare in the Crystal Caves,
-  plus the Heartstone core and Heartstone ember in the Deep Heart. The lamp and
-  the kit are not granted. The bench is empty and nothing is crafted. A v6
-  document keeps the pocket it stored. Passing the mine keeps the recipes and
-  clears materials, the bench, crafted gear, and a hot charge. Built (#195,
-  #196).
+- The workshop's state lives on the mountain in memory: `materials`, `bench`,
+  `crafted`, `recipes`, and the craft clocks (`mountain.clocks`, keyed by
+  recipe id; 0 is cold). The save keeps them in the game map: the materials in
+  `stock`, crafted levels in `levels`, the clocks in `clocks`, the recipes in
+  `marks.recipes`, and the bench as it is (#558). Passing the mine keeps the
+  recipes and clears materials, the bench, crafted gear, and a hot charge.
+  Built (#195, #196).
 - `workshop` (rules layer, pure): one bench. A recipe this build cannot name
-  still occupies it until its clock ends (`unknownBench`): the drawer counts it
-  down, offers no refund, and a new craft waits. Once that clock has rung, a
-  known craft may take the bench. `startCraft` spends stones and materials when
+  makes the whole save `newer`, so the bench always holds a known craft (#558).
+  `startCraft` spends stones and materials when
   the Granite is open, the recipe is known, and the pocket can pay.
   `settleBench` fits a craft whose clock has rung, once, including inside
   `accrue` and `accrueAway`. `cancelCraft` returns lasting gear in full, because
@@ -912,7 +947,7 @@ M free`. The crew line, in the Crew section at the top of Buys, names where
   rush (`src/gold-rush.ts`, #468) is paid out of the away haul: after an hour
   away `accrueAway` holds part of it back (`holdForRush`, `rushBank`), and the
   rush pays `rushPerSecond` of those held stones beside the crew until
-  `rushUntil`, both saved in the workshop map beside `axleUntil`. Live `accrue`
+  `rushUntil`, both saved in the game map (`clocks` and `run`). Live `accrue`
   pays them (`payRush`) beside the crew's own digging. `effectiveRates` never
   counts them (#525), so the gauge and every rate read the crew alone.
   `resumeRush` runs first on every open: a break under an hour shifts the rush

@@ -10,7 +10,7 @@ import {
   toolsMountain,
   machineMountain,
   heirMountain,
-  crewV4Save,
+  boostedCrewSave,
   borerPickMountain,
   fullGraniteMountain,
   machinePickMountain,
@@ -57,7 +57,7 @@ const DRAWER_SAVES = [
   { name: "tools", save: () => toolsMountain() },
   { name: "machine", save: () => machineMountain() },
   { name: "heir", save: () => heirMountain() },
-  { name: "crew", save: () => crewV4Save() },
+  { name: "crew", save: () => boostedCrewSave() },
   { name: "mid, the borer the pick", save: () => borerPickMountain() },
   // A full Granite: two rows of crew chips, and Buys still fits (#373).
   { name: "mid, two chip rows", save: () => fullGraniteMountain() },
@@ -789,7 +789,10 @@ const registerStates = (viewport) => {
       await close();
     }
     {
-      const { close, rows: crew } = await visit(() => crewV4Save(), "upgrades");
+      const { close, rows: crew } = await visit(
+        () => boostedCrewSave(),
+        "upgrades",
+      );
       check(
         ["sharper", "overtime"].every(
           (id) =>

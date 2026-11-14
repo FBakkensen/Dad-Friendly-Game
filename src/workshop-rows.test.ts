@@ -3,8 +3,6 @@ import { LAYERS, materialsFromMined, EMPTY_MATERIALS } from "./layers";
 import { MOUNTAIN_STONES, createMountain, type Mountain } from "./mountain";
 import {
   BENCH_FREE,
-  BENCH_UNKNOWN,
-  BENCH_UNKNOWN_ASIDE,
   BENCH_BUSY_ASIDE,
   RECIPES_LEGEND,
   SKETCH_NAME,
@@ -14,12 +12,7 @@ import {
 } from "./screen-words";
 import { markSeen, recordFirstUse } from "./teach";
 import { minedMountain } from "./test-fixtures";
-import {
-  recipesForMined,
-  startCraft,
-  type RecipeId,
-  NOTHING_KEPT,
-} from "./workshop";
+import { recipesForMined, startCraft, type RecipeId } from "./workshop";
 import {
   benchView,
   workshopCards,
@@ -311,33 +304,6 @@ describe("the bench row (#374)", () => {
         can: false,
       });
       expect(row.aria).toBe("On the bench: Sturdy props · ready");
-    }
-  });
-
-  it("a bench this build cannot name: amber with its clock and bar, and no cancel", () => {
-    const held: Mountain = {
-      ...granite(),
-      kept: {
-        ...NOTHING_KEPT,
-        bench: { recipe: "future-bit", startedAt: NOW, endsAt: NOW + 600_000 },
-      },
-    };
-    for (const armed of [false, true]) {
-      const row = benchRowView(benchView(held, NOW + 60_000), armed);
-      expect(row).toMatchObject({
-        name: BENCH_UNKNOWN,
-        info: [BENCH_UNKNOWN_ASIDE],
-        gain: "9:00",
-        why: "",
-        lamp: "amber",
-        state: "running",
-        canCancel: false,
-        can: false,
-      });
-      expect(row.progress).toBeCloseTo(0.1);
-      expect(row.aria).toBe(
-        `${BENCH_UNKNOWN} · 9:00 left. ${BENCH_UNKNOWN_ASIDE}`,
-      );
     }
   });
 });

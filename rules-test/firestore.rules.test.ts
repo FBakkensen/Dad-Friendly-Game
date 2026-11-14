@@ -1,6 +1,8 @@
 /**
- * Runs against the Firestore emulator (npm run test:rules): every upgrade and
- * boost the game can save must pass the deployed rules, and odd ones must not.
+ * Runs against the Firestore emulator (npm run test:rules): the save this
+ * version writes must pass the deployed rules, and a lower version, an older
+ * run, a skipped rev or an unknown envelope key must not (#558). The rules
+ * check only the envelope; the client reads the game map.
  */
 import { deleteApp, initializeApp, type FirebaseApp } from "firebase/app";
 import {
@@ -20,13 +22,8 @@ import {
   type Firestore,
 } from "firebase/firestore";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { BOOSTS, NO_BOOSTS, type Boosts } from "../src/boosts";
-import {
-  ENGINEER_NAMES,
-  ENGINEER_POSTS,
-  MAX_ENGINEERS,
-  type Engineer,
-} from "../src/engineers";
+import { BOOSTS, type Boosts } from "../src/boosts";
+import { ENGINEER_NAMES, MAX_ENGINEERS, type Engineer } from "../src/engineers";
 import {
   APP_VERSION,
   EVENT_RING_LIMIT,
@@ -42,22 +39,12 @@ import {
 import {
   MOUNTAIN_STONES,
   createMountain,
-  minedOut,
   type Mountain,
 } from "../src/mountain";
-import { MAX_MATERIAL } from "../src/layers";
-import {
-  COLD_CLOCKS,
-  MAX_CRAFTED_LEVEL,
-  MAX_CRAFT_MS,
-  NOTHING_CRAFTED,
-  RECIPE_IDS,
-  type Crafted,
-} from "../src/workshop";
-import { parseSaveValue, serializeSave } from "../src/persist";
+import { readSave, serializeSave } from "../src/persist";
 import { effectiveRates } from "../src/rates";
-import { MAX_STRETCH, kidStretch, stonesLeft } from "../src/scale";
-import { NO_UPGRADES, UPGRADES, type Upgrades } from "../src/upgrades";
+import { UPGRADES, type Upgrades } from "../src/upgrades";
+import { MAX_CRAFT_MS, RECIPE_IDS, type Crafted } from "../src/workshop";
 
 const [host = "127.0.0.1", port = "8080"] = (
   process.env["FIRESTORE_EMULATOR_HOST"] ?? "127.0.0.1:8080"
@@ -87,522 +74,168 @@ afterAll(async () => {
 });
 
 const DEVICE = "rules-device";
-let revCursor = 0;
 
-/** A v7 write. The rev advances only after the rules accept it. */
-async function put(body: object): Promise<void> {
-  const rev = revCursor + 1;
-  await setDoc(doc(db, "saves", "dad"), {
-    ...body,
-    version: 7,
-    rev,
-    deviceId: DEVICE,
-    savedAt: serverTimestamp(),
-  });
-  revCursor = rev;
-}
-
-function legacyAdmin() {
+function admin() {
   const app = adminApps()[0] ?? initAdmin({ projectId: "demo-dad-friendly" });
   return adminStore(app);
 }
 
-/** Seeds a pre-rev document. The rules no longer accept that write from a client. */
-async function seedLegacy(data: object): Promise<void> {
-  await legacyAdmin().doc("saves/dad").set(data);
-  revCursor = 0;
+/** A late crew with something in every map: engineers, a trip, a bench, every clock. */
+function lateCrew(): Mountain {
+  const fresh = createMountain();
+  return {
+    ...fresh,
+    remaining: MOUNTAIN_STONES - 80_000,
+    pocket: 80_000_000,
+    helpers: 40,
+    carts: 12,
+    drills: 8,
+    borers: 4,
+    machines: 2,
+    kids: 6,
+    hoists: 9,
+    trains: 3,
+    legacy: 3,
+    startedAt: 1_700,
+    engineers: [
+      { name: "Ada", rank: 1, trips: 3, post: "borer" },
+      { name: "Nils", rank: 0, trips: 0, post: "drill" },
+    ],
+    expeditions: [
+      {
+        engineer: "Nils",
+        tunnel: "side-seam",
+        sentAt: 100,
+        returnsAt: 200,
+        find: { kind: "quiet" },
+      },
+    ],
+    bench: { recipe: "iron-rails", startedAt: 10, endsAt: 20 },
+    upgrades: Object.fromEntries(
+      UPGRADES.map((upgrade) => [upgrade.id, upgrade.maxLevel]),
+    ) as Upgrades,
+    boosts: Object.fromEntries(
+      BOOSTS.map((boost) => [boost.id, 1_800_000_000_000]),
+    ) as Boosts,
+    clocks: Object.fromEntries(
+      Object.keys(fresh.clocks).map((id) => [id, 1_800_000_000_000]),
+    ) as Mountain["clocks"],
+    crafted: { ...fresh.crafted, "sturdy-props": 1 },
+    recipes: [...fresh.recipes, "reinforce"],
+    seen: ["workshop"],
+    taught: ["engineers"],
+  };
 }
 
-const save = (mountain: Mountain) =>
-  put(serializeSave({ mountain, lastSeen: 1 }));
-
-const roundTrip = async (mountain: Mountain): Promise<Mountain | undefined> => {
-  await save(mountain);
-  const snap = await getDoc(doc(db, "saves", "dad"));
-  return parseSaveValue(snap.data())?.mountain;
-};
-
-describe("firestore.rules: every save the game writes is accepted", () => {
-  it.each(UPGRADES.map((upgrade) => [upgrade.id, upgrade.maxLevel] as const))(
-    "upgrade %s at every level up to %i",
-    async (id, maxLevel) => {
-      for (let level = 0; level <= maxLevel; level += 1) {
-        const mountain = {
-          ...createMountain(),
-          upgrades: { ...NO_UPGRADES, [id]: level } as Upgrades,
-        };
-        expect(await roundTrip(mountain)).toEqual(mountain);
-      }
-    },
-  );
-
-  it("all upgrades at once, maxed", async () => {
-    const mountain = {
-      ...createMountain(),
-      upgrades: Object.fromEntries(
-        UPGRADES.map((upgrade) => [upgrade.id, upgrade.maxLevel]),
-      ) as Upgrades,
-    };
-    expect(await roundTrip(mountain)).toEqual(mountain);
-  });
-
-  it.each(BOOSTS.map((boost) => boost.id))("boost %s", async (id) => {
-    const mountain = {
-      ...createMountain(),
-      boosts: { ...NO_BOOSTS, [id]: 1_800_000_000_000 } as Boosts,
-    };
-    expect(await roundTrip(mountain)).toEqual(mountain);
-  });
-
-  it("the staffing marks (#89 true, and #140's 1 and 2)", async () => {
-    const mountain = { ...createMountain(), helpers: 30, carts: 12 };
-    expect(mountain.staffed).toBe(2);
-    expect(await roundTrip(mountain)).toEqual(mountain);
-    const raw = serializeSave({ mountain, lastSeen: 1 });
-    for (const staffed of [true, 1, 2]) {
-      await put({
-        ...raw,
-        mountain: { ...raw.mountain, staffed },
-      });
-      const snap = await getDoc(doc(db, "saves", "dad"));
-      expect(parseSaveValue(snap.data())?.mountain.staffed).toBe(staffed);
-    }
-    for (const staffed of [false, 0, 3, "2"]) {
-      await expect(
-        put({
-          ...raw,
-          mountain: { ...raw.mountain, staffed },
-        }),
-      ).rejects.toThrow(/permission/i);
-    }
-  });
-
-  it("the Legacy count (#130)", async () => {
-    const mountain = { ...createMountain(), legacy: 2 };
-    expect(await roundTrip(mountain)).toEqual(mountain);
-    const raw = serializeSave({ mountain, lastSeen: 1 });
-    for (const legacy of [-1, 1.5, "2", 1001]) {
-      await expect(
-        put({
-          ...raw,
-          mountain: { ...raw.mountain, legacy },
-        }),
-      ).rejects.toThrow(/permission/i);
-    }
-  });
-
-  it("a kid run at the stretch cap with every stone in the pocket (#366)", async () => {
-    const kid = {
-      ...createMountain(),
-      legacy: 1000,
-      stretch: kidStretch(1000),
-    };
-    const mountain = { ...kid, remaining: 0, pocket: stonesLeft(kid) };
-    expect(mountain.stretch).toBe(MAX_STRETCH);
-    expect(Number.isSafeInteger(mountain.pocket)).toBe(true);
-    expect(await roundTrip(mountain)).toEqual(mountain);
-  });
-
-  it("Crown of Wisdom kid helpers (#102)", async () => {
-    const mountain = { ...createMountain(), helpers: 40, kids: 12 };
-    expect(await roundTrip(mountain)).toEqual(mountain);
-    const raw = serializeSave({ mountain, lastSeen: 1 });
-    for (const kids of [-1, 1.5, "7"]) {
-      await expect(
-        put({
-          ...raw,
-          mountain: { ...raw.mountain, kids },
-        }),
-      ).rejects.toThrow(/permission/i);
-    }
-  });
-
-  it("the line's hoists and pit trains (#533)", async () => {
-    const mountain = { ...createMountain(), hoists: 4, trains: 2 };
-    expect(await roundTrip(mountain)).toEqual(mountain);
-    // They sit in the workshop map (#195), which the rules only require is
-    // a map, so the client parser rejects a bad count (save-format.test.ts).
-  });
-
-  it("round-trips a crew of engineers and rejects a bad one (#144)", async () => {
-    const engineers: Engineer[] = ENGINEER_NAMES.map((name, index) => ({
-      name,
-      rank: index < 2 ? 0 : index < 4 ? 1 : 2,
-      trips: index < 2 ? 0 : index < 4 ? 3 : 9,
-      post: ENGINEER_POSTS[index] ?? "camp",
-    }));
-    const mountain = { ...createMountain(), borers: 1, engineers };
-    expect(engineers).toHaveLength(MAX_ENGINEERS);
-    expect(await roundTrip(mountain)).toEqual(mountain);
-
-    const raw = serializeSave({ mountain, lastSeen: 1 });
-    const write = (next: unknown) =>
-      put({
-        ...raw,
-        mountain: { ...raw.mountain, engineers: next },
-      });
-    await expect(write([])).resolves.toBeUndefined();
-    const tooMany = [...engineers, { ...engineers[0], name: "Ada" }];
-    await expect(write(tooMany)).rejects.toThrow(/permission/i);
-    await expect(write([{ ...engineers[0], name: "Bob" }])).rejects.toThrow(
-      /permission/i,
-    );
-    await expect(write([{ ...engineers[0], post: "helper" }])).rejects.toThrow(
-      /permission/i,
-    );
-    await expect(write([{ ...engineers[0], rank: 2 }])).rejects.toThrow(
-      /permission/i,
-    );
-    await expect(write([{ ...engineers[0], trips: -1 }])).rejects.toThrow(
-      /permission/i,
-    );
-    await expect(
-      write([{ ...engineers[0], trips: 1_000_001, rank: 2 }]),
-    ).rejects.toThrow(/permission/i);
-    // Duplicate names, and a bad fourth hand, are parser rejects. Checking
-    // them here crosses the expression budget on a full late save (#219).
-    await expect(write([engineers[0], engineers[0]])).resolves.toBeUndefined();
-    const duplicated = await getDoc(doc(db, "saves", "dad"));
-    expect(parseSaveValue(duplicated.data())).toBeUndefined();
-    const third = engineers[2];
-    const badFourth = [
-      engineers[0],
-      engineers[1],
-      third === undefined ? engineers[0] : third,
-      { ...(engineers[3] ?? engineers[0]), name: "Bob" },
-    ];
-    await expect(write(badFourth)).resolves.toBeUndefined();
-    const later = await getDoc(doc(db, "saves", "dad"));
-    expect(parseSaveValue(later.data())).toBeUndefined();
-    await expect(write([{ ...engineers[0], nickname: "Ace" }])).rejects.toThrow(
-      /permission/i,
-    );
-  });
-
-  it("round-trips expeditions and a shelf, and rejects a bad shape (#146)", async () => {
-    const engineers: Engineer[] = ENGINEER_NAMES.map((name, index) => ({
-      name,
-      rank: index === 0 ? 0 : 1,
-      trips: index === 0 ? 0 : 3,
-      post: "camp",
-    }));
-    const expeditions: Expedition[] = engineers.map((engineer, index) => ({
-      engineer: engineer.name,
-      tunnel:
-        index === 2 ? "deep-dark" : index % 2 === 0 ? "side-seam" : "old-shaft",
-      sentAt: 1_000 + index,
-      returnsAt: 1_000 + index + (index === 2 ? 4 * 60 * 60_000 : 60_000),
-      find:
-        index === 0
-          ? { kind: "keepsake", id: "drawing" }
-          : index === 1
-            ? { kind: "tool", id: "pick" }
-            : index === 2
-              ? { kind: "glimmer", id: "heart" }
-              : index === 3
-                ? { kind: "quiet" }
-                : { kind: "glimmer", id: "lantern" },
-    }));
-    const mountain = {
-      ...createMountain(),
-      borers: 1,
-      engineers,
-      expeditions,
-      finds: FIND_IDS.filter((id) => id !== "drawing" && id !== "pick"),
-    };
-    expect(expeditions).toHaveLength(MAX_EXPEDITIONS);
-    expect(mountain.finds).toHaveLength(FIND_IDS.length - 2);
-    expect(await roundTrip(mountain)).toEqual(mountain);
-    const withANewHand = {
-      ...createMountain(),
-      engineers: [
-        {
-          name: "Ada" as const,
-          rank: 1 as const,
-          trips: 3,
-          post: "borer" as const,
-        },
-      ],
-      expeditions: [
-        {
-          engineer: "Ada" as const,
-          tunnel: "deep-dark" as const,
-          sentAt: 2,
-          returnsAt: 2 + 4 * 60 * 60_000,
-          find: { kind: "engineer" as const, id: "Nils" as const },
-        },
-      ],
-    };
-    expect(await roundTrip(withANewHand)).toEqual(withANewHand);
-
-    const raw = serializeSave({ mountain, lastSeen: 1 });
-    const writeExpeditions = (next: unknown) =>
-      put({
-        ...raw,
-        mountain: { ...raw.mountain, expeditions: next },
-      });
-    const writeFinds = (next: unknown) =>
-      put({
-        ...raw,
-        mountain: { ...raw.mountain, finds: next },
-      });
-    const tooLong = {
-      ...expeditions[0],
-      returnsAt: (expeditions[0]?.sentAt ?? 0) + MAX_EXPEDITION_MS + 1,
-    };
-    await expect(
-      writeExpeditions([...expeditions, expeditions[0]]),
-    ).rejects.toThrow(/permission/i);
-    await expect(
-      writeExpeditions([{ ...expeditions[0], tunnel: "moon" }]),
-    ).rejects.toThrow(/permission/i);
-    await expect(
-      writeExpeditions([
-        { ...expeditions[0], returnsAt: expeditions[0]?.sentAt },
-      ]),
-    ).rejects.toThrow(/permission/i);
-    await expect(writeExpeditions([tooLong])).rejects.toThrow(/permission/i);
-    // A bad home, an extra key, a nonsense find, or two trips for one name are
-    // rejected by the parser. The rules expression budget cannot check them
-    // on top of a full crew. An unknown or repeated shelf id is dropped.
-    await expect(
-      writeFinds(["turbo", "pick", "pick"]),
-    ).resolves.toBeUndefined();
-    const unknownShelf = await getDoc(doc(db, "saves", "dad"));
-    const loadedShelf = parseSaveValue(unknownShelf.data());
-    expect(loadedShelf?.mountain.finds).toEqual(["pick"]);
-    expect(loadedShelf?.mountain.remaining).toBe(mountain.remaining);
-    expect(loadedShelf?.mountain.pocket).toBe(mountain.pocket);
-    await expect(
-      writeFinds(new Array(FIND_IDS.length + 1).fill("lamp")),
-    ).rejects.toThrow(/permission/i);
-  });
-
-  it("accepts a v6 workshop and rejects a bad shape (#195)", async () => {
-    const mountain = {
-      ...createMountain(),
-      remaining: MOUNTAIN_STONES - 60_000_000,
-      pocket: 60_000_000,
-      materials: { clay: 250, iron: 437, crystal: 93, heartstone: 0 },
-      recipes: [
-        "iron-rails",
-        "sturdy-props",
-        "blasting-charge",
-        "diamond-bits",
-      ] as const,
-      bench: {
-        recipe: "diamond-bits" as const,
-        startedAt: 1_000,
-        endsAt: 1_000 + MAX_CRAFT_MS,
-      },
-      crafted: { ...NOTHING_CRAFTED, "iron-rails": 3, "crystal-lamp": 1 },
-      clocks: { ...COLD_CLOCKS, "blasting-charge": 50_000 },
-    };
-    expect(await roundTrip(mountain)).toEqual(mountain);
-
-    const raw = serializeSave({ mountain, lastSeen: 1 });
-    const writeWorkshop = (workshop: unknown) => put({ ...raw, workshop });
-    await expect(
-      writeWorkshop({ ...raw.workshop, bench: null }),
-    ).resolves.toBeUndefined();
-    await expect(writeWorkshop("pocket")).rejects.toThrow(/permission/i);
-    const { workshop, ...noWorkshop } = raw;
-    await expect(put(noWorkshop)).rejects.toThrow(/permission/i);
-    expect(workshop.materials.clay).toBe(250);
-    // Closed recipe ids, bench times, and crafted levels sit past the
-    // expression budget once a crew is saved. The parser rejects them.
-    for (const patch of [
-      { materials: { ...mountain.materials, gold: 1 } },
-      { materials: { ...mountain.materials, clay: -1 } },
-      { materials: { ...mountain.materials, clay: 1.5 } },
-      { materials: { ...mountain.materials, clay: MAX_MATERIAL.clay + 1 } },
-      { bench: { recipe: "iron-rails", startedAt: 5, endsAt: 5 } },
-      {
-        bench: {
-          recipe: "iron-rails",
-          startedAt: 1,
-          endsAt: 1 + MAX_CRAFT_MS + 1,
-        },
-      },
-      { crafted: { "iron-rails": MAX_CRAFTED_LEVEL + 1 } },
-      { chargeUntil: -1 },
-      { chargeUntil: 1.5 },
-    ]) {
-      await expect(
-        writeWorkshop({ ...raw.workshop, ...patch }),
-      ).resolves.toBeUndefined();
-      const snap = await getDoc(doc(db, "saves", "dad"));
-      expect(parseSaveValue(snap.data())).toBeUndefined();
-    }
-    await expect(
-      writeWorkshop({
-        ...raw.workshop,
-        recipes: ["future-bit", "iron-rails", "iron-rails"],
-        bench: { recipe: "future-bit", startedAt: 1, endsAt: 2 },
-        crafted: { "future-bit": 3, "iron-rails": 1 },
-      }),
-    ).resolves.toBeUndefined();
-    const newer = await getDoc(doc(db, "saves", "dad"));
-    const loadedNewer = parseSaveValue(newer.data());
-    expect(loadedNewer?.mountain.recipes).toEqual(["iron-rails"]);
-    expect(loadedNewer?.mountain.bench).toBeUndefined();
-    expect(loadedNewer?.mountain.crafted).toEqual({
-      ...NOTHING_CRAFTED,
-      "iron-rails": 1,
-    });
-    expect(loadedNewer?.mountain.kept).toEqual({
-      recipes: ["future-bit"],
-      bench: { recipe: "future-bit", startedAt: 1, endsAt: 2 },
-      crafted: { "future-bit": 3 },
-      seen: [],
-      taught: [],
-    });
-    const kept = serializeSave({
-      mountain: loadedNewer?.mountain ?? createMountain(),
-      lastSeen: 1,
-    });
-    expect(kept.workshop.recipes).toEqual(["iron-rails", "future-bit"]);
-    expect(kept.workshop.bench).toEqual({
-      recipe: "future-bit",
-      startedAt: 1,
-      endsAt: 2,
-    });
-    expect(kept.workshop.crafted).toEqual({
-      "iron-rails": 1,
-      "future-bit": 3,
-    });
-    expect(loadedNewer?.mountain.remaining).toBe(mountain.remaining);
-    await expect(
-      setDoc(doc(db, "saves", "dad"), { ...raw, version: 7 }),
-    ).rejects.toThrow(/permission/i);
-  });
-
-  it("reads a v5 cloud document and grants the dug materials (#195)", async () => {
-    const stones = 12_000_000;
-    await seedLegacy({
-      version: 5,
-      mountain: {
-        remaining: MOUNTAIN_STONES - stones,
-        pocket: stones,
-        helpers: 0,
-      },
-      lastSeen: 4,
-    });
-    const snap = await getDoc(doc(db, "saves", "dad"));
-    const parsed = parseSaveValue(snap.data());
-    expect(minedOut(parsed?.mountain ?? createMountain())).toBe(stones);
-    expect(parsed?.mountain.materials).toEqual({
-      clay: 10,
-      iron: 2,
-      crystal: 0,
-      heartstone: 0,
-    });
-    expect(parsed?.mountain.recipes).toEqual([
-      "iron-rails",
-      "sturdy-props",
-      "blasting-charge",
-      "reinforce",
-      "axle-grease",
-    ]);
-  });
-
-  it("accepts a maximal v6 save (#219)", async () => {
-    const mountain = maximalMountain();
-    expect(mountain.engineers).toHaveLength(MAX_ENGINEERS);
-    expect(mountain.finds).toHaveLength(FIND_IDS.length);
-    expect(mountain.recipes).toHaveLength(RECIPE_IDS.length);
-    // An existing document makes this an update, which spends more expressions
-    // than a create. Promoting the fourth engineer is an update.
-    await save(createMountain());
-    expect(await roundTrip(mountain)).toEqual(mountain);
-  });
-
-  it("rejects unknown upgrades and levels past the top", async () => {
-    await expect(
-      save({
-        ...createMountain(),
-        upgrades: { turbo: 1 },
-      } as unknown as Mountain),
-    ).rejects.toThrow(/permission/i);
-    for (const upgrade of UPGRADES) {
-      await expect(
-        save({
-          ...createMountain(),
-          upgrades: { ...NO_UPGRADES, [upgrade.id]: upgrade.maxLevel + 1 },
-        }),
-      ).rejects.toThrow(/permission/i);
-    }
-  });
-});
-
-describe("firestore.rules: rev (#223)", () => {
-  const stamped = (rev: number) => ({
-    ...serializeSave({ mountain: createMountain(), lastSeen: 1 }),
-    version: 7 as const,
-    rev,
-    deviceId: DEVICE,
+/** The game document as the client writes it. */
+function game(rev: number, mountain: Mountain = createMountain()) {
+  return {
+    ...serializeSave({ mountain, lastSeen: 1, rev, deviceId: DEVICE }),
     savedAt: serverTimestamp(),
+  };
+}
+
+const denied = /permission|false for/i;
+
+describe("firestore.rules: games/{uid} (#558)", () => {
+  const ref = () => doc(db, "games", "dad");
+
+  it("accepts a full save, and the client reads it back", async () => {
+    await admin().doc("games/dad").delete();
+    const mountain = lateCrew();
+    expect(readSave(JSON.parse(JSON.stringify(game(1, mountain)))).kind).toBe(
+      "ok",
+    );
+    await setDoc(ref(), game(1, mountain));
+    const read = readSave((await getDoc(ref())).data());
+    expect(read.kind === "ok" && read.save.mountain).toEqual(mountain);
+    await expect(getDoc(doc(momDb, "games", "dad"))).rejects.toThrow(denied);
+    await expect(
+      setDoc(doc(momDb, "games", "dad"), game(2, mountain)),
+    ).rejects.toThrow(denied);
   });
 
-  it("migrates a doc without rev, then rejects a stale, skipped, or duplicate rev", async () => {
-    const legacy = serializeSave({ mountain: createMountain(), lastSeen: 1 });
-    await seedLegacy(legacy);
-    await put(legacy);
-    expect((await getDoc(doc(db, "saves", "dad"))).data()?.["rev"]).toBe(1);
-
-    await put(legacy);
-    await expect(setDoc(doc(db, "saves", "dad"), stamped(2))).rejects.toThrow(
-      /permission/i,
-    );
-    await expect(setDoc(doc(db, "saves", "dad"), stamped(1))).rejects.toThrow(
-      /permission/i,
-    );
-    await expect(setDoc(doc(db, "saves", "dad"), stamped(4))).rejects.toThrow(
-      /permission/i,
-    );
-    await setDoc(doc(db, "saves", "dad"), stamped(3));
-    expect((await getDoc(doc(db, "saves", "dad"))).data()?.["rev"]).toBe(3);
-
-    await expect(setDoc(doc(db, "saves", "dad"), legacy)).rejects.toThrow(
-      /permission/i,
-    );
+  it("creates only at rev 1, then moves one rev at a time", async () => {
+    await admin().doc("games/dad").delete();
+    await expect(setDoc(ref(), game(2))).rejects.toThrow(denied);
+    await setDoc(ref(), game(1));
+    await expect(setDoc(ref(), game(1))).rejects.toThrow(denied);
+    await expect(setDoc(ref(), game(3))).rejects.toThrow(denied);
+    await setDoc(ref(), game(2));
+    expect((await getDoc(ref())).data()?.["rev"]).toBe(2);
+    await expect(deleteDoc(ref())).rejects.toThrow(denied);
   });
 
-  it("creates a save only at rev 1", async () => {
-    const fresh = doc(db, "saves", "dad");
-    await legacyAdmin().doc("saves/dad").delete();
-    await expect(setDoc(fresh, stamped(2))).rejects.toThrow(/permission/i);
-    await setDoc(fresh, stamped(1));
-    expect((await getDoc(fresh)).data()?.["rev"]).toBe(1);
-    await expect(setDoc(fresh, stamped(1))).rejects.toThrow(/permission/i);
+  it("refuses a lower version, and takes a later one", async () => {
+    await admin().doc("games/dad").delete();
+    await expect(setDoc(ref(), { ...game(1), version: 7 })).rejects.toThrow(
+      denied,
+    );
+    await setDoc(ref(), { ...game(1), version: 9 });
+    await expect(setDoc(ref(), game(2))).rejects.toThrow(denied);
+    await setDoc(ref(), { ...game(2), version: 9 });
   });
 
   it("refuses a write from an older run", async () => {
-    const fresh = doc(db, "saves", "dad");
-    await legacyAdmin().doc("saves/dad").delete();
-    revCursor = 0;
-    await save({ ...createMountain(), startedAt: 100, pocket: 4 });
+    await admin().doc("games/dad").delete();
+    await setDoc(ref(), game(1, { ...createMountain(), startedAt: 100 }));
     await expect(
-      save({ ...createMountain(), startedAt: 50, pocket: 9 }),
-    ).rejects.toThrow(/permission/i);
-    const kept = await getDoc(fresh);
-    expect(kept.data()?.["mountain"]).toMatchObject({
-      startedAt: 100,
-      pocket: 4,
-    });
-    await save({ ...createMountain(), startedAt: 100, pocket: 5 });
-    expect((await getDoc(fresh)).data()?.["mountain"]).toMatchObject({
-      startedAt: 100,
-      pocket: 5,
-    });
+      setDoc(ref(), game(2, { ...createMountain(), startedAt: 50 })),
+    ).rejects.toThrow(denied);
+    await expect(setDoc(ref(), game(2))).rejects.toThrow(denied);
+    await setDoc(ref(), game(2, { ...createMountain(), startedAt: 100 }));
+  });
+
+  it("refuses an unknown envelope key, a bad envelope, or a client clock", async () => {
+    await admin().doc("games/dad").delete();
+    for (const odd of [
+      { village: 1 },
+      { mountain: {} },
+      { game: "nope" },
+      { deviceId: "short" },
+      { deviceLabel: "" },
+      { lastSeen: -1 },
+      { startedAt: 1.5 },
+      { savedAt: Timestamp.fromMillis(1) },
+    ]) {
+      await expect(setDoc(ref(), { ...game(1), ...odd })).rejects.toThrow(
+        denied,
+      );
+    }
+    const noGame: Record<string, unknown> = { ...game(1) };
+    delete noGame["game"];
+    await expect(setDoc(ref(), noGame)).rejects.toThrow(denied);
   });
 });
 
-describe("firestore.rules: save archive (#226)", () => {
+describe("firestore.rules: the saves from before version 8 (#558)", () => {
+  it("are still readable, and take no create and no update", async () => {
+    await admin().doc("saves/dad").set({ version: 7, rev: 4, mountain: {} });
+    expect((await getDoc(doc(db, "saves", "dad"))).data()?.["rev"]).toBe(4);
+    await expect(
+      setDoc(doc(db, "saves", "dad"), {
+        version: 7,
+        rev: 5,
+        mountain: {},
+        savedAt: serverTimestamp(),
+      }),
+    ).rejects.toThrow(denied);
+    await admin().doc("saves/dad").delete();
+    await expect(
+      setDoc(doc(db, "saves", "dad"), { version: 7, rev: 1, mountain: {} }),
+    ).rejects.toThrow(denied);
+    await expect(
+      setDoc(doc(db, "saveArchive", "dad", "copies", "old"), { version: 7 }),
+    ).rejects.toThrow(denied);
+  });
+});
+
+describe("firestore.rules: gameArchive (#480, #558)", () => {
   const WEEK = 7 * 24 * 60 * 60 * 1000;
+  const copy = (id: string) => doc(db, "gameArchive", "dad", "copies", id);
   const archive = (patch: Record<string, unknown> = {}) => ({
     ...serializeSave({
-      mountain: createMountain(),
+      mountain: lateCrew(),
       lastSeen: 4,
       rev: 2,
       deviceId: DEVICE,
@@ -615,80 +248,72 @@ describe("firestore.rules: save archive (#226)", () => {
   });
 
   it("lets the owner create and read, and refuses everyone else", async () => {
-    const ref = doc(db, "saveArchive", "dad", "copies", "one");
-    await setDoc(ref, archive());
-    expect((await getDoc(ref)).data()?.["reason"]).toBe("conflict");
+    await setDoc(copy("one"), archive());
+    expect((await getDoc(copy("one"))).data()?.["reason"]).toBe("conflict");
     await expect(
-      getDoc(doc(momDb, "saveArchive", "dad", "copies", "one")),
-    ).rejects.toThrow(/permission|false for 'get'/i);
+      getDoc(doc(momDb, "gameArchive", "dad", "copies", "one")),
+    ).rejects.toThrow(denied);
     await expect(
-      setDoc(doc(momDb, "saveArchive", "dad", "copies", "two"), archive()),
-    ).rejects.toThrow(/permission|false for 'create'/i);
+      setDoc(doc(momDb, "gameArchive", "dad", "copies", "two"), archive()),
+    ).rejects.toThrow(denied);
+    await expect(setDoc(copy("one"), archive())).rejects.toThrow(denied);
+    await expect(deleteDoc(copy("one"))).rejects.toThrow(denied);
   });
 
-  it("takes a copy left by a restore, a Start over or a pass (#480)", async () => {
+  it("takes a copy left by a restore, a Start over or a pass, and no other reason", async () => {
     for (const reason of ["restore", "start-over", "pass"]) {
-      const ref = doc(db, "saveArchive", "dad", "copies", reason);
-      await setDoc(ref, archive({ reason }));
-      expect((await getDoc(ref)).data()?.["reason"]).toBe(reason);
+      await setDoc(copy(reason), archive({ reason }));
+      expect((await getDoc(copy(reason))).data()?.["reason"]).toBe(reason);
     }
     await expect(
-      setDoc(
-        doc(db, "saveArchive", "dad", "copies", "odd"),
-        archive({ reason: "backup" }),
-      ),
-    ).rejects.toThrow(/permission/i);
+      setDoc(copy("odd"), archive({ reason: "nope" })),
+    ).rejects.toThrow(denied);
+    await expect(setDoc(copy("old"), archive({ version: 7 }))).rejects.toThrow(
+      denied,
+    );
   });
 
-  it("refuses update and delete", async () => {
-    const ref = doc(db, "saveArchive", "dad", "copies", "locked");
-    await setDoc(ref, archive());
-    await expect(setDoc(ref, archive())).rejects.toThrow(/permission/i);
-    await expect(deleteDoc(ref)).rejects.toThrow(/permission/i);
+  it("keeps an older copy as it was stored, with reason reset", async () => {
+    const raw = { version: 7, rev: 3, mountain: { pocket: 4 }, savedAt: 1 };
+    const reset = {
+      version: 7,
+      rev: 3,
+      raw,
+      archivedAt: serverTimestamp(),
+      expiresAt: Timestamp.fromMillis(Date.now() + WEEK),
+      reason: "reset",
+    };
+    await setDoc(copy("reset"), reset);
+    expect((await getDoc(copy("reset"))).data()?.["raw"]).toEqual(raw);
+    await expect(
+      setDoc(copy("reset-odd"), { ...reset, mountain: {} }),
+    ).rejects.toThrow(denied);
+    await expect(
+      setDoc(copy("reset-bad"), { ...reset, raw: "nope" }),
+    ).rejects.toThrow(denied);
   });
 
-  it("requires archivedAt to be the server time", async () => {
-    const ref = doc(db, "saveArchive", "dad", "copies", "time");
+  it("requires archivedAt to be the server time, and a week's expiry", async () => {
     await expect(
-      setDoc(ref, archive({ archivedAt: Date.now() })),
-    ).rejects.toThrow(/permission/i);
+      setDoc(copy("time"), archive({ archivedAt: Date.now() })),
+    ).rejects.toThrow(denied);
     await expect(
-      setDoc(ref, archive({ expiresAt: serverTimestamp() })),
-    ).rejects.toThrow(/permission/i);
+      setDoc(copy("time"), archive({ expiresAt: serverTimestamp() })),
+    ).rejects.toThrow(denied);
     await expect(
       setDoc(
-        ref,
+        copy("time"),
         archive({
           expiresAt: Timestamp.fromMillis(Date.now() + 24 * 60 * 60 * 1000),
         }),
       ),
-    ).rejects.toThrow(/permission/i);
-    await setDoc(ref, archive());
-    expect((await getDoc(ref)).exists()).toBe(true);
-  });
-
-  it("accepts a maximal v7 mountain under the expression budget", async () => {
-    const mountain = maximalMountain();
-    await setDoc(doc(db, "saveArchive", "dad", "copies", "max"), {
-      ...serializeSave({
-        mountain,
-        lastSeen: 4,
-        rev: 3,
-        deviceId: DEVICE,
-      }),
-      deviceLabel: "Chrome on Android",
-      archivedAt: serverTimestamp(),
-      expiresAt: Timestamp.fromMillis(Date.now() + WEEK),
-      reason: "conflict",
-    });
-    const parsed = parseSaveValue(
-      (await getDoc(doc(db, "saveArchive", "dad", "copies", "max"))).data(),
-    );
-    expect(parsed?.mountain).toEqual(mountain);
+    ).rejects.toThrow(denied);
+    await setDoc(copy("time"), archive());
+    expect((await getDoc(copy("time"))).exists()).toBe(true);
   });
 });
 
-/** A late v6 mountain with every list and map the rules still have to walk. */
+/** A late mountain with every list the field-log snapshot walks. */
 function maximalMountain(): Mountain {
   const engineers: Engineer[] = ENGINEER_NAMES.map((name, index) => ({
     name,
@@ -737,10 +362,10 @@ function maximalMountain(): Mountain {
     expeditions,
     finds: [...FIND_IDS],
     materials: {
-      clay: MAX_MATERIAL.clay,
-      iron: MAX_MATERIAL.iron,
-      crystal: MAX_MATERIAL.crystal,
-      heartstone: MAX_MATERIAL.heartstone,
+      clay: 1_000_000_000,
+      iron: 1_000_000_000,
+      crystal: 1_000_000_000,
+      heartstone: 1_000_000_000,
     },
     recipes: [...RECIPE_IDS],
     bench: {

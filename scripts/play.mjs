@@ -22,6 +22,7 @@ import {
   launchChrome,
   open,
   openPair,
+  reopenTab,
   startServer,
 } from "../tools/browser/harness.ts";
 import {
@@ -29,7 +30,7 @@ import {
   campPostsSave,
   chargePayoffSave,
   crewMountain,
-  crewV4Save,
+  boostedCrewSave,
   crystalMountain,
   firstCraftSave,
   fleetMountain,
@@ -38,6 +39,7 @@ import {
   heirMountain,
   idleMountain,
   lastStoneSave,
+  newerSave,
   machineMountain,
   openMountain,
   playAwaySave,
@@ -49,7 +51,6 @@ import {
   shortMountain,
   toolHomeSave,
   toolsMountain,
-  unknownBenchSave,
   workshopSave,
 } from "../tools/browser/fixtures.ts";
 
@@ -85,13 +86,13 @@ const SAVES = {
     note: "the first blasting charge working: its row shows the payoff",
     save: () => chargePayoffSave(Date.now()),
   },
-  "bench-unknown": {
-    note: "a craft this build cannot name on the bench",
-    save: () => unknownBenchSave(Date.now()),
+  newer: {
+    note: "a save a later build wrote: the update card, and nothing written (#558)",
+    save: () => newerSave(Date.now()),
   },
   crew: {
     note: "every tier so far and both boosts, in the Deep Heart",
-    save: crewV4Save,
+    save: boostedCrewSave,
   },
   late: {
     note: "one stone left: a tap finds the legend and offers passing the mine",
@@ -265,6 +266,10 @@ async function step(page, action) {
     await sleep(action.ms);
     return;
   }
+  if (action.kind === "reload") {
+    await page.reload({ waitUntil: "networkidle0" });
+    return;
+  }
   const element =
     action.target.by === "label"
       ? await findByLabel(page, action.target.label)
@@ -297,7 +302,7 @@ async function openTabs(options) {
 const save = SAVES[plan.save].save();
 note(`play: save ${plan.save}${plan.tabs === 2 ? ", two tabs" : ""}, ${BASE}`);
 try {
-  const { page, context } = await openTabs({
+  const options = {
     viewport: PHONE,
     seed:
       save === undefined
@@ -328,13 +333,20 @@ try {
       });
       return Promise.resolve();
     },
-  });
+  };
+  const opened = await openTabs(options);
+  const context = opened.context;
+  let page = opened.page;
   const shots = [shotName(0, undefined)];
   await page.screenshot({ path: join(plan.out, shots[0]) });
   for (const [index, action] of plan.actions.entries()) {
     const name = shotName(index + 1, action);
     try {
-      await step(page, action);
+      if (action.kind === "reopen") {
+        page = await reopenTab(context, page, BASE, options);
+      } else {
+        await step(page, action);
+      }
     } catch (error) {
       failedSteps += 1;
       note(`[phone] STEP FAILED ${name}: ${String(error)}`);

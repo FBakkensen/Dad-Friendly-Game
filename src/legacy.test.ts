@@ -2,11 +2,12 @@ import { describe, expect, it } from "vitest";
 import { kidStretch } from "./scale";
 import { LEGACY_STEP, legacyBonus, passTheMine } from "./legacy";
 import { MOUNTAIN_STONES, createMountain, type Mountain } from "./mountain";
-import { parseMountain } from "./save-format";
+import { writeGame } from "./save-format";
+import { gameOf } from "./test-fixtures";
 import { effectiveRates } from "./rates";
 import { hasRelic } from "./relics";
 import { minedMountain } from "./test-fixtures";
-import { NOTHING_CRAFTED, NOTHING_KEPT, COLD_CLOCKS } from "./workshop";
+import { NOTHING_CRAFTED, COLD_CLOCKS } from "./workshop";
 import { NO_BOOSTS } from "./boosts";
 import { NO_UPGRADES } from "./upgrades";
 
@@ -22,7 +23,6 @@ const bottom: Mountain = {
   upgrades: { ...NO_UPGRADES, tap: 3, boots: 1 },
   boosts: { ...NO_BOOSTS, overtime: 9_999_999 },
   startedAt: 1_000,
-  staffed: true,
 };
 
 describe("legacy bonus", () => {
@@ -110,38 +110,6 @@ describe("passing the mine to your kid", () => {
     };
     const next = passTheMine(parent, 5_000);
     expect(next?.recipes).toEqual([...parent.recipes]);
-    const withKept = {
-      ...parent,
-      kept: {
-        ...NOTHING_KEPT,
-        recipes: ["future-bit"],
-        bench: { recipe: "future-bit", startedAt: 1, endsAt: 2 },
-        crafted: { "future-bit": 4 },
-      },
-    };
-    const heir = passTheMine(withKept, 5_000);
-    expect(heir?.recipes).toEqual([...parent.recipes]);
-    expect(heir?.kept).toEqual({ ...NOTHING_KEPT, recipes: ["future-bit"] });
-    expect(heir?.bench).toBeUndefined();
-    expect(heir?.crafted).toEqual(NOTHING_CRAFTED);
-    expect(
-      passTheMine({ ...parent, kept: { ...NOTHING_KEPT, recipes: [] } }, 5_000)
-        ?.kept,
-    ).toEqual(NOTHING_KEPT);
-    expect(
-      passTheMine(
-        {
-          ...parent,
-          kept: {
-            ...NOTHING_KEPT,
-            ...NOTHING_KEPT,
-            ...NOTHING_KEPT,
-            bench: { recipe: "future-bit", startedAt: 1, endsAt: 2 },
-          },
-        },
-        5_000,
-      )?.kept,
-    ).toEqual(NOTHING_KEPT);
     expect(next?.materials).toEqual({
       clay: 0,
       iron: 0,
@@ -156,24 +124,22 @@ describe("passing the mine to your kid", () => {
 });
 
 describe("legacy in the save", () => {
-  it("reads old saves as no Legacy and keeps a saved one", () => {
-    expect(parseMountain(createMountain())?.legacy).toBe(0);
-    expect(
-      legacyBonus(parseMountain(createMountain()) ?? createMountain()),
-    ).toBe(1);
-    expect(parseMountain({ ...createMountain(), legacy: 3 })?.legacy).toBe(3);
+  it("reads a save without a generation as no Legacy, and keeps a saved one", () => {
+    expect(gameOf({})?.legacy).toBe(0);
+    expect(legacyBonus(gameOf({}) ?? createMountain())).toBe(1);
+    expect(gameOf({ run: { generation: 3 } })?.legacy).toBe(3);
   });
 
   it("rejects a bad Legacy", () => {
-    for (const legacy of [-1, 1.5, "2", 1001]) {
-      expect(parseMountain({ ...createMountain(), legacy })).toBeUndefined();
+    for (const generation of [-1, 1.5, "2", 1001]) {
+      expect(gameOf({ run: { generation } })).toBeUndefined();
     }
   });
 
-  it("doesn't write legacy: 0", () => {
-    expect(parseMountain({ ...createMountain(), legacy: 0 })).toHaveProperty(
-      "legacy",
-      0,
-    );
+  it("doesn't write a generation of 0", () => {
+    expect(writeGame(createMountain()).run).toBeUndefined();
+    expect(writeGame({ ...createMountain(), legacy: 2 }).run).toEqual({
+      generation: 2,
+    });
   });
 });
