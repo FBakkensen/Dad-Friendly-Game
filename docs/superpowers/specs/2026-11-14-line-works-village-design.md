@@ -137,7 +137,7 @@ Against today's table (decision D3, #246) the Granite does not change, and three
 - The Crystal Caves suit pit trains, not drills, and are tough on carts, not borers.
 - The Deep Heart is tough on hoists, not borers. It still suits the Great Machine.
 
-So two lines of advice change: "The Crystal Caves suit trains. Tough on carts." and "The Deep Heart suits the Great Machine. Tough on hoists." Which machine a band favours is Flemming's call (D3). He said yes to this table on 14 Nov 2026, as part of the cage ([Decided](#decided-flemming-14-nov-2026)). The lab (#534, #543) and the switch-on (#536) use it.
+So two lines of advice change: "The Crystal Caves suit trains. Tough on carts." and "The Deep Heart suits the Great Machine. Tough on hoists." Which machine a band favours is Flemming's call (D3). He said yes to this table on 14 Nov 2026, as part of the cage ([Decided](#decided-flemming-14-nov-2026)). The lab (#534, #543) uses it, and the switch-on (#536) shows it in the form #543 settles.
 
 Until the cage is built the crew works the deepest band, so this table is what the rock does to him. With the cage it is what a level costs him when he chooses it ([The levels and the cage](#the-levels-and-the-cage)).
 
@@ -197,7 +197,7 @@ The crew is at the heading by default, and a crew at the heading follows the sha
 | The Crystal Caves | the haul: long galleries | crystal    | nothing in these steps (a later stretch: glass) |
 | The Deep Heart    | the lift: a deep shaft   | heartstone | nothing in these steps (a later stretch: fuel)  |
 
-"Leans on" is the band table above, in whichever of its two forms the lab's rows favour.
+"Leans on" is the band table above, in whichever of its two forms #543 settles.
 
 **What he sees**
 
@@ -225,7 +225,7 @@ No new key, no new bay and no slider. Names, lines and the card's layout are Fle
 | Old saves                  | Load with the crew at the heading. The save says where the crew works: "the heading", or a named level above it. A named level the shaft has not reached reads as the heading. It also keeps the stones dug above the heading in this run (below), and what a material's count needs to carry a part-unit. Every new field is mirrored in `firestore.rules`.                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | Which copy is ahead        | Today the later run wins, else more stones mined, else a newer `lastSeen`, and stones mined is depth. A night above the heading moves no depth, so a stale copy one stone deeper would beat it. The save therefore counts the stones dug above the heading in this run, a number that only grows and has the pocket's ceiling. "More stones mined" becomes the stones dug in the run: the depth turned into stones (`shownStones` does that today) plus that count. One helper gives the figure to both places that compare copies (`save-progress.ts` and `save-merge.ts`). `.claude/rules/observable-saves.md` and the conflict card's figures are updated with it. This is its own sliver, after the rule and before the cage is on in play. Step 3's closed doors need the same count. |
 | The lab                    | Every player type of today stays at the heading, so their rows do not move when the cage is added. One new player type uses the cage: it works the level whose material its next craft lacks, else its fastest level, and it crafts whenever it can. So the lab plays the case the materials row worries about: a crew parked on the Granite for iron, with axle grease always running.                                                                                                                                                                                                                                                                                                                                                                                                    |
-| The Workshop's rows        | A recipe row reads "No clay this deep" today, once the shaft has passed a material's band. With the cage the material is one move away, so the row says where it is instead ("Clay is at the Topsoil", his line to approve), and a tap on it can open the level card.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| The Workshop's rows        | A recipe row reads "No clay this deep" today, once the shaft has passed a material's band. With the cage the material is one move away, so the row says where it is instead ("Clay is at the Topsoil", his line to approve), and a tap on it can open the level card. With the shaft at the bottom no level pays, so the row reads as today.                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 
 In step 1 the choice is honest but small. Stones are the only good, so the cage is for the bench's materials and for a few percent of speed. It gets its weight in step 2, where each level's rock makes its own good.
 
@@ -500,7 +500,7 @@ Later the same day, on the band table question, he said the design left the play
 
 ## Waiting on Flemming
 
-Nothing. The band table that waited here is settled (Decided, 5). Names, lines, pictures and lab bounds are his at build time, as each section says.
+Nothing now. The band table that waited here is settled (Decided, 5). One question is planned: if the rock's whole-stage form passes in the lab, #543 asks him whether to take it ([the rock's two forms](#the-rock-moves-the-narrow-stage-too)). Names, lines, pictures and lab bounds are his at build time, as each section says.
 
 ## How it would be built
 
