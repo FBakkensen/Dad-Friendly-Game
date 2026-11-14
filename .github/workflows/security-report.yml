@@ -1,0 +1,74 @@
+name: security-report
+
+# The open code scanning and Dependabot alerts, as an artifact a Claude
+# session can read (#616). The session's own GitHub access cannot list
+# security alerts, so this job does it from inside Actions. It runs every
+# morning before the 06:00 UTC triage, which files a fast-lane issue for
+# each alert that has none (github-issues skill, Triage), and on demand.
+# The repo is public: the artifact holds only each alert's id, rule or
+# package, severity, file and fix version, and is kept for one day. Anyone
+# could get the same from the public code with CodeQL and npm audit; the
+# issues the triage files name none of it.
+on:
+  schedule:
+    - cron: "40 5 * * *"
+  workflow_dispatch:
+  # A PR that changes this file runs it, so the change is proven before
+  # it merges (a dispatch only reaches the copy on main).
+  pull_request:
+    paths:
+      - .github/workflows/security-report.yml
+
+permissions:
+  contents: read
+  security-events: read
+
+concurrency:
+  group: security-report
+  cancel-in-progress: false
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: List the open alerts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEPENDABOT_TOKEN: ${{ secrets.DEPENDABOT_READ_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          out="$RUNNER_TEMP/security-report"
+          mkdir -p "$out"
+          # Code scanning: the job token can read it (security-events: read).
+          gh api "repos/$REPO/code-scanning/alerts?state=open&per_page=100" --paginate \
+            --jq '.[] | {kind: "code-scanning", id: .number, rule: .rule.id,
+                  severity: (.rule.security_severity_level // .rule.severity),
+                  path: .most_recent_instance.location.path,
+                  line: .most_recent_instance.location.start_line,
+                  tool: .tool.name} | tojson' > "$out/code-scanning.jsonl"
+          # Dependabot: needs the read-only token Flemming made. Without it the
+          # report says so instead of reporting nothing.
+          if [ -n "$DEPENDABOT_TOKEN" ]; then
+            GH_TOKEN="$DEPENDABOT_TOKEN" gh api "repos/$REPO/dependabot/alerts?state=open&per_page=100" --paginate \
+              --jq '.[] | {kind: "dependabot", id: .number, package: .dependency.package.name,
+                    ecosystem: .dependency.package.ecosystem, manifest: .dependency.manifest_path,
+                    severity: .security_advisory.severity, advisory: .security_advisory.ghsa_id,
+                    fixed_in: .security_vulnerability.first_patched_version.identifier} | tojson' > "$out/dependabot.jsonl"
+            dependabot="$(wc -l < "$out/dependabot.jsonl" | tr -d ' ')"
+          else
+            : > "$out/dependabot.jsonl"
+            dependabot="not read (no DEPENDABOT_READ_TOKEN secret)"
+          fi
+          scanning="$(wc -l < "$out/code-scanning.jsonl" | tr -d ' ')"
+          printf '{"at":"%s","code_scanning":"%s","dependabot":"%s"}\n' \
+            "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$scanning" "$dependabot" > "$out/counts.json"
+          # Only counts in the public summary; the details stay in the artifact.
+          printf '# Security report\n\nOpen code scanning alerts: %s\n\nOpen Dependabot alerts: %s\n' \
+            "$scanning" "$dependabot" >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: security-report
+          path: ${{ runner.temp }}/security-report
+          retention-days: 1
