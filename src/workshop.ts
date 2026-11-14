@@ -3,7 +3,6 @@ import {
   EMPTY_MATERIALS,
   LAYERS,
   MATERIAL_EVERY,
-  MAX_MATERIAL,
   addMaterials,
   type LayerId,
   type MaterialId,
@@ -982,26 +981,6 @@ export function chargeCrewMultiplier(
     return 1;
   }
   return 1 + (CHARGE_MULTIPLIER - 1) * strengthOf("blasting-charge");
-}
-
-/** Exactly the four materials, each a whole count inside its band. */
-export function parseMaterials(value: unknown): Materials | undefined {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    return undefined;
-  }
-  const record = value as Record<string, unknown>;
-  if (Object.keys(record).length !== 4) {
-    return undefined;
-  }
-  const parsed = {} as Record<MaterialId, number>;
-  for (const layer of LAYERS) {
-    const count = record[layer.material];
-    if (!isWhole(count) || count > MAX_MATERIAL[layer.material]) {
-      return undefined;
-    }
-    parsed[layer.material] = count;
-  }
-  return parsed;
 }
 
 /** One craft on the bench, or nothing. A null bench is empty. */

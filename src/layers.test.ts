@@ -7,7 +7,6 @@ import {
   LAYER_FAVOURS,
   SLOWED_SPEED,
   MATERIAL_EVERY,
-  MAX_MATERIAL,
   addMaterials,
   hardnessFactorId,
   hardnessOf,
@@ -191,12 +190,6 @@ describe("materials", () => {
     });
     expect(MATERIAL_EVERY.crystal).toBeGreaterThan(MATERIAL_EVERY.iron);
     expect(MATERIAL_EVERY.heartstone).toBeGreaterThan(MATERIAL_EVERY.crystal);
-    expect(MAX_MATERIAL).toEqual({
-      clay: 10_000_000,
-      iron: 35_000_000,
-      crystal: 75_000_000,
-      heartstone: 120_000_000,
-    });
   });
 
   it("grants one unit per gap in that band, and keeps the remainder", () => {

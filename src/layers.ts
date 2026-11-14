@@ -158,21 +158,6 @@ export const EMPTY_MATERIALS: Materials = {
   heartstone: 0,
 };
 
-const GRANITE_FROM = LAYERS[1].from;
-const CRYSTAL_FROM = LAYERS[2].from;
-const HEART_FROM = LAYERS[3].from;
-
-/**
- * Most units a band can hold, one per stone across that band. Mirrored in
- * firestore.rules. The first-cut gap is far under this.
- */
-export const MAX_MATERIAL: Readonly<Record<MaterialId, number>> = {
-  clay: GRANITE_FROM,
-  iron: CRYSTAL_FROM - GRANITE_FROM,
-  crystal: HEART_FROM - CRYSTAL_FROM,
-  heartstone: MOUNTAIN_STONES - HEART_FROM,
-};
-
 /** The next band's start, or no end for the Deep Heart. */
 function bandEnd(layer: Layer): number {
   for (const candidate of LAYERS) {

@@ -337,24 +337,6 @@ export function parseExpeditions(
 }
 
 /**
- * Untrusted shelf. Unknown ids and duplicates are dropped, so a newer
- * client cannot lock this one out of the save. A non-list still fails.
- */
-export function parseFinds(value: unknown): readonly FindId[] | undefined {
-  if (!Array.isArray(value)) {
-    return undefined;
-  }
-  const parsed: FindId[] = [];
-  for (const item of value) {
-    if (!isFindId(item) || parsed.includes(item)) {
-      continue;
-    }
-    parsed.push(item);
-  }
-  return parsed;
-}
-
-/**
  * The find a roll would bring home, before `sentAt` hashes it.
  * `valueOf` averages this so an expedition is worth its expected stones,
  * not the one roll a reload could have been. #178, TODO(#172).
@@ -718,12 +700,6 @@ function namedFind(kind: unknown, id: string): StoredFind | undefined {
     return { kind, id };
   }
   return undefined;
-}
-
-function isFindId(value: unknown): value is FindId {
-  return (
-    typeof value === "string" && (FIND_IDS as readonly string[]).includes(value)
-  );
 }
 
 function isToolId(value: string): value is ToolId {

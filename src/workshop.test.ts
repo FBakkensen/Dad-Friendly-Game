@@ -1,12 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { withFactors } from "./economy/factors";
 import { nextTrouble } from "./hazards";
-import {
-  LAYERS,
-  MAX_MATERIAL,
-  type MaterialId,
-  EMPTY_MATERIALS,
-} from "./layers";
+import { LAYERS, type MaterialId, EMPTY_MATERIALS } from "./layers";
 import { expeditionAwayMs } from "./lost-tools";
 import {
   MOUNTAIN_STONES,
@@ -40,7 +35,6 @@ import {
   parseBench,
   parseChargeUntil,
   parseCrafted,
-  parseMaterials,
   parseRecipes,
   recipeById,
   grantRecipes,
@@ -59,8 +53,6 @@ import {
 } from "./workshop";
 import { NO_BOOSTS } from "./boosts";
 import { NO_UPGRADES } from "./upgrades";
-
-const materials = { clay: 1, iron: 2, crystal: 3, heartstone: 4 };
 
 describe("recipes granted from stones mined", () => {
   it("starts with three, and adds a layer recipe when that band is reached", () => {
@@ -140,26 +132,6 @@ describe("workshop save fields", () => {
     expect(isRecipeId("turbo")).toBe(false);
     expect(isRecipeId(1)).toBe(false);
     expect(RECIPE_IDS).toHaveLength(11);
-  });
-
-  it("accepts the four materials and rejects a bad pocket", () => {
-    expect(parseMaterials(materials)).toEqual(materials);
-    expect(
-      parseMaterials({ ...materials, clay: MAX_MATERIAL.clay }),
-    ).toMatchObject({ clay: MAX_MATERIAL.clay });
-    for (const bad of [
-      null,
-      "clay",
-      [],
-      {},
-      { ...materials, gold: 1 },
-      { clay: 1, iron: 2, crystal: 3 },
-      { ...materials, clay: 1.5 },
-      { ...materials, clay: -1 },
-      { ...materials, iron: MAX_MATERIAL.iron + 1 },
-    ]) {
-      expect(parseMaterials(bad)).toBeUndefined();
-    }
   });
 
   it("accepts one bench and rejects a bad craft", () => {
