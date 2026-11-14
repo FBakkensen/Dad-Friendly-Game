@@ -42,7 +42,10 @@ export type ReadyPick =
       readonly free: number;
       readonly starts?: TendTier;
       readonly firstWorker?: true;
-      /** At the current speed; undefined when that speed gives no time. */
+      /**
+       * At the current speed; undefined when that speed gives no time, or
+       * when the mountain runs out before the pocket reaches the price (#610).
+       */
       readonly etaMs: number | undefined;
     }
   | { readonly kind: "mined-out" };
