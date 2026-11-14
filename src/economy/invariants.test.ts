@@ -491,7 +491,7 @@ describe("time away pays the same however it is sliced (#555)", () => {
           );
         },
       ),
-      { numRuns: 150 },
+      { numRuns: 300 },
     );
   });
 
