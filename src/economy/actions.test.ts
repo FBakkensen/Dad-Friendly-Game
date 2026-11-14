@@ -1,4 +1,4 @@
-import { EMPTY_STOCK, priceAmount, stonesPrice } from "../stock";
+import { EMPTY_STOCK, priceAmount, stonesPrice, UNSHOWN_PRICE } from "../stock";
 import { milestoneMultiplier } from "../milestones";
 import { RUSH_MS } from "../gold-rush";
 import { describe, expect, it } from "vitest";
@@ -1594,6 +1594,14 @@ describe("applyMove (#409)", () => {
     expect(bought.kind === "applied" && bought.spent.stones).toBe(
       priceAmount(armsShown, "stones"),
     );
+    // An upgrade with no level left has no price today: nothing it was
+    // shown, not even a free price, buys it.
+    const maxed: Mountain = { ...rich, upgrades: { ...NO_UPGRADES, tap: 10 } };
+    for (const price of [[], UNSHOWN_PRICE, armsShown]) {
+      expect(
+        applyMove(maxed, { kind: "buyUpgrade", id: "tap", price }, NOW, calm),
+      ).toEqual({ kind: "refused" });
+    }
     // Every good of the shown price must match, not only the stones.
     const plusClay = {
       kind: "promote",
