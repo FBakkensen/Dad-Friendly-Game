@@ -16,11 +16,19 @@ name: claude-review
 # green only once this head commit's review has posted, been kept, or been
 # skipped for art or a used-up credit, so a required check on it keeps a
 # merge from racing the review. An empty credit never blocks a merge.
+# Run by hand (#586), it replays the review of any PR with today's prompt and
+# tools, posts nothing, and keeps the answer with the run as an artifact.
 on:
   pull_request:
     # A push (synchronize) re-checks only what changed since the last review,
     # or keeps it with no model call when only main was merged in (#585).
     types: [opened, reopened, ready_for_review, synchronize]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: The PR to replay the review of. Nothing is posted.
+        required: true
+        type: number
 
 permissions:
   contents: read
@@ -29,7 +37,7 @@ permissions:
   statuses: write
 
 concurrency:
-  group: claude-review-${{ github.event.pull_request.number }}
+  group: claude-review-${{ github.event_name }}-${{ github.event.pull_request.number || inputs.pr }}
   # A push mid-run waits: cancelling would lose a paid review, or half-post
   # one. GitHub keeps only the newest pending run, so pushes still collapse.
   cancel-in-progress: false
@@ -37,15 +45,54 @@ concurrency:
 jobs:
   review:
     # Drafts wait for ready_for_review. Forks get no secrets.
-    if: ${{ !github.event.pull_request.draft && github.event.pull_request.head.repo.full_name == github.repository }}
+    if: ${{ github.event_name == 'workflow_dispatch' || (!github.event.pull_request.draft && github.event.pull_request.head.repo.full_name == github.repository) }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Mark the review pending
+      - name: Find the PR
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
-          HEAD: ${{ github.event.pull_request.head.sha }}
+          NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
+          EVENT_BASE: ${{ github.event.pull_request.base.sha }}
+          EVENT_HEAD: ${{ github.event.pull_request.head.sha }}
+          REPLAY: ${{ github.event_name == 'workflow_dispatch' }}
+          WORKFLOW_SHA: ${{ github.sha }}
+        run: |
+          # PR, BASE and HEAD for every later step. A replay (#586) reads them
+          # from the API and takes its tools from the commit it was started on.
+          gh api "repos/$REPO/pulls/$NUMBER" > "$RUNNER_TEMP/pr.json"
+          if [ "$REPLAY" = "true" ]; then
+            # A fork's text never goes in front of the model with the key in its env.
+            if [ "$(jq -r .head.repo.full_name "$RUNNER_TEMP/pr.json")" != "$REPO" ]; then
+              echo "::error::PR $NUMBER comes from a fork, so it is not replayed."
+              exit 1
+            fi
+            base=$(jq -r .base.sha "$RUNNER_TEMP/pr.json")
+            head=$(jq -r .head.sha "$RUNNER_TEMP/pr.json")
+            tools_from="$WORKFLOW_SHA"
+            # A merged PR's branch is often deleted; GitHub keeps its head here.
+            checkout="refs/pull/$NUMBER/head"
+          else
+            base="$EVENT_BASE"
+            head="$EVENT_HEAD"
+            tools_from="$EVENT_BASE"
+            checkout="$EVENT_HEAD"
+          fi
+          {
+            echo "PR=$NUMBER"
+            echo "BASE=$base"
+            echo "HEAD=$head"
+            echo "TOOLS_FROM=$tools_from"
+            echo "CHECKOUT=$checkout"
+            echo "REPLAY=$REPLAY"
+          } >> "$GITHUB_ENV"
+
+      - name: Mark the review pending
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           gh api "repos/$REPO/statuses/$HEAD" -f state=pending -f context=claude-review \
@@ -66,7 +113,7 @@ jobs:
       - uses: actions/checkout@v4
         if: steps.key.outputs.present == 'true'
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ env.CHECKOUT }}
           fetch-depth: 0
           # The model can read the work tree; keep the job token out of .git.
           persist-credentials: false
@@ -82,36 +129,34 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
-          BASE: ${{ github.event.pull_request.base.sha }}
-          HEAD: ${{ github.event.pull_request.head.sha }}
-          PR: ${{ github.event.pull_request.number }}
         run: |
           # The lenses and the prompt come from the base, so a PR cannot edit
           # the review it gets (#576). A base without them gets no review.
           tools="$RUNNER_TEMP/base"
           mkdir -p "$tools"
           for file in tools/review/prompt.ts tools/review/git.ts tools/review/findings.ts; do
-            if ! git cat-file -e "$BASE:$file" 2>/dev/null; then
-              echo "::error::The base commit has no $file, so there is no review to run."
+            if ! git cat-file -e "$TOOLS_FROM:$file" 2>/dev/null; then
+              echo "::error::The commit ${TOOLS_FROM:0:7} has no $file, so there is no review to run."
               exit 1
             fi
           done
-          git archive "$BASE" tools/review .github/review | tar -x -C "$tools"
+          git archive "$TOOLS_FROM" tools/review .github/review | tar -x -C "$tools"
           # The reviewer's only shell command (#583), from the base like the rest.
           mkdir -p "$RUNNER_TEMP/bin"
           printf '#!/bin/sh\nexec node "%s" "$@"\n' "$tools/tools/review/git.ts" > "$RUNNER_TEMP/bin/review-git"
           chmod +x "$RUNNER_TEMP/bin/review-git"
           intent="$RUNNER_TEMP/intent"
           mkdir -p "$intent"
-          jq -r '.pull_request.title' "$GITHUB_EVENT_PATH" > "$intent/title.txt"
-          jq -r '.pull_request.body // ""' "$GITHUB_EVENT_PATH" > "$intent/body.md"
+          jq -r '.title' "$RUNNER_TEMP/pr.json" > "$intent/title.txt"
+          jq -r '.body // ""' "$RUNNER_TEMP/pr.json" > "$intent/body.md"
           for n in $(node "$tools/tools/review/prompt.ts" issues < "$intent/body.md"); do
             gh api "repos/$REPO/issues/$n" --jq '.body // ""' > "$intent/issue-$n.md" || rm -f "$intent/issue-$n.md"
           done
           # The commit the last review covered (#585). An older base has no re-check.
           last=""
           reviewed=""
-          if [ -f "$tools/tools/review/recheck.ts" ]; then
+          # A replay is always a first review.
+          if [ "$REPLAY" != "true" ] && [ -f "$tools/tools/review/recheck.ts" ]; then
             {
               gh api "repos/$REPO/pulls/$PR/reviews" --paginate \
                 --jq '.[] | select(.user.login == "github-actions[bot]") | {body: (.body // ""), at: .submitted_at} | tojson'
@@ -172,8 +217,8 @@ jobs:
         timeout-minutes: 15
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          REVIEW_BASE: ${{ github.event.pull_request.base.sha }}
-          REVIEW_HEAD: ${{ github.event.pull_request.head.sha }}
+          REVIEW_BASE: ${{ env.BASE }}
+          REVIEW_HEAD: ${{ env.HEAD }}
           REVIEW_LAST: ${{ steps.plan.outputs.last }}
         run: |
           set +e
@@ -195,13 +240,11 @@ jobs:
       - name: Post the review
         id: post
         # Also after a failed or timed-out Review step, so the PR hears why.
-        if: ${{ !cancelled() && steps.key.outputs.present == 'true' }}
+        if: ${{ !cancelled() && steps.key.outputs.present == 'true' && github.event_name == 'pull_request' }}
         env:
           GH_TOKEN: ${{ github.token }}
           KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           REPO: ${{ github.repository }}
-          PR: ${{ github.event.pull_request.number }}
-          HEAD: ${{ github.event.pull_request.head.sha }}
           KIND: ${{ steps.plan.outputs.kind }}
           LENSES: ${{ steps.plan.outputs.lenses }}
           LAST: ${{ steps.plan.outputs.last }}
@@ -285,9 +328,56 @@ jobs:
           if [ "$status" = 0 ]; then printf '%s' "$desc" > "$said"; fi
           exit "$status"
 
+      - name: Keep the replay
+        # A replay (#586) posts nothing: the answer goes in the run's summary and artifact.
+        id: replay
+        if: ${{ !cancelled() && steps.key.outputs.present == 'true' && github.event_name == 'workflow_dispatch' }}
+        env:
+          KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          KIND: ${{ steps.plan.outputs.kind }}
+          LENSES: ${{ steps.plan.outputs.lenses }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          stage="$RUNNER_TEMP/replay-stage"
+          mkdir -p "$stage/post"
+          out="$RUNNER_TEMP/review.json"
+          for file in prompt.md review.json review.err skip.txt; do
+            [ -f "$RUNNER_TEMP/$file" ] && cp "$RUNNER_TEMP/$file" "$stage/"
+          done
+          printf '{"pr":%s,"base":"%s","head":"%s","tools":"%s","kind":"%s","lenses":"%s"}\n' \
+            "$PR" "$BASE" "$HEAD" "$TOOLS_FROM" "$KIND" "$LENSES" > "$stage/target.json"
+          cost=$(jq -r '.total_cost_usd // 0' "$out" 2>/dev/null) || cost=0
+          subtype=$(jq -r '.subtype // "no answer"' "$out" 2>/dev/null) || subtype="no answer"
+          status=0
+          if [ "$KIND" = "review" ] && node "$RUNNER_TEMP/base/tools/review/findings.ts" post --answer "$out" \
+              --diff "$RUNNER_TEMP/diff.txt" --head "$HEAD" --lenses "$LENSES" --cost "$cost" --run "$RUN_URL" --out "$stage/post"; then
+            { printf '# Replay of PR #%s\n\n' "$PR"; cat "$stage/post/fallback.md"; } > "$stage/summary.md"
+          elif [ "$KIND" = "review" ]; then
+            printf '# Replay of PR #%s\n\nFailed (`%s`, $%s). See the artifact.\n' "$PR" "$subtype" "$cost" > "$stage/summary.md"
+            status=1
+          else
+            printf '# Replay of PR #%s\n\nNot reviewed (`%s`): %s\n' "$PR" "$KIND" "$(cat "$RUNNER_TEMP/skip.txt" 2>/dev/null)" > "$stage/summary.md"
+          fi
+          # The repo is public: never publish a secret, whatever the model or the CLI wrote.
+          if grep -rqF "$KEY" "$stage" || grep -rqE 'sk-ant-[A-Za-z0-9_-]{20}|gh[psu]_[A-Za-z0-9]{20}' "$stage"; then
+            echo "::error::The replay holds a secret, so it was not kept."
+            exit 1
+          fi
+          cat "$stage/summary.md" >> "$GITHUB_STEP_SUMMARY"
+          mv "$stage" "$RUNNER_TEMP/replay"
+          exit "$status"
+
+      - uses: actions/upload-artifact@v4
+        # Only what passed the secret check above is uploaded.
+        if: ${{ !cancelled() && steps.replay.outcome != 'skipped' && github.event_name == 'workflow_dispatch' }}
+        with:
+          name: replay-pr-${{ inputs.pr }}
+          path: ${{ runner.temp }}/replay
+          retention-days: 30
+
       - name: Set the review status
         # Always, so a failed, timed-out or cancelled run never leaves it pending.
-        if: ${{ always() }}
+        if: ${{ always() && github.event_name == 'pull_request' }}
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
