@@ -126,8 +126,9 @@ function lateCrew(): Mountain {
     clocks: Object.fromEntries(
       Object.keys(fresh.clocks).map((id) => [id, 1_800_000_000_000]),
     ) as Mountain["clocks"],
-    // A Gold rush running, with stones held for it (#612).
-    rushUntil: 1_800_000_000_000,
+    // A Gold rush running, with stones held for it (#612). Its own end time,
+    // so a reader that mixed it with a boost clock would not read back equal.
+    rushUntil: 1_800_000_060_000,
     rushBank: 5_000_000,
     crafted: { ...fresh.crafted, "sturdy-props": 1 },
     recipes: [...fresh.recipes, "reinforce"],
