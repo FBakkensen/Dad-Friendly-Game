@@ -7,25 +7,97 @@ name: claude-review
 # never draw on the plan. Claude gets read-only tools; a later step posts its
 # answer. With no secret the job skips. When the credit is used up it says so
 # on the PR, and nothing is charged (the Console has no card).
+# The prompt and the lenses (#582) come from the PR's base commit, built by
+# tools/review/prompt.ts from the changed paths and the PR's own words.
+# Claude answers in a fixed shape, and tools/review/findings.ts turns it into
+# one PR review with a thread per finding (#584), which the thread that wrote
+# the code answers and resolves before it merges (ship-sitting).
+# The commit status `claude-review` (#587) is pending while the job runs and
+# green only once this head commit's review has posted, been kept, or been
+# skipped for art or a used-up credit, so a required check on it keeps a
+# merge from racing the review. An empty credit never blocks a merge.
+# Run by hand (#586), it replays the review of any PR with today's prompt and
+# tools, posts nothing, and keeps the answer with the run as an artifact.
 on:
   pull_request:
-    types: [opened, reopened, ready_for_review]
+    # A push (synchronize) re-checks only what changed since the last review,
+    # or keeps it with no model call when only main was merged in (#585).
+    types: [opened, reopened, ready_for_review, synchronize]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: The PR to replay the review of. Nothing is posted.
+        required: true
+        type: number
 
 permissions:
   contents: read
+  issues: read
   pull-requests: write
+  statuses: write
 
 concurrency:
-  group: claude-review-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
+  group: claude-review-${{ github.event_name }}-${{ github.event.pull_request.number || inputs.pr }}
+  # A push mid-run waits: cancelling would lose a paid review, or half-post
+  # one. GitHub keeps only the newest pending run, so pushes still collapse.
+  cancel-in-progress: false
 
 jobs:
   review:
     # Drafts wait for ready_for_review. Forks get no secrets.
-    if: ${{ !github.event.pull_request.draft && github.event.pull_request.head.repo.full_name == github.repository }}
+    if: ${{ github.event_name == 'workflow_dispatch' || (!github.event.pull_request.draft && github.event.pull_request.head.repo.full_name == github.repository) }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
+      - name: Find the PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
+          EVENT_BASE: ${{ github.event.pull_request.base.sha }}
+          EVENT_HEAD: ${{ github.event.pull_request.head.sha }}
+          REPLAY: ${{ github.event_name == 'workflow_dispatch' }}
+          WORKFLOW_SHA: ${{ github.sha }}
+        run: |
+          # PR, BASE and HEAD for every later step. A replay (#586) reads them
+          # from the API and takes its tools from the commit it was started on.
+          gh api "repos/$REPO/pulls/$NUMBER" > "$RUNNER_TEMP/pr.json"
+          if [ "$REPLAY" = "true" ]; then
+            # A fork's text never goes in front of the model with the key in its env.
+            if [ "$(jq -r .head.repo.full_name "$RUNNER_TEMP/pr.json")" != "$REPO" ]; then
+              echo "::error::PR $NUMBER comes from a fork, so it is not replayed."
+              exit 1
+            fi
+            base=$(jq -r .base.sha "$RUNNER_TEMP/pr.json")
+            head=$(jq -r .head.sha "$RUNNER_TEMP/pr.json")
+            tools_from="$WORKFLOW_SHA"
+            # A merged PR's branch is often deleted; GitHub keeps its head here.
+            checkout="refs/pull/$NUMBER/head"
+          else
+            base="$EVENT_BASE"
+            head="$EVENT_HEAD"
+            tools_from="$EVENT_BASE"
+            checkout="$EVENT_HEAD"
+          fi
+          {
+            echo "PR=$NUMBER"
+            echo "BASE=$base"
+            echo "HEAD=$head"
+            echo "TOOLS_FROM=$tools_from"
+            echo "CHECKOUT=$checkout"
+            echo "REPLAY=$REPLAY"
+          } >> "$GITHUB_ENV"
+
+      - name: Mark the review pending
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh api "repos/$REPO/statuses/$HEAD" -f state=pending -f context=claude-review \
+            -f description="Claude is reviewing this commit." -f target_url="$RUN_URL" --silent
+
       - name: Check for the API key
         id: key
         env:
@@ -41,7 +113,7 @@ jobs:
       - uses: actions/checkout@v4
         if: steps.key.outputs.present == 'true'
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ env.CHECKOUT }}
           fetch-depth: 0
           # The model can read the work tree; keep the job token out of .git.
           persist-credentials: false
@@ -51,68 +123,284 @@ jobs:
         with:
           node-version-file: .nvmrc
 
-      - name: Install Claude Code
+      - name: Plan the review
+        id: plan
         if: steps.key.outputs.present == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          # The lenses and the prompt come from the base, so a PR cannot edit
+          # the review it gets (#576). A base without them gets no review.
+          tools="$RUNNER_TEMP/base"
+          mkdir -p "$tools"
+          for file in tools/review/prompt.ts tools/review/git.ts tools/review/findings.ts; do
+            if ! git cat-file -e "$TOOLS_FROM:$file" 2>/dev/null; then
+              echo "::error::The commit ${TOOLS_FROM:0:7} has no $file, so there is no review to run."
+              exit 1
+            fi
+          done
+          git archive "$TOOLS_FROM" tools/review .github/review | tar -x -C "$tools"
+          # The reviewer's only shell command (#583), from the base like the rest.
+          mkdir -p "$RUNNER_TEMP/bin"
+          printf '#!/bin/sh\nexec node "%s" "$@"\n' "$tools/tools/review/git.ts" > "$RUNNER_TEMP/bin/review-git"
+          chmod +x "$RUNNER_TEMP/bin/review-git"
+          intent="$RUNNER_TEMP/intent"
+          mkdir -p "$intent"
+          jq -r '.title' "$RUNNER_TEMP/pr.json" > "$intent/title.txt"
+          jq -r '.body // ""' "$RUNNER_TEMP/pr.json" > "$intent/body.md"
+          for n in $(node "$tools/tools/review/prompt.ts" issues < "$intent/body.md"); do
+            gh api "repos/$REPO/issues/$n" --jq '.body // ""' > "$intent/issue-$n.md" || rm -f "$intent/issue-$n.md"
+          done
+          # The commit the last review covered (#585). An older base has no re-check.
+          last=""
+          reviewed=""
+          # A replay is always a first review.
+          if [ "$REPLAY" != "true" ] && [ -f "$tools/tools/review/recheck.ts" ]; then
+            {
+              gh api "repos/$REPO/pulls/$PR/reviews" --paginate \
+                --jq '.[] | select(.user.login == "github-actions[bot]") | {body: (.body // ""), at: .submitted_at} | tojson'
+              gh api "repos/$REPO/issues/$PR/comments" --paginate \
+                --jq '.[] | select(.user.login == "github-actions[bot]") | {body: (.body // ""), at: .created_at} | tojson'
+            } > "$RUNNER_TEMP/posts.jsonl"
+            last=$(node "$tools/tools/review/recheck.ts" last < "$RUNNER_TEMP/posts.jsonl")
+            reviewed="$last"
+            if [ -n "$last" ] && ! git cat-file -e "$last^{commit}" 2>/dev/null; then
+              echo "::notice::The last reviewed commit ${last:0:7} is gone, so this is a full review."
+              last=""
+            fi
+          fi
+          echo "last=$last" >> "$GITHUB_OUTPUT"
+          if [ -n "$last" ] && { [ "$last" = "$HEAD" ] || node "$tools/tools/review/recheck.ts" same --base "$BASE" --last "$last" --head "$HEAD"; }; then
+            echo "::notice::The PR's own change is the one reviewed at ${last:0:7}, so that review stands."
+            echo "kind=kept" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          since=()
+          # The threads go to any review after the first, so none is raised twice.
+          if [ -n "$reviewed" ]; then
+            gh api graphql -F number="$PR" -f owner="${REPO%%/*}" -f name="${REPO#*/}" -f query='
+              query($owner: String!, $name: String!, $number: Int!) {
+                repository(owner: $owner, name: $name) {
+                  pullRequest(number: $number) {
+                    reviewThreads(first: 100) {
+                      nodes {
+                        isResolved path line
+                        comments(first: 30) { nodes { author { login } body } }
+                      }
+                    }
+                  }
+                }
+              }' > "$RUNNER_TEMP/threads.json"
+            node "$tools/tools/review/recheck.ts" threads --in "$RUNNER_TEMP/threads.json" --out "$intent/threads.md"
+          fi
+          if [ -n "$last" ]; then
+            since=(--last "$last")
+          fi
+          git diff --name-only --no-renames "$BASE...HEAD" > "$RUNNER_TEMP/paths.txt"
+          # The diff as GitHub shows it (renames found, three lines of context),
+          # to tell which lines a review comment may sit on.
+          git -c core.quotePath=false diff --no-color --no-ext-diff --no-textconv "$BASE...HEAD" > "$RUNNER_TEMP/diff.txt"
+          plan=$(node "$tools/tools/review/prompt.ts" build --paths "$RUNNER_TEMP/paths.txt" \
+            --intent "$intent" --base "$BASE" --head "$HEAD" --pr "$PR" --out "$RUNNER_TEMP/prompt.md" "${since[@]}")
+          echo "$plan"
+          echo "kind=$(jq -r .kind <<< "$plan")" >> "$GITHUB_OUTPUT"
+          echo "lenses=$(jq -r '.lenses // [] | join(", ")' <<< "$plan")" >> "$GITHUB_OUTPUT"
+          jq -r '.reason // ""' <<< "$plan" > "$RUNNER_TEMP/skip.txt"
+
+      - name: Install Claude Code
+        if: steps.plan.outputs.kind == 'review'
         run: npm install -g @anthropic-ai/claude-code@2.1.325
 
       - name: Review
-        if: steps.key.outputs.present == 'true'
+        if: steps.plan.outputs.kind == 'review'
         timeout-minutes: 15
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          BASE: ${{ github.event.pull_request.base.sha }}
-          PR: ${{ github.event.pull_request.number }}
+          REVIEW_BASE: ${{ env.BASE }}
+          REVIEW_HEAD: ${{ env.HEAD }}
+          REVIEW_LAST: ${{ steps.plan.outputs.last }}
         run: |
           set +e
-          # The prompt comes from the base: a branch cut before it existed has
-          # none, and a PR should not edit the prompt it is reviewed with (#576).
-          prompt=$(git show "$BASE:.github/claude-review.md" | sed -e "s/{{BASE}}/$BASE/g" -e "s/{{PR}}/$PR/g")
-          if [ -z "$prompt" ]; then
-            echo "No review prompt at $BASE" > "$RUNNER_TEMP/review.err"
-            exit 0
-          fi
-          claude -p --bare --no-session-persistence \
+          # The prompt goes in on stdin: as one argument it could pass Linux's 128 KiB cap.
+          # The shell may run only review-git (#583): git's own options can run a
+          # program (`grep -O`) or write a file (`--output`), and a prefix rule
+          # cannot keep them out. Read needs no rule inside the checkout.
+          PATH="$RUNNER_TEMP/bin:$PATH" claude -p --bare --no-session-persistence \
             --model claude-opus-5-5 \
             --max-budget-usd 2 \
             --tools "Read" "Bash" \
-            --allowedTools "Read" "Bash(git diff:*)" "Bash(git log:*)" "Bash(git show:*)" "Bash(git grep:*)" "Bash(git ls-files:*)" \
+            --allowedTools "Bash(review-git:*)" \
             --output-format json \
-            "$prompt" > "$RUNNER_TEMP/review.json" 2> "$RUNNER_TEMP/review.err"
+            --json-schema "$(node "$RUNNER_TEMP/base/tools/review/findings.ts" schema)" \
+            < "$RUNNER_TEMP/prompt.md" > "$RUNNER_TEMP/review.json" 2> "$RUNNER_TEMP/review.err"
           echo "claude exited $?"
           cat "$RUNNER_TEMP/review.err"
 
       - name: Post the review
+        id: post
         # Also after a failed or timed-out Review step, so the PR hears why.
-        if: ${{ !cancelled() && steps.key.outputs.present == 'true' }}
+        if: ${{ !cancelled() && steps.key.outputs.present == 'true' && github.event_name == 'pull_request' }}
         env:
           GH_TOKEN: ${{ github.token }}
           KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           REPO: ${{ github.repository }}
-          PR: ${{ github.event.pull_request.number }}
+          KIND: ${{ steps.plan.outputs.kind }}
+          LENSES: ${{ steps.plan.outputs.lenses }}
+          LAST: ${{ steps.plan.outputs.last }}
+          EVENT: ${{ github.event.action }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
+          # What the claude-review status says when this step succeeds (#587).
+          said="$RUNNER_TEMP/status.txt"
+          # A kept review needs no post, and an art-only PR hears so once.
+          if [ "$KIND" = "kept" ]; then
+            printf 'Kept the review of %s: the PR'"'"'s own change is the same.' "${LAST:0:7}" > "$said"
+            exit 0
+          fi
+          if [ "$KIND" = "skip" ] && [ "$EVENT" = "synchronize" ]; then
+            printf 'Not reviewed: art or other binary files only.' > "$said"
+            exit 0
+          fi
           out="$RUNNER_TEMP/review.json"
           body="$RUNNER_TEMP/body.md"
-          result=$(jq -r 'select(.is_error == false and .subtype == "success") | .result // empty' "$out" 2>/dev/null) || result=""
-          subtype=$(jq -r '.subtype // "no result"' "$out" 2>/dev/null) || subtype="no result"
+          findings="$RUNNER_TEMP/base/tools/review/findings.ts"
+          post="$RUNNER_TEMP/post"
+          mkdir -p "$post"
+          subtype=$(jq -r '.subtype // "no result"' "$out" 2>/dev/null) || subtype=""
+          [ -n "$subtype" ] || subtype="no result"
           cost=$(jq -r '.total_cost_usd // 0' "$out" 2>/dev/null) || cost=0
-          if [ -n "$result" ]; then
-            {
-              printf '## Claude review\n\n%s\n\n---\n' "$result"
-              printf '_Opus 5.5 via `claude -p`, paid from the monthly API credit: $%.2f. ([run](%s))_\n' "$cost" "$RUN_URL"
-            } > "$body"
+          posted=false
+          if [ "$KIND" = "review" ] && [ "$subtype" = "success" ]; then
+            if node "$findings" post --answer "$out" --diff "$RUNNER_TEMP/diff.txt" \
+                --head "$HEAD" --lenses "$LENSES" --cost "$cost" --run "$RUN_URL" --out "$post" \
+                ${LAST:+--since "$LAST"}; then
+              posted=true
+            else
+              subtype="no valid answer"
+            fi
+          fi
+          if [ "$KIND" = "skip" ]; then
+            printf '## Claude review\n\nNot reviewed at commit %s: %s ([run](%s))\n' "${HEAD:0:7}" "$(cat "$RUNNER_TEMP/skip.txt")" "$RUN_URL" > "$body"
+            desc="Not reviewed: art or other binary files only."
             status=0
-          elif grep -qi "credit balance" "$out" "$RUNNER_TEMP/review.err"; then
+          elif [ "$posted" = true ]; then
+            # One review, a thread per finding (#584). If GitHub refuses it,
+            # every finding goes in one comment instead.
+            cp "$post/fallback.md" "$body"
+            desc="Reviewed ${HEAD:0:7}${LAST:+ (a re-check since ${LAST:0:7})}. Resolve every thread before the merge."
+            status=0
+          elif grep -qi "credit balance" "$RUNNER_TEMP/review.err" 2>/dev/null ||
+              jq -e '.is_error == true and ((.result // "") | test("credit balance"; "i"))' "$out" > /dev/null 2>&1; then
+            # Only the API's own error counts (stderr, or a result marked is_error),
+            # never words in a review: a real answer never has is_error.
             printf '## Claude review\n\nSkipped: the monthly API credit is used up. It refills with the next billing month. ([run](%s))\n' "$RUN_URL" > "$body"
+            desc="Skipped: the monthly API credit is used up."
             status=0
           else
             printf '## Claude review\n\nFailed (`%s`), so this PR has no CI review. See the [run](%s).\n' "$subtype" "$RUN_URL" > "$body"
             status=1
           fi
-          # The model could read its own environment; never post a secret.
-          if grep -qF "$KEY" "$body" || grep -qE 'sk-ant-[A-Za-z0-9_-]{20}|gh[psu]_[A-Za-z0-9]{20}' "$body"; then
+          # Never post a secret, whatever the model wrote.
+          if grep -rqF "$KEY" "$body" "$post" || grep -rqE 'sk-ant-[A-Za-z0-9_-]{20}|gh[psu]_[A-Za-z0-9]{20}' "$body" "$post"; then
             echo "::error::The review text holds a secret, so it was not posted."
             exit 1
           fi
-          gh api "repos/$REPO/issues/$PR/comments" -F "body=@$body" --silent
+          if [ -f "$post/review.json" ] && gh api "repos/$REPO/pulls/$PR/reviews" --input "$post/review.json" --silent; then
+            # A file thread GitHub refuses goes in one comment, with only those findings.
+            left="$RUNNER_TEMP/left.md"
+            : > "$left"
+            for comment in "$post"/file-*.json; do
+              [ -e "$comment" ] || continue
+              if ! gh api "repos/$REPO/pulls/$PR/comments" --input "$comment" --silent; then
+                echo "::warning::GitHub refused a file thread on $(jq -r .path "$comment")."
+                jq -r '"- `\(.path)`: \(.body)\n"' "$comment" >> "$left"
+              fi
+            done
+            if [ -s "$left" ]; then
+              { printf '## Claude review: findings that could not go on their file\n\nAnswer each in a reply to this comment.\n\n'; cat "$left"; } > "$body"
+              gh api "repos/$REPO/issues/$PR/comments" -F "body=@$body" --silent
+            fi
+          else
+            [ -f "$post/review.json" ] && echo "::warning::GitHub refused the review, so every finding is in one comment."
+            gh api "repos/$REPO/issues/$PR/comments" -F "body=@$body" --silent
+          fi
+          if [ "$status" = 0 ]; then printf '%s' "$desc" > "$said"; fi
           exit "$status"
+
+      - name: Keep the replay
+        # A replay (#586) posts nothing: the answer goes in the run's summary and artifact.
+        id: replay
+        if: ${{ !cancelled() && steps.key.outputs.present == 'true' && github.event_name == 'workflow_dispatch' }}
+        env:
+          KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          KIND: ${{ steps.plan.outputs.kind }}
+          LENSES: ${{ steps.plan.outputs.lenses }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          stage="$RUNNER_TEMP/replay-stage"
+          mkdir -p "$stage/post"
+          out="$RUNNER_TEMP/review.json"
+          for file in prompt.md review.json review.err skip.txt; do
+            [ -f "$RUNNER_TEMP/$file" ] && cp "$RUNNER_TEMP/$file" "$stage/"
+          done
+          printf '{"pr":%s,"base":"%s","head":"%s","tools":"%s","kind":"%s","lenses":"%s"}\n' \
+            "$PR" "$BASE" "$HEAD" "$TOOLS_FROM" "$KIND" "$LENSES" > "$stage/target.json"
+          cost=$(jq -r '.total_cost_usd // 0' "$out" 2>/dev/null) || cost=0
+          subtype=$(jq -r '.subtype // "no answer"' "$out" 2>/dev/null) || subtype="no answer"
+          status=0
+          if [ "$KIND" = "review" ] && node "$RUNNER_TEMP/base/tools/review/findings.ts" post --answer "$out" \
+              --diff "$RUNNER_TEMP/diff.txt" --head "$HEAD" --lenses "$LENSES" --cost "$cost" --run "$RUN_URL" --out "$stage/post"; then
+            { printf '# Replay of PR #%s\n\n' "$PR"; cat "$stage/post/fallback.md"; } > "$stage/summary.md"
+          elif [ "$KIND" = "review" ]; then
+            printf '# Replay of PR #%s\n\nFailed (`%s`, $%s). See the artifact.\n' "$PR" "$subtype" "$cost" > "$stage/summary.md"
+            status=1
+          else
+            printf '# Replay of PR #%s\n\nNot reviewed (`%s`): %s\n' "$PR" "$KIND" "$(cat "$RUNNER_TEMP/skip.txt" 2>/dev/null)" > "$stage/summary.md"
+          fi
+          # The repo is public: never publish a secret, whatever the model or the CLI wrote.
+          if grep -rqF "$KEY" "$stage" || grep -rqE 'sk-ant-[A-Za-z0-9_-]{20}|gh[psu]_[A-Za-z0-9]{20}' "$stage"; then
+            echo "::error::The replay holds a secret, so it was not kept."
+            exit 1
+          fi
+          cat "$stage/summary.md" >> "$GITHUB_STEP_SUMMARY"
+          mv "$stage" "$RUNNER_TEMP/replay"
+          exit "$status"
+
+      - uses: actions/upload-artifact@v4
+        # Only what passed the secret check above is uploaded.
+        if: ${{ !cancelled() && steps.replay.outcome != 'skipped' && github.event_name == 'workflow_dispatch' }}
+        with:
+          name: replay-pr-${{ inputs.pr }}
+          path: ${{ runner.temp }}/replay
+          retention-days: 30
+
+      - name: Set the review status
+        # Always, so a failed, timed-out or cancelled run never leaves it pending.
+        if: ${{ always() && github.event_name == 'pull_request' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+          PRESENT: ${{ steps.key.outputs.present }}
+          POSTED: ${{ steps.post.outcome }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          state=failure
+          desc="The Claude review failed or was stopped. Re-run the job."
+          # Only an explicit "false": an empty value means the key check never ran.
+          if [ "$PRESENT" = "false" ]; then
+            state=success
+            desc="No API key, so no Claude review."
+          elif [ "$POSTED" = "success" ] && [ -s "$RUNNER_TEMP/status.txt" ]; then
+            state=success
+            desc=$(cat "$RUNNER_TEMP/status.txt")
+          fi
+          for try in 1 2; do
+            if gh api "repos/$REPO/statuses/$HEAD" -f state="$state" -f context=claude-review \
+                -f description="${desc:0:140}" -f target_url="$RUN_URL" --silent; then
+              exit 0
+            fi
+            [ "$try" = 2 ] || sleep 10
+          done
+          exit 1

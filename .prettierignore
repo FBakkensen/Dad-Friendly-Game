@@ -8,3 +8,6 @@ package-lock.json
 
 # Reference mockup for the control board spec, kept as built
 mockups/control-board/
+
+# The pacing ledger is written by npm run lab:ledger, byte for byte (#554)
+docs/pacing-ledger.md

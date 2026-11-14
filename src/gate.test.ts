@@ -251,10 +251,15 @@ describe("the strategy lab in the full tier", () => {
         steps(true).find((other) => other.name === "visual")?.after,
       );
     }
-    expect(lab.map((each) => each.args.at(-2))).toEqual([
-      "tools/strategy-lab.ts",
-      "tools/generations-lab.ts",
-    ]);
+    expect(
+      lab.map((each) => each.args.find((arg) => arg.endsWith("-lab.ts"))),
+    ).toEqual(["tools/strategy-lab.ts", "tools/generations-lab.ts"]);
+  });
+
+  it("checks the strategy lab's run against the committed pacing ledger (#554)", () => {
+    const lab = steps(true).find((each) => each.name === "lab");
+    expect(lab?.args.slice(-2)).toEqual(["--ledger", "check"]);
+    expect(LAB_ENTRIES).toContain("docs/pacing-ledger.md");
   });
 
   it("puts the browser checks and both labs in the heavy lane, visual first", () => {

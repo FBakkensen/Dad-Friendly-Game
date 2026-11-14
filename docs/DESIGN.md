@@ -478,9 +478,11 @@ The first measure files are `liveMedian`, `liveP10`, `singleShare`, `longestDead
 
 `npm run lab` (`tools/strategy-lab.ts`) loads the registries and writes `reports/strategy-lab.md` and `.json` (gitignored). Built (#174).
 
+The pacing ledger (#554), `docs/pacing-ledger.md`, is committed: for each player type and seed of the gate's run, the day each band is reached, each machine first bought and each relic found, the day the run ends, and a hash of where it ended. It sets no limit. The gate's `lab` step (`--ci --ledger check`) fails when a fresh run differs and prints the moved rows, so a change that moves the pace shows as a diff of that file; `npm run lab:ledger` writes it again. A dearer first cart, for example, shows as moved finish days.
+
 #### How to read the report
 
-One row per player type, one column per registered measure. A cell is a bare number when no guardrail covers that row. When one does, the cell is that guardrail's figure plus pass or fail, coloured green or red. Shares are fractions: 0.25 is 25%.
+One row per player type, one column per registered measure. A cell is a bare number when no guardrail covers that row. When one does, the cell is that guardrail's figure plus pass or fail, coloured green or red. Shares are fractions: 0.25 is 25%. Each figure is the seed mean. Beside it, with two seeds or more (#554), a guarded cell names its worst seed, the one furthest on the guardrail's wrong side ("7 pass (worst 4, seed 2)"), and a bare number gives the seeds' range ("2 (seeds 1–3)"), since without a guardrail neither end is the worse.
 
 The header names two finish days. **Optimizer finish day** is `optimizer`. **Casual finish day** is `casual-2x10`, the plain dad. Regret divides a dad's finish day by the optimizer's. Extreme win reads how much sooner an extreme finished than that casual dad. Both numbers are the mean across the seeds in the run (seeds 1 through that count). A local `npm run lab` uses `LOCAL_SEEDS`. CI passes `--ci` and uses `CI_SEEDS`. `--seeds` wins over both, and `--days` overrides `DEFAULT_MAX_DAYS`. `--policy` limits the rows; the columns stay every measure.
 

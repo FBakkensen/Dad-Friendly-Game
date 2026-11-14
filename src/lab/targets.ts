@@ -56,6 +56,11 @@ export const PERCENT = 100;
 
 /** revealToUseP90 reads this percentile. */
 export const P90 = 90;
+/** The pacing ledger (#554): days to two places, and an 8-digit hex hash of the end. */
+export const LEDGER_DAY_DIGITS = 2;
+export const LEDGER_HASH_DIGITS = 8;
+export const LEDGER_HASH_RADIX = 16;
+
 /** revealSlowest lists waits at least this long, in live hours. Report only. */
 export const REVEAL_LIST_HOURS = 1;
 /** revealSlowest shows at most this many ids. */

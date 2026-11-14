@@ -37,7 +37,23 @@ page is the map, plus the rules that keep it that way.
    given and scores every measure. `lab/guardrails` turns `targets.ts` into
    one check per entry. `tools/strategy-lab.ts` (`npm run lab`) loads the
    registries, writes the report, and warns on a miss unless `LAB_STRICT=1`.
-   The full gate (`npm run check`, run before a PR is opened) runs it and
+   `lab/ledger` keeps each run's pacing ledger row (#554); `--ledger check`
+   compares the run with the committed `docs/pacing-ledger.md` and fails on a
+   difference, and `--ledger write` (`npm run lab:ledger`) writes it. The
+   ledger is one of the lab's inputs (`LAB_ENTRIES`), so a changed ledger
+   runs the lab again. `economy/invariants.test.ts` (#555, fast-check, in the
+   `unit` project) plays random legal moves, live waits, trouble and time away
+   from a save in each band, and checks after each step that counts stay whole
+   and finite, lifetime figures never fall, an upgrade or a promotion spends
+   its shown price and a machine or boost spends some stones, a buy of a
+   machine, upgrade, boost or craft never slows the crew, and the save
+   round-trips. It also checks, in every band, that time away inside the
+   full-pay length pays the same however it is sliced, once each stretch's
+   Heart of Patience bonus is divided out (a long absence earns more, by
+   design). Its known
+   gaps (part-stone, band-crossing) are listed at its top, each pinned by its
+   own test.
+   The full gate (`npm run check`, run on the PR's final commit before the merge) runs the strategy lab and
    `lab:generations` with `--ci` and `LAB_STRICT=1` when the branch changes
    a file the lab imports, and a miss fails the gate. `tools/generations-lab.ts`
    plays each policy and seed in its own child process, one per core
@@ -104,8 +120,9 @@ page is the map, plus the rules that keep it that way.
    the effects through the ports, as functions over one `StoreContext`
    (`store-context`): `store-session` (run a step, emit one snapshot),
    `store-actions` (tick, moves, trouble taps, a new run, hide, dispose),
-   `local-saves` (the guest session save, the phone backup, the homecomings
-   key), `cloud-writer` (the write pipeline and the field log copy),
+   `local-saves` (the guest session save and the phone backup, both written on
+   each move and kept current on each tick, the guest's only once a guest save
+   exists; the homecomings key), `cloud-writer` (the write pipeline and the field log copy),
    `save-adopt` (fast-forward or open the conflict sheet, recover a refused
    rev), `server-read` (the fresh read on resume), `save-load` (each cloud
    snapshot as it arrives), `save-watch` (the account and the writer seat) and
@@ -613,8 +630,9 @@ focus)` (`showCard`, the model's open or close, and the focus once as it
   runs, and a new tab opens the same moment), and the tab left open all night
   (the clock jumps eight hours at once on an open tab, and the board pays what
   a cold open of the same save pays on a second phone, `otherPhone()`). A kill
-  while the crew digs with no move since hands their work back at the away
-  rate; that journey pins the gap as known (#573). `npm run journeys` runs them, and the full
+  while the crew digs with no move since also reopens the same moment: once a guest
+  save exists, each tick writes it quietly, as each tick writes the signed-in
+  phone backup (#573). `npm run journeys` runs them, and the full
   gate's `journeys` step (heavy lane) does too; a failure keeps a trace in
   `.gate/journeys/`. The config (`tools/journeys/playwright.config.ts`) starts
   its own Vite on port 4186 and launches the same Chrome as the harness
@@ -689,7 +707,7 @@ focus)` (`showCard`, the model's open or close, and the focus once as it
   the settle first (`stepTapClock(page, PAST_SETTLE_MS)`). These modules wait on page
   state, page events or a count of painted frames, never on a fixed sleep.
 - Signoff (#397): a green `npm run check` on a clean, committed HEAD writes `.gate/passed`. `npm run gate -- signoff` (`scripts/signoff.mjs`, rules in `src/signoff.ts`) starts `.github/workflows/signoff.yml`, which posts the `signoff` commit status; the ruleset on `main` requires it and an up-to-date branch. The relay exists because cloud sessions may not post statuses. `deploy-hosting` runs `npm run check` on the merged commit before it deploys, so a red `main` deploys nothing.
-- Claude review (#572): `.github/workflows/claude-review.yml` reviews a PR when it is opened, reopened or marked ready for review, not after each push. It runs `claude -p --bare` (Opus 5.5, `--max-budget-usd 2`) with the `ANTHROPIC_API_KEY` secret from the Console organization linked to Flemming's plan, whose monthly API credit pays for it; the official `claude-code-action` is not used because that credit does not cover its runs. Claude gets only Read and a shell that runs single `git diff`/`git log`/`git show`/`git grep`/`git ls-files` commands (`--tools`, then `--allowedTools`), and answers in Markdown from the prompt in `.github/claude-review.md`, read from the PR's base commit so an older branch still has it and a PR cannot edit its own prompt (#576); the next step posts that answer and the run's cost as one PR comment. With no secret the job skips; with the credit used up it says so and nothing is charged. It is not a required check, and `signoff` is unchanged.
+- Claude review (#572): `.github/workflows/claude-review.yml` reviews a PR when it is opened, reopened or marked ready for review. After each push it re-checks (#585, `tools/review/recheck.ts`): every posted review carries a hidden marker with the commit it covered; when the PR's own change is the same as at that commit (only `main` merged in, compared with blob ids and hunk positions dropped), the review stands with no model call; otherwise the reviewer is told to judge only `review-git diff --since-last` and gets the review threads and their replies as data, and posts new findings only. A PR opens after the fast gate, so this runs while the full gate does; the full gate and signoff run once on the final commit. The job also sets the commit status `claude-review` on the head (#587): pending from its first step, and in an `always()` last step green once the review posted, was kept, or was skipped (art only, credit used up, no secret), red when it failed or was stopped. Once Flemming makes it a required check on `main`, it keeps a merge from racing the review, while an empty credit never blocks one. It runs `claude -p --bare` (Opus 5.5, `--max-budget-usd 2`) with the `ANTHROPIC_API_KEY` secret from the Console organization linked to Flemming's plan, whose monthly API credit pays for it; the official `claude-code-action` is not used because that credit does not cover its runs. Claude gets only Read (inside the checkout) and a shell that runs one program, `review-git` (`tools/review/git.ts`, #583), and answers in a fixed shape (`--json-schema`): a summary, and findings with a severity, path, line, title and body. That wrapper takes fixed subcommands (diff, log, show, grep, ls-files) with a few options of its own and builds git's arguments itself, with the pattern after `-e`, revisions after `--end-of-options` and paths after `--`, because git's own options can start a program (`grep -O`) or write a file (`--output`) and a prefix rule in `--allowedTools` cannot keep them out. Like the prompt, it comes from the base commit. Its prompt is built by `tools/review/prompt.ts` (#582): the workflow lists the changed paths (renames as a delete and an add, so a moved file keeps its lens), and `lensesFor` picks the lenses, most important first: guards (`.github/`, `.claude/`, `CLAUDE.md`, the review job, the gate, signoff, function-limit, token, visual and rules-test scripts, lint, TypeScript, Vitest and coverage config, `src/lab/targets.ts` and `guardrails.ts`, the journeys, every `*.test.ts` and snapshot), save (save, persist, backup and cloud files, the progress store, server read, tab writer and lease, the log, the store actions and session, boot, `main.ts` and the mountain screen that register the hide saves, `firestore.rules`, `firebase.json`, `public/sw.js`, `rules-test/`), code (other `src/`, `tools/`, `scripts/` files, and any text file no other lens takes), game (`src/economy/`, `src/lab/`, the tier, rate, scale, milestone, line, engineer, upgrade, workshop, hazard, vein, mountain, gold rush, crew rate, pacing, legacy, relic and haulage modules, the `*words.ts` copy) and spec (`docs/`, `mockups/`, `README.md`). The lens texts are `.github/review/<lens>.md`, joined into `.github/review/prompt.md`, and the PR's title, body and the body of each issue it closes are added at the end inside `<pr-intent>`, as data. A PR of art and other binary files only gets no model call, just a note that it was not reviewed. The prompt and lenses come from the PR's base commit (#576), so an older branch still has them and a PR cannot edit the review it gets; a base without them fails the job, with a note on the PR. The next step turns the answer into one PR review with `tools/review/findings.ts` (#584), also from the base: the body carries the lenses, the reviewed commit, the summary, the counts and the run's cost, and each finding is a review thread on its line, or on its file when the line is outside the diff's hunks (GitHub refuses those). A finding in a file the PR does not touch is listed in the body. If GitHub refuses the review, every finding goes in one PR comment instead. The thread that wrote the PR answers and resolves every thread before it merges (ship-sitting). With no secret it posts nothing and sets the status green; with the credit used up it says so and nothing is charged. `signoff` is unchanged. The job can also be started by hand (#586, `workflow_dispatch` with a PR number) to replay the review of a merged PR: it reviews that PR's base and head with the tools on the branch it was started from, posts nothing and sets no status, and keeps the prompt, the answer and what it would have posted in the run summary and as the run's `replay-pr-<n>` artifact for 30 days. The repo is public, so nothing is kept when the text holds the key or a token, and a fork's PR is not replayed; a failed review fails the run. The first replay, of eight merged PRs, is in `docs/review-replay.md`. `node tools/review/tally.ts [--since <date>]` counts, over the merged PRs, the reviews, the findings, the threads fixed (a reply that names the fixing commit), answered and kept, or left with no answer (whether a thread was resolved is not read), the findings that never became a thread, and what the reviews cost.
 
 ## M7 sketch
 
