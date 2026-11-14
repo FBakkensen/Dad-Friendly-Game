@@ -25,11 +25,12 @@ const GUARDS: readonly RegExp[] = [
   /^scripts\/(gate|signoff|changed|function-limits|knip-strict|check-cycles|token-check|visual-check|test-rules|mockup-check)\./,
   /^scripts\/visual\//,
   /^src\/(gate|signoff|function-limits|token-check)\.ts$/,
-  /^src\/lab\/targets\.ts$/,
+  /^src\/lab\/(targets|guardrails)\.ts$/,
   /^tools\/journeys\//,
   /(^|\/)vitest\.config\.ts$/,
   // A skipped or loosened test is a weaker guard.
   /\.test\.ts$/,
+  /\/__snapshots__\//,
   /^(vite\.config\.ts|eslint\.config\.js|knip\.json|package(-lock)?\.json)$/,
   /(^|\/)tsconfig\.json$/,
   /^\.prettier(rc\.json|ignore)$/,
@@ -38,6 +39,8 @@ const GUARDS: readonly RegExp[] = [
 const SAVE: readonly RegExp[] = [
   /^src\/[^/]*save[^/]*\.ts$/,
   /^src\/(persist|phone-backup|cloud-writer|progress-store|server-read|tab-writer|tab-lease|log)\.ts$/,
+  // The write path: per-dig and hide saves, and the boot that wires them.
+  /^src\/(store-(actions|session|context)|boot|main|mountain-screen)\.ts$/,
   /^firestore\.rules$/,
   /^firebase\.json$/,
   /^public\/sw\.js$/,
@@ -54,7 +57,7 @@ const CODE: readonly RegExp[] = [
 
 const GAME: readonly RegExp[] = [
   /^src\/(economy|lab)\//,
-  /^src\/(tiers|rates|scale|milestones|line|boosts|expeditions)\.ts$/,
+  /^src\/(tiers|rates|scale|milestones|line|boosts|expeditions|engineers|gold-rush|upgrades|workshop|hazards|veins|mountain|crew-rate|pacing|legacy|relics|haulage)\.ts$/,
   /^src\/[^/]*words\.ts$/,
 ];
 

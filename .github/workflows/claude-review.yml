@@ -65,15 +65,14 @@ jobs:
           PR: ${{ github.event.pull_request.number }}
         run: |
           # The lenses and the prompt come from the base, so a PR cannot edit
-          # the review it gets (#576). A base from before them uses the PR's.
+          # the review it gets (#576). A base without them gets no review.
           tools="$RUNNER_TEMP/base"
-          mkdir -p "$tools/tools" "$tools/.github"
-          if git cat-file -e "$BASE:tools/review/prompt.ts" 2>/dev/null; then
-            git archive "$BASE" tools/review .github/review | tar -x -C "$tools"
-          else
-            echo "::notice::The base has no review lenses yet, so this run uses the PR's own."
-            cp -r tools/review "$tools/tools/" && cp -r .github/review "$tools/.github/"
+          mkdir -p "$tools"
+          if ! git cat-file -e "$BASE:tools/review/prompt.ts" 2>/dev/null; then
+            echo "::error::The base commit has no tools/review/prompt.ts, so there is no review to run."
+            exit 1
           fi
+          git archive "$BASE" tools/review .github/review | tar -x -C "$tools"
           intent="$RUNNER_TEMP/intent"
           mkdir -p "$intent"
           jq -r '.pull_request.title' "$GITHUB_EVENT_PATH" > "$intent/title.txt"

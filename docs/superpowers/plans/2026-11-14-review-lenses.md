@@ -8,7 +8,7 @@ Design: `designs/2026-11-14-pr-review-design.md` in the project files (parent #5
 2. `issuesFixed(body)`: GitHub's closing keywords, once each.
 3. `planReview(...)`: fill the prompt, join only the chosen lens texts, end with the title, body and issues inside `<pr-intent>` as data, cut each part at 20,000 characters, and skip with a reason when there is no lens.
 4. The CLI (`lenses`, `issues`, `build`) for the workflow and for the thread's own reviewer.
-5. The workflow: a Plan step reads the PR's words from the event and its issues with `gh api` (`issues: read`), runs `build` from the base commit's copy (the PR's own when the base predates it), and skips the model on art only. The post step heads the comment "Reviewed as: <lenses>, at commit <sha>".
+5. The workflow: a Plan step reads the PR's words from the event and its issues with `gh api` (`issues: read`), runs `build` from the base commit's copy (this PR's own run used its own copy once; after it, a base without one fails the job), and skips the model on art only. The post step heads the comment "Reviewed as: <lenses>, at commit <sha>".
 6. Docs: `docs/ARCHITECTURE.md`, and ship-sitting's review brief uses the same lenses.
 
 Proof: the test file, `npm run gate -- fast`, dry runs of the Plan and Review steps on #575 (code), #562 (spec) and #570 (rules), then the full gate.
