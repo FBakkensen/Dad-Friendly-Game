@@ -9,6 +9,10 @@ concurrency:
   group: deploy-hosting
   cancel-in-progress: false
 
+# Least privilege (#606): the token only checks out the code. Firebase deploys with its own service account.
+permissions:
+  contents: read
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
