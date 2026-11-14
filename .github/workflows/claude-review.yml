@@ -247,9 +247,10 @@ jobs:
             cp "$post/fallback.md" "$body"
             desc="Reviewed ${HEAD:0:7}${LAST:+ (a re-check since ${LAST:0:7})}. Resolve every thread before the merge."
             status=0
-          elif [ "$subtype" != "no valid answer" ] && { grep -qi "credit balance" "$RUNNER_TEMP/review.err" 2>/dev/null ||
-              jq -e '.is_error == true and ((.result // "") | test("credit balance"; "i"))' "$out" > /dev/null 2>&1; }; then
-            # Only the API's own error counts, never words in a review.
+          elif grep -qi "credit balance" "$RUNNER_TEMP/review.err" 2>/dev/null ||
+              jq -e '.is_error == true and ((.result // "") | test("credit balance"; "i"))' "$out" > /dev/null 2>&1; then
+            # Only the API's own error counts (stderr, or a result marked is_error),
+            # never words in a review: a real answer never has is_error.
             printf '## Claude review\n\nSkipped: the monthly API credit is used up. It refills with the next billing month. ([run](%s))\n' "$RUN_URL" > "$body"
             desc="Skipped: the monthly API credit is used up."
             status=0
