@@ -6,7 +6,10 @@ import {
   STAGES,
   handsSpeed,
   lineOn,
+  lineOf,
   lineSpeed,
+  lineView,
+  narrowStage,
   stageSpeeds,
   type StageSpeeds,
 } from "./line";
@@ -119,6 +122,52 @@ describe("the line's speed (spec, step 1, the rule)", () => {
         expect(lineSpeed(faster, hands)).toBeGreaterThanOrEqual(level);
       }
     }
+  });
+});
+
+describe("what the lab reads off the line (#534)", () => {
+  it("the narrow stage is the slowest, the first in rock order on a tie", () => {
+    expect(narrowStage(stages(5, 3, 4))).toBe("haul");
+    expect(narrowStage(stages(5, 4, 3))).toBe("lift");
+    expect(narrowStage(stages(0, 0, 0))).toBe("face");
+    expect(narrowStage(stages(2, 9, 2))).toBe("face");
+  });
+
+  it("the hands carry what the narrow stage is short of the line", () => {
+    const speed: Record<TierId, number> = {
+      helper: 1,
+      cart: 18,
+      hoist: 60,
+      drill: 108,
+      borer: 0,
+      train: 0,
+      machine: 0,
+      kid: 0,
+    };
+    const running: Record<TierId, number> = {
+      helper: 12,
+      cart: 1,
+      hoist: 1,
+      drill: 0,
+      borer: 0,
+      train: 0,
+      machine: 0,
+      kid: 0,
+    };
+    // The spec's 12 hands, a cart and a hoist: the line is 27, the face
+    // (no drill) is narrow and the hands carry all of it.
+    expect(lineOf(speed, running)).toBe(27);
+    expect(lineView(speed, running)).toEqual({ narrow: "face", handsCarry: 1 });
+    // A drill lifts the face to 108: the haul (18) is narrow at 54 and the
+    // hands carry 36 of it.
+    const drill = { ...running, drill: 1 };
+    expect(lineView(speed, drill)).toEqual({
+      narrow: "haul",
+      handsCarry: (54 - 18) / 54,
+    });
+    expect(
+      lineView(speed, { ...running, helper: 0, cart: 0, hoist: 0 }),
+    ).toEqual({ narrow: "face", handsCarry: 0 });
   });
 });
 

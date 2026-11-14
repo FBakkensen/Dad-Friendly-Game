@@ -4,6 +4,7 @@ import { mineByHand, type Mountain } from "../mountain";
 import { effectiveRates } from "../rates";
 import { onTrip, station } from "../engineers";
 import { layerOf } from "../layers";
+import { lineOf, lineOn, lineView } from "../line";
 import { TIERS } from "../tiers";
 import {
   knownRecipeIds,
@@ -310,6 +311,15 @@ function outputShare(
       total += amount;
     }
   }
+  // With the line on (#534), the crew moves what the line moves, so the
+  // machines' parts are scaled to it and stay in the units of the deltas.
+  if (lineOn() && total > 0) {
+    const line = lineOf(bareResting.tierSpeed, bareResting.running);
+    for (const [id, amount] of parts) {
+      parts.set(id, (amount * line) / total);
+    }
+    total = line;
+  }
   // The engineer delta includes gear on the post she stands on. The rest
   // of the gear, measured with everyone back at camp, is the crafted share.
   const tending = posted.exactCrewPerSecond - postedResting.exactCrewPerSecond;
@@ -393,6 +403,7 @@ export function scoreDecision(input: ScoreInput): DecisionSample {
       input.context,
       input.trouble,
     ),
+    ...(lineOn() ? { line: lineView(rates.tierSpeed, rates.running) } : {}),
     layer: layerOf(input.mountain).id,
     workshopOpen: workshopUnlocked(input.mountain),
     benchFree: input.mountain.bench === undefined,

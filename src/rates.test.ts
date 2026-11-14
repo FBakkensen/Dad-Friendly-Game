@@ -486,6 +486,28 @@ describe("staffing never slows the crew (#500)", () => {
   });
 });
 
+describe("staffing for the line (#534)", () => {
+  it("a first Great Machine does not pull the hands off a borer and a pit train", () => {
+    withFactors({ [LINE_OFF]: 0 }, () => {
+      // Sixteen hands run a borer and a pit train (two stages) for 48 a
+      // second. The machine alone (one stage) would move only 24.
+      const crew = {
+        ...minedMountain(50_000_000),
+        helpers: 16,
+        borers: 1,
+        trains: 2,
+        legacy: 0,
+        engineers: [],
+      };
+      const before = effectiveRates(crew);
+      const after = effectiveRates({ ...crew, machines: 1 });
+      expect(before.exactCrewPerSecond).toBe(48);
+      expect(after.exactCrewPerSecond).toBe(48);
+      expect(after.running).toMatchObject({ borer: 1, train: 1, machine: 0 });
+    });
+  });
+});
+
 describe("the line's rule behind its factor (#532)", () => {
   const LINE_ON = { [LINE_OFF]: 0 };
   const parts = (rates: ReturnType<typeof effectiveRates>): number =>

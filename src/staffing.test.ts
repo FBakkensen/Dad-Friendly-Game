@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { staffMachines, type StaffSlot, type Staffing } from "./staffing";
+import {
+  fillForLine,
+  staffMachines,
+  type StaffSlot,
+  type Staffing,
+} from "./staffing";
 
 function stonesOf(slots: readonly StaffSlot[], running: Staffing): number {
   return slots.reduce(
@@ -130,5 +135,44 @@ describe("staffMachines (#500)", () => {
         before = stones;
       }
     }
+  });
+});
+
+describe("fillForLine (#534)", () => {
+  const SPEEDS = { cart: 6, drill: 36, borer: 357, machine: 2100 };
+
+  it("keeps the big machines and fills the one-hand machines for the line", () => {
+    const staffing: Staffing = {
+      cart: 0,
+      hoist: 0,
+      drill: 0,
+      borer: 1,
+      train: 0,
+      machine: 0,
+    };
+    // Ten hands: eight on the borer (the face), two left for carts (the haul).
+    const filled = fillForLine(
+      slots(5, 5, 1, 0, SPEEDS),
+      10,
+      staffing,
+      20,
+      true,
+    );
+    expect(filled.borer).toBe(1);
+    expect(filled.cart).toBe(2);
+  });
+
+  it("gives the staffing back when its big machines need more hands than there are", () => {
+    const staffing: Staffing = {
+      cart: 0,
+      hoist: 0,
+      drill: 0,
+      borer: 2,
+      train: 0,
+      machine: 0,
+    };
+    expect(
+      fillForLine(slots(5, 5, 2, 0, SPEEDS), 10, staffing, 20, false),
+    ).toBe(staffing);
   });
 });

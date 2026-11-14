@@ -1,3 +1,4 @@
+import type { Stage } from "../line";
 import { mean, median } from "./stats";
 import { MS_PER_SECOND } from "./targets";
 
@@ -26,6 +27,10 @@ export type SittingEvent = {
    */
   readonly taps: number;
   readonly open: SittingOpen;
+  /** With the line on (#534): the narrow stage as the dad sits down. */
+  readonly narrow?: Stage;
+  /** With the line on (#534): machines bought that added nothing to the line. */
+  readonly zeroGainBuys?: number;
 };
 
 type Observation = {
@@ -35,13 +40,20 @@ type Observation = {
   readonly tiers: readonly number[];
   /** Asked once per sitting, at its first observation. */
   readonly open: () => SittingOpen;
+  /** Asked with `open`; undefined while the line is off (#534). */
+  readonly narrow?: () => Stage | undefined;
+  /** Machines bought since the last observation that added nothing to the line. */
+  readonly zeroGainBuys?: number | undefined;
 };
 
 type Current = {
   readonly sitting: number;
   readonly openedAtMs: number;
   readonly open: SittingOpen;
+  readonly narrow: Stage | undefined;
   buys: number;
+  /** Undefined while the line is off. */
+  zeroGainBuys: number | undefined;
   owned: number;
   tiers: readonly number[];
   /** The tiers bought this sitting, by their place in `tiers`. */
@@ -71,6 +83,10 @@ function played(current: Current, observation: Observation): void {
     }
   }
   current.buys += rise;
+  if (observation.zeroGainBuys !== undefined) {
+    current.zeroGainBuys =
+      (current.zeroGainBuys ?? 0) + observation.zeroGainBuys;
+  }
   current.otherBuys += Math.max(0, rise - tierRise);
   current.owned = observation.owned;
   current.tiers = observation.tiers;
@@ -100,6 +116,10 @@ export function createSittingLog(): SittingLog {
       buys: closing.buys,
       taps: closing.tiersBought.size + closing.otherBuys,
       open: closing.open,
+      ...(closing.narrow === undefined ? {} : { narrow: closing.narrow }),
+      ...(closing.zeroGainBuys === undefined
+        ? {}
+        : { zeroGainBuys: closing.zeroGainBuys }),
     };
     return [event];
   };
@@ -119,7 +139,9 @@ export function createSittingLog(): SittingLog {
           sitting: index,
           openedAtMs: observation.clock,
           open: observation.open(),
+          narrow: observation.narrow?.(),
           buys: 0,
+          zeroGainBuys: undefined,
           owned: observation.owned,
           tiers: observation.tiers,
           tiersBought: new Set(),

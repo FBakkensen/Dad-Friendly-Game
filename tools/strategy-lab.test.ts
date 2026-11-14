@@ -20,6 +20,7 @@ describe("strategy lab command", () => {
       seeds: LOCAL_SEEDS,
       days: DEFAULT_MAX_DAYS,
       outDir: "reports",
+      factors: {},
     });
     expect(seedsFromCount(LOCAL_SEEDS)).toHaveLength(LOCAL_SEEDS);
     expect(seedsFromCount(CI_SEEDS)).toHaveLength(CI_SEEDS);
@@ -48,6 +49,24 @@ describe("strategy lab command", () => {
     expect(parseLabArgs(["--seeds", "0"]).kind).toBe("error");
     expect(parseLabArgs(["--policy"]).kind).toBe("error");
     expect(parseLabArgs(["--nope"]).kind).toBe("error");
+  });
+
+  it("reads sweep factors for every run, and rejects a bad pair (#534)", () => {
+    expect(
+      parseLabArgs(["--factors", "line.off=0,layer.3.cart.hardness=0.8"]),
+    ).toMatchObject({
+      kind: "run",
+      factors: { "line.off": 0, "layer.3.cart.hardness": 0.8 },
+    });
+    expect(
+      parseLabArgs(["--factors", "a=.5,b=1e-3", "--factors", "c=2"]),
+    ).toMatchObject({ factors: { a: 0.5, b: 0.001, c: 2 } });
+    expect(
+      parseLabArgs(["--factors", "recipe.iron-rails.cost=0.5"]),
+    ).toMatchObject({ factors: { "recipe.iron-rails.cost": 0.5 } });
+    expect(parseLabArgs(["--factors"]).kind).toBe("error");
+    expect(parseLabArgs(["--factors", "line.off"]).kind).toBe("error");
+    expect(parseLabArgs(["--factors", "line.off=x"]).kind).toBe("error");
   });
 
   it("writes a markdown and json report for one short policy", async () => {
@@ -79,6 +98,38 @@ describe("strategy lab command", () => {
       readFileSync(path.join(outDir, "strategy-lab.json"), "utf8"),
     ) as { readonly rows: readonly { readonly id: string }[] };
     expect(json.rows.map((row) => row.id)).toEqual(["five-min-a-day"]);
+  });
+
+  it("plays the line under --factors line.off=0 and says so in the report (#534)", async () => {
+    const outDir = mkdtempSync(path.join(tmpdir(), "strategy-lab-"));
+    const parsed = parseLabArgs([
+      "--policy",
+      "five-min-a-day",
+      "--seeds",
+      "1",
+      "--days",
+      "1",
+      "--factors",
+      "line.off=0",
+      "--out",
+      outDir,
+    ]);
+    expect(parsed.kind).toBe("run");
+    if (parsed.kind !== "run") {
+      return;
+    }
+    const { markdown } = await executeLab(parsed);
+    expect(markdown).toContain("Factors: line.off=0");
+    expect(markdown).toContain("Longest run on one narrow stage");
+    const json = JSON.parse(
+      readFileSync(path.join(outDir, "strategy-lab.json"), "utf8"),
+    ) as {
+      readonly rows: readonly {
+        readonly cells: Readonly<Record<string, { readonly value: unknown }>>;
+      }[];
+    };
+    // One day of five minutes plays at least one sitting on the line.
+    expect(json.rows[0]?.cells["narrowRun"]?.value).toBeGreaterThanOrEqual(1);
   });
 
   it("fails on an unknown policy id", async () => {
