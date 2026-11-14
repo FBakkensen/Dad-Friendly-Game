@@ -25,7 +25,12 @@ import {
   type GenerationRun,
 } from "../src/lab/generations";
 import { LEGACY_STEP } from "../src/rates";
-import { CI_SEEDS, KID_RUNS_CI, LOCAL_SEEDS } from "../src/lab/targets";
+import {
+  CI_SEEDS,
+  KID_RUN_MAX_DAYS,
+  KID_RUNS_CI,
+  LOCAL_SEEDS,
+} from "../src/lab/targets";
 import { kidStretch } from "../src/scale";
 import { withFactors } from "../src/economy/factors";
 import { parseFactors } from "./lab-factors";
@@ -102,6 +107,7 @@ if (job === undefined) {
     policy,
     seed: Number(seed),
     runs: runCount,
+    maxDays: KID_RUN_MAX_DAYS,
     factors,
   });
   // Disconnect once the runs are sent, so the parent has them before the exit.

@@ -16,18 +16,21 @@ export const HELPER_COST_GROWTH = 1.06;
 
 /**
  * On the line (#543, labs only until #536): machines climb ×1.219 a unit
- * (today's ×1.15 times 1.06) and workers ×1.0812 (×1.06 times 1.02), so a
- * casual dad's run takes at least five days with machines rated three times
- * today's.
+ * (today's ×1.15 times 1.06), so a casual dad's run takes at least five days
+ * with machines rated three times today's. Workers keep today's curve: a
+ * steeper one priced the 200th worker of a late kid run like a Great
+ * Machine, and the optimizer stalled for a month.
  */
 export const LINE_MACHINE_COST_GROWTH = 1.219;
-export const LINE_HELPER_COST_GROWTH = 1.0812;
 
 /**
- * First prices that differ on the line (#543): the Great Machine at 0.8 of
- * today's, so a checker's best buy is in reach within two check-ins.
+ * First prices that differ on the line (#543). A worker is 60, three times
+ * today's, as his hands do three times the work on one job (rule 3). The
+ * Great Machine is 0.8 of today's, so a checker's best buy is in reach
+ * within two check-ins.
  */
 const LINE_FIRST_COST: Readonly<Partial<Record<TierId, number>>> = {
+  helper: 60,
   machine: 96_480_000,
 };
 /**
@@ -239,9 +242,7 @@ export function tierCost(tier: Tier, ownedCount: number, k = 1): number {
   const workerCurve = tier.staff === 0;
   const line = lineOn();
   const base = workerCurve
-    ? line
-      ? LINE_HELPER_COST_GROWTH
-      : HELPER_COST_GROWTH
+    ? HELPER_COST_GROWTH
     : line
       ? LINE_MACHINE_COST_GROWTH
       : MACHINE_COST_GROWTH;

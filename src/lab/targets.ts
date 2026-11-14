@@ -466,3 +466,10 @@ export const REPORT_MACHINE_SITTINGS = 2;
  * than run N, with no ceiling (Flemming, 4 Nov 2026). CI plays this many.
  */
 export const KID_RUNS_CI = 8;
+
+/**
+ * Days each kid run may take before the generations lab calls it
+ * unfinished. 30 suited runs of 3 to 5 days; since #556 a run takes at least
+ * five days and kid runs grow to weeks, so run 8 lands past day 30 (#543).
+ */
+export const KID_RUN_MAX_DAYS = 60;
