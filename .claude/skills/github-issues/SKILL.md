@@ -116,11 +116,11 @@ The thread that merges triages the issues its merge unblocked (its `blocking` li
 
 **The security pass.** The scheduled triage pass also turns each open security alert into a fast-lane issue, so a build thread fixes it (#616). A session cannot list the alerts itself. The `security-report` workflow lists them at 05:40 UTC and keeps them as its `security-report` artifact for a day.
 
-1. Read the newest report. When no successful run started today (UTC), dispatch the workflow on `main` and wait for it.
+1. Read the newest successful report. When none started today (UTC), dispatch the workflow on `main` and wait for it. If that run fails too, skip the rest of the pass: an old or missing report proves nothing.
 2. For each line of `code-scanning.jsonl` and `dependabot.jsonl`, search the issues, open and closed, for its key in the title: `[security] code-scanning #<id>` or `[security] dependabot #<id>`.
 3. File one for each key with no open issue. The title is the key, then the severity and the rule or package. The body links the alert (`https://github.com/FBakkensen/Dad-Friendly-Game/security/code-scanning/<id>` or `.../security/dependabot/<id>`) and says **Done when** the alert is closed. The repo is public, so the issue names no file, line, advisory or fix version: the thread that fixes it reads them in the newest report, since a session cannot open the alert page. It gets `ready-for-agent` and `fast-lane` at once, with no "Build this?" step and no theme (Flemming, 14 Nov 2026: nothing waits on him). When Dependabot has already opened a security PR for the alert, the issue links it, and merging that PR (ship-sitting, Bot PRs) is the fix. A fix that needs a major bump is filed the same way.
-4. Close an open `[security]` issue whose alert is no longer in the report, as completed, with the run link. A thread that still holds it releases it.
-5. When `counts.json` says Dependabot was not read, or the run failed, say so in the pass's summary instead of reporting no alerts.
+4. Close an open `[security]` issue whose alert is no longer in the report, as completed, with the run link. Only a kind the report read counts: when `counts.json` says Dependabot was not read, every Dependabot issue stays open. A thread that still holds a closed issue releases it.
+5. When Dependabot was not read, or the pass was skipped, say so in the pass's summary instead of reporting no alerts.
 
 ```bash
 R=FBakkensen/Dad-Friendly-Game
