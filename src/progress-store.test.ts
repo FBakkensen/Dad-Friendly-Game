@@ -28,7 +28,7 @@ import {
   type Mountain,
   BARE_MOUNTAIN,
 } from "./mountain";
-import { minedMountain, unstaffedSave } from "./test-fixtures";
+import { minedMountain } from "./test-fixtures";
 import { readDeviceId } from "./device-id";
 import { readPhoneBackup, writePhoneBackup } from "./phone-backup";
 import {
@@ -41,7 +41,11 @@ import {
   WELCOME_MIN_AWAY_MS,
   createProgressStore,
 } from "./progress-store";
-import { readSessionSave, writeSessionSave } from "./session-save";
+import {
+  SESSION_SAVE_KEY,
+  readSessionSave,
+  writeSessionSave,
+} from "./session-save";
 import { buyTier, tierById, tierCost } from "./tiers";
 import { upgradeById, upgradeCost, NO_UPGRADES } from "./upgrades";
 import { recipesForMined } from "./workshop";
@@ -572,7 +576,6 @@ describe("away earnings", () => {
         borers: 0,
         machines: 0,
         kids: 0,
-        staffed: 2,
         materials: { clay: 0, iron: 0, crystal: 0, heartstone: 0 },
         recipes: ["iron-rails", "sturdy-props", "blasting-charge"],
       },
@@ -1109,176 +1112,28 @@ describe("start over", () => {
   });
 });
 
-describe("one-time free helpers for saves from before staffing (#89)", () => {
-  const oldSave = (fields: Partial<Mountain>): Mountain => {
-    return unstaffedSave({
+describe("a loaded save gets no grant (#558)", () => {
+  it("is played as it was: no free workers, no engineer, nothing written", () => {
+    const storage = createMemoryStorage();
+    const mountain = {
       ...minedMountain(1_000),
-      ...fields,
-    });
-  };
-
-  it("staffs a guest save on load, saves the mark, and never repeats", () => {
-    const storage = createMemoryStorage();
-    writeSessionSave({
-      storage,
-      mountain: oldSave({ helpers: 2, carts: 3, drills: 1 }),
-      lastSeen: 0,
-    });
-    const first = createProgressStore({
-      auth: createMemoryAuth(),
-      sessionStorage: storage,
-      now: () => 0,
-    });
-    expect(firstNotice(first.getSnapshot(), "crew-joined")?.helpers).toBe(2);
-    expect(first.fieldLog().events).toContainEqual({
-      at: new Date(0).toISOString(),
-      code: "crew.staff",
-      data: { count: 2 },
-    });
-    expect(first.getSnapshot().mountain.helpers).toBe(4);
-    expect(first.getSnapshot().mountain.staffed).toBe(2);
-    expect(readSessionSave({ storage })?.mountain).toMatchObject({
-      helpers: 4,
-      staffed: 2,
-    });
-    first.dismiss("away");
-    expect(
-      firstNotice(first.getSnapshot(), "crew-joined")?.helpers,
-    ).toBeUndefined();
-    first.dispose();
-
-    const again = createProgressStore({
-      auth: createMemoryAuth(),
-      sessionStorage: storage,
-      now: () => 0,
-    });
-    expect(
-      firstNotice(again.getSnapshot(), "crew-joined")?.helpers,
-    ).toBeUndefined();
-    expect(again.getSnapshot().mountain.helpers).toBe(4);
-    expect(again.fieldLog().events.map((event) => event.code)).not.toContain(
-      "crew.staff",
-    );
-  });
-
-  it("pays away time with the newly staffed crew", () => {
-    const storage = createMemoryStorage();
-    writeSessionSave({
-      storage,
-      mountain: oldSave({ helpers: 0, carts: 10 }),
-      lastSeen: 0,
-    });
-    const progress = createProgressStore({
-      auth: createMemoryAuth(),
-      sessionStorage: storage,
-      now: () => 100_000,
-    });
-    // 10 helpers + 10 carts at their first mark (6 × 2 each) = 130/s,
-    // 100 s away at 30%.
-    expect(firstNotice(progress.getSnapshot(), "quiet")?.stones).toBe(3_900);
-    expect(firstNotice(progress.getSnapshot(), "crew-joined")?.helpers).toBe(
-      10,
-    );
-  });
-
-  it("staffs a cloud save on load and writes it back marked", async () => {
-    const docs = new Map([["test-dad", oldSave({ helpers: 1, borers: 2 })]]);
-    const auth = createMemoryAuth();
-    const progress = createProgressStore({
-      auth,
-      cloudSave: createMemoryCloudSave({ docs }),
-      sessionStorage: createMemoryStorage(),
-    });
-    await auth.signIn();
-    await vi.waitFor(() => {
-      expect(progress.getSnapshot().saveKind).toBe("account");
-    });
-    expect(firstNotice(progress.getSnapshot(), "crew-joined")?.helpers).toBe(
-      15,
-    );
-    expect(
-      firstNotice(progress.getSnapshot(), "engineer-joined"),
-    ).toBeDefined();
-    progress.flush();
-    await vi.waitFor(() => {
-      expect(docs.get("test-dad")).toMatchObject({
-        helpers: 16,
-        staffed: 2,
-        engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
-      });
-    });
-  });
-
-  it("steps the first engineer up once for a save that already owns a borer", () => {
-    const storage = createMemoryStorage();
-    writeSessionSave({
-      storage,
-      mountain: { ...minedMountain(0), borers: 1, helpers: 8 },
-      lastSeen: 0,
-    });
-    const first = createProgressStore({
-      auth: createMemoryAuth(),
-      sessionStorage: storage,
-      now: () => 0,
-    });
-    expect(firstNotice(first.getSnapshot(), "engineer-joined")).toBeDefined();
-    expect(first.getSnapshot().mountain.helpers).toBe(8);
-    expect(first.getSnapshot().mountain.engineers).toEqual([
-      { name: "Ada", rank: 0, trips: 0, post: "borer" },
-    ]);
-    expect(readSessionSave({ storage })?.mountain.engineers).toEqual(
-      first.getSnapshot().mountain.engineers,
-    );
-    first.dismiss("away");
-    expect(firstNotice(first.getSnapshot(), "engineer-joined")).toBeUndefined();
-    first.dispose();
-
-    const again = createProgressStore({
-      auth: createMemoryAuth(),
-      sessionStorage: storage,
-      now: () => 0,
-    });
-    expect(firstNotice(again.getSnapshot(), "engineer-joined")).toBeUndefined();
-    expect(again.getSnapshot().mountain.engineers).toHaveLength(1);
-  });
-
-  it("pays time away with the new engineer tending the borers", () => {
-    const storage = createMemoryStorage();
-    writeSessionSave({
-      storage,
-      mountain: { ...minedMountain(0), borers: 1, helpers: 8 },
-      lastSeen: 0,
-    });
-    const progress = createProgressStore({
-      auth: createMemoryAuth(),
-      sessionStorage: storage,
-      now: () => 100_000,
-    });
-    // 8 workers + a borer at +21.875% (435/s floored) for 100s at 30%.
-    expect(firstNotice(progress.getSnapshot(), "quiet")?.stones).toBe(
-      Math.floor(100 * 443 * 0.3),
-    );
-    expect(
-      firstNotice(progress.getSnapshot(), "engineer-joined"),
-    ).toBeDefined();
-  });
-
-  it("leaves Start over alone: a fresh mountain is already marked", async () => {
-    const storage = createMemoryStorage();
-    writeSessionSave({ storage, mountain: minedMountain(5), lastSeen: 0 });
+      helpers: 2,
+      carts: 3,
+      drills: 1,
+      borers: 1,
+    };
+    writeSessionSave({ storage, mountain, lastSeen: 0 });
+    const before = storage.getItem(SESSION_SAVE_KEY);
     const progress = createProgressStore({
       auth: createMemoryAuth(),
       sessionStorage: storage,
       now: () => 0,
     });
-    expect(
-      firstNotice(progress.getSnapshot(), "crew-joined")?.helpers,
-    ).toBeUndefined();
-    await progress.startOver();
-    expect(progress.getSnapshot().mountain).toMatchObject({
-      helpers: 0,
-      staffed: 2,
-    });
+    expect(progress.getSnapshot().mountain.helpers).toBe(2);
+    expect(progress.getSnapshot().mountain.engineers).toEqual([]);
+    expect(progress.getSnapshot().notices).toEqual([]);
+    expect(storage.getItem(SESSION_SAVE_KEY)).toBe(before);
+    progress.dispose();
   });
 });
 

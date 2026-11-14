@@ -22,13 +22,11 @@ import type { Materials } from "./layers";
 import {
   COLD_CLOCKS,
   NOTHING_CRAFTED,
-  NOTHING_KEPT,
   recipesForMined,
   settleBench,
   type Bench,
   type Clocks,
   type Crafted,
-  type KeptWorkshop,
   type RecipeId,
 } from "./workshop";
 
@@ -76,13 +74,6 @@ export type Mountain = {
    * A save from an older run never replaces a newer one.
    */
   readonly startedAt: number;
-  /**
-   * How far the one-time staffing grants have run (see staffExisting).
-   * `true` and `1` are the first grant (#89). `2` is the M7 top-up (#140).
-   * 0 is a save from before them. New mountains start at 2. Old clients
-   * still write `true`.
-   */
-  readonly staffed: StaffedMark | 0;
   /** Mountains passed to your kid (M6). */
   readonly legacy: number;
   /**
@@ -123,32 +114,17 @@ export type Mountain = {
   readonly seen: readonly TeachId[];
   /** Systems used at least once; their dot is gone (M11, src/teach.ts). */
   readonly taught: readonly TeachId[];
-  /**
-   * Recipe ids, a bench, crafted levels and teach ids this build does not
-   * know, from a newer build. Written back as they came.
-   */
-  readonly kept: KeptWorkshop;
 };
 
-/** A sanity cap for saves; no dad gets near it. Mirrored in firestore.rules. */
+/** A sanity cap for saves; no dad gets near it. */
 export const MAX_LEGACY = 1000;
-
-/** `true` and `1`: the #89 grant. `2`: the M7 top-up. Mirrored in firestore.rules. */
-export type StaffedMark = true | 1 | 2;
-
-/** Saves at this mark have had every staffing top-up. New mountains start here. */
-export const STAFF_GRANT = 2 satisfies StaffedMark;
-
-export function isStaffedMark(value: unknown): value is StaffedMark {
-  return value === true || value === 1 || value === 2;
-}
 
 /** 0 for a first run that was never started over. */
 export function runStartedAt(mountain: Mountain): number {
   return mountain.startedAt;
 }
 
-/** A mountain with nothing dug and nothing owned, before the staffing grant. */
+/** A mountain with nothing dug and nothing owned. */
 export const BARE_MOUNTAIN: Mountain = {
   remaining: MOUNTAIN_STONES,
   pocket: 0,
@@ -163,7 +139,6 @@ export const BARE_MOUNTAIN: Mountain = {
   upgrades: NO_UPGRADES,
   boosts: NO_BOOSTS,
   startedAt: 0,
-  staffed: 0,
   legacy: 0,
   stretch: 1,
   engineers: [],
@@ -178,13 +153,11 @@ export const BARE_MOUNTAIN: Mountain = {
   rushBank: 0,
   seen: [],
   taught: [],
-  kept: NOTHING_KEPT,
 };
 
 export function createMountain(): Mountain {
   return {
     ...BARE_MOUNTAIN,
-    staffed: STAFF_GRANT,
     materials: materialsGained(0, 0),
     recipes: recipesForMined(0),
   };

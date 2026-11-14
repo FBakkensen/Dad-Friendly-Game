@@ -1,10 +1,9 @@
 import { factor } from "./economy/factors";
 import { grantFirstEngineer } from "./engineers";
-import { STAFF_GRANT, type Mountain } from "./mountain";
+import type { Mountain } from "./mountain";
 import { hasRelic, RELICS, type Relic } from "./relics";
 import { KID_MACHINE_OPENS, minedOut, shownStones } from "./scale";
 import {
-  TIERS,
   buyTier,
   owned,
   tierById,
@@ -80,33 +79,4 @@ export function buyCrew(mountain: Mountain, id: TierId): Mountain {
     return bought;
   }
   return grantFirstEngineer(bought).mountain;
-}
-
-/**
- * One time, hire enough free workers that every machine already owned can run,
- * then mark the save so it never repeats. `#89` did this for the first staffing
- * numbers (`staffed` true or 1). M7 (#140) does it once more for the heavier
- * crew (`staffed` 2): a save already at 2 is returned unchanged. Kids already
- * on the crew count, so they aren't hired again.
- */
-export function staffExisting(mountain: Mountain): {
-  mountain: Mountain;
-  joined: number;
-} {
-  if (mountain.staffed === STAFF_GRANT) {
-    return { mountain, joined: 0 };
-  }
-  const needed = TIERS.filter(tierInPlay).reduce(
-    (total, tier) => total + owned(mountain, tier) * tier.staff,
-    0,
-  );
-  const joined = Math.max(0, needed - mountain.helpers - mountain.kids);
-  return {
-    mountain: {
-      ...mountain,
-      helpers: mountain.helpers + joined,
-      staffed: STAFF_GRANT,
-    },
-    joined,
-  };
 }

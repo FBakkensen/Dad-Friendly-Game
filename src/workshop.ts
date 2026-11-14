@@ -269,38 +269,6 @@ export type Bench = {
   readonly endsAt: number;
 };
 
-/**
- * A craft this build cannot name. It holds the bench until its clock ends.
- * The next save writes it back, so a newer recipe is not lost.
- */
-export type KeptBench = {
-  readonly recipe: string;
-  readonly startedAt: number;
-  readonly endsAt: number;
-};
-
-/**
- * Workshop fields a newer app wrote. Known recipes stay on `recipes`.
- * A bench here holds the one bench until its clock ends. The rest ride
- * along on the next write and are not shown.
- */
-export type KeptWorkshop = {
-  readonly recipes: readonly string[];
-  readonly bench: KeptBench | undefined;
-  readonly crafted: Readonly<Record<string, number>>;
-  /** Teach ids (src/teach.ts) from a newer build. */
-  readonly seen: readonly string[];
-  readonly taught: readonly string[];
-};
-
-export const NOTHING_KEPT: KeptWorkshop = {
-  recipes: [],
-  bench: undefined,
-  crafted: {},
-  seen: [],
-  taught: [],
-};
-
 export type Crafted = Readonly<Record<RecipeId, number>>;
 
 export const NOTHING_CRAFTED: Crafted = Object.fromEntries(
@@ -416,31 +384,6 @@ export function grantRecipes(
   };
 }
 
-/**
- * A craft this build cannot name, still on the clock. Once `now` reaches
- * `endsAt` the bench is free again, and the kept craft stays in the save
- * until a new craft takes its place.
- */
-export function unknownBench(
-  mountain: Pick<Mountain, "kept">,
-  now: number,
-): KeptBench | undefined {
-  const bench = mountain.kept.bench;
-  if (bench === undefined || !isWhole(now) || now >= bench.endsAt) {
-    return undefined;
-  }
-  return bench;
-}
-
-/** A finished unknown craft can leave. One still running stays. */
-function releaseKeptBench(mountain: Mountain): Mountain {
-  const kept = mountain.kept;
-  if (kept.bench === undefined) {
-    return mountain;
-  }
-  return { ...mountain, kept: { ...kept, bench: undefined } };
-}
-
 export function isRecipeId(value: unknown): value is RecipeId {
   return typeof value === "string" && RECIPE_IDS.some((id) => id === value);
 }
@@ -554,11 +497,7 @@ export function startCraft(
   if (!recipeOpen(mountain, id) || !isWhole(now)) {
     return mountain;
   }
-  if (
-    !mountain.recipes.includes(id) ||
-    mountain.bench !== undefined ||
-    unknownBench(mountain, now) !== undefined
-  ) {
+  if (!mountain.recipes.includes(id) || mountain.bench !== undefined) {
     return mountain;
   }
   const recipe = recipeById(id);
@@ -570,7 +509,7 @@ export function startCraft(
   if (mountain.pocket < cost.stones || !canAfford(have, cost.materials)) {
     return mountain;
   }
-  return releaseKeptBench({
+  return {
     ...mountain,
     pocket: mountain.pocket - cost.stones,
     materials: spendMaterials(have, cost.materials),
@@ -579,7 +518,7 @@ export function startCraft(
       startedAt: now,
       endsAt: now + recipe.craftMs,
     },
-  });
+  };
 }
 
 function dropBench(mountain: Mountain): Mountain {

@@ -60,30 +60,23 @@ function anyProgress(mountain: Mountain): boolean {
 }
 
 /**
- * A copy comes into play: the one-time staff (when `staff`), the news
- * baselines, the homecomings a reload left, and the pay for time away
- * since `since` (when `pay`). Returns the stones paid and whether the staff
- * changed the mountain.
+ * A copy comes into play: the news baselines, the homecomings a reload
+ * left, and the pay for time away since `since` (when `pay`). Returns the
+ * stones paid.
  */
 export function openSession(
   ctx: StoreContext,
   options: {
-    readonly staff: boolean;
     readonly pay: boolean;
     readonly since: number | undefined;
     readonly rebase: boolean;
   },
-): { paid: number; staffed: boolean } {
-  const before = ctx.session.mountain;
-  if (options.staff) {
-    runStep(ctx, { kind: "loaded" });
-  }
-  const staffed = ctx.session.mountain !== before;
+): { paid: number } {
   ctx.session = openBaselines(ctx.session, options.rebase);
   runStep(ctx, { kind: "recall", homecomings: readHomecomings(ctx) });
   const paid = options.pay ? payAway(ctx, options.since) : 0;
   ctx.session = markWelcomed(ctx.session);
-  return { paid, staffed };
+  return { paid };
 }
 
 /** Pays the time a save says we were gone, unless a fresh read or the conflict sheet holds play. */
@@ -103,7 +96,6 @@ function openFresh(
 ): void {
   const writing = isWriter(ctx);
   const opened = openSession(ctx, {
-    staff: writing,
     pay: writing,
     since: paidLastSeen,
     rebase: false,
@@ -111,7 +103,7 @@ function openFresh(
   ctx.hydrated = true;
   ctx.saveKind = "account";
   logCounts(ctx, "save.remote", detail);
-  const changed = upload || opened.paid > 0 || opened.staffed;
+  const changed = upload || opened.paid > 0;
   if (serverSeen(ctx) && changed) {
     persistCloudSoon(ctx);
   }
@@ -160,13 +152,12 @@ function noteRemoteFailure(
 ): void {
   if (kind === "unavailable" && !ctx.hydrated && hasLocalProgress(ctx)) {
     const opened = openSession(ctx, {
-      staff: true,
       pay: true,
       since: ctx.session.lastSeen,
       rebase: false,
     });
     ctx.hydrated = true;
-    if (opened.paid > 0 || opened.staffed) {
+    if (opened.paid > 0) {
       persistPhoneBackup(ctx);
     }
   }

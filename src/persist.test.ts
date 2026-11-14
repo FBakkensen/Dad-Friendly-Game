@@ -4,7 +4,6 @@ import {
   BARE_MOUNTAIN,
   MAX_LEGACY,
   MOUNTAIN_STONES,
-  STAFF_GRANT,
   createMountain,
   digStones,
   minedOut,
@@ -245,7 +244,7 @@ describe("the version 8 save (#558)", () => {
     expect(readSave({ version: 8, lastSeen: 1, game: {} })).toEqual({
       kind: "ok",
       save: {
-        mountain: { ...BARE_MOUNTAIN, staffed: STAFF_GRANT },
+        mountain: BARE_MOUNTAIN,
         lastSeen: 1,
       },
     });

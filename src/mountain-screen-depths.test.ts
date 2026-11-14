@@ -1256,6 +1256,7 @@ describe("sheet buys", () => {
         drills: 2,
         borers: 1,
         pocket: 2_500_000,
+        engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
       },
       lastSeen: Date.now(),
     });

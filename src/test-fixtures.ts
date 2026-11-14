@@ -11,11 +11,6 @@ export function minedMountain(count: number): Mountain {
   };
 }
 
-/** A save from before machines needed helpers (#89): no `staffed` mark. */
-export function unstaffedSave(mountain: Mountain): Mountain {
-  return { ...mountain, staffed: 0 };
-}
-
 /** The mountain after a save through JSON and back, or undefined when it does not read `ok`. */
 export function reloaded(
   mountain: Mountain,

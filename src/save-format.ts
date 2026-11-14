@@ -35,7 +35,6 @@ import {
   BARE_MOUNTAIN,
   MAX_LEGACY,
   MOUNTAIN_STONES,
-  STAFF_GRANT,
   type Mountain,
 } from "./mountain";
 import { MAX_STRETCH } from "./scale";
@@ -47,7 +46,6 @@ import {
   MAX_CRAFTED_LEVEL,
   MAX_CRAFT_MS,
   NOTHING_CRAFTED,
-  NOTHING_KEPT,
   RECIPE_IDS,
   TIMER_IDS,
   parseBench,
@@ -645,8 +643,6 @@ export function readGame(value: unknown, startedAt: number): GameRead {
       ...(crew as Crew),
       bench: bench as Bench | undefined,
       startedAt,
-      staffed: STAFF_GRANT,
-      kept: NOTHING_KEPT,
     },
   };
 }

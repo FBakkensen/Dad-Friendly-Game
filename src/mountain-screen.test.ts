@@ -557,6 +557,7 @@ describe("crew tiers on screen", () => {
         carts: 2,
         drills: 1,
         borers: 2,
+        engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
       },
       lastSeen: Date.now(),
     });

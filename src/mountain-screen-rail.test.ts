@@ -46,7 +46,6 @@ describe("the key rail (#373)", () => {
     pocket: 50_000,
     helpers: 4,
     carts: 1,
-    staffed: 2,
     materials: { clay: 0, iron: 0, crystal: 0, heartstone: 0 },
     recipes: [
       "iron-rails",

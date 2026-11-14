@@ -1,7 +1,6 @@
 import { createMountain, runStartedAt, type Mountain } from "./mountain";
 import { hasRelic } from "./relics";
 import { kidStretch } from "./scale";
-import { NOTHING_KEPT } from "./workshop";
 
 /** The bonus itself lives in rates.ts with every other multiplier. */
 export { LEGACY_STEP, legacyBonus } from "./rates";
@@ -28,13 +27,6 @@ export function passTheMine(
     stretch: kidStretch(legacy),
     startedAt: Math.max(now, runStartedAt(mountain) + 1),
     recipes: mountain.recipes,
-    // A newer build's recipes and teach marks pass on; its bench and gear do not.
-    kept: {
-      ...NOTHING_KEPT,
-      recipes: mountain.kept.recipes,
-      seen: mountain.kept.seen,
-      taught: mountain.kept.taught,
-    },
     seen: mountain.seen,
     taught: mountain.taught,
   };

@@ -19,7 +19,6 @@ function roundTrip(mountain: Mountain): Mountain | undefined {
 describe("the game map (#558)", () => {
   it("saves every field of the mountain: a mountain with none at its default comes back whole", () => {
     // A new Mountain field must be named here, with the map it is saved in.
-    // `staffed` and `kept` go with the load-time grants (#558, Task 2).
     const homes = {
       remaining: "run",
       pocket: "stock",
@@ -34,7 +33,6 @@ describe("the game map (#558)", () => {
       upgrades: "levels",
       boosts: "clocks",
       startedAt: "envelope",
-      staffed: "none",
       legacy: "run",
       engineers: "engineers",
       expeditions: "expeditions",
@@ -49,7 +47,6 @@ describe("the game map (#558)", () => {
       rushBank: "run",
       seen: "marks",
       taught: "marks",
-      kept: "none",
     } as const satisfies Record<keyof Mountain, string>;
     const fresh = createMountain();
     const full: Mountain = {
@@ -91,9 +88,7 @@ describe("the game map (#558)", () => {
       taught: ["engineers"],
     };
     for (const key of Object.keys(homes) as (keyof Mountain)[]) {
-      if (homes[key] !== "none") {
-        expect(full[key], key).not.toEqual(fresh[key]);
-      }
+      expect(full[key], key).not.toEqual(fresh[key]);
     }
     expect(roundTrip(full)).toEqual(full);
   });

@@ -29,7 +29,6 @@ describe("mountain", () => {
       borers: 0,
       machines: 0,
       kids: 0,
-      staffed: 2,
       materials: EMPTY_MATERIALS,
       recipes: [...STARTING_RECIPE_IDS],
     });

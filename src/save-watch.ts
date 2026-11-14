@@ -88,14 +88,13 @@ function resumeFromSession(ctx: StoreContext): void {
   }
   setGame(ctx, stored.mountain, ctx.session.lastSeen);
   const opened = openSession(ctx, {
-    staff: true,
     pay: true,
     since: stored.lastSeen,
     rebase: true,
   });
   ctx.saveKind = "session";
   logCounts(ctx, "save.session", "resume");
-  if (opened.paid > 0 || opened.staffed) {
+  if (opened.paid > 0) {
     persistSession(ctx);
   }
   emit(ctx);

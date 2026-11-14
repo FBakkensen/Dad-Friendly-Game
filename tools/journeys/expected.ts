@@ -92,13 +92,8 @@ export class Expected {
     saved: Saved,
     at: number,
   ): { expected: Expected; report: AwayReport | undefined } {
-    const staffed = step(
-      createSession(saved.mountain, at),
-      { kind: "loaded" },
-      at,
-    ).session;
     const recalled = step(
-      openBaselines(staffed, false),
+      openBaselines(createSession(saved.mountain, at), false),
       { kind: "recall", homecomings: [] },
       at,
     ).session;
