@@ -288,10 +288,12 @@ describe("a stretch that crosses into a new band (#592)", () => {
     remaining: MOUNTAIN_STONES - (BAND_STARTS[1] - 500),
     owned: {
       ...createMountain().owned,
+      // The face (one drill) moves the least, so the Granite's slower
+      // drills slow the line.
       helper: 30,
       cart: 10,
-      hoist: 10,
-      drill: 20,
+      hoist: 4,
+      drill: 1,
     },
   };
 

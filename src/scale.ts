@@ -15,8 +15,9 @@ export const KID_RUN_GROWTH = 3 / 8;
 
 /**
  * The biggest stretch a run reaches (#366). At this k the whole mountain is
- * about 4.5e15 stones, half of JavaScript's safe-integer limit, so the pocket
- * and the save stay exact whole numbers. kidStretch reaches it at about
+ * about 5.3e15 stones (the Deep Heart's line retune, #543), under 60% of
+ * JavaScript's safe-integer limit, so the pocket and the save stay exact
+ * whole numbers. kidStretch reaches it at about
  * Legacy 240, years of play past any real run; until then runs keep growing.
  */
 export const MAX_STRETCH = 1_000_000;

@@ -135,7 +135,7 @@ describe("tiers", () => {
     );
   });
 
-  it("adds every tier into the speed, and accrue pays them all", () => {
+  it("moves at its lowest stage with the hands' help, and accrue pays it (#536)", () => {
     const crew = at({
       // 21 workers: 2 carts + 1 + 8 + 10.
       owned: {
@@ -148,17 +148,19 @@ describe("tiers", () => {
         kid: 0,
       },
     });
-    expect(stonesPerSecond(crew)).toBe(21 + 12 + 36 + 357 + 2_100);
+    // The haul (two carts, 36) is the lowest stage; the 21 hands lift it by
+    // three each, to 99, still under the face (1,179) and the lift (6,300).
+    expect(stonesPerSecond(crew)).toBe(2 * 18 + 3 * 21);
     expect(
       accrue({
         mountain: { ...crew, remaining: 240_000_000 },
         from: 0,
         to: 1_000,
       }).mined,
-    ).toBe(2_526);
+    ).toBe(99);
   });
 
-  it("shows each tier once the one before it is owned", () => {
+  it("shows each machine once the one before it on the line is owned", () => {
     expect(tierShown(at({}), tierById("helper"))).toBe(true);
     expect(
       tierShown(
@@ -167,23 +169,25 @@ describe("tiers", () => {
       ),
     ).toBe(false);
     expect(
-      tierShown(at({ owned: { ...NONE_OWNED, helper: 1 } }), tierById("cart")),
-    ).toBe(true);
-    expect(
       tierShown(at({ owned: { ...NONE_OWNED, helper: 5 } }), tierById("drill")),
     ).toBe(false);
-    expect(
-      tierShown(at({ owned: { ...NONE_OWNED, cart: 1 } }), tierById("drill")),
-    ).toBe(true);
-    expect(
-      tierShown(at({ owned: { ...NONE_OWNED, drill: 1 } }), tierById("borer")),
-    ).toBe(true);
-    expect(
-      tierShown(
-        at({ owned: { ...NONE_OWNED, borer: 1 } }),
-        tierById("machine"),
-      ),
-    ).toBe(true);
+    const chain = [
+      ["cart", "hoist"],
+      ["hoist", "drill"],
+      ["drill", "borer"],
+      ["borer", "train"],
+      ["train", "machine"],
+    ] as const;
+    for (const [before, after] of chain) {
+      expect(
+        tierShown(
+          at({ owned: { ...NONE_OWNED, [before]: 1 } }),
+          tierById(after),
+        ),
+        after,
+      ).toBe(true);
+      expect(tierShown(at({}), tierById(after)), after).toBe(false);
+    }
     expect(
       tierShown(
         at({ owned: { ...NONE_OWNED, machine: 1 } }),
@@ -214,7 +218,8 @@ describe("crew staffing", () => {
     );
     expect(rates.running.cart).toBe(3);
     expect(rates.helpersShort).toBe(2);
-    expect(rates.crewPerSecond).toBe(3 + 18);
+    // The face and the lift move nothing, so the three hands share them.
+    expect(rates.crewPerSecond).toBe(Math.floor((3 * 3) / 2));
   });
 
   it("staffs the fastest machines first", () => {
@@ -233,7 +238,8 @@ describe("crew staffing", () => {
       cart: 2,
     });
     expect(rates.helpersShort).toBe(1);
-    expect(rates.crewPerSecond).toBe(11 + 12 + 36 + 357);
+    // No hoist, so the hands carry the lift alone.
+    expect(rates.crewPerSecond).toBe(3 * 11);
   });
 
   it("idles a machine rather than half-run it, and away pay agrees", () => {
@@ -245,15 +251,18 @@ describe("crew staffing", () => {
     const rates = effectiveRates(crew);
     expect(rates.running.machine).toBe(0);
     expect(rates.running.cart).toBe(4);
-    expect(rates.crewPerSecond).toBe(9 + 24);
+    // The face and the lift move nothing: the hands share them.
+    const speed = (3 * 9) / 2;
+    expect(rates.crewPerSecond).toBe(Math.floor(speed));
     expect(accrueAway({ mountain: crew, lastSeen: 0, now: 10_000 }).mined).toBe(
-      Math.floor(10 * 33 * AWAY_PAY_RATE),
+      Math.floor(10 * Math.floor(speed) * AWAY_PAY_RATE),
     );
     const staffed = effectiveRates({
       ...crew,
       owned: { ...crew.owned, helper: 14 },
     });
-    expect(staffed.crewPerSecond).toBe(14 + 24 + 2_310);
+    // The Great Machine runs the lift; the hands carry the face alone.
+    expect(staffed.crewPerSecond).toBe(3 * 14);
     expect(staffed.helpersShort).toBe(0);
   });
 });
@@ -288,8 +297,9 @@ describe("Crown of Wisdom: kid helpers", () => {
     expect(rates.tierSpeed.kid).toBeCloseTo(27.5);
     expect(rates.running).toMatchObject({ borer: 1, drill: 1, cart: 1 });
     expect(rates.helpersShort).toBe(0);
+    // The hands lift the empty lift to the haul's cart, then both together.
     expect(rates.crewPerSecond).toBe(
-      Math.floor(10 * 1.1 + 5 * 27.5 + 6 + 36 + 357),
+      Math.floor((3 * (10 * 1.1 + 5 * 27.5) + 18) / 2),
     );
   });
 });

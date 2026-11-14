@@ -709,10 +709,10 @@ describe("layer card and craft-done copy", () => {
       sketch: "A sketch for the shed came up with the rock.",
     });
     expect(layerCardWords("crystal")?.advice).toBe(
-      "The Crystal Caves suit drills. Tough on borers.",
+      "The Crystal Caves suit trains. Tough on carts.",
     );
     expect(layerCardWords("heart")?.advice).toBe(
-      "The Deep Heart suits the Great Machine. Tough on borers.",
+      "The Deep Heart suits the Great Machine. Tough on hoists.",
     );
     expect(layerWelcomeWords("topsoil")).toBeUndefined();
     expect(layerWelcomeWords("granite")).toBe(

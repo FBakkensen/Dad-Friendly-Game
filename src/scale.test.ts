@@ -399,8 +399,10 @@ describe("the stretch cap keeps every count a safe integer (#366)", () => {
   it("stops growing at MAX_STRETCH, where the whole mountain is still a safe count", () => {
     const whole = shownStones({ stretch: MAX_STRETCH }, MOUNTAIN_STONES);
     expect(Number.isSafeInteger(whole)).toBe(true);
-    // Half the limit: room for a band retune before the cap has to move.
-    expect(2 * whole).toBeLessThanOrEqual(Number.MAX_SAFE_INTEGER);
+    // Room for a band retune before the cap has to move. The Deep Heart's
+    // retune for the line (#543, in play since #536) used some of the half
+    // this kept: the whole mountain is now 5.3e15, under 60% of the limit.
+    expect(1.6 * whole).toBeLessThanOrEqual(Number.MAX_SAFE_INTEGER);
     // Runs keep growing far past any real evening (run 200 is years away)...
     expect(kidStretch(200)).toBeLessThan(MAX_STRETCH);
     // ...and stop at the cap long before the rules' Legacy cap of 1000.

@@ -94,12 +94,12 @@ describe("economy factors", () => {
       );
     });
     expect(effectiveRates(posted).tierSpeed.borer).toBeCloseTo(
-      357 * 0.8 * 1.21875,
+      357 * 3 * 1.21875,
       8,
     );
     withFactors({ "output.borer": 2 }, () => {
       expect(effectiveRates(posted).tierSpeed.borer).toBeCloseTo(
-        714 * 0.8 * 1.21875,
+        714 * 3 * 1.21875,
         8,
       );
     });

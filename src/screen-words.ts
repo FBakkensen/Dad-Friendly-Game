@@ -1211,13 +1211,13 @@ const LAYER_CARD = {
   crystal: {
     arrival: "You broke into the Crystal Caves!",
     evocative: "Light in the walls. Your crew can handle this.",
-    advice: "The Crystal Caves suit drills. Tough on borers.",
-    line: "Suits drills.",
+    advice: "The Crystal Caves suit trains. Tough on carts.",
+    line: "Suits trains.",
   },
   heart: {
     arrival: "You broke into the Deep Heart!",
     evocative: "Warm stone, deep down. Your crew earned this.",
-    advice: "The Deep Heart suits the Great Machine. Tough on borers.",
+    advice: "The Deep Heart suits the Great Machine. Tough on hoists.",
     line: "Suits the Great Machine.",
   },
 } as const;

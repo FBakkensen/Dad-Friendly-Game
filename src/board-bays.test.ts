@@ -224,7 +224,7 @@ describe("bandWords", () => {
     expect(bandWords(mined(500_000))).toBe("The Topsoil");
     expect(bandWords(mined(25_000_000))).toBe("The Granite · Suits borers");
     expect(bandWords(mined(60_000_000))).toBe(
-      "The Crystal Caves · Suits drills",
+      "The Crystal Caves · Suits trains",
     );
     expect(bandWords(mined(130_000_000))).toBe(
       "The Deep Heart · Suits the Great Machine",
