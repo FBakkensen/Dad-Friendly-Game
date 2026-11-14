@@ -222,6 +222,8 @@ describe("the version 8 save (#558)", () => {
     expect(readSave(withGame({ stock: { stones: -1 } })).kind).toBe("bad");
     expect(readSave(withGame({ levels: { tap: 1.5 } })).kind).toBe("bad");
     expect(readSave(withGame({ marks: { seen: [1] } })).kind).toBe("bad");
+    expect(readSave(withGame({ marks: "seen" })).kind).toBe("bad");
+    expect(readSave(withGame({ run: [] })).kind).toBe("bad");
     expect(readSave(withGame({ engineers: [{ name: "Ada" }] })).kind).toBe(
       "bad",
     );

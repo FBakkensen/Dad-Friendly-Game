@@ -39,7 +39,7 @@ import {
 } from "./mountain";
 import { MAX_STRETCH } from "./scale";
 import { TEACH_IDS, type TeachId } from "./teach";
-import { TIERS, type TierId } from "./tiers";
+import { TIERS, tierById, type TierId } from "./tiers";
 import { NO_UPGRADES, UPGRADES, type UpgradeId } from "./upgrades";
 import {
   COLD_CLOCKS,
@@ -159,8 +159,7 @@ function some<K extends string, V extends object>(
 }
 
 function tierCount(mountain: Mountain, id: TierId): number {
-  const tier = TIERS.find((each) => each.id === id);
-  return tier === undefined ? 0 : mountain[tier.field];
+  return mountain[tierById(id).field];
 }
 
 function stockOf(mountain: Mountain, id: StockId): number {

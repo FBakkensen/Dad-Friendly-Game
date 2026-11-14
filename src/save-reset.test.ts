@@ -177,6 +177,49 @@ describe("an older save is set aside (#558)", () => {
   });
 });
 
+describe("an older cloud copy with nowhere to go (#558)", () => {
+  const older = () =>
+    new Map([[user.uid, { version: 7, rev: 3, startedAt: 700, raw: {} }]]);
+
+  it("a cloud with no Saved copies keeps the board held", async () => {
+    const docs = new Map<string, Mountain>();
+    const cloud = createMemoryCloudSave({ docs, olderDocs: older() });
+    const noArchive: CloudSave = { ...cloud };
+    delete (noArchive as { archiveRaw?: unknown }).archiveRaw;
+    const progress = signedIn(noArchive, createMemoryStorage());
+    await vi.waitFor(() => {
+      expect(progress.getSnapshot().saveKind).toBe("error");
+    });
+    expect(docs.has(user.uid)).toBe(false);
+    expect(progress.getSnapshot().playing).toBe(false);
+    progress.dispose();
+  });
+
+  it("a copy still on its way when the page closes changes nothing after", async () => {
+    const docs = new Map<string, Mountain>();
+    const cloud = createMemoryCloudSave({ docs, olderDocs: older() });
+    let land: (result: { kind: "ok" }) => void = () => undefined;
+    const progress = signedIn(
+      {
+        ...cloud,
+        archiveRaw: () =>
+          new Promise((resolve) => {
+            land = resolve;
+          }),
+      },
+      createMemoryStorage(),
+    );
+    await vi.waitFor(() => {
+      expect(progress.getSnapshot().saveKind).toBe("loading");
+    });
+    progress.dispose();
+    land({ kind: "ok" });
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    expect(docs.has(user.uid)).toBe(false);
+    expect(progress.getSnapshot().saveKind).toBe("loading");
+  });
+});
+
 describe("a blank reset meets a copy of this version (#558)", () => {
   it("a device that played is ahead of one that reset to a blank mountain", async () => {
     const storage = createMemoryStorage();
@@ -230,25 +273,7 @@ describe("a set-aside never costs a played copy (#558)", () => {
     const storage = createMemoryStorage();
     const raw = JSON.stringify({ version: 7, lastSeen: 1, startedAt: 40 });
     storage.setItem(SESSION_SAVE_KEY, raw);
-    const full: Storage = {
-      get length() {
-        return storage.length;
-      },
-      clear: () => {
-        storage.clear();
-      },
-      key: (index) => storage.key(index),
-      getItem: (key) => storage.getItem(key),
-      removeItem: (key) => {
-        storage.removeItem(key);
-      },
-      setItem: (key, value) => {
-        if (key.endsWith(":v7")) {
-          throw new Error("QuotaExceededError");
-        }
-        storage.setItem(key, value);
-      },
-    };
+    const full = refusing(storage, ":v7");
     const progress = createProgressStore({
       auth: createMemoryAuth(),
       sessionStorage: full,
@@ -262,4 +287,45 @@ describe("a set-aside never costs a played copy (#558)", () => {
       progress.fieldLog().events.filter((event) => event.code === "save.error"),
     ).toEqual([expect.objectContaining({ data: { source: "set-aside" } })]);
   });
+
+  it("a phone backup that cannot move aside keeps its old text, signed in", async () => {
+    const storage = createMemoryStorage();
+    const raw = olderBackup(storage, 500);
+    const full = refusing(storage, ":v7");
+    const docs = new Map<string, Mountain>();
+    const progress = signedIn(createMemoryCloudSave({ docs }), full);
+    await vi.waitFor(() => {
+      expect(progress.getSnapshot().saveKind).toBe("account");
+    });
+    progress.dispatch({ kind: "dig" });
+    progress.flush();
+    await vi.waitFor(() => {
+      expect(minedOut(docs.get(user.uid) ?? createMountain())).toBe(1);
+    });
+    expect(storage.getItem(BACKUP_KEY)).toBe(raw);
+    progress.dispose();
+  });
 });
+
+/** A phone that is full for any key ending in the suffix. */
+function refusing(storage: Storage, suffix: string): Storage {
+  return {
+    get length() {
+      return storage.length;
+    },
+    clear: () => {
+      storage.clear();
+    },
+    key: (index) => storage.key(index),
+    getItem: (key) => storage.getItem(key),
+    removeItem: (key) => {
+      storage.removeItem(key);
+    },
+    setItem: (key, value) => {
+      if (key.endsWith(suffix)) {
+        throw new Error("QuotaExceededError");
+      }
+      storage.setItem(key, value);
+    },
+  };
+}

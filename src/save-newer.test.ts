@@ -6,9 +6,10 @@
 import { describe, expect, it, vi } from "vitest";
 import { createMemoryAuth } from "./auth";
 import { createMemoryCloudSave } from "./cloud-save";
-import type { Mountain } from "./mountain";
+import { minedOut, type Mountain } from "./mountain";
 import { createProgressStore } from "./progress-store";
 import { SESSION_SAVE_KEY } from "./session-save";
+import { createMemoryBus, createTabWriter } from "./tab-writer";
 import { minedMountain, saveText } from "./test-fixtures";
 import type { RecipeId } from "./workshop";
 
@@ -128,6 +129,66 @@ describe("a save from a later build (#558)", () => {
     progress.dispose();
   });
 
+  it("a newer phone backup another tab left holds the tab that takes the seat", async () => {
+    const docs = new Map<string, Mountain>([[user.uid, minedMountain(5)]]);
+    const storage = createMemoryStorage();
+    const bus = createMemoryBus();
+    const open = (tabId: string) =>
+      createProgressStore({
+        auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+        cloudSave: createMemoryCloudSave({ docs }),
+        sessionStorage: storage,
+        tabWriter: createTabWriter({
+          tabId,
+          storage,
+          bus,
+          handoffMs: 0,
+          yieldWaitMs: 30,
+        }),
+        cloudWriteGapMs: 0,
+      });
+    const first = open("tab-writer");
+    const second = open("tab-other1");
+    await vi.waitFor(() => {
+      expect(first.getSnapshot().playing).toBe(true);
+      expect(second.getSnapshot().elsewhere).toBe(true);
+    });
+    first.dispose();
+    const raw = JSON.stringify({ uid: user.uid, save: { version: 9 } });
+    storage.setItem(BACKUP_KEY, raw);
+    await second.playHere();
+    await vi.waitFor(() => {
+      expect(second.getSnapshot().newer).toBe(true);
+    });
+    expect(storage.getItem(BACKUP_KEY)).toBe(raw);
+    second.dispose();
+  });
+
+  it("a newer guest save met at sign-in writes nothing", async () => {
+    const docs = new Map<string, Mountain>();
+    const storage = createMemoryStorage();
+    const raw = JSON.stringify({ version: 9, lastSeen: 1 });
+    storage.setItem(SESSION_SAVE_KEY, raw);
+    storage.writes.length = 0;
+    const clock = { at: 1_000 };
+    const progress = createProgressStore({
+      auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+      cloudSave: createMemoryCloudSave({ docs }),
+      sessionStorage: storage,
+      now: () => clock.at,
+      cloudWriteGapMs: 0,
+    });
+    await vi.waitFor(() => {
+      expect(progress.getSnapshot().newer).toBe(true);
+    });
+    tryToSave(progress, clock);
+    await Promise.resolve();
+    expect(storage.getItem(SESSION_SAVE_KEY)).toBe(raw);
+    expect(saveWrites(storage)).toEqual([]);
+    expect(docs.has(user.uid)).toBe(false);
+    progress.dispose();
+  });
+
   it("a newer guest save writes nothing", () => {
     const storage = createMemoryStorage();
     const raw = JSON.stringify({ version: 9, lastSeen: 1 });
@@ -147,6 +208,54 @@ describe("a save from a later build (#558)", () => {
     expect(storage.getItem(SESSION_SAVE_KEY)).toBe(raw);
     expect(saveWrites(storage)).toEqual([]);
     expect(progress.getSnapshot().mountain.pocket).toBe(0);
+    progress.dispose();
+  });
+
+  it("a newer cloud copy met by the read on resume holds play", async () => {
+    const docs = new Map<string, Mountain>([[user.uid, minedMountain(5)]]);
+    const newerDocs = new Set<string>();
+    const progress = createProgressStore({
+      auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+      cloudSave: createMemoryCloudSave({ docs, newerDocs }),
+      sessionStorage: createMemoryStorage(),
+      cloudWriteGapMs: 0,
+    });
+    await vi.waitFor(() => {
+      expect(progress.getSnapshot().saveKind).toBe("account");
+    });
+    // Another phone on a later build saved while this one slept.
+    newerDocs.add(user.uid);
+    const read = progress.resume();
+    expect(read.kind).toBe("reading");
+    if (read.kind === "reading") {
+      await read.done;
+    }
+    expect(progress.getSnapshot()).toMatchObject({
+      newer: true,
+      playing: false,
+    });
+    progress.dispose();
+  });
+
+  it("a newer cloud copy met by a refused write holds play", async () => {
+    const docs = new Map<string, Mountain>([[user.uid, minedMountain(5)]]);
+    const newerDocs = new Set<string>();
+    const progress = createProgressStore({
+      auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+      cloudSave: createMemoryCloudSave({ docs, newerDocs }),
+      sessionStorage: createMemoryStorage(),
+      cloudWriteGapMs: 0,
+    });
+    await vi.waitFor(() => {
+      expect(progress.getSnapshot().saveKind).toBe("account");
+    });
+    newerDocs.add(user.uid);
+    progress.dispatch({ kind: "dig" });
+    progress.flush();
+    await vi.waitFor(() => {
+      expect(progress.getSnapshot().newer).toBe(true);
+    });
+    expect(minedOut(docs.get(user.uid) ?? minedMountain(0))).toBe(5);
     progress.dispose();
   });
 
@@ -174,6 +283,26 @@ describe("a save from a later build (#558)", () => {
     expect(storage.getItem(`dad-friendly-phone-backup:${user.uid}`)).toBe(
       oldBackup,
     );
+    progress.dispose();
+  });
+});
+
+describe("a phone backup this build cannot read (#558)", () => {
+  it("is left as it was, and the cloud copy plays", async () => {
+    const docs = new Map<string, Mountain>([[user.uid, minedMountain(5)]]);
+    const storage = createMemoryStorage();
+    storage.setItem(BACKUP_KEY, "{not json");
+    const progress = createProgressStore({
+      auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+      cloudSave: createMemoryCloudSave({ docs }),
+      sessionStorage: storage,
+      cloudWriteGapMs: 0,
+    });
+    await vi.waitFor(() => {
+      expect(progress.getSnapshot().saveKind).toBe("account");
+    });
+    expect(minedOut(progress.getSnapshot().mountain)).toBe(5);
+    expect(storage.getItem(BACKUP_KEY)).toBe("{not json");
     progress.dispose();
   });
 });

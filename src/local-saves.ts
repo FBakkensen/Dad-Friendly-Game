@@ -180,14 +180,11 @@ export function clearHomecomings(ctx: StoreContext): void {
  */
 export function setAsideLocal(
   ctx: StoreContext,
+  storage: Storage,
   key: string,
   raw: string,
   version: number,
 ): void {
-  const storage = ctx.ports.storage;
-  if (storage === undefined) {
-    return;
-  }
   try {
     storage.setItem(`${key}:v${String(version)}`, raw);
     storage.removeItem(key);

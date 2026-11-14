@@ -298,6 +298,10 @@ describe("phone backup", () => {
     if (raw === null) {
       throw new Error("missing backup");
     }
+    const stale = JSON.parse(raw) as { conflict: { remote: unknown } };
+    stale.conflict.remote = { version: 7, lastSeen: 1 };
+    storage.setItem("dad-friendly-game-backup:dad", JSON.stringify(stale));
+    expect(readPhoneBackup({ storage, uid: "dad" }).kind).toBe("unreadable");
     const broken = JSON.parse(raw) as { conflict: { deviceLabel: string } };
     broken.conflict.deviceLabel = "";
     storage.setItem("dad-friendly-game-backup:dad", JSON.stringify(broken));

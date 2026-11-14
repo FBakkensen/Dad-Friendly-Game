@@ -5,6 +5,7 @@ import {
   MAX_EXPEDITION_MS,
   TUNNELS,
   glimmerText,
+  parseExpeditions,
   parseHomecomingNews,
   send,
   settle,
@@ -896,6 +897,41 @@ describe("parseHomecomingNews", () => {
       [tool, { engineer: "Ada" }],
     ]) {
       expect(parseHomecomingNews(bad)).toEqual([]);
+    }
+  });
+});
+
+describe("parseExpeditions reads only a whole trip (#558)", () => {
+  const away: DutyEngineer[] = [
+    { name: "Ada", rank: 0, trips: 0, post: "tunnel" },
+  ];
+  const trip = {
+    engineer: "Ada",
+    tunnel: "old-shaft",
+    sentAt: 1_000,
+    returnsAt: 1_000 + HOUR,
+    home: "borer",
+    find: { kind: "tool", id: "pick" },
+  };
+
+  it("takes a whole trip", () => {
+    expect(parseExpeditions([trip], away)).toEqual([trip]);
+  });
+
+  it("refuses trips with no crew, a trip that is not a record, and a find with no name", () => {
+    expect(parseExpeditions([trip], undefined)).toBeUndefined();
+    for (const item of [null, "trip", [trip]]) {
+      expect(parseExpeditions([item], away)).toBeUndefined();
+    }
+    for (const find of [
+      null,
+      [],
+      "pick",
+      { kind: "tool", id: 3 },
+      { kind: "tool", name: "pick" },
+      { kind: "quiet", id: "pick" },
+    ]) {
+      expect(parseExpeditions([{ ...trip, find }], away)).toBeUndefined();
     }
   });
 });

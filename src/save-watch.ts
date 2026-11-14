@@ -76,17 +76,19 @@ function stopWatch(ctx: StoreContext): void {
 function resumeFromSession(ctx: StoreContext): void {
   stopWatch(ctx);
   const storage = ctx.ports.storage;
-  const read =
-    storage === undefined
-      ? ({ kind: "absent" } as const)
-      : readSessionSave({ storage });
+  if (storage === undefined) {
+    ctx.saveKind = "unsigned";
+    emit(ctx);
+    return;
+  }
+  const read = readSessionSave({ storage });
   if (read.kind === "newer") {
     holdNewer(ctx, "guest");
     emit(ctx);
     return;
   }
   if (read.kind === "older") {
-    resetFresh(ctx, setAsideOlder(ctx, read, undefined));
+    resetFresh(ctx, setAsideOlder(ctx, storage, read, undefined));
   }
   if (read.kind !== "ok") {
     ctx.saveKind = "unsigned";
@@ -127,17 +129,24 @@ function resumeFromSession(ctx: StoreContext): void {
  */
 function setAsideOlder(
   ctx: StoreContext,
+  storage: Storage,
   guest: SessionRead,
   backup: { readonly uid: string; readonly read: PhoneBackup } | undefined,
 ): readonly SetAside[] {
   const aside: SetAside[] = [];
   if (guest.kind === "older") {
-    setAsideLocal(ctx, SESSION_SAVE_KEY, guest.raw, guest.version);
+    setAsideLocal(ctx, storage, SESSION_SAVE_KEY, guest.raw, guest.version);
     aside.push({ source: "guest", ...guest });
   }
-  const phone = backup?.read;
-  if (backup !== undefined && phone?.kind === "older") {
-    setAsideLocal(ctx, phoneBackupKey(backup.uid), phone.raw, phone.version);
+  if (backup?.read.kind === "older") {
+    const phone = backup.read;
+    setAsideLocal(
+      ctx,
+      storage,
+      phoneBackupKey(backup.uid),
+      phone.raw,
+      phone.version,
+    );
     aside.push({ source: "phone", ...phone });
   }
   return aside.map(({ source, version, startedAt }) => ({
@@ -215,7 +224,7 @@ function prepareLocal(ctx: StoreContext, uid: string): void {
   takeIfAhead(ctx, backup.kind === "present" ? backup.save : undefined);
   takeRevs(ctx, session, backup);
   takeConflict(ctx, backup);
-  const aside = setAsideOlder(ctx, guest, { uid, read: backup });
+  const aside = setAsideOlder(ctx, storage, guest, { uid, read: backup });
   if (aside.length > 0) {
     resetFresh(ctx, aside);
   }
