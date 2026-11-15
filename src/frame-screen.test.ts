@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createUnconfiguredAuth } from "./auth";
+import { placeOrder } from "./city";
 import { holdFactors } from "./economy/factors";
 import { mountFrameScreen } from "./frame-screen";
 import { FRESH_OFF } from "./line-switch";
@@ -128,6 +129,64 @@ describe("frame screen", () => {
     expect(root.querySelector(".frame-order-step")?.textContent).toBe(
       "Foundation · not ordered",
     );
+  });
+
+  it("takes Next to the next site with something affordable", () => {
+    const { root, button } = mount((m) => withStones(1_000)(placeOrder(m)));
+    expect(root.querySelector(".frame-next-line")?.textContent).toBe(
+      "Mine 1 · City 1",
+    );
+    button(".frame-next").click();
+    expect(button(".frame-site.on").dataset["site"]).toBe("city");
+    button(".frame-next").click();
+    expect(button(".frame-site.on").dataset["site"]).toBe("mine");
+  });
+
+  it("opens the workforce from Next when only the worker's upgrades are affordable", () => {
+    const { root, button } = mount((m) => ({
+      ...withStones(1_700_000)(placeOrder(m)),
+      owned: { ...m.owned, cart: 60, hoist: 40, drill: 30 },
+      fleet: { horseWagon: 60 },
+    }));
+    expect(root.querySelector(".frame-next-line")?.textContent).toBe(
+      "Workforce 1",
+    );
+    button(".frame-next").click();
+    expect(root.querySelector<HTMLElement>(".frame-sheet")?.hidden).toBe(false);
+    button(".frame-sheet-close").click();
+    expect(root.querySelector<HTMLElement>(".frame-sheet")?.hidden).toBe(true);
+  });
+
+  it("stays put on a Next with nothing to point at", () => {
+    const { root, button } = mount(placeOrder);
+    expect(root.querySelector(".frame-next-head")?.textContent).toBe(
+      "Nothing to buy on the sites yet.",
+    );
+    button(".frame-next").click();
+    expect(button(".frame-site.on").dataset["site"]).toBe("mine");
+    expect(root.querySelector<HTMLElement>(".frame-sheet")?.hidden).toBe(true);
+  });
+
+  it("names what is operational after the last roof, with no order to point at", () => {
+    const { root } = mount((m) => ({ ...m, operational: ["lightTower"] }));
+    expect(root.querySelector(".frame-order-line")?.textContent).toBe(
+      "The Light Tower is operational · the city is planning its next building",
+    );
+    expect(root.querySelector(".frame-order-name")?.textContent).toBe("");
+  });
+
+  it("paints the work of each second", () => {
+    vi.useFakeTimers();
+    try {
+      const { root } = mount();
+      const before = root.querySelector(".frame-pile-count")?.textContent;
+      vi.advanceTimersByTime(5_000);
+      expect(root.querySelector(".frame-pile-count")?.textContent).not.toBe(
+        before,
+      );
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("keeps the save line in view", () => {
