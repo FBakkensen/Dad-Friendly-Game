@@ -135,3 +135,35 @@
   --board-type-40: 40px;
   --board-shade: rgba(5, 6, 7, 0.62);
 }
+
+/*
+ * Slice 1's frame (#659): the prototype's twelfth version (spec, What he
+ * sees). The frame's own colours and the heights of its rows; every length
+ * in frame.css is one of these or art pixels.
+ */
+:root {
+  --frame-ground: #14181d;
+  --frame-dark: #0d1014;
+  --frame-edge: #2b333c;
+  --frame-ink: #ece3cf;
+  --frame-quiet: #a9a492;
+  --frame-amber: #f2b441;
+  --frame-green: #6fd66a;
+  --frame-key: #22282f;
+  --frame-pip: #2a3138;
+  --frame-row: #10141a;
+  --frame-tab: #1a2027;
+  --frame-tab-on: #232b33;
+  --frame-go: #23402a;
+  --frame-go-ink: #d9ffd2;
+  --frame-mine-ground: #1d1712;
+  --frame-city-ground: #0b1030;
+  --frame-scrim: #000000c4;
+  --frame-type-12: 12px;
+  --frame-type-15: 15px;
+  --frame-type-18: 18px;
+  --frame-order-h: 60px;
+  --frame-top-h: 56px;
+  --frame-next-h: 56px;
+  --frame-sites-h: 64px;
+}

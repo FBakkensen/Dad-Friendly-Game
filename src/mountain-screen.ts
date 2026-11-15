@@ -20,8 +20,8 @@ import { DRAWER_SETTLE_MS } from "./board-drawer";
 import { cardUp } from "./card-state";
 import { layOutBoard } from "./screen-layout";
 import { runScreen } from "./screen-run";
+import { saveOnLeave } from "./save-on-leave";
 import { type ReadyPick } from "./ready-now";
-import { type ProgressStore } from "./progress-store";
 
 export { showAppUpdate } from "./screen-prompts";
 
@@ -187,39 +187,4 @@ export function mountMountainScreen(options: ScreenOptions): void {
   });
 
   runScreen(ctx, { paint, setView, vein, gaugeRow, bays, overlays, saveLine });
-}
-
-/**
- * A hidden or closed page saves at once. A return settles after the server has been read, so a
- * tap cannot land on top of another device's save; guests settle at once.
- */
-function saveOnLeave(
-  progress: ProgressStore,
-  listening: { readonly signal?: AbortSignal },
-): void {
-  document.addEventListener(
-    "visibilitychange",
-    () => {
-      if (document.visibilityState === "hidden") {
-        progress.flush();
-        return;
-      }
-      const resume = progress.resume();
-      if (resume.kind === "reading") {
-        void resume.done.then(() => {
-          progress.tick();
-        });
-        return;
-      }
-      progress.tick();
-    },
-    listening,
-  );
-  window.addEventListener(
-    "pagehide",
-    () => {
-      progress.flush();
-    },
-    listening,
-  );
 }

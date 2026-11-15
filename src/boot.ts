@@ -11,6 +11,8 @@ import {
   createUnavailableCloudSave,
   type CloudSave,
 } from "./cloud-save";
+import { holdFactors } from "./economy/factors";
+import { FRESH_OFF } from "./line-switch";
 import { createMountain, type Mountain } from "./mountain";
 import { createProgressStore, type ProgressStore } from "./progress-store";
 import { MOUNTAIN_STONES } from "./scale";
@@ -39,6 +41,8 @@ export function parseBootOptions(search: string): {
   previewCopies: boolean;
   /** Dev-only layout hook: the update card, as a newer service worker opens it. */
   previewUpdate: boolean;
+  /** Dev-only: slice 1's frame on a fresh mine and a memory save (#659). */
+  slice: boolean;
 } {
   const params = new URLSearchParams(search);
   const save = params.get("save");
@@ -49,6 +53,7 @@ export function parseBootOptions(search: string): {
     previewSave: save === "loading" || save === "error" ? save : undefined,
     previewCopies: params.get("copies") === "shelf",
     previewUpdate: params.get("update") === "shown",
+    slice: params.get("slice") === "1",
   };
 }
 
@@ -62,7 +67,13 @@ export async function createAppServices({
   devMode?: boolean;
 }): Promise<AppServices> {
   const options = parseBootOptions(search);
+  if (devMode && options.slice) {
+    // The new screens play the game they ship with: the fresh mine's switch
+    // stays on for the page, and its save is a memory save (#659).
+    holdFactors({ [FRESH_OFF]: 0 });
+  }
   const previewing =
+    options.slice ||
     options.memorySave ||
     options.previewSave !== undefined ||
     options.previewCopies;

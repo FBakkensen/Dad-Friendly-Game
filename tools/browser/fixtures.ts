@@ -1094,3 +1094,84 @@ export function playCraftSave(): Seed {
 export function playBriefSave(): Seed {
   return { ...openMountain(), lastSeen: Date.now() - HOUR / 30 };
 }
+
+/** The account the dev memory save signs in as (src/boot.ts, `memoryServices`). */
+export const DEV_UID = "dev-dad";
+
+/**
+ * Where the phone keeps the dev account's backup (src/phone-backup.ts). The
+ * slice 1 preview (`?slice=1`) plays a memory save as that account, so its
+ * play saves are seeded here, not under SAVE_KEY (#659).
+ */
+export const DEV_BACKUP_KEY = `dad-friendly-game-backup:${DEV_UID}`;
+
+/** A slice 1 save: the phone backup of the dev account, holding this game map as version 8. */
+function sliceSave(now: number, game: Record<string, unknown>): StoredAsIs {
+  return { uid: DEV_UID, save: { version: 8, lastSeen: now, game } };
+}
+
+/** The fresh mine's twelve workers, as the first evening places them. */
+const FIRST_EVENING_JOBS = {
+  drilling: 3,
+  haulage: 3,
+  hoisting: 3,
+  driving: 1,
+  building: 2,
+};
+
+/**
+ * The Light Tower's foundation on order, nothing in the pocket: transport
+ * takes each stone as it is hoisted, so nothing is affordable and the line
+ * runs. Next's "nothing" line (#659).
+ */
+export function sliceOrderedSave(now: number): StoredAsIs {
+  return sliceSave(now, {
+    owned: { helper: 12 },
+    jobs: FIRST_EVENING_JOBS,
+    fleet: { horseWagon: 1 },
+    project: {
+      building: "lightTower",
+      state: "delivering",
+      step: 0,
+      arrived: { stones: 1_400 },
+      onSite: { stones: 200 },
+    },
+  });
+}
+
+/** The same, with nobody hoisting: the line moves nothing, and stands. */
+export function sliceStandsSave(now: number): StoredAsIs {
+  return sliceSave(now, {
+    owned: { helper: 12 },
+    jobs: { ...FIRST_EVENING_JOBS, hoisting: 0 },
+    fleet: { horseWagon: 1 },
+    project: {
+      building: "lightTower",
+      state: "delivering",
+      step: 0,
+      arrived: { stones: 1_400 },
+      onSite: { stones: 200 },
+    },
+  });
+}
+
+/**
+ * A busier first night: two carts, a second wagon, two free workers, the
+ * foundation on order and stone in the pocket. Next counts the mine's and
+ * the city's buys, and the workforce shows machines that run (#659).
+ */
+export function sliceBusySave(now: number): StoredAsIs {
+  return sliceSave(now, {
+    owned: { helper: 16, cart: 2 },
+    stock: { stones: 60_000 },
+    jobs: { drilling: 4, haulage: 3, hoisting: 3, driving: 1, building: 2 },
+    fleet: { horseWagon: 2 },
+    project: {
+      building: "lightTower",
+      state: "delivering",
+      step: 0,
+      arrived: { stones: 23_700 },
+      onSite: { stones: 400 },
+    },
+  });
+}

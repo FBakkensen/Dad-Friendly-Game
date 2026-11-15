@@ -17,7 +17,7 @@ const AMOUNT_KEY = "dad-friendly-buy-amount";
 const AMOUNTS: readonly BuyAmount[] = ["one", "ten", "max"];
 
 /** The key's face, and how a screen reader says each amount. */
-const AMOUNT_WORDS: Readonly<
+export const AMOUNT_WORDS: Readonly<
   Record<BuyAmount, { readonly face: string; readonly spoken: string }>
 > = {
   one: { face: "×1", spoken: "one" },
@@ -26,20 +26,24 @@ const AMOUNT_WORDS: Readonly<
 };
 
 /** The amount after this one: ×1, ×10, Max, then ×1 again. */
-function nextAmount(amount: BuyAmount): BuyAmount {
+export function nextAmount(amount: BuyAmount): BuyAmount {
   return AMOUNTS[(AMOUNTS.indexOf(amount) + 1) % AMOUNTS.length] ?? "one";
 }
 
 /** "Buys ten a tap. Tap for as many as you can afford." */
-function amountAria(amount: BuyAmount): string {
+export function amountAria(amount: BuyAmount): string {
   const now = AMOUNT_WORDS[amount].spoken;
   const next = AMOUNT_WORDS[nextAmount(amount)].spoken;
   return `Buys ${now} a tap. Tap for ${next}.`;
 }
 
-type DeviceStorage = Pick<Storage, "getItem" | "setItem">;
+export type DeviceStorage = Pick<Storage, "getItem" | "setItem">;
 
-function storedAmount(storage: DeviceStorage | undefined): BuyAmount {
+/**
+ * The amount this device last chose, ×1 when none or the store throws. The
+ * slice 1 frame keeps the same one (#659): one amount key for the device.
+ */
+export function storedAmount(storage: DeviceStorage | undefined): BuyAmount {
   try {
     const raw = (storage ?? localStorage).getItem(AMOUNT_KEY);
     return AMOUNTS.find((amount) => amount === raw) ?? "one";
@@ -48,7 +52,8 @@ function storedAmount(storage: DeviceStorage | undefined): BuyAmount {
   }
 }
 
-function storeAmount(
+/** Keeps the amount on this device. */
+export function storeAmount(
   storage: DeviceStorage | undefined,
   amount: BuyAmount,
 ): void {

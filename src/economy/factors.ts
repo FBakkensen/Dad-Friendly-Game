@@ -35,3 +35,13 @@ export function withFactors<T>(
     active = previous;
   }
 }
+
+/**
+ * Holds these multipliers for the rest of the page (#659): the slice 1
+ * preview (`?slice=1`, a dev build only) turns the fresh mine's switch on
+ * this way, so the new screens play the game they will ship with. The game
+ * itself never calls it.
+ */
+export function holdFactors(factors: Readonly<Record<string, number>>): void {
+  active = Object.keys(factors).length === 0 ? undefined : factors;
+}

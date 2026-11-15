@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createAppServices, parseBootOptions } from "./boot";
 import type { AuthController } from "./auth";
 import type { CloudSave } from "./cloud-save";
+import { holdFactors } from "./economy/factors";
+import { freshMineOn } from "./line-switch";
 import { minedMountain } from "./test-fixtures";
 
 const firebaseStubs = vi.hoisted(() => ({
@@ -35,7 +37,13 @@ describe("parseBootOptions", () => {
       previewSave: undefined,
       previewCopies: false,
       previewUpdate: false,
+      slice: false,
     });
+  });
+
+  it("reads slice=1, the new frame's preview", () => {
+    expect(parseBootOptions("?slice=1").slice).toBe(true);
+    expect(parseBootOptions("?slice=2").slice).toBe(false);
   });
 
   it("reads update=shown, so play can see the update card", () => {
@@ -92,6 +100,32 @@ describe("createAppServices", () => {
     await vi.waitFor(() => {
       expect(progress.getSnapshot().saveKind).toBe("account");
     });
+    progress.dispose();
+  });
+
+  it("slice=1 plays a fresh mine on a memory save while developing", async () => {
+    try {
+      const { auth, progress } = await createAppServices({
+        env: READY_ENV,
+        search: "?slice=1",
+      });
+      expect(auth.getState()).toMatchObject({ user: { uid: "dev-dad" } });
+      expect(firebaseStubs.auth).not.toHaveBeenCalled();
+      expect(freshMineOn()).toBe(true);
+      expect(progress.getSnapshot().mountain.jobs.building).toBe(2);
+      progress.dispose();
+    } finally {
+      holdFactors({});
+    }
+  });
+
+  it("ignores slice=1 outside dev", async () => {
+    const { progress } = await createAppServices({
+      env: {},
+      search: "?slice=1",
+      devMode: false,
+    });
+    expect(freshMineOn()).toBe(false);
     progress.dispose();
   });
 

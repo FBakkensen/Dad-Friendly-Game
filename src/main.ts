@@ -28,21 +28,29 @@ try {
       VITE_FIREBASE_APP_ID: import.meta.env.VITE_FIREBASE_APP_ID,
     },
   });
-  mountMountainScreen({
-    root,
-    veinUrl,
-    tierArt: {
-      helper: helperUrl,
-      cart: cartUrl,
-      drill: drillUrl,
-      borer: borerUrl,
-      machine: machineUrl,
-      kid: kidUrl,
-    },
-    relicArt: RELIC_GOLD,
-    auth,
-    progress,
-  });
+  // Dev-only: slice 1's frame beside today's board, on a fresh mine (#659).
+  const slice =
+    import.meta.env.DEV && parseBootOptions(window.location.search).slice;
+  if (slice) {
+    const { mountFrameScreen } = await import("./frame-screen");
+    mountFrameScreen({ root, auth, progress });
+  } else {
+    mountMountainScreen({
+      root,
+      veinUrl,
+      tierArt: {
+        helper: helperUrl,
+        cart: cartUrl,
+        drill: drillUrl,
+        borer: borerUrl,
+        machine: machineUrl,
+        kid: kidUrl,
+      },
+      relicArt: RELIC_GOLD,
+      auth,
+      progress,
+    });
+  }
   // Dev-only: the update card, so play and the checks can see it (#464).
   if (
     import.meta.env.DEV &&
