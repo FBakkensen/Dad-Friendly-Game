@@ -42,8 +42,8 @@ import { freshMineOn } from "../line-switch";
 import {
   JOB_IDS,
   freeWorker,
-  freeWorkers,
   placeWorker,
+  placeable,
   type JobId,
 } from "../workforce";
 import {
@@ -248,9 +248,10 @@ function workerActions(mountain: Mountain): readonly Action[] {
   if (!freshMineOn()) {
     return [];
   }
-  const free = freeWorkers(mountain);
   return JOB_IDS.flatMap((job): Action[] => [
-    ...(free > 0 ? [{ kind: "placeWorker", job, count: 1 } as const] : []),
+    ...(placeable(mountain, job) > 0
+      ? [{ kind: "placeWorker", job, count: 1 } as const]
+      : []),
     ...(mountain.jobs[job] > 0
       ? [{ kind: "freeWorker", job, count: 1 } as const]
       : []),

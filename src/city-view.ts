@@ -202,17 +202,36 @@ export type OrderKey = {
   readonly label: string;
 };
 
+/** "Foundation 25K", "Structure 250K", "Roof 1M": what each step requires, from the building's row. */
+function stepsRequired(id: BuildingId): [string, string, string] {
+  const [foundation, structure, roof] = buildingById(id).steps.map(
+    (price, at) =>
+      `${STEP_NAMES[at as StepIndex]} ${price.map((part) => formatCompact(part.amount)).join(" + ")}`,
+  );
+  return [foundation ?? "", structure ?? "", roof ?? ""];
+}
+
+/**
+ * The order key before the order: what each step requires, one step a line,
+ * so he can do the sum before he orders (#715). The label says it in one.
+ */
+function placeKey(mountain: Mountain): OrderKey {
+  const id = inHand(mountain);
+  const lines = id === undefined ? (["", "", ""] as const) : stepsRequired(id);
+  return {
+    kind: "place",
+    title: "Place order",
+    lines,
+    can: true,
+    run: false,
+    label: `Place order · ${lines.filter((line) => line !== "").join(" · ")}`,
+  };
+}
+
 function orderKey(mountain: Mountain, now: number | undefined): OrderKey {
   const project = mountain.project;
   if (project.kind === "unordered") {
-    return {
-      kind: "place",
-      title: "Place order",
-      lines: ["the whole building", "", ""],
-      can: true,
-      run: false,
-      label: "Place the order for the whole building",
-    };
+    return placeKey(mountain);
   }
   const line = effectiveRates(mountain, now).exactCrewPerSecond;
   const numbers = orderNumbers(mountain, line);

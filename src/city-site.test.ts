@@ -8,6 +8,7 @@ import { FRESH_OFF } from "./line-switch";
 import { createMemoryStorage } from "./mountain-screen.harness";
 import type { Mountain } from "./mountain";
 import { createProgressStore } from "./progress-store";
+import { NOTE_MS } from "./job-steps";
 import { NO_FREE_WORKER } from "./workforce-view";
 
 /** The city on slice 1's frame, on the DOM (#662). */
@@ -143,7 +144,12 @@ describe("the city", () => {
       button(".city-order").click();
     };
     const { progress, button, text } = mount(withStones(1_000));
-    expect(text(".city-order")).toBe("Place orderthe whole building");
+    expect(text(".city-order")).toBe(
+      "Place orderFoundation 25KStructure 250KRoof 1M",
+    );
+    expect(button(".city-order").getAttribute("aria-label")).toBe(
+      "Place order · Foundation 25K · Structure 250K · Roof 1M",
+    );
     tapLater();
     expect(progress.getSnapshot().mountain.project.kind).toBe("delivering");
     expect(text(".city-order b")).toBe("Delivering");
@@ -189,6 +195,42 @@ describe("the city", () => {
     expect(progress.getSnapshot().mountain.jobs.driving).toBe(0);
     button('.city .frame-step[data-job="building"][data-way="place"]').click();
     expect(progress.getSnapshot().mountain.jobs.building).toBe(3);
+  });
+
+  it("stops + on transport at the wagons, and takes the note down after a few seconds (#715)", () => {
+    vi.useFakeTimers();
+    try {
+      const { root, progress, button } = mount((m) => ({
+        ...m,
+        owned: { ...m.owned, helper: 12 },
+      }));
+      const plus = button(
+        '.city .frame-step[data-job="driving"][data-way="place"]',
+      );
+      expect(plus.classList.contains("can")).toBe(false);
+      plus.click();
+      expect(progress.getSnapshot().mountain.jobs.driving).toBe(1);
+      const note = root.querySelector<HTMLElement>(".city-note");
+      expect(note?.closest(".city-plate")).not.toBeNull();
+      button(
+        '.city .frame-step[data-job="building"][data-way="place"]',
+      ).click();
+      button(
+        '.city .frame-step[data-job="building"][data-way="place"]',
+      ).click();
+      button(
+        '.city .frame-step[data-job="building"][data-way="place"]',
+      ).click();
+      expect(progress.getSnapshot().mountain.jobs.building).toBe(5);
+      button(
+        '.city .frame-step[data-job="building"][data-way="place"]',
+      ).click();
+      expect(note?.hidden).toBe(false);
+      vi.advanceTimersByTime(NOTE_MS);
+      expect(note?.hidden).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("after the last roof says the strip's line, has no order key, and keeps the − and +", () => {

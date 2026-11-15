@@ -103,12 +103,16 @@
   color: var(--frame-tool);
 }
 
-/* The no-free-worker note looks as the mine's does (mine.css); here it sits over the card. */
+/*
+ * The no-free-worker note looks as the mine's does (mine.css). Here it hangs
+ * under the transport plate, over the sky, clear of the plots' names (#715).
+ */
 .city-note {
   position: absolute;
-  left: calc(var(--art) * 3);
-  right: calc(var(--art) * 3);
-  bottom: calc(var(--art) * (var(--city-card) + 4));
+  top: 100%;
+  left: calc(var(--art) * -1);
+  right: calc(var(--art) * -1);
+  margin-top: calc(var(--art) * 2);
 }
 
 /* The project's card. */

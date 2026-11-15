@@ -348,7 +348,9 @@ export function createCitySite(
   const note = el("p", "city-note", NO_FREE_WORKER);
   note.hidden = true;
   const card = buildCard(state);
-  root.append(canvas, plate.root, tags.root, note, card.root);
+  // Under the transport plate, over the sky: never over the plots' names (#715).
+  plate.root.append(note);
+  root.append(canvas, plate.root, tags.root, card.root);
   listenSteps(root, state, note);
   let scene = cityScene(state.mountain());
   let visible = false;

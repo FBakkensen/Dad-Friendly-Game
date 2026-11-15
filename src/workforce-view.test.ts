@@ -77,6 +77,33 @@ describe("workforce view", () => {
     });
   });
 
+  it("says one vehicle runs whether or not it has a driver (#715)", () => {
+    fresh(() => {
+      const start = crewedStart();
+      const idle = { ...start, jobs: { ...start.jobs, driving: 0 } };
+      expect(notes(idle).Transport).toBe("0 of 1 vehicle runs");
+      const cart = {
+        ...idle,
+        owned: { ...idle.owned, cart: 1 },
+        jobs: { ...idle.jobs, haulage: 0 },
+      };
+      expect(notes(cart).Haulage).toBe("0 of 1 cart runs");
+    });
+  });
+
+  it("offers + on transport only while a vehicle has no driver (#715)", () => {
+    fresh(() => {
+      const start = crewedStart();
+      const free = { ...start, jobs: { ...start.jobs, building: 0 } };
+      const transport = (mountain: Mountain) =>
+        workforceView(mountain).groups[1]?.rows[0];
+      expect(transport(free)).toMatchObject({ count: 1, canPlace: false });
+      expect(
+        transport({ ...free, fleet: { ...free.fleet, horseWagon: 2 } }),
+      ).toMatchObject({ canPlace: true });
+    });
+  });
+
   it("shows a machine short of workers beside the tools", () => {
     fresh(() => {
       const start = crewedStart();

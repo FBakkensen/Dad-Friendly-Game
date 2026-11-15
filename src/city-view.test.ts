@@ -180,9 +180,10 @@ describe("the project's card", () => {
       expect(card.key).toMatchObject({
         kind: "place",
         title: "Place order",
-        lines: ["the whole building", "", ""],
+        lines: ["Foundation 25K", "Structure 250K", "Roof 1M"],
         can: true,
         run: false,
+        label: "Place order · Foundation 25K · Structure 250K · Roof 1M",
       });
       expect(card.completion).toBe(
         "On completion: night shift output 45%, up from 30%.",
