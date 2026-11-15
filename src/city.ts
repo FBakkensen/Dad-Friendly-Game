@@ -66,7 +66,7 @@ const BUILDING_BY_ID = Object.fromEntries(
   BUILDINGS.map((building) => [building.id, building]),
 ) as Record<BuildingId, Building>;
 
-function buildingById(id: BuildingId): Building {
+export function buildingById(id: BuildingId): Building {
   return BUILDING_BY_ID[id];
 }
 

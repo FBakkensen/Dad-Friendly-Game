@@ -808,3 +808,25 @@ describe("the mountain size", () => {
     expect(f.MOUNTAIN).toBe(MOUNTAIN_STONES);
   });
 });
+
+describe("slice 1's play saves (#659)", () => {
+  it("seeds the dev account's phone backup, which the game reads", async () => {
+    const { phoneBackupKey } = await import("../../src/phone-backup.ts");
+    expect(f.DEV_BACKUP_KEY).toBe(phoneBackupKey(f.DEV_UID));
+  });
+
+  it.each(["sliceOrderedSave", "sliceStandsSave", "sliceBusySave"] as const)(
+    "%s is a version 8 save of the dev account that the game reads",
+    async (name) => {
+      const { withFactors } = await import("../../src/economy/factors.ts");
+      const { FRESH_OFF } = await import("../../src/line-switch.ts");
+      const stored = f[name](FIXED) as {
+        uid?: unknown;
+        save?: unknown;
+      };
+      expect(stored.uid).toBe(f.DEV_UID);
+      const read = withFactors({ [FRESH_OFF]: 0 }, () => readSave(stored.save));
+      expect(read.kind).toBe("ok");
+    },
+  );
+});

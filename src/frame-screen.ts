@@ -1,0 +1,397 @@
+import workerUrl from "./assets/helper-miner.png";
+import stoneUrl from "./assets/board/res-stone.png";
+import wagonUrl from "./assets/city/horse-wagon.png";
+import pickUrl from "./assets/pick.png";
+import type { AuthController } from "./auth";
+import { createSaveLine } from "./board-save";
+import { el, mark, setAttr, write } from "./board-dom";
+import { deviceAmount, type DeviceStorage } from "./buys-amount";
+import {
+  hireKey,
+  orderStrip,
+  stockpiles,
+  workersView,
+  type Pip,
+} from "./frame-view";
+import type { Mountain } from "./mountain";
+import { saveOnLeave } from "./save-on-leave";
+import {
+  SITES,
+  SITE_NAMES,
+  nextView,
+  siteLamp,
+  type SiteId,
+} from "./next-view";
+import type { ProgressStore } from "./progress-store";
+import type { BuyAmount } from "./tiers";
+import { tierBuyMove } from "./economy/actions";
+import type { FrameState } from "./frame-state";
+import { createWorkforceSheet, type WorkforceSheet } from "./workforce-sheet";
+import "./frame.css";
+
+/**
+ * Slice 1's frame (#659; spec, "The frame, the same on every site"), beside
+ * today's board: the order strip, the stockpile with the count of workers and
+ * the hire key, the site's ground, Next, the site bar and the save line. A
+ * dev build mounts it for `?slice=1` (src/main.ts). It paints the pure views
+ * (frame-view, next-view, workforce-view) and changes the game only through
+ * `progress.dispatch`.
+ */
+
+const SITE_ICONS: Readonly<Record<SiteId, string>> = {
+  mine: pickUrl,
+  city: wagonUrl,
+};
+
+function icon(url: string, className: string): HTMLImageElement {
+  const img = el("img", className);
+  img.src = url;
+  img.alt = "";
+  img.draggable = false;
+  return img;
+}
+
+type OrderParts = {
+  readonly root: HTMLButtonElement;
+  readonly name: HTMLElement;
+  readonly step: HTMLElement;
+  readonly pips: readonly HTMLElement[];
+  readonly line: HTMLElement;
+};
+
+function buildOrder(state: FrameState): OrderParts {
+  const root = el("button", "frame-order");
+  root.type = "button";
+  root.setAttribute("aria-label", "The order. Opens the city.");
+  const name = el("span", "frame-order-name");
+  const step = el("span", "frame-order-step");
+  const pipRow = el("span", "frame-pips");
+  const pips = [0, 1, 2].map(() => el("i", "frame-pip"));
+  pipRow.append(...pips);
+  const top = el("span", "frame-order-top");
+  top.append(name, step, pipRow);
+  const line = el("span", "frame-order-line");
+  root.append(top, line);
+  root.addEventListener("click", () => {
+    state.go("city");
+  });
+  return { root, name, step, pips, line };
+}
+
+function paintPips(pips: readonly HTMLElement[], states: readonly Pip[]): void {
+  for (const [index, pip] of pips.entries()) {
+    setAttr(pip, "data-pip", states[index]);
+  }
+}
+
+function paintOrder(parts: OrderParts, mountain: Mountain): void {
+  const strip = orderStrip(mountain);
+  paintPips(parts.pips, strip.pips);
+  if (strip.kind === "planning") {
+    write(parts.name, "");
+    write(parts.step, "");
+    write(parts.line, strip.line);
+    return;
+  }
+  write(parts.name, strip.name);
+  write(parts.step, strip.step);
+  write(
+    parts.line,
+    `Requires ${strip.requires.map((need) => need.line).join(" · ")}`,
+  );
+}
+
+type TopParts = {
+  readonly root: HTMLElement;
+  readonly stones: HTMLElement;
+  readonly workers: HTMLButtonElement;
+  readonly count: HTMLElement;
+  readonly free: HTMLElement;
+  readonly lamp: HTMLElement;
+  readonly hire: HTMLButtonElement;
+  readonly hireFace: HTMLElement;
+  readonly hirePrice: HTMLElement;
+};
+
+function buildTop(state: FrameState): TopParts {
+  const root = el("div", "frame-top");
+  const pile = el("div", "frame-pile");
+  const stones = el("span", "frame-pile-count board-num");
+  pile.append(icon(stoneUrl, "frame-icon"), stones);
+  const workers = el("button", "frame-workers");
+  workers.type = "button";
+  workers.setAttribute("aria-label", "The workforce");
+  const count = el("span", "frame-workers-count board-num");
+  const free = el("span", "frame-workers-free");
+  const lamp = el("i", "frame-lamp");
+  workers.append(icon(workerUrl, "frame-icon"), count, free, lamp);
+  workers.addEventListener("click", state.openWorkforce);
+  const hire = el("button", "frame-hire");
+  hire.type = "button";
+  const hireFace = el("span", "frame-hire-face");
+  const hirePrice = el("span", "frame-hire-price board-num");
+  hire.append(hireFace, hirePrice);
+  hire.addEventListener("click", () => {
+    const key = hireKey(state.mountain(), state.amount());
+    void state.progress.dispatch(tierBuyMove("helper", key.count));
+  });
+  root.append(pile, workers, hire);
+  return {
+    root,
+    stones,
+    workers,
+    count,
+    free,
+    lamp,
+    hire,
+    hireFace,
+    hirePrice,
+  };
+}
+
+function paintTop(
+  parts: TopParts,
+  mountain: Mountain,
+  amount: BuyAmount,
+): void {
+  const [stone] = stockpiles(mountain);
+  write(parts.stones, stone?.text ?? "0");
+  const workers = workersView(mountain);
+  write(parts.count, String(workers.owned));
+  write(parts.free, `${String(workers.free)} free`);
+  mark(parts.free, "has-free", workers.free > 0);
+  setAttr(parts.lamp, "data-lamp", workers.lamp ? "green" : "dark");
+  const key = hireKey(mountain, amount);
+  write(parts.hireFace, key.face);
+  write(parts.hirePrice, key.price);
+  mark(parts.hire, "can", key.can);
+  parts.hire.setAttribute(
+    "aria-label",
+    `Hire ${key.count === 1 ? "a worker" : `${String(key.count)} workers`} for ${key.price} stone`,
+  );
+}
+
+type NextParts = {
+  readonly root: HTMLButtonElement;
+  readonly head: HTMLElement;
+  readonly line: HTMLElement;
+  readonly ready: HTMLElement;
+};
+
+/**
+ * Where a tap on Next goes: the city for an order, else the next other site
+ * with something, else the workforce, else this site. The count of workers
+ * opens the workforce on every site too.
+ */
+function nextTarget(
+  mountain: Mountain,
+  here: SiteId,
+): SiteId | "workforce" | undefined {
+  const view = nextView(mountain);
+  if (view.kind === "order") {
+    return "city";
+  }
+  if (view.kind === "nothing") {
+    return undefined;
+  }
+  // The other sites first, from the one after this, then the workforce,
+  // then this site: a tap always moves him, unless only here has something.
+  const at = SITES.indexOf(here);
+  const order = [
+    ...SITES.slice(at + 1),
+    ...SITES.slice(0, at),
+    "workforce" as const,
+    here,
+  ];
+  return order.find((where) =>
+    view.counts.some((entry) => entry.where === where),
+  );
+}
+
+function buildNext(state: FrameState): NextParts {
+  const root = el("button", "frame-next");
+  root.type = "button";
+  const what = el("span", "frame-next-what");
+  const head = el("span", "frame-next-head");
+  const line = el("span", "frame-next-line");
+  what.append(head, line);
+  const count = el("span", "frame-next-count");
+  const ready = el("b", "board-num");
+  count.append(ready, "ready");
+  root.append(what, count);
+  root.addEventListener("click", () => {
+    const target = nextTarget(state.mountain(), state.site());
+    if (target === "workforce") {
+      state.openWorkforce();
+    } else if (target !== undefined) {
+      state.go(target);
+    }
+  });
+  return { root, head, line, ready };
+}
+
+function paintNext(parts: NextParts, mountain: Mountain): void {
+  const view = nextView(mountain);
+  write(parts.head, view.kind === "nothing" ? view.line : view.head);
+  write(parts.line, view.kind === "nothing" ? view.then : view.line);
+  write(parts.ready, String(view.ready));
+  mark(parts.root, "go", view.ready > 0);
+  setAttr(parts.root, "data-next", view.kind);
+}
+
+type SiteBar = {
+  readonly root: HTMLElement;
+  readonly tabs: Readonly<Record<SiteId, HTMLButtonElement>>;
+  readonly lamps: Readonly<Record<SiteId, HTMLElement>>;
+};
+
+function buildSiteBar(state: FrameState): SiteBar {
+  const root = el("nav", "frame-sites");
+  root.setAttribute("aria-label", "Sites");
+  const tabs = {} as Record<SiteId, HTMLButtonElement>;
+  const lamps = {} as Record<SiteId, HTMLElement>;
+  for (const site of SITES) {
+    const tab = el("button", "frame-site");
+    tab.type = "button";
+    tab.dataset["site"] = site;
+    const lamp = el("i", "frame-lamp");
+    tab.append(
+      icon(SITE_ICONS[site], "frame-site-icon"),
+      el("span", "frame-site-name", SITE_NAMES[site]),
+      lamp,
+    );
+    tab.addEventListener("click", () => {
+      state.go(site);
+    });
+    root.append(tab);
+    tabs[site] = tab;
+    lamps[site] = lamp;
+  }
+  return { root, tabs, lamps };
+}
+
+function paintSiteBar(bar: SiteBar, mountain: Mountain, here: SiteId): void {
+  for (const site of SITES) {
+    setAttr(bar.lamps[site], "data-lamp", siteLamp(mountain, site));
+    mark(bar.tabs[site], "on", site === here);
+    setAttr(bar.tabs[site], "aria-current", site === here ? "page" : undefined);
+  }
+}
+
+export type FrameScreen = {
+  /** Paints every part from the store's latest mountain. */
+  readonly paint: () => void;
+  readonly sheet: WorkforceSheet;
+};
+
+/** The parts, built once, in the frame's order from top to bottom. */
+function buildFrame(state: FrameState): {
+  readonly root: HTMLElement;
+  readonly scene: HTMLElement;
+  readonly paint: (mountain: Mountain) => void;
+} {
+  const order = buildOrder(state);
+  const top = buildTop(state);
+  const scene = el("div", "frame-scene");
+  const next = buildNext(state);
+  const bar = buildSiteBar(state);
+  const root = el("div", "frame");
+  root.append(order.root, top.root, scene, next.root, bar.root);
+  return {
+    root,
+    scene,
+    paint: (mountain) => {
+      paintOrder(order, mountain);
+      paintTop(top, mountain, state.amount());
+      paintNext(next, mountain);
+      paintSiteBar(bar, mountain, state.site());
+      setAttr(scene, "data-site", state.site());
+      setAttr(scene, "aria-label", SITE_NAMES[state.site()]);
+    },
+  };
+}
+
+/**
+ * Mounts the frame on `root` and keeps it painted: a store change, and a
+ * tick a second, as today's board does.
+ */
+export function mountFrameScreen({
+  root,
+  auth,
+  progress,
+  storage,
+  now = Date.now,
+  signal,
+}: {
+  root: HTMLElement;
+  auth: AuthController;
+  progress: ProgressStore;
+  /** Where the amount key is kept; localStorage when undefined. */
+  storage?: DeviceStorage | undefined;
+  now?: () => number;
+  signal?: AbortSignal | undefined;
+}): FrameScreen {
+  let site: SiteId = "mine";
+  const amount = deviceAmount(storage);
+  let paint = (): void => undefined;
+  const state: FrameState = {
+    progress,
+    mountain: () => progress.getSnapshot().mountain,
+    amount: amount.amount,
+    advanceAmount: () => {
+      amount.advance();
+      paint();
+    },
+    site: () => site,
+    go: (next) => {
+      site = next;
+      paint();
+    },
+    openWorkforce: () => {
+      sheet.open();
+    },
+  };
+  const frame = buildFrame(state);
+  const sheet = createWorkforceSheet(state);
+  const saveLine = createSaveLine({
+    progress,
+    auth,
+    getView: () => progress.getSnapshot(),
+    now,
+    signal,
+  });
+  const drawerClip = el("div", "board-drawer-clip");
+  drawerClip.append(saveLine.drawer);
+  root.classList.add("frame-app");
+  root.replaceChildren(frame.root, sheet.root, drawerClip, saveLine.line);
+  paint = () => {
+    const mountain = progress.getSnapshot().mountain;
+    frame.paint(mountain);
+    sheet.paint(mountain);
+    saveLine.render();
+  };
+  paint();
+  runFrame(progress, paint, signal);
+  return { paint, sheet };
+}
+
+/**
+ * A tick a second settles the workers' work, a store change repaints, and a
+ * hidden or closed page saves at once, as today's board does.
+ */
+function runFrame(
+  progress: ProgressStore,
+  paint: () => void,
+  signal: AbortSignal | undefined,
+): void {
+  const ticking = setInterval(() => {
+    progress.tick();
+    paint();
+  }, 1000);
+  const unsubscribe = progress.subscribe(paint);
+  signal?.addEventListener("abort", () => {
+    clearInterval(ticking);
+    unsubscribe();
+  });
+  saveOnLeave(progress, signal === undefined ? {} : { signal });
+}

@@ -70,13 +70,13 @@ describe("the fresh dad's first moves (#655)", () => {
         mine({ ...STAGES, building: 2 }, { free: 1 }),
       );
       expect(freshPlan(idleWagon, ONCE, 1)).toEqual([
-        { kind: "placeWorker", job: "driving" },
+        { kind: "placeWorker", job: "driving", count: 1 },
       ]);
       const noBuilder = placeOrder(
         mine({ ...STAGES, driving: 1 }, { free: 1 }),
       );
       expect(freshPlan(noBuilder, ONCE, 1)).toEqual([
-        { kind: "placeWorker", job: "building" },
+        { kind: "placeWorker", job: "building", count: 1 },
       ]);
       const short = placeOrder(
         mine(
@@ -85,7 +85,7 @@ describe("the fresh dad's first moves (#655)", () => {
         ),
       );
       expect(freshPlan(short, ONCE, 1)).toEqual([
-        { kind: "placeWorker", job: "haulage" },
+        { kind: "placeWorker", job: "haulage", count: 1 },
       ]);
     });
   });
@@ -175,7 +175,7 @@ describe("the order's limit (#655)", () => {
       );
       expect(freshPlan(start, ONCE, 1)).toEqual([
         { kind: "buyTier", id: "helper" },
-        { kind: "placeWorker", job: "building" },
+        { kind: "placeWorker", job: "building", count: 1 },
       ]);
     });
   });
@@ -243,7 +243,7 @@ describe("the mover (#655)", () => {
       );
       expect(siteIdle(held)).toBe(true);
       expect(freshPlan(held, MOVER, 1)).toEqual([
-        { kind: "freeWorker", job: "driving" },
+        { kind: "freeWorker", job: "driving", count: 1 },
       ]);
       // The dad who sets them once leaves them where they are.
       expect(freshPlan(held, ONCE, 1)).toEqual([]);

@@ -66,7 +66,9 @@ describe("token lengths", () => {
     const mock = properties(readFileSync("mockups/tokens.css", "utf8"));
     const game = properties(readFileSync("src/tokens.css", "utf8"));
     expect(mock.get("--target-min")).toBe("48px");
-    const kept = [...game.keys()].filter((name) => !BOARD_TOKEN.test(name));
+    const kept = [...game.keys()].filter(
+      (name) => !BOARD_TOKEN.test(name) && !FRAME_TOKENS.has(name),
+    );
     expect(kept).toEqual(["--target-min", "--target-gap"]);
     for (const name of kept) {
       expect(game.get(name), name).toBe(mock.get(name));
@@ -96,6 +98,23 @@ describe("token lengths", () => {
       }
     }
     expect(copied).toBeGreaterThanOrEqual(10);
+  });
+
+  it("reads slice 1's frame tokens from the prototype, and names the rest (#659)", () => {
+    // The frame's palette is the twelfth prototype's :root; the tokens with
+    // no twin there are its inline values, named one by one in FRAME_OWN.
+    const page = readFileSync("prototypes/slice-1/proto.src.html", "utf8");
+    const proto = properties(/:root\s*\{([^}]*)\}/.exec(page)?.[1] ?? "");
+    const game = properties(readFileSync("src/tokens.css", "utf8"));
+    const frame = [...game.keys()].filter((name) =>
+      name.startsWith("--frame-"),
+    );
+    expect(frame.sort()).toEqual([...FRAME_TOKENS].sort());
+    for (const [name, twin] of Object.entries(FRAME_TWINS)) {
+      expect(proto.get(twin), twin).toBeDefined();
+      expect(game.get(name), name).toBe(proto.get(twin));
+    }
+    expect(Object.keys(FRAME_TWINS).length).toBeGreaterThanOrEqual(7);
   });
 });
 
@@ -447,6 +466,43 @@ describe("token check", () => {
  */
 const BOARD_TOKEN =
   /^--(art|save-h|gauge-row-h|column-top|bays-top|ready-top|rail-top|bay-h|sheet-top|row-h|board-[\w-]+)$/;
+
+/** Slice 1's frame tokens and their twins in the prototype's :root (#659). */
+const FRAME_TWINS: Readonly<Record<string, string>> = {
+  "--frame-ground": "--frame",
+  "--frame-dark": "--dark",
+  "--frame-edge": "--edge",
+  "--frame-ink": "--ink",
+  "--frame-quiet": "--quiet",
+  "--frame-amber": "--amber",
+  "--frame-green": "--green",
+};
+
+/** The frame's tokens with no twin in the prototype's :root: its inline values. */
+const FRAME_OWN = [
+  "--frame-key",
+  "--frame-pip",
+  "--frame-row",
+  "--frame-tab",
+  "--frame-tab-on",
+  "--frame-go",
+  "--frame-go-ink",
+  "--frame-mine-ground",
+  "--frame-city-ground",
+  "--frame-scrim",
+  "--frame-type-12",
+  "--frame-type-15",
+  "--frame-type-18",
+  "--frame-order-h",
+  "--frame-top-h",
+  "--frame-next-h",
+  "--frame-sites-h",
+] as const;
+
+const FRAME_TOKENS: ReadonlySet<string> = new Set([
+  ...Object.keys(FRAME_TWINS),
+  ...FRAME_OWN,
+]);
 
 function properties(css: string): Map<string, string> {
   const map = new Map<string, string>();

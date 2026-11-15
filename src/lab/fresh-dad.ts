@@ -102,11 +102,11 @@ type Priced = { readonly plan: Plan; readonly cost: number };
 /** Hire one and put him on `job`, or put a free one there. */
 function staffed(mountain: Mountain, job: JobId, free: number): Priced {
   return free > 0
-    ? { plan: [{ kind: "placeWorker", job }], cost: 0 }
+    ? { plan: [{ kind: "placeWorker", job, count: 1 }], cost: 0 }
     : {
         plan: [
           { kind: "buyTier", id: "helper" },
-          { kind: "placeWorker", job },
+          { kind: "placeWorker", job, count: 1 },
         ],
         cost: hirePrice(mountain),
       };
@@ -119,7 +119,7 @@ function machineBuy(mountain: Mountain, tier: Tier, stage: Stage): Priced {
   for (let hire = 0; hire < tier.staff; hire += 1) {
     plan.push(
       { kind: "buyTier", id: "helper" },
-      { kind: "placeWorker", job: STAGE_JOB[stage] },
+      { kind: "placeWorker", job: STAGE_JOB[stage], count: 1 },
     );
   }
   return {
@@ -252,20 +252,20 @@ function placeFree(mountain: Mountain, habits: FreshHabits): Plan {
   const delivering = mountain.project.kind === "delivering";
   const keepsJobs = habits.moves === "once" || delivering;
   if (keepsJobs && mountain.jobs.driving < fleetSize(mountain)) {
-    return [{ kind: "placeWorker", job: "driving" }];
+    return [{ kind: "placeWorker", job: "driving", count: 1 }];
   }
   const now = lineNow(mountain);
   if (keepsJobs && mountain.jobs.building < 1) {
-    return [{ kind: "placeWorker", job: "building" }];
+    return [{ kind: "placeWorker", job: "building", count: 1 }];
   }
   if (
     habits.moves === "idle" &&
     delivering &&
     mountain.jobs.building < buildersWanted(mountain, now.line)
   ) {
-    return [{ kind: "placeWorker", job: "building" }];
+    return [{ kind: "placeWorker", job: "building", count: 1 }];
   }
-  return [{ kind: "placeWorker", job: STAGE_JOB[slowestStage(now)] }];
+  return [{ kind: "placeWorker", job: STAGE_JOB[slowestStage(now)], count: 1 }];
 }
 
 /** The stage a worker can leave for another job at the least cost to the line. */
@@ -276,7 +276,9 @@ function stageToFree(mountain: Mountain): Stage | undefined {
     if (mountain.jobs[job] < 1) {
       continue;
     }
-    const line = lineNow(applied(mountain, [{ kind: "freeWorker", job }])).line;
+    const line = lineNow(
+      applied(mountain, [{ kind: "freeWorker", job, count: 1 }]),
+    ).line;
     if (best === undefined || line > best.line + FRESH_DUST) {
       best = { stage, line };
     }
@@ -299,8 +301,8 @@ function rebalance(mountain: Mountain): Plan {
       continue;
     }
     const plan: Plan = [
-      { kind: "freeWorker", job: STAGE_JOB[from] },
-      { kind: "placeWorker", job: STAGE_JOB[to] },
+      { kind: "freeWorker", job: STAGE_JOB[from], count: 1 },
+      { kind: "placeWorker", job: STAGE_JOB[to], count: 1 },
     ];
     const after = lineNow(applied(mountain, plan));
     if (
@@ -321,10 +323,10 @@ function rebalance(mountain: Mountain): Plan {
 function moverPlan(mountain: Mountain): Plan {
   const delivering = mountain.project.kind === "delivering";
   if (!delivering && mountain.jobs.driving > 0) {
-    return [{ kind: "freeWorker", job: "driving" }];
+    return [{ kind: "freeWorker", job: "driving", count: 1 }];
   }
   if (siteIdle(mountain) && mountain.jobs.building > 0) {
-    return [{ kind: "freeWorker", job: "building" }];
+    return [{ kind: "freeWorker", job: "building", count: 1 }];
   }
   const restore = delivering ? restoreStep(mountain) : [];
   return restore.length > 0 ? restore : rebalance(mountain);
@@ -343,8 +345,8 @@ function restoreStep(mountain: Mountain): Plan {
   return short === undefined || from === undefined
     ? []
     : [
-        { kind: "freeWorker", job: STAGE_JOB[from] },
-        { kind: "placeWorker", job: short },
+        { kind: "freeWorker", job: STAGE_JOB[from], count: 1 },
+        { kind: "placeWorker", job: short, count: 1 },
       ];
 }
 

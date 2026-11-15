@@ -166,12 +166,20 @@ export type Action =
 
 /**
  * The workforce's moves (slice 1, rule 2.4, #689), only in a fresh mine:
- * a free worker onto a job, or a worker off one. Hiring is `buyTier` of a
- * worker, who starts free.
+ * free workers onto a job, or workers off one, up to `count` (the amount
+ * key, #659). Hiring is `buyTier` of a worker, who starts free.
  */
 type WorkerAction =
-  | { readonly kind: "placeWorker"; readonly job: JobId }
-  | { readonly kind: "freeWorker"; readonly job: JobId };
+  | {
+      readonly kind: "placeWorker";
+      readonly job: JobId;
+      readonly count: number;
+    }
+  | {
+      readonly kind: "freeWorker";
+      readonly job: JobId;
+      readonly count: number;
+    };
 
 /**
  * The city's and transport's moves (slice 1, rule 7, #654), only in a fresh
@@ -242,8 +250,10 @@ function workerActions(mountain: Mountain): readonly Action[] {
   }
   const free = freeWorkers(mountain);
   return JOB_IDS.flatMap((job): Action[] => [
-    ...(free > 0 ? [{ kind: "placeWorker", job } as const] : []),
-    ...(mountain.jobs[job] > 0 ? [{ kind: "freeWorker", job } as const] : []),
+    ...(free > 0 ? [{ kind: "placeWorker", job, count: 1 } as const] : []),
+    ...(mountain.jobs[job] > 0
+      ? [{ kind: "freeWorker", job, count: 1 } as const]
+      : []),
   ]);
 }
 
@@ -253,8 +263,8 @@ function workerApplied(mountain: Mountain, action: WorkerAction): Mountain {
     return mountain;
   }
   return action.kind === "placeWorker"
-    ? placeWorker(mountain, action.job)
-    : freeWorker(mountain, action.job);
+    ? placeWorker(mountain, action.job, action.count)
+    : freeWorker(mountain, action.job, action.count);
 }
 
 /** A fresh mine's vehicles, then the one order move that fits the project. */
@@ -443,6 +453,20 @@ function buyMany(mountain: Mountain, id: TierId, count: number): Mountain {
     next = after;
   }
   return next;
+}
+
+/**
+ * A tap that buys `count` of a tier: one is today's `buyTier`, and ×10 or
+ * Max buy several in one `buyTiers` move (#358). Buys and the slice 1 frame's
+ * hire key both dispatch it (#659).
+ */
+export function tierBuyMove(
+  id: TierId,
+  count: number,
+): Extract<Move, { kind: "buyTier" | "buyTiers" }> {
+  return count === 1
+    ? { kind: "buyTier", id }
+    : { kind: "buyTiers", id, count };
 }
 
 /** A move only the screen makes: the lab plays taps and marks through its value model. */

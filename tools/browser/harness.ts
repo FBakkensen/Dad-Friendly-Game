@@ -86,6 +86,8 @@ export const HELD_TAP_START = 1_000_000_000;
 export interface OpenOptions {
   readonly viewport: Viewport;
   readonly seed: SeedMode;
+  /** Where the seed goes: SAVE_KEY when undefined, or a phone backup's key (#659). */
+  readonly seedKey?: string;
   readonly clock: PageClock;
   readonly search?: string;
   readonly waitUntil?: "networkidle0" | "domcontentloaded";
@@ -202,7 +204,7 @@ async function prepare(page: Page, options: OpenOptions): Promise<void> {
   });
   await page.setViewport(options.viewport);
   await installClock(page, options.clock);
-  const seed = seedScript(options.seed, SAVE_KEY);
+  const seed = seedScript(options.seed, options.seedKey ?? SAVE_KEY);
   if (seed !== undefined) {
     await page.evaluateOnNewDocument(seed);
   }

@@ -37,7 +37,7 @@ function amountAria(amount: BuyAmount): string {
   return `Buys ${now} a tap. Tap for ${next}.`;
 }
 
-type DeviceStorage = Pick<Storage, "getItem" | "setItem">;
+export type DeviceStorage = Pick<Storage, "getItem" | "setItem">;
 
 function storedAmount(storage: DeviceStorage | undefined): BuyAmount {
   try {
@@ -57,6 +57,38 @@ function storeAmount(
   } catch {
     // Private mode or a full store: the next open starts at ×1.
   }
+}
+
+/**
+ * The amount this device last chose (×1 when none, or when the store throws),
+ * and the step to the next one, which keeps it. Buys' key and the slice 1
+ * frame's (#659) both hold one: one amount for the device.
+ */
+export type DeviceAmount = {
+  readonly amount: () => BuyAmount;
+  /** ×1, ×10, Max, then ×1 again; kept on the device. */
+  readonly advance: () => void;
+};
+
+export function deviceAmount(storage: DeviceStorage | undefined): DeviceAmount {
+  let amount = storedAmount(storage);
+  return {
+    amount: () => amount,
+    advance: () => {
+      amount = nextAmount(amount);
+      storeAmount(storage, amount);
+    },
+  };
+}
+
+/** The key's face, and how a screen reader says it: "Buys ten a tap. Tap for …". */
+export function paintAmountKey(
+  root: HTMLElement,
+  face: HTMLElement,
+  amount: BuyAmount,
+): void {
+  write(face, AMOUNT_WORDS[amount].face);
+  root.setAttribute("aria-label", amountAria(amount));
 }
 
 export interface AmountKey {
@@ -81,15 +113,12 @@ export function createAmountKey({
   storage: DeviceStorage | undefined;
   changed: () => void;
 }): AmountKey {
-  let amount = storedAmount(storage);
-  const root = plateButton(AMOUNT_WORDS[amount].face);
+  const device = deviceAmount(storage);
+  const root = plateButton(AMOUNT_WORDS[device.amount()].face);
   root.classList.add("buy-amount");
   const face = root.querySelector<HTMLElement>(".board-platebtn-text");
   const paint = (): void => {
-    if (face !== null) {
-      write(face, AMOUNT_WORDS[amount].face);
-    }
-    root.setAttribute("aria-label", amountAria(amount));
+    paintAmountKey(root, face ?? root, device.amount());
   };
   paint();
   const tracker = pressOnBoard(
@@ -100,15 +129,14 @@ export function createAmountKey({
       if (decision !== "act") {
         return;
       }
-      amount = nextAmount(amount);
-      storeAmount(storage, amount);
+      device.advance();
       paint();
       changed();
     },
   );
   return {
     root,
-    amount: () => amount,
+    amount: device.amount,
     forget: () => {
       tracker.forget();
     },

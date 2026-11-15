@@ -55,23 +55,38 @@ export function freeWorkers(mountain: Crew): number {
   return mountain.owned.helper - workersOnJobs(mountain);
 }
 
-/** A free worker onto `job`; none free changes nothing. */
-export function placeWorker<M extends Crew>(mountain: M, job: JobId): M {
-  return freeWorkers(mountain) < 1
-    ? mountain
-    : {
-        ...mountain,
-        jobs: { ...mountain.jobs, [job]: mountain.jobs[job] + 1 },
-      };
+/**
+ * Up to `count` free workers onto `job` (the amount key, #659): the free
+ * ones there are, and no more. None free changes nothing.
+ */
+export function placeWorker<M extends Crew>(
+  mountain: M,
+  job: JobId,
+  count = 1,
+): M {
+  return moved(mountain, job, Math.min(movable(count), freeWorkers(mountain)));
 }
 
-/** A worker off `job`, free again; none there changes nothing. */
-export function freeWorker<M extends Crew>(mountain: M, job: JobId): M {
-  return mountain.jobs[job] < 1
+/** Up to `count` workers off `job`, free again; none there changes nothing. */
+export function freeWorker<M extends Crew>(
+  mountain: M,
+  job: JobId,
+  count = 1,
+): M {
+  return moved(mountain, job, -Math.min(movable(count), mountain.jobs[job]));
+}
+
+/** A count a move can carry: whole and not below 0. NaN moves none, and Infinity all there are. */
+function movable(count: number): number {
+  return count > 0 ? Math.floor(count) : 0;
+}
+
+function moved<M extends Crew>(mountain: M, job: JobId, by: number): M {
+  return by === 0
     ? mountain
     : {
         ...mountain,
-        jobs: { ...mountain.jobs, [job]: mountain.jobs[job] - 1 },
+        jobs: { ...mountain.jobs, [job]: mountain.jobs[job] + by },
       };
 }
 
