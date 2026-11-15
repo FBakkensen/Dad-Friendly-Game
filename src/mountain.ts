@@ -299,9 +299,17 @@ function withDelivery(
   to: number,
   pay: number,
 ): Accrual {
+  if (crew.mountain.project.kind !== "delivering") {
+    return crew;
+  }
   const seconds = Math.floor((to - from) / 1000);
-  const carried = deliver(crew.mountain, seconds, pay);
-  return carried === crew.mountain ? crew : { ...crew, mountain: carried };
+  // A crew that digs nothing settles the whole window; transport still keeps
+  // its part second for the next one.
+  return {
+    ...crew,
+    mountain: deliver(crew.mountain, seconds, pay),
+    settledAt: Math.min(crew.settledAt, from + seconds * 1000),
+  };
 }
 
 /** The Gold rush's held stones paid over the same whole seconds as the crew. */

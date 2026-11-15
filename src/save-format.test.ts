@@ -167,6 +167,10 @@ describe("the game map (#558)", () => {
     expect(project(good, { operational: ["lightTower"] })).toBe("bad");
     expect(project({ ...good, state: "rushing" })).toBe("newer");
     expect(project({ ...good, building: "rocketPad" })).toBe("newer");
+    // Nonsense wins over a newer build's name.
+    expect(
+      project({ ...good, building: "rocketPad", arrived: { stones: -5 } }),
+    ).toBe("bad");
     expect(readGame({ fleet: { truck: 1 } }, 0).kind).toBe("newer");
   });
 

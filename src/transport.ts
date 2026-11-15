@@ -269,7 +269,7 @@ export function orderLimit(
 /**
  * Seconds until the whole building is operational at `share` of transport's
  * rate and `stonesPerSecond` dug, or Infinity when it cannot finish (on
- * hold, nothing ordered, or nothing left to carry). Unattended time splits
+ * hold, nothing ordered, or a good it needs that never comes). Unattended time splits
  * the night here, where a roof's power begins.
  */
 export function secondsToFinish(

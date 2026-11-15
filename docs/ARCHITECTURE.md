@@ -51,7 +51,7 @@ page is the map, plus the rules that keep it that way.
    ledger is one of the lab's inputs (`LAB_ENTRIES`), so a changed ledger
    runs the lab again. `economy/invariants.test.ts` (#555, fast-check, in the
    `unit` project) plays random legal moves, live waits, trouble and time away
-   from a save in each band, and checks after each step that counts stay whole
+   from a save in each band and in a fresh mine (#654: orders, wagons and deliveries), and checks after each step that counts stay whole
    and finite, lifetime figures never fall, an upgrade or a promotion spends
    its shown price and a machine or boost spends some stones, a buy of a
    machine, upgrade, boost or craft never slows the crew, and the save

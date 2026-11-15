@@ -569,18 +569,21 @@ function readBench(value: unknown): Part<Bench | undefined> {
   return parseBench(value) ?? "newer";
 }
 
-/** What has arrived for the step: only goods it requires, each short of its need. */
-function readArrived(value: unknown, building: BuildingId, step: StepIndex) {
-  const arrived = readCounts(value ?? {}, GOOD_IDS, UNCAPPED);
-  if (arrived === "bad" || arrived === "newer") {
-    return arrived;
-  }
+/**
+ * Whether what has arrived can stand on the step: only goods it requires,
+ * none past its need, and not all of them in (a complete step has already
+ * given way to the next).
+ */
+function fitsStep(
+  arrived: Record<GoodId, number>,
+  building: BuildingId,
+  step: StepIndex,
+): boolean {
   const requires = stepRequires({ building, step, arrived: EMPTY_STOCK });
-  const short = GOOD_IDS.every(
-    (good) =>
-      arrived[good] === 0 || arrived[good] < priceAmount(requires, good),
-  );
-  return short ? arrived : "bad";
+  const need = (good: GoodId): number => priceAmount(requires, good);
+  const within = GOOD_IDS.every((good) => arrived[good] <= need(good));
+  const allIn = GOOD_IDS.every((good) => arrived[good] >= need(good));
+  return within && !allIn;
 }
 
 function projectTyped(value: Entries): boolean {
@@ -591,10 +594,21 @@ function projectTyped(value: Entries): boolean {
   );
 }
 
+/** A building, state or key this build does not know. */
+function projectNewer(value: Entries): boolean {
+  return (
+    !(BUILDING_IDS as readonly string[]).includes(
+      value["building"] as string,
+    ) ||
+    !(PROJECT_STATES as readonly string[]).includes(value["state"] as string) ||
+    unknownKeys(value, ["building", "state", "step", "arrived"])
+  );
+}
+
 /**
- * The project in hand. A building or state this build does not know is
- * `newer`. A step past the roof, a step already all in, or a building that is
- * not the next one to order is `bad`.
+ * The project in hand. A building, state or good this build does not know
+ * is `newer`. A wrong type, a step past the roof, a step already all in, or
+ * a building that is not the next one to order is `bad`, and bad wins.
  */
 function readProject(value: unknown, marks: Part<Marks>): Part<Project> {
   if (value === undefined) {
@@ -603,28 +617,26 @@ function readProject(value: unknown, marks: Part<Marks>): Part<Project> {
   if (!isRecord(value) || !projectTyped(value)) {
     return "bad";
   }
-  const building = value["building"] as string;
-  const state = value["state"] as string;
-  if (
-    !(BUILDING_IDS as readonly string[]).includes(building) ||
-    !(PROJECT_STATES as readonly string[]).includes(state) ||
-    unknownKeys(value, ["building", "state", "step", "arrived"])
-  ) {
+  const arrived = readCounts(value["arrived"] ?? {}, GOOD_IDS, UNCAPPED);
+  if (arrived === "bad") {
+    return "bad";
+  }
+  if (arrived === "newer" || projectNewer(value)) {
     return "newer";
   }
   if (typeof marks === "string") {
     return marks;
   }
-  if (nextBuilding(marks)?.id !== building) {
+  const building = value["building"] as BuildingId;
+  const step = value["step"] as StepIndex;
+  if (
+    nextBuilding(marks)?.id !== building ||
+    !fitsStep(arrived, building, step)
+  ) {
     return "bad";
   }
-  const step = value["step"] as StepIndex;
-  const arrived = readArrived(value["arrived"], building, step);
-  if (typeof arrived === "string") {
-    return arrived;
-  }
   return {
-    kind: state as SavedProject["state"],
+    kind: value["state"] as SavedProject["state"],
     site: { building, step, arrived },
   };
 }

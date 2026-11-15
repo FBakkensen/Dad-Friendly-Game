@@ -90,6 +90,25 @@ describe("live play: he orders, transport delivers (rule 7)", () => {
     });
   });
 
+  it("keeps transport's part seconds when the crew digs nothing", () => {
+    fresh(() => {
+      // Ticks of 999 ms: each leaves a part second for the next.
+      let state = mine(0, 10_000, 1, site(0));
+      let settled = 0;
+      for (let now = 999; now <= 60 * 999; now += 999) {
+        const tick = accrue({
+          mountain: state,
+          from: settled,
+          to: now,
+          live: true,
+        });
+        state = tick.mountain;
+        settled = tick.settledAt;
+      }
+      expect(state.project).toEqual(site(0, 25 * 59));
+    });
+  });
+
   it("raises the whole building from one order, step after step", () => {
     fresh(() => {
       const start = mine(9, 8_000_000, 400, { kind: "unordered" });
