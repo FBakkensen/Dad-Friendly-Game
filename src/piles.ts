@@ -8,7 +8,7 @@
  * pile is full, and it never waits on another part's rhythm.
  *
  * This module is the one place that moves goods through piles: the mine
- * (drilling, the face pile, haulage, the shaft pile, hoisting) and the
+ * (drilling, the drilled rock, haulage, the shaft pile, hoisting) and the
  * building site (transport, the site, the builders) both build a `Chain` and
  * call it. It moves totals; a caller that splits goods does so itself.
  */
@@ -19,7 +19,7 @@ export type Pile = { readonly held: number; readonly holds: number };
 /**
  * Stages in order, with one pile between each pair
  * (`piles.length === rates.length - 1`). `source` is what the first stage can
- * take: Infinity for rock at the face, or what the pocket holds for
+ * take: Infinity for the rock in the ground, or what the pocket holds for
  * transport. The last stage's output has no limit.
  */
 export type Chain = {

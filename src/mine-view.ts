@@ -304,7 +304,7 @@ const PILE_AFTER: Readonly<Record<Stage, PileId | undefined>> = {
 
 /** The piles' words (#703), Flemming's to approve. */
 export const PILE_LABELS: Readonly<Record<PileId, string>> = {
-  face: "Rock at the face",
+  face: "Drilled rock",
   shaft: "Rock at the shaft",
 };
 
@@ -421,7 +421,7 @@ type StageScene = {
 export type MineScene = {
   readonly moving: boolean;
   readonly stages: Readonly<Record<Stage, StageScene>>;
-  /** The pile at the face, between drilling and haulage: the share of its room it holds. */
+  /** The drilled rock, between drilling and haulage: the share of its room it holds. */
   readonly facePile: number;
   /** The pile at the shaft, between haulage and hoisting. */
   readonly shaftPile: number;

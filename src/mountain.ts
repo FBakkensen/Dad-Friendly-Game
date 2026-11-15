@@ -142,7 +142,7 @@ export type Mountain = {
    */
   readonly jobs: Jobs;
   /**
-   * Rock waiting at the face and at the shaft (slice 1, rule 2, #703), in
+   * Drilled rock and rock at the shaft (slice 1, rule 2, #703), in
    * whole stones. Always empty in today's game.
    */
   readonly piles: MinePiles;
@@ -186,7 +186,7 @@ export const BARE_MOUNTAIN: Mountain = {
 
 /**
  * A fresh mine starts with one worker, on drilling (slice 1, rule 2.10,
- * #703): rock waits at the face until he is moved to haulage, and at the
+ * #703): drilled rock waits until he is moved to haulage, and at the
  * shaft until he is moved to hoisting. The horse wagon is given, with nobody
  * driving it, and nobody builds until he hires.
  */

@@ -6,7 +6,7 @@ import { addedStock } from "./stock";
 import { lineWork } from "./workforce";
 
 /**
- * The mine's two piles (slice 1, rule 2, #703): rock at the face, between
+ * The mine's two piles (slice 1, rule 2, #703): drilled rock, between
  * drilling and haulage, and rock at the shaft, between haulage and hoisting.
  * Each stage works while it has rock in front of it and room after it, at
  * its own rate, and the chain in src/piles.ts moves the rock. What hoisting

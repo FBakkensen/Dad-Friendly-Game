@@ -147,7 +147,7 @@ describe("the mine", () => {
         `.mine-stage[data-stage="${stage}"] .mine-stage-info .mine-stage-pile`,
       );
     expect(text('.mine-stage[data-stage="face"] .mine-stage-pile')).toBe(
-      "Rock at the face: 200 of 300",
+      "Drilled rock: 200 of 300",
     );
     expect(text('.mine-stage[data-stage="haul"] .mine-stage-pile')).toBe(
       "Rock at the shaft: 12 of 300",
@@ -158,7 +158,7 @@ describe("the mine", () => {
       root
         .querySelector('.mine-stage[data-stage="face"] .mine-stage-info')
         ?.getAttribute("aria-label"),
-    ).toMatch(/Rock at the face: 200 of 300\. Opens its list\.$/);
+    ).toMatch(/Drilled rock: 200 of 300\. Opens its list\.$/);
   });
 
   it("says where a free worker comes from when + has none, and moves with −", () => {

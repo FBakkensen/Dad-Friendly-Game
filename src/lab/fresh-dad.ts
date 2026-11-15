@@ -260,7 +260,7 @@ function pileShare(held: number, holds: number): number {
 /**
  * The stage whose pile lets a worker move rock (#703): the stage after the
  * fuller pile, hoisting on a tie, else drilling while both piles are empty.
- * A full shaft pile sends him to hoisting and a full face pile, with room
+ * A full shaft pile sends him to hoisting and full drilled rock, with room
  * at the shaft, to haulage.
  */
 export function pileStage(mountain: Mountain): Stage {

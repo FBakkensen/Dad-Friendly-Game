@@ -150,7 +150,7 @@ export type SaveGame = {
   readonly project?: SavedProject;
   /** Workers on each job (#689); the free workers are the rest of `owned.helper`. */
   readonly jobs?: Readonly<Partial<Record<JobId, number>>>;
-  /** Rock waiting at the face and at the shaft (#703); any whole number (ruling 2). */
+  /** Drilled rock and rock at the shaft (#703); any whole number (ruling 2). */
   readonly piles?: Readonly<Partial<Record<PileId, number>>>;
 };
 

@@ -182,7 +182,7 @@ const SAVES = {
     search: "?slice=1",
   },
   "slice-start": {
-    note: "slice 1: a fresh one-worker start with rock at the face, and the first evening's card",
+    note: "slice 1: a fresh one-worker start with drilled rock, and the first evening's card",
     save: () => sliceStartSave(Date.now()),
     key: DEV_BACKUP_KEY,
     search: "?slice=1",

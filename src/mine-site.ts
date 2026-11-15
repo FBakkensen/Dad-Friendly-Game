@@ -186,7 +186,7 @@ function writeSum(target: HTMLElement, forms: readonly string[]): void {
   write(target, forms[0] ?? "");
 }
 
-/** "Rock at the face: 200 of 300". */
+/** "Drilled rock: 200 of 300". */
 export function pileWords(pile: RowPile): string {
   return `${pile.label}: ${formatCompact(pile.held)} of ${formatCompact(pile.holds)}`;
 }

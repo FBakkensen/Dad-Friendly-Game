@@ -5,7 +5,7 @@ import { createMountain, type Mountain } from "./mountain";
 import { PILE_HOLDS, flowMine, mineChain, mineChange } from "./mine-piles";
 import { NO_JOBS, freeWorker, placeWorker, type JobId } from "./workforce";
 
-/** Rock at the face and at the shaft in a fresh mine (#703, rule 2). */
+/** Drilled rock and rock at the shaft in a fresh mine (#703, rule 2). */
 const fresh = <T>(body: () => T): T => withFactors({ [FRESH_OFF]: 0 }, body);
 
 /** A fresh mine with one worker, on `job`, and these piles. */
@@ -29,7 +29,7 @@ const rock = (mountain: Mountain): number =>
   mountain.stock.stones + mountain.piles.face + mountain.piles.shaft;
 
 describe("the mine's two piles (#703)", () => {
-  it("holds 300 at the face and 300 at the shaft, as the lab set them (#703)", () => {
+  it("holds 300 drilled rock and 300 at the shaft, as the lab set them (#703)", () => {
     expect(PILE_HOLDS).toEqual({ face: 300, shaft: 300 });
   });
 
@@ -51,7 +51,7 @@ describe("the mine's two piles (#703)", () => {
     });
   });
 
-  it("one worker on drilling fills the face pile and no stone comes up", () => {
+  it("one worker on drilling fills the drilled-rock pile and no stone comes up", () => {
     fresh(() => {
       const start = lone("drilling");
       expect(mineChange(start, 1, true)).toBeCloseTo(300 / 3, 9);
@@ -63,7 +63,7 @@ describe("the mine's two piles (#703)", () => {
     });
   });
 
-  it("moved to haulage, then hoisting, he brings the face pile up", () => {
+  it("moved to haulage, then hoisting, he brings the drilled rock up", () => {
     fresh(() => {
       const drilled = flowMine(lone("drilling"), 100, 1, true).mountain;
       expect(drilled.piles).toEqual({ face: 300, shaft: 0 });

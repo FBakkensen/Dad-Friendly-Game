@@ -187,7 +187,7 @@ describe("the ledger of what has shipped (#558)", () => {
 });
 
 describe("the mine's piles in the save (#703)", () => {
-  it("round-trips the rock at the face and at the shaft", () => {
+  it("round-trips the drilled rock and rock at the shaft", () => {
     const mountain = { ...createMountain(), piles: { face: 120, shaft: 7 } };
     const game = writeGame(mountain);
     expect(game.piles).toEqual({ face: 120, shaft: 7 });

@@ -10,7 +10,7 @@ import {
 /** A pile holding `held` of `holds`. */
 const pile = (held: number, holds: number) => ({ held, holds });
 
-/** The mine's shape: drilling, haulage and hoisting, with rock at the face and at the shaft. */
+/** The mine's shape: drilling, haulage and hoisting, with drilled rock and rock at the shaft. */
 function mine(
   rates: readonly number[],
   face = pile(0, 500),
@@ -27,7 +27,7 @@ describe("a chain of stages and piles (#703)", () => {
     expect(after.piles[1]).toBeCloseTo(0, 6);
   });
 
-  it("stops drilling at a full face pile", () => {
+  it("stops drilling at full drilled rock", () => {
     const chain = mine([3, 0, 0]);
     expect(chainChange(chain)).toBeCloseTo(500 / 3, 9);
     const after = flowChain(chain, 1_000);
@@ -35,7 +35,7 @@ describe("a chain of stages and piles (#703)", () => {
     expect(after.piles).toEqual([500, 0]);
   });
 
-  it("a lone hauler empties the face pile into the shaft pile", () => {
+  it("a lone hauler empties the drilled rock into the shaft pile", () => {
     const after = flowChain(mine([0, 3, 0], pile(300, 500)), 200);
     expect(after.moved[1]).toBeCloseTo(300, 6);
     expect(after.piles).toEqual([0, 300]);

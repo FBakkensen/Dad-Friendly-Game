@@ -1121,7 +1121,7 @@ const FIRST_EVENING_JOBS = {
 
 /**
  * A fresh start a minute or so in (#703): one worker, on drilling, the
- * given horse wagon, nothing ordered, and some rock waiting at the face.
+ * given horse wagon, nothing ordered, and some drilled rock waiting.
  * The frame opens on the first evening's card.
  */
 export function sliceStartSave(now: number): StoredAsIs {

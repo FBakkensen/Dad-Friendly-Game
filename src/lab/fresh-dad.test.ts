@@ -88,7 +88,7 @@ describe("the fresh dad's first moves (#655)", () => {
       expect(freshPlan(noBuilder, ONCE, 1)).toEqual([
         { kind: "placeWorker", job: "building", count: 1 },
       ]);
-      // Haulage is short, so rock waits at the face (#703).
+      // Haulage is short, so drilled rock waits (#703).
       const short = placeOrder(
         mine(
           { drilling: 6, haulage: 4, hoisting: 6, driving: 1, building: 2 },
@@ -106,7 +106,7 @@ describe("one worker at the start, moved between the jobs (#703)", () => {
   it("moves the lone worker to the stage whose pile lets him move rock", () => {
     fresh(() => {
       const full = PILE_HOLDS.face;
-      // The face pile is full and the shaft's is empty: haulage.
+      // The drilled rock is full and the shaft's is empty: haulage.
       const atFace = placeOrder(mine({ drilling: 1 }, { face: full }));
       expect(freshPlan(atFace, ONCE, 1)).toEqual(move("drilling", "haulage"));
       // The shaft pile is full: hoisting.

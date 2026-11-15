@@ -539,7 +539,7 @@ for (const size of SIZES) {
       const piles = facts.mine?.piles ?? [];
       check(
         piles.length === 2 &&
-          /^Rock at the face: \d+ of \d+$/.test(piles[0] ?? "") &&
+          /^Drilled rock: \d+ of \d+$/.test(piles[0] ?? "") &&
           /^Rock at the shaft: \d+ of \d+$/.test(piles[1] ?? ""),
         `${at} mine: drilling and haulage say their piles, hoisting none (${JSON.stringify(piles)})`,
       );

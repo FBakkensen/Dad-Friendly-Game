@@ -31,12 +31,12 @@ export const END_CARD: CardWords = {
 
 /**
  * The first evening (#703): one worker, the piles, and where the rest comes
- * from. Proposed words, Flemming's to approve before the merge.
+ * from. Approved by Flemming, 15 Nov 2026 (no "face": an engineering game).
  */
 export const FIRST_EVENING: CardWords = {
   title: "The first evening",
   paragraphs: [
-    "One worker, on drilling. Rock waits at the face until haulage carries it to the shaft, and at the shaft until hoisting lifts it up as stone.",
+    "One worker, on drilling. Drilled rock waits until haulage carries it to the shaft, and at the shaft until hoisting lifts it up as stone.",
     "Move him between the jobs. Every worker you hire moves more.",
   ],
   key: "Start",

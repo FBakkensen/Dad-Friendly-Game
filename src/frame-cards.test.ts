@@ -464,7 +464,7 @@ describe("the cards' words", () => {
     expect(FIRST_EVENING).toEqual({
       title: "The first evening",
       paragraphs: [
-        "One worker, on drilling. Rock waits at the face until haulage carries it to the shaft, and at the shaft until hoisting lifts it up as stone.",
+        "One worker, on drilling. Drilled rock waits until haulage carries it to the shaft, and at the shaft until hoisting lifts it up as stone.",
         "Move him between the jobs. Every worker you hire moves more.",
       ],
       key: "Start",

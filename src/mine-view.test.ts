@@ -200,12 +200,12 @@ describe("a stage's row", () => {
       expect(rows.map((row) => row.now)).toEqual([String(pick), "0", "0"]);
       expect(rows[0]?.can).toBe(`${String(pick)}/s`);
       expect(rows.map((row) => row.pile)).toEqual([
-        { label: "Rock at the face", held: 200, holds: PILE_HOLDS.face },
+        { label: "Drilled rock", held: 200, holds: PILE_HOLDS.face },
         { label: "Rock at the shaft", held: 0, holds: PILE_HOLDS.shaft },
         undefined,
       ]);
       expect(PILE_HOLDS.face).toBe(300);
-      // A full face pile with nobody hauling: drilling stands too.
+      // Full drilled rock with nobody hauling: drilling stands too.
       const full = stageRows({ ...mountain, piles: { face: 300, shaft: 0 } });
       expect(full[0]?.now).toBe("0");
       expect(full[0]?.band.now).toBe(0);
