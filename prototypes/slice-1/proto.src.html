@@ -414,7 +414,7 @@ function tick(dt, pp, hp, log) {
     for (const g in need) { const amt = Math.min(left, st.site[g] || 0, need[g] - (st.given[g] || 0)); if (amt > 0) { st.site[g] -= amt; st.given[g] = (st.given[g] || 0) + amt; left -= amt; rate.built += amt / dt; } }
     if (Object.keys(need).every((g) => (st.given[g] || 0) >= need[g] - 1e-6)) { st.step++; st.given = {}; st.site = {}; if (st.step >= 3) st.on = false; log.ev.push({ k: "phase", id: h.id, step: st.step }); }
   }
-  return { rate, worked: made.bricks + made.cut + made.stones > 1e-9 };
+  return { rate, worked: made.bricks + made.cut + made.stones > 1e-9, full: F.full.stones };
 }
 let HAUL = { city: 0, bench: 0, built: 0, good: null };
 function events(ev) {
@@ -436,7 +436,7 @@ function simulate(sec, apply) {
   S.charge = 0;
   for (let i = 0; i < n; i++) {
     const t = i * dt, r = tick(dt, !worksOpen() && t >= 8 * 3600 ? 0 : awayPace(), awayPace(), log); // no stockyard yet: a night shift runs eight hours
-    if (r.worked) log.worked += dt; else if (log.stop == null) { log.stop = t; log.full = flows().full.stones; } // full is said only when the stockpile is full
+    if (r.worked) log.worked += dt; else if (log.stop == null) { log.stop = t; log.full = r.full; } // full is said only when the tick that made nothing began with the stone stockpile full
     if (worksOpen()) { const cap = caps(); for (const g of ["stones", "bricks", "cut"]) if (log.fullAt[g] == null && S[g] >= cap[g] - 0.5) log.fullAt[g] = t + dt; }
   }
   S.charge = Math.max(0, ch - sec);
@@ -680,7 +680,7 @@ function mineUI(F) {
     for (let lv = 0; lv < 3; lv++) { const h = make(lv); if (mk.dataset.h !== h) { mk.dataset.h = h; mk.innerHTML = h; } mk.classList.toggle("sm", lv === 2); if (mk.scrollWidth <= mk.clientWidth + 1) break; }
     s.querySelector(".n small").textContent = S.wk[k] === 1 ? "worker" : "workers";
     // what the stage moves now, of what it can move. The mine is one line, so every stage moves the same.
-    const big = cap >= 10000, nn = (v) => (big && Math.round(v) % 100 === 0 ? fmt(v) : num(v)); s.querySelector(".r").innerHTML = `<b>${nn(F.out)}</b> of <i>${nn(cap)}/s</i>`;
+    const big = cap >= 10000, nn = (v) => (big && Math.round(v) % 100 === 0 ? fmt(Math.round(v)) : num(v)); s.querySelector(".r").innerHTML = `<b>${nn(F.out)}</b> of <i>${nn(cap)}/s</i>`;
     const bar = s.querySelector(".bar").children; bar[0].style.width = (100 * cap) / top + "%"; bar[1].style.width = (100 * Math.min(F.out, cap)) / top + "%";
     const bk = $("#buy-" + k); bk.innerHTML = `+${sb.short} · ${rate(sb.rate)}<small>${fmt(sb.price)} ${ico(sb.good)} · ${sb.staff} to run</small>`; bk.classList.toggle("can", canPay({ [sb.good]: sb.price }));
   }
