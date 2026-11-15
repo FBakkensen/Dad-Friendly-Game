@@ -106,13 +106,13 @@ describe("save card lines in a fresh mine", () => {
     };
   };
 
-  it("names the project in the order strip's words, the stone, the machines and the workers", () => {
+  it("names the project in the order strip's words, the stone, the machines and the workers with their wagons", () => {
     const lines = fresh(() => saveCardLines(grown(), now - 60_000, now));
     expect(lines).toEqual({
-      depth: "The Light Tower · Foundation · delivering",
+      depth: "The Light Tower · Foundation",
       pocket: "4,200 stone in the stockpile",
-      machines: "6 carts · 3 hoists · 5 drills · 2 horse wagons",
-      crew: "30 workers",
+      machines: "5 drills · 6 carts · 3 hoists",
+      crew: "30 workers · 2 horse wagons",
       played: "Today 20:59",
     });
   });

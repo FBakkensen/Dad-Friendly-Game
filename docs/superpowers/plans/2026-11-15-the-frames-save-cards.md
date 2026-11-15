@@ -8,10 +8,10 @@ Split out of part 1's switch-on (#664): today's board is the only screen that ho
 2. **One mechanism.** The cards are today's panels: `createUpdatePrompt`, `createOtherTab` and `showAppUpdate` (`screen-prompts`), and `createSaveConflictPanel` (`save-conflict-panel`), on the board card shell (`board-card`). The frame gets a `BoardHost` of its own (`createBoardHost`), so the cards' presses keep the board's settle against a sleepy double tap. A new module, `frame-save-cards`, puts them together for the frame, as `frame-cards` does for the shift report. `frame-screen` mounts it and paints it, and `main.ts` already calls `showAppUpdate(root)` for both screens.
 3. **Their order.** The save's cards sit over everything on the frame, the shift report included: a choice of save comes before a report of the night.
 4. **A save card in a fresh mine.** `saveCardLines` (`save-sheet-copy`) reads depth, the pocket, the old machines and engineers, none of which a fresh mine has. In a fresh mine it reads the project in the order strip's words (`orderStrip`, `frame-view`), the stone in the stockpile, the machines and horse wagons, and the workers. These are new lines, so they are Flemming's to approve, asked as one question with a picture. Proposed:
-   - "The Light Tower · Foundation · delivering", or "The Light Tower is operational" after its roof;
+   - "The Light Tower · Foundation" (the order strip's name and step; its state, "delivering", does not fit half a card), or "The Light Tower is operational" after its roof;
    - "4,200 stone in the stockpile";
-   - "6 carts · 3 hoists · 5 drills · 2 horse wagons" (in the tier table's order), or "No machines yet";
-   - "30 workers".
+   - "5 drills · 6 carts · 3 hoists" (in the mine's order), or "No machines yet";
+   - "30 workers · 2 horse wagons" (the wagons do not fit on the machines' line beside three machines).
 5. **Which side is picked first** stays "more stones mined, the phone on a tie". In a fresh mine nothing is mined from the mountain, so it is the phone until #664 adds the save's "rock dug in all" fact (the spec's call 13). Noted on #664.
 
 ## Tasks
