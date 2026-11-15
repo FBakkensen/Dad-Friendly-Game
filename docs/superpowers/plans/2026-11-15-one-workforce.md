@@ -22,6 +22,8 @@
 14. **The save gains `jobs`** in the game map (counts by job id), written only when not empty, so today's save is unchanged and there is no version bump. The reader refuses more workers on jobs than he owns and a negative count as `bad`, and a job it does not know as `newer`. The ledger gains the job ids.
 15. **The lab values a move** at what the line gains, at no cost. The lab's players do not move workers yet: teaching them is #655.
 16. **Unattended**, the workers stay where he left them, and the whole line and transport work at the night shift output (rule 2.11), as `accrueAway` already does.
+17. **Short of workers means a machine that would beat a tool.** `helpersShort` counts only an idle machine that moves more than its workers would with tools; one left off because a tool moves more is short of nobody (review, PR #694). Today's crew line (`crew-panel`) reads `running.helper` as the workers at work, which in a fresh mine is only the tools; it is not shown in a fresh mine, and the stage list that replaces it is #661.
+18. **Left for the switch-on and the lab.** The dev preview mountains (`boot`, `save-preview`) and `saveText` in the test fixtures spread `createMountain()` and set `owned`, so in a fresh mine they keep ten on jobs with fewer workers; #664 gives them jobs that fit when it turns the fresh mine on. The lab's `valueTier` values a hire as a free worker (nothing) and a machine with a staff bill it no longer has; #655 teaches the lab a fresh mine's buys.
 
 ## Tasks
 

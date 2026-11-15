@@ -76,11 +76,16 @@ export type StageMachine = {
   readonly speed: number;
 };
 
-/** What a stage's workers do: the machines they run, the workers left on tools, and what it all moves. */
+/**
+ * What a stage's workers do: the machines they run, the workers left on
+ * tools, what it all moves, and the workers it is short: what the machines
+ * that would beat a tool and stand idle would take.
+ */
 export type StageWork = {
   readonly running: Partial<Record<MachineId, number>>;
   readonly tools: number;
   readonly moves: number;
+  readonly short: number;
 };
 
 /**
@@ -97,10 +102,16 @@ export function stageWork(
 ): StageWork {
   const best = bestRun(machines, 0, workers, tool);
   const running: Partial<Record<MachineId, number>> = {};
+  let short = 0;
   for (const [index, machine] of machines.entries()) {
-    running[machine.id] = best.counts[index] ?? 0;
+    const count = best.counts[index] ?? 0;
+    running[machine.id] = count;
+    // A machine left off because a tool moves more is not short of anyone.
+    if (machine.speed > machine.staff * tool) {
+      short += (machine.owned - count) * machine.staff;
+    }
   }
-  return { running, tools: best.tools, moves: best.moves };
+  return { running, tools: best.tools, moves: best.moves, short };
 }
 
 type Run = {
@@ -152,6 +163,8 @@ export type LineWork = {
   readonly stages: StageSpeeds;
   /** What the line moves: its slowest stage (rule 2.5). */
   readonly line: number;
+  /** Workers the stages are short of, for machines that would beat a tool. */
+  readonly short: number;
 };
 
 /**
@@ -168,6 +181,7 @@ export function lineWork(
   const tool = speed.helper * STAGES.length;
   const running = tierRecord(0);
   const stages = { face: 0, haul: 0, lift: 0 };
+  let short = 0;
   for (const stage of STAGES) {
     const work = stageWork(
       stageMachines(mountain, speed, stage),
@@ -177,11 +191,13 @@ export function lineWork(
     Object.assign(running, work.running);
     running.helper += work.tools;
     stages[stage] = work.moves;
+    short += work.short;
   }
   return {
     running,
     stages,
     line: Math.min(stages.face, stages.haul, stages.lift),
+    short,
   };
 }
 

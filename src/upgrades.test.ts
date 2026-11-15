@@ -265,6 +265,7 @@ describe("crew synergies", () => {
       owned: { ...rich.owned, helper: 20, cart: 10, drill: 4 },
     };
     expect(synergyBonus(crew, upgradeById("cartSyn"))).toBeCloseTo(0.2);
+    expect(synergyBonus(crew, upgradeById("boots"))).toBe(0);
     expect(tierSynergy(crew, "cart")).toBe(0);
     const boosted = { ...crew, upgrades: { ...NO_UPGRADES, cartSyn: 1 } };
     expect(tierSynergy(boosted, "cart")).toBeCloseTo(0.2);

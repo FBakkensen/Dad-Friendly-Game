@@ -105,7 +105,12 @@ describe("a stage's workers run its machines (rule 2.5)", () => {
   const train: StageMachine = { id: "train", owned: 1, staff: 8, speed: 3_201 };
 
   it("works with tools when it has no machine", () => {
-    expect(stageWork([], 4, 3)).toEqual({ running: {}, tools: 4, moves: 12 });
+    expect(stageWork([], 4, 3)).toEqual({
+      running: {},
+      tools: 4,
+      moves: 12,
+      short: 0,
+    });
   });
 
   it("leaves a machine idle until the stage has the workers it takes", () => {
@@ -113,11 +118,13 @@ describe("a stage's workers run its machines (rule 2.5)", () => {
       running: { train: 0 },
       tools: 7,
       moves: 21,
+      short: 8,
     });
     expect(stageWork([train], 9, 3)).toEqual({
       running: { train: 1 },
       tools: 1,
       moves: 3_204,
+      short: 0,
     });
   });
 
@@ -127,6 +134,7 @@ describe("a stage's workers run its machines (rule 2.5)", () => {
       running: { cart: 2, train: 1 },
       tools: 0,
       moves: 3_237,
+      short: 0,
     });
   });
 
@@ -136,6 +144,7 @@ describe("a stage's workers run its machines (rule 2.5)", () => {
       running: { cart: 0 },
       tools: 4,
       moves: 12,
+      short: 0,
     });
   });
 
@@ -239,6 +248,18 @@ describe("the line in a fresh mine (rule 2.5, 2.9)", () => {
       expect(rates.running.cart).toBe(0);
       expect(rates.crewPerSecond).toBe(0);
       expect(rates.helpersShort).toBe(2);
+    });
+  });
+
+  it("is short of nobody when a tool moves more than an idle machine", () => {
+    fresh(() => {
+      // At 100 workers he owns, the marks lift a tool past a cart's 18.
+      const rates = effectiveRates(
+        line({ drilling: 5, haulage: 5, hoisting: 5 }, { cart: 2 }, 85),
+      );
+      expect(rates.tierSpeed.helper * 3).toBeGreaterThan(rates.tierSpeed.cart);
+      expect(rates.running.cart).toBe(0);
+      expect(rates.helpersShort).toBe(0);
     });
   });
 

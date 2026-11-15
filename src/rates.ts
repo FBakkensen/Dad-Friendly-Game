@@ -323,7 +323,8 @@ function crewRun(
  * A fresh mine's crew is the workforce he placed (slice 1, rule 2, #689):
  * each stage's workers run its machines or work with a tool, and the line
  * moves what its slowest stage moves. No staffing search and no spreading.
- * `helpersShort` is the workers the idle machines would take.
+ * `helpersShort` is the workers the idle machines would take, counting only
+ * a machine that would move more than its workers with tools.
  */
 function workforceRun(
   mountain: Mountain,
@@ -332,15 +333,11 @@ function workforceRun(
 ): CrewRun {
   applyAllTenths(mountain, plain, tierSpeed, lineWork(mountain, plain).running);
   const work = lineWork(mountain, tierSpeed);
-  const idle = TIERS.filter(tierInPlay).reduce(
-    (total, tier) =>
-      total +
-      (tier.id === "helper"
-        ? 0
-        : (owned(mountain, tier) - work.running[tier.id]) * tier.staff),
-    0,
-  );
-  return { running: work.running, exactBase: work.line, helpersShort: idle };
+  return {
+    running: work.running,
+    exactBase: work.line,
+    helpersShort: work.short,
+  };
 }
 
 /**
