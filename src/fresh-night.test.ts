@@ -199,6 +199,41 @@ describe("the night's facts (#663)", () => {
     });
   });
 
+  it("drains the piles after the clock", () => {
+    fresh(() => {
+      // The line is steady (2.7 a second on each stage), so the piles keep
+      // their 400 for the eight hours. Then drilling stops: haulage carries
+      // the face pile to the shaft and hoisting lifts the shaft pile, 800
+      // more, about 296 seconds past the clock.
+      const start = { ...mine(0, site(2)), piles: { face: 400, shaft: 400 } };
+      const away = night(start, 12 * HOUR);
+      expect(away.mined).toBe(77_760 + 800);
+      expect(away.mountain.piles).toEqual({ face: 0, shaft: 0 });
+      const report = away.report.night;
+      expect(report?.stop).toBe("clock");
+      expect(report?.producedMs).toBeGreaterThan(EIGHT_HOURS + 290_000);
+      expect(report?.producedMs).toBeLessThanOrEqual(EIGHT_HOURS + 300_000);
+      expect(report?.delivered).toEqual({ ...EMPTY_STOCK, stones: 78_560 });
+    });
+  });
+
+  it("keeps rock in the face pile when drilling outruns haulage", () => {
+    fresh(() => {
+      // Three drill, one hauls and three hoist: haulage's 0.9 a second at
+      // night is what comes up; the face pile fills (500) and stays full.
+      // The night splits where it fills (500 / 1.8 s, the 278th second),
+      // and each stretch drops its part-stone.
+      const start = mine(0, { kind: "unordered" });
+      const slow = { ...start, jobs: { ...start.jobs, haulage: 1 } };
+      const away = night(slow, 2 * HOUR);
+      expect(away.mined).toBe(
+        Math.floor(278 * 0.9) + Math.floor((2 * 3600 - 278) * 0.9),
+      );
+      expect(away.mountain.piles).toEqual({ face: 500, shaft: 0 });
+      expect(away.report.night?.producedMs).toBe(2 * HOUR);
+    });
+  });
+
   it("is not in today's game", () => {
     const away = accrueAway({
       mountain: createMountain(),

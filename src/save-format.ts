@@ -68,6 +68,7 @@ import {
 import { GOOD_IDS, priceAmount, type GoodId } from "./stock";
 import { VEHICLE_IDS, type VehicleId } from "./transport";
 import { JOB_IDS, workersOnJobs, type JobId, type Jobs } from "./workforce";
+import { PILE_IDS, type MinePiles, type PileId } from "./mine-piles";
 
 /** The Gold rush's end time, in the clocks map. */
 const GOLD_RUSH = "gold-rush";
@@ -111,6 +112,7 @@ const GAME_KEYS = [
   "fleet",
   "project",
   "jobs",
+  "piles",
 ] as const;
 
 /** A project in hand, as saved: an unordered city saves none (#654). */
@@ -148,6 +150,8 @@ export type SaveGame = {
   readonly project?: SavedProject;
   /** Workers on each job (#689); the free workers are the rest of `owned.helper`. */
   readonly jobs?: Readonly<Partial<Record<JobId, number>>>;
+  /** Rock waiting at the face and at the shaft (#703); any whole number (ruling 2). */
+  readonly piles?: Readonly<Partial<Record<PileId, number>>>;
 };
 
 // ---------------------------------------------------------------------------
@@ -294,6 +298,10 @@ export function writeGame(mountain: Mountain): SaveGame {
     ...some(
       "jobs",
       positives(JOB_IDS, (id) => mountain.jobs[id]),
+    ),
+    ...some(
+      "piles",
+      positives(PILE_IDS, (id) => mountain.piles[id]),
     ),
   };
 }
@@ -736,7 +744,19 @@ export function readGame(value: unknown, startedAt: number): GameRead {
   const fleet = readCounts(value["fleet"], VEHICLE_IDS, UNCAPPED);
   const project = readProject(value["project"], marks);
   const jobs = readJobs(value["jobs"], facts);
-  const failed = worst([facts, marks, run, crew, bench, fleet, project, jobs]);
+  // A pile over the room this build allows is full (ruling 2): no cap.
+  const piles = readCounts(value["piles"], PILE_IDS, UNCAPPED);
+  const failed = worst([
+    facts,
+    marks,
+    run,
+    crew,
+    bench,
+    fleet,
+    project,
+    jobs,
+    piles,
+  ]);
   if (failed !== undefined) {
     return { kind: failed };
   }
@@ -755,6 +775,7 @@ export function readGame(value: unknown, startedAt: number): GameRead {
       fleet: fleet as Record<VehicleId, number>,
       project: project as Project,
       jobs: jobs as Jobs,
+      piles: piles as MinePiles,
       startedAt,
     },
   };
@@ -779,6 +800,7 @@ export type ShippedFacts = {
   readonly fleet: readonly string[];
   readonly projectStates: readonly string[];
   readonly jobs: readonly string[];
+  readonly piles: readonly string[];
   readonly caps: Readonly<Record<string, number>>;
 };
 
@@ -803,6 +825,7 @@ export function shippedFacts(): ShippedFacts {
     fleet: VEHICLE_IDS,
     projectStates: PROJECT_STATES,
     jobs: JOB_IDS,
+    piles: PILE_IDS,
     caps: {
       engineers: MAX_ENGINEERS,
       engineerTrips: MAX_ENGINEER_TRIPS,

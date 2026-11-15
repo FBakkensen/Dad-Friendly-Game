@@ -27,6 +27,8 @@ import {
   type StepIndex,
 } from "./city";
 import { NO_JOBS, workersOnJobs, type Jobs } from "./workforce";
+import { chainChange, chainFlows } from "./piles";
+import { flowMine, mineChain, type MinePiles } from "./mine-piles";
 import {
   deliver,
   givenFleet,
@@ -139,6 +141,11 @@ export type Mountain = {
    * rest of `owned.helper`. Always zero in today's game.
    */
   readonly jobs: Jobs;
+  /**
+   * Rock waiting at the face and at the shaft (slice 1, rule 2, #703), in
+   * whole stones. Always empty in today's game.
+   */
+  readonly piles: MinePiles;
 };
 
 /** A sanity cap for saves; no dad gets near it. */
@@ -174,6 +181,7 @@ export const BARE_MOUNTAIN: Mountain = {
   operational: [],
   project: NO_PROJECT,
   jobs: NO_JOBS,
+  piles: { face: 0, shaft: 0 },
 };
 
 /**
@@ -297,14 +305,16 @@ export function accrue({
   // A craft that finished before this window is on the crew for the whole of it.
   // One that finishes during the window is fitted at the end, once.
   const ready = settleBench(mountain, from);
-  const crew = accrueCrew({
-    mountain: ready,
-    from,
-    to,
-    pay,
-    live,
-    ...(trouble === undefined ? {} : { trouble }),
-  });
+  const crew = freshMineOn()
+    ? accrueMine(ready, from, to, pay)
+    : accrueCrew({
+        mountain: ready,
+        from,
+        to,
+        pay,
+        live,
+        ...(trouble === undefined ? {} : { trouble }),
+      });
   const rushed = live ? withRushPay(crew, from, to) : crew;
   const worked = freshMineOn() ? withDelivery(rushed, from, to, pay) : rushed;
   const fitted = settleBench(worked.mountain, to);
@@ -334,6 +344,28 @@ function withDelivery(
     ...crew,
     mountain: deliver(crew.mountain, seconds, pay),
     settledAt: Math.min(crew.settledAt, from + seconds * 1000),
+  };
+}
+
+/**
+ * A fresh mine's work over whole seconds (slice 1, rule 2, #703): each stage
+ * at its own speed times `pay`, with rock waiting in the face and shaft
+ * piles, and what hoisting lifts in the stock. A mine where no stage can
+ * move spends the whole window, as a crew with nothing to do always has.
+ */
+function accrueMine(
+  mountain: Mountain,
+  from: number,
+  to: number,
+  pay: number,
+): Accrual {
+  if (chainFlows(mineChain(mountain, pay, true)).every((flow) => flow <= 0)) {
+    return { mountain, mined: 0, settledAt: to };
+  }
+  const seconds = Math.floor((to - from) / 1000);
+  return {
+    ...flowMine(mountain, seconds, pay, true),
+    settledAt: from + seconds * 1000,
   };
 }
 
@@ -448,7 +480,7 @@ type NightStep = {
  * steps built in, and the night shift output at its start and end.
  */
 export type NightReport = {
-  /** Time the mine dug with the line moving more than 0. */
+  /** Time stone came up to the pocket (#703: past the clock while the piles drain). */
   readonly producedMs: number;
   /** "clock" when the eight-hour clock stopped a mine that was producing. */
   readonly stop: "clock" | "none";
@@ -564,39 +596,51 @@ function accrueAcrossExpeditions({
 }
 
 /**
- * How long a fresh mine digs unattended before the stockyard (slice 1, rule
- * 4, #654): the clock stops the mine, and transport goes on.
+ * How long a fresh mine drills unattended before the stockyard (slice 1, rule
+ * 4, #654): the clock stops drilling; haulage and hoisting go on while the
+ * piles hold rock (#703), and transport goes on.
  */
 const NIGHT_CLOCK_MS = 8 * 60 * 60 * 1000;
 
 /**
- * One stretch of a fresh mine's night at one night shift output: up to its
- * end, or to the second the step in hand is built in (#663), so each step
- * has its own second and a roof's power may light the rest of the night
- * (rule 7.11). `producing` is whether the line moved.
+ * One stretch of a fresh mine's night at one night shift output (#663,
+ * #703): up to its end, to the second the step in hand is built in, so each
+ * step has its own second and a roof's power may light the rest of the night
+ * (rule 7.11), or to the second a pile fills or empties, so what comes up to
+ * the pocket is the same each second of it. Drilling stops at the clock;
+ * haulage and hoisting go on while the piles hold rock. `producing` is
+ * whether stone came up.
  */
 function nightStretch(
   mountain: Mountain,
   from: number,
   end: number,
-  digging: boolean,
+  drilling: boolean,
 ): Accrual & { readonly producing: boolean } {
-  const rates = effectiveRates(mountain);
-  const pay = rates.awayPay;
-  const income = digging ? rates.crewPerSecond * pay : 0;
-  const finish = secondsToStep(mountain, pay, income);
-  const built = from + Math.max(1, Math.ceil(finish - 1e-9)) * 1000;
-  const to = Number.isFinite(finish) && built < end ? built : end;
-  if (digging) {
-    return { ...accrue({ mountain, from, to, pay }), producing: income > 0 };
-  }
+  const pay = effectiveRates(mountain).awayPay;
+  const chain = mineChain(mountain, pay, drilling);
+  const flows = chainFlows(chain);
+  const income = flows[flows.length - 1] ?? 0;
+  const to = Math.min(
+    end,
+    secondMark(from, secondsToStep(mountain, pay, income)),
+    secondMark(from, chainChange(chain)),
+  );
   const seconds = Math.floor((to - from) / 1000);
+  const mine = flowMine(mountain, seconds, pay, drilling);
   return {
-    mountain: deliver(mountain, seconds, pay),
-    mined: 0,
-    settledAt: to,
-    producing: false,
+    mountain: deliver(mine.mountain, seconds, pay),
+    mined: mine.mined,
+    settledAt: from + seconds * 1000,
+    producing: mine.mined > 0,
   };
+}
+
+/** The end of the whole second in which `seconds` from `from` falls, at least one on; Infinity stays. */
+function secondMark(from: number, seconds: number): number {
+  return Number.isFinite(seconds)
+    ? from + Math.max(1, Math.ceil(seconds - 1e-9)) * 1000
+    : Infinity;
 }
 
 /** A building's steps, in order. */
@@ -651,8 +695,9 @@ function logStretch(
 }
 
 /**
- * A fresh mine's night (slice 1, rules 4 and 7.11, #654). The mine digs at
- * the night shift output for the first eight hours; transport carries to
+ * A fresh mine's night (slice 1, rules 4 and 7.11, #654). The mine works at
+ * the night shift output; drilling stops after the first eight hours, and
+ * haulage and hoisting bring up what waits in the piles (#703). Transport carries to
  * what he ordered, from the pocket, for the whole night at the same share.
  * A roof that goes on in the night lights the rest of it. A fresh mine has
  * no relics, expeditions or Gold rush, so none of their splits apply. The
@@ -677,17 +722,17 @@ function accrueNight({
   let cursor = lastSeen;
   let mined = 0;
   while (now - cursor >= 1000) {
-    const digging = cursor < clockStops;
+    const drilling = cursor < clockStops;
     const part = nightStretch(
       state,
       cursor,
-      digging ? clockStops : now,
-      digging,
+      drilling ? clockStops : now,
+      drilling,
     );
     const at = Math.max(part.settledAt, cursor + 1000);
     logStretch(log, state, part, {
       from: cursor,
-      at: Math.min(at, digging ? clockStops : now),
+      at: Math.min(at, drilling ? clockStops : now),
       start: lastSeen,
     });
     state = part.mountain;
