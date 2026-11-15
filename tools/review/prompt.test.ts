@@ -35,7 +35,7 @@ describe("lensesFor", () => {
     [["src/store-session.ts"], ["save", "code"]],
     [["src/boot.ts"], ["save", "code"]],
     [["src/main.ts"], ["save", "code"]],
-    [["src/mountain-screen.ts"], ["save", "code"]],
+    [["src/store-context.ts"], ["save", "code"]],
     [["src/engineers.ts"], ["code", "game"]],
     [["src/gold-rush.ts"], ["code", "game"]],
     [["src/workshop.ts"], ["code", "game"]],
@@ -56,7 +56,7 @@ describe("lensesFor", () => {
     [["package-lock.json"], ["guards"]],
     [["docs/superpowers/specs/2026-11-14-x.md"], ["spec"]],
     [["docs/DESIGN.md"], ["spec"]],
-    [["mockups/line/line.ts"], ["spec"]],
+    [["mockups/page.ts"], ["spec"]],
     [["README.md"], ["spec"]],
     [["index.html"], ["code"]],
   ])("%j reviews as %j", (paths, lenses) => {

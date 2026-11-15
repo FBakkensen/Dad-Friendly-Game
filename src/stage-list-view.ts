@@ -124,7 +124,7 @@ function upgradeRow(
   upgrade: Upgrade,
   now: number,
 ): ListUpgrade {
-  const row = upgradeRowView(mountain, now, upgrade, false);
+  const row = upgradeRowView(mountain, now, upgrade);
   const owned = row.state === "owned";
   return {
     id: upgrade.id,

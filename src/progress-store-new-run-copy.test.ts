@@ -191,7 +191,8 @@ describe("a new run keeps the mountain he left in Saved copies (#480)", () => {
     expect(progress.getSnapshot().mountain.legacy).toBe(0);
     clock += 10;
     // The Legacy comes from the mine itself, so passing it again adds one, not two.
-    await expect(progress.passTheMine()).resolves.toBe(true);
+    // A pass still wanted when its copy lands goes ahead.
+    await expect(progress.passTheMine(() => true)).resolves.toBe(true);
     expect(progress.getSnapshot().mountain.legacy).toBe(1);
     progress.dispose();
   });

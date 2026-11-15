@@ -6,7 +6,7 @@ import {
   type BoardSheet,
 } from "./board-drawer";
 import { createBoardHost, type BoardHost } from "./board-host";
-import { createMemoryStorage } from "./mountain-screen.harness";
+import { createMemoryStorage } from "./test-fixtures";
 import { SOUND_KEY, createSoundKey, playHammer, soundSetting } from "./sound";
 
 let time = 0;
@@ -120,6 +120,15 @@ describe("the sound setting (#491)", () => {
     expect(sound.on()).toBe(false);
     sound.turn(true);
     expect(sound.on()).toBe(true);
+  });
+
+  it("keeps the device's choice in localStorage when given no store", () => {
+    localStorage.removeItem(SOUND_KEY);
+    expect(soundSetting(undefined).on()).toBe(false);
+    soundSetting(undefined).turn(true);
+    expect(localStorage.getItem(SOUND_KEY)).toBe("on");
+    expect(soundSetting(undefined).on()).toBe(true);
+    localStorage.removeItem(SOUND_KEY);
   });
 });
 

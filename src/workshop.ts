@@ -19,8 +19,8 @@ import type { TierId } from "./tiers";
 
 /**
  * Workshop rules (M9). One bench, a clock that runs while the app is closed,
- * and gear the crew can feel. The sheet is `workshop-panel`. Strength and
- * cost factors default to 1.
+ * and gear the crew can feel. Its drawer went with the board (#727). Strength
+ * and cost factors default to 1.
  */
 
 const MINUTE = 60_000;
@@ -686,7 +686,7 @@ export type HotTimer = {
   readonly until: number;
 };
 
-export function timerDurationMs(id: TimerId): number {
+function timerDurationMs(id: TimerId): number {
   const effect = recipeById(id).effect;
   switch (effect.kind) {
     case "charge":

@@ -1,6 +1,5 @@
 // @vitest-environment happy-dom
 import { describe, expect, it, vi } from "vitest";
-import { craftLine } from "./card-views";
 import { kidStretch } from "./scale";
 import { EMPTY_MATERIALS } from "./layers";
 import { createMemoryAuth } from "./auth";
@@ -1990,6 +1989,53 @@ describe("field log events for the deep (#150)", () => {
     );
   });
 
+  it("a tap on trouble an engineer fixed meanwhile repaints the card and fixes nothing more", () => {
+    const { progress, advance } = guest();
+    progress.applyMutation((mountain) => ({
+      ...mountain,
+      owned: { ...mountain.owned, cart: 1 },
+      engineers: [{ name: "Ada", rank: 0, trips: 0, post: "cart" }],
+    }));
+    progress.layoutPreview.trouble("cart");
+    advance(ENGINEER_FIX_MS);
+    const painted = vi.fn();
+    const stop = progress.subscribe(painted);
+    painted.mockClear();
+    progress.pressTrouble("cart");
+    expect(progress.getSnapshot().trouble).toBeUndefined();
+    expect(painted).toHaveBeenCalled();
+    // The tap itself fixes nothing: no fix by hand is recorded.
+    expect(progress.fieldLog().events).not.toContainEqual(
+      expect.objectContaining({
+        code: "trouble.fix",
+        data: { id: "cart", source: "hand" },
+      }),
+    );
+    stop();
+    progress.dispose();
+  });
+
+  it("a hide after the store is put away saves nothing", () => {
+    const storage = createMemoryStorage();
+    const progress = createProgressStore({
+      auth: createMemoryAuth(),
+      sessionStorage: storage,
+      now: () => 10_000,
+    });
+    progress.applyMutation((mountain) => ({
+      ...mountain,
+      stock: { ...mountain.stock, stones: 5 },
+    }));
+    const writes = vi.spyOn(storage, "setItem");
+    progress.flush();
+    // A hide while the store is live writes the guest's save at once.
+    expect(writes).toHaveBeenCalled();
+    progress.dispose();
+    writes.mockClear();
+    progress.flush();
+    expect(writes).not.toHaveBeenCalled();
+  });
+
   it("records a Master clearing trouble before it sticks", () => {
     const seed = 4;
     const pit = {
@@ -2962,9 +3008,6 @@ describe("layer card and craft-done notice", () => {
     expect(fitted.map(({ id, level }) => ({ id, level }))).toEqual([
       { id: "iron-rails", level: 1 },
     ]);
-    expect(fitted.map(craftLine)).toEqual([
-      "Your Iron rails are fitted. Carts now 7.5/s.",
-    ]);
     expect(progress.fieldLog().events).toContainEqual(
       expect.objectContaining({
         code: "craft.done",
@@ -3003,8 +3046,8 @@ describe("layer card and craft-done notice", () => {
     expect(
       noticesOf(away.getSnapshot(), "craft")
         .map(({ craft }) => craft)
-        .map(craftLine),
-    ).toEqual(["Your Iron rails are fitted. Carts now 7.5/s."]);
+        .map(({ id, level }) => ({ id, level })),
+    ).toEqual([{ id: "iron-rails", level: 1 }]);
     // Two minutes is a quiet absence (#334): the fit is the craft-done notice.
     away.dismiss("craft");
     expect(
@@ -3631,6 +3674,71 @@ describe("save integrity: the phone keeps every tap (#222)", () => {
     });
     expect(progress.getSnapshot().log).toContain("permission-denied");
     progress.dispose();
+  });
+
+  it("holds play when a rev refusal finds a later build's save on the server", async () => {
+    const cloud: CloudSave = {
+      load: () => Promise.resolve({ kind: "newer" }),
+      write: () =>
+        Promise.resolve({ kind: "rejected", message: "permission-denied" }),
+      writeFieldLog: () => Promise.resolve({ kind: "ok" }),
+      watch: ({ onChange }) => {
+        onChange({ kind: "found", mountain: createMountain(), rev: 1 });
+        return () => undefined;
+      },
+    };
+    const progress = createProgressStore({
+      auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+      cloudSave: cloud,
+      sessionStorage: createMemoryStorage(),
+      now: () => 90_000,
+      cloudWriteGapMs: 0,
+    });
+    expect(progress.getSnapshot().ready).toBe(true);
+    progress.applyMutation(() => minedMountain(2));
+    await vi.waitFor(() => {
+      expect(progress.getSnapshot().saveKind).toBe("loading");
+    });
+    expect(progress.getSnapshot().log).toContain("save.newer");
+    progress.dispose();
+  });
+
+  it("drops a rev refusal's server read that lands after the store is put away", async () => {
+    let answer: (loaded: CloudLoadResult) => void = () => undefined;
+    let reads = 0;
+    const cloud: CloudSave = {
+      load: () => {
+        reads += 1;
+        return new Promise<CloudLoadResult>((resolve) => {
+          answer = resolve;
+        });
+      },
+      write: () =>
+        Promise.resolve({ kind: "rejected", message: "permission-denied" }),
+      writeFieldLog: () => Promise.resolve({ kind: "ok" }),
+      watch: ({ onChange }) => {
+        onChange({ kind: "found", mountain: createMountain(), rev: 1 });
+        return () => undefined;
+      },
+    };
+    const progress = createProgressStore({
+      auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
+      cloudSave: cloud,
+      sessionStorage: createMemoryStorage(),
+      now: () => 90_000,
+      cloudWriteGapMs: 0,
+    });
+    progress.applyMutation(() => minedMountain(2));
+    await vi.waitFor(() => {
+      expect(reads).toBe(1);
+    });
+    const before = progress.getSnapshot().log;
+    progress.dispose();
+    answer({ kind: "newer" });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(progress.getSnapshot().log).toBe(before);
+    expect(progress.getSnapshot().log).not.toContain("save.newer");
   });
 
   it("stops retrying after a run of rev refusals", async () => {

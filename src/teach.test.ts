@@ -1,12 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createMountain, type Mountain } from "./mountain";
-import {
-  markSeen,
-  noteFor,
-  parseTeachIds,
-  recordFirstUse,
-  showsDot,
-} from "./teach";
+import { markSeen, parseTeachIds, recordFirstUse, showsDot } from "./teach";
 import { workshopUnlocked, NOTHING_CRAFTED } from "./workshop";
 
 function granite(): Mountain {
@@ -28,18 +22,15 @@ describe("teach", () => {
   it("shows nothing before the system opens", () => {
     const fresh = createMountain();
     expect(showsDot(fresh, "workshop")).toBe(false);
-    expect(noteFor(fresh)).toBeUndefined();
   });
 
-  it("shows the note and the dot once the Workshop opens", () => {
+  it("shows the dot once the Workshop opens", () => {
     const mountain = granite();
-    expect(noteFor(mountain)).toBe("workshop");
     expect(showsDot(mountain, "workshop")).toBe(true);
   });
 
-  it("drops the note when seen but keeps the dot until first use", () => {
+  it("keeps the dot when seen, until first use", () => {
     const seen = markSeen(granite(), "workshop");
-    expect(noteFor(seen)).toBeUndefined();
     expect(showsDot(seen, "workshop")).toBe(true);
     expect(markSeen(seen, "workshop")).toBe(seen);
   });
@@ -52,7 +43,6 @@ describe("teach", () => {
     expect(used.taught).toEqual(["workshop"]);
     expect(used.seen).toEqual(["workshop"]);
     expect(showsDot(used, "workshop")).toBe(false);
-    expect(noteFor(used)).toBeUndefined();
     // Taught sticks even once the evidence is gone.
     const cleared = { ...used, crafted: {} } as Mountain;
     expect(showsDot(cleared, "workshop")).toBe(false);
@@ -67,7 +57,6 @@ describe("teach", () => {
     const old = { ...granite(), crafted: { "blasting-charge": 2 } } as Mountain;
     expect(old.taught).toEqual([]);
     expect(showsDot(old, "workshop")).toBe(false);
-    expect(noteFor(old)).toBeUndefined();
   });
 
   it("reads saved ids leniently and keeps unknown ones", () => {

@@ -317,6 +317,10 @@ describe("the game map (#558)", () => {
     expect(loaded?.engineers).toEqual([ADA]);
     expect(loaded?.expeditions).toEqual([trip]);
     expect(loaded !== undefined && onTrip(loaded, "Ada")).toBe(true);
+    // A trip whose engineer the crew does not hold comes home to camp.
+    expect(writeGame({ ...mountain, engineers: [] }).expeditions).toEqual([
+      { ...trip, home: "camp" },
+    ]);
   });
 
   it("keeps a boost's row once it has run, long after it ends", () => {

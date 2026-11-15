@@ -10,20 +10,6 @@
  */
 export type HowCardStep = readonly [src: string, words: string, px?: number];
 
-/** Rewrites a how card's step words in place (M13: a new run's prices). */
-export function setHowSteps(
-  card: HTMLElement,
-  steps: readonly (readonly [unknown, string, ...unknown[]])[],
-): void {
-  const texts = card.querySelectorAll(".teach-how-steps li span");
-  steps.forEach(([, words], index) => {
-    const text = texts[index];
-    if (text !== undefined) {
-      text.textContent = words;
-    }
-  });
-}
-
 /** One screen, 3–4 lines with an icon each, and one way back. */
 export function createHowCard(
   title: string,

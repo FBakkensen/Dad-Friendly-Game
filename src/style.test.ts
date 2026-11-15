@@ -171,11 +171,9 @@ describe("board.css", () => {
   });
 
   it("stacks the cards in the root's order, the conflict over them all (#464)", () => {
-    // Every card stands at one z-index, so the root's order stacks them
-    // (screen-panels#cardsFrom): Pass the mine, the update, the other tab and saved copies
-    // over the welcome and the layer card. The relics and Engineers drawers (#465, #455)
-    // are drawers in the drawers' clip, above every card: a card that comes up closes them
-    // (screen-overlays#coverDrawers), and the relics' reveal waits while a card is up.
+    // Every card stands at one z-index, so the root's order stacks them: the update, the
+    // other tab and saved copies, as the frame mounts them. Drawers sit in the drawers'
+    // clip, above every card.
     const raised = [
       ...boardCss.matchAll(/^(\.board-card\.[\w-]+) \{[^}]*z-index/gm),
     ].map((m) => m[1]);

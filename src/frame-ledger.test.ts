@@ -7,7 +7,7 @@ import { tierBuyMove } from "./economy/actions";
 import { mountFrameScreen } from "./frame-screen";
 import { FRESH_OFF } from "./line-switch";
 import { createMountain, type Mountain } from "./mountain";
-import { createMemoryStorage } from "./mountain-screen.harness";
+import { createMemoryStorage } from "./test-fixtures";
 import { createProgressStore } from "./progress-store";
 import { writeSessionSave } from "./session-save";
 import { SOUND_KEY } from "./sound";

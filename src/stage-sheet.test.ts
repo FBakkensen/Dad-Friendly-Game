@@ -4,11 +4,10 @@ import { createUnconfiguredAuth } from "./auth";
 import { holdFactors } from "./economy/factors";
 import { mountFrameScreen } from "./frame-screen";
 import { FRESH_OFF } from "./line-switch";
-import { createMemoryStorage } from "./mountain-screen.harness";
 import type { Mountain } from "./mountain";
 import { createProgressStore } from "./progress-store";
 import { stageList } from "./stage-list-view";
-import { crewedStart } from "./test-fixtures";
+import { createMemoryStorage, crewedStart } from "./test-fixtures";
 
 /** A stage's list and the workers' upgrades, on the DOM (#661). */
 

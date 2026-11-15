@@ -5,7 +5,13 @@ import type { FieldEvent, FieldEventData } from "./field-log";
 import { formatCompact, formatTimeOfDay } from "./format";
 import { legacyBonus } from "./legacy";
 import { legacyWords } from "./legacy-panel";
-import { LAYERS, nextLayer, type LayerId } from "./layers";
+import {
+  LAYERS,
+  materialsFromMined,
+  nextLayer,
+  type LayerId,
+  type MaterialId,
+} from "./layers";
 import type { Mountain } from "./mountain";
 import {
   RELICS,
@@ -16,7 +22,7 @@ import {
 } from "./relics";
 import type { RowLamp, RowState, RowView } from "./row-view";
 import { freshMineLines } from "./save-sheet-copy";
-import { MOUNTAIN_STONES, shownStones, stonesLeft } from "./scale";
+import { MOUNTAIN_STONES, minedOut, shownStones, stonesLeft } from "./scale";
 import {
   ACCOUNT,
   NOT_SIGNED_IN,
@@ -52,18 +58,41 @@ import {
   vehicleBuyLine,
   veinGaveLine,
   type TendPost,
+  materialCountWords,
 } from "./screen-words";
 import { TIERS, type MachineId, type TierId } from "./tiers";
 import { freshMineOn } from "./line-switch";
 import { VEHICLE_IDS } from "./transport";
 import { UPGRADES, upgradeById, type UpgradeId } from "./upgrades";
 import { RECIPE_IDS, recipeById, type RecipeId } from "./workshop";
-import { metMaterialChips } from "./workshop-sheet";
+
+/** A material the pocket can name, and its words. */
+export type MaterialChip = {
+  readonly id: MaterialId;
+  readonly text: string;
+};
+
+/**
+ * Materials the pocket can name. A chip appears once a unit is in hand,
+ * or the stones already dug in that band have earned one (spent down to
+ * zero still shows). A later band, and a band with only a remainder, stay off.
+ */
+export function metMaterialChips(mountain: Mountain): readonly MaterialChip[] {
+  const have = mountain.stock;
+  const earned = materialsFromMined(minedOut(mountain));
+  return LAYERS.filter((layer) => {
+    const id = layer.material;
+    return have[id] > 0 || earned[id] > 0;
+  }).map((layer) => ({
+    id: layer.material,
+    text: materialCountWords(layer.material, have[layer.material]),
+  }));
+}
 
 /*
  * The Ledger drawer's rows and lines (#375), as pure views: this run's field log as Tonight's
  * lines, the mountain as the stones and relics rows, and the account as its row. Display only,
- * no DOM and no art, as buys-rows.ts, upgrade-rows.ts and workshop-rows.ts are.
+ * no DOM and no art, as upgrade-rows.ts is.
  */
 
 /** Tonight shows this many lines, newest first. */

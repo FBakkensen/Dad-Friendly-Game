@@ -5,7 +5,7 @@ import { projectCard, transportPlate } from "./city-view";
 import { holdFactors } from "./economy/factors";
 import { mountFrameScreen } from "./frame-screen";
 import { FRESH_OFF } from "./line-switch";
-import { createMemoryStorage } from "./mountain-screen.harness";
+import { createMemoryStorage } from "./test-fixtures";
 import type { Mountain } from "./mountain";
 import { createProgressStore } from "./progress-store";
 import { NOTE_MS } from "./job-steps";

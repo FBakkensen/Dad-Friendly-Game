@@ -200,7 +200,7 @@ describe("isMeasured", () => {
       "src/lab/x.ts",
       "src/a.test.ts",
       "src/a.sim.test.ts",
-      "src/mountain-screen.harness.ts",
+      "src/a.harness.ts",
       "src/latest.ts",
       "scripts/a.mjs",
       "docs/a.md",

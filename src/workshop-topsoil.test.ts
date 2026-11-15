@@ -10,7 +10,6 @@ import {
   startCraft,
   workshopUnlocked,
 } from "./workshop";
-import { workshopCards } from "./workshop-sheet";
 
 /** A Topsoil dad with the clay his digging gave him. */
 function topsoil(mined: number): Mountain {
@@ -46,11 +45,10 @@ describe("Blasting charge from clay in the Topsoil (#244)", () => {
     expect(startCraft(open, "sturdy-props", 0)).toBe(open);
   });
 
-  it("shows the charge and one dark sketch, not the iron recipes", () => {
-    const cards = workshopCards(topsoil(TOPSOIL_BENCH_FROM), 0);
-    expect(
-      cards.map((card) => (card.kind === "hidden" ? "sketch" : card.id)),
-    ).toEqual(["blasting-charge", "sketch"]);
+  it("opens the charge, not the iron recipes", () => {
+    const bench = topsoil(TOPSOIL_BENCH_FROM);
+    expect(recipeOpen(bench, "blasting-charge")).toBe(true);
+    expect(recipeOpen(bench, "sturdy-props")).toBe(false);
   });
 
   it("opens every recipe in the Granite", () => {

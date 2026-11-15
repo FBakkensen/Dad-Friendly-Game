@@ -61,7 +61,7 @@ export type AwayGap = { readonly ms: number; readonly at: number };
  * One fitted craft, named once. The screen words it from the mountain at
  * the moment it was fitted, so the number is the one the crew felt then.
  */
-export type CraftNotice = {
+type CraftNotice = {
   readonly id: RecipeId;
   readonly level: number;
   readonly mountain: Mountain;

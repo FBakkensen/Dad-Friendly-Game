@@ -1,14 +1,11 @@
 // @vitest-environment happy-dom
-import { createBoardHost } from "./board-host";
 import { describe, expect, it } from "vitest";
 import { legacyCardWords } from "./legacy-panel";
 import { EMPTY_MATERIALS, materialsGained } from "./layers";
 import { accrueAway, createMountain, type Mountain } from "./mountain";
-import type { ProgressSnapshot } from "./progress-store";
 import { MOUNTAIN_STONES, minedOut } from "./scale";
 import { AWAY_MATERIALS_USE, awayMaterialsWords } from "./screen-words";
 import { minedMountain } from "./test-fixtures";
-import { createWelcomePanel } from "./welcome-panel";
 import { recipesForMined } from "./workshop";
 
 /** A Granite crew: 12M mined, enough machines to bring up iron in an hour. */
@@ -42,42 +39,6 @@ describe("welcome-back ore (#247)", () => {
       awayMaterialsWords({ clay: 3, iron: 12_500, crystal: 0, heartstone: 1 }),
     ).toBe("Ore for the Workshop: +3 clay · +12.5K iron · +1 heartstone");
     expect(AWAY_MATERIALS_USE).not.toMatch(/\?|\d/);
-  });
-
-  it("shows the ore row on the card only when ore came up", () => {
-    const view = (materials = EMPTY_MATERIALS) =>
-      ({
-        notices: [
-          {
-            kind: "away",
-            report: {
-              mined: 6_400_000,
-              awayMs: 3 * 3_600_000,
-              paidMs: 3 * 3_600_000,
-              capped: false,
-              heart: 1,
-              materials,
-            },
-          },
-        ],
-        homecomings: [],
-        mountain: granite(),
-      }) as unknown as ProgressSnapshot;
-    let current = view({ ...EMPTY_MATERIALS, iron: 6 });
-    const panel = createWelcomePanel({
-      progress: { dismiss: () => undefined } as never,
-      getView: () => current,
-      board: createBoardHost({ clock: () => 0 }),
-    });
-    panel.render();
-    const ore = panel.welcome.querySelector<HTMLElement>(".welcome-ore");
-    expect(ore?.hidden).toBe(false);
-    expect(ore?.textContent).toBe(
-      `Ore for the Workshop: +6 iron${AWAY_MATERIALS_USE}`,
-    );
-    current = view();
-    panel.render();
-    expect(ore?.hidden).toBe(true);
   });
 });
 

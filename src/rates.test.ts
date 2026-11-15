@@ -17,6 +17,7 @@ import { send } from "./expeditions";
 import { handsSpeed, lineSpeed, stageSpeeds } from "./line";
 import { LINE_OFF } from "./line-switch";
 import { minedMountain, patched, type MountainPatch } from "./test-fixtures";
+import type { Mountain } from "./mountain";
 import { TIERS } from "./tiers";
 import { NO_BOOSTS } from "./boosts";
 import { NO_UPGRADES } from "./upgrades";
@@ -528,6 +529,55 @@ describe("staffing never slows the crew (#500)", () => {
       }
     }
     expect(checked).toBe(2 * 3 * 3 * 3 * 3 * 21 * 4);
+  });
+
+  it("trades one kind for another when the engineers' posts can move", () => {
+    withFactors({ [LINE_OFF]: 1 }, () => {
+      // Ada and Nils tend the borers beside a Great Machine, so the tending can
+      // move and the staffing is searched: 28 hands are best on the machine,
+      // one borer and ten drills.
+      const base = minedMountain(50_000_000);
+      const crew: Mountain = {
+        ...base,
+        legacy: 0,
+        owned: {
+          ...base.owned,
+          helper: 28,
+          cart: 5,
+          drill: 20,
+          borer: 3,
+          machine: 1,
+        },
+        engineers: [
+          { name: "Ada", rank: 0, trips: 0, post: "borer" },
+          { name: "Nils", rank: 0, trips: 0, post: "borer" },
+        ],
+      };
+      const rates = effectiveRates(crew);
+      expect(rates.running).toMatchObject({
+        cart: 0,
+        drill: 10,
+        borer: 1,
+        machine: 1,
+      });
+      expect(rates.exactCrewPerSecond).toBeCloseTo(3718.64, 6);
+    });
+  });
+
+  it("lets its kept staffings go past 4,096 and answers the same after", () => {
+    const crewOf = (helper: number): Mountain => {
+      const base = minedMountain(50_000_000);
+      return {
+        ...base,
+        owned: { ...base.owned, helper, drill: 5 },
+        engineers: [],
+      };
+    };
+    const first = effectiveRates(crewOf(0)).running;
+    for (let helper = 1; helper <= 4_097; helper += 1) {
+      effectiveRates(crewOf(helper));
+    }
+    expect(effectiveRates(crewOf(0)).running).toEqual(first);
   });
 });
 

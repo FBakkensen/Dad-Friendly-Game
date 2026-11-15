@@ -463,7 +463,7 @@ export function mountFrameScreen({
 
 /**
  * A tick a second settles the workers' work, a store change repaints, and a
- * hidden or closed page saves at once, as today's board does.
+ * hidden or closed page saves at once (`saveOnLeave`).
  */
 function runFrame(
   progress: ProgressStore,
