@@ -37,7 +37,7 @@ export const NO_JOBS: Jobs = {
 };
 
 /** Each stage of the line and its job. */
-const STAGE_JOB: Readonly<Record<Stage, JobId>> = {
+export const STAGE_JOB: Readonly<Record<Stage, JobId>> = {
   face: "drilling",
   haul: "haulage",
   lift: "hoisting",
