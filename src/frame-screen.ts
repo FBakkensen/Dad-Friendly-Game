@@ -36,7 +36,7 @@ import "./frame.css";
  * the hire key, the site's ground, Next, the site bar and the save line. A
  * dev build mounts it for `?slice=1` (src/main.ts). It paints the pure views
  * (frame-view, next-view, workforce-view), shows its cards over itself
- * (frame-cards: the shift report, the first evening, the end card), and
+ * (frame-cards: the shift report and the end card), and
  * changes the game only through `progress.dispatch`.
  */
 

@@ -162,7 +162,13 @@ async function mountSignedIn(saved: Mountain, closed: number) {
     now: () => 9 * HOUR,
     signal: unmount.signal,
   });
-  return { root, progress, card: () => cardOf(root), load: answer };
+  return {
+    root,
+    progress,
+    cloudSave,
+    card: () => cardOf(root),
+    load: answer,
+  };
 }
 
 describe("the shift report", () => {
@@ -274,6 +280,61 @@ describe("the end card", () => {
       ]);
     });
     expect(card().shown).toBe(false);
+  });
+
+  it("comes up for a roof that went on in a break too short for a report", () => {
+    const nearly: Mountain["project"] = {
+      kind: "delivering",
+      site: {
+        building: "lightTower",
+        step: 2,
+        arrived: { ...EMPTY_STOCK, stones: 999_990 },
+        onSite: EMPTY_STOCK,
+      },
+    };
+    const { card, progress } = mount({
+      saved: crew(nearly, 1_000),
+      at: 30_000,
+    });
+    expect(progress.getSnapshot().mountain.operational).toEqual(["lightTower"]);
+    expect(nightReport(progress.getSnapshot())).toBeUndefined();
+    expect(card()).toMatchObject({ shown: true, kind: "end" });
+  });
+
+  // A cloud copy taken over while open keeps the news baselines (as the
+  // board's bands and crafts do), so a roof put on elsewhere is told here.
+  it("comes up for a copy from another device that put the roof on", async () => {
+    const { card, progress, cloudSave, load } = await mountSignedIn(
+      crew(ROOF_NEARLY_IN),
+      9 * HOUR,
+    );
+    load();
+    await vi.waitFor(() => {
+      expect(progress.getSnapshot().ready).toBe(true);
+    });
+    const remote = await cloudSave.load({ uid: user.uid });
+    if (remote.kind !== "found") {
+      throw new Error("the cloud copy is there");
+    }
+    const here = progress.getSnapshot().mountain;
+    await cloudSave.write({
+      uid: user.uid,
+      mountain: {
+        ...here,
+        remaining: here.remaining - 5_000,
+        project: NO_PROJECT,
+        operational: ["lightTower"],
+      },
+      lastSeen: 9 * HOUR,
+      rev: (remote.rev ?? 0) + 1,
+      deviceId: "kitchen-pc",
+    });
+    await vi.waitFor(() => {
+      expect(progress.getSnapshot().mountain.operational).toEqual([
+        "lightTower",
+      ]);
+    });
+    expect(card()).toMatchObject({ shown: true, kind: "end" });
   });
 
   it("is not news for a save whose roof is already on", () => {

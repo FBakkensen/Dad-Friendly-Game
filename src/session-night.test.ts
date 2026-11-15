@@ -118,3 +118,86 @@ describe("greeting a fresh mine's night (#663)", () => {
     expect(noticesOf(idle.news, "quiet")).toEqual([]);
   });
 });
+
+describe("announcing a building that went operational (#663)", () => {
+  const lit = (mountain: Mountain): Mountain => ({
+    ...mountain,
+    project: { kind: "unordered" },
+    operational: ["lightTower"],
+  });
+  const roofLater = mine(3, 0, { kind: "unordered" });
+
+  it("announces the Light Tower once when its roof goes on in play, and closes on dismiss", () => {
+    const open = playing(roofLater);
+    const changed = step(
+      open,
+      { kind: "change", update: (m) => ({ mountain: lit(m), events: [] }) },
+      1_000,
+    ).session;
+    const noted = step(changed, { kind: "notice" }, 1_000).session;
+    expect(noticesOf(noted.news, "operational")).toEqual([
+      { kind: "operational", building: "lightTower" },
+    ]);
+    const again = step(noted, { kind: "notice" }, 2_000).session;
+    expect(noticesOf(again.news, "operational")).toHaveLength(1);
+    const closed = step(
+      again,
+      { kind: "dismiss", what: "operational" },
+      3_000,
+    ).session;
+    expect(noticesOf(closed.news, "operational")).toEqual([]);
+  });
+
+  it("keeps the end card open when the night's report closes", () => {
+    const open = step(
+      playing(roofLater),
+      { kind: "change", update: (m) => ({ mountain: lit(m), events: [] }) },
+      1_000,
+    ).session;
+    const noted = step(open, { kind: "notice" }, 1_000).session;
+    const closed = step(
+      noted,
+      { kind: "dismiss", what: "away" },
+      2_000,
+    ).session;
+    expect(firstNotice(closed.news, "operational")?.building).toBe(
+      "lightTower",
+    );
+  });
+
+  it("does not announce a save that already runs it, nor a copy that comes into play rebased", () => {
+    const loaded = step(playing(lit(roofLater)), { kind: "notice" }, 0).session;
+    expect(noticesOf(loaded.news, "operational")).toEqual([]);
+    const adopted = openBaselines(
+      { ...playing(roofLater), mountain: lit(roofLater) },
+      true,
+    );
+    const noted = step(adopted, { kind: "notice" }, 0).session;
+    expect(noticesOf(noted.news, "operational")).toEqual([]);
+  });
+
+  it("announces a roof that went on in a break too short for a report", () => {
+    fresh(() => {
+      const nearly: Project = {
+        kind: "delivering",
+        site: {
+          building: "lightTower",
+          step: 2,
+          arrived: { ...EMPTY_STOCK, stones: 999_990 },
+          onSite: EMPTY_STOCK,
+        },
+      };
+      const away = step(
+        playing(mine(3, 1_000, nearly)),
+        { kind: "away", since: 0 },
+        30_000,
+      ).session;
+      expect(away.mountain.operational).toEqual(["lightTower"]);
+      expect(firstNotice(away.news, "away")).toBeUndefined();
+      const noted = step(away, { kind: "notice" }, 30_000).session;
+      expect(noticesOf(noted.news, "operational")).toEqual([
+        { kind: "operational", building: "lightTower" },
+      ]);
+    });
+  });
+});

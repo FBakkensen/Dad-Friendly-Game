@@ -163,6 +163,42 @@ describe("the night's facts (#663)", () => {
     });
   });
 
+  it("splits nothing for a building already running: one stretch, no steps", () => {
+    fresh(() => {
+      const away = night(mine(0, { kind: "unordered" }, ["lightTower"]), HOUR);
+      expect(away.report.night).toMatchObject({
+        producedMs: HOUR,
+        stop: "none",
+        steps: [],
+        payFrom: 0.45,
+        payTo: 0.45,
+      });
+      expect(away.report.night?.litAtMs).toBeUndefined();
+    });
+  });
+
+  it("says the clock stopped a night a moment past eight hours", () => {
+    fresh(() => {
+      const away = night(mine(0, site(2)), EIGHT_HOURS + 400);
+      expect(away.report.night).toMatchObject({
+        producedMs: EIGHT_HOURS,
+        stop: "clock",
+      });
+    });
+  });
+
+  it("builds a step after the clock stopped the mine, from what is on its way", () => {
+    fresh(() => {
+      // The pocket feeds the wagon and the builders after the mine has stopped.
+      // 85,000 short of the structure: 31,481 s at the wagon's 2.7 a second.
+      const away = night(mine(10_000, site(1, 165_000)), 12 * HOUR);
+      expect(away.report.night?.stop).toBe("clock");
+      const step = away.report.night?.steps[0];
+      expect(step?.step).toBe(1);
+      expect(step?.atMs).toBeGreaterThan(EIGHT_HOURS);
+    });
+  });
+
   it("is not in today's game", () => {
     const away = accrueAway({
       mountain: createMountain(),

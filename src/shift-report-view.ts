@@ -1,7 +1,8 @@
 import { ROOF, buildingById, type Building } from "./city";
-import { formatCompact } from "./format";
+import { formatCompact, shiftDuration } from "./format";
 import { STEP_NAMES } from "./frame-view";
 import type { AwayReport, NightReport } from "./mountain";
+import { percent } from "./screen-words";
 import { GOOD_IDS, type GoodId, type Stock } from "./stock";
 
 /**
@@ -44,25 +45,6 @@ const GOOD_WORDS: Readonly<Record<GoodId, string>> = {
   heartstone: "heartstone",
 };
 
-/** The prototype's `dur`: "45 s" under 90 s, "12 min" under 90 min, then "9 h" or "1 h 30 min". */
-function duration(ms: number): string {
-  const seconds = Math.round(ms / 1000);
-  if (seconds < 90) {
-    return `${String(seconds)} s`;
-  }
-  const minutes = Math.round(seconds / 60);
-  if (minutes < 90) {
-    return `${String(minutes)} min`;
-  }
-  const hours = Math.floor(minutes / 60);
-  const rest = minutes % 60;
-  return `${String(hours)} h${rest === 0 ? "" : ` ${String(rest)} min`}`;
-}
-
-/** A share as the cards say it: "30%". */
-export const percent = (share: number): string =>
-  `${String(Math.round(share * 100))}%`;
-
 /** The building whose roof went on and lit the night, if one did. */
 function litBy(night: NightReport): Building | undefined {
   const roof = night.steps.find((step) => step.step === ROOF);
@@ -73,7 +55,7 @@ function litBy(night: NightReport): Building | undefined {
 
 function head(report: NightAwayReport): string {
   const night = report.night;
-  const away = `Unattended ${duration(report.awayMs)}.`;
+  const away = `Unattended ${shiftDuration(report.awayMs)}.`;
   const lit = litBy(night);
   if (lit === undefined) {
     return `${away} Night shift output: ${percent(night.payFrom)}.`;
@@ -82,16 +64,24 @@ function head(report: NightAwayReport): string {
   return `${away} Night shift output ${percent(night.payFrom)}, and ${percent(night.payTo)} from ${roof}'s roof.`;
 }
 
-/** The prototype's bar: "early" is under 98.5% of the night. */
+/**
+ * The prototype's "early": production stopped under 98.5% of the night. The
+ * bar shows the idle time and the clock line names why, only then.
+ */
+function early(report: NightAwayReport): boolean {
+  return report.night.producedMs < Math.max(1, report.awayMs) * 0.985;
+}
+
+/** The prototype's bar: the share produced, and its idle time when early. */
 function bar(report: NightAwayReport): ShiftBar {
   const awayMs = Math.max(1, report.awayMs);
   const producedMs = report.night.producedMs;
   const produced = Math.max(3, Math.round((100 * producedMs) / awayMs)) / 100;
-  return producedMs < awayMs * 0.985
+  return early(report)
     ? {
         produced,
-        left: `production ${duration(producedMs)}`,
-        right: `idle ${duration(awayMs - producedMs)}`,
+        left: `production ${shiftDuration(producedMs)}`,
+        right: `idle ${shiftDuration(awayMs - producedMs)}`,
       }
     : { produced, left: "production, no downtime", right: "" };
 }
@@ -126,7 +116,7 @@ function lines(report: NightAwayReport): readonly string[] {
       ? [`Transport delivered to orders: ${delivered.join(", ")}.`]
       : []),
     ...stepLines(night),
-    ...(night.stop === "clock"
+    ...(night.stop === "clock" && early(report)
       ? ["A night shift runs 8 h. Production stopped after that."]
       : []),
   ];

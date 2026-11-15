@@ -1,6 +1,6 @@
 import { buildingById } from "./city";
 import { AWAY_PAY_RATE } from "./rates";
-import { percent } from "./shift-report-view";
+import { percent } from "./screen-words";
 
 /**
  * The words of the frame's cards (#663; spec, "The cards", "While a part is

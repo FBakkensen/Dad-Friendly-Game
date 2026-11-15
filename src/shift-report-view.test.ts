@@ -160,6 +160,14 @@ describe("the shift report (#663)", () => {
     );
   });
 
+  it("leaves out the clock line when the bar shows no downtime", () => {
+    const report = shiftReport(
+      away(8 * HOUR + 5 * MINUTE, 1_000, { producedMs: 8 * HOUR }),
+    );
+    expect(report.bar).toMatchObject({ left: "production, no downtime" });
+    expect(report.lines.join(" ")).not.toMatch(/stopped/);
+  });
+
   it("reads a real night from the rules", () => {
     withFactors({ [FRESH_OFF]: 0 }, () => {
       const start = createMountain();

@@ -5,6 +5,7 @@ import {
   formatCount,
   formatDuration,
   formatTimeOfDay,
+  shiftDuration,
 } from "./format";
 
 describe("formatCount", () => {
@@ -43,6 +44,19 @@ describe("formatDuration", () => {
     [-10, "0 seconds"],
   ])("formats %d ms as %s", (ms, text) => {
     expect(formatDuration(ms)).toBe(text);
+  });
+});
+
+describe("shiftDuration", () => {
+  it.each([
+    [0, "0 s"],
+    [89_400, "89 s"],
+    [90_000, "2 min"],
+    [89 * 60_000, "89 min"],
+    [90 * 60_000, "1 h 30 min"],
+    [9 * 3_600_000 + 20_000, "9 h"],
+  ])("%d ms reads %s", (ms, text) => {
+    expect(shiftDuration(ms)).toBe(text);
   });
 });
 

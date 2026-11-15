@@ -1,5 +1,4 @@
 import { el, write, writeFigures } from "./board-dom";
-import { ROOF } from "./city";
 import { END_CARD, type CardWords } from "./frame-cards-words";
 import type { AwayReport } from "./mountain";
 import type { ProgressSnapshot, ProgressStore } from "./progress-store";
@@ -15,8 +14,9 @@ import {
  * the game"): one card at a time over the frame, with a title, its words and
  * one green key. The shift report after a night (the session's `away`
  * notice, closed through the store as today's welcome card is), and the
- * end card when the Light Tower's roof goes on. The report comes first and
- * the end card waits behind it. The game runs on behind every card.
+ * end card when the Light Tower's roof goes on (its `operational` notice,
+ * closed the same way). The report comes first and the end card waits
+ * behind it. The game runs on behind every card.
  */
 
 export type FrameCard =
@@ -35,24 +35,17 @@ export function nightReport(
   return report !== undefined && hasNight(report) ? report : undefined;
 }
 
-/** True when the night put a roof on: the end card follows its report. */
-export function roofWentOn(report: NightAwayReport): boolean {
-  return report.night.steps.some((step) => step.step === ROOF);
-}
-
-/**
- * The card to show now: the report, else the end card while it waits (from
- * the roof going on until "Continue"; not a save fact).
- */
+/** The card to show now: the report, else the end card while its notice is open. */
 export function frameCard(
   view: Pick<ProgressSnapshot, "notices">,
-  endWaits: boolean,
 ): FrameCard | undefined {
   const report = nightReport(view);
   if (report !== undefined) {
     return { kind: "report", report };
   }
-  return endWaits ? { kind: "end" } : undefined;
+  return firstNotice(view, "operational")?.building === "lightTower"
+    ? { kind: "end" }
+    : undefined;
 }
 
 const sameCard = (a: FrameCard | undefined, b: FrameCard | undefined) =>
@@ -69,6 +62,7 @@ type CardParts = {
 function buildCard(): CardParts {
   const root = el("section", "frame-card");
   root.setAttribute("role", "dialog");
+  root.setAttribute("aria-modal", "true");
   root.setAttribute("aria-labelledby", "frame-card-title");
   root.hidden = true;
   const box = el("div", "frame-card-box");
@@ -138,9 +132,9 @@ export type FrameCards = {
 };
 
 /**
- * The frame's card overlay. It starts at the first view whose save has
- * loaded: a roof that is already on then is not news. `onShow` runs when a new card comes up (the frame closes
- * the workforce sheet).
+ * The frame's card overlay, painted from views whose save has loaded.
+ * `onShow` runs when a new card comes up (the frame closes the workforce
+ * sheet).
  */
 export function createFrameCards({
   progress,
@@ -150,26 +144,14 @@ export function createFrameCards({
   onShow: () => void;
 }): FrameCards {
   const parts = buildCard();
-  let endWaits = false;
-  let lit: boolean | undefined;
   let shown: FrameCard | undefined;
-
-  /** After the first loaded view, the Light Tower lit live is news. */
-  const observe = (view: ProgressSnapshot): void => {
-    const nowLit = view.mountain.operational.includes("lightTower");
-    if (lit === false && nowLit) {
-      endWaits = true;
-    }
-    lit = nowLit;
-  };
 
   const paint = (): void => {
     const view = progress.getSnapshot();
     if (!view.ready) {
       return;
     }
-    observe(view);
-    const card = frameCard(view, endWaits);
+    const card = frameCard(view);
     if (!sameCard(card, shown)) {
       paintCard(parts, card);
       if (card !== undefined) {
@@ -180,11 +162,8 @@ export function createFrameCards({
   };
 
   parts.key.addEventListener("click", () => {
-    if (shown?.kind === "report") {
-      endWaits = endWaits || roofWentOn(shown.report);
-      progress.dismiss("away");
-    } else {
-      endWaits = false;
+    if (shown !== undefined) {
+      progress.dismiss(shown.kind === "report" ? "away" : "operational");
     }
     paint();
   });
