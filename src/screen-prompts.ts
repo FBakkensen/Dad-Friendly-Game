@@ -68,7 +68,11 @@ export function createOtherTab(
   };
 }
 
-/** Shows the update card. A newer service worker calls this. */
+/** Shows the update card in `root`, or `root` itself when it is the card. A newer service worker calls this. */
 export function showAppUpdate(root: ParentNode): void {
-  root.querySelector(".update-prompt")?.dispatchEvent(new Event(UPDATE_SHOWN));
+  const card =
+    root instanceof Element && root.matches(".update-prompt")
+      ? root
+      : root.querySelector(".update-prompt");
+  card?.dispatchEvent(new Event(UPDATE_SHOWN));
 }

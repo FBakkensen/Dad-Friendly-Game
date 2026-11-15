@@ -387,6 +387,10 @@ export function mountFrameScreen({
     requestPaint: () => {
       paint();
     },
+    onShow: () => {
+      sheet.close();
+      stageSheet.close();
+    },
     signal,
   });
   const saveLine = createSaveLine({

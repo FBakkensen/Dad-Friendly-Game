@@ -66,16 +66,32 @@ describe("the save's cards on the frame", () => {
     document.body.replaceChildren();
   });
 
-  it("are laid over the frame, after the shift report, hidden at first", () => {
+  it("are laid over the frame after the shift report, in the board's order, hidden at first", () => {
     const { root, card } = mount();
     const children = [...root.children];
-    const report = children.indexOf(card(".frame-card"));
+    const at = [
+      ".frame-card",
+      ".update-prompt",
+      ".other-tab",
+      ".save-conflict",
+    ].map((hook) => children.indexOf(card(hook)));
+    expect(at).toEqual([...at].sort((a, b) => a - b));
     for (const hook of [".save-conflict", ".other-tab", ".update-prompt"]) {
-      const at = card(hook);
-      expect(at.matches(".board-card")).toBe(true);
-      expect(at.hidden).toBe(true);
-      expect(children.indexOf(at)).toBeGreaterThan(report);
+      expect(card(hook).matches(".board-card")).toBe(true);
+      expect(card(hook).hidden).toBe(true);
     }
+  });
+
+  it("close the frame's sheets as they come up", () => {
+    const { card, root, progress } = mount();
+    root.querySelector<HTMLElement>(".frame-workers")?.click();
+    expect(card(".frame-sheet").hidden).toBe(false);
+    progress.layoutPreview.conflict();
+    expect(card(".save-conflict").hidden).toBe(false);
+    expect(card(".frame-sheet").hidden).toBe(true);
+    root.querySelector<HTMLElement>(".frame-workers")?.click();
+    showAppUpdate(root);
+    expect(card(".frame-sheet").hidden).toBe(true);
   });
 
   it("asks for the update when the save came from a later build, and writes nothing", () => {
@@ -85,7 +101,9 @@ describe("the save's cards on the frame", () => {
     const { card, text, root } = mount({ storage });
     expect(card(".update-prompt").hidden).toBe(false);
     expect(text("#update-prompt-title")).toBe("Update available");
+    // A hide saves at once on a playable save; a later build's save stays as it was.
     root.querySelector<HTMLButtonElement>(".frame-hire")?.click();
+    window.dispatchEvent(new Event("pagehide"));
     expect(storage.getItem(SESSION_SAVE_KEY)).toBe(raw);
   });
 

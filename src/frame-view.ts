@@ -57,6 +57,8 @@ export type OrderStrip =
       readonly name: string;
       /** "Foundation · not ordered", "Structure · delivering", "Roof · on hold". */
       readonly step: string;
+      /** The step alone: "Foundation". A save card has no room for its state (#707). */
+      readonly stepName: string;
       readonly requires: readonly Requirement[];
       readonly pips: readonly [Pip, Pip, Pip];
     }
@@ -138,6 +140,7 @@ export function orderStrip(mountain: Mountain): OrderStrip {
     kind: "project",
     name: buildingById(site.building).name,
     step: `${STEP_NAMES[site.step]} · ${STATE_WORDS[mountain.project.kind]}`,
+    stepName: STEP_NAMES[site.step],
     requires: requirements(site),
     pips: pips(site.step),
   };

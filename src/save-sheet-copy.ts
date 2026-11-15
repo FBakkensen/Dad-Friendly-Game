@@ -1,11 +1,10 @@
 import { shownStones } from "./scale";
 import { formatCompact } from "./format";
 import { layerOf } from "./layers";
-import type { StepIndex } from "./city";
-import { orderStrip, STEP_NAMES, type Pip } from "./frame-view";
+import { orderStrip } from "./frame-view";
 import { freshMineOn } from "./line-switch";
 import { minedOut, type Mountain } from "./mountain";
-import { MACHINE_WORDS, VEHICLE_WORDS, plural } from "./screen-words";
+import { MACHINE_WORDS, VEHICLE_WORDS } from "./screen-words";
 import { STAGES } from "./line";
 import { machinesInPlay, tierById } from "./tiers";
 import { VEHICLE_IDS } from "./transport";
@@ -63,8 +62,8 @@ export function saveCardLines(
  */
 function freshLines(mountain: Mountain): Omit<SaveCardLines, "played"> {
   const strip = orderStrip(mountain);
-  const counted = (owned: number, words: readonly [string, string]) =>
-    `${formatCompact(owned)} ${plural(owned, words)}`;
+  const counted = (owned: number, [one, many]: readonly [string, string]) =>
+    count(owned, one, many);
   const machines = STAGES.flatMap((stage) =>
     machinesInPlay().filter((id) => tierById(id).stage === stage),
   )
@@ -76,7 +75,7 @@ function freshLines(mountain: Mountain): Omit<SaveCardLines, "played"> {
   return {
     depth:
       strip.kind === "project"
-        ? `${strip.name} · ${STEP_NAMES[stepInHand(strip.pips)]}`
+        ? `${strip.name} · ${strip.stepName}`
         : `${strip.name} is operational`,
     pocket: `${formatCompact(mountain.stock.stones)} stone in the stockpile`,
     machines: machines.length === 0 ? "No machines yet" : machines.join(" · "),
@@ -149,10 +148,4 @@ function sameDay(left: Date, right: Date): boolean {
     left.getMonth() === right.getMonth() &&
     left.getDate() === right.getDate()
   );
-}
-
-/** The step the order strip's pips say is in hand. */
-function stepInHand(pips: readonly Pip[]): StepIndex {
-  const at = pips.indexOf("now");
-  return at === 1 || at === 2 ? at : 0;
 }
