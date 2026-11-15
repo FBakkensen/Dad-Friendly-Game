@@ -18,7 +18,13 @@ import {
   type Jobs,
 } from "../workforce";
 import { sticker } from "./decide";
-import { drainsTheMine, fleetSize, hirePrice, siteIdle } from "./fresh-dad";
+import {
+  drainsTheMine,
+  fleetSize,
+  goodsIncome,
+  hirePrice,
+  siteIdle,
+} from "./fresh-dad";
 import { AMOUNT_KEY_TEN, FRESH_DUST } from "./targets";
 
 /**
@@ -51,7 +57,7 @@ export function freshView(mountain: Mountain): FreshView | undefined {
   const rates = effectiveRates(mountain);
   const line = rates.exactCrewPerSecond;
   const project = mountain.project;
-  const limit = orderLimit(mountain, line);
+  const limit = orderLimit(mountain, goodsIncome(mountain));
   return {
     limit:
       limit.kind === "delivering"
@@ -63,7 +69,7 @@ export function freshView(mountain: Mountain): FreshView | undefined {
       project.kind !== "unordered" && onSiteTotal(project.site) >= SITE_HOLDS,
     starved:
       project.kind === "delivering" &&
-      drainsTheMine(mountain, line) &&
+      drainsTheMine(mountain) &&
       mountain.stock.stones < cheapestBuy(mountain),
     idleWorkers: idleWorkerShare(mountain, rates.tierSpeed, line),
     idleMachines: idleMachineShare(mountain, rates.tierSpeed),

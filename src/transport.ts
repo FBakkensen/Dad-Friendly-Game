@@ -376,19 +376,23 @@ function arriving(
   return perSecond;
 }
 
+/** What the mine brings a second: stone alone, or each good's (part 2, #667). */
+export type Dug = number | Partial<Stock>;
+
+function incomeOf(dug: Dug): Partial<Stock> {
+  return typeof dug === "number" ? { stones: dug } : dug;
+}
+
 /**
  * The order's limit, with the goods a second and the time the step in hand
- * has left, live. `stonesPerSecond` is what the crew digs.
+ * has left, live. `dug` is what the crew digs: stone, or each good's.
  */
-export function orderLimit(
-  mountain: Mountain,
-  stonesPerSecond: number,
-): OrderLimit {
+export function orderLimit(mountain: Mountain, dug: Dug): OrderLimit {
   const project = mountain.project;
   if (project.kind !== "delivering") {
     return { kind: project.kind };
   }
-  const income: Partial<Stock> = { stones: stonesPerSecond };
+  const income = incomeOf(dug);
   const carry = fleetRate(mountain);
   const need = stillRequired(project.site);
   let slowest: (Leg & { readonly good: GoodId }) | undefined;
@@ -432,10 +436,7 @@ export type OrderNumbers =
  * the builders make room for once the site is full, and the builders build
  * no faster than what reaches them once it is empty.
  */
-export function orderNumbers(
-  mountain: Mountain,
-  stonesPerSecond: number,
-): OrderNumbers {
+export function orderNumbers(mountain: Mountain, dug: Dug): OrderNumbers {
   const project = mountain.project;
   if (project.kind === "unordered") {
     return project;
@@ -444,12 +445,7 @@ export function orderNumbers(
   const rate = buildRate(mountain);
   const carried =
     project.kind === "delivering"
-      ? arriving(
-          site,
-          mountain.stock,
-          { stones: stonesPerSecond },
-          fleetRate(mountain),
-        )
+      ? arriving(site, mountain.stock, incomeOf(dug), fleetRate(mountain))
       : 0;
   const held = onSiteTotal(site);
   const brings = held >= SITE_HOLDS ? Math.min(carried, rate) : carried;
@@ -464,7 +460,7 @@ export function orderNumbers(
 
 /**
  * Seconds until the whole building is operational at `share` of transport's
- * and the builders' rates and `stonesPerSecond` dug, or Infinity when it
+ * and the builders' rates and `dug` (stone, or each good), or Infinity when it
  * cannot finish (nothing ordered, on hold with goods still to bring, nobody
  * building, or a good it needs that never comes). Each step takes what its
  * goods take to arrive or what the builders take to build them in, the
@@ -473,9 +469,9 @@ export function orderNumbers(
 export function secondsToFinish(
   mountain: Mountain,
   share: number,
-  stonesPerSecond: number,
+  dug: Dug,
 ): number {
-  return walkSteps(mountain, share, stonesPerSecond, Infinity);
+  return walkSteps(mountain, share, dug, Infinity);
 }
 
 /**
@@ -506,8 +502,7 @@ function walkSteps(
   if (project.kind === "unordered") {
     return Infinity;
   }
-  const income: Partial<Stock> =
-    typeof dug === "number" ? { stones: dug } : dug;
+  const income = incomeOf(dug);
   const carry = project.kind === "delivering" ? fleetRate(mountain) * share : 0;
   const build = buildRate(mountain) * share;
   let site: Site | undefined = project.site;
