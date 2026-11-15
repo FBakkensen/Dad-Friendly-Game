@@ -1,4 +1,5 @@
 import { freshMineOn } from "./line-switch";
+import { freeWorkers } from "./workforce";
 import { oneOffStretch } from "./scale";
 import { factor } from "./economy/factors";
 import type { Mountain } from "./mountain";
@@ -144,12 +145,14 @@ export function nextEngineerName(
 /**
  * A worker can step up: there is one, and in a fresh mine the first borer
  * has come (slice 1, rule 1's table: engineers come with the first borer,
- * #653). Today's game lets a worker step up at any time.
+ * #653) and the one who steps up is free (rule 2.9, #689). Today's game
+ * lets a worker step up at any time.
  */
 export function promotionOpen(mountain: Mountain): boolean {
-  return (
-    mountain.owned.helper >= 1 && (!freshMineOn() || mountain.owned.borer >= 1)
-  );
+  if (!freshMineOn()) {
+    return mountain.owned.helper >= 1;
+  }
+  return mountain.owned.borer >= 1 && freeWorkers(mountain) >= 1;
 }
 
 /**

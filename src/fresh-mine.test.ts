@@ -76,10 +76,10 @@ describe("the fresh mine's switch (#653)", () => {
 });
 
 describe("one level, no depth (rule 1)", () => {
-  it("starts with nine workers and nothing else", () => {
+  it("starts with ten workers, all on jobs, and nothing else (#689)", () => {
     fresh(() => {
       const start = createMountain();
-      expect(start.owned.helper).toBe(9);
+      expect(start.owned.helper).toBe(10);
       for (const tier of TIERS) {
         if (tier.id !== "helper") {
           expect(start.owned[tier.id]).toBe(0);
@@ -166,57 +166,32 @@ describe("nothing is mined by a tap (What goes)", () => {
   });
 });
 
-describe("machines open by what he owns (rule 1's table)", () => {
-  it("offers only workers at the start, and shows the cart with its door", () => {
+describe("machines open by where they open, and nothing else (rule 1's table, rule 2.6)", () => {
+  it("offers workers, the cart, the hoist and the drill from the first evening (#689)", () => {
     fresh(() => {
       const start = owning({}, 1e12);
-      expect(buys(start)).toEqual(["helper"]);
-      expect(tierShown(start, tierById("cart"))).toBe(true);
-      expect(tierLock(start, tierById("cart"))).toEqual({
-        kind: "owns",
-        tier: "helper",
-        count: 12,
-      });
+      expect(buys(start)).toEqual(["helper", "cart", "hoist", "drill"]);
+      for (const id of ["cart", "hoist", "drill"] as const) {
+        expect(tierShown(start, tierById(id))).toBe(true);
+        expect(tierLock(start, tierById(id))).toBeUndefined();
+      }
     });
   });
 
-  it("opens the cart at twelve workers, the hoist with a cart, the drill with a hoist", () => {
+  it("sells a machine before anyone can run it, and it stands idle", () => {
     fresh(() => {
-      expect(buys(owning({ helper: 11 }))).toEqual(["helper"]);
-      expect(buys(owning({ helper: 12 }))).toEqual(["helper", "cart"]);
-      expect(tierLock(owning({ helper: 12 }), tierById("hoist"))).toEqual({
-        kind: "owns",
-        tier: "cart",
-        count: 1,
-      });
-      expect(buys(owning({ helper: 12, cart: 1 }))).toEqual([
-        "helper",
-        "cart",
-        "hoist",
-      ]);
-      expect(
-        tierLock(owning({ helper: 12, cart: 1 }), tierById("drill")),
-      ).toEqual({
-        kind: "owns",
-        tier: "hoist",
-        count: 1,
-      });
-      expect(buys(owning({ helper: 12, cart: 1, hoist: 1 }))).toEqual([
-        "helper",
-        "cart",
-        "hoist",
-        "drill",
-      ]);
-    });
-  });
-
-  it("refuses a machine behind its door, even with the stone for it", () => {
-    fresh(() => {
-      const short = owning({ helper: 11 });
-      const tap = applyMove(short, { kind: "buyTier", id: "cart" }, 0, {
+      const start = owning({}, 1e12);
+      const bought = applyMove(start, { kind: "buyTier", id: "drill" }, 0, {
         trouble: undefined,
       });
-      expect(tap.kind).toBe("refused");
+      if (bought.kind !== "applied") {
+        throw new Error("drill refused");
+      }
+      expect(bought.mountain.owned.helper).toBe(start.owned.helper);
+      expect(bought.mountain.jobs).toEqual(start.jobs);
+      // Three on drilling: the drill takes one, so it runs (108) with two on
+      // picks (6).
+      expect(effectiveRates(bought.mountain).running.drill).toBe(1);
     });
   });
 

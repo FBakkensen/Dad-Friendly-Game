@@ -82,25 +82,9 @@ describe("locked tier card words (#250, #508)", () => {
 describe("a fresh mine's door words (#653)", () => {
   it("says what the door waits for, in the prototype's words", () => {
     withFactors({ [FRESH_OFF]: 0 }, () => {
-      const { tier: cart, lock: atTwelve } = lockOf("cart");
-      expect(lockRateLine(atTwelve)).toBe("At 12 workers");
-      expect(lockShortLine(atTwelve)).toBe("At 12 workers");
-      expect(lockBodyLine(cart, atTwelve)).toBe(
-        "The Mine cart opens at 12 workers.",
-      );
-      expect(lockAria(cart, atTwelve)).toBe(
-        "Mine cart, locked. Opens at 12 workers.",
-      );
-      const { tier: hoist, lock: afterCart } = lockOf("hoist");
-      expect(lockRateLine(afterCart)).toBe("After a cart");
-      expect(lockBodyLine(hoist, afterCart)).toBe(
-        "The Hoist opens after a cart.",
-      );
-      expect(lockAria(hoist, afterCart)).toBe(
-        "Hoist, locked. Opens after a cart.",
-      );
       const { tier: borer, lock: later } = lockOf("borer");
       expect(lockRateLine(later)).toBe("Later");
+      expect(lockShortLine(later)).toBe("Later");
       expect(lockBodyLine(borer, later)).toBe("The Tunnel borer opens later.");
       expect(lockAria(borer, later)).toBe("Tunnel borer, locked. Opens later.");
     });

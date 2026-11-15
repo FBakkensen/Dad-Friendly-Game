@@ -17,7 +17,7 @@ import {
 
 /**
  * What a locked tier waits for: a depth (M12-2, #250), a relic, or, in a
- * fresh mine, a count of another tier he owns (slice 1, rule 1, #653).
+ * fresh mine, a later part (slice 1, rule 1, #653).
  */
 export type TierLock =
   | {
@@ -27,7 +27,6 @@ export type TierLock =
       readonly at: number;
     }
   | { readonly kind: "relic"; readonly relic: Relic; readonly at: number }
-  | { readonly kind: "owns"; readonly tier: TierId; readonly count: number }
   | {
       /** A later part's door in a fresh mine: never for sale in part 1. */
       readonly kind: "later";
@@ -35,20 +34,12 @@ export type TierLock =
     };
 
 /**
- * A fresh mine's door (rule 1's table): the first one waits until he owns
- * enough of the tier before it. Once one is owned it stays for sale. A tier
- * whose door is a later part's is always locked.
+ * A fresh mine's door (rule 1's table): a tier whose door is a later part's
+ * is always locked; the rest are for sale from the start (rule 2.6, #689).
  */
-function freshLock(mountain: Mountain, tier: Tier): TierLock | undefined {
+function freshLock(tier: Tier): TierLock | undefined {
   const door = freshDoor(tier.id);
-  if (door.kind === "later") {
-    return { kind: "later", at: door.at };
-  }
-  return door.kind === "owns" &&
-    owned(mountain, tier) === 0 &&
-    mountain.owned[door.tier] < door.count
-    ? { kind: "owns", tier: door.tier, count: door.count }
-    : undefined;
+  return door.kind === "later" ? { kind: "later", at: door.at } : undefined;
 }
 
 /**
@@ -63,7 +54,7 @@ function kidOpens(mountain: Mountain, tier: Tier): number {
 /** Why this tier is not for sale yet, or undefined when it is. */
 export function tierLock(mountain: Mountain, tier: Tier): TierLock | undefined {
   if (freshMineOn()) {
-    return freshLock(mountain, tier);
+    return freshLock(tier);
   }
   // An older save that already runs one keeps buying: the depth only
   // gates the first, so nothing it owns ever shows as locked.

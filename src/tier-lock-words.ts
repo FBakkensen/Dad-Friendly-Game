@@ -1,6 +1,6 @@
 import type { TierLock } from "./crew";
 import { formatCompact, formatCount } from "./format";
-import { tierById, type Tier } from "./tiers";
+import type { Tier } from "./tiers";
 
 /**
  * Words on a locked tier card (M12-2, #250). The card names the depth the
@@ -8,7 +8,6 @@ import { tierById, type Tier } from "./tiers";
  */
 
 type AtDepth = Extract<TierLock, { kind: "depth" | "relic" }>;
-type Door = Extract<TierLock, { kind: "owns" | "later" }>;
 
 function relicShort(lock: Extract<TierLock, { kind: "relic" }>): string {
   return lock.relic.name.split(" ")[0] ?? lock.relic.name;
@@ -19,19 +18,10 @@ function depthOf(lock: AtDepth): number {
 }
 
 /**
- * A fresh mine's door, as the prototype's stage plates say it (#653):
- * `at 12 workers`, or `after a cart`; a later part's door is only `later`.
+ * A fresh mine's door (#653): a later part's door is only `later`. What
+ * comes next stays vague (dad-friendly-game.md, Numbers and discoveries).
  */
-function doorWords(lock: Door): string {
-  // What comes next stays vague (dad-friendly-game.md, Numbers and discoveries).
-  if (lock.kind === "later") {
-    return "later";
-  }
-  const name = tierById(lock.tier).shortName.toLowerCase();
-  return lock.count === 1
-    ? `after a ${name}`
-    : `at ${String(lock.count)} ${name}s`;
-}
+const LATER = "later";
 
 function capitalised(words: string): string {
   return words.charAt(0).toUpperCase() + words.slice(1);
@@ -42,8 +32,8 @@ function capitalised(words: string): string {
  * Crown at 259.3M`. The tier's own name is already on the row.
  */
 export function lockRateLine(lock: TierLock): string {
-  if (lock.kind === "owns" || lock.kind === "later") {
-    return capitalised(doorWords(lock));
+  if (lock.kind === "later") {
+    return capitalised(LATER);
   }
   const at = formatCompact(depthOf(lock));
   return lock.kind === "depth"
@@ -53,8 +43,8 @@ export function lockRateLine(lock: TierLock): string {
 
 /** A narrower line where the first does not fit: `Opens at 10M`. A relic's line has none. */
 export function lockShortLine(lock: TierLock): string | undefined {
-  if (lock.kind === "owns" || lock.kind === "later") {
-    return capitalised(doorWords(lock));
+  if (lock.kind === "later") {
+    return capitalised(LATER);
   }
   return lock.kind === "depth"
     ? `Opens at ${formatCompact(depthOf(lock))}`
@@ -63,8 +53,8 @@ export function lockShortLine(lock: TierLock): string | undefined {
 
 /** The friendly line on the card body. */
 export function lockBodyLine(tier: Tier, lock: TierLock): string {
-  if (lock.kind === "owns" || lock.kind === "later") {
-    return `The ${tier.name} opens ${doorWords(lock)}.`;
+  if (lock.kind === "later") {
+    return `The ${tier.name} opens ${LATER}.`;
   }
   const at = formatCompact(depthOf(lock));
   if (lock.kind === "depth") {
@@ -79,8 +69,8 @@ export function lockBodyLine(tier: Tier, lock: TierLock): string {
 
 /** What a screen reader hears on a locked card. */
 export function lockAria(tier: Tier, lock: TierLock): string {
-  if (lock.kind === "owns" || lock.kind === "later") {
-    return `${tier.name}, locked. Opens ${doorWords(lock)}.`;
+  if (lock.kind === "later") {
+    return `${tier.name}, locked. Opens ${LATER}.`;
   }
   const at = formatCount(depthOf(lock));
   return lock.kind === "depth"

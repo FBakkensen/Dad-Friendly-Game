@@ -7,6 +7,7 @@ import {
   VEHICLES,
   buyVehicle,
   deliver,
+  drivenFleet,
   fleetRate,
   orderLimit,
   secondsToFinish,
@@ -27,11 +28,18 @@ function site(
   };
 }
 
-/** A fresh mine with this many horse wagons, this pocket and this project. */
-function mine(wagons: number, pocket: number, project: Project): Mountain {
+/** A fresh mine with this many horse wagons, a driver on each, this pocket and this project. */
+function mine(
+  wagons: number,
+  pocket: number,
+  project: Project,
+  drivers = wagons,
+): Mountain {
   const start = fresh(() => createMountain());
   return {
     ...start,
+    owned: { ...start.owned, helper: 9 + drivers },
+    jobs: { ...start.jobs, driving: drivers },
     fleet: { ...start.fleet, horseWagon: wagons },
     stock: { ...start.stock, stones: pocket },
     project,
@@ -43,6 +51,17 @@ describe("the fleet (rule 7.5, 7.6)", () => {
     expect(VEHICLES.map((vehicle) => vehicle.id)).toEqual(["horseWagon"]);
     expect(fleetRate(mine(1, 0, { kind: "unordered" }))).toBe(25);
     expect(fleetRate(mine(4, 0, { kind: "unordered" }))).toBe(100);
+  });
+
+  it("runs a vehicle only with a driver on it (rule 2.7, #689)", () => {
+    expect(fleetRate(mine(3, 0, { kind: "unordered" }, 0))).toBe(0);
+    expect(fleetRate(mine(3, 0, { kind: "unordered" }, 2))).toBe(50);
+    expect(fleetRate(mine(3, 0, { kind: "unordered" }, 5))).toBe(75);
+    expect(drivenFleet(mine(3, 0, { kind: "unordered" }, 2))).toEqual({
+      horseWagon: 2,
+    });
+    const idle = mine(2, 10_000, site(0), 0);
+    expect(deliver(idle, 10, 1)).toBe(idle);
   });
 
   it("gives a fresh mine its first wagon, and today's game none", () => {

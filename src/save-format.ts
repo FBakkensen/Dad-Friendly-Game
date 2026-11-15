@@ -64,6 +64,7 @@ import {
 } from "./workshop";
 import { EMPTY_STOCK, GOOD_IDS, priceAmount, type GoodId } from "./stock";
 import { VEHICLE_IDS, type VehicleId } from "./transport";
+import { JOB_IDS, workersOnJobs, type JobId, type Jobs } from "./workforce";
 
 /** The Gold rush's end time, in the clocks map. */
 const GOLD_RUSH = "gold-rush";
@@ -106,6 +107,7 @@ const GAME_KEYS = [
   "bench",
   "fleet",
   "project",
+  "jobs",
 ] as const;
 
 /** A project in hand, as saved: an unordered city saves none (#654). */
@@ -139,6 +141,8 @@ export type SaveGame = {
   readonly bench?: Bench;
   readonly fleet?: Readonly<Partial<Record<VehicleId, number>>>;
   readonly project?: SavedProject;
+  /** Workers on each job (#689); the free workers are the rest of `owned.helper`. */
+  readonly jobs?: Readonly<Partial<Record<JobId, number>>>;
 };
 
 // ---------------------------------------------------------------------------
@@ -278,6 +282,10 @@ export function writeGame(mountain: Mountain): SaveGame {
       positives(VEHICLE_IDS, (id) => mountain.fleet[id]),
     ),
     ...savedProject(mountain.project),
+    ...some(
+      "jobs",
+      positives(JOB_IDS, (id) => mountain.jobs[id]),
+    ),
   };
 }
 
@@ -641,6 +649,15 @@ function readProject(value: unknown, marks: Part<Marks>): Part<Project> {
   };
 }
 
+/** Workers on each job: never more in all than the workers he owns (#689). */
+function readJobs(value: unknown, facts: Part<Facts>): Part<Jobs> {
+  const jobs = readCounts(value, JOB_IDS, UNCAPPED);
+  if (typeof jobs === "string" || typeof facts === "string") {
+    return jobs;
+  }
+  return workersOnJobs({ jobs }) > facts.owned.helper ? "bad" : jobs;
+}
+
 type Facts = Pick<
   Mountain,
   "owned" | "stock" | "upgrades" | "crafted" | "boosts" | "clocks" | "rushUntil"
@@ -708,7 +725,8 @@ export function readGame(value: unknown, startedAt: number): GameRead {
   const bench = readBench(value["bench"]);
   const fleet = readCounts(value["fleet"], VEHICLE_IDS, UNCAPPED);
   const project = readProject(value["project"], marks);
-  const failed = worst([facts, marks, run, crew, bench, fleet, project]);
+  const jobs = readJobs(value["jobs"], facts);
+  const failed = worst([facts, marks, run, crew, bench, fleet, project, jobs]);
   if (failed !== undefined) {
     return { kind: failed };
   }
@@ -726,6 +744,7 @@ export function readGame(value: unknown, startedAt: number): GameRead {
       bench: bench as Bench | undefined,
       fleet: fleet as Record<VehicleId, number>,
       project: project as Project,
+      jobs: jobs as Jobs,
       startedAt,
     },
   };
@@ -749,6 +768,7 @@ export type ShippedFacts = {
   readonly tripFinds: Readonly<Record<string, readonly string[]>>;
   readonly fleet: readonly string[];
   readonly projectStates: readonly string[];
+  readonly jobs: readonly string[];
   readonly caps: Readonly<Record<string, number>>;
 };
 
@@ -772,6 +792,7 @@ export function shippedFacts(): ShippedFacts {
     tripFinds: TRIP_FIND_IDS,
     fleet: VEHICLE_IDS,
     projectStates: PROJECT_STATES,
+    jobs: JOB_IDS,
     caps: {
       engineers: MAX_ENGINEERS,
       engineerTrips: MAX_ENGINEER_TRIPS,
