@@ -2,6 +2,19 @@
 
 This is the north star for the game. Open GitHub issues stay the plan; this page says what the issues add up to. Keep it short and edit it when a decision changes.
 
+## The game now: the first evenings (#664)
+
+Since #664 the phone plays slice 1's part 1, the start of the road to Mars (spec: `docs/superpowers/specs/2026-11-14-slice-1-design.md`). It reset the save (version 9): the old save is set aside, never converted. Everything after this section is the game before #664: its code stays until its clean-up (#665), and the strategy and generations labs still play it unless a run sets `fresh.off=0`.
+
+- **A fresh mine, one level, no depth.** The Topsoil never runs out, and stones go to the stockpile. There are no relics, no pass, no depth or stones left, no dig button, no golden veins or Gold rush, no rock's lean, and none of the upgrades that only made a tap or a vein stronger.
+- **One workforce he moves.** He starts with one worker, on drilling, and a horse wagon nobody drives. He hires into the free workers (60 stone, ×1.06) and moves each worker between drilling, haulage, hoisting, driving and building with − and +. Nothing moves a worker for him.
+- **The line, with a pile between the stages.** Drilling fills the drilled rock (it holds 300), haulage carries it to the rock at the shaft (300), and hoisting lifts it up as stone. Each stage works at its own rate while it has rock in front of it and room after it. A worker with a tool moves 3 a second; carts (600 stone, rated 60 a second in a fresh mine), hoists (6,000) and drills (73,080) take their workers and move more (×1.219 each).
+- **The Light Tower's order.** He orders it in the city: three steps of stone (25K, 250K, 1M). Horse wagons (500 stone, ×1.219, the first given) carry 9 goods a second each, with a driver; builders build in 8 a second; the site holds 500. He can hold the order and resume it, for free.
+- **Nights.** Closed, the mine runs at 30% for up to eight hours, and the shift report says what it made, what was delivered and built, and when the clock stopped it. The Light Tower's roof lifts the night shift to 45%, and the end card says the next building comes in a later update.
+- **Which copy is ahead:** a later run, then more rock dug in all (`run.rock`, a count that only grows), then the newer `lastSeen` (`.claude/rules/observable-saves.md`).
+
+The screens are the frame (the order strip, the top row with the hire key, the mine and the city, Next, the site bar and the save line), its workforce and stage lists, the cards, the Ledger and the save's cards: `docs/ui-audit.md` shows each. The lab's part 1 numbers are in the spec's Starting numbers and `docs/pacing-ledger.md`.
+
 ## Vision
 
 Deep inside a mountain of **240,000,000 stones** lie the six Legendary Relics of Fatherhood, left by the great dads of history. You start with your bare hands: one tap, one stone. The mountain is far too big to dig by hand, and that is the point. Scale makes automation necessary, the way it does in _Needle In A Haystack_ and _Cookie Clicker_. Each relic you uncover is a power spike and a virtue of fatherhood.
@@ -66,7 +79,7 @@ The one home for the economy's current numbers. Other docs link here instead of 
 
 The tended Great Machine's 5 is `TENDED_MACHINE_STAFF` in `src/engineers.ts`.
 
-The line's machines (#533) are in `TIERS` too, but off in play: never shown, never for sale, they take no hands and move nothing until the line turns on with slice 1's part 1 (#664). Their speeds are in today's units. With the line on (labs only until slice 1's part 1 is switched on, #664), every machine is rated three times that (`LINE_RATING` in `src/line.ts`, #543), so a first cart still adds 6 a second to twelve workers; the hands keep theirs.
+The line's machines (#533) are in `TIERS` too. In today's game they are off: never shown, never for sale, they take no hands and move nothing. The fresh mine plays them since slice 1's part 1 was switched on (#664). Their speeds are in today's units. With the line on (labs only until slice 1's part 1 is switched on, #664), every machine is rated three times that (`LINE_RATING` in `src/line.ts`, #543), so a first cart still adds 6 a second to twelve workers; the hands keep theirs.
 
 | Tier      | First price (stones) | Stones a second each | Workers to run one | Stage    | Unlock (with the line on)                                                     |
 | --------- | -------------------- | -------------------- | ------------------ | -------- | ----------------------------------------------------------------------------- |

@@ -2,6 +2,17 @@
 
 Why each part of the game exists, and what the screens should make the player feel. Confirmed by Flemming on Oct 22, 2026. `docs/DESIGN.md` holds the numbers and the milestone history; this page holds the reasons.
 
+## The first evenings: why the game changed (#664)
+
+Since #664 the phone plays slice 1's part 1, the start of the road to Mars. It is an engineering game: no tapping the rock, no relics to hunt, no hand-off to a kid. Flemming wanted a game whose answer is never told (the discovery principle, 15 Nov 2026): the page shows the numbers (what each stage moves, what each worker and machine adds, how the piles between the stages fill and empty) and he does the maths. The parts exist for these reasons:
+
+- **One worker at the start, moved by hand.** The first evening is about seeing the line: drilled rock waits until he moves the worker to haulage, and at the shaft until he moves him to hoisting. Each hire must feel like a difference (15 Nov 2026).
+- **A pile between the stages.** The stages never run in step (15 Nov 2026): each has its own room, so a stage that stands is visible on its row, and moving or hiring for it is a decision with a number on it.
+- **An order the city builds.** The Light Tower is the first goal: he orders it, wagons carry the stone, builders put it up, and its roof lifts the night shift. Transport and builders are the second line to balance.
+- **The night as a shift.** Closing the phone is a night shift at 30% for eight hours; the shift report tells what it made. Close is still pause, and nothing is lost.
+
+The sections below are the reasons for the game before #664, kept until its clean-up (#665).
+
 ## The core loop and the story
 
 A dad starts with bare hands in front of a mountain far too big to dig. He builds a crew, learns the mountain, finds what the great dads of history left behind, and in the end hands the mine to his kid. The size of the mountain is the point: it makes automation necessary, the Cookie Clicker premise. Costs grow faster than output, so the next goal is always just in reach (Pecorella). The player learns by doing, in small loops of action and feedback (Dan Cook).

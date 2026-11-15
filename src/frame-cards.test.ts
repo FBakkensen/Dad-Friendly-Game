@@ -122,7 +122,7 @@ function mount({ saved, at = 0 }: { saved?: Mountain; at?: number } = {}) {
   };
 }
 
-const user = { uid: "dev-slice", label: "Dev Dad" };
+const user = { uid: "dev-dad", label: "Dev Dad" };
 
 /**
  * The frame on a signed-in store whose cloud copy was closed at `closed`,

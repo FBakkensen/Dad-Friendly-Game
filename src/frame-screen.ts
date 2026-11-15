@@ -37,11 +37,10 @@ import { createWorkforceSheet, type WorkforceSheet } from "./workforce-sheet";
 import "./frame.css";
 
 /**
- * Slice 1's frame (#659; spec, "The frame, the same on every site"), beside
- * today's board: the order strip, the stockpile with the count of workers and
+ * Slice 1's frame (#659; spec, "The frame, the same on every site"), the
+ * game's screen since #664: the order strip, the stockpile with the count of workers and
  * the hire key, the site's scene (the mine, #660; the city, #662), Next, the site bar and the
- * save line. A
- * dev build mounts it for `?slice=1` (src/main.ts). It paints the pure views
+ * save line. `main` mounts it for everyone (src/main.ts). It paints the pure views
  * (frame-view, next-view, workforce-view), shows its cards over itself
  * (frame-cards: the shift report and the end card), and
  * changes the game only through `progress.dispatch`.
