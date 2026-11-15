@@ -4,7 +4,9 @@ import { FRESH_OFF } from "./line-switch";
 import {
   buyMaker,
   kilnRate,
+  kilnTake,
   makerPrice,
+  makerTakes,
   makersOpen,
   runningKilns,
 } from "./makers";
@@ -81,6 +83,40 @@ describe("the kilns (#666)", () => {
       3,
     );
     expect(kilnRate({ ...three, jobs: { ...start.jobs, kilns: 2 } })).toBe(24);
+  });
+});
+
+describe("the kilns' recipe (#723)", () => {
+  const two = (): Mountain => {
+    const start = createMountain();
+    return {
+      ...start,
+      makers: { kiln: 3 },
+      jobs: { ...start.jobs, kilns: 2 },
+    };
+  };
+
+  it("takes two rock for one brick", () => {
+    expect(makerTakes("kiln")).toBe(2);
+    // Two running kilns make 24 brick a second of 48 rock.
+    expect(kilnRate(two())).toBe(24);
+    expect(kilnTake(two())).toBe(48);
+  });
+
+  it("is a lever the lab can sweep, in whole rock and never under one", () => {
+    withFactors({ "recipe.kiln": 1.5 }, () => {
+      expect(makerTakes("kiln")).toBe(3);
+      expect(kilnTake(two())).toBe(72);
+    });
+    withFactors({ "recipe.kiln": 0.5 }, () => {
+      expect(makerTakes("kiln")).toBe(1);
+    });
+    withFactors({ "recipe.kiln": 0.1 }, () => {
+      expect(makerTakes("kiln")).toBe(1);
+    });
+    withFactors({ "recipe.kiln": 1.6 }, () => {
+      expect(makerTakes("kiln")).toBe(3);
+    });
   });
 });
 

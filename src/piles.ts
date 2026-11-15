@@ -16,6 +16,11 @@
  * stage before brings beyond what the stage after takes bypasses to a side
  * pile, the way the rock the kilns cannot take goes to the stone stockpile.
  * The side pile has a room and a drain (what transport takes from it).
+ *
+ * A stage may have a recipe (#723): it takes more than one of what is in its
+ * pile for each it makes, the way a kiln takes two rock for one brick. Its
+ * rate and its total are what it makes, and its pile goes down by its take
+ * times that.
  */
 
 /** What a pile holds now, and its room. A pile over its room is full (ruling 2). */
@@ -32,7 +37,17 @@ export type Chain = {
   readonly rates: readonly number[];
   readonly piles: readonly Pile[];
   readonly spill?: Spill;
+  /**
+   * What each stage takes from the pile in front of it for each it makes: 1
+   * when left out. A whole number, so whole goods stay whole.
+   */
+  readonly takes?: readonly number[];
 };
+
+/** What stage `index` takes from its pile for each it makes (#723). */
+function takeOf(chain: Chain, index: number): number {
+  return chain.takes?.[index] ?? 1;
+}
 
 /**
  * Where pile `from`'s overflow goes while that pile is full: a side pile
@@ -55,12 +70,18 @@ export type ChainFlow = {
 /** Below this, a pile or the source is taken as at its edge (float noise between phases). */
 const EDGE = 1e-9;
 
-/** One forward pass: a stage whose pile in front is empty moves at most the stage before. */
-function capForward(flows: number[], piles: readonly Pile[]): boolean {
+/**
+ * One forward pass: a stage whose pile in front is empty makes at most what
+ * the stage before brings, over its take.
+ */
+function capForward(flows: number[], chain: Chain): boolean {
   let changed = false;
   for (let index = 1; index < flows.length; index += 1) {
-    const before = flows[index - 1] ?? 0;
-    if ((piles[index - 1]?.held ?? 0) <= 0 && (flows[index] ?? 0) > before) {
+    const before = (flows[index - 1] ?? 0) / takeOf(chain, index);
+    if (
+      (chain.piles[index - 1]?.held ?? 0) <= 0 &&
+      (flows[index] ?? 0) > before
+    ) {
       flows[index] = before;
       changed = true;
     }
@@ -69,22 +90,19 @@ function capForward(flows: number[], piles: readonly Pile[]): boolean {
 }
 
 /**
- * One backward pass: a stage whose pile after it is full moves at most the
- * stage after it, and nothing while that pile is over its room.
+ * One backward pass: a stage whose pile after it is full moves at most what
+ * the stage after it takes, and nothing while that pile is over its room.
  */
-function capBackward(
-  flows: number[],
-  piles: readonly Pile[],
-  spill: Spill | undefined,
-): boolean {
+function capBackward(flows: number[], chain: Chain): boolean {
   let changed = false;
+  const spill = chain.spill;
   for (let index = flows.length - 2; index >= 0; index -= 1) {
-    const next = piles[index];
+    const next = chain.piles[index];
     if (next === undefined || next.held < next.holds) {
       continue;
     }
     const cap =
-      (next.held > next.holds ? 0 : (flows[index + 1] ?? 0)) +
+      (next.held > next.holds ? 0 : taken(chain, flows, index + 1)) +
       (spill?.from === index ? spillRoom(spill) : 0);
     if ((flows[index] ?? 0) > cap) {
       flows[index] = cap;
@@ -92,6 +110,11 @@ function capBackward(
     }
   }
   return changed;
+}
+
+/** What stage `index` takes a second from the pile in front of it at these flows. */
+function taken(chain: Chain, flows: readonly number[], index: number): number {
+  return (flows[index] ?? 0) * takeOf(chain, index);
 }
 
 /** What a side pile takes a second: all while it has room, its drain while full, none over its room. */
@@ -116,7 +139,7 @@ function spillIn(chain: Chain, flows: readonly number[]): number {
   const brought = flows[spill.from] ?? 0;
   return pile.held > pile.holds
     ? brought
-    : Math.max(0, brought - (flows[spill.from + 1] ?? 0));
+    : Math.max(0, brought - taken(chain, flows, spill.from + 1));
 }
 
 /** What leaves the side pile a second: its drain, or no more than comes in once it is empty. */
@@ -130,7 +153,7 @@ function pileNets(chain: Chain, flows: readonly number[]): number[] {
   return chain.piles.map(
     (_, index) =>
       (flows[index] ?? 0) -
-      (flows[index + 1] ?? 0) -
+      taken(chain, flows, index + 1) -
       (chain.spill?.from === index ? spilled : 0),
   );
 }
@@ -148,8 +171,8 @@ export function chainFlows(chain: Chain): readonly number[] {
   // Each pass only lowers a flow to another flow, so this settles within a
   // pass per stage.
   for (let pass = 0; pass <= flows.length; pass += 1) {
-    const forward = capForward(flows, chain.piles);
-    const backward = capBackward(flows, chain.piles, chain.spill);
+    const forward = capForward(flows, chain);
+    const backward = capBackward(flows, chain);
     if (!forward && !backward) {
       break;
     }
@@ -241,14 +264,16 @@ function advance(
   );
   const source = Math.max(0, snap(chain.source - (flows[0] ?? 0) * seconds, 0));
   const spill = chain.spill;
+  const kept = chain.takes === undefined ? {} : { takes: chain.takes };
   if (spill === undefined) {
-    return { source, rates: chain.rates, piles };
+    return { source, rates: chain.rates, piles, ...kept };
   }
   const coming = spillIn(chain, flows);
   return {
     source,
     rates: chain.rates,
     piles,
+    ...kept,
     spill: {
       ...spill,
       ...moved(spill, (coming - spillOut(spill, coming)) * seconds),
@@ -311,7 +336,7 @@ export function flowWhole(chain: Chain, seconds: number): ChainFlow {
   const totals = exact.moved.map((amount) => Math.floor(amount + EDGE));
   const piles = chain.piles.map(
     (pile, index) =>
-      pile.held + (totals[index] ?? 0) - (totals[index + 1] ?? 0),
+      pile.held + (totals[index] ?? 0) - taken(chain, totals, index + 1),
   );
   const from = chain.spill?.from;
   // What spilled, in whole goods: the exact spill floored, and more only if

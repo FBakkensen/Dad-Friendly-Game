@@ -280,3 +280,88 @@ describe("a pile that spills to a side pile (#666)", () => {
     expect(flowWhole(mine([9, 3, 6]), 10).spilled).toBe(0);
   });
 });
+
+/**
+ * A recipe (#723): a stage that takes more than one of what is in front of it
+ * for each it makes, the way a kiln takes two rock for one brick. Its rate is
+ * what it makes; its pile in front goes down by its take times that.
+ */
+describe("a stage with a recipe (#723)", () => {
+  /** Hoisting at `lift`, kilns making `kilns` brick a second at two rock each. */
+  function kilnsAtTwo(
+    lift: number,
+    kilns: number,
+    kilnPile = pile(0, 300),
+    side = { held: 0, holds: Infinity, drain: 0 },
+    brick = pile(0, Infinity),
+    take = 0,
+  ): Chain {
+    return {
+      source: Infinity,
+      rates: [lift, kilns, take],
+      piles: [kilnPile, brick],
+      takes: [1, 2, 1],
+      spill: { from: 0, ...side },
+    };
+  }
+
+  it("takes two rock from its pile for each brick it makes", () => {
+    const chain = kilnsAtTwo(0, 12, pile(300, 300));
+    expect(chainFlows(chain)).toEqual([0, 12, 0]);
+    // 24 rock a second leave a pile of 300: empty in 12.5 seconds.
+    expect(chainChange(chain)).toBeCloseTo(12.5, 9);
+    const after = flowChain(chain, 100);
+    expect(after.moved[1]).toBeCloseTo(150, 6);
+    expect(after.piles[0]).toBeCloseTo(0, 6);
+  });
+
+  it("makes no more than half the rock brought once its pile is empty", () => {
+    const flows = chainFlows(kilnsAtTwo(18, 12));
+    expect(flows[1]).toBeCloseTo(9, 9);
+    expect(chainSpill(kilnsAtTwo(18, 12))).toBe(0);
+  });
+
+  it("spills what it cannot take once its pile is full", () => {
+    // 30 a second come up, the kilns take 24: 6 bypass to stone.
+    const chain = kilnsAtTwo(30, 12, pile(300, 300));
+    expect(chainSpill(chain)).toBeCloseTo(6, 9);
+    expect(flowChain(chain, 10).spilled).toBeCloseTo(60, 6);
+  });
+
+  it("a full stockpile after it holds the stage before it at twice the brick taken", () => {
+    // The brick stockpile is full and drained at 5 a second: the kilns make 5
+    // brick, take 10 rock, and the full kilns' pile lets hoisting bring only
+    // those 10 and what the full stone stockpile drains.
+    const chain = kilnsAtTwo(
+      30,
+      12,
+      pile(300, 300),
+      { held: 1_000, holds: 1_000, drain: 3 },
+      pile(500, 500),
+      5,
+    );
+    expect(chainFlows(chain)).toEqual([13, 5, 5]);
+  });
+
+  it("in whole goods, the rock that leaves its pile is the brick made times two", () => {
+    const chains = [
+      kilnsAtTwo(18, 12),
+      kilnsAtTwo(30.7, 12.3, pile(299, 300)),
+      kilnsAtTwo(5.5, 12, pile(300, 300)),
+      kilnsAtTwo(0, 12, pile(7, 300)),
+      kilnsAtTwo(30, 12, pile(300, 300), { held: 900, holds: 1_000, drain: 2 }),
+    ];
+    for (const chain of chains) {
+      for (const seconds of [0.4, 1, 7, 61.3, 3_600]) {
+        const whole = flowWhole(chain, seconds);
+        const [lift = 0, brick = 0] = whole.moved;
+        const before = chain.piles[0]?.held ?? 0;
+        const after = whole.piles[0] ?? 0;
+        expect(lift + before - after - whole.spilled).toBe(2 * brick);
+        expect(after).toBeGreaterThanOrEqual(0);
+        expect(after).toBeLessThanOrEqual(Math.max(300, before));
+        expect(whole.piles[1]).toBe((chain.piles[1]?.held ?? 0) + brick);
+      }
+    }
+  });
+});
