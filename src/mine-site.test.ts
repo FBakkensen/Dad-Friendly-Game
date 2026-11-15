@@ -137,6 +137,30 @@ describe("the mine", () => {
     );
   });
 
+  it("says the pile after drilling and after haulage inside the row's words", () => {
+    const { root, text } = mount((mountain) => ({
+      ...mountain,
+      piles: { face: 200, shaft: 12 },
+    }));
+    const pile = (stage: string) =>
+      root.querySelector<HTMLElement>(
+        `.mine-stage[data-stage="${stage}"] .mine-stage-info .mine-stage-pile`,
+      );
+    expect(text('.mine-stage[data-stage="face"] .mine-stage-pile')).toBe(
+      "Rock at the face: 200 of 300",
+    );
+    expect(text('.mine-stage[data-stage="haul"] .mine-stage-pile')).toBe(
+      "Rock at the shaft: 12 of 300",
+    );
+    expect(pile("face")?.hidden).toBe(false);
+    expect(pile("lift")?.hidden).toBe(true);
+    expect(
+      root
+        .querySelector('.mine-stage[data-stage="face"] .mine-stage-info')
+        ?.getAttribute("aria-label"),
+    ).toMatch(/Rock at the face: 200 of 300\. Opens its list\.$/);
+  });
+
   it("says where a free worker comes from when + has none, and moves with −", () => {
     const { root, progress, button } = mount();
     const note = root.querySelector<HTMLElement>(".mine-note");

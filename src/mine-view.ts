@@ -1,7 +1,9 @@
 import { tierOnSale } from "./crew";
 import { formatCompact } from "./format";
 import { STAGES, type Stage } from "./line";
+import { PILE_HOLDS, mineChain, type PileId } from "./mine-piles";
 import type { Mountain } from "./mountain";
+import { chainFlows } from "./piles";
 import { crewTimer, effectiveRates } from "./rates";
 import { MACHINE_WORDS, TOOL_WORDS, formatSpeed, plural } from "./screen-words";
 import {
@@ -286,12 +288,43 @@ function partWords(
   return `${count} ${kinds}: ${String(part.has)} of ${String(part.takes)} ${plural(part.takes, ["worker", "workers"])} ${moves}${perSecond}`;
 }
 
+/** The pile after a stage (#703): where its rock waits for the next stage, and how much. */
+export type RowPile = {
+  readonly label: string;
+  readonly held: number;
+  readonly holds: number;
+};
+
+/** The pile each stage puts its rock on. Hoisting lifts it up as stone. */
+const PILE_AFTER: Readonly<Record<Stage, PileId | undefined>> = {
+  face: "face",
+  haul: "shaft",
+  lift: undefined,
+};
+
+/** The piles' words (#703), Flemming's to approve. */
+export const PILE_LABELS: Readonly<Record<PileId, string>> = {
+  face: "Rock at the face",
+  shaft: "Rock at the shaft",
+};
+
+function rowPile(mountain: Mountain, stage: Stage): RowPile | undefined {
+  const id = PILE_AFTER[stage];
+  return id === undefined
+    ? undefined
+    : {
+        label: PILE_LABELS[id],
+        held: mountain.piles[id],
+        holds: PILE_HOLDS[id],
+      };
+}
+
 /** A stage's row. */
 export type StageRow = {
   readonly stage: Stage;
   readonly job: JobId;
   readonly name: string;
-  /** What the line moves now: the same on every stage. */
+  /** What this stage moves now: its own rate while it has rock in front and room after (#703). */
   readonly now: string;
   /** What this stage can move. */
   readonly can: string;
@@ -304,6 +337,8 @@ export type StageRow = {
   readonly workers: number;
   readonly canPlace: boolean;
   readonly canFree: boolean;
+  /** The pile after the stage: drilling's and haulage's; hoisting has none. */
+  readonly pile: RowPile | undefined;
 };
 
 /** A part under a crew timer (Overtime and the like): every machine and tool moves that much more. */
@@ -328,7 +363,7 @@ export function stageRows(
   const timer = crewTimer(mountain, now);
   const work = lineWork(mountain, rates.tierSpeed);
   const tool = toolSpeed(rates.tierSpeed);
-  const moving = rates.crewPerSecond;
+  const flows = chainFlows(mineChain(mountain, 1, true));
   const strongest = Math.max(
     1,
     ...STAGES.map((stage) => work.stages[stage] * timer),
@@ -343,6 +378,7 @@ export function stageRows(
       tool,
     ).map((part) => timed(part, timer));
     const can = work.stages[stage] * timer;
+    const moving = (flows[STAGES.indexOf(stage)] ?? 0) * timer;
     const printed = printedParts(
       parts.map((part) => part.moves),
       can,
@@ -360,6 +396,7 @@ export function stageRows(
       workers,
       canPlace: free > 0,
       canFree: workers > 0,
+      pile: rowPile(mountain, stage),
     };
   });
 }

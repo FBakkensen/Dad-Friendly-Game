@@ -1,6 +1,6 @@
 import { el, write, writeFigures } from "./board-dom";
-import { END_CARD, type CardWords } from "./frame-cards-words";
-import type { AwayReport } from "./mountain";
+import { END_CARD, FIRST_EVENING, type CardWords } from "./frame-cards-words";
+import type { AwayReport, Mountain } from "./mountain";
 import type { ProgressSnapshot, ProgressStore } from "./progress-store";
 import { firstNotice } from "./session";
 import {
@@ -16,12 +16,29 @@ import {
  * notice, closed through the store as today's welcome card is), and the
  * end card when the Light Tower's roof goes on (its `operational` notice,
  * closed the same way). The report comes first and the end card waits
- * behind it. The game runs on behind every card.
+ * behind it. The first evening's card (#703) greets a session that opens
+ * with nothing ordered and nothing operational, once, until its key is
+ * pressed; it is not a save fact. The game runs on behind every card.
  */
 
 type FrameCard =
   | { readonly kind: "report"; readonly report: NightAwayReport }
-  | { readonly kind: "end" };
+  | { readonly kind: "end" }
+  | { readonly kind: "first" };
+
+type CardView = Pick<ProgressSnapshot, "notices" | "mountain">;
+
+/** Nothing ordered yet and nothing operational: the mine's first evenings. */
+const nothingYet = (mountain: Mountain): boolean =>
+  mountain.project.kind === "unordered" && mountain.operational.length === 0;
+
+/**
+ * Whether the session greets its first evening, decided on its first ready
+ * view: a session that opens on a night is not a first evening.
+ */
+function greets(view: CardView): boolean {
+  return nightReport(view) === undefined && nothingYet(view.mountain);
+}
 
 function hasNight(report: AwayReport): report is NightAwayReport {
   return report.night !== undefined;
@@ -35,17 +52,20 @@ export function nightReport(
   return report !== undefined && hasNight(report) ? report : undefined;
 }
 
-/** The card to show now: the report, else the end card while its notice is open. */
-function frameCard(
-  view: Pick<ProgressSnapshot, "notices">,
-): FrameCard | undefined {
+/**
+ * The card to show now: the report, else the end card while its notice is
+ * open, else the first evening's while the session greets it and nothing
+ * is ordered or operational.
+ */
+function frameCard(view: CardView, greet: boolean): FrameCard | undefined {
   const report = nightReport(view);
   if (report !== undefined) {
     return { kind: "report", report };
   }
-  return firstNotice(view, "operational")?.building === "lightTower"
-    ? { kind: "end" }
-    : undefined;
+  if (firstNotice(view, "operational")?.building === "lightTower") {
+    return { kind: "end" };
+  }
+  return greet && nothingYet(view.mountain) ? { kind: "first" } : undefined;
 }
 
 const sameCard = (a: FrameCard | undefined, b: FrameCard | undefined) =>
@@ -121,7 +141,7 @@ function paintCard(parts: CardParts, card: FrameCard | undefined): void {
   if (card?.kind === "report") {
     paintReport(parts, shiftReport(card.report));
   } else if (card !== undefined) {
-    paintWords(parts, END_CARD);
+    paintWords(parts, card.kind === "first" ? FIRST_EVENING : END_CARD);
   }
 }
 
@@ -145,13 +165,15 @@ export function createFrameCards({
 }): FrameCards {
   const parts = buildCard();
   let shown: FrameCard | undefined;
+  let greet: boolean | undefined;
 
   const paint = (): void => {
     const view = progress.getSnapshot();
     if (!view.ready) {
       return;
     }
-    const card = frameCard(view);
+    greet ??= greets(view);
+    const card = frameCard(view, greet);
     if (!sameCard(card, shown)) {
       paintCard(parts, card);
       if (card !== undefined) {
@@ -162,7 +184,9 @@ export function createFrameCards({
   };
 
   parts.key.addEventListener("click", () => {
-    if (shown !== undefined) {
+    if (shown?.kind === "first") {
+      greet = false;
+    } else if (shown !== undefined) {
       progress.dismiss(shown.kind === "report" ? "away" : "operational");
     }
     paint();

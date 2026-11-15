@@ -5,7 +5,8 @@
  * the site bar and the save line, and the workforce sheet over them, at the
  * phone and at a shorter phone. Its cards (#663): the shift report after a
  * night, and the end card behind the report of the night the Light Tower's
- * roof went on.
+ * roof went on. The start (#703): the first evening's card, then the mine's
+ * pile lines.
  */
 import {
   DEV_BACKUP_KEY,
@@ -15,6 +16,7 @@ import {
   sliceNightSave,
   sliceOrderedSave,
   sliceRoofSave,
+  sliceStartSave,
   sliceStructureSave,
 } from "../../tools/browser/fixtures.ts";
 import { check, section } from "./registry.mjs";
@@ -78,7 +80,7 @@ async function frameFacts(page) {
     );
     const cut = [
       ...document.querySelectorAll(
-        ".frame-order-name, .frame-order-step, .frame-next-head, .frame-workers-free, .frame-hire, .mine:not([hidden]) :is(.mine-stage-sum, .mine-key, .mine-level-line, .mine-deep, .mine-stage-name), .city:not([hidden]) :is(.city-plate-head, .city-fleet, .city-key, .city-tag, .city-card-head, .city-bar-line, .city-order, .city-crew-line, .city-completion)",
+        ".frame-order-name, .frame-order-step, .frame-next-head, .frame-workers-free, .frame-hire, .mine:not([hidden]) :is(.mine-stage-sum, .mine-stage-pile, .mine-key, .mine-level-line, .mine-deep, .mine-stage-name), .city:not([hidden]) :is(.city-plate-head, .city-fleet, .city-key, .city-tag, .city-card-head, .city-bar-line, .city-order, .city-crew-line, .city-completion)",
       ),
     ]
       .filter(
@@ -89,6 +91,25 @@ async function frameFacts(page) {
       )
       .map((el) => el.className);
     const mine = document.querySelector(".mine:not([hidden])");
+    // Each stage row's words (its head, sum and pile line) stay inside the row.
+    const spill = [...(mine?.querySelectorAll(".mine-stage") ?? [])]
+      .filter((row) => {
+        const r = row.getBoundingClientRect();
+        return [
+          ...row.querySelectorAll(
+            ".mine-stage-head, .mine-stage-sum, .mine-stage-pile",
+          ),
+        ]
+          .filter(shown)
+          .some((el) => {
+            const b = el.getBoundingClientRect();
+            return b.top < r.top - 0.5 || b.bottom > r.bottom + 0.5;
+          });
+      })
+      .map((row) => row.dataset.stage);
+    const piles = [...(mine?.querySelectorAll(".mine-stage-pile") ?? [])]
+      .filter(shown)
+      .map((el) => el.textContent ?? "");
     const box = (selector) => {
       const found = mine?.querySelector(selector);
       return found === null || found === undefined ? undefined : px(found);
@@ -116,6 +137,8 @@ async function frameFacts(page) {
               zones: box(".mine-zones"),
               deep: box(".mine-deep"),
               panel: box(".mine-panel"),
+              spill,
+              piles,
             },
       rows,
       saveTop: line === null ? undefined : px(line).t,
@@ -150,6 +173,7 @@ function mineFits(facts) {
   const { scene, zones, deep, panel } = mine;
   return (
     [scene, zones, deep, panel].every((part) => part !== undefined) &&
+    mine.spill.length === 0 &&
     panel.t >= zones.b - 0.5 &&
     panel.t >= deep.b - 0.5 &&
     panel.b <= scene.b + 0.5
@@ -484,4 +508,52 @@ for (const size of SIZES) {
       }
     });
   }
+}
+
+for (const size of SIZES) {
+  const label = `${String(size[0])}x${String(size[1])}`;
+  section(`${label} slice frame start`, async () => {
+    const { page, close } = await openScreen(size, sliceStartSave(Date.now()), {
+      search: "?slice=1",
+      seedKey: DEV_BACKUP_KEY,
+    });
+    try {
+      await page.waitForSelector(".frame-card:not([hidden])");
+      const at = `${label} slice frame start:`;
+      const first = await cardFacts(page);
+      await shot(page, `slice-card-first-${label}`);
+      checkCard(first, at, "first");
+      check(
+        await noScroll(page),
+        `${at} the first card does not scroll the page`,
+      );
+      await tap(page, ".frame-card-key");
+      check(!(await cardFacts(page)).shown, `${at} Start closes the card`);
+      await tap(page, '.frame-site[data-site="mine"]');
+      const facts = await frameFacts(page);
+      await shot(page, `slice-frame-start-mine-${label}`);
+      check(
+        mineFits(facts),
+        `${at} mine: the keys and the stage rows sit under the gallery, every row's words inside it (${JSON.stringify(facts.mine)})`,
+      );
+      const piles = facts.mine?.piles ?? [];
+      check(
+        piles.length === 2 &&
+          /^Rock at the face: \d+ of \d+$/.test(piles[0] ?? "") &&
+          /^Rock at the shaft: \d+ of \d+$/.test(piles[1] ?? ""),
+        `${at} mine: drilling and haulage say their piles, hoisting none (${JSON.stringify(piles)})`,
+      );
+      check(
+        facts.small.length === 0,
+        `${at} mine: every key is at least 48px (${JSON.stringify(facts.small)})`,
+      );
+      check(
+        facts.cut.length === 0,
+        `${at} mine: no word in the frame is cut (${facts.cut.join(", ")})`,
+      );
+      check(await noScroll(page), `${at} the mine does not scroll the page`);
+    } finally {
+      await close();
+    }
+  });
 }

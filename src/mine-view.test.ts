@@ -10,9 +10,11 @@ import {
   rowParts,
   stageRows,
 } from "./mine-view";
+import { PILE_HOLDS } from "./mine-piles";
 import { createMountain, type Mountain } from "./mountain";
 import { crewedStart } from "./test-fixtures";
 import { effectiveRates } from "./rates";
+import { toolSpeed } from "./workforce";
 
 /** The mine's views (#660), on a fresh mine. */
 const fresh = <T>(body: () => T): T => withFactors({ [FRESH_OFF]: 0 }, body);
@@ -185,6 +187,28 @@ describe("a stage's row", () => {
       expect(drilling?.workers).toBe(crew);
       expect(drilling?.canPlace).toBe(false);
       expect(drilling?.canFree).toBe(true);
+    });
+  });
+
+  it("each stage says what it moves now, and the pile after it", () => {
+    fresh(() => {
+      const start = createMountain();
+      const mountain = { ...start, piles: { face: 200, shaft: 0 } };
+      const rows = stageRows(mountain);
+      const pick = toolSpeed(effectiveRates(mountain).tierSpeed);
+      expect(mountain.jobs.drilling).toBe(1);
+      expect(rows.map((row) => row.now)).toEqual([String(pick), "0", "0"]);
+      expect(rows[0]?.can).toBe(`${String(pick)}/s`);
+      expect(rows.map((row) => row.pile)).toEqual([
+        { label: "Rock at the face", held: 200, holds: PILE_HOLDS.face },
+        { label: "Rock at the shaft", held: 0, holds: PILE_HOLDS.shaft },
+        undefined,
+      ]);
+      expect(PILE_HOLDS.face).toBe(300);
+      // A full face pile with nobody hauling: drilling stands too.
+      const full = stageRows({ ...mountain, piles: { face: 300, shaft: 0 } });
+      expect(full[0]?.now).toBe("0");
+      expect(full[0]?.band.now).toBe(0);
     });
   });
 

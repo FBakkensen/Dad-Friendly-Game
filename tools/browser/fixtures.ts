@@ -1120,6 +1120,20 @@ const FIRST_EVENING_JOBS = {
 };
 
 /**
+ * A fresh start a minute or so in (#703): one worker, on drilling, the
+ * given horse wagon, nothing ordered, and some rock waiting at the face.
+ * The frame opens on the first evening's card.
+ */
+export function sliceStartSave(now: number): StoredAsIs {
+  return sliceSave(now, {
+    owned: { helper: 1 },
+    jobs: { drilling: 1 },
+    fleet: { horseWagon: 1 },
+    piles: { face: 120 },
+  });
+}
+
+/**
  * The Light Tower's foundation on order, nothing in the pocket: transport
  * takes each stone as it is hoisted, so nothing is affordable and the line
  * runs. Next's "nothing" line (#659).

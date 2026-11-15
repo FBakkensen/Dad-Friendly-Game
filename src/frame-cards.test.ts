@@ -5,7 +5,7 @@ import { createMemoryCloudSave, type CloudSave } from "./cloud-save";
 import { NO_PROJECT, placeOrder } from "./city";
 import { holdFactors } from "./economy/factors";
 import { nightReport } from "./frame-cards";
-import { END_CARD } from "./frame-cards-words";
+import { END_CARD, FIRST_EVENING } from "./frame-cards-words";
 import { mountFrameScreen } from "./frame-screen";
 import { FRESH_OFF } from "./line-switch";
 import { createMemoryStorage } from "./mountain-screen.harness";
@@ -400,9 +400,74 @@ describe("the end card", () => {
   });
 });
 
+describe("the first evening's card", () => {
+  it("greets the first evening once", () => {
+    const { card, press, screen } = mount();
+    expect(card()).toMatchObject({
+      shown: true,
+      kind: "first",
+      title: FIRST_EVENING.title,
+      lines: [...FIRST_EVENING.paragraphs],
+    });
+    expect(card().key?.textContent).toBe("Start");
+    press();
+    expect(card().shown).toBe(false);
+    screen.paint();
+    expect(card().shown).toBe(false);
+  });
+
+  it("greets a fresh save, but not one with an order or a building up", () => {
+    expect(mount({ saved: createMountain(), at: 1_000 }).card().kind).toBe(
+      "first",
+    );
+    expect(
+      mount({ saved: placeOrder(crew(NO_PROJECT)), at: 1_000 }).card().shown,
+    ).toBe(false);
+    const lit = { ...crew(NO_PROJECT), operational: ["lightTower" as const] };
+    expect(mount({ saved: lit, at: 1_000 }).card().shown).toBe(false);
+  });
+
+  it("is not the first evening when the session opens on a night", () => {
+    const { card, press } = mount({ saved: crew(NO_PROJECT), at: 9 * HOUR });
+    expect(card().kind).toBe("report");
+    press();
+    expect(card().shown).toBe(false);
+  });
+
+  it("waits for a signed-in save, and greets a fresh one when it loads", async () => {
+    const { card, progress, load } = await mountSignedIn(
+      createMountain(),
+      9 * HOUR,
+    );
+    expect(card().shown).toBe(false);
+    load();
+    await vi.waitFor(() => {
+      expect(progress.getSnapshot().ready).toBe(true);
+    });
+    expect(card().kind).toBe("first");
+  });
+});
+
 describe("the cards' words", () => {
   it("name no bottleneck, no limit, no best buy, and no hands", () => {
-    const words = [END_CARD.title, ...END_CARD.paragraphs].join(" ");
+    const words = [
+      END_CARD.title,
+      ...END_CARD.paragraphs,
+      FIRST_EVENING.title,
+      ...FIRST_EVENING.paragraphs,
+      FIRST_EVENING.key,
+    ].join(" ");
     expect(words).not.toMatch(/bottleneck|limit|best buy|\bhands?\b|by hand/i);
+  });
+
+  it("say the first evening's words as proposed", () => {
+    expect(FIRST_EVENING).toEqual({
+      title: "The first evening",
+      paragraphs: [
+        "One worker, on drilling. Rock waits at the face until haulage carries it to the shaft, and at the shaft until hoisting lifts it up as stone.",
+        "Move him between the jobs. Every worker you hire moves more.",
+      ],
+      key: "Start",
+    });
   });
 });
