@@ -22,6 +22,7 @@ describe("order strip", () => {
         kind: "project",
         name: "The Light Tower",
         step: "Foundation · not ordered",
+        stepName: "Foundation",
         requires: [
           {
             good: "stones",

@@ -27,6 +27,7 @@ import type { BuyAmount } from "./tiers";
 import { tierBuyMove } from "./economy/actions";
 import type { FrameState } from "./frame-state";
 import { createFrameCards } from "./frame-cards";
+import { createFrameSaveCards } from "./frame-save-cards";
 import { createCitySite } from "./city-site";
 import { createMineSite } from "./mine-site";
 import { createStageSheet, type StageSheet } from "./stage-sheet";
@@ -380,6 +381,18 @@ export function mountFrameScreen({
       stageSheet.close();
     },
   });
+  const saveCards = createFrameSaveCards({
+    progress,
+    now,
+    requestPaint: () => {
+      paint();
+    },
+    onShow: () => {
+      sheet.close();
+      stageSheet.close();
+    },
+    signal,
+  });
   const saveLine = createSaveLine({
     progress,
     auth,
@@ -395,6 +408,7 @@ export function mountFrameScreen({
     sheet.root,
     stageSheet.root,
     cards.root,
+    ...saveCards.roots,
     drawerClip,
     saveLine.line,
   );
@@ -404,6 +418,7 @@ export function mountFrameScreen({
     sheet.paint(mountain);
     stageSheet.paint(mountain);
     cards.paint();
+    saveCards.paint();
     saveLine.render();
   };
   paint();

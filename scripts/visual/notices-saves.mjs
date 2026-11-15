@@ -1,6 +1,8 @@
 /* global console, innerWidth, innerHeight, getComputedStyle, document, localStorage */
 /** Notice and save sections: the welcome fold and craft notice, the other-tab card and the two-saves conflict sheet. */
 import {
+  DEV_BACKUP_KEY,
+  DEV_UID,
   late,
   lastStoneSave,
   newerSave,
@@ -8,6 +10,7 @@ import {
   noticeSave,
   playAwaySave,
   playCraftSave,
+  sliceBusySave,
   toolHomeSave,
 } from "../../tools/browser/fixtures.ts";
 import { openPair, stepTapClock } from "../../tools/browser/harness.ts";
@@ -704,8 +707,47 @@ const OTHER_TAB_SCENARIOS = [
   { name: "other tab", card: "other-tab", focus: "other-tab-play", pair: true },
 ];
 
+/**
+ * The same cards on slice 1's frame (#707), at both phone heights: two saves, an update, a later
+ * build's save, and the other tab. The frame's saves are the slice preview's phone backup.
+ */
+const SLICE = "?slice=1";
+const SLICE_CARD_SCENARIOS = [
+  {
+    name: "slice conflict",
+    card: "conflict",
+    focus: "save-conflict-play",
+    seed: () => sliceBusySave(Date.now()),
+    seedKey: DEV_BACKUP_KEY,
+    search: `${SLICE}&saves=two`,
+  },
+  {
+    name: "slice update",
+    card: "update",
+    focus: "update-reload",
+    seed: () => sliceBusySave(Date.now()),
+    seedKey: DEV_BACKUP_KEY,
+    search: `${SLICE}&update=shown`,
+  },
+  {
+    name: "slice newer save",
+    card: "update",
+    focus: "update-reload",
+    seed: () => ({ uid: DEV_UID, save: newerSave(Date.now()) }),
+    seedKey: DEV_BACKUP_KEY,
+    search: SLICE,
+  },
+  {
+    name: "slice other tab",
+    card: "other-tab",
+    focus: "other-tab-play",
+    pair: true,
+    search: SLICE,
+  },
+];
+
 /** Opens the pair and hands back the second tab, which waits on the first. */
-async function openSecondTab([width, height]) {
+async function openSecondTab([width, height], search = "") {
   const {
     pages: [, second],
     close,
@@ -713,6 +755,7 @@ async function openSecondTab([width, height]) {
     viewport: { width, height, isMobile: true, hasTouch: true },
     seed: { kind: "none" },
     clock: { date: "real", tap: "real" },
+    search,
     onPageError: (error) => {
       failures.push(`other tab card: ${String(error)}`);
     },
@@ -777,9 +820,10 @@ const cardTable = (screens, scenarios) =>
     prefix: ({ size, scenario }) => `${size} ${scenario.name} card:`,
     open: async (viewport, scenario) => {
       const opened = scenario.pair
-        ? await openSecondTab(viewport)
+        ? await openSecondTab(viewport, scenario.search)
         : await openScreen(viewport, scenario.seed(), {
             search: scenario.search ?? "",
+            seedKey: scenario.seedKey,
           });
       await scenario.enter?.(opened.page);
       await cardRisen(opened.page, scenario.card);
@@ -899,12 +943,14 @@ const cardTable = (screens, scenarios) =>
         },
       },
       {
-        when: (at) => at.scenario.name === "newer save",
-        run: async ({ page }) => {
-          const stored = await page.evaluate(
+        when: (at) => at.scenario.name.endsWith("newer save"),
+        run: async ({ page, scenario }) => {
+          const kept = await page.evaluate(
             (key) => JSON.parse(localStorage.getItem(key) ?? "null"),
-            SAVE_KEY,
+            scenario.seedKey ?? SAVE_KEY,
           );
+          // The slice preview's phone backup keeps the save under its uid.
+          const stored = kept?.save ?? kept;
           return [
             [
               stored?.version === 9 && stored.game !== undefined,
@@ -937,3 +983,4 @@ const cardTable = (screens, scenarios) =>
 
 cardTable([PHONE], CARD_SCENARIOS);
 cardTable([PHONE], OTHER_TAB_SCENARIOS);
+cardTable([PHONE, [424, 830]], SLICE_CARD_SCENARIOS);
