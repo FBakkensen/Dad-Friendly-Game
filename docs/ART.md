@@ -132,7 +132,7 @@ The city's pictures are in `src/assets/city/`. No code draws them yet: #662 puts
 | File                              | Size  | Use                                                                                                 |
 | --------------------------------- | ----- | --------------------------------------------------------------------------------------------------- |
 | `src/assets/city/light-tower.png` | 30×91 | The Light Tower, the city's first building: on its plot in the skyline, on its card and its reveal. |
-| `src/assets/city/horse-wagon.png` | 46×22 | A horse wagon, the first vehicle, facing right: on the transport plate and on the road in the city. |
+| `src/assets/city/horse-wagon.png` | 46×24 | A horse wagon, the first vehicle, facing right: on the transport plate and on the road in the city. |
 
 The Light Tower is PixelLab `create_image_pixflux` through MCP: a 48×96 canvas, transparent background, side view, single color black outline, medium shading, highly detailed, then trimmed to its bounding box. It was made the way the hoist was. The board's colours went in as the color image, `mockups/city/art/palette.png`: the 59 opaque colours of `mach-cart.png`, `mach-drill.png`, `mach-borer.png`, `mach-machine.png`, `mach-worker.png`, `mach-hoist.png`, `mach-train.png`, `res-stone.png`, `lamp.png` and `mine-view-topsoil.png`, and five black cells that fill its last row. A rough 48×96 sketch went in as the init image, so the lamp room came out big enough to read.
 
@@ -140,8 +140,8 @@ The Light Tower is PixelLab `create_image_pixflux` through MCP: a 48×96 canvas,
 
 PixelLab drew the tower with a soft dark blue-grey edge, not the black outline it was asked for. `scripts/outline-icon.py` gives it the house outline: every opaque pixel that touches a transparent one, or the picture's edge, takes the machine icons' outline colour, and nothing else moves. The picture as PixelLab drew it is kept as `mockups/city/art/light-tower-drawn.png`.
 
-The horse wagon is PixelLab `create_image_pixflux` through MCP too: a 48×32 canvas, the same style settings and the same color image, and no init image. A sketch as the init image made a blob of the horse on four tries, and the prompt alone drew it best.
+The horse wagon is PixelLab `create_image_pixflux` through MCP too: a 48×32 canvas, the same style settings and the same color image, and no init image. Of its ten tries, five were from the prompt alone, four had a rough sketch as the init image, and one was a polish pass over the best. The sketch made a blob of the horse each time, and the prompt alone drew it best.
 
 - `horse-wagon.png`: seed 705, no init. Prompt: "brown draft horse pulling a sturdy wooden wagon heaped with grey stones, seen from the side, facing right: big spoked wooden wheels with iron rims, leather harness, dark iron fittings, flat 2D side profile". It was the fifth of ten tries.
 
-PixelLab drew a grey strip of ground under the wagon. Its two rows were cleared by hand, and the picture was trimmed to its bounding box: that is `mockups/city/art/horse-wagon-drawn.png`. `scripts/outline-icon.py` then gave it the house outline, as for the tower.
+PixelLab drew a grey strip of ground under the wagon, two rows of one grey (118,130,138). The picture as it came is `mockups/city/art/horse-wagon-pixellab.png`. The strip's grey pixels in those two rows were cleared by hand, which leaves the wheels' lowest arc and the hooves, and the picture was trimmed to its bounding box: that is `mockups/city/art/horse-wagon-drawn.png`. `scripts/outline-icon.py` then gave it the house outline, as for the tower.
