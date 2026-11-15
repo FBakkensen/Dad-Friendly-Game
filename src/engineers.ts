@@ -1,3 +1,4 @@
+import { freshMineOn } from "./line-switch";
 import { oneOffStretch } from "./scale";
 import { factor } from "./economy/factors";
 import type { Mountain } from "./mountain";
@@ -141,13 +142,24 @@ export function nextEngineerName(
 }
 
 /**
+ * A worker can step up: there is one, and in a fresh mine the first borer
+ * has come (slice 1, rule 1's table: engineers come with the first borer,
+ * #653). Today's game lets a worker step up at any time.
+ */
+export function promotionOpen(mountain: Mountain): boolean {
+  return (
+    mountain.owned.helper >= 1 && (!freshMineOn() || mountain.owned.borer >= 1)
+  );
+}
+
+/**
  * A promotion would go through now: a name is free, a worker can step up,
  * and the pocket covers the price. The rule `promote` applies, read only.
  */
 export function canPromote(mountain: Mountain): boolean {
   return (
     nextEngineerName(mountain.engineers) !== undefined &&
-    mountain.owned.helper >= 1 &&
+    promotionOpen(mountain) &&
     mountain.stock.stones >= promoteCost(mountain)
   );
 }
@@ -161,7 +173,7 @@ export function promote(mountain: Mountain): Mountain {
   const name = nextEngineerName(engineers);
   if (
     name === undefined ||
-    mountain.owned.helper < 1 ||
+    !promotionOpen(mountain) ||
     mountain.stock.stones < promoteCost(mountain)
   ) {
     return mountain;

@@ -1,9 +1,10 @@
-import { BOOSTS, type Boost, type BoostId } from "./boosts";
+import { BOOSTS, boostInPlay, type Boost, type BoostId } from "./boosts";
 import type { Mountain } from "./mountain";
 import { owned, tierById } from "./tiers";
 import {
   UPGRADES,
   upgradeCost,
+  upgradeInPlay,
   upgradeLevel,
   upgradeUnlocked,
   type Upgrade,
@@ -45,18 +46,20 @@ export function boostUsed(mountain: Mountain, boost: Boost): boolean {
 /** The row shows: open to this crew, or already bought or seen. */
 export function upgradeShown(mountain: Mountain, upgrade: Upgrade): boolean {
   return (
-    upgradeUnlocked(mountain, upgrade) ||
-    upgradeUsed(mountain, upgrade) ||
-    seen(mountain, upgradeRowId(upgrade))
+    upgradeInPlay(upgrade) &&
+    (upgradeUnlocked(mountain, upgrade) ||
+      upgradeUsed(mountain, upgrade) ||
+      seen(mountain, upgradeRowId(upgrade)))
   );
 }
 
 /** The row shows once the crew owns the boost's first machine. */
 export function boostShown(mountain: Mountain, boost: Boost): boolean {
   return (
-    boostUsed(mountain, boost) ||
-    seen(mountain, boostRowId(boost)) ||
-    owned(mountain, tierById(boost.unlock.tier)) >= boost.unlock.count
+    boostInPlay() &&
+    (boostUsed(mountain, boost) ||
+      seen(mountain, boostRowId(boost)) ||
+      owned(mountain, tierById(boost.unlock.tier)) >= boost.unlock.count)
   );
 }
 

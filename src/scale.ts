@@ -1,5 +1,5 @@
 import { factor } from "./economy/factors";
-import { lineOn } from "./line-switch";
+import { freshMineOn, lineOn } from "./line-switch";
 
 /** Stones in the whole mountain. Near-leaf (it reads only factors and line), so relics and rates can share it without an import cycle. */
 export const MOUNTAIN_STONES = 240_000_000;
@@ -129,6 +129,10 @@ export function shownStones(
  * whole, so the save still reads back.
  */
 export function stonesLeft(mountain: Sized): number {
+  // A fresh mine's level never runs out (slice 1, rule 1, #653).
+  if (freshMineOn()) {
+    return Infinity;
+  }
   const raw =
     shownStones(mountain, MOUNTAIN_STONES) -
     shownStones(mountain, minedOut(mountain));
@@ -137,9 +141,13 @@ export function stonesLeft(mountain: Sized): number {
 
 /**
  * Pocket stones to dig before the next band begins, where the crew's speed
- * changes (#592), or Infinity in the last band.
+ * changes (#592), or Infinity in the last band and in a fresh mine, which
+ * has no depth to cross (#653).
  */
 export function stonesToNextBand(mountain: Sized): number {
+  if (freshMineOn()) {
+    return Infinity;
+  }
   const mined = minedOut(mountain);
   const next = BAND_STARTS.find((start) => start > mined);
   return next === undefined

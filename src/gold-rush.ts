@@ -1,3 +1,4 @@
+import { freshMineOn } from "./line-switch";
 import type { Mountain } from "./mountain";
 import { add, stonesPrice, take } from "./stock";
 
@@ -30,8 +31,9 @@ export function holdForRush(
     mined,
     Math.floor((RUSH_MULTIPLIER - 1) * crewPerSecond * (RUSH_MS / 1000) + 1e-9),
   );
-  // A mountain dug out has no vein left to bring the rush.
-  if (bank <= 0 || mountain.remaining === 0) {
+  // A mountain dug out has no vein left to bring the rush, and a fresh mine
+  // has no golden veins at all (slice 1, What goes, #653).
+  if (bank <= 0 || mountain.remaining === 0 || freshMineOn()) {
     return mountain;
   }
   // The bank comes out of the stones this absence just paid.

@@ -26,7 +26,7 @@ import {
 } from "./workshop";
 import { callTo } from "./expeditions";
 import { handsSpeed, lineOf, lineRating } from "./line";
-import { lineOn } from "./line-switch";
+import { freshMineOn, lineOn } from "./line-switch";
 import { tapWithPick } from "./lost-tools";
 import type { Mountain } from "./mountain";
 import {
@@ -269,7 +269,8 @@ function readRates(mountain: Mountain, now?: number, trouble?: Trouble): Rates {
   // while away, so the crew's speed never counts them (#525).
   const timer = liveCrewTimer(mountain, now);
   return {
-    tapYield: tapWithPick(bareTap, mountain) * sharper,
+    // Nothing is mined by a tap in a fresh mine (slice 1, What goes, #653).
+    tapYield: freshMineOn() ? 0 : tapWithPick(bareTap, mountain) * sharper,
     tierSpeed,
     running,
     helpersShort: Math.max(
