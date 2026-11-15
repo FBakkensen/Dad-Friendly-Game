@@ -26,6 +26,7 @@ import type { ProgressStore } from "./progress-store";
 import type { BuyAmount } from "./tiers";
 import { tierBuyMove } from "./economy/actions";
 import type { FrameState } from "./frame-state";
+import { createFrameCards } from "./frame-cards";
 import { createWorkforceSheet, type WorkforceSheet } from "./workforce-sheet";
 import "./frame.css";
 
@@ -34,8 +35,9 @@ import "./frame.css";
  * today's board: the order strip, the stockpile with the count of workers and
  * the hire key, the site's ground, Next, the site bar and the save line. A
  * dev build mounts it for `?slice=1` (src/main.ts). It paints the pure views
- * (frame-view, next-view, workforce-view) and changes the game only through
- * `progress.dispatch`.
+ * (frame-view, next-view, workforce-view), shows its cards over itself
+ * (frame-cards: the shift report, the first evening, the end card), and
+ * changes the game only through `progress.dispatch`.
  */
 
 const SITE_ICONS: Readonly<Record<SiteId, string>> = {
@@ -353,6 +355,7 @@ export function mountFrameScreen({
   };
   const frame = buildFrame(state);
   const sheet = createWorkforceSheet(state);
+  const cards = createFrameCards({ progress, onShow: sheet.close });
   const saveLine = createSaveLine({
     progress,
     auth,
@@ -363,11 +366,18 @@ export function mountFrameScreen({
   const drawerClip = el("div", "board-drawer-clip");
   drawerClip.append(saveLine.drawer);
   root.classList.add("frame-app");
-  root.replaceChildren(frame.root, sheet.root, drawerClip, saveLine.line);
+  root.replaceChildren(
+    frame.root,
+    sheet.root,
+    cards.root,
+    drawerClip,
+    saveLine.line,
+  );
   paint = () => {
     const mountain = progress.getSnapshot().mountain;
     frame.paint(mountain);
     sheet.paint(mountain);
+    cards.paint();
     saveLine.render();
   };
   paint();

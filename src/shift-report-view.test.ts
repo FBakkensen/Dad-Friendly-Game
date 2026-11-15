@@ -59,6 +59,7 @@ describe("the shift report (#663)", () => {
   it("tells a night the clock stopped: the bar, what came in, what was delivered, and why", () => {
     const report = shiftReport(away(9 * HOUR, 34_560));
     expect(report).toEqual({
+      title: "Shift report",
       head: "Unattended 9 h. Night shift output: 30%.",
       // The prototype's `dur`: an hour is under 90 min, so "60 min".
       bar: { produced: 0.89, left: "production 8 h", right: "idle 60 min" },
@@ -192,6 +193,7 @@ describe("the shift report (#663)", () => {
         throw new Error("a fresh night has its facts");
       }
       expect(shiftReport({ ...report, night: report.night })).toEqual({
+        title: "Shift report",
         head: "Unattended 12 h. Night shift output 30%, and 45% from the Light Tower's roof.",
         bar: { produced: 0.67, left: "production 8 h", right: "idle 4 h" },
         lines: [

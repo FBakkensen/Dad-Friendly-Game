@@ -1,4 +1,4 @@
-import { buildingById, type Building } from "./city";
+import { ROOF, buildingById, type Building } from "./city";
 import { formatCompact } from "./format";
 import { STEP_NAMES } from "./frame-view";
 import type { AwayReport, NightReport } from "./mountain";
@@ -24,6 +24,7 @@ export type ShiftBar = {
 };
 
 export type ShiftReport = {
+  readonly title: "Shift report";
   /** "Unattended 9 h. Night shift output: 30%." */
   readonly head: string;
   readonly bar: ShiftBar;
@@ -43,8 +44,6 @@ const GOOD_WORDS: Readonly<Record<GoodId, string>> = {
   heartstone: "heartstone",
 };
 
-const ROOF = 2;
-
 /** The prototype's `dur`: "45 s" under 90 s, "12 min" under 90 min, then "9 h" or "1 h 30 min". */
 function duration(ms: number): string {
   const seconds = Math.round(ms / 1000);
@@ -60,7 +59,8 @@ function duration(ms: number): string {
   return `${String(hours)} h${rest === 0 ? "" : ` ${String(rest)} min`}`;
 }
 
-const percent = (share: number): string =>
+/** A share as the cards say it: "30%". */
+export const percent = (share: number): string =>
   `${String(Math.round(share * 100))}%`;
 
 /** The building whose roof went on and lit the night, if one did. */
@@ -135,6 +135,7 @@ function lines(report: NightAwayReport): readonly string[] {
 /** The shift report of a fresh night. */
 export function shiftReport(report: NightAwayReport): ShiftReport {
   return {
+    title: "Shift report",
     head: head(report),
     bar: bar(report),
     lines: lines(report),
