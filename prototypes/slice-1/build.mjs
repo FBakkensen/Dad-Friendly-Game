@@ -1,3 +1,4 @@
+/* global console */
 // Builds the throwaway slice 1 prototype into one self-contained page (index.html).
 // It inlines the game's own sprites and fonts, so the page can be hosted anywhere.
 import { readFileSync, writeFileSync } from "node:fs";
@@ -7,15 +8,32 @@ import { fileURLToPath } from "node:url";
 const here = dirname(fileURLToPath(import.meta.url));
 const assets = join(here, "../../src/assets");
 const sprites = [
-  "miner-18f", "cage", "tub-full", "steam-4f", "drill-work-4f", "dust-burst-4f",
-  "mach-drill", "mach-train", "mach-hoist", "mach-cart", "res-stone", "res-clay",
-  "res-iron", "res-pick", "icon-workshop",
+  "miner-18f",
+  "cage",
+  "tub-full",
+  "steam-4f",
+  "drill-work-4f",
+  "dust-burst-4f",
+  "mach-drill",
+  "mach-train",
+  "mach-hoist",
+  "mach-cart",
+  "res-stone",
+  "res-clay",
+  "res-iron",
+  "res-pick",
+  "icon-workshop",
 ];
-const uri = (file, mime) => `data:${mime};base64,${readFileSync(file).toString("base64")}`;
+const uri = (file, mime) =>
+  `data:${mime};base64,${readFileSync(file).toString("base64")}`;
 const img = Object.fromEntries(
-  sprites.map((name) => [name, uri(join(assets, "board", `${name}.png`), "image/png")]),
+  sprites.map((name) => [
+    name,
+    uri(join(assets, "board", `${name}.png`), "image/png"),
+  ]),
 );
-const font = (name) => uri(join(assets, "fonts", `${name}.woff2`), "font/woff2");
+const font = (name) =>
+  uri(join(assets, "fonts", `${name}.woff2`), "font/woff2");
 const page = readFileSync(join(here, "proto.src.html"), "utf8")
   .replace("__IMG__", JSON.stringify(img))
   .replace("__BARLOW600__", font("barlow-condensed-latin-600-normal"))

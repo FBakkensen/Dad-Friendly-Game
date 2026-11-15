@@ -9,5 +9,8 @@ package-lock.json
 # Reference mockup for the control board spec, kept as built
 mockups/control-board/
 
+# The slice 1 prototype's one page, kept as Flemming played it
+prototypes/slice-1/proto.src.html
+
 # The pacing ledger is written by npm run lab:ledger, byte for byte (#554)
 docs/pacing-ledger.md
