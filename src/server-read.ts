@@ -78,9 +78,7 @@ function readServer(ctx: StoreContext): Promise<void> {
       gaveUp(ctx, loaded);
       return;
     }
-    if (
-      !readAnswered(ctx, loaded, leftAtHold - stonesLeft(ctx.session.mountain))
-    ) {
+    if (!readAnswered(ctx, loaded, tappedSince(ctx, leftAtHold))) {
       return;
     }
     ctx.resumeRetry.backoffMs = LISTEN_BACKOFF_START_MS;
@@ -89,6 +87,15 @@ function readServer(ctx: StoreContext): Promise<void> {
       persistCloudSoon(ctx, false, true);
     }
   });
+}
+
+/**
+ * Stones tapped while the read was held. A fresh mine has no depth, so its
+ * stones left are Infinity and nothing is tapped (#664).
+ */
+function tappedSince(ctx: StoreContext, leftAtHold: number): number {
+  const tapped = leftAtHold - stonesLeft(ctx.session.mountain);
+  return Number.isFinite(tapped) ? tapped : 0;
 }
 
 /**

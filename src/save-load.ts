@@ -13,7 +13,7 @@ import {
 } from "./local-saves";
 import {
   createMountain,
-  minedOut,
+  rockDugInAll,
   runStartedAt,
   type Mountain,
 } from "./mountain";
@@ -41,6 +41,8 @@ import {
   type StoreContext,
 } from "./store-context";
 import { emit, runStep } from "./store-session";
+import { TIER_IDS } from "./tiers";
+import { VEHICLE_IDS } from "./transport";
 
 type Found = Extract<CloudLoadResult, { kind: "found" }>;
 
@@ -58,20 +60,22 @@ export function hasLocalProgress(ctx: StoreContext): boolean {
   return lastSeen !== undefined || anyProgress(mountain, !ctx.blankReset);
 }
 
+/**
+ * Anything dug, bought or built since a new mountain. A fresh mine starts
+ * with a worker and a horse wagon (#703), so a count is progress only past
+ * the start's (#664).
+ */
 function anyProgress(mountain: Mountain, countStamp: boolean): boolean {
+  const start = createMountain();
   return (
-    minedOut(mountain) > 0 ||
+    rockDugInAll(mountain) > 0 ||
     (countStamp && runStartedAt(mountain) > 0) ||
-    [
-      mountain.stock.stones,
-      mountain.owned.helper,
-      mountain.owned.cart,
-      mountain.owned.drill,
-      mountain.owned.borer,
-      mountain.owned.machine,
-      mountain.owned.kid,
-      mountain.legacy,
-    ].some((count) => count > 0)
+    mountain.stock.stones > 0 ||
+    mountain.legacy > 0 ||
+    mountain.operational.length > 0 ||
+    mountain.project.kind !== "unordered" ||
+    TIER_IDS.some((id) => mountain.owned[id] > start.owned[id]) ||
+    VEHICLE_IDS.some((id) => mountain.fleet[id] > start.fleet[id])
   );
 }
 
