@@ -436,7 +436,7 @@ function simulate(sec, apply) {
   S.charge = 0;
   for (let i = 0; i < n; i++) {
     const t = i * dt, r = tick(dt, !worksOpen() && t >= 8 * 3600 ? 0 : awayPace(), awayPace(), log); // no stockyard yet: a night shift runs eight hours
-    if (r.worked) log.worked += dt; else if (log.stop == null) { log.stop = t; log.full = r.full; } // full is said only when the tick that made nothing began with the stone stockpile full
+    if (r.worked) log.worked += dt; else { if (log.stop == null) log.stop = t; log.full = r.full; } // full is said only when the last tick that made nothing began with the stone stockpile full
     if (worksOpen()) { const cap = caps(); for (const g of ["stones", "bricks", "cut"]) if (log.fullAt[g] == null && S[g] >= cap[g] - 0.5) log.fullAt[g] = t + dt; }
   }
   S.charge = Math.max(0, ch - sec);
