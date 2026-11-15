@@ -44,6 +44,7 @@ describe("the game map (#558)", () => {
       project: "project",
       jobs: "jobs",
       piles: "piles",
+      rockDug: "run",
     } as const satisfies Record<keyof Mountain, string>;
     const fresh = createMountain();
     const full: Mountain = {
@@ -97,6 +98,7 @@ describe("the game map (#558)", () => {
       project: { kind: "unordered" },
       jobs: { drilling: 2, haulage: 1, hoisting: 0, driving: 3, building: 2 },
       piles: { face: 40, shaft: 9 },
+      rockDug: 12_345,
     };
     // Part 1 has one building, so an operational one and a project in hand
     // are two mountains (#654).

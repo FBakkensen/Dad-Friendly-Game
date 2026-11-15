@@ -146,7 +146,9 @@ page is the map, plus the rules that keep it that way.
    keeps that mountain, shows the save error, retries once, and records the
    server error on `save.error`. A snapshot is adopted only when it is strictly
    ahead (#219, #222). Ahead means a later run (`startedAt`, missing counts as 0),
-   else more stones mined, else a newer `lastSeen`. A tie between two real copies
+   else more rock dug in all (`rockDugInAll`: stones mined from the mountain plus
+   `rockDug`, the rock drilling dug in a fresh mine, saved as `run.rock`), else a
+   newer `lastSeen`. A tie between two real copies
    keeps the phone and does not upload. A phone that has never saved is not a
    copy, so the cloud document is kept. The phone backup is the full save, written when the mountain
    changes and synchronously on hide and pagehide, and it is never deleted.

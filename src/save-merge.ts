@@ -1,4 +1,4 @@
-import { minedOut, runStartedAt, type Mountain } from "./mountain";
+import { rockDugInAll, runStartedAt, type Mountain } from "./mountain";
 import { serializeSave } from "./persist";
 import { compareSaveProgress, type SaveMoment } from "./save-progress";
 import { upgradeLevel, UPGRADES } from "./upgrades";
@@ -168,7 +168,7 @@ function facts(mountain: Mountain): Facts {
     engineers[engineer.name] = engineer.trips;
   }
   return {
-    mined: minedOut(mountain),
+    mined: rockDugInAll(mountain),
     upgrades,
     crafts,
     recipes: [...mountain.recipes],

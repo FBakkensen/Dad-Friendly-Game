@@ -97,7 +97,7 @@ const MARK_IDS = {
 type MarkKind = keyof typeof MARK_IDS;
 const MARK_KINDS = Object.keys(MARK_IDS) as readonly MarkKind[];
 
-type RunKey = "generation" | "stretch" | "dug" | "rushBank";
+type RunKey = "generation" | "stretch" | "dug" | "rushBank" | "rock";
 
 const GAME_KEYS = [
   "owned",
@@ -241,6 +241,7 @@ function savedRun(mountain: Mountain): NonNullable<SaveGame["run"]> {
     ...only("stretch", mountain.stretch, mountain.stretch !== 1),
     ...only("dug", dug, dug !== 0),
     ...only("rushBank", mountain.rushBank, mountain.rushBank !== 0),
+    ...only("rock", mountain.rockDug, mountain.rockDug !== 0),
   };
 }
 
@@ -441,7 +442,10 @@ function readMarks(value: unknown): Part<Marks> {
   };
 }
 
-type Run = Pick<Mountain, "legacy" | "stretch" | "remaining" | "rushBank">;
+type Run = Pick<
+  Mountain,
+  "legacy" | "stretch" | "remaining" | "rushBank" | "rockDug"
+>;
 
 function readStretch(value: unknown): Part<number> {
   if (value === undefined) {
@@ -455,7 +459,13 @@ function readStretch(value: unknown): Part<number> {
 
 function readRun(value: unknown): Part<Run> {
   if (value === undefined) {
-    return { legacy: 0, stretch: 1, remaining: MOUNTAIN_STONES, rushBank: 0 };
+    return {
+      legacy: 0,
+      stretch: 1,
+      remaining: MOUNTAIN_STONES,
+      rushBank: 0,
+      rockDug: 0,
+    };
   }
   if (!isRecord(value)) {
     return "bad";
@@ -464,7 +474,7 @@ function readRun(value: unknown): Part<Run> {
     Object.fromEntries(
       Object.entries(value).filter(([key]) => key !== "stretch"),
     ),
-    ["generation", "dug", "rushBank"] as const,
+    ["generation", "dug", "rushBank", "rock"] as const,
     (id) =>
       id === "generation"
         ? MAX_LEGACY
@@ -477,12 +487,16 @@ function readRun(value: unknown): Part<Run> {
   if (failed !== undefined) {
     return failed;
   }
-  const run = counts as Record<"generation" | "dug" | "rushBank", number>;
+  const run = counts as Record<
+    "generation" | "dug" | "rushBank" | "rock",
+    number
+  >;
   return {
     legacy: run.generation,
     stretch: stretch as number,
     remaining: MOUNTAIN_STONES - run.dug,
     rushBank: run.rushBank,
+    rockDug: run.rock,
   };
 }
 
@@ -817,6 +831,7 @@ export function shippedFacts(): ShippedFacts {
       stretch: MAX_STRETCH,
       dug: MOUNTAIN_STONES,
       rushBank: Number.MAX_SAFE_INTEGER,
+      rock: Number.MAX_SAFE_INTEGER,
     },
     engineerNames: ENGINEER_NAMES,
     posts: [...ENGINEER_POSTS, "tunnel"],

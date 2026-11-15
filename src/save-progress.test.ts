@@ -43,3 +43,24 @@ describe("compareSaveProgress", () => {
     ).toBe(0);
   });
 });
+
+describe("which copy of a fresh mine is ahead (#664, call 13)", () => {
+  const at = (rockDug: number, lastSeen: number) => ({
+    mountain: { ...createMountain(), rockDug },
+    lastSeen,
+  });
+
+  it("the copy that dug more rock in all is ahead, whatever its clock", () => {
+    expect(compareSaveProgress(at(5_000, 1), at(4_000, 9))).toBeGreaterThan(0);
+    expect(compareSaveProgress(at(4_000, 9), at(5_000, 1))).toBeLessThan(0);
+  });
+
+  it("the newer clock breaks a tie, and a later run still comes first", () => {
+    expect(compareSaveProgress(at(5_000, 9), at(5_000, 1))).toBeGreaterThan(0);
+    const later = {
+      ...at(10, 1),
+      mountain: { ...at(10, 1).mountain, startedAt: 2 },
+    };
+    expect(compareSaveProgress(later, at(9_000, 9))).toBeGreaterThan(0);
+  });
+});

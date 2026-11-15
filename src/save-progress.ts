@@ -1,4 +1,4 @@
-import { minedOut, runStartedAt, type Mountain } from "./mountain";
+import { rockDugInAll, runStartedAt, type Mountain } from "./mountain";
 
 /**
  * One moment of a save, on the phone or in the cloud.
@@ -26,7 +26,7 @@ export function compareSaveProgress(
   if (run !== 0) {
     return run;
   }
-  const mined = minedOut(left.mountain) - minedOut(right.mountain);
+  const mined = rockDugInAll(left.mountain) - rockDugInAll(right.mountain);
   if (mined !== 0) {
     return mined;
   }
