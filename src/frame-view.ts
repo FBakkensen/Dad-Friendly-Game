@@ -20,8 +20,8 @@ import { freeWorkers } from "./workforce";
  * the hire key. Pure: it reads the mountain and never writes it.
  */
 
-/** The step names, in order (spec, rule 6). */
-const STEP_NAMES: Readonly<Record<StepIndex, string>> = {
+/** The step names, in order (spec, rule 6). The shift report says them too. */
+export const STEP_NAMES: Readonly<Record<StepIndex, string>> = {
   0: "Foundation",
   1: "Structure",
   2: "Roof",
