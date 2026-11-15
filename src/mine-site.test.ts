@@ -154,7 +154,7 @@ describe("the mine", () => {
   });
 
   it("says a machine stands, with both numbers, when its workers move more with tools", () => {
-    holdFactors({ [FRESH_OFF]: 0, "output.cart": 0.1 });
+    holdFactors({ [FRESH_OFF]: 0, "output.cart": 0.03 });
     const { progress, text } = mount((m) => ({
       ...m,
       owned: { ...m.owned, cart: 1 },
@@ -169,7 +169,7 @@ describe("the mine", () => {
   });
 
   it("keeps the approved words, /s included, when the stand line takes two lines", () => {
-    holdFactors({ [FRESH_OFF]: 0, "output.cart": 0.1 });
+    holdFactors({ [FRESH_OFF]: 0, "output.cart": 0.03 });
     const proto = HTMLElement.prototype;
     const wide = Object.getOwnPropertyDescriptor(proto, "scrollWidth");
     const narrow = Object.getOwnPropertyDescriptor(proto, "clientWidth");

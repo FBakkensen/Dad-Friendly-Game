@@ -31,6 +31,8 @@ export type SittingEvent = {
   readonly narrow?: Stage;
   /** With the line on (#534): machines bought that added nothing to the line. */
   readonly zeroGainBuys?: number;
+  /** In a fresh mine (#655): taps that hired and moved workers. */
+  readonly workerTaps?: number;
 };
 
 type Observation = {
@@ -44,6 +46,8 @@ type Observation = {
   readonly narrow?: () => Stage | undefined;
   /** Machines bought since the last observation that added nothing to the line. */
   readonly zeroGainBuys?: number | undefined;
+  /** In a fresh mine: taps that hired and moved workers since the last observation. */
+  readonly workerTaps?: number | undefined;
 };
 
 type Current = {
@@ -54,6 +58,8 @@ type Current = {
   buys: number;
   /** Undefined while the line is off. */
   zeroGainBuys: number | undefined;
+  /** Undefined outside a fresh mine. */
+  workerTaps: number | undefined;
   owned: number;
   tiers: readonly number[];
   /** The tiers bought this sitting, by their place in `tiers`. */
@@ -86,6 +92,9 @@ function played(current: Current, observation: Observation): void {
   if (observation.zeroGainBuys !== undefined) {
     current.zeroGainBuys =
       (current.zeroGainBuys ?? 0) + observation.zeroGainBuys;
+  }
+  if (observation.workerTaps !== undefined) {
+    current.workerTaps = (current.workerTaps ?? 0) + observation.workerTaps;
   }
   current.otherBuys += Math.max(0, rise - tierRise);
   current.owned = observation.owned;
@@ -120,6 +129,9 @@ export function createSittingLog(): SittingLog {
       ...(closing.zeroGainBuys === undefined
         ? {}
         : { zeroGainBuys: closing.zeroGainBuys }),
+      ...(closing.workerTaps === undefined
+        ? {}
+        : { workerTaps: closing.workerTaps }),
     };
     return [event];
   };
@@ -142,6 +154,7 @@ export function createSittingLog(): SittingLog {
           narrow: observation.narrow?.(),
           buys: 0,
           zeroGainBuys: undefined,
+          workerTaps: undefined,
           owned: observation.owned,
           tiers: observation.tiers,
           tiersBought: new Set(),

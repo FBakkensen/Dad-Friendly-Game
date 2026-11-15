@@ -14,6 +14,7 @@
     "tools/journeys/*.journey.ts",
     "src/lab/measures/*.ts",
     "src/lab/policies/*.ts",
+    "src/lab/fresh-policies/*.ts",
     "src/lab/fixtures/**/*.ts",
     "mockups/preview.html",
     "mockups/line/line.ts",

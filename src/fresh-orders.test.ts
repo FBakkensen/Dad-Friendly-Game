@@ -34,7 +34,7 @@ function site(step: 0 | 1 | 2, stones = 0): Project {
 
 /**
  * A fresh mine with `perStage` workers on each stage, a driver on each
- * wagon, two builders a wagon (40 built in a second, past the wagon's 25,
+ * wagon, two builders a wagon (16 built in a second, past the wagon's 9,
  * so the site never holds transport back), and this pocket and project.
  */
 function mine(
@@ -65,17 +65,17 @@ function mine(
 describe("live play: he orders, transport delivers (rule 7)", () => {
   it("digs, then carries from the pocket to the order, each second", () => {
     fresh(() => {
-      // Three on each stage dig 9 a second; one wagon carries 25 a second.
-      const start = mine(3, 1_000, 1, site(0));
+      // Two on each stage dig 6 a second; one wagon carries 9 a second.
+      const start = mine(2, 1_000, 1, site(0));
       const minute = accrue({
         mountain: start,
         from: 0,
         to: 60_000,
         live: true,
       });
-      expect(minute.mined).toBe(540);
-      expect(minute.mountain.project).toEqual(site(0, 1_500));
-      expect(minute.mountain.stock.stones).toBe(1_000 + 540 - 1_500);
+      expect(minute.mined).toBe(360);
+      expect(minute.mountain.project).toEqual(site(0, 540));
+      expect(minute.mountain.stock.stones).toBe(1_000 + 360 - 540);
     });
   });
 
@@ -122,28 +122,28 @@ describe("live play: he orders, transport delivers (rule 7)", () => {
         state = tick.mountain;
         settled = tick.settledAt;
       }
-      expect(state.project).toEqual(site(0, 25 * 59));
+      expect(state.project).toEqual(site(0, 9 * 59));
     });
   });
 
   it("raises the whole building from one order, step after step", () => {
     fresh(() => {
-      const start = mine(3, 8_000_000, 400, { kind: "unordered" });
+      const start = mine(3, 2_000_000, 400, { kind: "unordered" });
       const ordered = applyMove(start, { kind: "placeOrder" }, 0, NO_TROUBLE);
       if (ordered.kind !== "applied") {
         throw new Error("order refused");
       }
-      // 10,000 a second: the 7.65M stone building takes 765 s.
+      // 3,600 a second: the 1.275M stone building takes 355 s.
       const done = accrue({
         mountain: ordered.mountain,
         from: 0,
-        to: 800_000,
+        to: 400_000,
         live: true,
       });
       expect(done.mountain.operational).toEqual(["lightTower"]);
       expect(done.mountain.project).toEqual({ kind: "unordered" });
       expect(done.mountain.stock.stones).toBe(
-        8_000_000 + done.mined - 7_650_000,
+        2_000_000 + done.mined - 1_275_000,
       );
     });
   });
@@ -152,9 +152,8 @@ describe("live play: he orders, transport delivers (rule 7)", () => {
 describe("unattended before the stockyard (rule 4)", () => {
   it("stops the mine at eight hours, and transport goes on from the pocket", () => {
     fresh(() => {
-      // 40 on each stage with tools (122 workers, with their marks) dig 960
-      // a second, 288 at night; two
-      // wagons carry 15 a second at night.
+      // 40 on each stage with tools (126 workers, with their marks) dig 960
+      // a second, 288 at night; two wagons carry 5.4 a second at night.
       const start = mine(40, 0, 2, site(2));
       expect(effectiveRates(start).crewPerSecond).toBe(960);
       const night = accrueAway({
@@ -163,9 +162,9 @@ describe("unattended before the stockyard (rule 4)", () => {
         now: 12 * HOUR,
       });
       expect(night.mined).toBe(288 * 8 * 3600);
-      // Transport carries 15 a second for all twelve hours.
-      expect(night.mountain.project).toEqual(site(2, 15 * 12 * 3600));
-      expect(night.mountain.stock.stones).toBe(288 * 8 * 3600 - 15 * 12 * 3600);
+      // Transport carries 5.4 a second for all twelve hours.
+      expect(night.mountain.project).toEqual(site(2, 233_280));
+      expect(night.mountain.stock.stones).toBe(288 * 8 * 3600 - 233_280);
       expect(night.mountain.remaining).toBe(MOUNTAIN_STONES);
     });
   });
@@ -175,7 +174,7 @@ describe("unattended before the stockyard (rule 4)", () => {
       const start = mine(40, 0, 2, site(2));
       const night = accrueAway({ mountain: start, lastSeen: 0, now: 2 * HOUR });
       expect(night.mined).toBe(288 * 2 * 3600);
-      expect(night.mountain.project).toEqual(site(2, 15 * 2 * 3600));
+      expect(night.mountain.project).toEqual(site(2, 38_880));
     });
   });
 
@@ -190,14 +189,14 @@ describe("unattended before the stockyard (rule 4)", () => {
 
   it("lights the rest of the night from the moment the roof goes on", () => {
     fresh(() => {
-      // 1,000 stone short of the roof; one wagon carries 7.5 a second at
-      // night, so the roof goes on 134 s in, from the pocket.
-      const start = mine(40, 1_000, 1, site(2, 5_999_000));
+      // 1,000 stone short of the roof; one wagon carries 2.7 a second at
+      // night, so the roof goes on 371 s in, from the pocket.
+      const start = mine(40, 1_000, 1, site(2, 999_000));
       const night = accrueAway({ mountain: start, lastSeen: 0, now: 4 * HOUR });
       expect(night.mountain.operational).toEqual(["lightTower"]);
-      const lit = 4 * 3600 - 134;
-      // 134 s at 288 a second (30%), the rest at 432 (45%).
-      expect(night.mined).toBe(134 * 288 + lit * 432);
+      const lit = 4 * 3600 - 371;
+      // 371 s at 288 a second (30%), the rest at 432 (45%).
+      expect(night.mined).toBe(371 * 288 + lit * 432);
     });
   });
 });
@@ -218,7 +217,7 @@ describe("the builders at night (rule 7.12, #690)", () => {
           onSite: { ...EMPTY_STOCK, stones: 500 },
         },
       });
-      // One builder: 6 a second at night, the site full from early on.
+      // One builder: 2.4 a second at night, the site full from early on.
       const one = { ...start, jobs: { ...start.jobs, building: 1 } };
       const built = accrueAway({ mountain: one, lastSeen: 0, now: 2 * HOUR });
       expect(built.mountain.project).toEqual({
@@ -226,7 +225,7 @@ describe("the builders at night (rule 7.12, #690)", () => {
         site: {
           building: "lightTower",
           step: 0,
-          arrived: { ...EMPTY_STOCK, stones: 6 * 7_200 + 500 },
+          arrived: { ...EMPTY_STOCK, stones: 17_280 + 500 },
           onSite: { ...EMPTY_STOCK, stones: 500 },
         },
       });
@@ -236,20 +235,20 @@ describe("the builders at night (rule 7.12, #690)", () => {
   it("build in a roof on hold, and light the rest of the night from then", () => {
     fresh(() => {
       // The roof all arrived, 300 on the site and on hold; two builders
-      // build 12 a second at night, so it goes on 25 s in.
+      // build 4.8 a second at night, so it goes on 63 s in.
       const start = mine(40, 0, 1, {
         kind: "onHold",
         site: {
           building: "lightTower",
           step: 2,
-          arrived: { ...EMPTY_STOCK, stones: 6_000_000 },
+          arrived: { ...EMPTY_STOCK, stones: 1_000_000 },
           onSite: { ...EMPTY_STOCK, stones: 300 },
         },
       });
       const held = { ...start, jobs: { ...start.jobs, building: 2 } };
       const night = accrueAway({ mountain: held, lastSeen: 0, now: HOUR });
       expect(night.mountain.operational).toEqual(["lightTower"]);
-      expect(night.mined).toBe(25 * 288 + (3_600 - 25) * 432);
+      expect(night.mined).toBe(63 * 288 + (3_600 - 63) * 432);
     });
   });
 });

@@ -92,6 +92,27 @@ export type DecideInput = {
 
 export type PolicyKind = "casual" | "extreme" | "optimizer";
 
+/**
+ * When a fresh mine's dad moves workers (slice 1, Lab, #655): `once` sets
+ * them when he hires, buys or orders and leaves them; `idle` also moves them
+ * whenever a job has nothing to do. The gap between the two is what the
+ * chore would pay (risk 11).
+ */
+export type WorkerMoves = "once" | "idle";
+
+/**
+ * How a dad plays a fresh mine (slice 1, #655). Only part 1's player types
+ * (`src/lab/fresh-policies`) carry it, and a run plays them only with the
+ * fresh mine on.
+ */
+export type FreshHabits = {
+  readonly moves: WorkerMoves;
+  /** `on-value` puts the order on hold while a buy pays back sooner; `never` never does. */
+  readonly hold: "on-value" | "never";
+  /** Weighs the upgrades beside the line's buys. */
+  readonly upgrades: boolean;
+};
+
 export type Policy = {
   readonly id: string;
   readonly label: string;
@@ -99,9 +120,13 @@ export type Policy = {
   readonly params: PolicyParams;
   readonly schedule: Schedule;
   readonly decide: (input: DecideInput) => Action | undefined;
+  /** Part 1's habits: present only on a fresh mine's player type. */
+  readonly fresh?: FreshHabits;
 };
 
 const KINDS: readonly PolicyKind[] = ["casual", "extreme", "optimizer"];
+const MOVES: readonly WorkerMoves[] = ["once", "idle"];
+const HOLDS: readonly FreshHabits["hold"][] = ["on-value", "never"];
 const HABITS: readonly Habit[] = ["never", "asap", "on-value"];
 const TUNNELS: readonly TunnelPlan[] = [
   "old-shaft",
@@ -216,7 +241,19 @@ export function isPolicy(value: unknown): value is Policy {
   if (!isParams(value["params"]) || !isSchedule(value["schedule"])) {
     return false;
   }
+  if (value["fresh"] !== undefined && !isFresh(value["fresh"])) {
+    return false;
+  }
   return typeof value["decide"] === "function";
+}
+
+function isFresh(value: unknown): value is FreshHabits {
+  return (
+    isRecord(value) &&
+    isOneOf(value["moves"], MOVES) &&
+    isOneOf(value["hold"], HOLDS) &&
+    typeof value["upgrades"] === "boolean"
+  );
 }
 
 function isParams(value: unknown): value is PolicyParams {

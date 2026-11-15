@@ -45,7 +45,7 @@ type Requirement = {
   readonly name: string;
   readonly built: number;
   readonly requires: number;
-  /** "Stone 1,200 of 150K". */
+  /** "Stone 1,200 of 250K". */
   readonly line: string;
 };
 

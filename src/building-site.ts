@@ -11,11 +11,14 @@ import { GOOD_IDS, addedStock, type GoodId, type Stock } from "./stock";
  * module is what goes.
  */
 
-/** What a building site holds, in goods: what a horse wagon carries in twenty seconds. */
+/**
+ * What a building site holds, in goods. The lab (#655) left it at 500: no
+ * measure moved with it, and lowering a cap a save may hold needs a version.
+ */
 export const SITE_HOLDS = 500;
 
-/** Goods a second one builder builds in: a little less than a horse wagon carries. */
-const BUILDER_BUILDS = 20;
+/** Goods a second one builder builds in: a little less than a horse wagon carries (#655). */
+const BUILDER_BUILDS = 8;
 
 /** Goods a second the builders build in, at full output. Nothing lifts a builder. */
 export function buildRate(mountain: Pick<Mountain, "jobs">): number {

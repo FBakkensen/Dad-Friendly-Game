@@ -81,12 +81,12 @@ describe("frame screen", () => {
   it("hires at the amount key's amount", () => {
     const { progress, button } = mount(withStones(10_000));
     button(".frame-hire").click();
-    expect(progress.getSnapshot().mountain.owned.helper).toBe(13);
+    expect(progress.getSnapshot().mountain.owned.helper).toBe(22);
     button(".frame-workers").click();
     button(".frame-amount").click();
     expect(button(".frame-hire").textContent).toContain("+10 Workers");
     button(".frame-hire").click();
-    expect(progress.getSnapshot().mountain.owned.helper).toBe(23);
+    expect(progress.getSnapshot().mountain.owned.helper).toBe(32);
   });
 
   it("says where a free worker comes from when + has none", () => {
@@ -101,7 +101,7 @@ describe("frame screen", () => {
     ).click();
     expect(note?.hidden).toBe(false);
     expect(note?.textContent).toBe(NO_FREE_WORKER);
-    expect(progress.getSnapshot().mountain.jobs.drilling).toBe(3);
+    expect(progress.getSnapshot().mountain.jobs.drilling).toBe(6);
     button(
       '.frame-sheet .frame-step[data-job="building"][data-way="free"]',
     ).click();
@@ -110,7 +110,7 @@ describe("frame screen", () => {
       '.frame-sheet .frame-step[data-job="drilling"][data-way="place"]',
     ).click();
     expect(progress.getSnapshot().mountain.jobs).toMatchObject({
-      drilling: 4,
+      drilling: 7,
       building: 1,
     });
   });
@@ -138,7 +138,7 @@ describe("frame screen", () => {
     button(
       '.frame-sheet .frame-step[data-job="haulage"][data-way="place"]',
     ).click();
-    expect(progress.getSnapshot().mountain.jobs.haulage).toBe(6);
+    expect(progress.getSnapshot().mountain.jobs.haulage).toBe(12);
   });
 
   it("points Next at the building nobody has ordered, and goes to the city", () => {

@@ -19,7 +19,7 @@ describe("workforce view", () => {
   it("lists every open job, grouped by site, with its count", () => {
     fresh(() => {
       const view = workforceView(createMountain());
-      expect(view.owned).toBe(12);
+      expect(view.owned).toBe(21);
       expect(view.free).toBe(0);
       expect(
         view.groups.map((group) => [
@@ -30,9 +30,9 @@ describe("workforce view", () => {
         [
           "Mine",
           [
-            ["Drilling", 3],
-            ["Haulage", 3],
-            ["Hoisting", 3],
+            ["Drilling", 6],
+            ["Haulage", 6],
+            ["Hoisting", 6],
           ],
         ],
         [
@@ -49,11 +49,11 @@ describe("workforce view", () => {
   it("says what each job's workers run on the first evening", () => {
     fresh(() => {
       expect(notes(createMountain())).toEqual({
-        Drilling: "3 with picks",
-        Haulage: "3 with barrows",
-        Hoisting: "3 on winches",
+        Drilling: "6 with picks",
+        Haulage: "6 with barrows",
+        Hoisting: "6 on winches",
         Transport: "1 of 1 vehicle runs",
-        Building: "each builds 20/s",
+        Building: "each builds 8/s",
       });
     });
   });

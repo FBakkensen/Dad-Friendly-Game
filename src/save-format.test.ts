@@ -182,7 +182,7 @@ describe("the game map (#558)", () => {
     expect(project(good)).toBe("ok");
     // All of a step arrived, some still to build in, is a step in hand.
     expect(
-      project({ ...good, arrived: { stones: 150_000 }, onSite: { stones: 1 } }),
+      project({ ...good, arrived: { stones: 25_000 }, onSite: { stones: 1 } }),
     ).toBe("ok");
     expect(project({ ...good, onSite: { stones: 501 } })).toBe("bad");
     expect(
@@ -213,7 +213,9 @@ describe("the game map (#558)", () => {
     expect(project(good, { operational: ["rocketPad"] })).toBe("newer");
     expect(project({ ...good, step: 3 })).toBe("bad");
     expect(project({ ...good, step: 0.5 })).toBe("bad");
-    expect(project({ ...good, arrived: { stones: 150_000 } })).toBe("bad");
+    expect(project({ ...good, arrived: { stones: 25_001 } })).toBe("bad");
+    // All of the step in and built in is a step done, never a project.
+    expect(project({ ...good, arrived: { stones: 25_000 } })).toBe("bad");
     expect(project({ ...good, arrived: { clay: 1 } })).toBe("bad");
     expect(project({ ...good, state: 7 })).toBe("bad");
     expect(project(good, { operational: ["lightTower"] })).toBe("bad");

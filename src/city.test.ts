@@ -42,7 +42,7 @@ describe("the city's buildings (rule 6)", () => {
     const tower = BUILDINGS[0];
     expect(tower?.id).toBe("lightTower");
     expect(tower?.steps.map((step) => priceAmount(step, "stones"))).toEqual([
-      150_000, 1_500_000, 6_000_000,
+      25_000, 250_000, 1_000_000,
     ]);
   });
 
@@ -79,20 +79,20 @@ describe("the order (rule 7)", () => {
   });
 
   it("says what the step in hand still requires", () => {
-    const project = delivering(0, 100_000);
+    const project = delivering(0, 20_000);
     if (project.kind !== "delivering") {
       throw new Error("delivering");
     }
-    expect(stillRequired(project.site).stones).toBe(50_000);
+    expect(stillRequired(project.site).stones).toBe(5_000);
   });
 
   it("says what the step still requires built in, counting what waits on the site", () => {
-    const project = delivering(0, 100_000, 400);
+    const project = delivering(0, 20_000, 400);
     if (project.kind !== "delivering") {
       throw new Error("delivering");
     }
-    expect(stillRequired(project.site).stones).toBe(50_000);
-    expect(stillToBuild(project.site).stones).toBe(50_400);
+    expect(stillRequired(project.site).stones).toBe(5_000);
+    expect(stillToBuild(project.site).stones).toBe(5_400);
   });
 });
 
@@ -104,8 +104,8 @@ describe("goods that arrive (rule 7.8)", () => {
   });
 
   it("finishes no step on arrival: the goods wait for the builders (#690)", () => {
-    expect(receive(at(delivering(0, 149_990)), { stones: 10 }).project).toEqual(
-      delivering(0, 150_000, 10),
+    expect(receive(at(delivering(0, 24_990)), { stones: 10 }).project).toEqual(
+      delivering(0, 25_000, 10),
     );
   });
 
@@ -127,13 +127,13 @@ describe("goods the builders build in (rule 7.8, #690)", () => {
 
   it("starts the next step when what one requires is built in, with nothing carried over", () => {
     expect(
-      buildIn(at(delivering(0, 150_000, 10)), { stones: 10 }).project,
+      buildIn(at(delivering(0, 25_000, 10)), { stones: 10 }).project,
     ).toEqual(delivering(1));
   });
 
   it("builds on hold, and the next step starts on hold too", () => {
     expect(
-      buildIn(at(delivering(0, 150_000, 10, "onHold")), { stones: 10 }).project,
+      buildIn(at(delivering(0, 25_000, 10, "onHold")), { stones: 10 }).project,
     ).toEqual(delivering(1, 0, 0, "onHold"));
   });
 

@@ -14,6 +14,8 @@ import {
   type TroubleFix,
   type TunnelPlan,
   type WorkerRule,
+  type FreshHabits,
+  type WorkerMoves,
 } from "./policy";
 
 /** The plain dad's spends: crew and machines, nothing lasting, no boosts. */
@@ -82,5 +84,33 @@ export function plainPolicy(spec: PlainSpec): Policy {
     params,
     schedule: scheduleFrom(params),
     decide: spec.decide ?? parameterisedDecide,
+  });
+}
+
+export type FreshSpec = PlainSpec & {
+  readonly moves: WorkerMoves;
+  readonly hold?: FreshHabits["hold"];
+  readonly upgrades?: boolean;
+};
+
+/**
+ * Part 1's player type (slice 1, Lab, #655): today's plain dad's sittings,
+ * and how he plays a fresh mine. His moves are `src/lab/fresh-dad.ts`; the
+ * `decide` he keeps for today's game is never asked in a fresh mine.
+ */
+export function freshPolicy(spec: FreshSpec): Policy {
+  const params = plainParams(spec);
+  return definePolicy({
+    id: spec.id,
+    label: spec.label,
+    kind: spec.kind,
+    params,
+    schedule: scheduleFrom(params),
+    decide: parameterisedDecide,
+    fresh: {
+      moves: spec.moves,
+      hold: spec.hold ?? "on-value",
+      upgrades: spec.upgrades ?? false,
+    },
   });
 }

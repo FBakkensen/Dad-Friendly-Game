@@ -200,16 +200,12 @@ export function lineWork(
   mountain: Pick<Mountain, "owned" | "jobs">,
   speed: Readonly<Record<TierId, number>>,
 ): LineWork {
-  const tool = speed.helper * STAGES.length;
+  const works = stageWorks(mountain, speed);
   const running = tierRecord(0);
   const stages = { face: 0, haul: 0, lift: 0 };
   let short = 0;
   for (const stage of STAGES) {
-    const work = stageWork(
-      stageMachines(mountain, speed, stage),
-      mountain.jobs[STAGE_JOB[stage]],
-      tool,
-    );
+    const work = works[stage];
     Object.assign(running, work.running);
     running.helper += work.tools;
     stages[stage] = work.moves;
@@ -223,7 +219,29 @@ export function lineWork(
   };
 }
 
-/** A stage's machines in play: how many he owns, the workers each takes, and what each moves. */
+/** What a worker with a tool moves on any stage, from the tier speeds. */
+export function toolSpeed(speed: Readonly<Record<TierId, number>>): number {
+  return speed.helper * STAGES.length;
+}
+
+/** Each stage's work in a fresh mine: what runs, the tools, what it moves (rule 2.5). */
+export function stageWorks(
+  mountain: Pick<Mountain, "owned" | "jobs">,
+  speed: Readonly<Record<TierId, number>>,
+): Readonly<Record<Stage, StageWork>> {
+  const tool = toolSpeed(speed);
+  const works = {} as Record<Stage, StageWork>;
+  for (const stage of STAGES) {
+    works[stage] = stageWork(
+      stageMachines(mountain, speed, stage),
+      mountain.jobs[STAGE_JOB[stage]],
+      tool,
+    );
+  }
+  return works;
+}
+
+/** A stage's machines in play: how many he owns, the workers each takes, what each moves. */
 export function stageMachines(
   mountain: Pick<Mountain, "owned">,
   speed: Readonly<Record<TierId, number>>,

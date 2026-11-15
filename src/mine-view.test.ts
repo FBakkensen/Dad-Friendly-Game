@@ -119,7 +119,7 @@ describe("a stage's row", () => {
       },
     ]);
     fresh(() => {
-      withFactors({ [FRESH_OFF]: 0, "output.cart": 0.1 }, () => {
+      withFactors({ [FRESH_OFF]: 0, "output.cart": 0.03 }, () => {
         const start = createMountain();
         const one = {
           ...start,
@@ -172,11 +172,16 @@ describe("a stage's row", () => {
       const drilling = rows[0];
       const each = rates.tierSpeed.helper * 3;
       expect(drilling?.now).toBe(String(rates.crewPerSecond));
-      expect(drilling?.can).toBe(`${String(3 * each)}/s`);
-      expect(drilling?.sum[0]).toBe(`3 with picks ${String(3 * each)}/s`);
-      expect(rows[1]?.sum[0]).toBe(`3 with barrows ${String(3 * each)}/s`);
-      expect(rows[2]?.sum[0]).toBe(`3 on winches ${String(3 * each)}/s`);
-      expect(drilling?.workers).toBe(3);
+      // Every stage starts with the same crew.
+      const crew = mountain.jobs.drilling;
+      const moves = String(crew * each);
+      expect(drilling?.can).toBe(`${moves}/s`);
+      expect(rows.map((row) => row.sum[0])).toEqual([
+        `${String(crew)} with picks ${moves}/s`,
+        `${String(crew)} with barrows ${moves}/s`,
+        `${String(crew)} on winches ${moves}/s`,
+      ]);
+      expect(drilling?.workers).toBe(crew);
       expect(drilling?.canPlace).toBe(false);
       expect(drilling?.canFree).toBe(true);
     });
@@ -253,15 +258,15 @@ describe("the level's plate and the scene", () => {
       // Haulage only takes what the shaft lifts, so the face piles up too.
       expect(scene.facePile).toBe(1);
       expect(scene.shaftPile).toBe(1);
-      expect(scene.unload).toBeCloseTo(1 / 3);
-      expect(scene.stages.face.busy).toBeCloseTo(1 / 3);
+      expect(scene.unload).toBeCloseTo(1 / start.jobs.hoisting);
+      expect(scene.stages.face.busy).toBeCloseTo(1 / start.jobs.drilling);
       expect(scene.stages.lift.busy).toBe(1);
       const short = mineScene({
         ...start,
         jobs: { ...start.jobs, drilling: 1 },
       });
       expect(short.facePile).toBe(0);
-      expect(short.load).toBeCloseTo(1 / 3);
+      expect(short.load).toBeCloseTo(1 / start.jobs.haulage);
     });
   });
 

@@ -173,14 +173,14 @@ export const BARE_MOUNTAIN: Mountain = {
 
 /**
  * A fresh mine starts with every worker on a job (slice 1, rule 2.10, #689):
- * three on each stage, one driver on the horse wagon given and two
- * builders on the building site (#690): the prototype's twelve. The lab
- * sets the count (#655).
+ * six on each stage, one driver on the horse wagon given and two builders on
+ * the building site (#690). The lab set the count (#655): with the line at 18
+ * a second, the wagon's 9 leaves him half of what the mine makes.
  */
 const FRESH_START_JOBS: Jobs = {
-  drilling: 3,
-  haulage: 3,
-  hoisting: 3,
+  drilling: 6,
+  haulage: 6,
+  hoisting: 6,
   driving: 1,
   building: 2,
 };

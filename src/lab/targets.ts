@@ -366,6 +366,30 @@ export const LOOKAHEAD_SESSIONS = 1;
 /** The plain dad taps this fast while the sitting is open. */
 export const TAPS_PER_SECOND = 3;
 
+/**
+ * A fresh mine's dad (slice 1, #655). A gain or a difference this small is
+ * float dust, not a move of the line.
+ */
+export const FRESH_DUST = 1e-9;
+
+/** Most buys one raise of the line may chain: three stages tied, and room for a tool step. */
+export const RAISE_STEPS = 6;
+
+/** Most workers the mover puts back from the mine when an order delivers. */
+export const RESTORE_STEPS = 64;
+
+/** Most plans one live second may apply: a guard, never reached in play. */
+export const PLANS_A_SECOND = 400;
+
+/**
+ * The order takes more than this share of what the mine makes: the pocket
+ * hardly grows (the slice 1 spec's `starved`), and a hold is weighed.
+ */
+export const STARVED_SHARE = 0.5;
+
+/** Workers one tap moves with the amount key on ×10 (call 49). */
+export const AMOUNT_KEY_TEN = 10;
+
 /** How many days `runPolicy` plays when the caller does not name a cap. */
 export const DEFAULT_MAX_DAYS = 30;
 

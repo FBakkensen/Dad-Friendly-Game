@@ -17,6 +17,7 @@ import {
   lineWork,
   stageMachines,
   stageWork,
+  toolSpeed,
   type JobId,
   type StageMachine,
 } from "./workforce";
@@ -316,7 +317,7 @@ export function stageRows(
   const rates = effectiveRates(mountain, now);
   const timer = crewTimer(mountain, now);
   const work = lineWork(mountain, rates.tierSpeed);
-  const tool = rates.tierSpeed.helper * STAGES.length;
+  const tool = toolSpeed(rates.tierSpeed);
   const moving = rates.crewPerSecond;
   const strongest = Math.max(
     1,
@@ -410,7 +411,7 @@ function stageScene(
 export function mineScene(mountain: Mountain): MineScene {
   const rates = effectiveRates(mountain);
   const work = lineWork(mountain, rates.tierSpeed);
-  const tool = rates.tierSpeed.helper * STAGES.length;
+  const tool = toolSpeed(rates.tierSpeed);
   const { face, haul, lift } = work.stages;
   const fed = Math.min(face, haul);
   const stages = Object.fromEntries(
