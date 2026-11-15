@@ -13,24 +13,34 @@ Spec: `docs/superpowers/specs/2026-11-14-slice-1-design.md`, "Lab", "Starting nu
 
 ## The modules
 
-| What | Module |
-| --- | --- |
-| "Buy a kiln" and "Expand the stockyard" as moves: listed while open, applied, logged | `src/economy/actions.ts` (the catalogue every planner and the Ledger read), `src/lab/measure.ts` move order |
-| The away report's night on the lab's world, so a measure can read how a night ended | `src/lab/world.ts` (`World.night`), set by `step` in away mode |
-| A night record per long gap, hung on the next sample | `src/lab/tournament.ts`, `DecisionSample.nights` in `src/lab/measure.ts` |
-| `nightFull` (share of long nights a full stockyard ends) and `nightFullAt` (how far into those nights it ended, median) | `src/lab/measures/` |
-| `deadGood`: a stockpile full while no order delivering takes that good | `FreshView.deadGood` in `src/lab/fresh-view.ts`, measure in `src/lab/measures/` |
-| Part 2's dad: goods income (stone and brick), a kiln with its worker when brick is the order's limit and it pays for itself, an expansion when a buy he wants does not fit the stockyard or a stockpile is nearly full, prices in any good | `src/lab/fresh-dad.ts` |
-| `secondsToFinish` takes each good's income | `src/transport.ts` (the walk already does) |
-| Part 2's numbers | `src/makers.ts`, `src/stockyard.ts`, `src/city.ts`, `src/mine-piles.ts` (the kilns' pile) |
+| What                                                                                                                                                                                                                                       | Module                                                                                                      |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
+| "Buy a kiln" and "Expand the stockyard" as moves: listed while open, applied, logged                                                                                                                                                       | `src/economy/actions.ts` (the catalogue every planner and the Ledger read), `src/lab/measure.ts` move order |
+| The away report's night on the lab's world, so a measure can read how a night ended                                                                                                                                                        | `src/lab/world.ts` (`World.night`), set by `step` in away mode                                              |
+| A night record per long gap, hung on the next sample                                                                                                                                                                                       | `src/lab/tournament.ts`, `DecisionSample.nights` in `src/lab/measure.ts`                                    |
+| `nightFull` (share of long nights a full stockyard ends) and `nightFullAt` (how far into those nights it ended, median)                                                                                                                    | `src/lab/measures/`                                                                                         |
+| `deadGood`: a stockpile full while no order delivering takes that good                                                                                                                                                                     | `FreshView.deadGood` in `src/lab/fresh-view.ts`, measure in `src/lab/measures/`                             |
+| Part 2's dad: goods income (stone and brick), a kiln with its worker when brick is the order's limit and it pays for itself, an expansion when a buy he wants does not fit the stockyard or a stockpile is nearly full, prices in any good | `src/lab/fresh-dad.ts`                                                                                      |
+| `secondsToFinish` takes each good's income                                                                                                                                                                                                 | `src/transport.ts` (the walk already does)                                                                  |
+| Part 2's numbers                                                                                                                                                                                                                           | `src/makers.ts`, `src/stockyard.ts`, `src/city.ts`, `src/mine-piles.ts` (the kilns' pile)                   |
 
 ## Rulings
 
 1. **The run ends at the last building in play**: the Warehouse's roof with part 2 on (`runDone` already reads `nextBuilding`).
-2. **A night is a gap of six hours or more.** Shorter gaps are breaks in a day. `nightFull` counts only nights that start with the stockyard open.
-3. **A kiln is bought for brick the order needs.** When the order's limit is brick, he buys a kiln and puts a worker on it (hired when none is free), if it brings the building sooner by more than the mine takes to make its price, as a vehicle must (#655 ruling 5).
-4. **He expands the stockyard** when the buy he wants costs more than a stockpile's room, or when a stockpile holds 90% of its room or more and the brick covers it. Expanding is never weighed against the order: brick spent on room is brick the Warehouse waits for, and the lab shows that cost in the finish day.
-5. **Prices in any good.** A plan carries a price as a list of goods; he covers it good by good with the hoard factor.
+2. **A night is a gap of six hours or more** (`NIGHT_MIN_MS`). Shorter gaps are breaks in a day. `nightFull` counts the nights with the stockyard open at their end, and a night is full when the stone stockpile filled in it: a full stone stockpile stops the line, a full brick one only sends rock to stone.
+3. **`deadGood` is a stockpile full while no order delivering takes its good.** What he could buy with it is his call; the lab asks only whether the yard sits full.
+4. **A kiln is weighed on the whole building.** The order's fix is the better of the answer to its limit (a wagon with its driver and builders, or a builder) and a kiln with a worker hired onto it while a step still to build requires brick, by building-seconds saved per stone, each only when it brings the building sooner by more than the mine takes to make its price (#655 ruling 5). Weighed on the step in hand, a kiln was never bought while the foundation was transport's: the casual dad finished on day 12 with two kilns.
+5. **He expands the stockyard** when a stockpile holds 90% of its room or more (`YARD_NEARLY_FULL`), or the raise he wants costs more than the stone room, and the brick covers it with his hoard. It is not weighed against the order.
+6. **No raise into a full stockyard.** With the stone stockpile nearly full he raises no line: a faster line only stands sooner. Without it the casual dad raised the line to 4,900 a second against 108 of transport.
+7. **No worker moves at a full stockyard.** While hoisting stands with rock to lift, the stockyard is full and no move of his makes room, so `pileMove` moves nobody. Without it the evening dad moved every worker to hoisting one by one and stood the line for a day.
+8. **The numbers.**
+   - The stockyard holds 6M stone and 1M brick at level 0, twice the spec's guess (`ROOM_AT_ZERO`; the lab knob `room.stockyard` scales it). A level still triples it for 150K brick ×3. At 3M the casual types' long nights filled in one of three, at about half the night; at 6M one in four, at three quarters. At 12M the casual types finished on the same days and the long-gap types still filled early.
+   - The kiln (15,000 stone ×1.219, 12 brick a second), the kilns' pile (300) and the Warehouse's steps (8M stone and 1M brick, 15M and 4M, 12M brick) stay. The kiln and its pile move again with the recipe and the kilns' pile rules (#723), so they were not tuned here.
+   - The Light Tower's night shift output stays 45%. At 40% the casual types' Warehouse comes about half a day later, with the night measures about the same; 45% is the approved line on the card.
+9. **Part 1's playtest notes (15 Nov).** Each is weighed, none moves a number here:
+   - Work boots at 1.6M: the optimizer, the one type that weighs upgrades, does not buy it in part 1 even at 150K (seed 1: it adds about 24 a second of line at 100 workers, where a machine pays back about ten times sooner). In part 2 the optimizer buys it on day 3. It stays; that it shows from 10 workers is the workforce screen's to decide.
+   - The tool marks at 25 and 50 workers: a line on the workforce screen, not a number. Flemming approved "Every worker with a tool works twice as fast." for it.
+   - Piles of 300 stop mattering after ten minutes: a rule for the prototype (pile room that grows), with the kilns' pile in #723.
 
 ## Tasks
 

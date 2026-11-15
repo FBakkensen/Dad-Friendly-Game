@@ -714,6 +714,16 @@ export function freshPlan(
   habits: FreshHabits,
   hoardK: number,
 ): Plan {
+  const settled = settlePlan(mountain, habits, hoardK);
+  return settled.length > 0 ? settled : spendPlan(mountain, habits, hoardK);
+}
+
+/** The free moves first: order, place the free workers, move the idle ones, and room in the stockyard. */
+function settlePlan(
+  mountain: Mountain,
+  habits: FreshHabits,
+  hoardK: number,
+): Plan {
   if (
     mountain.project.kind === "unordered" &&
     nextBuilding(mountain) !== undefined
@@ -727,13 +737,15 @@ export function freshPlan(
     habits.moves === "idle"
       ? moverPlan(mountain, habits)
       : rebalance(mountain, habits);
-  if (moved.length > 0) {
-    return moved;
-  }
-  const yard = yardPlan(mountain, false, hoardK);
-  if (yard.length > 0) {
-    return yard;
-  }
+  return moved.length > 0 ? moved : yardPlan(mountain, false, hoardK);
+}
+
+/** Then the stone: the order's crew, its fix, the line's raise, or the hold. */
+function spendPlan(
+  mountain: Mountain,
+  habits: FreshHabits,
+  hoardK: number,
+): Plan {
   const crew = orderCrew(mountain, habits);
   if (crew !== undefined && covers(mountain, crew, hoardK)) {
     return crew.plan;
@@ -749,6 +761,15 @@ export function freshPlan(
       return [];
     }
   }
+  return raisePlan(mountain, habits, hoardK);
+}
+
+/** The raise that pays back soonest when the pocket covers it, else room for it, else the hold. */
+function raisePlan(
+  mountain: Mountain,
+  habits: FreshHabits,
+  hoardK: number,
+): Plan {
   // With the stone stockpile nearly full, a faster line only stands
   // sooner: he raises it again once there is room.
   const best = stoneFilling(mountain) ? undefined : bestRaise(mountain, habits);
