@@ -1,12 +1,10 @@
 import { SITE_HOLDS, onSiteTotal } from "../building-site";
-import { stillRequired } from "../city";
 import { tierLocked } from "../crew";
 import { freshMineOn } from "../line-switch";
 import { STAGES } from "../line";
 import type { Mountain } from "../mountain";
 import { effectiveRates } from "../rates";
-import type { GoodId } from "../stock";
-import { STOCKPILE_GOODS, stockpileFull, stockyardOpen } from "../stockyard";
+import { deadStockpiles, stockyardOpen } from "../stockyard";
 import { TIERS, tierInPlay } from "../tiers";
 import { fleetSize, orderLimit, vehiclePrice, VEHICLE_IDS } from "../transport";
 import {
@@ -78,18 +76,7 @@ export function freshView(mountain: Mountain): FreshView | undefined {
  * buy with it is his call; the lab asks only whether the yard sits full.
  */
 function deadGood(mountain: Mountain): boolean {
-  return deadGoods(mountain).length > 0;
-}
-
-/** The goods whose stockpile sits dead now, by `deadGood`'s rule: the live minutes' and the nights' (#667). */
-export function deadGoods(mountain: Mountain): readonly GoodId[] {
-  const project = mountain.project;
-  const need =
-    project.kind === "delivering" ? stillRequired(project.site) : undefined;
-  return STOCKPILE_GOODS.filter(
-    (good) =>
-      stockpileFull(mountain, good) && (need === undefined || need[good] <= 0),
-  );
+  return deadStockpiles(mountain).length > 0;
 }
 
 /** The cheapest thing he can buy: a worker, a machine of the line, or a vehicle. */

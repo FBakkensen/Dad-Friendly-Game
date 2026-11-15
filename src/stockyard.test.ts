@@ -2,10 +2,12 @@ import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { withFactors } from "./economy/factors";
 import { FRESH_OFF } from "./line-switch";
+import { placeOrder } from "./city";
 import { createMountain, type Mountain } from "./mountain";
 import { PART_TWO_OFF } from "./part-switch";
 import { priceAmount } from "./stock";
 import {
+  deadStockpiles,
   expandPrice,
   expandStockyard,
   MAX_STOCKYARD_LEVEL,
@@ -112,6 +114,35 @@ describe("the stockyard (#666)", () => {
       const full = { ...first, stock: { ...first.stock, stones: 6_000_000 } };
       expect(stockpileFull(full, "stones")).toBe(true);
       expect(stockpileFull(full, "brick")).toBe(false);
+    });
+  });
+});
+
+describe("a dead stockpile (#667)", () => {
+  it("is full while no order takes its good, or the step in hand requires none of it", () => {
+    partTwo(() => {
+      const lit = yard(0, ["lightTower"]);
+      const full: Mountain = {
+        ...lit,
+        stock: { ...lit.stock, stones: stockpileRoom(lit, "stones") },
+      };
+      expect(deadStockpiles(lit)).toEqual([]);
+      expect(deadStockpiles(full)).toEqual(["stones"]);
+      // The Warehouse's foundation takes stone.
+      const ordered = placeOrder(full);
+      expect(deadStockpiles(ordered)).toEqual([]);
+      if (ordered.project.kind !== "delivering") {
+        throw new Error("delivering");
+      }
+      // Its roof is brick only.
+      const roof: Mountain = {
+        ...ordered,
+        project: {
+          ...ordered.project,
+          site: { ...ordered.project.site, step: 2 },
+        },
+      };
+      expect(deadStockpiles(roof)).toEqual(["stones"]);
     });
   });
 });

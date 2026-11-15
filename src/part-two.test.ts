@@ -257,6 +257,9 @@ describe("the night runs until the stockyard is full (#666)", () => {
       expect(facts?.fullAtMs?.stones).toBeGreaterThanOrEqual(filled - 2000);
       expect(facts?.fullAtMs?.stones).toBeLessThanOrEqual(filled + 2000);
       expect(facts?.producedMs).toBeLessThan(20 * HOUR);
+      // No order takes the stone: it sits dead from when it filled (#667).
+      expect(facts?.deadMs).toBeGreaterThanOrEqual(20 * HOUR - filled - 2000);
+      expect(facts?.deadMs).toBeLessThanOrEqual(20 * HOUR - filled + 2000);
     });
   });
 
@@ -284,6 +287,8 @@ describe("the night runs until the stockyard is full (#666)", () => {
       expect(away.mountain.stock.stones).toBeGreaterThanOrEqual(6_000_000 - 50);
       expect(away.mountain.stock.stones).toBeLessThanOrEqual(6_000_000 + 50);
       expect(away.mined).toBeGreaterThan(0.95 * took);
+      // The order takes the full stockpile's stone: none of it sits dead.
+      expect(facts?.deadMs).toBe(0);
     });
   });
 

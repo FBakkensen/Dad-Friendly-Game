@@ -37,7 +37,12 @@ import {
   takeIncome,
   type MinePiles,
 } from "./mine-piles";
-import { STOCKPILE_GOODS, stockpileFull, stockyardOpen } from "./stockyard";
+import {
+  STOCKPILE_GOODS,
+  deadStockpiles,
+  stockpileFull,
+  stockyardOpen,
+} from "./stockyard";
 import type { GoodId } from "./stock";
 import {
   deliver,
@@ -549,6 +554,13 @@ export type NightReport = {
   readonly stop: "clock" | "stockyard" | "none";
   /** When each stockpile was first full, from the start of the night (part 2, #666). */
   readonly fullAtMs?: Readonly<Partial<Record<GoodId, number>>>;
+  /**
+   * How long of the night a stockpile sat full while nothing took its good:
+   * no order delivering, or the step in hand requiring none of it
+   * (`deadStockpiles`, the lab's `deadGood`, #667). Each stretch of the
+   * night counts on its start's terms.
+   */
+  readonly deadMs: number;
   /** What transport took from the pocket to the order, good by good. */
   readonly delivered: Stock;
   readonly steps: readonly NightStep[];
@@ -781,6 +793,8 @@ type NightLog = {
   gained: Stock;
   /** When each stockpile was first full (#666). */
   readonly fullAtMs: Partial<Record<GoodId, number>>;
+  /** How long a stockpile sat dead (#667). */
+  deadMs: number;
 };
 
 /** One stretch's facts into the log: `at` is where the next stretch starts. */
@@ -800,6 +814,10 @@ function logStretch(
     ) {
       log.fullAtMs[good] = atMs;
     }
+  }
+  // A stretch runs on its start's terms until the event that ends it.
+  if (deadStockpiles(before).length > 0) {
+    log.deadMs += span.at - span.from;
   }
   if (part.producing) {
     log.producedMs += span.at - span.from;
@@ -847,6 +865,7 @@ function accrueNight({
         (good) => [good, 0],
       ),
     ),
+    deadMs: 0,
   };
   let state = mountain;
   let cursor = lastSeen;
@@ -918,6 +937,7 @@ function nightReport(
   return {
     producedMs: log.producedMs,
     stop: nightStop(log, after, awayMs),
+    deadMs: log.deadMs,
     ...(full ? { fullAtMs: { ...log.fullAtMs } } : {}),
     delivered: stockMoved(dug, after.stock).spent,
     steps: log.steps,

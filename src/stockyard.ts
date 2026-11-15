@@ -1,4 +1,4 @@
-import { stockyardTimes } from "./city";
+import { stillRequired, stockyardTimes } from "./city";
 import { factor } from "./economy/factors";
 import type { Mountain } from "./mountain";
 import { partTwoOn } from "./part-switch";
@@ -107,4 +107,20 @@ export function stockpileFull(
   good: GoodId,
 ): boolean {
   return mountain.stock[good] >= stockpileRoom(mountain, good);
+}
+
+/**
+ * The goods whose stockpile sits dead: full while nothing takes its good, no
+ * order delivering or the step in hand requiring none of it (#667). The
+ * night log adds up this time stretch by stretch, and the lab's `deadGood`
+ * reads it live.
+ */
+export function deadStockpiles(mountain: Mountain): readonly GoodId[] {
+  const project = mountain.project;
+  const need =
+    project.kind === "delivering" ? stillRequired(project.site) : undefined;
+  return STOCKPILE_GOODS.filter(
+    (good) =>
+      stockpileFull(mountain, good) && (need === undefined || need[good] <= 0),
+  );
 }

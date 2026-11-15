@@ -1,6 +1,4 @@
-import type { Mountain } from "../mountain";
 import { stockyardOpen } from "../stockyard";
-import { deadGoods } from "./fresh-view";
 import type { DecisionSample } from "./measure";
 import { median } from "./stats";
 import { MS_PER_SECOND, NIGHT_MIN_MS, SAMPLE_INTERVAL_SEC } from "./targets";
@@ -18,12 +16,7 @@ export type NightRecord = {
   readonly endedFull: boolean;
   /** When the stone stockpile was first full, from the night's start; left out when it was full from the start. */
   readonly fullAtMs?: number;
-  /**
-   * How long of it a stockpile sat dead, by the live minutes' rule
-   * (`deadGoods`): each stockpile full at morning with no order taking its
-   * good counts from when it filled (or the night's start) to morning. The
-   * order is read at morning.
-   */
+  /** How long of it a stockpile sat full while nothing took its good: the night report's `deadMs`. */
   readonly deadMs: number;
 };
 
@@ -39,21 +32,10 @@ export function nightRecord(world: World): NightRecord | undefined {
   }
   const endedFull = night.report.stop === "stockyard";
   const fullAtMs = night.report.fullAtMs?.stones;
-  const deadMs = deadStretch(world.mountain, night);
+  const deadMs = night.report.deadMs;
   return fullAtMs === undefined || fullAtMs <= 0
     ? { awayMs: night.awayMs, endedFull, deadMs }
     : { awayMs: night.awayMs, endedFull, fullAtMs, deadMs };
-}
-
-/** From the first dead stockpile's filling to morning; 0 with none dead at morning. */
-function deadStretch(
-  morning: Mountain,
-  night: NonNullable<World["night"]>,
-): number {
-  const filled = deadGoods(morning).map(
-    (good) => night.report.fullAtMs?.[good] ?? night.awayMs,
-  );
-  return filled.length === 0 ? 0 : night.awayMs - Math.min(...filled);
 }
 
 function nightsOf(samples: readonly DecisionSample[]): readonly NightRecord[] {
@@ -87,7 +69,7 @@ const SAMPLE_MS = SAMPLE_INTERVAL_SEC * MS_PER_SECOND;
  * `deadGood` weighed by time (slice 1, Lab, #667, PR review): each live
  * sample with the stockyard open counts its minute, dead while a stockpile
  * is full and no order delivering takes its good, and each long night counts
- * its whole length, dead from when its first dead stockpile filled (`deadMs`). Gaps
+ * its whole length, dead for as long as its report's `deadMs`. Gaps
  * shorter than a night count only through the samples. NaN with none.
  */
 export function deadGoodShare(

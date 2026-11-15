@@ -18,9 +18,10 @@ const partTwo = <T>(body: () => T): T =>
 
 const lit: Mountain = { ...createMountain(), operational: ["lightTower"] };
 
-function report(fullAtMs?: number): NightReport {
+function report(fullAtMs?: number, deadMs = 0): NightReport {
   return {
     producedMs: 0,
+    deadMs,
     stop: fullAtMs === undefined ? "none" : "stockyard",
     ...(fullAtMs === undefined ? {} : { fullAtMs: { stones: fullAtMs } }),
     delivered: EMPTY_STOCK,
@@ -65,30 +66,18 @@ describe("a long night with the stockyard open (#667)", () => {
     });
   });
 
-  it("counts a night dead from when a stockpile no order takes filled", () => {
+  it("carries how long the night's report says a stockpile sat dead", () => {
     partTwo(() => {
-      // The brick stockpile filled three hours in with no order in: dead to morning.
-      const brickFull: Mountain = {
-        ...lit,
-        stock: { ...EMPTY_STOCK, brick: 1_000_000 },
-      };
-      const night: World = {
-        ...createWorld(1, brickFull),
-        clock: 10 * HOUR_MS,
-        night: {
-          awayMs: 10 * HOUR_MS,
-          report: { ...report(), fullAtMs: { brick: 3 * HOUR_MS } },
-        },
-      };
-      expect(nightRecord(night)?.deadMs).toBe(7 * HOUR_MS);
-      // Full from the start: all of it dead.
-      const fullAll = (fullAtMs: Partial<Record<"brick", number>>): World => ({
-        ...night,
-        night: { awayMs: 10 * HOUR_MS, report: { ...report(), fullAtMs } },
-      });
-      expect(nightRecord(fullAll({ brick: 0 }))?.deadMs).toBe(10 * HOUR_MS);
-      // Full at morning with no time logged: it filled as the night ended.
-      expect(nightRecord(fullAll({}))?.deadMs).toBe(0);
+      expect(
+        nightRecord({
+          ...createWorld(1, lit),
+          clock: 10 * HOUR_MS,
+          night: {
+            awayMs: 10 * HOUR_MS,
+            report: report(undefined, 7 * HOUR_MS),
+          },
+        })?.deadMs,
+      ).toBe(7 * HOUR_MS);
     });
   });
 
