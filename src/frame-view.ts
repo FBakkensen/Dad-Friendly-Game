@@ -1,5 +1,6 @@
 import {
   BUILDINGS,
+  buildingById,
   nextBuilding,
   stepRequires,
   type Building,
@@ -130,10 +131,9 @@ export function orderStrip(mountain: Mountain): OrderStrip {
       pips: ["done", "done", "done"],
     };
   }
-  const building = BUILDINGS.find((row) => row.id === site.building);
   return {
     kind: "project",
-    name: building?.name ?? "",
+    name: buildingById(site.building).name,
     step: `${STEP_NAMES[site.step]} · ${STATE_WORDS[mountain.project.kind]}`,
     requires: requirements(site),
     pips: pips(site.step),
@@ -186,7 +186,7 @@ export function hireKey(mountain: Mountain, amount: BuyAmount): HireKey {
     count,
     cost,
     can: cost <= mountain.stock.stones,
-    face: count === 1 ? "+Worker" : `+${count} Workers`,
+    face: count === 1 ? "+Worker" : `+${String(count)} Workers`,
     price: formatCompact(cost),
   };
 }

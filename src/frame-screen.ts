@@ -157,7 +157,7 @@ function paintTop(
   write(parts.stones, stone?.text ?? "0");
   const workers = workersView(mountain);
   write(parts.count, String(workers.owned));
-  write(parts.free, `${workers.free} free`);
+  write(parts.free, `${String(workers.free)} free`);
   mark(parts.free, "has-free", workers.free > 0);
   setAttr(parts.lamp, "data-lamp", workers.lamp ? "green" : "dark");
   const key = hireKey(mountain, amount);
@@ -166,7 +166,7 @@ function paintTop(
   mark(parts.hire, "can", key.can);
   parts.hire.setAttribute(
     "aria-label",
-    `Hire ${key.count === 1 ? "a worker" : `${key.count} workers`} for ${key.price} stone`,
+    `Hire ${key.count === 1 ? "a worker" : `${String(key.count)} workers`} for ${key.price} stone`,
   );
 }
 
@@ -298,7 +298,7 @@ function buildFrame(state: FrameState): {
       paintNext(next, mountain);
       paintSiteBar(bar, mountain, state.site());
       setAttr(scene, "data-site", state.site());
-      setAttr(scene, "aria-label", `${SITE_NAMES[state.site()]}`);
+      setAttr(scene, "aria-label", SITE_NAMES[state.site()]);
     },
   };
 }

@@ -59,7 +59,7 @@ function runsOf(
   of: number,
   noun: readonly [string, string],
 ): string {
-  return `${on} of ${of} ${word(of, noun)} ${on === 1 && of === 1 ? "runs" : "run"}`;
+  return `${String(on)} of ${String(of)} ${word(of, noun)} ${on === 1 && of === 1 ? "runs" : "run"}`;
 }
 
 /** "2 of 3 carts run, 1 with barrows": each kind of machine he owns, then the tools. */
@@ -82,7 +82,7 @@ function stageNote(mountain: Mountain, stage: Stage): string {
     ),
   );
   if (tools > 0 || parts.length === 0) {
-    parts.push(`${tools} ${word(tools, TOOL_WORDS[stage])}`);
+    parts.push(`${String(tools)} ${word(tools, TOOL_WORDS[stage])}`);
   }
   return parts.join(", ");
 }

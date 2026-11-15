@@ -133,7 +133,7 @@ describe("top row", () => {
       const max = hireKey(mountain, "max");
       expect(max.can).toBe(true);
       expect(max.cost).toBeLessThanOrEqual(1_000);
-      expect(max.face).toBe(`+${max.count} Workers`);
+      expect(max.face).toBe(`+${String(max.count)} Workers`);
     });
   });
 });

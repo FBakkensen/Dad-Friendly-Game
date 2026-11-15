@@ -352,9 +352,7 @@ describe("the moves (rule 2.4)", () => {
         0,
         NO_TROUBLE,
       );
-      expect(moved.kind === "applied" && moved.mountain.jobs.drilling).toBe(
-        10,
-      );
+      expect(moved.kind === "applied" && moved.mountain.jobs.drilling).toBe(10);
       expect(moved.kind === "applied" && moved.events).toEqual([
         { kind: "workerPlaced", job: "drilling", count: 10 },
       ]);

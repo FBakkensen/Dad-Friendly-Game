@@ -140,7 +140,9 @@ export function nextView(mountain: Mountain): NextView {
       kind: "affordable",
       head: "Affordable now",
       counts,
-      line: counts.map((entry) => `${entry.name} ${entry.count}`).join(" · "),
+      line: counts
+        .map((entry) => `${entry.name} ${String(entry.count)}`)
+        .join(" · "),
       ready,
     };
   }

@@ -132,7 +132,7 @@ function paintHead(
   const key = hireKey(mountain, amount);
   write(
     parts.hire,
-    `${key.count === 1 ? "Hire" : `Hire ${key.count}`} · ${key.price}`,
+    `${key.count === 1 ? "Hire" : `Hire ${String(key.count)}`} · ${key.price}`,
   );
   mark(parts.hire, "can", key.can);
 }
