@@ -19,6 +19,7 @@ import {
   sliceStartSave,
   sliceStructureSave,
 } from "../../tools/browser/fixtures.ts";
+import { targetsCloserThan } from "../../src/ui-audit-measure.ts";
 import { check, section } from "./registry.mjs";
 import { openScreen, noScroll, shot } from "./kit.mjs";
 
@@ -37,6 +38,54 @@ const SAVES = [
 
 /** The Light Tower's picture, in board px: it has to fit between the plate and the road. */
 const TOWER_H = 182;
+/**
+ * The keys a finger can reach inside `roots` (the frame and the save line, or
+ * an open sheet), each as the part in view (`__reach`, the UI audit's own
+ * measure), in board px.
+ */
+async function keyBoxes(page, roots) {
+  return page.evaluate((selector) => {
+    const board = globalThis.__board();
+    const keys = [...document.querySelectorAll(selector)].flatMap((root) => [
+      ...root.querySelectorAll("button, a, [role='button']"),
+    ]);
+    return keys
+      .filter(
+        (el) =>
+          el.getClientRects().length > 0 &&
+          getComputedStyle(el).visibility !== "hidden",
+      )
+      .map((el) => {
+        // The harness's in-page helper, the one the UI audit measures with.
+        const { top, bottom, left, right } = globalThis.__reach(el);
+        const name = [el.tagName.toLowerCase(), ...el.classList].join(".");
+        const at = el.dataset.stage ?? el.dataset.job ?? el.dataset.site ?? "";
+        return {
+          selector: `${name}${at === "" ? "" : `[${at}]`}`,
+          top: top / board.scale,
+          left: left / board.scale,
+          width: Math.max(0, right - left) / board.scale,
+          height: Math.max(0, bottom - top) / board.scale,
+        };
+      })
+      .filter((box) => box.width > 0 && box.height > 0);
+  }, roots);
+}
+
+/**
+ * Keys closer than 8 board px (#719), as `boardGaps` held the board's. A
+ * scaled frame snaps each box to device pixels, so an 8px gap can read 7.99
+ * on a shorter phone: allow a tenth of a pixel.
+ */
+async function keyGaps(page, roots) {
+  return targetsCloserThan(await keyBoxes(page, roots), 7.9).map(
+    (pair) => `${pair.a} ${pair.b} ${String(Math.round(pair.gap * 10) / 10)}`,
+  );
+}
+
+/** The frame's own keys and the save line, with no sheet or card open. */
+const FRAME_KEYS = ".frame, .board-saveline";
+
 /** The road under the ground line, in board px (city-scene's CITY_FOOT.road). */
 const ROAD_H = 22;
 
@@ -323,6 +372,11 @@ for (const size of SIZES) {
             !/\bhands?\b|by hand/i.test(facts.words),
             `${at} ${site}: no "hands" and no "by hand"`,
           );
+          const close = await keyGaps(page, FRAME_KEYS);
+          check(
+            close.length === 0,
+            `${at} ${site}: every key stands at least 8px from the next (${close.join("; ")})`,
+          );
         }
         await tap(page, '.frame-site[data-site="mine"]');
         for (const stage of ["face", "haul", "lift"]) {
@@ -344,6 +398,11 @@ for (const size of SIZES) {
             list.cut.length === 0,
             `${at} ${stage}'s list: no key's words are cut (${list.cut.join(", ")})`,
           );
+          const listClose = await keyGaps(page, ".stage-sheet:not([hidden])");
+          check(
+            listClose.length === 0,
+            `${at} ${stage}'s list: every key stands at least 8px from the next (${listClose.join("; ")})`,
+          );
           check(
             !/\bhands?\b|by hand|bottleneck|limit|best buy/i.test(list.words),
             `${at} ${stage}'s list: no "hands", and no limit or best buy named`,
@@ -362,6 +421,14 @@ for (const size of SIZES) {
         check(
           workforce.small.length === 0 && workforce.cut.length === 0,
           `${at} the workforce: every key is at least 48px, and no key's words are cut (${JSON.stringify([workforce.small, workforce.cut])})`,
+        );
+        const sheetClose = await keyGaps(
+          page,
+          ".frame-sheet:not(.stage-sheet):not([hidden])",
+        );
+        check(
+          sheetClose.length === 0,
+          `${at} the workforce: every key stands at least 8px from the next (${sheetClose.join("; ")})`,
         );
         const sheet = await sheetFacts(page);
         await shot(page, `slice-workforce-${name}-${label}`);

@@ -69,7 +69,7 @@
 
 .city-plate-keys {
   display: flex;
-  gap: var(--art);
+  gap: var(--target-gap);
 }
 
 /* The plots' tags, under the road. */
@@ -268,7 +268,7 @@
 .city-crew {
   display: flex;
   align-items: center;
-  gap: var(--art);
+  gap: var(--target-gap);
 }
 
 .city-crew-line {
