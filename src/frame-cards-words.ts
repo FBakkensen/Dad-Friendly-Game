@@ -23,7 +23,7 @@ const LIGHT_TOWER = buildingById("lightTower");
 export const END_CARD: CardWords = {
   title: `${LIGHT_TOWER.name}: operational`,
   paragraphs: [
-    `Night shift output ${percent(LIGHT_TOWER.power.nightShift)}, up from ${percent(AWAY_PAY_RATE)}.`,
+    `Night shift output ${percent(LIGHT_TOWER.power.nightShift ?? AWAY_PAY_RATE)}, up from ${percent(AWAY_PAY_RATE)}.`,
     "The city is planning its next building. It comes in a later update.",
   ],
   key: "Continue",

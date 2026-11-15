@@ -139,7 +139,7 @@ describe("the mine", () => {
   it("says the pile after drilling and after haulage inside the row's words", () => {
     const { root, text } = mount((mountain) => ({
       ...mountain,
-      piles: { face: 200, shaft: 12 },
+      piles: { face: 200, shaft: 12, kiln: 0 },
     }));
     const pile = (stage: string) =>
       root.querySelector<HTMLElement>(

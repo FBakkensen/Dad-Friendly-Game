@@ -6,14 +6,17 @@ import type { LayerId, MaterialId, Materials } from "./layers";
  * materials are still called materials.
  */
 
-/** A good: the stones, or one band's material. */
-export type GoodId = "stones" | MaterialId;
+/**
+ * A good: the stones, one band's material, or brick, which the kilns make
+ * (slice 1, rule 3, #666).
+ */
+export type GoodId = "stones" | MaterialId | "brick";
 
 /** One row of the goods table: its id and where it comes from. */
 export type GoodRow = {
   readonly id: GoodId;
-  /** The mountain itself, or the band whose digging turns it up. */
-  readonly from: "mountain" | LayerId;
+  /** The mountain itself, the band whose digging turns it up, or the maker that makes it. */
+  readonly from: "mountain" | LayerId | "kilns";
 };
 
 /** Each material is the one its band names in `layers` (the test holds them together). */
@@ -23,6 +26,7 @@ export const GOOD_ROWS: readonly GoodRow[] = [
   { id: "iron", from: "granite" },
   { id: "crystal", from: "crystal" },
   { id: "heartstone", from: "heart" },
+  { id: "brick", from: "kilns" },
 ];
 
 export const GOOD_IDS: readonly GoodId[] = GOOD_ROWS.map((row) => row.id);
@@ -36,6 +40,7 @@ export const EMPTY_STOCK: Stock = {
   iron: 0,
   crystal: 0,
   heartstone: 0,
+  brick: 0,
 };
 
 /** One good and how much of it a price asks. */
@@ -115,6 +120,7 @@ export function addedStock(stock: Stock, gains: Partial<Stock>): Stock {
     iron: stock.iron + (gains.iron ?? 0),
     crystal: stock.crystal + (gains.crystal ?? 0),
     heartstone: stock.heartstone + (gains.heartstone ?? 0),
+    brick: stock.brick + (gains.brick ?? 0),
   };
 }
 

@@ -259,6 +259,23 @@ describe("mergeSaves in a fresh mine (#664)", () => {
     }
   });
 
+  it("is a conflict when the copy with more rock is behind on kilns or the stockyard (#666)", () => {
+    const remote = copy(dug(1_200), 3);
+    const behind = [
+      dug(1_000, { makers: { kiln: 1 } }),
+      dug(1_000, { stockyard: 1 }),
+    ];
+    for (const mountain of behind) {
+      expect(mergeSaves(copy(mountain, 2), remote).kind).toBe("conflict");
+    }
+  });
+
+  it("fast-forwards a bigger stockyard with the same rock dug (#666)", () => {
+    const bigger = dug(1_000, { stockyard: 1 });
+    const merged = mergeSaves(copy(dug(1_000), 2), copy(bigger, 3));
+    expect(merged.kind === "fast-forward" && merged.mountain).toBe(bigger);
+  });
+
   it("counts the steps built and what has arrived as progress", () => {
     const ordered = placeOrder(dug(1_000));
     const site =

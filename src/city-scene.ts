@@ -44,9 +44,18 @@ export const PLOT_SPANS: readonly { readonly x: number; readonly w: number }[] =
     { x: 154, w: 54 },
   ];
 
-const BUILDING_URLS: Readonly<Record<BuildingId, string>> = {
+/**
+ * The buildings drawn so far. The Warehouse (#666) is drawn when part 2's
+ * city lays its site out for the second plot (#671); until then its plot
+ * shows its stakes.
+ */
+const BUILDING_URLS = {
   lightTower: towerUrl,
-};
+} as const satisfies Partial<Record<BuildingId, string>>;
+
+function drawnBuilding(id: BuildingId): id is keyof typeof BUILDING_URLS {
+  return id in BUILDING_URLS;
+}
 
 const SPRITE_URLS = { miner: minerUrl, wagon: wagonUrl, ...BUILDING_URLS };
 
@@ -309,7 +318,7 @@ export function drawCity(
     if (span === undefined) {
       return;
     }
-    if (plot.building === undefined) {
+    if (plot.building === undefined || !drawnBuilding(plot.building)) {
       stakes(c, span.x + 6, span.w - 12, g);
       return;
     }

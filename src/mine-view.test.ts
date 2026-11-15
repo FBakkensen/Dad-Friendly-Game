@@ -193,7 +193,7 @@ describe("a stage's row", () => {
   it("each stage says what it moves now, and the pile after it", () => {
     fresh(() => {
       const start = createMountain();
-      const mountain = { ...start, piles: { face: 200, shaft: 0 } };
+      const mountain = { ...start, piles: { face: 200, shaft: 0, kiln: 0 } };
       const rows = stageRows(mountain);
       const pick = toolSpeed(effectiveRates(mountain).tierSpeed);
       expect(mountain.jobs.drilling).toBe(1);
@@ -206,7 +206,10 @@ describe("a stage's row", () => {
       ]);
       expect(PILE_HOLDS.face).toBe(300);
       // Full drilled rock with nobody hauling: drilling stands too.
-      const full = stageRows({ ...mountain, piles: { face: 300, shaft: 0 } });
+      const full = stageRows({
+        ...mountain,
+        piles: { face: 300, shaft: 0, kiln: 0 },
+      });
       expect(full[0]?.now).toBe("0");
       expect(full[0]?.band.now).toBe(0);
     });
@@ -258,7 +261,7 @@ describe("the level's plate and the scene", () => {
       const hoisting = {
         ...start,
         jobs: { ...start.jobs, drilling: 0, hoisting: 1 },
-        piles: { face: 0, shaft: 300 },
+        piles: { ...start.piles, face: 0, shaft: 300 },
       };
       const lift = stageRows(hoisting).find((row) => row.stage === "lift");
       expect(lift?.now).toBe("3");
@@ -285,7 +288,7 @@ describe("the level's plate and the scene", () => {
       const queued = mineScene({
         ...start,
         jobs: { ...start.jobs, hoisting: 1 },
-        piles: { face: 150, shaft: PILE_HOLDS.shaft },
+        piles: { face: 150, shaft: PILE_HOLDS.shaft, kiln: 0 },
       });
       expect(queued.facePile).toBe(150 / PILE_HOLDS.face);
       expect(queued.shaftPile).toBe(1);
@@ -296,7 +299,7 @@ describe("the level's plate and the scene", () => {
       const lone = mineScene({
         ...start,
         jobs: { ...start.jobs, drilling: 1, haulage: 0, hoisting: 0 },
-        piles: { face: 120, shaft: 0 },
+        piles: { face: 120, shaft: 0, kiln: 0 },
       });
       expect(lone.moving).toBe(true);
       expect(lone.stages.face.busy).toBe(1);
@@ -322,7 +325,7 @@ describe("the level's plate and the scene", () => {
       const full = mineScene({
         ...start,
         jobs: { ...start.jobs, hoisting: 0 },
-        piles: { face: PILE_HOLDS.face, shaft: PILE_HOLDS.shaft },
+        piles: { face: PILE_HOLDS.face, shaft: PILE_HOLDS.shaft, kiln: 0 },
       });
       expect(full.moving).toBe(false);
       expect(full.shaftPile).toBe(1);

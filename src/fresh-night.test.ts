@@ -39,7 +39,14 @@ function mine(
   return {
     ...start,
     owned: { ...start.owned, helper: 12 },
-    jobs: { drilling: 3, haulage: 3, hoisting: 3, driving: 1, building: 2 },
+    jobs: {
+      drilling: 3,
+      haulage: 3,
+      hoisting: 3,
+      driving: 1,
+      building: 2,
+      kilns: 0,
+    },
     stock: { ...start.stock, stones: pocket },
     fleet: { ...start.fleet, horseWagon: 1 },
     project,
@@ -205,10 +212,13 @@ describe("the night's facts (#663)", () => {
       // their 300 for the eight hours. Then drilling stops: haulage carries
       // the drilled rock to the shaft and hoisting lifts the shaft pile, 600
       // more, about 222 seconds past the clock (300 / 2.7 twice).
-      const start = { ...mine(0, site(2)), piles: { face: 300, shaft: 300 } };
+      const start = {
+        ...mine(0, site(2)),
+        piles: { face: 300, shaft: 300, kiln: 0 },
+      };
       const away = night(start, 12 * HOUR);
       expect(away.mined).toBe(77_760 + 600);
-      expect(away.mountain.piles).toEqual({ face: 0, shaft: 0 });
+      expect(away.mountain.piles).toEqual({ face: 0, shaft: 0, kiln: 0 });
       const report = away.report.night;
       expect(report?.stop).toBe("clock");
       expect(report?.producedMs).toBeGreaterThan(EIGHT_HOURS + 220_000);
@@ -229,7 +239,7 @@ describe("the night's facts (#663)", () => {
       expect(away.mined).toBe(
         Math.floor(167 * 0.9) + Math.floor((2 * 3600 - 167) * 0.9),
       );
-      expect(away.mountain.piles).toEqual({ face: 300, shaft: 0 });
+      expect(away.mountain.piles).toEqual({ face: 300, shaft: 0, kiln: 0 });
       expect(away.report.night?.producedMs).toBe(2 * HOUR);
     });
   });
@@ -243,7 +253,7 @@ describe("the night's facts (#663)", () => {
       const lone = {
         ...start,
         jobs: { ...start.jobs, drilling: 0, hoisting: 1 },
-        piles: { face: 0, shaft: 300 },
+        piles: { face: 0, shaft: 300, kiln: 0 },
       };
       const away = night(lone, 10 * HOUR);
       expect(away.mined).toBe(300);

@@ -67,7 +67,7 @@ describe("next view", () => {
       // Nobody hoists, so rock moves into the piles until they are full.
       const short = { ...start, jobs: { ...start.jobs, hoisting: 0 } };
       expect(nextView(short)).toMatchObject({ then: PRODUCTION_RUNS });
-      const stood = { ...short, piles: { face: 300, shaft: 300 } };
+      const stood = { ...short, piles: { face: 300, shaft: 300, kiln: 0 } };
       const view = nextView(stood);
       expect(view.kind === "nothing" && view.then).toBe(LINE_STANDS);
     });

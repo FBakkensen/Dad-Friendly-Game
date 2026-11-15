@@ -72,6 +72,7 @@ export const CREWED_JOBS = {
   hoisting: 6,
   driving: 1,
   building: 2,
+  kilns: 0,
 } as const;
 
 /**

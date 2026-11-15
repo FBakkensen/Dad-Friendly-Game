@@ -37,7 +37,14 @@ function crew(project: Mountain["project"], stones = 0): Mountain {
   return {
     ...start,
     owned: { ...start.owned, helper: 12 },
-    jobs: { drilling: 3, haulage: 3, hoisting: 3, driving: 1, building: 2 },
+    jobs: {
+      drilling: 3,
+      haulage: 3,
+      hoisting: 3,
+      driving: 1,
+      building: 2,
+      kilns: 0,
+    },
     stock: { ...start.stock, stones },
     project,
   };

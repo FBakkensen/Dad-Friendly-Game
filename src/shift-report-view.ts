@@ -43,6 +43,8 @@ const GOOD_WORDS: Readonly<Record<GoodId, string>> = {
   iron: "iron",
   crystal: "crystal",
   heartstone: "heartstone",
+  // Part 2 (#666): not on screen until the refinery's sliver (#671).
+  brick: "brick",
 };
 
 /** The building whose roof went on and lit the night, if one did. */

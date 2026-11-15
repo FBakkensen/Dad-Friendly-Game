@@ -27,10 +27,21 @@ import {
   type StepIndex,
 } from "./city";
 import { NO_JOBS, workersOnJobs, type Jobs } from "./workforce";
-import { chainChange, chainFlows } from "./piles";
-import { flowMine, mineChain, type MinePiles } from "./mine-piles";
+import { makerRecord, type MakerId } from "./makers";
+import { chainChange, chainSettled } from "./piles";
+import {
+  chainIncome,
+  chainMakes,
+  flowMine,
+  mineChain,
+  takeIncome,
+  type MinePiles,
+} from "./mine-piles";
+import { stockpileFull, stockyardOpen } from "./stockyard";
+import type { GoodId } from "./stock";
 import {
   deliver,
+  drawChange,
   givenFleet,
   secondsToStep,
   vehicleRecord,
@@ -146,6 +157,10 @@ export type Mountain = {
    * whole stones. Always empty in today's game.
    */
   readonly piles: MinePiles;
+  /** Makers owned, by kind (slice 1, part 2, src/makers.ts). Always none in today's game. */
+  readonly makers: Readonly<Record<MakerId, number>>;
+  /** The stockyard's level (slice 1, part 2, src/stockyard.ts); 0 is the first. */
+  readonly stockyard: number;
   /**
    * Rock dug in all (slice 1, call 13, #664): every stone drilling has
    * dug this run. It only grows, and it breaks a tie between two copies
@@ -187,7 +202,9 @@ export const BARE_MOUNTAIN: Mountain = {
   operational: [],
   project: NO_PROJECT,
   jobs: NO_JOBS,
-  piles: { face: 0, shaft: 0 },
+  piles: { face: 0, shaft: 0, kiln: 0 },
+  makers: makerRecord(0),
+  stockyard: 0,
   rockDug: 0,
 };
 
@@ -203,6 +220,7 @@ export const FRESH_START_JOBS: Jobs = {
   hoisting: 0,
   driving: 0,
   building: 0,
+  kilns: 0,
 };
 
 export function createMountain(): Mountain {
@@ -320,6 +338,10 @@ export function accrue({
   // A craft that finished before this window is on the crew for the whole of it.
   // One that finishes during the window is fitted at the end, once.
   const ready = settleBench(mountain, from);
+  if (freshMineOn() && stockyardOpen(ready)) {
+    const worked = accrueStretches(ready, from, to, pay);
+    return { ...worked, mountain: settleBench(worked.mountain, to) };
+  }
   const crew = freshMineOn()
     ? accrueMine(ready, from, to, pay)
     : accrueCrew({
@@ -334,6 +356,29 @@ export function accrue({
   const worked = freshMineOn() ? withDelivery(rushed, from, to, pay) : rushed;
   const fitted = settleBench(worked.mountain, to);
   return fitted === worked.mountain ? worked : { ...worked, mountain: fitted };
+}
+
+/**
+ * A fresh mine's work with the stockyard open (part 2, #666): the mine,
+ * transport and the builders in stretches, as a night runs, so a full
+ * stockpile takes no more than transport empties from it.
+ */
+function accrueStretches(
+  mountain: Mountain,
+  from: number,
+  to: number,
+  pay: number,
+): Accrual {
+  let state = mountain;
+  let cursor = from;
+  let mined = 0;
+  while (to - cursor >= 1000) {
+    const part = workStretch(state, { from: cursor, end: to }, pay, true);
+    state = part.mountain;
+    mined += part.mined;
+    cursor = Math.max(part.settledAt, cursor + 1000);
+  }
+  return { mountain: state, mined, settledAt: cursor };
 }
 
 /**
@@ -374,7 +419,7 @@ function accrueMine(
   to: number,
   pay: number,
 ): Accrual {
-  if (chainFlows(mineChain(mountain, pay, true)).every((flow) => flow <= 0)) {
+  if (!chainMakes(mineChain(mountain, pay, true))) {
     return { mountain, mined: 0, settledAt: to };
   }
   const seconds = Math.floor((to - from) / 1000);
@@ -497,8 +542,13 @@ type NightStep = {
 export type NightReport = {
   /** Time stone came up to the pocket (#703: past the clock while the piles drain). */
   readonly producedMs: number;
-  /** "clock" when the eight-hour clock stopped a mine that was producing. */
-  readonly stop: "clock" | "none";
+  /**
+   * "clock" when the eight-hour clock stopped a mine that was producing;
+   * "stockyard" when a full stockyard stopped it (part 2, #666).
+   */
+  readonly stop: "clock" | "stockyard" | "none";
+  /** When each stockpile was first full, from the start of the night (part 2, #666). */
+  readonly fullAtMs?: Readonly<Partial<Record<GoodId, number>>>;
   /** What transport took from the pocket to the order, good by good. */
   readonly delivered: Stock;
   readonly steps: readonly NightStep[];
@@ -631,26 +681,63 @@ function nightStretch(
   from: number,
   end: number,
   drilling: boolean,
-): Accrual & { readonly producing: boolean } {
-  const pay = effectiveRates(mountain).awayPay;
-  const chain = mineChain(mountain, pay, drilling);
-  const flows = chainFlows(chain);
-  // What hoisting lifts a second: the last stage's flow.
-  const income = flows.slice(-1).reduce((sum, flow) => sum + flow, 0);
+): Stretch {
+  return workStretch(
+    mountain,
+    { from, end },
+    effectiveRates(mountain).awayPay,
+    drilling,
+  );
+}
+
+/**
+ * One stretch of a fresh mine's work at `pay` of its rates, live or
+ * unattended: up to `end`, the second the step in hand is built in, the
+ * second a pile fills or empties, and, with the stockyard open, the second
+ * what transport takes from a stockpile changes (#666), so a full stockpile
+ * is topped up by no more than transport took. A pile that fills or empties
+ * within the first second is taken as filled or empty, so a stockpile a few
+ * goods short of its room does not cut the stretch to a second.
+ */
+function workStretch(
+  mountain: Mountain,
+  { from, end }: { readonly from: number; readonly end: number },
+  pay: number,
+  drilling: boolean,
+): Stretch {
+  // A stretch is a second at least: what changes within it is made for it.
+  const settled = chainSettled(mineChain(mountain, pay, drilling), 1);
+  const income = chainIncome(settled.chain);
   const to = Math.min(
     end,
     secondMark(from, secondsToStep(mountain, pay, income)),
-    secondMark(from, chainChange(chain)),
+    secondMark(from, settled.after + chainChange(settled.chain)),
+    stockyardOpen(mountain)
+      ? secondMark(
+          from,
+          drawChange(mountain, pay, {
+            take: takeIncome(mountain, pay, drilling),
+            income,
+          }),
+        )
+      : Infinity,
   );
   const seconds = Math.floor((to - from) / 1000);
   const mine = flowMine(mountain, seconds, pay, drilling);
   return {
     mountain: deliver(mine.mountain, seconds, pay),
     mined: mine.mined,
+    gained: mine.gained,
     settledAt: from + seconds * 1000,
     producing: mine.mined > 0,
   };
 }
+
+/** One stretch of the night: what came up, and what reached the stockpiles. */
+type Stretch = Accrual & {
+  readonly producing: boolean;
+  readonly gained: Partial<Stock>;
+};
 
 /** The end of the whole second in which `seconds` from `from` falls, at least one on; Infinity stays. */
 function secondMark(from: number, seconds: number): number {
@@ -690,17 +777,33 @@ type NightLog = {
   producedTo: number;
   readonly steps: NightStep[];
   litAtMs: number | undefined;
+  /** What reached the stockpiles, good by good. */
+  gained: Stock;
+  /** When each stockpile was first full (#666). */
+  readonly fullAtMs: Partial<Record<GoodId, number>>;
 };
+
+/** The stockpiles the shift report watches (part 2). */
+const STOCKPILES: readonly GoodId[] = ["stones", "brick"];
 
 /** One stretch's facts into the log: `at` is where the next stretch starts. */
 function logStretch(
   log: NightLog,
   before: Mountain,
-  part: Accrual & { readonly producing: boolean },
+  part: Stretch,
   span: { readonly from: number; readonly at: number; readonly start: number },
 ): void {
   const atMs = span.at - span.start;
   log.steps.push(...stepsBuilt(before, part.mountain, atMs));
+  log.gained = addedStock(log.gained, part.gained);
+  for (const good of STOCKPILES) {
+    if (
+      log.fullAtMs[good] === undefined &&
+      stockpileFull(part.mountain, good)
+    ) {
+      log.fullAtMs[good] = atMs;
+    }
+  }
   if (part.producing) {
     log.producedMs += span.at - span.from;
     log.producedTo = atMs;
@@ -741,28 +844,34 @@ function accrueNight({
     producedTo: 0,
     steps: [],
     litAtMs: undefined,
+    gained: EMPTY_STOCK,
+    fullAtMs: Object.fromEntries(
+      STOCKPILES.filter((good) => stockpileFull(mountain, good)).map((good) => [
+        good,
+        0,
+      ]),
+    ),
   };
   let state = mountain;
   let cursor = lastSeen;
   let mined = 0;
   while (now - cursor >= 1000) {
-    const drilling = cursor < clockStops;
-    const part = nightStretch(
-      state,
-      cursor,
-      drilling ? clockStops : now,
-      drilling,
-    );
+    // The clock goes once the stockyard is open (part 2, rule 4): the mine
+    // runs until the stockyard is full.
+    const drilling = cursor < clockStops || stockyardOpen(state);
+    const end = cursor < clockStops ? clockStops : now;
+    const part = nightStretch(state, cursor, end, drilling);
     const at = Math.max(part.settledAt, cursor + 1000);
     logStretch(log, state, part, {
       from: cursor,
-      at: Math.min(at, drilling ? clockStops : now),
+      at: Math.min(at, end),
       start: lastSeen,
     });
     state = part.mountain;
     mined += part.mined;
     cursor = at;
   }
+  const clockless = stockyardOpen(state);
   return {
     mountain: state,
     mined,
@@ -772,13 +881,33 @@ function accrueNight({
       mined,
       heldForRush: 0,
       awayMs,
-      paidMs: clockStops - lastSeen,
-      capped: awayMs > NIGHT_CLOCK_MS,
+      paidMs: clockless ? awayMs : clockStops - lastSeen,
+      capped: !clockless && awayMs > NIGHT_CLOCK_MS,
       heart: 1,
       materials: materialsGained(0, 0),
-      night: nightReport(log, mountain, state, { mined, awayMs }),
+      night: nightReport(log, mountain, state, awayMs),
     },
   };
+}
+
+/**
+ * What stopped the mine: the eight-hour clock only if stone still came up
+ * when it struck (a pile that ran out first stopped the mine, #703); a full
+ * stockyard if the mine stood at the end with its stone stockpile full (#666).
+ */
+function nightStop(
+  log: NightLog,
+  after: Mountain,
+  awayMs: number,
+): NightReport["stop"] {
+  if (stockyardOpen(after)) {
+    return log.producedTo < awayMs && stockpileFull(after, "stones")
+      ? "stockyard"
+      : "none";
+  }
+  return awayMs > NIGHT_CLOCK_MS && log.producedTo >= NIGHT_CLOCK_MS
+    ? "clock"
+    : "none";
 }
 
 /** The night's facts from its log and the mine before and after it. */
@@ -786,17 +915,14 @@ function nightReport(
   log: NightLog,
   before: Mountain,
   after: Mountain,
-  { mined, awayMs }: { readonly mined: number; readonly awayMs: number },
+  awayMs: number,
 ): NightReport {
-  const dug = addedStock(before.stock, { stones: mined });
+  const dug = addedStock(before.stock, log.gained);
+  const full = Object.keys(log.fullAtMs).length > 0;
   return {
     producedMs: log.producedMs,
-    // The clock stopped the mine only if stone still came up when it struck:
-    // a pile that ran out before it stopped the mine first (#703).
-    stop:
-      awayMs > NIGHT_CLOCK_MS && log.producedTo >= NIGHT_CLOCK_MS
-        ? "clock"
-        : "none",
+    stop: nightStop(log, after, awayMs),
+    ...(full ? { fullAtMs: { ...log.fullAtMs } } : {}),
     delivered: stockMoved(dug, after.stock).spent,
     steps: log.steps,
     payFrom: effectiveRates(before).awayPay,

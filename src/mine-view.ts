@@ -314,6 +314,8 @@ const PILE_AFTER: Readonly<Record<Stage, PileId | undefined>> = {
 const PILE_LABELS: Readonly<Record<PileId, string>> = {
   face: "Drilled rock",
   shaft: "Rock at the shaft",
+  // Part 2 (#666): not on screen until the refinery's sliver (#671), which asks him first.
+  kiln: "Rock at the kilns",
 };
 
 function rowPile(mountain: Mountain, stage: Stage): RowPile | undefined {

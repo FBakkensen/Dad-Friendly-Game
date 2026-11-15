@@ -1,5 +1,6 @@
 import { STAGES, type Stage, type StageSpeeds } from "./line";
 import type { Mountain } from "./mountain";
+import { makersOpen } from "./makers";
 import { fleetSize } from "./transport";
 import {
   TIERS,
@@ -16,13 +17,17 @@ import {
  * play: only a fresh mine (`freshMineOn`) lists the moves.
  */
 
-/** Where workers work in part 1: the line's three stages, driving and building (#690). */
+/**
+ * Where workers work: in part 1 the line's three stages, driving and
+ * building (#690); in part 2 the kilns, one worker to a kiln (#666).
+ */
 export const JOB_IDS = [
   "drilling",
   "haulage",
   "hoisting",
   "driving",
   "building",
+  "kilns",
 ] as const;
 
 export type JobId = (typeof JOB_IDS)[number];
@@ -35,6 +40,7 @@ export const NO_JOBS: Jobs = {
   hoisting: 0,
   driving: 0,
   building: 0,
+  kilns: 0,
 };
 
 /** Each stage of the line and its job. */
@@ -45,6 +51,17 @@ export const STAGE_JOB: Readonly<Record<Stage, JobId>> = {
 };
 
 type Crew = Pick<Mountain, "owned" | "jobs">;
+
+/**
+ * Whether a job is open (rule 2.3): the kilns' with the kilns (part 2, the
+ * Light Tower operational), every other from the first evening.
+ */
+export function jobOpen(
+  mountain: Pick<Mountain, "operational">,
+  job: JobId,
+): boolean {
+  return job !== "kilns" || makersOpen(mountain);
+}
 
 /** Workers on a job, of every job. */
 export function workersOnJobs(mountain: Pick<Mountain, "jobs">): number {

@@ -50,6 +50,7 @@ import {
   type Mountain,
 } from "./mountain";
 import { MAX_STRETCH } from "./scale";
+import { MAX_STOCKYARD_LEVEL } from "./stockyard";
 import { TEACH_IDS, type TeachId } from "./teach";
 import { TIER_IDS, type TierId } from "./tiers";
 import { NO_UPGRADES, UPGRADES, type UpgradeId } from "./upgrades";
@@ -69,6 +70,7 @@ import { GOOD_IDS, priceAmount, type GoodId } from "./stock";
 import { VEHICLE_IDS, type VehicleId } from "./transport";
 import { JOB_IDS, workersOnJobs, type JobId, type Jobs } from "./workforce";
 import { PILE_IDS, type MinePiles, type PileId } from "./mine-piles";
+import { MAKER_IDS, type MakerId } from "./makers";
 
 /** The Gold rush's end time, in the clocks map. */
 const GOLD_RUSH = "gold-rush";
@@ -113,6 +115,8 @@ const GAME_KEYS = [
   "project",
   "jobs",
   "piles",
+  "makers",
+  "stockyard",
 ] as const;
 
 /** A project in hand, as saved: an unordered city saves none (#654). */
@@ -152,6 +156,10 @@ export type SaveGame = {
   readonly jobs?: Readonly<Partial<Record<JobId, number>>>;
   /** Drilled rock and rock at the shaft (#703); any whole number (ruling 2). */
   readonly piles?: Readonly<Partial<Record<PileId, number>>>;
+  /** Makers owned, by kind (slice 1, part 2, #666). */
+  readonly makers?: Readonly<Partial<Record<MakerId, number>>>;
+  /** The stockyard's level (#666); 0 is left out. */
+  readonly stockyard?: number;
 };
 
 // ---------------------------------------------------------------------------
@@ -304,6 +312,11 @@ export function writeGame(mountain: Mountain): SaveGame {
       "piles",
       positives(PILE_IDS, (id) => mountain.piles[id]),
     ),
+    ...some(
+      "makers",
+      positives(MAKER_IDS, (id) => mountain.makers[id]),
+    ),
+    ...(mountain.stockyard === 0 ? {} : { stockyard: mountain.stockyard }),
   };
 }
 
@@ -681,6 +694,17 @@ function readProject(value: unknown, marks: Part<Marks>): Part<Project> {
   return { kind: value["state"] as SavedProject["state"], site };
 }
 
+/** The stockyard's level: a whole number, 0 when left out, newer past the last (#666). */
+function readLevel(value: unknown): Part<number> {
+  if (value === undefined) {
+    return 0;
+  }
+  if (!isCount(value)) {
+    return "bad";
+  }
+  return value > MAX_STOCKYARD_LEVEL ? "newer" : value;
+}
+
 /** Workers on each job: never more in all than the workers he owns (#689). */
 function readJobs(value: unknown, facts: Part<Facts>): Part<Jobs> {
   const jobs = readCounts(value, JOB_IDS, UNCAPPED);
@@ -760,6 +784,8 @@ export function readGame(value: unknown, startedAt: number): GameRead {
   const jobs = readJobs(value["jobs"], facts);
   // A pile over the room this build allows is full (ruling 2): no cap.
   const piles = readCounts(value["piles"], PILE_IDS, UNCAPPED);
+  const makers = readCounts(value["makers"], MAKER_IDS, UNCAPPED);
+  const stockyard = readLevel(value["stockyard"]);
   const failed = worst([
     facts,
     marks,
@@ -770,6 +796,8 @@ export function readGame(value: unknown, startedAt: number): GameRead {
     project,
     jobs,
     piles,
+    makers,
+    stockyard,
   ]);
   if (failed !== undefined) {
     return { kind: failed };
@@ -790,6 +818,8 @@ export function readGame(value: unknown, startedAt: number): GameRead {
       project: project as Project,
       jobs: jobs as Jobs,
       piles: piles as MinePiles,
+      makers: makers as Record<MakerId, number>,
+      stockyard: stockyard as number,
       startedAt,
     },
   };
@@ -815,6 +845,7 @@ export type ShippedFacts = {
   readonly projectStates: readonly string[];
   readonly jobs: readonly string[];
   readonly piles: readonly string[];
+  readonly makers: readonly string[];
   readonly caps: Readonly<Record<string, number>>;
 };
 
@@ -841,6 +872,7 @@ export function shippedFacts(): ShippedFacts {
     projectStates: PROJECT_STATES,
     jobs: JOB_IDS,
     piles: PILE_IDS,
+    makers: MAKER_IDS,
     caps: {
       engineers: MAX_ENGINEERS,
       engineerTrips: MAX_ENGINEER_TRIPS,
@@ -848,6 +880,7 @@ export function shippedFacts(): ShippedFacts {
       expeditionMs: MAX_EXPEDITION_MS,
       craftMs: MAX_CRAFT_MS,
       siteHolds: SITE_HOLDS,
+      stockyard: MAX_STOCKYARD_LEVEL,
     },
   };
 }
