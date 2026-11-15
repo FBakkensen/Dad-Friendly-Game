@@ -1540,6 +1540,11 @@ export function tierBuyLine(id: TierId, count: number): string {
   return `Bought ${shown} ${n}.`;
 }
 
+/** A vehicle bought (#708): "Bought horse wagon 2.", as a machine bought. */
+export function vehicleBuyLine(id: VehicleId, count: number): string {
+  return `Bought ${VEHICLE_WORDS[id][0]} ${count.toLocaleString("en-US")}.`;
+}
+
 /** "Strong arms, level 3." */
 export const upgradeLevelLine = (name: string, level: number): string =>
   `${name}, level ${level.toLocaleString("en-US")}.`;

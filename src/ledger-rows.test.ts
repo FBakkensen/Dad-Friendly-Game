@@ -6,11 +6,14 @@ import { legacyBonus } from "./legacy";
 import {
   TONIGHT_LINES,
   accountRowView,
+  freshLedgerRows,
   relicsRowView,
   stonesRowView,
   tonightLines,
   tonightText,
 } from "./ledger-rows";
+import { withFactors } from "./economy/factors";
+import { FRESH_OFF } from "./line-switch";
 import { createMountain, type Mountain } from "./mountain";
 import { minedMountain } from "./test-fixtures";
 
@@ -382,5 +385,53 @@ describe("accountRowView (#375)", () => {
       can: true,
       aria: `Signed in as ${label}. Sign out`,
     });
+  });
+});
+
+/** The Ledger's rows in a fresh mine (#708): the save card's fresh lines, no depth. */
+describe("the Ledger's rows in a fresh mine", () => {
+  const fresh = <T>(body: () => T): T => withFactors({ [FRESH_OFF]: 0 }, body);
+  const grown = (): Mountain => {
+    const mountain = createMountain();
+    return {
+      ...mountain,
+      stock: { ...mountain.stock, stones: 1_200_000 },
+      owned: { ...mountain.owned, helper: 28, cart: 6, drill: 4, hoist: 3 },
+      fleet: { ...mountain.fleet, horseWagon: 1 },
+    };
+  };
+
+  it("reads the stockpile with the project, and the workers with the machines", () => {
+    const rows = fresh(() => freshLedgerRows(grown()));
+    expect(rows.stock).toMatchObject({
+      name: "1.2M stone in the stockpile",
+      info: ["The Light Tower · Foundation"],
+      lamp: "off",
+      state: "owned",
+      can: false,
+      aria: "1.2M stone in the stockpile. The Light Tower · Foundation",
+    });
+    expect(rows.crew).toMatchObject({
+      name: "28 workers · 1 horse wagon",
+      info: ["4 drills · 6 carts · 3 hoists"],
+      lamp: "off",
+      state: "owned",
+      can: false,
+      aria: "28 workers · 1 horse wagon. 4 drills · 6 carts · 3 hoists",
+    });
+  });
+
+  it("never reads a depth, a pocket, an engineer or Infinity", () => {
+    const rows = fresh(() => freshLedgerRows(createMountain()));
+    const words = JSON.stringify(rows);
+    expect(words).not.toMatch(/\bdeep\b|pocket|engineer|Infinity|NaN|left/);
+  });
+
+  it("words a horse wagon bought, as a machine bought", () => {
+    expect(text("vehicle.buy", { id: "horseWagon", count: 2 })).toBe(
+      "Bought horse wagon 2.",
+    );
+    expect(text("vehicle.buy", { id: "lorry", count: 2 })).toBeUndefined();
+    expect(text("vehicle.buy", { id: "horseWagon" })).toBeUndefined();
   });
 });

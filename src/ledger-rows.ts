@@ -15,6 +15,7 @@ import {
   type RelicId,
 } from "./relics";
 import type { RowLamp, RowState, RowView } from "./row-view";
+import { freshMineLines } from "./save-sheet-copy";
 import { MOUNTAIN_STONES, shownStones, stonesLeft } from "./scale";
 import {
   ACCOUNT,
@@ -46,10 +47,12 @@ import {
   stationCheer,
   tierBuyLine,
   upgradeLevelLine,
+  vehicleBuyLine,
   veinGaveLine,
   type TendPost,
 } from "./screen-words";
 import { TIERS, type TierId } from "./tiers";
+import { VEHICLE_IDS } from "./transport";
 import { UPGRADES, upgradeById, type UpgradeId } from "./upgrades";
 import { RECIPE_IDS, recipeById, type RecipeId } from "./workshop";
 import { metMaterialChips } from "./workshop-sheet";
@@ -169,6 +172,7 @@ const WORDING: Readonly<
   Record<string, (event: FieldEvent) => string | undefined>
 > = {
   "tier.buy": ({ data }) => named(TIER_IDS, data, tierBuyLine),
+  "vehicle.buy": ({ data }) => named(VEHICLE_IDS, data, vehicleBuyLine),
   "upgrade.buy": ({ data }) =>
     named(UPGRADE_IDS, data, (id, level) =>
       upgradeLevelLine(upgradeById(id).name, level),
@@ -249,6 +253,37 @@ export function stonesRowView(mountain: Mountain): StonesRowView {
     state: "owned",
     aria: materials === "" ? name : `${name}. ${materials}`,
     title: `${left.toLocaleString("en-US")} of ${total.toLocaleString("en-US")}`,
+  };
+}
+
+/** A fresh mine's two rows (#708): the save card's lines, without the play time. */
+export interface FreshLedgerRows {
+  readonly stock: RowView;
+  readonly crew: RowView;
+}
+
+/** A quiet row: a line and the line under it, nothing to do. */
+function quietRow(name: string, under: string): RowView {
+  return {
+    ...QUIET_ROW,
+    name,
+    info: [under],
+    lamp: "off",
+    state: "owned",
+    aria: `${name}. ${under}`,
+  };
+}
+
+/**
+ * The Ledger's mine in a fresh mine (#708): no depth, no mountain's size
+ * and no relics. The stone in the stockpile with the project in hand, and
+ * the workers with their wagons over the machines, in the save card's words.
+ */
+export function freshLedgerRows(mountain: Mountain): FreshLedgerRows {
+  const lines = freshMineLines(mountain);
+  return {
+    stock: quietRow(lines.pocket, lines.depth),
+    crew: quietRow(lines.crew, lines.machines),
   };
 }
 
