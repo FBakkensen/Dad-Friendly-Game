@@ -5,7 +5,6 @@ import {
   MAX_EXPEDITION_MS,
   TRIP_FIND_IDS,
   TUNNELS,
-  glimmerText,
   parseExpeditions,
   parseHomecomingNews,
   send,
@@ -22,15 +21,12 @@ import {
 import { knownRecipeIds } from "./economy/actions";
 import { accrueAway, createMountain } from "./mountain";
 import { AWAY_PAY_RATE, effectiveRates } from "./rates";
-import { RELICS } from "./relics";
 import { gameOf, reloaded } from "./test-fixtures";
-import { MOUNTAIN_STONES } from "./scale";
 import { recipesForMined } from "./workshop";
 
 const SEAM = 10 * 60_000;
 const HOUR = 60 * 60_000;
-const payOf = (heart = 1): number =>
-  Math.round(AWAY_PAY_RATE * heart * 1e9) / 1e9;
+const payOf = (): number => Math.round(AWAY_PAY_RATE * 1e9) / 1e9;
 
 const ada: Engineer = { name: "Ada", rank: 0, trips: 0, post: "borer" };
 const journeyman: Engineer = { name: "Ada", rank: 1, trips: 3, post: "borer" };
@@ -244,29 +240,17 @@ describe("finds", () => {
     });
   });
 
-  it("keys a glimmer to the next relic, with no numbers and no question marks", () => {
-    for (const relic of RELICS) {
-      const mountain = {
-        ...crew(),
-        remaining: MOUNTAIN_STONES - (relic.depth - 1),
-        finds: [...LOST_TOOLS, ...KEEPSAKES],
-      };
-      const sent = send(mountain, 0, "side-seam", 2);
-      expect(sent.expeditions[0]?.find).toEqual({
-        kind: "glimmer",
-        id: relic.id,
-      });
-      const home = settle(sent, 2 + SEAM);
-      const find = home.finds[0];
-      expect(find).toMatchObject({ kind: "glimmer", relic: relic.id });
-      if (find?.kind === "glimmer") {
-        expect(find.text).toBe(glimmerText(relic.id));
-        expect(find.text).not.toMatch(/[0-9?]/);
-      }
-    }
-    expect(glimmerText("heart")).toBe(
-      "Down there, something beat like a heart.",
+  it("brings nothing home on a quiet roll, where a relic glimmer was (#728)", () => {
+    const seed = Array.from({ length: samples }, (_, sentAt) => sentAt).find(
+      (sentAt) =>
+        send(crew(), 0, "side-seam", sentAt).expeditions[0]?.find.kind ===
+        "quiet",
     );
+    expect(seed).toBeGreaterThanOrEqual(0);
+    const sent = send(crew(), 0, "side-seam", seed ?? 0);
+    const home = settle(sent, (seed ?? 0) + SEAM);
+    expect(home.finds[0]).toMatchObject({ kind: "quiet" });
+    expect(home.mountain.finds).toEqual([]);
   });
 
   it("sometimes brings an engineer home from the deep dark, and never a sixth", () => {
@@ -612,7 +596,6 @@ describe("away pay", () => {
     expect(away.report).toMatchObject({
       awayMs: 2 * HOUR,
       capped: false,
-      heart: 1,
     });
 
     const stillOut = send(crew([journeyman]), 0, "deep-dark", 0);
@@ -674,24 +657,6 @@ describe("away pay", () => {
       expect(again.mountain.finds).toEqual(long.mountain.finds);
       expect(again.mountain.engineers).toEqual(long.mountain.engineers);
     }
-  });
-
-  it("keeps the Heart of Patience on every piece of a split absence", () => {
-    const hearty = {
-      ...crew(),
-      remaining: MOUNTAIN_STONES - 45_000_000,
-    };
-    const sent = send(hearty, 0, "side-seam", 0);
-    const home = { ...sent, expeditions: [] };
-    const pay = payOf(1.25);
-    const away = accrueAway({ mountain: sent, lastSeen: 0, now: 6 * HOUR });
-    expect(away.report.heart).toBe(1.25);
-    expect(away.mined).toBe(
-      Math.floor(600 * effectiveRates(sent).crewPerSecond * pay) +
-        Math.floor(
-          (6 * 3_600 - 600) * effectiveRates(home).crewPerSecond * pay,
-        ),
-    );
   });
 });
 
@@ -847,12 +812,6 @@ describe("parseHomecomingNews", () => {
           find: { kind: "keepsake", id: "watch" },
         },
         {
-          engineer: "Ruth",
-          tunnel: "deep-dark",
-          sentAt: 2,
-          find: { kind: "glimmer", relic: "heart", text: "A heart." },
-        },
-        {
           engineer: "Otto",
           tunnel: "old-shaft",
           sentAt: 3,
@@ -871,7 +830,7 @@ describe("parseHomecomingNews", () => {
           find: { kind: "recipe", id: "crystal-lamp" },
         },
       ]),
-    ).toHaveLength(6);
+    ).toHaveLength(5);
     for (const bad of [
       null,
       [null],
@@ -885,10 +844,8 @@ describe("parseHomecomingNews", () => {
       [{ ...tool, find: { kind: "tool", id: 1 } }],
       [{ ...tool, find: { kind: "tool", id: "turbo" } }],
       [{ ...tool, find: { kind: "keepsake", id: "pick" } }],
-      [{ ...tool, find: { kind: "glimmer", relic: 1, text: "A" } }],
-      [{ ...tool, find: { kind: "glimmer", relic: "nope", text: "A" } }],
-      [{ ...tool, find: { kind: "glimmer", relic: "heart", text: "" } }],
-      [{ ...tool, find: { kind: "glimmer", relic: "heart", text: 1 } }],
+      // The relic glimmers left with the relics (#728).
+      [{ ...tool, find: { kind: "glimmer", relic: "heart", text: "A" } }],
       [{ ...tool, find: { kind: "engineer", name: "Bob", joined: true } }],
       [{ ...tool, find: { kind: "engineer", name: "Mae", joined: "yes" } }],
       [{ ...tool, find: { kind: "quiet", text: "" } }],
@@ -955,6 +912,8 @@ describe("parseExpeditions reads only a whole trip (#558)", () => {
       { kind: "tool", id: 3 },
       { kind: "tool", name: "pick" },
       { kind: "quiet", id: "pick" },
+      // The relic glimmers left with the relics (#728).
+      { kind: "glimmer", id: "heart" },
     ]) {
       expect(parseExpeditions([{ ...trip, find }], away)).toBeUndefined();
     }

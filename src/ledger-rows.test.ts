@@ -1,14 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { AuthState } from "./auth";
 import type { FieldEvent, FieldEventData } from "./field-log";
-import { legacyWords } from "./legacy-panel";
-import { legacyBonus } from "./legacy";
 import {
   TONIGHT_LINES,
   accountRowView,
   freshLedgerRows,
   metMaterialChips,
-  relicsRowView,
   stonesRowView,
   tonightLines,
   tonightText,
@@ -71,10 +68,8 @@ describe("tonightText words each event the field log keeps (#375)", () => {
     );
   });
 
-  it("words a relic found and a layer broken into", () => {
-    expect(text("relic.found", { id: "hammer" })).toBe(
-      "Found the Hammer of the Builder.",
-    );
+  it("words a layer broken into, and no relic (#728)", () => {
+    expect(text("relic.found", { id: "hammer" })).toBe(undefined);
     expect(text("layer.enter", { id: "granite" })).toBe(
       "You broke into the Granite!",
     );
@@ -148,7 +143,6 @@ describe("tonightText words each event the field log keeps (#375)", () => {
     );
     expect(text("craft.start", { id: "jet-boots" })).toBe(undefined);
     expect(text("craft.done", { id: "jet-boots", count: 1 })).toBe(undefined);
-    expect(text("relic.found", { id: "sword" })).toBe(undefined);
     expect(text("layer.enter", { id: "magma" })).toBe(undefined);
     expect(text("layer.enter", { id: "topsoil" })).toBe(undefined);
     expect(text("engineer.promote", { id: "Bob" })).toBe(undefined);
@@ -272,77 +266,6 @@ describe("stonesRowView (#375)", () => {
     const view = stonesRowView(createMountain());
     expect(view.info).toEqual([]);
     expect(view.aria).toBe(view.name);
-  });
-});
-
-describe("relicsRowView (#375)", () => {
-  it("an unguided fresh mountain: none found, the dark Lantern, no bar", () => {
-    const view = relicsRowView(createMountain());
-    expect(view.name).toBe("0 of 6 relics found");
-    expect(view.info).toEqual([
-      "Six Legendary Relics of Fatherhood lie deep inside. Tap to mine.",
-    ]);
-    expect(view.why).toBe("Below the topsoil, the rock turns hard and grey.");
-    expect(view).toMatchObject({
-      icon: "lantern",
-      lit: false,
-      progress: undefined,
-      barLabel: "",
-      lamp: "off",
-      state: "owned",
-      can: false,
-    });
-  });
-
-  it("an unguided kid's run speaks of the Legacy", () => {
-    const kid = { ...createMountain(), legacy: 1 };
-    const view = relicsRowView(kid);
-    expect(view.info).toEqual([
-      `Your kid's mine: six relics wait inside. Legacy ${legacyWords(legacyBonus(kid))}.`,
-    ]);
-  });
-
-  it("a next relic: the goal, the layer hint and the bar", () => {
-    const view = relicsRowView(minedMountain(4_600_000));
-    expect(view.name).toBe("1 of 6 relics found");
-    expect(view.info).toEqual(["Next: Shield of Protection · Getting closer"]);
-    expect(view.why).toBe("Below the topsoil, the rock turns hard and grey.");
-    expect(view.progress).toBe(0.4);
-    expect(view.barLabel).toBe(
-      "Progress to the Shield of Protection. Below the topsoil, the rock turns hard and grey.",
-    );
-    expect(view).toMatchObject({
-      icon: "shield",
-      lit: false,
-      lamp: "amber",
-      state: "owned",
-    });
-    expect(view.aria).toBe(
-      "1 of 6 relics found. Next: Shield of Protection · Getting closer. Below the topsoil, the rock turns hard and grey.",
-    );
-  });
-
-  it("a next relic with no layer below: the bar's label is the relic alone", () => {
-    const view = relicsRowView(heart(1_000_000));
-    expect(view.why).toBe("");
-    expect(view.barLabel).toBe("Progress to the Mantle of the Hero");
-    expect(view.icon).toBe("mantle");
-    expect(view.lit).toBe(false);
-    expect(view.aria).toBe(`5 of 6 relics found. ${view.info[0] ?? ""}`);
-  });
-
-  it("every relic found: the lit Mantle and the done sentence", () => {
-    const view = relicsRowView({ ...createMountain(), remaining: 0 });
-    expect(view.name).toBe("6 of 6 relics found");
-    expect(view.info).toEqual(["Every relic is yours. You are a legend."]);
-    expect(view).toMatchObject({
-      icon: "mantle",
-      lit: true,
-      progress: undefined,
-      lamp: "off",
-      state: "found",
-      why: "",
-    });
   });
 });
 

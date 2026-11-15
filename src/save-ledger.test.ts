@@ -139,7 +139,6 @@ const LEDGER = {
   tunnels: ["side-seam", "old-shaft", "deep-dark"],
   tripFinds: {
     quiet: [],
-    glimmer: ["lantern", "shield", "hammer", "heart", "crown", "mantle"],
     tool: ["pick", "lamp", "map", "boots"],
     keepsake: ["drawing", "watch", "whistle", "pebble", "ribbon"],
     engineer: ["Ada", "Nils", "Ruth", "Otto", "Mae"],

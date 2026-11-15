@@ -23,8 +23,8 @@ import { recipeById } from "./workshop";
  * every word. Shown through the shared card in src/teach-ui.ts.
  *
  * Numbers rule: buying, tending and crafting say real numbers, read from
- * the game data below, never typed in. Discoveries (relics, finds, new
- * recipes) stay vague. No question marks, no payback or time-to-afford.
+ * the game data below, never typed in. Discoveries (finds, new recipes)
+ * stay vague. No question marks, no payback or time-to-afford.
  */
 
 /** An asset under src/assets, without ".png". */
@@ -42,13 +42,7 @@ export type HowArt =
   | "stone"
   | "worn-map"
   | "boot-tile"
-  | "mountain"
-  | "relics/lantern"
-  | "relics/shield"
-  | "relics/hammer"
-  | "relics/heart"
-  | "relics/crown"
-  | "relics/mantle";
+  | "mountain";
 
 type HowStep = readonly [HowArt, string];
 
@@ -69,7 +63,6 @@ export const HOW_SYSTEMS = [
   "upgrades",
   "boosts",
   "veins",
-  "relics",
   "engineers",
   "tending",
   "expeditions",
@@ -206,7 +199,7 @@ function crewCards({
 /** What stones buy for good or for a while, and what the mountain gives back. */
 function spendCards({
   oneOffStones,
-}: Prices): Cards<"upgrades" | "boosts" | "veins" | "relics"> {
+}: Prices): Cards<"upgrades" | "boosts" | "veins"> {
   return {
     upgrades: {
       title: "Upgrades",
@@ -244,22 +237,7 @@ function spendCards({
           "pick",
           `Tap it within ${formatDuration(VEIN_GLINT_MS)} for a big handful of stones.`,
         ],
-        ["relics/lantern", "Miss one and another comes along soon."],
-      ],
-    },
-    relics: {
-      title: "Relics and the shelf",
-      reveal: "Something old is buried deep. Keep digging.",
-      steps: [
-        ["relics/lantern", "Old relics rest deep in the mountain."],
-        [
-          "relics/shield",
-          "Dig deep enough and one turns up. Each helps for good.",
-        ],
-        [
-          "relics/crown",
-          "Found relics sit on the shelf. Tap one to see its gift.",
-        ],
+        ["gold-nugget", "Miss one and another comes along soon."],
       ],
     },
   };
@@ -279,7 +257,7 @@ function engineerCards({
           `Promote a worker for ${oneOffStones(PROMOTE_BASE_COST)}. Each next one costs double.`,
         ],
         [
-          "relics/crown",
+          "helper-miner",
           `Up to ${String(MAX_ENGINEERS)} engineers, each with a name.`,
         ],
         [
@@ -365,14 +343,14 @@ function depthCards(): Cards<"layers" | "materials" | "workshop" | "recipes"> {
           `Digging brings up ore: clay first, iron from ${granite.name}.`,
         ],
         ["stone", "Ore comes on its own as the crew digs. Nothing to buy."],
-        ["relics/hammer", "Ore goes into gear at the Workshop."],
+        ["pick", "Ore goes into gear at the Workshop."],
       ],
     },
     workshop: {
       title: "Workshop",
       reveal: "Turn your clay into gear for the crew.",
       steps: [
-        ["relics/hammer", "Pick a recipe. The bench makes one at a time."],
+        ["pick", "Pick a recipe. The bench makes one at a time."],
         ["ore-lump", boostLine],
         [
           "upgrades-icon",
@@ -392,7 +370,7 @@ function depthCards(): Cards<"layers" | "materials" | "workshop" | "recipes"> {
           "worn-map",
           "Deeper rock keeps new recipes, folded like old sketches.",
         ],
-        ["relics/hammer", "Each one shows up at the Workshop when found."],
+        ["pick", "Each one shows up at the Workshop when found."],
         ["ore-lump", "Some keep for good, even past the bottom."],
       ],
     },
@@ -412,7 +390,7 @@ function endCards(): Cards<"away" | "legacy"> {
         ],
         [
           "stone",
-          `They dig hard, then ease off, and rest after ${formatDuration(AWAY_END_MS)}. A relic keeps them going.`,
+          `They dig hard, then ease off, and rest after ${formatDuration(AWAY_END_MS)}.`,
         ],
         [
           "upgrades-icon",
@@ -424,10 +402,7 @@ function endCards(): Cards<"away" | "legacy"> {
       title: "Passing to your kid",
       reveal: "Reach the bottom and pass the mine to your kid.",
       steps: [
-        [
-          "relics/mantle",
-          "Reach the bottom with the last relic and you can pass the mine on.",
-        ],
+        ["mountain", "Reach the bottom and you can pass the mine on."],
         ["kid-helper", "Your kid starts a bigger mountain, with your recipes."],
         [
           "helper-miner",

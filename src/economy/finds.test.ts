@@ -17,10 +17,10 @@ describe("expectedFindStones", () => {
     ).toBe(0);
   });
 
-  it("averages tools, keepsakes, and glimmers, and prices a rate change", () => {
+  it("averages tools and keepsakes, and prices a rate change", () => {
     const mountain = createMountain();
     const flat = expectedFindStones(mountain, [], "old-shaft", 100, () => 1);
-    // Keepsakes and glimmers are 0. Tools add seconds of income.
+    // Keepsakes are 0. Tools add seconds of income.
     expect(flat).toBeGreaterThan(0);
     const boosted = expectedFindStones(
       mountain,

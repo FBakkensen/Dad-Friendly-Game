@@ -104,7 +104,7 @@ async function openScreen(
     // A phone backup's key for the slice 1 preview's saves (#659); SAVE_KEY when undefined.
     seedKey,
     // A clock the check can push forward, for veins and other timed things; stopped, a crew of
-    // thousands cannot reach a relic mid-check. A held tap clock moves only by stepTapClock.
+    // thousands cannot reach a new band mid-check. A held tap clock moves only by stepTapClock.
     clock: { date: stopClock ? "stopped" : "skewable", tap: tapClock },
     search,
     onPageError: (error) => {

@@ -300,7 +300,7 @@ export function workshopUnlocked(mountain: {
   return minedOut(mountain) >= TOPSOIL_BENCH_FROM;
 }
 
-/** Every recipe is open from the first Granite stone, beside the Shield. */
+/** Every recipe is open from the first Granite stone. */
 export function fullWorkshop(mountain: {
   readonly remaining: number;
 }): boolean {

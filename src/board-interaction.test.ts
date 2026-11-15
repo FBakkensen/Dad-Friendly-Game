@@ -124,12 +124,12 @@ describe("the settle", () => {
   });
 
   it("lets a tap that closes a drawer through to what it closed over", () => {
-    // The scrim closes the drawers and hands the same tap to the relic socket under it.
+    // The scrim closes the drawers and lets the same tap through to the board under it.
     const scrim = after(
       { kind: "open", overlay: "buys", at: 0 },
       { kind: "close", overlay: "buys", at: 1000, by: "tap-through" },
     );
-    expect(decide(scrim, finger("board", "socket:0", 1000))).toBe("act");
+    expect(decide(scrim, finger("board", "key:ledger", 1000))).toBe("act");
     const timed = after(
       { kind: "open", overlay: "buys", at: 0 },
       { kind: "close", overlay: "buys", at: 1000, by: "program" },

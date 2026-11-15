@@ -526,7 +526,7 @@ export function createBoardSheet({
   };
 
   const showPage = (shownPage: HTMLElement | undefined): void => {
-    // A page that opens itself (the relics drawer's reveal, #465) puts the "i" cards away.
+    // A page shown puts the "i" cards away (#465).
     setHow(parts, false);
     setPage(parts, shownPage);
     // A page shown again is measured again: its plates fit on the drawer as it is now.
@@ -611,23 +611,16 @@ export function createBoardSheet({
   };
 }
 
-/** True when the point lies inside the rect, its far edges excluded. */
-function inside(rect: DOMRect, x: number, y: number): boolean {
-  return x >= rect.left && x < rect.right && y >= rect.top && y < rect.bottom;
-}
-
 /**
  * The board above the drawers (0..--sheet-top). On while any sheet is open; a tap on it closes
- * them all, and a tap over a relic socket then shows that relic's note.
+ * them all.
  */
 export function createSheetScrim({
   board,
   sheets,
-  sockets,
 }: {
   board: BoardHost;
   sheets: readonly BoardSheet[];
-  sockets: () => readonly HTMLElement[];
 }): HTMLElement {
   const scrim = el("div", "board-scrim");
   scrim.setAttribute("aria-hidden", "true");
@@ -650,26 +643,14 @@ export function createSheetScrim({
     const open = sheets.find((sheet) => sheet.isOpen());
     return open === undefined ? undefined : { layer: open.name, id: "scrim" };
   };
-  pressOnBoard(scrim, board, openSheet, (decision, _by, event) => {
+  pressOnBoard(scrim, board, openSheet, (decision) => {
     if (decision !== "act") {
       return;
     }
-    const under = sockets().find((socket) =>
-      inside(socket.getBoundingClientRect(), event.clientX, event.clientY),
-    );
     // A tap-through: the tap goes on to what lay under the drawers, which does not settle.
     for (const sheet of sheets) {
       sheet.close({ by: "tap-through" });
     }
-    // The pointer's own click (its detail), so the relic plate sees a finger, not a key,
-    // and its note does not take focus.
-    under?.dispatchEvent(
-      new MouseEvent("click", {
-        bubbles: true,
-        cancelable: true,
-        detail: event.detail,
-      }),
-    );
   });
 
   return scrim;

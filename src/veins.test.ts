@@ -11,7 +11,6 @@ import {
   BARE_MOUNTAIN,
 } from "./mountain";
 import {
-  LANTERN_VEIN_GAP_SCALE,
   VEIN_GLINT_MS,
   veinGapScale,
   advanceVein,
@@ -221,37 +220,14 @@ describe("golden veins", () => {
     });
   });
 
-  it("shortens the wait when a lamp is fitted, and keeps the lantern's share", () => {
-    expect(veinGapScale(BARE_MOUNTAIN, false)).toBe(1);
-    expect(veinGapScale(BARE_MOUNTAIN, true)).toBe(LANTERN_VEIN_GAP_SCALE);
+  it("shortens the wait when a lamp is fitted", () => {
+    expect(veinGapScale(BARE_MOUNTAIN)).toBe(1);
     expect(
-      veinGapScale(
-        {
-          ...BARE_MOUNTAIN,
-          crafted: { ...NOTHING_CRAFTED, "crystal-lamp": 1 },
-        },
-        false,
-      ),
-    ).toBeCloseTo(1 / 1.25);
-    expect(
-      veinGapScale(
-        {
-          ...BARE_MOUNTAIN,
-          crafted: { ...NOTHING_CRAFTED, "crystal-lamp": 1 },
-        },
-        true,
-      ),
-    ).toBeCloseTo(LANTERN_VEIN_GAP_SCALE / 1.25);
-  });
-
-  it("waits 40% less once the Lantern of Guidance is found", () => {
-    expect(
-      waitForVein({
-        now: 0,
-        random: () => 0,
-        gapScale: LANTERN_VEIN_GAP_SCALE,
+      veinGapScale({
+        ...BARE_MOUNTAIN,
+        crafted: { ...NOTHING_CRAFTED, "crystal-lamp": 1 },
       }),
-    ).toEqual({ kind: "waiting", appearsAt: 1.8 * MINUTE });
+    ).toBeCloseTo(1 / 1.25);
   });
 });
 
@@ -289,7 +265,7 @@ describe("vein pause and resume", () => {
 });
 
 describe("the quick vein (#468)", () => {
-  it("waits 20 seconds, whatever the lantern or the vein crafts say", () => {
+  it("waits 20 seconds, whatever the vein crafts say", () => {
     expect(quickVein(1_000)).toEqual({
       kind: "waiting",
       appearsAt: 1_000 + QUICK_VEIN_WAIT_MS,

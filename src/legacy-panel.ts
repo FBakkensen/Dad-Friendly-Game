@@ -16,7 +16,7 @@ import {
 import type { ProgressSnapshot, ProgressStore } from "./progress-store";
 
 /** "×1.5", "×2": the Legacy bonus as people read it. */
-export const legacyWords = (bonus: number): string =>
+const legacyWords = (bonus: number): string =>
   `×${String(Number(bonus.toFixed(2)))}`;
 
 export type LegacyCardWords = {
@@ -56,8 +56,7 @@ export function legacyCardWords(mountain: Mountain): LegacyCardWords {
       kidStretch(legacy + 1) > stretch(mountain)
         ? `A bigger mountain for your kid, with the Legacy and ${formatCount(recipes)} recipes.`
         : `Your kid keeps the Legacy and ${formatCount(recipes)} recipes.`,
-    fresh:
-      "Stones, crew, engineers, upgrades and ore start fresh. The relics wait to be found again.",
+    fresh: "Stones, crew, engineers, upgrades and ore start fresh.",
     // #338: the old dad stays on as Grandpa.
     legend:
       "You'll always be the Legend who began it. Grandpa stays on to tend the machines.",

@@ -420,7 +420,7 @@ describe("listActions", () => {
     expect(locked.map((action) => action.id)).toContain("borer");
   });
 
-  it("lists a kid once the Crown is found and a machine is owned", () => {
+  it("lists a kid once 70M is mined and a machine is owned", () => {
     const ids = listActions(crowned, NOW)
       .filter((action) => action.kind === "buyTier")
       .map((action) => action.id);
@@ -1092,7 +1092,7 @@ describe("valueOf", () => {
   it("matches the casual dad's stones a day, and shows where the upgrade dad's hand formulas differ", () => {
     const cycle = SESSION_S + GAP_S;
     const perDay = (gainPerSec: number) => gainPerSec * cycle * 2;
-    const paidGapS = paidAwayMs(fresh, GAP_S * 1000) / 1000;
+    const paidGapS = paidAwayMs(GAP_S * 1000) / 1000;
     const crewDay = 2 * (SESSION_S + paidGapS * AWAY_PAY_RATE);
     const tapDay = 2 * SESSION_S;
 

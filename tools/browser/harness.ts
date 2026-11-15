@@ -179,7 +179,7 @@ async function installClock(page: Page, clock: PageClock): Promise<void> {
       });
     } else if (patch === "stop") {
       // A crew of thousands digs millions a second. With the clock stopped it
-      // cannot reach a relic mid-check, so no reveal lands on a tap.
+      // cannot reach a new band mid-check, so no card lands on a tap.
       await page.evaluateOnNewDocument(() => {
         const stopped = Date.now();
         Date.now = () => stopped;

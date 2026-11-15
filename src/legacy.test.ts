@@ -5,7 +5,6 @@ import { MOUNTAIN_STONES, createMountain, type Mountain } from "./mountain";
 import { writeGame } from "./save-format";
 import { gameOf } from "./test-fixtures";
 import { effectiveRates } from "./rates";
-import { hasRelic } from "./relics";
 import { minedMountain } from "./test-fixtures";
 import { NOTHING_CRAFTED, COLD_CLOCKS } from "./workshop";
 import { NO_BOOSTS } from "./boosts";
@@ -55,9 +54,9 @@ describe("legacy bonus", () => {
 });
 
 describe("passing the mine to your kid", () => {
-  it("is only possible at the bottom, with the Mantle found", () => {
+  it("is only possible at the bottom", () => {
     expect(passTheMine(minedMountain(99_999_999), 5_000)).toBeUndefined();
-    expect(hasRelic(bottom, "mantle")).toBe(true);
+    expect(passTheMine(bottom, 5_000)).toBeDefined();
   });
 
   it("starts a fresh mountain, keeps the Legacy (+1) and starts a newer run", () => {

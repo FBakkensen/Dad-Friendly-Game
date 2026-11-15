@@ -92,7 +92,7 @@ export function snapshot(ctx: StoreContext): ProgressSnapshot {
 }
 
 /**
- * Notes the relics, bands and crafts reached (not while a signed-in save is
+ * Notes the bands and crafts reached (not while a signed-in save is
  * still loading, nor under the conflict sheet), then tells every listener.
  */
 export function emit(ctx: StoreContext): void {

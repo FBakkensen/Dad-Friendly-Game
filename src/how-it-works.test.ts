@@ -60,7 +60,7 @@ describe("How it works copy", () => {
   });
 
   it("keeps discoveries vague", () => {
-    for (const id of ["relics", "recipes", "veins"] as const) {
+    for (const id of ["recipes", "veins"] as const) {
       expect(words(id)).not.toMatch(/\d+\s*%|×\d/);
     }
   });

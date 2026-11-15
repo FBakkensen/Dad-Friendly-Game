@@ -1,7 +1,6 @@
 import { factor } from "./economy/factors";
 import { grantFirstEngineer } from "./engineers";
 import type { Mountain } from "./mountain";
-import { hasRelic, RELICS, type Relic } from "./relics";
 import { freshMineOn } from "./line-switch";
 import { KID_MACHINE_OPENS, minedOut, shownStones } from "./scale";
 import {
@@ -17,8 +16,8 @@ import {
 } from "./tiers";
 
 /**
- * What a locked tier waits for: a depth (M12-2, #250), a relic, or, in a
- * fresh mine, a later part (slice 1, rule 1, #653).
+ * What a locked tier waits for: a depth (M12-2, #250), or, in a fresh
+ * mine, a later part (slice 1, rule 1, #653).
  */
 export type TierLock =
   | {
@@ -27,7 +26,6 @@ export type TierLock =
       /** The depth in this run's stones, for the card (M13). */
       readonly at: number;
     }
-  | { readonly kind: "relic"; readonly relic: Relic; readonly at: number }
   | {
       /** A later part's door in a fresh mine: never for sale in part 1. */
       readonly kind: "later";
@@ -74,10 +72,6 @@ export function tierLock(mountain: Mountain, tier: Tier): TierLock | undefined {
       at: shownStones(mountain, opensAt),
     };
   }
-  const relic = RELICS.find((candidate) => candidate.id === tier.needs);
-  if (relic !== undefined && !hasRelic(mountain, relic.id)) {
-    return { kind: "relic", relic, at: shownStones(mountain, relic.depth) };
-  }
   return undefined;
 }
 
@@ -90,7 +84,7 @@ export function tierOnSale(mountain: Mountain, tier: Tier): boolean {
   );
 }
 
-/** A tier waiting on a depth or a relic: shown, but not for sale. */
+/** A tier waiting on a depth or a later part: shown, but not for sale. */
 export function tierLocked(mountain: Mountain, tier: Tier): boolean {
   return tierLock(mountain, tier) !== undefined;
 }

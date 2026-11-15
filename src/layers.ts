@@ -5,9 +5,9 @@ import { BAND_STARTS, MOUNTAIN_STONES, minedOut } from "./scale";
 import type { TierId } from "./tiers";
 
 /**
- * Rock bands (M9). The layer is stones mined, the same way a relic is, so
- * the save has no layer field. A band starts at `from` (inclusive). The next
- * band's `from` is this one's end, so 10M is the Granite, beside the Shield.
+ * Rock bands (M9). The layer is stones mined, so the save has no layer
+ * field. A band starts at `from` (inclusive). The next band's `from` is this
+ * one's end, so 10M is the Granite.
  * The Deep Heart runs through the bottom of the mountain.
  *
  * Hardness is a speed multiplier in `effectiveRates`. Hands and kids stay
@@ -89,14 +89,6 @@ export function layerOf(mountain: { readonly remaining: number }): Layer {
     }
   }
   return band;
-}
-
-/** The next band, or none at the Deep Heart. */
-export function nextLayer(mountain: {
-  readonly remaining: number;
-}): Layer | undefined {
-  const mined = minedOut(mountain);
-  return LAYERS.find((layer) => mined < layer.from);
 }
 
 /**

@@ -5,7 +5,6 @@ import type { MoveEvent } from "./economy/actions";
 import { ENGINEER_NAMES, onDuty } from "./engineers";
 import type { Mountain } from "./mountain";
 import type { Rates } from "./rates";
-import { foundRelics, type RelicId } from "./relics";
 import { minedOut } from "./scale";
 import {
   MACHINE_IDS,
@@ -97,7 +96,6 @@ export type FieldSnapshot = {
   readonly tapYield: number;
   /** Owned machines with nobody to run them, by machine id. */
   readonly idle: Readonly<Record<MachineId, number>>;
-  readonly relics: readonly RelicId[];
   readonly upgrades: Readonly<Record<UpgradeId, number>>;
   /** Boosts still running, with ISO end times. */
   readonly boosts: readonly {
@@ -181,7 +179,6 @@ export function snapshot(
     crewSpeed: rates.crewPerSecond,
     tapYield: rates.tapYield,
     idle,
-    relics: foundRelics(mountain).map((relic) => relic.id),
     upgrades,
     boosts,
     legacy: mountain.legacy,
@@ -484,7 +481,6 @@ export function maxFieldLogDocumentBytes(): number {
       crewSpeed: 100_000_000,
       tapYield: 100_000_000,
       idle,
-      relics: ["lantern", "shield", "hammer", "heart", "crown", "mantle"],
       upgrades,
       boosts: [
         { id: "overtime", endsAt: maxText() },

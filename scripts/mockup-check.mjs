@@ -106,7 +106,6 @@ const SHOTS = [
     "upgrades",
     "boosts",
     "veins",
-    "relics",
     "engineers",
     "tending",
     "expeditions",

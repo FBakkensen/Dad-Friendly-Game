@@ -57,7 +57,7 @@ export function bandShare(mined: number): number {
 
 /**
  * Watches the machines. Logs, once per band, the first moment each one can
- * be bought (shown and not waiting on a relic) and the first moment the
+ * be bought (shown and not waiting on a depth) and the first moment the
  * pocket covers it, and logs every purchase with the band it fell in.
  */
 export function createBandLog(): (mountain: Mountain) => readonly BandEvent[] {

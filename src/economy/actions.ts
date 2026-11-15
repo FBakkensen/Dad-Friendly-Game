@@ -109,7 +109,7 @@ import {
   workshopUnlocked,
   type RecipeId,
 } from "../workshop";
-import { effectiveRates, heartBonus, paidAwayMs } from "../rates";
+import { effectiveRates, paidAwayMs } from "../rates";
 import {
   TIERS,
   owned,
@@ -1233,10 +1233,8 @@ export function incomePerSecond(
   const liveSeconds = context.liveSeconds;
   const awaySeconds = context.awaySeconds;
   const cycle = liveSeconds + awaySeconds;
-  const paidAway =
-    awaySeconds <= 0 ? 0 : paidAwayMs(mountain, awaySeconds * 1000) / 1000;
-  const awayIncome =
-    awayRates.exactCrewPerSecond * awayFactor(mountain, paidAway * 1000);
+  const paidAway = awaySeconds <= 0 ? 0 : paidAwayMs(awaySeconds * 1000) / 1000;
+  const awayIncome = awayRates.exactCrewPerSecond * awayFactor(mountain);
   if (!(cycle > 0)) {
     return liveIncome;
   }
@@ -1250,11 +1248,9 @@ function oneTap(mountain: Mountain, now?: number, trouble?: Trouble): number {
   );
 }
 
-/** The pay fraction `accrueAway` applies, including the Heart of Patience. */
-function awayFactor(mountain: Mountain, paidMs: number): number {
-  const rates = effectiveRates(mountain);
-  const heart = heartBonus(mountain, paidMs);
-  return Math.round(rates.awayPay * heart * 1e9) / 1e9;
+/** The pay fraction `accrueAway` applies. */
+function awayFactor(mountain: Mountain): number {
+  return Math.round(effectiveRates(mountain).awayPay * 1e9) / 1e9;
 }
 
 /**

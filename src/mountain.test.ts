@@ -1,7 +1,6 @@
 import { EMPTY_MATERIALS, type Materials } from "./layers";
 import { minedMountain } from "./test-fixtures";
 import { setOwned } from "./tiers";
-import { SHIELD_AWAY_CAP_MS, heartBonus } from "./rates";
 import { describe, expect, it } from "vitest";
 import { BAND_SCALE, BAND_STARTS, shownStones, stonesLeft } from "./scale";
 import { materialsGained } from "./layers";
@@ -367,7 +366,6 @@ describe("accrueAway", () => {
       awayMs: 90_500,
       paidMs: 90_500,
       capped: false,
-      heart: 1,
       materials: EMPTY_MATERIALS,
     });
   });
@@ -411,67 +409,35 @@ describe("accrueAway", () => {
       awayMs: 0,
       paidMs: 0,
       capped: false,
-      heart: 1,
       materials: EMPTY_MATERIALS,
     });
   });
 });
 
-describe("Shield of Protection: away cap", () => {
+describe("the away cap", () => {
   const crew = {
     ...minedMountain(0),
     owned: { ...minedMountain(0).owned, helper: 10 },
   };
-  const shielded = {
-    ...minedMountain(10_000_000),
-    owned: { ...minedMountain(10_000_000).owned, helper: 10 },
-  };
-  const DAY = 24 * 3_600_000;
-
-  it("pays 13.2 hours of a long absence without the Shield, and a whole day with it", () => {
-    const plain = accrueAway({ mountain: crew, lastSeen: 0, now: 2 * DAY });
-    expect(plain.report.capped).toBe(true);
-    expect(plain.report.paidMs).toBeCloseTo(13.2 * 3_600_000, 3);
-    expect(plain.mined).toBe(Math.floor(13.2 * 3600 * 10 * AWAY_PAY_RATE));
-    const safe = accrueAway({
-      mountain: shielded,
-      lastSeen: 0,
-      now: 20 * 3_600_000,
-    });
-    expect(safe.report.capped).toBe(false);
-    expect(safe.mined).toBe(Math.floor(20 * 3600 * 10 * AWAY_PAY_RATE));
-    const long = accrueAway({ mountain: shielded, lastSeen: 0, now: 3 * DAY });
-    expect(long.report.capped).toBe(true);
-    expect(long.mined).toBe(Math.floor(24 * 3600 * 10 * AWAY_PAY_RATE));
-    expect(long.report.paidMs).toBe(SHIELD_AWAY_CAP_MS);
-  });
-});
-
-describe("Heart of Patience: away pay grows", () => {
-  const crew = {
-    ...minedMountain(10_000_000),
-    owned: { ...minedMountain(10_000_000).owned, helper: 10 },
-  };
-  const hearty = {
+  const deep = {
     ...minedMountain(45_000_000),
     owned: { ...minedMountain(45_000_000).owned, helper: 10 },
   };
   const HOUR = 3_600_000;
+  const DAY = 24 * HOUR;
 
-  it("climbs from ×1 to ×1.5 over 12 hours, and only with the Heart", () => {
-    expect(heartBonus(crew, 12 * HOUR)).toBe(1);
-    expect(heartBonus(hearty, 0)).toBe(1);
-    expect(heartBonus(hearty, 6 * HOUR)).toBe(1.25);
-    expect(heartBonus(hearty, 12 * HOUR)).toBe(1.5);
-    expect(heartBonus(hearty, 20 * HOUR)).toBe(1.5);
+  it("pays 13.2 hours of a long absence, however deep the mine (#728)", () => {
+    for (const mountain of [crew, deep]) {
+      const away = accrueAway({ mountain, lastSeen: 0, now: 2 * DAY });
+      expect(away.report.capped).toBe(true);
+      expect(away.report.paidMs).toBeCloseTo(13.2 * HOUR, 3);
+      expect(away.mined).toBe(Math.floor(13.2 * 3600 * 10 * AWAY_PAY_RATE));
+    }
   });
 
-  it("multiplies the away pay and reports the bonus", () => {
-    const away = accrueAway({ mountain: hearty, lastSeen: 0, now: 6 * HOUR });
-    expect(away.report.heart).toBe(1.25);
-    expect(away.mined).toBe(Math.floor(6 * 3600 * 10 * AWAY_PAY_RATE * 1.25));
-    const plain = accrueAway({ mountain: crew, lastSeen: 0, now: 6 * HOUR });
-    expect(plain.report.heart).toBe(1);
+  it("pays the away rate, never more for a longer absence (#728)", () => {
+    const away = accrueAway({ mountain: deep, lastSeen: 0, now: 6 * HOUR });
+    expect(away.mined).toBe(Math.floor(6 * 3600 * 10 * AWAY_PAY_RATE));
   });
 
   it("pays the unslowed crew while a machine is in trouble", () => {
@@ -498,12 +464,6 @@ describe("Heart of Patience: away pay grows", () => {
     expect(slowed.mined).toBeLessThan(plain.mined);
     expect(ignored.mined).toBe(plain.mined);
     expect(away.mined).toBe(Math.floor(plain.mined * AWAY_PAY_RATE));
-  });
-
-  it("counts only the paid time, up to the Shield's 24 hours", () => {
-    const away = accrueAway({ mountain: hearty, lastSeen: 0, now: 40 * HOUR });
-    expect(away.report.heart).toBe(1.5);
-    expect(away.mined).toBe(Math.floor(24 * 3600 * 10 * AWAY_PAY_RATE * 1.5));
   });
 });
 

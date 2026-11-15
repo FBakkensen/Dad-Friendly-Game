@@ -360,8 +360,8 @@ export function freshMountain(): Seed {
   };
 }
 
-// Hammer depth, so three relics glow. Granite is open and a borer is owned,
-// so Workshop and Engineers open too.
+// 25M deep: Granite is open and a borer is owned, so Workshop and Engineers
+// open too.
 export function openMountain(): WorkshopSeed {
   return {
     lastSeen: Date.now(),
@@ -540,8 +540,8 @@ export function toolsMountain(): Seed {
 }
 
 /**
- * The Great Machine with the Kid row locked (#373): past the Hammer with one
- * Great Machine and no kids, short of the Crown (70M stones down), so the Kid
+ * The Great Machine with the Kid row locked (#373): one Great Machine and no
+ * kids, short of the Kid worker's depth (70M stones down), so the Kid
  * worker row shows, dim and locked. Buys runs longer than the drawer (C1).
  * With ?trouble=cave-in the cart, which has no bay beside the machine, lights
  * the Buys key's red lamp (C3).
@@ -793,18 +793,18 @@ export function buysFitSave(
   };
 }
 
-// One stone short of the Lantern of Guidance, away for ten minutes.
-const BEFORE_LANTERN: SeedMountain = {
+// One stone short of 1M deep, away for ten minutes.
+const SHALLOW: SeedMountain = {
   remaining: 240_000_000 - 999_999,
   pocket: 180,
   helpers: 0,
   carts: 0,
 };
 
-/** The welcome-back card, then the relic it uncovered. */
+/** The welcome-back card. */
 export function welcomeBackSave(): Seed {
   return {
-    mountain: { ...BEFORE_LANTERN, helpers: 5 },
+    mountain: { ...SHALLOW, helpers: 5 },
     lastSeen: Date.now() - 10 * 60 * 1000,
   };
 }
@@ -836,7 +836,7 @@ export function foundBelowSave(): Seed {
   return { mountain: FOUND_BELOW, lastSeen: Date.now() };
 }
 
-/** Every relic found: the shelf scrolls inside itself. */
+/** The bottom of the mountain, with a big crew. */
 export function fullShelfSave(): Seed {
   return {
     mountain: {
@@ -853,7 +853,7 @@ export function fullShelfSave(): Seed {
   };
 }
 
-/** One stone left on the 240M mountain, so the tap finds the Mantle. */
+/** One stone left on the 240M mountain, so the tap reaches the bottom. */
 export function mantleSave(): Seed {
   return {
     mountain: {

@@ -13,7 +13,6 @@ import {
   type Mountain,
 } from "./mountain";
 import { effectiveRates } from "./rates";
-import { foundRelics } from "./relics";
 import { layerOf } from "./layers";
 import { stonesLeft, stonesToNextBand } from "./scale";
 import { TIERS, tierById, tierInPlay, tierShown, type TierId } from "./tiers";
@@ -108,7 +107,7 @@ describe("one level, no depth (rule 1)", () => {
     });
   });
 
-  it("a month of live play never mines it out, finds a relic or leaves the Topsoil", () => {
+  it("a month of live play never mines it out or leaves the Topsoil", () => {
     fresh(() => {
       const crew = {
         ...owning({ helper: 40, cart: 10, hoist: 10, drill: 10 }, 0),
@@ -125,7 +124,6 @@ describe("one level, no depth (rule 1)", () => {
       expect(month.mined).toBeGreaterThan(MOUNTAIN_STONES);
       expect(month.mountain.stock.stones).toBe(month.mined);
       expect(month.mountain.remaining).toBe(MOUNTAIN_STONES);
-      expect(foundRelics(month.mountain)).toEqual([]);
       expect(layerOf(month.mountain).name).toBe(layerOf(createMountain()).name);
       expect(workshopUnlocked(month.mountain)).toBe(false);
       // No band's material comes up with it.

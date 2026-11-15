@@ -3,7 +3,6 @@ import { factor } from "./economy/factors";
 import { freshMineOn, lineOn } from "./line-switch";
 import type { Stage } from "./line";
 import type { Mountain } from "./mountain";
-import type { RelicId } from "./relics";
 import { pay, stonesPrice, type Price } from "./stock";
 
 /** All tier numbers live here. See docs/DESIGN.md "M2: Automation". */
@@ -29,8 +28,7 @@ export const LINE_MACHINE_COST_GROWTH = 1.219;
  * First prices that differ on the line (#543). A worker is 60, three times
  * today's: it keeps the optimizer within a quarter of the evening dad's run
  * (regret) without the steeper worker curve that stalled late kid runs. It
- * costs the opening: the first ten minutes mine about 42K, not 247K, and the
- * Hammer comes half a day later (the Lantern does not move). The Great
+ * costs the opening: the first ten minutes mine about 42K, not 247K. The Great
  * Machine is 0.8 of today's, so a checker's best buy is in reach within two
  * check-ins.
  */
@@ -61,8 +59,6 @@ type TierRow = {
    * src/line.ts). Every machine has one; the hands have none.
    */
   readonly stage?: Stage;
-  /** A relic that must be found before it can be built (see crew.ts). */
-  readonly needs?: RelicId;
   /**
    * Stones mined before it opens for sale (M12-2, #250). Until then the
    * card shows locked with this depth, so the next machine is a fixed,
@@ -157,19 +153,19 @@ const TIER_ROWS = [
     perSecond: 2_100,
     staff: 10,
     stage: "lift",
-    needs: "hammer",
     // M12 retune (#252): the Deep Heart entrance, the band that suits it.
     opensAt: 120_000_000,
   },
   {
-    // Crown of Wisdom: kids mine, staff machines, and teach the crew (rates.ts).
+    // Kids mine, staff machines, and teach the crew (rates.ts).
     id: "kid",
     name: "Kid worker",
     shortName: "Kid",
     firstCost: KID_FIRST_COST,
     perSecond: 25,
     staff: 0,
-    needs: "crown",
+    // Where the Crown of Wisdom lay, before the relics left (#728).
+    opensAt: 70_000_000,
   },
 ] as const satisfies readonly TierRow[];
 

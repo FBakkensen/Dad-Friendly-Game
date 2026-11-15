@@ -45,7 +45,6 @@ const SNAPSHOT_FIELDS = [
   "rev",
   "crew",
   "idle",
-  "relics",
   "upgrades",
   "boosts",
   "engineers",
@@ -386,9 +385,6 @@ function snapshotBody(
   if (Object.hasOwn(snapshot, "idle")) {
     lines.push(...countBlock("Idle", snapshot.idle));
   }
-  if (Object.hasOwn(snapshot, "relics")) {
-    lines.push(...nameBlock("Relics", snapshot.relics));
-  }
   if (Object.hasOwn(snapshot, "upgrades")) {
     lines.push(...countBlock("Upgrades", snapshot.upgrades));
   }
@@ -419,13 +415,6 @@ function countBlock(title: string, value: unknown): string[] {
     return [title, "  none"];
   }
   return [title, ...keys.map((key) => `  ${key} ${showScalar(value[key])}`)];
-}
-
-function nameBlock(title: string, value: unknown): string[] {
-  if (!Array.isArray(value) || value.length === 0) {
-    return [title, "  none"];
-  }
-  return [title, ...value.map((item) => `  ${showScalar(item)}`)];
 }
 
 function boostBlock(value: unknown, timeZone: string): string[] {

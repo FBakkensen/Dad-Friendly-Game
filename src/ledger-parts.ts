@@ -234,7 +234,7 @@ export function createStartOverPage({
     line: START_OVER_DETAIL,
     answers: [
       {
-        // A fresh mine has no relics and no mountain to fill (#708).
+        // A fresh mine has no mountain to fill (#708).
         label: freshMineOn() ? START_OVER_FRESH_KEEP : START_OVER_KEEP,
         id: "keep",
         className: "ledger-keep",

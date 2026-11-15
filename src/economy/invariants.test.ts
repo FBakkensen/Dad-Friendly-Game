@@ -11,8 +11,7 @@
  *
  * Rules by design, which the checks allow for rather than flag:
  * - the save keeps whole depth, rounded up (save-format.ts);
- * - past the full-pay length an hour away pays less (`paidAwayMs`);
- * - with the Heart of Patience a longer absence pays more an hour (`heartBonus`).
+ * - past the full-pay length an hour away pays less (`paidAwayMs`).
  */
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
@@ -20,8 +19,7 @@ import { fix, freshHazards, type HazardState } from "../hazards";
 import { LAYERS } from "../layers";
 import { accrueAway, createMountain, type Mountain } from "../mountain";
 import { readSave, serializeSave } from "../persist";
-import { AWAY_FULL_MS, SHIELD_AWAY_CAP_MS, effectiveRates } from "../rates";
-import { hasRelic } from "../relics";
+import { AWAY_FULL_MS, effectiveRates } from "../rates";
 import { MOUNTAIN_STONES, minedOut } from "../scale";
 import { advance, type TimeInput } from "../session-time";
 import { TIERS } from "../tiers";
@@ -514,23 +512,13 @@ function tolerance(mined: number, stretches: number): number {
   return stretches + mined * 1e-6;
 }
 
-/**
- * How long an absence is paid in full. Past it, by design (`paidAwayMs`), an
- * hour pays less, so one long absence pays less than two short ones.
- */
-function fullPayMs(mountain: Mountain): number {
-  return hasRelic(mountain, "shield") ? SHIELD_AWAY_CAP_MS : AWAY_FULL_MS;
-}
-
 function minedAway(mountain: Mountain, ends: readonly number[]): number {
   return minedOut(awayThrough(mountain, START, ends)) - minedOut(mountain);
 }
 
 /**
- * Stones the stretches pay before the Heart of Patience's bonus. With the
- * Heart a longer stretch pays more an hour, by design (`heartBonus`), so each
- * stretch's haul is divided by its own bonus: what is left must not depend on
- * the slicing, in every band. Without the Heart the bonus is 1.
+ * Stones the stretches pay, one after another: what they pay must not depend
+ * on the slicing, in every band.
  */
 function basePay(mountain: Mountain, ends: readonly number[]): number {
   let current = mountain;
@@ -538,7 +526,7 @@ function basePay(mountain: Mountain, ends: readonly number[]): number {
   let base = 0;
   for (const now of ends) {
     const paid = accrueAway({ mountain: current, lastSeen, now });
-    base += paid.report.mined / paid.report.heart;
+    base += paid.report.mined;
     current = paid.mountain;
     lastSeen = paid.settledAt;
   }
@@ -553,7 +541,9 @@ describe("time away pays the same however it is sliced (#555)", () => {
         fc.double({ min: 0, max: 1, noNaN: true }),
         fc.double({ min: 0.01, max: 0.99, noNaN: true }),
         (start, length, at) => {
-          const ms = Math.round(MINUTE + length * (fullPayMs(start) - MINUTE));
+          // Past the full-pay length an hour pays less, by design (`paidAwayMs`),
+          // so the absence stays inside it.
+          const ms = Math.round(MINUTE + length * (AWAY_FULL_MS - MINUTE));
           const split = START + Math.round(ms * at);
           const once = basePay(start, [START + ms]);
           const twice = basePay(start, [split, START + ms]);
@@ -587,16 +577,6 @@ describe("time away pays the same however it is sliced (#555)", () => {
       ),
       { numRuns: 40 },
     );
-  });
-
-  it("with the Heart of Patience, one long absence pays more than the same time in parts, by design", () => {
-    const deep = BAND_STARTS.find((mountain) => hasRelic(mountain, "heart"));
-    if (deep === undefined) {
-      throw new Error("no band start has found the Heart of Patience");
-    }
-    const once = minedAway(deep, [START + 6 * HOUR]);
-    const twice = minedAway(deep, [START + 3 * HOUR, START + 6 * HOUR]);
-    expect(once).toBeGreaterThan(twice);
   });
 
   const GRANITE = LAYERS[1];

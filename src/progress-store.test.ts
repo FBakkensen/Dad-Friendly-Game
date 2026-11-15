@@ -576,7 +576,6 @@ describe("away earnings", () => {
       awayMs: 600_000,
       paidMs: 600_000,
       capped: false,
-      heart: 1,
       materials: EMPTY_MATERIALS,
     });
     expect(guestSave(storage)).toEqual({
@@ -841,116 +840,6 @@ describe("away earnings", () => {
   });
 });
 
-describe("relic reveals", () => {
-  it("celebrates the Lantern when a tap crosses its depth, once", () => {
-    const storage = createMemoryStorage();
-    writeSessionSave({
-      storage,
-      mountain: minedMountain(999_999),
-      lastSeen: 0,
-    });
-    const progress = createProgressStore({
-      auth: createMemoryAuth(),
-      sessionStorage: storage,
-      now: () => 0,
-    });
-    expect(
-      firstNotice(progress.getSnapshot(), "reveal")?.relic,
-    ).toBeUndefined();
-
-    progress.applyMutation(() => minedMountain(1_000_000));
-    expect(firstNotice(progress.getSnapshot(), "reveal")?.relic.id).toBe(
-      "lantern",
-    );
-    expect(progress.getSnapshot().log).toContain("relic.found lantern");
-
-    progress.dismiss("reveal");
-    expect(
-      firstNotice(progress.getSnapshot(), "reveal")?.relic,
-    ).toBeUndefined();
-    progress.applyMutation(() => minedMountain(1_000_001));
-    expect(
-      firstNotice(progress.getSnapshot(), "reveal")?.relic,
-    ).toBeUndefined();
-  });
-
-  it("does not celebrate relics already in a loaded save", () => {
-    const storage = createMemoryStorage();
-    writeSessionSave({
-      storage,
-      mountain: minedMountain(15_000_000),
-      lastSeen: 0,
-    });
-    const progress = createProgressStore({
-      auth: createMemoryAuth(),
-      sessionStorage: storage,
-      now: () => 0,
-    });
-    expect(
-      firstNotice(progress.getSnapshot(), "reveal")?.relic,
-    ).toBeUndefined();
-  });
-
-  it("celebrates a relic the crew uncovered while away", () => {
-    const storage = createMemoryStorage();
-    writeSessionSave({
-      storage,
-      mountain: {
-        ...minedMountain(999_000),
-        owned: { ...minedMountain(999_000).owned, helper: 10 },
-      },
-      lastSeen: 0,
-    });
-    const progress = createProgressStore({
-      auth: createMemoryAuth(),
-      sessionStorage: storage,
-      now: () => 400_000,
-    });
-    expect(firstNotice(progress.getSnapshot(), "away")?.report.mined).toBe(
-      1_200,
-    );
-    expect(firstNotice(progress.getSnapshot(), "reveal")?.relic.id).toBe(
-      "lantern",
-    );
-  });
-
-  it("does not celebrate relics in a signed-in dad's cloud save", async () => {
-    const docs = new Map([["test-dad", minedMountain(15_000_000)]]);
-    const user = { uid: "test-dad", label: "Test Dad" };
-    const progress = createProgressStore({
-      auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
-      cloudSave: createMemoryCloudSave({ docs }),
-      sessionStorage: createMemoryStorage(),
-    });
-    await vi.waitFor(() => {
-      expect(progress.getSnapshot().saveKind).toBe("account");
-    });
-    expect(
-      firstNotice(progress.getSnapshot(), "reveal")?.relic,
-    ).toBeUndefined();
-  });
-
-  it("queues several relics found at once, shallowest first", () => {
-    const progress = createProgressStore({
-      auth: createMemoryAuth(),
-      sessionStorage: createMemoryStorage(),
-      now: () => 0,
-    });
-    progress.applyMutation(() => minedMountain(12_000_000));
-    expect(firstNotice(progress.getSnapshot(), "reveal")?.relic.id).toBe(
-      "lantern",
-    );
-    progress.dismiss("reveal");
-    expect(firstNotice(progress.getSnapshot(), "reveal")?.relic.id).toBe(
-      "shield",
-    );
-    progress.dismiss("reveal");
-    expect(
-      firstNotice(progress.getSnapshot(), "reveal")?.relic,
-    ).toBeUndefined();
-  });
-});
-
 describe("start over", () => {
   const signedInCloud = (start: Mountain) => {
     const writes: Mountain[] = [];
@@ -978,7 +867,7 @@ describe("start over", () => {
   };
   const user = { uid: "test-dad", label: "Test Dad" };
 
-  it("gives a guest a fresh mountain on the device, with no reveal or welcome", async () => {
+  it("gives a guest a fresh mountain on the device, with no welcome", async () => {
     const storage = createMemoryStorage();
     writeSessionSave({
       storage,
@@ -1011,9 +900,6 @@ describe("start over", () => {
     expect(firstNotice(progress.getSnapshot(), "away")?.report).toBeUndefined();
     expect(
       firstNotice(progress.getSnapshot(), "quiet")?.stones,
-    ).toBeUndefined();
-    expect(
-      firstNotice(progress.getSnapshot(), "reveal")?.relic,
     ).toBeUndefined();
     expect(guestSave(storage)).toEqual({
       mountain: fresh,
@@ -1084,9 +970,6 @@ describe("start over", () => {
       ] as const,
     };
     expect(progress.getSnapshot().mountain).toEqual(fresh);
-    expect(
-      firstNotice(progress.getSnapshot(), "reveal")?.relic,
-    ).toBeUndefined();
     expect(cloud.writes.at(-1)).toEqual(fresh);
     // A late snapshot of the finished run can't bring it back.
     cloud.push({
@@ -1121,9 +1004,6 @@ describe("start over", () => {
       expect(progress.getSnapshot().mountain.remaining).toBe(
         createMountain().remaining,
       );
-      expect(
-        firstNotice(progress.getSnapshot(), "reveal")?.relic,
-      ).toBeUndefined();
       expect(cloud.writes.length).toBe(writesAfterReset + 1);
       expect(cloud.writes.at(-1)?.startedAt).toBeDefined();
     } finally {
@@ -1435,7 +1315,7 @@ describe("save status on the unhappy paths (#114 coverage)", () => {
     });
     progress.applyMutation(() => minedMountain(3));
     const before = progress.getSnapshot();
-    progress.dismiss("reveal");
+    progress.dismiss("craft");
     progress.dismiss("away");
     expect(progress.getSnapshot()).toEqual(before);
     progress.dispose();
@@ -1541,7 +1421,7 @@ describe("field log", () => {
     expect(progress.fieldLog().events).toEqual(before);
   });
 
-  it("records a vein tap's stones, a relic, and an away report", () => {
+  it("records a vein tap's stones and an away report", () => {
     const storage = createMemoryStorage();
     writeSessionSave({
       storage,
@@ -1557,17 +1437,14 @@ describe("field log", () => {
       now: () => 120_000,
     });
     progress.dispatch({ kind: "tapVein" });
-    progress.applyMutation(() => minedMountain(1_000_000));
 
     const events = progress.fieldLog().events;
     expect(events.map((event) => event.code)).toEqual([
       "away.report",
       "vein.tap",
-      "relic.found",
     ]);
     expect(events[0]?.data).toEqual({ ms: 120_000, stones: 36 });
     expect(events[1]?.data).toEqual({ stones: 60 });
-    expect(events[2]?.data).toEqual({ id: "lantern" });
   });
 
   it("keeps the old run's events through Start over and a pass, and starts Tonight afresh", async () => {
@@ -1843,7 +1720,7 @@ describe("field log events for the deep (#150)", () => {
     expect(added[0]?.data).toEqual({ id: "Ada", source: "side-seam" });
   });
 
-  it("records the find id for a tool, a glimmer, a keepsake, a lost engineer, and a quiet tunnel", () => {
+  it("records the find id for a tool, a keepsake, a lost engineer, and a quiet tunnel", () => {
     const { progress, advance, at } = guest();
     progress.applyMutation((mountain) => ({
       ...mountain,
@@ -1855,7 +1732,6 @@ describe("field log events for the deep (#150)", () => {
       source: string;
     }[] = [
       { find: { kind: "tool", id: "pick" }, source: "pick" },
-      { find: { kind: "glimmer", id: "heart" }, source: "heart" },
       { find: { kind: "keepsake", id: "drawing" }, source: "drawing" },
       { find: { kind: "engineer", id: "Ruth" }, source: "Ruth" },
       { find: { kind: "quiet" }, source: "quiet" },

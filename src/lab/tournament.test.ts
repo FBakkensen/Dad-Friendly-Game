@@ -639,7 +639,6 @@ describe("tournament", () => {
       seed: 1,
       bands: { topsoil: 1 },
       machines: {},
-      relics: {},
       finishDay: 6,
       endHash: "0000abcd",
     };

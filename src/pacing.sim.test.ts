@@ -4,11 +4,11 @@ import { ENGINEER_NAMES, promoteCost } from "./engineers";
 import { createMountain } from "./mountain";
 import { effectiveRates } from "./rates";
 import { simulateDad, simulateDadRun, type DadRun } from "./pacing";
-import { RELICS } from "./relics";
-import { BAND_SCALE } from "./scale";
+import { BAND_SCALE, MOUNTAIN_STONES } from "./scale";
 
-const depth = (id: string) =>
-  RELICS.find((relic) => relic.id === id)?.depth ?? 0;
+/** The depths the pins read: the first million, 25M, and the bottom. */
+const MARKS = { "1M": 1_000_000, "25M": 25_000_000, bottom: MOUNTAIN_STONES };
+const depth = (id: keyof typeof MARKS): number => MARKS[id];
 
 // Deterministic dads: two 10-minute sessions a day, 12 hours apart, 3 taps a
 // second, always buying the best speed per stone, paid for time away as the
@@ -16,7 +16,7 @@ const depth = (id: string) =>
 // one machine. The M12 retune (#252) opens the Great Machine at 120M; the
 // new curve (#356) opens the borer at the Granite start. On the #357 retune
 // for the milestone marks the plain dad reaches the bottom on day 4.5 and the
-// upgrade dads on day 3.5, and every dad finds the Hammer on day 2. These
+// upgrade dads on day 3.5, and every dad reaches 25M on day 2. These
 // are regression pins, not limits: the run length is not graded. This sim
 // does not craft.
 describe.each([
@@ -30,26 +30,27 @@ describe.each([
   ],
 ])("pacing: %s", (_, options, bottomDay, hammerDay) => {
   const reached = simulateDad({
-    milestones: [depth("lantern"), depth("hammer"), depth("mantle")],
+    milestones: [depth("1M"), depth("25M"), depth("bottom")],
     ...options,
   });
-  const day = (id: string) => Math.floor(reached.get(depth(id)) ?? Infinity);
+  const day = (id: keyof typeof MARKS) =>
+    Math.floor(reached.get(depth(id)) ?? Infinity);
 
-  it("finds the Lantern of Guidance (1M) on day 1", () => {
+  it("reaches 1M on day 1", () => {
     // The sim checks the depth once a tick, so the day can read a hair over.
-    expect(reached.get(depth("lantern"))).toBeCloseTo(1.5, 1);
-    expect(day("lantern")).toBe(1);
+    expect(reached.get(depth("1M"))).toBeCloseTo(1.5, 1);
+    expect(day("1M")).toBe(1);
   });
 
-  it("finds the Hammer of the Builder (25M) on the pinned day, after the Lantern", () => {
-    const hammer = reached.get(depth("hammer")) ?? Infinity;
+  it("reaches 25M on the pinned day, after 1M", () => {
+    const hammer = reached.get(depth("25M")) ?? Infinity;
     // The sim checks the depth once a tick, so the day can read a hair over.
     expect(hammer).toBeCloseTo(hammerDay, 1);
-    expect(hammer).toBeGreaterThan(reached.get(depth("lantern")) ?? Infinity);
+    expect(hammer).toBeGreaterThan(reached.get(depth("1M")) ?? Infinity);
   });
 
   it("reaches the bottom on the pinned day", () => {
-    const bottom = reached.get(depth("mantle")) ?? Infinity;
+    const bottom = reached.get(depth("bottom")) ?? Infinity;
     // The sim checks the depth once a tick, so the day can read a hair over.
     expect(bottom).toBeCloseTo(bottomDay, 1);
   });
@@ -85,12 +86,12 @@ function expectPaidForNils(run: DadRun, gapDays: number, band: 1 | 2): void {
 // is day 3, still a shorter climb than the first (day 3.5).
 describe("pacing: a second run with one Legacy (×1.5)", () => {
   const run = simulateDadRun({
-    milestones: [depth("mantle")],
+    milestones: [depth("bottom")],
     legacy: 1,
     buysUpgrades: true,
   });
   it("reaches the bottom on day 3", () => {
-    expect(run.reached.get(depth("mantle"))).toBe(3);
+    expect(run.reached.get(depth("bottom"))).toBe(3);
   });
 
   // Grandpa (#338) tends from the first cart; Nils joins in the borer's
@@ -151,10 +152,10 @@ describe.each([
     machineDay,
   ) => {
     const run = simulateDadRun({
-      milestones: [depth("mantle")],
+      milestones: [depth("bottom")],
       ...options,
     });
-    const bottom = run.reached.get(depth("mantle")) ?? Infinity;
+    const bottom = run.reached.get(depth("bottom")) ?? Infinity;
 
     it("saves for the Great Machine, then runs it before the bottom", () => {
       expect(bottom).toBeCloseTo(bottomDay, 1);
@@ -181,7 +182,7 @@ describe.each([
 
 describe("pacing: lost tools (#148)", () => {
   const run = simulateDadRun({
-    milestones: [depth("mantle")],
+    milestones: [depth("bottom")],
     buysUpgrades: true,
   });
 
@@ -206,7 +207,7 @@ describe("pacing: lost tools (#148)", () => {
 
 describe("pacing: the borer's worker bill and the Great Machine (#140)", () => {
   const run = simulateDadRun({
-    milestones: [depth("mantle")],
+    milestones: [depth("bottom")],
     buysUpgrades: true,
   });
 
@@ -232,7 +233,7 @@ describe("pacing: the borer's worker bill and the Great Machine (#140)", () => {
   });
 
   it("runs a Great Machine after the Deep Heart opens, and the bottom is day 3.5", () => {
-    const bottom = run.reached.get(depth("mantle"));
+    const bottom = run.reached.get(depth("bottom"));
     const machine = run.buys.find((buy) => buy.id === "machine");
     expect(bottom).toBeCloseTo(3.5, 1);
     expect(machine).toMatchObject({ count: 1, price: 120_600_000 });
@@ -246,15 +247,15 @@ describe("pacing: the borer's worker bill and the Great Machine (#140)", () => {
 
 describe("pacing: a dad who never fixes trouble (#149)", () => {
   const reached = simulateDad({
-    milestones: [depth("lantern"), depth("hammer"), depth("mantle")],
+    milestones: [depth("1M"), depth("25M"), depth("bottom")],
     buysUpgrades: true,
     fixesTrouble: false,
   });
 
   it("lands within a day of the usual targets", () => {
-    const lantern = reached.get(depth("lantern")) ?? Infinity;
-    const hammer = reached.get(depth("hammer")) ?? Infinity;
-    const bottom = reached.get(depth("mantle")) ?? Infinity;
+    const lantern = reached.get(depth("1M")) ?? Infinity;
+    const hammer = reached.get(depth("25M")) ?? Infinity;
+    const bottom = reached.get(depth("bottom")) ?? Infinity;
     expect(lantern).toBeCloseTo(1.5, 1);
     expect(hammer).toBeGreaterThanOrEqual(2);
     expect(hammer).toBeLessThanOrEqual(4.5);

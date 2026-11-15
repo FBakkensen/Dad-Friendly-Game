@@ -7,40 +7,61 @@ import { minedMountain } from "./test-fixtures";
 import { tierById, tierCost } from "./tiers";
 
 describe("crew unlocks", () => {
-  // M12 retune (#252): the Hammer is found at 25M, the card opens at 120M.
+  // M12 retune (#252): the card opens at 120M, the Deep Heart entrance.
   // Pockets cover the Great Machine with stones to spare.
   const spare = 29_400_000;
   const pocket = tierCost(tierById("machine"), 0) + spare;
-  const nearHammer = {
+  const nearDeep = {
     ...minedMountain(119_999_999),
     stock: { ...minedMountain(119_999_999).stock, stones: pocket },
     owned: { ...minedMountain(119_999_999).owned, borer: 1 },
   };
-  const atHammer = {
+  const atDeep = {
     ...minedMountain(120_000_000),
     stock: { ...minedMountain(120_000_000).stock, stones: pocket },
     owned: { ...minedMountain(120_000_000).owned, borer: 1 },
   };
 
-  it("locks the Great Machine until the Hammer is found and the Deep Heart is reached", () => {
+  it("the Great Machine opens at 120M mined", () => {
     const machine = tierById("machine");
-    expect(tierLocked(nearHammer, machine)).toBe(true);
-    expect(tierLocked(atHammer, machine)).toBe(false);
+    expect(tierLocked(nearDeep, machine)).toBe(true);
+    expect(tierLocked(atDeep, machine)).toBe(false);
     expect(tierLock(minedMountain(25_000_000), machine)).toEqual({
       kind: "depth",
       depth: 120_000_000,
       at: shownStones(createMountain(), 120_000_000),
     });
-    expect(tierLocked(nearHammer, tierById("borer"))).toBe(false);
+    expect(tierLocked(nearDeep, tierById("borer"))).toBe(false);
+  });
+
+  it("the Kid worker opens at 70M mined", () => {
+    const kid = tierById("kid");
+    const stones = tierCost(kid, 0);
+    const near = {
+      ...minedMountain(69_999_999),
+      stock: { ...minedMountain(69_999_999).stock, stones },
+    };
+    const at = {
+      ...minedMountain(70_000_000),
+      stock: { ...minedMountain(70_000_000).stock, stones },
+    };
+    expect(tierLock(near, kid)).toEqual({
+      kind: "depth",
+      depth: 70_000_000,
+      at: shownStones(createMountain(), 70_000_000),
+    });
+    expect(buyCrew(near, "kid")).toBe(near);
+    expect(tierLock(at, kid)).toBeUndefined();
+    expect(buyCrew(at, "kid").owned.kid).toBe(1);
   });
 
   it("won't sell a locked tier, even with stones to spare", () => {
-    expect(buyCrew(nearHammer, "machine")).toBe(nearHammer);
-    expect(buyCrew(atHammer, "machine")).toMatchObject({
+    expect(buyCrew(nearDeep, "machine")).toBe(nearDeep);
+    expect(buyCrew(atDeep, "machine")).toMatchObject({
       owned: { machine: 1, kid: 0 },
       stock: { stones: spare },
     });
-    expect(buyCrew(nearHammer, "borer")).toMatchObject({ owned: { borer: 2 } });
+    expect(buyCrew(nearDeep, "borer")).toMatchObject({ owned: { borer: 2 } });
   });
 
   it("brings the first engineer with the first borer, and not with the second", () => {

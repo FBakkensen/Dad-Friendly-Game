@@ -21,7 +21,6 @@ import { RUSH_MS } from "./gold-rush";
 import type { LayerId, Materials, MaterialId } from "./layers";
 import type { Mountain } from "./mountain";
 import { AWAY_END_MS, effectiveRates, type Rates } from "./rates";
-import { RELICS } from "./relics";
 import type { Stage } from "./line";
 import { freshMineOn } from "./line-switch";
 import { owned, tierById, type MachineId, type TierId } from "./tiers";
@@ -406,17 +405,12 @@ export const awayMinedWords = (
   unit: mined === 1 ? "stone" : "stones",
 });
 
-/** How long you were gone, how the crew dug, and the Heart of Patience's share. */
+/** How long you were gone, and how the crew dug. */
 export function awayGoneWords(report: {
   readonly awayMs: number;
   readonly paidMs: number;
-  readonly heart: number;
 }): string {
-  const heart =
-    report.heart > 1
-      ? ` The Heart of Patience made it ×${report.heart.toFixed(2).replace(/0$/, "")}.`
-      : "";
-  return `You were gone ${formatDuration(report.awayMs)}. ${awayStretchWords(report)}${heart}`;
+  return `You were gone ${formatDuration(report.awayMs)}. ${awayStretchWords(report)}`;
 }
 
 /** The welcome card's quote line, under the haul. */
@@ -586,7 +580,7 @@ const TUNNEL_PLACE: Readonly<Record<TunnelId, string>> = {
 const TUNNEL_BENEFIT: Readonly<Record<TunnelId, string>> = {
   "side-seam": "Back in a few minutes with a small find.",
   "old-shaft": "About an hour, often a lost tool or keepsake.",
-  "deep-dark": "All night, the best chance of a relic hint or a new engineer.",
+  "deep-dark": "All night, the best chance of a new engineer.",
 };
 
 /**
@@ -957,13 +951,11 @@ export const cameBack = (
     case "tool":
       return `${name} came back from ${from} with ${TOOL_IN_SENTENCE[find.id]}. ${TOOL_HELPS[find.id]}`;
     case "keepsake":
-      return `${name} came back from ${from} with ${KEEPSAKE_IN_SENTENCE[find.id]}. It waits on the relic shelf.`;
+      return `${name} came back from ${from} with ${KEEPSAKE_IN_SENTENCE[find.id]}.`;
     case "engineer":
       return find.joined
         ? `${name} came back from ${from} with ${find.name}, who joined the crew.`
         : `${name} came back from ${from}. The lost engineer had already found a place.`;
-    case "glimmer":
-      return `${name} came back from ${from}. ${find.text}`;
     case "recipe":
       return `${name} came back from ${from} with a sketch folded in a pocket.`;
     case "quiet":
@@ -1251,29 +1243,6 @@ export function layerCardWords(id: LayerId): LayerCardWords | undefined {
   }
 }
 
-/**
- * What the next band feels like, before you arrive. No depth, no material
- * name. The Deep Heart has nothing below it.
- */
-export function nextLayerHint(id: LayerId | undefined): string | undefined {
-  switch (id) {
-    case "granite":
-      return "Below the topsoil, the rock turns hard and grey.";
-    case "crystal":
-      return "Deeper on, the walls start to glitter.";
-    case "heart":
-      return "Something warm is still waiting below.";
-    case "topsoil":
-    case undefined:
-      return undefined;
-    /* v8 ignore next 3 -- layer ids are the closed list */
-    default: {
-      const never: never = id;
-      return never;
-    }
-  }
-}
-
 /** One line for the welcome card: the arrival and the advice. */
 export function layerWelcomeWords(id: LayerId): string | undefined {
   const words = layerCardWords(id);
@@ -1373,37 +1342,13 @@ export const PASS_SHORT = "Pass the mine";
 /** Passing the mine, in full: the Pass plate's label and the legacy panel's door. */
 export const PASS_FULL = "Pass the mine to your kid";
 
-/** "2 of 6 relics found": the Ledger's relics row. */
-export const relicsFoundWords = (found: number): string =>
-  `${String(found)} of ${String(RELICS.length)} relics found`;
-
-/** The relics row's goal before the Lantern lights the way, on a first mountain. */
-export const RELICS_UNGUIDED =
-  "Six Legendary Relics of Fatherhood lie deep inside. Tap to mine.";
-/** The relics row's goal before the Lantern, on a mine passed down: `legacy` is its bonus. */
-export const kidMineWords = (legacy: string): string =>
-  `Your kid's mine: six relics wait inside. Legacy ${legacy}.`;
-/** The relics row's goal once every relic is found. */
-export const RELICS_ALL_FOUND = "Every relic is yours. You are a legend.";
-/** The relics row's goal: the next relic and its vague hint. */
-export const nextRelicWords = (name: string, hint: string): string =>
-  `Next: ${name} · ${hint}`;
-/** The relics bar's label: the relic it fills toward, and the next layer's hint if any. */
-export const relicProgressLabel = (
-  name: string,
-  hint: string | undefined,
-): string =>
-  hint === undefined
-    ? `Progress to the ${name}`
-    : `Progress to the ${name}. ${hint}`;
-
 /** Start over, and its confirm page (moved from the menu, #375). */
 export const START_OVER = "Start over";
 export const START_OVER_TITLE = "Start over?";
 export const START_OVER_DETAIL =
-  "You will lose all your progress: every stone mined, your whole crew, and every relic you found. The mountain fills back up. This can't be undone.";
+  "You will lose all your progress: every stone mined and your whole crew. The mountain fills back up. This can't be undone.";
 export const START_OVER_KEEP = "Keep my mountain";
-/** Start over in a fresh mine (#708): no relics and no mountain to fill. */
+/** Start over in a fresh mine (#708): no mountain to fill. */
 export const START_OVER_FRESH_DETAIL =
   "You will lose all your progress: the stone in the stockpile, every worker and machine, and the city's buildings. The mine starts again from the beginning. This can't be undone.";
 export const START_OVER_FRESH_KEEP = "Keep my mine";
@@ -1459,9 +1404,6 @@ export const boostStartedLine = (name: string, ms: number): string =>
 /** "Iron rails went on the bench." */
 export const benchStartedLine = (name: string): string =>
   `${name} went on the bench.`;
-
-/** "Found the Hammer of the Builder." */
-export const relicFoundLine = (name: string): string => `Found the ${name}.`;
 
 /** "Came back. The crew dug 1.2M while you were away." */
 export const awayDugLine = (stones: number): string =>

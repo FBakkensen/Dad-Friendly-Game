@@ -11,15 +11,14 @@ import mountainUrl from "./assets/board/res-mountain.png";
 import nuggetUrl from "./assets/board/res-nugget.png";
 import pickUrl from "./assets/board/res-pick.png";
 import stoneUrl from "./assets/board/res-stone.png";
-import { RELIC_LIT } from "./board-relics";
 import { plateButton } from "./board-save";
 import { HOW_IT_WORKS, type HowArt } from "./how-it-works";
 import { createHowCard, type HowCardStep } from "./teach-ui";
 
 /*
  * How it works in the drawer skin (#373): the same cards and words, drawn with the board's own
- * icons at exactly 2x. Machines and the worker are 32 art px (64 shown), a relic 24 (48), the
- * small icons 16 (32).
+ * icons at exactly 2x. Machines and the worker are 32 art px (64 shown), the small icons 16
+ * (32).
  */
 
 /** One board icon for a How it works step, and its CSS px. */
@@ -39,10 +38,6 @@ export const BOARD_HOW_ART: Readonly<Partial<Record<HowArt, BoardHowArt>>> = {
   "upgrades-icon": { src: upgradesIconUrl, px: 32 },
   pick: { src: pickUrl, px: 32 },
   mountain: { src: mountainUrl, px: 32 },
-  "relics/lantern": { src: RELIC_LIT.lantern, px: 48 },
-  "relics/shield": { src: RELIC_LIT.shield, px: 48 },
-  "relics/hammer": { src: RELIC_LIT.hammer, px: 48 },
-  "relics/crown": { src: RELIC_LIT.crown, px: 48 },
   "ore-lump": { src: clayUrl, px: 32 },
   // The Engineers and Expeditions cards' own (PixelLab, #455).
   "worn-map": { src: mapUrl, px: 32 },
@@ -59,7 +54,6 @@ export type BoardHowSystem =
   | "workshop"
   | "materials"
   | "away"
-  | "relics"
   | "engineers"
   | "expeditions"
   | "tending";

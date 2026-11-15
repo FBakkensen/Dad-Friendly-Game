@@ -42,7 +42,6 @@ import {
   type MachineId,
   type TierId,
 } from "./tiers";
-import { hasRelic } from "./relics";
 import {
   biggestFirst,
   fillForLine,
@@ -64,7 +63,7 @@ import {
 
 /**
  * Share of the crew's speed paid for time away (app closed or in the
- * background). Tuned by src/pacing.test.ts; the Heart of Patience may raise it.
+ * background). Tuned by src/pacing.test.ts.
  */
 export const AWAY_PAY_RATE = 0.3;
 
@@ -76,33 +75,12 @@ export const AWAY_PAY_RATE = 0.3;
 export const AWAY_FULL_MS = 6 * 60 * 60 * 1000;
 const AWAY_SLOPE_SHARE = 0.4;
 export const AWAY_END_MS = 24 * 60 * 60 * 1000;
-/** With the Shield, a whole day pays in full. */
-export const SHIELD_AWAY_CAP_MS = 24 * 60 * 60 * 1000;
-
-/**
- * Paid time away, as hours at the full away rate. The Shield pays a whole
- * day in full; otherwise the slope above.
- */
-export function paidAwayMs(mountain: Mountain, awayMs: number): number {
+/** Paid time away, as hours at the full away rate: the slope above. */
+export function paidAwayMs(awayMs: number): number {
   const gone = Math.max(0, awayMs);
-  if (hasRelic(mountain, "shield")) {
-    return Math.min(gone, SHIELD_AWAY_CAP_MS);
-  }
   const full = Math.min(gone, AWAY_FULL_MS);
   const slope = Math.max(0, Math.min(gone, AWAY_END_MS) - AWAY_FULL_MS);
   return full + AWAY_SLOPE_SHARE * slope;
-}
-
-/** Heart of Patience: away pay climbs from ×1 to ×2 over this long away. */
-const HEART_MAX_BONUS = 0.5;
-const HEART_FULL_MS = 12 * 60 * 60 * 1000;
-
-/** The Heart of Patience multiplier for a stretch of paid time away (×1 without the Heart). */
-export function heartBonus(mountain: Mountain, paidMs: number): number {
-  if (!hasRelic(mountain, "heart")) {
-    return 1;
-  }
-  return 1 + HEART_MAX_BONUS * Math.min(1, Math.max(0, paidMs) / HEART_FULL_MS);
 }
 
 /** Each Legacy (a mountain passed to your kid) adds this to crew and tap speed. */
@@ -113,7 +91,7 @@ export function legacyBonus(mountain: Mountain): number {
   return 1 + LEGACY_STEP * mountain.legacy;
 }
 
-/** Crown of Wisdom: each kid helper makes every helper and kid this much faster. */
+/** Each kid helper makes every helper and kid this much faster. */
 const KID_TEACH_PER_KID = 0.02;
 
 /**
@@ -301,7 +279,7 @@ function crewRun(
   }
   // Staffing: the hands run the machines that mine the most (#500); a
   // machine short of its crew sits idle. Helpers still mine by hand while
-  // they run a machine. Kids count as staff too (Crown of Wisdom).
+  // they run a machine. Kids count as staff too.
   const running = keptStaffing(mountain, steady);
   const needed = TIERS.filter(tierInPlay).reduce(
     (total, tier) =>

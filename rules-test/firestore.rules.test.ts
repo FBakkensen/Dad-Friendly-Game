@@ -401,10 +401,10 @@ function maximalMountain(): Mountain {
         : index === 1
           ? { kind: "tool", id: "pick" }
           : index === 2
-            ? { kind: "glimmer", id: "heart" }
+            ? { kind: "recipe", id: "engineers-kit" }
             : index === 3
               ? { kind: "quiet" }
-              : { kind: "glimmer", id: "lantern" },
+              : { kind: "tool", id: "boots" },
   }));
   return {
     ...createMountain(),
@@ -552,7 +552,6 @@ describe("firestore.rules: fieldLogs/{uid}", () => {
     expect(written.snapshot.engineers).toHaveLength(MAX_ENGINEERS);
     expect(written.snapshot.expeditions).toHaveLength(MAX_EXPEDITIONS);
     expect(written.snapshot.boosts).toHaveLength(BOOSTS.length);
-    expect(written.snapshot.relics).toHaveLength(6);
     expect(Object.keys(written.snapshot.upgrades)).toHaveLength(
       UPGRADES.length,
     );

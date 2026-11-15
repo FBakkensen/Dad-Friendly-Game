@@ -10,8 +10,6 @@ import {
   type DutyEngineer,
   type Engineer,
 } from "./engineers";
-import { glimmerText } from "./expeditions";
-import { RELICS } from "./relics";
 import type { Mountain } from "./mountain";
 import { minedMountain } from "./test-fixtures";
 import { UPGRADES, upgradeById, type UpgradeId, NO_UPGRADES } from "./upgrades";
@@ -43,8 +41,6 @@ import {
   benchStartedLine,
   boostStartedLine,
   cameHomeLine,
-  relicFoundLine,
-  relicsFoundWords,
   signedInWords,
   tierBuyLine,
   upgradeLevelLine,
@@ -69,12 +65,8 @@ import {
   LAYER_EVOCATIVE,
   craftFittedLine,
   craftFittedWords,
-  kidMineWords,
-  nextRelicWords,
-  relicProgressLabel,
   layerCardWords,
   layerWelcomeWords,
-  nextLayerHint,
   MOCK_MATERIALS,
   MOCK_MATERIAL_LINE,
   MOCK_RECIPES,
@@ -312,7 +304,7 @@ describe("engineer words", () => {
       "About an hour, often a lost tool or keepsake.",
     );
     expect(exploreBenefit("deep-dark")).toBe(
-      "All night, the best chance of a relic hint or a new engineer.",
+      "All night, the best chance of a new engineer.",
     );
     expect(exploreAside("Ada", "borer")).toBe(
       "While she explores, her machine works without her.",
@@ -472,29 +464,19 @@ describe("engineer words", () => {
     );
     expect(
       cameBack("Ada", "side-seam", { kind: "keepsake", id: "drawing" }),
-    ).toBe(
-      "Ada came back from a side seam with a child's drawing. It waits on the relic shelf.",
-    );
+    ).toBe("Ada came back from a side seam with a child's drawing.");
     expect(
       cameBack("Ada", "side-seam", { kind: "keepsake", id: "watch" }),
-    ).toBe(
-      "Ada came back from a side seam with a pocket watch. It waits on the relic shelf.",
-    );
+    ).toBe("Ada came back from a side seam with a pocket watch.");
     expect(
       cameBack("Ada", "side-seam", { kind: "keepsake", id: "whistle" }),
-    ).toBe(
-      "Ada came back from a side seam with a carved whistle. It waits on the relic shelf.",
-    );
+    ).toBe("Ada came back from a side seam with a carved whistle.");
     expect(
       cameBack("Ada", "side-seam", { kind: "keepsake", id: "pebble" }),
-    ).toBe(
-      "Ada came back from a side seam with a smooth pebble. It waits on the relic shelf.",
-    );
+    ).toBe("Ada came back from a side seam with a smooth pebble.");
     expect(
       cameBack("Ada", "side-seam", { kind: "keepsake", id: "ribbon" }),
-    ).toBe(
-      "Ada came back from a side seam with a faded ribbon. It waits on the relic shelf.",
-    );
+    ).toBe("Ada came back from a side seam with a faded ribbon.");
     expect(
       cameBack("Ada", "deep-dark", {
         kind: "engineer",
@@ -527,16 +509,6 @@ describe("engineer words", () => {
     ).toBe(
       "Ada came back from the old shaft. The tunnel was quiet, and they came home safe.",
     );
-    for (const relic of RELICS) {
-      const text = glimmerText(relic.id);
-      const line = cameBack("Ada", "old-shaft", {
-        kind: "glimmer",
-        relic: relic.id,
-        text,
-      });
-      expect(line).toBe(`Ada came back from the old shaft. ${text}`);
-      expect(line).not.toMatch(/\d|\?/);
-    }
     expect(recallConfirm("Ada")).toBe("Ada comes home empty-handed.");
     expect(recallConfirm("Ada")).not.toMatch(/\d|\?/);
   });
@@ -730,23 +702,6 @@ describe("layer card and craft-done copy", () => {
       expect(layerWelcomeWords(id)).toContain(words?.advice);
       expect(layerWelcomeWords(id)).toContain(words?.sketch);
     }
-    expect(nextLayerHint(undefined)).toBeUndefined();
-    expect(nextLayerHint("topsoil")).toBeUndefined();
-    expect(nextLayerHint("granite")).toBe(
-      "Below the topsoil, the rock turns hard and grey.",
-    );
-    expect(nextLayerHint("crystal")).toBe(
-      "Deeper on, the walls start to glitter.",
-    );
-    expect(nextLayerHint("heart")).toBe(
-      "Something warm is still waiting below.",
-    );
-    const hints = ["granite", "crystal", "heart"] as const;
-    for (const id of hints) {
-      expect(nextLayerHint(id)).not.toMatch(
-        /\b(clay|iron|crystal|heartstone)\b|\d|\?/i,
-      );
-    }
   });
 
   it("names a fitted craft with are or is", () => {
@@ -762,21 +717,6 @@ describe("layer card and craft-done copy", () => {
     expect(craftFittedLine("Iron rails")).toBe("Your Iron rails are fitted.");
     expect(craftFittedLine("Blasting charge")).toBe(
       "Your Blasting charge is fitted.",
-    );
-  });
-
-  it("words the Ledger's relic goal and its bar", () => {
-    expect(kidMineWords("+10%")).toBe(
-      "Your kid's mine: six relics wait inside. Legacy +10%.",
-    );
-    expect(nextRelicWords("Lantern", "Somewhere in the clay.")).toBe(
-      "Next: Lantern · Somewhere in the clay.",
-    );
-    expect(relicProgressLabel("Lantern", undefined)).toBe(
-      "Progress to the Lantern",
-    );
-    expect(relicProgressLabel("Lantern", "Iron below.")).toBe(
-      "Progress to the Lantern. Iron below.",
     );
   });
 });
@@ -1031,8 +971,6 @@ describe("the Ledger's words (#375)", () => {
     expect(LEDGER_BACK).toBe("Back to the Ledger");
     expect(PASS_SHORT).toBe("Pass the mine");
     expect(PASS_FULL).toBe("Pass the mine to your kid");
-    expect(relicsFoundWords(2)).toBe("2 of 6 relics found");
-    expect(relicsFoundWords(0)).toBe("0 of 6 relics found");
   });
 
   it("keeps today's Start over and account words, with the one question on the title", () => {
@@ -1070,7 +1008,6 @@ describe("the Ledger's words (#375)", () => {
       upgradeLevelLine("Strong arms", 3),
       boostStartedLine("Overtime", 30 * 60_000),
       benchStartedLine("Iron rails"),
-      relicFoundLine("Hammer of the Builder"),
       awayDugLine(1_234_567),
       veinGaveLine(4_200),
       veinGaveLine(1),
@@ -1085,7 +1022,6 @@ describe("the Ledger's words (#375)", () => {
       "Strong arms, level 3.",
       "Overtime started for 30:00.",
       "Iron rails went on the bench.",
-      "Found the Hammer of the Builder.",
       "Came back. The crew dug 1.2M while you were away.",
       "A golden vein gave 4,200 stones.",
       "A golden vein gave one stone.",
@@ -1113,16 +1049,10 @@ describe("the welcome card's words (#464)", () => {
     );
   });
 
-  it("says how long you were gone, and the Heart's share", () => {
-    const report = { awayMs: 9 * 3_600_000, paidMs: 9 * 3_600_000, heart: 1 };
+  it("says how long you were gone", () => {
+    const report = { awayMs: 9 * 3_600_000, paidMs: 9 * 3_600_000 };
     expect(awayGoneWords(report)).toBe(
       "You were gone 9 hours. Your crew kept digging the whole time.",
-    );
-    expect(awayGoneWords({ ...report, heart: 1.25 })).toBe(
-      "You were gone 9 hours. Your crew kept digging the whole time. The Heart of Patience made it ×1.25.",
-    );
-    expect(awayGoneWords({ ...report, heart: 1.5 })).toMatch(
-      /made it ×1\.5\.$/,
     );
   });
 });

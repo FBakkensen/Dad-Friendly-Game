@@ -146,14 +146,6 @@ service cloud.firestore {
       return idle is map && idle.size() <= 16;
     }
 
-    // Naming every relic, on top of a full snapshot, crosses the 1000-expression
-    // budget once the shelf is full. The list is capped at 6. The client
-    // writes the closed ids. A huge string still cannot blow the document up:
-    // the client refuses a field log over 50 KB.
-    function isRelicList(relics) {
-      return relics is list && relics.size() <= 6;
-    }
-
     function isFieldBoost(boost) {
       return boost is map &&
         boost.keys().hasOnly(['endsAt', 'id']) &&
@@ -192,7 +184,7 @@ service cloud.firestore {
 
     function isFieldSnapshot(shot) {
       return shot is map &&
-        shot.keys().hasOnly(['at', 'boosts', 'crew', 'crewSpeed', 'deviceId', 'engineers', 'expeditions', 'idle', 'left', 'legacy', 'mined', 'pocket', 'relics', 'rev', 'tapYield', 'upgrades', 'version']) &&
+        shot.keys().hasOnly(['at', 'boosts', 'crew', 'crewSpeed', 'deviceId', 'engineers', 'expeditions', 'idle', 'left', 'legacy', 'mined', 'pocket', 'rev', 'tapYield', 'upgrades', 'version']) &&
         isIsoText(shot.at) &&
         shot.deviceId is string &&
         shot.rev is int &&
@@ -206,7 +198,6 @@ service cloud.firestore {
         shot.legacy is int && shot.legacy >= 0 && shot.legacy <= 1000 &&
         shot.mined is int && shot.mined >= 0 && shot.mined <= 240000000 &&
         shot.pocket is int && shot.pocket >= 0 && shot.pocket <= 1000000000000000 &&
-        isRelicList(shot.relics) &&
         shot.tapYield is number && shot.tapYield >= 0 && shot.tapYield <= 1000000000 &&
         isFieldUpgrades(shot.upgrades) &&
         isShortText(shot.version);

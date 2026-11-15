@@ -82,7 +82,6 @@ describe("snapshot", () => {
       crewSpeed: rates.crewPerSecond,
       tapYield: rates.tapYield,
       idle: { cart: 0, hoist: 0, drill: 0, borer: 0, train: 0, machine: 0 },
-      relics: [],
       upgrades: {
         tap: 0,
         boots: 0,
@@ -100,7 +99,7 @@ describe("snapshot", () => {
     expect(JSON.parse(JSON.stringify(shot))).toEqual(shot);
   });
 
-  it("counts the crew, idle machines, relics, upgrades, running boosts, and legacy", () => {
+  it("counts the crew, idle machines, upgrades, running boosts, and legacy", () => {
     const mountain: Mountain = {
       ...createMountain(),
       remaining: MOUNTAIN_STONES - 1_000_000,
@@ -154,7 +153,6 @@ describe("snapshot", () => {
       train: 0,
       machine: 0,
     });
-    expect(shot.relics).toEqual(["lantern"]);
     expect(shot.upgrades.tap).toBe(2);
     expect(shot.upgrades.boots).toBe(0);
     expect(shot.boosts).toEqual([

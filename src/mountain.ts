@@ -1,5 +1,5 @@
 import type { Trouble } from "./hazards";
-import { effectiveRates, heartBonus, paidAwayMs } from "./rates";
+import { effectiveRates, paidAwayMs } from "./rates";
 import { NO_BOOSTS, type Boosts } from "./boosts";
 import {
   QUICK_VEIN_AWAY_MS,
@@ -75,7 +75,6 @@ import {
 } from "./scale";
 
 export { MOUNTAIN_STONES };
-/** Base away cap; the Shield of Protection relic will lift it. */
 
 /**
  * One run's state. Never changed in place: every move returns a new object.
@@ -124,7 +123,6 @@ export type Mountain = {
   readonly expeditions: readonly Expedition[];
   /**
    * Lost tools and keepsakes already brought home.
-   * Glimmers are not stored; they are a line, not a thing on the shelf.
    */
   readonly finds: readonly FindId[];
   /** The craft on the one bench. A required key: undefined is a free bench. */
@@ -523,8 +521,6 @@ export type AwayReport = {
   /** Time that actually paid. */
   readonly paidMs: number;
   readonly capped: boolean;
-  /** Heart of Patience multiplier on away pay (1 without the Heart). */
-  readonly heart: number;
   /** Ore the crew brought up while you were away. */
   readonly materials: Materials;
   /** A fresh mine's night, for the shift report (#663). Never in today's game. */
@@ -592,11 +588,10 @@ export function accrueAway({
   const mountain = resumeRush(closed, lastSeen, now);
   const long = awayMs >= QUICK_VEIN_AWAY_MS;
   const rates = effectiveRates(mountain);
-  const paidMs = paidAwayMs(mountain, awayMs);
+  const paidMs = paidAwayMs(awayMs);
   const capped = awayMs > paidMs;
-  const heart = heartBonus(mountain, paidMs);
-  // Rounded so 0.3 × 1.5 pays 0.45, not 0.44999… (one stone short).
-  const pay = Math.round(rates.awayPay * heart * 1e9) / 1e9;
+  // Rounded so float dust never pays one stone short.
+  const pay = Math.round(rates.awayPay * 1e9) / 1e9;
   // Pay the most recent stretch, and split it where an expedition comes
   // home, so the machine they left speeds up again from that moment.
   const walked = accrueAcrossExpeditions({
@@ -618,7 +613,6 @@ export function accrueAway({
       awayMs,
       paidMs,
       capped,
-      heart,
       materials: materialsGained(minedOut(mountain), minedOut(walked.mountain)),
     },
   };
@@ -837,7 +831,7 @@ function logStretch(
  * haulage and hoisting bring up what waits in the piles (#703). Transport carries to
  * what he ordered, from the pocket, for the whole night at the same share.
  * A roof that goes on in the night lights the rest of it. A fresh mine has
- * no relics, expeditions or Gold rush, so none of their splits apply. The
+ * no expeditions or Gold rush, so none of their splits apply. The
  * report's `night` holds what the shift report says (#663).
  */
 function accrueNight({
@@ -898,7 +892,6 @@ function accrueNight({
       awayMs,
       paidMs: clockless ? awayMs : clockStops - lastSeen,
       capped: !clockless && awayMs > NIGHT_CLOCK_MS,
-      heart: 1,
       materials: materialsGained(0, 0),
       night: nightReport(log, mountain, state, awayMs),
     },

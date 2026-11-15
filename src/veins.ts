@@ -24,21 +24,16 @@ export type VeinState =
       readonly y: number;
     };
 
-/** The Lantern of Guidance makes veins glint 40% sooner. */
-export const LANTERN_VEIN_GAP_SCALE = 0.6;
-
 /**
- * Wait before the next glint, as a share of the usual 3–6 minutes.
- * The lantern shortens it. A lamp or a crystal flare makes veins more often,
- * which shortens it again. 1 is an ordinary mountain.
+ * Wait before the next glint, as a share of the usual 3–6 minutes. A lamp or
+ * a crystal flare makes veins more often, which shortens it. 1 is an
+ * ordinary mountain.
  */
 export function veinGapScale(
   mountain: Parameters<typeof veinOftenScale>[0],
-  lantern: boolean,
   now?: number,
 ): number {
-  const base = lantern ? LANTERN_VEIN_GAP_SCALE : 1;
-  return base / veinOftenScale(mountain, now);
+  return 1 / veinOftenScale(mountain, now);
 }
 
 /** How long the next glint lasts. The old miner's lamp lets it linger. */
@@ -63,7 +58,7 @@ export function waitForVein({
 
 /**
  * The first vein after an hour away (#468): it glints in 20 seconds of board
- * time. The lantern and the vein crafts do not shorten it.
+ * time. The vein crafts do not shorten it.
  */
 export function quickVein(now: number): VeinState {
   return { kind: "waiting", appearsAt: now + QUICK_VEIN_WAIT_MS };

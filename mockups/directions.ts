@@ -4,7 +4,6 @@ import { staffForBuy, staffNeeded } from "../src/engineers.ts";
 import { createMountain, type Mountain } from "../src/mountain.ts";
 import { effectiveRates } from "../src/rates.ts";
 import { layerOf } from "../src/layers.ts";
-import { nextRelic } from "../src/relics.ts";
 import { MOUNTAIN_STONES } from "../src/scale.ts";
 import { boostCost, BOOSTS } from "../src/boosts.ts";
 import {
@@ -565,8 +564,7 @@ function renderUpgradesB(view: DirectionView): string {
   const hands = upgradeById("cartSyn");
   const handsCost = upgradeCost(hands, upgradeLevel(mountain, "cartSyn"));
   const handsWhy = UPGRADE_DOES.cartSyn ?? hands.perLevel;
-  const tease =
-    nextRelic(mountain)?.tease ?? "Deeper on, the walls start to glitter.";
+  const tease = "Deeper on, the walls start to glitter.";
   const roads = upgradeById("drillSyn");
   const cards = [
     upgradeCard(view, mountain, roads),

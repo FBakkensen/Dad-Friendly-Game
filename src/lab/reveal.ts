@@ -93,7 +93,7 @@ type Watch = {
 const WATCHES: readonly Watch[] = [
   ...TIERS.map((tier) => ({
     id: `tier:${tier.id}`,
-    // A locked preview card (a depth or a relic still ahead, #250) is not
+    // A locked preview card (a depth still ahead, #250) is not
     // a reveal: the wait starts when the card opens for sale.
     shown: (mountain: Mountain) =>
       tierShown(mountain, tier) && !tierLocked(mountain, tier),

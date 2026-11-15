@@ -29,7 +29,6 @@ const dad: FieldLogRecord = {
       legacy: 0,
       crew: { helper: 2, cart: 1 },
       idle: { cart: 1 },
-      relics: ["lantern"],
       upgrades: { tap: 1 },
       boosts: [{ id: "sharper", endsAt: "2026-01-02T04:00:00.000Z" }],
       engineers: [{ name: "Ada", rank: 0, post: "borer" }],
@@ -178,8 +177,6 @@ describe("formatFieldLogSummary", () => {
         "  helper 2",
         "Idle",
         "  cart 1",
-        "Relics",
-        "  lantern",
         "Upgrades",
         "  tap 1",
         "Boosts",
@@ -222,14 +219,13 @@ describe("formatFieldLogSummary", () => {
     );
   });
 
-  it("says when there are no logs, relics, or boosts", () => {
+  it("says when there are no logs or boosts", () => {
     expect(formatFieldLogSummary([], "UTC")).toBe("No field logs.");
     const empty: FieldLogRecord = {
       uid: "dad",
       data: {
         updatedAt: Date.parse(AT),
         snapshot: {
-          relics: [],
           boosts: [],
           crew: {},
           idle: {},
@@ -241,7 +237,6 @@ describe("formatFieldLogSummary", () => {
     };
     const text = formatFieldLogSummary([empty], "UTC");
     expect(text).toContain("Crew\n  none");
-    expect(text).toContain("Relics\n  none");
     expect(text).toContain("Boosts\n  none");
     expect(text).toContain("Engineers\n  none");
     expect(text).toContain("Expeditions\n  none");
