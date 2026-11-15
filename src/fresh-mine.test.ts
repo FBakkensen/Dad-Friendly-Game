@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { withFactors } from "./economy/factors";
 import { applyMove, listActions, type Action } from "./economy/actions";
-import { tierLock } from "./crew";
+import { tierLock, tierLocked } from "./crew";
+import { readyNow } from "./ready-now";
+import { bayTiers } from "./machine-bays";
 import { FRESH_OFF, freshMineOn, lineOn } from "./line-switch";
 import {
   MOUNTAIN_STONES,
@@ -131,8 +133,8 @@ describe("one level, no depth (rule 1)", () => {
 
   it("the Topsoil leans on no stage: the line reads every machine at its rating", () => {
     fresh(() => {
-      // Twelve hands, one cart: hands fill drilling and hoisting to the
-      // cart's haulage, as on any level with no lean.
+      // The Topsoil has no lean on the line: each machine runs at its
+      // rating (×3 today's), with no band slowing or speeding it.
       const crew = owning({ helper: 12, cart: 1, hoist: 1, drill: 1 }, 0);
       const rates = effectiveRates(crew);
       expect(rates.tierSpeed.cart).toBe(18);
@@ -231,6 +233,28 @@ describe("machines open by what he owns (rule 1's table)", () => {
         expect(tap.kind).toBe("refused");
       }
       expect(buys(crew)).toEqual(["helper", "cart", "hoist", "drill"]);
+    });
+  });
+
+  it("locks the later machines, so nothing reads them as for sale", () => {
+    fresh(() => {
+      const crew = owning({ helper: 60, cart: 5, hoist: 5, drill: 5 });
+      const doors = {
+        borer: "granite",
+        train: "granite",
+        machine: "foundry",
+        kid: "school",
+      } as const;
+      for (const [id, at] of Object.entries(doors)) {
+        const tier = tierById(id as TierId);
+        expect(tierLock(crew, tier)).toEqual({ kind: "later", at });
+        expect(tierLocked(crew, tier)).toBe(true);
+      }
+      const pick = readyNow(crew, 0);
+      expect(
+        pick.kind === "ready" || pick.kind === "saving" ? pick.tier : "none",
+      ).not.toMatch(/^(borer|train|machine|kid)$/);
+      expect(bayTiers(crew)).not.toContain("machine");
     });
   });
 

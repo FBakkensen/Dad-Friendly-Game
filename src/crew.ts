@@ -8,6 +8,7 @@ import {
   buyTier,
   freshDoor,
   owned,
+  type FreshDoor,
   tierById,
   tierInPlay,
   type Tier,
@@ -26,14 +27,23 @@ export type TierLock =
       readonly at: number;
     }
   | { readonly kind: "relic"; readonly relic: Relic; readonly at: number }
-  | { readonly kind: "owns"; readonly tier: TierId; readonly count: number };
+  | { readonly kind: "owns"; readonly tier: TierId; readonly count: number }
+  | {
+      /** A later part's door in a fresh mine: never for sale in part 1. */
+      readonly kind: "later";
+      readonly at: Extract<FreshDoor, { kind: "later" }>["at"];
+    };
 
 /**
  * A fresh mine's door (rule 1's table): the first one waits until he owns
- * enough of the tier before it. Once one is owned it stays for sale.
+ * enough of the tier before it. Once one is owned it stays for sale. A tier
+ * whose door is a later part's is always locked.
  */
 function freshLock(mountain: Mountain, tier: Tier): TierLock | undefined {
   const door = freshDoor(tier.id);
+  if (door.kind === "later") {
+    return { kind: "later", at: door.at };
+  }
   return door.kind === "owns" &&
     owned(mountain, tier) === 0 &&
     mountain.owned[door.tier] < door.count

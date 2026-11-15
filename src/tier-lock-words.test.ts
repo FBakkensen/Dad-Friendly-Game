@@ -99,6 +99,10 @@ describe("a fresh mine's door words (#653)", () => {
       expect(lockAria(hoist, afterCart)).toBe(
         "Hoist, locked. Opens after a cart.",
       );
+      const { tier: borer, lock: later } = lockOf("borer");
+      expect(lockRateLine(later)).toBe("Later");
+      expect(lockBodyLine(borer, later)).toBe("The Tunnel borer opens later.");
+      expect(lockAria(borer, later)).toBe("Tunnel borer, locked. Opens later.");
     });
   });
 });
