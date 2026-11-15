@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { placeOrder } from "./city";
+import { withFactors } from "./economy/factors";
+import { FRESH_OFF } from "./line-switch";
 import { createMountain } from "./mountain";
-import { compareSaveProgress } from "./save-progress";
+import { compareSaveProgress, playedSinceNew } from "./save-progress";
 import { minedMountain } from "./test-fixtures";
 
 describe("compareSaveProgress", () => {
@@ -62,5 +65,48 @@ describe("which copy of a fresh mine is ahead (#664, call 13)", () => {
       mountain: { ...at(10, 1).mountain, startedAt: 2 },
     };
     expect(compareSaveProgress(later, at(9_000, 9))).toBeGreaterThan(0);
+  });
+});
+
+describe("playedSinceNew (#664)", () => {
+  const fresh = <T>(body: () => T): T => withFactors({ [FRESH_OFF]: 0 }, body);
+
+  it("a fresh mine's start, with its worker moved, is not played", () => {
+    fresh(() => {
+      const start = createMountain();
+      expect(playedSinceNew(start, true)).toBe(false);
+      const moved = {
+        ...start,
+        jobs: { ...start.jobs, drilling: 0, haulage: 1 },
+      };
+      expect(playedSinceNew(moved, true)).toBe(false);
+    });
+  });
+
+  it("rock dug, a hire, a vehicle, an order or a building is played", () => {
+    fresh(() => {
+      const start = createMountain();
+      const played = [
+        { ...start, rockDug: 1 },
+        { ...start, owned: { ...start.owned, helper: start.owned.helper + 1 } },
+        {
+          ...start,
+          fleet: { ...start.fleet, horseWagon: start.fleet.horseWagon + 1 },
+        },
+        placeOrder(start),
+        { ...start, operational: ["lightTower" as const] },
+      ];
+      for (const mountain of played) {
+        expect(playedSinceNew(mountain, false)).toBe(true);
+      }
+    });
+  });
+
+  it("a later run's stamp counts only when asked", () => {
+    fresh(() => {
+      const stamped = { ...createMountain(), startedAt: 40 };
+      expect(playedSinceNew(stamped, true)).toBe(true);
+      expect(playedSinceNew(stamped, false)).toBe(false);
+    });
   });
 });

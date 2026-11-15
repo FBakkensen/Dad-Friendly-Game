@@ -7,7 +7,8 @@ import { archiveWithin } from "./archive-wait";
 import type { ArchiveReason, ArchivedCopy } from "./cloud-save";
 import { markCloudDirty, persistCloudSoon } from "./cloud-writer";
 import { persistPhoneBackup } from "./local-saves";
-import { minedOut, runStartedAt, type Mountain } from "./mountain";
+import { rockDugInAll, runStartedAt, type Mountain } from "./mountain";
+import { playedSinceNew } from "./save-progress";
 import { conflictFacts } from "./save-adopt";
 import { payAway } from "./save-load";
 import { markWelcomed, openBaselines } from "./session";
@@ -145,10 +146,10 @@ export async function restoreCopy(
   if (!stillOn(ctx, stance)) {
     return "kept";
   }
-  // A mountain with nothing mined is not kept: it would only crowd the shelf.
-  // A copy that lands checks the save again (keepInPlay).
+  // A mountain not played since it was new is not kept: it would only crowd
+  // the shelf. A copy that lands checks the save again (keepInPlay).
   if (
-    minedOut(ctx.session.mountain) > 0 &&
+    playedSinceNew(ctx.session.mountain, false) &&
     !(await keepInPlay(ctx, stance, "restore"))
   ) {
     return "kept";
@@ -157,7 +158,7 @@ export async function restoreCopy(
   playChosen(ctx, mountain, lastSeen);
   // Its relics and layers were found when it was played: news counts from here, as a watch's copy.
   ctx.session = openBaselines(ctx.session, true);
-  const data = { rev: ctx.syncedRev + 1, mined: minedOut(mountain) };
+  const data = { rev: ctx.syncedRev + 1, mined: rockDugInAll(mountain) };
   record(ctx, "save.restore", data);
   log(ctx, { level: "info", code: "save.restore", detail: id, data });
   saveChosen(ctx, lastSeen);
@@ -204,7 +205,7 @@ async function keepInPlay(
       reason,
     }),
     reason,
-    minedOut(mountain),
+    rockDugInAll(mountain),
     () => stillOn(ctx, stance),
   );
 }
@@ -232,7 +233,7 @@ function startRun(ctx: StoreContext, run: NewRun): boolean {
 /**
  * Keeps the mountain he leaves in Saved copies, then starts the new run
  * (#480). A copy that does not land keeps the mountain in play, and says so.
- * Signed out, or with nothing mined yet, there is nothing to keep, and the
+ * Signed out, or with nothing played yet, there is nothing to keep, and the
  * run starts at once.
  */
 export async function keepThenBegin(
@@ -245,7 +246,7 @@ export async function keepThenBegin(
     !canPlay(ctx) ||
     uid === undefined ||
     ctx.ports.cloudSave.archiveCopy === undefined ||
-    minedOut(left) === 0 ||
+    !playedSinceNew(left, false) ||
     run.next(left) === undefined
   ) {
     return startRun(ctx, run);

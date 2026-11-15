@@ -134,9 +134,18 @@ export class Expected {
 
   /**
    * The page's clock jumped to `now` at once (Player.jump): the game's tick ran once, at the
-   * far end, and folded the whole stretch in.
+   * far end, and folded the whole stretch in. A report the last stretch brought was closed
+   * before this one, as the journey closes its card. Returns this stretch's report, if any: a
+   * report with a night is the shift report the frame shows.
    */
-  jumped(now: number): void {
+  jumped(now: number): AwayReport | undefined {
+    if (firstNotice(this.session.news, "away") !== undefined) {
+      this.session = step(
+        this.session,
+        { kind: "dismiss", what: "away" },
+        this.ticked,
+      ).session;
+    }
     this.ticked = now;
     this.session = step(this.session, { kind: "tick" }, now).session;
     if (this.saving) {
@@ -145,6 +154,7 @@ export class Expected {
         lastSeen: this.session.lastSeen,
       };
     }
+    return firstNotice(this.session.news, "away")?.report;
   }
 
   /**

@@ -1,4 +1,11 @@
-import { rockDugInAll, runStartedAt, type Mountain } from "./mountain";
+import {
+  createMountain,
+  rockDugInAll,
+  runStartedAt,
+  type Mountain,
+} from "./mountain";
+import { TIER_IDS } from "./tiers";
+import { VEHICLE_IDS } from "./transport";
 
 /**
  * One moment of a save, on the phone or in the cloud.
@@ -31,4 +38,28 @@ export function compareSaveProgress(
     return mined;
   }
   return (left.lastSeen ?? 0) - (right.lastSeen ?? 0);
+}
+
+/**
+ * Anything dug, bought or built since a new mountain, and with `countStamp`
+ * a later run. A fresh mine starts with a worker and a horse wagon (#703), so
+ * a count is progress only past the start's (#664). A phone that has not
+ * played is not a copy, and a mountain that has not been played is not kept
+ * in Saved copies.
+ */
+export function playedSinceNew(
+  mountain: Mountain,
+  countStamp: boolean,
+): boolean {
+  const start = createMountain();
+  return (
+    rockDugInAll(mountain) > 0 ||
+    (countStamp && runStartedAt(mountain) > 0) ||
+    mountain.stock.stones > 0 ||
+    mountain.legacy > 0 ||
+    mountain.operational.length > 0 ||
+    mountain.project.kind !== "unordered" ||
+    TIER_IDS.some((id) => mountain.owned[id] > start.owned[id]) ||
+    VEHICLE_IDS.some((id) => mountain.fleet[id] > start.fleet[id])
+  );
 }

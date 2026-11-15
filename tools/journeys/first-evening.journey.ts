@@ -37,23 +37,32 @@ test("the first evening: from one worker to the Light Tower's roof", async ({
       if (plan.length === 0) {
         break;
       }
+      // A plan's later moves may no longer pay once its first ones are made; its first may not.
+      let taken = 0;
       for (const action of plan) {
         const seen = rules.mountain;
         if (!rules.move(action, player.now)) {
           break;
         }
         await player.act(action, seen);
-        moves += 1;
+        taken += 1;
       }
+      expect(taken, `the rules take ${plan[0]?.kind ?? ""}`).toBeGreaterThan(0);
+      moves += taken;
       await player.expectStones(rules.pocket);
     }
     await player.jump(LOOK_MS);
-    rules.jumped(player.now);
+    const report = rules.jumped(player.now);
     if (rules.mountain.operational.includes("lightTower")) {
       break;
     }
-    // Ten minutes the game folds in at once are a stretch away: the shift report says so.
-    if (await player.cardUp()) {
+    // Ten minutes the game folds in at once are a stretch away: where anything happened in it,
+    // the shift report says so, and where nothing did, no card comes up.
+    if (report?.night === undefined) {
+      expect(await player.cardUp(), "no shift report on a quiet stretch").toBe(
+        false,
+      );
+    } else {
       expect((await player.card()).title).toBe("Shift report");
       await player.closeCard();
       rules.until(player.now);

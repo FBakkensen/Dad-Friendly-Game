@@ -916,16 +916,19 @@ M free`. The crew line, in the Crew section at the top of Buys, names where
   must be `request.time`. One cloud write is in flight, at most one a second, and the
   newest mountain is the next payload. A rev refusal reads the server doc. A
   later run wins whole. A lower rev is never adopted. One copy fast-forwards
-  when it is at least as far on stones mined, upgrade levels, crafts, recipes,
-  finds, engineer trips, machines (carts, drills, borers, the Great Machine) and
-  crew, and further on one of the progress facts. A lead that is only machines
-  or crew, or a split where each side has something the other lacks, is not
+  when it is at least as far on rock dug in all, upgrade levels, crafts,
+  recipes, finds, engineer trips, the city (the buildings operational, the
+  steps built and what has arrived for the step in hand), every tier owned
+  (workers, kids, machines) and every vehicle, and further on one of the
+  progress facts (all but tiers and vehicles; #664 added the city, hoists and
+  vehicles). A lead that is only machines, crew or vehicles, or a split where
+  each side has something the other lacks, is not
   blended. The phone keeps its copy. The sheet "Two saves found" asks which to
   play. The other copy is archived first at `gameArchive/{uid}/copies/{id}` for
   seven days (owner create and read, no update, no delete). Then the chosen copy
   is written at the server rev plus one. A failed archive leaves both copies and
   the sheet. `syncedRev` on the phone backup is the last confirmed rev.
-  `save.conflict` logs the revs, device ids, stones mined, and the choice. Saved
+  `save.conflict` logs the revs, device ids, rock dug in all, and the choice. Saved
   copies, opened from the Ledger, restore one the same way and log `save.restore`. A copy
   from an earlier run comes back as a new run (#480): `startedAt` is
   `max(now, playing + 1)`, so the rules' run check passes, and `lastSeen` is now, so no
@@ -939,8 +942,10 @@ M free`. The crew line, in the Crew section at the top of Buys, names where
   `save.archive` as an error. A second press while one is in flight, a newer
   run arriving meanwhile, or another account, a dispose or a held save by the
   time the copy lands (uid and `hydrateGeneration`, as the resume read checks)
-  starts nothing; a restore checks the same. A mountain with no stone mined,
-  or a guest's, starts at once with no copy, and a restore keeps no copy of it. The field log
+  starts nothing; a restore checks the same. A mountain not played since it
+  was new (`playedSinceNew` in `save-progress`, the same check that says a new
+  phone is not a copy, #664), or a guest's, starts at once with no copy, and a
+  restore keeps no copy of it. The field log
   snapshot includes `deviceId` and `rev`, and its `version` is the build's
   short commit (`dev` outside `vite build`). A newer service worker shows "Update
   available" and a reload button. `vite build` writes the same commit into

@@ -22,9 +22,8 @@ test("the tab left open all night pays what a cold reopen pays", async ({
 
   // The phone stays on all night, the game open.
   await player.jump(8 * HOUR_MS);
-  if (await player.cardUp()) {
-    await player.closeCard();
-  }
+  expect((await player.card()).title).toBe("Shift report");
+  await player.closeCard();
   rules.until(player.now);
   await player.expectStones(rules.pocket);
 

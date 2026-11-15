@@ -4,13 +4,15 @@
  * moves aside on the phone, or into Saved copies in the cloud, and a fresh
  * mountain keeps its run stamp.
  */
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createMemoryAuth } from "./auth";
 import {
   createMemoryCloudSave,
   type CloudSave,
   type RawArchive,
 } from "./cloud-save";
+import { holdFactors } from "./economy/factors";
+import { FRESH_OFF } from "./line-switch";
 import { createMountain, minedOut, type Mountain } from "./mountain";
 import { createProgressStore } from "./progress-store";
 import { SESSION_SAVE_KEY } from "./session-save";
@@ -329,3 +331,60 @@ function refusing(storage: Storage, suffix: string): Storage {
     },
   };
 }
+
+describe("the reset at part 1: today's version 8 save (#664)", () => {
+  afterEach(() => {
+    holdFactors({});
+  });
+
+  it("the phone's and the cloud's version 8 copies are set aside for a fresh mine", async () => {
+    holdFactors({ [FRESH_OFF]: 0 });
+    const storage = createMemoryStorage();
+    const v8 = {
+      version: 8,
+      lastSeen: 3,
+      startedAt: 500,
+      rev: 6,
+      deviceId: "device-dad-1234",
+      game: { owned: { helper: 30, cart: 12 }, stock: { stones: 1_234 } },
+    };
+    const phone = JSON.stringify({ uid: user.uid, save: v8 });
+    storage.setItem(BACKUP_KEY, phone);
+    const docs = new Map<string, Mountain>();
+    const rawArchives: RawArchive[] = [];
+    const cloud = createMemoryCloudSave({
+      docs,
+      olderDocs: new Map([
+        [user.uid, { version: 8, rev: 6, startedAt: 500, raw: v8 }],
+      ]),
+      rawArchives,
+    });
+    const revs: number[] = [];
+    const progress = signedIn(
+      {
+        ...cloud,
+        write: (args) => {
+          revs.push(args.rev);
+          return cloud.write(args);
+        },
+      },
+      storage,
+    );
+    await vi.waitFor(() => {
+      expect(docs.get(user.uid)?.startedAt).toBe(500);
+    });
+    expect(storage.getItem(`${BACKUP_KEY}:v8`)).toBe(phone);
+    expect(rawArchives).toEqual([
+      { uid: user.uid, raw: v8, version: 8, rev: 6, reason: "reset" },
+    ]);
+    expect(revs[0]).toBe(7);
+    const fresh = { ...createMountain(), startedAt: 500 };
+    expect(progress.getSnapshot()).toMatchObject({
+      playing: true,
+      saveKind: "account",
+    });
+    expect(progress.getSnapshot().mountain).toEqual(fresh);
+    expect(docs.get(user.uid)).toEqual(fresh);
+    progress.dispose();
+  });
+});

@@ -230,12 +230,17 @@ export class Player {
   }
 
   /** The card over the frame, once it is up: its key's words and its title. */
-  async card(): Promise<{ title: string; key: string }> {
+  async card(): Promise<{
+    title: string;
+    key: string;
+    lines: readonly string[];
+  }> {
     const card = this.page.locator(CARD);
     await expect(card).toBeVisible();
     return {
       title: (await card.locator(".frame-card-title").textContent()) ?? "",
       key: (await card.locator(".frame-card-key").textContent()) ?? "",
+      lines: await card.locator(".frame-card-line").allTextContents(),
     };
   }
 
