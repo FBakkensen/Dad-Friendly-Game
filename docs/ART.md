@@ -124,3 +124,15 @@ The hoist and the pit train are PixelLab `create_image_pixflux` through MCP: 32�
 - `mach-train.png`: seed 241, init `mockups/line/art/init-train.png` at strength 300. Prompt: "small mine train seen from the side: a boxy rusty iron pit locomotive with a cab with a lit amber window, a short chimney and a brass headlamp, pulling an ore tub heaped with grey stones, round iron wheels with rust on a rail, flat 2D side profile, dark iron with rust streaks and brass trim". The init is itself PixelLab: seed 232 from a hand sketch at strength 140.
 
 The four dim icons are not PixelLab. `scripts/dim-icon.py` recolours a lit icon into `mach-kid-dim.png`'s five greys by how bright each pixel was, so a dim icon keeps its machine's shape. Flemming approved these over tarps for the hoist and the pit train.
+
+## The city (#656)
+
+The city's pictures are in `src/assets/city/`. No code draws them yet: #662 puts them on the city screen. Flemming said yes to the prompt, the size and the tool on 15 Nov 2026.
+
+| File                              | Size  | Use                                                                                                 |
+| --------------------------------- | ----- | --------------------------------------------------------------------------------------------------- |
+| `src/assets/city/light-tower.png` | 30×91 | The Light Tower, the city's first building: on its plot in the skyline, on its card and its reveal. |
+
+The Light Tower is PixelLab `create_image_pixflux` through MCP: a 48×96 canvas, transparent background, side view, single color black outline, medium shading, highly detailed, then trimmed to its bounding box. It was made the way the hoist was. The board's colours went in as the color image, `mockups/city/art/palette.png`: the opaque colours of the seven lit `mach-*.png` icons, `res-stone.png`, `lamp.png` and `mine-view-topsoil.png`. A rough 48×96 sketch went in as the init image, so the lamp room came out big enough to read.
+
+- `light-tower.png`: seed 660, init `mockups/city/art/init-light-tower.png` at strength 60. Prompt: "tall round mine works light tower built of grey stone blocks, seen from the side: a dark arched doorway at the foot, two small windows, an iron-railed gallery near the top, a glass lamp room with a bright warm amber light, a small dark iron roof cap, brass trim, flat 2D side profile". It was the fifth of five tries.
