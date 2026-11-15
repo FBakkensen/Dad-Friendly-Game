@@ -263,7 +263,7 @@ function pileShare(held: number, holds: number): number {
  * A full shaft pile sends him to hoisting and full drilled rock, with room
  * at the shaft, to haulage.
  */
-export function pileStage(mountain: Mountain): Stage {
+function pileStage(mountain: Mountain): Stage {
   const { face, shaft } = mountain.piles;
   const shaftShare = pileShare(shaft, PILE_HOLDS.shaft);
   if (shaft > 0 && shaftShare >= pileShare(face, PILE_HOLDS.face)) {

@@ -303,7 +303,7 @@ const PILE_AFTER: Readonly<Record<Stage, PileId | undefined>> = {
 };
 
 /** The piles' words (#703), approved by Flemming on 15 Nov 2026 (no "face"). */
-export const PILE_LABELS: Readonly<Record<PileId, string>> = {
+const PILE_LABELS: Readonly<Record<PileId, string>> = {
   face: "Drilled rock",
   shaft: "Rock at the shaft",
 };

@@ -14,7 +14,7 @@
  */
 
 /** What a pile holds now, and its room. A pile over its room is full (ruling 2). */
-export type Pile = { readonly held: number; readonly holds: number };
+type Pile = { readonly held: number; readonly holds: number };
 
 /**
  * Stages in order, with one pile between each pair
