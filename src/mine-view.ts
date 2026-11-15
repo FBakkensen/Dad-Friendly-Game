@@ -404,7 +404,7 @@ export function stageRows(
 /** A stage in the scene: its workers, the share of the time they work, and its machines. */
 type StageScene = {
   readonly workers: number;
-  /** The share of the time the stage works: it waits for the slowest stage the rest. */
+  /** The share of its rate the stage moves now: it waits on an empty pile in front or a full one after. */
   readonly busy: number;
   readonly owned: number;
   readonly running: number;
@@ -413,14 +413,15 @@ type StageScene = {
 };
 
 /**
- * What the scene shows (spec, The mine: the state is seen in the scene).
- * Rock piles up where it arrives faster than it is taken, and the floor is
- * bare where it is taken faster. Nothing here is said in words.
+ * What the scene shows (spec, The mine: the state is seen in the scene),
+ * from what each stage moves now through the piles (#703): rock lies at the
+ * face and at the shaft as much as the piles hold, and a stage that waits
+ * on a pile stands. Nothing here is said in words.
  */
 export type MineScene = {
   readonly moving: boolean;
   readonly stages: Readonly<Record<Stage, StageScene>>;
-  /** The pile at the face, between drilling and haulage: 1 grows, 0 bare, ½ even. */
+  /** The pile at the face, between drilling and haulage: the share of its room it holds. */
   readonly facePile: number;
   /** The pile at the shaft, between haulage and hoisting. */
   readonly shaftPile: number;
@@ -429,9 +430,6 @@ export type MineScene = {
   /** The share of the time the tubs can unload at the shaft. */
   readonly unload: number;
 };
-
-const compare = (a: number, b: number): number =>
-  a > b + 1e-6 ? 1 : a < b - 1e-6 ? 0 : 0.5;
 
 const share = (part: number, whole: number): number =>
   whole > 0 ? Math.min(1, part / whole) : 0;
@@ -460,8 +458,14 @@ export function mineScene(mountain: Mountain): MineScene {
   const rates = effectiveRates(mountain);
   const work = lineWork(mountain, rates.tierSpeed);
   const tool = toolSpeed(rates.tierSpeed);
-  const { face, haul, lift } = work.stages;
-  const fed = Math.min(face, haul);
+  const [drills = 0, hauls = 0, lifts = 0] = chainFlows(
+    mineChain(mountain, 1, true),
+  );
+  const flows: Readonly<Record<Stage, number>> = {
+    face: drills,
+    haul: hauls,
+    lift: lifts,
+  };
   const stages = Object.fromEntries(
     STAGES.map((stage) => {
       const parts = rowParts(
@@ -474,17 +478,22 @@ export function mineScene(mountain: Mountain): MineScene {
         stageScene(
           parts,
           mountain.jobs[STAGE_JOB[stage]],
-          share(work.line, work.stages[stage]),
+          share(flows[stage], work.stages[stage]),
         ),
       ];
     }),
   ) as Record<Stage, StageScene>;
   return {
-    moving: work.line > 0,
+    moving: drills + hauls + lifts > 0,
     stages,
-    facePile: compare(face, Math.min(haul, lift)),
-    shaftPile: compare(fed, lift),
-    load: share(fed, haul),
-    unload: share(work.line, fed),
+    facePile: share(mountain.piles.face, PILE_HOLDS.face),
+    shaftPile: share(mountain.piles.shaft, PILE_HOLDS.shaft),
+    // Tubs leave the face empty while its pile is bare, and queue at the
+    // shaft while its pile is full: haulage moves less than it could.
+    load: mountain.piles.face > 0 ? 1 : share(hauls, work.stages.haul),
+    unload:
+      mountain.piles.shaft < PILE_HOLDS.shaft
+        ? 1
+        : share(hauls, work.stages.haul),
   };
 }

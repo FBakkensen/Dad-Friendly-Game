@@ -261,49 +261,66 @@ describe("the level's plate and the scene", () => {
     });
   });
 
-  it("shows an even line with no piles and every worker busy", () => {
+  it("shows an even line with bare piles and every worker busy", () => {
     fresh(() => {
       const scene = mineScene(crewedStart());
       expect(scene.moving).toBe(true);
-      expect(scene.facePile).toBe(0.5);
-      expect(scene.shaftPile).toBe(0.5);
-      expect(scene.load).toBe(1);
-      expect(scene.unload).toBe(1);
+      expect(scene.facePile).toBe(0);
+      expect(scene.shaftPile).toBe(0);
       expect(scene.stages.face.busy).toBe(1);
+      expect(scene.stages.lift.busy).toBe(1);
     });
   });
 
-  it("piles rock where it waits and stands the workers who wait", () => {
+  it("draws the piles as full as they are, and stands who waits on one (#703)", () => {
     fresh(() => {
       const start = crewedStart();
-      const scene = mineScene({
+      // A full shaft pile: haulage moves only what hoisting lifts, the
+      // tubs queue at the shaft, and the face fills behind them.
+      const queued = mineScene({
         ...start,
         jobs: { ...start.jobs, hoisting: 1 },
+        piles: { face: 150, shaft: PILE_HOLDS.shaft },
       });
-      // Haulage only takes what the shaft lifts, so the face piles up too.
-      expect(scene.facePile).toBe(1);
-      expect(scene.shaftPile).toBe(1);
-      expect(scene.unload).toBeCloseTo(1 / start.jobs.hoisting);
-      expect(scene.stages.face.busy).toBeCloseTo(1 / start.jobs.drilling);
-      expect(scene.stages.lift.busy).toBe(1);
-      const short = mineScene({
+      expect(queued.facePile).toBe(150 / PILE_HOLDS.face);
+      expect(queued.shaftPile).toBe(1);
+      expect(queued.unload).toBeCloseTo(1 / start.jobs.haulage);
+      expect(queued.stages.haul.busy).toBeCloseTo(1 / start.jobs.haulage);
+      expect(queued.stages.face.busy).toBe(1);
+      // One worker on drilling, nobody after him: he works, the rest stand.
+      const lone = mineScene({
+        ...start,
+        jobs: { ...start.jobs, drilling: 1, haulage: 0, hoisting: 0 },
+        piles: { face: 120, shaft: 0 },
+      });
+      expect(lone.moving).toBe(true);
+      expect(lone.stages.face.busy).toBe(1);
+      // A bare face: the tubs leave as full as drilling keeps them.
+      const bare = mineScene({
         ...start,
         jobs: { ...start.jobs, drilling: 1 },
       });
-      expect(short.facePile).toBe(0);
-      expect(short.load).toBeCloseTo(1 / start.jobs.haulage);
+      expect(bare.load).toBeCloseTo(1 / start.jobs.haulage);
     });
   });
 
-  it("stands the line when a stage has nobody", () => {
+  it("stands the line once a stage has nobody and its pile is full", () => {
     fresh(() => {
       const start = crewedStart();
       const scene = mineScene({
         ...start,
         jobs: { ...start.jobs, hoisting: 0 },
       });
-      expect(scene.moving).toBe(false);
-      expect(scene.shaftPile).toBe(1);
+      // Rock still moves into the shaft pile until it is full.
+      expect(scene.moving).toBe(true);
+      expect(scene.stages.lift.workers).toBe(0);
+      const full = mineScene({
+        ...start,
+        jobs: { ...start.jobs, hoisting: 0 },
+        piles: { face: PILE_HOLDS.face, shaft: PILE_HOLDS.shaft },
+      });
+      expect(full.moving).toBe(false);
+      expect(full.shaftPile).toBe(1);
     });
   });
 });
