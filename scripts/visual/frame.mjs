@@ -1,17 +1,20 @@
 /* global document, getComputedStyle */
 /**
  * Slice 1's frame (#659), on the `?slice=1` dev preview: the order strip, the
- * top row with the one hire key, Next, the site bar and the save line, and
- * the workforce sheet over them, at the phone and at a shorter phone. Its
- * cards (#663): the shift report after a night, and the end card behind the
- * report of the night the Light Tower's roof went on.
+ * top row with the one hire key, the mine (#660) and the city (#662), Next,
+ * the site bar and the save line, and the workforce sheet over them, at the
+ * phone and at a shorter phone. Its cards (#663): the shift report after a
+ * night, and the end card behind the report of the night the Light Tower's
+ * roof went on.
  */
 import {
   DEV_BACKUP_KEY,
   sliceBusySave,
+  sliceDoneSave,
   sliceNightSave,
   sliceOrderedSave,
   sliceRoofSave,
+  sliceStructureSave,
 } from "../../tools/browser/fixtures.ts";
 import { check, section } from "./registry.mjs";
 import { openScreen, noScroll, shot } from "./kit.mjs";
@@ -24,7 +27,14 @@ const SIZES = [
 const SAVES = [
   { name: "ordered", save: () => sliceOrderedSave(Date.now()) },
   { name: "busy", save: () => sliceBusySave(Date.now()) },
+  { name: "structure", save: () => sliceStructureSave(Date.now()) },
+  { name: "done", save: () => sliceDoneSave(Date.now()) },
 ];
+
+/** The Light Tower's picture, in board px: it has to fit between the plate and the road. */
+const TOWER_H = 182;
+/** The road under the ground line, in board px (city-scene's CITY_FOOT.road). */
+const ROAD_H = 22;
 
 /**
  * The frame's parts in board px: each row's box, every shown button's size,
@@ -66,12 +76,45 @@ async function frameFacts(page) {
     );
     const cut = [
       ...document.querySelectorAll(
-        ".frame-order-name, .frame-order-step, .frame-next-head, .frame-workers-free, .frame-hire",
+        ".frame-order-name, .frame-order-step, .frame-next-head, .frame-workers-free, .frame-hire, .mine:not([hidden]) :is(.mine-stage-sum, .mine-key, .mine-level-line, .mine-deep, .mine-stage-name), .city:not([hidden]) :is(.city-plate-head, .city-fleet, .city-key, .city-tag, .city-card-head, .city-bar-line, .city-order, .city-crew-line, .city-completion)",
       ),
     ]
-      .filter((el) => el.scrollWidth > el.clientWidth + 1)
+      .filter(
+        (el) =>
+          el.scrollWidth > el.clientWidth + 1 ||
+          (el.classList.contains("wrap") &&
+            el.scrollHeight > el.clientHeight + 1),
+      )
       .map((el) => el.className);
+    const mine = document.querySelector(".mine:not([hidden])");
+    const box = (selector) => {
+      const found = mine?.querySelector(selector);
+      return found === null || found === undefined ? undefined : px(found);
+    };
+    const city = document.querySelector(".city:not([hidden])");
+    const part = (selector) => {
+      const found = city?.querySelector(selector);
+      return found === null || found === undefined ? undefined : px(found);
+    };
     return {
+      city:
+        city === null
+          ? undefined
+          : {
+              scene: px(city),
+              plate: part(".city-plate"),
+              tags: part(".city-tags"),
+              card: part(".city-card"),
+            },
+      mine:
+        mine === null
+          ? undefined
+          : {
+              scene: px(mine),
+              zones: box(".mine-zones"),
+              deep: box(".mine-deep"),
+              panel: box(".mine-panel"),
+            },
       rows,
       saveTop: line === null ? undefined : px(line).t,
       small,
@@ -93,6 +136,41 @@ function stacked(facts) {
       row.h > 0 &&
       (index === 0 ? row.t >= -0.5 : row.t >= rows[index - 1].b - 0.5) &&
       row.b <= facts.saveTop + 0.5,
+  );
+}
+
+/** The mine's keys and rows sit in its scene, under the gallery and the line under it. */
+function mineFits(facts) {
+  const mine = facts.mine;
+  if (mine === undefined) {
+    return false;
+  }
+  const { scene, zones, deep, panel } = mine;
+  return (
+    [scene, zones, deep, panel].every((part) => part !== undefined) &&
+    panel.t >= zones.b - 0.5 &&
+    panel.t >= deep.b - 0.5 &&
+    panel.b <= scene.b + 0.5
+  );
+}
+
+/**
+ * The city's plate sits on top, the tags over the card, the card at the
+ * scene's foot, and the Light Tower's whole picture fits between the plate
+ * and the road.
+ */
+function cityFits(facts) {
+  const city = facts.city;
+  if (city === undefined) {
+    return false;
+  }
+  const { scene, plate, tags, card } = city;
+  return (
+    [scene, plate, tags, card].every((part) => part !== undefined) &&
+    plate.t >= scene.t - 0.5 &&
+    tags.b <= card.t + 0.5 &&
+    card.b <= scene.b + 0.5 &&
+    plate.b + TOWER_H <= tags.t - ROAD_H + 0.5
   );
 }
 
@@ -143,6 +221,17 @@ for (const size of SIZES) {
             stacked(facts),
             `${at} ${site}: the order strip, the top row, the ground, Next and the site bar stack above the save line`,
           );
+          if (site === "mine") {
+            check(
+              mineFits(facts),
+              `${at} mine: the keys and the stage rows sit under the gallery and the line under it (${JSON.stringify(facts.mine)})`,
+            );
+          } else {
+            check(
+              cityFits(facts),
+              `${at} city: the plate on top, the tags over the card at the foot, and room for the Light Tower between (${JSON.stringify(facts.city)})`,
+            );
+          }
           check(
             facts.hires.length === 1 && facts.hires[0] === "frame-top",
             `${at} ${site}: one hire key, in the top row (${facts.hires.join(", ")})`,
@@ -172,7 +261,10 @@ for (const size of SIZES) {
           `${at} the workforce does not scroll the page`,
         );
         if (name === "ordered") {
-          await tap(page, '.frame-step[data-job="drilling"][data-way="place"]');
+          await tap(
+            page,
+            '.frame-sheet .frame-step[data-job="drilling"][data-way="place"]',
+          );
           const after = await sheetFacts(page);
           check(
             after.note ===

@@ -23,7 +23,9 @@ import type { LayerId, Materials, MaterialId } from "./layers";
 import type { Mountain } from "./mountain";
 import { AWAY_END_MS, effectiveRates, type Rates } from "./rates";
 import { RELICS } from "./relics";
-import { owned, tierById, type TierId } from "./tiers";
+import type { Stage } from "./line";
+import { owned, tierById, type MachineId, type TierId } from "./tiers";
+import type { VehicleId } from "./transport";
 import { upgradeLevel, type Upgrade, type UpgradeId } from "./upgrades";
 
 // Player-facing wording shared by the screen's panels.
@@ -38,6 +40,43 @@ export const percent = (share: number): string =>
  */
 export const formatCrewSpeed = (perSecond: number): string =>
   formatCompact(perSecond);
+
+/** One, or more than one: `plural(2, ["cart", "carts"])` is "carts". */
+export const plural = (
+  count: number,
+  [one, many]: readonly [string, string],
+): string => (count === 1 ? one : many);
+
+/** What a stage's workers hold when they run no machine: one, and more than one. */
+export const TOOL_WORDS: Readonly<Record<Stage, readonly [string, string]>> = {
+  face: ["with a pick", "with picks"],
+  haul: ["with a barrow", "with barrows"],
+  lift: ["on a winch", "on winches"],
+};
+
+/** A vehicle as the city's transport plate counts it: one, and more than one. */
+export const VEHICLE_WORDS: Readonly<
+  Record<VehicleId, readonly [string, string]>
+> = {
+  horseWagon: ["horse wagon", "horse wagons"],
+};
+
+/** A vehicle on its key in the city: "+Wagon". */
+export const VEHICLE_KEYS: Readonly<Record<VehicleId, string>> = {
+  horseWagon: "Wagon",
+};
+
+/** A machine as the workforce and the mine count it: one, and more than one. */
+export const MACHINE_WORDS: Readonly<
+  Record<MachineId, readonly [string, string]>
+> = {
+  cart: ["cart", "carts"],
+  hoist: ["hoist", "hoists"],
+  drill: ["drill", "drills"],
+  borer: ["borer", "borers"],
+  train: ["train", "trains"],
+  machine: ["great machine", "great machines"],
+};
 
 /** Per-unit speed: one decimal while small and fractional (Better boots). */
 export const formatSpeed = (speed: number): string =>

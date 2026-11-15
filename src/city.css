@@ -1,0 +1,283 @@
+/*
+ * The city on slice 1's frame (#662): the scene's canvas fills the site, the
+ * transport plate sits on top of the sky, and the plots' tags and the
+ * project's card sit at its foot, at the art px rows the scene leaves them
+ * (--city-card, --city-tags, set from city-scene's CITY_FOOT).
+ */
+.city {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.city[hidden] {
+  display: none;
+}
+
+.city-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+}
+
+/* The transport plate. */
+.city-plate {
+  position: absolute;
+  top: calc(var(--art) * 2);
+  left: calc(var(--art) * 3);
+  right: calc(var(--art) * 3);
+  padding: calc(var(--art) * 2) calc(var(--art) * 3);
+  background: var(--frame-scrim);
+  border: var(--art) solid var(--frame-edge);
+}
+
+.city-plate-head {
+  display: flex;
+  align-items: baseline;
+  gap: calc(var(--art) * 3);
+  white-space: nowrap;
+}
+
+.city-plate-name {
+  font-size: var(--board-type-20);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.city-drivers {
+  font-size: var(--frame-type-15);
+  color: var(--frame-tool);
+}
+
+.city-state {
+  margin-left: auto;
+  font-size: var(--frame-type-15);
+  color: var(--frame-amber);
+}
+
+.city-fleet {
+  margin: 0 0 var(--art);
+  overflow: hidden;
+  font-size: var(--board-type-13);
+  white-space: nowrap;
+  color: var(--frame-tool);
+}
+
+.city-plate-keys {
+  display: flex;
+  gap: var(--art);
+}
+
+/* The plots' tags, under the road. */
+.city-tags {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--art) * (var(--city-card) + 2));
+  height: calc(var(--art) * var(--city-tags));
+}
+
+.city-tag {
+  position: absolute;
+  left: calc(var(--art) * var(--x));
+  width: calc(var(--art) * var(--w));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.city-tag b {
+  font-size: var(--frame-type-12);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.city-tag small {
+  font-size: var(--frame-type-12);
+  color: var(--frame-tool);
+}
+
+/* The no-free-worker note looks as the mine's does (mine.css); here it sits over the card. */
+.city-note {
+  position: absolute;
+  left: calc(var(--art) * 3);
+  right: calc(var(--art) * 3);
+  bottom: calc(var(--art) * (var(--city-card) + 4));
+}
+
+/* The project's card. */
+.city-card {
+  position: absolute;
+  left: calc(var(--art) * 3);
+  right: calc(var(--art) * 3);
+  bottom: calc(var(--art) * 2);
+  height: calc(var(--art) * var(--city-card));
+  display: flex;
+  flex-direction: column;
+  gap: var(--art);
+  padding: calc(var(--art) * 2) calc(var(--art) * 3);
+  background: var(--frame-scrim);
+  border: var(--art) solid var(--frame-edge);
+}
+
+.city-card-head {
+  display: flex;
+  align-items: baseline;
+  gap: calc(var(--art) * 3);
+  white-space: nowrap;
+}
+
+.city-card-name {
+  font-size: var(--board-type-20);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.city-steps {
+  display: flex;
+  gap: calc(var(--art) * 3);
+  font-size: var(--frame-type-15);
+  color: var(--frame-quiet);
+}
+
+.city-steps [data-pip="done"] {
+  color: var(--frame-green);
+}
+
+.city-steps [data-pip="now"] {
+  color: var(--frame-amber);
+}
+
+.city-card-body {
+  display: flex;
+  flex: 1;
+  gap: calc(var(--art) * 3);
+  min-height: 0;
+}
+
+.city-bars {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  gap: calc(var(--art) * 2);
+  min-width: 0;
+}
+
+.city-bar {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  column-gap: calc(var(--art) * 3);
+}
+
+.city-bar-icon {
+  grid-row: span 2;
+  width: calc(var(--art) * 12);
+  height: calc(var(--art) * 12);
+  image-rendering: pixelated;
+}
+
+.city-bar-line {
+  font-size: var(--frame-type-15);
+  white-space: nowrap;
+}
+
+.city-bar-track {
+  position: relative;
+  height: calc(var(--art) * 2);
+  background: var(--frame-pip);
+}
+
+.city-bar-track u {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--frame-amber);
+}
+
+.city-planning {
+  flex: 1;
+  margin: 0;
+  align-self: center;
+  font-size: var(--frame-type-15);
+  color: var(--frame-ink);
+}
+
+.city-bars[hidden],
+.city-planning[hidden],
+.city-steps[hidden],
+.city-completion[hidden],
+.frame .city-order[hidden],
+.frame .city-key[hidden] {
+  display: none;
+}
+
+.frame .city-order {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  justify-content: center;
+  width: calc(var(--art) * 80);
+  min-height: var(--target-min);
+  background: var(--frame-scrim);
+  box-shadow: inset 0 0 0 var(--art) var(--frame-edge);
+  color: var(--frame-quiet);
+  line-height: 1.15;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.frame .city-order b {
+  font-size: var(--board-type-17);
+}
+
+.frame .city-order small {
+  font-size: var(--board-type-13);
+}
+
+.frame .city-order small:empty {
+  display: none;
+}
+
+.frame .city-order.can {
+  background: var(--frame-go);
+  color: var(--frame-go-ink);
+  box-shadow: inset 0 0 0 var(--art) var(--frame-green);
+}
+
+.frame .city-order.run {
+  color: var(--frame-ink);
+  box-shadow: inset 0 0 0 var(--art) var(--frame-amber);
+}
+
+.frame .city-order.run b {
+  color: var(--frame-amber);
+}
+
+.city-crew {
+  display: flex;
+  align-items: center;
+  gap: var(--art);
+}
+
+.city-crew-line {
+  margin-left: calc(var(--art) * 2);
+  overflow: hidden;
+  font-size: var(--board-type-13);
+  white-space: nowrap;
+}
+
+.city-completion {
+  margin: 0;
+  overflow: hidden;
+  font-size: var(--board-type-13);
+  white-space: nowrap;
+  color: var(--frame-quiet);
+}

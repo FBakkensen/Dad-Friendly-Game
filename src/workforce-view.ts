@@ -6,6 +6,7 @@ import type { SiteId } from "./next-view";
 import { SITE_NAMES } from "./next-view";
 import { effectiveRates } from "./rates";
 import { MACHINE_IDS, tierById, tierInPlay, type MachineId } from "./tiers";
+import { MACHINE_WORDS, TOOL_WORDS, plural } from "./screen-words";
 import { VEHICLES, drivenFleet } from "./transport";
 import { NO_JOBS, STAGE_JOB, freeWorkers, type JobId } from "./workforce";
 
@@ -33,33 +34,13 @@ const SITE_JOBS: Readonly<Record<SiteId, readonly JobId[]>> = {
   city: ["driving", "building"],
 };
 
-/** What a stage's workers hold when they run no machine: one, and more than one. */
-const TOOL_WORDS: Readonly<Record<Stage, readonly [string, string]>> = {
-  face: ["with a pick", "with picks"],
-  haul: ["with a barrow", "with barrows"],
-  lift: ["on a winch", "on winches"],
-};
-
-/** A machine as a job's line counts it: one, and more than one. */
-const MACHINE_WORDS: Readonly<Record<MachineId, readonly [string, string]>> = {
-  cart: ["cart", "carts"],
-  hoist: ["hoist", "hoists"],
-  drill: ["drill", "drills"],
-  borer: ["borer", "borers"],
-  train: ["train", "trains"],
-  machine: ["great machine", "great machines"],
-};
-
-const word = (count: number, [one, many]: readonly [string, string]): string =>
-  count === 1 ? one : many;
-
 /** "2 of 3 carts run", "1 of 1 cart runs". */
 function runsOf(
   on: number,
   of: number,
   noun: readonly [string, string],
 ): string {
-  return `${String(on)} of ${String(of)} ${word(of, noun)} ${on === 1 && of === 1 ? "runs" : "run"}`;
+  return `${String(on)} of ${String(of)} ${plural(of, noun)} ${on === 1 && of === 1 ? "runs" : "run"}`;
 }
 
 /** "2 of 3 carts run, 1 with barrows": each kind of machine he owns, then the tools. */
@@ -82,7 +63,7 @@ function stageNote(mountain: Mountain, stage: Stage): string {
     ),
   );
   if (tools > 0 || parts.length === 0) {
-    parts.push(`${String(tools)} ${word(tools, TOOL_WORDS[stage])}`);
+    parts.push(`${String(tools)} ${plural(tools, TOOL_WORDS[stage])}`);
   }
   return parts.join(", ");
 }
@@ -98,10 +79,14 @@ function drivingNote(mountain: Mountain): string {
   return runsOf(on, of, ["vehicle", "vehicles"]);
 }
 
+/** Goods a second one builder builds in. */
+export function oneBuilderBuilds(): number {
+  return buildRate({ jobs: { ...NO_JOBS, building: 1 } });
+}
+
 /** "each builds 8/s". */
 function buildingNote(): string {
-  const each = buildRate({ jobs: { ...NO_JOBS, building: 1 } });
-  return `each builds ${formatCompact(each)}/s`;
+  return `each builds ${formatCompact(oneBuilderBuilds())}/s`;
 }
 
 function jobNote(mountain: Mountain, job: JobId): string {
@@ -131,6 +116,18 @@ type JobGroup = {
   readonly rows: readonly JobRow[];
 };
 
+/** One job's row: its name, what its workers do, its count, and its − and +. */
+export function jobRow(mountain: Mountain, job: JobId): JobRow {
+  return {
+    job,
+    name: JOB_NAMES[job],
+    note: jobNote(mountain, job),
+    count: mountain.jobs[job],
+    canPlace: freeWorkers(mountain) > 0,
+    canFree: mountain.jobs[job] > 0,
+  };
+}
+
 export type WorkforceView = {
   readonly owned: number;
   readonly free: number;
@@ -142,14 +139,7 @@ export function workforceView(mountain: Mountain): WorkforceView {
   const groups = (Object.keys(SITE_JOBS) as SiteId[]).map((site): JobGroup => ({
     site,
     name: SITE_NAMES[site],
-    rows: SITE_JOBS[site].map((job) => ({
-      job,
-      name: JOB_NAMES[job],
-      note: jobNote(mountain, job),
-      count: mountain.jobs[job],
-      canPlace: free > 0,
-      canFree: mountain.jobs[job] > 0,
-    })),
+    rows: SITE_JOBS[site].map((job) => jobRow(mountain, job)),
   }));
   return { owned: mountain.owned.helper, free, groups };
 }

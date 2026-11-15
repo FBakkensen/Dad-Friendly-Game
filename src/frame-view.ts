@@ -40,7 +40,7 @@ const GOOD_NAMES: Readonly<Record<GoodId, string>> = {
 export type Pip = "done" | "now" | "later";
 
 /** One good the step requires, and what of it is built in. */
-type Requirement = {
+export type Requirement = {
   readonly good: GoodId;
   readonly name: string;
   readonly built: number;
@@ -63,6 +63,8 @@ export type OrderStrip =
   /** After the part's last roof: nothing to order until the next part is live. */
   | {
       readonly kind: "planning";
+      /** The last building operational. */
+      readonly name: string;
       readonly line: string;
       readonly pips: readonly [Pip, Pip, Pip];
     };
@@ -80,7 +82,7 @@ function pips(step: StepIndex): readonly [Pip, Pip, Pip] {
 }
 
 /** What a step requires, good by good, with what is built in of each. */
-function requirements(site: Site): Requirement[] {
+export function requirements(site: Site): Requirement[] {
   return stepRequires(site).map(({ good }) => {
     const requires = priceAmount(stepRequires(site), good);
     const built = site.arrived[good] - site.onSite[good];
@@ -127,6 +129,7 @@ export function orderStrip(mountain: Mountain): OrderStrip {
     ).at(-1);
     return {
       kind: "planning",
+      name: last?.name ?? "",
       line: last === undefined ? "" : planningLine(last),
       pips: ["done", "done", "done"],
     };
