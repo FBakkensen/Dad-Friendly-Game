@@ -3,6 +3,7 @@ import type { LayerId, Materials } from "../layers";
 import type { LineView } from "../line";
 import type { Crafted, RecipeId } from "../workshop";
 import type { BandEvent } from "./bands";
+import type { FreshView } from "./fresh-view";
 import type { RevealEvent } from "./reveal";
 import type { SittingEvent } from "./sittings";
 
@@ -39,6 +40,8 @@ export type DecisionSample = {
    * cleared the trouble.
    */
   readonly line?: LineView;
+  /** A fresh mine at this moment (slice 1, #655): the order's limit, idle workers and machines. */
+  readonly fresh?: FreshView;
   /** Rock band at this moment. Scopes such as "from the Granite on" read it. */
   readonly layer?: LayerId;
   /** The workshop is open, so a craft can start once the bench is free. */

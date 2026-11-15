@@ -76,10 +76,10 @@ describe("the fresh mine's switch (#653)", () => {
 });
 
 describe("one level, no depth (rule 1)", () => {
-  it("starts with twelve workers, all on jobs, and nothing else (#689, #690)", () => {
+  it("starts with 21 workers, all on jobs, and nothing else (#689, #690, #655)", () => {
     fresh(() => {
       const start = createMountain();
-      expect(start.owned.helper).toBe(12);
+      expect(start.owned.helper).toBe(21);
       for (const tier of TIERS) {
         if (tier.id !== "helper") {
           expect(start.owned[tier.id]).toBe(0);
@@ -134,10 +134,11 @@ describe("one level, no depth (rule 1)", () => {
   it("the Topsoil leans on no stage: the line reads every machine at its rating", () => {
     fresh(() => {
       // The Topsoil has no lean on the line: each machine runs at its
-      // rating (×3 today's), with no band slowing or speeding it.
+      // rating (×3 today's, the cart ×10 in a fresh mine, #655), with no
+      // band slowing or speeding it.
       const crew = owning({ helper: 12, cart: 1, hoist: 1, drill: 1 }, 0);
       const rates = effectiveRates(crew);
-      expect(rates.tierSpeed.cart).toBe(18);
+      expect(rates.tierSpeed.cart).toBe(60);
       expect(rates.tierSpeed.hoist).toBe(60);
       expect(rates.tierSpeed.drill).toBe(108);
     });

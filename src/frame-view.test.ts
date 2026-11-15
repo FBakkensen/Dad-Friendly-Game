@@ -26,8 +26,8 @@ describe("order strip", () => {
             good: "stones",
             name: "Stone",
             built: 0,
-            requires: 150_000,
-            line: "Stone 0 of 150K",
+            requires: 25_000,
+            line: "Stone 0 of 25K",
           },
         ],
         pips: ["now", "later", "later"],
@@ -51,7 +51,7 @@ describe("order strip", () => {
         "Structure · delivering",
       );
       expect(strip.kind === "project" && strip.requires[0]?.line).toBe(
-        "Stone 1,200 of 1.5M",
+        "Stone 1,200 of 250K",
       );
       expect(strip.pips).toEqual(["done", "now", "later"]);
     });
@@ -102,7 +102,7 @@ describe("top row", () => {
         ...mountain,
         owned: { ...mountain.owned, helper: mountain.owned.helper + 2 },
       };
-      expect(workersView(hired)).toEqual({ owned: 14, free: 2, lamp: false });
+      expect(workersView(hired)).toEqual({ owned: 23, free: 2, lamp: false });
     });
   });
 

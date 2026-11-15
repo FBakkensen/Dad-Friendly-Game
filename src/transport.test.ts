@@ -55,7 +55,7 @@ function mine(
   const start = fresh(() => createMountain());
   return {
     ...start,
-    owned: { ...start.owned, helper: 9 + drivers + builders },
+    owned: { ...start.owned, helper: 18 + drivers + builders },
     jobs: { ...start.jobs, driving: drivers, building: builders },
     fleet: { ...start.fleet, horseWagon: wagons },
     stock: { ...start.stock, stones: pocket },
@@ -64,16 +64,16 @@ function mine(
 }
 
 describe("the fleet (rule 7.5, 7.6)", () => {
-  it("is horse wagons that carry 25 goods a second each", () => {
+  it("is horse wagons that carry 9 goods a second each (#655)", () => {
     expect(VEHICLES.map((vehicle) => vehicle.id)).toEqual(["horseWagon"]);
-    expect(fleetRate(mine(1, 0, { kind: "unordered" }))).toBe(25);
-    expect(fleetRate(mine(4, 0, { kind: "unordered" }))).toBe(100);
+    expect(fleetRate(mine(1, 0, { kind: "unordered" }))).toBe(9);
+    expect(fleetRate(mine(4, 0, { kind: "unordered" }))).toBe(36);
   });
 
   it("runs a vehicle only with a driver on it (rule 2.7, #689)", () => {
     expect(fleetRate(mine(3, 0, { kind: "unordered" }, 0))).toBe(0);
-    expect(fleetRate(mine(3, 0, { kind: "unordered" }, 2))).toBe(50);
-    expect(fleetRate(mine(3, 0, { kind: "unordered" }, 5))).toBe(75);
+    expect(fleetRate(mine(3, 0, { kind: "unordered" }, 2))).toBe(18);
+    expect(fleetRate(mine(3, 0, { kind: "unordered" }, 5))).toBe(27);
     expect(drivenFleet(mine(3, 0, { kind: "unordered" }, 2))).toEqual({
       horseWagon: 2,
     });
@@ -106,8 +106,8 @@ describe("the fleet (rule 7.5, 7.6)", () => {
 describe("delivery (rule 7.2, 7.7)", () => {
   it("carries the fleet's rate a second from the pocket to the step", () => {
     const after = deliver(mine(2, 10_000, site(0)), 10, 1);
-    expect(after.stock.stones).toBe(10_000 - 500);
-    expect(after.project).toEqual(site(0, 500));
+    expect(after.stock.stones).toBe(10_000 - 180);
+    expect(after.project).toEqual(site(0, 180));
   });
 
   it("carries only what the pocket holds", () => {
@@ -117,16 +117,16 @@ describe("delivery (rule 7.2, 7.7)", () => {
   });
 
   it("carries only what the step requires, then goes on to the next step", () => {
-    const after = deliver(mine(40, 1_000_000, site(0, 149_000)), 10, 1);
-    // 1,000 a second: the foundation's last 1,000 take a second, and the
+    const after = deliver(mine(100, 1_000_000, site(0, 24_100)), 10, 1);
+    // 900 a second: the foundation's last 900 take a second, and the
     // structure has the other nine.
-    expect(after.project).toEqual(site(1, 9_000));
-    expect(after.stock.stones).toBe(990_000);
+    expect(after.project).toEqual(site(1, 8_100));
+    expect(after.stock.stones).toBe(991_000);
   });
 
   it("carries at the night shift's share unattended", () => {
     const after = deliver(mine(4, 10_000, site(0)), 100, 0.3);
-    expect(after.stock.stones).toBe(10_000 - 3_000);
+    expect(after.stock.stones).toBe(10_000 - 1_080);
   });
 
   it("carries nothing on hold or with nothing ordered", () => {
@@ -137,7 +137,7 @@ describe("delivery (rule 7.2, 7.7)", () => {
   });
 
   it("finishes the building and stops carrying", () => {
-    const after = deliver(mine(400, 10_000_000, site(2, 5_999_000)), 10, 1);
+    const after = deliver(mine(400, 10_000_000, site(2, 999_000)), 10, 1);
     expect(after.operational).toEqual(["lightTower"]);
     expect(after.project).toEqual({ kind: "unordered" });
     expect(after.stock.stones).toBe(10_000_000 - 1_000);
@@ -145,10 +145,10 @@ describe("delivery (rule 7.2, 7.7)", () => {
 });
 
 describe("the building site and the builders (rule 7.8, #690)", () => {
-  it("starts a fresh mine with two builders, twelve workers in all", () => {
+  it("starts a fresh mine with two builders, twenty-one workers in all (#655)", () => {
     const start = fresh(() => createMountain());
     expect(start.jobs.building).toBe(2);
-    expect(start.owned.helper).toBe(12);
+    expect(start.owned.helper).toBe(21);
   });
 
   it("holds 500, and transport brings no more until the builders make room", () => {
@@ -157,42 +157,42 @@ describe("the building site and the builders (rule 7.8, #690)", () => {
     expect(after.stock.stones).toBe(10_000 - 500);
   });
 
-  it("builds in 20 a second a builder, and a full site lets transport bring only that", () => {
-    // 50 brought a second, 20 built in: the site fills in 500 / 30 s, and
+  it("builds in 8 a second a builder, and a full site lets transport bring only that", () => {
+    // 18 brought a second, 8 built in: the site fills in 500 / 10 s, and
     // from then on transport brings what the builder makes room for.
     const after = deliver(mine(2, 10_000, site(0), 2, 1), 100, 1);
-    expect(after.project).toEqual(site(0, 2_500, "delivering", 500));
-    expect(after.stock.stones).toBe(10_000 - 2_500);
+    expect(after.project).toEqual(site(0, 1_300, "delivering", 500));
+    expect(after.stock.stones).toBe(10_000 - 1_300);
   });
 
   it("builds in what arrives when the builders are faster than transport", () => {
     const after = deliver(mine(1, 10_000, site(0), 1, 2), 100, 1);
-    expect(after.project).toEqual(site(0, 2_500));
+    expect(after.project).toEqual(site(0, 900));
   });
 
   it("finishes a step only when what it requires is built in", () => {
-    // All of it arrived; 300 still on the site and one builder: 15 s.
-    const waiting = mine(1, 0, site(0, 150_000, "delivering", 300), 1, 1);
+    // All of it arrived; 240 still on the site and one builder: 30 s.
+    const waiting = mine(1, 0, site(0, 25_000, "delivering", 240), 1, 1);
     expect(deliver(waiting, 10, 1).project).toEqual(
-      site(0, 150_000, "delivering", 100),
+      site(0, 25_000, "delivering", 160),
     );
-    expect(deliver(waiting, 15, 1).project).toEqual(site(1));
+    expect(deliver(waiting, 30, 1).project).toEqual(site(1));
   });
 
   it("still builds in on hold, and brings nothing from the pocket", () => {
-    const held = mine(4, 10_000, site(0, 1_000, "onHold", 300), 4, 1);
+    const held = mine(4, 10_000, site(0, 1_000, "onHold", 240), 4, 1);
     const after = deliver(held, 10, 1);
-    expect(after.project).toEqual(site(0, 1_000, "onHold", 100));
+    expect(after.project).toEqual(site(0, 1_000, "onHold", 160));
     expect(after.stock.stones).toBe(10_000);
     // The step built in on hold gives way to the next one, still on hold.
-    const last = mine(4, 10_000, site(0, 150_000, "onHold", 300), 4, 1);
+    const last = mine(4, 10_000, site(0, 25_000, "onHold", 240), 4, 1);
     expect(deliver(last, 100, 1).project).toEqual(site(1, 0, "onHold"));
   });
 
   it("builds at the night shift's share, and a full site stops transport", () => {
     const night = deliver(mine(4, 100_000, site(0), 4, 1), 1_000, 0.3);
-    // 30 brought and 6 built in a second: 6,000 built in, 500 on the site.
-    expect(night.project).toEqual(site(0, 6_500, "delivering", 500));
+    // 10.8 brought and 2.4 built in a second: 2,400 built in, 500 on the site.
+    expect(night.project).toEqual(site(0, 2_900, "delivering", 500));
     const nobody = deliver(mine(4, 100_000, site(0), 4, 0), 10_000, 0.3);
     expect(nobody.project).toEqual(site(0, 500, "delivering", 500));
   });
@@ -203,7 +203,7 @@ describe("the building site and the builders (rule 7.8, #690)", () => {
         fc.integer({ min: 0, max: 6 }),
         fc.integer({ min: 0, max: 4 }),
         fc.integer({ min: 0, max: 3_000_000 }),
-        fc.integer({ min: 0, max: 149_999 }),
+        fc.integer({ min: 0, max: 24_999 }),
         fc.integer({ min: 0, max: SITE_HOLDS }),
         fc.integer({ min: 1, max: 100_000 }),
         fc.constantFrom(1, 0.3, 0.45),
@@ -235,12 +235,12 @@ describe("the building site and the builders (rule 7.8, #690)", () => {
           const landed =
             now.step === 0
               ? now.arrived.stones - arrived
-              : 150_000 -
+              : 25_000 -
                 arrived +
-                (now.step === 2 ? 1_500_000 : 0) +
+                (now.step === 2 ? 250_000 : 0) +
                 now.arrived.stones;
           expect(gone).toBe(landed);
-          expect(builtBefore).toBeLessThanOrEqual(150_000);
+          expect(builtBefore).toBeLessThanOrEqual(25_000);
         },
       ),
     );
@@ -249,36 +249,36 @@ describe("the building site and the builders (rule 7.8, #690)", () => {
 
 describe("the order's limit (rule 7.11, for the lab)", () => {
   it("is transport while the pocket covers the step", () => {
-    expect(orderLimit(mine(2, 200_000, site(0)), 10)).toEqual({
+    expect(orderLimit(mine(2, 200_000, site(0, 7_000)), 10)).toEqual({
       kind: "delivering",
-      perSecond: 50,
-      secondsLeft: 3_000,
+      perSecond: 18,
+      secondsLeft: 1_000,
       limit: "transport",
     });
   });
 
   it("is the good when the pocket runs dry and the mine digs less than transport carries", () => {
-    // 1,000 in the pocket and 10 a second dug, 50 carried: the pocket lasts
-    // 25 s (1,250 carried), then 148,750 more at 10 a second.
+    // 1,000 in the pocket and 10 a second dug, 18 carried: the pocket lasts
+    // 125 s (2,250 carried), then 22,750 more at 10 a second.
     expect(orderLimit(mine(2, 1_000, site(0)), 10)).toEqual({
       kind: "delivering",
-      perSecond: 50,
-      secondsLeft: 25 + 14_875,
+      perSecond: 18,
+      secondsLeft: 125 + 2_275,
       limit: "stones",
     });
   });
 
   it("is transport again when the mine digs faster than it carries", () => {
     const limit = orderLimit(mine(2, 0, site(0)), 80);
-    expect(limit).toMatchObject({ perSecond: 50, limit: "transport" });
+    expect(limit).toMatchObject({ perSecond: 18, limit: "transport" });
   });
 
   it("is the builders when they take longer than transport", () => {
-    // 150,000 at one builder's 20 a second: 7,500 s, past transport's 3,000.
-    expect(orderLimit(mine(2, 200_000, site(0), 2, 1), 10)).toEqual({
+    // 18,000 at one builder's 8 a second: 2,250 s, past transport's 1,000.
+    expect(orderLimit(mine(2, 200_000, site(0, 7_000), 2, 1), 10)).toEqual({
       kind: "delivering",
-      perSecond: 50,
-      secondsLeft: 7_500,
+      perSecond: 18,
+      secondsLeft: 2_250,
       limit: "builders",
     });
     expect(orderLimit(mine(2, 200_000, site(0), 2, 0), 10)).toMatchObject({
@@ -303,21 +303,21 @@ describe("an order's numbers (rule 7.11, #690)", () => {
       orderNumbers(mine(2, 10_000, site(0, 100, "delivering", 40), 2, 1), 0),
     ).toEqual({
       kind: "delivering",
-      brings: 50,
-      builds: 20,
+      brings: 18,
+      builds: 8,
       onSite: { ...EMPTY_STOCK, stones: 40 },
-      stillRequires: { ...EMPTY_STOCK, stones: 149_940 },
+      stillRequires: { ...EMPTY_STOCK, stones: 24_940 },
     });
   });
 
   it("brings no more than the builders build in while the site is full", () => {
     const full = mine(2, 10_000, site(0, 500, "delivering", 500), 2, 1);
-    expect(orderNumbers(full, 0)).toMatchObject({ brings: 20, builds: 20 });
+    expect(orderNumbers(full, 0)).toMatchObject({ brings: 8, builds: 8 });
   });
 
   it("builds in no more than arrives while the site is empty", () => {
     const empty = mine(1, 10_000, site(0), 1, 3);
-    expect(orderNumbers(empty, 0)).toMatchObject({ brings: 25, builds: 25 });
+    expect(orderNumbers(empty, 0)).toMatchObject({ brings: 9, builds: 9 });
     const dry = mine(1, 0, site(0), 1, 3);
     expect(orderNumbers(dry, 0)).toMatchObject({ brings: 0, builds: 0 });
   });
@@ -327,7 +327,7 @@ describe("an order's numbers (rule 7.11, #690)", () => {
     expect(orderNumbers(held, 0)).toMatchObject({
       kind: "onHold",
       brings: 0,
-      builds: 20,
+      builds: 8,
     });
     expect(orderNumbers(mine(2, 0, { kind: "unordered" }), 0)).toEqual({
       kind: "unordered",
@@ -337,23 +337,29 @@ describe("an order's numbers (rule 7.11, #690)", () => {
 
 describe("the time to finish the building", () => {
   it("counts every step left, at the share and the income", () => {
-    // 7,650,000 stone at 100 a second with the pocket full: 76,500 s.
-    expect(secondsToFinish(mine(4, 10_000_000, site(0)), 1, 0)).toBe(76_500);
-    // At the night's 30%, 30 a second.
-    expect(secondsToFinish(mine(4, 10_000_000, site(0)), 0.3, 0)).toBe(255_000);
+    // 1,275,000 stone at 36 a second with the pocket full.
+    expect(secondsToFinish(mine(4, 10_000_000, site(0)), 1, 0)).toBeCloseTo(
+      1_275_000 / 36,
+      6,
+    );
+    // At the night's 30%, 10.8 a second.
+    expect(secondsToFinish(mine(4, 10_000_000, site(0)), 0.3, 0)).toBeCloseTo(
+      1_275_000 / 10.8,
+      6,
+    );
   });
 
   it("counts the builders where they are slower than transport", () => {
-    // One builder: 7,650,000 at 20 a second.
+    // One builder: 1,275,000 at 8 a second.
     expect(secondsToFinish(mine(4, 10_000_000, site(0), 4, 1), 1, 0)).toBe(
-      382_500,
+      159_375,
     );
   });
 
   it("finishes a roof on hold when it has all arrived and the builders build it in", () => {
-    const roof = mine(4, 0, site(2, 6_000_000, "onHold", 500), 4, 1);
-    expect(secondsToFinish(roof, 1, 0)).toBe(25);
-    const after = deliver(roof, 25, 1);
+    const roof = mine(4, 0, site(2, 1_000_000, "onHold", 400), 4, 1);
+    expect(secondsToFinish(roof, 1, 0)).toBe(50);
+    const after = deliver(roof, 50, 1);
     expect(after.operational).toEqual(["lightTower"]);
   });
 

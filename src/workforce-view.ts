@@ -98,7 +98,7 @@ function drivingNote(mountain: Mountain): string {
   return runsOf(on, of, ["vehicle", "vehicles"]);
 }
 
-/** "each builds 20/s". */
+/** "each builds 8/s". */
 function buildingNote(): string {
   const each = buildRate({ jobs: { ...NO_JOBS, building: 1 } });
   return `each builds ${formatCompact(each)}/s`;

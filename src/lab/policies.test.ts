@@ -12,6 +12,7 @@ import {
   sticker,
 } from "./decide";
 import casual from "./policies/casual-2x10";
+import casualMover from "./fresh-policies/casual-mover";
 import chargeJunkie from "./policies/charge-junkie";
 import craftingHeavy from "./policies/crafting-heavy";
 import evening from "./policies/evening-1x20";
@@ -438,6 +439,28 @@ describe("policy shape", () => {
     expect(isPolicy("casual")).toBe(false);
     expect(isPolicy([])).toBe(false);
     expect(isPolicy({ ...casual, id: "NO" })).toBe(false);
+    // Part 1's habits (#655): well formed, or the type is refused.
+    expect(isPolicy(casualMover)).toBe(true);
+    expect(isPolicy({ ...casualMover, fresh: { moves: "idle" } })).toBe(false);
+    expect(
+      isPolicy({
+        ...casualMover,
+        fresh: { moves: "often", hold: "never", upgrades: false },
+      }),
+    ).toBe(false);
+    expect(
+      isPolicy({
+        ...casualMover,
+        fresh: { moves: "once", hold: "sometimes", upgrades: false },
+      }),
+    ).toBe(false);
+    expect(
+      isPolicy({
+        ...casualMover,
+        fresh: { moves: "once", hold: "never", upgrades: "yes" },
+      }),
+    ).toBe(false);
+    expect(isPolicy({ ...casualMover, fresh: "idle" })).toBe(false);
     expect(isPolicy({ ...casual, label: "" })).toBe(false);
     expect(isPolicy({ ...casual, kind: "dad" })).toBe(false);
     expect(isPolicy({ ...casual, params: null })).toBe(false);

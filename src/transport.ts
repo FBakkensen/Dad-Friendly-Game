@@ -49,7 +49,10 @@ const VEHICLE_ROWS = [
     good: "stones",
     firstCost: 500,
     growth: 1.219,
-    carries: 25,
+    // Set by the lab (#655): under half of what a fresh mine's line moves at
+    // the start (18), so an order placed in the first minute leaves him
+    // stones to buy with (risk 4).
+    carries: 9,
     given: 1,
   },
 ] as const satisfies readonly VehicleRow[];

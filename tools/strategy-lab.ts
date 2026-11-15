@@ -8,6 +8,7 @@ import {
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { withFactors } from "../src/economy/factors";
+import { freshMineOn } from "../src/line-switch";
 import { parseMeasureExport } from "../src/lab/measure";
 import { parsePolicyExport } from "../src/lab/policy";
 import {
@@ -53,6 +54,9 @@ Seeds default to ${String(LOCAL_SEEDS)} (1 through that count). --ci uses ${Stri
 --seeds wins over both. Days default to ${String(DEFAULT_MAX_DAYS)}.
 --policy limits the rows. The columns are still every registered measure.
 --factors holds sweep factors for every run (line.off=0 plays the line, #534).
+fresh.off=0 plays slice 1's fresh mine with part 1's player types
+(src/lab/fresh-policies) to the last building built so far, and judges no
+guardrail (#655).
 A missed guardrail is a warning unless LAB_STRICT=1, which exits 1.
 --ledger check fails when the run's pacing ledger differs from ${LEDGER_PATH};
 --ledger write (npm run lab:ledger) writes it. Both need the gate's run: --ci,
@@ -242,7 +246,13 @@ export async function executeLab(
   readonly ledger: string;
 }> {
   const root = repoRoot();
-  const policiesDir = dirs?.policies ?? path.join(root, "src/lab/policies");
+  // A fresh mine plays part 1's player types and judges no guardrail: its
+  // measures are report-only (slice 1, Lab, #655).
+  const fresh = withFactors(args.factors, freshMineOn);
+  const targets = fresh ? [] : TARGETS;
+  const policiesDir =
+    dirs?.policies ??
+    path.join(root, fresh ? "src/lab/fresh-policies" : "src/lab/policies");
   const measuresDir = dirs?.measures ?? path.join(root, "src/lab/measures");
   const loaded = await discover(policiesDir, parsePolicyExport);
   const policies =
@@ -264,7 +274,7 @@ export async function executeLab(
     const played = runTournament({
       policies,
       measures,
-      targets: TARGETS,
+      targets,
       seeds: seedsFromCount(args.seeds),
       days: args.days,
     });
@@ -276,7 +286,7 @@ export async function executeLab(
     };
   });
   const elapsedMs = performance.now() - started;
-  const checks = guardrailChecks(TARGETS, result.rows);
+  const checks = guardrailChecks(targets, result.rows);
   const outDir = path.resolve(args.outDir);
   mkdirSync(outDir, { recursive: true });
   writeFileSync(path.join(outDir, "strategy-lab.md"), markdown);

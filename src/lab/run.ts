@@ -11,17 +11,20 @@ import {
 } from "../engineers";
 import { send, settle, TUNNELS, type TunnelId } from "../expeditions";
 import { mineByHand, type Mountain } from "../mountain";
-import { lineOn } from "../line-switch";
+import { freshMineOn, lineOn } from "../line-switch";
+import { nextBuilding } from "../city";
 import { effectiveRates } from "../rates";
 import { moreStones } from "../staffing";
 import { tierById } from "../tiers";
 import { createWorld, step, type World } from "./world";
 import { canPay, sendWorthIt, sticker } from "./decide";
+import { playFresh } from "./fresh-dad";
 import {
   dayTunnel,
   fixDelayMs,
   isNightGap,
   nightTunnel,
+  type FreshHabits,
   type Policy,
   type PolicyParams,
 } from "./policy";
@@ -78,7 +81,7 @@ export function runPolicy(options: RunOptions): PolicyRun {
   let finishDay: number | undefined;
   let live = 0;
   const note = () => {
-    if (finishDay === undefined && world.mountain.remaining === 0) {
+    if (finishDay === undefined && runDone(world.mountain)) {
       finishDay = world.clock / DAY_MS + 1;
     }
   };
@@ -115,12 +118,21 @@ export function runPolicy(options: RunOptions): PolicyRun {
     }
     world = playGap(world, policy, session, seed);
     note();
-    const emptied = world.mountain.remaining === 0;
-    if (stop() || emptied) {
+    if (stop() || runDone(world.mountain)) {
       break;
     }
   }
   return { finishDay, buys, promotions, world };
+}
+
+/**
+ * The run's end: the mountain emptied, or in a fresh mine the last building
+ * built so far is operational (slice 1, Lab: the Light Tower's roof in part 1).
+ */
+export function runDone(mountain: Mountain): boolean {
+  return freshMineOn()
+    ? nextBuilding(mountain) === undefined
+    : mountain.remaining === 0;
 }
 
 /**
@@ -222,7 +234,7 @@ export function tendBest(mountain: Mountain): Mountain {
 }
 
 /** A best-tending player re-tends after buying a staffed machine. */
-function tendsAfter(params: Policy["params"], action: Action): boolean {
+function tendsAfter(params: PolicyParams, action: Action): boolean {
   return (
     params.tend === "best" &&
     action.kind === "buyTier" &&
@@ -248,6 +260,9 @@ function playSecond(
   promotions: PolicyPromotion[],
 ): World {
   const params = policy.params;
+  if (policy.fresh !== undefined && freshMineOn()) {
+    return playFreshSecond(world, policy.fresh, params, buys);
+  }
   let mountain =
     params.boosts === "always"
       ? buyEveryBoost(world.mountain, world.clock)
@@ -270,13 +285,7 @@ function playSecond(
   for (let tap = 0; tap < params.tapsPerSecond; tap += 1) {
     mountain = mineByHand(mountain, world.clock, trouble);
   }
-  const fix = fixDelayMs(params.trouble);
-  world = step(
-    { ...world, mountain },
-    MS_PER_SECOND,
-    "live",
-    fix === undefined ? undefined : { playerFixMs: fix },
-  );
+  world = liveSecond({ ...world, mountain }, params);
   world = buyWhileAffordable(world, policy, buys, promotions);
   const scouted = promoteAsap(world.mountain, params);
   const day = world.clock / DAY_MS + 1;
@@ -284,6 +293,56 @@ function playSecond(
     promotions.push({ day, name: hire.name, price: hire.price });
   }
   return { ...world, mountain: scouted.mountain };
+}
+
+/** One live second of the mine, with the dad's way of fixing trouble. */
+function liveSecond(world: World, params: PolicyParams): World {
+  const fix = fixDelayMs(params.trouble);
+  return step(
+    world,
+    MS_PER_SECOND,
+    "live",
+    fix === undefined ? undefined : { playerFixMs: fix },
+  );
+}
+
+/** The moves that spend stones, which the run records with their price. */
+const BUY_KINDS: ReadonlySet<Action["kind"]> = new Set([
+  "buyTier",
+  "buyUpgrade",
+  "buyVehicle",
+]);
+
+type Buy = Extract<Action, { kind: "buyTier" | "buyUpgrade" | "buyVehicle" }>;
+
+function isBuy(action: Action): action is Buy {
+  return BUY_KINDS.has(action.kind);
+}
+
+/**
+ * A second in a fresh mine (#655): the mine works, then part 1's dad plays
+ * his plans. No taps, engineers, tunnels or boosts: part 1 has none.
+ */
+function playFreshSecond(
+  world: World,
+  habits: FreshHabits,
+  params: PolicyParams,
+  buys: PolicyPurchase[],
+): World {
+  const worked = liveSecond(world, params);
+  const day = worked.clock / DAY_MS + 1;
+  const played = playFresh(
+    worked.mountain,
+    worked.clock,
+    habits,
+    params.hoardK,
+    (before, action) => {
+      if (isBuy(action)) {
+        buys.push({ day, id: action.id, price: sticker(before, action) });
+      }
+    },
+  );
+  return { ...worked, mountain: played };
 }
 
 function playGap(
