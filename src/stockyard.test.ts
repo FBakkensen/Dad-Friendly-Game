@@ -103,7 +103,9 @@ describe("the stockyard (#666)", () => {
   it("says when a price does not fit its stockpile, and when one is full", () => {
     partTwo(() => {
       const first = yard(0, ["lightTower"]);
-      expect(priceFits(first, [{ good: "brick", amount: 1_000_000 }])).toBe(true);
+      expect(priceFits(first, [{ good: "brick", amount: 1_000_000 }])).toBe(
+        true,
+      );
       expect(priceFits(first, [{ good: "brick", amount: 1_000_001 }])).toBe(
         false,
       );

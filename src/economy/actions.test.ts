@@ -552,7 +552,10 @@ describe("listActions", () => {
     });
     // Part 2 lists a kiln and the stockyard once the Light Tower is up (#667).
     withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 }, () => {
-      const lit: Mountain = { ...createMountain(), operational: ["lightTower"] };
+      const lit: Mountain = {
+        ...createMountain(),
+        operational: ["lightTower"],
+      };
       for (const action of listActions(lit, NOW)) {
         seen.add(action.kind);
       }
