@@ -81,6 +81,19 @@ describe("one workforce (slice 1, rule 2, #689)", () => {
     expect(freeWorker(freed, "haulage")).toBe(freed);
   });
 
+  it("moves up to a count at once: the ones there are, and no more (#659)", () => {
+    const some = crew(14, { haulage: 3 });
+    const placed = placeWorker(some, "drilling", 10);
+    expect(placed.jobs.drilling).toBe(10);
+    expect(freeWorkers(placed)).toBe(1);
+    // Fewer free than ten: ×10 moves the ones there are.
+    expect(placeWorker(placed, "hoisting", 10).jobs.hoisting).toBe(1);
+    expect(freeWorker(placed, "haulage", 10).jobs.haulage).toBe(0);
+    expect(freeWorkers(freeWorker(placed, "haulage", 10))).toBe(4);
+    expect(placeWorker(placed, "drilling", Infinity).jobs.drilling).toBe(11);
+    expect(placeWorker(some, "drilling", 0)).toBe(some);
+  });
+
   it("never changes how many workers he has", () => {
     fc.assert(
       fc.property(
@@ -89,6 +102,7 @@ describe("one workforce (slice 1, rule 2, #689)", () => {
           fc.record({
             job: fc.constantFrom(...JOB_IDS),
             place: fc.boolean(),
+            count: fc.constantFrom(1, 10, Infinity),
           }),
           { maxLength: 40 },
         ),
@@ -96,8 +110,8 @@ describe("one workforce (slice 1, rule 2, #689)", () => {
           let state = crew(helpers);
           for (const move of moves) {
             state = move.place
-              ? placeWorker(state, move.job)
-              : freeWorker(state, move.job);
+              ? placeWorker(state, move.job, move.count)
+              : freeWorker(state, move.job, move.count);
             expect(state.owned.helper).toBe(helpers);
             expect(freeWorkers(state)).toBeGreaterThanOrEqual(0);
             for (const job of JOB_IDS) {
@@ -330,11 +344,28 @@ describe("the moves (rule 2.4)", () => {
     });
   });
 
+  it("moves as many as the amount key says, and logs the job's new count (#659)", () => {
+    fresh(() => {
+      const moved = applyMove(
+        crew(12, { haulage: 1 }),
+        { kind: "placeWorker", job: "drilling", count: 10 },
+        0,
+        NO_TROUBLE,
+      );
+      expect(moved.kind === "applied" && moved.mountain.jobs.drilling).toBe(
+        10,
+      );
+      expect(moved.kind === "applied" && moved.events).toEqual([
+        { kind: "workerPlaced", job: "drilling", count: 10 },
+      ]);
+    });
+  });
+
   it("moves a worker for free and logs it", () => {
     fresh(() => {
       const moved = applyMove(
         crew(2, { haulage: 1 }),
-        { kind: "placeWorker", job: "hoisting" },
+        { kind: "placeWorker", job: "hoisting", count: 1 },
         0,
         NO_TROUBLE,
       );
@@ -348,7 +379,7 @@ describe("the moves (rule 2.4)", () => {
       expect(moved.spent.stones).toBe(0);
       const back = applyMove(
         moved.mountain,
-        { kind: "freeWorker", job: "hoisting" },
+        { kind: "freeWorker", job: "hoisting", count: 1 },
         0,
         NO_TROUBLE,
       );
@@ -375,7 +406,7 @@ describe("the moves (rule 2.4)", () => {
       expect(
         applyMove(
           crew(1, { haulage: 1 }),
-          { kind: "placeWorker", job: "drilling" },
+          { kind: "placeWorker", job: "drilling", count: 1 },
           0,
           NO_TROUBLE,
         ).kind,
@@ -383,7 +414,7 @@ describe("the moves (rule 2.4)", () => {
       expect(
         applyMove(
           crew(1),
-          { kind: "freeWorker", job: "drilling" },
+          { kind: "freeWorker", job: "drilling", count: 1 },
           0,
           NO_TROUBLE,
         ).kind,
@@ -397,8 +428,12 @@ describe("the moves (rule 2.4)", () => {
       listActions(today, 0).some((action) => action.kind === "placeWorker"),
     ).toBe(false);
     expect(
-      applyMove(today, { kind: "placeWorker", job: "drilling" }, 0, NO_TROUBLE)
-        .kind,
+      applyMove(
+        today,
+        { kind: "placeWorker", job: "drilling", count: 1 },
+        0,
+        NO_TROUBLE,
+      ).kind,
     ).toBe("refused");
   });
 
@@ -409,7 +444,7 @@ describe("the moves (rule 2.4)", () => {
       const mine = crew(4, { drilling: 1, haulage: 1, hoisting: 1 });
       const haul = valueOf(
         mine,
-        { kind: "placeWorker", job: "haulage" },
+        { kind: "placeWorker", job: "haulage", count: 1 },
         3600,
         context,
       );
@@ -417,7 +452,7 @@ describe("the moves (rule 2.4)", () => {
       expect(haul.cost).toBe(0);
       const off = valueOf(
         mine,
-        { kind: "freeWorker", job: "drilling" },
+        { kind: "freeWorker", job: "drilling", count: 1 },
         3600,
         context,
       );
