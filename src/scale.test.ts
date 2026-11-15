@@ -369,7 +369,7 @@ describe("one-off stretch (#356)", () => {
     expect(oneOffStretch(at(120_000_000, 1.75))).toBe(BAND_SCALE[3] * 1.75);
   });
 
-  it("prices Better boots and a promotion by the band", () => {
+  it("prices Work boots and a promotion by the band", () => {
     const base = at(45_000_000);
     const caves = { ...base, stock: { ...base.stock, stones: 1e12 } };
     const boots = upgradeById("boots").firstCost * BAND_SCALE[2];

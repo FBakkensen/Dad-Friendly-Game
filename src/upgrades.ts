@@ -54,7 +54,7 @@ const BY_ID: Readonly<Record<UpgradeId, Upgrade>> = {
   },
   boots: {
     id: "boots",
-    name: "Better boots",
+    name: "Work boots",
     perLevel: "Workers go from 1/s to 2.4/s.",
     firstCost: 1_625_000,
     costGrowth: 1,
@@ -63,7 +63,7 @@ const BY_ID: Readonly<Record<UpgradeId, Upgrade>> = {
   },
   steady: {
     id: "steady",
-    name: "Steady hands",
+    name: "Night foreman",
     perLevel: "Time away pays 25% more.",
     firstCost: 10_000_000,
     costGrowth: 1,
@@ -72,7 +72,7 @@ const BY_ID: Readonly<Record<UpgradeId, Upgrade>> = {
   },
   cartSyn: {
     id: "cartSyn",
-    name: "Helping hands",
+    name: "Loading crews",
     perLevel: "Each worker makes carts 1% faster.",
     firstCost: 2_000_000,
     costGrowth: 1,
@@ -82,7 +82,7 @@ const BY_ID: Readonly<Record<UpgradeId, Upgrade>> = {
   },
   drillSyn: {
     id: "drillSyn",
-    name: "Cart roads",
+    name: "Haul roads",
     perLevel: "Each cart makes drills 1% faster.",
     firstCost: 3_000_000,
     costGrowth: 1,
@@ -120,14 +120,14 @@ export const TAP_SHARE_PER_LEVEL = 0.0165;
 /** Crew synergies: speed each `from` unit adds to its `to` tier. */
 export const SYNERGY_PER_UNIT = 0.01;
 
-/** Better boots: helper speed gained per level. */
+/** Work boots: helper speed gained per level. */
 export const BOOTS_SPEED_PER_LEVEL = 1.36;
-/** Steady hands: away pay gained per level, relative to the base rate. */
+/** Night foreman: away pay gained per level, relative to the base rate. */
 export const STEADY_AWAY_PER_LEVEL = 0.25;
 
 /**
  * Upgrades a fresh mine leaves out (slice 1, Where today's parts land, #653):
- * Strong arms goes with the dig button, and Steady hands goes because the
+ * Strong arms goes with the dig button, and Night foreman goes because the
  * Light Tower lights the night.
  */
 const GONE_IN_A_FRESH_MINE: ReadonlySet<UpgradeId> = new Set<UpgradeId>([
@@ -154,7 +154,7 @@ export function synergyBonus(mountain: Mountain, upgrade: Upgrade): number {
   if (upgrade.synergy === undefined) {
     return 0;
   }
-  // In a fresh mine, Helping hands counts the workers on haulage (rule 2.9).
+  // In a fresh mine, Loading crews counts the workers on haulage (rule 2.9).
   const count =
     upgrade.synergy.from === "helper" && freshMineOn()
       ? mountain.jobs.haulage
@@ -175,7 +175,7 @@ export function tierSynergy(mountain: Mountain, tier: TierId): number {
 /**
  * The stage whose machine an upgrade lifts, where its list shows it (#661):
  * a synergy's machine's stage. Undefined for the worker's own upgrades
- * (Better boots), which the workforce shows.
+ * (Work boots), which the workforce shows.
  */
 export function upgradeStage(upgrade: Upgrade): Stage | undefined {
   return upgrade.synergy === undefined

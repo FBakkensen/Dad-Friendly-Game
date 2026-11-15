@@ -300,7 +300,7 @@ describe("the line in a fresh mine (rule 2.5, 2.9)", () => {
     });
   });
 
-  it("keeps a cart ahead of a tool at 100 workers with Better boots (#655, risk 15)", () => {
+  it("keeps a cart ahead of a tool at 100 workers with Work boots (#655, risk 15)", () => {
     fresh(() => {
       const rates = effectiveRates(
         line({ drilling: 5, haulage: 5, hoisting: 5 }, { cart: 2 }, 85, 1),
@@ -319,7 +319,7 @@ describe("the line in a fresh mine (rule 2.5, 2.9)", () => {
     });
   });
 
-  it("lifts only a worker with a tool with Better boots, never a machine", () => {
+  it("lifts only a worker with a tool with Work boots, never a machine", () => {
     fresh(() => {
       const booted = effectiveRates(
         line(
@@ -334,7 +334,7 @@ describe("the line in a fresh mine (rule 2.5, 2.9)", () => {
     });
   });
 
-  it("counts haulage's workers for Helping hands", () => {
+  it("counts haulage's workers for Loading crews", () => {
     fresh(() => {
       const hands = upgradeById("cartSyn");
       expect(

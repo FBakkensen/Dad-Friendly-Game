@@ -781,7 +781,7 @@ const registerStates = (viewport) => {
           tools.boots?.price === "Owned" &&
           tools["tool:pick"]?.price === "Found" &&
           tools["tool:lamp"]?.price === "Found",
-        `${size} tools Upgrades: Strong arms at Lv 2/10, Better boots Owned, the pick and the lamp Found`,
+        `${size} tools Upgrades: Strong arms at Lv 2/10, Work boots Owned, the pick and the lamp Found`,
       );
       if (tools.tap?.badge !== "Lv 2/10" || tools.boots?.price !== "Owned") {
         console.log("tools upgrades", size, JSON.stringify(tools));

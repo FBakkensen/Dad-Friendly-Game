@@ -135,7 +135,7 @@ export type Rates = {
   readonly helpersShort: number;
   /**
    * Crew stones a second before the whole-stone floor. The difference of a
-   * buy keeps a fraction (11 workers with Better boots are +1.1/s). The
+   * buy keeps a fraction (11 workers with Work boots are +1.1/s). The
    * crew line and what is mined stay on `crewPerSecond`.
    */
   readonly exactCrewPerSecond: number;
