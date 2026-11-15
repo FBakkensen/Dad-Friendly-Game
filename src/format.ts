@@ -114,6 +114,24 @@ export function etaShort(ms: number): string {
   return `${String(hours)}h ${String(minutes % 60)}m`;
 }
 
+/**
+ * The shift report's time (the slice prototype's `dur`): "45 s" under 90 s,
+ * "12 min" under 90 min, then "9 h" or "1 h 30 min".
+ */
+export function shiftDuration(ms: number): string {
+  const seconds = Math.round(ms / 1000);
+  if (seconds < 90) {
+    return `${String(seconds)} s`;
+  }
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 90) {
+    return `${String(minutes)} min`;
+  }
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return `${String(hours)} h${rest === 0 ? "" : ` ${String(rest)} min`}`;
+}
+
 /** "22:13": the 24-hour clock in local time, to the minute (rounded down). */
 export function formatTimeOfDay(ms: number): string {
   const at = new Date(ms);

@@ -5,6 +5,7 @@
  * event, log a line, remember the homecomings, save a grant) comes back as
  * effects, and the store runs them through its ports.
  */
+import type { BuildingId } from "./city";
 import type { Homecoming } from "./expeditions";
 import {
   engineerFixDelay,
@@ -27,6 +28,7 @@ import {
 } from "./mountain";
 import { relicsUncovered, type Relic } from "./relics";
 import { advance, timeInput } from "./session-time";
+import { GOOD_IDS } from "./stock";
 import { recordFirstUse } from "./teach";
 import {
   RECIPE_IDS,
@@ -76,7 +78,13 @@ export type Notice =
   /** A band broken into. A loaded save already in a band does not announce it again. */
   | { readonly kind: "layer"; readonly layer: Layer }
   /** A craft fitted, with the mountain at the moment it finished. */
-  | { readonly kind: "craft"; readonly craft: CraftNotice };
+  | { readonly kind: "craft"; readonly craft: CraftNotice }
+  /**
+   * A building that went operational: its roof went on (#663). A loaded save
+   * already running it, or a copy adopted from another device, does not
+   * announce it.
+   */
+  | { readonly kind: "operational"; readonly building: BuildingId };
 
 export type NoticeKind = Notice["kind"];
 export type NoticeOf<K extends NoticeKind> = Extract<Notice, { kind: K }>;
@@ -126,6 +134,7 @@ type Baselines = {
   readonly reveal: number | undefined;
   readonly layer: number | undefined;
   readonly craft: Crafted | undefined;
+  readonly operational: readonly BuildingId[] | undefined;
 };
 
 export type Session = {
@@ -167,7 +176,7 @@ export type SessionInput =
   | { readonly kind: "press" | "fix"; readonly tier: TroubleTier }
   /** Shows trouble at once (the layout check), since trouble is never saved. */
   | { readonly kind: "preview-trouble"; readonly tier: TroubleTier }
-  /** Relics, bands and crafts reached since the baselines. */
+  /** Relics, bands, crafts and buildings reached since the baselines. */
   | { readonly kind: "notice" }
   /** A new run (Start over, or the mine passed down). */
   | { readonly kind: "begin"; readonly mountain: Mountain }
@@ -206,6 +215,7 @@ const NO_BASELINES: Baselines = {
   reveal: undefined,
   layer: undefined,
   craft: undefined,
+  operational: undefined,
 };
 
 export function createSession(mountain: Mountain, hazardSeed: number): Session {
@@ -240,7 +250,7 @@ export function troubleMark(session: Session): string {
     : `${trouble.tier}:${String(trouble.startedAt)}`;
 }
 
-/** The band and the crafted levels, before away pay moves them. */
+/** The band, the crafted levels and the running buildings, before away pay moves them. */
 function primeArrivals(session: Session): Session {
   return {
     ...session,
@@ -248,16 +258,17 @@ function primeArrivals(session: Session): Session {
       ...session.baselines,
       layer: minedOut(session.mountain),
       craft: { ...session.mountain.crafted },
+      operational: session.mountain.operational,
     },
   };
 }
 
-/** A fresh open: no baselines, no unread bands or crafts. */
+/** A fresh open: no baselines, no unread bands, crafts or buildings. */
 export function forgetArrivals(session: Session): Session {
   return {
     ...session,
     baselines: NO_BASELINES,
-    news: dropNotices(session.news, ["layer", "craft"]),
+    news: dropNotices(session.news, ["layer", "craft", "operational"]),
   };
 }
 
@@ -405,7 +416,7 @@ function settleAway(
     moved.homecomings,
     out,
   );
-  if (moved.mined === 0) {
+  if (!anythingHappened(report, moved.mined)) {
     return { session: paid, mined: 0 };
   }
   out.log({
@@ -421,16 +432,36 @@ function settleAway(
   return { session: welcome(paid, report, moved.mined), mined: moved.mined };
 }
 
-/** A reload or a quick app switch isn't "away": only greet after a real break. */
+/**
+ * Whether time away brought news: stones mined, or in a fresh mine's night
+ * (#663) also goods delivered or a step built in, with the mine standing.
+ */
+function anythingHappened(report: AwayReport, mined: number): boolean {
+  const night = report.night;
+  return (
+    mined > 0 ||
+    (night !== undefined &&
+      (night.steps.length > 0 ||
+        GOOD_IDS.some((good) => night.delivered[good] > 0)))
+  );
+}
+
+/**
+ * A reload or a quick app switch isn't "away": only greet after a real break.
+ * A fresh mine's night is always the shift report, never the quiet note
+ * (#663), and it is greeted on a live return too: a tab left open overnight
+ * (a locked phone, the app in the background) comes back to its report.
+ */
 function welcome(session: Session, report: AwayReport, mined: number): Session {
-  if (session.news.welcomed || report.awayMs < WELCOME_MIN_AWAY_MS) {
+  const greeted = session.news.welcomed && report.night === undefined;
+  if (greeted || report.awayMs < WELCOME_MIN_AWAY_MS) {
     return session;
   }
   return {
     ...session,
     news: setNotice(
       session.news,
-      isQuietAway(report)
+      report.night === undefined && isQuietAway(report)
         ? { kind: "quiet", stones: mined }
         : { kind: "away", report },
     ),
@@ -611,9 +642,27 @@ function previewTrouble(
   };
 }
 
-/** Relics, bands and crafts reached since the baselines, in that order. */
+/** Relics, bands, crafts and buildings reached since the baselines, in that order. */
 function notice(session: Session, now: number, out: Effects): Session {
-  return noteCrafts(noteLayers(noteReveals(session, out), out), now, out);
+  return noteOperational(
+    noteCrafts(noteLayers(noteReveals(session, out), out), now, out),
+  );
+}
+
+/** Each building that went operational since the baseline, announced once. */
+function noteOperational(session: Session): Session {
+  const running = session.mountain.operational;
+  const before = session.baselines.operational;
+  const lit =
+    before === undefined ? [] : running.filter((id) => !before.includes(id));
+  return {
+    ...session,
+    news: addNotices(
+      session.news,
+      lit.map((building) => ({ kind: "operational", building })),
+    ),
+    baselines: { ...session.baselines, operational: running },
+  };
 }
 
 function noteReveals(session: Session, out: Effects): Session {
@@ -730,6 +779,7 @@ function beginRun(
         "reveal",
         "layer",
         "craft",
+        "operational",
       ]),
       homecomings: [],
     },

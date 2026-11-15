@@ -159,6 +159,10 @@
   --frame-mine-ground: #1d1712;
   --frame-city-ground: #0b1030;
   --frame-scrim: #000000c4;
+  --frame-card: #171c22;
+  --frame-card-quiet: #c9c4b4;
+  --frame-night: #0b1030;
+  --frame-moon: #c3ccff;
   --frame-plate: #00000099;
   --frame-rate: #ffd98a;
   --frame-tool: #8cc4ff;

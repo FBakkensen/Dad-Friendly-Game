@@ -3,13 +3,17 @@
  * Slice 1's frame (#659), on the `?slice=1` dev preview: the order strip, the
  * top row with the one hire key, the mine (#660) and the city (#662), Next,
  * the site bar and the save line, and the workforce sheet over them, at the
- * phone and at a shorter phone.
+ * phone and at a shorter phone. Its cards (#663): the shift report after a
+ * night, and the end card behind the report of the night the Light Tower's
+ * roof went on.
  */
 import {
   DEV_BACKUP_KEY,
   sliceBusySave,
   sliceDoneSave,
+  sliceNightSave,
   sliceOrderedSave,
+  sliceRoofSave,
   sliceStructureSave,
 } from "../../tools/browser/fixtures.ts";
 import { check, section } from "./registry.mjs";
@@ -266,6 +270,124 @@ for (const size of SIZES) {
             after.note ===
               "No free worker. Hire one, or take one off another job.",
             `${at} a + with no free worker says where one comes from`,
+          );
+        }
+      } finally {
+        await close();
+      }
+    });
+  }
+}
+
+/**
+ * The card over the frame in board px: shown, its kind, its box inside the
+ * board and above the save line, its words all in view (nothing cut, nothing
+ * scrolled away), and its key's size.
+ */
+async function cardFacts(page) {
+  return page.evaluate(() => {
+    const board = globalThis.__board();
+    const card = document.querySelector(".frame-card");
+    const box = card?.querySelector(".frame-card-box");
+    const body = card?.querySelector(".frame-card-body");
+    const key = card?.querySelector(".frame-card-key");
+    const line = document.querySelector(".board-saveline");
+    if (card === null || box === null || body === null || key === null) {
+      return { shown: false };
+    }
+    const r = box.getBoundingClientRect();
+    const k = key.getBoundingClientRect();
+    const cut = [
+      ...card.querySelectorAll(
+        ".frame-card-title, .frame-card-line, .frame-card-labels span, .frame-card-key",
+      ),
+    ]
+      .filter((el) => el.scrollWidth > el.clientWidth + 1)
+      .map((el) => el.className);
+    return {
+      shown: !card.hidden,
+      kind: card.dataset.card,
+      inside:
+        r.top >= board.top - 0.5 &&
+        line !== null &&
+        r.bottom <= line.getBoundingClientRect().top + 0.5,
+      allInView: body.scrollHeight <= body.clientHeight + 1,
+      key: { w: k.width / board.scale, h: k.height / board.scale },
+      cut,
+      words: card.textContent ?? "",
+    };
+  });
+}
+
+/** One card's checks: in view above the save line, a fat key, every word whole. */
+function checkCard(facts, at, kind) {
+  check(
+    facts.shown && facts.kind === kind,
+    `${at} the ${kind} card is up (${String(facts.kind)})`,
+  );
+  check(facts.inside, `${at} the ${kind} card sits above the save line`);
+  check(facts.allInView, `${at} every line of the ${kind} card is in view`);
+  check(
+    facts.key.w >= 47.5 && facts.key.h >= 47.5,
+    `${at} the ${kind} card's key is at least 48px (${JSON.stringify(facts.key)})`,
+  );
+  check(
+    facts.cut.length === 0,
+    `${at} no word on the ${kind} card is cut (${facts.cut.join(", ")})`,
+  );
+  check(
+    !/\bhands?\b|by hand|bottleneck|\blimit|best buy/i.test(facts.words),
+    `${at} the ${kind} card names no hands, no bottleneck, no limit and no best buy`,
+  );
+}
+
+const NIGHTS = [
+  { name: "night", save: () => sliceNightSave(Date.now()) },
+  { name: "roof", save: () => sliceRoofSave(Date.now()) },
+];
+
+for (const size of SIZES) {
+  const label = `${String(size[0])}x${String(size[1])}`;
+  for (const { name, save } of NIGHTS) {
+    section(`${label} slice frame ${name}`, async () => {
+      const { page, close } = await openScreen(size, save(), {
+        search: "?slice=1",
+        seedKey: DEV_BACKUP_KEY,
+      });
+      try {
+        await page.waitForSelector(".frame-card:not([hidden])");
+        const at = `${label} slice frame ${name}:`;
+        const report = await cardFacts(page);
+        await shot(page, `slice-card-report-${name}-${label}`);
+        checkCard(report, at, "report");
+        check(
+          await noScroll(page),
+          `${at} the report does not scroll the page`,
+        );
+        if (name === "roof") {
+          check(
+            report.words.includes("The Light Tower: operational."),
+            `${at} the report says the Light Tower is operational`,
+          );
+        }
+        await tap(page, ".frame-card-key");
+        const after = await cardFacts(page);
+        if (name === "roof") {
+          await shot(page, `slice-card-end-${label}`);
+          checkCard(after, at, "end");
+          check(
+            await noScroll(page),
+            `${at} the end card does not scroll the page`,
+          );
+          await tap(page, ".frame-card-key");
+          check(
+            !(await cardFacts(page)).shown,
+            `${at} Continue closes the end card`,
+          );
+        } else {
+          check(
+            !after.shown,
+            `${at} Resume closes the report, and no card follows`,
           );
         }
       } finally {
