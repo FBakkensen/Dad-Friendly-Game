@@ -40,8 +40,8 @@ const SAVES = [
 const TOWER_H = 182;
 /**
  * The keys a finger can reach inside `roots` (the frame and the save line, or
- * an open sheet), each as the part in view, in board px. A key a scrolling
- * list clips is measured where it shows, as the UI audit does.
+ * an open sheet), each as the part in view (`__reach`, the UI audit's own
+ * measure), in board px.
  */
 async function keyBoxes(page, roots) {
   return page.evaluate((selector) => {
@@ -56,19 +56,8 @@ async function keyBoxes(page, roots) {
           getComputedStyle(el).visibility !== "hidden",
       )
       .map((el) => {
-        const r = el.getBoundingClientRect();
-        let { top, bottom, left, right } = r;
-        for (let up = el.parentElement; up !== null; up = up.parentElement) {
-          const clip = getComputedStyle(up);
-          if (clip.overflowX === "visible" && clip.overflowY === "visible") {
-            continue;
-          }
-          const edge = up.getBoundingClientRect();
-          top = Math.max(top, edge.top);
-          bottom = Math.min(bottom, edge.bottom);
-          left = Math.max(left, edge.left);
-          right = Math.min(right, edge.right);
-        }
+        // The harness's in-page helper, the one the UI audit measures with.
+        const { top, bottom, left, right } = globalThis.__reach(el);
         const name = [el.tagName.toLowerCase(), ...el.classList].join(".");
         const at = el.dataset.stage ?? el.dataset.job ?? el.dataset.site ?? "";
         return {

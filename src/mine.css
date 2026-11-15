@@ -103,7 +103,7 @@
   flex-direction: column;
   /* Keys and rows stand 8px apart (#719), not counting a row's edge, which a
      scaled phone draws thinner. */
-  gap: calc(var(--art) * 4);
+  gap: var(--target-gap);
 }
 
 .mine-note,
@@ -123,7 +123,7 @@
 
 .mine-keys {
   display: flex;
-  gap: calc(var(--art) * 4);
+  gap: var(--target-gap);
 }
 
 .frame .mine-key,
@@ -169,7 +169,7 @@
 .mine-stages {
   display: flex;
   flex-direction: column;
-  gap: calc(var(--art) * 4);
+  gap: var(--target-gap);
 }
 
 .mine-stage {
