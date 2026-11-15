@@ -119,7 +119,8 @@ function buildRow(row: StageRow): RowParts {
 
 /**
  * The fullest form of the row's sum that fits its line. A sum too long for
- * one line in every form (the third state's words) takes two lines.
+ * one line in every form (the third state's words) takes two lines, in
+ * its full words.
  */
 function writeSum(target: HTMLElement, forms: readonly string[]): void {
   mark(target, "wrap", false);
@@ -130,7 +131,7 @@ function writeSum(target: HTMLElement, forms: readonly string[]): void {
     }
   }
   mark(target, "wrap", true);
-  write(target, forms[1] ?? "");
+  write(target, forms[0] ?? "");
 }
 
 function paintRow(parts: RowParts, row: StageRow, amount: BuyAmount): void {

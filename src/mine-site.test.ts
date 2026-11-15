@@ -168,6 +168,45 @@ describe("the mine", () => {
     );
   });
 
+  it("keeps the approved words, /s included, when the stand line takes two lines", () => {
+    holdFactors({ [FRESH_OFF]: 0, "output.cart": 0.1 });
+    const proto = HTMLElement.prototype;
+    const wide = Object.getOwnPropertyDescriptor(proto, "scrollWidth");
+    const narrow = Object.getOwnPropertyDescriptor(proto, "clientWidth");
+    Object.defineProperty(proto, "scrollWidth", {
+      configurable: true,
+      get: () => 1000,
+    });
+    Object.defineProperty(proto, "clientWidth", {
+      configurable: true,
+      get: () => 100,
+    });
+    try {
+      const { root, progress } = mount((m) => ({
+        ...m,
+        owned: { ...m.owned, cart: 1 },
+      }));
+      const [, haulage] = stageRows(progress.getSnapshot().mountain);
+      const sum = root.querySelector(
+        '.mine-stage[data-stage="haul"] .mine-stage-sum',
+      );
+      expect(sum?.classList.contains("wrap")).toBe(true);
+      expect(sum?.textContent).toBe(haulage?.sum[0]);
+      expect(sum?.textContent).toMatch(/\/s with a barrow, .*\/s on the cart/);
+    } finally {
+      for (const [key, descriptor] of [
+        ["scrollWidth", wide],
+        ["clientWidth", narrow],
+      ] as const) {
+        if (descriptor === undefined) {
+          Reflect.deleteProperty(proto, key);
+        } else {
+          Object.defineProperty(proto, key, descriptor);
+        }
+      }
+    }
+  });
+
   it("never says hands, and names no limit", () => {
     const { root } = mount();
     expect(root.querySelector(".mine")?.textContent).not.toMatch(
