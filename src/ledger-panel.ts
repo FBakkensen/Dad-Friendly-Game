@@ -301,7 +301,7 @@ export function createLedgerPanel({
   legacy: { offered(): boolean; open(from: HTMLElement | undefined): void };
   /** Today's Saved copies card. */
   savedCopies: { open(from?: HTMLElement): void };
-  /** After a Start over (the screen resets its vein wait). */
+  /** After a Start over. */
   onStartOver: () => void;
   /** The game's one sound (#491): its key sits in the head, beside the "i". */
   sound: SoundSetting;

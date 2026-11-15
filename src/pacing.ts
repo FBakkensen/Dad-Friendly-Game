@@ -21,7 +21,6 @@ import {
   type Action,
   type ValueContext,
 } from "./economy/actions";
-import { tapQuickVein } from "./lab/run";
 import { createWorld, step, type World } from "./lab/world";
 import {
   createMountain,
@@ -423,8 +422,7 @@ export function simulateDadRun({
     if (session % 2 === 1) {
       world = nightTrips(world, world.clock + GAP_MS);
     }
-    // He opens and taps the quick vein: the Gold rush pays what the open held (#468).
-    world = tapQuickVein(step(world, GAP_MS, "away"));
+    world = step(world, GAP_MS, "away");
     noteMilestones(world, milestones, log.reached);
     if (world.mountain.remaining === 0) {
       break;

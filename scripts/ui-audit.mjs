@@ -474,7 +474,6 @@ async function collect(page) {
       timer: [".workshop-timers", ".workshop-bar", ".boost"],
       notice: [
         ".craft-notice",
-        ".vein-note",
         ".welcome-back",
         ".layer-arrival",
         ".board-sheet-kick.is-done",

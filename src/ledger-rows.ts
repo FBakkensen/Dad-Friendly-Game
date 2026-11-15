@@ -38,7 +38,6 @@ import {
   machineBuyLine,
   MACHINE_WORDS,
   vehicleBuyLine,
-  veinGaveLine,
   type TendPost,
   materialCountWords,
 } from "./screen-words";
@@ -201,7 +200,6 @@ const WORDING: Readonly<
     return id === undefined ? undefined : layerCardWords(id)?.arrival;
   },
   "away.report": ({ data }) => stones(data, awayDugLine),
-  "vein.tap": ({ data }) => stones(data, veinGaveLine),
   "trouble.fix": () => TROUBLE_FIXED,
   "engineer.promote": ({ data }) => engineer(data, promoteCheer),
   "engineer.station": ({ data }) => {

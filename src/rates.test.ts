@@ -3,7 +3,6 @@ import { withFactors } from "./economy/factors";
 import { TENDING_GAIN, TENDING_TENTHS, station } from "./engineers";
 import type { Trouble } from "./hazards";
 import { milestoneMultiplier } from "./milestones";
-import { holdForRush, startRush } from "./gold-rush";
 import {
   AWAY_PAY_RATE,
   effectiveRates,
@@ -354,36 +353,6 @@ describe("tendingGain", () => {
     expect(speed(old)).toBeGreaterThan(0);
     expect(speed(few)).toBeGreaterThan(0);
     expect(speed(old) / speed(few)).toBeCloseTo(4, 6);
-  });
-});
-
-describe("the Gold rush in the rates", () => {
-  const crew = {
-    ...minedMountain(0),
-    owned: { ...minedMountain(0).owned, helper: 10, kid: 0 },
-  };
-  const T = 5_000_000;
-  const rushed = startRush(holdForRush(crew, 1_000_000, 10), T);
-
-  it("never counts in the crew's speed: held stones were dug while away (#525)", () => {
-    const plain = effectiveRates(crew, T);
-    expect(effectiveRates(rushed, T).crewPerSecond).toBe(plain.crewPerSecond);
-    expect(effectiveRates(rushed, T).exactCrewPerSecond).toBe(
-      plain.exactCrewPerSecond,
-    );
-    const both = effectiveRates(
-      { ...rushed, boosts: { ...NO_BOOSTS, overtime: T + 60_000 } },
-      T,
-    );
-    // Overtime's ×2 of the crew, and nothing for the rush
-    expect(both.crewPerSecond).toBe(plain.crewPerSecond * 2);
-    expect(both.tapYield).toBe(plain.tapYield);
-  });
-
-  it("is ignored with no clock", () => {
-    expect(effectiveRates(rushed).crewPerSecond).toBe(
-      effectiveRates(crew).crewPerSecond,
-    );
   });
 });
 

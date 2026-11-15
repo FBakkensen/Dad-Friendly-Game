@@ -1,12 +1,6 @@
 import type { Trouble } from "./hazards";
 import { effectiveRates, paidAwayMs } from "./rates";
 import { NO_BOOSTS, type Boosts } from "./boosts";
-import {
-  QUICK_VEIN_AWAY_MS,
-  holdForRush,
-  payRush,
-  resumeRush,
-} from "./gold-rush";
 import type { Engineer } from "./engineers";
 import {
   clampExpeditions,
@@ -136,10 +130,6 @@ export type Mountain = {
    * fields in the workshop map.
    */
   readonly clocks: Clocks;
-  /** When the Gold rush stops paying its held stones (src/gold-rush.ts); 0 is none. */
-  readonly rushUntil: number;
-  /** Stones of an away haul held for the Gold rush, paid as it runs (src/gold-rush.ts). */
-  readonly rushBank: number;
   /** Systems whose "New" note has been opened (M11, src/teach.ts). */
   readonly seen: readonly TeachId[];
   /** Systems used at least once; their dot is gone (M11, src/teach.ts). */
@@ -197,8 +187,6 @@ export const BARE_MOUNTAIN: Mountain = {
   crafted: NOTHING_CRAFTED,
   recipes: [],
   clocks: COLD_CLOCKS,
-  rushUntil: 0,
-  rushBank: 0,
   seen: [],
   taught: [],
   fleet: vehicleRecord(0),
@@ -355,8 +343,7 @@ export function accrue({
         live,
         ...(trouble === undefined ? {} : { trouble }),
       });
-  const rushed = live ? withRushPay(crew, from, to) : crew;
-  const worked = freshMineOn() ? withDelivery(rushed, from, to, pay) : rushed;
+  const worked = freshMineOn() ? withDelivery(crew, from, to, pay) : crew;
   const fitted = settleBench(worked.mountain, to);
   return fitted === worked.mountain ? worked : { ...worked, mountain: fitted };
 }
@@ -430,14 +417,6 @@ function accrueMine(
     ...flowMine(mountain, seconds, pay, true),
     settledAt: from + seconds * 1000,
   };
-}
-
-/** The Gold rush's held stones paid over the same whole seconds as the crew. */
-function withRushPay(crew: Accrual, from: number, to: number): Accrual {
-  const rush = payRush(crew.mountain, from, Math.floor((to - from) / 1000));
-  return rush.paid === 0 && rush.mountain === crew.mountain
-    ? crew
-    : { ...crew, mountain: rush.mountain, mined: crew.mined + rush.paid };
 }
 
 function accrueCrew({
@@ -516,8 +495,6 @@ export type AwayReport = {
   readonly mined: number;
   /** Real time away, before the cap. */
   readonly awayMs: number;
-  /** Stones of `mined` held back for the Gold rush (#468); 0 when none. */
-  readonly heldForRush: number;
   /** Time that actually paid. */
   readonly paidMs: number;
   readonly capped: boolean;
@@ -569,7 +546,7 @@ export type NightReport = {
 
 /** The crew's work while the game was closed: away pay of their speed, up to the away cap (see effectiveRates). */
 export function accrueAway({
-  mountain: closed,
+  mountain,
   lastSeen,
   now,
 }: {
@@ -581,12 +558,9 @@ export function accrueAway({
   readonly homecomings: readonly Homecoming[];
 } {
   if (freshMineOn()) {
-    return accrueNight({ mountain: closed, lastSeen, now });
+    return accrueNight({ mountain, lastSeen, now });
   }
   const awayMs = Math.max(0, now - lastSeen);
-  // Close is pause for a Gold rush, over a short break (src/gold-rush.ts).
-  const mountain = resumeRush(closed, lastSeen, now);
-  const long = awayMs >= QUICK_VEIN_AWAY_MS;
   const rates = effectiveRates(mountain);
   const paidMs = paidAwayMs(awayMs);
   const capped = awayMs > paidMs;
@@ -600,16 +574,10 @@ export function accrueAway({
     to: now,
     pay,
   });
-  // After an hour away, part of the haul waits for the Gold rush (#468).
-  const held = long
-    ? holdForRush(walked.mountain, walked.mined, rates.exactCrewPerSecond)
-    : walked.mountain;
   return {
     ...walked,
-    mountain: held,
     report: {
       mined: walked.mined,
-      heldForRush: long ? held.rushBank : 0,
       awayMs,
       paidMs,
       capped,
@@ -831,7 +799,7 @@ function logStretch(
  * haulage and hoisting bring up what waits in the piles (#703). Transport carries to
  * what he ordered, from the pocket, for the whole night at the same share.
  * A roof that goes on in the night lights the rest of it. A fresh mine has
- * no expeditions or Gold rush, so none of their splits apply. The
+ * no expeditions, so none of their splits apply. The
  * report's `night` holds what the shift report says (#663).
  */
 function accrueNight({
@@ -888,7 +856,6 @@ function accrueNight({
     homecomings: [],
     report: {
       mined,
-      heldForRush: 0,
       awayMs,
       paidMs: clockless ? awayMs : clockStops - lastSeen,
       capped: !clockless && awayMs > NIGHT_CLOCK_MS,

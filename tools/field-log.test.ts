@@ -290,7 +290,7 @@ describe("each device's log, read together (#485)", () => {
     data: {
       updatedAt: 2,
       events: [
-        { at: "2026-01-02T03:10:00.000Z", code: "vein.tap", data: {} },
+        { at: "2026-01-02T03:10:00.000Z", code: "away.report", data: {} },
         "not an event",
       ],
     },
@@ -313,7 +313,7 @@ describe("each device's log, read together (#485)", () => {
       "fieldLogs/dad: together",
       "Events",
       "  2026-01-02 03:00:00  tier.buy  [phone-12]",
-      "  2026-01-02 03:10:00  vein.tap  [pc-98765]",
+      "  2026-01-02 03:10:00  away.report  [pc-98765]",
       "  2026-01-02 03:20:00  run.start-over  [phone-12]",
     ]);
     // One log alone has no Together.

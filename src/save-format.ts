@@ -72,11 +72,8 @@ import { JOB_IDS, workersOnJobs, type JobId, type Jobs } from "./workforce";
 import { PILE_IDS, type MinePiles, type PileId } from "./mine-piles";
 import { MAKER_IDS, type MakerId } from "./makers";
 
-/** The Gold rush's end time, in the clocks map. */
-const GOLD_RUSH = "gold-rush";
-
 type LevelId = UpgradeId | RecipeId;
-type ClockId = BoostId | TimerId | typeof GOLD_RUSH;
+type ClockId = BoostId | TimerId;
 
 const LEVEL_IDS: readonly LevelId[] = [
   ...UPGRADES.map((upgrade) => upgrade.id),
@@ -85,7 +82,6 @@ const LEVEL_IDS: readonly LevelId[] = [
 const CLOCK_IDS: readonly ClockId[] = [
   ...BOOSTS.map((boost) => boost.id),
   ...TIMER_IDS,
-  GOLD_RUSH,
 ];
 
 /** The mark kinds, each a list of ids that have happened. */
@@ -99,7 +95,7 @@ const MARK_IDS = {
 type MarkKind = keyof typeof MARK_IDS;
 const MARK_KINDS = Object.keys(MARK_IDS) as readonly MarkKind[];
 
-type RunKey = "generation" | "stretch" | "dug" | "rushBank" | "rock";
+type RunKey = "generation" | "stretch" | "dug" | "rock";
 
 const GAME_KEYS = [
   "owned",
@@ -209,9 +205,6 @@ function levelOf(mountain: Mountain, id: LevelId): number {
 }
 
 function clockOf(mountain: Mountain, id: ClockId): number {
-  if (id === GOLD_RUSH) {
-    return mountain.rushUntil;
-  }
   return id in mountain.boosts
     ? mountain.boosts[id as BoostId]
     : mountain.clocks[id as TimerId];
@@ -248,7 +241,6 @@ function savedRun(mountain: Mountain): NonNullable<SaveGame["run"]> {
     ...only("generation", mountain.legacy, mountain.legacy !== 0),
     ...only("stretch", mountain.stretch, mountain.stretch !== 1),
     ...only("dug", dug, dug !== 0),
-    ...only("rushBank", mountain.rushBank, mountain.rushBank !== 0),
     ...only("rock", mountain.rockDug, mountain.rockDug !== 0),
   };
 }
@@ -455,10 +447,7 @@ function readMarks(value: unknown): Part<Marks> {
   };
 }
 
-type Run = Pick<
-  Mountain,
-  "legacy" | "stretch" | "remaining" | "rushBank" | "rockDug"
->;
+type Run = Pick<Mountain, "legacy" | "stretch" | "remaining" | "rockDug">;
 
 function readStretch(value: unknown): Part<number> {
   if (value === undefined) {
@@ -476,7 +465,6 @@ function readRun(value: unknown): Part<Run> {
       legacy: 0,
       stretch: 1,
       remaining: MOUNTAIN_STONES,
-      rushBank: 0,
       rockDug: 0,
     };
   }
@@ -487,7 +475,7 @@ function readRun(value: unknown): Part<Run> {
     Object.fromEntries(
       Object.entries(value).filter(([key]) => key !== "stretch"),
     ),
-    ["generation", "dug", "rushBank", "rock"] as const,
+    ["generation", "dug", "rock"] as const,
     (id) =>
       id === "generation"
         ? MAX_LEGACY
@@ -500,15 +488,11 @@ function readRun(value: unknown): Part<Run> {
   if (failed !== undefined) {
     return failed;
   }
-  const run = counts as Record<
-    "generation" | "dug" | "rushBank" | "rock",
-    number
-  >;
+  const run = counts as Record<"generation" | "dug" | "rock", number>;
   return {
     legacy: run.generation,
     stretch: stretch as number,
     remaining: MOUNTAIN_STONES - run.dug,
-    rushBank: run.rushBank,
     rockDug: run.rock,
   };
 }
@@ -716,7 +700,7 @@ function readJobs(value: unknown, facts: Part<Facts>): Part<Jobs> {
 
 type Facts = Pick<
   Mountain,
-  "owned" | "stock" | "upgrades" | "crafted" | "boosts" | "clocks" | "rushUntil"
+  "owned" | "stock" | "upgrades" | "crafted" | "boosts" | "clocks"
 >;
 
 /** The four count maps, laid onto the mountain's own fields. */
@@ -753,7 +737,7 @@ function levelCounts(
 
 function clockCounts(
   clocks: Record<ClockId, number>,
-): Pick<Mountain, "boosts" | "clocks" | "rushUntil"> {
+): Pick<Mountain, "boosts" | "clocks"> {
   const boosts: Record<BoostId, number> = { ...NO_BOOSTS };
   for (const boost of BOOSTS) {
     boosts[boost.id] = clocks[boost.id];
@@ -765,7 +749,6 @@ function clockCounts(
   return {
     boosts: boosts satisfies Boosts,
     clocks: timers,
-    rushUntil: clocks[GOLD_RUSH],
   };
 }
 
@@ -861,7 +844,6 @@ export function shippedFacts(): ShippedFacts {
       generation: MAX_LEGACY,
       stretch: MAX_STRETCH,
       dug: MOUNTAIN_STONES,
-      rushBank: Number.MAX_SAFE_INTEGER,
       rock: Number.MAX_SAFE_INTEGER,
     },
     engineerNames: ENGINEER_NAMES,

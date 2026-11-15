@@ -170,7 +170,7 @@ interface ClockGlobals {
 async function installClock(page: Page, clock: PageClock): Promise<void> {
   for (const patch of clockPatches(clock)) {
     if (patch === "skew") {
-      // A clock the check can push forward, for veins and other timed things.
+      // A clock the check can push forward, for timed things.
       await page.evaluateOnNewDocument(() => {
         const realNow = Date.now.bind(Date);
         const g = globalThis as unknown as ClockGlobals;

@@ -96,7 +96,7 @@ export function createLegacyPanel({
   progress: ProgressStore;
   getView: () => ProgressSnapshot;
   board: BoardHost;
-  /** After a new run starts (the screen resets its vein wait). */
+  /** After a new run starts. */
   onPassed: () => void;
   /** Closes whatever offered it (the Ledger or the Legend card). */
   beforeOpen: () => void;

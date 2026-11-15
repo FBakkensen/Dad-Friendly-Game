@@ -79,7 +79,6 @@ export function snapshot(ctx: StoreContext): ProgressSnapshot {
     ready: ready(ctx),
     log: latest === undefined ? undefined : formatLogEvent(latest),
     notices: news.notices,
-    awayGap: news.awayGap,
     homecomings: news.homecomings,
     trouble: activeTrouble(ctx.session),
     playing: canWrite(ctx) && ready(ctx),

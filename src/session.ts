@@ -53,9 +53,6 @@ export const WELCOME_MIN_AWAY_MS = 60 * 1000;
  */
 export const QUIET_AWAY_MS = 5 * 60 * 1000;
 
-/** One settled stretch away: how long, and the moment it was settled. */
-export type AwayGap = { readonly ms: number; readonly at: number };
-
 /**
  * One fitted craft, named once. The screen words it from the mountain at
  * the moment it was fitted, so the number is the one the crew felt then.
@@ -116,7 +113,6 @@ const CARD_KINDS: readonly NoticeKind[] = [...WELCOME_KINDS, "layer", "craft"];
 type SessionNews = {
   /** Every notice not yet shown, in arrival order. */
   readonly notices: readonly Notice[];
-  readonly awayGap: AwayGap | undefined;
   /** The welcome-back card has had its chance this open. */
   readonly welcomed: boolean;
   readonly homecomings: readonly Homecoming[];
@@ -202,7 +198,6 @@ export type Stepped = {
 
 const NO_NEWS: SessionNews = {
   notices: [],
-  awayGap: undefined,
   welcomed: false,
   homecomings: [],
   pending: false,
@@ -407,7 +402,6 @@ function settleAway(
       mountain: moved.mountain,
       hazards: moved.hazards,
       lastSeen: moved.settledAt,
-      news: { ...session.news, awayGap: { ms: report.awayMs, at: now } },
     },
     moved.homecomings,
     out,

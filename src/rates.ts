@@ -240,8 +240,6 @@ function readRates(mountain: Mountain, now?: number, trouble?: Trouble): Rates {
   const bareTap = Math.floor(
     (1 + Math.floor((baseCrew / legacy) * tapShare + 1e-9)) * legacy + 1e-9,
   );
-  // A Gold rush pays held stones on its own (src/gold-rush.ts): they were dug
-  // while away, so the crew's speed never counts them (#525).
   const timer = crewTimer(mountain, now);
   return {
     // Nothing is mined by a tap in a fresh mine (slice 1, What goes, #653).

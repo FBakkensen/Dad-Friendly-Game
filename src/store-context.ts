@@ -15,7 +15,6 @@ import type { Trouble } from "./hazards";
 import type { Mountain } from "./mountain";
 import {
   saveCounts,
-  type AwayGap,
   type Notice,
   type FieldData,
   type Session,
@@ -34,11 +33,6 @@ export type ProgressSnapshot = {
    * Read it with `firstNotice` and `noticesOf`.
    */
   readonly notices: readonly Notice[];
-  /**
-   * The last time away this open settled, and when (#468). A gap of an hour
-   * or more makes the next golden vein a quick one. Not a save field.
-   */
-  readonly awayGap: AwayGap | undefined;
   /**
    * Parties who came home this session and have not been read yet.
    * Not a save field: the expedition already remembered the find.

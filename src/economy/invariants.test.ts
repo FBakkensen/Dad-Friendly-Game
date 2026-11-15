@@ -245,7 +245,6 @@ function wholeCounts(mountain: Mountain): readonly [string, number][] {
     ),
     ["legacy", mountain.legacy],
     ["pocket", mountain.stock.stones],
-    ["rushBank", mountain.rushBank],
     ...Object.entries(mountain.upgrades).map(
       ([id, level]) => [`upgrades.${id}`, level] as [string, number],
     ),

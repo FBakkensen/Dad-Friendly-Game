@@ -50,7 +50,7 @@ describe("field ring", () => {
     const storage = memory();
     expect(readKeptEvents(storage, dad)).toEqual([]);
     const events = [
-      event(1, "vein.tap", { stones: 5 }),
+      event(1, "away.report", { stones: 5 }),
       event(2, "run.start-over"),
     ];
     expect(keepEvents(storage, dad, events)).toBe(true);

@@ -21,7 +21,6 @@ import { upgradeShown, boostShown } from "./upgrade-reveal";
 import { BOOSTS, buyBoost } from "./boosts";
 import { promote } from "./engineers";
 import { workshopUnlocked } from "./workshop";
-import { mineVein } from "./veins";
 
 /** The fresh mine (slice 1, part 1), switched on as a lab run does (#653). */
 const FRESH = { [FRESH_OFF]: 0 };
@@ -134,15 +133,13 @@ describe("one level, no depth (rule 1)", () => {
     });
   });
 
-  it("pays time away in full, and holds nothing back for a Gold rush", () => {
+  it("pays time away in full", () => {
     fresh(() => {
       const crew = owning({ helper: 12, cart: 1 }, 0);
       const speed = effectiveRates(crew).crewPerSecond;
       const away = accrueAway({ mountain: crew, lastSeen: 0, now: 2 * HOUR });
       expect(away.mined).toBe(Math.floor(2 * 3600 * speed * 0.3));
       expect(away.mountain.stock.stones).toBe(away.mined);
-      expect(away.mountain.rushBank).toBe(0);
-      expect(away.report.heldForRush).toBe(0);
       expect(away.mountain.remaining).toBe(MOUNTAIN_STONES);
     });
   });
@@ -168,17 +165,6 @@ describe("nothing is mined by a tap (What goes)", () => {
       expect(effectiveRates(crew).tapYield).toBe(0);
       const dig = applyMove(crew, { kind: "dig" }, 0, { trouble: undefined });
       expect(dig.kind).toBe("refused");
-    });
-  });
-
-  it("a golden vein pays nothing, so its tap is refused", () => {
-    fresh(() => {
-      const crew = owning({ helper: 30, cart: 3 }, 0);
-      expect(mineVein(crew)).toBe(crew);
-      const tap = applyMove(crew, { kind: "tapVein" }, 0, {
-        trouble: undefined,
-      });
-      expect(tap.kind).toBe("refused");
     });
   });
 });

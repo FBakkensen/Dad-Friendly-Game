@@ -7,7 +7,7 @@ import {
 
 /**
  * The board's own controls; the save drawer's buttons join when it is open.
- * The mine window and the vein are the gauge row's (#371). The keys on the
+ * The mine window is the gauge row's (#371). The keys on the
  * rail, and an open drawer's rows, plates and "i" (#373).
  */
 const BOARD_TARGETS = [
@@ -17,7 +17,6 @@ const BOARD_TARGETS = [
   ".board-save-drawer.is-open .board-platebtn",
   ".board-note.on .board-platebtn",
   ".board-window",
-  ".golden-vein",
   ".board-bay",
   ".board-ready",
   ".board-dig-button",
@@ -92,16 +91,10 @@ const BOARD_ART =
  * Visible controls in board px (rendered size / --board-scale): the board's
  * own, and the neighbours they must stand 8px from. A closed sheet, the
  * closed drawer and the parked note are not on screen, so they do not count.
- * With `vein` (a spot in the window's px, as veinSpot gives it) the golden
- * vein is shown there first, in the same page task as the measuring, so the
- * screen's second tick cannot hide it in between.
  */
-async function boardTargets(page, { vein } = {}) {
+async function boardTargets(page) {
   return page.evaluate(
-    (own, neighbours, spot) => {
-      if (spot !== null) {
-        globalThis.__showVein(spot);
-      }
+    (own, neighbours) => {
       const board = globalThis.__board();
       const onScreen = (el) =>
         el.getClientRects().length > 0 &&
@@ -180,17 +173,8 @@ async function boardTargets(page, { vein } = {}) {
     },
     BOARD_TARGETS,
     NEIGHBOURS,
-    vein ?? null,
   );
 }
-
-/**
- * The vein sits on the window as today's vein sat on the rock, so its gap to
- * the window is the one gap the bars do not ask for (#371).
- */
-const veinOnWindow = (pair) =>
-  [pair.a, pair.b].some((name) => name.startsWith(".board-window ")) &&
-  [pair.a, pair.b].some((name) => name.startsWith(".golden-vein "));
 
 /** Pairs closer than 8 board px where at least one is the board's own. */
 function boardGaps({ own, others }) {
@@ -198,8 +182,7 @@ function boardGaps({ own, others }) {
   // A scaled board snaps each box to device pixels, so an 8px gap can read
   // 7.99 board px on a shorter phone: allow a tenth of a pixel.
   return targetsCloserThan([...own, ...others], 7.9).filter(
-    (pair) =>
-      (ownNames.has(pair.a) || ownNames.has(pair.b)) && !veinOnWindow(pair),
+    (pair) => ownNames.has(pair.a) || ownNames.has(pair.b),
   );
 }
 

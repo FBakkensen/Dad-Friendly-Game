@@ -60,9 +60,7 @@ describe("How it works copy", () => {
   });
 
   it("keeps discoveries vague", () => {
-    for (const id of ["recipes", "veins"] as const) {
-      expect(words(id)).not.toMatch(/\d+\s*%|×\d/);
-    }
+    expect(words("recipes")).not.toMatch(/\d+\s*%|×\d/);
   });
 
   it("never prints payback or time-to-afford", () => {

@@ -17,7 +17,6 @@ import {
 } from "./expeditions";
 import type { BoostId } from "./boosts";
 import { formatCompact, formatCount, formatDuration } from "./format";
-import { RUSH_MS } from "./gold-rush";
 import type { LayerId, Materials, MaterialId } from "./layers";
 import type { Mountain } from "./mountain";
 import { AWAY_END_MS, effectiveRates, type Rates } from "./rates";
@@ -439,9 +438,6 @@ export function awayCheerWords(awayMs: number, band: LayerId): string {
       return "While you were gone, the Deep Heart beat slow and steady.";
   }
 }
-
-const tapWords = (stones: number): string =>
-  stones === 1 ? "one stone" : `${formatCount(stones)} stones`;
 
 export const TROUBLE_FIXED = "Fixed! The crew cheers.";
 
@@ -1409,25 +1405,8 @@ export const benchStartedLine = (name: string): string =>
 export const awayDugLine = (stones: number): string =>
   `Came back. The crew dug ${formatCompact(stones)} while you were away.`;
 
-/** "A golden vein gave 4,200 stones." */
-export const veinGaveLine = (stones: number): string =>
-  `A golden vein gave ${tapWords(stones)}.`;
-
 /** "Ada came home." */
 export const cameHomeLine = (name: string): string => `${name} came home.`;
-
-/**
- * The vein's payout note. A quick vein's also names the Gold rush, on a line
- * of its own so the note stays inside the board (Flemming, 11 Nov 2026): the
- * held stones it brings in, never a × on the crew (#525). `held` is 0 for an
- * ordinary vein.
- */
-export function veinWords(reward: number, held: number): string {
-  const paid = `Golden vein! +${formatCount(reward)} ${reward === 1 ? "stone" : "stones"}`;
-  return held > 0
-    ? `${paid}.\nGold rush: ${formatCompact(held)} held stones come in over ${String(RUSH_MS / 1000)} seconds.`
-    : paid;
-}
 
 /**
  * The note on the Pace dial when the crew timer runs out (#527): what
@@ -1435,13 +1414,4 @@ export function veinWords(reward: number, held: number): string {
  */
 export function boostOverWords(name: string, crewPerSecond: number): string {
   return `${name} over.\n${crewMinesWords(crewPerSecond, " a second")} now.`;
-}
-
-/**
- * The welcome card's line for the stones an hour away held for the Gold rush
- * (#468): they pour in over the rush's 90 seconds. Flemming, 11 Nov 2026.
- */
-export function rushHeldWords(held: number): string {
-  // The welcome card's short figures (#508): "474.8K", like the haul above it.
-  return `${formatCompact(held)} of them wait for your Gold rush: watch for the golden vein.`;
 }

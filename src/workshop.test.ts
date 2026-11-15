@@ -55,7 +55,6 @@ import {
   settleBench,
   startCraft,
   troubleGapScale,
-  veinOftenScale,
   workshopUnlocked,
   type RecipeId,
   NOTHING_CRAFTED,
@@ -280,10 +279,11 @@ describe("workshop rules", () => {
       materials: { iron: 5 },
     });
     expect(recipeById("reinforce").maxLevel).toBe(5);
-    expect(recipeById("crystal-flare").effect).toMatchObject({
-      often: 0.25,
+    expect(recipeById("crystal-flare").effect).toEqual({
+      kind: "flare",
       durationMs: 3_600_000,
     });
+    expect(recipeById("crystal-lamp").effect).toEqual({ kind: "none" });
     expect(recipeById("heartstone-ember").effect).toMatchObject({
       bonus: 0.25,
       durationMs: CHARGE_MS,
@@ -508,11 +508,7 @@ describe("workshop rules", () => {
     expect(chargeCrewMultiplier(crew, 1)).toBe(2);
   });
 
-  it("runs a flare and an ember while they are still on the bench", () => {
-    const flare = startCraft(openShed(), "crystal-flare", 1_000);
-    expect(veinOftenScale(flare, 1_000)).toBeCloseTo(1.25);
-    expect(veinOftenScale(flare)).toBe(1);
-    expect(veinOftenScale(flare, 999)).toBe(1);
+  it("runs an ember while it is still on the bench", () => {
     const ember = startCraft(
       { ...openShed(), owned: { ...openShed().owned, helper: 25, machine: 1 } },
       "heartstone-ember",
@@ -763,39 +759,6 @@ describe("workshop rules", () => {
     });
     expect(propped?.gapMs).toBeCloseTo((open?.gapMs ?? 0) / 0.7);
     expect(troubleGapScale(shed)).toBe(1);
-    expect(veinOftenScale(shed)).toBe(1);
-    expect(
-      veinOftenScale({
-        ...BARE_MOUNTAIN,
-        crafted: { ...NOTHING_CRAFTED, "crystal-lamp": 1 },
-      }),
-    ).toBeCloseTo(1.25);
-    expect(
-      veinOftenScale({
-        ...BARE_MOUNTAIN,
-        crafted: { ...NOTHING_CRAFTED, "crystal-flare": 40 },
-      }),
-    ).toBe(1);
-    expect(
-      veinOftenScale(
-        {
-          ...BARE_MOUNTAIN,
-          crafted: { ...NOTHING_CRAFTED, "crystal-flare": 40 },
-          clocks: { ...COLD_CLOCKS, "crystal-flare": 5_000 },
-        },
-        1,
-      ),
-    ).toBeCloseTo(1.25);
-    expect(
-      veinOftenScale(
-        {
-          ...BARE_MOUNTAIN,
-          crafted: { ...NOTHING_CRAFTED, "crystal-flare": 1 },
-          clocks: { ...COLD_CLOCKS, "crystal-flare": 5_000 },
-        },
-        1,
-      ),
-    ).toBeCloseTo(1.25);
     const hour = 3_600_000;
     expect(expeditionAwayMs(hour, BARE_MOUNTAIN)).toBe(hour);
     expect(
@@ -898,15 +861,6 @@ describe("workshop rules", () => {
     const flareSecond = settleBench(flareAgain, flareAgain.bench?.endsAt ?? 0);
     expect(flareSecond.clocks["crystal-flare"]).toBe(600_000 + 3_600_000);
     expect(flareSecond.crafted["crystal-flare"]).toBe(2);
-    expect(
-      veinOftenScale(flareSecond, flareSecond.clocks["crystal-flare"] - 1),
-    ).toBeCloseTo(1.25);
-    expect(
-      veinOftenScale(
-        { ...BARE_MOUNTAIN, clocks: { ...COLD_CLOCKS, "crystal-flare": 5 } },
-        5,
-      ),
-    ).toBe(1);
     const ember = settleBench(
       startCraft(openShed(), "heartstone-ember", 0),
       600_000,
@@ -921,15 +875,12 @@ describe("workshop rules", () => {
       { "recipe.crystal-flare.strength": 2 },
       () => {
         const started = startCraft(openShed(), "crystal-flare", 0);
-        const done = settleBench(started, started.bench?.endsAt ?? 0);
-        return {
-          until: done.clocks["crystal-flare"],
-          veins: veinOftenScale(done, done.clocks["crystal-flare"] - 1),
-        };
+        return settleBench(started, started.bench?.endsAt ?? 0).clocks[
+          "crystal-flare"
+        ];
       },
     );
-    expect(stretched.until).toBe(2 * 3_600_000);
-    expect(stretched.veins).toBeCloseTo(1.5);
+    expect(stretched).toBe(2 * 3_600_000);
   });
 
   it("keeps output under a ceiling after many repeatable crafts", () => {
@@ -1003,9 +954,6 @@ describe("workshop rules", () => {
     expect(recipeWindowMs("blasting-charge")).toBe(CHARGE_MS);
     expect(hotTimers(capped, 1.5)).toEqual([]);
     expect(hotTimers(capped, -1)).toEqual([]);
-    expect(veinOftenScale(mountain, clock)).toBeCloseTo(
-      veinOftenScale(capped, clock),
-    );
     expect(
       accrueAway({ mountain, lastSeen: clock - 5_000, now: clock }).mined,
     ).toBe(

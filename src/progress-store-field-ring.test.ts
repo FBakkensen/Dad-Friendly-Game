@@ -372,7 +372,11 @@ describe("the field log kept on this device (#479)", () => {
     guestPage.dispose();
     // The dad's own evening, kept before this reload.
     keepEvents(storage, dadScope, [
-      { at: "2026-11-11T21:00:00.000Z", code: "vein.tap", data: { stones: 5 } },
+      {
+        at: "2026-11-11T21:00:00.000Z",
+        code: "expedition.return",
+        data: { id: "Ada" },
+      },
     ]);
 
     const auth = createMemoryAuth();
@@ -390,7 +394,7 @@ describe("the field log kept on this device (#479)", () => {
     page.dispatch({ kind: "buyTier", id: "helper" });
     await auth.signIn();
     await Promise.resolve();
-    expect(codes(page.fieldLog().events)).toEqual(["vein.tap"]);
+    expect(codes(page.fieldLog().events)).toEqual(["expedition.return"]);
     // The guest's last purchase was kept before the account took over.
     expect(codes(readKeptEvents(storage, guestScope))).toEqual([
       "tier.buy",

@@ -132,18 +132,6 @@ export function add<T extends { readonly stock: Stock }>(
   return { ...holder, stock: addedStock(holder.stock, gains) };
 }
 
-/**
- * The holder with every line of the price taken out, covered or not. Only
- * for goods the same step has just put in, such as the Gold rush hold on
- * the stones an absence paid. A buy uses `pay`, which refuses.
- */
-export function take<T extends { readonly stock: Stock }>(
-  holder: T,
-  price: Price,
-): T {
-  return { ...holder, stock: addedStock(holder.stock, lines(price, -1)) };
-}
-
 /** The holder with every line of the price put back: a refund. */
 export function refund<T extends { readonly stock: Stock }>(
   holder: T,

@@ -12,7 +12,6 @@ import {
   mineByHand,
   type Mountain,
 } from "./mountain";
-import { mineVein } from "./veins";
 import { serializeSave } from "./persist";
 import { gameOf, reloaded } from "./test-fixtures";
 import { withFactors } from "./economy/factors";
@@ -41,7 +40,6 @@ import {
   upgradeCost,
   NO_UPGRADES,
 } from "./upgrades";
-import { veinReward } from "./veins";
 import {
   RECIPE_IDS,
   recipePrice,
@@ -84,7 +82,6 @@ describe("kid-run stretch (M13, #253)", () => {
       2 * boostCost(sharper, pricing),
     );
     expect(promoteCost(kid)).toBe(2 * promoteCost(createMountain()));
-    expect(veinReward(kid)).toBe(2 * veinReward(createMountain()));
   });
 
   it("opens the Great Machine sooner from run 2 on, and names this run's stones", () => {
@@ -251,21 +248,18 @@ describe("band scales (#356)", () => {
         remaining: MOUNTAIN_STONES - at - 1 / 3,
       };
       for (let step = 0; step < 5_000 && m.remaining > 0; step += 1) {
-        const turn = step % 3;
-        if (turn === 0) {
+        if (step % 2 === 0) {
           m = mineByHand({
             ...m,
             upgrades: { ...NO_UPGRADES, tap: 5 },
             owned: { ...m.owned, helper: 500 },
           });
-        } else if (turn === 1) {
+        } else {
           m = accrueAway({
             mountain: { ...m, owned: { ...m.owned, helper: haul } },
             lastSeen: 0,
             now: 7_000,
           }).mountain;
-        } else {
-          m = mineVein({ ...m, owned: { ...m.owned, helper: 40 } });
         }
         whole(m);
         roundTrips(m);
@@ -458,7 +452,6 @@ describe("the stretch cap keeps every count a safe integer (#366)", () => {
       ),
       ...BOOSTS.map((boost) => boostCost(boost, crew, k)),
       ...RECIPE_IDS.map((id) => priceAmount(recipePrice(id, k), "stones")),
-      veinReward(m),
     ];
   }
 

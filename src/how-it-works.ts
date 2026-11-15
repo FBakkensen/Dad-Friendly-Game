@@ -14,7 +14,6 @@ import { LAYERS } from "./layers";
 import { AWAY_PAY_RATE, AWAY_END_MS, LEGACY_STEP } from "./rates";
 import { tierById } from "./tiers";
 import { STEADY_AWAY_PER_LEVEL, UPGRADES } from "./upgrades";
-import { VEIN_GLINT_MS } from "./veins";
 import { recipeById } from "./workshop";
 
 /**
@@ -62,7 +61,6 @@ export const HOW_SYSTEMS = [
   "staffing",
   "upgrades",
   "boosts",
-  "veins",
   "engineers",
   "tending",
   "expeditions",
@@ -196,10 +194,8 @@ function crewCards({
   };
 }
 
-/** What stones buy for good or for a while, and what the mountain gives back. */
-function spendCards({
-  oneOffStones,
-}: Prices): Cards<"upgrades" | "boosts" | "veins"> {
+/** What stones buy for good or for a while. */
+function spendCards({ oneOffStones }: Prices): Cards<"upgrades" | "boosts"> {
   return {
     upgrades: {
       title: "Upgrades",
@@ -226,18 +222,6 @@ function spendCards({
           "stone",
           "Its timer shows on top while it runs. Buy it again once it ends.",
         ],
-      ],
-    },
-    veins: {
-      title: "Golden veins",
-      reveal: "A golden vein glints now and then. Tap it quick.",
-      steps: [
-        ["gold-nugget", "Now and then a golden vein glints on the mountain."],
-        [
-          "pick",
-          `Tap it within ${formatDuration(VEIN_GLINT_MS)} for a big handful of stones.`,
-        ],
-        ["gold-nugget", "Miss one and another comes along soon."],
       ],
     },
   };

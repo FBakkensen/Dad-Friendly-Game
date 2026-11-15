@@ -41,7 +41,7 @@ const dad = {
 
 const phoneEvent = {
   at: "2026-01-02T03:02:00.000Z",
-  code: "vein.tap",
+  code: "away.report",
   data: { stones: 60 },
 };
 
@@ -118,7 +118,7 @@ describe("field-log reader on the Firestore emulator", () => {
         "fieldLogs/dad: together",
         "Events",
         "  2026-01-02 03:00:00  tier.buy  count=1 id=helper  [account]",
-        "  2026-01-02 03:02:00  vein.tap  stones=60  [phone-de]",
+        "  2026-01-02 03:02:00  away.report  stones=60  [phone-de]",
       ].join("\n"),
     );
   });

@@ -5,7 +5,7 @@ import type { BuyAmount } from "./tiers";
  * The Buys drawer's amount key (#358): one fat key in the head that cycles ×1, ×10 and Max for
  * every row at once. It is pressed through the board's model like the "i", so the second tap of
  * the double tap that opened Buys changes nothing. The amount is a habit of this device's hand,
- * not progress: it is kept beside the vein wait, never in the save, and a store that throws
+ * not progress: it is kept on this device, never in the save, and a store that throws
  * starts at ×1.
  */
 

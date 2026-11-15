@@ -75,12 +75,9 @@ describe("tonightText words each event the field log keeps (#375)", () => {
     );
   });
 
-  it("words the away haul and a vein's stones", () => {
+  it("words the away haul", () => {
     expect(text("away.report", { ms: 3_600_000, stones: 1_234_567 })).toBe(
       "Came back. The crew dug 1.2M while you were away.",
-    );
-    expect(text("vein.tap", { stones: 4_200 })).toBe(
-      "A golden vein gave 4,200 stones.",
     );
   });
 
@@ -151,8 +148,8 @@ describe("tonightText words each event the field log keeps (#375)", () => {
     );
     expect(text("engineer.station", { id: "Nils" })).toBe(undefined);
     expect(text("expedition.send", {})).toBe(undefined);
-    expect(text("vein.tap", {})).toBe(undefined);
-    expect(text("vein.tap", { stones: 0 })).toBe(undefined);
+    // A code from a deleted feature has no line (golden veins, #728).
+    expect(text("vein.tap", { stones: 4_200 })).toBe(undefined);
   });
 
   it("skips an away haul of no stones", () => {

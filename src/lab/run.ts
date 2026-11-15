@@ -1,5 +1,4 @@
 import { applyAction, buyEveryBoost, type Action } from "../economy/actions";
-import { QUICK_VEIN_AWAY_MS, startRush } from "../gold-rush";
 import {
   ENGINEER_POSTS,
   onTrip,
@@ -242,16 +241,6 @@ function tendsAfter(params: PolicyParams, action: Action): boolean {
   );
 }
 
-/**
- * A dad who is there sees the quick vein and taps it: the Gold rush starts and
- * pays the stones the open held back (#468). The lab leaves golden veins out,
- * as it always has: the quick vein is a vein come early, so only its rush is
- * played.
- */
-export function tapQuickVein(world: World): World {
-  return { ...world, mountain: startRush(world.mountain, world.clock) };
-}
-
 function playSecond(
   world: World,
   policy: Policy,
@@ -378,9 +367,7 @@ function playGap(
     );
     world = { ...world, mountain };
   }
-  const back = step(world, gap, "away");
-  // He opens after an hour away and taps the quick vein (#468).
-  return gap >= QUICK_VEIN_AWAY_MS ? tapQuickVein(back) : back;
+  return step(world, gap, "away");
 }
 
 function sendExplorers(

@@ -572,7 +572,6 @@ describe("away earnings", () => {
     expect(progress.getSnapshot().mountain.stock.stones).toBe(5 + 540);
     expect(firstNotice(progress.getSnapshot(), "away")?.report).toEqual({
       mined: 540,
-      heldForRush: 0,
       awayMs: 600_000,
       paidMs: 600_000,
       capped: false,
@@ -677,33 +676,6 @@ describe("away earnings", () => {
     clock += 5 * 60_000;
     progress.tick();
     expect(progress.getSnapshot().mountain.stock.stones).toBe(5 + 3 + 270);
-  });
-
-  it("reports each settled time away, so a long one can bring a quick vein (#468)", () => {
-    const storage = createMemoryStorage();
-    writeSessionSave({ storage, mountain: crew, lastSeen: 0 });
-    let clock = 2 * 60 * 60_000;
-    const progress = createProgressStore({
-      auth: createMemoryAuth(),
-      sessionStorage: storage,
-      now: () => clock,
-    });
-    expect(progress.getSnapshot().awayGap).toEqual({
-      ms: 2 * 60 * 60_000,
-      at: clock,
-    });
-    const opened = progress.getSnapshot().awayGap;
-    // Live ticks are not time away.
-    clock += 1_000;
-    progress.tick();
-    expect(progress.getSnapshot().awayGap).toBe(opened);
-    // The phone locked for fifteen minutes.
-    clock += 15 * 60_000;
-    progress.tick();
-    expect(progress.getSnapshot().awayGap).toEqual({
-      ms: 15 * 60_000,
-      at: clock,
-    });
   });
 
   it("keeps the crew mining after the clock is set back (#116)", () => {
@@ -1421,7 +1393,7 @@ describe("field log", () => {
     expect(progress.fieldLog().events).toEqual(before);
   });
 
-  it("records a vein tap's stones and an away report", () => {
+  it("records an away report", () => {
     const storage = createMemoryStorage();
     writeSessionSave({
       storage,
@@ -1436,15 +1408,10 @@ describe("field log", () => {
       sessionStorage: storage,
       now: () => 120_000,
     });
-    progress.dispatch({ kind: "tapVein" });
 
     const events = progress.fieldLog().events;
-    expect(events.map((event) => event.code)).toEqual([
-      "away.report",
-      "vein.tap",
-    ]);
+    expect(events.map((event) => event.code)).toEqual(["away.report"]);
     expect(events[0]?.data).toEqual({ ms: 120_000, stones: 36 });
-    expect(events[1]?.data).toEqual({ stones: 60 });
   });
 
   it("keeps the old run's events through Start over and a pass, and starts Tonight afresh", async () => {
@@ -5762,19 +5729,6 @@ describe("dispatch (#409)", () => {
       0,
     );
     expect(progress.getSnapshot().mountain.stock.stones).toBe(
-      result.kind === "applied" ? result.gained.stones : -1,
-    );
-  });
-
-  it("logs a vein tap with the stones it gave", () => {
-    const progress = store();
-    progress.applyMutation(() => minedMountain(1_000));
-    const result = progress.dispatch({ kind: "tapVein" });
-    expect(result.kind).toBe("applied");
-    const tap = progress
-      .fieldLog()
-      .events.find((event) => event.code === "vein.tap");
-    expect(tap?.data["stones"]).toBe(
       result.kind === "applied" ? result.gained.stones : -1,
     );
   });

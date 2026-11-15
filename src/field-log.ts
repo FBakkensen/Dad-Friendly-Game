@@ -224,15 +224,6 @@ export function fieldEntry(event: MoveEvent): Omit<FieldEvent, "at"> {
         code: "engineer.station",
         data: { id: event.name, source: event.post },
       };
-    case "veinTapped":
-      return { code: "vein.tap", data: { stones: event.stones } };
-    case "quickVeinTapped":
-      return {
-        code: "vein.tap",
-        data: { stones: event.stones, source: "rush" },
-      };
-    case "rushLanded":
-      return { code: "rush.land", data: { stones: event.stones } };
     case "vehicleBought":
       return {
         code: "vehicle.buy",

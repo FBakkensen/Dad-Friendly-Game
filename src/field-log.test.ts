@@ -195,7 +195,7 @@ describe("EventRing", () => {
       data: { stones: 1_600_000_000 },
     });
     ring.push({ at: "x", code: "away.report", data: { stones: 2e15 } });
-    ring.push({ at: "x", code: "vein.tap", data: { stones: 5 } });
+    ring.push({ at: "x", code: "away.report", data: { stones: 5 } });
     expect(ring.last(3).map((e) => e.data.stones)).toEqual([
       1_600_000_000,
       FIELD_STONES_CAP,
@@ -349,7 +349,7 @@ describe("field log cloud copy", () => {
     expect(
       fieldLogFingerprint({
         snapshot: shot,
-        events: [{ at: "t", code: "vein.tap", data: { stones: 1 } }],
+        events: [{ at: "t", code: "away.report", data: { stones: 1 } }],
       }),
     ).not.toBe(same);
   });
@@ -499,18 +499,6 @@ describe("fieldEntry", () => {
     ).toEqual({
       code: "engineer.station",
       data: { id: "Ada", source: "camp" },
-    });
-    expect(fieldEntry({ kind: "veinTapped", stones: 60 })).toEqual({
-      code: "vein.tap",
-      data: { stones: 60 },
-    });
-    expect(fieldEntry({ kind: "quickVeinTapped", stones: 60 })).toEqual({
-      code: "vein.tap",
-      data: { stones: 60, source: "rush" },
-    });
-    expect(fieldEntry({ kind: "rushLanded", stones: 810 })).toEqual({
-      code: "rush.land",
-      data: { stones: 810 },
     });
   });
 

@@ -349,12 +349,6 @@ export default defineConfig({
           functions: 100,
           lines: 95,
         },
-        "src/veins.ts": {
-          statements: 90,
-          branches: 95,
-          functions: 100,
-          lines: 90,
-        },
         "src/field-log.ts": {
           statements: 100,
           branches: 100,

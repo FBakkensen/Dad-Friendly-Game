@@ -42,16 +42,23 @@ const HARDNESS_LOW = 0.85;
 const HARDNESS_HIGH = 1.15;
 
 const RECIPE_KNOBS: readonly Knob[] = RECIPE_IDS.flatMap((id) => {
-  const name = recipeById(id).name;
+  const { name, effect } = recipeById(id);
+  // Gear with no effect has no strength to turn (the lamp, since #728).
+  const strength: readonly Knob[] =
+    effect.kind === "none"
+      ? []
+      : [
+          {
+            id: `recipe-${id}-strength`,
+            label: `${name} strength`,
+            factor: recipeStrengthId(id),
+            group: "recipe" as const,
+            low: 0.5,
+            high: 2,
+          },
+        ];
   return [
-    {
-      id: `recipe-${id}-strength`,
-      label: `${name} strength`,
-      factor: recipeStrengthId(id),
-      group: "recipe" as const,
-      low: 0.5,
-      high: 2,
-    },
+    ...strength,
     {
       id: `recipe-${id}-cost`,
       label: `${name} cost`,

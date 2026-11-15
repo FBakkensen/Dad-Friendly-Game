@@ -14,8 +14,8 @@ import {
   axleCrewMultiplier,
   recipeById,
   recipePrice,
+  recipeWindowMs,
   troubleGapScale,
-  veinOftenScale,
   COLD_CLOCKS,
   NOTHING_CRAFTED,
   withClock,
@@ -96,14 +96,13 @@ function reading(factorId: string): number {
         return gearMultiplier(geared, effect.tier);
       case "trouble":
         return troubleGapScale(geared);
-      case "veins":
-        return veinOftenScale(geared);
       case "trip":
         return expeditionCraftScale(geared);
       case "charge":
         return chargeCrewMultiplier(geared, 0);
       case "flare":
-        return veinOftenScale(geared, 0);
+        // With the veins gone (#728) its strength only stretches its hour.
+        return recipeWindowMs(id) ?? 0;
       case "ember":
         return emberMachineMultiplier(geared, 0);
       case "reinforce":

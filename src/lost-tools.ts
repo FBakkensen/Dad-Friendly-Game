@@ -3,7 +3,7 @@ import { expeditionCraftScale } from "./workshop";
 
 /**
  * Lost tools (M7 §4). One of each, brought home from below and kept on
- * `mountain.finds`. The effects are applied in `effectiveRates`, `veins`,
+ * `mountain.finds`. The effects are applied in `effectiveRates`,
  * `expeditions`, and (for the boots) `hazards` via `wearsSteelToes`.
  * The engineer's kit shortens the next expedition on top of the worn map.
  * See docs/DESIGN.md.

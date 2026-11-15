@@ -66,7 +66,6 @@ const LEDGER = {
     "axle-grease",
     "crystal-flare",
     "heartstone-ember",
-    "gold-rush",
   ],
   marks: {
     seen: [
@@ -131,7 +130,6 @@ const LEDGER = {
     generation: 1000,
     stretch: 1000000,
     dug: 240000000,
-    rushBank: Number.MAX_SAFE_INTEGER,
     rock: Number.MAX_SAFE_INTEGER,
   },
   engineerNames: ["Ada", "Nils", "Ruth", "Otto", "Mae"],

@@ -35,8 +35,6 @@ describe("the game map (#558)", () => {
       crafted: "levels",
       recipes: "marks",
       clocks: "clocks",
-      rushUntil: "clocks",
-      rushBank: "run",
       seen: "marks",
       taught: "marks",
       fleet: "fleet",
@@ -92,8 +90,6 @@ describe("the game map (#558)", () => {
       crafted: { ...fresh.crafted, "sturdy-props": 1 },
       recipes: [...fresh.recipes, "reinforce"],
       clocks: { ...fresh.clocks, "axle-grease": 3_000, "crystal-flare": 4_000 },
-      rushUntil: 6_000,
-      rushBank: 40,
       seen: ["workshop"],
       taught: ["engineers"],
       fleet: { ...fresh.fleet, horseWagon: 3 },
@@ -284,7 +280,6 @@ describe("the game map (#558)", () => {
       crafted: { ...fresh.crafted, "iron-rails": 1 },
       boosts: { ...fresh.boosts, overtime: 9 },
       clocks: { ...fresh.clocks, "blasting-charge": 7 },
-      rushUntil: 11,
     });
     expect(game.owned).toEqual({ helper: 3, hoist: 1 });
     expect(game.stock).toEqual({ stones: 40 });
@@ -292,7 +287,6 @@ describe("the game map (#558)", () => {
     expect(game.clocks).toEqual({
       overtime: 9,
       "blasting-charge": 7,
-      "gold-rush": 11,
     });
   });
 

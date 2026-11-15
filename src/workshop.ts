@@ -42,7 +42,6 @@ const RAILS_PER_LEVEL = 0.25;
 const BITS_PER_LEVEL = 0.25;
 const CORE_PER_LEVEL = 0.1;
 const PROPS_RARER = 0.3;
-const LAMP_OFTEN = 0.25;
 const KIT_SHORTER = 0.2;
 const CHARGE_MULTIPLIER = 2;
 /** Clay in one Blasting charge, and so the clay that opens the Topsoil bench. */
@@ -55,8 +54,6 @@ const REINFORCE_CAP = 5;
  */
 const AXLE_BONUS = 1;
 export const AXLE_MS = 20 * MINUTE;
-/** Veins this much more often while a crystal flare is hot. */
-const FLARE_OFTEN = 0.25;
 const FLARE_MS = HOUR;
 /** Added to 1 for the Great Machine while a heartstone ember is hot. ×1.25 at strength 1. */
 const EMBER_BONUS = 0.25;
@@ -100,18 +97,16 @@ type TierEffect = {
 type RecipeEffect =
   | TierEffect
   | { readonly kind: "trouble"; readonly rarer: number }
-  | { readonly kind: "veins"; readonly often: number }
+  /** Gear that does nothing: the lamp only brought golden veins, which went (#728). */
+  | { readonly kind: "none" }
   | { readonly kind: "trip"; readonly shorter: number }
   | {
       readonly kind: "charge";
       readonly multiplier: number;
       readonly durationMs: number;
     }
-  | {
-      readonly kind: "flare";
-      readonly often: number;
-      readonly durationMs: number;
-    }
+  /** A live timer with no effect: the flare only brought golden veins (#728). */
+  | { readonly kind: "flare"; readonly durationMs: number }
   | {
       readonly kind: "ember";
       readonly bonus: number;
@@ -218,7 +213,7 @@ const BY_ID: Readonly<Record<RecipeId, Recipe>> = {
     materials: { crystal: 4 },
     craftMs: 10 * MINUTE,
     unlock: "crystal",
-    effect: { kind: "flare", often: FLARE_OFTEN, durationMs: FLARE_MS },
+    effect: { kind: "flare", durationMs: FLARE_MS },
   },
   "crystal-lamp": {
     id: "crystal-lamp",
@@ -228,7 +223,7 @@ const BY_ID: Readonly<Record<RecipeId, Recipe>> = {
     craftMs: HOUR,
     maxLevel: 1,
     unlock: "found",
-    effect: { kind: "veins", often: LAMP_OFTEN },
+    effect: { kind: "none" },
   },
   "engineers-kit": {
     id: "engineers-kit",
@@ -819,41 +814,6 @@ function benchWindow(
     return false;
   }
   return now < bench.startedAt + durationMs;
-}
-
-/**
- * How much more often a golden vein shows. 1 until a lamp is fitted.
- * A hot crystal flare multiplies that while `now` is inside its hour,
- * including the minutes the flare is still on the bench. Leave `now` out,
- * as away pay does, and the flare stays dark.
- */
-export function veinOftenScale(
-  mountain: Pick<Mountain, "crafted" | "clocks" | "bench">,
-  now?: number,
-): number {
-  let scale = 1;
-  for (const recipe of RECIPES) {
-    if (recipe.effect.kind !== "veins") {
-      continue;
-    }
-    const level = effectLevel(recipe, mountain);
-    if (level <= 0) {
-      continue;
-    }
-    scale *= leveled(recipe.effect.often, level, strengthOf(recipe.id));
-  }
-  const flareHot =
-    (now !== undefined && hotAt(mountain.clocks["crystal-flare"], now)) ||
-    benchWindow(
-      mountain,
-      "crystal-flare",
-      Math.round(tuned(FLARE_MS, "crystal-flare")),
-      now,
-    );
-  if (flareHot) {
-    scale *= 1 + tuned(FLARE_OFTEN, "crystal-flare");
-  }
-  return scale;
 }
 
 /**

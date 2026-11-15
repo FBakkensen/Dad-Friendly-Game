@@ -16,8 +16,6 @@ import { UPGRADES, upgradeById, type UpgradeId, NO_UPGRADES } from "./upgrades";
 import {
   awayGoneWords,
   awayMinedWords,
-  rushHeldWords,
-  veinWords,
   boostOverWords,
   crewMinesWords,
   ACCOUNT,
@@ -44,7 +42,6 @@ import {
   signedInWords,
   tierBuyLine,
   upgradeLevelLine,
-  veinGaveLine,
   BROUGHT_HOME,
   FOUND_LABEL,
   KEEPSAKES_TITLE,
@@ -1009,8 +1006,6 @@ describe("the Ledger's words (#375)", () => {
       boostStartedLine("Overtime", 30 * 60_000),
       benchStartedLine("Iron rails"),
       awayDugLine(1_234_567),
-      veinGaveLine(4_200),
-      veinGaveLine(1),
       cameHomeLine("Ada"),
     ];
     expect(lines).toEqual([
@@ -1023,8 +1018,6 @@ describe("the Ledger's words (#375)", () => {
       "Overtime started for 30:00.",
       "Iron rails went on the bench.",
       "Came back. The crew dug 1.2M while you were away.",
-      "A golden vein gave 4,200 stones.",
-      "A golden vein gave one stone.",
       "Ada came home.",
     ]);
     expect(lines.join(" ")).not.toMatch(/\?/);
@@ -1041,28 +1034,12 @@ describe("the welcome card's words (#464)", () => {
     });
     // The board's short figures, never "947.1 thousand" (#508).
     expect(awayMinedWords(947_150).count).toBe("+947.1K");
-    expect(rushHeldWords(474_800)).toBe(
-      "474.8K of them wait for your Gold rush: watch for the golden vein.",
-    );
-    expect(rushHeldWords(3_240)).toBe(
-      "3,240 of them wait for your Gold rush: watch for the golden vein.",
-    );
   });
 
   it("says how long you were gone", () => {
     const report = { awayMs: 9 * 3_600_000, paidMs: 9 * 3_600_000 };
     expect(awayGoneWords(report)).toBe(
       "You were gone 9 hours. Your crew kept digging the whole time.",
-    );
-  });
-});
-
-describe("veinWords (#468, #525)", () => {
-  it("pays a vein, and a quick vein names the held stones its Gold rush brings", () => {
-    expect(veinWords(1, 0)).toBe("Golden vein! +1 stone");
-    expect(veinWords(5_000, 0)).toBe("Golden vein! +5,000 stones");
-    expect(veinWords(5_000, 100_861_200)).toBe(
-      "Golden vein! +5,000 stones.\nGold rush: 100.8M held stones come in over 90 seconds.",
     );
   });
 });

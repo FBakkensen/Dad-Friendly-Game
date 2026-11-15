@@ -86,13 +86,6 @@ import {
   showsDot,
   type TeachId,
 } from "../teach";
-import { releaseRush, rushOwed, startRush } from "../gold-rush";
-import {
-  VEIN_MAX_GAP_MS,
-  VEIN_MIN_GAP_MS,
-  mineVein,
-  veinReward,
-} from "../veins";
 import {
   MAX_CRAFTED_LEVEL,
   cancelCraft,
@@ -104,7 +97,6 @@ import {
   settleBench,
   startCraft,
   troubleGapScale,
-  veinOftenScale,
   recipeOpen,
   workshopUnlocked,
   type RecipeId,
@@ -556,11 +548,6 @@ type ScreenMove =
       readonly id: VehicleId;
       readonly count: number;
     }
-  | { readonly kind: "tapVein" }
-  /** The first vein after an hour away: it pays, then starts a Gold rush (#468). */
-  | { readonly kind: "tapQuickVein" }
-  /** The quick vein's glint went by: the stones held for the rush land now. */
-  | { readonly kind: "missQuickVein" }
   | { readonly kind: "markSeen"; readonly id: TeachId }
   | { readonly kind: "markAllSeen"; readonly ids: readonly TeachId[] };
 
@@ -601,9 +588,6 @@ export type MoveEvent =
       readonly name: EngineerName;
       readonly post: EngineerPost;
     }
-  | { readonly kind: "veinTapped"; readonly stones: number }
-  | { readonly kind: "quickVeinTapped"; readonly stones: number }
-  | { readonly kind: "rushLanded"; readonly stones: number }
   | {
       readonly kind: "vehicleBought";
       readonly id: VehicleId;
@@ -628,7 +612,7 @@ export type MoveEvent =
 
 /**
  * What a move did: applied, with what it took from the stock and what it put in, good by
- * good (each at least 0: a dig's or a vein's stones and materials, a cancelled craft's
+ * good (each at least 0: a dig's stones and materials, a cancelled craft's
  * refund), or refused because it changed nothing.
  */
 export type MoveResult =
@@ -655,12 +639,6 @@ function moved(
   switch (move.kind) {
     case "dig":
       return mineByHand(mountain, now, context.trouble);
-    case "tapVein":
-      return mineVein(mountain);
-    case "tapQuickVein":
-      return startRush(mineVein(mountain), now);
-    case "missQuickVein":
-      return rushOwed(mountain) ? releaseRush(mountain) : mountain;
     case "buyTiers":
       return buyMany(mountain, move.id, move.count);
     case "buyVehicles":
@@ -922,21 +900,6 @@ function moveEvents(
   move: Move,
 ): readonly MoveEvent[] {
   switch (move.kind) {
-    case "tapVein":
-      return [
-        { kind: "veinTapped", stones: next.stock.stones - before.stock.stones },
-      ];
-    case "tapQuickVein":
-      return [
-        {
-          kind: "quickVeinTapped",
-          stones: next.stock.stones - before.stock.stones,
-        },
-      ];
-    case "missQuickVein":
-      return [
-        { kind: "rushLanded", stones: next.stock.stones - before.stock.stones },
-      ];
     case "buyTiers":
       return actionEvents(before, next, { kind: "buyTier", id: move.id });
     case "buyVehicles":
@@ -1401,7 +1364,7 @@ function remainingFraction(
 /**
  * A craft's payback is the usual wait, plus the time the bench is busy
  * before the gear starts paying. Timers are spread the way a boost is.
- * Props, the lamp, and the kit are not a crew rate, so they are expected
+ * Props and the kit are not a crew rate, so they are expected
  * stones over the horizon, the same idea as an expedition find.
  */
 function valueCraft(
@@ -1483,30 +1446,10 @@ function valueCraft(
         benchSec,
       );
     case "flare":
+    case "none":
+      // The flare and the lamp only brought golden veins, which went (#728).
       return withBench(
-        rateValue(
-          mountain,
-          veinGain(mountain, fitted, endsAt, context),
-          stones,
-          horizon,
-          context,
-          timedSpread(
-            context,
-            settledSec(fitted.clocks["crystal-flare"], endsAt),
-            horizon,
-          ),
-        ),
-        benchSec,
-      );
-    case "veins":
-      return withBench(
-        rateValue(
-          mountain,
-          veinGain(mountain, fitted, undefined, context),
-          stones,
-          horizon,
-          context,
-        ),
+        rateValue(mountain, 0, stones, horizon, context),
         benchSec,
       );
     case "trouble":
@@ -1704,7 +1647,7 @@ function timedSpread(
 
 /** Seconds the settled timer runs. Settle writes the clock past `endsAt`. */
 function settledSec(until: number, endsAt: number): number {
-  /* v8 ignore next -- settleBench writes the flare and ember clocks */
+  /* v8 ignore next -- settleBench writes the ember clock */
   if (until <= endsAt) {
     return 0;
   }
@@ -1716,29 +1659,6 @@ function withBench(value: ActionValue, benchSec: number): ActionValue {
     return value;
   }
   return { ...value, paybackSec: value.paybackSec + benchSec };
-}
-
-/** Extra vein stones a second, counted only while the dad is at the mountain. */
-function veinGain(
-  before: Mountain,
-  after: Mountain,
-  now: number | undefined,
-  context: ValueContext,
-): number {
-  return (
-    (veinStonesPerLiveSecond(after, now) -
-      veinStonesPerLiveSecond(before, now)) *
-    liveShare(context)
-  );
-}
-
-function veinStonesPerLiveSecond(
-  mountain: Mountain,
-  now: number | undefined,
-): number {
-  const meanGapSec = (VEIN_MIN_GAP_MS + VEIN_MAX_GAP_MS) / 2 / 1000;
-  const often = veinOftenScale(mountain, now);
-  return (veinReward(mountain) * often) / meanGapSec;
 }
 
 /**

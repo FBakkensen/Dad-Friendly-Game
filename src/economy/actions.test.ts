@@ -1,6 +1,5 @@
 import { EMPTY_STOCK, priceAmount, stonesPrice, UNSHOWN_PRICE } from "../stock";
 import { milestoneMultiplier } from "../milestones";
-import { RUSH_MS } from "../gold-rush";
 import { describe, expect, it } from "vitest";
 import { BOOSTS, boostById, buyBoost, boostLeft, NO_BOOSTS } from "../boosts";
 import { buyCrew } from "../crew";
@@ -1330,14 +1329,15 @@ describe("valueOf", () => {
     expect(
       score(deep, { kind: "craft", recipe: "heartstone-ember" }).gainPerSec,
     ).toBeGreaterThan(0);
+    // The flare and the lamp only brought golden veins, which went (#728).
     expect(
       score(deep, { kind: "craft", recipe: "crystal-flare" }, HORIZON, CASUAL)
         .gainPerSec,
-    ).toBeGreaterThan(0);
+    ).toBe(0);
     expect(
       score(deep, { kind: "craft", recipe: "crystal-lamp" }, HORIZON, quiet)
         .gainPerSec,
-    ).toBeGreaterThan(0);
+    ).toBe(0);
     expect(
       score(deep, { kind: "craft", recipe: "engineers-kit" }).gainPerSec,
     ).toBeGreaterThan(0);
@@ -1547,47 +1547,10 @@ describe("applyMove (#409)", () => {
     expect(gained(caveIn)).toBeLessThan(gained(calmDig));
   });
 
-  it("digs by hand with what it mined, and taps a vein", () => {
+  it("digs by hand with what it mined", () => {
     const dug = applyMove(fresh, { kind: "dig" }, NOW, calm);
     expect(dug.kind === "applied" && dug.gained.stones).toBeGreaterThan(0);
     expect(dug.kind === "applied" && dug.spent.stones).toBe(0);
-    const vein = applyMove(rich, { kind: "tapVein" }, NOW, calm);
-    expect(vein.kind === "applied" && vein.gained.stones).toBeGreaterThan(0);
-  });
-
-  it("pays a quick vein like a vein, then starts a Gold rush", () => {
-    const owed = { ...rich, rushBank: 8_100 };
-    const vein = applyMove(rich, { kind: "tapVein" }, NOW, calm);
-    const quick = applyMove(owed, { kind: "tapQuickVein" }, NOW, calm);
-    expect(quick.kind === "applied" && quick.gained.stones).toBe(
-      vein.kind === "applied" ? vein.gained.stones : -1,
-    );
-    expect(quick.kind === "applied" && quick.mountain.rushUntil).toBe(
-      NOW + RUSH_MS,
-    );
-    expect(quick.kind === "applied" && quick.events).toEqual([
-      {
-        kind: "quickVeinTapped",
-        stones: quick.kind === "applied" ? quick.gained.stones : -1,
-      },
-    ]);
-  });
-
-  it("lands the held stones when the quick vein is missed, once", () => {
-    const owed = { ...rich, rushBank: 8_100 };
-    const missed = applyMove(owed, { kind: "missQuickVein" }, NOW, calm);
-    expect(missed.kind === "applied" && missed.gained.stones).toBe(8_100);
-    expect(missed.kind === "applied" && missed.events).toEqual([
-      { kind: "rushLanded", stones: 8_100 },
-    ]);
-    expect(applyMove(rich, { kind: "missQuickVein" }, NOW, calm).kind).toBe(
-      "refused",
-    );
-    // a rush that has started is not landed early
-    const rushed = { ...owed, rushUntil: NOW + RUSH_MS };
-    expect(applyMove(rushed, { kind: "missQuickVein" }, NOW, calm).kind).toBe(
-      "refused",
-    );
   });
 
   it("marks a sheet seen, and refuses a mark already made", () => {
@@ -1751,14 +1714,7 @@ describe("applyMove (#409)", () => {
     ).toEqual([{ kind: "recalled", name: "Ada", tunnel: "old-shaft" }]);
   });
 
-  it("says what a vein tap gave, and nothing for a dig, a seen mark or a cancelled craft", () => {
-    const vein = applyMove(rich, { kind: "tapVein" }, NOW, calm);
-    expect(vein.kind === "applied" && vein.events).toEqual([
-      {
-        kind: "veinTapped",
-        stones: vein.kind === "applied" ? vein.gained.stones : -1,
-      },
-    ]);
+  it("says nothing for a dig, a seen mark or a cancelled craft", () => {
     expect(eventsOf(fresh, { kind: "dig" })).toEqual([]);
     expect(eventsOf(fresh, { kind: "markSeen", id: "workshop" })).toEqual([]);
     const crafting = applyMove(
