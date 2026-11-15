@@ -5,7 +5,7 @@ Spec: `docs/superpowers/specs/2026-11-14-slice-1-design.md`: "The mine" (a tap o
 ## Rulings (agent-run sitting)
 
 1. **Where it lives.** A stage's list is a sheet over the frame, in the workforce's form (`frame-sheet`), opened by a tap on a stage's row in the mine. The game runs on behind it, and Close shuts it. The row's words are a button for the tap; its − and + stay keys of their own. `stage-list-view` (new: it is a new screen) holds the pure view, and `stage-sheet` the DOM. It changes the game only through `progress.dispatch`.
-2. **Its head** has the stage's name, the row in one sentence ("Moves 18/s of 18/s: 6 with barrows 18/s."), and the amount key, which is the frame's one amount key.
+2. **Its head** has the stage's name and the amount key, then what the stage moves of what it can move over the row's band ("Moves 210/s of 378/s"), and a line for each part of who works with what, its moves at the right ("6 carts · 6 of 6 workers · 360/s", "3 with barrows · 18/s"), adding up to what it can move. Flemming asked for this in place of one line of text (15 Nov 2026, 14:10Z). A screen reader hears the row in one sentence.
 3. **Its machines.** Each kind of machine of the stage in play (one each in part 1: the drill, the cart, the hoist): its name with the count he owns ("Mine carts · 4 owned"), its next ownership mark with its progress ("4 of 10 · Every cart hauls twice as fast."), or "Twice as fast now." past the last, and a key in the mine keys' form ("+Cart · 60/s", its price, "1 to run") that follows the amount key. One key mechanism: `machineKey` (`mine-view`), which the mine's keys use too.
 4. **Its upgrades.** Each upgrade the game shows (`upgradeShown`) whose synergy lifts a machine of the stage: Helping hands on haulage, Cart roads on drilling. A row has its name, what it does in numbers (`upgradeEffectLine`), its second line (`upgradeWhyLine`), and a key with its price, green when he can pay; once bought it reads "Owned". An upgrade that has not opened is not shown, as today.
 5. **No gear, engineer or trouble in part 1.** Gear is made in the factory (part 3), and engineers and trouble by stage are #539 (part 3). The list shows nothing for them.
@@ -15,8 +15,10 @@ Spec: `docs/superpowers/specs/2026-11-14-slice-1-design.md`: "The mine" (a tap o
    - Better boots: "Workers with a tool 3/s to 7.1/s." and "Picks, barrows and winches go faster. Machines, drivers and builders do not."
    - Helping hands becomes "Cart helpers": "Carts 60/s to 63/s." and "Each worker on haulage makes carts 1% faster."
    - The hoist's marks, worded as the cart's ("Ten hoists at the shaft. Every hoist lifts twice as fast."), shown for the first time.
-     The lines are Flemming's: asked as one question with pictures before they are shown.
-9. **One of each mechanism.** The effect and why lines are `screen-words`' (a fresh mine's words beside today's), the marks are `nextMark` (`milestones`), the machine key is `machineKey`, the buy is `tierBuyMove` and `buyUpgrade`, the sheet is the workforce's CSS.
+   - The workers' first mark: "Every worker with a tool works twice as fast." (it was "Every worker digs twice as fast.").
+     Flemming said A, yes to all four as shown, on 15 Nov 2026 (14:11Z).
+9. **One of each mechanism.** The upgrade row is today's `upgradeRowView` (`upgrade-rows`), which now takes its name from `upgradeName`; the effect and why lines are `screen-words`' (a fresh mine's words beside today's); the mark line is `markLine` (`milestones`); the machine key is `machineKey` (`mine-view`) and its DOM `buildMachineKey` / `paintMachineKey` (`mine-site`); the buy is `tierBuyMove` and `buyUpgrade` at the price on the key (#367); the sheet is the workforce's CSS.
+10. **The lamps count at ×1** (review, Minor). At ×10 a row can be lit while its "+10" key is dark. Next's count is "every buy he can afford now", and the amount key is in the list's head, so a lit row always has a buy one tap away.
 
 ## Tasks
 
