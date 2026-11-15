@@ -4,6 +4,7 @@ import { withFactors } from "./economy/factors";
 import { FRESH_OFF } from "./line-switch";
 import { workersView } from "./frame-view";
 import { createMountain, type Mountain } from "./mountain";
+import { crewedStart } from "./test-fixtures";
 import {
   LINE_STANDS,
   NOTHING_TO_BUY,
@@ -21,9 +22,9 @@ function withStones(mountain: Mountain, stones: number): Mountain {
   return { ...mountain, stock: { ...mountain.stock, stones } };
 }
 
-/** A fresh mine with the Light Tower ordered and this many stones. */
+/** A fresh mine with the crew of 21, the Light Tower ordered and this many stones. */
 function ordered(stones: number): Mountain {
-  return withStones(placeOrder(createMountain()), stones);
+  return withStones(placeOrder(crewedStart()), stones);
 }
 
 describe("next view", () => {

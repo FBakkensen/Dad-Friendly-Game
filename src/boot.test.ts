@@ -112,7 +112,7 @@ describe("createAppServices", () => {
       expect(auth.getState()).toMatchObject({ user: { uid: "dev-slice" } });
       expect(firebaseStubs.auth).not.toHaveBeenCalled();
       expect(freshMineOn()).toBe(true);
-      expect(progress.getSnapshot().mountain.jobs.building).toBe(2);
+      expect(progress.getSnapshot().mountain.jobs.drilling).toBe(1);
       progress.dispose();
     } finally {
       holdFactors({});

@@ -64,3 +64,26 @@ export function patched(base: Mountain, patch: MountainPatch): Mountain {
     stock: { ...base.stock, ...patch.stock },
   };
 }
+
+/** The crew a fresh mine started with before #703: six on each stage, one driver, two builders. */
+export const CREWED_JOBS = {
+  drilling: 6,
+  haulage: 6,
+  hoisting: 6,
+  driving: 1,
+  building: 2,
+} as const;
+
+/**
+ * A fresh mine's start with that crew of 21 placed: the tests of the views
+ * and the moves that need a working line start from it, since the game
+ * starts with one worker (#703). Call it with the fresh mine on.
+ */
+export function crewedStart(): Mountain {
+  const start = createMountain();
+  return {
+    ...start,
+    owned: { ...start.owned, helper: 21 },
+    jobs: CREWED_JOBS,
+  };
+}

@@ -8,6 +8,7 @@ import { FRESH_OFF } from "./line-switch";
 import { createMemoryStorage } from "./mountain-screen.harness";
 import type { Mountain } from "./mountain";
 import { createProgressStore } from "./progress-store";
+import { CREWED_JOBS } from "./test-fixtures";
 import { NO_FREE_WORKER } from "./workforce-view";
 
 /** Slice 1's frame and its workforce, on the DOM (#659). */
@@ -33,7 +34,14 @@ function mount(change: (mountain: Mountain) => Mountain = (m) => m) {
     sessionStorage: createMemoryStorage(),
     cloudWriteGapMs: 0,
   });
-  progress.applyMutation(change);
+  // The screens are read with the crew of 21 the tests were written for (#703).
+  progress.applyMutation((start) =>
+    change({
+      ...start,
+      owned: { ...start.owned, helper: 21 },
+      jobs: CREWED_JOBS,
+    }),
+  );
   const screen = mountFrameScreen({
     root,
     auth,

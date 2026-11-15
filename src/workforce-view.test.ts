@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { withFactors } from "./economy/factors";
 import { FRESH_OFF } from "./line-switch";
-import { createMountain, type Mountain } from "./mountain";
+import type { Mountain } from "./mountain";
+import { crewedStart } from "./test-fixtures";
 import { NO_FREE_WORKER, workforceView } from "./workforce-view";
 
 /** The workforce's jobs (slice 1, #659). */
@@ -18,7 +19,7 @@ function notes(mountain: Mountain): Record<string, string> {
 describe("workforce view", () => {
   it("lists every open job, grouped by site, with its count", () => {
     fresh(() => {
-      const view = workforceView(createMountain());
+      const view = workforceView(crewedStart());
       expect(view.owned).toBe(21);
       expect(view.free).toBe(0);
       expect(
@@ -48,7 +49,7 @@ describe("workforce view", () => {
 
   it("says what each job's workers run on the first evening", () => {
     fresh(() => {
-      expect(notes(createMountain())).toEqual({
+      expect(notes(crewedStart())).toEqual({
         Drilling: "6 with picks",
         Haulage: "6 with barrows",
         Hoisting: "6 on winches",
@@ -60,7 +61,7 @@ describe("workforce view", () => {
 
   it("counts the machines that run of the ones he owns, then the tools", () => {
     fresh(() => {
-      const start = createMountain();
+      const start = crewedStart();
       const carts: Mountain = {
         ...start,
         owned: { ...start.owned, cart: 3, helper: 14 },
@@ -78,7 +79,7 @@ describe("workforce view", () => {
 
   it("shows a machine short of workers beside the tools", () => {
     fresh(() => {
-      const start = createMountain();
+      const start = crewedStart();
       const short: Mountain = {
         ...start,
         owned: { ...start.owned, cart: 3 },
@@ -90,7 +91,7 @@ describe("workforce view", () => {
 
   it("offers + only with a free worker, and − only with one on the job", () => {
     fresh(() => {
-      const start = createMountain();
+      const start = crewedStart();
       const none = workforceView({
         ...start,
         jobs: { ...start.jobs, building: 0 },

@@ -8,7 +8,9 @@ import {
   type Action,
 } from "../economy/actions";
 import { STAGES, type Stage } from "../line";
+import { PILE_HOLDS, mineChain } from "../mine-piles";
 import type { Mountain } from "../mountain";
+import { chainFlows } from "../piles";
 import { effectiveRates } from "../rates";
 import { TIERS, tierInPlay, type Tier } from "../tiers";
 import {
@@ -45,6 +47,9 @@ import {
  * back sooner than the building would take. He reads the limits the rules
  * work out, though the page names none. One plan is a short list of moves
  * that go together: a machine, the workers it takes, and their places.
+ * Rock waits in piles between the stages (#703), so he moves a worker whose
+ * stage stands to the stage whose pile lets him move rock, as the lone
+ * worker of the first evening must be moved.
  */
 
 /** Moves that go together, applied in order. Empty: nothing to do now. */
@@ -247,25 +252,109 @@ export function siteIdle(mountain: Mountain): boolean {
   );
 }
 
-/** A free worker's place: an idle vehicle, the builders, else the slowest stage. */
+/** Share of a pile's room that its rock fills; a pile with no room is never chosen. */
+function pileShare(held: number, holds: number): number {
+  return holds > 0 ? held / holds : 0;
+}
+
+/**
+ * The stage whose pile lets a worker move rock (#703): the stage after the
+ * fuller pile, hoisting on a tie, else drilling while both piles are empty.
+ * A full shaft pile sends him to hoisting and a full face pile, with room
+ * at the shaft, to haulage.
+ */
+export function pileStage(mountain: Mountain): Stage {
+  const { face, shaft } = mountain.piles;
+  const shaftShare = pileShare(shaft, PILE_HOLDS.shaft);
+  if (shaft > 0 && shaftShare >= pileShare(face, PILE_HOLDS.face)) {
+    return "lift";
+  }
+  return face > 0 ? "haul" : "face";
+}
+
+/** He sets drivers and builders once an order is in: the dad who sets them once, or anyone while it delivers. */
+function keepsJobs(mountain: Mountain, habits: FreshHabits): boolean {
+  const project = mountain.project.kind;
+  return (
+    project !== "unordered" &&
+    (habits.moves === "once" || project === "delivering")
+  );
+}
+
+/** A free worker's place: an idle vehicle, the builders, else where rock waits. */
 function placeFree(mountain: Mountain, habits: FreshHabits): Plan {
-  const delivering = mountain.project.kind === "delivering";
-  const keepsJobs = habits.moves === "once" || delivering;
-  if (keepsJobs && mountain.jobs.driving < fleetSize(mountain)) {
+  const keeps = keepsJobs(mountain, habits);
+  if (keeps && mountain.jobs.driving < fleetSize(mountain)) {
     return [{ kind: "placeWorker", job: "driving", count: 1 }];
   }
-  const now = lineNow(mountain);
-  if (keepsJobs && mountain.jobs.building < 1) {
+  if (keeps && mountain.jobs.building < 1) {
     return [{ kind: "placeWorker", job: "building", count: 1 }];
   }
   if (
     habits.moves === "idle" &&
-    delivering &&
-    mountain.jobs.building < buildersWanted(mountain, now.line)
+    mountain.project.kind === "delivering" &&
+    mountain.jobs.building < buildersWanted(mountain, lineNow(mountain).line)
   ) {
     return [{ kind: "placeWorker", job: "building", count: 1 }];
   }
-  return [{ kind: "placeWorker", job: STAGE_JOB[slowestStage(now)], count: 1 }];
+  return [
+    { kind: "placeWorker", job: STAGE_JOB[pileStage(mountain)], count: 1 },
+  ];
+}
+
+/**
+ * A driver for the wagon and one builder once an order is in and the line
+ * moves (a worker on every stage), hired when no worker is free. Before the
+ * line moves, the wagon would carry off every stone the lone worker brings
+ * up, and he could never hire the next. A dad who never holds also waits
+ * while the driver would let the order take more than half of what the
+ * mine makes.
+ */
+function orderCrew(
+  mountain: Mountain,
+  habits: FreshHabits,
+): Priced | undefined {
+  if (!keepsJobs(mountain, habits) || lineNow(mountain).line <= FRESH_DUST) {
+    return undefined;
+  }
+  const job: JobId | undefined =
+    mountain.jobs.driving < Math.min(1, fleetSize(mountain))
+      ? "driving"
+      : mountain.jobs.building < 1
+        ? "building"
+        : undefined;
+  if (job === undefined) {
+    return undefined;
+  }
+  const crew = staffed(mountain, job, freeWorkers(mountain));
+  const after = applied(funded(mountain), crew.plan);
+  return habits.hold === "never" && drainsTheMine(after, lineNow(after).line)
+    ? undefined
+    : crew;
+}
+
+/**
+ * One worker from a stage that stands, with workers on it and no rock to
+ * move or no room to put it (#703), to the stage whose pile lets him move
+ * rock. Each move is one worker, so the stage he leaves keeps the rest
+ * while it moves rock again.
+ */
+function pileMove(mountain: Mountain): Plan {
+  const chain = mineChain(mountain, 1, true);
+  const flows = chainFlows(chain);
+  const rates = chain.rates;
+  const to = pileStage(mountain);
+  for (const [index, from] of STAGES.entries()) {
+    const stands =
+      (rates[index] ?? 0) > FRESH_DUST && (flows[index] ?? 0) <= FRESH_DUST;
+    if (stands && from !== to && mountain.jobs[STAGE_JOB[from]] > 0) {
+      return [
+        { kind: "freeWorker", job: STAGE_JOB[from], count: 1 },
+        { kind: "placeWorker", job: STAGE_JOB[to], count: 1 },
+      ];
+    }
+  }
+  return [];
 }
 
 /** The stage a worker can leave for another job at the least cost to the line. */
@@ -286,14 +375,31 @@ function stageToFree(mountain: Mountain): Stage | undefined {
   return best?.stage;
 }
 
+/** The line still moves rock with one worker fewer on this stage: he never takes the mine's last. */
+function spares(mountain: Mountain, stage: Stage): boolean {
+  const job = STAGE_JOB[stage];
+  return (
+    lineNow(applied(mountain, [{ kind: "freeWorker", job, count: 1 }])).line >
+    FRESH_DUST
+  );
+}
+
 /** Stages at the line's level: fewer is closer to the next raise. */
 function atLine(now: LineNow): number {
   return STAGES.filter((stage) => now.stages[stage] <= now.line + FRESH_DUST)
     .length;
 }
 
-/** One worker from a stage with more than the line needs to the slowest, when the line is better for it. */
-function rebalance(mountain: Mountain): Plan {
+/**
+ * A worker whose stage stands to where rock waits, for every dad (#703).
+ * The mover also moves one from a stage with more than the line needs to
+ * the slowest, when the line is better for it.
+ */
+function rebalance(mountain: Mountain, habits: FreshHabits): Plan {
+  const piled = pileMove(mountain);
+  if (piled.length > 0 || habits.moves !== "idle") {
+    return piled;
+  }
   const now = lineNow(mountain);
   const to = slowestStage(now);
   for (const from of STAGES) {
@@ -320,7 +426,7 @@ function rebalance(mountain: Mountain): Plan {
  * the mine, they come back when the order delivers, and a stage's workers
  * the line does not need go to the slowest stage.
  */
-function moverPlan(mountain: Mountain): Plan {
+function moverPlan(mountain: Mountain, habits: FreshHabits): Plan {
   const delivering = mountain.project.kind === "delivering";
   if (!delivering && mountain.jobs.driving > 0) {
     return [{ kind: "freeWorker", job: "driving", count: 1 }];
@@ -329,7 +435,7 @@ function moverPlan(mountain: Mountain): Plan {
     return [{ kind: "freeWorker", job: "building", count: 1 }];
   }
   const restore = delivering ? restoreStep(mountain) : [];
-  return restore.length > 0 ? restore : rebalance(mountain);
+  return restore.length > 0 ? restore : rebalance(mountain, habits);
 }
 
 /** A worker from the mine onto an idle vehicle, or onto the builders when they are short. */
@@ -342,7 +448,7 @@ function restoreStep(mountain: Mountain): Plan {
         ? "building"
         : undefined;
   const from = short === undefined ? undefined : stageToFree(mountain);
-  return short === undefined || from === undefined
+  return short === undefined || from === undefined || !spares(mountain, from)
     ? []
     : [
         { kind: "freeWorker", job: STAGE_JOB[from], count: 1 },
@@ -479,8 +585,9 @@ function covers(mountain: Mountain, priced: Priced, hoardK: number): boolean {
 
 /**
  * This dad's next plan, or none. Order, then place the free workers, then
- * (the mover) move the idle ones, then buy what the order's limit or the
- * line wants, then hold or resume.
+ * move a worker whose stage stands (and, the mover, the idle ones), then
+ * hire the order's driver and builder, then buy what the order's limit or
+ * the line wants, then hold or resume.
  */
 export function freshPlan(
   mountain: Mountain,
@@ -496,11 +603,16 @@ export function freshPlan(
   if (freeWorkers(mountain) > 0) {
     return placeFree(mountain, habits);
   }
-  if (habits.moves === "idle") {
-    const moved = moverPlan(mountain);
-    if (moved.length > 0) {
-      return moved;
-    }
+  const moved =
+    habits.moves === "idle"
+      ? moverPlan(mountain, habits)
+      : rebalance(mountain, habits);
+  if (moved.length > 0) {
+    return moved;
+  }
+  const crew = orderCrew(mountain, habits);
+  if (crew !== undefined && covers(mountain, crew, hoardK)) {
+    return crew.plan;
   }
   const fix = orderFix(mountain, habits);
   if (fix !== undefined && paysForItself(mountain, fix)) {

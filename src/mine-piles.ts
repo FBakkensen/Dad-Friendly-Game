@@ -22,11 +22,14 @@ export type PileId = (typeof PILE_IDS)[number];
 export type MinePiles = Readonly<Record<PileId, number>>;
 
 /**
- * Each pile's room: a first guess the lab sets (#703, Task 4). A pile over
+ * Each pile's room, as the lab set it (#703): a hundred seconds of the
+ * lone worker's drilling, so his first stone comes up in under four
+ * minutes and the casual dad raises the Light Tower's roof on day 2. A
+ * larger room (500 and up) slows every player type's start. A pile over
  * its room is full and never emptied by a lower one (ruling 2), so this may
  * change with no version bump.
  */
-export const PILE_HOLDS: MinePiles = { face: 500, shaft: 500 };
+export const PILE_HOLDS: MinePiles = { face: 300, shaft: 300 };
 
 /**
  * Each stage's own speed, kept per answer of `effectiveRates`: a night

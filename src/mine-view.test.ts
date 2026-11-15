@@ -11,6 +11,7 @@ import {
   stageRows,
 } from "./mine-view";
 import { createMountain, type Mountain } from "./mountain";
+import { crewedStart } from "./test-fixtures";
 import { effectiveRates } from "./rates";
 
 /** The mine's views (#660), on a fresh mine. */
@@ -161,7 +162,7 @@ describe("a stage's row", () => {
 
   it("says what each stage moves now of what it can move, and its workers", () => {
     fresh(() => {
-      const mountain = createMountain();
+      const mountain = crewedStart();
       const rows = stageRows(mountain);
       const rates = effectiveRates(mountain);
       expect(rows.map((row) => row.name)).toEqual([
@@ -238,7 +239,7 @@ describe("the level's plate and the scene", () => {
 
   it("shows an even line with no piles and every worker busy", () => {
     fresh(() => {
-      const scene = mineScene(createMountain());
+      const scene = mineScene(crewedStart());
       expect(scene.moving).toBe(true);
       expect(scene.facePile).toBe(0.5);
       expect(scene.shaftPile).toBe(0.5);
@@ -250,7 +251,7 @@ describe("the level's plate and the scene", () => {
 
   it("piles rock where it waits and stands the workers who wait", () => {
     fresh(() => {
-      const start = createMountain();
+      const start = crewedStart();
       const scene = mineScene({
         ...start,
         jobs: { ...start.jobs, hoisting: 1 },
@@ -272,7 +273,7 @@ describe("the level's plate and the scene", () => {
 
   it("stands the line when a stage has nobody", () => {
     fresh(() => {
-      const start = createMountain();
+      const start = crewedStart();
       const scene = mineScene({
         ...start,
         jobs: { ...start.jobs, hoisting: 0 },

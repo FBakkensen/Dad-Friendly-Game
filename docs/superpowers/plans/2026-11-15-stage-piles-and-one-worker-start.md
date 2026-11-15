@@ -191,3 +191,26 @@
 - [ ] **Step 3: Commit** `M15-28: The spec says every part runs on its own`.
 
 ## Ledger (filled in while building)
+
+### Task 4: the start, the dad's moves, and the lab's numbers
+
+- **The start** (ruling 7): one worker, on drilling; `owned.helper` 1; the horse wagon given (`givenFleet`); nobody driving or building. Tests that read the old 21-worker start for a working line now build it with `crewedStart()` / `CREWED_JOBS` (`src/test-fixtures.ts`); the tests of the start itself (`fresh-mine`, `workforce`, `transport`, `boot`) say one worker.
+- **The dad's move rule** (`pileMove` inside `rebalance`, every player type): a stage with workers that stands (its own rate above 0, its chain flow 0: no rock in front or no room after) gives one worker to `pileStage`: hoisting when the shaft pile is at least as full (by share of its room) as the face pile and holds rock, else haulage when the face pile holds rock, else drilling. So a full face pile sends him to haulage, a full shaft pile to hoisting, and two empty piles to drilling. One worker a move, so a stage keeps the rest once it moves rock again, and a live second settles (the fresh sim's check that a sample second's plan is empty holds). The mover's line move runs after it, as before.
+- **A free worker** (`placeFree`): an idle wagon, then a builder (only once an order is in), else `STAGE_JOB[pileStage]`: the stage after the fuller pile, else drilling. While both piles are empty, drilling is the slowest stage anyway (any slower stage would have filled the pile before it). The #655 test "then the slowest stage" now gives the face pile the rock that a short haulage piles there.
+- **The order's driver and builder** (`orderCrew`, new step after the moves): once an order is in and the line moves (a worker on every stage), he hires a driver for the wagon and one builder when no worker is free. Before the line moves, the wagon would carry off every stone the lone worker brings up and he could never hire again (the first lab run stalled the casual dad that way). A dad who never holds also waits while the driver would let the order take more than half the mine. The mover's `restoreStep` never takes the mine's last line (`spares`), for the same reason.
+- **`PILE_HOLDS` = 300 / 300** (was the first guess 500 / 500). Fresh lab, `npm run lab -- --factors fresh.off=0`, roof day by pile room (3 seeds; 300 confirmed on 20):
+
+  | Room | casual | mover | no-hold | checker | check-in | evening | five-min | marathon |
+  | ---- | ------ | ----- | ------- | ------- | -------- | ------- | -------- | -------- |
+  | 100  | 2.0    | 2.0   | 2.0     | 1.99    | 2.24     | 3       | 3        | 1.1      |
+  | 250  | 2.0    | 2.0   | 2.0     | 1.99    | 2.41     | 3       | 4        | 1.1      |
+  | 300  | 2.0    | 2.0   | 2.0     | 2.11    | 2.43     | 3       | 4        | 1.1      |
+  | 400  | 2.0    | 2.0   | 2.0     | 2.1     | 2.91     | 3       | 4        | 1.1      |
+  | 500  | 2.5    | 3.0   | 2.5     | 2.1     | 2.91     | 4       | 5        | 1.1      |
+  | 1000 | 3.0    | 2.5   | 2.5     | 2.05    | 2.49     | 3       | 5        | 1.1      |
+  | 2000 | 3.5    | 3.0   | 3.0     | 2.16    | 2.49     | 3       | 5        | 1.11     |
+
+  300 puts the casual dad on day 2 (#655's mark, 2 to 2.5), keeps every type within a day of its 21-worker pace, starves nobody (400 and 500 starve the check-in dad, 0.02), and leaves no casual sitting without a buy (500: a third of them). The mover is no faster than the casual dad (risk 11: the chore pays nothing). 100 is a little faster still but moves the lone worker more (casual 56 taps a sitting against 45). Measures at 300, 20 seeds: workerMoves casual 45.5, mover 56, no-hold 44, checker 20.3, check-in 18.4, evening 85.5, five-min 27, marathon 294; idleWorkers 0.24 to 0.60 (was 0.01 to 0.27: drivers and builders stand on hold for longer while the line grows from one worker); `starved`, `siteFull` and `idleMachines` 0 for every type; transportLimit 0.69 to 1.0.
+
+- **The Light Tower's night shift output stays 45%.** A part 1 run ends at the Light Tower's roof (`runDone`), so the lab never plays a night with it lit, and no measure can set it yet. It is weighed when part 2's lab plays past the roof.
+- **No guardrail moved or was crossed**: a fresh run judges none (`tools/strategy-lab.ts`), and today's game is unchanged, so the pacing ledger and the generations lab do not move (`npm run lab:generations -- --ci`: every run-length rule passes, nothing never bought, casual 4.00 to 25.00 days over eight runs).

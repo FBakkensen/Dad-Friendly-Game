@@ -5,7 +5,8 @@ import { withFactors } from "../economy/factors";
 import { FRESH_OFF } from "../line-switch";
 import { createMountain, type Mountain } from "../mountain";
 import { effectiveRates } from "../rates";
-import { NO_JOBS, type Jobs } from "../workforce";
+import { PILE_HOLDS } from "../mine-piles";
+import { NO_JOBS, type JobId, type Jobs } from "../workforce";
 import {
   bestRaise,
   drainsTheMine,
@@ -28,10 +29,10 @@ const ONCE: FreshHabits = { moves: "once", hold: "on-value", upgrades: false };
 const MOVER: FreshHabits = { ...ONCE, moves: "idle" };
 const NO_HOLD: FreshHabits = { ...ONCE, hold: "never" };
 
-/** A fresh mine with these jobs, `free` workers on none, this pocket and wagons. */
+/** A fresh mine with these jobs, `free` workers on none, this pocket, wagons and piles. */
 function mine(
   jobs: Partial<Jobs>,
-  { free = 0, pocket = 0, wagons = 1 } = {},
+  { free = 0, pocket = 0, wagons = 1, face = 0, shaft = 0 } = {},
 ): Mountain {
   const start = createMountain();
   const placed = { ...NO_JOBS, ...jobs };
@@ -42,7 +43,16 @@ function mine(
     jobs: placed,
     stock: { ...start.stock, stones: pocket },
     fleet: { ...start.fleet, horseWagon: wagons },
+    piles: { face, shaft },
   };
+}
+
+/** One worker moved from one job to another. */
+function move(from: JobId, to: JobId): Plan {
+  return [
+    { kind: "freeWorker", job: from, count: 1 },
+    { kind: "placeWorker", job: to, count: 1 },
+  ];
 }
 
 const STAGES = { drilling: 6, haulage: 6, hoisting: 6 };
@@ -64,7 +74,7 @@ describe("the fresh dad's first moves (#655)", () => {
     });
   });
 
-  it("puts a free worker on an idle wagon, then a builder, then the slowest stage", () => {
+  it("puts a free worker on an idle wagon, then a builder, then where rock waits", () => {
     fresh(() => {
       const idleWagon = placeOrder(
         mine({ ...STAGES, building: 2 }, { free: 1 }),
@@ -78,14 +88,129 @@ describe("the fresh dad's first moves (#655)", () => {
       expect(freshPlan(noBuilder, ONCE, 1)).toEqual([
         { kind: "placeWorker", job: "building", count: 1 },
       ]);
+      // Haulage is short, so rock waits at the face (#703).
       const short = placeOrder(
         mine(
           { drilling: 6, haulage: 4, hoisting: 6, driving: 1, building: 2 },
-          { free: 1 },
+          { free: 1, face: 300 },
         ),
       );
       expect(freshPlan(short, ONCE, 1)).toEqual([
         { kind: "placeWorker", job: "haulage", count: 1 },
+      ]);
+    });
+  });
+});
+
+describe("one worker at the start, moved between the jobs (#703)", () => {
+  it("moves the lone worker to the stage whose pile lets him move rock", () => {
+    fresh(() => {
+      const full = PILE_HOLDS.face;
+      // The face pile is full and the shaft's is empty: haulage.
+      const atFace = placeOrder(mine({ drilling: 1 }, { face: full }));
+      expect(freshPlan(atFace, ONCE, 1)).toEqual(move("drilling", "haulage"));
+      // The shaft pile is full: hoisting.
+      const atShaft = placeOrder(
+        mine({ haulage: 1 }, { shaft: PILE_HOLDS.shaft }),
+      );
+      expect(freshPlan(atShaft, ONCE, 1)).toEqual(move("haulage", "hoisting"));
+      // Both piles are empty: drilling.
+      const empty = placeOrder(mine({ hoisting: 1 }));
+      expect(freshPlan(empty, ONCE, 1)).toEqual(move("hoisting", "drilling"));
+      // The mover moves him the same way.
+      expect(freshPlan(atFace, MOVER, 1)).toEqual(move("drilling", "haulage"));
+    });
+  });
+
+  it("leaves him where he is while his stage moves rock", () => {
+    fresh(() => {
+      const drilling = placeOrder(mine({ drilling: 1 }, { face: 200 }));
+      expect(freshPlan(drilling, ONCE, 1)).toEqual([]);
+      const hauling = placeOrder(mine({ haulage: 1 }, { face: 200 }));
+      expect(freshPlan(hauling, ONCE, 1)).toEqual([]);
+    });
+  });
+
+  it("moves one at a time, and only until no stage stands", () => {
+    fresh(() => {
+      const start = placeOrder(
+        mine({ drilling: 3 }, { face: PILE_HOLDS.face }),
+      );
+      const moves: string[] = [];
+      const settled = playFresh(start, 0, ONCE, 1, (_, action) => {
+        moves.push(action.kind);
+      });
+      expect(moves).toEqual(["freeWorker", "placeWorker"]);
+      expect(settled.jobs).toEqual({ ...NO_JOBS, drilling: 2, haulage: 1 });
+    });
+  });
+
+  it("places a hire where a pile waits, else on drilling", () => {
+    fresh(() => {
+      const crewed = { drilling: 1, driving: 1, building: 1 };
+      const waits = placeOrder(
+        mine(crewed, { free: 1, face: 300, shaft: 100 }),
+      );
+      expect(freshPlan(waits, ONCE, 1)).toEqual([
+        { kind: "placeWorker", job: "haulage", count: 1 },
+      ]);
+      const shaft = placeOrder(
+        mine(crewed, { free: 1, face: 100, shaft: 400 }),
+      );
+      expect(freshPlan(shaft, ONCE, 1)).toEqual([
+        { kind: "placeWorker", job: "hoisting", count: 1 },
+      ]);
+      const empty = placeOrder(mine(crewed, { free: 1 }));
+      expect(freshPlan(empty, ONCE, 1)).toEqual([
+        { kind: "placeWorker", job: "drilling", count: 1 },
+      ]);
+    });
+  });
+
+  it("gets a driver and a builder once an order is in and the line moves, hiring when none is free", () => {
+    fresh(() => {
+      const price = hirePrice(mine({ drilling: 3 }));
+      // The lone worker's line does not move yet: the wagon would carry off
+      // every stone he brings up.
+      const lone = placeOrder(mine({ drilling: 1 }, { pocket: price }));
+      expect(freshPlan(lone, ONCE, 1)).not.toContainEqual({
+        kind: "placeWorker",
+        job: "driving",
+        count: 1,
+      });
+      const line = { drilling: 1, haulage: 1, hoisting: 1 };
+      const ordered = placeOrder(mine(line, { pocket: price }));
+      expect(freshPlan(ordered, ONCE, 1)).toEqual([
+        { kind: "buyTier", id: "helper" },
+        { kind: "placeWorker", job: "driving", count: 1 },
+      ]);
+      const driven = placeOrder(
+        mine(
+          { ...line, driving: 1 },
+          { pocket: hirePrice(mine({ ...line, driving: 1 })) },
+        ),
+      );
+      expect(freshPlan(driven, ONCE, 1)).toEqual([
+        { kind: "buyTier", id: "helper" },
+        { kind: "placeWorker", job: "building", count: 1 },
+      ]);
+      // A dad who never holds waits while the wagon would take the mine.
+      expect(freshPlan(ordered, NO_HOLD, 1)).not.toContainEqual({
+        kind: "placeWorker",
+        job: "driving",
+        count: 1,
+      });
+      // The mover hires him too: he never takes the mine's last line.
+      expect(freshPlan(ordered, MOVER, 1)).toEqual([
+        { kind: "buyTier", id: "helper" },
+        { kind: "placeWorker", job: "driving", count: 1 },
+      ]);
+      // A free worker drives first, then builds.
+      const free = placeOrder(mine(line, { free: 2 }));
+      const placed = run(free, freshPlan(free, ONCE, 1));
+      expect(placed.jobs.driving).toBe(1);
+      expect(freshPlan(placed, ONCE, 1)).toEqual([
+        { kind: "placeWorker", job: "building", count: 1 },
       ]);
     });
   });

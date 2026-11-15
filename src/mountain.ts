@@ -185,17 +185,17 @@ export const BARE_MOUNTAIN: Mountain = {
 };
 
 /**
- * A fresh mine starts with every worker on a job (slice 1, rule 2.10, #689):
- * six on each stage, one driver on the horse wagon given and two builders on
- * the building site (#690). The lab set the count (#655): with the line at 18
- * a second, the wagon's 9 leaves him half of what the mine makes.
+ * A fresh mine starts with one worker, on drilling (slice 1, rule 2.10,
+ * #703): rock waits at the face until he is moved to haulage, and at the
+ * shaft until he is moved to hoisting. The horse wagon is given, with nobody
+ * driving it, and nobody builds until he hires.
  */
 const FRESH_START_JOBS: Jobs = {
-  drilling: 6,
-  haulage: 6,
-  hoisting: 6,
-  driving: 1,
-  building: 2,
+  drilling: 1,
+  haulage: 0,
+  hoisting: 0,
+  driving: 0,
+  building: 0,
 };
 
 export function createMountain(): Mountain {

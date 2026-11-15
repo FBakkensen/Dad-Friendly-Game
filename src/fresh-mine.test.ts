@@ -76,10 +76,19 @@ describe("the fresh mine's switch (#653)", () => {
 });
 
 describe("one level, no depth (rule 1)", () => {
-  it("starts with 21 workers, all on jobs, and nothing else (#689, #690, #655)", () => {
+  it("starts with one worker on drilling, a horse wagon and nobody driving or building (#703)", () => {
     fresh(() => {
       const start = createMountain();
-      expect(start.owned.helper).toBe(21);
+      expect(start.owned.helper).toBe(1);
+      expect(start.jobs).toEqual({
+        drilling: 1,
+        haulage: 0,
+        hoisting: 0,
+        driving: 0,
+        building: 0,
+      });
+      expect(start.fleet.horseWagon).toBe(1);
+      expect(start.piles).toEqual({ face: 0, shaft: 0 });
       for (const tier of TIERS) {
         if (tier.id !== "helper") {
           expect(start.owned[tier.id]).toBe(0);
@@ -102,7 +111,10 @@ describe("one level, no depth (rule 1)", () => {
 
   it("a month of live play never mines it out, finds a relic or leaves the Topsoil", () => {
     fresh(() => {
-      const crew = owning({ helper: 40, cart: 10, hoist: 10, drill: 10 }, 0);
+      const crew = {
+        ...owning({ helper: 40, cart: 10, hoist: 10, drill: 10 }, 0),
+        jobs: { drilling: 6, haulage: 6, hoisting: 6, driving: 1, building: 2 },
+      };
       const month = accrue({ mountain: crew, from: 0, to: 30 * DAY });
       expect(month.mined).toBeGreaterThan(MOUNTAIN_STONES);
       expect(month.mountain.stock.stones).toBe(month.mined);

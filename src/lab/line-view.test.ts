@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { withFactors } from "../economy/factors";
 import { FRESH_OFF, LINE_OFF } from "../line-switch";
-import { createMountain } from "../mountain";
-import { minedMountain } from "../test-fixtures";
+import { crewedStart, minedMountain } from "../test-fixtures";
 import {
   handsCarryOf,
   narrowAt,
@@ -127,7 +126,7 @@ describe("the line's readings in the lab (#534)", () => {
 describe("the narrow stage in a fresh mine (#655)", () => {
   it("reads the placed workers' stages, not the spread hands'", () => {
     withFactors({ [FRESH_OFF]: 0 }, () => {
-      const start = createMountain();
+      const start = crewedStart();
       const short = { ...start, jobs: { ...start.jobs, hoisting: 2 } };
       expect(narrowAt(short, 0)).toBe("lift");
     });

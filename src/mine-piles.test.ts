@@ -29,8 +29,8 @@ const rock = (mountain: Mountain): number =>
   mountain.stock.stones + mountain.piles.face + mountain.piles.shaft;
 
 describe("the mine's two piles (#703)", () => {
-  it("holds 500 at the face and 500 at the shaft for now", () => {
-    expect(PILE_HOLDS).toEqual({ face: 500, shaft: 500 });
+  it("holds 300 at the face and 300 at the shaft, as the lab set them (#703)", () => {
+    expect(PILE_HOLDS).toEqual({ face: 300, shaft: 300 });
   });
 
   it("builds the line's chain: each stage's own rate, times pay", () => {
@@ -43,8 +43,8 @@ describe("the mine's two piles (#703)", () => {
       expect(chain.source).toBe(Infinity);
       expect(chain.rates).toEqual([3, 0, 0]);
       expect(chain.piles).toEqual([
-        { held: 20, holds: 500 },
-        { held: 7, holds: 500 },
+        { held: 20, holds: 300 },
+        { held: 7, holds: 300 },
       ]);
       expect(mineChain(lone("drilling"), 0.3, false).rates).toEqual([0, 0, 0]);
       expect(mineChain(lone("hoisting"), 0.5, true).rates).toEqual([0, 0, 1.5]);
@@ -54,10 +54,10 @@ describe("the mine's two piles (#703)", () => {
   it("one worker on drilling fills the face pile and no stone comes up", () => {
     fresh(() => {
       const start = lone("drilling");
-      expect(mineChange(start, 1, true)).toBeCloseTo(500 / 3, 9);
+      expect(mineChange(start, 1, true)).toBeCloseTo(300 / 3, 9);
       const after = flowMine(start, 1_000, 1, true);
       expect(after.mined).toBe(0);
-      expect(after.mountain.piles).toEqual({ face: 500, shaft: 0 });
+      expect(after.mountain.piles).toEqual({ face: 300, shaft: 0 });
       expect(after.mountain.stock.stones).toBe(0);
       expect(mineChange(after.mountain, 1, true)).toBe(Infinity);
     });
