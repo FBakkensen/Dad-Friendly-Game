@@ -193,7 +193,7 @@ export type LineWork = {
  * The line in a fresh mine: each stage's workers run its machines or work
  * with a tool, and no worker spreads to the slowest stage. A worker with a
  * tool does his stage's share of the line spec's worker, three times his
- * own speed (Better boots and the worker marks are in it). A worker on a
+ * own speed (Work boots and the worker marks are in it). A worker on a
  * machine does no other work.
  */
 export function lineWork(

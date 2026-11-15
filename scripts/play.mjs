@@ -218,7 +218,7 @@ const SAVES = {
     search: "?slice=1",
   },
   "slice-list": {
-    note: "slice 1: five carts and drills, so the stages' lists hold upgrades, and Better boots",
+    note: "slice 1: five carts and drills, so the stages' lists hold upgrades, and Work boots",
     save: () => sliceListSave(Date.now()),
     key: DEV_BACKUP_KEY,
     search: "?slice=1",

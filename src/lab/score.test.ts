@@ -41,7 +41,7 @@ describe("scoreDecision", () => {
   });
 
   it("scores the whole table when the caller does not pass one", () => {
-    // An unstaffed cart opens Sharper picks and Steady hands (#250).
+    // An unstaffed cart opens Sharper picks and Night foreman (#250).
     const mountain = {
       ...createMountain(),
       stock: { ...createMountain().stock, stones: 100 },

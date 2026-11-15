@@ -115,7 +115,7 @@ describe("a stage's list", () => {
       const [helpers] = stageList(five, "haul", "one", 0).upgrades;
       expect(helpers).toMatchObject({
         id: "cartSyn",
-        name: "Cart helpers",
+        name: "Loading crews",
         effect: "Carts 60/s to 63/s.",
         why: "Each worker on haulage makes carts 1% faster.",
         owned: false,
@@ -130,7 +130,7 @@ describe("a stage's list", () => {
     });
   });
 
-  it("keeps a stage's upgrades in its own list: Cart roads under drilling", () => {
+  it("keeps a stage's upgrades in its own list: Haul roads under drilling", () => {
     fresh(() => {
       const drills = rich({ owned: { ...crewedStart().owned, drill: 5 } });
       expect(
@@ -153,10 +153,10 @@ describe("a stage's list", () => {
 });
 
 describe("the workers' upgrades", () => {
-  it("has Better boots with the tool's numbers, and the workers' next mark", () => {
+  it("has Work boots with the tool's numbers, and the workers' next mark", () => {
     fresh(() => {
       const list = workersList(rich(), 0);
-      expect(list.upgrades.map((row) => row.name)).toEqual(["Better boots"]);
+      expect(list.upgrades.map((row) => row.name)).toEqual(["Work boots"]);
       expect(list.upgrades[0]?.effect).toBe(
         "Workers with a tool 3/s to 7.1/s.",
       );

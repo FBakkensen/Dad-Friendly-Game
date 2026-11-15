@@ -102,7 +102,7 @@ describe("a stage's list", () => {
     const { find, progress, text } = mount(withStones(3_000_000, { cart: 5 }));
     find('.mine-stage[data-stage="haul"] .mine-stage-info').click();
     const row = `${sheet} [data-upgrade="cartSyn"]`;
-    expect(text(`${row} .stage-row-name`)).toBe("Cart helpers");
+    expect(text(`${row} .stage-row-name`)).toBe("Loading crews");
     find(`${row} .stage-buy`).click();
     expect(progress.getSnapshot().mountain.upgrades.cartSyn).toBe(1);
     expect(find(`${row} .stage-buy`).hidden).toBe(true);
@@ -142,14 +142,14 @@ describe("a stage's list", () => {
 });
 
 describe("the workers in the workforce", () => {
-  it("has Better boots under the jobs, and buys it", () => {
-    // The 21 workers the start had before #703: Better boots is open.
+  it("has Work boots under the jobs, and buys it", () => {
+    // The 21 workers the start had before #703: Work boots is open.
     const { find, progress, text } = mount(() =>
       withStones(2_000_000)(crewedStart()),
     );
     find(".frame-workers").click();
     const row = '.frame-sheet [data-upgrade="boots"]';
-    expect(text(`${row} .stage-row-name`)).toBe("Better boots");
+    expect(text(`${row} .stage-row-name`)).toBe("Work boots");
     expect(text(`${row} .stage-row-line`)).toBe(
       "Workers with a tool 3/s to 7.1/s.",
     );

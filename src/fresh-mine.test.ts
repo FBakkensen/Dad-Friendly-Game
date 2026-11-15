@@ -256,7 +256,7 @@ describe("machines open by where they open, and nothing else (rule 1's table, ru
 });
 
 describe("what leaves the rules at part 1 (What goes)", () => {
-  it("takes out Strong arms and Steady hands, and keeps Better boots and the machine upgrades", () => {
+  it("takes out Strong arms and Night foreman, and keeps Work boots and the machine upgrades", () => {
     fresh(() => {
       const crew = owning({ helper: 40, cart: 10, hoist: 5, drill: 10 });
       const shown = UPGRADES.filter((upgrade) =>

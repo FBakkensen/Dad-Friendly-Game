@@ -218,7 +218,7 @@ type DadRunOptions = {
   fixesTrouble?: boolean;
   /** Also starts Sharper picks and Overtime whenever they're affordable and idle. */
   buysBoosts?: boolean;
-  /** Also weighs Strong arms, Better boots and Steady hands against crew, by stones a day per stone. */
+  /** Also weighs Strong arms, Work boots and Night foreman against crew, by stones a day per stone. */
   buysUpgrades?: boolean;
   milestones: readonly number[];
   maxDays?: number;

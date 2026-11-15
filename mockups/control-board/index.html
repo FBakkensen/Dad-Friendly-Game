@@ -653,7 +653,7 @@ const priceOf = id => curve(GAME.tiers[id].firstCost, id === "helper" ? GAME.gro
 const marksOf = (id, n) => GAME.milestones.marks[id].filter(m => n >= m.at).length;
 /* src/rates.ts: one of a tier, in the Granite, with its marks, before boots and Overtime */
 const plainOf = id => GAME.tiers[id].perSecond * (GAME.granite[id] ?? 1) * GAME.milestones.multiplier ** marksOf(id, COUNT[id]());
-/* Better boots speed every worker by GAME.boots of his own output */
+/* Work boots speed every worker by GAME.boots of his own output */
 const eachOf = id => plainOf(id) * (id === "helper" && S.boots ? 1 + GAME.boots : 1);
 /* src/milestones.ts milestoneLine, with the board's number format */
 function milestoneLine(id){
@@ -728,9 +728,9 @@ const UPGRADES = [
     cost: () => 40_000 * 5 ** S.tapLevel, gainText: () => "+" + short(Math.floor(rate() * .01 * (S.tapLevel + 1)) - Math.floor(rate() * .01 * S.tapLevel)) + "/tap",
     info: () => `Level ${S.tapLevel} to ${S.tapLevel + 1} · grows with crew`,
     buy(){ S.tapLevel++; return { text: `Strong arms, level ${S.tapLevel}` }; } },
-  { key: "boots", group: "Lasting", name: "Better boots", verb: "Buy", once: () => S.boots,
+  { key: "boots", group: "Lasting", name: "Work boots", verb: "Buy", once: () => S.boots,
     cost: () => 650_000, gainText: () => "+" + short(S.workers * plainOf("helper") * GAME.boots * S.mul) + "/s", info: () => "Every worker, every band",
-    buy(){ S.boots = true; return { text: "Better boots for the crew" }; } },
+    buy(){ S.boots = true; return { text: "Work boots for the crew" }; } },
 ];
 const WORKSHOP = [
   { key: "grease", group: "Recipes", name: "Axle grease", verb: "Craft", bench: 600,

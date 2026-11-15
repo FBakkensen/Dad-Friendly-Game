@@ -416,7 +416,7 @@ function endCards(): Cards<"away" | "legacy"> {
         ],
         [
           "upgrades-icon",
-          `Steady hands makes time away pay ${percent(STEADY_AWAY_PER_LEVEL)} more.`,
+          `Night foreman makes time away pay ${percent(STEADY_AWAY_PER_LEVEL)} more.`,
         ],
       ],
     },

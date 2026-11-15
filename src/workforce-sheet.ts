@@ -117,7 +117,7 @@ function buildJobs(mountain: Mountain): {
 }
 
 /**
- * The workers' own upgrades and marks (#661), under the jobs: Better boots,
+ * The workers' own upgrades and marks (#661), under the jobs: Work boots,
  * and the workers' next mark.
  */
 function buildWorkers(

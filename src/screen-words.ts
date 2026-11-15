@@ -80,7 +80,7 @@ export const MACHINE_WORDS: Readonly<
   machine: ["great machine", "great machines"],
 };
 
-/** Per-unit speed: one decimal while small and fractional (Better boots). */
+/** Per-unit speed: one decimal while small and fractional (Work boots). */
 export const formatSpeed = (speed: number): string =>
   speed < 10 && !Number.isInteger(speed)
     ? speed.toFixed(1)
@@ -268,7 +268,7 @@ export function upgradeEffectLine(
     case "tap":
       return `Taps ${fromTo(change, (rates) => formatCount(rates.tapYield))}.`;
     case "boots":
-      // In a fresh mine Better boots lifts only a worker with a tool (rule 2.9).
+      // In a fresh mine Work boots lifts only a worker with a tool (rule 2.9).
       return freshMineOn()
         ? `Workers with a tool ${fromTo(change, (rates) => `${formatSpeed(toolSpeed(rates.tierSpeed))}/s`)}.`
         : `Workers ${fromTo(change, (rates) => `${formatSpeed(rates.tierSpeed.helper)}/s`)}.`;
@@ -284,7 +284,7 @@ export function upgradeEffectLine(
 
 /**
  * Whether a synergy has any of the tier that feeds it. In a fresh mine the
- * workers that feed Cart helpers are the ones on haulage (rule 2.9).
+ * workers that feed Loading crews are the ones on haulage (rule 2.9).
  */
 const synergyFed = (upgrade: Upgrade, mountain: Mountain): boolean =>
   upgrade.synergy !== undefined &&
@@ -317,16 +317,15 @@ const UPGRADE_WHY: Record<UpgradeId, string> = {
 };
 
 /**
- * A fresh mine's words for an upgrade (#661, the spec's call 41): Better
- * boots lifts only a worker with a tool, and Helping hands counts the
- * workers on haulage, so it takes a name without "hands". Approved by
- * Flemming on 15 Nov 2026.
+ * A fresh mine's words for an upgrade (#661, the spec's call 41): Work
+ * boots lifts only a worker with a tool, and Loading crews counts the
+ * workers on haulage. Approved by Flemming on 15 Nov 2026; the names are
+ * the engineering ones he chose that day (#711).
  */
 const FRESH_WORDS: Partial<
   Record<
     UpgradeId,
     {
-      readonly name?: string;
       readonly why: string;
       /** Its rule, where today's `perLevel` no longer says it. */
       readonly rule?: string;
@@ -337,7 +336,6 @@ const FRESH_WORDS: Partial<
     why: "Picks, barrows and winches go faster. Machines, drivers and builders do not.",
   },
   cartSyn: {
-    name: "Cart helpers",
     why: "Each worker on haulage makes carts 1% faster.",
     rule: "Each worker on haulage makes carts 1% faster.",
   },
@@ -346,11 +344,6 @@ const FRESH_WORDS: Partial<
 /** The words of a fresh mine's upgrade, or none outside a fresh mine. */
 const freshWords = (id: UpgradeId) =>
   freshMineOn() ? FRESH_WORDS[id] : undefined;
-
-/** An upgrade's name: a fresh mine's where it has its own (Cart helpers). */
-export function upgradeName(upgrade: Upgrade): string {
-  return freshWords(upgrade.id)?.name ?? upgrade.name;
-}
 
 /** "workers", "carts", "borers": the tier a synergy needs, plural. */
 const tierPlural = (id: TierId): string =>
