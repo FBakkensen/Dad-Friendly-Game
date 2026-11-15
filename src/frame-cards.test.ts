@@ -273,6 +273,10 @@ describe("the shift report", () => {
     );
     expect(progress.getSnapshot().ready).toBe(false);
     expect(card().shown).toBe(false);
+    // The frame shows no numbers of the store's new mine while the save loads (#664).
+    expect(root.querySelector(".frame")?.hasAttribute("data-loading")).toBe(
+      true,
+    );
     root.querySelector<HTMLButtonElement>(".frame-workers")?.click();
     const sheet = root.querySelector<HTMLElement>(".frame-sheet");
     expect(sheet?.hidden).toBe(false);
@@ -281,6 +285,9 @@ describe("the shift report", () => {
       expect(card()).toMatchObject({ shown: true, kind: "report" });
     });
     expect(sheet?.hidden).toBe(true);
+    expect(root.querySelector(".frame")?.hasAttribute("data-loading")).toBe(
+      false,
+    );
   });
 });
 

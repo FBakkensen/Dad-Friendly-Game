@@ -444,7 +444,10 @@ export function mountFrameScreen({
     saveLine.line,
   );
   paint = () => {
-    const mountain = progress.getSnapshot().mountain;
+    const { mountain, ready } = progress.getSnapshot();
+    // Until a signed-in save is in, the store holds a new mine: its numbers
+    // would say the mine is gone, so the frame shows none (#664).
+    frame.root.toggleAttribute("data-loading", !ready);
     frame.paint(mountain);
     sheet.paint(mountain);
     stageSheet.paint(mountain);

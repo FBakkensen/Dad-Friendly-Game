@@ -21,4 +21,4 @@ Spec: `docs/superpowers/specs/2026-11-14-slice-1-design.md`, "How it would be bu
 - The first evening's journey plays the lab's part 1 dad (`freshPlan`, never holding, no upgrades) and looks in every ten minutes; ten minutes folded in at once is a stretch away, so the shift report comes up between looks, as it does on a tab left open.
 - The frame's stockpile carries its exact count as `data-count`, as the odometer did, for the journeys.
 - The rules take `version >= 9`, so a build from before #664 can no longer write a new cloud document; it reads the version 9 copy as `newer` and asks for the update.
-- Found by the audit, left for their own issues: the frame's keys stand closer than the 8px gap, and while a signed-in save loads the frame shows a new mine's numbers (both in `docs/ui-audit.md`, What the report still flags).
+- Found by the audit: the frame's keys stand closer than the 8px gap (`docs/ui-audit.md`, What the report still flags). While a signed-in save loads the frame showed a new mine's numbers; the CI review asked for it here, so the frame shows its bare ground until the save is in (`data-loading`).
