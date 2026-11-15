@@ -26,7 +26,7 @@ The new rule is [Transport and build time](#7-transport-and-build-time). His fou
 
 The new rule is [The workforce](#2-the-line-and-the-workforce), and rules 1, 3 and 7 follow it. What is his and what is mine in it is under [Calls I made](#calls-i-made). The screens followed the same morning (below).
 
-**Approved 15 Nov 2026, 09:53Z.** On the prototype's eleventh version: "This is great, just one thing, hiring of workers is locked to the mining page, that indicates to the player this is only for mining, it should be a global place". So the screens are settled again, with one change: workers are hired in the workforce, which opens on every site, and not in the mine. [What he sees](#what-he-sees) is written from that version with that change. The prototype's twelfth version plays the change.
+**Approved 15 Nov 2026, 09:53Z.** On the prototype's eleventh version: "This is great, just one thing, hiring of workers is locked to the mining page, that indicates to the player this is only for mining, it should be a global place". So the screens are settled again, with one change: workers are hired from the top row of every site, beside the count of workers, and not in the mine. [What he sees](#what-he-sees) is written from the prototype's twelfth version, which is the eleventh with that change.
 
 This design covers many slivers. It ships as its own PR and is split into sliver issues (`.claude/rules/superpowers.md`). It amends `2026-11-14-line-works-village-design.md` (the line spec): [What it changes in the line spec](#what-it-changes-in-the-line-spec) lists every place.
 
@@ -236,7 +236,7 @@ When the Foundry's roof is on, a card says the first city is operational and tha
 The screens were settled in a playable prototype, not in pictures. Flemming rejected three rounds of mock pictures on 14 Nov 2026 and asked for a prototype in their place. He played four versions of it that evening ("That is right" to the fourth, 21:35Z), and seven more on 15 Nov 2026, each with one thing changed after what he said. To the eleventh (09:53Z): "This is great, just one thing, hiring of workers is locked to the mining page, that indicates to the player this is only for mining, it should be a global place".
 
 - The prototype is a throwaway outside the game: `prototypes/slice-1/`. Its numbers are made up and run fast. It is drawn with sprites that exist and shapes made in code. `main` has its seventh version. The later ones are on branch `claude/project-thread-eextfa` until its next PR, and `prototypes/slice-1/README.md` there says what each version plays and what he said to it.
-- What it settles is the layout, the flow and the words. This section writes them down, from the eleventh version with hiring moved as he asked. The pictures in `docs/superpowers/specs/slice-1/` are of that.
+- What it settles is the layout, the flow and the words. This section writes them down, from the twelfth version (commit `366b890`), which is the eleventh with hiring moved as he asked. The pictures in `docs/superpowers/specs/slice-1/` are of the twelfth.
 - What it does not settle is the art (see Art) and the numbers (the lab).
 - Two things in the prototype's head are its own tools and are not in the game: "Skip 8 h" and "Reset".
 
@@ -256,16 +256,16 @@ The game has four kinds of work (his words: "mine, city, refinement, manufacturi
 From top to bottom:
 
 1. **The order strip.** The project in hand, its step and its state ("Foundation · not ordered", "Structure · delivering", "on hold"), what the step requires with its counts ("Stone 23.7K of 60K"), and a pip for each of the three steps. A tap goes to the city.
-2. **The stockpiles and the workers.** One stockpile for each good he has met, with its room once the stockyard is open ("49.6K of 400K"), and "full" in red. At the end of the row is the count of workers with the free ones under it ("44 · 2 free"). A tap on it opens the workforce (below).
+2. **The stockpiles and the workers.** One stockpile for each good he has met, with a bar for how full it is, and "full" in red. At the end of the row is the count of workers with the free ones under it ("44 · 2 free"), and beside it the key that hires one, with its price ("+Worker · 1,300"). A tap on the count opens the workforce (below). With one or two stockpiles a stockpile also says its room ("of 400K"). With three there is no room for that beside the hire key, and the room is read in the refinery's stockyard.
 3. **The site's scene**, which fills the middle.
 4. **Next.** It points at two things only: gear that is done and waits to be installed, and a building nobody has ordered ("Next · City: Order the Light Tower"). A tap goes there. Otherwise it reads "Affordable now" with a count for each site ("Mine 3 · Refinery 2 · Factory 3 · City 1"), and a tap goes to the next site that has something. Beside it is the count of everything ("9 ready"). With nothing it reads "Nothing affordable yet. Production is running." Next never names a buy: which thing to buy is his to work out. It takes the Ready now plate's place, and "Saving for" goes with it.
 5. **The site bar.** A tab for each open site, with its lamp: green when something there is affordable, amber when something there is running (an order that is delivering, a work order on the station). A site joins the bar when its work opens: the mine and the city on the first evening, the refinery with the Light Tower, the factory with the shaft. A swipe changes site too.
 
 ### The workforce (`workforce.png`)
 
-His words, 15 Nov 2026: hiring "should be a global place". The workforce is that place. It opens from the count of workers in the frame, on every site, and the game runs on behind it.
+His words, 15 Nov 2026: hiring "should be a global place". The top row of the frame is that place: the hire key is beside the count of workers on every site. The workforce is the list behind the count. It opens on every site, and the game runs on behind it.
 
-- Its head says how many workers he has and how many are free ("44 workers · 2 free"), with the key that hires one and its price ("Hire · 1,300"). **This is the only place to hire.** No site has a hire key of its own.
+- Its head says how many workers he has and how many are free ("44 workers · 2 free"), with a second hire key and its price ("Hire · 1,300"). **Hiring is in the frame and in this list, and nowhere else.** No site has a hire key of its own.
 - Under it is every open job, grouped by site: the mine (drilling, haulage, hoisting), the refinery (the kilns, the saws) and the city (transport, building). A job that has not opened is not shown.
 - A job's row has its name, a line on what its workers run now ("3 of 3 drills run, 4 with picks", "4 of 4 kilns run", "3 of 3 vehicles run", "each builds 150/s"), and its count of workers between − and +. A + with no free worker says so: "No free worker. Hire one, or take one off another job."
 - The same − and + are on each site beside the thing the workers run, so he can also move a worker where he is looking.
@@ -277,7 +277,7 @@ His words, 15 Nov 2026: hiring "should be a global place". The workforce is that
 - **The state is seen in the scene**, as he asked (15 Nov 2026, 06:22Z). Rock piles up at the face when drilling makes more than haulage takes, and at the shaft when more arrives than is hoisted. Tubs run empty when the face gives too little, and queue when the shaft cannot take them. The cage waits at the shaft bottom when hoisting has spare capacity. Workers of a stage with spare capacity stand, with a "z" over them, for that share of the time.
 - A level's plate has its name, its rock a second, and one line: its crews and what its rock becomes ("2 crews · brick 400/s · stone 700/s"). With one level it reads "4 crews · all rock is hoisted as stone". With two levels the plate has − and +, which move a crew.
 - A level that is not reached says what it waits for ("The shaft can be sunk once the Light Tower is operational"), and then its price. Under the last level: "Deeper strata: not yet surveyed. The city has to grow first."
-- At the foot is a row of keys, one for each stage's next machine: what it is and what it moves ("+Drill · 600/s"), its price, and the workers it takes ("3 to run"). The key buys. There is no key to hire here: the eleventh version had one, and he asked for it to go to a global place.
+- At the foot is a row of keys, one for each stage's next machine: what it is and what it moves ("+Drill · 600/s"), its price, and the workers it takes ("3 to run"). The key buys. There is no key to hire here: the eleventh version had one, and he asked for it to go to a global place (the frame).
 - Under the keys are three rows, one for each stage:
   - its name, and what it moves now of what it can move ("2,200 of 2,700/s"), with a band behind the row that shows the same;
   - who works with what, as a sum that adds up to what the stage can move ("2 hoists: 6 of 6 workers 2,400/s + 2 on winches 200/s"). A kind of machine shows the workers it has of the workers it takes, so a machine that is idle shows why ("1 of 2 hoists: 3 of 6 workers 1,200/s");
@@ -311,7 +311,7 @@ His words, 15 Nov 2026: hiring "should be a global place". The workforce is that
 
 ### The cards (`first-evening-card.png`, `shift-report.png`)
 
-- **The first evening**: one card that says what there is and how it works. He starts with twelve workers, and every job takes them. He hires a worker and puts the worker on a job. A machine or a wagon stands until workers run it. "The balance is yours to work out." And: order the tower in the city.
+- **The first evening**: one card that says what there is and how it works. He starts with twelve workers, and every job takes them. He hires a worker at the top right, on any site, and puts the worker on a job. A machine or a wagon stands until workers run it. "The balance is yours to work out." And: order the tower in the city.
 - **The shift report** after unattended time: how long he was away and the night shift output, a bar that shows how much of the night was production and how much was idle, what was produced, what transport delivered to orders, the steps and buildings that were finished, and when each stockpile was full. If the stockyard stopped the night it says so ("Stockyard full: production stopped"), with a key that goes to the stockyard beside Close. The report says what happened. It does not say what to buy.
 - **A building is operational**: its power and what it opens. After the Foundry it is the slice's end card.
 - **A level is reached**: where the crews went, what each level's rock makes, and what opened.
@@ -332,7 +332,7 @@ These are in the game today and have no place in the prototype. Where they go is
 - A decision shows real numbers: prices, rooms, each level's rock and goods a second, transport's goods a second, what an order still requires.
 - The page shows the numbers and never the answer. Nothing names the bottleneck, a limit or a best buy (Flemming, 15 Nov 2026).
 - What is idle is seen: workers, machines, vehicles, and a buffer that is full (Flemming, 15 Nov 2026).
-- How many workers there are, where they work and how many are free is in reach on every site, and so is hiring one. Workers are hired in one place, the workforce, and never on a site of its own (Flemming, 15 Nov 2026).
+- How many workers there are, where they work and how many are free is in reach on every site, and so is hiring one. Workers are hired from the frame, the same on every site, and never on a site of its own (Flemming, 15 Nov 2026).
 - "Hands" and "by hand" are not used.
 - No button mines, and no button delivers.
 - The lamp rule stays: green for something he can afford, amber for something running, red for trouble, dark for rest.
@@ -554,7 +554,7 @@ These are mine, not Flemming's. Any of them can be turned over.
 40. A stage's workers run the machines that together move the most (rule 2.5). The prototype runs the strongest first. With machines that take different numbers of workers, that can lower a stage when he buys a machine, and the rule that a buy never lowers the line is tested in a fresh mine since #654.
 41. What counts workers counts all he has. Better boots and the worker marks lift only a worker with a tool, Helping hands counts haulage's workers, and a promotion takes a free worker (rule 2.9). The lines of Better boots and Helping hands need new words, and those are his to approve when a stage's list is built (#661).
 42. The count of workers he owns stays where it is in the game, and the save adds the workers on each job (The save). It keeps today's readers of that count as they are.
-43. The workforce is the global place he asked for: it opens from the count of workers in the frame on every site, and the hire key is there and nowhere else (What he sees, The workforce). His words are "a global place". That it is this list is the prototype's.
+43. The global place he asked for is the frame's top row: the hire key is beside the count of workers on every site, and a second one is in the workforce list (What he sees). His words are "a global place". Where exactly is the prototype's twelfth version, which he has not answered on. Three things came with it that he has not played: hiring no longer lights the mine's lamp or counts in Next, the stockpiles drop their room from the top row when there are three, and the first evening's card says where to hire.
 44. The − and + for a job are in the workforce and also on the job's own site, as he played them. Only hiring moved.
 45. A tap on a stage's row opens the stage's full list, and the worker's own upgrades and marks are in the workforce (What the prototype does not show). The prototype shows neither.
 46. The shift report keeps "Stockyard full: production stopped" and its key to the stockyard. It says what happened in the night, which he asked to see, and it names no buy.
