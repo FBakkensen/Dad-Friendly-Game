@@ -47,11 +47,14 @@ import {
   stationCheer,
   tierBuyLine,
   upgradeLevelLine,
+  machineBuyLine,
+  MACHINE_WORDS,
   vehicleBuyLine,
   veinGaveLine,
   type TendPost,
 } from "./screen-words";
-import { TIERS, type TierId } from "./tiers";
+import { TIERS, type MachineId, type TierId } from "./tiers";
+import { freshMineOn } from "./line-switch";
 import { VEHICLE_IDS } from "./transport";
 import { UPGRADES, upgradeById, type UpgradeId } from "./upgrades";
 import { RECIPE_IDS, recipeById, type RecipeId } from "./workshop";
@@ -167,11 +170,21 @@ function stones(
   return count !== undefined && count > 0 ? words(count) : undefined;
 }
 
+/**
+ * A worker or a machine bought. A fresh mine names its machines as the frame
+ * does ("Bought cart 3."), not by today's names (#708).
+ */
+function tierLine(id: TierId, count: number): string {
+  return freshMineOn() && Object.hasOwn(MACHINE_WORDS, id)
+    ? machineBuyLine(MACHINE_WORDS[id as MachineId][0], count)
+    : tierBuyLine(id, count);
+}
+
 /** Each code Tonight can word; any other code is skipped. */
 const WORDING: Readonly<
   Record<string, (event: FieldEvent) => string | undefined>
 > = {
-  "tier.buy": ({ data }) => named(TIER_IDS, data, tierBuyLine),
+  "tier.buy": ({ data }) => named(TIER_IDS, data, tierLine),
   "vehicle.buy": ({ data }) => named(VEHICLE_IDS, data, vehicleBuyLine),
   "upgrade.buy": ({ data }) =>
     named(UPGRADE_IDS, data, (id, level) =>

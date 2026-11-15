@@ -374,11 +374,6 @@ export function createLedgerPanel({
     ...(signal === undefined ? {} : { signal }),
   });
   sheet.kick(LEDGER_KICK);
-  // With no cards, no "i" (#708).
-  const info = sheet.root.querySelector<HTMLElement>(".board-sheet-info");
-  if (info !== null) {
-    hide(info, freshMineOn());
-  }
   const parts = buildLedgerList(sheet, wired.doors);
   wireAccount(onBoard, parts.account, auth);
 

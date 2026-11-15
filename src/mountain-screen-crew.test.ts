@@ -1,3 +1,4 @@
+import { DRAWER_SETTLE_MS } from "./board-drawer";
 import { EMPTY_STOCK } from "./stock";
 // @vitest-environment happy-dom
 import { BOOSTS, boostById, boostCost, NO_BOOSTS } from "./boosts";
@@ -2115,9 +2116,11 @@ describe("upgrades on screen", () => {
   });
 
   it("the scrim over the board's top closes the drawer", async () => {
+    let tapAt = 10_000;
     const screen = mountScreen({
       storage: seededWith(boostsOpen(0), CLOCK),
       now: () => CLOCK,
+      tapClock: () => tapAt,
     });
     const scrim = screen.root.querySelector<HTMLElement>(
       ".board-sheet-clip > .board-scrim",
@@ -2127,6 +2130,8 @@ describe("upgrades on screen", () => {
     // The scrim follows the drawer's class through a MutationObserver.
     await Promise.resolve();
     expect(scrim?.classList.contains("is-on")).toBe(true);
+    // Past the drawer's settle: a tap there before it lands on nothing (#708).
+    tapAt += DRAWER_SETTLE_MS;
     scrim?.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 1 }));
     expect(drawerOf(screen)?.classList.contains("is-open")).toBe(false);
   });

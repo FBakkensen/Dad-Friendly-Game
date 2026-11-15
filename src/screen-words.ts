@@ -1549,9 +1549,14 @@ export function tierBuyLine(id: TierId, count: number): string {
   return `Bought ${shown} ${n}.`;
 }
 
+/** A thing bought, by its frame name, and its count (#708): "Bought cart 3." */
+export function machineBuyLine(name: string, count: number): string {
+  return `Bought ${name} ${count.toLocaleString("en-US")}.`;
+}
+
 /** A vehicle bought (#708): "Bought horse wagon 2.", as a machine bought. */
 export function vehicleBuyLine(id: VehicleId, count: number): string {
-  return `Bought ${VEHICLE_WORDS[id][0]} ${count.toLocaleString("en-US")}.`;
+  return machineBuyLine(VEHICLE_WORDS[id][0], count);
 }
 
 /** "Strong arms, level 3." */

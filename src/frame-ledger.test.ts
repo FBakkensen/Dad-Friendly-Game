@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createUnconfiguredAuth } from "./auth";
+import { DRAWER_SETTLE_MS } from "./board-drawer";
 import { holdFactors } from "./economy/factors";
 import { tierBuyMove } from "./economy/actions";
 import { mountFrameScreen } from "./frame-screen";
@@ -12,6 +13,17 @@ import { writeSessionSave } from "./session-save";
 import { SOUND_KEY } from "./sound";
 
 /** The order strip's key on slice 1's frame (#708): the Ledger and what it opens. */
+
+/** A finger's tap: down, up, then its click. */
+function fingerTap(target: HTMLElement): void {
+  target.dispatchEvent(
+    new PointerEvent("pointerdown", { bubbles: true, button: 0 }),
+  );
+  target.dispatchEvent(
+    new PointerEvent("pointerup", { bubbles: true, button: 0 }),
+  );
+  target.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 1 }));
+}
 
 let unmount = new AbortController();
 
@@ -89,6 +101,21 @@ describe("the order strip's key", () => {
     expect(key.getAttribute("aria-expanded")).toBe("true");
   });
 
+  it("stays open under the second tap of a double tap, which lands on the scrim", () => {
+    let clock = 10_000;
+    const now = vi.spyOn(performance, "now").mockImplementation(() => clock);
+    const { find, key, isOpen } = mount();
+    fingerTap(key);
+    expect(isOpen()).toBe(true);
+    clock += 120;
+    fingerTap(find(".board-scrim"));
+    expect(isOpen()).toBe(true);
+    clock += DRAWER_SETTLE_MS;
+    fingerTap(find(".board-scrim"));
+    expect(isOpen()).toBe(false);
+    now.mockRestore();
+  });
+
   it("leaves the order's tap going to the city", () => {
     const { find, isOpen } = mount();
     find(".frame-order").click();
@@ -102,6 +129,10 @@ describe("the order strip's key", () => {
     expect(find(".frame-sheet").hidden).toBe(false);
     key.click();
     expect(find(".frame-sheet").hidden).toBe(true);
+    find(".mine-stage-info").click();
+    expect(find(".stage-sheet").hidden).toBe(false);
+    key.click();
+    expect(find(".stage-sheet").hidden).toBe(true);
   });
 });
 

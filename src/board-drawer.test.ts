@@ -1224,6 +1224,7 @@ describe("the scrim", () => {
   it("a tap over a relic socket closes the sheet and shows that relic's note", () => {
     const { buys, scrim, onSocket } = setup();
     buys.open();
+    time += DRAWER_SETTLE_MS;
     tap(scrim, 120, 40);
     expect(buys.isOpen()).toBe(false);
     expect(onSocket).toHaveBeenCalledTimes(1);
@@ -1232,6 +1233,7 @@ describe("the scrim", () => {
   it("hands the socket a finger's click, so its note does not take focus", () => {
     const { buys, scrim, onSocket } = setup();
     buys.open();
+    time += DRAWER_SETTLE_MS;
     tap(scrim, 120, 40);
     const click = onSocket.mock.calls[0]?.[0] as MouseEvent | undefined;
     expect(click?.detail).toBe(1);
@@ -1252,9 +1254,29 @@ describe("the scrim", () => {
     const { buys, upgrades, scrim, onSocket } = setup();
     buys.open();
     upgrades.open();
+    time += DRAWER_SETTLE_MS;
     tap(scrim, 300, 40);
     expect(buys.isOpen()).toBe(false);
     expect(upgrades.isOpen()).toBe(false);
+    expect(onSocket).not.toHaveBeenCalled();
+  });
+
+  it("the second tap of the tap that opened the drawer lands on nothing (#708)", () => {
+    const { buys, scrim, onSocket } = setup();
+    buys.open();
+    time += 120;
+    tap(scrim, 120, 40);
+    expect(buys.isOpen()).toBe(true);
+    expect(onSocket).not.toHaveBeenCalled();
+    time += DRAWER_SETTLE_MS;
+    tap(scrim, 120, 40);
+    expect(buys.isOpen()).toBe(false);
+  });
+
+  it("a tap with no drawer open does nothing", () => {
+    const { buys, scrim, onSocket } = setup();
+    tap(scrim, 120, 40);
+    expect(buys.isOpen()).toBe(false);
     expect(onSocket).not.toHaveBeenCalled();
   });
 

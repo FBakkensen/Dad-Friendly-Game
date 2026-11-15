@@ -427,6 +427,18 @@ describe("the Ledger's rows in a fresh mine", () => {
     expect(words).not.toMatch(/\bdeep\b|pocket|engineer|Infinity|NaN|left/);
   });
 
+  it("names a machine bought as the frame does, and a worker as today", () => {
+    expect(fresh(() => text("tier.buy", { id: "cart", count: 3 }))).toBe(
+      "Bought cart 3.",
+    );
+    expect(fresh(() => text("tier.buy", { id: "drill", count: 2 }))).toBe(
+      "Bought drill 2.",
+    );
+    expect(fresh(() => text("tier.buy", { id: "helper", count: 17 }))).toBe(
+      "Hired worker 17.",
+    );
+  });
+
   it("words a horse wagon bought, as a machine bought", () => {
     expect(text("vehicle.buy", { id: "horseWagon", count: 2 })).toBe(
       "Bought horse wagon 2.",
