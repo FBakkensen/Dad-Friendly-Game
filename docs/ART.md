@@ -125,14 +125,15 @@ The hoist and the pit train are PixelLab `create_image_pixflux` through MCP: 32�
 
 The four dim icons are not PixelLab. `scripts/dim-icon.py` recolours a lit icon into `mach-kid-dim.png`'s five greys by how bright each pixel was, so a dim icon keeps its machine's shape. Flemming approved these over tarps for the hoist and the pit train.
 
-## The city (#656, #657)
+## The city (#656, #657, #670)
 
-The city's pictures are in `src/assets/city/`. No code draws them yet: #662 puts them on the city screen. Flemming said yes to the prompt, the size and the tool on 15 Nov 2026. His look at the finished pictures was asked for in the project chat the same day and is still open: if he asks for another, the file is replaced under the same name.
+The city's pictures are in `src/assets/city/`. The city screen draws the Light Tower and the horse wagon (#662). No code draws the Warehouse yet: part 2's city puts it on the second plot. Flemming said yes to the prompt, the size and the tool for the first two on 15 Nov 2026, and to up to 25 PixelLab generations for the Warehouse, the kiln and the brick together the same day (24 were used). His look at the finished pictures was asked for in the project chat each time and is still open: if he asks for another, the file is replaced under the same name.
 
 | File                              | Size  | Use                                                                                                 |
 | --------------------------------- | ----- | --------------------------------------------------------------------------------------------------- |
 | `src/assets/city/light-tower.png` | 30×91 | The Light Tower, the city's first building: on its plot in the skyline, on its card and its reveal. |
 | `src/assets/city/horse-wagon.png` | 46×24 | A horse wagon, the first vehicle, facing right: on the transport plate and on the road in the city. |
+| `src/assets/city/warehouse.png`   | 46×39 | The Warehouse, the city's second building: on its plot in the skyline, on its card and its reveal.  |
 
 The Light Tower is PixelLab `create_image_pixflux` through MCP: a 48×96 canvas, transparent background, side view, single color black outline, medium shading, highly detailed, then trimmed to its bounding box. It was made the way the hoist was. The board's colours went in as the color image, `mockups/city/art/palette.png`: the 59 opaque colours of `mach-cart.png`, `mach-drill.png`, `mach-borer.png`, `mach-machine.png`, `mach-worker.png`, `mach-hoist.png`, `mach-train.png`, `res-stone.png`, `lamp.png` and `mine-view-topsoil.png`, and five black cells that fill its last row. A rough 48×96 sketch went in as the init image, so the lamp room came out big enough to read.
 
@@ -145,3 +146,31 @@ The horse wagon is PixelLab `create_image_pixflux` through MCP too: a 48×32 can
 - `horse-wagon.png`: seed 705, no init. Prompt: "brown draft horse pulling a sturdy wooden wagon heaped with grey stones, seen from the side, facing right: big spoked wooden wheels with iron rims, leather harness, dark iron fittings, flat 2D side profile". It was the fifth of ten tries.
 
 PixelLab drew a grey strip of ground under the wagon, two rows of one grey (118,130,138). The picture as it came is `mockups/city/art/horse-wagon-pixellab.png`. The strip's grey pixels in those two rows were cleared by hand, which leaves the wheels' lowest arc and the hooves, and the picture was trimmed to its bounding box: that is `mockups/city/art/horse-wagon-drawn.png`. `scripts/outline-icon.py` then gave it the house outline, as for the tower.
+
+The Warehouse is PixelLab `create_image_pixflux` through MCP too: a 48×40 canvas, the same style settings and the same color image, with a rough 48×40 sketch as the init image, then trimmed to its bounding box. It is 46 wide, and the second plot is 56 (`PLOT_SPANS` in `src/city-scene.ts`). Its lamp over the door is at 22 to 23 across and 15 down, for the glow once it is operational.
+
+- `warehouse.png`: seed 853, init `mockups/city/art/init-warehouse.png` at strength 170. Prompt: "long low goods warehouse of an industrial mine works seen from the side: red-brown brick walls on a grey stone footing, a big dark timber sliding double door with iron straps under an iron rail, a brass lamp over the door, two small iron-framed windows lit warm amber, wooden crates stacked by the door and an iron-hooped barrel, a low roof of dark riveted iron sheet with a ridge vent, flat 2D side profile". It was the tenth of eleven tries.
+
+The first seven tries came out as houses: three on a 48×48 canvas (a garage, a brick barn, a cottage), and four on a 48×64 canvas with three storeys and a hoist beam (two town houses, a timber barn, a school). The long low goods shed with a wide door, crates and a barrel is what reads as a warehouse at this size. The picture as PixelLab drew it, trimmed, is `mockups/city/art/warehouse-drawn.png`. `scripts/outline-icon.py` gave it the house outline, as for the tower.
+
+## The refinery: the kiln and the brick (#668, #669)
+
+The first maker and the first made good, for slice 1's part 2. No code draws them yet: the refinery screen (#671) does. They are in `src/assets/board/` with the other machines and goods. Flemming's yes and his look at them are as for the Warehouse, above.
+
+| File                                 | Size  | Use                                                                          |
+| ------------------------------------ | ----- | ---------------------------------------------------------------------------- |
+| `src/assets/board/mach-kiln.png`     | 32×32 | A kiln, the first maker: in the refinery and on its key.                     |
+| `src/assets/board/mach-kiln-dim.png` | 32×32 | A kiln with no worker on it.                                                 |
+| `src/assets/board/res-brick.png`     | 16×16 | Brick, the first made good: on its stockpile, on the order strip, in prices. |
+
+The kiln is PixelLab `create_image_pixflux` through MCP, made the way the hoist was: 32×32, transparent background, side view, single color black outline, medium shading, highly detailed, the color image `mockups/city/art/palette.png`, and a rough 32×32 sketch as the init image.
+
+- `mach-kiln.png`: seed 802, init `mockups/refinery/art/init-kiln.png` at strength 110. Prompt: "brick kiln of a mine works seen from the side: a squat round beehive dome of red-brown fired bricks on a grey stone footing, an arched dark iron firebox door glowing with amber fire, a short dark iron chimney pipe with a brass band, iron straps round the dome, flat 2D side profile". It was the second of three tries.
+
+The picture as PixelLab drew it is `mockups/refinery/art/mach-kiln-drawn.png`. `scripts/outline-icon.py` gave it the house outline, and `scripts/dim-icon.py` made `mach-kiln-dim.png` from it, as for the hoist.
+
+The brick is PixelLab `create_image_pixen` through MCP, since pixflux draws nothing under 32×32: 16×16, transparent background, high top-down view, single color black outline, medium detail. Pixen takes no color image.
+
+- `res-brick.png`: seed 863. Prompt: "a red clay house brick, a long box shape with hard corners, orange-red top face, dark red front face, the whole brick is red". It was the tenth of ten tries. The others came out as lumps, a cube, a cross and a brick with a tan top.
+
+The picture as it came is `mockups/refinery/art/res-brick-pixellab.png`, in pixen's own crimsons. `scripts/palette-icon.py` moved every pixel to the nearest colour of `mockups/city/art/palette.png`, which leaves the board's four brick reds: that is `mockups/refinery/art/res-brick-drawn.png`. `scripts/outline-icon.py` then gave it the house outline.
