@@ -17,15 +17,20 @@ import {
 } from "./expeditions";
 import { NO_UPGRADES, type Upgrades } from "./upgrades";
 import { materialsGained } from "./layers";
-import { EMPTY_STOCK, addedStock, type Stock } from "./stock";
+import { EMPTY_STOCK, addedStock, stockMoved, type Stock } from "./stock";
 import type { TeachId } from "./teach";
 import { freshMineOn } from "./line-switch";
-import { NO_PROJECT, type BuildingId, type Project } from "./city";
+import {
+  NO_PROJECT,
+  type BuildingId,
+  type Project,
+  type StepIndex,
+} from "./city";
 import { NO_JOBS, workersOnJobs, type Jobs } from "./workforce";
 import {
   deliver,
   givenFleet,
-  secondsToFinish,
+  secondsToStep,
   vehicleRecord,
   type VehicleId,
 } from "./transport";
@@ -425,6 +430,36 @@ export type AwayReport = {
   readonly heart: number;
   /** Ore the crew brought up while you were away. */
   readonly materials: Materials;
+  /** A fresh mine's night, for the shift report (#663). Never in today's game. */
+  readonly night?: NightReport;
+};
+
+/** A step built in during the night; the roof's is the building going operational. */
+export type NightStep = {
+  readonly building: BuildingId;
+  readonly step: StepIndex;
+  /** When, from the start of the night: the whole second it was built in. */
+  readonly atMs: number;
+};
+
+/**
+ * What a fresh mine's night did (slice 1, rule 4, rule 7.12, call 48): how
+ * long the mine produced, what stopped it, what transport delivered, the
+ * steps built in, and the night shift output at its start and end.
+ */
+export type NightReport = {
+  /** Time the mine dug with the line moving more than 0. */
+  readonly producedMs: number;
+  /** "clock" when the eight-hour clock stopped a mine that was producing. */
+  readonly stop: "clock" | "none";
+  /** What transport took from the pocket to the order, good by good. */
+  readonly delivered: Stock;
+  readonly steps: readonly NightStep[];
+  /** The night shift output at the start of the night and at its end. */
+  readonly payFrom: number;
+  readonly payTo: number;
+  /** When the output changed (a roof went on), from the start of the night. */
+  readonly litAtMs?: number;
 };
 
 /** The crew's work while the game was closed: away pay of their speed, up to the away cap (see effectiveRates). */
@@ -536,26 +571,82 @@ const NIGHT_CLOCK_MS = 8 * 60 * 60 * 1000;
 
 /**
  * One stretch of a fresh mine's night at one night shift output: up to its
- * end, or to the second the building in hand is operational, when a roof's
- * power may light the rest of the night (rule 7.11).
+ * end, or to the second the step in hand is built in (#663), so each step
+ * has its own second and a roof's power may light the rest of the night
+ * (rule 7.11). `producing` is whether the line moved.
  */
 function nightStretch(
   mountain: Mountain,
   from: number,
   end: number,
   digging: boolean,
-): Accrual {
+): Accrual & { readonly producing: boolean } {
   const rates = effectiveRates(mountain);
   const pay = rates.awayPay;
   const income = digging ? rates.crewPerSecond * pay : 0;
-  const finish = secondsToFinish(mountain, pay, income);
-  const roof = from + Math.max(1, Math.ceil(finish - 1e-9)) * 1000;
-  const to = Number.isFinite(finish) && roof < end ? roof : end;
+  const finish = secondsToStep(mountain, pay, income);
+  const built = from + Math.max(1, Math.ceil(finish - 1e-9)) * 1000;
+  const to = Number.isFinite(finish) && built < end ? built : end;
   if (digging) {
-    return accrue({ mountain, from, to, pay });
+    return { ...accrue({ mountain, from, to, pay }), producing: income > 0 };
   }
   const seconds = Math.floor((to - from) / 1000);
-  return { mountain: deliver(mountain, seconds, pay), mined: 0, settledAt: to };
+  return {
+    mountain: deliver(mountain, seconds, pay),
+    mined: 0,
+    settledAt: to,
+    producing: false,
+  };
+}
+
+/** The steps built in between two states of the night, all at `atMs`. */
+function stepsBuilt(
+  before: Mountain,
+  after: Mountain,
+  atMs: number,
+): readonly NightStep[] {
+  const project = before.project;
+  if (project.kind === "unordered") {
+    return [];
+  }
+  const { building, step } = project.site;
+  const reached = after.operational.includes(building)
+    ? 3
+    : after.project.kind === "unordered"
+      ? step
+      : after.project.site.step;
+  const built: NightStep[] = [];
+  for (let index = step; index < reached; index += 1) {
+    built.push({ building, step: index as StepIndex, atMs });
+  }
+  return built;
+}
+
+/** The night so far, as the shift report counts it. */
+type NightLog = {
+  producedMs: number;
+  readonly steps: NightStep[];
+  litAtMs: number | undefined;
+};
+
+/** One stretch's facts into the log: `at` is where the next stretch starts. */
+function logStretch(
+  log: NightLog,
+  before: Mountain,
+  part: Accrual & { readonly producing: boolean },
+  span: { readonly from: number; readonly at: number; readonly start: number },
+): void {
+  const atMs = span.at - span.start;
+  log.steps.push(...stepsBuilt(before, part.mountain, atMs));
+  if (part.producing) {
+    log.producedMs += span.at - span.from;
+  }
+  if (
+    log.litAtMs === undefined &&
+    effectiveRates(part.mountain).awayPay !== effectiveRates(before).awayPay
+  ) {
+    log.litAtMs = atMs;
+  }
 }
 
 /**
@@ -563,7 +654,8 @@ function nightStretch(
  * the night shift output for the first eight hours; transport carries to
  * what he ordered, from the pocket, for the whole night at the same share.
  * A roof that goes on in the night lights the rest of it. A fresh mine has
- * no relics, expeditions or Gold rush, so none of their splits apply.
+ * no relics, expeditions or Gold rush, so none of their splits apply. The
+ * report's `night` holds what the shift report says (#663).
  */
 function accrueNight({
   mountain,
@@ -579,6 +671,7 @@ function accrueNight({
 } {
   const awayMs = Math.max(0, now - lastSeen);
   const clockStops = lastSeen + Math.min(awayMs, NIGHT_CLOCK_MS);
+  const log: NightLog = { producedMs: 0, steps: [], litAtMs: undefined };
   let state = mountain;
   let cursor = lastSeen;
   let mined = 0;
@@ -590,9 +683,15 @@ function accrueNight({
       digging ? clockStops : now,
       digging,
     );
+    const at = Math.max(part.settledAt, cursor + 1000);
+    logStretch(log, state, part, {
+      from: cursor,
+      at: Math.min(at, digging ? clockStops : now),
+      start: lastSeen,
+    });
     state = part.mountain;
     mined += part.mined;
-    cursor = Math.max(part.settledAt, cursor + 1000);
+    cursor = at;
   }
   return {
     mountain: state,
@@ -607,6 +706,26 @@ function accrueNight({
       capped: awayMs > NIGHT_CLOCK_MS,
       heart: 1,
       materials: materialsGained(0, 0),
+      night: nightReport(log, mountain, state, { mined, awayMs }),
     },
+  };
+}
+
+/** The night's facts from its log and the mine before and after it. */
+function nightReport(
+  log: NightLog,
+  before: Mountain,
+  after: Mountain,
+  { mined, awayMs }: { readonly mined: number; readonly awayMs: number },
+): NightReport {
+  const dug = addedStock(before.stock, { stones: mined });
+  return {
+    producedMs: log.producedMs,
+    stop: awayMs > NIGHT_CLOCK_MS && log.producedMs > 0 ? "clock" : "none",
+    delivered: stockMoved(dug, after.stock).spent,
+    steps: log.steps,
+    payFrom: effectiveRates(before).awayPay,
+    payTo: effectiveRates(after).awayPay,
+    ...(log.litAtMs === undefined ? {} : { litAtMs: log.litAtMs }),
   };
 }

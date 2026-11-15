@@ -14,6 +14,7 @@ import {
   orderLimit,
   orderNumbers,
   secondsToFinish,
+  secondsToStep,
   vehiclePrice,
 } from "./transport";
 import { stepRequires, type Project } from "./city";
@@ -372,6 +373,54 @@ describe("the time to finish the building", () => {
       Infinity,
     );
     expect(secondsToFinish(mine(4, 0, { kind: "unordered" }), 1, 0)).toBe(
+      Infinity,
+    );
+  });
+});
+
+describe("the time to finish the step in hand (#663)", () => {
+  it("counts only the step in hand, at the share and the income", () => {
+    // The foundation's 25,000 stone at 36 a second, then at the night's 10.8.
+    expect(secondsToStep(mine(4, 10_000_000, site(0)), 1, 0)).toBeCloseTo(
+      25_000 / 36,
+      6,
+    );
+    expect(secondsToStep(mine(4, 10_000_000, site(0)), 0.3, 0)).toBeCloseTo(
+      25_000 / 10.8,
+      6,
+    );
+    // What has arrived counts: 5,000 of the structure's 250,000 left.
+    expect(secondsToStep(mine(4, 10_000_000, site(1, 245_000)), 1, 0)).toBe(
+      5_000 / 36,
+    );
+  });
+
+  it("waits for the dig when the pocket runs dry, as the whole building does", () => {
+    // 1,000 in the pocket, 36 carried and 9 dug a second: dry after 37 s,
+    // then the dig brings the rest.
+    const dry = mine(4, 1_000, site(0));
+    const seconds = secondsToStep(dry, 1, 9);
+    expect(seconds).toBeCloseTo(
+      1_000 / 27 + (25_000 - (36 * 1_000) / 27) / 9,
+      6,
+    );
+    expect(seconds).toBeLessThan(secondsToFinish(dry, 1, 9));
+  });
+
+  it("is the whole building's time on the roof", () => {
+    const roof = mine(4, 10_000_000, site(2, 500_000));
+    expect(secondsToStep(roof, 1, 0)).toBe(secondsToFinish(roof, 1, 0));
+  });
+
+  it("is Infinity when nothing can arrive or nobody builds", () => {
+    expect(secondsToStep(mine(4, 0, site(0)), 1, 0)).toBe(Infinity);
+    expect(secondsToStep(mine(4, 10, site(0, 0, "onHold")), 1, 10)).toBe(
+      Infinity,
+    );
+    expect(secondsToStep(mine(4, 10_000_000, site(0), 4, 0), 1, 0)).toBe(
+      Infinity,
+    );
+    expect(secondsToStep(mine(4, 0, { kind: "unordered" }), 1, 0)).toBe(
       Infinity,
     );
   });
