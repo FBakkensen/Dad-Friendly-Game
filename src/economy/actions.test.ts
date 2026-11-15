@@ -122,8 +122,8 @@ const FIXTURES = {
   holdOrder: { kind: "holdOrder" },
   resumeOrder: { kind: "resumeOrder" },
   buyVehicle: { kind: "buyVehicle", id: "horseWagon" },
-  placeWorker: { kind: "placeWorker", job: "haulage" },
-  freeWorker: { kind: "freeWorker", job: "haulage" },
+  placeWorker: { kind: "placeWorker", job: "haulage", count: 1 },
+  freeWorker: { kind: "freeWorker", job: "haulage", count: 1 },
 } as const satisfies {
   [K in Action["kind"]]: Extract<Action, { kind: K }>;
 };

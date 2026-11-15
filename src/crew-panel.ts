@@ -35,7 +35,7 @@ import { reducedMotion } from "./float-text";
 import { formatCompact } from "./format";
 import type { TroubleTier } from "./hazards";
 import type { Mountain } from "./mountain";
-import type { Move } from "./economy/actions";
+import { tierBuyMove } from "./economy/actions";
 import type {
   Dispatch,
   ProgressSnapshot,
@@ -416,16 +416,6 @@ function wireTierRow(
   });
 }
 
-/** One of a tier is today's buy; ×10 and Max buy several in one move (#358). */
-function buyMove(
-  what: ShownTierId,
-  count: number,
-): Extract<Move, { kind: "buyTier" | "buyTiers" }> {
-  return count === 1
-    ? { kind: "buyTier", id: what }
-    : { kind: "buyTiers", id: what, count };
-}
-
 /** A tier's row, built once, with its own art until the save is in. */
 function tierRow(id: ShownTierId, wiring: RowWiring): TierRow {
   const row = createBoardRow({
@@ -642,7 +632,7 @@ export function createCrewPanel({
     effectiveRates(getView().mountain, now(), getView().trouble).crewPerSecond;
   const buy = (id: ShownTierId, what: ShownTierId, count: number): void => {
     const before = crewSpeed();
-    if (dispatch(buyMove(what, count)).kind === "applied") {
+    if (dispatch(tierBuyMove(what, count)).kind === "applied") {
       onBoard.result(id, "applied");
       rate.count(before, crewSpeed());
     }

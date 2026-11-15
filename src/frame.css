@@ -1,0 +1,468 @@
+/*
+ * Slice 1's frame (#659), beside today's board: the order strip, the top row
+ * (the stockpile, the count of workers and the hire key), the site's ground,
+ * Next and the site bar, top to bottom above the save line. Its workforce is
+ * a sheet over it. Every tap target is at least --target-min.
+ */
+
+#app.frame-app {
+  padding: 0;
+  gap: 0;
+  background: var(--frame-ground);
+  color: var(--frame-ink);
+}
+
+.frame {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  width: var(--board-w);
+  height: calc(var(--board-h) - var(--save-h));
+  background: var(--frame-ground);
+}
+
+:where(.frame) button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.frame-icon {
+  width: calc(var(--art) * 10);
+  height: calc(var(--art) * 10);
+  image-rendering: pixelated;
+}
+
+/* The order strip: the project in hand, its step, its state and pips. */
+.frame-order {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  justify-content: center;
+  gap: calc(var(--art) * 2);
+  width: 100%;
+  height: var(--frame-order-h);
+  min-height: var(--target-min);
+  padding: 0 calc(var(--art) * 5) 0 calc(var(--art) * 6);
+  background: var(--frame-dark);
+  border-bottom: var(--art) solid var(--frame-edge);
+}
+
+.frame-order-top {
+  display: flex;
+  align-items: baseline;
+  gap: calc(var(--art) * 4);
+}
+
+.frame-order-name {
+  font-size: var(--board-type-20);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.frame-order-step {
+  font-size: var(--board-type-16);
+  color: var(--frame-amber);
+}
+
+.frame-pips {
+  display: flex;
+  align-self: center;
+  gap: calc(var(--art) * 2);
+  margin-left: auto;
+}
+
+.frame-pip {
+  width: calc(var(--art) * 11);
+  height: calc(var(--art) * 4);
+  background: var(--frame-pip);
+}
+
+.frame-pip[data-pip="done"] {
+  background: var(--frame-green);
+}
+
+.frame-pip[data-pip="now"] {
+  background: var(--frame-amber);
+}
+
+.frame-order-line {
+  overflow: hidden;
+  font-size: var(--frame-type-15);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--frame-quiet);
+}
+
+/* The top row: the stockpile, then the workers and the hire key at its end. */
+.frame-top {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: calc(var(--art) * 2);
+  height: var(--frame-top-h);
+  padding-right: calc(var(--art) * 2);
+  background: var(--frame-row);
+  border-bottom: var(--art) solid var(--frame-edge);
+}
+
+.frame-pile {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: calc(var(--art) * 3);
+  align-self: stretch;
+  padding-left: calc(var(--art) * 5);
+  border-right: var(--art) solid var(--frame-edge);
+  font-size: var(--board-type-22);
+}
+
+.frame-workers {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto auto;
+  grid-template-rows: auto auto;
+  align-content: center;
+  column-gap: calc(var(--art) * 3);
+  width: calc(var(--art) * 44);
+  height: var(--target-min);
+  padding-left: calc(var(--art) * 3);
+}
+
+.frame-workers .frame-icon {
+  width: calc(var(--art) * 16);
+  height: calc(var(--art) * 16);
+  grid-row: 1 / span 2;
+  align-self: center;
+}
+
+.frame-workers-count {
+  font-size: var(--board-type-20);
+  line-height: 1;
+}
+
+.frame-workers-free {
+  font-size: var(--frame-type-12);
+  color: var(--frame-quiet);
+}
+
+.frame-workers-free.has-free {
+  color: var(--frame-green);
+}
+
+.frame-hire,
+.frame-sheet-hire,
+.frame-amount {
+  flex: none;
+  min-width: var(--target-min);
+  height: var(--target-min);
+  padding: 0 calc(var(--art) * 4);
+  background: var(--frame-key);
+  color: var(--frame-quiet);
+  font-weight: 700;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.frame .frame-hire {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+  font-size: var(--board-type-14);
+  line-height: 1.15;
+}
+
+.frame-hire-price {
+  font-size: var(--board-type-13);
+}
+
+.frame-hire.can,
+.frame-sheet-hire.can {
+  background: var(--frame-go);
+  color: var(--frame-go-ink);
+  box-shadow: inset 0 0 0 var(--art) var(--frame-green);
+}
+
+/* The site's ground: its scene comes with its own sliver (#660, #662). */
+.frame-scene {
+  flex: 1;
+  min-height: 0;
+  background: var(--frame-mine-ground);
+}
+
+.frame-scene[data-site="city"] {
+  background: var(--frame-city-ground);
+}
+
+/* Next: what it points at, or what is affordable, and the count of everything. */
+.frame .frame-next {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: calc(var(--art) * 5);
+  height: var(--frame-next-h);
+  margin: calc(var(--art) * 2) calc(var(--art) * 3);
+  padding: 0 calc(var(--art) * 5);
+  background: var(--frame-dark);
+  border: var(--art) solid var(--frame-edge);
+}
+
+.frame .frame-next.go {
+  border-color: var(--frame-green);
+}
+
+.frame-next-what {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.frame-next-head {
+  font-size: var(--board-type-13);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--frame-amber);
+}
+
+.frame-next-line {
+  overflow: hidden;
+  font-size: var(--frame-type-18);
+  font-weight: 700;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.frame-next-count {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: var(--frame-type-12);
+  line-height: 1;
+  color: var(--frame-green);
+}
+
+.frame-next-count b {
+  font-size: var(--board-type-22);
+  font-weight: 400;
+}
+
+.frame-next:not(.go) .frame-next-count {
+  color: var(--frame-quiet);
+}
+
+/* The site bar: a tab for each open site, with its lamp. */
+.frame-sites {
+  display: flex;
+  flex: none;
+  gap: calc(var(--art) * 2);
+  height: var(--frame-sites-h);
+  padding: 0 calc(var(--art) * 3) calc(var(--art) * 3);
+}
+
+.frame .frame-site {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: calc(var(--art) * 1);
+  height: 100%;
+  background: var(--frame-tab);
+  border: var(--art) solid var(--frame-edge);
+  border-top-width: calc(var(--art) * 2);
+  font-size: var(--board-type-14);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--frame-quiet);
+}
+
+.frame .frame-site.on {
+  background: var(--frame-tab-on);
+  border-color: var(--frame-amber);
+  color: var(--frame-ink);
+}
+
+.frame-site-icon {
+  height: calc(var(--art) * 12);
+  image-rendering: pixelated;
+}
+
+.frame-lamp {
+  position: absolute;
+  top: calc(var(--art) * 2);
+  right: calc(var(--art) * 3);
+  width: calc(var(--art) * 5);
+  height: calc(var(--art) * 5);
+  border-radius: 50%;
+  background: var(--frame-pip);
+}
+
+.frame-lamp[data-lamp="green"] {
+  background: var(--frame-green);
+  box-shadow: 0 0 calc(var(--art) * 3) var(--frame-green);
+}
+
+.frame-lamp[data-lamp="amber"] {
+  background: var(--frame-amber);
+  box-shadow: 0 0 calc(var(--art) * 3) var(--frame-amber);
+}
+
+/* The workforce: a sheet over the frame, above the save line. */
+.frame-sheet {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--board-w);
+  height: calc(var(--board-h) - var(--save-h));
+  background: var(--frame-scrim);
+}
+
+.frame-sheet-box {
+  display: flex;
+  flex-direction: column;
+  width: calc(var(--art) * 200);
+  max-height: calc(100% - var(--art) * 8);
+  padding: calc(var(--art) * 7) calc(var(--art) * 8);
+  background: var(--frame-ground);
+  border: var(--art) solid var(--frame-amber);
+}
+
+.frame-sheet[hidden] {
+  display: none;
+}
+
+:where(.frame-sheet) button {
+  font: inherit;
+  color: inherit;
+  border: 0;
+  cursor: pointer;
+}
+
+.frame-sheet-title {
+  margin: 0 0 calc(var(--art) * 3);
+  font-size: var(--board-type-26);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.frame-sheet-head {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--art) * 3);
+  font-size: var(--frame-type-18);
+}
+
+.frame-sheet-counts {
+  flex: 1;
+}
+
+.frame-sheet-counts b {
+  font-size: var(--board-type-20);
+  font-weight: 400;
+  color: var(--board-ink-bare);
+}
+
+.frame-sheet .frame-amount,
+.frame-sheet .frame-sheet-hire {
+  font-size: var(--board-type-16);
+  background: var(--frame-key);
+  color: var(--frame-quiet);
+}
+
+.frame-sheet .frame-sheet-hire.can {
+  background: var(--frame-go);
+  color: var(--frame-go-ink);
+}
+
+.frame-sheet-note {
+  margin: calc(var(--art) * 3) 0 0;
+  font-size: var(--board-type-16);
+  color: var(--frame-amber);
+}
+
+.frame-jobs {
+  overflow-y: auto;
+  min-height: 0;
+  margin-top: calc(var(--art) * 2);
+}
+
+.frame-jobs-site {
+  margin: calc(var(--art) * 4) 0 calc(var(--art) * 1);
+  font-size: var(--board-type-13);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--frame-amber);
+}
+
+.frame-job {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--art) * 2);
+  min-height: calc(var(--art) * 27);
+  border-top: var(--art) solid var(--frame-edge);
+}
+
+.frame-job-name {
+  flex: none;
+  width: calc(var(--art) * 42);
+  font-size: var(--frame-type-18);
+  font-weight: 700;
+}
+
+.frame-job-note {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--board-type-13);
+  line-height: 1.1;
+  color: var(--frame-quiet);
+}
+
+.frame-job-count {
+  width: calc(var(--art) * 17);
+  font-size: var(--board-type-20);
+  font-weight: 400;
+  text-align: center;
+  color: var(--board-ink-bare);
+}
+
+.frame-sheet .frame-step {
+  flex: none;
+  width: var(--target-min);
+  height: var(--target-min);
+  background: var(--frame-key);
+  color: var(--frame-quiet);
+  font-size: var(--board-type-22);
+  font-weight: 700;
+  text-align: center;
+}
+
+.frame-sheet .frame-step.can {
+  color: var(--frame-ink);
+}
+
+.frame-sheet .frame-sheet-close {
+  height: var(--target-min);
+  margin-top: calc(var(--art) * 6);
+  background: var(--frame-go);
+  border: var(--art) solid var(--frame-green);
+  color: var(--frame-go-ink);
+  font-size: var(--board-type-20);
+  font-weight: 700;
+  text-align: center;
+}

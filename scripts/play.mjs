@@ -52,6 +52,10 @@ import {
   toolHomeSave,
   toolsMountain,
   workshopSave,
+  DEV_BACKUP_KEY,
+  sliceBusySave,
+  sliceOrderedSave,
+  sliceStandsSave,
 } from "../tools/browser/fixtures.ts";
 
 /** Starting saves, from the typed fixtures in tools/browser/fixtures.ts. `fresh` seeds nothing. */
@@ -164,6 +168,30 @@ const SAVES = {
   home: {
     note: "Ada came home with a pick while away: the welcome card, then Brought home",
     save: () => toolHomeSave(Date.now()),
+  },
+  // Slice 1's frame (#659): ?slice=1, a fresh mine on the dev account's memory save.
+  slice: {
+    note: "slice 1's frame on the first evening (?slice=1, a dev build)",
+    save: () => undefined,
+    search: "?slice=1",
+  },
+  "slice-ordered": {
+    note: "slice 1: the foundation on order and nothing affordable",
+    save: () => sliceOrderedSave(Date.now()),
+    key: DEV_BACKUP_KEY,
+    search: "?slice=1",
+  },
+  "slice-stands": {
+    note: "slice 1: nobody hoisting, so the line stands",
+    save: () => sliceStandsSave(Date.now()),
+    key: DEV_BACKUP_KEY,
+    search: "?slice=1",
+  },
+  "slice-busy": {
+    note: "slice 1: carts, two wagons, free workers and stone to spend",
+    save: () => sliceBusySave(Date.now()),
+    key: DEV_BACKUP_KEY,
+    search: "?slice=1",
   },
 };
 
@@ -316,7 +344,8 @@ try {
         ? { kind: "none" }
         : { kind: "once", guard: "play-seeded", json: seedJson(save) },
     clock: { date: "real", tap: "real" },
-    search: plan.search,
+    seedKey: SAVES[plan.save].key,
+    search: plan.search === "" ? (SAVES[plan.save].search ?? "") : plan.search,
     onPageError: (error) => {
       pageErrors += 1;
       note(`[phone] PAGE ERROR: ${String(error)}`);

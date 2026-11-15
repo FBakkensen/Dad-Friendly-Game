@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Mountain } from "../mountain";
 import type { TierId } from "../tiers";
-import { activeFactors, factor, withFactors } from "./factors";
+import { activeFactors, factor, holdFactors, withFactors } from "./factors";
 import { tendingTenths } from "../engineers";
 import { effectiveRates } from "../rates";
 import {
@@ -41,6 +41,20 @@ const posted = {
 };
 
 describe("economy factors", () => {
+  it("holds a map for the page until another replaces it", () => {
+    holdFactors({ "price.borer": 2 });
+    try {
+      expect(factor("price.borer")).toBe(2);
+      withFactors({ "price.borer": 3 }, () => {
+        expect(factor("price.borer")).toBe(3);
+      });
+      expect(factor("price.borer")).toBe(2);
+    } finally {
+      holdFactors({});
+    }
+    expect(activeFactors()).toBeUndefined();
+  });
+
   it("stays at 1 outside a sweep, and a sweep of 1 matches today's prices", () => {
     expect(factor("price.cart")).toBe(1);
     const helper = tierById("helper");
