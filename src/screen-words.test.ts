@@ -1192,15 +1192,13 @@ describe("a fresh mine's upgrade words", () => {
     });
   });
 
-  it("says what Cart helpers needs while haulage has nobody", () => {
+  it("says only Cart helpers' rule while haulage has nobody", () => {
     freshWords(() => {
       const none = onHaulage(0);
       expect(upgradeEffectLine(helpers, none, 0)).toBe(
         "Each worker on haulage makes carts 1% faster.",
       );
-      expect(upgradeWhyLine(helpers, none, 0)).toBe(
-        "It counts once haulage has workers.",
-      );
+      expect(upgradeWhyLine(helpers, none, 0)).toBe("");
     });
   });
 

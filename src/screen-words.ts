@@ -319,8 +319,8 @@ const UPGRADE_WHY: Record<UpgradeId, string> = {
 /**
  * A fresh mine's words for an upgrade (#661, the spec's call 41): Better
  * boots lifts only a worker with a tool, and Helping hands counts the
- * workers on haulage, so it takes a name without "hands". Proposed, and
- * Flemming's to approve before part 1 is switched on.
+ * workers on haulage, so it takes a name without "hands". Approved by
+ * Flemming on 15 Nov 2026.
  */
 const FRESH_WORDS: Partial<
   Record<
@@ -330,8 +330,6 @@ const FRESH_WORDS: Partial<
       readonly why: string;
       /** Its rule, where today's `perLevel` no longer says it. */
       readonly rule?: string;
-      /** What feeds it, where it has none: "It counts once …". */
-      readonly unfed?: string;
     }
   >
 > = {
@@ -342,7 +340,6 @@ const FRESH_WORDS: Partial<
     name: "Cart helpers",
     why: "Each worker on haulage makes carts 1% faster.",
     rule: "Each worker on haulage makes carts 1% faster.",
-    unfed: "It counts once haulage has workers.",
   },
 };
 
@@ -371,10 +368,10 @@ export function upgradeWhyLine(
 ): string {
   const words = freshWords(upgrade.id);
   if (upgrade.synergy !== undefined && !synergyFed(upgrade, mountain)) {
-    return (
-      words?.unfed ??
-      `It counts once you have ${tierPlural(upgrade.synergy.from)}.`
-    );
+    // A fresh mine's rule is already the effect line, and it has no other approved words.
+    return words?.rule === undefined
+      ? `It counts once you have ${tierPlural(upgrade.synergy.from)}.`
+      : "";
   }
   if (upgrade.id === "tap") {
     const change = upgradeChange(upgrade, mountain, at);
