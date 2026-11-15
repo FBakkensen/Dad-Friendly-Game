@@ -1,4 +1,11 @@
-import { SITE_HOLDS, buildRate, onSiteTotal, stepWork } from "./building-site";
+import {
+  SITE_HOLDS,
+  buildRate,
+  buildSeconds,
+  goodsTotal,
+  onSiteTotal,
+  stepWork,
+} from "./building-site";
 import {
   buildIn,
   receive,
@@ -129,11 +136,6 @@ export function buyVehicle(mountain: Mountain, id: VehicleId): Mountain {
     : { ...paid, fleet: { ...paid.fleet, [id]: paid.fleet[id] + 1 } };
 }
 
-/** Goods in all. */
-function moved(goods: Partial<Stock>): number {
-  return GOOD_IDS.reduce((sum, good) => sum + (goods[good] ?? 0), 0);
-}
-
 /** What the goods cost the pocket, as a price. */
 function priceOf(goods: Partial<Stock>): Price {
   return GOOD_IDS.flatMap((good) =>
@@ -170,7 +172,10 @@ export function deliver(
       buildRate(state) * share,
       left,
     );
-    if (!work.done && moved(work.delivered) + moved(work.built) === 0) {
+    if (
+      !work.done &&
+      goodsTotal(work.delivered) + goodsTotal(work.built) === 0
+    ) {
       return state;
     }
     const arrived = receive(
@@ -299,14 +304,6 @@ export function orderLimit(
           ? slowest.good
           : "transport",
   };
-}
-
-/** Seconds the builders take to build in what is on the site and what is still to come. */
-function buildSeconds(site: Site, build: number): number {
-  const work =
-    onSiteTotal(site) +
-    GOOD_IDS.reduce((sum, good) => sum + stillRequired(site)[good], 0);
-  return work === 0 ? 0 : build > 0 ? work / build : Infinity;
 }
 
 /** An order's numbers, for the page (rule 7.11): no limit is named. */

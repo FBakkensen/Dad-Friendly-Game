@@ -49,8 +49,19 @@ function shareOut(
   return out;
 }
 
-function total(goods: Partial<Stock>): number {
+/** Goods in all. */
+export function goodsTotal(goods: Partial<Stock>): number {
   return GOOD_IDS.reduce((sum, good) => sum + (goods[good] ?? 0), 0);
+}
+
+/**
+ * Seconds the builders take at `build` a second to build in what is on the
+ * site and what the step still requires to arrive: 0 with nothing left,
+ * Infinity with nobody building.
+ */
+export function buildSeconds(site: Site, build: number): number {
+  const work = onSiteTotal(site) + goodsTotal(stillRequired(site));
+  return work === 0 ? 0 : build > 0 ? work / build : Infinity;
 }
 
 /** What the step in hand did in some seconds: goods brought and built in, and whether it is done. */
@@ -73,12 +84,12 @@ function finishSeconds(
   carry: number,
   build: number,
 ): number {
-  const bring = total(stillRequired(site));
-  if (can < bring || build <= 0) {
+  const bring = goodsTotal(stillRequired(site));
+  if (can < bring) {
     return Infinity;
   }
   const brought = bring === 0 ? 0 : carry > 0 ? bring / carry : Infinity;
-  return Math.max((onSiteTotal(site) + bring) / build, brought);
+  return Math.max(buildSeconds(site, build), brought);
 }
 
 /**
@@ -101,7 +112,7 @@ export function stepWork(
   for (const good of GOOD_IDS) {
     wants[good] = Math.min(toBring[good], stock[good]);
   }
-  const can = total(wants);
+  const can = goodsTotal(wants);
   const finish = finishSeconds(site, can, carry, build);
   if (finish <= seconds) {
     return {

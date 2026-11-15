@@ -809,6 +809,7 @@ export function shippedFacts(): ShippedFacts {
       expeditions: MAX_EXPEDITIONS,
       expeditionMs: MAX_EXPEDITION_MS,
       craftMs: MAX_CRAFT_MS,
+      siteHolds: SITE_HOLDS,
     },
   };
 }

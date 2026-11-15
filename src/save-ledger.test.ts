@@ -149,6 +149,7 @@ const LEDGER = {
     expeditions: 5,
     expeditionMs: 14400000,
     craftMs: 14400000,
+    siteHolds: 500,
   },
 };
 
