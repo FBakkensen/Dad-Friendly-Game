@@ -348,8 +348,9 @@ const VEH = {
 };
 const WGT = { clay: 500, iron: 500 }; // what one clay or iron takes of a load, in stone
 /* The first evening: one level, stone only, the mine and the city. One worker, on drilling. Nobody drives the wagon or builds. */
+const SAVE_V = 12; // the save's shape: written by fresh() and asked for by the loader, so a save of another shape is not played
 const fresh = () => ({
-  v: 12, stones: 0, bricks: 0, cut: 0, yard: 0, free: 0, wk: { face: 1, deep: 0, haul: 0, hauld: 0, lift: 0, kiln: 0, saw: 0, drive: 0, build: 0 }, m: { face: [0, 0], haul: [0, 0], loco: [0, 0], lift: 0, great: 0 }, ded: [0, 0], cg: {}, fleet: { wagons: 1, trucks: 0 }, shaft: false, kilns: 0, saws: 0,
+  v: SAVE_V, stones: 0, bricks: 0, cut: 0, yard: 0, free: 0, wk: { face: 1, deep: 0, haul: 0, hauld: 0, lift: 0, kiln: 0, saw: 0, drive: 0, build: 0 }, m: { face: [0, 0], haul: [0, 0], loco: [0, 0], lift: 0, great: 0 }, ded: [0, 0], cg: {}, fleet: { wagons: 1, trucks: 0 }, shaft: false, kilns: 0, saws: 0,
   p: { face: [0, 0], shaft: [0, 0], kiln: 0, saw: 0 },
   clay: 0, iron: 0, bench: null, gear: { rails: 0, props: 0 }, charge: 0,
   b: { beacon: { step: 0, given: {}, site: {} }, store: { step: 0, given: {}, site: {} }, forge: { step: 0, given: {}, site: {} } },
@@ -366,7 +367,7 @@ const mid = () => Object.assign(fresh(), {
   b: { beacon: { step: 3, given: {}, site: {} }, store: { step: 1, given: { stones: 22000, bricks: 3000 }, site: {}, on: true }, forge: { step: 0, given: {}, site: {} } },
 });
 let S = fresh();
-try { const raw = localStorage.getItem("slice1-proto"); if (raw) { const o = JSON.parse(raw); if (o && o.v === 11) S = o; } } catch (e) { /* plays without it */ }
+try { const raw = localStorage.getItem("slice1-proto"); if (raw) { const o = JSON.parse(raw); if (o && o.v === SAVE_V) S = o; } } catch (e) { /* plays without it */ }
 const GONE = S.seen ? (Date.now() - S.seen) / 1000 : 0; // how long he was away, read before anything saves
 const save = () => { S.seen = Date.now(); try { localStorage.setItem("slice1-proto", JSON.stringify(S)); } catch (e) { /* plays without it */ } };
 
@@ -635,11 +636,11 @@ function explainRow(k, i) {
 }
 function explain() {
   const b = stageBuy("lift"), F = flows();
-  say(`Hoisting lifts ${rate(Math.min(F.now.lift, F.f.lift))} now and can lift ${rate(F.f.lift)}. ${one(b)} takes ${b.staff} workers and lifts ${num(b.load)} a trip${b.speed > 1 ? ", " + b.speed + " times as fast as a hoist" : ""}. A worker on a winch lifts ${num(STG.lift.each)} a trip. A trip to the Topsoil and back takes ${rt(0)} s${S.shaft ? ", to the Granite " + rt(1) + " s" : ""}. The rock is in stock when the cage is at the top.`);
+  say(`Hoisting lifts ${rate(Math.min(F.now.lift, F.f.lift))} now and can lift ${rate(F.f.lift)}. ${one(b)} takes ${b.staff} workers and lifts ${num(b.load)} a trip${b.speed > 1 ? ", " + b.speed + " times as fast as a hoist" : ""}. A worker on a winch lifts ${num(STG.lift.each)} a trip, and the winch's cage holds ${num(STG.lift.load)}. A trip to the Topsoil and back takes ${rt(0)} s${S.shaft ? ", to the Granite " + rt(1) + " s" : ""}. The rock is in stock when the cage is at the top.`);
 }
 /* Hoists are assigned to a level with − and + under the hoisting row. The hoists that are not assigned serve both levels in turn. */
 const hoists = () => S.m.lift + S.m.great, shared = () => hoists() - S.ded[0] - S.ded[1];
-const hoistSay = () => say(`Hoists assigned to the Topsoil: ${S.ded[0]}. To the Granite: ${S.ded[1]}. For both levels in turn: ${shared()}. A hoist for one level waits there until it is full. A hoist for both takes what is there and goes on to the other.`);
+const hoistSay = () => say(`Hoists assigned to the Topsoil: ${S.ded[0]}. To the Granite: ${S.ded[1]}. For both levels in turn: ${shared()}. A hoist for one level waits there for a whole load, or until no more rock is coming. A hoist for both takes what is there and goes on to the other.`);
 function assign(i, d) {
   if (d < 0 ? S.ded[i] > 0 : shared() > 0) { S.ded[i] += d; after(); } else hoistSay(); // a tap that can move nothing says where the hoists are
 }
