@@ -54,3 +54,27 @@ Spec: `docs/superpowers/specs/2026-11-14-slice-1-design.md`, "Lab", "Starting nu
 ## Proof
 
 The test files, then `npm run gate -- fast`. Nothing the player sees changes unless a part 1 number moves; then the part 1 journey and the play saves that show it. The full gate on the final commit.
+
+## What the lab found (20 seeds, `npm run lab -- --factors fresh.off=0,part2.off=0`)
+
+Part 1 (`fresh.off=0` alone) reads as #655 and #703 left it: the Light Tower's roof on day 2 for the casual types, 3 for the evening dad, 4 for five minutes a day, 1.1 for the marathon.
+
+| Player type    | Warehouse's roof on day | nightFull | nightFullAt | deadGood | transportLimit | workerMoves | idleWorkers |
+| -------------- | ----------------------- | --------- | ----------- | -------- | -------------- | ----------- | ----------- |
+| casual-2x10    | 6.0                     | 0.22      | 0.81        | 0        | 0.85           | 25          | 0.25        |
+| casual-mover   | 5.5                     | 0.25      | 0.73        | 0        | 0.74           | 32          | 0.08        |
+| casual-no-hold | 5.5                     | 0.25      | 0.86        | 0        | 1.00           | 28          | 0.14        |
+| checker-6x3    | 5.3                     | no nights | n/a         | 0        | 0.73           | 11          | 0.20        |
+| checkin-4x2    | 5.7                     | 0.22      | 0.63        | 0.004    | 0.82           | 14          | 0.25        |
+| evening-1x20   | 7.0                     | 0.60      | 0.27        | 0        | 0.74           | 41          | 0.20        |
+| five-min-a-day | 9.0                     | 0.67      | 0.77        | 0        | 0.76           | 26          | 0.30        |
+| marathon       | 4.1                     | 0.75      | 0.38        | 0.16     | 0.82           | 97          | 0.16        |
+| optimizer      | 5.5                     | 0.38      | 0.75        | 0        | 0.85           | 30          | 0.08        |
+
+`starved` and `siteFull` read 0 for every type.
+
+- **Part 2 takes the casual types three and a half to four days** after the Light Tower, longer than the paper check's two and a half. The Warehouse is not made smaller: the marathon already has it on day 4.1, and the whole slice must take every type five days or more (#556).
+- **Transport is still the order's limit most of the time** (0.7 to 1.0). Wagons cost ×1.219 each, so the fleet stops near forty and about 350 a second; trucks come with the Warehouse. That is what part 2's pace is.
+- **The casual types' nights hold**: about one long night in four ends at a full stockyard, three quarters of the way in. The types away a whole day fill it in a third of the night (evening, marathon): room for a night is not room for a day.
+- **`deadGood` is near zero** except for the marathon (0.16): a three-hour sitting outruns its order and its stockyard.
+- **The checker has no long nights**: six sittings a day leave no gap of six hours.
