@@ -80,7 +80,7 @@ async function frameFacts(page) {
     );
     const cut = [
       ...document.querySelectorAll(
-        ".frame-order-name, .frame-order-step, .frame-order-line, .frame-next-head, .frame-workers-free, .frame-hire, .mine:not([hidden]) :is(.mine-stage-sum, .mine-stage-pile, .mine-key, .mine-level-line, .mine-deep, .mine-stage-name), .city:not([hidden]) :is(.city-plate-head, .city-fleet, .city-key, .city-tag, .city-card-head, .city-bar-line, .city-order, .city-crew-line, .city-completion)",
+        ".frame-order-name, .frame-order-step, .frame-order-line, .frame-next-head, .frame-workers-free, .frame-hire, .mine:not([hidden]) :is(.mine-stage-sum, .mine-stage-pile, .mine-key, .mine-deep, .mine-stage-name), .city:not([hidden]) :is(.city-plate-head, .city-fleet, .city-key, .city-tag, .city-card-head, .city-bar-line, .city-order, .city-crew-line, .city-completion)",
       ),
     ]
       .filter(

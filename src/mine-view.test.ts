@@ -248,16 +248,21 @@ describe("a stage's row", () => {
 });
 
 describe("the level's plate and the scene", () => {
-  it("names the Topsoil, its rock a second and its crews, and not the next level", () => {
+  it("names the Topsoil and the rock hoisted now, and not the next level (#715)", () => {
     fresh(() => {
-      const mountain = createMountain();
-      const plate = levelPlate(mountain);
-      expect(plate.name).toBe("Topsoil");
-      expect(plate.rate).toBe(
-        `${String(effectiveRates(mountain).crewPerSecond)}/s`,
-      );
-      expect(plate.line).toBe("4 crews · all rock is hoisted as stone");
+      const start = createMountain();
+      const plate = levelPlate(start);
+      expect(plate).toEqual({ name: "Topsoil", rate: "0/s" });
       expect(DEEPER_STRATA).not.toMatch(/granite/i);
+      // One worker on hoisting, rock at the shaft: the plate reads what comes up.
+      const hoisting = {
+        ...start,
+        jobs: { ...start.jobs, drilling: 0, hoisting: 1 },
+        piles: { face: 0, shaft: 300 },
+      };
+      const lift = stageRows(hoisting).find((row) => row.stage === "lift");
+      expect(lift?.now).toBe("3");
+      expect(levelPlate(hoisting).rate).toBe("3/s");
     });
   });
 

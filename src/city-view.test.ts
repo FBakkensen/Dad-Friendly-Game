@@ -8,6 +8,7 @@ import {
   vehicleKeys,
 } from "./city-view";
 import { withFactors } from "./economy/factors";
+import { formatCompact } from "./format";
 import { orderStrip } from "./frame-view";
 import { FRESH_OFF } from "./line-switch";
 import { createMountain, type Mountain } from "./mountain";
@@ -84,7 +85,7 @@ describe("the transport plate", () => {
 describe("the wagon key", () => {
   it("says what one more wagon carries, its price and its driver, green when he can pay", () => {
     fresh(() => {
-      const [key] = vehicleKeys(withStones(start(), 10_000));
+      const [key] = vehicleKeys(withStones(start(), 10_000), "one");
       expect(key).toMatchObject({
         id: "horseWagon",
         can: true,
@@ -92,7 +93,26 @@ describe("the wagon key", () => {
         price: "500",
         staff: "1 to run",
       });
-      expect(vehicleKeys(withStones(start(), 0))[0]?.can).toBe(false);
+      expect(vehicleKeys(withStones(start(), 0), "one")[0]?.can).toBe(false);
+    });
+  });
+
+  it("follows the amount key: ten wagons, and as many as the pocket holds (#715)", () => {
+    fresh(() => {
+      const [ten] = vehicleKeys(withStones(start(), 100_000), "ten");
+      expect(ten).toMatchObject({
+        id: "horseWagon",
+        count: 10,
+        can: true,
+        face: "+10 Wagons · 90/s",
+        staff: "10 to run",
+      });
+      expect(ten?.label).toBe(
+        `Buy 10 horse wagons for ${ten?.price ?? ""} stone. They carry 90/s and take 10 to run.`,
+      );
+      const [max] = vehicleKeys(withStones(start(), 1_200), "max");
+      expect(max).toMatchObject({ count: 2, face: "+2 Wagons · 18/s" });
+      expect(max?.price).toBe(formatCompact(1_110));
     });
   });
 });

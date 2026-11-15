@@ -10,7 +10,7 @@ import {
 import { etaShort, formatCompact } from "./format";
 import { STEP_NAMES, orderStrip, requirements, type Pip } from "./frame-view";
 import type { Mountain } from "./mountain";
-import { canPay, priceAmount } from "./stock";
+import type { BuyAmount } from "./tiers";
 import { AWAY_PAY_RATE, effectiveRates } from "./rates";
 import {
   VEHICLE_KEYS,
@@ -25,7 +25,7 @@ import {
   fleetRate,
   orderLimit,
   orderNumbers,
-  vehiclePrice,
+  vehicleQuote,
   type Vehicle,
   type VehicleId,
 } from "./transport";
@@ -80,11 +80,13 @@ export function transportPlate(mountain: Mountain): TransportPlate {
   };
 }
 
-/** A key for one more vehicle, in the mine keys' form. */
+/** A key for more vehicles at the amount key's amount, in the mine keys' form (#715). */
 export type VehicleKey = {
   readonly id: VehicleId;
+  readonly count: number;
+  readonly cost: number;
   readonly can: boolean;
-  /** "+Wagon · 9/s". */
+  /** "+Wagon · 9/s", "+10 Wagons · 90/s". */
   readonly face: string;
   readonly price: string;
   /** "1 to run": a vehicle runs with one driver (rule 2.7). */
@@ -93,18 +95,28 @@ export type VehicleKey = {
 };
 
 /** Part 1 sells horse wagons; trucks come with part 3 and have no key before then. */
-export function vehicleKeys(mountain: Mountain): readonly VehicleKey[] {
+export function vehicleKeys(
+  mountain: Mountain,
+  amount: BuyAmount,
+): readonly VehicleKey[] {
   return VEHICLES.map((vehicle) => {
-    const price = vehiclePrice(mountain, vehicle.id);
-    const cost = priceAmount(price, vehicle.good);
-    const moves = `${formatSpeed(vehicle.carries)}/s`;
+    const { count, cost } = vehicleQuote(mountain, vehicle.id, amount);
+    const one = count === 1;
+    const moves = `${formatSpeed(vehicle.carries * count)}/s`;
+    const key = plural(count, VEHICLE_KEYS[vehicle.id]);
+    const words = plural(count, VEHICLE_WORDS[vehicle.id]);
+    const price = formatCompact(cost);
     return {
       id: vehicle.id,
-      can: canPay(mountain.stock, price),
-      face: `+${VEHICLE_KEYS[vehicle.id]} · ${moves}`,
-      price: formatCompact(cost),
-      staff: "1 to run",
-      label: `Buy a ${VEHICLE_WORDS[vehicle.id][0]} for ${formatCompact(cost)} stone. It carries ${moves} and takes 1 to run.`,
+      count,
+      cost,
+      can: cost <= mountain.stock[vehicle.good],
+      face: one ? `+${key} · ${moves}` : `+${String(count)} ${key} · ${moves}`,
+      price,
+      staff: `${String(count)} to run`,
+      label: one
+        ? `Buy a ${words} for ${price} stone. It carries ${moves} and takes 1 to run.`
+        : `Buy ${String(count)} ${words} for ${price} stone. They carry ${moves} and take ${String(count)} to run.`,
     };
   });
 }

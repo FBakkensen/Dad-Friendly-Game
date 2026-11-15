@@ -113,6 +113,16 @@ describe("the city", () => {
     expect(poor.progress.getSnapshot().mountain.fleet.horseWagon).toBe(1);
   });
 
+  it("buys ten wagons on ×10 (#715)", () => {
+    const { button, progress, root } = mount(withStones(100_000));
+    button(".frame-amount").click();
+    expect(root.querySelector(".city-key")?.textContent).toMatch(
+      /^\+10 Wagons · 90\/s/,
+    );
+    button(".city-key").click();
+    expect(progress.getSnapshot().mountain.fleet.horseWagon).toBe(11);
+  });
+
   it("names three plots: the Light Tower's and two vacant", () => {
     const { root } = mount();
     const tags = [...root.querySelectorAll(".city-tag")].map(

@@ -1,6 +1,6 @@
 import stoneUrl from "./assets/board/res-stone.png";
 import { el, hide, mark, setAttr, write } from "./board-dom";
-import type { Move } from "./economy/actions";
+import { vehicleBuyMove, type Move } from "./economy/actions";
 import {
   CITY_FOOT,
   PLOT_SPANS,
@@ -85,9 +85,9 @@ function buildPlate(state: FrameState): PlateParts {
   small.append(price, stone, staff);
   key.append(face, small);
   key.addEventListener("click", () => {
-    const offer = vehicleKeys(state.mountain())[0];
+    const offer = vehicleKeys(state.mountain(), state.amount())[0];
     if (offer !== undefined && offer.can) {
-      void state.progress.dispatch({ kind: "buyVehicle", id: offer.id });
+      void state.progress.dispatch(vehicleBuyMove(offer.id, offer.count));
     }
   });
   keys.append(driving.minus, driving.plus, key);
@@ -115,7 +115,7 @@ function paintPlate(
   write(parts.state, plate.state);
   write(parts.fleet, plate.fleet);
   paintSteps(parts.steps, plate.steps, amount);
-  const key = vehicleKeys(mountain)[0];
+  const key = vehicleKeys(mountain, amount)[0];
   hide(parts.key, key === undefined);
   if (key !== undefined) {
     write(parts.face, key.face);

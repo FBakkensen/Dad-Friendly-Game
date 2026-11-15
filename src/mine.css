@@ -54,14 +54,6 @@
   color: var(--frame-rate);
 }
 
-.mine-level-line {
-  display: block;
-  margin-top: var(--art);
-  font-size: var(--frame-type-15);
-  color: var(--frame-quiet);
-  white-space: nowrap;
-}
-
 .mine-zones {
   left: 0;
   right: 0;

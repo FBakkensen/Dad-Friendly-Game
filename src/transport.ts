@@ -15,6 +15,7 @@ import {
   type Site,
 } from "./city";
 import type { Mountain } from "./mountain";
+import type { BuyAmount } from "./tiers";
 import { GOOD_IDS, pay, type GoodId, type Price, type Stock } from "./stock";
 
 /**
@@ -121,14 +122,47 @@ export function fleetRate(mountain: Pick<Mountain, "fleet" | "jobs">): number {
   return rate;
 }
 
-/** The next one's price. The ones given are not on the curve. */
-export function vehiclePrice(mountain: Mountain, id: VehicleId): Price {
-  const vehicle = vehicleById(id);
-  const bought = Math.max(0, mountain.fleet[id] - vehicle.given);
-  const cost = Math.ceil(
+/** What the vehicle after `fleet` of them costs. The ones given are not on the curve. */
+function vehicleCost(vehicle: Vehicle, fleet: number): number {
+  const bought = Math.max(0, fleet - vehicle.given);
+  return Math.ceil(
     Number((vehicle.firstCost * vehicle.growth ** bought).toPrecision(12)),
   );
-  return [{ good: vehicle.good, amount: cost }];
+}
+
+/** The next one's price. */
+export function vehiclePrice(mountain: Mountain, id: VehicleId): Price {
+  const vehicle = vehicleById(id);
+  return [
+    { good: vehicle.good, amount: vehicleCost(vehicle, mountain.fleet[id]) },
+  ];
+}
+
+/**
+ * What `amount` of a vehicle costs now, as `tierQuote` prices a machine
+ * (#715): the sum of each one's price in turn. ×10 is ten, affordable or
+ * not; Max is as many as the pocket holds, and at least one.
+ */
+export function vehicleQuote(
+  mountain: Mountain,
+  id: VehicleId,
+  amount: BuyAmount,
+): { readonly count: number; readonly cost: number } {
+  const vehicle = vehicleById(id);
+  const fleet = mountain.fleet[id];
+  const pocket = mountain.stock[vehicle.good];
+  let count = 1;
+  let cost = vehicleCost(vehicle, fleet);
+  const more = (): boolean =>
+    amount === "ten"
+      ? count < 10
+      : amount === "max" &&
+        cost + vehicleCost(vehicle, fleet + count) <= pocket;
+  while (more()) {
+    cost += vehicleCost(vehicle, fleet + count);
+    count += 1;
+  }
+  return { count, cost };
 }
 
 /** Buys one more, at once (rule 7.13); a pocket that does not cover it buys none. */
