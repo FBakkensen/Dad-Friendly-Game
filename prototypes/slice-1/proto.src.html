@@ -146,10 +146,13 @@
   .stg .mm { color: #e3e9ef; }
   .stg .mk .bh { color: #8cc4ff; }
   .stg .mk.sm { font-size: 12px; letter-spacing: -.02em; }
+  .stg.wp { height: 48px; }
+  .stg .pl { position: relative; z-index: 1; font-size: 12.5px; line-height: 1.05; white-space: nowrap; color: #cfc4ad; margin-top: 1px; }
+  .stg .pl .num { font-size: 12.5px; color: #fff; }
   #p-mine .zl { position: absolute; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: #cfc4ad; text-shadow: 0 1px 0 #000; }
-  #sink { position: absolute; left: 6px; right: 6px; height: 60px; background: #000b; border: 2px solid #3b4450; display: flex; align-items: center; padding: 0 8px 0 10px; gap: 8px; }
+  #sink { position: absolute; left: 6px; right: 6px; height: 46px; background: #000b; border: 2px solid #3b4450; display: flex; align-items: center; padding: 0 8px 0 10px; gap: 8px; }
   #sink .t { flex: 1; font-size: 18px; font-weight: 700; line-height: 1; letter-spacing: .03em; }
-  #sink .t small { display: block; font-size: 13px; font-weight: 600; letter-spacing: 0; color: var(--quiet); margin-top: 4px; }
+  #sink .t small { display: block; font-size: 13px; font-weight: 600; letter-spacing: 0; color: var(--quiet); margin-top: 2px; }
   #sink .p { padding: 0 8px; height: 36px; line-height: 36px; background: #22282f; color: var(--quiet); font-size: 14px; white-space: nowrap; }
   .can { background: #23402a !important; color: #d9ffd2 !important; box-shadow: inset 0 0 0 2px var(--green); }
 
@@ -157,9 +160,15 @@
   #p-works .in { position: absolute; top: 2px; width: 150px; font-size: 16px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #ffd9c2; text-shadow: 0 2px 0 #000; }
   #p-works .in .num { color: #fff; font-size: 16px; }
   #p-works .mach { position: absolute; width: 140px; height: 132px; }
-  #p-works .plate { position: absolute; box-sizing: border-box; width: 180px; height: 110px; background: #170b09ee; border: 2px solid #6b3324; padding: 3px 6px; }
-  #p-works .plate .a { font-size: 17px; font-weight: 700; letter-spacing: .04em; white-space: nowrap; }
-  #p-works .plate .b { font-size: 13px; color: #e6b9a4; white-space: nowrap; }
+  #p-works .plate { position: absolute; box-sizing: border-box; width: 196px; height: 116px; background: #170b09ee; border: 2px solid #6b3324; padding: 3px 6px; }
+  #p-works .plate .a { font-size: 16px; font-weight: 700; letter-spacing: .05em; white-space: nowrap; }
+  #p-works .plate .a .r { font-size: 13px; font-weight: 600; letter-spacing: 0; color: #c7a393; margin-left: 4px; }
+  #p-works .plate .a .r b { font-family: var(--mono); font-weight: 400; font-size: 14px; color: #ffd98a; }
+  #p-works .plate .a .r i { font-family: var(--mono); font-style: normal; font-weight: 400; font-size: 14px; color: #e3e9ef; }
+  #p-works .plate .b { font-size: 13px; color: #e6b9a4; white-space: nowrap; line-height: 1.15; }
+  #p-works .plate .b .mm { color: #e3e9ef; }
+  #p-works .plate .b .bh { color: #8cc4ff; }
+  #p-works .plate .b .num { font-size: 12.5px; color: #fff; }
   #p-works .plate .p { position: absolute; left: 3px; right: 3px; bottom: 3px; height: 22px; background: #2a1814; color: #c7a393; font-size: 14px; text-align: center; line-height: 22px; white-space: nowrap; }
   #p-works .plate .w { display: flex; align-items: center; gap: 3px; margin-top: 3px; font-size: 14px; color: #f3d6c8; white-space: nowrap; }
   #p-works .plate .w span { flex: 1; text-align: center; }
@@ -284,13 +293,17 @@ const KINDS = {
   lift: [{ key: "great", one: "engine", per: 3000, staff: 5 }, { key: "lift", one: "hoist", per: 1200, staff: 3 }],
 };
 const BUILD = 150, SITE = 4000; // what one builder builds in a second, and what a building site holds
+/* Every part runs on its own, with a pile in front of it. A part works while its pile has something and the next pile has room. */
+const ROOM = { face: 3000, shaft: 3000, kiln: 3000, saw: 3000 }; // what each pile holds
+const PILE_N = { face: "Drilled rock", shaft: "Rock at the shaft", kiln: "Rock at the kilns", saw: "Rock at the saws" };
+const MK = [{ job: "kiln", pile: "kiln", good: "bricks", per: 100 }, { job: "saw", pile: "saw", good: "cut", per: 120 }];
 const REC = {
   rails: { n: "Iron rails", cost: { stones: 20000, iron: 4 }, s: 30, max: 2, does: "Haulage capacity +15%", verb: "Install" },
   props: { n: "Pit props", cost: { stones: 10000, clay: 6, iron: 4 }, s: 30, max: 1, does: "Drilling capacity +15%", verb: "Install" },
   charge: { n: "Blasting charge", cost: { stones: 5000, clay: 5 }, s: 20, does: "Throughput ×2 for 60 s", verb: "Detonate" },
 };
 const BLD = [
-  { id: "beacon", n: "The Light Tower",  gives: "Night shift output 45%, up from 30%.", also: "Opens the refinery.", opens: "New site: the refinery. Kilns turn Topsoil rock into brick, and a stockyard holds the output. The shaft to the Granite can now be sunk.", steps: [{ stones: 10000 }, { stones: 30000 }, { stones: 60000 }] },
+  { id: "beacon", n: "The Light Tower",  gives: "Night shift output 45%, up from 30%.", also: "Opens the refinery.", opens: "New site: the refinery. Kilns make brick from rock. The hoist fills the rock at the kilns first, and rock that finds no room there goes to the stockyard as stone. The stockyard holds a set amount of each material.", steps: [{ stones: 10000 }, { stones: 30000 }, { stones: 60000 }] },
   { id: "store", n: "The Warehouse", gives: "Stockyard capacity ×2.", also: "Opens trucks.", steps: [{ stones: 30000 }, { stones: 60000, bricks: 20000 }, { bricks: 40000 }] },
   { id: "forge", n: "The Foundry", gives: "Unlocks the winding engine, for hoisting.", steps: [{ bricks: 30000, cut: 10000 }, { bricks: 50000, cut: 30000 }, { bricks: 60000, cut: 60000 }] },
 ];
@@ -302,12 +315,18 @@ const VEH = {
   trucks: { one: "truck", n: "trucks", short: "Truck", per: 1600, good: "bricks", price: 20000 },
 };
 const WGT = { clay: 500, iron: 500 }; // what one clay or iron takes of a load, in stone
-/* The first evening: one level, stone only, the mine and the city. */
+/* The first evening: one level, stone only, the mine and the city. One worker, on drilling. Nobody drives the wagon or builds. */
 const fresh = () => ({
-  v: 8, stones: 300, bricks: 0, cut: 0, yard: 0, free: 0, wk: { face: 3, haul: 3, lift: 3, kiln: 0, saw: 0, drive: 1, build: 2 }, m: { face: 0, haul: 0, lift: 0, great: 0 }, loco: 0, fleet: { wagons: 1, trucks: 0 }, shaft: false, gangs: [4, 0], kilns: 0, saws: 0,
+  v: 9, stones: 0, bricks: 0, cut: 0, yard: 0, free: 0, wk: { face: 1, haul: 0, lift: 0, kiln: 0, saw: 0, drive: 0, build: 0 }, m: { face: 0, haul: 0, lift: 0, great: 0 }, loco: 0, fleet: { wagons: 1, trucks: 0 }, shaft: false, gangs: [4, 0], kilns: 0, saws: 0,
+  p: { face: 0, shaft: 0, kiln: 0, saw: 0 },
   clay: 0, iron: 0, bench: null, gear: { rails: 0, props: 0 }, charge: 0,
   b: { beacon: { step: 0, given: {}, site: {} }, store: { step: 0, given: {}, site: {} }, forge: { step: 0, given: {}, site: {} } },
   intro: false, place: 0, seen: 0,
+});
+/* The roof goes on: the last of the Light Tower's stone is on its way, so the refinery opens within a minute. */
+const roof = () => Object.assign(fresh(), {
+  stones: 4000, wk: { face: 5, haul: 3, lift: 3, kiln: 0, saw: 0, drive: 2, build: 2 }, m: { face: 1, haul: 1, lift: 1, great: 0 }, fleet: { wagons: 2, trucks: 0 },
+  b: { beacon: { step: 2, given: { stones: 51000 }, site: { stones: 3000 }, on: true }, store: { step: 0, given: {}, site: {} }, forge: { step: 0, given: {}, site: {} } },
 });
 /* Mid game: all four sites open, the Warehouse half built. */
 const mid = () => Object.assign(fresh(), {
@@ -315,7 +334,7 @@ const mid = () => Object.assign(fresh(), {
   b: { beacon: { step: 3, given: {}, site: {} }, store: { step: 1, given: { stones: 22000, bricks: 3000 }, site: {}, on: true }, forge: { step: 0, given: {}, site: {} } },
 });
 let S = fresh();
-try { const raw = localStorage.getItem("slice1-proto"); if (raw) { const o = JSON.parse(raw); if (o && o.v === 8) S = o; } } catch (e) { /* plays without it */ }
+try { const raw = localStorage.getItem("slice1-proto"); if (raw) { const o = JSON.parse(raw); if (o && o.v === 9) S = o; } } catch (e) { /* plays without it */ }
 const GONE = S.seen ? (Date.now() - S.seen) / 1000 : 0; // how long he was away, read before anything saves
 const save = () => { S.seen = Date.now(); try { localStorage.setItem("slice1-proto", JSON.stringify(S)); } catch (e) { /* plays without it */ } };
 
@@ -330,7 +349,7 @@ const forgeUp = () => S.b.forge.step >= 3;
 const TOOL = 100;
 const sum = (o) => { let a = 0; for (const g in o) a += o[g]; return a; };
 const workers = () => S.free + sum(S.wk);
-const workerPrice = () => nice(150 * Math.pow(1.07, workers() - 12));
+const workerPrice = () => nice(100 * Math.pow(1.1, workers() - 1));
 const owned = (key) => (key === "loco" ? S.loco : S.m[key]);
 const jobOpen = (k) => (k === "kiln" ? worksOpen() : k === "saw" ? S.shaft : true);
 function staffing() {
@@ -359,17 +378,16 @@ const caps = () => { if (!worksOpen()) return { stones: Infinity, bricks: Infini
 const lc = (t) => t.charAt(0).toLowerCase() + t.slice(1);
 const low = (n) => n.replace(/^The /, "the ");
 const inHand = () => BLD.find((b) => S.b[b.id].step < 3);
+const makerOpen = (i) => (i ? S.shaft && S.saws > 0 : worksOpen() && S.kilns > 0); // a maker's pile takes rock once there is a maker
+/* What each part moved a second in the last step: the three stages, the rock that came up from each level, where it went, and what the makers made. */
+let NOW = { face: 0, haul: 0, lift: 0, rock: [0, 0], to: [0, 0], over: [0, 0], made: [0, 0] };
+/* What each part can move a second with the workers it has, and what it moved a second in the last step. */
 function flows() {
-  const sf = staffing(), f = sf.f;
-  const line = Math.min(f.face, f.haul, f.lift) * (S.charge > 0 ? 2 : 1), cap = caps();
-  const rock = [line * S.gangs[0] / 4, line * S.gangs[1] / 4];
-  const run = [Math.min(S.kilns, S.wk.kiln), Math.min(S.saws, S.wk.saw)], mk = [run[0] * 100, run[1] * 120]; // a kiln or a saw runs with one worker on it
-  const take = [Math.min(rock[0], mk[0]), Math.min(rock[1], mk[1])];
-  const full = { stones: S.stones >= cap.stones, bricks: S.bricks >= cap.bricks, cut: S.cut >= cap.cut };
-  const made = [full.bricks ? 0 : take[0], full.cut ? 0 : take[1]];
-  const over = [full.stones ? 0 : rock[0] - made[0], full.stones ? 0 : rock[1] - made[1]];
-  const moving = [made[0] + over[0] > 0, made[1] + over[1] > 0];
-  return { sf, f, line, rock, take, made, over, cap, full, moving, run, out: made[0] + made[1] + over[0] + over[1] };
+  const sf = staffing(), x = S.charge > 0 ? 2 : 1, cap = caps(), f = { face: sf.f.face * x, haul: sf.f.haul * x, lift: sf.f.lift * x };
+  const run = [Math.min(S.kilns, S.wk.kiln), Math.min(S.saws, S.wk.saw)], mk = [run[0] * MK[0].per, run[1] * MK[1].per]; // a kiln or a saw runs with one worker on it
+  const full = { stones: S.stones >= cap.stones, bricks: S.bricks >= cap.bricks, cut: S.cut >= cap.cut }, u = {};
+  for (const k in f) u[k] = f[k] > 0 ? Math.min(1, NOW[k] / f[k]) : 0;
+  return { sf, x, f, cap, full, run, mk, now: NOW, u };
 }
 /* A vehicle runs with a driver on it. The drivers take the trucks first. */
 function fleetOn() { let d = S.wk.drive; const trucks = Math.min(S.fleet.trucks, d); d -= trucks; const wagons = Math.min(S.fleet.wagons, d); return { trucks, wagons, rate: trucks * VEH.trucks.per + wagons * VEH.wagons.per }; }
@@ -385,18 +403,28 @@ function jobs() {
   if (S.bench && !S.bench.done) j.push({ k: "bench", id: S.bench.id, need: REC[S.bench.id].cost, given: S.bench.given });
   return j;
 }
-/* One step: production into stock, transport from stock to the orders, then the builders build in what is on the site.
+/* One step. Every part moves at most its own rate, at most what its pile holds, and at most what the next pile has room for:
+   drilling, the drilled rock, haulage, the rock at the shaft, hoisting. Hoisted rock goes to its level's maker pile first, and what finds no room there goes to the stone stockpile.
+   The makers take from their own pile into their stockpile. Then transport from stock to the orders, and the builders build in what is on the site.
    A site holds SITE. A phase is complete when all its materials are built in. */
-function tick(dt, pp, hp, log) {
-  const F = flows(), b0 = S.bricks, c0 = S.cut, s0 = S.stones;
-  S.bricks = Math.min(F.cap.bricks, S.bricks + F.made[0] * pp * dt);
-  S.cut = Math.min(F.cap.cut, S.cut + F.made[1] * pp * dt);
-  if (S.stones < F.cap.stones) S.stones = Math.min(F.cap.stones, S.stones + (F.over[0] + F.over[1]) * pp * dt);
+function tick(dt, pp, hp, log, drill = 1) {
+  const F = flows(), cap = F.cap, share = [S.gangs[0] / 4, S.gangs[1] / 4], room = (k) => Math.max(0, ROOM[k] - S.p[k]);
+  const take = MK.map((m, i) => (makerOpen(i) ? Math.min(F.mk[i] * pp * dt, Math.max(0, cap[m.good] - S[m.good])) : 0)); // what the makers can take, if they are fed
+  const acc = MK.map((m, i) => (makerOpen(i) ? Math.max(0, ROOM[m.pile] - S.p[m.pile] + take[i]) : 0)); // what a maker's pile can take in
+  const stoneRoom = Math.max(0, cap.stones - S.stones);
+  const sink = (l) => { const to = [0, 0], over = [0, 0]; for (let i = 0; i < 2; i++) { const w = l * share[i]; to[i] = Math.min(w, acc[i]); over[i] = w - to[i]; } const os = over[0] + over[1], k = os > stoneRoom ? stoneRoom / os : 1; over[0] *= k; over[1] *= k; return { to, over, sum: to[0] + to[1] + over[0] + over[1] }; };
+  const lr = F.f.lift * pp * dt; let qd = F.f.face * pp * drill * dt, qh = F.f.haul * pp * dt, ql = 0, out = null;
+  for (let n = 0; n < 8; n++) { out = sink(Math.min(lr, S.p.shaft + qh)); ql = out.sum; qh = Math.min(qh, S.p.face + qd, room("shaft") + ql); qd = Math.min(qd, room("face") + qh); }
+  out = sink(Math.min(lr, S.p.shaft + qh)); ql = out.sum;
+  S.p.face = Math.max(0, S.p.face + qd - qh); S.p.shaft = Math.max(0, S.p.shaft + qh - ql);
+  const mm = [0, 0];
+  MK.forEach((m, i) => { S.p[m.pile] += out.to[i]; mm[i] = Math.min(take[i], S.p[m.pile]); S.p[m.pile] = Math.max(0, S.p[m.pile] - mm[i]); S[m.good] += mm[i]; });
+  const made = { bricks: mm[0], cut: mm[1], stones: out.over[0] + out.over[1] }; S.stones += made.stones;
   S.clay = Math.min(10, S.clay + S.gangs[0] * pp * dt / 6);
   S.iron = Math.min(35, S.iron + S.gangs[1] * pp * dt / 5);
   if (S.charge > 0) S.charge = Math.max(0, S.charge - dt);
-  const made = { bricks: S.bricks - b0, cut: S.cut - c0, stones: S.stones - s0 };
   if (log.made) for (const g in made) log.made[g] += made[g];
+  const q = pp * dt, now = q > 0 ? { face: qd / q, haul: qh / q, lift: ql / q, rock: [(out.to[0] + out.over[0]) / q, (out.to[1] + out.over[1]) / q], to: [out.to[0] / q, out.to[1] / q], over: [out.over[0] / q, out.over[1] / q], made: [mm[0] / q, mm[1] / q] } : NOW;
   const rate = { city: 0, bench: 0, built: 0, good: null }, J = jobs(), can = S.wk.build * BUILD * hp * dt;
   const carry = (j, left) => {
     for (const g in j.need) {
@@ -414,7 +442,7 @@ function tick(dt, pp, hp, log) {
     for (const g in need) { const amt = Math.min(left, st.site[g] || 0, need[g] - (st.given[g] || 0)); if (amt > 0) { st.site[g] -= amt; st.given[g] = (st.given[g] || 0) + amt; left -= amt; rate.built += amt / dt; } }
     if (Object.keys(need).every((g) => (st.given[g] || 0) >= need[g] - 1e-6)) { st.step++; st.given = {}; st.site = {}; if (st.step >= 3) st.on = false; log.ev.push({ k: "phase", id: h.id, step: st.step }); }
   }
-  return { rate, worked: made.bricks + made.cut + made.stones > 1e-9, full: F.full.stones };
+  return { rate, now, worked: qd + qh + ql + mm[0] + mm[1] > 1e-9, full: F.full.stones };
 }
 let HAUL = { city: 0, bench: 0, built: 0, good: null };
 function events(ev) {
@@ -435,7 +463,7 @@ function simulate(sec, apply) {
   const log = { made: { stones: 0, bricks: 0, cut: 0 }, sent: {}, ev: [], fullAt: {}, worked: 0, stop: null };
   S.charge = 0;
   for (let i = 0; i < n; i++) {
-    const t = i * dt, r = tick(dt, !worksOpen() && t >= 8 * 3600 ? 0 : awayPace(), awayPace(), log); // no stockyard yet: a night shift runs eight hours
+    const t = i * dt, r = tick(dt, awayPace(), awayPace(), log, !worksOpen() && t >= 8 * 3600 ? 0 : 1); // no stockyard yet: a night shift drills for eight hours
     if (r.worked) log.worked += dt; else { if (log.stop == null) log.stop = t; log.full = r.full; } // full is said only when the last tick that made nothing began with the stone stockpile full
     if (worksOpen()) { const cap = caps(); for (const g of ["stones", "bricks", "cut"]) if (log.fullAt[g] == null && S[g] >= cap[g] - 0.5) log.fullAt[g] = t + dt; }
   }
@@ -461,7 +489,8 @@ function away(sec) {
   }
   if (marks) lines.push(`<span class="marks">${marks}</span>`);
   const yardFull = early && worksOpen() && L.full;
-  if (yardFull) lines.push(`<em>Stockyard full: production stopped.</em>`); else if (early && !worksOpen() && L.worked > 0) lines.push(`<em>A night shift runs 8 h.</em> Production stopped after that.`);
+  if (yardFull) lines.push(`<em>Stockyard full: production stopped.</em>`); else if (early && !worksOpen() && L.worked >= 8 * 3600 - 60) lines.push(`<em>A night shift runs 8 h.</em> Production stopped after that.`);
+  else if (early) lines.push(`Production stopped after ${dur(L.worked)}. ` + ["face", "shaft"].concat(worksOpen() ? ["kiln"] : [], S.shaft ? ["saw"] : []).map((k) => `${PILE_N[k]}: <b>${num(S.p[k])}</b> of ${num(ROOM[k])}.`).join(" "));
   save(); ui();
   const opened = () => events(L.ev.filter((e) => e.k === "phase" && e.step >= 3));
   if (yardFull) card("Shift report", lines, "To the stockyard", "Close", () => { go(1); const x = $("#ext"); x.classList.remove("pulse"); void x.offsetWidth; x.classList.add("pulse"); opened(); }, opened);
@@ -483,11 +512,11 @@ function move(k, d) {
 }
 const one = (b) => (/^[aeiou]/i.test(b.mach) ? "An " : "A ") + b.mach.toLowerCase();
 function buyStage(k) { const b = stageBuy(k), c = { [b.good]: b.price }; if (!canPay(c)) return say(lacks(c)); pay(c); if (b.key === "loco") S.loco++; else S.m[b.key]++; after(); }
-function explain(k) { const b = stageBuy(k), F = flows(), s = STG[k]; say(s.n + " moves " + rate(F.out) + " now and can move " + rate(F.sf.f[k] * (S.charge > 0 ? 2 : 1)) + ". A worker " + s.tool1 + " " + s.verb + " " + rate(F.sf.each[k]) + ". " + one(b) + " takes " + b.staff + " workers and " + s.verb + " " + rate(b.rate) + "."); }
+function explain(k) { const b = stageBuy(k), F = flows(), s = STG[k]; say(s.n + " moves " + rate(F.now[k]) + " now and can move " + rate(F.f[k]) + ". A worker " + s.tool1 + " " + s.verb + " " + rate(F.sf.each[k]) + ". " + one(b) + " takes " + b.staff + " workers and " + s.verb + " " + rate(b.rate) + "." + (k === "face" ? " The drilled rock holds " + num(ROOM.face) + "." : k === "haul" ? " The shaft holds " + num(ROOM.shaft) + " rock." : "")); }
 function sinkShaft() {
   if (S.shaft || !worksOpen()) return; if (!canPay(SHAFT)) return say(lacks(SHAFT));
   pay(SHAFT); S.shaft = true; S.gangs = [2, 2]; build(); after();
-  card("The Granite: reached", ["Two crews moved down. Two stay on the Topsoil.", "Topsoil rock makes brick. Granite rock makes cut stone. Use − and + on a level to move a crew there.", "Opened: saws in the refinery, the factory, and locomotives for haulage."], "Continue");
+  card("The Granite: reached", ["Two crews moved down. Two stay on the Topsoil.", "Topsoil rock goes to the kilns. Granite rock goes to the saws, which have their own pile of rock. Use − and + on a level to move a crew there.", "Opened: saws in the refinery, the factory, and locomotives for haulage."], "Continue");
 }
 function buyKiln() { const c = { stones: kilnPrice() }; if (!canPay(c)) return say(lacks(c)); pay(c); S.kilns++; after(); }
 function buySaw() { const c = { bricks: sawPrice() }; if (!canPay(c)) return say(lacks(c)); pay(c); S.saws++; after(); }
@@ -587,16 +616,8 @@ function mineBG(h) {
   R(c, 58, 28, 6, 6, "#ffcf6a"); R(c, 60, 28, 1, 6, "#8a5a1e"); R(c, 70, 28, 6, 10, "#2a1d12"); glow(c, 61, 31, 10, "#c98a3a", 60, 0.5); line(c, 31, 6, 52, 22, "#1a1a1a");
   return c.canvas;
 }
-/* What the scene shows, worked out from the three stage rates. Rock piles up where it arrives faster than it is taken, and the floor is bare
-   where it is taken faster than it arrives. A stage with spare capacity has workers standing. Nothing on the page says which stage that is. */
-function lineState(F) {
-  const f = F.f, L = Math.min(f.face, f.haul, f.lift), cmp = (a, b) => (a > b + 1e-6 ? 1 : a < b - 1e-6 ? 0 : 0.5), d = (a, b) => (b > 0 ? a / b : 0), fed = Math.min(f.face, f.haul);
-  return { u: { face: d(L, f.face), haul: d(L, f.haul), lift: d(L, f.lift) },
-    face: cmp(f.face, Math.min(f.haul, f.lift)), // the pile at the face, between drilling and haulage
-    bot: cmp(fed, f.lift), // the pile at the shaft, between haulage and hoisting
-    load: d(fed, f.haul), // the share of tubs that leave the face with rock in them
-    go: d(L, fed) }; // the share of the time the tubs can unload at the shaft
-}
+/* What the scene shows comes from the piles and from what each stage moved: a heap is as high as its pile is full, a stage that moves less than it can has workers standing,
+   tubs run empty when there is no drilled rock and queue when the shaft has no room, and the cage waits when there is nothing to lift. Nothing on the page says which stage that is. */
 /* Each stage's workers stand in their own part of the level: hoisting at the shaft, haulage along the rail, drilling at the face. */
 const PILE = { face: 0.5, bot: 0.5 }, ROLE = ["lift", "haul", "face"], ZONE = { lift: { x: 38, d: 9, max: 3, sway: 1 }, haul: { x: 70, d: 15, max: 4, sway: 5 }, face: { x: 150, d: 8, max: 4, sway: 1 } };
 let tubX = 0, wheelA = 0, mineT = 0;
@@ -607,32 +628,33 @@ function heap(c, x0, base, w, fill, seed) {
   for (let y = 0; y < hgt; y++) { const half = Math.round((w / 2) * (1 - y / (hgt + 1)) * (0.4 + 0.6 * fill)); for (let x = -half; x <= half; x++) { const r = hash(x + 40, y, seed); R(c, x0 + w / 2 + x, base - 1 - y, 1, 1, r < 0.2 ? "#aab4bf" : r < 0.6 ? "#8f9aa5" : "#6e7782"); } }
 }
 function mineDraw(c, h, t, F) {
-  const st = lineState(F), dt = Math.min(0.1, Math.max(0, t - mineT)), on = F.moving[0] || F.moving[1]; mineT = t;
-  PILE.face += (st.face - PILE.face) * 0.03; PILE.bot += (st.bot - PILE.bot) * 0.03;
+  const u = F.u, dt = Math.min(0.1, Math.max(0, t - mineT)), on = u.lift > 0.005, blocked = S.p.shaft >= ROOM.shaft - 1; mineT = t;
+  PILE.face += (Math.min(1, S.p.face / ROOM.face) - PILE.face) * 0.2; PILE.bot += (Math.min(1, S.p.shaft / ROOM.shaft) - PILE.bot) * 0.2;
   // the cage: it waits at the shaft bottom when the hoist has more capacity than rock
-  const q = on ? st.u.lift : 0, wait = q > 0.999 ? 0 : Math.min(14, (6 * (1 - q)) / Math.max(q, 0.05)), tau = t % (6 + wait), up = tau >= 3 + wait, still = !on || q <= 0 || (tau >= 3 && !up);
-  const u = !on || q <= 0 ? 1 : tau < 3 ? tau / 3 : up ? 1 - (tau - 3 - wait) / 3 : 1;
+  const q = on ? u.lift : 0, wait = q > 0.999 ? 0 : Math.min(14, (6 * (1 - q)) / Math.max(q, 0.05)), tau = t % (6 + wait), up = tau >= 3 + wait, still = !on || q <= 0 || (tau >= 3 && !up);
+  const cg = !on || q <= 0 ? 1 : tau < 3 ? tau / 3 : up ? 1 - (tau - 3 - wait) / 3 : 1, cu = u;
   if (!still) wheelA += dt * 2.2;
   disc(c, 25, 7, 6, "#4b5360"); disc(c, 25, 7, 5, "#232a44"); for (let a = 0; a < 4; a++) { const an = wheelA + (a * Math.PI) / 4; line(c, 25 - Math.cos(an) * 5, 7 - Math.sin(an) * 5, 25 + Math.cos(an) * 5, 7 + Math.sin(an) * 5, "#9aa1ab"); } R(c, 25, 7, 1, 1, "#e9eef3");
-  const deep = S.gangs[1] > 0 ? 1 : 0, yTop = SURF - 26, yBot = SURF + deep * LH + 66 - 26, cy = yTop + (yBot - yTop) * (0.5 - 0.5 * Math.cos(u * Math.PI));
+  const deep = S.gangs[1] > 0 ? 1 : 0, yTop = SURF - 26, yBot = SURF + deep * LH + 66 - 26, cy = yTop + (yBot - yTop) * (0.5 - 0.5 * Math.cos(cg * Math.PI));
   line(c, 25, 12, 25, cy, "#1a1a1a"); c.drawImage(im.cage, 15, Math.round(cy)); if (!still && up) c.drawImage(im["tub-full"], 18, Math.round(cy) + 8); else c.drawImage(im["tub-empty"], 18, Math.round(cy) + 11);
   // the tubs: some run empty when the face gives too little rock, and they queue when the shaft cannot take them
-  if (on && st.go > 0 && (st.go > 0.999 || (t / 4) % 1 < st.go)) tubX += 16 * dt;
+  const go = blocked ? cu.haul : cu.haul > 0.005 ? 1 : 0, load = blocked ? 1 : S.p.face > 1 ? 1 : cu.haul;
+  if (go > 0 && (go > 0.999 || (t / 4) % 1 < Math.max(go, 0.2))) tubX += 16 * dt;
   const dr = F.sf.rows.face[0];
   for (let i = 0; i < 2; i++) {
     const g = S.gangs[i], fl = SURF + i * LH + 66; if (!g) continue;
     const gap = Math.max(17, Math.min(56, 17000 / ((F.f.haul * g) / 4))), off = tubX % gap, first = Math.floor(tubX / gap);
     for (const k of ROLE) {
-      const z = ZONE[k], n = Math.min(z.max, Math.ceil((S.wk[k] * g) / 4)), idle = F.moving[i] ? Math.round(n * (1 - st.u[k])) : n;
+      const z = ZONE[k], n = Math.min(z.max, Math.ceil((S.wk[k] * g) / 4)), idle = Math.round(n * (1 - cu[k]));
       for (let j = 0; j < n; j++) {
         const x = z.x + j * z.d, ph = t * 1.3 + j * 2.1 + i;
         if (j < idle) { sprite(c, "miner-18f", 12, 14, x, fl - 24, k === "lift"); zed(c, x + 8, fl - 30 - (Math.floor(t * 2 + j + i) % 2)); }
         else sprite(c, "miner-18f", 12, Math.floor(t * 9 + j * 5 + i * 3) % 18, x + Math.sin(ph) * z.sway, fl - 24, k === "lift" || (k === "haul" && Math.cos(ph) < 0));
       }
     }
-    if (F.f.haul > 0) for (let x = 132 - off, j = 0; x > 54; x -= gap, j++) { const full = hash(first - j, i, 91) < st.load; c.drawImage(im[full ? "tub-full" : "tub-empty"], Math.round(x), fl - (full ? 18 : 15)); if (!full) R(c, Math.round(x) + 2, fl - 14, 10, 2, "#0f1114"); }
+    if (F.f.haul > 0) for (let x = 132 - off, j = 0; x > 54; x -= gap, j++) { const full = hash(first - j, i, 91) < load; c.drawImage(im[full ? "tub-full" : "tub-empty"], Math.round(x), fl - (full ? 18 : 15)); if (!full) R(c, Math.round(x) + 2, fl - 14, 10, 2, "#0f1114"); }
     heap(c, 134, fl - 3, 18, PILE.face, 70 + i); heap(c, 37, fl - 3, 16, PILE.bot, 80 + i);
-    if (dr) { const work = dr.on > 0 && F.moving[i] && (st.u.face > 0.999 || (t / 5 + i * 0.5) % 1 < st.u.face); sprite(c, "drill-work-4f", 23, work ? Math.floor(t * 8) % 4 : 0, 178, fl - 18); if (work) sprite(c, "dust-burst-4f", 16, Math.floor(t * 6 + i * 2) % 4, 190, fl - 26); }
+    if (dr) { const work = dr.on > 0 && cu.face > 0.005 && (cu.face > 0.999 || (t / 5 + i * 0.5) % 1 < Math.max(cu.face, 0.2)); sprite(c, "drill-work-4f", 23, work ? Math.floor(t * 8) % 4 : 0, 178, fl - 18); if (work) sprite(c, "dust-burst-4f", 16, Math.floor(t * 6 + i * 2) % 4, 190, fl - 26); }
   }
 }
 const stp = (k, what) => `<button class="st" data-job="${k}" data-d="-1" aria-label="Take a worker off ${what}">−</button><button class="st" data-job="${k}" data-d="1" aria-label="Put a worker on ${what}">+</button>`;
@@ -640,14 +662,14 @@ function mineDOM(ov) {
   ov.innerHTML = "";
   ["Topsoil", "Granite"].forEach((n, i) => {
     const lv = el("div", "lv", ov, `<div class="a"><span class="nm">${n}</span><span class="rt num" id="lv-r${i}"></span></div><div class="b" id="lv-b${i}"></div>`); lv.style.top = (SURF + i * LH + 3) * 2 + "px";
-    if (i && !S.shaft) { lv.style.left = "6px"; const s = el("button", "", ov, `<div class="t">Sink the shaft to the Granite<small>A second level. Opens saws, the factory, locomotives.</small></div><div class="p"></div>`); s.id = "sink"; s.style.top = (SURF + LH + 36) * 2 + "px"; tap(s, sinkShaft); return; }
-    if ((SURF + i * LH + 67) * 2 + 16 < hA * 2 - 164) [["Hoisting", 38], ["Haulage", 84], ["Drilling", 152]].forEach(([t, x]) => { const z = el("div", "zl", ov, t); z.style.left = x * 2 + "px"; z.style.top = (SURF + i * LH + 67) * 2 + "px"; });
+    if (i && !S.shaft) { lv.style.left = "6px"; const s = el("button", "", ov, `<div class="t">Sink the shaft to the Granite<small>A second level. Opens saws, the factory, locomotives.</small></div><div class="p"></div>`); s.id = "sink"; s.style.top = (SURF + LH) * 2 + 62 + "px"; tap(s, sinkShaft); return; }
+    if ((SURF + i * LH + 67) * 2 + 16 < hA * 2 - 180) [["Hoisting", 38], ["Haulage", 84], ["Drilling", 152]].forEach(([t, x]) => { const z = el("div", "zl", ov, t); z.style.left = x * 2 + "px"; z.style.top = (SURF + i * LH + 67) * 2 + "px"; });
     if (S.shaft) { lv.classList.add("split"); el("div", "cs", lv, `<button class="st" data-lv="${i}" data-d="-1" aria-label="Move a crew off the ${n}">−</button><button class="st" data-lv="${i}" data-d="1" aria-label="Move a crew to the ${n}">+</button>`); }
   });
-  if (hA * 2 - 162 > (SURF + 2 * LH + 4) * 2 + 24) { const deep = el("div", "deep", ov, "Deeper strata: not yet surveyed. The city has to grow first."); deep.style.top = (SURF + 2 * LH + 4) * 2 + "px"; }
+  if (hA * 2 - 178 > (SURF + 2 * LH + 4) * 2 + 24) { const deep = el("div", "deep", ov, "Deeper strata: not yet surveyed. The city has to grow first."); deep.style.top = (SURF + 2 * LH + 4) * 2 + "px"; }
   const ln = el("div", "", ov, `<div class="lh">${Object.keys(STG).map((k) => `<button class="k" id="buy-${k}"></button>`).join("")}</div>`); ln.id = "line";
   for (const k in STG) {
-    const nm = STG[k].n.toLowerCase(), s = el("div", "stg", ln, `<button class="i"><div class="bar"><u></u><u></u></div><div class="h"><span class="nm">${STG[k].n}</span><span class="r"></span></div><div class="mk"></div></button><button class="st" data-job="${k}" data-d="-1" aria-label="Take a worker off ${nm}">−</button><div class="n"><b class="num" data-n="${k}"></b><small></small></div><button class="st" data-job="${k}" data-d="1" aria-label="Put a worker on ${nm}">+</button>`); s.id = "stg-" + k;
+    const nm = STG[k].n.toLowerCase(), s = el("div", "stg", ln, `<button class="i"><div class="bar"><u></u><u></u></div><div class="h"><span class="nm">${STG[k].n}</span><span class="r"></span></div><div class="mk"></div>${k === "lift" ? "" : `<div class="pl"></div>`}</button><button class="st" data-job="${k}" data-d="-1" aria-label="Take a worker off ${nm}">−</button><div class="n"><b class="num" data-n="${k}"></b><small></small></div><button class="st" data-job="${k}" data-d="1" aria-label="Put a worker on ${nm}">+</button>`); s.id = "stg-" + k; if (k !== "lift") s.classList.add("wp");
     tap(s.children[0], () => explain(k)); tap($("#buy-" + k), () => buyStage(k));
   }
 }
@@ -657,21 +679,15 @@ function mineUI(F) {
       $("#lv-r1").textContent = "not reached"; $("#lv-b1").textContent = worksOpen() ? "Harder rock, for cut stone." : "The shaft can be sunk once the Light Tower is operational.";
       const s = $("#sink"); s.hidden = !worksOpen(); s.children[1].innerHTML = Object.keys(SHAFT).map((g) => fmt(SHAFT[g]) + " " + ico(g)).join(" "); s.children[1].classList.toggle("can", canPay(SHAFT)); continue;
     }
-    const g = S.gangs[i], good = i ? "cut" : "bricks", mk = i ? "saws" : "kilns", cnt = i ? S.saws : S.kilns;
-    $("#lv-r" + i).textContent = g ? rate(F.rock[i]) : "no crew";
-    let b;
-    if (!g) b = "No crew assigned. No output.";
-    else if (!worksOpen()) b = `${g} crews · all rock is hoisted as stone`;
-    else if (!cnt) b = `No ${mk}. All rock bypasses to stone.`;
-    else if (F.full[good] && F.full.stones) b = `<em>Crews idle: stockyard full.</em>`;
-    else if (F.full[good]) b = `<em>${GC[good]} stockpile full.</em> Rock bypasses to stone.`;
-    else b = `${g} ${g === 1 ? "crew" : "crews"} · ${GN[good]} ${rate(F.made[i])} · stone ${rate(F.over[i])}`;
-    $("#lv-b" + i).innerHTML = b;
+    const g = S.gangs[i], mk = i ? "saws" : "kilns";
+    $("#lv-r" + i).textContent = g ? rate(F.now.rock[i]) : "no crew";
+    $("#lv-b" + i).innerHTML = !g ? "No crew assigned. No output." : !worksOpen() ? "All rock is hoisted as stone." : `${S.shaft ? g + (g === 1 ? " crew · " : " crews · ") : ""}to the ${mk} ${rate(F.now.to[i])} · to stone ${rate(F.now.over[i])}`;
   }
-  const sf = F.sf, x = S.charge > 0 ? 2 : 1, top = Math.max(sf.f.face, sf.f.haul, sf.f.lift, 1) * x;
+  const sf = F.sf, x = F.x, top = Math.max(F.f.face, F.f.haul, F.f.lift, 1);
   const nq = (v) => (v < 1000 || Math.round(v) % 100 ? num(v) : (v / 1000).toFixed(1).replace(/\.0$/, "") + "K");
   for (const k in STG) {
-    const s = $("#stg-" + k), sb = stageBuy(k), tl = sf.tool[k], t = STG[k], cap = sf.f[k] * x, mk = s.querySelector(".mk");
+    const s = $("#stg-" + k), sb = stageBuy(k), tl = sf.tool[k], t = STG[k], cap = F.f[k], out = Math.min(F.now[k], cap), mk = s.querySelector(".mk"), pl = s.querySelector(".pl"), pk = k === "face" ? "face" : "shaft";
+    if (pl) pl.innerHTML = `${PILE_N[pk]}: <span class="num">${num(S.p[pk])} of ${num(ROOM[pk])}</span>`;
     // Who works with what. A kind of machine: the workers it has, of the workers it takes, and what it moves. Then the workers left over, with tools.
     // The parts add up to the stage's workers and to what the stage can move. Three forms, the fullest that fits.
     const make = (lv) => sf.rows[k].map((r) => { const takes = r.n * r.kd.staff, has = r.on * r.kd.staff, v = r.on * r.kd.per * sf.mult(k) * x, nm = r.kd.one + (r.n > 1 ? "s" : "");
@@ -679,9 +695,9 @@ function mineUI(F) {
       .concat(tl || !sf.rows[k].length ? [`<span class="bh">${tl} ${lv === 2 ? (tl === 1 ? t.tool1.replace(/^\w+ an? /, "") : t.tool.replace(/^\w+ /, "")) + " " + nq(tl * sf.each[k] * x) : (tl === 1 ? t.tool1 : t.tool) + " " + num(tl * sf.each[k] * x) + (lv ? "" : "/s")}</span>`] : []).join(" + ");
     for (let lv = 0; lv < 3; lv++) { const h = make(lv); if (mk.dataset.h !== h) { mk.dataset.h = h; mk.innerHTML = h; } mk.classList.toggle("sm", lv === 2); if (mk.scrollWidth <= mk.clientWidth + 1) break; }
     s.querySelector(".n small").textContent = S.wk[k] === 1 ? "worker" : "workers";
-    // what the stage moves now, of what it can move. The mine is one line, so every stage moves the same.
-    const big = cap >= 10000, nn = (v) => (big && Math.round(v) % 100 === 0 ? fmt(Math.round(v)) : num(v)); s.querySelector(".r").innerHTML = `<b>${nn(F.out)}</b> of <i>${nn(cap)}/s</i>`;
-    const bar = s.querySelector(".bar").children; bar[0].style.width = (100 * cap) / top + "%"; bar[1].style.width = (100 * Math.min(F.out, cap)) / top + "%";
+    // what the stage moves now, of what it can move. Each stage moves on its own, so the three differ.
+    const big = cap >= 10000, nn = (v) => (big && Math.round(v) % 100 === 0 ? fmt(Math.round(v)) : num(v)); s.querySelector(".r").innerHTML = `<b>${nn(out)}</b> of <i>${nn(cap)}/s</i>`;
+    const bar = s.querySelector(".bar").children; bar[0].style.width = (100 * cap) / top + "%"; bar[1].style.width = (100 * out) / top + "%";
     const bk = $("#buy-" + k); bk.innerHTML = `+${sb.short} · ${rate(sb.rate)}<small>${fmt(sb.price)} ${ico(sb.good)} · ${sb.staff} to run</small>`; bk.classList.toggle("can", canPay({ [sb.good]: sb.price }));
   }
 }
@@ -725,18 +741,23 @@ const rockDraw = (c, pal) => (x, y, k) => { R(c, x - 1, y - 1, 3, 3, pal[k % pal
 const TOPR = ["#8a6a44", "#6d4a2b", "#a37a4c"], GRAR = ["#74808f", "#566170", "#8d99a8"], STNR = ["#8f9aa5", "#6f7b8c", "#aab4bf"];
 function worksDraw(c, h, t, F) {
   const Y = yardY(h);
-  stream(c, [[42, 0], [42, 30]], F.rock[0], t, rockDraw(c, TOPR), 1); stream(c, [[170, 0], [170, 30]], F.rock[1], t, rockDraw(c, GRAR), 2);
-  stream(c, [[42, 30], [42, 60]], F.made[0], t, rockDraw(c, TOPR), 3); stream(c, [[170, 30], [170, 62]], F.made[1], t, rockDraw(c, GRAR), 4);
-  stream(c, [[46, 42], [100, 74], [100, Y + 6]], F.over[0], t, rockDraw(c, TOPR), 5); stream(c, [[166, 42], [112, 74], [112, Y + 6]], F.over[1], t, rockDraw(c, GRAR), 6);
-  stream(c, [[42, 124], [42, Y + 6]], F.made[0], t, (x, y) => { R(c, x - 2, y - 1, 5, 3, "#4a1c12"); R(c, x - 2, y - 1, 4, 2, "#c05a34"); }, 7);
-  stream(c, [[170, 124], [170, Y + 6]], F.made[1], t, (x, y) => { R(c, x - 2, y - 2, 5, 4, "#96a1ad"); R(c, x - 2, y - 2, 4, 3, "#e3eaf1"); }, 8);
+  const N = F.now;
+  stream(c, [[42, 0], [42, 12]], N.rock[0], t, rockDraw(c, TOPR), 1); stream(c, [[170, 0], [170, 12]], N.rock[1], t, rockDraw(c, GRAR), 2);
+  // the rock at the makers: each hopper is as full as its pile
+  [[42, "kiln", TOPR], [170, "saw", GRAR]].forEach(([cx, pk, pal], i) => { if (!makerOpen(i)) return; const rows = Math.round(18 * Math.min(1, S.p[pk] / ROOM[pk])); for (let y = 0; y < rows; y++) { const yy = 31 - y, w = 22 - Math.floor((yy - 12) * 0.7) - 3; for (let x = -w; x < w; x++) R(c, cx + x, yy, 1, 1, pal[Math.floor(hash(x + 30, yy, 60 + i) * 3)]); } });
+  stream(c, [[42, 32], [42, 60]], N.made[0], t, rockDraw(c, TOPR), 3); stream(c, [[170, 32], [170, 62]], N.made[1], t, rockDraw(c, GRAR), 4);
+  stream(c, [[46, 42], [100, 74], [100, Y + 6]], N.over[0], t, rockDraw(c, TOPR), 5); stream(c, [[166, 42], [112, 74], [112, Y + 6]], N.over[1], t, rockDraw(c, GRAR), 6);
+  stream(c, [[42, 124], [42, Y + 6]], N.made[0], t, (x, y) => { R(c, x - 2, y - 1, 5, 3, "#4a1c12"); R(c, x - 2, y - 1, 4, 2, "#c05a34"); }, 7);
+  stream(c, [[170, 124], [170, Y + 6]], N.made[1], t, (x, y) => { R(c, x - 2, y - 2, 5, 4, "#96a1ad"); R(c, x - 2, y - 2, 4, 3, "#e3eaf1"); }, 8);
   // fire and smoke
-  const hot = S.kilns > 0 && F.made[0] > 0;
+  const hot = S.kilns > 0 && N.made[0] > 0.5;
   if (hot) { for (let x = 0; x < 16; x++) { const fh = 6 + Math.floor(8 * Math.abs(Math.sin(t * 9 + x * 1.7)) + hash(x, Math.floor(t * 12), 9) * 5); R(c, 34 + x, 122 - fh, 1, fh, "#e2552d"); R(c, 34 + x, 122 - fh * 0.66, 1, fh * 0.66, "#ff9a2e"); R(c, 34 + x, 122 - fh * 0.33, 1, fh * 0.33, "#ffe07a"); } glow(c, 42, 124, 22, "#ff9a2e", Math.floor(t * 8), 0.35); for (let p = 0; p < 3; p++) { const a = (t * 0.5 + p / 3) % 1; sprite(c, "steam-4f", 11, Math.min(3, Math.floor(a * 4)), 57 + Math.sin(a * 6 + p) * 3, 40 - a * 34); } }
   else R(c, 34, 116, 16, 6, "#3a1610");
   // the blade
-  const sp = S.saws > 0 && F.made[1] > 0 ? t * 14 : 0; disc(c, 170, 88, 15, "#aab4bf"); disc(c, 170, 88, 12, "#8a94a0"); for (let a = 0; a < 14; a++) { const an = sp + (a * Math.PI * 2) / 14; R(c, 170 + Math.cos(an) * 16, 88 + Math.sin(an) * 16, 2, 2, "#dfe6ec"); if (a % 2) line(c, 170 + Math.cos(an) * 4, 88 + Math.sin(an) * 4, 170 + Math.cos(an) * 11, 88 + Math.sin(an) * 11, "#6b7480"); } disc(c, 170, 88, 3, "#2e3238");
+  const sp = S.saws > 0 && N.made[1] > 0.5 ? t * 14 : 0; disc(c, 170, 88, 15, "#aab4bf"); disc(c, 170, 88, 12, "#8a94a0"); for (let a = 0; a < 14; a++) { const an = sp + (a * Math.PI * 2) / 14; R(c, 170 + Math.cos(an) * 16, 88 + Math.sin(an) * 16, 2, 2, "#dfe6ec"); if (a % 2) line(c, 170 + Math.cos(an) * 4, 88 + Math.sin(an) * 4, 170 + Math.cos(an) * 11, 88 + Math.sin(an) * 11, "#6b7480"); } disc(c, 170, 88, 3, "#2e3238");
   if (sp) for (let i = 0; i < 6; i++) { const a = (t * 2 + i / 6) % 1; R(c, 168 - a * 16 - hash(i, 1, 3) * 6, 104 - Math.sin(a * 3.1) * 10, 1, 1, "#bfe3ff"); }
+  // the workers on the kilns: one that has no kiln, or whose kiln takes nothing, stands
+  for (let j = 0, nk = Math.min(2, S.wk.kiln), busy = N.made[0] > 0.5 ? Math.min(nk, F.run[0]) : 0; j < nk; j++) { const x = 76 + j * 10; if (j < busy) sprite(c, "miner-18f", 12, Math.floor(t * 9 + j * 5) % 18, x + Math.sin(t * 1.3 + j * 2.1), 98, true); else { sprite(c, "miner-18f", 12, 14, x, 98, true); zed(c, x + 8, 92 - (Math.floor(t * 2 + j) % 2)); } }
   // the heaps
   const cap = F.cap, bay = [[6, 62, "bricks"], [76, 61, "stones"], [145, 61, "cut"]], top = Y + 18, base = h - 25;
   for (const [x0, w, g] of bay) {
@@ -749,9 +770,9 @@ function worksDOM(ov, h) {
   ov.innerHTML = ""; const Y = yardY(h) * 2;
   el("div", "in", ov, `Topsoil <span class="num" id="in0"></span>`).style.left = "8px";
   const r = el("div", "in", ov, `Granite <span class="num" id="in1"></span>`); r.style.right = "8px"; r.style.textAlign = "right";
-  [["kiln", 12, 6, buyKiln], ["saw", 272, 238, buySaw]].forEach(([id, mx, px, fn]) => {
+  [["kiln", 12, 6, buyKiln], ["saw", 272, 222, buySaw]].forEach(([id, mx, px, fn]) => {
     const m = el("button", "mach", ov); m.style.left = mx + "px"; m.style.top = "114px"; m.id = "mach-" + id; m.setAttribute("aria-label", "Add a " + id); tap(m, fn);
-    const p = el("div", "plate", ov, `<div class="a"></div><div class="b"></div><div class="w">${stp(id, "the " + id + "s")}<span data-nw="${id}"></span></div><button class="p"></button>`); p.id = "pl-" + id; p.style.left = px + "px"; p.style.top = "250px"; tap(p.children[3], fn);
+    const p = el("div", "plate", ov, `<div class="a"></div><div class="b"></div><div class="b pl"></div><div class="w">${stp(id, "the " + id + "s")}<span data-nw="${id}"></span></div><button class="p"></button>`); p.id = "pl-" + id; p.style.left = px + "px"; p.style.top = "246px"; tap(p.children[4], fn);
   });
   const lk = el("div", "lock", ov, "Granite line<small>Opens when the shaft is sunk.</small>"); lk.id = "saw-lock"; lk.style.height = Y + "px";
   const mid = el("div", "mid", ov, `bypass to stone<br><span class="num" id="mid-r"></span>`); mid.style.top = "150px";
@@ -760,16 +781,20 @@ function worksDOM(ov, h) {
 }
 let fcT = -1e9, FC = "";
 function worksUI(F) {
-  $("#in0").textContent = S.gangs[0] ? rate(F.rock[0]) : "no crew"; $("#in1").textContent = S.gangs[1] ? rate(F.rock[1]) : "no crew";
+  const N = F.now;
+  $("#in0").textContent = S.gangs[0] ? rate(N.rock[0]) : "no crew"; $("#in1").textContent = S.gangs[1] ? rate(N.rock[1]) : "no crew";
   $("#saw-lock").hidden = S.shaft; $("#pl-saw").hidden = !S.shaft; $("#mach-saw").hidden = !S.shaft;
-  [["kiln", "kilns", S.kilns, 0, "bricks", kilnPrice(), "stones", 100], ["saw", "saws", S.saws, 1, "cut", sawPrice(), "bricks", 120]].forEach(([id, pl, n, i, g, pr, pg, per]) => {
-    const p = $("#pl-" + id); p.children[0].innerHTML = `${n} ${pl.toUpperCase()} <span class="num">×${rate(per)}</span>`;
-    p.children[1].textContent = !S.gangs[i] ? "No feed. No crew on this level." : !n ? `No ${pl} yet. All rock bypasses to stone.` : F.full[g] ? `${GC[g]} stockpile full.` : `${F.run[i]} of ${n} workers · take ${rate(F.take[i])}`;
-    p.children[3].innerHTML = `+1 ${id} · ${fmt(pr)} ${ico(pg)} · +${per}/s`; p.children[3].classList.toggle("can", canPay({ [pg]: pr }));
+  // A maker's plate reads like a stage's row: what it takes now of what it can take, who runs what, its own pile of rock, its workers, and the key for one more.
+  MK.forEach((m, i) => {
+    const id = m.job, pl = id + "s", n = i ? S.saws : S.kilns, pr = i ? sawPrice() : kilnPrice(), pg = i ? "bricks" : "stones", p = $("#pl-" + id), run = F.run[i], extra = S.wk[id] - run;
+    p.children[0].innerHTML = `${pl.toUpperCase()} <span class="r"><b>${num(Math.min(N.made[i], F.mk[i]))}</b> of <i>${rate(F.mk[i])}</i></span>`;
+    p.children[1].innerHTML = (n ? `<span class="mm">${run < n ? run + " of " + n : n} ${n === 1 ? id : pl}: ${run} of ${n} workers</span>` : `<span class="mm">No ${pl} yet</span>`) + (extra > 0 ? ` <span class="bh">+ ${extra} without a ${id}</span>` : "");
+    p.children[2].innerHTML = `${PILE_N[m.pile]}: <span class="num">${num(S.p[m.pile])} of ${num(ROOM[m.pile])}</span>`;
+    p.children[4].innerHTML = `+${id.charAt(0).toUpperCase() + id.slice(1)} ${rate(m.per)} · ${fmt(pr)} ${ico(pg)} · 1 to run`; p.children[4].classList.toggle("can", canPay({ [pg]: pr }));
   });
-  $("#mid-r").textContent = F.full.stones ? "full" : rate(F.over[0] + F.over[1]);
+  $("#mid-r").textContent = rate(N.over[0] + N.over[1]);
   for (const g of ["stones", "bricks", "cut"]) { const b = $("#bay-" + g); b.children[0].textContent = g === "cut" && !S.shaft ? "after the shaft" : fmt(S[g]) + " of " + fmt(F.cap[g]); b.classList.toggle("full", F.full[g]); }
-  if (performance.now() - fcT > 1000) { fcT = performance.now(); const L = simulate(12 * 3600, false); FC = L.stop == null ? "Holds 12 h unattended." : !L.full ? "No output." : L.stop < 40 ? "Full now: crews idle." : "Full after " + dur(L.stop) + " unattended."; }
+  if (performance.now() - fcT > 1000) { fcT = performance.now(); const L = simulate(12 * 3600, false); FC = L.stop == null ? "Holds 12 h unattended." : !L.full ? "No output." : L.stop < 40 ? "Full now." : "Full after " + dur(L.stop) + " unattended."; }
   $("#ext-n").textContent = FC + " Expansion: capacity ×3.";
   const e = $("#ext"); e.children[1].innerHTML = `${fmt(yardPrice())} ${ico("bricks")}`; e.children[1].classList.toggle("can", canPay({ bricks: yardPrice() }));
 }
@@ -1037,8 +1062,10 @@ function frame() {
   $("#next").innerHTML = `<div class="what"><div class="k"></div><div class="t"></div></div><div class="n"><b></b>ready</div>`; tap($("#next"), () => { const all = actions(), a = all.find((x) => x.t) || [1, 2, 3, 4].map((d) => all.find((x) => x.p === (S.place + d) % 4)).find(Boolean); if (a) { go(a.p); const s = a.sel && $(a.sel); if (s) { s.classList.remove("pulse"); void s.offsetWidth; s.classList.add("pulse"); } } });
   PLACES.forEach((p, i) => { const b = el("button", "", $("#tabs"), `${ico(p)}<span>${PLACE_N[p]}</span><i class="lamp"></i>`); b.style.setProperty("--acc", ACC[p]); tap(b, () => go(i)); });
   tap($("#sleep"), () => away(8 * 3600));
-  const restart = (s) => { S = s; S.intro = true; shown.beacon = shown.store = shown.forge = null; carts.length = 0; build(); go(0); after(); };
-  tap($("#reset"), () => card("Restart the prototype?", ["Pick where to start.", "First evening: one level, stone, the mine and the city. All four sites: mid game, the shaft sunk, the Warehouse half built."], "First evening", "All four sites", () => restart(fresh()), () => restart(mid()), "Keep playing"));
+  const restart = (s) => { S = s; S.intro = true; NOW = { face: 0, haul: 0, lift: 0, rock: [0, 0], to: [0, 0], over: [0, 0], made: [0, 0] }; shown.beacon = shown.store = shown.forge = null; carts.length = 0; build(); go(0); after(); };
+  tap($("#reset"), () => { const c = $("#card"); c.hidden = false;
+    c.innerHTML = `<div class="box"><h2>Restart the prototype?</h2><p>Pick where to start.</p><p class="q">First evening: one worker, stone, the mine and the city. The roof goes on: the Light Tower is a minute from its roof, which opens the refinery. All four sites: mid game, the shaft sunk, the Warehouse half built.</p><div class="row"><button id="st-fresh">First evening</button></div><div class="row"><button id="st-roof">The roof goes on</button></div><div class="row"><button id="st-mid">All four sites</button></div><div class="row"><button class="alt" id="card-x">Keep playing</button></div></div>`;
+    for (const [id, fn] of [["fresh", fresh], ["roof", roof], ["mid", mid]]) tap($("#st-" + id), () => { c.hidden = true; restart(fn()); }); tap($("#card-x"), () => { c.hidden = true; }); });
 }
 function ui() {
   const F = flows(), h = inHand(), o = $("#order");
@@ -1049,14 +1076,14 @@ function ui() {
   const a = actions(), n = $("#next"); n.classList.toggle("go", a.length > 0);
   const po = a.find((x) => x.t), per = PLACES.map((p, i) => [PLACE_N[p], a.filter((x) => x.p === i).length]).filter(([, c]) => c);
   n.querySelector(".k").textContent = po ? "Next · " + PLACE_N[PLACES[po.p]] : a.length ? "Affordable now" : "Next";
-  n.querySelector(".t").textContent = po ? po.t : a.length ? per.map(([t, c]) => t + " " + c).join(" · ") : "Nothing affordable yet. Production is running."; n.querySelector(".n b").textContent = a.length;
+  n.querySelector(".t").textContent = po ? po.t : a.length ? per.map(([t, c]) => t + " " + c).join(" · ") : "Nothing to buy yet. " + (NOW.face + NOW.haul + NOW.lift + NOW.made[0] + NOW.made[1] > 0.5 ? "Production is running." : "The line stands."); n.querySelector(".n b").textContent = a.length;
   document.querySelectorAll("#tabs button").forEach((b, i) => { b.hidden = !avail(i); const l = b.querySelector(".lamp"); l.className = "lamp" + (a.some((x) => x.p === i) ? " green" : (i === 2 && S.bench) || (i === 3 && h && S.b[h.id].on) ? " amber" : ""); });
   mineUI(F); if (worksOpen()) worksUI(F); if (S.shaft) shopUI(); villageUI(); wfUI();
 }
 let last = 0, uiT = 0, saveT = 0;
 function loop(ms) {
   const t = ms / 1000, dt = Math.min(0.25, t - last || 0); last = t;
-  if ($("#card").hidden || $("#card .wf")) { const L = { sent: {}, ev: [] }, r = tick(dt, 1, 1, L); HAUL = r.rate; events(L.ev); }
+  if ($("#card").hidden || $("#card .wf")) { const L = { sent: {}, ev: [] }, r = tick(dt, 1, 1, L); HAUL = r.rate; if (dt > 0) NOW = r.now; events(L.ev); }
   const F = flows(), p = PLACES[S.place], c = CTX[p]; c.drawImage(BG[p], 0, 0);
   if (p === "mine") mineDraw(c, hA, t, F); else if (p === "works") worksDraw(c, hA, t, F); else if (p === "workshop") shopDraw(c, hA, t); else villageDraw(c, hA, t);
   if (t - uiT > 0.2) { uiT = t; ui(); } if (t - saveT > 3) { saveT = t; save(); }
@@ -1070,7 +1097,7 @@ async function boot() {
   let rz = 0; addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(build, 120); });
   addEventListener("visibilitychange", () => { if (document.hidden) return save(); if ($("#card .wf")) $("#card").hidden = true; const gap = S.seen ? (Date.now() - S.seen) / 1000 : 0; if (S.intro && gap > 90 && $("#card").hidden) away(gap); }); addEventListener("pagehide", save);
   if (S.intro && GONE > 90) away(GONE);
-  if (!S.intro) card("The first evening", ["One level, one material, two sites: the mine and the city. You start with twelve workers: nine in the mine, one driving the horse wagon, two building.", "The workers are one workforce, and every job takes them. Hire a worker at the top right, on any site, then put the worker on a job with +, or take one off with −. A machine or a wagon stands until workers run it. Watch the sites: rock piles up where it waits, and workers stand where there is nothing to do. The balance is yours to work out.", "Order the tower in the city. Transport moves the stone to the site, the builders build it in, and the tower rises. Each finished building opens the next site. The numbers are made up and run fast. Reset, top right, can also jump to all four sites."], "Start", null, () => { S.intro = true; save(); });
+  if (!S.intro) card("The first evening", ["One worker, on drilling. Drilled rock waits until haulage carries it to the shaft, and at the shaft until hoisting lifts it up as stone.", "Move him between the jobs with − and +. Every worker you hire moves more: hire at the top right, on any site. The horse wagon has no driver and the building site has no builders yet. Workers do those jobs too.", "Order the Light Tower in the city. Its roof opens the refinery. The numbers are made up and run fast. Reset, top right, can jump ahead to the roof."], "Start", null, () => { S.intro = true; save(); });
   requestAnimationFrame(loop);
 }
 boot();
