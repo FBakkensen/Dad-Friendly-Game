@@ -18,6 +18,16 @@ import { orderNumbers } from "./transport";
 /** The city's views (#662), on a fresh mine. */
 const fresh = <T>(body: () => T): T => withFactors({ [FRESH_OFF]: 0 }, body);
 
+/** A fresh mine with one driver and two builders, whatever a fresh start puts on them. */
+const start = (): Mountain => {
+  const mountain = createMountain();
+  return {
+    ...mountain,
+    owned: { ...mountain.owned, helper: 9 },
+    jobs: { drilling: 2, haulage: 2, hoisting: 2, driving: 1, building: 2 },
+  };
+};
+
 const withStones = (mountain: Mountain, stones: number): Mountain => ({
   ...mountain,
   stock: { ...mountain.stock, stones },
@@ -42,7 +52,7 @@ function structure(mountain: Mountain, onSite: number): Mountain {
 describe("the transport plate", () => {
   it("says its drivers, that it has no order, and the fleet with what it carries", () => {
     fresh(() => {
-      const plate = transportPlate(createMountain());
+      const plate = transportPlate(start());
       expect(plate.drivers).toBe("1 driver");
       expect(plate.state).toBe("idle: no order");
       expect(plate.fleet).toBe("1 horse wagon: 1 of 1 driver 9/s");
@@ -52,7 +62,7 @@ describe("the transport plate", () => {
 
   it("says it serves the city on order, and on hold when held", () => {
     fresh(() => {
-      const ordered = placeOrder(withStones(createMountain(), 0));
+      const ordered = placeOrder(withStones(start(), 0));
       expect(transportPlate(ordered).state).toBe("serving the city");
       expect(transportPlate(holdOrder(ordered)).state).toBe("on hold");
     });
@@ -60,7 +70,7 @@ describe("the transport plate", () => {
 
   it("counts the drivers a fleet has of the drivers it takes", () => {
     fresh(() => {
-      const start = createMountain();
+      const start = start();
       const two = { ...start, fleet: { ...start.fleet, horseWagon: 2 } };
       expect(transportPlate(two).fleet).toBe(
         "2 horse wagons: 1 of 2 drivers 9/s",
@@ -76,7 +86,7 @@ describe("the transport plate", () => {
 describe("the wagon key", () => {
   it("says what one more wagon carries, its price and its driver, green when he can pay", () => {
     fresh(() => {
-      const [key] = vehicleKeys(withStones(createMountain(), 10_000));
+      const [key] = vehicleKeys(withStones(start(), 10_000));
       expect(key).toMatchObject({
         id: "horseWagon",
         can: true,
@@ -84,7 +94,7 @@ describe("the wagon key", () => {
         price: "500",
         staff: "1 to run",
       });
-      expect(vehicleKeys(withStones(createMountain(), 0))[0]?.can).toBe(false);
+      expect(vehicleKeys(withStones(start(), 0))[0]?.can).toBe(false);
     });
   });
 });
@@ -92,7 +102,7 @@ describe("the wagon key", () => {
 describe("the skyline's plots", () => {
   it("has the Light Tower's plot and two vacant ones", () => {
     fresh(() => {
-      expect(plots(createMountain())).toEqual([
+      expect(plots(start())).toEqual([
         {
           building: "lightTower",
           name: "The Light Tower",
@@ -117,12 +127,12 @@ describe("the skyline's plots", () => {
 
   it("rises with what is built in, and stands whole once operational", () => {
     fresh(() => {
-      const [half] = plots(structure(createMountain(), 0));
+      const [half] = plots(structure(start(), 0));
       expect(half).toMatchObject({ state: "structure", risen: 1.5 });
       // What is on the site is not built in yet.
-      expect(plots(structure(createMountain(), 400))[0]?.risen).toBe(1.5);
+      expect(plots(structure(start(), 400))[0]?.risen).toBe(1.5);
       const done = {
-        ...createMountain(),
+        ...start(),
         operational: ["lightTower" as const],
       };
       expect(plots(done)[0]).toMatchObject({
@@ -136,7 +146,7 @@ describe("the skyline's plots", () => {
 describe("the project's card", () => {
   it("has the steps, a bar for each good, the order key and the power only", () => {
     fresh(() => {
-      const card = projectCard(createMountain());
+      const card = projectCard(start());
       if (card.kind !== "project") {
         throw new Error("no project");
       }
@@ -165,7 +175,7 @@ describe("the project's card", () => {
 
   it("reads the bars as the order strip does", () => {
     fresh(() => {
-      const mountain = structure(createMountain(), 400);
+      const mountain = structure(start(), 400);
       const card = projectCard(mountain);
       const strip = orderStrip(mountain);
       if (card.kind !== "project" || strip.kind !== "project") {
@@ -180,7 +190,7 @@ describe("the project's card", () => {
 
   it("shows the order in numbers while it delivers, and names no limit", () => {
     fresh(() => {
-      const mountain = placeOrder(withStones(createMountain(), 5_000));
+      const mountain = placeOrder(withStones(start(), 5_000));
       const card = projectCard(mountain);
       if (card.kind !== "project") {
         throw new Error("no project");
@@ -206,7 +216,7 @@ describe("the project's card", () => {
 
   it("says arriving 0/s with no driver, and no reason", () => {
     fresh(() => {
-      const mountain = withJobs(placeOrder(createMountain()), { driving: 0 });
+      const mountain = withJobs(placeOrder(start()), { driving: 0 });
       const card = projectCard(mountain);
       if (card.kind !== "project") {
         throw new Error("no project");
@@ -218,7 +228,7 @@ describe("the project's card", () => {
 
   it("resumes an order on hold, building in what is on the site", () => {
     fresh(() => {
-      const held = holdOrder(structure(createMountain(), 400));
+      const held = holdOrder(structure(start(), 400));
       const card = projectCard(held);
       if (card.kind !== "project") {
         throw new Error("no project");
@@ -237,7 +247,7 @@ describe("the project's card", () => {
   it("after the part's last roof says the strip's line and has no order key", () => {
     fresh(() => {
       const done = {
-        ...createMountain(),
+        ...start(),
         operational: ["lightTower" as const],
       };
       const card = projectCard(done);
@@ -260,7 +270,7 @@ describe("the project's card", () => {
 describe("the city's scene", () => {
   it("lays the site at the building in hand and loads the wagons with what transport brings", () => {
     fresh(() => {
-      const mountain = structure(withStones(createMountain(), 50_000), 250);
+      const mountain = structure(withStones(start(), 50_000), 250);
       const scene = cityScene(mountain);
       expect(scene.sitePlot).toBe(0);
       expect(scene.siteFill).toBe(0.5);
@@ -274,7 +284,7 @@ describe("the city's scene", () => {
 
   it("stands the wagons with nothing to carry, and the one with no driver", () => {
     fresh(() => {
-      const start = createMountain();
+      const start = start();
       const idle = cityScene({
         ...start,
         fleet: { ...start.fleet, horseWagon: 2 },

@@ -442,7 +442,8 @@
 }
 
 .frame-sheet .frame-step,
-.mine .frame-step {
+.mine .frame-step,
+.city .frame-step {
   flex: none;
   width: var(--target-min);
   height: var(--target-min);
@@ -454,7 +455,8 @@
 }
 
 .frame-sheet .frame-step.can,
-.mine .frame-step.can {
+.mine .frame-step.can,
+.city .frame-step.can {
   color: var(--frame-ink);
 }
 
