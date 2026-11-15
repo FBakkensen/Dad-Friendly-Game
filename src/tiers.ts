@@ -305,18 +305,34 @@ export function tierQuote(
 ): TierQuote {
   const count = owned(mountain, tier);
   const k = stretch(mountain);
-  const first = tierCost(tier, count, k);
-  if (amount === "one") {
-    return { count: 1, cost: first };
-  }
+  return quoteRun(
+    (nth) => tierCost(tier, count + nth, k),
+    amount,
+    mountain.stock.stones,
+  );
+}
+
+/**
+ * The amount key's one rule for every key that buys (#715): `costAt(n)` is
+ * what the nth one more costs (0 is the next). ×10 is ten, affordable or
+ * not. Max is as many as `pocket` holds, and one, at its price, when it
+ * holds none.
+ */
+export function quoteRun(
+  costAt: (nth: number) => number,
+  amount: BuyAmount,
+  pocket: number,
+): TierQuote {
   let bought = 1;
-  let cost = first;
-  const enough =
+  let cost = costAt(0);
+  const more =
     amount === "ten"
-      ? () => bought >= 10
-      : () => cost + tierCost(tier, count + bought, k) > mountain.stock.stones;
-  while (!enough()) {
-    cost += tierCost(tier, count + bought, k);
+      ? () => bought < 10
+      : amount === "max"
+        ? () => cost + costAt(bought) <= pocket
+        : () => false;
+  while (more()) {
+    cost += costAt(bought);
     bought += 1;
   }
   return { count: bought, cost };

@@ -16,6 +16,7 @@ import {
   secondsToFinish,
   secondsToStep,
   vehiclePrice,
+  vehicleQuote,
 } from "./transport";
 import { stepRequires, type Project } from "./city";
 
@@ -92,6 +93,33 @@ describe("the fleet (rule 7.5, 7.6)", () => {
     expect(priceAmount(vehiclePrice(one, "horseWagon"), "stones")).toBe(500);
     const two = mine(2, 0, { kind: "unordered" });
     expect(priceAmount(vehiclePrice(two, "horseWagon"), "stones")).toBe(610);
+  });
+
+  it("quotes ×1, ×10 and Max as the sum of each wagon's price in turn (#715)", () => {
+    const one = mine(1, 1_200, { kind: "unordered" });
+    expect(vehicleQuote(one, "horseWagon", "one")).toEqual({
+      count: 1,
+      cost: 500,
+    });
+    let ten = 0;
+    let fleet = one;
+    for (let bought = 0; bought < 10; bought += 1) {
+      ten += priceAmount(vehiclePrice(fleet, "horseWagon"), "stones");
+      fleet = { ...fleet, fleet: { horseWagon: fleet.fleet.horseWagon + 1 } };
+    }
+    expect(vehicleQuote(one, "horseWagon", "ten")).toEqual({
+      count: 10,
+      cost: ten,
+    });
+    // 500 + 610 = 1,110 fits in 1,200; the third (744) does not.
+    expect(vehicleQuote(one, "horseWagon", "max")).toEqual({
+      count: 2,
+      cost: 1_110,
+    });
+    // Max with nothing in the pocket still names one, as a machine's key does.
+    expect(
+      vehicleQuote(mine(1, 0, { kind: "unordered" }), "horseWagon", "max"),
+    ).toEqual({ count: 1, cost: 500 });
   });
 
   it("buys a wagon when the pocket covers it, and nothing when it does not", () => {

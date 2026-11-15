@@ -352,22 +352,9 @@ async function collect(page) {
       if (interactive) {
         // Only the part a finger can reach: a scrolling list clips the card
         // half under its edge, so that part is not near the next button.
+        // The harness's in-page helper (tools/browser/harness.ts).
         const raw = el.getBoundingClientRect();
-        let top = raw.top;
-        let bottom = raw.bottom;
-        let left = raw.left;
-        let right = raw.right;
-        for (let up = el.parentElement; up !== null; up = up.parentElement) {
-          const clip = getComputedStyle(up);
-          if (clip.overflowX === "visible" && clip.overflowY === "visible") {
-            continue;
-          }
-          const edge = up.getBoundingClientRect();
-          top = Math.max(top, edge.top);
-          bottom = Math.min(bottom, edge.bottom);
-          left = Math.max(left, edge.left);
-          right = Math.min(right, edge.right);
-        }
+        const { top, bottom, left, right } = globalThis.__reach(el);
         // Scrolled wholly out of view: still sized, never spaced.
         const inView = bottom - top > 0 && right - left > 0;
         targets.push({

@@ -24,6 +24,7 @@ import {
 import { TIERS, tierInPlay, type Tier } from "../tiers";
 import {
   fleetRate,
+  fleetSize,
   orderLimit,
   orderNumbers,
   secondsToFinish,
@@ -253,11 +254,6 @@ export function bestRaise(
 
 /** Goods a second one builder builds in. */
 const ONE_BUILDER = buildRate({ jobs: { ...NO_JOBS, building: 1 } });
-
-/** Vehicles he owns, of every kind. */
-export function fleetSize(mountain: Mountain): number {
-  return VEHICLE_IDS.reduce((total, id) => total + mountain.fleet[id], 0);
-}
 
 /** Builders that keep pace with what reaches the site: transport, or the line when it is less. */
 function buildersWanted(mountain: Mountain, line: number): number {

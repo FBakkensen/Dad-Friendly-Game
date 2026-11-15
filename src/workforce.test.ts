@@ -5,7 +5,9 @@ import {
   NO_JOBS,
   freeWorker,
   freeWorkers,
+  jobRoom,
   lineWork,
+  placeable,
   placeWorker,
   stageWork,
   toolSpeed,
@@ -102,6 +104,23 @@ describe("one workforce (slice 1, rule 2, #689)", () => {
     expect(freeWorkers(freeWorker(placed, "haulage", 10))).toBe(4);
     expect(placeWorker(placed, "drilling", Infinity).jobs.drilling).toBe(11);
     expect(placeWorker(some, "drilling", 0)).toBe(some);
+  });
+
+  it("stops transport at the vehicles: one driver each (#715)", () => {
+    const some = { ...crew(30), fleet: { horseWagon: 13 } };
+    expect(placeWorker(some, "driving", Infinity).jobs.driving).toBe(13);
+    expect(placeWorker(some, "driving", 10).jobs.driving).toBe(10);
+    const full = placeWorker(some, "driving", Infinity);
+    expect(placeWorker(full, "driving")).toBe(full);
+    expect(jobRoom(full, "driving")).toBe(0);
+    expect(placeable(full, "driving")).toBe(0);
+    expect(placeable(full, "building")).toBe(17);
+    expect(placeWorker(full, "building", Infinity).jobs.building).toBe(17);
+    // A save with more drivers than vehicles is read as it is.
+    const over = { ...crew(30, { driving: 20 }), fleet: { horseWagon: 13 } };
+    expect(jobRoom(over, "driving")).toBe(0);
+    expect(placeWorker(over, "driving")).toBe(over);
+    expect(freeWorker(over, "driving").jobs.driving).toBe(19);
   });
 
   it("never changes how many workers he has", () => {
@@ -358,6 +377,10 @@ describe("the moves (rule 2.4)", () => {
             : [],
         );
       expect(moves(crew(1, { haulage: 1 }))).toEqual(["freeWorker:haulage"]);
+      // Transport has no room past the one wagon he is given (#715).
+      expect(moves(crew(3, { driving: 1 }))).not.toContain(
+        "placeWorker:driving",
+      );
       expect(moves(crew(2, { haulage: 1 }))).toEqual([
         "placeWorker:drilling",
         "placeWorker:haulage",

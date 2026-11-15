@@ -8,7 +8,13 @@ import { effectiveRates } from "./rates";
 import { MACHINE_IDS, tierById, tierInPlay, type MachineId } from "./tiers";
 import { MACHINE_WORDS, TOOL_WORDS, plural } from "./screen-words";
 import { VEHICLES, drivenFleet } from "./transport";
-import { NO_JOBS, STAGE_JOB, freeWorkers, type JobId } from "./workforce";
+import {
+  NO_JOBS,
+  STAGE_JOB,
+  freeWorkers,
+  placeable,
+  type JobId,
+} from "./workforce";
 
 /**
  * The workforce (#659; spec, "The workforce"): every open job, grouped by
@@ -36,13 +42,13 @@ const SITE_JOBS: Readonly<Record<SiteId, readonly JobId[]>> = {
   city: ["driving", "building"],
 };
 
-/** "2 of 3 carts run", "1 of 1 cart runs". */
+/** "2 of 3 carts run", "1 of 1 cart runs", "0 of 1 vehicle runs" (#715). */
 function runsOf(
   on: number,
   of: number,
   noun: readonly [string, string],
 ): string {
-  return `${String(on)} of ${String(of)} ${plural(of, noun)} ${on === 1 && of === 1 ? "runs" : "run"}`;
+  return `${String(on)} of ${String(of)} ${plural(of, noun)} ${of === 1 ? "runs" : "run"}`;
 }
 
 /** "2 of 3 carts run, 1 with barrows": each kind of machine he owns, then the tools. */
@@ -105,7 +111,7 @@ export type JobRow = {
   readonly name: string;
   readonly note: string;
   readonly count: number;
-  /** A free worker to put on it. */
+  /** A free worker to put on it, and room for him (#715). */
   readonly canPlace: boolean;
   /** A worker on it to take off. */
   readonly canFree: boolean;
@@ -125,7 +131,7 @@ export function jobRow(mountain: Mountain, job: JobId): JobRow {
     name: JOB_NAMES[job],
     note: jobNote(mountain, job),
     count: mountain.jobs[job],
-    canPlace: freeWorkers(mountain) > 0,
+    canPlace: placeable(mountain, job) > 0,
     canFree: mountain.jobs[job] > 0,
   };
 }

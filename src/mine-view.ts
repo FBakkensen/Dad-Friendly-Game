@@ -42,21 +42,26 @@ export const STAGE_NAMES: Readonly<Record<Stage, string>> = {
 export const DEEPER_STRATA =
   "Deeper strata: not yet surveyed. The city has to grow first.";
 
-/** The level's plate: its name, its rock a second, and one line. */
+/** The level's plate: its name and the stone it brings up a second. */
 export type LevelPlate = {
   readonly name: string;
+  /** What hoisting lifts now, the hoisting row's number (#715). */
   readonly rate: string;
-  readonly line: string;
 };
 
+/**
+ * What each stage moves now through the piles, a second: drilling, haulage
+ * and hoisting, read from the mine's own chain.
+ */
+function movingNow(mountain: Mountain, now: number | undefined): number[] {
+  const timer = crewTimer(mountain, now);
+  return chainFlows(mineChain(mountain, 1, true)).map((flow) => flow * timer);
+}
+
+/** The level's plate: its name, and what comes up as stone now. */
 export function levelPlate(mountain: Mountain, now?: number): LevelPlate {
-  const rock = effectiveRates(mountain, now).crewPerSecond;
-  return {
-    name: "Topsoil",
-    rate: `${formatCompact(rock)}/s`,
-    // One level: every crew is on it, and no maker takes its rock yet.
-    line: "4 crews · all rock is hoisted as stone",
-  };
+  const lifted = movingNow(mountain, now)[STAGES.indexOf("lift")] ?? 0;
+  return { name: "Topsoil", rate: `${formatCompact(lifted)}/s` };
 }
 
 /** The strongest machine a stage can buy now: in play, shown and open. */
@@ -110,7 +115,10 @@ export function machineKey(
     face: `+${name} · ${moves}`,
     price: formatCompact(cost),
     staff: `${formatCompact(takes)} to run`,
-    label: `Buy ${count === 1 ? "a" : String(count)} ${plural(count, MACHINE_WORDS[id])} for ${formatCompact(cost)} stone. It moves ${moves} and takes ${String(takes)} to run.`,
+    label:
+      count === 1
+        ? `Buy a ${MACHINE_WORDS[id][0]} for ${formatCompact(cost)} stone. It moves ${moves} and takes ${String(takes)} to run.`
+        : `Buy ${String(count)} ${MACHINE_WORDS[id][1]} for ${formatCompact(cost)} stone. They move ${moves} and take ${String(takes)} to run.`,
   };
 }
 
@@ -365,7 +373,7 @@ export function stageRows(
   const timer = crewTimer(mountain, now);
   const work = lineWork(mountain, rates.tierSpeed);
   const tool = toolSpeed(rates.tierSpeed);
-  const flows = chainFlows(mineChain(mountain, 1, true));
+  const moves = movingNow(mountain, now);
   const strongest = Math.max(
     1,
     ...STAGES.map((stage) => work.stages[stage] * timer),
@@ -380,7 +388,7 @@ export function stageRows(
       tool,
     ).map((part) => timed(part, timer));
     const can = work.stages[stage] * timer;
-    const moving = (flows[STAGES.indexOf(stage)] ?? 0) * timer;
+    const moving = moves[STAGES.indexOf(stage)] ?? 0;
     const printed = printedParts(
       parts.map((part) => part.moves),
       can,

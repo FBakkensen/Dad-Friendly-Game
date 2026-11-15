@@ -197,12 +197,49 @@ async function installClock(page: Page, clock: PageClock): Promise<void> {
   }
 }
 
+/**
+ * `globalThis.__reach(el)`: the part of an element a finger can reach, in
+ * viewport px. A scrolling list clips a key half under its edge, so only the
+ * part inside every clipping ancestor counts. The UI audit and the visual
+ * check's key gaps (#719) both measure with it.
+ */
+async function installReach(page: Page): Promise<void> {
+  await page.evaluateOnNewDocument(() => {
+    // The page's own DOM, as far as the measure needs it (the tools have no DOM types).
+    type Box = { top: number; bottom: number; left: number; right: number };
+    type Part = {
+      readonly parentElement: Part | null;
+      getBoundingClientRect(): Box;
+    };
+    const page = globalThis as unknown as {
+      getComputedStyle(el: Part): { overflowX: string; overflowY: string };
+      __reach: (el: Part) => Box;
+    };
+    page.__reach = (el) => {
+      let { top, bottom, left, right } = el.getBoundingClientRect();
+      for (let up = el.parentElement; up !== null; up = up.parentElement) {
+        const clip = page.getComputedStyle(up);
+        if (clip.overflowX === "visible" && clip.overflowY === "visible") {
+          continue;
+        }
+        const edge = up.getBoundingClientRect();
+        top = Math.max(top, edge.top);
+        bottom = Math.min(bottom, edge.bottom);
+        left = Math.max(left, edge.left);
+        right = Math.min(right, edge.right);
+      }
+      return { top, bottom, left, right };
+    };
+  });
+}
+
 /** Everything a page gets before it loads, in the order the scripts always did it. */
 async function prepare(page: Page, options: OpenOptions): Promise<void> {
   page.on("pageerror", (error) => {
     options.onPageError(error as Error);
   });
   await page.setViewport(options.viewport);
+  await installReach(page);
   await installClock(page, options.clock);
   const seed = seedScript(options.seed, options.seedKey ?? SAVE_KEY);
   if (seed !== undefined) {

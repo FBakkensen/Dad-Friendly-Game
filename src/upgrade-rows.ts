@@ -190,7 +190,7 @@ export function upgradeRowView(
     aria: rowAria(
       name,
       info,
-      cost === undefined ? "Owned" : `Buy for ${formatCount(cost)} stones`,
+      cost === undefined ? "Owned" : `Buy for ${formatCount(cost)} stone`,
     ),
     shown: upgradeShown(mountain, upgrade),
   };

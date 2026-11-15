@@ -163,6 +163,7 @@ describe("the workers' upgrades", () => {
       expect(list.mark).toBe(
         "21 of 25 · Every worker with a tool works twice as fast.",
       );
+      expect(list.owned).toBe("21 hired");
     });
   });
 

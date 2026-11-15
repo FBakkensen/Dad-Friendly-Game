@@ -15,6 +15,7 @@ import {
   type Site,
 } from "./city";
 import type { Mountain } from "./mountain";
+import { quoteRun, type BuyAmount, type TierQuote } from "./tiers";
 import { GOOD_IDS, pay, type GoodId, type Price, type Stock } from "./stock";
 
 /**
@@ -111,6 +112,11 @@ export function drivenFleet(
   return driven;
 }
 
+/** Vehicles he owns, of every kind. */
+export function fleetSize(mountain: Pick<Mountain, "fleet">): number {
+  return VEHICLE_IDS.reduce((total, id) => total + mountain.fleet[id], 0);
+}
+
 /** Goods a second the vehicles with a driver carry. */
 export function fleetRate(mountain: Pick<Mountain, "fleet" | "jobs">): number {
   const driven = drivenFleet(mountain);
@@ -121,14 +127,38 @@ export function fleetRate(mountain: Pick<Mountain, "fleet" | "jobs">): number {
   return rate;
 }
 
-/** The next one's price. The ones given are not on the curve. */
-export function vehiclePrice(mountain: Mountain, id: VehicleId): Price {
-  const vehicle = vehicleById(id);
-  const bought = Math.max(0, mountain.fleet[id] - vehicle.given);
-  const cost = Math.ceil(
+/** What the vehicle after `fleet` of them costs. The ones given are not on the curve. */
+function vehicleCost(vehicle: Vehicle, fleet: number): number {
+  const bought = Math.max(0, fleet - vehicle.given);
+  return Math.ceil(
     Number((vehicle.firstCost * vehicle.growth ** bought).toPrecision(12)),
   );
-  return [{ good: vehicle.good, amount: cost }];
+}
+
+/** The next one's price. */
+export function vehiclePrice(mountain: Mountain, id: VehicleId): Price {
+  const vehicle = vehicleById(id);
+  return [
+    { good: vehicle.good, amount: vehicleCost(vehicle, mountain.fleet[id]) },
+  ];
+}
+
+/**
+ * What `amount` of a vehicle costs now (#715): the amount key's rule
+ * (`quoteRun`, as a machine's key), each one at its price in turn.
+ */
+export function vehicleQuote(
+  mountain: Mountain,
+  id: VehicleId,
+  amount: BuyAmount,
+): TierQuote {
+  const vehicle = vehicleById(id);
+  const fleet = mountain.fleet[id];
+  return quoteRun(
+    (nth) => vehicleCost(vehicle, fleet + nth),
+    amount,
+    mountain.stock[vehicle.good],
+  );
 }
 
 /** Buys one more, at once (rule 7.13); a pocket that does not cover it buys none. */
