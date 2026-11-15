@@ -36,7 +36,7 @@ type PlayPlan = {
   /** A running app to drive instead of starting Vite. */
   readonly url: string | undefined;
   readonly phone: ScreenSize;
-  /** Appended to the page URL, e.g. ?trouble=cave-in for the dev preview. */
+  /** Appended to the page URL, e.g. ?update=shown for the dev preview. */
   readonly search: string;
   /** 2 opens the save in two tabs and plays the second: the other-tab card. */
   readonly tabs: 1 | 2;
@@ -53,21 +53,21 @@ Options:
   --out <dir>        where shots and the log go (default: play-shots)
   --url <url>        drive a running app instead of starting Vite
   --viewport <WxH>   the phone's size (default: 424x924, the board)
-  --search <query>   added to the page URL, e.g. ?trouble=cave-in
+  --search <query>   added to the page URL, e.g. ?update=shown
   --tabs <1|2>       2 opens the save in two tabs and plays the second,
                      which shows the other-tab card (default: 1)
   --help             this text
 
 Actions run in order; a shot is taken after opening and after each one:
-  tap:<css>          tap the first visible match, e.g. tap:.board-window
+  tap:<css>          tap the first visible match, e.g. tap:.frame-key
   label:<name>       tap the first visible match whose accessible name
                      (aria-label or text) is or starts with the label,
-                     e.g. label:Upgrades
+                     e.g. label:Ledger
   wait:<ms>          wait that many milliseconds, e.g. wait:500
   wait:<css>         wait until a match is visible, e.g. wait:.board-sheet.is-open
   reload             reload the page
   reopen             close the tab and open the game in a new one
-Add *N to a tap to repeat it, e.g. tap:.board-window*5`;
+Add *N to a tap to repeat it, e.g. tap:.frame-hire*5`;
 
 const DEFAULT_OUT = "play-shots";
 const MAX_TAPS = 500;

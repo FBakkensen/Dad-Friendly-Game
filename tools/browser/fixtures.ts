@@ -1095,15 +1095,27 @@ export function playBriefSave(): Seed {
   return { ...openMountain(), lastSeen: Date.now() - HOUR / 30 };
 }
 
-/** The account the slice 1 preview's memory save signs in as (src/boot.ts, `SLICE_DEV`). */
-export const DEV_UID = "dev-slice";
+/** The account a memory save (`?memorySave=1`) signs in as (src/boot.ts, `MEMORY_DEV`). */
+export const DEV_UID = "dev-dad";
 
 /**
  * Where the phone keeps that account's backup (src/phone-backup.ts). The
- * slice 1 preview (`?slice=1`) plays a memory save as that account, so its
- * play saves are seeded here, not under SAVE_KEY (#659).
+ * frame's play saves are seeded here and played on a memory save as that
+ * account, so the save line reads the account (#659, #664).
  */
 export const DEV_BACKUP_KEY = `dad-friendly-game-backup:${DEV_UID}`;
+
+/**
+ * The same save as a guest's, for SAVE_KEY: the document inside a phone backup, without the
+ * account (the journeys play as a guest, #664).
+ */
+export function asGuest(backup: StoredAsIs): StoredAsIs {
+  const save = backup["save"];
+  if (typeof save !== "object" || save === null) {
+    throw new Error("Not a phone backup");
+  }
+  return save as StoredAsIs;
+}
 
 /** A slice 1 save: the phone backup of the dev account, holding this game map as version 9. */
 function sliceSave(now: number, game: Record<string, unknown>): StoredAsIs {

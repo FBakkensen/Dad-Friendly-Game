@@ -12,19 +12,8 @@ import { availableParallelism } from "node:os";
 import { performance } from "node:perf_hooks";
 import { failures, sections, only } from "./visual/registry.mjs";
 import { server, browser } from "./visual/kit.mjs";
-import "./visual/main-screen.mjs";
-import "./visual/cards.mjs";
-import "./visual/engineers-workshop.mjs";
-import "./visual/notices-saves.mjs";
-import "./visual/plate-and-sheets.mjs";
-import "./visual/running-and-guards.mjs";
-import "./visual/board.mjs";
-import "./visual/gauge-row.mjs";
-import "./visual/bays-ready.mjs";
-import "./visual/rail.mjs";
-import "./visual/drawers.mjs";
-import "./visual/controls.mjs";
 import "./visual/frame.mjs";
+import "./visual/saves.mjs";
 
 // Pages wait on the network as much as the CPU, so 1.5 per core beats 1
 // (measured on 4 cores: 70 s at 4 jobs, 63 s at 6, 62 s at 8).

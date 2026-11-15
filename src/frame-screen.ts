@@ -173,6 +173,8 @@ function paintTop(
 ): void {
   const [stone] = stockpiles(mountain);
   write(parts.stones, stone?.text ?? "0");
+  // The exact count, as the odometer carried it, for the journeys (#664).
+  setAttr(parts.stones, "data-count", String(mountain.stock.stones));
   const workers = workersView(mountain);
   write(parts.count, String(workers.owned));
   write(parts.free, `${String(workers.free)} free`);
