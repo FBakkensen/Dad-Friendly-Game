@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { placeOrder } from "./city";
 import { withFactors } from "./economy/factors";
 import { FRESH_OFF } from "./line-switch";
+import { workersView } from "./frame-view";
 import { createMountain, type Mountain } from "./mountain";
 import {
   LINE_STANDS,
@@ -89,6 +90,9 @@ describe("next view", () => {
       const mountain = ordered(400);
       expect(siteCounts(mountain)).toEqual({ mine: 0, city: 0 });
       expect(nextView(mountain).kind).toBe("nothing");
+      expect(siteLamp(mountain, "mine")).toBe("dark");
+      expect(siteLamp(mountain, "city")).not.toBe("green");
+      expect(workersView(mountain).lamp).toBe(false);
     });
   });
 

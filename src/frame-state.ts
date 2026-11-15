@@ -1,4 +1,3 @@
-import type { Move } from "./economy/actions";
 import type { Mountain } from "./mountain";
 import type { SiteId } from "./next-view";
 import type { ProgressStore } from "./progress-store";
@@ -15,17 +14,9 @@ export type FrameState = {
   readonly progress: ProgressStore;
   readonly mountain: () => Mountain;
   readonly amount: () => BuyAmount;
-  readonly setAmount: (amount: BuyAmount) => void;
+  /** The amount key: ×1, ×10, Max, kept on the device as Buys' is. */
+  readonly advanceAmount: () => void;
   readonly site: () => SiteId;
   readonly go: (site: SiteId) => void;
   readonly openWorkforce: () => void;
 };
-
-/** One of a tier is today's buy; ×10 and Max buy several in one move (#358). */
-export function hireMove(
-  count: number,
-): Extract<Move, { kind: "buyTier" | "buyTiers" }> {
-  return count === 1
-    ? { kind: "buyTier", id: "helper" }
-    : { kind: "buyTiers", id: "helper", count };
-}

@@ -455,6 +455,20 @@ function buyMany(mountain: Mountain, id: TierId, count: number): Mountain {
   return next;
 }
 
+/**
+ * A tap that buys `count` of a tier: one is today's `buyTier`, and ×10 or
+ * Max buy several in one `buyTiers` move (#358). Buys and the slice 1 frame's
+ * hire key both dispatch it (#659).
+ */
+export function tierBuyMove(
+  id: TierId,
+  count: number,
+): Extract<Move, { kind: "buyTier" | "buyTiers" }> {
+  return count === 1
+    ? { kind: "buyTier", id }
+    : { kind: "buyTiers", id, count };
+}
+
 /** A move only the screen makes: the lab plays taps and marks through its value model. */
 type ScreenMove =
   | { readonly kind: "dig" }

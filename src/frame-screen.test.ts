@@ -157,6 +157,19 @@ describe("frame screen", () => {
     expect(root.querySelector<HTMLElement>(".frame-sheet")?.hidden).toBe(true);
   });
 
+  it("opens the workforce from Next when only this site and the workforce have something", () => {
+    const { root, button } = mount((m) => ({
+      ...withStones(1_700_000)(placeOrder(m)),
+      fleet: { horseWagon: 60 },
+    }));
+    expect(root.querySelector(".frame-next-line")?.textContent).toBe(
+      "Mine 3 · Workforce 1",
+    );
+    button(".frame-next").click();
+    expect(root.querySelector<HTMLElement>(".frame-sheet")?.hidden).toBe(false);
+    expect(button(".frame-site.on").dataset["site"]).toBe("mine");
+  });
+
   it("stays put on a Next with nothing to point at", () => {
     const { root, button } = mount(placeOrder);
     expect(root.querySelector(".frame-next-head")?.textContent).toBe(

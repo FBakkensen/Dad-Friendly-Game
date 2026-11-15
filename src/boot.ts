@@ -57,6 +57,20 @@ export function parseBootOptions(search: string): {
   };
 }
 
+/** The dev account a preview plays a memory save as, or none for the real account. */
+function memoryUser(
+  options: ReturnType<typeof parseBootOptions>,
+): { readonly uid: string; readonly label: string } | undefined {
+  if (options.slice) {
+    return SLICE_DEV;
+  }
+  const memory =
+    options.memorySave ||
+    options.previewSave !== undefined ||
+    options.previewCopies;
+  return memory ? MEMORY_DEV : undefined;
+}
+
 export async function createAppServices({
   env,
   search = window.location.search,
@@ -72,15 +86,11 @@ export async function createAppServices({
     // stays on for the page, and its save is a memory save (#659).
     holdFactors({ [FRESH_OFF]: 0 });
   }
-  const previewing =
-    options.slice ||
-    options.memorySave ||
-    options.previewSave !== undefined ||
-    options.previewCopies;
+  const user = devMode ? memoryUser(options) : undefined;
   let services =
-    devMode && previewing
-      ? memoryServices()
-      : await configuredServices({ env });
+    user === undefined
+      ? await configuredServices({ env })
+      : memoryServices(user);
   if (devMode && options.previewSave === "error") {
     services = {
       auth: services.auth,
@@ -163,13 +173,23 @@ async function seedPreviewCopies(cloudSave: CloudSave): Promise<void> {
   });
 }
 
-function memoryServices(): {
+/**
+ * The slice 1 preview's own dev account (#659): its phone backup holds a
+ * fresh mine, which the other memory previews never read, and the reverse.
+ */
+const SLICE_DEV = { uid: "dev-slice", label: "Dev Dad" } as const;
+const MEMORY_DEV = { uid: "dev-dad", label: "Dev Dad" } as const;
+
+function memoryServices(user: {
+  readonly uid: string;
+  readonly label: string;
+}): {
   readonly auth: AuthController;
   readonly cloudSave: CloudSave;
 } {
   return {
     auth: createMemoryAuth({
-      state: { kind: "signed-in", user: { uid: "dev-dad", label: "Dev Dad" } },
+      state: { kind: "signed-in", user },
     }),
     cloudSave: createMemoryCloudSave(),
   };

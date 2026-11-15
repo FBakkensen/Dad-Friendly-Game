@@ -5,7 +5,7 @@ import pickUrl from "./assets/pick.png";
 import type { AuthController } from "./auth";
 import { createSaveLine } from "./board-save";
 import { el, mark, setAttr, write } from "./board-dom";
-import { storedAmount, storeAmount, type DeviceStorage } from "./buys-amount";
+import { deviceAmount, type DeviceStorage } from "./buys-amount";
 import {
   hireKey,
   orderStrip,
@@ -24,7 +24,8 @@ import {
 } from "./next-view";
 import type { ProgressStore } from "./progress-store";
 import type { BuyAmount } from "./tiers";
-import { hireMove, type FrameState } from "./frame-state";
+import { tierBuyMove } from "./economy/actions";
+import type { FrameState } from "./frame-state";
 import { createWorkforceSheet, type WorkforceSheet } from "./workforce-sheet";
 import "./frame.css";
 
@@ -132,7 +133,7 @@ function buildTop(state: FrameState): TopParts {
   hire.append(hireFace, hirePrice);
   hire.addEventListener("click", () => {
     const key = hireKey(state.mountain(), state.amount());
-    void state.progress.dispatch(hireMove(key.count));
+    void state.progress.dispatch(tierBuyMove("helper", key.count));
   });
   root.append(pile, workers, hire);
   return {
@@ -177,7 +178,11 @@ type NextParts = {
   readonly ready: HTMLElement;
 };
 
-/** Where a tap on Next goes: the city for an order, else the next site with something. */
+/**
+ * Where a tap on Next goes: the city for an order, else the next other site
+ * with something, else the workforce, else this site. The count of workers
+ * opens the workforce on every site too.
+ */
 function nextTarget(
   mountain: Mountain,
   here: SiteId,
@@ -189,11 +194,14 @@ function nextTarget(
   if (view.kind === "nothing") {
     return undefined;
   }
+  // The other sites first, from the one after this, then the workforce,
+  // then this site: a tap always moves him, unless only here has something.
   const at = SITES.indexOf(here);
   const order = [
     ...SITES.slice(at + 1),
-    ...SITES.slice(0, at + 1),
+    ...SITES.slice(0, at),
     "workforce" as const,
+    here,
   ];
   return order.find((where) =>
     view.counts.some((entry) => entry.where === where),
@@ -324,15 +332,14 @@ export function mountFrameScreen({
   signal?: AbortSignal | undefined;
 }): FrameScreen {
   let site: SiteId = "mine";
-  let amount = storedAmount(storage);
+  const amount = deviceAmount(storage);
   let paint = (): void => undefined;
   const state: FrameState = {
     progress,
     mountain: () => progress.getSnapshot().mountain,
-    amount: () => amount,
-    setAmount: (next) => {
-      amount = next;
-      storeAmount(storage, next);
+    amount: amount.amount,
+    advanceAmount: () => {
+      amount.advance();
       paint();
     },
     site: () => site,

@@ -64,7 +64,7 @@ export function placeWorker<M extends Crew>(
   job: JobId,
   count = 1,
 ): M {
-  return moved(mountain, job, Math.min(count, freeWorkers(mountain)));
+  return moved(mountain, job, Math.min(movable(count), freeWorkers(mountain)));
 }
 
 /** Up to `count` workers off `job`, free again; none there changes nothing. */
@@ -73,7 +73,12 @@ export function freeWorker<M extends Crew>(
   job: JobId,
   count = 1,
 ): M {
-  return moved(mountain, job, -Math.min(count, mountain.jobs[job]));
+  return moved(mountain, job, -Math.min(movable(count), mountain.jobs[job]));
+}
+
+/** A count a move can carry: whole and not below 0. NaN moves none, and Infinity all there are. */
+function movable(count: number): number {
+  return count > 0 ? Math.floor(count) : 0;
 }
 
 function moved<M extends Crew>(mountain: M, job: JobId, by: number): M {

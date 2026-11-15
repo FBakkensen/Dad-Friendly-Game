@@ -1095,11 +1095,11 @@ export function playBriefSave(): Seed {
   return { ...openMountain(), lastSeen: Date.now() - HOUR / 30 };
 }
 
-/** The account the dev memory save signs in as (src/boot.ts, `memoryServices`). */
-export const DEV_UID = "dev-dad";
+/** The account the slice 1 preview's memory save signs in as (src/boot.ts, `SLICE_DEV`). */
+export const DEV_UID = "dev-slice";
 
 /**
- * Where the phone keeps the dev account's backup (src/phone-backup.ts). The
+ * Where the phone keeps that account's backup (src/phone-backup.ts). The
  * slice 1 preview (`?slice=1`) plays a memory save as that account, so its
  * play saves are seeded here, not under SAVE_KEY (#659).
  */
@@ -1156,7 +1156,7 @@ export function sliceStandsSave(now: number): StoredAsIs {
 }
 
 /**
- * A busier first night: two carts, a second wagon, two free workers, the
+ * A busier first night: two carts, a second wagon, three free workers, the
  * foundation on order and stone in the pocket. Next counts the mine's and
  * the city's buys, and the workforce shows machines that run (#659).
  */

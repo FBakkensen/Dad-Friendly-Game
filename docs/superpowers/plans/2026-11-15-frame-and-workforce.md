@@ -16,6 +16,11 @@ Spec: `docs/superpowers/specs/2026-11-14-slice-1-design.md`, "The frame, the sam
 10. **The site bar** has the mine and the city, each with its lamp: green when its count is not zero, and the city amber while an order is delivering. A tap changes site. The scenes are their own slivers (#660, #662), so the middle is the site's dark ground for now, in a dev build only.
 11. **The save line** stays in view, under the site bar, as today's `createSaveLine`.
 
+12. **Next's tap** goes to the city for an order, else to the next other site with something, else opens the workforce, else stays: so it always moves him while something is affordable elsewhere. The count of workers opens the workforce on every site too. (Review, Minor.)
+13. **The workforce's count lights before its row.** Better boots counts for the workforce now (the spec's "What Next and the lamps count"), and its row in the workforce comes with the stage's list (#661). The frame stays a dev preview until the switch-on (#664), which comes after #661, so the player never sees a lit count with no row. (Review, Minor.)
+14. **One amount key, one buy move.** The frame holds the device's amount with Buys' `deviceAmount` and paints its key with `paintAmountKey`, and the hire key dispatches Buys' `tierBuyMove`. A worker move's count is clamped to a whole count of at least 0. The preview signs in as its own dev account (`dev-slice`). (Review, Important and Minor.)
+15. **Copy that is Flemming's.** Next's "Nothing to buy on the sites yet." with "Production is running." or "The line stands." was asked as one question (picture set in `/mnt/project-files/slice-1/build/`). The after-the-last-roof line is the spec's proposal and his to approve with the city and the cards (#662, #663). Both stay behind the dev preview until he answers.
+
 ## Tasks
 
 1. Counted worker moves (`workforce`, `economy/actions`, lab), tests first.

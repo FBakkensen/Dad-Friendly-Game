@@ -1,7 +1,7 @@
-import { el, hide, mark, setAttr, write } from "./board-dom";
-import { AMOUNT_WORDS, amountAria, nextAmount } from "./buys-amount";
-import type { Move } from "./economy/actions";
-import { hireMove, type FrameState } from "./frame-state";
+import { el, hide, mark, write } from "./board-dom";
+import { paintAmountKey } from "./buys-amount";
+import { tierBuyMove, type Move } from "./economy/actions";
+import type { FrameState } from "./frame-state";
 import { hireKey } from "./frame-view";
 import type { Mountain } from "./mountain";
 import type { BuyAmount } from "./tiers";
@@ -107,13 +107,13 @@ function buildHead(state: FrameState): HeadParts {
   const amount = el("button", "frame-amount");
   amount.type = "button";
   amount.addEventListener("click", () => {
-    state.setAmount(nextAmount(state.amount()));
+    state.advanceAmount();
   });
   const hire = el("button", "frame-sheet-hire");
   hire.type = "button";
   hire.addEventListener("click", () => {
     const key = hireKey(state.mountain(), state.amount());
-    void state.progress.dispatch(hireMove(key.count));
+    void state.progress.dispatch(tierBuyMove("helper", key.count));
   });
   root.append(counts, amount, hire);
   return { root, workers, free, amount, hire };
@@ -127,8 +127,7 @@ function paintHead(
   const view = workforceView(mountain);
   write(parts.workers, String(view.owned));
   write(parts.free, String(view.free));
-  write(parts.amount, AMOUNT_WORDS[amount].face);
-  setAttr(parts.amount, "aria-label", amountAria(amount));
+  paintAmountKey(parts.amount, parts.amount, amount);
   const key = hireKey(mountain, amount);
   write(
     parts.hire,

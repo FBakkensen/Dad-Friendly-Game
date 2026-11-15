@@ -109,7 +109,7 @@ describe("createAppServices", () => {
         env: READY_ENV,
         search: "?slice=1",
       });
-      expect(auth.getState()).toMatchObject({ user: { uid: "dev-dad" } });
+      expect(auth.getState()).toMatchObject({ user: { uid: "dev-slice" } });
       expect(firebaseStubs.auth).not.toHaveBeenCalled();
       expect(freshMineOn()).toBe(true);
       expect(progress.getSnapshot().mountain.jobs.building).toBe(2);

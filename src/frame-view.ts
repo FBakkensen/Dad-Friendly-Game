@@ -186,7 +186,7 @@ export function hireKey(mountain: Mountain, amount: BuyAmount): HireKey {
     count,
     cost,
     can: cost <= mountain.stock.stones,
-    face: count === 1 ? "+Worker" : `+${String(count)} Workers`,
+    face: count === 1 ? "+Worker" : `+${formatCompact(count)} Workers`,
     price: formatCompact(cost),
   };
 }

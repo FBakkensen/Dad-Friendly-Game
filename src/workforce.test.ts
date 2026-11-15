@@ -81,6 +81,18 @@ describe("one workforce (slice 1, rule 2, #689)", () => {
     expect(freeWorker(freed, "haulage")).toBe(freed);
   });
 
+  it("moves no worker for a count below one, and whole ones for a fraction", () => {
+    const start = createMountain();
+    const crew = {
+      ...start,
+      owned: { ...start.owned, helper: 5 },
+      jobs: { ...NO_JOBS, drilling: 3 },
+    };
+    expect(freeWorker(crew, "drilling", -5)).toBe(crew);
+    expect(placeWorker(crew, "haulage", Number.NaN)).toBe(crew);
+    expect(placeWorker(crew, "haulage", 1.9).jobs.haulage).toBe(1);
+  });
+
   it("moves up to a count at once: the ones there are, and no more (#659)", () => {
     const some = crew(14, { haulage: 3 });
     const placed = placeWorker(some, "drilling", 10);
