@@ -5,10 +5,11 @@ import { createMountain, type Mountain, type NightReport } from "../mountain";
 import { PART_TWO_OFF } from "../part-switch";
 import { EMPTY_STOCK } from "../stock";
 import type { DecisionSample } from "./measure";
+import deadGood from "./measures/deadGood";
 import nightFull from "./measures/nightFull";
 import nightFullAt from "./measures/nightFullAt";
 import { nightRecord, type NightRecord } from "./nights";
-import { HOUR_MS } from "./targets";
+import { HOUR_MS, MS_PER_SECOND, SAMPLE_INTERVAL_SEC } from "./targets";
 import { createWorld, step, type World } from "./world";
 
 /** How the lab reads a long night once the stockyard is open (#667). */
@@ -109,5 +110,34 @@ describe("the night measures (#667)", () => {
     expect(
       nightFullAt.aggregate(samples([{ awayMs: 10, endedFull: true }])),
     ).toBeNaN();
+  });
+});
+
+describe("deadGood weighed by time, nights included (#667, PR review)", () => {
+  const minute = SAMPLE_INTERVAL_SEC * MS_PER_SECOND;
+  const live = (yardOpen: boolean, dead: boolean, nights: NightRecord[] = []) =>
+    ({
+      fresh: { yardOpen, deadGood: dead },
+      nights,
+    }) as unknown as DecisionSample;
+
+  it("counts a minute for each live sample and the dead stretch of each long night", () => {
+    const run = [
+      live(true, true),
+      live(false, true),
+      live(true, false, [
+        // Filled four hours in and stood the mine to morning: six hours dead.
+        { awayMs: 10 * HOUR_MS, endedFull: true, fullAtMs: 4 * HOUR_MS },
+        // Full from the start: all of it dead.
+        { awayMs: 8 * HOUR_MS, endedFull: true },
+        // Filled, but transport kept the mine going: none dead.
+        { awayMs: 7 * HOUR_MS, endedFull: false, fullAtMs: HOUR_MS },
+      ]),
+    ];
+    expect(deadGood.aggregate(run)).toBeCloseTo(
+      (minute + 14 * HOUR_MS) / (2 * minute + 25 * HOUR_MS),
+      12,
+    );
+    expect(deadGood.aggregate([live(false, true)])).toBeNaN();
   });
 });

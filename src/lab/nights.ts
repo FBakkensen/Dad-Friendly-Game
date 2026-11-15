@@ -1,7 +1,7 @@
 import { stockyardOpen } from "../stockyard";
 import type { DecisionSample } from "./measure";
 import { median } from "./stats";
-import { NIGHT_MIN_MS } from "./targets";
+import { MS_PER_SECOND, NIGHT_MIN_MS, SAMPLE_INTERVAL_SEC } from "./targets";
 import type { World } from "./world";
 
 /**
@@ -57,4 +57,43 @@ export function nightFullAt(samples: readonly DecisionSample[]): number {
       : [],
   );
   return shares.length === 0 ? Number.NaN : median(shares);
+}
+
+/** A live sample stands for one sampling interval of play. */
+const SAMPLE_MS = SAMPLE_INTERVAL_SEC * MS_PER_SECOND;
+
+/**
+ * How long of a night a full stockyard sat dead: from when the stone
+ * stockpile filled (or the night's start, if it started full) to the
+ * morning, when the night ended with the mine standing at it. Transport
+ * draining it into an order keeps the mine going, so a night that ends full
+ * ends with nothing taking stone.
+ */
+function deadMs(night: NightRecord): number {
+  return night.endedFull ? night.awayMs - (night.fullAtMs ?? 0) : 0;
+}
+
+/**
+ * `deadGood` weighed by time (slice 1, Lab, #667, PR review): each live
+ * sample with the stockyard open counts its minute, dead while a stockpile
+ * is full and no order delivering takes its good, and each long night counts
+ * its whole length, dead from when a full stockyard stood the mine. Gaps
+ * shorter than a night count only through the samples. NaN with none.
+ */
+export function deadGoodShare(
+  samples: readonly Pick<DecisionSample, "fresh" | "nights">[],
+): number {
+  let kept = 0;
+  let dead = 0;
+  for (const sample of samples) {
+    if (sample.fresh?.yardOpen === true) {
+      kept += SAMPLE_MS;
+      dead += sample.fresh.deadGood ? SAMPLE_MS : 0;
+    }
+    for (const night of sample.nights ?? []) {
+      kept += night.awayMs;
+      dead += deadMs(night);
+    }
+  }
+  return kept === 0 ? Number.NaN : dead / kept;
 }
