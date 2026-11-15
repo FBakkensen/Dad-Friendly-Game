@@ -29,12 +29,7 @@ import {
 import { NO_JOBS, workersOnJobs, type Jobs } from "./workforce";
 import { makerRecord, type MakerId } from "./makers";
 import { chainChange, chainFlows } from "./piles";
-import {
-  chainIncome,
-  flowMine,
-  mineChain,
-  type MinePiles,
-} from "./mine-piles";
+import { chainIncome, flowMine, mineChain, type MinePiles } from "./mine-piles";
 import { stockpileFull, stockyardOpen } from "./stockyard";
 import type { GoodId } from "./stock";
 import {
@@ -768,9 +763,10 @@ function accrueNight({
     litAtMs: undefined,
     gained: EMPTY_STOCK,
     fullAtMs: Object.fromEntries(
-      STOCKPILES.filter((good) => stockpileFull(mountain, good)).map(
-        (good) => [good, 0],
-      ),
+      STOCKPILES.filter((good) => stockpileFull(mountain, good)).map((good) => [
+        good,
+        0,
+      ]),
     ),
   };
   let state = mountain;

@@ -10,18 +10,18 @@ A new sweep factor, `part2.off`, in its own leaf (`src/part-switch.ts`). `partTw
 
 ## The rules, and the module each goes into
 
-| Rule | Module |
-| --- | --- |
-| Brick is a good (rule 3) | `src/stock.ts`: `brick` joins `GoodId`, `Stock` and the goods table |
-| The kiln: bought like a machine (15,000 stone, ×1.219), 12 brick a second, runs with one worker (rule 2.7, rule 3) | new `src/makers.ts` (a table like the vehicles') |
-| The kilns are a job, open with the Light Tower in part 2 | `src/workforce.ts`: `kilns` joins `JOB_IDS`; `jobOpen` refuses a move onto a job that is not open |
-| Rock waits at the kilns in their own pile, and what the kilns cannot take bypasses to stone (rule 2, rule 3) | `src/piles.ts` gets a spill: a pile that is full passes its overflow to a side pile. `src/mine-piles.ts` builds the mine's chain with it |
-| The stockyard: one level, room for each good, "Expand the stockyard" in brick, the Warehouse doubles the room (rule 4, rule 6) | new `src/stockyard.ts` |
-| A full stockpile stops production; rock for a full brick stockpile bypasses to stone (rule 4) | the mine's chain: the stone stockpile is the spill, the brick stockpile the kilns' pile |
-| Transport takes from the stockpiles while the mine fills them | `src/transport.ts`: `stockDraw`, what transport takes from each stockpile a second, is the chain's drain |
-| A night runs at the night shift output until the stockyard is full, with no clock once it is open (rule 4) | `src/mountain.ts`'s night: the clock only before the stockyard; the report says when each stockpile was full and that the stockyard stopped the mine |
-| The Warehouse: stone and brick, power ×2 room; the next building only in part 2 (rule 6) | `src/city.ts`: a row with a `part`, `nextBuilding` reads the switch |
-| The save: makers, the stockyard's level, brick, the kiln job and the kiln pile | `src/save-format.ts` and the ledger: two new keys; the rest rides on the id lists |
+| Rule                                                                                                                           | Module                                                                                                                                               |
+| ------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Brick is a good (rule 3)                                                                                                       | `src/stock.ts`: `brick` joins `GoodId`, `Stock` and the goods table                                                                                  |
+| The kiln: bought like a machine (15,000 stone, ×1.219), 12 brick a second, runs with one worker (rule 2.7, rule 3)             | new `src/makers.ts` (a table like the vehicles')                                                                                                     |
+| The kilns are a job, open with the Light Tower in part 2                                                                       | `src/workforce.ts`: `kilns` joins `JOB_IDS`; `jobOpen` refuses a move onto a job that is not open                                                    |
+| Rock waits at the kilns in their own pile, and what the kilns cannot take bypasses to stone (rule 2, rule 3)                   | `src/piles.ts` gets a spill: a pile that is full passes its overflow to a side pile. `src/mine-piles.ts` builds the mine's chain with it             |
+| The stockyard: one level, room for each good, "Expand the stockyard" in brick, the Warehouse doubles the room (rule 4, rule 6) | new `src/stockyard.ts`                                                                                                                               |
+| A full stockpile stops production; rock for a full brick stockpile bypasses to stone (rule 4)                                  | the mine's chain: the stone stockpile is the spill, the brick stockpile the kilns' pile                                                              |
+| Transport takes from the stockpiles while the mine fills them                                                                  | `src/transport.ts`: `stockDraw`, what transport takes from each stockpile a second, is the chain's drain                                             |
+| A night runs at the night shift output until the stockyard is full, with no clock once it is open (rule 4)                     | `src/mountain.ts`'s night: the clock only before the stockyard; the report says when each stockpile was full and that the stockyard stopped the mine |
+| The Warehouse: stone and brick, power ×2 room; the next building only in part 2 (rule 6)                                       | `src/city.ts`: a row with a `part`, `nextBuilding` reads the switch                                                                                  |
+| The save: makers, the stockyard's level, brick, the kiln job and the kiln pile                                                 | `src/save-format.ts` and the ledger: two new keys; the rest rides on the id lists                                                                    |
 
 ## Rulings
 
