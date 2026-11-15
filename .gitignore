@@ -50,3 +50,7 @@ play-shots/
 
 # Superpowers scratch: brainstorm visual companion sessions and plan ledgers
 .superpowers/
+
+# The slice 1 prototype's built pages. `node prototypes/slice-1/build.mjs` writes them.
+prototypes/slice-1/index.html
+prototypes/slice-1/page.html
