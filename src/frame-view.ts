@@ -28,13 +28,12 @@ export const STEP_NAMES: Readonly<Record<StepIndex, string>> = {
 };
 
 /** A good as the frame says it: "Stone", not "stones". */
-const GOOD_NAMES: Readonly<Record<GoodId, string>> = {
+export const GOOD_NAMES: Readonly<Record<GoodId, string>> = {
   stones: "Stone",
   clay: "Clay",
   iron: "Iron",
   crystal: "Crystal",
   heartstone: "Heartstone",
-  // Part 2 (#666): not on screen until the refinery's sliver (#671).
   brick: "Brick",
 };
 

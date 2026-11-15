@@ -30,8 +30,8 @@ export const STOCKPILE_GOODS: readonly GoodId[] = (
   Object.keys(ROOM_AT_ZERO) as GoodId[]
 ).filter((good) => ROOM_AT_ZERO[good] !== undefined);
 
-/** What each level multiplies the room by. */
-const ROOM_GROWTH = 3;
+/** What each level multiplies the room by: "capacity ×3" (#671). */
+export const ROOM_GROWTH = 3;
 
 /** The first expansion's price in brick, and what each one after costs more. */
 const EXPAND_FIRST = 150_000;
