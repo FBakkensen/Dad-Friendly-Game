@@ -39,7 +39,7 @@ export type Chain = {
  * holding `held` of `holds`, drained at `drain` a second. A side pile that is
  * full takes no more than its drain, and one over its room takes nothing.
  */
-export type Spill = Pile & { readonly from: number; readonly drain: number };
+type Spill = Pile & { readonly from: number; readonly drain: number };
 
 /**
  * What a chain did over a stretch: each stage's total, each pile after, the

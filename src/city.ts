@@ -125,7 +125,7 @@ export type Project =
 export const NO_PROJECT: Project = { kind: "unordered" };
 
 /** Whether a building is in play: part 1's always, part 2's with its switch (#666). */
-export function buildingInPlay(building: Pick<Building, "part">): boolean {
+function buildingInPlay(building: Pick<Building, "part">): boolean {
   return building.part === 1 || partTwoOn();
 }
 

@@ -43,9 +43,9 @@ const MAKER_ROWS = [
 
 export type MakerId = (typeof MAKER_ROWS)[number]["id"];
 
-export type Maker = Omit<MakerRow, "id"> & { readonly id: MakerId };
+type Maker = Omit<MakerRow, "id"> & { readonly id: MakerId };
 
-export const MAKERS: readonly Maker[] = MAKER_ROWS;
+const MAKERS: readonly Maker[] = MAKER_ROWS;
 
 export const MAKER_IDS: readonly MakerId[] = MAKERS.map((maker) => maker.id);
 
@@ -61,7 +61,7 @@ const MAKER_BY_ID = Object.fromEntries(
   MAKERS.map((maker) => [maker.id, maker]),
 ) as Record<MakerId, Maker>;
 
-export function makerById(id: MakerId): Maker {
+function makerById(id: MakerId): Maker {
   return MAKER_BY_ID[id];
 }
 
