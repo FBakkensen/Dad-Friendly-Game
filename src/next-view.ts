@@ -74,7 +74,7 @@ export function workforceCount(mountain: Mountain): number {
 }
 
 /** One count on Next's line: a site's, or the workforce's. */
-export type NextCount = {
+type NextCount = {
   readonly where: SiteId | "workforce";
   readonly name: string;
   readonly count: number;
@@ -105,7 +105,7 @@ export type NextView =
       readonly ready: 0;
     };
 
-/** Proposed in the spec, and his to approve (#659). */
+/** The spec's proposal, approved by Flemming on 15 Nov 2026 (#659). */
 export const NOTHING_TO_BUY = "Nothing to buy on the sites yet.";
 export const PRODUCTION_RUNS = "Production is running.";
 export const LINE_STANDS = "The line stands.";

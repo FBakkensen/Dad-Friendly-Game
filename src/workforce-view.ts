@@ -125,7 +125,7 @@ export type JobRow = {
 };
 
 /** A site's jobs. */
-export type JobGroup = {
+type JobGroup = {
   readonly site: SiteId;
   readonly name: string;
   readonly rows: readonly JobRow[];

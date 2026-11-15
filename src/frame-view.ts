@@ -21,14 +21,14 @@ import { freeWorkers } from "./workforce";
  */
 
 /** The step names, in order (spec, rule 6). */
-export const STEP_NAMES: Readonly<Record<StepIndex, string>> = {
+const STEP_NAMES: Readonly<Record<StepIndex, string>> = {
   0: "Foundation",
   1: "Structure",
   2: "Roof",
 };
 
 /** A good as the frame says it: "Stone", not "stones". */
-export const GOOD_NAMES: Readonly<Record<GoodId, string>> = {
+const GOOD_NAMES: Readonly<Record<GoodId, string>> = {
   stones: "Stone",
   clay: "Clay",
   iron: "Iron",
@@ -40,7 +40,7 @@ export const GOOD_NAMES: Readonly<Record<GoodId, string>> = {
 export type Pip = "done" | "now" | "later";
 
 /** One good the step requires, and what of it is built in. */
-export type Requirement = {
+type Requirement = {
   readonly good: GoodId;
   readonly name: string;
   readonly built: number;
@@ -114,7 +114,7 @@ function siteInHand(
 }
 
 /** The proposed line after the part's last roof (spec, "While a part is the end of the game"). */
-export function planningLine(building: Building): string {
+function planningLine(building: Building): string {
   return `${building.name} is operational · the city is planning its next building`;
 }
 
