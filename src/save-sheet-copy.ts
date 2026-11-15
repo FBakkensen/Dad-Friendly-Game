@@ -41,7 +41,7 @@ export function saveCardLines(
   const played =
     lastSeen === undefined ? "Not played yet" : lastPlayedWords(lastSeen, now);
   if (freshMineOn()) {
-    return { ...freshLines(mountain), played };
+    return { ...freshMineLines(mountain), played };
   }
   const band = layerOf(mountain).name.replace(/^The /, "");
   return {
@@ -58,9 +58,11 @@ export function saveCardLines(
  * project and its step in the order strip's words (its state does not fit
  * half a card), the stone in the stockpile, the machines in the mine's
  * order (drilling, haulage, hoisting), and the workers with the horse
- * wagons they drive.
+ * wagons they drive. The Ledger reads them too (#708).
  */
-function freshLines(mountain: Mountain): Omit<SaveCardLines, "played"> {
+export function freshMineLines(
+  mountain: Mountain,
+): Omit<SaveCardLines, "played"> {
   const strip = orderStrip(mountain);
   const counted = (owned: number, [one, many]: readonly [string, string]) =>
     count(owned, one, many);

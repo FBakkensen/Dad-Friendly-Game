@@ -40,25 +40,63 @@
   image-rendering: pixelated;
 }
 
-/* The order strip: the project in hand, its step, its state and pips. */
-.frame-order {
+/* The order strip: the project in hand, its step, its state and pips, then
+   the key to the Ledger at its end (#708). */
+.frame-strip {
   display: flex;
   flex: none;
-  flex-direction: column;
-  justify-content: center;
-  gap: calc(var(--art) * 2);
+  align-items: center;
+  gap: calc(var(--art) * 3);
   width: 100%;
   height: var(--frame-order-h);
   min-height: var(--target-min);
-  padding: 0 calc(var(--art) * 5) 0 calc(var(--art) * 6);
+  padding-right: calc(var(--art) * 3);
   background: var(--frame-dark);
   border-bottom: var(--art) solid var(--frame-edge);
 }
 
-.frame-order-top {
+.frame-order {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  gap: calc(var(--art) * 2);
+  min-width: 0;
+  height: 100%;
+  padding: 0 calc(var(--art) * 2) 0 calc(var(--art) * 6);
+}
+
+.frame .frame-key {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--target-min);
+  height: var(--target-min);
+  background: var(--frame-key);
+}
+
+.frame-key-icon {
+  width: calc(var(--art) * 16);
+  height: calc(var(--art) * 16);
+  image-rendering: pixelated;
+}
+
+.frame-order-top,
+.frame-order-bottom {
   display: flex;
   align-items: baseline;
   gap: calc(var(--art) * 4);
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.frame-order-bottom {
+  align-items: center;
+}
+
+.frame-order-top[hidden] {
+  display: none;
 }
 
 .frame-order-name {
@@ -66,10 +104,13 @@
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+  flex: none;
 }
 
 .frame-order-step {
+  overflow: hidden;
   font-size: var(--board-type-16);
+  text-overflow: ellipsis;
   color: var(--frame-amber);
 }
 
@@ -100,6 +141,11 @@
   white-space: nowrap;
   text-overflow: ellipsis;
   color: var(--frame-quiet);
+}
+
+/* Between buildings the line is all the strip says: it may take two rows (#708). */
+.frame-order[data-order="planning"] .frame-order-line {
+  white-space: normal;
 }
 
 /* The top row: the stockpile, then the workers and the hire key at its end. */

@@ -5,7 +5,9 @@ import { skin } from "./board-skin";
 import type { ArchivedCopy } from "./cloud-save";
 import type { ProgressStore } from "./progress-store";
 import { keptUntilWords, saveCardLines } from "./save-sheet-copy";
+import { freshMineOn } from "./line-switch";
 import {
+  CLOSE,
   BACK_TO_THE_MOUNTAIN,
   SAVE_CONFLICT_ERROR,
   SAVE_CONFLICT_PLAY,
@@ -73,7 +75,7 @@ export function createSavedCopiesPanel({
     requestRender();
   };
   const back = card.plate(
-    BACK_TO_THE_MOUNTAIN,
+    freshMineOn() ? CLOSE : BACK_TO_THE_MOUNTAIN,
     "close",
     "saved-copies-close",
     close,

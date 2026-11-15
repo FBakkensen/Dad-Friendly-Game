@@ -208,6 +208,13 @@ describe("frame screen", () => {
       "The Light Tower is operational · the city is planning its next building",
     );
     expect(root.querySelector(".frame-order-name")?.textContent).toBe("");
+    // The line takes both rows, beside the pips and the Ledger's key (#708).
+    expect(root.querySelector<HTMLElement>(".frame-order-top")?.hidden).toBe(
+      true,
+    );
+    expect(
+      root.querySelector<HTMLElement>(".frame-order")?.dataset["order"],
+    ).toBe("planning");
   });
 
   it("paints the work of each second", () => {

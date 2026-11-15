@@ -3,11 +3,16 @@ import makersStripUrl from "./assets/board/makers-strip.png";
 import { el, hide, mark, refitAll, write } from "./board-dom";
 import type { BoardHost } from "./board-host";
 import { boardHowCard, type BoardHowSystem } from "./board-how-art";
-import { type CloseBy, type DrawerId } from "./board-interaction";
+import {
+  type CloseBy,
+  type ControlRef,
+  type DrawerId,
+} from "./board-interaction";
 import { plateButton } from "./board-save";
 import { forgetAll, pressOnBoard, type PressTracker } from "./card-tap";
 import { skin } from "./board-skin";
-import { TROUBLE_FIXED } from "./screen-words";
+import { freshMineOn } from "./line-switch";
+import { CLOSE, TROUBLE_FIXED } from "./screen-words";
 
 /*
  * The drawer shell (#373): a riveted sheet that slides up from under the board's middle to the
@@ -53,6 +58,8 @@ const TIER_CLASS: Readonly<Record<SpareTier, string>> = {
 };
 
 export interface BoardSheet {
+  /** The drawer's layer in the board's model. */
+  readonly name: DrawerId;
   readonly root: HTMLElement;
   readonly list: HTMLElement;
   readonly how: HTMLElement;
@@ -240,7 +247,8 @@ function buildSheet(
   list.append(spare);
 
   const footer = el("footer", "board-sheet-footer");
-  const back = plateButton("Back to the board");
+  // Slice 1's frame has no board, and more than the mine (#708).
+  const back = plateButton(freshMineOn() ? CLOSE : "Back to the board");
   back.classList.add("board-sheet-back");
   footer.append(back);
 
@@ -473,6 +481,8 @@ export function createBoardSheet({
   signal,
 }: BoardSheetOptions): BoardSheet {
   const parts = buildSheet(name, title, infoLabel, headKey);
+  // A drawer with no cards has no "i" (the Ledger in a fresh mine, #708).
+  hide(parts.info, howOf.systems.length === 0);
   const { root, heading, kickLine, info, how, list, spare, footer, back } =
     parts;
   /** What the page shows; the model says whether the drawer is open. */
@@ -582,6 +592,7 @@ export function createBoardSheet({
     info,
     footer,
     back,
+    name,
     isOpen: () => board.view().stack.includes(name),
     open: openSheet,
     close,
@@ -632,7 +643,17 @@ export function createSheetScrim({
   board.subscribe(paint);
   paint();
 
-  scrim.addEventListener("click", (event) => {
+  // A tap on the scrim is a press on the open drawer: the second tap of the double tap that
+  // opened it lands on nothing. A key under the scrim (the frame's Ledger key, #708) would
+  // otherwise shut the drawer it had just opened.
+  const openSheet = (): ControlRef | undefined => {
+    const open = sheets.find((sheet) => sheet.isOpen());
+    return open === undefined ? undefined : { layer: open.name, id: "scrim" };
+  };
+  pressOnBoard(scrim, board, openSheet, (decision, _by, event) => {
+    if (decision !== "act") {
+      return;
+    }
     const under = sockets().find((socket) =>
       inside(socket.getBoundingClientRect(), event.clientX, event.clientY),
     );

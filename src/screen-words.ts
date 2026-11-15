@@ -504,6 +504,11 @@ export const fieldLogTitle = "Field log";
 export const fieldLogFallback = "Select the log and copy it from here.";
 /** The welcome card's one plate (#464). */
 export const BACK_TO_THE_MOUNTAIN = "Back to the mountain";
+/**
+ * The way back from a drawer or a card on slice 1's frame (#708), the
+ * workforce sheet's word: the frame has no board and more than the mine.
+ */
+export const CLOSE = "Close";
 
 export const ENGINEER_SHEET_TITLE = "Your engineers";
 
@@ -1509,6 +1514,10 @@ export const START_OVER_TITLE = "Start over?";
 export const START_OVER_DETAIL =
   "You will lose all your progress: every stone mined, your whole crew, and every relic you found. The mountain fills back up. This can't be undone.";
 export const START_OVER_KEEP = "Keep my mountain";
+/** Start over in a fresh mine (#708): no relics and no mountain to fill. */
+export const START_OVER_FRESH_DETAIL =
+  "You will lose all your progress: the stone in the stockpile, every worker and machine, and the city's buildings. The mine starts again from the beginning. This can't be undone.";
+export const START_OVER_FRESH_KEEP = "Keep my mine";
 export const START_OVER_YES = "Yes, start over";
 
 /** The account's words (moved from the menu and the save drawer, #375). */
@@ -1538,6 +1547,16 @@ export function tierBuyLine(id: TierId, count: number): string {
   const shown =
     id === "machine" ? name : `${name.charAt(0).toLowerCase()}${name.slice(1)}`;
   return `Bought ${shown} ${n}.`;
+}
+
+/** A thing bought, by its frame name, and its count (#708): "Bought cart 3." */
+export function machineBuyLine(name: string, count: number): string {
+  return `Bought ${name} ${count.toLocaleString("en-US")}.`;
+}
+
+/** A vehicle bought (#708): "Bought horse wagon 2.", as a machine bought. */
+export function vehicleBuyLine(id: VehicleId, count: number): string {
+  return machineBuyLine(VEHICLE_WORDS[id][0], count);
 }
 
 /** "Strong arms, level 3." */
