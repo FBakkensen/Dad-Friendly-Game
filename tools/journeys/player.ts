@@ -1,7 +1,9 @@
 /**
  * The one player driver the journeys share (#552). It holds every selector: a journey opens a
  * named save, taps, buys and reads the numbers the player sees, and never reaches into the
- * game. The save, the clock and Math.random are set before the page boots.
+ * game. The save, the clock and Math.random are set before the page boots. Since part 1 was
+ * switched on (#664) it plays the frame: the mine and the city, their keys and the workers'
+ * − and +, and the cards.
  */
 import {
   test as base,
@@ -10,11 +12,13 @@ import {
   type Page,
 } from "@playwright/test";
 import { DRAWER_SETTLE_MS } from "../../src/board-interaction.ts";
-import type { ShownTierId } from "../../src/tiers.ts";
+import type { Action } from "../../src/economy/actions.ts";
+import type { Mountain } from "../../src/mountain.ts";
+import { machineKeys } from "../../src/mine-view.ts";
 import { seedJson, type SeedSave } from "../browser/fixtures.ts";
 import { SAVE_KEY, seedScript } from "../browser/harness.ts";
 import { createRng } from "../sweep/random.ts";
-import { TICK_MS, type Expected } from "./expected.ts";
+import { TICK_MS } from "./expected.ts";
 import { PHONE } from "./phone.ts";
 
 /** 9 pm on a weekday: the kids are asleep. Every journey's clock starts here. */
@@ -28,8 +32,13 @@ const RANDOM_SEED = 552;
 /** The whole ticks a drawer or a card takes to settle, so the next tap counts. */
 const PAST_SETTLE_MS = Math.ceil((DRAWER_SETTLE_MS + 1) / TICK_MS) * TICK_MS;
 
-const BUYS_KEY = '.board-key[data-key="buys"]';
-const OPEN_BUYS = '.board-sheet[data-sheet="buys"].is-open';
+/** The card over the frame: the first evening, the shift report, the end card. */
+const CARD = ".frame-card:not([hidden])";
+
+/** The jobs on the mine's stage rows; driving and building are on the city's plates. */
+const MINE_JOBS: readonly string[] = ["drilling", "haulage", "hoisting"];
+
+type Site = "mine" | "city";
 
 export class Player {
   private tab: Page;
@@ -113,7 +122,9 @@ export class Player {
       await this.page.addInitScript(seed);
     }
     await this.page.goto("/");
-    await expect(this.page.locator(".board-odo[data-count]")).toBeAttached();
+    await expect(
+      this.page.locator(".frame-pile-count[data-count]"),
+    ).toBeAttached();
     await expect(this.page.locator(".save-status")).not.toHaveText(
       /^$|Loading/,
     );
@@ -144,86 +155,117 @@ export class Player {
     this.at += ms;
   }
 
-  /** Digs by hand: one tap on the rock window each time. */
-  async dig(times: number): Promise<void> {
-    for (let i = 0; i < times; i += 1) {
-      await this.page.locator(".board-window").tap();
+  /** The site the frame shows: a tap on its key in the site bar. */
+  async site(site: Site): Promise<void> {
+    const key = this.page.locator(`.frame-site[data-site="${site}"]`);
+    if ((await key.getAttribute("aria-current")) !== "page") {
+      await key.tap();
     }
+    await expect(
+      this.page.locator(`.frame-scene[data-site="${site}"]`),
+    ).toBeAttached();
+  }
+
+  /** The visible match of `selector`, tapped once. */
+  private async tapShown(selector: string): Promise<void> {
+    await this.page.locator(selector).filter({ visible: true }).first().tap();
   }
 
   /**
-   * Opens Buys, and lets the drawer settle so the first tap counts. It waits a whole tick, so
-   * the player's next tap lands on a tick, where the rows' lamps were last painted: a row
-   * judges what is affordable by the board he sees, not by the crew's work since.
+   * Makes the move the way a dad does, on the frame: the hire key, a stage's machine key in the
+   * mine, a job's − or + on its stage row or the city's plates, the city's order key and its
+   * vehicle key. `mountain` is the one he sees as he taps.
    */
-  async openBuys(): Promise<void> {
-    await this.page.locator(BUYS_KEY).tap();
-    await expect(this.page.locator(OPEN_BUYS)).toBeVisible();
-    await this.wait(PAST_SETTLE_MS);
+  async act(action: Action, mountain: Mountain): Promise<void> {
+    switch (action.kind) {
+      case "buyTier": {
+        if (action.id === "helper") {
+          await this.tapShown(".frame-hire");
+          return;
+        }
+        const key = machineKeys(mountain, "one").find(
+          (each) => each.id === action.id,
+        );
+        if (key === undefined) {
+          throw new Error(`No key in the mine buys a ${action.id}`);
+        }
+        await this.site("mine");
+        await this.tapShown(`.mine-key[data-stage="${key.stage}"]`);
+        return;
+      }
+      case "placeWorker":
+      case "freeWorker": {
+        const way = action.kind === "placeWorker" ? "place" : "free";
+        await this.site(MINE_JOBS.includes(action.job) ? "mine" : "city");
+        await this.tapShown(
+          `.frame-scene .frame-step[data-job="${action.job}"][data-way="${way}"]`,
+        );
+        return;
+      }
+      case "placeOrder":
+      case "holdOrder":
+      case "resumeOrder":
+        await this.site("city");
+        await this.tapShown(".city-order");
+        return;
+      case "buyVehicle":
+        await this.site("city");
+        await this.tapShown(`.city-key[data-vehicle="${action.id}"]`);
+        return;
+      default:
+        throw new Error(`The frame has no key for ${action.kind}`);
+    }
   }
 
-  /** Shuts the open Buys drawer by its Back plate. */
-  async closeBuys(): Promise<void> {
-    await this.page.locator(`${OPEN_BUYS} .board-sheet-back`).tap();
-    await expect(this.page.locator(OPEN_BUYS)).toBeHidden();
-  }
-
-  /** Taps a tier's row in the open Buys drawer. */
-  async buy(tier: ShownTierId): Promise<void> {
-    await this.page.locator(`${OPEN_BUYS} .tier[data-tier="${tier}"]`).tap();
-  }
-
-  /** The stones in the pocket, exactly, as the odometer carries them. */
+  /** The stones in the stockpile, exactly, as the frame carries them. */
   async stones(): Promise<number> {
     return Number(
-      await this.page.locator(".board-odo").getAttribute("data-count"),
+      await this.page.locator(".frame-pile-count").getAttribute("data-count"),
     );
   }
 
-  /** The odometer settles on `stones`, to a millionth of a stone. */
+  /** The stockpile reads `stones`, to a millionth of a stone. */
   async expectStones(stones: number): Promise<void> {
     await expect.poll(() => this.stones()).toBeCloseTo(stones, 6);
   }
 
-  /** The welcome-back card's haul, exactly, once the card is up. */
-  async welcomeHaul(): Promise<number> {
-    const count = this.page.locator(".welcome-back .welcome-mined-count");
-    await expect(this.page.locator(".welcome-back")).toBeVisible();
-    return Number(await count.getAttribute("data-count"));
+  /** The card over the frame, once it is up: its key's words and its title. */
+  async card(): Promise<{
+    title: string;
+    key: string;
+    lines: readonly string[];
+  }> {
+    const card = this.page.locator(CARD);
+    await expect(card).toBeVisible();
+    return {
+      title: (await card.locator(".frame-card-title").textContent()) ?? "",
+      key: (await card.locator(".frame-card-key").textContent()) ?? "",
+      lines: await card.locator(".frame-card-line").allTextContents(),
+    };
   }
 
   /**
-   * Back to the mountain: the welcome card's plate, once the card has settled (a card, like a
-   * drawer, ignores the finger that was already down as it opened).
+   * Closes the card by its key, once it has settled (a card ignores the finger that was
+   * already down as it opened). A card behind it, the end card behind the report of its
+   * night, comes up in its place.
    */
-  async closeWelcome(): Promise<void> {
+  async closeCard(): Promise<void> {
+    const card = this.page.locator(CARD);
+    await expect(card).toBeVisible();
+    const shown = await card.getAttribute("data-card");
     await this.wait(PAST_SETTLE_MS);
-    await this.page.locator(".welcome-continue").tap();
-    await expect(this.page.locator(".welcome-back")).toBeHidden();
+    await card.locator(".frame-card-key").tap();
+    await expect(
+      this.page.locator(
+        `.frame-card[data-card="${shown ?? ""}"]:not([hidden])`,
+      ),
+    ).toBeHidden();
   }
-}
 
-/**
- * Digs by hand until the rules say a worker is affordable, opens Buys and hires him: the
- * opening every fresh journey shares. Buys is left open.
- */
-export async function hireFirstWorker(
-  player: Player,
-  rules: Expected,
-): Promise<void> {
-  let taps = 0;
-  while (!rules.allows({ kind: "buyTier", id: "helper" }, player.now)) {
-    rules.move({ kind: "dig" }, player.now);
-    taps += 1;
-    expect(taps, "taps to the first worker").toBeLessThan(200);
+  /** Whether a card is up over the frame now. */
+  async cardUp(): Promise<boolean> {
+    return this.page.locator(CARD).isVisible();
   }
-  await player.dig(taps);
-  await player.expectStones(rules.pocket);
-  await player.openBuys();
-  rules.until(player.now);
-  expect(rules.move({ kind: "buyTier", id: "helper" }, player.now)).toBe(true);
-  await player.buy("helper");
-  await player.expectStones(rules.pocket);
 }
 
 /**

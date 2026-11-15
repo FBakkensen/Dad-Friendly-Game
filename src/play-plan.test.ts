@@ -124,9 +124,9 @@ describe("parsePlayArgs", () => {
     expect(PLAY_USAGE).toContain("--tabs <1|2>");
   });
 
-  it("names --search and taps the mine window in the help (#371)", () => {
+  it("names --search and taps the Ledger key in the help (#371, #664)", () => {
     expect(PLAY_USAGE).toContain("--search <query>");
-    expect(PLAY_USAGE).toContain("tap:.board-window");
+    expect(PLAY_USAGE).toContain("tap:.frame-key");
     expect(PLAY_USAGE).not.toContain(".mountain");
   });
 

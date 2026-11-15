@@ -23,6 +23,12 @@
   background: var(--frame-ground);
 }
 
+/* While a signed-in save loads, the frame is its ground and nothing on it:
+   the store's new mine would show numbers that are not his (#664). */
+.frame[data-loading] > * {
+  visibility: hidden;
+}
+
 :where(.frame) button {
   font: inherit;
   color: inherit;

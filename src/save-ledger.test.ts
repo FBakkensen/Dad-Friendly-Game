@@ -4,7 +4,7 @@ import { readGame, shippedFacts, writeGame } from "./save-format";
 
 /**
  * The ledger of what has shipped (#558; spec, "The ledger of what has
- * shipped"). Every id, named value and cap a version 8 save may hold, as this
+ * shipped"). Every id, named value and cap a version 9 save may hold, as this
  * build reads it. Adding a line is fine: an older build reads the new value as
  * `newer` and goes read-only. Removing a line or lowering a cap would turn a
  * save this build wrote into one it refuses, so it needs a version bump and a
@@ -130,6 +130,7 @@ const LEDGER = {
     stretch: 1000000,
     dug: 240000000,
     rushBank: Number.MAX_SAFE_INTEGER,
+    rock: Number.MAX_SAFE_INTEGER,
   },
   engineerNames: ["Ada", "Nils", "Ruth", "Otto", "Mae"],
   posts: ["cart", "drill", "borer", "machine", "camp", "tunnel"],
@@ -183,6 +184,22 @@ describe("the ledger of what has shipped (#558)", () => {
     for (const list of lists) {
       expect(new Set(list).size).toBe(list.length);
     }
+  });
+});
+
+describe("rock dug in all, in the save (#664)", () => {
+  it("round-trips the count, and saves none while it is 0", () => {
+    const mountain = { ...createMountain(), rockDug: 1_234_567 };
+    const game = writeGame(mountain);
+    expect(game.run).toEqual({ rock: 1_234_567 });
+    const read = readGame(JSON.parse(JSON.stringify(game)), 0);
+    expect(read.kind === "ok" && read.mountain.rockDug).toBe(1_234_567);
+    expect(writeGame(createMountain())).not.toHaveProperty("run");
+  });
+
+  it("refuses a part-stone or a negative count", () => {
+    expect(readGame({ run: { rock: 1.5 } }, 0).kind).toBe("bad");
+    expect(readGame({ run: { rock: -1 } }, 0).kind).toBe("bad");
   });
 });
 

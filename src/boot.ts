@@ -15,7 +15,6 @@ import { holdFactors } from "./economy/factors";
 import { FRESH_OFF } from "./line-switch";
 import { createMountain, type Mountain } from "./mountain";
 import { createProgressStore, type ProgressStore } from "./progress-store";
-import { MOUNTAIN_STONES } from "./scale";
 import { createBrowserTabWriter, type TabWriter } from "./tab-writer";
 import { tierRecord } from "./tiers";
 
@@ -41,8 +40,6 @@ export function parseBootOptions(search: string): {
   previewCopies: boolean;
   /** Dev-only layout hook: the update card, as a newer service worker opens it. */
   previewUpdate: boolean;
-  /** Dev-only: slice 1's frame on a fresh mine and a memory save (#659). */
-  slice: boolean;
 } {
   const params = new URLSearchParams(search);
   const save = params.get("save");
@@ -53,7 +50,6 @@ export function parseBootOptions(search: string): {
     previewSave: save === "loading" || save === "error" ? save : undefined,
     previewCopies: params.get("copies") === "shelf",
     previewUpdate: params.get("update") === "shown",
-    slice: params.get("slice") === "1",
   };
 }
 
@@ -61,9 +57,6 @@ export function parseBootOptions(search: string): {
 function memoryUser(
   options: ReturnType<typeof parseBootOptions>,
 ): { readonly uid: string; readonly label: string } | undefined {
-  if (options.slice) {
-    return SLICE_DEV;
-  }
   const memory =
     options.memorySave ||
     options.previewSave !== undefined ||
@@ -81,11 +74,10 @@ export async function createAppServices({
   devMode?: boolean;
 }): Promise<AppServices> {
   const options = parseBootOptions(search);
-  if (devMode && options.slice) {
-    // The new screens play the game they ship with: the fresh mine's switch
-    // stays on for the page, and its save is a memory save (#659).
-    holdFactors({ [FRESH_OFF]: 0 });
-  }
+  // Part 1 is switched on (#664): every page plays the fresh mine. Today's
+  // game stays in the code, behind the switch, for the tests and the labs
+  // until its clean-up (#665).
+  holdFactors({ [FRESH_OFF]: 0 });
   const user = devMode ? memoryUser(options) : undefined;
   let services =
     user === undefined
@@ -138,19 +130,19 @@ async function seedPreviewCopies(cloudSave: CloudSave): Promise<void> {
     return;
   }
   const now = Date.now();
+  const start = createMountain();
   const earlier: Mountain = {
-    ...createMountain(),
-    remaining: MOUNTAIN_STONES - 2_400_000,
-    stock: { ...createMountain().stock, stones: 18_000 },
-    owned: { ...tierRecord(0), helper: 6, cart: 2 },
+    ...start,
+    stock: { ...start.stock, stones: 18_000 },
+    owned: { ...tierRecord(0), helper: 6, cart: 2, drill: 1 },
+    rockDug: 40_000,
     startedAt: 1,
   };
   const playable: Mountain = {
-    ...createMountain(),
-    remaining: MOUNTAIN_STONES - 48_000_000,
-    stock: { ...createMountain().stock, stones: 3_200_000 },
-    owned: { ...tierRecord(0), helper: 36, cart: 10, drill: 4, borer: 1 },
-    engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
+    ...start,
+    stock: { ...start.stock, stones: 1_200_000 },
+    owned: { ...tierRecord(0), helper: 28, drill: 4, cart: 6, hoist: 3 },
+    rockDug: 2_600_000,
     startedAt: now,
   };
   await cloudSave.archiveCopy({
@@ -173,11 +165,7 @@ async function seedPreviewCopies(cloudSave: CloudSave): Promise<void> {
   });
 }
 
-/**
- * The slice 1 preview's own dev account (#659): its phone backup holds a
- * fresh mine, which the other memory previews never read, and the reverse.
- */
-const SLICE_DEV = { uid: "dev-slice", label: "Dev Dad" } as const;
+/** The dev account the memory previews play as. */
 const MEMORY_DEV = { uid: "dev-dad", label: "Dev Dad" } as const;
 
 function memoryServices(user: {

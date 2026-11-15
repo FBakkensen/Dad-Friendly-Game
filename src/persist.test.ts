@@ -65,11 +65,11 @@ function withGame(part: Record<string, unknown>): unknown {
   return { ...saved, game: { ...saved.game, ...part } };
 }
 
-describe("the version 8 save (#558)", () => {
+describe("the version 9 save (#558, #664)", () => {
   it("a fresh mountain writes a few lines", () => {
     const fresh = createMountain();
     expect(serializeSave({ mountain: fresh, lastSeen: 5 })).toEqual({
-      version: 8,
+      version: 9,
       lastSeen: 5,
       game: { marks: { recipes: STARTING_RECIPE_IDS } },
     });
@@ -141,10 +141,10 @@ describe("the version 8 save (#558)", () => {
     expect(readSave({ ...saved, startedAt: -1 }).kind).toBe("bad");
   });
 
-  it("a version above 8 is newer, below is older, with its stamp and rev", () => {
-    expect(readSave({ version: 9, lastSeen: 1, world: {} })).toEqual({
+  it("a version above 9 is newer, below is older, with its stamp and rev", () => {
+    expect(readSave({ version: 10, lastSeen: 1, world: {} })).toEqual({
       kind: "newer",
-      version: 9,
+      version: 10,
     });
     expect(
       readSave({ version: 7, rev: 4, mountain: { startedAt: 12 } }),
@@ -155,6 +155,17 @@ describe("the version 8 save (#558)", () => {
       startedAt: 12,
       rev: 4,
     });
+    // Today's game, version 8, is set aside for the fresh mine (#664).
+    expect(
+      readSave({
+        version: 8,
+        lastSeen: 1,
+        startedAt: 40,
+        rev: 6,
+        deviceId: "device-1234",
+        game: { owned: { helper: 3 } },
+      }),
+    ).toEqual({ kind: "older", version: 8, startedAt: 40, rev: 6 });
     expect(readSave({ version: 1, grid: {} })).toEqual({
       kind: "older",
       version: 1,
@@ -227,7 +238,7 @@ describe("the version 8 save (#558)", () => {
     expect(readSave({ ...saved, game: undefined }).kind).toBe("bad");
     expect(readSave({ ...saved, lastSeen: undefined }).kind).toBe("bad");
     expect(readSave({ ...saved, version: 7.5 }).kind).toBe("bad");
-    expect(readSave({ ...saved, version: "8" }).kind).toBe("bad");
+    expect(readSave({ ...saved, version: "9" }).kind).toBe("bad");
     expect(readSave(null).kind).toBe("bad");
     expect(readSave([saved]).kind).toBe("bad");
   });
@@ -239,7 +250,7 @@ describe("the version 8 save (#558)", () => {
   });
 
   it("a missing key reads as its default", () => {
-    expect(readSave({ version: 8, lastSeen: 1, game: {} })).toEqual({
+    expect(readSave({ version: 9, lastSeen: 1, game: {} })).toEqual({
       kind: "ok",
       save: {
         mountain: BARE_MOUNTAIN,

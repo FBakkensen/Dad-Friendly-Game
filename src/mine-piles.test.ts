@@ -28,6 +28,23 @@ const move = (mountain: Mountain, from: JobId, to: JobId): Mountain =>
 const rock = (mountain: Mountain): number =>
   mountain.stock.stones + mountain.piles.face + mountain.piles.shaft;
 
+describe("rock dug in all (#664, call 13)", () => {
+  it("counts the rock drilling digs, and only grows", () => {
+    fresh(() => {
+      const start = lone("drilling");
+      expect(start.rockDug).toBe(0);
+      const drilled = flowMine(start, 50, 1, true).mountain;
+      expect(drilled.rockDug).toBe(150);
+      // A full pile stops drilling: nothing more is dug.
+      const full = flowMine(drilled, 1_000, 1, true).mountain;
+      expect(full.rockDug).toBe(300);
+      // Haulage and hoisting move rock already dug.
+      const hauled = flowMine(move(full, "drilling", "haulage"), 50, 1, true);
+      expect(hauled.mountain.rockDug).toBe(300);
+    });
+  });
+});
+
 describe("the mine's two piles (#703)", () => {
   it("holds 300 drilled rock and 300 at the shaft, as the lab set them (#703)", () => {
     expect(PILE_HOLDS).toEqual({ face: 300, shaft: 300 });

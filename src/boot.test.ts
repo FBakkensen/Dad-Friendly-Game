@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createAppServices, parseBootOptions } from "./boot";
 import type { AuthController } from "./auth";
 import type { CloudSave } from "./cloud-save";
@@ -28,6 +28,10 @@ beforeEach(() => {
   firebaseStubs.cloudSave.mockReset();
 });
 
+afterEach(() => {
+  holdFactors({});
+});
+
 describe("parseBootOptions", () => {
   it("defaults to no memory save", () => {
     expect(parseBootOptions("")).toEqual({
@@ -37,13 +41,7 @@ describe("parseBootOptions", () => {
       previewSave: undefined,
       previewCopies: false,
       previewUpdate: false,
-      slice: false,
     });
-  });
-
-  it("reads slice=1, the new frame's preview", () => {
-    expect(parseBootOptions("?slice=1").slice).toBe(true);
-    expect(parseBootOptions("?slice=2").slice).toBe(false);
   });
 
   it("reads update=shown, so play can see the update card", () => {
@@ -103,30 +101,18 @@ describe("createAppServices", () => {
     progress.dispose();
   });
 
-  it("slice=1 plays a fresh mine on a memory save while developing", async () => {
-    try {
-      const { auth, progress } = await createAppServices({
-        env: READY_ENV,
-        search: "?slice=1",
+  it("plays the fresh mine on every boot, in dev and in the build (#664)", async () => {
+    for (const devMode of [true, false]) {
+      holdFactors({});
+      const { progress } = await createAppServices({
+        env: {},
+        search: "",
+        devMode,
       });
-      expect(auth.getState()).toMatchObject({ user: { uid: "dev-slice" } });
-      expect(firebaseStubs.auth).not.toHaveBeenCalled();
       expect(freshMineOn()).toBe(true);
       expect(progress.getSnapshot().mountain.jobs.drilling).toBe(1);
       progress.dispose();
-    } finally {
-      holdFactors({});
     }
-  });
-
-  it("ignores slice=1 outside dev", async () => {
-    const { progress } = await createAppServices({
-      env: {},
-      search: "?slice=1",
-      devMode: false,
-    });
-    expect(freshMineOn()).toBe(false);
-    progress.dispose();
   });
 
   it("trouble=cave-in previews a cave-in while developing", async () => {

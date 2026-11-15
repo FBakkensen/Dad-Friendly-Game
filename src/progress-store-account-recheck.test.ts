@@ -7,6 +7,8 @@ import {
   type CloudWriteResult,
 } from "./cloud-save";
 import { createMountain, type Mountain } from "./mountain";
+import { holdFactors } from "./economy/factors";
+import { FRESH_OFF } from "./line-switch";
 import { createProgressStore } from "./progress-store";
 import type { TabWriter } from "./tab-writer";
 
@@ -435,6 +437,42 @@ describe("the account reported again (#481)", () => {
       progress.dispose();
     } finally {
       vi.useRealTimers();
+    }
+  });
+});
+
+describe("a fresh mine signing in (#664)", () => {
+  it("takes the cloud copy over a new phone's mine, and reads it again on resume with no depth", async () => {
+    holdFactors({ [FRESH_OFF]: 0 });
+    try {
+      const start = createMountain();
+      const docs = new Map<string, Mountain>([
+        [dad.uid, { ...start, stock: { ...start.stock, stones: 40 } }],
+      ]);
+      const { cloud, releaseReads } = slowReadCloud(docs);
+      const { auth } = reportingAuth(dad);
+      const progress = createProgressStore({
+        auth,
+        cloudSave: cloud,
+        sessionStorage: createMemoryStorage(),
+        now: () => 50_000,
+        resumeReadTimeoutMs: 60_000,
+      });
+      await settle();
+      // The new phone's worker and horse wagon are the start, not a copy.
+      expect(progress.getSnapshot().mountain.stock.stones).toBe(40);
+      void progress.resume();
+      await settle();
+      releaseReads();
+      await settle();
+      // A fresh mine's stones left are Infinity: nothing was tapped.
+      const mountain = progress.getSnapshot().mountain;
+      expect(mountain.stock.stones).toBe(40);
+      expect(mountain.remaining).toBe(start.remaining);
+      expect(resumeLines(progress)).toBe(1);
+      progress.dispose();
+    } finally {
+      holdFactors({});
     }
   });
 });

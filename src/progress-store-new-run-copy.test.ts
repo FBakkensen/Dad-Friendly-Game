@@ -1,13 +1,15 @@
 // @vitest-environment happy-dom
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMemoryAuth } from "./auth";
 import {
   createMemoryCloudSave,
   type CloudSave,
   type CloudWriteResult,
 } from "./cloud-save";
+import { holdFactors } from "./economy/factors";
+import { FRESH_OFF } from "./line-switch";
 import { createLogger } from "./log";
-import { MOUNTAIN_STONES, type Mountain } from "./mountain";
+import { MOUNTAIN_STONES, createMountain, type Mountain } from "./mountain";
 import { createProgressStore } from "./progress-store";
 import { noticesOf } from "./session";
 import { minedMountain } from "./test-fixtures";
@@ -470,6 +472,57 @@ describe("a new run keeps the mountain he left in Saved copies (#480)", () => {
     const started = progress.startOver();
     expect(progress.getSnapshot().mountain.remaining).toBe(MOUNTAIN_STONES);
     await expect(started).resolves.toBe(true);
+    progress.dispose();
+  });
+});
+
+describe("a fresh mine he leaves is kept too (#664)", () => {
+  beforeEach(() => {
+    holdFactors({ [FRESH_OFF]: 0 });
+  });
+  afterEach(() => {
+    holdFactors({});
+  });
+
+  const playedMine = (rockDug: number, helper: number): Mountain => {
+    const start = createMountain();
+    return {
+      ...start,
+      rockDug,
+      startedAt: 500,
+      owned: { ...start.owned, helper },
+    };
+  };
+
+  it("Start over keeps the mine, though no stone left the mountain", async () => {
+    let clock = 1_000_000;
+    const { progress } = await playing(playedMine(50_000, 9), {
+      now: () => clock,
+    });
+    clock += 60_000;
+    await expect(progress.startOver()).resolves.toBe(true);
+    const copies = await progress.savedCopies();
+    expect(copies).toHaveLength(1);
+    expect(copies[0]?.mountain.rockDug).toBe(50_000);
+    expect(copies[0]?.mountain.owned.helper).toBe(9);
+    progress.dispose();
+  });
+
+  it("Play this one keeps the mine it replaces", async () => {
+    let clock = 1_000_000;
+    const { progress } = await playing(playedMine(50_000, 9), {
+      now: () => clock,
+    });
+    clock += 60_000;
+    await expect(progress.startOver()).resolves.toBe(true);
+    progress.applyMutation((mountain) => ({ ...mountain, rockDug: 80_000 }));
+    const [left] = await progress.savedCopies();
+    clock += 60_000;
+    await expect(progress.restoreCopy(left?.id ?? "")).resolves.toBe("saved");
+    const copies = await progress.savedCopies();
+    expect(copies.map((copy) => copy.mountain.rockDug).sort()).toEqual([
+      50_000, 80_000,
+    ]);
     progress.dispose();
   });
 });

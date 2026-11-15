@@ -37,11 +37,10 @@ import { createWorkforceSheet, type WorkforceSheet } from "./workforce-sheet";
 import "./frame.css";
 
 /**
- * Slice 1's frame (#659; spec, "The frame, the same on every site"), beside
- * today's board: the order strip, the stockpile with the count of workers and
+ * Slice 1's frame (#659; spec, "The frame, the same on every site"), the
+ * game's screen since #664: the order strip, the stockpile with the count of workers and
  * the hire key, the site's scene (the mine, #660; the city, #662), Next, the site bar and the
- * save line. A
- * dev build mounts it for `?slice=1` (src/main.ts). It paints the pure views
+ * save line. `main` mounts it for everyone (src/main.ts). It paints the pure views
  * (frame-view, next-view, workforce-view), shows its cards over itself
  * (frame-cards: the shift report and the end card), and
  * changes the game only through `progress.dispatch`.
@@ -173,6 +172,8 @@ function paintTop(
 ): void {
   const [stone] = stockpiles(mountain);
   write(parts.stones, stone?.text ?? "0");
+  // The exact count, as the odometer carried it, for the journeys (#664).
+  setAttr(parts.stones, "data-count", String(mountain.stock.stones));
   const workers = workersView(mountain);
   write(parts.count, String(workers.owned));
   write(parts.free, `${String(workers.free)} free`);
@@ -443,7 +444,10 @@ export function mountFrameScreen({
     saveLine.line,
   );
   paint = () => {
-    const mountain = progress.getSnapshot().mountain;
+    const { mountain, ready } = progress.getSnapshot();
+    // Until a signed-in save is in, the store holds a new mine: its numbers
+    // would say the mine is gone, so the frame shows none (#664).
+    frame.root.toggleAttribute("data-loading", !ready);
     frame.paint(mountain);
     sheet.paint(mountain);
     stageSheet.paint(mountain);

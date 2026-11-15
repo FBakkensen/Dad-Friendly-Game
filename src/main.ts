@@ -1,13 +1,6 @@
-import helperUrl from "./assets/helper-miner.png";
-import kidUrl from "./assets/kid-helper.png";
-import cartUrl from "./assets/mine-cart.png";
-import drillUrl from "./assets/steam-drill.png";
-import borerUrl from "./assets/tunnel-borer.png";
-import machineUrl from "./assets/great-machine.png";
-import veinUrl from "./assets/gold-nugget.png";
-import { RELIC_GOLD } from "./board-relics";
 import { createAppServices, parseBootOptions } from "./boot";
-import { mountMountainScreen, showAppUpdate } from "./mountain-screen";
+import { mountFrameScreen } from "./frame-screen";
+import { showAppUpdate } from "./screen-prompts";
 import { registerServiceWorker } from "./pwa";
 import { trackBoardFit } from "./board-fit";
 import { bindWriterPageHide } from "./tab-writer";
@@ -28,29 +21,8 @@ try {
       VITE_FIREBASE_APP_ID: import.meta.env.VITE_FIREBASE_APP_ID,
     },
   });
-  // Dev-only: slice 1's frame beside today's board, on a fresh mine (#659).
-  const slice =
-    import.meta.env.DEV && parseBootOptions(window.location.search).slice;
-  if (slice) {
-    const { mountFrameScreen } = await import("./frame-screen");
-    mountFrameScreen({ root, auth, progress });
-  } else {
-    mountMountainScreen({
-      root,
-      veinUrl,
-      tierArt: {
-        helper: helperUrl,
-        cart: cartUrl,
-        drill: drillUrl,
-        borer: borerUrl,
-        machine: machineUrl,
-        kid: kidUrl,
-      },
-      relicArt: RELIC_GOLD,
-      auth,
-      progress,
-    });
-  }
+  // Part 1 is switched on (#664): the frame on the fresh mine, for everyone.
+  mountFrameScreen({ root, auth, progress });
   // Dev-only: the update card, so play and the checks can see it (#464).
   if (
     import.meta.env.DEV &&

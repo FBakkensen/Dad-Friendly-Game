@@ -215,7 +215,7 @@ describe("mountMountainScreen", () => {
 
   it("asks for the update when the save came from a later build (#558)", () => {
     const storage = createMemoryStorage();
-    const raw = JSON.stringify({ version: 9, lastSeen: 1 });
+    const raw = JSON.stringify({ version: 10, lastSeen: 1 });
     storage.setItem(SESSION_SAVE_KEY, raw);
     const screen = mountScreen({ storage });
     expect(
@@ -1590,7 +1590,7 @@ describe("start over", () => {
       startedAt?: unknown;
       game?: { owned?: unknown; stock?: unknown; run?: unknown };
     };
-    expect(saved).toMatchObject({ version: 8 });
+    expect(saved).toMatchObject({ version: 9 });
     expect(saved.game?.owned).toBeUndefined();
     expect(saved.game?.stock).toBeUndefined();
     expect(saved.game?.run).toBeUndefined();

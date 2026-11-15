@@ -239,6 +239,14 @@ describe("frame screen", () => {
     }
   });
 
+  it("carries the exact stone count for the journeys, beside the shown one (#664)", () => {
+    const { root, progress } = mount();
+    const pile = root.querySelector<HTMLElement>(".frame-pile-count");
+    expect(pile?.dataset["count"]).toBe(
+      String(progress.getSnapshot().mountain.stock.stones),
+    );
+  });
+
   it("keeps the save line in view", () => {
     const { root } = mount();
     expect(root.querySelector(".board-saveline")).not.toBeNull();

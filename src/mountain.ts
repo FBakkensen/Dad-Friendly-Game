@@ -146,6 +146,12 @@ export type Mountain = {
    * whole stones. Always empty in today's game.
    */
   readonly piles: MinePiles;
+  /**
+   * Rock dug in all (slice 1, call 13, #664): every stone drilling has
+   * dug this run. It only grows, and it breaks a tie between two copies
+   * of a fresh mine, whose mountain never shrinks. Always 0 in today's game.
+   */
+  readonly rockDug: number;
 };
 
 /** A sanity cap for saves; no dad gets near it. */
@@ -182,6 +188,7 @@ export const BARE_MOUNTAIN: Mountain = {
   project: NO_PROJECT,
   jobs: NO_JOBS,
   piles: { face: 0, shaft: 0 },
+  rockDug: 0,
 };
 
 /**
@@ -214,6 +221,14 @@ export function createMountain(): Mountain {
 }
 
 export { minedOut };
+
+/**
+ * How far a run has come, for which copy is ahead (call 13, #664): rock
+ * dug from today's mountain, and rock drilling dug in a fresh mine.
+ */
+export function rockDugInAll(mountain: Mountain): number {
+  return minedOut(mountain) + mountain.rockDug;
+}
 
 /** One tap mines its yield (see effectiveRates); an empty mountain returns the same object. */
 export function mineByHand(
