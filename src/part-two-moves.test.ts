@@ -1,10 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { applyMove, listActions, type Action } from "./economy/actions";
+import {
+  applyMove,
+  listActions,
+  valueOf,
+  type Action,
+} from "./economy/actions";
 import { withFactors } from "./economy/factors";
 import { FRESH_OFF } from "./line-switch";
 import { createMountain, type Mountain } from "./mountain";
 import { makerPrice } from "./makers";
 import { PART_TWO_OFF } from "./part-switch";
+import { sticker } from "./lab/decide";
 import { EMPTY_STOCK, type Stock } from "./stock";
 import { MAX_STOCKYARD_LEVEL, expandPrice } from "./stockyard";
 
@@ -104,6 +110,27 @@ describe("part 2's buys as moves (#667)", () => {
       expect(applyMove(broke, EXPAND, 0, { trouble: undefined }).kind).toBe(
         "refused",
       );
+    });
+  });
+
+  it("adds no stone income: the lab's own planner weighs them (#667)", () => {
+    partTwo(() => {
+      const start = mine({});
+      const context = { tapsPerSecond: 0, liveSeconds: 600, awaySeconds: 0 };
+      const price = makerPrice(start, "kiln")[0]?.amount ?? 0;
+      expect(valueOf(start, KILN, 3600, context)).toEqual({
+        gainPerSec: 0,
+        cost: price,
+        paybackSec: Infinity,
+      });
+      expect(valueOf(start, EXPAND, 3600, context)).toEqual({
+        gainPerSec: 0,
+        cost: 0,
+        paybackSec: Infinity,
+      });
+      // The stone price the lab records: the kiln's, and none for brick.
+      expect(sticker(start, KILN)).toBe(price);
+      expect(sticker(start, EXPAND)).toBe(0);
     });
   });
 });

@@ -53,11 +53,11 @@ export function step(
           ...(playerFixMs === undefined ? {} : { playerFixMs }),
         },
   );
-  const report = next.away?.night;
+  const away = next.away;
   const night =
-    report === undefined
+    away?.night === undefined
       ? undefined
-      : { awayMs: next.away?.awayMs ?? 0, report };
+      : { awayMs: away.awayMs, report: away.night };
   return {
     mountain: next.mountain,
     hazards: next.hazards,
