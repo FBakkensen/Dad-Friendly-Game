@@ -354,7 +354,8 @@ describe("a full stockpile with an order in hand (#666)", () => {
           fc.integer({ min: 2_990_000, max: 3_000_000 }),
           fc.nat(600_000),
           fc.nat(8_000_000),
-          fc.integer({ min: 1, max: 3 }),
+          // Short nights, and long ones, where one-second stretches would show.
+          fc.oneof(fc.integer({ min: 1, max: 6 }), fc.constantFrom(24, 48, 72)),
           fc.boolean(),
           (kilns, stones, brick, arrived, hours, away) => {
             const start = ordered(
@@ -378,10 +379,10 @@ describe("a full stockpile with an order in hand (#666)", () => {
             }
           },
         ),
-        { numRuns: 15 },
+        { numRuns: 40 },
       );
     });
-  }, 30_000);
+  });
 });
 
 describe("the Warehouse (#666)", () => {

@@ -28,7 +28,7 @@ import {
 } from "./city";
 import { NO_JOBS, workersOnJobs, type Jobs } from "./workforce";
 import { makerRecord, type MakerId } from "./makers";
-import { chainChange } from "./piles";
+import { chainChange, chainSettled } from "./piles";
 import {
   chainIncome,
   chainMakes,
@@ -682,7 +682,9 @@ function nightStretch(
  * unattended: up to `end`, the second the step in hand is built in, the
  * second a pile fills or empties, and, with the stockyard open, the second
  * what transport takes from a stockpile changes (#666), so a full stockpile
- * is topped up by no more than transport took.
+ * is topped up by no more than transport took. A pile that fills or empties
+ * within the first second is taken as filled or empty, so a stockpile a few
+ * goods short of its room does not cut the stretch to a second.
  */
 function workStretch(
   mountain: Mountain,
@@ -690,12 +692,13 @@ function workStretch(
   pay: number,
   drilling: boolean,
 ): Stretch {
-  const chain = mineChain(mountain, pay, drilling);
-  const income = chainIncome(chain);
+  // A stretch is a second at least: what changes within it is made for it.
+  const settled = chainSettled(mineChain(mountain, pay, drilling), 1);
+  const income = chainIncome(settled.chain);
   const to = Math.min(
     end,
     secondMark(from, secondsToStep(mountain, pay, income)),
-    secondMark(from, chainChange(chain)),
+    secondMark(from, settled.after + chainChange(settled.chain)),
     stockyardOpen(mountain)
       ? secondMark(from, drawChange(mountain, pay, income))
       : Infinity,

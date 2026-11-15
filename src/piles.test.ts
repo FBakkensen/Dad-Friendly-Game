@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   chainChange,
   chainFlows,
+  chainSettled,
+  chainSpill,
   flowChain,
   flowWhole,
   type Chain,
@@ -200,6 +202,23 @@ describe("a pile that spills to a side pile (#666)", () => {
     });
     expect(chainFlows(chain)[0]).toBeCloseTo(12, 9);
     expect(flowChain(chain, 10).spilled).toBe(0);
+  });
+
+  it("settles past the changes within its first seconds, and says when the last came", () => {
+    // A stone short of its room: full in a quarter of a second at 4 a second net.
+    const chain = refinery(18, 12, pile(300, 300), {
+      held: 999,
+      holds: 1_000,
+      drain: 2,
+    });
+    const settled = chainSettled(chain, 1);
+    expect(settled.after).toBeCloseTo(0.25, 9);
+    expect(chainSpill(settled.chain)).toBeCloseTo(2, 9);
+    expect(chainChange(settled.chain)).toBe(Infinity);
+    // A change past the first second is left for the stretch to end at.
+    const later = chainSettled(refinery(18, 12), 1);
+    expect(later.after).toBe(0);
+    expect(chainChange(later.chain)).toBeCloseTo(50, 9);
   });
 
   it("splits where the side pile fills", () => {

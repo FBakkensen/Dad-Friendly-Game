@@ -200,6 +200,30 @@ export function chainChange(chain: Chain): number {
   return changeAt(chain, chainFlows(chain));
 }
 
+/**
+ * The chain past every change in its first `within` seconds, and the seconds
+ * from now the last of them came (#666). A stretch at least that long sees
+ * those changes as made: a stockpile a few goods short of its room is full
+ * for it, so the stretch ends at the next change after them, not a second on.
+ */
+export function chainSettled(
+  chain: Chain,
+  within: number,
+): { readonly chain: Chain; readonly after: number } {
+  let state = chain;
+  let after = 0;
+  for (let phase = 0; phase < phaseLimit(chain); phase += 1) {
+    const flows = chainFlows(state);
+    const next = changeAt(state, flows);
+    if (after + next > within) {
+      break;
+    }
+    state = advance(state, flows, next);
+    after += next;
+  }
+  return { chain: state, after };
+}
+
 /** `value`, set to `edge` when it is within float noise of it. */
 function snap(value: number, edge: number): number {
   return Math.abs(value - edge) < EDGE ? edge : value;
