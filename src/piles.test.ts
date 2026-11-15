@@ -370,20 +370,26 @@ describe("a stage with a recipe (#723)", () => {
     expect(chainFlows(next)[0]).toBe(0);
   });
 
+  /** Whole hundredths up to `most`, so rates and stretches leave part-goods often. */
+  const hundredths = (most: number) =>
+    fc.integer({ min: 0, max: most }).map((n) => n / 100);
+
   it("in whole goods, nothing is lost and a full side pile never grows, at any rates", () => {
     fc.assert(
       fc.property(
-        fc.double({ min: 0, max: 40, noNaN: true }),
-        fc.double({ min: 0, max: 20, noNaN: true }),
-        fc.double({ min: 0, max: 20, noNaN: true }),
+        hundredths(4_000),
+        hundredths(2_000),
+        hundredths(2_000),
         fc.oneof(fc.constant(300), fc.integer({ min: 0, max: 300 })),
-        fc.integer({ min: 0, max: 2 }),
-        fc.double({ min: 0, max: 5, noNaN: true }),
-        fc.double({ min: 0.1, max: 600, noNaN: true }),
+        fc.integer({ min: 0, max: 4 }),
+        hundredths(500),
+        hundredths(60_000).map((seconds) => seconds + 0.1),
         (lift, kilns, take, held, sideState, drain, seconds) => {
           const side = [
             { held: 0, holds: Infinity, drain: 0 },
             { held: 1_000, holds: 1_000, drain },
+            { held: 1_000, holds: 1_000, drain: 0 },
+            { held: 999, holds: 1_000, drain: 0 },
             { held: 1_200, holds: 1_000, drain: 0 },
           ][sideState] ?? { held: 0, holds: Infinity, drain: 0 };
           const chain = kilnsAtTwo(
@@ -402,13 +408,14 @@ describe("a stage with a recipe (#723)", () => {
           expect(after).toBeGreaterThanOrEqual(0);
           // A part-brick's rock may wait over the room: less than one recipe.
           expect(after).toBeLessThan(Math.max(300, held) + 2);
-          // A full side pile that nothing drains takes no more than it is sent.
-          if (
-            side.held > side.holds ||
-            (side.held >= side.holds && drain === 0)
-          ) {
+          // A side pile that nothing drains, and one over its room, never
+          // ends over its room for a part-brick's rock.
+          if (side.held > side.holds || side.drain === 0) {
             expect(whole.spilled).toBeLessThanOrEqual(
-              Math.floor(exact.spilled + 1e-9),
+              Math.max(
+                Math.floor(exact.spilled + 1e-9),
+                Math.max(0, side.holds - side.held),
+              ),
             );
           }
         },
