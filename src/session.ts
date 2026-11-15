@@ -27,6 +27,7 @@ import {
 } from "./mountain";
 import { relicsUncovered, type Relic } from "./relics";
 import { advance, timeInput } from "./session-time";
+import { GOOD_IDS } from "./stock";
 import { recordFirstUse } from "./teach";
 import {
   RECIPE_IDS,
@@ -405,7 +406,7 @@ function settleAway(
     moved.homecomings,
     out,
   );
-  if (moved.mined === 0) {
+  if (!anythingHappened(report, moved.mined)) {
     return { session: paid, mined: 0 };
   }
   out.log({
@@ -421,7 +422,24 @@ function settleAway(
   return { session: welcome(paid, report, moved.mined), mined: moved.mined };
 }
 
-/** A reload or a quick app switch isn't "away": only greet after a real break. */
+/**
+ * Whether time away brought news: stones mined, or in a fresh mine's night
+ * (#663) also goods delivered or a step built in, with the mine standing.
+ */
+function anythingHappened(report: AwayReport, mined: number): boolean {
+  const night = report.night;
+  return (
+    mined > 0 ||
+    (night !== undefined &&
+      (night.steps.length > 0 ||
+        GOOD_IDS.some((good) => night.delivered[good] > 0)))
+  );
+}
+
+/**
+ * A reload or a quick app switch isn't "away": only greet after a real break.
+ * A fresh mine's night is always the shift report, never the quiet note (#663).
+ */
 function welcome(session: Session, report: AwayReport, mined: number): Session {
   if (session.news.welcomed || report.awayMs < WELCOME_MIN_AWAY_MS) {
     return session;
@@ -430,7 +448,7 @@ function welcome(session: Session, report: AwayReport, mined: number): Session {
     ...session,
     news: setNotice(
       session.news,
-      isQuietAway(report)
+      report.night === undefined && isQuietAway(report)
         ? { kind: "quiet", stones: mined }
         : { kind: "away", report },
     ),
