@@ -234,6 +234,24 @@ describe("the night's facts (#663)", () => {
     });
   });
 
+  it("does not blame the clock when a pile ran out first", () => {
+    fresh(() => {
+      // One worker, on hoisting, with 300 at the shaft: he lifts it in the
+      // first minutes at night (0.3 a second) and then has nothing to lift.
+      // The mine stopped long before eight hours, so the clock did not stop it.
+      const start = createMountain();
+      const lone = {
+        ...start,
+        jobs: { ...start.jobs, drilling: 0, hoisting: 1 },
+        piles: { face: 0, shaft: 300 },
+      };
+      const away = night(lone, 10 * HOUR);
+      expect(away.mined).toBe(300);
+      expect(away.report.night?.producedMs).toBeLessThan(HOUR);
+      expect(away.report.night?.stop).toBe("none");
+    });
+  });
+
   it("is not in today's game", () => {
     const away = accrueAway({
       mountain: createMountain(),

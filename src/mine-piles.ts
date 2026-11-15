@@ -1,6 +1,6 @@
 import type { StageSpeeds } from "./line";
 import type { Mountain } from "./mountain";
-import { chainChange, flowWhole, type Chain } from "./piles";
+import { chainChange, chainFlows, flowWhole, type Chain } from "./piles";
 import { effectiveRates, type Rates } from "./rates";
 import { addedStock } from "./stock";
 import { lineWork } from "./workforce";
@@ -72,6 +72,11 @@ export function mineChain(
       { held: mountain.piles.shaft, holds: PILE_HOLDS.shaft },
     ],
   };
+}
+
+/** Whether any stage moves rock now: it has rock in front of it and room after it. */
+export function mineMoves(mountain: Mountain): boolean {
+  return chainFlows(mineChain(mountain, 1, true)).some((flow) => flow > 0);
 }
 
 /** Seconds until a stage's flow changes (a pile fills or empties), or Infinity. */

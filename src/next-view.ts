@@ -1,8 +1,8 @@
 import { nextBuilding } from "./city";
 import { tierOnSale } from "./crew";
 import type { Mountain } from "./mountain";
-import { effectiveRates } from "./rates";
 import { STAGES, type Stage } from "./line";
+import { mineMoves } from "./mine-piles";
 import { canPay } from "./stock";
 import { TIERS, tierQuote } from "./tiers";
 import { VEHICLES, vehiclePrice } from "./transport";
@@ -155,10 +155,7 @@ export function nextView(mountain: Mountain): NextView {
   return {
     kind: "nothing",
     line: NOTHING_TO_BUY,
-    then:
-      effectiveRates(mountain).crewPerSecond > 0
-        ? PRODUCTION_RUNS
-        : LINE_STANDS,
+    then: mineMoves(mountain) ? PRODUCTION_RUNS : LINE_STANDS,
     ready: 0,
   };
 }

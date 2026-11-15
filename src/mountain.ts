@@ -670,6 +670,8 @@ function stepsBuilt(
 /** The night so far, as the shift report counts it. */
 type NightLog = {
   producedMs: number;
+  /** Where the last stretch that brought stone up ended, from the night's start. */
+  producedTo: number;
   readonly steps: NightStep[];
   litAtMs: number | undefined;
 };
@@ -685,6 +687,7 @@ function logStretch(
   log.steps.push(...stepsBuilt(before, part.mountain, atMs));
   if (part.producing) {
     log.producedMs += span.at - span.from;
+    log.producedTo = atMs;
   }
   if (
     log.litAtMs === undefined &&
@@ -717,7 +720,12 @@ function accrueNight({
 } {
   const awayMs = Math.max(0, now - lastSeen);
   const clockStops = lastSeen + Math.min(awayMs, NIGHT_CLOCK_MS);
-  const log: NightLog = { producedMs: 0, steps: [], litAtMs: undefined };
+  const log: NightLog = {
+    producedMs: 0,
+    producedTo: 0,
+    steps: [],
+    litAtMs: undefined,
+  };
   let state = mountain;
   let cursor = lastSeen;
   let mined = 0;
@@ -767,7 +775,12 @@ function nightReport(
   const dug = addedStock(before.stock, { stones: mined });
   return {
     producedMs: log.producedMs,
-    stop: awayMs > NIGHT_CLOCK_MS && log.producedMs > 0 ? "clock" : "none",
+    // The clock stopped the mine only if stone still came up when it struck:
+    // a pile that ran out before it stopped the mine first (#703).
+    stop:
+      awayMs > NIGHT_CLOCK_MS && log.producedTo >= NIGHT_CLOCK_MS
+        ? "clock"
+        : "none",
     delivered: stockMoved(dug, after.stock).spent,
     steps: log.steps,
     payFrom: effectiveRates(before).awayPay,
