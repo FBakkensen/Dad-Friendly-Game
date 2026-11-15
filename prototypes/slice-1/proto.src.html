@@ -121,26 +121,35 @@
   #p-mine .lv .cs .st { width: 36px; height: 44px; line-height: 40px; }
   #p-mine .deep { position: absolute; left: 10px; right: 10px; color: #8d93b8; font-size: 15px; text-align: center; }
   #line { position: absolute; left: 6px; right: 6px; bottom: 4px; display: flex; flex-direction: column; gap: 2px; }
-  #line .lh { box-sizing: border-box; height: 30px; background: #000c; border: 2px solid #3b4450; display: flex; align-items: center; padding: 0 8px 0 2px; gap: 5px; font-size: 14px; white-space: nowrap; }
-  #line .lh .w { align-self: stretch; display: flex; align-items: center; gap: 4px; padding: 0 3px; }
-  #line .lh .w.has .fr, #line .lh .w.has #wf-f { color: var(--green); }
-  #line .lh .k { height: 24px; width: 100px; background: #22282f; color: var(--quiet); text-align: center; font-size: 14px; font-weight: 700; }
+  #line .lh { box-sizing: border-box; height: 30px; background: #000c; border: 2px solid #3b4450; display: flex; align-items: center; padding: 0 2px 0 2px; gap: 3px; font-size: 14px; white-space: nowrap; }
+  #line .lh .hi { flex: 1; min-width: 0; display: flex; align-items: center; gap: 4px; }
+  #line .lh .w { align-self: stretch; display: flex; align-items: center; gap: 4px; padding: 0 3px; color: var(--quiet); }
+  #line .lh .w.has { color: var(--green); }
+  #line .lh .k { height: 24px; width: 136px; background: #22282f; color: var(--quiet); text-align: center; font-size: 14px; font-weight: 700; }
   #line .lh b { font-family: var(--mono); font-weight: 400; font-size: 17px; }
-  #line .lh .o { margin-left: auto; color: var(--quiet); letter-spacing: .06em; text-transform: uppercase; font-size: 12px; }
-  #line .lh .out { color: #ffd98a; }
+  #line .lh .cap { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--quiet); text-align: center; }
+  #line .lh .cw { width: 96px; }
+  #line .lh .cm { width: 104px; }
   .stg { box-sizing: border-box; height: 40px; background: #000c; border: 2px solid #3b4450; display: flex; align-items: center; padding: 0 2px 0 6px; gap: 3px; }
-  .stg .i { flex: 1; min-width: 0; align-self: stretch; display: flex; flex-direction: column; justify-content: center; padding-right: 4px; }
-  .stg .h { display: flex; align-items: baseline; gap: 4px; font-size: 15px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; line-height: 1.1; }
-  .stg .h .w { font-size: 13px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--quiet); }
-  .stg .h .r { margin-left: auto; font-family: var(--mono); font-size: 15px; font-weight: 400; letter-spacing: 0; text-transform: none; color: #ffd98a; }
-  .stg .mk { font-size: 13px; line-height: 1.1; white-space: nowrap; color: var(--quiet); margin-top: 2px; overflow: hidden; }
+  .stg .i { position: relative; flex: 1; min-width: 0; align-self: stretch; display: flex; flex-direction: column; justify-content: center; padding: 0 4px 0 0; }
+  .stg .h, .stg .mk { position: relative; z-index: 1; }
+  .stg .h { display: flex; align-items: baseline; gap: 4px; font-size: 15px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; line-height: 1.05; }
+  .stg .h .r { margin-left: auto; font-size: 13px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--quiet); }
+  .stg .h .r b { font-family: var(--mono); font-weight: 400; font-size: 14px; color: #ffd98a; }
+  .stg .h .r i { font-family: var(--mono); font-style: normal; font-weight: 400; font-size: 14px; color: #e3e9ef; }
+  .stg .mk { font-size: 13px; line-height: 1.05; white-space: nowrap; color: var(--quiet); margin-top: 1px; overflow: hidden; }
+  .stg .bar { position: absolute; left: -4px; right: 2px; top: 2px; bottom: 2px; }
+  .stg .bar u { position: absolute; left: 0; top: 0; height: 100%; background: #ffffff12; }
+  .stg .bar u + u { background: #ffd98a30; box-shadow: inset -1px 0 0 #ffd98a88; }
+  .stg .n { flex: none; width: 26px; text-align: center; font-size: 18px; font-weight: 400; color: #fff; }
   .stg .mm { color: #e3e9ef; }
   .stg .mk .bh { color: #8cc4ff; }
-  .stg .mk.sm { font-size: 12px; letter-spacing: -.01em; }
+  .stg .mk.sm { font-size: 12px; letter-spacing: -.02em; }
   #p-mine .zl { position: absolute; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: #cfc4ad; text-shadow: 0 1px 0 #000; }
   .stg .k { height: 32px; background: #22282f; color: var(--quiet); text-align: center; font-size: 14px; font-weight: 700; line-height: 1.15; white-space: nowrap; }
   .stg .k small { display: block; font-weight: 600; font-size: 12.5px; line-height: 1.1; }
-  .stg .km { width: 108px; }
+  .stg .km { width: 104px; }
+  .stg .st { width: 32px; }
   #sink { position: absolute; left: 6px; right: 6px; height: 60px; background: #000b; border: 2px solid #3b4450; display: flex; align-items: center; padding: 0 8px 0 10px; gap: 8px; }
   #sink .t { flex: 1; font-size: 18px; font-weight: 700; line-height: 1; letter-spacing: .03em; }
   #sink .t small { display: block; font-size: 13px; font-weight: 600; letter-spacing: 0; color: var(--quiet); margin-top: 4px; }
@@ -465,7 +474,7 @@ function away(sec) {
 const canPay = (cost) => Object.keys(cost).every((g) => Math.floor(S[g]) >= cost[g]);
 const pay = (cost) => { for (const g in cost) S[g] -= cost[g]; };
 let sayT = 0;
-function say(t) { const s = $("#say"); s.textContent = t; s.classList.add("on"); clearTimeout(sayT); sayT = setTimeout(() => s.classList.remove("on"), 2600); }
+function say(t) { const s = $("#say"); s.textContent = t; s.classList.add("on"); clearTimeout(sayT); sayT = setTimeout(() => s.classList.remove("on"), Math.max(2600, t.length * 45)); }
 const lacks = (cost) => { const g = Object.keys(cost).find((k) => Math.floor(S[k]) < cost[k]); return g ? "Requires " + fmt(cost[g]) + " " + GN[g] + "." : ""; };
 function hire() { const c = { stones: workerPrice() }; if (!canPay(c)) return say(lacks(c)); pay(c); S.free++; after(); }
 /* Put a free worker on a job, or take one off it. */
@@ -476,7 +485,7 @@ function move(k, d) {
 }
 const one = (b) => (/^[aeiou]/i.test(b.mach) ? "An " : "A ") + b.mach.toLowerCase();
 function buyStage(k) { const b = stageBuy(k), c = { [b.good]: b.price }; if (!canPay(c)) return say(lacks(c)); pay(c); if (b.key === "loco") S.loco++; else S.m[b.key]++; after(); }
-function explain(k) { const b = stageBuy(k), sf = staffing(), s = STG[k]; say(s.n + ". A worker " + s.tool1 + " " + s.verb + " " + rate(sf.each[k]) + ". " + one(b) + " takes " + b.staff + " workers and " + s.verb + " " + rate(b.rate) + "."); }
+function explain(k) { const b = stageBuy(k), F = flows(), s = STG[k]; say(s.n + " moves " + rate(F.out) + " now and can move " + rate(F.sf.f[k] * (S.charge > 0 ? 2 : 1)) + ". A worker " + s.tool1 + " " + s.verb + " " + rate(F.sf.each[k]) + ". " + one(b) + " takes " + b.staff + " workers and " + s.verb + " " + rate(b.rate) + "."); }
 function sinkShaft() {
   if (S.shaft || !worksOpen()) return; if (!canPay(SHAFT)) return say(lacks(SHAFT));
   pay(SHAFT); S.shaft = true; S.gangs = [2, 2]; build(); after();
@@ -639,11 +648,11 @@ function mineDOM(ov) {
     if (S.shaft) { lv.classList.add("split"); el("div", "cs", lv, `<button class="st" data-lv="${i}" data-d="-1" aria-label="Move a crew off the ${n}">−</button><button class="st" data-lv="${i}" data-d="1" aria-label="Move a crew to the ${n}">+</button>`); }
   });
   if (hA * 2 - 162 > (SURF + 2 * LH + 4) * 2 + 24) { const deep = el("div", "deep", ov, "Deeper strata: not yet surveyed. The city has to grow first."); deep.style.top = (SURF + 2 * LH + 4) * 2 + "px"; }
-  const ln = el("div", "", ov, `<div class="lh"><button class="w" id="wf-open" aria-label="The workforce">${ico("worker")}<b id="wf-n"></b>workers ·<b id="wf-f"></b><span class="fr">free</span></button><button class="k" id="hire"></button><span class="o">Output</span><b class="out" id="wf-o"></b></div>`); ln.id = "line";
+  const ln = el("div", "", ov, `<div class="lh"><div class="hi"><button class="k" id="hire"></button><button class="w" id="wf-open" aria-label="The workforce">${ico("worker")}<b id="wf-f"></b>free</button></div><span class="cap cw">Workers</span><span class="cap cm">Add a machine</span></div>`); ln.id = "line";
   tap($("#wf-open"), panel); tap($("#hire"), hire);
   for (const k in STG) {
-    const s = el("div", "stg", ln, `<button class="i"><div class="h">${ico(k === "haul" && !S.shaft ? "mach-cart" : STG[k].icon)}${STG[k].n}<span class="w" data-nw="${k}"></span><span class="r"></span></div><div class="mk"></div></button>${stp(k, STG[k].n.toLowerCase())}<button class="k km" id="buy-${k}"></button>`); s.id = "stg-" + k;
-    tap(s.children[0], () => explain(k)); tap(s.children[3], () => buyStage(k));
+    const nm = STG[k].n.toLowerCase(), s = el("div", "stg", ln, `<button class="i"><div class="bar"><u></u><u></u></div><div class="h">${STG[k].n}<span class="r"></span></div><div class="mk"></div></button><button class="st" data-job="${k}" data-d="-1" aria-label="Take a worker off ${nm}">−</button><b class="num n" data-n="${k}"></b><button class="st" data-job="${k}" data-d="1" aria-label="Put a worker on ${nm}">+</button><button class="k km" id="buy-${k}"></button>`); s.id = "stg-" + k;
+    tap(s.children[0], () => explain(k)); tap(s.children[4], () => buyStage(k));
   }
 }
 function mineUI(F) {
@@ -663,17 +672,19 @@ function mineUI(F) {
     else b = `${g} ${g === 1 ? "crew" : "crews"} · ${GN[good]} ${rate(F.made[i])} · stone ${rate(F.over[i])}`;
     $("#lv-b" + i).innerHTML = b;
   }
-  const sf = F.sf, wp = workerPrice();
-  $("#wf-n").textContent = workers(); $("#wf-f").textContent = S.free; $("#wf-open").classList.toggle("has", S.free > 0); $("#wf-o").textContent = rate(F.out);
-  const hk = $("#hire"); hk.innerHTML = `Hire · ${fmt(wp)} ${ico("stones")}`; hk.classList.toggle("can", canPay({ stones: wp }));
+  const sf = F.sf, wp = workerPrice(), x = S.charge > 0 ? 2 : 1, top = Math.max(sf.f.face, sf.f.haul, sf.f.lift, 1) * x;
+  $("#wf-f").textContent = S.free; $("#wf-open").classList.toggle("has", S.free > 0);
+  const hk = $("#hire"); hk.innerHTML = `Hire a worker · ${fmt(wp)} ${ico("stones")}`; hk.classList.toggle("can", canPay({ stones: wp }));
   for (const k in STG) {
-    const s = $("#stg-" + k), sb = stageBuy(k);
-    // what the stage's workers work with: its machines that run, and the tools of the rest
-    const tl = sf.tool[k], three = sf.rows[k].length > 1 && tl > 0;
-    const make = (u) => sf.rows[k].map((r) => `<span class="mm">${r.on < r.n ? r.on + " of " + r.n : r.n} ${r.kd.one}${r.n > 1 ? "s" : ""} ×${num(r.kd.per * sf.mult(k))}${u}</span>`).concat(tl || !sf.rows[k].length ? [`<span class="bh">${tl} ${three ? (tl === 1 ? STG[k].tool1.replace(/^\w+ an? /, "") : STG[k].tool.replace(/^\w+ /, "")) : tl === 1 ? STG[k].tool1 : STG[k].tool} ×${num(sf.each[k])}${u}</span>`] : []).join(" · ");
-    const long = make("/s"), mk = s.querySelector(".mk"); mk.innerHTML = long.replace(/<[^>]+>/g, "").length > 36 ? make("") : long; mk.classList.toggle("sm", three);
-    s.querySelector(".r").textContent = rate(F.out); // what the stage moves now: the mine is one line
-    const bk = s.children[3]; bk.innerHTML = `+${sb.short} · ${rate(sb.rate)}<small>${fmt(sb.price)} ${ico(sb.good)} · ${sb.staff} workers</small>`; bk.classList.toggle("can", canPay({ [sb.good]: sb.price }));
+    const s = $("#stg-" + k), sb = stageBuy(k), tl = sf.tool[k], three = sf.rows[k].length > 1 && tl > 0, cap = sf.f[k] * x, t = STG[k];
+    const nq = (v, w) => (w || v < 1000 ? num(v) : (v / 1000).toFixed(1).replace(/\.0$/, "") + "K");
+    // who works with what, and what each group moves: the parts add up to what the stage can move
+    const make = (u, w) => sf.rows[k].map((r) => `<span class="mm">${r.on < r.n ? r.on + " of " + r.n : r.n} ${r.kd.one}${r.n > 1 ? "s" : ""} ${nq(r.on * r.kd.per * sf.mult(k) * x, w)}${u}</span>`).concat(tl || !sf.rows[k].length ? [`<span class="bh">${tl} ${w ? (tl === 1 ? t.tool1 : t.tool) : tl === 1 ? t.tool1.replace(/^\w+ an? /, "") : t.tool.replace(/^\w+ /, "")} ${nq(tl * sf.each[k] * x, w)}${u}</span>`] : []).join(" + ");
+    const long = make("/s", true), mk = s.querySelector(".mk"); mk.innerHTML = three ? make("", false) : long.replace(/<[^>]+>/g, "").length > 38 ? make("", true) : long; mk.classList.toggle("sm", three);
+    // what the stage moves now, of what it can move. The mine is one line, so every stage moves the same.
+    const big = cap >= 10000, nn = (v) => (big ? fmt(v) : num(v)); s.querySelector(".r").innerHTML = `<b>${nn(F.out)}</b> of <i>${nn(cap)}/s</i>`;
+    const bar = s.querySelector(".bar").children; bar[0].style.width = (100 * cap) / top + "%"; bar[1].style.width = (100 * Math.min(F.out, cap)) / top + "%";
+    const bk = s.children[4]; bk.innerHTML = `+${sb.short} · ${rate(sb.rate)}<small>${fmt(sb.price)} ${ico(sb.good)} · ${sb.staff} to run</small>`; bk.classList.toggle("can", canPay({ [sb.good]: sb.price }));
   }
 }
 
