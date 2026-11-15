@@ -48,17 +48,47 @@ describe("a long night with the stockyard open (#667)", () => {
       expect(nightRecord(world(10 * HOUR_MS))).toEqual({
         awayMs: 10 * HOUR_MS,
         endedFull: false,
+        deadMs: 0,
       });
       expect(nightRecord(world(10 * HOUR_MS, 4 * HOUR_MS))).toEqual({
         awayMs: 10 * HOUR_MS,
         endedFull: true,
         fullAtMs: 4 * HOUR_MS,
+        deadMs: 0,
       });
       // Full from the start: ended full, with no time it filled.
       expect(nightRecord(world(10 * HOUR_MS, 0))).toEqual({
         awayMs: 10 * HOUR_MS,
         endedFull: true,
+        deadMs: 0,
       });
+    });
+  });
+
+  it("counts a night dead from when a stockpile no order takes filled", () => {
+    partTwo(() => {
+      // The brick stockpile filled three hours in with no order in: dead to morning.
+      const brickFull: Mountain = {
+        ...lit,
+        stock: { ...EMPTY_STOCK, brick: 1_000_000 },
+      };
+      const night: World = {
+        ...createWorld(1, brickFull),
+        clock: 10 * HOUR_MS,
+        night: {
+          awayMs: 10 * HOUR_MS,
+          report: { ...report(), fullAtMs: { brick: 3 * HOUR_MS } },
+        },
+      };
+      expect(nightRecord(night)?.deadMs).toBe(7 * HOUR_MS);
+      // Full from the start: all of it dead.
+      const fullAll = (fullAtMs: Partial<Record<"brick", number>>): World => ({
+        ...night,
+        night: { awayMs: 10 * HOUR_MS, report: { ...report(), fullAtMs } },
+      });
+      expect(nightRecord(fullAll({ brick: 0 }))?.deadMs).toBe(10 * HOUR_MS);
+      // Full at morning with no time logged: it filled as the night ended.
+      expect(nightRecord(fullAll({}))?.deadMs).toBe(0);
     });
   });
 
@@ -86,17 +116,17 @@ describe("a long night with the stockyard open (#667)", () => {
 describe("the night measures (#667)", () => {
   const nights = samples(
     [
-      { awayMs: 10, endedFull: false },
-      { awayMs: 10, endedFull: true, fullAtMs: 5 },
+      { awayMs: 10, endedFull: false, deadMs: 0 },
+      { awayMs: 10, endedFull: true, fullAtMs: 5, deadMs: 0 },
     ],
     [],
     [
-      { awayMs: 10, endedFull: true, fullAtMs: 9 },
-      { awayMs: 10, endedFull: true, fullAtMs: 2 },
+      { awayMs: 10, endedFull: true, fullAtMs: 9, deadMs: 0 },
+      { awayMs: 10, endedFull: true, fullAtMs: 2, deadMs: 0 },
       // Filled, but transport kept the mine going to morning: not ended full.
-      { awayMs: 10, endedFull: false, fullAtMs: 1 },
+      { awayMs: 10, endedFull: false, fullAtMs: 1, deadMs: 0 },
       // Full from the start: ended full, no time it filled.
-      { awayMs: 10, endedFull: true },
+      { awayMs: 10, endedFull: true, deadMs: 0 },
     ],
   );
 
@@ -108,7 +138,9 @@ describe("the night measures (#667)", () => {
   it("takes the median share of the night when it filled, among the nights it ended", () => {
     expect(nightFullAt.aggregate(nights)).toBe(0.5);
     expect(
-      nightFullAt.aggregate(samples([{ awayMs: 10, endedFull: true }])),
+      nightFullAt.aggregate(
+        samples([{ awayMs: 10, endedFull: true, deadMs: 0 }]),
+      ),
     ).toBeNaN();
   });
 });
@@ -126,12 +158,17 @@ describe("deadGood weighed by time, nights included (#667, PR review)", () => {
       live(true, true),
       live(false, true),
       live(true, false, [
-        // Filled four hours in and stood the mine to morning: six hours dead.
-        { awayMs: 10 * HOUR_MS, endedFull: true, fullAtMs: 4 * HOUR_MS },
+        // Filled four hours in, nothing took it to morning: six hours dead.
+        {
+          awayMs: 10 * HOUR_MS,
+          endedFull: true,
+          fullAtMs: 4 * HOUR_MS,
+          deadMs: 6 * HOUR_MS,
+        },
         // Full from the start: all of it dead.
-        { awayMs: 8 * HOUR_MS, endedFull: true },
-        // Filled, but transport kept the mine going: none dead.
-        { awayMs: 7 * HOUR_MS, endedFull: false, fullAtMs: HOUR_MS },
+        { awayMs: 8 * HOUR_MS, endedFull: true, deadMs: 8 * HOUR_MS },
+        // Filled, but the order took it: none dead.
+        { awayMs: 7 * HOUR_MS, endedFull: false, fullAtMs: HOUR_MS, deadMs: 0 },
       ]),
     ];
     expect(deadGood.aggregate(run)).toBeCloseTo(
