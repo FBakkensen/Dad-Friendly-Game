@@ -5,9 +5,11 @@ PixelLab drew the city's pictures with a soft dark blue-grey edge, not the
 single colour black outline the art has (docs/ART.md). So every opaque pixel
 that touches a transparent one, or the picture's own edge, takes the outline
 colour of the machine icons. Nothing else moves. This is how the city's
-light-tower.png was made from the picture PixelLab drew.
+light-tower.png and horse-wagon.png (#657) were made from the pictures
+PixelLab drew.
 
     python3 scripts/outline-icon.py mockups/city/art/light-tower-drawn.png src/assets/city/light-tower.png
+    python3 scripts/outline-icon.py mockups/city/art/horse-wagon-drawn.png src/assets/city/horse-wagon.png
 """
 
 import sys
