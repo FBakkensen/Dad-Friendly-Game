@@ -1,7 +1,12 @@
 import { shownStones } from "./scale";
 import { formatCompact } from "./format";
 import { layerOf } from "./layers";
+import { orderStrip } from "./frame-view";
+import { freshMineOn } from "./line-switch";
 import { minedOut, type Mountain } from "./mountain";
+import { MACHINE_WORDS, VEHICLE_WORDS, plural } from "./screen-words";
+import { machinesInPlay } from "./tiers";
+import { VEHICLE_IDS } from "./transport";
 
 const MONTHS = [
   "Jan",
@@ -32,16 +37,47 @@ export function saveCardLines(
   lastSeen: number | undefined,
   now: number,
 ): SaveCardLines {
+  const played =
+    lastSeen === undefined ? "Not played yet" : lastPlayedWords(lastSeen, now);
+  if (freshMineOn()) {
+    return { ...freshLines(mountain), played };
+  }
   const band = layerOf(mountain).name.replace(/^The /, "");
   return {
     depth: `${band}, ${formatCompact(shownStones(mountain, minedOut(mountain)))} deep`,
     pocket: `${formatCompact(mountain.stock.stones)} stones in the pocket`,
     machines: machineLine(mountain),
     crew: crewLine(mountain),
-    played:
-      lastSeen === undefined
-        ? "Not played yet"
-        : lastPlayedWords(lastSeen, now),
+    played,
+  };
+}
+
+/**
+ * A fresh mine's card (#707): no depth, no pocket and no engineers. The
+ * project in the order strip's words, the stone in the stockpile, the
+ * machines and the horse wagons, and the workers.
+ */
+function freshLines(mountain: Mountain): Omit<SaveCardLines, "played"> {
+  const strip = orderStrip(mountain);
+  const things = [
+    ...machinesInPlay().map(
+      (id) => [mountain.owned[id], MACHINE_WORDS[id]] as const,
+    ),
+    ...VEHICLE_IDS.map(
+      (id) => [mountain.fleet[id], VEHICLE_WORDS[id]] as const,
+    ),
+  ]
+    .filter(([owned]) => owned > 0)
+    .map(([owned, words]) => `${formatCompact(owned)} ${plural(owned, words)}`);
+  const workers = mountain.owned.helper;
+  return {
+    depth:
+      strip.kind === "project"
+        ? `${strip.name} · ${strip.step}`
+        : `${strip.name} is operational`,
+    pocket: `${formatCompact(mountain.stock.stones)} stone in the stockpile`,
+    machines: things.length === 0 ? "No machines yet" : things.join(" · "),
+    crew: `${formatCompact(workers)} ${workers === 1 ? "worker" : "workers"}`,
   };
 }
 

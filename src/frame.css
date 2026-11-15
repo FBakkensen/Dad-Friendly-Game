@@ -493,6 +493,14 @@
   display: none;
 }
 
+/*
+ * The save's cards (#707): today's board cards, over everything on the
+ * frame, the shift report included. A choice of save comes first.
+ */
+.frame-app > .board-card {
+  z-index: 50;
+}
+
 .frame-card-box {
   display: flex;
   flex-direction: column;
