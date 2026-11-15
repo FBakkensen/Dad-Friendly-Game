@@ -1,5 +1,11 @@
 import { SITE_HOLDS, buildRate, onSiteTotal } from "./building-site";
-import { BUILDINGS, buildingById, type BuildingId, type Site } from "./city";
+import {
+  BUILDINGS,
+  buildingById,
+  type BuildingId,
+  type Site,
+  type StepIndex,
+} from "./city";
 import { etaShort, formatCompact } from "./format";
 import { STEP_NAMES, orderStrip, requirements, type Pip } from "./frame-view";
 import type { Mountain } from "./mountain";
@@ -36,7 +42,7 @@ const VEHICLE_SHORT: Readonly<Record<VehicleId, string>> = {
 };
 
 /** A job's − and +, as the plate and the card show them. */
-export type JobSteps = {
+type JobSteps = {
   readonly job: JobId;
   readonly name: string;
   readonly workers: number;
@@ -253,7 +259,7 @@ function orderKey(mountain: Mountain, now: number | undefined): OrderKey {
 }
 
 /** The builders under the bars, with their − and +. */
-export type BuildersRow = JobSteps & {
+type BuildersRow = JobSteps & {
   /** "2 builders ×8/s · on site 400 of 500". */
   readonly line: string;
 };
@@ -270,7 +276,7 @@ function buildersRow(mountain: Mountain): BuildersRow {
 }
 
 /** One good the step requires: what is built in of it, and its bar. */
-export type CardBar = {
+type CardBar = {
   readonly good: string;
   readonly line: string;
   readonly share: number;
@@ -288,9 +294,14 @@ export type ProjectCard =
       /** "On completion: night shift output 45%, up from 30%." */
       readonly completion: string;
     }
-  /** After the part's last roof: the order strip's line, and no order key. */
+  /**
+   * After the part's last roof: the last building with its steps done, the
+   * order strip's line in place of the bars, and no order key.
+   */
   | {
       readonly kind: "planning";
+      readonly name: string;
+      readonly steps: readonly { readonly name: string; readonly pip: Pip }[];
       readonly line: string;
       readonly builders: BuildersRow;
     };
@@ -303,17 +314,27 @@ function completion(id: BuildingId): string {
 export function projectCard(mountain: Mountain, now?: number): ProjectCard {
   const strip = orderStrip(mountain);
   const builders = buildersRow(mountain);
+  const steps = strip.pips.map((pip, at) => ({
+    name: STEP_NAMES[at as StepIndex],
+    pip,
+  }));
   if (strip.kind === "planning") {
-    return { kind: "planning", line: strip.line, builders };
+    const last = BUILDINGS.filter((b) =>
+      mountain.operational.includes(b.id),
+    ).at(-1);
+    return {
+      kind: "planning",
+      name: last?.name ?? "",
+      steps,
+      line: strip.line,
+      builders,
+    };
   }
   const id = inHand(mountain);
   return {
     kind: "project",
     name: strip.name,
-    steps: strip.pips.map((pip, at) => ({
-      name: STEP_NAMES[at as 0 | 1 | 2],
-      pip,
-    })),
+    steps,
     bars: strip.requires.map((r) => ({
       good: r.good,
       line: r.line,

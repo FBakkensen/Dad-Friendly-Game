@@ -32,7 +32,7 @@ import {
 export const CITY_FOOT = { card: 88, tags: 15, road: 11 } as const;
 
 /** Where the ground meets the sky, for a scene `height` art px tall. */
-export function groundY(height: number): number {
+function groundY(height: number): number {
   return height - 2 - CITY_FOOT.card - CITY_FOOT.tags - CITY_FOOT.road;
 }
 
@@ -270,7 +270,7 @@ function drawWagons(
 ): void {
   // A vehicle with no driver stands behind the road, empty, with nobody on it.
   for (let k = 0; k < Math.min(2, scene.undriven); k += 1) {
-    drawWagon(c, img, SCENE_W - 50 - k * 48, g - 22, 0);
+    drawWagon(c, img, SCENE_W - 72 - k * 48, g - 24, 0);
   }
   const shown = Math.min(3, scene.driven);
   const road = g + CITY_FOOT.road - 24;

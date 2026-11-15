@@ -251,47 +251,53 @@ function paintBars(
   });
 }
 
-function paintCard(
-  parts: CardParts,
-  card: ProjectCard,
-  amount: BuyAmount,
-): void {
-  write(parts.crew, card.builders.line);
-  paintSteps(parts.builders, card.builders, amount);
-  const project = card.kind === "project";
-  hide(parts.bars, !project);
-  hide(parts.key, !project);
-  hide(parts.steps, !project);
-  hide(parts.completion, !project);
-  hide(parts.planning, project);
-  if (!project) {
-    write(parts.name, "The city");
-    write(parts.planning, card.line);
-    return;
-  }
-  write(parts.name, card.name);
-  if (parts.steps.childElementCount !== card.steps.length) {
-    parts.steps.replaceChildren(...card.steps.map(() => el("span", "")));
+function paintStepNames(target: HTMLElement, card: ProjectCard): void {
+  if (target.childElementCount !== card.steps.length) {
+    target.replaceChildren(...card.steps.map(() => el("span", "")));
   }
   card.steps.forEach((step, at) => {
-    const target = parts.steps.children[at];
-    if (target instanceof HTMLElement) {
-      write(target, `${step.name}${step.pip === "done" ? " ✓" : ""}`);
-      target.dataset["pip"] = step.pip;
+    const span = target.children[at];
+    if (span instanceof HTMLElement) {
+      write(span, `${step.name}${step.pip === "done" ? " ✓" : ""}`);
+      span.dataset["pip"] = step.pip;
     }
   });
-  paintBars(parts.bars, card);
-  write(parts.title, card.key.title);
-  card.key.lines.forEach((line, at) => {
+}
+
+function paintOrderKey(parts: CardParts, key: OrderKey): void {
+  write(parts.title, key.title);
+  key.lines.forEach((line, at) => {
     const target = parts.lines[at];
     if (target !== undefined) {
       write(target, line);
     }
   });
-  mark(parts.key, "can", card.key.can);
-  mark(parts.key, "run", card.key.run);
-  parts.key.dataset["order"] = card.key.kind;
-  setAttr(parts.key, "aria-label", card.key.label);
+  mark(parts.key, "can", key.can);
+  mark(parts.key, "run", key.run);
+  parts.key.dataset["order"] = key.kind;
+  setAttr(parts.key, "aria-label", key.label);
+}
+
+function paintCard(
+  parts: CardParts,
+  card: ProjectCard,
+  amount: BuyAmount,
+): void {
+  write(parts.name, card.name);
+  paintStepNames(parts.steps, card);
+  write(parts.crew, card.builders.line);
+  paintSteps(parts.builders, card.builders, amount);
+  const project = card.kind === "project";
+  hide(parts.bars, !project);
+  hide(parts.key, !project);
+  hide(parts.completion, !project);
+  hide(parts.planning, project);
+  if (!project) {
+    write(parts.planning, card.line);
+    return;
+  }
+  paintBars(parts.bars, card);
+  paintOrderKey(parts, card.key);
   write(parts.completion, card.completion);
 }
 

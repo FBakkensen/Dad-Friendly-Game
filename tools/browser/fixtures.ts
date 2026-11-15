@@ -1156,6 +1156,40 @@ export function sliceStandsSave(now: number): StoredAsIs {
 }
 
 /**
+ * The Light Tower's structure rising (#662): 150K of its 250K built in, 300
+ * on the site, and a second wagon with nobody to drive it, behind the road.
+ */
+export function sliceStructureSave(now: number): StoredAsIs {
+  return sliceSave(now, {
+    owned: { helper: 14, cart: 2 },
+    stock: { stones: 40_000 },
+    jobs: { drilling: 4, haulage: 3, hoisting: 4, driving: 1, building: 2 },
+    fleet: { horseWagon: 2 },
+    project: {
+      building: "lightTower",
+      state: "delivering",
+      step: 1,
+      arrived: { stones: 150_300 },
+      onSite: { stones: 300 },
+    },
+  });
+}
+
+/**
+ * After part 1's last roof (#662): the Light Tower operational and nothing
+ * to order, so the city's card says the city is planning its next building.
+ */
+export function sliceDoneSave(now: number): StoredAsIs {
+  return sliceSave(now, {
+    owned: { helper: 14, cart: 2 },
+    stock: { stones: 120_000 },
+    jobs: { drilling: 4, haulage: 3, hoisting: 4, driving: 1, building: 2 },
+    fleet: { horseWagon: 2 },
+    marks: { operational: ["lightTower"] },
+  });
+}
+
+/**
  * A busier first night: two carts, a second wagon, three free workers, the
  * foundation on order and stone in the pocket. Next counts the mine's and
  * the city's buys, and the workforce shows machines that run (#659).
