@@ -1,85 +1,9 @@
 // @vitest-environment happy-dom
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { createUnconfiguredAuth } from "./auth";
+import { describe, expect, it } from "vitest";
 import { createMountain, type Mountain } from "./mountain";
-import { mountMountainScreen } from "./mountain-screen";
-import { closeArrivals } from "./mountain-screen.harness";
-import { createProgressStore } from "./progress-store";
-import { effectiveRates, firstTend } from "./rates";
-import { stonesPerSecond, tendingIntro } from "./screen-words";
+import { firstTend } from "./rates";
+import { tendingIntro } from "./screen-words";
 import { noteFor, showsDot } from "./teach";
-
-/** Each test's screens stop their timers before the next test (and before teardown). */
-let screens = new AbortController();
-afterEach(() => {
-  screens.abort();
-  screens = new AbortController();
-});
-
-beforeEach(() => {
-  window.matchMedia = ((query: string) => ({
-    matches: query.includes("reduce"),
-  })) as unknown as typeof window.matchMedia;
-});
-
-const tile =
-  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
-
-function memoryStorage(): Storage {
-  const data = new Map<string, string>();
-  return {
-    get length() {
-      return data.size;
-    },
-    clear: () => {
-      data.clear();
-    },
-    getItem: (key: string) => data.get(key) ?? null,
-    key: (index: number) => [...data.keys()][index] ?? null,
-    removeItem: (key: string) => {
-      data.delete(key);
-    },
-    setItem: (key: string, value: string) => {
-      data.set(key, value);
-    },
-  };
-}
-
-function mount(now: () => number) {
-  const root = document.createElement("div");
-  const progress = createProgressStore({
-    auth: createUnconfiguredAuth(),
-    sessionStorage: memoryStorage(),
-    cloudWriteGapMs: 0,
-    now,
-  });
-  mountMountainScreen({
-    signal: screens.signal,
-    root,
-    veinUrl: tile,
-    tierArt: {
-      helper: tile,
-      cart: tile,
-      drill: tile,
-      borer: tile,
-      machine: tile,
-      kid: tile,
-    },
-    relicArt: {
-      lantern: tile,
-      shield: tile,
-      hammer: tile,
-      heart: tile,
-      crown: tile,
-      mantle: tile,
-    },
-    progress,
-    now,
-    random: () => 0,
-  });
-  document.body.append(root);
-  return { root, progress };
-}
 
 const ada = { name: "Ada", rank: 0, trips: 1, post: "camp" } as const;
 /** After the first trip, Ada waiting at camp, a Great Machine to tend. */
@@ -131,86 +55,25 @@ describe("tending teach (#246)", () => {
     expect(firstTend(noCrew)).toBeUndefined();
   });
 
+  it("skips an engineer out on a trip, for the next one at home", () => {
+    const nils = { ...ada, name: "Nils" } as const;
+    const out: Mountain = {
+      ...crew(),
+      engineers: [ada, nils],
+      expeditions: [
+        {
+          engineer: "Ada",
+          tunnel: "side-seam",
+          sentAt: 0,
+          returnsAt: 60_000,
+          find: { kind: "quiet" },
+        },
+      ],
+    };
+    expect(firstTend(out, 0)).toEqual({ index: 1, post: "machine" });
+  });
+
   it("words the intro with no question", () => {
     expect(tendingIntro("Ada")).not.toContain("?");
-  });
-
-  it("the New post row tends, shows the real gain in its row and the cheer, and the dot goes", () => {
-    const clock = 1_700_000_000_000;
-    const screen = mount(() => clock);
-    screen.progress.applyMutation(() => crew());
-    const button = screen.root.querySelector<HTMLButtonElement>(
-      ".board-key[data-key=engineers]",
-    );
-    expect(
-      button?.querySelector(".board-key-dot:not([hidden])"),
-    ).not.toBeNull();
-    expect(
-      screen.root.querySelector<HTMLElement>(".board-sign-slot")?.hidden,
-    ).toBe(true);
-    closeArrivals(screen.root);
-    button?.click();
-    const sheet = screen.root.querySelector<HTMLElement>(
-      ".board-sheet[data-sheet=engineers]",
-    );
-    expect(sheet?.querySelector(".board-sheet-kick")?.textContent).toBe(
-      tendingIntro("Ada"),
-    );
-    // Her row is the New one; her page's New row is the Great Machine.
-    const row = sheet?.querySelector<HTMLButtonElement>(
-      '.engineer-row[data-engineer="Ada"]',
-    );
-    expect(row?.classList.contains("teach-new")).toBe(true);
-    row?.click();
-    const tend = sheet?.querySelector<HTMLButtonElement>(
-      '.engineer-post[data-post="machine"]',
-    );
-    expect(tend?.classList.contains("teach-new")).toBe(true);
-    expect(tend?.querySelector(".board-row-flag")?.textContent).toBe("New");
-    const before = screen.progress.getSnapshot();
-    const after = {
-      ...before.mountain,
-      engineers: [{ ...ada, post: "machine" as const }],
-    };
-    const gain =
-      effectiveRates(after, clock, before.trouble).crewPerSecond -
-      effectiveRates(before.mountain, clock, before.trouble).crewPerSecond;
-    expect(gain).toBeGreaterThan(0);
-    // The real gain, in the row and in the cheer.
-    expect(tend?.querySelector(".board-row-gain")?.textContent).toBe(
-      stonesPerSecond(gain),
-    );
-    tend?.click();
-    expect(sheet?.querySelector(".board-sheet-kick")?.textContent).toBe(
-      `Ada heads to the Great Machine! ${stonesPerSecond(gain)}`,
-    );
-    const mountain = screen.progress.getSnapshot().mountain;
-    expect(mountain.engineers[0]?.post).toBe("machine");
-    expect(mountain.taught).toContain("tending");
-    // Its own dot goes. The next step (the second engineer) may light it.
-    expect(showsDot(screen.progress.getSnapshot().mountain, "tending")).toBe(
-      false,
-    );
-    expect(tend?.classList.contains("teach-new")).toBe(false);
-    expect(sheet?.querySelector(".engineer-row.teach-new")).toBeNull();
-  });
-
-  it("a tend from any post row also counts as the first tend", () => {
-    const clock = 1_700_000_000_000;
-    const screen = mount(() => clock);
-    screen.progress.applyMutation(() => crew());
-    closeArrivals(screen.root);
-    screen.root
-      .querySelector<HTMLButtonElement>(".board-key[data-key=engineers]")
-      ?.click();
-    screen.root
-      .querySelector<HTMLButtonElement>('.engineer-row[data-engineer="Ada"]')
-      ?.click();
-    screen.root
-      .querySelector<HTMLButtonElement>('.engineer-post[data-post="borer"]')
-      ?.click();
-    const mountain = screen.progress.getSnapshot().mountain;
-    expect(mountain.engineers[0]?.post).toBe("borer");
-    expect(mountain.taught).toContain("tending");
   });
 });

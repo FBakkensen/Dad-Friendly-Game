@@ -74,24 +74,14 @@ page is the map, plus the rules that keep it that way.
    outside a sweep every factor is 1, and an empty map counts as no sweep. The tuned rock lives in `layers`, and
    `layer.<n>.<tier>.hardness` multiplies it (#194, #198).
    `pacing` simulates players on top of them and buys through the catalogue.
-   Every number lives here. Two display rules read these and never write
-   the mountain (#372): `ready-now` (`readyNow`, the Ready now plate's pick:
-   the biggest unlocked machine the free hands can run and the pocket
-   covers, else the cheapest one to save for with its time at the current
-   speed, else a worker, or mined out) and `machine-bays` (C2's three bay
-   tiers, each bay's view and lamp, and the flap digits). The key rail and
-   the drawers (#373, #374) read five more, none of which imports art:
-   `row-view` (types only: one `RowView` for every drawer row: its words
-   as fit options, lamp, state, and whether a tap acts; every row module
-   sets its lamp by the one lamp rule in `docs/DESIGN.md`, #509), `buys-rows`
-   (`buyRowView`: each Buys row's state, words, lamp and icon key, lifted
-   out of `crew-panel`'s old render), `upgrade-rows` (the boost, lasting
-   upgrade and found-tool rows, and `anyUpgradeAffordable` for the
-   Upgrades key's lit cap), `workshop-rows` (#374: the Workshop's recipe,
-   sketch and bench rows and its material plates, from `workshop-sheet`'s
-   cards, bench and pages) and `key-rail` (`keyViews`: each key's cap
-   (rest, locked or lit), sub-line (an unlock line, the bench clock or the
-   soonest trip), red dot and label).
+   Every number lives here. The drawers read two display rules, none of
+   which imports art: `row-view` (types only: one `RowView` for every drawer
+   row: its words as fit options, lamp, state, and whether a tap acts; every
+   row module sets its lamp by the one lamp rule in `docs/DESIGN.md`, #509)
+   and `upgrade-rows` (the boost, lasting upgrade and found-tool rows, and
+   `anyUpgradeAffordable`). The board's display rules (`ready-now`,
+   `machine-bays`, `buys-rows`, `workshop-rows`, `key-rail`) went with the
+   board (#727).
 2. **Saves:** `persist` (the version 9 envelope and `readSave`'s four
    answers, #558), `save-format` (the game map: the one place the saved shape
    meets the complete mountain; `writeGame` leaves out what is zero or empty,
@@ -123,7 +113,7 @@ page is the map, plus the rules that keep it that way.
    device remembers them across a reload. `session-time`'s `advance` is the
    one time step it and the lab share: live, away (a gap over ten seconds), or
    a clock that went back (`timeInput`). A craft notice keeps the mountain at
-   the moment it was fitted, and `card-views` words it. The sync service runs
+   the moment it was fitted. The sync service runs
    the effects through the ports, as functions over one `StoreContext`
    (`store-context`): `store-session` (run a step, emit one snapshot),
    `store-actions` (tick, moves, trouble taps, a new run, hide, dispose),
@@ -180,280 +170,99 @@ page is the map, plus the rules that keep it that way.
 4. **Screen:** since part 1 was switched on (#664), `main` mounts the frame
    (`mountFrameScreen`, `frame-screen`, see Slice 1's frame below) for
    everyone, and `createAppServices` holds the fresh mine's switch on for the
-   page. Today's board is no longer mounted; its code below stays until its
-   clean-up (#665). `mountMountainScreen` (`mountain-screen`) is its composition
-   root (#431): it builds the parts in order, holds `paint()`, and starts the
-   screen running. Each part is a `screen-*` module with one job:
-   `screen-context` (the store, the clocks, the board host, `dispatch` and the
-   view), `screen-running` (the Running now list, its chips, the vein's note),
-   `screen-vein` (the golden vein, and the quick vein after an hour away,
-   held while `screen-overlays` says a card or drawer covers the board,
-   #468), `screen-dig` (the gauge row, the Ready
-   row, the bays and the Ready now pick), `screen-panels` (Buys, the cards,
-   the note and save line with the board's top, the sheets), `screen-prompts`
-   (the update card and the other-tab card, on `board-card`), `screen-overlays` (the New
-   sign, the covers and the rail's paint), `screen-keys` (the key rail and
-   what its keys do), `screen-layout` (the board's children and the scrim)
-   and `screen-run` (the tick, the frame loop, the vein's and the sign's page
-   listeners, the store subscription and the fonts re-measure).
-   `mountain-screen-order.test.ts` pins the order the parts register their
-   listeners, the effect row's chips and the root's children. Panels are
-   their own modules with a `create…Panel` factory returning their elements
-   and a `render()` (`upgrades-panel`, `relic-panels`, `welcome-panel`, `ledger-panel`, `crew-panel`, `workshop-panel`, `arrival-panel`). The eight board cards (#464, #466) are built
-   on one shell, `board-card`: `welcome-panel` (welcome back), `arrival-panel`
-   (the layer card and craft done), `save-conflict-panel` (the save conflict),
-   `screen-prompts` (the other tab and the update), `saved-copies-panel`
-   (Saved copies: an inset per copy, built once per copy and rewritten line
-   by line, in a list that scrolls inside the face) and `legacy-panel` (Pass
-   the mine, an alert dialog; Escape is Not yet). What the welcome,
-   layer and craft-done cards show comes from `card-views`, pure and with no
-   DOM: `welcomeView`, `welcomeNews` (the one rule for when the welcome has
-   news, which `arrivalCard` also reads) and `arrivalCard` (the layer card,
-   else craft done, else none). The shell is a shaded `div.board-card` with
-   today's hook class, title id and `data-card`, a framed face, `cardLine`
-   and `cardArt` (2x), big plates (`plate`) and other controls (`press`)
-   that press through `pressOnBoard` on the card's own layer, `show(on,
-focus)` (`showCard`, the model's open or close, and the focus once as it
-   opens) and `page()` (a new screen that settles again: the conflict's
-   confirm, and the next band or craft on a card that is already up). A card
-   the player opened (Saved copies, Pass the mine, #466) passes `dismiss`,
-   which Escape runs, and `from(opener)`: hidden while the focus is on it,
-   the card gives the focus back there. `cardLines` rebuilds a box of lines
-   only when its words change (the welcome's news, the Legacy's rates). The
-   cards stand at one z-index in the root's order
-   (`screen-panels#cardsFrom`); only the save conflict stands higher. Every drawer, the relics drawer (#465) too, sits in the drawers'
-   clips above the cards: a card that comes up closes any open drawer by
-   program (`screen-overlays`), and the relic reveal waits while a card is
-   up, so a card is never under a drawer. Shared player-facing wording lives in `screen-words`. The screen's optional `signal` (tests
-   pass one; the app never unmounts) takes off everything it hangs outside
-   its own elements: the tick, the frame loop, its document and window
-   listeners (the note's, the save line's and the drawers' too), and its
-   store and account watches.
-   The screen has one repaint, `paint()` (#427). The store subscription, every
-   panel's `requestRender` and the 1s tick (`progress.tick()`, the vein's
-   step, then `paint()`) all call it, so every Running now clock, a boost's
-   chip included, ticks each second on every save, crew or none. It paints in
-   a fixed order: the board (stones, window, gauge row, bays, Ready row, Buys,
-   vein, guide, materials), the panels, the Running now chips, the relic plate
-   and the rest, then the overlays (the New sign, the covers and the key rail).
-   The panels paint before the New sign, so a card opened in that paint holds
-   the sign back. Each paint is safe to repeat: a card takes focus only when
-   it opens, and the materials line is rebuilt only when its chips change, and the saved
-   copies card builds each copy's inset once and rewrites only the lines that changed.
-   Three small modules carry the screen's decisions: `card-state` is the cards'
-   shown state (`showCard` writes it, for the board cards through
-   `board-card`'s `show`; `cardUp` reads it), `screen-cover`
-   decides from the screen's `cards`, the board's drawers and the note whether
-   to close the drawers, put the note and sign away, or hold the sign
-   (`coverFor`), and which New sign is wanted (`wantedSign`), and
-   `screen-chips` gives the Running now labels for the crafts and the bench.
-   The control board (#370) is its own set of modules. Pure rules with unit
-   tests: `board-fit` (the scale that fits the 424×924 stage inside the
-   window and its `env(safe-area-inset-*)`, read back through a hidden
-   probe; 1 at 424×924 with no insets, so the art stays at exactly 2×),
-   `board-skin` (the 9-slice plan that draws a frame, tag or key skin, or the
-   output gauge's counter window, on a canvas behind its element; `skin` is told whether its host is down, so a plate key's press repaints its pressed skin), `odometer` (the five drum faces for a
-   pocket) and `crew-boost` (the crew timer the crew is running at, and the
-   dial frame; a running Gold rush comes first as its own `rush` kind, with the held stones still to come, #468, #525; `strongestCrewTimer` and `boostRanOut`, the timer that just ran out on its clock in play and left the crew slower, #527). DOM parts take `getView` and callbacks like a panel:
-   `board-note` (the floating framed note, placed in board coordinates; a
-   note that holds a key stays up until the key, an outside pointerdown, or
-   Escape; a show with no `ms` and no key has no timer and stays until
-   something hides it, and `hideIf(body)` hides only a note still showing
-   that body, which is how the bays' thanks ends), `board-stock` (the odometer's drums and spend mark, and the
-   boost dial), `board-relics` (the relic plate: six sockets, their notes
-   with the Relic shelf key, and the tag) and `board-save` (the save line,
-   which keeps `.save-status` with `data-kind` and `data-log`, and its save
-   drawer). `main` calls `trackBoardFit`, which keeps `--board-scale` in
-   step with the window and its safe area on resize. The game is phone-only
-   (#498): a wider window, such as a PC's, gets the same board, scaled to fit
-   and centred on the night; the PC desk and housing of #376 are gone. The app's styles
-   are `src/tokens.css` and `src/board.css`: `style.css` is gone (#376), and
-   the page's base rules (the reset, `html, body` in the board's night and
-   ink, the body's font) open `board.css`.
-   The gauge row (#371) adds three more. Pure rules: `output-gauge` (the
-   unit step for a rate, the needle's angle, its damped spring on 5° frames
-   and the five-character counter), `crew-count` (the crew plate's numbers:
-   the whole crew and its free hands, from `effectiveRates`), `haulage` (the
-   miner's tub run between the cage and the face, a reducer on the mockup's
-   timers) and `mine-window` (the view per band, `windowScene`, the beats
-   when a tier's count rises, the vein's and the dig puff's places, and the
-   machines' timers). DOM parts: `board-gauge` (the output gauge and the
-   crew plate) and `board-window` (the window: the view, its machines and
-   the run on hard steps, the dig's puff and "+N", the vein over the view,
-   and the Legacy plate; `runBoardLoop` steps it and the needle once a frame,
-   capped at 0.1s; the bays' drill icon steps on it too). The window's only input is a `WindowScene` built by
-   `windowScene(mountain, trouble, now)` (`now` lights the Gold rush's
-   sparkle, #468); it calls `onDig` and `onVein` and never
-   writes the mountain. Until its first render (a signed-in save still
-   loading) the window is its frame and glass on the dark: no view, machine,
-   kid or run. `reducedMotion()` in `float-text` holds the window and the
-   needle still; it makes one `MediaQueryList` and reads its live `.matches`
-   each frame.
-   The middle of the board (#372) adds three DOM parts. `board-bays` is the
-   band tag and three bay buttons (lamp, icon, name, sub-line, flap counter
-   and price); it draws `bayViews` and passes taps on, and keeps each bay's
-   element for the board's life; each bay presses through `pressOnBoard`
-   as a board control, and its "Fixed!" thanks is painted on the board note
-   from the model's `fixed` (#426). `board-ready` is the Ready now plate
-   and the red DIG button (its press frames and the By hand tally). The
-   plate presses through `pressOnBoard` and paints its Done from the
-   model's hold (judged by when the finger came down), so a double tap buys
-   one. `trouble-tap` is the 600ms
-   hold-to-fix the Buys rows and the bays share. `mountain-screen` computes
-   `readyNow(view.mountain, now(), view.trouble)` (`readyPick` in
-   `screen-dig`) once per paint and hands
-   it to the plate and the bays; a tap on the plate reads the rule again
-   from the store's snapshot, never the painted pick, and buys through
-   `buyWithTeach` (in `crew-panel`), the Buys row's mutation, so a buy from
-   the plate is the same buy as one from Buys. A Saving for tap opens Buys.
-   A drawer's opening is the board model's (#425): the model stamps when it
-   opened from shut on the host's clock (`performance.now` by default, not the
-   game clock a gate run stops), and a row pressed within `DRAWER_SETTLE_MS`
-   (400ms) of the opening hires and buys nothing, so the second tap of a
-   double tap on the plate or a bay never spends.
-   The key rail and the drawers (#373) add six more DOM parts.
-   `board-dom` holds the shared `el`, `write`, `setAttr` and `frameX`
-   helpers, `scrollIntoList` (brings a row into its list's view by
-   scrolling the list alone, never the board's clip) and `fitFirst`, a
-   measure-once line fitter: it writes the first
-   fit option that fits, keeps the fit only once measured on a laid-out box,
-   and drops it when fonts settle. `writeFigures` (#506) writes a line with
-   each figure in a `b.board-fig`, bold and bright among quiet words; the
-   bays' sub-lines and a row's info line are fitted with it, so a line is
-   measured as it is drawn. A row's info line takes two lines (`is-roomy`,
-   measured with `fitsBox`) when no need and no why is under it, and its
-   info and flag are fitted again when the words beside them change. `board-row` is one drawer row (lamp,
-   icon, name and badge, info, need, why, flag, gain, price tag and verb),
-   built once and reused, writing only what changed; its icon is 64, 48 or
-   32px (`iconPx`), and `rowBar` / `paintRowBar` are the one thin bar at a
-   row's foot, the Workshop bench's and the Ledger relics row's (#375). It is a painter of the
-   board model's view (#425): `rowsOnBoard(board, layer)` takes a drawer's
-   rows on a `BoardHost`, subscribes once for all of them, and paints "Done"
-   and the red blink frames from the view. It sends the model each press with
-   when the finger came down, and tells it the result (`applied`, `refused`
-   or `fixed`), and the model decides whether the press acts. `forget()`
-   drops every row's finger-down time when the drawer moves on.
-   `board-host` is the one place the model meets the clock: it keeps the
-   model's state, steps it on every input and press, and holds the single
-   timer that wakes the painters when the view next changes (a hold ending,
-   a blink frame, a thanks going). `eventAge` reads how long an event waited
-   before its handler ran, so a busy phone's late handler still judges by
-   when the finger came down. `board-drawer` is
-   `createBoardSheet` (the shell: head with the "i", the list, the spare
-   plate, Back, the slide, Escape and the thanks) and `createSheetScrim`
-   (the board above the drawers: a tap closes them, and over a relic socket
-   also shows its note). The shell holds no timer and no judge: it sends the
-   model `open`, `close`, `page` and `layout` and paints the view.
-   `BoardSheet.page()` (#374) is the one way a panel says "a new screen under
-   the finger": it starts the settle as the "i" does, so the next finger is
-   the second tap of the one that changed the screen. Each head key (Buys'
-   amount key, the Ledger's Sound key) carries `board-sheet-key`. Each
-   close says what closed it: `finger` (Back, the "i"'s way back),
-   `keyboard` (Escape), `tap-through` (the scrim, which hands its tap on) or
-   `program` (a timer, a card that covers the drawer). A close that restores focus gives
-   it to the key the drawer opened from, or to the shell's `fallbackFocus`
-   while that key is disabled; a `restoreFocus: false` close never moves it,
-   so a card that covered the drawer keeps its own. Escape listens in the capture
-   phase, so with the save drawer over a drawer it closes only the save
-   drawer. `board-how-art` draws the How it works cards in the
-   drawer skin with the board's icons at 2x (the Workshop's hammer, a
-   24-art-px relic, at 48). `board-keys` is
-   `createKeyRail`: five keys that draw `keyViews` and pass taps to
-   `onKey`. The rail root has one capture-phase `pressOnBoard` listener
-   that reads which key a click pressed; the model's decision (a press in
-   the settle after Back closed a drawer is ignored, named fix 1) decides
-   whether the click goes on to the key. `board-sign` is the slim New sign over a key. `crew-panel`
-   builds Buys and `upgrades-panel` builds Upgrades as `BoardSheet`s of
-   `board-row`s, each painting from the model. Buys sends its layout (its
-   parts in order and its chip rows) as the drawer opens, and the model
-   freezes it: rows, sections and chip rows keep their places while the
-   drawer is open, a row it no longer sells blinks, and words still change
-   in place. Upgrades keeps its row order through a reload: `upgradesOrder`
-   (in `upgrades-panel`) works the order out, every part in it shown or not,
-   and the panel sends it as the drawer opens. Row visibility can still
-   change on a re-load. The Buys parts are small modules:
-   `buys-amount` (`createAmountKey`, #358: the head's ×1 / ×10 / Max key,
-   pressed through the board's model like the "i" and kept in the device
-   storage beside the vein wait, never in the save; the shell places it with
-   `createBoardSheet`'s `headKey`), `buys-rows` (each row's view, for the
-   amount: the quote's count and total), `buys-tap` (`buysTap`: what a tap on a
-   row does once the model lets it act, read again from the store at the
-   tap), `crew-chips` (the crew line's chips: laid out in the fewest even
-   rows that fit, then frozen with only their words changing) and
-   `crew-rate` (`createRateCounter`: the crew line's rate counting up to its
-   new value after a buy, 8 steps of 60ms, or at once under reduced motion).
-   `workshop-panel` builds the Workshop drawer (#374) the same way, from
-   `workshop-rows`' views and `workshop-parts` (the material plates, the bench
-   row with its bar and its cancel confirm, the Earlier / More to make pager;
-   only the Workshop has them, so `board-row` and
-   `board-drawer` stay generic). It sends its order, the recipes as
-   `workshopOrder` ranks them, as the board model's `layout` for "workshop",
-   frozen as the drawer opens; pages slice that order, three recipes a page.
-   A tap on a busy bench arms the cancel and calls `page()`, so only a tap
-   past the settle cancels; left alone it disarms after 4s, at once when the
-   craft it was armed on (its recipe and start) goes, and when the screen's
-   `signal` aborts. The timers line keeps its room when empty (`is-empty`,
-   hidden by visibility), so no row moves as a timer starts or ends. Turning a page
-   calls `page()` too. Every craft and cancel is today's move (`craft`,
-   `cancelCraft`) through `dispatch`. Its one door is the Workshop key (the
-   menu's Workshop row went with the menu, #375). Back
-   returns focus to the Workshop key, or to the Ledger key (the shell's
-   `fallbackFocus`) while a re-load holds the Workshop key disabled. A save that turns out locked
-   closes it. `ledger-panel` builds the Ledger drawer (#375) the same way,
-   from `ledger-rows`' pure views (`tonightLines`: this run's field log
-   since the last Start over or pass, newest three, each code worded by one
-   table or skipped; `stonesRowView`, `relicsRowView`, `accountRowView`) and
-   `ledger-parts` (the Tonight box, the four plates and the two pages; only
-   the Ledger has a log box, a plate grid or a page that asks). Its head key
-   is `sound`'s (#491): `soundSetting` reads and keeps this device's choice
-   (`dad-friendly-sound`, beside the Buys amount, never in the save; Quiet
-   when the store throws), `createSoundKey` turns it through the board's
-   model, and `playHammer` is the knock. `screen-panels` makes the one
-   setting and hands it to the Ledger and to the Workshop, whose craft
-   knock reads it. The Ledger's parts never reorder, so it sends no `layout`. A page goes in the list's place
-   through `BoardSheet.showPage(page)` (#375): the head and Back stay, it
-   calls `page()` so the settle starts again, and it focuses the page's
-   first control; `showPage(undefined)` and `close` bring the list back.
-   Start over asks on one page (Keep first, so it takes the focus; Yes calls
-   `progress.startOver()`; once the new run has started it calls
-   `onStartOver` and closes onto the Ledger key, and if it was refused the
-   page says `SAVE_CONFLICT_ERROR` instead, as the Pass the mine card does); the field log shows on the other when `writeClipboard` says no.
-   Copy field log's `Copied` is the board model's `result` and hold, as a
-   row's Done. Saved copies and Pass the mine close the drawer without
-   moving focus and open their board cards (#466), which give the focus
-   back to the Ledger key when they close. Tonight
-   reads `progress.tonightEvents()` only while the drawer is open: the
-   ring's events since its mark. A run's start, a reload, and a copy from
-   elsewhere taking the mountain's place (a restore, the cloud's or another
-   device's copy) move the mark up, while the field log keeps them all. Another
-   account's save loading leaves the drawer open with the mine rows dark and Copy field
-   log, Start over and Yes disabled; the account row stays live. When the
-   account changes, the Start over page gives the list back; the same
-   account reported again leaves it as it was (#481). A clipboard answer that comes after the drawer shut shows
-   nothing. The five drawers
-   and the scrim sit in `.board-sheet-clip` at z 29, under the board note
-   (30) and the save drawer (31). The clip is `overflow: clip`, so nothing
-   (not even script) can scroll it. Opening one drawer closes the others
-   (`wireKeys` in `screen-keys` closes every other drawer in one record,
-   Engineers too since #455). `engineers-panel` takes a `door` (the
-   Engineers key) instead of building its own button; it and the Ledger
-   are drawers whose shell writes their key's `aria-expanded`, as the
-   others' do. `DRAWER_SETTLE_MS` (400ms, from `board-interaction`) is every
-   drawer's guard, B4's Buys settle carried into the model, judged for the
-   whole drawer. The rows (through `buyOnTap`) and Back, the "i" and the how
-   cards' Back (in the shell) each keep their own press with `card-tap`'s one
-   `trackPress` (the keys, plate and bays use `pressOnBoard`, which wraps it): a press is judged by when its finger came down, and a
-   finger's click (`detail` not 0) with no pointerdown of its own by the
-   click's age, since a touch's click lands where the finger lifts, on a row
-   that may have slid under it as the drawer rose. So the
-   second tap of a double tap on a key, a bay or Saving for never buys or
-   closes. A keyboard press (`detail` 0) is never early. Buys' footnote
-   stands in the drawer's footer, over Back, and steps aside on an opening
-   whose list it would push into a scroll.
-   The red button calls the same `dig()` as the window, and the window shows
-   the "+N". Until the save is in (a second load after sign-in or a user
-   switch included) the bays, the plate and the red button show only their
-   frames and art.
+   page. Today's board, its composition root (`mountain-screen` and its
+   `screen-*` parts) and the panels only it used (the key rail, the bays,
+   Buys, the gauge row, the Ready row, the crew, Engineers, Workshop, relic,
+   welcome and arrival panels) are deleted (#727). What the frame still
+   shares with it:
+   - **The board's model.** `board-host` is the one place the model
+     (`board-interaction`) meets the clock: it keeps the model's state, steps
+     it on every input and press, and holds the single timer that wakes the
+     painters when the view next changes (a hold ending, a blink frame, a
+     thanks going). Its clock is `performance.now` by default, not the game
+     clock a gate run stops. `eventAge` reads how long an event waited before
+     its handler ran, so a busy phone's late handler still judges by when the
+     finger came down. Every press keeps `card-tap`'s one `trackPress`
+     (`pressOnBoard` wraps it for a control on the board's layer): a press is
+     judged by when its finger came down, and a finger's click (`detail` not 0) with no pointerdown of its own by the click's age. A keyboard press
+     (`detail` 0) is never early. `DRAWER_SETTLE_MS` (400ms) is every
+     drawer's and card's guard: a press within it of an opening, or of a
+     `page()`, does nothing, so the second tap of a double tap never acts.
+   - **Drawers.** `board-drawer` is `createBoardSheet` (the shell: head with
+     the "i", the list, the spare plate, Back, the slide, Escape and the
+     thanks) and `createSheetScrim` (a tap closes the drawer). The shell
+     holds no timer and no judge: it sends the model `open`, `close`, `page`
+     and `layout` and paints the view. `BoardSheet.page()` says "a new screen
+     under the finger" and starts the settle again; `showPage(page)` puts a
+     page in the list's place (the head and Back stay) and focuses its first
+     control. Each close says what closed it (`finger`, `keyboard`,
+     `tap-through` or `program`); one that restores focus gives it to the key
+     the drawer opened from, or to `fallbackFocus` while that key is
+     disabled. Escape listens in the capture phase, so with the save drawer
+     over a drawer it closes only the save drawer. `board-how-art` draws the
+     How it works cards in the drawer skin. `board-row` is one drawer row
+     (lamp, icon, name and badge, info, need, why, flag, gain, price tag and
+     verb), built once and reused, writing only what changed, and painting
+     "Done" and the red blink from the model (`rowsOnBoard`). `row-view` is
+     its view type (the one lamp rule in `docs/DESIGN.md`, #509).
+     `board-dom` holds the shared `el`, `write`, `setAttr`, `scrollIntoList`,
+     `fitFirst` (a measure-once line fitter) and `writeFigures` (#506: each
+     figure bold and bright among quiet words) helpers.
+   - **Cards.** The board cards (#464, #466) are built on one shell,
+     `board-card`: `save-conflict-panel` (the save conflict),
+     `screen-prompts` (the other tab and the update, mounted by
+     `frame-save-cards`) and `saved-copies-panel` (Saved copies: an inset per
+     copy, built once per copy and rewritten line by line, in a list that
+     scrolls inside the face). The shell is a shaded `div.board-card` with
+     its hook class, title id and `data-card`, a framed face, `cardLine` and
+     `cardArt` (2x), big plates (`plate`) and other controls (`press`) that
+     press through `pressOnBoard` on the card's own layer, `show(on, focus)`
+     (`showCard`, which writes `card-state`, and the focus once as it
+     opens) and `page()` (a new screen that settles again). A card the
+     player opened passes `dismiss`, which Escape runs, and `from(opener)`:
+     the card gives the focus back there. `legacy-panel` keeps the Pass the
+     mine card, which nothing mounts in a fresh mine; it goes with the pass
+     and Legacy (#729).
+   - **The Ledger.** `ledger-panel` builds the Ledger drawer (#375) on the
+     shell, from `ledger-rows`' pure views (`tonightLines`: this run's field
+     log since the last Start over, newest three, each code worded by one
+     table or skipped; the mine's rows, the account row) and `ledger-parts`
+     (the Tonight box, the plates and the two pages, on `board-page`). Its
+     head key is `sound`'s (#491): `soundSetting` reads and keeps this
+     device's choice (`dad-friendly-sound`, never in the save; Quiet when the
+     store throws), `createSoundKey` turns it through the board's model, and
+     `playHammer` is the knock. Start over asks on one page (Keep first, so
+     it takes the focus; Yes calls `progress.startOver()`, then closes onto
+     the key, and if it was refused the page says `SAVE_CONFLICT_ERROR`
+     instead); the field log shows on the other when `writeClipboard` says
+     no. Copy field log's `Copied` is the board model's `result` and hold, as
+     a row's Done. Saved copies closes the drawer without moving focus and
+     opens its card, which gives the focus back to the key. Tonight reads
+     `progress.tonightEvents()` only while the drawer is open: a run's start,
+     a reload, and a copy from elsewhere taking the mountain's place move its
+     mark up, while the field log keeps them all. Another account's save
+     loading leaves the drawer open with the mine rows dark and Copy field
+     log, Start over and Yes disabled; the same account reported again leaves
+     it as it was (#481). A clipboard answer that comes after the drawer shut
+     shows nothing. `frame-ledger` mounts it on the frame (below), and
+     `ledger-panel.test.ts` plays it there.
+   - **The rest.** `board-save` is the save line (it keeps `.save-status`
+     with `data-kind` and `data-log`) and its save drawer. `board-fit` is the
+     scale that fits the 424×924 stage inside the window and its
+     `env(safe-area-inset-*)` (1 at 424×924 with no insets, so the art stays
+     at exactly 2×); `main` calls `trackBoardFit`, which keeps
+     `--board-scale` in step with the window. The game is phone-only (#498):
+     a wider window gets the same board, scaled and centred. `board-skin` is
+     the 9-slice plan that draws a frame, tag or key skin on a canvas behind
+     its element. `board-relics` and `board-note` are the relic art and its
+     floating note, which the How it works cards and the Ledger still read.
+     `board-window`, `mine-window`, `haulage` and `float-text` draw the old
+     window's view and machines, which `scene-paint` reuses. `buys-amount`
+     is the device's one amount (`deviceAmount`, `paintAmountKey`), kept in
+     device storage, never in the save. `upgrade-rows` is the upgrade rows'
+     view the stage list reads. Shared player-facing wording lives in
+     `screen-words`. The app's styles are `src/tokens.css` and
+     `src/board.css`.
 
 ## The save (#558)
 
@@ -551,21 +360,16 @@ paths are read-only.
   and vein taps, the guide bar, save status, and wiring the panels. It has since
   regrown to about 1,240 lines, with `mountMountainScreen` at 1,112. #411 moves
   its interaction rules out. #431 split the rest into `screen-*` modules:
-  `mountMountainScreen` is a composition root within 150 lines.
-
-- **Local spends (#370, #409):** the odometer shows a spend only for the
-  player's own moves. `screen-context` hands every panel one `Dispatch`
-  wrapper around `progress.dispatch`: a move that applied with `spent.stones >= 1`
-  rolls the spend mark and kicks the needle. A cloud copy, a chosen or
-  restored copy, Start over or Pass the mine never comes through it, so
-  `renderStock` only sets the drums and the dial.
+  `mountMountainScreen` is a composition root within 150 lines. The board,
+  `mountain-screen` and its parts were deleted in #727.
 
 - **Board tap rules (#410, #425, #426):** `board-interaction` is a pure reducer that
-  holds the board's tap rules once, run through `board-host`. The Buys,
-  Upgrades and Workshop drawers, their shell and their rows, the key rail, the Ready now
-  plate and the machine bays are painters of its view: they send it inputs
-  and presses and read `boardView`; none holds a settle, a hold, a timer or
-  a freeze of its own. Every board control's "is down" look goes through `pressLook` (in `card-tap`), and each part paints its own look; the Engineers rows and plates use it too since #455, so its old timed `is-pressed` flash is gone. `pressOnBoard` (in `card-tap`) is the one board
+  holds the board's tap rules once, run through `board-host`. The Ledger
+  drawer, its shell and rows, and the board cards are painters of its view
+  (the Buys, Upgrades and Workshop drawers, the key rail, the Ready now plate
+  and the machine bays were too, until #727): they send it inputs and
+  presses and read `boardView`; none holds a settle, a hold, a timer or a
+  freeze of its own. Every board control's "is down" look goes through `pressLook` (in `card-tap`), and each part paints its own look; the Engineers rows and plates use it too since #455, so its old timed `is-pressed` flash is gone. `pressOnBoard` (in `card-tap`) is the one board
   press: it tracks a control's finger-down time, sends the model the press
   (the control, who pressed, the finger's `downAt` and the click) and hands
   back its decision. Its `control` is a `ControlRef` or a function of the
@@ -615,52 +419,11 @@ paths are read-only.
   invariants: no act inside a settle or a hold, and no open drawer's rows
   move. It has a 100% coverage floor.
 
-- **Panel contract:** a panel gets `dispatch` (its only way to change the
-  game), `getView`, `now` and a `requestRender` callback, and `progress` only
-  where it still reads the store or presses trouble. The Buys and Upgrades
-  panels also get `board`, the `BoardHost` they share with the screen, the
-  one place taps are judged (`overSave` tells them the save drawer is over
-  them, `door` is their key, `signal` ends their listeners); it never reads another panel's elements, and it
-  owns its open/closed state. The key rail uses those gates: the Workshop
-  key stays locked until `workshopUnlocked`, Engineers until the first
-  borer. Buys, Upgrades and Ledger open from the first screen. The board's parts sit round the
-  panels: `#app` is the 424×924 stage, the board's top (relic plate and
-  stock row) and the save line are absolute children of it, and the
-  panels' column flows between them through `#app`'s padding. The relics
-  drawer opens from a socket note's Relic shelf key; opening a sheet, the
-  relics drawer or another drawer closes the board note and the save drawer. The gauge
-  row (`.board-gauge-row`, `--gauge-row-h`, 176 to 414px) is another
-  absolute child, under the board's top: the output gauge, the mine window
-  (`.board-mine`, its `.board-window` button and the `.golden-vein`) and
-  the crew plate (`.board-crew`). The bays (`.board-bays` at `--bays-top`,
-  430px; their band tag rises to 420) and the Ready row
-  (`.board-ready-row` at `--ready-top`, 644px: the plate and the red
-  button) are absolute children too. The key rail (`nav.board-rail` at
-  `--rail-top`, 768px, #373) is another, between the Ready row and the
-  sheet clip: five `button.board-key[data-key]`, each with `aria-expanded`
-  and `aria-haspopup`, ending at least 8px above the save line. The column
-  starts at `--column-top`, which is `--rail-top`. The New teach note is a
-  slim sign (`board-sign`) over its key, with `pointer-events: none`; its
-  words go on the key's label. The Buys, Upgrades, Workshop, Engineers and Ledger drawers
-  (`.board-drawer.board-sheet[data-sheet]`, open with `.is-open`) stand
-  at `--sheet-top` (178px) down to the save line, so they cover the bays,
-  the plate and the rail and leave the odometer in view. The crew line (`crew-panel`'s `section.crew`: sentence, chips and
-  Grandpa) is the "Crew" section at the top of the Buys drawer; Buys calls
-  `layoutChips()` as it opens, so its chips are measured at the drawer's
-  width, and while it is open the chip rows never wrap. A drawer's list
-  scrolls inside itself only when it is longer than the drawer (C1:
-  late-game Buys, a full Upgrades), with the spare plate off; the page
-  never scrolls. A crew line that does not fit splits into even rows. An
-  unlocked row keeps its price, effect, and why when the pocket is short.
-  A locked row says Locked. Tapping the row buys. A drag that scrolls the
-  list does not. Boost, expedition, craft, and bench countdowns
-  share the effect row, which is the body of the boost dial's Running now
-  note, one per line. Every active one stays visible. The Ledger drawer, behind the
-  Ledger key, holds the mine: stones left, materials, and the next-relic goal, read from
-  `relicGoal()` in `relics` (#336). The band shows in the mine window's
-  view (`mineView(band)`); there is no tint module (`mountain-tint` went
-  with the rock in #371), and no `tap-float`: a dig's "+N" is the window's
-  own.
+- **Panel contract (gone with the board, #727):** the board's panels got
+  `dispatch`, `getView`, `now` and `requestRender`, and laid out round the
+  board's absolute children (the top, the gauge row, the bays, the Ready row,
+  the key rail). The frame's sheets paint pure views instead (Slice 1's
+  frame, below); the Ledger drawer keeps the panel shape.
 
 ## Guards (#118)
 
@@ -897,18 +660,9 @@ field-log` lists every log; `--uid` or a positional uid reads one. The default
   back), `expedition.send`, `expedition.return` (find id in `source`; `quiet`
   when the tunnel was empty), `expedition.recall`, `trouble.start`,
   `trouble.fix` (`hand` or `engineer`), `layer.enter` (the band id), `craft.start` (the recipe id),
-  `craft.done` (the recipe id and the new level). A layer card and a craft-done
-  card (`card-views#arrivalCard` picks which) are session news, like a relic reveal: the baseline is the loaded save,
-  so a band you already sit in, or a craft already fitted, is not announced
-  again after a reload or another absence. An absence that does break into a
-  band, or finish a craft, folds that line into the welcome card. A compact
-  machine card always shows the gain of one more (`+N · total/s`) and the
-  workers one more needs, from `staffForBuy` (the tier's `staff`, or
-  `TENDED_MACHINE_STAFF` when an engineer would tend the Great Machine; values
-  in [Numbers now](DESIGN.md#numbers-now)). Short hands read `Needs N workers ·
-M free`. The crew line, in the Crew section at the top of Buys, names where
-  the workers are in its chips; a line that does not fit splits into even rows,
-  and the crew plate on the board is the only free count (#371). The Ledger
+  `craft.done` (the recipe id and the new level). The board's layer,
+  craft-done and welcome cards, its machine cards and its crew line went with
+  the board (#727). The Ledger
   drawer's Quiet/Sound head key is the only sound control (`sound`, #491). Trouble stays out of the
   snapshot: it is never saved. Choosing a post while a party is out records the
   recall and, when the new post is not the one they left, the station.
@@ -1000,47 +754,12 @@ M free`. The crew line, in the Crew section at the top of Buys, names where
   makes golden veins more often for good. The engineer's kit shortens the next
   expedition. Strength and cost factors (`recipe.<id>.strength`,
   `recipe.<id>.cost`) default to 1; strength also scales a timed buff's length.
-  Built (#196, #198, #210). The Workshop is `workshop-panel` (#199; a board
-  drawer since #374, above): opened from the Workshop key on the rail (locked
-  until the Granite's clay, #373), its one door. Three recipes a page, so
-  the list fits the drawer with no scroll (the #347 measure-then-page went),
-  real costs and effects, a red blink when a craft cannot start, a quiet hammer
-  until Sound is on, and a cancel on the bench row that names the refund. A
-  grease or charge row says "Crew already at ×2" when another crew timer is
-  already that strong, and otherwise names the crew in whole stones like the
-  header (`formatCrewSpeed`, #332). The countdown keeps running while the drawer
-  is shut.
-- Panels: `engineers-panel` is the Engineers drawer (#161, a board drawer
-  since #455) on `createBoardSheet`: its list (a row per engineer from
-  `engineer-parts#createEngineerRows`, with the walk home in her icon cell
-  while she is out, Brought home, and Promote as a buy row) and its pages,
-  swapped with `showPage` (her page of posts with its two plates, the
-  tunnels, Brought home's stories, and the recall and promote asks on
-  `board-page`, the page that asks shared with the Ledger). The pure views
-  are `engineer-rows`: each row's and page's view, the teach chain
-  (`engineerTeach`), the kicks (`listKick`, `pageKick`), `settlePage` (a page
-  whose engineer has gone, or a trip that has ended, falls back to her page
-  or the list) and the lookups a press reads (`findHer`, `askedPrice`). A
-  page names its engineer, never her index. Presses go through the board
-  model's `rowsOnBoard` and its settle; a post that lands and a new engineer
-  hold their row's Done, and a cheer stands in the drawer's kick for 2.2s
-  (`BoardSheet.cheer`). A post calls `station(recall(...))`, so a party is
-  never left without its engineer. Step up checks the price again and pays
-  only the price the row showed when he tapped it (#367). Back, the scrim and
-  Escape close the whole drawer from any page. The gains on posts, the duty
-  kick and the cheer show the live stones/sec from `tendingGain`. No new save
-  field. The expedition chips (`engineer-parts#createExpeditionChips`) stay
-  in the Running now note. `progress-store` keeps `homecomings` until the
-  welcome card closes, and writes them under `dad-friendly-homecomings` so a
-  reload after a hidden settle still shows the card. The card names who came
-  back and what they found, closes any open drawer as every self-opening
-  card does (`coverDrawers`), and a live return uses it with no away report.
-  Becoming visible settles at once. The layout check covers the drawer's
-  states (above) and the welcome card with a find (the
-  `board cards` table's `welcome find`). Trouble
-  is shown on the machine's bay and on its row in the Buys drawer (`crew-panel`,
-  #373): a warm shout ("Cave-in! · Hold to fix"), five taps or a short hold,
-  then "Fixed! The crew cheers." in the drawer's kick. A tier with no bay lights
-  the Buys key's red lamp. The layout check covers that row at 424×924,
-  including the installed PWA. Built (#149).
+  Built (#196, #198, #210). Its drawer, `workshop-panel`, went with the
+  board (#727); a craft's countdown runs on the mountain's clock.
+- Panels: the Engineers drawer (`engineers-panel`, #161), its rows and
+  pages, the welcome card's homecomings and trouble's shout on the bays and
+  Buys rows went with the board (#727). The rules stay in the model until
+  #665's later slivers: a post calls `station(recall(...))`, so a party is
+  never left without its engineer, and trouble is fixed by five taps or a
+  short hold (`hazards`). Built (#149, #161).
 - Designed twice: expeditions as a negative-speed tier in `TIERS` was rejected (it leaks into buying, cards and the sim's value function). Separate modules that feed `effectiveRates` keep it the one place multipliers meet.

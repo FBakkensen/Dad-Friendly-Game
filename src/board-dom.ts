@@ -188,11 +188,7 @@ export function fitFirst(
  * Runs `fit` on `target` unless it last ran for the same `key` measured while laid out; a
  * refit (refitAll) measures again. fitFirst's cache, for a fit that is not a choice of words.
  */
-export function fitKept(
-  target: HTMLElement,
-  key: string,
-  fit: () => void,
-): void {
+function fitKept(target: HTMLElement, key: string, fit: () => void): void {
   if (fitted.get(target) === key) {
     return;
   }

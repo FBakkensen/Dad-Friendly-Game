@@ -40,7 +40,7 @@ const SAVE: readonly RegExp[] = [
   /^src\/[^/]*save[^/]*\.ts$/,
   /^src\/(persist|phone-backup|cloud-writer|progress-store|server-read|tab-writer|tab-lease|log)\.ts$/,
   // The write path: per-dig and hide saves, and the boot that wires them.
-  /^src\/(store-(actions|session|context)|boot|main|mountain-screen)\.ts$/,
+  /^src\/(store-(actions|session|context)|boot|main)\.ts$/,
   /^firestore\.rules$/,
   /^firebase\.json$/,
   /^public\/sw\.js$/,

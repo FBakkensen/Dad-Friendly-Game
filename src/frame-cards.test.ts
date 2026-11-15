@@ -8,7 +8,7 @@ import { nightReport } from "./frame-cards";
 import { END_CARD, FIRST_EVENING } from "./frame-cards-words";
 import { mountFrameScreen } from "./frame-screen";
 import { FRESH_OFF } from "./line-switch";
-import { createMemoryStorage } from "./mountain-screen.harness";
+import { createMemoryStorage } from "./test-fixtures";
 import { createMountain, type Mountain } from "./mountain";
 import { createProgressStore } from "./progress-store";
 import { writeSessionSave } from "./session-save";

@@ -40,7 +40,7 @@ Each step prints one line, such as `ok    typecheck  4.1s` or `FAIL  lint  2.3s 
 
 Vitest has two projects (`vite.config.ts`). `unit` is every test file except `*.sim.test.ts`, and runs in about 20 s. `sim` is the `*.sim.test.ts` files: long economy runs, anything that plays the economy for over a second, whether in a test or at collect time in a `describe` body. `npx vitest run --project unit` runs one project; the full tier's coverage run takes both, and the coverage floors are measured over both together.
 
-Tests run in plain `node`. A test file that needs the DOM opens with `// @vitest-environment happy-dom`. A test that mounts the mountain screen stops it afterwards (`stopScreens` in `src/mountain-screen.harness.ts`), so its one-second tick does not run on into later tests.
+Tests run in plain `node`. A test file that needs the DOM opens with `// @vitest-environment happy-dom`. A test that mounts the frame passes `mountFrameScreen` a `signal` and aborts it afterwards, so its timers do not run on into later tests. Shared test helpers, such as the memory storage, live in `src/test-fixtures.ts`.
 
 ## Strategy lab
 

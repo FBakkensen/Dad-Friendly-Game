@@ -74,7 +74,7 @@ const MATERIAL_ORDER = [
 ] as const satisfies readonly MaterialId[];
 
 /** Three recipe rows a page, always: the fixed board needs no measuring (#374). */
-export const RECIPES_A_PAGE = 3;
+const RECIPES_A_PAGE = 3;
 
 export type MaterialChip = {
   readonly id: MaterialId;
@@ -110,7 +110,7 @@ export type RecipeCard = {
   readonly action: CraftAction;
 };
 
-export type HiddenCard = {
+type HiddenCard = {
   readonly kind: "hidden";
   readonly hint: string;
 };

@@ -107,7 +107,7 @@ The board's type is bundled, not loaded from Google: Barlow Condensed 500, 600 a
 
 ## The line: the hoist and the pit train (#535)
 
-Flemming approved these six files with the stage bays mock on 14 Nov 2026 (`mockups/line/`, pictures in `mockups/line/shots/`). They are copied, not moved, from `mockups/line/art/` into `src/assets/board/`. No code draws them yet: #537 puts them in the bays and #538 in Buys. The mock's page goes with the first of those that breaks it; `mockups/line/art/` (with the two init images named below) and `mockups/line/shots/` stay as the record. `shots/pictures.png`, the sheet the six files were approved on, was put together by hand from them and has no script.
+Flemming approved these six files with the stage bays mock on 14 Nov 2026 (`mockups/line/`, pictures in `mockups/line/shots/`). They are copied, not moved, from `mockups/line/art/` into `src/assets/board/`. No code draws them yet: #537 puts them in the bays and #538 in Buys. The mock's page went with the old board (#727); `mockups/line/art/` (with the two init images named below) and `mockups/line/shots/` stay as the record. `shots/pictures.png`, the sheet the six files were approved on, was put together by hand from them and has no script.
 
 | File                                  | Size  | Use                                                                                                                                                                                                            |
 | ------------------------------------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

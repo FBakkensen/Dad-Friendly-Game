@@ -18,7 +18,6 @@ import {
 import type { BoostId } from "./boosts";
 import { formatCompact, formatCount, formatDuration } from "./format";
 import { RUSH_MS } from "./gold-rush";
-import type { TroubleKind } from "./hazards";
 import type { LayerId, Materials, MaterialId } from "./layers";
 import type { Mountain } from "./mountain";
 import { AWAY_END_MS, effectiveRates, type Rates } from "./rates";
@@ -168,7 +167,7 @@ export const workerWords = (count: number): string =>
   count === 1 ? "worker" : "workers";
 
 /** "1 stone a second" or "6 stones a second": the crew line and Buys' aria. */
-export const stonesASecond = (rate: number): string =>
+const stonesASecond = (rate: number): string =>
   rate === 1 ? "1 stone a second" : `${formatCount(rate)} stones a second`;
 
 /**
@@ -187,12 +186,6 @@ export function crewMinesWords(
     ? `Your crew mines ${formatCompact(rate)} stones${unit}`
     : `Your crew mines ${stonesASecond(rate)}`;
 }
-
-/**
- * Buy UI, before and after the tap, when the next machine would sit idle.
- * No counts: the idle line already says how many.
- */
-export const NEEDS_MORE_WORKERS = "Needs more workers to run";
 
 /** "1%", "1.65%", "133%". Keeps a second decimal only when the tenth needs it. */
 const shareWords = (share: number): string => {
@@ -408,10 +401,6 @@ export const grandpaSentence = (post: TierId): string =>
 export const quietAwayWords = (stones: number): string =>
   `+${formatCount(stones)} ${stones === 1 ? "stone" : "stones"} while you were away`;
 
-/** The welcome card's titles: an away haul, someone came home (#464). */
-export const WELCOME_AWAY_TITLE = "While you were away";
-export const WELCOME_HOME_TITLE = "Welcome home";
-
 /**
  * The welcome card's big number and its unit, read together: "+1.2M stones", "+1 stone".
  * The card sets the unit smaller beside the number.
@@ -464,32 +453,8 @@ export function awayCheerWords(awayMs: number, band: LayerId): string {
   }
 }
 
-export const tapWords = (stones: number): string =>
+const tapWords = (stones: number): string =>
   stones === 1 ? "one stone" : `${formatCount(stones)} stones`;
-
-/** The card's shout. No counts, no timers. */
-export function troubleShout(kind: TroubleKind): string {
-  switch (kind) {
-    case "cave-in":
-      return "Cave-in!";
-    case "flood":
-      return "Flood!";
-    case "jam":
-      return "Jam!";
-  }
-}
-
-/** What a screen reader hears on a troubled card. No numbers. */
-export function troubleAria(
-  kind: TroubleKind,
-  tier: { readonly id: string; readonly name: string },
-): string {
-  const who =
-    tier.id === "machine"
-      ? "The Great Machine needs"
-      : `The ${tier.name.toLowerCase()}s need`;
-  return `${troubleShout(kind)} ${who} a hand. Tap a few times, or hold, to help.`;
-}
 
 export const TROUBLE_FIXED = "Fixed! The crew cheers.";
 
@@ -505,11 +470,6 @@ export const BACK_TO_THE_MOUNTAIN = "Back to the mountain";
  */
 export const CLOSE = "Close";
 
-export const ENGINEER_SHEET_TITLE = "Your engineers";
-
-export const ENGINEER_SHEET_SUB =
-  "Each one makes a machine better, or goes exploring for finds.";
-
 /** Posts the Tend list offers, in sheet order. A tunnel is not one of them. */
 export const TEND_POSTS = [
   "cart",
@@ -520,11 +480,6 @@ export const TEND_POSTS = [
 ] as const satisfies readonly EngineerPost[];
 
 export type TendPost = (typeof TEND_POSTS)[number];
-
-export const TEND_MACHINE = "Tend a machine";
-export const SEND_EXPLORING = "Send exploring";
-export const KEEP_EXPLORING = "Keep exploring";
-export const CALL_BACK = "Call back";
 
 export const PROMOTE_TITLE = "Promote a worker";
 export const PROMOTE_WHY =
@@ -645,8 +600,6 @@ const TUNNEL_BENEFIT: Readonly<Record<TunnelId, string>> = {
  * Stones a second, in the game's number format.
  * "+800 stones/sec", "+1.2K stones/sec".
  */
-/** A tending choice for a tier he has none of: no "+0", just the reason. */
-export const NONE_BUILT = "none built yet";
 
 export function stonesPerSecond(gain: number): string {
   return `+${formatCompact(Math.max(0, Math.floor(gain)))} stones/sec`;
@@ -1039,10 +992,6 @@ export const SOUND_ON = "Sound";
 export const WORKSHOP_EARLIER = "Earlier";
 export const WORKSHOP_MORE = "More to make";
 
-/** Upgrades sheet (#245): the line above a New card, and the quiet hint. */
-export const UPGRADES_INTRO = "Something new for the crew, right on top.";
-export const UPGRADES_MORE = "More open up as your crew grows.";
-
 /** A craft that spends no stones. The materials are the price. */
 export const CRAFT_WORD = "Craft";
 
@@ -1204,17 +1153,6 @@ export function refundBackWords(parts: readonly string[]): string {
  * economy; these lines are not that tuning.
  */
 export const WORKSHOP_TITLE = "Workshop";
-
-/** The Workshop drawer's resting kick (#374), the mockup's. */
-export const WORKSHOP_KICK = "One bench. Crafts finish while you are away";
-
-/** The legend over the Workshop drawer's recipe rows (#374). */
-export const RECIPES_LEGEND = "Recipes";
-
-/** The dark row for recipes not found yet (#374); today's hint is its info. */
-export const SKETCH_NAME = "Sketch";
-/** The one-time note above the bar (M11 #241, mocked on #240). */
-export const WORKSHOP_NOTE = "New · The Workshop is open";
 
 /** The Engineers note (#246), the same bar style as the Workshop's. */
 export function engineersNote(name: string): string {
@@ -1444,7 +1382,7 @@ export const MOCK_RECIPES = [
 ] as const;
 
 /** Pocket order: the shallow ore first. */
-export const AWAY_ORE: readonly MaterialId[] = [
+const AWAY_ORE: readonly MaterialId[] = [
   "clay",
   "iron",
   "crystal",

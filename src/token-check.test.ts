@@ -450,7 +450,7 @@ describe("token check", () => {
     }
     // As scripts/token-check.mjs reads it: the histogram diff.
     const diff = execSync(
-      "git diff --diff-algorithm=histogram origin/main -U20 -- src",
+      "git diff --diff-filter=d --diff-algorithm=histogram origin/main -U20 -- src",
       { encoding: "utf8" },
     );
     expect(

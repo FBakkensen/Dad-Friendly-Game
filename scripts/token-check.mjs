@@ -17,9 +17,10 @@ try {
 }
 
 // Histogram, not git's default: removing long runs of old rules made the default diff pair
-// unchanged lines with the removed ones and report them as added (#373).
+// unchanged lines with the removed ones and report them as added (#373). A deleted file adds
+// no CSS, so it stays out of the diff (#727 deleted a megabyte of the old board).
 const diff = execSync(
-  "git diff --diff-algorithm=histogram origin/main -U20 -- src",
+  "git diff --diff-filter=d --diff-algorithm=histogram origin/main -U20 -- src",
   {
     encoding: "utf8",
   },

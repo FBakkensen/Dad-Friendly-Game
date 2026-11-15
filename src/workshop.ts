@@ -686,7 +686,7 @@ export type HotTimer = {
   readonly until: number;
 };
 
-export function timerDurationMs(id: TimerId): number {
+function timerDurationMs(id: TimerId): number {
   const effect = recipeById(id).effect;
   switch (effect.kind) {
     case "charge":

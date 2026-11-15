@@ -1,7 +1,4 @@
-import type { BoardHost } from "./board-host";
 import { write } from "./board-dom";
-import { plateButton } from "./board-save";
-import { pressOnBoard } from "./card-tap";
 import type { BuyAmount } from "./tiers";
 
 /*
@@ -89,56 +86,4 @@ export function paintAmountKey(
 ): void {
   write(face, AMOUNT_WORDS[amount].face);
   root.setAttribute("aria-label", amountAria(amount));
-}
-
-export interface AmountKey {
-  readonly root: HTMLButtonElement;
-  /** How many a row's tap buys now. */
-  readonly amount: () => BuyAmount;
-  /** The drawer moved on: a press that never reached its click is dropped, as the rows' are. */
-  readonly forget: () => void;
-}
-
-/**
- * The amount key, at the amount this device last chose. A press the board lets act moves to the
- * next amount, keeps it, and calls `changed` so the rows repaint.
- */
-export function createAmountKey({
-  board,
-  storage,
-  changed,
-}: {
-  board: BoardHost;
-  /** Where the amount is kept; localStorage when undefined. */
-  storage: DeviceStorage | undefined;
-  changed: () => void;
-}): AmountKey {
-  const device = deviceAmount(storage);
-  const root = plateButton(AMOUNT_WORDS[device.amount()].face);
-  root.classList.add("buy-amount");
-  const face = root.querySelector<HTMLElement>(".board-platebtn-text");
-  const paint = (): void => {
-    paintAmountKey(root, face ?? root, device.amount());
-  };
-  paint();
-  const tracker = pressOnBoard(
-    root,
-    board,
-    { layer: "buys", id: "amount" },
-    (decision) => {
-      if (decision !== "act") {
-        return;
-      }
-      device.advance();
-      paint();
-      changed();
-    },
-  );
-  return {
-    root,
-    amount: device.amount,
-    forget: () => {
-      tracker.forget();
-    },
-  };
 }

@@ -1,6 +1,10 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createMemoryAuth, type AuthController } from "./auth";
+import {
+  createMemoryAuth,
+  createUnconfiguredAuth,
+  type AuthController,
+} from "./auth";
 import { DRAWER_SETTLE_MS } from "./board-drawer";
 import { READY_HOLD_MS } from "./board-interaction";
 import { createBoardHost } from "./board-host";
@@ -9,27 +13,72 @@ import { createMemoryCloudSave, type CloudSave } from "./cloud-save";
 import { createLedgerPanel } from "./ledger-panel";
 import { relicsRowView, stonesRowView } from "./ledger-rows";
 import { MOUNTAIN_STONES, createMountain, type Mountain } from "./mountain";
-import {
-  createMemoryStorage,
-  mountScreen,
-  setReducedMotion,
-  stopScreens,
-} from "./mountain-screen.harness";
+import { mountFrameScreen } from "./frame-screen";
 import { createProgressStore } from "./progress-store";
 import { SOUND_KEY, soundSetting } from "./sound";
 import { writeSessionSave } from "./session-save";
-import { minedMountain, patched, type MountainPatch } from "./test-fixtures";
+import {
+  createMemoryStorage,
+  minedMountain,
+  patched,
+  type MountainPatch,
+} from "./test-fixtures";
 
 /*
- * The Ledger drawer on the mounted screen (#375): its parts in order, Tonight, the mine's two
- * rows, the account row, the four plates and the two pages, each press through the board's
+ * The Ledger drawer on the mounted frame (#375, #708): its parts in order, Tonight, the mine's
+ * two rows, the account row, the four plates and the two pages, each press through the board's
  * model (the settle, the page's settle, the Copied hold), and its doors.
  */
 
+let unmount = new AbortController();
+
 beforeEach(() => {
-  setReducedMotion(true);
+  window.matchMedia = ((query: string) => ({
+    matches: query.includes("reduce"),
+  })) as unknown as typeof window.matchMedia;
 });
-afterEach(stopScreens);
+afterEach(() => {
+  unmount.abort();
+  unmount = new AbortController();
+  document.body.replaceChildren();
+  vi.restoreAllMocks();
+});
+
+/** The frame on in-memory storage: `tapClock` is the board's clock (`performance.now`), `now` the store's. */
+function mountScreen({
+  auth = createUnconfiguredAuth(),
+  cloudSave,
+  storage = createMemoryStorage(),
+  now,
+  tapClock,
+}: {
+  auth?: AuthController;
+  cloudSave?: CloudSave;
+  storage?: Storage;
+  now?: () => number;
+  tapClock?: () => number;
+} = {}) {
+  const root = document.createElement("div");
+  const progress = createProgressStore({
+    auth,
+    sessionStorage: storage,
+    cloudWriteGapMs: 0,
+    ...(cloudSave === undefined ? {} : { cloudSave }),
+    ...(now === undefined ? {} : { now }),
+  });
+  if (tapClock !== undefined) {
+    vi.spyOn(performance, "now").mockImplementation(tapClock);
+  }
+  mountFrameScreen({
+    root,
+    auth,
+    progress,
+    storage,
+    ...(now === undefined ? {} : { now }),
+    signal: unmount.signal,
+  });
+  return { root, progress };
+}
 
 const CLOCK = 1_700_000_000_000;
 const PAST_SETTLE = DRAWER_SETTLE_MS + 100;
@@ -89,9 +138,9 @@ const isOpen = (screen: Screen, name = "ledger"): boolean =>
   screen.root
     .querySelector(`.board-sheet[data-sheet="${name}"]`)
     ?.classList.contains("is-open") === true;
-const keyOf = (screen: Screen, id = "ledger"): HTMLButtonElement => {
-  const found = screen.root.querySelector(`.board-key[data-key="${id}"]`);
-  if (!(found instanceof HTMLButtonElement)) throw new Error(`no ${id} key`);
+const keyOf = (screen: Screen): HTMLButtonElement => {
+  const found = screen.root.querySelector(".frame-key");
+  if (!(found instanceof HTMLButtonElement)) throw new Error("no key");
   return found;
 };
 const part = (screen: Screen, selector: string): HTMLElement => {
@@ -525,7 +574,7 @@ describe("the Ledger drawer (#375)", () => {
     }
   });
 
-  it("saved copies and pass the mine open their board cards, which close onto the Ledger key (#466)", () => {
+  it("saved copies opens its card, which closes onto the key; passing the mine is not live (#466, #708)", () => {
     const screen = mount(granite());
     keyOf(screen).click();
     expect(part(screen, ".ledger-pass").hidden).toBe(true);
@@ -541,36 +590,6 @@ describe("the Ledger drawer (#375)", () => {
       screen.root.querySelector<HTMLElement>(".saved-copies")?.hidden,
     ).toBe(true);
     expect(document.activeElement).toBe(keyOf(screen));
-
-    const done = mount(minedMountain(MOUNTAIN_STONES));
-    keyOf(done).click();
-    expect(part(done, ".ledger-pass").hidden).toBe(false);
-    part(done, ".ledger-pass").click();
-    expect(isOpen(done)).toBe(false);
-    expect(done.root.querySelector<HTMLElement>(".legacy-dialog")?.hidden).toBe(
-      false,
-    );
-    expect(document.activeElement).toBe(cardPlate(done, ".legacy-cancel"));
-    cardPlate(done, ".legacy-cancel").click();
-    expect(done.root.querySelector<HTMLElement>(".legacy-dialog")?.hidden).toBe(
-      true,
-    );
-    expect(document.activeElement).toBe(keyOf(done));
-  });
-
-  it("one drawer at a time", () => {
-    const screen = mount(granite());
-    keyOf(screen).click();
-    keyOf(screen, "buys").click();
-    expect(isOpen(screen)).toBe(false);
-    expect(isOpen(screen, "buys")).toBe(true);
-    keyOf(screen).click();
-    expect(isOpen(screen, "buys")).toBe(false);
-    expect(isOpen(screen)).toBe(true);
-    keyOf(screen, "upgrades").click();
-    expect(isOpen(screen)).toBe(false);
-    keyOf(screen).click();
-    expect(isOpen(screen, "upgrades")).toBe(false);
   });
 
   /**
@@ -802,5 +821,71 @@ describe("the Ledger panel on its own", () => {
     await auth.signIn();
     expect(accountWords()).toBe(before);
     progress.dispose();
+  });
+
+  /** The drawer with no signal, on a board clock the test turns. */
+  const onItsOwn = (offered: boolean) => {
+    const auth = createMemoryAuth();
+    const progress = createProgressStore({
+      auth,
+      sessionStorage: createMemoryStorage(),
+      now: () => CLOCK,
+    });
+    const clock = { now: 10_000 };
+    const door = document.createElement("button");
+    const legacyOpen = vi.fn();
+    const onStartOver = vi.fn();
+    const ledger = createLedgerPanel({
+      progress,
+      getView: progress.getSnapshot,
+      auth,
+      board: createBoardHost({ clock: () => clock.now, reduced: () => true }),
+      overSave: () => false,
+      door,
+      legacy: { offered: () => offered, open: legacyOpen },
+      savedCopies: { open: () => undefined },
+      onStartOver,
+      sound: soundSetting(createMemoryStorage()),
+    });
+    document.body.append(door, ledger.sheet.root);
+    const plate = (selector: string): HTMLElement => {
+      const found = ledger.sheet.root.querySelector(selector);
+      if (!(found instanceof HTMLElement)) throw new Error(`no ${selector}`);
+      return found;
+    };
+    return { ledger, progress, clock, door, legacyOpen, onStartOver, plate };
+  };
+
+  it("offers Pass the mine when the legacy says so, and hands the key to its card", () => {
+    const own = onItsOwn(true);
+    own.ledger.open(own.door);
+    own.ledger.render();
+    own.clock.now += PAST_SETTLE;
+    expect(own.plate(".ledger-pass").hidden).toBe(false);
+    own.plate(".ledger-pass").click();
+    expect(own.legacyOpen).toHaveBeenCalledWith(own.door);
+    expect(own.ledger.sheet.root.classList.contains("is-open")).toBe(false);
+    own.progress.dispose();
+  });
+
+  it("a second Yes while the run starts does nothing, and a drawer shut meanwhile stays shut", async () => {
+    const own = onItsOwn(false);
+    const startOver = vi.spyOn(own.progress, "startOver");
+    own.ledger.open(own.door);
+    own.ledger.render();
+    own.clock.now += PAST_SETTLE;
+    own.plate(".ledger-start-over").click();
+    own.clock.now += PAST_SETTLE;
+    own.plate(".ledger-yes").click();
+    // The plate is disabled while the run starts; a press that still lands is refused too.
+    own.clock.now += PAST_SETTLE;
+    fingerTap(own.plate(".ledger-yes"));
+    escape();
+    await vi.waitFor(() => {
+      expect(own.onStartOver).toHaveBeenCalledTimes(1);
+    });
+    expect(startOver).toHaveBeenCalledTimes(1);
+    expect(own.ledger.sheet.root.classList.contains("is-open")).toBe(false);
+    own.progress.dispose();
   });
 });

@@ -77,7 +77,7 @@ type CloudResume =
  * How a screen part changes the game (#409). The screen hands its panels a wrapper around
  * the store's `dispatch` that also shows each move's spend on the odometer.
  */
-export type Dispatch = (move: StoreMove) => DispatchResult;
+type Dispatch = (move: StoreMove) => DispatchResult;
 
 /** Every move but `fixTrouble`: trouble presses and fixes are the store's own methods. */
 type StoreMove = Exclude<Move, { readonly kind: "fixTrouble" }>;
