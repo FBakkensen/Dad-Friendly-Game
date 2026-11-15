@@ -1,9 +1,10 @@
 import stoneUrl from "./assets/board/res-stone.png";
 import { el, hide, mark, setAttr, write } from "./board-dom";
+import { runBoardLoop } from "./board-window";
 import { tierBuyMove } from "./economy/actions";
 import type { FrameState } from "./frame-state";
 import { listenSteps, paintSteps, stepper } from "./job-steps";
-import type { Stage } from "./line";
+import { STAGES, type Stage } from "./line";
 import {
   DEEPER_STRATA,
   levelPlate,
@@ -40,8 +41,6 @@ export type MineSite = {
   readonly root: HTMLElement;
   readonly paint: (mountain: Mountain, shown: boolean, now?: number) => void;
 };
-
-const STAGE_ORDER: readonly Stage[] = ["face", "haul", "lift"];
 
 /** Positions a part of the overlay at an art px row of the scene. */
 function atArt(target: HTMLElement, row: number): void {
@@ -174,7 +173,10 @@ function buildOverlay(): {
   return { root, name, rate, line };
 }
 
-/** The canvas and its frames: the ground is painted once a height, the rest each frame. */
+/**
+ * The canvas and its frames, on the board's own loop: the ground is painted
+ * once a height, the rest about ten times a second, on hard steps.
+ */
 function runCanvas(
   canvas: HTMLCanvasElement,
   shown: () => boolean,
@@ -182,23 +184,21 @@ function runCanvas(
   signal: AbortSignal | undefined,
 ): void {
   const c = canvas.getContext("2d");
-  if (c === null || typeof requestAnimationFrame !== "function") {
+  if (c === null) {
     return;
   }
   const sprites = loadSprites();
   const motion = startMotion();
   const ground = document.createElement("canvas");
-  let last = 0;
-  const step = (ms: number): void => {
-    if (signal?.aborted === true) {
+  let clock = 0;
+  let since = 0;
+  runBoardLoop((dt) => {
+    clock += dt;
+    since += dt;
+    if (!shown() || since < 0.1) {
       return;
     }
-    requestAnimationFrame(step);
-    // Hard steps, as the board moves: about ten frames a second.
-    if (!shown() || ms - last < 100) {
-      return;
-    }
-    last = ms;
+    since = 0;
     const height = Math.max(1, Math.floor(canvas.clientHeight / 2));
     if (canvas.height !== height || ground.height !== height) {
       canvas.width = SCENE_W;
@@ -211,9 +211,8 @@ function runCanvas(
       }
     }
     c.drawImage(ground, 0, 0);
-    drawMine(c, sprites, scene(), motion, ms / 1000);
-  };
-  requestAnimationFrame(step);
+    drawMine(c, sprites, scene(), motion, clock);
+  }, signal);
 }
 
 export function createMineSite(
@@ -229,9 +228,7 @@ export function createMineSite(
   const note = el("p", "mine-note", NO_FREE_WORKER);
   note.hidden = true;
   const keyRow = el("div", "mine-keys");
-  const keys = new Map(
-    STAGE_ORDER.map((stage) => [stage, buildKey(state, stage)]),
-  );
+  const keys = new Map(STAGES.map((stage) => [stage, buildKey(state, stage)]));
   keyRow.append(...[...keys.values()].map((key) => key.root));
   const rowBox = el("div", "mine-stages");
   const rows = new Map(
@@ -263,9 +260,12 @@ export function createMineSite(
       write(over.name, plate.name);
       write(over.rate, plate.rate);
       write(over.line, plate.line);
-      for (const key of machineKeys(mountain, state.amount())) {
-        const parts = keys.get(key.stage);
-        if (parts !== undefined) {
+      const offered = machineKeys(mountain, state.amount(), now);
+      for (const [stage, parts] of keys) {
+        const key = offered.find((each) => each.stage === stage);
+        // A stage with nothing to buy shows no key, never a stale one.
+        hide(parts.root, key === undefined);
+        if (key !== undefined) {
           write(parts.face, key.face);
           write(parts.price, key.price);
           write(parts.staff, ` · ${key.staff}`);

@@ -153,6 +153,21 @@ describe("the mine", () => {
     expect(note?.hidden).toBe(true);
   });
 
+  it("says a machine stands, with both numbers, when its workers move more with tools", () => {
+    holdFactors({ [FRESH_OFF]: 0, "output.cart": 0.1 });
+    const { progress, text } = mount((m) => ({
+      ...m,
+      owned: { ...m.owned, cart: 1 },
+    }));
+    const [, haulage] = stageRows(progress.getSnapshot().mountain);
+    expect(haulage?.sum[0]).toMatch(
+      /^1 cart stands · 1 worker moves .*\/s with a barrow, .*\/s on the cart \+ \d+ with barrows .*\/s$/,
+    );
+    expect(text('.mine-stage[data-stage="haul"] .mine-stage-sum')).toBe(
+      haulage?.sum[0],
+    );
+  });
+
   it("never says hands, and names no limit", () => {
     const { root } = mount();
     expect(root.querySelector(".mine")?.textContent).not.toMatch(

@@ -277,17 +277,6 @@
   color: var(--frame-quiet);
 }
 
-.mine .frame-step {
-  flex: none;
-  width: var(--target-min);
-  height: var(--target-min);
-  background: var(--frame-key);
-  color: var(--frame-quiet);
-  font-size: var(--board-type-22);
-  font-weight: 700;
-  text-align: center;
-}
-
-.mine .frame-step.can {
-  color: var(--frame-ink);
+.frame .mine-key[hidden] {
+  display: none;
 }

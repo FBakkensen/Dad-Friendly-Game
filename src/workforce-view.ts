@@ -6,7 +6,7 @@ import type { SiteId } from "./next-view";
 import { SITE_NAMES } from "./next-view";
 import { effectiveRates } from "./rates";
 import { MACHINE_IDS, tierById, tierInPlay, type MachineId } from "./tiers";
-import { MACHINE_WORDS, TOOL_WORDS, plural } from "./mine-view";
+import { MACHINE_WORDS, TOOL_WORDS, plural } from "./screen-words";
 import { VEHICLES, drivenFleet } from "./transport";
 import { NO_JOBS, STAGE_JOB, freeWorkers, type JobId } from "./workforce";
 

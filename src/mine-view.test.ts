@@ -96,6 +96,52 @@ describe("a stage's row", () => {
     expect(total).toBeCloseTo(14 * tool);
   });
 
+  it("counts every idle slow machine as standing, and says one worker so", () => {
+    const cart = { id: "cart" as const, owned: 3, staff: 1, speed: 1.8 };
+    expect(rowParts([cart], 2, 3)).toEqual([
+      {
+        kind: "stands",
+        id: "cart",
+        standing: 3,
+        workers: 2,
+        moves: 6,
+        onMachines: 3.6,
+      },
+    ]);
+    expect(rowParts([cart], 0, 3)).toEqual([
+      {
+        kind: "stands",
+        id: "cart",
+        standing: 3,
+        workers: 0,
+        moves: 0,
+        onMachines: 0,
+      },
+    ]);
+    fresh(() => {
+      withFactors({ [FRESH_OFF]: 0, "output.cart": 0.1 }, () => {
+        const start = createMountain();
+        const one = {
+          ...start,
+          owned: { ...start.owned, cart: 1 },
+          jobs: { ...start.jobs, haulage: 1 },
+        };
+        const tool = effectiveRates(one).tierSpeed.helper * 3;
+        const cart = effectiveRates(one).tierSpeed.cart;
+        expect(stageRows(one)[1]?.sum[0]).toBe(
+          `1 cart stands · 1 worker moves ${String(tool)}/s with a barrow, ${String(cart)}/s on the cart`,
+        );
+        const none = { ...one, jobs: { ...one.jobs, haulage: 0 } };
+        expect(stageRows(none)[1]?.sum[0]).toBe("1 cart stands");
+        expect(mineScene(none).stages.haul).toMatchObject({
+          owned: 1,
+          running: 0,
+          standing: 1,
+        });
+      });
+    });
+  });
+
   it("prints parts that add up to the printed total", () => {
     expect(printedParts([1.5, 1.6], 3.1)).toEqual({
       parts: ["1.5", "1.6"],

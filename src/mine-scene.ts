@@ -1,6 +1,8 @@
 import cageUrl from "./assets/board/cage.png";
 import drillUrl from "./assets/board/drill-work-4f.png";
 import dustUrl from "./assets/board/dust-burst-4f.png";
+import hoistDimUrl from "./assets/board/mach-hoist-dim.png";
+import hoistUrl from "./assets/board/mach-hoist.png";
 import minerUrl from "./assets/board/miner-18f.png";
 import sheaveUrl from "./assets/board/sheave-4f.png";
 import tubEmptyUrl from "./assets/board/tub-empty.png";
@@ -268,6 +270,8 @@ const SPRITE_URLS = {
   cage: cageUrl,
   drill: drillUrl,
   dust: dustUrl,
+  hoist: hoistUrl,
+  hoistDim: hoistDimUrl,
   miner: minerUrl,
   sheave: sheaveUrl,
   tubEmpty: tubEmptyUrl,
@@ -363,12 +367,14 @@ const ZONES: Readonly<
       readonly gap: number;
       readonly most: number;
       readonly sway: number;
+      /** The side whose slots the waiting workers take: away from the stage's machines. */
+      readonly wait: "start" | "end";
     }
   >
 > = {
-  lift: { x: 38, gap: 9, most: 3, sway: 1 },
-  haul: { x: 70, gap: 15, most: 4, sway: 5 },
-  face: { x: 150, gap: 8, most: 4, sway: 1 },
+  lift: { x: 38, gap: 9, most: 3, sway: 1, wait: "end" },
+  haul: { x: 70, gap: 15, most: 4, sway: 5, wait: "end" },
+  face: { x: 144, gap: 8, most: 4, sway: 1, wait: "start" },
 };
 
 /** What moves between frames: the piles ease toward their state, the tubs roll. */
@@ -398,7 +404,9 @@ function drawWorkers(
     for (let j = 0; j < drawn; j += 1) {
       const x = zone.x + j * zone.gap;
       const y = LEVEL.floor - 24;
-      if (j < waiting) {
+      // Nobody waits beside a machine: the waiting take the far slots.
+      const waits = zone.wait === "start" ? j < waiting : j >= drawn - waiting;
+      if (waits) {
         frame(c, sprites.miner, 18, 14, [x, y], stage === "lift");
         zed(c, x + 8, y - 6 - (Math.floor(t * 2 + j) % 2));
         continue;
@@ -487,30 +495,47 @@ function drawTubs(
   }
 }
 
-/** The drills at the face: one works while drilling works, the others stand. */
-function drawDrills(
+/** The drill at the face: it works while drilling works, and stands when none runs. */
+function drawDrill(
   c: CanvasRenderingContext2D,
   sprites: Sprites,
   scene: MineScene,
   t: number,
 ): void {
   const face = scene.stages.face;
-  for (let k = 0; k < Math.min(2, face.owned); k += 1) {
-    const works =
-      k < face.running &&
-      scene.moving &&
-      (face.busy > 0.999 || (t / 5) % 1 < face.busy);
-    const x = 178 - k * 26;
-    frame(c, sprites.drill, 4, works ? Math.floor(t * 8) % 4 : 0, [
-      x,
-      LEVEL.floor - 18,
+  if (face.owned === 0) {
+    return;
+  }
+  const works =
+    face.running > 0 &&
+    scene.moving &&
+    (face.busy > 0.999 || (t / 5) % 1 < face.busy);
+  const x = 180;
+  frame(c, sprites.drill, 4, works ? Math.floor(t * 8) % 4 : 0, [
+    x,
+    LEVEL.floor - 18,
+  ]);
+  if (works) {
+    frame(c, sprites.dust, 4, Math.floor(t * 6) % 4, [
+      x + 10,
+      LEVEL.floor - 26,
     ]);
-    if (works) {
-      frame(c, sprites.dust, 4, Math.floor(t * 6) % 4, [
-        x + 12,
-        LEVEL.floor - 26,
-      ]);
-    }
+  }
+}
+
+/** The hoists, on the surface beside the headframe: lit while they run, dim while they stand. */
+function drawHoists(
+  c: CanvasRenderingContext2D,
+  sprites: Sprites,
+  scene: MineScene,
+): void {
+  const lift = scene.stages.lift;
+  for (let k = 0; k < Math.min(3, lift.owned); k += 1) {
+    const runs = k < lift.running;
+    frame(c, runs ? sprites.hoist : sprites.hoistDim, 1, 0, [
+      88 + k * 30,
+      SURF - 32,
+    ]);
   }
 }
 
@@ -526,10 +551,11 @@ export function drawMine(
   motion.last = t;
   motion.facePile += (scene.facePile - motion.facePile) * 0.05;
   motion.shaftPile += (scene.shaftPile - motion.shaftPile) * 0.05;
+  drawHoists(c, sprites, scene);
   drawCage(c, sprites, scene, motion, t);
   drawWorkers(c, sprites, scene, t);
   drawTubs(c, sprites, scene, motion, t, dt);
   heap(c, 134, 18, motion.facePile, 70);
   heap(c, 37, 16, motion.shaftPile, 80);
-  drawDrills(c, sprites, scene, t);
+  drawDrill(c, sprites, scene, t);
 }

@@ -1,14 +1,12 @@
-import { tierLock } from "./crew";
+import { tierOnSale } from "./crew";
 import { formatCompact } from "./format";
 import { STAGES, type Stage } from "./line";
 import type { Mountain } from "./mountain";
 import { crewTimer, effectiveRates } from "./rates";
-import { formatSpeed } from "./screen-words";
+import { MACHINE_WORDS, TOOL_WORDS, formatSpeed, plural } from "./screen-words";
 import {
   TIERS,
-  tierInPlay,
   tierQuote,
-  tierShown,
   type BuyAmount,
   type MachineId,
   type Tier,
@@ -17,6 +15,7 @@ import {
   STAGE_JOB,
   freeWorkers,
   lineWork,
+  stageMachines,
   stageWork,
   type JobId,
   type StageMachine,
@@ -40,30 +39,6 @@ export const STAGE_NAMES: Readonly<Record<Stage, string>> = {
 export const DEEPER_STRATA =
   "Deeper strata: not yet surveyed. The city has to grow first.";
 
-/** What a stage's workers hold when they run no machine: one, and more than one. */
-export const TOOL_WORDS: Readonly<Record<Stage, readonly [string, string]>> = {
-  face: ["with a pick", "with picks"],
-  haul: ["with a barrow", "with barrows"],
-  lift: ["on a winch", "on winches"],
-};
-
-/** A machine as a row counts it: one, and more than one. */
-export const MACHINE_WORDS: Readonly<
-  Record<MachineId, readonly [string, string]>
-> = {
-  cart: ["cart", "carts"],
-  hoist: ["hoist", "hoists"],
-  drill: ["drill", "drills"],
-  borer: ["borer", "borers"],
-  train: ["train", "trains"],
-  machine: ["great machine", "great machines"],
-};
-
-export const plural = (
-  count: number,
-  [one, many]: readonly [string, string],
-): string => (count === 1 ? one : many);
-
 /** The level's plate: its name, its rock a second, and one line. */
 export type LevelPlate = {
   readonly name: string;
@@ -84,11 +59,7 @@ export function levelPlate(mountain: Mountain, now?: number): LevelPlate {
 /** The strongest machine a stage can buy now: in play, shown and open. */
 function nextMachine(mountain: Mountain, stage: Stage): Tier | undefined {
   return TIERS.filter(
-    (tier) =>
-      tier.stage === stage &&
-      tierInPlay(tier) &&
-      tierShown(mountain, tier) &&
-      tierLock(mountain, tier) === undefined,
+    (tier) => tier.stage === stage && tierOnSale(mountain, tier),
   ).at(-1);
 }
 
@@ -107,11 +78,17 @@ export type MachineKey = {
   readonly label: string;
 };
 
+const capital = (words: string): string =>
+  `${words.charAt(0).toUpperCase()}${words.slice(1)}`;
+
 export function machineKeys(
   mountain: Mountain,
   amount: BuyAmount,
+  now?: number,
 ): readonly MachineKey[] {
-  const speed = effectiveRates(mountain).tierSpeed;
+  const speed = effectiveRates(mountain, now).tierSpeed;
+  // A crew timer speeds every machine, so the key says what it will move now.
+  const timer = crewTimer(mountain, now);
   return STAGES.flatMap((stage) => {
     const tier = nextMachine(mountain, stage);
     if (tier === undefined) {
@@ -119,11 +96,9 @@ export function machineKeys(
     }
     const { count, cost } = tierQuote(mountain, tier, amount);
     const id = tier.id as MachineId;
-    const name =
-      count === 1
-        ? tier.shortName
-        : `${formatCompact(count)} ${plural(count, [tier.shortName, `${tier.shortName}s`])}`;
-    const moves = `${formatSpeed(speed[id] * count)}/s`;
+    const kind = capital(plural(count, MACHINE_WORDS[id]));
+    const name = count === 1 ? kind : `${formatCompact(count)} ${kind}`;
+    const moves = `${formatSpeed(speed[id] * count * timer)}/s`;
     const takes = tier.staff * count;
     return [
       {
@@ -135,7 +110,7 @@ export function machineKeys(
         face: `+${name} · ${moves}`,
         price: formatCompact(cost),
         staff: `${formatCompact(takes)} to run`,
-        label: `Buy ${count === 1 ? `a ${tier.shortName.toLowerCase()}` : `${String(count)} ${plural(count, MACHINE_WORDS[id])}`} for ${formatCompact(cost)} stone. It moves ${moves} and takes ${String(takes)} to run.`,
+        label: `Buy ${count === 1 ? "a" : String(count)} ${plural(count, MACHINE_WORDS[id])} for ${formatCompact(cost)} stone. It moves ${moves} and takes ${String(takes)} to run.`,
       },
     ];
   });
@@ -154,10 +129,11 @@ export type RowPart =
       readonly moves: number;
     }
   /**
-   * The third state (rule 2.5): the stage has the workers for these
-   * machines, and they stay on their tools because that moves more. `moves`
-   * is what those workers move with tools; `onMachines` what they would move
-   * on the machines.
+   * The third state (rule 2.5): a kind of machine that moves less than its
+   * workers with tools, so none of it runs. `workers` are the tool workers
+   * it could take now (none when the stage has nobody spare); `moves` is
+   * what they move with tools, a summand of the row, and `onMachines` what
+   * they would move on the machines.
    */
   | {
       readonly kind: "stands";
@@ -184,18 +160,19 @@ export function rowParts(
   const parts: RowPart[] = [];
   for (const machine of machines.filter((each) => each.owned > 0)) {
     const running = work.running[machine.id] ?? 0;
-    const idle = machine.owned - running;
-    const standing = Math.min(idle, Math.floor(tools / machine.staff));
-    if (standing > 0 && machine.speed <= machine.staff * tool) {
-      const standWorkers = standing * machine.staff;
+    // `stageWork` never runs a machine that moves no more than its workers
+    // with tools, so every one of that kind stands, idle by choice.
+    if (machine.speed <= machine.staff * tool) {
+      const takes = Math.min(machine.owned, Math.floor(tools / machine.staff));
+      const standWorkers = takes * machine.staff;
       tools -= standWorkers;
       parts.push({
         kind: "stands",
         id: machine.id,
-        standing,
+        standing: machine.owned,
         workers: standWorkers,
         moves: standWorkers * tool,
-        onMachines: standing * machine.speed,
+        onMachines: takes * machine.speed,
       });
       continue;
     }
@@ -279,9 +256,15 @@ function partWords(
   }
   const noun = MACHINE_WORDS[part.id];
   if (part.kind === "stands") {
-    const verb = part.standing === 1 ? "stands" : "stand";
-    const tools = TOOL_WORDS[stage][1].replace(/^\w+ /, "");
-    return `${String(part.standing)} ${plural(part.standing, noun)} ${verb} · ${String(part.workers)} workers move ${moves}${perSecond} with ${tools}, ${formatSpeed(part.onMachines)}${perSecond} on the ${plural(part.standing, noun)}`;
+    // The spec's words (call 51), approved by Flemming on 15 Nov 2026 (#660).
+    const machines = plural(part.standing, noun);
+    const stand = `${String(part.standing)} ${machines} ${part.standing === 1 ? "stands" : "stand"}`;
+    if (part.workers === 0) {
+      return stand;
+    }
+    const workers = `${String(part.workers)} ${plural(part.workers, ["worker moves", "workers move"])}`;
+    const tools = plural(part.workers, TOOL_WORDS[stage]);
+    return `${stand} · ${workers} ${moves}${perSecond} ${tools}, ${formatSpeed(part.onMachines)}${perSecond} on the ${machines}`;
   }
   const kinds = plural(part.owned, noun);
   if (form === 2) {
@@ -311,22 +294,6 @@ export type StageRow = {
   readonly canPlace: boolean;
   readonly canFree: boolean;
 };
-
-/** The machines of a stage in play, with the speed each moves. */
-function machinesOf(
-  mountain: Mountain,
-  speed: Readonly<Record<string, number>>,
-  stage: Stage,
-): StageMachine[] {
-  return TIERS.filter((tier) => tier.stage === stage && tierInPlay(tier)).map(
-    (tier) => ({
-      id: tier.id as MachineId,
-      owned: mountain.owned[tier.id],
-      staff: tier.staff,
-      speed: speed[tier.id] ?? 0,
-    }),
-  );
-}
 
 /** A part under a crew timer (Overtime and the like): every machine and tool moves that much more. */
 function timed(part: RowPart, timer: number): RowPart {
@@ -360,7 +327,7 @@ export function stageRows(
     const job = STAGE_JOB[stage];
     const workers = mountain.jobs[job];
     const parts = rowParts(
-      machinesOf(mountain, rates.tierSpeed, stage),
+      stageMachines(mountain, rates.tierSpeed, stage),
       workers,
       tool,
     ).map((part) => timed(part, timer));
@@ -449,7 +416,7 @@ export function mineScene(mountain: Mountain): MineScene {
   const stages = Object.fromEntries(
     STAGES.map((stage) => {
       const parts = rowParts(
-        machinesOf(mountain, rates.tierSpeed, stage),
+        stageMachines(mountain, rates.tierSpeed, stage),
         mountain.jobs[STAGE_JOB[stage]],
         tool,
       );

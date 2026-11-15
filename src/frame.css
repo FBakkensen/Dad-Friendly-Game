@@ -441,7 +441,8 @@
   color: var(--board-ink-bare);
 }
 
-.frame-sheet .frame-step {
+.frame-sheet .frame-step,
+.mine .frame-step {
   flex: none;
   width: var(--target-min);
   height: var(--target-min);
@@ -452,7 +453,8 @@
   text-align: center;
 }
 
-.frame-sheet .frame-step.can {
+.frame-sheet .frame-step.can,
+.mine .frame-step.can {
   color: var(--frame-ink);
 }
 

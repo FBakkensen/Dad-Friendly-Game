@@ -223,7 +223,8 @@ export function lineWork(
   };
 }
 
-function stageMachines(
+/** A stage's machines in play: how many he owns, the workers each takes, and what each moves. */
+export function stageMachines(
   mountain: Pick<Mountain, "owned">,
   speed: Readonly<Record<TierId, number>>,
   stage: Stage,
