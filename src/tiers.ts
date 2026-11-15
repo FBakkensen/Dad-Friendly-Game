@@ -348,7 +348,7 @@ export type FreshDoor =
   | { readonly kind: "later"; readonly at: "granite" | "foundry" | "school" };
 
 /** Workers he owns before the first cart opens in a fresh mine (the line spec). */
-export const CART_OPENS_AT_WORKERS = 12;
+const CART_OPENS_AT_WORKERS = 12;
 
 const FRESH_DOORS: Readonly<Record<TierId, FreshDoor>> = {
   helper: { kind: "start" },

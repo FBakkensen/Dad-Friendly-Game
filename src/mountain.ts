@@ -152,7 +152,7 @@ export const BARE_MOUNTAIN: Mountain = {
  * so the first evening needs hands from the first second. Prototype version
  * 4's nine; the lab sets the number (#655).
  */
-export const FRESH_START_WORKERS = 9;
+const FRESH_START_WORKERS = 9;
 
 export function createMountain(): Mountain {
   const start = { ...BARE_MOUNTAIN, recipes: recipesForMined(0) };
