@@ -26,7 +26,7 @@ The new rule is [Transport and build time](#7-transport-and-build-time). His fou
 
 The new rule is [The workforce](#2-the-line-and-the-workforce), and rules 1, 3 and 7 follow it. What is his and what is mine in it is under [Calls I made](#calls-i-made). The screens followed the same morning (below).
 
-**Approved 15 Nov 2026, 09:53Z.** On the prototype's eleventh version: "This is great, just one thing, hiring of workers is locked to the mining page, that indicates to the player this is only for mining, it should be a global place". So the screens are settled again, with one change: workers are hired from the top row of every site, beside the count of workers, and not in the mine. [What he sees](#what-he-sees) is written from the prototype's twelfth version, which is the eleventh with that change.
+**Approved 15 Nov 2026, 09:53Z.** On the prototype's eleventh version: "This is great, just one thing, hiring of workers is locked to the mining page, that indicates to the player this is only for mining, it should be a global place". So the screens are settled again, with one change: hiring leaves the mine for a global place. Where that place is, is the prototype's (call 43): its twelfth version, which is the eleventh with that change, puts the hire key in the top row of every site, beside the count of workers. He was shown that version in the project chat, with the city's picture, as the change he asked for, and has not answered on the place by name. [What he sees](#what-he-sees) is written from the twelfth version.
 
 This design covers many slivers. It ships as its own PR and is split into sliver issues (`.claude/rules/superpowers.md`). It amends `2026-11-14-line-works-village-design.md` (the line spec): [What it changes in the line spec](#what-it-changes-in-the-line-spec) lists every place.
 
@@ -74,7 +74,7 @@ The loop: the city requires goods, he decides what the mine digs, what it makes 
 - No third level, and no good past cut stone. They are slice 2 and later.
 - No second project at a time, no project choice, no market.
 - No routes, no map, and no vehicle to dispatch. Transport is one number he raises.
-- No slider, and no roster of named workers. A worker and a crew are moved one at a time.
+- No slider, and no roster of named workers. A crew is moved one at a time, and workers with a tap: one, or the amount the amount key is set to.
 - No upkeep for workers. He named it as a possible later step (15 Nov 2026), and it is an idea for a later slice.
 - No city to walk around.
 - No new engine, tileset or map.
@@ -131,7 +131,7 @@ The line is the line spec's step 1 (its rules are #532 to #535): three stages, d
 | The kilns                   | when the Light Tower is operational | runs one kiln                                      |
 | The saws                    | when the shaft reaches the Granite  | runs one saw                                       |
 
-4. **He moves one worker at a time**: a free worker onto a job, or a worker off a job. A move is free and instant, it is saved at once, and it holds while he is away. Nothing moves a worker for him, at any time.
+4. **He moves one worker at a time**: a free worker onto a job, or a worker off a job. A move is free and instant, it is saved at once, and it holds while he is away. Nothing moves a worker for him, at any time. That is how he played it, with a few dozen workers. At the game's numbers a tap hires or moves the amount the amount key is set to (call 49).
 5. **A stage's workers run its machines.** A machine takes a set number of workers and is idle until its stage has them. The stage's other workers work with a tool: a pick, a barrow or a winch. A stage moves what its running machines and its workers with tools move together, and the line moves what its slowest stage moves. Which machines run is not his to set: the workers run the machines that together move the most, and stay on their tools where that moves more. So one more machine or one more worker never lowers what a stage moves. In the prototype that is the strongest machines first, which is the same with its numbers.
 6. **A machine can be bought before anyone can run it.** Nothing gates a machine but its price and where it opens (rule 1). The cart no longer waits for twelve workers, and the hoist and the drill no longer wait for the machine before them.
 7. **A vehicle runs with one driver, and a kiln or a saw with one worker.** The drivers take the trucks first. One with nobody on it is idle.
@@ -239,6 +239,7 @@ The screens were settled in a playable prototype, not in pictures. Flemming reje
 - What it settles is the layout, the flow and the words. This section writes them down, from the twelfth version (commit `366b890`), which is the eleventh with hiring moved as he asked. The pictures in `docs/superpowers/specs/slice-1/` are of the twelfth.
 - What it does not settle is the art (see Art) and the numbers (the lab).
 - Two things in the prototype's head are its own tools and are not in the game: "Skip 8 h" and "Reset".
+- The prototype plays the whole slice at once, with a few dozen workers. What a screen says while part 1 or part 2 is the end of the game, what Next and the lamps count, and how he hires and moves a hundred workers are not in it. They are under [What the prototype does not show](#what-the-prototype-does-not-show).
 
 ### Four sites
 
@@ -256,10 +257,10 @@ The game has four kinds of work (his words: "mine, city, refinement, manufacturi
 From top to bottom:
 
 1. **The order strip.** The project in hand, its step and its state ("Foundation · not ordered", "Structure · delivering", "on hold"), what the step requires with its counts ("Stone 23.7K of 60K"), and a pip for each of the three steps. A tap goes to the city.
-2. **The stockpiles and the workers.** One stockpile for each good he has met, with a bar for how full it is, and "full" in red. At the end of the row is the count of workers with the free ones under it ("44 · 2 free"), and beside it the key that hires one, with its price ("+Worker · 1,300"). A tap on the count opens the workforce (below). With one or two stockpiles a stockpile also says its room ("of 400K"). With three there is no room for that beside the hire key, and the room is read in the refinery's stockyard.
+2. **The stockpiles and the workers.** One stockpile for each good he has met, with a bar for how full it is, and "full" in red. At the end of the row is the count of workers with the free ones under it ("44 · 2 free"), and beside it the key that hires one, with its price ("+Worker · 1,300"). With the amount key on ×10 or Max the key says how many it hires and what they cost together (The amount key, below). A tap on the count opens the workforce (below). With one or two stockpiles a stockpile also says its room ("of 400K"). With three there is no room for that beside the hire key, and the room is read in the refinery's stockyard.
 3. **The site's scene**, which fills the middle.
-4. **Next.** It points at two things only: gear that is done and waits to be installed, and a building nobody has ordered ("Next · City: Order the Light Tower"). A tap goes there. Otherwise it reads "Affordable now" with a count for each site ("Mine 3 · Refinery 2 · Factory 3 · City 1"), and a tap goes to the next site that has something. Beside it is the count of everything ("9 ready"). With nothing it reads "Nothing affordable yet. Production is running." Next never names a buy: which thing to buy is his to work out. It takes the Ready now plate's place, and "Saving for" goes with it.
-5. **The site bar.** A tab for each open site, with its lamp: green when something there is affordable, amber when something there is running (an order that is delivering, a work order on the station). A site joins the bar when its work opens: the mine and the city on the first evening, the refinery with the Light Tower, the factory with the shaft. A swipe changes site too.
+4. **Next.** It points at two things only: gear that is done and waits to be installed, and a building nobody has ordered ("Next · City: Order the Light Tower"). A tap goes there. Otherwise it reads "Affordable now" with a count for each site ("Mine 3 · Refinery 2 · Factory 3 · City 1"), and a tap goes to the next site that has something. Beside it is the count of everything ("9 ready"). With nothing it reads "Nothing affordable yet. Production is running." Next never names a buy: which thing to buy is his to work out. It takes the Ready now plate's place, and "Saving for" goes with it. What is counted is under [What Next and the lamps count](#what-next-and-the-lamps-count).
+5. **The site bar.** A tab for each open site, with its lamp: green when something there is affordable, amber when something there is running (an order that is delivering, a work order on the station). A site joins the bar when its work opens: the mine and the city on the first evening, the refinery with the Light Tower once part 2 is live, the factory with the shaft once part 3 is live. A swipe changes site too.
 
 ### The workforce (`workforce.png`)
 
@@ -276,14 +277,15 @@ His words, 15 Nov 2026: hiring "should be a global place". The top row of the fr
 - In a gallery each stage has its own part, with its name under it: hoisting at the shaft, haulage on the rail, drilling at the face. A stage's workers and machines are drawn in its part.
 - **The state is seen in the scene**, as he asked (15 Nov 2026, 06:22Z). Rock piles up at the face when drilling makes more than haulage takes, and at the shaft when more arrives than is hoisted. Tubs run empty when the face gives too little, and queue when the shaft cannot take them. The cage waits at the shaft bottom when hoisting has spare capacity. Workers of a stage with spare capacity stand, with a "z" over them, for that share of the time.
 - A level's plate has its name, its rock a second, and one line: its crews and what its rock becomes ("2 crews · brick 400/s · stone 700/s"). With one level it reads "4 crews · all rock is hoisted as stone". With two levels the plate has − and +, which move a crew.
-- A level that is not reached says what it waits for ("The shaft can be sunk once the Light Tower is operational"), and then its price. Under the last level: "Deeper strata: not yet surveyed. The city has to grow first."
+- A level that is not reached says what it waits for ("The shaft can be sunk once the Light Tower is operational"), and then its price. Under the last level: "Deeper strata: not yet surveyed. The city has to grow first." Until part 3 is live the Granite is not named: the Topsoil is the last level, and that line is under it.
 - At the foot is a row of keys, one for each stage's next machine: what it is and what it moves ("+Drill · 600/s"), its price, and the workers it takes ("3 to run"). The key buys. There is no key to hire here: the eleventh version had one, and he asked for it to go to a global place (the frame).
 - Under the keys are three rows, one for each stage:
   - its name, and what it moves now of what it can move ("2,200 of 2,700/s"), with a band behind the row that shows the same;
   - who works with what, as a sum that adds up to what the stage can move ("2 hoists: 6 of 6 workers 2,400/s + 2 on winches 200/s"). A kind of machine shows the workers it has of the workers it takes, so a machine that is idle shows why ("1 of 2 hoists: 3 of 6 workers 1,200/s");
+  - a third state, which the prototype's numbers never reach: the stage has the workers for a machine, and they stay on their tools because that moves more (rule 2.5). "0 of 12 workers" would send him to add workers, which changes nothing. So the machine's part says it with both numbers ("1 cart stands · 12 workers move 430/s with barrows, 360/s on the cart"), and in the scene that machine stands with nobody asleep beside it. The words are his to approve when the row is built (call 51);
   - the stage's count of workers between − and +.
 - Nothing names or lights the stage that limits the line. The three "moves now" numbers are the same, and the "can move" numbers are what he compares.
-- A tap on a row says the same in one sentence, and opens the stage's full list (below).
+- A tap on a row says the same in one sentence, and opens the stage's full list (below). A row has a green lamp while its list holds something he can afford, so the mine's lamp is never green with nothing lit in view.
 
 ### The refinery (`refinery.png`)
 
@@ -301,29 +303,73 @@ His words, 15 Nov 2026: hiring "should be a global place". The top row of the fr
 
 ### The city (`first-evening-city.png`, `city.png`)
 
-- The transport plate is on top: its drivers ("3 drivers"), what it is doing ("serving the city", or that it has no order), the fleet with the drivers it has of the drivers it takes and what it carries ("3 horse wagons: 3 of 3 drivers 600/s"), the drivers between − and +, and a key for one more wagon with its rate and price. Before trucks open, their key reads "Trucks: after the Warehouse".
-- A skyline at night with a plot for each building: operational, in hand, or vacant ("Vacant plot · unassigned"). The building in hand has its building site: the goods transport has brought lie there, and the builders work on it.
+- The transport plate is on top: its drivers ("3 drivers"), what it is doing ("serving the city", or that it has no order), the fleet with the drivers it has of the drivers it takes and what it carries ("3 horse wagons: 3 of 3 drivers 600/s"), the drivers between − and +, and a key for one more wagon with its rate and price. The trucks' key is there from the day the Warehouse is the project in hand, in part 3. Until the Warehouse is operational it reads "Trucks: after the Warehouse". Before that there is no key for trucks: what comes next stays a hint (rule 6).
+- A skyline at night with a plot for each building: operational, in hand, or vacant ("Vacant plot · unassigned"). The building in hand has its building site: the goods transport has brought lie there, and the builders work on it. A building rises as it is built in: its own picture is shown from the ground up behind scaffold, a third of its height for each step, and the step in hand rises with what is built in. So a step needs no picture of its own (call 52).
 - The wagons drive along the road in front. They run as full as the stockpiles let them, and stand when there is nothing to carry. A vehicle with no driver stands behind the road.
 - The project's card is under the skyline: its three steps with a tick on each one done, and a bar for each good the step requires ("Stone 26.7K of 60K").
 - The order key is on the card. Before the order it reads "Place order · the whole building". After, it is the state of the order in numbers: "Delivering · arriving 600/s · building 450/s · 2 min · tap to hold". It names no limit.
 - Under the bars are the builders between − and +, what each builds in, and what is on the site of what it holds ("3 builders ×150/s · on site 1,569 of 4,000").
-- At the foot of the card: "On completion:" with the building's power and what it opens.
+- At the foot of the card: "On completion:" with the building's power, and what it opens in the parts that are live.
 
 ### The cards (`first-evening-card.png`, `shift-report.png`)
 
 - **The first evening**: one card that says what there is and how it works. He starts with twelve workers, and every job takes them. He hires a worker at the top right, on any site, and puts the worker on a job. A machine or a wagon stands until workers run it. "The balance is yours to work out." And: order the tower in the city.
-- **The shift report** after unattended time: how long he was away and the night shift output, a bar that shows how much of the night was production and how much was idle, what was produced, what transport delivered to orders, the steps and buildings that were finished, and when each stockpile was full. If the stockyard stopped the night it says so ("Stockyard full: production stopped"), with a key that goes to the stockyard beside Close. The report says what happened. It does not say what to buy.
-- **A building is operational**: its power and what it opens. After the Foundry it is the slice's end card.
+- **The shift report** after unattended time: how long he was away and the night shift output, a bar that shows how much of the night the mine produced and how much it stood, what was produced, what transport delivered to orders, and the steps and buildings that were finished. The bar is about the mine only. Transport and the builders go on after the mine stops, and their work is in its own lines. The report says what happened. It does not say what to buy.
+  - **In part 1** only the eight-hour clock stops the mine (rule 4). The report then says "A night shift runs 8 h. Production stopped after that.", which is the prototype's line. A night under eight hours has a bar that is all production, and no such line.
+  - **From part 2** the stockyard stops it. The report says when each stockpile was full, and "Stockyard full: production stopped", with a key that goes to the stockyard beside Close.
+  - When a roof goes on in the night, the head says both outputs ("Night shift output 30%, and 45% from the Light Tower's roof").
+- **A building is operational**: its power and what it opens in the parts that are live. After the last building of the part that is live it is the end card: the Light Tower's in part 1, the Warehouse's in part 2, and the Foundry's, which is the slice's, in part 3.
 - **A level is reached**: where the crews went, what each level's rock makes, and what opened.
 
 ### What the prototype does not show
 
 These are in the game today and have no place in the prototype. Where they go is mine (call 16), and part 1's plan may move them:
 
-- **A stage's full list.** A stage's row shows its machines and its next one. A tap on the row opens that stage's list: its machines with their ownership marks, its upgrades, its gear, its engineer and its trouble. They are the rows #537 to #539 specify, built here. The worker's own upgrades (Better boots and the like) and marks are in the workforce.
-- **Engineers and expeditions** open from the mine.
-- **The Ledger, keepsakes, the sound switch and Start over** open from one key on the order strip.
+- **A stage's full list.** A stage's row shows its machines and its next one. A tap on the row opens that stage's list: its machines with their ownership marks, its upgrades, its gear, its engineer and its trouble. They are the rows #537 to #539 specify, built here. The worker's own upgrades (Better boots and the like) and marks are in the workforce, under the jobs. They are built with the stage's list (#661), not with the workforce's jobs (#659).
+- **Engineers and expeditions** open from the mine, from part 3.
+- **The Ledger, the sound switch and Start over** open from one key on the order strip. Keepsakes join them in part 3, when expeditions are back.
 - **The save line** stays in view on every site (`observable-saves.md`).
+
+Three more things the prototype cannot show, because it plays the whole slice at once with a few dozen workers. They are mine too (calls 47 to 50).
+
+#### What Next and the lamps count
+
+- **A site's count** is every buy on that site he can afford now: a machine, a maker, a vehicle, a stockyard level, the shaft, and each upgrade in a stage's list. A site's lamp is green when its count is not zero.
+- **Hiring is not counted** and lights no lamp (the prototype's twelfth version). The hire key is in view on every site and is lit when he can afford a worker, and a worker is nearly always affordable, so a count with hiring in it would never be zero.
+- **The workforce has its own count**, for the worker's upgrades (Better boots and the like). It joins Next's line after the sites ("Mine 3 · City 1 · Workforce 1"), a tap on it opens the workforce, and the count of workers in the frame has a green lamp while it is not zero. In a fresh mine Better boots is one of the biggest single buys, so it must not be out of sight.
+- **"Nothing affordable yet. Production is running."** is shown only when it is true. It is about the sites, so a lit hire key beside it is no lie, but the line is to say so. And when a stage has no workers and the line moves nothing, "Production is running" is not shown. Proposed: "Nothing to buy on the sites yet.", then "Production is running." or "The line stands." The words are his to approve when Next is built (#659).
+
+#### The amount key
+
+The prototype has twelve to forty-four workers, and a tap hires or moves one. With the game's numbers part 1 has well over a hundred, and a tap for each to hire and one more to place is the chore before bed (the anti-goal). Today he buys workers ×10 or Max with the amount key (#358), and that stays.
+
+- One amount key, ×1, ×10 and Max, for the whole game, kept on the device as today. It is in the head of the workforce and in the head of a stage's list.
+- Every key that follows it shows the amount and the real total: the hire key ("+10 Workers · 14,200"), a machine's key, and a row in a stage's list. ×10 is ten or nothing, and Max is as many as he can afford, as today.
+- The − and + of a job follow it too. + moves up to that many free workers onto the job, and − takes up to that many off. With fewer than ten, ×10 moves the ones there are. Max moves all of them.
+- Crews are not counted in tens: a crew is moved one at a time (rule 5).
+- He has not played this. If he turns it over, the rules still move one worker, and the lab's `workerMoves` shows what that costs.
+
+#### While a part is the end of the game
+
+The pictures show the whole slice. A line on a screen never promises a thing that is not live.
+
+| Line or part of a screen                       | In the prototype                                                            | In the game                                                                                 |
+| ---------------------------------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| The Light Tower's "On completion" and its card | its power, and "Opens the refinery."                                        | In part 1 the power only. "Opens the refinery" from part 2. The Granite's price from part 3 |
+| The Warehouse's "On completion" and its card   | its power, and trucks                                                       | In part 2 the power only. Trucks from part 3                                                |
+| The trucks' key                                | "Trucks: after the Warehouse", from the first evening                       | Not shown before part 3, and then only once the Warehouse is the project in hand            |
+| The level under the Topsoil                    | "The shaft can be sunk once the Light Tower is operational", then its price | Until part 3: "Deeper strata: not yet surveyed. The city has to grow first."                |
+| The site bar                                   | the refinery joins with the Light Tower, the factory with the shaft         | The refinery from part 2 and the factory from part 3                                        |
+
+**After the last roof of the part that is live** there is no building to order. Every player is in this state until the next part is live, so it is a screen of its own:
+
+- The end card says the building is operational and that more is being built.
+- The order strip has no project. It names what is operational and says the next is not ready (proposed: "The Light Tower is operational · the city is planning its next building"). Its pips are all done.
+- In the city, the project's card says the same in the place of its bars, and has no order key. The plots that are left stay "Vacant plot · unassigned".
+- Transport and building are still jobs. Their − and + stay, so he can take the drivers and the builders off and put them in the mine. The plates say that there is no order ("idle: no order", as the prototype has it).
+- Next never points at the city. It counts as always.
+- The city's lamp is green when a vehicle is affordable, and never amber.
+- The lines are his to approve when the city and the cards are built (#662, #663).
 
 ### What any screen has to meet
 
@@ -332,8 +378,9 @@ These are in the game today and have no place in the prototype. Where they go is
 - A decision shows real numbers: prices, rooms, each level's rock and goods a second, transport's goods a second, what an order still requires.
 - The page shows the numbers and never the answer. Nothing names the bottleneck, a limit or a best buy (Flemming, 15 Nov 2026).
 - What is idle is seen: workers, machines, vehicles, and a buffer that is full (Flemming, 15 Nov 2026).
-- How many workers there are, where they work and how many are free is in reach on every site, and so is hiring one. Workers are hired from the frame, the same on every site, and never on a site of its own (Flemming, 15 Nov 2026).
+- How many workers there are, where they work and how many are free is in reach on every site, and so is hiring one. His words are "a global place" (15 Nov 2026). The place is the frame, the same on every site, and no site has a hire key of its own (call 43, the prototype's).
 - "Hands" and "by hand" are not used.
+- No line promises a thing that is not live in the part he plays.
 - No button mines, and no button delivers.
 - The lamp rule stays: green for something he can afford, amber for something running, red for trouble, dark for rest.
 - No placeholders in the game. A picture that does not exist is asked for first.
@@ -350,23 +397,24 @@ These are in the game today and have no place in the prototype. Where they go is
 
 **Where today's parts land.** Part 1's reset fixes the ids of the new save, so each of today's parts is placed here. A part not named stays as it is.
 
-| Today                                                            | In slice 1                                                                                        |
-| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| Workers, Better boots                                            | Stay (his call, 15 Nov 2026), as one workforce that he hires into and moves between jobs (rule 2) |
-| Machine upgrades, ownership marks, the amount key (×1, ×10, Max) | Stay, in their stage's list. A price that scaled with the band scales with the deepest level      |
-| Strong arms, Sharper picks, Grandfather's pick                   | Go with the dig button: they only make a tap stronger                                             |
-| Old miner's lamp, Crystal flare, Miner's crystal lamp            | Go with the golden veins                                                                          |
-| Steady hands                                                     | Goes. The Light Tower has its job, so "night shift output 45%, up from 30%" is true for everyone  |
-| The Heart of Patience and the other relic powers                 | Go with the relics. A building's power is the one in rule 6                                       |
-| Overtime                                                         | Goes. A live boost is made in the factory (blasting charge, axle grease), so it has one home      |
-| Iron rails, pit props, Reinforce, blasting charge, axle grease   | Stay as work orders, without a clock (rule 7.13)                                                  |
-| Engineers, expeditions, trouble                                  | Stay, from part 3. A promotion costs brick (the line spec)                                        |
-| The Ready now plate                                              | Becomes Next                                                                                      |
-| The Ledger, the sound switch, Start over, the save line          | Stay (What the prototype does not show)                                                           |
+| Today                                                          | In slice 1                                                                                        |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| Workers, Better boots                                          | Stay (his call, 15 Nov 2026), as one workforce that he hires into and moves between jobs (rule 2) |
+| Machine upgrades, ownership marks                              | Stay, in their stage's list. A price that scaled with the band scales with the deepest level      |
+| The amount key (×1, ×10, Max)                                  | Stays, and counts for hiring and moving workers as well as buying (What he sees, The amount key)  |
+| Strong arms, Sharper picks, Grandfather's pick                 | Go with the dig button: they only make a tap stronger                                             |
+| Old miner's lamp, Crystal flare, Miner's crystal lamp          | Go with the golden veins                                                                          |
+| Steady hands                                                   | Goes. The Light Tower has its job, so "night shift output 45%, up from 30%" is true for everyone  |
+| The Heart of Patience and the other relic powers               | Go with the relics. A building's power is the one in rule 6                                       |
+| Overtime                                                       | Goes. A live boost is made in the factory (blasting charge, axle grease), so it has one home      |
+| Iron rails, pit props, Reinforce, blasting charge, axle grease | Stay as work orders, without a clock (rule 7.13)                                                  |
+| Engineers, expeditions, trouble                                | Stay, from part 3. A promotion costs brick (the line spec)                                        |
+| The Ready now plate                                            | Becomes Next                                                                                      |
+| The Ledger, the sound switch, Start over, the save line        | Stay (What the prototype does not show)                                                           |
 
 **Today's board goes** when part 1 is switched on: the odometer, the output gauge, the mine window, the bays and the key rail. The prototype's screens take its place (What he sees).
 
-**Keepsakes** stay as expedition finds. Their page moves from a relic's page to the city.
+**Keepsakes** stay as expedition finds, so they are back in part 3. Their page moves from a relic's page to the key on the order strip, beside the Ledger.
 
 **Recipes that need a material no open level gives** (crystal, heartstone) are held back: they are not shown, and an expedition does not bring one home, until the slice that opens their level. The winding engine's heartstone core waits the same way. So an expedition in slice 1 finds a lost tool, a keepsake, an engineer, or a recipe he can make.
 
@@ -506,7 +554,8 @@ What it does not prove: anything about fun, the first hour's pace, the factory, 
 13. **The first minute has more to read**: five jobs and a free count before he has bought anything. A fresh mine starts with every worker on a job, and the first evening's card says so.
 14. **Nothing spreads the workers for him.** A stage with no workers moves nothing, and the line stops. It is seen, and a free move ends it, but a new player can do it in the first minute. The first evening's journey plays it.
 15. **A machine that is not worth its workers.** With today's numbers a worker with a tool, Better boots and the marks of a hundred workers moves more than his share of a cart. Rule 2.5 keeps that from lowering a stage, but it leaves carts idle. The lab sets the numbers so that a machine is worth the workers it takes, and measures `idleMachines`.
-16. **The paper model is rough, and out of date.** It has no transport, and its dad stops buying line machines when they pay back slower than six hours, so the line's late growth is too flat.
+16. **A hundred workers, a tap each.** At the game's numbers part 1 has well over a hundred workers, each hired and each placed. The amount key is the answer (call 49), and he has not played it. The lab counts the taps in `workerMoves`.
+17. **The paper model is rough, and out of date.** It has no transport, and its dad stops buying line machines when they pay back slower than six hours, so the line's late growth is too flat.
 
 ## Calls I made
 
@@ -527,7 +576,7 @@ These are mine, not Flemming's. Any of them can be turned over.
 13. Which copy of a save is ahead: a later run stamp (Start over, or a reset), else more rock dug in all, a count that only grows, else the newer `lastSeen`. The run stamp stays the first key, as today. Kid runs are gone, and "more stones mined" becomes "more rock dug in all".
 14. The first evenings keep today's eight-hour clock, until the stockyard opens.
 15. Kid workers wait for the building that brings them (the School, a later slice).
-16. The stockyard is in the refinery and transport is in the city (the prototype). A stage's full list opens from its plate, engineers open from the mine, and the Ledger, keepsakes, the sound switch and Start over open from one key on the order strip (mine: the prototype does not show them).
+16. The stockyard is in the refinery and transport is in the city (the prototype). A stage's full list opens from its row, engineers open from the mine, and the Ledger, the sound switch, Start over and, from part 3, keepsakes open from one key on the order strip (mine: the prototype does not show them).
 17. A site opens with its part: the mine and the city in part 1, the refinery in part 2, the factory in part 3.
 18. Transport is one fleet with one number, bought like a machine. No routes, and nothing to dispatch (rule 7.5).
 19. Horse wagons from the first evening, and a fresh mine starts with one wagon and a driver on it. Trucks cost brick and open with the Warehouse. Trains wait for a later slice (rule 7.6).
@@ -539,10 +588,10 @@ These are mine, not Flemming's. Any of them can be turned over.
 25. Machines, makers, vehicles, stockyard levels and the shaft stay instant purchases (rule 7.14).
 26. "The workforce" is my word. "Site", "order", "on hold" and "resume" are the prototype's (Names).
 27. The clock before the stockyard stops the mine only, and the stockyard opens the moment the Light Tower's roof goes on (rule 4). It is how the prototype plays.
-28. Next points only at gear that is done and at a building nobody has ordered, and otherwise counts what is affordable on each site (What he sees, The frame). It was a pointer in a fixed order of buys until his principle of 15 Nov 2026.
+28. Next points only at gear that is done and at a building nobody has ordered, and otherwise counts what is affordable on each site (What he sees, The frame). It was a pointer in a fixed order of buys until his principle of 15 Nov 2026. What it counts is call 50.
 29. Steady hands and Overtime go, with the tap-only and vein-only upgrades (Where today's parts land).
 30. The lab plays each part before that part is switched on. The five-day floor is checked when it can play the whole slice (Lab).
-31. Workers stay, with a workforce plate in the mine. It was his call, and he said yes to it on 15 Nov 2026 (below). The plate became one workforce the same morning (rule 2).
+31. Workers stay. It was his call, and he said yes to it on 15 Nov 2026 (below), with a workforce plate in the mine. The plate became one workforce the same morning (rule 2), and on the screens it is now the frame's count of workers and the workforce list behind it (call 43). No plate in the mine is built.
 32. Nothing gates a machine but its price and where it opens: the cart's twelve workers and the order cart, hoist, drill go (rule 2.6). The prototype's, played in its ninth version.
 33. A vehicle takes one driver and a maker one worker, and the drivers take the trucks first (rule 2.7). His words name transport and operating. The counts are the prototype's.
 34. Builders build in what transport brings, and the building site holds a set amount (rule 7.8). His words name building. The site and its numbers are the prototype's, and he was asked about builders and did not answer on them by name. If he turns it over, a step is done when its goods arrive, as before, and building is not a job.
@@ -552,14 +601,21 @@ These are mine, not Flemming's. Any of them can be turned over.
 38. The four crews stay until he has played drilling as one job for each level (rule 5).
 39. A worker on a machine does no other work. In the line spec he "still lends his hands". With workers he places himself, one worker in two places is a number nobody can check on the page.
 40. A stage's workers run the machines that together move the most (rule 2.5). The prototype runs the strongest first. With machines that take different numbers of workers, that can lower a stage when he buys a machine, and the rule that a buy never lowers the line is tested in a fresh mine since #654.
-41. What counts workers counts all he has. Better boots and the worker marks lift only a worker with a tool, Helping hands counts haulage's workers, and a promotion takes a free worker (rule 2.9). The lines of Better boots and Helping hands need new words, and those are his to approve when a stage's list is built (#661).
+41. What counts workers counts all he has. Better boots and the worker marks lift only a worker with a tool, Helping hands counts haulage's workers, and a promotion takes a free worker (rule 2.9). The lines of Better boots and Helping hands need new words, and those are his to approve when a stage's list is built (#661). Better boots is shown in the workforce (call 45), and #661 builds it there.
 42. The count of workers he owns stays where it is in the game, and the save adds the workers on each job (The save). It keeps today's readers of that count as they are.
-43. The global place he asked for is the frame's top row: the hire key is beside the count of workers on every site, and a second one is in the workforce list (What he sees). His words are "a global place". Where exactly is the prototype's twelfth version, which he has not answered on. Three things came with it that he has not played: hiring no longer lights the mine's lamp or counts in Next, the stockpiles drop their room from the top row when there are three, and the first evening's card says where to hire.
+43. The global place he asked for is the frame's top row: the hire key is beside the count of workers on every site, and a second one is in the workforce list (What he sees). His words are "a global place". Where exactly is the prototype's twelfth version. He was shown it in the project chat with the city's picture, as the change he asked for, and has not answered on it by name. It is not put to him as a question of its own (the coordinator, 15 Nov 2026, 10:05Z): if he objects, the frame and the workforce (#659) change. Three things came with it that he has not played: hiring no longer lights the mine's lamp or counts in Next, the stockpiles drop their room from the top row when there are three, and the first evening's card says where to hire. That card's words are his to approve when it is built (#663).
 44. The − and + for a job are in the workforce and also on the job's own site, as he played them. Only hiring moved.
-45. A tap on a stage's row opens the stage's full list, and the worker's own upgrades and marks are in the workforce (What the prototype does not show). The prototype shows neither.
+45. A tap on a stage's row opens the stage's full list, and the worker's own upgrades and marks are in the workforce (What the prototype does not show). The prototype shows neither. Both are built in #661.
 46. The shift report keeps "Stockyard full: production stopped" and its key to the stockyard. It says what happened in the night, which he asked to see, and it names no buy.
+47. While a part is the end of the game, no line promises a thing that is not live, and the state after that part's last roof is a screen of its own (What he sees, While a part is the end of the game). The lines for that state are proposed here and are his to approve when they are built (#662, #663).
+48. Part 1's shift report has the bar, with the eight-hour clock as the one thing that stops the mine, and the prototype's line for it. The stockyard's lines come with part 2 (sliver 13). The bar is about the mine only, because transport and the builders go on after it stops. For the report, the unattended rules give more than what was mined: how long the mine produced and how long it stood, what stopped it, what was delivered, the steps finished and when, and the moment the output changed. The shift report's sliver (#663) adds those to the rules.
+49. The amount key stays and counts for hiring and for − and + (What he sees, The amount key). The rules move one worker today (`src/workforce.ts`), and the frame's sliver (#659) gives them a count. He has not played it.
+50. What Next and the lamps count: every affordable buy on a site with the upgrades in a stage's list, not hiring, and a count of its own for the worker's upgrades. "Nothing affordable yet. Production is running." is shown only when it is true (What he sees).
+51. A stage's row has a third state, for machines that stand because the workers' tools move more (The mine). The lab also sets the numbers so that it is rare (risk 15). The other way was to run a machine whenever its stage has the workers, which lets a buy lower the line, and call 40 ruled that out.
+52. A building rises by showing its own picture from the ground up behind scaffold, so the three steps need no art of their own. The city's sky, ground and road are drawn in code in the game's steel and palette, as the frame is. If the city's plan finds a part of the scene that would be a box where a picture should be (a vacant plot, the goods on the site), it stops and that picture is asked for first (Art).
+53. Keepsakes open from the key on the order strip, not from the city. The document said both.
 
-Calls 43 to 46 are from the prototype's eleventh version ("This is great") and its twelfth, which moves hiring. Calls 40 to 42 came from the builder's read of the workforce. Calls 32 to 34 and 37 are played in the prototype's ninth version, and he said "the workers do as expected" to it. The principle that the page gives no answers, and one workforce that he moves, are his and are not on this list.
+Calls 47 to 53 came from the builder's read of the screens, and none of them is in the prototype. Calls 43 to 46 are from the prototype's eleventh version ("This is great") and its twelfth, which moves hiring. Calls 40 to 42 came from the builder's read of the workforce. Calls 32 to 34 and 37 are played in the prototype's ninth version, and he said "the workers do as expected" to it. The principle that the page gives no answers, and one workforce that he moves, are his and are not on this list.
 
 Calls 18 to 24 are played in the prototype's fourth version, and he said "That is right" to it. So is the Light Tower's new power (night shift output at 45%, up from 30%), which is on its card and in the shift report. They stay on this list so that he can still turn one over.
 
@@ -605,7 +661,7 @@ This spec ships as a PR, and slice 1 is then split into sliver issues under #530
 | 3    | The shaft and the Granite, saws, cut stone, borers, locomotives, the crews, the factory's work orders, trucks, the Foundry, the winding engine.                                 | the Foundry's roof     |
 
 - **Until part 2 is live**, the Light Tower opens nothing. Its power counts: the night shift output is 45%. The eight-hour clock stays and the pocket has no limit, so a night after the Light Tower's roof is today's night at 45%. The stockyard, and the rule that the clock goes when it opens (rule 4), come with part 2.
-- **Until part 3 is live**, the Granite's price is not shown, the Light Tower opens only the kilns and the stockyard, and the Warehouse does not open trucks. Each part ends with the end card, in words that say more is being built.
+- **Until part 3 is live**, the Granite's price is not shown, the Light Tower opens only the kilns and the stockyard, and the Warehouse does not open trucks. Each part ends with the end card, in words that say more is being built. What the screens say meanwhile, and after a part's last roof, is under [While a part is the end of the game](#while-a-part-is-the-end-of-the-game).
 - **Resets the save** when part 1 is switched on. Parts 2 and 3 add facts to the save and should not reset it. If one must, its issue, its PR and the chat say so first.
 - Each part's rules are played by the lab before that part is switched on, and the lab sets that part's numbers (as #534 and #543 did for the line). The lab cannot play the whole slice before part 3's rules exist, so part 1 does not wait for it.
 - The pass, Legacy, kid runs and Grandpa (#642), the relics, the dig button, golden veins and the Gold rush leave play at part 1's switch-on. Their code is deleted by slivers after it.
@@ -625,9 +681,9 @@ Part 1, the first evenings:
 3. The lab plays part 1 and sets its numbers: the starting workers and where they start, the line's numbers for one workforce, the horse wagon, the builder, the site, the Light Tower.
 4. Art: the Light Tower and a horse wagon. Asked for first.
    - Beside these, and not a sliver of the game: the prototype played the workforce (the prototype's thread, branch `claude/project-thread-eextfa`, versions 5 to 12), under its own issue (#658). His answer of 15 Nov 2026, 09:53Z, is in What he sees. Slivers 3, 5, 6 and 7 waited for it and are released.
-5. The frame and the mine, beside today's board: the order strip, the stockpiles with the count of workers, the workforce with its hire key, Next, the site bar (#659); the mountain with each stage in its own part, the row of keys and the three stage rows (#660); and a stage's list (#661). #660 and #661 are in place of #537 and #538.
-6. The city: the transport plate with its drivers, the skyline with the building site and its builders, the project's card and the order key.
-7. The shift report and the cards.
+5. The frame and the mine, beside today's board: the order strip, the stockpiles with the count of workers, the workforce with its hire key, Next, the site bar (#659); the mountain with each stage in its own part, the row of keys and the three stage rows (#660); and a stage's list, with the worker's upgrades in the workforce (#661). #660 and #661 are in place of #537 and #538. The amount key reaches hiring and − and + in #659.
+6. The city: the transport plate with its drivers, the skyline with the building site and its builders, a building that rises in three steps, the project's card and the order key, and the city after the part's last roof.
+7. The shift report and the cards: part 1's night (the bar, and the eight-hour clock as what stops the mine), the facts the unattended rules give the report, the first evening's card, and part 1's end card.
 8. Part 1 is switched on. **Resets the save.** Today's board goes, and its journeys and visual sections move to the new screens.
 9. What part 1 left behind is deleted: relics, the pass, Legacy and kid runs, the generations lab, golden veins and the Gold rush, the dig button, and the upgrades that went.
 
@@ -636,7 +692,7 @@ Part 2, brick and nights:
 10. Goods, makers and the stockyard, off in play, with the Warehouse's project and the kilns as a job (rules 2, 3, 4).
 11. The lab plays parts 1 and 2.
 12. Art: a kiln, a brick and the Warehouse. Asked for first.
-13. The refinery and the stockyard, and the shift report's night bar.
+13. The refinery and the stockyard, and the shift report's stockyard lines: when each stockpile was full, and "Stockyard full: production stopped".
 14. Part 2 is switched on.
 
 Part 3, two levels:
@@ -672,21 +728,21 @@ Part 1's switch-on is a new save version, and it resets the save. Each new fact 
 
 ### Proof
 
-| What                                                                                      | Its proof                                                                                                                                                                                                                                                                                                                                     |
-| ----------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| The rules (levels, the workforce, goods, makers, the stockyard, crews, orders, transport) | Unit tests on pure rules modules, written first. Property tests where a sum must hold: four crews, a move never changes how many workers he has, one more machine or one more worker never lowers what a stage moves, no rock lost while the stone stockpile has room, never more delivered than required, never more on a site than it holds |
-| Unattended time                                                                           | Unit tests from timestamps: the clock before the stockyard, part 1's night after the Light Tower's roof (eight hours at 45%, no stockyard), the stockpile-full moments, a step and a building finished at night, a building site that is full, an order on hold                                                                               |
-| The pace and the decisions                                                                | The lab's named measures (Lab), and the five-day floor (#556) once the lab can play the whole slice                                                                                                                                                                                                                                           |
-| Each site and each card                                                                   | A visual section for each at 424×924 and 424×830, with no page scroll, and `npm run play` from a save for each part's states                                                                                                                                                                                                                  |
-| Each part as a game                                                                       | A journey for each part: the first evening to the Light Tower's roof; a night that fills the stockyard and one that builds; the shaft, a crew moved, and the Foundry's roof                                                                                                                                                                   |
-| The save                                                                                  | The ledger and the emulator round trip for each new fact, and the reset at part 1                                                                                                                                                                                                                                                             |
+| What                                                                                      | Its proof                                                                                                                                                                                                                                                                                                                                                               |
+| ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The rules (levels, the workforce, goods, makers, the stockyard, crews, orders, transport) | Unit tests on pure rules modules, written first. Property tests where a sum must hold: four crews, a move never changes how many workers he has, one more machine or one more worker never lowers what a stage moves, no rock lost while the stone stockpile has room, never more delivered than required, never more on a site than it holds                           |
+| Unattended time                                                                           | Unit tests from timestamps: the clock before the stockyard, part 1's night after the Light Tower's roof (eight hours at 45%, no stockyard), the stockpile-full moments, a step and a building finished at night, a building site that is full, an order on hold, and what the report says of a night: how long the mine produced, how long it stood and what stopped it |
+| The pace and the decisions                                                                | The lab's named measures (Lab), and the five-day floor (#556) once the lab can play the whole slice                                                                                                                                                                                                                                                                     |
+| Each site, the workforce and each card                                                    | A visual section for each at 424×924 and 424×830, with no page scroll, and `npm run play` from a save for each part's states, with the state after the part's last roof among them. A DOM test that every site has the frame's hire key and no other, and that a + with no free worker shows its line (#659, #660)                                                      |
+| Each part as a game                                                                       | A journey for each part: the first evening to the Light Tower's roof; a night that fills the stockyard and one that builds; the shaft, a crew moved, and the Foundry's roof                                                                                                                                                                                             |
+| The save                                                                                  | The ledger and the emulator round trip for each new fact, and the reset at part 1                                                                                                                                                                                                                                                                                       |
 
 A plan keeps each screen's browser checks green in the sliver that changes that screen. `docs/DESIGN.md`, `docs/design-intent.md`, `docs/ARCHITECTURE.md`, `docs/ui-audit.md`, `.claude/rules/observable-saves.md` and the github-issues skill's road section are updated by the slivers that change what they describe.
 
 ## Lab
 
 - The strategy lab plays slice 1 from a fresh mine, as far as the slice is built: to the Light Tower's roof for part 1, the Warehouse's for part 2, and the Foundry's for part 3. The lab's players do not follow Next. One player type shares the crews by need. One leaves them at two and two. One moves the whole workforce, to keep the old cage's cost in view. Every type buys vehicles when an order's limit is transport, and puts the project on hold when a machine pays back sooner. One never uses on hold, to show what it is worth. Every type also hires and places workers, since nothing does it for him (rule 2.4). It puts a driver on a vehicle it buys and a worker on a maker it buys, and hires one first when no worker is free. It puts the workers a machine takes on that machine's stage when it buys the machine, and hires a worker for its slowest stage when that pays back sooner than a machine. When the builders, not transport, are an order's limit, it adds a builder where it would have bought a vehicle. The lab's players may read the limits the rules work out, though the page does not show them. Two types differ only in when they move workers: one sets them once for each building and leaves them, and one moves them whenever a job has nothing to do. The gap between those two is what the chore would pay (risk 11).
-- Named measures, report-only at first: `sliceDays`, `narrowRun`, `shareMoves` a sitting, `nightFull` (how many long nights end at a full stockyard, and how far into the night), `deadGood` (time a stockpile is full with nothing to spend it on), `transportLimit` (the share of a project's time that transport is its limit), `starved` (time he cannot afford the cheapest buy while an order takes more than half of what the mine makes), `workerMoves` a sitting, `idleWorkers` (the share of the workers who are free or on a job with nothing to do), `siteFull` (the share of a project's time that its site is full), and `idleMachines` (the share of his machines that the workers leave idle because their tools move more).
+- Named measures, report-only at first: `sliceDays`, `narrowRun`, `shareMoves` a sitting, `nightFull` (how many long nights end at a full stockyard, and how far into the night), `deadGood` (time a stockpile is full with nothing to spend it on), `transportLimit` (the share of a project's time that transport is its limit), `starved` (time he cannot afford the cheapest buy while an order takes more than half of what the mine makes), `workerMoves` a sitting (the taps that hire workers and the taps that move them, with the amount key on what serves best), `idleWorkers` (the share of the workers who are free or on a job with nothing to do), `siteFull` (the share of a project's time that its site is full), and `idleMachines` (the share of his machines that the workers leave idle because their tools move more).
 - The generations lab goes with the pass (#642, Flemming, 14 Nov 2026: the pass goes).
 - The finish floor is Flemming's rule of 14 Nov 2026 (#556): a run takes at least five days, with no ceiling. For slice 1 the run ends at the Foundry's roof. He was told so on 14 Nov 2026 at 19:30Z ("At the Forge's roof the slice ends", "tuned to your rule of at least five") and agreed in principle. So the lab tunes the numbers until every player type needs five days or more to the Foundry's roof.
 - The floor does not count for part 1 or for part 2 while each is the end of the game. It is checked on the whole slice (Flemming, 15 Nov 2026: [His two calls](#his-two-calls-decided-15-nov-2026)).
@@ -701,4 +757,4 @@ Nine small pictures, each asked for with its prompt and size before it is made, 
 - A horse wagon and a truck, for Buys and the city.
 - A brick and a cut stone, for stockpiles and prices.
 
-Everything else the slice shows exists: the machines, the mine pictures the level rows and the surface are cut from, the steel, and the lamps.
+Everything else the mine shows exists: the machines, the mine pictures the level rows and the surface are cut from, the steel, and the lamps. The city has two pictures so far, the Light Tower and the horse wagon. Its scene is meant to need no more: a building rises from its own picture, and the sky, the ground and the road are drawn in code (call 52). If the city's plan finds a part that would be a box where a picture should be, that picture is asked for first and joins this list. The prototype's code-drawn skyline is not carried over.
