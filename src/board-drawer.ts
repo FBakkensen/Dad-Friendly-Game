@@ -7,7 +7,8 @@ import { type CloseBy, type DrawerId } from "./board-interaction";
 import { plateButton } from "./board-save";
 import { forgetAll, pressOnBoard, type PressTracker } from "./card-tap";
 import { skin } from "./board-skin";
-import { TROUBLE_FIXED } from "./screen-words";
+import { freshMineOn } from "./line-switch";
+import { CLOSE, TROUBLE_FIXED } from "./screen-words";
 
 /*
  * The drawer shell (#373): a riveted sheet that slides up from under the board's middle to the
@@ -240,7 +241,8 @@ function buildSheet(
   list.append(spare);
 
   const footer = el("footer", "board-sheet-footer");
-  const back = plateButton("Back to the board");
+  // Slice 1's frame has no board, and more than the mine (#708).
+  const back = plateButton(freshMineOn() ? CLOSE : "Back to the board");
   back.classList.add("board-sheet-back");
   footer.append(back);
 

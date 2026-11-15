@@ -105,6 +105,15 @@ describe("the order strip's key", () => {
   });
 });
 
+/** The words a player sees: every shown leaf's text. */
+function shown(root: HTMLElement): string {
+  return [...root.querySelectorAll<HTMLElement>("*")]
+    .filter((node) => node.children.length === 0)
+    .filter((node) => node.closest("[hidden]") === null)
+    .map((node) => node.textContent)
+    .join(" | ");
+}
+
 describe("the Ledger in a fresh mine", () => {
   it("reads the stockpile and the crew, and no depth, relic or pass", () => {
     const { key, row, find, ledger } = mount();
@@ -117,7 +126,8 @@ describe("the Ledger in a fresh mine", () => {
     expect(find(".ledger-pass").hidden).toBe(true);
     expect(find(".board-sheet-info").hidden).toBe(true);
     expect(find(".ledger-stones").getAttribute("title")).toBeNull();
-    expect(ledger.textContent).not.toMatch(
+    expect(find(".board-sheet-back").textContent).toBe("Close");
+    expect(shown(ledger)).not.toMatch(
       /Infinity|NaN|\bleft\b|\bdeep\b|relic|pocket|mountain|\bface\b|hands/i,
     );
   });
@@ -146,7 +156,7 @@ describe("the Ledger in a fresh mine", () => {
     expect(isOpen()).toBe(false);
     const copies = find(".saved-copies");
     expect(copies.hidden).toBe(false);
-    expect(find(".saved-copies-close").textContent).toBe("Back to the mine");
+    expect(find(".saved-copies-close").textContent).toBe("Close");
     find(".saved-copies-close").click();
     expect(copies.hidden).toBe(true);
     expect(document.activeElement).toBe(key);

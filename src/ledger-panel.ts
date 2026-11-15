@@ -1,4 +1,5 @@
 import stoneUrl from "./assets/board/res-stone.png";
+import workerUrl from "./assets/helper-miner.png";
 import type { AuthController, AuthState } from "./auth";
 import { hide, legend, setAttr } from "./board-dom";
 import { createBoardSheet, type BoardSheet } from "./board-drawer";
@@ -24,10 +25,12 @@ import {
 } from "./ledger-parts";
 import {
   accountRowView,
+  freshLedgerRows,
   relicsRowView,
   stonesRowView,
   tonightLines,
 } from "./ledger-rows";
+import { freshMineOn } from "./line-switch";
 import type { ProgressSnapshot, ProgressStore } from "./progress-store";
 import {
   ACCOUNT,
@@ -58,14 +61,19 @@ interface LedgerParts {
   readonly stones: BoardRow;
   readonly relics: BoardRow;
   readonly bar: ReturnType<typeof rowBar>;
+  /** A fresh mine's second row, the workers over the machines (#708). */
+  readonly crew: BoardRow;
   readonly account: BoardRow;
   readonly doors: LedgerDoors;
 }
 
-/** The Ledger's rows: the stones row and the relics row take no tap; the account row does. */
+/**
+ * The Ledger's rows: the stones row, the relics row and a fresh mine's crew row take no tap;
+ * the account row does.
+ */
 function buildLedgerRows(): Pick<
   LedgerParts,
-  "stones" | "relics" | "bar" | "account"
+  "stones" | "relics" | "bar" | "crew" | "account"
 > {
   const stones = createBoardRow({
     tag: "div",
@@ -86,6 +94,15 @@ function buildLedgerRows(): Pick<
   });
   const bar = rowBar();
   relics.root.append(bar.bar);
+  const crew = createBoardRow({
+    tag: "div",
+    className: "ledger-crew",
+    data: { ledger: "crew" },
+    name: "",
+    icon: true,
+    iconPx: 32,
+  });
+  crew.setIcon(workerUrl);
   const account = createBoardRow({
     tag: "button",
     className: "ledger-account",
@@ -97,7 +114,11 @@ function buildLedgerRows(): Pick<
   account.root
     .querySelector(".board-row-info")
     ?.setAttribute("aria-live", "polite");
-  return { stones, relics, bar, account };
+  // A fresh mine has no relics yet; today's mine has no crew row (#708).
+  const fresh = freshMineOn();
+  hide(relics.root, fresh);
+  hide(crew.root, !fresh);
+  return { stones, relics, bar, crew, account };
 }
 
 /** Puts every part in the list, in its order: Tonight, the mine, the account and the doors. */
@@ -118,18 +139,25 @@ function buildLedgerList(sheet: BoardSheet, doors: LedgerDoors): LedgerParts {
     parts.mineSec,
     parts.stones.root,
     parts.relics.root,
+    parts.crew.root,
     parts.account.root,
     doors.root,
   ]);
   return parts;
 }
 
-/** The stones and relics rows from a ready save. */
+/** The stones and relics rows from a ready save, or a fresh mine's two rows. */
 function paintReady(
   parts: LedgerParts,
   onBoard: RowsOnBoard,
   view: ProgressSnapshot,
 ): void {
+  if (freshMineOn()) {
+    const rows = freshLedgerRows(view.mountain);
+    onBoard.paint("stones", parts.stones, rows.stock);
+    onBoard.paint("crew", parts.crew, rows.crew);
+    return;
+  }
   const stones = stonesRowView(view.mountain);
   onBoard.paint("stones", parts.stones, stones);
   setAttr(parts.stones.root, "title", stones.title);
@@ -144,6 +172,7 @@ function paintLoading(parts: LedgerParts, onBoard: RowsOnBoard): void {
   onBoard.paint("stones", parts.stones, undefined);
   setAttr(parts.stones.root, "title", undefined);
   onBoard.paint("relics", parts.relics, undefined);
+  onBoard.paint("crew", parts.crew, undefined);
   paintRowBar(parts.bar.bar, parts.bar.fill, undefined, "");
 }
 
@@ -341,6 +370,11 @@ export function createLedgerPanel({
     ...(signal === undefined ? {} : { signal }),
   });
   sheet.kick(LEDGER_KICK);
+  // The "i" cards are today's relics and time away: a fresh mine has neither yet (#708).
+  const info = sheet.root.querySelector<HTMLElement>(".board-sheet-info");
+  if (info !== null) {
+    hide(info, freshMineOn());
+  }
   const parts = buildLedgerList(sheet, wired.doors);
   wireAccount(onBoard, parts.account, auth);
 
