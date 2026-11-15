@@ -129,7 +129,8 @@
 }
 
 .frame .mine-key,
-.frame .city-key {
+.frame .city-key,
+.frame-sheet .stage-key {
   display: flex;
   flex: 1;
   flex-direction: column;
@@ -147,7 +148,8 @@
 }
 
 .frame .mine-key.can,
-.frame .city-key.can {
+.frame .city-key.can,
+.frame-sheet .stage-key.can {
   background: var(--frame-go);
   color: var(--frame-go-ink);
   box-shadow: inset 0 0 0 var(--art) var(--frame-green);

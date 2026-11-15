@@ -17,6 +17,7 @@ import {
   formatClock,
   lostToolWords,
   upgradeEffectLine,
+  upgradeName,
   upgradeWhyLine,
 } from "./screen-words";
 import { showsDot } from "./teach";
@@ -173,8 +174,9 @@ export function upgradeRowView(
           can: false,
         }
       : buyFace(mountain.stock.stones, cost);
+  const name = upgradeName(upgrade);
   return {
-    name: upgrade.name,
+    name,
     badge:
       upgrade.maxLevel > 1
         ? `Lv ${String(level)}/${String(upgrade.maxLevel)}`
@@ -187,7 +189,7 @@ export function upgradeRowView(
     ...face,
     pick: false,
     aria: rowAria(
-      upgrade.name,
+      name,
       info,
       cost === undefined ? "Owned" : `Buy for ${formatCount(cost)} stones`,
     ),

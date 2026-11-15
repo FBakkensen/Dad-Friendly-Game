@@ -12,6 +12,7 @@ import {
   nextView,
   siteCounts,
   siteLamp,
+  stageCount,
   workforceCount,
 } from "./next-view";
 
@@ -115,6 +116,33 @@ describe("next view", () => {
       const carts = { ...start, owned: { ...start.owned, cart: 5 } };
       expect(siteCounts(start).mine).toBe(3);
       expect(siteCounts(carts).mine).toBe(4);
+    });
+  });
+});
+
+describe("a stage's count", () => {
+  it("counts its machine and the upgrades shown in its list, and the mine is their sum", () => {
+    fresh(() => {
+      const start = ordered(2_000_000);
+      const carts = { ...start, owned: { ...start.owned, cart: 5 } };
+      expect(stageCount(start, "haul")).toBe(1);
+      expect(stageCount(carts, "haul")).toBe(2);
+      expect(stageCount(carts, "face")).toBe(1);
+      expect(stageCount(carts, "lift")).toBe(1);
+      expect(siteCounts(carts).mine).toBe(
+        stageCount(carts, "face") +
+          stageCount(carts, "haul") +
+          stageCount(carts, "lift"),
+      );
+    });
+  });
+
+  it("is 0 on a stage with nothing he can afford", () => {
+    fresh(() => {
+      const poor = ordered(0);
+      expect(stageCount(poor, "face")).toBe(0);
+      expect(stageCount(poor, "haul")).toBe(0);
+      expect(stageCount(poor, "lift")).toBe(0);
     });
   });
 });

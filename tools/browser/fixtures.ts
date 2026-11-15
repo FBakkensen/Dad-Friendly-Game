@@ -1249,3 +1249,24 @@ export function sliceRoofSave(now: number): StoredAsIs {
     },
   });
 }
+
+/**
+ * A grown first stretch: five carts and five drills, so Cart helpers and
+ * Cart roads are open in their stages' lists, thirty workers for Better
+ * boots in the workforce, and the stone for all three (#661).
+ */
+export function sliceListSave(now: number): StoredAsIs {
+  return sliceSave(now, {
+    owned: { helper: 30, cart: 6, drill: 5, hoist: 3 },
+    stock: { stones: 3_000_000 },
+    jobs: { drilling: 8, haulage: 9, hoisting: 8, driving: 1, building: 2 },
+    fleet: { horseWagon: 2 },
+    project: {
+      building: "lightTower",
+      state: "delivering",
+      step: 0,
+      arrived: { stones: 23_700 },
+      onSite: { stones: 400 },
+    },
+  });
+}
