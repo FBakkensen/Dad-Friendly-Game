@@ -386,7 +386,7 @@ export function stageRows(
 }
 
 /** A stage in the scene: its workers, the share of the time they work, and its machines. */
-export type StageScene = {
+type StageScene = {
   readonly workers: number;
   /** The share of the time the stage works: it waits for the slowest stage the rest. */
   readonly busy: number;

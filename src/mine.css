@@ -250,6 +250,14 @@
   color: var(--frame-tool);
 }
 
+.mine-stage-sum.wrap {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font-size: var(--frame-type-12);
+  white-space: normal;
+}
+
 .mine-stage-count {
   display: flex;
   flex: none;

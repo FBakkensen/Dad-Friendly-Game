@@ -118,14 +118,20 @@ function buildRow(row: StageRow): RowParts {
   return { root, now, can, sum, bandCan, bandNow, count, unit, minus, plus };
 }
 
-/** The fullest form of the row's sum that fits its line. */
+/**
+ * The fullest form of the row's sum that fits its line. A sum too long for
+ * one line in every form (the third state's words) takes two lines.
+ */
 function writeSum(target: HTMLElement, forms: readonly string[]): void {
+  mark(target, "wrap", false);
   for (const form of forms) {
     write(target, form);
     if (target.scrollWidth <= target.clientWidth + 1) {
       return;
     }
   }
+  mark(target, "wrap", true);
+  write(target, forms[1] ?? "");
 }
 
 function paintRow(parts: RowParts, row: StageRow, amount: BuyAmount): void {

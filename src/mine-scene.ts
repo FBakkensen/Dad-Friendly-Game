@@ -469,24 +469,21 @@ function drawTubs(
   if (rolls) {
     motion.tubs += 16 * dt;
   }
+  // Carts that do not run wait at the shaft end of the rail, empty, with nobody beside them.
+  const parked = Math.min(2, haul.owned - haul.running);
+  for (let k = 0; k < parked; k += 1) {
+    frame(c, sprites.tubEmpty, 1, 0, [57 + k * 15, LEVEL.floor - 15]);
+  }
   const gap = 40 - 4 * Math.min(4, haul.running);
   const offset = motion.tubs % gap;
   const first = Math.floor(motion.tubs / gap);
-  for (let x = 132 - offset, j = 0; x > 56; x -= gap, j += 1) {
+  const end = 56 + parked * 15;
+  for (let x = 132 - offset, j = 0; x > end; x -= gap, j += 1) {
     const full = hash(first - j, 0, 91) < scene.load;
     frame(c, full ? sprites.tubFull : sprites.tubEmpty, 1, 0, [
       x,
       LEVEL.floor - (full ? 18 : 15),
     ]);
-  }
-  // Carts left standing wait at the end of the rail, empty, with nobody beside them.
-  for (
-    let k = 0;
-    k <
-    Math.min(2, haul.standing + (haul.owned - haul.running - haul.standing));
-    k += 1
-  ) {
-    frame(c, sprites.tubEmpty, 1, 0, [40 + k * 15, LEVEL.floor - 15]);
   }
 }
 

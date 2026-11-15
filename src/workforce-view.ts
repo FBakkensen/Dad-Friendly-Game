@@ -6,6 +6,7 @@ import type { SiteId } from "./next-view";
 import { SITE_NAMES } from "./next-view";
 import { effectiveRates } from "./rates";
 import { MACHINE_IDS, tierById, tierInPlay, type MachineId } from "./tiers";
+import { MACHINE_WORDS, TOOL_WORDS, plural } from "./mine-view";
 import { VEHICLES, drivenFleet } from "./transport";
 import { NO_JOBS, STAGE_JOB, freeWorkers, type JobId } from "./workforce";
 
@@ -33,33 +34,13 @@ const SITE_JOBS: Readonly<Record<SiteId, readonly JobId[]>> = {
   city: ["driving", "building"],
 };
 
-/** What a stage's workers hold when they run no machine: one, and more than one. */
-const TOOL_WORDS: Readonly<Record<Stage, readonly [string, string]>> = {
-  face: ["with a pick", "with picks"],
-  haul: ["with a barrow", "with barrows"],
-  lift: ["on a winch", "on winches"],
-};
-
-/** A machine as a job's line counts it: one, and more than one. */
-const MACHINE_WORDS: Readonly<Record<MachineId, readonly [string, string]>> = {
-  cart: ["cart", "carts"],
-  hoist: ["hoist", "hoists"],
-  drill: ["drill", "drills"],
-  borer: ["borer", "borers"],
-  train: ["train", "trains"],
-  machine: ["great machine", "great machines"],
-};
-
-const word = (count: number, [one, many]: readonly [string, string]): string =>
-  count === 1 ? one : many;
-
 /** "2 of 3 carts run", "1 of 1 cart runs". */
 function runsOf(
   on: number,
   of: number,
   noun: readonly [string, string],
 ): string {
-  return `${String(on)} of ${String(of)} ${word(of, noun)} ${on === 1 && of === 1 ? "runs" : "run"}`;
+  return `${String(on)} of ${String(of)} ${plural(of, noun)} ${on === 1 && of === 1 ? "runs" : "run"}`;
 }
 
 /** "2 of 3 carts run, 1 with barrows": each kind of machine he owns, then the tools. */
@@ -82,7 +63,7 @@ function stageNote(mountain: Mountain, stage: Stage): string {
     ),
   );
   if (tools > 0 || parts.length === 0) {
-    parts.push(`${String(tools)} ${word(tools, TOOL_WORDS[stage])}`);
+    parts.push(`${String(tools)} ${plural(tools, TOOL_WORDS[stage])}`);
   }
   return parts.join(", ");
 }

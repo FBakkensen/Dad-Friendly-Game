@@ -65,7 +65,12 @@ async function frameFacts(page) {
         ".frame-order-name, .frame-order-step, .frame-next-head, .frame-workers-free, .frame-hire, .mine:not([hidden]) :is(.mine-stage-sum, .mine-key, .mine-level-line, .mine-deep, .mine-stage-name)",
       ),
     ]
-      .filter((el) => el.scrollWidth > el.clientWidth + 1)
+      .filter(
+        (el) =>
+          el.scrollWidth > el.clientWidth + 1 ||
+          (el.classList.contains("wrap") &&
+            el.scrollHeight > el.clientHeight + 1),
+      )
       .map((el) => el.className);
     const mine = document.querySelector(".mine:not([hidden])");
     const box = (selector) => {
