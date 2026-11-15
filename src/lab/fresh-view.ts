@@ -6,11 +6,7 @@ import type { Mountain } from "../mountain";
 import { effectiveRates } from "../rates";
 import { stretch } from "../scale";
 import { TIERS, tierCost, tierInPlay } from "../tiers";
-import {
-  orderLimit,
-  vehiclePrice,
-  VEHICLE_IDS,
-} from "../transport";
+import { orderLimit, vehiclePrice, VEHICLE_IDS } from "../transport";
 import {
   JOB_IDS,
   freeWorkers,

@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import { RUSH_MS } from "../gold-rush";
 import { minedMountain } from "../test-fixtures";
 import { withFactors } from "../economy/factors";
-import { LINE_OFF } from "../line-switch";
-import { tapQuickVein, tendBest } from "./run";
+import { FRESH_OFF, LINE_OFF } from "../line-switch";
+import { createMountain, MOUNTAIN_STONES } from "../mountain";
+import casual from "./fresh-policies/casual-2x10";
+import { runDone, runPolicy, tapQuickVein, tendBest } from "./run";
 import { createWorld } from "./world";
 
 describe("the lab's quick vein (#468)", () => {
@@ -88,6 +90,32 @@ describe("where a best-tending dad sends her (#543)", () => {
         },
       };
       expect(tendBest(idle)).toBe(idle);
+    });
+  });
+});
+
+describe("a fresh mine's run (#655)", () => {
+  const FRESH = { [FRESH_OFF]: 0 };
+
+  it("ends when the last building built so far stands", () => {
+    withFactors(FRESH, () => {
+      const start = createMountain();
+      expect(runDone(start)).toBe(false);
+      expect(runDone({ ...start, operational: ["lightTower"] })).toBe(true);
+    });
+  });
+
+  it("ends today's run when the mountain is empty", () => {
+    const start = createMountain();
+    expect(start.remaining).toBe(MOUNTAIN_STONES);
+    expect(runDone(start)).toBe(false);
+    expect(runDone({ ...start, remaining: 0 })).toBe(true);
+  });
+
+  it("plays part 1's dad: he orders in his first second", () => {
+    withFactors(FRESH, () => {
+      const run = runPolicy({ policy: casual, seed: 1, maxLiveSeconds: 1 });
+      expect(run.world.mountain.project.kind).not.toBe("unordered");
     });
   });
 });

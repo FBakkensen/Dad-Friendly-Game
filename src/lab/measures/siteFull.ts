@@ -7,6 +7,5 @@ export default defineMeasure({
   label: "Building site full",
   unit: "share",
   why: "If the site is never full the builders are a second transport, one more row to tap.",
-  aggregate: (samples) =>
-    freshShare(samples, ordered, (view) => view.siteFull),
+  aggregate: (samples) => freshShare(samples, ordered, (view) => view.siteFull),
 });

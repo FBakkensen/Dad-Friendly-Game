@@ -196,6 +196,7 @@ export const LAB_ENTRIES: readonly string[] = [
 ];
 export const LAB_DIRS: readonly string[] = [
   "src/lab/policies",
+  "src/lab/fresh-policies",
   "src/lab/measures",
 ];
 

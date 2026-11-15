@@ -13,6 +13,7 @@ import {
   orderNumbers,
   secondsToFinish,
   vehiclePrice,
+  VEHICLE_IDS,
 } from "../transport";
 import { upgradeById, upgradeCost, upgradeLevel } from "../upgrades";
 import {
@@ -22,7 +23,6 @@ import {
   lineWork,
   type JobId,
 } from "../workforce";
-import { VEHICLE_IDS } from "../transport";
 import type { FreshHabits } from "./policy";
 import {
   FRESH_DUST,
@@ -145,8 +145,6 @@ function stageBuys(mountain: Mountain, stage: Stage): readonly Priced[] {
 
 /** A plan that raises the line, its stones, and what the line gains. */
 type Raise = Priced & { readonly gain: number };
-
-/** Most plan steps one raise may take: three stages tied at the slowest, and room for a tool step. */
 
 /**
  * The cheapest way to raise the line: the slowest stage's best buy (what it
@@ -353,8 +351,6 @@ function restoreStep(mountain: Mountain): Plan {
       ];
 }
 
-/** Most workers the mover puts back when an order delivers: a guard. */
-
 /**
  * The mine as it would stand with the order delivering: resumed, and for the
  * mover, the drivers and builders back from the mine. The hold is weighed on
@@ -540,8 +536,6 @@ function paysForItself(mountain: Mountain, priced: Priced): boolean {
     buildingSeconds(rich, line) - buildingSeconds(after, lineNow(after).line);
   return saved > FRESH_DUST && saved * line >= priced.cost;
 }
-
-/** Most plans one second may apply: a guard, never reached in play. */
 
 /** Plans one after another while each changes something; `onMove` hears each move before it applies. */
 export function playFresh(

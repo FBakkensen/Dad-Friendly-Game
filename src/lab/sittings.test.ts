@@ -86,6 +86,24 @@ describe("createSittingLog", () => {
     ]);
   });
 
+  it("adds the worker taps of a fresh mine's sitting (#655)", () => {
+    const log = createSittingLog();
+    const open = (): SittingOpen => AFFORDABLE;
+    log.observe({ clock: 1000, owned: 1, tiers: [], open });
+    log.observe({ clock: 2000, owned: 1, tiers: [], open, workerTaps: 3 });
+    log.observe({ clock: 3000, owned: 1, tiers: [], open, workerTaps: 2 });
+    expect(log.flush()).toEqual([
+      {
+        sitting: 0,
+        openedAtMs: 1000,
+        buys: 0,
+        taps: 0,
+        open: AFFORDABLE,
+        workerTaps: 5,
+      },
+    ]);
+  });
+
   it("drops a sitting that opened after the last gap and was never played", () => {
     const log = createSittingLog();
     const open = (): SittingOpen => AFFORDABLE;

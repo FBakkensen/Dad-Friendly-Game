@@ -46,11 +46,7 @@ const BUILDING_ROWS = [
   {
     id: "lightTower",
     name: "The Light Tower",
-    steps: [
-      stonesPrice(25_000),
-      stonesPrice(250_000),
-      stonesPrice(1_000_000),
-    ],
+    steps: [stonesPrice(25_000), stonesPrice(250_000), stonesPrice(1_000_000)],
     // "Lights the night: night shift output is 45%, up from 30%."
     power: { nightShift: 0.45 },
   },
