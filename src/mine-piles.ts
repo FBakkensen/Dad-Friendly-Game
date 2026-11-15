@@ -154,6 +154,26 @@ function chainWith(
   };
 }
 
+/** A pile with no room: the stages around it run in step. */
+const IN_STEP = { held: 0, holds: 0 } as const;
+
+/**
+ * What the mine brings each stockpile a second once it runs steady at full
+ * output (#667): the same chain with no rock waiting and no stockpile full,
+ * so the stages run in step, the kilns take what they can of what is lifted,
+ * and the rest is stone. The lab's planner reads it, so it plans on the
+ * split the chain itself makes.
+ */
+export function steadyIncome(mountain: Mountain): Partial<Stock> {
+  const stages = stagesOf(mountain);
+  return chainIncome({
+    source: Infinity,
+    rates: [stages.face, stages.haul, stages.lift, kilnRate(mountain), 0],
+    piles: [IN_STEP, IN_STEP, IN_STEP, { held: 0, holds: Infinity }],
+    spill: { from: LIFT, held: 0, holds: Infinity, drain: 0 },
+  });
+}
+
 /** What a mine's chain brings to the stockpiles a second now: stone and brick. */
 export function chainIncome(chain: Chain): Partial<Stock> {
   return {

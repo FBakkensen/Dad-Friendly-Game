@@ -5,8 +5,7 @@ import { freshMineOn } from "../line-switch";
 import { STAGES } from "../line";
 import type { Mountain } from "../mountain";
 import { effectiveRates } from "../rates";
-import type { GoodId } from "../stock";
-import { stockpileFull, stockyardOpen } from "../stockyard";
+import { STOCKPILE_GOODS, stockpileFull, stockyardOpen } from "../stockyard";
 import { TIERS, tierInPlay } from "../tiers";
 import { orderLimit, vehiclePrice, VEHICLE_IDS } from "../transport";
 import {
@@ -78,9 +77,6 @@ export function freshView(mountain: Mountain): FreshView | undefined {
   };
 }
 
-/** The stockpiles part 2 fills. */
-const STOCKPILES: readonly GoodId[] = ["stones", "brick"];
-
 /**
  * A stockpile holds its room while nothing takes its good: no order
  * delivers, or the step in hand requires none of it (#667). What he could
@@ -90,7 +86,7 @@ function deadGood(mountain: Mountain): boolean {
   const project = mountain.project;
   const need =
     project.kind === "delivering" ? stillRequired(project.site) : undefined;
-  return STOCKPILES.some(
+  return STOCKPILE_GOODS.some(
     (good) =>
       stockpileFull(mountain, good) && (need === undefined || need[good] <= 0),
   );

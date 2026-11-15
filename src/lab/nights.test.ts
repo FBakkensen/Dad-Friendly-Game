@@ -46,10 +46,17 @@ describe("a long night with the stockyard open (#667)", () => {
     partTwo(() => {
       expect(nightRecord(world(10 * HOUR_MS))).toEqual({
         awayMs: 10 * HOUR_MS,
+        endedFull: false,
       });
       expect(nightRecord(world(10 * HOUR_MS, 4 * HOUR_MS))).toEqual({
         awayMs: 10 * HOUR_MS,
+        endedFull: true,
         fullAtMs: 4 * HOUR_MS,
+      });
+      // Full from the start: ended full, with no time it filled.
+      expect(nightRecord(world(10 * HOUR_MS, 0))).toEqual({
+        awayMs: 10 * HOUR_MS,
+        endedFull: true,
       });
     });
   });
@@ -77,21 +84,30 @@ describe("a long night with the stockyard open (#667)", () => {
 
 describe("the night measures (#667)", () => {
   const nights = samples(
-    [{ awayMs: 10 }, { awayMs: 10, fullAtMs: 5 }],
+    [
+      { awayMs: 10, endedFull: false },
+      { awayMs: 10, endedFull: true, fullAtMs: 5 },
+    ],
     [],
     [
-      { awayMs: 10, fullAtMs: 9 },
-      { awayMs: 10, fullAtMs: 2 },
+      { awayMs: 10, endedFull: true, fullAtMs: 9 },
+      { awayMs: 10, endedFull: true, fullAtMs: 2 },
+      // Filled, but transport kept the mine going to morning: not ended full.
+      { awayMs: 10, endedFull: false, fullAtMs: 1 },
+      // Full from the start: ended full, no time it filled.
+      { awayMs: 10, endedFull: true },
     ],
   );
 
   it("shares the long nights a full stockyard ended", () => {
-    expect(nightFull.aggregate(nights)).toBe(0.75);
+    expect(nightFull.aggregate(nights)).toBe(4 / 6);
     expect(nightFull.aggregate([])).toBeNaN();
   });
 
-  it("takes the median share of the night when it filled", () => {
+  it("takes the median share of the night when it filled, among the nights it ended", () => {
     expect(nightFullAt.aggregate(nights)).toBe(0.5);
-    expect(nightFullAt.aggregate(samples([{ awayMs: 10 }]))).toBeNaN();
+    expect(
+      nightFullAt.aggregate(samples([{ awayMs: 10, endedFull: true }])),
+    ).toBeNaN();
   });
 });

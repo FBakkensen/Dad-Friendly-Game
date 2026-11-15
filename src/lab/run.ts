@@ -311,9 +311,13 @@ const BUY_KINDS: ReadonlySet<Action["kind"]> = new Set([
   "buyTier",
   "buyUpgrade",
   "buyVehicle",
+  "buyMaker",
 ]);
 
-type Buy = Extract<Action, { kind: "buyTier" | "buyUpgrade" | "buyVehicle" }>;
+type Buy = Extract<
+  Action,
+  { kind: "buyTier" | "buyUpgrade" | "buyVehicle" | "buyMaker" }
+>;
 
 function isBuy(action: Action): action is Buy {
   return BUY_KINDS.has(action.kind);

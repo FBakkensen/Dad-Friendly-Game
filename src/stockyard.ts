@@ -16,12 +16,18 @@ import { pay, type GoodId, type Price } from "./stock";
  * Each stockpile's room at level 0, as the lab set it (#667): twice the
  * spec's guess, so a casual dad's long night fills it in about one night in
  * four, late in the night. Cut stone's comes with part 3. A good with no row
- * has no limit. The lab sweeps it with `room.stockyard`.
+ * has no limit. The lab sweeps it with `room.stockyard`; above about 1.9 the
+ * last level's room is past a safe integer, so a sweep stays below that.
  */
 const ROOM_AT_ZERO: Readonly<Partial<Record<GoodId, number>>> = {
   stones: 6_000_000,
   brick: 1_000_000,
 };
+
+/** The goods with a stockpile in the stockyard: the rows above (#667). */
+export const STOCKPILE_GOODS: readonly GoodId[] = (
+  Object.keys(ROOM_AT_ZERO) as GoodId[]
+).filter((good) => ROOM_AT_ZERO[good] !== undefined);
 
 /** What each level multiplies the room by. */
 const ROOM_GROWTH = 3;

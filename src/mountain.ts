@@ -37,7 +37,7 @@ import {
   takeIncome,
   type MinePiles,
 } from "./mine-piles";
-import { stockpileFull, stockyardOpen } from "./stockyard";
+import { STOCKPILE_GOODS, stockpileFull, stockyardOpen } from "./stockyard";
 import type { GoodId } from "./stock";
 import {
   deliver,
@@ -783,9 +783,6 @@ type NightLog = {
   readonly fullAtMs: Partial<Record<GoodId, number>>;
 };
 
-/** The stockpiles the shift report watches (part 2). */
-const STOCKPILES: readonly GoodId[] = ["stones", "brick"];
-
 /** One stretch's facts into the log: `at` is where the next stretch starts. */
 function logStretch(
   log: NightLog,
@@ -796,7 +793,7 @@ function logStretch(
   const atMs = span.at - span.start;
   log.steps.push(...stepsBuilt(before, part.mountain, atMs));
   log.gained = addedStock(log.gained, part.gained);
-  for (const good of STOCKPILES) {
+  for (const good of STOCKPILE_GOODS) {
     if (
       log.fullAtMs[good] === undefined &&
       stockpileFull(part.mountain, good)
@@ -846,10 +843,9 @@ function accrueNight({
     litAtMs: undefined,
     gained: EMPTY_STOCK,
     fullAtMs: Object.fromEntries(
-      STOCKPILES.filter((good) => stockpileFull(mountain, good)).map((good) => [
-        good,
-        0,
-      ]),
+      STOCKPILE_GOODS.filter((good) => stockpileFull(mountain, good)).map(
+        (good) => [good, 0],
+      ),
     ),
   };
   let state = mountain;

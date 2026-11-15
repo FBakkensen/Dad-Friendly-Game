@@ -6,12 +6,15 @@ import type { World } from "./world";
 
 /**
  * How a long night went once the stockyard is open (slice 1, Lab,
- * `nightFull`, #667): how long it was, and when the stone stockpile filled,
- * if it did. A full stone stockpile stops the line (rule 4).
+ * `nightFull`, #667): how long it was, whether a full stockyard ended it
+ * (the night report's own `stop`: the mine stood at the end with its stone
+ * stockpile full), and when the stone stockpile filled, if it filled in the
+ * night rather than starting full.
  */
 export type NightRecord = {
   readonly awayMs: number;
-  /** When the stone stockpile was first full, from the night's start. */
+  readonly endedFull: boolean;
+  /** When the stone stockpile was first full, from the night's start; left out when it was full from the start. */
   readonly fullAtMs?: number;
 };
 
@@ -25,27 +28,33 @@ export function nightRecord(world: World): NightRecord | undefined {
   ) {
     return undefined;
   }
+  const endedFull = night.report.stop === "stockyard";
   const fullAtMs = night.report.fullAtMs?.stones;
-  return fullAtMs === undefined
-    ? { awayMs: night.awayMs }
-    : { awayMs: night.awayMs, fullAtMs };
+  return fullAtMs === undefined || fullAtMs <= 0
+    ? { awayMs: night.awayMs, endedFull }
+    : { awayMs: night.awayMs, endedFull, fullAtMs };
 }
 
 function nightsOf(samples: readonly DecisionSample[]): readonly NightRecord[] {
   return samples.flatMap((sample) => sample.nights ?? []);
 }
 
-/** Share of the long nights that a full stone stockpile ended. NaN with none. */
+/** Share of the long nights that a full stockyard ended. NaN with none. */
 export function nightFullShare(samples: readonly DecisionSample[]): number {
   const nights = nightsOf(samples);
-  const full = nights.filter((night) => night.fullAtMs !== undefined);
+  const full = nights.filter((night) => night.endedFull);
   return nights.length === 0 ? Number.NaN : full.length / nights.length;
 }
 
-/** How far into those nights the stockpile filled, as a share of the night: the median. NaN with none. */
+/**
+ * How far into those nights the stone stockpile filled, as a share of the
+ * night: the median, leaving out nights it was full from the start. NaN with none.
+ */
 export function nightFullAt(samples: readonly DecisionSample[]): number {
   const shares = nightsOf(samples).flatMap((night) =>
-    night.fullAtMs === undefined ? [] : [night.fullAtMs / night.awayMs],
+    night.endedFull && night.fullAtMs !== undefined
+      ? [night.fullAtMs / night.awayMs]
+      : [],
   );
   return shares.length === 0 ? Number.NaN : median(shares);
 }

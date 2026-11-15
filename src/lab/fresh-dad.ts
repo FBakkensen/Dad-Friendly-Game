@@ -8,14 +8,15 @@ import {
   type Action,
 } from "../economy/actions";
 import { STAGES, type Stage } from "../line";
-import { kilnRate, makerPrice, makersOpen } from "../makers";
-import { PILE_HOLDS, mineChain } from "../mine-piles";
+import { makerPrice, makersOpen } from "../makers";
+import { PILE_HOLDS, mineChain, steadyIncome } from "../mine-piles";
 import type { Mountain } from "../mountain";
 import { chainFlows } from "../piles";
 import { effectiveRates } from "../rates";
 import type { GoodId, Price, Stock } from "../stock";
 import {
   MAX_STOCKYARD_LEVEL,
+  STOCKPILE_GOODS,
   expandPrice,
   stockpileRoom,
   stockyardOpen,
@@ -81,12 +82,11 @@ function lineNow(mountain: Mountain): LineNow {
 /**
  * What the mine brings of each good a second at full output: the running
  * kilns take their rock first and make brick of it, and the rest is stone
- * (rule 3, #666). Before part 2 it is all stone.
+ * (rule 3, #666). Before part 2 it is all stone. The chain's own split
+ * (`steadyIncome`), so the dad plans on what the mine does.
  */
 export function goodsIncome(mountain: Mountain): Partial<Stock> {
-  const line = lineNow(mountain).line;
-  const brick = Math.min(kilnRate(mountain), line);
-  return { stones: line - brick, brick };
+  return steadyIncome(mountain);
 }
 
 /** A copy with a pocket that pays for anything, to try a plan on. */
@@ -661,7 +661,7 @@ function brings(mountain: Mountain): number {
 
 /** A stockpile holds most of its room (`YARD_NEARLY_FULL`). */
 function nearlyFull(mountain: Mountain): boolean {
-  return (["stones", "brick"] as const).some(
+  return STOCKPILE_GOODS.some(
     (good) =>
       mountain.stock[good] >= stockpileRoom(mountain, good) * YARD_NEARLY_FULL,
   );
@@ -675,9 +675,16 @@ function stoneFilling(mountain: Mountain): boolean {
   );
 }
 
-/** A buy's stone fits the stone stockpile's room (rule 4: "Needs a bigger stockyard"). */
-function fits(mountain: Mountain, priced: Priced): boolean {
-  return priced.cost <= stockpileRoom(mountain, "stones");
+/**
+ * A buy's stone, with his hoard, fits below the line where he stops raising
+ * (`YARD_NEARLY_FULL` of the stone room): one above it he could never save
+ * for, so he makes room first (rule 4: "Needs a bigger stockyard").
+ */
+function fits(mountain: Mountain, priced: Priced, hoardK: number): boolean {
+  return (
+    priced.cost * Math.max(1, hoardK) <=
+    stockpileRoom(mountain, "stones") * YARD_NEARLY_FULL
+  );
 }
 
 /**
@@ -773,7 +780,7 @@ function raisePlan(
   // With the stone stockpile nearly full, a faster line only stands
   // sooner: he raises it again once there is room.
   const best = stoneFilling(mountain) ? undefined : bestRaise(mountain, habits);
-  if (best !== undefined && !fits(mountain, best)) {
+  if (best !== undefined && !fits(mountain, best, hoardK)) {
     // Too big for the stone stockpile: he makes room for it, and does not
     // hold the order for a buy he cannot make.
     return yardPlan(mountain, true, hoardK);
