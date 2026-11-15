@@ -1,5 +1,4 @@
 import { parameterisedDecide } from "./decide";
-import { TAPS_PER_SECOND } from "./targets";
 import {
   definePolicy,
   scheduleFrom,
@@ -34,7 +33,6 @@ export type PlainSpec = {
   readonly sessionsPerDay: number;
   readonly minutesPerSession: number;
   readonly gapJitter?: number;
-  readonly tapsPerSecond?: number;
   readonly spend?: SpendWeights;
   readonly hoardK?: number;
   readonly promote?: Habit;
@@ -56,7 +54,6 @@ export function plainParams(spec: PlainSpec): PolicyParams {
     sessionsPerDay: spec.sessionsPerDay,
     minutesPerSession: spec.minutesPerSession,
     gapJitter: spec.gapJitter ?? 0,
-    tapsPerSecond: spec.tapsPerSecond ?? TAPS_PER_SECOND,
     spend: spec.spend ?? PLAIN_SPEND,
     hoardK: spec.hoardK ?? 1,
     promote: spec.promote ?? "asap",

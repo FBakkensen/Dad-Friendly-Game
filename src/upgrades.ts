@@ -114,9 +114,6 @@ const BY_ID: Readonly<Record<UpgradeId, Upgrade>> = {
 
 export const UPGRADES: readonly Upgrade[] = Object.values(BY_ID);
 
-/** Tap power: each level adds this share of the crew's speed to every tap. */
-export const TAP_SHARE_PER_LEVEL = 0.0165;
-
 /** Crew synergies: speed each `from` unit adds to its `to` tier. */
 export const SYNERGY_PER_UNIT = 0.01;
 

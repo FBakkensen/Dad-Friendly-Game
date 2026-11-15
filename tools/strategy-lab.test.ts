@@ -45,10 +45,10 @@ describe("strategy lab command", () => {
 
   it("reads flags and rejects a bad one", () => {
     expect(
-      parseLabArgs(["--policy", "tap-only", "--seeds", "1", "--days", "4"]),
+      parseLabArgs(["--policy", "hoarder", "--seeds", "1", "--days", "4"]),
     ).toMatchObject({
       kind: "run",
-      policyIds: ["tap-only"],
+      policyIds: ["hoarder"],
       seeds: 1,
       days: 4,
     });
@@ -87,7 +87,7 @@ describe("strategy lab command", () => {
     expect(parseLabArgs(["--ci", "--ledger", "maybe"]).kind).toBe("error");
     expect(parseLabArgs(["--ledger", "check"]).kind).toBe("error");
     expect(
-      parseLabArgs(["--ci", "--ledger", "check", "--policy", "tap-only"]).kind,
+      parseLabArgs(["--ci", "--ledger", "check", "--policy", "hoarder"]).kind,
     ).toBe("error");
     expect(
       parseLabArgs(["--ci", "--ledger", "check", "--factors", "line.off=0"])

@@ -21,7 +21,6 @@ import {
   MOUNTAIN_STONES,
   createMountain,
   digStones,
-  mineByHand,
   minedOut,
   accrueAway,
   type Mountain,
@@ -208,7 +207,7 @@ describe("createProgressStore", () => {
           data: { source: "unavailable" },
         }),
       );
-      progress.applyMutation((mountain) => mineByHand(mountain));
+      progress.applyMutation((mountain) => digStones(mountain, 1));
       expect(minedOut(progress.getSnapshot().mountain)).toBe(2);
     } finally {
       progress.dispose();
@@ -1304,9 +1303,8 @@ describe("field log", () => {
       ...(now === undefined ? {} : { now }),
     });
 
-  it("ignores a plain tap and an unaffordable buy", () => {
+  it("ignores an unaffordable buy", () => {
     const progress = guest();
-    progress.dispatch({ kind: "dig" });
     progress.dispatch({ kind: "buyTier", id: "helper" });
     expect(progress.fieldLog().events).toEqual([]);
     expect(progress.fieldLog().snapshot.version).toBe(APP_VERSION);
@@ -2920,7 +2918,7 @@ describe("save integrity: the phone keeps every tap (#222)", () => {
 
       for (let tap = 0; tap < 150; tap += 1) {
         clock += 10;
-        first.applyMutation((mountain) => mineByHand(mountain));
+        first.applyMutation((mountain) => digStones(mountain, 1));
       }
       first.dispose();
 
@@ -2973,7 +2971,7 @@ describe("save integrity: the phone keeps every tap (#222)", () => {
     expect(first.getSnapshot().ready).toBe(true);
     for (let tap = 0; tap < 150; tap += 1) {
       clock += 10;
-      first.applyMutation((mountain) => mineByHand(mountain));
+      first.applyMutation((mountain) => digStones(mountain, 1));
     }
     expect(minedOut(first.getSnapshot().mountain)).toBe(150);
     first.dispose();
@@ -3052,7 +3050,7 @@ describe("save integrity: the phone keeps every tap (#222)", () => {
 
       for (let tap = 0; tap < 4; tap += 1) {
         clock += 10;
-        progress.applyMutation((mountain) => mineByHand(mountain));
+        progress.applyMutation((mountain) => digStones(mountain, 1));
       }
       await Promise.resolve();
       expect(minedOut(progress.getSnapshot().mountain)).toBe(4);
@@ -3069,7 +3067,7 @@ describe("save integrity: the phone keeps every tap (#222)", () => {
       expect(minedOut(docs.get("test-dad") ?? createMountain())).toBe(4);
 
       clock += 10;
-      progress.applyMutation((mountain) => mineByHand(mountain));
+      progress.applyMutation((mountain) => digStones(mountain, 1));
       await Promise.resolve();
       expect(minedOut(progress.getSnapshot().mountain)).toBe(5);
       expect(minedOut(docs.get("test-dad") ?? createMountain())).toBe(5);
@@ -3117,7 +3115,7 @@ describe("save integrity: the phone keeps every tap (#222)", () => {
 
     for (let tap = 1; tap <= 150; tap += 1) {
       clock += 5;
-      progress.applyMutation((mountain) => mineByHand(mountain));
+      progress.applyMutation((mountain) => digStones(mountain, 1));
       await Promise.resolve();
       if (tap % 5 === 0) {
         deliver({
@@ -3319,7 +3317,7 @@ describe("save integrity: the phone keeps every tap (#222)", () => {
     let seen = 0;
     for (let tap = 1; tap <= 150; tap += 1) {
       clock += 5;
-      first.applyMutation((mountain) => mineByHand(mountain));
+      first.applyMutation((mountain) => digStones(mountain, 1));
       await Promise.resolve();
       const there = minedOut(second.getSnapshot().mountain);
       expect(there).toBeGreaterThanOrEqual(seen);
@@ -3408,7 +3406,7 @@ describe("save integrity: the phone keeps every tap (#222)", () => {
     hold = true;
     for (let tap = 0; tap < 150; tap += 1) {
       clock += 5;
-      live.applyMutation((currentMountain) => mineByHand(currentMountain));
+      live.applyMutation((currentMountain) => digStones(currentMountain, 1));
     }
     await vi.waitFor(() => {
       expect(minedOut(mountain)).toBeGreaterThanOrEqual(150);
@@ -5647,7 +5645,7 @@ describe("dispatch (#409)", () => {
     });
     progress.dispose();
     const saved = guestSave(sessionStorage);
-    expect(progress.dispatch({ kind: "dig" })).toEqual({
+    expect(progress.dispatch({ kind: "markSeen", id: "workshop" })).toEqual({
       kind: "refused",
       reason: "not-playing",
     });
@@ -5667,69 +5665,5 @@ describe("dispatch (#409)", () => {
       reason: "not-playing",
     });
     expect(progress.fieldLog().events).toEqual(before);
-  });
-
-  it("digs with the trouble the settle leaves, even one that starts in that settle", () => {
-    const open = () => {
-      let clock = 10_000;
-      const progress = createProgressStore({
-        auth: createMemoryAuth(),
-        sessionStorage: createMemoryStorage(),
-        now: () => clock,
-        hazardSeed: 1,
-      });
-      progress.applyMutation(() => ({
-        ...minedMountain(5_000_000),
-        owned: {
-          ...minedMountain(5_000_000).owned,
-          helper: 40,
-          cart: 10,
-          drill: 4,
-          borer: 2,
-        },
-        // A tap takes a share of the crew's speed, so a slowed machine digs less.
-        upgrades: { ...NO_UPGRADES, tap: 5 },
-      }));
-      return {
-        progress,
-        step: () => {
-          clock += 1_000;
-        },
-      };
-    };
-    // Find the second the first trouble starts.
-    const probe = open();
-    let seconds = 0;
-    while (probe.progress.getSnapshot().trouble === undefined) {
-      probe.step();
-      probe.progress.tick();
-      seconds += 1;
-      if (seconds > 3_600) throw new Error("no trouble in an hour");
-    }
-    const ticked = probe.progress.dispatch({ kind: "dig" });
-    // The same clock, but the trouble starts inside the dig's own settle.
-    const late = open();
-    for (let second = 1; second < seconds; second += 1) {
-      late.step();
-      late.progress.tick();
-    }
-    late.step();
-    expect(late.progress.getSnapshot().trouble).toBeUndefined();
-    const dug = late.progress.dispatch({ kind: "dig" });
-    expect(late.progress.getSnapshot().trouble).toEqual(
-      probe.progress.getSnapshot().trouble,
-    );
-    expect(dug).toEqual(ticked);
-  });
-
-  it("digs by hand, with what it mined", () => {
-    const progress = store();
-    const result = progress.dispatch({ kind: "dig" });
-    expect(result.kind === "applied" && result.gained.stones).toBeGreaterThan(
-      0,
-    );
-    expect(progress.getSnapshot().mountain.stock.stones).toBe(
-      result.kind === "applied" ? result.gained.stones : -1,
-    );
   });
 });

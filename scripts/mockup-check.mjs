@@ -99,7 +99,6 @@ const SHOTS = [
   ].map((step) => ["teach", "rest", step]),
   // Every How it works card (#242), so each one is checked for scroll.
   ...[
-    "tapping",
     "workers",
     "machines",
     "staffing",

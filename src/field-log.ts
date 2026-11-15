@@ -93,7 +93,6 @@ export type FieldSnapshot = {
   /** Every tier's count, by id, the line's machines included. */
   readonly crew: Readonly<Record<TierId, number>>;
   readonly crewSpeed: number;
-  readonly tapYield: number;
   /** Owned machines with nobody to run them, by machine id. */
   readonly idle: Readonly<Record<MachineId, number>>;
   readonly upgrades: Readonly<Record<UpgradeId, number>>;
@@ -177,7 +176,6 @@ export function snapshot(
     pocket: Math.min(mountain.stock.stones, FIELD_STONES_CAP),
     crew,
     crewSpeed: rates.crewPerSecond,
-    tapYield: rates.tapYield,
     idle,
     upgrades,
     boosts,
@@ -470,7 +468,6 @@ export function maxFieldLogDocumentBytes(): number {
       pocket: 100_000_000,
       crew,
       crewSpeed: 100_000_000,
-      tapYield: 100_000_000,
       idle,
       upgrades,
       boosts: [

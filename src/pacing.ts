@@ -21,13 +21,8 @@ import {
   type Action,
   type ValueContext,
 } from "./economy/actions";
-import { createWorld, step, type World } from "./lab/world";
-import {
-  createMountain,
-  mineByHand,
-  minedOut,
-  type Mountain,
-} from "./mountain";
+import { createWorld, step, withFirstWorker, type World } from "./lab/world";
+import { createMountain, minedOut, type Mountain } from "./mountain";
 import { owned, tierById, tierCost } from "./tiers";
 import { upgradeById, upgradeCost, upgradeLevel } from "./upgrades";
 
@@ -35,7 +30,6 @@ import { upgradeById, upgradeCost, upgradeLevel } from "./upgrades";
 const DAD = {
   sessionsPerDay: 2,
   sessionSeconds: 10 * 60,
-  tapsPerSecond: 3,
 } as const;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -47,7 +41,6 @@ const GAP_MS = DAY_MS / DAD.sessionsPerDay - DAD.sessionSeconds * 1000;
  * The strategy lab samples this schedule (#173).
  */
 export const DAD_SCHEDULE: ValueContext = {
-  tapsPerSecond: DAD.tapsPerSecond,
   liveSeconds: DAD.sessionSeconds,
   awaySeconds: GAP_MS / 1000,
 };
@@ -322,18 +315,7 @@ function promoteAndRecord(world: World, promotions: DadPromotion[]): World {
   return next;
 }
 
-/** The dad's hand taps for one second. */
-function tapSecond(world: World): Mountain {
-  const trouble =
-    world.hazards.phase === "trouble" ? world.hazards.trouble : undefined;
-  let tapped = world.mountain;
-  for (let tap = 0; tap < DAD.tapsPerSecond; tap += 1) {
-    tapped = mineByHand(tapped, world.clock, trouble);
-  }
-  return tapped;
-}
-
-/** One live second: boosts, tending, scouts, taps, income, buys, Nils. */
+/** One live second: boosts, tending, scouts, income, buys, Nils. */
 function liveSecond(
   start: World,
   second: number,
@@ -351,7 +333,7 @@ function liveSecond(
     };
   }
   world = step(
-    { ...world, mountain: tapSecond(world) },
+    world,
     1_000,
     "live",
     options.fixesTrouble ? { playerFixMs: SIM_FIX_MS } : undefined,
@@ -412,7 +394,9 @@ export function simulateDadRun({
   };
   let world: World = createWorld(
     1,
-    legacy > 0 ? { ...createMountain(), legacy } : createMountain(),
+    withFirstWorker(
+      legacy > 0 ? { ...createMountain(), legacy } : createMountain(),
+    ),
   );
   for (let session = 0; session < maxDays * DAD.sessionsPerDay; session += 1) {
     for (let second = 0; second < DAD.sessionSeconds; second += 1) {

@@ -9,7 +9,7 @@ import {
   type EngineerPost,
 } from "../engineers";
 import { send, settle, TUNNELS, type TunnelId } from "../expeditions";
-import { mineByHand, type Mountain } from "../mountain";
+import type { Mountain } from "../mountain";
 import { freshMineOn, lineOn } from "../line-switch";
 import { nextBuilding } from "../city";
 import { effectiveRates } from "../rates";
@@ -67,7 +67,7 @@ export type RunOptions = {
 };
 
 /**
- * Plays one policy on the shared clock. Live seconds tick, tap, buy, and
+ * Plays one policy on the shared clock. Live seconds tick, buy, and
  * promote. The gap pays away time. The same seed replays the same run.
  */
 export function runPolicy(options: RunOptions): PolicyRun {
@@ -268,11 +268,6 @@ function playSecond(
       dayTunnel(params.tunnel),
       params,
     );
-  }
-  const trouble =
-    world.hazards.phase === "trouble" ? world.hazards.trouble : undefined;
-  for (let tap = 0; tap < params.tapsPerSecond; tap += 1) {
-    mountain = mineByHand(mountain, world.clock, trouble);
   }
   world = liveSecond({ ...world, mountain }, params);
   world = buyWhileAffordable(world, policy, buys, promotions);

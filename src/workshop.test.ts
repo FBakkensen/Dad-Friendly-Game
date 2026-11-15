@@ -600,12 +600,6 @@ describe("workshop rules", () => {
         now,
       ).crewPerSecond,
     ).toBe(plain.crewPerSecond * 2);
-    // Strong arms reads the unboosted crew, the same rule as Overtime alone.
-    expect(doubled.tapYield).toBe(
-      effectiveRates({ ...cool, upgrades: { ...NO_UPGRADES, tap: 1 } }, now)
-        .tapYield,
-    );
-    expect(doubled.tapYield).toBe(67);
     const stronger = withFactors(
       { "recipe.blasting-charge.strength": 2 },
       () => effectiveRates(hot, now).crewPerSecond,

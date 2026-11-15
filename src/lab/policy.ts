@@ -56,7 +56,6 @@ export type PolicyParams = {
   readonly minutesPerSession: number;
   /** Fraction of the gap that the seed may slide either way. Zero is fixed. */
   readonly gapJitter: number;
-  readonly tapsPerSecond: number;
   readonly spend: SpendWeights;
   /**
    * Pay only when the pocket holds this many times the sticker price.
@@ -156,13 +155,11 @@ function baseGapMs(params: PolicyParams): number {
 
 /** Stones-per-second context for `valueOf`, on the unjittered day. */
 export function valueContext(params: PolicyParams): {
-  readonly tapsPerSecond: number;
   readonly liveSeconds: number;
   readonly awaySeconds: number;
 } {
   const liveSeconds = params.minutesPerSession * SAMPLE_INTERVAL_SEC;
   return {
-    tapsPerSecond: params.tapsPerSecond,
     liveSeconds,
     awaySeconds: baseGapMs(params) / MS_PER_SECOND,
   };
@@ -264,7 +261,6 @@ function isParams(value: unknown): value is PolicyParams {
     isPositive(value["sessionsPerDay"]) &&
     isPositive(value["minutesPerSession"]) &&
     isNonNegative(value["gapJitter"]) &&
-    isNonNegative(value["tapsPerSecond"]) &&
     isWeights(value["spend"]) &&
     isNonNegative(value["hoardK"]) &&
     isOneOf(value["promote"], HABITS) &&

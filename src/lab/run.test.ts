@@ -95,9 +95,8 @@ describe("a fresh mine's run (#655)", () => {
 
   it("plays a fresh type the old way while the fresh mine is off", () => {
     const run = runPolicy({ policy: casual, seed: 1, maxLiveSeconds: 1 });
-    // Today's dad taps by hand; part 1's dad never does.
-    expect(casual.params.tapsPerSecond).toBeGreaterThan(0);
-    expect(run.world.mountain.remaining).toBeLessThan(MOUNTAIN_STONES);
+    // Today's dad has no order to place; part 1's dad orders at once.
+    expect(run.world.mountain.project.kind).toBe("unordered");
   });
 
   it("plays part 1's dad: he orders in his first second", () => {

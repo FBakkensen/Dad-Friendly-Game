@@ -338,9 +338,6 @@ function oneMore(mountain: Mountain, id: UpgradeId): Mountain {
 function upgradeSpan(mountain: Mountain, id: UpgradeId): string {
   const before = effectiveRates(mountain);
   const after = effectiveRates(oneMore(mountain, id));
-  if (id === "tap") {
-    return `Tap ${formatCount(before.tapYield)} to ${formatCount(after.tapYield)}`;
-  }
   if (id === "boots") {
     return `Workers ${formatSpeed(before.tierSpeed.helper)}/s to ${formatSpeed(after.tierSpeed.helper)}/s`;
   }
@@ -553,10 +550,7 @@ function upgradeCard(
 function renderUpgradesB(view: DirectionView): string {
   const mountain = boardB();
   const rates = effectiveRates(mountain);
-  const pricing = {
-    crewPerSecond: rates.crewPerSecond,
-    tapYield: rates.tapYield,
-  };
+  const pricing = { crewPerSecond: rates.crewPerSecond };
   const armsCost = upgradeCost(
     upgradeById("tap"),
     upgradeLevel(mountain, "tap"),
@@ -576,8 +570,8 @@ function renderUpgradesB(view: DirectionView): string {
       armsCost !== undefined && mountain.stock.stones >= armsCost
         ? "ready"
         : "dear",
-      [upgradeSpan(mountain, "tap")],
-      `Buys Strong arms. ${upgradeSpan(mountain, "tap")} ${UPGRADE_DOES.tap ?? ""}`,
+      [],
+      `Buys Strong arms. ${UPGRADE_DOES.tap ?? ""}`,
       ART.upgrades,
     ),
     ...BOOSTS.map((boost) => {

@@ -80,7 +80,6 @@ describe("snapshot", () => {
         kid: 0,
       },
       crewSpeed: rates.crewPerSecond,
-      tapYield: rates.tapYield,
       idle: { cart: 0, hoist: 0, drill: 0, borer: 0, train: 0, machine: 0 },
       upgrades: {
         tap: 0,
@@ -143,7 +142,6 @@ describe("snapshot", () => {
       kid: 2,
     });
     expect(shot.crewSpeed).toBe(rates.crewPerSecond);
-    expect(shot.tapYield).toBe(rates.tapYield);
     // Two kids run both drills (1 each since #252), so the cart idles.
     expect(shot.idle).toEqual({
       cart: 1,

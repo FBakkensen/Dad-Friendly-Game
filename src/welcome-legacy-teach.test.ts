@@ -49,7 +49,7 @@ describe("pass-to-kid card (#247)", () => {
     recipes: recipesForMined(MOUNTAIN_STONES),
   });
 
-  it("states the first Legacy with real crew numbers, and no tap that rounds away", () => {
+  it("states the first Legacy with real crew numbers", () => {
     const words = legacyCardWords(bottom(0));
     expect(words.lead).toBe("Legacy ×1.5, for good");
     expect(words.rates).toEqual(["Workers 1/s to 1.5/s", "Carts 6/s to 9/s"]);
@@ -64,14 +64,10 @@ describe("pass-to-kid card (#247)", () => {
     );
   });
 
-  it("names the step from the current Legacy, and the tap once it grows", () => {
+  it("names the step from the current Legacy", () => {
     const words = legacyCardWords(bottom(1));
     expect(words.lead).toBe("Legacy ×1.5 to ×2, for good");
-    expect(words.rates).toEqual([
-      "Workers 1.5/s to 2/s",
-      "Carts 9/s to 12/s",
-      "Taps 1 to 2 stones",
-    ]);
+    expect(words.rates).toEqual(["Workers 1.5/s to 2/s", "Carts 9/s to 12/s"]);
   });
 
   it("counts the starting recipes on a mountain without a list, and stays plain", () => {

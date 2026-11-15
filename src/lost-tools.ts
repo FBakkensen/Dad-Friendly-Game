@@ -3,8 +3,8 @@ import { expeditionCraftScale } from "./workshop";
 
 /**
  * Lost tools (M7 §4). One of each, brought home from below and kept on
- * `mountain.finds`. The effects are applied in `effectiveRates`,
- * `expeditions`, and (for the boots) `hazards` via `wearsSteelToes`.
+ * `mountain.finds`. The effects are applied in `expeditions`, and (for
+ * the boots) `hazards` via `wearsSteelToes`.
  * The engineer's kit shortens the next expedition on top of the worn map.
  * See docs/DESIGN.md.
  */
@@ -15,10 +15,6 @@ export const LOST_TOOLS = ["pick", "lamp", "map", "boots"] as const;
 export type LostToolId = (typeof LOST_TOOLS)[number];
 
 type Shelf = Pick<Mountain, "finds" | "crafted">;
-
-/** Grandfather's pick: five fourths of the bare tap, rounded up. */
-export const PICK_TAP_NUMERATOR = 5;
-export const PICK_TAP_DENOMINATOR = 4;
 
 /** Old miner's lamp: a golden vein glints this many times as long. */
 export const LAMP_LINGER_SCALE = 2;
@@ -36,14 +32,6 @@ export function hasLostTool(mountain: Shelf, id: LostToolId): boolean {
  */
 export function wearsSteelToes(mountain: Shelf): boolean {
   return hasLostTool(mountain, "boots");
-}
-
-/** The bare tap, a little stronger once Grandfather's pick is home. */
-export function tapWithPick(bareTap: number, mountain: Shelf): number {
-  if (!hasLostTool(mountain, "pick")) {
-    return bareTap;
-  }
-  return Math.ceil((bareTap * PICK_TAP_NUMERATOR) / PICK_TAP_DENOMINATOR);
 }
 
 /** How many times longer a golden vein stays, once the old lamp is home. */

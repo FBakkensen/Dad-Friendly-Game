@@ -65,9 +65,7 @@ function crewed(start: Mountain, buys: number): Mountain {
     for (let tried = 0; tried < moves.length; tried += 1) {
       const move = moves[(bought + tried) % moves.length];
       const result =
-        move === undefined
-          ? undefined
-          : applyMove(mountain, move, START, { trouble: undefined });
+        move === undefined ? undefined : applyMove(mountain, move, START);
       if (result?.kind === "applied") {
         next = result.mountain;
         break;
@@ -145,10 +143,7 @@ function troubleOf(hazards: HazardState) {
 }
 
 function movesOn(world: World): readonly Move[] {
-  return [
-    { kind: "dig" },
-    ...listActions(world.mountain, world.clock, troubleOf(world.hazards)),
-  ];
+  return listActions(world.mountain, world.clock, troubleOf(world.hazards));
 }
 
 /** Time passes to `to`, paid from `lastSeen`, so part seconds carry as in the game. */
@@ -179,7 +174,11 @@ function play(world: World, step: Step): Played {
   switch (step.kind) {
     case "move": {
       const moves = movesOn(world);
-      const move = moves[step.pick % moves.length] ?? { kind: "dig" };
+      const move = moves[step.pick % moves.length];
+      if (move === undefined) {
+        // Nothing to do here: the step is a look, and the mountain stays.
+        return { before: world, after: world, applied: false, spent: 0 };
+      }
       if (move.kind === "fixTrouble") {
         // The hold on the troubled card: the hazards clear, the mountain stays.
         const hazards = fix(world.hazards, world.mountain);
@@ -192,9 +191,7 @@ function play(world: World, step: Step): Played {
           spent: 0,
         };
       }
-      const result = applyMove(world.mountain, move, world.clock, {
-        trouble: troubleOf(world.hazards),
-      });
+      const result = applyMove(world.mountain, move, world.clock);
       return result.kind === "applied"
         ? {
             before: world,

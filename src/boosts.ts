@@ -89,19 +89,19 @@ export function boostLeft(
   return Math.min(boostById(id).durationMs, Math.max(0, endsAt - now));
 }
 
-/** What the price scales with: the crew's speed and one tap's yield, unboosted. */
+/** What the price scales with: the crew's speed, unboosted. */
 export type BoostPricing = {
   readonly crewPerSecond: number;
-  readonly tapYield: number;
 };
 
-/** Priced from the crew or the tap it boosts, so it scales with progress. */
+/**
+ * Priced from the crew it boosts, so it scales with progress. Since the dig
+ * went (#728) a tap is no stones, so a tap boost is priced at its floor.
+ */
 export function boostCost(boost: Boost, pricing: BoostPricing, k = 1): number {
-  const per =
-    boost.priceIn === "taps" ? pricing.tapYield : pricing.crewPerSecond;
+  const per = boost.priceIn === "taps" ? 0 : pricing.crewPerSecond;
   const priced = Math.ceil(per * boost.priceUnits);
-  // A tap boost is priced on taps alone (#333): a crew floor made Sharper
-  // picks a trap while taps were still 1.
+  // A tap boost never takes the crew's price (#333).
   return Math.max(Math.ceil(boost.minCost * k), priced);
 }
 

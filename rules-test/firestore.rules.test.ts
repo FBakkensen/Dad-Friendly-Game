@@ -586,7 +586,7 @@ describe("firestore.rules: fieldLogs/{uid}", () => {
     const events = Array.from({ length: EVENT_RING_LIMIT }, () => event);
     const written = {
       ...fieldLog(events),
-      snapshot: { ...gameSnapshot(), crewSpeed: 1.5, tapYield: 0.25 },
+      snapshot: { ...gameSnapshot(), crewSpeed: 1.5 },
     };
     await setDoc(doc(db, "fieldLogs", "dad"), written);
     const snap = await getDoc(doc(db, "fieldLogs", "dad"));

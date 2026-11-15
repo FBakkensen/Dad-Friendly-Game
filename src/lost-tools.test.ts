@@ -4,12 +4,9 @@ import {
   LOST_TOOLS,
   MAP_RETURN_DENOMINATOR,
   MAP_RETURN_NUMERATOR,
-  PICK_TAP_DENOMINATOR,
-  PICK_TAP_NUMERATOR,
   expeditionAwayMs,
   glintScale,
   hasLostTool,
-  tapWithPick,
   wearsSteelToes,
 } from "./lost-tools";
 import { BARE_MOUNTAIN } from "./mountain";
@@ -35,20 +32,6 @@ describe("lost tools", () => {
     expect(hasLostTool({ ...BARE_MOUNTAIN, finds: ["boots"] }, "boots")).toBe(
       true,
     );
-  });
-});
-
-describe("Grandfather's pick", () => {
-  const held = { ...BARE_MOUNTAIN, finds: ["pick" as const] };
-
-  it("makes a tap a little stronger, and leaves a bare tap alone", () => {
-    expect(tapWithPick(1, BARE_MOUNTAIN)).toBe(1);
-    expect(tapWithPick(1, held)).toBe(
-      Math.ceil((1 * PICK_TAP_NUMERATOR) / PICK_TAP_DENOMINATOR),
-    );
-    expect(tapWithPick(1, held)).toBe(2);
-    expect(tapWithPick(4, held)).toBe(5);
-    expect(tapWithPick(8, held)).toBe(10);
   });
 });
 

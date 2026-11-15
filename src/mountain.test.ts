@@ -11,7 +11,6 @@ import {
   accrue,
   createMountain,
   digStones,
-  mineByHand,
   minedOut,
   stonesPerSecond,
   BARE_MOUNTAIN,
@@ -47,11 +46,8 @@ describe("mountain", () => {
     expect(minedOut(createMountain())).toBe(0);
   });
 
-  it("moves exactly one stone from the mountain to the pocket per tap", () => {
-    let mountain = createMountain();
-    for (let tap = 0; tap < 3; tap += 1) {
-      mountain = mineByHand(mountain);
-    }
+  it("moves exactly the stones dug from the mountain to the pocket", () => {
+    const mountain = digStones(createMountain(), 3);
     expect(mountain).toEqual({
       ...createMountain(),
       remaining: MOUNTAIN_STONES - 3,
@@ -59,34 +55,16 @@ describe("mountain", () => {
     });
     expect(minedOut(mountain)).toBe(3);
   });
-
-  it("stops at zero and returns the same mountain", () => {
-    const empty = {
-      ...BARE_MOUNTAIN,
-      remaining: 0,
-      stock: { ...BARE_MOUNTAIN.stock, stones: 5 },
-      owned: {
-        ...BARE_MOUNTAIN.owned,
-        helper: 0,
-        cart: 0,
-        drill: 0,
-        borer: 0,
-        machine: 0,
-        kid: 0,
-      },
-    };
-    expect(mineByHand(empty)).toBe(empty);
-  });
 });
 
 describe("materials from digging", () => {
-  it("pays a hand tap when the stones cross a gap", () => {
+  it("pays the dug stones when they cross a gap", () => {
     const mountain = {
       ...createMountain(),
       remaining: MOUNTAIN_STONES - 999_999,
       stock: { ...createMountain().stock, stones: 999_999 },
     };
-    const tapped = mineByHand(mountain);
+    const tapped = digStones(mountain, 1);
     expect(minedOut(tapped)).toBe(1_000_000);
     expect(materialsIn(tapped)).toEqual({ ...EMPTY_MATERIALS, clay: 1 });
     expect(tapped.stock.stones).toBe(1_000_000);
@@ -495,8 +473,6 @@ describe("digging through band scales (#356)", () => {
     const over = digStones(m, left + 5);
     expect(over.remaining).toBe(0);
     expect(over.stock.stones - m.stock.stones).toBe(left + 5);
-    const tapped = mineByHand({ ...m, remaining: 0 });
-    expect(tapped.remaining).toBe(0);
   });
 
   it("an hour in the Granite moves depth by stones over the band scale", () => {

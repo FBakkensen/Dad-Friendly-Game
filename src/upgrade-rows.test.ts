@@ -65,11 +65,10 @@ describe("lasting upgrade rows", () => {
       ),
     ]);
     expect(view.why).toBe(
-      upgradeWhyLine(
-        arms,
-        { ...climbing, stock: { ...climbing.stock, stones: cost } },
-        NOW,
-      ),
+      upgradeWhyLine(arms, {
+        ...climbing,
+        stock: { ...climbing.stock, stones: cost },
+      }),
     );
     expect(view.aria).toBe(
       `Strong arms. ${view.info[0] ?? ""} Buy for ${formatCount(cost)} stone`,

@@ -363,9 +363,6 @@ export const TARGETS: readonly Target[] = [
  */
 export const LOOKAHEAD_SESSIONS = 1;
 
-/** The plain dad taps this fast while the sitting is open. */
-export const TAPS_PER_SECOND = 3;
-
 /**
  * A fresh mine's dad (slice 1, #655). A gain or a difference this small is
  * float dust, not a move of the line.

@@ -239,23 +239,6 @@ export function rockDugInAll(mountain: Mountain): number {
   return minedOut(mountain) + mountain.rockDug;
 }
 
-/** One tap mines its yield (see effectiveRates); an empty mountain returns the same object. */
-export function mineByHand(
-  mountain: Mountain,
-  now?: number,
-  trouble?: Trouble,
-): Mountain {
-  // Nothing is mined by a tap in a fresh mine (slice 1, What goes, #653).
-  if (mountain.remaining === 0 || freshMineOn()) {
-    return mountain;
-  }
-  const mined = Math.min(
-    stonesLeft(mountain),
-    effectiveRates(mountain, now, trouble).tapYield,
-  );
-  return digStones(mountain, mined);
-}
-
 /**
  * Stones leave the mountain, and the band they came from drops its material.
  * A fresh mine has no depth (slice 1, rule 1, #653): the stones go to the

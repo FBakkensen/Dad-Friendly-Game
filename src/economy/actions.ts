@@ -77,7 +77,7 @@ import {
 import { LAYERS } from "../layers";
 import { boostShown, upgradeShown } from "../upgrade-reveal";
 import { expeditionAwayMs } from "../lost-tools";
-import { mineByHand, type Mountain } from "../mountain";
+import type { Mountain } from "../mountain";
 import { minedOut, oneOffStretch, stretch } from "../scale";
 import {
   markAllSeen,
@@ -211,8 +211,6 @@ type OrderAction =
  * (`src/lab/policies`, #172). The catalogue does not pick a dad of its own.
  */
 export type ValueContext = {
-  /** Taps while they are at the mountain. Zero when they never tap. */
-  readonly tapsPerSecond: number;
   /** Seconds at the mountain in one cycle of the schedule. */
   readonly liveSeconds: number;
   /** Seconds away in that same cycle, before the away cap. */
@@ -533,9 +531,8 @@ export function vehicleBuyMove(
     : { kind: "buyVehicles", id, count };
 }
 
-/** A move only the screen makes: the lab plays taps and marks through its value model. */
+/** A move only the screen makes: the lab plays marks through its value model. */
 type ScreenMove =
-  | { readonly kind: "dig" }
   | {
       /** Several of a tier in one tap (#358). The lab plans single buys. */
       readonly kind: "buyTiers";
@@ -625,20 +622,8 @@ export type MoveResult =
     }
   | { readonly kind: "refused" };
 
-/** What a move sees besides the mountain and the clock. */
-export interface MoveContext {
-  readonly trouble: Trouble | undefined;
-}
-
-function moved(
-  mountain: Mountain,
-  move: Move,
-  now: number,
-  context: MoveContext,
-): Mountain {
+function moved(mountain: Mountain, move: Move, now: number): Mountain {
   switch (move.kind) {
-    case "dig":
-      return mineByHand(mountain, now, context.trouble);
     case "buyTiers":
       return buyMany(mountain, move.id, move.count);
     case "buyVehicles":
@@ -747,9 +732,8 @@ export function applyMove(
   mountain: Mountain,
   move: Move,
   now: number,
-  context: MoveContext,
 ): MoveResult {
-  const next = moved(mountain, move, now, context);
+  const next = moved(mountain, move, now);
   if (next === mountain) {
     return { kind: "refused" };
   }
@@ -904,7 +888,6 @@ function moveEvents(
       return actionEvents(before, next, { kind: "buyTier", id: move.id });
     case "buyVehicles":
       return actionEvents(before, next, { kind: "buyVehicle", id: move.id });
-    case "dig":
     case "markSeen":
     case "markAllSeen":
       return [];
@@ -913,19 +896,19 @@ function moveEvents(
   }
 }
 
-/** The lab's move: the same rules as the game, with no trouble passed in. */
+/** The lab's move: the same rules as the game, and a refused move keeps the mountain. */
 export function applyAction(
   mountain: Mountain,
   action: Action,
   now: number,
 ): Mountain {
-  const result = applyMove(mountain, action, now, { trouble: undefined });
+  const result = applyMove(mountain, action, now);
   return result.kind === "applied" ? result.mountain : mountain;
 }
 
 /**
  * Values a move from income before and after. Income mixes the unrounded
- * crew, taps from `mineByHand`, and away pay from the same factor as
+ * crew and away pay from the same factor as
  * `accrueAway`, weighted by `context`. No second copy of the upgrade maths.
  * A machine's cost includes the workers it still needs. `horizon` is
  * seconds: a boost's extra income is spread across it, and a permanent
@@ -1179,8 +1162,8 @@ type ValueClock = {
 };
 
 /**
- * Stones a second of the schedule. Live time pays the unrounded crew and
- * each tap (`mineByHand`). Away time pays the same factor as `accrueAway`,
+ * Stones a second of the schedule. Live time pays the unrounded crew.
+ * Away time pays the same factor as `accrueAway`,
  * and only up to the away cap. The rest of a long absence pays nothing.
  * The lab reads this for its lookahead so it does not keep a second formula.
  */
@@ -1191,8 +1174,7 @@ export function incomePerSecond(
 ): number {
   const liveRates = effectiveRates(mountain, clock?.now, clock?.trouble);
   const awayRates = effectiveRates(mountain);
-  const tap = oneTap(mountain, clock?.now, clock?.trouble);
-  const liveIncome = liveRates.exactCrewPerSecond + context.tapsPerSecond * tap;
+  const liveIncome = liveRates.exactCrewPerSecond;
   const liveSeconds = context.liveSeconds;
   const awaySeconds = context.awaySeconds;
   const cycle = liveSeconds + awaySeconds;
@@ -1202,13 +1184,6 @@ export function incomePerSecond(
     return liveIncome;
   }
   return (liveSeconds * liveIncome + paidAway * awayIncome) / cycle;
-}
-
-/** What one tap adds to the pocket. Zero on an empty mountain. */
-function oneTap(mountain: Mountain, now?: number, trouble?: Trouble): number {
-  return (
-    mineByHand(mountain, now, trouble).stock.stones - mountain.stock.stones
-  );
 }
 
 /** The pay fraction `accrueAway` applies. */

@@ -49,7 +49,6 @@ function dad(spec: Pick<PlainSpec, "id" | "label" | "kind">): Policy {
     ...spec,
     sessionsPerDay: 1,
     minutesPerSession: 1,
-    tapsPerSecond: 0,
     promote: "never",
     promoteCap: 0,
     explore: "never",
@@ -793,7 +792,6 @@ describe("tournament", () => {
     for (const file of ["tournament.ts", "report.ts"]) {
       const source = readFileSync(path.resolve("src/lab", file), "utf8");
       expect(source.includes("casual-2x10")).toBe(false);
-      expect(source.includes("tap-only")).toBe(false);
       expect(source.includes('"regret"')).toBe(false);
       expect(source.includes('"finishDay"')).toBe(false);
       expect(source.includes("node:fs")).toBe(false);

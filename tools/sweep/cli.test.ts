@@ -31,7 +31,7 @@ describe("sweep command", { timeout: 120_000 }, () => {
     expect(
       parseSweepArgs([
         "--policy",
-        "tap-only",
+        "hoarder",
         "--measure",
         "finishDay",
         "--measure",
@@ -49,7 +49,7 @@ describe("sweep command", { timeout: 120_000 }, () => {
       ]),
     ).toMatchObject({
       kind: "run",
-      policyId: "tap-only",
+      policyId: "hoarder",
       measureIds: ["finishDay", "singleShare"],
       seed: 0,
       trajectories: 2,

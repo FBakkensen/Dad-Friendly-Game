@@ -13,7 +13,7 @@ import {
 } from "./cloud-save";
 import { holdFactors } from "./economy/factors";
 import { FRESH_OFF } from "./line-switch";
-import { createMountain, minedOut, type Mountain } from "./mountain";
+import { createMountain, digStones, minedOut, type Mountain } from "./mountain";
 import { createProgressStore } from "./progress-store";
 import { SESSION_SAVE_KEY } from "./session-save";
 import { minedMountain, saveText } from "./test-fixtures";
@@ -165,7 +165,7 @@ describe("an older save is set aside (#558)", () => {
     await vi.waitFor(() => {
       expect(progress.getSnapshot().log).toContain("save.archive");
     });
-    progress.dispatch({ kind: "dig" });
+    progress.applyMutation((mountain) => digStones(mountain, 1));
     progress.flush();
     await Promise.resolve();
     expect(writes).toEqual([]);
@@ -280,7 +280,7 @@ describe("a set-aside never costs a played copy (#558)", () => {
       auth: createMemoryAuth(),
       sessionStorage: full,
     });
-    progress.dispatch({ kind: "dig" });
+    progress.applyMutation((mountain) => digStones(mountain, 1));
     progress.flush();
     progress.dispose();
     expect(storage.getItem(SESSION_SAVE_KEY)).toBe(raw);
@@ -299,7 +299,7 @@ describe("a set-aside never costs a played copy (#558)", () => {
     await vi.waitFor(() => {
       expect(progress.getSnapshot().saveKind).toBe("account");
     });
-    progress.dispatch({ kind: "dig" });
+    progress.applyMutation((mountain) => digStones(mountain, 1));
     progress.flush();
     await vi.waitFor(() => {
       expect(minedOut(docs.get(user.uid) ?? createMountain())).toBe(1);

@@ -31,7 +31,6 @@ import neverWorkers from "./policies/never-workers";
 import noEngineers from "./policies/no-engineers";
 import optimizer from "./policies/optimizer";
 import skipCrafting from "./policies/skip-crafting";
-import tapOnly from "./policies/tap-only";
 import workersOnly from "./policies/workers-only";
 import { plainPolicy } from "./plain";
 import {
@@ -172,7 +171,6 @@ describe("other schedules", () => {
     expect(fiveMin.params).toMatchObject({
       sessionsPerDay: 1,
       minutesPerSession: 5,
-      tapsPerSecond: casual.params.tapsPerSecond,
     });
     expect(fiveMin.schedule.sessionMs).toBe(5 * 60 * 1000);
     expect(marathon.params).toMatchObject({
@@ -223,25 +221,6 @@ describe("extremes", () => {
     if (next?.kind === "buyTier") {
       expect(next.id).not.toBe("helper");
     }
-  });
-
-  it("taps, and never buys", () => {
-    const rich = withPocket(1_000_000_000, {
-      owned: { ...NONE_OWNED, helper: 40, borer: 1 },
-      engineers: [ada],
-    });
-    expect(
-      tapOnly.decide({ mountain: rich, now: 0, params: tapOnly.params }),
-    ).toBeUndefined();
-    const run = runPolicy({
-      policy: tapOnly,
-      seed: 1,
-      mountain: rich,
-      maxLiveSeconds: 5,
-    });
-    expect(run.buys).toEqual([]);
-    expect(run.promotions).toEqual([]);
-    expect(run.world.mountain.expeditions).toEqual([]);
   });
 
   it("buys machines, and workers only for those machines", () => {
@@ -402,13 +381,6 @@ describe("optimizer", () => {
         mountain: createMountain(),
         now: 0,
         params: optimizer.params,
-      }),
-    ).toBeUndefined();
-    expect(
-      optimizerDecide({
-        mountain: createMountain(),
-        now: 0,
-        params: { ...optimizer.params, tapsPerSecond: 0 },
       }),
     ).toBeUndefined();
     const rich = optimizerDecide({
@@ -573,7 +545,7 @@ describe("policy shape", () => {
 
   it("stops when the caller says the second is enough", () => {
     const run = runPolicy({
-      policy: tapOnly,
+      policy: casual,
       seed: 1,
       maxLiveSeconds: 10,
       until: (world) => world.clock >= 2 * 1000,
@@ -588,7 +560,6 @@ describe("policy shape", () => {
       kind: "extreme",
       sessionsPerDay: 2,
       minutesPerSession: 1,
-      tapsPerSecond: 0,
       promote: "never",
       explore: "never",
       tend: "never",
@@ -604,7 +575,6 @@ describe("policy shape", () => {
       kind: "extreme",
       sessionsPerDay: 1,
       minutesPerSession: 1,
-      tapsPerSecond: 0,
       promote: "on-value",
       explore: "never",
       tend: "never",
@@ -638,7 +608,6 @@ describe("policy shape", () => {
       kind: "extreme",
       sessionsPerDay: 1,
       minutesPerSession: 1,
-      tapsPerSecond: 0,
       promote: "never",
       explore: "never",
       tend: "never",
@@ -662,7 +631,6 @@ describe("policy shape", () => {
       kind: "extreme",
       sessionsPerDay: 1,
       minutesPerSession: 1,
-      tapsPerSecond: 0,
       promote: "never",
       explore: "never",
       tend: "never",
@@ -792,7 +760,6 @@ describe("crafting", () => {
       kind: "extreme",
       sessionsPerDay: 1,
       minutesPerSession: 1,
-      tapsPerSecond: 0,
       spend: { worker: 0, machine: 0, upgrade: 0, boost: 0, promote: 0 },
       promote: "never",
       explore: "never",
@@ -829,13 +796,6 @@ describe("crafting", () => {
         (action) => action.kind === "craft",
       ),
     ).toBe(false);
-    expect(
-      tapOnly.decide({
-        mountain: workshop(),
-        now: 0,
-        params: tapOnly.params,
-      }),
-    ).toBeUndefined();
   });
 
   it("pays for a craft only when the materials, the room, and the hoard allow it", () => {

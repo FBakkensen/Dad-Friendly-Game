@@ -548,7 +548,7 @@ function noteHazards(
 }
 
 /**
- * The clock and the trouble the move sees are the settled ones. A refused
+ * The clock the move sees is the settled one. A refused
  * move changes nothing, but a first use the settle revealed is still marked.
  */
 function applyPlayerMove(
@@ -557,9 +557,7 @@ function applyPlayerMove(
   now: number,
   out: Effects,
 ): Session {
-  const result = applyMove(settled.mountain, move, now, {
-    trouble: activeTrouble(settled),
-  });
+  const result = applyMove(settled.mountain, move, now);
   out.push({ kind: "moved", result });
   return commitChange(
     settled,

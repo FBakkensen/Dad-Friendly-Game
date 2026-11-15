@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
-import { formatCompact, formatCount } from "../src/format.ts";
+import { formatCompact } from "../src/format.ts";
 import { effectiveRates } from "../src/rates.ts";
 import {
   buyPriceWords,
@@ -547,19 +547,6 @@ describe("design token mocks (#234)", () => {
       /pays back|worth it|best value|\?|in \d+ min/i,
     );
     const sheetB = host(renderMock(view({ scene: "upgrades-b" })));
-    const before = rates.tapYield;
-    const after = effectiveRates({
-      ...mountainB,
-      upgrades: {
-        ...mountainB.upgrades,
-        tap: upgradeLevel(mountainB, "tap") + 1,
-      },
-    }).tapYield;
-    // Strong arms is dear at 2.9M (#250), so its card keeps the reading
-    // in the spoken label rather than on the face.
-    expect(sheetB.innerHTML).toContain(
-      `Tap ${formatCount(before)} to ${formatCount(after)}`,
-    );
     expect(sheetB.textContent).toContain("Taps ×2 for 10 min.");
     expect(sheetB.textContent).toContain("Crew ×2 for 30 min.");
     const helped = effectiveRates({

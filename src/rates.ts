@@ -29,7 +29,6 @@ import { handsSpeed, lineOf, lineRating } from "./line";
 import { freshMineOn, lineOn } from "./line-switch";
 import { nightShiftShare } from "./city";
 import { lineWork } from "./workforce";
-import { tapWithPick } from "./lost-tools";
 import type { Mountain } from "./mountain";
 import {
   TIERS,
@@ -56,7 +55,6 @@ import { boostById, boostLeft } from "./boosts";
 import {
   BOOTS_SPEED_PER_LEVEL,
   STEADY_AWAY_PER_LEVEL,
-  TAP_SHARE_PER_LEVEL,
   tierSynergy,
   upgradeLevel,
 } from "./upgrades";
@@ -103,8 +101,6 @@ const KID_TEACH_PER_KID = 0.02;
 const TENDING_FLOOR_PERCENT = [12, 16, 20] as const;
 
 export type Rates = {
-  /** Stones one tap mines. */
-  readonly tapYield: number;
   /** Stones a second one of each tier mines. */
   readonly tierSpeed: Readonly<Record<TierId, number>>;
   /** How many of each tier have the helpers to run (helpers always run). */
@@ -142,7 +138,7 @@ export function crewTimer(mountain: Mountain, now: number | undefined): number {
 }
 
 /**
- * Every multiplier in one place: live ticks, away earnings, taps and the UI
+ * Every multiplier in one place: live ticks, away earnings and the UI
  * all read from here, so they can't disagree. Pass `now` while playing so
  * running boosts count; leave it out for away time, which boosts never touch.
  */
@@ -179,10 +175,6 @@ const clocklessRates = new WeakMap<
 >();
 
 function readRates(mountain: Mountain, now?: number, trouble?: Trouble): Rates {
-  const sharper =
-    now !== undefined && boostLeft(mountain, "sharper", now) > 0
-      ? boostById("sharper").multiplier
-      : 1;
   const taught = 1 + mountain.owned.kid * KID_TEACH_PER_KID;
   const layer = layerOf(mountain);
   const tierSpeed = Object.fromEntries(
@@ -233,17 +225,8 @@ function readRates(mountain: Mountain, now?: number, trouble?: Trouble): Rates {
   );
   // Whole stones a second, so what the crew line says is what gets mined.
   const baseCrew = Math.floor(exactBase + 1e-9);
-  // Tap power takes its share of the unboosted crew, before any crew timer.
-  const tapShare = upgradeLevel(mountain, "tap") * TAP_SHARE_PER_LEVEL;
-  // Legacy multiplies the whole tap; its share of the crew is taken before it.
-  // Grandfather's pick strengthens that bare tap; Sharper picks still doubles the result.
-  const bareTap = Math.floor(
-    (1 + Math.floor((baseCrew / legacy) * tapShare + 1e-9)) * legacy + 1e-9,
-  );
   const timer = crewTimer(mountain, now);
   return {
-    // Nothing is mined by a tap in a fresh mine (slice 1, What goes, #653).
-    tapYield: freshMineOn() ? 0 : tapWithPick(bareTap, mountain) * sharper,
     tierSpeed,
     running,
     helpersShort,

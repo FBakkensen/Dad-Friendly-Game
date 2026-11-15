@@ -55,7 +55,6 @@ export type HowItWorks = {
 };
 
 export const HOW_SYSTEMS = [
-  "tapping",
   "workers",
   "machines",
   "staffing",
@@ -118,23 +117,11 @@ interface Prices {
 
 type Cards<S extends HowSystem> = Readonly<Record<S, HowItWorks>>;
 
-/** The first cards: digging, the crew and its machines. */
+/** The first cards: the crew and its machines. */
 function crewCards({
   stones,
-}: Prices): Cards<"tapping" | "workers" | "machines" | "staffing"> {
+}: Prices): Cards<"workers" | "machines" | "staffing"> {
   return {
-    tapping: {
-      title: "Tapping",
-      reveal: "Tap the mountain. Every tap is a stone.",
-      steps: [
-        [
-          "mountain",
-          "Tap the mountain to dig. Each tap is a stone in your pocket.",
-        ],
-        ["stone", "Stones buy workers, machines and upgrades."],
-        ["pick", "Tapping is a bonus. Your crew does the heavy lifting."],
-      ],
-    },
     workers: {
       title: "Workers",
       reveal: "Hire a worker and the mountain digs itself.",
@@ -390,7 +377,7 @@ function endCards(): Cards<"away" | "legacy"> {
         ["kid-helper", "Your kid starts a bigger mountain, with your recipes."],
         [
           "helper-miner",
-          `Each pass makes crew and taps ${percent(LEGACY_STEP)} stronger, for good.`,
+          `Each pass makes crew ${percent(LEGACY_STEP)} stronger, for good.`,
         ],
       ],
     },

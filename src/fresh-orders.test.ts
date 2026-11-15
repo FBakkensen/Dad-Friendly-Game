@@ -17,7 +17,6 @@ import type { Project } from "./city";
 const fresh = <T>(body: () => T): T => withFactors({ [FRESH_OFF]: 0 }, body);
 
 const HOUR = 60 * 60 * 1000;
-const NO_TROUBLE = { trouble: undefined };
 
 /** The Light Tower at `step` with `stones` arrived, all built in. */
 function site(step: 0 | 1 | 2, stones = 0): Project {
@@ -93,7 +92,6 @@ describe("live play: he orders, transport delivers (rule 7)", () => {
         mine(3, 1_000, 1, site(0)),
         { kind: "holdOrder" },
         0,
-        NO_TROUBLE,
       );
       if (held.kind !== "applied") {
         throw new Error("hold refused");
@@ -130,7 +128,7 @@ describe("live play: he orders, transport delivers (rule 7)", () => {
   it("raises the whole building from one order, step after step", () => {
     fresh(() => {
       const start = mine(3, 2_000_000, 400, { kind: "unordered" });
-      const ordered = applyMove(start, { kind: "placeOrder" }, 0, NO_TROUBLE);
+      const ordered = applyMove(start, { kind: "placeOrder" }, 0);
       if (ordered.kind !== "applied") {
         throw new Error("order refused");
       }
@@ -298,15 +296,12 @@ describe("the moves (rule 7.1, 7.9, 7.13)", () => {
         ),
       ),
     ).toBe(false);
-    expect(applyMove(today, { kind: "placeOrder" }, 0, NO_TROUBLE).kind).toBe(
-      "refused",
-    );
+    expect(applyMove(today, { kind: "placeOrder" }, 0).kind).toBe("refused");
     expect(
       applyMove(
         { ...today, stock: { ...today.stock, stones: 1e9 } },
         { kind: "buyVehicle", id: "horseWagon" },
         0,
-        NO_TROUBLE,
       ).kind,
     ).toBe("refused");
   });
@@ -317,7 +312,6 @@ describe("the moves (rule 7.1, 7.9, 7.13)", () => {
         mine(3, 500, 1, { kind: "unordered" }),
         { kind: "buyVehicle", id: "horseWagon" },
         0,
-        NO_TROUBLE,
       );
       expect(
         bought.kind === "applied" && bought.mountain.fleet.horseWagon,
@@ -329,7 +323,6 @@ describe("the moves (rule 7.1, 7.9, 7.13)", () => {
         mine(3, 0, 1, { kind: "unordered" }),
         { kind: "placeOrder" },
         0,
-        NO_TROUBLE,
       );
       expect(ordered.kind === "applied" && ordered.events).toEqual([
         { kind: "orderPlaced", building: "lightTower" },
@@ -339,7 +332,7 @@ describe("the moves (rule 7.1, 7.9, 7.13)", () => {
 
   it("values them at no income gain: the lab learns to order in #655", () => {
     fresh(() => {
-      const context = { tapsPerSecond: 0, liveSeconds: 60, awaySeconds: 0 };
+      const context = { liveSeconds: 60, awaySeconds: 0 };
       const value = valueOf(
         mine(3, 0, 1, { kind: "unordered" }),
         { kind: "buyVehicle", id: "horseWagon" },

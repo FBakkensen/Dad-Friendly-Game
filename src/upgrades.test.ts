@@ -1,6 +1,5 @@
-import { BAND_SCALE } from "./scale";
 import { describe, expect, it } from "vitest";
-import { accrue, accrueAway, mineByHand, stonesPerSecond } from "./mountain";
+import { accrue, accrueAway, stonesPerSecond } from "./mountain";
 import { AWAY_PAY_RATE, effectiveRates } from "./rates";
 import { minedMountain } from "./test-fixtures";
 import {
@@ -28,7 +27,7 @@ const crew = {
   owned: { ...minedMountain(0).owned, helper: 500 },
 }; // 500 workers, x8 at the 100 mark: 4,000 a second
 
-describe("Strong arms (tap power)", () => {
+describe("Strong arms", () => {
   const arms = upgradeById("tap");
 
   // The price and growth are pinned in src/tuning.test.ts (#381).
@@ -72,40 +71,6 @@ describe("Strong arms (tap power)", () => {
       upgrades: { ...NO_UPGRADES, tap: 10 },
     };
     expect(buyUpgrade(maxed, "tap")).toBe(maxed);
-  });
-
-  it("adds 1% of crew speed per level to every tap, rounded down", () => {
-    expect(effectiveRates(crew).tapYield).toBe(1);
-    expect(
-      effectiveRates({ ...crew, upgrades: { ...NO_UPGRADES, tap: 1 } })
-        .tapYield,
-    ).toBe(67);
-    expect(
-      effectiveRates({ ...crew, upgrades: { ...NO_UPGRADES, tap: 3 } })
-        .tapYield,
-    ).toBe(199);
-    const tapped = mineByHand({
-      ...crew,
-      upgrades: { ...NO_UPGRADES, tap: 3 },
-    });
-    expect(tapped.stock.stones).toBe(199);
-    expect(tapped.remaining).toBe(crew.remaining - 199);
-    // A tap never digs past the bottom.
-    // One depth left in the Heart band is BAND_SCALE[3] stones, rounded up to
-    // whole stones (#357: 32.4, so 33); a strong tap clears it whole.
-    const last = mineByHand({
-      ...crew,
-      remaining: 1,
-      upgrades: { ...NO_UPGRADES, tap: 5 },
-    });
-    expect(
-      effectiveRates({ ...crew, upgrades: { ...NO_UPGRADES, tap: 5 } })
-        .tapYield,
-    ).toBeGreaterThanOrEqual(Math.ceil(BAND_SCALE[3]));
-    expect(last.remaining).toBe(0);
-    expect(last.stock.stones).toBe(
-      crew.stock.stones + Math.ceil(BAND_SCALE[3]),
-    );
   });
 
   it("doesn't change the crew's own speed or away pay", () => {

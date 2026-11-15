@@ -9,7 +9,6 @@ import {
   createMountain,
   digStones,
   MOUNTAIN_STONES,
-  mineByHand,
   type Mountain,
 } from "./mountain";
 import { serializeSave } from "./persist";
@@ -76,7 +75,7 @@ describe("kid-run stretch (M13, #253)", () => {
     expect(tierCost(cart, 0, 2)).toBe(2 * tierCost(cart, 0));
     const tap = upgradeById("tap");
     expect(upgradeCost(tap, 0, 2)).toBe(2 * (upgradeCost(tap, 0) ?? 0));
-    const pricing = { crewPerSecond: 0, tapYield: 0 };
+    const pricing = { crewPerSecond: 0 };
     const sharper = boostById("sharper");
     expect(boostCost(sharper, pricing, 2)).toBe(
       2 * boostCost(sharper, pricing),
@@ -249,11 +248,7 @@ describe("band scales (#356)", () => {
       };
       for (let step = 0; step < 5_000 && m.remaining > 0; step += 1) {
         if (step % 2 === 0) {
-          m = mineByHand({
-            ...m,
-            upgrades: { ...NO_UPGRADES, tap: 5 },
-            owned: { ...m.owned, helper: 500 },
-          });
+          m = digStones(m, Math.min(stonesLeft(m), 331));
         } else {
           m = accrueAway({
             mountain: { ...m, owned: { ...m.owned, helper: haul } },
@@ -428,7 +423,7 @@ describe("the stretch cap keeps every count a safe integer (#366)", () => {
   function prices(m: Mountain): number[] {
     const k = stretch(m);
     const oneOff = oneOffStretch(m);
-    const crew = { crewPerSecond: 0, tapYield: 0 };
+    const crew = { crewPerSecond: 0 };
     return [
       ...TIERS.flatMap((tier) =>
         Array.from({ length: 31 }, (_, owned) => tierCost(tier, owned, k)),

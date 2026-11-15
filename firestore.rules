@@ -184,7 +184,7 @@ service cloud.firestore {
 
     function isFieldSnapshot(shot) {
       return shot is map &&
-        shot.keys().hasOnly(['at', 'boosts', 'crew', 'crewSpeed', 'deviceId', 'engineers', 'expeditions', 'idle', 'left', 'legacy', 'mined', 'pocket', 'rev', 'tapYield', 'upgrades', 'version']) &&
+        shot.keys().hasOnly(['at', 'boosts', 'crew', 'crewSpeed', 'deviceId', 'engineers', 'expeditions', 'idle', 'left', 'legacy', 'mined', 'pocket', 'rev', 'upgrades', 'version']) &&
         isIsoText(shot.at) &&
         shot.deviceId is string &&
         shot.rev is int &&
@@ -198,7 +198,6 @@ service cloud.firestore {
         shot.legacy is int && shot.legacy >= 0 && shot.legacy <= 1000 &&
         shot.mined is int && shot.mined >= 0 && shot.mined <= 240000000 &&
         shot.pocket is int && shot.pocket >= 0 && shot.pocket <= 1000000000000000 &&
-        shot.tapYield is number && shot.tapYield >= 0 && shot.tapYield <= 1000000000 &&
         isFieldUpgrades(shot.upgrades) &&
         isShortText(shot.version);
     }

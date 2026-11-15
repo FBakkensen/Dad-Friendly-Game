@@ -252,7 +252,8 @@ export function upgradeEffectLine(
   const change = upgradeChange(upgrade, mountain, at);
   switch (upgrade.id) {
     case "tap":
-      return `Taps ${fromTo(change, (rates) => formatCount(rates.tapYield))}.`;
+      // Strong arms has nothing left to raise since the dig went (#728).
+      return "";
     case "boots":
       // In a fresh mine Work boots lifts only a worker with a tool (rule 2.9).
       return freshMineOn()
@@ -337,29 +338,15 @@ const tierPlural = (id: TierId): string =>
 
 /**
  * The why line under the effect line (#342). A synergy with none of its
- * source already shows its rule, so this says what makes it count. Strong arms
- * on a crew too small to move the number says it grows with the crew.
+ * source already shows its rule, so this says what makes it count.
  */
-export function upgradeWhyLine(
-  upgrade: Upgrade,
-  mountain: Mountain,
-  at: number,
-): string {
+export function upgradeWhyLine(upgrade: Upgrade, mountain: Mountain): string {
   const words = freshWords(upgrade.id);
   if (upgrade.synergy !== undefined && !synergyFed(upgrade, mountain)) {
     // A fresh mine's rule is already the effect line, and it has no other approved words.
     return words?.rule === undefined
       ? `It counts once you have ${tierPlural(upgrade.synergy.from)}.`
       : "";
-  }
-  if (upgrade.id === "tap") {
-    const change = upgradeChange(upgrade, mountain, at);
-    if (
-      change.kind === "next" &&
-      formatCount(change.before.tapYield) === formatCount(change.after.tapYield)
-    ) {
-      return "It grows with your crew's speed.";
-    }
   }
   return words?.why ?? UPGRADE_WHY[upgrade.id];
 }
@@ -715,12 +702,12 @@ export function boostOutcome(
   id: BoostId,
   effect: string,
   multiplier: number,
-  rates: { readonly tapYield: number; readonly crewPerSecond: number },
+  rates: { readonly crewPerSecond: number },
   running: boolean,
 ): string {
+  // Sharper picks has no tap left to sharpen since the dig went (#728).
   if (id === "sharper") {
-    const taps = running ? rates.tapYield : rates.tapYield * multiplier;
-    return `${effect} ${formatCount(taps)} a tap.`;
+    return effect;
   }
   const crew = running ? rates.crewPerSecond : rates.crewPerSecond * multiplier;
   return `${effect} ${formatCompact(crew)}/s.`;

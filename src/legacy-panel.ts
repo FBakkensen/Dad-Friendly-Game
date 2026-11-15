@@ -47,10 +47,6 @@ export function legacyCardWords(mountain: Mountain): LegacyCardWords {
     rates: [
       `Workers ${speed(now.tierSpeed.helper)}/s to ${speed(kid.tierSpeed.helper)}/s`,
       `Carts ${speed(now.tierSpeed.cart)}/s to ${speed(kid.tierSpeed.cart)}/s`,
-      // A tap counts whole stones, so a step that rounds away is not promised.
-      ...(kid.tapYield > now.tapYield
-        ? [`Taps ${speed(now.tapYield)} to ${speed(kid.tapYield)} stones`]
-        : []),
     ],
     keeps:
       kidStretch(legacy + 1) > stretch(mountain)

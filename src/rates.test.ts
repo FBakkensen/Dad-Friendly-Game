@@ -59,7 +59,6 @@ describe("effectiveRates", () => {
         kid: 0,
       },
     });
-    expect(rates.tapYield).toBe(1);
     expect(rates.tierSpeed).toEqual(
       Object.fromEntries(TIERS.map((tier) => [tier.id, tier.perSecond])),
     );
@@ -103,7 +102,7 @@ describe("effectiveRates", () => {
     expect(effectiveRates(crew, undefined, trouble).tierSpeed.cart).toBe(4.5);
   });
 
-  it("Grandfather's pick makes taps a little stronger and leaves the crew alone", () => {
+  it("Grandfather's pick leaves the crew alone", () => {
     const crew = {
       ...minedMountain(0),
       owned: {
@@ -116,14 +115,9 @@ describe("effectiveRates", () => {
     };
     const plain = effectiveRates(crew);
     const picked = effectiveRates({ ...crew, finds: ["pick"] });
-    expect(picked.tapYield).toBeGreaterThan(plain.tapYield);
-    expect(picked.tapYield).toBe(Math.ceil(plain.tapYield * 1.25));
     expect(picked.crewPerSecond).toBe(plain.crewPerSecond);
     expect(picked.tierSpeed).toEqual(plain.tierSpeed);
     expect(picked.awayPay).toBe(plain.awayPay);
-    expect(
-      effectiveRates({ ...crew, finds: ["lamp", "map", "boots"] }).tapYield,
-    ).toBe(plain.tapYield);
   });
 });
 

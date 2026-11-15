@@ -35,21 +35,18 @@ describe("legacy bonus", () => {
     expect(legacyBonus({ ...createMountain(), legacy: 2 })).toBe(2);
   });
 
-  it("speeds up the crew and every tap, but not the away pay share", () => {
+  it("speeds up the crew, but not the away pay share", () => {
     const crew = {
       ...createMountain(),
       owned: { ...createMountain().owned, helper: 100 },
       // No machines: Grandpa (#338) has nothing to tend, so this compares
       // the Legacy alone. A cart's own speed still shows the Legacy.
-      upgrades: { ...NO_UPGRADES, tap: 5 },
     };
     const plain = effectiveRates(crew);
     const heir = effectiveRates({ ...crew, legacy: 2 });
     expect(heir.crewPerSecond).toBe(plain.crewPerSecond * 2);
     expect(heir.tierSpeed.cart).toBe(plain.tierSpeed.cart * 2);
-    expect(heir.tapYield).toBe(plain.tapYield * 2);
     expect(heir.awayPay).toBe(plain.awayPay);
-    expect(effectiveRates({ ...createMountain(), legacy: 1 }).tapYield).toBe(1);
   });
 });
 

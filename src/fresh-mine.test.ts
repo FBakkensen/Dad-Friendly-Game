@@ -158,17 +158,6 @@ describe("one level, no depth (rule 1)", () => {
   });
 });
 
-describe("nothing is mined by a tap (What goes)", () => {
-  it("a tap yields nothing and a dig is refused", () => {
-    fresh(() => {
-      const crew = owning({ helper: 30, cart: 3 }, 0);
-      expect(effectiveRates(crew).tapYield).toBe(0);
-      const dig = applyMove(crew, { kind: "dig" }, 0, { trouble: undefined });
-      expect(dig.kind).toBe("refused");
-    });
-  });
-});
-
 describe("machines open by where they open, and nothing else (rule 1's table, rule 2.6)", () => {
   it("offers workers, the cart, the hoist and the drill from the first evening (#689)", () => {
     fresh(() => {
@@ -184,9 +173,7 @@ describe("machines open by where they open, and nothing else (rule 1's table, ru
   it("sells a machine before anyone can run it, and it stands idle", () => {
     fresh(() => {
       const start = owning({}, 1e12);
-      const bought = applyMove(start, { kind: "buyTier", id: "drill" }, 0, {
-        trouble: undefined,
-      });
+      const bought = applyMove(start, { kind: "buyTier", id: "drill" }, 0);
       if (bought.kind !== "applied") {
         throw new Error("drill refused");
       }
@@ -205,9 +192,7 @@ describe("machines open by where they open, and nothing else (rule 1's table, ru
         const tier = tierById(id);
         expect(tierInPlay(tier)).toBe(false);
         expect(tierShown(crew, tier)).toBe(false);
-        const tap = applyMove(crew, { kind: "buyTier", id }, 0, {
-          trouble: undefined,
-        });
+        const tap = applyMove(crew, { kind: "buyTier", id }, 0);
         expect(tap.kind).toBe("refused");
       }
       expect(buys(crew)).toEqual(["helper", "cart", "hoist", "drill"]);
@@ -286,10 +271,9 @@ describe("what leaves the rules at part 1 (What goes)", () => {
 });
 
 describe("today's game is unchanged with the switch off", () => {
-  it("still lets a worker buy a cart, a tap mine, and a promotion go through", () => {
+  it("still lets a worker buy a cart, and a promotion go through", () => {
     const today = owning({ helper: 1 }, 1e9);
     expect(buys(today)).toContain("cart");
-    expect(effectiveRates(today).tapYield).toBeGreaterThan(0);
     expect(promote(today)).not.toBe(today);
     expect(digStones(createMountain(), 10).remaining).toBe(
       MOUNTAIN_STONES - 10,

@@ -63,7 +63,7 @@ export function upgradeRowView(
         : "",
     info: [info],
     need: "",
-    why: upgradeWhyLine(upgrade, mountain, now),
+    why: upgradeWhyLine(upgrade, mountain),
     flag: NO_FLAG,
     gain: "",
     ...face,
