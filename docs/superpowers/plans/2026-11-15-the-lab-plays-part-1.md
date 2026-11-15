@@ -30,3 +30,25 @@ Spec: `docs/superpowers/specs/2026-11-14-slice-1-design.md`, "Lab", "Risks" and 
 4. Tune the numbers on 3 seeds, confirm on 20.
 5. Tests: the dad's plans, the view, the measures, `isPolicy`, `runDone`, a sim test that every type reaches the roof with `idleMachines` near zero; the rules' tests follow the numbers.
 6. Docs: the spec's starting numbers, `ARCHITECTURE.md`.
+
+## What the lab found (20 seeds, `npm run lab -- --factors fresh.off=0`)
+
+| Player type    | Roof on day | transportLimit | workerMoves (taps a sitting) | idleWorkers |
+| -------------- | ----------- | -------------- | ---------------------------- | ----------- |
+| casual-2x10    | 2.50        | 0.52           | 44                           | 0.27        |
+| casual-mover   | 2.00        | 0.86           | 145                          | 0.01        |
+| casual-no-hold | 2.00        | 1.00           | 37                           | 0.07        |
+| checker-6x3    | 1.67        | 0.69           | 31                           | 0.21        |
+| checkin-4x2    | 1.75        | 0.86           | 30                           | 0.10        |
+| evening-1x20   | 2.00        | 0.65           | 94                           | 0.22        |
+| five-min-a-day | 4.00        | 0.62           | 31                           | 0.24        |
+| marathon       | 1.09        | 0.87           | 254                          | 0.21        |
+| optimizer      | 2.00        | 0.86           | 145                          | 0.01        |
+
+`starved`, `siteFull` and `idleMachines` read 0 for every type.
+
+- **Transport is the order's limit most of the time an order stands** (risk 3): 0.5 to 1.0. A wagon is bought only when it pays for itself, so this is a slower build for a faster mine, not a tax, but it is the limit he lives with.
+- **The site never fills** (risk 12): the dad keeps the builders level with transport, so the builders behave like a second transport row. Part 1 gives the site nothing to decide.
+- **On hold does not pay in part 1**: the dad who never holds raises the roof on day 2.0, before the casual dad who holds (2.5).
+- **Moving idle workers does not win** (risk 11): the mover finishes on day 2.0, half a day before the dad who sets them once, at about three times the taps a sitting.
+- **The optimizer never buys an upgrade**: in part 1 a worker or a machine always pays back sooner, so it plays as the mover.
