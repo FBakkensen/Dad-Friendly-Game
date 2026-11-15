@@ -78,10 +78,10 @@ page is the map, plus the rules that keep it that way.
    which imports art: `row-view` (types only: one `RowView` for every drawer
    row: its words as fit options, lamp, state, and whether a tap acts; every
    row module sets its lamp by the one lamp rule in `docs/DESIGN.md`, #509)
-   and `upgrade-rows` (the boost, lasting upgrade and found-tool rows, and
-   `anyUpgradeAffordable`). The board's display rules (`ready-now`,
-   `machine-bays`, `buys-rows`, `workshop-rows`, `key-rail`) went with the
-   board (#727).
+   and `upgrade-rows` (a lasting upgrade's row, which the stage list reads).
+   The board's display rules (`ready-now`, `machine-bays`, `buys-rows`,
+   `workshop-rows`, `workshop-sheet`, `key-rail`, and the boost and
+   found-tool rows) went with the board (#727).
 2. **Saves:** `persist` (the version 9 envelope and `readSave`'s four
    answers, #558), `save-format` (the game map: the one place the saved shape
    meets the complete mountain; `writeGame` leaves out what is zero or empty,
@@ -254,10 +254,11 @@ page is the map, plus the rules that keep it that way.
      `--board-scale` in step with the window. The game is phone-only (#498):
      a wider window gets the same board, scaled and centred. `board-skin` is
      the 9-slice plan that draws a frame, tag or key skin on a canvas behind
-     its element. `board-relics` and `board-note` are the relic art and its
-     floating note, which the How it works cards and the Ledger still read.
-     `board-window`, `mine-window`, `haulage` and `float-text` draw the old
-     window's view and machines, which `scene-paint` reuses. `buys-amount`
+     its element. `board-relics` is the relic art, which the How it works cards
+     and the Ledger still read. `board-window` is the frame clock
+     (`runBoardLoop`) that `scene-paint` runs, and `float-text` says whether
+     the device asks for reduced motion. The board's mine window, its
+     machines, the relic plate and its note went with the board (#727). `buys-amount`
      is the device's one amount (`deviceAmount`, `paintAmountKey`), kept in
      device storage, never in the save. `upgrade-rows` is the upgrade rows'
      view the stage list reads. Shared player-facing wording lives in
@@ -365,47 +366,45 @@ paths are read-only.
 
 - **Board tap rules (#410, #425, #426):** `board-interaction` is a pure reducer that
   holds the board's tap rules once, run through `board-host`. The Ledger
-  drawer, its shell and rows, and the board cards are painters of its view
-  (the Buys, Upgrades and Workshop drawers, the key rail, the Ready now plate
-  and the machine bays were too, until #727): they send it inputs and
-  presses and read `boardView`; none holds a settle, a hold, a timer or a
-  freeze of its own. Every board control's "is down" look goes through `pressLook` (in `card-tap`), and each part paints its own look; the Engineers rows and plates use it too since #455, so its old timed `is-pressed` flash is gone. `pressOnBoard` (in `card-tap`) is the one board
-  press: it tracks a control's finger-down time, sends the model the press
-  (the control, who pressed, the finger's `downAt` and the click) and hands
-  back its decision. Its `control` is a `ControlRef` or a function of the
-  click (the rail root tells its keys apart; a click on none presses
-  nothing), and an optional `intent` marks a trouble press. The model:
+  drawer, its shell and rows, the frame's sheets and the board cards are
+  painters of its view (the Buys, Upgrades, Workshop and Engineers drawers,
+  the key rail, the Ready now plate and the machine bays were too, until
+  #727): they send it inputs and presses and read `boardView`; none holds a
+  settle, a hold, a timer or a freeze of its own. Every board control's "is
+  down" look goes through `pressLook` (in `card-tap`), and each part paints
+  its own look. `pressOnBoard` (in `card-tap`) is the one board press: it
+  tracks a control's finger-down time, sends the model the press (the
+  control, who pressed, the finger's `downAt` and the click) and hands back
+  its decision. Its `control` is a `ControlRef` or a function of the click
+  (a click on none presses nothing), and an optional `intent` marks a
+  trouble press. The model:
   - the 400ms settle after a drawer opens or turns a page, and after a
     finger closes a drawer (Back), for what that close shows again (named
     fix 1). The save drawer and the board notes never settle, and a
     tap-through close (the scrim, a tap outside a note) hands its tap on;
   - the 1.9s Done hold: every press judged before it ends is held, judged by
     when the finger came down (named fix 2), so a press handled after the
-    hold whose finger came down inside it is held too. The Ready now plate's
-    Done is this hold, not a timer of its own;
+    hold whose finger came down inside it is held too. A row's Done, and the
+    Ledger's Copied, are this hold, not a timer of their own;
   - the red, off, red, off blink on a tap that cannot act;
   - the freeze of an open drawer's layout, its parts in order and its chip
     rows, and the blink on a part it holds but no longer sells. A drawer
-    whose rows show or hide in place (Upgrades) lists every row, hidden ones
-    too. A save loading again keeps an open drawer's freeze but forgets the
-    latest layouts, so a drawer opened then freezes the first layout it is
-    given: Buys gives the new save's as it lands, and Upgrades, which keeps
-    its order through a reload, gives that order as it opens. The screen
-    sends `unloaded` once per ready to not-ready edge (a save loading
-    again), which also ends every Done hold, as a reload always has;
-  - the 1.6s thanks after a fix: the bays' "Fixed!" note is painted from the
-    model's `fixed`, not from a timer of their own;
+    whose rows show or hide in place lists every row, hidden ones too. The
+    `unloaded` input (a save loading again) keeps an open drawer's freeze,
+    forgets the latest layouts and ends every Done hold. The old screen sent
+    it on each ready to not-ready edge; nothing sends it since #727;
+  - the 1.6s thanks after a fix (`fixed`), which the board's bays painted
+    until #727;
   - the overlay stack: a drawer takes the place of every other drawer, the
     save drawer and a note, but keeps the cards up under it; the save drawer
     and a note go on top;
-  - the board cards (#464, `CardId`: welcome, layer, craft, conflict,
-    other-tab, update): a card's open and close are model events. A card
-    settles for `DRAWER_SETTLE_MS` after it opens or pages, as a drawer does,
-    goes on top of the stack, and its close takes only its own entry off,
-    never what stands above it (conflict and update up together, the
-    conflict resolves, the update stays and still settles). A card is not a
-    drawer (`drawerOpen` stays false), and a drawer closed under a card
-    leaves the card on the stack.
+  - the board cards (#464, `CardId`): a card's open and close are model
+    events. A card settles for `DRAWER_SETTLE_MS` after it opens or pages,
+    as a drawer does, goes on top of the stack, and its close takes only its
+    own entry off, never what stands above it (conflict and update up
+    together, the conflict resolves, the update stays and still settles). A
+    card is not a drawer, and a drawer closed under a card leaves the card
+    on the stack.
 
   Inputs carry their own times (`pressedAt` for when the finger came down,
   `at` for when the handler ran), and `boardView(state, at)` derives what is
@@ -414,10 +413,10 @@ paths are read-only.
   (`DRAWER_SETTLE_MS`, `READY_HOLD_MS`, `BLINK_STEP_MS`, `THANKS_MS`,
   `PRESS_AGE_LIMIT_MS`) live here, and the board parts import them. The
   module has one wiring: `board-host` steps it, and the drawers and rows
-  paint from it (#425, #426). The screen reads it too: `drawerOpen` says
-  whether a drawer is over the board (#427). A seeded random-sequence test (`board-interaction.random.test.ts`) holds its
-  invariants: no act inside a settle or a hold, and no open drawer's rows
-  move. It has a 100% coverage floor.
+  paint from it (#425, #426). A seeded random-sequence test
+  (`board-interaction.random.test.ts`) holds its invariants: no act inside a
+  settle or a hold, and no open drawer's rows move. It has a 100% coverage
+  floor.
 
 - **Panel contract (gone with the board, #727):** the board's panels got
   `dispatch`, `getView`, `now` and `requestRender`, and laid out round the
@@ -741,7 +740,7 @@ field-log` lists every log; `--uid` or a positional uid reads one. The default
   rush pays `rushPerSecond` of those held stones beside the crew until
   `rushUntil`, both saved in the game map (`clocks` and `run`). Live `accrue`
   pays them (`payRush`) beside the crew's own digging. `effectiveRates` never
-  counts them (#525), so the gauge and every rate read the crew alone.
+  counts them (#525), so every rate reads the crew alone.
   `resumeRush` runs first on every open: a break under an hour shifts the rush
   later (close is pause), and an hour away or an ended rush lands what is held
   (`releaseRush`), as does a missed glint (the `missQuickVein` move). The store's snapshot reports each settled
@@ -760,6 +759,6 @@ field-log` lists every log; `--uid` or a positional uid reads one. The default
   pages, the welcome card's homecomings and trouble's shout on the bays and
   Buys rows went with the board (#727). The rules stay in the model until
   #665's later slivers: a post calls `station(recall(...))`, so a party is
-  never left without its engineer, and trouble is fixed by five taps or a
-  short hold (`hazards`). Built (#149, #161).
+  never left without its engineer, and trouble is fixed by five taps or a hold
+  (`hazards`, the store's `fixTrouble`). Built (#149, #161).
 - Designed twice: expeditions as a negative-speed tier in `TIERS` was rejected (it leaks into buying, cards and the sim's value function). Separate modules that feed `effectiveRates` keep it the one place multipliers meet.

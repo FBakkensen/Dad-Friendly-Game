@@ -57,7 +57,7 @@ const CODE: readonly RegExp[] = [
 
 const GAME: readonly RegExp[] = [
   /^src\/(economy|lab)\//,
-  /^src\/(tiers|rates|scale|milestones|line|boosts|expeditions|engineers|gold-rush|upgrades|workshop|hazards|veins|mountain|crew-rate|pacing|legacy|relics|haulage)\.ts$/,
+  /^src\/(tiers|rates|scale|milestones|line|boosts|expeditions|engineers|gold-rush|upgrades|workshop|hazards|veins|mountain|pacing|legacy|relics)\.ts$/,
   /^src\/[^/]*words\.ts$/,
 ];
 

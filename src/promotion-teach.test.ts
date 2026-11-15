@@ -4,7 +4,7 @@ import { createMountain, type Mountain } from "./mountain";
 import { effectiveRates, promotePayoff } from "./rates";
 import { promote, station } from "./engineers";
 import { PROMOTION_INTRO, promotionPayoff } from "./screen-words";
-import { noteFor, showsDot } from "./teach";
+import { showsDot } from "./teach";
 
 const ada = { name: "Ada", rank: 0, trips: 1, post: "borer" } as const;
 /** After the first trip, with 2M for the second engineer. */
@@ -34,7 +34,6 @@ function withoutEngineers(): Mountain {
 describe("promotion teach (#246)", () => {
   it("is small: a dot with no note, only when he can pay and it pays", () => {
     expect(showsDot(crew(), "promotion")).toBe(true);
-    expect(noteFor(crew())).toBe(undefined);
     expect(
       showsDot(
         { ...crew(), stock: { ...crew().stock, stones: 1_000_000 } },

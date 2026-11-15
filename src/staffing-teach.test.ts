@@ -4,7 +4,7 @@ import { createMountain, type Mountain } from "./mountain";
 import { buyWithTeach } from "./economy/actions";
 import { firstIdleTier } from "./rates";
 import { STAFFING_INTRO, staffingLine } from "./screen-words";
-import { noteFor, showsDot } from "./teach";
+import { showsDot } from "./teach";
 
 /** Ten carts, a crew too small to run them all. */
 function crew(): Mountain {
@@ -22,7 +22,6 @@ describe("staffing teach (#246)", () => {
   it("is small: a dot with no note while a machine stands idle", () => {
     expect(firstIdleTier(crew())).toBe("cart");
     expect(showsDot(crew(), "staffing")).toBe(true);
-    expect(noteFor(crew())).toBe(undefined);
     expect(
       showsDot(
         { ...crew(), owned: { ...crew().owned, helper: 40 } },

@@ -35,13 +35,6 @@ import { toolSpeed } from "./workforce";
 export const percent = (share: number): string =>
   `${String(Number((share * 100).toFixed(1)))}%`;
 
-/**
- * The crew's stones a second, as the header shows it: whole stones, compact
- * past ten thousand. Pass `crewPerSecond`, not the exact rate (#332).
- */
-export const formatCrewSpeed = (perSecond: number): string =>
-  formatCompact(perSecond);
-
 /** One, or more than one: `plural(2, ["cart", "carts"])` is "carts". */
 export const plural = (
   count: number,
@@ -992,9 +985,6 @@ export const SOUND_ON = "Sound";
 export const WORKSHOP_EARLIER = "Earlier";
 export const WORKSHOP_MORE = "More to make";
 
-/** A craft that spends no stones. The materials are the price. */
-export const CRAFT_WORD = "Craft";
-
 /** Unfound, and the sketch is still out on a trip. No name, no question. */
 export const UNFOUND_DEEPER = "Deeper rock keeps a quiet gift.";
 
@@ -1007,11 +997,6 @@ export function benchBusyWords(name: string, leftMs: number): string {
 }
 
 /** "Axle grease · 18:40 left". */
-/** A crew timer already running, on its own card: the same clock as the chip. */
-export function crewRunningWords(mark: string, leftMs: number): string {
-  return `Crew ${mark}× now · ${formatClock(Math.max(0, leftMs))} left`;
-}
-
 export function timerLeftWords(name: string, leftMs: number): string {
   return `${name} · ${formatClock(Math.max(0, leftMs))} left`;
 }
@@ -1028,31 +1013,6 @@ export function craftTimeWords(ms: number): string {
     return `${String(hours)} h`;
   }
   return `${String(hours)} h ${String(rest)} min`;
-}
-
-/**
- * "X/s to Y/s" for a craft card. When whole stones would print the same
- * number on both sides, both keep a tenth (#347), so a raise always shows.
- */
-export function craftSpeedPair(before: number, after: number): string {
-  const from = formatCraftSpeed(before);
-  const to = formatCraftSpeed(after);
-  if (from !== to || after <= before) {
-    return `${from}/s to ${to}/s`;
-  }
-  // Past ten thousand "12.3K" can hide a raise: whole stones first, then
-  // a tenth only if those match too.
-  const whole = (speed: number) =>
-    Math.floor(Math.max(0, speed)).toLocaleString("en-US");
-  if (whole(before) !== whole(after)) {
-    return `${whole(before)}/s to ${whole(after)}/s`;
-  }
-  const tenth = (speed: number) =>
-    Math.max(0, speed).toLocaleString("en-US", {
-      minimumFractionDigits: 1,
-      maximumFractionDigits: 1,
-    });
-  return `${tenth(before)}/s to ${tenth(after)}/s`;
 }
 
 /**
@@ -1169,10 +1129,6 @@ export const RECIPE_WAITING = "Waiting its turn";
 /** One line on a craft button: "Craft · 4.2M". */
 export const craftPriceWords = (stones: number): string =>
   `Craft · ${formatCompact(stones)}`;
-
-/** A craft whose material this run's mountain no longer holds (#492): "No clay this deep". */
-export const goneMaterialWords = (material: MaterialId): string =>
-  `No ${material} this deep`;
 
 /** What a short craft still needs: "Need 5 more iron". */
 export const needMoreWords = (missing: number, material: string): string =>

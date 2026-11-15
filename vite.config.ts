@@ -385,12 +385,6 @@ export default defineConfig({
           functions: 100,
           lines: 100,
         },
-        "src/workshop-sheet.ts": {
-          statements: 96,
-          branches: 86,
-          functions: 97,
-          lines: 96,
-        },
         "src/board-page.ts": {
           statements: 100,
           branches: 95,

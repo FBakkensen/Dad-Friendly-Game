@@ -2016,15 +2016,24 @@ describe("field log events for the deep (#150)", () => {
   });
 
   it("a hide after the store is put away saves nothing", () => {
-    const { progress } = guest();
-    const before = progress.fieldLog().events.length;
-    progress.dispose();
-    const painted = vi.fn();
-    progress.subscribe(painted);
-    painted.mockClear();
+    const storage = createMemoryStorage();
+    const progress = createProgressStore({
+      auth: createMemoryAuth(),
+      sessionStorage: storage,
+      now: () => 10_000,
+    });
+    progress.applyMutation((mountain) => ({
+      ...mountain,
+      stock: { ...mountain.stock, stones: 5 },
+    }));
+    const writes = vi.spyOn(storage, "setItem");
     progress.flush();
-    expect(painted).not.toHaveBeenCalled();
-    expect(progress.fieldLog().events).toHaveLength(before);
+    // A hide while the store is live writes the guest's save at once.
+    expect(writes).toHaveBeenCalled();
+    progress.dispose();
+    writes.mockClear();
+    progress.flush();
+    expect(writes).not.toHaveBeenCalled();
   });
 
   it("records a Master clearing trouble before it sticks", () => {

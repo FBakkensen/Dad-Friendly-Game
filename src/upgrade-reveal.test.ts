@@ -1,13 +1,8 @@
 // @vitest-environment happy-dom
 import { describe, expect, it } from "vitest";
-import { createMountain, type Mountain } from "./mountain";
+import { createMountain } from "./mountain";
 
-import {
-  anyHiddenRow,
-  boostShown,
-  shownRows,
-  upgradeShown,
-} from "./upgrade-reveal";
+import { boostShown, upgradeShown } from "./upgrade-reveal";
 import { boostById, NO_BOOSTS } from "./boosts";
 import { upgradeById, NO_UPGRADES } from "./upgrades";
 import { showsDot } from "./teach";
@@ -78,43 +73,6 @@ describe("rows open at a fixed point in the climb (#250)", () => {
     expect(boostShown({ ...start, seen: ["boost:sharper"] }, sharper)).toBe(
       true,
     );
-  });
-
-  it("lists the rows showing, and says when some still hide", () => {
-    const climbing = {
-      ...createMountain(),
-      owned: { ...createMountain().owned, cart: 3, drill: 1 },
-    };
-    expect(shownRows(climbing)).toEqual([
-      "boost:sharper",
-      "boost:overtime",
-      "upgrade:tap",
-      "upgrade:steady",
-    ]);
-    expect(anyHiddenRow(climbing)).toBe(true);
-    expect(anyHiddenRow(createMountain())).toBe(true);
-    const maxed: Mountain = {
-      ...createMountain(),
-      owned: {
-        ...createMountain().owned,
-        helper: 10,
-        cart: 5,
-        drill: 5,
-        borer: 3,
-        machine: 1,
-      },
-      upgrades: {
-        tap: 10,
-        boots: 1,
-        steady: 1,
-        cartSyn: 1,
-        drillSyn: 1,
-        borerSyn: 1,
-        machineSyn: 1,
-      },
-      boosts: { sharper: 1, overtime: 1 },
-    };
-    expect(anyHiddenRow(maxed)).toBe(false);
   });
 
   it("puts a dot on each row that shows and is not bought yet", () => {

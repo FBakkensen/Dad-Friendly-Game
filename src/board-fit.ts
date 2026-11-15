@@ -1,6 +1,6 @@
 /** The board stage, in CSS px (212 x 462 art pixels at 2x). */
-export const BOARD_WIDTH = 424;
-export const BOARD_HEIGHT = 924;
+const BOARD_WIDTH = 424;
+const BOARD_HEIGHT = 924;
 /** env(safe-area-inset-*) in CSS px: where a status bar, notch or gesture bar covers the page. */
 export interface SafeInsets {
   readonly top: number;

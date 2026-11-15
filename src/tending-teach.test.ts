@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { createMountain, type Mountain } from "./mountain";
 import { firstTend } from "./rates";
 import { tendingIntro } from "./screen-words";
-import { noteFor, showsDot } from "./teach";
+import { showsDot } from "./teach";
 
 const ada = { name: "Ada", rank: 0, trips: 1, post: "camp" } as const;
 /** After the first trip, Ada waiting at camp, a Great Machine to tend. */
@@ -29,7 +29,6 @@ function crew(): Mountain {
 describe("tending teach (#246)", () => {
   it("is small: a dot with no note, only once there is a step up", () => {
     expect(showsDot(crew(), "tending")).toBe(true);
-    expect(noteFor(crew())).toBe(undefined);
     // On the borers nothing pays more: no dot asks for a step down.
     expect(
       showsDot(

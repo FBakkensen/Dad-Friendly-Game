@@ -7,13 +7,12 @@ How the game plays is in `docs/DESIGN.md`. How it is built is in `docs/ARCHITECT
 `npm run play` opens the game in Chrome (puppeteer-core, on its own Vite dev server) on a phone screen (the game is phone-only, #498). It starts from a named save, runs a short list of taps, and keeps a shot after each step. It is how an agent proves a sliver in a real browser.
 
 ```bash
-npm run play -- tap:.board-window*5 label:Buys
-npm run play -- --save heart --search ?trouble=cave-in
-npm run play -- --save mid label:Engineers
+npm run play -- --save busy tap:.frame-key
+npm run play -- --save start "tap:.frame-site[data-site=city]"
 npm run play -- --help
 ```
 
-The saves include `fresh` (nothing saved), one per band for the mine window (`early` in the Topsoil, `mid` in the Granite, `crystal`, and `heart` on a kid's run in the Deep Heart), `workshop`, `crew`, and `late` (one stone left, so a tap finds the legend); `--help` lists them all. They come from the typed fixtures in `tools/browser/fixtures.ts`. The actions are `tap:<css>`, `label:<accessible name>`, `wait:<ms>`, and `wait:<css>`. A tap takes `*N` to repeat. Shots and `log.txt` (console, page errors, failed requests, and the save line) go to `play-shots/`, which is gitignored and cleared on each run. `--out` picks another folder, `--url` drives an app that is already running, and `--search` adds a query to the page URL, such as the dev preview `?trouble=cave-in`. Any page error, or an action that cannot run, exits non-zero.
+The saves include `fresh` (nothing saved), `start` (a one-worker start with the first evening's card), `busy` (carts, wagons and stone to spend), `night` (the shift report) and `roof` (the end card); `--help` lists them all. They come from the typed fixtures in `tools/browser/fixtures.ts`. The actions are `tap:<css>`, `label:<accessible name>`, `wait:<ms>`, and `wait:<css>`. A tap takes `*N` to repeat. Shots and `log.txt` (console, page errors, failed requests, and the save line) go to `play-shots/`, which is gitignored and cleared on each run. `--out` picks another folder, `--url` drives an app that is already running, and `--search` adds a query to the page URL. Any page error, or an action that cannot run, exits non-zero.
 
 ## The gate
 

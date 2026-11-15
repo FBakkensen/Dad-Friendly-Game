@@ -7,6 +7,7 @@ import {
   TONIGHT_LINES,
   accountRowView,
   freshLedgerRows,
+  metMaterialChips,
   relicsRowView,
   stonesRowView,
   tonightLines,
@@ -14,7 +15,7 @@ import {
 } from "./ledger-rows";
 import { withFactors } from "./economy/factors";
 import { FRESH_OFF } from "./line-switch";
-import { createMountain, type Mountain } from "./mountain";
+import { MOUNTAIN_STONES, createMountain, type Mountain } from "./mountain";
 import { minedMountain } from "./test-fixtures";
 
 /** One field log event at a local time on 11 November 2026. */
@@ -445,5 +446,61 @@ describe("the Ledger's rows in a fresh mine", () => {
     );
     expect(text("vehicle.buy", { id: "lorry", count: 2 })).toBeUndefined();
     expect(text("vehicle.buy", { id: "horseWagon" })).toBeUndefined();
+  });
+});
+
+describe("the materials the pocket can name (#199)", () => {
+  it("names a material once one is in hand or its band has earned one", () => {
+    const shed: Mountain = {
+      ...createMountain(),
+      remaining: MOUNTAIN_STONES - 12_000_000,
+      stock: {
+        ...createMountain().stock,
+        clay: 40,
+        iron: 40,
+        crystal: 0,
+        heartstone: 0,
+      },
+    };
+    expect(metMaterialChips(shed).map((chip) => chip.text)).toEqual([
+      "Clay 40",
+      "Iron 40",
+    ]);
+    expect(metMaterialChips(shed).map((chip) => chip.id)).not.toContain(
+      "crystal",
+    );
+    expect(metMaterialChips(createMountain())).toEqual([]);
+    expect(
+      metMaterialChips({
+        ...createMountain(),
+        remaining: MOUNTAIN_STONES - 1,
+      }),
+    ).toEqual([]);
+    // Spent down to nothing, a band already earned still shows.
+    expect(
+      metMaterialChips({
+        ...createMountain(),
+        remaining: MOUNTAIN_STONES - 1_000_000,
+        stock: {
+          ...createMountain().stock,
+          clay: 0,
+          iron: 0,
+          crystal: 0,
+          heartstone: 0,
+        },
+      }).map((chip) => chip.text),
+    ).toEqual(["Clay 0"]);
+    expect(
+      metMaterialChips({
+        ...createMountain(),
+        stock: {
+          ...createMountain().stock,
+          clay: 3,
+          iron: 0,
+          crystal: 0,
+          heartstone: 0,
+        },
+      }).map((chip) => chip.text),
+    ).toEqual(["Clay 3"]);
   });
 });

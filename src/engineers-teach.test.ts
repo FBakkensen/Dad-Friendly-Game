@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import { createMountain, type Mountain } from "./mountain";
 
-import { noteFor, showsDot } from "./teach";
+import { showsDot } from "./teach";
 import { engineersIntro, engineersNote, firstTripWords } from "./screen-words";
 
 const ada = { name: "Ada", rank: 0, trips: 0, post: "borer" } as const;
@@ -25,13 +25,9 @@ function crew(): Mountain {
 }
 
 describe("engineers teach (#246)", () => {
-  it("is a big system: note and dot with the first engineer, gone after a trip", () => {
+  it("is a big system: a dot with the first engineer, gone after a trip", () => {
     expect(showsDot(createMountain(), "engineers")).toBe(false);
     expect(showsDot(crew(), "engineers")).toBe(true);
-    expect(noteFor(crew())).toBe("engineers");
-    expect(noteFor({ ...crew(), seen: ["workshop", "engineers"] })).toBe(
-      undefined,
-    );
     expect(
       showsDot({ ...crew(), engineers: [{ ...ada, trips: 1 }] }, "engineers"),
     ).toBe(false);
