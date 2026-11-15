@@ -26,13 +26,15 @@ import type { ProgressStore } from "./progress-store";
 import type { BuyAmount } from "./tiers";
 import { tierBuyMove } from "./economy/actions";
 import type { FrameState } from "./frame-state";
+import { createMineSite } from "./mine-site";
 import { createWorkforceSheet, type WorkforceSheet } from "./workforce-sheet";
 import "./frame.css";
 
 /**
  * Slice 1's frame (#659; spec, "The frame, the same on every site"), beside
  * today's board: the order strip, the stockpile with the count of workers and
- * the hire key, the site's ground, Next, the site bar and the save line. A
+ * the hire key, the site's scene (the mine, #660), Next, the site bar and the
+ * save line. A
  * dev build mounts it for `?slice=1` (src/main.ts). It paints the pure views
  * (frame-view, next-view, workforce-view) and changes the game only through
  * `progress.dispatch`.
@@ -285,7 +287,11 @@ export type FrameScreen = {
 };
 
 /** The parts, built once, in the frame's order from top to bottom. */
-function buildFrame(state: FrameState): {
+function buildFrame(
+  state: FrameState,
+  now: () => number,
+  signal: AbortSignal | undefined,
+): {
   readonly root: HTMLElement;
   readonly scene: HTMLElement;
   readonly paint: (mountain: Mountain) => void;
@@ -293,6 +299,8 @@ function buildFrame(state: FrameState): {
   const order = buildOrder(state);
   const top = buildTop(state);
   const scene = el("div", "frame-scene");
+  const mine = createMineSite(state, signal);
+  scene.append(mine.root);
   const next = buildNext(state);
   const bar = buildSiteBar(state);
   const root = el("div", "frame");
@@ -305,6 +313,7 @@ function buildFrame(state: FrameState): {
       paintTop(top, mountain, state.amount());
       paintNext(next, mountain);
       paintSiteBar(bar, mountain, state.site());
+      mine.paint(mountain, state.site() === "mine", now());
       setAttr(scene, "data-site", state.site());
       setAttr(scene, "aria-label", SITE_NAMES[state.site()]);
     },
@@ -351,7 +360,7 @@ export function mountFrameScreen({
       sheet.open();
     },
   };
-  const frame = buildFrame(state);
+  const frame = buildFrame(state, now, signal);
   const sheet = createWorkforceSheet(state);
   const saveLine = createSaveLine({
     progress,

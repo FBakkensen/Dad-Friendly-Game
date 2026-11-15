@@ -1,9 +1,9 @@
 import { nextBuilding } from "./city";
-import { tierLock } from "./crew";
+import { tierOnSale } from "./crew";
 import type { Mountain } from "./mountain";
 import { effectiveRates } from "./rates";
 import { canPay } from "./stock";
-import { TIERS, tierInPlay, tierQuote, tierShown } from "./tiers";
+import { TIERS, tierQuote } from "./tiers";
 import { VEHICLES, vehiclePrice } from "./transport";
 import { upgradeShown } from "./upgrade-reveal";
 import { UPGRADES, upgradePrice, type Upgrade } from "./upgrades";
@@ -42,9 +42,7 @@ function machinesAffordable(mountain: Mountain): number {
   return TIERS.filter(
     (tier) =>
       tier.id !== "helper" &&
-      tierInPlay(tier) &&
-      tierShown(mountain, tier) &&
-      tierLock(mountain, tier) === undefined &&
+      tierOnSale(mountain, tier) &&
       tierQuote(mountain, tier, "one").cost <= mountain.stock.stones,
   ).length;
 }

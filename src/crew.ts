@@ -11,6 +11,7 @@ import {
   type FreshDoor,
   tierById,
   tierInPlay,
+  tierShown,
   type Tier,
   type TierId,
 } from "./tiers";
@@ -78,6 +79,15 @@ export function tierLock(mountain: Mountain, tier: Tier): TierLock | undefined {
     return { kind: "relic", relic, at: shownStones(mountain, relic.depth) };
   }
   return undefined;
+}
+
+/** A tier he can buy now, price aside: in play, shown, and with no lock (#659, #660). */
+export function tierOnSale(mountain: Mountain, tier: Tier): boolean {
+  return (
+    tierInPlay(tier) &&
+    tierShown(mountain, tier) &&
+    tierLock(mountain, tier) === undefined
+  );
 }
 
 /** A tier waiting on a depth or a relic: shown, but not for sale. */
