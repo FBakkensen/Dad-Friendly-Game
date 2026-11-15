@@ -257,20 +257,21 @@ function orderApplied(mountain: Mountain, action: OrderAction): Mountain {
 
 /** What an applied order move did, for the field log. */
 function orderEvents(
-  before: Mountain,
   next: Mountain,
   action: OrderAction,
 ): readonly MoveEvent[] {
-  const site = (project: Mountain["project"]) =>
-    project.kind === "unordered" ? undefined : project.site.building;
   switch (action.kind) {
     case "placeOrder":
     case "holdOrder":
     case "resumeOrder": {
-      const building = site(next.project) ?? site(before.project);
-      return building === undefined
-        ? []
-        : [{ kind: ORDER_EVENT[action.kind], building }];
+      const project = next.project;
+      /* v8 ignore next 3 -- an applied order move always leaves a project in hand */
+      if (project.kind === "unordered") {
+        return [];
+      }
+      return [
+        { kind: ORDER_EVENT[action.kind], building: project.site.building },
+      ];
     }
     case "buyVehicle":
       return [
@@ -726,7 +727,7 @@ function actionEvents(
     case "holdOrder":
     case "resumeOrder":
     case "buyVehicle":
-      return orderEvents(before, next, action);
+      return orderEvents(next, action);
     /* v8 ignore next 3 -- exhaustiveness guard, unreachable */
     default: {
       const unexpected: never = action;

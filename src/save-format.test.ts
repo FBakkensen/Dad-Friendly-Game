@@ -159,6 +159,11 @@ describe("the game map (#558)", () => {
       arrived: { stones: 10 },
     };
     expect(project(good)).toBe("ok");
+    expect(
+      project({ building: "lightTower", state: "delivering", step: 1 }),
+    ).toBe("ok");
+    // Marks from a newer build leave the project to that build.
+    expect(project(good, { operational: ["rocketPad"] })).toBe("newer");
     expect(project({ ...good, step: 3 })).toBe("bad");
     expect(project({ ...good, step: 0.5 })).toBe("bad");
     expect(project({ ...good, arrived: { stones: 150_000 } })).toBe("bad");

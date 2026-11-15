@@ -270,6 +270,16 @@ describe("the moves (rule 7.1, 7.9, 7.13)", () => {
       expect(value.gainPerSec).toBe(0);
       expect(value.cost).toBe(500);
       expect(value.paybackSec).toBe(Infinity);
+      for (const kind of ["placeOrder", "holdOrder", "resumeOrder"] as const) {
+        expect(
+          valueOf(
+            mine(9, 0, 1, { kind: "unordered" }),
+            { kind },
+            3600,
+            context,
+          ),
+        ).toEqual({ gainPerSec: 0, cost: 0, paybackSec: Infinity });
+      }
     });
   });
 });
