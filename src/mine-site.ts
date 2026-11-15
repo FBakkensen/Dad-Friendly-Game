@@ -23,6 +23,7 @@ import {
   startMotion,
 } from "./mine-scene";
 import type { Mountain } from "./mountain";
+import { stageCount } from "./next-view";
 import { runScene } from "./scene-paint";
 import type { BuyAmount } from "./tiers";
 import { NO_FREE_WORKER } from "./workforce-view";
@@ -79,6 +80,8 @@ function buildKey(state: FrameState, stage: Stage): KeyParts {
 
 type RowParts = {
   readonly root: HTMLElement;
+  readonly info: HTMLButtonElement;
+  readonly lamp: HTMLElement;
   readonly now: HTMLElement;
   readonly can: HTMLElement;
   readonly sum: HTMLElement;
@@ -90,10 +93,15 @@ type RowParts = {
   readonly plus: HTMLButtonElement;
 };
 
-function buildRow(row: StageRow): RowParts {
+function buildRow(state: FrameState, row: StageRow): RowParts {
   const root = el("div", "mine-stage");
   root.dataset["stage"] = row.stage;
-  const info = el("div", "mine-stage-info");
+  // A tap on the row's words opens the stage's list (#661).
+  const info = el("button", "mine-stage-info");
+  info.type = "button";
+  info.addEventListener("click", () => {
+    state.openStage(row.stage);
+  });
   const band = el("span", "mine-band");
   const bandCan = el("i", "mine-band-can");
   const bandNow = el("i", "mine-band-now");
@@ -105,7 +113,8 @@ function buildRow(row: StageRow): RowParts {
   rate.append(now, " of ", can);
   head.append(el("span", "mine-stage-name", row.name), rate);
   const sum = el("span", "mine-stage-sum");
-  info.append(band, head, sum);
+  const lamp = el("i", "frame-lamp");
+  info.append(band, head, sum, lamp);
   const minus = stepper("−", row.job, "free");
   const plus = stepper("+", row.job, "place");
   const count = el("b", "board-num");
@@ -113,7 +122,20 @@ function buildRow(row: StageRow): RowParts {
   const workers = el("span", "mine-stage-count");
   workers.append(count, unit);
   root.append(info, minus, workers, plus);
-  return { root, now, can, sum, bandCan, bandNow, count, unit, minus, plus };
+  return {
+    root,
+    info,
+    lamp,
+    now,
+    can,
+    sum,
+    bandCan,
+    bandNow,
+    count,
+    unit,
+    minus,
+    plus,
+  };
 }
 
 /**
@@ -133,7 +155,18 @@ function writeSum(target: HTMLElement, forms: readonly string[]): void {
   write(target, forms[0] ?? "");
 }
 
-function paintRow(parts: RowParts, row: StageRow, amount: BuyAmount): void {
+function paintRow(
+  parts: RowParts,
+  row: StageRow,
+  amount: BuyAmount,
+  lamp: boolean,
+): void {
+  setAttr(parts.lamp, "data-lamp", lamp ? "green" : "dark");
+  setAttr(
+    parts.info,
+    "aria-label",
+    `${row.name}: ${row.now}/s of ${row.can}. Opens its list.`,
+  );
   write(parts.now, row.now);
   write(parts.can, row.can);
   writeSum(parts.sum, row.sum);
@@ -212,7 +245,7 @@ export function createMineSite(
   keyRow.append(...[...keys.values()].map((key) => key.root));
   const rowBox = el("div", "mine-stages");
   const rows = new Map(
-    stageRows(state.mountain()).map((row) => [row.stage, buildRow(row)]),
+    stageRows(state.mountain()).map((row) => [row.stage, buildRow(state, row)]),
   );
   rowBox.append(...[...rows.values()].map((row) => row.root));
   listenSteps(rowBox, state, note);
@@ -261,7 +294,7 @@ export function createMineSite(
       for (const row of views) {
         const parts = rows.get(row.stage);
         if (parts !== undefined) {
-          paintRow(parts, row, amount);
+          paintRow(parts, row, amount, stageCount(mountain, row.stage) > 0);
         }
       }
     },

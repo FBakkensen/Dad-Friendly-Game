@@ -28,6 +28,7 @@ import { tierBuyMove } from "./economy/actions";
 import type { FrameState } from "./frame-state";
 import { createCitySite } from "./city-site";
 import { createMineSite } from "./mine-site";
+import { createStageSheet, type StageSheet } from "./stage-sheet";
 import { createWorkforceSheet, type WorkforceSheet } from "./workforce-sheet";
 import "./frame.css";
 
@@ -285,6 +286,7 @@ export type FrameScreen = {
   /** Paints every part from the store's latest mountain. */
   readonly paint: () => void;
   readonly sheet: WorkforceSheet;
+  readonly stageSheet: StageSheet;
 };
 
 /** The parts, built once, in the frame's order from top to bottom. */
@@ -362,9 +364,13 @@ export function mountFrameScreen({
     openWorkforce: () => {
       sheet.open();
     },
+    openStage: (stage) => {
+      stageSheet.open(stage);
+    },
   };
   const frame = buildFrame(state, now, signal);
   const sheet = createWorkforceSheet(state);
+  const stageSheet = createStageSheet(state);
   const saveLine = createSaveLine({
     progress,
     auth,
@@ -375,16 +381,23 @@ export function mountFrameScreen({
   const drawerClip = el("div", "board-drawer-clip");
   drawerClip.append(saveLine.drawer);
   root.classList.add("frame-app");
-  root.replaceChildren(frame.root, sheet.root, drawerClip, saveLine.line);
+  root.replaceChildren(
+    frame.root,
+    sheet.root,
+    stageSheet.root,
+    drawerClip,
+    saveLine.line,
+  );
   paint = () => {
     const mountain = progress.getSnapshot().mountain;
     frame.paint(mountain);
     sheet.paint(mountain);
+    stageSheet.paint(mountain, now());
     saveLine.render();
   };
   paint();
   runFrame(progress, paint, signal);
-  return { paint, sheet };
+  return { paint, sheet, stageSheet };
 }
 
 /**

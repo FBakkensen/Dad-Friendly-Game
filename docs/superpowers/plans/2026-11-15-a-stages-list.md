@@ -15,7 +15,7 @@ Spec: `docs/superpowers/specs/2026-11-14-slice-1-design.md`: "The mine" (a tap o
    - Better boots: "Workers with a tool 3/s to 7.1/s." and "Picks, barrows and winches go faster. Machines, drivers and builders do not."
    - Helping hands becomes "Cart helpers": "Carts 60/s to 63/s." and "Each worker on haulage makes carts 1% faster."
    - The hoist's marks, worded as the cart's ("Ten hoists at the shaft. Every hoist lifts twice as fast."), shown for the first time.
-   The lines are Flemming's: asked as one question with pictures before they are shown.
+     The lines are Flemming's: asked as one question with pictures before they are shown.
 9. **One of each mechanism.** The effect and why lines are `screen-words`' (a fresh mine's words beside today's), the marks are `nextMark` (`milestones`), the machine key is `machineKey`, the buy is `tierBuyMove` and `buyUpgrade`, the sheet is the workforce's CSS.
 
 ## Tasks

@@ -83,7 +83,7 @@ describe("the mine", () => {
 
   it("has a key for each stage's machine and no hire key", () => {
     const { root } = mount();
-    const keys = [...root.querySelectorAll<HTMLElement>(".mine-key")];
+    const keys = [...root.querySelectorAll<HTMLElement>(".mine .mine-key")];
     expect(keys.map((key) => key.dataset["stage"])).toEqual([
       "face",
       "haul",

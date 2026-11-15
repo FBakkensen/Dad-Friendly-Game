@@ -1,3 +1,4 @@
+import type { Stage } from "./line";
 import type { Mountain } from "./mountain";
 import type { SiteId } from "./next-view";
 import type { ProgressStore } from "./progress-store";
@@ -19,4 +20,6 @@ export type FrameState = {
   readonly site: () => SiteId;
   readonly go: (site: SiteId) => void;
   readonly openWorkforce: () => void;
+  /** A stage's list (#661), from a tap on its row in the mine. */
+  readonly openStage: (stage: Stage) => void;
 };
