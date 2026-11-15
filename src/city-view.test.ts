@@ -70,12 +70,12 @@ describe("the transport plate", () => {
 
   it("counts the drivers a fleet has of the drivers it takes", () => {
     fresh(() => {
-      const start = start();
-      const two = { ...start, fleet: { ...start.fleet, horseWagon: 2 } };
+      const begin = start();
+      const two = { ...begin, fleet: { ...begin.fleet, horseWagon: 2 } };
       expect(transportPlate(two).fleet).toBe(
         "2 horse wagons: 1 of 2 drivers 9/s",
       );
-      expect(transportPlate(withJobs(start, { driving: 0 }))).toMatchObject({
+      expect(transportPlate(withJobs(begin, { driving: 0 }))).toMatchObject({
         drivers: "0 drivers",
         fleet: "1 horse wagon: 0 of 1 driver 0/s",
       });
@@ -284,10 +284,10 @@ describe("the city's scene", () => {
 
   it("stands the wagons with nothing to carry, and the one with no driver", () => {
     fresh(() => {
-      const start = start();
+      const begin = start();
       const idle = cityScene({
-        ...start,
-        fleet: { ...start.fleet, horseWagon: 2 },
+        ...begin,
+        fleet: { ...begin.fleet, horseWagon: 2 },
       });
       expect(idle).toMatchObject({
         sitePlot: undefined,
