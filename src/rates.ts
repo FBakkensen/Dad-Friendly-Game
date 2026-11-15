@@ -151,7 +151,7 @@ export type Rates = {
  * Away pay passes no `now`, and each one is then 1. A stronger recipe
  * still shows on the crew line.
  */
-function liveCrewTimer(mountain: Mountain, now: number | undefined): number {
+export function crewTimer(mountain: Mountain, now: number | undefined): number {
   const overtime =
     now !== undefined && boostLeft(mountain, "overtime", now) > 0
       ? boostById("overtime").multiplier
@@ -264,7 +264,7 @@ function readRates(mountain: Mountain, now?: number, trouble?: Trouble): Rates {
   );
   // A Gold rush pays held stones on its own (src/gold-rush.ts): they were dug
   // while away, so the crew's speed never counts them (#525).
-  const timer = liveCrewTimer(mountain, now);
+  const timer = crewTimer(mountain, now);
   return {
     // Nothing is mined by a tap in a fresh mine (slice 1, What goes, #653).
     tapYield: freshMineOn() ? 0 : tapWithPick(bareTap, mountain) * sharper,

@@ -192,7 +192,7 @@
   box-shadow: inset 0 0 0 var(--art) var(--frame-green);
 }
 
-/* The site's ground: its scene comes with its own sliver (#660, #662). */
+/* The site's ground, under its scene: the mine (#660); the city comes with #662. */
 .frame-scene {
   flex: 1;
   min-height: 0;

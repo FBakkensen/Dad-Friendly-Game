@@ -1,0 +1,285 @@
+/*
+ * The mine on slice 1's frame (#660): the scene's canvas fills the site, the
+ * plate and the zone names sit over it at art px rows (--at), and the keys and
+ * the stage rows sit at its foot.
+ */
+.mine {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.mine[hidden] {
+  display: none;
+}
+
+.mine-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+}
+
+.mine-over > * {
+  position: absolute;
+  top: calc(var(--art) * var(--at));
+}
+
+.mine-level {
+  left: calc(var(--art) * 39);
+  right: calc(var(--art) * 3);
+  height: calc(var(--art) * 28);
+  padding: calc(var(--art) * 2) calc(var(--art) * 4);
+  background: var(--frame-plate);
+}
+
+.mine-level-head {
+  display: flex;
+  align-items: baseline;
+  gap: calc(var(--art) * 4);
+}
+
+.mine-level-name {
+  font-size: var(--board-type-20);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.mine-level-rate {
+  margin-left: auto;
+  font-size: var(--frame-type-18);
+  color: var(--frame-rate);
+}
+
+.mine-level-line {
+  display: block;
+  margin-top: var(--art);
+  font-size: var(--frame-type-15);
+  color: var(--frame-quiet);
+  white-space: nowrap;
+}
+
+.mine-zones {
+  left: 0;
+  right: 0;
+  height: calc(var(--art) * 8);
+}
+
+.mine-zone {
+  position: absolute;
+  font-size: var(--frame-type-12);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--frame-quiet);
+}
+
+.mine-zone[data-stage="lift"] {
+  left: calc(var(--art) * 18);
+}
+
+.mine-zone[data-stage="haul"] {
+  left: calc(var(--art) * 84);
+}
+
+.mine-zone[data-stage="face"] {
+  left: calc(var(--art) * 150);
+}
+
+.mine-deep {
+  left: calc(var(--art) * 5);
+  right: calc(var(--art) * 5);
+  margin: 0;
+  font-size: var(--frame-type-15);
+  text-align: center;
+  color: var(--frame-deep);
+}
+
+/* The keys and the stage rows, at the scene's foot. */
+.mine-panel {
+  position: absolute;
+  left: calc(var(--art) * 3);
+  right: calc(var(--art) * 3);
+  bottom: calc(var(--art) * 2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--art);
+}
+
+.mine-note {
+  margin: 0;
+  padding: calc(var(--art) * 2) calc(var(--art) * 4);
+  background: var(--frame-scrim);
+  border: var(--art) solid var(--frame-amber);
+  font-size: var(--frame-type-15);
+  color: var(--frame-amber);
+}
+
+.mine-note[hidden] {
+  display: none;
+}
+
+.mine-keys {
+  display: flex;
+  gap: var(--art);
+}
+
+.frame .mine-key {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  height: var(--target-min);
+  background: var(--frame-scrim);
+  box-shadow: inset 0 0 0 var(--art) var(--frame-edge);
+  color: var(--frame-quiet);
+  font-size: var(--board-type-14);
+  font-weight: 700;
+  line-height: 1.15;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.frame .mine-key.can {
+  background: var(--frame-go);
+  color: var(--frame-go-ink);
+  box-shadow: inset 0 0 0 var(--art) var(--frame-green);
+}
+
+.mine-key-small {
+  font-size: var(--board-type-13);
+  font-weight: 600;
+}
+
+.mine-key-icon {
+  width: calc(var(--art) * 6);
+  height: calc(var(--art) * 6);
+  margin-left: var(--art);
+  vertical-align: middle;
+  image-rendering: pixelated;
+}
+
+.mine-stages {
+  display: flex;
+  flex-direction: column;
+  gap: var(--art);
+}
+
+.mine-stage {
+  display: flex;
+  align-items: center;
+  height: calc(var(--art) * 26);
+  padding: 0 var(--art) 0 calc(var(--art) * 3);
+  gap: var(--art);
+  background: var(--frame-scrim);
+  border: var(--art) solid var(--frame-edge);
+}
+
+.mine-stage-info {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  align-self: stretch;
+  min-width: 0;
+}
+
+.mine-band {
+  position: absolute;
+  inset: var(--art) var(--art) var(--art) calc(var(--art) * -2);
+}
+
+.mine-band > i {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+}
+
+.mine-band-can {
+  background: var(--frame-band-can);
+}
+
+.mine-band-now {
+  background: var(--frame-band-now);
+}
+
+.mine-stage-head,
+.mine-stage-sum {
+  position: relative;
+}
+
+.mine-stage-head {
+  display: flex;
+  align-items: baseline;
+  gap: calc(var(--art) * 2);
+}
+
+.mine-stage-name {
+  width: calc(var(--art) * 39);
+  font-size: var(--frame-type-15);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.mine-stage-rate {
+  font-size: var(--board-type-13);
+  color: var(--frame-quiet);
+}
+
+.mine-stage-rate b {
+  font-weight: 400;
+  color: var(--frame-rate);
+}
+
+.mine-stage-rate i {
+  font-style: normal;
+  color: var(--frame-ink);
+}
+
+.mine-stage-sum {
+  overflow: hidden;
+  font-size: var(--board-type-13);
+  line-height: 1.1;
+  white-space: nowrap;
+  color: var(--frame-tool);
+}
+
+.mine-stage-count {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+  width: calc(var(--art) * 22);
+  line-height: 1;
+}
+
+.mine-stage-count b {
+  font-size: var(--board-type-17);
+  font-weight: 400;
+}
+
+.mine-stage-count small {
+  font-size: var(--frame-type-12);
+  color: var(--frame-quiet);
+}
+
+.mine .frame-step {
+  flex: none;
+  width: var(--target-min);
+  height: var(--target-min);
+  background: var(--frame-key);
+  color: var(--frame-quiet);
+  font-size: var(--board-type-22);
+  font-weight: 700;
+  text-align: center;
+}
+
+.mine .frame-step.can {
+  color: var(--frame-ink);
+}

@@ -74,7 +74,7 @@ describe("frame screen", () => {
       const keys = hireKeysInFrame(root);
       expect(keys).toHaveLength(1);
       expect(keys[0]?.parentElement?.className).toBe("frame-top");
-      expect(root.querySelector(".frame-scene button")).toBeNull();
+      // The mine's keys buy machines and move workers; none of them hires.
     }
   });
 
@@ -96,13 +96,19 @@ describe("frame screen", () => {
     expect(sheet?.hidden).toBe(false);
     const note = root.querySelector<HTMLElement>(".frame-sheet-note");
     expect(note?.hidden).toBe(true);
-    button('.frame-step[data-job="drilling"][data-way="place"]').click();
+    button(
+      '.frame-sheet .frame-step[data-job="drilling"][data-way="place"]',
+    ).click();
     expect(note?.hidden).toBe(false);
     expect(note?.textContent).toBe(NO_FREE_WORKER);
     expect(progress.getSnapshot().mountain.jobs.drilling).toBe(3);
-    button('.frame-step[data-job="building"][data-way="free"]').click();
+    button(
+      '.frame-sheet .frame-step[data-job="building"][data-way="free"]',
+    ).click();
     expect(note?.hidden).toBe(true);
-    button('.frame-step[data-job="drilling"][data-way="place"]').click();
+    button(
+      '.frame-sheet .frame-step[data-job="drilling"][data-way="place"]',
+    ).click();
     expect(progress.getSnapshot().mountain.jobs).toMatchObject({
       drilling: 4,
       building: 1,
@@ -112,7 +118,9 @@ describe("frame screen", () => {
   it("takes the no-free-worker line down once a worker is hired", () => {
     const { root, button } = mount(withStones(1_000));
     button(".frame-workers").click();
-    button('.frame-step[data-job="drilling"][data-way="place"]').click();
+    button(
+      '.frame-sheet .frame-step[data-job="drilling"][data-way="place"]',
+    ).click();
     const note = root.querySelector<HTMLElement>(".frame-sheet-note");
     expect(note?.hidden).toBe(false);
     button(".frame-sheet-hire").click();
@@ -123,9 +131,13 @@ describe("frame screen", () => {
     const { progress, button } = mount();
     button(".frame-workers").click();
     button(".frame-amount").click();
-    button('.frame-step[data-job="drilling"][data-way="free"]').click();
+    button(
+      '.frame-sheet .frame-step[data-job="drilling"][data-way="free"]',
+    ).click();
     expect(progress.getSnapshot().mountain.jobs.drilling).toBe(0);
-    button('.frame-step[data-job="haulage"][data-way="place"]').click();
+    button(
+      '.frame-sheet .frame-step[data-job="haulage"][data-way="place"]',
+    ).click();
     expect(progress.getSnapshot().mountain.jobs.haulage).toBe(6);
   });
 

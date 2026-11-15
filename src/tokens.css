@@ -159,6 +159,12 @@
   --frame-mine-ground: #1d1712;
   --frame-city-ground: #0b1030;
   --frame-scrim: #000000c4;
+  --frame-plate: #00000099;
+  --frame-rate: #ffd98a;
+  --frame-tool: #8cc4ff;
+  --frame-deep: #8d93b8;
+  --frame-band-can: #ffffff12;
+  --frame-band-now: #ffd98a30;
   --frame-type-12: 12px;
   --frame-type-15: 15px;
   --frame-type-18: 18px;

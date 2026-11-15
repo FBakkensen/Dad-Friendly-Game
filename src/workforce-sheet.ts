@@ -1,11 +1,12 @@
 import { el, hide, mark, write } from "./board-dom";
 import { paintAmountKey } from "./buys-amount";
-import { tierBuyMove, type Move } from "./economy/actions";
+import { tierBuyMove } from "./economy/actions";
 import type { FrameState } from "./frame-state";
 import { hireKey } from "./frame-view";
 import type { Mountain } from "./mountain";
 import type { BuyAmount } from "./tiers";
-import { JOB_IDS, freeWorkers, type JobId } from "./workforce";
+import { listenSteps, paintSteps, stepper } from "./job-steps";
+import type { JobId } from "./workforce";
 import { NO_FREE_WORKER, workforceView, type JobRow } from "./workforce-view";
 
 /**
@@ -23,26 +24,6 @@ export type WorkforceSheet = {
   readonly paint: (mountain: Mountain) => void;
 };
 
-/** How many a − or + moves at this amount: one, up to ten, or all there are. */
-function moveCount(amount: BuyAmount, there: number): number {
-  return amount === "one" ? 1 : amount === "ten" ? 10 : Math.max(1, there);
-}
-
-function workerMove(
-  mountain: Mountain,
-  amount: BuyAmount,
-  job: JobId,
-  way: "place" | "free",
-): Extract<Move, { kind: "placeWorker" | "freeWorker" }> {
-  return way === "place"
-    ? {
-        kind: "placeWorker",
-        job,
-        count: moveCount(amount, freeWorkers(mountain)),
-      }
-    : { kind: "freeWorker", job, count: moveCount(amount, mountain.jobs[job]) };
-}
-
 type RowParts = {
   readonly root: HTMLElement;
   readonly note: HTMLElement;
@@ -50,18 +31,6 @@ type RowParts = {
   readonly minus: HTMLButtonElement;
   readonly plus: HTMLButtonElement;
 };
-
-function stepper(
-  sign: string,
-  job: JobId,
-  way: "place" | "free",
-): HTMLButtonElement {
-  const key = el("button", "frame-step", sign);
-  key.type = "button";
-  key.dataset["job"] = job;
-  key.dataset["way"] = way;
-  return key;
-}
 
 function buildRow(row: JobRow): RowParts {
   const root = el("div", "frame-job");
@@ -77,17 +46,7 @@ function buildRow(row: JobRow): RowParts {
 function paintRow(parts: RowParts, row: JobRow, amount: BuyAmount): void {
   write(parts.note, row.note);
   write(parts.count, String(row.count));
-  mark(parts.plus, "can", row.canPlace);
-  mark(parts.minus, "can", row.canFree);
-  const job = row.name.toLowerCase();
-  const many =
-    amount === "one"
-      ? "a worker"
-      : amount === "ten"
-        ? "up to 10 workers"
-        : "every worker";
-  parts.plus.setAttribute("aria-label", `Put ${many} on ${job}`);
-  parts.minus.setAttribute("aria-label", `Take ${many} off ${job}`);
+  paintSteps(parts, row, amount);
 }
 
 type HeadParts = {
@@ -179,23 +138,7 @@ export function createWorkforceSheet(state: FrameState): WorkforceSheet {
     hide(root, true);
   };
   close.addEventListener("click", shut);
-  jobs.root.addEventListener("click", (event) => {
-    const key = (event.target as Element).closest<HTMLElement>("[data-way]");
-    const job = JOB_IDS.find((id) => id === key?.dataset["job"]);
-    if (key === null || job === undefined) {
-      return;
-    }
-    const way = key.dataset["way"] === "place" ? "place" : "free";
-    const mountain = state.mountain();
-    if (way === "place" && freeWorkers(mountain) === 0) {
-      hide(note, false);
-      return;
-    }
-    hide(note, true);
-    void state.progress.dispatch(
-      workerMove(mountain, state.amount(), job, way),
-    );
-  });
+  listenSteps(jobs.root, state, note);
   return {
     root,
     open: () => {
