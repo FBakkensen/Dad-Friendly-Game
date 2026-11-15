@@ -183,9 +183,9 @@ describe("firestore.rules: games/{uid} (#558)", () => {
     await expect(setDoc(ref(), { ...game(1), version: 7 })).rejects.toThrow(
       denied,
     );
-    await setDoc(ref(), { ...game(1), version: 10 });
+    await setDoc(ref(), { ...game(1), version: 11 });
     await expect(setDoc(ref(), game(2))).rejects.toThrow(denied);
-    await setDoc(ref(), { ...game(2), version: 10 });
+    await setDoc(ref(), { ...game(2), version: 11 });
   });
 
   it("takes the reset at part 1 over a stored version 8 save, and refuses a version 8 write (#664)", async () => {
@@ -212,7 +212,35 @@ describe("firestore.rules: games/{uid} (#558)", () => {
     ).rejects.toThrow(denied);
     await setDoc(ref(), game(7, { ...createMountain(), startedAt: 40 }));
     const stored = (await getDoc(ref())).data();
-    expect(stored?.["version"]).toBe(9);
+    expect(stored?.["version"]).toBe(10);
+    expect(stored?.["rev"]).toBe(7);
+  });
+
+  it("takes the reset at #728 over a stored version 9 save, and refuses a version 9 write", async () => {
+    await admin().doc("games/dad").delete();
+    await expect(setDoc(ref(), { ...game(1), version: 9 })).rejects.toThrow(
+      denied,
+    );
+    await admin()
+      .doc("games/dad")
+      .set({
+        version: 9,
+        rev: 6,
+        lastSeen: 1,
+        startedAt: 40,
+        deviceId: DEVICE,
+        game: { owned: { helper: 3 } },
+        savedAt: 1,
+      });
+    await expect(
+      setDoc(ref(), {
+        ...game(7, { ...createMountain(), startedAt: 40 }),
+        version: 9,
+      }),
+    ).rejects.toThrow(denied);
+    await setDoc(ref(), game(7, { ...createMountain(), startedAt: 40 }));
+    const stored = (await getDoc(ref())).data();
+    expect(stored?.["version"]).toBe(10);
     expect(stored?.["rev"]).toBe(7);
   });
 

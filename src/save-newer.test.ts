@@ -102,7 +102,7 @@ describe("a save from a later build (#558)", () => {
   it("a newer phone backup writes nothing", async () => {
     const docs = new Map<string, Mountain>();
     const storage = createMemoryStorage();
-    const raw = JSON.stringify({ uid: user.uid, save: { version: 10 } });
+    const raw = JSON.stringify({ uid: user.uid, save: { version: 11 } });
     storage.setItem(BACKUP_KEY, raw);
     storage.writes.length = 0;
     const clock = { at: 1_000 };
@@ -154,7 +154,7 @@ describe("a save from a later build (#558)", () => {
       expect(second.getSnapshot().elsewhere).toBe(true);
     });
     first.dispose();
-    const raw = JSON.stringify({ uid: user.uid, save: { version: 10 } });
+    const raw = JSON.stringify({ uid: user.uid, save: { version: 11 } });
     storage.setItem(BACKUP_KEY, raw);
     await second.playHere();
     await vi.waitFor(() => {
@@ -167,7 +167,7 @@ describe("a save from a later build (#558)", () => {
   it("a newer guest save met at sign-in writes nothing", async () => {
     const docs = new Map<string, Mountain>();
     const storage = createMemoryStorage();
-    const raw = JSON.stringify({ version: 10, lastSeen: 1 });
+    const raw = JSON.stringify({ version: 11, lastSeen: 1 });
     storage.setItem(SESSION_SAVE_KEY, raw);
     storage.writes.length = 0;
     const clock = { at: 1_000 };
@@ -191,7 +191,7 @@ describe("a save from a later build (#558)", () => {
 
   it("a newer guest save writes nothing", () => {
     const storage = createMemoryStorage();
-    const raw = JSON.stringify({ version: 10, lastSeen: 1 });
+    const raw = JSON.stringify({ version: 11, lastSeen: 1 });
     storage.setItem(SESSION_SAVE_KEY, raw);
     storage.writes.length = 0;
     const clock = { at: 1_000 };
@@ -396,6 +396,6 @@ describe("the writer reads back what it sends (#558)", () => {
   it("a fresh guest save text reads ok", () => {
     expect(
       JSON.parse(saveText(minedMountain(2), 1)) as { version: number },
-    ).toMatchObject({ version: 9 });
+    ).toMatchObject({ version: 10 });
   });
 });

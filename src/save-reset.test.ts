@@ -256,7 +256,7 @@ describe("a set-aside never costs a played copy (#558)", () => {
   it("a played copy of this version is kept, at the later run stamp", async () => {
     const storage = createMemoryStorage();
     olderBackup(storage, 500);
-    storage.setItem(SESSION_SAVE_KEY, saveText(minedMountain(5_000), 9));
+    storage.setItem(SESSION_SAVE_KEY, saveText(minedMountain(5_000), 10));
     const docs = new Map<string, Mountain>();
     const progress = signedIn(createMemoryCloudSave({ docs }), storage);
     await vi.waitFor(() => {
@@ -332,30 +332,30 @@ function refusing(storage: Storage, suffix: string): Storage {
   };
 }
 
-describe("the reset at part 1: today's version 8 save (#664)", () => {
+describe("the reset at the version 10 bump: the old version 9 save (#728)", () => {
   afterEach(() => {
     holdFactors({});
   });
 
-  it("the phone's and the cloud's version 8 copies are set aside for a fresh mine", async () => {
+  it("the phone's and the cloud's version 9 copies are set aside for a fresh mine", async () => {
     holdFactors({ [FRESH_OFF]: 0 });
     const storage = createMemoryStorage();
-    const v8 = {
-      version: 8,
+    const v9 = {
+      version: 9,
       lastSeen: 3,
       startedAt: 500,
       rev: 6,
       deviceId: "device-dad-1234",
       game: { owned: { helper: 30, cart: 12 }, stock: { stones: 1_234 } },
     };
-    const phone = JSON.stringify({ uid: user.uid, save: v8 });
+    const phone = JSON.stringify({ uid: user.uid, save: v9 });
     storage.setItem(BACKUP_KEY, phone);
     const docs = new Map<string, Mountain>();
     const rawArchives: RawArchive[] = [];
     const cloud = createMemoryCloudSave({
       docs,
       olderDocs: new Map([
-        [user.uid, { version: 8, rev: 6, startedAt: 500, raw: v8 }],
+        [user.uid, { version: 9, rev: 6, startedAt: 500, raw: v9 }],
       ]),
       rawArchives,
     });
@@ -373,9 +373,9 @@ describe("the reset at part 1: today's version 8 save (#664)", () => {
     await vi.waitFor(() => {
       expect(docs.get(user.uid)?.startedAt).toBe(500);
     });
-    expect(storage.getItem(`${BACKUP_KEY}:v8`)).toBe(phone);
+    expect(storage.getItem(`${BACKUP_KEY}:v9`)).toBe(phone);
     expect(rawArchives).toEqual([
-      { uid: user.uid, raw: v8, version: 8, rev: 6, reason: "reset" },
+      { uid: user.uid, raw: v9, version: 9, rev: 6, reason: "reset" },
     ]);
     expect(revs[0]).toBe(7);
     const fresh = { ...createMountain(), startedAt: 500 };

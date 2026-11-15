@@ -8,7 +8,7 @@ service cloud.firestore {
     // Collection: games (version 8 on, #558)
     // Document ID: Firebase Auth uid
     // Fields, the envelope only:
-    //   - version: int >= 9 (#664), never lower than the stored one. A later
+    //   - version: int >= 10 (#728), never lower than the stored one. A later
     //       build may raise it; an earlier build then reads the copy as
     //       newer and never writes over it.
     //   - rev: int. Create is rev 1; an update is exactly the stored rev + 1.
@@ -76,7 +76,7 @@ service cloud.firestore {
     // The envelope this version writes. `game` is read by the client.
     function isGameEnvelope(data) {
       return data.version is int &&
-        data.version >= 9 &&
+        data.version >= 10 &&
         data.rev is int &&
         isDeviceId(data.deviceId) &&
         (!('deviceLabel' in data) || isDeviceLabel(data.deviceLabel)) &&

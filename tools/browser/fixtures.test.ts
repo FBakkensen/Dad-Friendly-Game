@@ -507,7 +507,7 @@ describe("fixtures values", () => {
     expect(JSON.parse(JSON.stringify(f[name]()))).toEqual(EXPECTED[name]);
   });
 
-  it("seedJson stores every seed as a version 9 save the game reads, and writes back the same (#558)", () => {
+  it("seedJson stores every seed as a version 10 save the game reads, and writes back the same (#558)", () => {
     for (const [name, save] of Object.entries(seeds())) {
       const stored: unknown = JSON.parse(f.seedJson(save));
       const read = readSave(stored);
@@ -523,9 +523,9 @@ describe("fixtures values", () => {
     }
   });
 
-  it("pins the version 9 document for the mid save (#558)", () => {
+  it("pins the version 10 document for the mid save (#558)", () => {
     expect(JSON.parse(f.seedJson(f.openMountain()))).toEqual({
-      version: 9,
+      version: 10,
       lastSeen: FIXED,
       game: {
         owned: { helper: 20, cart: 5, drill: 2, borer: 1 },
@@ -570,7 +570,7 @@ describe("fixtures values", () => {
     expect(f.seedJson({})).toBe("{}");
     expect(readSave(JSON.parse(f.seedJson(f.newerSave(FIXED))))).toEqual({
       kind: "newer",
-      version: 10,
+      version: 11,
     });
   });
 
@@ -816,7 +816,7 @@ describe("slice 1's play saves (#659)", () => {
   });
 
   it.each(["sliceOrderedSave", "sliceStandsSave", "sliceBusySave"] as const)(
-    "%s is a version 9 save of the dev account that the game reads",
+    "%s is a version 10 save of the dev account that the game reads",
     async (name) => {
       const { withFactors } = await import("../../src/economy/factors.ts");
       const { FRESH_OFF } = await import("../../src/line-switch.ts");

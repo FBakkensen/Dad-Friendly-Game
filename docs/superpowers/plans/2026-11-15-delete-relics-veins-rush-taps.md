@@ -77,6 +77,7 @@ Follow the version hunks of commit 64f56f3 (#664's bump 8 → 9).
 ### Task 5: The upgrades that went are deleted
 
 **Files:**
+
 - Upgrades `tap` (Strong arms) and `steady` (Night foreman): `upgrades.ts` (rows, `STEADY_AWAY_PER_LEVEL`, `GONE_IN_A_FRESH_MINE` entries), `rates.ts`.
 - Boosts `sharper` and `overtime` (Ruling 3): delete `boosts.ts` and its test; `mountain.ts` (`boosts`), `upgrade-reveal.ts` (boost parts), `teach.ts` (`boost:*`), `economy/actions.ts` (`boostActions`, `buyEveryBoost`), `rates.ts` (`crewTimer`), `mine-view.ts`, `lab/decide.ts`, `lab/score.ts`, `lab/run.ts`, `lab/policy.ts` (`BoostRule`, spend weight `boost`), `lab/plain.ts`, delete `lab/policies/boost-junkie.ts`, `field-log.ts` (`boosts`), `how-it-works.ts` (boosts system).
 - Recipes `crystal-flare` and `crystal-lamp`: `workshop.ts` (rows, `TIMER_IDS`, `COLD_CLOCKS`, effects), `expeditions.ts` (the old shaft's `crystal-lamp`), `economy/actions.ts`, `lab/measures/materialIdle.ts`.
