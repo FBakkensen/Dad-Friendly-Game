@@ -440,7 +440,7 @@ describe("economy invariants on random play (#555)", () => {
           let world: World = {
             mountain: {
               ...(BAND_STARTS[band] ?? createMountain()),
-              stock: { stones: pocket, ...materials },
+              stock: { stones: pocket, brick: 0, ...materials },
             },
             hazards: freshHazards(seed),
             clock: START,

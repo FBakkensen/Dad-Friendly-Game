@@ -27,6 +27,7 @@ import {
   type StepIndex,
 } from "./city";
 import { NO_JOBS, workersOnJobs, type Jobs } from "./workforce";
+import { makerRecord, type MakerId } from "./makers";
 import { chainChange, chainFlows } from "./piles";
 import { flowMine, mineChain, type MinePiles } from "./mine-piles";
 import {
@@ -146,6 +147,10 @@ export type Mountain = {
    * whole stones. Always empty in today's game.
    */
   readonly piles: MinePiles;
+  /** Makers owned, by kind (slice 1, part 2, src/makers.ts). Always none in today's game. */
+  readonly makers: Readonly<Record<MakerId, number>>;
+  /** The stockyard's level (slice 1, part 2, src/stockyard.ts); 0 is the first. */
+  readonly stockyard: number;
 };
 
 /** A sanity cap for saves; no dad gets near it. */
@@ -181,7 +186,9 @@ export const BARE_MOUNTAIN: Mountain = {
   operational: [],
   project: NO_PROJECT,
   jobs: NO_JOBS,
-  piles: { face: 0, shaft: 0 },
+  piles: { face: 0, shaft: 0, kiln: 0 },
+  makers: makerRecord(0),
+  stockyard: 0,
 };
 
 /**
@@ -196,6 +203,7 @@ const FRESH_START_JOBS: Jobs = {
   hoisting: 0,
   driving: 0,
   building: 0,
+  kilns: 0,
 };
 
 export function createMountain(): Mountain {

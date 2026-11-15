@@ -36,6 +36,7 @@ describe("the goods table (#560)", () => {
       "iron",
       "crystal",
       "heartstone",
+      "brick",
     ]);
     expect(EMPTY_STOCK).toEqual({
       stones: 0,
@@ -43,12 +44,14 @@ describe("the goods table (#560)", () => {
       iron: 0,
       crystal: 0,
       heartstone: 0,
+      brick: 0,
     });
   });
 
   it("says where each good comes from: the mountain, or its band", () => {
     const from = Object.fromEntries(GOOD_ROWS.map((row) => [row.id, row.from]));
     expect(from.stones).toBe("mountain");
+    expect(from.brick).toBe("kilns");
     for (const layer of LAYERS) {
       expect(from[layer.material]).toBe(layer.id);
     }

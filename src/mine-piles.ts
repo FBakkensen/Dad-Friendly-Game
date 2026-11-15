@@ -14,7 +14,7 @@ import { lineWork } from "./workforce";
  */
 
 /** The two piles, by where the rock waits. */
-export const PILE_IDS = ["face", "shaft"] as const;
+export const PILE_IDS = ["face", "shaft", "kiln"] as const;
 
 export type PileId = (typeof PILE_IDS)[number];
 
@@ -29,7 +29,7 @@ export type MinePiles = Readonly<Record<PileId, number>>;
  * its room is full and never emptied by a lower one (ruling 2), so this may
  * change with no version bump.
  */
-export const PILE_HOLDS: MinePiles = { face: 300, shaft: 300 };
+export const PILE_HOLDS: MinePiles = { face: 300, shaft: 300, kiln: 300 };
 
 /**
  * Each stage's own speed, kept per answer of `effectiveRates`: a night
@@ -118,7 +118,7 @@ export function flowMine(
         mined === 0
           ? mountain.stock
           : addedStock(mountain.stock, { stones: mined }),
-      piles: { face, shaft },
+      piles: { ...mountain.piles, face, shaft },
     },
     mined,
   };

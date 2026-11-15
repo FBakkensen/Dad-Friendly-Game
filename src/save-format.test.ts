@@ -44,6 +44,8 @@ describe("the game map (#558)", () => {
       project: "project",
       jobs: "jobs",
       piles: "piles",
+      makers: "makers",
+      stockyard: "stockyard",
     } as const satisfies Record<keyof Mountain, string>;
     const fresh = createMountain();
     const full: Mountain = {
@@ -56,6 +58,7 @@ describe("the game map (#558)", () => {
         iron: 2,
         crystal: 1,
         heartstone: 0,
+        brick: 4,
       },
       owned: {
         ...fresh.owned,
@@ -95,8 +98,17 @@ describe("the game map (#558)", () => {
       fleet: { ...fresh.fleet, horseWagon: 3 },
       operational: ["lightTower"],
       project: { kind: "unordered" },
-      jobs: { drilling: 2, haulage: 1, hoisting: 0, driving: 3, building: 2 },
-      piles: { face: 40, shaft: 9 },
+      jobs: {
+        drilling: 2,
+        haulage: 1,
+        hoisting: 0,
+        driving: 3,
+        building: 2,
+        kilns: 1,
+      },
+      piles: { face: 40, shaft: 9, kiln: 30 },
+      makers: { kiln: 2 },
+      stockyard: 1,
     };
     // Part 1 has one building, so an operational one and a project in hand
     // are two mountains (#654).
@@ -235,7 +247,14 @@ describe("the game map (#558)", () => {
     const crew = {
       ...createMountain(),
       owned: { ...createMountain().owned, helper: 5 },
-      jobs: { drilling: 2, haulage: 0, hoisting: 1, driving: 1, building: 0 },
+      jobs: {
+        drilling: 2,
+        haulage: 0,
+        hoisting: 1,
+        driving: 1,
+        building: 0,
+        kilns: 0,
+      },
     };
     expect(writeGame(crew).jobs).toEqual({
       drilling: 2,
@@ -250,7 +269,7 @@ describe("the game map (#558)", () => {
     expect(read({ jobs: { haulage: 1 } })).toBe("bad");
     expect(read({ owned: { helper: 5 }, jobs: { drilling: -1 } })).toBe("bad");
     expect(read({ owned: { helper: 5 }, jobs: { building: 1 } })).toBe("ok");
-    expect(read({ owned: { helper: 5 }, jobs: { kilns: 1 } })).toBe("newer");
+    expect(read({ owned: { helper: 5 }, jobs: { saws: 1 } })).toBe("newer");
   });
 
   it("keys each fact by id, in the five maps", () => {

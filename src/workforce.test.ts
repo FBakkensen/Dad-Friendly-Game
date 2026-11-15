@@ -34,6 +34,7 @@ function crew(helpers: number, jobs: Partial<Mountain["jobs"]> = {}): Mountain {
       hoisting: 0,
       driving: 0,
       building: 0,
+      kilns: 0,
       ...jobs,
     },
   };

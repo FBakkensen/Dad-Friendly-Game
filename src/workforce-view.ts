@@ -26,6 +26,8 @@ const JOB_NAMES: Readonly<Record<JobId, string>> = {
   hoisting: "Hoisting",
   driving: "Transport",
   building: "Building",
+  // Part 2 (#666): not in the sheet until the refinery's sliver (#671).
+  kilns: "Kilns",
 };
 
 /** The jobs of each site open in part 1, in the sheet's order. */

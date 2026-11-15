@@ -120,6 +120,7 @@ describe("frame screen", () => {
     expect(progress.getSnapshot().mountain.jobs).toMatchObject({
       drilling: 7,
       building: 1,
+      kilns: 0,
     });
   });
 

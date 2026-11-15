@@ -1,4 +1,5 @@
 import type { Mountain } from "./mountain";
+import { partTwoOn } from "./part-switch";
 import {
   EMPTY_STOCK,
   GOOD_IDS,
@@ -26,30 +27,54 @@ export const ROOF: StepIndex = 2;
 /** What an operational building gives, read from its row. */
 type Power = {
   /** The night shift output (share of the crew's speed) it lights the night to. */
-  readonly nightShift: number;
+  readonly nightShift?: number;
+  /** What it multiplies every stockpile's room by (src/stockyard.ts). */
+  readonly stockyard?: number;
 };
 
 type BuildingRow = {
   readonly id: string;
   readonly name: string;
+  /** The part of slice 1 that puts it in play (#666): part 2's waits for its switch. */
+  readonly part: 1 | 2;
   /** What each step requires, as a short list of goods (#560). */
   readonly steps: readonly [Price, Price, Price];
   readonly power: Power;
 };
 
 /**
- * In the order he builds them. Part 1 has the Light Tower; the Warehouse and
- * the Foundry require brick and cut stone, and come with parts 2 and 3. The
- * lab set the Light Tower's steps (#655): a casual dad has its roof on in
- * about two days.
+ * In the order he builds them. Part 1 has the Light Tower; the Warehouse
+ * requires brick and comes with part 2 (#666), and the Foundry, with cut
+ * stone, with part 3. The lab set the Light Tower's steps (#655): a casual
+ * dad has its roof on in about two days. The Warehouse's are the spec's
+ * starting numbers, for the lab (#667).
  */
 const BUILDING_ROWS = [
   {
     id: "lightTower",
     name: "The Light Tower",
+    part: 1,
     steps: [stonesPrice(25_000), stonesPrice(250_000), stonesPrice(1_000_000)],
     // "Lights the night: night shift output is 45%, up from 30%."
     power: { nightShift: 0.45 },
+  },
+  {
+    id: "warehouse",
+    name: "The Warehouse",
+    part: 2,
+    steps: [
+      [
+        { good: "stones", amount: 8_000_000 },
+        { good: "brick", amount: 1_000_000 },
+      ],
+      [
+        { good: "stones", amount: 15_000_000 },
+        { good: "brick", amount: 4_000_000 },
+      ],
+      [{ good: "brick", amount: 12_000_000 }],
+    ],
+    // "The stockyard holds twice as much."
+    power: { stockyard: 2 },
   },
 ] as const satisfies readonly BuildingRow[];
 
@@ -99,12 +124,21 @@ export type Project =
 
 export const NO_PROJECT: Project = { kind: "unordered" };
 
-/** The next building to order, or none when every one is operational. */
+/** Whether a building is in play: part 1's always, part 2's with its switch (#666). */
+export function buildingInPlay(building: Pick<Building, "part">): boolean {
+  return building.part === 1 || partTwoOn();
+}
+
+/**
+ * The next building to order, or none when every one in play is
+ * operational (the end of the part, until the next part is switched on).
+ */
 export function nextBuilding(
   mountain: Pick<Mountain, "operational">,
 ): Building | undefined {
   return BUILDINGS.find(
-    (building) => !mountain.operational.includes(building.id),
+    (building) =>
+      buildingInPlay(building) && !mountain.operational.includes(building.id),
   );
 }
 
@@ -239,7 +273,20 @@ export function nightShiftShare(
   let share: number | undefined;
   for (const id of mountain.operational) {
     const lit = buildingById(id).power.nightShift;
-    share = share === undefined ? lit : Math.max(share, lit);
+    if (lit !== undefined) {
+      share = share === undefined ? lit : Math.max(share, lit);
+    }
   }
   return share;
+}
+
+/** What the operational buildings multiply every stockpile's room by: 1 with none. */
+export function stockyardTimes(
+  mountain: Pick<Mountain, "operational">,
+): number {
+  let times = 1;
+  for (const id of mountain.operational) {
+    times *= buildingById(id).power.stockyard ?? 1;
+  }
+  return times;
 }

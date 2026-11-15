@@ -45,7 +45,14 @@ function shed(): Mountain {
   return mountainWith({
     ...at(12_000_000),
     owned: { ...NONE_OWNED, helper: 4, cart: 1 },
-    stock: { stones: 1_000_000, clay: 10, iron: 10, crystal: 0, heartstone: 0 },
+    stock: {
+      stones: 1_000_000,
+      clay: 10,
+      iron: 10,
+      crystal: 0,
+      heartstone: 0,
+      brick: 0,
+    },
     recipes: recipesForMined(12_000_000),
   });
 }

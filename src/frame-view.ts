@@ -34,6 +34,8 @@ const GOOD_NAMES: Readonly<Record<GoodId, string>> = {
   iron: "Iron",
   crystal: "Crystal",
   heartstone: "Heartstone",
+  // Part 2 (#666): not on screen until the refinery's sliver (#671).
+  brick: "Brick",
 };
 
 /** A pip for each of the three steps: built, in hand, or still to come. */

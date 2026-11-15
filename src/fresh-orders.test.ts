@@ -54,6 +54,7 @@ function mine(
       hoisting: perStage,
       driving: wagons,
       building: 2 * wagons,
+      kilns: 0,
     },
     stock: { ...start.stock, stones: pocket },
     fleet: { ...start.fleet, horseWagon: wagons },

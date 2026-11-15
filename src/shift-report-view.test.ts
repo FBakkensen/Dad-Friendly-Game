@@ -181,6 +181,7 @@ describe("the shift report (#663)", () => {
             hoisting: 3,
             driving: 1,
             building: 2,
+            kilns: 0,
           },
           project: {
             kind: "delivering",
