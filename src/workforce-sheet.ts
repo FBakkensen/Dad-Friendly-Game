@@ -205,6 +205,10 @@ export function createWorkforceSheet(state: FrameState): WorkforceSheet {
     paint: (mountain) => {
       paintHead(head, mountain, state.amount());
       const view = workforceView(mountain);
+      // A hire, or a worker taken off another job, answers the note.
+      if (view.free > 0) {
+        hide(note, true);
+      }
       for (const row of view.groups.flatMap((group) => group.rows)) {
         const parts = jobs.rows.get(row.job);
         if (parts !== undefined) {

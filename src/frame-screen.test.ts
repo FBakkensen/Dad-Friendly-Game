@@ -109,6 +109,16 @@ describe("frame screen", () => {
     });
   });
 
+  it("takes the no-free-worker line down once a worker is hired", () => {
+    const { root, button } = mount(withStones(1_000));
+    button(".frame-workers").click();
+    button('.frame-step[data-job="drilling"][data-way="place"]').click();
+    const note = root.querySelector<HTMLElement>(".frame-sheet-note");
+    expect(note?.hidden).toBe(false);
+    button(".frame-sheet-hire").click();
+    expect(note?.hidden).toBe(true);
+  });
+
   it("moves up to ten workers at ×10", () => {
     const { progress, button } = mount();
     button(".frame-workers").click();
