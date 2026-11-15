@@ -3,7 +3,7 @@ import { withFactors } from "./economy/factors";
 import { FRESH_OFF } from "./line-switch";
 import { machineKey, stageRows } from "./mine-view";
 import { createMountain, type Mountain } from "./mountain";
-import { stageList, workersList } from "./stage-list-view";
+import { listPart, stageList, workersList } from "./stage-list-view";
 import { tierById } from "./tiers";
 
 /** A stage's list and the workers' upgrades (#661), on a fresh mine. */
@@ -36,6 +36,41 @@ describe("a stage's list", () => {
         "Moves 18/s of 132/s: 2 carts: 2 of 2 workers 120/s + 4 with barrows 12/s.",
       );
     });
+  });
+
+  it("says a machine that stands, with its workers on their tools, in the call 51 form", () => {
+    expect(
+      listPart(
+        "haul",
+        {
+          kind: "stands",
+          id: "cart",
+          standing: 1,
+          workers: 12,
+          moves: 430,
+          onMachines: 360,
+        },
+        "430",
+      ),
+    ).toEqual({
+      name: "1 cart stands",
+      detail: "12 workers move with barrows, 360/s on the cart",
+      moves: "430/s",
+    });
+    expect(
+      listPart(
+        "lift",
+        {
+          kind: "stands",
+          id: "hoist",
+          standing: 2,
+          workers: 0,
+          moves: 0,
+          onMachines: 0,
+        },
+        "0",
+      ),
+    ).toEqual({ name: "2 hoists stand", detail: "", moves: "0/s" });
   });
 
   it("has the stage's machine with what he owns, its next mark and the mine's key", () => {

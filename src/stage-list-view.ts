@@ -86,7 +86,7 @@ const capital = (words: string): string =>
   `${words.charAt(0).toUpperCase()}${words.slice(1)}`;
 
 /** A summand of the row as a line of the list, its moves as the row prints them. */
-function listPart(stage: Stage, part: RowPart, moves: string): ListPart {
+export function listPart(stage: Stage, part: RowPart, moves: string): ListPart {
   const perSecond = `${moves}/s`;
   if (part.kind === "tools") {
     return {
@@ -104,7 +104,7 @@ function listPart(stage: Stage, part: RowPart, moves: string): ListPart {
       detail:
         part.workers === 0
           ? ""
-          : `${String(part.workers)} ${plural(part.workers, TOOL_WORDS[stage])}, ${formatSpeed(part.onMachines)}/s on the ${machines}`,
+          : `${String(part.workers)} ${plural(part.workers, ["worker moves", "workers move"])} ${plural(part.workers, TOOL_WORDS[stage])}, ${formatSpeed(part.onMachines)}/s on the ${machines}`,
       moves: perSecond,
     };
   }

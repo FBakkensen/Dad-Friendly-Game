@@ -227,6 +227,8 @@ type MovesParts = {
 
 function buildMoves(): MovesParts {
   const root = el("div", "stage-moves");
+  // A named group, so a screen reader hears the row in one sentence.
+  root.setAttribute("role", "group");
   const total = el("p", "stage-total");
   const now = el("b", "board-num");
   const can = el("span", "board-num");
