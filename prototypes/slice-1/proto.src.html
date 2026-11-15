@@ -129,9 +129,13 @@
   #p-mine .lv.dr .h { display: flex; align-items: baseline; gap: 5px; white-space: nowrap; line-height: 1.05; }
   #p-mine .lv.dr .nm { font-size: 17px; }
   #p-mine .lv.dr .nm.sub { font-size: 15px; }
-  #p-mine .ded { position: absolute; left: 6px; width: 68px; height: 80px; background: #000a; box-shadow: inset 0 0 0 2px #3b4450; color: var(--quiet); text-align: center; font-size: 12px; font-weight: 700; line-height: 1.1; }
-  #p-mine .ded small { display: block; font-size: 12px; }
-  #p-mine .ded b { display: block; margin-top: 3px; font-family: var(--mono); font-weight: 400; font-size: 24px; color: #fff; }
+  #p-mine .ded { position: absolute; left: 6px; width: 68px; height: 80px; box-sizing: border-box; padding: 3px; background: #000a; box-shadow: inset 0 0 0 2px #3b4450; display: flex; flex-direction: column; gap: 2px; }
+  #p-mine .ded .n { flex: 1; display: flex; align-items: baseline; justify-content: center; gap: 4px; color: var(--quiet); font-size: 12.5px; font-weight: 700; white-space: nowrap; }
+  #p-mine .ded .n b { font-family: var(--mono); font-weight: 400; font-size: 21px; color: #fff; }
+  #p-mine .ded .k { display: flex; gap: 2px; }
+  #p-mine .ded .st { flex: 1; width: auto; height: 40px; line-height: 36px; }
+  #p-mine .ded .st.off { opacity: .35; }
+  #p-mine #both { position: absolute; right: 8px; top: 62px; font-size: 13px; font-weight: 600; color: #d9cdb4; text-shadow: 0 1px 2px #000; white-space: nowrap; }
   #p-mine .lv.dr .r { font-size: 12.5px; color: var(--quiet); }
   #p-mine .lv.dr .r b { font-family: var(--mono); font-weight: 400; font-size: 14px; color: #ffd98a; }
   #p-mine .lv.dr .r i { font-family: var(--mono); font-style: normal; font-weight: 400; font-size: 14px; color: #e3e9ef; }
@@ -630,17 +634,17 @@ function explain() {
   const b = stageBuy("lift"), F = flows();
   say(`Hoisting lifts ${rate(Math.min(F.now.lift, F.f.lift))} now and can lift ${rate(F.f.lift)}. ${one(b)} takes ${b.staff} workers and lifts ${num(b.load)} a trip${b.speed > 1 ? ", " + b.speed + " times as fast as a hoist" : ""}. A worker on a winch lifts ${num(STG.lift.each)} a trip. A trip to the Topsoil and back takes ${rt(0)} s${S.shaft ? ", to the Granite " + rt(1) + " s" : ""}. The rock is in stock when the cage is at the top.`);
 }
-/* A hoist can be kept to one level. A tap on a level's key keeps one more hoist to it, and after the last one, none. */
-function dedicate(i) {
-  const n = S.m.lift + S.m.great; if (!n) return;
-  S.ded[i] = S.ded[0] + S.ded[1] < n ? S.ded[i] + 1 : 0; after();
-  say(`Hoists for the Topsoil only: ${S.ded[0]}. For the Granite only: ${S.ded[1]}. For both levels in turn: ${n - S.ded[0] - S.ded[1]}.`);
+/* Hoists are assigned to a level with − and + on the shaft at that level. The hoists that are not assigned serve both levels in turn. */
+const hoists = () => S.m.lift + S.m.great, shared = () => hoists() - S.ded[0] - S.ded[1];
+const hoistSay = () => say(`Hoists assigned to the Topsoil: ${S.ded[0]}. To the Granite: ${S.ded[1]}. For both levels in turn: ${shared()}.`);
+function assign(i, d) {
+  if (d < 0 ? S.ded[i] > 0 : shared() > 0) { S.ded[i] += d; after(); } else hoistSay(); // a tap that can move nothing says where the hoists are
 }
 
 function sinkShaft() {
   if (S.shaft || !worksOpen()) return; if (!canPay(SHAFT)) return say(lacks(SHAFT));
   pay(SHAFT); S.shaft = true; build(); after();
-  card("The Granite: reached", ["A second level, twice as deep, with its own drilling and its own haulage. Nobody works there yet: put workers on it with − and + on the level.", "A hoist serves both levels in turn: down to one, up, then down to the other. A trip to the Granite takes twice as long. The key on the shaft keeps a hoist to one level.", "Topsoil rock goes to the kilns. Granite rock goes to the saws, which have their own pile of rock.", "Opened: saws in the refinery, the factory, and locomotives for haulage."], "Continue");
+  card("The Granite: reached", ["A second level, twice as deep, with its own drilling and its own haulage. Nobody works there yet: put workers on it with − and + on the level.", "A hoist serves both levels in turn: down to one, up, then down to the other. A trip to the Granite takes twice as long. With − and + on the shaft at a level you assign hoists to that level only.", "Topsoil rock goes to the kilns. Granite rock goes to the saws, which have their own pile of rock.", "Opened: saws in the refinery, the factory, and locomotives for haulage."], "Continue");
 }
 function buyKiln() { const c = { stones: kilnPrice() }; if (!canPay(c)) return say(lacks(c)); pay(c); S.kilns++; after(); }
 function buySaw() { const c = { bricks: sawPrice() }; if (!canPay(c)) return say(lacks(c)); pay(c); S.saws++; after(); }
@@ -794,11 +798,15 @@ function mineDOM(ov) {
     // drilling and haulage are jobs on the level: their rows sit on it
     const lv = el("div", "lv dr", ov, row("lv-d" + i, DJOB[i], n, false, "drilling on the " + n) + row("lv-h" + i, HJOB[i], "Haulage", true, "haulage on the " + n)); lv.id = "lvh-" + i; lv.style.top = top + "px";
     tap($("#lv-d" + i), () => explainRow("face", i)); tap($("#lv-h" + i), () => explainRow("haul", i));
-    // on the shaft, at the level: the hoists that are kept to it
-    if (S.shaft) { const d = el("button", "ded", ov, `<small>Hoists<br>only here</small><b></b>`); d.id = "ded-" + i; d.style.top = top + "px"; d.setAttribute("aria-label", "Hoists for the " + n + " only"); tap(d, () => dedicate(i)); }
+    // on the shaft, at the level: the hoists that are assigned to it, with − and +
+    if (S.shaft) {
+      const d = el("div", "ded", ov, `<button class="n" aria-label="Hoists assigned to the ${n}"><b></b><small></small></button><div class="k"><button class="st" aria-label="Assign one hoist fewer to the ${n}">−</button><button class="st" aria-label="Assign one more hoist to the ${n}">+</button></div>`); d.id = "ded-" + i; d.style.top = top + "px";
+      const [num0, less, more] = d.querySelectorAll("button"); tap(num0, hoistSay); tap(less, () => assign(i, -1)); tap(more, () => assign(i, 1));
+    }
     // the level's two piles, under the heaps they count
     if ((SURF + i * LH + TF + 1) * 2 + 16 < hA * 2 - 82) [["s", "left", 76], ["f", "right", 8]].forEach(([id, side, x]) => { const z = el("div", "zl", ov); z.id = "zl-" + id + i; z.style[side] = x + "px"; z.style.top = (SURF + i * LH + TF + 1) * 2 + "px"; });
   });
+  if (S.shaft) el("div", "", ov).id = "both"; // above the shaft: the hoists that are assigned to no level
   if (hA * 2 - 82 > (SURF + 2 * LH + 4) * 2 + 24) { const deep = el("div", "deep", ov, "Deeper strata: not yet surveyed. The city has to grow first."); deep.style.top = (SURF + 2 * LH + 4) * 2 + "px"; }
   // under the mine: a key for one more machine of each kind, and hoisting, which is one job for the whole shaft
   const ln = el("div", "", ov, `<div class="lh">${Object.keys(STG).map((k) => `<button class="k" id="buy-${k}"></button>`).join("")}</div>`); ln.id = "line";
@@ -831,9 +839,10 @@ function mineUI(F) {
       b.parentNode.querySelector(".n small").textContent = S.wk[LJOB[k][i]] === 1 ? "worker" : "workers";
     }
     for (const [id, pk] of [["s", "shaft"], ["f", "face"]]) { const z = $("#zl-" + id + i); if (z) z.textContent = `${PILE_N[pk]}: ${num(S.p[pk][i])} of ${num(ROOM[pk])}`; }
-    const d = $("#ded-" + i); if (d) { d.hidden = S.m.lift + S.m.great < 1; d.querySelector("b").textContent = S.ded[i]; }
+    const d = $("#ded-" + i); if (d) { const st = d.querySelectorAll(".st"); d.hidden = hoists() < 1; d.querySelector("b").textContent = S.ded[i]; d.querySelector("small").textContent = S.ded[i] === 1 ? "hoist" : "hoists"; st[0].classList.toggle("off", S.ded[i] < 1); st[1].classList.toggle("off", shared() < 1); st[1].classList.toggle("can", shared() > 0); }
   }
   for (const k in STG) { const sb = stageBuy(k), bk = $("#buy-" + k); bk.innerHTML = `+${sb.short} · ${k === "lift" ? num(sb.load) + " a trip" : rate(sb.rate)}<small>${fmt(sb.price)} ${ico(sb.good)} · ${sb.staff} to run</small>`; bk.classList.toggle("can", canPay({ [sb.good]: sb.price })); }
+  const bo = $("#both"); if (bo) { bo.hidden = hoists() < 1; bo.textContent = `For both levels in turn: ${shared()} ${shared() === 1 ? "hoist" : "hoists"}`; }
   // hoisting: what the cages lift now of what they can lift, as the shaft is set
   const s = $("#stg-lift"), cap = F.f.lift, out = Math.min(F.now.lift, cap), cr = (kd) => sf.lift.cages.filter((c) => c.kd === kd).reduce((a, c) => a + c.rate, 0), tl = sf.lift.tool;
   crewLine(s.querySelector(".mk"), sf.lift.rows.map((r) => Object.assign({ v: cr(r.kd) }, r)), tl, STG.lift, tl ? cr(null) / tl / x : 0, 1, x);
