@@ -35,12 +35,12 @@ Spec: `docs/superpowers/specs/2026-11-14-slice-1-design.md`, "Lab", "Starting nu
 7. **No worker moves at a full stockyard.** While hoisting stands with rock to lift, the stockyard is full and no move of his makes room, so `pileMove` moves nobody. Without it the evening dad moved every worker to hoisting one by one and stood the line for a day.
 8. **The numbers.**
    - The stockyard holds 6M stone and 1M brick at level 0, twice the spec's guess (`ROOM_AT_ZERO`; the lab knob `room.stockyard` scales it). A level still triples it for 150K brick ×3. At 3M the casual types' long nights filled in one of three, at about half the night; at 6M one in four, at three quarters. At 12M the casual types finished on the same days and the long-gap types still filled early.
-   - The kiln (15,000 stone ×1.219, 12 brick a second), the kilns' pile (300) and the Warehouse's steps (8M stone and 1M brick, 15M and 4M, 12M brick) stay. The kiln and its pile move again with the recipe and the kilns' pile rules (#723), so they were not tuned here.
+   - The kiln (15,000 stone ×1.219, 12 brick a second), the kilns' pile (300) and the Warehouse's steps (8M stone and 1M brick, 15M and 4M, 12M brick) stay. The kiln's numbers move again with its recipe, two rock for one brick (#723), so they were not tuned here.
    - The Light Tower's night shift output stays 45%. At 40% the casual types' Warehouse comes about half a day later, with the night measures about the same; 45% is the approved line on the card.
 9. **Part 1's playtest notes (15 Nov).** Each is weighed, none moves a number here:
    - Work boots at 1.6M: the optimizer, the one type that weighs upgrades, does not buy it in part 1 even at 150K (seed 1: it adds about 24 a second of line at 100 workers, where a machine pays back about ten times sooner). In part 2 the optimizer buys it on day 3. It stays; that it shows from 10 workers is the workforce screen's to decide.
    - The tool marks at 25 and 50 workers: a line on the workforce screen, not a number. Flemming approved "Every worker with a tool works twice as fast." for it.
-   - Piles of 300 stop mattering after ten minutes: a rule for the prototype (pile room that grows), with the kilns' pile in #723.
+   - Piles of 300 stop mattering after ten minutes: a rule for the prototype (pile room that grows).
 
 ## Tasks
 
