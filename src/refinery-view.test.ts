@@ -52,7 +52,7 @@ describe("the kilns' plate (#671)", () => {
       expect(plate.name).toBe("Kilns");
       expect([plate.now, plate.can]).toEqual(["12", "12"]);
       expect(plate.unit).toBe("brick/s");
-      expect(plate.machines).toBe("1 kiln: 1 of 1 workers");
+      expect(plate.machines).toBe("1 kiln: 1 of 1 worker");
       expect(plate.idle).toBeUndefined();
       expect(plate.pile).toBe("Rock at the kilns: 120 of 300");
       expect(plate.workers).toBe(1);
@@ -65,7 +65,7 @@ describe("the kilns' plate (#671)", () => {
         "1 of 2 kilns: 1 of 2 workers",
       );
       const over = view(lit({ kilns: 1, onKilns: 3 })).plate;
-      expect(over.machines).toBe("1 kiln: 1 of 1 workers");
+      expect(over.machines).toBe("1 kiln: 1 of 1 worker");
       expect(over.idle).toBe("+ 2 without a kiln");
     });
   });
@@ -109,7 +109,8 @@ describe("the kilns' plate (#671)", () => {
         price: "15K",
         staff: "1 to run",
         can: false,
-        label: "Buy a kiln for 15K stone: 12 brick a second, 1 worker to run",
+        label:
+          "Buy a kiln for 15K stone. It makes 12 brick a second and takes 1 to run.",
       });
       expect(view(lit({ stones: 15_000 })).plate.key.can).toBe(true);
     });
@@ -180,9 +181,10 @@ describe("how long a night lasts now (#671)", () => {
     partTwo(() => {
       const room = stockpileRoom(lit(), "stones");
       expect(nightForecast(lit({ stones: room }), 0)).toBe("Full now.");
-      // The night lifts about 5 a second: 5,400 stone is roughly 18 minutes.
-      expect(nightForecast(lit({ stones: room - 5_400 }), 0)).toMatch(
-        /^Full after \d+ min unattended\.$/,
+      // The line lifts 18 a second; the night shift under the Light Tower's
+      // roof runs at 45%, 8.1 a second, so 5,400 stone fills in 667 s: 11 min.
+      expect(nightForecast(lit({ stones: room - 5_400 }), 0)).toBe(
+        "Full after 11 min unattended.",
       );
     });
   });

@@ -113,6 +113,9 @@ function buildingNote(): string {
 
 /** "1 of 2 kilns run": the kilns with a worker, of the kilns he owns (#671). */
 function kilnsNote(mountain: Mountain): string {
+  if (mountain.makers.kiln === 0) {
+    return "No kilns yet";
+  }
   return runsOf(runningKilns(mountain), mountain.makers.kiln, [
     "kiln",
     "kilns",

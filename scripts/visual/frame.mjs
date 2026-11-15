@@ -273,7 +273,10 @@ async function sheetFacts(page) {
     return {
       open: !sheet.hidden,
       inside: r.top >= board.top - 0.5 && r.bottom <= lineTop + 0.5,
-      rows: sheet.querySelectorAll(".frame-job").length,
+      // A closed site's group is built but hidden (the refinery in part 1, #671).
+      rows: [...sheet.querySelectorAll(".frame-job")].filter(
+        (row) => row.closest("[hidden]") === null,
+      ).length,
       note: note !== null && !note.hidden ? (note.textContent ?? "") : "",
     };
   });

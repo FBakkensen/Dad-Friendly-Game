@@ -5,7 +5,12 @@ import { createMemoryCloudSave, type CloudSave } from "./cloud-save";
 import { NO_PROJECT, placeOrder } from "./city";
 import { holdFactors } from "./economy/factors";
 import { nightReport } from "./frame-cards";
-import { END_CARD, FIRST_EVENING } from "./frame-cards-words";
+import {
+  END_CARD,
+  FIRST_EVENING,
+  REFINERY_OPENS,
+  endCard,
+} from "./frame-cards-words";
 import { mountFrameScreen } from "./frame-screen";
 import { FRESH_OFF } from "./line-switch";
 import { PART_TWO_OFF } from "./part-switch";
@@ -397,6 +402,42 @@ describe("the end card", () => {
     expect(card()).toMatchObject({ shown: true, kind: "end" });
   });
 
+  it("opens the refinery in part 2 when the Light Tower's roof goes on, and ends at the Warehouse's (#671)", () => {
+    holdFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 });
+    const { card, press, progress } = mount({
+      saved: crew(ROOF_NEARLY_IN),
+      at: 1_000,
+    });
+    progress.applyMutation((mountain) => ({
+      ...mountain,
+      project: NO_PROJECT,
+      operational: ["lightTower"],
+    }));
+    expect(card()).toMatchObject({
+      shown: true,
+      kind: "opens",
+      title: REFINERY_OPENS.title,
+      lines: REFINERY_OPENS.paragraphs,
+    });
+    expect(card().lines.join(" ")).not.toMatch(/later update/);
+    press();
+    expect(card().shown).toBe(false);
+    progress.applyMutation((mountain) => ({
+      ...mountain,
+      operational: ["lightTower", "warehouse"],
+    }));
+    expect(card()).toMatchObject({
+      shown: true,
+      kind: "end",
+      title: "The Warehouse: operational",
+      lines: endCard("warehouse").paragraphs,
+    });
+    expect(card().lines).toEqual([
+      "Stockyard capacity ×2.",
+      "The city is planning its next building. It comes in a later update.",
+    ]);
+  });
+
   it("closes the Ledger as it comes up, and takes the focus to its key (#708)", () => {
     const { root, progress, card } = mount({
       saved: crew(ROOF_NEARLY_IN),
@@ -562,8 +603,12 @@ describe("the cards' words", () => {
       FIRST_EVENING.title,
       ...FIRST_EVENING.paragraphs,
       FIRST_EVENING.key,
+      ...REFINERY_OPENS.paragraphs,
+      ...endCard("warehouse").paragraphs,
     ].join(" ");
-    expect(words).not.toMatch(/bottleneck|limit|best buy|\bhands?\b|by hand/i);
+    expect(words).not.toMatch(
+      /bottleneck|limit|best buy|\bhands?\b|by hand|\bface\b/i,
+    );
   });
 
   it("say the first evening's words as proposed", () => {

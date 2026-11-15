@@ -1,6 +1,6 @@
 import { ROOF, buildingById, type Building } from "./city";
 import { formatCompact, shiftDuration } from "./format";
-import { GOOD_NAMES, STEP_NAMES } from "./frame-view";
+import { BAY_ORDER, GOOD_NAMES, STEP_NAMES } from "./frame-view";
 import type { AwayReport, NightReport } from "./mountain";
 import { percent } from "./screen-words";
 import { GOOD_IDS, type GoodId, type Stock } from "./stock";
@@ -138,8 +138,7 @@ function lines(report: NightAwayReport): readonly string[] {
 
 /** "Brick full at 3 h 20 min", brick then stone, as the stockyard's bays stand. */
 function marks(night: NightReport): readonly string[] {
-  const order: readonly GoodId[] = ["brick", "stones"];
-  return order.flatMap((good) => {
+  return BAY_ORDER.flatMap((good) => {
     const at = night.fullAtMs?.[good];
     return at === undefined
       ? []

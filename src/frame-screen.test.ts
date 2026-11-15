@@ -296,4 +296,66 @@ describe("the refinery on the frame (#671)", () => {
     button('.frame-site[data-site="refinery"]').click();
     expect(hireKeysInFrame(root)).toHaveLength(1);
   });
+
+  it("moves a worker onto the kilns and off with − and +", () => {
+    holdFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 });
+    const { root, progress, button } = mount((mountain) => ({
+      ...lit(mountain),
+      owned: { ...mountain.owned, helper: mountain.owned.helper + 1 },
+      makers: { kiln: 1 },
+    }));
+    button('.frame-site[data-site="refinery"]').click();
+    const kilns = () => progress.getSnapshot().mountain.jobs.kilns;
+    button('.refinery .frame-step[data-way="place"]').click();
+    expect(kilns()).toBe(1);
+    expect(root.querySelector(".refinery-machines")?.textContent).toBe(
+      "1 kiln: 1 of 1 worker",
+    );
+    button('.refinery .frame-step[data-way="free"]').click();
+    expect(kilns()).toBe(0);
+  });
+
+  it("expands the stockyard for its brick", () => {
+    holdFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 });
+    const { progress, button } = mount((mountain) => ({
+      ...lit(mountain),
+      stock: { ...lit(mountain).stock, brick: 150_000 },
+    }));
+    button('.frame-site[data-site="refinery"]').click();
+    const expand = button(".refinery-expand");
+    expect(expand.classList.contains("can")).toBe(true);
+    expand.click();
+    const after = progress.getSnapshot().mountain;
+    expect(after.stockyard).toBe(1);
+    expect(after.stock.brick).toBe(0);
+  });
+
+  it("groups the kilns under the refinery in the workforce only while it is open", () => {
+    const group = (root: HTMLElement) =>
+      root.querySelector<HTMLElement>(
+        '.frame-jobs-group[data-site="refinery"]',
+      );
+    const one = mount(lit);
+    expect(group(one.root)?.hidden).toBe(true);
+    unmount.abort();
+    unmount = new AbortController();
+    holdFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 });
+    const two = mount(lit);
+    two.button(".frame-workers").click();
+    expect(group(two.root)?.hidden).toBe(false);
+    expect(group(two.root)?.textContent).toContain("Kilns");
+  });
+
+  it("goes back to the mine when the refinery closes under it", () => {
+    holdFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 });
+    const { root, progress, button } = mount(lit);
+    button('.frame-site[data-site="refinery"]').click();
+    expect(button(".frame-site.on").dataset["site"]).toBe("refinery");
+    // A copy from before the Light Tower's roof is taken (a save card's choice).
+    progress.applyMutation((mountain) => ({ ...mountain, operational: [] }));
+    expect(
+      root.querySelector<HTMLElement>(".frame-scene")?.dataset["site"],
+    ).toBe("mine");
+    expect(tab(root)?.hidden).toBe(true);
+  });
 });

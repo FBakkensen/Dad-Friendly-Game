@@ -1,8 +1,8 @@
 import brickUrl from "./assets/board/res-brick.png";
-import stoneUrl from "./assets/board/res-stone.png";
 import { el, hide, mark, setAttr, write } from "./board-dom";
 import type { FrameState } from "./frame-state";
 import { listenSteps, paintSteps, stepper } from "./job-steps";
+import { buildKeyFace, paintMachineKey, type KeyParts } from "./mine-site";
 import type { Mountain } from "./mountain";
 import {
   drawRefinery,
@@ -58,32 +58,16 @@ type PlateParts = {
   readonly unit: HTMLElement;
   readonly minus: HTMLButtonElement;
   readonly plus: HTMLButtonElement;
-  readonly key: HTMLButtonElement;
-  readonly keyFace: HTMLElement;
-  readonly keyPrice: HTMLElement;
-  readonly keyStaff: HTMLElement;
+  readonly key: KeyParts;
 };
 
-function buildKey(state: FrameState): {
-  readonly root: HTMLButtonElement;
-  readonly face: HTMLElement;
-  readonly price: HTMLElement;
-  readonly staff: HTMLElement;
-} {
-  const root = el("button", "mine-key refinery-kiln-key");
-  root.type = "button";
-  const face = el("span", "mine-key-face");
-  const price = el("span", "board-num");
-  const staff = el("span", "mine-key-staff");
-  const small = el("span", "mine-key-small");
-  small.append(price, icon(stoneUrl, "mine-key-icon"), staff);
-  root.append(face, small);
-  root.addEventListener("click", () => {
+/** One more kiln, on the mine's own key (a maker is bought one at a time). */
+function buildKey(state: FrameState): KeyParts {
+  return buildKeyFace("mine-key refinery-kiln-key", () => {
     if (refineryView(state.mountain()).plate.key.can) {
       void state.progress.dispatch({ kind: "buyMaker", id: "kiln" });
     }
   });
-  return { root, face, price, staff };
 }
 
 function buildPlate(state: FrameState): PlateParts {
@@ -124,10 +108,7 @@ function buildPlate(state: FrameState): PlateParts {
     unit,
     minus,
     plus,
-    key: key.root,
-    keyFace: key.face,
-    keyPrice: key.price,
-    keyStaff: key.staff,
+    key,
   };
 }
 
@@ -147,11 +128,7 @@ function paintPlate(
   write(parts.count, String(plate.workers));
   write(parts.unit, plate.workers === 1 ? "worker" : "workers");
   paintSteps(parts, plate, amount);
-  write(parts.keyFace, plate.key.face);
-  write(parts.keyPrice, plate.key.price);
-  write(parts.keyStaff, ` · ${plate.key.staff}`);
-  mark(parts.key, "can", plate.key.can);
-  setAttr(parts.key, "aria-label", plate.key.label);
+  paintMachineKey(parts.key, plate.key);
 }
 
 type YardParts = {
@@ -239,6 +216,34 @@ function buildOverlay(): {
 /** How often the night forecast is played again: it is a whole night on a copy. */
 const FORECAST_MS = 1000;
 
+type Forecast = {
+  readonly at: number;
+  readonly key: string;
+  readonly words: string;
+};
+
+/** What the forecast turns on at once: the stockyard's level, the kilns and who runs them. */
+const forecastKey = (mountain: Mountain): string =>
+  [mountain.stockyard, mountain.makers.kiln, mountain.jobs.kilns].join(":");
+
+/**
+ * The forecast again once a second, or at once when a buy or a move changed
+ * what it turns on; not at all while no expand key shows it.
+ */
+function nextForecast(
+  last: Forecast,
+  mountain: Mountain,
+  clock: number,
+  shown: boolean,
+): Forecast {
+  const key = forecastKey(mountain);
+  const due =
+    clock - last.at >= FORECAST_MS || clock < last.at || key !== last.key;
+  return shown && due
+    ? { at: clock, key, words: nightForecast(mountain, clock) }
+    : last;
+}
+
 export function createRefinerySite(
   state: FrameState,
   signal?: AbortSignal,
@@ -258,7 +263,7 @@ export function createRefinerySite(
   root.append(canvas, over.root, panel);
   let view: RefineryView = refineryView(state.mountain());
   let visible = false;
-  let forecast = { at: -Infinity, words: "" };
+  let forecast: Forecast = { at: -Infinity, key: "", words: "" };
   const sprites = loadRefinerySprites();
   runScene(
     canvas,
@@ -292,10 +297,12 @@ export function createRefinerySite(
         return;
       }
       view = refineryView(mountain, now);
-      const clock = now ?? Date.now();
-      if (clock - forecast.at >= FORECAST_MS || clock < forecast.at) {
-        forecast = { at: clock, words: nightForecast(mountain, clock) };
-      }
+      forecast = nextForecast(
+        forecast,
+        mountain,
+        now ?? Date.now(),
+        view.stockyard.expand !== undefined,
+      );
       write(over.rate, view.hopper.rate);
       write(over.bypass, view.bypass.rate);
       if (view.plate.canPlace) {

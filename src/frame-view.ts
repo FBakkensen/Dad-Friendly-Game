@@ -188,6 +188,9 @@ export function stockpiles(mountain: Mountain): readonly Stockpile[] {
   });
 }
 
+/** The stockyard's bays left to right, and the shift report's marks: brick, then stone (#671). */
+export const BAY_ORDER: readonly GoodId[] = ["brick", "stones"];
+
 /** The count of workers in the top row, and the hire key beside it. */
 export type WorkersView = {
   readonly owned: number;

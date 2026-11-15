@@ -1,5 +1,5 @@
 import { formatCompact, shiftDuration } from "./format";
-import { GOOD_NAMES } from "./frame-view";
+import { BAY_ORDER, GOOD_NAMES, stockpiles } from "./frame-view";
 import {
   makerMakes,
   makerPrice,
@@ -8,18 +8,12 @@ import {
   kilnRate,
 } from "./makers";
 import { chainIncome, kilnHolds, mineChain } from "./mine-piles";
-import { levelPlate } from "./mine-view";
+import { PILE_LABELS, levelPlate, pileWords } from "./mine-view";
 import { accrueAway, type Mountain } from "./mountain";
 import { crewTimer } from "./rates";
+import { plural } from "./screen-words";
 import { canPay, type GoodId } from "./stock";
-import {
-  MAX_STOCKYARD_LEVEL,
-  ROOM_GROWTH,
-  STOCKPILE_GOODS,
-  expandPrice,
-  stockpileFull,
-  stockpileRoom,
-} from "./stockyard";
+import { MAX_STOCKYARD_LEVEL, ROOM_GROWTH, expandPrice } from "./stockyard";
 import { placeable } from "./workforce";
 
 /**
@@ -132,10 +126,10 @@ function machinesLine(owned: number, running: number): string {
   if (owned === 0) {
     return "No kilns yet";
   }
-  const kilns = owned === 1 ? "kiln" : "kilns";
+  // The mine's runs line (mine-view's partWords): what runs, then who runs it.
   const runs =
     running < owned ? `${String(running)} of ${String(owned)}` : String(owned);
-  return `${runs} ${kilns}: ${String(running)} of ${String(owned)} workers`;
+  return `${runs} ${plural(owned, ["kiln", "kilns"])}: ${String(running)} of ${String(owned)} ${plural(owned, ["worker", "workers"])}`;
 }
 
 function kilnKey(mountain: Mountain): KilnKey {
@@ -147,11 +141,15 @@ function kilnKey(mountain: Mountain): KilnKey {
     price: formatCompact(amount),
     staff: "1 to run",
     can: canPay(mountain.stock, price),
-    label: `Buy a kiln for ${formatCompact(amount)} stone: ${makes} brick a second, 1 worker to run`,
+    label: `Buy a kiln for ${formatCompact(amount)} stone. It makes ${makes} brick a second and takes 1 to run.`,
   };
 }
 
-function kilnPlate(mountain: Mountain, brickNow: number): KilnPlate {
+function kilnPlate(
+  mountain: Mountain,
+  brickNow: number,
+  timer: number,
+): KilnPlate {
   const owned = mountain.makers.kiln;
   const running = runningKilns(mountain);
   const extra = mountain.jobs.kilns - owned;
@@ -160,7 +158,7 @@ function kilnPlate(mountain: Mountain, brickNow: number): KilnPlate {
     recipe: `Recipe: ${String(makerTakes("kiln"))} rock → 1 brick`,
     name: "Kilns",
     now: formatCompact(brickNow),
-    can: formatCompact(kilnRate(mountain)),
+    can: formatCompact(kilnRate(mountain) * timer),
     unit: "brick/s",
     machines: machinesLine(owned, running),
     ...(extra > 0
@@ -170,7 +168,11 @@ function kilnPlate(mountain: Mountain, brickNow: number): KilnPlate {
       : {}),
     ...(holds > 0
       ? {
-          pile: `Rock at the kilns: ${formatCompact(mountain.piles.kiln)} of ${formatCompact(holds)}`,
+          pile: pileWords({
+            label: PILE_LABELS.kiln,
+            held: mountain.piles.kiln,
+            holds,
+          }),
         }
       : {}),
     workers: mountain.jobs.kilns,
@@ -181,21 +183,22 @@ function kilnPlate(mountain: Mountain, brickNow: number): KilnPlate {
   };
 }
 
-/** The stockpiles' bays, brick then stone, as the picture has them. */
+/** The stockpiles' bays, brick then stone, read from the top row's own stockpiles. */
 function bays(mountain: Mountain): readonly Bay[] {
-  const order: readonly GoodId[] = ["brick", "stones"];
-  return order
-    .filter((good) => STOCKPILE_GOODS.includes(good))
-    .map((good) => {
-      const held = mountain.stock[good];
-      const room = stockpileRoom(mountain, good);
-      return {
-        good,
-        text: `${GOOD_NAMES[good]} ${formatCompact(held)} of ${formatCompact(room)}`,
-        fill: room > 0 ? Math.min(1, held / room) : 0,
-        full: stockpileFull(mountain, good),
-      };
-    });
+  const piles = stockpiles(mountain);
+  return BAY_ORDER.flatMap((good) => {
+    const pile = piles.find((each) => each.good === good);
+    return pile?.room === undefined
+      ? []
+      : [
+          {
+            good,
+            text: `${GOOD_NAMES[good]} ${pile.text} ${pile.room}`,
+            fill: pile.fill ?? 0,
+            full: pile.full === true,
+          },
+        ];
+  });
 }
 
 /** Twelve hours: a night that runs longer holds. */
@@ -249,14 +252,14 @@ export function refineryView(mountain: Mountain, now?: number): RefineryView {
   const holds = kilnHolds(mountain);
   return {
     hopper,
-    plate: kilnPlate(mountain, income.brick),
+    plate: kilnPlate(mountain, income.brick, crewTimer(mountain, now)),
     bypass: { rate: rate(income.stones), recipe: BYPASS_RECIPE },
     stockyard: { bays: yard, ...(expand === undefined ? {} : { expand }) },
     scene: {
       hopper: holds > 0 ? Math.min(1, mountain.piles.kiln / holds) : 0,
       kilns: mountain.makers.kiln,
       running: runningKilns(mountain),
-      lifting: hopper.rate !== "0/s",
+      lifting: hopper.lifted > 0,
       making: income.brick > 0,
       bypassing: income.stones > 0,
       bays: yard,

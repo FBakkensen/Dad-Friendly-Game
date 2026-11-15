@@ -161,6 +161,8 @@ describe("the refinery's jobs (#671)", () => {
         workforceView(kilns(2, 1)).groups.map((group) => group.name),
       ).toEqual(["Mine", "Refinery", "City"]);
       expect(notes(kilns(2, 1))["Kilns"]).toBe("1 of 2 kilns run");
+      // As the kilns' plate says it before the first kiln.
+      expect(notes(kilns(0, 0))["Kilns"]).toBe("No kilns yet");
       expect(notes(kilns(1, 1))["Kilns"]).toBe("1 of 1 kiln runs");
       expect(notes(kilns(1, 3))["Kilns"]).toBe("1 of 1 kiln runs");
     });

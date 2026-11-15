@@ -1,6 +1,13 @@
 import { el, write, writeFigures } from "./board-dom";
-import { END_CARD, FIRST_EVENING, type CardWords } from "./frame-cards-words";
+import type { BuildingId } from "./city";
+import {
+  FIRST_EVENING,
+  REFINERY_OPENS,
+  endCard,
+  type CardWords,
+} from "./frame-cards-words";
 import { FRESH_START_JOBS, type AwayReport, type Mountain } from "./mountain";
+import { partTwoOn } from "./part-switch";
 import type { ProgressSnapshot, ProgressStore } from "./progress-store";
 import { firstNotice } from "./session";
 import { JOB_IDS, workersOnJobs } from "./workforce";
@@ -16,8 +23,10 @@ import {
  * the game"): one card at a time over the frame, with a title, its words and
  * one green key. The shift report after a night (the session's `away`
  * notice, closed through the store as today's welcome card is), and the
- * end card when the Light Tower's roof goes on (its `operational` notice,
- * closed the same way). The report comes first and the end card waits
+ * end card when a part's last roof goes on (its `operational` notice,
+ * closed the same way; in part 2 the Light Tower's roof brings the card that
+ * opens the refinery, and the Warehouse's the end card, #671). The report
+ * comes first and the end card waits
  * behind it. The first evening's card (#703) greets a session that opens
  * with nothing ordered and nothing operational, once, until its key is
  * pressed; it is not a save fact. The game runs on behind every card.
@@ -25,7 +34,8 @@ import {
 
 type FrameCard =
   | { readonly kind: "report"; readonly report: NightAwayReport }
-  | { readonly kind: "end" }
+  | { readonly kind: "end"; readonly building: BuildingId }
+  | { readonly kind: "opens" }
   | { readonly kind: "first" };
 
 type CardView = Pick<ProgressSnapshot, "notices" | "mountain">;
@@ -70,15 +80,20 @@ function frameCard(view: CardView, greet: boolean): FrameCard | undefined {
   if (report !== undefined) {
     return { kind: "report", report };
   }
-  if (firstNotice(view, "operational")?.building === "lightTower") {
-    return { kind: "end" };
+  const building = firstNotice(view, "operational")?.building;
+  if (building !== undefined) {
+    // In part 2 the Light Tower opens the refinery; the Warehouse ends it (#671).
+    return building === "lightTower" && partTwoOn()
+      ? { kind: "opens" }
+      : { kind: "end", building };
   }
   return greet && nothingYet(view.mountain) ? { kind: "first" } : undefined;
 }
 
 const sameCard = (a: FrameCard | undefined, b: FrameCard | undefined) =>
   a?.kind === b?.kind &&
-  (a?.kind !== "report" || b?.kind !== "report" || a.report === b.report);
+  (a?.kind !== "report" || b?.kind !== "report" || a.report === b.report) &&
+  (a?.kind !== "end" || b?.kind !== "end" || a.building === b.building);
 
 type CardParts = {
   readonly root: HTMLElement;
@@ -161,13 +176,20 @@ function paintWords(parts: CardParts, words: CardWords): void {
   parts.yard.hidden = true;
 }
 
+function cardWords(card: Exclude<FrameCard, { kind: "report" }>): CardWords {
+  if (card.kind === "first") {
+    return FIRST_EVENING;
+  }
+  return card.kind === "opens" ? REFINERY_OPENS : endCard(card.building);
+}
+
 function paintCard(parts: CardParts, card: FrameCard | undefined): void {
   parts.root.hidden = card === undefined;
   parts.root.dataset["card"] = card?.kind ?? "";
   if (card?.kind === "report") {
     paintReport(parts, shiftReport(card.report));
   } else if (card !== undefined) {
-    paintWords(parts, card.kind === "first" ? FIRST_EVENING : END_CARD);
+    paintWords(parts, cardWords(card));
   }
 }
 

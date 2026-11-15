@@ -8,16 +8,16 @@ import {
   type StepIndex,
 } from "./city";
 import { etaShort, formatCompact } from "./format";
+import { powerWords } from "./frame-cards-words";
 import { STEP_NAMES, orderStrip, requirements, type Pip } from "./frame-view";
 import type { Mountain } from "./mountain";
 import { partTwoOn } from "./part-switch";
 import type { BuyAmount } from "./tiers";
-import { AWAY_PAY_RATE, effectiveRates } from "./rates";
+import { effectiveRates } from "./rates";
 import {
   VEHICLE_KEYS,
   VEHICLE_WORDS,
   formatSpeed,
-  percent,
   plural,
 } from "./screen-words";
 import {
@@ -315,21 +315,6 @@ export type ProjectCard =
       readonly line: string;
       readonly builders: BuildersRow;
     };
-
-/** What a building gives once it is operational, in the words of its card. */
-function powerWords(id: BuildingId): readonly string[] {
-  const power = buildingById(id).power;
-  return [
-    ...(power.nightShift === undefined
-      ? []
-      : [
-          `night shift output ${percent(power.nightShift)}, up from ${percent(AWAY_PAY_RATE)}.`,
-        ]),
-    ...(power.stockyard === undefined
-      ? []
-      : [`stockyard capacity ×${String(power.stockyard)}.`]),
-  ];
-}
 
 /**
  * The power a building gives, as the card says it, and what it opens in the
