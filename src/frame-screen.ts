@@ -2,6 +2,7 @@ import workerUrl from "./assets/helper-miner.png";
 import stoneUrl from "./assets/board/res-stone.png";
 import wagonUrl from "./assets/city/horse-wagon.png";
 import pickUrl from "./assets/pick.png";
+import kilnUrl from "./assets/board/mach-kiln.png";
 import type { AuthController } from "./auth";
 import { createSaveLine } from "./board-save";
 import { el, hide, mark, setAttr, write } from "./board-dom";
@@ -20,6 +21,7 @@ import {
   SITE_NAMES,
   nextView,
   siteLamp,
+  siteOpen,
   type SiteId,
 } from "./next-view";
 import type { ProgressStore } from "./progress-store";
@@ -48,6 +50,7 @@ import "./frame.css";
 
 const SITE_ICONS: Readonly<Record<SiteId, string>> = {
   mine: pickUrl,
+  refinery: kilnUrl,
   city: wagonUrl,
 };
 
@@ -290,6 +293,8 @@ function buildSiteBar(state: FrameState): SiteBar {
 
 function paintSiteBar(bar: SiteBar, mountain: Mountain, here: SiteId): void {
   for (const site of SITES) {
+    // A site joins the bar when its work opens (#671).
+    hide(bar.tabs[site], !siteOpen(mountain, site));
     setAttr(bar.lamps[site], "data-lamp", siteLamp(mountain, site));
     mark(bar.tabs[site], "on", site === here);
     setAttr(bar.tabs[site], "aria-current", site === here ? "page" : undefined);
@@ -445,6 +450,10 @@ export function mountFrameScreen({
   );
   paint = () => {
     const { mountain, ready } = progress.getSnapshot();
+    // A site that is not open (a dev page left part 2) is never shown.
+    if (!siteOpen(mountain, site)) {
+      site = "mine";
+    }
     // Until a signed-in save is in, the store holds a new mine: its numbers
     // would say the mine is gone, so the frame shows none (#664).
     frame.root.toggleAttribute("data-loading", !ready);

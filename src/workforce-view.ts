@@ -2,8 +2,9 @@ import { buildRate } from "./building-site";
 import { formatCompact } from "./format";
 import { STAGES, type Stage } from "./line";
 import type { Mountain } from "./mountain";
+import { runningKilns } from "./makers";
 import type { SiteId } from "./next-view";
-import { SITE_NAMES } from "./next-view";
+import { SITES, SITE_NAMES, openSites } from "./next-view";
 import { effectiveRates } from "./rates";
 import { MACHINE_IDS, tierById, tierInPlay, type MachineId } from "./tiers";
 import { MACHINE_WORDS, TOOL_WORDS, plural } from "./screen-words";
@@ -32,15 +33,28 @@ const JOB_NAMES: Readonly<Record<JobId, string>> = {
   hoisting: "Hoisting",
   driving: "Transport",
   building: "Building",
-  // Part 2 (#666): not in the sheet until the refinery's sliver (#671).
   kilns: "Kilns",
 };
 
-/** The jobs of each site open in part 1, in the sheet's order. */
+/** The jobs of each site, in the sheet's order; a site shows while it is open (#671). */
 const SITE_JOBS: Readonly<Record<SiteId, readonly JobId[]>> = {
   mine: STAGES.map((stage) => STAGE_JOB[stage]),
+  refinery: ["kilns"],
   city: ["driving", "building"],
 };
+
+/** Every site's jobs by name, open or not: the sheet builds them all once and shows the open ones (#671). */
+export function jobSites(): readonly {
+  readonly site: SiteId;
+  readonly name: string;
+  readonly jobs: readonly { readonly job: JobId; readonly name: string }[];
+}[] {
+  return SITES.map((site) => ({
+    site,
+    name: SITE_NAMES[site],
+    jobs: SITE_JOBS[site].map((job) => ({ job, name: JOB_NAMES[job] })),
+  }));
+}
 
 /** "2 of 3 carts run", "1 of 1 cart runs", "0 of 1 vehicle runs" (#715). */
 function runsOf(
@@ -97,10 +111,21 @@ function buildingNote(): string {
   return `each builds ${formatCompact(oneBuilderBuilds())}/s`;
 }
 
+/** "1 of 2 kilns run": the kilns with a worker, of the kilns he owns (#671). */
+function kilnsNote(mountain: Mountain): string {
+  return runsOf(runningKilns(mountain), mountain.makers.kiln, [
+    "kiln",
+    "kilns",
+  ]);
+}
+
 function jobNote(mountain: Mountain, job: JobId): string {
   const stage = STAGES.find((at) => STAGE_JOB[at] === job);
   if (stage !== undefined) {
     return stageNote(mountain, stage);
+  }
+  if (job === "kilns") {
+    return kilnsNote(mountain);
   }
   return job === "driving" ? drivingNote(mountain) : buildingNote();
 }
@@ -144,7 +169,7 @@ export type WorkforceView = {
 
 export function workforceView(mountain: Mountain): WorkforceView {
   const free = freeWorkers(mountain);
-  const groups = (Object.keys(SITE_JOBS) as SiteId[]).map((site): JobGroup => ({
+  const groups = openSites(mountain).map((site): JobGroup => ({
     site,
     name: SITE_NAMES[site],
     rows: SITE_JOBS[site].map((job) => jobRow(mountain, job)),

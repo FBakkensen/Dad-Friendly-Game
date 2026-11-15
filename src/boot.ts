@@ -13,6 +13,7 @@ import {
 } from "./cloud-save";
 import { holdFactors } from "./economy/factors";
 import { FRESH_OFF } from "./line-switch";
+import { PART_TWO_OFF } from "./part-switch";
 import { createMountain, type Mountain } from "./mountain";
 import { createProgressStore, type ProgressStore } from "./progress-store";
 import { createBrowserTabWriter, type TabWriter } from "./tab-writer";
@@ -40,6 +41,8 @@ export function parseBootOptions(search: string): {
   previewCopies: boolean;
   /** Dev-only layout hook: the update card, as a newer service worker opens it. */
   previewUpdate: boolean;
+  /** Dev-only: part 2's rules and screens, before #672 switches them on (#671). */
+  partTwo: boolean;
 } {
   const params = new URLSearchParams(search);
   const save = params.get("save");
@@ -50,6 +53,7 @@ export function parseBootOptions(search: string): {
     previewSave: save === "loading" || save === "error" ? save : undefined,
     previewCopies: params.get("copies") === "shelf",
     previewUpdate: params.get("update") === "shown",
+    partTwo: params.get("part2") === "1",
   };
 }
 
@@ -77,7 +81,11 @@ export async function createAppServices({
   // Part 1 is switched on (#664): every page plays the fresh mine. Today's
   // game stays in the code, behind the switch, for the tests and the labs
   // until its clean-up (#665).
-  holdFactors({ [FRESH_OFF]: 0 });
+  // `?part2=1` plays part 2 on a dev page (#671) until #672 switches it on.
+  holdFactors({
+    [FRESH_OFF]: 0,
+    ...(devMode && options.partTwo ? { [PART_TWO_OFF]: 0 } : {}),
+  });
   const user = devMode ? memoryUser(options) : undefined;
   let services =
     user === undefined

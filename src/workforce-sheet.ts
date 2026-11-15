@@ -9,7 +9,13 @@ import { listenSteps, paintSteps, stepper } from "./job-steps";
 import { rowText, upgradeRows } from "./stage-sheet";
 import { workersList } from "./stage-list-view";
 import type { JobId } from "./workforce";
-import { NO_FREE_WORKER, workforceView, type JobRow } from "./workforce-view";
+import type { SiteId } from "./next-view";
+import {
+  NO_FREE_WORKER,
+  jobSites,
+  workforceView,
+  type JobRow,
+} from "./workforce-view";
 
 /**
  * The workforce (#659; spec, "The workforce"): a sheet over the frame, opened
@@ -34,7 +40,10 @@ type RowParts = {
   readonly plus: HTMLButtonElement;
 };
 
-function buildRow(row: JobRow): RowParts {
+function buildRow(row: {
+  readonly job: JobId;
+  readonly name: string;
+}): RowParts {
   const root = el("div", "frame-job");
   root.dataset["job"] = row.job;
   const note = el("span", "frame-job-note");
@@ -97,23 +106,31 @@ function paintHead(
   mark(parts.hire, "can", key.can);
 }
 
-/** The jobs, grouped by site, built once from the view's open jobs. */
-function buildJobs(mountain: Mountain): {
+/**
+ * The jobs, grouped by site, built once for every site; a site's group
+ * shows while it is open, so the refinery joins when it opens (#671).
+ */
+function buildJobs(): {
   readonly root: HTMLElement;
   readonly rows: ReadonlyMap<JobId, RowParts>;
+  readonly sites: ReadonlyMap<SiteId, HTMLElement>;
 } {
   const root = el("div", "frame-jobs");
   const rows = new Map<JobId, RowParts>();
-
-  for (const group of workforceView(mountain).groups) {
-    root.append(el("h3", "frame-jobs-site", group.name));
-    for (const row of group.rows) {
-      const parts = buildRow(row);
-      rows.set(row.job, parts);
-      root.append(parts.root);
+  const sites = new Map<SiteId, HTMLElement>();
+  for (const group of jobSites()) {
+    const box = el("div", "frame-jobs-group");
+    box.dataset["site"] = group.site;
+    box.append(el("h3", "frame-jobs-site", group.name));
+    for (const job of group.jobs) {
+      const parts = buildRow(job);
+      rows.set(job.job, parts);
+      box.append(parts.root);
     }
+    sites.set(group.site, box);
+    root.append(box);
   }
-  return { root, rows };
+  return { root, rows, sites };
 }
 
 /**
@@ -157,7 +174,7 @@ export function createWorkforceSheet(
   const head = buildHead(state);
   const note = el("p", "frame-sheet-note", NO_FREE_WORKER);
   note.hidden = true;
-  const jobs = buildJobs(state.mountain());
+  const jobs = buildJobs();
   const workers = buildWorkers(state, now);
   jobs.root.append(workers.root);
   const close = el("button", "frame-sheet-close", "Close");
@@ -189,6 +206,9 @@ export function createWorkforceSheet(
       // A hire, or a worker taken off another job, answers the note.
       if (view.free > 0) {
         hide(note, true);
+      }
+      for (const [site, box] of jobs.sites) {
+        hide(box, !view.groups.some((group) => group.site === site));
       }
       for (const row of view.groups.flatMap((group) => group.rows)) {
         const parts = jobs.rows.get(row.job);

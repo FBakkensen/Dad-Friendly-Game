@@ -5,6 +5,7 @@ import { FRESH_OFF } from "./line-switch";
 import { workersView } from "./frame-view";
 import { createMountain, type Mountain } from "./mountain";
 import { crewedStart } from "./test-fixtures";
+import { PART_TWO_OFF } from "./part-switch";
 import {
   LINE_STANDS,
   NOTHING_TO_BUY,
@@ -12,12 +13,15 @@ import {
   nextView,
   siteCounts,
   siteLamp,
+  siteOpen,
   stageCount,
   workforceCount,
 } from "./next-view";
 
 /** What Next and the lamps count (slice 1, #659). */
 const fresh = <T>(body: () => T): T => withFactors({ [FRESH_OFF]: 0 }, body);
+const partTwo = <T>(body: () => T): T =>
+  withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 }, body);
 
 function withStones(mountain: Mountain, stones: number): Mountain {
   return { ...mountain, stock: { ...mountain.stock, stones } };
@@ -100,7 +104,7 @@ describe("next view", () => {
     fresh(() => {
       // A worker is 121; the cart 600 and the wagon 500 are not affordable.
       const mountain = ordered(400);
-      expect(siteCounts(mountain)).toEqual({ mine: 0, city: 0 });
+      expect(siteCounts(mountain)).toEqual({ mine: 0, refinery: 0, city: 0 });
       expect(nextView(mountain).kind).toBe("nothing");
       expect(siteLamp(mountain, "mine")).toBe("dark");
       expect(siteLamp(mountain, "city")).not.toBe("green");
@@ -171,6 +175,64 @@ describe("site lamps", () => {
       expect(siteLamp(ordered(0), "city")).toBe("amber");
       expect(siteLamp(ordered(0), "mine")).toBe("dark");
       expect(siteLamp(createMountain(), "city")).toBe("dark");
+    });
+  });
+});
+
+describe("the refinery's site (#671)", () => {
+  /** The Light Tower operational, nothing ordered, and this stock. */
+  function lit(stones: number, brick = 0): Mountain {
+    const start = crewedStart();
+    return {
+      ...start,
+      operational: ["lightTower"],
+      stock: { ...start.stock, stones, brick },
+    };
+  }
+
+  it("opens with the Light Tower in part 2, and never in part 1", () => {
+    fresh(() => {
+      expect(siteOpen(lit(0), "refinery")).toBe(false);
+      expect(siteOpen(lit(0), "mine")).toBe(true);
+      expect(siteOpen(lit(0), "city")).toBe(true);
+    });
+    partTwo(() => {
+      expect(siteOpen(crewedStart(), "refinery")).toBe(false);
+      expect(siteOpen(lit(0), "refinery")).toBe(true);
+    });
+  });
+
+  it("counts a kiln and a stockyard level he can afford", () => {
+    partTwo(() => {
+      // A kiln is 15,000 stone; a stockyard level 150K brick.
+      expect(siteCounts(lit(14_000)).refinery).toBe(0);
+      expect(siteCounts(lit(15_000)).refinery).toBe(1);
+      expect(siteCounts(lit(15_000, 150_000)).refinery).toBe(2);
+      expect(siteCounts(lit(0, 150_000)).refinery).toBe(1);
+    });
+  });
+
+  it("takes its place on Next's line between the mine and the city", () => {
+    partTwo(() => {
+      const mountain = placeOrder(lit(15_000, 150_000));
+      const view = nextView(mountain);
+      expect(view.kind === "affordable" && view.line).toMatch(
+        /^Mine \d+ · Refinery 2 · City \d+$/,
+      );
+    });
+  });
+
+  it("is never counted in part 1, where it has no tab", () => {
+    fresh(() => {
+      expect(siteCounts(lit(15_000, 150_000)).refinery).toBe(0);
+    });
+  });
+
+  it("has a green lamp with something to afford, else dark", () => {
+    partTwo(() => {
+      expect(siteLamp(lit(15_000), "refinery")).toBe("green");
+      const running = { ...lit(0), makers: { kiln: 1 } };
+      expect(siteLamp(running, "refinery")).toBe("dark");
     });
   });
 });
