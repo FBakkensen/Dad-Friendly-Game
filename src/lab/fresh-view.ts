@@ -4,8 +4,7 @@ import { freshMineOn } from "../line-switch";
 import { STAGES } from "../line";
 import type { Mountain } from "../mountain";
 import { effectiveRates } from "../rates";
-import { stretch } from "../scale";
-import { TIERS, tierCost, tierInPlay } from "../tiers";
+import { TIERS, tierInPlay } from "../tiers";
 import { orderLimit, vehiclePrice, VEHICLE_IDS } from "../transport";
 import {
   JOB_IDS,
@@ -15,6 +14,7 @@ import {
   toolSpeed,
   type Jobs,
 } from "../workforce";
+import { sticker } from "./decide";
 import { drainsTheMine, fleetSize, hirePrice, siteIdle } from "./fresh-dad";
 import { AMOUNT_KEY_TEN, FRESH_DUST } from "./targets";
 
@@ -70,7 +70,7 @@ export function cheapestBuy(mountain: Mountain): number {
     if (tier.staff > 0 && tierInPlay(tier) && !tierLocked(mountain, tier)) {
       cheapest = Math.min(
         cheapest,
-        tierCost(tier, mountain.owned[tier.id], stretch(mountain)),
+        sticker(mountain, { kind: "buyTier", id: tier.id }),
       );
     }
   }
@@ -141,7 +141,8 @@ function keyTaps(count: number): number {
 /**
  * Taps that hire and move workers between two moments (`workerMoves`): the
  * hires, and for each job the workers placed or freed, each with the amount
- * key on ×10 and ×1. Max is not counted, so this is the most it takes.
+ * key on ×10 and ×1. It reads the net change, so moves that undo each other
+ * between the two moments are not counted, and neither is Max.
  */
 export function workerTaps(
   before: { readonly helper: number; readonly jobs: Jobs },

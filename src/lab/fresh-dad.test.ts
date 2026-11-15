@@ -15,8 +15,10 @@ import {
   lineRaise,
   playFresh,
   siteIdle,
+  upgradeRaises,
   type Plan,
 } from "./fresh-dad";
+import { nextUpgradeCost } from "../upgrades";
 import type { FreshHabits } from "./policy";
 
 /** How part 1's dad plays a fresh mine (#655). */
@@ -118,8 +120,17 @@ describe("raising the line (#655)", () => {
     fresh(() => {
       const start = mine({ ...STAGES, driving: 1, building: 2 });
       expect(bestRaise(start, ONCE)).toEqual(lineRaise(start));
-      const withUpgrades = bestRaise(start, { ...ONCE, upgrades: true });
-      expect(withUpgrades).toBeDefined();
+      // Better boots lifts every tool, at its sticker price.
+      const boots = upgradeRaises(start).find(
+        (raise) =>
+          raise.plan[0]?.kind === "buyUpgrade" && raise.plan[0].id === "boots",
+      );
+      expect(boots?.gain).toBeGreaterThan(0);
+      expect(boots?.cost).toBe(nextUpgradeCost(start, "boots"));
+      // In part 1 a worker always pays back sooner, so he never buys it.
+      expect(bestRaise(start, { ...ONCE, upgrades: true })).toEqual(
+        lineRaise(start),
+      );
     });
   });
 

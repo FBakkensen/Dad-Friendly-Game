@@ -1,12 +1,16 @@
 import { buildRate, onSiteTotal } from "../building-site";
 import { nextBuilding, resumeOrder } from "../city";
 import { tierLocked } from "../crew";
-import { applyAction, listActions, type Action } from "../economy/actions";
+import {
+  applyAction,
+  helperBill,
+  listActions,
+  type Action,
+} from "../economy/actions";
 import { STAGES, type Stage } from "../line";
 import type { Mountain } from "../mountain";
 import { effectiveRates } from "../rates";
-import { stretch } from "../scale";
-import { TIERS, tierById, tierCost, tierInPlay, type Tier } from "../tiers";
+import { TIERS, tierInPlay, type Tier } from "../tiers";
 import {
   fleetRate,
   orderLimit,
@@ -15,7 +19,6 @@ import {
   vehiclePrice,
   VEHICLE_IDS,
 } from "../transport";
-import { upgradeById, upgradeCost, upgradeLevel } from "../upgrades";
 import {
   NO_JOBS,
   STAGE_JOB,
@@ -23,6 +26,7 @@ import {
   lineWork,
   type JobId,
 } from "../workforce";
+import { sticker } from "./decide";
 import type { FreshHabits } from "./policy";
 import {
   FRESH_DUST,
@@ -76,10 +80,9 @@ function applied(mountain: Mountain, plan: Plan): Mountain {
   return next;
 }
 
-const HELPER = tierById("helper");
-
+/** What the next worker costs. */
 export function hirePrice(mountain: Mountain): number {
-  return tierCost(HELPER, mountain.owned.helper, stretch(mountain));
+  return helperBill(mountain, 1);
 }
 
 /** The stage that moves least; the first in rock order on a tie. */
@@ -111,21 +114,18 @@ function staffed(mountain: Mountain, job: JobId, free: number): Priced {
 
 /** A machine and the workers it takes, hired onto its stage (the spec's Lab). */
 function machineBuy(mountain: Mountain, tier: Tier, stage: Stage): Priced {
-  const plan: Action[] = [{ kind: "buyTier", id: tier.id }];
-  let cost = tierCost(tier, mountain.owned[tier.id], stretch(mountain));
-  let state = mountain;
+  const buy: Action = { kind: "buyTier", id: tier.id };
+  const plan: Action[] = [buy];
   for (let hire = 0; hire < tier.staff; hire += 1) {
-    cost += hirePrice(state);
-    state = {
-      ...state,
-      owned: { ...state.owned, helper: state.owned.helper + 1 },
-    };
     plan.push(
       { kind: "buyTier", id: "helper" },
       { kind: "placeWorker", job: STAGE_JOB[stage] },
     );
   }
-  return { plan, cost };
+  return {
+    plan,
+    cost: sticker(mountain, buy) + helperBill(mountain, tier.staff),
+  };
 }
 
 /** What a stage can buy: a worker for it, or one of its machines with its workers. */
@@ -185,18 +185,15 @@ export function lineRaise(mountain: Mountain): Raise | undefined {
 }
 
 /** Each upgrade on the table that raises the line, with its price and gain. */
-function upgradeRaises(mountain: Mountain): readonly Raise[] {
+export function upgradeRaises(mountain: Mountain): readonly Raise[] {
   const start = lineNow(mountain).line;
   const raises: Raise[] = [];
   for (const action of listActions(mountain, 0)) {
     if (action.kind !== "buyUpgrade") {
       continue;
     }
-    const cost = upgradeCost(
-      upgradeById(action.id),
-      upgradeLevel(mountain, action.id),
-    );
-    if (cost === undefined) {
+    const cost = sticker(mountain, action);
+    if (!Number.isFinite(cost)) {
       continue;
     }
     const gain = lineNow(applied(funded(mountain), [action])).line - start;
@@ -379,7 +376,11 @@ function vehicleBuy(mountain: Mountain): Priced {
   let cost = (vehiclePrice(mountain, id)[0]?.amount ?? Infinity) + driver.cost;
   // The builders keep pace with the new wagon, or it only fills the site.
   let state = applied(funded(mountain), plan);
-  while (buildRate(state) < fleetRate(state)) {
+  for (
+    let step = 0;
+    step < RESTORE_STEPS && buildRate(state) < fleetRate(state);
+    step += 1
+  ) {
     const builder = staffed(state, "building", 0);
     plan.push(...builder.plan);
     cost += builder.cost;

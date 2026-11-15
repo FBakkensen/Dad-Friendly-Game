@@ -12,15 +12,17 @@ Spec: `docs/superpowers/specs/2026-11-14-slice-1-design.md`, "Lab", "Risks" and 
 6. **He holds only while the order drains the mine.** He holds while the best raise pays back sooner than the building takes and the order takes more than half of what the mine makes (`STARVED_SHARE`). Without the second half he held forever with a full pocket. The hold is weighed on the mine as it would stand delivering (`asDelivering`), so the mover's moves on hold never undo it (it was trading hold and resume 400 times a second).
 7. **A dad who never holds keeps the order from draining the mine.** He refuses a fix that would, or he could never buy again.
 8. **`transportLimit` and `siteFull` count the time an order stands** (delivering or on hold). Over all samples, transport was the limit by construction whenever anything was ordered.
-9. **`workerMoves` counts taps with the amount key**: for each hire and job, the count over ten on ×10 plus the rest on ×1; Max is not counted, so it is the most it takes.
+9. **`workerMoves` counts taps with the amount key**: for each hire and job, the count over ten on ×10 plus the rest on ×1, from the net change each live second. Max is not counted; moves that undo each other within one second are not either.
 10. **The numbers part 1 starts with** (each in its own module):
     - 21 workers: six on each stage, one driver, two builders (`FRESH_START_JOBS`). With twelve the first raise took most of a day.
     - The horse wagon carries 9 a second, half of the starting line of 18: a wagon is a real decision, not a formality, and a dad who never holds still affords his next buy.
     - A builder builds 8 a second, a little less than a wagon carries (the prototype's ratio).
     - The site stays at 500: lowering it would lower a shipped save cap (a version bump), and 180 played the same.
-    - The Light Tower is 25K, 250K and 1M stone: a casual dad raises it in about two days, an evening dad in two, a five-minute dad in four.
+    - The Light Tower is 25K, 250K and 1M stone (a lower step is a lower cap in the save reader, but no shipped save holds a project: `placeOrder` is refused outside a fresh mine): a casual dad raises it in about two days, an evening dad in two, a five-minute dad in four.
     - The cart is rated ×10 in a fresh mine (60 a second, `FRESH_RATING` in `line`). At ×3 (18) a tool with the 100-worker mark (24) beat it and `idleMachines` read 0.3 (risk 15). At 60 it outruns a tool even with Better boots (56.6).
-11. **No guardrail on part 1.** The five-day floor is not checked; `src/lab/targets.ts` gains only the planner's guards and `STARVED_SHARE`, `AMOUNT_KEY_TEN`.
+11. **The optimizer stays, though it plays as the mover in part 1.** Better boots costs more than the whole Light Tower, so a worker always pays back sooner and it never buys an upgrade. It is kept so the row moves when parts 2 and 3 bring upgrades worth buying.
+12. **Prices come from the game's own helpers**: a hire is `helperBill`, a tier or an upgrade is the lab's `sticker`, so the planner pays what the move charges.
+13. **No guardrail on part 1.** The five-day floor is not checked; `src/lab/targets.ts` gains only the planner's guards and `STARVED_SHARE`, `AMOUNT_KEY_TEN`.
 
 ## Tasks
 

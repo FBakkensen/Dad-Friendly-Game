@@ -214,6 +214,8 @@ describe("the game map (#558)", () => {
     expect(project({ ...good, step: 3 })).toBe("bad");
     expect(project({ ...good, step: 0.5 })).toBe("bad");
     expect(project({ ...good, arrived: { stones: 25_001 } })).toBe("bad");
+    // All of the step in and built in is a step done, never a project.
+    expect(project({ ...good, arrived: { stones: 25_000 } })).toBe("bad");
     expect(project({ ...good, arrived: { clay: 1 } })).toBe("bad");
     expect(project({ ...good, state: 7 })).toBe("bad");
     expect(project(good, { operational: ["lightTower"] })).toBe("bad");
