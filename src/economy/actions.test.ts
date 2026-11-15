@@ -538,7 +538,7 @@ describe("listActions", () => {
     withFactors({ [FRESH_OFF]: 0 }, () => {
       const mine = createMountain();
       const ordered = placeOrder(mine);
-      const oneFree = freeWorker(mine, "haulage");
+      const oneFree = freeWorker(mine, "drilling");
       for (const one of [mine, ordered, holdOrder(ordered), oneFree]) {
         for (const action of listActions(one, NOW)) {
           seen.add(action.kind);

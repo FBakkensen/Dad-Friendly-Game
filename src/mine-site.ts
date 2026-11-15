@@ -1,6 +1,7 @@
 import stoneUrl from "./assets/board/res-stone.png";
 import { el, hide, mark, setAttr, write } from "./board-dom";
 import { tierBuyMove } from "./economy/actions";
+import { formatCompact } from "./format";
 import type { FrameState } from "./frame-state";
 import { listenSteps, paintSteps, stepper } from "./job-steps";
 import { STAGES, type Stage } from "./line";
@@ -13,6 +14,7 @@ import {
   STAGE_NAMES,
   type MachineKey,
   type MineScene,
+  type RowPile,
   type StageRow,
 } from "./mine-view";
 import {
@@ -110,6 +112,7 @@ type RowParts = {
   readonly now: HTMLElement;
   readonly can: HTMLElement;
   readonly sum: HTMLElement;
+  readonly pile: HTMLElement;
   readonly bandCan: HTMLElement;
   readonly bandNow: HTMLElement;
   readonly count: HTMLElement;
@@ -138,8 +141,10 @@ function buildRow(state: FrameState, row: StageRow): RowParts {
   rate.append(now, " of ", can);
   head.append(el("span", "mine-stage-name", row.name), rate);
   const sum = el("span", "mine-stage-sum");
+  // The pile after the stage (#703), inside the words, so a tap on it opens the list too.
+  const pile = el("span", "mine-stage-pile");
   const lamp = el("i", "frame-lamp");
-  info.append(band, head, sum, lamp);
+  info.append(band, head, sum, pile, lamp);
   const minus = stepper("−", row.job, "free");
   const plus = stepper("+", row.job, "place");
   const count = el("b", "board-num");
@@ -154,6 +159,7 @@ function buildRow(state: FrameState, row: StageRow): RowParts {
     now,
     can,
     sum,
+    pile,
     bandCan,
     bandNow,
     count,
@@ -180,6 +186,11 @@ function writeSum(target: HTMLElement, forms: readonly string[]): void {
   write(target, forms[0] ?? "");
 }
 
+/** "Drilled rock: 200 of 300". */
+function pileWords(pile: RowPile): string {
+  return `${pile.label}: ${formatCompact(pile.held)} of ${formatCompact(pile.holds)}`;
+}
+
 function paintRow(
   parts: RowParts,
   row: StageRow,
@@ -187,14 +198,17 @@ function paintRow(
   lamp: boolean,
 ): void {
   setAttr(parts.lamp, "data-lamp", lamp ? "green" : "dark");
+  const pile = row.pile === undefined ? undefined : pileWords(row.pile);
   setAttr(
     parts.info,
     "aria-label",
-    `${row.name}: ${row.now}/s of ${row.can}. Opens its list.`,
+    `${row.name}: ${row.now}/s of ${row.can}.${pile === undefined ? "" : ` ${pile}.`} Opens its list.`,
   );
   write(parts.now, row.now);
   write(parts.can, row.can);
   writeSum(parts.sum, row.sum);
+  hide(parts.pile, pile === undefined);
+  write(parts.pile, pile ?? "");
   parts.bandCan.style.width = `${String(Math.round(row.band.can * 1000) / 10)}%`;
   parts.bandNow.style.width = `${String(Math.round(row.band.now * 1000) / 10)}%`;
   write(parts.count, String(row.workers));

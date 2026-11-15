@@ -215,7 +215,8 @@
 }
 
 .mine-stage-head,
-.mine-stage-sum {
+.mine-stage-sum,
+.mine-stage-pile {
   position: relative;
 }
 
@@ -262,6 +263,19 @@
   -webkit-line-clamp: 2;
   font-size: var(--frame-type-12);
   white-space: normal;
+}
+
+/* The pile after the stage (#703): quiet, under its sum. */
+.mine-stage-pile {
+  overflow: hidden;
+  font-size: var(--frame-type-12);
+  line-height: 1.1;
+  white-space: nowrap;
+  color: var(--frame-quiet);
+}
+
+.frame .mine-stage-pile[hidden] {
+  display: none;
 }
 
 .mine-stage-count {

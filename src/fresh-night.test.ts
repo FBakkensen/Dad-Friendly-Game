@@ -199,6 +199,59 @@ describe("the night's facts (#663)", () => {
     });
   });
 
+  it("drains the piles after the clock", () => {
+    fresh(() => {
+      // The line is steady (2.7 a second on each stage), so the piles keep
+      // their 300 for the eight hours. Then drilling stops: haulage carries
+      // the drilled rock to the shaft and hoisting lifts the shaft pile, 600
+      // more, about 222 seconds past the clock (300 / 2.7 twice).
+      const start = { ...mine(0, site(2)), piles: { face: 300, shaft: 300 } };
+      const away = night(start, 12 * HOUR);
+      expect(away.mined).toBe(77_760 + 600);
+      expect(away.mountain.piles).toEqual({ face: 0, shaft: 0 });
+      const report = away.report.night;
+      expect(report?.stop).toBe("clock");
+      expect(report?.producedMs).toBeGreaterThan(EIGHT_HOURS + 220_000);
+      expect(report?.producedMs).toBeLessThanOrEqual(EIGHT_HOURS + 225_000);
+      expect(report?.delivered).toEqual({ ...EMPTY_STOCK, stones: 78_360 });
+    });
+  });
+
+  it("keeps drilled rock waiting when drilling outruns haulage", () => {
+    fresh(() => {
+      // Three drill, one hauls and three hoist: haulage's 0.9 a second at
+      // night is what comes up; the drilled rock fills (300) and stays full.
+      // The night splits where it fills (300 / 1.8 s, the 167th second),
+      // and each stretch drops its part-stone.
+      const start = mine(0, { kind: "unordered" });
+      const slow = { ...start, jobs: { ...start.jobs, haulage: 1 } };
+      const away = night(slow, 2 * HOUR);
+      expect(away.mined).toBe(
+        Math.floor(167 * 0.9) + Math.floor((2 * 3600 - 167) * 0.9),
+      );
+      expect(away.mountain.piles).toEqual({ face: 300, shaft: 0 });
+      expect(away.report.night?.producedMs).toBe(2 * HOUR);
+    });
+  });
+
+  it("does not blame the clock when a pile ran out first", () => {
+    fresh(() => {
+      // One worker, on hoisting, with 300 at the shaft: he lifts it in the
+      // first minutes at night (0.3 a second) and then has nothing to lift.
+      // The mine stopped long before eight hours, so the clock did not stop it.
+      const start = createMountain();
+      const lone = {
+        ...start,
+        jobs: { ...start.jobs, drilling: 0, hoisting: 1 },
+        piles: { face: 0, shaft: 300 },
+      };
+      const away = night(lone, 10 * HOUR);
+      expect(away.mined).toBe(300);
+      expect(away.report.night?.producedMs).toBeLessThan(HOUR);
+      expect(away.report.night?.stop).toBe("none");
+    });
+  });
+
   it("is not in today's game", () => {
     const away = accrueAway({
       mountain: createMountain(),

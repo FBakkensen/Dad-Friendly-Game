@@ -4,8 +4,8 @@ import { percent } from "./screen-words";
 
 /**
  * The words of the frame's cards (#663; spec, "The cards", "While a part is
- * the end of the game"): the Light Tower's end card, in one place so a
- * change of copy is one edit. The shift report's
+ * the end of the game"): the first evening's card (#703) and the Light
+ * Tower's end card, in one place so a change of copy is one edit. The shift report's
  * words are its own view (src/shift-report-view.ts). They name no
  * bottleneck, no limit and no best buy.
  */
@@ -27,4 +27,17 @@ export const END_CARD: CardWords = {
     "The city is planning its next building. It comes in a later update.",
   ],
   key: "Continue",
+};
+
+/**
+ * The first evening (#703): one worker, the piles, and where the rest comes
+ * from. Approved by Flemming, 15 Nov 2026 (no "face": an engineering game).
+ */
+export const FIRST_EVENING: CardWords = {
+  title: "The first evening",
+  paragraphs: [
+    "One worker, on drilling. Drilled rock waits until haulage carries it to the shaft, and at the shaft until hoisting lifts it up as stone.",
+    "Move him between the jobs. Every worker you hire moves more.",
+  ],
+  key: "Start",
 };

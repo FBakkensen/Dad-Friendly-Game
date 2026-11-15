@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { withFactors } from "./economy/factors";
 import { FRESH_OFF } from "./line-switch";
 import { machineKey, stageRows } from "./mine-view";
-import { createMountain, type Mountain } from "./mountain";
+import type { Mountain } from "./mountain";
+import { crewedStart } from "./test-fixtures";
 import { listPart, stageList, workersList } from "./stage-list-view";
 import { tierById } from "./tiers";
 
@@ -10,7 +11,7 @@ import { tierById } from "./tiers";
 const fresh = <T>(body: () => T): T => withFactors({ [FRESH_OFF]: 0 }, body);
 
 const rich = (patch: Partial<Mountain> = {}): Mountain => {
-  const mountain = createMountain();
+  const mountain = crewedStart();
   return {
     ...mountain,
     stock: { ...mountain.stock, stones: 5_000_000 },
@@ -22,7 +23,7 @@ describe("a stage's list", () => {
   it("has what the stage moves, and who works with what a line each", () => {
     fresh(() => {
       const mountain = rich({
-        owned: { ...createMountain().owned, cart: 2 },
+        owned: { ...crewedStart().owned, cart: 2 },
       });
       const row = stageRows(mountain).find((each) => each.stage === "haul");
       const list = stageList(mountain, "haul", "one", 0);
@@ -76,7 +77,7 @@ describe("a stage's list", () => {
   it("has the stage's machine with what he owns, its next mark and the mine's key", () => {
     fresh(() => {
       const mountain = rich({
-        owned: { ...createMountain().owned, cart: 4 },
+        owned: { ...crewedStart().owned, cart: 4 },
       });
       const [cart] = stageList(mountain, "haul", "one", 0).machines;
       expect(cart?.name).toBe("Carts");
@@ -99,7 +100,7 @@ describe("a stage's list", () => {
   it("says the marks are reached once he owns past the last", () => {
     fresh(() => {
       const mountain = rich({
-        owned: { ...createMountain().owned, hoist: 200 },
+        owned: { ...crewedStart().owned, hoist: 200 },
       });
       const [hoist] = stageList(mountain, "lift", "one", 0).machines;
       expect(hoist?.mark).toBe("Twice as fast now.");
@@ -108,9 +109,9 @@ describe("a stage's list", () => {
 
   it("shows an upgrade once it opens, with its numbers, and Owned once bought", () => {
     fresh(() => {
-      const few = rich({ owned: { ...createMountain().owned, cart: 4 } });
+      const few = rich({ owned: { ...crewedStart().owned, cart: 4 } });
       expect(stageList(few, "haul", "one", 0).upgrades).toEqual([]);
-      const five = rich({ owned: { ...createMountain().owned, cart: 5 } });
+      const five = rich({ owned: { ...crewedStart().owned, cart: 5 } });
       const [helpers] = stageList(five, "haul", "one", 0).upgrades;
       expect(helpers).toMatchObject({
         id: "cartSyn",
@@ -131,7 +132,7 @@ describe("a stage's list", () => {
 
   it("keeps a stage's upgrades in its own list: Cart roads under drilling", () => {
     fresh(() => {
-      const drills = rich({ owned: { ...createMountain().owned, drill: 5 } });
+      const drills = rich({ owned: { ...crewedStart().owned, drill: 5 } });
       expect(
         stageList(drills, "face", "one", 0).upgrades.map((row) => row.id),
       ).toEqual(["drillSyn"]);
@@ -143,8 +144,8 @@ describe("a stage's list", () => {
   it("is dark on an upgrade he cannot pay for", () => {
     fresh(() => {
       const poor = {
-        ...rich({ owned: { ...createMountain().owned, cart: 5 } }),
-        stock: { ...createMountain().stock, stones: 10 },
+        ...rich({ owned: { ...crewedStart().owned, cart: 5 } }),
+        stock: { ...crewedStart().stock, stones: 10 },
       };
       expect(stageList(poor, "haul", "one", 0).upgrades[0]?.can).toBe(false);
     });
@@ -168,7 +169,7 @@ describe("the workers' upgrades", () => {
   it("never says hands, and names no limit", () => {
     fresh(() => {
       const mountain = rich({
-        owned: { ...createMountain().owned, cart: 5, drill: 5 },
+        owned: { ...crewedStart().owned, cart: 5, drill: 5 },
       });
       const words = JSON.stringify([
         stageList(mountain, "face", "one", 0),

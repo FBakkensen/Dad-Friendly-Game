@@ -146,10 +146,10 @@ describe("delivery (rule 7.2, 7.7)", () => {
 });
 
 describe("the building site and the builders (rule 7.8, #690)", () => {
-  it("starts a fresh mine with two builders, twenty-one workers in all (#655)", () => {
+  it("starts a fresh mine with nobody building, one worker in all (#703)", () => {
     const start = fresh(() => createMountain());
-    expect(start.jobs.building).toBe(2);
-    expect(start.owned.helper).toBe(21);
+    expect(start.jobs.building).toBe(0);
+    expect(start.owned.helper).toBe(1);
   });
 
   it("holds 500, and transport brings no more until the builders make room", () => {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { shippedFacts } from "./save-format";
+import { createMountain } from "./mountain";
+import { readGame, shippedFacts, writeGame } from "./save-format";
 
 /**
  * The ledger of what has shipped (#558; spec, "The ledger of what has
@@ -23,6 +24,7 @@ const LEDGER = {
     "fleet",
     "project",
     "jobs",
+    "piles",
   ],
   owned: [
     "helper",
@@ -143,6 +145,7 @@ const LEDGER = {
   fleet: ["horseWagon"],
   projectStates: ["delivering", "onHold"],
   jobs: ["drilling", "haulage", "hoisting", "driving", "building"],
+  piles: ["face", "shaft"],
   caps: {
     engineers: 5,
     engineerTrips: 1000000,
@@ -173,11 +176,43 @@ describe("the ledger of what has shipped (#558)", () => {
       facts.fleet,
       facts.projectStates,
       facts.jobs,
+      facts.piles,
       Object.keys(facts.tripFinds),
       ...Object.values(facts.tripFinds),
     ];
     for (const list of lists) {
       expect(new Set(list).size).toBe(list.length);
     }
+  });
+});
+
+describe("the mine's piles in the save (#703)", () => {
+  it("round-trips the drilled rock and rock at the shaft", () => {
+    const mountain = { ...createMountain(), piles: { face: 120, shaft: 7 } };
+    const game = writeGame(mountain);
+    expect(game.piles).toEqual({ face: 120, shaft: 7 });
+    const read = readGame(JSON.parse(JSON.stringify(game)), 0);
+    expect(read.kind === "ok" && read.mountain.piles).toEqual({
+      face: 120,
+      shaft: 7,
+    });
+  });
+
+  it("saves no piles while both are empty", () => {
+    expect(writeGame(createMountain())).not.toHaveProperty("piles");
+  });
+
+  it("reads a pile over the room this build allows: it is full (ruling 2)", () => {
+    const read = readGame({ piles: { face: 9000 } }, 0);
+    expect(read.kind === "ok" && read.mountain.piles).toEqual({
+      face: 9000,
+      shaft: 0,
+    });
+  });
+
+  it("refuses a part-stone or a negative pile, and a pile it does not know is newer", () => {
+    expect(readGame({ piles: { face: 1.5 } }, 0).kind).toBe("bad");
+    expect(readGame({ piles: { shaft: -1 } }, 0).kind).toBe("bad");
+    expect(readGame({ piles: { kiln: 3 } }, 0).kind).toBe("newer");
   });
 });

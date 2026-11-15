@@ -1,7 +1,9 @@
 import { tierOnSale } from "./crew";
 import { formatCompact } from "./format";
 import { STAGES, type Stage } from "./line";
+import { PILE_HOLDS, mineChain, type PileId } from "./mine-piles";
 import type { Mountain } from "./mountain";
+import { chainFlows } from "./piles";
 import { crewTimer, effectiveRates } from "./rates";
 import { MACHINE_WORDS, TOOL_WORDS, formatSpeed, plural } from "./screen-words";
 import {
@@ -286,12 +288,43 @@ function partWords(
   return `${count} ${kinds}: ${String(part.has)} of ${String(part.takes)} ${plural(part.takes, ["worker", "workers"])} ${moves}${perSecond}`;
 }
 
+/** The pile after a stage (#703): where its rock waits for the next stage, and how much. */
+export type RowPile = {
+  readonly label: string;
+  readonly held: number;
+  readonly holds: number;
+};
+
+/** The pile each stage puts its rock on. Hoisting lifts it up as stone. */
+const PILE_AFTER: Readonly<Record<Stage, PileId | undefined>> = {
+  face: "face",
+  haul: "shaft",
+  lift: undefined,
+};
+
+/** The piles' words (#703), approved by Flemming on 15 Nov 2026 (no "face"). */
+const PILE_LABELS: Readonly<Record<PileId, string>> = {
+  face: "Drilled rock",
+  shaft: "Rock at the shaft",
+};
+
+function rowPile(mountain: Mountain, stage: Stage): RowPile | undefined {
+  const id = PILE_AFTER[stage];
+  return id === undefined
+    ? undefined
+    : {
+        label: PILE_LABELS[id],
+        held: mountain.piles[id],
+        holds: PILE_HOLDS[id],
+      };
+}
+
 /** A stage's row. */
 export type StageRow = {
   readonly stage: Stage;
   readonly job: JobId;
   readonly name: string;
-  /** What the line moves now: the same on every stage. */
+  /** What this stage moves now: its own rate while it has rock in front and room after (#703). */
   readonly now: string;
   /** What this stage can move. */
   readonly can: string;
@@ -304,6 +337,8 @@ export type StageRow = {
   readonly workers: number;
   readonly canPlace: boolean;
   readonly canFree: boolean;
+  /** The pile after the stage: drilling's and haulage's; hoisting has none. */
+  readonly pile: RowPile | undefined;
 };
 
 /** A part under a crew timer (Overtime and the like): every machine and tool moves that much more. */
@@ -328,7 +363,7 @@ export function stageRows(
   const timer = crewTimer(mountain, now);
   const work = lineWork(mountain, rates.tierSpeed);
   const tool = toolSpeed(rates.tierSpeed);
-  const moving = rates.crewPerSecond;
+  const flows = chainFlows(mineChain(mountain, 1, true));
   const strongest = Math.max(
     1,
     ...STAGES.map((stage) => work.stages[stage] * timer),
@@ -343,6 +378,7 @@ export function stageRows(
       tool,
     ).map((part) => timed(part, timer));
     const can = work.stages[stage] * timer;
+    const moving = (flows[STAGES.indexOf(stage)] ?? 0) * timer;
     const printed = printedParts(
       parts.map((part) => part.moves),
       can,
@@ -360,6 +396,7 @@ export function stageRows(
       workers,
       canPlace: free > 0,
       canFree: workers > 0,
+      pile: rowPile(mountain, stage),
     };
   });
 }
@@ -367,7 +404,7 @@ export function stageRows(
 /** A stage in the scene: its workers, the share of the time they work, and its machines. */
 type StageScene = {
   readonly workers: number;
-  /** The share of the time the stage works: it waits for the slowest stage the rest. */
+  /** The share of its rate the stage moves now: it waits on an empty pile in front or a full one after. */
   readonly busy: number;
   readonly owned: number;
   readonly running: number;
@@ -376,14 +413,15 @@ type StageScene = {
 };
 
 /**
- * What the scene shows (spec, The mine: the state is seen in the scene).
- * Rock piles up where it arrives faster than it is taken, and the floor is
- * bare where it is taken faster. Nothing here is said in words.
+ * What the scene shows (spec, The mine: the state is seen in the scene),
+ * from what each stage moves now through the piles (#703): rock lies at the
+ * face and at the shaft as much as the piles hold, and a stage that waits
+ * on a pile stands. Nothing here is said in words.
  */
 export type MineScene = {
   readonly moving: boolean;
   readonly stages: Readonly<Record<Stage, StageScene>>;
-  /** The pile at the face, between drilling and haulage: 1 grows, 0 bare, ½ even. */
+  /** The drilled rock, between drilling and haulage: the share of its room it holds. */
   readonly facePile: number;
   /** The pile at the shaft, between haulage and hoisting. */
   readonly shaftPile: number;
@@ -392,9 +430,6 @@ export type MineScene = {
   /** The share of the time the tubs can unload at the shaft. */
   readonly unload: number;
 };
-
-const compare = (a: number, b: number): number =>
-  a > b + 1e-6 ? 1 : a < b - 1e-6 ? 0 : 0.5;
 
 const share = (part: number, whole: number): number =>
   whole > 0 ? Math.min(1, part / whole) : 0;
@@ -423,8 +458,14 @@ export function mineScene(mountain: Mountain): MineScene {
   const rates = effectiveRates(mountain);
   const work = lineWork(mountain, rates.tierSpeed);
   const tool = toolSpeed(rates.tierSpeed);
-  const { face, haul, lift } = work.stages;
-  const fed = Math.min(face, haul);
+  const [drills = 0, hauls = 0, lifts = 0] = chainFlows(
+    mineChain(mountain, 1, true),
+  );
+  const flows: Readonly<Record<Stage, number>> = {
+    face: drills,
+    haul: hauls,
+    lift: lifts,
+  };
   const stages = Object.fromEntries(
     STAGES.map((stage) => {
       const parts = rowParts(
@@ -437,17 +478,22 @@ export function mineScene(mountain: Mountain): MineScene {
         stageScene(
           parts,
           mountain.jobs[STAGE_JOB[stage]],
-          share(work.line, work.stages[stage]),
+          share(flows[stage], work.stages[stage]),
         ),
       ];
     }),
   ) as Record<Stage, StageScene>;
   return {
-    moving: work.line > 0,
+    moving: drills + hauls + lifts > 0,
     stages,
-    facePile: compare(face, Math.min(haul, lift)),
-    shaftPile: compare(fed, lift),
-    load: share(fed, haul),
-    unload: share(work.line, fed),
+    facePile: share(mountain.piles.face, PILE_HOLDS.face),
+    shaftPile: share(mountain.piles.shaft, PILE_HOLDS.shaft),
+    // Tubs leave the face empty while its pile is bare, and queue at the
+    // shaft while its pile is full: haulage moves less than it could.
+    load: mountain.piles.face > 0 ? 1 : share(hauls, work.stages.haul),
+    unload:
+      mountain.piles.shaft < PILE_HOLDS.shaft
+        ? 1
+        : share(hauls, work.stages.haul),
   };
 }

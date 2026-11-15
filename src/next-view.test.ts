@@ -4,6 +4,7 @@ import { withFactors } from "./economy/factors";
 import { FRESH_OFF } from "./line-switch";
 import { workersView } from "./frame-view";
 import { createMountain, type Mountain } from "./mountain";
+import { crewedStart } from "./test-fixtures";
 import {
   LINE_STANDS,
   NOTHING_TO_BUY,
@@ -22,9 +23,9 @@ function withStones(mountain: Mountain, stones: number): Mountain {
   return { ...mountain, stock: { ...mountain.stock, stones } };
 }
 
-/** A fresh mine with the Light Tower ordered and this many stones. */
+/** A fresh mine with the crew of 21, the Light Tower ordered and this many stones. */
 function ordered(stones: number): Mountain {
-  return withStones(placeOrder(createMountain()), stones);
+  return withStones(placeOrder(crewedStart()), stones);
 }
 
 describe("next view", () => {
@@ -60,12 +61,22 @@ describe("next view", () => {
     });
   });
 
-  it("says the line stands when a stage has nobody on it", () => {
+  it("says the line stands when no stage moves rock (#703)", () => {
     fresh(() => {
       const start = ordered(0);
-      const stood = { ...start, jobs: { ...start.jobs, hoisting: 0 } };
+      // Nobody hoists, so rock moves into the piles until they are full.
+      const short = { ...start, jobs: { ...start.jobs, hoisting: 0 } };
+      expect(nextView(short)).toMatchObject({ then: PRODUCTION_RUNS });
+      const stood = { ...short, piles: { face: 300, shaft: 300 } };
       const view = nextView(stood);
       expect(view.kind === "nothing" && view.then).toBe(LINE_STANDS);
+    });
+  });
+
+  it("says production runs while the lone worker drills (#703)", () => {
+    fresh(() => {
+      const view = nextView(placeOrder(createMountain()));
+      expect(view).toMatchObject({ kind: "nothing", then: PRODUCTION_RUNS });
     });
   });
 

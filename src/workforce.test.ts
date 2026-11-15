@@ -50,16 +50,10 @@ describe("one workforce (slice 1, rule 2, #689)", () => {
     ]);
   });
 
-  it("starts a fresh mine with every worker on a job: six on each stage, one driver and two builders", () => {
+  it("starts a fresh mine with its one worker on a job: drilling (#703)", () => {
     const start = fresh(() => createMountain());
-    expect(start.owned.helper).toBe(21);
-    expect(start.jobs).toEqual({
-      drilling: 6,
-      haulage: 6,
-      hoisting: 6,
-      driving: 1,
-      building: 2,
-    });
+    expect(start.owned.helper).toBe(1);
+    expect(start.jobs).toEqual({ ...NO_JOBS, drilling: 1 });
     expect(freeWorkers(start)).toBe(0);
     expect(createMountain().jobs).toEqual(NO_JOBS);
   });

@@ -59,6 +59,7 @@ import {
   sliceNightSave,
   sliceOrderedSave,
   sliceRoofSave,
+  sliceStartSave,
   sliceStandsSave,
   sliceStructureSave,
 } from "../tools/browser/fixtures.ts";
@@ -178,6 +179,12 @@ const SAVES = {
   slice: {
     note: "slice 1's frame on the first evening (?slice=1, a dev build)",
     save: () => undefined,
+    search: "?slice=1",
+  },
+  "slice-start": {
+    note: "slice 1: a fresh one-worker start with drilled rock, and the first evening's card",
+    save: () => sliceStartSave(Date.now()),
+    key: DEV_BACKUP_KEY,
     search: "?slice=1",
   },
   "slice-ordered": {

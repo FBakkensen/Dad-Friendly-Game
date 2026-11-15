@@ -8,6 +8,7 @@ import { createMemoryStorage } from "./mountain-screen.harness";
 import type { Mountain } from "./mountain";
 import { createProgressStore } from "./progress-store";
 import { stageList } from "./stage-list-view";
+import { crewedStart } from "./test-fixtures";
 
 /** A stage's list and the workers' upgrades, on the DOM (#661). */
 
@@ -142,7 +143,10 @@ describe("a stage's list", () => {
 
 describe("the workers in the workforce", () => {
   it("has Better boots under the jobs, and buys it", () => {
-    const { find, progress, text } = mount(withStones(2_000_000));
+    // The 21 workers the start had before #703: Better boots is open.
+    const { find, progress, text } = mount(() =>
+      withStones(2_000_000)(crewedStart()),
+    );
     find(".frame-workers").click();
     const row = '.frame-sheet [data-upgrade="boots"]';
     expect(text(`${row} .stage-row-name`)).toBe("Better boots");

@@ -4,6 +4,7 @@ import { withFactors } from "./economy/factors";
 import { hireKey, orderStrip, stockpiles, workersView } from "./frame-view";
 import { FRESH_OFF } from "./line-switch";
 import { createMountain, type Mountain } from "./mountain";
+import { crewedStart } from "./test-fixtures";
 import { EMPTY_STOCK } from "./stock";
 import { tierById, tierQuote } from "./tiers";
 
@@ -99,7 +100,7 @@ describe("top row", () => {
 
   it("counts the workers and the free ones", () => {
     fresh(() => {
-      const mountain = createMountain();
+      const mountain = crewedStart();
       const hired = {
         ...mountain,
         owned: { ...mountain.owned, helper: mountain.owned.helper + 2 },
@@ -110,7 +111,7 @@ describe("top row", () => {
 
   it("lights the count while the worker's upgrades are affordable", () => {
     fresh(() => {
-      const mountain = createMountain();
+      const mountain = crewedStart();
       const rich = {
         ...mountain,
         stock: { ...mountain.stock, stones: 2_000_000 },
@@ -121,7 +122,7 @@ describe("top row", () => {
 
   it("prices the hire key at the amount key's amount", () => {
     fresh(() => {
-      const start = createMountain();
+      const start = crewedStart();
       const mountain = { ...start, stock: { ...start.stock, stones: 1_000 } };
       const one = hireKey(mountain, "one");
       expect(one).toMatchObject({ count: 1, face: "+Worker", can: true });
