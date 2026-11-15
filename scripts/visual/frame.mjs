@@ -947,4 +947,37 @@ for (const size of SIZES) {
       await close();
     }
   });
+
+  section(`${label} slice refinery opens`, async () => {
+    const { page, close } = await openScreen(size, sliceRoofSave(Date.now()), {
+      search: PART_TWO,
+      seedKey: DEV_BACKUP_KEY,
+    });
+    try {
+      await page.waitForSelector(".frame-card:not([hidden])");
+      const at = `${label} slice refinery opens:`;
+      checkCard(await cardFacts(page), at, "report");
+      await tap(page, ".frame-card-key");
+      const opens = await cardFacts(page);
+      await shot(page, `slice-card-opens-${label}`);
+      checkCard(opens, at, "opens");
+      check(
+        opens.words.includes("New site: the refinery.") &&
+          !opens.words.includes("later update"),
+        `${at} the Light Tower's card opens the refinery, and promises nothing more`,
+      );
+      check(await noScroll(page), `${at} the card does not scroll the page`);
+      await tap(page, ".frame-card-key");
+      const tab = await page.$eval(
+        '.frame-site[data-site="refinery"]',
+        (el) => !el.hidden,
+      );
+      check(
+        !(await cardFacts(page)).shown && tab,
+        `${at} Continue closes the card, and the refinery's tab is in the site bar`,
+      );
+    } finally {
+      await close();
+    }
+  });
 }

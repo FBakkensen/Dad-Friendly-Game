@@ -739,6 +739,19 @@ async function main() {
     await expectText(opened.page, /Stockyard full/i, "the stockyard's report");
     return opened;
   });
+  await capture("slice-card-opens", async (viewport) => {
+    const opened = await openAuditPage(viewport, sliceRoofSave(Date.now()), {
+      search: `${MEMORY}&part2=1`,
+    });
+    await frameCardUp(opened.page);
+    await press(opened.page, ".frame-card-key");
+    await opened.page.waitForSelector('.frame-card[data-card="opens"]', {
+      visible: true,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    await expectText(opened.page, /New site: the refinery/i, "refinery card");
+    return opened;
+  });
   await capture("slice-card-end", async (viewport) => {
     const opened = await openAuditPage(viewport, sliceRoofSave(Date.now()));
     await frameCardUp(opened.page);

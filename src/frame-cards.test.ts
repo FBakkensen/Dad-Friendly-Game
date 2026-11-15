@@ -8,7 +8,7 @@ import { nightReport } from "./frame-cards";
 import {
   END_CARD,
   FIRST_EVENING,
-  REFINERY_OPENS,
+  refineryOpens,
   endCard,
 } from "./frame-cards-words";
 import { mountFrameScreen } from "./frame-screen";
@@ -416,8 +416,8 @@ describe("the end card", () => {
     expect(card()).toMatchObject({
       shown: true,
       kind: "opens",
-      title: REFINERY_OPENS.title,
-      lines: REFINERY_OPENS.paragraphs,
+      title: refineryOpens().title,
+      lines: refineryOpens().paragraphs,
     });
     expect(card().lines.join(" ")).not.toMatch(/later update/);
     press();
@@ -603,7 +603,7 @@ describe("the cards' words", () => {
       FIRST_EVENING.title,
       ...FIRST_EVENING.paragraphs,
       FIRST_EVENING.key,
-      ...REFINERY_OPENS.paragraphs,
+      ...refineryOpens().paragraphs,
       ...endCard("warehouse").paragraphs,
     ].join(" ");
     expect(words).not.toMatch(

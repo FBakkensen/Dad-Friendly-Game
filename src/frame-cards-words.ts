@@ -1,4 +1,5 @@
 import { buildingById, type BuildingId } from "./city";
+import { makerTakes } from "./makers";
 import { AWAY_PAY_RATE } from "./rates";
 import { percent } from "./screen-words";
 
@@ -62,10 +63,12 @@ export const END_CARD: CardWords = endCard("lightTower");
 /**
  * Part 2 (#671; spec, While a part is the end of the game): the Light
  * Tower's roof opens the refinery, and the end card waits for the Warehouse.
+ * The recipe is read when the card is painted, so a lab sweep's recipe holds.
  */
-export const REFINERY_OPENS: CardWords = operational("lightTower", [
-  "New site: the refinery. A kiln makes 1 brick from 2 rock. Hoisting fills the rock at the kilns first, and rock that finds no room there goes to the stockyard as stone. The stockyard holds a set amount of each good.",
-]);
+export const refineryOpens = (): CardWords =>
+  operational("lightTower", [
+    `New site: the refinery. A kiln makes 1 brick from ${String(makerTakes("kiln"))} rock. Hoisting fills the rock at the kilns first, and rock that finds no room there goes to the stockyard as stone. The stockyard holds a set amount of each good.`,
+  ]);
 
 /**
  * The first evening (#703): one worker, the piles, and where the rest comes

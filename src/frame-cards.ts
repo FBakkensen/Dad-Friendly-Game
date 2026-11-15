@@ -2,7 +2,7 @@ import { el, write, writeFigures } from "./board-dom";
 import type { BuildingId } from "./city";
 import {
   FIRST_EVENING,
-  REFINERY_OPENS,
+  refineryOpens,
   endCard,
   type CardWords,
 } from "./frame-cards-words";
@@ -180,7 +180,7 @@ function cardWords(card: Exclude<FrameCard, { kind: "report" }>): CardWords {
   if (card.kind === "first") {
     return FIRST_EVENING;
   }
-  return card.kind === "opens" ? REFINERY_OPENS : endCard(card.building);
+  return card.kind === "opens" ? refineryOpens() : endCard(card.building);
 }
 
 function paintCard(parts: CardParts, card: FrameCard | undefined): void {

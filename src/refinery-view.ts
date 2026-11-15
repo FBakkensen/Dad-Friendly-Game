@@ -15,6 +15,7 @@ import { plural } from "./screen-words";
 import { canPay, type GoodId } from "./stock";
 import { MAX_STOCKYARD_LEVEL, ROOM_GROWTH, expandPrice } from "./stockyard";
 import { placeable } from "./workforce";
+import { NO_KILNS } from "./workforce-view";
 
 /**
  * The refinery on slice 1's frame (#671; spec, The refinery): a flow from
@@ -124,7 +125,7 @@ function incomeNow(
 
 function machinesLine(owned: number, running: number): string {
   if (owned === 0) {
-    return "No kilns yet";
+    return NO_KILNS;
   }
   // The mine's runs line (mine-view's partWords): what runs, then who runs it.
   const runs =

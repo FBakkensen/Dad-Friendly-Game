@@ -112,9 +112,12 @@ function buildingNote(): string {
 }
 
 /** "1 of 2 kilns run": the kilns with a worker, of the kilns he owns (#671). */
+/** Before the first kiln, here and on the kilns' plate (#671). */
+export const NO_KILNS = "No kilns yet";
+
 function kilnsNote(mountain: Mountain): string {
   if (mountain.makers.kiln === 0) {
-    return "No kilns yet";
+    return NO_KILNS;
   }
   return runsOf(runningKilns(mountain), mountain.makers.kiln, [
     "kiln",
