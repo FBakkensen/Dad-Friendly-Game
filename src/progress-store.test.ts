@@ -2159,13 +2159,15 @@ describe("field log cloud copy", () => {
 
     clock += 10;
     await progress.startOver();
+    // A hired worker is a played mine, kept in Saved copies (#664).
     expect(progress.fieldLog().events.map((event) => event.code)).toEqual([
       "tier.buy",
+      "save.archive",
       "run.start-over",
     ]);
     expect(
       fieldLogOf(fieldLogs, user.uid)?.events.map((event) => event.code),
-    ).toEqual(["tier.buy", "run.start-over"]);
+    ).toEqual(["tier.buy", "save.archive", "run.start-over"]);
     expect(fieldLogOf(fieldLogs, user.uid)?.snapshot.crew.helper).toBe(0);
     const resetAt = fieldLogOf(fieldLogs, user.uid)?.updatedAt;
     clock += 10;
@@ -2178,8 +2180,9 @@ describe("field log cloud copy", () => {
     await expect(progress.passTheMine()).resolves.toBe(true);
     const passed = fieldLogOf(fieldLogs, user.uid);
     const passedCodes = passed?.events.map((event) => event.code) ?? [];
-    expect(passedCodes.slice(0, 3)).toEqual([
+    expect(passedCodes.slice(0, 4)).toEqual([
       "tier.buy",
+      "save.archive",
       "run.start-over",
       "run.start-over",
     ]);

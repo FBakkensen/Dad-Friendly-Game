@@ -9,7 +9,7 @@ import {
   persistCloudSoon,
 } from "./cloud-writer";
 import { persistPhoneBackup } from "./local-saves";
-import { digStones, minedOut } from "./mountain";
+import { digStones, minedOut, rockDugInAll } from "./mountain";
 import { conflictIsReal, mergeSaves, type MergeResult } from "./save-merge";
 import {
   adopt,
@@ -38,8 +38,8 @@ export function conflictFacts(
     remoteRev: conflict.remote.rev,
     syncedRev: ctx.syncedRev,
     deviceIds: `${conflict.local.deviceId},${conflict.remote.deviceId}`,
-    minedLocal: minedOut(conflict.local.mountain),
-    minedRemote: minedOut(conflict.remote.mountain),
+    minedLocal: rockDugInAll(conflict.local.mountain),
+    minedRemote: rockDugInAll(conflict.remote.mountain),
     chosen: side,
   };
 }

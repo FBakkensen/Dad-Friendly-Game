@@ -77,7 +77,7 @@ describe("control-board mockup numbers", () => {
     }
   });
 
-  it("speeds workers with Better boots as src/upgrades.ts", () => {
+  it("speeds workers with Work boots as src/upgrades.ts", () => {
     expect(mock.boots).toBe(BOOTS_SPEED_PER_LEVEL);
   });
 

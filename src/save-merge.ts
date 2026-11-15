@@ -1,6 +1,10 @@
-import { minedOut, runStartedAt, type Mountain } from "./mountain";
+import { ROOF } from "./city";
+import { rockDugInAll, runStartedAt, type Mountain } from "./mountain";
 import { serializeSave } from "./persist";
 import { compareSaveProgress, type SaveMoment } from "./save-progress";
+import { GOOD_IDS } from "./stock";
+import { TIER_IDS } from "./tiers";
+import { VEHICLE_IDS } from "./transport";
 import { upgradeLevel, UPGRADES } from "./upgrades";
 import { RECIPE_IDS, craftedLevel } from "./workshop";
 
@@ -8,10 +12,12 @@ import { RECIPE_IDS, craftedLevel } from "./workshop";
  * Two copies of one run.
  *
  * A later run wins whole. A lower rev is never adopted. When one copy is at
- * least as far on every counted fact and further on stones, upgrades, crafts,
- * recipes, finds, or engineer trips, that copy is a silent fast-forward.
- * Machines and crew count too: being behind on them blocks the fast-forward.
- * A lead that is only machines or crew, or a split where each side has
+ * least as far on every counted fact and further on rock dug, upgrades,
+ * crafts, recipes, finds, engineer trips, or the city's buildings (what is
+ * operational, the steps built and what has arrived for the step in hand),
+ * that copy is a silent fast-forward. Machines, crew and vehicles count too:
+ * being behind on them blocks the fast-forward (#664).
+ * A lead that is only machines, crew or vehicles, or a split where each side has
  * something the other lacks, is a conflict. The two copies come back as they
  * are. Nothing is blended into a third save.
  */
@@ -43,11 +49,11 @@ type Facts = {
   readonly recipes: readonly string[];
   readonly finds: readonly string[];
   readonly engineers: Readonly<Record<string, number>>;
-  readonly crew: number;
-  readonly carts: number;
-  readonly drills: number;
-  readonly borers: number;
-  readonly machines: number;
+  readonly operational: readonly string[];
+  /** Steps built in on the city, then what has arrived for the step in hand. */
+  readonly city: readonly [number, number];
+  /** Every tier he owns (workers, kids, machines) and every vehicle. */
+  readonly owned: Readonly<Record<string, number>>;
 };
 
 export function mergeSaves(local: SaveCopy, remote: SaveCopy): MergeResult {
@@ -168,23 +174,62 @@ function facts(mountain: Mountain): Facts {
     engineers[engineer.name] = engineer.trips;
   }
   return {
-    mined: minedOut(mountain),
+    mined: rockDugInAll(mountain),
     upgrades,
     crafts,
     recipes: [...mountain.recipes],
     finds: [...mountain.finds],
     engineers,
-    crew: mountain.owned.helper,
-    carts: mountain.owned.cart,
-    drills: mountain.owned.drill,
-    borers: mountain.owned.borer,
-    machines: mountain.owned.machine,
+    operational: [...mountain.operational],
+    city: cityProgress(mountain),
+    owned: ownedCounts(mountain),
   };
 }
 
-/** Stones, upgrades, crafts, recipes, finds, or engineer trips. Not machines. */
+const STEPS_A_BUILDING = ROOF + 1;
+
+/**
+ * Buildings go up in order, one step after another, so the steps built in
+ * are the operational buildings' and the steps before the one in hand.
+ */
+function cityProgress(mountain: Mountain): readonly [number, number] {
+  const built = mountain.operational.length * STEPS_A_BUILDING;
+  const { project } = mountain;
+  if (project.kind === "unordered") {
+    return [built, 0];
+  }
+  const arrived = GOOD_IDS.reduce(
+    (sum, id) => sum + project.site.arrived[id],
+    0,
+  );
+  return [built + project.site.step, arrived];
+}
+
+function ownedCounts(mountain: Mountain): Record<string, number> {
+  const owned: Record<string, number> = {};
+  for (const id of TIER_IDS) {
+    owned[id] = mountain.owned[id];
+  }
+  for (const id of VEHICLE_IDS) {
+    owned[id] = mountain.fleet[id];
+  }
+  return owned;
+}
+
+/** Positive when `left` is further on the city than `right`. */
+function cityAhead(
+  left: readonly [number, number],
+  right: readonly [number, number],
+): number {
+  return left[0] === right[0] ? left[1] - right[1] : left[0] - right[0];
+}
+
+/** Rock, upgrades, crafts, recipes, finds, trips, or buildings. Not machines. */
 function aheadOnProgress(left: Facts, right: Facts): boolean {
-  if (left.mined > right.mined) {
+  if (left.mined > right.mined || cityAhead(left.city, right.city) > 0) {
+    return true;
+  }
+  if (someOnly(left.operational, right.operational)) {
     return true;
   }
   if (someHigher(left.upgrades, right.upgrades)) {
@@ -219,11 +264,9 @@ function covers(left: Facts, right: Facts): boolean {
     coversNames(left.engineers, right.engineers) &&
     coversList(left.recipes, right.recipes) &&
     coversList(left.finds, right.finds) &&
-    left.crew >= right.crew &&
-    left.carts >= right.carts &&
-    left.drills >= right.drills &&
-    left.borers >= right.borers &&
-    left.machines >= right.machines
+    coversList(left.operational, right.operational) &&
+    cityAhead(left.city, right.city) >= 0 &&
+    coversNumbers(left.owned, right.owned)
   );
 }
 

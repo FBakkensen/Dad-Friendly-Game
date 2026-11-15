@@ -131,13 +131,13 @@ describe("Strong arms (tap power)", () => {
   });
 });
 
-describe("lasting upgrades: Better boots and Steady hands", () => {
+describe("lasting upgrades: Work boots and Night foreman", () => {
   const base = {
     ...minedMountain(0),
     stock: { ...minedMountain(0).stock, stones: 20_000_000 },
   };
 
-  it("unlock from the crew: boots at 10 helpers, steady hands with a first cart", () => {
+  it("unlock from the crew: boots at 10 helpers, Night foreman with a first cart", () => {
     const boots = upgradeById("boots");
     const steady = upgradeById("steady");
     expect(
@@ -168,7 +168,7 @@ describe("lasting upgrades: Better boots and Steady hands", () => {
     expect(upgradeCost(upgradeById("steady"), 1)).toBeUndefined();
   });
 
-  it("Better boots makes helpers 10% faster, in whole stones a second", () => {
+  it("Work boots makes helpers 10% faster, in whole stones a second", () => {
     const crew = {
       ...base,
       owned: { ...base.owned, helper: 15, cart: 2 },
@@ -185,7 +185,7 @@ describe("lasting upgrades: Better boots and Steady hands", () => {
     ).toBe(23 + 2 * rates.tierSpeed.cart);
   });
 
-  it("Steady hands pays time away 25% more, and live play is untouched", () => {
+  it("Night foreman pays time away 25% more, and live play is untouched", () => {
     const crew = { ...base, owned: { ...base.owned, helper: 100 } };
     const steady = { ...crew, upgrades: { ...NO_UPGRADES, steady: 1 } };
     expect(effectiveRates(steady).awayPay).toBeCloseTo(AWAY_PAY_RATE * 1.25);
@@ -220,7 +220,7 @@ describe("crew synergies", () => {
 
   it("are one-time buys, unlocked by owning enough of the boosted tier", () => {
     const helping = upgradeById("cartSyn");
-    expect(helping.name).toBe("Helping hands");
+    expect(helping.name).toBe("Loading crews");
     expect(
       upgradeUnlocked({ ...rich, owned: { ...rich.owned, cart: 4 } }, helping),
     ).toBe(false);
@@ -281,7 +281,7 @@ describe("crew synergies", () => {
     ).toBe(924);
   });
 
-  it("stacks with Better boots and other synergies", () => {
+  it("stacks with Work boots and other synergies", () => {
     const crew = {
       ...rich,
       // 40 workers staff 10 carts (10) and 10 drills (10), 20 spare.

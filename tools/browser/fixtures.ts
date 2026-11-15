@@ -58,7 +58,7 @@ export type SeedWorkshop = {
   readonly taught?: readonly TeachId[];
 };
 
-/** A seed save: what a tab finds on its first load, before `seedJson` writes it as version 8. */
+/** A seed save: what a tab finds on its first load, before `seedJson` writes it as version 9. */
 export type Seed = {
   readonly lastSeen: number;
   readonly mountain: SeedMountain;
@@ -179,7 +179,7 @@ function some<K extends string, V extends object>(
 }
 
 /**
- * A seed as the version 8 save the game writes for it (#558). A mirror of
+ * A seed as the version 9 save the game writes for it (#558). A mirror of
  * `writeGame` in src/save-format.ts: the browser scripts load this file under
  * Node's type stripping, which cannot load `src` modules. fixtures.test.ts
  * proves the real reader takes each seed, and the real writer writes it back
@@ -238,7 +238,7 @@ export function toDocument(seed: Seed): SaveDocument {
   } as SaveGame;
   const startedAt = mountain.startedAt ?? 0;
   return {
-    version: 8,
+    version: 9,
     lastSeen: seed.lastSeen,
     ...(startedAt === 0 ? {} : { startedAt }),
     game,
@@ -246,7 +246,7 @@ export function toDocument(seed: Seed): SaveDocument {
 }
 
 /**
- * The counts a stored version 8 save holds, in the mountain's field names:
+ * The counts a stored version 9 save holds, in the mountain's field names:
  * what the browser checks compare after a tap. Missing reads as zero.
  */
 export function storedCounts(document: unknown): {
@@ -278,7 +278,7 @@ export function seedJson(save: SeedSave): string {
 
 /** A save a later build wrote: this build opens the update card and writes nothing (#558). */
 export function newerSave(now: number): StoredAsIs {
-  return { version: 9, lastSeen: now, game: {} };
+  return { version: 10, lastSeen: now, game: {} };
 }
 
 export function workshopSave(now: number, busy: boolean): WorkshopSeed {
@@ -524,7 +524,7 @@ export function idleMountain(): Seed {
 }
 
 /**
- * The mid save with upgrades owned and levelled (#373): Better boots bought,
+ * The mid save with upgrades owned and levelled (#373): Work boots bought,
  * Strong arms at level 2, and Grandfather's pick and the old lamp found.
  */
 export function toolsMountain(): Seed {
@@ -1095,19 +1095,31 @@ export function playBriefSave(): Seed {
   return { ...openMountain(), lastSeen: Date.now() - HOUR / 30 };
 }
 
-/** The account the slice 1 preview's memory save signs in as (src/boot.ts, `SLICE_DEV`). */
-export const DEV_UID = "dev-slice";
+/** The account a memory save (`?memorySave=1`) signs in as (src/boot.ts, `MEMORY_DEV`). */
+export const DEV_UID = "dev-dad";
 
 /**
  * Where the phone keeps that account's backup (src/phone-backup.ts). The
- * slice 1 preview (`?slice=1`) plays a memory save as that account, so its
- * play saves are seeded here, not under SAVE_KEY (#659).
+ * frame's play saves are seeded here and played on a memory save as that
+ * account, so the save line reads the account (#659, #664).
  */
 export const DEV_BACKUP_KEY = `dad-friendly-game-backup:${DEV_UID}`;
 
-/** A slice 1 save: the phone backup of the dev account, holding this game map as version 8. */
+/**
+ * The same save as a guest's, for SAVE_KEY: the document inside a phone backup, without the
+ * account (the journeys play as a guest, #664).
+ */
+export function asGuest(backup: StoredAsIs): StoredAsIs {
+  const save = backup["save"];
+  if (typeof save !== "object" || save === null) {
+    throw new Error("Not a phone backup");
+  }
+  return save as StoredAsIs;
+}
+
+/** A slice 1 save: the phone backup of the dev account, holding this game map as version 9. */
 function sliceSave(now: number, game: Record<string, unknown>): StoredAsIs {
-  return { uid: DEV_UID, save: { version: 8, lastSeen: now, game } };
+  return { uid: DEV_UID, save: { version: 9, lastSeen: now, game } };
 }
 
 /** The fresh mine's twelve workers, as the first evening places them. */
@@ -1265,8 +1277,8 @@ export function sliceRoofSave(now: number): StoredAsIs {
 }
 
 /**
- * A grown first stretch: five carts and five drills, so Cart helpers and
- * Cart roads are open in their stages' lists, thirty workers for Better
+ * A grown first stretch: five carts and five drills, so Loading crews and
+ * Haul roads are open in their stages' lists, thirty workers for Work
  * boots in the workforce, and the stone for all three (#661).
  */
 export function sliceListSave(now: number): StoredAsIs {

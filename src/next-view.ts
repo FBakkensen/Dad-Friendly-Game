@@ -70,7 +70,7 @@ export function siteCounts(mountain: Mountain): Record<SiteId, number> {
   return { mine, city: vehicles };
 }
 
-/** The worker's upgrades he can afford now (Better boots and the like). */
+/** The worker's upgrades he can afford now (Work boots and the like). */
 export function workforceCount(mountain: Mountain): number {
   return UPGRADES.filter(
     (upgrade) =>

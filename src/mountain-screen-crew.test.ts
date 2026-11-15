@@ -1705,7 +1705,7 @@ describe("upgrades on screen", () => {
     });
     document.body.append(screen.root);
     openUpgrades(screen);
-    // A row comes in while the drawer is open: the fifth cart shows Helping hands, unseen.
+    // A row comes in while the drawer is open: the fifth cart shows Loading crews, unseen.
     screen.progress.applyMutation((mountain) => ({
       ...mountain,
       owned: { ...mountain.owned, cart: 5 },
@@ -2753,7 +2753,7 @@ describe("lasting upgrades on screen", () => {
     const storage = createMemoryStorage();
     writeSessionSave({
       storage,
-      // Enough for the tenth worker and Better boots, with a little spare.
+      // Enough for the tenth worker and Work boots, with a little spare.
       mountain: {
         ...minedMountain(30_000),
         stock: {
@@ -2805,7 +2805,7 @@ describe("lasting upgrades on screen", () => {
     );
   });
 
-  it("pays more on the welcome-back card with Steady hands", () => {
+  it("pays more on the welcome-back card with Night foreman", () => {
     const storage = createMemoryStorage();
     writeSessionSave({
       storage,
@@ -2919,7 +2919,7 @@ describe("crew synergies on screen", () => {
       .querySelector<HTMLButtonElement>(".board-key[data-key=upgrades]")
       ?.click();
     expect(screen.text('[data-upgrade="cartSyn"] .board-row-name')).toBe(
-      "Helping hands",
+      "Loading crews",
     );
     expect(screen.text('[data-upgrade="cartSyn"] .board-row-info')).toBe(
       "Carts 6/s to 6.7/s.",
@@ -3084,7 +3084,7 @@ describe("Flemming's cart (#216)", () => {
       lastSeen: Date.now(),
     });
     const screen = mountScreen({ storage });
-    // Better boots makes him 2.4/s, and Helping hands makes the 13 carts 1% faster
+    // Work boots makes him 2.4/s, and Loading crews makes the 13 carts 1% faster
     // for him: the crew's rise (#490).
     expect(screen.text('.tier[data-tier="helper"] .board-row-gain')).toBe(
       "+3.9/s",
@@ -3612,7 +3612,7 @@ describe("player-facing workers (#139)", () => {
         /^Workers \d+(\.\d)?\/s to \d+(\.\d)?\/s\.$/,
       );
       expect(screen.text('[data-upgrade="cartSyn"] .board-row-name')).toBe(
-        "Helping hands",
+        "Loading crews",
       );
       expect(screen.text('[data-upgrade="cartSyn"] .board-row-info')).toMatch(
         /^Carts \S+\/s to \S+\/s\.$/,

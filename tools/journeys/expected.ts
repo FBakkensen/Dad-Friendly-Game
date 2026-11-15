@@ -6,7 +6,10 @@
  * is the unit tests' and the labs' job (#552). The store also steps `notice` on every render;
  * it grants recipes and never moves the pocket, so the journeys leave it out.
  */
-import type { Move } from "../../src/economy/actions.ts";
+import { holdFactors } from "../../src/economy/factors.ts";
+import type { Action, Move } from "../../src/economy/actions.ts";
+import { freshPlan } from "../../src/lab/fresh-dad.ts";
+import { FRESH_OFF } from "../../src/line-switch.ts";
 import {
   createMountain,
   type AwayReport,
@@ -22,7 +25,10 @@ import {
   type Session,
 } from "../../src/session.ts";
 
-/** How often the open game folds the crew's work in (src/screen-run.ts). */
+// The game ships the fresh mine (#664): the rules here play it too, as the page does.
+holdFactors({ [FRESH_OFF]: 0 });
+
+/** How often the open game folds the crew's work in (src/frame-screen.ts). */
 export const TICK_MS = 1000;
 
 /**
@@ -124,6 +130,43 @@ export class Expected {
         };
       }
     }
+  }
+
+  /**
+   * The page's clock jumped to `now` at once (Player.jump): the game's tick ran once, at the
+   * far end, and folded the whole stretch in. A report the last stretch brought was closed
+   * before this one, as the journey closes its card. Returns this stretch's report, if any: a
+   * report with a night is the shift report the frame shows.
+   */
+  jumped(now: number): AwayReport | undefined {
+    if (firstNotice(this.session.news, "away") !== undefined) {
+      this.session = step(
+        this.session,
+        { kind: "dismiss", what: "away" },
+        this.ticked,
+      ).session;
+    }
+    this.ticked = now;
+    this.session = step(this.session, { kind: "tick" }, now).session;
+    if (this.saving) {
+      this.saved = {
+        mountain: this.session.mountain,
+        lastSeen: this.session.lastSeen,
+      };
+    }
+    return firstNotice(this.session.news, "away")?.report;
+  }
+
+  /**
+   * What a dad who plays the lab's part 1 would do now (src/lab/fresh-dad.ts): order, place his
+   * workers, hire, buy machines and vehicles. He never holds the order, and leaves the upgrades.
+   */
+  plan(): readonly Action[] {
+    return freshPlan(
+      this.session.mountain,
+      { moves: "once", hold: "never", upgrades: false },
+      0,
+    );
   }
 
   /**

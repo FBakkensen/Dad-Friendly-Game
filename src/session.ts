@@ -22,6 +22,7 @@ import { LAYERS, layersEntered, type Layer } from "./layers";
 import type { LogEvent } from "./log";
 import {
   minedOut,
+  rockDugInAll,
   runStartedAt,
   type AwayReport,
   type Mountain,
@@ -232,7 +233,7 @@ export function saveCounts(mountain: Mountain): {
   mined: number;
   pocket: number;
 } {
-  return { mined: minedOut(mountain), pocket: mountain.stock.stones };
+  return { mined: rockDugInAll(mountain), pocket: mountain.stock.stones };
 }
 
 /** The trouble that is up, if any. */

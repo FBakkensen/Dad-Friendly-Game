@@ -2,8 +2,8 @@
 /**
  * Quick play-test in a real browser: open the game on a named save, run a
  * few taps, and keep a shot after each step plus the console and page errors.
- *   npm run play -- --save mid label:Buys
- *   npm run play -- --save heart --search ?trouble=cave-in tap:.board-window
+ *   npm run play -- --save busy tap:.frame-key
+ *   npm run play -- --save start "tap:.frame-site[data-site=city]"
  *   npm run play -- --help
  * Shots and log.txt land in play-shots/ (git-ignored), replaced on each run.
  * Exits non-zero on any page error or an action that could not run.
@@ -26,32 +26,8 @@ import {
   startServer,
 } from "../tools/browser/harness.ts";
 import {
-  awayTripSave,
-  campPostsSave,
-  chargePayoffSave,
-  crewMountain,
-  boostedCrewSave,
-  crystalMountain,
-  firstCraftSave,
-  fleetMountain,
-  foundBelowSave,
-  heartMountain,
-  heirMountain,
-  idleMountain,
-  lastStoneSave,
   newerSave,
-  machineMountain,
-  openMountain,
-  playAwaySave,
-  playCraftSave,
-  playBriefSave,
-  playEdgeSave,
-  savingMountain,
   seedJson,
-  shortMountain,
-  toolHomeSave,
-  toolsMountain,
-  workshopSave,
   DEV_BACKUP_KEY,
   sliceBusySave,
   sliceListSave,
@@ -64,176 +40,73 @@ import {
   sliceStructureSave,
 } from "../tools/browser/fixtures.ts";
 
-/** Starting saves, from the typed fixtures in tools/browser/fixtures.ts. `fresh` seeds nothing. */
+/**
+ * Starting saves, from the typed fixtures in tools/browser/fixtures.ts. `fresh` seeds nothing.
+ * The frame's saves are the dev account's phone backup, played on a memory save (#664).
+ */
+const MEMORY = "?memorySave=1";
 const SAVES = {
-  fresh: { note: "first open, nothing saved", save: () => undefined },
-  early: { note: "a crewed Topsoil: workers and carts", save: crewMountain },
-  mid: {
-    note: "Granite with a borer: Workshop and Engineers open",
-    save: openMountain,
-  },
-  crystal: {
-    note: "the Crystal Caves: drills and borers at work",
-    save: crystalMountain,
-  },
-  heart: {
-    note: "the Deep Heart on a kid's run: the Great Machine and Legacy ×1.5",
-    save: heartMountain,
-  },
-  workshop: {
-    note: "a craft on the bench and axle grease running",
-    save: () => workshopSave(Date.now(), true),
-  },
-  "workshop-free": {
-    note: "a free bench: grease to craft, a short charge, two pages",
-    save: () => workshopSave(Date.now(), false),
-  },
-  "first-craft": {
-    note: "the Workshop not yet taught, 10 clay: the charge's New row",
-    save: () => firstCraftSave(Date.now()),
-  },
-  payoff: {
-    note: "the first blasting charge working: its row shows the payoff",
-    save: () => chargePayoffSave(Date.now()),
+  fresh: {
+    note: "first open, nothing saved: the first evening",
+    save: () => undefined,
   },
   newer: {
     note: "a save a later build wrote: the update card, and nothing written (#558)",
     save: () => newerSave(Date.now()),
   },
-  crew: {
-    note: "every tier so far and both boosts, in the Deep Heart",
-    save: boostedCrewSave,
-  },
-  late: {
-    note: "one stone left: a tap finds the legend and offers passing the mine",
-    save: lastStoneSave,
-  },
-  away: {
-    note: "the mid save, last seen 9 hours ago: the welcome-back card",
-    save: playAwaySave,
-  },
-  heir: {
-    note: "a kid's run after one pass: Grandpa tends the carts",
-    save: heirMountain,
-  },
-  edge: {
-    note: "13 carts, four stones above the Granite: tap across, open Buys",
-    save: playEdgeSave,
-  },
-  crafted: {
-    note: "a craft finishing three seconds after opening: the craft-done card",
-    save: playCraftSave,
-  },
-  brief: {
-    note: "the mid save, last seen 2 minutes ago: the quiet away note",
-    save: playBriefSave,
-  },
-  saving: {
-    note: "a free hand and nothing affordable: Saving for a cart",
-    save: savingMountain,
-  },
-  bottom: {
-    note: "saving near the bottom: the cart costs more than the stones left, so no time (#610)",
-    save: () => {
-      const saving = savingMountain();
-      return { ...saving, mountain: { ...saving.mountain, remaining: 30 } };
-    },
-  },
-  fleet: {
-    note: "120 carts: three flaps on the cart bay",
-    save: fleetMountain,
-  },
-  short: {
-    note: "a borer he can afford but not staff: Needs 8 workers",
-    save: shortMountain,
-  },
-  idle: {
-    note: "carts standing idle: the staffing New row in Buys",
-    save: idleMountain,
-  },
-  tools: {
-    note: "upgrades owned and levelled, and found tools under Brought home",
-    save: toolsMountain,
-  },
-  keepsakes: {
-    note: "every tool and keepsake found: a relic's detail shows all five keepsakes",
-    save: foundBelowSave,
-  },
-  machine: {
-    note: "the Great Machine with the Kid row locked; add ?trouble=cave-in for the Buys key's red lamp",
-    save: machineMountain,
-  },
-  trip: {
-    note: "Ada out in the old shaft: her walk home on the Engineers row, Call her back on her page",
-    save: () => awayTripSave(Date.now()),
-  },
-  posts: {
-    note: "five engineers on their posts, one out, two finds: Promote and Brought home in Engineers",
-    save: () => campPostsSave(Date.now()),
-  },
-  home: {
-    note: "Ada came home with a pick while away: the welcome card, then Brought home",
-    save: () => toolHomeSave(Date.now()),
-  },
-  // Slice 1's frame (#659): ?slice=1, a fresh mine on the dev account's memory save.
-  slice: {
-    note: "slice 1's frame on the first evening (?slice=1, a dev build)",
-    save: () => undefined,
-    search: "?slice=1",
-  },
-  "slice-start": {
-    note: "slice 1: a fresh one-worker start with drilled rock, and the first evening's card",
+  start: {
+    note: "a fresh one-worker start with drilled rock, and the first evening's card",
     save: () => sliceStartSave(Date.now()),
     key: DEV_BACKUP_KEY,
-    search: "?slice=1",
+    search: MEMORY,
   },
-  "slice-ordered": {
-    note: "slice 1: the foundation on order and nothing affordable",
+  ordered: {
+    note: "the foundation on order and nothing affordable",
     save: () => sliceOrderedSave(Date.now()),
     key: DEV_BACKUP_KEY,
-    search: "?slice=1",
+    search: MEMORY,
   },
-  "slice-stands": {
-    note: "slice 1: nobody hoisting, so the line stands",
+  stands: {
+    note: "nobody hoisting, so the line stands",
     save: () => sliceStandsSave(Date.now()),
     key: DEV_BACKUP_KEY,
-    search: "?slice=1",
+    search: MEMORY,
   },
-  "slice-structure": {
-    note: "slice 1: the Light Tower's structure rising, a wagon with no driver",
+  structure: {
+    note: "the Light Tower's structure rising, a wagon with no driver",
     save: () => sliceStructureSave(Date.now()),
     key: DEV_BACKUP_KEY,
-    search: "?slice=1",
+    search: MEMORY,
   },
-  "slice-done": {
-    note: "slice 1: the Light Tower operational, nothing to order",
+  done: {
+    note: "the Light Tower operational, nothing to order",
     save: () => sliceDoneSave(Date.now()),
     key: DEV_BACKUP_KEY,
-    search: "?slice=1",
+    search: MEMORY,
   },
-  "slice-busy": {
-    note: "slice 1: carts, two wagons, free workers and stone to spend",
+  busy: {
+    note: "carts, two wagons, free workers and stone to spend",
     save: () => sliceBusySave(Date.now()),
     key: DEV_BACKUP_KEY,
-    search: "?slice=1",
+    search: MEMORY,
   },
-  "slice-list": {
-    note: "slice 1: five carts and drills, so the stages' lists hold upgrades, and Better boots",
+  list: {
+    note: "five carts and drills, so the stages' lists hold upgrades, and Work boots",
     save: () => sliceListSave(Date.now()),
     key: DEV_BACKUP_KEY,
-    search: "?slice=1",
+    search: MEMORY,
   },
-  "slice-night": {
-    note: "slice 1: closed nine hours ago, so the frame opens on the shift report",
+  night: {
+    note: "closed nine hours ago, so the frame opens on the shift report",
     save: () => sliceNightSave(Date.now()),
     key: DEV_BACKUP_KEY,
-    search: "?slice=1",
+    search: MEMORY,
   },
-  "slice-roof": {
-    note: "slice 1: the roof goes on in the night: the shift report, then the end card",
+  roof: {
+    note: "the roof goes on in the night: the shift report, then the end card",
     save: () => sliceRoofSave(Date.now()),
     key: DEV_BACKUP_KEY,
-    search: "?slice=1",
+    search: MEMORY,
   },
 };
 

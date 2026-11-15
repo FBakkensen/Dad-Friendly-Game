@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { conflictIsReal, mergeSaves, type SaveCopy } from "./save-merge";
+import { placeOrder } from "./city";
 import { createMountain, minedOut, type Mountain } from "./mountain";
 import { minedMountain } from "./test-fixtures";
 import { NOTHING_CRAFTED } from "./workshop";
@@ -227,6 +228,67 @@ describe("mergeSaves", () => {
       return;
     }
     expect(merged.differsFromRemote).toBe(false);
+  });
+});
+
+describe("mergeSaves in a fresh mine (#664)", () => {
+  const start = createMountain();
+  const dug = (rockDug: number, more: Partial<Mountain> = {}): Mountain => ({
+    ...start,
+    rockDug,
+    ...more,
+  });
+
+  it("fast-forwards more rock dug", () => {
+    const merged = mergeSaves(copy(dug(1_000), 2), copy(dug(1_200), 3));
+    expect(merged.kind).toBe("fast-forward");
+    expect(merged.kind === "fast-forward" && merged.mountain.rockDug).toBe(
+      1_200,
+    );
+  });
+
+  it("is a conflict when the copy with more rock is behind on hoists, vehicles or buildings", () => {
+    const remote = copy(dug(1_200), 3);
+    const behind = [
+      dug(1_000, { owned: { ...start.owned, hoist: 2 } }),
+      dug(1_000, { fleet: { ...start.fleet, horseWagon: 3 } }),
+      dug(1_000, { operational: ["lightTower"] }),
+    ];
+    for (const mountain of behind) {
+      expect(mergeSaves(copy(mountain, 2), remote).kind).toBe("conflict");
+    }
+  });
+
+  it("counts the steps built and what has arrived as progress", () => {
+    const ordered = placeOrder(dug(1_000));
+    const site =
+      ordered.project.kind === "delivering" ? ordered.project.site : undefined;
+    if (site === undefined) {
+      throw new Error("the order did not start");
+    }
+    const arrived = {
+      ...ordered,
+      project: {
+        kind: "delivering" as const,
+        site: { ...site, arrived: { ...site.arrived, stones: 500 } },
+      },
+    };
+    const stepUp = {
+      ...ordered,
+      project: {
+        kind: "delivering" as const,
+        site: { ...site, step: 1 as const },
+      },
+    };
+    const forward = mergeSaves(copy(ordered, 2), copy(arrived, 3));
+    expect(forward.kind === "fast-forward" && forward.mountain).toBe(arrived);
+    const built = mergeSaves(copy(arrived, 2), copy(stepUp, 3));
+    expect(built.kind === "fast-forward" && built.mountain).toBe(stepUp);
+    const split = mergeSaves(
+      copy(arrived, 2),
+      copy({ ...ordered, rockDug: 2_000 }, 3),
+    );
+    expect(split.kind).toBe("conflict");
   });
 });
 

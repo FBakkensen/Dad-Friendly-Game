@@ -198,6 +198,18 @@ describe("the save conflict card (#464)", () => {
     ).toBe("true");
   });
 
+  it("pre-selects the side with more rock dug in a fresh mine (#664)", () => {
+    const { find, set } = mount();
+    const dug = (rockDug: number, rev: number, label: string): SaveSide => {
+      const base = side(0, rev, label);
+      return { ...base, mountain: { ...base.mountain, rockDug } };
+    };
+    set({ local: dug(1_000, 3, "Phone"), remote: dug(9_000, 4, "PC") });
+    expect(
+      find(".save-card[data-side=other]").getAttribute("aria-pressed"),
+    ).toBe("true");
+  });
+
   it("a new split while the card stays up pre-selects again and leaves the confirm", () => {
     const { panel, find, set } = mount();
     find(".save-card[data-side=phone]").click();

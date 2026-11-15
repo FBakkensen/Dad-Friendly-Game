@@ -3,7 +3,7 @@ import { el, frameX, hide, mark, setAttr, write } from "./board-dom";
 import type { BoardHost } from "./board-host";
 import { LAMP_FRAME, LAMP_PX } from "./board-row";
 import { skin } from "./board-skin";
-import { minedOut } from "./mountain";
+import { rockDugInAll } from "./mountain";
 import type {
   ProgressStore,
   SaveConflictView,
@@ -27,14 +27,15 @@ function splitKey(conflict: SaveConflictView): string {
   return [
     conflict.local.rev,
     conflict.remote.rev,
-    minedOut(conflict.local.mountain),
-    minedOut(conflict.remote.mountain),
+    rockDugInAll(conflict.local.mountain),
+    rockDugInAll(conflict.remote.mountain),
   ].join(":");
 }
 
-/** The side with more stones mined; the phone on a tie. */
+/** The side with more rock dug in all; the phone on a tie. */
 function preselect(conflict: SaveConflictView): Pick {
-  return minedOut(conflict.remote.mountain) > minedOut(conflict.local.mountain)
+  return rockDugInAll(conflict.remote.mountain) >
+    rockDugInAll(conflict.local.mountain)
     ? "remote"
     : "local";
 }

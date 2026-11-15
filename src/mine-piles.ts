@@ -201,12 +201,14 @@ export function flowMine(
   readonly gained: Partial<Stock>;
 } {
   const flow = flowWhole(mineChain(mountain, pay, drilling), seconds);
+  const dug = flow.moved[0] ?? 0;
   const mined = flow.moved[LIFT] ?? 0;
   const brick = flow.moved[KILNS] ?? 0;
   const stones = flow.spilled;
   const [face = 0, shaft = 0, kiln = 0] = flow.piles;
   const piles = mountain.piles;
   if (
+    dug === 0 &&
     mined === 0 &&
     brick === 0 &&
     face === piles.face &&
@@ -224,6 +226,7 @@ export function flowMine(
           ? mountain.stock
           : addedStock(mountain.stock, gained),
       piles: { face, shaft, kiln },
+      rockDug: mountain.rockDug + dug,
     },
     mined,
     gained,

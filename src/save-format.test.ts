@@ -46,6 +46,7 @@ describe("the game map (#558)", () => {
       piles: "piles",
       makers: "makers",
       stockyard: "stockyard",
+      rockDug: "run",
     } as const satisfies Record<keyof Mountain, string>;
     const fresh = createMountain();
     const full: Mountain = {
@@ -109,6 +110,7 @@ describe("the game map (#558)", () => {
       piles: { face: 40, shaft: 9, kiln: 30 },
       makers: { kiln: 2 },
       stockyard: 1,
+      rockDug: 12_345,
     };
     // Part 1 has one building, so an operational one and a project in hand
     // are two mountains (#654).

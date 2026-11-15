@@ -251,7 +251,7 @@ describe("the key rail (#373)", () => {
     const quiet = { ...promo, stock: { ...promo.stock, stones: 0 } };
     expect(keyViews(quiet, NOW, undefined).engineers.dot).toBe(false);
 
-    // An unbought upgrade row: Steady hands shows with the first cart.
+    // An unbought upgrade row: Night foreman shows with the first cart.
     const cart = mountainWith({ owned: { ...NONE_OWNED, helper: 1, cart: 1 } });
     expect(showsDot(cart, "upgrade:steady")).toBe(true);
     expect(keyViews(cart, NOW, undefined).upgrades.dot).toBe(true);

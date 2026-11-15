@@ -1,6 +1,6 @@
 /* global document, getComputedStyle, setTimeout */
 /**
- * Slice 1's frame (#659), on the `?slice=1` dev preview: the order strip, the
+ * Slice 1's frame (#659, switched on for everyone in #664): the order strip, the
  * top row with the one hire key, the mine (#660) and the city (#662), Next,
  * the site bar and the save line, and the workforce sheet over them, at the
  * phone and at a shorter phone. Its cards (#663): the shift report after a
@@ -281,7 +281,7 @@ for (const size of SIZES) {
   for (const { name, save } of SAVES) {
     section(`${label} slice frame ${name}`, async () => {
       const { page, close } = await openScreen(size, save(), {
-        search: "?slice=1",
+        search: "?memorySave=1",
         seedKey: DEV_BACKUP_KEY,
       });
       try {
@@ -464,7 +464,7 @@ for (const size of SIZES) {
   for (const { name, save } of NIGHTS) {
     section(`${label} slice frame ${name}`, async () => {
       const { page, close } = await openScreen(size, save(), {
-        search: "?slice=1",
+        search: "?memorySave=1",
         seedKey: DEV_BACKUP_KEY,
       });
       try {
@@ -583,7 +583,7 @@ for (const size of SIZES) {
   const label = `${String(size[0])}x${String(size[1])}`;
   section(`${label} slice frame ledger`, async () => {
     const { page, close } = await openScreen(size, sliceBusySave(Date.now()), {
-      search: "?slice=1",
+      search: "?memorySave=1",
       seedKey: DEV_BACKUP_KEY,
     });
     try {
@@ -638,7 +638,7 @@ for (const size of SIZES) {
   const label = `${String(size[0])}x${String(size[1])}`;
   section(`${label} slice frame start`, async () => {
     const { page, close } = await openScreen(size, sliceStartSave(Date.now()), {
-      search: "?slice=1",
+      search: "?memorySave=1",
       seedKey: DEV_BACKUP_KEY,
     });
     try {

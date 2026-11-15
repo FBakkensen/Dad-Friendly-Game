@@ -569,7 +569,7 @@ describe("design token mocks (#234)", () => {
         cartSyn: upgradeLevel(mountainB, "cartSyn") + 1,
       },
     });
-    expect(sheetB.textContent).toContain("Helping hands");
+    expect(sheetB.textContent).toContain("Loading crews");
     expect(sheetB.textContent).toContain(
       `Cart ${formatSpeed(rates.tierSpeed.cart)}/s to ${formatSpeed(helped.tierSpeed.cart)}/s each`,
     );

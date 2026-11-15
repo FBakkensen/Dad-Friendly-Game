@@ -11,14 +11,13 @@ import {
   persistPhoneBackup,
   readHomecomings,
 } from "./local-saves";
-import {
-  createMountain,
-  minedOut,
-  runStartedAt,
-  type Mountain,
-} from "./mountain";
+import { createMountain, runStartedAt } from "./mountain";
 import { applyMerged } from "./save-adopt";
-import { compareSaveProgress, type SaveMoment } from "./save-progress";
+import {
+  compareSaveProgress,
+  playedSinceNew,
+  type SaveMoment,
+} from "./save-progress";
 import { freshServerRead } from "./server-read";
 import { markWelcomed, openBaselines, saveCounts } from "./session";
 import {
@@ -55,24 +54,7 @@ export function localMoment(ctx: StoreContext): SaveMoment {
  */
 export function hasLocalProgress(ctx: StoreContext): boolean {
   const { mountain, lastSeen } = ctx.session;
-  return lastSeen !== undefined || anyProgress(mountain, !ctx.blankReset);
-}
-
-function anyProgress(mountain: Mountain, countStamp: boolean): boolean {
-  return (
-    minedOut(mountain) > 0 ||
-    (countStamp && runStartedAt(mountain) > 0) ||
-    [
-      mountain.stock.stones,
-      mountain.owned.helper,
-      mountain.owned.cart,
-      mountain.owned.drill,
-      mountain.owned.borer,
-      mountain.owned.machine,
-      mountain.owned.kid,
-      mountain.legacy,
-    ].some((count) => count > 0)
-  );
+  return lastSeen !== undefined || playedSinceNew(mountain, !ctx.blankReset);
 }
 
 /**

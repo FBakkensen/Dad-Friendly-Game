@@ -1,4 +1,4 @@
-/* global console, process, document, innerWidth, innerHeight, scrollBy, scrollY, localStorage, getComputedStyle, HTMLButtonElement, requestAnimationFrame */
+/* global console, process, document, innerWidth, innerHeight, scrollBy, scrollY, getComputedStyle */
 /** The visual check's shared kit: the server, Chrome, the sizes and the helpers more than one module uses. */
 import {
   cardRisen,
@@ -6,13 +6,8 @@ import {
   launchChrome,
   press as pressOn,
   open as openHarness,
-  holdThrough as holdThroughOn,
 } from "../../tools/browser/harness.ts";
-import {
-  seedJson,
-  storedCounts,
-  SAVE_KEY,
-} from "../../tools/browser/fixtures.ts";
+import { seedJson } from "../../tools/browser/fixtures.ts";
 import { mkdirSync } from "node:fs";
 import { failures } from "./registry.mjs";
 
@@ -21,55 +16,11 @@ const server = await startServer({ port: 4174, url: process.env.VISUAL_URL });
 const BASE = server.base;
 /** The phone: the installed app on the OnePlus 15, the board at scale 1 (#370). */
 const PHONE = [424, 924];
-/** The game is phone-only: a PC shows the same board, scaled, and is not checked. */
-const SCREENS = [PHONE];
-
 const browser = await launchChrome();
 
 /** A tap. */
 async function press(page, selector) {
   await pressOn(page, selector);
-}
-
-/** A key on the rail (#373): buys, workshop, engineers, upgrades or ledger. */
-const KEY = (id) => `.board-key[data-key="${id}"]`;
-/** A drawer (#373): buys or upgrades. */
-const SHEET = (name) => `.board-sheet[data-sheet="${name}"]`;
-/** A drawer that is open. */
-const OPEN_SHEET = (name) => `${SHEET(name)}.is-open`;
-/** A drawer's Back plate. */
-const SHEET_BACK = (name) => `${SHEET(name)} .board-sheet-back`;
-
-/**
- * The drawer has slid all the way up: open, its slide done, its top at the
- * board's --sheet-top (178 board px), and its skin painted.
- */
-async function sheetSettled(page, name) {
-  return page
-    .waitForFunction(
-      (selector) => {
-        const sheet = document.querySelector(selector);
-        if (sheet === null || !sheet.classList.contains("is-open")) {
-          return false;
-        }
-        const board = globalThis.__board();
-        const top =
-          (sheet.getBoundingClientRect().top - board.top) / board.scale;
-        return (
-          sheet.getAnimations().length === 0 &&
-          Math.abs(top - 178) <= 0.5 &&
-          [...sheet.querySelectorAll(":scope > canvas.board-skin")].every(
-            (canvas) => canvas.style.width !== "",
-          )
-        );
-      },
-      { timeout: 5_000 },
-      SHEET(name),
-    )
-    .then(
-      () => true,
-      () => false,
-    );
 }
 
 /** The save drawer is open and its slide has ended: true when it did within 4 s. */
@@ -90,90 +41,6 @@ async function saveDrawerSettled(page) {
       () => true,
       () => false,
     );
-}
-
-/** Opens a drawer by its key, the way a dad does, and waits for the slide. */
-async function openSheet(page, name) {
-  await page.waitForSelector(`${KEY(name)}:not(:disabled)`, { visible: true });
-  await press(page, KEY(name));
-  return sheetSettled(page, name);
-}
-
-/**
- * Shuts a drawer by its Back plate. A keyboard press (a click with no
- * pointer) is never early, so the drawer's settle does not swallow it.
- */
-async function closeSheet(page, name) {
-  await page.$eval(SHEET_BACK(name), (button) => {
-    button.click();
-  });
-  await page
-    .waitForSelector(`${SHEET(name)}:not(.is-open)`, { timeout: 2_000 })
-    .catch(() => undefined);
-}
-
-/** A page of the open relics drawer (#465): detail, reveal or legend. */
-const RELIC_PAGE = (name) =>
-  `${OPEN_SHEET("relics")} .board-sheet-page:not([hidden]) > .relic-${name}-page`;
-
-/**
- * The open relics page's entrance is over (#523): every animation under it that ends has
- * ended. The reveal's light swaps frames for as long as the page is open, and is not waited for.
- */
-async function pageLanded(page, name) {
-  return page
-    .waitForFunction(
-      (selector) => {
-        const root = document.querySelector(selector);
-        return (
-          root !== null &&
-          root
-            .getAnimations({ subtree: true })
-            .every(
-              (animation) =>
-                animation.playState === "finished" ||
-                animation.effect?.getComputedTiming().iterations === Infinity,
-            )
-        );
-      },
-      { timeout: 5_000 },
-      RELIC_PAGE(name),
-    )
-    .then(
-      () => true,
-      () => false,
-    );
-}
-
-/**
- * Presses a plate on the open relics page, once the page is up. A keyboard press
- * (a click with no pointer) is never early, so the page's settle keeps it.
- */
-async function pressPage(page, name, plate) {
-  const selector = `${RELIC_PAGE(name)} .relic-page-${plate}`;
-  const found = await page
-    .waitForSelector(selector, { visible: true, timeout: 5_000 })
-    .then(
-      () => true,
-      () => false,
-    );
-  if (found) {
-    await page.$eval(selector, (button) => {
-      button.click();
-    });
-  }
-  return found;
-}
-
-/** The note's key on the board: a socket's note ends in "Relic shelf" (#370). */
-const SHELF_KEY = ".board-note.on .board-platebtn";
-
-/** Opens the relic shelf the way a dad does: a socket, then its note's key. */
-async function openShelf(page) {
-  await page.waitForSelector(".board-socket", { visible: true });
-  await press(page, ".board-socket");
-  await page.waitForSelector(SHELF_KEY, { visible: true, timeout: 5_000 });
-  await press(page, SHELF_KEY);
 }
 
 /** Installed PWA on Android: edge to edge, status bar and gesture bar as safe-area insets. */
@@ -269,13 +136,6 @@ async function openScreen(
 }
 
 /**
- * A held tap clock's step (stepTapClock) past a drawer's or a board card's 400ms settle
- * (board-interaction's DRAWER_SETTLE_MS): a finger on a card's plate in its first 400ms is the
- * second tap of the one that opened it, and does nothing (#464).
- */
-const PAST_SETTLE_MS = 500;
-
-/**
  * The overlay (fixed, or a board card absolute in the board, #464) covers the
  * board down to the save line, and the save line stays on top of it (#370).
  */
@@ -367,12 +227,6 @@ async function noScroll(page) {
   return result.ok;
 }
 
-/**
- * The window's rules module, as the dev server serves it: the checks place
- * the vein with the game's own veinSpot. Passed into the page as data, so
- * it is the browser's import, not one of this script's.
- */
-const MINE_WINDOW_RULES = "/src/mine-window.ts";
 // Set VISUAL_SHOTS to a folder to keep a PNG of each checked screen.
 const SHOTS = process.env.VISUAL_SHOTS;
 if (SHOTS) {
@@ -386,231 +240,17 @@ async function shot(page, name) {
   await page.screenshot({ path: `${SHOTS}/${name}.png` });
 }
 
-/** The five keys on the rail (#373): locked or open, icon and ink, size. */
-async function keyState(page) {
-  return page.evaluate(() => {
-    const read = (id) => {
-      const button = document.querySelector(`.board-key[data-key="${id}"]`);
-      if (!(button instanceof HTMLButtonElement)) {
-        return null;
-      }
-      const box = button.getBoundingClientRect();
-      const scale = globalThis.__board().scale;
-      const icon = button.querySelector(".board-key-icon");
-      const name = button.querySelector(".board-key-name");
-      return {
-        disabled: button.disabled,
-        locked: button.classList.contains("is-locked"),
-        dim: (icon?.getAttribute("src") ?? "").includes("-dim"),
-        color: name === null ? "" : getComputedStyle(name).color,
-        width: box.width / scale,
-        height: box.height / scale,
-      };
-    };
-    const buys = read("buys");
-    const workshop = read("workshop");
-    const engineers = read("engineers");
-    const upgrades = read("upgrades");
-    const ledger = read("ledger");
-    const keys = [buys, workshop, engineers, upgrades, ledger];
-    if (keys.some((key) => key === null)) {
-      return { ok: false, buys, workshop, engineers, upgrades, ledger };
-    }
-    // Every key is the same width and at least 48 board px each way; a key
-    // with a sub-line under it is taller.
-    const laidOut =
-      keys.every((key) => key.height >= 48 && key.width >= 48) &&
-      keys.every((key) => Math.abs(key.width - buys.width) <= 1);
-    return { ok: laidOut, buys, workshop, engineers, upgrades, ledger };
-  });
-}
-
-/** An open key: enabled, its icon bright and its name in the board's ink. */
-const keyOpen = (key) =>
-  key.disabled === false &&
-  !key.locked &&
-  !key.dim &&
-  key.color === "rgb(217, 221, 208)";
-
-/** The bays have the save in: enabled, with their names written. */
-async function baysDrawn(page) {
-  return page
-    .waitForFunction(
-      () => {
-        const bays = [...document.querySelectorAll(".board-bay")];
-        return (
-          bays.length === 3 &&
-          bays.every(
-            (bay) =>
-              !bay.disabled &&
-              (bay.querySelector(".board-bay-name")?.textContent ?? "") !== "",
-          )
-        );
-      },
-      { timeout: 5_000 },
-    )
-    .then(
-      () => true,
-      () => false,
-    );
-}
-
-/**
- * The key rail's foot, and every key's, stands at least 8 board px above the
- * save line's top (#373).
- */
-async function railFoot(page) {
-  return page.evaluate(() => {
-    const board = globalThis.__board();
-    const bar = document.querySelector("#app > .board-rail");
-    if (bar === null) {
-      return { ok: false, gap: NaN };
-    }
-    const bottom = Math.max(
-      bar.getBoundingClientRect().bottom,
-      ...[...bar.querySelectorAll(".board-key")].map(
-        (key) => key.getBoundingClientRect().bottom,
-      ),
-    );
-    const gap = (board.saveTop - bottom) / board.scale;
-    return { ok: gap >= 7.9, gap: Math.round(gap * 100) / 100 };
-  });
-}
-
-/** The stored save's counts, as the last write left them. */
-async function storedMountain(page) {
-  const stored = await page.evaluate(
-    (key) => JSON.parse(localStorage.getItem(key) ?? "null"),
-    SAVE_KEY,
-  );
-  return storedCounts(stored);
-}
-
-/**
- * A finger held on the selector's centre, and lifted once `done(selector)` holds in the
- * page. True when it held before the timeout.
- */
-async function holdThrough(page, selector, done) {
-  return holdThroughOn(page, selector, done);
-}
-
-/** Waits for the page to paint `count` more frames: what a press set off has painted. */
-async function framesPainted(page, count) {
-  await page.evaluate(async (frames) => {
-    for (let frame = 0; frame < frames; frame += 1) {
-      await new Promise((resolve) => requestAnimationFrame(resolve));
-    }
-  }, count);
-}
-
-/**
- * Arms a capture click listener on the window before a tap. The function it gives waits for
- * that click and the next animation frame after it: true when the tap was handled within 2 s. A
- * check that nothing opened needs it, so it cannot pass on a tap that never landed.
- */
-async function clickHandled(page) {
-  await page.evaluate(() => {
-    globalThis.__clickHandled = false;
-    globalThis.addEventListener(
-      "click",
-      () =>
-        requestAnimationFrame(() => {
-          globalThis.__clickHandled = true;
-        }),
-      { capture: true, once: true },
-    );
-  });
-  return () =>
-    page
-      .waitForFunction(() => globalThis.__clickHandled === true, {
-        timeout: 2_000,
-      })
-      .then(
-        () => true,
-        () => false,
-      );
-}
-
-/**
- * Puts a board note away once the save is in (keysDrawn): a note that shows by itself, the
- * quiet away line, shows on the render that brings the save in. With no fixed wait, for the
- * drawer sections; the New sign is no note and takes no taps.
- */
-async function noteAway(page) {
-  if ((await page.$(".board-note.on")) === null) {
-    return;
-  }
-  await page.keyboard.press("Escape");
-  await page.waitForFunction(
-    () => document.querySelector(".board-note.on") === null,
-    { timeout: 2_000 },
-  );
-}
-
-const buysOpen = (page) =>
-  page
-    .$eval(SHEET("buys"), (sheet) => sheet.classList.contains("is-open"))
-    .catch(() => false);
-/** One lamp frame is 20 art px: off 0, amber 1, green 2, red 3. */
-const LAMP_X = { off: "0px", amber: "-40px", green: "-80px", red: "-120px" };
-
-/** The keys have the save in: Ledger's name is written and every key is drawn. */
-async function keysDrawn(page) {
-  return page
-    .waitForFunction(
-      () =>
-        document.querySelectorAll(".board-rail .board-key").length === 5 &&
-        (document.querySelector(".save-status")?.textContent ?? "") !== "" &&
-        !(document.querySelector(".save-status")?.textContent ?? "").includes(
-          "Loading",
-        ),
-      { timeout: 5_000 },
-    )
-    .then(
-      () => true,
-      () => false,
-    );
-}
-
 export {
   server,
   BASE,
   PHONE,
-  SCREENS,
   browser,
   press,
-  KEY,
-  SHEET,
-  OPEN_SHEET,
-  SHEET_BACK,
-  sheetSettled,
   saveDrawerSettled,
-  openSheet,
-  closeSheet,
-  SHELF_KEY,
-  openShelf,
-  RELIC_PAGE,
-  pageLanded,
-  pressPage,
-  STANDALONE_INSETS,
   boardProbe,
   openScreen,
   coversBoard,
-  PAST_SETTLE_MS,
   cardRisen,
   noScroll,
-  MINE_WINDOW_RULES,
   shot,
-  keyState,
-  keyOpen,
-  baysDrawn,
-  railFoot,
-  storedMountain,
-  holdThrough,
-  framesPainted,
-  clickHandled,
-  noteAway,
-  buysOpen,
-  LAMP_X,
-  keysDrawn,
 };

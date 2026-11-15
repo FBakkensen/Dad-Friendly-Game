@@ -138,7 +138,6 @@ import {
   tripDetail,
   tunnelLock,
   upgradeEffectLine,
-  upgradeName,
   upgradeWhyLine,
   awayCheerWords,
   quietAwayWords,
@@ -831,7 +830,7 @@ describe("upgrade card before and after (#324)", () => {
     ).toMatch(/^Taps now \d+\.$/);
   });
 
-  it("Steady hands says away pay before and after, bought or not", () => {
+  it("Night foreman says away pay before and after, bought or not", () => {
     expect(line("steady", crew)).toBe("Away pay 30% to 37.5%.");
     expect(
       line("steady", { ...crew, upgrades: { ...NO_UPGRADES, steady: 1 } }),
@@ -861,7 +860,7 @@ describe("upgrade card before and after (#324)", () => {
     );
   });
 
-  it("Better boots keeps its line", () => {
+  it("Work boots keeps its line", () => {
     expect(line("boots", crew)).toBe("Workers 1/s to 2.4/s.");
   });
 
@@ -1168,10 +1167,10 @@ const onHaulage = (count: number): Mountain => {
 };
 
 describe("a fresh mine's upgrade words", () => {
-  it("says Better boots lifts a worker with a tool, with the tool's numbers", () => {
+  it("says Work boots lifts a worker with a tool, with the tool's numbers", () => {
     freshWords(() => {
       const mountain = createMountain();
-      expect(upgradeName(boots)).toBe("Better boots");
+      expect(boots.name).toBe("Work boots");
       expect(upgradeEffectLine(boots, mountain, 0)).toBe(
         "Workers with a tool 3/s to 7.1/s.",
       );
@@ -1181,10 +1180,10 @@ describe("a fresh mine's upgrade words", () => {
     });
   });
 
-  it("names Helping hands Cart helpers, and counts the workers on haulage", () => {
+  it("names Loading crews, and counts the workers on haulage", () => {
     freshWords(() => {
       const six = onHaulage(6);
-      expect(upgradeName(helpers)).toBe("Cart helpers");
+      expect(helpers.name).toBe("Loading crews");
       expect(upgradeEffectLine(helpers, six, 0)).toBe("Carts 60/s to 63/s.");
       expect(upgradeWhyLine(helpers, six, 0)).toBe(
         "Each worker on haulage makes carts 1% faster.",
@@ -1192,7 +1191,7 @@ describe("a fresh mine's upgrade words", () => {
     });
   });
 
-  it("says only Cart helpers' rule while haulage has nobody", () => {
+  it("says only Loading crews' rule while haulage has nobody", () => {
     freshWords(() => {
       const none = onHaulage(0);
       expect(upgradeEffectLine(helpers, none, 0)).toBe(
@@ -1204,7 +1203,7 @@ describe("a fresh mine's upgrade words", () => {
 
   it("keeps today's words outside a fresh mine", () => {
     const mountain = createMountain();
-    expect(upgradeName(helpers)).toBe("Helping hands");
+    expect(helpers.name).toBe("Loading crews");
     expect(upgradeWhyLine(boots, mountain, 0)).toBe(
       "The workers pick up their feet.",
     );

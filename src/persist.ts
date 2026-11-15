@@ -9,7 +9,7 @@
 import type { Mountain } from "./mountain";
 import { readGame, writeGame, type SaveGame } from "./save-format";
 
-export const SAVE_VERSION = 8;
+export const SAVE_VERSION = 9;
 
 export type SaveDocument = {
   readonly version: typeof SAVE_VERSION;

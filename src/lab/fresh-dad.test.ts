@@ -252,7 +252,7 @@ describe("raising the line (#655)", () => {
     fresh(() => {
       const start = mine({ ...STAGES, driving: 1, building: 2 });
       expect(bestRaise(start, ONCE)).toEqual(lineRaise(start));
-      // Better boots lifts every tool, at its sticker price.
+      // Work boots lifts every tool, at its sticker price.
       const boots = upgradeRaises(start).find(
         (raise) =>
           raise.plan[0]?.kind === "buyUpgrade" && raise.plan[0].id === "boots",
