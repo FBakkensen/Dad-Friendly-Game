@@ -696,3 +696,32 @@
   color: var(--frame-go-ink);
   cursor: pointer;
 }
+
+/* When each stockpile filled in the night (#671): one mark a line. */
+.frame-card-marks {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--art) * 1);
+  margin: 0 0 calc(var(--art) * 5);
+  font-size: var(--board-type-14);
+  color: var(--frame-red);
+}
+
+/* The report's second key, beside Resume: to the stockyard (#671). */
+.frame-card-yard {
+  flex: none;
+  min-height: var(--target-min);
+  margin-top: var(--target-gap);
+  font: inherit;
+  font-size: var(--board-type-16);
+  font-weight: 700;
+  text-align: center;
+  background: transparent;
+  border: var(--art) solid var(--frame-amber);
+  color: var(--frame-amber);
+  cursor: pointer;
+}
+
+.frame-card-yard[hidden] {
+  display: none;
+}

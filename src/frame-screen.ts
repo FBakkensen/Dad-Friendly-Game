@@ -466,7 +466,13 @@ export function mountFrameScreen({
     closeSheets();
     ledger.close();
   };
-  const cards = createFrameCards({ progress, onShow: closeUnderCard });
+  const cards = createFrameCards({
+    progress,
+    onShow: closeUnderCard,
+    onStockyard: () => {
+      state.go("refinery");
+    },
+  });
   const saveCards = createFrameSaveCards({
     progress,
     board,

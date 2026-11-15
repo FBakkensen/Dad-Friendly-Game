@@ -34,8 +34,10 @@ import {
   sliceDoneSave,
   sliceListSave,
   sliceNightSave,
+  sliceRefinerySave,
   sliceRoofSave,
   sliceStartSave,
+  sliceYardFullSave,
 } from "../tools/browser/fixtures.ts";
 
 const OUT = "docs/ui-audit";
@@ -717,6 +719,24 @@ async function main() {
     const opened = await openAuditPage(viewport, sliceRoofSave(Date.now()));
     await frameCardUp(opened.page);
     await expectText(opened.page, /Light Tower.s roof/i, "the roof's report");
+    return opened;
+  });
+  // Part 2 (#671), on the dev page's `?part2=1` until #672 switches it on.
+  await capture("slice-refinery", (viewport) =>
+    openFrame(viewport, sliceRefinerySave(Date.now()), "refinery", {
+      search: `${MEMORY}&part2=1`,
+    }),
+  );
+  await capture("slice-card-report-yard", async (viewport) => {
+    const opened = await openAuditPage(
+      viewport,
+      sliceYardFullSave(Date.now()),
+      {
+        search: `${MEMORY}&part2=1`,
+      },
+    );
+    await frameCardUp(opened.page);
+    await expectText(opened.page, /Stockyard full/i, "the stockyard's report");
     return opened;
   });
   await capture("slice-card-end", async (viewport) => {

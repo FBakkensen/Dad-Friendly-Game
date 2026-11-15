@@ -5,6 +5,7 @@ import { placeOrder } from "./city";
 import { holdFactors } from "./economy/factors";
 import { mountFrameScreen } from "./frame-screen";
 import { FRESH_OFF } from "./line-switch";
+import { PART_TWO_OFF } from "./part-switch";
 import { createMemoryStorage } from "./mountain-screen.harness";
 import type { Mountain } from "./mountain";
 import { createProgressStore } from "./progress-store";
@@ -251,5 +252,48 @@ describe("frame screen", () => {
   it("keeps the save line in view", () => {
     const { root } = mount();
     expect(root.querySelector(".board-saveline")).not.toBeNull();
+  });
+});
+
+describe("the refinery on the frame (#671)", () => {
+  const lit = (mountain: Mountain): Mountain => ({
+    ...mountain,
+    operational: ["lightTower"],
+    stock: { ...mountain.stock, stones: 20_000 },
+  });
+  const tab = (root: HTMLElement): HTMLElement | null =>
+    root.querySelector('.frame-site[data-site="refinery"]');
+
+  it("has no refinery tab or site in part 1, even under the Light Tower's roof", () => {
+    const { root } = mount(lit);
+    expect(tab(root)?.hidden).toBe(true);
+    expect(root.querySelector<HTMLElement>(".refinery")?.hidden).toBe(true);
+  });
+
+  it("opens the refinery in part 2 once the Light Tower is operational", () => {
+    holdFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 });
+    const { root, button } = mount(lit);
+    expect(tab(root)?.hidden).toBe(false);
+    button('.frame-site[data-site="refinery"]').click();
+    expect(root.querySelector<HTMLElement>(".refinery")?.hidden).toBe(false);
+    expect(root.querySelector(".refinery-recipe")?.textContent).toBe(
+      "Recipe: 2 rock → 1 brick",
+    );
+    // The kiln is in reach at 20K stone: the key is lit, and buying takes the stone.
+    const key = button(".refinery-kiln-key");
+    expect(key.classList.contains("can")).toBe(true);
+    key.click();
+    expect(root.querySelector(".refinery-machines")?.textContent).toContain(
+      "1 kiln",
+    );
+    // Two stockpiles on the top row now, each with its room.
+    expect(root.querySelector(".frame-top")?.classList).toContain("two-piles");
+  });
+
+  it("has one hire key on the refinery too", () => {
+    holdFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 });
+    const { root, button } = mount(lit);
+    button('.frame-site[data-site="refinery"]').click();
+    expect(hireKeysInFrame(root)).toHaveLength(1);
   });
 });

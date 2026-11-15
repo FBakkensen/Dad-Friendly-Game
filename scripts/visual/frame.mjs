@@ -6,7 +6,8 @@
  * phone and at a shorter phone. Its cards (#663): the shift report after a
  * night, and the end card behind the report of the night the Light Tower's
  * roof went on. The start (#703): the first evening's card, then the mine's
- * pile lines.
+ * pile lines. Part 2 (#671): the refinery, two stockpiles on the top row, and
+ * the report of a night the stockyard stopped, with its second key.
  */
 import {
   DEV_BACKUP_KEY,
@@ -15,9 +16,11 @@ import {
   sliceListSave,
   sliceNightSave,
   sliceOrderedSave,
+  sliceRefinerySave,
   sliceRoofSave,
   sliceStartSave,
   sliceStructureSave,
+  sliceYardFullSave,
 } from "../../tools/browser/fixtures.ts";
 import { targetsCloserThan } from "../../src/ui-audit-measure.ts";
 import { check, section } from "./registry.mjs";
@@ -479,7 +482,7 @@ async function cardFacts(page) {
     const k = key.getBoundingClientRect();
     const cut = [
       ...card.querySelectorAll(
-        ".frame-card-title, .frame-card-line, .frame-card-labels span, .frame-card-key",
+        ".frame-card-title, .frame-card-line, .frame-card-labels span, .frame-card-key, .frame-card-mark, .frame-card-yard",
       ),
     ]
       .filter((el) => el.scrollWidth > el.clientWidth + 1)
@@ -780,5 +783,165 @@ async function cityNoteFacts(page) {
       })
       .map((tag) => tag.textContent ?? "");
     return { shown, over };
+  });
+}
+
+/** Part 2 is on only behind the dev page's `?part2=1` until #672 switches it on. */
+const PART_TWO = "?memorySave=1&part2=1";
+
+/**
+ * The refinery in board px (#671): its scene, its panel (the kilns' plate
+ * and the stockyard) inside it, every shown key's size, the words that must
+ * stay whole, and its words.
+ */
+async function refineryFacts(page) {
+  return page.evaluate(() => {
+    const board = globalThis.__board();
+    const px = (el) => {
+      const r = el.getBoundingClientRect();
+      return {
+        t: (r.top - board.top) / board.scale,
+        b: (r.bottom - board.top) / board.scale,
+        w: r.width / board.scale,
+        h: r.height / board.scale,
+      };
+    };
+    const shown = (el) =>
+      el.getClientRects().length > 0 && el.closest("[hidden]") === null;
+    const scene = document.querySelector(".refinery:not([hidden])");
+    const panel = scene?.querySelector(".refinery-panel");
+    const small = [...(scene?.querySelectorAll("button") ?? [])]
+      .filter(shown)
+      .map((el) => ({ name: el.className, ...px(el) }))
+      .filter((b) => b.w < 47.5 || b.h < 47.5);
+    const cut = [
+      ...document.querySelectorAll(
+        ".frame-pile-words, .frame-pile-room, .refinery:not([hidden]) :is(.refinery-recipe, .mine-stage-head, .refinery-machines, .mine-stage-pile, .mine-key-face, .mine-key-small, .refinery-bay, .refinery-expand-words b, .refinery-expand-words small, .refinery-in, .refinery-bypass span)",
+      ),
+    ]
+      .filter(shown)
+      .filter((el) => el.scrollWidth > el.clientWidth + 1)
+      .map((el) => el.className);
+    const hires = [
+      ...(document.querySelector(".frame")?.querySelectorAll("button") ?? []),
+    ].filter((el) =>
+      /^Hire\b/.test(el.getAttribute("aria-label") ?? el.textContent ?? ""),
+    );
+    return {
+      scene: scene === null ? undefined : px(scene),
+      panel: panel === null || panel === undefined ? undefined : px(panel),
+      piles: document.querySelectorAll(".frame-top.two-piles .frame-pile")
+        .length,
+      small,
+      cut,
+      hires: hires.map((el) => el.parentElement?.className ?? ""),
+      words: scene?.textContent ?? "",
+    };
+  });
+}
+
+for (const size of SIZES) {
+  const label = `${String(size[0])}x${String(size[1])}`;
+  section(`${label} slice refinery`, async () => {
+    const { page, close } = await openScreen(
+      size,
+      sliceRefinerySave(Date.now()),
+      { search: PART_TWO, seedKey: DEV_BACKUP_KEY },
+    );
+    try {
+      await page.waitForSelector('.frame-site[data-site="refinery"]');
+      await tap(page, '.frame-site[data-site="refinery"]');
+      const at = `${label} slice refinery:`;
+      const facts = await refineryFacts(page);
+      await shot(page, `slice-refinery-${label}`);
+      check(await noScroll(page), `${at} the page does not scroll`);
+      check(
+        facts.scene !== undefined &&
+          facts.panel !== undefined &&
+          facts.panel.t >= facts.scene.t - 0.5 &&
+          facts.panel.b <= facts.scene.b + 0.5,
+        `${at} the kilns' plate and the stockyard sit inside the refinery (${JSON.stringify([facts.scene, facts.panel])})`,
+      );
+      check(
+        facts.piles === 2,
+        `${at} the top row shows the two stockpiles (${String(facts.piles)})`,
+      );
+      check(
+        facts.hires.length === 1 &&
+          facts.hires[0].split(" ").includes("frame-top"),
+        `${at} one hire key, in the top row (${facts.hires.join(", ")})`,
+      );
+      check(
+        facts.small.length === 0,
+        `${at} every key is at least 48px (${JSON.stringify(facts.small)})`,
+      );
+      check(
+        facts.cut.length === 0,
+        `${at} no word is cut (${facts.cut.join(", ")})`,
+      );
+      check(
+        !/\bhands?\b|by hand|bottleneck|\blimit|best buy|\bface\b/i.test(
+          facts.words,
+        ),
+        `${at} no hands, no face, and no bottleneck, limit or best buy named`,
+      );
+      const near = await keyGaps(page, FRAME_KEYS);
+      check(
+        near.length === 0,
+        `${at} every key stands at least 8px from the next (${near.join("; ")})`,
+      );
+    } finally {
+      await close();
+    }
+  });
+
+  section(`${label} slice refinery night`, async () => {
+    const { page, close } = await openScreen(
+      size,
+      sliceYardFullSave(Date.now()),
+      { search: PART_TWO, seedKey: DEV_BACKUP_KEY },
+    );
+    try {
+      await page.waitForSelector(".frame-card:not([hidden])");
+      const at = `${label} slice refinery night:`;
+      const report = await cardFacts(page);
+      await shot(page, `slice-card-report-yard-${label}`);
+      checkCard(report, at, "report");
+      check(
+        report.words.includes("Stockyard full: production stopped.") &&
+          /Brick full at/.test(report.words) &&
+          /Stone full at/.test(report.words),
+        `${at} the report says the stockyard stopped it, and when each stockpile filled`,
+      );
+      const yard = await page.$eval(".frame-card-yard", (el) => {
+        const board = globalThis.__board();
+        const r = el.getBoundingClientRect();
+        return {
+          shown: el.getClientRects().length > 0,
+          w: r.width / board.scale,
+          h: r.height / board.scale,
+        };
+      });
+      check(
+        yard.shown && yard.w >= 47.5 && yard.h >= 47.5,
+        `${at} "To the stockyard" is up beside Resume, at least 48px (${JSON.stringify(yard)})`,
+      );
+      const near = await keyGaps(page, ".frame-card:not([hidden])");
+      check(
+        near.length === 0,
+        `${at} the card's keys stand at least 8px apart (${near.join("; ")})`,
+      );
+      check(await noScroll(page), `${at} the report does not scroll the page`);
+      await tap(page, ".frame-card-yard");
+      const after = await cardFacts(page);
+      const site = await page.$eval(".frame-scene", (el) => el.dataset.site);
+      await shot(page, `slice-refinery-full-${label}`);
+      check(
+        !after.shown && site === "refinery",
+        `${at} To the stockyard closes the report and opens the refinery (${String(site)})`,
+      );
+    } finally {
+      await close();
+    }
   });
 }

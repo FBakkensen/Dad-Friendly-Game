@@ -35,8 +35,6 @@ import "./refinery.css";
 
 export type RefinerySite = {
   readonly root: HTMLElement;
-  /** The stockyard, for the shift report's key to bring into view. */
-  readonly yard: HTMLElement;
   readonly paint: (mountain: Mountain, shown: boolean, now?: number) => void;
 };
 
@@ -286,7 +284,6 @@ export function createRefinerySite(
   );
   return {
     root,
-    yard: yard.root,
     paint: (mountain, shown, now) => {
       visible = shown;
       hide(root, !shown);

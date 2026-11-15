@@ -220,8 +220,8 @@ describe("the shift report (#663)", () => {
           "A night shift runs 8 h. Production stopped after that.",
         ],
         marks: [],
-      toStockyard: false,
-      key: "Resume",
+        toStockyard: false,
+        key: "Resume",
       });
     });
   });

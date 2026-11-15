@@ -7,6 +7,7 @@ import { JOB_IDS, workersOnJobs } from "./workforce";
 import {
   shiftReport,
   type NightAwayReport,
+  TO_STOCKYARD,
   type ShiftReport,
 } from "./shift-report-view";
 
@@ -84,6 +85,8 @@ type CardParts = {
   readonly title: HTMLElement;
   readonly body: HTMLElement;
   readonly key: HTMLButtonElement;
+  /** The report's second key, after a night the stockyard stopped (#671). */
+  readonly yard: HTMLButtonElement;
 };
 
 function buildCard(): CardParts {
@@ -98,9 +101,12 @@ function buildCard(): CardParts {
   const body = el("div", "frame-card-body");
   const key = el("button", "frame-card-key");
   key.type = "button";
-  box.append(title, body, key);
+  const yard = el("button", "frame-card-yard", TO_STOCKYARD);
+  yard.type = "button";
+  yard.hidden = true;
+  box.append(title, body, key, yard);
   root.append(box);
-  return { root, title, body, key };
+  return { root, title, body, key, yard };
 }
 
 /** A paragraph, its figures bright; every one after the first is quieter. */
@@ -130,8 +136,20 @@ function paintReport(parts: CardParts, report: ShiftReport): void {
     paragraph(report.head, false),
     ...nightBar(report),
     ...report.lines.map((line) => paragraph(line, true)),
+    ...fullMarks(report.marks),
   );
   write(parts.key, report.key);
+  parts.yard.hidden = !report.toStockyard;
+}
+
+/** When each stockpile filled in the night, one mark a line (#671). */
+function fullMarks(marks: readonly string[]): readonly HTMLElement[] {
+  if (marks.length === 0) {
+    return [];
+  }
+  const list = el("p", "frame-card-marks");
+  list.append(...marks.map((mark) => el("span", "frame-card-mark", mark)));
+  return [list];
 }
 
 function paintWords(parts: CardParts, words: CardWords): void {
@@ -140,6 +158,7 @@ function paintWords(parts: CardParts, words: CardWords): void {
     ...words.paragraphs.map((text, index) => paragraph(text, index > 0)),
   );
   write(parts.key, words.key);
+  parts.yard.hidden = true;
 }
 
 function paintCard(parts: CardParts, card: FrameCard | undefined): void {
@@ -161,14 +180,17 @@ export type FrameCards = {
 /**
  * The frame's card overlay, painted from views whose save has loaded.
  * `onShow` runs when a new card comes up (the frame closes the workforce
- * sheet).
+ * sheet). `onStockyard` runs when the report's "To the stockyard" closes
+ * the night (the frame goes to the refinery).
  */
 export function createFrameCards({
   progress,
   onShow,
+  onStockyard,
 }: {
   progress: ProgressStore;
   onShow: () => void;
+  onStockyard: () => void;
 }): FrameCards {
   const parts = buildCard();
   let shown: FrameCard | undefined;
@@ -197,6 +219,14 @@ export function createFrameCards({
       greet = false;
     } else if (shown !== undefined) {
       progress.dismiss(shown.kind === "report" ? "away" : "operational");
+    }
+    paint();
+  });
+
+  parts.yard.addEventListener("click", () => {
+    if (shown?.kind === "report") {
+      progress.dismiss("away");
+      onStockyard();
     }
     paint();
   });
