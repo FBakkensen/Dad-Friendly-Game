@@ -1,6 +1,6 @@
 import type { StageSpeeds } from "./line";
 import type { Mountain } from "./mountain";
-import { kilnRate } from "./makers";
+import { kilnRate, makerTakes } from "./makers";
 import {
   chainChange,
   chainFlows,
@@ -22,7 +22,8 @@ import { lineWork } from "./workforce";
  *
  * Part 2 (#666) carries the chain on: what hoisting lifts goes to the rock at
  * the kilns while that pile has room, and bypasses to the stone stockpile when
- * it is full; the kilns make brick of it into the brick stockpile. Each
+ * it is full; the kilns make brick of it into the brick stockpile, two rock
+ * for a brick by their recipe (#723). Each
  * stockpile holds the stockyard's room and is drained by what transport takes
  * from it, so a full stockyard stops the line. Before part 2 the kilns' pile
  * has no room and the stockpiles no limit: all that is lifted is stone.
@@ -151,6 +152,8 @@ function chainWith(
       holds: stockpileRoom(mountain, "stones"),
       drain: draw.stones ?? 0,
     },
+    // The kilns take their recipe's rock for each brick (#723); a rock is a stone.
+    takes: [1, 1, 1, makerTakes("kiln"), 1],
   };
 }
 

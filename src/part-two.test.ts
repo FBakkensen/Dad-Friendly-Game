@@ -2,6 +2,7 @@ import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { withFactors } from "./economy/factors";
 import { FRESH_OFF } from "./line-switch";
+import { makerTakes } from "./makers";
 import { mineMoves } from "./mine-piles";
 import { accrue, accrueAway, createMountain, type Mountain } from "./mountain";
 import { PART_TWO_OFF } from "./part-switch";
@@ -11,7 +12,8 @@ import { stockpileRoom } from "./stockyard";
 
 /**
  * Part 2's rules in play (slice 1, rules 3 and 4, #666): the kilns make brick
- * from the rock hoisting lifts, what they cannot take bypasses to stone, a
+ * from the rock hoisting lifts, two rock for a brick (#723), what they cannot
+ * take bypasses to stone, a
  * full stockpile takes no more, and a night runs until the stockyard is full.
  */
 const partTwo = <T>(body: () => T): T =>
@@ -86,12 +88,13 @@ describe("the kilns make brick (#666)", () => {
 
   it("fills the rock at the kilns first, then what they cannot take bypasses to stone", () => {
     partTwo(() => {
-      // 18 a second lifted, one kiln takes 12: the pile of 300 fills in 50 s.
-      const after = live(works({ kilns: 1 }), 100);
-      expect(after.mined).toBe(1_800);
+      // 60 a second lifted (ten a stage, with the tools), one kiln takes 24
+      // for its 12 brick: the pile of 300 fills, and the rest bypasses.
+      const after = live(works({ line: 10, kilns: 1 }), 100);
+      expect(after.mined).toBe(6_000);
       expect(after.mountain.stock.brick).toBe(1_200);
       expect(after.mountain.piles.kiln).toBe(300);
-      expect(after.mountain.stock.stones).toBe(300);
+      expect(after.mountain.stock.stones).toBe(6_000 - 2 * 1_200 - 300);
     });
   });
 
@@ -108,7 +111,19 @@ describe("the kilns make brick (#666)", () => {
     partTwo(() => {
       const after = live(works({ line: 0, kilns: 1, kilnPile: 300 }), 10);
       expect(after.mountain.stock.brick).toBe(120);
-      expect(after.mountain.piles.kiln).toBe(180);
+      expect(after.mountain.piles.kiln).toBe(60);
+    });
+  });
+
+  it("make no more brick than half the rock that comes up (#723)", () => {
+    partTwo(() => {
+      // 18 a second lifted, one kiln could take 24: once its pile is empty
+      // it makes 9 brick a second, and no rock is left for stone.
+      const after = live(works({ kilns: 1 }), 100);
+      expect(after.mined).toBe(1_800);
+      expect(after.mountain.stock.brick).toBe(900);
+      expect(after.mountain.piles.kiln).toBe(0);
+      expect(after.mountain.stock.stones).toBe(0);
     });
   });
 });
@@ -129,12 +144,18 @@ describe("a full stockpile takes no more (#666)", () => {
   it("with the stone stockpile full, the kilns' share still comes up", () => {
     partTwo(() => {
       const after = live(
-        works({ kilns: 1, kilnPile: 300, stock: { stones: 3_000_000 } }),
+        works({
+          line: 10,
+          kilns: 1,
+          kilnPile: 300,
+          stock: { stones: 3_000_000 },
+        }),
         100,
       );
       expect(after.mountain.stock.stones).toBe(3_000_000);
       expect(after.mountain.stock.brick).toBe(1_200);
-      expect(after.mined).toBe(1_200);
+      // Two rock for each brick (#723).
+      expect(after.mined).toBe(2_400);
     });
   });
 
@@ -172,7 +193,7 @@ describe("a full stockpile takes no more (#666)", () => {
     });
   });
 
-  it("loses no rock while the stone stockpile has room, and never takes from a stockpile", () => {
+  it("loses no rock while the stone stockpile has room, takes the recipe's rock for each brick, and never takes from a stockpile", () => {
     partTwo(() => {
       fc.assert(
         fc.property(
@@ -197,8 +218,11 @@ describe("a full stockpile takes no more (#666)", () => {
               brick: after.mountain.stock.brick - brick,
             };
             const pile = after.mountain.piles.kiln - before.piles.kiln;
-            // Every rock lifted is stone, brick or waiting at the kilns.
-            expect(gained.stones + gained.brick + pile).toBe(after.mined);
+            // Every rock lifted is stone, waiting at the kilns, or taken by
+            // them: the recipe's rock for each brick made (#723).
+            expect(
+              gained.stones + makerTakes("kiln") * gained.brick + pile,
+            ).toBe(after.mined);
             expect(gained.stones).toBeGreaterThanOrEqual(0);
             expect(gained.brick).toBeGreaterThanOrEqual(0);
             // A stockpile at or over its room gains nothing.
