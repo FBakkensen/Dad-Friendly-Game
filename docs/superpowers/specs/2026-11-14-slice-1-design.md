@@ -516,7 +516,8 @@ Part 1, the first evenings:
 2. Orders and transport, off in play: the Light Tower's project, the fleet, on hold, and unattended time before the stockyard (rules 4, 6, 7).
 3. The lab plays part 1 and sets its numbers: the starting workers, the horse wagon, the Light Tower.
 4. Art: the Light Tower and a horse wagon. Asked for first.
-5. The frame and the mine, beside today's board: the order strip, the stockpiles, Next, the site bar, the mountain, the stage plates and a stage's list (#537, #538 and #539's card, rewritten), and the workforce plate once he has played it in the prototype's fifth version.
+   - Beside these, and not a sliver of the game: the prototype's fifth version adds the workforce plate (the prototype's thread, branch `claude/project-thread-eextfa`), he plays it, and his answer is recorded here and on sliver 5's issue. It has its own issue under #530, and sliver 5 is blocked by it.
+5. The frame and the mine, beside today's board: the order strip, the stockpiles, Next, the site bar, the mountain, the stage plates and a stage's list (#537, #538 and #539's card, rewritten), and the workforce plate. Waits for the prototype's fifth version and his answer on it (the step above).
 6. The city: the skyline, the transport plate, the project's card and the order key.
 7. The shift report and the cards.
 8. Part 1 is switched on. **Resets the save.** Today's board goes, and its journeys and visual sections move to the new screens.
