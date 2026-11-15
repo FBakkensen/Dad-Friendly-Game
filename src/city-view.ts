@@ -284,9 +284,12 @@ export type ProjectCard =
       readonly builders: BuildersRow;
     };
 
+/** The power a building gives, as the card says it. The Warehouse's words come with #671. */
 function completion(id: BuildingId): string {
   const power = buildingById(id).power;
-  return `On completion: night shift output ${percent(power.nightShift)}, up from ${percent(AWAY_PAY_RATE)}.`;
+  return power.nightShift === undefined
+    ? ""
+    : `On completion: night shift output ${percent(power.nightShift)}, up from ${percent(AWAY_PAY_RATE)}.`;
 }
 
 export function projectCard(mountain: Mountain, now?: number): ProjectCard {

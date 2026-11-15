@@ -193,6 +193,109 @@ export function deliver(
   }
 }
 
+/**
+ * What transport takes from each stockpile a second now, at `share` of its
+ * rate (#666): split evenly between the goods the step still requires that
+ * the stockyard holds or the mine brings in, and no more than the builders
+ * build in once the site is full. A dry stockpile gives no more than
+ * `income` brings it a second, and what it cannot give goes to the others,
+ * as `deliver` shares out what transport carries. The mine's chain drains
+ * the stockpiles at it, so a full stockpile fills again as fast as transport
+ * empties it. `deliver` is still what takes.
+ */
+export function stockDraw(
+  mountain: Mountain,
+  share: number,
+  income: Partial<Stock> = {},
+): Partial<Stock> {
+  const project = mountain.project;
+  if (project.kind !== "delivering") {
+    return {};
+  }
+  const carry = fleetRate(mountain) * share;
+  const rate =
+    onSiteTotal(project.site) >= SITE_HOLDS
+      ? Math.min(carry, buildRate(mountain) * share)
+      : carry;
+  const need = stillRequired(project.site);
+  const gives = (good: GoodId): number =>
+    mountain.stock[good] > 0 ? Infinity : (income[good] ?? 0);
+  const goods = GOOD_IDS.filter((good) => need[good] > 0 && gives(good) > 0);
+  goods.sort((a, b) => gives(a) - gives(b));
+  const draw: Partial<Record<GoodId, number>> = {};
+  let left = rate;
+  for (const [index, good] of goods.entries()) {
+    const take = Math.min(gives(good), left / (goods.length - index));
+    draw[good] = take;
+    left -= take;
+  }
+  return draw;
+}
+
+/**
+ * Seconds until what transport takes from the stockpiles changes, at `share`
+ * of its rate (#666). The take is `stockDraw` from `take`, as the mine's
+ * chain works it out, and `income` is what really comes in a second of each
+ * good: a good's need is met, its stockpile runs dry, a dry stockpile starts
+ * to fill, or the site fills. Infinity when nothing changes. The mine's
+ * stretches split here, so the take holds for the whole of each.
+ */
+export function drawChange(
+  mountain: Mountain,
+  share: number,
+  {
+    take,
+    income,
+  }: { readonly take: Partial<Stock>; readonly income: Partial<Stock> },
+): number {
+  const project = mountain.project;
+  if (project.kind !== "delivering") {
+    return Infinity;
+  }
+  const draw = stockDraw(mountain, share, take);
+  const need = stillRequired(project.site);
+  let soonest = Infinity;
+  for (const good of GOOD_IDS) {
+    soonest = Math.min(
+      soonest,
+      goodChange(
+        need[good],
+        mountain.stock[good],
+        draw[good] ?? 0,
+        income[good] ?? 0,
+      ),
+    );
+  }
+  const carry = fleetRate(mountain) * share;
+  const build = buildRate(mountain) * share;
+  const held = onSiteTotal(project.site);
+  if (held < SITE_HOLDS && carry > build) {
+    soonest = Math.min(soonest, (SITE_HOLDS - held) / (carry - build));
+  }
+  return soonest;
+}
+
+/**
+ * When one good's draw changes: its need met, its stock run dry, or a dry
+ * stockpile starting to fill, which may let it give more. A dry stockpile
+ * taken at what comes in holds steady.
+ */
+function goodChange(
+  need: number,
+  stock: number,
+  draw: number,
+  income: number,
+): number {
+  if (need <= 0) {
+    return Infinity;
+  }
+  const met = draw > 0 ? need / draw : Infinity;
+  if (stock > 0) {
+    return Math.min(met, draw > income ? stock / (draw - income) : Infinity);
+  }
+  return income > draw ? Math.min(met, 1) : met;
+}
+
 /** What holds an order back, for the lab (rule 7.11: the page names none). */
 export type OrderLimit =
   | { readonly kind: "unordered" }
@@ -384,23 +487,27 @@ export function secondsToFinish(
 export function secondsToStep(
   mountain: Mountain,
   share: number,
-  stonesPerSecond: number,
+  income: number | Partial<Stock>,
 ): number {
-  return walkSteps(mountain, share, stonesPerSecond, 1);
+  return walkSteps(mountain, share, income, 1);
 }
 
-/** The one walk over the steps: the seconds the next `steps` of them take. */
+/**
+ * The one walk over the steps: the seconds the next `steps` of them take.
+ * `dug` is the stone a second the mine brings up, or each good's (#666).
+ */
 function walkSteps(
   mountain: Mountain,
   share: number,
-  stonesPerSecond: number,
+  dug: number | Partial<Stock>,
   steps: number,
 ): number {
   const project = mountain.project;
   if (project.kind === "unordered") {
     return Infinity;
   }
-  const income: Partial<Stock> = { stones: stonesPerSecond };
+  const income: Partial<Stock> =
+    typeof dug === "number" ? { stones: dug } : dug;
   const carry = project.kind === "delivering" ? fleetRate(mountain) * share : 0;
   const build = buildRate(mountain) * share;
   let site: Site | undefined = project.site;

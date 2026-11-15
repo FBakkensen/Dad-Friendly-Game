@@ -55,7 +55,7 @@ function granite(over: MountainPatch = {}): Mountain {
 /** Sturdy props on the bench, with nothing in the shed. */
 function busy(at: number): Mountain {
   return granite({
-    stock: { stones: 0, clay: 0, iron: 0, crystal: 0, heartstone: 0 },
+    stock: { stones: 0, clay: 0, iron: 0, crystal: 0, heartstone: 0, brick: 0 },
     bench: { recipe: "sturdy-props", startedAt: at, endsAt: at + 600_000 },
   });
 }

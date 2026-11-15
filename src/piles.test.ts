@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   chainChange,
   chainFlows,
+  chainSettled,
+  chainSpill,
   flowChain,
   flowWhole,
   type Chain,
@@ -78,6 +80,7 @@ describe("a chain of stages and piles (#703)", () => {
       moved: [0, 0],
       piles: [0],
       source: 0,
+      spilled: 0,
     });
   });
 
@@ -137,5 +140,143 @@ describe("a chain of stages and piles (#703)", () => {
         wholeLast + whole.piles.reduce((sum, p) => sum + p, 0),
       );
     }
+  });
+});
+
+/**
+ * The spill (#666): the mine's hoisting fills the rock at the kilns, and what
+ * that pile cannot hold bypasses to the stone stockpile, a side pile with a
+ * room and a drain (what transport takes from it).
+ */
+describe("a pile that spills to a side pile (#666)", () => {
+  /** Hoisting at `lift`, the kilns at `kilns`, into rock at the kilns and the brick stockpile. */
+  function refinery(
+    lift: number,
+    kilns: number,
+    kilnPile = pile(0, 300),
+    side = { held: 0, holds: Infinity, drain: 0 },
+    brick = pile(0, Infinity),
+  ): Chain {
+    return {
+      source: Infinity,
+      rates: [lift, kilns, 0],
+      piles: [kilnPile, brick],
+      spill: { from: 0, ...side },
+    };
+  }
+
+  it("fills the pile first, then spills what the next stage cannot take", () => {
+    const chain = refinery(18, 12);
+    expect(chainChange(chain)).toBeCloseTo(300 / 6, 9);
+    const after = flowChain(chain, 150);
+    expect(after.moved[0]).toBeCloseTo(18 * 150, 6);
+    expect(after.moved[1]).toBeCloseTo(12 * 150, 6);
+    expect(after.piles[0]).toBeCloseTo(300, 6);
+    // 50 seconds to fill, then 100 seconds of 6 a second over the top.
+    expect(after.spilled).toBeCloseTo(600, 6);
+  });
+
+  it("spills everything from a pile of no room", () => {
+    const after = flowChain(refinery(18, 0, pile(0, 0)), 10);
+    expect(after.moved[0]).toBeCloseTo(180, 6);
+    expect(after.spilled).toBeCloseTo(180, 6);
+  });
+
+  it("a full side pile holds the stage at the next stage and the drain", () => {
+    const chain = refinery(18, 12, pile(300, 300), {
+      held: 1_000,
+      holds: 1_000,
+      drain: 4,
+    });
+    const flows = chainFlows(chain);
+    expect(flows[0]).toBeCloseTo(16, 9);
+    const after = flowChain(chain, 10);
+    expect(after.spilled).toBeCloseTo(40, 6);
+  });
+
+  it("a side pile over its room takes nothing", () => {
+    const chain = refinery(18, 12, pile(300, 300), {
+      held: 1_200,
+      holds: 1_000,
+      drain: 0,
+    });
+    expect(chainFlows(chain)[0]).toBeCloseTo(12, 9);
+    expect(flowChain(chain, 10).spilled).toBe(0);
+  });
+
+  it("settles past the changes within its first seconds, and says when the last came", () => {
+    // A stone short of its room: full in a quarter of a second at 4 a second net.
+    const chain = refinery(18, 12, pile(300, 300), {
+      held: 999,
+      holds: 1_000,
+      drain: 2,
+    });
+    const settled = chainSettled(chain, 1);
+    expect(settled.after).toBeCloseTo(0.25, 9);
+    expect(chainSpill(settled.chain)).toBeCloseTo(2, 9);
+    expect(chainChange(settled.chain)).toBe(Infinity);
+    // A change past the first second is left for the stretch to end at.
+    const later = chainSettled(refinery(18, 12), 1);
+    expect(later.after).toBe(0);
+    expect(chainChange(later.chain)).toBeCloseTo(50, 9);
+  });
+
+  it("splits where the side pile fills", () => {
+    const chain = refinery(18, 12, pile(300, 300), {
+      held: 900,
+      holds: 1_000,
+      drain: 2,
+    });
+    // 6 a second spills, 2 a second drains: full in 25 seconds.
+    expect(chainChange(chain)).toBeCloseTo(25, 9);
+    const after = flowChain(chain, 100);
+    expect(after.spilled).toBeCloseTo(6 * 25 + 2 * 75, 6);
+    expect(after.moved[0]).toBeCloseTo(18 * 25 + 14 * 75, 6);
+  });
+
+  it("a full pile over its room spills all it is brought", () => {
+    const after = flowChain(refinery(18, 12, pile(400, 300)), 5);
+    expect(after.spilled).toBeCloseTo(90, 6);
+    expect(after.piles[0]).toBeCloseTo(340, 6);
+  });
+
+  it("in whole goods, nothing is made or lost, and the pile stays within its room", () => {
+    const chains = [
+      refinery(18, 12),
+      refinery(18.7, 12.3, pile(299, 300)),
+      refinery(5.5, 12, pile(300, 300)),
+      refinery(18, 12, pile(300, 300), { held: 900, holds: 1_000, drain: 2 }),
+      refinery(17.9, 0, pile(0, 0)),
+    ];
+    for (const chain of chains) {
+      for (const seconds of [1, 7, 61.3, 3_600]) {
+        const whole = flowWhole(chain, seconds);
+        const [lift = 0, kilns = 0] = whole.moved;
+        const pileBefore = chain.piles[0]?.held ?? 0;
+        expect(lift + pileBefore).toBe(
+          kilns + (whole.piles[0] ?? 0) + whole.spilled,
+        );
+        expect(whole.spilled).toBeGreaterThanOrEqual(0);
+        expect(whole.piles[0]).toBeLessThanOrEqual(
+          Math.max(chain.piles[0]?.holds ?? 0, pileBefore),
+        );
+        expect(Number.isInteger(whole.spilled)).toBe(true);
+      }
+    }
+  });
+
+  it("in whole goods, spills nothing while the pile has room", () => {
+    const draining = flowWhole(refinery(0, 5.4, pile(100, 300)), 1);
+    expect(draining.spilled).toBe(0);
+    expect(draining.moved).toEqual([0, 5, 0]);
+    expect(draining.piles[0]).toBe(95);
+    for (let seconds = 1; seconds <= 30; seconds += 1) {
+      const filling = flowWhole(refinery(8.1, 5.4, pile(100, 300)), seconds);
+      expect(filling.spilled).toBe(0);
+    }
+  });
+
+  it("a chain with no spill spills nothing", () => {
+    expect(flowWhole(mine([9, 3, 6]), 10).spilled).toBe(0);
   });
 });

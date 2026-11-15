@@ -43,7 +43,7 @@ function mine(
     jobs: placed,
     stock: { ...start.stock, stones: pocket },
     fleet: { ...start.fleet, horseWagon: wagons },
-    piles: { face, shaft },
+    piles: { face, shaft, kiln: 0 },
   };
 }
 
@@ -91,7 +91,14 @@ describe("the fresh dad's first moves (#655)", () => {
       // Haulage is short, so drilled rock waits (#703).
       const short = placeOrder(
         mine(
-          { drilling: 6, haulage: 4, hoisting: 6, driving: 1, building: 2 },
+          {
+            drilling: 6,
+            haulage: 4,
+            hoisting: 6,
+            driving: 1,
+            building: 2,
+            kilns: 0,
+          },
           { free: 1, face: 300 },
         ),
       );
@@ -147,7 +154,7 @@ describe("one worker at the start, moved between the jobs (#703)", () => {
 
   it("places a hire where a pile waits, else on drilling", () => {
     fresh(() => {
-      const crewed = { drilling: 1, driving: 1, building: 1 };
+      const crewed = { drilling: 1, driving: 1, building: 1, kilns: 0 };
       const waits = placeOrder(
         mine(crewed, { free: 1, face: 300, shaft: 100 }),
       );
@@ -265,7 +272,14 @@ describe("raising the line (#655)", () => {
       // the line (15).
       const start = placeOrder(
         mine(
-          { drilling: 5, haulage: 5, hoisting: 5, driving: 2, building: 3 },
+          {
+            drilling: 5,
+            haulage: 5,
+            hoisting: 5,
+            driving: 2,
+            building: 3,
+            kilns: 0,
+          },
           { wagons: 2 },
         ),
       );
@@ -309,7 +323,14 @@ describe("the order's limit (#655)", () => {
     fresh(() => {
       // Wagon 9 a second against a line of 12, then of 18.
       const thin = placeOrder(
-        mine({ drilling: 4, haulage: 4, hoisting: 4, driving: 1, building: 2 }),
+        mine({
+          drilling: 4,
+          haulage: 4,
+          hoisting: 4,
+          driving: 1,
+          building: 2,
+          kilns: 0,
+        }),
       );
       expect(drainsTheMine(thin, line(thin))).toBe(true);
       const wide = placeOrder(mine({ ...STAGES, driving: 1, building: 2 }));
@@ -327,6 +348,7 @@ describe("on hold (#655)", () => {
     hoisting: 4,
     driving: 1,
     building: 2,
+    kilns: 0,
   };
 
   it("holds while a raise pays back sooner than the building takes, and the order drains the mine", () => {
@@ -363,6 +385,7 @@ describe("the mover (#655)", () => {
             hoisting: 4,
             driving: 1,
             building: 2,
+            kilns: 0,
           }),
         ),
       );
@@ -378,7 +401,14 @@ describe("the mover (#655)", () => {
   it("settles in a few moves on hold, never trading the hold back and forth", () => {
     fresh(() => {
       const start = placeOrder(
-        mine({ drilling: 4, haulage: 4, hoisting: 4, driving: 1, building: 2 }),
+        mine({
+          drilling: 4,
+          haulage: 4,
+          hoisting: 4,
+          driving: 1,
+          building: 2,
+          kilns: 0,
+        }),
       );
       const moves: string[] = [];
       const settled = playFresh(start, 0, MOVER, 1, (_, action) => {

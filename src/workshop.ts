@@ -419,7 +419,9 @@ export function recipePrice(id: RecipeId, k = 1): Price {
   return pricedGoods((good) =>
     good === "stones"
       ? scaledCount(recipe.stones, scale * k)
-      : scaledCount(recipe.materials[good] ?? 0, scale),
+      : good === "brick"
+        ? 0
+        : scaledCount(recipe.materials[good] ?? 0, scale),
   );
 }
 

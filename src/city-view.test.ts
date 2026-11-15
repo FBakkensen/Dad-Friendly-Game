@@ -22,7 +22,14 @@ const start = (): Mountain => {
   return {
     ...mountain,
     owned: { ...mountain.owned, helper: 9 },
-    jobs: { drilling: 2, haulage: 2, hoisting: 2, driving: 1, building: 2 },
+    jobs: {
+      drilling: 2,
+      haulage: 2,
+      hoisting: 2,
+      driving: 1,
+      building: 2,
+      kilns: 0,
+    },
   };
 };
 

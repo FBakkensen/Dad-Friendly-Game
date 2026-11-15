@@ -86,9 +86,10 @@ describe("one level, no depth (rule 1)", () => {
         hoisting: 0,
         driving: 0,
         building: 0,
+        kilns: 0,
       });
       expect(start.fleet.horseWagon).toBe(1);
-      expect(start.piles).toEqual({ face: 0, shaft: 0 });
+      expect(start.piles).toEqual({ face: 0, shaft: 0, kiln: 0 });
       for (const tier of TIERS) {
         if (tier.id !== "helper") {
           expect(start.owned[tier.id]).toBe(0);
@@ -113,7 +114,14 @@ describe("one level, no depth (rule 1)", () => {
     fresh(() => {
       const crew = {
         ...owning({ helper: 40, cart: 10, hoist: 10, drill: 10 }, 0),
-        jobs: { drilling: 6, haulage: 6, hoisting: 6, driving: 1, building: 2 },
+        jobs: {
+          drilling: 6,
+          haulage: 6,
+          hoisting: 6,
+          driving: 1,
+          building: 2,
+          kilns: 0,
+        },
       };
       const month = accrue({ mountain: crew, from: 0, to: 30 * DAY });
       expect(month.mined).toBeGreaterThan(MOUNTAIN_STONES);

@@ -25,6 +25,8 @@ const LEDGER = {
     "project",
     "jobs",
     "piles",
+    "makers",
+    "stockyard",
   ],
   owned: [
     "helper",
@@ -36,7 +38,7 @@ const LEDGER = {
     "machine",
     "kid",
   ],
-  stock: ["stones", "clay", "iron", "crystal", "heartstone"],
+  stock: ["stones", "clay", "iron", "crystal", "heartstone", "brick"],
   levels: {
     tap: 10,
     boots: 1,
@@ -123,7 +125,7 @@ const LEDGER = {
       "pebble",
       "ribbon",
     ],
-    operational: ["lightTower"],
+    operational: ["lightTower", "warehouse"],
   },
   run: {
     generation: 1000,
@@ -145,8 +147,9 @@ const LEDGER = {
   },
   fleet: ["horseWagon"],
   projectStates: ["delivering", "onHold"],
-  jobs: ["drilling", "haulage", "hoisting", "driving", "building"],
-  piles: ["face", "shaft"],
+  jobs: ["drilling", "haulage", "hoisting", "driving", "building", "kilns"],
+  piles: ["face", "shaft", "kiln"],
+  makers: ["kiln"],
   caps: {
     engineers: 5,
     engineerTrips: 1000000,
@@ -154,6 +157,7 @@ const LEDGER = {
     expeditionMs: 14400000,
     craftMs: 14400000,
     siteHolds: 500,
+    stockyard: 18,
   },
 };
 
@@ -178,6 +182,7 @@ describe("the ledger of what has shipped (#558)", () => {
       facts.projectStates,
       facts.jobs,
       facts.piles,
+      facts.makers,
       Object.keys(facts.tripFinds),
       ...Object.values(facts.tripFinds),
     ];
@@ -205,13 +210,17 @@ describe("rock dug in all, in the save (#664)", () => {
 
 describe("the mine's piles in the save (#703)", () => {
   it("round-trips the drilled rock and rock at the shaft", () => {
-    const mountain = { ...createMountain(), piles: { face: 120, shaft: 7 } };
+    const mountain = {
+      ...createMountain(),
+      piles: { face: 120, shaft: 7, kiln: 0 },
+    };
     const game = writeGame(mountain);
     expect(game.piles).toEqual({ face: 120, shaft: 7 });
     const read = readGame(JSON.parse(JSON.stringify(game)), 0);
     expect(read.kind === "ok" && read.mountain.piles).toEqual({
       face: 120,
       shaft: 7,
+      kiln: 0,
     });
   });
 
@@ -224,12 +233,53 @@ describe("the mine's piles in the save (#703)", () => {
     expect(read.kind === "ok" && read.mountain.piles).toEqual({
       face: 9000,
       shaft: 0,
+      kiln: 0,
     });
   });
 
   it("refuses a part-stone or a negative pile, and a pile it does not know is newer", () => {
     expect(readGame({ piles: { face: 1.5 } }, 0).kind).toBe("bad");
     expect(readGame({ piles: { shaft: -1 } }, 0).kind).toBe("bad");
-    expect(readGame({ piles: { kiln: 3 } }, 0).kind).toBe("newer");
+    expect(readGame({ piles: { hopper: 3 } }, 0).kind).toBe("newer");
+  });
+});
+
+describe("part 2's facts in the save (#666)", () => {
+  it("round-trips the kilns, the stockyard's level, brick, the kilns' job and their pile", () => {
+    const start = createMountain();
+    const mountain = {
+      ...start,
+      owned: { ...start.owned, helper: 3 },
+      stock: { ...start.stock, stones: 40, brick: 7 },
+      jobs: { ...start.jobs, kilns: 2 },
+      piles: { ...start.piles, kiln: 120 },
+      makers: { kiln: 3 },
+      stockyard: 2,
+    };
+    const game = writeGame(mountain);
+    expect(game.makers).toEqual({ kiln: 3 });
+    expect(game.stockyard).toBe(2);
+    expect(game.stock).toEqual({ stones: 40, brick: 7 });
+    const read = readGame(JSON.parse(JSON.stringify(game)), 0);
+    expect(read).toEqual({ kind: "ok", mountain });
+  });
+
+  it("saves neither while there are no kilns and the stockyard is at its first level", () => {
+    const game = writeGame(createMountain());
+    expect(game).not.toHaveProperty("makers");
+    expect(game).not.toHaveProperty("stockyard");
+  });
+
+  it("refuses a part-kiln or a negative level, and a maker it does not know is newer", () => {
+    expect(readGame({ makers: { kiln: 1.5 } }, 0).kind).toBe("bad");
+    expect(readGame({ stockyard: -1 }, 0).kind).toBe("bad");
+    expect(readGame({ stockyard: 1.5 }, 0).kind).toBe("bad");
+    expect(readGame({ stockyard: "2" }, 0).kind).toBe("bad");
+    expect(readGame({ makers: { saw: 1 } }, 0).kind).toBe("newer");
+  });
+
+  it("reads a stockyard past this build's last level as newer", () => {
+    expect(readGame({ stockyard: 18 }, 0).kind).toBe("ok");
+    expect(readGame({ stockyard: 19 }, 0).kind).toBe("newer");
   });
 });

@@ -180,7 +180,14 @@ describe("workshop sheet (#199)", () => {
 
   it("greys a short craft with the first missing material", () => {
     const poor = shed({
-      stock: { stones: 200_000, clay: 2, iron: 1, crystal: 0, heartstone: 0 },
+      stock: {
+        stones: 200_000,
+        clay: 2,
+        iron: 1,
+        crystal: 0,
+        heartstone: 0,
+        brick: 0,
+      },
     });
     expect(craftShortfall(poor, "iron-rails")).toEqual({
       missing: 3,
