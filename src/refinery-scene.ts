@@ -27,7 +27,7 @@ import {
  */
 
 /** The hopper's top and its mouth, and the chute's column, in art px. */
-export const HOPPER = { left: 22, right: 78, top: 18, mouth: 40 };
+const HOPPER = { left: 22, right: 78, top: 18, mouth: 40 };
 const CHUTE = { left: 132, right: 146 };
 /** Where the kiln stands: under the hopper's mouth. */
 const KILN = { x: 18, y: 44 };

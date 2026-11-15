@@ -30,7 +30,7 @@ import { NO_KILNS } from "./workforce-view";
 export const BYPASS_RECIPE = "1 rock → 1 stone";
 
 /** The key for one more kiln, in the mine keys' form. */
-export type KilnKey = {
+type KilnKey = {
   /** "+Kiln · 12/s". */
   readonly face: string;
   readonly price: string;
@@ -74,7 +74,7 @@ export type Bay = {
 };
 
 /** "Expand the stockyard", while a level is left. */
-export type ExpandKey = {
+type ExpandKey = {
   readonly price: string;
   readonly can: boolean;
   /** "Full after 26 min unattended.", read once a second by the site. */
@@ -227,7 +227,7 @@ export function nightForecast(mountain: Mountain, now: number): string {
 }
 
 /** The gives line without the forecast: the site adds it, once a second. */
-export const EXPAND_GIVES = `Expansion: capacity ×${String(ROOM_GROWTH)}.`;
+const EXPAND_GIVES = `Expansion: capacity ×${String(ROOM_GROWTH)}.`;
 
 function expandKey(mountain: Mountain): ExpandKey | undefined {
   if (mountain.stockyard >= MAX_STOCKYARD_LEVEL) {
