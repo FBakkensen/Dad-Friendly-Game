@@ -6,6 +6,7 @@ import {
   createSession,
   firstNotice,
   noticesOf,
+  markWelcomed,
   openBaselines,
   step,
   type Session,
@@ -92,6 +93,17 @@ describe("greeting a fresh mine's night (#663)", () => {
       expect(report?.night?.steps).toEqual([
         { building: "lightTower", step: 0, atMs: 21_000 },
       ]);
+    });
+  });
+
+  it("greets a night on a live return, after the open was welcomed", () => {
+    fresh(() => {
+      const open = markWelcomed({
+        ...playing(mine(3, 0, { kind: "unordered" })),
+        lastSeen: 0,
+      });
+      const back = step(open, { kind: "tick" }, 9 * 60 * MINUTE).session;
+      expect(firstNotice(back.news, "away")?.report.night).toBeDefined();
     });
   });
 

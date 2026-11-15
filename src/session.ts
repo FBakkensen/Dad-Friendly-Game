@@ -448,10 +448,13 @@ function anythingHappened(report: AwayReport, mined: number): boolean {
 
 /**
  * A reload or a quick app switch isn't "away": only greet after a real break.
- * A fresh mine's night is always the shift report, never the quiet note (#663).
+ * A fresh mine's night is always the shift report, never the quiet note
+ * (#663), and it is greeted on a live return too: a tab left open overnight
+ * (a locked phone, the app in the background) comes back to its report.
  */
 function welcome(session: Session, report: AwayReport, mined: number): Session {
-  if (session.news.welcomed || report.awayMs < WELCOME_MIN_AWAY_MS) {
+  const greeted = session.news.welcomed && report.night === undefined;
+  if (greeted || report.awayMs < WELCOME_MIN_AWAY_MS) {
     return session;
   }
   return {

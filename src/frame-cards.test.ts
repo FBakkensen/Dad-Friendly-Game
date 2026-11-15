@@ -75,7 +75,7 @@ function cardOf(root: HTMLElement) {
  * past it opens on a night.
  */
 function mount({ saved, at = 0 }: { saved?: Mountain; at?: number } = {}) {
-  const clock = at;
+  let clock = at;
   const storage = createMemoryStorage();
   if (saved !== undefined) {
     writeSessionSave({ storage, mountain: saved, lastSeen: 0 });
@@ -101,12 +101,18 @@ function mount({ saved, at = 0 }: { saved?: Mountain; at?: number } = {}) {
   const press = () => {
     card().key?.click();
   };
+  /** Time passes with the frame still open: the store settles it. */
+  const later = (ms: number) => {
+    clock += ms;
+    progress.tick();
+  };
   return {
     root,
     progress,
     screen,
     card,
     press,
+    later,
   };
 }
 
@@ -209,6 +215,21 @@ describe("the shift report", () => {
     press();
     expect(nightReport(progress.getSnapshot())).toBeUndefined();
     expect(card().shown).toBe(false);
+  });
+
+  it("greets a night in a frame left open, and closes the workforce", () => {
+    const { card, root, later } = mount({
+      saved: placeOrder(crew(NO_PROJECT)),
+      at: 1_000,
+    });
+    expect(card().shown).toBe(false);
+    root.querySelector<HTMLButtonElement>(".frame-workers")?.click();
+    const sheet = root.querySelector<HTMLElement>(".frame-sheet");
+    expect(sheet?.hidden).toBe(false);
+    later(9 * HOUR);
+    expect(card()).toMatchObject({ shown: true, kind: "report" });
+    expect(card().lines[0]).toBe("Unattended 9 h. Night shift output: 30%.");
+    expect(sheet?.hidden).toBe(true);
   });
 
   it("waits for a signed-in save, and closes the workforce when its night comes in", async () => {
