@@ -1266,7 +1266,7 @@ export function sliceRoofSave(now: number): StoredAsIs {
 
 /**
  * A grown first stretch: five carts and five drills, so Loading crews and
- * Haul roads are open in their stages' lists, thirty workers for Better
+ * Haul roads are open in their stages' lists, thirty workers for Work
  * boots in the workforce, and the stone for all three (#661).
  */
 export function sliceListSave(now: number): StoredAsIs {

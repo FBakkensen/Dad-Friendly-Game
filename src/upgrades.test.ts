@@ -137,7 +137,7 @@ describe("lasting upgrades: Work boots and Night foreman", () => {
     stock: { ...minedMountain(0).stock, stones: 20_000_000 },
   };
 
-  it("unlock from the crew: boots at 10 helpers, steady hands with a first cart", () => {
+  it("unlock from the crew: boots at 10 helpers, Night foreman with a first cart", () => {
     const boots = upgradeById("boots");
     const steady = upgradeById("steady");
     expect(
