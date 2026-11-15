@@ -516,6 +516,17 @@ describe("fieldEntry", () => {
     });
   });
 
+  it("maps part 2's kilns and stockyard levels (#667)", () => {
+    expect(fieldEntry({ kind: "makerBought", id: "kiln", count: 3 })).toEqual({
+      code: "maker.buy",
+      data: { id: "kiln", count: 3 },
+    });
+    expect(fieldEntry({ kind: "stockyardExpanded", level: 2 })).toEqual({
+      code: "stockyard.expand",
+      data: { count: 2 },
+    });
+  });
+
   it("maps a fresh mine's orders and wagons (#654)", () => {
     expect(
       fieldEntry({ kind: "vehicleBought", id: "horseWagon", count: 2 }),

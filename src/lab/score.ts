@@ -102,6 +102,10 @@ function actionId(action: Action): string {
       return action.kind;
     case "buyVehicle":
       return `buyVehicle:${action.id}`;
+    case "buyMaker":
+      return `buyMaker:${action.id}`;
+    case "expandStockyard":
+      return action.kind;
     case "placeWorker":
     case "freeWorker":
       return `${action.kind}:${action.job}`;

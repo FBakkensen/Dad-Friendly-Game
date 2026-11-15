@@ -40,6 +40,18 @@ import {
 } from "../city";
 import { freshMineOn } from "../line-switch";
 import {
+  MAKER_IDS,
+  buyMaker,
+  makerPrice,
+  makersOpen,
+  type MakerId,
+} from "../makers";
+import {
+  MAX_STOCKYARD_LEVEL,
+  expandStockyard,
+  stockyardOpen,
+} from "../stockyard";
+import {
   JOB_IDS,
   freeWorker,
   jobOpen,
@@ -163,7 +175,17 @@ export type Action =
   | { readonly kind: "craft"; readonly recipe: RecipeId }
   | { readonly kind: "cancelCraft" }
   | OrderAction
-  | WorkerAction;
+  | WorkerAction
+  | YardAction;
+
+/**
+ * Part 2's buys at the mine (slice 1, rules 3 and 4, #666, #667), only while
+ * open: a maker (a kiln), and one more stockyard level. Both are instant
+ * (rule 7.14).
+ */
+type YardAction =
+  | { readonly kind: "buyMaker"; readonly id: MakerId }
+  | { readonly kind: "expandStockyard" };
 
 /**
  * The workforce's moves (slice 1, rule 2.4, #689), only in a fresh mine:
@@ -241,7 +263,25 @@ export function listActions(
     ...troubleActions(trouble),
     ...orderActions(mountain),
     ...workerActions(mountain),
+    ...yardActions(mountain),
   ];
+}
+
+/** The kilns once they are open, and the next stockyard level until the last. */
+function yardActions(mountain: Mountain): readonly Action[] {
+  const makers: Action[] = makersOpen(mountain)
+    ? MAKER_IDS.map((id) => ({ kind: "buyMaker", id }))
+    : [];
+  return stockyardOpen(mountain) && mountain.stockyard < MAX_STOCKYARD_LEVEL
+    ? [...makers, { kind: "expandStockyard" }]
+    : makers;
+}
+
+/** A part 2 buy applied; the rules refuse one that is closed or short. */
+function yardApplied(mountain: Mountain, action: YardAction): Mountain {
+  return action.kind === "buyMaker"
+    ? buyMaker(mountain, action.id)
+    : expandStockyard(mountain);
 }
 
 /**
@@ -574,6 +614,12 @@ export type MoveEvent =
       readonly building: BuildingId;
     }
   | {
+      readonly kind: "makerBought";
+      readonly id: MakerId;
+      readonly count: number;
+    }
+  | { readonly kind: "stockyardExpanded"; readonly level: number }
+  | {
       readonly kind: "workerPlaced" | "workerFreed";
       readonly job: JobId;
       /** Workers on the job after the move. */
@@ -704,6 +750,9 @@ function actionApplied(
     case "placeWorker":
     case "freeWorker":
       return workerApplied(mountain, action);
+    case "buyMaker":
+    case "expandStockyard":
+      return yardApplied(mountain, action);
     /* v8 ignore next 3 -- exhaustiveness guard, unreachable */
     default: {
       const unexpected: never = action;
@@ -852,6 +901,12 @@ function actionEvents(
           count: next.jobs[action.job],
         },
       ];
+    case "buyMaker":
+      return [
+        { kind: "makerBought", id: action.id, count: next.makers[action.id] },
+      ];
+    case "expandStockyard":
+      return [{ kind: "stockyardExpanded", level: next.stockyard }];
     /* v8 ignore next 3 -- exhaustiveness guard, unreachable */
     default: {
       const unexpected: never = action;
@@ -968,6 +1023,15 @@ export function valueOf(
         cost: priceAmount(vehiclePrice(mountain, action.id), "stones"),
         paybackSec: Infinity,
       };
+    case "buyMaker":
+      // A maker raises no stone income: the lab learns what brick is worth (#667).
+      return {
+        gainPerSec: 0,
+        cost: priceAmount(makerPrice(mountain, action.id), "stones"),
+        paybackSec: Infinity,
+      };
+    case "expandStockyard":
+      return { gainPerSec: 0, cost: 0, paybackSec: Infinity };
     case "placeWorker":
     case "freeWorker":
       // Free and instant: worth what the line gains (a driver adds none).

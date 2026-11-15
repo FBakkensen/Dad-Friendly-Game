@@ -2,10 +2,12 @@ import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { withFactors } from "./economy/factors";
 import { FRESH_OFF } from "./line-switch";
+import { placeOrder } from "./city";
 import { createMountain, type Mountain } from "./mountain";
 import { PART_TWO_OFF } from "./part-switch";
 import { priceAmount } from "./stock";
 import {
+  deadStockpiles,
   expandPrice,
   expandStockyard,
   MAX_STOCKYARD_LEVEL,
@@ -36,15 +38,15 @@ describe("the stockyard (#666)", () => {
     });
   });
 
-  it("holds 3M stone and 500K brick at level 0, three times as much a level, twice with the Warehouse", () => {
+  it("holds 6M stone and 1M brick at level 0, three times as much a level, twice with the Warehouse", () => {
     partTwo(() => {
       const first = yard(0, ["lightTower"]);
-      expect(stockpileRoom(first, "stones")).toBe(3_000_000);
-      expect(stockpileRoom(first, "brick")).toBe(500_000);
-      expect(stockpileRoom(yard(2, ["lightTower"]), "brick")).toBe(4_500_000);
+      expect(stockpileRoom(first, "stones")).toBe(6_000_000);
+      expect(stockpileRoom(first, "brick")).toBe(1_000_000);
+      expect(stockpileRoom(yard(2, ["lightTower"]), "brick")).toBe(9_000_000);
       const stored = yard(1, ["lightTower", "warehouse"]);
-      expect(stockpileRoom(stored, "stones")).toBe(18_000_000);
-      expect(stockpileRoom(stored, "brick")).toBe(3_000_000);
+      expect(stockpileRoom(stored, "stones")).toBe(36_000_000);
+      expect(stockpileRoom(stored, "brick")).toBe(6_000_000);
       // A good with no stockpile in part 2 has no limit.
       expect(stockpileRoom(first, "clay")).toBe(Infinity);
     });
@@ -103,13 +105,44 @@ describe("the stockyard (#666)", () => {
   it("says when a price does not fit its stockpile, and when one is full", () => {
     partTwo(() => {
       const first = yard(0, ["lightTower"]);
-      expect(priceFits(first, [{ good: "brick", amount: 500_000 }])).toBe(true);
-      expect(priceFits(first, [{ good: "brick", amount: 500_001 }])).toBe(
+      expect(priceFits(first, [{ good: "brick", amount: 1_000_000 }])).toBe(
+        true,
+      );
+      expect(priceFits(first, [{ good: "brick", amount: 1_000_001 }])).toBe(
         false,
       );
-      const full = { ...first, stock: { ...first.stock, stones: 3_000_000 } };
+      const full = { ...first, stock: { ...first.stock, stones: 6_000_000 } };
       expect(stockpileFull(full, "stones")).toBe(true);
       expect(stockpileFull(full, "brick")).toBe(false);
+    });
+  });
+});
+
+describe("a dead stockpile (#667)", () => {
+  it("is full while no order takes its good, or the step in hand requires none of it", () => {
+    partTwo(() => {
+      const lit = yard(0, ["lightTower"]);
+      const full: Mountain = {
+        ...lit,
+        stock: { ...lit.stock, stones: stockpileRoom(lit, "stones") },
+      };
+      expect(deadStockpiles(lit)).toEqual([]);
+      expect(deadStockpiles(full)).toEqual(["stones"]);
+      // The Warehouse's foundation takes stone.
+      const ordered = placeOrder(full);
+      expect(deadStockpiles(ordered)).toEqual([]);
+      if (ordered.project.kind !== "delivering") {
+        throw new Error("delivering");
+      }
+      // Its roof is brick only.
+      const roof: Mountain = {
+        ...ordered,
+        project: {
+          ...ordered.project,
+          site: { ...ordered.project.site, step: 2 },
+        },
+      };
+      expect(deadStockpiles(roof)).toEqual(["stones"]);
     });
   });
 });

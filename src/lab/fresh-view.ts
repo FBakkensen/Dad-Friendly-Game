@@ -4,6 +4,7 @@ import { freshMineOn } from "../line-switch";
 import { STAGES } from "../line";
 import type { Mountain } from "../mountain";
 import { effectiveRates } from "../rates";
+import { deadStockpiles, stockyardOpen } from "../stockyard";
 import { TIERS, tierInPlay } from "../tiers";
 import { fleetSize, orderLimit, vehiclePrice, VEHICLE_IDS } from "../transport";
 import {
@@ -15,7 +16,7 @@ import {
   type Jobs,
 } from "../workforce";
 import { sticker } from "./decide";
-import { drainsTheMine, hirePrice, siteIdle } from "./fresh-dad";
+import { drainsTheMine, goodsIncome, hirePrice, siteIdle } from "./fresh-dad";
 import { AMOUNT_KEY_TEN, FRESH_DUST } from "./targets";
 
 /**
@@ -34,6 +35,10 @@ export type FreshView = {
   readonly idleWorkers: number;
   /** Share of his machines that stand because their workers' tools move more. NaN with none. */
   readonly idleMachines: number;
+  /** The stockyard is open (part 2, #667): its stockpiles have a room. */
+  readonly yardOpen: boolean;
+  /** A stockpile is full and no order delivering takes its good (`deadGood`, #667). */
+  readonly deadGood: boolean;
 };
 
 /** The view now, or undefined outside a fresh mine. */
@@ -44,7 +49,7 @@ export function freshView(mountain: Mountain): FreshView | undefined {
   const rates = effectiveRates(mountain);
   const line = rates.exactCrewPerSecond;
   const project = mountain.project;
-  const limit = orderLimit(mountain, line);
+  const limit = orderLimit(mountain, goodsIncome(mountain));
   return {
     limit:
       limit.kind === "delivering"
@@ -56,11 +61,22 @@ export function freshView(mountain: Mountain): FreshView | undefined {
       project.kind !== "unordered" && onSiteTotal(project.site) >= SITE_HOLDS,
     starved:
       project.kind === "delivering" &&
-      drainsTheMine(mountain, line) &&
+      drainsTheMine(mountain) &&
       mountain.stock.stones < cheapestBuy(mountain),
     idleWorkers: idleWorkerShare(mountain, rates.tierSpeed, line),
     idleMachines: idleMachineShare(mountain, rates.tierSpeed),
+    yardOpen: stockyardOpen(mountain),
+    deadGood: deadGood(mountain),
   };
+}
+
+/**
+ * A stockpile holds its room while nothing takes its good: no order
+ * delivers, or the step in hand requires none of it (#667). What he could
+ * buy with it is his call; the lab asks only whether the yard sits full.
+ */
+function deadGood(mountain: Mountain): boolean {
+  return deadStockpiles(mountain).length > 0;
 }
 
 /** The cheapest thing he can buy: a worker, a machine of the line, or a vehicle. */

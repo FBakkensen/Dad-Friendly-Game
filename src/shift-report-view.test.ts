@@ -17,6 +17,7 @@ const MINUTE = 60 * 1000;
 const NIGHT: NightReport = {
   producedMs: 8 * HOUR,
   stop: "clock",
+  deadMs: 0,
   delivered: { ...EMPTY_STOCK, stones: 9_720 },
   steps: [],
   payFrom: 0.3,

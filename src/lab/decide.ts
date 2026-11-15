@@ -38,6 +38,7 @@ import {
 } from "./targets";
 import { canPay as stockCovers, priceAmount } from "../stock";
 import { vehiclePrice } from "../transport";
+import { makerPrice } from "../makers";
 
 /**
  * The purchase this dad wants most, or nothing if every legal spend is
@@ -271,6 +272,11 @@ export function sticker(mountain: Mountain, action: Action): number {
       );
     case "buyVehicle":
       return priceAmount(vehiclePrice(mountain, action.id), "stones");
+    case "buyMaker":
+      return priceAmount(makerPrice(mountain, action.id), "stones");
+    case "expandStockyard":
+      // Brick, not stone: the fresh dad prices it good by good (#667).
+      return 0;
     case "station":
     case "send":
     case "recall":
@@ -347,6 +353,8 @@ function spendKey(
     case "holdOrder":
     case "resumeOrder":
     case "buyVehicle":
+    case "buyMaker":
+    case "expandStockyard":
     case "placeWorker":
     case "freeWorker":
       return undefined;

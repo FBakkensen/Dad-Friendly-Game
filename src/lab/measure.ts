@@ -4,6 +4,7 @@ import type { LineView } from "../line";
 import type { Crafted, RecipeId } from "../workshop";
 import type { BandEvent } from "./bands";
 import type { FreshView } from "./fresh-view";
+import type { NightRecord } from "./nights";
 import type { RevealEvent } from "./reveal";
 import type { SittingEvent } from "./sittings";
 
@@ -81,6 +82,8 @@ export type DecisionSample = {
   readonly reveals?: readonly RevealEvent[];
   /** Machine sales and purchases per band since the previous sample (#249). */
   readonly bands?: readonly BandEvent[];
+  /** Long nights with the stockyard open that ended since the previous sample (#667). */
+  readonly nights?: readonly NightRecord[];
   /** Sittings that closed since the previous sample (balance review). */
   readonly sittings?: readonly SittingEvent[];
   /** Day the mountain emptied, when the run finished. Same on every sample. */
@@ -139,6 +142,8 @@ const MOVE_KIND_ORDER = {
   craft: true,
   cancelCraft: true,
   buyVehicle: true,
+  buyMaker: true,
+  expandStockyard: true,
   placeWorker: true,
   freeWorker: true,
   placeOrder: true,
