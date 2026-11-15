@@ -4,7 +4,6 @@ import { FRESH_OFF } from "./line-switch";
 import {
   buyMaker,
   kilnRate,
-  kilnTake,
   makerPrice,
   makerTakes,
   makersOpen,
@@ -98,15 +97,13 @@ describe("the kilns' recipe (#723)", () => {
 
   it("takes two rock for one brick", () => {
     expect(makerTakes("kiln")).toBe(2);
-    // Two running kilns make 24 brick a second of 48 rock.
+    // Two running kilns make 24 brick a second, of 48 rock (the chain's take).
     expect(kilnRate(two())).toBe(24);
-    expect(kilnTake(two())).toBe(48);
   });
 
   it("is a lever the lab can sweep, in whole rock and never under one", () => {
     withFactors({ "recipe.kiln": 1.5 }, () => {
       expect(makerTakes("kiln")).toBe(3);
-      expect(kilnTake(two())).toBe(72);
     });
     withFactors({ "recipe.kiln": 0.5 }, () => {
       expect(makerTakes("kiln")).toBe(1);

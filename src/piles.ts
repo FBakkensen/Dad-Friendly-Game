@@ -327,6 +327,21 @@ export function flowChain(chain: Chain, seconds: number): ChainFlow {
 }
 
 /**
+ * What more a side pile takes in whole goods than the `floored` exact spill
+ * (#723): any while something drains it, as a drained stockpile's part-good
+ * is taken on; with no drain, only its room left, and none over its room.
+ */
+function sideRoom(spill: Spill, floored: number): number {
+  if (spill.held > spill.holds) {
+    return 0;
+  }
+  if (spill.drain > 0) {
+    return Infinity;
+  }
+  return Math.max(0, Math.floor(spill.holds - spill.held + EDGE) - floored);
+}
+
+/**
  * The chain over `seconds` in whole goods (ruling 4): each stage's total is
  * floored, and each pile and the source are recomputed from those totals, so
  * nothing is made or lost. A part-good a call is dropped.
@@ -338,21 +353,29 @@ export function flowWhole(chain: Chain, seconds: number): ChainFlow {
     (pile, index) =>
       pile.held + (totals[index] ?? 0) - taken(chain, totals, index + 1),
   );
-  const from = chain.spill?.from;
   // What spilled, in whole goods: the exact spill floored, and more only if
   // the pile would end above its room (or above what it held, when it was
-  // over it), never more than the pile holds. So nothing is lost, and
-  // nothing spills from a pile that still has room.
+  // over it) and the side pile takes it, never more than the pile holds. So
+  // nothing is lost, nothing spills from a pile that still has room, and a
+  // full side pile that nothing drains never grows. What it cannot take
+  // waits in the pile, over its room by less than one take (#723): a stage
+  // with a recipe leaves the rock of a part-good there, and the full pile
+  // holds the stage before it until that rock is taken.
   let spilled = 0;
-  if (from !== undefined) {
-    const pile = chain.piles[from];
+  const spill = chain.spill;
+  if (spill !== undefined) {
+    const pile = chain.piles[spill.from];
     const top = Math.max(pile?.holds ?? 0, pile?.held ?? 0);
-    const whole = piles[from] ?? 0;
+    const whole = piles[spill.from] ?? 0;
+    const floored = Math.floor(exact.spilled + EDGE);
     spilled = Math.min(
       Math.max(0, whole),
-      Math.max(Math.floor(exact.spilled + EDGE), whole - top),
+      Math.max(
+        floored,
+        Math.min(whole - top, floored + sideRoom(spill, floored)),
+      ),
     );
-    piles[from] = whole - spilled;
+    piles[spill.from] = whole - spilled;
   }
   return {
     moved: totals,

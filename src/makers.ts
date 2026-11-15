@@ -123,8 +123,3 @@ export function runningKilns(
 export function kilnRate(mountain: Pick<Mountain, "makers" | "jobs">): number {
   return runningKilns(mountain) * makerById("kiln").makes;
 }
-
-/** Rock a second the running kilns take at full output: their brick by the recipe (#723). */
-export function kilnTake(mountain: Pick<Mountain, "makers" | "jobs">): number {
-  return kilnRate(mountain) * makerTakes("kiln");
-}

@@ -1,3 +1,4 @@
+import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import {
   chainChange,
@@ -341,6 +342,79 @@ describe("a stage with a recipe (#723)", () => {
       5,
     );
     expect(chainFlows(chain)).toEqual([13, 5, 5]);
+  });
+
+  it("in whole goods, a full side pile takes no part-brick's rock: it waits in the pile", () => {
+    // The brick stockpile is full and drained at 4.05 a second, so the kilns
+    // make 4.05 brick of 8.1 rock and hoisting brings those 8.1. Over 13
+    // seconds that is 105 rock and 52 brick in whole goods: one rock is left
+    // of the part-brick. The stone stockpile is full and nothing drains it,
+    // so the rock stays in the kilns' pile, over its room, and the next
+    // stretch brings nothing up until the kilns take it down.
+    const chain = kilnsAtTwo(
+      30,
+      12,
+      pile(300, 300),
+      { held: 1_000, holds: 1_000, drain: 0 },
+      pile(500, 500),
+      4.05,
+    );
+    const whole = flowWhole(chain, 13);
+    expect(whole.moved).toEqual([105, 52, 52]);
+    expect(whole.spilled).toBe(0);
+    expect(whole.piles[0]).toBe(301);
+    const next: Chain = {
+      ...chain,
+      piles: [pile(301, 300), pile(500, 500)],
+    };
+    expect(chainFlows(next)[0]).toBe(0);
+  });
+
+  it("in whole goods, nothing is lost and a full side pile never grows, at any rates", () => {
+    fc.assert(
+      fc.property(
+        fc.double({ min: 0, max: 40, noNaN: true }),
+        fc.double({ min: 0, max: 20, noNaN: true }),
+        fc.double({ min: 0, max: 20, noNaN: true }),
+        fc.oneof(fc.constant(300), fc.integer({ min: 0, max: 300 })),
+        fc.integer({ min: 0, max: 2 }),
+        fc.double({ min: 0, max: 5, noNaN: true }),
+        fc.double({ min: 0.1, max: 600, noNaN: true }),
+        (lift, kilns, take, held, sideState, drain, seconds) => {
+          const side = [
+            { held: 0, holds: Infinity, drain: 0 },
+            { held: 1_000, holds: 1_000, drain },
+            { held: 1_200, holds: 1_000, drain: 0 },
+          ][sideState] ?? { held: 0, holds: Infinity, drain: 0 };
+          const chain = kilnsAtTwo(
+            lift,
+            kilns,
+            pile(held, 300),
+            side,
+            pile(500, 500),
+            take,
+          );
+          const exact = flowChain(chain, seconds);
+          const whole = flowWhole(chain, seconds);
+          const [up = 0, brick = 0] = whole.moved;
+          const after = whole.piles[0] ?? 0;
+          expect(up + held).toBe(2 * brick + after + whole.spilled);
+          expect(after).toBeGreaterThanOrEqual(0);
+          // A part-brick's rock may wait over the room: less than one recipe.
+          expect(after).toBeLessThan(Math.max(300, held) + 2);
+          // A full side pile that nothing drains takes no more than it is sent.
+          if (
+            side.held > side.holds ||
+            (side.held >= side.holds && drain === 0)
+          ) {
+            expect(whole.spilled).toBeLessThanOrEqual(
+              Math.floor(exact.spilled + 1e-9),
+            );
+          }
+        },
+      ),
+      { numRuns: 300 },
+    );
   });
 
   it("in whole goods, the rock that leaves its pile is the brick made times two", () => {
