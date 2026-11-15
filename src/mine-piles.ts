@@ -128,11 +128,16 @@ export function chainIncome(chain: Chain): Partial<Stock> {
   };
 }
 
-/** Whether any stage moves rock or makes brick now: it has something in front of it and room after it. */
-export function mineMoves(mountain: Mountain): boolean {
-  return chainFlows(mineChain(mountain, 1, true))
+/** Whether any stage of a mine's chain moves rock or makes brick now (transport's take aside). */
+export function chainMakes(chain: Chain): boolean {
+  return chainFlows(chain)
     .slice(0, MAKING)
     .some((flow) => flow > 0);
+}
+
+/** Whether any stage moves rock or makes brick now: it has something in front of it and room after it. */
+export function mineMoves(mountain: Mountain): boolean {
+  return chainMakes(mineChain(mountain, 1, true));
 }
 
 /** Seconds until a stage's flow changes (a pile fills or empties), or Infinity. */

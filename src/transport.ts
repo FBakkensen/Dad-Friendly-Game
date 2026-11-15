@@ -221,6 +221,62 @@ export function stockDraw(mountain: Mountain, share: number): Partial<Stock> {
   return draw;
 }
 
+/**
+ * Seconds until what transport takes from the stockpiles changes, at `share`
+ * of its rate and `income` a second of each good (#666): a good's need is
+ * met or its stockpile runs dry, a good the stockyard lacked comes in, or
+ * the site fills. Infinity when nothing changes. The mine's stretches split
+ * here, so `stockDraw` holds for the whole of each.
+ */
+export function drawChange(
+  mountain: Mountain,
+  share: number,
+  income: Partial<Stock>,
+): number {
+  const project = mountain.project;
+  if (project.kind !== "delivering") {
+    return Infinity;
+  }
+  const draw = stockDraw(mountain, share);
+  const need = stillRequired(project.site);
+  let soonest = Infinity;
+  for (const good of GOOD_IDS) {
+    soonest = Math.min(
+      soonest,
+      goodChange(
+        need[good],
+        mountain.stock[good],
+        draw[good] ?? 0,
+        income[good] ?? 0,
+      ),
+    );
+  }
+  const carry = fleetRate(mountain) * share;
+  const build = buildRate(mountain) * share;
+  const held = onSiteTotal(project.site);
+  if (held < SITE_HOLDS && carry > build) {
+    soonest = Math.min(soonest, (SITE_HOLDS - held) / (carry - build));
+  }
+  return soonest;
+}
+
+/** When one good's draw changes: its need met, its stock run dry, or its first stock in. */
+function goodChange(
+  need: number,
+  stock: number,
+  draw: number,
+  income: number,
+): number {
+  if (need <= 0) {
+    return Infinity;
+  }
+  if (draw > 0) {
+    const dry = income < draw ? stock / (draw - income) : Infinity;
+    return Math.min(need / draw, dry);
+  }
+  return stock <= 0 && income > 0 ? 1 : Infinity;
+}
+
 /** What holds an order back, for the lab (rule 7.11: the page names none). */
 export type OrderLimit =
   | { readonly kind: "unordered" }

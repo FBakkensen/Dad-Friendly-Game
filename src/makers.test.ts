@@ -106,3 +106,30 @@ describe("the kilns' job in the moves (#666)", () => {
     });
   });
 });
+
+describe("the kilns' job and price under the lab (#666)", () => {
+  it("refuses a worker onto the kilns before they open", async () => {
+    const { applyAction } = await import("./economy/actions");
+    const start = createMountain();
+    const spare = (operational: Mountain["operational"]): Mountain => ({
+      ...start,
+      owned: { ...start.owned, helper: start.owned.helper + 1 },
+      operational,
+    });
+    const place = { kind: "placeWorker", job: "kilns", count: 1 } as const;
+    partTwo(() => {
+      const dark = spare([]);
+      expect(applyAction(dark, place, 0)).toBe(dark);
+      expect(applyAction(spare(["lightTower"]), place, 0).jobs.kilns).toBe(1);
+    });
+  });
+
+  it("moves with a sweep of the machines' growth and the kiln's price", () => {
+    const owned = { makers: { kiln: 1 } };
+    withFactors({ "growth.machine": 2, "price.kiln": 0.5 }, () => {
+      expect(makerPrice(owned, "kiln")).toEqual([
+        { good: "stones", amount: Math.ceil(7_500 * 1.219 * 2) },
+      ]);
+    });
+  });
+});

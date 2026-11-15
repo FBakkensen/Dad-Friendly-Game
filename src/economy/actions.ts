@@ -269,9 +269,13 @@ function workerApplied(mountain: Mountain, action: WorkerAction): Mountain {
   if (!freshMineOn()) {
     return mountain;
   }
-  return action.kind === "placeWorker"
+  if (action.kind === "freeWorker") {
+    return freeWorker(mountain, action.job, action.count);
+  }
+  // A job that is not open takes no worker (the kilns before part 2's Light Tower, #666).
+  return jobOpen(mountain, action.job)
     ? placeWorker(mountain, action.job, action.count)
-    : freeWorker(mountain, action.job, action.count);
+    : mountain;
 }
 
 /** A fresh mine's vehicles, then the one order move that fits the project. */

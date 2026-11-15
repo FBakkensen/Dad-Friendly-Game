@@ -28,12 +28,19 @@ import {
 } from "./city";
 import { NO_JOBS, workersOnJobs, type Jobs } from "./workforce";
 import { makerRecord, type MakerId } from "./makers";
-import { chainChange, chainFlows } from "./piles";
-import { chainIncome, flowMine, mineChain, type MinePiles } from "./mine-piles";
+import { chainChange } from "./piles";
+import {
+  chainIncome,
+  chainMakes,
+  flowMine,
+  mineChain,
+  type MinePiles,
+} from "./mine-piles";
 import { stockpileFull, stockyardOpen } from "./stockyard";
 import type { GoodId } from "./stock";
 import {
   deliver,
+  drawChange,
   givenFleet,
   secondsToStep,
   vehicleRecord,
@@ -315,6 +322,13 @@ export function accrue({
   // A craft that finished before this window is on the crew for the whole of it.
   // One that finishes during the window is fitted at the end, once.
   const ready = settleBench(mountain, from);
+  if (freshMineOn() && stockyardOpen(ready)) {
+    const worked = accrueStretches(ready, from, to, pay);
+    const fitted = settleBench(worked.mountain, to);
+    return fitted === worked.mountain
+      ? worked
+      : { ...worked, mountain: fitted };
+  }
   const crew = freshMineOn()
     ? accrueMine(ready, from, to, pay)
     : accrueCrew({
@@ -329,6 +343,29 @@ export function accrue({
   const worked = freshMineOn() ? withDelivery(rushed, from, to, pay) : rushed;
   const fitted = settleBench(worked.mountain, to);
   return fitted === worked.mountain ? worked : { ...worked, mountain: fitted };
+}
+
+/**
+ * A fresh mine's work with the stockyard open (part 2, #666): the mine,
+ * transport and the builders in stretches, as a night runs, so a full
+ * stockpile takes no more than transport empties from it.
+ */
+function accrueStretches(
+  mountain: Mountain,
+  from: number,
+  to: number,
+  pay: number,
+): Accrual {
+  let state = mountain;
+  let cursor = from;
+  let mined = 0;
+  while (to - cursor >= 1000) {
+    const part = workStretch(state, { from: cursor, end: to }, pay, true);
+    state = part.mountain;
+    mined += part.mined;
+    cursor = Math.max(part.settledAt, cursor + 1000);
+  }
+  return { mountain: state, mined, settledAt: cursor };
 }
 
 /**
@@ -369,7 +406,7 @@ function accrueMine(
   to: number,
   pay: number,
 ): Accrual {
-  if (chainFlows(mineChain(mountain, pay, true)).every((flow) => flow <= 0)) {
+  if (!chainMakes(mineChain(mountain, pay, true))) {
     return { mountain, mined: 0, settledAt: to };
   }
   const seconds = Math.floor((to - from) / 1000);
@@ -632,12 +669,36 @@ function nightStretch(
   end: number,
   drilling: boolean,
 ): Stretch {
-  const pay = effectiveRates(mountain).awayPay;
+  return workStretch(
+    mountain,
+    { from, end },
+    effectiveRates(mountain).awayPay,
+    drilling,
+  );
+}
+
+/**
+ * One stretch of a fresh mine's work at `pay` of its rates, live or
+ * unattended: up to `end`, the second the step in hand is built in, the
+ * second a pile fills or empties, and, with the stockyard open, the second
+ * what transport takes from a stockpile changes (#666), so a full stockpile
+ * is topped up by no more than transport took.
+ */
+function workStretch(
+  mountain: Mountain,
+  { from, end }: { readonly from: number; readonly end: number },
+  pay: number,
+  drilling: boolean,
+): Stretch {
   const chain = mineChain(mountain, pay, drilling);
+  const income = chainIncome(chain);
   const to = Math.min(
     end,
-    secondMark(from, secondsToStep(mountain, pay, chainIncome(chain))),
+    secondMark(from, secondsToStep(mountain, pay, income)),
     secondMark(from, chainChange(chain)),
+    stockyardOpen(mountain)
+      ? secondMark(from, drawChange(mountain, pay, income))
+      : Infinity,
   );
   const seconds = Math.floor((to - from) / 1000);
   const mine = flowMine(mountain, seconds, pay, drilling);

@@ -246,6 +246,17 @@ describe("a pile that spills to a side pile (#666)", () => {
     }
   });
 
+  it("in whole goods, spills nothing while the pile has room", () => {
+    const draining = flowWhole(refinery(0, 5.4, pile(100, 300)), 1);
+    expect(draining.spilled).toBe(0);
+    expect(draining.moved).toEqual([0, 5, 0]);
+    expect(draining.piles[0]).toBe(95);
+    for (let seconds = 1; seconds <= 30; seconds += 1) {
+      const filling = flowWhole(refinery(8.1, 5.4, pile(100, 300)), seconds);
+      expect(filling.spilled).toBe(0);
+    }
+  });
+
   it("a chain with no spill spills nothing", () => {
     expect(flowWhole(mine([9, 3, 6]), 10).spilled).toBe(0);
   });

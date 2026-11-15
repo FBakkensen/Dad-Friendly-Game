@@ -290,13 +290,20 @@ export function flowWhole(chain: Chain, seconds: number): ChainFlow {
       pile.held + (totals[index] ?? 0) - (totals[index + 1] ?? 0),
   );
   const from = chain.spill?.from;
-  // What spilled, in whole goods: what the pile would hold above its exact
-  // whole level, so the pile keeps within its room and nothing is lost.
+  // What spilled, in whole goods: the exact spill floored, and more only if
+  // the pile would end above its room (or above what it held, when it was
+  // over it), never more than the pile holds. So nothing is lost, and
+  // nothing spills from a pile that still has room.
   let spilled = 0;
   if (from !== undefined) {
-    const kept = Math.floor((exact.piles[from] ?? 0) + EDGE);
-    spilled = Math.max(0, (piles[from] ?? 0) - kept);
-    piles[from] = (piles[from] ?? 0) - spilled;
+    const pile = chain.piles[from];
+    const top = Math.max(pile?.holds ?? 0, pile?.held ?? 0);
+    const whole = piles[from] ?? 0;
+    spilled = Math.min(
+      Math.max(0, whole),
+      Math.max(Math.floor(exact.spilled + EDGE), whole - top),
+    );
+    piles[from] = whole - spilled;
   }
   return {
     moved: totals,

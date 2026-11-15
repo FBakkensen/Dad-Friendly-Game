@@ -313,6 +313,77 @@ describe("the night runs until the stockyard is full (#666)", () => {
   });
 });
 
+describe("a full stockpile with an order in hand (#666)", () => {
+  /** The Warehouse's foundation with `stones` of its stone arrived, one wagon and two builders. */
+  function ordered(setup: Setup, stones: number): Mountain {
+    return works({
+      driving: 1,
+      building: 2,
+      ...setup,
+      project: {
+        kind: "delivering",
+        site: {
+          building: "warehouse",
+          step: 0,
+          arrived: { ...EMPTY_STOCK, stones },
+          onSite: EMPTY_STOCK,
+        },
+      },
+    });
+  }
+
+  it("stops topping up the stone once the step needs no more stone", () => {
+    partTwo(() => {
+      // 1,000 stone still to bring, then brick only: the stone stockpile stays full.
+      const start = ordered(
+        { kilns: 1, kilnPile: 300, stock: { stones: 3_000_000, brick: 1_000 } },
+        7_999_000,
+      );
+      const away = night(start, 10 * HOUR);
+      expect(away.mountain.stock.stones).toBeLessThanOrEqual(3_000_000 + 20);
+      const day = live(start, 3 * 3_600);
+      expect(day.mountain.stock.stones).toBeLessThanOrEqual(3_000_000 + 20);
+    });
+  });
+
+  it("never fills a stockpile far past its room, whatever transport takes", () => {
+    partTwo(() => {
+      fc.assert(
+        fc.property(
+          fc.nat(2),
+          fc.integer({ min: 2_990_000, max: 3_000_000 }),
+          fc.nat(600_000),
+          fc.nat(8_000_000),
+          fc.integer({ min: 1, max: 6 }),
+          fc.boolean(),
+          (kilns, stones, brick, arrived, hours, away) => {
+            const start = ordered(
+              {
+                kilns,
+                kilnPile: kilns > 0 ? 300 : 0,
+                stock: { stones, brick },
+              },
+              arrived,
+            );
+            const after = away
+              ? night(start, hours * HOUR).mountain
+              : live(start, hours * 3_600).mountain;
+            for (const good of ["stones", "brick"] as const) {
+              const top = Math.max(
+                start.stock[good],
+                stockpileRoom(start, good),
+              );
+              // At most a second of the line's work over, from a stretch's last part-second.
+              expect(after.stock[good]).toBeLessThanOrEqual(top + 20);
+            }
+          },
+        ),
+        { numRuns: 40 },
+      );
+    });
+  });
+});
+
 describe("the Warehouse (#666)", () => {
   it("is the next building after the Light Tower in part 2, and none in part 1", () => {
     partTwo(() => {

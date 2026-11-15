@@ -1,6 +1,8 @@
+import { factor } from "./economy/factors";
 import type { Mountain } from "./mountain";
 import { partTwoOn } from "./part-switch";
 import { pay, type GoodId, type Price } from "./stock";
+import { LINE_MACHINE_COST_GROWTH } from "./tiers";
 
 /**
  * Makers (slice 1, rule 3, #666): a maker takes one level's rock and makes a
@@ -32,7 +34,8 @@ const MAKER_ROWS = [
     name: "Kiln",
     good: "stones",
     firstCost: 15_000,
-    growth: 1.219,
+    // Machines' growth: a maker is bought like a machine (rule 3).
+    growth: LINE_MACHINE_COST_GROWTH,
     makes: 12,
     output: "brick",
   },
@@ -67,16 +70,19 @@ export function makersOpen(mountain: Pick<Mountain, "operational">): boolean {
   return partTwoOn() && mountain.operational.includes("lightTower");
 }
 
-/** The next one's price. */
+/**
+ * The next one's price, on a machine's curve: a lab sweep of `growth.machine`
+ * or `price.kiln` moves it as it moves a machine's (#667).
+ */
 export function makerPrice(
   mountain: Pick<Mountain, "makers">,
   id: MakerId,
 ): Price {
   const maker = makerById(id);
+  const growth = maker.growth * factor("growth.machine");
+  const first = maker.firstCost * factor(`price.${id}`);
   const cost = Math.ceil(
-    Number(
-      (maker.firstCost * maker.growth ** mountain.makers[id]).toPrecision(12),
-    ),
+    Number((first * growth ** mountain.makers[id]).toPrecision(12)),
   );
   return [{ good: maker.good, amount: cost }];
 }
