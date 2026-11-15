@@ -11,10 +11,7 @@ import { withFactors } from "./economy/factors";
 import { orderStrip } from "./frame-view";
 import { FRESH_OFF } from "./line-switch";
 import { createMountain, type Mountain } from "./mountain";
-import { effectiveRates } from "./rates";
 import { EMPTY_STOCK } from "./stock";
-import { etaShort } from "./format";
-import { orderLimit, orderNumbers } from "./transport";
 
 /** The city's views (#662), on a fresh mine. */
 const fresh = <T>(body: () => T): T => withFactors({ [FRESH_OFF]: 0 }, body);
