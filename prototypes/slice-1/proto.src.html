@@ -40,7 +40,7 @@
   #order .l2 { color: var(--quiet); font-size: 15px; margin-top: 3px; white-space: nowrap; }
   #order .l2 b { color: var(--ink); font-weight: 600; }
   #piles { position: absolute; left: 0; right: 0; top: 54px; height: 44px; display: flex; background: #10141a; border-bottom: 2px solid var(--edge); }
-  #piles .pile { flex: 1; position: relative; padding: 5px 0 0 8px; border-right: 2px solid var(--edge); white-space: nowrap; }
+  #piles .pile { flex: 1; min-width: 0; overflow: hidden; position: relative; padding: 5px 0 0 8px; border-right: 2px solid var(--edge); white-space: nowrap; }
   #piles .pile:last-child { border-right: 0; }
   #piles .v { font-size: 18px; margin-left: 4px; }
   #piles .of { font-size: 12px; color: var(--quiet); margin-left: 4px; }
@@ -436,7 +436,7 @@ function simulate(sec, apply) {
   S.charge = 0;
   for (let i = 0; i < n; i++) {
     const t = i * dt, r = tick(dt, !worksOpen() && t >= 8 * 3600 ? 0 : awayPace(), awayPace(), log); // no stockyard yet: a night shift runs eight hours
-    if (r.worked) log.worked += dt; else if (log.stop == null) log.stop = t;
+    if (r.worked) log.worked += dt; else if (log.stop == null) { log.stop = t; log.full = flows().full.stones; } // full is said only when the stockpile is full
     if (worksOpen()) { const cap = caps(); for (const g of ["stones", "bricks", "cut"]) if (log.fullAt[g] == null && S[g] >= cap[g] - 0.5) log.fullAt[g] = t + dt; }
   }
   S.charge = Math.max(0, ch - sec);
@@ -460,10 +460,11 @@ function away(sec) {
     lines.push(e.step >= 3 ? `<em>${b.n}: operational.</em> ${b.gives}${b.also ? " " + b.also : ""}` : `${b.n}: ${STEPN[e.step - 1].toLowerCase()} complete.`);
   }
   if (marks) lines.push(`<span class="marks">${marks}</span>`);
-  if (early) lines.push(worksOpen() ? `<em>Stockyard full: production stopped.</em>` : `<em>A night shift runs 8 h.</em> Production stopped after that.`);
+  const yardFull = early && worksOpen() && L.full;
+  if (yardFull) lines.push(`<em>Stockyard full: production stopped.</em>`); else if (early && !worksOpen() && L.worked > 0) lines.push(`<em>A night shift runs 8 h.</em> Production stopped after that.`);
   save(); ui();
   const opened = () => events(L.ev.filter((e) => e.k === "phase" && e.step >= 3));
-  if (early && worksOpen()) card("Shift report", lines, "To the stockyard", "Close", () => { go(1); const x = $("#ext"); x.classList.remove("pulse"); void x.offsetWidth; x.classList.add("pulse"); opened(); }, opened);
+  if (yardFull) card("Shift report", lines, "To the stockyard", "Close", () => { go(1); const x = $("#ext"); x.classList.remove("pulse"); void x.offsetWidth; x.classList.add("pulse"); opened(); }, opened);
   else card("Shift report", lines, "Resume", null, opened);
 }
 
@@ -668,7 +669,7 @@ function mineUI(F) {
     $("#lv-b" + i).innerHTML = b;
   }
   const sf = F.sf, x = S.charge > 0 ? 2 : 1, top = Math.max(sf.f.face, sf.f.haul, sf.f.lift, 1) * x;
-  const nq = (v) => (v < 1000 ? num(v) : (v / 1000).toFixed(1).replace(/\.0$/, "") + "K");
+  const nq = (v) => (v < 1000 || Math.round(v) % 100 ? num(v) : (v / 1000).toFixed(1).replace(/\.0$/, "") + "K");
   for (const k in STG) {
     const s = $("#stg-" + k), sb = stageBuy(k), tl = sf.tool[k], t = STG[k], cap = sf.f[k] * x, mk = s.querySelector(".mk");
     // Who works with what. A kind of machine: the workers it has, of the workers it takes, and what it moves. Then the workers left over, with tools.
@@ -679,7 +680,7 @@ function mineUI(F) {
     for (let lv = 0; lv < 3; lv++) { const h = make(lv); if (mk.dataset.h !== h) { mk.dataset.h = h; mk.innerHTML = h; } mk.classList.toggle("sm", lv === 2); if (mk.scrollWidth <= mk.clientWidth + 1) break; }
     s.querySelector(".n small").textContent = S.wk[k] === 1 ? "worker" : "workers";
     // what the stage moves now, of what it can move. The mine is one line, so every stage moves the same.
-    const big = cap >= 10000, nn = (v) => (big ? fmt(v) : num(v)); s.querySelector(".r").innerHTML = `<b>${nn(F.out)}</b> of <i>${nn(cap)}/s</i>`;
+    const big = cap >= 10000, nn = (v) => (big && Math.round(v) % 100 === 0 ? fmt(v) : num(v)); s.querySelector(".r").innerHTML = `<b>${nn(F.out)}</b> of <i>${nn(cap)}/s</i>`;
     const bar = s.querySelector(".bar").children; bar[0].style.width = (100 * cap) / top + "%"; bar[1].style.width = (100 * Math.min(F.out, cap)) / top + "%";
     const bk = $("#buy-" + k); bk.innerHTML = `+${sb.short} · ${rate(sb.rate)}<small>${fmt(sb.price)} ${ico(sb.good)} · ${sb.staff} to run</small>`; bk.classList.toggle("can", canPay({ [sb.good]: sb.price }));
   }
@@ -768,7 +769,7 @@ function worksUI(F) {
   });
   $("#mid-r").textContent = F.full.stones ? "full" : rate(F.over[0] + F.over[1]);
   for (const g of ["stones", "bricks", "cut"]) { const b = $("#bay-" + g); b.children[0].textContent = g === "cut" && !S.shaft ? "after the shaft" : fmt(S[g]) + " of " + fmt(F.cap[g]); b.classList.toggle("full", F.full[g]); }
-  if (performance.now() - fcT > 1000) { fcT = performance.now(); const L = simulate(12 * 3600, false); FC = L.stop == null ? "Holds 12 h unattended." : L.stop < 40 ? "Full now: crews idle." : "Full after " + dur(L.stop) + " unattended."; }
+  if (performance.now() - fcT > 1000) { fcT = performance.now(); const L = simulate(12 * 3600, false); FC = L.stop == null ? "Holds 12 h unattended." : !L.full ? "No output." : L.stop < 40 ? "Full now: crews idle." : "Full after " + dur(L.stop) + " unattended."; }
   $("#ext-n").textContent = FC + " Expansion: capacity ×3.";
   const e = $("#ext"); e.children[1].innerHTML = `${fmt(yardPrice())} ${ico("bricks")}`; e.children[1].classList.toggle("can", canPay({ bricks: yardPrice() }));
 }
@@ -960,7 +961,7 @@ function villageUI() {
     bd.querySelectorAll(".g").forEach((r) => { const g = r.dataset.g, got = st.given[g] || 0; r.querySelector(".w div").innerHTML = `${GC[g]} <span class="num">${fmt(got)} of ${fmt(need[g])}</span>`; r.querySelector("u").style.width = (100 * got) / need[g] + "%"; });
     const left = Object.keys(need).reduce((a, g) => a + need[g] - (st.given[g] || 0), 0), onSite = sum(st.site);
     o.classList.toggle("can", !st.on); o.classList.toggle("run", st.on); o.children[0].textContent = st.on ? "Delivering" : st.held ? "Resume" : "Place order";
-    o.children[1].textContent = st.on ? (HAUL.city > 0 ? "arriving " + rate(HAUL.city) : onSite > 1 ? "site stocked" : "waiting for stock") : st.held ? "on hold" : "the whole building";
+    o.children[1].textContent = st.on ? (HAUL.city > 0 ? "arriving " + rate(HAUL.city) : onSite > 1 ? "site stocked" : fleetOn().rate > 0 ? "waiting for stock" : "arriving 0/s") : st.held ? "on hold" : "the whole building";
     o.children[2].textContent = HAUL.built > 0 ? "building " + rate(HAUL.built) + " · " + dur(left / HAUL.built) : ""; o.children[3].textContent = st.on ? "tap to hold" : "";
     $("#bw-t").innerHTML = `${S.wk.build} ${S.wk.build === 1 ? "builder" : "builders"} ×${rate(BUILD)} · on site <span class="num">${fmt(onSite)} of ${fmt(SITE)}</span>`;
   }
@@ -972,7 +973,7 @@ function villageUI() {
 
 /* ---------- the workforce: every job, how many are on it, and the free workers ---------- */
 function jobNote(k) {
-  if (STG[k]) { const sf = staffing(); return sf.rows[k].map((r) => `${r.on} of ${r.n} ${r.kd.one}${r.n > 1 ? "s" : ""} run`).concat(sf.tool[k] ? [sf.tool[k] + " " + STG[k].tool] : []).join(", "); }
+  if (STG[k]) { const sf = staffing(); return sf.rows[k].map((r) => `${r.on} of ${r.n} ${r.kd.one}${r.n > 1 ? "s" : ""} run`).concat(sf.tool[k] ? [sf.tool[k] + " " + (sf.tool[k] === 1 ? STG[k].tool1 : STG[k].tool)] : []).join(", "); }
   if (k === "kiln") return `${Math.min(S.kilns, S.wk.kiln)} of ${S.kilns} kilns run`;
   if (k === "saw") return `${Math.min(S.saws, S.wk.saw)} of ${S.saws} saws run`;
   if (k === "drive") { const fo = fleetOn(), n = S.fleet.wagons + S.fleet.trucks; return `${fo.wagons + fo.trucks} of ${n} ${n === 1 ? "vehicle runs" : "vehicles run"}`; }
@@ -1067,7 +1068,7 @@ async function boot() {
   ICO = icons(); frame(); build(); swipes();
   for (const p of PLACES) { const c = CTX[p]; c.drawImage(BG[p], 0, 0); }
   let rz = 0; addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(build, 120); });
-  addEventListener("visibilitychange", () => { if (document.hidden) return save(); const gap = S.seen ? (Date.now() - S.seen) / 1000 : 0; if (S.intro && gap > 90 && $("#card").hidden) away(gap); }); addEventListener("pagehide", save);
+  addEventListener("visibilitychange", () => { if (document.hidden) return save(); if ($("#card .wf")) $("#card").hidden = true; const gap = S.seen ? (Date.now() - S.seen) / 1000 : 0; if (S.intro && gap > 90 && $("#card").hidden) away(gap); }); addEventListener("pagehide", save);
   if (S.intro && GONE > 90) away(GONE);
   if (!S.intro) card("The first evening", ["One level, one material, two sites: the mine and the city. You start with twelve workers: nine in the mine, one driving the horse wagon, two building.", "The workers are one workforce, and every job takes them. Hire a worker at the top right, on any site, then put the worker on a job with +, or take one off with −. A machine or a wagon stands until workers run it. Watch the sites: rock piles up where it waits, and workers stand where there is nothing to do. The balance is yours to work out.", "Order the tower in the city. Transport moves the stone to the site, the builders build it in, and the tower rises. Each finished building opens the next site. The numbers are made up and run fast. Reset, top right, can also jump to all four sites."], "Start", null, () => { S.intro = true; save(); });
   requestAnimationFrame(loop);
