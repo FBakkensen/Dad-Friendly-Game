@@ -1,6 +1,6 @@
 # Slice 1, the first city: design (14 Nov 2026)
 
-Status: approved for its PR. Flemming agreed to the rules in principle (14 Nov 2026, 19:30Z), amended them three times the same evening, and said "That is right" to the playable prototype that plays them (21:35Z). The names are approved. It stands on the line (#532 to #535 and #543 are merged, behind their switch) and on the save groundwork (#560 is merged, #561 is open). #536, which would have turned the line on in today's game, is closed as not planned (Flemming, 14 Nov 2026, 21:47Z: nothing more is built on today's version), so the line is turned on with part 1 (#664). The fresh mine's rules are built off in play, behind the `fresh.off` switch (#653). The workers' rules were changed on 15 Nov 2026 (one workforce, below), and the screens wait for his yes to a version of the prototype. Every number is a starting value for the lab, not a tuned one.
+Status: approved for its PR. Flemming agreed to the rules in principle (14 Nov 2026, 19:30Z), amended them three times the same evening, and said "That is right" to the playable prototype that plays them (21:35Z). The names are approved. It stands on the line (#532 to #535 and #543 are merged, behind their switch) and on the save groundwork (#560 is merged, #561 is open). #536, which would have turned the line on in today's game, is closed as not planned (Flemming, 14 Nov 2026, 21:47Z: nothing more is built on today's version), so the line is turned on with part 1 (#664). The fresh mine's rules are built off in play, behind the `fresh.off` switch (#653). The workers' rules were changed on 15 Nov 2026 (one workforce, below), and he said "This is great" to the screens that show them (09:53Z). Every number is a starting value for the lab, not a tuned one.
 
 **Amended 14 Nov 2026, 20:30Z.** Flemming: "The golden veins as they were should go, something the player should click as it was, do not fit road to Mars." Golden veins go, and the Gold rush goes with them (a vein's tap starts it). The Beacon (now the Light Tower) had a power about veins, so a new one is proposed below. He also asked for playable prototypes in place of mock pictures: the slice 1 prototype is in `prototypes/slice-1/` on branch `claude/project-thread-eextfa`, and it settles the screens ([What he sees](#what-he-sees)).
 
@@ -24,7 +24,9 @@ The new rule is [Transport and build time](#7-transport-and-build-time). His fou
 - **The page never gives the answer** (05:45Z and 05:47Z, as a principle for the whole game). It does not name the bottleneck, a limit or a best buy. It shows the numbers: how many workers and machines each part has, what each adds, and what each part moves now. The player who works the balance out gets the advantage. He did not understand "hands" or "by hand" (05:32Z and 06:57Z), so neither is used. He also asked to see what is idle (06:22Z): "it should be visible that something is idle, when there is overcapacity in one part, or some internal buffer is full, and the same for transport".
 - **The workers are one workforce** (06:57Z): "workers should be a global ressource, that should be used for almost anything, like transport, operating, drillings, building, and they should have a maintainance cost. but could be that the maintainence cost should go later". He played it in version 9 and said "the workers do as expected" (07:30Z).
 
-The new rule is [The workforce](#2-the-line-and-the-workforce), and rules 1, 3 and 7 follow it. What is his and what is mine in it is under [Calls I made](#calls-i-made). **The screens do not follow yet.** He has not said yes to the mine's table (he called version 9's "still not clear"), so [What he sees](#what-he-sees) is out of date wherever it names a limit, the bottleneck or a buy, or says "hands". It is rewritten from the version of the prototype he says yes to, and the issues that build the screens wait for that (#658).
+The new rule is [The workforce](#2-the-line-and-the-workforce), and rules 1, 3 and 7 follow it. What is his and what is mine in it is under [Calls I made](#calls-i-made). The screens followed the same morning (below).
+
+**Approved 15 Nov 2026, 09:53Z.** On the prototype's eleventh version: "This is great, just one thing, hiring of workers is locked to the mining page, that indicates to the player this is only for mining, it should be a global place". So the screens are settled again, with one change: workers are hired in the workforce, which opens on every site, and not in the mine. [What he sees](#what-he-sees) is written from that version with that change. The prototype's twelfth version plays the change.
 
 This design covers many slivers. It ships as its own PR and is split into sliver issues (`.claude/rules/superpowers.md`). It amends `2026-11-14-line-works-village-design.md` (the line spec): [What it changes in the line spec](#what-it-changes-in-the-line-spec) lists every place.
 
@@ -220,7 +222,7 @@ How slice 1 does it (mine, under Calls I made):
 8. **The building site and the builders.** Transport brings a project's goods to its building site. The site holds a set amount, and transport brings no more until the builders have made room. A builder builds in a set amount a second. A step is done when what it requires is built in, not when it has arrived. His words name building as work for the workers. The site and its numbers are the prototype's, and he has not answered on them by name (call 34).
 9. **What has arrived stays.** Part deliveries count, and nothing is taken back from a site or a building.
 10. **On hold.** He can put an order on hold and resume it. Both are free and instant, are saved at once, and hold while he is away. On hold, nothing leaves the stockyard for that order. The builders still build in what is on the site. This keeps "the project or the machines" a decision now that goods leave by themselves, and it is the free way out when transport takes all the mine makes (the anti-goal's lock).
-11. **An order shows its numbers**: what transport brings a second, what the builders build in a second, what is on the site, and what the step still requires. It names no limit (the principle of 15 Nov 2026). How it reads is the prototype's. The rules still work the limit out, for the lab.
+11. **An order shows its numbers**: what transport brings a second, what the builders build in a second, what is on the site, what the step still requires, and the time left at this rate. It names no limit (the principle of 15 Nov 2026). How it reads is the prototype's. The rules still work the limit out, for the lab.
 12. **Unattended**, the drivers and the builders work at the night shift output, and transport delivers to what he ordered. The stockyard drains into the order, so the night goes on until the stockyard is full and nothing more is required. A full building site stops transport to it, as a full stockyard stops production. A step can finish at night, and the next step of the same building starts. A building whose roof goes on at night is operational from that moment: its power counts for the rest of the night, the shift report says so, and its card is shown after the report. Nothing new is ordered without him.
 13. **The factory.** A work order requires stone and a material. The material comes from the rock at its own slow rate (rule 5), and transport carries both to the station: one clay or one iron counts as 500 stone of a load. The station has no building site and no builders: the work order is done when everything it requires has arrived, so it can wait for a material that is short. Today's fixed craft times (ten minutes, an hour, four hours) go. It is still one station and one work order at a time, and a cancelled work order gives back what arrived, as today. How long gear's effect lasts once it is installed (a blasting charge's twenty minutes) is not a build time and stays.
 14. **Buying stays instant.** Machines, makers, vehicles, stockyard levels and the shaft are bought from the stockyard, at the mine, and are there at once. Whether sinking the shaft should be a project with transport is his call. I kept it a purchase, because the goods are already at the mine.
@@ -231,84 +233,94 @@ When the Foundry's roof is on, a card says the first city is operational and tha
 
 ## What he sees
 
-The screens were settled in a playable prototype, not in pictures. Flemming rejected three rounds of mock pictures on 14 Nov 2026 and asked for a prototype in their place. He played four versions of it that evening: "That has potential", "It works great" (the third), and "That is right" (the fourth, 21:35Z).
+The screens were settled in a playable prototype, not in pictures. Flemming rejected three rounds of mock pictures on 14 Nov 2026 and asked for a prototype in their place. He played four versions of it that evening ("That is right" to the fourth, 21:35Z), and seven more on 15 Nov 2026, each with one thing changed after what he said. To the eleventh (09:53Z): "This is great, just one thing, hiring of workers is locked to the mining page, that indicates to the player this is only for mining, it should be a global place".
 
-- The prototype is a throwaway outside the game: `prototypes/slice-1/` on branch `claude/project-thread-eextfa`, commit `bae1b36`. Its numbers are made up and run fast. It is drawn with sprites that exist and shapes made in code.
-- What it settles is the layout, the flow and the words. This section writes them down. The pictures of it are in `docs/superpowers/specs/slice-1/`.
+- The prototype is a throwaway outside the game: `prototypes/slice-1/`. Its numbers are made up and run fast. It is drawn with sprites that exist and shapes made in code. `main` has its seventh version. The later ones are on branch `claude/project-thread-eextfa` until its next PR, and `prototypes/slice-1/README.md` there says what each version plays and what he said to it.
+- What it settles is the layout, the flow and the words. This section writes them down, from the eleventh version with hiring moved as he asked. The pictures in `docs/superpowers/specs/slice-1/` are of that.
 - What it does not settle is the art (see Art) and the numbers (the lab).
-
-**Out of date in part since 15 Nov 2026.** This section is written from the fourth version. He has played versions 5 to 9 since, and the tenth is with him. What changed is in the head of this document: one workforce, and a page that never names the bottleneck, a limit or a best buy. So these lines below no longer hold, and nothing is built from them:
-
-- The frame: Next names no buy. In the versions he played it points only at gear that is done and at a building nobody has ordered, and counts the rest for each site.
-- The mine: the stage plates ("bottleneck", "headroom", a lit stage, "Cart: at 12 workers") and the workforce plate with its "hands".
-- The refinery: "Bottleneck: kilns".
-- The city: the order key's "limit: transport", and a transport plate with no drivers and no builders.
-- The cards: a shift report that names what stopped the night with a key to the fix.
-
-What takes their place is in the prototype (`prototypes/slice-1/README.md` lists what each version plays; `main` has the seventh version, and the later ones are on branch `claude/project-thread-eextfa` until its next PR): a count of workers and free workers beside the stockpiles on every site, which opens a list of all the jobs; a row for each stage with what it moves now, who works with what, and − and + for its workers; and the state shown in the scene, with rock that piles up, tubs that run empty, and workers, machines and wagons that stand idle. This section is rewritten from the version he says yes to (#658), as it was from the fourth.
+- Two things in the prototype's head are its own tools and are not in the game: "Skip 8 h" and "Reset".
 
 ### Four sites
 
 The game has four kinds of work (his words: "mine, city, refinement, manufacturing"), and each is a site with its own scene.
 
-| Site         | The work      | What he decides                                             | Its pace                                                  | Opens in slice 1              |
-| ------------ | ------------- | ----------------------------------------------------------- | --------------------------------------------------------- | ----------------------------- |
-| The mine     | digging       | how many crews on each level, and which stage gets capacity | every sitting, it never stops                             | part 1                        |
-| The refinery | refining      | what the rock becomes, and how much of it                   | set now and then, it runs by itself                       | part 2 (kilns, the stockyard) |
-| The factory  | manufacturing | which work order goes on the station next                   | one work order at a time, as fast as its materials arrive | part 3                        |
-| The city     | building      | what is built, and how much transport it gets               | a building every day or two, forever                      | part 1                        |
+| Site         | The work      | What he decides                                                                   | Its pace                                                  | Opens in slice 1              |
+| ------------ | ------------- | --------------------------------------------------------------------------------- | --------------------------------------------------------- | ----------------------------- |
+| The mine     | digging       | how many workers each stage gets, a worker or a machine, and the crews on a level | every sitting, it never stops                             | part 1                        |
+| The refinery | refining      | what the rock becomes: how many makers, and how many workers on them              | set now and then, it runs by itself                       | part 2 (kilns, the stockyard) |
+| The factory  | manufacturing | which work order goes on the station next                                         | one work order at a time, as fast as its materials arrive | part 3                        |
+| The city     | building      | what is built, and how many vehicles, drivers and builders it gets                | a building every day or two, forever                      | part 1                        |
 
 ### The frame, the same on every site
 
 From top to bottom:
 
-1. **The order strip.** The project in hand, its step and its state ("Foundation · not ordered", "Roof · delivering", "on hold"), what the step requires with its counts, and a pip for each of the three steps.
-2. **The stockpiles.** One for each good he has met, with its room once the stockyard is open ("48K of 400K"), and "full" in red.
+1. **The order strip.** The project in hand, its step and its state ("Foundation · not ordered", "Structure · delivering", "on hold"), what the step requires with its counts ("Stone 23.7K of 60K"), and a pip for each of the three steps. A tap goes to the city.
+2. **The stockpiles and the workers.** One stockpile for each good he has met, with its room once the stockyard is open ("49.6K of 400K"), and "full" in red. At the end of the row is the count of workers with the free ones under it ("44 · 2 free"). A tap on it opens the workforce (below).
 3. **The site's scene**, which fills the middle.
-4. **Next.** One thing that is ready and the site it is on ("Next · City: Order the Light Tower"), with a count of everything he can afford or start now. A tap goes there. With nothing ready it reads "Nothing affordable yet. Production is running." Next is a pointer in a fixed order, not advice on payback: which thing to buy stays his (the line spec). The order is the prototype's: install gear that is done; order the building when none is ordered; sink the shaft; the bottleneck stage's next buy; a maker that is its good's limit; expand the stockyard when a stockpile is nearly full; a vehicle while an order is open; resume an order on hold; a work order; then everything else he can afford. It takes the Ready now plate's place, and "Saving for" goes with it.
-5. **The site bar.** A tab for each open site, with its lamp. A site joins the bar when its work opens: the mine and the city on the first evening, the refinery with the Light Tower, the factory with the shaft. A swipe changes site too.
+4. **Next.** It points at two things only: gear that is done and waits to be installed, and a building nobody has ordered ("Next · City: Order the Light Tower"). A tap goes there. Otherwise it reads "Affordable now" with a count for each site ("Mine 3 · Refinery 2 · Factory 3 · City 1"), and a tap goes to the next site that has something. Beside it is the count of everything ("9 ready"). With nothing it reads "Nothing affordable yet. Production is running." Next never names a buy: which thing to buy is his to work out. It takes the Ready now plate's place, and "Saving for" goes with it.
+5. **The site bar.** A tab for each open site, with its lamp: green when something there is affordable, amber when something there is running (an order that is delivering, a work order on the station). A site joins the bar when its work opens: the mine and the city on the first evening, the refinery with the Light Tower, the factory with the shaft. A swipe changes site too.
+
+### The workforce (`workforce.png`)
+
+His words, 15 Nov 2026: hiring "should be a global place". The workforce is that place. It opens from the count of workers in the frame, on every site, and the game runs on behind it.
+
+- Its head says how many workers he has and how many are free ("44 workers · 2 free"), with the key that hires one and its price ("Hire · 1,300"). **This is the only place to hire.** No site has a hire key of its own.
+- Under it is every open job, grouped by site: the mine (drilling, haulage, hoisting), the refinery (the kilns, the saws) and the city (transport, building). A job that has not opened is not shown.
+- A job's row has its name, a line on what its workers run now ("3 of 3 drills run, 4 with picks", "4 of 4 kilns run", "3 of 3 vehicles run", "each builds 150/s"), and its count of workers between − and +. A + with no free worker says so: "No free worker. Hire one, or take one off another job."
+- The same − and + are on each site beside the thing the workers run, so he can also move a worker where he is looking.
 
 ### The mine (`first-evening.png`, `mine.png`)
 
-- The mountain cut open: the winding tower on the surface, the shaft down the left side, and a gallery for each level with its crews at work in it.
-- A level's plate has its name, its rock a second, and one line: its crews, its good and its limit ("2 of 4 crews · brick 400/s · limit: kilns"). With one level it reads "4 crews · all rock is hoisted as stone".
-- A crew is moved by a tap on an empty spot in a gallery ("assign crew") or by a drag from one level to the other.
+- The mountain cut open: the winding tower on the surface, the shaft down the left side, and a gallery for each level.
+- In a gallery each stage has its own part, with its name under it: hoisting at the shaft, haulage on the rail, drilling at the face. A stage's workers and machines are drawn in its part.
+- **The state is seen in the scene**, as he asked (15 Nov 2026, 06:22Z). Rock piles up at the face when drilling makes more than haulage takes, and at the shaft when more arrives than is hoisted. Tubs run empty when the face gives too little, and queue when the shaft cannot take them. The cage waits at the shaft bottom when hoisting has spare capacity. Workers of a stage with spare capacity stand, with a "z" over them, for that share of the time.
+- A level's plate has its name, its rock a second, and one line: its crews and what its rock becomes ("2 crews · brick 400/s · stone 700/s"). With one level it reads "4 crews · all rock is hoisted as stone". With two levels the plate has − and +, which move a crew.
 - A level that is not reached says what it waits for ("The shaft can be sunk once the Light Tower is operational"), and then its price. Under the last level: "Deeper strata: not yet surveyed. The city has to grow first."
-- At the foot are the three stage plates: drilling, haulage, hoisting. Each has its rate, "bottleneck" or its headroom ("+200/s headroom"), and a key for its next machine with the price. The bottleneck is lit. The key buys, as he played it. A machine that is not on sale yet says what it waits for on the key ("Cart: at 12 workers"), and a machine with no free workers to run it says that ("Needs 8 free workers"). A tap on the rest of the plate opens the stage's full list.
-- **The workforce plate** is over the stage plates: how many workers there are, where the free hands help ("14 workers · the hands help haulage"), and a key to hire one with its price. It is not in the prototype's fourth version. He chose to keep the workers on 15 Nov 2026, and he plays the plate in the prototype's fifth version before it is built ([His two calls](#his-two-calls-decided-15-nov-2026)).
+- At the foot is a row of keys, one for each stage's next machine: what it is and what it moves ("+Drill · 600/s"), its price, and the workers it takes ("3 to run"). The key buys. There is no key to hire here: the eleventh version had one, and he asked for it to go to a global place.
+- Under the keys are three rows, one for each stage:
+  - its name, and what it moves now of what it can move ("2,200 of 2,700/s"), with a band behind the row that shows the same;
+  - who works with what, as a sum that adds up to what the stage can move ("2 hoists: 6 of 6 workers 2,400/s + 2 on winches 200/s"). A kind of machine shows the workers it has of the workers it takes, so a machine that is idle shows why ("1 of 2 hoists: 3 of 6 workers 1,200/s");
+  - the stage's count of workers between − and +.
+- Nothing names or lights the stage that limits the line. The three "moves now" numbers are the same, and the "can move" numbers are what he compares.
+- A tap on a row says the same in one sentence, and opens the stage's full list (below).
 
 ### The refinery (`refinery.png`)
 
-- A flow from top to bottom. Each level's rock falls from its hopper into its maker: the kilns under the Topsoil, the saws under the Granite. What a maker cannot take joins the middle chute ("bypass to stone 2,060/s").
-- A maker's plate has its count, what it can take, what limits it ("Bottleneck: kilns. Running at 400/s."), and the next one with its price and gain ("+1 kiln · 21K stone · +100/s").
-- The stockyard is at the foot: the three stockpiles drawn as piles, and "Expand the stockyard" with its price, how long a night lasts now ("Full after 19 min unattended") and what the level gives.
+- A flow from top to bottom. Each level's rock falls from its hopper, which says the level and its rock a second, into its maker: the kilns under the Topsoil, the saws under the Granite. What a maker cannot take joins the middle chute ("bypass to stone 1,560/s").
+- A maker's plate has its count and what one takes ("4 kilns ×100/s"), the workers it has of the workers it takes and what they take together ("4 of 4 workers · take 400/s"), its workers between − and +, and the key for one more with its price and gain ("+1 kiln · 21K · +100/s"). It names no limit.
+- The stockyard is at the foot: the three stockpiles drawn as piles with their counts and rooms, and "Expand the stockyard" with its price, how long a night lasts now ("Full after 19 min unattended") and what the level gives ("capacity ×3").
 
 ### The factory (`factory.png`)
 
-- Seen from above: the tools on the wall, a bin for each material with its count and its source ("Clay 7/10 · source: Topsoil"), and the station in the middle.
-- A work order on the station shows its blueprint, "Materials arriving · 400/s" and how far it is.
+- Seen from above: the tools on the wall, a bin for each material with its count and its source ("Clay 8/10 · source: Topsoil"), and the station in the middle.
+- An empty station reads "Station idle. Drag a blueprint here. Transport brings the materials." A work order on the station shows its blueprint, what is arriving a second and how far it is.
 - The blueprints lie under the station, each with its effect and what it requires. A drag onto the station places the work order.
 - What is installed is in the head ("Installed: rails 0/2 · props 0/1").
+- The factory takes no workers in slice 1, so it has no − and + (rule 2.12).
 
-### The city (`city.png`)
+### The city (`first-evening-city.png`, `city.png`)
 
-- A skyline at night with a plot for each building: operational, in hand with its scaffold, or vacant ("Vacant plot · unassigned"). The wagons drive along the road in front.
-- The transport plate is on top: the fleet and its goods a second ("2 horse wagons · 800/s"), what it is doing ("serving the city", "idle: no order"), and a key for one more wagon and one more truck. Before trucks open, their key reads "Trucks: after the Warehouse".
-- The project's card is under the skyline: its three steps with a tick on each one done, a bar for each good the step requires, and "On completion:" with its power and what it opens.
-- The order key is on the card. Before the order it reads "Place order · the whole building". After, it is the state of the order: "Delivering · 800/s · 56 s · limit: transport · tap to hold".
+- The transport plate is on top: its drivers ("3 drivers"), what it is doing ("serving the city", or that it has no order), the fleet with the drivers it has of the drivers it takes and what it carries ("3 horse wagons: 3 of 3 drivers 600/s"), the drivers between − and +, and a key for one more wagon with its rate and price. Before trucks open, their key reads "Trucks: after the Warehouse".
+- A skyline at night with a plot for each building: operational, in hand, or vacant ("Vacant plot · unassigned"). The building in hand has its building site: the goods transport has brought lie there, and the builders work on it.
+- The wagons drive along the road in front. They run as full as the stockpiles let them, and stand when there is nothing to carry. A vehicle with no driver stands behind the road.
+- The project's card is under the skyline: its three steps with a tick on each one done, and a bar for each good the step requires ("Stone 26.7K of 60K").
+- The order key is on the card. Before the order it reads "Place order · the whole building". After, it is the state of the order in numbers: "Delivering · arriving 600/s · building 450/s · 2 min · tap to hold". It names no limit.
+- Under the bars are the builders between − and +, what each builds in, and what is on the site of what it holds ("3 builders ×150/s · on site 1,569 of 4,000").
+- At the foot of the card: "On completion:" with the building's power and what it opens.
 
-### The cards (`shift-report.png`)
+### The cards (`first-evening-card.png`, `shift-report.png`)
 
-- **The shift report** after unattended time: how long he was away and the night shift output, a bar that shows how much of the night was production and how much was idle, what was produced, what transport delivered to orders, the steps and buildings that were finished, when each stockpile was full, and what stopped the night, with a key to the fix ("To the stockyard").
+- **The first evening**: one card that says what there is and how it works. He starts with twelve workers, and every job takes them. He hires a worker and puts the worker on a job. A machine or a wagon stands until workers run it. "The balance is yours to work out." And: order the tower in the city.
+- **The shift report** after unattended time: how long he was away and the night shift output, a bar that shows how much of the night was production and how much was idle, what was produced, what transport delivered to orders, the steps and buildings that were finished, and when each stockpile was full. If the stockyard stopped the night it says so ("Stockyard full: production stopped"), with a key that goes to the stockyard beside Close. The report says what happened. It does not say what to buy.
 - **A building is operational**: its power and what it opens. After the Foundry it is the slice's end card.
 - **A level is reached**: where the crews went, what each level's rock makes, and what opened.
-- **The first evening**: one card that says what there is and what to do first.
 
 ### What the prototype does not show
 
 These are in the game today and have no place in the prototype. Where they go is mine (call 16), and part 1's plan may move them:
 
-- **A stage's full list.** A stage plate shows one machine. A tap on the plate opens that stage's list: its workers and machines with ownership marks, its upgrades, its gear, its engineer and its trouble. They are the rows #537 to #539 specify, built here.
+- **A stage's full list.** A stage's row shows its machines and its next one. A tap on the row opens that stage's list: its machines with their ownership marks, its upgrades, its gear, its engineer and its trouble. They are the rows #537 to #539 specify, built here. The worker's own upgrades (Better boots and the like) and marks are in the workforce.
 - **Engineers and expeditions** open from the mine.
 - **The Ledger, keepsakes, the sound switch and Start over** open from one key on the order strip.
 - **The save line** stays in view on every site (`observable-saves.md`).
@@ -320,7 +332,7 @@ These are in the game today and have no place in the prototype. Where they go is
 - A decision shows real numbers: prices, rooms, each level's rock and goods a second, transport's goods a second, what an order still requires.
 - The page shows the numbers and never the answer. Nothing names the bottleneck, a limit or a best buy (Flemming, 15 Nov 2026).
 - What is idle is seen: workers, machines, vehicles, and a buffer that is full (Flemming, 15 Nov 2026).
-- How many workers there are, where they work and how many are free is in reach on every site.
+- How many workers there are, where they work and how many are free is in reach on every site, and so is hiring one. Workers are hired in one place, the workforce, and never on a site of its own (Flemming, 15 Nov 2026).
 - "Hands" and "by hand" are not used.
 - No button mines, and no button delivers.
 - The lamp rule stays: green for something he can afford, amber for something running, red for trouble, dark for rest.
@@ -403,7 +415,7 @@ Words that came after the list he read. All but the first were in the prototype 
 | an order, place order         | a project or a work order he has placed                                                                                   |
 | on hold, resume               | an order he has stopped deliveries to, and started again                                                                  |
 
-Words of 15 Nov 2026. They were on the page of the prototype's ninth version, where he said "the workers do as expected". That was about how the workers behave, not about the words, and he called the same version's table "still not clear". So none of these is approved: each is his to veto, and the words on the screens are settled with the version of the prototype he says yes to.
+Words of 15 Nov 2026. They were on the page of the prototype's ninth version, where he said "the workers do as expected". That was about how the workers behave, not about the words, and he called the same version's table "still not clear". He said "This is great" to the eleventh version, which has all of these on the page, and none was asked about by name. So each is still his to veto.
 
 | Word                                   | For                                                                                                            |
 | -------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
@@ -472,7 +484,7 @@ What it does not prove: anything about fun, the first hour's pace, the factory, 
 | Two minutes                | A sitting is a few buys, a look at the order's numbers, and at times a move of workers or crews, or a project put on hold. Every choice holds until changed.                                                                                                                |
 | Never punishing            | No rock is lost to a bad share while the stone stockpile has room. A full stockyard idles crews, and the cards say when. A level never closes. What has arrived for an order stays. A machine with nobody to run it is idle, not lost. A move, on hold and resume are free. |
 | Close is pause             | Every tap is saved at once. Unattended time is worked out from timestamps: the stockpile-full moments and what transport delivered.                                                                                                                                         |
-| Real numbers for decisions | Prices, rooms, each level's rock and goods a second, transport's goods a second, what a project still requires, what transport brings a second and what the builders build in a second.                                                                                     |
+| Real numbers for decisions | Prices, rooms, each level's rock and goods a second, transport's goods a second, what a project still requires, what transport brings a second, what the builders build in a second and how long that takes at this rate.                                                   |
 | Vague discoveries          | The next building and the level below are hints.                                                                                                                                                                                                                            |
 | The phone never scrolls    | The prototype's screens are held to it. A long list (work orders, plots) scrolls inside its box.                                                                                                                                                                            |
 | No placeholders            | The prototype is a throwaway outside the game. In the game, a new picture is asked for before it is made.                                                                                                                                                                   |
@@ -511,7 +523,7 @@ These are mine, not Flemming's. Any of them can be turned over.
 9. The Light Tower opens the kilns and the stockyard as well as the Granite's price.
 10. Settled by the prototype: four sites with a site bar, and the order strip, the stockpiles and Next on every site (What he sees). Today's board goes.
 11. Settled by the prototype: the city is a skyline with a plot for each building.
-12. Settled by the prototype: the line is three stage plates with rock a second. The gauge and the odometer go.
+12. Settled by the prototype: the line is three stage rows with what each moves a second (stage plates until 15 Nov 2026). The gauge and the odometer go.
 13. Which copy of a save is ahead: a later run stamp (Start over, or a reset), else more rock dug in all, a count that only grows, else the newer `lastSeen`. The run stamp stays the first key, as today. Kid runs are gone, and "more stones mined" becomes "more rock dug in all".
 14. The first evenings keep today's eight-hour clock, until the stockyard opens.
 15. Kid workers wait for the building that brings them (the School, a later slice).
@@ -527,7 +539,7 @@ These are mine, not Flemming's. Any of them can be turned over.
 25. Machines, makers, vehicles, stockyard levels and the shaft stay instant purchases (rule 7.14).
 26. "The workforce" is my word. "Site", "order", "on hold" and "resume" are the prototype's (Names).
 27. The clock before the stockyard stops the mine only, and the stockyard opens the moment the Light Tower's roof goes on (rule 4). It is how the prototype plays.
-28. Next is a pointer in the prototype's fixed order, not a best buy (What he sees, The frame). Out of date since 15 Nov 2026: Next names no buy. It is written again with the screens.
+28. Next points only at gear that is done and at a building nobody has ordered, and otherwise counts what is affordable on each site (What he sees, The frame). It was a pointer in a fixed order of buys until his principle of 15 Nov 2026.
 29. Steady hands and Overtime go, with the tap-only and vein-only upgrades (Where today's parts land).
 30. The lab plays each part before that part is switched on. The five-day floor is checked when it can play the whole slice (Lab).
 31. Workers stay, with a workforce plate in the mine. It was his call, and he said yes to it on 15 Nov 2026 (below). The plate became one workforce the same morning (rule 2).
@@ -542,8 +554,12 @@ These are mine, not Flemming's. Any of them can be turned over.
 40. A stage's workers run the machines that together move the most (rule 2.5). The prototype runs the strongest first. With machines that take different numbers of workers, that can lower a stage when he buys a machine, and the rule that a buy never lowers the line is tested in a fresh mine since #654.
 41. What counts workers counts all he has. Better boots and the worker marks lift only a worker with a tool, Helping hands counts haulage's workers, and a promotion takes a free worker (rule 2.9). The lines of Better boots and Helping hands need new words, and those are his to approve when a stage's list is built (#661).
 42. The count of workers he owns stays where it is in the game, and the save adds the workers on each job (The save). It keeps today's readers of that count as they are.
+43. The workforce is the global place he asked for: it opens from the count of workers in the frame on every site, and the hire key is there and nowhere else (What he sees, The workforce). His words are "a global place". That it is this list is the prototype's.
+44. The − and + for a job are in the workforce and also on the job's own site, as he played them. Only hiring moved.
+45. A tap on a stage's row opens the stage's full list, and the worker's own upgrades and marks are in the workforce (What the prototype does not show). The prototype shows neither.
+46. The shift report keeps "Stockyard full: production stopped" and its key to the stockyard. It says what happened in the night, which he asked to see, and it names no buy.
 
-Calls 40 to 42 came from the builder's read of this amendment. Calls 32 to 34 and 37 are played in the prototype's ninth version, and he said "the workers do as expected" to it. The principle that the page gives no answers, and one workforce that he moves, are his and are not on this list.
+Calls 43 to 46 are from the prototype's eleventh version ("This is great") and its twelfth, which moves hiring. Calls 40 to 42 came from the builder's read of the workforce. Calls 32 to 34 and 37 are played in the prototype's ninth version, and he said "the workers do as expected" to it. The principle that the page gives no answers, and one workforce that he moves, are his and are not on this list.
 
 Calls 18 to 24 are played in the prototype's fourth version, and he said "That is right" to it. So is the Light Tower's new power (night shift output at 45%, up from 30%), which is on its card and in the shift report. They stay on this list so that he can still turn one over.
 
@@ -560,7 +576,7 @@ He kept the workers (call 31). The reasons given to him were three. With no dig 
 
 The other choice was to drop the workers and buy machines only, as he played, with the line's rules and numbers written again.
 
-**What he then played.** He played the plate in the prototype's fifth to ninth versions the same morning and changed it: the workers are one workforce that he hires into and moves between jobs, and no worker moves by himself (rule 2). So the second and third reasons above no longer hold. An idle machine that runs the moment it gets its workers is what now keeps a wrong buy from being a punishment (rule 2.8), and the lab sets the line's numbers again. What is left before the mine's foot is built: his yes to the table of the three stages (#658).
+**What he then played.** He played the plate in the prototype's fifth to ninth versions the same morning and changed it: the workers are one workforce that he hires into and moves between jobs, and no worker moves by himself (rule 2). So the second and third reasons above no longer hold. An idle machine that runs the moment it gets its workers is what now keeps a wrong buy from being a punishment (rule 2.8), and the lab sets the line's numbers again. He said yes to the table of the three stages on 15 Nov 2026 at 09:53Z, in the eleventh version, and asked for hiring to be in a global place (What he sees, The workforce).
 
 **The five-day floor: the whole slice only.** His rule of 14 Nov 2026 (#556) says a run takes at least five days. Part 1 ends at the Light Tower's roof and part 2 at the Warehouse's roof, and each is the end of the game until the next part is live. He decided that the floor is checked on the whole slice only, from a fresh mine to the Foundry's roof, so parts 1 and 2 stay short and he plays the start soon. The other choice was to stretch each part to five days while it is the end of the game. The bound in `src/lab/targets.ts` is still changed only in its lab sliver, as a stop.
 
@@ -578,7 +594,7 @@ The other choice was to drop the workers and buy machines only, as he played, wi
 
 ## How it would be built
 
-This spec ships as a PR, and slice 1 is then split into sliver issues under #530. #536 is closed as not planned and its draft (PR #650) closed unmerged: the line is turned on with part 1 (#664), not in today's game. #539's rules move to part 3, and #561 waits for part 1's clean-up (#665). #537 and #538 are closed as not planned: they are built on the new screens as part 1's stage plates and its list by stage (below).
+This spec ships as a PR, and slice 1 is then split into sliver issues under #530. #536 is closed as not planned and its draft (PR #650) closed unmerged: the line is turned on with part 1 (#664), not in today's game. #539's rules move to part 3, and #561 waits for part 1's clean-up (#665). #537 and #538 are closed as not planned: they are built on the new screens as part 1's stage rows and its list by stage (below).
 
 **The slice goes live in three parts, and each part is a game he can play.** A part's rules are built off in play, as the line's were (#532), the lab plays them, and the part's last sliver switches it on. Between switch-ons the game on his phone does not change. So no sliver leaves a hole: nothing that opened at a depth is taken out before the part with its new door is switched on.
 
@@ -594,7 +610,7 @@ This spec ships as a PR, and slice 1 is then split into sliver issues under #530
 - Each part's rules are played by the lab before that part is switched on, and the lab sets that part's numbers (as #534 and #543 did for the line). The lab cannot play the whole slice before part 3's rules exist, so part 1 does not wait for it.
 - The pass, Legacy, kid runs and Grandpa (#642), the relics, the dig button, golden veins and the Gold rush leave play at part 1's switch-on. Their code is deleted by slivers after it.
 - The lean of the rock leaves play at part 1's switch-on too: the Topsoil has none, and no other level is in play until part 3.
-- The new screens are built beside today's board, to What he sees, and take its place at part 1's switch-on. They are built with the game's own parts and art, not from the prototype's code. #537 and #538 draw the stages and the buys on today's board and are not started: they are built in the mine instead, as part 1's stage plates and its machines by stage. #539's card for a stage lands there too. #537 and #538 are closed as not planned, and their work is the mine's stage plates (#660) and a stage's list (#661). #539 moves to part 3.
+- The new screens are built beside today's board, to What he sees, and take its place at part 1's switch-on. They are built with the game's own parts and art, not from the prototype's code. #537 and #538 draw the stages and the buys on today's board and are not started: they are built in the mine instead, as part 1's stage rows and its machines by stage. #539's card for a stage lands there too. #537 and #538 are closed as not planned, and their work is the mine's stage rows (#660) and a stage's list (#661). #539 moves to part 3.
 
 ### The slivers, in order
 
@@ -608,9 +624,9 @@ Part 1, the first evenings:
    - 2b. Builders and the building site, off in play (rule 7.8).
 3. The lab plays part 1 and sets its numbers: the starting workers and where they start, the line's numbers for one workforce, the horse wagon, the builder, the site, the Light Tower.
 4. Art: the Light Tower and a horse wagon. Asked for first.
-   - Beside these, and not a sliver of the game: the prototype plays the workforce (the prototype's thread, branch `claude/project-thread-eextfa`, versions 5 to 10 so far), and his answer is recorded here and on sliver 5's issue. It has its own issue under #530 (#658). Slivers 3, 5, 6 and 7 are blocked by it: the lab, because its line rules may still change with his answer, and every screen.
-5. The frame and the mine, beside today's board: the order strip, the stockpiles, Next, the site bar, the mountain, the table of the three stages and a stage's list (#660 and #661, in place of #537 and #538), and the count of workers that opens the list of jobs. Waits for his yes to a version of the mine (the step above).
-6. The city: the skyline, the transport plate with its drivers, the building site with its builders, the project's card and the order key. Waits for his yes to a version of the prototype, like sliver 5.
+   - Beside these, and not a sliver of the game: the prototype played the workforce (the prototype's thread, branch `claude/project-thread-eextfa`, versions 5 to 12), under its own issue (#658). His answer of 15 Nov 2026, 09:53Z, is in What he sees. Slivers 3, 5, 6 and 7 waited for it and are released.
+5. The frame and the mine, beside today's board: the order strip, the stockpiles with the count of workers, the workforce with its hire key, Next, the site bar (#659); the mountain with each stage in its own part, the row of keys and the three stage rows (#660); and a stage's list (#661). #660 and #661 are in place of #537 and #538.
+6. The city: the transport plate with its drivers, the skyline with the building site and its builders, the project's card and the order key.
 7. The shift report and the cards.
 8. Part 1 is switched on. **Resets the save.** Today's board goes, and its journeys and visual sections move to the new screens.
 9. What part 1 left behind is deleted: relics, the pass, Legacy and kid runs, the generations lab, golden veins and the Gold rush, the dig button, and the upgrades that went.
