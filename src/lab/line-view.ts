@@ -1,5 +1,6 @@
-import { lineView, type Stage } from "../line";
-import { lineOn } from "../line-switch";
+import { lineView, narrowStage, type Stage } from "../line";
+import { freshMineOn, lineOn } from "../line-switch";
+import { lineWork } from "../workforce";
 import type { Mountain } from "../mountain";
 import { effectiveRates } from "../rates";
 import { moreStones } from "../staffing";
@@ -19,7 +20,10 @@ export function narrowAt(mountain: Mountain, now: number): Stage | undefined {
     return undefined;
   }
   const rates = effectiveRates(mountain, now);
-  return lineView(rates.tierSpeed, rates.running).narrow;
+  // A fresh mine's stages are its placed workers' (#689), not the spread hands'.
+  return freshMineOn()
+    ? narrowStage(lineWork(mountain, rates.tierSpeed).stages)
+    : lineView(rates.tierSpeed, rates.running).narrow;
 }
 
 /**

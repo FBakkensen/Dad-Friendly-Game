@@ -39,16 +39,17 @@ type BuildingRow = {
 /**
  * In the order he builds them. Part 1 has the Light Tower; the Warehouse and
  * the Foundry require brick and cut stone, and come with parts 2 and 3. The
- * spec's starting numbers, for the lab to set (#655).
+ * lab set the Light Tower's steps (#655): a casual dad has its roof on in
+ * about two days.
  */
 const BUILDING_ROWS = [
   {
     id: "lightTower",
     name: "The Light Tower",
     steps: [
-      stonesPrice(150_000),
-      stonesPrice(1_500_000),
-      stonesPrice(6_000_000),
+      stonesPrice(25_000),
+      stonesPrice(250_000),
+      stonesPrice(1_000_000),
     ],
     // "Lights the night: night shift output is 45%, up from 30%."
     power: { nightShift: 0.45 },

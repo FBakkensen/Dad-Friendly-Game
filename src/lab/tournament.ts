@@ -25,6 +25,8 @@ import { minedOut } from "../scale";
 import type { Mountain } from "../mountain";
 import { TIERS, owned } from "../tiers";
 import { narrowAt, zeroGainBuysBetween } from "./line-view";
+import { freshView, workerTaps } from "./fresh-view";
+import { freshMineOn } from "../line-switch";
 import { runPolicy } from "./run";
 import { scoreDecision } from "./score";
 import { mean, median } from "./stats";
@@ -224,6 +226,16 @@ function samplePolicy(
             before === undefined
               ? undefined
               : zeroGainBuysBetween(before, world.mountain, world.clock),
+          workerTaps:
+            before === undefined || !freshMineOn()
+              ? undefined
+              : workerTaps(
+                  { helper: before.owned.helper, jobs: before.jobs },
+                  {
+                    helper: world.mountain.owned.helper,
+                    jobs: world.mountain.jobs,
+                  },
+                ),
         }),
       );
       before = world.mountain;
@@ -240,8 +252,10 @@ function samplePolicy(
                 trouble,
               );
         const ownedNow = ownedCount(world.mountain);
+        const fresh = freshView(world.mountain);
         samples.push({
           boughtSince: ownedNow > ownedBefore,
+          ...(fresh === undefined ? {} : { fresh }),
           ...scoreDecision({
             mountain: world.mountain,
             now: world.clock,

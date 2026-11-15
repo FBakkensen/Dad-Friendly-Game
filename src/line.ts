@@ -1,4 +1,4 @@
-import { lineOn } from "./line-switch";
+import { freshMineOn, lineOn } from "./line-switch";
 import { MACHINE_IDS, tierById, type MachineId, type TierId } from "./tiers";
 
 /**
@@ -45,9 +45,21 @@ export function stageOf(tierId: TierId): Stage | undefined {
   return STAGE_OF.get(tierId);
 }
 
+/**
+ * Ratings a fresh mine sets apart (slice 1, risk 15, #655): a cart moves 60 a
+ * second, ten times today's, so it beats what one worker moves with a tool
+ * and every worker mark of part 1 (24 a second at a hundred workers), and no
+ * cart stands idle because a tool moves more. The hoist (60) and the drill
+ * (108) already do.
+ */
+const FRESH_RATING: Readonly<Partial<Record<TierId, number>>> = { cart: 10 };
+
 /** A machine's rating on the line, times today's; the hands keep theirs. */
 export function lineRating(tierId: TierId): number {
-  return lineOn() && stageOf(tierId) !== undefined ? LINE_RATING : 1;
+  if (!lineOn() || stageOf(tierId) === undefined) {
+    return 1;
+  }
+  return (freshMineOn() ? FRESH_RATING[tierId] : undefined) ?? LINE_RATING;
 }
 
 /** What each stage moves: running × speed over its machines. */

@@ -11,12 +11,14 @@ import {
 } from "../engineers";
 import { send, settle, TUNNELS, type TunnelId } from "../expeditions";
 import { mineByHand, type Mountain } from "../mountain";
-import { lineOn } from "../line-switch";
+import { freshMineOn, lineOn } from "../line-switch";
+import { nextBuilding } from "../city";
 import { effectiveRates } from "../rates";
 import { moreStones } from "../staffing";
 import { tierById } from "../tiers";
 import { createWorld, step, type World } from "./world";
 import { canPay, sendWorthIt, sticker } from "./decide";
+import { playFresh } from "./fresh-dad";
 import {
   dayTunnel,
   fixDelayMs,
@@ -78,7 +80,7 @@ export function runPolicy(options: RunOptions): PolicyRun {
   let finishDay: number | undefined;
   let live = 0;
   const note = () => {
-    if (finishDay === undefined && world.mountain.remaining === 0) {
+    if (finishDay === undefined && runDone(world.mountain)) {
       finishDay = world.clock / DAY_MS + 1;
     }
   };
@@ -115,12 +117,21 @@ export function runPolicy(options: RunOptions): PolicyRun {
     }
     world = playGap(world, policy, session, seed);
     note();
-    const emptied = world.mountain.remaining === 0;
-    if (stop() || emptied) {
+    if (stop() || runDone(world.mountain)) {
       break;
     }
   }
   return { finishDay, buys, promotions, world };
+}
+
+/**
+ * The run's end: the mountain emptied, or in a fresh mine the last building
+ * built so far is operational (slice 1, Lab: the Light Tower's roof in part 1).
+ */
+export function runDone(mountain: Mountain): boolean {
+  return freshMineOn()
+    ? nextBuilding(mountain) === undefined
+    : mountain.remaining === 0;
 }
 
 /**
@@ -247,6 +258,9 @@ function playSecond(
   buys: PolicyPurchase[],
   promotions: PolicyPromotion[],
 ): World {
+  if (policy.fresh !== undefined && freshMineOn()) {
+    return playFreshSecond(world, policy, buys);
+  }
   const params = policy.params;
   let mountain =
     params.boosts === "always"
@@ -284,6 +298,46 @@ function playSecond(
     promotions.push({ day, name: hire.name, price: hire.price });
   }
   return { ...world, mountain: scouted.mountain };
+}
+
+/**
+ * A second in a fresh mine (#655): the mine works, then part 1's dad plays
+ * his plans. No taps, engineers, tunnels or boosts: part 1 has none.
+ */
+function playFreshSecond(
+  world: World,
+  policy: Policy,
+  buys: PolicyPurchase[],
+): World {
+  const fix = fixDelayMs(policy.params.trouble);
+  const worked = step(
+    world,
+    MS_PER_SECOND,
+    "live",
+    fix === undefined ? undefined : { playerFixMs: fix },
+  );
+  const habits = policy.fresh;
+  /* v8 ignore next 3 -- playSecond sends only a fresh player type here */
+  if (habits === undefined) {
+    return worked;
+  }
+  const day = worked.clock / DAY_MS + 1;
+  const played = playFresh(
+    worked.mountain,
+    worked.clock,
+    habits,
+    policy.params.hoardK,
+    (before, action) => {
+      if (
+        action.kind === "buyTier" ||
+        action.kind === "buyUpgrade" ||
+        action.kind === "buyVehicle"
+      ) {
+        buys.push({ day, id: action.id, price: sticker(before, action) });
+      }
+    },
+  );
+  return { ...worked, mountain: played };
 }
 
 function playGap(
