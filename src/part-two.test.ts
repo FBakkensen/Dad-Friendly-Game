@@ -117,10 +117,10 @@ describe("a full stockpile takes no more (#666)", () => {
   it("rock for a full brick stockpile bypasses to stone", () => {
     partTwo(() => {
       const after = live(
-        works({ kilns: 1, kilnPile: 300, stock: { brick: 500_000 } }),
+        works({ kilns: 1, kilnPile: 300, stock: { brick: 1_000_000 } }),
         100,
       );
-      expect(after.mountain.stock.brick).toBe(500_000);
+      expect(after.mountain.stock.brick).toBe(1_000_000);
       expect(after.mountain.stock.stones).toBe(1_800);
       expect(after.mined).toBe(1_800);
     });
@@ -129,10 +129,10 @@ describe("a full stockpile takes no more (#666)", () => {
   it("with the stone stockpile full, the kilns' share still comes up", () => {
     partTwo(() => {
       const after = live(
-        works({ kilns: 1, kilnPile: 300, stock: { stones: 3_000_000 } }),
+        works({ kilns: 1, kilnPile: 300, stock: { stones: 6_000_000 } }),
         100,
       );
-      expect(after.mountain.stock.stones).toBe(3_000_000);
+      expect(after.mountain.stock.stones).toBe(6_000_000);
       expect(after.mountain.stock.brick).toBe(1_200);
       expect(after.mined).toBe(1_200);
     });
@@ -143,7 +143,7 @@ describe("a full stockpile takes no more (#666)", () => {
       const full = works({
         kilns: 1,
         kilnPile: 300,
-        stock: { stones: 3_000_000, brick: 500_000 },
+        stock: { stones: 6_000_000, brick: 1_000_000 },
       });
       expect(mineMoves(full)).toBe(false);
       const after = live(full, 100);
@@ -154,9 +154,9 @@ describe("a full stockpile takes no more (#666)", () => {
 
   it("takes nothing away from a stockpile over its room", () => {
     partTwo(() => {
-      const over = works({ stock: { stones: 3_500_000 } });
+      const over = works({ stock: { stones: 6_500_000 } });
       const after = live(over, 100);
-      expect(after.mountain.stock.stones).toBe(3_500_000);
+      expect(after.mountain.stock.stones).toBe(6_500_000);
       expect(mineMoves(over)).toBe(false);
     });
   });
@@ -248,9 +248,9 @@ describe("the night runs until the stockyard is full (#666)", () => {
   it("stops when the stockyard is full, and says when each stockpile filled", () => {
     partTwo(() => {
       // 8.1 a second fills the 300,000 left in under eleven hours.
-      const start = works({ stock: { stones: 2_700_000 } });
+      const start = works({ stock: { stones: 5_700_000 } });
       const away = night(start, 20 * HOUR);
-      expect(away.mountain.stock.stones).toBe(3_000_000);
+      expect(away.mountain.stock.stones).toBe(6_000_000);
       const facts = away.report.night;
       expect(facts?.stop).toBe("stockyard");
       const filled = Math.ceil(300_000 / 8.1) * 1000;
@@ -263,7 +263,7 @@ describe("the night runs until the stockyard is full (#666)", () => {
   it("goes on as fast as transport takes from a full stockpile", () => {
     partTwo(() => {
       const start = works({
-        stock: { stones: 3_000_000 },
+        stock: { stones: 6_000_000 },
         driving: 1,
         building: 2,
         project: {
@@ -281,8 +281,8 @@ describe("the night runs until the stockyard is full (#666)", () => {
       // One wagon at 45% takes 4.05 stone a second, and the mine makes it good.
       const took = facts?.delivered.stones ?? 0;
       expect(took).toBeGreaterThan(0.95 * 4.05 * 36_000);
-      expect(away.mountain.stock.stones).toBeGreaterThanOrEqual(3_000_000 - 50);
-      expect(away.mountain.stock.stones).toBeLessThanOrEqual(3_000_000 + 50);
+      expect(away.mountain.stock.stones).toBeGreaterThanOrEqual(6_000_000 - 50);
+      expect(away.mountain.stock.stones).toBeLessThanOrEqual(6_000_000 + 50);
       expect(away.mined).toBeGreaterThan(0.95 * took);
     });
   });
@@ -336,13 +336,13 @@ describe("a full stockpile with an order in hand (#666)", () => {
     partTwo(() => {
       // 1,000 stone still to bring, then brick only: the stone stockpile stays full.
       const start = ordered(
-        { kilns: 1, kilnPile: 300, stock: { stones: 3_000_000, brick: 1_000 } },
+        { kilns: 1, kilnPile: 300, stock: { stones: 6_000_000, brick: 1_000 } },
         7_999_000,
       );
       const away = night(start, 10 * HOUR);
-      expect(away.mountain.stock.stones).toBeLessThanOrEqual(3_000_000 + 20);
+      expect(away.mountain.stock.stones).toBeLessThanOrEqual(6_000_000 + 20);
       const day = live(start, 3 * 3_600);
-      expect(day.mountain.stock.stones).toBeLessThanOrEqual(3_000_000 + 20);
+      expect(day.mountain.stock.stones).toBeLessThanOrEqual(6_000_000 + 20);
     });
   });
 
@@ -351,7 +351,7 @@ describe("a full stockpile with an order in hand (#666)", () => {
       fc.assert(
         fc.property(
           fc.nat(2),
-          fc.integer({ min: 2_990_000, max: 3_000_000 }),
+          fc.integer({ min: 5_990_000, max: 6_000_000 }),
           fc.nat(600_000),
           fc.nat(8_000_000),
           // Short nights, and long ones, where one-second stretches would show.
@@ -421,8 +421,8 @@ describe("the Warehouse (#666)", () => {
   it("doubles the stockyard's room when its roof is on", () => {
     partTwo(() => {
       const built = works({ operational: ["lightTower", "warehouse"] });
-      expect(stockpileRoom(built, "stones")).toBe(6_000_000);
-      expect(stockpileRoom(built, "brick")).toBe(1_000_000);
+      expect(stockpileRoom(built, "stones")).toBe(12_000_000);
+      expect(stockpileRoom(built, "brick")).toBe(2_000_000);
     });
   });
 });

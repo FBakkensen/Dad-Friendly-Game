@@ -365,6 +365,16 @@ function pileMove(mountain: Mountain): Plan {
   const chain = mineChain(mountain, 1, true);
   const flows = chainFlows(chain);
   const rates = chain.rates;
+  const last = STAGES.length - 1;
+  if (
+    (rates[last] ?? 0) > FRESH_DUST &&
+    (flows[last] ?? 0) <= FRESH_DUST &&
+    mountain.piles.shaft > 0
+  ) {
+    // Hoisting stands with rock to lift: the stockyard is full, and no
+    // move of his makes room for it (#667).
+    return [];
+  }
   const to = pileStage(mountain);
   for (const [index, from] of STAGES.entries()) {
     const stands =

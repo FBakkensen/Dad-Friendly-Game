@@ -2,6 +2,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { withFactors } from "../economy/factors";
 import { FRESH_OFF } from "../line-switch";
+import { PART_TWO_OFF } from "../part-switch";
 import { discover } from "./registry";
 import { freshPlan } from "./fresh-dad";
 import { freshView } from "./fresh-view";
@@ -53,6 +54,29 @@ describe("the lab plays part 1 (#655)", { timeout: 300_000 }, () => {
           "lightTower",
         ]);
         expect(read === 0 ? 0 : idle / read, policy.id).toBeLessThan(0.05);
+      }
+    });
+  });
+});
+
+// Plays part 2 to the Warehouse's roof for every player type (#667).
+describe("the lab plays part 2 (#667)", { timeout: 600_000 }, () => {
+  it("brings every player type to the Warehouse's roof, with kilns and a stockyard", async () => {
+    const policies = await discover(
+      path.resolve("src/lab/fresh-policies"),
+      parsePolicyExport,
+    );
+    withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 }, () => {
+      for (const policy of policies) {
+        const run = runPolicy({ policy, seed: 1 });
+        const mountain = run.world.mountain;
+        expect(run.finishDay, policy.id).toBeDefined();
+        expect(mountain.operational, policy.id).toEqual([
+          "lightTower",
+          "warehouse",
+        ]);
+        expect(mountain.makers.kiln, policy.id).toBeGreaterThan(0);
+        expect(mountain.jobs.kilns, policy.id).toBe(mountain.makers.kiln);
       }
     });
   });

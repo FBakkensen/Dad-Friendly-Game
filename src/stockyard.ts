@@ -1,4 +1,5 @@
 import { stockyardTimes } from "./city";
+import { factor } from "./economy/factors";
 import type { Mountain } from "./mountain";
 import { partTwoOn } from "./part-switch";
 import { pay, type GoodId, type Price } from "./stock";
@@ -12,12 +13,14 @@ import { pay, type GoodId, type Price } from "./stock";
  */
 
 /**
- * Each stockpile's room at level 0, for the lab to set (#667). Cut stone's
- * comes with part 3. A good with no row has no limit.
+ * Each stockpile's room at level 0, as the lab set it (#667): twice the
+ * spec's guess, so a casual dad's long night fills it in about one night in
+ * four, late in the night. Cut stone's comes with part 3. A good with no row
+ * has no limit. The lab sweeps it with `room.stockyard`.
  */
 const ROOM_AT_ZERO: Readonly<Partial<Record<GoodId, number>>> = {
-  stones: 3_000_000,
-  brick: 500_000,
+  stones: 6_000_000,
+  brick: 1_000_000,
 };
 
 /** What each level multiplies the room by. */
@@ -49,7 +52,12 @@ export function stockpileRoom(
   if (base === undefined || !stockyardOpen(mountain)) {
     return Infinity;
   }
-  return base * ROOM_GROWTH ** mountain.stockyard * stockyardTimes(mountain);
+  return (
+    base *
+    factor("room.stockyard") *
+    ROOM_GROWTH ** mountain.stockyard *
+    stockyardTimes(mountain)
+  );
 }
 
 /** The next level's price, in brick. It never costs more than the brick stockpile holds. */
