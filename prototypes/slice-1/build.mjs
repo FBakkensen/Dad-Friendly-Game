@@ -11,6 +11,7 @@ const sprites = [
   "miner-18f",
   "cage",
   "tub-full",
+  "tub-empty",
   "steam-4f",
   "drill-work-4f",
   "dust-burst-4f",
