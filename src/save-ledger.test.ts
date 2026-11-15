@@ -4,7 +4,7 @@ import { readGame, shippedFacts, writeGame } from "./save-format";
 
 /**
  * The ledger of what has shipped (#558; spec, "The ledger of what has
- * shipped"). Every id, named value and cap a version 8 save may hold, as this
+ * shipped"). Every id, named value and cap a version 9 save may hold, as this
  * build reads it. Adding a line is fine: an older build reads the new value as
  * `newer` and goes read-only. Removing a line or lowering a cap would turn a
  * save this build wrote into one it refuses, so it needs a version bump and a

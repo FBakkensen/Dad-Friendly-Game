@@ -64,8 +64,8 @@ describe("session save", () => {
 
   it("reads a later build's save as newer, and an earlier one as older with its text", () => {
     const storage = createMemoryStorage();
-    storage.setItem(SESSION_SAVE_KEY, JSON.stringify({ version: 9 }));
-    expect(readSessionSave({ storage })).toEqual({ kind: "newer", version: 9 });
+    storage.setItem(SESSION_SAVE_KEY, JSON.stringify({ version: 10 }));
+    expect(readSessionSave({ storage })).toEqual({ kind: "newer", version: 10 });
 
     const raw = JSON.stringify({ version: 7, startedAt: 40, rev: 2 });
     storage.setItem(SESSION_SAVE_KEY, raw);

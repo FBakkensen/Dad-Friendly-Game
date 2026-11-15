@@ -92,7 +92,7 @@ page is the map, plus the rules that keep it that way.
    cards, bench and pages) and `key-rail` (`keyViews`: each key's cap
    (rest, locked or lit), sub-line (an unlock line, the bench clock or the
    soonest trip), red dot and label).
-2. **Saves:** `persist` (the version 8 envelope and `readSave`'s four
+2. **Saves:** `persist` (the version 9 envelope and `readSave`'s four
    answers, #558), `save-format` (the game map: the one place the saved shape
    meets the complete mountain; `writeGame` leaves out what is zero or empty,
    `readGame` fills it back in, and `shippedFacts` is the ledger of what has
@@ -457,16 +457,17 @@ the phone backup (`dad-friendly-game-backup:{uid}`), the cloud document
 paths from before version 8 are never read or written again; the old cloud
 paths are read-only.
 
-- **The envelope** (`persist.ts`): `version` (8), `lastSeen`, `startedAt`
+- **The envelope** (`persist.ts`): `version` (9 since #664, the switch to
+  the fresh mine; 8 was today's game), `lastSeen`, `startedAt`
   (left out at 0), `rev` and `deviceId` (both or neither), `deviceLabel`, and
-  `game`. The rules check only this: `version >= 8` and never lower than the
+  `game`. The rules check only this: `version >= 9` and never lower than the
   stored one, `rev` one past the stored one, `startedAt` never lower,
   `savedAt == request.time`, the device id and label sizes, `game` a map, and
   no other key. A new game fact never needs a rules change.
 - **The game map** (`save-format.ts`): `owned` (by tier id), `stock` (stones
   and the four materials), `levels` (upgrade and recipe levels), `clocks`
   (boost ends, craft timers and the Gold rush), `marks` (`seen`, `taught`,
-  `recipes`, `finds`, `operational`), `run` (`generation`, `stretch`, `dug`, `rushBank`),
+  `recipes`, `finds`, `operational`), `run` (`generation`, `stretch`, `dug`, `rushBank`, `rock`: rock dug in all, #664),
   `engineers` (post `"tunnel"` while away), `expeditions` (each with the
   `home` post), `bench`, `fleet` (by vehicle id, #654), `jobs` (workers by job,
   #689), `piles` (the drilled rock and the rock at the shaft, whole and with no
@@ -481,11 +482,11 @@ paths are read-only.
   as its default, so a new fact needs no version bump. `dug` is the stones
   mined, rounded so the stones left round up.
 - **Four answers** (`readSave`): `ok` plays. `newer` came from a later build:
-  a version above 8, or a right-typed value this build refuses (an unknown id,
+  a version above 9, or a right-typed value this build refuses (an unknown id,
   key or named value, a count past its cap). The store then holds play
   (`playBlock` `"newer"`), records and logs `save.newer`, shows the update
   card once, and writes nothing to the cloud, the phone or the archive
-  (`canWrite`). `older` came before version 8: it is set aside (below).
+  (`canWrite`). `older` came before version 9: it is set aside (below).
   `bad` is nonsense (a wrong type, a negative, a broken number, a missing
   envelope field) and reads like no save. `bad` wins over `newer`.
 - **The ledger** (`save-ledger.test.ts`): every id, named value and cap that

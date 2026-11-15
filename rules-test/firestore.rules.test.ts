@@ -183,9 +183,9 @@ describe("firestore.rules: games/{uid} (#558)", () => {
     await expect(setDoc(ref(), { ...game(1), version: 7 })).rejects.toThrow(
       denied,
     );
-    await setDoc(ref(), { ...game(1), version: 9 });
+    await setDoc(ref(), { ...game(1), version: 10 });
     await expect(setDoc(ref(), game(2))).rejects.toThrow(denied);
-    await setDoc(ref(), { ...game(2), version: 9 });
+    await setDoc(ref(), { ...game(2), version: 10 });
   });
 
   it("refuses a write from an older run", async () => {
