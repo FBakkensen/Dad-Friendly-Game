@@ -11,6 +11,7 @@ import {
   mineScene,
   stageRows,
   STAGE_NAMES,
+  type MachineKey,
   type MineScene,
   type StageRow,
 } from "./mine-view";
@@ -23,6 +24,7 @@ import {
   startMotion,
 } from "./mine-scene";
 import type { Mountain } from "./mountain";
+import { stageCount } from "./next-view";
 import { runScene } from "./scene-paint";
 import type { BuyAmount } from "./tiers";
 import { NO_FREE_WORKER } from "./workforce-view";
@@ -46,17 +48,25 @@ function atArt(target: HTMLElement, row: number): void {
   target.style.setProperty("--at", String(row));
 }
 
-type KeyParts = {
+/** A machine's key: what it is and moves, its price and the workers it takes. */
+export type KeyParts = {
   readonly root: HTMLButtonElement;
   readonly face: HTMLElement;
   readonly price: HTMLElement;
   readonly staff: HTMLElement;
 };
 
-function buildKey(state: FrameState, stage: Stage): KeyParts {
-  const root = el("button", "mine-key");
+/**
+ * A machine's key in the mine keys' form, which a stage's list uses too
+ * (#661). A tap buys what `pick` finds at that moment, when he can pay.
+ */
+export function buildMachineKey(
+  state: FrameState,
+  className: string,
+  pick: () => MachineKey | undefined,
+): KeyParts {
+  const root = el("button", className);
   root.type = "button";
-  root.dataset["stage"] = stage;
   const face = el("span", "mine-key-face");
   const price = el("span", "board-num");
   const staff = el("span", "mine-key-staff");
@@ -67,9 +77,7 @@ function buildKey(state: FrameState, stage: Stage): KeyParts {
   small.append(price, stone, staff);
   root.append(face, small);
   root.addEventListener("click", () => {
-    const key = machineKeys(state.mountain(), state.amount()).find(
-      (each) => each.stage === stage,
-    );
+    const key = pick();
     if (key !== undefined && key.can) {
       void state.progress.dispatch(tierBuyMove(key.id, key.count));
     }
@@ -77,8 +85,28 @@ function buildKey(state: FrameState, stage: Stage): KeyParts {
   return { root, face, price, staff };
 }
 
+export function paintMachineKey(parts: KeyParts, key: MachineKey): void {
+  write(parts.face, key.face);
+  write(parts.price, key.price);
+  write(parts.staff, ` · ${key.staff}`);
+  mark(parts.root, "can", key.can);
+  setAttr(parts.root, "aria-label", key.label);
+}
+
+function buildKey(state: FrameState, stage: Stage): KeyParts {
+  const key = buildMachineKey(state, "mine-key", () =>
+    machineKeys(state.mountain(), state.amount()).find(
+      (each) => each.stage === stage,
+    ),
+  );
+  key.root.dataset["stage"] = stage;
+  return key;
+}
+
 type RowParts = {
   readonly root: HTMLElement;
+  readonly info: HTMLButtonElement;
+  readonly lamp: HTMLElement;
   readonly now: HTMLElement;
   readonly can: HTMLElement;
   readonly sum: HTMLElement;
@@ -90,10 +118,15 @@ type RowParts = {
   readonly plus: HTMLButtonElement;
 };
 
-function buildRow(row: StageRow): RowParts {
+function buildRow(state: FrameState, row: StageRow): RowParts {
   const root = el("div", "mine-stage");
   root.dataset["stage"] = row.stage;
-  const info = el("div", "mine-stage-info");
+  // A tap on the row's words opens the stage's list (#661).
+  const info = el("button", "mine-stage-info");
+  info.type = "button";
+  info.addEventListener("click", () => {
+    state.openStage(row.stage);
+  });
   const band = el("span", "mine-band");
   const bandCan = el("i", "mine-band-can");
   const bandNow = el("i", "mine-band-now");
@@ -105,7 +138,8 @@ function buildRow(row: StageRow): RowParts {
   rate.append(now, " of ", can);
   head.append(el("span", "mine-stage-name", row.name), rate);
   const sum = el("span", "mine-stage-sum");
-  info.append(band, head, sum);
+  const lamp = el("i", "frame-lamp");
+  info.append(band, head, sum, lamp);
   const minus = stepper("−", row.job, "free");
   const plus = stepper("+", row.job, "place");
   const count = el("b", "board-num");
@@ -113,7 +147,20 @@ function buildRow(row: StageRow): RowParts {
   const workers = el("span", "mine-stage-count");
   workers.append(count, unit);
   root.append(info, minus, workers, plus);
-  return { root, now, can, sum, bandCan, bandNow, count, unit, minus, plus };
+  return {
+    root,
+    info,
+    lamp,
+    now,
+    can,
+    sum,
+    bandCan,
+    bandNow,
+    count,
+    unit,
+    minus,
+    plus,
+  };
 }
 
 /**
@@ -133,7 +180,18 @@ function writeSum(target: HTMLElement, forms: readonly string[]): void {
   write(target, forms[0] ?? "");
 }
 
-function paintRow(parts: RowParts, row: StageRow, amount: BuyAmount): void {
+function paintRow(
+  parts: RowParts,
+  row: StageRow,
+  amount: BuyAmount,
+  lamp: boolean,
+): void {
+  setAttr(parts.lamp, "data-lamp", lamp ? "green" : "dark");
+  setAttr(
+    parts.info,
+    "aria-label",
+    `${row.name}: ${row.now}/s of ${row.can}. Opens its list.`,
+  );
   write(parts.now, row.now);
   write(parts.can, row.can);
   writeSum(parts.sum, row.sum);
@@ -212,7 +270,7 @@ export function createMineSite(
   keyRow.append(...[...keys.values()].map((key) => key.root));
   const rowBox = el("div", "mine-stages");
   const rows = new Map(
-    stageRows(state.mountain()).map((row) => [row.stage, buildRow(row)]),
+    stageRows(state.mountain()).map((row) => [row.stage, buildRow(state, row)]),
   );
   rowBox.append(...[...rows.values()].map((row) => row.root));
   listenSteps(rowBox, state, note);
@@ -246,11 +304,7 @@ export function createMineSite(
         // A stage with nothing to buy shows no key, never a stale one.
         hide(parts.root, key === undefined);
         if (key !== undefined) {
-          write(parts.face, key.face);
-          write(parts.price, key.price);
-          write(parts.staff, ` · ${key.staff}`);
-          mark(parts.root, "can", key.can);
-          setAttr(parts.root, "aria-label", key.label);
+          paintMachineKey(parts, key);
         }
       }
       const amount = state.amount();
@@ -261,7 +315,7 @@ export function createMineSite(
       for (const row of views) {
         const parts = rows.get(row.stage);
         if (parts !== undefined) {
-          paintRow(parts, row, amount);
+          paintRow(parts, row, amount, stageCount(mountain, row.stage) > 0);
         }
       }
     },

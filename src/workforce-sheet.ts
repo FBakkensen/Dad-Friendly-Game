@@ -6,6 +6,8 @@ import { hireKey } from "./frame-view";
 import type { Mountain } from "./mountain";
 import type { BuyAmount } from "./tiers";
 import { listenSteps, paintSteps, stepper } from "./job-steps";
+import { rowText, upgradeRows } from "./stage-sheet";
+import { workersList } from "./stage-list-view";
 import type { JobId } from "./workforce";
 import { NO_FREE_WORKER, workforceView, type JobRow } from "./workforce-view";
 
@@ -102,6 +104,7 @@ function buildJobs(mountain: Mountain): {
 } {
   const root = el("div", "frame-jobs");
   const rows = new Map<JobId, RowParts>();
+
   for (const group of workforceView(mountain).groups) {
     root.append(el("h3", "frame-jobs-site", group.name));
     for (const row of group.rows) {
@@ -113,7 +116,39 @@ function buildJobs(mountain: Mountain): {
   return { root, rows };
 }
 
-export function createWorkforceSheet(state: FrameState): WorkforceSheet {
+/**
+ * The workers' own upgrades and marks (#661), under the jobs: Better boots,
+ * and the workers' next mark.
+ */
+function buildWorkers(
+  state: FrameState,
+  now: () => number,
+): {
+  readonly root: HTMLElement;
+  readonly paint: (mountain: Mountain) => void;
+} {
+  const root = el("div", "frame-workers-own");
+  const row = el("div", "stage-row");
+  const { root: text, name, line: owned, why: mark } = rowText();
+  row.append(text);
+  const upgrades = upgradeRows(state);
+  root.append(el("h3", "frame-jobs-site", "The workers"), row, upgrades.root);
+  return {
+    root,
+    paint: (mountain) => {
+      const view = workersList(mountain, now());
+      write(name, view.name);
+      write(owned, view.owned);
+      write(mark, view.mark ?? "");
+      upgrades.paint(view.upgrades);
+    },
+  };
+}
+
+export function createWorkforceSheet(
+  state: FrameState,
+  now: () => number = Date.now,
+): WorkforceSheet {
   const root = el("section", "frame-sheet");
   root.setAttribute("role", "dialog");
   root.setAttribute("aria-label", "Workforce");
@@ -123,6 +158,8 @@ export function createWorkforceSheet(state: FrameState): WorkforceSheet {
   const note = el("p", "frame-sheet-note", NO_FREE_WORKER);
   note.hidden = true;
   const jobs = buildJobs(state.mountain());
+  const workers = buildWorkers(state, now);
+  jobs.root.append(workers.root);
   const close = el("button", "frame-sheet-close", "Close");
   close.type = "button";
   box.append(
@@ -147,6 +184,7 @@ export function createWorkforceSheet(state: FrameState): WorkforceSheet {
     close: shut,
     paint: (mountain) => {
       paintHead(head, mountain, state.amount());
+      workers.paint(mountain);
       const view = workforceView(mountain);
       // A hire, or a worker taken off another job, answers the note.
       if (view.free > 0) {

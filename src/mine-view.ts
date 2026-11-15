@@ -82,38 +82,46 @@ export type MachineKey = {
 const capital = (words: string): string =>
   `${words.charAt(0).toUpperCase()}${words.slice(1)}`;
 
+/** A machine's key at the amount key's amount: the mine's keys, and a row in a stage's list (#661). */
+export function machineKey(
+  mountain: Mountain,
+  stage: Stage,
+  tier: Tier,
+  amount: BuyAmount,
+  now?: number,
+): MachineKey {
+  const speed = effectiveRates(mountain, now).tierSpeed;
+  // A crew timer speeds every machine, so the key says what it will move now.
+  const timer = crewTimer(mountain, now);
+  const { count, cost } = tierQuote(mountain, tier, amount);
+  const id = tier.id as MachineId;
+  const kind = capital(plural(count, MACHINE_WORDS[id]));
+  const name = count === 1 ? kind : `${formatCompact(count)} ${kind}`;
+  const moves = `${formatSpeed(speed[id] * count * timer)}/s`;
+  const takes = tier.staff * count;
+  return {
+    stage,
+    id,
+    count,
+    cost,
+    can: cost <= mountain.stock.stones,
+    face: `+${name} · ${moves}`,
+    price: formatCompact(cost),
+    staff: `${formatCompact(takes)} to run`,
+    label: `Buy ${count === 1 ? "a" : String(count)} ${plural(count, MACHINE_WORDS[id])} for ${formatCompact(cost)} stone. It moves ${moves} and takes ${String(takes)} to run.`,
+  };
+}
+
 export function machineKeys(
   mountain: Mountain,
   amount: BuyAmount,
   now?: number,
 ): readonly MachineKey[] {
-  const speed = effectiveRates(mountain, now).tierSpeed;
-  // A crew timer speeds every machine, so the key says what it will move now.
-  const timer = crewTimer(mountain, now);
   return STAGES.flatMap((stage) => {
     const tier = nextMachine(mountain, stage);
-    if (tier === undefined) {
-      return [];
-    }
-    const { count, cost } = tierQuote(mountain, tier, amount);
-    const id = tier.id as MachineId;
-    const kind = capital(plural(count, MACHINE_WORDS[id]));
-    const name = count === 1 ? kind : `${formatCompact(count)} ${kind}`;
-    const moves = `${formatSpeed(speed[id] * count * timer)}/s`;
-    const takes = tier.staff * count;
-    return [
-      {
-        stage,
-        id,
-        count,
-        cost,
-        can: cost <= mountain.stock.stones,
-        face: `+${name} · ${moves}`,
-        price: formatCompact(cost),
-        staff: `${formatCompact(takes)} to run`,
-        label: `Buy ${count === 1 ? "a" : String(count)} ${plural(count, MACHINE_WORDS[id])} for ${formatCompact(cost)} stone. It moves ${moves} and takes ${String(takes)} to run.`,
-      },
-    ];
+    return tier === undefined
+      ? []
+      : [machineKey(mountain, stage, tier, amount, now)];
   });
 }
 
@@ -291,6 +299,8 @@ export type StageRow = {
   readonly band: { readonly can: number; readonly now: number };
   readonly parts: readonly RowPart[];
   readonly sum: readonly [string, string, string];
+  /** Each part's moves as printed, so the parts add up to `can` (a stage's list shows them as rows). */
+  readonly printed: readonly string[];
   readonly workers: number;
   readonly canPlace: boolean;
   readonly canFree: boolean;
@@ -346,6 +356,7 @@ export function stageRows(
       band: { can: can / strongest, now: Math.min(moving, can) / strongest },
       parts,
       sum: sumForms(stage, parts, printed.parts),
+      printed: printed.parts,
       workers,
       canPlace: free > 0,
       canFree: workers > 0,

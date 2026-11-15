@@ -1,0 +1,166 @@
+/*
+ * A stage's list (#661): a sheet in the workforce's form (frame.css), with
+ * the stage's row in one sentence, its machines with their keys in the mine
+ * keys' form (mine.css), and its upgrades. The workforce's workers use the
+ * same rows.
+ */
+.stage-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(var(--art) * 3);
+}
+
+.stage-top .frame-sheet-title {
+  margin: 0;
+}
+
+/* What the stage moves of what it can, over the row's band, then a line for each part. */
+.stage-moves {
+  position: relative;
+  margin-top: calc(var(--art) * 2);
+  padding: calc(var(--art) * 2) calc(var(--art) * 3);
+  background: var(--frame-scrim);
+  border: var(--art) solid var(--frame-edge);
+}
+
+.stage-band {
+  inset: 0 auto auto 0;
+  width: 100%;
+  height: calc(var(--art) * 14);
+}
+
+.stage-total {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  gap: calc(var(--art) * 2);
+  margin: 0 0 calc(var(--art) * 2);
+  font-size: var(--board-type-16);
+  color: var(--frame-quiet);
+}
+
+.stage-total-word {
+  font-size: var(--board-type-13);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--frame-amber);
+}
+
+.stage-total b {
+  font-size: var(--board-type-20);
+  font-weight: 400;
+  color: var(--frame-rate);
+}
+
+.stage-total span:last-child {
+  color: var(--frame-ink);
+}
+
+.stage-part {
+  display: flex;
+  align-items: baseline;
+  gap: calc(var(--art) * 3);
+  margin: 0;
+  padding: var(--art) 0;
+  border-top: var(--art) solid var(--frame-edge);
+  font-size: var(--board-type-14);
+}
+
+.stage-part-name {
+  flex: none;
+  font-weight: 700;
+  color: var(--frame-ink);
+}
+
+.stage-part-detail {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--board-type-13);
+  color: var(--frame-quiet);
+}
+
+.stage-part-moves {
+  flex: none;
+  color: var(--frame-tool);
+}
+
+.stage-rows {
+  display: flex;
+  flex-direction: column;
+}
+
+.stage-row {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--art) * 3);
+  min-height: calc(var(--art) * 30);
+  padding: calc(var(--art) * 2) 0;
+  border-top: var(--art) solid var(--frame-edge);
+}
+
+.stage-row-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.15;
+}
+
+.stage-row-name {
+  font-size: var(--frame-type-18);
+  font-weight: 700;
+}
+
+.stage-row-line {
+  font-size: var(--board-type-13);
+  color: var(--frame-ink);
+}
+
+.stage-row-why {
+  font-size: var(--frame-type-12);
+  color: var(--frame-quiet);
+}
+
+.stage-row-why:empty {
+  display: none;
+}
+
+.frame-sheet .stage-key {
+  flex: none;
+  width: calc(var(--art) * 80);
+}
+
+.frame-sheet .stage-buy,
+.stage-owned {
+  flex: none;
+  width: calc(var(--art) * 50);
+  font-size: var(--board-type-14);
+  font-weight: 700;
+  text-align: center;
+}
+
+.frame-sheet .stage-buy {
+  height: var(--target-min);
+  background: var(--frame-key);
+  color: var(--frame-quiet);
+}
+
+.frame-sheet .stage-buy.can {
+  background: var(--frame-go);
+  color: var(--frame-go-ink);
+  box-shadow: inset 0 0 0 var(--art) var(--frame-green);
+}
+
+.stage-owned {
+  color: var(--frame-green);
+}
+
+.frame-sheet .stage-buy[hidden],
+.stage-owned[hidden],
+.stage-rows[hidden],
+.stage-page[hidden],
+.frame-jobs-site[hidden] {
+  display: none;
+}

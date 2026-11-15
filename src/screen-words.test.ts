@@ -1,4 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { withFactors } from "./economy/factors";
+import { FRESH_OFF } from "./line-switch";
+import { createMountain } from "./mountain";
 import { KEEPSAKES } from "./expeditions";
 import { LOST_TOOLS } from "./lost-tools";
 import {
@@ -135,6 +138,7 @@ import {
   tripDetail,
   tunnelLock,
   upgradeEffectLine,
+  upgradeName,
   upgradeWhyLine,
   awayCheerWords,
   quietAwayWords,
@@ -1147,6 +1151,62 @@ describe("boostOverWords (#527)", () => {
     );
     expect(boostOverWords("Axle grease", 1)).toBe(
       "Axle grease over.\nYour crew mines 1 stone a second now.",
+    );
+  });
+});
+
+/** A fresh mine's words for the worker's and the stages' upgrades (#661, the spec's call 41). */
+const freshWords = <T>(body: () => T): T =>
+  withFactors({ [FRESH_OFF]: 0 }, body);
+
+const boots = upgradeById("boots");
+const helpers = upgradeById("cartSyn");
+
+const onHaulage = (count: number): Mountain => {
+  const mountain = createMountain();
+  return { ...mountain, jobs: { ...mountain.jobs, haulage: count } };
+};
+
+describe("a fresh mine's upgrade words", () => {
+  it("says Better boots lifts a worker with a tool, with the tool's numbers", () => {
+    freshWords(() => {
+      const mountain = createMountain();
+      expect(upgradeName(boots)).toBe("Better boots");
+      expect(upgradeEffectLine(boots, mountain, 0)).toBe(
+        "Workers with a tool 3/s to 7.1/s.",
+      );
+      expect(upgradeWhyLine(boots, mountain, 0)).toBe(
+        "Picks, barrows and winches go faster. Machines, drivers and builders do not.",
+      );
+    });
+  });
+
+  it("names Helping hands Cart helpers, and counts the workers on haulage", () => {
+    freshWords(() => {
+      const six = onHaulage(6);
+      expect(upgradeName(helpers)).toBe("Cart helpers");
+      expect(upgradeEffectLine(helpers, six, 0)).toBe("Carts 60/s to 63/s.");
+      expect(upgradeWhyLine(helpers, six, 0)).toBe(
+        "Each worker on haulage makes carts 1% faster.",
+      );
+    });
+  });
+
+  it("says only Cart helpers' rule while haulage has nobody", () => {
+    freshWords(() => {
+      const none = onHaulage(0);
+      expect(upgradeEffectLine(helpers, none, 0)).toBe(
+        "Each worker on haulage makes carts 1% faster.",
+      );
+      expect(upgradeWhyLine(helpers, none, 0)).toBe("");
+    });
+  });
+
+  it("keeps today's words outside a fresh mine", () => {
+    const mountain = createMountain();
+    expect(upgradeName(helpers)).toBe("Helping hands");
+    expect(upgradeWhyLine(boots, mountain, 0)).toBe(
+      "The workers pick up their feet.",
     );
   });
 });

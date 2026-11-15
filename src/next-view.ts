@@ -2,11 +2,12 @@ import { nextBuilding } from "./city";
 import { tierOnSale } from "./crew";
 import type { Mountain } from "./mountain";
 import { effectiveRates } from "./rates";
+import { STAGES, type Stage } from "./line";
 import { canPay } from "./stock";
 import { TIERS, tierQuote } from "./tiers";
 import { VEHICLES, vehiclePrice } from "./transport";
 import { upgradeShown } from "./upgrade-reveal";
-import { UPGRADES, upgradePrice, type Upgrade } from "./upgrades";
+import { UPGRADES, upgradePrice, upgradeStage, type Upgrade } from "./upgrades";
 
 /**
  * What Next and the lamps count on slice 1's frame (#659; spec, "What Next
@@ -25,9 +26,6 @@ export const SITE_NAMES: Readonly<Record<SiteId, string>> = {
   city: "City",
 };
 
-/** The worker's own upgrades: counted for the workforce, not for a site. */
-const WORKER_UPGRADES: ReadonlySet<Upgrade["id"]> = new Set(["boots"]);
-
 function upgradeAffordable(mountain: Mountain, upgrade: Upgrade): boolean {
   const price = upgradePrice(mountain, upgrade.id);
   return (
@@ -37,37 +35,47 @@ function upgradeAffordable(mountain: Mountain, upgrade: Upgrade): boolean {
   );
 }
 
-/** The machines of the line he can buy now: in play, open and affordable. */
-function machinesAffordable(mountain: Mountain): number {
-  return TIERS.filter(
+/**
+ * What a stage's list holds that he can afford now (#661): its machines at
+ * ×1, and the upgrades shown in it. A stage's row has a green lamp while it
+ * is not zero.
+ */
+export function stageCount(mountain: Mountain, stage: Stage): number {
+  const machines = TIERS.filter(
     (tier) =>
-      tier.id !== "helper" &&
+      tier.stage === stage &&
       tierOnSale(mountain, tier) &&
       tierQuote(mountain, tier, "one").cost <= mountain.stock.stones,
   ).length;
+  const upgrades = UPGRADES.filter(
+    (upgrade) =>
+      upgradeStage(upgrade) === stage && upgradeAffordable(mountain, upgrade),
+  ).length;
+  return machines + upgrades;
 }
 
 /**
- * Every buy on each site he can afford now. The mine counts its machines
- * and the upgrades in its stages' lists; the city counts its vehicles.
- * Hiring is not counted: a worker is nearly always affordable.
+ * Every buy on each site he can afford now. The mine counts what its
+ * stages' lists hold; the city counts its vehicles. Hiring is not counted:
+ * a worker is nearly always affordable.
  */
 export function siteCounts(mountain: Mountain): Record<SiteId, number> {
-  const upgrades = UPGRADES.filter(
-    (upgrade) =>
-      !WORKER_UPGRADES.has(upgrade.id) && upgradeAffordable(mountain, upgrade),
-  ).length;
+  const mine = STAGES.reduce(
+    (sum, stage) => sum + stageCount(mountain, stage),
+    0,
+  );
   const vehicles = VEHICLES.filter((vehicle) =>
     canPay(mountain.stock, vehiclePrice(mountain, vehicle.id)),
   ).length;
-  return { mine: machinesAffordable(mountain) + upgrades, city: vehicles };
+  return { mine, city: vehicles };
 }
 
 /** The worker's upgrades he can afford now (Better boots and the like). */
 export function workforceCount(mountain: Mountain): number {
   return UPGRADES.filter(
     (upgrade) =>
-      WORKER_UPGRADES.has(upgrade.id) && upgradeAffordable(mountain, upgrade),
+      upgradeStage(upgrade) === undefined &&
+      upgradeAffordable(mountain, upgrade),
   ).length;
 }
 

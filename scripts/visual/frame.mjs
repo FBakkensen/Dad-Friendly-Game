@@ -11,6 +11,7 @@ import {
   DEV_BACKUP_KEY,
   sliceBusySave,
   sliceDoneSave,
+  sliceListSave,
   sliceNightSave,
   sliceOrderedSave,
   sliceRoofSave,
@@ -29,6 +30,7 @@ const SAVES = [
   { name: "busy", save: () => sliceBusySave(Date.now()) },
   { name: "structure", save: () => sliceStructureSave(Date.now()) },
   { name: "done", save: () => sliceDoneSave(Date.now()) },
+  { name: "list", save: () => sliceListSave(Date.now()) },
 ];
 
 /** The Light Tower's picture, in board px: it has to fit between the plate and the road. */
@@ -201,6 +203,55 @@ async function sheetFacts(page) {
   });
 }
 
+/**
+ * A sheet's keys and words (#661): a stage's list, or the workforce. Open,
+ * inside the board above the save line, its machines, every key at least
+ * 48px, and no key's or number's words cut.
+ */
+async function stageSheetFacts(page, selector = ".stage-sheet") {
+  return page.evaluate((selector) => {
+    const board = globalThis.__board();
+    const sheet = document.querySelector(selector);
+    const box = sheet?.querySelector(".frame-sheet-box");
+    const line = document.querySelector(".board-saveline");
+    if (sheet === null || box === null || line === null) {
+      return { open: false };
+    }
+    const r = box.getBoundingClientRect();
+    const lineTop = line.getBoundingClientRect().top;
+    const page = sheet.querySelector(".stage-page:not([hidden])");
+    const small = [...sheet.querySelectorAll("button")]
+      .filter((el) => el.getClientRects().length > 0)
+      .map((el) => {
+        const b = el.getBoundingClientRect();
+        return {
+          name: el.className,
+          w: b.width / board.scale,
+          h: b.height / board.scale,
+        };
+      })
+      .filter((b) => b.w < 47.5 || b.h < 47.5);
+    const cut = [
+      ...sheet.querySelectorAll(
+        ".mine-key-face, .mine-key-small, .stage-buy, .stage-total, .stage-part-name, .stage-part-moves",
+      ),
+    ]
+      .filter(
+        (el) =>
+          el.getClientRects().length > 0 && el.scrollWidth > el.clientWidth + 1,
+      )
+      .map((el) => el.className);
+    return {
+      open: !sheet.hidden,
+      inside: r.top >= board.top - 0.5 && r.bottom <= lineTop + 0.5,
+      machines: page?.querySelectorAll("[data-machine]").length ?? 0,
+      small,
+      cut,
+      words: sheet.textContent ?? "",
+    };
+  }, selector);
+}
+
 for (const size of SIZES) {
   const label = `${String(size[0])}x${String(size[1])}`;
   for (const { name, save } of SAVES) {
@@ -249,7 +300,45 @@ for (const size of SIZES) {
             `${at} ${site}: no "hands" and no "by hand"`,
           );
         }
+        await tap(page, '.frame-site[data-site="mine"]');
+        for (const stage of ["face", "haul", "lift"]) {
+          await tap(
+            page,
+            `.mine-stage[data-stage="${stage}"] .mine-stage-info`,
+          );
+          const list = await stageSheetFacts(page);
+          await shot(page, `slice-stage-${stage}-${name}-${label}`);
+          check(
+            list.open && list.inside && list.machines === 1,
+            `${at} ${stage}'s list opens above the save line with its machine`,
+          );
+          check(
+            list.small.length === 0,
+            `${at} ${stage}'s list: every key is at least 48px (${JSON.stringify(list.small)})`,
+          );
+          check(
+            list.cut.length === 0,
+            `${at} ${stage}'s list: no key's words are cut (${list.cut.join(", ")})`,
+          );
+          check(
+            !/\bhands?\b|by hand|bottleneck|limit|best buy/i.test(list.words),
+            `${at} ${stage}'s list: no "hands", and no limit or best buy named`,
+          );
+          check(
+            await noScroll(page),
+            `${at} ${stage}'s list does not scroll the page`,
+          );
+          await tap(page, ".stage-sheet .frame-sheet-close");
+        }
         await tap(page, ".frame-workers");
+        const workforce = await stageSheetFacts(
+          page,
+          ".frame-sheet:not(.stage-sheet)",
+        );
+        check(
+          workforce.small.length === 0 && workforce.cut.length === 0,
+          `${at} the workforce: every key is at least 48px, and no key's words are cut (${JSON.stringify([workforce.small, workforce.cut])})`,
+        );
         const sheet = await sheetFacts(page);
         await shot(page, `slice-workforce-${name}-${label}`);
         check(

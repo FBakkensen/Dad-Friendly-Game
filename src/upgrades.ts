@@ -1,3 +1,4 @@
+import type { Stage } from "./line";
 import { freshMineOn } from "./line-switch";
 import { oneOffStretch } from "./scale";
 import type { Mountain } from "./mountain";
@@ -169,6 +170,17 @@ export function tierSynergy(mountain: Mountain, tier: TierId): number {
       upgradeLevel(mountain, candidate.id) > 0,
   );
   return upgrade === undefined ? 0 : synergyBonus(mountain, upgrade);
+}
+
+/**
+ * The stage whose machine an upgrade lifts, where its list shows it (#661):
+ * a synergy's machine's stage. Undefined for the worker's own upgrades
+ * (Better boots), which the workforce shows.
+ */
+export function upgradeStage(upgrade: Upgrade): Stage | undefined {
+  return upgrade.synergy === undefined
+    ? undefined
+    : tierById(upgrade.synergy.to).stage;
 }
 
 export function upgradeById(id: UpgradeId): Upgrade {
