@@ -316,6 +316,15 @@ describe("a stage with a recipe (#723)", () => {
     expect(after.piles[0]).toBeCloseTo(0, 6);
   });
 
+  it("makes nothing from a rock short of its take (#723 review)", () => {
+    // One rock waits in the kilns' pile and nothing comes up: no brick.
+    const chain = kilnsAtTwo(0, 12, pile(1, 300));
+    expect(chainFlows(chain)).toEqual([0, 0, 0]);
+    expect(chainChange(chain)).toBe(Infinity);
+    // Rock coming up makes brick at half its rate, and the rock still waits.
+    expect(chainFlows(kilnsAtTwo(6, 12, pile(1, 300)))).toEqual([6, 3, 0]);
+  });
+
   it("makes no more than half the rock brought once its pile is empty", () => {
     const flows = chainFlows(kilnsAtTwo(18, 12));
     expect(flows[1]).toBeCloseTo(9, 9);

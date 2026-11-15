@@ -128,6 +128,21 @@ describe("the kilns make brick (#666)", () => {
   });
 });
 
+describe("a part-brick's rock (#723 review)", () => {
+  it("leaves the kilns standing when one rock waits and the line stands", () => {
+    partTwo(() => {
+      const waiting = {
+        ...works({ line: 0, kilns: 1, kilnPile: 1 }),
+        piles: { face: 0, shaft: 0, kiln: 1 },
+      };
+      expect(mineMoves(waiting)).toBe(false);
+      const after = live(waiting, 100);
+      expect(after.mountain.stock.brick).toBe(0);
+      expect(after.mountain.piles.kiln).toBe(1);
+    });
+  });
+});
+
 describe("a full stockpile takes no more (#666)", () => {
   it("rock for a full brick stockpile bypasses to stone", () => {
     partTwo(() => {

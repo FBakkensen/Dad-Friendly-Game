@@ -71,6 +71,17 @@ export type ChainFlow = {
 const EDGE = 1e-9;
 
 /**
+ * Whether the pile in front of stage `index` is empty for it: nothing in it,
+ * or, for a stage with a recipe, too little for one whole good, so a
+ * part-good's rock waits and never counts as a stage at work.
+ */
+function dryFor(chain: Chain, index: number): boolean {
+  const held = chain.piles[index - 1]?.held ?? 0;
+  const take = takeOf(chain, index);
+  return take > 1 ? held < take - EDGE : held <= 0;
+}
+
+/**
  * One forward pass: a stage whose pile in front is empty makes at most what
  * the stage before brings, over its take.
  */
@@ -78,10 +89,7 @@ function capForward(flows: number[], chain: Chain): boolean {
   let changed = false;
   for (let index = 1; index < flows.length; index += 1) {
     const before = (flows[index - 1] ?? 0) / takeOf(chain, index);
-    if (
-      (chain.piles[index - 1]?.held ?? 0) <= 0 &&
-      (flows[index] ?? 0) > before
-    ) {
+    if (dryFor(chain, index) && (flows[index] ?? 0) > before) {
       flows[index] = before;
       changed = true;
     }
