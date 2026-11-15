@@ -93,10 +93,13 @@
   @keyframes pulse { 50% { box-shadow: 0 0 0 5px var(--green), 0 0 18px 6px var(--green); } }
   /* a stepper: take a worker off a job, put a free worker on it */
   .st { flex: none; width: 34px; height: 32px; background: #22282f; color: var(--ink); text-align: center; font-size: 22px; font-weight: 700; line-height: 28px; }
-  #piles .wk { flex: none; width: 84px; border-right: 0; padding-top: 3px; }
-  #piles .wk .ico { width: 20px; height: 20px; vertical-align: -12px; }
-  #piles .wk .fr { position: absolute; left: 36px; bottom: 3px; font-size: 12px; line-height: 1; color: var(--quiet); }
-  #piles .wk .fr.has { color: var(--green); }
+  #piles .wk { flex: none; width: 132px; display: flex; align-items: center; gap: 2px; padding-right: 3px; }
+  #wfb { position: relative; flex: 1; align-self: stretch; padding: 3px 0 0 6px; white-space: nowrap; }
+  #wfb .ico { width: 20px; height: 20px; vertical-align: -12px; }
+  #wfb .fr { position: absolute; left: 34px; bottom: 3px; font-size: 12px; line-height: 1; color: var(--quiet); }
+  #wfb .fr.has { color: var(--green); }
+  #hire { flex: none; width: 64px; height: 38px; background: #22282f; color: var(--quiet); text-align: center; font-size: 14px; font-weight: 700; line-height: 1.15; white-space: nowrap; }
+  #hire small { display: block; font-weight: 600; font-size: 12px; line-height: 1.1; }
   #card .wf { padding: 14px 16px; }
   #card .wf .wh { display: flex; align-items: center; gap: 8px; font-size: 17px; margin-bottom: 4px; }
   #card .wf .wh span { flex: 1; }
@@ -517,7 +520,6 @@ function actions() {
   if (h && !S.b[h.id].on && !S.b[h.id].held) a.push({ p: 3, t: "Order " + low(h.n), sel: "#ord" });
   for (const k in VEH) if ((k === "wagons" || trucksOpen()) && canPay({ [VEH[k].good]: vehPrice(k) })) a.push({ p: 3 });
   for (const k in STG) { const b = stageBuy(k); if (canPay({ [b.good]: b.price })) a.push({ p: 0 }); }
-  if (canPay({ stones: workerPrice() })) a.push({ p: 0 });
   if (worksOpen() && !S.shaft && canPay(SHAFT)) a.push({ p: 0 });
   if (worksOpen() && canPay({ stones: kilnPrice() })) a.push({ p: 1 });
   if (S.shaft && canPay({ bricks: sawPrice() })) a.push({ p: 1 });
@@ -642,8 +644,7 @@ function mineDOM(ov) {
     if (S.shaft) { lv.classList.add("split"); el("div", "cs", lv, `<button class="st" data-lv="${i}" data-d="-1" aria-label="Move a crew off the ${n}">−</button><button class="st" data-lv="${i}" data-d="1" aria-label="Move a crew to the ${n}">+</button>`); }
   });
   if (hA * 2 - 162 > (SURF + 2 * LH + 4) * 2 + 24) { const deep = el("div", "deep", ov, "Deeper strata: not yet surveyed. The city has to grow first."); deep.style.top = (SURF + 2 * LH + 4) * 2 + "px"; }
-  const ln = el("div", "", ov, `<div class="lh"><button class="k" id="hire"></button>${Object.keys(STG).map((k) => `<button class="k" id="buy-${k}"></button>`).join("")}</div>`); ln.id = "line";
-  tap($("#hire"), hire);
+  const ln = el("div", "", ov, `<div class="lh">${Object.keys(STG).map((k) => `<button class="k" id="buy-${k}"></button>`).join("")}</div>`); ln.id = "line";
   for (const k in STG) {
     const nm = STG[k].n.toLowerCase(), s = el("div", "stg", ln, `<button class="i"><div class="bar"><u></u><u></u></div><div class="h"><span class="nm">${STG[k].n}</span><span class="r"></span></div><div class="mk"></div></button><button class="st" data-job="${k}" data-d="-1" aria-label="Take a worker off ${nm}">−</button><div class="n"><b class="num" data-n="${k}"></b><small></small></div><button class="st" data-job="${k}" data-d="1" aria-label="Put a worker on ${nm}">+</button>`); s.id = "stg-" + k;
     tap(s.children[0], () => explain(k)); tap($("#buy-" + k), () => buyStage(k));
@@ -666,8 +667,7 @@ function mineUI(F) {
     else b = `${g} ${g === 1 ? "crew" : "crews"} · ${GN[good]} ${rate(F.made[i])} · stone ${rate(F.over[i])}`;
     $("#lv-b" + i).innerHTML = b;
   }
-  const sf = F.sf, wp = workerPrice(), x = S.charge > 0 ? 2 : 1, top = Math.max(sf.f.face, sf.f.haul, sf.f.lift, 1) * x;
-  const hk = $("#hire"); hk.innerHTML = `+Worker<small>${fmt(wp)} ${ico("stones")} · ${S.free} free</small>`; hk.classList.toggle("can", canPay({ stones: wp }));
+  const sf = F.sf, x = S.charge > 0 ? 2 : 1, top = Math.max(sf.f.face, sf.f.haul, sf.f.lift, 1) * x;
   const nq = (v) => (v < 1000 ? num(v) : (v / 1000).toFixed(1).replace(/\.0$/, "") + "K");
   for (const k in STG) {
     const s = $("#stg-" + k), sb = stageBuy(k), tl = sf.tool[k], t = STG[k], cap = sf.f[k] * x, mk = s.querySelector(".mk");
@@ -990,7 +990,8 @@ function wfUI() {
   document.querySelectorAll("[data-nw]").forEach((e) => { const n = S.wk[e.dataset.nw]; e.textContent = n + " " + (e.dataset.noun || "worker") + (n === 1 ? "" : "s"); });
   document.querySelectorAll("[data-job][data-d='1']").forEach((e) => e.classList.toggle("can", S.free > 0));
   document.querySelectorAll("[data-note]").forEach((e) => { e.textContent = jobNote(e.dataset.note); });
-  const w = $("#wfb"), fr = w.querySelector(".fr"); w.querySelector(".v").textContent = workers(); fr.textContent = S.free + " free"; fr.classList.toggle("has", S.free > 0);
+  const w = $("#wfb"), fr = w.querySelector(".fr"), wp = workerPrice(), hk = $("#hire"); w.querySelector(".v").textContent = workers(); fr.textContent = S.free + " free"; fr.classList.toggle("has", S.free > 0);
+  hk.innerHTML = `+Worker<small>${fmt(wp)} ${ico("stones")}</small>`; hk.classList.toggle("can", canPay({ stones: wp }));
   if ($("#wp-n")) { const wp = workerPrice(), hk = $("#wp-hire"); $("#wp-n").textContent = workers(); $("#wp-f").textContent = S.free; hk.innerHTML = `Hire · ${fmt(wp)} ${ico("stones")}`; hk.classList.toggle("can", canPay({ stones: wp })); }
 }
 
@@ -1030,7 +1031,7 @@ function swipes() {
 }
 function frame() {
   $("#order").innerHTML = `<div class="l1"><span class="name"></span><span class="step"></span><span class="pips"><i></i><i></i><i></i></span></div><div class="l2"></div>`; tap($("#order"), () => go(3));
-  $("#piles").innerHTML = ["stones", "bricks", "cut"].map((g) => `<div class="pile" id="pile-${g}">${ico(g)}<span class="v num"></span><span class="of"></span><div class="bar"><i></i></div></div>`).join("") + `<button class="pile wk" id="wfb" aria-label="The workforce">${ico("worker")}<span class="v num"></span><span class="fr"></span></button>`; tap($("#wfb"), panel);
+  $("#piles").innerHTML = ["stones", "bricks", "cut"].map((g) => `<div class="pile" id="pile-${g}">${ico(g)}<span class="v num"></span><span class="of"></span><div class="bar"><i></i></div></div>`).join("") + `<div class="wk"><button id="wfb" aria-label="The workforce">${ico("worker")}<span class="v num"></span><span class="fr"></span></button><button id="hire" aria-label="Hire a worker"></button></div>`; tap($("#wfb"), panel); tap($("#hire"), hire);
   $("#stage").addEventListener("click", (e) => { const b = e.target.closest("[data-d]"); if (!b) return; e.preventDefault(); const d = +b.dataset.d; if (b.dataset.job) move(b.dataset.job, d); else moveGang(d > 0 ? +b.dataset.lv : 1 - b.dataset.lv); });
   $("#next").innerHTML = `<div class="what"><div class="k"></div><div class="t"></div></div><div class="n"><b></b>ready</div>`; tap($("#next"), () => { const all = actions(), a = all.find((x) => x.t) || [1, 2, 3, 4].map((d) => all.find((x) => x.p === (S.place + d) % 4)).find(Boolean); if (a) { go(a.p); const s = a.sel && $(a.sel); if (s) { s.classList.remove("pulse"); void s.offsetWidth; s.classList.add("pulse"); } } });
   PLACES.forEach((p, i) => { const b = el("button", "", $("#tabs"), `${ico(p)}<span>${PLACE_N[p]}</span><i class="lamp"></i>`); b.style.setProperty("--acc", ACC[p]); tap(b, () => go(i)); });
@@ -1042,7 +1043,7 @@ function ui() {
   const F = flows(), h = inHand(), o = $("#order");
   if (h) { const st = S.b[h.id], need = h.steps[st.step]; o.querySelector(".name").textContent = h.n; o.querySelector(".step").textContent = STEPN[st.step] + (st.on ? " · delivering" : st.held ? " · on hold" : " · not ordered"); o.querySelectorAll(".pips i").forEach((p, i) => { p.className = i < st.step ? "done" : i === st.step ? "now" : ""; }); o.querySelector(".l2").innerHTML = "Requires " + Object.keys(need).map((g) => `<b>${GC[g]}</b> <span class="num">${fmt(st.given[g] || 0)} of ${fmt(need[g])}</span>`).join(" &nbsp; "); }
   else { o.querySelector(".name").textContent = "Phase 1 complete"; o.querySelector(".step").textContent = ""; o.querySelectorAll(".pips i").forEach((p) => { p.className = "done"; }); o.querySelector(".l2").textContent = "The road to Mars goes on."; }
-  for (const g of ["stones", "bricks", "cut"]) { const p = $("#pile-" + g); p.querySelector(".v").textContent = fmt(S[g]); p.querySelector(".of").textContent = F.full[g] ? "full" : isFinite(F.cap[g]) ? "of " + fmt(F.cap[g]) : ""; p.querySelector(".bar i").style.width = Math.min(100, (100 * S[g]) / F.cap[g]) + "%"; p.classList.toggle("full", F.full[g]); }
+  for (const g of ["stones", "bricks", "cut"]) { const p = $("#pile-" + g); p.querySelector(".v").textContent = fmt(S[g]); p.querySelector(".of").textContent = F.full[g] ? "full" : isFinite(F.cap[g]) && !S.shaft ? "of " + fmt(F.cap[g]) : ""; p.querySelector(".bar i").style.width = Math.min(100, (100 * S[g]) / F.cap[g]) + "%"; p.classList.toggle("full", F.full[g]); }
   $("#pile-bricks").hidden = !worksOpen(); $("#pile-cut").hidden = !S.shaft;
   const a = actions(), n = $("#next"); n.classList.toggle("go", a.length > 0);
   const po = a.find((x) => x.t), per = PLACES.map((p, i) => [PLACE_N[p], a.filter((x) => x.p === i).length]).filter(([, c]) => c);
@@ -1068,7 +1069,7 @@ async function boot() {
   let rz = 0; addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(build, 120); });
   addEventListener("visibilitychange", () => { if (document.hidden) return save(); const gap = S.seen ? (Date.now() - S.seen) / 1000 : 0; if (S.intro && gap > 90 && $("#card").hidden) away(gap); }); addEventListener("pagehide", save);
   if (S.intro && GONE > 90) away(GONE);
-  if (!S.intro) card("The first evening", ["One level, one material, two sites: the mine and the city. You start with twelve workers: nine in the mine, one driving the horse wagon, two building.", "The workers are one workforce, and every job takes them. Hire a worker, then put the worker on a job with +, or take one off with −. A machine or a wagon stands until workers run it. Watch the sites: rock piles up where it waits, and workers stand where there is nothing to do. The balance is yours to work out.", "Order the tower in the city. Transport moves the stone to the site, the builders build it in, and the tower rises. Each finished building opens the next site. The numbers are made up and run fast. Reset, top right, can also jump to all four sites."], "Start", null, () => { S.intro = true; save(); });
+  if (!S.intro) card("The first evening", ["One level, one material, two sites: the mine and the city. You start with twelve workers: nine in the mine, one driving the horse wagon, two building.", "The workers are one workforce, and every job takes them. Hire a worker at the top right, on any site, then put the worker on a job with +, or take one off with −. A machine or a wagon stands until workers run it. Watch the sites: rock piles up where it waits, and workers stand where there is nothing to do. The balance is yours to work out.", "Order the tower in the city. Transport moves the stone to the site, the builders build it in, and the tower rises. Each finished building opens the next site. The numbers are made up and run fast. Reset, top right, can also jump to all four sites."], "Start", null, () => { S.intro = true; save(); });
   requestAnimationFrame(loop);
 }
 boot();
