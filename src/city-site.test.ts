@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createUnconfiguredAuth } from "./auth";
 import { projectCard, transportPlate } from "./city-view";
 import { holdFactors } from "./economy/factors";
@@ -22,6 +22,7 @@ afterEach(() => {
   unmount.abort();
   unmount = new AbortController();
   holdFactors({});
+  vi.restoreAllMocks();
 });
 
 /** Every worker on a job: one driver, two builders, the rest in the mine. */
@@ -125,16 +126,29 @@ describe("the city", () => {
   });
 
   it("places the order, holds it and resumes it from the order key", () => {
+    let clock = 0;
+    vi.spyOn(performance, "now").mockImplementation(() => clock);
+    const tapLater = (): void => {
+      clock += 1_000;
+      button(".city-order").click();
+    };
     const { progress, button, text } = mount(withStones(1_000));
     expect(text(".city-order")).toBe("Place orderthe whole building");
-    button(".city-order").click();
+    tapLater();
     expect(progress.getSnapshot().mountain.project.kind).toBe("delivering");
     expect(text(".city-order b")).toBe("Delivering");
     expect(text(".city-state")).toBe("serving the city");
-    button(".city-order").click();
+    tapLater();
     expect(progress.getSnapshot().mountain.project.kind).toBe("onHold");
     expect(text(".city-order b")).toBe("Resume");
     expect(text(".city-state")).toBe("on hold");
+    tapLater();
+    expect(progress.getSnapshot().mountain.project.kind).toBe("delivering");
+  });
+
+  it("takes a double tap on Place order as one tap, so the order is not held", () => {
+    const { progress, button } = mount(withStones(1_000));
+    button(".city-order").click();
     button(".city-order").click();
     expect(progress.getSnapshot().mountain.project.kind).toBe("delivering");
   });

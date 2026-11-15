@@ -224,7 +224,10 @@ function drawWagon(
   c.restore();
 }
 
-/** The site of the building in hand: what lies on it, and the builders at it. */
+/**
+ * The site of the building in hand: what lies on it, and the builders at
+ * it. With no order the builders wait on the first plot with a "z".
+ */
 function drawSite(
   c: CanvasRenderingContext2D,
   sprites: Sprites,
@@ -232,12 +235,13 @@ function drawSite(
   g: number,
   t: number,
 ): void {
-  const span =
-    scene.sitePlot === undefined ? undefined : PLOT_SPANS[scene.sitePlot];
+  const span = PLOT_SPANS[scene.sitePlot ?? 0];
   if (span === undefined) {
     return;
   }
-  heap(c, span.x + span.w - 18, g, 16, scene.siteFill, 95);
+  if (scene.sitePlot !== undefined) {
+    heap(c, span.x + span.w - 18, g, 16, scene.siteFill, 95);
+  }
   const drawn = Math.min(3, scene.builders);
   const waiting = Math.round(drawn * (1 - scene.building));
   for (let j = 0; j < drawn; j += 1) {

@@ -63,6 +63,8 @@ export type OrderStrip =
   /** After the part's last roof: nothing to order until the next part is live. */
   | {
       readonly kind: "planning";
+      /** The last building operational. */
+      readonly name: string;
       readonly line: string;
       readonly pips: readonly [Pip, Pip, Pip];
     };
@@ -127,6 +129,7 @@ export function orderStrip(mountain: Mountain): OrderStrip {
     ).at(-1);
     return {
       kind: "planning",
+      name: last?.name ?? "",
       line: last === undefined ? "" : planningLine(last),
       pips: ["done", "done", "done"],
     };

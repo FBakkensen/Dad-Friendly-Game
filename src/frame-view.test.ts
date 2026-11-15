@@ -74,6 +74,7 @@ describe("order strip", () => {
       };
       expect(orderStrip(done)).toEqual({
         kind: "planning",
+        name: "The Light Tower",
         line: "The Light Tower is operational · the city is planning its next building",
         pips: ["done", "done", "done"],
       });

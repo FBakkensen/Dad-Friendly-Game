@@ -2,6 +2,7 @@ import { SITE_HOLDS, buildRate, onSiteTotal } from "./building-site";
 import {
   BUILDINGS,
   buildingById,
+  nextBuilding,
   type BuildingId,
   type Site,
   type StepIndex,
@@ -9,8 +10,15 @@ import {
 import { etaShort, formatCompact } from "./format";
 import { STEP_NAMES, orderStrip, requirements, type Pip } from "./frame-view";
 import type { Mountain } from "./mountain";
+import { canPay, priceAmount } from "./stock";
 import { AWAY_PAY_RATE, effectiveRates } from "./rates";
-import { formatSpeed, percent, plural } from "./screen-words";
+import {
+  VEHICLE_KEYS,
+  VEHICLE_WORDS,
+  formatSpeed,
+  percent,
+  plural,
+} from "./screen-words";
 import {
   VEHICLES,
   drivenFleet,
@@ -21,8 +29,7 @@ import {
   type Vehicle,
   type VehicleId,
 } from "./transport";
-import { freeWorkers, type JobId } from "./workforce";
-import { JOB_NAMES } from "./workforce-view";
+import { jobRow, oneBuilderBuilds, type JobRow } from "./workforce-view";
 
 /**
  * The city (#662; spec, "The city"): the transport plate, the skyline's
@@ -30,35 +37,6 @@ import { JOB_NAMES } from "./workforce-view";
  * it reads the mountain and never writes it. It shows the order's numbers
  * and names no limit (rule 7.11).
  */
-
-/** A vehicle as the plate counts it: one, and more than one. */
-const VEHICLE_WORDS: Readonly<Record<VehicleId, readonly [string, string]>> = {
-  horseWagon: ["horse wagon", "horse wagons"],
-};
-
-/** A vehicle on its key: "+Wagon". */
-const VEHICLE_SHORT: Readonly<Record<VehicleId, string>> = {
-  horseWagon: "Wagon",
-};
-
-/** A job's − and +, as the plate and the card show them. */
-type JobSteps = {
-  readonly job: JobId;
-  readonly name: string;
-  readonly workers: number;
-  readonly canPlace: boolean;
-  readonly canFree: boolean;
-};
-
-function jobSteps(mountain: Mountain, job: JobId): JobSteps {
-  return {
-    job,
-    name: JOB_NAMES[job],
-    workers: mountain.jobs[job],
-    canPlace: freeWorkers(mountain) > 0,
-    canFree: mountain.jobs[job] > 0,
-  };
-}
 
 /** The transport plate on top of the skyline. */
 export type TransportPlate = {
@@ -68,7 +46,7 @@ export type TransportPlate = {
   readonly state: string;
   /** "1 horse wagon: 1 of 1 driver 9/s". */
   readonly fleet: string;
-  readonly steps: JobSteps;
+  readonly steps: JobRow;
 };
 
 const PLATE_STATES: Readonly<Record<Mountain["project"]["kind"], string>> = {
@@ -98,7 +76,7 @@ export function transportPlate(mountain: Mountain): TransportPlate {
     fleet: VEHICLES.filter((vehicle) => mountain.fleet[vehicle.id] > 0)
       .map((vehicle) => fleetWords(mountain, vehicle, driven[vehicle.id]))
       .join(" · "),
-    steps: jobSteps(mountain, "driving"),
+    steps: jobRow(mountain, "driving"),
   };
 }
 
@@ -117,13 +95,13 @@ export type VehicleKey = {
 /** Part 1 sells horse wagons; trucks come with part 3 and have no key before then. */
 export function vehicleKeys(mountain: Mountain): readonly VehicleKey[] {
   return VEHICLES.map((vehicle) => {
-    const [price] = vehiclePrice(mountain, vehicle.id);
-    const cost = price?.amount ?? 0;
+    const price = vehiclePrice(mountain, vehicle.id);
+    const cost = priceAmount(price, vehicle.good);
     const moves = `${formatSpeed(vehicle.carries)}/s`;
     return {
       id: vehicle.id,
-      can: cost <= mountain.stock[price?.good ?? "stones"],
-      face: `+${VEHICLE_SHORT[vehicle.id]} · ${moves}`,
+      can: canPay(mountain.stock, price),
+      face: `+${VEHICLE_KEYS[vehicle.id]} · ${moves}`,
       price: formatCompact(cost),
       staff: "1 to run",
       label: `Buy a ${VEHICLE_WORDS[vehicle.id][0]} for ${formatCompact(cost)} stone. It carries ${moves} and takes 1 to run.`,
@@ -165,7 +143,7 @@ const PLOTS = 3;
 function inHand(mountain: Mountain): BuildingId | undefined {
   const project = mountain.project;
   return project.kind === "unordered"
-    ? BUILDINGS.find((b) => !mountain.operational.includes(b.id))?.id
+    ? nextBuilding(mountain)?.id
     : project.site.building;
 }
 
@@ -259,20 +237,20 @@ function orderKey(mountain: Mountain, now: number | undefined): OrderKey {
 }
 
 /** The builders under the bars, with their − and +. */
-type BuildersRow = JobSteps & {
+type BuildersRow = JobRow & {
   /** "2 builders ×8/s · on site 400 of 500". */
   readonly line: string;
 };
 
 function buildersRow(mountain: Mountain): BuildersRow {
   const count = mountain.jobs.building;
-  const each = `${String(count)} ${plural(count, ["builder", "builders"])} ×${formatSpeed(buildRate({ jobs: { ...mountain.jobs, building: 1 } }))}/s`;
+  const each = `${String(count)} ${plural(count, ["builder", "builders"])} ×${formatSpeed(oneBuilderBuilds())}/s`;
   const project = mountain.project;
   const site =
     project.kind === "unordered"
       ? ""
       : ` · on site ${formatCompact(onSiteTotal(project.site))} of ${formatCompact(SITE_HOLDS)}`;
-  return { ...jobSteps(mountain, "building"), line: `${each}${site}` };
+  return { ...jobRow(mountain, "building"), line: `${each}${site}` };
 }
 
 /** One good the step requires: what is built in of it, and its bar. */
@@ -319,12 +297,9 @@ export function projectCard(mountain: Mountain, now?: number): ProjectCard {
     pip,
   }));
   if (strip.kind === "planning") {
-    const last = BUILDINGS.filter((b) =>
-      mountain.operational.includes(b.id),
-    ).at(-1);
     return {
       kind: "planning",
-      name: last?.name ?? "",
+      name: strip.name,
       steps,
       line: strip.line,
       builders,

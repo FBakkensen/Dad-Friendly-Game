@@ -103,21 +103,12 @@
   color: var(--frame-tool);
 }
 
+/* The no-free-worker note looks as the mine's does (mine.css); here it sits over the card. */
 .city-note {
   position: absolute;
   left: calc(var(--art) * 3);
   right: calc(var(--art) * 3);
   bottom: calc(var(--art) * (var(--city-card) + 4));
-  margin: 0;
-  padding: calc(var(--art) * 2) calc(var(--art) * 4);
-  background: var(--frame-scrim);
-  border: var(--art) solid var(--frame-amber);
-  font-size: var(--frame-type-15);
-  color: var(--frame-amber);
-}
-
-.city-note[hidden] {
-  display: none;
 }
 
 /* The project's card. */

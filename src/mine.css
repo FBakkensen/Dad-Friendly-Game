@@ -108,7 +108,8 @@
   gap: var(--art);
 }
 
-.mine-note {
+.mine-note,
+.city-note {
   margin: 0;
   padding: calc(var(--art) * 2) calc(var(--art) * 4);
   background: var(--frame-scrim);
@@ -117,7 +118,8 @@
   color: var(--frame-amber);
 }
 
-.mine-note[hidden] {
+.mine-note[hidden],
+.city-note[hidden] {
   display: none;
 }
 

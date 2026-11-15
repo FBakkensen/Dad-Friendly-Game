@@ -13,7 +13,8 @@ import { FRESH_OFF } from "./line-switch";
 import { createMountain, type Mountain } from "./mountain";
 import { effectiveRates } from "./rates";
 import { EMPTY_STOCK } from "./stock";
-import { orderNumbers } from "./transport";
+import { etaShort } from "./format";
+import { orderLimit, orderNumbers } from "./transport";
 
 /** The city's views (#662), on a fresh mine. */
 const fresh = <T>(body: () => T): T => withFactors({ [FRESH_OFF]: 0 }, body);
@@ -206,11 +207,29 @@ describe("the project's card", () => {
       expect(card.key.title).toBe("Delivering");
       expect(card.key.run).toBe(true);
       expect(card.key.lines[0]).toBe(`arriving ${String(numbers.brings)}/s`);
-      expect(card.key.lines[1]).toMatch(
-        new RegExp(`^building ${String(numbers.builds)}/s · \\d`),
+      const limit = orderLimit(
+        mountain,
+        effectiveRates(mountain).exactCrewPerSecond,
+      );
+      if (limit.kind !== "delivering") {
+        throw new Error("not delivering");
+      }
+      expect(card.key.lines[1]).toBe(
+        `building ${String(numbers.builds)}/s · ${etaShort(limit.secondsLeft * 1000)}`,
       );
       expect(card.key.lines[2]).toBe("tap to hold");
       expect(card.builders.line).toBe("2 builders ×8/s · on site 0 of 500");
+    });
+  });
+
+  it("leaves the time out while the step cannot finish", () => {
+    fresh(() => {
+      const mountain = withJobs(placeOrder(start()), { building: 0 });
+      const card = projectCard(mountain);
+      if (card.kind !== "project") {
+        throw new Error("no project");
+      }
+      expect(card.key.lines[1]).toBe("building 0/s");
     });
   });
 

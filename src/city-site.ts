@@ -146,6 +146,9 @@ function buildTags(): {
   return { root, tags };
 }
 
+/** Taps on the order key closer than this are one tap. */
+const SAME_TAP_MS = 500;
+
 /** The order's moves: place, hold and resume. */
 const ORDER_MOVES: Readonly<
   Record<
@@ -182,7 +185,15 @@ function buildOrderKey(state: FrameState): {
   const title = el("b", "");
   const lines = [el("small", ""), el("small", ""), el("small", "")];
   key.append(title, ...lines);
+  // A second tap of a double tap would undo the first (place, then hold), so
+  // a tap this soon after the last one is taken as the same tap.
+  let last = -Infinity;
   key.addEventListener("click", () => {
+    const at = performance.now();
+    if (at - last < SAME_TAP_MS) {
+      return;
+    }
+    last = at;
     const card = projectCard(state.mountain());
     if (card.kind === "project") {
       void state.progress.dispatch(ORDER_MOVES[card.key.kind]);
