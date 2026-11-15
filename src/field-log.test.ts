@@ -515,4 +515,20 @@ describe("fieldEntry", () => {
       data: { stones: 810 },
     });
   });
+
+  it("maps a fresh mine's orders and wagons (#654)", () => {
+    expect(
+      fieldEntry({ kind: "vehicleBought", id: "horseWagon", count: 2 }),
+    ).toEqual({ code: "vehicle.buy", data: { id: "horseWagon", count: 2 } });
+    for (const [kind, code] of [
+      ["orderPlaced", "order.place"],
+      ["orderHeld", "order.hold"],
+      ["orderResumed", "order.resume"],
+    ] as const) {
+      expect(fieldEntry({ kind, building: "lightTower" })).toEqual({
+        code,
+        data: { id: "lightTower" },
+      });
+    }
+  });
 });
