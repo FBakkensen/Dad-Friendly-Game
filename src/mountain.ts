@@ -599,6 +599,9 @@ function nightStretch(
   };
 }
 
+/** A building's steps, in order. */
+const NIGHT_STEPS: readonly StepIndex[] = [0, 1, 2];
+
 /** The steps built in between two states of the night, all at `atMs`. */
 function stepsBuilt(
   before: Mountain,
@@ -610,16 +613,14 @@ function stepsBuilt(
     return [];
   }
   const { building, step } = project.site;
-  const reached = after.operational.includes(building)
-    ? 3
-    : after.project.kind === "unordered"
-      ? step
+  // A project gives way to none only when its roof goes on.
+  const reached =
+    after.project.kind === "unordered"
+      ? NIGHT_STEPS.length
       : after.project.site.step;
-  const built: NightStep[] = [];
-  for (let index = step; index < reached; index += 1) {
-    built.push({ building, step: index as StepIndex, atMs });
-  }
-  return built;
+  return NIGHT_STEPS.filter((index) => index >= step && index < reached).map(
+    (index) => ({ building, step: index, atMs }),
+  );
 }
 
 /** The night so far, as the shift report counts it. */
