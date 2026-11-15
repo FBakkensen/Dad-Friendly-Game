@@ -11,7 +11,7 @@ import {
 import { effectiveRates, type Rates } from "./rates";
 import { addedStock, type Stock } from "./stock";
 import { stockpileRoom, stockyardOpen } from "./stockyard";
-import { stockDraw } from "./transport";
+import { fleetRate, stockDraw } from "./transport";
 import { lineWork } from "./workforce";
 
 /**
@@ -83,23 +83,40 @@ function kilnHolds(mountain: Pick<Mountain, "makers">): number {
  * what the kilns' pile cannot (#666). Drilling is 0 when `drilling` is false
  * (the night's clock has stopped it, rule 4). Transport's take is worked out
  * only once the stockyard is open: before it, nothing is full. A dry
- * stockpile gives transport what comes in, so the take is worked out from
- * what the chain brings with nothing taken.
+ * stockpile gives transport what comes in (`takeIncome`).
  */
 export function mineChain(
   mountain: Mountain,
   pay: number,
   drilling: boolean,
 ): Chain {
-  const plain = chainWith(mountain, pay, drilling, {});
   return stockyardOpen(mountain)
     ? chainWith(
         mountain,
         pay,
         drilling,
-        stockDraw(mountain, pay, chainIncome(plain)),
+        stockDraw(mountain, pay, takeIncome(mountain, pay, drilling)),
       )
-    : plain;
+    : chainWith(mountain, pay, drilling, {});
+}
+
+/**
+ * What each stockpile takes in a second while transport takes all it carries
+ * from every full one (#666): what a dry stockpile can give transport. A full
+ * brick stockpile drained that fast leaves the kilns all the rock they can
+ * make into brick, so stone gets only what they cannot take, as it does once
+ * the brick stockpile is below its room. Transport's take is worked out from
+ * it, here and in `drawChange`.
+ */
+export function takeIncome(
+  mountain: Mountain,
+  pay: number,
+  drilling: boolean,
+): Partial<Stock> {
+  const carry = fleetRate(mountain) * pay;
+  return chainIncome(
+    chainWith(mountain, pay, drilling, { stones: carry, brick: carry }),
+  );
 }
 
 /** The mine's chain with transport taking `draw` a second from the stockpiles. */

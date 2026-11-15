@@ -34,6 +34,7 @@ import {
   chainMakes,
   flowMine,
   mineChain,
+  takeIncome,
   type MinePiles,
 } from "./mine-piles";
 import { stockpileFull, stockyardOpen } from "./stockyard";
@@ -700,7 +701,13 @@ function workStretch(
     secondMark(from, secondsToStep(mountain, pay, income)),
     secondMark(from, settled.after + chainChange(settled.chain)),
     stockyardOpen(mountain)
-      ? secondMark(from, drawChange(mountain, pay, income))
+      ? secondMark(
+          from,
+          drawChange(mountain, pay, {
+            take: takeIncome(mountain, pay, drilling),
+            income,
+          }),
+        )
       : Infinity,
   );
   const seconds = Math.floor((to - from) / 1000);

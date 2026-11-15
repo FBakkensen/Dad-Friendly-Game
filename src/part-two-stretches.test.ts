@@ -89,4 +89,72 @@ describe("long stretches with the stockyard open (#666)", () => {
       expect(flowMine.mock.calls.length).toBeLessThan(50);
     });
   });
+
+  /** A full brick stockpile and a dry stone one, the Warehouse wanting both. */
+  function brickFull(line: number): Mountain {
+    const start = createMountain();
+    return {
+      ...start,
+      owned: { ...start.owned, helper: 3 * line + 2 + 1 + 2 },
+      jobs: {
+        drilling: line,
+        haulage: line,
+        hoisting: line,
+        driving: 1,
+        building: 2,
+        kilns: 2,
+      },
+      stock: { ...EMPTY_STOCK, brick: 500_000 },
+      makers: { kiln: 2 },
+      piles: { face: 300, shaft: 300, kiln: 300 },
+      operational: ["lightTower"],
+      project: {
+        kind: "delivering",
+        site: {
+          building: "warehouse",
+          step: 0,
+          arrived: EMPTY_STOCK,
+          onSite: EMPTY_STOCK,
+        },
+      },
+    };
+  }
+
+  it("with less rock lifted than transport carries, the kilns take it all and transport takes brick", () => {
+    withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 }, () => {
+      // Hoisting lifts 6 a second, the kilns can make 24, the wagon carries 9:
+      // every stone of rock goes to the kilns, so no stone comes in to take.
+      const flowMine = vi.mocked(minePiles.flowMine);
+      flowMine.mockClear();
+      const away = accrueAway({
+        mountain: brickFull(2),
+        lastSeen: 0,
+        now: 24 * HOUR,
+      });
+      const night = away.report.night;
+      expect(night?.delivered.stones ?? 0).toBeLessThanOrEqual(20);
+      expect(night?.delivered.brick).toBeGreaterThan(0);
+      expect(away.mountain.stock.stones).toBeLessThanOrEqual(20);
+      expect(flowMine.mock.calls.length).toBeLessThan(20);
+    });
+  });
+
+  it("with more rock lifted than transport carries, the brick stockpile stays at its room", () => {
+    withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 }, () => {
+      // Hoisting lifts 18 a second and the wagon carries 9, half of each good:
+      // the kilns make what transport takes, and the rest is stone.
+      const flowMine = vi.mocked(minePiles.flowMine);
+      flowMine.mockClear();
+      const away = accrueAway({
+        mountain: brickFull(6),
+        lastSeen: 0,
+        now: 24 * HOUR,
+      });
+      const brick = away.mountain.stock.brick;
+      expect(brick).toBeGreaterThanOrEqual(500_000 - 20);
+      expect(brick).toBeLessThanOrEqual(500_000 + 20);
+      expect(away.report.night?.delivered.stones).toBeGreaterThan(0);
+      expect(flowMine.mock.calls.length).toBeLessThan(20);
+    });
+  });
 });

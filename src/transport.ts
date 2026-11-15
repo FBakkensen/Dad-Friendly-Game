@@ -234,21 +234,25 @@ export function stockDraw(
 
 /**
  * Seconds until what transport takes from the stockpiles changes, at `share`
- * of its rate and `income` a second of each good (#666): a good's need is
- * met, its stockpile runs dry, a dry stockpile starts to fill, or the site
- * fills. Infinity when nothing changes. The mine's stretches split
- * here, so `stockDraw` holds for the whole of each.
+ * of its rate (#666). The take is `stockDraw` from `take`, as the mine's
+ * chain works it out, and `income` is what really comes in a second of each
+ * good: a good's need is met, its stockpile runs dry, a dry stockpile starts
+ * to fill, or the site fills. Infinity when nothing changes. The mine's
+ * stretches split here, so the take holds for the whole of each.
  */
 export function drawChange(
   mountain: Mountain,
   share: number,
-  income: Partial<Stock>,
+  {
+    take,
+    income,
+  }: { readonly take: Partial<Stock>; readonly income: Partial<Stock> },
 ): number {
   const project = mountain.project;
   if (project.kind !== "delivering") {
     return Infinity;
   }
-  const draw = stockDraw(mountain, share, income);
+  const draw = stockDraw(mountain, share, take);
   const need = stillRequired(project.site);
   let soonest = Infinity;
   for (const good of GOOD_IDS) {
