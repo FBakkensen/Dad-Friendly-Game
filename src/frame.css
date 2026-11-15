@@ -52,7 +52,7 @@
   display: flex;
   flex: none;
   align-items: center;
-  gap: calc(var(--art) * 3);
+  gap: calc(var(--art) * 4);
   width: 100%;
   height: var(--frame-order-h);
   min-height: var(--target-min);
@@ -159,7 +159,7 @@
   display: flex;
   flex: none;
   align-items: center;
-  gap: calc(var(--art) * 2);
+  gap: calc(var(--art) * 4);
   height: var(--frame-top-h);
   padding-right: calc(var(--art) * 2);
   background: var(--frame-row);
@@ -262,7 +262,7 @@
   align-items: center;
   gap: calc(var(--art) * 5);
   height: var(--frame-next-h);
-  margin: calc(var(--art) * 2) calc(var(--art) * 3);
+  margin: calc(var(--art) * 2) calc(var(--art) * 3) calc(var(--art) * 4);
   padding: 0 calc(var(--art) * 5);
   background: var(--frame-dark);
   border: var(--art) solid var(--frame-edge);
@@ -316,9 +316,9 @@
 .frame-sites {
   display: flex;
   flex: none;
-  gap: calc(var(--art) * 2);
+  gap: calc(var(--art) * 4);
   height: var(--frame-sites-h);
-  padding: 0 calc(var(--art) * 3) calc(var(--art) * 3);
+  padding: 0 calc(var(--art) * 3) calc(var(--art) * 4);
 }
 
 .frame .frame-site {
@@ -415,7 +415,7 @@
 .frame-sheet-head {
   display: flex;
   align-items: center;
-  gap: calc(var(--art) * 3);
+  gap: calc(var(--art) * 4);
   font-size: var(--frame-type-18);
 }
 
@@ -466,7 +466,8 @@
   display: flex;
   align-items: center;
   gap: calc(var(--art) * 2);
-  min-height: calc(var(--art) * 27);
+  /* Rows' − and + stand 8px apart, over the row's line (#719). */
+  min-height: calc(var(--art) * 28);
   border-top: var(--art) solid var(--frame-edge);
 }
 

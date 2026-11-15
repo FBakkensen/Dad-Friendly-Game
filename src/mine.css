@@ -101,7 +101,9 @@
   bottom: calc(var(--art) * 2);
   display: flex;
   flex-direction: column;
-  gap: var(--art);
+  /* Keys and rows stand 8px apart (#719), not counting a row's edge, which a
+     scaled phone draws thinner. */
+  gap: calc(var(--art) * 4);
 }
 
 .mine-note,
@@ -121,7 +123,7 @@
 
 .mine-keys {
   display: flex;
-  gap: var(--art);
+  gap: calc(var(--art) * 4);
 }
 
 .frame .mine-key,
@@ -167,7 +169,7 @@
 .mine-stages {
   display: flex;
   flex-direction: column;
-  gap: var(--art);
+  gap: calc(var(--art) * 4);
 }
 
 .mine-stage {
@@ -188,6 +190,8 @@
   justify-content: center;
   align-self: stretch;
   min-width: 0;
+  /* With the row's gap, its words stand 8px from its − (#719). */
+  margin-right: calc(var(--art) * 3);
 }
 
 .mine-band {

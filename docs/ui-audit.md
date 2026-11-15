@@ -46,11 +46,7 @@ The game is phone-only (#498). A PC window shows the same frame, scaled to fit a
 
 ## What the report still flags
 
-Every target is at least 48px, the page never scrolls, no sheet scrolls, and no measured text pair fails contrast. What is left:
-
-### Targets closer than 8px
-
-The frame's keys stand closer than the 8px gap (#664's audit, all at 424×924): the three machine keys 2px apart and 4px above the stage rows, a stage row's words 2px to 6px from its − and +, the − and + 6px apart, the Next plate 4px above the site bar, the site keys 4px apart and 6px above the save line, the order strip 5px to 6px above the top row's keys, and the count of workers 4px from the hire key. In the city a driver's + stands 2px from the wagon key. The prototype set these gaps, and the frame's visual section checks the 48px floor but not the gap. Closing them is a layout change for its own issue.
+Every target is at least 48px and at least 8px from the next one, the page never scrolls, no sheet scrolls, and no measured text pair fails contrast. The 8px gap came with #719: the frame section of the visual check measures it on the mine, the city, a stage's list and the workforce sheet at both phone heights (`keyGaps`, as `boardGaps` did for the board), not counting a row's edge, which a scaled phone draws thinner. What is left:
 
 ### Thumb reach
 
