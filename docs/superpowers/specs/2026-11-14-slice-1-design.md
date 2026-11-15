@@ -17,7 +17,7 @@ The new rule is [Transport and build time](#7-transport-and-build-time). His fou
 
 **Approved 14 Nov 2026, 21:35Z.** The prototype's fourth version plays rule 7 from the first evening: he orders a building once, one fleet delivers, the order says its limit and can be put on hold, nights keep delivering, and a work order is done when its materials are there. Flemming: "That is right". With that the screens are settled, and [What he sees](#what-he-sees) is written from that version.
 
-**Two calls are open and are his.** The prototype he played has no workers to hire, and the rules he approved earlier the same day have. And his five-day rule may count for the whole slice only, or for each part too. See [Open: his two calls](#open-his-two-calls).
+**Decided 15 Nov 2026, 05:12Z.** Two calls were open and were his, and he answered both with "A, a". The workers stay: he hires them, and the mine gets a workforce plate, which he plays in the prototype's next version before it is built. And the five-day rule counts for the whole slice only, not for each part. See [His two calls](#his-two-calls-decided-15-nov-2026).
 
 This design covers many slivers. It ships as its own PR and is split into sliver issues (`.claude/rules/superpowers.md`). It amends `2026-11-14-line-works-village-design.md` (the line spec): [What it changes in the line spec](#what-it-changes-in-the-line-spec) lists every place.
 
@@ -227,7 +227,7 @@ From top to bottom:
 - A crew is moved by a tap on an empty spot in a gallery ("assign crew") or by a drag from one level to the other.
 - A level that is not reached says what it waits for ("The shaft can be sunk once the Light Tower is operational"), and then its price. Under the last level: "Deeper strata: not yet surveyed. The city has to grow first."
 - At the foot are the three stage plates: drilling, haulage, hoisting. Each has its rate, "bottleneck" or its headroom ("+200/s headroom"), and a key for its next machine with the price. The bottleneck is lit. The key buys, as he played it. A machine that is not on sale yet says what it waits for on the key ("Cart: at 12 workers"), and a machine with no free workers to run it says that ("Needs 8 free workers"). A tap on the rest of the plate opens the stage's full list.
-- **The workforce plate** is over the stage plates: how many workers there are, where the free hands help ("14 workers · the hands help haulage"), and a key to hire one with its price. It is not in the prototype, and it is the open call ([Open: his two calls](#open-his-two-calls)).
+- **The workforce plate** is over the stage plates: how many workers there are, where the free hands help ("14 workers · the hands help haulage"), and a key to hire one with its price. It is not in the prototype's fourth version. He chose to keep the workers on 15 Nov 2026, and he plays the plate in the prototype's fifth version before it is built ([His two calls](#his-two-calls-decided-15-nov-2026)).
 
 ### The refinery (`refinery.png`)
 
@@ -289,7 +289,7 @@ These are in the game today and have no place in the prototype. Where they go is
 
 | Today                                                            | In slice 1                                                                                       |
 | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| Workers, Better boots                                            | Stay, on the workforce plate and in its list (open: the workforce)                               |
+| Workers, Better boots                                            | Stay, on the workforce plate and in its list (his call, 15 Nov 2026)                             |
 | Machine upgrades, ownership marks, the amount key (×1, ×10, Max) | Stay, in their stage's list. A price that scaled with the band scales with the deepest level     |
 | Strong arms, Sharper picks, Grandfather's pick                   | Go with the dig button: they only make a tap stronger                                            |
 | Old miner's lamp, Crystal flare, Miner's crystal lamp            | Go with the golden veins                                                                         |
@@ -456,22 +456,24 @@ These are mine, not Flemming's. Any of them can be turned over.
 28. Next is a pointer in the prototype's fixed order, not a best buy (What he sees, The frame).
 29. Steady hands and Overtime go, with the tap-only and vein-only upgrades (Where today's parts land).
 30. The lab plays each part before that part is switched on. The five-day floor is checked when it can play the whole slice (Lab).
-31. Workers stay, with a workforce plate in the mine. This one is open and is his (below).
+31. Workers stay, with a workforce plate in the mine. It was his call, and he said yes to it on 15 Nov 2026 (below).
 
 Calls 18 to 24 are played in the prototype's fourth version, and he said "That is right" to it. So is the Light Tower's new power (night shift output at 45%, up from 30%), which is on its card and in the shift report. They stay on this list so that he can still turn one over.
 
-### Open: his two calls
+### His two calls (decided 15 Nov 2026)
 
-**The workforce.** The one place where the prototype he played and the rules he approved disagree.
+Both were put to him in the project chat on 14 Nov 2026 as A or B, with A recommended. He answered "A, a" on 15 Nov 2026 at 05:12Z.
+
+**The workforce: the workers stay.** It was the one place where the prototype he played and the rules he approved disagreed.
 
 - **The rules** (the line spec, approved 14 Nov 2026, built in #532 to #536 and tuned in #543): he hires workers. A worker does every job by hand, the free hands go to the slowest stage, and a machine needs workers to run it. The cart opens at twelve workers.
 - **The prototype** has no workers to hire. Each stage has machines only, and all three are on sale in the first minute.
 
-This spec keeps the workers (call 31), for three reasons. With no dig button, the first minutes need something small to buy often, and a worker at 60 stone is that. The hands that fill in at the slowest stage are what keeps a bad buy from being a punishment. And the line's rules and numbers are built and tuned with them. The cost is one more plate in the mine that he has not played.
+He kept the workers (call 31). The reasons given to him were three. With no dig button, the first minutes need something small to buy often, and a worker at 60 stone is that. The hands that fill in at the slowest stage are what keeps a bad buy from being a punishment. And the line's rules and numbers are built and tuned with them. The cost is one more plate in the mine that he has not played.
 
-Until he answers, no sliver builds the mine's foot. The question to him is: keep the workers, with a workforce plate that he plays in the prototype's next version before it is built, or drop them and buy machines only, as he played. If he drops them, rule 2, rule 1.5's table, the starting numbers and the lab's line are written again, and part 1 is later by that work.
+The other choice was to drop the workers and buy machines only, as he played, with the line's rules and numbers written again. What is left to do before the mine's foot is built: he plays the workforce plate in the prototype's fifth version.
 
-**The five-day floor and the parts.** His rule of 14 Nov 2026 (#556) says a run takes at least five days. Part 1 ends at the Light Tower's roof and part 2 at the Warehouse's roof, and each is the end of the game until the next part is live. This spec proposes that the floor is checked on the whole slice only, from a fresh mine to the Foundry's roof, so parts 1 and 2 stay short and he plays the start soon. The other reading stretches each part to five days while it is the end of the game, and sets its prices twice. The question to him is: the whole slice only, or each part too. Sliver 3, the lab for part 1, waits for the answer.
+**The five-day floor: the whole slice only.** His rule of 14 Nov 2026 (#556) says a run takes at least five days. Part 1 ends at the Light Tower's roof and part 2 at the Warehouse's roof, and each is the end of the game until the next part is live. He decided that the floor is checked on the whole slice only, from a fresh mine to the Foundry's roof, so parts 1 and 2 stay short and he plays the start soon. The other choice was to stretch each part to five days while it is the end of the game. The bound in `src/lab/targets.ts` is still changed only in its lab sliver, as a stop.
 
 ## What it changes in the line spec
 
@@ -512,9 +514,9 @@ Part 1, the first evenings:
 
 1. A fresh mine's rules, off in play: one level, no depth, machines that open by what he owns (rule 1), and what leaves the rules with it.
 2. Orders and transport, off in play: the Light Tower's project, the fleet, on hold, and unattended time before the stockyard (rules 4, 6, 7).
-3. The lab plays part 1 and sets its numbers: the starting workers, the horse wagon, the Light Tower. Waits for his answers on the floor and the workforce.
+3. The lab plays part 1 and sets its numbers: the starting workers, the horse wagon, the Light Tower.
 4. Art: the Light Tower and a horse wagon. Asked for first.
-5. The frame and the mine, beside today's board: the order strip, the stockpiles, Next, the site bar, the mountain, the stage plates and a stage's list (#537, #538 and #539's card, rewritten). Waits for his answer on the workforce.
+5. The frame and the mine, beside today's board: the order strip, the stockpiles, Next, the site bar, the mountain, the stage plates and a stage's list (#537, #538 and #539's card, rewritten), and the workforce plate once he has played it in the prototype's fifth version.
 6. The city: the skyline, the transport plate, the project's card and the order key.
 7. The shift report and the cards.
 8. Part 1 is switched on. **Resets the save.** Today's board goes, and its journeys and visual sections move to the new screens.
@@ -576,7 +578,7 @@ A plan keeps each screen's browser checks green in the sliver that changes that 
 - Named measures, report-only at first: `sliceDays`, `narrowRun`, `shareMoves` a sitting, `nightFull` (how many long nights end at a full stockyard, and how far into the night), `deadGood` (time a stockpile is full with nothing to spend it on), `transportLimit` (the share of a project's time that transport is its limit), and `starved` (time he cannot afford the cheapest buy while an order takes more than half of what the mine makes).
 - The generations lab goes with the pass (#642, Flemming, 14 Nov 2026: the pass goes).
 - The finish floor is Flemming's rule of 14 Nov 2026 (#556): a run takes at least five days, with no ceiling. For slice 1 the run ends at the Foundry's roof. He was told so on 14 Nov 2026 at 19:30Z ("At the Forge's roof the slice ends", "tuned to your rule of at least five") and agreed in principle. So the lab tunes the numbers until every player type needs five days or more to the Foundry's roof.
-- **Open, and his:** whether the five-day floor also counts for part 1 and for part 2 while each is the end of the game. This spec proposes that it does not: a part is a stretch of the slice, and the floor is checked on the whole slice. It is asked with the workforce ([Open: his two calls](#open-his-two-calls)).
+- The floor does not count for part 1 or for part 2 while each is the end of the game. It is checked on the whole slice (Flemming, 15 Nov 2026: [His two calls](#his-two-calls-decided-15-nov-2026)).
 - Today's other strict rows (regret, the extreme win, the check-in guardrails) are proposed to carry over, with the Foundry's roof as the finish. The rows about kid runs and relic days (`KID_RUNS_CI`, `KID_RUN_MAX_DAYS` and the like) are proposed to go with the pass and the relics, which he took out (#642, and the relics in the line spec). Nothing here changes `src/lab/targets.ts`. Every change to a bound in it is a stop, and is asked in the lab sliver that makes it (slivers 3, 11 and 17).
 
 ## Art (PixelLab, asked for before each)
