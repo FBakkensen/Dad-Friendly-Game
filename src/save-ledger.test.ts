@@ -156,6 +156,7 @@ const LEDGER = {
     expeditionMs: 14400000,
     craftMs: 14400000,
     siteHolds: 500,
+    stockyard: 18,
   },
 };
 
@@ -258,5 +259,10 @@ describe("part 2's facts in the save (#666)", () => {
     expect(readGame({ stockyard: 1.5 }, 0).kind).toBe("bad");
     expect(readGame({ stockyard: "2" }, 0).kind).toBe("bad");
     expect(readGame({ makers: { saw: 1 } }, 0).kind).toBe("newer");
+  });
+
+  it("reads a stockyard past this build's last level as newer", () => {
+    expect(readGame({ stockyard: 18 }, 0).kind).toBe("ok");
+    expect(readGame({ stockyard: 19 }, 0).kind).toBe("newer");
   });
 });

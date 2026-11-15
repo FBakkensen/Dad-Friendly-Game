@@ -8,6 +8,7 @@ import { priceAmount } from "./stock";
 import {
   expandPrice,
   expandStockyard,
+  MAX_STOCKYARD_LEVEL,
   priceFits,
   stockpileFull,
   stockpileRoom,
@@ -63,6 +64,23 @@ describe("the stockyard (#666)", () => {
       expect(expandStockyard(expanded)).toBe(expanded);
       const dark = { ...rich, operational: [] };
       expect(expandStockyard(dark)).toBe(dark);
+    });
+  });
+
+  it("stops at its last level, where every room and price is still a whole number", () => {
+    partTwo(() => {
+      const top = yard(MAX_STOCKYARD_LEVEL, ["lightTower", "warehouse"]);
+      const rich = {
+        ...top,
+        stock: { ...top.stock, brick: Number.MAX_SAFE_INTEGER },
+      };
+      expect(expandStockyard(rich)).toBe(rich);
+      for (const good of ["stones", "brick"] as const) {
+        expect(Number.isSafeInteger(stockpileRoom(top, good))).toBe(true);
+      }
+      expect(Number.isSafeInteger(priceAmount(expandPrice(top), "brick"))).toBe(
+        true,
+      );
     });
   });
 

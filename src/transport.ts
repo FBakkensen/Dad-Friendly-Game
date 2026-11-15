@@ -195,12 +195,19 @@ export function deliver(
 
 /**
  * What transport takes from each stockpile a second now, at `share` of its
- * rate (#666): split evenly between the goods the step still requires and
- * the stockyard holds, and no more than the builders build in once the site
- * is full. The mine's chain drains the stockpiles at it, so a full stockpile
- * fills again as fast as transport empties it. `deliver` is still what takes.
+ * rate (#666): split evenly between the goods the step still requires that
+ * the stockyard holds or the mine brings in, and no more than the builders
+ * build in once the site is full. A dry stockpile gives no more than
+ * `income` brings it a second, and what it cannot give goes to the others,
+ * as `deliver` shares out what transport carries. The mine's chain drains
+ * the stockpiles at it, so a full stockpile fills again as fast as transport
+ * empties it. `deliver` is still what takes.
  */
-export function stockDraw(mountain: Mountain, share: number): Partial<Stock> {
+export function stockDraw(
+  mountain: Mountain,
+  share: number,
+  income: Partial<Stock> = {},
+): Partial<Stock> {
   const project = mountain.project;
   if (project.kind !== "delivering") {
     return {};
@@ -211,12 +218,16 @@ export function stockDraw(mountain: Mountain, share: number): Partial<Stock> {
       ? Math.min(carry, buildRate(mountain) * share)
       : carry;
   const need = stillRequired(project.site);
-  const goods = GOOD_IDS.filter(
-    (good) => need[good] > 0 && mountain.stock[good] > 0,
-  );
+  const gives = (good: GoodId): number =>
+    mountain.stock[good] > 0 ? Infinity : (income[good] ?? 0);
+  const goods = GOOD_IDS.filter((good) => need[good] > 0 && gives(good) > 0);
+  goods.sort((a, b) => gives(a) - gives(b));
   const draw: Partial<Record<GoodId, number>> = {};
-  for (const good of goods) {
-    draw[good] = rate / goods.length;
+  let left = rate;
+  for (const [index, good] of goods.entries()) {
+    const take = Math.min(gives(good), left / (goods.length - index));
+    draw[good] = take;
+    left -= take;
   }
   return draw;
 }
@@ -224,8 +235,8 @@ export function stockDraw(mountain: Mountain, share: number): Partial<Stock> {
 /**
  * Seconds until what transport takes from the stockpiles changes, at `share`
  * of its rate and `income` a second of each good (#666): a good's need is
- * met or its stockpile runs dry, a good the stockyard lacked comes in, or
- * the site fills. Infinity when nothing changes. The mine's stretches split
+ * met, its stockpile runs dry, a dry stockpile starts to fill, or the site
+ * fills. Infinity when nothing changes. The mine's stretches split
  * here, so `stockDraw` holds for the whole of each.
  */
 export function drawChange(
@@ -237,7 +248,7 @@ export function drawChange(
   if (project.kind !== "delivering") {
     return Infinity;
   }
-  const draw = stockDraw(mountain, share);
+  const draw = stockDraw(mountain, share, income);
   const need = stillRequired(project.site);
   let soonest = Infinity;
   for (const good of GOOD_IDS) {
@@ -260,7 +271,11 @@ export function drawChange(
   return soonest;
 }
 
-/** When one good's draw changes: its need met, its stock run dry, or its first stock in. */
+/**
+ * When one good's draw changes: its need met, its stock run dry, or a dry
+ * stockpile starting to fill, which may let it give more. A dry stockpile
+ * taken at what comes in holds steady.
+ */
 function goodChange(
   need: number,
   stock: number,
@@ -270,11 +285,11 @@ function goodChange(
   if (need <= 0) {
     return Infinity;
   }
-  if (draw > 0) {
-    const dry = income < draw ? stock / (draw - income) : Infinity;
-    return Math.min(need / draw, dry);
+  const met = draw > 0 ? need / draw : Infinity;
+  if (stock > 0) {
+    return Math.min(met, draw > income ? stock / (draw - income) : Infinity);
   }
-  return stock <= 0 && income > 0 ? 1 : Infinity;
+  return income > draw ? Math.min(met, 1) : met;
 }
 
 /** What holds an order back, for the lab (rule 7.11: the page names none). */

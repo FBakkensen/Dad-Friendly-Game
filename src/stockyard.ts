@@ -27,6 +27,12 @@ const ROOM_GROWTH = 3;
 const EXPAND_FIRST = 150_000;
 const EXPAND_GROWTH = 3;
 
+/**
+ * The last level (#666, PR review): every room and price up to it is still
+ * a whole number a save holds exactly. A save past it is a newer build's.
+ */
+export const MAX_STOCKYARD_LEVEL = 18;
+
 /** Whether the stockyard is open: part 2 plays, and the Light Tower is operational. */
 export function stockyardOpen(
   mountain: Pick<Mountain, "operational">,
@@ -56,9 +62,9 @@ export function expandPrice(mountain: Pick<Mountain, "stockyard">): Price {
   ];
 }
 
-/** One more level, at once (rule 7.14); a closed stockyard or a short stock buys none. */
+/** One more level, at once (rule 7.14); a closed stockyard, the last level or a short stock buys none. */
 export function expandStockyard(mountain: Mountain): Mountain {
-  if (!stockyardOpen(mountain)) {
+  if (!stockyardOpen(mountain) || mountain.stockyard >= MAX_STOCKYARD_LEVEL) {
     return mountain;
   }
   const paid = pay(mountain, expandPrice(mountain));

@@ -82,17 +82,34 @@ function kilnHolds(mountain: Pick<Mountain, "makers">): number {
  * pile, the kilns and the brick stockpile, with the stone stockpile taking
  * what the kilns' pile cannot (#666). Drilling is 0 when `drilling` is false
  * (the night's clock has stopped it, rule 4). Transport's take is worked out
- * only once the stockyard is open: before it, nothing is full.
+ * only once the stockyard is open: before it, nothing is full. A dry
+ * stockpile gives transport what comes in, so the take is worked out from
+ * what the chain brings with nothing taken.
  */
 export function mineChain(
   mountain: Mountain,
   pay: number,
   drilling: boolean,
 ): Chain {
+  const plain = chainWith(mountain, pay, drilling, {});
+  return stockyardOpen(mountain)
+    ? chainWith(
+        mountain,
+        pay,
+        drilling,
+        stockDraw(mountain, pay, chainIncome(plain)),
+      )
+    : plain;
+}
+
+/** The mine's chain with transport taking `draw` a second from the stockpiles. */
+function chainWith(
+  mountain: Mountain,
+  pay: number,
+  drilling: boolean,
+  draw: Partial<Stock>,
+): Chain {
   const stages = stagesOf(mountain);
-  const draw: Partial<Stock> = stockyardOpen(mountain)
-    ? stockDraw(mountain, pay)
-    : {};
   return {
     source: Infinity,
     rates: [

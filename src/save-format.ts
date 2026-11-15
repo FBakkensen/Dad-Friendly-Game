@@ -50,6 +50,7 @@ import {
   type Mountain,
 } from "./mountain";
 import { MAX_STRETCH } from "./scale";
+import { MAX_STOCKYARD_LEVEL } from "./stockyard";
 import { TEACH_IDS, type TeachId } from "./teach";
 import { TIER_IDS, type TierId } from "./tiers";
 import { NO_UPGRADES, UPGRADES, type UpgradeId } from "./upgrades";
@@ -679,12 +680,15 @@ function readProject(value: unknown, marks: Part<Marks>): Part<Project> {
   return { kind: value["state"] as SavedProject["state"], site };
 }
 
-/** The stockyard's level: a whole number, 0 when left out (#666). */
+/** The stockyard's level: a whole number, 0 when left out, newer past the last (#666). */
 function readLevel(value: unknown): Part<number> {
   if (value === undefined) {
     return 0;
   }
-  return isCount(value) ? value : "bad";
+  if (!isCount(value)) {
+    return "bad";
+  }
+  return value > MAX_STOCKYARD_LEVEL ? "newer" : value;
 }
 
 /** Workers on each job: never more in all than the workers he owns (#689). */
@@ -861,6 +865,7 @@ export function shippedFacts(): ShippedFacts {
       expeditionMs: MAX_EXPEDITION_MS,
       craftMs: MAX_CRAFT_MS,
       siteHolds: SITE_HOLDS,
+      stockyard: MAX_STOCKYARD_LEVEL,
     },
   };
 }
