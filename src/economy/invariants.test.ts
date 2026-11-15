@@ -26,7 +26,10 @@ import { MOUNTAIN_STONES, minedOut } from "../scale";
 import { advance, type TimeInput } from "../session-time";
 import { TIERS } from "../tiers";
 import { applyMove, listActions, type Move } from "./actions";
-import { priceAmount } from "../stock";
+import { GOOD_IDS, priceAmount } from "../stock";
+import { VEHICLE_IDS } from "../transport";
+import { withFactors } from "./factors";
+import { FRESH_OFF } from "../line-switch";
 
 const SECOND = 1000;
 const MINUTE = 60 * SECOND;
@@ -223,6 +226,17 @@ function play(world: World, step: Step): Played {
   }
 }
 
+/** What has arrived at the site in hand, by good. */
+function arrivedCounts(mountain: Mountain): readonly [string, number][] {
+  const project = mountain.project;
+  return project.kind === "unordered"
+    ? []
+    : GOOD_IDS.map(
+        (good) =>
+          [`arrived.${good}`, project.site.arrived[good]] as [string, number],
+      );
+}
+
 /** Counts of things: whole, never negative. */
 function wholeCounts(mountain: Mountain): readonly [string, number][] {
   return [
@@ -242,6 +256,10 @@ function wholeCounts(mountain: Mountain): readonly [string, number][] {
       [`${hand.name}.rank`, hand.rank] as [string, number],
       [`${hand.name}.trips`, hand.trips] as [string, number],
     ]),
+    ...VEHICLE_IDS.map(
+      (id) => [`fleet.${id}`, mountain.fleet[id]] as [string, number],
+    ),
+    ...arrivedCounts(mountain),
   ];
 }
 
@@ -290,6 +308,10 @@ function lifetime(mountain: Mountain): Record<string, number> {
     recipes: mountain.recipes.length,
     finds: mountain.finds.length,
     taught: mountain.taught.length,
+    operational: mountain.operational.length,
+    ...Object.fromEntries(
+      VEHICLE_IDS.map((id) => [`fleet.${id}`, mountain.fleet[id]]),
+    ),
     ...Object.fromEntries(
       Object.entries(mountain.upgrades).map(([id, level]) => [
         `upgrades.${id}`,
@@ -361,6 +383,7 @@ function priceOf(move: Move | undefined): number | "some" | undefined {
       return priceAmount(move.price, "stones");
     case "buyTier":
     case "buyBoost":
+    case "buyVehicle":
       return "some";
     default:
       return undefined;
@@ -415,6 +438,33 @@ describe("economy invariants on random play (#555)", () => {
         },
       ),
       { numRuns: 150 },
+    );
+  });
+
+  it("keeps them in a fresh mine too, with orders, wagons and deliveries (#654)", () => {
+    fc.assert(
+      fc.property(
+        pocketArb,
+        fc.nat(1000),
+        fc.array(stepArb, { minLength: 1, maxLength: 40, size: "max" }),
+        (pocket, seed, steps) => {
+          withFactors({ [FRESH_OFF]: 0 }, () => {
+            const start = createMountain();
+            let world: World = {
+              mountain: { ...start, stock: { ...start.stock, stones: pocket } },
+              hazards: freshHazards(seed),
+              clock: START,
+              lastSeen: START,
+            };
+            for (const step of steps) {
+              const played = play(world, step);
+              checkStep(played);
+              world = played.after;
+            }
+          });
+        },
+      ),
+      { numRuns: 100 },
     );
   });
 });

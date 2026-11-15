@@ -11,6 +11,15 @@
  */
 import { BOOSTS, NO_BOOSTS, type BoostId, type Boosts } from "./boosts";
 import {
+  BUILDING_IDS,
+  NO_PROJECT,
+  nextBuilding,
+  stepRequires,
+  type BuildingId,
+  type Project,
+  type StepIndex,
+} from "./city";
+import {
   ENGINEER_NAMES,
   ENGINEER_POSTS,
   MAX_ENGINEERS,
@@ -53,7 +62,8 @@ import {
   type RecipeId,
   type TimerId,
 } from "./workshop";
-import { GOOD_IDS, type GoodId } from "./stock";
+import { EMPTY_STOCK, GOOD_IDS, priceAmount, type GoodId } from "./stock";
+import { VEHICLE_IDS, type VehicleId } from "./transport";
 
 /** The Gold rush's end time, in the clocks map. */
 const GOLD_RUSH = "gold-rush";
@@ -77,6 +87,7 @@ const MARK_IDS = {
   taught: TEACH_IDS,
   recipes: RECIPE_IDS,
   finds: FIND_IDS,
+  operational: BUILDING_IDS,
 } as const;
 type MarkKind = keyof typeof MARK_IDS;
 const MARK_KINDS = Object.keys(MARK_IDS) as readonly MarkKind[];
@@ -93,7 +104,19 @@ const GAME_KEYS = [
   "engineers",
   "expeditions",
   "bench",
+  "fleet",
+  "project",
 ] as const;
+
+/** A project in hand, as saved: an unordered city saves none (#654). */
+type SavedProject = {
+  readonly building: BuildingId;
+  readonly state: "delivering" | "onHold";
+  readonly step: StepIndex;
+  readonly arrived: Readonly<Partial<Record<GoodId, number>>>;
+};
+
+const PROJECT_STATES = ["delivering", "onHold"] as const;
 
 /** The game map as saved. Every key is left out when it would be zero or empty. */
 export type SaveGame = {
@@ -106,6 +129,7 @@ export type SaveGame = {
     readonly taught?: readonly TeachId[];
     readonly recipes?: readonly RecipeId[];
     readonly finds?: readonly FindId[];
+    readonly operational?: readonly BuildingId[];
   };
   readonly run?: Readonly<Partial<Record<RunKey, number>>>;
   /** An engineer away on a trip is saved at post "tunnel". */
@@ -113,6 +137,8 @@ export type SaveGame = {
   /** Each trip keeps the post its engineer left, as `home`. */
   readonly expeditions?: readonly SavedExpedition[];
   readonly bench?: Bench;
+  readonly fleet?: Readonly<Partial<Record<VehicleId, number>>>;
+  readonly project?: SavedProject;
 };
 
 // ---------------------------------------------------------------------------
@@ -189,6 +215,7 @@ function savedMarks(mountain: Mountain): NonNullable<SaveGame["marks"]> {
     ...some("taught", mountain.taught),
     ...some("recipes", mountain.recipes),
     ...some("finds", mountain.finds),
+    ...some("operational", mountain.operational),
   };
 }
 
@@ -201,6 +228,21 @@ function savedRun(mountain: Mountain): NonNullable<SaveGame["run"]> {
     ...only("stretch", mountain.stretch, mountain.stretch !== 1),
     ...only("dug", dug, dug !== 0),
     ...only("rushBank", mountain.rushBank, mountain.rushBank !== 0),
+  };
+}
+
+function savedProject(project: Project): Partial<SaveGame> {
+  if (project.kind === "unordered") {
+    return {};
+  }
+  const { site } = project;
+  return {
+    project: {
+      building: site.building,
+      state: project.kind,
+      step: site.step,
+      arrived: positives(GOOD_IDS, (id) => site.arrived[id]),
+    },
   };
 }
 
@@ -231,6 +273,11 @@ export function writeGame(mountain: Mountain): SaveGame {
       mountain.expeditions.map((trip) => savedTrip(mountain, trip)),
     ),
     ...(mountain.bench === undefined ? {} : { bench: mountain.bench }),
+    ...some(
+      "fleet",
+      positives(VEHICLE_IDS, (id) => mountain.fleet[id]),
+    ),
+    ...savedProject(mountain.project),
   };
 }
 
@@ -336,11 +383,14 @@ function readIds<K extends string>(
   return read;
 }
 
-type Marks = Pick<Mountain, "seen" | "taught" | "recipes" | "finds">;
+type Marks = Pick<
+  Mountain,
+  "seen" | "taught" | "recipes" | "finds" | "operational"
+>;
 
 function readMarks(value: unknown): Part<Marks> {
   if (value === undefined) {
-    return { seen: [], taught: [], recipes: [], finds: [] };
+    return { seen: [], taught: [], recipes: [], finds: [], operational: [] };
   }
   if (!isRecord(value)) {
     return "bad";
@@ -349,7 +399,8 @@ function readMarks(value: unknown): Part<Marks> {
   const taught = readIds(value["taught"], MARK_IDS.taught);
   const recipes = readIds(value["recipes"], MARK_IDS.recipes);
   const finds = readIds(value["finds"], MARK_IDS.finds);
-  const failed = worst([seen, taught, recipes, finds]);
+  const operational = readIds(value["operational"], MARK_IDS.operational);
+  const failed = worst([seen, taught, recipes, finds, operational]);
   if (failed === "bad") {
     return "bad";
   }
@@ -361,6 +412,7 @@ function readMarks(value: unknown): Part<Marks> {
     taught: taught as readonly TeachId[],
     recipes: recipes as readonly RecipeId[],
     finds: finds as readonly FindId[],
+    operational: operational as readonly BuildingId[],
   };
 }
 
@@ -517,6 +569,78 @@ function readBench(value: unknown): Part<Bench | undefined> {
   return parseBench(value) ?? "newer";
 }
 
+/**
+ * Whether what has arrived can stand on the step: only goods it requires,
+ * none past its need, and not all of them in (a complete step has already
+ * given way to the next).
+ */
+function fitsStep(
+  arrived: Record<GoodId, number>,
+  building: BuildingId,
+  step: StepIndex,
+): boolean {
+  const requires = stepRequires({ building, step, arrived: EMPTY_STOCK });
+  const need = (good: GoodId): number => priceAmount(requires, good);
+  const within = GOOD_IDS.every((good) => arrived[good] <= need(good));
+  const allIn = GOOD_IDS.every((good) => arrived[good] >= need(good));
+  return within && !allIn;
+}
+
+function projectTyped(value: Entries): boolean {
+  return (
+    typeof value["building"] === "string" &&
+    typeof value["state"] === "string" &&
+    (value["step"] === 0 || value["step"] === 1 || value["step"] === 2)
+  );
+}
+
+/** A building, state or key this build does not know. */
+function projectNewer(value: Entries): boolean {
+  return (
+    !(BUILDING_IDS as readonly string[]).includes(
+      value["building"] as string,
+    ) ||
+    !(PROJECT_STATES as readonly string[]).includes(value["state"] as string) ||
+    unknownKeys(value, ["building", "state", "step", "arrived"])
+  );
+}
+
+/**
+ * The project in hand. A building, state or good this build does not know
+ * is `newer`. A wrong type, a step past the roof, a step already all in, or
+ * a building that is not the next one to order is `bad`, and bad wins.
+ */
+function readProject(value: unknown, marks: Part<Marks>): Part<Project> {
+  if (value === undefined) {
+    return NO_PROJECT;
+  }
+  if (!isRecord(value) || !projectTyped(value)) {
+    return "bad";
+  }
+  const arrived = readCounts(value["arrived"] ?? {}, GOOD_IDS, UNCAPPED);
+  if (arrived === "bad") {
+    return "bad";
+  }
+  if (arrived === "newer" || projectNewer(value)) {
+    return "newer";
+  }
+  if (typeof marks === "string") {
+    return marks;
+  }
+  const building = value["building"] as BuildingId;
+  const step = value["step"] as StepIndex;
+  if (
+    nextBuilding(marks)?.id !== building ||
+    !fitsStep(arrived, building, step)
+  ) {
+    return "bad";
+  }
+  return {
+    kind: value["state"] as SavedProject["state"],
+    site: { building, step, arrived },
+  };
+}
+
 type Facts = Pick<
   Mountain,
   "owned" | "stock" | "upgrades" | "crafted" | "boosts" | "clocks" | "rushUntil"
@@ -582,7 +706,9 @@ export function readGame(value: unknown, startedAt: number): GameRead {
   const run = readRun(value["run"]);
   const crew = readCrew(value);
   const bench = readBench(value["bench"]);
-  const failed = worst([facts, marks, run, crew, bench]);
+  const fleet = readCounts(value["fleet"], VEHICLE_IDS, UNCAPPED);
+  const project = readProject(value["project"], marks);
+  const failed = worst([facts, marks, run, crew, bench, fleet, project]);
   if (failed !== undefined) {
     return { kind: failed };
   }
@@ -598,6 +724,8 @@ export function readGame(value: unknown, startedAt: number): GameRead {
       ...(run as Run),
       ...(crew as Crew),
       bench: bench as Bench | undefined,
+      fleet: fleet as Record<VehicleId, number>,
+      project: project as Project,
       startedAt,
     },
   };
@@ -619,6 +747,8 @@ export type ShippedFacts = {
   readonly posts: readonly string[];
   readonly tunnels: readonly string[];
   readonly tripFinds: Readonly<Record<string, readonly string[]>>;
+  readonly fleet: readonly string[];
+  readonly projectStates: readonly string[];
   readonly caps: Readonly<Record<string, number>>;
 };
 
@@ -640,6 +770,8 @@ export function shippedFacts(): ShippedFacts {
     posts: [...ENGINEER_POSTS, "tunnel"],
     tunnels: TUNNELS.map((tunnel) => tunnel.id),
     tripFinds: TRIP_FIND_IDS,
+    fleet: VEHICLE_IDS,
+    projectStates: PROJECT_STATES,
     caps: {
       engineers: MAX_ENGINEERS,
       engineerTrips: MAX_ENGINEER_TRIPS,

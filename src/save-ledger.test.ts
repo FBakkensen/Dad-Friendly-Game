@@ -20,6 +20,8 @@ const LEDGER = {
     "engineers",
     "expeditions",
     "bench",
+    "fleet",
+    "project",
   ],
   owned: [
     "helper",
@@ -118,6 +120,7 @@ const LEDGER = {
       "pebble",
       "ribbon",
     ],
+    operational: ["lightTower"],
   },
   run: {
     generation: 1000,
@@ -136,6 +139,8 @@ const LEDGER = {
     engineer: ["Ada", "Nils", "Ruth", "Otto", "Mae"],
     recipe: ["crystal-lamp", "engineers-kit"],
   },
+  fleet: ["horseWagon"],
+  projectStates: ["delivering", "onHold"],
   caps: {
     engineers: 5,
     engineerTrips: 1000000,
@@ -162,6 +167,8 @@ describe("the ledger of what has shipped (#558)", () => {
       facts.engineerNames,
       facts.posts,
       facts.tunnels,
+      facts.fleet,
+      facts.projectStates,
       Object.keys(facts.tripFinds),
       ...Object.values(facts.tripFinds),
     ];

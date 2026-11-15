@@ -513,6 +513,14 @@ describe("policy shape", () => {
       sticker(mountain, { kind: "craft", recipe: "iron-rails" }),
     ).toBeGreaterThan(0);
     expect(sticker(mountain, { kind: "cancelCraft" })).toBe(0);
+    // A fresh mine's moves (#654): a wagon has its price, an order is free.
+    expect(
+      sticker(
+        { ...mountain, fleet: { horseWagon: 1 } },
+        { kind: "buyVehicle", id: "horseWagon" },
+      ),
+    ).toBe(500);
+    expect(sticker(mountain, { kind: "placeOrder" })).toBe(0);
   });
 
   it("stops when the caller says the second is enough", () => {

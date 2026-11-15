@@ -123,19 +123,27 @@ export type Measure = {
   ) => MeasureValue;
 };
 
-/** Every move kind. A new kind has to be added here or the check fails. */
-export const MOVE_KINDS = [
-  "buyTier",
-  "buyUpgrade",
-  "buyBoost",
-  "promote",
-  "station",
-  "send",
-  "recall",
-  "fixTrouble",
-  "craft",
-  "cancelCraft",
-] as const satisfies readonly Action["kind"][];
+/** Every move kind, in the report's order. A kind left out fails the typecheck. */
+const MOVE_KIND_ORDER = {
+  buyTier: true,
+  buyUpgrade: true,
+  buyBoost: true,
+  promote: true,
+  station: true,
+  send: true,
+  recall: true,
+  fixTrouble: true,
+  craft: true,
+  cancelCraft: true,
+  buyVehicle: true,
+  placeOrder: true,
+  holdOrder: true,
+  resumeOrder: true,
+} as const satisfies Record<Action["kind"], true>;
+
+export const MOVE_KINDS = Object.keys(
+  MOVE_KIND_ORDER,
+) as readonly Action["kind"][];
 
 export type ScoreMethod = "payback" | "value";
 
