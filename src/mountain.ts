@@ -620,7 +620,8 @@ function nightStretch(
   const pay = effectiveRates(mountain).awayPay;
   const chain = mineChain(mountain, pay, drilling);
   const flows = chainFlows(chain);
-  const income = flows[flows.length - 1] ?? 0;
+  // What hoisting lifts a second: the last stage's flow.
+  const income = flows.slice(-1).reduce((sum, flow) => sum + flow, 0);
   const to = Math.min(
     end,
     secondMark(from, secondsToStep(mountain, pay, income)),
