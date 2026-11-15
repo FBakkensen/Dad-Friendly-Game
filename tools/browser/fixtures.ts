@@ -1211,6 +1211,46 @@ export function sliceBusySave(now: number): StoredAsIs {
 }
 
 /**
+ * The foundation on order, closed nine hours ago: the frame opens on the
+ * shift report of a night (#663), the mine stopped by the eight-hour clock.
+ */
+export function sliceNightSave(now: number): StoredAsIs {
+  return sliceSave(now - 9 * HOUR, {
+    owned: { helper: 12 },
+    jobs: FIRST_EVENING_JOBS,
+    fleet: { horseWagon: 1 },
+    stock: { stones: 4_000 },
+    project: {
+      building: "lightTower",
+      state: "delivering",
+      step: 0,
+      arrived: { stones: 1_400 },
+      onSite: { stones: 200 },
+    },
+  });
+}
+
+/**
+ * The Light Tower's roof a thousand stone short, closed twelve hours ago:
+ * the night delivers it, the builders build it in, and the frame opens on
+ * the report, then the end card (#663).
+ */
+export function sliceRoofSave(now: number): StoredAsIs {
+  return sliceSave(now - 12 * HOUR, {
+    owned: { helper: 12 },
+    jobs: FIRST_EVENING_JOBS,
+    fleet: { horseWagon: 1 },
+    stock: { stones: 1_000 },
+    project: {
+      building: "lightTower",
+      state: "delivering",
+      step: 2,
+      arrived: { stones: 999_000 },
+    },
+  });
+}
+
+/**
  * A grown first stretch: five carts and five drills, so Cart helpers and
  * Cart roads are open in their stages' lists, thirty workers for Better
  * boots in the workforce, and the stone for all three (#661).

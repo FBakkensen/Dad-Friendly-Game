@@ -56,7 +56,9 @@ import {
   sliceBusySave,
   sliceListSave,
   sliceDoneSave,
+  sliceNightSave,
   sliceOrderedSave,
+  sliceRoofSave,
   sliceStandsSave,
   sliceStructureSave,
 } from "../tools/browser/fixtures.ts";
@@ -211,6 +213,18 @@ const SAVES = {
   "slice-list": {
     note: "slice 1: five carts and drills, so the stages' lists hold upgrades, and Better boots",
     save: () => sliceListSave(Date.now()),
+    key: DEV_BACKUP_KEY,
+    search: "?slice=1",
+  },
+  "slice-night": {
+    note: "slice 1: closed nine hours ago, so the frame opens on the shift report",
+    save: () => sliceNightSave(Date.now()),
+    key: DEV_BACKUP_KEY,
+    search: "?slice=1",
+  },
+  "slice-roof": {
+    note: "slice 1: the roof goes on in the night: the shift report, then the end card",
+    save: () => sliceRoofSave(Date.now()),
     key: DEV_BACKUP_KEY,
     search: "?slice=1",
   },

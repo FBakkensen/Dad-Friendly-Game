@@ -365,12 +365,36 @@ export function orderNumbers(
  * cannot finish (nothing ordered, on hold with goods still to bring, nobody
  * building, or a good it needs that never comes). Each step takes what its
  * goods take to arrive or what the builders take to build them in, the
- * longer. Unattended time splits the night here, where a roof's power begins.
+ * longer.
  */
 export function secondsToFinish(
   mountain: Mountain,
   share: number,
   stonesPerSecond: number,
+): number {
+  return walkSteps(mountain, share, stonesPerSecond, Infinity);
+}
+
+/**
+ * Seconds until the step in hand is built in, on the same terms as
+ * `secondsToFinish`, or Infinity when it cannot finish. Unattended time
+ * splits the night here (#663), so each step's end has its exact second and
+ * a roof's power begins at its own.
+ */
+export function secondsToStep(
+  mountain: Mountain,
+  share: number,
+  stonesPerSecond: number,
+): number {
+  return walkSteps(mountain, share, stonesPerSecond, 1);
+}
+
+/** The one walk over the steps: the seconds the next `steps` of them take. */
+function walkSteps(
+  mountain: Mountain,
+  share: number,
+  stonesPerSecond: number,
+  steps: number,
 ): number {
   const project = mountain.project;
   if (project.kind === "unordered") {
@@ -382,7 +406,7 @@ export function secondsToFinish(
   let site: Site | undefined = project.site;
   let stock = mountain.stock;
   let seconds = 0;
-  while (site !== undefined) {
+  for (let walked = 0; site !== undefined && walked < steps; walked += 1) {
     const need = stillRequired(site);
     const each = legs(need, stock, income, carry);
     const step = Math.max(

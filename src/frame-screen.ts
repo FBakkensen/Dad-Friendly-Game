@@ -26,6 +26,7 @@ import type { ProgressStore } from "./progress-store";
 import type { BuyAmount } from "./tiers";
 import { tierBuyMove } from "./economy/actions";
 import type { FrameState } from "./frame-state";
+import { createFrameCards } from "./frame-cards";
 import { createCitySite } from "./city-site";
 import { createMineSite } from "./mine-site";
 import { createStageSheet, type StageSheet } from "./stage-sheet";
@@ -38,8 +39,9 @@ import "./frame.css";
  * the hire key, the site's scene (the mine, #660; the city, #662), Next, the site bar and the
  * save line. A
  * dev build mounts it for `?slice=1` (src/main.ts). It paints the pure views
- * (frame-view, next-view, workforce-view) and changes the game only through
- * `progress.dispatch`.
+ * (frame-view, next-view, workforce-view), shows its cards over itself
+ * (frame-cards: the shift report and the end card), and
+ * changes the game only through `progress.dispatch`.
  */
 
 const SITE_ICONS: Readonly<Record<SiteId, string>> = {
@@ -371,6 +373,13 @@ export function mountFrameScreen({
   const frame = buildFrame(state, now, signal);
   const sheet = createWorkforceSheet(state, now);
   const stageSheet = createStageSheet(state, now);
+  const cards = createFrameCards({
+    progress,
+    onShow: () => {
+      sheet.close();
+      stageSheet.close();
+    },
+  });
   const saveLine = createSaveLine({
     progress,
     auth,
@@ -385,6 +394,7 @@ export function mountFrameScreen({
     frame.root,
     sheet.root,
     stageSheet.root,
+    cards.root,
     drawerClip,
     saveLine.line,
   );
@@ -393,6 +403,7 @@ export function mountFrameScreen({
     frame.paint(mountain);
     sheet.paint(mountain);
     stageSheet.paint(mountain);
+    cards.paint();
     saveLine.render();
   };
   paint();
@@ -410,6 +421,12 @@ function runFrame(
   signal: AbortSignal | undefined,
 ): void {
   const ticking = setInterval(() => {
+    // A hidden tab's throttled timer would settle a night a minute at a
+    // time, and its report would tell only the last minute (#663). The
+    // return settles it whole (`saveOnLeave`).
+    if (document.visibilityState === "hidden") {
+      return;
+    }
     progress.tick();
     paint();
   }, 1000);

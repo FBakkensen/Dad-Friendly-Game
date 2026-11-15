@@ -20,7 +20,8 @@ import {
 /** A building's three steps, in order: foundation, structure, roof. */
 export type StepIndex = 0 | 1 | 2;
 
-const ROOF: StepIndex = 2;
+/** The last step: the building goes operational when it is built in. */
+export const ROOF: StepIndex = 2;
 
 /** What an operational building gives, read from its row. */
 type Power = {
