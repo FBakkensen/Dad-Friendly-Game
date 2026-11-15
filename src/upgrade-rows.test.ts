@@ -290,7 +290,7 @@ describe("lasting upgrade rows", () => {
       false,
     );
     expect(bought).toMatchObject({
-      name: "Better boots",
+      name: "Work boots",
       badge: "",
       state: "owned",
       price: "Owned",
@@ -300,7 +300,7 @@ describe("lasting upgrade rows", () => {
       can: false,
       shown: true,
     });
-    expect(bought.aria).toBe(`Better boots. ${bought.info[0] ?? ""} Owned`);
+    expect(bought.aria).toBe(`Work boots. ${bought.info[0] ?? ""} Owned`);
   });
 
   it("every level bought still reads Owned, with its badge", () => {
@@ -358,8 +358,8 @@ describe("found tools", () => {
 
 describe("the New row", () => {
   it("the New row", () => {
-    // Strong arms and boots bought; Steady hands (dear) comes before
-    // Helping hands (cheaper). Sharper picks is used, so it has no dot.
+    // Strong arms and boots bought; Night foreman (dear) comes before
+    // Loading crews (cheaper). Sharper picks is used, so it has no dot.
     const open = mountainWith({
       owned: { ...NONE_OWNED, helper: 10, cart: 5 },
       upgrades: { ...NO_UPGRADES, tap: 1, boots: 1 },

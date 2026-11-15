@@ -524,7 +524,7 @@ export function idleMountain(): Seed {
 }
 
 /**
- * The mid save with upgrades owned and levelled (#373): Better boots bought,
+ * The mid save with upgrades owned and levelled (#373): Work boots bought,
  * Strong arms at level 2, and Grandfather's pick and the old lamp found.
  */
 export function toolsMountain(): Seed {
@@ -1277,8 +1277,8 @@ export function sliceRoofSave(now: number): StoredAsIs {
 }
 
 /**
- * A grown first stretch: five carts and five drills, so Cart helpers and
- * Cart roads are open in their stages' lists, thirty workers for Better
+ * A grown first stretch: five carts and five drills, so Loading crews and
+ * Haul roads are open in their stages' lists, thirty workers for Work
  * boots in the workforce, and the stone for all three (#661).
  */
 export function sliceListSave(now: number): StoredAsIs {

@@ -167,7 +167,7 @@ function renderUpgradesA(view: DirectionView): string {
       <p class="dir-hero-num">${escapeHtml(POCKET_WORDS)}</p>
       <p class="dir-gold">stones to spend</p>
       <p>Strong arms · level 3 of 10 · now 1,410</p>
-      <p class="dir-quiet">Owned · Better boots, Steady hands, Helping hands</p>
+      <p class="dir-quiet">Owned · Work boots, Night foreman, Loading crews</p>
       <p class="dir-quiet">Grandfather's pick is home. The lamp is too.</p>
     </div>
     <div class="dir-actions">
@@ -177,7 +177,7 @@ function renderUpgradesA(view: DirectionView): string {
       </div>
       ${btn(view, "arms", "tok-primary dir-buy", `<span>Strong arms</span><span>${escapeHtml(ARMS)}</span>`, "Buys Strong arms.")}
       <div class="dir-dock dir-pair">
-        ${btn(view, "roads", "tok-secondary dir-buy", `<span>Cart roads</span><span>${escapeHtml(ROADS)}</span>`, "Buys Cart roads.")}
+        ${btn(view, "roads", "tok-secondary dir-buy", `<span>Haul roads</span><span>${escapeHtml(ROADS)}</span>`, "Buys Haul roads.")}
         ${btn(view, "crews", "tok-secondary dir-buy", `<span>Drill crews</span><span>${escapeHtml(CREWS)}</span>`, "Buys Drill crews.")}
       </div>
       ${btn(view, "tracks", "tok-secondary dir-buy", `<span>Borer tracks</span><span>${escapeHtml(TRACKS)}</span>`, "Buys Borer tracks.")}
@@ -668,7 +668,7 @@ function renderUpgradesC(view: DirectionView): string {
     </div>
     <div class="dir-shelf">
       ${btn(view, "overtime", "tok-secondary dir-chip", `${icon(ART.worker)}<span>Overtime</span><span class="dir-num">${escapeHtml(OVERTIME)}</span>`, "Overtime keeps running.")}
-      ${btn(view, "roads", "tok-secondary dir-chip", `${icon(ART.workshop)}<span>Roads</span><span class="dir-num">${escapeHtml(ROADS)}</span>`, "Buys Cart roads.")}
+      ${btn(view, "roads", "tok-secondary dir-chip", `${icon(ART.workshop)}<span>Roads</span><span class="dir-num">${escapeHtml(ROADS)}</span>`, "Buys Haul roads.")}
       ${btn(view, "crews", "tok-secondary dir-chip", `${icon(ART.drill)}<span>Crews</span><span class="dir-num">${escapeHtml(CREWS)}</span>`, "Buys Drill crews.")}
     </div>
     ${btn(view, "tracks", "tok-secondary dir-buy", `<span>Borer tracks</span><span>${escapeHtml(TRACKS)}</span>`, "Buys Borer tracks.")}

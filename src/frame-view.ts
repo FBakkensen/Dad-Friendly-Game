@@ -163,7 +163,7 @@ export function stockpiles(mountain: Mountain): readonly Stockpile[] {
 export type WorkersView = {
   readonly owned: number;
   readonly free: number;
-  /** Green while the workforce has something he can afford (Better boots). */
+  /** Green while the workforce has something he can afford (Work boots). */
   readonly lamp: boolean;
 };
 

@@ -17,7 +17,6 @@ import {
   formatClock,
   lostToolWords,
   upgradeEffectLine,
-  upgradeName,
   upgradeWhyLine,
 } from "./screen-words";
 import { showsDot } from "./teach";
@@ -174,7 +173,7 @@ export function upgradeRowView(
           can: false,
         }
       : buyFace(mountain.stock.stones, cost);
-  const name = upgradeName(upgrade);
+  const name = upgrade.name;
   return {
     name,
     badge:

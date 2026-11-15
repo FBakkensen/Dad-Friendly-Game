@@ -210,7 +210,7 @@ export function renderUpgradesTokens(view: TokenView): string {
     priced(upgradeCost(upgradeById("tap"), 3), "Strong arms"),
   );
   const roads = buyPriceWords(
-    priced(upgradeCost(upgradeById("drillSyn"), 0), "Cart roads"),
+    priced(upgradeCost(upgradeById("drillSyn"), 0), "Haul roads"),
   );
   const crews = buyPriceWords(
     priced(upgradeCost(upgradeById("borerSyn"), 0), "Drill crews"),
@@ -237,7 +237,7 @@ export function renderUpgradesTokens(view: TokenView): string {
         "Overtime keeps running.",
       ],
       ["arms", "tok-primary", "Strong arms", arms, "Buys Strong arms."],
-      ["roads", "tok-primary", "Cart roads", roads, "Buys Cart roads."],
+      ["roads", "tok-primary", "Haul roads", roads, "Buys Haul roads."],
       ["crews", "tok-primary", "Drill crews", crews, "Buys Drill crews."],
       ["tracks", "tok-primary", "Borer tracks", tracks, "Buys Borer tracks."],
     ] as const
@@ -255,12 +255,12 @@ export function renderUpgradesTokens(view: TokenView): string {
     <div class="tok-read">
       <p class="tok-pocket">You have ${escapeHtml(formatCount(POCKET))} stones.</p>
       <p>Strong arms · level 3 of 10 · now 1,410</p>
-      <p>Cart roads · drills would 24%</p>
+      <p>Haul roads · drills would 24%</p>
       <p>Drill crews · borers would 8%</p>
       <p>Borer tracks · the Great Machine would 3%</p>
       <p>Sharper picks · 1,410 a tap</p>
       <p>Overtime · 22.7K/s</p>
-      <p class="tok-quiet">Owned · Better boots, Steady hands, Helping hands</p>
+      <p class="tok-quiet">Owned · Work boots, Night foreman, Loading crews</p>
       <p class="tok-quiet">Grandfather's pick · Found. Your taps bite a little deeper.</p>
       <p class="tok-quiet">Old miner's lamp · Found. Golden veins linger longer in its light.</p>
     </div>

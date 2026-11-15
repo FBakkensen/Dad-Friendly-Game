@@ -852,7 +852,7 @@ describe("valueOf", () => {
     expect(shortHands.gainPerSec).not.toBeCloseTo(1.2, 8);
   });
 
-  it("pays Strong arms for taps, Steady hands for time away, and Sharper picks for both", () => {
+  it("pays Strong arms for taps, Night foreman for time away, and Sharper picks for both", () => {
     const tapping: ValueContext = {
       tapsPerSecond: 3,
       liveSeconds: 1,
