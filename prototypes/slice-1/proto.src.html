@@ -121,35 +121,29 @@
   #p-mine .lv .cs .st { width: 36px; height: 44px; line-height: 40px; }
   #p-mine .deep { position: absolute; left: 10px; right: 10px; color: #8d93b8; font-size: 15px; text-align: center; }
   #line { position: absolute; left: 6px; right: 6px; bottom: 4px; display: flex; flex-direction: column; gap: 2px; }
-  #line .lh { box-sizing: border-box; height: 30px; background: #000c; border: 2px solid #3b4450; display: flex; align-items: center; padding: 0 2px 0 2px; gap: 3px; font-size: 14px; white-space: nowrap; }
-  #line .lh .hi { flex: 1; min-width: 0; display: flex; align-items: center; gap: 4px; }
-  #line .lh .w { align-self: stretch; display: flex; align-items: center; gap: 4px; padding: 0 3px; color: var(--quiet); }
-  #line .lh .w.has { color: var(--green); }
-  #line .lh .k { height: 24px; width: 136px; background: #22282f; color: var(--quiet); text-align: center; font-size: 14px; font-weight: 700; }
-  #line .lh b { font-family: var(--mono); font-weight: 400; font-size: 17px; }
-  #line .lh .cap { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--quiet); text-align: center; }
-  #line .lh .cw { width: 96px; }
-  #line .lh .cm { width: 104px; }
-  .stg { box-sizing: border-box; height: 40px; background: #000c; border: 2px solid #3b4450; display: flex; align-items: center; padding: 0 2px 0 6px; gap: 3px; }
+  #line .lh { display: flex; gap: 2px; height: 36px; }
+  #line .lh .k { flex: 1; min-width: 0; height: 36px; background: #14181dee; box-shadow: inset 0 0 0 2px #3b4450; color: var(--quiet); text-align: center; font-size: 14px; font-weight: 700; line-height: 1.15; white-space: nowrap; }
+  #line .lh .k small { display: block; font-weight: 600; font-size: 12.5px; line-height: 1.1; }
+  .stg { box-sizing: border-box; height: 38px; background: #000c; border: 2px solid #3b4450; display: flex; align-items: center; padding: 0 2px 0 6px; gap: 3px; }
   .stg .i { position: relative; flex: 1; min-width: 0; align-self: stretch; display: flex; flex-direction: column; justify-content: center; padding: 0 4px 0 0; }
   .stg .h, .stg .mk { position: relative; z-index: 1; }
   .stg .h { display: flex; align-items: baseline; gap: 4px; font-size: 15px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; line-height: 1.05; }
-  .stg .h .r { margin-left: auto; font-size: 13px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--quiet); }
+  .stg .h .nm { width: 78px; }
+  .stg .h .r { font-size: 13px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--quiet); }
   .stg .h .r b { font-family: var(--mono); font-weight: 400; font-size: 14px; color: #ffd98a; }
   .stg .h .r i { font-family: var(--mono); font-style: normal; font-weight: 400; font-size: 14px; color: #e3e9ef; }
   .stg .mk { font-size: 13px; line-height: 1.05; white-space: nowrap; color: var(--quiet); margin-top: 1px; overflow: hidden; }
   .stg .bar { position: absolute; left: -4px; right: 2px; top: 2px; bottom: 2px; }
   .stg .bar u { position: absolute; left: 0; top: 0; height: 100%; background: #ffffff12; }
   .stg .bar u + u { background: #ffd98a30; box-shadow: inset -1px 0 0 #ffd98a88; }
-  .stg .n { flex: none; width: 26px; text-align: center; font-size: 18px; font-weight: 400; color: #fff; }
+  .stg .n { flex: none; width: 44px; display: flex; flex-direction: column; align-items: center; line-height: 1; }
+  .stg .n b { font-size: 17px; font-weight: 400; color: #fff; }
+  .stg .n small { font-size: 10.5px; letter-spacing: .04em; color: var(--quiet); margin-top: 1px; }
+  .stg .st { width: 34px; height: 30px; line-height: 26px; }
   .stg .mm { color: #e3e9ef; }
   .stg .mk .bh { color: #8cc4ff; }
   .stg .mk.sm { font-size: 12px; letter-spacing: -.02em; }
   #p-mine .zl { position: absolute; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: #cfc4ad; text-shadow: 0 1px 0 #000; }
-  .stg .k { height: 32px; background: #22282f; color: var(--quiet); text-align: center; font-size: 14px; font-weight: 700; line-height: 1.15; white-space: nowrap; }
-  .stg .k small { display: block; font-weight: 600; font-size: 12.5px; line-height: 1.1; }
-  .stg .km { width: 104px; }
-  .stg .st { width: 32px; }
   #sink { position: absolute; left: 6px; right: 6px; height: 60px; background: #000b; border: 2px solid #3b4450; display: flex; align-items: center; padding: 0 8px 0 10px; gap: 8px; }
   #sink .t { flex: 1; font-size: 18px; font-weight: 700; line-height: 1; letter-spacing: .03em; }
   #sink .t small { display: block; font-size: 13px; font-weight: 600; letter-spacing: 0; color: var(--quiet); margin-top: 4px; }
@@ -648,11 +642,11 @@ function mineDOM(ov) {
     if (S.shaft) { lv.classList.add("split"); el("div", "cs", lv, `<button class="st" data-lv="${i}" data-d="-1" aria-label="Move a crew off the ${n}">−</button><button class="st" data-lv="${i}" data-d="1" aria-label="Move a crew to the ${n}">+</button>`); }
   });
   if (hA * 2 - 162 > (SURF + 2 * LH + 4) * 2 + 24) { const deep = el("div", "deep", ov, "Deeper strata: not yet surveyed. The city has to grow first."); deep.style.top = (SURF + 2 * LH + 4) * 2 + "px"; }
-  const ln = el("div", "", ov, `<div class="lh"><div class="hi"><button class="k" id="hire"></button><button class="w" id="wf-open" aria-label="The workforce">${ico("worker")}<b id="wf-f"></b>free</button></div><span class="cap cw">Workers</span><span class="cap cm">Add a machine</span></div>`); ln.id = "line";
-  tap($("#wf-open"), panel); tap($("#hire"), hire);
+  const ln = el("div", "", ov, `<div class="lh"><button class="k" id="hire"></button>${Object.keys(STG).map((k) => `<button class="k" id="buy-${k}"></button>`).join("")}</div>`); ln.id = "line";
+  tap($("#hire"), hire);
   for (const k in STG) {
-    const nm = STG[k].n.toLowerCase(), s = el("div", "stg", ln, `<button class="i"><div class="bar"><u></u><u></u></div><div class="h">${STG[k].n}<span class="r"></span></div><div class="mk"></div></button><button class="st" data-job="${k}" data-d="-1" aria-label="Take a worker off ${nm}">−</button><b class="num n" data-n="${k}"></b><button class="st" data-job="${k}" data-d="1" aria-label="Put a worker on ${nm}">+</button><button class="k km" id="buy-${k}"></button>`); s.id = "stg-" + k;
-    tap(s.children[0], () => explain(k)); tap(s.children[4], () => buyStage(k));
+    const nm = STG[k].n.toLowerCase(), s = el("div", "stg", ln, `<button class="i"><div class="bar"><u></u><u></u></div><div class="h"><span class="nm">${STG[k].n}</span><span class="r"></span></div><div class="mk"></div></button><button class="st" data-job="${k}" data-d="-1" aria-label="Take a worker off ${nm}">−</button><div class="n"><b class="num" data-n="${k}"></b><small></small></div><button class="st" data-job="${k}" data-d="1" aria-label="Put a worker on ${nm}">+</button>`); s.id = "stg-" + k;
+    tap(s.children[0], () => explain(k)); tap($("#buy-" + k), () => buyStage(k));
   }
 }
 function mineUI(F) {
@@ -673,18 +667,21 @@ function mineUI(F) {
     $("#lv-b" + i).innerHTML = b;
   }
   const sf = F.sf, wp = workerPrice(), x = S.charge > 0 ? 2 : 1, top = Math.max(sf.f.face, sf.f.haul, sf.f.lift, 1) * x;
-  $("#wf-f").textContent = S.free; $("#wf-open").classList.toggle("has", S.free > 0);
-  const hk = $("#hire"); hk.innerHTML = `Hire a worker · ${fmt(wp)} ${ico("stones")}`; hk.classList.toggle("can", canPay({ stones: wp }));
+  const hk = $("#hire"); hk.innerHTML = `+Worker<small>${fmt(wp)} ${ico("stones")} · ${S.free} free</small>`; hk.classList.toggle("can", canPay({ stones: wp }));
+  const nq = (v) => (v < 1000 ? num(v) : (v / 1000).toFixed(1).replace(/\.0$/, "") + "K");
   for (const k in STG) {
-    const s = $("#stg-" + k), sb = stageBuy(k), tl = sf.tool[k], three = sf.rows[k].length > 1 && tl > 0, cap = sf.f[k] * x, t = STG[k];
-    const nq = (v, w) => (w || v < 1000 ? num(v) : (v / 1000).toFixed(1).replace(/\.0$/, "") + "K");
-    // who works with what, and what each group moves: the parts add up to what the stage can move
-    const make = (u, w) => sf.rows[k].map((r) => `<span class="mm">${r.on < r.n ? r.on + " of " + r.n : r.n} ${r.kd.one}${r.n > 1 ? "s" : ""} ${nq(r.on * r.kd.per * sf.mult(k) * x, w)}${u}</span>`).concat(tl || !sf.rows[k].length ? [`<span class="bh">${tl} ${w ? (tl === 1 ? t.tool1 : t.tool) : tl === 1 ? t.tool1.replace(/^\w+ an? /, "") : t.tool.replace(/^\w+ /, "")} ${nq(tl * sf.each[k] * x, w)}${u}</span>`] : []).join(" + ");
-    const long = make("/s", true), mk = s.querySelector(".mk"); mk.innerHTML = three ? make("", false) : long.replace(/<[^>]+>/g, "").length > 38 ? make("", true) : long; mk.classList.toggle("sm", three);
+    const s = $("#stg-" + k), sb = stageBuy(k), tl = sf.tool[k], t = STG[k], cap = sf.f[k] * x, mk = s.querySelector(".mk");
+    // Who works with what. A kind of machine: the workers it has, of the workers it takes, and what it moves. Then the workers left over, with tools.
+    // The parts add up to the stage's workers and to what the stage can move. Three forms, the fullest that fits.
+    const make = (lv) => sf.rows[k].map((r) => { const takes = r.n * r.kd.staff, has = r.on * r.kd.staff, v = r.on * r.kd.per * sf.mult(k) * x, nm = r.kd.one + (r.n > 1 ? "s" : "");
+      return `<span class="mm">${lv === 2 ? `${r.n} ${nm} ${has}/${takes} ${nq(v)}` : `${r.on < r.n ? r.on + " of " + r.n : r.n} ${nm}: ${has} of ${takes} workers ${num(v)}${lv ? "" : "/s"}`}</span>`; })
+      .concat(tl || !sf.rows[k].length ? [`<span class="bh">${tl} ${lv === 2 ? (tl === 1 ? t.tool1.replace(/^\w+ an? /, "") : t.tool.replace(/^\w+ /, "")) + " " + nq(tl * sf.each[k] * x) : (tl === 1 ? t.tool1 : t.tool) + " " + num(tl * sf.each[k] * x) + (lv ? "" : "/s")}</span>`] : []).join(" + ");
+    for (let lv = 0; lv < 3; lv++) { const h = make(lv); if (mk.dataset.h !== h) { mk.dataset.h = h; mk.innerHTML = h; } mk.classList.toggle("sm", lv === 2); if (mk.scrollWidth <= mk.clientWidth + 1) break; }
+    s.querySelector(".n small").textContent = S.wk[k] === 1 ? "worker" : "workers";
     // what the stage moves now, of what it can move. The mine is one line, so every stage moves the same.
     const big = cap >= 10000, nn = (v) => (big ? fmt(v) : num(v)); s.querySelector(".r").innerHTML = `<b>${nn(F.out)}</b> of <i>${nn(cap)}/s</i>`;
     const bar = s.querySelector(".bar").children; bar[0].style.width = (100 * cap) / top + "%"; bar[1].style.width = (100 * Math.min(F.out, cap)) / top + "%";
-    const bk = s.children[4]; bk.innerHTML = `+${sb.short} · ${rate(sb.rate)}<small>${fmt(sb.price)} ${ico(sb.good)} · ${sb.staff} to run</small>`; bk.classList.toggle("can", canPay({ [sb.good]: sb.price }));
+    const bk = $("#buy-" + k); bk.innerHTML = `+${sb.short} · ${rate(sb.rate)}<small>${fmt(sb.price)} ${ico(sb.good)} · ${sb.staff} to run</small>`; bk.classList.toggle("can", canPay({ [sb.good]: sb.price }));
   }
 }
 
@@ -766,7 +763,7 @@ function worksUI(F) {
   $("#saw-lock").hidden = S.shaft; $("#pl-saw").hidden = !S.shaft; $("#mach-saw").hidden = !S.shaft;
   [["kiln", "kilns", S.kilns, 0, "bricks", kilnPrice(), "stones", 100], ["saw", "saws", S.saws, 1, "cut", sawPrice(), "bricks", 120]].forEach(([id, pl, n, i, g, pr, pg, per]) => {
     const p = $("#pl-" + id); p.children[0].innerHTML = `${n} ${pl.toUpperCase()} <span class="num">×${rate(per)}</span>`;
-    p.children[1].textContent = !S.gangs[i] ? "No feed. No crew on this level." : !n ? `No ${pl} yet. All rock bypasses to stone.` : F.full[g] ? `${GC[g]} stockpile full.` : `${F.run[i]} of ${n} run · take ${rate(F.take[i])}`;
+    p.children[1].textContent = !S.gangs[i] ? "No feed. No crew on this level." : !n ? `No ${pl} yet. All rock bypasses to stone.` : F.full[g] ? `${GC[g]} stockpile full.` : `${F.run[i]} of ${n} workers · take ${rate(F.take[i])}`;
     p.children[3].innerHTML = `+1 ${id} · ${fmt(pr)} ${ico(pg)} · +${per}/s`; p.children[3].classList.toggle("can", canPay({ [pg]: pr }));
   });
   $("#mid-r").textContent = F.full.stones ? "full" : rate(F.over[0] + F.over[1]);
@@ -967,8 +964,8 @@ function villageUI() {
     o.children[2].textContent = HAUL.built > 0 ? "building " + rate(HAUL.built) + " · " + dur(left / HAUL.built) : ""; o.children[3].textContent = st.on ? "tap to hold" : "";
     $("#bw-t").innerHTML = `${S.wk.build} ${S.wk.build === 1 ? "builder" : "builders"} ×${rate(BUILD)} · on site <span class="num">${fmt(onSite)} of ${fmt(SITE)}</span>`;
   }
-  const J = jobs(), fo = fleetOn(), vt = (k) => { const n = S.fleet[k]; return (fo[k] < n ? fo[k] + " of " + n : n) + " " + (n === 1 ? VEH[k].one : VEH[k].n) + " ×" + rate(VEH[k].per); };
-  $("#fl-n").textContent = vt("wagons") + (S.fleet.trucks ? " · " + vt("trucks") : "");
+  const J = jobs(), fo = fleetOn(), two = S.fleet.trucks > 0, vt = (k) => { const n = S.fleet[k], v = VEH[k]; return n + " " + (two ? v.short.toLowerCase() + (n === 1 ? "" : "s") : n === 1 ? v.one : v.n) + ": " + fo[k] + " of " + n + (n === 1 ? " driver " : " drivers ") + rate(fo[k] * v.per); };
+  $("#fl-n").textContent = vt("wagons") + (two ? " · " + vt("trucks") : "");
   $("#fl-s").textContent = !J.length ? (h && S.b[h.id].held ? "on hold" : "idle: no order") : J.length > 1 ? "shared: city, factory" : J[0].k === "city" ? "serving the city" : "serving the factory";
   for (const k in VEH) { const v = VEH[k], b = $("#fl-" + k), open = k === "wagons" || trucksOpen(); b.innerHTML = open ? `+${v.short} ${rate(v.per)} · ${fmt(vehPrice(k))} ${ico(v.good)}` : "Trucks: after the Warehouse"; b.classList.toggle("can", open && canPay({ [v.good]: vehPrice(k) })); }
 }
