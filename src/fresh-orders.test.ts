@@ -19,16 +19,23 @@ const fresh = <T>(body: () => T): T => withFactors({ [FRESH_OFF]: 0 }, body);
 const HOUR = 60 * 60 * 1000;
 const NO_TROUBLE = { trouble: undefined };
 
+/** The Light Tower at `step` with `stones` arrived, all built in. */
 function site(step: 0 | 1 | 2, stones = 0): Project {
   return {
     kind: "delivering",
-    site: { building: "lightTower", step, arrived: { ...EMPTY_STOCK, stones } },
+    site: {
+      building: "lightTower",
+      step,
+      arrived: { ...EMPTY_STOCK, stones },
+      onSite: EMPTY_STOCK,
+    },
   };
 }
 
 /**
  * A fresh mine with `perStage` workers on each stage, a driver on each
- * wagon, and this pocket and project.
+ * wagon, two builders a wagon (40 built in a second, past the wagon's 25,
+ * so the site never holds transport back), and this pocket and project.
  */
 function mine(
   perStage: number,
@@ -40,12 +47,13 @@ function mine(
   const start = createMountain();
   return {
     ...start,
-    owned: { ...start.owned, helper: 3 * perStage + wagons },
+    owned: { ...start.owned, helper: 3 * perStage + 3 * wagons },
     jobs: {
       drilling: perStage,
       haulage: perStage,
       hoisting: perStage,
       driving: wagons,
+      building: 2 * wagons,
     },
     stock: { ...start.stock, stones: pocket },
     fleet: { ...start.fleet, horseWagon: wagons },
@@ -194,6 +202,58 @@ describe("unattended before the stockyard (rule 4)", () => {
   });
 });
 
+describe("the builders at night (rule 7.12, #690)", () => {
+  it("build at the night shift output, and a full site stops transport", () => {
+    fresh(() => {
+      const start = mine(3, 100_000, 2, site(0));
+      const none = { ...start, jobs: { ...start.jobs, building: 0 } };
+      const night = accrueAway({ mountain: none, lastSeen: 0, now: 2 * HOUR });
+      // Nobody builds: transport fills the site and stops there.
+      expect(night.mountain.project).toEqual({
+        kind: "delivering",
+        site: {
+          building: "lightTower",
+          step: 0,
+          arrived: { ...EMPTY_STOCK, stones: 500 },
+          onSite: { ...EMPTY_STOCK, stones: 500 },
+        },
+      });
+      // One builder: 6 a second at night, the site full from early on.
+      const one = { ...start, jobs: { ...start.jobs, building: 1 } };
+      const built = accrueAway({ mountain: one, lastSeen: 0, now: 2 * HOUR });
+      expect(built.mountain.project).toEqual({
+        kind: "delivering",
+        site: {
+          building: "lightTower",
+          step: 0,
+          arrived: { ...EMPTY_STOCK, stones: 6 * 7_200 + 500 },
+          onSite: { ...EMPTY_STOCK, stones: 500 },
+        },
+      });
+    });
+  });
+
+  it("build in a roof on hold, and light the rest of the night from then", () => {
+    fresh(() => {
+      // The roof all arrived, 300 on the site and on hold; two builders
+      // build 12 a second at night, so it goes on 25 s in.
+      const start = mine(40, 0, 1, {
+        kind: "onHold",
+        site: {
+          building: "lightTower",
+          step: 2,
+          arrived: { ...EMPTY_STOCK, stones: 6_000_000 },
+          onSite: { ...EMPTY_STOCK, stones: 300 },
+        },
+      });
+      const held = { ...start, jobs: { ...start.jobs, building: 2 } };
+      const night = accrueAway({ mountain: held, lastSeen: 0, now: HOUR });
+      expect(night.mountain.operational).toEqual(["lightTower"]);
+      expect(night.mined).toBe(25 * 288 + (3_600 - 25) * 432);
+    });
+  });
+});
+
 describe("the moves (rule 7.1, 7.9, 7.13)", () => {
   it("lists the order, then hold, then resume, and a wagon to buy", () => {
     fresh(() => {
@@ -215,7 +275,12 @@ describe("the moves (rule 7.1, 7.9, 7.13)", () => {
       ]);
       const held = mine(3, 0, 1, {
         kind: "onHold",
-        site: { building: "lightTower", step: 0, arrived: EMPTY_STOCK },
+        site: {
+          building: "lightTower",
+          step: 0,
+          arrived: EMPTY_STOCK,
+          onSite: EMPTY_STOCK,
+        },
       });
       expect(kinds(held)).toEqual(["buyVehicle", "resumeOrder"]);
       expect(

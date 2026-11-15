@@ -1,7 +1,10 @@
+import { SITE_HOLDS, buildRate, onSiteTotal, stepWork } from "./building-site";
 import {
-  buildingStillRequired,
+  buildIn,
   receive,
+  siteAfter,
   stillRequired,
+  stillToBuild,
   type Site,
 } from "./city";
 import type { Mountain } from "./mountain";
@@ -126,71 +129,63 @@ export function buyVehicle(mountain: Mountain, id: VehicleId): Mountain {
     : { ...paid, fleet: { ...paid.fleet, [id]: paid.fleet[id] + 1 } };
 }
 
-/**
- * Up to `capacity` goods split evenly between the goods in `wants`, each at
- * most its want. What one good cannot use goes to the others.
- */
-function shareOut(
-  capacity: number,
-  wants: Readonly<Partial<Record<GoodId, number>>>,
-): Partial<Record<GoodId, number>> {
-  const goods = GOOD_IDS.filter((good) => (wants[good] ?? 0) > 0).sort(
-    (a, b) => (wants[a] ?? 0) - (wants[b] ?? 0),
+/** Goods in all. */
+function moved(goods: Partial<Stock>): number {
+  return GOOD_IDS.reduce((sum, good) => sum + (goods[good] ?? 0), 0);
+}
+
+/** What the goods cost the pocket, as a price. */
+function priceOf(goods: Partial<Stock>): Price {
+  return GOOD_IDS.flatMap((good) =>
+    (goods[good] ?? 0) > 0 ? [{ good, amount: goods[good] ?? 0 }] : [],
   );
-  const out: Partial<Record<GoodId, number>> = {};
-  let left = capacity;
-  for (const [index, good] of goods.entries()) {
-    const even = Math.floor(left / (goods.length - index));
-    const amount = Math.min(wants[good] ?? 0, even);
-    out[good] = amount;
-    left -= amount;
-  }
-  return out;
-}
-
-/** What the pocket can give the step in hand: its need, capped by what is held. */
-function wants(site: Site, stock: Stock): Partial<Record<GoodId, number>> {
-  const left = stillRequired(site);
-  const out: Partial<Record<GoodId, number>> = {};
-  for (const good of GOOD_IDS) {
-    out[good] = Math.min(left[good], stock[good]);
-  }
-  return out;
 }
 
 /**
- * Transport's work over `seconds` whole seconds at `share` of its rate (1
- * live, the night shift output unattended, rule 7.11). It carries what the
- * pocket holds to the step in hand, steps on through the building with what
- * capacity is left, and stops when the building is operational or the
- * pocket has nothing the step requires. On hold, it carries nothing.
+ * Transport's and the builders' work over `seconds` at `share` of their
+ * rates (1 live, the night shift output unattended, rule 7.12). Transport
+ * carries what the pocket holds to the site of the step in hand, and the
+ * builders build it in (#690); a step built in gives way to the next, with
+ * the time left. It stops when the building is operational, or when neither
+ * can do more. On hold, transport carries nothing and the builders still
+ * build in what is on the site.
  */
 export function deliver(
   mountain: Mountain,
   seconds: number,
   share: number,
 ): Mountain {
-  let capacity = Math.floor(fleetRate(mountain) * share * seconds + 1e-9);
   let state = mountain;
-  while (capacity > 0 && state.project.kind === "delivering") {
-    const amounts = shareOut(capacity, wants(state.project.site, state.stock));
-    const carried = GOOD_IDS.reduce(
-      (sum, good) => sum + (amounts[good] ?? 0),
-      0,
-    );
-    if (carried === 0) {
-      break;
+  let left = seconds;
+  for (;;) {
+    const project = state.project;
+    if (project.kind === "unordered") {
+      return state;
     }
-    const price = GOOD_IDS.flatMap((good) =>
-      (amounts[good] ?? 0) > 0 ? [{ good, amount: amounts[good] ?? 0 }] : [],
+    const carry = project.kind === "delivering" ? fleetRate(state) * share : 0;
+    const work = stepWork(
+      project.site,
+      state.stock,
+      carry,
+      buildRate(state) * share,
+      left,
     );
-    state = receive(pay(state, price), amounts);
-    capacity -= carried;
+    if (!work.done && moved(work.delivered) + moved(work.built) === 0) {
+      return state;
+    }
+    const arrived = receive(
+      pay(state, priceOf(work.delivered)),
+      work.delivered,
+    );
+    state = buildIn(arrived, work.built);
+    if (!work.done) {
+      return state;
+    }
+    left -= work.seconds;
   }
-  return state;
 }
 
-/** What an order says (rule 7.10). */
+/** What holds an order back, for the lab (rule 7.11: the page names none). */
 export type OrderLimit =
   | { readonly kind: "unordered" }
   | { readonly kind: "onHold" }
@@ -198,10 +193,10 @@ export type OrderLimit =
       readonly kind: "delivering";
       /** Goods a second arriving now. */
       readonly perSecond: number;
-      /** Seconds the step in hand has left at this rate. */
+      /** Seconds the step in hand has left at these rates. */
       readonly secondsLeft: number;
-      /** What holds it back: transport, or a good the pocket runs out of. */
-      readonly limit: "transport" | GoodId;
+      /** What holds it back: transport, a good the pocket runs out of, or the builders. */
+      readonly limit: "transport" | "builders" | GoodId;
     };
 
 type Leg = { readonly seconds: number; readonly byGood: boolean };
@@ -253,6 +248,23 @@ function legs(
   }));
 }
 
+/** Goods a second transport brings the step in hand now, from the pocket and the dig. */
+function arriving(
+  site: Site,
+  stock: Stock,
+  income: Partial<Stock>,
+  carry: number,
+): number {
+  const each = legs(stillRequired(site), stock, income, carry);
+  let perSecond = 0;
+  for (const leg of each) {
+    const share = carry / each.length;
+    perSecond +=
+      stock[leg.good] > 0 ? share : Math.min(share, income[leg.good] ?? 0);
+  }
+  return perSecond;
+}
+
 /**
  * The order's limit, with the goods a second and the time the step in hand
  * has left, live. `stonesPerSecond` is what the crew digs.
@@ -267,32 +279,93 @@ export function orderLimit(
   }
   const income: Partial<Stock> = { stones: stonesPerSecond };
   const carry = fleetRate(mountain);
-  const each = legs(stillRequired(project.site), mountain.stock, income, carry);
+  const need = stillRequired(project.site);
   let slowest: (Leg & { readonly good: GoodId }) | undefined;
-  let perSecond = 0;
-  for (const leg of each) {
-    const share = carry / each.length;
-    perSecond +=
-      mountain.stock[leg.good] > 0
-        ? share
-        : Math.min(share, income[leg.good] ?? 0);
+  for (const leg of legs(need, mountain.stock, income, carry)) {
     if (slowest === undefined || leg.seconds > slowest.seconds) {
       slowest = leg;
     }
   }
+  const brought = slowest?.seconds ?? 0;
+  const built = buildSeconds(project.site, buildRate(mountain));
   return {
     kind: "delivering",
-    perSecond,
-    secondsLeft: slowest?.seconds ?? 0,
-    limit: slowest?.byGood === true ? slowest.good : "transport",
+    perSecond: arriving(project.site, mountain.stock, income, carry),
+    secondsLeft: Math.max(brought, built),
+    limit:
+      built > brought
+        ? "builders"
+        : slowest?.byGood === true
+          ? slowest.good
+          : "transport",
+  };
+}
+
+/** Seconds the builders take to build in what is on the site and what is still to come. */
+function buildSeconds(site: Site, build: number): number {
+  const work =
+    onSiteTotal(site) +
+    GOOD_IDS.reduce((sum, good) => sum + stillRequired(site)[good], 0);
+  return work === 0 ? 0 : build > 0 ? work / build : Infinity;
+}
+
+/** An order's numbers, for the page (rule 7.11): no limit is named. */
+export type OrderNumbers =
+  | { readonly kind: "unordered" }
+  | {
+      readonly kind: "delivering" | "onHold";
+      /** Goods a second transport brings to the site now. */
+      readonly brings: number;
+      /** Goods a second the builders build in now. */
+      readonly builds: number;
+      /** What is on the building site, of each good. */
+      readonly onSite: Stock;
+      /** What the step still requires built in, of each good. */
+      readonly stillRequires: Stock;
+    };
+
+/**
+ * What the order's page shows, live (#690). Transport brings no more than
+ * the builders make room for once the site is full, and the builders build
+ * no faster than what reaches them once it is empty.
+ */
+export function orderNumbers(
+  mountain: Mountain,
+  stonesPerSecond: number,
+): OrderNumbers {
+  const project = mountain.project;
+  if (project.kind === "unordered") {
+    return project;
+  }
+  const site = project.site;
+  const rate = buildRate(mountain);
+  const carried =
+    project.kind === "delivering"
+      ? arriving(
+          site,
+          mountain.stock,
+          { stones: stonesPerSecond },
+          fleetRate(mountain),
+        )
+      : 0;
+  const held = onSiteTotal(site);
+  const brings = held >= SITE_HOLDS ? Math.min(carried, rate) : carried;
+  return {
+    kind: project.kind,
+    brings,
+    builds: held > 0 ? rate : Math.min(rate, brings),
+    onSite: site.onSite,
+    stillRequires: stillToBuild(site),
   };
 }
 
 /**
  * Seconds until the whole building is operational at `share` of transport's
- * rate and `stonesPerSecond` dug, or Infinity when it cannot finish (on
- * hold, nothing ordered, or a good it needs that never comes). Unattended time splits
- * the night here, where a roof's power begins.
+ * and the builders' rates and `stonesPerSecond` dug, or Infinity when it
+ * cannot finish (nothing ordered, on hold with goods still to bring, nobody
+ * building, or a good it needs that never comes). Each step takes what its
+ * goods take to arrive or what the builders take to build them in, the
+ * longer. Unattended time splits the night here, where a roof's power begins.
  */
 export function secondsToFinish(
   mountain: Mountain,
@@ -300,15 +373,45 @@ export function secondsToFinish(
   stonesPerSecond: number,
 ): number {
   const project = mountain.project;
-  if (project.kind !== "delivering") {
+  if (project.kind === "unordered") {
     return Infinity;
   }
   const income: Partial<Stock> = { stones: stonesPerSecond };
-  const each = legs(
-    buildingStillRequired(project.site),
-    mountain.stock,
-    income,
-    fleetRate(mountain) * share,
-  );
-  return Math.max(0, ...each.map((leg) => leg.seconds));
+  const carry = project.kind === "delivering" ? fleetRate(mountain) * share : 0;
+  const build = buildRate(mountain) * share;
+  let site: Site | undefined = project.site;
+  let stock = mountain.stock;
+  let seconds = 0;
+  while (site !== undefined) {
+    const need = stillRequired(site);
+    const each = legs(need, stock, income, carry);
+    const step = Math.max(
+      buildSeconds(site, build),
+      ...each.map((leg) => leg.seconds),
+    );
+    if (!Number.isFinite(step)) {
+      return Infinity;
+    }
+    seconds += step;
+    stock = afterStep(stock, need, income, step);
+    site = siteAfter(site);
+  }
+  return seconds;
+}
+
+/** The pocket after a step: what it required gone, and what was dug meanwhile added. */
+function afterStep(
+  stock: Stock,
+  need: Stock,
+  income: Partial<Stock>,
+  seconds: number,
+): Stock {
+  const out: Record<GoodId, number> = { ...stock };
+  for (const good of GOOD_IDS) {
+    out[good] = Math.max(
+      0,
+      stock[good] - need[good] + (income[good] ?? 0) * seconds,
+    );
+  }
+  return out;
 }

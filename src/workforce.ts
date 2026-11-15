@@ -15,8 +15,14 @@ import {
  * play: only a fresh mine (`freshMineOn`) lists the moves.
  */
 
-/** Where workers work in part 1: the line's three stages and driving. */
-export const JOB_IDS = ["drilling", "haulage", "hoisting", "driving"] as const;
+/** Where workers work in part 1: the line's three stages, driving and building (#690). */
+export const JOB_IDS = [
+  "drilling",
+  "haulage",
+  "hoisting",
+  "driving",
+  "building",
+] as const;
 
 export type JobId = (typeof JOB_IDS)[number];
 
@@ -27,6 +33,7 @@ export const NO_JOBS: Jobs = {
   haulage: 0,
   hoisting: 0,
   driving: 0,
+  building: 0,
 };
 
 /** Each stage of the line and its job. */

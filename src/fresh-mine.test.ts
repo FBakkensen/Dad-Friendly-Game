@@ -76,10 +76,10 @@ describe("the fresh mine's switch (#653)", () => {
 });
 
 describe("one level, no depth (rule 1)", () => {
-  it("starts with ten workers, all on jobs, and nothing else (#689)", () => {
+  it("starts with twelve workers, all on jobs, and nothing else (#689, #690)", () => {
     fresh(() => {
       const start = createMountain();
-      expect(start.owned.helper).toBe(10);
+      expect(start.owned.helper).toBe(12);
       for (const tier of TIERS) {
         if (tier.id !== "helper") {
           expect(start.owned[tier.id]).toBe(0);
