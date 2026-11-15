@@ -699,7 +699,7 @@ async function cityNoteFacts(page) {
   return page.evaluate(() => {
     const note = document.querySelector(".city-note");
     const box = note?.getBoundingClientRect();
-    const shown = note instanceof HTMLElement && !note.hidden;
+    const shown = note !== null && !note.hasAttribute("hidden");
     const over = [...document.querySelectorAll(".city-tag")]
       .filter((tag) => {
         const r = tag.getBoundingClientRect();
