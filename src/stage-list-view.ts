@@ -1,31 +1,22 @@
 import { formatCompact } from "./format";
 import type { Stage } from "./line";
-import { REACHED_LINE, milestonesReached, nextMark } from "./milestones";
+import { markLine } from "./milestones";
 import {
   machineKey,
   stageRows,
   STAGE_NAMES,
   type MachineKey,
+  type RowPart,
+  type StageRow,
 } from "./mine-view";
 import type { Mountain } from "./mountain";
-import {
-  MACHINE_WORDS,
-  upgradeEffectLine,
-  upgradeName,
-  upgradeWhyLine,
-} from "./screen-words";
-import { canPay } from "./stock";
-import {
-  TIERS,
-  tierInPlay,
-  type BuyAmount,
-  type MachineId,
-  type TierId,
-} from "./tiers";
+import { MACHINE_WORDS, TOOL_WORDS, formatSpeed, plural } from "./screen-words";
+import type { Price } from "./stock";
+import { TIERS, tierInPlay, type BuyAmount, type MachineId } from "./tiers";
 import { upgradeShown } from "./upgrade-reveal";
+import { upgradeRowView } from "./upgrade-rows";
 import {
   UPGRADES,
-  upgradeLevel,
   upgradePrice,
   upgradeStage,
   type Upgrade,
@@ -33,12 +24,20 @@ import {
 } from "./upgrades";
 
 /**
- * A stage's list (#661; spec, "What the prototype does not show"): its
- * machines with their ownership marks and keys, and the upgrades that lift
- * them. The worker's own upgrades and marks are in the workforce, under the
- * jobs. Pure: it reads the mountain and never writes it. It names no limit
- * and no best buy: the numbers are his to compare.
+ * A stage's list (#661; spec, "What the prototype does not show"): what the
+ * stage moves and who works with what, its machines with their ownership
+ * marks and keys, and the upgrades that lift them. The worker's own upgrades
+ * and marks are in the workforce, under the jobs. Pure: it reads the
+ * mountain and never writes it. It names no limit and no best buy: the
+ * numbers are his to compare.
  */
+
+/** One line of who works with what: "6 carts", "6 of 6 workers", "360/s". */
+export type ListPart = {
+  readonly name: string;
+  readonly detail: string;
+  readonly moves: string;
+};
 
 /** A kind of machine in a stage's list. */
 export type ListMachine = {
@@ -61,6 +60,8 @@ export type ListUpgrade = {
   /** Every level is bought: the row reads "Owned". */
   readonly owned: boolean;
   readonly price: string;
+  /** The price on the key, which the buy sends: a different price today refuses it (#367). */
+  readonly shownPrice: Price | undefined;
   readonly can: boolean;
   readonly label: string;
 };
@@ -68,7 +69,14 @@ export type ListUpgrade = {
 export type StageList = {
   readonly stage: Stage;
   readonly name: string;
-  /** The stage's row in one sentence. */
+  /** What the stage moves now, of what it can move. */
+  readonly now: string;
+  readonly can: string;
+  /** The band under the numbers: what it can move, and what it moves, of the strongest stage. */
+  readonly band: StageRow["band"];
+  /** Who works with what, a line each, adding up to `can`. */
+  readonly parts: readonly ListPart[];
+  /** The same in one sentence, for a screen reader. */
   readonly sentence: string;
   readonly machines: readonly ListMachine[];
   readonly upgrades: readonly ListUpgrade[];
@@ -77,13 +85,38 @@ export type StageList = {
 const capital = (words: string): string =>
   `${words.charAt(0).toUpperCase()}${words.slice(1)}`;
 
-/** "4 of 10 · Every cart hauls twice as fast.", "Twice as fast now.", or none for a tier without marks. */
-function markLine(id: TierId, count: number): string | undefined {
-  const next = nextMark(id, count, formatCompact);
-  if (next !== undefined) {
-    return `${next.progress} · ${next.payoff}`;
+/** A summand of the row as a line of the list, its moves as the row prints them. */
+function listPart(stage: Stage, part: RowPart, moves: string): ListPart {
+  const perSecond = `${moves}/s`;
+  if (part.kind === "tools") {
+    return {
+      name: `${String(part.count)} ${plural(part.count, TOOL_WORDS[stage])}`,
+      detail: "",
+      moves: perSecond,
+    };
   }
-  return milestonesReached(id, count) > 0 ? REACHED_LINE : undefined;
+  const noun = MACHINE_WORDS[part.id];
+  if (part.kind === "stands") {
+    // The third state (call 51): the machines stand, and their workers move more with tools.
+    const machines = plural(part.standing, noun);
+    return {
+      name: `${String(part.standing)} ${machines} ${part.standing === 1 ? "stands" : "stand"}`,
+      detail:
+        part.workers === 0
+          ? ""
+          : `${String(part.workers)} ${plural(part.workers, TOOL_WORDS[stage])}, ${formatSpeed(part.onMachines)}/s on the ${machines}`,
+      moves: perSecond,
+    };
+  }
+  const count =
+    part.running < part.owned
+      ? `${String(part.running)} of ${String(part.owned)}`
+      : String(part.owned);
+  return {
+    name: `${count} ${plural(part.owned, noun)}`,
+    detail: `${String(part.has)} of ${String(part.takes)} ${plural(part.takes, ["worker", "workers"])}`,
+    moves: perSecond,
+  };
 }
 
 function upgradeRow(
@@ -91,24 +124,18 @@ function upgradeRow(
   upgrade: Upgrade,
   now: number,
 ): ListUpgrade {
-  const name = upgradeName(upgrade);
-  const effect = upgradeEffectLine(upgrade, mountain, now);
-  const price = upgradePrice(mountain, upgrade.id);
-  const owned =
-    price === undefined ||
-    upgradeLevel(mountain, upgrade.id) >= upgrade.maxLevel;
-  const cost = price?.reduce((sum, part) => sum + part.amount, 0) ?? 0;
+  const row = upgradeRowView(mountain, now, upgrade, false);
+  const owned = row.state === "owned";
   return {
     id: upgrade.id,
-    name,
-    effect,
-    why: upgradeWhyLine(upgrade, mountain, now),
+    name: row.name,
+    effect: row.info[0] ?? "",
+    why: row.why,
     owned,
-    price: formatCompact(cost),
-    can: price !== undefined && canPay(mountain.stock, price),
-    label: owned
-      ? `${name}, owned. ${effect}`
-      : `Buy ${name} for ${formatCompact(cost)} stone. ${effect}`,
+    price: row.price,
+    shownPrice: owned ? undefined : upgradePrice(mountain, upgrade.id),
+    can: row.can,
+    label: row.aria,
   };
 }
 
@@ -128,7 +155,7 @@ export function stageList(
   mountain: Mountain,
   stage: Stage,
   amount: BuyAmount,
-  now = 0,
+  now: number,
 ): StageList {
   const row = stageRows(mountain, now).find((each) => each.stage === stage);
   const machines = TIERS.filter(
@@ -140,13 +167,20 @@ export function stageList(
       id,
       name: capital(MACHINE_WORDS[id][1]),
       owned: `${formatCompact(count)} owned`,
-      mark: markLine(id, count),
+      mark: markLine(id, count, formatCompact),
       key: machineKey(mountain, stage, tier, amount, now),
     };
   });
   return {
     stage,
     name: STAGE_NAMES[stage],
+    now: `${row?.now ?? "0"}/s`,
+    can: row?.can ?? "0/s",
+    band: row?.band ?? { can: 0, now: 0 },
+    parts:
+      row?.parts.map((part, index) =>
+        listPart(stage, part, row.printed[index] ?? "0"),
+      ) ?? [],
     sentence:
       row === undefined
         ? ""
@@ -168,11 +202,11 @@ export type WorkersList = {
   readonly upgrades: readonly ListUpgrade[];
 };
 
-export function workersList(mountain: Mountain, now = 0): WorkersList {
+export function workersList(mountain: Mountain, now: number): WorkersList {
   return {
     name: "Workers",
     owned: `${formatCompact(mountain.owned.helper)} owned`,
-    mark: markLine("helper", mountain.owned.helper),
+    mark: markLine("helper", mountain.owned.helper, formatCompact),
     upgrades: shownUpgrades(mountain, undefined, now),
   };
 }

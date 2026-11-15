@@ -19,16 +19,22 @@ const rich = (patch: Partial<Mountain> = {}): Mountain => {
 };
 
 describe("a stage's list", () => {
-  it("says the stage's row in one sentence, under its name", () => {
+  it("has what the stage moves, and who works with what a line each", () => {
     fresh(() => {
-      const mountain = rich();
+      const mountain = rich({
+        owned: { ...createMountain().owned, cart: 2 },
+      });
       const row = stageRows(mountain).find((each) => each.stage === "haul");
-      const list = stageList(mountain, "haul", "one");
+      const list = stageList(mountain, "haul", "one", 0);
       expect(list.name).toBe("Haulage");
+      expect(list.can).toBe(row?.can);
+      expect(list.parts).toEqual([
+        { name: "2 carts", detail: "2 of 2 workers", moves: "120/s" },
+        { name: "4 with barrows", detail: "", moves: "12/s" },
+      ]);
       expect(list.sentence).toBe(
-        `Moves ${row?.now ?? ""}/s of ${row?.can ?? ""}: ${row?.sum[0] ?? ""}.`,
+        "Moves 18/s of 132/s: 2 carts: 2 of 2 workers 120/s + 4 with barrows 12/s.",
       );
-      expect(list.sentence).toBe("Moves 18/s of 18/s: 6 with barrows 18/s.");
     });
   });
 
@@ -37,7 +43,7 @@ describe("a stage's list", () => {
       const mountain = rich({
         owned: { ...createMountain().owned, cart: 4 },
       });
-      const [cart] = stageList(mountain, "haul", "one").machines;
+      const [cart] = stageList(mountain, "haul", "one", 0).machines;
       expect(cart?.name).toBe("Carts");
       expect(cart?.owned).toBe("4 owned");
       expect(cart?.mark).toBe("4 of 10 · Every cart hauls twice as fast.");
@@ -49,7 +55,7 @@ describe("a stage's list", () => {
 
   it("follows the amount key on a machine's key", () => {
     fresh(() => {
-      const [drill] = stageList(rich(), "face", "ten").machines;
+      const [drill] = stageList(rich(), "face", "ten", 0).machines;
       expect(drill?.key.count).toBe(10);
       expect(drill?.key.face).toMatch(/^\+10 Drills · /);
     });
@@ -60,7 +66,7 @@ describe("a stage's list", () => {
       const mountain = rich({
         owned: { ...createMountain().owned, hoist: 200 },
       });
-      const [hoist] = stageList(mountain, "lift", "one").machines;
+      const [hoist] = stageList(mountain, "lift", "one", 0).machines;
       expect(hoist?.mark).toBe("Twice as fast now.");
     });
   });
@@ -68,9 +74,9 @@ describe("a stage's list", () => {
   it("shows an upgrade once it opens, with its numbers, and Owned once bought", () => {
     fresh(() => {
       const few = rich({ owned: { ...createMountain().owned, cart: 4 } });
-      expect(stageList(few, "haul", "one").upgrades).toEqual([]);
+      expect(stageList(few, "haul", "one", 0).upgrades).toEqual([]);
       const five = rich({ owned: { ...createMountain().owned, cart: 5 } });
-      const [helpers] = stageList(five, "haul", "one").upgrades;
+      const [helpers] = stageList(five, "haul", "one", 0).upgrades;
       expect(helpers).toMatchObject({
         id: "cartSyn",
         name: "Cart helpers",
@@ -84,7 +90,7 @@ describe("a stage's list", () => {
         ...five,
         upgrades: { ...five.upgrades, cartSyn: 1 },
       };
-      expect(stageList(bought, "haul", "one").upgrades[0]?.owned).toBe(true);
+      expect(stageList(bought, "haul", "one", 0).upgrades[0]?.owned).toBe(true);
     });
   });
 
@@ -92,10 +98,10 @@ describe("a stage's list", () => {
     fresh(() => {
       const drills = rich({ owned: { ...createMountain().owned, drill: 5 } });
       expect(
-        stageList(drills, "face", "one").upgrades.map((row) => row.id),
+        stageList(drills, "face", "one", 0).upgrades.map((row) => row.id),
       ).toEqual(["drillSyn"]);
-      expect(stageList(drills, "haul", "one").upgrades).toEqual([]);
-      expect(stageList(drills, "lift", "one").upgrades).toEqual([]);
+      expect(stageList(drills, "haul", "one", 0).upgrades).toEqual([]);
+      expect(stageList(drills, "lift", "one", 0).upgrades).toEqual([]);
     });
   });
 
@@ -105,7 +111,7 @@ describe("a stage's list", () => {
         ...rich({ owned: { ...createMountain().owned, cart: 5 } }),
         stock: { ...createMountain().stock, stones: 10 },
       };
-      expect(stageList(poor, "haul", "one").upgrades[0]?.can).toBe(false);
+      expect(stageList(poor, "haul", "one", 0).upgrades[0]?.can).toBe(false);
     });
   });
 });
@@ -113,12 +119,14 @@ describe("a stage's list", () => {
 describe("the workers' upgrades", () => {
   it("has Better boots with the tool's numbers, and the workers' next mark", () => {
     fresh(() => {
-      const list = workersList(rich());
+      const list = workersList(rich(), 0);
       expect(list.upgrades.map((row) => row.name)).toEqual(["Better boots"]);
       expect(list.upgrades[0]?.effect).toBe(
         "Workers with a tool 3/s to 7.1/s.",
       );
-      expect(list.mark).toBe("21 of 25 · Every worker digs twice as fast.");
+      expect(list.mark).toBe(
+        "21 of 25 · Every worker with a tool works twice as fast.",
+      );
     });
   });
 
@@ -128,10 +136,10 @@ describe("the workers' upgrades", () => {
         owned: { ...createMountain().owned, cart: 5, drill: 5 },
       });
       const words = JSON.stringify([
-        stageList(mountain, "face", "one"),
-        stageList(mountain, "haul", "one"),
-        stageList(mountain, "lift", "one"),
-        workersList(mountain),
+        stageList(mountain, "face", "one", 0),
+        stageList(mountain, "haul", "one", 0),
+        stageList(mountain, "lift", "one", 0),
+        workersList(mountain, 0),
       ]);
       expect(words).not.toMatch(
         /\bhands?\b|by hand|bottleneck|limit|best buy/i,

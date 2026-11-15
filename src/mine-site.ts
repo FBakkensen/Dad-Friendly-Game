@@ -11,6 +11,7 @@ import {
   mineScene,
   stageRows,
   STAGE_NAMES,
+  type MachineKey,
   type MineScene,
   type StageRow,
 } from "./mine-view";
@@ -47,17 +48,25 @@ function atArt(target: HTMLElement, row: number): void {
   target.style.setProperty("--at", String(row));
 }
 
-type KeyParts = {
+/** A machine's key: what it is and moves, its price and the workers it takes. */
+export type KeyParts = {
   readonly root: HTMLButtonElement;
   readonly face: HTMLElement;
   readonly price: HTMLElement;
   readonly staff: HTMLElement;
 };
 
-function buildKey(state: FrameState, stage: Stage): KeyParts {
-  const root = el("button", "mine-key");
+/**
+ * A machine's key in the mine keys' form, which a stage's list uses too
+ * (#661). A tap buys what `pick` finds at that moment, when he can pay.
+ */
+export function buildMachineKey(
+  state: FrameState,
+  className: string,
+  pick: () => MachineKey | undefined,
+): KeyParts {
+  const root = el("button", className);
   root.type = "button";
-  root.dataset["stage"] = stage;
   const face = el("span", "mine-key-face");
   const price = el("span", "board-num");
   const staff = el("span", "mine-key-staff");
@@ -68,14 +77,30 @@ function buildKey(state: FrameState, stage: Stage): KeyParts {
   small.append(price, stone, staff);
   root.append(face, small);
   root.addEventListener("click", () => {
-    const key = machineKeys(state.mountain(), state.amount()).find(
-      (each) => each.stage === stage,
-    );
+    const key = pick();
     if (key !== undefined && key.can) {
       void state.progress.dispatch(tierBuyMove(key.id, key.count));
     }
   });
   return { root, face, price, staff };
+}
+
+export function paintMachineKey(parts: KeyParts, key: MachineKey): void {
+  write(parts.face, key.face);
+  write(parts.price, key.price);
+  write(parts.staff, ` · ${key.staff}`);
+  mark(parts.root, "can", key.can);
+  setAttr(parts.root, "aria-label", key.label);
+}
+
+function buildKey(state: FrameState, stage: Stage): KeyParts {
+  const key = buildMachineKey(state, "mine-key", () =>
+    machineKeys(state.mountain(), state.amount()).find(
+      (each) => each.stage === stage,
+    ),
+  );
+  key.root.dataset["stage"] = stage;
+  return key;
 }
 
 type RowParts = {
@@ -279,11 +304,7 @@ export function createMineSite(
         // A stage with nothing to buy shows no key, never a stale one.
         hide(parts.root, key === undefined);
         if (key !== undefined) {
-          write(parts.face, key.face);
-          write(parts.price, key.price);
-          write(parts.staff, ` · ${key.staff}`);
-          mark(parts.root, "can", key.can);
-          setAttr(parts.root, "aria-label", key.label);
+          paintMachineKey(parts, key);
         }
       }
       const amount = state.amount();

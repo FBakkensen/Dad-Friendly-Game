@@ -120,7 +120,10 @@ function buildJobs(mountain: Mountain): {
  * The workers' own upgrades and marks (#661), under the jobs: Better boots,
  * and the workers' next mark.
  */
-function buildWorkers(state: FrameState): {
+function buildWorkers(
+  state: FrameState,
+  now: () => number,
+): {
   readonly root: HTMLElement;
   readonly paint: (mountain: Mountain) => void;
 } {
@@ -133,7 +136,7 @@ function buildWorkers(state: FrameState): {
   return {
     root,
     paint: (mountain) => {
-      const view = workersList(mountain);
+      const view = workersList(mountain, now());
       write(name, view.name);
       write(owned, view.owned);
       write(mark, view.mark ?? "");
@@ -142,7 +145,10 @@ function buildWorkers(state: FrameState): {
   };
 }
 
-export function createWorkforceSheet(state: FrameState): WorkforceSheet {
+export function createWorkforceSheet(
+  state: FrameState,
+  now: () => number = Date.now,
+): WorkforceSheet {
   const root = el("section", "frame-sheet");
   root.setAttribute("role", "dialog");
   root.setAttribute("aria-label", "Workforce");
@@ -152,7 +158,7 @@ export function createWorkforceSheet(state: FrameState): WorkforceSheet {
   const note = el("p", "frame-sheet-note", NO_FREE_WORKER);
   note.hidden = true;
   const jobs = buildJobs(state.mountain());
-  const workers = buildWorkers(state);
+  const workers = buildWorkers(state, now);
   jobs.root.append(workers.root);
   const close = el("button", "frame-sheet-close", "Close");
   close.type = "button";

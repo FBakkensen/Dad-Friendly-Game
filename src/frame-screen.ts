@@ -369,8 +369,8 @@ export function mountFrameScreen({
     },
   };
   const frame = buildFrame(state, now, signal);
-  const sheet = createWorkforceSheet(state);
-  const stageSheet = createStageSheet(state);
+  const sheet = createWorkforceSheet(state, now);
+  const stageSheet = createStageSheet(state, now);
   const saveLine = createSaveLine({
     progress,
     auth,
@@ -392,7 +392,7 @@ export function mountFrameScreen({
     const mountain = progress.getSnapshot().mountain;
     frame.paint(mountain);
     sheet.paint(mountain);
-    stageSheet.paint(mountain, now());
+    stageSheet.paint(mountain);
     saveLine.render();
   };
   paint();

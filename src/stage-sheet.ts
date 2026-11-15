@@ -1,41 +1,36 @@
 import stoneUrl from "./assets/board/res-stone.png";
 import { el, hide, mark, setAttr, write } from "./board-dom";
 import { paintAmountKey } from "./buys-amount";
-import { tierBuyMove } from "./economy/actions";
 import type { FrameState } from "./frame-state";
 import { STAGES, type Stage } from "./line";
+import { buildMachineKey, paintMachineKey, type KeyParts } from "./mine-site";
 import type { Mountain } from "./mountain";
 import {
   stageList,
   type ListMachine,
+  type ListPart,
   type ListUpgrade,
   type StageList,
 } from "./stage-list-view";
-import { upgradePrice, type UpgradeId } from "./upgrades";
+import type { UpgradeId } from "./upgrades";
 import "./stage-sheet.css";
 
 /**
  * A stage's list (#661; spec, "What the prototype does not show"): a sheet
  * over the frame, in the workforce's form, opened by a tap on a stage's row
- * in the mine. Its head says the row in one sentence and has the amount key;
- * under it are the stage's machines with their marks and keys, and the
- * upgrades that lift them. It paints the pure view (stage-list-view) and
- * changes the game only through `progress.dispatch`.
+ * in the mine. Its head has what the stage moves of what it can move, with
+ * the row's band, a line for each part of who works with what, and the
+ * amount key; under it are the stage's machines with their marks and keys,
+ * and the upgrades that lift them. It paints the pure view (stage-list-view)
+ * and changes the game only through `progress.dispatch`.
  */
 
 export type StageSheet = {
   readonly root: HTMLElement;
   readonly open: (stage: Stage) => void;
   readonly close: () => void;
-  readonly paint: (mountain: Mountain, now?: number) => void;
+  readonly paint: (mountain: Mountain) => void;
 };
-
-function stoneIcon(): HTMLImageElement {
-  const stone = el("img", "mine-key-icon");
-  stone.src = stoneUrl;
-  stone.alt = "";
-  return stone;
-}
 
 /** A row's words: its name, then its lines. The workforce's workers row uses it too. */
 export function rowText(): {
@@ -60,35 +55,50 @@ type UpgradeParts = {
   readonly key: HTMLButtonElement;
   readonly price: HTMLElement;
   readonly owned: HTMLElement;
+  /** The row as last painted: a tap buys at the price on its key (#367). */
+  shown: ListUpgrade | undefined;
 };
 
 /**
  * An upgrade's row: its name, what it does in numbers, its second line, and
  * a key with its price, or "Owned". The workforce's workers use it too.
  */
-export function buildUpgradeRow(
-  state: FrameState,
-  id: UpgradeId,
-): UpgradeParts {
+function buildUpgradeRow(state: FrameState, id: UpgradeId): UpgradeParts {
   const root = el("div", "stage-row");
   root.dataset["upgrade"] = id;
   const text = rowText();
   const key = el("button", "stage-buy");
   key.type = "button";
   const price = el("span", "board-num");
-  key.append(price, stoneIcon());
+  const stone = el("img", "mine-key-icon");
+  stone.src = stoneUrl;
+  stone.alt = "";
+  key.append(price, stone);
   const owned = el("span", "stage-owned", "Owned");
+  root.append(text.root, key, owned);
+  const parts: UpgradeParts = {
+    ...text,
+    root,
+    key,
+    price,
+    owned,
+    shown: undefined,
+  };
   key.addEventListener("click", () => {
-    const shown = upgradePrice(state.mountain(), id);
-    if (shown !== undefined && key.classList.contains("can")) {
-      void state.progress.dispatch({ kind: "buyUpgrade", id, price: shown });
+    const row = parts.shown;
+    if (row?.can === true && row.shownPrice !== undefined) {
+      void state.progress.dispatch({
+        kind: "buyUpgrade",
+        id,
+        price: row.shownPrice,
+      });
     }
   });
-  root.append(text.root, key, owned);
-  return { ...text, root, key, price, owned };
+  return parts;
 }
 
-export function paintUpgradeRow(parts: UpgradeParts, row: ListUpgrade): void {
+function paintUpgradeRow(parts: UpgradeParts, row: ListUpgrade): void {
+  parts.shown = row;
   write(parts.name, row.name);
   write(parts.line, row.effect);
   write(parts.why, row.why);
@@ -136,10 +146,7 @@ type MachineParts = {
   readonly name: HTMLElement;
   readonly line: HTMLElement;
   readonly why: HTMLElement;
-  readonly key: HTMLButtonElement;
-  readonly face: HTMLElement;
-  readonly price: HTMLElement;
-  readonly staff: HTMLElement;
+  readonly key: KeyParts;
 };
 
 /** A kind of machine's row: what he owns, its next mark, and its key in the mine keys' form. */
@@ -147,38 +154,28 @@ function buildMachineRow(
   state: FrameState,
   stage: Stage,
   machine: ListMachine,
+  now: () => number,
 ): MachineParts {
   const root = el("div", "stage-row");
   root.dataset["machine"] = machine.id;
   const text = rowText();
-  const key = el("button", "mine-key stage-key");
-  key.type = "button";
-  const face = el("span", "mine-key-face");
-  const price = el("span", "board-num");
-  const staff = el("span", "mine-key-staff");
-  const small = el("span", "mine-key-small");
-  small.append(price, stoneIcon(), staff);
-  key.append(face, small);
-  key.addEventListener("click", () => {
-    const view = stageList(state.mountain(), stage, state.amount());
-    const found = view.machines.find((each) => each.id === machine.id);
-    if (found !== undefined && found.key.can) {
-      void state.progress.dispatch(tierBuyMove(found.id, found.key.count));
-    }
-  });
-  root.append(text.root, key);
-  return { ...text, root, key, face, price, staff };
+  const key = buildMachineKey(
+    state,
+    "mine-key stage-key",
+    () =>
+      stageList(state.mountain(), stage, state.amount(), now()).machines.find(
+        (each) => each.id === machine.id,
+      )?.key,
+  );
+  root.append(text.root, key.root);
+  return { ...text, root, key };
 }
 
 function paintMachineRow(parts: MachineParts, machine: ListMachine): void {
   write(parts.name, machine.name);
   write(parts.line, machine.owned);
   write(parts.why, machine.mark ?? "");
-  write(parts.face, machine.key.face);
-  write(parts.price, machine.key.price);
-  write(parts.staff, ` · ${machine.key.staff}`);
-  mark(parts.key, "can", machine.key.can);
-  setAttr(parts.key, "aria-label", machine.key.label);
+  paintMachineKey(parts.key, machine.key);
 }
 
 /** One stage's rows in the sheet: its machines and its upgrades. */
@@ -187,12 +184,16 @@ type StagePage = {
   readonly paint: (view: StageList) => void;
 };
 
-function buildPage(state: FrameState, stage: Stage): StagePage {
+function buildPage(
+  state: FrameState,
+  stage: Stage,
+  now: () => number,
+): StagePage {
   const root = el("div", "frame-jobs stage-page");
   root.dataset["stage"] = stage;
-  const first = stageList(state.mountain(), stage, state.amount());
+  const first = stageList(state.mountain(), stage, state.amount(), now());
   const machines = first.machines.map((machine) =>
-    buildMachineRow(state, stage, machine),
+    buildMachineRow(state, stage, machine, now),
   );
   const machineBox = el("div", "stage-rows");
   machineBox.append(...machines.map((row) => row.root));
@@ -214,28 +215,81 @@ function buildPage(state: FrameState, stage: Stage): StagePage {
   };
 }
 
-export function createStageSheet(state: FrameState): StageSheet {
+/** The head's numbers: what the stage moves of what it can, its band, and a line for each part. */
+type MovesParts = {
+  readonly root: HTMLElement;
+  readonly now: HTMLElement;
+  readonly can: HTMLElement;
+  readonly bandCan: HTMLElement;
+  readonly bandNow: HTMLElement;
+  readonly parts: HTMLElement;
+};
+
+function buildMoves(): MovesParts {
+  const root = el("div", "stage-moves");
+  const total = el("p", "stage-total");
+  const now = el("b", "board-num");
+  const can = el("span", "board-num");
+  total.append(el("span", "stage-total-word", "Moves"), now, " of ", can);
+  const band = el("span", "mine-band stage-band");
+  const bandCan = el("i", "mine-band-can");
+  const bandNow = el("i", "mine-band-now");
+  band.append(bandCan, bandNow);
+  const parts = el("div", "stage-parts");
+  root.append(band, total, parts);
+  return { root, now, can, bandCan, bandNow, parts };
+}
+
+function partLine(part: ListPart): HTMLElement {
+  const line = el("p", "stage-part");
+  line.append(
+    el("span", "stage-part-name", part.name),
+    el("span", "stage-part-detail", part.detail),
+    el("span", "stage-part-moves board-num", part.moves),
+  );
+  return line;
+}
+
+function paintMoves(parts: MovesParts, view: StageList): void {
+  write(parts.now, view.now);
+  write(parts.can, view.can);
+  setAttr(parts.root, "aria-label", view.sentence);
+  parts.bandCan.style.width = `${String(Math.round(view.band.can * 1000) / 10)}%`;
+  parts.bandNow.style.width = `${String(Math.round(view.band.now * 1000) / 10)}%`;
+  const words = view.parts
+    .map((part) => `${part.name}|${part.detail}|${part.moves}`)
+    .join("\n");
+  if (parts.parts.dataset["words"] !== words) {
+    parts.parts.dataset["words"] = words;
+    parts.parts.replaceChildren(...view.parts.map(partLine));
+  }
+}
+
+export function createStageSheet(
+  state: FrameState,
+  now: () => number,
+): StageSheet {
   const root = el("section", "frame-sheet stage-sheet");
   root.setAttribute("role", "dialog");
   root.hidden = true;
   const box = el("div", "frame-sheet-box");
   const title = el("h2", "frame-sheet-title");
-  const head = el("div", "frame-sheet-head");
-  const sentence = el("p", "stage-sentence");
   const amount = el("button", "frame-amount");
   amount.type = "button";
   amount.addEventListener("click", () => {
     state.advanceAmount();
   });
-  head.append(sentence, amount);
+  const top = el("div", "stage-top");
+  top.append(title, amount);
+  const moves = buildMoves();
   const pages = new Map(
-    STAGES.map((stage) => [stage, buildPage(state, stage)]),
+    STAGES.map((stage) => [stage, buildPage(state, stage, now)]),
   );
   const close = el("button", "frame-sheet-close", "Close");
   close.type = "button";
   box.append(
-    title,
-    head,
+    top,
+    moves.root,
     ...[...pages.values()].map((page) => page.root),
     close,
   );
@@ -246,14 +300,14 @@ export function createStageSheet(state: FrameState): StageSheet {
     hide(root, true);
   };
   close.addEventListener("click", shut);
-  const paint = (mountain: Mountain, now?: number): void => {
+  const paint = (mountain: Mountain): void => {
     if (open === undefined) {
       return;
     }
-    const view = stageList(mountain, open, state.amount(), now);
+    const view = stageList(mountain, open, state.amount(), now());
     write(title, view.name);
     setAttr(root, "aria-label", view.name);
-    write(sentence, view.sentence);
+    paintMoves(moves, view);
     paintAmountKey(amount, amount, state.amount());
     for (const [stage, page] of pages) {
       hide(page.root, stage !== open);

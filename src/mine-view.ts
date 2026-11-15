@@ -299,6 +299,8 @@ export type StageRow = {
   readonly band: { readonly can: number; readonly now: number };
   readonly parts: readonly RowPart[];
   readonly sum: readonly [string, string, string];
+  /** Each part's moves as printed, so the parts add up to `can` (a stage's list shows them as rows). */
+  readonly printed: readonly string[];
   readonly workers: number;
   readonly canPlace: boolean;
   readonly canFree: boolean;
@@ -354,6 +356,7 @@ export function stageRows(
       band: { can: can / strongest, now: Math.min(moving, can) / strongest },
       parts,
       sum: sumForms(stage, parts, printed.parts),
+      printed: printed.parts,
       workers,
       canPlace: free > 0,
       canFree: workers > 0,

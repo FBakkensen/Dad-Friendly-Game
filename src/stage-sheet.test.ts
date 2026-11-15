@@ -63,14 +63,26 @@ const withStones =
 const sheet = ".stage-sheet";
 
 describe("a stage's list", () => {
-  it("opens from a tap on a stage's row, with the row in one sentence", () => {
-    const { find, text, progress } = mount();
+  it("opens from a tap on a stage's row, with what it moves and a line for each part", () => {
+    const { find, text, progress, root } = mount();
     expect(find(sheet).hidden).toBe(true);
     find('.mine-stage[data-stage="haul"] .mine-stage-info').click();
     expect(find(sheet).hidden).toBe(false);
-    const view = stageList(progress.getSnapshot().mountain, "haul", "one");
+    const view = stageList(progress.getSnapshot().mountain, "haul", "one", 0);
     expect(text(`${sheet} .frame-sheet-title`)).toBe("Haulage");
-    expect(text(`${sheet} .stage-sentence`)).toBe(view.sentence);
+    expect(text(`${sheet} .stage-total`)).toBe(
+      `Moves${view.now} of ${view.can}`,
+    );
+    expect(
+      [...root.querySelectorAll(`${sheet} .stage-part`)].map(
+        (line) => line.textContent,
+      ),
+    ).toEqual(
+      view.parts.map((part) => `${part.name}${part.detail}${part.moves}`),
+    );
+    expect(find(`${sheet} .stage-moves`).getAttribute("aria-label")).toBe(
+      view.sentence,
+    );
     expect(find(`${sheet} .stage-page[data-stage="haul"]`).hidden).toBe(false);
     expect(find(`${sheet} .stage-page[data-stage="face"]`).hidden).toBe(true);
     find(`${sheet} .frame-sheet-close`).click();
@@ -138,7 +150,7 @@ describe("the workers in the workforce", () => {
       "Workers with a tool 3/s to 7.1/s.",
     );
     expect(text(".frame-workers-own .stage-row-why")).toBe(
-      "21 of 25 · Every worker digs twice as fast.",
+      "21 of 25 · Every worker with a tool works twice as fast.",
     );
     find(`${row} .stage-buy`).click();
     expect(progress.getSnapshot().mountain.upgrades.boots).toBe(1);

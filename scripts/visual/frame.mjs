@@ -9,6 +9,7 @@ import {
   DEV_BACKUP_KEY,
   sliceBusySave,
   sliceDoneSave,
+  sliceListSave,
   sliceOrderedSave,
   sliceStructureSave,
 } from "../../tools/browser/fixtures.ts";
@@ -25,6 +26,7 @@ const SAVES = [
   { name: "busy", save: () => sliceBusySave(Date.now()) },
   { name: "structure", save: () => sliceStructureSave(Date.now()) },
   { name: "done", save: () => sliceDoneSave(Date.now()) },
+  { name: "list", save: () => sliceListSave(Date.now()) },
 ];
 
 /** The Light Tower's picture, in board px: it has to fit between the plate and the road. */
@@ -197,11 +199,15 @@ async function sheetFacts(page) {
   });
 }
 
-/** A stage's list (#661): open, inside the board above the save line, its rows, and no word cut. */
-async function stageSheetFacts(page) {
-  return page.evaluate(() => {
+/**
+ * A sheet's keys and words (#661): a stage's list, or the workforce. Open,
+ * inside the board above the save line, its machines, every key at least
+ * 48px, and no key's or number's words cut.
+ */
+async function stageSheetFacts(page, selector = ".stage-sheet") {
+  return page.evaluate((selector) => {
     const board = globalThis.__board();
-    const sheet = document.querySelector(".stage-sheet");
+    const sheet = document.querySelector(selector);
     const box = sheet?.querySelector(".frame-sheet-box");
     const line = document.querySelector(".board-saveline");
     if (sheet === null || box === null || line === null) {
@@ -222,7 +228,9 @@ async function stageSheetFacts(page) {
       })
       .filter((b) => b.w < 47.5 || b.h < 47.5);
     const cut = [
-      ...sheet.querySelectorAll(".mine-key-face, .mine-key-small, .stage-buy"),
+      ...sheet.querySelectorAll(
+        ".mine-key-face, .mine-key-small, .stage-buy, .stage-total, .stage-part-name, .stage-part-moves",
+      ),
     ]
       .filter(
         (el) =>
@@ -237,7 +245,7 @@ async function stageSheetFacts(page) {
       cut,
       words: sheet.textContent ?? "",
     };
-  });
+  }, selector);
 }
 
 for (const size of SIZES) {
@@ -319,6 +327,14 @@ for (const size of SIZES) {
           await tap(page, ".stage-sheet .frame-sheet-close");
         }
         await tap(page, ".frame-workers");
+        const workforce = await stageSheetFacts(
+          page,
+          ".frame-sheet:not(.stage-sheet)",
+        );
+        check(
+          workforce.small.length === 0 && workforce.cut.length === 0,
+          `${at} the workforce: every key is at least 48px, and no key's words are cut (${JSON.stringify([workforce.small, workforce.cut])})`,
+        );
         const sheet = await sheetFacts(page);
         await shot(page, `slice-workforce-${name}-${label}`);
         check(
