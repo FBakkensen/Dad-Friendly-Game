@@ -196,27 +196,17 @@ describe("the project's card", () => {
       if (card.kind !== "project") {
         throw new Error("no project");
       }
-      const numbers = orderNumbers(
-        mountain,
-        effectiveRates(mountain).exactCrewPerSecond,
-      );
-      if (numbers.kind === "unordered") {
-        throw new Error("no order");
-      }
       expect(card.key.kind).toBe("hold");
       expect(card.key.title).toBe("Delivering");
       expect(card.key.run).toBe(true);
-      expect(card.key.lines[0]).toBe(`arriving ${String(numbers.brings)}/s`);
-      const limit = orderLimit(
-        mountain,
-        effectiveRates(mountain).exactCrewPerSecond,
-      );
-      if (limit.kind !== "delivering") {
-        throw new Error("not delivering");
-      }
-      expect(card.key.lines[1]).toBe(
-        `building ${String(numbers.builds)}/s · ${etaShort(limit.secondsLeft * 1000)}`,
-      );
+      // One wagon carries 9/s; the site is empty, so the builders build in
+      // what arrives. The pocket's 5,000 runs dry after 1,667 s, then the
+      // line's 6/s feeds the rest of the 25K: 3,333 s in all, about 56m.
+      expect(card.key.lines).toEqual([
+        "arriving 9/s",
+        "building 9/s · 56m",
+        "tap to hold",
+      ]);
       expect(card.key.lines[2]).toBe("tap to hold");
       expect(card.builders.line).toBe("2 builders ×8/s · on site 0 of 500");
     });
