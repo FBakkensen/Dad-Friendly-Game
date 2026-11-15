@@ -66,6 +66,7 @@ describe("the night's facts (#663)", () => {
       expect(away.mined).toBe(77_760);
       expect(away.report.night).toEqual({
         producedMs: EIGHT_HOURS,
+        deadMs: 0,
         stop: "clock",
         // The wagon takes all eight hours' stone; after that the pocket is empty.
         delivered: { ...EMPTY_STOCK, stones: 77_760 },
@@ -82,6 +83,7 @@ describe("the night's facts (#663)", () => {
       expect(away.mined).toBe(19_440);
       expect(away.report.night).toEqual({
         producedMs: 2 * HOUR,
+        deadMs: 0,
         stop: "none",
         delivered: { ...EMPTY_STOCK, stones: 19_440 },
         steps: [],
@@ -99,6 +101,7 @@ describe("the night's facts (#663)", () => {
       expect(away.mined).toBe(0);
       expect(away.report.night).toEqual({
         producedMs: 0,
+        deadMs: 0,
         stop: "none",
         delivered: { ...EMPTY_STOCK, stones: 10_000 },
         steps: [],
@@ -146,6 +149,7 @@ describe("the night's facts (#663)", () => {
       expect(away.mined).toBe(Math.floor(371 * 2.7) + Math.floor(lit * 4.05));
       expect(away.report.night).toEqual({
         producedMs: 4 * HOUR,
+        deadMs: 0,
         stop: "none",
         delivered: { ...EMPTY_STOCK, stones: 1_000 },
         steps: [{ building: "lightTower", step: 2, atMs: 371_000 }],

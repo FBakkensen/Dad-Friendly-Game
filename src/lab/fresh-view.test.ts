@@ -4,7 +4,9 @@ import { holdOrder, placeOrder } from "../city";
 import { withFactors } from "../economy/factors";
 import { FRESH_OFF } from "../line-switch";
 import { createMountain, type Mountain } from "../mountain";
+import { PART_TWO_OFF } from "../part-switch";
 import { EMPTY_STOCK } from "../stock";
+import { stockpileRoom } from "../stockyard";
 import { NO_JOBS, type Jobs } from "../workforce";
 import { hirePrice } from "./fresh-dad";
 import {
@@ -16,6 +18,7 @@ import {
   workerTaps,
   type FreshView,
 } from "./fresh-view";
+import deadGood from "./measures/deadGood";
 import idleMachines from "./measures/idleMachines";
 import idleWorkers from "./measures/idleWorkers";
 import siteFull from "./measures/siteFull";
@@ -27,6 +30,8 @@ import type { SittingEvent } from "./sittings";
 
 /** What the lab reads off a fresh mine (#655). */
 const fresh = <T>(body: () => T): T => withFactors({ [FRESH_OFF]: 0 }, body);
+const partTwo = <T>(body: () => T): T =>
+  withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 }, body);
 
 function mine(
   jobs: Partial<Jobs>,
@@ -53,6 +58,8 @@ function view(over: Partial<FreshView> = {}): FreshView {
     starved: false,
     idleWorkers: 0,
     idleMachines: Number.NaN,
+    yardOpen: false,
+    deadGood: false,
     ...over,
   };
 }
@@ -121,6 +128,28 @@ describe("the view of a fresh mine (#655)", () => {
       const rich = placeOrder(mine(thin, { pocket: 100_000 }));
       expect(freshView(rich)?.starved).toBe(false);
       expect(freshView(placeOrder(mine(START)))?.starved).toBe(false);
+    });
+  });
+
+  it("sees a full stockpile that no order takes as dead, once the stockyard is open (#667)", () => {
+    partTwo(() => {
+      const lit = { ...mine(START), operational: ["lightTower"] as const };
+      const room = stockpileRoom(lit, "stones");
+      const full: Mountain = {
+        ...lit,
+        stock: { ...lit.stock, stones: room },
+      };
+      expect(freshView(lit)).toMatchObject({ yardOpen: true, deadGood: false });
+      expect(freshView(full)?.deadGood).toBe(true);
+      // The Warehouse's foundation takes stone: not dead while it delivers.
+      expect(freshView(placeOrder(full))?.deadGood).toBe(false);
+      expect(freshView(holdOrder(placeOrder(full)))?.deadGood).toBe(true);
+    });
+    fresh(() => {
+      expect(freshView(mine(START))).toMatchObject({
+        yardOpen: false,
+        deadGood: false,
+      });
     });
   });
 
@@ -199,6 +228,20 @@ describe("the fresh measures (#655)", () => {
     expect(transportLimit.aggregate(samples(undefined))).toBeNaN();
     expect(ordered(view({ limit: "unordered" }))).toBe(false);
     expect(ordered(view({ limit: "good" }))).toBe(true);
+  });
+
+  it("shares a dead good over the samples with the stockyard open (#667)", () => {
+    expect(
+      deadGood.aggregate(
+        samples(
+          view(),
+          view({ yardOpen: true }),
+          view({ yardOpen: true, deadGood: true }),
+          undefined,
+        ),
+      ),
+    ).toBe(0.5);
+    expect(deadGood.aggregate(samples(view()))).toBeNaN();
   });
 
   it("shares starved over every fresh sample", () => {

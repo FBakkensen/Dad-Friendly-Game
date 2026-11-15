@@ -1,5 +1,5 @@
 import { freshHazards, type HazardState } from "../hazards";
-import { createMountain, type Mountain } from "../mountain";
+import { createMountain, type Mountain, type NightReport } from "../mountain";
 import { advance } from "../session-time";
 
 /** Live play ticks the crew. Away time pays the cap and clears trouble. */
@@ -13,6 +13,8 @@ export type World = {
   readonly mountain: Mountain;
   readonly hazards: HazardState;
   readonly clock: number;
+  /** A fresh mine's last step, when it was time away: how long, and how the night went (#667). */
+  readonly night?: { readonly awayMs: number; readonly report: NightReport };
 };
 
 /** A new run. `seed` is the first hazard roll. */
@@ -51,5 +53,15 @@ export function step(
           ...(playerFixMs === undefined ? {} : { playerFixMs }),
         },
   );
-  return { mountain: next.mountain, hazards: next.hazards, clock };
+  const away = next.away;
+  const night =
+    away?.night === undefined
+      ? undefined
+      : { awayMs: away.awayMs, report: away.night };
+  return {
+    mountain: next.mountain,
+    hazards: next.hazards,
+    clock,
+    ...(night === undefined ? {} : { night }),
+  };
 }

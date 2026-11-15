@@ -332,11 +332,11 @@ describe("the order's limit (#655)", () => {
           kilns: 0,
         }),
       );
-      expect(drainsTheMine(thin, line(thin))).toBe(true);
+      expect(drainsTheMine(thin)).toBe(true);
       const wide = placeOrder(mine({ ...STAGES, driving: 1, building: 2 }));
-      expect(drainsTheMine(wide, line(wide))).toBe(false);
+      expect(drainsTheMine(wide)).toBe(false);
       // On hold it would drain the mine as soon as it resumes.
-      expect(drainsTheMine(holdOrder(thin), line(thin))).toBe(true);
+      expect(drainsTheMine(holdOrder(thin))).toBe(true);
     });
   });
 });

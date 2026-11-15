@@ -120,7 +120,7 @@ export function takeIncome(
   );
 }
 
-/** The mine's chain with transport taking `draw` a second from the stockpiles. */
+/** The mine's chain with transport taking `draw` a second from the stockpiles. `steadyIncome` builds the same chain steady. */
 function chainWith(
   mountain: Mountain,
   pay: number,
@@ -152,9 +152,35 @@ function chainWith(
       holds: stockpileRoom(mountain, "stones"),
       drain: draw.stones ?? 0,
     },
-    // The kilns take their recipe's rock for each brick (#723); a rock is a stone.
-    takes: [1, 1, 1, makerTakes("kiln"), 1],
+    takes: chainTakes(),
   };
+}
+
+/** Each stage's take: the kilns take their recipe's rock for each brick (#723); a rock is a stone. */
+function chainTakes(): number[] {
+  return [1, 1, 1, makerTakes("kiln"), 1];
+}
+
+/** A pile with no room: the stages around it run in step. */
+const IN_STEP = { held: 0, holds: 0 } as const;
+
+/**
+ * What the mine brings each stockpile a second once it runs steady at full
+ * output (#667): the same chain with no rock waiting and no stockpile full,
+ * so the stages run in step, the kilns take what they can of what is lifted,
+ * and the rest is stone. The lab's planner reads it, so it plans on the
+ * split the chain itself makes. Its stages, piles, spill and takes are `chainWith`'s
+ * in the same order: a change to one is a change to both.
+ */
+export function steadyIncome(mountain: Mountain): Partial<Stock> {
+  const stages = stagesOf(mountain);
+  return chainIncome({
+    source: Infinity,
+    rates: [stages.face, stages.haul, stages.lift, kilnRate(mountain), 0],
+    piles: [IN_STEP, IN_STEP, IN_STEP, { held: 0, holds: Infinity }],
+    spill: { from: LIFT, held: 0, holds: Infinity, drain: 0 },
+    takes: chainTakes(),
+  });
 }
 
 /** What a mine's chain brings to the stockpiles a second now: stone and brick. */

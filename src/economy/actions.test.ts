@@ -8,6 +8,7 @@ import { holdOrder, placeOrder } from "../city";
 import { freeWorker } from "../workforce";
 import { withFactors } from "./factors";
 import { FRESH_OFF } from "../line-switch";
+import { PART_TWO_OFF } from "../part-switch";
 import {
   promote,
   promoteCost,
@@ -126,6 +127,8 @@ const FIXTURES = {
   buyVehicle: { kind: "buyVehicle", id: "horseWagon" },
   placeWorker: { kind: "placeWorker", job: "haulage", count: 1 },
   freeWorker: { kind: "freeWorker", job: "haulage", count: 1 },
+  buyMaker: { kind: "buyMaker", id: "kiln" },
+  expandStockyard: { kind: "expandStockyard" },
 } as const satisfies {
   [K in Action["kind"]]: Extract<Action, { kind: K }>;
 };
@@ -205,8 +208,10 @@ function direct(mountain: Mountain, action: Action, now: number): Mountain {
     case "buyVehicle":
     case "placeWorker":
     case "freeWorker":
-      // Only a fresh mine takes them (#654, #689: src/fresh-orders.test.ts,
-      // src/workforce.test.ts).
+    case "buyMaker":
+    case "expandStockyard":
+      // Only a fresh mine takes them (#654, #689, #666: src/fresh-orders.test.ts,
+      // src/workforce.test.ts, src/part-two.test.ts).
       return mountain;
     default: {
       const unexpected: never = action;
@@ -545,6 +550,16 @@ describe("listActions", () => {
         for (const action of listActions(one, NOW)) {
           seen.add(action.kind);
         }
+      }
+    });
+    // Part 2 lists a kiln and the stockyard once the Light Tower is up (#667).
+    withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 }, () => {
+      const lit: Mountain = {
+        ...createMountain(),
+        operational: ["lightTower"],
+      };
+      for (const action of listActions(lit, NOW)) {
+        seen.add(action.kind);
       }
     });
     for (const kind of Object.keys(FIXTURES) as Action["kind"][]) {

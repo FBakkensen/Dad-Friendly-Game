@@ -1,5 +1,5 @@
 import { buildRate, onSiteTotal } from "../building-site";
-import { nextBuilding, resumeOrder } from "../city";
+import { buildingById, nextBuilding, resumeOrder } from "../city";
 import { tierLocked } from "../crew";
 import {
   applyAction,
@@ -8,10 +8,19 @@ import {
   type Action,
 } from "../economy/actions";
 import { STAGES, type Stage } from "../line";
-import { PILE_HOLDS, mineChain } from "../mine-piles";
+import { makerPrice, makersOpen } from "../makers";
+import { PILE_HOLDS, mineChain, steadyIncome } from "../mine-piles";
 import type { Mountain } from "../mountain";
 import { chainFlows } from "../piles";
 import { effectiveRates } from "../rates";
+import type { GoodId, Price, Stock } from "../stock";
+import {
+  MAX_STOCKYARD_LEVEL,
+  STOCKPILE_GOODS,
+  expandPrice,
+  stockpileRoom,
+  stockyardOpen,
+} from "../stockyard";
 import { TIERS, tierInPlay, type Tier } from "../tiers";
 import {
   fleetRate,
@@ -37,6 +46,7 @@ import {
   RAISE_STEPS,
   RESTORE_STEPS,
   STARVED_SHARE,
+  YARD_NEARLY_FULL,
 } from "./targets";
 
 /**
@@ -70,11 +80,25 @@ function lineNow(mountain: Mountain): LineNow {
   };
 }
 
+/**
+ * What the mine brings of each good a second at full output: the running
+ * kilns take their rock first and make brick of it, and the rest is stone
+ * (rule 3, #666). Before part 2 it is all stone. The chain's own split
+ * (`steadyIncome`), so the dad plans on what the mine does.
+ */
+export function goodsIncome(mountain: Mountain): Partial<Stock> {
+  return steadyIncome(mountain);
+}
+
 /** A copy with a pocket that pays for anything, to try a plan on. */
 function funded(mountain: Mountain): Mountain {
   return {
     ...mountain,
-    stock: { ...mountain.stock, stones: Number.MAX_SAFE_INTEGER },
+    stock: {
+      ...mountain.stock,
+      stones: Number.MAX_SAFE_INTEGER,
+      brick: Number.MAX_SAFE_INTEGER,
+    },
   };
 }
 
@@ -324,9 +348,7 @@ function orderCrew(
   }
   const crew = staffed(mountain, job, freeWorkers(mountain));
   const after = applied(funded(mountain), crew.plan);
-  return habits.hold === "never" && drainsTheMine(after, lineNow(after).line)
-    ? undefined
-    : crew;
+  return habits.hold === "never" && drainsTheMine(after) ? undefined : crew;
 }
 
 /**
@@ -339,6 +361,16 @@ function pileMove(mountain: Mountain): Plan {
   const chain = mineChain(mountain, 1, true);
   const flows = chainFlows(chain);
   const rates = chain.rates;
+  const last = STAGES.length - 1;
+  if (
+    (rates[last] ?? 0) > FRESH_DUST &&
+    (flows[last] ?? 0) <= FRESH_DUST &&
+    mountain.piles.shaft > 0
+  ) {
+    // Hoisting stands with rock to lift: the stockyard is full, and no
+    // move of his makes room for it (#667).
+    return [];
+  }
   const to = pileStage(mountain);
   for (const [index, from] of STAGES.entries()) {
     const stands =
@@ -493,17 +525,18 @@ function vehicleBuy(mountain: Mountain): Priced {
   return { plan, cost };
 }
 
-/** Seconds until the building is up if the order delivered from now, at the line's speed. */
-function buildingSeconds(mountain: Mountain, line: number): number {
-  return secondsToFinish(resumeOrder(mountain), 1, line);
+/** Seconds until the building is up if the order delivered from now, at what the mine brings of each good. */
+function buildingSeconds(mountain: Mountain): number {
+  return secondsToFinish(resumeOrder(mountain), 1, goodsIncome(mountain));
 }
 
 /**
  * Delivering, the order would take more than half of what the mine makes
  * (the spec's `starved`), so the pocket hardly grows. Otherwise it grows anyway.
  */
-export function drainsTheMine(mountain: Mountain, line: number): boolean {
-  const numbers = orderNumbers(resumeOrder(mountain), line);
+export function drainsTheMine(mountain: Mountain): boolean {
+  const line = lineNow(mountain).line;
+  const numbers = orderNumbers(resumeOrder(mountain), goodsIncome(mountain));
   return numbers.kind === "delivering" && numbers.brings > line * STARVED_SHARE;
 }
 
@@ -517,11 +550,10 @@ function holdPlan(
     return [];
   }
   const delivering = asDelivering(mountain, habits);
-  const line = lineNow(delivering).line;
   const sooner =
     raise !== undefined &&
-    drainsTheMine(delivering, line) &&
-    raise.cost / raise.gain < buildingSeconds(delivering, line);
+    drainsTheMine(delivering) &&
+    raise.cost / raise.gain < buildingSeconds(delivering);
   if (mountain.project.kind === "delivering" && sooner) {
     return [{ kind: "holdOrder" }];
   }
@@ -532,47 +564,142 @@ function holdPlan(
 }
 
 /**
- * A vehicle (with its driver and the builders to keep pace) when transport
- * holds the order back, a builder when the builders do, with what it adds
- * to what reaches the building a second. A dad who never holds keeps the
- * order from taking more than half of what the mine makes, or he could
- * never buy again.
+ * The buy for the order that brings the building soonest for its stones,
+ * among those that pay for themselves: the answer to the order's limit (a
+ * vehicle with its driver and the builders to keep pace, or a builder), and
+ * a kiln while the building still requires brick (#667). A kiln is weighed
+ * on the whole building, not the step in hand: brick the roof waits for is
+ * made from the first day. A dad who never holds keeps the order from
+ * taking more than half of what the mine makes, or he could never buy
+ * again.
  */
-function orderFix(mountain: Mountain, habits: FreshHabits): Raise | undefined {
+function orderFix(mountain: Mountain, habits: FreshHabits): Priced | undefined {
   if (mountain.project.kind !== "delivering") {
     return undefined;
   }
-  const limit = orderLimit(mountain, lineNow(mountain).line);
+  const limit = orderLimit(mountain, goodsIncome(mountain));
   if (limit.kind !== "delivering") {
     return undefined;
   }
+  let best: { priced: Priced; worth: number } | undefined;
+  for (const priced of [limitFix(mountain, limit.limit), brickFix(mountain)]) {
+    if (
+      priced === undefined ||
+      (habits.hold === "never" &&
+        drainsTheMine(applied(funded(mountain), priced.plan)))
+    ) {
+      continue;
+    }
+    const worth = savedSeconds(mountain, priced) / priced.cost;
+    if (worth > 0 && (best === undefined || worth > best.worth)) {
+      best = { priced, worth };
+    }
+  }
+  return best?.priced;
+}
+
+/** A vehicle when transport holds the order back, a builder when the builders do, if it adds to what reaches the building. */
+function limitFix(
+  mountain: Mountain,
+  limit: "transport" | "builders" | GoodId,
+): Priced | undefined {
   const priced =
-    limit.limit === "transport"
+    limit === "transport"
       ? vehicleBuy(mountain)
-      : limit.limit === "builders"
+      : limit === "builders"
         ? staffed(mountain, "building", freeWorkers(mountain))
         : undefined;
   if (priced === undefined) {
     return undefined;
   }
   const rich = funded(mountain);
-  const after = applied(rich, priced.plan);
-  const gain = brings(after) - brings(rich);
-  if (gain <= FRESH_DUST) {
+  return brings(applied(rich, priced.plan)) - brings(rich) > FRESH_DUST
+    ? priced
+    : undefined;
+}
+
+/** A kiln, while the kilns are open and a step still to build requires brick. */
+function brickFix(mountain: Mountain): Priced | undefined {
+  const project = mountain.project;
+  if (project.kind === "unordered" || !makersOpen(mountain)) {
     return undefined;
   }
-  if (habits.hold === "never" && drainsTheMine(after, lineNow(after).line)) {
-    return undefined;
-  }
-  return { ...priced, gain };
+  const steps = buildingById(project.site.building).steps.slice(
+    project.site.step,
+  );
+  const brick = steps.some((price) =>
+    price.some((line) => line.good === "brick" && line.amount > 0),
+  );
+  return brick ? kilnBuy(mountain) : undefined;
+}
+
+/** A kiln and a worker on it, hired when none is free (rule 2.7, #667). */
+function kilnBuy(mountain: Mountain): Priced {
+  const worker = staffed(mountain, "kilns", freeWorkers(mountain));
+  return {
+    plan: [{ kind: "buyMaker", id: "kiln" }, ...worker.plan],
+    cost: stonesOf(makerPrice(mountain, "kiln")) + worker.cost,
+  };
+}
+
+/** A price's stone, or Infinity when it asks for none: the dad pays stone for these. */
+function stonesOf(price: Price): number {
+  return price.find((line) => line.good === "stones")?.amount ?? Infinity;
 }
 
 /** What reaches the building a second now, with the pocket as it is. */
 function brings(mountain: Mountain): number {
-  const numbers = orderNumbers(mountain, lineNow(mountain).line);
+  const numbers = orderNumbers(mountain, goodsIncome(mountain));
   return numbers.kind === "unordered"
     ? 0
     : Math.min(numbers.brings, numbers.builds);
+}
+
+/** A stockpile holds most of its room (`YARD_NEARLY_FULL`). */
+function nearlyFull(mountain: Mountain): boolean {
+  return STOCKPILE_GOODS.some(
+    (good) =>
+      mountain.stock[good] >= stockpileRoom(mountain, good) * YARD_NEARLY_FULL,
+  );
+}
+
+/** The stone stockpile holds most of its room. */
+function stoneFilling(mountain: Mountain): boolean {
+  return (
+    mountain.stock.stones >=
+    stockpileRoom(mountain, "stones") * YARD_NEARLY_FULL
+  );
+}
+
+/**
+ * A buy's stone, with his hoard, fits below the line where he stops raising
+ * (`YARD_NEARLY_FULL` of the stone room): one above it he could never save
+ * for, so he makes room first (rule 4: "Needs a bigger stockyard").
+ */
+function fits(mountain: Mountain, priced: Priced, hoardK: number): boolean {
+  return (
+    priced.cost * Math.max(1, hoardK) <=
+    stockpileRoom(mountain, "stones") * YARD_NEARLY_FULL
+  );
+}
+
+/**
+ * One more stockyard level, when a stockpile is nearly full or `need` (a
+ * buy he wants) does not fit, and the brick covers it with his hoard
+ * (#667). None while the stockyard is closed or at its last level.
+ */
+function yardPlan(mountain: Mountain, need: boolean, hoardK: number): Plan {
+  if (
+    !stockyardOpen(mountain) ||
+    mountain.stockyard >= MAX_STOCKYARD_LEVEL ||
+    !(need || nearlyFull(mountain))
+  ) {
+    return [];
+  }
+  const price = expandPrice(mountain)[0]?.amount ?? Infinity;
+  return mountain.stock.brick >= price * Math.max(1, hoardK)
+    ? [{ kind: "expandStockyard" }]
+    : [];
 }
 
 function covers(mountain: Mountain, priced: Priced, hoardK: number): boolean {
@@ -590,6 +717,16 @@ export function freshPlan(
   habits: FreshHabits,
   hoardK: number,
 ): Plan {
+  const settled = settlePlan(mountain, habits, hoardK);
+  return settled.length > 0 ? settled : spendPlan(mountain, habits, hoardK);
+}
+
+/** The free moves first: order, place the free workers, move the idle ones, and room in the stockyard. */
+function settlePlan(
+  mountain: Mountain,
+  habits: FreshHabits,
+  hoardK: number,
+): Plan {
   if (
     mountain.project.kind === "unordered" &&
     nextBuilding(mountain) !== undefined
@@ -603,37 +740,60 @@ export function freshPlan(
     habits.moves === "idle"
       ? moverPlan(mountain, habits)
       : rebalance(mountain, habits);
-  if (moved.length > 0) {
-    return moved;
-  }
+  return moved.length > 0 ? moved : yardPlan(mountain, false, hoardK);
+}
+
+/** Then the stone: the order's crew, its fix, the line's raise, or the hold. */
+function spendPlan(
+  mountain: Mountain,
+  habits: FreshHabits,
+  hoardK: number,
+): Plan {
   const crew = orderCrew(mountain, habits);
   if (crew !== undefined && covers(mountain, crew, hoardK)) {
     return crew.plan;
   }
   const fix = orderFix(mountain, habits);
-  if (fix !== undefined && paysForItself(mountain, fix)) {
+  if (fix !== undefined) {
     if (covers(mountain, fix, hoardK)) {
       return fix.plan;
     }
     // He saves for it while the pocket grows. While the order takes what
     // the mine makes, nothing grows: the line and the hold come first.
-    if (!drainsTheMine(mountain, lineNow(mountain).line)) {
+    if (!drainsTheMine(mountain)) {
       return [];
     }
   }
-  const raise = bestRaise(mountain, habits);
-  if (raise !== undefined && covers(mountain, raise, hoardK)) {
-    return raise.plan;
+  return raisePlan(mountain, habits, hoardK);
+}
+
+/** The raise that pays back soonest when the pocket covers it, else room for it, else the hold. */
+function raisePlan(
+  mountain: Mountain,
+  habits: FreshHabits,
+  hoardK: number,
+): Plan {
+  // With the stone stockpile nearly full, a faster line only stands
+  // sooner: he raises it again once there is room.
+  const best = stoneFilling(mountain) ? undefined : bestRaise(mountain, habits);
+  if (best !== undefined && !fits(mountain, best, hoardK)) {
+    // Too big for the stone stockpile: he makes room for it, and does not
+    // hold the order for a buy he cannot make.
+    return yardPlan(mountain, true, hoardK);
   }
-  return holdPlan(mountain, habits, raise);
+  if (best !== undefined && covers(mountain, best, hoardK)) {
+    return best.plan;
+  }
+  return holdPlan(mountain, habits, best);
 }
 
 /**
- * Bought out of the pocket, it brings the building sooner by more time than
- * the mine takes to make its price: with what it costs added to the pocket,
- * buying it beats keeping the stones for the order.
+ * Seconds sooner the building is up if he buys it out of the pocket, or 0
+ * when that is less than the mine takes to make its price: with what it
+ * costs added to the pocket, buying it must beat keeping the stones for the
+ * order.
  */
-function paysForItself(mountain: Mountain, priced: Priced): boolean {
+function savedSeconds(mountain: Mountain, priced: Priced): number {
   const rich = {
     ...mountain,
     stock: {
@@ -641,11 +801,10 @@ function paysForItself(mountain: Mountain, priced: Priced): boolean {
       stones: mountain.stock.stones + priced.cost,
     },
   };
-  const line = lineNow(rich).line;
+  const stone = goodsIncome(rich).stones ?? 0;
   const after = applied(rich, priced.plan);
-  const saved =
-    buildingSeconds(rich, line) - buildingSeconds(after, lineNow(after).line);
-  return saved > FRESH_DUST && saved * line >= priced.cost;
+  const saved = buildingSeconds(rich) - buildingSeconds(after);
+  return saved > FRESH_DUST && saved * stone >= priced.cost ? saved : 0;
 }
 
 /** Plans one after another while each changes something; `onMove` hears each move before it applies. */

@@ -65,7 +65,7 @@ describe("long stretches with the stockyard open (#666)", () => {
         ...start,
         owned: { ...start.owned, helper: 21 },
         jobs: { ...start.jobs, drilling: 6, haulage: 6, hoisting: 6 },
-        stock: { ...EMPTY_STOCK, stones: 2_990_000, brick: 600_000 },
+        stock: { ...EMPTY_STOCK, stones: 5_990_000, brick: 600_000 },
         piles: { face: 300, shaft: 300, kiln: 0 },
         operational: ["lightTower"],
         project: {
@@ -85,7 +85,7 @@ describe("long stretches with the stockyard open (#666)", () => {
       const flowMine = vi.mocked(minePiles.flowMine);
       flowMine.mockClear();
       const day = accrue({ mountain: withCrew, from: 0, to: 24 * HOUR });
-      expect(day.mountain.stock.stones).toBeGreaterThan(2_999_000);
+      expect(day.mountain.stock.stones).toBeGreaterThan(5_999_000);
       expect(flowMine.mock.calls.length).toBeLessThan(50);
     });
   });
@@ -104,7 +104,7 @@ describe("long stretches with the stockyard open (#666)", () => {
         building: 2,
         kilns: 2,
       },
-      stock: { ...EMPTY_STOCK, brick: 500_000 },
+      stock: { ...EMPTY_STOCK, brick: 1_000_000 },
       makers: { kiln: 2 },
       piles: { face: 300, shaft: 300, kiln: 300 },
       operational: ["lightTower"],
@@ -152,8 +152,8 @@ describe("long stretches with the stockyard open (#666)", () => {
         now: 24 * HOUR,
       });
       const brick = away.mountain.stock.brick;
-      expect(brick).toBeGreaterThanOrEqual(500_000 - 20);
-      expect(brick).toBeLessThanOrEqual(500_000 + 20);
+      expect(brick).toBeGreaterThanOrEqual(1_000_000 - 20);
+      expect(brick).toBeLessThanOrEqual(1_000_000 + 20);
       expect(away.report.night?.delivered.stones).toBeGreaterThan(0);
       expect(flowMine.mock.calls.length).toBeLessThan(20);
     });

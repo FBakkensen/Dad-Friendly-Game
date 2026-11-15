@@ -1,4 +1,5 @@
-import { stockyardTimes } from "./city";
+import { stillRequired, stockyardTimes } from "./city";
+import { factor } from "./economy/factors";
 import type { Mountain } from "./mountain";
 import { partTwoOn } from "./part-switch";
 import { pay, type GoodId, type Price } from "./stock";
@@ -12,13 +13,22 @@ import { pay, type GoodId, type Price } from "./stock";
  */
 
 /**
- * Each stockpile's room at level 0, for the lab to set (#667). Cut stone's
- * comes with part 3. A good with no row has no limit.
+ * Each stockpile's room at level 0, as the lab set it (#667): twice the
+ * spec's guess: a casual dad's long night that fills it fills it late, and
+ * the dads away a whole day sit on a full stockpile less than at 3M. Cut
+ * stone's comes with part 3. A good with no row
+ * has no limit. The lab sweeps it with `room.stockyard`; above about 1.9 the
+ * last level's room is past a safe integer, so a sweep stays below that.
  */
 const ROOM_AT_ZERO: Readonly<Partial<Record<GoodId, number>>> = {
-  stones: 3_000_000,
-  brick: 500_000,
+  stones: 6_000_000,
+  brick: 1_000_000,
 };
+
+/** The goods with a stockpile in the stockyard: the rows above (#667). */
+export const STOCKPILE_GOODS: readonly GoodId[] = (
+  Object.keys(ROOM_AT_ZERO) as GoodId[]
+).filter((good) => ROOM_AT_ZERO[good] !== undefined);
 
 /** What each level multiplies the room by. */
 const ROOM_GROWTH = 3;
@@ -49,7 +59,12 @@ export function stockpileRoom(
   if (base === undefined || !stockyardOpen(mountain)) {
     return Infinity;
   }
-  return base * ROOM_GROWTH ** mountain.stockyard * stockyardTimes(mountain);
+  return (
+    base *
+    factor("room.stockyard") *
+    ROOM_GROWTH ** mountain.stockyard *
+    stockyardTimes(mountain)
+  );
 }
 
 /** The next level's price, in brick. It never costs more than the brick stockpile holds. */
@@ -92,4 +107,20 @@ export function stockpileFull(
   good: GoodId,
 ): boolean {
   return mountain.stock[good] >= stockpileRoom(mountain, good);
+}
+
+/**
+ * The goods whose stockpile sits dead: full while nothing takes its good, no
+ * order delivering or the step in hand requiring none of it (#667). The
+ * night log adds up this time stretch by stretch, and the lab's `deadGood`
+ * reads it live.
+ */
+export function deadStockpiles(mountain: Mountain): readonly GoodId[] {
+  const project = mountain.project;
+  const need =
+    project.kind === "delivering" ? stillRequired(project.site) : undefined;
+  return STOCKPILE_GOODS.filter(
+    (good) =>
+      stockpileFull(mountain, good) && (need === undefined || need[good] <= 0),
+  );
 }

@@ -387,6 +387,12 @@ export const PLANS_A_SECOND = 400;
  */
 export const STARVED_SHARE = 0.5;
 
+/** A gap this long or longer is a night, for `nightFull` (#667); shorter gaps are breaks in a day. */
+export const NIGHT_MIN_MS = 6 * HOUR_MS;
+
+/** A stockpile this full or fuller is nearly full: part 2's dad expands the stockyard (#667). */
+export const YARD_NEARLY_FULL = 0.9;
+
 /** Workers one tap moves with the amount key on ×10 (call 49). */
 export const AMOUNT_KEY_TEN = 10;
 

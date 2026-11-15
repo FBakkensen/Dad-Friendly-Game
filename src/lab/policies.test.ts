@@ -1,5 +1,9 @@
 import { NONE_OWNED, patched, type MountainPatch } from "../test-fixtures";
 import { describe, expect, it } from "vitest";
+import { listActions } from "../economy/actions";
+import { withFactors } from "../economy/factors";
+import { FRESH_OFF } from "../line-switch";
+import { PART_TWO_OFF } from "../part-switch";
 import { MOUNTAIN_STONES, createMountain, type Mountain } from "../mountain";
 import { promoteCost, promotePrice } from "../engineers";
 import { priceAmount, stonesPrice } from "../stock";
@@ -107,6 +111,27 @@ describe("spend table", () => {
     expect(withUpgrades.some((action) => action.kind === "buyUpgrade")).toBe(
       true,
     );
+  });
+});
+
+describe("spend table in part 2 (#667)", () => {
+  it("leaves out a kiln and the stockyard: the fresh dad weighs them himself", () => {
+    withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 }, () => {
+      const lit: Mountain = {
+        ...createMountain(),
+        operational: ["lightTower"],
+      };
+      const kinds = listActions(lit, 0).map((action) => action.kind);
+      expect(kinds).toContain("buyMaker");
+      expect(kinds).toContain("expandStockyard");
+      const weighed = actionsOnTable(lit, 0, casual.params);
+      expect(
+        weighed.some(
+          (action) =>
+            action.kind === "buyMaker" || action.kind === "expandStockyard",
+        ),
+      ).toBe(false);
+    });
   });
 });
 

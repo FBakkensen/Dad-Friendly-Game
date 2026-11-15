@@ -247,6 +247,13 @@ export function fieldEntry(event: MoveEvent): Omit<FieldEvent, "at"> {
       return { code: "order.hold", data: { id: event.building } };
     case "orderResumed":
       return { code: "order.resume", data: { id: event.building } };
+    case "makerBought":
+      return {
+        code: "maker.buy",
+        data: { id: event.id, count: event.count },
+      };
+    case "stockyardExpanded":
+      return { code: "stockyard.expand", data: { count: event.level } };
     case "workerPlaced":
       return {
         code: "worker.place",

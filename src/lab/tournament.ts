@@ -26,6 +26,8 @@ import type { Mountain } from "../mountain";
 import { TIERS, owned } from "../tiers";
 import { narrowAt, zeroGainBuysBetween } from "./line-view";
 import { freshView, workerTaps } from "./fresh-view";
+import { nightRecord, type NightRecord } from "./nights";
+import type { World } from "./world";
 import { freshMineOn } from "../line-switch";
 import { runPolicy } from "./run";
 import { scoreDecision } from "./score";
@@ -186,6 +188,7 @@ function samplePolicy(
   let lastClock = 0;
   let pending: RevealEvent[] = [];
   let pendingBands: BandEvent[] = [];
+  const nights = createNightLog();
   const reveal = createRevealLog();
   const bands = createBandLog();
   const sittingAt = createSittingClock();
@@ -214,6 +217,7 @@ function samplePolicy(
         })),
       );
       pendingBands.push(...bands(world.mountain));
+      nights.observe(world);
       placeSittings(
         samples,
         sittingLog.observe({
@@ -268,6 +272,7 @@ function samplePolicy(
         });
         ownedBefore = ownedNow;
         attach(samples, pending, pendingBands);
+        nights.attach(samples);
         pending = [];
         pendingBands = [];
       }
@@ -276,6 +281,7 @@ function samplePolicy(
   });
   placeSittings(samples, sittingLog.flush());
   attach(samples, pending, pendingBands);
+  nights.attach(samples);
   return {
     policy,
     seed,
@@ -286,6 +292,34 @@ function samplePolicy(
       finishDay: run.finishDay,
       end: run.world,
     }),
+  };
+}
+
+/** The long nights since the last sample, hung on the newest one (#667). */
+function createNightLog(): {
+  readonly observe: (world: World) => void;
+  readonly attach: (samples: DecisionSample[]) => void;
+} {
+  let pending: NightRecord[] = [];
+  return {
+    observe(world) {
+      const night = nightRecord(world);
+      if (night !== undefined) {
+        pending.push(night);
+      }
+    },
+    attach(samples) {
+      const index = samples.length - 1;
+      const last = samples[index];
+      if (last === undefined || pending.length === 0) {
+        return;
+      }
+      samples[index] = {
+        ...last,
+        nights: [...(last.nights ?? []), ...pending],
+      };
+      pending = [];
+    },
   };
 }
 
