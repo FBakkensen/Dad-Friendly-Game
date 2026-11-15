@@ -112,6 +112,11 @@ describe("a fresh mine's run (#655)", () => {
     expect(runDone({ ...start, remaining: 0 })).toBe(true);
   });
 
+  it("plays a fresh type the old way while the fresh mine is off", () => {
+    const run = runPolicy({ policy: casual, seed: 1, maxLiveSeconds: 1 });
+    expect(run.world.mountain.project.kind).toBe("unordered");
+  });
+
   it("plays part 1's dad: he orders in his first second", () => {
     withFactors(FRESH, () => {
       const run = runPolicy({ policy: casual, seed: 1, maxLiveSeconds: 1 });
