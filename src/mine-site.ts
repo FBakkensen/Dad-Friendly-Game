@@ -1,6 +1,5 @@
 import stoneUrl from "./assets/board/res-stone.png";
 import { el, hide, mark, setAttr, write } from "./board-dom";
-import { runBoardLoop } from "./board-window";
 import { tierBuyMove } from "./economy/actions";
 import type { FrameState } from "./frame-state";
 import { listenSteps, paintSteps, stepper } from "./job-steps";
@@ -18,13 +17,13 @@ import {
 import {
   DEEP_Y,
   LEVEL,
-  SCENE_W,
   drawMine,
   loadSprites,
   paintGround,
   startMotion,
 } from "./mine-scene";
 import type { Mountain } from "./mountain";
+import { runScene } from "./scene-paint";
 import type { BuyAmount } from "./tiers";
 import { NO_FREE_WORKER } from "./workforce-view";
 import "./mine.css";
@@ -174,46 +173,26 @@ function buildOverlay(): {
   return { root, name, rate, line };
 }
 
-/**
- * The canvas and its frames, on the board's own loop: the ground is painted
- * once a height, the rest about ten times a second, on hard steps.
- */
+/** The mine's canvas: its ground once a height, then its moving parts. */
 function runCanvas(
   canvas: HTMLCanvasElement,
   shown: () => boolean,
   scene: () => MineScene,
   signal: AbortSignal | undefined,
 ): void {
-  const c = canvas.getContext("2d");
-  if (c === null) {
-    return;
-  }
   const sprites = loadSprites();
   const motion = startMotion();
-  const ground = document.createElement("canvas");
-  let clock = 0;
-  let since = 0;
-  runBoardLoop((dt) => {
-    clock += dt;
-    since += dt;
-    if (!shown() || since < 0.1) {
-      return;
-    }
-    since = 0;
-    const height = Math.max(1, Math.floor(canvas.clientHeight / 2));
-    if (canvas.height !== height || ground.height !== height) {
-      canvas.width = SCENE_W;
-      canvas.height = height;
-      ground.width = SCENE_W;
-      ground.height = height;
-      const g = ground.getContext("2d");
-      if (g !== null) {
-        paintGround(g, height);
-      }
-    }
-    c.drawImage(ground, 0, 0);
-    drawMine(c, sprites, scene(), motion, clock);
-  }, signal);
+  runScene(
+    canvas,
+    {
+      shown,
+      ground: paintGround,
+      draw: (c, clock) => {
+        drawMine(c, sprites, scene(), motion, clock);
+      },
+    },
+    signal,
+  );
 }
 
 export function createMineSite(

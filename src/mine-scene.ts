@@ -9,6 +9,18 @@ import tubEmptyUrl from "./assets/board/tub-empty.png";
 import tubFullUrl from "./assets/board/tub-full.png";
 import type { Stage } from "./line";
 import type { MineScene } from "./mine-view";
+import {
+  SCENE_W,
+  frame,
+  glow,
+  hash,
+  heap,
+  line,
+  loadImages,
+  paintSky,
+  rect,
+  zed,
+} from "./scene-paint";
 
 /**
  * The mine's scene (#660; spec, The mine): the mountain cut open, drawn on a
@@ -22,25 +34,12 @@ import type { MineScene } from "./mine-view";
  * game's own sprites.
  */
 
-/** The scene's width in art px: the board is 424 px. */
-export const SCENE_W = 212;
 /** Where the surface meets the sky. */
 const SURF = 40;
 /** The Topsoil's top, its gallery's top and its floor, in art px. */
 export const LEVEL = { top: SURF, gallery: SURF + 34, floor: SURF + 66 };
 /** Where the line under the Topsoil sits, and the zone labels. */
 export const DEEP_Y = SURF + 84;
-
-const SKY = [
-  "#141a2e",
-  "#1a2238",
-  "#232a44",
-  "#34304c",
-  "#4c3850",
-  "#7a4a4a",
-  "#b0643e",
-  "#d98a44",
-];
 
 type Earth = {
   readonly base: string;
@@ -63,69 +62,6 @@ const DEEPER: Earth = {
   pale: "#4a5262",
 };
 
-/** A pixel noise that is the same for the same point. */
-function hash(x: number, y: number, seed: number): number {
-  let n =
-    (Math.imul(x | 0, 374761393) +
-      Math.imul(y | 0, 668265263) +
-      Math.imul(seed | 0, 1442695041)) |
-    0;
-  n = Math.imul(n ^ (n >>> 13), 1274126177);
-  return ((n ^ (n >>> 16)) >>> 0) / 4294967296;
-}
-
-function rect(
-  c: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  colour: string,
-): void {
-  c.fillStyle = colour;
-  c.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h));
-}
-
-/** A one-art-px line, stepped. */
-function line(
-  c: CanvasRenderingContext2D,
-  from: readonly [number, number],
-  to: readonly [number, number],
-  colour: string,
-  thick = 1,
-): void {
-  const steps = Math.max(
-    Math.abs(to[0] - from[0]),
-    Math.abs(to[1] - from[1]),
-    1,
-  );
-  for (let i = 0; i <= steps; i += 1) {
-    const x = from[0] + ((to[0] - from[0]) * i) / steps;
-    const y = from[1] + ((to[1] - from[1]) * i) / steps;
-    rect(c, x, y, thick, thick, colour);
-  }
-}
-
-/** A lamp's warm light, dithered. */
-function glow(
-  c: CanvasRenderingContext2D,
-  cx: number,
-  cy: number,
-  r: number,
-  colour: string,
-  seed: number,
-): void {
-  c.fillStyle = colour;
-  for (let y = -r; y <= r; y += 1) {
-    for (let x = -r; x <= r; x += 1) {
-      const d = Math.sqrt(x * x + y * y) / r;
-      if (d < 1 && hash(cx + x, cy + y, seed) < (1 - d) * (1 - d) * 0.9) {
-        c.fillRect(cx + x, cy + y, 1, 1);
-      }
-    }
-  }
-}
-
 function earthAt(earth: Earth, x: number, y: number): string {
   const r = hash(x >> 1, y >> 1, 7);
   const q = hash(x, y, 8);
@@ -136,31 +72,6 @@ function earthAt(earth: Earth, x: number, y: number): string {
     return earth.dark;
   }
   return r < 0.5 || q < 0.05 ? earth.light : earth.base;
-}
-
-function paintSky(c: CanvasRenderingContext2D): void {
-  for (let y = 0; y < SURF; y += 1) {
-    const t = (y / SURF) * (SKY.length - 1);
-    const band = Math.floor(t);
-    for (let x = 0; x < SCENE_W; x += 1) {
-      const next = SKY[Math.min(band + 1, SKY.length - 1)] ?? "#000";
-      rect(
-        c,
-        x,
-        y,
-        1,
-        1,
-        hash(x, y, 1) < t - band ? next : (SKY[band] ?? "#000"),
-      );
-    }
-  }
-  for (let i = 0; i < 26; i += 1) {
-    rect(c, hash(i, 1, 2) * SCENE_W, hash(i, 2, 2) * 16, 1, 1, "#cfd6ff");
-  }
-  for (let x = 0; x < SCENE_W; x += 1) {
-    const hill = SURF - 7 - 5 * Math.sin(x / 31 + 1) - 2 * Math.sin(x / 9);
-    rect(c, x, hill, 1, SURF - hill, "#2b2334");
-  }
 }
 
 function paintEarth(c: CanvasRenderingContext2D, height: number): void {
@@ -256,7 +167,7 @@ function paintHeadframe(c: CanvasRenderingContext2D): void {
 
 /** The still parts of the scene, painted once for a height. */
 export function paintGround(c: CanvasRenderingContext2D, height: number): void {
-  paintSky(c);
+  paintSky(c, SURF);
   paintEarth(c, height);
   paintShaft(c);
   paintGallery(c);
@@ -281,81 +192,7 @@ const SPRITE_URLS = {
 type SpriteId = keyof typeof SPRITE_URLS;
 
 export function loadSprites(): Sprites {
-  return Object.fromEntries(
-    Object.entries(SPRITE_URLS).map(([id, url]) => {
-      const img = new Image();
-      img.src = url;
-      return [id, img];
-    }),
-  ) as Record<SpriteId, HTMLImageElement>;
-}
-
-/** One frame of a strip of `frames` frames, at art px. */
-function frame(
-  c: CanvasRenderingContext2D,
-  img: HTMLImageElement,
-  frames: number,
-  index: number,
-  at: readonly [number, number],
-  flip = false,
-): void {
-  if (!img.complete || img.naturalWidth === 0) {
-    return;
-  }
-  const w = img.naturalWidth / frames;
-  const h = img.naturalHeight;
-  const x = Math.round(at[0]);
-  const y = Math.round(at[1]);
-  if (flip) {
-    c.save();
-    c.translate(x + w, y);
-    c.scale(-1, 1);
-    c.drawImage(img, index * w, 0, w, h, 0, 0, w, h);
-    c.restore();
-    return;
-  }
-  c.drawImage(img, index * w, 0, w, h, x, y, w, h);
-}
-
-/** A "z" over a worker who waits. */
-function zed(c: CanvasRenderingContext2D, x: number, y: number): void {
-  rect(c, x, y, 4, 1, "#cfd6ff");
-  rect(c, x + 2, y + 1, 1, 1, "#cfd6ff");
-  rect(c, x + 1, y + 2, 1, 1, "#cfd6ff");
-  rect(c, x, y + 3, 4, 1, "#cfd6ff");
-}
-
-/** A heap of rock: high when it grows, low when even, two stones when bare. */
-function heap(
-  c: CanvasRenderingContext2D,
-  x0: number,
-  w: number,
-  fill: number,
-  seed: number,
-): void {
-  const base = LEVEL.floor - 3;
-  if (fill < 0.08) {
-    rect(c, x0 + 3, base - 1, 2, 1, "#6e7782");
-    rect(c, x0 + w - 6, base - 1, 1, 1, "#8f9aa5");
-    return;
-  }
-  const height = Math.round(2 + fill * 10);
-  for (let y = 0; y < height; y += 1) {
-    const half = Math.round(
-      (w / 2) * (1 - y / (height + 1)) * (0.4 + 0.6 * fill),
-    );
-    for (let x = -half; x <= half; x += 1) {
-      const r = hash(x + 40, y, seed);
-      rect(
-        c,
-        x0 + w / 2 + x,
-        base - 1 - y,
-        1,
-        1,
-        r < 0.2 ? "#aab4bf" : r < 0.6 ? "#8f9aa5" : "#6e7782",
-      );
-    }
-  }
+  return loadImages(SPRITE_URLS);
 }
 
 /** Where each stage's workers stand: hoisting at the shaft, haulage on the rail, drilling at the face. */
@@ -558,7 +395,7 @@ export function drawMine(
   drawCage(c, sprites, scene, motion, t);
   drawWorkers(c, sprites, scene, t);
   drawTubs(c, sprites, scene, motion, t, dt);
-  heap(c, 134, 18, motion.facePile, 70);
-  heap(c, 37, 16, motion.shaftPile, 80);
+  heap(c, 134, LEVEL.floor - 3, 18, motion.facePile, 70);
+  heap(c, 37, LEVEL.floor - 3, 16, motion.shaftPile, 80);
   drawDrill(c, sprites, scene, t);
 }

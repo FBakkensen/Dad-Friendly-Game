@@ -20,7 +20,7 @@ import { NO_JOBS, STAGE_JOB, freeWorkers, type JobId } from "./workforce";
 export const NO_FREE_WORKER =
   "No free worker. Hire one, or take one off another job.";
 
-const JOB_NAMES: Readonly<Record<JobId, string>> = {
+export const JOB_NAMES: Readonly<Record<JobId, string>> = {
   drilling: "Drilling",
   haulage: "Haulage",
   hoisting: "Hoisting",
