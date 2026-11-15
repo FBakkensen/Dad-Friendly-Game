@@ -4,7 +4,7 @@ import wagonUrl from "./assets/city/horse-wagon.png";
 import pickUrl from "./assets/pick.png";
 import type { AuthController } from "./auth";
 import { createSaveLine } from "./board-save";
-import { el, mark, setAttr, write } from "./board-dom";
+import { el, hide, mark, setAttr, write } from "./board-dom";
 import { deviceAmount, type DeviceStorage } from "./buys-amount";
 import {
   hireKey,
@@ -28,6 +28,8 @@ import { tierBuyMove } from "./economy/actions";
 import type { FrameState } from "./frame-state";
 import { createFrameCards } from "./frame-cards";
 import { createFrameSaveCards } from "./frame-save-cards";
+import { createFrameLedger, type FrameLedger } from "./frame-ledger";
+import { createBoardHost } from "./board-host";
 import { createCitySite } from "./city-site";
 import { createMineSite } from "./mine-site";
 import { createStageSheet, type StageSheet } from "./stage-sheet";
@@ -60,6 +62,7 @@ function icon(url: string, className: string): HTMLImageElement {
 
 type OrderParts = {
   readonly root: HTMLButtonElement;
+  readonly top: HTMLElement;
   readonly name: HTMLElement;
   readonly step: HTMLElement;
   readonly pips: readonly HTMLElement[];
@@ -76,13 +79,17 @@ function buildOrder(state: FrameState): OrderParts {
   const pips = [0, 1, 2].map(() => el("i", "frame-pip"));
   pipRow.append(...pips);
   const top = el("span", "frame-order-top");
-  top.append(name, step, pipRow);
+  top.append(name, step);
   const line = el("span", "frame-order-line");
-  root.append(top, line);
+  // The pips sit under the step, beside what it requires: the key to the
+  // Ledger takes the strip's end (#708).
+  const bottom = el("span", "frame-order-bottom");
+  bottom.append(line, pipRow);
+  root.append(top, bottom);
   root.addEventListener("click", () => {
     state.go("city");
   });
-  return { root, name, step, pips, line };
+  return { root, top, name, step, pips, line };
 }
 
 function paintPips(pips: readonly HTMLElement[], states: readonly Pip[]): void {
@@ -94,6 +101,9 @@ function paintPips(pips: readonly HTMLElement[], states: readonly Pip[]): void {
 function paintOrder(parts: OrderParts, mountain: Mountain): void {
   const strip = orderStrip(mountain);
   paintPips(parts.pips, strip.pips);
+  // Planning has no name or step: its line takes both rows, beside the pips (#708).
+  setAttr(parts.root, "data-order", strip.kind);
+  hide(parts.top, strip.kind === "planning");
   if (strip.kind === "planning") {
     write(parts.name, "");
     write(parts.step, "");
@@ -296,6 +306,7 @@ export type FrameScreen = {
 function buildFrame(
   state: FrameState,
   now: () => number,
+  key: HTMLButtonElement,
   signal: AbortSignal | undefined,
 ): {
   readonly root: HTMLElement;
@@ -303,6 +314,9 @@ function buildFrame(
   readonly paint: (mountain: Mountain) => void;
 } {
   const order = buildOrder(state);
+  // The order, and the key to the Ledger at the strip's end (#708).
+  const strip = el("div", "frame-strip");
+  strip.append(order.root, key);
   const top = buildTop(state);
   const scene = el("div", "frame-scene");
   const mine = createMineSite(state, signal);
@@ -311,7 +325,7 @@ function buildFrame(
   const next = buildNext(state);
   const bar = buildSiteBar(state);
   const root = el("div", "frame");
-  root.append(order.root, top.root, scene, next.root, bar.root);
+  root.append(strip, top.root, scene, next.root, bar.root);
   return {
     root,
     scene,
@@ -371,27 +385,42 @@ export function mountFrameScreen({
       stageSheet.open(stage);
     },
   };
-  const frame = buildFrame(state, now, signal);
+  // One board host for the Ledger and the save's cards: one settle (#707, #708).
+  const board = createBoardHost({ clock: () => performance.now(), signal });
+  const closeSheets = (): void => {
+    sheet.close();
+    stageSheet.close();
+  };
+  const ledger: FrameLedger = createFrameLedger({
+    progress,
+    auth,
+    board,
+    storage,
+    now,
+    overSave: () => saveLine.isOpen(),
+    onOpen: closeSheets,
+    requestPaint: () => {
+      paint();
+    },
+    signal,
+  });
+  const frame = buildFrame(state, now, ledger.key, signal);
   const sheet = createWorkforceSheet(state, now);
   const stageSheet = createStageSheet(state, now);
-  const cards = createFrameCards({
-    progress,
-    onShow: () => {
-      sheet.close();
-      stageSheet.close();
-    },
-  });
+  /** A card comes up: every sheet and the Ledger close under it. */
+  const closeUnderCard = (): void => {
+    closeSheets();
+    ledger.close();
+  };
+  const cards = createFrameCards({ progress, onShow: closeUnderCard });
   const saveCards = createFrameSaveCards({
     progress,
+    board,
     now,
     requestPaint: () => {
       paint();
     },
-    onShow: () => {
-      sheet.close();
-      stageSheet.close();
-    },
-    signal,
+    onShow: closeUnderCard,
   });
   const saveLine = createSaveLine({
     progress,
@@ -408,6 +437,7 @@ export function mountFrameScreen({
     sheet.root,
     stageSheet.root,
     cards.root,
+    ...ledger.roots,
     ...saveCards.roots,
     drawerClip,
     saveLine.line,
@@ -418,6 +448,7 @@ export function mountFrameScreen({
     sheet.paint(mountain);
     stageSheet.paint(mountain);
     cards.paint();
+    ledger.paint();
     saveCards.paint();
     saveLine.render();
   };

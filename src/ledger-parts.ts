@@ -11,12 +11,15 @@ import { drawerPlate } from "./board-save";
 import { skin } from "./board-skin";
 import { forgetAll, type PressTracker } from "./card-tap";
 import { TONIGHT_LINES, type TonightLine } from "./ledger-rows";
+import { freshMineOn } from "./line-switch";
 import {
   PASS_FULL,
   PASS_SHORT,
   SAVED_COPIES_TITLE,
   START_OVER,
   START_OVER_DETAIL,
+  START_OVER_FRESH_DETAIL,
+  START_OVER_FRESH_KEEP,
   START_OVER_KEEP,
   START_OVER_TITLE,
   START_OVER_YES,
@@ -231,7 +234,8 @@ export function createStartOverPage({
     line: START_OVER_DETAIL,
     answers: [
       {
-        label: START_OVER_KEEP,
+        // A fresh mine has no relics and no mountain to fill (#708).
+        label: freshMineOn() ? START_OVER_FRESH_KEEP : START_OVER_KEEP,
         id: "keep",
         className: "ledger-keep",
         act: onKeep,
@@ -249,10 +253,10 @@ export function createStartOverPage({
   return {
     ...page,
     say(kept) {
-      page.write(
-        START_OVER_TITLE,
-        kept ? START_OVER_DETAIL : SAVE_CONFLICT_ERROR,
-      );
+      const detail = freshMineOn()
+        ? START_OVER_FRESH_DETAIL
+        : START_OVER_DETAIL;
+      page.write(START_OVER_TITLE, kept ? detail : SAVE_CONFLICT_ERROR);
     },
   };
 }

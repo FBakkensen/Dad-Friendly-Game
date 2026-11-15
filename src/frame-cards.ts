@@ -178,6 +178,8 @@ export function createFrameCards({
       paintCard(parts, card);
       if (card !== undefined) {
         onShow();
+        // A sheet it closed may have held the focus: the card's key takes it (#708).
+        parts.key.focus({ preventScroll: true });
       }
     }
     shown = card;

@@ -1,4 +1,4 @@
-import { createBoardHost } from "./board-host";
+import type { BoardHost } from "./board-host";
 import type { ProgressStore } from "./progress-store";
 import { createSaveConflictPanel } from "./save-conflict-panel";
 import {
@@ -11,7 +11,8 @@ import {
  * The cards that keep the save safe, on slice 1's frame (#707): the update
  * card (a new build, or a save from a later build), "Two saves found", and
  * the card for a game open in another tab. They are today's board's panels
- * on the board card shell, over a board host of the frame's own, so their
+ * on the board card shell, over the frame's board host (shared with the
+ * Ledger, #708), so their
  * presses keep the settle against a sleepy double tap. They sit over the
  * rest of the frame, the shift report included, in the board's order: the
  * split on top, then the other tab, then the update. A card coming up
@@ -25,20 +26,19 @@ export type FrameSaveCards = {
 
 export function createFrameSaveCards({
   progress,
+  board,
   now,
   requestPaint,
   onShow,
-  signal,
 }: {
   progress: ProgressStore;
+  board: BoardHost;
   now: () => number;
   /** Repaints the frame: a card's own change (a side picked, the confirm). */
   requestPaint: () => void;
   /** A card comes up: the frame closes its sheets. */
   onShow: () => void;
-  signal?: AbortSignal | undefined;
 }): FrameSaveCards {
-  const board = createBoardHost({ clock: () => performance.now(), signal });
   const update = createUpdatePrompt(board, () => {
     onShow();
     requestPaint();

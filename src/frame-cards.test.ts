@@ -324,6 +324,25 @@ describe("the end card", () => {
     expect(card()).toMatchObject({ shown: true, kind: "end" });
   });
 
+  it("closes the Ledger as it comes up, and takes the focus to its key (#708)", () => {
+    const { root, progress, card } = mount({
+      saved: crew(ROOF_NEARLY_IN),
+      at: 1_000,
+    });
+    root.querySelector<HTMLButtonElement>(".frame-key")?.click();
+    const ledger = root.querySelector('.board-sheet[data-sheet="ledger"]');
+    expect(ledger?.classList.contains("is-open")).toBe(true);
+    root.querySelector<HTMLButtonElement>(".ledger-start-over")?.click();
+    progress.applyMutation((mountain) => ({
+      ...mountain,
+      project: NO_PROJECT,
+      operational: ["lightTower"],
+    }));
+    expect(card()).toMatchObject({ shown: true, kind: "end" });
+    expect(ledger?.classList.contains("is-open")).toBe(false);
+    expect(document.activeElement).toBe(card().key);
+  });
+
   it("is not news for a signed-in save whose roof is already on when it loads", async () => {
     const lit = { ...crew(NO_PROJECT), operational: ["lightTower" as const] };
     const { card, progress, load } = await mountSignedIn(lit, 9 * HOUR);
