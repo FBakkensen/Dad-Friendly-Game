@@ -12,6 +12,7 @@ Split out of part 1's switch-on (#664): today's board is the only screen that ho
    - "4,200 stone in the stockpile";
    - "5 drills · 6 carts · 3 hoists" (in the mine's order), or "No machines yet";
    - "30 workers · 2 horse wagons" (the wagons do not fit on the machines' line beside three machines).
+     Flemming said A, yes to the lines as shown, on 15 Nov 2026 (15:13Z).
 5. **Which side is picked first** stays "more stones mined, the phone on a tie". In a fresh mine nothing is mined from the mountain, so it is the phone until #664 adds the save's "rock dug in all" fact (the spec's call 13). Noted on #664.
 
 ## Tasks
