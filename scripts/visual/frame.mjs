@@ -197,6 +197,49 @@ async function sheetFacts(page) {
   });
 }
 
+/** A stage's list (#661): open, inside the board above the save line, its rows, and no word cut. */
+async function stageSheetFacts(page) {
+  return page.evaluate(() => {
+    const board = globalThis.__board();
+    const sheet = document.querySelector(".stage-sheet");
+    const box = sheet?.querySelector(".frame-sheet-box");
+    const line = document.querySelector(".board-saveline");
+    if (sheet === null || box === null || line === null) {
+      return { open: false };
+    }
+    const r = box.getBoundingClientRect();
+    const lineTop = line.getBoundingClientRect().top;
+    const page = sheet.querySelector(".stage-page:not([hidden])");
+    const small = [...sheet.querySelectorAll("button")]
+      .filter((el) => el.getClientRects().length > 0)
+      .map((el) => {
+        const b = el.getBoundingClientRect();
+        return {
+          name: el.className,
+          w: b.width / board.scale,
+          h: b.height / board.scale,
+        };
+      })
+      .filter((b) => b.w < 47.5 || b.h < 47.5);
+    const cut = [
+      ...sheet.querySelectorAll(".mine-key-face, .mine-key-small, .stage-buy"),
+    ]
+      .filter(
+        (el) =>
+          el.getClientRects().length > 0 && el.scrollWidth > el.clientWidth + 1,
+      )
+      .map((el) => el.className);
+    return {
+      open: !sheet.hidden,
+      inside: r.top >= board.top - 0.5 && r.bottom <= lineTop + 0.5,
+      machines: page?.querySelectorAll("[data-machine]").length ?? 0,
+      small,
+      cut,
+      words: sheet.textContent ?? "",
+    };
+  });
+}
+
 for (const size of SIZES) {
   const label = `${String(size[0])}x${String(size[1])}`;
   for (const { name, save } of SAVES) {
@@ -244,6 +287,36 @@ for (const size of SIZES) {
             !/\bhands?\b|by hand/i.test(facts.words),
             `${at} ${site}: no "hands" and no "by hand"`,
           );
+        }
+        await tap(page, '.frame-site[data-site="mine"]');
+        for (const stage of ["face", "haul", "lift"]) {
+          await tap(
+            page,
+            `.mine-stage[data-stage="${stage}"] .mine-stage-info`,
+          );
+          const list = await stageSheetFacts(page);
+          await shot(page, `slice-stage-${stage}-${name}-${label}`);
+          check(
+            list.open && list.inside && list.machines === 1,
+            `${at} ${stage}'s list opens above the save line with its machine`,
+          );
+          check(
+            list.small.length === 0,
+            `${at} ${stage}'s list: every key is at least 48px (${JSON.stringify(list.small)})`,
+          );
+          check(
+            list.cut.length === 0,
+            `${at} ${stage}'s list: no key's words are cut (${list.cut.join(", ")})`,
+          );
+          check(
+            !/\bhands?\b|by hand|bottleneck|limit|best buy/i.test(list.words),
+            `${at} ${stage}'s list: no "hands", and no limit or best buy named`,
+          );
+          check(
+            await noScroll(page),
+            `${at} ${stage}'s list does not scroll the page`,
+          );
+          await tap(page, ".stage-sheet .frame-sheet-close");
         }
         await tap(page, ".frame-workers");
         const sheet = await sheetFacts(page);

@@ -156,15 +156,23 @@ export function stageList(
   };
 }
 
-/** The workers' own upgrades and marks, in the workforce under the jobs. */
+/**
+ * The workers' own upgrades and marks, in the workforce under the jobs: the
+ * workers as a machine's row is, without a key (hiring is in the frame).
+ */
 export type WorkersList = {
-  readonly upgrades: readonly ListUpgrade[];
+  readonly name: string;
+  /** "30 owned". */
+  readonly owned: string;
   readonly mark: string | undefined;
+  readonly upgrades: readonly ListUpgrade[];
 };
 
 export function workersList(mountain: Mountain, now = 0): WorkersList {
   return {
-    upgrades: shownUpgrades(mountain, undefined, now),
+    name: "Workers",
+    owned: `${formatCompact(mountain.owned.helper)} owned`,
     mark: markLine("helper", mountain.owned.helper),
+    upgrades: shownUpgrades(mountain, undefined, now),
   };
 }

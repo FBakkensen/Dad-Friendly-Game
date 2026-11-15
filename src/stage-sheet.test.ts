@@ -137,7 +137,7 @@ describe("the workers in the workforce", () => {
     expect(text(`${row} .stage-row-line`)).toBe(
       "Workers with a tool 3/s to 7.1/s.",
     );
-    expect(text(".frame-workers-own .stage-mark")).toBe(
+    expect(text(".frame-workers-own .stage-row-why")).toBe(
       "21 of 25 · Every worker digs twice as fast.",
     );
     find(`${row} .stage-buy`).click();

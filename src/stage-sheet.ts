@@ -37,8 +37,8 @@ function stoneIcon(): HTMLImageElement {
   return stone;
 }
 
-/** A row's words: its name, then its lines. */
-function rowText(): {
+/** A row's words: its name, then its lines. The workforce's workers row uses it too. */
+export function rowText(): {
   readonly root: HTMLElement;
   readonly name: HTMLElement;
   readonly line: HTMLElement;

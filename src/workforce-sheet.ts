@@ -6,7 +6,7 @@ import { hireKey } from "./frame-view";
 import type { Mountain } from "./mountain";
 import type { BuyAmount } from "./tiers";
 import { listenSteps, paintSteps, stepper } from "./job-steps";
-import { upgradeRows } from "./stage-sheet";
+import { rowText, upgradeRows } from "./stage-sheet";
 import { workersList } from "./stage-list-view";
 import type { JobId } from "./workforce";
 import { NO_FREE_WORKER, workforceView, type JobRow } from "./workforce-view";
@@ -125,15 +125,18 @@ function buildWorkers(state: FrameState): {
   readonly paint: (mountain: Mountain) => void;
 } {
   const root = el("div", "frame-workers-own");
-  const mark = el("p", "stage-mark");
+  const row = el("div", "stage-row");
+  const { root: text, name, line: owned, why: mark } = rowText();
+  row.append(text);
   const upgrades = upgradeRows(state);
-  root.append(el("h3", "frame-jobs-site", "The workers"), mark, upgrades.root);
+  root.append(el("h3", "frame-jobs-site", "The workers"), row, upgrades.root);
   return {
     root,
     paint: (mountain) => {
       const view = workersList(mountain);
+      write(name, view.name);
+      write(owned, view.owned);
       write(mark, view.mark ?? "");
-      hide(mark, view.mark === undefined);
       upgrades.paint(view.upgrades);
     },
   };

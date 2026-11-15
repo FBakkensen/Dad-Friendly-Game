@@ -85,15 +85,8 @@
 
 .frame-sheet .stage-buy[hidden],
 .stage-owned[hidden],
-.stage-mark[hidden],
 .stage-rows[hidden],
 .stage-page[hidden],
 .frame-jobs-site[hidden] {
   display: none;
-}
-
-.stage-mark {
-  margin: calc(var(--art) * 2) 0 0;
-  font-size: var(--board-type-13);
-  color: var(--frame-ink);
 }

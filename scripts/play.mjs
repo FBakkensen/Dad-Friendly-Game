@@ -54,6 +54,7 @@ import {
   workshopSave,
   DEV_BACKUP_KEY,
   sliceBusySave,
+  sliceListSave,
   sliceDoneSave,
   sliceOrderedSave,
   sliceStandsSave,
@@ -204,6 +205,12 @@ const SAVES = {
   "slice-busy": {
     note: "slice 1: carts, two wagons, free workers and stone to spend",
     save: () => sliceBusySave(Date.now()),
+    key: DEV_BACKUP_KEY,
+    search: "?slice=1",
+  },
+  "slice-list": {
+    note: "slice 1: five carts and drills, so the stages' lists hold upgrades, and Better boots",
+    save: () => sliceListSave(Date.now()),
     key: DEV_BACKUP_KEY,
     search: "?slice=1",
   },
