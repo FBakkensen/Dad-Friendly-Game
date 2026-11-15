@@ -372,7 +372,7 @@ const ZONES: Readonly<
     }
   >
 > = {
-  lift: { x: 38, gap: 9, most: 3, sway: 1, wait: "end" },
+  lift: { x: 38, gap: 9, most: 3, sway: 1, wait: "start" },
   haul: { x: 70, gap: 15, most: 4, sway: 5, wait: "end" },
   face: { x: 144, gap: 8, most: 4, sway: 1, wait: "start" },
 };
@@ -402,10 +402,13 @@ function drawWorkers(
     const drawn = Math.min(zone.most, on.workers);
     const waiting = scene.moving ? Math.round(drawn * (1 - on.busy)) : drawn;
     for (let j = 0; j < drawn; j += 1) {
-      const x = zone.x + j * zone.gap;
+      // Nobody waits beside a machine: the waiting take the zone's far
+      // slots, the working ones the slots by its machines.
+      const waits = j < waiting;
+      const k = waits ? j : zone.most - 1 - (j - waiting);
+      const slot = zone.wait === "start" ? k : zone.most - 1 - k;
+      const x = zone.x + slot * zone.gap;
       const y = LEVEL.floor - 24;
-      // Nobody waits beside a machine: the waiting take the far slots.
-      const waits = zone.wait === "start" ? j < waiting : j >= drawn - waiting;
       if (waits) {
         frame(c, sprites.miner, 18, 14, [x, y], stage === "lift");
         zed(c, x + 8, y - 6 - (Math.floor(t * 2 + j) % 2));

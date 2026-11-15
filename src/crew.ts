@@ -81,7 +81,6 @@ export function tierLock(mountain: Mountain, tier: Tier): TierLock | undefined {
   return undefined;
 }
 
-/** A tier waiting on a depth or a relic: shown, but not for sale. */
 /** A tier he can buy now, price aside: in play, shown, and with no lock (#659, #660). */
 export function tierOnSale(mountain: Mountain, tier: Tier): boolean {
   return (
@@ -91,6 +90,7 @@ export function tierOnSale(mountain: Mountain, tier: Tier): boolean {
   );
 }
 
+/** A tier waiting on a depth or a relic: shown, but not for sale. */
 export function tierLocked(mountain: Mountain, tier: Tier): boolean {
   return tierLock(mountain, tier) !== undefined;
 }

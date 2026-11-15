@@ -274,7 +274,7 @@ function partWords(
     part.running < part.owned
       ? `${String(part.running)} of ${String(part.owned)}`
       : String(part.owned);
-  return `${count} ${kinds}: ${String(part.has)} of ${String(part.takes)} workers ${moves}${perSecond}`;
+  return `${count} ${kinds}: ${String(part.has)} of ${String(part.takes)} ${plural(part.takes, ["worker", "workers"])} ${moves}${perSecond}`;
 }
 
 /** A stage's row. */

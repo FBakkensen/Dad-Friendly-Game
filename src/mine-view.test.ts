@@ -182,6 +182,21 @@ describe("a stage's row", () => {
     });
   });
 
+  it("says one worker of one machine", () => {
+    fresh(() => {
+      const start = createMountain();
+      const mountain = {
+        ...start,
+        owned: { ...start.owned, cart: 1 },
+        jobs: { ...start.jobs, haulage: 1 },
+      };
+      const cart = effectiveRates(mountain).tierSpeed.cart;
+      expect(stageRows(mountain)[1]?.sum[0]).toBe(
+        `1 cart: 1 of 1 worker ${String(cart)}/s`,
+      );
+    });
+  });
+
   it("names no stage as the limit, and never says hands", () => {
     fresh(() => {
       const start = withStones(createMountain(), 0);
