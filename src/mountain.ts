@@ -173,14 +173,16 @@ export const BARE_MOUNTAIN: Mountain = {
 
 /**
  * A fresh mine starts with every worker on a job (slice 1, rule 2.10, #689):
- * three on each stage and one driver on the horse wagon given. The two
- * builders come with the building site (#690). The lab sets the count (#655).
+ * three on each stage, one driver on the horse wagon given and two
+ * builders on the building site (#690): the prototype's twelve. The lab
+ * sets the count (#655).
  */
 const FRESH_START_JOBS: Jobs = {
   drilling: 3,
   haulage: 3,
   hoisting: 3,
   driving: 1,
+  building: 2,
 };
 
 export function createMountain(): Mountain {
@@ -305,9 +307,11 @@ export function accrue({
 }
 
 /**
- * Transport's work over the same whole seconds as the crew, after the crew
- * has dug (slice 1, rule 7, #654): it carries from the pocket to the order,
- * at `pay` of its rate (1 live, the night shift output unattended).
+ * Transport's and the builders' work over the same whole seconds as the
+ * crew, after the crew has dug (slice 1, rule 7, #654, #690): transport
+ * carries from the pocket to the order's site and the builders build it in,
+ * at `pay` of their rates (1 live, the night shift output unattended). On
+ * hold, the builders still build.
  */
 function withDelivery(
   crew: Accrual,
@@ -315,7 +319,7 @@ function withDelivery(
   to: number,
   pay: number,
 ): Accrual {
-  if (crew.mountain.project.kind !== "delivering") {
+  if (crew.mountain.project.kind === "unordered") {
     return crew;
   }
   const seconds = Math.floor((to - from) / 1000);

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import fc from "fast-check";
 import {
   JOB_IDS,
+  NO_JOBS,
   freeWorker,
   freeWorkers,
   placeWorker,
@@ -25,31 +26,40 @@ function crew(helpers: number, jobs: Partial<Mountain["jobs"]> = {}): Mountain {
   return {
     ...start,
     owned: { ...start.owned, helper: helpers },
-    jobs: { drilling: 0, haulage: 0, hoisting: 0, driving: 0, ...jobs },
+    jobs: {
+      drilling: 0,
+      haulage: 0,
+      hoisting: 0,
+      driving: 0,
+      building: 0,
+      ...jobs,
+    },
   };
 }
 
 describe("one workforce (slice 1, rule 2, #689)", () => {
   it("has the four jobs of part 1", () => {
-    expect(JOB_IDS).toEqual(["drilling", "haulage", "hoisting", "driving"]);
+    expect(JOB_IDS).toEqual([
+      "drilling",
+      "haulage",
+      "hoisting",
+      "driving",
+      "building",
+    ]);
   });
 
-  it("starts a fresh mine with every worker on a job: three on each stage and one driver", () => {
+  it("starts a fresh mine with every worker on a job: three on each stage, one driver and two builders", () => {
     const start = fresh(() => createMountain());
-    expect(start.owned.helper).toBe(10);
+    expect(start.owned.helper).toBe(12);
     expect(start.jobs).toEqual({
       drilling: 3,
       haulage: 3,
       hoisting: 3,
       driving: 1,
+      building: 2,
     });
     expect(freeWorkers(start)).toBe(0);
-    expect(createMountain().jobs).toEqual({
-      drilling: 0,
-      haulage: 0,
-      hoisting: 0,
-      driving: 0,
-    });
+    expect(createMountain().jobs).toEqual(NO_JOBS);
   });
 
   it("counts the free workers as the ones on no job", () => {
@@ -315,6 +325,7 @@ describe("the moves (rule 2.4)", () => {
         "freeWorker:haulage",
         "placeWorker:hoisting",
         "placeWorker:driving",
+        "placeWorker:building",
       ]);
     });
   });

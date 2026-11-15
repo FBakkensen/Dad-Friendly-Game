@@ -94,7 +94,7 @@ describe("the game map (#558)", () => {
       fleet: { ...fresh.fleet, horseWagon: 3 },
       operational: ["lightTower"],
       project: { kind: "unordered" },
-      jobs: { drilling: 2, haulage: 1, hoisting: 0, driving: 3 },
+      jobs: { drilling: 2, haulage: 1, hoisting: 0, driving: 3, building: 2 },
     };
     // Part 1 has one building, so an operational one and a project in hand
     // are two mountains (#654).
@@ -107,6 +107,7 @@ describe("the game map (#558)", () => {
           building: "lightTower",
           step: 1,
           arrived: { ...fresh.stock, stones: 500 },
+          onSite: { ...fresh.stock, stones: 120 },
         },
       },
     };
@@ -136,6 +137,7 @@ describe("the game map (#558)", () => {
           building: "lightTower",
           step: 2,
           arrived: { ...fresh.stock, stones: 40 },
+          onSite: fresh.stock,
         },
       },
     });
@@ -146,6 +148,49 @@ describe("the game map (#558)", () => {
       step: 2,
       arrived: { stones: 40 },
     });
+  });
+
+  it("saves what is on the building site, and refuses a site that cannot be (#690)", () => {
+    const fresh = createMountain();
+    const game = writeGame({
+      ...fresh,
+      project: {
+        kind: "delivering",
+        site: {
+          building: "lightTower",
+          step: 0,
+          arrived: { ...fresh.stock, stones: 400 },
+          onSite: { ...fresh.stock, stones: 300 },
+        },
+      },
+    });
+    expect(game.project).toEqual({
+      building: "lightTower",
+      state: "delivering",
+      step: 0,
+      arrived: { stones: 400 },
+      onSite: { stones: 300 },
+    });
+    const project = (value: unknown) => readGame({ project: value }, 0).kind;
+    const good = {
+      building: "lightTower",
+      state: "delivering",
+      step: 0,
+      arrived: { stones: 600 },
+      onSite: { stones: 500 },
+    };
+    expect(project(good)).toBe("ok");
+    // All of a step arrived, some still to build in, is a step in hand.
+    expect(
+      project({ ...good, arrived: { stones: 150_000 }, onSite: { stones: 1 } }),
+    ).toBe("ok");
+    expect(project({ ...good, onSite: { stones: 501 } })).toBe("bad");
+    expect(
+      project({ ...good, arrived: { stones: 10 }, onSite: { stones: 11 } }),
+    ).toBe("bad");
+    expect(project({ ...good, onSite: { stones: -1 } })).toBe("bad");
+    expect(project({ ...good, onSite: { clay: 1 } })).toBe("bad");
+    expect(project({ ...good, onSite: { bricks: 1 } })).toBe("newer");
   });
 
   it("refuses a project that cannot be: past the roof, all in, or for a building that stands (#654)", () => {
@@ -186,7 +231,7 @@ describe("the game map (#558)", () => {
     const crew = {
       ...createMountain(),
       owned: { ...createMountain().owned, helper: 5 },
-      jobs: { drilling: 2, haulage: 0, hoisting: 1, driving: 1 },
+      jobs: { drilling: 2, haulage: 0, hoisting: 1, driving: 1, building: 0 },
     };
     expect(writeGame(crew).jobs).toEqual({
       drilling: 2,
@@ -200,7 +245,8 @@ describe("the game map (#558)", () => {
     ).toBe("bad");
     expect(read({ jobs: { haulage: 1 } })).toBe("bad");
     expect(read({ owned: { helper: 5 }, jobs: { drilling: -1 } })).toBe("bad");
-    expect(read({ owned: { helper: 5 }, jobs: { building: 1 } })).toBe("newer");
+    expect(read({ owned: { helper: 5 }, jobs: { building: 1 } })).toBe("ok");
+    expect(read({ owned: { helper: 5 }, jobs: { kilns: 1 } })).toBe("newer");
   });
 
   it("keys each fact by id, in the five maps", () => {

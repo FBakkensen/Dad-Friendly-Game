@@ -142,13 +142,14 @@ const LEDGER = {
   },
   fleet: ["horseWagon"],
   projectStates: ["delivering", "onHold"],
-  jobs: ["drilling", "haulage", "hoisting", "driving"],
+  jobs: ["drilling", "haulage", "hoisting", "driving", "building"],
   caps: {
     engineers: 5,
     engineerTrips: 1000000,
     expeditions: 5,
     expeditionMs: 14400000,
     craftMs: 14400000,
+    siteHolds: 500,
   },
 };
 

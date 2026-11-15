@@ -14,11 +14,14 @@ import {
   BUILDING_IDS,
   NO_PROJECT,
   nextBuilding,
+  stepDone,
   stepRequires,
   type BuildingId,
   type Project,
+  type Site,
   type StepIndex,
 } from "./city";
+import { SITE_HOLDS, onSiteTotal } from "./building-site";
 import {
   ENGINEER_NAMES,
   ENGINEER_POSTS,
@@ -62,7 +65,7 @@ import {
   type RecipeId,
   type TimerId,
 } from "./workshop";
-import { EMPTY_STOCK, GOOD_IDS, priceAmount, type GoodId } from "./stock";
+import { GOOD_IDS, priceAmount, type GoodId } from "./stock";
 import { VEHICLE_IDS, type VehicleId } from "./transport";
 import { JOB_IDS, workersOnJobs, type JobId, type Jobs } from "./workforce";
 
@@ -116,6 +119,8 @@ type SavedProject = {
   readonly state: "delivering" | "onHold";
   readonly step: StepIndex;
   readonly arrived: Readonly<Partial<Record<GoodId, number>>>;
+  /** What of it is on the building site, not yet built in (#690). */
+  readonly onSite?: Readonly<Partial<Record<GoodId, number>>>;
 };
 
 const PROJECT_STATES = ["delivering", "onHold"] as const;
@@ -246,6 +251,10 @@ function savedProject(project: Project): Partial<SaveGame> {
       state: project.kind,
       step: site.step,
       arrived: positives(GOOD_IDS, (id) => site.arrived[id]),
+      ...some(
+        "onSite",
+        positives(GOOD_IDS, (id) => site.onSite[id]),
+      ),
     },
   };
 }
@@ -578,20 +587,22 @@ function readBench(value: unknown): Part<Bench | undefined> {
 }
 
 /**
- * Whether what has arrived can stand on the step: only goods it requires,
- * none past its need, and not all of them in (a complete step has already
- * given way to the next).
+ * Whether the site can stand on its step: only goods it requires, none
+ * past its need, no more on the site than arrived or than it holds, and not
+ * all of it built in (a complete step has already given way to the next).
  */
-function fitsStep(
-  arrived: Record<GoodId, number>,
-  building: BuildingId,
-  step: StepIndex,
-): boolean {
-  const requires = stepRequires({ building, step, arrived: EMPTY_STOCK });
+function fitsStep(site: Site): boolean {
+  const requires = stepRequires(site);
   const need = (good: GoodId): number => priceAmount(requires, good);
-  const within = GOOD_IDS.every((good) => arrived[good] <= need(good));
-  const allIn = GOOD_IDS.every((good) => arrived[good] >= need(good));
-  return within && !allIn;
+  return (
+    GOOD_IDS.every(
+      (good) =>
+        site.arrived[good] <= need(good) &&
+        site.onSite[good] <= site.arrived[good],
+    ) &&
+    onSiteTotal(site) <= SITE_HOLDS &&
+    !stepDone(site)
+  );
 }
 
 function projectTyped(value: Entries): boolean {
@@ -609,7 +620,7 @@ function projectNewer(value: Entries): boolean {
       value["building"] as string,
     ) ||
     !(PROJECT_STATES as readonly string[]).includes(value["state"] as string) ||
-    unknownKeys(value, ["building", "state", "step", "arrived"])
+    unknownKeys(value, ["building", "state", "step", "arrived", "onSite"])
   );
 }
 
@@ -626,27 +637,26 @@ function readProject(value: unknown, marks: Part<Marks>): Part<Project> {
     return "bad";
   }
   const arrived = readCounts(value["arrived"] ?? {}, GOOD_IDS, UNCAPPED);
-  if (arrived === "bad") {
+  const onSite = readCounts(value["onSite"] ?? {}, GOOD_IDS, UNCAPPED);
+  if (arrived === "bad" || onSite === "bad") {
     return "bad";
   }
-  if (arrived === "newer" || projectNewer(value)) {
+  if (arrived === "newer" || onSite === "newer" || projectNewer(value)) {
     return "newer";
   }
   if (typeof marks === "string") {
     return marks;
   }
-  const building = value["building"] as BuildingId;
-  const step = value["step"] as StepIndex;
-  if (
-    nextBuilding(marks)?.id !== building ||
-    !fitsStep(arrived, building, step)
-  ) {
+  const site: Site = {
+    building: value["building"] as BuildingId,
+    step: value["step"] as StepIndex,
+    arrived,
+    onSite,
+  };
+  if (nextBuilding(marks)?.id !== site.building || !fitsStep(site)) {
     return "bad";
   }
-  return {
-    kind: value["state"] as SavedProject["state"],
-    site: { building, step, arrived },
-  };
+  return { kind: value["state"] as SavedProject["state"], site };
 }
 
 /** Workers on each job: never more in all than the workers he owns (#689). */
@@ -799,6 +809,7 @@ export function shippedFacts(): ShippedFacts {
       expeditions: MAX_EXPEDITIONS,
       expeditionMs: MAX_EXPEDITION_MS,
       craftMs: MAX_CRAFT_MS,
+      siteHolds: SITE_HOLDS,
     },
   };
 }

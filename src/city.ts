@@ -73,12 +73,22 @@ function buildingById(id: BuildingId): Building {
   return BUILDING_BY_ID[id];
 }
 
-/** The building in hand: its step, and what has arrived of each good for that step. */
+/**
+ * The building in hand: its step, what has arrived of each good for that
+ * step, and what of it is on the building site, not yet built in (#690).
+ * What is built in is the rest: `arrived` less `onSite`.
+ */
 export type Site = {
   readonly building: BuildingId;
   readonly step: StepIndex;
   readonly arrived: Stock;
+  readonly onSite: Stock;
 };
+
+/** The first step of a building, with nothing arrived. */
+function freshSite(building: BuildingId, step: StepIndex): Site {
+  return { building, step, arrived: EMPTY_STOCK, onSite: EMPTY_STOCK };
+}
 
 /**
  * The city's project. Nothing starts without his order, and the next
@@ -108,14 +118,14 @@ export function placeOrder(mountain: Mountain): Mountain {
   }
   return {
     ...mountain,
-    project: {
-      kind: "delivering",
-      site: { building: next.id, step: 0, arrived: EMPTY_STOCK },
-    },
+    project: { kind: "delivering", site: freshSite(next.id, 0) },
   };
 }
 
-/** On hold: nothing leaves the pocket for it. Free and instant (rule 7.9). */
+/**
+ * On hold: nothing leaves the pocket for it, and the builders still build
+ * in what is on the site. Free and instant (rule 7.10).
+ */
 export function holdOrder(mountain: Mountain): Mountain {
   return mountain.project.kind === "delivering"
     ? { ...mountain, project: { kind: "onHold", site: mountain.project.site } }
@@ -137,7 +147,7 @@ export function stepRequires(site: Site): Price {
   return buildingById(site.building).steps[site.step];
 }
 
-/** What the step in hand still requires, good by good. */
+/** What the step in hand still requires transport to bring, good by good. */
 export function stillRequired(site: Site): Stock {
   const requires = stepRequires(site);
   const left: Record<keyof Stock, number> = { ...EMPTY_STOCK };
@@ -147,32 +157,33 @@ export function stillRequired(site: Site): Stock {
   return left;
 }
 
-/** What the whole building still requires: the step in hand and every step after it. */
-export function buildingStillRequired(site: Site): Stock {
-  let left = stillRequired(site);
-  const steps = buildingById(site.building).steps;
-  for (let step = site.step + 1; step <= ROOF; step += 1) {
-    const later = steps[step as StepIndex];
-    left = addedStock(
-      left,
-      Object.fromEntries(
-        GOOD_IDS.map((good) => [good, priceAmount(later, good)]),
-      ),
-    );
+/** The next step's empty site, or none after the roof. */
+export function siteAfter(site: Site): Site | undefined {
+  return site.step < ROOF
+    ? freshSite(site.building, (site.step + 1) as StepIndex)
+    : undefined;
+}
+
+/** What the step in hand still requires the builders to build in, good by good. */
+export function stillToBuild(site: Site): Stock {
+  const requires = stepRequires(site);
+  const left: Record<keyof Stock, number> = { ...EMPTY_STOCK };
+  for (const good of GOOD_IDS) {
+    const built = site.arrived[good] - site.onSite[good];
+    left[good] = Math.max(0, priceAmount(requires, good) - built);
   }
   return left;
 }
 
-function stepDone(site: Site): boolean {
-  const left = stillRequired(site);
+/** A step is done when what it requires is built in (rule 7.8). */
+export function stepDone(site: Site): boolean {
+  const left = stillToBuild(site);
   return GOOD_IDS.every((good) => left[good] === 0);
 }
 
 /**
  * Goods that transport brought to the site in hand (rule 7.8: they stay).
- * A step whose goods are all in gives way to the next one at once; the
- * roof's makes the building operational, and the project waits for his
- * next order.
+ * They wait on the building site until the builders build them in.
  */
 export function receive(mountain: Mountain, goods: Partial<Stock>): Mountain {
   const project = mountain.project;
@@ -182,22 +193,36 @@ export function receive(mountain: Mountain, goods: Partial<Stock>): Mountain {
   const site = {
     ...project.site,
     arrived: addedStock(project.site.arrived, goods),
+    onSite: addedStock(project.site.onSite, goods),
+  };
+  return { ...mountain, project: { kind: "delivering", site } };
+}
+
+/**
+ * Goods the builders built in from the site, delivering or on hold (#690).
+ * A step whose goods are all built in gives way to the next one at once, in
+ * the same state; the roof's makes the building operational, and the project
+ * waits for his next order.
+ */
+export function buildIn(mountain: Mountain, goods: Partial<Stock>): Mountain {
+  const project = mountain.project;
+  if (project.kind === "unordered") {
+    return mountain;
+  }
+  const taken: Partial<Record<keyof Stock, number>> = {};
+  for (const good of GOOD_IDS) {
+    taken[good] = -Math.min(goods[good] ?? 0, project.site.onSite[good]);
+  }
+  const site = {
+    ...project.site,
+    onSite: addedStock(project.site.onSite, taken),
   };
   if (!stepDone(site)) {
-    return { ...mountain, project: { kind: "delivering", site } };
+    return { ...mountain, project: { kind: project.kind, site } };
   }
-  if (site.step < ROOF) {
-    return {
-      ...mountain,
-      project: {
-        kind: "delivering",
-        site: {
-          building: site.building,
-          step: (site.step + 1) as StepIndex,
-          arrived: EMPTY_STOCK,
-        },
-      },
-    };
+  const next = siteAfter(site);
+  if (next !== undefined) {
+    return { ...mountain, project: { kind: project.kind, site: next } };
   }
   return {
     ...mountain,

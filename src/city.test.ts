@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   BUILDINGS,
+  buildIn,
   holdOrder,
   nextBuilding,
   nightShiftShare,
@@ -8,17 +9,25 @@ import {
   receive,
   resumeOrder,
   stillRequired,
+  stillToBuild,
   type Project,
 } from "./city";
 import { createMountain, type Mountain } from "./mountain";
 import { EMPTY_STOCK, priceAmount } from "./stock";
 
-const delivering = (step: 0 | 1 | 2, stones = 0): Project => ({
-  kind: "delivering",
+/** The Light Tower at `step`, `stones` arrived and `onSite` of them not built in. */
+const delivering = (
+  step: 0 | 1 | 2,
+  stones = 0,
+  onSite = 0,
+  kind: "delivering" | "onHold" = "delivering",
+): Project => ({
+  kind,
   site: {
     building: "lightTower",
     step,
     arrived: { ...EMPTY_STOCK, stones },
+    onSite: { ...EMPTY_STOCK, stones: onSite },
   },
 });
 
@@ -60,19 +69,9 @@ describe("the order (rule 7)", () => {
   });
 
   it("holds and resumes for free, keeping what has arrived", () => {
-    const busy = at(delivering(1, 400));
+    const busy = at(delivering(1, 400, 100));
     const held = holdOrder(busy);
-    expect(held.project).toEqual({
-      kind: "onHold",
-      site: {
-        building: "lightTower",
-        step: 1,
-        arrived:
-          busy.project.kind === "delivering"
-            ? busy.project.site.arrived
-            : EMPTY_STOCK,
-      },
-    });
+    expect(held.project).toEqual(delivering(1, 400, 100, "onHold"));
     expect(held.stock).toEqual(busy.stock);
     expect(resumeOrder(held).project).toEqual(busy.project);
     expect(holdOrder(held)).toBe(held);
@@ -86,25 +85,69 @@ describe("the order (rule 7)", () => {
     }
     expect(stillRequired(project.site).stones).toBe(50_000);
   });
+
+  it("says what the step still requires built in, counting what waits on the site", () => {
+    const project = delivering(0, 100_000, 400);
+    if (project.kind !== "delivering") {
+      throw new Error("delivering");
+    }
+    expect(stillRequired(project.site).stones).toBe(50_000);
+    expect(stillToBuild(project.site).stones).toBe(50_400);
+  });
 });
 
 describe("goods that arrive (rule 7.8)", () => {
-  it("counts a part delivery and keeps it", () => {
-    expect(receive(at(delivering(0)), { stones: 10 }).project).toEqual(
-      delivering(0, 10),
+  it("lays a part delivery on the site and keeps it", () => {
+    expect(receive(at(delivering(0, 0)), { stones: 10 }).project).toEqual(
+      delivering(0, 10, 10),
     );
   });
 
-  it("starts the next step when one is complete, with nothing carried over", () => {
+  it("finishes no step on arrival: the goods wait for the builders (#690)", () => {
     expect(receive(at(delivering(0, 149_990)), { stones: 10 }).project).toEqual(
-      delivering(1),
+      delivering(0, 150_000, 10),
     );
   });
 
-  it("makes the building operational when the roof's goods are in", () => {
-    const roofed = receive(at(delivering(2, 5_999_000)), { stones: 1_000 });
+  it("brings nothing on hold or with nothing ordered", () => {
+    const held = at(delivering(0, 0, 0, "onHold"));
+    expect(receive(held, { stones: 10 })).toBe(held);
+  });
+});
+
+describe("goods the builders build in (rule 7.8, #690)", () => {
+  it("takes what they built in from the site, never more than is on it", () => {
+    expect(buildIn(at(delivering(0, 100, 60)), { stones: 20 }).project).toEqual(
+      delivering(0, 100, 40),
+    );
+    expect(buildIn(at(delivering(0, 100, 60)), { stones: 90 }).project).toEqual(
+      delivering(0, 100, 0),
+    );
+  });
+
+  it("starts the next step when what one requires is built in, with nothing carried over", () => {
+    expect(
+      buildIn(at(delivering(0, 150_000, 10)), { stones: 10 }).project,
+    ).toEqual(delivering(1));
+  });
+
+  it("builds on hold, and the next step starts on hold too", () => {
+    expect(
+      buildIn(at(delivering(0, 150_000, 10, "onHold")), { stones: 10 }).project,
+    ).toEqual(delivering(1, 0, 0, "onHold"));
+  });
+
+  it("makes the building operational when the roof is built in", () => {
+    const roofed = buildIn(at(delivering(2, 6_000_000, 1_000)), {
+      stones: 1_000,
+    });
     expect(roofed.project).toEqual({ kind: "unordered" });
     expect(roofed.operational).toEqual(["lightTower"]);
+  });
+
+  it("does nothing with nothing ordered", () => {
+    const idle = at({ kind: "unordered" });
+    expect(buildIn(idle, { stones: 5 })).toBe(idle);
   });
 });
 

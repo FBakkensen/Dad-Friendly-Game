@@ -29,6 +29,7 @@ import { applyMove, listActions, type Move } from "./actions";
 import { GOOD_IDS, priceAmount } from "../stock";
 import { VEHICLE_IDS } from "../transport";
 import { freeWorkers } from "../workforce";
+import { SITE_HOLDS, onSiteTotal } from "../building-site";
 import { withFactors } from "./factors";
 import { FRESH_OFF } from "../line-switch";
 
@@ -227,15 +228,15 @@ function play(world: World, step: Step): Played {
   }
 }
 
-/** What has arrived at the site in hand, by good. */
+/** What has arrived at the site in hand, and what of it waits on the site, by good. */
 function arrivedCounts(mountain: Mountain): readonly [string, number][] {
   const project = mountain.project;
   return project.kind === "unordered"
     ? []
-    : GOOD_IDS.map(
-        (good) =>
-          [`arrived.${good}`, project.site.arrived[good]] as [string, number],
-      );
+    : GOOD_IDS.flatMap((good) => [
+        [`arrived.${good}`, project.site.arrived[good]] as [string, number],
+        [`onSite.${good}`, project.site.onSite[good]] as [string, number],
+      ]);
 }
 
 /** Counts of things: whole, never negative. */
@@ -397,6 +398,11 @@ function checkStep(played: Played): void {
   // Never more workers on jobs than he owns, and a move never changes how
   // many he has (#689).
   expect(freeWorkers(after.mountain)).toBeGreaterThanOrEqual(0);
+  if (after.mountain.project.kind !== "unordered") {
+    expect(onSiteTotal(after.mountain.project.site)).toBeLessThanOrEqual(
+      SITE_HOLDS,
+    );
+  }
   if (
     played.move?.kind === "placeWorker" ||
     played.move?.kind === "freeWorker"
