@@ -1,19 +1,34 @@
 import type { StageSpeeds } from "./line";
 import type { Mountain } from "./mountain";
-import { chainChange, chainFlows, flowWhole, type Chain } from "./piles";
+import { kilnRate } from "./makers";
+import {
+  chainChange,
+  chainFlows,
+  chainSpill,
+  flowWhole,
+  type Chain,
+} from "./piles";
 import { effectiveRates, type Rates } from "./rates";
-import { addedStock } from "./stock";
+import { addedStock, type Stock } from "./stock";
+import { stockpileRoom, stockyardOpen } from "./stockyard";
+import { stockDraw } from "./transport";
 import { lineWork } from "./workforce";
 
 /**
- * The mine's two piles (slice 1, rule 2, #703): drilled rock, between
- * drilling and haulage, and rock at the shaft, between haulage and hoisting.
- * Each stage works while it has rock in front of it and room after it, at
- * its own rate, and the chain in src/piles.ts moves the rock. What hoisting
- * lifts is stone in the stock. A fresh mine only.
+ * The mine's piles (slice 1, rule 2, #703): drilled rock, between drilling
+ * and haulage, and rock at the shaft, between haulage and hoisting. Each
+ * stage works while it has rock in front of it and room after it, at its own
+ * rate, and the chain in src/piles.ts moves the rock. A fresh mine only.
+ *
+ * Part 2 (#666) carries the chain on: what hoisting lifts goes to the rock at
+ * the kilns while that pile has room, and bypasses to the stone stockpile when
+ * it is full; the kilns make brick of it into the brick stockpile. Each
+ * stockpile holds the stockyard's room and is drained by what transport takes
+ * from it, so a full stockyard stops the line. Before part 2 the kilns' pile
+ * has no room and the stockpiles no limit: all that is lifted is stone.
  */
 
-/** The two piles, by where the rock waits. */
+/** The piles, by where the rock waits: the kilns' pile is part 2's (#666). */
 export const PILE_IDS = ["face", "shaft", "kiln"] as const;
 
 export type PileId = (typeof PILE_IDS)[number];
@@ -27,7 +42,8 @@ export type MinePiles = Readonly<Record<PileId, number>>;
  * minutes and the casual dad raises the Light Tower's roof on day 2. A
  * larger room (500 and up) slows every player type's start. A pile over
  * its room is full and never emptied by a lower one (ruling 2), so this may
- * change with no version bump.
+ * change with no version bump. The kilns' pile is the spec's guess, for the
+ * lab to set (#667); it has room only while he owns a kiln.
  */
 export const PILE_HOLDS: MinePiles = { face: 300, shaft: 300, kiln: 300 };
 
@@ -49,10 +65,24 @@ function stagesOf(mountain: Mountain): StageSpeeds {
   return stages;
 }
 
+/** The chain's stages, in order: the line's three, the kilns, and transport's take on brick. */
+const LIFT = 2;
+const KILNS = 3;
+/** The stages that make something: the line and the kilns. */
+const MAKING = KILNS + 1;
+
+/** The kilns' pile's room: none until he owns a kiln. */
+function kilnHolds(mountain: Pick<Mountain, "makers">): number {
+  return mountain.makers.kiln > 0 ? PILE_HOLDS.kiln : 0;
+}
+
 /**
  * The mine as a chain: drilling, haulage and hoisting at their own speeds
- * times `pay`, with the face and shaft piles between them. Drilling is 0
- * when `drilling` is false (the night's clock has stopped it, rule 4).
+ * times `pay`, with the face and shaft piles between them, then the kilns'
+ * pile, the kilns and the brick stockpile, with the stone stockpile taking
+ * what the kilns' pile cannot (#666). Drilling is 0 when `drilling` is false
+ * (the night's clock has stopped it, rule 4). Transport's take is worked out
+ * only once the stockyard is open: before it, nothing is full.
  */
 export function mineChain(
   mountain: Mountain,
@@ -60,23 +90,49 @@ export function mineChain(
   drilling: boolean,
 ): Chain {
   const stages = stagesOf(mountain);
+  const draw: Partial<Stock> = stockyardOpen(mountain)
+    ? stockDraw(mountain, pay)
+    : {};
   return {
     source: Infinity,
     rates: [
       drilling ? stages.face * pay : 0,
       stages.haul * pay,
       stages.lift * pay,
+      kilnRate(mountain) * pay,
+      draw.brick ?? 0,
     ],
     piles: [
       { held: mountain.piles.face, holds: PILE_HOLDS.face },
       { held: mountain.piles.shaft, holds: PILE_HOLDS.shaft },
+      { held: mountain.piles.kiln, holds: kilnHolds(mountain) },
+      {
+        held: mountain.stock.brick,
+        holds: stockpileRoom(mountain, "brick"),
+      },
     ],
+    spill: {
+      from: LIFT,
+      held: mountain.stock.stones,
+      holds: stockpileRoom(mountain, "stones"),
+      drain: draw.stones ?? 0,
+    },
   };
 }
 
-/** Whether any stage moves rock now: it has rock in front of it and room after it. */
+/** What a mine's chain brings to the stockpiles a second now: stone and brick. */
+export function chainIncome(chain: Chain): Partial<Stock> {
+  return {
+    stones: chainSpill(chain),
+    brick: chainFlows(chain)[KILNS] ?? 0,
+  };
+}
+
+/** Whether any stage moves rock or makes brick now: it has something in front of it and room after it. */
 export function mineMoves(mountain: Mountain): boolean {
-  return chainFlows(mineChain(mountain, 1, true)).some((flow) => flow > 0);
+  return chainFlows(mineChain(mountain, 1, true))
+    .slice(0, MAKING)
+    .some((flow) => flow > 0);
 }
 
 /** Seconds until a stage's flow changes (a pile fills or empties), or Infinity. */
@@ -90,36 +146,47 @@ export function mineChange(
 
 /**
  * The mine over `seconds`, in whole stones: rock moves through the piles,
- * and what hoisting lifts goes to the stock, as `digStones` puts it in a
- * fresh mine (the mountain stays full). A mine where nothing moves comes back
- * as the same object.
+ * what hoisting lifts goes to the kilns' pile or bypasses to stone, and the
+ * kilns make brick (#666), all into the stock (the mountain stays full).
+ * `mined` is the rock hoisting lifted, `gained` what reached the stockpiles.
+ * A mine where nothing moves comes back as the same object.
  */
 export function flowMine(
   mountain: Mountain,
   seconds: number,
   pay: number,
   drilling: boolean,
-): { readonly mountain: Mountain; readonly mined: number } {
+): {
+  readonly mountain: Mountain;
+  readonly mined: number;
+  readonly gained: Partial<Stock>;
+} {
   const flow = flowWhole(mineChain(mountain, pay, drilling), seconds);
-  const mined = flow.moved[2] ?? 0;
-  const face = flow.piles[0] ?? 0;
-  const shaft = flow.piles[1] ?? 0;
+  const mined = flow.moved[LIFT] ?? 0;
+  const brick = flow.moved[KILNS] ?? 0;
+  const stones = flow.spilled;
+  const [face = 0, shaft = 0, kiln = 0] = flow.piles;
+  const piles = mountain.piles;
   if (
     mined === 0 &&
-    face === mountain.piles.face &&
-    shaft === mountain.piles.shaft
+    brick === 0 &&
+    face === piles.face &&
+    shaft === piles.shaft &&
+    kiln === piles.kiln
   ) {
-    return { mountain, mined: 0 };
+    return { mountain, mined: 0, gained: {} };
   }
+  const gained = { stones, brick };
   return {
     mountain: {
       ...mountain,
       stock:
-        mined === 0
+        stones === 0 && brick === 0
           ? mountain.stock
-          : addedStock(mountain.stock, { stones: mined }),
-      piles: { ...mountain.piles, face, shaft },
+          : addedStock(mountain.stock, gained),
+      piles: { face, shaft, kiln },
     },
     mined,
+    gained,
   };
 }

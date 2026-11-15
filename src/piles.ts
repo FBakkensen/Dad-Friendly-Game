@@ -190,6 +190,11 @@ function changeAt(chain: Chain, flows: readonly number[]): number {
   return soonest;
 }
 
+/** What spills to the side pile a second now: 0 with no spill, or while its pile has room. */
+export function chainSpill(chain: Chain): number {
+  return spillIn(chain, chainFlows(chain));
+}
+
 /** Seconds until a flow changes (a pile fills or empties, or the source runs out), or Infinity. */
 export function chainChange(chain: Chain): number {
   return changeAt(chain, chainFlows(chain));

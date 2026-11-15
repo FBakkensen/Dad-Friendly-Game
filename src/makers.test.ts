@@ -83,3 +83,26 @@ describe("the kilns (#666)", () => {
     expect(kilnRate({ ...three, jobs: { ...start.jobs, kilns: 2 } })).toBe(24);
   });
 });
+
+describe("the kilns' job in the moves (#666)", () => {
+  it("offers a worker to the kilns only once they are open", async () => {
+    const { listActions } = await import("./economy/actions");
+    const moves = (mountain: Mountain): readonly string[] =>
+      listActions(mountain, 0)
+        .filter((action) => action.kind === "placeWorker")
+        .map((action) => ("job" in action ? action.job : ""));
+    const start = createMountain();
+    const spare = (operational: Mountain["operational"]): Mountain => ({
+      ...start,
+      owned: { ...start.owned, helper: start.owned.helper + 1 },
+      operational,
+    });
+    partTwo(() => {
+      expect(moves(spare([]))).not.toContain("kilns");
+      expect(moves(spare(["lightTower"]))).toContain("kilns");
+    });
+    partOne(() => {
+      expect(moves(spare(["lightTower"]))).not.toContain("kilns");
+    });
+  });
+});

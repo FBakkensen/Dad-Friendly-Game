@@ -193,6 +193,34 @@ export function deliver(
   }
 }
 
+/**
+ * What transport takes from each stockpile a second now, at `share` of its
+ * rate (#666): split evenly between the goods the step still requires and
+ * the stockyard holds, and no more than the builders build in once the site
+ * is full. The mine's chain drains the stockpiles at it, so a full stockpile
+ * fills again as fast as transport empties it. `deliver` is still what takes.
+ */
+export function stockDraw(mountain: Mountain, share: number): Partial<Stock> {
+  const project = mountain.project;
+  if (project.kind !== "delivering") {
+    return {};
+  }
+  const carry = fleetRate(mountain) * share;
+  const rate =
+    onSiteTotal(project.site) >= SITE_HOLDS
+      ? Math.min(carry, buildRate(mountain) * share)
+      : carry;
+  const need = stillRequired(project.site);
+  const goods = GOOD_IDS.filter(
+    (good) => need[good] > 0 && mountain.stock[good] > 0,
+  );
+  const draw: Partial<Record<GoodId, number>> = {};
+  for (const good of goods) {
+    draw[good] = rate / goods.length;
+  }
+  return draw;
+}
+
 /** What holds an order back, for the lab (rule 7.11: the page names none). */
 export type OrderLimit =
   | { readonly kind: "unordered" }
@@ -384,23 +412,27 @@ export function secondsToFinish(
 export function secondsToStep(
   mountain: Mountain,
   share: number,
-  stonesPerSecond: number,
+  income: number | Partial<Stock>,
 ): number {
-  return walkSteps(mountain, share, stonesPerSecond, 1);
+  return walkSteps(mountain, share, income, 1);
 }
 
-/** The one walk over the steps: the seconds the next `steps` of them take. */
+/**
+ * The one walk over the steps: the seconds the next `steps` of them take.
+ * `dug` is the stone a second the mine brings up, or each good's (#666).
+ */
 function walkSteps(
   mountain: Mountain,
   share: number,
-  stonesPerSecond: number,
+  dug: number | Partial<Stock>,
   steps: number,
 ): number {
   const project = mountain.project;
   if (project.kind === "unordered") {
     return Infinity;
   }
-  const income: Partial<Stock> = { stones: stonesPerSecond };
+  const income: Partial<Stock> =
+    typeof dug === "number" ? { stones: dug } : dug;
   const carry = project.kind === "delivering" ? fleetRate(mountain) * share : 0;
   const build = buildRate(mountain) * share;
   let site: Site | undefined = project.site;

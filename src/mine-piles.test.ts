@@ -29,8 +29,8 @@ const rock = (mountain: Mountain): number =>
   mountain.stock.stones + mountain.piles.face + mountain.piles.shaft;
 
 describe("the mine's two piles (#703)", () => {
-  it("holds 300 drilled rock and 300 at the shaft, as the lab set them (#703)", () => {
-    expect(PILE_HOLDS).toEqual({ face: 300, shaft: 300, kiln: 0 });
+  it("holds 300 drilled rock and 300 at the shaft, as the lab set them (#703), and 300 at the kilns (#666)", () => {
+    expect(PILE_HOLDS).toEqual({ face: 300, shaft: 300, kiln: 300 });
   });
 
   it("builds the line's chain: each stage's own rate, times pay", () => {
@@ -41,13 +41,27 @@ describe("the mine's two piles (#703)", () => {
         true,
       );
       expect(chain.source).toBe(Infinity);
-      expect(chain.rates).toEqual([3, 0, 0]);
+      // Then the kilns and transport's take on brick: part 2's (#666).
+      expect(chain.rates).toEqual([3, 0, 0, 0, 0]);
       expect(chain.piles).toEqual([
         { held: 20, holds: 300 },
         { held: 7, holds: 300 },
+        // No kiln: the kilns' pile has no room, and all that is lifted is stone.
+        { held: 0, holds: 0 },
+        { held: 0, holds: Infinity },
       ]);
-      expect(mineChain(lone("drilling"), 0.3, false).rates).toEqual([0, 0, 0]);
-      expect(mineChain(lone("hoisting"), 0.5, true).rates).toEqual([0, 0, 1.5]);
+      expect(chain.spill).toEqual({
+        from: 2,
+        held: 0,
+        holds: Infinity,
+        drain: 0,
+      });
+      expect(mineChain(lone("drilling"), 0.3, false).rates).toEqual([
+        0, 0, 0, 0, 0,
+      ]);
+      expect(mineChain(lone("hoisting"), 0.5, true).rates).toEqual([
+        0, 0, 1.5, 0, 0,
+      ]);
     });
   });
 
@@ -119,7 +133,7 @@ describe("the mine's two piles (#703)", () => {
     fresh(() => {
       const start = lone("driving");
       const after = flowMine(start, 1_000, 1, true);
-      expect(after).toEqual({ mountain: start, mined: 0 });
+      expect(after).toEqual({ mountain: start, mined: 0, gained: {} });
       expect(after.mountain).toBe(start);
     });
   });

@@ -43,6 +43,7 @@ import {
   JOB_IDS,
   freeWorker,
   freeWorkers,
+  jobOpen,
   placeWorker,
   type JobId,
 } from "../workforce";
@@ -243,14 +244,20 @@ export function listActions(
   ];
 }
 
-/** Each job's two moves, where they would change something; none outside a fresh mine. */
+/**
+ * Each job's two moves, where they would change something; none outside a
+ * fresh mine. A job that is not open yet (the kilns before part 2's Light
+ * Tower, #666) takes no worker.
+ */
 function workerActions(mountain: Mountain): readonly Action[] {
   if (!freshMineOn()) {
     return [];
   }
   const free = freeWorkers(mountain);
   return JOB_IDS.flatMap((job): Action[] => [
-    ...(free > 0 ? [{ kind: "placeWorker", job, count: 1 } as const] : []),
+    ...(free > 0 && jobOpen(mountain, job)
+      ? [{ kind: "placeWorker", job, count: 1 } as const]
+      : []),
     ...(mountain.jobs[job] > 0
       ? [{ kind: "freeWorker", job, count: 1 } as const]
       : []),
