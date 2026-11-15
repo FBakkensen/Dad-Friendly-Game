@@ -18,6 +18,7 @@ const partOne = <T>(body: () => T): T => withFactors({ [FRESH_OFF]: 0 }, body);
 const ONCE: FreshHabits = { moves: "once", hold: "on-value", upgrades: false };
 
 const STAGES = { drilling: 6, haulage: 6, hoisting: 6 };
+const FAST = { drilling: 12, haulage: 12, hoisting: 12 };
 
 /** A fresh mine with the Light Tower up, these jobs, kilns, stock and half-full piles. */
 function lit(
@@ -50,18 +51,28 @@ function lit(
 }
 
 describe("what the mine brings of each good (#667)", () => {
-  it("gives the running kilns their rock first, and the rest is stone", () => {
+  it("gives the running kilns their recipe's rock first, and the rest is stone", () => {
     partTwo(() => {
       // Six workers with tools on each stage move 18 a second.
       expect(goodsIncome(lit(STAGES))).toEqual({ stones: 18, brick: 0 });
+      // One kiln could make 12 brick a second, but takes two rock for each
+      // (#723): the 18 lifted make 9 brick, and no stone is left.
       expect(goodsIncome(lit({ ...STAGES, kilns: 1 }, { kilns: 1 }))).toEqual({
-        stones: 6,
+        stones: 0,
+        brick: 9,
+      });
+      // With a faster line, the kiln makes its 12 from 24 rock, and the
+      // rest is stone.
+      const fast = goodsIncome(lit(FAST)).stones ?? 0;
+      expect(fast).toBeGreaterThan(24);
+      expect(goodsIncome(lit({ ...FAST, kilns: 1 }, { kilns: 1 }))).toEqual({
+        stones: fast - 24,
         brick: 12,
       });
-      // Two kilns could take 24: they take what the line moves.
+      // Two kilns could take 48: they make what the line's rock allows.
       expect(goodsIncome(lit({ ...STAGES, kilns: 2 }, { kilns: 2 }))).toEqual({
         stones: 0,
-        brick: 18,
+        brick: 9,
       });
       // A kiln with nobody on it makes nothing.
       expect(goodsIncome(lit(STAGES, { kilns: 1 })).brick).toBe(0);
@@ -72,9 +83,12 @@ describe("what the mine brings of each good (#667)", () => {
 describe("a kiln for the brick the Warehouse waits for (#667)", () => {
   it("buys a kiln and hires a worker for it while the building requires brick", () => {
     partTwo(() => {
+      // A line fast enough to feed a kiln its two rock a brick (#723): on the
+      // slower line a kiln would leave no stone, and raising the line pays
+      // sooner.
       const ordered = placeOrder(
         lit(
-          { ...STAGES, driving: 1, building: 2 },
+          { ...FAST, driving: 1, building: 2 },
           { stock: { stones: 1_000_000 } },
         ),
       );

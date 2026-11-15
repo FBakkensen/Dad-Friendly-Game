@@ -141,12 +141,13 @@ describe("long stretches with the stockyard open (#666)", () => {
 
   it("with more rock lifted than transport carries, the brick stockpile stays at its room", () => {
     withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 }, () => {
-      // Hoisting lifts 18 a second and the wagon carries 9, half of each good:
-      // the kilns make what transport takes, and the rest is stone.
+      // Hoisting lifts 60 a second and the wagon carries 9, half of each good:
+      // the kilns make what transport takes, of two rock a brick (#723), and
+      // the rest is stone.
       const flowMine = vi.mocked(minePiles.flowMine);
       flowMine.mockClear();
       const away = accrueAway({
-        mountain: brickFull(6),
+        mountain: brickFull(10),
         lastSeen: 0,
         now: 24 * HOUR,
       });

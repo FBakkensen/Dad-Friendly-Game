@@ -1,6 +1,6 @@
 import type { StageSpeeds } from "./line";
 import type { Mountain } from "./mountain";
-import { kilnRate } from "./makers";
+import { kilnRate, makerTakes } from "./makers";
 import {
   chainChange,
   chainFlows,
@@ -22,7 +22,8 @@ import { lineWork } from "./workforce";
  *
  * Part 2 (#666) carries the chain on: what hoisting lifts goes to the rock at
  * the kilns while that pile has room, and bypasses to the stone stockpile when
- * it is full; the kilns make brick of it into the brick stockpile. Each
+ * it is full; the kilns make brick of it into the brick stockpile, two rock
+ * for a brick by their recipe (#723). Each
  * stockpile holds the stockyard's room and is drained by what transport takes
  * from it, so a full stockyard stops the line. Before part 2 the kilns' pile
  * has no room and the stockpiles no limit: all that is lifted is stone.
@@ -151,7 +152,13 @@ function chainWith(
       holds: stockpileRoom(mountain, "stones"),
       drain: draw.stones ?? 0,
     },
+    takes: chainTakes(),
   };
+}
+
+/** Each stage's take: the kilns take their recipe's rock for each brick (#723); a rock is a stone. */
+function chainTakes(): number[] {
+  return [1, 1, 1, makerTakes("kiln"), 1];
 }
 
 /** A pile with no room: the stages around it run in step. */
@@ -162,7 +169,7 @@ const IN_STEP = { held: 0, holds: 0 } as const;
  * output (#667): the same chain with no rock waiting and no stockpile full,
  * so the stages run in step, the kilns take what they can of what is lifted,
  * and the rest is stone. The lab's planner reads it, so it plans on the
- * split the chain itself makes. Its stages, piles and spill are `chainWith`'s
+ * split the chain itself makes. Its stages, piles, spill and takes are `chainWith`'s
  * in the same order: a change to one is a change to both.
  */
 export function steadyIncome(mountain: Mountain): Partial<Stock> {
@@ -172,6 +179,7 @@ export function steadyIncome(mountain: Mountain): Partial<Stock> {
     rates: [stages.face, stages.haul, stages.lift, kilnRate(mountain), 0],
     piles: [IN_STEP, IN_STEP, IN_STEP, { held: 0, holds: Infinity }],
     spill: { from: LIFT, held: 0, holds: Infinity, drain: 0 },
+    takes: chainTakes(),
   });
 }
 

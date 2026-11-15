@@ -6,7 +6,8 @@ import { LINE_MACHINE_COST_GROWTH } from "./tiers";
 
 /**
  * Makers (slice 1, rule 3, #666): a maker takes one level's rock and makes a
- * good of it, one rock for one good, as fast as it can. What it cannot take
+ * good of it, as fast as it can, by its recipe (#723): the rock it takes for
+ * one of its good, two rock for one brick at the kilns. What it cannot take
  * bypasses to stone (src/mine-piles.ts). A maker is bought like a machine and
  * runs with one worker on its job (rule 2.7); one with nobody on it is idle,
  * not lost. It takes no engineer, no gear and no trouble. Off in play: part
@@ -25,6 +26,8 @@ type MakerRow = {
   readonly makes: number;
   /** The good it makes. */
   readonly output: GoodId;
+  /** Its recipe (#723): the rock it takes for one of its good. A whole number. */
+  readonly takes: number;
 };
 
 /** Part 2 has the kiln; the saw comes with part 3. The spec's starting numbers, for the lab (#667). */
@@ -38,6 +41,8 @@ const MAKER_ROWS = [
     growth: LINE_MACHINE_COST_GROWTH,
     makes: 12,
     output: "brick",
+    // Made up, for the balancing he asked for (spec, rule 3).
+    takes: 2,
   },
 ] as const satisfies readonly MakerRow[];
 
@@ -98,6 +103,15 @@ export function buyMaker(mountain: Mountain, id: MakerId): Mountain {
     : { ...paid, makers: { ...paid.makers, [id]: paid.makers[id] + 1 } };
 }
 
+/**
+ * The rock a maker takes for one of its good (#723). A lab sweep of
+ * `recipe.<id>` scales it, rounded to whole rock and never under one, so
+ * whole goods stay whole.
+ */
+export function makerTakes(id: MakerId): number {
+  return Math.max(1, Math.round(makerById(id).takes * factor(`recipe.${id}`)));
+}
+
 /** The kilns that run: each with one worker on the kilns' job (rule 2.7). */
 export function runningKilns(
   mountain: Pick<Mountain, "makers" | "jobs">,
@@ -105,7 +119,7 @@ export function runningKilns(
   return Math.min(mountain.makers.kiln, mountain.jobs.kilns);
 }
 
-/** Rock a second the running kilns take, and brick a second they make, at full output. */
+/** Brick a second the running kilns make, at full output. */
 export function kilnRate(mountain: Pick<Mountain, "makers" | "jobs">): number {
   return runningKilns(mountain) * makerById("kiln").makes;
 }
