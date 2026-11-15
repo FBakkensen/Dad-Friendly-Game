@@ -4,6 +4,9 @@ import { RUSH_MS } from "../gold-rush";
 import { describe, expect, it } from "vitest";
 import { BOOSTS, boostById, buyBoost, boostLeft, NO_BOOSTS } from "../boosts";
 import { buyCrew } from "../crew";
+import { holdOrder, placeOrder } from "../city";
+import { withFactors } from "./factors";
+import { FRESH_OFF } from "../line-switch";
 import {
   promote,
   promoteCost,
@@ -114,6 +117,10 @@ const FIXTURES = {
   fixTrouble: { kind: "fixTrouble", tier: "borer", startedAt: NOW },
   craft: { kind: "craft", recipe: "iron-rails" },
   cancelCraft: { kind: "cancelCraft" },
+  placeOrder: { kind: "placeOrder" },
+  holdOrder: { kind: "holdOrder" },
+  resumeOrder: { kind: "resumeOrder" },
+  buyVehicle: { kind: "buyVehicle", id: "horseWagon" },
 } as const satisfies {
   [K in Action["kind"]]: Extract<Action, { kind: K }>;
 };
@@ -187,6 +194,12 @@ function direct(mountain: Mountain, action: Action, now: number): Mountain {
     }
     case "cancelCraft":
       return cancelCraft(mountain, now);
+    case "placeOrder":
+    case "holdOrder":
+    case "resumeOrder":
+    case "buyVehicle":
+      // Only a fresh mine takes them (#654, src/fresh-orders.test.ts).
+      return mountain;
     default: {
       const unexpected: never = action;
       return unexpected;
@@ -514,6 +527,16 @@ describe("listActions", () => {
         seen.add(action.kind);
       }
     }
+    // A fresh mine lists the orders and the wagon (#654), each by its state.
+    withFactors({ [FRESH_OFF]: 0 }, () => {
+      const mine = createMountain();
+      const ordered = placeOrder(mine);
+      for (const one of [mine, ordered, holdOrder(ordered)]) {
+        for (const action of listActions(one, NOW)) {
+          seen.add(action.kind);
+        }
+      }
+    });
     for (const kind of Object.keys(FIXTURES) as Action["kind"][]) {
       expect(seen.has(kind)).toBe(true);
     }

@@ -96,7 +96,12 @@ function actionId(action: Action): string {
     case "craft":
       return `craft:${action.recipe}`;
     case "cancelCraft":
-      return "cancelCraft";
+    case "placeOrder":
+    case "holdOrder":
+    case "resumeOrder":
+      return action.kind;
+    case "buyVehicle":
+      return `buyVehicle:${action.id}`;
   }
 }
 

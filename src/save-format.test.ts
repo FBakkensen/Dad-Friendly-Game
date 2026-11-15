@@ -39,6 +39,9 @@ describe("the game map (#558)", () => {
       rushBank: "run",
       seen: "marks",
       taught: "marks",
+      fleet: "fleet",
+      operational: "marks",
+      project: "project",
     } as const satisfies Record<keyof Mountain, string>;
     const fresh = createMountain();
     const full: Mountain = {
@@ -87,11 +90,84 @@ describe("the game map (#558)", () => {
       rushBank: 40,
       seen: ["workshop"],
       taught: ["engineers"],
+      fleet: { ...fresh.fleet, horseWagon: 3 },
+      operational: ["lightTower"],
+      project: { kind: "unordered" },
+    };
+    // Part 1 has one building, so an operational one and a project in hand
+    // are two mountains (#654).
+    const ordered: Mountain = {
+      ...full,
+      operational: [],
+      project: {
+        kind: "onHold",
+        site: {
+          building: "lightTower",
+          step: 1,
+          arrived: { ...fresh.stock, stones: 500 },
+        },
+      },
     };
     for (const key of Object.keys(homes) as (keyof Mountain)[]) {
-      expect(full[key], key).not.toEqual(fresh[key]);
+      expect(
+        [full, ordered].some(
+          (one) => JSON.stringify(one[key]) !== JSON.stringify(fresh[key]),
+        ),
+        key,
+      ).toBe(true);
     }
     expect(roundTrip(full)).toEqual(full);
+    expect(roundTrip(ordered)).toEqual(ordered);
+  });
+
+  it("saves a fresh mine's fleet, project and buildings only when they are not empty (#654)", () => {
+    const today = writeGame(createMountain());
+    expect(today).not.toHaveProperty("fleet");
+    expect(today).not.toHaveProperty("project");
+    const fresh = createMountain();
+    const game = writeGame({
+      ...fresh,
+      fleet: { horseWagon: 2 },
+      project: {
+        kind: "delivering",
+        site: {
+          building: "lightTower",
+          step: 2,
+          arrived: { ...fresh.stock, stones: 40 },
+        },
+      },
+    });
+    expect(game.fleet).toEqual({ horseWagon: 2 });
+    expect(game.project).toEqual({
+      building: "lightTower",
+      state: "delivering",
+      step: 2,
+      arrived: { stones: 40 },
+    });
+  });
+
+  it("refuses a project that cannot be: past the roof, all in, or for a building that stands (#654)", () => {
+    const project = (value: unknown, marks?: unknown) =>
+      readGame(
+        marks === undefined ? { project: value } : { project: value, marks },
+        0,
+      ).kind;
+    const good = {
+      building: "lightTower",
+      state: "onHold",
+      step: 0,
+      arrived: { stones: 10 },
+    };
+    expect(project(good)).toBe("ok");
+    expect(project({ ...good, step: 3 })).toBe("bad");
+    expect(project({ ...good, step: 0.5 })).toBe("bad");
+    expect(project({ ...good, arrived: { stones: 150_000 } })).toBe("bad");
+    expect(project({ ...good, arrived: { clay: 1 } })).toBe("bad");
+    expect(project({ ...good, state: 7 })).toBe("bad");
+    expect(project(good, { operational: ["lightTower"] })).toBe("bad");
+    expect(project({ ...good, state: "rushing" })).toBe("newer");
+    expect(project({ ...good, building: "rocketPad" })).toBe("newer");
+    expect(readGame({ fleet: { truck: 1 } }, 0).kind).toBe("newer");
   });
 
   it("keys each fact by id, in the five maps", () => {

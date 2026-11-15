@@ -37,6 +37,7 @@ import {
   VALUE_TIE,
 } from "./targets";
 import { canPay as stockCovers, priceAmount } from "../stock";
+import { vehiclePrice } from "../transport";
 
 /**
  * The purchase this dad wants most, or nothing if every legal spend is
@@ -268,11 +269,16 @@ export function sticker(mountain: Mountain, action: Action): number {
         recipePrice(action.recipe, stretch(mountain)),
         "stones",
       );
+    case "buyVehicle":
+      return priceAmount(vehiclePrice(mountain, action.id), "stones");
     case "station":
     case "send":
     case "recall":
     case "fixTrouble":
     case "cancelCraft":
+    case "placeOrder":
+    case "holdOrder":
+    case "resumeOrder":
       return 0;
   }
 }
@@ -327,12 +333,18 @@ function spendKey(
       return params.boosts === "never" ? undefined : "boost";
     case "promote":
       return params.promote === "on-value" ? "promote" : undefined;
+    // A fresh mine's orders and vehicles are left out too: the lab learns
+    // them in #655.
     case "station":
     case "send":
     case "recall":
     case "fixTrouble":
     case "craft":
     case "cancelCraft":
+    case "placeOrder":
+    case "holdOrder":
+    case "resumeOrder":
+    case "buyVehicle":
       return undefined;
   }
 }

@@ -32,6 +32,20 @@ import {
 } from "../expeditions";
 import { expectedFindStones } from "./finds";
 import {
+  holdOrder,
+  nextBuilding,
+  placeOrder,
+  resumeOrder,
+  type BuildingId,
+} from "../city";
+import { freshMineOn } from "../line-switch";
+import {
+  VEHICLE_IDS,
+  buyVehicle,
+  vehiclePrice,
+  type VehicleId,
+} from "../transport";
+import {
   ENGINEER_FIX_MS,
   TROUBLE_MAX_MS,
   TROUBLE_MIN_MS,
@@ -139,7 +153,18 @@ export type Action =
       readonly startedAt: number;
     }
   | { readonly kind: "craft"; readonly recipe: RecipeId }
-  | { readonly kind: "cancelCraft" };
+  | { readonly kind: "cancelCraft" }
+  | OrderAction;
+
+/**
+ * The city's and transport's moves (slice 1, rule 7, #654), only in a fresh
+ * mine: order the next building, hold or resume it, buy a vehicle.
+ */
+type OrderAction =
+  | { readonly kind: "placeOrder" }
+  | { readonly kind: "holdOrder" }
+  | { readonly kind: "resumeOrder" }
+  | { readonly kind: "buyVehicle"; readonly id: VehicleId };
 
 /**
  * How a player spends the horizon. The player type's schedule supplies it
@@ -188,8 +213,77 @@ export function listActions(
     ),
     ...workshopActions(mountain, now),
     ...troubleActions(trouble),
+    ...orderActions(mountain),
   ];
 }
+
+/** A fresh mine's vehicles, then the one order move that fits the project. */
+function orderActions(mountain: Mountain): readonly Action[] {
+  if (!freshMineOn()) {
+    return [];
+  }
+  const vehicles: Action[] = VEHICLE_IDS.map((id) => ({
+    kind: "buyVehicle",
+    id,
+  }));
+  switch (mountain.project.kind) {
+    case "unordered":
+      return nextBuilding(mountain) === undefined
+        ? vehicles
+        : [...vehicles, { kind: "placeOrder" }];
+    case "delivering":
+      return [...vehicles, { kind: "holdOrder" }];
+    case "onHold":
+      return [...vehicles, { kind: "resumeOrder" }];
+  }
+}
+
+/** An order move applied; nothing outside a fresh mine. */
+function orderApplied(mountain: Mountain, action: OrderAction): Mountain {
+  if (!freshMineOn()) {
+    return mountain;
+  }
+  switch (action.kind) {
+    case "placeOrder":
+      return placeOrder(mountain);
+    case "holdOrder":
+      return holdOrder(mountain);
+    case "resumeOrder":
+      return resumeOrder(mountain);
+    case "buyVehicle":
+      return buyVehicle(mountain, action.id);
+  }
+}
+
+/** What an applied order move did, for the field log. */
+function orderEvents(
+  before: Mountain,
+  next: Mountain,
+  action: OrderAction,
+): readonly MoveEvent[] {
+  const site = (project: Mountain["project"]) =>
+    project.kind === "unordered" ? undefined : project.site.building;
+  switch (action.kind) {
+    case "placeOrder":
+    case "holdOrder":
+    case "resumeOrder": {
+      const building = site(next.project) ?? site(before.project);
+      return building === undefined
+        ? []
+        : [{ kind: ORDER_EVENT[action.kind], building }];
+    }
+    case "buyVehicle":
+      return [
+        { kind: "vehicleBought", id: action.id, count: next.fleet[action.id] },
+      ];
+  }
+}
+
+const ORDER_EVENT = {
+  placeOrder: "orderPlaced",
+  holdOrder: "orderHeld",
+  resumeOrder: "orderResumed",
+} as const;
 
 function tierActions(mountain: Mountain): readonly Action[] {
   return TIERS.filter(
@@ -366,7 +460,16 @@ export type MoveEvent =
     }
   | { readonly kind: "veinTapped"; readonly stones: number }
   | { readonly kind: "quickVeinTapped"; readonly stones: number }
-  | { readonly kind: "rushLanded"; readonly stones: number };
+  | { readonly kind: "rushLanded"; readonly stones: number }
+  | {
+      readonly kind: "vehicleBought";
+      readonly id: VehicleId;
+      readonly count: number;
+    }
+  | {
+      readonly kind: "orderPlaced" | "orderHeld" | "orderResumed";
+      readonly building: BuildingId;
+    };
 
 /**
  * What a move did: applied, with what it took from the stock and what it put in, good by
@@ -480,6 +583,11 @@ function actionApplied(
     }
     case "cancelCraft":
       return cancelCraft(mountain, now);
+    case "placeOrder":
+    case "holdOrder":
+    case "resumeOrder":
+    case "buyVehicle":
+      return orderApplied(mountain, action);
     /* v8 ignore next 3 -- exhaustiveness guard, unreachable */
     default: {
       const unexpected: never = action;
@@ -614,6 +722,11 @@ function actionEvents(
     case "cancelCraft":
     case "fixTrouble":
       return [];
+    case "placeOrder":
+    case "holdOrder":
+    case "resumeOrder":
+    case "buyVehicle":
+      return orderEvents(before, next, action);
     /* v8 ignore next 3 -- exhaustiveness guard, unreachable */
     default: {
       const unexpected: never = action;
@@ -717,6 +830,17 @@ export function valueOf(
       return valueCraft(mountain, action.recipe, horizon, context, now);
     case "cancelCraft":
       return valueCancel(mountain, horizon, context, now);
+    case "placeOrder":
+    case "holdOrder":
+    case "resumeOrder":
+      return { gainPerSec: 0, cost: 0, paybackSec: Infinity };
+    case "buyVehicle":
+      // Transport raises no income: the lab learns what it is worth (#655).
+      return {
+        gainPerSec: 0,
+        cost: priceAmount(vehiclePrice(mountain, action.id), "stones"),
+        paybackSec: Infinity,
+      };
     /* v8 ignore next 3 -- exhaustiveness guard, unreachable */
     default: {
       const unexpected: never = action;

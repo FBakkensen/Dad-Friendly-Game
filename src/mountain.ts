@@ -20,6 +20,14 @@ import { materialsGained } from "./layers";
 import { EMPTY_STOCK, addedStock, type Stock } from "./stock";
 import type { TeachId } from "./teach";
 import { freshMineOn } from "./line-switch";
+import { NO_PROJECT, type BuildingId, type Project } from "./city";
+import {
+  deliver,
+  givenFleet,
+  secondsToFinish,
+  vehicleRecord,
+  type VehicleId,
+} from "./transport";
 import { tierRecord, type TierId } from "./tiers";
 import type { Materials } from "./layers";
 import {
@@ -114,6 +122,12 @@ export type Mountain = {
   readonly seen: readonly TeachId[];
   /** Systems used at least once; their dot is gone (M11, src/teach.ts). */
   readonly taught: readonly TeachId[];
+  /** Vehicles owned, by kind (slice 1, src/transport.ts). A fresh mine is given one horse wagon. */
+  readonly fleet: Readonly<Record<VehicleId, number>>;
+  /** Buildings with their roof on, in the order they went up (slice 1, src/city.ts). */
+  readonly operational: readonly BuildingId[];
+  /** The city's project: not ordered, delivering, or on hold (src/city.ts). */
+  readonly project: Project;
 };
 
 /** A sanity cap for saves; no dad gets near it. */
@@ -145,6 +159,9 @@ export const BARE_MOUNTAIN: Mountain = {
   rushBank: 0,
   seen: [],
   taught: [],
+  fleet: vehicleRecord(0),
+  operational: [],
+  project: NO_PROJECT,
 };
 
 /**
@@ -157,7 +174,11 @@ const FRESH_START_WORKERS = 9;
 export function createMountain(): Mountain {
   const start = { ...BARE_MOUNTAIN, recipes: recipesForMined(0) };
   return freshMineOn()
-    ? { ...start, owned: { ...start.owned, helper: FRESH_START_WORKERS } }
+    ? {
+        ...start,
+        owned: { ...start.owned, helper: FRESH_START_WORKERS },
+        fleet: givenFleet(),
+      }
     : start;
 }
 
@@ -261,9 +282,26 @@ export function accrue({
     live,
     ...(trouble === undefined ? {} : { trouble }),
   });
-  const worked = live ? withRushPay(crew, from, to) : crew;
+  const rushed = live ? withRushPay(crew, from, to) : crew;
+  const worked = freshMineOn() ? withDelivery(rushed, from, to, pay) : rushed;
   const fitted = settleBench(worked.mountain, to);
   return fitted === worked.mountain ? worked : { ...worked, mountain: fitted };
+}
+
+/**
+ * Transport's work over the same whole seconds as the crew, after the crew
+ * has dug (slice 1, rule 7, #654): it carries from the pocket to the order,
+ * at `pay` of its rate (1 live, the night shift output unattended).
+ */
+function withDelivery(
+  crew: Accrual,
+  from: number,
+  to: number,
+  pay: number,
+): Accrual {
+  const seconds = Math.floor((to - from) / 1000);
+  const carried = deliver(crew.mountain, seconds, pay);
+  return carried === crew.mountain ? crew : { ...crew, mountain: carried };
 }
 
 /** The Gold rush's held stones paid over the same whole seconds as the crew. */
@@ -374,6 +412,9 @@ export function accrueAway({
   readonly report: AwayReport;
   readonly homecomings: readonly Homecoming[];
 } {
+  if (freshMineOn()) {
+    return accrueNight({ mountain: closed, lastSeen, now });
+  }
   const awayMs = Math.max(0, now - lastSeen);
   // Close is pause for a Gold rush, over a short break (src/gold-rush.ts).
   const mountain = resumeRush(closed, lastSeen, now);
@@ -456,5 +497,88 @@ function accrueAcrossExpeditions({
     mined: mined + tail.mined,
     settledAt: tail.settledAt,
     homecomings,
+  };
+}
+
+/**
+ * How long a fresh mine digs unattended before the stockyard (slice 1, rule
+ * 4, #654): the clock stops the mine, and transport goes on.
+ */
+const NIGHT_CLOCK_MS = 8 * 60 * 60 * 1000;
+
+/**
+ * One stretch of a fresh mine's night at one night shift output: up to its
+ * end, or to the second the building in hand is operational, when a roof's
+ * power may light the rest of the night (rule 7.11).
+ */
+function nightStretch(
+  mountain: Mountain,
+  from: number,
+  end: number,
+  digging: boolean,
+): Accrual {
+  const rates = effectiveRates(mountain);
+  const pay = rates.awayPay;
+  const income = digging ? rates.crewPerSecond * pay : 0;
+  const finish = secondsToFinish(mountain, pay, income);
+  const roof = from + Math.max(1, Math.ceil(finish - 1e-9)) * 1000;
+  const to = Number.isFinite(finish) && roof < end ? roof : end;
+  if (digging) {
+    return accrue({ mountain, from, to, pay });
+  }
+  const seconds = Math.floor((to - from) / 1000);
+  return { mountain: deliver(mountain, seconds, pay), mined: 0, settledAt: to };
+}
+
+/**
+ * A fresh mine's night (slice 1, rules 4 and 7.11, #654). The mine digs at
+ * the night shift output for the first eight hours; transport carries to
+ * what he ordered, from the pocket, for the whole night at the same share.
+ * A roof that goes on in the night lights the rest of it. A fresh mine has
+ * no relics, expeditions or Gold rush, so none of their splits apply.
+ */
+function accrueNight({
+  mountain,
+  lastSeen,
+  now,
+}: {
+  mountain: Mountain;
+  lastSeen: number;
+  now: number;
+}): Accrual & {
+  readonly report: AwayReport;
+  readonly homecomings: readonly Homecoming[];
+} {
+  const awayMs = Math.max(0, now - lastSeen);
+  const clockStops = lastSeen + Math.min(awayMs, NIGHT_CLOCK_MS);
+  let state = mountain;
+  let cursor = lastSeen;
+  let mined = 0;
+  while (now - cursor >= 1000) {
+    const digging = cursor < clockStops;
+    const part = nightStretch(
+      state,
+      cursor,
+      digging ? clockStops : now,
+      digging,
+    );
+    state = part.mountain;
+    mined += part.mined;
+    cursor = Math.max(part.settledAt, cursor + 1000);
+  }
+  return {
+    mountain: state,
+    mined,
+    settledAt: now,
+    homecomings: [],
+    report: {
+      mined,
+      heldForRush: 0,
+      awayMs,
+      paidMs: clockStops - lastSeen,
+      capped: awayMs > NIGHT_CLOCK_MS,
+      heart: 1,
+      materials: materialsGained(0, 0),
+    },
   };
 }

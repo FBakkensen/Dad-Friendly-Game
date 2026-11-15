@@ -27,6 +27,7 @@ import {
 import { callTo } from "./expeditions";
 import { handsSpeed, lineOf, lineRating } from "./line";
 import { freshMineOn, lineOn } from "./line-switch";
+import { nightShiftShare } from "./city";
 import { tapWithPick } from "./lost-tools";
 import type { Mountain } from "./mountain";
 import {
@@ -279,8 +280,9 @@ function readRates(mountain: Mountain, now?: number, trouble?: Trouble): Rates {
     ),
     exactCrewPerSecond: exactBase * timer,
     crewPerSecond: baseCrew * timer,
+    // A building's power lights the night (slice 1, the Light Tower: 45%).
     awayPay:
-      AWAY_PAY_RATE *
+      (nightShiftShare(mountain) ?? AWAY_PAY_RATE) *
       (1 + upgradeLevel(mountain, "steady") * STEADY_AWAY_PER_LEVEL),
   };
 }
