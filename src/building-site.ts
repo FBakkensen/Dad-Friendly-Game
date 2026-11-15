@@ -1,5 +1,6 @@
 import { stillRequired, type Site } from "./city";
 import type { Mountain } from "./mountain";
+import { flowWhole } from "./piles";
 import { GOOD_IDS, addedStock, type GoodId, type Stock } from "./stock";
 
 /**
@@ -99,9 +100,11 @@ function finishSeconds(
  * The step in hand over up to `seconds` (#690): transport brings what the
  * pocket holds of what it still requires, at `carry` a second, never more
  * than the site has room for as the builders make it; the builders build in
- * what is on the site at `build` a second. When the step is built in within
- * `seconds`, it says when, and the rest of the time is the next step's.
- * Exact for one good: with several, transport and the builders split evenly.
+ * what is on the site at `build` a second. The pocket, transport, the site
+ * and the builders are a chain of stages and piles (`piles`, #703). When the
+ * step is built in within `seconds`, it says when, and the rest of the time
+ * is the next step's. Exact for one good: with several, transport and the
+ * builders split evenly.
  */
 export function stepWork(
   site: Site,
@@ -125,11 +128,16 @@ export function stepWork(
       done: true,
     };
   }
-  const held = onSiteTotal(site);
-  const room = SITE_HOLDS - held + build * seconds;
-  const brought = Math.floor(Math.min(carry * seconds, room, can) + 1e-9);
+  const flow = flowWhole(
+    {
+      source: can,
+      rates: [carry, build],
+      piles: [{ held: onSiteTotal(site), holds: SITE_HOLDS }],
+    },
+    seconds,
+  );
+  const [brought = 0, builds = 0] = flow.moved;
   const delivered = shareOut(brought, wants);
-  const builds = Math.floor(Math.min(build * seconds, held + brought) + 1e-9);
   return {
     seconds,
     delivered,
