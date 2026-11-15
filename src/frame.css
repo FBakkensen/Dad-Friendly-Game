@@ -82,10 +82,17 @@
   image-rendering: pixelated;
 }
 
-.frame-order-top {
+.frame-order-top,
+.frame-order-bottom {
   display: flex;
   align-items: baseline;
   gap: calc(var(--art) * 4);
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.frame-order-bottom {
+  align-items: center;
 }
 
 .frame-order-name {
@@ -93,10 +100,13 @@
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+  flex: none;
 }
 
 .frame-order-step {
+  overflow: hidden;
   font-size: var(--board-type-16);
+  text-overflow: ellipsis;
   color: var(--frame-amber);
 }
 

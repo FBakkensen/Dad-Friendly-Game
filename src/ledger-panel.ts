@@ -356,7 +356,11 @@ export function createLedgerPanel({
     name: "ledger",
     title: "Ledger",
     infoLabel: "Tonight and the mine",
-    how: { systems: ["away", "relics"], backLabel: LEDGER_BACK },
+    // Today's cards tell relics and time away: a fresh mine has neither yet (#708).
+    how: {
+      systems: freshMineOn() ? [] : ["away", "relics"],
+      backLabel: LEDGER_BACK,
+    },
     board,
     overSave,
     headKey: soundKey.root,
@@ -370,7 +374,7 @@ export function createLedgerPanel({
     ...(signal === undefined ? {} : { signal }),
   });
   sheet.kick(LEDGER_KICK);
-  // The "i" cards are today's relics and time away: a fresh mine has neither yet (#708).
+  // With no cards, no "i" (#708).
   const info = sheet.root.querySelector<HTMLElement>(".board-sheet-info");
   if (info !== null) {
     hide(info, freshMineOn());

@@ -78,9 +78,13 @@ function buildOrder(state: FrameState): OrderParts {
   const pips = [0, 1, 2].map(() => el("i", "frame-pip"));
   pipRow.append(...pips);
   const top = el("span", "frame-order-top");
-  top.append(name, step, pipRow);
+  top.append(name, step);
   const line = el("span", "frame-order-line");
-  root.append(top, line);
+  // The pips sit under the step, beside what it requires: the key to the
+  // Ledger takes the strip's end (#708).
+  const bottom = el("span", "frame-order-bottom");
+  bottom.append(line, pipRow);
+  root.append(top, bottom);
   root.addEventListener("click", () => {
     state.go("city");
   });

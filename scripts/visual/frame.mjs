@@ -1,4 +1,4 @@
-/* global document, getComputedStyle */
+/* global document, getComputedStyle, setTimeout */
 /**
  * Slice 1's frame (#659), on the `?slice=1` dev preview: the order strip, the
  * top row with the one hire key, the mine (#660) and the city (#662), Next,
@@ -484,4 +484,128 @@ for (const size of SIZES) {
       }
     });
   }
+}
+
+/**
+ * The open Ledger on the frame (#708), in board px: its box between the top
+ * and the save line, every shown key at least 48px, no row's or plate's
+ * words cut, and its words.
+ */
+async function ledgerFacts(page) {
+  return page.evaluate(() => {
+    const board = globalThis.__board();
+    const sheet = document.querySelector(
+      '.board-sheet[data-sheet="ledger"].is-open',
+    );
+    const line = document.querySelector(".board-saveline");
+    if (sheet === null || line === null) {
+      return { open: false };
+    }
+    const r = sheet.getBoundingClientRect();
+    const shown = (el) =>
+      el.getClientRects().length > 0 && el.closest("[hidden]") === null;
+    const small = [...sheet.querySelectorAll("button")]
+      .filter(shown)
+      .map((el) => {
+        const b = el.getBoundingClientRect();
+        return {
+          name: el.className,
+          w: b.width / board.scale,
+          h: b.height / board.scale,
+        };
+      })
+      .filter((b) => b.w < 47.5 || b.h < 47.5);
+    const cut = [
+      ...sheet.querySelectorAll(
+        ".board-row-name, .board-row-info, .board-platebtn-text, .ledger-page-title, .ledger-page-line",
+      ),
+    ]
+      .filter(shown)
+      .filter((el) => el.scrollWidth > el.clientWidth + 1)
+      .map((el) => el.className);
+    const words = sheet.innerText.replace(/\s+/g, " ");
+    return {
+      open: true,
+      inside:
+        r.top >= board.top - 0.5 &&
+        r.bottom <= line.getBoundingClientRect().top + 0.5,
+      small,
+      cut,
+      words,
+    };
+  });
+}
+
+function checkLedger(facts, at, what) {
+  check(facts.open, `${at} ${what}: the Ledger is open`);
+  check(facts.inside, `${at} ${what}: the Ledger sits above the save line`);
+  check(
+    facts.small.length === 0,
+    `${at} ${what}: every key in the Ledger is at least 48px (${JSON.stringify(facts.small)})`,
+  );
+  check(
+    facts.cut.length === 0,
+    `${at} ${what}: no word in the Ledger is cut (${facts.cut.join(", ")})`,
+  );
+  check(
+    !/Infinity|NaN|\bdeep\b|stones left|relic|pocket|mountain|\bface\b|\bhands?\b/i.test(
+      facts.words,
+    ),
+    `${at} ${what}: no depth, relic, mountain, face or hands (${facts.words})`,
+  );
+}
+
+for (const size of SIZES) {
+  const label = `${String(size[0])}x${String(size[1])}`;
+  section(`${label} slice frame ledger`, async () => {
+    const { page, close } = await openScreen(size, sliceBusySave(Date.now()), {
+      search: "?slice=1",
+      seedKey: DEV_BACKUP_KEY,
+    });
+    try {
+      await page.waitForSelector(".frame-next-line");
+      const at = `${label} slice frame ledger:`;
+      await tap(page, ".frame-key");
+      await page.waitForSelector(".board-sheet.is-open .board-sheet-back");
+      // The slide up takes six steps of 40ms.
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      const list = await ledgerFacts(page);
+      await shot(page, `slice-ledger-${label}`);
+      checkLedger(list, at, "the list");
+      check(
+        list.words.includes("stone in the stockpile"),
+        `${at} the list reads the stockpile (${list.words})`,
+      );
+      check(await noScroll(page), `${at} the Ledger does not scroll the page`);
+      await tap(page, ".ledger-start-over");
+      await page.waitForSelector(".ledger-start-over-page");
+      const ask = await ledgerFacts(page);
+      await shot(page, `slice-ledger-start-over-${label}`);
+      checkLedger(ask, at, "Start over");
+      check(await noScroll(page), `${at} Start over does not scroll the page`);
+      await tap(page, ".ledger-keep");
+      await tap(page, ".ledger-saved-copies");
+      await page.waitForSelector(".saved-copies:not([hidden])");
+      // The face rises from the save line in six steps of 40ms.
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      await shot(page, `slice-ledger-saved-copies-${label}`);
+      const copies = await page.evaluate(() => {
+        const card = document.querySelector(".saved-copies .board-card-face");
+        const line = document.querySelector(".board-saveline");
+        const r = card?.getBoundingClientRect();
+        return (
+          r !== undefined &&
+          line !== null &&
+          r.bottom <= line.getBoundingClientRect().top + 0.5
+        );
+      });
+      check(copies, `${at} Saved copies sits above the save line`);
+      check(
+        await noScroll(page),
+        `${at} Saved copies does not scroll the page`,
+      );
+    } finally {
+      await close();
+    }
+  });
 }

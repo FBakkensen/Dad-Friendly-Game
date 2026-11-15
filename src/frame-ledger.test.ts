@@ -132,9 +132,9 @@ describe("the Ledger in a fresh mine", () => {
     );
   });
 
-  it("tells tonight's hires", async () => {
+  it("tells tonight's hires", () => {
     const { key, progress, find } = mount();
-    await progress.dispatch(tierBuyMove("helper", 1));
+    progress.dispatch(tierBuyMove("helper", 1));
     key.click();
     expect(find(".ledger-log").textContent).toMatch(/Hired worker 29\./);
   });
@@ -199,8 +199,6 @@ describe("the Ledger in a fresh mine", () => {
     expect(at(".board-sheet-clip")).toBeGreaterThan(at(".frame"));
     expect(at(".saved-copies")).toBeGreaterThan(at(".board-sheet-clip"));
     expect(at(".update-prompt")).toBeGreaterThan(at(".saved-copies"));
-    expect(find(".board-sheet-clip").contains(find(".board-scrim"))).toBe(
-      true,
-    );
+    expect(find(".board-sheet-clip").contains(find(".board-scrim"))).toBe(true);
   });
 });
