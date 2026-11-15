@@ -1,13 +1,16 @@
 /* global document, getComputedStyle */
 /**
  * Slice 1's frame (#659), on the `?slice=1` dev preview: the order strip, the
- * top row with the one hire key, Next, the site bar and the save line, and
- * the workforce sheet over them, at the phone and at a shorter phone.
+ * top row with the one hire key, the mine (#660) and the city (#662), Next,
+ * the site bar and the save line, and the workforce sheet over them, at the
+ * phone and at a shorter phone.
  */
 import {
   DEV_BACKUP_KEY,
   sliceBusySave,
+  sliceDoneSave,
   sliceOrderedSave,
+  sliceStructureSave,
 } from "../../tools/browser/fixtures.ts";
 import { check, section } from "./registry.mjs";
 import { openScreen, noScroll, shot } from "./kit.mjs";
@@ -20,7 +23,14 @@ const SIZES = [
 const SAVES = [
   { name: "ordered", save: () => sliceOrderedSave(Date.now()) },
   { name: "busy", save: () => sliceBusySave(Date.now()) },
+  { name: "structure", save: () => sliceStructureSave(Date.now()) },
+  { name: "done", save: () => sliceDoneSave(Date.now()) },
 ];
+
+/** The Light Tower's picture, in board px: it has to fit between the plate and the road. */
+const TOWER_H = 182;
+/** The road under the ground line, in board px (city-scene's CITY_FOOT.road). */
+const ROAD_H = 22;
 
 /**
  * The frame's parts in board px: each row's box, every shown button's size,
@@ -62,7 +72,7 @@ async function frameFacts(page) {
     );
     const cut = [
       ...document.querySelectorAll(
-        ".frame-order-name, .frame-order-step, .frame-next-head, .frame-workers-free, .frame-hire, .mine:not([hidden]) :is(.mine-stage-sum, .mine-key, .mine-level-line, .mine-deep, .mine-stage-name)",
+        ".frame-order-name, .frame-order-step, .frame-next-head, .frame-workers-free, .frame-hire, .mine:not([hidden]) :is(.mine-stage-sum, .mine-key, .mine-level-line, .mine-deep, .mine-stage-name), .city:not([hidden]) :is(.city-plate-head, .city-fleet, .city-key, .city-tag, .city-card-head, .city-bar-line, .city-order, .city-crew-line, .city-completion)",
       ),
     ]
       .filter(
@@ -77,7 +87,21 @@ async function frameFacts(page) {
       const found = mine?.querySelector(selector);
       return found === null || found === undefined ? undefined : px(found);
     };
+    const city = document.querySelector(".city:not([hidden])");
+    const part = (selector) => {
+      const found = city?.querySelector(selector);
+      return found === null || found === undefined ? undefined : px(found);
+    };
     return {
+      city:
+        city === null
+          ? undefined
+          : {
+              scene: px(city),
+              plate: part(".city-plate"),
+              tags: part(".city-tags"),
+              card: part(".city-card"),
+            },
       mine:
         mine === null
           ? undefined
@@ -123,6 +147,26 @@ function mineFits(facts) {
     panel.t >= zones.b - 0.5 &&
     panel.t >= deep.b - 0.5 &&
     panel.b <= scene.b + 0.5
+  );
+}
+
+/**
+ * The city's plate sits on top, the tags over the card, the card at the
+ * scene's foot, and the Light Tower's whole picture fits between the plate
+ * and the road.
+ */
+function cityFits(facts) {
+  const city = facts.city;
+  if (city === undefined) {
+    return false;
+  }
+  const { scene, plate, tags, card } = city;
+  return (
+    [scene, plate, tags, card].every((part) => part !== undefined) &&
+    plate.t >= scene.t - 0.5 &&
+    tags.b <= card.t + 0.5 &&
+    card.b <= scene.b + 0.5 &&
+    plate.b + TOWER_H <= tags.t - ROAD_H + 0.5
   );
 }
 
@@ -177,6 +221,11 @@ for (const size of SIZES) {
             check(
               mineFits(facts),
               `${at} mine: the keys and the stage rows sit under the gallery and the line under it (${JSON.stringify(facts.mine)})`,
+            );
+          } else {
+            check(
+              cityFits(facts),
+              `${at} city: the plate on top, the tags over the card at the foot, and room for the Light Tower between (${JSON.stringify(facts.city)})`,
             );
           }
           check(

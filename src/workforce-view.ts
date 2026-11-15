@@ -79,10 +79,14 @@ function drivingNote(mountain: Mountain): string {
   return runsOf(on, of, ["vehicle", "vehicles"]);
 }
 
+/** Goods a second one builder builds in. */
+export function oneBuilderBuilds(): number {
+  return buildRate({ jobs: { ...NO_JOBS, building: 1 } });
+}
+
 /** "each builds 8/s". */
 function buildingNote(): string {
-  const each = buildRate({ jobs: { ...NO_JOBS, building: 1 } });
-  return `each builds ${formatCompact(each)}/s`;
+  return `each builds ${formatCompact(oneBuilderBuilds())}/s`;
 }
 
 function jobNote(mountain: Mountain, job: JobId): string {
@@ -112,6 +116,18 @@ type JobGroup = {
   readonly rows: readonly JobRow[];
 };
 
+/** One job's row: its name, what its workers do, its count, and its − and +. */
+export function jobRow(mountain: Mountain, job: JobId): JobRow {
+  return {
+    job,
+    name: JOB_NAMES[job],
+    note: jobNote(mountain, job),
+    count: mountain.jobs[job],
+    canPlace: freeWorkers(mountain) > 0,
+    canFree: mountain.jobs[job] > 0,
+  };
+}
+
 export type WorkforceView = {
   readonly owned: number;
   readonly free: number;
@@ -123,14 +139,7 @@ export function workforceView(mountain: Mountain): WorkforceView {
   const groups = (Object.keys(SITE_JOBS) as SiteId[]).map((site): JobGroup => ({
     site,
     name: SITE_NAMES[site],
-    rows: SITE_JOBS[site].map((job) => ({
-      job,
-      name: JOB_NAMES[job],
-      note: jobNote(mountain, job),
-      count: mountain.jobs[job],
-      canPlace: free > 0,
-      canFree: mountain.jobs[job] > 0,
-    })),
+    rows: SITE_JOBS[site].map((job) => jobRow(mountain, job)),
   }));
   return { owned: mountain.owned.helper, free, groups };
 }

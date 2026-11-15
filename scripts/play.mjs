@@ -54,8 +54,10 @@ import {
   workshopSave,
   DEV_BACKUP_KEY,
   sliceBusySave,
+  sliceDoneSave,
   sliceOrderedSave,
   sliceStandsSave,
+  sliceStructureSave,
 } from "../tools/browser/fixtures.ts";
 
 /** Starting saves, from the typed fixtures in tools/browser/fixtures.ts. `fresh` seeds nothing. */
@@ -184,6 +186,18 @@ const SAVES = {
   "slice-stands": {
     note: "slice 1: nobody hoisting, so the line stands",
     save: () => sliceStandsSave(Date.now()),
+    key: DEV_BACKUP_KEY,
+    search: "?slice=1",
+  },
+  "slice-structure": {
+    note: "slice 1: the Light Tower's structure rising, a wagon with no driver",
+    save: () => sliceStructureSave(Date.now()),
+    key: DEV_BACKUP_KEY,
+    search: "?slice=1",
+  },
+  "slice-done": {
+    note: "slice 1: the Light Tower operational, nothing to order",
+    save: () => sliceDoneSave(Date.now()),
     key: DEV_BACKUP_KEY,
     search: "?slice=1",
   },
