@@ -1437,19 +1437,25 @@ describe("applyMove (#409)", () => {
       id: "horseWagon",
     });
     const quote = vehicleQuote(rich, "horseWagon", "ten");
-    const bought = applyMove(rich, tenWagons, NOW, calm);
-    expect(bought.kind === "applied" && bought.mountain.fleet.horseWagon).toBe(
-      rich.fleet.horseWagon + 10,
-    );
-    expect(bought.kind === "applied" && bought.spent).toEqual({
-      ...EMPTY_STOCK,
-      stones: quote.cost,
+    // Outside a fresh mine no wagon is bought, one or ten, as buyVehicle is refused.
+    expect(applyMove(rich, tenWagons, NOW, calm)).toEqual({ kind: "refused" });
+    withFactors({ [FRESH_OFF]: 0 }, () => {
+      const bought = applyMove(rich, tenWagons, NOW, calm);
+      expect(
+        bought.kind === "applied" && bought.mountain.fleet.horseWagon,
+      ).toBe(rich.fleet.horseWagon + 10);
+      expect(bought.kind === "applied" && bought.spent).toEqual({
+        ...EMPTY_STOCK,
+        stones: quote.cost,
+      });
+      const short: Mountain = {
+        ...rich,
+        stock: { ...rich.stock, stones: quote.cost - 1 },
+      };
+      expect(applyMove(short, tenWagons, NOW, calm)).toEqual({
+        kind: "refused",
+      });
     });
-    const short: Mountain = {
-      ...rich,
-      stock: { ...rich.stock, stones: quote.cost - 1 },
-    };
-    expect(applyMove(short, tenWagons, NOW, calm)).toEqual({ kind: "refused" });
   });
 
   it("several workers beside an idle machine still mark staffing taught (#358)", () => {

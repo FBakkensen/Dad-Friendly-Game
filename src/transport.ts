@@ -15,7 +15,7 @@ import {
   type Site,
 } from "./city";
 import type { Mountain } from "./mountain";
-import type { BuyAmount } from "./tiers";
+import { quoteRun, type BuyAmount, type TierQuote } from "./tiers";
 import { GOOD_IDS, pay, type GoodId, type Price, type Stock } from "./stock";
 
 /**
@@ -112,6 +112,11 @@ export function drivenFleet(
   return driven;
 }
 
+/** Vehicles he owns, of every kind. */
+export function fleetSize(mountain: Pick<Mountain, "fleet">): number {
+  return VEHICLE_IDS.reduce((total, id) => total + mountain.fleet[id], 0);
+}
+
 /** Goods a second the vehicles with a driver carry. */
 export function fleetRate(mountain: Pick<Mountain, "fleet" | "jobs">): number {
   const driven = drivenFleet(mountain);
@@ -139,30 +144,21 @@ export function vehiclePrice(mountain: Mountain, id: VehicleId): Price {
 }
 
 /**
- * What `amount` of a vehicle costs now, as `tierQuote` prices a machine
- * (#715): the sum of each one's price in turn. ×10 is ten, affordable or
- * not; Max is as many as the pocket holds, and at least one.
+ * What `amount` of a vehicle costs now (#715): the amount key's rule
+ * (`quoteRun`, as a machine's key), each one at its price in turn.
  */
 export function vehicleQuote(
   mountain: Mountain,
   id: VehicleId,
   amount: BuyAmount,
-): { readonly count: number; readonly cost: number } {
+): TierQuote {
   const vehicle = vehicleById(id);
   const fleet = mountain.fleet[id];
-  const pocket = mountain.stock[vehicle.good];
-  let count = 1;
-  let cost = vehicleCost(vehicle, fleet);
-  const more = (): boolean =>
-    amount === "ten"
-      ? count < 10
-      : amount === "max" &&
-        cost + vehicleCost(vehicle, fleet + count) <= pocket;
-  while (more()) {
-    cost += vehicleCost(vehicle, fleet + count);
-    count += 1;
-  }
-  return { count, cost };
+  return quoteRun(
+    (nth) => vehicleCost(vehicle, fleet + nth),
+    amount,
+    mountain.stock[vehicle.good],
+  );
 }
 
 /** Buys one more, at once (rule 7.13); a pocket that does not cover it buys none. */

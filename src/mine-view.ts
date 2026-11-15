@@ -42,7 +42,7 @@ export const STAGE_NAMES: Readonly<Record<Stage, string>> = {
 export const DEEPER_STRATA =
   "Deeper strata: not yet surveyed. The city has to grow first.";
 
-/** The level's plate: its name, its rock a second, and one line. */
+/** The level's plate: its name and the stone it brings up a second. */
 export type LevelPlate = {
   readonly name: string;
   /** What hoisting lifts now, the hoisting row's number (#715). */

@@ -109,10 +109,10 @@
  */
 .city-note {
   position: absolute;
-  top: 100%;
+  /* Its own offset, not a margin: mine.css's shared rule sets the margin to 0. */
+  top: calc(100% + var(--art) * 3);
   left: calc(var(--art) * -1);
   right: calc(var(--art) * -1);
-  margin-top: calc(var(--art) * 2);
 }
 
 /* The project's card. */

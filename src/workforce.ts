@@ -1,5 +1,6 @@
 import { STAGES, type Stage, type StageSpeeds } from "./line";
 import type { Mountain } from "./mountain";
+import { fleetSize } from "./transport";
 import {
   TIERS,
   tierInPlay,
@@ -67,11 +68,7 @@ export function jobRoom(mountain: Placing, job: JobId): number {
   if (job !== "driving") {
     return Infinity;
   }
-  const vehicles = Object.values<number>(mountain.fleet).reduce(
-    (sum, count) => sum + count,
-    0,
-  );
-  return Math.max(0, vehicles - mountain.jobs.driving);
+  return Math.max(0, fleetSize(mountain) - mountain.jobs.driving);
 }
 
 /** Workers a + could put on `job` now: the free ones, up to its room. */

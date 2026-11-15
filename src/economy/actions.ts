@@ -609,7 +609,9 @@ function moved(
     case "buyTiers":
       return buyMany(mountain, move.id, move.count);
     case "buyVehicles":
-      return allOf(mountain, move.count, (next) => buyVehicle(next, move.id));
+      return allOf(mountain, move.count, (next) =>
+        orderApplied(next, { kind: "buyVehicle", id: move.id }),
+      );
     case "markSeen":
       return markSeen(mountain, move.id);
     case "markAllSeen":

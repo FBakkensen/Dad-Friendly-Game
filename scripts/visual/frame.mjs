@@ -676,8 +676,42 @@ for (const size of SIZES) {
         `${at} mine: no word in the frame is cut (${facts.cut.join(", ")})`,
       );
       check(await noScroll(page), `${at} the mine does not scroll the page`);
+      // No free worker: a builder's + says so, clear of the plots' names (#715).
+      await tap(page, '.frame-site[data-site="city"]');
+      await tap(
+        page,
+        '.city .frame-step[data-job="building"][data-way="place"]',
+      );
+      const note = await cityNoteFacts(page);
+      await shot(page, `slice-city-note-${label}`);
+      check(
+        note.shown && note.over.length === 0,
+        `${at} city: the no-free-worker note is up and covers no plot's name (${JSON.stringify(note)})`,
+      );
     } finally {
       await close();
     }
+  });
+}
+
+/** The city's no-free-worker note: whether it is up, and the plot names it covers. */
+async function cityNoteFacts(page) {
+  return page.evaluate(() => {
+    const note = document.querySelector(".city-note");
+    const box = note?.getBoundingClientRect();
+    const shown = note instanceof HTMLElement && !note.hidden;
+    const over = [...document.querySelectorAll(".city-tag")]
+      .filter((tag) => {
+        const r = tag.getBoundingClientRect();
+        return (
+          box !== undefined &&
+          r.left < box.right &&
+          r.right > box.left &&
+          r.top < box.bottom &&
+          r.bottom > box.top
+        );
+      })
+      .map((tag) => tag.textContent ?? "");
+    return { shown, over };
   });
 }
