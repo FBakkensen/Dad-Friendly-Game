@@ -34,7 +34,7 @@ Spec: `docs/superpowers/specs/2026-11-14-slice-1-design.md`, "Lab", "Starting nu
 6. **No raise into a full stockyard.** With the stone stockpile nearly full he raises no line: a faster line only stands sooner. Without it the casual dad raised the line to 4,900 a second against 108 of transport.
 7. **No worker moves at a full stockyard.** While hoisting stands with rock to lift, the stockyard is full and no move of his makes room, so `pileMove` moves nobody. Without it the evening dad moved every worker to hoisting one by one and stood the line for a day.
 8. **The numbers.**
-   - The stockyard holds 6M stone and 1M brick at level 0, twice the spec's guess (`ROOM_AT_ZERO`; the lab knob `room.stockyard` scales it). A level still triples it for 150K brick ×3. At 3M the casual types' long nights filled in one of three, at about half the night; at 6M one in four, at three quarters. At 12M the casual types finished on the same days and the long-gap types still filled early.
+   - The stockyard holds 6M stone and 1M brick at level 0, twice the spec's guess (`ROOM_AT_ZERO`; the lab knob `room.stockyard` scales it). A level still triples it for 150K brick ×3. Transport drains the stockpiles into the order through the night, so few nights end full at either room; at 3M the ones that do fill earlier (the casual dad at half the night, the five-minute dad at 0.43) and the long-gap types sit on a full stockpile more (`deadGood` 0.20 and 0.26 for five minutes a day and the marathon, against 0 and 0.16 at 6M). At 12M the casual types finished on the same days.
    - The kiln (15,000 stone ×1.219, 12 brick a second), the kilns' pile (300) and the Warehouse's steps (8M stone and 1M brick, 15M and 4M, 12M brick) stay. The kiln's numbers move again with its recipe, two rock for one brick (#723), so they were not tuned here.
    - The Light Tower's night shift output stays 45%. At 40% the casual types' Warehouse comes about half a day later, with the night measures about the same; 45% is the approved line on the card.
 9. **Part 1's playtest notes (15 Nov).** Each is weighed, none moves a number here:
@@ -61,20 +61,20 @@ Part 1 (`fresh.off=0` alone) reads as #655 and #703 left it: the Light Tower's r
 
 | Player type    | Warehouse's roof on day | nightFull | nightFullAt | deadGood | transportLimit | workerMoves | idleWorkers |
 | -------------- | ----------------------- | --------- | ----------- | -------- | -------------- | ----------- | ----------- |
-| casual-2x10    | 6.0                     | 0.22      | 0.81        | 0        | 0.85           | 25          | 0.25        |
-| casual-mover   | 5.5                     | 0.25      | 0.73        | 0        | 0.74           | 32          | 0.08        |
-| casual-no-hold | 5.5                     | 0.25      | 0.86        | 0        | 1.00           | 28          | 0.14        |
+| casual-2x10    | 6.0                     | 0.11      | 0.94        | 0        | 0.85           | 25          | 0.25        |
+| casual-mover   | 5.5                     | 0         | n/a         | 0        | 0.74           | 32          | 0.08        |
+| casual-no-hold | 5.5                     | 0         | n/a         | 0        | 1.00           | 28          | 0.14        |
 | checker-6x3    | 5.3                     | no nights | n/a         | 0        | 0.73           | 11          | 0.20        |
-| checkin-4x2    | 5.7                     | 0.22      | 0.63        | 0.004    | 0.82           | 14          | 0.25        |
-| evening-1x20   | 7.0                     | 0.60      | 0.27        | 0        | 0.74           | 41          | 0.20        |
-| five-min-a-day | 9.0                     | 0.67      | 0.77        | 0        | 0.76           | 26          | 0.30        |
-| marathon       | 4.1                     | 0.75      | 0.38        | 0.16     | 0.82           | 97          | 0.16        |
-| optimizer      | 5.5                     | 0.38      | 0.75        | 0        | 0.85           | 30          | 0.08        |
+| checkin-4x2    | 5.7                     | 0.20      | 0.65        | 0.004    | 0.82           | 14          | 0.25        |
+| evening-1x20   | 7.0                     | 0.20      | 0.27        | 0        | 0.74           | 41          | 0.20        |
+| five-min-a-day | 9.0                     | 0.33      | 0.62        | 0        | 0.76           | 26          | 0.30        |
+| marathon       | 4.1                     | 0         | n/a         | 0.16     | 0.82           | 97          | 0.16        |
+| optimizer      | 5.5                     | 0         | n/a         | 0        | 0.85           | 30          | 0.08        |
 
 `starved` and `siteFull` read 0 for every type.
 
 - **Part 2 takes the casual types three and a half to four days** after the Light Tower, longer than the paper check's two and a half. The Warehouse is not made smaller: the marathon already has it on day 4.1, and the whole slice must take every type five days or more (#556).
 - **Transport is still the order's limit most of the time** (0.7 to 1.0). Wagons cost ×1.219 each, so the fleet stops near forty and about 350 a second; trucks come with the Warehouse. That is what part 2's pace is.
-- **The casual types' nights hold**: about one long night in four ends at a full stockyard, three quarters of the way in. The types away a whole day fill it in a third of the night (evening, marathon): room for a night is not room for a day.
+- **Few nights end at a full stockyard** (0 to 0.33): once the stone stockpile fills, transport draining it into the order keeps the mine going, so a night ends full only when the order needs no more of the good. Those that do end full fill late for the casual dad (0.94 of the night) and early for the evening dad (0.27 of a day-long gap): room for a night is not room for a day.
 - **`deadGood` is near zero** except for the marathon (0.16): a three-hour sitting outruns its order and its stockyard.
 - **The checker has no long nights**: six sittings a day leave no gap of six hours.

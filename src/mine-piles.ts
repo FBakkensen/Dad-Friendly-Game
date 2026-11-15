@@ -119,7 +119,7 @@ export function takeIncome(
   );
 }
 
-/** The mine's chain with transport taking `draw` a second from the stockpiles. */
+/** The mine's chain with transport taking `draw` a second from the stockpiles. `steadyIncome` builds the same chain steady. */
 function chainWith(
   mountain: Mountain,
   pay: number,
@@ -162,7 +162,8 @@ const IN_STEP = { held: 0, holds: 0 } as const;
  * output (#667): the same chain with no rock waiting and no stockpile full,
  * so the stages run in step, the kilns take what they can of what is lifted,
  * and the rest is stone. The lab's planner reads it, so it plans on the
- * split the chain itself makes.
+ * split the chain itself makes. Its stages, piles and spill are `chainWith`'s
+ * in the same order: a change to one is a change to both.
  */
 export function steadyIncome(mountain: Mountain): Partial<Stock> {
   const stages = stagesOf(mountain);

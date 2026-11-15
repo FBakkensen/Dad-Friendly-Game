@@ -14,8 +14,9 @@ import { pay, type GoodId, type Price } from "./stock";
 
 /**
  * Each stockpile's room at level 0, as the lab set it (#667): twice the
- * spec's guess, so a casual dad's long night fills it in about one night in
- * four, late in the night. Cut stone's comes with part 3. A good with no row
+ * spec's guess: a casual dad's long night that fills it fills it late, and
+ * the dads away a whole day sit on a full stockpile less than at 3M. Cut
+ * stone's comes with part 3. A good with no row
  * has no limit. The lab sweeps it with `room.stockyard`; above about 1.9 the
  * last level's room is past a safe integer, so a sweep stays below that.
  */
