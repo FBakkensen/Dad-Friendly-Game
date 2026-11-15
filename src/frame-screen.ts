@@ -407,6 +407,12 @@ function runFrame(
   signal: AbortSignal | undefined,
 ): void {
   const ticking = setInterval(() => {
+    // A hidden tab's throttled timer would settle a night a minute at a
+    // time, and its report would tell only the last minute (#663). The
+    // return settles it whole (`saveOnLeave`).
+    if (document.visibilityState === "hidden") {
+      return;
+    }
     progress.tick();
     paint();
   }, 1000);

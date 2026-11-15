@@ -101,6 +101,11 @@ function mount({ saved, at = 0 }: { saved?: Mountain; at?: number } = {}) {
   const press = () => {
     card().key?.click();
   };
+  /** The clock moves on, and the frame's own second comes round. */
+  const second = (ms: number) => {
+    clock += ms;
+    vi.advanceTimersByTime(1000);
+  };
   /** Time passes with the frame still open: the store settles it. */
   const later = (ms: number) => {
     clock += ms;
@@ -113,6 +118,7 @@ function mount({ saved, at = 0 }: { saved?: Mountain; at?: number } = {}) {
     card,
     press,
     later,
+    second,
   };
 }
 
@@ -230,6 +236,34 @@ describe("the shift report", () => {
     expect(card()).toMatchObject({ shown: true, kind: "report" });
     expect(card().lines[0]).toBe("Unattended 9 h. Night shift output: 30%.");
     expect(sheet?.hidden).toBe(true);
+  });
+
+  it("keeps a hidden frame's night whole: it settles on return, not each minute", () => {
+    vi.useFakeTimers();
+    let visibility: DocumentVisibilityState = "visible";
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      get: () => visibility,
+    });
+    try {
+      const { card, second } = mount({
+        saved: placeOrder(crew(NO_PROJECT)),
+        at: 1_000,
+      });
+      visibility = "hidden";
+      // A throttled timer still fires now and then through the night.
+      for (let hour = 0; hour < 9; hour += 1) {
+        second(HOUR);
+      }
+      expect(card().shown).toBe(false);
+      visibility = "visible";
+      second(0);
+      expect(card()).toMatchObject({ shown: true, kind: "report" });
+      expect(card().lines[0]).toBe("Unattended 9 h. Night shift output: 30%.");
+    } finally {
+      Reflect.deleteProperty(document, "visibilityState");
+      vi.useRealTimers();
+    }
   });
 
   it("waits for a signed-in save, and closes the workforce when its night comes in", async () => {
