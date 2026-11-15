@@ -52,5 +52,5 @@ Spec: `docs/superpowers/specs/2026-11-14-slice-1-design.md`, "Lab", "Risks" and 
 - **Transport is the order's limit most of the time an order stands** (risk 3): 0.5 to 1.0. A wagon is bought only when it pays for itself, so this is a slower build for a faster mine, not a tax, but it is the limit he lives with.
 - **The site never fills** (risk 12): the dad keeps the builders level with transport, so the builders behave like a second transport row. Part 1 gives the site nothing to decide.
 - **On hold does not pay in part 1**: the dad who never holds raises the roof on day 2.0, before the casual dad who holds (2.5).
-- **Moving idle workers does not win** (risk 11): the mover finishes on day 2.0, half a day before the dad who sets them once, at about three times the taps a sitting.
+- **The mover wins by half a day** (risk 11): he raises the roof on day 2.0 against the casual dad's 2.5, about 20% sooner, at about three times the taps a sitting (145 against 44). Whether that is "by much" is Flemming's call when part 1's levers are weighed; the dad who never holds is as quick with fewer taps than either.
 - **The optimizer never buys an upgrade**: in part 1 a worker or a machine always pays back sooner, so it plays as the mover.
