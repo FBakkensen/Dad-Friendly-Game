@@ -1,9 +1,12 @@
 import { SITE_HOLDS, onSiteTotal } from "../building-site";
+import { stillRequired } from "../city";
 import { tierLocked } from "../crew";
 import { freshMineOn } from "../line-switch";
 import { STAGES } from "../line";
 import type { Mountain } from "../mountain";
 import { effectiveRates } from "../rates";
+import type { GoodId } from "../stock";
+import { stockpileFull, stockyardOpen } from "../stockyard";
 import { TIERS, tierInPlay } from "../tiers";
 import { orderLimit, vehiclePrice, VEHICLE_IDS } from "../transport";
 import {
@@ -34,6 +37,10 @@ export type FreshView = {
   readonly idleWorkers: number;
   /** Share of his machines that stand because their workers' tools move more. NaN with none. */
   readonly idleMachines: number;
+  /** The stockyard is open (part 2, #667): its stockpiles have a room. */
+  readonly yardOpen: boolean;
+  /** A stockpile is full and no order delivering takes its good (`deadGood`, #667). */
+  readonly deadGood: boolean;
 };
 
 /** The view now, or undefined outside a fresh mine. */
@@ -60,7 +67,27 @@ export function freshView(mountain: Mountain): FreshView | undefined {
       mountain.stock.stones < cheapestBuy(mountain),
     idleWorkers: idleWorkerShare(mountain, rates.tierSpeed, line),
     idleMachines: idleMachineShare(mountain, rates.tierSpeed),
+    yardOpen: stockyardOpen(mountain),
+    deadGood: deadGood(mountain),
   };
+}
+
+/** The stockpiles part 2 fills. */
+const STOCKPILES: readonly GoodId[] = ["stones", "brick"];
+
+/**
+ * A stockpile holds its room while nothing takes its good: no order
+ * delivers, or the step in hand requires none of it (#667). What he could
+ * buy with it is his call; the lab asks only whether the yard sits full.
+ */
+function deadGood(mountain: Mountain): boolean {
+  const project = mountain.project;
+  const need =
+    project.kind === "delivering" ? stillRequired(project.site) : undefined;
+  return STOCKPILES.some(
+    (good) =>
+      stockpileFull(mountain, good) && (need === undefined || need[good] <= 0),
+  );
 }
 
 /** The cheapest thing he can buy: a worker, a machine of the line, or a vehicle. */
