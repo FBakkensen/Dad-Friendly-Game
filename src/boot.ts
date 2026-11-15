@@ -154,7 +154,7 @@ async function seedPreviewCopies(cloudSave: CloudSave): Promise<void> {
     startedAt: now,
   };
   await cloudSave.archiveCopy({
-    uid: "dev-dad",
+    uid: MEMORY_DEV.uid,
     mountain: earlier,
     lastSeen: now - 86_400_000,
     rev: 2,
@@ -163,7 +163,7 @@ async function seedPreviewCopies(cloudSave: CloudSave): Promise<void> {
     reason: "start-over",
   });
   await cloudSave.archiveCopy({
-    uid: "dev-dad",
+    uid: MEMORY_DEV.uid,
     mountain: playable,
     lastSeen: now - 3_600_000,
     rev: 8,
