@@ -26,9 +26,12 @@ function site(step: 0 | 1 | 2, stones = 0): Project {
   };
 }
 
-/** A fresh mine with this crew, pocket, fleet and project. */
+/**
+ * A fresh mine with `perStage` workers on each stage, a driver on each
+ * wagon, and this pocket and project.
+ */
 function mine(
-  helpers: number,
+  perStage: number,
   pocket: number,
   wagons: number,
   project: Project,
@@ -37,7 +40,13 @@ function mine(
   const start = createMountain();
   return {
     ...start,
-    owned: { ...start.owned, helper: helpers },
+    owned: { ...start.owned, helper: 3 * perStage + wagons },
+    jobs: {
+      drilling: perStage,
+      haulage: perStage,
+      hoisting: perStage,
+      driving: wagons,
+    },
     stock: { ...start.stock, stones: pocket },
     fleet: { ...start.fleet, horseWagon: wagons },
     project,
@@ -48,8 +57,8 @@ function mine(
 describe("live play: he orders, transport delivers (rule 7)", () => {
   it("digs, then carries from the pocket to the order, each second", () => {
     fresh(() => {
-      // Nine hands dig 9 a second; one wagon carries 25 a second.
-      const start = mine(9, 1_000, 1, site(0));
+      // Three on each stage dig 9 a second; one wagon carries 25 a second.
+      const start = mine(3, 1_000, 1, site(0));
       const minute = accrue({
         mountain: start,
         from: 0,
@@ -65,14 +74,14 @@ describe("live play: he orders, transport delivers (rule 7)", () => {
   it("delivers nothing before he orders, and nothing on hold", () => {
     fresh(() => {
       const idle = accrue({
-        mountain: mine(9, 1_000, 1, { kind: "unordered" }),
+        mountain: mine(3, 1_000, 1, { kind: "unordered" }),
         from: 0,
         to: 60_000,
         live: true,
       });
       expect(idle.mountain.stock.stones).toBe(1_540);
       const held = applyMove(
-        mine(9, 1_000, 1, site(0)),
+        mine(3, 1_000, 1, site(0)),
         { kind: "holdOrder" },
         0,
         NO_TROUBLE,
@@ -111,7 +120,7 @@ describe("live play: he orders, transport delivers (rule 7)", () => {
 
   it("raises the whole building from one order, step after step", () => {
     fresh(() => {
-      const start = mine(9, 8_000_000, 400, { kind: "unordered" });
+      const start = mine(3, 8_000_000, 400, { kind: "unordered" });
       const ordered = applyMove(start, { kind: "placeOrder" }, 0, NO_TROUBLE);
       if (ordered.kind !== "applied") {
         throw new Error("order refused");
@@ -135,38 +144,39 @@ describe("live play: he orders, transport delivers (rule 7)", () => {
 describe("unattended before the stockyard (rule 4)", () => {
   it("stops the mine at eight hours, and transport goes on from the pocket", () => {
     fresh(() => {
-      // 100 hands (with their marks) dig 800 a second, 240 at night; two
+      // 40 on each stage with tools (122 workers, with their marks) dig 960
+      // a second, 288 at night; two
       // wagons carry 15 a second at night.
-      const start = mine(100, 0, 2, site(2));
-      expect(effectiveRates(start).crewPerSecond).toBe(800);
+      const start = mine(40, 0, 2, site(2));
+      expect(effectiveRates(start).crewPerSecond).toBe(960);
       const night = accrueAway({
         mountain: start,
         lastSeen: 0,
         now: 12 * HOUR,
       });
-      expect(night.mined).toBe(240 * 8 * 3600);
+      expect(night.mined).toBe(288 * 8 * 3600);
       // Transport carries 15 a second for all twelve hours.
       expect(night.mountain.project).toEqual(site(2, 15 * 12 * 3600));
-      expect(night.mountain.stock.stones).toBe(240 * 8 * 3600 - 15 * 12 * 3600);
+      expect(night.mountain.stock.stones).toBe(288 * 8 * 3600 - 15 * 12 * 3600);
       expect(night.mountain.remaining).toBe(MOUNTAIN_STONES);
     });
   });
 
   it("pays a short night in full and carries for all of it", () => {
     fresh(() => {
-      const start = mine(100, 0, 2, site(2));
+      const start = mine(40, 0, 2, site(2));
       const night = accrueAway({ mountain: start, lastSeen: 0, now: 2 * HOUR });
-      expect(night.mined).toBe(240 * 2 * 3600);
+      expect(night.mined).toBe(288 * 2 * 3600);
       expect(night.mountain.project).toEqual(site(2, 15 * 2 * 3600));
     });
   });
 
   it("runs part 1's night after the Light Tower's roof at 45% for eight hours", () => {
     fresh(() => {
-      const lit = mine(100, 0, 2, { kind: "unordered" }, ["lightTower"]);
+      const lit = mine(40, 0, 2, { kind: "unordered" }, ["lightTower"]);
       expect(effectiveRates(lit).awayPay).toBe(0.45);
       const night = accrueAway({ mountain: lit, lastSeen: 0, now: 10 * HOUR });
-      expect(night.mined).toBe(360 * 8 * 3600);
+      expect(night.mined).toBe(432 * 8 * 3600);
     });
   });
 
@@ -174,12 +184,12 @@ describe("unattended before the stockyard (rule 4)", () => {
     fresh(() => {
       // 1,000 stone short of the roof; one wagon carries 7.5 a second at
       // night, so the roof goes on 134 s in, from the pocket.
-      const start = mine(100, 1_000, 1, site(2, 5_999_000));
+      const start = mine(40, 1_000, 1, site(2, 5_999_000));
       const night = accrueAway({ mountain: start, lastSeen: 0, now: 4 * HOUR });
       expect(night.mountain.operational).toEqual(["lightTower"]);
       const lit = 4 * 3600 - 134;
-      // 134 s at 240 a second (30%), the rest at 360 (45%).
-      expect(night.mined).toBe(134 * 240 + lit * 360);
+      // 134 s at 288 a second (30%), the rest at 432 (45%).
+      expect(night.mined).toBe(134 * 288 + lit * 432);
     });
   });
 });
@@ -190,22 +200,26 @@ describe("the moves (rule 7.1, 7.9, 7.13)", () => {
       const kinds = (mountain: Mountain): string[] =>
         listActions(mountain, 0)
           .map((action) => action.kind)
-          .filter((kind) => kind !== "buyTier");
-      expect(kinds(mine(9, 0, 1, { kind: "unordered" }))).toEqual([
+          .filter((kind) =>
+            ["buyVehicle", "placeOrder", "holdOrder", "resumeOrder"].includes(
+              kind,
+            ),
+          );
+      expect(kinds(mine(3, 0, 1, { kind: "unordered" }))).toEqual([
         "buyVehicle",
         "placeOrder",
       ]);
-      expect(kinds(mine(9, 0, 1, site(0)))).toEqual([
+      expect(kinds(mine(3, 0, 1, site(0)))).toEqual([
         "buyVehicle",
         "holdOrder",
       ]);
-      const held = mine(9, 0, 1, {
+      const held = mine(3, 0, 1, {
         kind: "onHold",
         site: { building: "lightTower", step: 0, arrived: EMPTY_STOCK },
       });
       expect(kinds(held)).toEqual(["buyVehicle", "resumeOrder"]);
       expect(
-        kinds(mine(9, 0, 1, { kind: "unordered" }, ["lightTower"])),
+        kinds(mine(3, 0, 1, { kind: "unordered" }, ["lightTower"])),
       ).toEqual(["buyVehicle"]);
     });
   });
@@ -235,7 +249,7 @@ describe("the moves (rule 7.1, 7.9, 7.13)", () => {
   it("buys a wagon with its stone, and logs each move", () => {
     fresh(() => {
       const bought = applyMove(
-        mine(9, 500, 1, { kind: "unordered" }),
+        mine(3, 500, 1, { kind: "unordered" }),
         { kind: "buyVehicle", id: "horseWagon" },
         0,
         NO_TROUBLE,
@@ -247,7 +261,7 @@ describe("the moves (rule 7.1, 7.9, 7.13)", () => {
         { kind: "vehicleBought", id: "horseWagon", count: 2 },
       ]);
       const ordered = applyMove(
-        mine(9, 0, 1, { kind: "unordered" }),
+        mine(3, 0, 1, { kind: "unordered" }),
         { kind: "placeOrder" },
         0,
         NO_TROUBLE,
@@ -262,7 +276,7 @@ describe("the moves (rule 7.1, 7.9, 7.13)", () => {
     fresh(() => {
       const context = { tapsPerSecond: 0, liveSeconds: 60, awaySeconds: 0 };
       const value = valueOf(
-        mine(9, 0, 1, { kind: "unordered" }),
+        mine(3, 0, 1, { kind: "unordered" }),
         { kind: "buyVehicle", id: "horseWagon" },
         3600,
         context,
@@ -273,7 +287,7 @@ describe("the moves (rule 7.1, 7.9, 7.13)", () => {
       for (const kind of ["placeOrder", "holdOrder", "resumeOrder"] as const) {
         expect(
           valueOf(
-            mine(9, 0, 1, { kind: "unordered" }),
+            mine(3, 0, 1, { kind: "unordered" }),
             { kind },
             3600,
             context,

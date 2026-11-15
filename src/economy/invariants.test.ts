@@ -28,6 +28,7 @@ import { TIERS } from "../tiers";
 import { applyMove, listActions, type Move } from "./actions";
 import { GOOD_IDS, priceAmount } from "../stock";
 import { VEHICLE_IDS } from "../transport";
+import { freeWorkers } from "../workforce";
 import { withFactors } from "./factors";
 import { FRESH_OFF } from "../line-switch";
 
@@ -393,6 +394,15 @@ function priceOf(move: Move | undefined): number | "some" | undefined {
 /** Every rule one step must keep. */
 function checkStep(played: Played): void {
   const { before, after } = played;
+  // Never more workers on jobs than he owns, and a move never changes how
+  // many he has (#689).
+  expect(freeWorkers(after.mountain)).toBeGreaterThanOrEqual(0);
+  if (
+    played.move?.kind === "placeWorker" ||
+    played.move?.kind === "freeWorker"
+  ) {
+    expect(after.mountain.owned.helper).toBe(before.mountain.owned.helper);
+  }
   expect(badNumbers(after.mountain)).toEqual([]);
   expect(lowered(before.mountain, after.mountain)).toEqual([]);
   if (played.applied && isCrewBuy(played.move)) {

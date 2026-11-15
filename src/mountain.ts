@@ -21,6 +21,7 @@ import { EMPTY_STOCK, addedStock, type Stock } from "./stock";
 import type { TeachId } from "./teach";
 import { freshMineOn } from "./line-switch";
 import { NO_PROJECT, type BuildingId, type Project } from "./city";
+import { NO_JOBS, workersOnJobs, type Jobs } from "./workforce";
 import {
   deliver,
   givenFleet,
@@ -128,6 +129,11 @@ export type Mountain = {
   readonly operational: readonly BuildingId[];
   /** The city's project: not ordered, delivering, or on hold (src/city.ts). */
   readonly project: Project;
+  /**
+   * Workers on each job (slice 1, rule 2, #689). The free workers are the
+   * rest of `owned.helper`. Always zero in today's game.
+   */
+  readonly jobs: Jobs;
 };
 
 /** A sanity cap for saves; no dad gets near it. */
@@ -162,21 +168,31 @@ export const BARE_MOUNTAIN: Mountain = {
   fleet: vehicleRecord(0),
   operational: [],
   project: NO_PROJECT,
+  jobs: NO_JOBS,
 };
 
 /**
- * Workers a fresh mine starts with (slice 1, #653): nothing is dug by hand,
- * so the first evening needs hands from the first second. Prototype version
- * 4's nine; the lab sets the number (#655).
+ * A fresh mine starts with every worker on a job (slice 1, rule 2.10, #689):
+ * three on each stage and one driver on the horse wagon given. The two
+ * builders come with the building site (#690). The lab sets the count (#655).
  */
-const FRESH_START_WORKERS = 9;
+const FRESH_START_JOBS: Jobs = {
+  drilling: 3,
+  haulage: 3,
+  hoisting: 3,
+  driving: 1,
+};
 
 export function createMountain(): Mountain {
   const start = { ...BARE_MOUNTAIN, recipes: recipesForMined(0) };
   return freshMineOn()
     ? {
         ...start,
-        owned: { ...start.owned, helper: FRESH_START_WORKERS },
+        owned: {
+          ...start.owned,
+          helper: workersOnJobs({ jobs: FRESH_START_JOBS }),
+        },
+        jobs: FRESH_START_JOBS,
         fleet: givenFleet(),
       }
     : start;

@@ -77,11 +77,33 @@ function vehicleById(id: VehicleId): Vehicle {
   return VEHICLE_BY_ID[id];
 }
 
-/** Goods a second the whole fleet carries. */
-export function fleetRate(mountain: Pick<Mountain, "fleet">): number {
+/** The best carriers first: the drivers take the trucks first (rule 2.7). */
+const BY_LOAD: readonly Vehicle[] = [...VEHICLES].sort(
+  (a, b) => b.carries - a.carries,
+);
+
+/**
+ * The vehicles that run: each with one driver (slice 1, rule 2.7, #689),
+ * the best carriers first. One with nobody on it is idle, not lost.
+ */
+export function drivenFleet(
+  mountain: Pick<Mountain, "fleet" | "jobs">,
+): Record<VehicleId, number> {
+  const driven = vehicleRecord(0);
+  let drivers = mountain.jobs.driving;
+  for (const vehicle of BY_LOAD) {
+    driven[vehicle.id] = Math.min(mountain.fleet[vehicle.id], drivers);
+    drivers -= driven[vehicle.id];
+  }
+  return driven;
+}
+
+/** Goods a second the vehicles with a driver carry. */
+export function fleetRate(mountain: Pick<Mountain, "fleet" | "jobs">): number {
+  const driven = drivenFleet(mountain);
   let rate = 0;
   for (const vehicle of VEHICLES) {
-    rate += mountain.fleet[vehicle.id] * vehicle.carries;
+    rate += driven[vehicle.id] * vehicle.carries;
   }
   return rate;
 }

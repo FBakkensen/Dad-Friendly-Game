@@ -136,6 +136,8 @@ const MOVE_KIND_ORDER = {
   craft: true,
   cancelCraft: true,
   buyVehicle: true,
+  placeWorker: true,
+  freeWorker: true,
   placeOrder: true,
   holdOrder: true,
   resumeOrder: true,

@@ -344,17 +344,18 @@ export function buyTier(mountain: Mountain, id: TierId): Mountain {
  */
 export type FreshDoor =
   | { readonly kind: "start" }
-  | { readonly kind: "owns"; readonly tier: TierId; readonly count: number }
   | { readonly kind: "later"; readonly at: "granite" | "foundry" | "school" };
 
-/** Workers he owns before the first cart opens in a fresh mine (the line spec). */
-const CART_OPENS_AT_WORKERS = 12;
-
+/**
+ * Nothing gates a machine but its price and where it opens (rule 2.6,
+ * #689): the cart, the hoist and the drill are for sale from the first
+ * evening, before anyone can run them.
+ */
 const FRESH_DOORS: Readonly<Record<TierId, FreshDoor>> = {
   helper: { kind: "start" },
-  cart: { kind: "owns", tier: "helper", count: CART_OPENS_AT_WORKERS },
-  hoist: { kind: "owns", tier: "cart", count: 1 },
-  drill: { kind: "owns", tier: "hoist", count: 1 },
+  cart: { kind: "start" },
+  hoist: { kind: "start" },
+  drill: { kind: "start" },
   // The locomotive and the borer open with the Granite (part 3).
   borer: { kind: "later", at: "granite" },
   train: { kind: "later", at: "granite" },

@@ -22,6 +22,7 @@ const LEDGER = {
     "bench",
     "fleet",
     "project",
+    "jobs",
   ],
   owned: [
     "helper",
@@ -141,6 +142,7 @@ const LEDGER = {
   },
   fleet: ["horseWagon"],
   projectStates: ["delivering", "onHold"],
+  jobs: ["drilling", "haulage", "hoisting", "driving"],
   caps: {
     engineers: 5,
     engineerTrips: 1000000,
@@ -169,6 +171,7 @@ describe("the ledger of what has shipped (#558)", () => {
       facts.tunnels,
       facts.fleet,
       facts.projectStates,
+      facts.jobs,
       Object.keys(facts.tripFinds),
       ...Object.values(facts.tripFinds),
     ];

@@ -150,9 +150,15 @@ export function upgradeUnlocked(mountain: Mountain, upgrade: Upgrade): boolean {
 
 /** Extra speed (0.2 = +20%) a synergy gives its tier with the crew as it is. */
 export function synergyBonus(mountain: Mountain, upgrade: Upgrade): number {
-  return upgrade.synergy === undefined
-    ? 0
-    : owned(mountain, tierById(upgrade.synergy.from)) * SYNERGY_PER_UNIT;
+  if (upgrade.synergy === undefined) {
+    return 0;
+  }
+  // In a fresh mine, Helping hands counts the workers on haulage (rule 2.9).
+  const count =
+    upgrade.synergy.from === "helper" && freshMineOn()
+      ? mountain.jobs.haulage
+      : owned(mountain, tierById(upgrade.synergy.from));
+  return count * SYNERGY_PER_UNIT;
 }
 
 /** The bought synergy boosting this tier, if any. */

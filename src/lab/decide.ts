@@ -279,6 +279,8 @@ export function sticker(mountain: Mountain, action: Action): number {
     case "placeOrder":
     case "holdOrder":
     case "resumeOrder":
+    case "placeWorker":
+    case "freeWorker":
       return 0;
   }
 }
@@ -345,6 +347,8 @@ function spendKey(
     case "holdOrder":
     case "resumeOrder":
     case "buyVehicle":
+    case "placeWorker":
+    case "freeWorker":
       return undefined;
   }
 }

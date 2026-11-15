@@ -40,6 +40,13 @@ import {
 } from "../city";
 import { freshMineOn } from "../line-switch";
 import {
+  JOB_IDS,
+  freeWorker,
+  freeWorkers,
+  placeWorker,
+  type JobId,
+} from "../workforce";
+import {
   VEHICLE_IDS,
   buyVehicle,
   vehiclePrice,
@@ -154,7 +161,17 @@ export type Action =
     }
   | { readonly kind: "craft"; readonly recipe: RecipeId }
   | { readonly kind: "cancelCraft" }
-  | OrderAction;
+  | OrderAction
+  | WorkerAction;
+
+/**
+ * The workforce's moves (slice 1, rule 2.4, #689), only in a fresh mine:
+ * a free worker onto a job, or a worker off one. Hiring is `buyTier` of a
+ * worker, who starts free.
+ */
+type WorkerAction =
+  | { readonly kind: "placeWorker"; readonly job: JobId }
+  | { readonly kind: "freeWorker"; readonly job: JobId };
 
 /**
  * The city's and transport's moves (slice 1, rule 7, #654), only in a fresh
@@ -214,7 +231,30 @@ export function listActions(
     ...workshopActions(mountain, now),
     ...troubleActions(trouble),
     ...orderActions(mountain),
+    ...workerActions(mountain),
   ];
+}
+
+/** Each job's two moves, where they would change something; none outside a fresh mine. */
+function workerActions(mountain: Mountain): readonly Action[] {
+  if (!freshMineOn()) {
+    return [];
+  }
+  const free = freeWorkers(mountain);
+  return JOB_IDS.flatMap((job): Action[] => [
+    ...(free > 0 ? [{ kind: "placeWorker", job } as const] : []),
+    ...(mountain.jobs[job] > 0 ? [{ kind: "freeWorker", job } as const] : []),
+  ]);
+}
+
+/** A worker moved; nothing outside a fresh mine. */
+function workerApplied(mountain: Mountain, action: WorkerAction): Mountain {
+  if (!freshMineOn()) {
+    return mountain;
+  }
+  return action.kind === "placeWorker"
+    ? placeWorker(mountain, action.job)
+    : freeWorker(mountain, action.job);
 }
 
 /** A fresh mine's vehicles, then the one order move that fits the project. */
@@ -470,6 +510,12 @@ export type MoveEvent =
   | {
       readonly kind: "orderPlaced" | "orderHeld" | "orderResumed";
       readonly building: BuildingId;
+    }
+  | {
+      readonly kind: "workerPlaced" | "workerFreed";
+      readonly job: JobId;
+      /** Workers on the job after the move. */
+      readonly count: number;
     };
 
 /**
@@ -589,6 +635,9 @@ function actionApplied(
     case "resumeOrder":
     case "buyVehicle":
       return orderApplied(mountain, action);
+    case "placeWorker":
+    case "freeWorker":
+      return workerApplied(mountain, action);
     /* v8 ignore next 3 -- exhaustiveness guard, unreachable */
     default: {
       const unexpected: never = action;
@@ -728,6 +777,15 @@ function actionEvents(
     case "resumeOrder":
     case "buyVehicle":
       return orderEvents(next, action);
+    case "placeWorker":
+    case "freeWorker":
+      return [
+        {
+          kind: action.kind === "placeWorker" ? "workerPlaced" : "workerFreed",
+          job: action.job,
+          count: next.jobs[action.job],
+        },
+      ];
     /* v8 ignore next 3 -- exhaustiveness guard, unreachable */
     default: {
       const unexpected: never = action;
@@ -842,6 +900,16 @@ export function valueOf(
         cost: priceAmount(vehiclePrice(mountain, action.id), "stones"),
         paybackSec: Infinity,
       };
+    case "placeWorker":
+    case "freeWorker":
+      // Free and instant: worth what the line gains (a driver adds none).
+      return rateValue(
+        mountain,
+        incomeGain(mountain, workerApplied(mountain, action), context),
+        0,
+        horizon,
+        context,
+      );
     /* v8 ignore next 3 -- exhaustiveness guard, unreachable */
     default: {
       const unexpected: never = action;

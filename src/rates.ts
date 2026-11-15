@@ -28,6 +28,7 @@ import { callTo } from "./expeditions";
 import { handsSpeed, lineOf, lineRating } from "./line";
 import { freshMineOn, lineOn } from "./line-switch";
 import { nightShiftShare } from "./city";
+import { lineWork } from "./workforce";
 import { tapWithPick } from "./lost-tools";
 import type { Mountain } from "./mountain";
 import {
@@ -246,17 +247,12 @@ function readRates(mountain: Mountain, now?: number, trouble?: Trouble): Rates {
         : sped;
     tierSpeed[tier.id] = plain[tier.id];
   }
-  // Staffing: the hands run the machines that mine the most (#500); a
-  // machine short of its crew sits idle. Helpers still mine by hand while
-  // they run a machine. Kids count as staff too (Crown of Wisdom).
-  const running = keptStaffing(mountain, steady);
-  const needed = TIERS.filter(tierInPlay).reduce(
-    (total, tier) =>
-      total + owned(mountain, tier) * staffNeeded(mountain, tier),
-    0,
+  const { running, exactBase, helpersShort } = crewRun(
+    mountain,
+    plain,
+    steady,
+    tierSpeed,
   );
-  applyTendingFloor(mountain, plain, tierSpeed, running);
-  const exactBase = crewOutput(tierSpeed, running);
   // Whole stones a second, so what the crew line says is what gets mined.
   const baseCrew = Math.floor(exactBase + 1e-9);
   // Tap power takes its share of the unboosted crew, before any crew timer.
@@ -274,16 +270,73 @@ function readRates(mountain: Mountain, now?: number, trouble?: Trouble): Rates {
     tapYield: freshMineOn() ? 0 : tapWithPick(bareTap, mountain) * sharper,
     tierSpeed,
     running,
-    helpersShort: Math.max(
-      0,
-      needed - mountain.owned.helper - mountain.owned.kid,
-    ),
+    helpersShort,
     exactCrewPerSecond: exactBase * timer,
     crewPerSecond: baseCrew * timer,
     // A building's power lights the night (slice 1, the Light Tower: 45%).
     awayPay:
       (nightShiftShare(mountain) ?? AWAY_PAY_RATE) *
       (1 + upgradeLevel(mountain, "steady") * STEADY_AWAY_PER_LEVEL),
+  };
+}
+
+type CrewRun = {
+  readonly running: Record<TierId, number>;
+  readonly exactBase: number;
+  readonly helpersShort: number;
+};
+
+/**
+ * Who runs what, and what the crew moves before the whole-stone floor.
+ * `tierSpeed` comes in plain and leaves tended.
+ */
+function crewRun(
+  mountain: Mountain,
+  plain: Readonly<Record<TierId, number>>,
+  steady: Readonly<Record<TierId, number>>,
+  tierSpeed: Record<TierId, number>,
+): CrewRun {
+  if (freshMineOn()) {
+    return workforceRun(mountain, plain, tierSpeed);
+  }
+  // Staffing: the hands run the machines that mine the most (#500); a
+  // machine short of its crew sits idle. Helpers still mine by hand while
+  // they run a machine. Kids count as staff too (Crown of Wisdom).
+  const running = keptStaffing(mountain, steady);
+  const needed = TIERS.filter(tierInPlay).reduce(
+    (total, tier) =>
+      total + owned(mountain, tier) * staffNeeded(mountain, tier),
+    0,
+  );
+  applyTendingFloor(mountain, plain, tierSpeed, running);
+  return {
+    running,
+    exactBase: crewOutput(tierSpeed, running),
+    helpersShort: Math.max(
+      0,
+      needed - mountain.owned.helper - mountain.owned.kid,
+    ),
+  };
+}
+
+/**
+ * A fresh mine's crew is the workforce he placed (slice 1, rule 2, #689):
+ * each stage's workers run its machines or work with a tool, and the line
+ * moves what its slowest stage moves. No staffing search and no spreading.
+ * `helpersShort` is the workers the idle machines would take, counting only
+ * a machine that would move more than its workers with tools.
+ */
+function workforceRun(
+  mountain: Mountain,
+  plain: Readonly<Record<TierId, number>>,
+  tierSpeed: Record<TierId, number>,
+): CrewRun {
+  applyAllTenths(mountain, plain, tierSpeed, lineWork(mountain, plain).running);
+  const work = lineWork(mountain, tierSpeed);
+  return {
+    running: work.running,
+    exactBase: work.line,
+    helpersShort: work.short,
   };
 }
 

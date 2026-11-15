@@ -42,6 +42,7 @@ describe("the game map (#558)", () => {
       fleet: "fleet",
       operational: "marks",
       project: "project",
+      jobs: "jobs",
     } as const satisfies Record<keyof Mountain, string>;
     const fresh = createMountain();
     const full: Mountain = {
@@ -93,6 +94,7 @@ describe("the game map (#558)", () => {
       fleet: { ...fresh.fleet, horseWagon: 3 },
       operational: ["lightTower"],
       project: { kind: "unordered" },
+      jobs: { drilling: 2, haulage: 1, hoisting: 0, driving: 3 },
     };
     // Part 1 has one building, so an operational one and a project in hand
     // are two mountains (#654).
@@ -177,6 +179,28 @@ describe("the game map (#558)", () => {
       project({ ...good, building: "rocketPad", arrived: { stones: -5 } }),
     ).toBe("bad");
     expect(readGame({ fleet: { truck: 1 } }, 0).kind).toBe("newer");
+  });
+
+  it("saves the workers on each job, and refuses more on jobs than he owns (#689)", () => {
+    expect(writeGame(createMountain())).not.toHaveProperty("jobs");
+    const crew = {
+      ...createMountain(),
+      owned: { ...createMountain().owned, helper: 5 },
+      jobs: { drilling: 2, haulage: 0, hoisting: 1, driving: 1 },
+    };
+    expect(writeGame(crew).jobs).toEqual({
+      drilling: 2,
+      hoisting: 1,
+      driving: 1,
+    });
+    const read = (game: unknown) => readGame(game, 0).kind;
+    expect(read({ owned: { helper: 5 }, jobs: { drilling: 5 } })).toBe("ok");
+    expect(
+      read({ owned: { helper: 5 }, jobs: { drilling: 4, driving: 2 } }),
+    ).toBe("bad");
+    expect(read({ jobs: { haulage: 1 } })).toBe("bad");
+    expect(read({ owned: { helper: 5 }, jobs: { drilling: -1 } })).toBe("bad");
+    expect(read({ owned: { helper: 5 }, jobs: { building: 1 } })).toBe("newer");
   });
 
   it("keys each fact by id, in the five maps", () => {
