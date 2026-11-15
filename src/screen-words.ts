@@ -24,9 +24,11 @@ import type { Mountain } from "./mountain";
 import { AWAY_END_MS, effectiveRates, type Rates } from "./rates";
 import { RELICS } from "./relics";
 import type { Stage } from "./line";
+import { freshMineOn } from "./line-switch";
 import { owned, tierById, type MachineId, type TierId } from "./tiers";
 import type { VehicleId } from "./transport";
 import { upgradeLevel, type Upgrade, type UpgradeId } from "./upgrades";
+import { toolSpeed } from "./workforce";
 
 // Player-facing wording shared by the screen's panels.
 
@@ -266,7 +268,10 @@ export function upgradeEffectLine(
     case "tap":
       return `Taps ${fromTo(change, (rates) => formatCount(rates.tapYield))}.`;
     case "boots":
-      return `Workers ${fromTo(change, (rates) => `${formatSpeed(rates.tierSpeed.helper)}/s`)}.`;
+      // In a fresh mine Better boots lifts only a worker with a tool (rule 2.9).
+      return freshMineOn()
+        ? `Workers with a tool ${fromTo(change, (rates) => `${formatSpeed(toolSpeed(rates.tierSpeed))}/s`)}.`
+        : `Workers ${fromTo(change, (rates) => `${formatSpeed(rates.tierSpeed.helper)}/s`)}.`;
     case "steady":
       return `Away pay ${fromTo(change, (rates) => shareWords(rates.awayPay))}.`;
     case "cartSyn":
@@ -277,10 +282,15 @@ export function upgradeEffectLine(
   }
 }
 
-/** Whether a synergy has any of the tier that feeds it. */
+/**
+ * Whether a synergy has any of the tier that feeds it. In a fresh mine the
+ * workers that feed Cart helpers are the ones on haulage (rule 2.9).
+ */
 const synergyFed = (upgrade: Upgrade, mountain: Mountain): boolean =>
   upgrade.synergy !== undefined &&
-  owned(mountain, tierById(upgrade.synergy.from)) > 0;
+  (upgrade.synergy.from === "helper" && freshMineOn()
+    ? mountain.jobs.haulage
+    : owned(mountain, tierById(upgrade.synergy.from))) > 0;
 
 function synergyEffectLine(
   upgrade: Upgrade,
@@ -288,7 +298,7 @@ function synergyEffectLine(
   change: UpgradeChange,
 ): string {
   if (upgrade.synergy === undefined || !synergyFed(upgrade, mountain)) {
-    return upgrade.perLevel;
+    return freshWords(upgrade.id)?.rule ?? upgrade.perLevel;
   }
   const to = tierById(upgrade.synergy.to);
   const name = to.id === "machine" ? "Great Machine" : `${to.shortName}s`;
@@ -306,6 +316,45 @@ const UPGRADE_WHY: Record<UpgradeId, string> = {
   machineSyn: "Each borer makes the machine a little quicker.",
 };
 
+/**
+ * A fresh mine's words for an upgrade (#661, the spec's call 41): Better
+ * boots lifts only a worker with a tool, and Helping hands counts the
+ * workers on haulage, so it takes a name without "hands". Proposed, and
+ * Flemming's to approve before part 1 is switched on.
+ */
+const FRESH_WORDS: Partial<
+  Record<
+    UpgradeId,
+    {
+      readonly name?: string;
+      readonly why: string;
+      /** Its rule, where today's `perLevel` no longer says it. */
+      readonly rule?: string;
+      /** What feeds it, where it has none: "It counts once …". */
+      readonly unfed?: string;
+    }
+  >
+> = {
+  boots: {
+    why: "Picks, barrows and winches go faster. Machines, drivers and builders do not.",
+  },
+  cartSyn: {
+    name: "Cart helpers",
+    why: "Each worker on haulage makes carts 1% faster.",
+    rule: "Each worker on haulage makes carts 1% faster.",
+    unfed: "It counts once haulage has workers.",
+  },
+};
+
+/** The words of a fresh mine's upgrade, or none outside a fresh mine. */
+const freshWords = (id: UpgradeId) =>
+  freshMineOn() ? FRESH_WORDS[id] : undefined;
+
+/** An upgrade's name: a fresh mine's where it has its own (Cart helpers). */
+export function upgradeName(upgrade: Upgrade): string {
+  return freshWords(upgrade.id)?.name ?? upgrade.name;
+}
+
 /** "workers", "carts", "borers": the tier a synergy needs, plural. */
 const tierPlural = (id: TierId): string =>
   id === "helper" ? workerWords(2) : `${tierById(id).shortName.toLowerCase()}s`;
@@ -320,8 +369,12 @@ export function upgradeWhyLine(
   mountain: Mountain,
   at: number,
 ): string {
+  const words = freshWords(upgrade.id);
   if (upgrade.synergy !== undefined && !synergyFed(upgrade, mountain)) {
-    return `It counts once you have ${tierPlural(upgrade.synergy.from)}.`;
+    return (
+      words?.unfed ??
+      `It counts once you have ${tierPlural(upgrade.synergy.from)}.`
+    );
   }
   if (upgrade.id === "tap") {
     const change = upgradeChange(upgrade, mountain, at);
@@ -332,7 +385,7 @@ export function upgradeWhyLine(
       return "It grows with your crew's speed.";
     }
   }
-  return UPGRADE_WHY[upgrade.id];
+  return words?.why ?? UPGRADE_WHY[upgrade.id];
 }
 
 /**
