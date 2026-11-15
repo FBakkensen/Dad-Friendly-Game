@@ -33,9 +33,13 @@
   height: calc(var(--art) * 28);
   padding: calc(var(--art) * 2) calc(var(--art) * 4);
   background: var(--frame-plate);
+  /* Part 1 has no line under the name (#715): the name and rate sit in the middle. */
+  display: flex;
+  align-items: center;
 }
 
 .mine-level-head {
+  flex: 1;
   display: flex;
   align-items: baseline;
   gap: calc(var(--art) * 4);
@@ -52,14 +56,6 @@
   margin-left: auto;
   font-size: var(--frame-type-18);
   color: var(--frame-rate);
-}
-
-.mine-level-line {
-  display: block;
-  margin-top: var(--art);
-  font-size: var(--frame-type-15);
-  color: var(--frame-quiet);
-  white-space: nowrap;
 }
 
 .mine-zones {

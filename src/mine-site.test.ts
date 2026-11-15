@@ -69,12 +69,11 @@ const withStones =
   });
 
 describe("the mine", () => {
-  it("shows the Topsoil, its line, and no name for the level under it", () => {
+  it("shows the Topsoil, no line under it (#715), and no name for the level under it", () => {
     const { root, text } = mount();
     expect(text(".mine-level-name")).toBe("Topsoil");
-    expect(text(".mine-level-line")).toBe(
-      "4 crews · all rock is hoisted as stone",
-    );
+    expect(root.querySelector(".mine-level-line")).toBeNull();
+    expect(root.querySelector(".mine")?.textContent).not.toMatch(/crews/i);
     expect(text(".mine-deep")).toBe(DEEPER_STRATA);
     expect(root.querySelector(".mine")?.textContent).not.toMatch(/granite/i);
   });

@@ -6,11 +6,11 @@ import { FRESH_OFF } from "../line-switch";
 import { createMountain, type Mountain } from "../mountain";
 import { effectiveRates } from "../rates";
 import { PILE_HOLDS } from "../mine-piles";
+import { fleetSize } from "../transport";
 import { NO_JOBS, type JobId, type Jobs } from "../workforce";
 import {
   bestRaise,
   drainsTheMine,
-  fleetSize,
   freshPlan,
   hirePrice,
   lineRaise,

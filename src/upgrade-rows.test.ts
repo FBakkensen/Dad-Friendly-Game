@@ -262,7 +262,7 @@ describe("lasting upgrade rows", () => {
       ),
     );
     expect(view.aria).toBe(
-      `Strong arms. ${view.info[0] ?? ""} Buy for ${formatCount(cost)} stones`,
+      `Strong arms. ${view.info[0] ?? ""} Buy for ${formatCount(cost)} stone`,
     );
 
     const dear = upgradeRowView(

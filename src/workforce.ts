@@ -1,6 +1,7 @@
 import { STAGES, type Stage, type StageSpeeds } from "./line";
 import type { Mountain } from "./mountain";
 import { makersOpen } from "./makers";
+import { fleetSize } from "./transport";
 import {
   TIERS,
   tierInPlay,
@@ -72,16 +73,40 @@ export function freeWorkers(mountain: Crew): number {
   return mountain.owned.helper - workersOnJobs(mountain);
 }
 
+type Placing = Pick<Mountain, "owned" | "jobs" | "fleet">;
+
+/**
+ * Room on a job for more workers: a vehicle takes one driver (rule 2.7), so
+ * transport stops at the vehicles he owns (#715). Every other job takes all.
+ * A save with more drivers than vehicles is read as it is: no room, and
+ * nobody taken off.
+ */
+export function jobRoom(mountain: Placing, job: JobId): number {
+  if (job !== "driving") {
+    return Infinity;
+  }
+  return Math.max(0, fleetSize(mountain) - mountain.jobs.driving);
+}
+
+/** Workers a + could put on `job` now: the free ones, up to its room. */
+export function placeable(mountain: Placing, job: JobId): number {
+  return Math.min(freeWorkers(mountain), jobRoom(mountain, job));
+}
+
 /**
  * Up to `count` free workers onto `job` (the amount key, #659): the free
- * ones there are, and no more. None free changes nothing.
+ * ones there are, up to the job's room, and no more. None free changes nothing.
  */
-export function placeWorker<M extends Crew>(
+export function placeWorker<M extends Placing>(
   mountain: M,
   job: JobId,
   count = 1,
 ): M {
-  return moved(mountain, job, Math.min(movable(count), freeWorkers(mountain)));
+  return moved(
+    mountain,
+    job,
+    Math.min(movable(count), placeable(mountain, job)),
+  );
 }
 
 /** Up to `count` workers off `job`, free again; none there changes nothing. */

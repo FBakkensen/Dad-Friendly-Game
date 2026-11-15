@@ -70,15 +70,20 @@ export function paintSteps(
   steps.minus.setAttribute("aria-label", `Take ${many} off ${job}`);
 }
 
+/** How long the no-free-worker note stays up (#715). */
+export const NOTE_MS = 4000;
+
 /**
  * Moves workers on a tap of any − or + inside `root`. A + with no free
- * worker shows `note` and moves nobody; any other move takes it down.
+ * worker shows `note` for a few seconds and moves nobody; any other move
+ * takes it down.
  */
 export function listenSteps(
   root: HTMLElement,
   state: FrameState,
   note: HTMLElement,
 ): void {
+  let timer: ReturnType<typeof setTimeout> | undefined;
   root.addEventListener("click", (event) => {
     const key = (event.target as Element).closest<HTMLElement>("[data-way]");
     const job = JOB_IDS.find((id) => id === key?.dataset["job"]);
@@ -87,8 +92,12 @@ export function listenSteps(
     }
     const way = key.dataset["way"] === "place" ? "place" : "free";
     const mountain = state.mountain();
+    clearTimeout(timer);
     if (way === "place" && freeWorkers(mountain) === 0) {
       hide(note, false);
+      timer = setTimeout(() => {
+        hide(note, true);
+      }, NOTE_MS);
       return;
     }
     hide(note, true);

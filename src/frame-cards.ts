@@ -1,8 +1,9 @@
 import { el, write, writeFigures } from "./board-dom";
 import { END_CARD, FIRST_EVENING, type CardWords } from "./frame-cards-words";
-import type { AwayReport, Mountain } from "./mountain";
+import { FRESH_START_JOBS, type AwayReport, type Mountain } from "./mountain";
 import type { ProgressSnapshot, ProgressStore } from "./progress-store";
 import { firstNotice } from "./session";
+import { JOB_IDS, workersOnJobs } from "./workforce";
 import {
   shiftReport,
   type NightAwayReport,
@@ -28,9 +29,15 @@ type FrameCard =
 
 type CardView = Pick<ProgressSnapshot, "notices" | "mountain">;
 
-/** Nothing ordered yet and nothing operational: the mine's first evenings. */
+/**
+ * The mine as it started: nothing ordered, nothing operational, and one
+ * worker, on drilling (#715). The first evening's card says just that.
+ */
 const nothingYet = (mountain: Mountain): boolean =>
-  mountain.project.kind === "unordered" && mountain.operational.length === 0;
+  mountain.project.kind === "unordered" &&
+  mountain.operational.length === 0 &&
+  mountain.owned.helper === workersOnJobs({ jobs: FRESH_START_JOBS }) &&
+  JOB_IDS.every((job) => mountain.jobs[job] === FRESH_START_JOBS[job]);
 
 /**
  * Whether the session greets its first evening, decided on its first ready

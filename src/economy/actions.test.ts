@@ -71,7 +71,9 @@ import {
   type Action,
   type Move,
   type ValueContext,
+  vehicleBuyMove,
 } from "./actions";
+import { vehicleQuote } from "../transport";
 
 const NOW = 1_700_000_000_000;
 const HORIZON = 6 * 60 * 60;
@@ -1421,6 +1423,39 @@ describe("applyMove (#409)", () => {
       stock: { ...rich.stock, stones: quote.cost - 1 },
     };
     expect(applyMove(short, tenCarts, NOW, calm)).toEqual({ kind: "refused" });
+  });
+
+  it("buys several wagons as one move, all or nothing (#715)", () => {
+    const tenWagons = vehicleBuyMove("horseWagon", 10);
+    expect(tenWagons).toEqual({
+      kind: "buyVehicles",
+      id: "horseWagon",
+      count: 10,
+    });
+    expect(vehicleBuyMove("horseWagon", 1)).toEqual({
+      kind: "buyVehicle",
+      id: "horseWagon",
+    });
+    const quote = vehicleQuote(rich, "horseWagon", "ten");
+    // Outside a fresh mine no wagon is bought, one or ten, as buyVehicle is refused.
+    expect(applyMove(rich, tenWagons, NOW, calm)).toEqual({ kind: "refused" });
+    withFactors({ [FRESH_OFF]: 0 }, () => {
+      const bought = applyMove(rich, tenWagons, NOW, calm);
+      expect(
+        bought.kind === "applied" && bought.mountain.fleet.horseWagon,
+      ).toBe(rich.fleet.horseWagon + 10);
+      expect(bought.kind === "applied" && bought.spent).toEqual({
+        ...EMPTY_STOCK,
+        stones: quote.cost,
+      });
+      const short: Mountain = {
+        ...rich,
+        stock: { ...rich.stock, stones: quote.cost - 1 },
+      };
+      expect(applyMove(short, tenWagons, NOW, calm)).toEqual({
+        kind: "refused",
+      });
+    });
   });
 
   it("several workers beside an idle machine still mark staffing taught (#358)", () => {

@@ -460,6 +460,20 @@ describe("the first evening's card", () => {
     expect(mount({ saved: lit, at: 1_000 }).card().shown).toBe(false);
   });
 
+  it("greets only a mine as it started: one worker, on drilling (#715)", () => {
+    expect(mount({ saved: crew(NO_PROJECT), at: 1_000 }).card().shown).toBe(
+      false,
+    );
+    const start = createMountain();
+    const moved = {
+      ...start,
+      jobs: { ...start.jobs, drilling: 0, haulage: 1 },
+    };
+    expect(mount({ saved: moved, at: 1_000 }).card().shown).toBe(false);
+    const hired = { ...start, owned: { ...start.owned, helper: 2 } };
+    expect(mount({ saved: hired, at: 1_000 }).card().shown).toBe(false);
+  });
+
   it("is not the first evening when the session opens on a night", () => {
     const { card, press } = mount({ saved: crew(NO_PROJECT), at: 9 * HOUR });
     expect(card().kind).toBe("report");

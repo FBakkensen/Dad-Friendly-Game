@@ -196,7 +196,7 @@ export function stageList(
  */
 export type WorkersList = {
   readonly name: string;
-  /** "30 owned". */
+  /** "30 hired" (#715). */
   readonly owned: string;
   readonly mark: string | undefined;
   readonly upgrades: readonly ListUpgrade[];
@@ -205,7 +205,7 @@ export type WorkersList = {
 export function workersList(mountain: Mountain, now: number): WorkersList {
   return {
     name: "Workers",
-    owned: `${formatCompact(mountain.owned.helper)} owned`,
+    owned: `${formatCompact(mountain.owned.helper)} hired`,
     mark: markLine("helper", mountain.owned.helper, formatCompact),
     upgrades: shownUpgrades(mountain, undefined, now),
   };

@@ -221,7 +221,6 @@ function buildOverlay(): {
   readonly root: HTMLElement;
   readonly name: HTMLElement;
   readonly rate: HTMLElement;
-  readonly line: HTMLElement;
 } {
   const root = el("div", "mine-over");
   const plate = el("div", "mine-level");
@@ -230,8 +229,7 @@ function buildOverlay(): {
   const rate = el("span", "mine-level-rate board-num");
   const head = el("span", "mine-level-head");
   head.append(name, rate);
-  const line = el("span", "mine-level-line");
-  plate.append(head, line);
+  plate.append(head);
   const zones = el("div", "mine-zones");
   atArt(zones, LEVEL.floor + 1);
   for (const stage of ["lift", "haul", "face"] as const) {
@@ -242,7 +240,7 @@ function buildOverlay(): {
   const deep = el("p", "mine-deep", DEEPER_STRATA);
   atArt(deep, DEEP_Y);
   root.append(plate, zones, deep);
-  return { root, name, rate, line };
+  return { root, name, rate };
 }
 
 /** The mine's canvas: its ground once a height, then its moving parts. */
@@ -311,7 +309,6 @@ export function createMineSite(
       const plate = levelPlate(mountain, now);
       write(over.name, plate.name);
       write(over.rate, plate.rate);
-      write(over.line, plate.line);
       const offered = machineKeys(mountain, state.amount(), now);
       for (const [stage, parts] of keys) {
         const key = offered.find((each) => each.stage === stage);

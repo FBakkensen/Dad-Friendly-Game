@@ -42,9 +42,9 @@ import { freshMineOn } from "../line-switch";
 import {
   JOB_IDS,
   freeWorker,
-  freeWorkers,
   jobOpen,
   placeWorker,
+  placeable,
   type JobId,
 } from "../workforce";
 import {
@@ -253,9 +253,8 @@ function workerActions(mountain: Mountain): readonly Action[] {
   if (!freshMineOn()) {
     return [];
   }
-  const free = freeWorkers(mountain);
   return JOB_IDS.flatMap((job): Action[] => [
-    ...(free > 0 && jobOpen(mountain, job)
+    ...(placeable(mountain, job) > 0 && jobOpen(mountain, job)
       ? [{ kind: "placeWorker", job, count: 1 } as const]
       : []),
     ...(mountain.jobs[job] > 0
@@ -455,9 +454,18 @@ export function buyWithTeach(mountain: Mountain, id: TierId): Mountain {
  * price. All or nothing, so a pocket short of the last one buys none.
  */
 function buyMany(mountain: Mountain, id: TierId, count: number): Mountain {
+  return allOf(mountain, count, (next) => buyWithTeach(next, id));
+}
+
+/** `count` buys, one after another, or none when one of them cannot be paid. */
+function allOf(
+  mountain: Mountain,
+  count: number,
+  buy: (mountain: Mountain) => Mountain,
+): Mountain {
   let next = mountain;
   for (let bought = 0; bought < count; bought += 1) {
-    const after = buyWithTeach(next, id);
+    const after = buy(next);
     if (after === next) {
       return mountain;
     }
@@ -480,6 +488,19 @@ export function tierBuyMove(
     : { kind: "buyTiers", id, count };
 }
 
+/**
+ * A tap on the city's wagon key: one is `buyVehicle`, and ×10 or Max buy
+ * several in one `buyVehicles` move, as `tierBuyMove` does for machines (#715).
+ */
+export function vehicleBuyMove(
+  id: VehicleId,
+  count: number,
+): Extract<Move, { kind: "buyVehicle" | "buyVehicles" }> {
+  return count === 1
+    ? { kind: "buyVehicle", id }
+    : { kind: "buyVehicles", id, count };
+}
+
 /** A move only the screen makes: the lab plays taps and marks through its value model. */
 type ScreenMove =
   | { readonly kind: "dig" }
@@ -487,6 +508,12 @@ type ScreenMove =
       /** Several of a tier in one tap (#358). The lab plans single buys. */
       readonly kind: "buyTiers";
       readonly id: TierId;
+      readonly count: number;
+    }
+  | {
+      /** Several vehicles in one tap (#715). The lab plans single buys. */
+      readonly kind: "buyVehicles";
+      readonly id: VehicleId;
       readonly count: number;
     }
   | { readonly kind: "tapVein" }
@@ -590,6 +617,10 @@ function moved(
       return rushOwed(mountain) ? releaseRush(mountain) : mountain;
     case "buyTiers":
       return buyMany(mountain, move.id, move.count);
+    case "buyVehicles":
+      return allOf(mountain, move.count, (next) =>
+        orderApplied(next, { kind: "buyVehicle", id: move.id }),
+      );
     case "markSeen":
       return markSeen(mountain, move.id);
     case "markAllSeen":
@@ -853,6 +884,8 @@ function moveEvents(
       ];
     case "buyTiers":
       return actionEvents(before, next, { kind: "buyTier", id: move.id });
+    case "buyVehicles":
+      return actionEvents(before, next, { kind: "buyVehicle", id: move.id });
     case "dig":
     case "markSeen":
     case "markAllSeen":

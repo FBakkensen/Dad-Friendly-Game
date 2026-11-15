@@ -214,7 +214,7 @@ export const BARE_MOUNTAIN: Mountain = {
  * shaft until he is moved to hoisting. The horse wagon is given, with nobody
  * driving it, and nobody builds until he hires.
  */
-const FRESH_START_JOBS: Jobs = {
+export const FRESH_START_JOBS: Jobs = {
   drilling: 1,
   haulage: 0,
   hoisting: 0,

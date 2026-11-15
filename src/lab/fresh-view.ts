@@ -5,7 +5,7 @@ import { STAGES } from "../line";
 import type { Mountain } from "../mountain";
 import { effectiveRates } from "../rates";
 import { TIERS, tierInPlay } from "../tiers";
-import { orderLimit, vehiclePrice, VEHICLE_IDS } from "../transport";
+import { fleetSize, orderLimit, vehiclePrice, VEHICLE_IDS } from "../transport";
 import {
   JOB_IDS,
   freeWorkers,
@@ -15,7 +15,7 @@ import {
   type Jobs,
 } from "../workforce";
 import { sticker } from "./decide";
-import { drainsTheMine, fleetSize, hirePrice, siteIdle } from "./fresh-dad";
+import { drainsTheMine, hirePrice, siteIdle } from "./fresh-dad";
 import { AMOUNT_KEY_TEN, FRESH_DUST } from "./targets";
 
 /**
