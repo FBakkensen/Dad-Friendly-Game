@@ -920,10 +920,11 @@ M free`. The crew line, in the Crew section at the top of Buys, names where
   later run wins whole. A lower rev is never adopted. One copy fast-forwards
   when it is at least as far on rock dug in all, upgrade levels, crafts,
   recipes, finds, engineer trips, the city (the buildings operational, the
-  steps built and what has arrived for the step in hand), every tier owned
-  (workers, kids, machines) and every vehicle, and further on one of the
-  progress facts (all but tiers and vehicles; #664 added the city, hoists and
-  vehicles). A lead that is only machines, crew or vehicles, or a split where
+  steps built and what has arrived for the step in hand), the stockyard's
+  level, every tier owned (workers, kids, machines), every vehicle and every
+  maker, and further on one of the progress facts (all but tiers, vehicles
+  and makers; #664 added the city, hoists and vehicles, #666 the stockyard
+  and the kilns). A lead that is only machines, makers, crew or vehicles, or a split where
   each side has something the other lacks, is not
   blended. The phone keeps its copy. The sheet "Two saves found" asks which to
   play. The other copy is archived first at `gameArchive/{uid}/copies/{id}` for
