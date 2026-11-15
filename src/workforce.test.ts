@@ -5,8 +5,10 @@ import {
   NO_JOBS,
   freeWorker,
   freeWorkers,
+  lineWork,
   placeWorker,
   stageWork,
+  toolSpeed,
   workersOnJobs,
   type StageMachine,
 } from "./workforce";
@@ -48,13 +50,13 @@ describe("one workforce (slice 1, rule 2, #689)", () => {
     ]);
   });
 
-  it("starts a fresh mine with every worker on a job: three on each stage, one driver and two builders", () => {
+  it("starts a fresh mine with every worker on a job: six on each stage, one driver and two builders", () => {
     const start = fresh(() => createMountain());
-    expect(start.owned.helper).toBe(12);
+    expect(start.owned.helper).toBe(21);
     expect(start.jobs).toEqual({
-      drilling: 3,
-      haulage: 3,
-      hoisting: 3,
+      drilling: 6,
+      haulage: 6,
+      hoisting: 6,
       driving: 1,
       building: 2,
     });
@@ -232,8 +234,9 @@ describe("the line in a fresh mine (rule 2.5, 2.9)", () => {
 
   it("runs a machine when its stage has the workers, and the rest work with tools", () => {
     fresh(() => {
-      // Drilling: a drill (108) and two picks (6). Haulage: a cart (18) and
-      // two barrows (6). Hoisting: a hoist (60) and two winches (6).
+      // Drilling: a drill (108) and two picks (6). Haulage: a cart (60, its
+      // fresh rating) and two barrows (6). Hoisting: a hoist (60) and two
+      // winches (6).
       const rates = effectiveRates(
         line(
           { drilling: 3, haulage: 3, hoisting: 3 },
@@ -246,7 +249,7 @@ describe("the line in a fresh mine (rule 2.5, 2.9)", () => {
         hoist: 1,
         helper: 6,
       });
-      expect(rates.crewPerSecond).toBe(24);
+      expect(rates.crewPerSecond).toBe(66);
     });
   });
 
@@ -263,13 +266,27 @@ describe("the line in a fresh mine (rule 2.5, 2.9)", () => {
 
   it("is short of nobody when a tool moves more than an idle machine", () => {
     fresh(() => {
-      // At 100 workers he owns, the marks lift a tool past a cart's 18.
-      const rates = effectiveRates(
-        line({ drilling: 5, haulage: 5, hoisting: 5 }, { cart: 2 }, 85),
+      // A cart slower than a tool (18 against 24 at 100 workers) stands.
+      const mountain = line(
+        { drilling: 5, haulage: 5, hoisting: 5 },
+        { cart: 2 },
+        85,
       );
-      expect(rates.tierSpeed.helper * 3).toBeGreaterThan(rates.tierSpeed.cart);
-      expect(rates.running.cart).toBe(0);
-      expect(rates.helpersShort).toBe(0);
+      const speed = { ...effectiveRates(mountain).tierSpeed, cart: 18 };
+      const work = lineWork(mountain, speed);
+      expect(toolSpeed(speed)).toBeGreaterThan(18);
+      expect(work.running.cart).toBe(0);
+      expect(work.short).toBe(0);
+    });
+  });
+
+  it("keeps a cart ahead of a tool at 100 workers with Better boots (#655, risk 15)", () => {
+    fresh(() => {
+      const rates = effectiveRates(
+        line({ drilling: 5, haulage: 5, hoisting: 5 }, { cart: 2 }, 85, 1),
+      );
+      expect(toolSpeed(rates.tierSpeed)).toBeLessThan(rates.tierSpeed.cart);
+      expect(rates.running.cart).toBe(2);
     });
   });
 
@@ -292,7 +309,7 @@ describe("the line in a fresh mine (rule 2.5, 2.9)", () => {
           1,
         ),
       );
-      expect(booted.tierSpeed.cart).toBe(18);
+      expect(booted.tierSpeed.cart).toBe(60);
       expect(booted.tierSpeed.helper).toBeCloseTo(2.36);
     });
   });
