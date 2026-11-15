@@ -5,7 +5,7 @@
  * minutes. At each look the stockpile reads what the rules say, from the game's own session,
  * until the roof goes on and the end card comes up.
  */
-import { Expected } from "./expected.ts";
+import { Expected, TICK_MS } from "./expected.ts";
 import { expect, test } from "./player.ts";
 
 /** How often he looks in: the clock jumps this far between his looks. */
@@ -59,6 +59,9 @@ test("the first evening: from one worker to the Light Tower's roof", async ({
     // Ten minutes the game folds in at once are a stretch away: where anything happened in it,
     // the shift report says so, and where nothing did, no card comes up.
     if (report?.night === undefined) {
+      // A tick past the jump, so a card that came up has painted.
+      await player.wait(TICK_MS);
+      rules.until(player.now);
       expect(await player.cardUp(), "no shift report on a quiet stretch").toBe(
         false,
       );
