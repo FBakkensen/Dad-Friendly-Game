@@ -95,6 +95,10 @@
   align-items: center;
 }
 
+.frame-order-top[hidden] {
+  display: none;
+}
+
 .frame-order-name {
   font-size: var(--board-type-20);
   font-weight: 700;
@@ -137,6 +141,11 @@
   white-space: nowrap;
   text-overflow: ellipsis;
   color: var(--frame-quiet);
+}
+
+/* Between buildings the line is all the strip says: it may take two rows (#708). */
+.frame-order[data-order="planning"] .frame-order-line {
+  white-space: normal;
 }
 
 /* The top row: the stockpile, then the workers and the hire key at its end. */

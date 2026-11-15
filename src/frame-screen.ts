@@ -4,7 +4,7 @@ import wagonUrl from "./assets/city/horse-wagon.png";
 import pickUrl from "./assets/pick.png";
 import type { AuthController } from "./auth";
 import { createSaveLine } from "./board-save";
-import { el, mark, setAttr, write } from "./board-dom";
+import { el, hide, mark, setAttr, write } from "./board-dom";
 import { deviceAmount, type DeviceStorage } from "./buys-amount";
 import {
   hireKey,
@@ -62,6 +62,7 @@ function icon(url: string, className: string): HTMLImageElement {
 
 type OrderParts = {
   readonly root: HTMLButtonElement;
+  readonly top: HTMLElement;
   readonly name: HTMLElement;
   readonly step: HTMLElement;
   readonly pips: readonly HTMLElement[];
@@ -88,7 +89,7 @@ function buildOrder(state: FrameState): OrderParts {
   root.addEventListener("click", () => {
     state.go("city");
   });
-  return { root, name, step, pips, line };
+  return { root, top, name, step, pips, line };
 }
 
 function paintPips(pips: readonly HTMLElement[], states: readonly Pip[]): void {
@@ -100,6 +101,9 @@ function paintPips(pips: readonly HTMLElement[], states: readonly Pip[]): void {
 function paintOrder(parts: OrderParts, mountain: Mountain): void {
   const strip = orderStrip(mountain);
   paintPips(parts.pips, strip.pips);
+  // Planning has no name or step: its line takes both rows, beside the pips (#708).
+  setAttr(parts.root, "data-order", strip.kind);
+  hide(parts.top, strip.kind === "planning");
   if (strip.kind === "planning") {
     write(parts.name, "");
     write(parts.step, "");
