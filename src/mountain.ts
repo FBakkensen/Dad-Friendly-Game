@@ -325,10 +325,7 @@ export function accrue({
   const ready = settleBench(mountain, from);
   if (freshMineOn() && stockyardOpen(ready)) {
     const worked = accrueStretches(ready, from, to, pay);
-    const fitted = settleBench(worked.mountain, to);
-    return fitted === worked.mountain
-      ? worked
-      : { ...worked, mountain: fitted };
+    return { ...worked, mountain: settleBench(worked.mountain, to) };
   }
   const crew = freshMineOn()
     ? accrueMine(ready, from, to, pay)
