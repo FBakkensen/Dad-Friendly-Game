@@ -493,6 +493,19 @@
   display: none;
 }
 
+/*
+ * The save's cards (#707): today's board cards, over everything on the
+ * frame, the shift report included, the other tab over the update (DOM order).
+ */
+.frame-app > .board-card {
+  z-index: 50;
+}
+
+/* A split is the one card that must be answered first, as on the board. */
+.frame-app > .board-card.save-conflict {
+  z-index: 51;
+}
+
 .frame-card-box {
   display: flex;
   flex-direction: column;

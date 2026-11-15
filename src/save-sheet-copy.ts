@@ -1,7 +1,13 @@
 import { shownStones } from "./scale";
 import { formatCompact } from "./format";
 import { layerOf } from "./layers";
+import { orderStrip } from "./frame-view";
+import { freshMineOn } from "./line-switch";
 import { minedOut, type Mountain } from "./mountain";
+import { MACHINE_WORDS, VEHICLE_WORDS } from "./screen-words";
+import { STAGES } from "./line";
+import { machinesInPlay, tierById } from "./tiers";
+import { VEHICLE_IDS } from "./transport";
 
 const MONTHS = [
   "Jan",
@@ -32,16 +38,51 @@ export function saveCardLines(
   lastSeen: number | undefined,
   now: number,
 ): SaveCardLines {
+  const played =
+    lastSeen === undefined ? "Not played yet" : lastPlayedWords(lastSeen, now);
+  if (freshMineOn()) {
+    return { ...freshLines(mountain), played };
+  }
   const band = layerOf(mountain).name.replace(/^The /, "");
   return {
     depth: `${band}, ${formatCompact(shownStones(mountain, minedOut(mountain)))} deep`,
     pocket: `${formatCompact(mountain.stock.stones)} stones in the pocket`,
     machines: machineLine(mountain),
     crew: crewLine(mountain),
-    played:
-      lastSeen === undefined
-        ? "Not played yet"
-        : lastPlayedWords(lastSeen, now),
+    played,
+  };
+}
+
+/**
+ * A fresh mine's card (#707): no depth, no pocket and no engineers. The
+ * project and its step in the order strip's words (its state does not fit
+ * half a card), the stone in the stockpile, the machines in the mine's
+ * order (drilling, haulage, hoisting), and the workers with the horse
+ * wagons they drive.
+ */
+function freshLines(mountain: Mountain): Omit<SaveCardLines, "played"> {
+  const strip = orderStrip(mountain);
+  const counted = (owned: number, [one, many]: readonly [string, string]) =>
+    count(owned, one, many);
+  const machines = STAGES.flatMap((stage) =>
+    machinesInPlay().filter((id) => tierById(id).stage === stage),
+  )
+    .filter((id) => mountain.owned[id] > 0)
+    .map((id) => counted(mountain.owned[id], MACHINE_WORDS[id]));
+  const vehicles = VEHICLE_IDS.filter((id) => mountain.fleet[id] > 0).map(
+    (id) => counted(mountain.fleet[id], VEHICLE_WORDS[id]),
+  );
+  return {
+    depth:
+      strip.kind === "project"
+        ? `${strip.name} · ${strip.stepName}`
+        : `${strip.name} is operational`,
+    pocket: `${formatCompact(mountain.stock.stones)} stone in the stockpile`,
+    machines: machines.length === 0 ? "No machines yet" : machines.join(" · "),
+    crew: [
+      counted(mountain.owned.helper, ["worker", "workers"]),
+      ...vehicles,
+    ].join(" · "),
   };
 }
 
