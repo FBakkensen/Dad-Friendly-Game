@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { tierLock } from "./crew";
+import { withFactors } from "./economy/factors";
+import { FRESH_OFF } from "./line-switch";
 import { createMountain } from "./mountain";
 import { shownStones } from "./scale";
 import { minedMountain } from "./test-fixtures";
@@ -74,5 +76,29 @@ describe("locked tier card words (#250, #508)", () => {
     expect(
       tierLock(minedMountain(10_000_000), tierById("borer")),
     ).toBeUndefined();
+  });
+});
+
+describe("a fresh mine's door words (#653)", () => {
+  it("says what the door waits for, in the prototype's words", () => {
+    withFactors({ [FRESH_OFF]: 0 }, () => {
+      const { tier: cart, lock: atTwelve } = lockOf("cart");
+      expect(lockRateLine(atTwelve)).toBe("At 12 workers");
+      expect(lockShortLine(atTwelve)).toBe("At 12 workers");
+      expect(lockBodyLine(cart, atTwelve)).toBe(
+        "The Mine cart opens at 12 workers.",
+      );
+      expect(lockAria(cart, atTwelve)).toBe(
+        "Mine cart, locked. Opens at 12 workers.",
+      );
+      const { tier: hoist, lock: afterCart } = lockOf("hoist");
+      expect(lockRateLine(afterCart)).toBe("After a cart");
+      expect(lockBodyLine(hoist, afterCart)).toBe(
+        "The Hoist opens after a cart.",
+      );
+      expect(lockAria(hoist, afterCart)).toBe(
+        "Hoist, locked. Opens after a cart.",
+      );
+    });
   });
 });

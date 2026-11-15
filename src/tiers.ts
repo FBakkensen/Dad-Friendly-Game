@@ -1,6 +1,6 @@
 import { BAND_STARTS, stretch } from "./scale";
 import { factor } from "./economy/factors";
-import { lineOn } from "./line-switch";
+import { freshMineOn, lineOn } from "./line-switch";
 import type { Stage } from "./line";
 import type { Mountain } from "./mountain";
 import type { RelicId } from "./relics";
@@ -338,10 +338,46 @@ export function buyTier(mountain: Mountain, id: TierId): Mountain {
 }
 
 /**
+ * What opens a tier in a fresh mine (slice 1, rule 1's table, #653): it is
+ * there from the start, it opens once he owns enough of another tier, or its
+ * door is a later part's (the Granite, the Foundry, the School).
+ */
+export type FreshDoor =
+  | { readonly kind: "start" }
+  | { readonly kind: "owns"; readonly tier: TierId; readonly count: number }
+  | { readonly kind: "later"; readonly at: "granite" | "foundry" | "school" };
+
+/** Workers he owns before the first cart opens in a fresh mine (the line spec). */
+export const CART_OPENS_AT_WORKERS = 12;
+
+const FRESH_DOORS: Readonly<Record<TierId, FreshDoor>> = {
+  helper: { kind: "start" },
+  cart: { kind: "owns", tier: "helper", count: CART_OPENS_AT_WORKERS },
+  hoist: { kind: "owns", tier: "cart", count: 1 },
+  drill: { kind: "owns", tier: "hoist", count: 1 },
+  // The locomotive and the borer open with the Granite (part 3).
+  borer: { kind: "later", at: "granite" },
+  train: { kind: "later", at: "granite" },
+  // The winding engine, once the Foundry is operational (part 3).
+  machine: { kind: "later", at: "foundry" },
+  // Kid workers wait for the School, a later slice.
+  kid: { kind: "later", at: "school" },
+};
+
+/** This tier's door in a fresh mine. */
+export function freshDoor(id: TierId): FreshDoor {
+  return FRESH_DOORS[id];
+}
+
+/**
  * False for a machine of the line while the line's rule is off (#533): it is
- * never shown, never for sale, takes no hands and moves nothing.
+ * never shown, never for sale, takes no hands and moves nothing. In a fresh
+ * mine, false for a tier whose door is a later part's (#653).
  */
 export function tierInPlay(tier: Tier): boolean {
+  if (freshMineOn()) {
+    return FRESH_DOORS[tier.id].kind !== "later";
+  }
   return tier.line !== true || lineOn();
 }
 
@@ -365,10 +401,16 @@ const PREVIOUS = {
 /**
  * A tier appears once you own one, or own one of the tier in play before
  * it. With the line off the hoist is skipped, so the drill follows the cart.
+ * In a fresh mine every tier in play is shown (#653).
  */
 export function tierShown(mountain: Mountain, tier: Tier): boolean {
   if (!tierInPlay(tier)) {
     return false;
+  }
+  // A fresh mine shows each machine in play from the first minute, with what
+  // its door waits for (`tierLock`), as the prototype's stage plates do.
+  if (freshMineOn()) {
+    return true;
   }
   const previous = (lineOn() ? PREVIOUS.on : PREVIOUS.off).get(tier.id);
   return (

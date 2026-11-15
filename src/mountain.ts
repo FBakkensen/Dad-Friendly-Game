@@ -19,6 +19,7 @@ import { NO_UPGRADES, type Upgrades } from "./upgrades";
 import { materialsGained } from "./layers";
 import { EMPTY_STOCK, addedStock, type Stock } from "./stock";
 import type { TeachId } from "./teach";
+import { freshMineOn } from "./line-switch";
 import { tierRecord, type TierId } from "./tiers";
 import type { Materials } from "./layers";
 import {
@@ -146,11 +147,18 @@ export const BARE_MOUNTAIN: Mountain = {
   taught: [],
 };
 
+/**
+ * Workers a fresh mine starts with (slice 1, #653): nothing is dug by hand,
+ * so the first evening needs hands from the first second. Prototype version
+ * 4's nine; the lab sets the number (#655).
+ */
+export const FRESH_START_WORKERS = 9;
+
 export function createMountain(): Mountain {
-  return {
-    ...BARE_MOUNTAIN,
-    recipes: recipesForMined(0),
-  };
+  const start = { ...BARE_MOUNTAIN, recipes: recipesForMined(0) };
+  return freshMineOn()
+    ? { ...start, owned: { ...start.owned, helper: FRESH_START_WORKERS } }
+    : start;
 }
 
 export { minedOut };
@@ -161,7 +169,8 @@ export function mineByHand(
   now?: number,
   trouble?: Trouble,
 ): Mountain {
-  if (mountain.remaining === 0) {
+  // Nothing is mined by a tap in a fresh mine (slice 1, What goes, #653).
+  if (mountain.remaining === 0 || freshMineOn()) {
     return mountain;
   }
   const mined = Math.min(
@@ -171,8 +180,18 @@ export function mineByHand(
   return digStones(mountain, mined);
 }
 
-/** Stones leave the mountain, and the band they came from drops its material. */
+/**
+ * Stones leave the mountain, and the band they came from drops its material.
+ * A fresh mine has no depth (slice 1, rule 1, #653): the stones go to the
+ * stock, and the mountain stays full, so its one level never runs out.
+ */
 export function digStones(mountain: Mountain, mined: number): Mountain {
+  if (freshMineOn()) {
+    return {
+      ...mountain,
+      stock: addedStock(mountain.stock, { stones: mined }),
+    };
+  }
   const before = minedOut(mountain);
   const remaining =
     mined >= stonesLeft(mountain)

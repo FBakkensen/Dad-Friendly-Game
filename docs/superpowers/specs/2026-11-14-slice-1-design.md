@@ -1,6 +1,6 @@
 # Slice 1, the first city: design (14 Nov 2026)
 
-Status: approved for its PR. Flemming agreed to the rules in principle (14 Nov 2026, 19:30Z), amended them three times the same evening, and said "That is right" to the playable prototype that plays them (21:35Z). The names are approved. Nothing in it is built. It stands on the line (#532 to #535 and #543 are merged, and #536 is in review as PR #650) and on the save groundwork (#560 is merged, #561 is open). Every number is a starting value for the lab, not a tuned one.
+Status: approved for its PR. Flemming agreed to the rules in principle (14 Nov 2026, 19:30Z), amended them three times the same evening, and said "That is right" to the playable prototype that plays them (21:35Z). The names are approved. It stands on the line (#532 to #535 and #543 are merged, behind their switch) and on the save groundwork (#560 is merged, #561 is open). #536, which would have turned the line on in today's game, is closed as not planned (Flemming, 14 Nov 2026, 21:47Z: nothing more is built on today's version), so the line is turned on with part 1 (#664). The fresh mine's rules are built off in play, behind the `fresh.off` switch (#653). Every number is a starting value for the lab, not a tuned one.
 
 **Amended 14 Nov 2026, 20:30Z.** Flemming: "The golden veins as they were should go, something the player should click as it was, do not fit road to Mars." Golden veins go, and the Gold rush goes with them (a vein's tap starts it). The Beacon (now the Light Tower) had a power about veins, so a new one is proposed below. He also asked for playable prototypes in place of mock pictures: the slice 1 prototype is in `prototypes/slice-1/` on branch `claude/project-thread-eextfa`, and it settles the screens ([What he sees](#what-he-sees)).
 
@@ -100,12 +100,12 @@ The loop: the city requires goods, he decides what the mine digs, what it makes 
 
 ### 2. The line
 
-The line is the line spec's step 1 as #536 to #539 build it: three stages, hands that fill in at the lowest, the stage bays, Buys by stage, engineers and trouble by stage. Slice 1 changes two things.
+The line is the line spec's step 1 (its rules are #532 to #535): three stages, hands that fill in at the lowest, the stage bays, Buys by stage, engineers and trouble by stage. Slice 1 changes two things.
 
 - **The rock no longer leans on a stage.** The line is the same on every level. "Tough on drills" and "Suits borers" go, and so does the band tag's advice. With the workforce on several levels at once, a lean would give each level its own bottleneck, and the screen could no longer give one answer to "where is the bottleneck". What a level changes is what comes up.
 - **The locomotive opens with the Granite**, not with a third level. The paper check shows why: with carts as haulage's only machine, haulage is the bottleneck for 9 to 18 sittings in a row.
 
-**Until part 1 is switched on**, the line lives in today's game. #536 turns it on there, on today's board, with the lean and with today's relics, depth and taps (PR #650). #537 and #538 are not built on today's board, and neither is #539's card: they are built on the new screens (How it would be built). #539's rules, engineers and trouble by stage, go on as they are. So for a while his phone has the bottleneck rule with little of it on screen. That is accepted: he has said the old version does not matter.
+**Until part 1 is switched on**, the line stays off in play, as it is on `main` behind its switch (#532). It is not turned on in today's game: #536 is closed as not planned, and nothing more is built on today's version (Flemming, 14 Nov 2026, 21:47Z). The line is turned on with part 1 (#664), without the lean. #537 and #538 are not built on today's board, and neither is #539's card: they are built on the new screens (How it would be built). #539's rules, engineers and trouble by stage, are built in part 3. The fresh mine's rules run beside today's game behind their own switch, `fresh.off`, which turns the line on with them (#653).
 
 ### 3. Goods and makers
 
@@ -466,7 +466,7 @@ Both were put to him in the project chat on 14 Nov 2026 as A or B, with A recomm
 
 **The workforce: the workers stay.** It was the one place where the prototype he played and the rules he approved disagreed.
 
-- **The rules** (the line spec, approved 14 Nov 2026, built in #532 to #536 and tuned in #543): he hires workers. A worker does every job by hand, the free hands go to the slowest stage, and a machine needs workers to run it. The cart opens at twelve workers.
+- **The rules** (the line spec, approved 14 Nov 2026, built in #532 to #535 and tuned in #543): he hires workers. A worker does every job by hand, the free hands go to the slowest stage, and a machine needs workers to run it. The cart opens at twelve workers.
 - **The prototype** has no workers to hire. Each stage has machines only, and all three are on sale in the first minute.
 
 He kept the workers (call 31). The reasons given to him were three. With no dig button, the first minutes need something small to buy often, and a worker at 60 stone is that. The hands that fill in at the slowest stage are what keeps a bad buy from being a punishment. And the line's rules and numbers are built and tuned with them. The cost is one more plate in the mine that he has not played.
@@ -478,7 +478,7 @@ The other choice was to drop the workers and buy machines only, as he played, wi
 ## What it changes in the line spec
 
 - "The levels and the cage": replaced by rules 1 and 5 here. The cage issues (#545 to #548) are closed as not planned.
-- "The rock moves the narrow stage too": the lean goes (call 6). #536 turns the line on with the lean, as #543 tuned it. A slice 1 sliver takes it out, and the lab sets the numbers again.
+- "The rock moves the narrow stage too": the lean goes (call 6). The line is turned on with part 1 (#664), and the Topsoil has no lean, so the lean never reaches play. Its code goes with today's bands, and the lab sets the numbers again.
 - Step 2 ("The cage is the lever", "a maker opens one band after its rock") and step 3 ("Six buildings", "Buildings open the bands", "The end of a run"): slice 1 builds its part of each, with the changes above. The rest waits for its slice.
 - Step 3's "He delivers" (each good has its own Send): replaced by rule 7. He orders, and transport delivers.
 - The Workshop's bench clock (`docs/DESIGN.md`, Milestone 9: 10 min, 1 h, 4 h) goes in slice 1's factory (rule 7). The golden-vein recipes go with the veins.
@@ -488,7 +488,7 @@ The other choice was to drop the workers and buy machines only, as he played, wi
 
 ## How it would be built
 
-This spec ships as a PR, and slice 1 is then split into sliver issues under #530. #536 (PR #650), #539's rules and #561 go on unchanged. #537, #538 and #539's card move to the new screens (below).
+This spec ships as a PR, and slice 1 is then split into sliver issues under #530. #536 is closed as not planned and its draft (PR #650) closed unmerged: the line is turned on with part 1 (#664), not in today's game. #539's rules move to part 3, and #561 waits for part 1's clean-up (#665). #537 and #538 are closed as not planned: they are built on the new screens as part 1's stage plates and its list by stage (below).
 
 **The slice goes live in three parts, and each part is a game he can play.** A part's rules are built off in play, as the line's were (#532), the lab plays them, and the part's last sliver switches it on. Between switch-ons the game on his phone does not change. So no sliver leaves a hole: nothing that opened at a depth is taken out before the part with its new door is switched on.
 
@@ -504,7 +504,7 @@ This spec ships as a PR, and slice 1 is then split into sliver issues under #530
 - Each part's rules are played by the lab before that part is switched on, and the lab sets that part's numbers (as #534 and #543 did for the line). The lab cannot play the whole slice before part 3's rules exist, so part 1 does not wait for it.
 - The pass, Legacy, kid runs and Grandpa (#642), the relics, the dig button, golden veins and the Gold rush leave play at part 1's switch-on. Their code is deleted by slivers after it.
 - The lean of the rock leaves play at part 1's switch-on too: the Topsoil has none, and no other level is in play until part 3.
-- The new screens are built beside today's board, to What he sees, and take its place at part 1's switch-on. They are built with the game's own parts and art, not from the prototype's code. #537 and #538 draw the stages and the buys on today's board and are not started: they are built in the mine instead, as part 1's stage plates and its machines by stage. #539's card for a stage lands there too. Those three issues are rewritten for the new screens when the slice is split.
+- The new screens are built beside today's board, to What he sees, and take its place at part 1's switch-on. They are built with the game's own parts and art, not from the prototype's code. #537 and #538 draw the stages and the buys on today's board and are not started: they are built in the mine instead, as part 1's stage plates and its machines by stage. #539's card for a stage lands there too. #537 and #538 are closed as not planned, and their work is the mine's stage plates (#660) and a stage's list (#661). #539 moves to part 3.
 
 ### The slivers, in order
 
@@ -517,7 +517,7 @@ Part 1, the first evenings:
 3. The lab plays part 1 and sets its numbers: the starting workers, the horse wagon, the Light Tower.
 4. Art: the Light Tower and a horse wagon. Asked for first.
    - Beside these, and not a sliver of the game: the prototype's fifth version adds the workforce plate (the prototype's thread, branch `claude/project-thread-eextfa`), he plays it, and his answer is recorded here and on sliver 5's issue. It has its own issue under #530, and sliver 5 is blocked by it.
-5. The frame and the mine, beside today's board: the order strip, the stockpiles, Next, the site bar, the mountain, the stage plates and a stage's list (#537, #538 and #539's card, rewritten), and the workforce plate. Waits for the prototype's fifth version and his answer on it (the step above).
+5. The frame and the mine, beside today's board: the order strip, the stockpiles, Next, the site bar, the mountain, the stage plates and a stage's list (#660 and #661, in place of #537 and #538), and the workforce plate. Waits for the prototype's fifth version and his answer on it (the step above).
 6. The city: the skyline, the transport plate, the project's card and the order key.
 7. The shift report and the cards.
 8. Part 1 is switched on. **Resets the save.** Today's board goes, and its journeys and visual sections move to the new screens.

@@ -1,3 +1,4 @@
+import { freshMineOn } from "./line-switch";
 import { stonesLeft, stretch } from "./scale";
 import { glintScale } from "./lost-tools";
 import { digStones, stonesPerSecond, type Mountain } from "./mountain";
@@ -104,6 +105,10 @@ export function advanceVein({
 
 /** A minute of the crew's output, at least 50, never more than the mountain holds. */
 export function veinReward(mountain: Mountain): number {
+  // Golden veins go with slice 1 (What goes, #653): a fresh mine has none.
+  if (freshMineOn()) {
+    return 0;
+  }
   return Math.min(
     stonesLeft(mountain),
     Math.floor(

@@ -11,6 +11,7 @@ import {
   ENGINEER_POSTS,
   MAX_ENGINEERS,
   promote,
+  promotionOpen,
   onTrip,
   promoteCost,
   promotePrice,
@@ -219,7 +220,7 @@ function boostActions(mountain: Mountain, now: number): readonly Action[] {
 }
 
 function promoteActions(mountain: Mountain): readonly Action[] {
-  return mountain.engineers.length < MAX_ENGINEERS && mountain.owned.helper >= 1
+  return mountain.engineers.length < MAX_ENGINEERS && promotionOpen(mountain)
     ? [{ kind: "promote", price: promotePrice(mountain) }]
     : [];
 }

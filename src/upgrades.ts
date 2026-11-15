@@ -1,3 +1,4 @@
+import { freshMineOn } from "./line-switch";
 import { oneOffStretch } from "./scale";
 import type { Mountain } from "./mountain";
 import { owned, tierById, type TierId } from "./tiers";
@@ -123,11 +124,27 @@ export const BOOTS_SPEED_PER_LEVEL = 1.36;
 /** Steady hands: away pay gained per level, relative to the base rate. */
 export const STEADY_AWAY_PER_LEVEL = 0.25;
 
+/**
+ * Upgrades a fresh mine leaves out (slice 1, Where today's parts land, #653):
+ * Strong arms goes with the dig button, and Steady hands goes because the
+ * Light Tower lights the night.
+ */
+const GONE_IN_A_FRESH_MINE: ReadonlySet<UpgradeId> = new Set<UpgradeId>([
+  "tap",
+  "steady",
+]);
+
+/** False for an upgrade a fresh mine leaves out: never shown or bought. */
+export function upgradeInPlay(upgrade: Upgrade): boolean {
+  return !(freshMineOn() && GONE_IN_A_FRESH_MINE.has(upgrade.id));
+}
+
 /** Whether the crew owns enough to see and buy this upgrade. */
 export function upgradeUnlocked(mountain: Mountain, upgrade: Upgrade): boolean {
   return (
-    upgrade.unlock === undefined ||
-    owned(mountain, tierById(upgrade.unlock.tier)) >= upgrade.unlock.count
+    upgradeInPlay(upgrade) &&
+    (upgrade.unlock === undefined ||
+      owned(mountain, tierById(upgrade.unlock.tier)) >= upgrade.unlock.count)
   );
 }
 

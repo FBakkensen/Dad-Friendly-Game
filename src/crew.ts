@@ -2,9 +2,11 @@ import { factor } from "./economy/factors";
 import { grantFirstEngineer } from "./engineers";
 import type { Mountain } from "./mountain";
 import { hasRelic, RELICS, type Relic } from "./relics";
+import { freshMineOn } from "./line-switch";
 import { KID_MACHINE_OPENS, minedOut, shownStones } from "./scale";
 import {
   buyTier,
+  freshDoor,
   owned,
   tierById,
   tierInPlay,
@@ -12,7 +14,10 @@ import {
   type TierId,
 } from "./tiers";
 
-/** What a locked tier waits for: a depth (M12-2, #250) or a relic. */
+/**
+ * What a locked tier waits for: a depth (M12-2, #250), a relic, or, in a
+ * fresh mine, a count of another tier he owns (slice 1, rule 1, #653).
+ */
 export type TierLock =
   | {
       readonly kind: "depth";
@@ -20,7 +25,21 @@ export type TierLock =
       /** The depth in this run's stones, for the card (M13). */
       readonly at: number;
     }
-  | { readonly kind: "relic"; readonly relic: Relic; readonly at: number };
+  | { readonly kind: "relic"; readonly relic: Relic; readonly at: number }
+  | { readonly kind: "owns"; readonly tier: TierId; readonly count: number };
+
+/**
+ * A fresh mine's door (rule 1's table): the first one waits until he owns
+ * enough of the tier before it. Once one is owned it stays for sale.
+ */
+function freshLock(mountain: Mountain, tier: Tier): TierLock | undefined {
+  const door = freshDoor(tier.id);
+  return door.kind === "owns" &&
+    owned(mountain, tier) === 0 &&
+    mountain.owned[door.tier] < door.count
+    ? { kind: "owns", tier: door.tier, count: door.count }
+    : undefined;
+}
 
 /**
  * From run 2 on (a stretched run), the Great Machine opens a little sooner,
@@ -33,6 +52,9 @@ function kidOpens(mountain: Mountain, tier: Tier): number {
 
 /** Why this tier is not for sale yet, or undefined when it is. */
 export function tierLock(mountain: Mountain, tier: Tier): TierLock | undefined {
+  if (freshMineOn()) {
+    return freshLock(mountain, tier);
+  }
   // An older save that already runs one keeps buying: the depth only
   // gates the first, so nothing it owns ever shows as locked.
   const opensAt =

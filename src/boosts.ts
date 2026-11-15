@@ -1,3 +1,4 @@
+import { freshMineOn } from "./line-switch";
 import { stretch } from "./scale";
 import type { Mountain } from "./mountain";
 import type { TierId } from "./tiers";
@@ -65,6 +66,15 @@ export function boostById(id: BoostId): Boost {
   return BY_ID[id];
 }
 
+/**
+ * False in a fresh mine (slice 1, Where today's parts land, #653): Sharper
+ * picks goes with the dig button, and Overtime because a live boost is made
+ * in the factory. Neither is shown or bought.
+ */
+export function boostInPlay(): boolean {
+  return !freshMineOn();
+}
+
 /** Milliseconds left on a boost, 0 when it isn't running. */
 export function boostLeft(
   mountain: Mountain,
@@ -113,7 +123,7 @@ export function buyBoost({
   pricing: BoostPricing;
 }): Mountain {
   const boost = boostById(id);
-  if (boostLeft(mountain, id, now) > 0) {
+  if (!boostInPlay() || boostLeft(mountain, id, now) > 0) {
     return mountain;
   }
   const paid = pay(mountain, boostPrice(boost, pricing, stretch(mountain)));
