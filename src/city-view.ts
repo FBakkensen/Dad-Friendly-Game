@@ -10,6 +10,7 @@ import {
 import { etaShort, formatCompact } from "./format";
 import { STEP_NAMES, orderStrip, requirements, type Pip } from "./frame-view";
 import type { Mountain } from "./mountain";
+import { partTwoOn } from "./part-switch";
 import type { BuyAmount } from "./tiers";
 import { AWAY_PAY_RATE, effectiveRates } from "./rates";
 import {
@@ -315,12 +316,34 @@ export type ProjectCard =
       readonly builders: BuildersRow;
     };
 
-/** The power a building gives, as the card says it. The Warehouse's words come with #671. */
-function completion(id: BuildingId): string {
+/** What a building gives once it is operational, in the words of its card. */
+function powerWords(id: BuildingId): readonly string[] {
   const power = buildingById(id).power;
-  return power.nightShift === undefined
-    ? ""
-    : `On completion: night shift output ${percent(power.nightShift)}, up from ${percent(AWAY_PAY_RATE)}.`;
+  return [
+    ...(power.nightShift === undefined
+      ? []
+      : [
+          `night shift output ${percent(power.nightShift)}, up from ${percent(AWAY_PAY_RATE)}.`,
+        ]),
+    ...(power.stockyard === undefined
+      ? []
+      : [`stockyard capacity ×${String(power.stockyard)}.`]),
+  ];
+}
+
+/**
+ * The power a building gives, as the card says it, and what it opens in the
+ * parts that are live: the Light Tower opens the refinery in part 2 (#671;
+ * spec, While a part is the end of the game).
+ */
+function completion(id: BuildingId): string {
+  const words = powerWords(id);
+  if (words.length === 0) {
+    return "";
+  }
+  const opens =
+    id === "lightTower" && partTwoOn() ? " Opens the refinery." : "";
+  return `On completion: ${words.join(" ")}${opens}`;
 }
 
 export function projectCard(mountain: Mountain, now?: number): ProjectCard {

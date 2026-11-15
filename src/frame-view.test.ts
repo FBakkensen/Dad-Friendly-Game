@@ -3,6 +3,7 @@ import { holdOrder, placeOrder, type Project } from "./city";
 import { withFactors } from "./economy/factors";
 import { hireKey, orderStrip, stockpiles, workersView } from "./frame-view";
 import { FRESH_OFF } from "./line-switch";
+import { PART_TWO_OFF } from "./part-switch";
 import { createMountain, type Mountain } from "./mountain";
 import { crewedStart } from "./test-fixtures";
 import { EMPTY_STOCK } from "./stock";
@@ -94,6 +95,39 @@ describe("top row", () => {
       };
       expect(stockpiles(rich)).toEqual([
         { good: "stones", count: 23_700, text: "23.7K" },
+      ]);
+    });
+  });
+
+  it("shows stone and brick with their rooms once the stockyard opens (#671)", () => {
+    withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 }, () => {
+      const start = createMountain();
+      const lit: Mountain = {
+        ...start,
+        operational: ["lightTower"],
+        stock: { ...start.stock, stones: 33_200, brick: 1_000_000 },
+      };
+      expect(stockpiles(lit)).toEqual([
+        {
+          good: "stones",
+          count: 33_200,
+          text: "33.2K",
+          room: "of 6M",
+          fill: 33_200 / 6_000_000,
+          full: false,
+        },
+        {
+          good: "brick",
+          count: 1_000_000,
+          text: "1M",
+          room: "of 1M",
+          fill: 1,
+          full: true,
+        },
+      ]);
+      // Before the Light Tower there is no stockyard: stone alone, no room.
+      expect(stockpiles({ ...lit, operational: [] })).toEqual([
+        { good: "stones", count: 33_200, text: "33.2K" },
       ]);
     });
   });

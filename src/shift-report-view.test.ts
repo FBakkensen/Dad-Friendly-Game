@@ -18,6 +18,7 @@ const NIGHT: NightReport = {
   producedMs: 8 * HOUR,
   stop: "clock",
   deadMs: 0,
+  produced: { ...EMPTY_STOCK, stones: 9_720 },
   delivered: { ...EMPTY_STOCK, stones: 9_720 },
   steps: [],
   payFrom: 0.3,
@@ -38,7 +39,11 @@ function away(
     capped: awayMs > 8 * HOUR,
     heart: 1,
     materials: { clay: 0, iron: 0, crystal: 0, heartstone: 0 },
-    night: { ...NIGHT, ...night },
+    night: {
+      ...NIGHT,
+      produced: { ...EMPTY_STOCK, stones: mined },
+      ...night,
+    },
   };
 }
 
@@ -69,6 +74,8 @@ describe("the shift report (#663)", () => {
         "Transport delivered to orders: 9,720 stone.",
         "A night shift runs 8 h. Production stopped after that.",
       ],
+      marks: [],
+      toStockyard: false,
       key: "Resume",
     });
     expectNoAdvice(report);
@@ -212,8 +219,46 @@ describe("the shift report (#663)", () => {
           "The Light Tower: operational. Night shift output 45%, up from 30%.",
           "A night shift runs 8 h. Production stopped after that.",
         ],
-        key: "Resume",
+        marks: [],
+      toStockyard: false,
+      key: "Resume",
       });
     });
+  });
+});
+
+describe("the shift report once the stockyard is open (#671)", () => {
+  it("says what came in of each good, when each stockpile filled, and that the stockyard stopped it", () => {
+    const report = shiftReport(
+      away(12 * HOUR, 30_000, {
+        producedMs: 5 * HOUR,
+        stop: "stockyard",
+        produced: { ...EMPTY_STOCK, stones: 9_720, brick: 1_200 },
+        delivered: EMPTY_STOCK,
+        fullAtMs: { brick: 3 * HOUR + 20 * MINUTE, stones: 5 * HOUR },
+        payFrom: 0.45,
+        payTo: 0.45,
+      }),
+    );
+    expect(report.lines).toEqual([
+      "Produced: 9,720 stone, 1,200 brick.",
+      "Stockyard full: production stopped.",
+    ]);
+    expect(report.marks).toEqual([
+      "Brick full at 3 h 20 min",
+      "Stone full at 5 h",
+    ]);
+    expect(report.toStockyard).toBe(true);
+    for (const line of words(report)) {
+      expect(line).not.toMatch(/hand|limit|bottleneck|buy/i);
+    }
+  });
+
+  it("has no stockyard key or marks on a night nothing filled", () => {
+    const report = shiftReport(
+      away(2 * HOUR, 19_440, { producedMs: 2 * HOUR, stop: "none" }),
+    );
+    expect(report.marks).toEqual([]);
+    expect(report.toStockyard).toBe(false);
   });
 });

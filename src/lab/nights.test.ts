@@ -24,6 +24,7 @@ function report(fullAtMs?: number, deadMs = 0): NightReport {
     deadMs,
     stop: fullAtMs === undefined ? "none" : "stockyard",
     ...(fullAtMs === undefined ? {} : { fullAtMs: { stones: fullAtMs } }),
+    produced: EMPTY_STOCK,
     delivered: EMPTY_STOCK,
     steps: [],
     payFrom: 0.45,

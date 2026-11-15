@@ -167,14 +167,63 @@
 }
 
 .frame-pile {
+  position: relative;
   display: flex;
   flex: 1;
   align-items: center;
   gap: calc(var(--art) * 3);
   align-self: stretch;
+  min-width: 0;
   padding-left: calc(var(--art) * 5);
   border-right: var(--art) solid var(--frame-edge);
   font-size: var(--board-type-22);
+}
+
+.frame .frame-pile[hidden],
+.frame .frame-pile-room[hidden],
+.frame .frame-pile-bar[hidden] {
+  display: none;
+}
+
+.frame-pile-words {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.05;
+}
+
+/* Once the stockyard opens (#671): each stockpile's room under its count, and a bar. */
+.frame-pile-room {
+  font-size: var(--frame-type-12);
+  color: var(--frame-quiet);
+}
+
+.frame-pile.full .frame-pile-room {
+  color: var(--frame-red);
+}
+
+.frame-pile-bar {
+  position: absolute;
+  left: calc(var(--art) * 5);
+  bottom: calc(var(--art) * 3);
+  height: var(--art);
+  max-width: calc(100% - var(--art) * 10);
+  background: var(--frame-quiet);
+}
+
+.frame-pile.full .frame-pile-bar {
+  background: var(--frame-red);
+}
+
+.frame-top.two-piles .frame-pile {
+  gap: calc(var(--art) * 2);
+  padding-left: calc(var(--art) * 3);
+  font-size: var(--board-type-17);
+}
+
+.frame-top.two-piles .frame-pile .frame-icon {
+  width: calc(var(--art) * 7);
+  height: calc(var(--art) * 7);
 }
 
 .frame-workers {
@@ -253,6 +302,10 @@
 
 .frame-scene[data-site="city"] {
   background: var(--frame-city-ground);
+}
+
+.frame-scene[data-site="refinery"] {
+  background: var(--frame-refinery-ground);
 }
 
 /* Next: what it points at, or what is affordable, and the count of everything. */
@@ -496,6 +549,7 @@
 
 .frame-sheet .frame-step,
 .mine .frame-step,
+.refinery .frame-step,
 .city .frame-step {
   flex: none;
   width: var(--target-min);
@@ -509,6 +563,7 @@
 
 .frame-sheet .frame-step.can,
 .mine .frame-step.can,
+.refinery .frame-step.can,
 .city .frame-step.can {
   color: var(--frame-ink);
 }
