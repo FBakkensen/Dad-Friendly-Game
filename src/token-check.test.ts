@@ -476,6 +476,7 @@ const FRAME_TWINS: Readonly<Record<string, string>> = {
   "--frame-quiet": "--quiet",
   "--frame-amber": "--amber",
   "--frame-green": "--green",
+  "--frame-moon": "--moon",
 };
 
 /** The frame's tokens with no twin in the prototype's :root: its inline values. */
@@ -497,6 +498,11 @@ const FRAME_OWN = [
   "--frame-top-h",
   "--frame-next-h",
   "--frame-sites-h",
+  // The shift report and the end card (#663): the card, its quieter lines,
+  // and the night bar's ground (the prototype's inline `away` values).
+  "--frame-card",
+  "--frame-card-quiet",
+  "--frame-night",
 ] as const;
 
 const FRAME_TOKENS: ReadonlySet<string> = new Set([

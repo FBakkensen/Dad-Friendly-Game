@@ -15,7 +15,7 @@ import { GOOD_IDS, type GoodId, type Stock } from "./stock";
  */
 
 /** The bar: the share of the night the mine produced, and its two labels. */
-export type ShiftBar = {
+type ShiftBar = {
   /** 0..1 of the night; never under 0.03, so the bar keeps a sliver. */
   readonly produced: number;
   /** "production 8 h", or "production, no downtime". */

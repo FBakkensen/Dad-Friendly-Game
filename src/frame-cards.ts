@@ -19,7 +19,7 @@ import {
  * behind it. The game runs on behind every card.
  */
 
-export type FrameCard =
+type FrameCard =
   | { readonly kind: "report"; readonly report: NightAwayReport }
   | { readonly kind: "end" };
 
@@ -36,7 +36,7 @@ export function nightReport(
 }
 
 /** The card to show now: the report, else the end card while its notice is open. */
-export function frameCard(
+function frameCard(
   view: Pick<ProgressSnapshot, "notices">,
 ): FrameCard | undefined {
   const report = nightReport(view);

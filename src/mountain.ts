@@ -435,7 +435,7 @@ export type AwayReport = {
 };
 
 /** A step built in during the night; the roof's is the building going operational. */
-export type NightStep = {
+type NightStep = {
   readonly building: BuildingId;
   readonly step: StepIndex;
   /** When, from the start of the night: the whole second it was built in. */
