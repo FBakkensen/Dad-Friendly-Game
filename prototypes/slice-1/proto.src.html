@@ -67,7 +67,7 @@
   .lamp { position: absolute; right: 5px; top: 4px; width: 10px; height: 10px; border-radius: 50%; background: #2a3138; box-shadow: inset 0 0 0 2px #11151a; }
   .lamp.green { background: var(--green); box-shadow: 0 0 6px var(--green); }
   .lamp.amber { background: var(--amber); box-shadow: 0 0 6px var(--amber); }
-  #say { position: absolute; left: 20px; right: 20px; bottom: 124px; padding: 8px 12px; background: #000c; border: 2px solid var(--amber); font-size: 17px; text-align: center; pointer-events: none; opacity: 0; transition: opacity .2s; z-index: 5; }
+  #say { position: absolute; left: 20px; right: 20px; bottom: 272px; padding: 8px 12px; background: #000c; border: 2px solid var(--amber); font-size: 17px; text-align: center; pointer-events: none; opacity: 0; transition: opacity .2s; z-index: 5; }
   #say.on { opacity: 1; }
   #card { position: absolute; inset: 0; background: #000b; display: flex; align-items: center; justify-content: center; z-index: 9; }
   #card .box { width: 344px; background: #171c22; border: 2px solid var(--amber); padding: 18px 18px 16px; }
@@ -103,10 +103,16 @@
   .berth { position: absolute; width: 68px; height: 64px; }
   .berth.free::after { content: "assign crew"; position: absolute; inset: 6px 4px 4px; border: 2px dashed #f2b44188; color: #f2b441cc; font-size: 13px; line-height: 1; display: flex; align-items: center; justify-content: center; text-align: center; letter-spacing: .04em; }
   #p-mine .deep { position: absolute; left: 10px; right: 10px; color: #8d93b8; font-size: 15px; text-align: center; }
-  .stg { position: absolute; width: 134px; height: 100px; background: #000a; border: 2px solid #3b4450; padding: 3px 5px; }
+  .stg { position: absolute; width: 134px; height: 86px; background: #000a; border: 2px solid #3b4450; padding: 3px 5px; }
   .stg.narrow { border-color: var(--amber); background: #2a1c00cc; }
   .stg .h { display: flex; align-items: center; gap: 3px; font-size: 16px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
   .stg .r { font-size: 16px; }
+  .stg .r small { font-family: var(--text); font-weight: 600; font-size: 12px; color: #ffd98a; margin-left: 5px; }
+  #wf { position: absolute; left: 6px; right: 6px; height: 48px; background: #000c; border: 2px solid #3b4450; display: flex; align-items: center; padding: 0 5px 0 8px; gap: 8px; }
+  #wf .t { flex: 1; min-width: 0; font-size: 16px; line-height: 1.05; white-space: nowrap; }
+  #wf .t b { font-weight: 700; letter-spacing: .08em; text-transform: uppercase; margin-right: 4px; }
+  #wf .t small { display: block; font-size: 13px; color: #d9cdb4; margin-top: 3px; }
+  #hire { width: 136px; height: 36px; background: #22282f; color: var(--quiet); text-align: center; font-size: 14px; white-space: nowrap; }
   .stg .w { font-size: 12px; color: var(--quiet); height: 14px; white-space: nowrap; }
   .stg.narrow .w { color: var(--amber); }
   .stg .p { position: absolute; left: 3px; right: 3px; bottom: 3px; height: 22px; background: #22282f; color: var(--quiet); font-size: 13px; text-align: center; line-height: 22px; white-space: nowrap; }
@@ -227,9 +233,9 @@ const GN = { stones: "stone", bricks: "brick", cut: "cut stone", clay: "clay", i
 const GC = { stones: "Stone", bricks: "Brick", cut: "Cut stone" };
 const PLACE_N = { mine: "Mine", works: "Refinery", workshop: "Factory", village: "City" };
 const STG = {
-  face: { n: "Drilling", mach: "Drill", short: "Drill", icon: "mach-drill", base: 900, per: 600, price: 8000, gear: "props" },
-  haul: { n: "Haulage", mach: "Mine cart", short: "Cart", icon: "mach-train", base: 500, per: 800, price: 6000, gear: "rails" },
-  lift: { n: "Hoisting", mach: "Hoist", short: "Hoist", icon: "mach-hoist", base: 1000, per: 1200, price: 12000 },
+  face: { n: "Drilling", mach: "Drill", short: "Drill", icon: "mach-drill", per: 600, price: 9000, staff: 3, gear: "props" },
+  haul: { n: "Haulage", mach: "Mine cart", short: "Cart", icon: "mach-train", per: 800, price: 3000, staff: 2, gear: "rails" },
+  lift: { n: "Hoisting", mach: "Hoist", short: "Hoist", icon: "mach-hoist", per: 1200, price: 6000, staff: 3 },
 };
 const REC = {
   rails: { n: "Iron rails", cost: { stones: 20000, iron: 4 }, s: 30, max: 2, does: "Haulage capacity +15%", verb: "Install" },
@@ -237,7 +243,7 @@ const REC = {
   charge: { n: "Blasting charge", cost: { stones: 5000, clay: 5 }, s: 20, does: "Throughput ×2 for 60 s", verb: "Detonate" },
 };
 const BLD = [
-  { id: "beacon", n: "The Light Tower", gives: "Night shift output 45%, up from 30%.", also: "Opens the refinery.", opens: "New site: the refinery. Kilns turn Topsoil rock into brick, and a stockyard holds the output. The shaft to the Granite can now be sunk.", steps: [{ stones: 15000 }, { stones: 40000 }, { stones: 90000 }] },
+  { id: "beacon", n: "The Light Tower",  gives: "Night shift output 45%, up from 30%.", also: "Opens the refinery.", opens: "New site: the refinery. Kilns turn Topsoil rock into brick, and a stockyard holds the output. The shaft to the Granite can now be sunk.", steps: [{ stones: 10000 }, { stones: 30000 }, { stones: 60000 }] },
   { id: "store", n: "The Warehouse", gives: "Stockyard capacity ×2.", also: "Opens trucks.", steps: [{ stones: 30000 }, { stones: 60000, bricks: 20000 }, { bricks: 40000 }] },
   { id: "forge", n: "The Foundry", gives: "Unlocks the winding engine, for hoisting.", steps: [{ bricks: 30000, cut: 10000 }, { bricks: 50000, cut: 30000 }, { bricks: 60000, cut: 60000 }] },
 ];
@@ -245,24 +251,24 @@ const STEPN = ["Foundation", "Structure", "Roof"];
 const SHAFT = { stones: 150000, bricks: 40000 };
 /* Transport: one fleet moves ordered materials from stock to the city and the factory. */
 const VEH = {
-  wagons: { one: "horse wagon", n: "horse wagons", per: 400, good: "stones", price: 4000 },
+  wagons: { one: "horse wagon", n: "horse wagons", per: 200, good: "stones", price: 2500 },
   trucks: { one: "truck", n: "trucks", per: 1600, good: "bricks", price: 20000 },
 };
 const WGT = { clay: 500, iron: 500 }; // what one clay or iron takes of a load, in stone
 /* The first evening: one level, stone only, the mine and the city. */
 const fresh = () => ({
-  v: 5, stones: 2000, bricks: 0, cut: 0, yard: 0, m: { face: 1, haul: 1, lift: 1, great: 0 }, loco: 0, fleet: { wagons: 1, trucks: 0 }, shaft: false, gangs: [4, 0], kilns: 0, saws: 0,
+  v: 6, stones: 300, bricks: 0, cut: 0, yard: 0, w: 9, m: { face: 0, haul: 0, lift: 0, great: 0 }, loco: 0, fleet: { wagons: 1, trucks: 0 }, shaft: false, gangs: [4, 0], kilns: 0, saws: 0,
   clay: 0, iron: 0, bench: null, gear: { rails: 0, props: 0 }, charge: 0,
   b: { beacon: { step: 0, given: {} }, store: { step: 0, given: {} }, forge: { step: 0, given: {} } },
   intro: false, place: 0, seen: 0,
 });
 /* Mid game: all four sites open, the Warehouse half built. */
 const mid = () => Object.assign(fresh(), {
-  stones: 46000, bricks: 12000, cut: 3000, m: { face: 3, haul: 3, lift: 2, great: 0 }, shaft: true, fleet: { wagons: 3, trucks: 0 }, gangs: [2, 2], kilns: 4, saws: 2, clay: 6, iron: 9,
+  stones: 46000, bricks: 12000, cut: 3000, w: 30, m: { face: 3, haul: 3, lift: 2, great: 0 }, shaft: true, fleet: { wagons: 3, trucks: 0 }, gangs: [2, 2], kilns: 4, saws: 2, clay: 6, iron: 9,
   b: { beacon: { step: 3, given: {} }, store: { step: 1, given: { stones: 22000, bricks: 3000 }, on: true }, forge: { step: 0, given: {} } },
 });
 let S = fresh();
-try { const raw = localStorage.getItem("slice1-proto"); if (raw) { const o = JSON.parse(raw); if (o && o.v === 5) S = o; } } catch (e) { /* plays without it */ }
+try { const raw = localStorage.getItem("slice1-proto"); if (raw) { const o = JSON.parse(raw); if (o && o.v === 6) S = o; } } catch (e) { /* plays without it */ }
 const GONE = S.seen ? (Date.now() - S.seen) / 1000 : 0; // how long he was away, read before anything saves
 const save = () => { S.seen = Date.now(); try { localStorage.setItem("slice1-proto", JSON.stringify(S)); } catch (e) { /* plays without it */ } };
 
@@ -271,10 +277,25 @@ const fmt = (n) => { n = Math.floor(n); if (n >= 1e6) return (n / 1e6).toFixed(2
 const rate = (n) => Math.round(n).toLocaleString("en-US") + "/s";
 const nice = (n) => { const p = Math.pow(10, Math.max(0, Math.floor(Math.log10(n)) - 1)); return Math.round(n / p) * p; };
 const forgeUp = () => S.b.forge.step >= 3;
-const stageBuy = (k) => k === "lift" && forgeUp()
-  ? { mach: "Winding engine", short: "Engine", good: "cut", price: nice(30000 * Math.pow(1.25, S.m.great)), key: "great", per: 3000 }
-  : k === "haul" && S.shaft ? { mach: "Locomotive", short: "Loco", good: "cut", price: nice(5000 * Math.pow(1.25, S.loco)), key: "loco", per: 1600 }
-  : { mach: STG[k].mach, short: STG[k].short, good: "stones", price: nice(STG[k].price * Math.pow(1.3, S.m[k] - 1)), key: k, per: STG[k].per };
+/* The workforce. A worker works by hand, a machine takes workers to run it, and the free hands go to the slowest stage. */
+const HAND = 100;
+const workerPrice = () => nice(150 * Math.pow(1.07, S.w - 9));
+function staffing() {
+  const used = S.m.face * STG.face.staff + S.m.haul * STG.haul.staff + S.m.lift * STG.lift.staff + S.loco * 6 + S.m.great * 8, free = Math.max(0, S.w - used);
+  const mult = (k) => 1 + 0.15 * (STG[k].gear ? S.gear[STG[k].gear] : 0), hands = { face: 0, haul: 0, lift: 0 };
+  const f = { face: STG.face.per * S.m.face * mult("face"), haul: (STG.haul.per * S.m.haul + 1600 * S.loco) * mult("haul"), lift: (STG.lift.per * S.m.lift + 3000 * S.m.great) * mult("lift") };
+  for (let i = 0; i < free; i++) { let lo = "face"; for (const k in f) if (f[k] < f[lo] - 1e-6) lo = k; hands[lo]++; f[lo] += HAND * mult(lo); }
+  return { used, free, hands, f };
+}
+/* A stage's next machine: what it is, its price, the workers it takes, and what it waits for when it is not on sale yet. */
+function stageBuy(k) {
+  const b = k === "lift" && forgeUp() ? { mach: "Winding engine", short: "Engine", good: "cut", price: nice(30000 * Math.pow(1.25, S.m.great)), key: "great", per: 3000, staff: 8 }
+    : k === "haul" && S.shaft ? { mach: "Locomotive", short: "Loco", good: "cut", price: nice(5000 * Math.pow(1.25, S.loco)), key: "loco", per: 1600, staff: 6 }
+    : { mach: STG[k].mach, short: STG[k].short, good: "stones", price: nice(STG[k].price * Math.pow(1.3, S.m[k])), key: k, per: STG[k].per, staff: STG[k].staff };
+  { const key = b.key, was = key === "loco" ? S.loco : S.m[key], before = Math.min(...Object.values(staffing().f)); if (key === "loco") S.loco++; else S.m[key]++; const sf = staffing(); b.gain = sf.used > S.w ? 0 : Math.min(...Object.values(sf.f)) - before; if (key === "loco") S.loco = was; else S.m[key] = was; }
+  b.lock = k === "haul" && !S.shaft && !S.m.haul && S.w < 12 ? "Cart: at 12 workers" : k === "lift" && !S.m.haul && !S.loco ? "Hoist: after a cart" : k === "face" && !S.m.lift ? "Drill: after a hoist" : "";
+  return b;
+}
 const worksOpen = () => S.b.beacon.step >= 3; // the Light Tower opens the refinery and the stockyard
 const avail = (i) => [true, worksOpen(), S.shaft, true][i];
 const kilnPrice = () => nice(10000 * Math.pow(1.2, S.kilns));
@@ -285,8 +306,8 @@ const lc = (t) => t.charAt(0).toLowerCase() + t.slice(1);
 const low = (n) => n.replace(/^The /, "the ");
 const inHand = () => BLD.find((b) => S.b[b.id].step < 3);
 function flows() {
-  const f = {}; let narrow = "face";
-  for (const k in STG) { f[k] = (STG[k].base + STG[k].per * S.m[k] + (k === "lift" ? 3000 * S.m.great : 0) + (k === "haul" ? 1600 * S.loco : 0)) * (1 + 0.15 * (STG[k].gear ? S.gear[STG[k].gear] : 0)); if (f[k] < f[narrow]) narrow = k; }
+  const sf = staffing(), f = sf.f; let narrow = "face";
+  for (const k in f) if (f[k] < f[narrow] - 1e-6) narrow = k;
   const line = f[narrow] * (S.charge > 0 ? 2 : 1), cap = caps();
   const rock = [line * S.gangs[0] / 4, line * S.gangs[1] / 4];
   const mk = [S.kilns * 100, S.saws * 120];
@@ -296,7 +317,7 @@ function flows() {
   const over = [full.stones ? 0 : rock[0] - made[0], full.stones ? 0 : rock[1] - made[1]];
   const moving = [made[0] + over[0] > 0, made[1] + over[1] > 0];
   const holds = [rock[0] <= mk[0] ? "crews" : "kilns", rock[1] <= mk[1] ? "crews" : "saws"];
-  return { f, narrow, line, rock, take, made, over, cap, full, holds, moving };
+  return { sf, f, narrow, line, rock, take, made, over, cap, full, holds, moving };
 }
 const fleetRate = () => S.fleet.wagons * VEH.wagons.per + S.fleet.trucks * VEH.trucks.per;
 const vehPrice = (k) => nice(VEH[k].price * Math.pow(1.3, S.fleet[k] - (k === "wagons" ? 1 : 0)));
@@ -392,7 +413,11 @@ const pay = (cost) => { for (const g in cost) S[g] -= cost[g]; };
 let sayT = 0;
 function say(t) { const s = $("#say"); s.textContent = t; s.classList.add("on"); clearTimeout(sayT); sayT = setTimeout(() => s.classList.remove("on"), 2600); }
 const lacks = (cost) => { const g = Object.keys(cost).find((k) => Math.floor(S[k]) < cost[k]); return g ? "Requires " + fmt(cost[g]) + " " + GN[g] + "." : ""; };
-function buyStage(k) { const b = stageBuy(k), c = { [b.good]: b.price }; if (!canPay(c)) return say(lacks(c)); pay(c); if (b.key === "loco") S.loco++; else S.m[b.key]++; after(); }
+function hire() { const c = { stones: workerPrice() }; if (!canPay(c)) return say(lacks(c)); pay(c); S.w++; after(); }
+function buyStage(k) {
+  const b = stageBuy(k), c = { [b.good]: b.price }; if (b.lock) return say(b.lock + ".");
+  if (staffing().free < b.staff) return say("A " + b.mach.toLowerCase() + " takes " + b.staff + " workers to run. Hire more.");
+  if (!canPay(c)) return say(lacks(c)); pay(c); if (b.key === "loco") S.loco++; else S.m[b.key]++; after(); }
 function sinkShaft() {
   if (S.shaft || !worksOpen()) return; if (!canPay(SHAFT)) return say(lacks(SHAFT));
   pay(SHAFT); S.shaft = true; S.gangs = [2, 2]; build(); after();
@@ -427,7 +452,9 @@ function actions() {
   if (S.bench && S.bench.done) a.push({ p: 2, pri: 100, t: "Install: " + REC[S.bench.id].n.toLowerCase(), sel: "#fitbtn" });
   if (h && !S.b[h.id].on) { const held = S.b[h.id].held; a.push({ p: 3, pri: held ? 35 : 90, t: (held ? "Resume: " : "Order ") + low(h.n), sel: "#ord" }); }
   for (const k in VEH) if ((k === "wagons" || trucksOpen()) && canPay({ [VEH[k].good]: vehPrice(k) })) a.push({ p: 3, pri: jobs().length ? 45 : 8, t: "+1 " + VEH[k].one + " · " + fmt(vehPrice(k)) + " " + GN[VEH[k].good], sel: "#fl-" + k });
-  for (const k in STG) { const b = stageBuy(k); if (canPay({ [b.good]: b.price })) a.push({ p: 0, pri: k === F.narrow ? 80 : 15, t: b.mach + " · " + fmt(b.price) + " " + GN[b.good], sel: "#stg-" + k }); }
+  let short = S.w < 12;
+  for (const k in STG) { const b = stageBuy(k); if (!b.lock && F.sf.free < b.staff && canPay({ [b.good]: b.price })) short = true; if (!b.lock && F.sf.free >= b.staff && b.gain > 0 && canPay({ [b.good]: b.price })) a.push({ p: 0, pri: F.f[k] <= F.f[F.narrow] + 1e-6 ? 80 : 15, t: b.mach + " · " + fmt(b.price) + " " + GN[b.good], sel: "#stg-" + k }); }
+  if (canPay({ stones: workerPrice() })) a.push({ p: 0, pri: short ? 70 : 20, t: "Hire a worker · " + fmt(workerPrice()) + " stone", sel: "#hire" });
   if (worksOpen() && !S.shaft && canPay(SHAFT)) a.push({ p: 0, pri: 85, t: "Sink the shaft to the Granite", sel: "#sink" });
   if (worksOpen() && canPay({ stones: kilnPrice() })) a.push({ p: 1, pri: F.holds[0] === "kilns" ? 70 : 10, t: "Kiln · " + fmt(kilnPrice()) + " stone", sel: "#pl-kiln" });
   if (S.shaft && canPay({ bricks: sawPrice() })) a.push({ p: 1, pri: F.holds[1] === "saws" ? 65 : 10, t: "Saw · " + fmt(sawPrice()) + " brick", sel: "#pl-saw" });
@@ -519,7 +546,8 @@ function mineDOM(ov) {
         tap: () => { if (b.classList.contains("free")) moveGang(i); else say(S.shaft ? "Drag the crew to the other level, or tap a free slot there." : "All four crews work the Topsoil. A second level needs the shaft."); } });
     }
   });
-  const deep = el("div", "deep", ov, "Deeper strata: not yet surveyed. The city has to grow first."); deep.style.top = (SURF + 2 * LH + 4) * 2 + "px";
+  if (hA * 2 - 150 > (SURF + 2 * LH + 4) * 2 + 24) { const deep = el("div", "deep", ov, "Deeper strata: not yet surveyed. The city has to grow first."); deep.style.top = (SURF + 2 * LH + 4) * 2 + "px"; }
+  const wf = el("div", "", ov, `<div class="t"><b>Workforce</b><span class="num" id="wf-n"></span><small id="wf-s"></small></div><button id="hire"></button>`); wf.id = "wf"; wf.style.bottom = "98px"; tap($("#hire"), hire);
   Object.keys(STG).forEach((k, n) => { const s = el("button", "stg", ov, `<div class="h">${ico(k === "haul" && !S.shaft ? "mach-cart" : STG[k].icon)}${STG[k].n}</div><div class="r num"></div><div class="w"></div><div class="p"></div>`); s.id = "stg-" + k; s.style.left = 6 + n * 139 + "px"; s.style.bottom = "8px"; tap(s, () => buyStage(k)); });
 }
 function mineUI(F) {
@@ -540,7 +568,16 @@ function mineUI(F) {
     $("#lv-b" + i).innerHTML = b;
     for (let k = 0; k < 4; k++) $(`#be-${i}-${k}`).classList.toggle("free", k < 4 - g);
   }
-  for (const k in STG) { const s = $("#stg-" + k), sb = stageBuy(k), pr = sb.price, ok = canPay({ [sb.good]: pr }); s.classList.toggle("narrow", F.narrow === k); s.children[1].textContent = rate(F.f[k]); s.children[2].textContent = F.narrow === k ? "bottleneck" : "+" + rate(F.f[k] - F.f[F.narrow]) + " headroom"; s.children[3].innerHTML = `+${sb.short} ${fmt(pr)} ${ico(sb.good)}`; s.children[3].classList.toggle("can", ok); }
+  const sf = F.sf, hs = Object.keys(sf.hands), top = hs.reduce((a, k) => (sf.hands[k] > sf.hands[a] ? k : a)), low = hs.reduce((a, k) => (sf.hands[k] < sf.hands[a] ? k : a));
+  $("#wf-n").textContent = S.w + " workers";
+  $("#wf-s").textContent = (sf.used ? sf.used + " run machines · " : "") + (!sf.free ? "no free hands" : sf.free + " free hands " + (sf.hands[top] - sf.hands[low] <= 1 ? "work all three stages" : "help " + STG[top].n.toLowerCase()));
+  const hb = $("#hire"); hb.innerHTML = `+1 worker · ${fmt(workerPrice())} ${ico("stones")}`; hb.classList.toggle("can", canPay({ stones: workerPrice() }));
+  for (const k in STG) {
+    const s = $("#stg-" + k), sb = stageBuy(k), pr = sb.price, ok = !sb.lock && sf.free >= sb.staff && sb.gain > 0 && canPay({ [sb.good]: pr });
+    const tied = F.f[k] <= F.f[F.narrow] + 1e-6; s.classList.toggle("narrow", tied); s.children[1].innerHTML = rate(F.f[k]) + (sf.hands[k] ? `<small>${sf.hands[k]} ${sf.hands[k] === 1 ? "hand" : "hands"}</small>` : "");
+    s.children[2].textContent = tied ? "bottleneck" : "+" + rate(F.f[k] - F.f[F.narrow]) + " headroom";
+    s.children[3].innerHTML = sb.lock || (sf.free < sb.staff ? `Needs ${sb.staff} free workers` : `+${sb.short} ${fmt(pr)} ${ico(sb.good)}` + (sb.gain > 0 ? "" : " · no gain")); s.children[3].classList.toggle("can", ok);
+  }
 }
 
 /* ---------- the works: rock falls through the makers into the yard ---------- */
@@ -886,7 +923,7 @@ async function boot() {
   let rz = 0; addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(build, 120); });
   addEventListener("visibilitychange", save); addEventListener("pagehide", save);
   if (S.intro && GONE > 90) away(GONE);
-  if (!S.intro) card("The first evening", ["One level, one material, two sites: the mine and the city. The city's first project is the Light Tower.", "Order the tower in the city. Transport moves the stone at its own rate, and the tower rises as it arrives. Each finished building opens the next site. The numbers are made up and run fast. Reset, top right, can also jump to all four sites."], "Start", null, () => { S.intro = true; save(); });
+  if (!S.intro) card("The first evening", ["One level, one material, two sites: the mine and the city. You start with nine workers, by hand, and one horse wagon.", "Hire workers: the free hands go to the slowest stage, and a machine takes workers to run it.", "Order the tower in the city. Transport moves the stone at its own rate, and the tower rises as it arrives. Each finished building opens the next site. The numbers are made up and run fast. Reset, top right, can also jump to all four sites."], "Start", null, () => { S.intro = true; save(); });
   requestAnimationFrame(loop);
 }
 boot();
