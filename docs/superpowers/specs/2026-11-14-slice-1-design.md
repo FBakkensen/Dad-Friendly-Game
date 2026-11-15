@@ -313,7 +313,7 @@ His words, 15 Nov 2026: hiring "should be a global place". The top row of the fr
 
 ### The cards (`first-evening-card.png`, `shift-report.png`)
 
-- **The first evening**: one card that says what there is and how it works. He starts with twelve workers, and every job takes them. He hires a worker at the top right, on any site, and puts the worker on a job. A machine or a wagon stands until workers run it. "The balance is yours to work out." And: order the tower in the city.
+- **The first evening**: one card that says what there is and how it works. He starts with the workers the Starting numbers give (21 since #655), and every job takes them. He hires a worker at the top right, on any site, and puts the worker on a job. A machine or a wagon stands until workers run it. "The balance is yours to work out." And: order the tower in the city.
 - **The shift report** after unattended time: how long he was away and the night shift output, a bar that shows how much of the night the mine produced and how much it stood, what was produced, what transport delivered to orders, and the steps and buildings that were finished. The bar is about the mine only. Transport and the builders go on after the mine stops, and their work is in its own lines. The report says what happened. It does not say what to buy.
   - **In part 1** only the eight-hour clock stops the mine (rule 4). The report then says "A night shift runs 8 h. Production stopped after that.", which is the prototype's line. A night under eight hours has a bar that is all production, and no such line.
   - **From part 2** the stockyard stops it. The report says when each stockpile was full, and "Stockyard full: production stopped", with a key that goes to the stockyard beside Close.
