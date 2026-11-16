@@ -38,8 +38,8 @@ import {
 export const STATION_IDLE = "Station idle";
 export const STATION_IDLE_LINE =
   "Drag a blueprint here. Transport brings the materials.";
-export const CANCEL_LINE = "Cancel · what arrived goes back";
-export const INSTALL = "Install";
+const CANCEL_LINE = "Cancel · what arrived goes back";
+const INSTALL = "Install";
 const FULLY_INSTALLED = "Fully installed";
 
 /** A material's bin: its count, what it holds, and where it comes from. */
@@ -70,7 +70,7 @@ function bins(mountain: Mountain): readonly Bin[] {
 }
 
 /** One good a work order requires, and how much of it has arrived. */
-export type StationGood = {
+type StationGood = {
   readonly good: GoodId;
   /** "Stone 105K of 250K", "Clay 3 of 10". */
   readonly text: string;
@@ -133,7 +133,7 @@ const REINFORCED: Readonly<Partial<Record<TierId, string>>> = {
  * What a blueprint does once installed, in the rules' numbers. Reinforce
  * names the machine it lifts now; before a cart runs that is the drill.
  */
-export function effectWords(mountain: Mountain, id: BlueprintId): string {
+function effectWords(mountain: Mountain, id: BlueprintId): string {
   const effect = recipeById(id).effect;
   switch (effect.kind) {
     case "tier":
@@ -213,7 +213,7 @@ function stationView(mountain: Mountain, now: number | undefined): StationView {
 }
 
 /** One good a blueprint requires: its amount, and whether the stockyard holds less. */
-export type Requirement = {
+type Requirement = {
   readonly good: GoodId;
   readonly text: string;
   readonly short: boolean;

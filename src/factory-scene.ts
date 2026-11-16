@@ -14,16 +14,16 @@ import { SCENE_W, hash, loadImages, rect } from "./scene-paint";
  */
 
 /** The bins' boxes, in art px. */
-export const BINS = [
+const BINS = [
   { x: 6, y: 26, w: 98, h: 42 },
   { x: 108, y: 26, w: 98, h: 42 },
 ] as const;
 
 /** The blueprints' strip at the foot, in art px. */
-export const STRIP_H = 90;
+const STRIP_H = 90;
 
 /** The station's plate, for a scene `height` art px tall. */
-export function stationBox(height: number): {
+function stationBox(height: number): {
   readonly x: number;
   readonly y: number;
   readonly w: number;
@@ -213,7 +213,7 @@ const DRAWINGS: Readonly<Record<BlueprintId, readonly Part[]>> = {
  * A gear's drawing at (x, y), `scale` art px a dot: in its own colours, or
  * all in `ink` (a blueprint's white line, the station's dim outline).
  */
-export function drawGear(
+function drawGear(
   c: CanvasRenderingContext2D,
   id: BlueprintId,
   x: number,
