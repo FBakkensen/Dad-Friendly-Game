@@ -295,6 +295,13 @@ describe("installing a work order (#674)", () => {
       installable(sunk({}, { kind: "done", blueprint: "sturdy-props" })),
     ).toBe(true);
     expect(installable(sunk())).toBe(false);
+    // A props craft still on the bench takes them to their last level too.
+    const benched = {
+      ...sunk({}, { kind: "done", blueprint: "sturdy-props" }),
+      bench: { recipe: "sturdy-props", startedAt: 0, endsAt: 1 },
+    } as const;
+    expect(installable(benched)).toBe(false);
+    expect(installWorkOrder(benched, 1)).toBe(benched);
   });
 
   it("installs only a done work order, at a real moment", () => {

@@ -104,6 +104,14 @@ function lastLevel(id: BlueprintId): number {
   return recipeById(id).maxLevel ?? MAX_CRAFTED_LEVEL;
 }
 
+/** The gear's level once the old bench's craft of it, if one runs, is fitted. */
+function levelInHand(
+  mountain: Pick<Mountain, "crafted" | "bench">,
+  id: BlueprintId,
+): number {
+  return craftedLevel(mountain, id) + (mountain.bench?.recipe === id ? 1 : 0);
+}
+
 /**
  * Whether this blueprint can be placed: the station is open and the gear is
  * not at its last level, counting a craft of it still on the old bench.
@@ -112,21 +120,21 @@ export function blueprintOpen(
   mountain: Pick<Mountain, "granite" | "crafted" | "bench">,
   id: BlueprintId,
 ): boolean {
-  const benched = mountain.bench?.recipe === id ? 1 : 0;
-  return (
-    stationOpen(mountain) &&
-    craftedLevel(mountain, id) + benched < lastLevel(id)
-  );
+  return stationOpen(mountain) && levelInHand(mountain, id) < lastLevel(id);
 }
 
-/** Whether a done work order can be installed: its gear is not at its last level (the old bench may have got there first). */
+/**
+ * Whether a done work order can be installed: its gear is not at its last
+ * level, counting a craft of it still on the old bench (which may have got
+ * there first). Cancel gives its goods back.
+ */
 export function installable(
-  mountain: Pick<Mountain, "station" | "crafted">,
+  mountain: Pick<Mountain, "station" | "crafted" | "bench">,
 ): boolean {
   const { station } = mountain;
   return (
     station.kind === "done" &&
-    craftedLevel(mountain, station.blueprint) < lastLevel(station.blueprint)
+    levelInHand(mountain, station.blueprint) < lastLevel(station.blueprint)
   );
 }
 
