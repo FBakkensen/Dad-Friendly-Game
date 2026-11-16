@@ -163,7 +163,7 @@ export class Expected {
   plan(): readonly Action[] {
     return freshPlan(
       this.session.mountain,
-      { moves: "once", hold: "never", upgrades: false },
+      { moves: "once", hold: "never", upgrades: false, levels: "need" },
       0,
     );
   }

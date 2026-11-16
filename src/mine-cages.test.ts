@@ -20,7 +20,12 @@ import {
   shaftHolds,
 } from "./mine-piles";
 import { accrue, accrueAway, type Mountain } from "./mountain";
-import { levels, partThree, partTwo, type Setup } from "./part-three.harness";
+import {
+  levels,
+  partThreeAsBuilt as partThree,
+  partTwo,
+  type Setup,
+} from "./part-three.harness";
 import { EMPTY_STOCK, type Stock } from "./stock";
 import { stockpileRoom } from "./stockyard";
 

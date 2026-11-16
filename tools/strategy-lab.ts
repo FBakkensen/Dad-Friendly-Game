@@ -8,7 +8,6 @@ import {
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { withFactors } from "../src/economy/factors";
-import { PLAY_FACTORS } from "../src/part-switch";
 import { parseMeasureExport } from "../src/lab/measure";
 import { parsePolicyExport } from "../src/lab/policy";
 import {
@@ -19,6 +18,7 @@ import {
 import { renderReport, reportJson } from "../src/lab/report";
 import { ledgerDiff, renderLedger } from "../src/lab/ledger";
 import { discover } from "../src/lab/registry";
+import { LAB_FACTORS } from "../src/lab/run";
 import { runTournament } from "../src/lab/tournament";
 import { parseFactors } from "./lab-factors";
 import {
@@ -46,21 +46,21 @@ Usage:
   npm run lab -- --ci
   npm run lab -- --policy <id> [--policy <id>]
   npm run lab -- --seeds <n> --days <n> --out <dir>
-  npm run lab -- --factors part2.off=1
+  npm run lab -- --factors part3.off=1
   npm run lab -- --ci --ledger check
   npm run lab:ledger
 
 Seeds default to ${String(LOCAL_SEEDS)} (1 through that count). --ci uses ${String(CI_SEEDS)}.
 --seeds wins over both. Days default to ${String(DEFAULT_MAX_DAYS)}.
 --policy limits the rows. The columns are still every registered measure.
-Every run plays the mine the live game plays: the fresh mine with part 2
-(part2.off=0), with the player types in src/lab/fresh-policies, to the last
-building in play (#737).
---factors holds factors on top for every run (part2.off=1 plays part 1
-only, #534). fresh.off and line.off are refused: the fresh mine is the only
-mine (#739).
+Every run plays the whole of slice 1: the fresh mine with parts 2 and 3
+(part2.off=0, part3.off=0), with the player types in src/lab/fresh-policies,
+to the last building in play (#737, #675).
+--factors holds factors on top for every run (part3.off=1 plays the game as
+it is live, to the Warehouse; part2.off=1 plays part 1 only, #534). fresh.off
+and line.off are refused: the fresh mine is the only mine (#739).
 A missed guardrail is a warning unless LAB_STRICT=1, which exits 1. The fresh
-mine has no guardrail yet.
+mine's one guardrail is the five-day floor for the whole slice (#675).
 --ledger check fails when the run's pacing ledger differs from ${LEDGER_PATH};
 --ledger write (npm run lab:ledger) writes it. Both need the gate's run: --ci,
 every player type, no factors and the default days.
@@ -260,8 +260,8 @@ export async function executeLab(
   readonly ledger: string;
 }> {
   const root = repoRoot();
-  // The live game's mine, with --factors on top (#737).
-  const factors = { ...PLAY_FACTORS, ...args.factors };
+  // The whole slice, part 3 on, with --factors on top (#737, #675).
+  const factors = { ...LAB_FACTORS, ...args.factors };
   const policiesDir =
     dirs?.policies ?? path.join(root, "src/lab/fresh-policies");
   const measuresDir = dirs?.measures ?? path.join(root, "src/lab/measures");

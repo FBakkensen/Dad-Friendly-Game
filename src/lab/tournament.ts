@@ -25,7 +25,7 @@ import type { ValueContext } from "../economy/actions";
 import type { Mountain } from "../mountain";
 import { TIERS, owned } from "../tiers";
 import { narrowAt, zeroGainBuysBetween } from "./line-view";
-import { freshView, workerTaps } from "./fresh-view";
+import { cageGap, freshView, shareTaps, workerTaps } from "./fresh-view";
 import { nightRecord, type NightRecord } from "./nights";
 import type { World } from "./world";
 import { runPolicy } from "./run";
@@ -226,6 +226,11 @@ function samplePolicy(
                     jobs: world.mountain.jobs,
                   },
                 ),
+          shareTaps:
+            before === undefined
+              ? undefined
+              : shareTaps(before, world.mountain),
+          cageGap: () => cageGap(world.mountain),
         }),
       );
       before = world.mountain;

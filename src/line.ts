@@ -1,3 +1,4 @@
+import { partThreeOn } from "./part-switch";
 import { MACHINE_IDS, tierById, type MachineId, type TierId } from "./tiers";
 
 /**
@@ -56,12 +57,26 @@ const FRESH_RATING: Readonly<Partial<Record<TierId, number>>> = {
   train: 1_600 / 1_067,
 };
 
+/**
+ * Ratings part 3 sets apart (rule 2.14, #675): a hoist lifts 480 a second,
+ * so its load to the Topsoil is 4,800 and a trip to the Granite, twice as
+ * long, still lifts more for its one worker than a locomotive hauls for
+ * each of its eight. So a line in balance has the fewest workers on
+ * hoisting on both levels.
+ */
+const PART_THREE_HOIST = 480;
+
+const PART_THREE_RATING: Readonly<Partial<Record<TierId, number>>> = {
+  hoist: PART_THREE_HOIST / tierById("hoist").perSecond,
+};
+
 /** A machine's rating on the line, times today's; the hands keep theirs. */
 export function lineRating(tierId: TierId): number {
   if (stageOf(tierId) === undefined) {
     return 1;
   }
-  return FRESH_RATING[tierId] ?? LINE_RATING;
+  const partThree = partThreeOn() ? PART_THREE_RATING[tierId] : undefined;
+  return partThree ?? FRESH_RATING[tierId] ?? LINE_RATING;
 }
 
 /** What each stage moves: running × speed over its machines. */

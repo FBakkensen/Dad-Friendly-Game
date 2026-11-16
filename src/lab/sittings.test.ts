@@ -117,6 +117,45 @@ describe("createSittingLog", () => {
     ]);
   });
 
+  it("adds the share taps and keeps the cage gap read at the open (#675)", () => {
+    const log = createSittingLog();
+    const open = (): SittingOpen => AFFORDABLE;
+    let asked = 0;
+    const cageGap = () => {
+      asked += 1;
+      return 0.01;
+    };
+    log.observe({ clock: 1000, owned: 1, tiers: [], open, cageGap });
+    log.observe({
+      clock: 2000,
+      owned: 1,
+      tiers: [],
+      open,
+      cageGap,
+      shareTaps: 2,
+    });
+    log.observe({
+      clock: 3000,
+      owned: 1,
+      tiers: [],
+      open,
+      cageGap,
+      shareTaps: 1,
+    });
+    expect(asked).toBe(1);
+    expect(log.flush()).toEqual([
+      {
+        sitting: 0,
+        openedAtMs: 1000,
+        buys: 0,
+        taps: 0,
+        open: AFFORDABLE,
+        shareTaps: 3,
+        cageGap: 0.01,
+      },
+    ]);
+  });
+
   it("drops a sitting that opened after the last gap and was never played", () => {
     const log = createSittingLog();
     const open = (): SittingOpen => AFFORDABLE;

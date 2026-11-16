@@ -4,6 +4,7 @@ import {
   STAGES,
   handsSpeed,
   lineOf,
+  lineRating,
   lineSpeed,
   lineView,
   narrowStage,
@@ -11,7 +12,8 @@ import {
   stageSpeeds,
   type StageSpeeds,
 } from "./line";
-import { MACHINE_IDS, type TierId } from "./tiers";
+import { MACHINE_IDS, tierById, type TierId } from "./tiers";
+import { partThree } from "./part-three.harness";
 
 const stages = (face: number, haul: number, lift: number): StageSpeeds => ({
   face,
@@ -190,3 +192,10 @@ function seeded(seed: number): () => number {
     return ((t ^ (t >>> 14)) >>> 0) / 4_294_967_296;
   };
 }
+
+describe("the hoist's rating in part 3 (#675)", () => {
+  it("lifts 480 a second whatever the hoist's row says", () => {
+    const rated = partThree(() => lineRating("hoist"));
+    expect(tierById("hoist").perSecond * rated).toBeCloseTo(480, 9);
+  });
+});

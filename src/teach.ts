@@ -122,11 +122,17 @@ function isTaught(mountain: Mountain, id: TeachId): boolean {
   return mountain.taught.includes(id) || (spec?.used(mountain) ?? false);
 }
 
-/** The red dot: open, and not yet used. */
+/**
+ * The red dot: open, and not yet used. A taught system is ruled out first:
+ * staffing's `unlocked` reads the rates, and every hire asks (#675).
+ */
 export function showsDot(mountain: Mountain, id: TeachId): boolean {
   const spec = specOf(id);
   return (
-    spec !== undefined && spec.unlocked(mountain) && !isTaught(mountain, id)
+    spec !== undefined &&
+    !mountain.taught.includes(id) &&
+    spec.unlocked(mountain) &&
+    !spec.used(mountain)
   );
 }
 

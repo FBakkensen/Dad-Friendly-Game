@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { withFactors } from "./economy/factors";
 import { createMountain, type Mountain } from "./mountain";
-import { PILE_HOLDS, flowMine, mineChain, mineChange } from "./mine-piles";
+import { makerRate } from "./makers";
+import {
+  PILE_HOLDS,
+  flowMine,
+  mineChain,
+  mineChange,
+  steadyIncome,
+  steadyLevels,
+} from "./mine-piles";
+import { levels, partThree, partTwo } from "./part-three.harness";
 import { NO_JOBS, freeWorker, placeWorker, type JobId } from "./workforce";
 
 /** Drilled rock and rock at the shaft in a fresh mine (#703, rule 2). */
@@ -151,6 +160,70 @@ describe("the mine's two piles (#703)", () => {
       const after = flowMine(start, 1_000, 1, true);
       expect(after).toEqual({ mountain: start, mined: 0, gained: {} });
       expect(after.mountain).toBe(start);
+    });
+  });
+});
+
+describe("the steady line on two levels (#675)", () => {
+  const least = (rates: { face: number; haul: number; lift: number }) =>
+    Math.min(rates.face, rates.haul, rates.lift);
+
+  it("is part 2's line with part 3 off: all lifted is stone, at the slowest stage", () => {
+    partTwo(() => {
+      const mine = levels({ topsoil: 4, hoisting: 2, sunk: false });
+      const { topsoil, granite } = steadyLevels(mine);
+      expect(granite).toEqual({ face: 0, haul: 0, lift: 0 });
+      expect(least(topsoil)).toBeGreaterThan(0);
+      expect(steadyIncome(mine)).toEqual({
+        stones: least(topsoil),
+        brick: 0,
+      });
+    });
+  });
+
+  it("lifts with the cages from part 3, with the Topsoil alone", () => {
+    partThree(() => {
+      const mine = levels({ topsoil: 40, hoisting: 2, hoists: 1, sunk: false });
+      const { topsoil } = steadyLevels(mine);
+      // One hoist runs and one worker works the winch: both cages serve the Topsoil.
+      expect(topsoil.lift).toBeGreaterThan(0);
+      expect(steadyIncome(mine).stones).toBeCloseTo(least(topsoil), 9);
+    });
+  });
+
+  it("makes cut stone at the saws from the Granite's rock, and the rest is stone", () => {
+    partThree(() => {
+      const mine = levels({
+        topsoil: 4,
+        granite: 4,
+        hoisting: 6,
+        saws: 1,
+      });
+      const { topsoil, granite } = steadyLevels(mine);
+      const income = steadyIncome(mine);
+      const graniteLine = least(granite);
+      expect(graniteLine).toBeGreaterThan(0);
+      const cut = Math.min(makerRate(mine, "saw"), graniteLine / 3);
+      expect(income.cutStone).toBeCloseTo(cut, 9);
+      expect(income.stones).toBeCloseTo(
+        least(topsoil) + graniteLine - 3 * cut,
+        9,
+      );
+    });
+  });
+
+  it("leaves a level with nobody on haulage out of the turn", () => {
+    partThree(() => {
+      const both = levels({ topsoil: 10, granite: 10, hoisting: 3 });
+      const alone = levels({
+        topsoil: 10,
+        hoisting: 3,
+        jobs: { graniteDrilling: 10 },
+      });
+      expect(steadyLevels(alone).granite.lift).toBe(0);
+      expect(steadyLevels(alone).topsoil.lift).toBeGreaterThan(
+        steadyLevels(both).topsoil.lift,
+      );
     });
   });
 });

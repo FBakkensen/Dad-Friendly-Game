@@ -34,9 +34,12 @@ import {
   type LevelMachineId,
   type MineLevelId,
 } from "./mine-levels";
-import { STAGES } from "./line";
+import { STAGES, type Stage } from "./line";
+import { tripSeconds } from "./cages";
 import {
   TIERS,
+  machineStaff,
+  tierById,
   tierInPlay,
   tierRecord,
   type MachineId,
@@ -48,6 +51,7 @@ const partTwo = <T>(body: () => T): T =>
   withFactors({ [PART_TWO_OFF]: 0 }, body);
 const partThree = <T>(body: () => T): T =>
   withFactors({ [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 }, body);
+const PART_THREE_ON = { [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 };
 
 /** The mountain with the shaft sunk, as `sinkShaft` leaves it. */
 const sunk = (mountain: Mountain): Mountain => ({
@@ -440,7 +444,7 @@ describe("the line in a fresh mine (rule 2.5, 2.9)", () => {
       );
       const speed = { ...effectiveRates(mountain).tierSpeed, cart: 18 };
       const work = lineWork(mountain, speed);
-      expect(toolSpeed(speed)).toBeGreaterThan(18);
+      expect(toolSpeed(speed, "haul")).toBeGreaterThan(18);
       expect(work.running.cart).toBe(0);
       expect(work.short).toBe(0);
     });
@@ -451,7 +455,9 @@ describe("the line in a fresh mine (rule 2.5, 2.9)", () => {
       const rates = effectiveRates(
         line({ drilling: 5, haulage: 5, hoisting: 5 }, { cart: 2 }, 85, 1),
       );
-      expect(toolSpeed(rates.tierSpeed)).toBeLessThan(rates.tierSpeed.cart);
+      expect(toolSpeed(rates.tierSpeed, "haul")).toBeLessThan(
+        rates.tierSpeed.cart,
+      );
       expect(rates.running.cart).toBe(2);
     });
   });
@@ -699,7 +705,6 @@ describe("each level's work (rule 5.1, 5.2, #673)", () => {
     mountain: Mountain,
     speed: Readonly<Record<TierId, number>>,
   ) {
-    const tool = toolSpeed(speed);
     const running = tierRecord(0);
     const stages = { face: 0, haul: 0, lift: 0 };
     let short = 0;
@@ -709,10 +714,14 @@ describe("each level's work (rule 5.1, 5.2, #673)", () => {
       ).map((tier) => ({
         id: tier.id as MachineId,
         owned: mountain.owned[tier.id],
-        staff: tier.staff,
+        staff: machineStaff(tier),
         speed: speed[tier.id],
       }));
-      const work = stageWork(machines, mountain.jobs[STAGE_JOB[stage]], tool);
+      const work = stageWork(
+        machines,
+        mountain.jobs[STAGE_JOB[stage]],
+        toolSpeed(speed, stage),
+      );
       Object.assign(running, work.running);
       running.helper += work.tools;
       stages[stage] = work.moves;
@@ -733,12 +742,12 @@ describe("each level's work (rule 5.1, 5.2, #673)", () => {
         SPEED,
       );
       expect(work.levels.granite.face).toBe(0);
-      expect(work.levels.topsoil.face).toBe(3 * toolSpeed(SPEED));
+      expect(work.levels.topsoil.face).toBe(3 * toolSpeed(SPEED, "face"));
       expect(work.stages.face).toBe(9);
       expect(work.running.drill).toBe(0);
       expect(work.running.helper).toBe(3);
-      // The Granite's drill stands for want of its one worker there.
-      expect(work.short).toBe(1);
+      // The Granite's drill stands for want of its three workers there.
+      expect(work.short).toBe(3);
     });
   });
 
@@ -746,7 +755,7 @@ describe("each level's work (rule 5.1, 5.2, #673)", () => {
     partThree(() => {
       const work = lineWork(
         levels({
-          jobs: { drilling: 1, graniteDrilling: 1 },
+          jobs: { drilling: 3, graniteDrilling: 3 },
           topsoil: { drill: 1 },
           granite: { drill: 1 },
         }),
@@ -762,12 +771,12 @@ describe("each level's work (rule 5.1, 5.2, #673)", () => {
 
   it("lifts what hoisting lifts or both levels' slowest stages together, whichever is less", () => {
     partThree(() => {
-      // Topsoil: two picks (6) and a cart (50). Granite: a drill (100) and
-      // two barrows (6). Hoisting: a hoist (40).
+      // Topsoil: two picks (6) and a cart (50). Granite: a drill on its
+      // three workers (100) and two barrows (12). Hoisting: a hoist (40).
       const jobs = {
         drilling: 2,
         haulage: 1,
-        graniteDrilling: 1,
+        graniteDrilling: 3,
         graniteHaulage: 2,
         saws: 0,
         hoisting: 1,
@@ -781,9 +790,9 @@ describe("each level's work (rule 5.1, 5.2, #673)", () => {
       const both = lineWork(levels(setup), SPEED);
       const { topsoil, granite } = both.levels;
       expect(topsoil).toEqual({ face: 6, haul: 50 });
-      expect(granite).toEqual({ face: 100, haul: 6 });
+      expect(granite).toEqual({ face: 100, haul: 12 });
       expect(both.stages).toEqual({ face: 6, haul: 50, lift: 40 });
-      expect(both.line).toBe(12);
+      expect(both.line).toBe(18);
       expect(both.line).toBe(
         Math.min(
           both.stages.lift,
@@ -791,10 +800,52 @@ describe("each level's work (rule 5.1, 5.2, #673)", () => {
             Math.min(granite.face, granite.haul),
         ),
       );
-      // One winch (3) lifts less than both levels bring.
+      // One winch (9) lifts less than both levels bring.
       const winch = lineWork(levels({ ...setup, hoists: 0 }), SPEED);
-      expect(winch.stages.lift).toBe(3);
-      expect(winch.line).toBe(3);
+      expect(winch.stages.lift).toBe(9);
+      expect(winch.line).toBe(9);
+    });
+  });
+
+  it("sets the stages apart from part 3: tools move more down the line, and a drill takes three (rule 2.14, #675)", () => {
+    const drill = tierById("drill");
+    const tools = () => STAGES.map((stage) => toolSpeed(SPEED, stage));
+    expect(tools()).toEqual([3, 3, 3]);
+    expect(machineStaff(drill)).toBe(1);
+    partThree(() => {
+      expect(tools()).toEqual([3, 6, 9]);
+      expect(machineStaff(drill)).toBe(3);
+      expect(machineStaff(tierById("cart"))).toBe(1);
+      expect(machineStaff(tierById("helper"))).toBe(0);
+      expect(
+        withFactors(
+          { ...PART_THREE_ON, "staff.drill": 2, "tool.lift": 2 },
+          () => [machineStaff(drill), toolSpeed(SPEED, "lift")],
+        ),
+      ).toEqual([6, 18]);
+    });
+  });
+
+  it("puts the most workers on drilling and the fewest on hoisting in a line in balance, on both levels (rule 2.14, #675)", () => {
+    partThree(() => {
+      const speed = effectiveRates(createMountain()).tierSpeed;
+      // What one worker moves on a stage at best: a tool or a machine.
+      const perWorker = (stage: Stage, level: MineLevelId): number => {
+        const trips = tripSeconds("topsoil") / tripSeconds(level);
+        const lift = stage === "lift" ? trips : 1;
+        const machines = TIERS.filter(
+          (tier) => tier.stage === stage && tierInPlay(tier),
+        ).map((tier) => speed[tier.id] / machineStaff(tier));
+        return Math.max(toolSpeed(speed, stage), ...machines) * lift;
+      };
+      for (const level of MINE_LEVEL_IDS) {
+        // Workers a stage takes for each rock a second the line moves.
+        const [face, haul, lift] = STAGES.map(
+          (stage) => 1 / perWorker(stage, level),
+        );
+        expect(face, level).toBeGreaterThan(haul ?? 0);
+        expect(haul, level).toBeGreaterThan(lift ?? 0);
+      }
     });
   });
 
@@ -808,7 +859,9 @@ describe("each level's work (rule 5.1, 5.2, #673)", () => {
       expect(work.hoisting.running.hoist).toBe(2);
       expect(work.hoisting.tools).toBe(1);
       expect(work.hoisting.moves).toBe(work.stages.lift);
-      expect(work.hoisting.moves).toBe(2 * SPEED.hoist + toolSpeed(SPEED));
+      expect(work.hoisting.moves).toBe(
+        2 * SPEED.hoist + toolSpeed(SPEED, "lift"),
+      );
     });
   });
 

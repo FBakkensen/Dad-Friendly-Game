@@ -6,7 +6,8 @@ import { PART_TWO_OFF } from "../part-switch";
 import { EMPTY_STOCK, type Stock } from "../stock";
 import { MAX_STOCKYARD_LEVEL, stockpileRoom } from "../stockyard";
 import { NO_JOBS, type Jobs } from "../workforce";
-import { freshPlan, goodsIncome } from "./fresh-dad";
+import { freshPlan } from "./fresh-dad";
+import { goodsIncome } from "./fresh-kit";
 import type { FreshHabits } from "./policy";
 
 /** How part 2's dad plays: kilns for brick, and room in the stockyard (#667). */
@@ -14,7 +15,12 @@ const partTwo = <T>(body: () => T): T =>
   withFactors({ [PART_TWO_OFF]: 0 }, body);
 const partOne = <T>(body: () => T): T => withFactors({}, body);
 
-const ONCE: FreshHabits = { moves: "once", hold: "on-value", upgrades: false };
+const ONCE: FreshHabits = {
+  moves: "once",
+  hold: "on-value",
+  upgrades: false,
+  levels: "need",
+};
 
 const STAGES = { drilling: 6, haulage: 6, hoisting: 6 };
 const FAST = { drilling: 12, haulage: 12, hoisting: 12 };

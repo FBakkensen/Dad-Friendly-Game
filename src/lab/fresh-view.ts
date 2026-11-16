@@ -1,6 +1,6 @@
 import { SITE_HOLDS, onSiteTotal } from "../building-site";
 import { tierLocked } from "../crew";
-import { STAGES } from "../line";
+import { STAGES, type Stage } from "../line";
 import type { Mountain } from "../mountain";
 import { effectiveRates } from "../rates";
 import { deadStockpiles, stockyardOpen } from "../stockyard";
@@ -14,15 +14,27 @@ import {
 } from "../transport";
 import {
   JOB_IDS,
+  LEVEL_JOBS,
+  STAGE_JOB,
   freeWorkers,
+  levelWorks,
   stageMachines,
   stageWorks,
   toolSpeed,
+  type JobId,
   type Jobs,
+  type LevelStage,
+  type StageMachine,
+  type StageWork,
 } from "../workforce";
+import { flowMineLive } from "../mine-cages";
+import { MINE_LEVEL_IDS, graniteOpen, type MineLevelId } from "../mine-levels";
+import { flowMine } from "../mine-piles";
+import { partThreeOn } from "../part-switch";
 import { sticker } from "./decide";
-import { drainsTheMine, goodsIncome, hirePrice, siteIdle } from "./fresh-dad";
-import { AMOUNT_KEY_TEN, FRESH_DUST } from "./targets";
+import { drainsTheMine, siteIdle } from "./fresh-dad";
+import { goodsIncome, hirePrice, levelsRates } from "./fresh-kit";
+import { AMOUNT_KEY_TEN, CAGE_GAP_SECONDS, FRESH_DUST } from "./targets";
 
 /**
  * What the lab reads off a fresh mine at a sample (slice 1, Lab, #655). The
@@ -44,6 +56,10 @@ export type FreshView = {
   readonly yardOpen: boolean;
   /** A stockpile is full and no order delivering takes its good (`deadGood`, #667). */
   readonly deadGood: boolean;
+  /** With the Granite open (#675): the share of the mine's workers on hoisting. */
+  readonly hoistShare?: number;
+  /** Part 3 plays (#675): the run ends at the Foundry's roof, the slice's end. */
+  readonly partThree: boolean;
 };
 
 /** The view now. */
@@ -69,7 +85,24 @@ export function freshView(mountain: Mountain): FreshView {
     idleMachines: idleMachineShare(mountain, rates.tierSpeed),
     yardOpen: stockyardOpen(mountain),
     deadGood: deadGood(mountain),
+    partThree: partThreeOn(),
+    ...(graniteOpen(mountain) ? { hoistShare: hoistShare(mountain) } : {}),
   };
+}
+
+/** The mine's workers: drilling and haulage on both levels, and hoisting. */
+const MINE_JOBS: readonly JobId[] = [
+  ...MINE_LEVEL_IDS.flatMap((level) => [
+    LEVEL_JOBS[level].face,
+    LEVEL_JOBS[level].haul,
+  ]),
+  STAGE_JOB.lift,
+];
+
+/** Share of the mine's workers on hoisting (`hoistWorkers`, rule 2.14). NaN with nobody in the mine. */
+function hoistShare(mountain: Mountain): number {
+  const mine = MINE_JOBS.reduce((sum, job) => sum + mountain.jobs[job], 0);
+  return mine === 0 ? Number.NaN : mountain.jobs[STAGE_JOB.lift] / mine;
 }
 
 /**
@@ -104,9 +137,65 @@ export function cheapestBuy(mountain: Mountain): number {
 type Speeds = Parameters<typeof stageWorks>[1];
 
 /**
+ * One stage's work as the idle shares weigh it: its workers and machines,
+ * what it moves, and the line it feeds.
+ */
+type WorkRow = {
+  readonly stage: Stage;
+  readonly work: StageWork;
+  readonly machines: readonly StageMachine[];
+  readonly moves: number;
+  readonly line: number;
+};
+
+/**
+ * The mine's stages for the idle shares: the Topsoil's and the shaft's
+ * against the line; with the Granite open (#675), each level's drilling and
+ * haulage against that level's own line, and hoisting's cages, what they
+ * lift from both levels, against both levels' lines together.
+ */
+function workRows(
+  mountain: Mountain,
+  speed: Speeds,
+  line: number,
+): readonly WorkRow[] {
+  const works = stageWorks(mountain, speed);
+  if (!graniteOpen(mountain)) {
+    return STAGES.map((stage) => ({
+      stage,
+      work: works[stage],
+      machines: stageMachines(mountain, speed, stage),
+      moves: works[stage].moves,
+      line,
+    }));
+  }
+  const rates = levelsRates(mountain);
+  const levelLine = (level: MineLevelId): number =>
+    Math.min(...STAGES.map((stage) => rates[level][stage]));
+  const rows: WorkRow[] = MINE_LEVEL_IDS.flatMap((level) => {
+    const own = levelWorks(mountain, speed, level);
+    return (["face", "haul"] as const).map((stage: LevelStage) => ({
+      stage,
+      work: own[stage],
+      machines: stageMachines(mountain, speed, stage, level),
+      moves: own[stage].moves,
+      line: levelLine(level),
+    }));
+  });
+  rows.push({
+    stage: "lift",
+    work: works.lift,
+    machines: stageMachines(mountain, speed, "lift"),
+    moves: MINE_LEVEL_IDS.reduce((sum, level) => sum + rates[level].lift, 0),
+    line: MINE_LEVEL_IDS.reduce((sum, level) => sum + levelLine(level), 0),
+  });
+  return rows;
+}
+
+/**
  * Free workers, drivers with no vehicle or no order delivering, builders
  * with an idle site, and a stage's workers with tools that it could lose and
- * still move what the line moves.
+ * still move what its line moves.
  */
 function idleWorkerShare(
   mountain: Mountain,
@@ -122,29 +211,26 @@ function idleWorkerShare(
       ? Math.max(0, mountain.jobs.driving - fleetSize(mountain))
       : mountain.jobs.driving;
   const building = siteIdle(mountain) ? mountain.jobs.building : 0;
-  const tool = toolSpeed(speed);
-  const works = stageWorks(mountain, speed);
   let surplus = 0;
-  for (const stage of STAGES) {
-    const work = works[stage];
+  for (const row of workRows(mountain, speed, line)) {
+    const tool = toolSpeed(speed, row.stage);
     const spare =
-      tool > 0 ? Math.floor((work.moves - line) / tool + FRESH_DUST) : 0;
-    surplus += Math.max(0, Math.min(work.tools, spare));
+      tool > 0 ? Math.floor((row.moves - row.line) / tool + FRESH_DUST) : 0;
+    surplus += Math.max(0, Math.min(row.work.tools, spare));
   }
   return (freeWorkers(mountain) + driving + building + surplus) / workers;
 }
 
-/** Machines left off because a tool moves more than the workers they take (risk 15). */
+/** Machines left off because a tool moves more than the workers they take (risk 15), on every level. */
 function idleMachineShare(mountain: Mountain, speed: Speeds): number {
-  const tool = toolSpeed(speed);
-  const works = stageWorks(mountain, speed);
   let owned = 0;
   let idle = 0;
-  for (const stage of STAGES) {
-    for (const machine of stageMachines(mountain, speed, stage)) {
+  for (const row of workRows(mountain, speed, 0)) {
+    const tool = toolSpeed(speed, row.stage);
+    for (const machine of row.machines) {
       owned += machine.owned;
       if (machine.speed <= machine.staff * tool) {
-        idle += machine.owned - (works[stage].running[machine.id] ?? 0);
+        idle += machine.owned - (row.work.running[machine.id] ?? 0);
       }
     }
   }
@@ -154,6 +240,71 @@ function idleMachineShare(mountain: Mountain, speed: Speeds): number {
 /** Taps for `count` moves of one kind with the amount key on ×10 then ×1. */
 function keyTaps(count: number): number {
   return Math.floor(count / AMOUNT_KEY_TEN) + (count % AMOUNT_KEY_TEN);
+}
+
+/**
+ * Taps that set the share between the levels, between two moments
+ * (`shareMoves`, #675): workers placed on or freed from the Granite's
+ * drilling and haulage, and hoists assigned to or taken off a level, each
+ * with the amount key on ×10 and ×1. Undefined while the Granite is shut.
+ */
+export function shareTaps(
+  before: Mountain,
+  after: Mountain,
+): number | undefined {
+  if (!graniteOpen(after)) {
+    return undefined;
+  }
+  let taps = 0;
+  for (const stage of ["face", "haul"] as const) {
+    const job = LEVEL_JOBS.granite[stage];
+    taps += keyTaps(Math.abs(after.jobs[job] - before.jobs[job]));
+  }
+  for (const level of MINE_LEVEL_IDS) {
+    taps += keyTaps(
+      Math.abs(after.cages.assigned[level] - before.cages.assigned[level]),
+    );
+  }
+  return taps;
+}
+
+/** The rock waiting below the cages: drilled rock and rock at the shaft, on both levels. */
+function belowCages(mountain: Mountain): number {
+  const { face, shaft } = mountain.piles;
+  const deep =
+    mountain.granite.kind === "sunk"
+      ? mountain.granite.piles.face + mountain.granite.piles.shaft
+      : 0;
+  return face + shaft + deep;
+}
+
+/** The rock lifted from `start` to `after`: drilled, less what still waits below the cages. */
+function lifted(start: Mountain, after: Mountain): number {
+  return (
+    after.rockDug - start.rockDug - (belowCages(after) - belowCages(start))
+  );
+}
+
+/**
+ * The cages played trip by trip against the rates a night counts (`cageGap`,
+ * #675 ruling 10, as #724 ruling 17 measures it): ten minutes of the mine from this moment, both ways,
+ * and the gap in rock lifted as a share of the rates' rock. Undefined
+ * before part 3, where hoisting is not cages, and NaN when the rates lift
+ * nothing.
+ */
+export function cageGap(mountain: Mountain): number | undefined {
+  if (!partThreeOn()) {
+    return undefined;
+  }
+  const live = lifted(
+    mountain,
+    flowMineLive(mountain, CAGE_GAP_SECONDS, 1, true).mountain,
+  );
+  const rates = lifted(
+    mountain,
+    flowMine(mountain, CAGE_GAP_SECONDS, 1, true).mountain,
+  );
+  return rates > 0 ? Math.abs(live - rates) / rates : Number.NaN;
 }
 
 /**

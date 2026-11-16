@@ -17,7 +17,7 @@ import { shaftPrice } from "./mine-levels";
 import { DEEPER_STRATA, stageRows } from "./mine-view";
 import type { Mountain } from "./mountain";
 import { PART_THREE_OFF, PART_TWO_OFF } from "./part-switch";
-import { levels } from "./part-three.harness";
+import { AS_BUILT, levels } from "./part-three.harness";
 import { createProgressStore } from "./progress-store";
 import { createMemoryStorage, CREWED_JOBS } from "./test-fixtures";
 import type { BuyAmount } from "./tiers";
@@ -305,7 +305,7 @@ function fingerTap(target: HTMLElement): void {
 /** Part 3's mine, on the DOM (#680): the Granite's gate, its two levels, the strip and the machine card. */
 describe("the mine with two levels", () => {
   beforeEach(() => {
-    holdFactors({ [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 });
+    holdFactors({ [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0, ...AS_BUILT });
   });
 
   const twoLevels = (mountain: Mountain) => () => mountain;

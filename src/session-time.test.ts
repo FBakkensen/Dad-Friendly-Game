@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { send } from "./expeditions";
 import { closeHazards, freshHazards, stepHazards } from "./hazards";
 import { accrue, accrueAway, createMountain, type Mountain } from "./mountain";
-import { levels, partThree } from "./part-three.harness";
+import { levels, partThreeAsBuilt as partThree } from "./part-three.harness";
 import { LIVE_GAP_MS, advance, timeInput } from "./session-time";
 
 const ada = { name: "Ada", rank: 0, trips: 0, post: "borer" } as const;

@@ -200,8 +200,17 @@ describe("targets", () => {
     }
   });
 
-  it("holds no row: the fresh mine has no guardrail until new ones are designed (#737)", () => {
-    expect(TARGETS).toEqual([]);
+  it("holds one row: the five-day floor for the whole slice, for every player type (#556, #675)", () => {
+    expect(TARGETS).toEqual([
+      expect.objectContaining({
+        id: "slice-five-days",
+        measure: "sliceDays",
+        scope: { kind: "all" },
+        op: "gte",
+        value: 5,
+      }),
+    ]);
+    expect(TARGETS.every((target) => target.reportOnly !== true)).toBe(true);
   });
 
   it("fails when a target names an unknown measure", async () => {

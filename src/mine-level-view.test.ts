@@ -26,7 +26,11 @@ import {
   shaftHolds,
 } from "./mine-piles";
 import { LEVEL_NAMES, printedParts } from "./mine-view";
-import { levels, partThree, partTwo } from "./part-three.harness";
+import {
+  levels,
+  partThreeAsBuilt as partThree,
+  partTwo,
+} from "./part-three.harness";
 import { chainFlows } from "./piles";
 import { crewTimer } from "./rates";
 import { readGame } from "./save-format";

@@ -21,7 +21,7 @@ import {
   type RefineryView,
 } from "./refinery-view";
 import { stockpileRoom } from "./stockyard";
-import { levels, partThree } from "./part-three.harness";
+import { levels, partThree, partThreeAsBuilt } from "./part-three.harness";
 import { crewedStart } from "./test-fixtures";
 
 /** The refinery's numbers (slice 1, part 2, #671). */
@@ -254,7 +254,8 @@ describe("a plate for each open maker (#754)", () => {
   });
 
   it("passes all the Granite's rock to stone with no saw", () => {
-    partThree(() => {
+    // The rates as #724 and #680 built them, before #675 set the stages apart.
+    partThreeAsBuilt(() => {
       const mountain = working();
       const refinery = view(mountain);
       const saws = refinery.plates[1];

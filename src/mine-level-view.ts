@@ -154,7 +154,7 @@ function hoistParts(
   const parts = rowParts(
     stageMachines(mountain, speed, "lift"),
     mountain.jobs[STAGE_JOB.lift],
-    toolSpeed(speed),
+    toolSpeed(speed, "lift"),
   );
   const { running, perLoad } = shaft;
   const lift = (cages: readonly ShaftCage[]): number => liftOf(cages, perLoad);
@@ -256,7 +256,7 @@ function levelRow(
     parts: rowParts(
       stageMachines(mountain, speed, stage, level),
       workers,
-      toolSpeed(speed),
+      toolSpeed(speed, stage),
     ).map((part) => timed(part, timer)),
     can: work.cans[level][stage],
     moving: work.flows.levels[level][stage],

@@ -16,6 +16,7 @@ import { MACHINE_WORDS, TOOL_WORDS, formatSpeed, plural } from "./screen-words";
 import type { GoodId } from "./stock";
 import {
   TIERS,
+  machineStaff,
   tierGood,
   tierQuote,
   type BuyAmount,
@@ -153,7 +154,7 @@ export function machineKey(
   const kind = capital(plural(count, MACHINE_WORDS[id]));
   const name = count === 1 ? kind : `${formatCompact(count)} ${kind}`;
   const moves = `${formatSpeed(speed[id] * count * timer)}/s`;
-  const takes = tier.staff * count;
+  const takes = machineStaff(tier) * count;
   const good = tierGood(id);
   const paidIn = GOOD_NAMES[good].toLowerCase();
   return {
@@ -493,7 +494,6 @@ export function stageRows(
   const rates = effectiveRates(mountain, now);
   const timer = crewTimer(mountain, now);
   const work = lineWork(mountain, rates.tierSpeed);
-  const tool = toolSpeed(rates.tierSpeed);
   const moves = movingNow(mountain, now);
   const strongest = Math.max(
     1,
@@ -510,7 +510,7 @@ export function stageRows(
       parts: rowParts(
         stageMachines(mountain, rates.tierSpeed, stage),
         workers,
-        tool,
+        toolSpeed(rates.tierSpeed, stage),
       ).map((part) => timed(part, timer)),
       can: work.stages[stage] * timer,
       moving: moves[STAGES.indexOf(stage)] ?? 0,

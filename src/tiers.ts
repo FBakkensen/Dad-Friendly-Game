@@ -186,6 +186,24 @@ export function isShownTier<T extends TierId>(
   return id !== "hoist" && id !== "train";
 }
 
+/**
+ * The workers each machine takes from part 3 (rule 2.14, #675), where it
+ * differs from its row: a drill takes three, so a line in balance has the
+ * most workers on drilling. A sweep scales it with `staff.<id>`.
+ */
+const PART_THREE_STAFF: Readonly<Partial<Record<TierId, number>>> = {
+  drill: 3,
+};
+
+/** The workers a machine takes: its row's, and part 3's where the stages are set apart. 0 for a worker or a kid. */
+export function machineStaff(tier: Pick<Tier, "id" | "staff">): number {
+  if (tier.staff === 0 || !partThreeOn()) {
+    return tier.staff;
+  }
+  const staff = PART_THREE_STAFF[tier.id] ?? tier.staff;
+  return Math.max(1, Math.round(staff * factor(`staff.${tier.id}`)));
+}
+
 export function isMachine(
   tier: Tier,
 ): tier is Tier & { readonly id: MachineId } {

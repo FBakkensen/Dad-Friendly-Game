@@ -247,7 +247,7 @@ export function upgradeEffectLine(
   switch (upgrade.id) {
     case "boots":
       // Work boots lifts only a worker with a tool (rule 2.9).
-      return `Workers with a tool ${fromTo(change, (rates) => `${formatSpeed(toolSpeed(rates.tierSpeed))}/s`)}.`;
+      return `Workers with a tool ${fromTo(change, (rates) => `${formatSpeed(toolSpeed(rates.tierSpeed, "face"))}/s`)}.`;
     case "cartSyn":
     case "drillSyn":
     case "borerSyn":

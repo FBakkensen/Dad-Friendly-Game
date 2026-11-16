@@ -37,6 +37,10 @@ export type SittingEvent = {
   readonly zeroGainBuys?: number;
   /** In a fresh mine (#655): taps that hired and moved workers. */
   readonly workerTaps?: number;
+  /** With the Granite open (#675): taps that set the share between the levels. */
+  readonly shareTaps?: number;
+  /** From part 3 (#675): the cages played against the rates, at the open (`cageGap`). */
+  readonly cageGap?: number;
 };
 
 type Observation = {
@@ -52,6 +56,10 @@ type Observation = {
   readonly zeroGainBuys?: number | undefined;
   /** In a fresh mine: taps that hired and moved workers since the last observation. */
   readonly workerTaps?: number | undefined;
+  /** With the Granite open: taps that set the share between the levels since the last observation. */
+  readonly shareTaps?: number | undefined;
+  /** Asked with `open`; undefined before part 3. */
+  readonly cageGap?: () => number | undefined;
 };
 
 type Current = {
@@ -64,6 +72,9 @@ type Current = {
   zeroGainBuys: number | undefined;
   /** Undefined outside a fresh mine. */
   workerTaps: number | undefined;
+  /** Undefined while the Granite is shut. */
+  shareTaps: number | undefined;
+  readonly cageGap: number | undefined;
   owned: number;
   tiers: readonly number[];
   /** The tiers bought this sitting, by their place in `tiers`. */
@@ -99,6 +110,9 @@ function played(current: Current, observation: Observation): void {
   }
   if (observation.workerTaps !== undefined) {
     current.workerTaps = (current.workerTaps ?? 0) + observation.workerTaps;
+  }
+  if (observation.shareTaps !== undefined) {
+    current.shareTaps = (current.shareTaps ?? 0) + observation.shareTaps;
   }
   current.otherBuys += Math.max(0, rise - tierRise);
   current.owned = observation.owned;
@@ -136,6 +150,10 @@ export function createSittingLog(): SittingLog {
       ...(closing.workerTaps === undefined
         ? {}
         : { workerTaps: closing.workerTaps }),
+      ...(closing.shareTaps === undefined
+        ? {}
+        : { shareTaps: closing.shareTaps }),
+      ...(closing.cageGap === undefined ? {} : { cageGap: closing.cageGap }),
     };
     return [event];
   };
@@ -159,6 +177,8 @@ export function createSittingLog(): SittingLog {
           buys: 0,
           zeroGainBuys: undefined,
           workerTaps: undefined,
+          shareTaps: undefined,
+          cageGap: observation.cageGap?.(),
           owned: observation.owned,
           tiers: observation.tiers,
           tiersBought: new Set(),

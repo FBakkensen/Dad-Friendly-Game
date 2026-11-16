@@ -15,7 +15,13 @@ import {
 import type { SiteId } from "./next-view";
 import { SITES, SITE_NAMES, openSites } from "./next-view";
 import { effectiveRates } from "./rates";
-import { MACHINE_IDS, tierById, tierInPlay, type MachineId } from "./tiers";
+import {
+  MACHINE_IDS,
+  machineStaff,
+  tierById,
+  tierInPlay,
+  type MachineId,
+} from "./tiers";
 import { MACHINE_WORDS, MAKER_WORDS, TOOL_WORDS, plural } from "./screen-words";
 import { VEHICLES, drivenFleet } from "./transport";
 import {
@@ -170,7 +176,7 @@ function stageNote(mountain: Mountain, stage: Stage): string {
       id: tier.id as MachineId,
       running: running[tier.id],
       owned: mountain.owned[tier.id],
-      staff: tier.staff,
+      staff: machineStaff(tier),
     })),
     mountain.jobs[STAGE_JOB[stage]],
     stage,
@@ -186,7 +192,7 @@ function levelNote(
   const speed = effectiveRates(mountain).tierSpeed;
   const workers = mountain.jobs[LEVEL_JOBS[level][stage]];
   const machines = stageMachines(mountain, speed, stage, level);
-  const work = stageWork(machines, workers, toolSpeed(speed));
+  const work = stageWork(machines, workers, toolSpeed(speed, stage));
   return notePart(
     machines
       .filter((machine) => machine.owned > 0)

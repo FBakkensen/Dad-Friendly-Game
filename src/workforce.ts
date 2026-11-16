@@ -9,8 +9,11 @@ import {
   type MineLevelId,
 } from "./mine-levels";
 import { fleetSize } from "./transport";
+import { factor } from "./economy/factors";
+import { partThreeOn } from "./part-switch";
 import {
   TIERS,
+  machineStaff,
   tierInPlay,
   tierRecord,
   type MachineId,
@@ -356,9 +359,28 @@ export function lineWork(
   };
 }
 
-/** What a worker with a tool moves on any stage, from the tier speeds. */
-export function toolSpeed(speed: Readonly<Record<TierId, number>>): number {
-  return speed.helper * STAGES.length;
+/**
+ * What a worker with a tool moves on a stage, from the tier speeds: the
+ * same on every stage until part 3, where the stages are set apart (rule
+ * 2.14, #675) and haulage's and hoisting's tools move more than drilling's.
+ */
+export function toolSpeed(
+  speed: Readonly<Record<TierId, number>>,
+  stage: Stage,
+): number {
+  return speed.helper * STAGES.length * toolShare(stage);
+}
+
+/** Part 3's tools against today's, stage by stage (rule 2.14, #675). */
+const PART_THREE_TOOL: Readonly<Record<Stage, number>> = {
+  face: 1,
+  haul: 2,
+  lift: 3,
+};
+
+/** A stage's tool against today's: 1 until part 3. A sweep scales it with `tool.<stage>`. */
+function toolShare(stage: Stage): number {
+  return partThreeOn() ? PART_THREE_TOOL[stage] * factor(`tool.${stage}`) : 1;
 }
 
 /**
@@ -374,23 +396,22 @@ export function stageWorks(
     lift: stageWork(
       stageMachines(mountain, speed, "lift"),
       mountain.jobs[STAGE_JOB.lift],
-      toolSpeed(speed),
+      toolSpeed(speed, "lift"),
     ),
   };
 }
 
 /** A level's drilling and haulage: that level's workers on its own machines. */
-function levelWorks(
+export function levelWorks(
   mountain: Pick<Mountain, "owned" | "jobs" | "granite">,
   speed: Readonly<Record<TierId, number>>,
   level: MineLevelId,
 ): Readonly<Record<LevelStage, StageWork>> {
-  const tool = toolSpeed(speed);
   const work = (stage: LevelStage): StageWork =>
     stageWork(
       stageMachines(mountain, speed, stage, level),
       mountain.jobs[LEVEL_JOBS[level][stage]],
-      tool,
+      toolSpeed(speed, stage),
     );
   return { face: work("face"), haul: work("haul") };
 }
@@ -415,7 +436,7 @@ export function stageMachines(
         own !== undefined && isLevelMachine(tier.id)
           ? own[tier.id]
           : mountain.owned[tier.id],
-      staff: tier.staff,
+      staff: machineStaff(tier),
       speed: speed[tier.id],
     }),
   );

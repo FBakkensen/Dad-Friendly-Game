@@ -11,20 +11,24 @@ import {
   bestRaise,
   drainsTheMine,
   freshPlan,
-  hirePrice,
   lineRaise,
   playFresh,
   siteIdle,
   upgradeRaises,
-  type Plan,
 } from "./fresh-dad";
+import { hirePrice, type Plan } from "./fresh-kit";
 import { nextUpgradeCost } from "../upgrades";
 import type { FreshHabits } from "./policy";
 
 /** How part 1's dad plays a fresh mine (#655). */
 const fresh = <T>(body: () => T): T => withFactors({}, body);
 
-const ONCE: FreshHabits = { moves: "once", hold: "on-value", upgrades: false };
+const ONCE: FreshHabits = {
+  moves: "once",
+  hold: "on-value",
+  upgrades: false,
+  levels: "need",
+};
 const MOVER: FreshHabits = { ...ONCE, moves: "idle" };
 const NO_HOLD: FreshHabits = { ...ONCE, hold: "never" };
 

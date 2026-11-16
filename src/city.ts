@@ -1,5 +1,5 @@
 import type { Mountain } from "./mountain";
-import { partTwoOn } from "./part-switch";
+import { partThreeOn, partTwoOn } from "./part-switch";
 import {
   EMPTY_STOCK,
   GOOD_IDS,
@@ -34,8 +34,8 @@ type Power = {
 type BuildingRow = {
   readonly id: string;
   readonly name: string;
-  /** The part of slice 1 that puts it in play (#666): part 2's waits for its switch. */
-  readonly part: 1 | 2;
+  /** The part of slice 1 that puts it in play (#666): part 2's and part 3's wait for their switches. */
+  readonly part: 1 | 2 | 3;
   /** What each step requires, as a short list of goods (#560). */
   readonly steps: readonly [Price, Price, Price];
   readonly power: Power;
@@ -74,6 +74,28 @@ const BUILDING_ROWS = [
     ],
     // "The stockyard holds twice as much."
     power: { stockyard: 2 },
+  },
+  {
+    // The spec's starting numbers, for the lab (#675). The slice ends at
+    // its roof; the winding engine it opens waits for a later slice.
+    id: "foundry",
+    name: "The Foundry",
+    part: 3,
+    steps: [
+      [
+        { good: "brick", amount: 15_000_000 },
+        { good: "cutStone", amount: 4_000_000 },
+      ],
+      [
+        { good: "brick", amount: 20_000_000 },
+        { good: "cutStone", amount: 15_000_000 },
+      ],
+      [
+        { good: "brick", amount: 30_000_000 },
+        { good: "cutStone", amount: 40_000_000 },
+      ],
+    ],
+    power: {},
   },
 ] as const satisfies readonly BuildingRow[];
 
@@ -123,9 +145,16 @@ export type Project =
 
 export const NO_PROJECT: Project = { kind: "unordered" };
 
-/** Whether a building is in play: part 1's always, part 2's with its switch (#666). */
+/** Whether a building is in play: part 1's always, part 2's and part 3's with their switches (#666, #675). */
 function buildingInPlay(building: Pick<Building, "part">): boolean {
-  return building.part === 1 || partTwoOn();
+  switch (building.part) {
+    case 1:
+      return true;
+    case 2:
+      return partTwoOn();
+    case 3:
+      return partThreeOn();
+  }
 }
 
 /** The buildings in play, in the order he builds them (the pacing ledger's columns, #737). */
