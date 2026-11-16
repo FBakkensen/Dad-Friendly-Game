@@ -1332,6 +1332,75 @@ async function checkTwoLevels(page, at) {
   );
 }
 
+/** The Granite's plate and the Sink key's words that spill out of their box. */
+async function gateCut(page) {
+  return page.evaluate(() =>
+    [
+      ...document.querySelectorAll(
+        ".mine:not([hidden]) :is(.mine-granite-name, .mine-granite-line, .mine-sink-title, .mine-sink-small, .mine-sink-price)",
+      ),
+    ]
+      .filter(
+        (el) =>
+          el.getClientRects().length > 0 &&
+          (el.scrollWidth > el.clientWidth + 1 ||
+            el.scrollHeight > el.clientHeight + 1),
+      )
+      .map((el) => el.className),
+  );
+}
+
+/** Each pile line holds no more than its room: "Rock at the shaft: 396 of 300" reads as a bug. */
+function pilesOverRoom(piles) {
+  const number = (text) => Number(text.replace(/,/g, ""));
+  return piles.filter((line) => {
+    const found = /: ([\d,.]+[KMB]?) of ([\d,.]+[KMB]?)$/.exec(line);
+    return (
+      found !== null &&
+      !/[KMB]/.test(line) &&
+      number(found[1]) > number(found[2])
+    );
+  });
+}
+
+/** The one-level mine with the Granite's plate and the Sink key: the frame's checks, and its own. */
+async function checkGate(page, at) {
+  const facts = await frameFacts(page);
+  check(await noScroll(page), `${at} the page does not scroll before the Sink`);
+  check(
+    stacked(facts),
+    `${at} the order strip, the top row, the ground, Next and the site bar stack above the save line`,
+  );
+  check(
+    mineFits(facts),
+    `${at} the mine's keys and rows sit under the gallery and the line under the Granite's plate (${JSON.stringify(facts.mine)})`,
+  );
+  check(
+    facts.small.length === 0,
+    `${at} every key is at least 48px (${JSON.stringify(facts.small)})`,
+  );
+  const cut = [...facts.cut, ...(await gateCut(page))];
+  check(
+    cut.length === 0,
+    `${at} no word in the frame is cut (${cut.join(", ")})`,
+  );
+  const over = pilesOverRoom(facts.mine?.piles ?? []);
+  check(
+    over.length === 0,
+    `${at} no pile holds more than its room (${over.join("; ")})`,
+  );
+  const mineWords = await page.$eval(".mine", (el) => el.textContent ?? "");
+  check(
+    !/\bhands?\b|by hand|bottleneck|\blimit|best buy|\bface\b/i.test(mineWords),
+    `${at} no hands, no face, and no bottleneck, limit or best buy named`,
+  );
+  const near = await keyGaps(page, FRAME_KEYS);
+  check(
+    near.length === 0,
+    `${at} every key stands at least 8px from the next (${near.join("; ")})`,
+  );
+}
+
 for (const size of SIZES) {
   const label = `${String(size[0])}x${String(size[1])}`;
   section(`${label} slice mine two levels`, async () => {
@@ -1384,10 +1453,7 @@ for (const size of SIZES) {
       await page.waitForSelector(".mine-sink:not([hidden])");
       const at = `${label} slice mine two levels from the Sink:`;
       await shot(page, `slice-mine-granite-unsunk-${label}`);
-      check(
-        await noScroll(page),
-        `${at} the page does not scroll before the Sink`,
-      );
+      await checkGate(page, at);
       await tap(page, ".mine-sink");
       await page.waitForSelector(".mine-levels:not([hidden])");
       await shot(page, `slice-mine-sunk-${label}`);

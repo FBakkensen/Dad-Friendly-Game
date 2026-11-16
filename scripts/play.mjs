@@ -186,8 +186,9 @@ const plan = parsePlayArgs(process.argv.slice(2), Object.keys(SAVES));
 if (plan.kind === "help") {
   console.log(PLAY_USAGE);
   console.log("\nSaves:");
+  const width = Math.max(...Object.keys(SAVES).map((name) => name.length));
   for (const [name, { note }] of Object.entries(SAVES)) {
-    console.log(`  ${name.padEnd(9)} ${note}`);
+    console.log(`  ${name.padEnd(width)}  ${note}`);
   }
   process.exit(0);
 }
