@@ -175,7 +175,7 @@ function paintMachineRow(parts: MachineParts, machine: ListMachine): void {
   write(parts.name, machine.name);
   write(parts.line, machine.owned);
   write(parts.why, machine.mark ?? "");
-  paintMachineKey(parts.key, machine.key);
+  paintMachineKey(parts.key, machine.key, machine.key.good);
 }
 
 /** One stage's rows in the sheet: its machines and its upgrades. */

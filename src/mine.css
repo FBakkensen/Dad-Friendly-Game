@@ -300,3 +300,309 @@
 .frame .mine-key[hidden] {
   display: none;
 }
+
+/*
+ * The Granite before the shaft (#680, ruling 7): its plate under the
+ * Topsoil, and the Sink key under it once the shaft can be sunk. The plate
+ * is 22 art px and the key 26, 4 apart (mine-levels-site's GATE_*).
+ */
+.mine-over > .mine-granite {
+  left: calc(var(--art) * 3);
+  right: calc(var(--art) * 3);
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--art) * 4);
+}
+
+.mine-over > .mine-granite[hidden] {
+  display: none;
+}
+
+.mine-granite-plate {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  height: calc(var(--art) * 22);
+  padding: 0 calc(var(--art) * 4);
+  background: var(--frame-plate);
+}
+
+.mine-granite-name {
+  font-size: var(--board-type-17);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.mine-granite-line {
+  overflow: hidden;
+  font-size: var(--board-type-14);
+  white-space: nowrap;
+  color: var(--frame-quiet);
+}
+
+.mine-granite-line[hidden] {
+  display: none;
+}
+
+.frame .mine-sink {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--art) * 3);
+  height: calc(var(--art) * 26);
+  padding: 0 calc(var(--art) * 3) 0 calc(var(--art) * 4);
+  background: var(--frame-scrim);
+  box-shadow: inset 0 0 0 var(--art) var(--frame-edge);
+  color: var(--frame-quiet);
+  text-align: left;
+}
+
+.frame .mine-sink.can {
+  background: var(--frame-go);
+  color: var(--frame-go-ink);
+  box-shadow: inset 0 0 0 var(--art) var(--frame-green);
+}
+
+.frame .mine-sink[hidden] {
+  display: none;
+}
+
+.mine-sink-words {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.1;
+}
+
+.mine-sink-title {
+  font-size: var(--board-type-15);
+  font-weight: 700;
+}
+
+.mine-sink-small {
+  font-size: var(--frame-type-12);
+  font-weight: 600;
+}
+
+.mine-sink-price {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: flex-end;
+  font-size: var(--board-type-14);
+  font-weight: 700;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+/*
+ * The mine with two levels (#680): each level's two rows on the level, to
+ * the right of the shaft, and its two piles under its gallery, at the art
+ * rows of mine-scene's LEVELS. A row is 24 art px, its − and + the 48px
+ * every key has.
+ */
+.mine-levels > * {
+  position: absolute;
+  top: calc(var(--art) * var(--at));
+}
+
+.mine-levels[hidden] {
+  display: none;
+}
+
+.mine-level-rows {
+  left: calc(var(--art) * 37);
+  right: calc(var(--art) * 3);
+  display: flex;
+  flex-direction: column;
+  background: var(--frame-plate);
+}
+
+.mine-level-rows .mine-stage {
+  height: calc(var(--art) * 24);
+  padding: 0 0 0 calc(var(--art) * 3);
+  background: none;
+  border: none;
+}
+
+.mine-level-rows .mine-stage + .mine-stage {
+  box-shadow: inset 0 var(--board-hair) 0 var(--frame-edge);
+}
+
+.mine-level-rows .mine-stage-name {
+  width: auto;
+  font-size: var(--board-type-15);
+}
+
+.mine-level-rows .mine-stage-head {
+  overflow: hidden;
+  gap: calc(var(--art) * 2);
+  white-space: nowrap;
+}
+
+.mine-level-rows .mine-stage-count {
+  width: calc(var(--art) * 19);
+}
+
+.mine-piles {
+  left: calc(var(--art) * 37);
+  right: calc(var(--art) * 3);
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--frame-type-12);
+  line-height: 1.1;
+  white-space: nowrap;
+  color: var(--frame-ink);
+}
+
+/* Hoisting's one row under the keys, and the strip under it. */
+.mine-hoisting {
+  display: flex;
+  flex-direction: column;
+  gap: var(--target-gap);
+}
+
+.mine-hoisting[hidden],
+.frame .mine-stages[hidden],
+.mine-over[hidden] {
+  display: none;
+}
+
+/*
+ * The strip (ruling 4): a cell for each level, its name and rate over its
+ * count between − and +, and the hoists for both in turn.
+ */
+.mine-strip {
+  display: flex;
+  gap: var(--target-gap);
+}
+
+.frame .mine-strip-cell {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  padding: 0 0 0 calc(var(--art) * 2);
+  background: var(--frame-scrim);
+  box-shadow: inset 0 0 0 var(--art) var(--frame-edge);
+  color: var(--frame-ink);
+  text-align: left;
+}
+
+.mine-strip-info {
+  display: flex;
+  align-items: flex-end;
+  height: calc(var(--art) * 7);
+  min-width: 0;
+}
+
+.mine-strip-head {
+  display: flex;
+  gap: calc(var(--art) * 2);
+  align-items: baseline;
+  overflow: hidden;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.mine-strip-name {
+  font-size: var(--frame-type-12);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.mine-strip-rate {
+  font-size: var(--frame-type-12);
+  color: var(--frame-ink);
+}
+
+.mine-strip-keys {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.mine-strip-count {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+  line-height: 1;
+}
+
+.mine-strip-count b {
+  font-size: var(--board-type-17);
+  font-weight: 400;
+}
+
+.mine-strip-count small {
+  font-size: var(--frame-type-12);
+  color: var(--frame-quiet);
+}
+
+/* The hoists for both in turn: no keys, so its count sits where the others' do. */
+.frame .mine-strip-cell[data-place="both"] .mine-strip-head {
+  height: calc(var(--art) * 7);
+  align-items: flex-end;
+}
+
+.frame .mine-strip-cell[data-place="both"] .mine-strip-count {
+  justify-content: center;
+  height: var(--target-min);
+}
+
+/* The machine card (#680, ruling 5): the machine as its key says it, a key for each level drawn alike, and "Not now". */
+.machine-card-machine {
+  display: flex;
+  flex-direction: column;
+  margin: 0 0 calc(var(--art) * 5);
+  padding: calc(var(--art) * 3);
+  background: var(--frame-scrim);
+  box-shadow: inset 0 0 0 var(--art) var(--frame-edge);
+  font-size: var(--board-type-16);
+  font-weight: 700;
+  text-align: center;
+}
+
+.machine-card-line .machine-card-has {
+  display: block;
+}
+
+.machine-card-levels {
+  display: flex;
+  gap: var(--target-gap);
+  margin-top: calc(var(--art) * 2);
+}
+
+.frame-app .machine-card-level {
+  flex: 1;
+  min-height: var(--target-min);
+  font: inherit;
+  font-size: var(--board-type-20);
+  font-weight: 700;
+  background: var(--frame-scrim);
+  border: var(--art) solid var(--frame-edge);
+  color: var(--frame-quiet);
+  cursor: pointer;
+}
+
+.frame-app .machine-card-level.can {
+  background: var(--frame-go);
+  border-color: var(--frame-green);
+  color: var(--frame-go-ink);
+}
+
+.frame-app .machine-card-not-now {
+  flex: none;
+  min-height: var(--target-min);
+  margin-top: var(--target-gap);
+  font: inherit;
+  font-size: var(--board-type-16);
+  font-weight: 700;
+  background: transparent;
+  border: var(--art) solid var(--frame-amber);
+  color: var(--frame-amber);
+  cursor: pointer;
+}

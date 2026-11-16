@@ -469,7 +469,7 @@ function graniteBought(mountain: Mountain, id: LevelMachineId): Mountain {
  * and the amount key's ten or Max buys several, all or nothing as `buyTiers`
  * does.
  */
-function graniteBuyMove(
+export function graniteBuyMove(
   id: LevelMachineId,
   count: number,
 ): Extract<Action, { kind: "buyGraniteMachine" }> {

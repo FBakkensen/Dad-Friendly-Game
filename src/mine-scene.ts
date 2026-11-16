@@ -41,6 +41,20 @@ export const LEVEL = { top: SURF, gallery: SURF + 34, floor: SURF + 66 };
 /** Where the line under the Topsoil sits, and the zone labels. */
 export const DEEP_Y = SURF + 84;
 
+/**
+ * The mine with two levels (#680), in art px from a level's top: its two
+ * rows sit on the level, its gallery under them, and its two piles under
+ * its floor. The rows hold − and + at the 48px every key has, so a level is
+ * taller than the prototype's 79: the site's DOM and the scene both place a
+ * level here.
+ */
+export const LEVELS = { height: 86, rows: 1, gallery: 49, floor: 79 } as const;
+
+/** A level's top with two levels: the Topsoil's (0) at the surface, the Granite's (1) under it. */
+export function levelTop(index: number): number {
+  return SURF + index * LEVELS.height;
+}
+
 type Earth = {
   readonly base: string;
   readonly dark: string;

@@ -3,6 +3,7 @@ import type { Mountain } from "./mountain";
 import type { SiteId } from "./next-view";
 import type { ProgressStore } from "./progress-store";
 import type { BuyAmount } from "./tiers";
+import type { LevelStage } from "./workforce";
 
 /**
  * What the frame's parts share (#659): the store, the amount key's amount,
@@ -22,4 +23,6 @@ export type FrameState = {
   readonly openWorkforce: () => void;
   /** A stage's list (#661), from a tap on its row in the mine. */
   readonly openStage: (stage: Stage) => void;
+  /** The machine card (#680), from a tap on drilling's or haulage's key with two levels: which level? */
+  readonly openMachine: (stage: LevelStage) => void;
 };
