@@ -532,11 +532,6 @@ export function fitGear<T extends Pick<Mountain, "crafted" | "clocks">>(
 }
 
 /** Length of a live timer, or none when the craft is lasting gear. */
-export function recipeWindowMs(id: RecipeId): number | undefined {
-  return liveTimerMs(recipeById(id));
-}
-
-/** Length of a live timer, or none when the craft is lasting gear. */
 function liveTimerMs(recipe: Recipe): number | undefined {
   const effect = recipe.effect;
   switch (effect.kind) {

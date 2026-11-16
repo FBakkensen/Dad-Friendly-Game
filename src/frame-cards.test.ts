@@ -12,7 +12,6 @@ import {
   endCard,
 } from "./frame-cards-words";
 import { mountFrameScreen } from "./frame-screen";
-import { FRESH_OFF } from "./line-switch";
 import { PART_TWO_OFF } from "./part-switch";
 import { createMemoryStorage } from "./test-fixtures";
 import { createMountain, type Mountain } from "./mountain";
@@ -29,7 +28,7 @@ const HOUR = 60 * 60 * 1000;
 let unmount = new AbortController();
 
 beforeEach(() => {
-  holdFactors({ [FRESH_OFF]: 0 });
+  holdFactors({});
 });
 
 afterEach(() => {
@@ -326,7 +325,7 @@ describe("the shift report once the stockyard is open (#671)", () => {
   }
 
   it("marks when each stockpile filled, and offers the stockyard beside Resume", () => {
-    holdFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 });
+    holdFactors({ [PART_TWO_OFF]: 0 });
     const { card, root, progress } = mount({
       saved: nearlyFull(),
       at: 9 * HOUR,
@@ -350,7 +349,7 @@ describe("the shift report once the stockyard is open (#671)", () => {
   });
 
   it("closes the night and goes to the refinery on To the stockyard", () => {
-    holdFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 });
+    holdFactors({ [PART_TWO_OFF]: 0 });
     const { card, root, progress } = mount({
       saved: nearlyFull(),
       at: 9 * HOUR,
@@ -413,7 +412,7 @@ describe("the end card", () => {
   });
 
   it("opens the refinery in part 2 when the Light Tower's roof goes on, and ends at the Warehouse's (#671)", () => {
-    holdFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 });
+    holdFactors({ [PART_TWO_OFF]: 0 });
     const { card, press, progress } = mount({
       saved: crew(ROOF_NEARLY_IN),
       at: 1_000,
@@ -613,7 +612,7 @@ describe("the refinery's card for a save from part 1 (#672)", () => {
   });
 
   it("greets a session whose refinery is open and untouched, once, until its key", () => {
-    holdFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 });
+    holdFactors({ [PART_TWO_OFF]: 0 });
     const { card, press, screen } = mount({ saved: partOneDone(), at: 1_000 });
     expect(card()).toMatchObject({
       shown: true,
@@ -628,7 +627,7 @@ describe("the refinery's card for a save from part 1 (#672)", () => {
   });
 
   it("does not greet once a kiln is bought, the stockyard expanded or the Warehouse ordered", () => {
-    holdFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 });
+    holdFactors({ [PART_TWO_OFF]: 0 });
     const kiln = { ...partOneDone(), makers: { kiln: 1, saw: 0 } };
     const expanded = { ...partOneDone(), stockyard: 1 };
     const ordered = placeOrder(partOneDone());
@@ -638,7 +637,7 @@ describe("the refinery's card for a save from part 1 (#672)", () => {
   });
 
   it("waits behind the report of the night the session opens on", () => {
-    holdFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 });
+    holdFactors({ [PART_TWO_OFF]: 0 });
     const saved = { ...crew(NO_PROJECT), operational: ["lightTower" as const] };
     const { card, press } = mount({ saved, at: 9 * HOUR });
     expect(card().kind).toBe("report");

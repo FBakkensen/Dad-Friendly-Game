@@ -5,7 +5,6 @@ import { graniteBuyMove, tierBuyMove } from "./economy/actions";
 import { DRAWER_SETTLE_MS } from "./board-interaction";
 import { holdFactors } from "./economy/factors";
 import { mountFrameScreen } from "./frame-screen";
-import { FRESH_OFF } from "./line-switch";
 import {
   HOIST_WAITS_LINE,
   NOT_NOW,
@@ -29,7 +28,7 @@ import { NO_FREE_WORKER } from "./workforce-view";
 let unmount = new AbortController();
 
 beforeEach(() => {
-  holdFactors({ [FRESH_OFF]: 0 });
+  holdFactors({});
 });
 
 afterEach(() => {
@@ -203,7 +202,7 @@ describe("the mine", () => {
   });
 
   it("says a machine stands, with both numbers, when its workers move more with tools", () => {
-    holdFactors({ [FRESH_OFF]: 0, "output.cart": 0.03 });
+    holdFactors({ "output.cart": 0.03 });
     const { progress, text } = mount((m) => ({
       ...m,
       owned: { ...m.owned, cart: 1 },
@@ -218,7 +217,7 @@ describe("the mine", () => {
   });
 
   it("keeps the approved words, /s included, when the stand line takes two lines", () => {
-    holdFactors({ [FRESH_OFF]: 0, "output.cart": 0.03 });
+    holdFactors({ "output.cart": 0.03 });
     const proto = HTMLElement.prototype;
     const wide = Object.getOwnPropertyDescriptor(proto, "scrollWidth");
     const narrow = Object.getOwnPropertyDescriptor(proto, "clientWidth");
@@ -306,7 +305,7 @@ function fingerTap(target: HTMLElement): void {
 /** Part 3's mine, on the DOM (#680): the Granite's gate, its two levels, the strip and the machine card. */
 describe("the mine with two levels", () => {
   beforeEach(() => {
-    holdFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 });
+    holdFactors({ [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 });
   });
 
   const twoLevels = (mountain: Mountain) => () => mountain;

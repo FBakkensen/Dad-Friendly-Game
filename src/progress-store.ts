@@ -61,7 +61,7 @@ export type {
   SaveConflictView,
   SaveSide,
 } from "./store-context";
-export { QUIET_AWAY_MS, WELCOME_MIN_AWAY_MS } from "./session";
+export { WELCOME_MIN_AWAY_MS } from "./session";
 
 /** Firestore sustains about one write per second per document. */
 const CLOUD_WRITE_GAP_MS = 1000;

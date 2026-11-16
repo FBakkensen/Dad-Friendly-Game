@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { accrueAway } from "./mountain";
 import { effectiveRates } from "./rates";
 import { minedMountain } from "./test-fixtures";
 import {
@@ -52,7 +51,7 @@ describe("Work boots", () => {
     expect(upgradeCost(upgradeById("boots"), 1)).toBeUndefined();
   });
 
-  it("Work boots makes helpers 10% faster, in whole stones a second", () => {
+  it("Work boots makes workers faster, and leaves the machines alone", () => {
     const crew = {
       ...base,
       owned: { ...base.owned, helper: 15, cart: 2 },
@@ -61,12 +60,6 @@ describe("Work boots", () => {
     const rates = effectiveRates(crew);
     expect(rates.tierSpeed.helper).toBeCloseTo(2.36);
     expect(rates.tierSpeed.cart).toBe(effectiveRates(base).tierSpeed.cart);
-    // 15 × 2.36 = 35.4 → 35, plus 2 carts.
-    expect(rates.crewPerSecond).toBe(35 + 2 * rates.tierSpeed.cart);
-    expect(
-      effectiveRates({ ...crew, owned: { ...crew.owned, helper: 10 } })
-        .crewPerSecond,
-    ).toBe(23 + 2 * rates.tierSpeed.cart);
   });
 
   it("reads saved levels and rejects anything odd", () => {
@@ -133,40 +126,39 @@ describe("crew synergies", () => {
   });
 
   it("each unit of the tier below adds 1% to the boosted tier, only once bought", () => {
+    // Loading crews counts the workers on haulage (rule 2.9).
     const crew = {
       ...rich,
-      owned: { ...rich.owned, helper: 20, cart: 10, drill: 4 },
+      owned: { ...rich.owned, helper: 21, cart: 10, drill: 4 },
+      jobs: { ...rich.jobs, haulage: 20 },
     };
+    const plain = effectiveRates(crew);
     expect(synergyBonus(crew, upgradeById("cartSyn"))).toBeCloseTo(0.2);
     expect(synergyBonus(crew, upgradeById("boots"))).toBe(0);
     expect(tierSynergy(crew, "cart")).toBe(0);
     const boosted = { ...crew, upgrades: { ...NO_UPGRADES, cartSyn: 1 } };
     expect(tierSynergy(boosted, "cart")).toBeCloseTo(0.2);
     const rates = effectiveRates(boosted);
-    // Ten carts is the first mark, so the carts run twice as fast: 7.2 × 2.
-    expect(rates.tierSpeed.cart).toBeCloseTo(14.4);
-    expect(rates.tierSpeed.drill).toBe(36);
-    // 4 drills take 4 workers, so all 10 carts run: 20 + 10×14.4 + 4×36.
-    expect(rates.crewPerSecond).toBe(20 + 144 + 144);
-    // Away pay uses the same rates.
-    expect(
-      accrueAway({ mountain: boosted, lastSeen: 0, now: 10_000 }).mined,
-    ).toBe(924);
+    expect(rates.tierSpeed.cart).toBeCloseTo(plain.tierSpeed.cart * 1.2, 9);
+    expect(rates.tierSpeed.drill).toBe(plain.tierSpeed.drill);
   });
 
   it("stacks with Work boots and other synergies", () => {
     const crew = {
       ...rich,
-      // 40 workers staff 10 carts (10) and 10 drills (10), 20 spare.
       owned: { ...rich.owned, helper: 40, cart: 10, drill: 10 },
-      upgrades: { ...NO_UPGRADES, boots: 1, cartSyn: 1, drillSyn: 1 },
+      jobs: { ...rich.jobs, haulage: 20 },
     };
-    const rates = effectiveRates(crew);
-    // 40 workers, 10 carts and 10 drills each hold one ×2 mark.
-    expect(rates.tierSpeed.helper).toBeCloseTo(4.72);
-    expect(rates.tierSpeed.cart).toBeCloseTo(16.8);
-    expect(rates.tierSpeed.drill).toBeCloseTo(79.2);
-    expect(rates.crewPerSecond).toBe(188 + 168 + 792);
+    const plain = effectiveRates(crew);
+    const rates = effectiveRates({
+      ...crew,
+      upgrades: { ...NO_UPGRADES, boots: 1, cartSyn: 1, drillSyn: 1 },
+    });
+    expect(rates.tierSpeed.helper).toBeCloseTo(plain.tierSpeed.helper * 2.36);
+    // Twenty on haulage: +20% on the carts.
+    expect(rates.tierSpeed.cart).toBeCloseTo(plain.tierSpeed.cart * 1.2, 9);
+    // Ten carts: +10% on the drills.
+    expect(rates.tierSpeed.drill).toBeCloseTo(plain.tierSpeed.drill * 1.1, 9);
   });
 
   it("save and load", () => {

@@ -26,7 +26,6 @@ import { applyMove, listActions, valueOf } from "./economy/actions";
 import { promote } from "./engineers";
 import { fieldEntry } from "./field-log";
 import { synergyBonus, upgradeById } from "./upgrades";
-import { FRESH_OFF } from "./line-switch";
 import { PART_THREE_OFF, PART_TWO_OFF } from "./part-switch";
 import {
   MINE_LEVEL_IDS,
@@ -44,11 +43,11 @@ import {
   type TierId,
 } from "./tiers";
 
-const fresh = <T>(body: () => T): T => withFactors({ [FRESH_OFF]: 0 }, body);
+const fresh = <T>(body: () => T): T => withFactors({}, body);
 const partTwo = <T>(body: () => T): T =>
-  withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 }, body);
+  withFactors({ [PART_TWO_OFF]: 0 }, body);
 const partThree = <T>(body: () => T): T =>
-  withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 }, body);
+  withFactors({ [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 }, body);
 
 /** The mountain with the shaft sunk, as `sinkShaft` leaves it. */
 const sunk = (mountain: Mountain): Mountain => ({
@@ -183,7 +182,6 @@ describe("one workforce (slice 1, rule 2, #689)", () => {
     expect(start.owned.helper).toBe(1);
     expect(start.jobs).toEqual({ ...NO_JOBS, drilling: 1 });
     expect(freeWorkers(start)).toBe(0);
-    expect(createMountain().jobs).toEqual(NO_JOBS);
   });
 
   it("counts the free workers as the ones on no job", () => {
@@ -595,7 +593,7 @@ describe("the moves (rule 2.4)", () => {
     });
   });
 
-  it("refuses them with nobody free or nobody on the job, and in today's game", () => {
+  it("refuses them with nobody free or nobody on the job", () => {
     fresh(() => {
       expect(
         applyMove(
@@ -609,17 +607,6 @@ describe("the moves (rule 2.4)", () => {
           .kind,
       ).toBe("refused");
     });
-    const today = {
-      ...createMountain(),
-      owned: { ...createMountain().owned, helper: 3 },
-    };
-    expect(
-      listActions(today, 0).some((action) => action.kind === "placeWorker"),
-    ).toBe(false);
-    expect(
-      applyMove(today, { kind: "placeWorker", job: "drilling", count: 1 }, 0)
-        .kind,
-    ).toBe("refused");
   });
 
   it("values a move at what the line gains, for free", () => {

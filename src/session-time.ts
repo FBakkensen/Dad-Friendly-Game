@@ -56,9 +56,10 @@ export function timeInput(
 
 /**
  * Moves the world through one stretch of time. Live play brings home any
- * party due by the end of the stretch, pays the crew with the trouble that
- * is up, then steps the hazards. Away time pays the capped gap (parties come
- * home as they arrive) and clears trouble, the same as closing the game.
+ * party due by the end of the stretch, pays the crew (the cages trip by trip
+ * once part 3 is on, #724), then steps the hazards. Away time is the night
+ * (`accrueAway`): no party comes home in it, and it clears trouble, the same
+ * as closing the game.
  */
 export function advance(world: Timed, input: TimeInput): Advanced {
   switch (input.kind) {
@@ -85,17 +86,13 @@ function advanceLive(
   world: Timed,
   input: Extract<TimeInput, { kind: "live" }>,
 ): Advanced {
-  // A live gap is short, so coming home at the end of it pays that short
-  // stretch with the bonus. Away time splits exactly.
+  // A party due by the end of a live gap is home before the crew is paid.
   const settled = settleExpeditions(world.mountain, input.to);
-  const trouble =
-    world.hazards.phase === "trouble" ? world.hazards.trouble : undefined;
   const result = accrue({
     mountain: settled.mountain,
     from: input.from,
     to: input.to,
     live: true,
-    ...(trouble === undefined ? {} : { trouble }),
   });
   const hazards = stepHazards(world.hazards, {
     now: input.to,

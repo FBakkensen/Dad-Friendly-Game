@@ -1,17 +1,8 @@
 import { priceAmount } from "./stock";
 import { describe, expect, it } from "vitest";
-import { tierLock } from "./crew";
 import { ENGINEER_NAMES, PROMOTE_BASE_COST, promoteCost } from "./engineers";
-import {
-  accrueAway,
-  createMountain,
-  digStones,
-  MOUNTAIN_STONES,
-  type Mountain,
-} from "./mountain";
-import { reloaded } from "./test-fixtures";
+import { createMountain, MOUNTAIN_STONES, type Mountain } from "./mountain";
 import { withFactors } from "./economy/factors";
-import { LINE_OFF } from "./line-switch";
 import {
   BAND_SCALE,
   BAND_STARTS,
@@ -20,71 +11,20 @@ import {
   oneOffStretch,
   shownStones,
   stonesLeft,
-  stonesToNextBand,
 } from "./scale";
 import { minedMountain } from "./test-fixtures";
-import { TIERS, tierById, tierCost } from "./tiers";
+import { TIERS, tierCost } from "./tiers";
 import { UPGRADES, buyUpgrade, upgradeById, upgradeCost } from "./upgrades";
 import { RECIPE_IDS, recipePrice } from "./workshop";
 
 describe("the mountain's size (M13, #729)", () => {
-  it("counts a fresh mountain's stones band by band", () => {
-    const fresh = createMountain();
-    expect(stonesLeft(fresh)).toBe(shownStones(MOUNTAIN_STONES));
+  it("counts the stones band by band, and a fresh mine never runs out (#653)", () => {
+    expect(stonesLeft()).toBe(Infinity);
     expect(shownStones(7_000_000)).toBe(7_000_000);
-  });
-
-  it("digs one stone of depth per stone in the Topsoil", () => {
-    const fresh = createMountain();
-    const dug = digStones(fresh, 1_000);
-    expect(dug.stock.stones).toBe(1_000);
-    expect(fresh.remaining - dug.remaining).toBe(1_000);
-    expect(digStones(fresh, stonesLeft(fresh)).remaining).toBe(0);
-  });
-
-  it("locks a tier at its depth, named in stones", () => {
-    const machine = tierById("machine");
-    const runOne = minedMountain(25_000_000);
-    expect(tierLock(runOne, machine)).toMatchObject({
-      depth: 120_000_000,
-      // 10M x s1 + 35M x s2 + 75M x s3.
-      at:
-        10_000_000 * BAND_SCALE[0] +
-        35_000_000 * BAND_SCALE[1] +
-        75_000_000 * BAND_SCALE[2],
-    });
-    const borer = tierLock(minedMountain(0), tierById("borer"));
-    expect(borer).toEqual({ kind: "depth", depth: 10_000_000, at: 10_000_000 });
-  });
-});
-
-describe("stones to the next band (#592)", () => {
-  const at = (mined: number) => ({ remaining: MOUNTAIN_STONES - mined });
-
-  it("counts the stones left in this band, at its scale", () => {
-    expect(stonesToNextBand(at(0))).toBe(BAND_STARTS[1] * BAND_SCALE[0]);
-    expect(stonesToNextBand(at(BAND_STARTS[1] - 500))).toBe(500);
-    expect(stonesToNextBand(at(BAND_STARTS[2] - 100))).toBeCloseTo(
-      100 * BAND_SCALE[1],
-      6,
-    );
-  });
-
-  it("from a band's first stone, counts to the band after it", () => {
-    expect(stonesToNextBand(at(BAND_STARTS[1]))).toBeCloseTo(
-      (BAND_STARTS[2] - BAND_STARTS[1]) * BAND_SCALE[1],
-      3,
-    );
-  });
-
-  it("is endless in the last band", () => {
-    expect(stonesToNextBand(at(BAND_STARTS[3]))).toBe(Infinity);
-    expect(stonesToNextBand(at(MOUNTAIN_STONES))).toBe(Infinity);
   });
 });
 
 describe("band scales (#356)", () => {
-  const fresh = createMountain();
   const M = 1_000_000;
   const at10 = 10 * M * BAND_SCALE[0];
   const at45 = at10 + 35 * M * BAND_SCALE[1];
@@ -97,53 +37,15 @@ describe("band scales (#356)", () => {
     expect(shownStones(MOUNTAIN_STONES)).toBe(full);
   });
 
-  it("counts the stones left", () => {
-    expect(stonesLeft(fresh)).toBe(shownStones(MOUNTAIN_STONES));
-    expect(stonesLeft(minedMountain(9 * M))).toBe(full - 9 * M * BAND_SCALE[0]);
-  });
-
   it("walks bands when digging", () => {
     const m = minedMountain(9 * M);
     expect(
       depthAfterStones(m, 1 * M * BAND_SCALE[0] + 3 * M * BAND_SCALE[1]),
     ).toBe(13 * M);
-    expect(depthAfterStones(m, stonesLeft(m) * 2)).toBe(MOUNTAIN_STONES);
+    expect(depthAfterStones(m, shownStones(MOUNTAIN_STONES) * 2)).toBe(
+      MOUNTAIN_STONES,
+    );
   });
-
-  const whole = (m: Pick<Mountain, "stock" | "remaining">) => {
-    expect(Number.isInteger(m.stock.stones)).toBe(true);
-  };
-  const roundTrips = (m: Mountain) => {
-    expect(reloaded(m)).toBeDefined();
-  };
-
-  it.each([
-    ["Crystal", 100_000_000, 1_000_000],
-    ["Heart", 239_999_000, 3_000],
-  ])(
-    "keeps the pocket whole all the way down from the %s",
-    (_name, at, haul) => {
-      let m: Mountain = {
-        ...minedMountain(at),
-        owned: { ...minedMountain(at).owned, helper: 3 },
-        remaining: MOUNTAIN_STONES - at - 1 / 3,
-      };
-      for (let step = 0; step < 5_000 && m.remaining > 0; step += 1) {
-        if (step % 2 === 0) {
-          m = digStones(m, Math.min(stonesLeft(m), 331));
-        } else {
-          m = accrueAway({
-            mountain: { ...m, owned: { ...m.owned, helper: haul } },
-            lastSeen: 0,
-            now: 7_000,
-          }).mountain;
-        }
-        whole(m);
-        roundTrips(m);
-      }
-      expect(m.remaining).toBe(0);
-    },
-  );
 });
 
 describe("band scale knobs (#365)", () => {
@@ -179,10 +81,6 @@ describe("band scale knobs (#365)", () => {
     expect(doubled("band.2.scale", () => bandLeft(inTopsoil, 0))).toBe(topsoil);
     expect(doubled("band.2.scale", () => bandLeft(inGranite, 1))).toBe(
       2 * granite,
-    );
-    // The whole mountain's count grows by just the Granite's extra stones.
-    expect(doubled("band.2.scale", () => stonesLeft(inGranite))).toBe(
-      stonesLeft(inGranite) + granite,
     );
   });
 
@@ -314,7 +212,7 @@ describe("every price is a whole, safe count (#366)", () => {
       ...deep,
       stock: {
         ...deep.stock,
-        stones: stonesLeft({ ...deep, remaining: MOUNTAIN_STONES }),
+        stones: shownStones(MOUNTAIN_STONES),
       },
     };
     // Every upgrade has one level (#728), so its first price is its dearest.
@@ -327,14 +225,11 @@ describe("every price is a whole, safe count (#366)", () => {
   });
 });
 
-describe("the line's Deep Heart, labs only (#543)", () => {
-  it("takes 1.21 times the stones per stone of depth while the line is on", () => {
+describe("the line's Deep Heart (#543)", () => {
+  it("takes 1.21 times the old 32.4 stones per stone of depth", () => {
     const deep = { remaining: MOUNTAIN_STONES - BAND_STARTS[3] };
-    const off = oneOffStretch(deep);
-    expect(off).toBe(BAND_SCALE[3]);
-    withFactors({ [LINE_OFF]: 0 }, () => {
-      expect(oneOffStretch(deep)).toBeCloseTo(39.204, 9);
-      expect(oneOffStretch({ remaining: MOUNTAIN_STONES })).toBe(1);
-    });
+    expect(oneOffStretch(deep)).toBe(BAND_SCALE[3]);
+    expect(oneOffStretch(deep)).toBeCloseTo(32.4 * 1.21, 9);
+    expect(oneOffStretch({ remaining: MOUNTAIN_STONES })).toBe(1);
   });
 });

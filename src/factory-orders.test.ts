@@ -10,7 +10,6 @@ import {
   type BlueprintId,
   type Station,
 } from "./factory";
-import { FRESH_OFF } from "./line-switch";
 import { NO_GRANITE_PILES, NO_LEVEL_MACHINES } from "./mine-levels";
 import { accrue, accrueAway, createMountain, type Mountain } from "./mountain";
 import { PART_THREE_OFF, PART_TWO_OFF } from "./part-switch";
@@ -30,7 +29,7 @@ import {
  * order is carried exactly as before.
  */
 const partThree = <T>(body: () => T): T =>
-  withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 }, body);
+  withFactors({ [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 }, body);
 
 /** The Warehouse's foundation, delivering, with nothing arrived. */
 const WAREHOUSE: Project = {
@@ -326,10 +325,10 @@ describe("the night's report counts the clay and iron drilled (#674)", () => {
         now: 3_600_000,
       });
       const facts = night.report.night;
-      expect(facts?.produced.clay).toBe(1);
-      expect(facts?.produced.iron).toBe(1);
-      expect(facts?.delivered.iron).toBe(1);
-      expect(facts?.delivered.clay).toBe(0);
+      expect(facts.produced.clay).toBe(1);
+      expect(facts.produced.iron).toBe(1);
+      expect(facts.delivered.iron).toBe(1);
+      expect(facts.delivered.clay).toBe(0);
       expect(night.mountain.stock).toMatchObject({ clay: 1, iron: 0 });
       expect(night.mountain.station).toEqual({
         kind: "done",

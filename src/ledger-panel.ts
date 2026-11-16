@@ -20,13 +20,7 @@ import {
   writeClipboard,
   type LedgerDoors,
 } from "./ledger-parts";
-import {
-  accountRowView,
-  freshLedgerRows,
-  stonesRowView,
-  tonightLines,
-} from "./ledger-rows";
-import { freshMineOn } from "./line-switch";
+import { accountRowView, freshLedgerRows, tonightLines } from "./ledger-rows";
 import type { ProgressSnapshot, ProgressStore } from "./progress-store";
 import {
   ACCOUNT,
@@ -94,8 +88,6 @@ function buildLedgerRows(): Pick<LedgerParts, "stones" | "crew" | "account"> {
   account.root
     .querySelector(".board-row-info")
     ?.setAttribute("aria-live", "polite");
-  // Today's mine has no crew row (#708).
-  hide(crew.root, !freshMineOn());
   return { stones, crew, account };
 }
 
@@ -123,21 +115,15 @@ function buildLedgerList(sheet: BoardSheet, doors: LedgerDoors): LedgerParts {
   return parts;
 }
 
-/** The stones row from a ready save, or a fresh mine's two rows. */
+/** A ready save's two rows: the stockpile and the crew (#708). */
 function paintReady(
   parts: LedgerParts,
   onBoard: RowsOnBoard,
   view: ProgressSnapshot,
 ): void {
-  if (freshMineOn()) {
-    const rows = freshLedgerRows(view.mountain);
-    onBoard.paint("stones", parts.stones, rows.stock);
-    onBoard.paint("crew", parts.crew, rows.crew);
-    return;
-  }
-  const stones = stonesRowView(view.mountain);
-  onBoard.paint("stones", parts.stones, stones);
-  setAttr(parts.stones.root, "title", stones.title);
+  const rows = freshLedgerRows(view.mountain);
+  onBoard.paint("stones", parts.stones, rows.stock);
+  onBoard.paint("crew", parts.crew, rows.crew);
 }
 
 /** Until the save is in, the rows go dark and blank. */
@@ -236,7 +222,7 @@ function wireDoors(deps: LedgerDoorDeps): {
     on: {
       savedCopies: () => {
         handOff();
-        // The card's Back to the mountain gives focus back to the Ledger key.
+        // The card's Close gives focus back to the Ledger key.
         deps.savedCopies.open(door);
       },
       fieldLog: () => {
@@ -317,9 +303,9 @@ export function createLedgerPanel({
     name: "ledger",
     title: "Ledger",
     infoLabel: "Tonight and the mine",
-    // Today's card tells time away: a fresh mine has none yet (#708).
+    // No card tells time away in a fresh mine yet (#708).
     how: {
-      systems: freshMineOn() ? [] : ["away"],
+      systems: [],
       backLabel: LEDGER_BACK,
     },
     board,

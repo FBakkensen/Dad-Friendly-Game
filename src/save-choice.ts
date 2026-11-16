@@ -11,7 +11,7 @@ import { rockDugInAll, runStartedAt, type Mountain } from "./mountain";
 import { playedSinceNew } from "./save-progress";
 import { conflictFacts } from "./save-adopt";
 import { payAway } from "./save-load";
-import { markWelcomed, openBaselines } from "./session";
+import { openBaselines } from "./session";
 import {
   adopt,
   canPlay,
@@ -41,7 +41,6 @@ function playChosen(
 
 function saveChosen(ctx: StoreContext, lastSeen: number | undefined): void {
   payAway(ctx, lastSeen);
-  ctx.session = markWelcomed(ctx.session);
   persistPhoneBackup(ctx);
   persistCloudSoon(ctx, false, true);
   emit(ctx);

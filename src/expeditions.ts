@@ -261,7 +261,7 @@ export function settle(
  * stay. Follows the lastSeen rule: the clock went back, so we do not wait
  * it out and we do not finish the trip early.
  */
-export function clampExpeditions(mountain: Mountain, now: number): Mountain {
+function clampExpeditions(mountain: Mountain, now: number): Mountain {
   const expeditions = mountain.expeditions;
   const next: Expedition[] = [];
   let changed = false;
@@ -281,7 +281,7 @@ export function clampExpeditions(mountain: Mountain, now: number): Mountain {
 }
 
 /** Brings home every expedition with `returnsAt` at or before `now`. */
-export function completeDue(
+function completeDue(
   mountain: Mountain,
   now: number,
 ): {

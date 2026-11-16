@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { withFactors } from "./economy/factors";
-import { FRESH_OFF } from "./line-switch";
 import { hoistingRow, mineLevels } from "./mine-level-view";
 import { machineKey, stageRows } from "./mine-view";
 import type { Mountain } from "./mountain";
@@ -10,7 +9,7 @@ import { listPart, stageList, workersList } from "./stage-list-view";
 import { tierById } from "./tiers";
 
 /** A stage's list and the workers' upgrades (#661), on a fresh mine. */
-const fresh = <T>(body: () => T): T => withFactors({ [FRESH_OFF]: 0 }, body);
+const fresh = <T>(body: () => T): T => withFactors({}, body);
 
 const rich = (patch: Partial<Mountain> = {}): Mountain => {
   const mountain = crewedStart();

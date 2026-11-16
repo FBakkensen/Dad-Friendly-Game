@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { withFactors } from "../economy/factors";
-import { FRESH_OFF, LINE_OFF } from "../line-switch";
-import { crewedStart, minedMountain } from "../test-fixtures";
+import type { Mountain } from "../mountain";
+import { crewedStart } from "../test-fixtures";
 import {
   handsCarryOf,
   narrowAt,
@@ -12,8 +12,6 @@ import {
 } from "./line-view";
 import type { DecisionSample } from "./measure";
 import type { SittingEvent } from "./sittings";
-
-const ON = { [LINE_OFF]: 0 };
 
 function opens(
   ...stages: (SittingEvent["narrow"] | { zero: number })[]
@@ -63,72 +61,33 @@ describe("the line's readings in the lab (#534)", () => {
     expect(handsCarryOf([sample(0.1), sample(0.5), sample(0.3)])).toBe(0.3);
     expect(handsCarryOf([sample()])).toBeNaN();
   });
-
-  it("reads nothing while the line is off", () => {
-    const mountain = {
-      ...minedMountain(1_000_000),
-      owned: { ...minedMountain(1_000_000).owned, helper: 4, cart: 2 },
-    };
-    expect(narrowAt(mountain, 0)).toBeUndefined();
-    expect(
-      zeroGainBuysBetween(
-        mountain,
-        { ...mountain, owned: { ...mountain.owned, cart: 3 } },
-        0,
-      ),
-    ).toBeUndefined();
-  });
-
-  it("names the narrow stage, and counts a machine that adds nothing", () => {
-    withFactors(ON, () => {
-      const mountain = {
-        ...minedMountain(1_000_000),
-        owned: {
-          ...minedMountain(1_000_000).owned,
-          helper: 4,
-          cart: 4,
-          drill: 0,
-        },
-      };
-      // Four carts and no drill or hoist: the face and the lift are narrow,
-      // and the face comes first in rock order.
-      expect(narrowAt(mountain, 0)).toBe("face");
-      // A fifth cart: the haul is not narrow and no hand is free for it.
-      expect(
-        zeroGainBuysBetween(
-          mountain,
-          { ...mountain, owned: { ...mountain.owned, cart: 5 } },
-          0,
-        ),
-      ).toBe(1);
-      // A hoist with a free hand lifts the line.
-      const free = { ...mountain, owned: { ...mountain.owned, helper: 6 } };
-      expect(
-        zeroGainBuysBetween(
-          free,
-          { ...free, owned: { ...free.owned, hoist: 1 } },
-          0,
-        ),
-      ).toBe(0);
-      expect(zeroGainBuysBetween(free, free, 0)).toBe(0);
-      // A worker bought in the same second lifts the line, but not the cart.
-      expect(
-        zeroGainBuysBetween(
-          mountain,
-          { ...mountain, owned: { ...mountain.owned, helper: 5, cart: 5 } },
-          0,
-        ),
-      ).toBe(1);
-    });
-  });
 });
 
 describe("the narrow stage in a fresh mine (#655)", () => {
   it("reads the placed workers' stages, not the spread hands'", () => {
-    withFactors({ [FRESH_OFF]: 0 }, () => {
+    withFactors({}, () => {
       const start = crewedStart();
       const short = { ...start, jobs: { ...start.jobs, hoisting: 2 } };
       expect(narrowAt(short, 0)).toBe("lift");
     });
+  });
+
+  it("names the first narrow stage in rock order, and counts a machine that adds nothing", () => {
+    const start = crewedStart();
+    // Six on each stage, with tools: every stage moves the same, and the
+    // face comes first in rock order.
+    expect(narrowAt(start, 0)).toBe("face");
+    const buy = (counts: Partial<Mountain["owned"]>): Mountain => ({
+      ...start,
+      owned: { ...start.owned, ...counts },
+    });
+    // One machine alone lifts one stage, and the line stays where it was.
+    expect(zeroGainBuysBetween(start, buy({ cart: 1 }), 0)).toBe(1);
+    expect(zeroGainBuysBetween(start, buy({ drill: 1 }), 0)).toBe(1);
+    // One on every stage lifts the line, and each is needed for it.
+    expect(
+      zeroGainBuysBetween(start, buy({ drill: 1, cart: 1, hoist: 1 }), 0),
+    ).toBe(0);
+    expect(zeroGainBuysBetween(start, start, 0)).toBe(0);
   });
 });

@@ -1,12 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { withFactors } from "./economy/factors";
-import { FRESH_OFF } from "./line-switch";
 import { createMountain, type Mountain } from "./mountain";
 import {
   createSession,
   firstNotice,
   noticesOf,
-  markWelcomed,
   openBaselines,
   step,
   type Session,
@@ -15,7 +13,7 @@ import { EMPTY_STOCK } from "./stock";
 import type { Project } from "./city";
 
 /** The session greets a fresh mine's night by what happened in it (#663). */
-const fresh = <T>(body: () => T): T => withFactors({ [FRESH_OFF]: 0 }, body);
+const fresh = <T>(body: () => T): T => withFactors({}, body);
 
 const MINUTE = 60 * 1000;
 
@@ -59,13 +57,12 @@ const back = (mountain: Mountain, awayMs: number): Session =>
   step(playing(mountain), { kind: "away", since: 0 }, awayMs).session;
 
 describe("greeting a fresh mine's night (#663)", () => {
-  it("greets a short night with the shift report, never the quiet note", () => {
+  it("greets a short night with the shift report", () => {
     fresh(() => {
       const session = back(mine(3, 0, { kind: "unordered" }), 3 * MINUTE);
-      expect(noticesOf(session.news, "quiet")).toEqual([]);
       const report = firstNotice(session.news, "away")?.report;
       expect(report?.mined).toBe(486);
-      expect(report?.night?.producedMs).toBe(3 * MINUTE);
+      expect(report?.night.producedMs).toBe(3 * MINUTE);
     });
   });
 
@@ -75,7 +72,7 @@ describe("greeting a fresh mine's night (#663)", () => {
       const session = back(mine(0, 10_000, foundation), 10 * MINUTE);
       const report = firstNotice(session.news, "away")?.report;
       expect(report?.mined).toBe(0);
-      expect(report?.night?.delivered.stones).toBe(1_620);
+      expect(report?.night.delivered.stones).toBe(1_620);
     });
   });
 
@@ -94,18 +91,18 @@ describe("greeting a fresh mine's night (#663)", () => {
       };
       const session = back(mine(0, 0, held), 10 * MINUTE);
       const report = firstNotice(session.news, "away")?.report;
-      expect(report?.night?.steps).toEqual([
+      expect(report?.night.steps).toEqual([
         { building: "lightTower", step: 0, atMs: 21_000 },
       ]);
     });
   });
 
-  it("greets a night on a live return, after the open was welcomed", () => {
+  it("greets a night on a live return, after the open was greeted", () => {
     fresh(() => {
-      const open = markWelcomed({
+      const open = {
         ...playing(mine(3, 0, { kind: "unordered" })),
         lastSeen: 0,
-      });
+      };
       const back = step(open, { kind: "tick" }, 9 * 60 * MINUTE).session;
       expect(firstNotice(back.news, "away")?.report.night).toBeDefined();
     });
@@ -118,20 +115,8 @@ describe("greeting a fresh mine's night (#663)", () => {
       expect(still.lastSeen).toBe(10 * MINUTE);
       const quick = back(mine(3, 0, { kind: "unordered" }), 50_000);
       expect(firstNotice(quick.news, "away")).toBeUndefined();
-      expect(noticesOf(quick.news, "quiet")).toEqual([]);
       expect(quick.mountain.stock.stones).toBe(135);
     });
-  });
-
-  it("keeps today's quiet note for a short break, and no card when nothing was mined", () => {
-    const today = createMountain();
-    const crew = { ...today, owned: { ...today.owned, helper: 5 } };
-    const short = back(crew, 3 * MINUTE);
-    expect(noticesOf(short.news, "quiet")).toHaveLength(1);
-    expect(firstNotice(short.news, "away")).toBeUndefined();
-    const idle = back(today, 10 * MINUTE);
-    expect(firstNotice(idle.news, "away")).toBeUndefined();
-    expect(noticesOf(idle.news, "quiet")).toEqual([]);
   });
 });
 

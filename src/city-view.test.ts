@@ -10,13 +10,12 @@ import {
 import { withFactors } from "./economy/factors";
 import { formatCompact } from "./format";
 import { orderStrip } from "./frame-view";
-import { FRESH_OFF } from "./line-switch";
 import { PART_THREE_OFF, PART_TWO_OFF } from "./part-switch";
 import { createMountain, type Mountain } from "./mountain";
 import { EMPTY_STOCK } from "./stock";
 
 /** The city's views (#662), on a fresh mine. */
-const fresh = <T>(body: () => T): T => withFactors({ [FRESH_OFF]: 0 }, body);
+const fresh = <T>(body: () => T): T => withFactors({}, body);
 
 /** A fresh mine with one driver and two builders, whatever a fresh start puts on them. */
 const start = (): Mountain => {
@@ -383,18 +382,15 @@ describe("the truck key (#673)", () => {
     operational: ["lightTower", "warehouse"] as const,
   };
   const partThree = <T>(body: () => T): T =>
-    withFactors(
-      { [FRESH_OFF]: 0, [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 },
-      body,
-    );
+    withFactors({ [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 }, body);
 
   it("shows no truck key with part 3 off, even with the Warehouse operational", () => {
-    withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 }, () => {
+    withFactors({ [PART_TWO_OFF]: 0 }, () => {
       expect(vehicleKeys(warehoused, "one").map((key) => key.id)).toEqual([
         "horseWagon",
       ]);
     });
-    withFactors({ [FRESH_OFF]: 0 }, () => {
+    withFactors({}, () => {
       expect(vehicleKeys(warehoused, "one").map((key) => key.id)).toEqual([
         "horseWagon",
       ]);
@@ -417,7 +413,7 @@ describe("the truck key (#673)", () => {
 
 describe("what a building opens, in part 2 (#671)", () => {
   const partTwo = <T>(body: () => T): T =>
-    withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 }, body);
+    withFactors({ [PART_TWO_OFF]: 0 }, body);
 
   it("says the Light Tower opens the refinery, and only once part 2 plays", () => {
     partTwo(() => {

@@ -14,7 +14,6 @@ import { firstNotice } from "./session";
 import { JOB_IDS, workersOnJobs } from "./workforce";
 import {
   shiftReport,
-  type NightAwayReport,
   TO_STOCKYARD,
   type ShiftReport,
 } from "./shift-report-view";
@@ -37,7 +36,7 @@ import {
  */
 
 type FrameCard =
-  | { readonly kind: "report"; readonly report: NightAwayReport }
+  | { readonly kind: "report"; readonly report: AwayReport }
   | { readonly kind: "end"; readonly building: BuildingId }
   | { readonly kind: "opens" }
   | { readonly kind: "first" };
@@ -90,16 +89,11 @@ function greets(view: CardView): Greeting {
   );
 }
 
-function hasNight(report: AwayReport): report is NightAwayReport {
-  return report.night !== undefined;
-}
-
 /** The fresh night the session greets, while its notice is open. */
 export function nightReport(
   view: Pick<ProgressSnapshot, "notices">,
-): NightAwayReport | undefined {
-  const report = firstNotice(view, "away")?.report;
-  return report !== undefined && hasNight(report) ? report : undefined;
+): AwayReport | undefined {
+  return firstNotice(view, "away")?.report;
 }
 
 /**

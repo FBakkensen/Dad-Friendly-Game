@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { createMountain, type Mountain } from "../mountain";
+import { withFactors } from "../economy/factors";
 import { minedMountain } from "../test-fixtures";
+import { NO_GRANITE_PILES, NO_LEVEL_MACHINES } from "../mine-levels";
+import { PART_THREE_OFF, PART_TWO_OFF } from "../part-switch";
 import revealNeverUsed from "./measures/revealNeverUsed";
 import revealSlowest, { slowestReveals } from "./measures/revealSlowest";
 import revealToUse from "./measures/revealToUse";
@@ -29,60 +32,42 @@ describe("createRevealLog", () => {
     const log = createRevealLog();
     const start = createMountain();
     const first = log(start, 0);
-    expect(ids(first, "appeared")).toContain("tier:helper");
+    // A fresh mine shows every machine in play from the first minute (#653).
+    expect(ids(first, "appeared")).toEqual(
+      expect.arrayContaining(["tier:helper", "tier:cart", "tier:drill"]),
+    );
     // Upgrades wait for their owned count (#250).
     expect(ids(first, "appeared")).not.toContain("upgrade:boots");
-    expect(ids(first, "appeared")).not.toContain("tier:drill");
     expect(ids(first, "appeared")).not.toContain("system:workshop");
     expect(log(start, 1)).toEqual([]);
 
-    const hired: Mountain = { ...start, owned: { ...start.owned, helper: 1 } };
-    const next = log(hired, 2);
-    expect(next).toContainEqual({
+    const bought: Mountain = { ...start, owned: { ...start.owned, cart: 1 } };
+    expect(log(bought, 2)).toContainEqual({
       kind: "firstUse",
-      id: "tier:helper",
-      liveSec: 2,
-    });
-    expect(next).toContainEqual({
-      kind: "appeared",
       id: "tier:cart",
       liveSec: 2,
     });
-    expect(log(hired, 3)).toEqual([]);
+    expect(log(bought, 3)).toEqual([]);
   });
 
-  it("starts the borer's wait when its card opens at the Granite (10M), not at the locked preview (#250)", () => {
-    const log = createRevealLog();
-    const drilling: Mountain = {
-      ...createMountain(),
-      owned: { ...createMountain().owned, helper: 1, cart: 1, drill: 1 },
-    };
-    expect(ids(log(drilling, 0), "appeared")).not.toContain("tier:borer");
-    const near = {
-      ...drilling,
-      ...minedMountain(9_999_999),
-      owned: {
-        ...minedMountain(9_999_999).owned,
-        helper: 1,
-        cart: 1,
-        drill: 1,
-      },
-    };
-    expect(ids(log(near, 10), "appeared")).not.toContain("tier:borer");
-    const open = {
-      ...drilling,
-      ...minedMountain(10_000_000),
-      owned: {
-        ...minedMountain(10_000_000).owned,
-        helper: 1,
-        cart: 1,
-        drill: 1,
-      },
-    };
-    expect(log(open, 20)).toContainEqual({
-      kind: "appeared",
-      id: "tier:borer",
-      liveSec: 20,
+  it("starts the borer's wait when the Granite opens in part 3, not at the locked preview (#250, #673)", () => {
+    withFactors({ [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 }, () => {
+      const log = createRevealLog();
+      const start = createMountain();
+      expect(ids(log(start, 0), "appeared")).not.toContain("tier:borer");
+      const open: Mountain = {
+        ...start,
+        granite: {
+          kind: "sunk",
+          machines: NO_LEVEL_MACHINES,
+          piles: NO_GRANITE_PILES,
+        },
+      };
+      expect(log(open, 20)).toContainEqual({
+        kind: "appeared",
+        id: "tier:borer",
+        liveSec: 20,
+      });
     });
   });
 

@@ -20,8 +20,7 @@ import {
 /**
  * The workforce (slice 1, rule 2, #689): every worker is in one pool, on a
  * job or free. He hires a worker, who starts free, and moves one at a time
- * onto a job or off it, for free. Nothing moves a worker for him. Off in
- * play: only a fresh mine (`freshMineOn`) lists the moves.
+ * onto a job or off it, for free. Nothing moves a worker for him.
  */
 
 /**

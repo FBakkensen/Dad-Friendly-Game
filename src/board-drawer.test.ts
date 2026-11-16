@@ -11,7 +11,7 @@ import {
 import { createBoardHost, type BoardHost } from "./board-host";
 import type { ControlRef } from "./board-interaction";
 import { rowsOnBoard } from "./board-row";
-import { TROUBLE_FIXED } from "./screen-words";
+import { CLOSE, TROUBLE_FIXED } from "./screen-words";
 
 let time = 0;
 const clock = (): number => time;
@@ -204,7 +204,8 @@ describe("the drawer shell", () => {
       expect(strip.getAttribute("height")).toBe("40");
 
       expect(sheet.back.classList.contains("board-sheet-back")).toBe(true);
-      expect(sheet.back.textContent).toBe("Back to the board");
+      // Slice 1's frame has no board (#708).
+      expect(sheet.back.textContent).toBe(CLOSE);
       expect(sheet.back.parentElement?.tagName).toBe("FOOTER");
     });
 

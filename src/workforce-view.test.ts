@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { withFactors } from "./economy/factors";
-import { FRESH_OFF } from "./line-switch";
 import { PART_TWO_OFF } from "./part-switch";
 import type { Mountain } from "./mountain";
 import { crewedStart } from "./test-fixtures";
@@ -8,7 +7,7 @@ import { levels, partThree, partTwo } from "./part-three.harness";
 import { NO_FREE_WORKER, jobSites, workforceView } from "./workforce-view";
 
 /** The workforce's jobs (slice 1, #659). */
-const fresh = <T>(body: () => T): T => withFactors({ [FRESH_OFF]: 0 }, body);
+const fresh = <T>(body: () => T): T => withFactors({}, body);
 
 function notes(mountain: Mountain): Record<string, string> {
   return Object.fromEntries(
@@ -142,7 +141,7 @@ describe("workforce view", () => {
 
 describe("the refinery's jobs (#671)", () => {
   const partTwo = <T>(body: () => T): T =>
-    withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 }, body);
+    withFactors({ [PART_TWO_OFF]: 0 }, body);
 
   /** The Light Tower operational, kilns bought and workers on them. */
   function kilns(owned: number, on: number): Mountain {

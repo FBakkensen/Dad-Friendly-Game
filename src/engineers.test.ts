@@ -32,7 +32,8 @@ import {
   type Mountain,
 } from "./mountain";
 import { effectiveRates } from "./rates";
-import { gameOf, minedMountain, reloaded } from "./test-fixtures";
+import { NO_JOBS } from "./workforce";
+import { gameOf, reloaded } from "./test-fixtures";
 import { tierById } from "./tiers";
 
 /** A tier's tending tenths from the engineers at home. */
@@ -144,10 +145,12 @@ describe("promote", () => {
     expect(promoteCost(crew([ada]))).toBe(PROMOTE_BASE_COST * 2);
     expect(promoteCost(hired)).toBe(PROMOTE_BASE_COST * 4);
 
+    // The first borer has come, and the one worker is free (#653, #689).
     let mountain: ReturnType<typeof createMountain> = {
       ...createMountain(),
       stock: { ...createMountain().stock, stones: PROMOTE_BASE_COST },
-      owned: { ...createMountain().owned, helper: 1 },
+      owned: { ...createMountain().owned, helper: 1, borer: 1 },
+      jobs: NO_JOBS,
     };
     expect(promoteCost(mountain)).toBe(PROMOTE_BASE_COST);
     mountain = promote(mountain);
@@ -258,9 +261,7 @@ describe("Great Machine crew", () => {
     };
     const posted = station(tended, 0, "machine");
     expect(staffNeeded(posted, machine)).toBe(5);
-    expect(effectiveRates(posted).running.machine).toBe(1);
     expect(staffNeeded(tended, machine)).toBe(10);
-    expect(effectiveRates(tended).running.machine).toBe(0);
     expect(staffForBuy(tended, machine)).toBe(5);
     expect(staffForBuy(createMountain(), machine)).toBe(10);
     expect(staffForBuy(outOn(createMountain()), machine)).toBe(10);
@@ -290,12 +291,17 @@ describe("Great Machine crew", () => {
 });
 
 describe("tending", () => {
-  const base = {
-    ...minedMountain(0),
-    owned: { ...minedMountain(0).owned, helper: 8, borer: 1, drill: 1 },
-    remaining: 100_000_000,
-    stock: { ...minedMountain(0).stock, stones: 0 },
+  /**
+   * A fresh mine whose face is the narrow stage: one drill (108) against
+   * two carts and two hoists (120 each), and a first borer.
+   */
+  const start = createMountain();
+  const base: Mountain = {
+    ...start,
+    owned: { ...start.owned, helper: 5, borer: 1, drill: 1, cart: 2, hoist: 2 },
+    jobs: { ...start.jobs, drilling: 1, haulage: 2, hoisting: 2 },
   };
+  const onDrill: Engineer = { name: "Ada", rank: 1, trips: 3, post: "drill" };
 
   it("speeds the posted tier by rank, live and away, and not a tunnel", () => {
     const plain = effectiveRates(base);
@@ -305,16 +311,14 @@ describe("tending", () => {
       8,
     );
     expect(apprentice.tierSpeed.drill).toBe(plain.tierSpeed.drill);
-    expect(apprentice.crewPerSecond).toBeGreaterThan(plain.crewPerSecond);
 
-    const journeyman = effectiveRates({
-      ...base,
-      engineers: [{ name: "Ada", rank: 1, trips: 3, post: "drill" }],
-    });
+    const journeyman = effectiveRates({ ...base, engineers: [onDrill] });
     expect(journeyman.tierSpeed.drill).toBe(
       (plain.tierSpeed.drill * 12.5) / 10,
     );
     expect(journeyman.tierSpeed.borer).toBe(plain.tierSpeed.borer);
+    // The drill is on the narrow stage, so tending it lifts the line.
+    expect(journeyman.crewPerSecond).toBeGreaterThan(plain.crewPerSecond);
 
     const master = effectiveRates({
       ...base,
@@ -327,17 +331,20 @@ describe("tending", () => {
 
     const awayPlain = accrueAway({ mountain: base, lastSeen: 0, now: 10_000 });
     const awayTended = accrueAway({
-      mountain: { ...base, engineers: [ada] },
+      mountain: { ...base, engineers: [onDrill] },
       lastSeen: 0,
       now: 10_000,
     });
     expect(awayTended.mined).toBeGreaterThan(awayPlain.mined);
     expect(
-      accrue({ mountain: { ...base, engineers: [ada] }, from: 0, to: 1_000 })
-        .mined,
-    ).toBe(apprentice.crewPerSecond);
+      accrue({
+        mountain: { ...base, engineers: [onDrill] },
+        from: 0,
+        to: 1_000,
+      }).mined,
+    ).toBe(journeyman.crewPerSecond);
 
-    const tunnel = effectiveRates(outOn({ ...base, engineers: [ada] }));
+    const tunnel = effectiveRates(outOn({ ...base, engineers: [onDrill] }));
     expect(tunnel.crewPerSecond).toBe(plain.crewPerSecond);
     expect(tenthsOf(base, "borer")).toBe(0);
     expect(tenthsOf({ ...base, engineers: [ada] }, "helper")).toBe(0);
@@ -358,7 +365,7 @@ describe("tending", () => {
     };
     expect(tenthsOf(both, "borer")).toBe(3.75);
     expect(effectiveRates(both).tierSpeed.borer).toBeCloseTo(
-      357 * 0.8 * 1.65625,
+      effectiveRates(base).tierSpeed.borer * 1.65625,
       8,
     );
   });
@@ -401,28 +408,5 @@ describe("parseEngineers", () => {
       expect(parseEngineers(engineers)).toBeUndefined();
       expect(gameOf({ engineers })).toBeUndefined();
     }
-  });
-});
-
-describe("Flemming's save (63 workers, 16 carts, 9 drills, 1 borer)", () => {
-  it("keeps every machine running once Ada steps up, and needs no worker for her", () => {
-    const save = {
-      ...createMountain(),
-      owned: {
-        ...createMountain().owned,
-        helper: 63,
-        cart: 16,
-        drill: 9,
-        borer: 1,
-      },
-    };
-    const before = effectiveRates(save);
-    const { mountain, joined } = grantFirstEngineer(save);
-    const after = effectiveRates(mountain);
-    expect(joined).toBe(true);
-    expect(mountain.owned.helper).toBe(63);
-    expect(after.running).toMatchObject({ cart: 16, drill: 9, borer: 1 });
-    expect(after.crewPerSecond).toBeGreaterThan(before.crewPerSecond);
-    expect(grantFirstEngineer(mountain).joined).toBe(false);
   });
 });

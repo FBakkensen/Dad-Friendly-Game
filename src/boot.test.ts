@@ -3,7 +3,6 @@ import { createAppServices, parseBootOptions } from "./boot";
 import type { AuthController } from "./auth";
 import type { CloudSave } from "./cloud-save";
 import { activeFactors, holdFactors } from "./economy/factors";
-import { freshMineOn } from "./line-switch";
 import { PLAY_FACTORS, partThreeOn, partTwoOn } from "./part-switch";
 import { minedMountain } from "./test-fixtures";
 
@@ -116,7 +115,6 @@ describe("createAppServices", () => {
         search: "",
         devMode,
       });
-      expect(freshMineOn()).toBe(true);
       expect(progress.getSnapshot().mountain.jobs.drilling).toBe(1);
       progress.dispose();
     }

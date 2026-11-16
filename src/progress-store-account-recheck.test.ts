@@ -8,7 +8,6 @@ import {
 } from "./cloud-save";
 import { createMountain, type Mountain } from "./mountain";
 import { holdFactors } from "./economy/factors";
-import { FRESH_OFF } from "./line-switch";
 import { createProgressStore } from "./progress-store";
 import type { TabWriter } from "./tab-writer";
 
@@ -446,7 +445,7 @@ describe("the account reported again (#481)", () => {
 
 describe("a fresh mine signing in (#664)", () => {
   it("takes the cloud copy over a new phone's mine, and reads it again on resume with no depth", async () => {
-    holdFactors({ [FRESH_OFF]: 0 });
+    holdFactors({});
     try {
       const start = createMountain();
       const docs = new Map<string, Mountain>([

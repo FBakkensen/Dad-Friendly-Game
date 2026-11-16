@@ -9,7 +9,6 @@ import {
 import { withFactors } from "./economy/factors";
 import { fieldEntry } from "./field-log";
 import { sticker } from "./lab/decide";
-import { FRESH_OFF } from "./line-switch";
 import {
   MINE_LEVEL_IDS,
   NO_GRANITE_PILES,
@@ -23,9 +22,9 @@ import { EMPTY_STOCK, type Stock } from "./stock";
 import { tierById, tierGood, tierQuote } from "./tiers";
 
 const partThree = <T>(body: () => T): T =>
-  withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 }, body);
+  withFactors({ [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 }, body);
 const partTwo = <T>(body: () => T): T =>
-  withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 }, body);
+  withFactors({ [PART_TWO_OFF]: 0 }, body);
 
 const KILN: Action = { kind: "buyMaker", id: "kiln" };
 const SAW: Action = { kind: "buyMaker", id: "saw" };

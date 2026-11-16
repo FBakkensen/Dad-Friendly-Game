@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { withFactors } from "./economy/factors";
-import { FRESH_OFF } from "./line-switch";
 import type { Mountain } from "./mountain";
 import { PART_TWO_OFF } from "./part-switch";
 import {
@@ -15,7 +14,7 @@ import { crewedStart } from "./test-fixtures";
 
 /** The refinery's numbers (slice 1, part 2, #671). */
 const partTwo = <T>(body: () => T): T =>
-  withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 }, body);
+  withFactors({ [PART_TWO_OFF]: 0 }, body);
 
 /** The Light Tower operational, the crew of 21 on the line, and these kilns. */
 function lit({
@@ -113,14 +112,11 @@ describe("the kilns' plate (#671)", () => {
   });
 
   it("shows the recipe a lab sweep sets", () => {
-    withFactors(
-      { [FRESH_OFF]: 0, [PART_TWO_OFF]: 0, "recipe.kiln": 1.5 },
-      () => {
-        expect(view(lit({ kilns: 1 })).plate.recipe).toBe(
-          "Recipe: 3 rock → 1 brick",
-        );
-      },
-    );
+    withFactors({ [PART_TWO_OFF]: 0, "recipe.kiln": 1.5 }, () => {
+      expect(view(lit({ kilns: 1 })).plate.recipe).toBe(
+        "Recipe: 3 rock → 1 brick",
+      );
+    });
   });
 
   it("offers one more kiln with what it makes, its price and the worker it takes", () => {

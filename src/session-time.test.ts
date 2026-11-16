@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { send } from "./expeditions";
 import { closeHazards, freshHazards, stepHazards } from "./hazards";
 import { accrue, accrueAway, createMountain, type Mountain } from "./mountain";
+import { levels, partThree } from "./part-three.harness";
 import { LIVE_GAP_MS, advance, timeInput } from "./session-time";
 
 const ada = { name: "Ada", rank: 0, trips: 0, post: "borer" } as const;
@@ -44,9 +45,6 @@ describe("advance", () => {
     const live = advance(world, { kind: "live", from, to: returnsAt });
     expect(live.homecomings.map((home) => home.engineer)).toEqual(["Ada"]);
     expect(live.mountain.expeditions).toEqual([]);
-    // The stretch ending on the return is paid with Ada back on her borer.
-    const away = accrue({ mountain: sent, from, to: returnsAt, live: true });
-    expect(live.mined).toBeGreaterThan(away.mined);
     expect(live.settledAt).toBe(returnsAt);
     expect(live.away).toBeUndefined();
     expect(live.hazards).toEqual(
@@ -58,7 +56,30 @@ describe("advance", () => {
     );
   });
 
-  it("pays a live stretch with the trouble that is up, and the player's fix time", () => {
+  it("plays the cages trip by trip in a live stretch with part 3 on, as the tick does (#724)", () => {
+    partThree(() => {
+      const mountain = levels({
+        sunk: false,
+        hoists: 1,
+        hoisting: 1,
+        piles: { shaft: 1_800 },
+      });
+      const world = { mountain, hazards: freshHazards(3) };
+      const nine = advance(world, { kind: "live", from: 0, to: 9_000 });
+      expect(nine.mountain.stock.stones).toBe(0);
+      expect(nine.mountain.cages.trips["hoist:0"]).toEqual({
+        level: "topsoil",
+        carried: 600,
+        leg: { kind: "up", left: 1 },
+      });
+      const ten = advance(world, { kind: "live", from: 0, to: 10_000 });
+      expect(ten.mountain.stock.stones).toBe(600);
+    });
+  });
+
+  // The fresh mine's live pace does not read trouble yet: trouble by stage
+  // comes with part 3 (slice 1 spec, "Where today's parts land"; #539).
+  it("pays a live stretch as the line runs, and steps the trouble with the player's fix time", () => {
     const trouble = { kind: "cave-in", tier: "cart", startedAt: 0 } as const;
     const hazards = { phase: "trouble", seed: 1, taps: 0, trouble } as const;
     const mountain = { ...crew(), owned: { ...crew().owned, cart: 3 } };
@@ -66,7 +87,7 @@ describe("advance", () => {
       { mountain, hazards },
       { kind: "live", from: 0, to: 4_000, playerFixMs: 3_000 },
     );
-    const paid = accrue({ mountain, from: 0, to: 4_000, live: true, trouble });
+    const paid = accrue({ mountain, from: 0, to: 4_000 });
     expect(live.mountain).toEqual(paid.mountain);
     expect(live.hazards).toEqual(
       stepHazards(hazards, {

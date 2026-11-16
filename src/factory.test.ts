@@ -19,7 +19,6 @@ import {
   workOrderPrice,
   type Station,
 } from "./factory";
-import { FRESH_OFF } from "./line-switch";
 import { NO_GRANITE_PILES, NO_LEVEL_MACHINES } from "./mine-levels";
 import { createMountain, type Mountain } from "./mountain";
 import { PART_THREE_OFF, PART_TWO_OFF } from "./part-switch";
@@ -31,9 +30,9 @@ import { AXLE_MS, CHARGE_MS, recipeById, RECIPE_IDS } from "./workshop";
  * clock. Off in play: it opens with the shaft, behind part 3's switch.
  */
 const partThree = <T>(body: () => T): T =>
-  withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 }, body);
+  withFactors({ [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 }, body);
 const partTwo = <T>(body: () => T): T =>
-  withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 }, body);
+  withFactors({ [PART_TWO_OFF]: 0 }, body);
 
 /** A fresh mine with the shaft sunk, this stock and this station. */
 function sunk(
