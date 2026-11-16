@@ -3,7 +3,7 @@
  * moved through live play, time away, or a clock that went back. Pure.
  */
 import { settle as settleExpeditions, type Homecoming } from "./expeditions";
-import { closeHazards, stepHazards, type HazardState } from "./hazards";
+import { closeHazards, type HazardState } from "./hazards";
 import { accrue, accrueAway, type AwayReport, type Mountain } from "./mountain";
 
 /** Longer than this between ticks and the game was not on screen. */
@@ -94,14 +94,8 @@ function advanceLive(
     to: input.to,
     live: true,
   });
-  const hazards = stepHazards(world.hazards, {
-    now: input.to,
-    liveMs: Math.max(0, input.to - input.from),
-    mountain: result.mountain,
-    ...(input.playerFixMs === undefined
-      ? {}
-      : { playerFixMs: input.playerFixMs }),
-  });
+  // Trouble is out of the game (Flemming, 16 Nov 2026): live play never starts it.
+  const hazards = world.hazards;
   return {
     mountain: result.mountain,
     hazards,

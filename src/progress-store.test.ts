@@ -48,7 +48,7 @@ import { upgradeById, upgradeCost, NO_UPGRADES } from "./upgrades";
 import { onTrip, promoteCost, promotePrice } from "./engineers";
 import { EMPTY_STOCK, stonesPrice } from "./stock";
 import { send, type Expedition } from "./expeditions";
-import { ENGINEER_FIX_MS, nextTrouble } from "./hazards";
+import { ENGINEER_FIX_MS } from "./hazards";
 import { firstNotice, noticesOf } from "./session";
 
 /**
@@ -1620,8 +1620,8 @@ describe("field log events for the deep (#150)", () => {
     progress.dispose();
   });
 
-  it("records trouble started and fixed by hand, by a hold, and by an engineer", () => {
-    const { progress, advance } = guest();
+  it("records trouble started and fixed by hand and by a hold", () => {
+    const { progress } = guest();
     progress.applyMutation((mountain) => ({
       ...mountain,
       owned: { ...mountain.owned, borer: 1, cart: 1 },
@@ -1656,23 +1656,6 @@ describe("field log events for the deep (#150)", () => {
       expect.objectContaining({
         code: "trouble.fix",
         data: { id: "drill", source: "hand" },
-      }),
-    );
-
-    progress.applyMutation((mountain) => ({
-      ...mountain,
-      engineers: [{ name: "Ada", rank: 0, trips: 0, post: "cart" }],
-    }));
-    progress.layoutPreview.trouble("cart");
-    for (let step = 0; step < ENGINEER_FIX_MS / 1000; step += 1) {
-      advance(1_000);
-      progress.tick();
-    }
-    expect(progress.getSnapshot().trouble).toBeUndefined();
-    expect(progress.fieldLog().events).toContainEqual(
-      expect.objectContaining({
-        code: "trouble.fix",
-        data: { id: "cart", source: "engineer" },
       }),
     );
   });
@@ -1724,57 +1707,7 @@ describe("field log events for the deep (#150)", () => {
     expect(writes).not.toHaveBeenCalled();
   });
 
-  it("records a Master clearing trouble before it sticks", () => {
-    const seed = 4;
-    const pit = {
-      ...createMountain(),
-      owned: {
-        ...createMountain().owned,
-        borer: 1,
-        cart: 1,
-        drill: 1,
-        machine: 1,
-      },
-    };
-    const first = nextTrouble(seed, 0, pit);
-    if (first === undefined) {
-      throw new Error("expected a scheduled trouble");
-    }
-    let clock = 0;
-    const progress = createProgressStore({
-      auth: createMemoryAuth(),
-      sessionStorage: createMemoryStorage(),
-      now: () => clock,
-      hazardSeed: seed,
-    });
-    progress.applyMutation(() => ({
-      ...pit,
-      engineers: [{ name: "Ada", rank: 2, trips: 9, post: first.trouble.tier }],
-    }));
-    const steps = Math.ceil(first.gapMs / 1000) + 2;
-    for (let step = 0; step < steps; step += 1) {
-      clock += 1000;
-      progress.tick();
-    }
-    const trouble = progress
-      .fieldLog()
-      .events.filter((event) => event.code.startsWith("trouble."));
-    expect(trouble.map((event) => event.code)).toEqual([
-      "trouble.start",
-      "trouble.fix",
-    ]);
-    expect(trouble[0]?.data).toEqual({
-      id: first.trouble.tier,
-      source: first.trouble.kind,
-    });
-    expect(trouble[1]?.data).toEqual({
-      id: first.trouble.tier,
-      source: "engineer",
-    });
-    expect(progress.getSnapshot().trouble).toBeUndefined();
-  });
-
-  it("does not call closing the game, or losing the borer, a fix", () => {
+  it("does not call closing the game a fix", () => {
     const { progress, advance } = guest();
     progress.applyMutation((mountain) => ({
       ...mountain,
@@ -1782,20 +1715,6 @@ describe("field log events for the deep (#150)", () => {
     }));
     progress.layoutPreview.trouble("cart");
     advance(60_000);
-    progress.tick();
-    expect(progress.getSnapshot().trouble).toBeUndefined();
-    expect(codes(progress)).not.toContain("trouble.fix");
-
-    progress.applyMutation((mountain) => ({
-      ...mountain,
-      owned: { ...mountain.owned, borer: 1 },
-    }));
-    progress.layoutPreview.trouble("borer");
-    progress.applyMutation((mountain) => ({
-      ...mountain,
-      owned: { ...mountain.owned, borer: 0 },
-    }));
-    advance(1_000);
     progress.tick();
     expect(progress.getSnapshot().trouble).toBeUndefined();
     expect(codes(progress)).not.toContain("trouble.fix");
@@ -2109,55 +2028,16 @@ describe("trouble at the machines (#149)", () => {
     again.dispose();
   });
 
-  it("starts during live play only once a borer is owned, one at a time", () => {
-    const quiet = open();
-    quiet.progress.applyMutation((mountain) => ({
-      ...mountain,
-      owned: { ...mountain.owned, borer: 0 },
-    }));
-    for (let second = 0; second < 400; second += 1) {
-      quiet.advance(1_000);
-      quiet.progress.tick();
-    }
-    expect(quiet.progress.getSnapshot().trouble).toBeUndefined();
-
+  it("never starts in live play, even with a borer: trouble is out of the game (16 Nov 2026)", () => {
     const playing = open(4);
-    let seen = 0;
     for (let second = 0; second < 400; second += 1) {
       playing.advance(1_000);
       playing.progress.tick();
-      if (playing.progress.getSnapshot().trouble !== undefined) {
-        seen += 1;
-      }
+      expect(playing.progress.getSnapshot().trouble).toBeUndefined();
     }
-    expect(seen).toBeGreaterThan(0);
     expect(
-      playing.progress.getSnapshot().trouble === undefined || seen > 0,
-    ).toBe(true);
-  });
-
-  it("a Master tending the tier clears it on the next tick, an apprentice does not", () => {
-    const mastered = open();
-    mastered.progress.applyMutation((mountain) => ({
-      ...mountain,
-      engineers: [{ name: "Ada", rank: 2, trips: 9, post: "cart" }],
-    }));
-    mastered.progress.layoutPreview.trouble("cart");
-    mastered.advance(1_000);
-    mastered.progress.tick();
-    expect(mastered.progress.getSnapshot().trouble).toBeUndefined();
-
-    const apprentice = open();
-    apprentice.progress.applyMutation((mountain) => ({
-      ...mountain,
-      engineers: [{ name: "Ada", rank: 0, trips: 0, post: "cart" }],
-    }));
-    apprentice.progress.layoutPreview.trouble("cart");
-    apprentice.advance(1_000);
-    apprentice.progress.tick();
-    expect(apprentice.progress.getSnapshot().trouble?.kind).toBe("cave-in");
-    apprentice.progress.pressTrouble("drill");
-    expect(apprentice.progress.getSnapshot().trouble?.tier).toBe("cart");
+      playing.progress.fieldLog().events.map((event) => event.code),
+    ).not.toContain("trouble.start");
   });
 
   it("ignores taps until the cloud save has loaded", () => {

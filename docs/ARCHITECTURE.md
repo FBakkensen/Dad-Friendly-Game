@@ -34,8 +34,9 @@ page is the map, plus the rules that keep it that way.
    machine marks staffing taught, a real station marks tending taught and first
    calls a party back, and a recall with no expedition sends the hand to camp. `lab/world` steps one seeded clock for the
    strategy lab through the game's own time step
-   (`session-time`'s `advance`: parties due come home, the crew is paid, then
-   the hazards step; away time pays the capped gap and clears trouble), so the
+   (`session-time`'s `advance`: parties due come home and the crew is paid;
+   live play never steps the hazards, since trouble is out of the game (16 Nov
+   2026); away time pays the capped gap and clears trouble), so the
    lab and the game advance the world identically (#414). `lab/targets` is the only place a lab threshold lives.
    `lab/measures` is one file per decision measure. `lab/fresh-policies` is one
    file per player type (`freshPolicy` in `lab/plain`). `lab/registry` discovers both folders; the world
