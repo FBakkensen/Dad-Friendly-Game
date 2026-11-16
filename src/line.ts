@@ -64,8 +64,10 @@ const FRESH_RATING: Readonly<Partial<Record<TierId, number>>> = {
  * each of its eight. So a line in balance has the fewest workers on
  * hoisting on both levels.
  */
+const PART_THREE_HOIST = 480;
+
 const PART_THREE_RATING: Readonly<Partial<Record<TierId, number>>> = {
-  hoist: 480 / 20,
+  hoist: PART_THREE_HOIST / tierById("hoist").perSecond,
 };
 
 /** A machine's rating on the line, times today's; the hands keep theirs. */

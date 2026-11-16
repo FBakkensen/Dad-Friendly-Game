@@ -396,7 +396,9 @@ function spareMoves(mountain: Mountain): readonly Plan[] {
 /**
  * The need dad's last weighing that found no move, and on which mine: he
  * does not look again each second while nothing changes (#675), under the
- * factor map it looked with.
+ * factor map it looked with. The pocket is left out of the key on purpose:
+ * it fills every second, so a move the pocket makes sooner waits at most
+ * `WEIGH_AGAIN_CALLS` calls (ruling 13).
  */
 let stillMine:
   | {
