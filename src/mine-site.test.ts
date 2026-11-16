@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createUnconfiguredAuth } from "./auth";
 import { graniteBuyMove, tierBuyMove } from "./economy/actions";
+import { DRAWER_SETTLE_MS } from "./board-interaction";
 import { holdFactors } from "./economy/factors";
 import { mountFrameScreen } from "./frame-screen";
 import { FRESH_OFF } from "./line-switch";
@@ -291,6 +292,17 @@ describe("the mine", () => {
   });
 });
 
+/** A finger's tap: down, up, then its click. */
+function fingerTap(target: HTMLElement): void {
+  target.dispatchEvent(
+    new PointerEvent("pointerdown", { bubbles: true, button: 0 }),
+  );
+  target.dispatchEvent(
+    new PointerEvent("pointerup", { bubbles: true, button: 0 }),
+  );
+  target.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 1 }));
+}
+
 /** Part 3's mine, on the DOM (#680): the Granite's gate, its two levels, the strip and the machine card. */
 describe("the mine with two levels", () => {
   beforeEach(() => {
@@ -375,6 +387,7 @@ describe("the mine with two levels", () => {
     for (const [amount, count] of [
       ["one", 1],
       ["ten", 10],
+      ["max", 2],
     ] as const) {
       const { button, progress } = mount(twoLevels(mountain), amount);
       const dispatch = sent(progress);
@@ -385,6 +398,27 @@ describe("the mine with two levels", () => {
         count,
       });
     }
+  });
+
+  it("moves nothing at Max with no hoist left for both, and takes all a level has", () => {
+    const mountain = levels({
+      hoisting: 4,
+      hoists: 3,
+      assigned: { topsoil: 2, granite: 1 },
+    });
+    const { root, button, progress } = mount(twoLevels(mountain), "max");
+    const dispatch = sent(progress);
+    button('.mine-strip-cell[data-place="granite"] .mine-strip-more').click();
+    expect(dispatch).not.toHaveBeenCalled();
+    expect(root.querySelector(".mine-note")?.textContent).toBe(
+      HOIST_WAITS_LINE,
+    );
+    button('.mine-strip-cell[data-place="topsoil"] .mine-strip-less').click();
+    expect(dispatch).toHaveBeenCalledWith({
+      kind: "unassignHoist",
+      level: "topsoil",
+      count: 2,
+    });
   });
 
   it("writes the hoists' line when a tap moves nothing", () => {
@@ -464,6 +498,31 @@ describe("the mine with two levels", () => {
     button(".machine-card-not-now").click();
     expect(card?.hidden).toBe(true);
     expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  it("lets the second tap of a double tap on a key land on the card and buy nothing", () => {
+    let clock = 10_000;
+    const now = vi.spyOn(performance, "now").mockImplementation(() => clock);
+    try {
+      const mountain = levels({ topsoil: 2, stock: { cutStone: 1e6 } });
+      const { root, button, progress } = mount(twoLevels(mountain));
+      const dispatch = sent(progress);
+      fingerTap(button('.mine-key[data-stage="face"]'));
+      const card = root.querySelector<HTMLElement>(".machine-card");
+      expect(card?.hidden).toBe(false);
+      // The habit's second tap lands where the card's key now is.
+      clock += 120;
+      fingerTap(button('.machine-card-level[data-level="granite"]'));
+      fingerTap(button(".machine-card-not-now"));
+      expect(dispatch).not.toHaveBeenCalled();
+      expect(card?.hidden).toBe(false);
+      clock += DRAWER_SETTLE_MS;
+      fingerTap(button('.machine-card-level[data-level="granite"]'));
+      expect(dispatch).toHaveBeenCalledWith(graniteBuyMove("borer", 1));
+      expect(card?.hidden).toBe(true);
+    } finally {
+      now.mockRestore();
+    }
   });
 
   it("buys nothing from a dark level key", () => {

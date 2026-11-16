@@ -139,23 +139,44 @@ type CardParts = {
   readonly yard: HTMLButtonElement;
 };
 
-function buildCard(): CardParts {
-  const root = el("section", "frame-card");
+/** A card's shell: the dialog, its box, its title and its body. */
+export type CardShell = {
+  readonly root: HTMLElement;
+  readonly box: HTMLElement;
+  readonly title: HTMLElement;
+  readonly body: HTMLElement;
+};
+
+/**
+ * The shell every card over the frame is built in, hidden: section.<hook>
+ * (a modal dialog named by its title), div.<hook>-box, h2.<hook>-title with
+ * the id <hook>-title, and div.<hook>-body. The frame's cards are
+ * `frame-card`; the machine card (#680) is `machine-card`, so a query for
+ * the frame's card never finds it.
+ */
+export function cardShell(hook: string): CardShell {
+  const root = el("section", hook);
   root.setAttribute("role", "dialog");
   root.setAttribute("aria-modal", "true");
-  root.setAttribute("aria-labelledby", "frame-card-title");
+  root.setAttribute("aria-labelledby", `${hook}-title`);
   root.hidden = true;
-  const box = el("div", "frame-card-box");
-  const title = el("h2", "frame-card-title");
-  title.id = "frame-card-title";
-  const body = el("div", "frame-card-body");
+  const box = el("div", `${hook}-box`);
+  const title = el("h2", `${hook}-title`);
+  title.id = `${hook}-title`;
+  const body = el("div", `${hook}-body`);
+  box.append(title, body);
+  root.append(box);
+  return { root, box, title, body };
+}
+
+function buildCard(): CardParts {
+  const { root, box, title, body } = cardShell("frame-card");
   const key = el("button", "frame-card-key");
   key.type = "button";
   const yard = el("button", "frame-card-yard", TO_STOCKYARD);
   yard.type = "button";
   yard.hidden = true;
-  box.append(title, body, key, yard);
-  root.append(box);
+  box.append(key, yard);
   return { root, title, body, key, yard };
 }
 

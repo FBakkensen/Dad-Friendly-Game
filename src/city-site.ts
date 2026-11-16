@@ -1,4 +1,3 @@
-import brickUrl from "./assets/board/res-brick.png";
 import stoneUrl from "./assets/board/res-stone.png";
 import { el, hide, mark, setAttr, write } from "./board-dom";
 import { vehicleBuyMove, type Move } from "./economy/actions";
@@ -22,6 +21,7 @@ import {
 import type { FrameState } from "./frame-state";
 import { listenSteps, paintSteps, stepper } from "./job-steps";
 import type { Mountain } from "./mountain";
+import { priceIcon } from "./price-icons";
 import { runScene } from "./scene-paint";
 import type { BuyAmount } from "./tiers";
 import { NO_FREE_WORKER } from "./workforce-view";
@@ -257,7 +257,7 @@ function paintBars(
       row.dataset["good"] = bar.good;
       const icon = row.querySelector<HTMLImageElement>(".city-bar-icon");
       if (icon != null) {
-        icon.src = bar.good === "brick" ? brickUrl : stoneUrl;
+        icon.src = priceIcon(bar.good) ?? stoneUrl;
       }
     }
     const words = row?.querySelector<HTMLElement>(".city-bar-line");

@@ -468,7 +468,7 @@ export function mountFrameScreen({
   const frame = buildFrame(state, now, ledger.key, signal);
   const sheet = createWorkforceSheet(state, now);
   const stageSheet = createStageSheet(state, now);
-  const machineCard = createMachineCard(state);
+  const machineCard = createMachineCard(state, board);
   /** A card comes up: every sheet and the Ledger close under it. */
   const closeUnderCard = (): void => {
     closeSheets();
