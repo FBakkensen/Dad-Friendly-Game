@@ -70,6 +70,30 @@ describe("the transport plate", () => {
     });
   });
 
+  it("says when it serves the factory, alone or beside the city (#681)", () => {
+    fresh(() => {
+      const arrived = EMPTY_STOCK;
+      const station = {
+        kind: "delivering",
+        blueprint: "reinforce",
+        arrived,
+      } as const;
+      const ordered = placeOrder(withStones(start(), 0));
+      expect(transportPlate({ ...start(), station }).state).toBe(
+        "serving the factory",
+      );
+      expect(transportPlate({ ...ordered, station }).state).toBe(
+        "shared: city, factory",
+      );
+      expect(
+        transportPlate({
+          ...ordered,
+          station: { kind: "done", blueprint: "reinforce" },
+        }).state,
+      ).toBe("serving the city");
+    });
+  });
+
   it("says it serves the city on order, and on hold when held", () => {
     fresh(() => {
       const ordered = placeOrder(withStones(start(), 0));

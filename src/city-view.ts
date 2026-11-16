@@ -58,6 +58,19 @@ const PLATE_STATES: Readonly<Record<Mountain["project"]["kind"], string>> = {
   unordered: "idle: no order",
 };
 
+/**
+ * What transport is doing: the city's state, or the factory's work order
+ * beside it (rule 7.7, #681), in the prototype's words.
+ */
+function plateState(mountain: Mountain): string {
+  if (mountain.station.kind !== "delivering") {
+    return PLATE_STATES[mountain.project.kind];
+  }
+  return mountain.project.kind === "delivering"
+    ? "shared: city, factory"
+    : "serving the factory";
+}
+
 function fleetWords(
   mountain: Mountain,
   vehicle: Vehicle,
@@ -75,7 +88,7 @@ export function transportPlate(mountain: Mountain): TransportPlate {
   const driven = drivenFleet(mountain);
   return {
     drivers: `${String(driving)} ${plural(driving, ["driver", "drivers"])}`,
-    state: PLATE_STATES[mountain.project.kind],
+    state: plateState(mountain),
     fleet: VEHICLES.filter((vehicle) => mountain.fleet[vehicle.id] > 0)
       .map((vehicle) => fleetWords(mountain, vehicle, driven[vehicle.id]))
       .join(" · "),

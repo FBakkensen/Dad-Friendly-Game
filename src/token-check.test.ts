@@ -514,6 +514,18 @@ const FRAME_OWN = [
   // small text, so the lamp rule's red is lifted to #ef6a55.
   "--frame-refinery-ground",
   "--frame-red",
+  // The factory (#681): the bench's frame, the station's two inks, and the
+  // blueprints' paper, its grid, its edge and its three inks (the
+  // prototype's inline `#p-workshop` and `.bp` values).
+  "--frame-factory-ground",
+  "--frame-station-ink",
+  "--frame-station-quiet",
+  "--frame-paper",
+  "--frame-paper-grid",
+  "--frame-paper-edge",
+  "--frame-paper-ink",
+  "--frame-paper-quiet",
+  "--frame-paper-short",
 ] as const;
 
 const FRAME_TOKENS: ReadonlySet<string> = new Set([

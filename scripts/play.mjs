@@ -37,6 +37,9 @@ import {
   slicePartOneDoneSave,
   sliceRefinerySave,
   sliceYardFullSave,
+  sliceFactorySave,
+  sliceFactoryOrderSave,
+  sliceFactoryDoneSave,
   sliceRoofSave,
   sliceStartSave,
   sliceStandsSave,
@@ -50,6 +53,8 @@ import {
  * The frame's saves are the dev account's phone backup, played on a memory save (#664).
  */
 const MEMORY = "?memorySave=1";
+/** Part 3 on a dev page, before #682 switches it on (#681). */
+const PART_THREE = "?memorySave=1&part3=1";
 const SAVES = {
   fresh: {
     note: "first open, nothing saved: the first evening",
@@ -142,6 +147,24 @@ const SAVES = {
     save: () => sliceWarehouseRoofSave(Date.now()),
     key: DEV_BACKUP_KEY,
     search: MEMORY,
+  },
+  factory: {
+    note: "part 3: the shaft sunk, clay and iron in the bins, the station idle",
+    save: () => sliceFactorySave(Date.now()),
+    key: DEV_BACKUP_KEY,
+    search: PART_THREE,
+  },
+  factoryorder: {
+    note: "part 3: sturdy props on the station, stone and clay arriving",
+    save: () => sliceFactoryOrderSave(Date.now()),
+    key: DEV_BACKUP_KEY,
+    search: PART_THREE,
+  },
+  factorydone: {
+    note: "part 3: iron rails done on the station, waiting to be installed",
+    save: () => sliceFactoryDoneSave(Date.now()),
+    key: DEV_BACKUP_KEY,
+    search: PART_THREE,
   },
 };
 

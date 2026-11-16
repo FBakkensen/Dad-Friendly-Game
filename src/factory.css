@@ -1,0 +1,282 @@
+/*
+ * The factory on slice 1's frame (#681): the bench's canvas fills the site,
+ * the head and the bins' lines sit on it, the station's words and keys lie
+ * on its plate, and the blueprints' strip scrolls sideways at its foot. The
+ * boxes are the scene's own, in art px (src/factory-scene.ts).
+ */
+.factory {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.factory[hidden] {
+  display: none;
+}
+
+.factory-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+}
+
+.factory p {
+  margin: 0;
+}
+
+/* What is installed, on the tool rail's right. */
+.factory-head {
+  position: absolute;
+  top: calc(var(--art) * 3);
+  right: calc(var(--art) * 4);
+  left: calc(var(--art) * 100);
+  font-size: var(--board-type-13);
+  line-height: 1.15;
+  text-align: right;
+  color: var(--frame-ink);
+  text-shadow: 0 var(--art) 0 var(--frame-dark);
+}
+
+.factory-timers {
+  color: var(--frame-rate);
+}
+
+.frame .factory-timers[hidden] {
+  display: none;
+}
+
+/* A bin's line, along its foot. */
+.factory-bin {
+  position: absolute;
+  top: calc(var(--art) * 55);
+  width: calc(var(--art) * 94);
+  font-size: var(--board-type-13);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-align: center;
+  white-space: nowrap;
+  color: var(--frame-ink);
+}
+
+.factory-bin[data-good="clay"] {
+  left: calc(var(--art) * 8);
+}
+
+.factory-bin[data-good="iron"] {
+  left: calc(var(--art) * 110);
+}
+
+/* The station's plate: its title on top, the goods beside the gear, the keys at its foot. */
+.factory-station {
+  position: absolute;
+  top: calc(var(--art) * 74);
+  right: calc(var(--art) * 10);
+  bottom: calc(var(--art) * 90);
+  left: calc(var(--art) * 10);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: calc(var(--art) * 4) calc(var(--art) * 4) calc(var(--art) * 3);
+  color: var(--frame-station-ink);
+  text-align: center;
+}
+
+.factory-station-title {
+  font-size: var(--frame-type-18);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.factory-station-line {
+  font-size: var(--frame-type-15);
+  color: var(--frame-station-quiet);
+}
+
+.factory-goods {
+  align-self: flex-end;
+  width: calc(var(--art) * 104);
+  margin-top: calc(var(--art) * 3);
+  font-size: var(--frame-type-15);
+  line-height: 1.25;
+  text-align: left;
+}
+
+.factory-good.in {
+  color: var(--frame-green);
+}
+
+.factory-percent {
+  align-self: flex-end;
+  width: calc(var(--art) * 104);
+  font-size: var(--frame-type-18);
+  text-align: left;
+  color: var(--frame-rate);
+}
+
+.frame .factory-percent[hidden],
+.frame .factory-keys[hidden],
+.frame .factory-install[hidden] {
+  display: none;
+}
+
+.factory-keys {
+  display: flex;
+  gap: var(--target-gap);
+  width: 100%;
+  margin-top: auto;
+}
+
+.frame .factory-install,
+.frame .factory-cancel {
+  flex: 1;
+  min-height: var(--target-min);
+  padding: 0 calc(var(--art) * 3);
+  font-size: var(--frame-type-15);
+  font-weight: 700;
+  text-align: center;
+}
+
+.frame .factory-install {
+  background: var(--frame-go);
+  box-shadow: inset 0 0 0 var(--art) var(--frame-green);
+  font-size: var(--frame-type-18);
+  color: var(--frame-go-ink);
+}
+
+.frame .factory-cancel {
+  background: var(--frame-key);
+  box-shadow: inset 0 0 0 var(--art) var(--frame-edge);
+  color: var(--frame-quiet);
+}
+
+/* The blueprints: a strip that scrolls sideways inside its box. */
+.factory-strip {
+  position: absolute;
+  right: calc(var(--art) * 3);
+  bottom: calc(var(--art) * 3);
+  left: calc(var(--art) * 3);
+  display: flex;
+  gap: var(--target-gap);
+  height: calc(var(--art) * 84);
+  overflow-x: auto;
+  overflow-y: hidden;
+  touch-action: pan-x;
+  scrollbar-width: none;
+}
+
+.factory-strip::-webkit-scrollbar {
+  display: none;
+}
+
+.frame .factory-card,
+.factory-ghost {
+  position: relative;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: flex-start;
+  width: calc(var(--art) * 62);
+  height: 100%;
+  padding: calc(var(--art) * 3) calc(var(--art) * 4);
+  background-color: var(--frame-paper);
+  background-image:
+    linear-gradient(var(--frame-paper-grid) var(--art), transparent var(--art)),
+    linear-gradient(
+      90deg,
+      var(--frame-paper-grid) var(--art),
+      transparent var(--art)
+    );
+  background-size: calc(var(--art) * 8) calc(var(--art) * 8);
+  box-shadow: inset 0 0 0 var(--art) var(--frame-paper-edge);
+  color: var(--frame-paper-ink);
+  text-align: left;
+  touch-action: pan-x;
+}
+
+.frame .factory-card[data-state="busy"],
+.frame .factory-card[data-state="installed"] {
+  opacity: 0.62;
+}
+
+.factory-ghost {
+  position: absolute;
+  z-index: 3;
+  height: calc(var(--art) * 84);
+  pointer-events: none;
+  filter: drop-shadow(0 calc(var(--art) * 4) 0 var(--frame-scrim));
+}
+
+.factory-card-icon {
+  align-self: center;
+  width: calc(var(--art) * 24);
+  height: calc(var(--art) * 24);
+  margin-bottom: calc(var(--art) * 2);
+  image-rendering: pixelated;
+}
+
+.factory-card-level {
+  position: absolute;
+  top: calc(var(--art) * 3);
+  right: calc(var(--art) * 4);
+  font-size: var(--board-type-13);
+  color: var(--frame-paper-quiet);
+}
+
+.frame .factory-card-level[hidden] {
+  display: none;
+}
+
+.factory-card-name {
+  font-size: var(--frame-type-15);
+  line-height: 1.05;
+}
+
+.factory-card-effect {
+  margin-top: var(--art);
+  font-size: var(--frame-type-12);
+  line-height: 1.15;
+  color: var(--frame-paper-quiet);
+}
+
+.factory-card-requires {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 calc(var(--art) * 3);
+  margin-top: auto;
+  font-size: var(--board-type-13);
+  font-weight: 700;
+}
+
+.factory-need {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--art);
+  white-space: nowrap;
+}
+
+.factory-need.short {
+  color: var(--frame-paper-short);
+}
+
+.factory-need-icon {
+  width: calc(var(--art) * 8);
+  height: calc(var(--art) * 8);
+  image-rendering: pixelated;
+}
+
+.frame .factory-cancel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.1;
+}
+
+.factory-cancel small {
+  font-size: var(--frame-type-12);
+  font-weight: 500;
+}

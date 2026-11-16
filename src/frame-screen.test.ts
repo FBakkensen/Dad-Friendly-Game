@@ -5,7 +5,7 @@ import { placeOrder } from "./city";
 import { holdFactors } from "./economy/factors";
 import { mountFrameScreen } from "./frame-screen";
 import { FRESH_OFF } from "./line-switch";
-import { PART_TWO_OFF } from "./part-switch";
+import { PART_THREE_OFF, PART_TWO_OFF } from "./part-switch";
 import type { Mountain } from "./mountain";
 import { createProgressStore } from "./progress-store";
 import { createMemoryStorage, CREWED_JOBS } from "./test-fixtures";
@@ -356,5 +356,96 @@ describe("the refinery on the frame (#671)", () => {
       root.querySelector<HTMLElement>(".frame-scene")?.dataset["site"],
     ).toBe("mine");
     expect(tab(root)?.hidden).toBe(true);
+  });
+});
+
+describe("the factory on the frame (#681)", () => {
+  const partThree = (): void => {
+    holdFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 });
+  };
+  const sunk = (mountain: Mountain): Mountain => ({
+    ...mountain,
+    operational: ["lightTower", "warehouse"],
+    granite: {
+      kind: "sunk",
+      machines: { cart: 0, drill: 0, borer: 0, train: 0 },
+      piles: { face: 0, shaft: 0, saw: 0 },
+    },
+    stock: { ...mountain.stock, stones: 20_000, clay: 8, iron: 11 },
+  });
+  const tab = (root: HTMLElement): HTMLElement | null =>
+    root.querySelector('.frame-site[data-site="factory"]');
+  const station = (progress: ReturnType<typeof mount>["progress"]) =>
+    progress.getSnapshot().mountain.station;
+
+  it("has no factory tab or site with part 3 off, even with the shaft sunk", () => {
+    holdFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 });
+    const { root } = mount(sunk);
+    expect(tab(root)?.hidden).toBe(true);
+    expect(root.querySelector<HTMLElement>(".factory")?.hidden).toBe(true);
+  });
+
+  it("opens with the shaft: the bins, the idle station and five blueprints", () => {
+    partThree();
+    const { root, button } = mount(sunk);
+    expect(tab(root)?.hidden).toBe(false);
+    button('.frame-site[data-site="factory"]').click();
+    expect(root.querySelector<HTMLElement>(".factory")?.hidden).toBe(false);
+    expect(
+      [...root.querySelectorAll(".factory-bin")].map((bin) => bin.textContent),
+    ).toEqual(["Clay 8/10 · source: Topsoil", "Iron 11/35 · source: Granite"]);
+    expect(root.querySelector(".factory-station-title")?.textContent).toBe(
+      "Station idle",
+    );
+    expect(root.querySelectorAll(".factory-card")).toHaveLength(5);
+    expect(root.querySelector(".factory-installed")?.textContent).toBe(
+      "Installed: rails 0/2 · props 0/1 · reinforce 0/5",
+    );
+    // The factory takes no workers: no − and +.
+    expect(root.querySelectorAll(".factory .frame-step")).toHaveLength(0);
+    expect(hireKeysInFrame(root)).toHaveLength(1);
+  });
+
+  it("places a work order on a tap, and cancels it", () => {
+    partThree();
+    const { root, progress, button } = mount(sunk);
+    button('.frame-site[data-site="factory"]').click();
+    button('.factory-card[data-blueprint="iron-rails"]').click();
+    expect(station(progress)).toMatchObject({
+      kind: "delivering",
+      blueprint: "iron-rails",
+    });
+    expect(root.querySelector(".factory-station-title")?.textContent).toBe(
+      "Iron rails",
+    );
+    expect(
+      root
+        .querySelector('.factory-card[data-blueprint="reinforce"]')
+        ?.getAttribute("data-state"),
+    ).toBe("busy");
+    // A second tap while it is busy places nothing.
+    button('.factory-card[data-blueprint="reinforce"]').click();
+    expect(station(progress)).toMatchObject({ blueprint: "iron-rails" });
+    button(".factory-cancel").click();
+    expect(station(progress)).toEqual({ kind: "idle" });
+  });
+
+  it("installs a done work order, and Next points at it until then", () => {
+    partThree();
+    const { root, progress, button } = mount((mountain) => ({
+      ...sunk(mountain),
+      project: placeOrder(sunk(mountain)).project,
+      station: { kind: "done", blueprint: "iron-rails" },
+    }));
+    expect(root.querySelector(".frame-next")?.getAttribute("data-next")).toBe(
+      "install",
+    );
+    button(".frame-next").click();
+    expect(root.querySelector<HTMLElement>(".factory")?.hidden).toBe(false);
+    const install = button(".factory-install");
+    expect(install.hidden).toBe(false);
+    install.click();
+    expect(station(progress)).toEqual({ kind: "idle" });
+    expect(progress.getSnapshot().mountain.crafted["iron-rails"]).toBe(1);
   });
 });
