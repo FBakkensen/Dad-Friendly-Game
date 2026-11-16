@@ -272,6 +272,11 @@ export function sticker(mountain: Mountain, action: Action): number {
     case "buyGraniteMachine":
       // As `valueOf` prices it until the lab learns the Granite (#675).
       return 0;
+    case "placeWorkOrder":
+    case "cancelWorkOrder":
+    case "installWorkOrder":
+      // Free: transport carries what a work order requires (#674).
+      return 0;
     case "station":
     case "send":
     case "recall":
@@ -352,6 +357,9 @@ function spendKey(
     case "freeWorker":
     case "sinkShaft":
     case "buyGraniteMachine":
+    case "placeWorkOrder":
+    case "cancelWorkOrder":
+    case "installWorkOrder":
       return undefined;
   }
 }

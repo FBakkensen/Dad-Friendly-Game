@@ -150,6 +150,9 @@ const MOVE_KIND_ORDER = {
   resumeOrder: true,
   sinkShaft: true,
   buyGraniteMachine: true,
+  placeWorkOrder: true,
+  cancelWorkOrder: true,
+  installWorkOrder: true,
 } as const satisfies Record<Action["kind"], true>;
 
 export const MOVE_KINDS = Object.keys(
