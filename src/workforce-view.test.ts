@@ -4,7 +4,8 @@ import { FRESH_OFF } from "./line-switch";
 import { PART_TWO_OFF } from "./part-switch";
 import type { Mountain } from "./mountain";
 import { crewedStart } from "./test-fixtures";
-import { NO_FREE_WORKER, workforceView } from "./workforce-view";
+import { levels, partThree, partTwo } from "./part-three.harness";
+import { NO_FREE_WORKER, jobSites, workforceView } from "./workforce-view";
 
 /** The workforce's jobs (slice 1, #659). */
 const fresh = <T>(body: () => T): T => withFactors({ [FRESH_OFF]: 0 }, body);
@@ -181,5 +182,53 @@ describe("the refinery's jobs (#671)", () => {
         workforceView(kilns(0, 0)).groups.map((group) => group.name),
       ).toEqual(["Mine", "City"]);
     });
+  });
+});
+
+describe("the mine's jobs by level (#680)", () => {
+  const names = (mountain: Mountain) =>
+    jobSites(mountain).map((group) => group.name);
+
+  it("lists the mine's jobs by level once the Granite is open", () => {
+    const groups = partThree(() => jobSites(levels({})));
+    expect(groups.slice(0, 3).map((group) => group.name)).toEqual([
+      "Topsoil",
+      "Granite",
+      "Shaft",
+    ]);
+    expect(
+      groups.slice(0, 3).map((group) => group.jobs.map((job) => job.job)),
+    ).toEqual([
+      ["drilling", "haulage"],
+      ["graniteDrilling", "graniteHaulage"],
+      ["hoisting"],
+    ]);
+  });
+
+  it("is today's one mine group with part 3 off, or the shaft not sunk", () => {
+    expect(partTwo(() => names(levels({})))[0]).toBe("Mine");
+    expect(partThree(() => names(levels({ sunk: false })))[0]).toBe("Mine");
+  });
+
+  it("counts each level's own machines in its notes", () => {
+    const view = partThree(() =>
+      workforceView(
+        levels({
+          topsoil: 3,
+          granite: 3,
+          machines: { drill: 1 },
+        }),
+      ),
+    );
+    const mine = view.groups.filter((group) => group.site === "mine");
+    expect(mine.map((group) => group.name)).toEqual([
+      "Topsoil",
+      "Granite",
+      "Shaft",
+    ]);
+    const granite = mine[1]?.rows[0];
+    expect(granite?.job).toBe("graniteDrilling");
+    expect(granite?.note).toMatch(/^1 of 1 drill runs/);
+    expect(mine[0]?.rows[0]?.note).not.toMatch(/drill/);
   });
 });
