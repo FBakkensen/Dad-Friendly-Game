@@ -510,6 +510,8 @@ export type NightReport = {
    * night counts on its start's terms.
    */
   readonly deadMs: number;
+  /** What reached the stockpiles, good by good: the shift report's "Produced" (#671). */
+  readonly produced: Stock;
   /** What transport took from the pocket to the order, good by good. */
   readonly delivered: Stock;
   readonly steps: readonly NightStep[];
@@ -875,6 +877,7 @@ function nightReport(
     stop: nightStop(log, after, awayMs),
     deadMs: log.deadMs,
     ...(full ? { fullAtMs: { ...log.fullAtMs } } : {}),
+    produced: log.gained,
     delivered: stockMoved(dug, after.stock).spent,
     steps: log.steps,
     payFrom: effectiveRates(before).awayPay,

@@ -4,6 +4,9 @@ import type { Mountain } from "./mountain";
 import { STAGES, type Stage } from "./line";
 import { mineMoves } from "./mine-piles";
 import { canPay } from "./stock";
+import { makerPrice, makersOpen } from "./makers";
+import { partTwoOn } from "./part-switch";
+import { MAX_STOCKYARD_LEVEL, expandPrice, stockyardOpen } from "./stockyard";
 import { TIERS, tierQuote } from "./tiers";
 import { VEHICLES, vehiclePrice } from "./transport";
 import { upgradeShown } from "./upgrade-reveal";
@@ -16,15 +19,35 @@ import { UPGRADES, upgradePrice, upgradeStage, type Upgrade } from "./upgrades";
  * points only at a building nobody has ordered.
  */
 
-/** The sites open in part 1, in the site bar's order. */
-export const SITES = ["mine", "city"] as const;
+/** The sites of slice 1 so far, in the site bar's order (spec, Four sites). */
+export const SITES = ["mine", "refinery", "city"] as const;
 
 export type SiteId = (typeof SITES)[number];
 
 export const SITE_NAMES: Readonly<Record<SiteId, string>> = {
   mine: "Mine",
+  refinery: "Refinery",
   city: "City",
 };
+
+/**
+ * Whether a site is in the site bar (#671): the mine and the city from the
+ * first evening, the refinery with the Light Tower once part 2 is live
+ * (spec, While a part is the end of the game).
+ */
+export function siteOpen(
+  mountain: Pick<Mountain, "operational">,
+  site: SiteId,
+): boolean {
+  return site !== "refinery" || (partTwoOn() && makersOpen(mountain));
+}
+
+/** The open sites, in the bar's order. */
+export function openSites(
+  mountain: Pick<Mountain, "operational">,
+): readonly SiteId[] {
+  return SITES.filter((site) => siteOpen(mountain, site));
+}
 
 function upgradeAffordable(mountain: Mountain, upgrade: Upgrade): boolean {
   const price = upgradePrice(mountain, upgrade.id);
@@ -54,10 +77,26 @@ export function stageCount(mountain: Mountain, stage: Stage): number {
   return machines + upgrades;
 }
 
+/** The refinery's buys he can afford now: a kiln, and the next stockyard level (#671). */
+function refineryCount(mountain: Mountain): number {
+  if (!siteOpen(mountain, "refinery")) {
+    return 0;
+  }
+  const kiln = canPay(mountain.stock, makerPrice(mountain, "kiln")) ? 1 : 0;
+  const level =
+    stockyardOpen(mountain) &&
+    mountain.stockyard < MAX_STOCKYARD_LEVEL &&
+    canPay(mountain.stock, expandPrice(mountain))
+      ? 1
+      : 0;
+  return kiln + level;
+}
+
 /**
  * Every buy on each site he can afford now. The mine counts what its
- * stages' lists hold; the city counts its vehicles. Hiring is not counted:
- * a worker is nearly always affordable.
+ * stages' lists hold; the refinery a kiln and a stockyard level; the city
+ * counts its vehicles. Hiring is not counted: a worker is nearly always
+ * affordable.
  */
 export function siteCounts(mountain: Mountain): Record<SiteId, number> {
   const mine = STAGES.reduce(
@@ -67,7 +106,7 @@ export function siteCounts(mountain: Mountain): Record<SiteId, number> {
   const vehicles = VEHICLES.filter((vehicle) =>
     canPay(mountain.stock, vehiclePrice(mountain, vehicle.id)),
   ).length;
-  return { mine, city: vehicles };
+  return { mine, refinery: refineryCount(mountain), city: vehicles };
 }
 
 /** The worker's upgrades he can afford now (Work boots and the like). */
@@ -120,7 +159,7 @@ export const LINE_STANDS = "The line stands.";
 export function nextView(mountain: Mountain): NextView {
   const sites = siteCounts(mountain);
   const counts: NextCount[] = [
-    ...SITES.map((where): NextCount => ({
+    ...openSites(mountain).map((where): NextCount => ({
       where,
       name: SITE_NAMES[where],
       count: sites[where],

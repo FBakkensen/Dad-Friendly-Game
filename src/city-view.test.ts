@@ -11,6 +11,7 @@ import { withFactors } from "./economy/factors";
 import { formatCompact } from "./format";
 import { orderStrip } from "./frame-view";
 import { FRESH_OFF } from "./line-switch";
+import { PART_TWO_OFF } from "./part-switch";
 import { createMountain, type Mountain } from "./mountain";
 import { EMPTY_STOCK } from "./stock";
 
@@ -330,6 +331,30 @@ describe("the city's scene", () => {
         undriven: 1,
         building: 0,
       });
+    });
+  });
+});
+
+describe("what a building opens, in part 2 (#671)", () => {
+  const partTwo = <T>(body: () => T): T =>
+    withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 }, body);
+
+  it("says the Light Tower opens the refinery, and only once part 2 plays", () => {
+    partTwo(() => {
+      const card = projectCard(createMountain());
+      expect(card.kind === "project" && card.completion).toBe(
+        "On completion: night shift output 45%, up from 30%. Opens the refinery.",
+      );
+    });
+  });
+
+  it("says what the Warehouse gives the stockyard", () => {
+    partTwo(() => {
+      const lit = { ...createMountain(), operational: ["lightTower" as const] };
+      const card = projectCard(lit);
+      expect(card.kind === "project" && card.completion).toBe(
+        "On completion: stockyard capacity ×2.",
+      );
     });
   });
 });

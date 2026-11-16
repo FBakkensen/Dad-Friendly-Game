@@ -4,6 +4,7 @@ import type { AuthController } from "./auth";
 import type { CloudSave } from "./cloud-save";
 import { holdFactors } from "./economy/factors";
 import { freshMineOn } from "./line-switch";
+import { partTwoOn } from "./part-switch";
 import { minedMountain } from "./test-fixtures";
 
 const firebaseStubs = vi.hoisted(() => ({
@@ -41,7 +42,13 @@ describe("parseBootOptions", () => {
       previewSave: undefined,
       previewCopies: false,
       previewUpdate: false,
+      partTwo: false,
     });
+  });
+
+  it("reads part2=1, so a dev page can show part 2 before it is switched on (#671)", () => {
+    expect(parseBootOptions("?part2=1").partTwo).toBe(true);
+    expect(parseBootOptions("?part2=0").partTwo).toBe(false);
   });
 
   it("reads update=shown, so play can see the update card", () => {
@@ -113,6 +120,30 @@ describe("createAppServices", () => {
       expect(progress.getSnapshot().mountain.jobs.drilling).toBe(1);
       progress.dispose();
     }
+  });
+
+  it("plays part 2 on a dev page with part2=1, and never in the build (#671)", async () => {
+    for (const [devMode, on] of [
+      [true, true],
+      [false, false],
+    ] as const) {
+      holdFactors({});
+      const { progress } = await createAppServices({
+        env: {},
+        search: "?part2=1",
+        devMode,
+      });
+      expect(partTwoOn()).toBe(on);
+      progress.dispose();
+    }
+    holdFactors({});
+    const { progress } = await createAppServices({
+      env: {},
+      search: "",
+      devMode: true,
+    });
+    expect(partTwoOn()).toBe(false);
+    progress.dispose();
   });
 
   it("trouble=cave-in previews a cave-in while developing", async () => {

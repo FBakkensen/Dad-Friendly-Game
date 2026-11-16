@@ -1153,6 +1153,54 @@ export function sliceDoneSave(now: number): StoredAsIs {
 }
 
 /**
+ * Part 2 (#671), on a page with `?part2=1`: the Light Tower operational, a
+ * kiln with its worker, rock at the kilns, and stone and brick in the
+ * stockyard. The refinery's tab is in the site bar.
+ */
+export function sliceRefinerySave(now: number): StoredAsIs {
+  return sliceSave(now, {
+    owned: { helper: 18, cart: 2 },
+    stock: { stones: 420_000, brick: 18_000 },
+    jobs: {
+      drilling: 4,
+      haulage: 3,
+      hoisting: 4,
+      driving: 1,
+      building: 2,
+      kilns: 1,
+    },
+    fleet: { horseWagon: 2 },
+    marks: { operational: ["lightTower"] },
+    makers: { kiln: 1 },
+    piles: { face: 200, shaft: 150, kiln: 120 },
+  });
+}
+
+/**
+ * The same refinery closed twelve hours ago with its stockyard nearly full
+ * and nothing ordered: the night fills both stockpiles, the mine stands, and
+ * the shift report says the stockyard stopped it (#671).
+ */
+export function sliceYardFullSave(now: number): StoredAsIs {
+  return sliceSave(now - 12 * HOUR, {
+    owned: { helper: 18, cart: 2 },
+    stock: { stones: 5_900_000, brick: 990_000 },
+    jobs: {
+      drilling: 4,
+      haulage: 3,
+      hoisting: 4,
+      driving: 1,
+      building: 2,
+      kilns: 1,
+    },
+    fleet: { horseWagon: 2 },
+    marks: { operational: ["lightTower"] },
+    makers: { kiln: 1 },
+    piles: { face: 200, shaft: 150, kiln: 120 },
+  });
+}
+
+/**
  * A busier first night: two carts, a second wagon, three free workers, the
  * foundation on order and stone in the pocket. Next counts the mine's and
  * the city's buys, and the workforce shows machines that run (#659).

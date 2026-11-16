@@ -509,6 +509,11 @@ const FRAME_OWN = [
   "--frame-card",
   "--frame-card-quiet",
   "--frame-night",
+  // The refinery (#671): its wall's mortar, and "full" on a stockpile. The
+  // prototype's --red (#e2552d) is 3.9:1 on the top row, under 4.5:1 for
+  // small text, so the lamp rule's red is lifted to #ef6a55.
+  "--frame-refinery-ground",
+  "--frame-red",
 ] as const;
 
 const FRAME_TOKENS: ReadonlySet<string> = new Set([

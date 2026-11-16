@@ -47,6 +47,8 @@ export type LevelPlate = {
   readonly name: string;
   /** What hoisting lifts now, the hoisting row's number (#715). */
   readonly rate: string;
+  /** The same, as a number: the refinery's scene shows rock coming up while it is above 0. */
+  readonly lifted: number;
 };
 
 /**
@@ -61,7 +63,7 @@ function movingNow(mountain: Mountain, now: number | undefined): number[] {
 /** The level's plate: its name, and what comes up as stone now. */
 export function levelPlate(mountain: Mountain, now?: number): LevelPlate {
   const lifted = movingNow(mountain, now)[STAGES.indexOf("lift")] ?? 0;
-  return { name: "Topsoil", rate: `${formatCompact(lifted)}/s` };
+  return { name: "Topsoil", rate: `${formatCompact(lifted)}/s`, lifted };
 }
 
 /** The strongest machine a stage can buy now: in play, shown and open. */
@@ -311,12 +313,17 @@ const PILE_AFTER: Readonly<Record<Stage, PileId | undefined>> = {
 };
 
 /** The piles' words (#703), approved by Flemming on 15 Nov 2026 (no "face"). */
-const PILE_LABELS: Readonly<Record<PileId, string>> = {
+export const PILE_LABELS: Readonly<Record<PileId, string>> = {
   face: "Drilled rock",
   shaft: "Rock at the shaft",
-  // Part 2 (#666): not on screen until the refinery's sliver (#671), which asks him first.
+  // Part 2: on the kilns' plate in the refinery (#671).
   kiln: "Rock at the kilns",
 };
+
+/** "Drilled rock: 200 of 300": a stage's pile, or the kilns'. */
+export function pileWords(pile: RowPile): string {
+  return `${pile.label}: ${formatCompact(pile.held)} of ${formatCompact(pile.holds)}`;
+}
 
 function rowPile(mountain: Mountain, stage: Stage): RowPile | undefined {
   const id = PILE_AFTER[stage];

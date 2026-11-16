@@ -255,7 +255,7 @@ describe("the level's plate and the scene", () => {
     fresh(() => {
       const start = createMountain();
       const plate = levelPlate(start);
-      expect(plate).toEqual({ name: "Topsoil", rate: "0/s" });
+      expect(plate).toEqual({ name: "Topsoil", rate: "0/s", lifted: 0 });
       expect(DEEPER_STRATA).not.toMatch(/granite/i);
       // One worker on hoisting, rock at the shaft: the plate reads what comes up.
       const hoisting = {

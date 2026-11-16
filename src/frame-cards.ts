@@ -1,12 +1,20 @@
 import { el, write, writeFigures } from "./board-dom";
-import { END_CARD, FIRST_EVENING, type CardWords } from "./frame-cards-words";
+import type { BuildingId } from "./city";
+import {
+  FIRST_EVENING,
+  refineryOpens,
+  endCard,
+  type CardWords,
+} from "./frame-cards-words";
 import { FRESH_START_JOBS, type AwayReport, type Mountain } from "./mountain";
+import { partTwoOn } from "./part-switch";
 import type { ProgressSnapshot, ProgressStore } from "./progress-store";
 import { firstNotice } from "./session";
 import { JOB_IDS, workersOnJobs } from "./workforce";
 import {
   shiftReport,
   type NightAwayReport,
+  TO_STOCKYARD,
   type ShiftReport,
 } from "./shift-report-view";
 
@@ -15,8 +23,10 @@ import {
  * the game"): one card at a time over the frame, with a title, its words and
  * one green key. The shift report after a night (the session's `away`
  * notice, closed through the store as today's welcome card is), and the
- * end card when the Light Tower's roof goes on (its `operational` notice,
- * closed the same way). The report comes first and the end card waits
+ * end card when a part's last roof goes on (its `operational` notice,
+ * closed the same way; in part 2 the Light Tower's roof brings the card that
+ * opens the refinery, and the Warehouse's the end card, #671). The report
+ * comes first and the end card waits
  * behind it. The first evening's card (#703) greets a session that opens
  * with nothing ordered and nothing operational, once, until its key is
  * pressed; it is not a save fact. The game runs on behind every card.
@@ -24,7 +34,8 @@ import {
 
 type FrameCard =
   | { readonly kind: "report"; readonly report: NightAwayReport }
-  | { readonly kind: "end" }
+  | { readonly kind: "end"; readonly building: BuildingId }
+  | { readonly kind: "opens" }
   | { readonly kind: "first" };
 
 type CardView = Pick<ProgressSnapshot, "notices" | "mountain">;
@@ -69,21 +80,28 @@ function frameCard(view: CardView, greet: boolean): FrameCard | undefined {
   if (report !== undefined) {
     return { kind: "report", report };
   }
-  if (firstNotice(view, "operational")?.building === "lightTower") {
-    return { kind: "end" };
+  const building = firstNotice(view, "operational")?.building;
+  if (building !== undefined) {
+    // In part 2 the Light Tower opens the refinery; the Warehouse ends it (#671).
+    return building === "lightTower" && partTwoOn()
+      ? { kind: "opens" }
+      : { kind: "end", building };
   }
   return greet && nothingYet(view.mountain) ? { kind: "first" } : undefined;
 }
 
 const sameCard = (a: FrameCard | undefined, b: FrameCard | undefined) =>
   a?.kind === b?.kind &&
-  (a?.kind !== "report" || b?.kind !== "report" || a.report === b.report);
+  (a?.kind !== "report" || b?.kind !== "report" || a.report === b.report) &&
+  (a?.kind !== "end" || b?.kind !== "end" || a.building === b.building);
 
 type CardParts = {
   readonly root: HTMLElement;
   readonly title: HTMLElement;
   readonly body: HTMLElement;
   readonly key: HTMLButtonElement;
+  /** The report's second key, after a night the stockyard stopped (#671). */
+  readonly yard: HTMLButtonElement;
 };
 
 function buildCard(): CardParts {
@@ -98,9 +116,12 @@ function buildCard(): CardParts {
   const body = el("div", "frame-card-body");
   const key = el("button", "frame-card-key");
   key.type = "button";
-  box.append(title, body, key);
+  const yard = el("button", "frame-card-yard", TO_STOCKYARD);
+  yard.type = "button";
+  yard.hidden = true;
+  box.append(title, body, key, yard);
   root.append(box);
-  return { root, title, body, key };
+  return { root, title, body, key, yard };
 }
 
 /** A paragraph, its figures bright; every one after the first is quieter. */
@@ -130,8 +151,20 @@ function paintReport(parts: CardParts, report: ShiftReport): void {
     paragraph(report.head, false),
     ...nightBar(report),
     ...report.lines.map((line) => paragraph(line, true)),
+    ...fullMarks(report.marks),
   );
   write(parts.key, report.key);
+  parts.yard.hidden = !report.toStockyard;
+}
+
+/** When each stockpile filled in the night, one mark a line (#671). */
+function fullMarks(marks: readonly string[]): readonly HTMLElement[] {
+  if (marks.length === 0) {
+    return [];
+  }
+  const list = el("p", "frame-card-marks");
+  list.append(...marks.map((mark) => el("span", "frame-card-mark", mark)));
+  return [list];
 }
 
 function paintWords(parts: CardParts, words: CardWords): void {
@@ -140,6 +173,14 @@ function paintWords(parts: CardParts, words: CardWords): void {
     ...words.paragraphs.map((text, index) => paragraph(text, index > 0)),
   );
   write(parts.key, words.key);
+  parts.yard.hidden = true;
+}
+
+function cardWords(card: Exclude<FrameCard, { kind: "report" }>): CardWords {
+  if (card.kind === "first") {
+    return FIRST_EVENING;
+  }
+  return card.kind === "opens" ? refineryOpens() : endCard(card.building);
 }
 
 function paintCard(parts: CardParts, card: FrameCard | undefined): void {
@@ -148,7 +189,7 @@ function paintCard(parts: CardParts, card: FrameCard | undefined): void {
   if (card?.kind === "report") {
     paintReport(parts, shiftReport(card.report));
   } else if (card !== undefined) {
-    paintWords(parts, card.kind === "first" ? FIRST_EVENING : END_CARD);
+    paintWords(parts, cardWords(card));
   }
 }
 
@@ -161,14 +202,17 @@ export type FrameCards = {
 /**
  * The frame's card overlay, painted from views whose save has loaded.
  * `onShow` runs when a new card comes up (the frame closes the workforce
- * sheet).
+ * sheet). `onStockyard` runs when the report's "To the stockyard" closes
+ * the night (the frame goes to the refinery).
  */
 export function createFrameCards({
   progress,
   onShow,
+  onStockyard,
 }: {
   progress: ProgressStore;
   onShow: () => void;
+  onStockyard: () => void;
 }): FrameCards {
   const parts = buildCard();
   let shown: FrameCard | undefined;
@@ -197,6 +241,14 @@ export function createFrameCards({
       greet = false;
     } else if (shown !== undefined) {
       progress.dismiss(shown.kind === "report" ? "away" : "operational");
+    }
+    paint();
+  });
+
+  parts.yard.addEventListener("click", () => {
+    if (shown?.kind === "report") {
+      progress.dismiss("away");
+      onStockyard();
     }
     paint();
   });

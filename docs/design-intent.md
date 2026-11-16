@@ -11,6 +11,8 @@ Since #664 the phone plays slice 1's part 1, the start of the road to Mars. It i
 - **An order the city builds.** The Light Tower is the first goal: he orders it, wagons carry the stone, builders put it up, and its roof lifts the night shift. Transport and builders are the second line to balance.
 - **The night as a shift.** Closing the phone is a night shift at 30% for eight hours; the shift report tells what it made. Close is still pause, and nothing is lost.
 
+- **The refinery shows the flow, not the answer (#671).** The rock comes up into the hopper, the kilns take what they can make into brick, and the rest runs down the bypass to stone; the stockyard's two bays fill in sight. The page gives each rate and room, and how long a night lasts now, so he works out the next kiln or the next expansion himself. The shift report names when each stockpile filled, never what to buy.
+
 The sections below are the reasons for the game before #664, kept until its clean-up (#665). #728 took the dig, the relics, golden veins, the Gold rush and the boosts out of that game too, and the parts below no longer name them.
 
 ## The core loop and the story

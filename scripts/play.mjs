@@ -34,6 +34,8 @@ import {
   sliceDoneSave,
   sliceNightSave,
   sliceOrderedSave,
+  sliceRefinerySave,
+  sliceYardFullSave,
   sliceRoofSave,
   sliceStartSave,
   sliceStandsSave,
@@ -45,6 +47,8 @@ import {
  * The frame's saves are the dev account's phone backup, played on a memory save (#664).
  */
 const MEMORY = "?memorySave=1";
+/** Part 2 on a dev page, before #672 switches it on (#671). */
+const PART_TWO = "?memorySave=1&part2=1";
 const SAVES = {
   fresh: {
     note: "first open, nothing saved: the first evening",
@@ -107,6 +111,18 @@ const SAVES = {
     save: () => sliceRoofSave(Date.now()),
     key: DEV_BACKUP_KEY,
     search: MEMORY,
+  },
+  refinery: {
+    note: "part 2: a kiln with its worker, brick and stone in the stockyard",
+    save: () => sliceRefinerySave(Date.now()),
+    key: DEV_BACKUP_KEY,
+    search: PART_TWO,
+  },
+  yardfull: {
+    note: "part 2, closed twelve hours ago: the stockyard fills and stops the mine",
+    save: () => sliceYardFullSave(Date.now()),
+    key: DEV_BACKUP_KEY,
+    search: PART_TWO,
   },
 };
 
