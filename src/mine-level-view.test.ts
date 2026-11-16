@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hoistsOwned, tripSeconds } from "./cages";
+import { hoistsOwned, legSeconds, tripSeconds } from "./cages";
 import { formatCompact } from "./format";
 import {
   BOTH_IN_TURN,
@@ -18,6 +18,7 @@ import {
   machineCardTitle,
   mineLevels,
   shaftGate,
+  twoLevelScene,
 } from "./mine-level-view";
 import {
   faceHolds,
@@ -423,6 +424,131 @@ describe("hoisting's now against its can", () => {
           }
         }
       }
+    });
+  });
+});
+
+describe("the scene with two levels", () => {
+  it("puts each cage at its depth on its trip", () => {
+    partThree(() => {
+      const down = legSeconds("granite", "down");
+      const going = levels({
+        hoisting: 2,
+        hoists: 1,
+        trips: {
+          "hoist:0": {
+            level: "granite",
+            carried: 0,
+            leg: { kind: "down", left: down / 2 },
+          },
+        },
+      });
+      // Half the way down to the Granite is the Topsoil's floor: the levels
+      // are a trip's length apart (10 s to the Topsoil and back, 20 s to the
+      // Granite), so a cage goes down at one speed.
+      expect(twoLevelScene(going).cages).toContainEqual({
+        depth: 1,
+        loaded: false,
+      });
+      const deeper = levels({
+        hoisting: 2,
+        hoists: 1,
+        trips: {
+          "hoist:0": {
+            level: "granite",
+            carried: 0,
+            leg: { kind: "down", left: down / 4 },
+          },
+        },
+      });
+      expect(twoLevelScene(deeper).cages).toContainEqual({
+        depth: 1.5,
+        loaded: false,
+      });
+      const rising = levels({
+        hoisting: 2,
+        hoists: 1,
+        trips: {
+          "hoist:0": {
+            level: "granite",
+            carried: 40,
+            leg: { kind: "up", left: legSeconds("granite", "up") / 4 },
+          },
+        },
+      });
+      expect(twoLevelScene(rising).cages).toContainEqual({
+        depth: 0.5,
+        loaded: true,
+      });
+      const loading = (carried: number) =>
+        twoLevelScene(
+          levels({
+            hoisting: 2,
+            hoists: 1,
+            trips: {
+              "hoist:0": {
+                level: "topsoil",
+                carried,
+                leg: { kind: "loading" },
+              },
+            },
+          }),
+        ).cages;
+      expect(loading(40)).toContainEqual({ depth: 1, loaded: true });
+      expect(loading(0)).toContainEqual({ depth: 1, loaded: false });
+      const top = twoLevelScene(
+        levels({
+          hoisting: 2,
+          hoists: 1,
+          trips: {
+            "hoist:0": { level: "topsoil", carried: 0, leg: { kind: "top" } },
+          },
+        }),
+      ).cages;
+      expect(top).toEqual([{ depth: 0, loaded: false }]);
+      // Two hoists and the winch, none on a trip: one cage at the top.
+      const fresh = twoLevelScene(levels({ hoisting: 3, hoists: 2 })).cages;
+      expect(fresh.filter((cage) => cage.depth === 0)).toHaveLength(1);
+    });
+  });
+
+  it("gives each level its own stages and piles, and the shaft its hoisting", () => {
+    partThree(() => {
+      const m = levels({
+        topsoil: 4,
+        granite: 2,
+        hoisting: 3,
+        piles: { face: 150 },
+        granitePiles: { face: 0, shaft: 30 },
+      });
+      const scene = twoLevelScene(m);
+      expect(scene.levels.topsoil.face.workers).toBe(4);
+      expect(scene.levels.granite.haul.workers).toBe(2);
+      expect(scene.levels.topsoil.facePile).toBeCloseTo(
+        150 / faceHolds("topsoil"),
+        9,
+      );
+      expect(scene.levels.granite.shaftPile).toBeCloseTo(30 / shaftHolds(m), 9);
+      // The Granite's drilled rock is bare, so its tubs leave as full as
+      // haulage moves of what it can.
+      const [, graniteHaul] = mineLevels(m)[1]?.rows ?? [];
+      expect(scene.levels.granite.load).toBeCloseTo(
+        (graniteHaul?.band.now ?? 0) / (graniteHaul?.band.can ?? 1),
+        9,
+      );
+      expect(scene.levels.topsoil.load).toBe(1);
+      expect(scene.hoisting.workers).toBe(3);
+      const lift = hoistingRow(m);
+      expect(scene.hoisting.busy).toBeCloseTo(
+        lift.band.can > 0 ? lift.band.now / lift.band.can : 0,
+        9,
+      );
+    });
+  });
+
+  it("has no scene with two levels before the shaft is sunk", () => {
+    partThree(() => {
+      expect(() => twoLevelScene(levels({ sunk: false }))).toThrow();
     });
   });
 });

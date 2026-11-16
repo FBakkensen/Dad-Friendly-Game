@@ -38,12 +38,14 @@ import {
   sliceRefinerySave,
   sliceYardFullSave,
   sliceFactorySave,
+  sliceGraniteUnsunkSave,
   sliceFactoryOrderSave,
   sliceFactoryDoneSave,
   sliceRoofSave,
   sliceStartSave,
   sliceStandsSave,
   sliceStructureSave,
+  sliceTwoLevelsSave,
   sliceWarehouseRoofSave,
   sliceWarehouseSave,
 } from "../tools/browser/fixtures.ts";
@@ -163,6 +165,18 @@ const SAVES = {
   factorydone: {
     note: "part 3: iron rails done on the station, waiting to be installed",
     save: () => sliceFactoryDoneSave(Date.now()),
+    key: DEV_BACKUP_KEY,
+    search: PART_THREE,
+  },
+  "granite-unsunk": {
+    note: "part 3: the Light Tower up and the stone and brick to sink the shaft",
+    save: () => sliceGraniteUnsunkSave(Date.now()),
+    key: DEV_BACKUP_KEY,
+    search: PART_THREE,
+  },
+  "two-levels": {
+    note: "part 3: the shaft sunk, both levels working, a hoist on each and one for both",
+    save: () => sliceTwoLevelsSave(Date.now()),
     key: DEV_BACKUP_KEY,
     search: PART_THREE,
   },

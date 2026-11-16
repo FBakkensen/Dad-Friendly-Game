@@ -4,7 +4,11 @@ import type { FrameState } from "./frame-state";
 import { listenSteps } from "./job-steps";
 import { STAGES, type Stage } from "./line";
 import { graniteOpen } from "./mine-levels";
-import { shaftGate } from "./mine-level-view";
+import {
+  shaftGate,
+  twoLevelScene,
+  type TwoLevelScene,
+} from "./mine-level-view";
 import {
   createGraniteGate,
   createLevelsSite,
@@ -26,6 +30,7 @@ import {
   DEEP_Y,
   LEVEL,
   drawMine,
+  levelsOf,
   loadSprites,
   paintGround,
   startMotion,
@@ -186,11 +191,11 @@ function buildOverlay(): Overlay {
   return { root, name, rate, deep };
 }
 
-/** The mine's canvas: its ground once a height, then its moving parts. */
+/** The mine's canvas: its ground once a height and a count of levels, then its moving parts. */
 function runCanvas(
   canvas: HTMLCanvasElement,
   shown: () => boolean,
-  scene: () => MineScene,
+  scene: () => MineScene | TwoLevelScene,
   signal: AbortSignal | undefined,
 ): void {
   const sprites = loadSprites();
@@ -199,13 +204,21 @@ function runCanvas(
     canvas,
     {
       shown,
-      ground: paintGround,
+      ground: (c, height) => {
+        paintGround(c, height, levelsOf(scene()));
+      },
       draw: (c, clock) => {
         drawMine(c, sprites, scene(), motion, clock);
       },
+      layout: () => levelsOf(scene()),
     },
     signal,
   );
+}
+
+/** What the canvas draws: the two levels once the Granite is open (ruling 1), else the one. */
+function sceneOf(mountain: Mountain): MineScene | TwoLevelScene {
+  return graniteOpen(mountain) ? twoLevelScene(mountain) : mineScene(mountain);
 }
 
 /** Each stage's key, or none for a stage with nothing to buy (never a stale one). */
@@ -308,7 +321,7 @@ export function createMineSite(
     }
     return views.some((row) => row.canPlace);
   };
-  let scene = mineScene(state.mountain());
+  let scene = sceneOf(state.mountain());
   let visible = true;
   runCanvas(
     canvas,
@@ -325,7 +338,7 @@ export function createMineSite(
         hide(note, true);
         return;
       }
-      scene = mineScene(mountain);
+      scene = sceneOf(mountain);
       paintKeys(keys, machineKeys(mountain, state.amount(), now));
       const two = graniteOpen(mountain);
       hide(over.root, two);

@@ -399,7 +399,7 @@
  * The mine with two levels (#680): each level's two rows on the level, to
  * the right of the shaft, and its two piles under its gallery, at the art
  * rows of mine-scene's LEVELS. A row is 24 art px, its − and + the 48px
- * every key has.
+ * every key has, and the two rows stand 4 art px (8px) apart.
  */
 .mine-levels > * {
   position: absolute;
@@ -415,18 +415,15 @@
   right: calc(var(--art) * 3);
   display: flex;
   flex-direction: column;
-  background: var(--frame-plate);
+  /* The two rows' keys stand 8px apart (#719): mine-scene's LEVELS. */
+  gap: var(--target-gap);
 }
 
 .mine-level-rows .mine-stage {
   height: calc(var(--art) * 24);
   padding: 0 0 0 calc(var(--art) * 3);
-  background: none;
+  background: var(--frame-plate);
   border: none;
-}
-
-.mine-level-rows .mine-stage + .mine-stage {
-  box-shadow: inset 0 var(--board-hair) 0 var(--frame-edge);
 }
 
 .mine-level-rows .mine-stage-name {

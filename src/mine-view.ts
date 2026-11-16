@@ -458,7 +458,7 @@ export function stageRows(
 }
 
 /** A stage in the scene: its workers, the share of the time they work, and its machines. */
-type StageScene = {
+export type StageScene = {
   readonly workers: number;
   /** The share of its rate the stage moves now: it waits on an empty pile in front or a full one after. */
   readonly busy: number;
@@ -490,7 +490,8 @@ export type MineScene = {
 const share = (part: number, whole: number): number =>
   whole > 0 ? Math.min(1, part / whole) : 0;
 
-function stageScene(
+/** A stage in the scene from its row's parts: the machines it owns, runs and leaves standing. */
+export function stageScene(
   parts: readonly RowPart[],
   workers: number,
   busy: number,

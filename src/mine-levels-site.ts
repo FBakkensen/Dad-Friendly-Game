@@ -156,7 +156,7 @@ function buildLevel(
   // Each pile under its heap: the rock at the shaft by the shaft, the drilled rock at the gallery's end.
   const piles = el("div", "mine-piles");
   piles.dataset["level"] = view.level;
-  atArt(piles, levelTop(index) + LEVELS.floor + 1);
+  atArt(piles, levelTop(index) + LEVELS.piles);
   const shaftPile = el("span", "mine-pile");
   shaftPile.dataset["pile"] = "shaft";
   const facePile = el("span", "mine-pile");

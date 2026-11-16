@@ -1,4 +1,11 @@
-import { cageRates, unassignedHoists, type ShaftCage } from "./cages";
+import {
+  cageAt,
+  cageRates,
+  legSeconds,
+  unassignedHoists,
+  type Cage,
+  type ShaftCage,
+} from "./cages";
 import { formatCompact } from "./format";
 import {
   MINE_LEVEL_IDS,
@@ -22,10 +29,12 @@ import {
   rowParts,
   stageRow,
   stageRows,
+  stageScene,
   timed,
   type RowPart,
   type RowPile,
   type StageRow,
+  type StageScene,
 } from "./mine-view";
 import type { Mountain } from "./mountain";
 import { partThreeOn } from "./part-switch";
@@ -401,5 +410,124 @@ export function shaftGate(mountain: Mountain): ShaftGate | undefined {
       text: formatCompact(amount),
     })),
     can: canPay(mountain.stock, price),
+  };
+}
+
+/**
+ * A cage in the scene (ruling 8): how deep it is, 0 at the top, 1 at the
+ * Topsoil's floor and 2 at the Granite's, and whether it carries rock.
+ */
+export type CageSprite = { readonly depth: number; readonly loaded: boolean };
+
+/** A level in the scene: its drilling and haulage, its two piles, and its tubs, as the one-level scene has them. */
+type SceneLevel = Readonly<Record<LevelStage, StageScene>> & {
+  /** The drilled rock: the share of its room it holds. */
+  readonly facePile: number;
+  /** The rock at the shaft. */
+  readonly shaftPile: number;
+  /** The share of tubs that leave the drilling end with rock in them. */
+  readonly load: number;
+  /** The share of the time the tubs can unload at the shaft. */
+  readonly unload: number;
+};
+
+/**
+ * What the scene with two levels shows (ruling 8): each level's stages,
+ * piles and tubs, every cage where its trip has taken it, and hoisting's
+ * workers by the shaft with the share of the time they lift. Nothing here
+ * is said in words.
+ */
+export type TwoLevelScene = {
+  readonly levels: Readonly<Record<MineLevelId, SceneLevel>>;
+  readonly cages: readonly CageSprite[];
+  readonly hoisting: { readonly workers: number; readonly busy: number };
+};
+
+/** How deep each level's floor is, in levels. */
+const LEVEL_DEPTH: Readonly<Record<MineLevelId, number>> = {
+  topsoil: 1,
+  granite: 2,
+};
+
+/**
+ * Where a cage is on its trip: at the top, at its level while loading, or on
+ * a leg by the seconds left of it. A cage goes at one speed: the Granite is
+ * twice the Topsoil's trip, and twice as deep.
+ */
+function cageDepth(cage: Cage): number {
+  const deep = LEVEL_DEPTH[cage.level];
+  const { leg } = cage;
+  switch (leg.kind) {
+    case "top":
+      return 0;
+    case "loading":
+      return deep;
+    case "down":
+      return (
+        deep * (1 - Math.min(1, leg.left / legSeconds(cage.level, "down")))
+      );
+    case "up":
+      return deep * Math.min(1, leg.left / legSeconds(cage.level, "up"));
+  }
+}
+
+/**
+ * Every cage the shaft has, at its depth with its load. Those at the top
+ * stand one over the other, so the scene draws one of them, with rock if
+ * any of them has some, first.
+ */
+function cageSprites(mountain: Mountain): readonly CageSprite[] {
+  const sprites = mineWork(mountain).cages.map((cage, place) => {
+    const trip = cageAt(mountain.cages.trips, cage.key, place);
+    return { depth: cageDepth(trip), loaded: trip.carried > 0 };
+  });
+  const top = sprites.filter((sprite) => sprite.depth <= 0);
+  const below = sprites.filter((sprite) => sprite.depth > 0);
+  return top.length === 0
+    ? below
+    : [{ depth: 0, loaded: top.some((sprite) => sprite.loaded) }, ...below];
+}
+
+/** The share of what a row can move that it moves now. */
+function rowBusy(row: StageRow): number {
+  return row.band.can > 0 ? row.band.now / row.band.can : 0;
+}
+
+/** The share of its room a pile holds. */
+function pileShare(pile: RowPile): number {
+  return pile.holds > 0 ? Math.min(1, pile.held / pile.holds) : 0;
+}
+
+/**
+ * A level in the scene from its rows and piles. Its tubs leave empty while
+ * its drilled rock is bare, and queue at the shaft while the rock there is
+ * at its room: haulage moves less than it could.
+ */
+function sceneLevel(view: MineLevel): SceneLevel {
+  const [face, haul] = view.rows;
+  const { piles } = view;
+  return {
+    face: stageScene(face.parts, face.workers, rowBusy(face)),
+    haul: stageScene(haul.parts, haul.workers, rowBusy(haul)),
+    facePile: pileShare(piles.face),
+    shaftPile: pileShare(piles.shaft),
+    load: piles.face.held > 0 ? 1 : rowBusy(haul),
+    unload: piles.shaft.held < piles.shaft.holds ? 1 : rowBusy(haul),
+  };
+}
+
+/** The scene with two levels, while the Granite is open (ruling 8); it throws with one level. */
+export function twoLevelScene(mountain: Mountain): TwoLevelScene {
+  const [topsoil, granite] = mineLevels(mountain);
+  if (topsoil === undefined || granite === undefined) {
+    throw new Error("mine-level-view: the scene has one level");
+  }
+  return {
+    levels: { topsoil: sceneLevel(topsoil), granite: sceneLevel(granite) },
+    cages: cageSprites(mountain),
+    hoisting: {
+      workers: mountain.jobs[STAGE_JOB.lift],
+      busy: rowBusy(hoistingRow(mountain)),
+    },
   };
 }
