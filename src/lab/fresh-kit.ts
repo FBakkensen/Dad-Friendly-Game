@@ -1,13 +1,14 @@
 import { buildingById, nextBuilding, resumeOrder } from "../city";
 import { applyAction, helperBill, type Action } from "../economy/actions";
 import { activeFactors } from "../economy/factors";
+import { narrowStage, type Stage } from "../line";
 import { steadyIncome, steadyLevels } from "../mine-piles";
 import type { MineLevelId } from "../mine-levels";
 import type { Mountain } from "../mountain";
 import { GOOD_IDS, type GoodId, type Price, type Stock } from "../stock";
 import { secondsToFinish } from "../transport";
 import type { JobId } from "../workforce";
-import { AT_ONCE, FRESH_DUST } from "./targets";
+import { AT_ONCE, FRESH_DUST, RAISE_STEPS } from "./targets";
 
 /**
  * What every fresh dad's planner works with (slice 1, Lab, #655, #675): a
@@ -71,12 +72,75 @@ export function funded(mountain: Mountain): Mountain {
   return { ...mountain, stock };
 }
 
+/**
+ * A plan tried on a copy, to weigh what it does. The copy counts staffing as
+ * taught: a hire asks whether a machine stands idle for the teach dot, which
+ * reads the rates of every mine between the plan's moves, and a tried plan's
+ * dot is never shown (#675). The moves he plays keep the dot.
+ */
 export function applied(mountain: Mountain, plan: Plan): Mountain {
-  let next = mountain;
+  let next =
+    plan.length === 0 || mountain.taught.includes("staffing")
+      ? mountain
+      : { ...mountain, taught: [...mountain.taught, "staffing" as const] };
   for (const action of plan) {
     next = applyAction(next, action, 0);
   }
   return next;
+}
+
+/** What a raise chain reads off a mine: its line and each stage's rate. */
+export type LineReading = {
+  readonly line: number;
+  readonly stages: Readonly<Record<Stage, number>>;
+};
+
+/** A plan that raises a line, what it costs, and what the line gains. */
+export type Raise = Priced & { readonly gain: number };
+
+/**
+ * The cheapest way to raise a line: the slowest stage's best buy (what it
+ * adds to that stage for what it costs), then the next slowest, until the
+ * line moves. Stages tied at the slowest each need one before the line
+ * rises. Part 1's line and each level's in part 3 (ruling 7, #675) read
+ * their own line and offer their own buys.
+ */
+export function raiseChain(
+  mountain: Mountain,
+  read: (mountain: Mountain) => LineReading,
+  buys: (state: Mountain, stage: Stage) => readonly Priced[],
+): Raise | undefined {
+  const start = read(mountain);
+  let state = funded(mountain);
+  let now = start;
+  const plan: Action[] = [];
+  let cost = 0;
+  for (let step = 0; step < RAISE_STEPS; step += 1) {
+    if (now.line > start.line + FRESH_DUST) {
+      break;
+    }
+    const stage = narrowStage(now.stages);
+    let best:
+      | { buy: Priced; after: Mountain; now: LineReading; worth: number }
+      | undefined;
+    for (const buy of buys(state, stage)) {
+      const after = applied(state, buy.plan);
+      const next = read(after);
+      const worth = (next.stages[stage] - now.stages[stage]) / buy.cost;
+      if (worth > 0 && (best === undefined || worth > best.worth)) {
+        best = { buy, after, now: next, worth };
+      }
+    }
+    if (best === undefined) {
+      return undefined;
+    }
+    plan.push(...best.buy.plan);
+    cost += best.buy.cost;
+    state = best.after;
+    now = best.now;
+  }
+  const gain = now.line - start.line;
+  return gain > FRESH_DUST ? { plan, cost, gain } : undefined;
 }
 
 /** What the next worker costs. */

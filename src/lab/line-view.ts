@@ -1,5 +1,7 @@
 import { narrowStage, type Stage } from "../line";
 import { lineWork } from "../workforce";
+import { MINE_LEVEL_IDS, graniteOpen } from "../mine-levels";
+import { levelsRates } from "./fresh-kit";
 import type { Mountain } from "../mountain";
 import { effectiveRates } from "../rates";
 import { moreStones } from "../staffing";
@@ -15,11 +17,24 @@ import { median } from "./stats";
 
 /**
  * The narrow stage on this mountain now: a fresh mine's stages are its
- * placed workers' (#689).
+ * placed workers' (#689). With the Granite open, each stage is what it moves
+ * on both levels together, and hoisting what the cages lift from both
+ * (#675), so a level's longer trip counts.
  */
 export function narrowAt(mountain: Mountain, now: number): Stage {
+  if (graniteOpen(mountain)) {
+    return narrowStage(bothLevels(mountain));
+  }
   const rates = effectiveRates(mountain, now);
   return narrowStage(lineWork(mountain, rates.tierSpeed).stages);
+}
+
+/** Each stage's steady rate on both levels together, hoisting the cages' lift from each. */
+export function bothLevels(mountain: Mountain): Record<Stage, number> {
+  const levels = levelsRates(mountain);
+  const sum = (stage: Stage): number =>
+    MINE_LEVEL_IDS.reduce((total, level) => total + levels[level][stage], 0);
+  return { face: sum("face"), haul: sum("haul"), lift: sum("lift") };
 }
 
 /**

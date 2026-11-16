@@ -1,7 +1,8 @@
+import { activeFactors } from "../economy/factors";
 import { stillRequired } from "../city";
 import { tierLocked } from "../crew";
 import type { Action } from "../economy/actions";
-import { STAGES, type Stage } from "../line";
+import { STAGES, narrowStage, type Stage } from "../line";
 import {
   LEVEL_MACHINE_IDS,
   MINE_LEVEL_IDS,
@@ -28,7 +29,7 @@ import {
   applied,
   buildingSeconds,
   earnSeconds,
-  funded,
+  raiseChain,
   goodsAhead,
   levelsRates,
   planPrice,
@@ -175,56 +176,28 @@ function lineOf(rates: LevelRates): number {
   return Math.min(rates.face, rates.haul, rates.lift);
 }
 
-/** The slowest stage of a level; the first in rock order on a tie. */
-function slowest(rates: LevelRates): Stage {
-  let least: Stage = "face";
-  for (const stage of STAGES) {
-    if (rates[stage] < rates[least]) {
-      least = stage;
-    }
-  }
-  return least;
-}
-
 /**
- * The cheapest way to raise a level's line (ruling 7): its slowest stage's
- * best buy for the income it costs, then the next slowest, until the level
- * moves more. None when no buy raises it.
+ * The cheapest way to raise a level's line (ruling 7, `raiseChain`): its
+ * slowest stage's best buy for the income it costs, then the next slowest,
+ * until the level moves more. None when no buy raises it.
  */
 function levelRaise(
   mountain: Mountain,
   level: MineLevelId,
   habits: FreshHabits,
 ): Plan | undefined {
-  let state = funded(mountain);
-  let rates = levelsRates(state)[level];
-  const start = lineOf(rates);
-  const plan: Action[] = [];
-  for (let step = 0; step < RAISE_STEPS; step += 1) {
-    if (lineOf(rates) > start + FRESH_DUST) {
-      break;
-    }
-    const stage = slowest(rates);
-    let best:
-      | { buy: Plan; after: Mountain; rates: LevelRates; worth: number }
-      | undefined;
-    for (const buy of stageBuys(state, level, stage, habits)) {
-      const after = applied(state, buy);
-      const next = levelsRates(after)[level];
-      const cost = earnSeconds(mountain, planPrice(state, buy));
-      const worth = (next[stage] - rates[stage]) / cost;
-      if (worth > 0 && (best === undefined || worth > best.worth)) {
-        best = { buy, after, rates: next, worth };
-      }
-    }
-    if (best === undefined) {
-      return undefined;
-    }
-    plan.push(...best.buy);
-    state = best.after;
-    rates = best.rates;
-  }
-  return lineOf(rates) > start + FRESH_DUST ? plan : undefined;
+  return raiseChain(
+    mountain,
+    (state) => {
+      const rates = levelsRates(state)[level];
+      return { line: lineOf(rates), stages: rates };
+    },
+    (state, stage) =>
+      stageBuys(state, level, stage, habits).map((plan) => ({
+        plan,
+        cost: earnSeconds(mountain, planPrice(state, plan)),
+      })),
+  )?.plan;
 }
 
 /**
@@ -353,7 +326,7 @@ function levelShift(mountain: Mountain, to: MineLevelId): Plan | undefined {
   const plan: Action[] = [];
   for (let step = 0; step < RAISE_STEPS; step += 1) {
     const source = spareStages(state).find((spare) => spare.level !== to);
-    const stage = slowest(levelsRates(state)[to]);
+    const stage = narrowStage(levelsRates(state)[to]);
     if (source === undefined || stage === "lift") {
       return undefined;
     }
@@ -422,9 +395,16 @@ function spareMoves(mountain: Mountain): readonly Plan[] {
 
 /**
  * The need dad's last weighing that found no move, and on which mine: he
- * does not look again each second while nothing changes (#675).
+ * does not look again each second while nothing changes (#675), under the
+ * factor map it looked with.
  */
-let stillMine: { key: string; calls: number } | undefined;
+let stillMine:
+  | {
+      readonly key: string;
+      readonly factors: ReturnType<typeof activeFactors>;
+      calls: number;
+    }
+  | undefined;
 
 /** The need dad's moves, looked for again only when the mine changed or after `WEIGH_AGAIN_CALLS` calls. */
 function needMovesKept(mountain: Mountain): Plan {
@@ -439,12 +419,17 @@ function needMovesKept(mountain: Mountain): Plan {
     mountain.project.kind,
     mountain.project.kind === "unordered" ? 0 : mountain.project.site.step,
   ]);
-  if (stillMine?.key === key && stillMine.calls < WEIGH_AGAIN_CALLS) {
+  if (
+    stillMine?.key === key &&
+    stillMine.factors === activeFactors() &&
+    stillMine.calls < WEIGH_AGAIN_CALLS
+  ) {
     stillMine.calls += 1;
     return [];
   }
   const plan = needMoves(mountain);
-  stillMine = plan.length === 0 ? { key, calls: 0 } : undefined;
+  stillMine =
+    plan.length === 0 ? { key, factors: activeFactors(), calls: 0 } : undefined;
   return plan;
 }
 

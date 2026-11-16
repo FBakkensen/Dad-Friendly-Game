@@ -1,3 +1,4 @@
+import { activeFactors } from "../economy/factors";
 import { buildRate, onSiteTotal } from "../building-site";
 import {
   buildingById,
@@ -13,7 +14,7 @@ import {
   listActions,
   type Action,
 } from "../economy/actions";
-import { STAGES, type Stage } from "../line";
+import { STAGES, narrowStage, type Stage } from "../line";
 import { makerJob, makerPrice, makersOpen, type MakerId } from "../makers";
 import { PILE_HOLDS, mineChain } from "../mine-piles";
 import type { Mountain } from "../mountain";
@@ -56,11 +57,14 @@ import {
   goodsIncome,
   pays,
   planPrice,
+  raiseChain,
   staffed,
   weighed,
   worth,
+  type LineReading,
   type Plan,
   type Priced,
+  type Raise,
   type Weighed,
 } from "./fresh-kit";
 import {
@@ -99,28 +103,12 @@ import {
  */
 
 /** The fresh mine's line now: what it moves and each stage. */
-type LineNow = {
-  readonly line: number;
-  readonly stages: Readonly<Record<Stage, number>>;
-};
-
-function lineNow(mountain: Mountain): LineNow {
+function lineNow(mountain: Mountain): LineReading {
   const rates = effectiveRates(mountain);
   return {
     line: rates.exactCrewPerSecond,
     stages: lineWork(mountain, rates.tierSpeed).stages,
   };
-}
-
-/** The stage that moves least; the first in rock order on a tie. */
-function slowestStage(now: LineNow): Stage {
-  let slowest: Stage = "face";
-  for (const stage of STAGES) {
-    if (now.stages[stage] < now.stages[slowest]) {
-      slowest = stage;
-    }
-  }
-  return slowest;
 }
 
 /** A machine and the workers it takes, hired onto its stage (the spec's Lab). */
@@ -154,45 +142,12 @@ function stageBuys(mountain: Mountain, stage: Stage): readonly Priced[] {
   return buys;
 }
 
-/** A plan that raises the line, its stones, and what the line gains. */
-type Raise = Priced & { readonly gain: number };
-
 /**
- * The cheapest way to raise the line: the slowest stage's best buy (what it
- * adds to that stage per stone), then the next slowest, until the line
- * moves. Stages tied at the slowest each need one before the line rises.
+ * The cheapest way to raise the line (`raiseChain`): the slowest stage's
+ * best buy per stone, then the next slowest, until the line moves.
  */
 export function lineRaise(mountain: Mountain): Raise | undefined {
-  const start = lineNow(mountain);
-  let state = funded(mountain);
-  let now = start;
-  const plan: Action[] = [];
-  let cost = 0;
-  for (let step = 0; step < RAISE_STEPS; step += 1) {
-    if (now.line > start.line + FRESH_DUST) {
-      break;
-    }
-    const stage = slowestStage(now);
-    let best:
-      { buy: Priced; after: Mountain; now: LineNow; worth: number } | undefined;
-    for (const buy of stageBuys(state, stage)) {
-      const after = applied(state, buy.plan);
-      const next = lineNow(after);
-      const worth = (next.stages[stage] - now.stages[stage]) / buy.cost;
-      if (worth > 0 && (best === undefined || worth > best.worth)) {
-        best = { buy, after, now: next, worth };
-      }
-    }
-    if (best === undefined) {
-      return undefined;
-    }
-    plan.push(...best.buy.plan);
-    cost += best.buy.cost;
-    state = best.after;
-    now = best.now;
-  }
-  const gain = now.line - start.line;
-  return gain > FRESH_DUST ? { plan, cost, gain } : undefined;
+  return raiseChain(mountain, lineNow, stageBuys);
 }
 
 /** Each upgrade on the table that raises the line, with its price and gain. */
@@ -401,7 +356,7 @@ function spares(mountain: Mountain, stage: Stage): boolean {
 }
 
 /** Stages at the line's level: fewer is closer to the next raise. */
-function atLine(now: LineNow): number {
+function atLine(now: LineReading): number {
   return STAGES.filter((stage) => now.stages[stage] <= now.line + FRESH_DUST)
     .length;
 }
@@ -417,7 +372,7 @@ function rebalance(mountain: Mountain, habits: FreshHabits): Plan {
     return piled;
   }
   const now = lineNow(mountain);
-  const to = slowestStage(now);
+  const to = narrowStage(now.stages);
   for (const from of STAGES) {
     if (from === to || mountain.jobs[STAGE_JOB[from]] < 1) {
       continue;
@@ -1015,11 +970,13 @@ function weighBest(
 /**
  * What the dad weighed last, and on which mine: he does not weigh every plan
  * again each second while he only waits (#675). The mine's key is all but
- * its pocket. One entry: the lab plays one run at a time.
+ * its pocket, under the factor map it was weighed with. One entry: the lab
+ * plays one run at a time.
  */
 let lastWeighed:
   | {
       readonly key: string;
+      readonly factors: ReturnType<typeof activeFactors>;
       readonly best: Weighed | undefined;
       calls: number;
     }
@@ -1036,6 +993,7 @@ function mineKey(
     habits,
     hoardK,
     mountain.owned,
+    mountain.jobs,
     mountain.makers,
     mountain.fleet,
     mountain.cages.assigned,
@@ -1063,6 +1021,7 @@ function bestLevelsPlan(
   if (
     kept !== undefined &&
     kept.key === key &&
+    kept.factors === activeFactors() &&
     kept.calls < WEIGH_AGAIN_CALLS &&
     (kept.best === undefined || !coversPrice(mountain, kept.best.price, hoardK))
   ) {
@@ -1070,7 +1029,7 @@ function bestLevelsPlan(
     return kept.best;
   }
   const best = weighBest(mountain, habits);
-  lastWeighed = { key, best, calls: 0 };
+  lastWeighed = { key, factors: activeFactors(), best, calls: 0 };
   return best;
 }
 

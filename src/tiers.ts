@@ -196,7 +196,7 @@ const PART_THREE_STAFF: Readonly<Partial<Record<TierId, number>>> = {
 };
 
 /** The workers a machine takes: its row's, and part 3's where the stages are set apart. 0 for a worker or a kid. */
-export function machineStaff(tier: Tier): number {
+export function machineStaff(tier: Pick<Tier, "id" | "staff">): number {
   if (tier.staff === 0 || !partThreeOn()) {
     return tier.staff;
   }

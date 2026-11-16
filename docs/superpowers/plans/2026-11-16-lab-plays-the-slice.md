@@ -23,7 +23,7 @@
 
 ## Rulings (agent-run sitting)
 
-1. **The Foundry is a building of part 3** (`part: 3` in `src/city.ts`), with the spec's steps: 15M brick and 4M cut stone; 20M brick and 15M cut stone; 30M brick and 40M cut stone. No issue owned its project, and the lab's finish line needs it. Its power is none in slice 1: it opens the winding engine, which the tiers' door already reads.
+1. **The Foundry is a building of part 3** (`part: 3` in `src/city.ts`), with the spec's steps: 15M brick and 4M cut stone; 20M brick and 15M cut stone; 30M brick and 40M cut stone. No issue owned its project, and the lab's finish line needs it. Its power is none in slice 1, and the slice ends at its roof. The winding engine it would open waits for a later slice.
 2. **The lab plays part 3.** `LAB_FACTORS` (`src/lab/run.ts`) is the game's factors with `part3.off=0`. The lab's run is then the game after part 3's switch-on (#682), which is the point of setting part 3's numbers first.
 3. **The next building waits for its levels.** The dad orders the next building at once, as before, unless it requires a good that no open level can make (cut stone before the shaft). Then he saves for the shaft first. While he saves, he buys a raise only if it pays back before he would have the shaft's stone. Holding the Foundry's order for the shaft would leave the dad who never holds stuck, because the order takes every brick the kilns make.
 4. **Makers for every good the building requires.** Part 2's kiln fix becomes a maker fix: a kiln while a step still to build requires brick, a saw while one requires cut stone, each with a worker on it.

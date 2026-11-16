@@ -402,7 +402,7 @@ export function stageWorks(
 }
 
 /** A level's drilling and haulage: that level's workers on its own machines. */
-function levelWorks(
+export function levelWorks(
   mountain: Pick<Mountain, "owned" | "jobs" | "granite">,
   speed: Readonly<Record<TierId, number>>,
   level: MineLevelId,

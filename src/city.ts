@@ -76,8 +76,8 @@ const BUILDING_ROWS = [
     power: { stockyard: 2 },
   },
   {
-    // The spec's starting numbers, for the lab (#675). It opens the winding
-    // engine (the tiers' door), and is the slice's end.
+    // The spec's starting numbers, for the lab (#675). The slice ends at
+    // its roof; the winding engine it opens waits for a later slice.
     id: "foundry",
     name: "The Foundry",
     part: 3,

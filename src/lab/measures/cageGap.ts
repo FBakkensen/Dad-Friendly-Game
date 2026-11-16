@@ -2,7 +2,7 @@ import { defineMeasure } from "../measure";
 import { sittingsOf } from "../sittings";
 
 /**
- * #675, report-only (rule 5.14, ruling 17): the largest gap over a run's
+ * #675, report-only (rule 5.14, #675 ruling 10): the largest gap over a run's
  * sittings. NaN before part 3.
  */
 export default defineMeasure({

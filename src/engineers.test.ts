@@ -34,6 +34,7 @@ import {
 import { effectiveRates } from "./rates";
 import { NO_JOBS } from "./workforce";
 import { gameOf, reloaded } from "./test-fixtures";
+import { partThree } from "./part-three.harness";
 import { tierById } from "./tiers";
 
 /** A tier's tending tenths from the engineers at home. */
@@ -266,6 +267,13 @@ describe("Great Machine crew", () => {
     expect(staffForBuy(createMountain(), machine)).toBe(10);
     expect(staffForBuy(outOn(createMountain()), machine)).toBe(10);
     expect(staffForBuy(posted, tierById("cart"))).toBe(1);
+  });
+
+  it("counts a drill as the three workers it takes in part 3 (#675)", () => {
+    const drill = tierById("drill");
+    expect(staffNeeded(createMountain(), drill)).toBe(1);
+    expect(partThree(() => staffNeeded(createMountain(), drill))).toBe(3);
+    expect(partThree(() => staffForBuy(createMountain(), drill))).toBe(3);
   });
 
   it("posts the pacing dad on the Great Machine once he owns one, else the borers", () => {

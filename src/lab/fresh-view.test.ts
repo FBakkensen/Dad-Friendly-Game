@@ -8,6 +8,7 @@ import { EMPTY_STOCK } from "../stock";
 import { stockpileRoom } from "../stockyard";
 import { NO_JOBS, type Jobs } from "../workforce";
 import { hirePrice } from "./fresh-kit";
+import { bothLevels, narrowAt } from "./line-view";
 import {
   cageGap,
   cheapestBuy,
@@ -325,18 +326,44 @@ describe("the part 3 measures (#675)", () => {
     const mine = levels({ topsoil: 3, granite: 2, hoisting: 2 });
     const viewed = partThree(() => freshView(mine));
     // 6 on the Topsoil, 4 on the Granite, 2 on hoisting.
-    expect(viewed?.hoistShare).toBeCloseTo(2 / 12, 9);
-    expect(viewed?.partThree).toBe(true);
+    expect(viewed.hoistShare).toBeCloseTo(2 / 12, 9);
+    expect(viewed.partThree).toBe(true);
     const shut = partThree(() =>
       freshView(levels({ topsoil: 3, sunk: false })),
     );
-    expect(shut?.hoistShare).toBeUndefined();
+    expect(shut.hoistShare).toBeUndefined();
     expect(
       hoistWorkers.aggregate(
         samples(view({ hoistShare: 0.1 }), view({ hoistShare: 0.3 }), view()),
       ),
     ).toBeCloseTo(0.2, 9);
     expect(hoistWorkers.aggregate(samples(view()))).toBeNaN();
+  });
+
+  it("weighs idle workers on both levels, each against its own line (#675)", () => {
+    partThree(() => {
+      // Each level drills 9, hauls 18 and has 6 lifted a second: one
+      // driller and two hauliers spare on each, and none on the winch.
+      const mine = levels({ topsoil: 3, granite: 3, hoisting: 2 });
+      expect(freshView(mine).idleWorkers).toBeCloseTo(6 / 14, 9);
+      // Four more on the Granite's haulage are four more spare.
+      const wide = {
+        ...mine,
+        owned: { ...mine.owned, helper: mine.owned.helper + 4 },
+        jobs: { ...mine.jobs, graniteHaulage: mine.jobs.graniteHaulage + 4 },
+      };
+      expect(freshView(wide).idleWorkers).toBeCloseTo(10 / 18, 9);
+    });
+  });
+
+  it("reads the narrow stage on both levels together, hoisting by the cages (#675)", () => {
+    partThree(() => {
+      const winch = levels({ topsoil: 3, granite: 3, hoisting: 2 });
+      expect(bothLevels(winch)).toEqual({ face: 18, haul: 36, lift: 12 });
+      expect(narrowAt(winch, 0)).toBe("lift");
+      const hoists = levels({ topsoil: 3, granite: 3, hoisting: 2, hoists: 2 });
+      expect(narrowAt(hoists, 0)).toBe("face");
+    });
   });
 
   it("reads the slice's days only from a run that plays part 3", () => {

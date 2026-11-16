@@ -2,7 +2,7 @@ import { freeWorkers } from "./workforce";
 import { oneOffStretch } from "./scale";
 import { factor } from "./economy/factors";
 import type { Mountain } from "./mountain";
-import { setOwned, type TierId } from "./tiers";
+import { machineStaff, setOwned, type TierId } from "./tiers";
 import { pay, stonesPrice, type Price } from "./stock";
 
 /**
@@ -248,13 +248,13 @@ export function addTrip(mountain: Mountain, index: number): Mountain {
  */
 export const TENDED_MACHINE_STAFF = 5;
 
-/** Workers one of this tier needs right now. */
+/** Workers one of this tier needs right now: its `machineStaff`, or a tended Great Machine's. */
 export function staffNeeded(
   mountain: Mountain,
   tier: { readonly id: TierId; readonly staff: number },
 ): number {
   if (tier.id !== "machine" || !machineTended(mountain)) {
-    return tier.staff;
+    return machineStaff(tier);
   }
   return TENDED_MACHINE_STAFF;
 }
