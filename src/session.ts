@@ -18,25 +18,16 @@ import {
   type TroubleTier,
 } from "./hazards";
 import { fieldEntry } from "./field-log";
-import { LAYERS, layersEntered, type Layer } from "./layers";
 import { graniteOpen } from "./mine-levels";
 import type { LogEvent } from "./log";
-import {
-  minedOut,
-  rockDugInAll,
-  runStartedAt,
-  type AwayReport,
-  type Mountain,
-} from "./mountain";
+import { runStartedAt, type AwayReport, type Mountain } from "./mountain";
 import { advance, timeInput } from "./session-time";
 import { GOOD_IDS } from "./stock";
 import { recordFirstUse } from "./teach";
 import {
   RECIPE_IDS,
   craftedLevel,
-  grantRecipes,
   type Crafted,
-  layerRecipeIds,
   type RecipeId,
 } from "./workshop";
 import {
@@ -64,8 +55,6 @@ type CraftNotice = {
 export type Notice =
   /** Helpers mined while the game was closed: the welcome-back card. */
   | { readonly kind: "away"; readonly report: AwayReport }
-  /** A band broken into. A loaded save already in a band does not announce it again. */
-  | { readonly kind: "layer"; readonly layer: Layer }
   /** A craft fitted, with the mountain at the moment it finished. */
   | { readonly kind: "craft"; readonly craft: CraftNotice }
   /**
@@ -107,17 +96,12 @@ export function firstNotice<K extends NoticeKind>(
   return noticesOf(from, kind)[0];
 }
 
-/** The welcome-back card's own news. Closing the card also clears bands and crafts it listed. */
+/** The welcome-back card's own news. Closing the card also clears crafts it listed. */
 const WELCOME_KINDS: readonly NoticeKind[] = ["away"];
-const CARD_KINDS: readonly NoticeKind[] = [...WELCOME_KINDS, "layer", "craft"];
+const CARD_KINDS: readonly NoticeKind[] = [...WELCOME_KINDS, "craft"];
 
 /** What the session reached since its baselines: a fresh open or a new run forgets them unread. */
-const ARRIVAL_KINDS: readonly NoticeKind[] = [
-  "layer",
-  "craft",
-  "level",
-  "operational",
-];
+const ARRIVAL_KINDS: readonly NoticeKind[] = ["craft", "level", "operational"];
 
 /** What this open has to tell, and has not shown yet. None of it is saved. */
 type SessionNews = {
@@ -129,11 +113,10 @@ type SessionNews = {
 };
 
 /**
- * Where news was last checked. Unset until a save is loaded, so bands and
- * crafts already in a loaded save are never announced again.
+ * Where news was last checked. Unset until a save is loaded, so crafts and
+ * buildings already in a loaded save are never announced again.
  */
 type Baselines = {
-  readonly layer: number | undefined;
   readonly craft: Crafted | undefined;
   readonly operational: readonly BuildingId[] | undefined;
   /** Whether the Granite was open (the shaft sunk, part 3). */
@@ -156,7 +139,7 @@ type MountainChange = {
 
 /**
  * What a tap closes: the oldest notice of that kind, or for `"away"` the
- * whole welcome-back card (its crew news, homecomings, bands and crafts).
+ * whole welcome-back card (its crew news, homecomings and crafts).
  */
 export type DismissTarget = NoticeKind;
 
@@ -179,7 +162,7 @@ export type SessionInput =
   | { readonly kind: "press" | "fix"; readonly tier: TroubleTier }
   /** Shows trouble at once (the layout check), since trouble is never saved. */
   | { readonly kind: "preview-trouble"; readonly tier: TroubleTier }
-  /** Bands, crafts, levels and buildings reached since the baselines. */
+  /** Crafts, levels and buildings reached since the baselines. */
   | { readonly kind: "notice" }
   /** A new run (Start over, or the mine passed down). */
   | { readonly kind: "begin"; readonly mountain: Mountain }
@@ -195,8 +178,6 @@ export type SessionEffect =
   | { readonly kind: "log"; readonly event: LogEvent }
   /** The homecomings changed: keep the device's copy of them in step. */
   | { readonly kind: "remember" }
-  /** A band granted recipes: the mountain needs saving. */
-  | { readonly kind: "granted" }
   | { readonly kind: "moved"; readonly result: MoveResult };
 
 export type Stepped = {
@@ -213,7 +194,6 @@ const NO_NEWS: SessionNews = {
 };
 
 const NO_BASELINES: Baselines = {
-  layer: undefined,
   craft: undefined,
   operational: undefined,
   granite: undefined,
@@ -233,7 +213,7 @@ export function saveCounts(mountain: Mountain): {
   mined: number;
   pocket: number;
 } {
-  return { mined: rockDugInAll(mountain), pocket: mountain.stock.stones };
+  return { mined: mountain.rockDug, pocket: mountain.stock.stones };
 }
 
 /** The trouble that is up, if any. */
@@ -251,13 +231,12 @@ export function troubleMark(session: Session): string {
     : `${trouble.tier}:${String(trouble.startedAt)}`;
 }
 
-/** The band, the crafted levels, the Granite and the running buildings, before away pay moves them. */
+/** The crafted levels, the Granite and the running buildings, before away pay moves them. */
 function primeArrivals(session: Session): Session {
   return {
     ...session,
     baselines: {
       ...session.baselines,
-      layer: minedOut(session.mountain),
       craft: { ...session.mountain.crafted },
       operational: session.mountain.operational,
       granite: graniteOpen(session.mountain),
@@ -265,7 +244,7 @@ function primeArrivals(session: Session): Session {
   };
 }
 
-/** A fresh open: no baselines, no unread bands, crafts, levels or buildings. */
+/** A fresh open: no baselines, no unread crafts, levels or buildings. */
 export function forgetArrivals(session: Session): Session {
   return {
     ...session,
@@ -624,11 +603,9 @@ function previewTrouble(
   };
 }
 
-/** Bands, crafts, the Granite and buildings reached since the baselines, in that order. */
+/** Crafts, the Granite and buildings reached since the baselines, in that order. */
 function notice(session: Session, now: number, out: Effects): Session {
-  return noteOperational(
-    noteGranite(noteCrafts(noteLayers(session, out), now, out)),
-  );
+  return noteOperational(noteGranite(noteCrafts(session, now, out)));
 }
 
 /** The Granite reached since the baseline: the shaft sunk, announced once (#754). */
@@ -657,42 +634,6 @@ function noteOperational(session: Session): Session {
       lit.map((building) => ({ kind: "operational", building })),
     ),
     baselines: { ...session.baselines, operational: running },
-  };
-}
-
-/** A band broken into since the baseline, once per layer this open. Each band grants its recipes. */
-function noteLayers(session: Session, out: Effects): Session {
-  const mined = minedOut(session.mountain);
-  let mountain = session.mountain;
-  for (const layer of LAYERS) {
-    if (layer.from === 0 || mined < layer.from) {
-      continue;
-    }
-    const next = grantRecipes(mountain, layerRecipeIds(layer.id));
-    if (next.found.length === 0) {
-      continue;
-    }
-    mountain = next.mountain;
-    for (const id of next.found) {
-      out.record("recipe.found", { id, source: layer.id });
-    }
-  }
-  const before = session.baselines.layer;
-  const entered = before === undefined ? [] : layersEntered(before, mined);
-  for (const layer of entered) {
-    out.record("layer.enter", { id: layer.id });
-  }
-  if (mountain !== session.mountain) {
-    out.push({ kind: "granted" });
-  }
-  return {
-    ...session,
-    mountain,
-    news: addNotices(
-      session.news,
-      entered.map((layer) => ({ kind: "layer", layer })),
-    ),
-    baselines: { ...session.baselines, layer: mined },
   };
 }
 
@@ -799,7 +740,7 @@ export function hasNews(session: Session, what: DismissTarget): boolean {
  * from this mountain; otherwise a baseline already set is kept.
  */
 export function openBaselines(session: Session, rebase: boolean): Session {
-  return rebase || session.baselines.layer === undefined
+  return rebase || session.baselines.craft === undefined
     ? primeArrivals(session)
     : session;
 }

@@ -522,7 +522,7 @@ describe("the end card", () => {
       uid: user.uid,
       mountain: {
         ...here,
-        remaining: here.remaining - 5_000,
+        rockDug: here.rockDug + 5_000,
         project: NO_PROJECT,
         operational: ["lightTower"],
       },
@@ -651,7 +651,7 @@ describe("the Granite's card (#754)", () => {
       uid: user.uid,
       mountain: {
         ...here,
-        remaining: here.remaining - 5_000,
+        rockDug: here.rockDug + 5_000,
         granite: levels(working).granite,
       },
       lastSeen: 9 * HOUR,

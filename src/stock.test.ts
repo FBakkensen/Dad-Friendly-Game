@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { LAYERS } from "./layers";
+import { LAYER_IDS, MATERIAL_IDS } from "./layers";
 import {
   EMPTY_STOCK,
   GOOD_IDS,
@@ -55,9 +55,7 @@ describe("the goods table (#560)", () => {
     expect(from.brick).toBe("kilns");
     expect(from.cutStone).toBe("saws");
     expect(GOOD_IDS.slice(-2)).toEqual(["brick", "cutStone"]);
-    for (const layer of LAYERS) {
-      expect(from[layer.material]).toBe(layer.id);
-    }
+    expect(MATERIAL_IDS.map((id) => from[id])).toEqual(LAYER_IDS);
   });
 });
 
@@ -118,7 +116,7 @@ describe("paying and adding", () => {
   });
 
   it("adds gains by good and keeps the rest of the mountain", () => {
-    const mountain = { ...holding({ stones: 10, clay: 1 }), remaining: 7 };
+    const mountain = { ...holding({ stones: 10, clay: 1 }), rockDug: 7 };
     const next = add(mountain, { stones: 5, iron: 2 });
     expect(next.stock).toEqual({
       ...EMPTY_STOCK,
@@ -126,7 +124,7 @@ describe("paying and adding", () => {
       clay: 1,
       iron: 2,
     });
-    expect(next.remaining).toBe(7);
+    expect(next.rockDug).toBe(7);
     expect(mountain.stock.stones).toBe(10);
   });
 

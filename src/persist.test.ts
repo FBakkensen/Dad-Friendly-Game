@@ -1,14 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Engineer } from "./engineers";
-import {
-  BARE_MOUNTAIN,
-  MOUNTAIN_STONES,
-  createMountain,
-  minedOut,
-  type Mountain,
-} from "./mountain";
+import { BARE_MOUNTAIN, createMountain, type Mountain } from "./mountain";
 import { readSave, serializeSave, type SaveRead } from "./persist";
-import { BAND_STARTS } from "./scale";
 import { minedMountain } from "./test-fixtures";
 import { STARTING_RECIPE_IDS } from "./workshop";
 
@@ -29,7 +22,7 @@ function lived(): Mountain {
   const fresh = createMountain();
   return {
     ...fresh,
-    remaining: MOUNTAIN_STONES - 80_000,
+    rockDug: 80_000,
     stock: { ...fresh.stock, stones: 1_234 },
     owned: { ...fresh.owned, helper: 30, cart: 12, drill: 4, borer: 1, kid: 2 },
     startedAt: 1_700,
@@ -81,17 +74,6 @@ describe("the version 10 save (#558, #728)", () => {
     const mountain = lived();
     const read = readSave(stored(serializeSave({ mountain, lastSeen: 9 })));
     expect(read).toEqual({ kind: "ok", save: { mountain, lastSeen: 9 } });
-  });
-
-  it("rounds remaining up, so a reload never gains depth (#356)", () => {
-    const deep = minedMountain(BAND_STARTS[3] + 1_000);
-    const live = { ...deep, remaining: deep.remaining - 0.25 };
-    expect(Number.isInteger(live.remaining)).toBe(false);
-    const parsed = okMountain(
-      readSave(stored(serializeSave({ mountain: live, lastSeen: 1 }))),
-    );
-    expect(parsed?.remaining).toBe(Math.ceil(live.remaining));
-    expect(minedOut(parsed ?? live)).toBeLessThanOrEqual(minedOut(live));
   });
 
   it("writes rev, device and label together, and reads them back", () => {
@@ -199,18 +181,18 @@ describe("the version 10 save (#558, #728)", () => {
     expect(readSave({ ...saved, weather: "rain" }).kind).toBe("newer");
   });
 
-  it("a save holding the retired run.generation 0 and run.stretch 1 reads ok, and plays on (#729)", () => {
+  it("a save holding the retired run.generation 0, run.stretch 1 and run.dug reads ok, and plays on (#729, #740)", () => {
     const plain = okMountain(readSave(withGame({})));
-    const run = { dug: 80_000, generation: 0, stretch: 1 };
+    const run = { rock: 80_000, dug: 80_000, generation: 0, stretch: 1 };
     const read = okMountain(readSave(withGame({ run })));
     expect(read).toEqual(plain);
     const played = read ?? createMountain();
-    const next = { ...played, remaining: played.remaining - 10 };
+    const next = { ...played, rockDug: played.rockDug + 10 };
     const again = stored(serializeSave({ mountain: next, lastSeen: 10 })) as {
       game: { run?: Record<string, number> };
     };
-    expect(again.game.run).toEqual({ dug: 80_010 });
-    expect(okMountain(readSave(again))?.remaining).toBe(next.remaining);
+    expect(again.game.run).toEqual({ rock: 80_010 });
+    expect(okMountain(readSave(again))?.rockDug).toBe(next.rockDug);
   });
 
   it("a count above its cap is newer", () => {
@@ -226,7 +208,7 @@ describe("the version 10 save (#558, #728)", () => {
     expect(readSave(withGame({ run: { generation: 1_001 } })).kind).toBe(
       "newer",
     );
-    expect(readSave(withGame({ run: { dug: MOUNTAIN_STONES + 1 } })).kind).toBe(
+    expect(readSave(withGame({ run: { dug: 240_000_001 } })).kind).toBe(
       "newer",
     );
   });

@@ -59,7 +59,7 @@ describe("How it works copy", () => {
   });
 
   it("keeps discoveries vague", () => {
-    expect(words("recipes")).not.toMatch(/\d+\s*%|×\d/);
+    expect(words("expeditions")).not.toMatch(/\d+\s*%|×\d/);
   });
 
   it("never prints payback or time-to-afford", () => {

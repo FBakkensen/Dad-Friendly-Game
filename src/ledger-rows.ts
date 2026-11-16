@@ -2,16 +2,10 @@ import type { AuthState } from "./auth";
 import { ENGINEER_NAMES } from "./engineers";
 import type { FieldEvent, FieldEventData } from "./field-log";
 import { formatTimeOfDay } from "./format";
-import {
-  LAYERS,
-  materialsFromMined,
-  type LayerId,
-  type MaterialId,
-} from "./layers";
+import { LAYER_IDS, MATERIAL_IDS, type MaterialId } from "./layers";
 import type { Mountain } from "./mountain";
 import type { RowView } from "./row-view";
 import { freshMineLines } from "./save-sheet-copy";
-import { minedOut } from "./scale";
 import {
   ACCOUNT,
   NOT_SIGNED_IN,
@@ -50,20 +44,12 @@ export type MaterialChip = {
   readonly text: string;
 };
 
-/**
- * Materials the pocket can name. A chip appears once a unit is in hand,
- * or the stones already dug in that band have earned one (spent down to
- * zero still shows). A later band, and a band with only a remainder, stay off.
- */
+/** Materials the pocket can name: a chip appears while a unit is in hand. */
 export function metMaterialChips(mountain: Mountain): readonly MaterialChip[] {
   const have = mountain.stock;
-  const earned = materialsFromMined(minedOut(mountain));
-  return LAYERS.filter((layer) => {
-    const id = layer.material;
-    return have[id] > 0 || earned[id] > 0;
-  }).map((layer) => ({
-    id: layer.material,
-    text: materialCountWords(layer.material, have[layer.material]),
+  return MATERIAL_IDS.filter((id) => have[id] > 0).map((id) => ({
+    id,
+    text: materialCountWords(id, have[id]),
   }));
 }
 
@@ -114,7 +100,6 @@ function counted(count: number | undefined): number | undefined {
 }
 
 const TIER_IDS: readonly TierId[] = TIERS.map((tier) => tier.id);
-const LAYER_IDS: readonly LayerId[] = LAYERS.map((layer) => layer.id);
 const UPGRADE_IDS: readonly UpgradeId[] = UPGRADES.map((each) => each.id);
 
 /** A line from a known name and a count, when both are there. */

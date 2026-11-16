@@ -1,7 +1,7 @@
 import { NO_JOBS } from "./workforce";
 import { describe, expect, it } from "vitest";
 import { onTrip } from "./engineers";
-import { createMountain, MOUNTAIN_STONES, type Mountain } from "./mountain";
+import { createMountain, type Mountain } from "./mountain";
 import { readGame, writeGame } from "./save-format";
 
 const ADA = { name: "Ada", rank: 0, trips: 0, post: "borer" } as const;
@@ -19,7 +19,6 @@ describe("the game map (#558)", () => {
   it("saves every field of the mountain: a mountain with none at its default comes back whole", () => {
     // A new Mountain field must be named here, with the map it is saved in.
     const homes = {
-      remaining: "run",
       stock: "stock",
       owned: "owned",
       upgrades: "levels",
@@ -49,7 +48,6 @@ describe("the game map (#558)", () => {
     const fresh = createMountain();
     const full: Mountain = {
       ...fresh,
-      remaining: MOUNTAIN_STONES - 5_000,
       stock: {
         ...fresh.stock,
         stones: 7,
@@ -417,21 +415,40 @@ describe("the game map (#558)", () => {
     );
     expect(read.kind).toBe("ok");
     const mountain = read.kind === "ok" ? read.mountain : createMountain();
-    expect(mountain.remaining).toBe(MOUNTAIN_STONES - 5_000);
     expect(mountain.rockDug).toBe(12);
     expect(mountain).not.toHaveProperty("legacy");
     expect(mountain).not.toHaveProperty("stretch");
-    expect(writeGame(mountain).run).toEqual({ dug: 5_000, rock: 12 });
+    expect(writeGame(mountain).run).toEqual({ rock: 12 });
   });
 
   it("a v10 save from a kid run reads ok at the retired caps, and drops both on the next write (#729)", () => {
     const read = readGame(
-      { run: { generation: 1000, stretch: 1_000_000, dug: 7 } },
+      { run: { generation: 1000, stretch: 1_000_000, rock: 7 } },
       0,
     );
     expect(read.kind).toBe("ok");
     const mountain = read.kind === "ok" ? read.mountain : createMountain();
-    expect(writeGame(mountain).run).toEqual({ dug: 7 });
+    expect(writeGame(mountain).run).toEqual({ rock: 7 });
+  });
+
+  it("a retired dug reads to the same mountain, with no stones left in it, and is never written (#740)", () => {
+    const today = readGame({ run: { dug: 0, rock: 12 } }, 0);
+    const without = readGame({ run: { rock: 12 } }, 0);
+    expect(today.kind).toBe("ok");
+    expect(today).toEqual(without);
+    const mountain = today.kind === "ok" ? today.mountain : createMountain();
+    expect(mountain).not.toHaveProperty("remaining");
+    expect(writeGame(mountain).run).toEqual({ rock: 12 });
+    const deep = readGame({ run: { dug: 5_000 } }, 0);
+    expect(deep).toEqual(readGame({}, 0));
+    expect(writeGame(createMountain())).not.toHaveProperty("run");
+  });
+
+  it("a retired dug past its cap is newer, a part-stone or a negative is bad (#740)", () => {
+    expect(readGame({ run: { dug: 240_000_000 } }, 0).kind).toBe("ok");
+    expect(readGame({ run: { dug: 240_000_001 } }, 0).kind).toBe("newer");
+    expect(readGame({ run: { dug: 1.5 } }, 0).kind).toBe("bad");
+    expect(readGame({ run: { dug: -1 } }, 0).kind).toBe("bad");
   });
 
   it("a mark twice is newer", () => {

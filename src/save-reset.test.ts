@@ -12,10 +12,10 @@ import {
   type RawArchive,
 } from "./cloud-save";
 import { holdFactors } from "./economy/factors";
-import { createMountain, digStones, minedOut, type Mountain } from "./mountain";
+import { createMountain, type Mountain } from "./mountain";
 import { createProgressStore } from "./progress-store";
 import { SESSION_SAVE_KEY } from "./session-save";
-import { minedMountain, saveText } from "./test-fixtures";
+import { digStones, minedMountain, saveText } from "./test-fixtures";
 
 const user = { uid: "test-dad", label: "Test Dad" };
 const BACKUP_KEY = `dad-friendly-game-backup:${user.uid}`;
@@ -131,7 +131,7 @@ describe("an older save is set aside (#558)", () => {
       { uid: user.uid, raw: old, version: 7, rev: 3, reason: "reset" },
     ]);
     expect(archivedAtWrite[0]).toBe(1);
-    expect(minedOut(docs.get(user.uid) ?? createMountain())).toBe(0);
+    expect((docs.get(user.uid) ?? createMountain()).rockDug).toBe(0);
     expect(progress.getSnapshot()).toMatchObject({
       playing: true,
       saveKind: "account",
@@ -261,11 +261,13 @@ describe("a set-aside never costs a played copy (#558)", () => {
     await vi.waitFor(() => {
       expect(progress.getSnapshot().saveKind).toBe("account");
     });
-    expect(minedOut(progress.getSnapshot().mountain)).toBe(5_000);
+    // The pocket is the copy's mark: the one worker drills on, but nothing
+    // hauls or hoists, so the pocket stays as the copy left it.
+    expect(progress.getSnapshot().mountain.stock.stones).toBe(5_000);
     expect(progress.getSnapshot().mountain.startedAt).toBe(500);
     expect(storage.getItem(BACKUP_KEY) ?? "").toContain('"startedAt":500');
     await vi.waitFor(() => {
-      expect(minedOut(docs.get(user.uid) ?? createMountain())).toBe(5_000);
+      expect((docs.get(user.uid) ?? createMountain()).stock.stones).toBe(5_000);
     });
     progress.dispose();
   });

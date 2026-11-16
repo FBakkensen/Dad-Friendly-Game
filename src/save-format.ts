@@ -42,7 +42,7 @@ import {
   type FindId,
   type SavedExpedition,
 } from "./expeditions";
-import { BARE_MOUNTAIN, MOUNTAIN_STONES, type Mountain } from "./mountain";
+import { BARE_MOUNTAIN, type Mountain } from "./mountain";
 import { MAX_STOCKYARD_LEVEL } from "./stockyard";
 import { TEACH_IDS, type TeachId } from "./teach";
 import { TIER_IDS, type TierId } from "./tiers";
@@ -114,15 +114,19 @@ type MarkKind = keyof typeof MARK_IDS;
 const MARK_KINDS = Object.keys(MARK_IDS) as readonly MarkKind[];
 
 /** `granite` is the part of the rock dug that was drilled on the Granite (#674). */
-type RunKey = "dug" | "rock" | "granite";
+type RunKey = "rock" | "granite";
 
 /**
- * Run keys a version 10 save may hold that this build no longer writes
- * (#729): the pass's count of runs and the kid run's stretch. The reader
- * still checks them against these caps, so a save that held them reads,
- * and ignores their values.
+ * Run keys a version 10 save may hold that this build no longer writes:
+ * the pass's count of runs and the kid run's stretch (#729), and the depth
+ * dug from the old mountain (#740). The reader still checks them against
+ * these caps, so a save that held them reads, and ignores their values.
  */
-const RETIRED_RUN_CAPS = { generation: 1000, stretch: 1_000_000 } as const;
+const RETIRED_RUN_CAPS = {
+  generation: 1000,
+  stretch: 1_000_000,
+  dug: 240_000_000,
+} as const;
 type RetiredRunKey = keyof typeof RETIRED_RUN_CAPS;
 
 const GAME_KEYS = [
@@ -314,11 +318,7 @@ function savedMarks(mountain: Mountain): NonNullable<SaveGame["marks"]> {
 }
 
 function savedRun(mountain: Mountain): NonNullable<SaveGame["run"]> {
-  // A deep band digs in fractions of a depth stone. The save keeps whole
-  // numbers, so the stones left round up: at most one stone of depth comes back.
-  const dug = MOUNTAIN_STONES - Math.ceil(mountain.remaining);
   return {
-    ...only("dug", dug, dug !== 0),
     ...only("rock", mountain.rockDug, mountain.rockDug !== 0),
     ...only("granite", mountain.graniteDug, mountain.graniteDug !== 0),
   };
@@ -582,7 +582,7 @@ function readMarks(value: unknown): Part<Marks> {
   };
 }
 
-type Run = Pick<Mountain, "remaining" | "rockDug" | "graniteDug">;
+type Run = Pick<Mountain, "rockDug" | "graniteDug">;
 
 /** A retired stretch (#729): checked as it always was, then ignored. */
 function readRetiredStretch(value: unknown): Part<true> {
@@ -597,7 +597,7 @@ function readRetiredStretch(value: unknown): Part<true> {
 
 function readRun(value: unknown): Part<Run> {
   if (value === undefined) {
-    return { remaining: MOUNTAIN_STONES, rockDug: 0, graniteDug: 0 };
+    return { rockDug: 0, graniteDug: 0 };
   }
   if (!isRecord(value)) {
     return "bad";
@@ -608,24 +608,21 @@ function readRun(value: unknown): Part<Run> {
     ),
     ["generation", "dug", "rock", "granite"] as const,
     (id) =>
-      id === "generation"
-        ? RETIRED_RUN_CAPS.generation
-        : id === "dug"
-          ? MOUNTAIN_STONES
-          : Number.MAX_SAFE_INTEGER,
+      id === "generation" || id === "dug"
+        ? RETIRED_RUN_CAPS[id]
+        : Number.MAX_SAFE_INTEGER,
   );
   const stretch = readRetiredStretch(value["stretch"]);
   const failed = worst([counts, stretch]);
   if (failed !== undefined) {
     return failed;
   }
-  const run = counts as Record<"generation" | RunKey, number>;
+  const run = counts as Record<"generation" | "dug" | RunKey, number>;
   // The Granite's drilled rock is a part of all the rock dug (#674).
   if (run.granite > run.rock) {
     return "bad";
   }
   return {
-    remaining: MOUNTAIN_STONES - run.dug,
     rockDug: run.rock,
     graniteDug: run.granite,
   };
@@ -1196,7 +1193,6 @@ export function shippedFacts(): ShippedFacts {
     clocks: TIMER_IDS,
     marks: MARK_IDS,
     run: {
-      dug: MOUNTAIN_STONES,
       rock: Number.MAX_SAFE_INTEGER,
       granite: Number.MAX_SAFE_INTEGER,
     },

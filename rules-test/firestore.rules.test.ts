@@ -36,11 +36,7 @@ import {
   MAX_EXPEDITIONS,
   type Expedition,
 } from "../src/expeditions";
-import {
-  MOUNTAIN_STONES,
-  createMountain,
-  type Mountain,
-} from "../src/mountain";
+import { createMountain, type Mountain } from "../src/mountain";
 import { readSave, serializeSave } from "../src/persist";
 import { effectiveRates } from "../src/rates";
 import { UPGRADES, type Upgrades } from "../src/upgrades";
@@ -90,7 +86,7 @@ function lateCrew(): Mountain {
   const fresh = createMountain();
   return {
     ...fresh,
-    remaining: MOUNTAIN_STONES - 80_000,
+    rockDug: 80_000,
     stock: { ...fresh.stock, stones: 80_000_000 },
     owned: {
       helper: 40,
@@ -413,7 +409,6 @@ function maximalMountain(): Mountain {
   }));
   return {
     ...createMountain(),
-    remaining: 0,
     stock: {
       ...createMountain().stock,
       stones: 80_000_000,
@@ -536,25 +531,39 @@ describe("firestore.rules: fieldLogs/{uid}", () => {
     expect((await getDoc(doc(db, "fieldLogs", "dad"))).data()).toEqual(written);
   });
 
-  it("accepts a snapshot without legacy, and one from an old tab with legacy 0 (#729)", async () => {
+  it("accepts a snapshot with no mined, left or legacy (#740)", async () => {
     const written = fieldLog([event]);
-    expect(written.snapshot).not.toHaveProperty("legacy");
+    for (const key of ["mined", "left", "legacy"]) {
+      expect(written.snapshot).not.toHaveProperty(key);
+    }
     await setDoc(doc(db, "fieldLogs", "dad"), written);
     expect((await getDoc(doc(db, "fieldLogs", "dad"))).data()).toEqual(written);
-    const old = {
-      ...written,
-      snapshot: { ...gameSnapshot(), legacy: 0 },
-    };
-    await setDoc(doc(db, "fieldLogs", "dad"), old);
-    expect((await getDoc(doc(db, "fieldLogs", "dad"))).data()).toEqual(old);
   });
 
-  it("refuses a snapshot whose legacy is out of range (#729)", async () => {
-    for (const legacy of [-1, 1001, 1.5, "0"]) {
+  it("accepts main's snapshot with mined and left for one release (#740)", async () => {
+    // A tab still on the build before #740 sends both, at their old caps.
+    const before = {
+      ...fieldLog([event]),
+      snapshot: { ...gameSnapshot(), mined: 0, left: 240_000_000 },
+    };
+    await setDoc(doc(db, "fieldLogs", "dad"), before);
+    expect((await getDoc(doc(db, "fieldLogs", "dad"))).data()).toEqual(before);
+  });
+
+  it("refuses mined or left out of range, and legacy at all (#729, #740)", async () => {
+    for (const old of [
+      { mined: -1 },
+      { mined: 240_000_001 },
+      { mined: 1.5 },
+      { left: -1 },
+      { left: 240_000_001 },
+      { left: "0" },
+      { legacy: 0 },
+    ]) {
       await expect(
         setDoc(doc(db, "fieldLogs", "dad"), {
           ...fieldLog([event]),
-          snapshot: { ...gameSnapshot(), legacy },
+          snapshot: { ...gameSnapshot(), ...old },
         }),
       ).rejects.toThrow(denied);
     }

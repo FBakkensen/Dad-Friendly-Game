@@ -4,7 +4,6 @@ import type { MoveEvent } from "./economy/actions";
 import { ENGINEER_NAMES, onDuty } from "./engineers";
 import type { Mountain } from "./mountain";
 import type { Rates } from "./rates";
-import { minedOut } from "./scale";
 import {
   MACHINE_IDS,
   machineRecord,
@@ -86,8 +85,6 @@ export type FieldSnapshot = {
   readonly deviceId: string;
   /** High-water save rev. 0 until a v7 document exists. */
   readonly rev: number;
-  readonly mined: number;
-  readonly left: number;
   readonly pocket: number;
   /** Every tier's count, by id, the line's machines included. */
   readonly crew: Readonly<Record<TierId, number>>;
@@ -155,9 +152,6 @@ export function snapshot(
     at: new Date(now).toISOString(),
     deviceId: stamp.deviceId ?? "",
     rev: stamp.rev ?? 0,
-    // Depth in stones, whole, as the rules want (a deep band digs fractions).
-    mined: Math.floor(minedOut(mountain)),
-    left: Math.ceil(mountain.remaining),
     pocket: Math.min(mountain.stock.stones, FIELD_STONES_CAP),
     crew,
     crewSpeed: rates.crewPerSecond,
@@ -178,8 +172,6 @@ export function fieldEntry(event: MoveEvent): Omit<FieldEvent, "at"> {
         code: "upgrade.buy",
         data: { id: event.id, count: event.level },
       };
-    case "craftStarted":
-      return { code: "craft.start", data: { id: event.recipe } };
     case "promoted":
       return {
         code: "engineer.promote",
@@ -280,7 +272,7 @@ export class EventRing {
   }
 
   push(event: FieldEvent): void {
-    // A deep-band haul can pass 240M; only past the rules' cap does it clamp.
+    // A long haul can pass 240M; only past the rules' cap does it clamp.
     const stones = event.data.stones;
     this.#events.push(
       stones === undefined || stones <= FIELD_STONES_CAP
@@ -465,8 +457,6 @@ export function maxFieldLogDocumentBytes(): number {
     snapshot: {
       version: maxText(),
       at: maxText(),
-      mined: 100_000_000,
-      left: 100_000_000,
       pocket: 100_000_000,
       crew,
       crewSpeed: 100_000_000,

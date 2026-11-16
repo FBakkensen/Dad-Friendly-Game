@@ -10,7 +10,7 @@ import {
   tonightText,
 } from "./ledger-rows";
 import { withFactors } from "./economy/factors";
-import { MOUNTAIN_STONES, createMountain, type Mountain } from "./mountain";
+import { createMountain, type Mountain } from "./mountain";
 
 /** One field log event at a local time on 11 November 2026. */
 function event(
@@ -306,10 +306,9 @@ describe("the Ledger's rows in a fresh mine", () => {
 });
 
 describe("the materials the pocket can name (#199)", () => {
-  it("names a material once one is in hand or its band has earned one", () => {
+  it("names a material while one is in hand", () => {
     const shed: Mountain = {
       ...createMountain(),
-      remaining: MOUNTAIN_STONES - 12_000_000,
       stock: {
         ...createMountain().stock,
         clay: 40,
@@ -326,26 +325,6 @@ describe("the materials the pocket can name (#199)", () => {
       "crystal",
     );
     expect(metMaterialChips(createMountain())).toEqual([]);
-    expect(
-      metMaterialChips({
-        ...createMountain(),
-        remaining: MOUNTAIN_STONES - 1,
-      }),
-    ).toEqual([]);
-    // Spent down to nothing, a band already earned still shows.
-    expect(
-      metMaterialChips({
-        ...createMountain(),
-        remaining: MOUNTAIN_STONES - 1_000_000,
-        stock: {
-          ...createMountain().stock,
-          clay: 0,
-          iron: 0,
-          crystal: 0,
-          heartstone: 0,
-        },
-      }).map((chip) => chip.text),
-    ).toEqual(["Clay 0"]);
     expect(
       metMaterialChips({
         ...createMountain(),

@@ -33,11 +33,7 @@ describe("the spends the lab weighs", () => {
     expect(kinds).toContain("buyUpgrade");
     const weighed = actionsOnTable(mountain, 0);
     expect(weighed.some((action) => action.kind === "buyTier")).toBe(true);
-    expect(
-      weighed.every(
-        (action) => action.kind === "buyTier" || action.kind === "craft",
-      ),
-    ).toBe(true);
+    expect(weighed.every((action) => action.kind === "buyTier")).toBe(true);
   });
 
   it("leaves out a kiln and the stockyard: the fresh dad weighs them himself (#667)", () => {
@@ -92,9 +88,6 @@ describe("sticker", () => {
     expect(sticker(mountain, { kind: "station", index: 0, post: "camp" })).toBe(
       0,
     );
-    expect(
-      sticker(mountain, { kind: "craft", recipe: "iron-rails" }),
-    ).toBeGreaterThan(0);
     expect(sticker(mountain, { kind: "cancelCraft" })).toBe(0);
     // A fresh mine's moves (#654): a wagon and a kiln have their price, an
     // order is free, and the stockyard is paid in brick.

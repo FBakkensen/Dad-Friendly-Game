@@ -47,15 +47,7 @@ export const BOARD_HOW_ART: Readonly<Partial<Record<HowArt, BoardHowArt>>> = {
 
 /** The systems whose cards open from a drawer's "i". */
 export type BoardHowSystem =
-  | "staffing"
-  | "layers"
-  | "upgrades"
-  | "workshop"
-  | "materials"
-  | "away"
-  | "engineers"
-  | "expeditions"
-  | "tending";
+  "staffing" | "upgrades" | "away" | "engineers" | "expeditions" | "tending";
 
 /** Every art these cards use is mapped (board-how-art.test.ts); stone is the fallback. */
 const FALLBACK: BoardHowArt = { src: stoneUrl, px: 32 };

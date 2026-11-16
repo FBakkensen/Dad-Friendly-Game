@@ -1,13 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { withFactors } from "./economy/factors";
 import { applyMove, listActions, valueOf } from "./economy/actions";
-import {
-  MOUNTAIN_STONES,
-  accrue,
-  accrueAway,
-  createMountain,
-  type Mountain,
-} from "./mountain";
+import { accrue, accrueAway, createMountain, type Mountain } from "./mountain";
 import { effectiveRates } from "./rates";
 import { EMPTY_STOCK } from "./stock";
 import type { Project } from "./city";
@@ -161,7 +155,6 @@ describe("unattended before the stockyard (rule 4)", () => {
       // Transport carries 5.4 a second for all twelve hours.
       expect(night.mountain.project).toEqual(site(2, 233_280));
       expect(night.mountain.stock.stones).toBe(288 * 8 * 3600 - 233_280);
-      expect(night.mountain.remaining).toBe(MOUNTAIN_STONES);
     });
   });
 

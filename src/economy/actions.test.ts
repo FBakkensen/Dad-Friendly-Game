@@ -1,4 +1,10 @@
-import { EMPTY_STOCK, priceAmount, stonesPrice, UNSHOWN_PRICE } from "../stock";
+import {
+  EMPTY_STOCK,
+  pay,
+  priceAmount,
+  stonesPrice,
+  UNSHOWN_PRICE,
+} from "../stock";
 import { describe, expect, it } from "vitest";
 import { buyCrew } from "../crew";
 import { holdOrder, placeOrder } from "../city";
@@ -21,8 +27,8 @@ import {
   CREWED_JOBS,
   crewedStart,
   minedMountain,
+  benchCraft,
   patched,
-  type MountainPatch,
 } from "../test-fixtures";
 import { AWAY_PAY_RATE, effectiveRates, paidAwayMs } from "../rates";
 import { owned, tierById, tierCost, tierQuote, type TierId } from "../tiers";
@@ -35,23 +41,12 @@ import {
   type UpgradeId,
   NO_UPGRADES,
 } from "../upgrades";
-import { EMPTY_MATERIALS } from "../layers";
-import { minedOut, oneOffStretch } from "../scale";
-import {
-  MAX_CRAFTED_LEVEL,
-  cancelCraft,
-  recipeById,
-  recipePrice,
-  recipesForMined,
-  startCraft,
-  NOTHING_CRAFTED,
-} from "../workshop";
+import { cancelCraft, recipePrice } from "../workshop";
 import {
   applyAction,
   applyMove,
   buyWithTeach,
   listActions,
-  sinkRecipes,
   valueOf,
   type Action,
   type Move,
@@ -100,7 +95,6 @@ const FIXTURES = {
   send: { kind: "send", index: 0, tunnel: "old-shaft" },
   recall: { kind: "recall", index: 0 },
   fixTrouble: { kind: "fixTrouble", tier: "borer", startedAt: NOW },
-  craft: { kind: "craft", recipe: "iron-rails" },
   cancelCraft: { kind: "cancelCraft" },
   placeOrder: { kind: "placeOrder" },
   holdOrder: { kind: "holdOrder" },
@@ -171,16 +165,6 @@ function direct(mountain: Mountain, action: Action, now: number): Mountain {
       return recall(mountain, action.index);
     case "fixTrouble":
       return mountain;
-    case "craft": {
-      const known = mountain.recipes;
-      const depth = recipesForMined(minedOut(mountain));
-      const prepared =
-        known.includes(action.recipe) || !depth.includes(action.recipe)
-          ? mountain
-          : { ...mountain, recipes: [...known, action.recipe] };
-      const started = startCraft(prepared, action.recipe, now);
-      return started === prepared ? mountain : started;
-    }
     case "cancelCraft":
       return cancelCraft(mountain, now);
     case "placeOrder":
@@ -725,7 +709,6 @@ describe("valueOf", () => {
         const price = upgradeCost(
           upgradeById(action.id),
           upgradeLevel(mountain, action.id),
-          oneOffStretch(mountain),
         );
         expect(price).toBeDefined();
         if (price === undefined) {
@@ -898,209 +881,56 @@ describe("valueOf", () => {
     expect(perDay(casual.gainPerSec)).toBeCloseTo(live.gainPerSec * crewDay, 4);
   });
 
-  it("values gear, timers, and reinforce, and keeps a refund off the table", () => {
-    const shed = (extra: MountainPatch = {}): Mountain =>
-      patched(
-        {
-          ...minedMountain(12_000_000),
-          owned: {
-            ...minedMountain(12_000_000).owned,
-            helper: 30,
-            cart: 1,
-            hoist: 2,
-            drill: 1,
-            borer: 1,
-          },
-          jobs: CREWED_JOBS,
-          stock: { ...minedMountain(12_000_000).stock, stones: 1e15, ...STOCK },
-          engineers: [ada],
-        },
-        extra,
-      );
-    expect(
-      listActions(fresh, NOW).some((action) => action.kind === "craft"),
-    ).toBe(false);
-    expect(sinkRecipes(shed())).toContain("reinforce");
-    expect(sinkRecipes(shed()).includes("engineers-kit")).toBe(false);
-    const withKit = shed({
-      recipes: [...shed().recipes, "engineers-kit"],
-    });
-    expect(
-      listActions(withKit, NOW).some(
-        (action) =>
-          action.kind === "craft" && action.recipe === "engineers-kit",
-      ),
-    ).toBe(true);
-    expect(
-      sinkRecipes(shed({ crafted: { ...NOTHING_CRAFTED, "iron-rails": 3 } })),
-    ).not.toContain("iron-rails");
-    expect(
-      sinkRecipes(
-        shed({
-          crafted: { ...NOTHING_CRAFTED, "blasting-charge": MAX_CRAFTED_LEVEL },
-        }),
-      ),
-    ).not.toContain("blasting-charge");
-
-    const yard = shed({ engineers: [], owned: { borer: 0 } });
-    const rails = score(yard, { kind: "craft", recipe: "iron-rails" });
-    expect(rails.gainPerSec).toBeGreaterThan(0);
-    const railsBill = recipePrice("iron-rails");
-    // Iron is priced by its best other use, on top of the stones.
-    expect(rails.cost).toBeGreaterThanOrEqual(priceAmount(railsBill, "stones"));
-    expect(rails.paybackSec).toBeCloseTo(
-      rails.cost / rails.gainPerSec + recipeById("iron-rails").craftMs / 1000,
-      5,
-    );
-    expect(
-      score(fresh, { kind: "craft", recipe: "iron-rails" }).paybackSec,
-    ).toBe(Number.POSITIVE_INFINITY);
-    const noPocket = { ...yard, stock: { ...yard.stock, ...EMPTY_MATERIALS } };
-    expect(
-      score(noPocket, { kind: "craft", recipe: "iron-rails" }).gainPerSec,
-    ).toBeGreaterThan(0);
-    expect(
-      score(yard, {
-        kind: "craft",
-        recipe: "iron-rails",
-      }).gainPerSec,
-    ).toBeGreaterThan(0);
-    expect(
-      score(
-        { ...yard, crafted: { ...NOTHING_CRAFTED, "iron-rails": 3 } },
-        { kind: "craft", recipe: "iron-rails" },
-      ).gainPerSec,
-    ).toBe(0);
-    const busy = startCraft(shed(), "iron-rails", NOW);
-    expect(
-      score(
-        busy,
-        { kind: "craft", recipe: "blasting-charge" },
-        HORIZON,
-        LIVE,
-        NOW,
-      ).gainPerSec,
-    ).toBe(0);
-
-    // Reinforce's iron is priced by its next-best use, the rails. With no
-    // horizon to spend it in, that use is worth nothing.
-    const armed = shed();
-    const ironBill = recipePrice("reinforce");
-    expect(priceAmount(ironBill, "stones")).toBe(0);
-    expect(
-      score(armed, { kind: "craft", recipe: "reinforce" }).cost,
-    ).toBeGreaterThan(0);
-    expect(score(armed, { kind: "craft", recipe: "reinforce" }, 0).cost).toBe(
-      0,
-    );
-    expect(
-      score(shed({ owned: { cart: 0, drill: 0, borer: 0 } }), {
-        kind: "craft",
-        recipe: "reinforce",
-      }).gainPerSec,
-    ).toBe(0);
-
-    const charge = { kind: "craft", recipe: "blasting-charge" } as const;
-    const liveCharge = score(shed(), charge, HORIZON, LIVE);
-    const awayCharge = score(shed(), charge, HORIZON, CASUAL);
-    expect(liveCharge.gainPerSec).toBeGreaterThan(0);
-    expect(awayCharge.gainPerSec).toBeGreaterThan(0);
-    expect(liveCharge.gainPerSec).toBeGreaterThan(awayCharge.gainPerSec);
-    // A timed effect spread over an endless horizon is worth nothing a second.
-    expect(
-      score(shed(), charge, Number.POSITIVE_INFINITY, LIVE).gainPerSec,
-    ).toBe(0);
-    // A schedule with no time in it still weighs props' trouble as if the dad were here.
+  it("weighs a schedule with no time in it as live play", () => {
     const noTime: ValueContext = { liveSeconds: 0, awaySeconds: 0 };
-    expect(
-      score(shed(), { kind: "craft", recipe: "sturdy-props" }, HORIZON, noTime)
-        .gainPerSec,
-    ).toBe(
-      score(shed(), { kind: "craft", recipe: "sturdy-props" }, HORIZON, LIVE)
-        .gainPerSec,
+    expect(score(working, drillWorker, HORIZON, noTime)).toEqual(
+      score(working, drillWorker, HORIZON, LIVE),
     );
+    expect(
+      score(working, drillWorker, HORIZON, noTime).gainPerSec,
+    ).toBeGreaterThan(0);
+  });
 
-    // Four carts and four hoists: drilling is the narrow stage.
-    const deep = shed({
-      owned: { cart: 4, hoist: 4 },
-      recipes: [
-        ...shed().recipes,
-        "diamond-bits",
-        "engineers-kit",
-        "heartstone-core",
-        "heartstone-ember",
-      ],
-    });
-    // The Great Machine is behind the Foundry's door: its gear adds nothing yet.
-    expect(
-      score(deep, { kind: "craft", recipe: "heartstone-core" }).gainPerSec,
-    ).toBe(0);
-    expect(
-      score(deep, { kind: "craft", recipe: "heartstone-ember" }).gainPerSec,
-    ).toBe(0);
-    expect(
-      score(deep, { kind: "craft", recipe: "diamond-bits" }).gainPerSec,
-    ).toBeGreaterThan(0);
-    expect(
-      score(deep, { kind: "craft", recipe: "engineers-kit" }).gainPerSec,
-    ).toBeGreaterThan(0);
-    // Her kit is worth the same while she is out: the post calls her back (#415).
-    const deepAway = send(deep, 0, "side-seam", 0);
-    expect(deepAway.expeditions).toHaveLength(1);
-    expect(
-      score(deepAway, { kind: "craft", recipe: "engineers-kit" }).gainPerSec,
-    ).toBe(score(deep, { kind: "craft", recipe: "engineers-kit" }).gainPerSec);
-    const kitOnly = shed({
-      recipes: [...shed().recipes, "engineers-kit"],
-    });
-    const noCrew = { ...kitOnly, engineers: [] };
-    expect(
-      score(noCrew, { kind: "craft", recipe: "engineers-kit" }).gainPerSec,
-    ).toBe(0);
-    const unwritten = { ...armed, recipes: [] };
-    expect(sinkRecipes(unwritten)).toContain("reinforce");
-    expect(
-      score(shed(), { kind: "craft", recipe: "sturdy-props" }).gainPerSec,
-    ).toBeGreaterThan(0);
-    expect(
-      score(shed({ engineers: [], owned: { borer: 0 } }), {
-        kind: "craft",
-        recipe: "sturdy-props",
-      }).gainPerSec,
-    ).toBe(0);
-
+  it("keeps a save's craft cancellable, with its refund off the table (#740)", () => {
+    // The old bench never opens (#740), so no craft is offered; a save's
+    // craft still runs, and can be called off until its time is up.
+    const shed = patched(
+      {
+        ...createMountain(),
+        owned: {
+          ...createMountain().owned,
+          helper: 30,
+          cart: 1,
+          hoist: 2,
+          drill: 1,
+          borer: 1,
+        },
+        jobs: CREWED_JOBS,
+        stock: { ...createMountain().stock, stones: 1e15, ...STOCK },
+        engineers: [ada],
+      },
+      {},
+    );
+    const busy = benchCraft(
+      pay(shed, recipePrice("iron-rails")),
+      "iron-rails",
+      NOW,
+    );
     const refund = score(busy, { kind: "cancelCraft" }, HORIZON, LIVE, NOW);
     expect(refund.paybackSec).toBe(Number.POSITIVE_INFINITY);
     // Cancelling loses what the rails add: the stones back are no gain.
-    expect(refund.gainPerSec).toBe(
-      -score(shed(), { kind: "craft", recipe: "iron-rails" }).gainPerSec,
-    );
     expect(refund.gainPerSec).toBeLessThan(0);
     const finishedAt = busy.bench?.endsAt ?? NOW;
     expect(
       score(busy, { kind: "cancelCraft" }, HORIZON, LIVE, finishedAt)
         .gainPerSec,
     ).toBe(0);
-    expect(score(shed(), { kind: "cancelCraft" }).gainPerSec).toBe(0);
-    // A bench whose time is up is collected by the store: no cancel, and no new craft yet.
+    expect(score(shed, { kind: "cancelCraft" }).gainPerSec).toBe(0);
+    // A bench whose time is up is collected by the store: no cancel.
     const benchMoves = (at: number) =>
-      listActions(busy, at).filter(
-        (action) => action.kind === "craft" || action.kind === "cancelCraft",
-      );
+      listActions(busy, at).filter((action) => action.kind === "cancelCraft");
     expect(benchMoves(NOW)).toEqual([{ kind: "cancelCraft" }]);
     expect(benchMoves(finishedAt)).toEqual([]);
-
-    const granted = applyAction(
-      shed(),
-      { kind: "craft", recipe: "reinforce" },
-      NOW,
-    );
-    expect(granted.recipes).toContain("reinforce");
-    expect(granted.bench?.recipe).toBe("reinforce");
-    const plain = shed();
-    expect(
-      applyAction(plain, { kind: "craft", recipe: "engineers-kit" }, NOW),
-    ).toBe(plain);
   });
 });
 
@@ -1253,15 +1083,12 @@ describe("applyMove (#409)", () => {
     return result.kind === "applied" ? result.events : undefined;
   };
 
-  it("says what a buy, an upgrade and a craft did", () => {
+  it("says what a buy and an upgrade did", () => {
     expect(eventsOf(rich, { kind: "buyTier", id: "cart" })).toEqual([
       { kind: "tierBought", id: "cart", count: rich.owned.cart + 1 },
     ]);
     expect(eventsOf(rich, upgradeAt(rich, "boots"))).toEqual([
       { kind: "upgradeBought", id: "boots", level: 1 },
-    ]);
-    expect(eventsOf(rich, { kind: "craft", recipe: "sturdy-props" })).toEqual([
-      { kind: "craftStarted", recipe: "sturdy-props" },
     ]);
   });
 
@@ -1272,27 +1099,28 @@ describe("applyMove (#409)", () => {
   });
 
   it("charges an upgrade and a promotion only at the price that was shown (#367)", () => {
-    // A crew a stone short of the Granite: the shown prices are the Topsoil ones.
-    const topsoil: Mountain = {
-      ...rich,
-      remaining: minedMountain(9_999_999).remaining,
-    };
-    const granite: Mountain = {
-      ...rich,
-      remaining: minedMountain(10_000_000).remaining,
-    };
+    const topsoil = rich;
     const bootsShown = upgradePrice(topsoil, "boots") ?? [];
     const promoteShown = promotePrice(topsoil);
-    expect(oneOffStretch(granite)).toBeGreaterThan(oneOffStretch(topsoil));
     const boots = {
       kind: "buyUpgrade",
       id: "boots",
       price: bootsShown,
     } as const;
     const stepUp = { kind: "promote", price: promoteShown } as const;
-    // The band crossed between the paint and the tap: the dearer price is refused.
-    expect(applyMove(granite, boots, NOW)).toEqual({ kind: "refused" });
-    expect(applyMove(granite, stepUp, NOW)).toEqual({ kind: "refused" });
+    // A second engineer joined between the paint and the tap: the
+    // promotion's dearer price is refused. A price that moved is refused.
+    const joined: Mountain = {
+      ...topsoil,
+      engineers: [...topsoil.engineers, { ...ada, name: "Nils" }],
+    };
+    expect(promotePrice(joined)).not.toEqual(promoteShown);
+    expect(applyMove(joined, stepUp, NOW)).toEqual({ kind: "refused" });
+    const dearer = {
+      ...boots,
+      price: stonesPrice(priceAmount(bootsShown, "stones") + 1),
+    } as const;
+    expect(applyMove(topsoil, dearer, NOW)).toEqual({ kind: "refused" });
     // At the price he saw, it buys, and that is what it takes.
     const bought = applyMove(topsoil, boots, NOW);
     expect(bought.kind === "applied" && bought.spent.stones).toBe(
@@ -1328,7 +1156,6 @@ describe("applyMove (#409)", () => {
             upgradeCost(
               upgradeById(action.id),
               upgradeLevel(rich, action.id),
-              oneOffStretch(rich),
             ) ?? Number.NaN,
           ),
         );
@@ -1376,13 +1203,13 @@ describe("applyMove (#409)", () => {
 
   it("says nothing for a seen mark or a cancelled craft", () => {
     expect(eventsOf(fresh, { kind: "markSeen", id: "workshop" })).toEqual([]);
-    const crafting = applyMove(
-      rich,
-      { kind: "craft", recipe: "sturdy-props" },
+    // A save's craft (the old bench never opens in play, #740).
+    const crafting = benchCraft(
+      pay(rich, recipePrice("sturdy-props")),
+      "sturdy-props",
       NOW,
     );
-    if (crafting.kind !== "applied") throw new Error("craft refused");
-    expect(eventsOf(crafting.mountain, { kind: "cancelCraft" })).toEqual([]);
+    expect(eventsOf(crafting, { kind: "cancelCraft" })).toEqual([]);
   });
 
   it("gives the lab's applyAction the same mountain for every listed move", () => {

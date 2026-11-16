@@ -1,10 +1,10 @@
 import {
   BLUEPRINT_IDS,
+  ROCK_PER_UNIT,
   requiredLoads,
   workOrderPrice,
   type BlueprintId,
 } from "../factory";
-import { MATERIAL_EVERY } from "../layers";
 import { GOOD_IDS, priceAmount } from "../stock";
 import { STATION_SHARE } from "../transport";
 import { HOUR_MS, MS_PER_SECOND, PART_THREE_START } from "./targets";
@@ -47,9 +47,9 @@ function workOrderTime(
   const total = GOOD_IDS.reduce((sum, good) => sum + loads[good], 0);
   const price = workOrderPrice(blueprint);
   const clay =
-    (priceAmount(price, "clay") * MATERIAL_EVERY.clay) / reference.topsoil;
+    (priceAmount(price, "clay") * ROCK_PER_UNIT.clay) / reference.topsoil;
   const iron =
-    (priceAmount(price, "iron") * MATERIAL_EVERY.iron) / reference.granite;
+    (priceAmount(price, "iron") * ROCK_PER_UNIT.iron) / reference.granite;
   return {
     blueprint,
     carryHours: hours(total / (reference.carry * STATION_SHARE)),

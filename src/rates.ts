@@ -9,7 +9,6 @@ import {
 } from "./engineers";
 import { slowedSpeed, type Trouble } from "./hazards";
 import { milestoneMultiplier } from "./milestones";
-import { hardnessFactorId, hardnessOf, layerOf } from "./layers";
 import {
   axleCrewMultiplier,
   chargeCrewMultiplier,
@@ -120,19 +119,15 @@ const clocklessRates = new WeakMap<
 
 function readRates(mountain: Mountain, now?: number, trouble?: Trouble): Rates {
   const taught = 1 + mountain.owned.kid * KID_TEACH_PER_KID;
-  const layer = layerOf(mountain);
   const tierSpeed = Object.fromEntries(
     TIERS.map((tier) => {
-      // A sweep scales the tier's own stones a second, and the rock of this
-      // layer. Both factors are 1 in play.
+      // A sweep scales the tier's own stones a second. The factor is 1 in play.
       const ember =
         tier.id === "machine" ? emberMachineMultiplier(mountain, now) : 1;
       const output =
         tier.perSecond *
         lineRating(tier.id) *
         factor(`output.${tier.id}`) *
-        factor(hardnessFactorId(layer.index, tier.id)) *
-        hardnessOf(layer.index, tier.id) *
         gearMultiplier(mountain, tier.id) *
         milestoneMultiplier(tier.id, owned(mountain, tier)) *
         ember;
