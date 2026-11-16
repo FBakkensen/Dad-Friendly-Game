@@ -50,6 +50,10 @@ export function sticker(mountain: Mountain, action: Action): number {
     case "installWorkOrder":
       // Free: transport carries what a work order requires (#674).
       return 0;
+    case "assignHoist":
+    case "unassignHoist":
+      // Free and instant (#724).
+      return 0;
     case "station":
     case "send":
     case "recall":

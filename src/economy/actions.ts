@@ -41,8 +41,10 @@ import {
   stationOpen,
   type BlueprintId,
 } from "../factory";
+import { assignHoists, unassignHoists, unassignedHoists } from "../cages";
 import {
   LEVEL_MACHINE_IDS,
+  MINE_LEVEL_IDS,
   graniteOpen,
   levelMachines,
   shaftOpen,
@@ -50,6 +52,7 @@ import {
   sinkShaft,
   withGraniteMachine,
   type LevelMachineId,
+  type MineLevelId,
 } from "../mine-levels";
 import {
   MAKER_IDS,
@@ -269,11 +272,26 @@ function factoryEvents(
 /**
  * Part 3's moves at the shaft (slice 1, rules 1.3 and 5.2, #673), only while
  * open: sink the shaft once the Light Tower is up, then buy a level machine
- * for the Granite. Both are instant (rule 7.14).
+ * for the Granite. Both are instant (rule 7.14). Once the Granite is open, a
+ * hoist goes onto a level or off it, up to `count` (the amount key, #680),
+ * free and at once (#724, ruling 15).
  */
 type LevelAction =
   | { readonly kind: "sinkShaft" }
-  | { readonly kind: "buyGraniteMachine"; readonly id: LevelMachineId };
+  | { readonly kind: "buyGraniteMachine"; readonly id: LevelMachineId }
+  | HoistAction;
+
+type HoistAction =
+  | {
+      readonly kind: "assignHoist";
+      readonly level: MineLevelId;
+      readonly count: number;
+    }
+  | {
+      readonly kind: "unassignHoist";
+      readonly level: MineLevelId;
+      readonly count: number;
+    };
 
 /**
  * Part 2's buys at the mine (slice 1, rules 3 and 4, #666, #667), only while
@@ -365,7 +383,8 @@ export function listActions(
 
 /**
  * The shaft while it can be sunk; once the Granite is open, a buy for it of
- * each level machine on sale, in `LEVEL_MACHINE_IDS` order.
+ * each level machine on sale, in `LEVEL_MACHINE_IDS` order, then the hoist
+ * moves.
  */
 function levelActions(mountain: Mountain): readonly Action[] {
   if (shaftOpen(mountain)) {
@@ -374,9 +393,34 @@ function levelActions(mountain: Mountain): readonly Action[] {
   if (!graniteOpen(mountain)) {
     return [];
   }
-  return LEVEL_MACHINE_IDS.filter((id) =>
-    tierOnSale(mountain, tierById(id)),
-  ).map((id) => ({ kind: "buyGraniteMachine", id }));
+  return [
+    ...LEVEL_MACHINE_IDS.filter((id) => tierOnSale(mountain, tierById(id))).map(
+      (id): Action => ({ kind: "buyGraniteMachine", id }),
+    ),
+    ...hoistActions(mountain),
+  ];
+}
+
+/**
+ * For each level in `MINE_LEVEL_IDS` order: a hoist onto it while one is
+ * unassigned, then one off it while it has one. Only once the Granite is
+ * open, so `mountain.cages` is read only then (#724).
+ */
+function hoistActions(mountain: Mountain): readonly Action[] {
+  const free = unassignedHoists(mountain) > 0;
+  return MINE_LEVEL_IDS.flatMap((level): Action[] => [
+    ...(free ? [{ kind: "assignHoist", level, count: 1 } as const] : []),
+    ...(mountain.cages.assigned[level] > 0
+      ? [{ kind: "unassignHoist", level, count: 1 } as const]
+      : []),
+  ]);
+}
+
+/** A hoist move applied: `assignHoists` guards itself on the Granite, and taking one off has no lock (ruling 5). */
+function hoistApplied(mountain: Mountain, action: HoistAction): Mountain {
+  return action.kind === "assignHoist"
+    ? assignHoists(mountain, action.level, action.count)
+    : unassignHoists(mountain, action.level, action.count);
 }
 
 /**
@@ -385,6 +429,9 @@ function levelActions(mountain: Mountain): readonly Action[] {
  * the first borer brings the first engineer as on the Topsoil.
  */
 function levelApplied(mountain: Mountain, action: LevelAction): Mountain {
+  if (action.kind === "assignHoist" || action.kind === "unassignHoist") {
+    return hoistApplied(mountain, action);
+  }
   if (action.kind === "sinkShaft") {
     return sinkShaft(mountain);
   }
@@ -752,6 +799,12 @@ export type MoveEvent =
       readonly blueprint: BlueprintId;
       /** The gear's level after it. */
       readonly level: number;
+    }
+  | {
+      readonly kind: "hoistAssigned" | "hoistUnassigned";
+      readonly level: MineLevelId;
+      /** The hoists assigned to that level after the move. */
+      readonly count: number;
     };
 
 /**
@@ -839,6 +892,8 @@ function actionApplied(
       return yardApplied(mountain, action);
     case "sinkShaft":
     case "buyGraniteMachine":
+    case "assignHoist":
+    case "unassignHoist":
       return levelApplied(mountain, action);
     case "placeWorkOrder":
     case "cancelWorkOrder":
@@ -998,6 +1053,16 @@ function actionEvents(
     case "cancelWorkOrder":
     case "installWorkOrder":
       return factoryEvents(before, next, action);
+    case "assignHoist":
+    case "unassignHoist":
+      return [
+        {
+          kind:
+            action.kind === "assignHoist" ? "hoistAssigned" : "hoistUnassigned",
+          level: action.level,
+          count: next.cages.assigned[action.level],
+        },
+      ];
     /* v8 ignore next 3 -- exhaustiveness guard, unreachable */
     default: {
       const unexpected: never = action;
@@ -1128,6 +1193,10 @@ export function valueOf(
     case "cancelWorkOrder":
     case "installWorkOrder":
       // The lab learns what a work order is worth with the whole slice (#675).
+      return { gainPerSec: 0, cost: 0, paybackSec: Infinity };
+    case "assignHoist":
+    case "unassignHoist":
+      // Free and instant: the lab learns what a hoist's place is worth (#675, ruling 15).
       return { gainPerSec: 0, cost: 0, paybackSec: Infinity };
     /* v8 ignore next 3 -- exhaustiveness guard, unreachable */
     default: {

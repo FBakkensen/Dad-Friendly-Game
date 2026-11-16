@@ -103,6 +103,9 @@ function actionId(action: Action): string {
     case "cancelWorkOrder":
     case "installWorkOrder":
       return action.kind;
+    case "assignHoist":
+    case "unassignHoist":
+      return `${action.kind}:${action.level}`;
   }
 }
 

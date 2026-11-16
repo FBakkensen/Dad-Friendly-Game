@@ -122,6 +122,8 @@ const FIXTURES = {
   placeWorkOrder: { kind: "placeWorkOrder", blueprint: "iron-rails" },
   cancelWorkOrder: { kind: "cancelWorkOrder" },
   installWorkOrder: { kind: "installWorkOrder" },
+  assignHoist: { kind: "assignHoist", level: "granite", count: 1 },
+  unassignHoist: { kind: "unassignHoist", level: "topsoil", count: 1 },
 } as const satisfies {
   [K in Action["kind"]]: Extract<Action, { kind: K }>;
 };
@@ -201,7 +203,9 @@ function direct(mountain: Mountain, action: Action, now: number): Mountain {
     case "placeWorkOrder":
     case "cancelWorkOrder":
     case "installWorkOrder":
-      // Only a fresh mine takes them (#654, #689, #666, #673, #674: src/fresh-orders.test.ts,
+    case "assignHoist":
+    case "unassignHoist":
+      // Only a fresh mine takes them (#654, #689, #666, #673, #674, #724: src/fresh-orders.test.ts,
       // src/workforce.test.ts, src/part-two.test.ts, src/part-three-moves.test.ts,
       // src/factory-moves.test.ts).
       return mountain;
@@ -548,12 +552,18 @@ describe("listActions", () => {
           ...createMountain(),
           operational: ["lightTower"],
         };
+        // Two hoists, one on the Topsoil: a hoist to assign and one to take off (#724).
         const sunk: Mountain = {
           ...lit,
+          owned: { ...lit.owned, hoist: 2 },
           granite: {
             kind: "sunk",
             machines: NO_LEVEL_MACHINES,
             piles: NO_GRANITE_PILES,
+          },
+          cages: {
+            ...lit.cages,
+            assigned: { ...lit.cages.assigned, topsoil: 1 },
           },
         };
         // The factory's station opens with the shaft (#674).
