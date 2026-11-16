@@ -5,10 +5,11 @@ PixelLab's pixen draws the 16x16 icons and takes no colour image, so its
 colours are its own. Every opaque pixel takes the nearest colour of the
 palette picture, by a weighted distance in red, green and blue. The pure
 black cells that fill the palette picture's last row do not count. Nothing
-else moves. This is how res-brick.png got the board's colours, before
-scripts/outline-icon.py gave it the house outline.
+else moves. This is how res-brick.png and res-cut-stone.png (#677) got the
+board's colours, before scripts/outline-icon.py gave them the house outline.
 
     python3 scripts/palette-icon.py mockups/refinery/art/res-brick-pixellab.png mockups/city/art/palette.png mockups/refinery/art/res-brick-drawn.png
+    python3 scripts/palette-icon.py mockups/refinery/art/res-cut-stone-pixellab.png mockups/city/art/palette.png mockups/refinery/art/res-cut-stone-drawn.png
 
 Needs Pillow 12.1 or later (Image.get_flattened_data).
 """

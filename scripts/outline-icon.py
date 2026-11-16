@@ -5,15 +5,20 @@ PixelLab drew the city's pictures with a soft dark blue-grey edge, not the
 single colour black outline the art has (docs/ART.md). So every opaque pixel
 that touches a transparent one, or the picture's own edge, takes the outline
 colour of the machine icons. Nothing else moves. This is how the city's
-light-tower.png, horse-wagon.png (#657) and warehouse.png (#670), and the
-board's mach-kiln.png (#668) and res-brick.png (#669), were made from the
-pictures PixelLab drew.
+light-tower.png, horse-wagon.png (#657), warehouse.png (#670), truck.png
+(#678) and foundry.png (#679), and the board's mach-kiln.png (#668),
+res-brick.png (#669), mach-saw.png (#676) and res-cut-stone.png (#677), were
+made from the pictures PixelLab drew.
 
     python3 scripts/outline-icon.py mockups/city/art/light-tower-drawn.png src/assets/city/light-tower.png
     python3 scripts/outline-icon.py mockups/city/art/horse-wagon-drawn.png src/assets/city/horse-wagon.png
     python3 scripts/outline-icon.py mockups/city/art/warehouse-drawn.png src/assets/city/warehouse.png
     python3 scripts/outline-icon.py mockups/refinery/art/mach-kiln-drawn.png src/assets/board/mach-kiln.png
     python3 scripts/outline-icon.py mockups/refinery/art/res-brick-drawn.png src/assets/board/res-brick.png
+    python3 scripts/outline-icon.py mockups/refinery/art/mach-saw-drawn.png src/assets/board/mach-saw.png
+    python3 scripts/outline-icon.py mockups/refinery/art/res-cut-stone-drawn.png src/assets/board/res-cut-stone.png
+    python3 scripts/outline-icon.py mockups/city/art/truck-drawn.png src/assets/city/truck.png
+    python3 scripts/outline-icon.py mockups/city/art/foundry-drawn.png src/assets/city/foundry.png
 """
 
 import sys
