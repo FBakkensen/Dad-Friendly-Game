@@ -119,6 +119,9 @@ const FIXTURES = {
   expandStockyard: { kind: "expandStockyard" },
   sinkShaft: { kind: "sinkShaft" },
   buyGraniteMachine: { kind: "buyGraniteMachine", id: "borer" },
+  placeWorkOrder: { kind: "placeWorkOrder", blueprint: "iron-rails" },
+  cancelWorkOrder: { kind: "cancelWorkOrder" },
+  installWorkOrder: { kind: "installWorkOrder" },
 } as const satisfies {
   [K in Action["kind"]]: Extract<Action, { kind: K }>;
 };
@@ -195,8 +198,12 @@ function direct(mountain: Mountain, action: Action, now: number): Mountain {
     case "expandStockyard":
     case "sinkShaft":
     case "buyGraniteMachine":
-      // Only a fresh mine takes them (#654, #689, #666, #673: src/fresh-orders.test.ts,
-      // src/workforce.test.ts, src/part-two.test.ts, src/part-three-moves.test.ts).
+    case "placeWorkOrder":
+    case "cancelWorkOrder":
+    case "installWorkOrder":
+      // Only a fresh mine takes them (#654, #689, #666, #673, #674: src/fresh-orders.test.ts,
+      // src/workforce.test.ts, src/part-two.test.ts, src/part-three-moves.test.ts,
+      // src/factory-moves.test.ts).
       return mountain;
     default: {
       const unexpected: never = action;
@@ -549,7 +556,12 @@ describe("listActions", () => {
             piles: NO_GRANITE_PILES,
           },
         };
-        for (const one of [lit, sunk]) {
+        // The factory's station opens with the shaft (#674).
+        const done: Mountain = {
+          ...sunk,
+          station: { kind: "done", blueprint: "reinforce" },
+        };
+        for (const one of [lit, sunk, done]) {
           for (const action of listActions(one, NOW)) {
             seen.add(action.kind);
           }

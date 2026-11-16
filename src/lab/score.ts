@@ -98,6 +98,11 @@ function actionId(action: Action): string {
       return action.kind;
     case "buyGraniteMachine":
       return `buyGraniteMachine:${action.id}`;
+    case "placeWorkOrder":
+      return `placeWorkOrder:${action.blueprint}`;
+    case "cancelWorkOrder":
+    case "installWorkOrder":
+      return action.kind;
   }
 }
 

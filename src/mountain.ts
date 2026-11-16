@@ -22,6 +22,7 @@ import {
 import { NO_JOBS, workersOnJobs, type Jobs } from "./workforce";
 import { makerRecord, type MakerId } from "./makers";
 import { UNSUNK, type Granite } from "./mine-levels";
+import { IDLE_STATION, withMaterials, type Station } from "./factory";
 import {
   flowMine,
   mineMakes,
@@ -146,8 +147,16 @@ export type Mountain = {
    * of a fresh mine, whose mountain never shrinks. Always 0 in today's game.
    */
   readonly rockDug: number;
+  /**
+   * The part of `rockDug` drilled on the Granite (slice 1, part 3, rule
+   * 5.13, #674): its iron comes from it, and the Topsoil's clay from the
+   * rest. 0 until the shaft is sunk.
+   */
+  readonly graniteDug: number;
   /** The shaft to the Granite (slice 1, part 3, src/mine-levels.ts). Always unsunk in today's game. */
   readonly granite: Granite;
+  /** The factory's station and its work order (slice 1, part 3, src/factory.ts). Always idle in today's game. */
+  readonly station: Station;
 };
 
 /** 0 for a first run that was never started over. */
@@ -179,7 +188,9 @@ export const BARE_MOUNTAIN: Mountain = {
   makers: makerRecord(0),
   stockyard: 0,
   rockDug: 0,
+  graniteDug: 0,
   granite: UNSUNK,
+  station: IDLE_STATION,
 };
 
 /**
@@ -669,10 +680,18 @@ function workStretch(
   );
   const seconds = Math.floor((to - from) / 1000);
   const mine = flowMine(mountain, seconds, pay, drilling);
+  // Clay and iron come with the rock drilled (rule 5.13, #674).
+  const dug = withMaterials(mountain, mine.mountain);
   return {
-    mountain: deliver(mine.mountain, seconds, pay),
+    mountain: deliver(dug, seconds, pay),
     mined: mine.mined,
-    gained: mine.gained,
+    gained:
+      dug === mine.mountain
+        ? mine.gained
+        : addedStock(
+            stockMoved(mine.mountain.stock, dug.stock).gained,
+            mine.gained,
+          ),
     settledAt: from + seconds * 1000,
     producing: mine.mined > 0,
   };
