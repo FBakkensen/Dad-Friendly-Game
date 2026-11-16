@@ -1,5 +1,4 @@
 import { factor } from "./economy/factors";
-import { freshMineOn, lineOn } from "./line-switch";
 
 /** Stones in the whole mountain. Near-leaf (it reads only factors and line), so rates and layers can share it without an import cycle. */
 export const MOUNTAIN_STONES = 240_000_000;
@@ -11,26 +10,18 @@ export type Sized = { readonly remaining: number };
 export const BAND_STARTS = [0, 10_000_000, 45_000_000, 120_000_000] as const;
 
 /**
- * Stones to dig per stone of depth in each band. Deeper bands
- * take more. #357 retuned bands 2–4 for the milestone marks.
+ * Stones to dig per stone of depth in each band. Deeper bands take more:
+ * #357 retuned bands 2–4 for the milestone marks, and on the line (#543)
+ * the Deep Heart is 1.21 times deeper (39.204).
  */
-export const BAND_SCALE = [1, 2.625, 6.3, 32.4] as const;
-
-/**
- * On the line (#543, labs only until #536) the Deep Heart is 1.21 times
- * deeper (39.204): the optimizer's run ends a sitting later and stays within
- * a quarter of the evening dad's, and the 3-hour marathon no longer finishes
- * inside its day-4 sitting, a day and a half before the casual dad.
- */
-const LINE_BAND_SCALE = [1, 2.625, 6.3, 39.204] as const;
+export const BAND_SCALE = [1, 2.625, 6.3, 39.204] as const;
 
 type Band = 0 | 1 | 2 | 3;
 const BANDS: readonly Band[] = [0, 1, 2, 3];
 
 /** A band's scale: `BAND_SCALE` times the lab's knob (1 in play). */
 function bandScale(band: Band): number {
-  const scale = lineOn() ? LINE_BAND_SCALE : BAND_SCALE;
-  return scale[band] * factor(`band.${String(band + 1)}.scale`);
+  return BAND_SCALE[band] * factor(`band.${String(band + 1)}.scale`);
 }
 
 /**
@@ -75,32 +66,11 @@ export function shownStones(depth: number): number {
 }
 
 /**
- * Stones still to dig before the bottom, in whole pocket stones. Deep bands
- * leave `remaining` fractional, so the sum drifts off a whole number by
- * float error; rounding up (past the drift) keeps every dig, and the pocket,
- * whole, so the save still reads back.
+ * Stones still to dig: a fresh mine's level never runs out (slice 1, rule
+ * 1, #653), so always Infinity.
  */
-export function stonesLeft(mountain: Sized): number {
-  // A fresh mine's level never runs out (slice 1, rule 1, #653).
-  if (freshMineOn()) {
-    return Infinity;
-  }
-  const raw = shownStones(MOUNTAIN_STONES) - shownStones(minedOut(mountain));
-  return Math.max(0, Math.ceil(raw - 1e-6));
-}
-
-/**
- * Pocket stones to dig before the next band begins, where the crew's speed
- * changes (#592), or Infinity in the last band and in a fresh mine, which
- * has no depth to cross (#653).
- */
-export function stonesToNextBand(mountain: Sized): number {
-  if (freshMineOn()) {
-    return Infinity;
-  }
-  const mined = minedOut(mountain);
-  const next = BAND_STARTS.find((start) => start > mined);
-  return next === undefined ? Infinity : shownStones(next) - shownStones(mined);
+export function stonesLeft(): number {
+  return Infinity;
 }
 
 /**

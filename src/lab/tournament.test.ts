@@ -3,9 +3,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { withFactors } from "../economy/factors";
 import { PLAY_FACTORS } from "../part-switch";
-import { EMPTY_MATERIALS, LAYERS } from "../layers";
-import { createMountain, type Mountain } from "../mountain";
-import { MOUNTAIN_STONES } from "../scale";
+import { createMountain } from "../mountain";
 import { actionsOnTable } from "./decide";
 import {
   defineMeasure,
@@ -26,7 +24,6 @@ import {
 import dominantShare from "./measures/dominantShare";
 import extremeWinMeasure from "./measures/extremeWin";
 import singleShare from "./measures/singleShare";
-import { scoreDecision } from "./score";
 import {
   judgeTournament,
   openingView,
@@ -839,48 +836,7 @@ describe("tournament", () => {
 });
 
 describe("openingView", () => {
-  /** A dad at the top of the Granite with iron for axle grease and an empty pocket. */
-  const granite: Mountain = {
-    ...createMountain(),
-    remaining: MOUNTAIN_STONES - LAYERS[1].from,
-    owned: { ...createMountain().owned, helper: 10, cart: 3 },
-    stock: {
-      ...createMountain().stock,
-      stones: 0,
-      ...EMPTY_MATERIALS,
-      iron: 5,
-    },
-  };
-
   const policy = dad({ id: "crafter", label: "Crafter", kind: "casual" });
-
-  it("keeps a ready craft from making the open affordable", () => {
-    const context = valueContext(policy.params);
-    const table = actionsOnTable(granite, 0);
-    // On the whole table, the free axle grease is the best buy and needs no wait.
-    const whole = scoreDecision({
-      mountain: granite,
-      now: 0,
-      context,
-      atMs: 0,
-      actions: table,
-      stretchActions: table,
-    }).stretch.value;
-    expect(whole.bestId).toBe("craft:axle-grease");
-    expect(whole.waitToAffordSec).toBe(0);
-    // The Buys sheet leaves it off, so the dad is still saving for crew.
-    const open = openingView(granite, 0, context);
-    expect(open.kind).toBe("waiting");
-    expect(open.kind === "waiting" && open.waitSec > 0).toBe(true);
-    // With the stones for a helper in the pocket, the same open is affordable.
-    expect(
-      openingView(
-        { ...granite, stock: { ...granite.stock, stones: 100 } },
-        0,
-        context,
-      ),
-    ).toEqual({ kind: "affordable" });
-  });
 
   it("says nothing while no crew buy on the sheet is priced to earn anything", () => {
     const context = valueContext(policy.params);

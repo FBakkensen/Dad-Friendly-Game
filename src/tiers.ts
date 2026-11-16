@@ -1,24 +1,16 @@
-import { BAND_STARTS } from "./scale";
 import { factor } from "./economy/factors";
-import { freshMineOn, lineOn } from "./line-switch";
 import type { Stage } from "./line";
 import type { Mountain } from "./mountain";
 import { partThreeOn } from "./part-switch";
 import { pay, type GoodId, type Price } from "./stock";
 
 /** All tier numbers live here. See docs/DESIGN.md "M2: Automation". */
-/**
- * #357: carts, drills, borers, and the Great Machine climb ×1.15 a unit, the
- * top of the 1.10–1.15 genre band, so the milestone marks do not let a
- * cart or drill stack crowd the borer out.
- */
-export const MACHINE_COST_GROWTH = 1.15;
 /** #357: workers climb ×1.06 a unit, and kids share the curve. */
 export const HELPER_COST_GROWTH = 1.06;
 
 /**
- * On the line (#543, labs only until #536): machines climb ×1.219 a unit
- * (today's ×1.15 times 1.06), so a casual dad's run takes at least five days
+ * On the line (#543): machines climb ×1.219 a unit (the old ×1.15 times
+ * 1.06), so a casual dad's run takes at least five days
  * with machines rated three times today's. Workers keep today's curve: a
  * steeper one priced the 200th worker of a late kid run like a Great
  * Machine, and the optimizer stalled for a month.
@@ -76,17 +68,6 @@ type TierRow = {
    * src/line.ts). Every machine has one; the hands have none.
    */
   readonly stage?: Stage;
-  /**
-   * Stones mined before it opens for sale (M12-2, #250). Until then the
-   * card shows locked with this depth, so the next machine is a fixed,
-   * predictable point on the way down, never a share of the pocket.
-   */
-  readonly opensAt?: number;
-  /**
-   * A machine of the line (M15, #533): on sale and running only where the
-   * line's rule is on (`lineOn`, src/line-switch.ts). Off in play until #536.
-   */
-  readonly line?: true;
 };
 
 /** Cheapest first. Each tier is 6–10× the speed of the last. */
@@ -120,7 +101,6 @@ const TIER_ROWS = [
     perSecond: 20,
     staff: 1,
     stage: "lift",
-    line: true,
   },
   {
     id: "drill",
@@ -143,9 +123,6 @@ const TIER_ROWS = [
     perSecond: 357,
     staff: 8,
     stage: "face",
-    // Opens at the Granite start, the band that suits borers (D3), so no
-    // dad meets it in the Topsoil (#356).
-    opensAt: BAND_STARTS[1],
   },
   {
     // The haul's second machine (M15, #533): 3,200 at the line's ×3, about
@@ -157,8 +134,6 @@ const TIER_ROWS = [
     perSecond: 1_067,
     staff: 8,
     stage: "haul",
-    opensAt: BAND_STARTS[2],
-    line: true,
   },
   {
     id: "machine",
@@ -170,8 +145,6 @@ const TIER_ROWS = [
     perSecond: 2_100,
     staff: 10,
     stage: "lift",
-    // M12 retune (#252): the Deep Heart entrance, the band that suits it.
-    opensAt: 120_000_000,
   },
   {
     // Kids mine, staff machines, and teach the crew (rates.ts).
@@ -181,8 +154,6 @@ const TIER_ROWS = [
     firstCost: KID_FIRST_COST,
     perSecond: 25,
     staff: 0,
-    // Where the Crown of Wisdom lay, before the relics left (#728).
-    opensAt: 70_000_000,
   },
 ] as const satisfies readonly TierRow[];
 
@@ -229,9 +200,9 @@ export const MACHINE_IDS: readonly MachineId[] = TIERS.filter(isMachine).map(
 );
 
 /**
- * The machines in play: `MACHINE_IDS` less the line's machines while the
- * line is off (#533). What the lab measures and reports, so a run with the
- * line off reads as before.
+ * The machines in play: `MACHINE_IDS` whose door is open in the fresh mine
+ * (`tierInPlay`). What the lab measures and reports (#533; until #739 it
+ * also left out the line's machines while the line was off).
  */
 export function machinesInPlay(): readonly MachineId[] {
   return MACHINE_IDS.filter((id) => tierInPlay(tierById(id)));
@@ -285,16 +256,10 @@ export function tierCost(tier: Tier, ownedCount: number): number {
   // toPrecision drops float dust (500 × 1.6² is 1280.0000000000002, not 1,281).
   // A sweep multiplies the sticker and the growth. Both factors are 1 in play.
   const workerCurve = tier.staff === 0;
-  const line = lineOn();
-  const base = workerCurve
-    ? HELPER_COST_GROWTH
-    : line
-      ? LINE_MACHINE_COST_GROWTH
-      : MACHINE_COST_GROWTH;
+  const base = workerCurve ? HELPER_COST_GROWTH : LINE_MACHINE_COST_GROWTH;
   const growth =
     base * factor(workerCurve ? "growth.worker" : "growth.machine");
-  const sticker = line ? lineSticker(tier) : tier.firstCost;
-  const first = sticker * factor(`price.${tier.id}`);
+  const first = lineSticker(tier) * factor(`price.${tier.id}`);
   return Math.ceil(Number((first * growth ** ownedCount).toPrecision(12)));
 }
 
@@ -397,54 +362,12 @@ export function freshDoor(id: TierId): FreshDoor {
 }
 
 /**
- * False for a machine of the line while the line's rule is off (#533): it is
- * never shown, never for sale, takes no hands and moves nothing. In a fresh
- * mine, false for a tier whose door is a later part's (#653), except the
- * Granite's while part 3 plays (#673).
+ * False for a tier whose door is a later part's (#653): it is never shown,
+ * never for sale, takes no hands and moves nothing. The Granite's opens
+ * while part 3 plays (#673). Every tier in play is shown from the first
+ * minute, with what its door waits for (`tierLock`).
  */
 export function tierInPlay(tier: Tier): boolean {
-  if (freshMineOn()) {
-    const door = FRESH_DOORS[tier.id];
-    return door.kind !== "later" || (door.at === "granite" && partThreeOn());
-  }
-  return tier.line !== true || lineOn();
-}
-
-/** Each tier's previous tier in play, with the line off and on (#533). */
-function previousTiers(
-  inPlay: (tier: Tier) => boolean,
-): ReadonlyMap<TierId, Tier | undefined> {
-  return new Map(
-    TIERS.map((tier, index) => [
-      tier.id,
-      TIERS.slice(0, index).filter(inPlay).at(-1),
-    ]),
-  );
-}
-
-const PREVIOUS = {
-  off: previousTiers((tier) => tier.line !== true),
-  on: previousTiers(() => true),
-} as const;
-
-/**
- * A tier appears once you own one, or own one of the tier in play before
- * it. With the line off the hoist is skipped, so the drill follows the cart.
- * In a fresh mine every tier in play is shown (#653).
- */
-export function tierShown(mountain: Mountain, tier: Tier): boolean {
-  if (!tierInPlay(tier)) {
-    return false;
-  }
-  // A fresh mine shows each machine in play from the first minute, with what
-  // its door waits for (`tierLock`), as the prototype's stage plates do.
-  if (freshMineOn()) {
-    return true;
-  }
-  const previous = (lineOn() ? PREVIOUS.on : PREVIOUS.off).get(tier.id);
-  return (
-    tier.id === "helper" ||
-    owned(mountain, tier) > 0 ||
-    (previous !== undefined && owned(mountain, previous) > 0)
-  );
+  const door = FRESH_DOORS[tier.id];
+  return door.kind !== "later" || (door.at === "granite" && partThreeOn());
 }

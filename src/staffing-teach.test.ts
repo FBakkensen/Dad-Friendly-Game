@@ -6,13 +6,14 @@ import { firstIdleTier } from "./rates";
 import { STAFFING_INTRO, staffingLine } from "./screen-words";
 import { showsDot } from "./teach";
 
-/** Ten carts, a crew too small to run them all. */
+/** Ten carts and two on haulage: eight carts stand idle. */
 function crew(): Mountain {
+  const start = createMountain();
   return {
-    ...createMountain(),
-    remaining: 220_000_000,
-    stock: { ...createMountain().stock, stones: 2_000_000 },
-    owned: { ...createMountain().owned, helper: 6, cart: 10 },
+    ...start,
+    stock: { ...start.stock, stones: 2_000_000 },
+    owned: { ...start.owned, helper: 3, cart: 10 },
+    jobs: { ...start.jobs, haulage: 2 },
     seen: ["workshop"],
     taught: ["workshop"],
   };
@@ -24,7 +25,11 @@ describe("staffing teach (#246)", () => {
     expect(showsDot(crew(), "staffing")).toBe(true);
     expect(
       showsDot(
-        { ...crew(), owned: { ...crew().owned, helper: 40 } },
+        {
+          ...crew(),
+          owned: { ...crew().owned, helper: 11 },
+          jobs: { ...crew().jobs, haulage: 10 },
+        },
         "staffing",
       ),
     ).toBe(false);

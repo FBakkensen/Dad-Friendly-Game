@@ -1,7 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { withFactors } from "./economy/factors";
-import { FRESH_OFF } from "./line-switch";
 import { placeOrder } from "./city";
 import { createMountain, type Mountain } from "./mountain";
 import { PART_THREE_OFF, PART_TWO_OFF } from "./part-switch";
@@ -20,7 +19,7 @@ import {
 
 /** The stockyard (slice 1, rule 4, #666). */
 const partTwo = <T>(body: () => T): T =>
-  withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 }, body);
+  withFactors({ [PART_TWO_OFF]: 0 }, body);
 
 function yard(level: number, operational: Mountain["operational"]): Mountain {
   return { ...createMountain(), stockyard: level, operational };
@@ -33,7 +32,7 @@ describe("the stockyard (#666)", () => {
       expect(stockpileRoom(yard(0, []), "stones")).toBe(Infinity);
       expect(stockyardOpen(yard(0, ["lightTower"]))).toBe(true);
     });
-    withFactors({ [FRESH_OFF]: 0 }, () => {
+    withFactors({}, () => {
       expect(stockyardOpen(yard(0, ["lightTower"]))).toBe(false);
       expect(stockpileRoom(yard(0, ["lightTower"]), "stones")).toBe(Infinity);
     });
@@ -169,10 +168,7 @@ describe("a dead stockpile (#667)", () => {
 
 describe("cut stone's room (#673)", () => {
   const partThree = <T>(body: () => T): T =>
-    withFactors(
-      { [FRESH_OFF]: 0, [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 },
-      body,
-    );
+    withFactors({ [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 }, body);
 
   it("holds 250K at level 0 in part 3, three times as much a level, twice with the Warehouse; none before", () => {
     partThree(() => {

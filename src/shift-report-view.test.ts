@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { withFactors } from "./economy/factors";
-import { FRESH_OFF } from "./line-switch";
 import {
   accrueAway,
   createMountain,
@@ -175,7 +174,7 @@ describe("the shift report (#663)", () => {
   });
 
   it("reads a real night from the rules", () => {
-    withFactors({ [FRESH_OFF]: 0 }, () => {
+    withFactors({}, () => {
       const start = createMountain();
       const night = accrueAway({
         mountain: {
@@ -206,11 +205,7 @@ describe("the shift report (#663)", () => {
         lastSeen: 0,
         now: 12 * HOUR,
       });
-      const { report } = night;
-      if (report.night === undefined) {
-        throw new Error("a fresh night has its facts");
-      }
-      expect(shiftReport({ ...report, night: report.night })).toEqual({
+      expect(shiftReport(night.report)).toEqual({
         title: "Shift report",
         head: "Unattended 12 h. Night shift output 30%, and 45% from the Light Tower's roof.",
         bar: { produced: 0.67, left: "production 8 h", right: "idle 4 h" },

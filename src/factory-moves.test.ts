@@ -9,7 +9,6 @@ import { withFactors } from "./economy/factors";
 import type { Station } from "./factory";
 import { fieldEntry } from "./field-log";
 import { sticker } from "./lab/decide";
-import { FRESH_OFF } from "./line-switch";
 import { NO_GRANITE_PILES, NO_LEVEL_MACHINES } from "./mine-levels";
 import { createMountain, type Mountain } from "./mountain";
 import { PART_THREE_OFF, PART_TWO_OFF } from "./part-switch";
@@ -18,9 +17,9 @@ import { CHARGE_MS } from "./workshop";
 
 /** The factory's moves (slice 1, rule 7.13, #674): place, cancel, install. */
 const partThree = <T>(body: () => T): T =>
-  withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 }, body);
+  withFactors({ [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 }, body);
 const partTwo = <T>(body: () => T): T =>
-  withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 }, body);
+  withFactors({ [PART_TWO_OFF]: 0 }, body);
 
 const FACTORY_KINDS: readonly Action["kind"][] = [
   "placeWorkOrder",

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { withFactors } from "../economy/factors";
-import { FRESH_OFF } from "../line-switch";
 import { createMountain } from "../mountain";
+import { PLAY_FACTORS } from "../part-switch";
 import casual from "./fresh-policies/casual-2x10";
 import { freshPolicy } from "./plain";
 import { fixDelayMs } from "./policy";
@@ -9,31 +9,28 @@ import { NOT_FRESH, runDone, runPolicy } from "./run";
 import { FIX_FAST_MS, FIX_SLOW_MS, MS_PER_SECOND } from "./targets";
 
 describe("a fresh mine's run (#655)", () => {
-  const FRESH = { [FRESH_OFF]: 0 };
-
   it("ends when the last building built so far stands", () => {
-    withFactors(FRESH, () => {
-      const start = createMountain();
-      expect(runDone(start)).toBe(false);
-      expect(runDone({ ...start, operational: ["lightTower"] })).toBe(true);
-    });
+    // Part 1 alone: its last building is the Light Tower.
+    const start = createMountain();
+    expect(runDone(start)).toBe(false);
+    expect(runDone({ ...start, operational: ["lightTower"] })).toBe(true);
   });
 
-  it("throws when the caller forgot the fresh mine's factors", () => {
+  it("throws when the caller forgot the game's factors", () => {
     expect(() =>
       runPolicy({ policy: casual, seed: 1, maxLiveSeconds: 1 }),
     ).toThrow(NOT_FRESH);
   });
 
-  it("plays part 1's dad: he orders in his first second", () => {
-    withFactors(FRESH, () => {
+  it("plays the game's dad: he orders in his first second", () => {
+    withFactors(PLAY_FACTORS, () => {
       const run = runPolicy({ policy: casual, seed: 1, maxLiveSeconds: 1 });
       expect(run.world.mountain.project.kind).not.toBe("unordered");
     });
   });
 
   it("stops when the caller says the second is enough", () => {
-    withFactors(FRESH, () => {
+    withFactors(PLAY_FACTORS, () => {
       const run = runPolicy({
         policy: casual,
         seed: 1,
@@ -53,7 +50,7 @@ describe("a fresh mine's run (#655)", () => {
       minutesPerSession: 1,
       moves: "once",
     });
-    withFactors(FRESH, () => {
+    withFactors(PLAY_FACTORS, () => {
       const run = runPolicy({ policy: brief, seed: 1, maxLiveSeconds: 60 });
       expect(run.world.clock).toBe(60 * MS_PER_SECOND);
     });

@@ -293,7 +293,8 @@ describe("machine buys (#357)", () => {
         machineBuys: [
           { tier: "cart", count: 30 },
           { tier: "drill", count: 25 },
-          { tier: "borer", count: 6 },
+          { tier: "hoist", count: 6 },
+          // Not in play in part 1: it never counts.
           { tier: "machine", count: 9 },
         ],
       }),
@@ -301,8 +302,7 @@ describe("machine buys (#357)", () => {
         machineBuys: [
           { tier: "cart", count: 20 },
           { tier: "drill", count: 20 },
-          { tier: "borer", count: 10 },
-          { tier: "machine", count: 10 },
+          { tier: "hoist", count: 10 },
         ],
       }),
     ];
@@ -317,12 +317,12 @@ describe("reveal to first use (M12-4, #252)", () => {
     const samples = [
       carrying({
         reveals: [
-          { kind: "appeared", id: "tier:borer", liveSec: 0, sitting: 1 },
+          { kind: "appeared", id: "tier:hoist", liveSec: 0, sitting: 1 },
           { kind: "appeared", id: "tier:cart", liveSec: 0 },
           { kind: "appeared", id: "system:workshop", liveSec: 60, sitting: 1 },
-          { kind: "firstUse", id: "tier:borer", liveSec: 600, sitting: 3 },
-          { kind: "appeared", id: "tier:borer", liveSec: 700, sitting: 4 },
-          { kind: "firstUse", id: "tier:borer", liveSec: 800, sitting: 9 },
+          { kind: "firstUse", id: "tier:hoist", liveSec: 600, sitting: 3 },
+          { kind: "appeared", id: "tier:hoist", liveSec: 700, sitting: 4 },
+          { kind: "firstUse", id: "tier:hoist", liveSec: 800, sitting: 9 },
           { kind: "firstUse", id: "system:workshop", liveSec: 180, sitting: 4 },
           { kind: "firstUse", id: "never:shown", liveSec: 1 },
         ],
@@ -335,7 +335,7 @@ describe("reveal to first use (M12-4, #252)", () => {
       }),
       carrying({}),
     ];
-    // The borer's second showing does not count: a machine keeps its first wait.
+    // The hoist's second showing does not count: a machine keeps its first wait.
     expect(machineRevealSittings(samples)).toBe(2);
     expect(smallRevealSittings(samples)).toBe(3);
   });

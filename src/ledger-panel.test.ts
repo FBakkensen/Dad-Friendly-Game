@@ -10,7 +10,7 @@ import { READY_HOLD_MS } from "./board-interaction";
 import { createBoardHost } from "./board-host";
 import { createMemoryCloudSave, type CloudSave } from "./cloud-save";
 import { createLedgerPanel } from "./ledger-panel";
-import { stonesRowView } from "./ledger-rows";
+import { freshLedgerRows } from "./ledger-rows";
 import { createMountain, type Mountain } from "./mountain";
 import { mountFrameScreen } from "./frame-screen";
 import { createProgressStore } from "./progress-store";
@@ -215,18 +215,20 @@ describe("the Ledger drawer (#375)", () => {
           (each as HTMLElement).dataset["ledger"] ??
           each.className.split(" ")[0],
       );
-    expect(order).toEqual(["mine", "stones", "account", "ledger-doors"]);
+    expect(order).toEqual([
+      "mine",
+      "stones",
+      "crew",
+      "account",
+      "ledger-doors",
+    ]);
     expect(part(screen, ".board-sheet-title").textContent).toBe("Ledger");
     expect(part(screen, ".board-sheet-kick").textContent).toBe(
       "Tonight, and the mine so far",
     );
     expect(keyOf(screen).getAttribute("aria-expanded")).toBe("true");
-    // The "i": Time away, under Back to the Ledger.
-    part(screen, ".board-sheet-info").click();
-    const how = part(screen, ".board-sheet-how");
-    expect(how.hidden).toBe(false);
-    expect(how.children).toHaveLength(1);
-    expect(how.textContent).toContain("Back to the Ledger");
+    // No card tells time away in a fresh mine yet, so there is no "i" (#708).
+    expect(part(screen, ".board-sheet-info").hidden).toBe(true);
   });
 
   it("Tonight shows the newest three lines", () => {
@@ -250,7 +252,7 @@ describe("the Ledger drawer (#375)", () => {
     ];
     expect(
       lines.map((line) => line.querySelector(".ledger-log-text")?.textContent),
-    ).toEqual(["Bought mine cart 3.", "Hired worker 5."]);
+    ).toEqual(["Bought cart 3.", "Hired worker 5."]);
     for (const line of lines) {
       expect(line.querySelector(".ledger-log-time")?.textContent).toMatch(
         /^\d\d:\d\d$/,
@@ -258,17 +260,15 @@ describe("the Ledger drawer (#375)", () => {
     }
   });
 
-  it("the mine reads today's words", () => {
+  it("the mine reads the stockpile and the crew (#708)", () => {
     const mountain = granite();
     const screen = mount(mountain);
     keyOf(screen).click();
-    const stones = stonesRowView(mountain);
-    expect(rowPart(screen, "stones", "name")).toBe(stones.name);
-    expect(stones.name).toMatch(/^[\d.,]+[KMBT]? stones left$/);
-    expect(part(screen, ".ledger-stones").getAttribute("title")).toBe(
-      stones.title,
-    );
-    expect(rowPart(screen, "stones", "info")).toBe("Clay 10 · Iron 4");
+    const rows = freshLedgerRows(mountain);
+    expect(rowPart(screen, "stones", "name")).toBe(rows.stock.name);
+    expect(rowPart(screen, "stones", "info")).toBe(rows.stock.info[0]);
+    expect(rowPart(screen, "crew", "name")).toBe(rows.crew.name);
+    expect(rowPart(screen, "crew", "info")).toBe(rows.crew.info[0]);
     expect(
       (part(screen, ".ledger-stones .board-row-icon") as HTMLImageElement)
         .width,
@@ -353,7 +353,7 @@ describe("the Ledger drawer (#375)", () => {
     fingerTap(part(screen, ".ledger-yes"));
     const fresh = screen.progress.getSnapshot().mountain;
     expect(fresh.stock.stones).toBe(0);
-    expect(fresh.owned.helper).toBe(0);
+    expect(fresh.owned.helper).toBe(createMountain().owned.helper);
     expect(fresh.remaining).toBe(createMountain().remaining);
     // The page waits for the new run (#480), then closes onto the key.
     await vi.waitFor(() => {

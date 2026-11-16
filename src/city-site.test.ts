@@ -4,7 +4,6 @@ import { createUnconfiguredAuth } from "./auth";
 import { projectCard, transportPlate } from "./city-view";
 import { holdFactors } from "./economy/factors";
 import { mountFrameScreen } from "./frame-screen";
-import { FRESH_OFF } from "./line-switch";
 import { EMPTY_STOCK } from "./stock";
 import { PART_TWO_OFF } from "./part-switch";
 import { createMemoryStorage } from "./test-fixtures";
@@ -18,7 +17,7 @@ import { NO_FREE_WORKER } from "./workforce-view";
 let unmount = new AbortController();
 
 beforeEach(() => {
-  holdFactors({ [FRESH_OFF]: 0 });
+  holdFactors({});
 });
 
 afterEach(() => {
@@ -190,7 +189,7 @@ describe("the city", () => {
   });
 
   it("marks each of the Warehouse's bars with its own good's picture (#672)", () => {
-    holdFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 });
+    holdFactors({ [PART_TWO_OFF]: 0 });
     const { root } = mount((m) => ({
       ...m,
       operational: ["lightTower"],

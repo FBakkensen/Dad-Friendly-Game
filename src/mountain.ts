@@ -1,18 +1,10 @@
-import type { Trouble } from "./hazards";
-import { effectiveRates, paidAwayMs } from "./rates";
+import { effectiveRates } from "./rates";
 import type { Engineer } from "./engineers";
-import {
-  clampExpeditions,
-  completeDue,
-  type Expedition,
-  type FindId,
-  type Homecoming,
-} from "./expeditions";
+import { type Expedition, type FindId, type Homecoming } from "./expeditions";
 import { NO_UPGRADES, type Upgrades } from "./upgrades";
 import { materialsGained } from "./layers";
 import { EMPTY_STOCK, addedStock, stockMoved, type Stock } from "./stock";
 import type { TeachId } from "./teach";
-import { freshMineOn } from "./line-switch";
 import {
   NO_PROJECT,
   type BuildingId,
@@ -63,13 +55,7 @@ import {
 } from "./workshop";
 
 /** Mountain numbers live here; tier numbers in src/tiers.ts. See docs/DESIGN.md. */
-import {
-  MOUNTAIN_STONES,
-  depthAfterStones,
-  minedOut,
-  stonesLeft,
-  stonesToNextBand,
-} from "./scale";
+import { MOUNTAIN_STONES, minedOut } from "./scale";
 
 export { MOUNTAIN_STONES };
 
@@ -223,17 +209,15 @@ export const FRESH_START_JOBS: Jobs = {
 
 export function createMountain(): Mountain {
   const start = { ...BARE_MOUNTAIN, recipes: recipesForMined(0) };
-  return freshMineOn()
-    ? {
-        ...start,
-        owned: {
-          ...start.owned,
-          helper: workersOnJobs({ jobs: FRESH_START_JOBS }),
-        },
-        jobs: FRESH_START_JOBS,
-        fleet: givenFleet(),
-      }
-    : start;
+  return {
+    ...start,
+    owned: {
+      ...start.owned,
+      helper: workersOnJobs({ jobs: FRESH_START_JOBS }),
+    },
+    jobs: FRESH_START_JOBS,
+    fleet: givenFleet(),
+  };
 }
 
 export { minedOut };
@@ -247,40 +231,14 @@ export function rockDugInAll(mountain: Mountain): number {
 }
 
 /**
- * Stones leave the mountain, and the band they came from drops its material.
- * A fresh mine has no depth (slice 1, rule 1, #653): the stones go to the
- * stock, and the mountain stays full, so its one level never runs out.
+ * Stones go to the stock. A fresh mine has no depth (slice 1, rule 1,
+ * #653): the mountain stays full, so its one level never runs out.
  */
 export function digStones(mountain: Mountain, mined: number): Mountain {
-  if (freshMineOn()) {
-    return {
-      ...mountain,
-      stock: addedStock(mountain.stock, { stones: mined }),
-    };
-  }
-  const before = minedOut(mountain);
-  const remaining =
-    mined >= stonesLeft(mountain)
-      ? 0
-      : MOUNTAIN_STONES - depthAfterStones(mountain, mined);
-  // One copy of the mountain: digging is the labs' hottest write.
   return {
     ...mountain,
-    remaining,
-    stock: addedStock(mountain.stock, {
-      ...materialsGained(before, MOUNTAIN_STONES - remaining),
-      stones: mined,
-    }),
+    stock: addedStock(mountain.stock, { stones: mined }),
   };
-}
-
-/** The crew's speed; pass `now` while playing to count running crew timers. */
-export function stonesPerSecond(
-  mountain: Mountain,
-  now?: number,
-  trouble?: Trouble,
-): number {
-  return effectiveRates(mountain, now, trouble).crewPerSecond;
 }
 
 export type Accrual = {
@@ -301,17 +259,14 @@ export function accrue({
   to,
   pay = 1,
   live = false,
-  trouble,
 }: {
   mountain: Mountain;
   from: number;
   to: number;
-  /** Share of the crew's speed paid: 1 while playing, AWAY_PAY_RATE away. */
+  /** Share of the crew's speed paid: 1 while playing, the night shift output away. */
   pay?: number;
-  /** Live play counts crew timers running at `from`; away time never does. */
+  /** Live play: once part 3 is on, the cages play trip by trip (#724). Away time never does. */
   live?: boolean;
-  /** Session trouble. Ignored unless `live`: away pay never slows for it. */
-  trouble?: Trouble;
 }): Accrual {
   if (to <= from) {
     return { mountain, mined: 0, settledAt: Math.max(from, to) };
@@ -319,21 +274,16 @@ export function accrue({
   // A craft that finished before this window is on the crew for the whole of it.
   // One that finishes during the window is fitted at the end, once.
   const ready = settleBench(mountain, from);
-  if (freshMineOn() && stockyardOpen(ready)) {
+  if (stockyardOpen(ready)) {
     const worked = accrueStretches(ready, from, to, pay, live);
     return { ...worked, mountain: settleBench(worked.mountain, to) };
   }
-  const crew = freshMineOn()
-    ? accrueMine(ready, from, to, pay, live)
-    : accrueCrew({
-        mountain: ready,
-        from,
-        to,
-        pay,
-        live,
-        ...(trouble === undefined ? {} : { trouble }),
-      });
-  const worked = freshMineOn() ? withDelivery(crew, from, to, pay) : crew;
+  const worked = withDelivery(
+    accrueMine(ready, from, to, pay, live),
+    from,
+    to,
+    pay,
+  );
   const fitted = settleBench(worked.mountain, to);
   return fitted === worked.mountain ? worked : { ...worked, mountain: fitted };
 }
@@ -416,78 +366,6 @@ function accrueMine(
   };
 }
 
-function accrueCrew({
-  mountain,
-  from,
-  to,
-  pay = 1,
-  live = false,
-  trouble,
-}: {
-  mountain: Mountain;
-  from: number;
-  to: number;
-  pay?: number;
-  live?: boolean;
-  trouble?: Trouble;
-}): Accrual {
-  // A stretch that crosses into a new band pays the new band's speed from the
-  // second it crosses, as live play does a second at a time (#592).
-  let state = mountain;
-  let cursor = from;
-  let mined = 0;
-  for (;;) {
-    const rate = stonesPerSecond(
-      state,
-      live ? from : undefined,
-      live ? trouble : undefined,
-    );
-    if (rate === 0 || state.remaining === 0) {
-      return { mountain: state, mined, settledAt: to };
-    }
-    // Whole stones to dig past the band's start (the depth can be a part
-    // stone short of it), and at least one, so every pass moves.
-    const toBand = Math.max(1, Math.ceil(stonesToNextBand(state) - 1e-6));
-    const seconds = Math.floor((to - cursor) / 1000);
-    const crossing = Math.ceil(toBand / (rate * pay));
-    if (seconds * rate * pay <= toBand || crossing >= seconds) {
-      const last = digFor(state, seconds * rate * pay, seconds, cursor, to);
-      return { ...last, mined: mined + last.mined };
-    }
-    // At least the stones to the band, so float dust never leaves it short.
-    const part = digFor(
-      state,
-      Math.max(crossing * rate * pay, toBand),
-      crossing,
-      cursor,
-      to,
-    );
-    state = part.mountain;
-    mined += part.mined;
-    cursor = part.settledAt;
-  }
-}
-
-/**
- * Whole seconds of digging, `stones` of them paid (seconds × speed × pay, in
- * that order, as it always was), capped at the bottom.
- */
-function digFor(
-  mountain: Mountain,
-  stones: number,
-  seconds: number,
-  from: number,
-  to: number,
-): Accrual {
-  const left = stonesLeft(mountain);
-  const mined = Math.min(left, Math.floor(stones));
-  const settledAt = mined === left ? to : from + seconds * 1000;
-  if (mined === 0) {
-    return { mountain, mined: 0, settledAt };
-  }
-  return { mountain: digStones(mountain, mined), mined, settledAt };
-}
-
 export type AwayReport = {
   readonly mined: number;
   /** Real time away, before the cap. */
@@ -497,8 +375,8 @@ export type AwayReport = {
   readonly capped: boolean;
   /** Ore the crew brought up while you were away. */
   readonly materials: Materials;
-  /** A fresh mine's night, for the shift report (#663). Never in today's game. */
-  readonly night?: NightReport;
+  /** The night, for the shift report (#663). */
+  readonly night: NightReport;
 };
 
 /** A step built in during the night; the roof's is the building going operational. */
@@ -542,96 +420,6 @@ export type NightReport = {
   /** When the output changed (a roof went on), from the start of the night. */
   readonly litAtMs?: number;
 };
-
-/** The crew's work while the game was closed: away pay of their speed, up to the away cap (see effectiveRates). */
-export function accrueAway({
-  mountain,
-  lastSeen,
-  now,
-}: {
-  mountain: Mountain;
-  lastSeen: number;
-  now: number;
-}): Accrual & {
-  readonly report: AwayReport;
-  readonly homecomings: readonly Homecoming[];
-} {
-  if (freshMineOn()) {
-    return accrueNight({ mountain, lastSeen, now });
-  }
-  const awayMs = Math.max(0, now - lastSeen);
-  const rates = effectiveRates(mountain);
-  const paidMs = paidAwayMs(awayMs);
-  const capped = awayMs > paidMs;
-  // Rounded so float dust never pays one stone short.
-  const pay = Math.round(rates.awayPay * 1e9) / 1e9;
-  // Pay the most recent stretch, and split it where an expedition comes
-  // home, so the machine they left speeds up again from that moment.
-  const walked = accrueAcrossExpeditions({
-    mountain,
-    from: now - paidMs,
-    to: now,
-    pay,
-  });
-  return {
-    ...walked,
-    report: {
-      mined: walked.mined,
-      awayMs,
-      paidMs,
-      capped,
-      materials: materialsGained(minedOut(mountain), minedOut(walked.mountain)),
-    },
-  };
-}
-
-/**
- * Someone already home before this window (they returned during the unpaid
- * part of a long absence, or exactly as it opened) tends the whole stretch.
- * A return inside the window splits it. A return exactly at the end is paid
- * as time away, then they are home for whatever comes next.
- */
-function accrueAcrossExpeditions({
-  mountain,
-  from,
-  to,
-  pay,
-}: {
-  mountain: Mountain;
-  from: number;
-  to: number;
-  pay: number;
-}): Accrual & { readonly homecomings: readonly Homecoming[] } {
-  const opened = completeDue(clampExpeditions(mountain, to), from);
-  let state = opened.mountain;
-  const homecomings = [...opened.homecomings];
-  const marks = [
-    ...new Set(
-      state.expeditions
-        .map((trip) => trip.returnsAt)
-        .filter((returnsAt) => returnsAt > from && returnsAt < to),
-    ),
-  ].sort((left, right) => left - right);
-  let mined = 0;
-  let cursor = from;
-  for (const mark of marks) {
-    const part = accrue({ mountain: state, from: cursor, to: mark, pay });
-    mined += part.mined;
-    const brought = completeDue(part.mountain, mark);
-    state = brought.mountain;
-    homecomings.push(...brought.homecomings);
-    cursor = mark;
-  }
-  const tail = accrue({ mountain: state, from: cursor, to, pay });
-  const closed = completeDue(tail.mountain, to);
-  homecomings.push(...closed.homecomings);
-  return {
-    mountain: closed.mountain,
-    mined: mined + tail.mined,
-    settledAt: tail.settledAt,
-    homecomings,
-  };
-}
 
 /**
  * How long a fresh mine drills unattended before the stockyard (slice 1, rule
@@ -815,9 +603,9 @@ function logStretch(
  * no expeditions, so none of their splits apply. The cages land first
  * (#724, ruling 13): what they unload counts as produced, and the rest of the
  * night counts them as rates. The report's `night` holds what the shift
- * report says (#663).
+ * report says (#663). This is the crew's work while the game was closed.
  */
-function accrueNight({
+export function accrueAway({
   mountain,
   lastSeen,
   now,

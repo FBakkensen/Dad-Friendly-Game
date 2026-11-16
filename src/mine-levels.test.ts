@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { withFactors } from "./economy/factors";
-import { FRESH_OFF } from "./line-switch";
 import {
   GRANITE_PILE_IDS,
   LEVEL_MACHINE_IDS,
@@ -19,9 +18,9 @@ import { PART_THREE_OFF, PART_TWO_OFF, partThreeOn } from "./part-switch";
 import type { Stock } from "./stock";
 
 const partThree = <T>(body: () => T): T =>
-  withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 }, body);
+  withFactors({ [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 }, body);
 const partTwo = <T>(body: () => T): T =>
-  withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 }, body);
+  withFactors({ [PART_TWO_OFF]: 0 }, body);
 
 /** A fresh mine with the Light Tower operational and this stock. */
 function lit(stock: Partial<Stock> = {}): Mountain {
@@ -43,7 +42,7 @@ const sunk = (machines: Partial<typeof NO_LEVEL_MACHINES>): Mountain => ({
 });
 
 describe("part 3's switch (#673)", () => {
-  it("is off outside a sweep, and on only with fresh.off, part2.off and part3.off at 0", () => {
+  it("is off outside a sweep, and on only with part2.off and part3.off at 0", () => {
     expect(partThreeOn()).toBe(false);
     partTwo(() => {
       expect(partThreeOn()).toBe(false);
@@ -51,7 +50,7 @@ describe("part 3's switch (#673)", () => {
     partThree(() => {
       expect(partThreeOn()).toBe(true);
     });
-    withFactors({ [FRESH_OFF]: 0, [PART_THREE_OFF]: 0 }, () => {
+    withFactors({ [PART_THREE_OFF]: 0 }, () => {
       expect(partThreeOn()).toBe(false);
     });
   });

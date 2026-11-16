@@ -47,11 +47,6 @@ import {
 
 /** Shorter absences still pay out, quietly, without the welcome-back card. */
 export const WELCOME_MIN_AWAY_MS = 60 * 1000;
-/**
- * Under this (answering a text), the stones arrive with a small
- * "+N while you were away" note instead of the full card (#334).
- */
-export const QUIET_AWAY_MS = 5 * 60 * 1000;
 
 /**
  * One fitted craft, named once. The screen words it from the mountain at
@@ -68,8 +63,6 @@ type CraftNotice = {
 export type Notice =
   /** Helpers mined while the game was closed: the welcome-back card. */
   | { readonly kind: "away"; readonly report: AwayReport }
-  /** Stones a short absence paid: a small note, not the card (#334). */
-  | { readonly kind: "quiet"; readonly stones: number }
   /** A band broken into. A loaded save already in a band does not announce it again. */
   | { readonly kind: "layer"; readonly layer: Layer }
   /** A craft fitted, with the mountain at the moment it finished. */
@@ -113,8 +106,6 @@ const CARD_KINDS: readonly NoticeKind[] = [...WELCOME_KINDS, "layer", "craft"];
 type SessionNews = {
   /** Every notice not yet shown, in arrival order. */
   readonly notices: readonly Notice[];
-  /** The welcome-back card has had its chance this open. */
-  readonly welcomed: boolean;
   readonly homecomings: readonly Homecoming[];
   /** Someone came home since the screen was last told. */
   readonly pending: boolean;
@@ -198,7 +189,6 @@ export type Stepped = {
 
 const NO_NEWS: SessionNews = {
   notices: [],
-  welcomed: false,
   homecomings: [],
   pending: false,
 };
@@ -341,14 +331,6 @@ export function step(
   }
 }
 
-/** A short break with plain stones only: a small note, not the card (#334). Ore needs its line. */
-function isQuietAway(report: AwayReport): boolean {
-  return (
-    report.awayMs < QUIET_AWAY_MS &&
-    Object.values(report.materials).every((count) => count === 0)
-  );
-}
-
 /** Folds helpers' work since lastSeen into the mountain. */
 function tick(
   session: Session,
@@ -419,42 +401,35 @@ function settleAway(
     },
   });
   out.record("away.report", { ms: report.awayMs, stones: moved.mined });
-  return { session: welcome(paid, report, moved.mined), mined: moved.mined };
+  return { session: welcome(paid, report), mined: moved.mined };
 }
 
 /**
- * Whether time away brought news: stones mined, or in a fresh mine's night
- * (#663) also goods delivered or a step built in, with the mine standing.
+ * Whether time away brought news: stones mined, goods delivered or a step
+ * built in (#663), with the mine standing.
  */
 function anythingHappened(report: AwayReport, mined: number): boolean {
   const night = report.night;
   return (
     mined > 0 ||
-    (night !== undefined &&
-      (night.steps.length > 0 ||
-        GOOD_IDS.some((good) => night.delivered[good] > 0)))
+    night.steps.length > 0 ||
+    GOOD_IDS.some((good) => night.delivered[good] > 0)
   );
 }
 
 /**
  * A reload or a quick app switch isn't "away": only greet after a real break.
- * A fresh mine's night is always the shift report, never the quiet note
- * (#663), and it is greeted on a live return too: a tab left open overnight
- * (a locked phone, the app in the background) comes back to its report.
+ * A night is always the shift report (#663), and it is greeted on a live
+ * return too: a tab left open overnight (a locked phone, the app in the
+ * background) comes back to its report.
  */
-function welcome(session: Session, report: AwayReport, mined: number): Session {
-  const greeted = session.news.welcomed && report.night === undefined;
-  if (greeted || report.awayMs < WELCOME_MIN_AWAY_MS) {
+function welcome(session: Session, report: AwayReport): Session {
+  if (report.awayMs < WELCOME_MIN_AWAY_MS) {
     return session;
   }
   return {
     ...session,
-    news: setNotice(
-      session.news,
-      report.night === undefined && isQuietAway(report)
-        ? { kind: "quiet", stones: mined }
-        : { kind: "away", report },
-    ),
+    news: setNotice(session.news, { kind: "away", report }),
   };
 }
 
@@ -733,13 +708,7 @@ function beginRun(
     hazards: freshHazards(now),
     lastSeen: runStartedAt(mountain),
     news: {
-      ...dropNotices(session.news, [
-        "away",
-        "quiet",
-        "layer",
-        "craft",
-        "operational",
-      ]),
+      ...dropNotices(session.news, ["away", "layer", "craft", "operational"]),
       homecomings: [],
     },
     baselines: session.baselines,
@@ -797,9 +766,4 @@ export function openBaselines(session: Session, rebase: boolean): Session {
   return rebase || session.baselines.layer === undefined
     ? primeArrivals(session)
     : session;
-}
-
-/** The welcome-back card has had its chance this open. */
-export function markWelcomed(session: Session): Session {
-  return { ...session, news: { ...session.news, welcomed: true } };
 }

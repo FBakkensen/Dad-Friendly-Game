@@ -4,7 +4,6 @@ import {
   BARE_MOUNTAIN,
   MOUNTAIN_STONES,
   createMountain,
-  digStones,
   minedOut,
   type Mountain,
 } from "./mountain";
@@ -65,10 +64,16 @@ function withGame(part: Record<string, unknown>): unknown {
 describe("the version 10 save (#558, #728)", () => {
   it("a fresh mountain writes a few lines", () => {
     const fresh = createMountain();
+    // The start's one worker on drilling and its horse wagon (#703).
     expect(serializeSave({ mountain: fresh, lastSeen: 5 })).toEqual({
       version: 10,
       lastSeen: 5,
-      game: { marks: { recipes: STARTING_RECIPE_IDS } },
+      game: {
+        owned: { helper: 1 },
+        jobs: { drilling: 1 },
+        fleet: { horseWagon: 1 },
+        marks: { recipes: STARTING_RECIPE_IDS },
+      },
     });
   });
 
@@ -79,7 +84,8 @@ describe("the version 10 save (#558, #728)", () => {
   });
 
   it("rounds remaining up, so a reload never gains depth (#356)", () => {
-    const live = digStones(minedMountain(BAND_STARTS[3] + 1_000), 1);
+    const deep = minedMountain(BAND_STARTS[3] + 1_000);
+    const live = { ...deep, remaining: deep.remaining - 0.25 };
     expect(Number.isInteger(live.remaining)).toBe(false);
     const parsed = okMountain(
       readSave(stored(serializeSave({ mountain: live, lastSeen: 1 }))),
@@ -198,7 +204,8 @@ describe("the version 10 save (#558, #728)", () => {
     const run = { dug: 80_000, generation: 0, stretch: 1 };
     const read = okMountain(readSave(withGame({ run })));
     expect(read).toEqual(plain);
-    const next = digStones(read ?? createMountain(), 10);
+    const played = read ?? createMountain();
+    const next = { ...played, remaining: played.remaining - 10 };
     const again = stored(serializeSave({ mountain: next, lastSeen: 10 })) as {
       game: { run?: Record<string, number> };
     };

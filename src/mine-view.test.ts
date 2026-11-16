@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { withFactors } from "./economy/factors";
-import { FRESH_OFF } from "./line-switch";
 import {
   DEEPER_STRATA,
   levelPlate,
@@ -17,7 +16,7 @@ import { effectiveRates } from "./rates";
 import { toolSpeed } from "./workforce";
 
 /** The mine's views (#660), on a fresh mine. */
-const fresh = <T>(body: () => T): T => withFactors({ [FRESH_OFF]: 0 }, body);
+const fresh = <T>(body: () => T): T => withFactors({}, body);
 
 function withStones(mountain: Mountain, stones: number): Mountain {
   return { ...mountain, stock: { ...mountain.stock, stones } };
@@ -122,7 +121,7 @@ describe("a stage's row", () => {
       },
     ]);
     fresh(() => {
-      withFactors({ [FRESH_OFF]: 0, "output.cart": 0.03 }, () => {
+      withFactors({ "output.cart": 0.03 }, () => {
         const start = createMountain();
         const one = {
           ...start,

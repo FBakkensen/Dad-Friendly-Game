@@ -1,7 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { withFactors } from "./economy/factors";
-import { FRESH_OFF } from "./line-switch";
 import { makerTakes } from "./makers";
 import { mineMoves } from "./mine-piles";
 import { accrue, accrueAway, createMountain, type Mountain } from "./mountain";
@@ -17,8 +16,8 @@ import { stockpileRoom } from "./stockyard";
  * full stockpile takes no more, and a night runs until the stockyard is full.
  */
 const partTwo = <T>(body: () => T): T =>
-  withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 }, body);
-const partOne = <T>(body: () => T): T => withFactors({ [FRESH_OFF]: 0 }, body);
+  withFactors({ [PART_TWO_OFF]: 0 }, body);
+const partOne = <T>(body: () => T): T => withFactors({}, body);
 
 const HOUR = 60 * 60 * 1000;
 
@@ -274,15 +273,15 @@ describe("the night runs until the stockyard is full (#666)", () => {
       expect(away.mined).toBe(349_920);
       expect(away.report.paidMs).toBe(12 * HOUR);
       expect(away.report.capped).toBe(false);
-      expect(away.report.night?.stop).toBe("none");
-      expect(away.report.night?.producedMs).toBe(12 * HOUR);
+      expect(away.report.night.stop).toBe("none");
+      expect(away.report.night.producedMs).toBe(12 * HOUR);
     });
   });
 
   it("keeps the clock before the Light Tower", () => {
     partTwo(() => {
       const away = night(works({ operational: [] }), 12 * HOUR);
-      expect(away.report.night?.stop).toBe("clock");
+      expect(away.report.night.stop).toBe("clock");
       expect(away.report.capped).toBe(true);
     });
   });
@@ -294,14 +293,14 @@ describe("the night runs until the stockyard is full (#666)", () => {
       const away = night(start, 20 * HOUR);
       expect(away.mountain.stock.stones).toBe(6_000_000);
       const facts = away.report.night;
-      expect(facts?.stop).toBe("stockyard");
+      expect(facts.stop).toBe("stockyard");
       const filled = Math.ceil(300_000 / 8.1) * 1000;
-      expect(facts?.fullAtMs?.stones).toBeGreaterThanOrEqual(filled - 2000);
-      expect(facts?.fullAtMs?.stones).toBeLessThanOrEqual(filled + 2000);
-      expect(facts?.producedMs).toBeLessThan(20 * HOUR);
+      expect(facts.fullAtMs?.stones).toBeGreaterThanOrEqual(filled - 2000);
+      expect(facts.fullAtMs?.stones).toBeLessThanOrEqual(filled + 2000);
+      expect(facts.producedMs).toBeLessThan(20 * HOUR);
       // No order takes the stone: it sits dead from when it filled (#667).
-      expect(facts?.deadMs).toBeGreaterThanOrEqual(20 * HOUR - filled - 2000);
-      expect(facts?.deadMs).toBeLessThanOrEqual(20 * HOUR - filled + 2000);
+      expect(facts.deadMs).toBeGreaterThanOrEqual(20 * HOUR - filled - 2000);
+      expect(facts.deadMs).toBeLessThanOrEqual(20 * HOUR - filled + 2000);
     });
   });
 
@@ -324,13 +323,13 @@ describe("the night runs until the stockyard is full (#666)", () => {
       const away = night(start, 10 * HOUR);
       const facts = away.report.night;
       // One wagon at 45% takes 4.05 stone a second, and the mine makes it good.
-      const took = facts?.delivered.stones ?? 0;
+      const took = facts.delivered.stones;
       expect(took).toBeGreaterThan(0.95 * 4.05 * 36_000);
       expect(away.mountain.stock.stones).toBeGreaterThanOrEqual(6_000_000 - 50);
       expect(away.mountain.stock.stones).toBeLessThanOrEqual(6_000_000 + 50);
       expect(away.mined).toBeGreaterThan(0.95 * took);
       // The order takes the full stockpile's stone: none of it sits dead.
-      expect(facts?.deadMs).toBe(0);
+      expect(facts.deadMs).toBe(0);
     });
   });
 
@@ -353,9 +352,9 @@ describe("the night runs until the stockyard is full (#666)", () => {
       });
       const away = night(start, 12 * HOUR);
       expect(away.mountain.operational).toEqual(["lightTower"]);
-      expect(away.report.night?.stop).not.toBe("clock");
+      expect(away.report.night.stop).not.toBe("clock");
       // Drilling went past eight hours.
-      expect(away.report.night?.producedMs).toBeGreaterThan(8 * HOUR + HOUR);
+      expect(away.report.night.producedMs).toBeGreaterThan(8 * HOUR + HOUR);
     });
   });
 });

@@ -55,10 +55,10 @@ describe("strategy lab command", () => {
 
   it("reads sweep factors for every run, and rejects a bad pair (#534)", () => {
     expect(
-      parseLabArgs(["--factors", "line.off=0,layer.3.cart.hardness=0.8"]),
+      parseLabArgs(["--factors", "price.cart=2,layer.3.cart.hardness=0.8"]),
     ).toMatchObject({
       kind: "run",
-      factors: { "line.off": 0, "layer.3.cart.hardness": 0.8 },
+      factors: { "price.cart": 2, "layer.3.cart.hardness": 0.8 },
     });
     expect(
       parseLabArgs(["--factors", "a=.5,b=1e-3", "--factors", "c=2"]),
@@ -67,40 +67,26 @@ describe("strategy lab command", () => {
       parseLabArgs(["--factors", "recipe.iron-rails.cost=0.5"]),
     ).toMatchObject({ factors: { "recipe.iron-rails.cost": 0.5 } });
     expect(parseLabArgs(["--factors"]).kind).toBe("error");
-    expect(parseLabArgs(["--factors", "line.off"]).kind).toBe("error");
-    expect(parseLabArgs(["--factors", "line.off=x"]).kind).toBe("error");
+    expect(parseLabArgs(["--factors", "price.cart"]).kind).toBe("error");
+    expect(parseLabArgs(["--factors", "price.cart=x"]).kind).toBe("error");
   });
 
-  it("--factors fresh.off=1 is refused", () => {
-    const refused = parseLabArgs(["--factors", "fresh.off=1"]);
-    expect(refused).toEqual({
-      kind: "error",
-      message:
-        "--factors fresh.off must be 0: the lab plays only the fresh mine (#737).",
-    });
+  it("refuses fresh.off and line.off by name: the fresh mine is the only mine (#739)", () => {
+    for (const value of ["0", "1", "0.5"]) {
+      expect(parseLabArgs(["--factors", `fresh.off=${value}`])).toEqual({
+        kind: "error",
+        message:
+          "fresh.off no longer exists: the fresh mine is the only mine (#739).",
+      });
+      expect(parseLabArgs(["--factors", `line.off=${value}`])).toEqual({
+        kind: "error",
+        message:
+          "line.off no longer exists: the fresh mine is the only mine (#739).",
+      });
+    }
     expect(
-      parseLabArgs(["--factors", "line.off=0", "--factors", "fresh.off=0.5"])
-        .kind,
+      parseLabArgs(["--factors", "a=2", "--factors", "line.off=0"]).kind,
     ).toBe("error");
-    expect(parseLabArgs(["--factors", "fresh.off=0"])).toMatchObject({
-      kind: "run",
-      factors: { "fresh.off": 0 },
-    });
-  });
-
-  it("--factors line.off=1 is refused", () => {
-    expect(parseLabArgs(["--factors", "line.off=1"])).toEqual({
-      kind: "error",
-      message:
-        "--factors line.off must be 0: the fresh mine always plays the line (#737).",
-    });
-    expect(
-      parseLabArgs(["--factors", "a=2", "--factors", "line.off=0.5"]).kind,
-    ).toBe("error");
-    expect(parseLabArgs(["--factors", "line.off=0"])).toMatchObject({
-      kind: "run",
-      factors: { "line.off": 0 },
-    });
   });
 
   it("--factors part2.off=1 runs and --ledger check refuses it", async () => {
@@ -146,7 +132,7 @@ describe("strategy lab command", () => {
       parseLabArgs(["--ci", "--ledger", "check", "--policy", "hoarder"]).kind,
     ).toBe("error");
     expect(
-      parseLabArgs(["--ci", "--ledger", "check", "--factors", "line.off=0"])
+      parseLabArgs(["--ci", "--ledger", "check", "--factors", "price.cart=2"])
         .kind,
     ).toBe("error");
     expect(
@@ -215,7 +201,7 @@ describe("strategy lab command", () => {
     expect(ledger).toContain("| The Light Tower | The Warehouse |");
   });
 
-  it("names --factors line.off=0 in the report, and reads the line the fresh mine plays (#534, #737)", async () => {
+  it("names --factors in the report, and reads the line the fresh mine plays (#534, #737)", async () => {
     const outDir = mkdtempSync(path.join(tmpdir(), "strategy-lab-"));
     const parsed = parseLabArgs([
       "--policy",
@@ -225,7 +211,7 @@ describe("strategy lab command", () => {
       "--days",
       "1",
       "--factors",
-      "line.off=0",
+      "price.cart=1",
       "--out",
       outDir,
     ]);
@@ -234,7 +220,7 @@ describe("strategy lab command", () => {
       return;
     }
     const { markdown } = await executeLab(parsed);
-    expect(markdown).toContain("Factors: line.off=0");
+    expect(markdown).toContain("Factors: price.cart=1");
     expect(markdown).toContain("Longest run on one narrow stage");
     const json = JSON.parse(
       readFileSync(path.join(outDir, "strategy-lab.json"), "utf8"),

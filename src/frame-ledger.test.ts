@@ -5,7 +5,6 @@ import { DRAWER_SETTLE_MS } from "./board-drawer";
 import { holdFactors } from "./economy/factors";
 import { tierBuyMove } from "./economy/actions";
 import { mountFrameScreen } from "./frame-screen";
-import { FRESH_OFF } from "./line-switch";
 import { createMountain, type Mountain } from "./mountain";
 import { createMemoryStorage } from "./test-fixtures";
 import { createProgressStore } from "./progress-store";
@@ -28,7 +27,7 @@ function fingerTap(target: HTMLElement): void {
 let unmount = new AbortController();
 
 beforeEach(() => {
-  holdFactors({ [FRESH_OFF]: 0 });
+  holdFactors({});
   document.body.replaceChildren();
 });
 

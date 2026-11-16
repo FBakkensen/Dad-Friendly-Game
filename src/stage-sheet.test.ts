@@ -3,7 +3,6 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createUnconfiguredAuth } from "./auth";
 import { holdFactors } from "./economy/factors";
 import { mountFrameScreen } from "./frame-screen";
-import { FRESH_OFF } from "./line-switch";
 import type { Mountain } from "./mountain";
 import { createProgressStore } from "./progress-store";
 import { stageList } from "./stage-list-view";
@@ -14,7 +13,7 @@ import { createMemoryStorage, crewedStart } from "./test-fixtures";
 let unmount = new AbortController();
 
 beforeEach(() => {
-  holdFactors({ [FRESH_OFF]: 0 });
+  holdFactors({});
 });
 
 afterEach(() => {

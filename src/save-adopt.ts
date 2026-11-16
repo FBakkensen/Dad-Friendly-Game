@@ -9,7 +9,7 @@ import {
   persistCloudSoon,
 } from "./cloud-writer";
 import { persistPhoneBackup } from "./local-saves";
-import { digStones, minedOut, rockDugInAll } from "./mountain";
+import { rockDugInAll } from "./mountain";
 import { conflictIsReal, mergeSaves, type MergeResult } from "./save-merge";
 import {
   adopt,
@@ -88,22 +88,16 @@ function settleFalseSplit(ctx: StoreContext, remote: SaveSide): void {
   ctx.phoneDirty = true;
 }
 
-/** One copy leads: play it, keeping taps the merge would drop. */
+/** One copy leads: play it. */
 function fastForward(
   ctx: StoreContext,
   merged: MergedCopy,
   remote: SaveSide,
-  tapped: number,
 ): void {
-  let next = merged.mountain;
-  if (tapped > 0 && minedOut(next) === minedOut(remote.mountain)) {
-    next = digStones(next, tapped);
-  }
-  const keptTap = next !== merged.mountain;
-  adopt(ctx, next, merged.lastSeen ?? ctx.session.lastSeen);
+  adopt(ctx, merged.mountain, merged.lastSeen ?? ctx.session.lastSeen);
   ctx.rev = Math.max(ctx.rev, merged.rev, remote.rev);
   ctx.syncedRev = Math.max(ctx.syncedRev, remote.rev);
-  if (merged.differsFromRemote || keptTap) {
+  if (merged.differsFromRemote) {
     markCloudDirty(ctx);
     ctx.phoneDirty = true;
   } else {
@@ -120,7 +114,6 @@ type MergedCopy = Exclude<MergeResult, { kind: "conflict" }>;
 export function applyMerged(
   ctx: StoreContext,
   remote: SaveSide,
-  tapped = 0,
 ): "conflict" | "applied" {
   if (ctx.saveConflict !== undefined) {
     return "conflict";
@@ -131,7 +124,7 @@ export function applyMerged(
     { mountain: remote.mountain, lastSeen: remote.lastSeen, rev: remote.rev },
   );
   if (merged.kind !== "conflict") {
-    fastForward(ctx, merged, remote, tapped);
+    fastForward(ctx, merged, remote);
     return "applied";
   }
   if (unsettledCopy(ctx, remote)) {

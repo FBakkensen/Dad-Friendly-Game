@@ -1,4 +1,3 @@
-import { freshMineOn, lineOn } from "./line-switch";
 import { MACHINE_IDS, tierById, type MachineId, type TierId } from "./tiers";
 
 /**
@@ -59,10 +58,10 @@ const FRESH_RATING: Readonly<Partial<Record<TierId, number>>> = {
 
 /** A machine's rating on the line, times today's; the hands keep theirs. */
 export function lineRating(tierId: TierId): number {
-  if (!lineOn() || stageOf(tierId) === undefined) {
+  if (stageOf(tierId) === undefined) {
     return 1;
   }
-  return (freshMineOn() ? FRESH_RATING[tierId] : undefined) ?? LINE_RATING;
+  return FRESH_RATING[tierId] ?? LINE_RATING;
 }
 
 /** What each stage moves: running × speed over its machines. */

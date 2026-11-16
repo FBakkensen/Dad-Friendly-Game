@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { withFactors } from "./economy/factors";
-import { FRESH_OFF } from "./line-switch";
 import { createMountain } from "./mountain";
 import { KEEPSAKES } from "./expeditions";
 import { LOST_TOOLS } from "./lost-tools";
@@ -28,8 +27,8 @@ import {
   SIGN_OUT,
   SIGNING_IN,
   START_OVER,
-  START_OVER_DETAIL,
-  START_OVER_KEEP,
+  START_OVER_FRESH_DETAIL,
+  START_OVER_FRESH_KEEP,
   START_OVER_TITLE,
   START_OVER_YES,
   TONIGHT_LEGEND,
@@ -125,7 +124,6 @@ import {
   upgradeEffectLine,
   upgradeWhyLine,
   awayCheerWords,
-  quietAwayWords,
   AWAY_CHEER,
   DREAM_AWAY_MS,
   ENGINEERS_BACK,
@@ -699,19 +697,6 @@ describe("upgrade card before and after (#324)", () => {
   const line = (id: UpgradeId, mountain: Mountain): string =>
     upgradeEffectLine(upgradeById(id), mountain, at);
 
-  it("a synergy says one boosted machine's speed before and after, bought or not", () => {
-    expect(line("cartSyn", crew)).toBe("Carts 6/s to 6.7/s.");
-    expect(
-      line("cartSyn", { ...crew, upgrades: { ...NO_UPGRADES, cartSyn: 1 } }),
-    ).toBe("Carts 6/s to 6.7/s.");
-  });
-
-  it("a synergy with none of its source tier says the rule", () => {
-    expect(
-      line("cartSyn", { ...crew, owned: { ...crew.owned, helper: 0 } }),
-    ).toBe("Each worker makes carts 1% faster.");
-  });
-
   it("the Great Machine synergy names the Great Machine", () => {
     const deep = {
       ...crew,
@@ -720,10 +705,6 @@ describe("upgrade card before and after (#324)", () => {
     expect(line("machineSyn", deep)).toMatch(
       /^Great Machine \S+\/s to \S+\/s\.$/,
     );
-  });
-
-  it("Work boots keeps its line", () => {
-    expect(line("boots", crew)).toBe("Workers 1/s to 2.4/s.");
   });
 
   it("no upgrade says taps, since the dig went (#728)", () => {
@@ -778,9 +759,6 @@ describe("upgrade card why line (#342)", () => {
   });
 
   it("a synergy with none of its source says what makes it count", () => {
-    expect(upgradeWhyLine(upgradeById("cartSyn"), empty)).toBe(
-      "It counts once you have workers.",
-    );
     expect(upgradeWhyLine(upgradeById("machineSyn"), empty)).toBe(
       "It counts once you have borers.",
     );
@@ -816,13 +794,6 @@ describe("awayCheerWords: mountain dreams (#337)", () => {
   });
 });
 
-describe("quietAwayWords (#334)", () => {
-  it("says the stones a short absence paid, with a real number", () => {
-    expect(quietAwayWords(1_474)).toBe("+1,474 stones while you were away");
-    expect(quietAwayWords(1)).toBe("+1 stone while you were away");
-  });
-});
-
 describe("the Ledger's words (#375)", () => {
   it("names the drawer's kick, legends and Back", () => {
     expect(LEDGER_KICK).toBe("Tonight, and the mine so far");
@@ -831,12 +802,12 @@ describe("the Ledger's words (#375)", () => {
     expect(LEDGER_BACK).toBe("Back to the Ledger");
   });
 
-  it("keeps today's Start over and account words, with the one question on the title", () => {
+  it("keeps the Start over and account words, with the one question on the title", () => {
     expect(START_OVER).toBe("Start over");
     expect(START_OVER_TITLE).toBe("Start over?");
-    expect(START_OVER_KEEP).toBe("Keep my mountain");
+    expect(START_OVER_FRESH_KEEP).toBe("Keep my mine");
     expect(START_OVER_YES).toBe("Yes, start over");
-    expect(START_OVER_DETAIL).toMatch(/^You will lose all your progress/);
+    expect(START_OVER_FRESH_DETAIL).toMatch(/^You will lose all your progress/);
     expect(ACCOUNT).toBe("Account");
     expect(NOT_SIGNED_IN).toBe("Not signed in");
     expect(SIGN_IN).toBe("Sign in");
@@ -849,8 +820,8 @@ describe("the Ledger's words (#375)", () => {
     const others = [
       LEDGER_KICK,
       START_OVER,
-      START_OVER_DETAIL,
-      START_OVER_KEEP,
+      START_OVER_FRESH_DETAIL,
+      START_OVER_FRESH_KEEP,
       START_OVER_YES,
     ].join(" ");
     expect(others).not.toMatch(/\?/);
@@ -918,8 +889,7 @@ describe("boostOverWords (#527)", () => {
 });
 
 /** A fresh mine's words for the worker's and the stages' upgrades (#661, the spec's call 41). */
-const freshWords = <T>(body: () => T): T =>
-  withFactors({ [FRESH_OFF]: 0 }, body);
+const freshWords = <T>(body: () => T): T => withFactors({}, body);
 
 const boots = upgradeById("boots");
 const helpers = upgradeById("cartSyn");
@@ -962,13 +932,5 @@ describe("a fresh mine's upgrade words", () => {
       );
       expect(upgradeWhyLine(helpers, none)).toBe("");
     });
-  });
-
-  it("keeps today's words outside a fresh mine", () => {
-    const mountain = createMountain();
-    expect(helpers.name).toBe("Loading crews");
-    expect(upgradeWhyLine(boots, mountain)).toBe(
-      "The workers pick up their feet.",
-    );
   });
 });

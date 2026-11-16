@@ -1,27 +1,17 @@
 import { EMPTY_STOCK } from "./stock";
 import { describe, expect, it } from "vitest";
-import { buyCrew, tierLock, tierLocked } from "./crew";
+import { buyCrew, tierLock } from "./crew";
 import { minedMountain, reloaded, NONE_OWNED } from "./test-fixtures";
-import {
-  accrue,
-  accrueAway,
-  stonesPerSecond,
-  type Mountain,
-  BARE_MOUNTAIN,
-  createMountain,
-} from "./mountain";
-import { AWAY_PAY_RATE, effectiveRates } from "./rates";
-import { MOUNTAIN_STONES, stonesLeft } from "./scale";
+import { type Mountain, BARE_MOUNTAIN, createMountain } from "./mountain";
+import { effectiveRates } from "./rates";
+import { MOUNTAIN_STONES } from "./scale";
 import { withFactors } from "./economy/factors";
 import { UPGRADES, upgradePrice } from "./upgrades";
-import { listActions } from "./economy/actions";
-import { LINE_OFF, FRESH_OFF } from "./line-switch";
 import { NO_GRANITE_PILES, NO_LEVEL_MACHINES } from "./mine-levels";
 import { PART_THREE_OFF, PART_TWO_OFF, PLAY_FACTORS } from "./part-switch";
 import {
   HELPER_COST_GROWTH,
   LINE_MACHINE_COST_GROWTH,
-  MACHINE_COST_GROWTH,
   MACHINE_IDS,
   TIER_IDS,
   machineRecord,
@@ -29,14 +19,12 @@ import {
   tierRecord,
   TIERS,
   isShownTier,
-  machinesInPlay,
   tierInPlay,
   buyTier,
   tierById,
   tierCost,
   tierGood,
   tierQuote,
-  tierShown,
   type TierId,
 } from "./tiers";
 
@@ -87,16 +75,10 @@ describe("tiers", () => {
       ["machine", 2_100],
       ["kid", 25],
     ]);
-    // #728: the Kid worker opens where the Crown of Wisdom lay.
-    expect(tierById("kid").opensAt).toBe(70_000_000);
-    // #356: the borer opens at the Granite start, the band that suits it.
-    expect(tierById("borer").opensAt).toBe(10_000_000);
-    // M12 retune (#252): the Great Machine opens at the Deep Heart.
-    expect(tierById("machine").opensAt).toBe(120_000_000);
     // Machines climb; kids are a late helper tier, not a machine. The
-    // line's machines fill a stage each, not a rung (#533).
+    // line's hoist and pit train fill a stage each, not a rung (#533).
     const machines = TIERS.filter(
-      (tier) => tier.id !== "kid" && tier.line !== true,
+      (tier) => !["kid", "hoist", "train"].includes(tier.id),
     );
     for (const [index, tier] of machines.entries()) {
       const next = machines[index + 1];
@@ -140,63 +122,6 @@ describe("tiers", () => {
       }),
     );
   });
-
-  it("adds every tier into the speed, and accrue pays them all", () => {
-    const crew = at({
-      // 21 workers: 2 carts + 1 + 8 + 10.
-      owned: {
-        ...NONE_OWNED,
-        helper: 21,
-        cart: 2,
-        drill: 1,
-        borer: 1,
-        machine: 1,
-        kid: 0,
-      },
-    });
-    expect(stonesPerSecond(crew)).toBe(21 + 12 + 36 + 357 + 2_100);
-    expect(
-      accrue({
-        mountain: { ...crew, remaining: 240_000_000 },
-        from: 0,
-        to: 1_000,
-      }).mined,
-    ).toBe(2_526);
-  });
-
-  it("shows each tier once the one before it is owned", () => {
-    expect(tierShown(at({}), tierById("helper"))).toBe(true);
-    expect(
-      tierShown(
-        at({ stock: { ...EMPTY_STOCK, stones: 10_000 } }),
-        tierById("cart"),
-      ),
-    ).toBe(false);
-    expect(
-      tierShown(at({ owned: { ...NONE_OWNED, helper: 1 } }), tierById("cart")),
-    ).toBe(true);
-    expect(
-      tierShown(at({ owned: { ...NONE_OWNED, helper: 5 } }), tierById("drill")),
-    ).toBe(false);
-    expect(
-      tierShown(at({ owned: { ...NONE_OWNED, cart: 1 } }), tierById("drill")),
-    ).toBe(true);
-    expect(
-      tierShown(at({ owned: { ...NONE_OWNED, drill: 1 } }), tierById("borer")),
-    ).toBe(true);
-    expect(
-      tierShown(
-        at({ owned: { ...NONE_OWNED, borer: 1 } }),
-        tierById("machine"),
-      ),
-    ).toBe(true);
-    expect(
-      tierShown(
-        at({ owned: { ...NONE_OWNED, machine: 1 } }),
-        tierById("machine"),
-      ),
-    ).toBe(true);
-  });
 });
 
 describe("crew staffing", () => {
@@ -212,109 +137,26 @@ describe("crew staffing", () => {
       ["kid", 0],
     ]);
   });
-
-  it("leaves machines without helpers idle", () => {
-    expect(stonesPerSecond(at({ owned: { ...NONE_OWNED, cart: 5 } }))).toBe(0);
-    const rates = effectiveRates(
-      at({ owned: { ...NONE_OWNED, helper: 3, cart: 5 } }),
-    );
-    expect(rates.running.cart).toBe(3);
-    expect(rates.helpersShort).toBe(2);
-    expect(rates.crewPerSecond).toBe(3 + 18);
-  });
-
-  it("staffs the fastest machines first", () => {
-    // 11 workers: the borer takes 8, the drill 1, two carts run.
-    const rates = effectiveRates(
-      at({ owned: { ...NONE_OWNED, helper: 11, cart: 3, drill: 1, borer: 1 } }),
-    );
-    expect(rates.running).toEqual({
-      helper: 11,
-      kid: 0,
-      machine: 0,
-      train: 0,
-      borer: 1,
-      drill: 1,
-      hoist: 0,
-      cart: 2,
-    });
-    expect(rates.helpersShort).toBe(1);
-    expect(rates.crewPerSecond).toBe(11 + 12 + 36 + 357);
-  });
-
-  it("idles a machine rather than half-run it, and away pay agrees", () => {
-    // 9 workers can't run a Great Machine (10); they run the carts instead.
-    const crew = {
-      ...at({ owned: { ...NONE_OWNED, helper: 9, cart: 4, machine: 1 } }),
-      remaining: 1e6,
-    };
-    const rates = effectiveRates(crew);
-    expect(rates.running.machine).toBe(0);
-    expect(rates.running.cart).toBe(4);
-    expect(rates.crewPerSecond).toBe(9 + 24);
-    expect(accrueAway({ mountain: crew, lastSeen: 0, now: 10_000 }).mined).toBe(
-      Math.floor(10 * 33 * AWAY_PAY_RATE),
-    );
-    const staffed = effectiveRates({
-      ...crew,
-      owned: { ...crew.owned, helper: 14 },
-    });
-    expect(staffed.crewPerSecond).toBe(14 + 24 + 2_310);
-    expect(staffed.helpersShort).toBe(0);
-  });
-});
-
-describe("kid helpers", () => {
-  it("are locked until 70M mined, then for sale on the helpers' curve", () => {
-    const kid = tierById("kid");
-    expect(tierLocked(minedMountain(69_999_999), kid)).toBe(true);
-    expect(tierLocked(minedMountain(70_000_000), kid)).toBe(false);
-    // Kids share the workers' curve.
-    expect(tierCost(kid, 0)).toBe(kid.firstCost);
-    expect(tierCost(kid, 1)).toBe(
-      Math.ceil(Number((kid.firstCost * HELPER_COST_GROWTH).toPrecision(12))),
-    );
-  });
-
-  it("mine, staff machines, and make every helper and kid 2% faster each", () => {
-    // 5 kids: ×1.1 for helpers and kids; kids staff the cart and the drill.
-    const rates = effectiveRates(
-      at({
-        owned: {
-          ...NONE_OWNED,
-          helper: 10,
-          kid: 5,
-          cart: 1,
-          drill: 1,
-          borer: 1,
-        },
-      }),
-    );
-    expect(rates.tierSpeed.helper).toBeCloseTo(1.1);
-    expect(rates.tierSpeed.kid).toBeCloseTo(27.5);
-    expect(rates.running).toMatchObject({ borer: 1, drill: 1, cart: 1 });
-    expect(rates.helpersShort).toBe(0);
-    expect(rates.crewPerSecond).toBe(
-      Math.floor(10 * 1.1 + 5 * 27.5 + 6 + 36 + 357),
-    );
-  });
 });
 
 // #356 gentler curves: every tier climbs its growth from its first price.
 describe("cost curves (#356)", () => {
   const ceil12 = (n: number) => Math.ceil(Number(n.toPrecision(12)));
+  /** From the first price play charges (the line's, #543). */
   const curve = (id: TierId, n: number, growth: number) =>
-    ceil12(tierById(id).firstCost * growth ** n);
+    ceil12(tierCost(tierById(id), 0) * growth ** n);
 
-  it("machines climb the machine curve", () => {
+  it("machines climb the line's machine curve", () => {
     for (const [id, n] of [
       ["cart", 13],
+      ["hoist", 7],
       ["drill", 11],
       ["borer", 3],
       ["machine", 2],
     ] as const) {
-      expect(tierCost(tierById(id), 0)).toBe(tierById(id).firstCost);
-      expect(tierCost(tierById(id), n)).toBe(curve(id, n, MACHINE_COST_GROWTH));
+      expect(tierCost(tierById(id), n)).toBe(
+        curve(id, n, LINE_MACHINE_COST_GROWTH),
+      );
     }
   });
 
@@ -330,7 +172,7 @@ describe("cost curves (#356)", () => {
   it("the sweep growth factors still multiply", () => {
     withFactors({ "growth.machine": 2 }, () => {
       expect(tierCost(tierById("cart"), 3)).toBe(
-        curve("cart", 3, MACHINE_COST_GROWTH * 2),
+        curve("cart", 3, LINE_MACHINE_COST_GROWTH * 2),
       );
     });
     withFactors({ "growth.worker": 2 }, () => {
@@ -357,7 +199,7 @@ describe("cost curves (#356)", () => {
       expect(Number.isFinite(cost)).toBe(true);
       expect(cost).toBeGreaterThan(0);
     }
-    expect(stonesLeft(m)).toBeGreaterThan(MOUNTAIN_STONES - 12_000_000);
+    expect(m.remaining).toBe(MOUNTAIN_STONES - 12_000_000);
   });
 });
 
@@ -426,8 +268,7 @@ describe("tierQuote: what ×1, ×10 and Max cost (#358)", () => {
   });
 });
 
-describe("the line's machines, off in play (#533)", () => {
-  const LINE_ON = { [LINE_OFF]: 0 };
+describe("the line's machines (#533)", () => {
   const hoist = tierById("hoist");
   const train = tierById("train");
 
@@ -437,122 +278,28 @@ describe("the line's machines, off in play (#533)", () => {
       stage: "lift",
       firstCost: 6_000,
       staff: 1,
-      line: true,
     });
-    expect(hoist.opensAt).toBeUndefined();
     expect(train).toMatchObject({
       name: "Pit train",
       stage: "haul",
       firstCost: 30_000_000,
       staff: 8,
-      // The Crystal Caves.
-      opensAt: 45_000_000,
-      line: true,
     });
     expect(isShownTier("hoist")).toBe(false);
     expect(isShownTier("train")).toBe(false);
     expect(isShownTier("cart")).toBe(true);
   });
-
-  it("with the line off: never shown, never bought, no hands, nothing mined", () => {
-    expect(tierInPlay(hoist)).toBe(false);
-    expect(machinesInPlay()).toEqual(["cart", "drill", "borer", "machine"]);
-    const crew = at({
-      stock: { ...EMPTY_STOCK, stones: 1e9 },
-      owned: { ...NONE_OWNED, helper: 30, cart: 4, borer: 1 },
-    });
-    expect(tierShown(crew, hoist)).toBe(false);
-    // The drill still follows the cart.
-    expect(tierShown(crew, tierById("drill"))).toBe(true);
-    expect(buyCrew(crew, "hoist")).toBe(crew);
-    expect(buyCrew(minedMountain(50_000_000), "train").owned.train).toBe(0);
-    const offered = listActions(crew, 0).flatMap((action) =>
-      action.kind === "buyTier" ? [action.id] : [],
-    );
-    expect(offered).not.toContain("hoist");
-    expect(offered).not.toContain("train");
-    // A save that holds them mines what it mines without them.
-    const holding = { ...crew, owned: { ...crew.owned, hoist: 5, train: 2 } };
-    const rates = effectiveRates(holding);
-    expect(rates.running.hoist).toBe(0);
-    expect(rates.running.train).toBe(0);
-    expect(rates.exactCrewPerSecond).toBe(
-      effectiveRates(crew).exactCrewPerSecond,
-    );
-    expect(rates.helpersShort).toBe(effectiveRates(crew).helpersShort);
-  });
-
-  it("staffs the same counts again once the line turns on (the staffing table keys the line)", () => {
-    const crew = at({
-      owned: {
-        ...NONE_OWNED,
-        helper: 30,
-        cart: 4,
-        hoist: 5,
-        train: 2,
-        borer: 1,
-      },
-    });
-    expect(effectiveRates(crew).running.hoist).toBe(0);
-    const on = withFactors(LINE_ON, () => effectiveRates({ ...crew }));
-    expect(on.running.hoist).toBe(5);
-    expect(on.running.train).toBe(2);
-    expect(effectiveRates({ ...crew }).running.hoist).toBe(0);
-  });
-
-  it("with the line on: shown in price order, bought, and running in their stages", () => {
-    withFactors(LINE_ON, () => {
-      expect(machinesInPlay()).toEqual(MACHINE_IDS);
-      const carts = at({
-        stock: { ...EMPTY_STOCK, stones: 1e9 },
-        owned: { ...NONE_OWNED, helper: 12, cart: 1 },
-      });
-      expect(tierShown(carts, hoist)).toBe(true);
-      // The drill now follows the hoist (spec: "once he owns a hoist").
-      expect(tierShown(carts, tierById("drill"))).toBe(false);
-      const bought = buyCrew(carts, "hoist");
-      expect(bought.owned.hoist).toBe(1);
-      expect(tierShown(bought, tierById("drill"))).toBe(true);
-      const offered = listActions(carts, 0).flatMap((action) =>
-        action.kind === "buyTier" ? [action.id] : [],
-      );
-      expect(offered).toContain("hoist");
-      // The train shows after a borer and waits for the Crystal Caves.
-      const granite = {
-        ...minedMountain(20_000_000),
-        owned: { ...minedMountain(20_000_000).owned, borer: 1 },
-      };
-      expect(tierShown(granite, train)).toBe(true);
-      expect(tierLocked(granite, train)).toBe(true);
-      const caves = {
-        ...minedMountain(45_000_000),
-        owned: { ...minedMountain(45_000_000).owned, borer: 1 },
-      };
-      expect(tierLocked(caves, train)).toBe(false);
-      // A hoist runs on a hand and lifts with the hands.
-      const rates = effectiveRates({
-        ...bought,
-        owned: { ...bought.owned, helper: 13 },
-      });
-      expect(rates.running.hoist).toBe(1);
-      expect(rates.running.cart).toBe(1);
-    });
-  });
 });
 
-describe("the line's prices, labs only (#543)", () => {
+describe("the line's prices (#543)", () => {
   it("climbs ×1.219 a machine, prices the first worker at 60 and the Great Machine at 96.48M", () => {
-    withFactors({ [LINE_OFF]: 0 }, () => {
-      const cart = tierById("cart");
-      expect(tierCost(cart, 0)).toBe(600);
-      expect(tierCost(cart, 1)).toBe(Math.ceil(600 * LINE_MACHINE_COST_GROWTH));
-      const helper = tierById("helper");
-      expect(tierCost(helper, 0)).toBe(60);
-      expect(tierCost(helper, 1)).toBe(Math.ceil(60 * HELPER_COST_GROWTH));
-      expect(tierCost(tierById("machine"), 0)).toBe(96_480_000);
-    });
-    expect(tierCost(tierById("machine"), 0)).toBe(120_600_000);
-    expect(tierCost(tierById("cart"), 1)).toBe(690);
+    const cart = tierById("cart");
+    expect(tierCost(cart, 0)).toBe(600);
+    expect(tierCost(cart, 1)).toBe(Math.ceil(600 * LINE_MACHINE_COST_GROWTH));
+    const helper = tierById("helper");
+    expect(tierCost(helper, 0)).toBe(60);
+    expect(tierCost(helper, 1)).toBe(Math.ceil(60 * HELPER_COST_GROWTH));
+    expect(tierCost(tierById("machine"), 0)).toBe(96_480_000);
   });
 });
 
@@ -678,12 +425,9 @@ describe("counts by id (#559)", () => {
 
 describe("part 3's machines (#673)", () => {
   const partTwo = <T>(body: () => T): T =>
-    withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 }, body);
+    withFactors({ [PART_TWO_OFF]: 0 }, body);
   const partThree = <T>(body: () => T): T =>
-    withFactors(
-      { [FRESH_OFF]: 0, [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 },
-      body,
-    );
+    withFactors({ [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 }, body);
   const borer = tierById("borer");
   const train = tierById("train");
   const sunk = (

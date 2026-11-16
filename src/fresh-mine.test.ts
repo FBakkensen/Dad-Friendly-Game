@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { withFactors } from "./economy/factors";
 import { applyMove, listActions, type Action } from "./economy/actions";
 import { tierLock, tierLocked } from "./crew";
-import { FRESH_OFF, freshMineOn, lineOn } from "./line-switch";
 import {
   MOUNTAIN_STONES,
   accrue,
@@ -14,15 +13,15 @@ import {
 } from "./mountain";
 import { effectiveRates } from "./rates";
 import { layerOf } from "./layers";
-import { stonesLeft, stonesToNextBand } from "./scale";
-import { TIERS, tierById, tierInPlay, tierShown, type TierId } from "./tiers";
+import { stonesLeft } from "./scale";
+import { TIERS, tierById, tierInPlay, type TierId } from "./tiers";
 import { UPGRADES, buyUpgrade } from "./upgrades";
 import { upgradeShown } from "./upgrade-reveal";
 import { promote } from "./engineers";
 import { workshopUnlocked } from "./workshop";
 
-/** The fresh mine (slice 1, part 1), switched on as a lab run does (#653). */
-const FRESH = { [FRESH_OFF]: 0 };
+/** Part 1 of the fresh mine: no switch held, whatever is held outside. */
+const FRESH = {};
 
 function fresh<T>(body: () => T): T {
   return withFactors(FRESH, body);
@@ -49,26 +48,6 @@ function buys(mountain: Mountain): readonly TierId[] {
     action.kind === "buyTier" ? [action.id] : [],
   );
 }
-
-describe("the fresh mine's switch (#653)", () => {
-  it("is off in play, and on in a lab run that sets fresh.off to 0", () => {
-    expect(freshMineOn()).toBe(false);
-    fresh(() => {
-      expect(freshMineOn()).toBe(true);
-    });
-  });
-
-  it("brings the line with it: a fresh mine is built on the line (rule 2)", () => {
-    expect(lineOn()).toBe(false);
-    fresh(() => {
-      expect(lineOn()).toBe(true);
-    });
-  });
-
-  it("leaves today's start alone while it is off", () => {
-    expect(createMountain().owned.helper).toBe(0);
-  });
-});
 
 describe("one level, no depth (rule 1)", () => {
   it("starts with one worker on drilling, a horse wagon and nobody driving or building (#703)", () => {
@@ -103,8 +82,7 @@ describe("one level, no depth (rule 1)", () => {
       expect(dug.stock.stones).toBe(250_000_000);
       expect(dug.remaining).toBe(MOUNTAIN_STONES);
       expect(minedOut(dug)).toBe(0);
-      expect(stonesLeft(dug)).toBe(Infinity);
-      expect(stonesToNextBand(dug)).toBe(Infinity);
+      expect(stonesLeft()).toBe(Infinity);
     });
   });
 
@@ -169,7 +147,7 @@ describe("machines open by where they open, and nothing else (rule 1's table, ru
       const start = owning({}, 1e12);
       expect(buys(start)).toEqual(["helper", "cart", "hoist", "drill"]);
       for (const id of ["cart", "hoist", "drill"] as const) {
-        expect(tierShown(start, tierById(id))).toBe(true);
+        expect(tierInPlay(tierById(id))).toBe(true);
         expect(tierLock(start, tierById(id))).toBeUndefined();
       }
     });
@@ -196,7 +174,6 @@ describe("machines open by where they open, and nothing else (rule 1's table, ru
       for (const id of ["borer", "train", "machine", "kid"] as const) {
         const tier = tierById(id);
         expect(tierInPlay(tier)).toBe(false);
-        expect(tierShown(crew, tier)).toBe(false);
         const tap = applyMove(crew, { kind: "buyTier", id }, 0);
         expect(tap.kind).toBe("refused");
       }
@@ -254,16 +231,5 @@ describe("what leaves the rules at part 1 (What goes)", () => {
         listActions(crew, 0).some((action) => action.kind === "promote"),
       ).toBe(false);
     });
-  });
-});
-
-describe("today's game is unchanged with the switch off", () => {
-  it("still lets a worker buy a cart, and a promotion go through", () => {
-    const today = owning({ helper: 1 }, 1e9);
-    expect(buys(today)).toContain("cart");
-    expect(promote(today)).not.toBe(today);
-    expect(digStones(createMountain(), 10).remaining).toBe(
-      MOUNTAIN_STONES - 10,
-    );
   });
 });

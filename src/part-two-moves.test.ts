@@ -6,7 +6,6 @@ import {
   type Action,
 } from "./economy/actions";
 import { withFactors } from "./economy/factors";
-import { FRESH_OFF } from "./line-switch";
 import { createMountain, type Mountain } from "./mountain";
 import { makerPrice } from "./makers";
 import { PART_TWO_OFF } from "./part-switch";
@@ -20,8 +19,8 @@ import { MAX_STOCKYARD_LEVEL, expandPrice } from "./stockyard";
  * while they are open.
  */
 const partTwo = <T>(body: () => T): T =>
-  withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 }, body);
-const partOne = <T>(body: () => T): T => withFactors({ [FRESH_OFF]: 0 }, body);
+  withFactors({ [PART_TWO_OFF]: 0 }, body);
+const partOne = <T>(body: () => T): T => withFactors({}, body);
 
 function mine(
   stock: Partial<Stock>,

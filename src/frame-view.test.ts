@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { holdOrder, placeOrder, type Project } from "./city";
 import { withFactors } from "./economy/factors";
 import { hireKey, orderStrip, stockpiles, workersView } from "./frame-view";
-import { FRESH_OFF } from "./line-switch";
 import { PART_TWO_OFF } from "./part-switch";
 import { createMountain, type Mountain } from "./mountain";
 import { crewedStart } from "./test-fixtures";
@@ -10,7 +9,7 @@ import { EMPTY_STOCK } from "./stock";
 import { tierById, tierQuote } from "./tiers";
 
 /** What the frame shows on every site (slice 1, #659). */
-const fresh = <T>(body: () => T): T => withFactors({ [FRESH_OFF]: 0 }, body);
+const fresh = <T>(body: () => T): T => withFactors({}, body);
 
 function withProject(mountain: Mountain, project: Project): Mountain {
   return { ...mountain, project };
@@ -100,7 +99,7 @@ describe("top row", () => {
   });
 
   it("shows stone and brick with their rooms once the stockyard opens (#671)", () => {
-    withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 }, () => {
+    withFactors({ [PART_TWO_OFF]: 0 }, () => {
       const start = createMountain();
       const lit: Mountain = {
         ...start,

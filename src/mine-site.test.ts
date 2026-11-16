@@ -3,7 +3,6 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createUnconfiguredAuth } from "./auth";
 import { holdFactors } from "./economy/factors";
 import { mountFrameScreen } from "./frame-screen";
-import { FRESH_OFF } from "./line-switch";
 import { DEEPER_STRATA, stageRows } from "./mine-view";
 import type { Mountain } from "./mountain";
 import { createProgressStore } from "./progress-store";
@@ -15,7 +14,7 @@ import { NO_FREE_WORKER } from "./workforce-view";
 let unmount = new AbortController();
 
 beforeEach(() => {
-  holdFactors({ [FRESH_OFF]: 0 });
+  holdFactors({});
 });
 
 afterEach(() => {
@@ -184,7 +183,7 @@ describe("the mine", () => {
   });
 
   it("says a machine stands, with both numbers, when its workers move more with tools", () => {
-    holdFactors({ [FRESH_OFF]: 0, "output.cart": 0.03 });
+    holdFactors({ "output.cart": 0.03 });
     const { progress, text } = mount((m) => ({
       ...m,
       owned: { ...m.owned, cart: 1 },
@@ -199,7 +198,7 @@ describe("the mine", () => {
   });
 
   it("keeps the approved words, /s included, when the stand line takes two lines", () => {
-    holdFactors({ [FRESH_OFF]: 0, "output.cart": 0.03 });
+    holdFactors({ "output.cart": 0.03 });
     const proto = HTMLElement.prototype;
     const wide = Object.getOwnPropertyDescriptor(proto, "scrollWidth");
     const narrow = Object.getOwnPropertyDescriptor(proto, "clientWidth");

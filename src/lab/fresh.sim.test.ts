@@ -1,7 +1,6 @@
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { withFactors } from "../economy/factors";
-import { FRESH_OFF } from "../line-switch";
 import { PART_TWO_OFF, PLAY_FACTORS } from "../part-switch";
 import checker from "./fresh-policies/checker-6x3";
 import { discover } from "./registry";
@@ -20,7 +19,8 @@ describe("the lab plays part 1 (#655)", { timeout: 300_000 }, () => {
       parsePolicyExport,
     );
     expect(policies.length).toBeGreaterThan(0);
-    withFactors({ [FRESH_OFF]: 0 }, () => {
+    // Part 1 alone: the lab plays it only when the switch is named (#739).
+    withFactors({ [PART_TWO_OFF]: 1 }, () => {
       for (const policy of policies) {
         let tick = 0;
         let last = 0;
@@ -43,8 +43,8 @@ describe("the lab plays part 1 (#655)", { timeout: 300_000 }, () => {
                 policy.id,
               ).toEqual([]);
             }
-            const share = freshView(world.mountain)?.idleMachines;
-            if (share !== undefined && !Number.isNaN(share)) {
+            const share = freshView(world.mountain).idleMachines;
+            if (!Number.isNaN(share)) {
               idle += share;
               read += 1;
             }
@@ -67,7 +67,7 @@ describe("the lab plays part 2 (#667)", { timeout: 600_000 }, () => {
       path.resolve("src/lab/fresh-policies"),
       parsePolicyExport,
     );
-    withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 }, () => {
+    withFactors(PLAY_FACTORS, () => {
       for (const policy of policies) {
         const run = runPolicy({ policy, seed: 1 });
         const mountain = run.world.mountain;

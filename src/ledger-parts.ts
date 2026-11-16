@@ -11,14 +11,11 @@ import { drawerPlate } from "./board-save";
 import { skin } from "./board-skin";
 import { forgetAll, type PressTracker } from "./card-tap";
 import { TONIGHT_LINES, type TonightLine } from "./ledger-rows";
-import { freshMineOn } from "./line-switch";
 import {
   SAVED_COPIES_TITLE,
   START_OVER,
-  START_OVER_DETAIL,
   START_OVER_FRESH_DETAIL,
   START_OVER_FRESH_KEEP,
-  START_OVER_KEEP,
   START_OVER_TITLE,
   START_OVER_YES,
   SAVE_CONFLICT_ERROR,
@@ -222,11 +219,11 @@ export function createStartOverPage({
     layer: "ledger",
     className: "ledger-page ledger-start-over-page",
     title: START_OVER_TITLE,
-    line: START_OVER_DETAIL,
+    line: START_OVER_FRESH_DETAIL,
     answers: [
       {
         // A fresh mine has no mountain to fill (#708).
-        label: freshMineOn() ? START_OVER_FRESH_KEEP : START_OVER_KEEP,
+        label: START_OVER_FRESH_KEEP,
         id: "keep",
         className: "ledger-keep",
         act: onKeep,
@@ -244,10 +241,10 @@ export function createStartOverPage({
   return {
     ...page,
     say(kept) {
-      const detail = freshMineOn()
-        ? START_OVER_FRESH_DETAIL
-        : START_OVER_DETAIL;
-      page.write(START_OVER_TITLE, kept ? detail : SAVE_CONFLICT_ERROR);
+      page.write(
+        START_OVER_TITLE,
+        kept ? START_OVER_FRESH_DETAIL : SAVE_CONFLICT_ERROR,
+      );
     },
   };
 }

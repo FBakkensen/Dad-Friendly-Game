@@ -4,10 +4,8 @@ import {
   EMPTY_MATERIALS,
   FAVOURED_SPEED,
   LAYERS,
-  LAYER_FAVOURS,
   LINE_TOUGH,
   ROCK_STAGE_OFF,
-  SLOWED_SPEED,
   MATERIAL_EVERY,
   hardnessFactorId,
   bandSuits,
@@ -21,9 +19,7 @@ import {
   type LayerId,
   type MaterialId,
 } from "./layers";
-import { LINE_OFF } from "./line-switch";
 import { MOUNTAIN_STONES } from "./scale";
-import { TIERS, tierById } from "./tiers";
 import { effectiveRates } from "./rates";
 import { minedMountain, reloaded } from "./test-fixtures";
 
@@ -70,10 +66,6 @@ const BANDS = [
   readonly material: MaterialId;
 }[];
 
-const listSpeed = Object.fromEntries(
-  TIERS.map((tier) => [tier.id, tier.perSecond]),
-);
-
 describe("layers", () => {
   it("names four bands, and each one starts where the last one ends", () => {
     expect(LAYERS.map((layer) => layer.id)).toEqual(
@@ -111,60 +103,26 @@ describe("layers", () => {
     expect(layerOf(minedMountain(MOUNTAIN_STONES + 1)).id).toBe("heart");
   });
 
-  it("keeps bare hands at 1 and shifts the machines with the rock", () => {
-    for (const stones of [-1, 0, 1, 10_000_000 - 1]) {
-      expect(effectiveRates(minedMountain(stones)).tierSpeed).toEqual(
-        listSpeed,
-      );
-    }
-    const granite = effectiveRates(minedMountain(10_000_000)).tierSpeed;
-    expect(granite.helper).toBe(1);
-    // Kids keep their own speed in every band (25 since #327).
-    expect(granite.kid).toBe(25);
-    expect(granite.cart).toBe(6);
-    expect(granite.drill).toBeCloseTo(36 * SLOWED_SPEED);
-    expect(granite.borer).toBeCloseTo(357 * 1.1);
-    expect(granite.machine).toBe(2_100);
-    const crystal = effectiveRates(minedMountain(45_000_000)).tierSpeed;
-    expect(crystal.helper).toBe(1);
-    expect(crystal.cart).toBe(6);
-    expect(crystal.drill).toBeCloseTo(39.6);
-    expect(crystal.borer).toBeCloseTo(357 * SLOWED_SPEED);
-    expect(crystal.machine).toBe(2_100);
-    const heart = effectiveRates(minedMountain(120_000_000)).tierSpeed;
-    expect(heart.helper).toBe(1);
-    expect(heart.kid).toBe(25);
-    expect(heart.cart).toBe(6);
-    expect(heart.drill).toBe(36);
-    expect(heart.borer).toBeCloseTo(357 * SLOWED_SPEED);
-    expect(heart.machine).toBeCloseTo(2_100 * 1.1);
+  it("uses table A at the line's own tough factor, and keeps hands at 1 (#543)", () => {
+    expect(layerFavours(1)).toBeUndefined();
+    expect(layerFavours(2)).toEqual({ suits: "borer", tough: "drill" });
+    expect(layerFavours(3)).toEqual({ suits: "train", tough: "cart" });
+    expect(layerFavours(4)).toEqual({ suits: "machine", tough: "hoist" });
+    expect(hardnessOf(2, "drill")).toBe(LINE_TOUGH);
+    expect(hardnessOf(2, "borer")).toBe(FAVOURED_SPEED);
+    expect(hardnessOf(3, "cart")).toBe(LINE_TOUGH);
+    expect(hardnessOf(3, "train")).toBe(FAVOURED_SPEED);
+    expect(hardnessOf(3, "borer")).toBe(1);
+    expect(hardnessOf(4, "hoist")).toBe(LINE_TOUGH);
+    expect(hardnessOf(4, "borer")).toBe(1);
+    expect(hardnessOf(4, "machine")).toBe(FAVOURED_SPEED);
+    expect(hardnessOf(1, "cart")).toBe(1);
     expect(hardnessOf(2, "helper")).toBe(1);
     expect(hardnessOf(4, "kid")).toBe(1);
-    expect(hardnessOf(4, "machine")).toBe(1.1);
-    expect(hardnessOf(1, "borer")).toBe(1);
-  });
-
-  it("uses table A while the line is on, at the line's own tough factor (#543)", () => {
-    withFactors({ [LINE_OFF]: 0 }, () => {
-      expect(layerFavours(2)).toEqual({ suits: "borer", tough: "drill" });
-      expect(layerFavours(3)).toEqual({ suits: "train", tough: "cart" });
-      expect(layerFavours(4)).toEqual({ suits: "machine", tough: "hoist" });
-      expect(hardnessOf(2, "drill")).toBe(LINE_TOUGH);
-      expect(hardnessOf(2, "borer")).toBe(FAVOURED_SPEED);
-      expect(hardnessOf(3, "cart")).toBe(LINE_TOUGH);
-      expect(hardnessOf(3, "train")).toBe(FAVOURED_SPEED);
-      expect(hardnessOf(3, "borer")).toBe(1);
-      expect(hardnessOf(4, "hoist")).toBe(LINE_TOUGH);
-      expect(hardnessOf(4, "borer")).toBe(1);
-      expect(hardnessOf(4, "machine")).toBe(FAVOURED_SPEED);
-      expect(hardnessOf(1, "cart")).toBe(1);
-    });
-    expect(layerFavours(3)).toEqual({ suits: "drill", tough: "borer" });
-    expect(hardnessOf(4, "hoist")).toBe(1);
   });
 
   it("slows the tough stage's every machine in the whole-stage form, and suits none (#543)", () => {
-    withFactors({ [LINE_OFF]: 0, [ROCK_STAGE_OFF]: 0 }, () => {
+    withFactors({ [ROCK_STAGE_OFF]: 0 }, () => {
       for (const tier of ["drill", "borer"] as const) {
         expect(hardnessOf(2, tier)).toBe(LINE_TOUGH);
       }
@@ -179,18 +137,11 @@ describe("layers", () => {
       expect(hardnessOf(4, "helper")).toBe(1);
       expect(hardnessOf(1, "drill")).toBe(1);
     });
-    withFactors({ [LINE_OFF]: 0, [ROCK_STAGE_OFF]: 0 }, () => {
+    withFactors({ [ROCK_STAGE_OFF]: 0 }, () => {
       expect(bandSuits(2)).toBeUndefined();
       expect(bandSuits(4)).toBeUndefined();
     });
-    withFactors({ [LINE_OFF]: 0 }, () => {
-      expect(bandSuits(3)).toBe("train");
-    });
-    // With the line off the knob does nothing.
-    withFactors({ [ROCK_STAGE_OFF]: 0 }, () => {
-      expect(hardnessOf(4, "machine")).toBe(FAVOURED_SPEED);
-      expect(bandSuits(3)).toBe("drill");
-    });
+    expect(bandSuits(3)).toBe("train");
     expect(bandSuits(1)).toBeUndefined();
   });
 
@@ -206,11 +157,10 @@ describe("layers", () => {
     };
     expect(layerOf(mountain).id).toBe("crystal");
     const plain = effectiveRates(mountain);
-    expect(plain.tierSpeed.drill).toBeCloseTo(39.6);
     const harder = withFactors({ [hardnessFactorId(3, "drill")]: 0.85 }, () =>
       effectiveRates(mountain),
     );
-    expect(harder.tierSpeed.drill).toBeCloseTo(39.6 * 0.85, 8);
+    expect(harder.tierSpeed.drill).toBeCloseTo(plain.tierSpeed.drill * 0.85, 8);
     expect(harder.tierSpeed.cart).toBe(plain.tierSpeed.cart);
     expect(harder.tierSpeed.helper).toBe(plain.tierSpeed.helper);
     const otherBand = withFactors(
@@ -361,26 +311,5 @@ describe("breaking into a band", () => {
       "crystal",
       "heart",
     ]);
-  });
-
-  it("favours only a machine you can already build, and keeps the next one strongest (D3)", () => {
-    for (const index of [2, 3, 4] as const) {
-      const favours = LAYER_FAVOURS[index];
-      expect(favours).toBeDefined();
-      if (favours === undefined) {
-        continue;
-      }
-      const suits = tierById(favours.suits);
-      const unlockDepth = suits.opensAt ?? 0;
-      const nextFrom: number =
-        index < LAYERS.length ? LAYERS[index as 2 | 3].from : Infinity;
-      expect(unlockDepth).toBeLessThan(nextFrom);
-      const next = TIERS[TIERS.indexOf(suits) + 1];
-      if (next !== undefined && next.id !== "kid") {
-        expect(suits.perSecond * FAVOURED_SPEED).toBeLessThan(
-          next.perSecond / 2,
-        );
-      }
-    }
   });
 });

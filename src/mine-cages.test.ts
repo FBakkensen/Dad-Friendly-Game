@@ -377,7 +377,7 @@ describe("a night after play (ruling 13)", () => {
     expect(after.stock.stones).toBe(500);
     expect(away.mined).toBe(600);
     expect(away.report.mined).toBe(600);
-    expect(away.report.night?.produced.stones).toBe(500);
+    expect(away.report.night.produced.stones).toBe(500);
     expect(after.cages.trips["hoist:0"]).toEqual({
       level: "granite",
       carried: 0,
@@ -396,7 +396,7 @@ describe("a night after play (ruling 13)", () => {
       accrueAway({ mountain: start, lastSeen: 0, now: 60 * 60 * 1000 }),
     );
     expect(away.mountain.stock.stones).toBe(room);
-    expect(away.report.night?.produced.stones).toBe(100);
+    expect(away.report.night.produced.stones).toBe(100);
     expect(away.mountain.cages.trips["hoist:0"]).toEqual({
       level: "topsoil",
       carried: 500,

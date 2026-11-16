@@ -1,13 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { withFactors } from "./economy/factors";
-import { FRESH_OFF } from "./line-switch";
 import { accrueAway, createMountain, type Mountain } from "./mountain";
 import { effectiveRates } from "./rates";
 import { EMPTY_STOCK } from "./stock";
 import type { Project } from "./city";
 
 /** The night's facts in a fresh mine, for the shift report (#663, rule 4, rule 7.12). */
-const fresh = <T>(body: () => T): T => withFactors({ [FRESH_OFF]: 0 }, body);
+const fresh = <T>(body: () => T): T => withFactors({}, body);
 
 const HOUR = 60 * 60 * 1000;
 const EIGHT_HOURS = 8 * HOUR;
@@ -122,7 +121,7 @@ describe("the night's facts (#663)", () => {
       // The foundation's 25,000 from a pocket of 30,000 at 2.7 a second:
       // 9,259.3 s, so it is built in during the 9,260th second.
       const away = night(mine(30_000, site(0)), 12 * HOUR);
-      expect(away.report.night?.steps).toEqual([
+      expect(away.report.night.steps).toEqual([
         { building: "lightTower", step: 0, atMs: 9_260_000 },
       ]);
       expect(away.mountain.project.kind).toBe("delivering");
@@ -130,7 +129,7 @@ describe("the night's facts (#663)", () => {
         away.mountain.project.kind === "delivering" &&
           away.mountain.project.site.step,
       ).toBe(1);
-      expect(away.report.night?.litAtMs).toBeUndefined();
+      expect(away.report.night.litAtMs).toBeUndefined();
     });
   });
 
@@ -139,7 +138,7 @@ describe("the night's facts (#663)", () => {
       // 1,000 short of the foundation, then the structure's 250,000 from a
       // pocket of a million: 371 s, then 92,593 s more at 2.7 a second.
       const away = night(mine(1_000_000, site(0, 24_000)), 30 * HOUR);
-      expect(away.report.night?.steps).toEqual([
+      expect(away.report.night.steps).toEqual([
         { building: "lightTower", step: 0, atMs: 371_000 },
         { building: "lightTower", step: 1, atMs: 92_964_000 },
       ]);
@@ -173,7 +172,7 @@ describe("the night's facts (#663)", () => {
       const start = mine(50_000, site(1));
       const stood = { ...start, jobs: { ...start.jobs, drilling: 0 } };
       const away = night(stood, HOUR);
-      expect(away.report.night?.delivered).toEqual({
+      expect(away.report.night.delivered).toEqual({
         ...EMPTY_STOCK,
         stones: 9_720,
       });
@@ -191,7 +190,7 @@ describe("the night's facts (#663)", () => {
         payFrom: 0.45,
         payTo: 0.45,
       });
-      expect(away.report.night?.litAtMs).toBeUndefined();
+      expect(away.report.night.litAtMs).toBeUndefined();
     });
   });
 
@@ -210,8 +209,8 @@ describe("the night's facts (#663)", () => {
       // The pocket feeds the wagon and the builders after the mine has stopped.
       // 85,000 short of the structure: 31,481 s at the wagon's 2.7 a second.
       const away = night(mine(10_000, site(1, 165_000)), 12 * HOUR);
-      expect(away.report.night?.stop).toBe("clock");
-      const step = away.report.night?.steps[0];
+      expect(away.report.night.stop).toBe("clock");
+      const step = away.report.night.steps[0];
       expect(step?.step).toBe(1);
       expect(step?.atMs).toBeGreaterThan(EIGHT_HOURS);
     });
@@ -231,10 +230,10 @@ describe("the night's facts (#663)", () => {
       expect(away.mined).toBe(77_760 + 600);
       expect(away.mountain.piles).toEqual({ face: 0, shaft: 0, kiln: 0 });
       const report = away.report.night;
-      expect(report?.stop).toBe("clock");
-      expect(report?.producedMs).toBeGreaterThan(EIGHT_HOURS + 220_000);
-      expect(report?.producedMs).toBeLessThanOrEqual(EIGHT_HOURS + 225_000);
-      expect(report?.delivered).toEqual({ ...EMPTY_STOCK, stones: 78_360 });
+      expect(report.stop).toBe("clock");
+      expect(report.producedMs).toBeGreaterThan(EIGHT_HOURS + 220_000);
+      expect(report.producedMs).toBeLessThanOrEqual(EIGHT_HOURS + 225_000);
+      expect(report.delivered).toEqual({ ...EMPTY_STOCK, stones: 78_360 });
     });
   });
 
@@ -251,7 +250,7 @@ describe("the night's facts (#663)", () => {
         Math.floor(167 * 0.9) + Math.floor((2 * 3600 - 167) * 0.9),
       );
       expect(away.mountain.piles).toEqual({ face: 300, shaft: 0, kiln: 0 });
-      expect(away.report.night?.producedMs).toBe(2 * HOUR);
+      expect(away.report.night.producedMs).toBe(2 * HOUR);
     });
   });
 
@@ -268,17 +267,8 @@ describe("the night's facts (#663)", () => {
       };
       const away = night(lone, 10 * HOUR);
       expect(away.mined).toBe(300);
-      expect(away.report.night?.producedMs).toBeLessThan(HOUR);
-      expect(away.report.night?.stop).toBe("none");
+      expect(away.report.night.producedMs).toBeLessThan(HOUR);
+      expect(away.report.night.stop).toBe("none");
     });
-  });
-
-  it("is not in today's game", () => {
-    const away = accrueAway({
-      mountain: createMountain(),
-      lastSeen: 0,
-      now: 12 * HOUR,
-    });
-    expect(away.report.night).toBeUndefined();
   });
 });

@@ -14,8 +14,7 @@ import {
  * The city (slice 1, rule 6, #654): one project at a time. A project is a
  * building, and a building rises in three steps. He orders it once, and
  * transport (src/transport.ts) carries what each step requires. With its
- * roof on, a building is operational and gives its power. Off in play: only
- * a fresh mine (`freshMineOn`) lists the moves that order one.
+ * roof on, a building is operational and gives its power.
  */
 
 /** A building's three steps, in order: foundation, structure, roof. */
