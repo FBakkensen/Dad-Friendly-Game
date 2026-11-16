@@ -5,14 +5,21 @@ import { createMemoryCloudSave, type CloudSave } from "./cloud-save";
 import { NO_PROJECT, placeOrder } from "./city";
 import { holdFactors } from "./economy/factors";
 import { nightReport } from "./frame-cards";
-import { END_CARD, FIRST_EVENING } from "./frame-cards-words";
+import {
+  END_CARD,
+  FIRST_EVENING,
+  refineryOpens,
+  endCard,
+} from "./frame-cards-words";
 import { mountFrameScreen } from "./frame-screen";
 import { FRESH_OFF } from "./line-switch";
+import { PART_TWO_OFF } from "./part-switch";
 import { createMemoryStorage } from "./test-fixtures";
 import { createMountain, type Mountain } from "./mountain";
 import { createProgressStore } from "./progress-store";
 import { writeSessionSave } from "./session-save";
-import { shiftReport } from "./shift-report-view";
+import { TO_STOCKYARD, shiftReport } from "./shift-report-view";
+import { stockpileRoom } from "./stockyard";
 import { EMPTY_STOCK } from "./stock";
 
 /** The frame's cards: the shift report and the end card (#663). */
@@ -298,6 +305,63 @@ describe("the shift report", () => {
   });
 });
 
+describe("the shift report once the stockyard is open (#671)", () => {
+  /** The crew under the Light Tower's roof, its stone a few minutes from full. */
+  function nearlyFull(): Mountain {
+    const lit = { ...crew(NO_PROJECT), operational: ["lightTower" as const] };
+    return {
+      ...lit,
+      stock: { ...lit.stock, stones: stockpileRoom(lit, "stones") - 1_000 },
+    };
+  }
+
+  it("marks when each stockpile filled, and offers the stockyard beside Resume", () => {
+    holdFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 });
+    const { card, root, progress } = mount({
+      saved: nearlyFull(),
+      at: 9 * HOUR,
+    });
+    const report = nightReport(progress.getSnapshot());
+    if (report === undefined) {
+      throw new Error("a fresh night has a report");
+    }
+    const view = shiftReport(report);
+    expect(view.toStockyard).toBe(true);
+    expect(card().lines).toContain("Stockyard full: production stopped.");
+    const marks = [...root.querySelectorAll(".frame-card-mark")].map(
+      (mark) => mark.textContent,
+    );
+    expect(marks).toEqual(view.marks);
+    expect(marks[0]).toMatch(/^Stone full at /);
+    const yard = root.querySelector<HTMLButtonElement>(".frame-card-yard");
+    expect(yard?.hidden).toBe(false);
+    expect(yard?.textContent).toBe(TO_STOCKYARD);
+    expect(card().key?.textContent).toBe("Resume");
+  });
+
+  it("closes the night and goes to the refinery on To the stockyard", () => {
+    holdFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 });
+    const { card, root, progress } = mount({
+      saved: nearlyFull(),
+      at: 9 * HOUR,
+    });
+    root.querySelector<HTMLButtonElement>(".frame-card-yard")?.click();
+    expect(nightReport(progress.getSnapshot())).toBeUndefined();
+    expect(card().shown).toBe(false);
+    expect(
+      root.querySelector<HTMLElement>(".frame-scene")?.dataset["site"],
+    ).toBe("refinery");
+  });
+
+  it("has no stockyard key on a night the stockyard did not stop", () => {
+    const { root } = mount({ saved: crew(NO_PROJECT), at: 9 * HOUR });
+    expect(root.querySelector<HTMLElement>(".frame-card-yard")?.hidden).toBe(
+      true,
+    );
+    expect(root.querySelectorAll(".frame-card-mark")).toHaveLength(0);
+  });
+});
+
 describe("the end card", () => {
   it("follows the report of a night that put the Light Tower's roof on", () => {
     const { card, press } = mount({
@@ -336,6 +400,42 @@ describe("the end card", () => {
       operational: ["lightTower"],
     }));
     expect(card()).toMatchObject({ shown: true, kind: "end" });
+  });
+
+  it("opens the refinery in part 2 when the Light Tower's roof goes on, and ends at the Warehouse's (#671)", () => {
+    holdFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 });
+    const { card, press, progress } = mount({
+      saved: crew(ROOF_NEARLY_IN),
+      at: 1_000,
+    });
+    progress.applyMutation((mountain) => ({
+      ...mountain,
+      project: NO_PROJECT,
+      operational: ["lightTower"],
+    }));
+    expect(card()).toMatchObject({
+      shown: true,
+      kind: "opens",
+      title: refineryOpens().title,
+      lines: refineryOpens().paragraphs,
+    });
+    expect(card().lines.join(" ")).not.toMatch(/later update/);
+    press();
+    expect(card().shown).toBe(false);
+    progress.applyMutation((mountain) => ({
+      ...mountain,
+      operational: ["lightTower", "warehouse"],
+    }));
+    expect(card()).toMatchObject({
+      shown: true,
+      kind: "end",
+      title: "The Warehouse: operational",
+      lines: endCard("warehouse").paragraphs,
+    });
+    expect(card().lines).toEqual([
+      "Stockyard capacity ×2.",
+      "The city is planning its next building. It comes in a later update.",
+    ]);
   });
 
   it("closes the Ledger as it comes up, and takes the focus to its key (#708)", () => {
@@ -503,8 +603,12 @@ describe("the cards' words", () => {
       FIRST_EVENING.title,
       ...FIRST_EVENING.paragraphs,
       FIRST_EVENING.key,
+      ...refineryOpens().paragraphs,
+      ...endCard("warehouse").paragraphs,
     ].join(" ");
-    expect(words).not.toMatch(/bottleneck|limit|best buy|\bhands?\b|by hand/i);
+    expect(words).not.toMatch(
+      /bottleneck|limit|best buy|\bhands?\b|by hand|\bface\b/i,
+    );
   });
 
   it("say the first evening's words as proposed", () => {

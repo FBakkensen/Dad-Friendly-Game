@@ -1,6 +1,6 @@
 import { ROOF, buildingById, type Building } from "./city";
 import { formatCompact, shiftDuration } from "./format";
-import { STEP_NAMES } from "./frame-view";
+import { BAY_ORDER, GOOD_NAMES, STEP_NAMES } from "./frame-view";
 import type { AwayReport, NightReport } from "./mountain";
 import { percent } from "./screen-words";
 import { GOOD_IDS, type GoodId, type Stock } from "./stock";
@@ -30,8 +30,15 @@ export type ShiftReport = {
   readonly head: string;
   readonly bar: ShiftBar;
   readonly lines: readonly string[];
+  /** "Brick full at 3 h 20 min": each stockpile that filled, and when (#671). */
+  readonly marks: readonly string[];
+  /** A full stockyard stood the mine: a second key goes to the stockyard (#671). */
+  readonly toStockyard: boolean;
   readonly key: "Resume";
 };
+
+/** The second key's words, beside Resume, when the stockyard stood the mine. */
+export const TO_STOCKYARD = "To the stockyard";
 
 /** A fresh night's away report: the only one with a shift report. */
 export type NightAwayReport = AwayReport & { readonly night: NightReport };
@@ -43,7 +50,6 @@ const GOOD_WORDS: Readonly<Record<GoodId, string>> = {
   iron: "iron",
   crystal: "crystal",
   heartstone: "heartstone",
-  // Part 2 (#666): not on screen until the refinery's sliver (#671).
   brick: "brick",
 };
 
@@ -108,9 +114,14 @@ function stepLines(night: NightReport): readonly string[] {
   });
 }
 
+/** The stockyard stood the mine before the night was over (part 2, #671). */
+function yardStopped(report: NightAwayReport): boolean {
+  return report.night.stop === "stockyard" && early(report);
+}
+
 function lines(report: NightAwayReport): readonly string[] {
   const night = report.night;
-  const produced = goodsList({ stones: report.mined });
+  const produced = goodsList(night.produced);
   const delivered = goodsList(night.delivered);
   return [
     produced.length > 0 ? `Produced: ${produced.join(", ")}.` : "No output.",
@@ -121,7 +132,18 @@ function lines(report: NightAwayReport): readonly string[] {
     ...(night.stop === "clock" && early(report)
       ? ["A night shift runs 8 h. Production stopped after that."]
       : []),
+    ...(yardStopped(report) ? ["Stockyard full: production stopped."] : []),
   ];
+}
+
+/** "Brick full at 3 h 20 min", brick then stone, as the stockyard's bays stand. */
+function marks(night: NightReport): readonly string[] {
+  return BAY_ORDER.flatMap((good) => {
+    const at = night.fullAtMs?.[good];
+    return at === undefined
+      ? []
+      : [`${GOOD_NAMES[good]} full at ${shiftDuration(at)}`];
+  });
 }
 
 /** The shift report of a fresh night. */
@@ -131,6 +153,8 @@ export function shiftReport(report: NightAwayReport): ShiftReport {
     head: head(report),
     bar: bar(report),
     lines: lines(report),
+    marks: marks(report.night),
+    toStockyard: yardStopped(report),
     key: "Resume",
   };
 }

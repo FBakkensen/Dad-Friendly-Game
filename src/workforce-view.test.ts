@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { withFactors } from "./economy/factors";
 import { FRESH_OFF } from "./line-switch";
+import { PART_TWO_OFF } from "./part-switch";
 import type { Mountain } from "./mountain";
 import { crewedStart } from "./test-fixtures";
 import { NO_FREE_WORKER, workforceView } from "./workforce-view";
@@ -135,5 +136,50 @@ describe("workforce view", () => {
     expect(NO_FREE_WORKER).toBe(
       "No free worker. Hire one, or take one off another job.",
     );
+  });
+});
+
+describe("the refinery's jobs (#671)", () => {
+  const partTwo = <T>(body: () => T): T =>
+    withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 }, body);
+
+  /** The Light Tower operational, kilns bought and workers on them. */
+  function kilns(owned: number, on: number): Mountain {
+    const start = crewedStart();
+    return {
+      ...start,
+      owned: { ...start.owned, helper: start.owned.helper + on },
+      operational: ["lightTower"],
+      makers: { kiln: owned },
+      jobs: { ...start.jobs, kilns: on },
+    };
+  }
+
+  it("groups the kilns under the refinery, between the mine and the city", () => {
+    partTwo(() => {
+      expect(
+        workforceView(kilns(2, 1)).groups.map((group) => group.name),
+      ).toEqual(["Mine", "Refinery", "City"]);
+      expect(notes(kilns(2, 1))["Kilns"]).toBe("1 of 2 kilns run");
+      // As the kilns' plate says it before the first kiln.
+      expect(notes(kilns(0, 0))["Kilns"]).toBe("No kilns yet");
+      expect(notes(kilns(1, 1))["Kilns"]).toBe("1 of 1 kiln runs");
+      expect(notes(kilns(1, 3))["Kilns"]).toBe("1 of 1 kiln runs");
+    });
+  });
+
+  it("has no refinery before it opens, or in part 1", () => {
+    partTwo(() => {
+      const before = { ...kilns(0, 0), operational: [] };
+      expect(workforceView(before).groups.map((group) => group.name)).toEqual([
+        "Mine",
+        "City",
+      ]);
+    });
+    fresh(() => {
+      expect(
+        workforceView(kilns(0, 0)).groups.map((group) => group.name),
+      ).toEqual(["Mine", "City"]);
+    });
   });
 });

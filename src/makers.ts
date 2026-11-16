@@ -112,6 +112,11 @@ export function makerTakes(id: MakerId): number {
   return Math.max(1, Math.round(makerById(id).takes * factor(`recipe.${id}`)));
 }
 
+/** What one running maker makes a second, at full output (#671). */
+export function makerMakes(id: MakerId): number {
+  return makerById(id).makes;
+}
+
 /** The kilns that run: each with one worker on the kilns' job (rule 2.7). */
 export function runningKilns(
   mountain: Pick<Mountain, "makers" | "jobs">,
@@ -121,5 +126,5 @@ export function runningKilns(
 
 /** Brick a second the running kilns make, at full output. */
 export function kilnRate(mountain: Pick<Mountain, "makers" | "jobs">): number {
-  return runningKilns(mountain) * makerById("kiln").makes;
+  return runningKilns(mountain) * makerMakes("kiln");
 }

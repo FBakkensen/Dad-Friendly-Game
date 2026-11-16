@@ -73,7 +73,7 @@ const KILNS = 3;
 const MAKING = KILNS + 1;
 
 /** The kilns' pile's room: none until he owns a kiln. */
-function kilnHolds(mountain: Pick<Mountain, "makers">): number {
+export function kilnHolds(mountain: Pick<Mountain, "makers">): number {
   return mountain.makers.kiln > 0 ? PILE_HOLDS.kiln : 0;
 }
 

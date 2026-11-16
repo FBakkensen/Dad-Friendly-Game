@@ -1,7 +1,9 @@
 import workerUrl from "./assets/helper-miner.png";
 import stoneUrl from "./assets/board/res-stone.png";
+import brickUrl from "./assets/board/res-brick.png";
 import wagonUrl from "./assets/city/horse-wagon.png";
 import pickUrl from "./assets/pick.png";
+import kilnUrl from "./assets/board/mach-kiln.png";
 import type { AuthController } from "./auth";
 import { createSaveLine } from "./board-save";
 import { el, hide, mark, setAttr, write } from "./board-dom";
@@ -12,6 +14,7 @@ import {
   stockpiles,
   workersView,
   type Pip,
+  type Stockpile,
 } from "./frame-view";
 import type { Mountain } from "./mountain";
 import { saveOnLeave } from "./save-on-leave";
@@ -20,6 +23,7 @@ import {
   SITE_NAMES,
   nextView,
   siteLamp,
+  siteOpen,
   type SiteId,
 } from "./next-view";
 import type { ProgressStore } from "./progress-store";
@@ -32,6 +36,7 @@ import { createFrameLedger, type FrameLedger } from "./frame-ledger";
 import { createBoardHost } from "./board-host";
 import { createCitySite } from "./city-site";
 import { createMineSite } from "./mine-site";
+import { createRefinerySite } from "./refinery-site";
 import { createStageSheet, type StageSheet } from "./stage-sheet";
 import { createWorkforceSheet, type WorkforceSheet } from "./workforce-sheet";
 import "./frame.css";
@@ -48,6 +53,7 @@ import "./frame.css";
 
 const SITE_ICONS: Readonly<Record<SiteId, string>> = {
   mine: pickUrl,
+  refinery: kilnUrl,
   city: wagonUrl,
 };
 
@@ -117,9 +123,43 @@ function paintOrder(parts: OrderParts, mountain: Mountain): void {
   );
 }
 
+/** A stockpile in the top row: its count, and once the stockyard opens its room and bar (#671). */
+type PileParts = {
+  readonly root: HTMLElement;
+  readonly count: HTMLElement;
+  readonly room: HTMLElement;
+  readonly bar: HTMLElement;
+};
+
+function buildPile(url: string, countClass: string): PileParts {
+  const root = el("div", "frame-pile");
+  const count = el("span", `${countClass} board-num`);
+  const room = el("span", "frame-pile-room");
+  const words = el("span", "frame-pile-words");
+  words.append(count, room);
+  const bar = el("i", "frame-pile-bar");
+  root.append(icon(url, "frame-icon"), words, bar);
+  return { root, count, room, bar };
+}
+
+function paintPile(parts: PileParts, pile: Stockpile | undefined): void {
+  hide(parts.root, pile === undefined);
+  if (pile === undefined) {
+    return;
+  }
+  write(parts.count, pile.text);
+  write(parts.room, pile.full === true ? "full" : (pile.room ?? ""));
+  hide(parts.room, pile.room === undefined);
+  mark(parts.root, "full", pile.full === true);
+  hide(parts.bar, pile.fill === undefined);
+  parts.bar.style.width = `${String(Math.round((pile.fill ?? 0) * 1000) / 10)}%`;
+}
+
 type TopParts = {
   readonly root: HTMLElement;
   readonly stones: HTMLElement;
+  readonly stonePile: PileParts;
+  readonly brickPile: PileParts;
   readonly workers: HTMLButtonElement;
   readonly count: HTMLElement;
   readonly free: HTMLElement;
@@ -131,9 +171,10 @@ type TopParts = {
 
 function buildTop(state: FrameState): TopParts {
   const root = el("div", "frame-top");
-  const pile = el("div", "frame-pile");
-  const stones = el("span", "frame-pile-count board-num");
-  pile.append(icon(stoneUrl, "frame-icon"), stones);
+  const stonePile = buildPile(stoneUrl, "frame-pile-count");
+  const brickPile = buildPile(brickUrl, "frame-pile-num");
+  brickPile.root.dataset["good"] = "brick";
+  const stones = stonePile.count;
   const workers = el("button", "frame-workers");
   workers.type = "button";
   workers.setAttribute("aria-label", "The workforce");
@@ -151,10 +192,12 @@ function buildTop(state: FrameState): TopParts {
     const key = hireKey(state.mountain(), state.amount());
     void state.progress.dispatch(tierBuyMove("helper", key.count));
   });
-  root.append(pile, workers, hire);
+  root.append(stonePile.root, brickPile.root, workers, hire);
   return {
     root,
     stones,
+    stonePile,
+    brickPile,
     workers,
     count,
     free,
@@ -170,8 +213,14 @@ function paintTop(
   mountain: Mountain,
   amount: BuyAmount,
 ): void {
-  const [stone] = stockpiles(mountain);
-  write(parts.stones, stone?.text ?? "0");
+  const piles = stockpiles(mountain);
+  const stone = piles.find((pile) => pile.good === "stones");
+  paintPile(parts.stonePile, stone);
+  paintPile(
+    parts.brickPile,
+    piles.find((pile) => pile.good === "brick"),
+  );
+  mark(parts.root, "two-piles", piles.length > 1);
   // The exact count, as the odometer carried it, for the journeys (#664).
   setAttr(parts.stones, "data-count", String(mountain.stock.stones));
   const workers = workersView(mountain);
@@ -290,6 +339,8 @@ function buildSiteBar(state: FrameState): SiteBar {
 
 function paintSiteBar(bar: SiteBar, mountain: Mountain, here: SiteId): void {
   for (const site of SITES) {
+    // A site joins the bar when its work opens (#671).
+    hide(bar.tabs[site], !siteOpen(mountain, site));
     setAttr(bar.lamps[site], "data-lamp", siteLamp(mountain, site));
     mark(bar.tabs[site], "on", site === here);
     setAttr(bar.tabs[site], "aria-current", site === here ? "page" : undefined);
@@ -321,8 +372,9 @@ function buildFrame(
   const top = buildTop(state);
   const scene = el("div", "frame-scene");
   const mine = createMineSite(state, signal);
+  const refinery = createRefinerySite(state, signal);
   const city = createCitySite(state, signal);
-  scene.append(mine.root, city.root);
+  scene.append(mine.root, refinery.root, city.root);
   const next = buildNext(state);
   const bar = buildSiteBar(state);
   const root = el("div", "frame");
@@ -336,6 +388,7 @@ function buildFrame(
       paintNext(next, mountain);
       paintSiteBar(bar, mountain, state.site());
       mine.paint(mountain, state.site() === "mine", now());
+      refinery.paint(mountain, state.site() === "refinery", now());
       city.paint(mountain, state.site() === "city", now());
       setAttr(scene, "data-site", state.site());
       setAttr(scene, "aria-label", SITE_NAMES[state.site()]);
@@ -413,7 +466,13 @@ export function mountFrameScreen({
     closeSheets();
     ledger.close();
   };
-  const cards = createFrameCards({ progress, onShow: closeUnderCard });
+  const cards = createFrameCards({
+    progress,
+    onShow: closeUnderCard,
+    onStockyard: () => {
+      state.go("refinery");
+    },
+  });
   const saveCards = createFrameSaveCards({
     progress,
     board,
@@ -445,6 +504,10 @@ export function mountFrameScreen({
   );
   paint = () => {
     const { mountain, ready } = progress.getSnapshot();
+    // A site that is not open (a dev page left part 2) is never shown.
+    if (!siteOpen(mountain, site)) {
+      site = "mine";
+    }
     // Until a signed-in save is in, the store holds a new mine: its numbers
     // would say the mine is gone, so the frame shows none (#664).
     frame.root.toggleAttribute("data-loading", !ready);

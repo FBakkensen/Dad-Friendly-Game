@@ -1,7 +1,6 @@
 import stoneUrl from "./assets/board/res-stone.png";
 import { el, hide, mark, setAttr, write } from "./board-dom";
 import { tierBuyMove } from "./economy/actions";
-import { formatCompact } from "./format";
 import type { FrameState } from "./frame-state";
 import { listenSteps, paintSteps, stepper } from "./job-steps";
 import { STAGES, type Stage } from "./line";
@@ -10,11 +9,11 @@ import {
   levelPlate,
   machineKeys,
   mineScene,
+  pileWords,
   stageRows,
   STAGE_NAMES,
   type MachineKey,
   type MineScene,
-  type RowPile,
   type StageRow,
 } from "./mine-view";
 import {
@@ -58,15 +57,17 @@ export type KeyParts = {
   readonly staff: HTMLElement;
 };
 
+/** What a key in the mine keys' form says: a machine's, or the kiln's (#671). */
+export type KeyFace = Pick<
+  MachineKey,
+  "face" | "price" | "staff" | "can" | "label"
+>;
+
 /**
- * A machine's key in the mine keys' form, which a stage's list uses too
- * (#661). A tap buys what `pick` finds at that moment, when he can pay.
+ * A key in the mine keys' form: its face, and under it the price in stone and
+ * the workers it takes. A tap runs `onTap`.
  */
-export function buildMachineKey(
-  state: FrameState,
-  className: string,
-  pick: () => MachineKey | undefined,
-): KeyParts {
+export function buildKeyFace(className: string, onTap: () => void): KeyParts {
   const root = el("button", className);
   root.type = "button";
   const face = el("span", "mine-key-face");
@@ -78,16 +79,28 @@ export function buildMachineKey(
   const small = el("span", "mine-key-small");
   small.append(price, stone, staff);
   root.append(face, small);
-  root.addEventListener("click", () => {
+  root.addEventListener("click", onTap);
+  return { root, face, price, staff };
+}
+
+/**
+ * A machine's key in the mine keys' form, which a stage's list uses too
+ * (#661). A tap buys what `pick` finds at that moment, when he can pay.
+ */
+export function buildMachineKey(
+  state: FrameState,
+  className: string,
+  pick: () => MachineKey | undefined,
+): KeyParts {
+  return buildKeyFace(className, () => {
     const key = pick();
     if (key !== undefined && key.can) {
       void state.progress.dispatch(tierBuyMove(key.id, key.count));
     }
   });
-  return { root, face, price, staff };
 }
 
-export function paintMachineKey(parts: KeyParts, key: MachineKey): void {
+export function paintMachineKey(parts: KeyParts, key: KeyFace): void {
   write(parts.face, key.face);
   write(parts.price, key.price);
   write(parts.staff, ` · ${key.staff}`);
@@ -184,11 +197,6 @@ function writeSum(target: HTMLElement, forms: readonly string[]): void {
   }
   mark(target, "wrap", true);
   write(target, forms[0] ?? "");
-}
-
-/** "Drilled rock: 200 of 300". */
-function pileWords(pile: RowPile): string {
-  return `${pile.label}: ${formatCompact(pile.held)} of ${formatCompact(pile.holds)}`;
 }
 
 function paintRow(

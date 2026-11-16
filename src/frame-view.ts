@@ -11,6 +11,12 @@ import { formatCompact } from "./format";
 import type { Mountain } from "./mountain";
 import { workforceCount } from "./next-view";
 import { EMPTY_STOCK, priceAmount, type GoodId } from "./stock";
+import {
+  STOCKPILE_GOODS,
+  stockpileFull,
+  stockpileRoom,
+  stockyardOpen,
+} from "./stockyard";
 import { tierById, tierQuote, type BuyAmount } from "./tiers";
 import { freeWorkers } from "./workforce";
 
@@ -28,13 +34,12 @@ export const STEP_NAMES: Readonly<Record<StepIndex, string>> = {
 };
 
 /** A good as the frame says it: "Stone", not "stones". */
-const GOOD_NAMES: Readonly<Record<GoodId, string>> = {
+export const GOOD_NAMES: Readonly<Record<GoodId, string>> = {
   stones: "Stone",
   clay: "Clay",
   iron: "Iron",
   crystal: "Crystal",
   heartstone: "Heartstone",
-  // Part 2 (#666): not on screen until the refinery's sliver (#671).
   brick: "Brick",
 };
 
@@ -153,13 +158,38 @@ export type Stockpile = {
   readonly good: GoodId;
   readonly count: number;
   readonly text: string;
+  /** Once the stockyard is open (part 2, #671): "of 6M", how full, and full. */
+  readonly room?: string;
+  readonly fill?: number;
+  readonly full?: boolean;
 };
 
-/** The goods he has met. Part 1 has one, stone. */
+/**
+ * The goods he has met: stone, and brick once the stockyard opens with the
+ * Light Tower in part 2 (#671), each with its room. Part 1 has stone alone,
+ * with no room.
+ */
 export function stockpiles(mountain: Mountain): readonly Stockpile[] {
-  const count = mountain.stock.stones;
-  return [{ good: "stones", count, text: formatCompact(count) }];
+  if (!stockyardOpen(mountain)) {
+    const count = mountain.stock.stones;
+    return [{ good: "stones", count, text: formatCompact(count) }];
+  }
+  return STOCKPILE_GOODS.map((good) => {
+    const count = mountain.stock[good];
+    const room = stockpileRoom(mountain, good);
+    return {
+      good,
+      count,
+      text: formatCompact(count),
+      room: `of ${formatCompact(room)}`,
+      fill: room > 0 ? Math.min(1, count / room) : 0,
+      full: stockpileFull(mountain, good),
+    };
+  });
 }
+
+/** The stockyard's bays left to right, and the shift report's marks: brick, then stone (#671). */
+export const BAY_ORDER: readonly GoodId[] = ["brick", "stones"];
 
 /** The count of workers in the top row, and the hire key beside it. */
 export type WorkersView = {
