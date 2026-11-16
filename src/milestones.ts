@@ -1,4 +1,3 @@
-import { freshMineOn } from "./line-switch";
 import type { TierId } from "./tiers";
 
 /**
@@ -251,8 +250,8 @@ const FRESH_WORKER_PAYOFF = "Every worker with a tool works twice as fast.";
 /**
  * A stage's list's mark line (#661): the next mark with its progress and
  * payoff ("4 of 10 · Every cart hauls twice as fast."), the reached line past
- * the last, or none for a tier without marks. In a fresh mine the workers'
- * first mark says it lifts a worker with a tool.
+ * the last, or none for a tier without marks. The workers' first mark says
+ * it lifts a worker with a tool.
  */
 export function markLine(
   id: TierId,
@@ -263,10 +262,7 @@ export function markLine(
   const next = nextMark(id, count, format, table);
   if (next !== undefined) {
     const first = milestonesReached(id, count, table) === 0;
-    const payoff =
-      id === "helper" && first && freshMineOn()
-        ? FRESH_WORKER_PAYOFF
-        : next.payoff;
+    const payoff = id === "helper" && first ? FRESH_WORKER_PAYOFF : next.payoff;
     return `${next.progress} · ${payoff}`;
   }
   return milestonesReached(id, count, table) > 0 ? REACHED_LINE : undefined;

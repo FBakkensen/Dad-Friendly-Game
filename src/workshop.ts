@@ -532,11 +532,6 @@ export function fitGear<T extends Pick<Mountain, "crafted" | "clocks">>(
 }
 
 /** Length of a live timer, or none when the craft is lasting gear. */
-export function recipeWindowMs(id: RecipeId): number | undefined {
-  return liveTimerMs(recipeById(id));
-}
-
-/** Length of a live timer, or none when the craft is lasting gear. */
 function liveTimerMs(recipe: Recipe): number | undefined {
   const effect = recipe.effect;
   switch (effect.kind) {
@@ -725,7 +720,7 @@ export function gearMultiplier(mountain: Mountain, tierId: TierId): number {
 }
 
 /** The next tier Reinforce lifts, or none until a cart is running. */
-export function reinforceTier(mountain: Mountain): TierId | undefined {
+function reinforceTier(mountain: Mountain): TierId | undefined {
   if (mountain.owned.machine > 0 || mountain.owned.borer > 0) {
     return "machine";
   }

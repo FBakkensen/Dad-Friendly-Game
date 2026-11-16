@@ -1,3 +1,4 @@
+import { NO_JOBS } from "./workforce";
 import { describe, expect, it } from "vitest";
 import { NO_GRANITE_PILES, NO_LEVEL_MACHINES, UNSUNK } from "./mine-levels";
 import { createMountain, type Mountain } from "./mountain";
@@ -294,7 +295,12 @@ describe("part 2's facts in the save (#666)", () => {
 });
 
 describe("part 3's facts in the save (#673)", () => {
-  const start = createMountain();
+  /** The start with nobody on a job and no wagon, so the maps below name only their own facts. */
+  const start: Mountain = {
+    ...createMountain(),
+    jobs: NO_JOBS,
+    fleet: { horseWagon: 0, truck: 0 },
+  };
   /** A mountain with the Granite sunk, its machines, piles, jobs and saws in play. */
   const sunk: Mountain = {
     ...start,

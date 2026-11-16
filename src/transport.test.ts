@@ -89,9 +89,8 @@ describe("the fleet (rule 7.5, 7.6)", () => {
     expect(deliver(idle, 10, 1)).toBe(idle);
   });
 
-  it("gives a fresh mine its first wagon, and today's game none", () => {
-    expect(fresh(() => createMountain()).fleet.horseWagon).toBe(1);
-    expect(createMountain().fleet.horseWagon).toBe(0);
+  it("gives a fresh mine its first wagon", () => {
+    expect(createMountain().fleet.horseWagon).toBe(1);
   });
 
   it("prices the next wagon from 500 stone, ×1.219, past the one given", () => {

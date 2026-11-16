@@ -44,9 +44,6 @@ describe("advance", () => {
     const live = advance(world, { kind: "live", from, to: returnsAt });
     expect(live.homecomings.map((home) => home.engineer)).toEqual(["Ada"]);
     expect(live.mountain.expeditions).toEqual([]);
-    // The stretch ending on the return is paid with Ada back on her borer.
-    const away = accrue({ mountain: sent, from, to: returnsAt, live: true });
-    expect(live.mined).toBeGreaterThan(away.mined);
     expect(live.settledAt).toBe(returnsAt);
     expect(live.away).toBeUndefined();
     expect(live.hazards).toEqual(
@@ -58,7 +55,8 @@ describe("advance", () => {
     );
   });
 
-  it("pays a live stretch with the trouble that is up, and the player's fix time", () => {
+  // The fresh mine's live pace never read trouble (#739).
+  it("pays a live stretch as the line runs, and steps the trouble with the player's fix time", () => {
     const trouble = { kind: "cave-in", tier: "cart", startedAt: 0 } as const;
     const hazards = { phase: "trouble", seed: 1, taps: 0, trouble } as const;
     const mountain = { ...crew(), owned: { ...crew().owned, cart: 3 } };
@@ -66,7 +64,7 @@ describe("advance", () => {
       { mountain, hazards },
       { kind: "live", from: 0, to: 4_000, playerFixMs: 3_000 },
     );
-    const paid = accrue({ mountain, from: 0, to: 4_000, live: true, trouble });
+    const paid = accrue({ mountain, from: 0, to: 4_000 });
     expect(live.mountain).toEqual(paid.mountain);
     expect(live.hazards).toEqual(
       stepHazards(hazards, {

@@ -20,14 +20,12 @@ import {
   type Engineer,
 } from "./engineers";
 import { knownRecipeIds } from "./economy/actions";
-import { accrueAway, createMountain } from "./mountain";
-import { AWAY_PAY_RATE, effectiveRates } from "./rates";
+import { createMountain } from "./mountain";
 import { gameOf, reloaded } from "./test-fixtures";
 import { recipesForMined } from "./workshop";
 
 const SEAM = 10 * 60_000;
 const HOUR = 60 * 60_000;
-const payOf = (): number => Math.round(AWAY_PAY_RATE * 1e9) / 1e9;
 
 const ada: Engineer = { name: "Ada", rank: 0, trips: 0, post: "borer" };
 const journeyman: Engineer = { name: "Ada", rank: 1, trips: 3, post: "borer" };
@@ -560,117 +558,6 @@ describe("clock skew", () => {
     expect(overflow.mountain.expeditions[0]?.sentAt).toBe(
       Number.MAX_SAFE_INTEGER - 1_000,
     );
-  });
-});
-
-describe("away pay", () => {
-  const base = {
-    ...createMountain(),
-    owned: { ...createMountain().owned, helper: 11, borer: 1, drill: 1 },
-    engineers: [
-      ada,
-      {
-        name: "Nils" as const,
-        rank: 0 as const,
-        trips: 0,
-        post: "drill" as const,
-      },
-    ],
-  };
-
-  it("splits at each return so the tending bonus resumes, including across the cap and after a reload", () => {
-    const sent = send(send(base, 0, "side-seam", 0), 1, "old-shaft", 0);
-    const adaHome = {
-      ...sent,
-      expeditions: sent.expeditions.filter((trip) => trip.engineer !== "Ada"),
-    };
-    const bothHome = { ...sent, expeditions: [] };
-    const pay = payOf();
-    const away = accrueAway({ mountain: sent, lastSeen: 0, now: 2 * HOUR });
-    expect(away.mined).toBe(
-      Math.floor(600 * effectiveRates(sent).crewPerSecond * pay) +
-        Math.floor(3_000 * effectiveRates(adaHome).crewPerSecond * pay) +
-        Math.floor(3_600 * effectiveRates(bothHome).crewPerSecond * pay),
-    );
-    expect(away.mined).toBeGreaterThan(
-      Math.floor(7_200 * effectiveRates(sent).crewPerSecond * pay),
-    );
-    expect(away.mountain.engineers[0]?.post).toBe("borer");
-    expect(away.mountain.engineers[1]?.post).toBe("drill");
-    expect(away.mountain.engineers[0]?.trips).toBe(1);
-    expect(away.mountain.expeditions).toEqual([]);
-    expect(away.homecomings.map((home) => home.engineer)).toEqual([
-      "Ada",
-      "Nils",
-    ]);
-    expect(away.homecomings.map((home) => home.tunnel)).toEqual([
-      "side-seam",
-      "old-shaft",
-    ]);
-    expect(away.report).toMatchObject({
-      awayMs: 2 * HOUR,
-      capped: false,
-    });
-
-    const stillOut = send(crew([journeyman]), 0, "deep-dark", 0);
-    const early = accrueAway({
-      mountain: stillOut,
-      lastSeen: 0,
-      now: 5 * 60_000,
-    });
-    expect(onTrip(early.mountain, "Ada")).toBe(true);
-    expect(early.homecomings).toEqual([]);
-    expect(early.mined).toBe(
-      Math.floor(300 * effectiveRates(stillOut).crewPerSecond * pay),
-    );
-
-    const onTime = accrueAway({
-      mountain: stillOut,
-      lastSeen: 0,
-      now: 4 * HOUR,
-    });
-    expect(onTime.mountain.engineers[0]?.post).toBe("borer");
-    expect(onTime.homecomings).toHaveLength(1);
-    expect(onTime.homecomings[0]?.engineer).toBe("Ada");
-    expect(onTime.mined).toBe(
-      Math.floor(
-        ((4 * HOUR) / 1000) * effectiveRates(stillOut).crewPerSecond * pay,
-      ),
-    );
-
-    const capped = accrueAway({
-      mountain: stillOut,
-      lastSeen: 0,
-      now: 10 * HOUR,
-    });
-    const tended = { ...stillOut, expeditions: [] };
-    expect(capped.report.capped).toBe(true);
-    expect(capped.mined).toBe(
-      Math.floor(1.6 * 3_600 * effectiveRates(stillOut).crewPerSecond * pay) +
-        Math.floor(6 * 3_600 * effectiveRates(tended).crewPerSecond * pay),
-    );
-
-    const seam = send(crew(), 0, "side-seam", 0);
-    const long = accrueAway({ mountain: seam, lastSeen: 0, now: 20 * HOUR });
-    const home = { ...seam, expeditions: [] };
-    expect(long.mined).toBe(
-      Math.floor(11.6 * 3_600 * effectiveRates(home).crewPerSecond * pay),
-    );
-    expect(long.mined).not.toBe(
-      Math.floor(11.6 * 3_600 * effectiveRates(seam).crewPerSecond * pay),
-    );
-    const saved = reloaded(seam, 0);
-    expect(saved).toEqual(seam);
-    if (saved !== undefined) {
-      const again = accrueAway({
-        mountain: saved,
-        lastSeen: 0,
-        now: 20 * HOUR,
-      });
-      expect(again.mined).toBe(long.mined);
-      expect(again.mountain.finds).toEqual(long.mountain.finds);
-      expect(again.mountain.engineers).toEqual(long.mountain.engineers);
-    }
   });
 });
 

@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import { CLOSE } from "./screen-words";
 import {
   afterEach,
   beforeEach,
@@ -126,7 +127,7 @@ afterEach(() => {
 });
 
 describe("the Saved copies card (#466)", () => {
-  it("is a board card: each copy an inset with its lines and Play this one, then Back", async () => {
+  it("is a board card: each copy an inset with its lines and Play this one, then Close", async () => {
     const fixture = mount([copy("a"), copy("b")]);
     fixture.panel.open(opener());
     await advance(0);
@@ -148,7 +149,7 @@ describe("the Saved copies card (#466)", () => {
       "Play this one",
       "Play this one",
     ]);
-    expect(back(fixture)?.textContent).toBe("Back to the mountain");
+    expect(back(fixture)?.textContent).toBe(CLOSE);
     expect(document.activeElement).toBe(back(fixture));
     const empty = root.querySelector<HTMLElement>(".saved-copies-empty");
     expect(empty?.hidden).toBe(true);

@@ -30,7 +30,6 @@ import {
   resumeOrder,
   type BuildingId,
 } from "../city";
-import { freshMineOn } from "../line-switch";
 import {
   BLUEPRINT_IDS,
   blueprintOpen,
@@ -122,7 +121,6 @@ import {
   tierById,
   tierCost,
   tierInPlay,
-  tierShown,
   type Tier,
   type TierId,
 } from "../tiers";
@@ -415,14 +413,11 @@ function yardApplied(mountain: Mountain, action: YardAction): Mountain {
 }
 
 /**
- * Each job's two moves, where they would change something; none outside a
- * fresh mine. A job that is not open yet (the kilns before part 2's Light
- * Tower, #666) takes no worker.
+ * Each job's two moves, where they would change something. A job that is
+ * not open yet (the kilns before part 2's Light Tower, #666) takes no
+ * worker.
  */
 function workerActions(mountain: Mountain): readonly Action[] {
-  if (!freshMineOn()) {
-    return [];
-  }
   return JOB_IDS.flatMap((job): Action[] => [
     ...(placeable(mountain, job) > 0 && jobOpen(mountain, job)
       ? [{ kind: "placeWorker", job, count: 1 } as const]
@@ -433,11 +428,8 @@ function workerActions(mountain: Mountain): readonly Action[] {
   ]);
 }
 
-/** A worker moved; nothing outside a fresh mine. */
+/** A worker moved. */
 function workerApplied(mountain: Mountain, action: WorkerAction): Mountain {
-  if (!freshMineOn()) {
-    return mountain;
-  }
   if (action.kind === "freeWorker") {
     return freeWorker(mountain, action.job, action.count);
   }
@@ -447,11 +439,8 @@ function workerApplied(mountain: Mountain, action: WorkerAction): Mountain {
     : mountain;
 }
 
-/** A fresh mine's vehicles, then the one order move that fits the project. */
+/** The vehicles, then the one order move that fits the project. */
 function orderActions(mountain: Mountain): readonly Action[] {
-  if (!freshMineOn()) {
-    return [];
-  }
   const vehicles: Action[] = VEHICLE_IDS.filter((id) =>
     vehicleOpen(mountain, id),
   ).map((id) => ({
@@ -470,11 +459,8 @@ function orderActions(mountain: Mountain): readonly Action[] {
   }
 }
 
-/** An order move applied; nothing outside a fresh mine. */
+/** An order move applied. */
 function orderApplied(mountain: Mountain, action: OrderAction): Mountain {
-  if (!freshMineOn()) {
-    return mountain;
-  }
   switch (action.kind) {
     case "placeOrder":
       return placeOrder(mountain);
@@ -520,7 +506,7 @@ const ORDER_EVENT = {
 
 function tierActions(mountain: Mountain): readonly Action[] {
   return TIERS.filter(
-    (tier) => tierShown(mountain, tier) && !tierLocked(mountain, tier),
+    (tier) => tierInPlay(tier) && !tierLocked(mountain, tier),
   ).map((tier) => ({ kind: "buyTier", id: tier.id }));
 }
 
@@ -1852,12 +1838,8 @@ function payback(
     return Number.POSITIVE_INFINITY;
   }
   const shortfall = Math.max(cost - pocket, 0);
-  const afford =
-    shortfall === 0
-      ? 0
-      : income > 0
-        ? shortfall / income
-        : Number.POSITIVE_INFINITY;
+  // Income is never negative: with none, a shortfall takes forever (x / 0).
+  const afford = shortfall === 0 ? 0 : shortfall / income;
   return afford + cost / gain;
 }
 

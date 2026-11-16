@@ -92,14 +92,13 @@ describe("a long night with the stockyard open (#667)", () => {
     });
   });
 
-  it("is carried by the lab's world only after time away in a fresh mine", () => {
+  it("is carried by the lab's world only after time away", () => {
     partTwo(() => {
       const start = createWorld(1, lit);
       const away = step(start, 10 * HOUR_MS, "away");
       expect(away.night?.awayMs).toBe(10 * HOUR_MS);
       expect(step(away, 1000, "live").night).toBeUndefined();
     });
-    expect(step(createWorld(1), 10 * HOUR_MS, "away").night).toBeUndefined();
   });
 });
 

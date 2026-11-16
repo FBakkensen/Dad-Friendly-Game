@@ -11,7 +11,6 @@ import {
 import { plateButton } from "./board-save";
 import { forgetAll, pressOnBoard, type PressTracker } from "./card-tap";
 import { skin } from "./board-skin";
-import { freshMineOn } from "./line-switch";
 import { CLOSE, TROUBLE_FIXED } from "./screen-words";
 
 /*
@@ -248,7 +247,7 @@ function buildSheet(
 
   const footer = el("footer", "board-sheet-footer");
   // Slice 1's frame has no board, and more than the mine (#708).
-  const back = plateButton(freshMineOn() ? CLOSE : "Back to the board");
+  const back = plateButton(CLOSE);
   back.classList.add("board-sheet-back");
   footer.append(back);
 

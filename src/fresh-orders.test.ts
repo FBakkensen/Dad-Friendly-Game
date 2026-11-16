@@ -74,7 +74,6 @@ describe("live play: he orders, transport delivers (rule 7)", () => {
         mountain: start,
         from: 0,
         to: 60_000,
-        live: true,
       });
       expect(minute.mined).toBe(360);
       expect(minute.mountain.project).toEqual(site(0, 540));
@@ -88,7 +87,6 @@ describe("live play: he orders, transport delivers (rule 7)", () => {
         mountain: mine(3, 1_000, 1, { kind: "unordered" }),
         from: 0,
         to: 60_000,
-        live: true,
       });
       expect(idle.mountain.stock.stones).toBe(1_540);
       const held = applyMove(
@@ -103,7 +101,6 @@ describe("live play: he orders, transport delivers (rule 7)", () => {
         mountain: held.mountain,
         from: 0,
         to: 60_000,
-        live: true,
       });
       expect(later.mountain.stock.stones).toBe(1_540);
     });
@@ -119,7 +116,6 @@ describe("live play: he orders, transport delivers (rule 7)", () => {
           mountain: state,
           from: settled,
           to: now,
-          live: true,
         });
         state = tick.mountain;
         settled = tick.settledAt;
@@ -140,7 +136,6 @@ describe("live play: he orders, transport delivers (rule 7)", () => {
         mountain: ordered.mountain,
         from: 0,
         to: 400_000,
-        live: true,
       });
       expect(done.mountain.operational).toEqual(["lightTower"]);
       expect(done.mountain.project).toEqual({ kind: "unordered" });
@@ -288,25 +283,6 @@ describe("the moves (rule 7.1, 7.9, 7.13)", () => {
         kinds(mine(3, 0, 1, { kind: "unordered" }, ["lightTower"])),
       ).toEqual(["buyVehicle"]);
     });
-  });
-
-  it("lists none of them in today's game", () => {
-    const today = createMountain();
-    expect(
-      listActions(today, 0).some((action) =>
-        ["buyVehicle", "placeOrder", "holdOrder", "resumeOrder"].includes(
-          action.kind,
-        ),
-      ),
-    ).toBe(false);
-    expect(applyMove(today, { kind: "placeOrder" }, 0).kind).toBe("refused");
-    expect(
-      applyMove(
-        { ...today, stock: { ...today.stock, stones: 1e9 } },
-        { kind: "buyVehicle", id: "horseWagon" },
-        0,
-      ).kind,
-    ).toBe("refused");
   });
 
   it("buys a wagon with its stone, and logs each move", () => {

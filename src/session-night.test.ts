@@ -122,17 +122,6 @@ describe("greeting a fresh mine's night (#663)", () => {
       expect(quick.mountain.stock.stones).toBe(135);
     });
   });
-
-  it("keeps today's quiet note for a short break, and no card when nothing was mined", () => {
-    const today = createMountain();
-    const crew = { ...today, owned: { ...today.owned, helper: 5 } };
-    const short = back(crew, 3 * MINUTE);
-    expect(noticesOf(short.news, "quiet")).toHaveLength(1);
-    expect(firstNotice(short.news, "away")).toBeUndefined();
-    const idle = back(today, 10 * MINUTE);
-    expect(firstNotice(idle.news, "away")).toBeUndefined();
-    expect(noticesOf(idle.news, "quiet")).toEqual([]);
-  });
 });
 
 describe("announcing a building that went operational (#663)", () => {

@@ -238,10 +238,9 @@ function samplePolicy(
           trouble,
         );
         const ownedNow = ownedCount(world.mountain);
-        const fresh = freshView(world.mountain);
         samples.push({
           boughtSince: ownedNow > ownedBefore,
-          ...(fresh === undefined ? {} : { fresh }),
+          fresh: freshView(world.mountain),
           ...scoreDecision({
             mountain: world.mountain,
             now: world.clock,

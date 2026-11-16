@@ -47,11 +47,6 @@ import {
 
 /** Shorter absences still pay out, quietly, without the welcome-back card. */
 export const WELCOME_MIN_AWAY_MS = 60 * 1000;
-/**
- * Under this (answering a text), the stones arrive with a small
- * "+N while you were away" note instead of the full card (#334).
- */
-export const QUIET_AWAY_MS = 5 * 60 * 1000;
 
 /**
  * One fitted craft, named once. The screen words it from the mountain at
@@ -341,14 +336,6 @@ export function step(
   }
 }
 
-/** A short break with plain stones only: a small note, not the card (#334). Ore needs its line. */
-function isQuietAway(report: AwayReport): boolean {
-  return (
-    report.awayMs < QUIET_AWAY_MS &&
-    Object.values(report.materials).every((count) => count === 0)
-  );
-}
-
 /** Folds helpers' work since lastSeen into the mountain. */
 function tick(
   session: Session,
@@ -419,7 +406,7 @@ function settleAway(
     },
   });
   out.record("away.report", { ms: report.awayMs, stones: moved.mined });
-  return { session: welcome(paid, report, moved.mined), mined: moved.mined };
+  return { session: welcome(paid, report), mined: moved.mined };
 }
 
 /**
@@ -442,19 +429,14 @@ function anythingHappened(report: AwayReport, mined: number): boolean {
  * (#663), and it is greeted on a live return too: a tab left open overnight
  * (a locked phone, the app in the background) comes back to its report.
  */
-function welcome(session: Session, report: AwayReport, mined: number): Session {
+function welcome(session: Session, report: AwayReport): Session {
   const greeted = session.news.welcomed && report.night === undefined;
   if (greeted || report.awayMs < WELCOME_MIN_AWAY_MS) {
     return session;
   }
   return {
     ...session,
-    news: setNotice(
-      session.news,
-      report.night === undefined && isQuietAway(report)
-        ? { kind: "quiet", stones: mined }
-        : { kind: "away", report },
-    ),
+    news: setNotice(session.news, { kind: "away", report }),
   };
 }
 

@@ -12,7 +12,6 @@ import {
 import { persistPhoneBackup } from "./local-saves";
 import { rockDugInAll } from "./mountain";
 import { applyMerged } from "./save-adopt";
-import { stonesLeft } from "./scale";
 import { saveCounts } from "./session";
 import { settleWithin, type GaveUp } from "./settle-within";
 import {
@@ -59,9 +58,6 @@ function readServer(ctx: StoreContext): Promise<void> {
     return Promise.resolve();
   }
   const generation = ctx.hydrateGeneration;
-  // Counted in pocket stones: deep bands dig less than one
-  // stone of depth per stone, so a depth difference is not a tap count.
-  const leftAtHold = stonesLeft(ctx.session.mountain);
   ctx.read = { kind: "holding", wasSeen: serverSeen(ctx) };
   cancelQueuedWrite(ctx);
   persistPhoneBackup(ctx);
@@ -78,7 +74,7 @@ function readServer(ctx: StoreContext): Promise<void> {
       gaveUp(ctx, loaded);
       return;
     }
-    if (!readAnswered(ctx, loaded, tappedSince(ctx, leftAtHold))) {
+    if (!readAnswered(ctx, loaded)) {
       return;
     }
     ctx.resumeRetry.backoffMs = LISTEN_BACKOFF_START_MS;
@@ -87,15 +83,6 @@ function readServer(ctx: StoreContext): Promise<void> {
       persistCloudSoon(ctx, false, true);
     }
   });
-}
-
-/**
- * Stones tapped while the read was held. A fresh mine has no depth, so its
- * stones left are Infinity and nothing is tapped (#664).
- */
-function tappedSince(ctx: StoreContext, leftAtHold: number): number {
-  const tapped = leftAtHold - stonesLeft(ctx.session.mountain);
-  return Number.isFinite(tapped) ? tapped : 0;
 }
 
 /**
@@ -155,19 +142,11 @@ function gaveUp(ctx: StoreContext, why: "timeout" | "rejected"): void {
  * Merges what the server said. False when the conflict sheet opened, which
  * ends the hold and leaves the copies to the player.
  */
-function readAnswered(
-  ctx: StoreContext,
-  loaded: CloudLoadResult,
-  tapped: number,
-): boolean {
+function readAnswered(ctx: StoreContext, loaded: CloudLoadResult): boolean {
   if (loaded.kind === "found" && loaded.pending !== true) {
     noteServerSeen(ctx, true);
     const serverRev = loaded.rev ?? 0;
-    const outcome = applyMerged(
-      ctx,
-      remoteSide({ ...loaded, rev: serverRev }),
-      tapped,
-    );
+    const outcome = applyMerged(ctx, remoteSide({ ...loaded, rev: serverRev }));
     resumeLine(
       ctx,
       "info",

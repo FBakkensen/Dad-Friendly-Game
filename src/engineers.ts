@@ -1,4 +1,3 @@
-import { freshMineOn } from "./line-switch";
 import { freeWorkers } from "./workforce";
 import { oneOffStretch } from "./scale";
 import { factor } from "./economy/factors";
@@ -143,15 +142,11 @@ export function nextEngineerName(
 }
 
 /**
- * A worker can step up: there is one, and in a fresh mine the first borer
- * has come (slice 1, rule 1's table: engineers come with the first borer,
- * #653) and the one who steps up is free (rule 2.9, #689). Today's game
- * lets a worker step up at any time.
+ * A worker can step up: the first borer has come (slice 1, rule 1's table:
+ * engineers come with the first borer, #653) and the one who steps up is
+ * free (rule 2.9, #689).
  */
 export function promotionOpen(mountain: Mountain): boolean {
-  if (!freshMineOn()) {
-    return mountain.owned.helper >= 1;
-  }
   return mountain.owned.borer >= 1 && freeWorkers(mountain) >= 1;
 }
 
@@ -318,7 +313,7 @@ function hasEngineerOutOfTunnel(mountain: Mountain): boolean {
 }
 
 /** M12 retune (#252): tending counts a quarter more, at every rank. */
-export const TENDING_GAIN = 1.25;
+const TENDING_GAIN = 1.25;
 
 /**
  * How many tenths faster a tier runs because an engineer is posted there.

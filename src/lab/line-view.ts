@@ -1,5 +1,4 @@
-import { lineView, narrowStage, type Stage } from "../line";
-import { freshMineOn, lineOn } from "../line-switch";
+import { narrowStage, type Stage } from "../line";
 import { lineWork } from "../workforce";
 import type { Mountain } from "../mountain";
 import { effectiveRates } from "../rates";
@@ -14,33 +13,26 @@ import { median } from "./stats";
  * Every reading is undefined, or NaN in a measure, while the line is off.
  */
 
-/** The narrow stage on this mountain now, or undefined with the line off. */
-export function narrowAt(mountain: Mountain, now: number): Stage | undefined {
-  if (!lineOn()) {
-    return undefined;
-  }
+/**
+ * The narrow stage on this mountain now: a fresh mine's stages are its
+ * placed workers' (#689).
+ */
+export function narrowAt(mountain: Mountain, now: number): Stage {
   const rates = effectiveRates(mountain, now);
-  // A fresh mine's stages are its placed workers' (#689), not the spread hands'.
-  return freshMineOn()
-    ? narrowStage(lineWork(mountain, rates.tierSpeed).stages)
-    : lineView(rates.tierSpeed, rates.running).narrow;
+  return narrowStage(lineWork(mountain, rates.tierSpeed).stages);
 }
 
 /**
  * Machines bought between `before` and `after` that the line does not need:
  * each kind bought is weighed alone, as `after` with that kind set back to
  * its count before, at `now`, so a worker bought in the same second does not
- * hide a machine that moved nothing. 0 when nothing was bought. Undefined
- * with the line off.
+ * hide a machine that moved nothing. 0 when nothing was bought.
  */
 export function zeroGainBuysBetween(
   before: Mountain,
   after: Mountain,
   now: number,
-): number | undefined {
-  if (!lineOn()) {
-    return undefined;
-  }
+): number {
   let zero = 0;
   let line: number | undefined;
   for (const tier of TIERS.filter(isMachine)) {

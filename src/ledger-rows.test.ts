@@ -6,14 +6,12 @@ import {
   accountRowView,
   freshLedgerRows,
   metMaterialChips,
-  stonesRowView,
   tonightLines,
   tonightText,
 } from "./ledger-rows";
 import { withFactors } from "./economy/factors";
 import { FRESH_OFF } from "./line-switch";
 import { MOUNTAIN_STONES, createMountain, type Mountain } from "./mountain";
-import { minedMountain } from "./test-fixtures";
 
 /** One field log event at a local time on 11 November 2026. */
 function event(
@@ -40,11 +38,10 @@ describe("tonightText words each event the field log keeps (#375)", () => {
     expect(text("tier.buy", { id: "kid", count: 2 })).toBe(
       "Hired kid worker 2.",
     );
-    expect(text("tier.buy", { id: "cart", count: 3 })).toBe(
-      "Bought mine cart 3.",
-    );
+    // The machines are named as the frame names them (#708).
+    expect(text("tier.buy", { id: "cart", count: 3 })).toBe("Bought cart 3.");
     expect(text("tier.buy", { id: "machine", count: 1 })).toBe(
-      "Bought Great Machine 1.",
+      "Bought great machine 1.",
     );
   });
 
@@ -172,7 +169,7 @@ describe("tonightLines (#375)", () => {
     expect(tonightLines(events)).toEqual([
       { time: "07:05", text: "Fixed! The crew cheers." },
       { time: "22:03", text: "Work boots, level 1." },
-      { time: "21:09", text: "Bought mine cart 1." },
+      { time: "21:09", text: "Bought cart 1." },
     ]);
   });
 
@@ -203,56 +200,6 @@ describe("tonightLines (#375)", () => {
 
   it("says nothing for an empty ring", () => {
     expect(tonightLines([])).toEqual([]);
-  });
-});
-
-/** A mountain deep in the Heart, `remaining` stones of the deepest band still in it. */
-function heart(remaining: number): Mountain {
-  return {
-    ...createMountain(),
-    remaining,
-    stock: { ...createMountain().stock, stones: 0 },
-  };
-}
-
-describe("stonesRowView (#375)", () => {
-  it("reads the stones left, with the exact count on its title, and four materials", () => {
-    const view = stonesRowView(heart(12_729));
-    expect(view.name).toBe("412.4K stones left");
-    expect(view.title).toBe("412,420 of 4,462,375,000");
-    expect(view.info).toHaveLength(1);
-    expect(view.info[0]?.split(" · ")).toHaveLength(4);
-    expect(view.info[0]).toMatch(
-      /^Clay \S+ · Iron \S+ · Crystal \S+ · Heartstone \S+$/,
-    );
-    expect(view.aria).toBe(`412.4K stones left. ${view.info[0] ?? ""}`);
-    expect(view).toMatchObject({
-      lamp: "off",
-      state: "owned",
-      verb: "",
-      price: "",
-      can: false,
-    });
-  });
-
-  it("names the materials met, with their counts", () => {
-    const view = stonesRowView({
-      ...minedMountain(12_000_000),
-      stock: {
-        ...minedMountain(12_000_000).stock,
-        clay: 10,
-        iron: 4,
-        crystal: 0,
-        heartstone: 0,
-      },
-    });
-    expect(view.info).toEqual(["Clay 10 · Iron 4"]);
-  });
-
-  it("shows no materials on a fresh mountain", () => {
-    const view = stonesRowView(createMountain());
-    expect(view.info).toEqual([]);
-    expect(view.aria).toBe(view.name);
   });
 });
 

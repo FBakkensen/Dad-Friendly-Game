@@ -88,14 +88,10 @@ function advanceLive(
   // A live gap is short, so coming home at the end of it pays that short
   // stretch with the bonus. Away time splits exactly.
   const settled = settleExpeditions(world.mountain, input.to);
-  const trouble =
-    world.hazards.phase === "trouble" ? world.hazards.trouble : undefined;
   const result = accrue({
     mountain: settled.mountain,
     from: input.from,
     to: input.to,
-    live: true,
-    ...(trouble === undefined ? {} : { trouble }),
   });
   const hazards = stepHazards(world.hazards, {
     now: input.to,

@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { withFactors } from "./economy/factors";
 import {
   MACHINE_STAGE,
   STAGES,
@@ -12,7 +11,6 @@ import {
   stageSpeeds,
   type StageSpeeds,
 } from "./line";
-import { LINE_OFF, lineOn } from "./line-switch";
 import { MACHINE_IDS, type TierId } from "./tiers";
 
 const stages = (face: number, haul: number, lift: number): StageSpeeds => ({
@@ -171,14 +169,6 @@ describe("what the lab reads off the line (#534)", () => {
     expect(
       lineView(speed, { ...running, helper: 0, cart: 0, hoist: 0 }),
     ).toEqual({ narrow: "face", handsCarry: 0 });
-  });
-});
-
-describe("the switch", () => {
-  it("is off in play and on when a sweep sets line.off to 0", () => {
-    expect(lineOn()).toBe(false);
-    expect(withFactors({ [LINE_OFF]: 0 }, lineOn)).toBe(true);
-    expect(withFactors({ [LINE_OFF]: 1 }, lineOn)).toBe(false);
   });
 });
 

@@ -1,3 +1,4 @@
+import { NO_JOBS } from "./workforce";
 import { describe, expect, it } from "vitest";
 import { onTrip } from "./engineers";
 import { createMountain, MOUNTAIN_STONES, type Mountain } from "./mountain";
@@ -149,9 +150,12 @@ describe("the game map (#558)", () => {
   });
 
   it("saves a fresh mine's fleet, project and buildings only when they are not empty (#654)", () => {
-    const today = writeGame(createMountain());
-    expect(today).not.toHaveProperty("fleet");
-    expect(today).not.toHaveProperty("project");
+    const empty = writeGame({
+      ...createMountain(),
+      fleet: { horseWagon: 0, truck: 0 },
+    });
+    expect(empty).not.toHaveProperty("fleet");
+    expect(empty).not.toHaveProperty("project");
     const fresh = createMountain();
     const game = writeGame({
       ...fresh,
@@ -254,7 +258,13 @@ describe("the game map (#558)", () => {
   });
 
   it("saves the workers on each job, and refuses more on jobs than he owns (#689)", () => {
-    expect(writeGame(createMountain())).not.toHaveProperty("jobs");
+    expect(
+      writeGame({
+        ...createMountain(),
+        owned: { ...createMountain().owned, helper: 0 },
+        jobs: NO_JOBS,
+      }),
+    ).not.toHaveProperty("jobs");
     const crew = {
       ...createMountain(),
       owned: { ...createMountain().owned, helper: 5 },

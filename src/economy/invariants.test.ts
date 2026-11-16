@@ -13,6 +13,7 @@
  * - the save keeps whole depth, rounded up (save-format.ts);
  * - past the full-pay length an hour away pays less (`paidAwayMs`).
  */
+import { crewedStart } from "../test-fixtures";
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { fix, freshHazards, type HazardState } from "../hazards";
@@ -616,12 +617,9 @@ describe("time away pays the same however it is sliced (#555)", () => {
 
 describe("known gaps, pinned (#555)", () => {
   it("part-stone: three 1 s stretches away pay less than one 3 s stretch", () => {
-    const crew = {
-      ...createMountain(),
-      owned: { ...createMountain().owned, helper: 23 },
-    };
-    const once = minedAway(crew, [START + 3 * SECOND]);
-    const thrice = minedAway(crew, [
+    const crew = crewedStart();
+    const once = basePay(crew, [START + 3 * SECOND]);
+    const thrice = basePay(crew, [
       START + SECOND,
       START + 2 * SECOND,
       START + 3 * SECOND,

@@ -20,7 +20,6 @@ import type { LayerId, Materials, MaterialId } from "./layers";
 import type { Mountain } from "./mountain";
 import { AWAY_END_MS, effectiveRates, type Rates } from "./rates";
 import type { Stage } from "./line";
-import { freshMineOn } from "./line-switch";
 import { owned, tierById, type MachineId, type TierId } from "./tiers";
 import type { VehicleId } from "./transport";
 import { upgradeLevel, type Upgrade, type UpgradeId } from "./upgrades";
@@ -239,10 +238,8 @@ export function upgradeEffectLine(
   const change = upgradeChange(upgrade, mountain, at);
   switch (upgrade.id) {
     case "boots":
-      // In a fresh mine Work boots lifts only a worker with a tool (rule 2.9).
-      return freshMineOn()
-        ? `Workers with a tool ${fromTo(change, (rates) => `${formatSpeed(toolSpeed(rates.tierSpeed))}/s`)}.`
-        : `Workers ${fromTo(change, (rates) => `${formatSpeed(rates.tierSpeed.helper)}/s`)}.`;
+      // Work boots lifts only a worker with a tool (rule 2.9).
+      return `Workers with a tool ${fromTo(change, (rates) => `${formatSpeed(toolSpeed(rates.tierSpeed))}/s`)}.`;
     case "cartSyn":
     case "drillSyn":
     case "borerSyn":
@@ -252,12 +249,12 @@ export function upgradeEffectLine(
 }
 
 /**
- * Whether a synergy has any of the tier that feeds it. In a fresh mine the
- * workers that feed Loading crews are the ones on haulage (rule 2.9).
+ * Whether a synergy has any of the tier that feeds it. The workers that
+ * feed Loading crews are the ones on haulage (rule 2.9).
  */
 const synergyFed = (upgrade: Upgrade, mountain: Mountain): boolean =>
   upgrade.synergy !== undefined &&
-  (upgrade.synergy.from === "helper" && freshMineOn()
+  (upgrade.synergy.from === "helper"
     ? haulageWorkers(mountain)
     : owned(mountain, tierById(upgrade.synergy.from))) > 0;
 
@@ -267,50 +264,32 @@ function synergyEffectLine(
   change: UpgradeChange,
 ): string {
   if (upgrade.synergy === undefined || !synergyFed(upgrade, mountain)) {
-    return freshWords(upgrade.id)?.rule ?? upgrade.perLevel;
+    return UPGRADE_RULE[upgrade.id] ?? upgrade.perLevel;
   }
   const to = tierById(upgrade.synergy.to);
   const name = to.id === "machine" ? "Great Machine" : `${to.shortName}s`;
   return `${name} ${fromTo(change, (rates) => `${formatSpeed(rates.tierSpeed[to.id])}/s`)}.`;
 }
 
-/** The card's quiet second line: why it is worth it, never the effect again. */
+/**
+ * The card's quiet second line: why it is worth it, never the effect again.
+ * Work boots lifts only a worker with a tool, and Loading crews counts the
+ * workers on haulage (#661, the spec's call 41). Approved by Flemming on
+ * 15 Nov 2026; the names are the engineering ones he chose that day (#711).
+ */
 const UPGRADE_WHY: Record<UpgradeId, string> = {
-  boots: "The workers pick up their feet.",
-  cartSyn: "Each worker makes carts 1% faster.",
+  boots:
+    "Picks, barrows and winches go faster. Machines, drivers and builders do not.",
+  cartSyn: "Each worker on haulage makes carts 1% faster.",
   drillSyn: "Each cart makes the drills a little quicker.",
   borerSyn: "Each drill makes the borers a little quicker.",
   machineSyn: "Each borer makes the machine a little quicker.",
 };
 
-/**
- * A fresh mine's words for an upgrade (#661, the spec's call 41): Work
- * boots lifts only a worker with a tool, and Loading crews counts the
- * workers on haulage. Approved by Flemming on 15 Nov 2026; the names are
- * the engineering ones he chose that day (#711).
- */
-const FRESH_WORDS: Partial<
-  Record<
-    UpgradeId,
-    {
-      readonly why: string;
-      /** Its rule, where today's `perLevel` no longer says it. */
-      readonly rule?: string;
-    }
-  >
-> = {
-  boots: {
-    why: "Picks, barrows and winches go faster. Machines, drivers and builders do not.",
-  },
-  cartSyn: {
-    why: "Each worker on haulage makes carts 1% faster.",
-    rule: "Each worker on haulage makes carts 1% faster.",
-  },
+/** An upgrade's rule, where its `perLevel` does not say it (#661). */
+const UPGRADE_RULE: Partial<Record<UpgradeId, string>> = {
+  cartSyn: "Each worker on haulage makes carts 1% faster.",
 };
-
-/** The words of a fresh mine's upgrade, or none outside a fresh mine. */
-const freshWords = (id: UpgradeId) =>
-  freshMineOn() ? FRESH_WORDS[id] : undefined;
 
 /** "workers", "carts", "borers": the tier a synergy needs, plural. */
 const tierPlural = (id: TierId): string =>
@@ -321,14 +300,13 @@ const tierPlural = (id: TierId): string =>
  * source already shows its rule, so this says what makes it count.
  */
 export function upgradeWhyLine(upgrade: Upgrade, mountain: Mountain): string {
-  const words = freshWords(upgrade.id);
   if (upgrade.synergy !== undefined && !synergyFed(upgrade, mountain)) {
-    // A fresh mine's rule is already the effect line, and it has no other approved words.
-    return words?.rule === undefined
+    // A rule is already the effect line, and it has no other approved words.
+    return UPGRADE_RULE[upgrade.id] === undefined
       ? `It counts once you have ${tierPlural(upgrade.synergy.from)}.`
       : "";
   }
-  return words?.why ?? UPGRADE_WHY[upgrade.id];
+  return UPGRADE_WHY[upgrade.id];
 }
 
 /**
@@ -404,8 +382,6 @@ export const fieldLogCopy = "Copy field log";
 export const fieldLogCopied = "Copied";
 export const fieldLogTitle = "Field log";
 export const fieldLogFallback = "Select the log and copy it from here.";
-/** The welcome card's one plate (#464). */
-export const BACK_TO_THE_MOUNTAIN = "Back to the mountain";
 /**
  * The way back from a drawer or a card on slice 1's frame (#708), the
  * workforce sheet's word: the frame has no board and more than the mine.
@@ -1255,9 +1231,6 @@ export const LEDGER_BACK = "Back to the Ledger";
 /** Start over, and its confirm page (moved from the menu, #375). */
 export const START_OVER = "Start over";
 export const START_OVER_TITLE = "Start over?";
-export const START_OVER_DETAIL =
-  "You will lose all your progress: every stone mined and your whole crew. The mountain fills back up. This can't be undone.";
-export const START_OVER_KEEP = "Keep my mountain";
 /** Start over in a fresh mine (#708): no mountain to fill. */
 export const START_OVER_FRESH_DETAIL =
   "You will lose all your progress: the stone in the stockpile, every worker and machine, and the city's buildings. The mine starts again from the beginning. This can't be undone.";

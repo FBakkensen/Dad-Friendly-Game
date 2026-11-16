@@ -1,5 +1,4 @@
 import { freshHazards, type HazardState } from "../hazards";
-import { freshMineOn } from "../line-switch";
 import { createMountain, type Mountain, type NightReport } from "../mountain";
 import { advance } from "../session-time";
 
@@ -18,21 +17,10 @@ export type World = {
   readonly night?: { readonly awayMs: number; readonly report: NightReport };
 };
 
-/**
- * A lab run of today's mountain starts with one worker (#728): the dig that
- * bought the first one is gone, and a mountain with nobody never starts. A
- * fresh mine already starts with its worker (rule 2.10).
- */
-export function withFirstWorker(mountain: Mountain): Mountain {
-  return freshMineOn() || mountain.owned.helper > 0
-    ? mountain
-    : { ...mountain, owned: { ...mountain.owned, helper: 1 } };
-}
-
 /** A new run. `seed` is the first hazard roll. */
 export function createWorld(
   seed: number,
-  mountain: Mountain = withFirstWorker(createMountain()),
+  mountain: Mountain = createMountain(),
 ): World {
   return { mountain, hazards: freshHazards(seed), clock: 0 };
 }

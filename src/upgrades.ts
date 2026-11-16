@@ -1,5 +1,4 @@
 import type { Stage } from "./line";
-import { freshMineOn } from "./line-switch";
 import { oneOffStretch } from "./scale";
 import type { Mountain } from "./mountain";
 import { owned, tierById, type TierId } from "./tiers";
@@ -89,7 +88,7 @@ const BY_ID: Readonly<Record<UpgradeId, Upgrade>> = {
 export const UPGRADES: readonly Upgrade[] = Object.values(BY_ID);
 
 /** Crew synergies: speed each `from` unit adds to its `to` tier. */
-export const SYNERGY_PER_UNIT = 0.01;
+const SYNERGY_PER_UNIT = 0.01;
 
 /** Work boots: helper speed gained per level. */
 export const BOOTS_SPEED_PER_LEVEL = 1.36;
@@ -106,9 +105,9 @@ export function synergyBonus(mountain: Mountain, upgrade: Upgrade): number {
   if (upgrade.synergy === undefined) {
     return 0;
   }
-  // In a fresh mine, Loading crews counts the workers on haulage (rule 2.9).
+  // Loading crews counts the workers on haulage (rule 2.9).
   const count =
-    upgrade.synergy.from === "helper" && freshMineOn()
+    upgrade.synergy.from === "helper"
       ? haulageWorkers(mountain)
       : owned(mountain, tierById(upgrade.synergy.from));
   return count * SYNERGY_PER_UNIT;

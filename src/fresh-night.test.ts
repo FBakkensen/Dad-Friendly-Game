@@ -272,13 +272,4 @@ describe("the night's facts (#663)", () => {
       expect(away.report.night?.stop).toBe("none");
     });
   });
-
-  it("is not in today's game", () => {
-    const away = accrueAway({
-      mountain: createMountain(),
-      lastSeen: 0,
-      now: 12 * HOUR,
-    });
-    expect(away.report.night).toBeUndefined();
-  });
 });

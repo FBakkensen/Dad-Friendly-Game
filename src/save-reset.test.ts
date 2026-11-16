@@ -302,7 +302,7 @@ describe("a set-aside never costs a played copy (#558)", () => {
     progress.applyMutation((mountain) => digStones(mountain, 1));
     progress.flush();
     await vi.waitFor(() => {
-      expect(minedOut(docs.get(user.uid) ?? createMountain())).toBe(1);
+      expect(docs.get(user.uid)?.stock.stones).toBe(1);
     });
     expect(storage.getItem(BACKUP_KEY)).toBe(raw);
     progress.dispose();
