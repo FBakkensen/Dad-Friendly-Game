@@ -40,6 +40,8 @@ import {
   sliceStartSave,
   sliceStandsSave,
   sliceStructureSave,
+  sliceWarehouseRoofSave,
+  sliceWarehouseSave,
 } from "../tools/browser/fixtures.ts";
 
 /**
@@ -81,7 +83,7 @@ const SAVES = {
     search: MEMORY,
   },
   done: {
-    note: "the Light Tower operational, nothing to order",
+    note: "the Light Tower and the Warehouse operational, nothing to order",
     save: () => sliceDoneSave(Date.now()),
     key: DEV_BACKUP_KEY,
     search: MEMORY,
@@ -105,20 +107,32 @@ const SAVES = {
     search: MEMORY,
   },
   roof: {
-    note: "the roof goes on in the night: the shift report, then the end card",
+    note: "the roof goes on in the night: the shift report, then the refinery opens",
     save: () => sliceRoofSave(Date.now()),
     key: DEV_BACKUP_KEY,
     search: MEMORY,
   },
   refinery: {
-    note: "part 2: a kiln with its worker, brick and stone in the stockyard",
+    note: "a kiln with its worker, brick and stone in the stockyard",
     save: () => sliceRefinerySave(Date.now()),
     key: DEV_BACKUP_KEY,
     search: MEMORY,
   },
   yardfull: {
-    note: "part 2, closed twelve hours ago: the stockyard fills and stops the mine",
+    note: "closed twelve hours ago: the stockyard fills and stops the mine",
     save: () => sliceYardFullSave(Date.now()),
+    key: DEV_BACKUP_KEY,
+    search: MEMORY,
+  },
+  warehouse: {
+    note: "the Warehouse's first step delivering, stone and brick on the way",
+    save: () => sliceWarehouseSave(Date.now()),
+    key: DEV_BACKUP_KEY,
+    search: MEMORY,
+  },
+  warehouseroof: {
+    note: "the Warehouse's roof goes on in the night: the shift report, then the end card",
+    save: () => sliceWarehouseRoofSave(Date.now()),
     key: DEV_BACKUP_KEY,
     search: MEMORY,
   },

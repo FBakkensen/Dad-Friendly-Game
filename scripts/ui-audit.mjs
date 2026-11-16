@@ -37,6 +37,8 @@ import {
   sliceRefinerySave,
   sliceRoofSave,
   sliceStartSave,
+  sliceWarehouseRoofSave,
+  sliceWarehouseSave,
   sliceYardFullSave,
 } from "../tools/browser/fixtures.ts";
 
@@ -688,6 +690,9 @@ async function main() {
   await capture("slice-city-busy", (viewport) =>
     openFrame(viewport, busy(), "city"),
   );
+  await capture("slice-city-warehouse", (viewport) =>
+    openFrame(viewport, sliceWarehouseSave(Date.now()), "city"),
+  );
   await capture("slice-city-done", (viewport) =>
     openFrame(viewport, sliceDoneSave(Date.now()), "city"),
   );
@@ -723,26 +728,16 @@ async function main() {
   });
   // Part 2 (#671, switched on in #672).
   await capture("slice-refinery", (viewport) =>
-    openFrame(viewport, sliceRefinerySave(Date.now()), "refinery", {
-      search: MEMORY,
-    }),
+    openFrame(viewport, sliceRefinerySave(Date.now()), "refinery"),
   );
   await capture("slice-card-report-yard", async (viewport) => {
-    const opened = await openAuditPage(
-      viewport,
-      sliceYardFullSave(Date.now()),
-      {
-        search: MEMORY,
-      },
-    );
+    const opened = await openAuditPage(viewport, sliceYardFullSave(Date.now()));
     await frameCardUp(opened.page);
     await expectText(opened.page, /Stockyard full/i, "the stockyard's report");
     return opened;
   });
   await capture("slice-card-opens", async (viewport) => {
-    const opened = await openAuditPage(viewport, sliceRoofSave(Date.now()), {
-      search: MEMORY,
-    });
+    const opened = await openAuditPage(viewport, sliceRoofSave(Date.now()));
     await frameCardUp(opened.page);
     await press(opened.page, ".frame-card-key");
     await opened.page.waitForSelector('.frame-card[data-card="opens"]', {
@@ -753,7 +748,10 @@ async function main() {
     return opened;
   });
   await capture("slice-card-end", async (viewport) => {
-    const opened = await openAuditPage(viewport, sliceRoofSave(Date.now()));
+    const opened = await openAuditPage(
+      viewport,
+      sliceWarehouseRoofSave(Date.now()),
+    );
     await frameCardUp(opened.page);
     await press(opened.page, ".frame-card-key");
     await opened.page.waitForSelector('.frame-card[data-card="end"]', {
