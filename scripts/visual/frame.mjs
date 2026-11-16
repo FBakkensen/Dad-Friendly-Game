@@ -8,7 +8,7 @@
  * roof went on. The start (#703): the first evening's card, then the mine's
  * pile lines. Part 2 (#671): the refinery, two stockpiles on the top row, and
  * the report of a night the stockyard stopped, with its second key. Part 3
- * (#681), on a dev page with `?part3=1`: the factory, idle, delivering and
+ * (#681, switched on in #682): the factory, idle, delivering and
  * done, and a blueprint dragged onto the station; and the mine with two
  * levels (#680), its machine card, and the two levels the Sink key opens,
  * behind the card that says the Granite is reached (#754).
@@ -30,6 +30,8 @@ import {
   sliceStructureSave,
   sliceTwoLevelsSave,
   sliceWarehouseRoofSave,
+  sliceFoundryRoofSave,
+  sliceFoundrySave,
   sliceWarehouseSave,
   sliceWarehouseTrucksSave,
   sliceYardFullSave,
@@ -48,12 +50,25 @@ const SAVES = [
   { name: "busy", save: () => sliceBusySave(Date.now()) },
   { name: "structure", save: () => sliceStructureSave(Date.now()) },
   { name: "warehouse", save: () => sliceWarehouseSave(Date.now()) },
+  { name: "foundry", save: () => sliceFoundrySave(Date.now()) },
   { name: "done", save: () => sliceDoneSave(Date.now()) },
   { name: "list", save: () => sliceListSave(Date.now()) },
 ];
 
-/** The workforce's jobs: five, and the kilns once the refinery is open (part 2, #672). */
-const jobsOf = (name) => (name === "warehouse" || name === "done" ? 6 : 5);
+/**
+ * The workforce's jobs: five, the kilns once the refinery is open (part 2,
+ * #672), and with the shaft sunk the Granite's drilling and haulage and the
+ * saws too (part 3, #682).
+ */
+const JOBS = { warehouse: 6, foundry: 9, done: 9 };
+const jobsOf = (name) => JOBS[name] ?? 5;
+
+/**
+ * The machines in each stage's list: since part 3 (#682) the borer and the
+ * locomotive are in play from the first evening, locked until the shaft is
+ * sunk; the winding engine waits for a later slice.
+ */
+const STAGE_MACHINES = { face: 2, haul: 2, lift: 1 };
 
 /** The Light Tower's picture, in board px: it has to fit between the plate and the road. */
 const TOWER_H = 182;
@@ -410,8 +425,8 @@ for (const size of SIZES) {
           const list = await stageSheetFacts(page);
           await shot(page, `slice-stage-${stage}-${name}-${label}`);
           check(
-            list.open && list.inside && list.machines === 1,
-            `${at} ${stage}'s list opens above the save line with its machine`,
+            list.open && list.inside && list.machines === STAGE_MACHINES[stage],
+            `${at} ${stage}'s list opens above the save line with its ${String(STAGE_MACHINES[stage])} machines (${String(list.machines)})`,
           );
           check(
             list.small.length === 0,
@@ -546,8 +561,8 @@ function checkCard(facts, at, kind) {
 
 /**
  * The night saves, and the card behind each night's report: the Light
- * Tower's roof opens the refinery, and the Warehouse's is the end of part 2
- * (#672).
+ * Tower's roof opens the refinery (#672), the Warehouse's opens trucks, and
+ * the Foundry's is the end of the slice (#682).
  */
 const NIGHTS = [
   { name: "night", save: () => sliceNightSave(Date.now()) },
@@ -561,9 +576,25 @@ const NIGHTS = [
     name: "warehouse roof",
     save: () => sliceWarehouseRoofSave(Date.now()),
     building: "The Warehouse",
+    behind: "built",
+  },
+  {
+    name: "foundry roof",
+    save: () => sliceFoundryRoofSave(Date.now()),
+    building: "The Foundry",
     behind: "end",
   },
 ];
+
+/** What each card behind a report must say, and must not promise. */
+const BEHIND_SAYS = {
+  opens: (words) =>
+    words.includes("New site: the refinery.") &&
+    !words.includes("later update"),
+  built: (words) =>
+    words.includes("Opens trucks.") && !words.includes("later update"),
+  end: (words) => words.includes("later update"),
+};
 
 for (const size of SIZES) {
   const label = `${String(size[0])}x${String(size[1])}`;
@@ -596,10 +627,7 @@ for (const size of SIZES) {
           await shot(page, `slice-card-${behind}-${label}`);
           checkCard(after, at, behind);
           check(
-            behind === "opens"
-              ? after.words.includes("New site: the refinery.") &&
-                  !after.words.includes("later update")
-              : after.words.includes("later update"),
+            BEHIND_SAYS[behind](after.words),
             `${at} the ${behind} card says what is live, and promises nothing more`,
           );
           check(
@@ -885,7 +913,7 @@ for (const size of SIZES) {
     ];
     for (const row of rows) {
       const { page, close } = await openScreen(size, row.save, {
-        search: "?memorySave=1&part3=1",
+        search: "?memorySave=1",
         seedKey: DEV_BACKUP_KEY,
       });
       try {
@@ -1093,7 +1121,7 @@ for (const size of SIZES) {
     const { page, close } = await openScreen(
       size,
       sliceTwoLevelsSave(Date.now()),
-      { search: "?memorySave=1&part3=1", seedKey: DEV_BACKUP_KEY },
+      { search: "?memorySave=1", seedKey: DEV_BACKUP_KEY },
     );
     try {
       await page.waitForSelector('.frame-site[data-site="refinery"]');
@@ -1324,7 +1352,7 @@ for (const size of SIZES) {
   for (const { name, save, kind } of FACTORY_SAVES) {
     section(`${label} slice factory ${name}`, async () => {
       const { page, close } = await openScreen(size, save(), {
-        search: "?memorySave=1&part3=1",
+        search: "?memorySave=1",
         seedKey: DEV_BACKUP_KEY,
       });
       try {
@@ -1627,7 +1655,7 @@ for (const size of SIZES) {
       size,
       sliceTwoLevelsSave(Date.now()),
       {
-        search: "?memorySave=1&part3=1",
+        search: "?memorySave=1",
         seedKey: DEV_BACKUP_KEY,
       },
     );
@@ -1666,7 +1694,7 @@ for (const size of SIZES) {
     const { page, close } = await openScreen(
       size,
       sliceGraniteUnsunkSave(Date.now()),
-      { search: "?memorySave=1&part3=1", seedKey: DEV_BACKUP_KEY },
+      { search: "?memorySave=1", seedKey: DEV_BACKUP_KEY },
     );
     try {
       await page.waitForSelector(".mine-sink:not([hidden])");
@@ -1687,7 +1715,7 @@ for (const size of SIZES) {
     const { page, close } = await openScreen(
       size,
       sliceGraniteUnsunkSave(Date.now()),
-      { search: "?memorySave=1&part3=1", seedKey: DEV_BACKUP_KEY },
+      { search: "?memorySave=1", seedKey: DEV_BACKUP_KEY },
     );
     try {
       const at = `${label} slice card granite:`;

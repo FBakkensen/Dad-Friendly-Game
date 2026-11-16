@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { PLOT_SPANS, buildingX, roadVehicles, siteYard } from "./city-scene";
 import { createMountain } from "./mountain";
+import { SCENE_W } from "./scene-paint";
 import { drivenFleet } from "./transport";
 
 /** The site's yard beside the building in hand (#672; docs/ART.md, the Warehouse). */
@@ -8,9 +9,10 @@ import { drivenFleet } from "./transport";
 const BUILDERS = 3;
 const MINER_W = 12;
 const HEAP_W = 16;
-/** The pictures' widths, in art px: the Light Tower and the Warehouse. */
+/** The pictures' widths, in art px: the Light Tower, the Warehouse and the Foundry. */
 const TOWER_W = 30;
 const WAREHOUSE_W = 46;
+const FOUNDRY_W = 45;
 
 describe("the site's yard", () => {
   it("keeps the first plot's yard as it was: the builders, then the heap", () => {
@@ -39,6 +41,34 @@ describe("the site's yard", () => {
     }
     expect(x - 6).toBeGreaterThanOrEqual(span.x - 1);
     expect(x + WAREHOUSE_W + 6).toBeLessThanOrEqual(span.x + span.w + 1);
+  });
+});
+
+describe("the Foundry on the third plot (#682)", () => {
+  it("stands inside its plot, with the Warehouse's room to spare on its right", () => {
+    const span = PLOT_SPANS[2];
+    const x = buildingX(2);
+    expect(span).toBeDefined();
+    if (span === undefined) {
+      return;
+    }
+    expect(x).toBeGreaterThanOrEqual(span.x);
+    expect(x + FOUNDRY_W).toBeLessThanOrEqual(span.x + span.w);
+    const warehouse = PLOT_SPANS[1];
+    expect(span.x + span.w - (x + FOUNDRY_W)).toBe(
+      (warehouse?.x ?? 0) + (warehouse?.w ?? 0) - (buildingX(1) + WAREHOUSE_W),
+    );
+  });
+
+  it("keeps its scaffold clear of the Warehouse and inside the scene", () => {
+    const x = buildingX(2);
+    // The scaffold's bars reach 6 art px past the picture on each side.
+    expect(x - 6).toBeGreaterThan(buildingX(1) + WAREHOUSE_W);
+    expect(x + FOUNDRY_W + 6).toBeLessThanOrEqual(SCENE_W);
+  });
+
+  it("has the Warehouse's yard: the plots between have no free ground", () => {
+    expect(siteYard(2)).toEqual(siteYard(1));
   });
 });
 

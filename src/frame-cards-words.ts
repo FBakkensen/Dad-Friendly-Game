@@ -1,4 +1,5 @@
 import { buildingById, type BuildingId } from "./city";
+import { partThreeOn, partTwoOn } from "./part-switch";
 import { makerTakes } from "./makers";
 import { AWAY_PAY_RATE } from "./rates";
 import { percent } from "./screen-words";
@@ -39,6 +40,19 @@ export function powerWords(id: BuildingId): readonly string[] {
   ];
 }
 
+/**
+ * What a building opens in the parts that are live, for the city's
+ * "On completion:" line and its card: the Light Tower opens the refinery in
+ * part 2 (#671), the Warehouse trucks in part 3 (#754; spec, While a part is
+ * the end of the game). Empty when it opens nothing live.
+ */
+export function opensWords(id: BuildingId): string {
+  if (id === "lightTower" && partTwoOn()) {
+    return "Opens the refinery.";
+  }
+  return id === "warehouse" && partThreeOn() ? "Opens trucks." : "";
+}
+
 const sentence = (words: string): string =>
   `${words.charAt(0).toUpperCase()}${words.slice(1)}`;
 
@@ -56,6 +70,16 @@ export function endCard(id: BuildingId): CardWords {
   return operational(id, [
     "The city is planning its next building. It comes in a later update.",
   ]);
+}
+
+/**
+ * A building's card when its roof goes on and the next building is in play
+ * (#682): its power and what it opens, in the city's approved words. In
+ * part 3 it is the Warehouse's: "Stockyard capacity ×2." and "Opens trucks."
+ */
+export function builtCard(id: BuildingId): CardWords {
+  const opened = opensWords(id);
+  return operational(id, opened === "" ? [] : [opened]);
 }
 
 /**

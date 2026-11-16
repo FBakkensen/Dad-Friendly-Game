@@ -8,8 +8,30 @@ import { asGuest, sliceBusySave } from "../browser/fixtures.ts";
 import { Expected, TICK_MS } from "./expected.ts";
 import { expect, NINE_PM, type Player, test } from "./player.ts";
 
-/** Transport stops, so what hoisting lifts stays in the stockpile and it grows every tick. */
+/** Transport stops, so what hoisting lifts stays in the stockpile and it grows with each load. */
 const FREE_DRIVER: Action = { kind: "freeWorker", job: "driving", count: 1 };
+
+/** Long enough for rock to be drilled, hauled and lifted to the top in a cage. */
+const FIRST_LOAD_WITHIN_MS = 2 * 60 * 1000;
+
+/**
+ * The mine works a tick at a time until the rules' stockpile has grown past `stones`: since
+ * part 3 (#682) stone comes up in cage loads, so it stands between them and then jumps.
+ */
+async function untilALoad(
+  player: Player,
+  rules: Expected,
+  stones: number,
+): Promise<void> {
+  const start = player.now;
+  while (rules.pocket <= stones) {
+    expect(player.now - start, "a load comes up").toBeLessThan(
+      FIRST_LOAD_WITHIN_MS,
+    );
+    await player.wait(TICK_MS);
+    rules.until(player.now);
+  }
+}
 
 /**
  * A busy mine open at nine, every stage at work and an order in hand, so no card is up, and
@@ -40,8 +62,7 @@ test("kill the tab and reopen: the same moment", async ({ player }) => {
   await player.expectStones(atKill);
 
   // The reopened tab's mine works on as the rules say, and the stockpile grows.
-  await player.wait(5 * TICK_MS);
-  reopened.until(player.now);
+  await untilALoad(player, reopened, atKill);
   expect(reopened.pocket).toBeGreaterThan(atKill);
   await player.expectStones(reopened.pocket);
 });
@@ -52,9 +73,8 @@ test("kill the tab while the mine works: the same moment (#573)", async ({
   const rules = await busyMine(player);
   const before = rules.pocket;
 
-  // A few seconds of the mine at work, no move, then the kill.
-  await player.wait(5 * TICK_MS);
-  rules.until(player.now);
+  // The mine at work until a load comes up, no move, then the kill.
+  await untilALoad(player, rules, before);
   const atKill = rules.pocket;
   expect(atKill, "the mine worked before the kill").toBeGreaterThan(before);
   await player.expectStones(atKill);

@@ -41,13 +41,7 @@ describe("parseBootOptions", () => {
       previewSave: undefined,
       previewCopies: false,
       previewUpdate: false,
-      partThree: false,
     });
-  });
-
-  it("reads part3=1, so a dev page can show part 3 before it is switched on (#681)", () => {
-    expect(parseBootOptions("?part3=1").partThree).toBe(true);
-    expect(parseBootOptions("?part3=0").partThree).toBe(false);
   });
 
   it("reads update=shown, so play can see the update card", () => {
@@ -120,30 +114,6 @@ describe("createAppServices", () => {
     }
   });
 
-  it("plays part 3 on a dev page with part3=1, and never in the build (#681)", async () => {
-    for (const [devMode, on] of [
-      [true, true],
-      [false, false],
-    ] as const) {
-      holdFactors({});
-      const { progress } = await createAppServices({
-        env: {},
-        search: "?part3=1",
-        devMode,
-      });
-      expect(partThreeOn()).toBe(on);
-      progress.dispose();
-    }
-    holdFactors({});
-    const { progress } = await createAppServices({
-      env: {},
-      search: "",
-      devMode: true,
-    });
-    expect(partThreeOn()).toBe(false);
-    progress.dispose();
-  });
-
   it("plays part 2 on every boot, in dev and in the build (#672)", async () => {
     for (const devMode of [true, false]) {
       holdFactors({});
@@ -159,7 +129,7 @@ describe("createAppServices", () => {
     }
   });
 
-  it("keeps part 3 off on every boot (#673)", async () => {
+  it("plays part 3 on every boot, in dev and in the build (#682)", async () => {
     for (const devMode of [true, false]) {
       holdFactors({});
       const { progress } = await createAppServices({
@@ -167,7 +137,7 @@ describe("createAppServices", () => {
         search: "",
         devMode,
       });
-      expect(partThreeOn()).toBe(false);
+      expect(partThreeOn()).toBe(true);
       progress.dispose();
     }
   });

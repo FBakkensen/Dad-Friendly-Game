@@ -4,7 +4,8 @@
  * game. The save, the clock and Math.random are set before the page boots. Since part 1 was
  * switched on (#664) it plays the frame: the mine and the city, their keys and the workers'
  * − and +, and the cards. Since part 2 (#672) it also reads the stockyard's piles and goes to
- * the refinery from the shift report.
+ * the refinery from the shift report. Since part 3 (#682) it sinks the shaft, moves workers onto
+ * the Granite's rows and assigns hoists on the strip under Hoisting.
  */
 import {
   test as base,
@@ -37,8 +38,17 @@ const PAST_SETTLE_MS = Math.ceil((DRAWER_SETTLE_MS + 1) / TICK_MS) * TICK_MS;
 /** The card over the frame: the first evening, the shift report, the end card. */
 const CARD = ".frame-card:not([hidden])";
 
-/** The jobs on the mine's stage rows; driving and building are on the city's plates. */
-const MINE_JOBS: readonly string[] = ["drilling", "haulage", "hoisting"];
+/**
+ * The jobs on the mine's stage rows, the Granite's among them (#682); driving and building are
+ * on the city's plates.
+ */
+const MINE_JOBS: readonly string[] = [
+  "drilling",
+  "haulage",
+  "hoisting",
+  "graniteDrilling",
+  "graniteHaulage",
+];
 
 type Site = "mine" | "refinery" | "city";
 
@@ -214,6 +224,19 @@ export class Player {
         await this.site("city");
         await this.tapShown(`.city-key[data-vehicle="${action.id}"]`);
         return;
+      case "sinkShaft":
+        await this.site("mine");
+        await this.tapShown(".mine-sink");
+        return;
+      case "assignHoist":
+      case "unassignHoist": {
+        const way = action.kind === "assignHoist" ? "more" : "less";
+        await this.site("mine");
+        await this.tapShown(
+          `.mine-strip-cell[data-place="${action.level}"] .mine-strip-${way}`,
+        );
+        return;
+      }
       default:
         throw new Error(`The frame has no key for ${action.kind}`);
     }

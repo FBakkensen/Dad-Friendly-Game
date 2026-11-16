@@ -47,6 +47,8 @@ import {
   sliceStructureSave,
   sliceTwoLevelsSave,
   sliceWarehouseRoofSave,
+  sliceFoundrySave,
+  sliceFoundryRoofSave,
   sliceWarehouseSave,
   sliceWarehouseTrucksSave,
 } from "../tools/browser/fixtures.ts";
@@ -56,8 +58,6 @@ import {
  * The frame's saves are the dev account's phone backup, played on a memory save (#664).
  */
 const MEMORY = "?memorySave=1";
-/** Part 3 on a dev page, before #682 switches it on (#681). */
-const PART_THREE = "?memorySave=1&part3=1";
 const SAVES = {
   fresh: {
     note: "first open, nothing saved: the first evening",
@@ -92,7 +92,7 @@ const SAVES = {
     search: MEMORY,
   },
   done: {
-    note: "the Light Tower and the Warehouse operational, nothing to order",
+    note: "the Light Tower, the Warehouse and the Foundry operational, nothing to order",
     save: () => sliceDoneSave(Date.now()),
     key: DEV_BACKUP_KEY,
     search: MEMORY,
@@ -146,8 +146,20 @@ const SAVES = {
     search: MEMORY,
   },
   warehouseroof: {
-    note: "the Warehouse's roof goes on in the night: the shift report, then the end card",
+    note: "the Warehouse's roof goes on in the night: the shift report, then its card that opens trucks",
     save: () => sliceWarehouseRoofSave(Date.now()),
+    key: DEV_BACKUP_KEY,
+    search: MEMORY,
+  },
+  foundry: {
+    note: "part 3: the Foundry's structure going up, brick and cut stone on the way",
+    save: () => sliceFoundrySave(Date.now()),
+    key: DEV_BACKUP_KEY,
+    search: MEMORY,
+  },
+  foundryroof: {
+    note: "part 3: the Foundry's roof goes on in the night: the shift report, then the slice's end card",
+    save: () => sliceFoundryRoofSave(Date.now()),
     key: DEV_BACKUP_KEY,
     search: MEMORY,
   },
@@ -155,37 +167,37 @@ const SAVES = {
     note: "part 3: the shaft sunk, clay and iron in the bins, the station idle",
     save: () => sliceFactorySave(Date.now()),
     key: DEV_BACKUP_KEY,
-    search: PART_THREE,
+    search: MEMORY,
   },
   factoryorder: {
     note: "part 3: sturdy props on the station, stone and clay arriving",
     save: () => sliceFactoryOrderSave(Date.now()),
     key: DEV_BACKUP_KEY,
-    search: PART_THREE,
+    search: MEMORY,
   },
   factorydone: {
     note: "part 3: iron rails done on the station, waiting to be installed",
     save: () => sliceFactoryDoneSave(Date.now()),
     key: DEV_BACKUP_KEY,
-    search: PART_THREE,
+    search: MEMORY,
   },
   "granite-unsunk": {
     note: "part 3: the Light Tower up and the stone and brick to sink the shaft",
     save: () => sliceGraniteUnsunkSave(Date.now()),
     key: DEV_BACKUP_KEY,
-    search: PART_THREE,
+    search: MEMORY,
   },
   "warehouse-trucks": {
     note: "part 3: the Warehouse operational and the brick for a truck",
     save: () => sliceWarehouseTrucksSave(Date.now()),
     key: DEV_BACKUP_KEY,
-    search: PART_THREE,
+    search: MEMORY,
   },
   "two-levels": {
     note: "part 3: the shaft sunk, both levels working, a hoist on each and one for both",
     save: () => sliceTwoLevelsSave(Date.now()),
     key: DEV_BACKUP_KEY,
-    search: PART_THREE,
+    search: MEMORY,
   },
 };
 
