@@ -43,7 +43,7 @@ function hours(seconds: number): number {
 }
 
 /** One work order's time at `reference`. */
-export function workOrderTime(
+function workOrderTime(
   blueprint: BlueprintId,
   reference: Reference,
 ): WorkOrderTime {
