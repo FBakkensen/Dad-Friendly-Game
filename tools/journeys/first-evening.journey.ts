@@ -3,8 +3,10 @@
  * A fresh mine with one worker on drilling: he closes the first evening's card, orders the Light
  * Tower, hires and places his workers, buys machines and horse wagons, and looks in every ten
  * minutes. At each look the stockpile reads what the rules say, from the game's own session,
- * until the roof goes on and the end card comes up.
+ * until the roof goes on. In part 2 (#672) the roof opens the refinery: its card comes up behind
+ * the report, and the refinery's key is in the site bar.
  */
+import { refineryOpens } from "../../src/frame-cards-words.ts";
 import { Expected, TICK_MS } from "./expected.ts";
 import { expect, test } from "./player.ts";
 
@@ -73,11 +75,17 @@ test("the first evening: from one worker to the Light Tower's roof", async ({
     await player.expectStones(rules.pocket);
   }
 
-  // The roof went on in those minutes: the shift report tells it, and the end card is behind.
+  // The roof went on in those minutes: the shift report tells it, and the refinery's card is behind.
   expect((await player.card()).title).toBe("Shift report");
   await player.closeCard();
-  expect((await player.card()).title).toBe("The Light Tower: operational");
+  const opens = refineryOpens();
+  const behind = await player.card();
+  expect(behind.title).toBe(opens.title);
+  expect(behind.lines).toEqual(opens.paragraphs);
   await player.closeCard();
+  await expect(
+    player.page.locator('.frame-site[data-site="refinery"]'),
+  ).toBeVisible();
   rules.until(player.now);
   await player.expectStones(rules.pocket);
 });

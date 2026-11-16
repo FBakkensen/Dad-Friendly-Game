@@ -12,7 +12,7 @@ npm run play -- --save start "tap:.frame-site[data-site=city]"
 npm run play -- --help
 ```
 
-The saves include `fresh` (nothing saved), `start` (a one-worker start with the first evening's card), `busy` (carts, wagons and stone to spend), `night` (the shift report) and `roof` (the end card); `--help` lists them all. They come from the typed fixtures in `tools/browser/fixtures.ts`. The actions are `tap:<css>`, `label:<accessible name>`, `wait:<ms>`, and `wait:<css>`. A tap takes `*N` to repeat. Shots and `log.txt` (console, page errors, failed requests, and the save line) go to `play-shots/`, which is gitignored and cleared on each run. `--out` picks another folder, `--url` drives an app that is already running, and `--search` adds a query to the page URL. Any page error, or an action that cannot run, exits non-zero.
+The saves include `fresh` (nothing saved), `start` (a one-worker start with the first evening's card), `busy` (carts, wagons and stone to spend), `night` (the shift report), `roof` (the Light Tower's roof, then the refinery's card) and `warehouseroof` (the Warehouse's roof, then the end card); `--help` lists them all. They come from the typed fixtures in `tools/browser/fixtures.ts`. The actions are `tap:<css>`, `label:<accessible name>`, `wait:<ms>`, and `wait:<css>`. A tap takes `*N` to repeat. Shots and `log.txt` (console, page errors, failed requests, and the save line) go to `play-shots/`, which is gitignored and cleared on each run. `--out` picks another folder, `--url` drives an app that is already running, and `--search` adds a query to the page URL. Any page error, or an action that cannot run, exits non-zero.
 
 ## The gate
 

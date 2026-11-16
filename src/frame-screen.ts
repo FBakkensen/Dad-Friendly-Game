@@ -172,6 +172,7 @@ type TopParts = {
 function buildTop(state: FrameState): TopParts {
   const root = el("div", "frame-top");
   const stonePile = buildPile(stoneUrl, "frame-pile-count");
+  stonePile.root.dataset["good"] = "stones";
   const brickPile = buildPile(brickUrl, "frame-pile-num");
   brickPile.root.dataset["good"] = "brick";
   const stones = stonePile.count;
