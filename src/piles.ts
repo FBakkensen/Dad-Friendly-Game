@@ -245,6 +245,16 @@ export function chainChange(chain: Chain): number {
 }
 
 /**
+ * Seconds rounded up to a whole one, and at least one; Infinity stays. A
+ * change a hair past a second (float noise) falls in that second.
+ */
+export function wholeSeconds(seconds: number): number {
+  return Number.isFinite(seconds)
+    ? Math.max(1, Math.ceil(seconds - 1e-9))
+    : Infinity;
+}
+
+/**
  * The chain past every change in its first `within` seconds, and the seconds
  * from now the last of them came (#666). A stretch at least that long sees
  * those changes as made: a stockpile a few goods short of its room is full
@@ -731,7 +741,6 @@ export function flowBranchesWhole(
   seconds: number,
 ): readonly ChainFlow[] {
   const exact = runBranches(set, seconds);
-  const rates = sharedRates(set);
   const floored = exact.map((flow) => Math.floor(flow.spilled + EDGE));
   const wholes: ChainFlow[] = [];
   let taken = 0;
@@ -744,7 +753,9 @@ export function flowBranchesWhole(
     // one takes a branch's part-good as it does a lone chain's.
     const others = set.side.drain > 0 ? 0 : taken + after;
     const room = { ...set.side, held: set.side.held + others };
-    const at = branchAt(branch, set.shared.stage, nth(rates, index), room);
+    // `wholeOf` reads no rate, so the branch keeps its own at the shared stage.
+    const own = nth(branch.rates, set.shared.stage);
+    const at = branchAt(branch, set.shared.stage, own, room);
     const whole = wholeOf(at, flow);
     wholes.push(whole);
     taken += whole.spilled;

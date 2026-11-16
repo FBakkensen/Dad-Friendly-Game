@@ -11,7 +11,6 @@ import { kilnRate, makerRate, makerTakes, type MakerId } from "./makers";
 import {
   graniteOpen,
   openGranite,
-  type GranitePileId,
   type GranitePiles,
   type MineLevelId,
   type SunkGranite,
@@ -84,13 +83,11 @@ export type MinePiles = Readonly<Record<PileId, number>>;
 export const PILE_HOLDS: MinePiles = { face: 300, shaft: 300, kiln: 300 };
 
 /**
- * The Granite's drilled rock and rock at the shaft (part 3, ruling 7): 300
- * each, as the Topsoil's, before the cages (`faceHolds`, `shaftHolds`). The
- * saws' pile is a maker's (`makerHolds`).
+ * The Granite's drilled rock (part 3, ruling 7): 300, as the Topsoil's
+ * (`faceHolds`). Its rock at the shaft is the cages' (`shaftHolds`), and the
+ * saws' pile a maker's (`makerHolds`).
  */
-const GRANITE_PILE_HOLDS: Readonly<
-  Record<Exclude<GranitePileId, "saw">, number>
-> = { face: 300, shaft: 300 };
+const GRANITE_FACE_HOLDS = 300;
 
 /**
  * What the workforce moves on the mine's stages (the Topsoil's and the
@@ -98,7 +95,7 @@ const GRANITE_PILE_HOLDS: Readonly<
  * at pay 1 and what they lift a second as rates (#724). With part 3 off the
  * cages are none and `lift` is undefined: hoisting's workers lift, as today.
  */
-export type MineWork = {
+type MineWork = {
   readonly stages: StageSpeeds;
   readonly levels: LineWork["levels"];
   readonly cages: readonly ShaftCage[];
@@ -120,7 +117,8 @@ export function mineWork(mountain: Mountain): MineWork {
     return kept;
   }
   const { stages, levels, hoisting } = lineWork(mountain, rates.tierSpeed);
-  const cages = partThreeOn()
+  const cagesPlay = partThreeOn();
+  const cages = cagesPlay
     ? shaftCages({
         owned: mountain.owned,
         hoisting,
@@ -134,7 +132,7 @@ export function mineWork(mountain: Mountain): MineWork {
     stages,
     levels,
     cages,
-    lift: partThreeOn() ? cageRates(cages) : undefined,
+    lift: cagesPlay ? cageRates(cages) : undefined,
   };
   mineWorks.set(rates, work);
   return work;
@@ -157,7 +155,7 @@ export function shaftHolds(mountain: Mountain): number {
 
 /** The drilled rock's room on a level: 300 on both, whatever the cages (ruling 7). */
 export function faceHolds(level: MineLevelId): number {
-  return level === "topsoil" ? PILE_HOLDS.face : GRANITE_PILE_HOLDS.face;
+  return level === "topsoil" ? PILE_HOLDS.face : GRANITE_FACE_HOLDS;
 }
 
 /**

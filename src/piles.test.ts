@@ -13,6 +13,7 @@ import {
   flowChain,
   flowWhole,
   pour,
+  wholeSeconds,
   type Branch,
   type Branches,
   type Chain,
@@ -464,6 +465,28 @@ describe("a stage with a recipe (#723)", () => {
   });
 });
 
+describe("sharing a capacity out evenly (the stockpiles' draw, #673)", () => {
+  it("shares out evenly: never above a want, never above the capacity, and the rest to the others", () => {
+    expect(evenShares(100, [10, Infinity, 0])).toEqual([10, 90, 0]);
+    expect(evenShares(100, [80, 80])).toEqual([50, 50]);
+    expect(evenShares(0, [5, 5])).toEqual([0, 0]);
+    expect(evenShares(90, [Infinity, 5, Infinity])).toEqual([42.5, 5, 42.5]);
+    expect(evenShares(60, [Infinity, Infinity])).toEqual([30, 30]);
+    expect(evenShares(100, [])).toEqual([]);
+  });
+});
+
+describe("whole seconds (#724)", () => {
+  it("rounds up to a whole second, at least one, and keeps Infinity", () => {
+    expect(wholeSeconds(0)).toBe(1);
+    expect(wholeSeconds(0.2)).toBe(1);
+    expect(wholeSeconds(2)).toBe(2);
+    expect(wholeSeconds(2 + 1e-12)).toBe(2);
+    expect(wholeSeconds(2.01)).toBe(3);
+    expect(wholeSeconds(Infinity)).toBe(Infinity);
+  });
+});
+
 describe("pouring a load (rule 5.6)", () => {
   it("fills each pile in order up to its room, and keeps what finds none", () => {
     expect(
@@ -562,15 +585,6 @@ describe("chains side by side (#673, #724)", () => {
   /** What each chain lifts now. */
   const lifts = (set: Branches) =>
     branchChains(set).map((chain) => chainFlows(chain)[2]);
-
-  it("shares out evenly: never above a want, never above the capacity, and the rest to the others", () => {
-    expect(evenShares(100, [10, Infinity, 0])).toEqual([10, 90, 0]);
-    expect(evenShares(100, [80, 80])).toEqual([50, 50]);
-    expect(evenShares(0, [5, 5])).toEqual([0, 0]);
-    expect(evenShares(90, [Infinity, 5, Infinity])).toEqual([42.5, 5, 42.5]);
-    expect(evenShares(60, [Infinity, Infinity])).toEqual([30, 30]);
-    expect(evenShares(100, [])).toEqual([]);
-  });
 
   it("lifts each branch's own rate, and the turn's loads in the time of the trips of those in the turn", () => {
     // Both have rock waiting: a round is 10 + 20 seconds, so each takes

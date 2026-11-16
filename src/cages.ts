@@ -95,8 +95,8 @@ function cageKind(
   if (key === "winch") {
     return undefined;
   }
-  const [id, index] = key.split(":") as [(typeof CAGE_TIERS)[number], string];
-  return { id, index: Number(index) };
+  const id = key.startsWith("machine:") ? "machine" : "hoist";
+  return { id, index: Number(key.slice(id.length + 1)) };
 }
 
 /**
@@ -124,27 +124,29 @@ function cageRuns(key: CageKey, hoisting: StageWork): boolean {
 }
 
 /**
- * What each cage serves, in order (ruling 4): the first `assigned.topsoil`
- * the Topsoil, the next `assigned.granite` the Granite, the rest both in
- * turn. The winch always serves both. With one level open, all the Topsoil.
+ * What the cage at `place` in order serves (ruling 4): the first
+ * `assigned.topsoil` the Topsoil, the next `assigned.granite` the Granite,
+ * the rest both in turn. With one level open, all the Topsoil. The winch is
+ * last in order, so it serves both unless more are assigned than he owns,
+ * which `assignHoists` never makes and the save reader refuses; it is
+ * checked anyway, so no state makes the winch serve one level.
  */
-function cageServices(
-  keys: readonly CageKey[],
-  assigned: HoistsAssigned,
-  twoLevels: boolean,
-): readonly CageService[] {
+function cageService(
+  key: CageKey,
+  place: number,
+  input: Pick<CageInput, "assigned" | "twoLevels">,
+): CageService {
+  const { assigned, twoLevels } = input;
   if (!twoLevels) {
-    return keys.map(() => "topsoil");
+    return "topsoil";
   }
-  return keys.map((key, place): CageService => {
-    if (key === "winch") {
-      return "both";
-    }
-    if (place < assigned.topsoil) {
-      return "topsoil";
-    }
-    return place < assigned.topsoil + assigned.granite ? "granite" : "both";
-  });
+  if (key === "winch") {
+    return "both";
+  }
+  if (place < assigned.topsoil) {
+    return "topsoil";
+  }
+  return place < assigned.topsoil + assigned.granite ? "granite" : "both";
 }
 
 /**
@@ -152,14 +154,12 @@ function cageServices(
  * what it is rated to lift in one trip to the Topsoil and back, times pay.
  */
 export function shaftCages(input: CageInput): readonly ShaftCage[] {
-  const keys = cageKeys(input.owned);
-  const services = cageServices(keys, input.assigned, input.twoLevels);
   const trip = tripSeconds("topsoil");
-  return keys.map((key, place) => ({
+  return cageKeys(input.owned).map((key, place) => ({
     key,
     load: cageRating(key, input) * trip * input.pay,
     runs: cageRuns(key, input.hoisting),
-    serves: services[place] ?? "both",
+    serves: cageService(key, place, input),
   }));
 }
 
@@ -307,6 +307,7 @@ export function unassignedHoists(
   mountain: Pick<Mountain, "owned" | "cages">,
 ): number {
   const { topsoil, granite } = mountain.cages.assigned;
+  // Never below 0, though the save reader already refuses more assigned than owned.
   return Math.max(0, hoistsOwned(mountain.owned) - topsoil - granite);
 }
 
@@ -340,6 +341,7 @@ export function unassignHoists<M extends Pick<Mountain, "cages">>(
   );
 }
 
+/** The mountain with a level's assigned count moved by `by`, already clipped by the caller; the same mountain for 0. */
 function assignedBy<M extends Pick<Mountain, "cages">>(
   mountain: M,
   level: MineLevelId,

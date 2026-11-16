@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { NO_HOISTS_ASSIGNED } from "./cages";
 import {
   applyMove,
   listActions,
@@ -10,9 +11,11 @@ import { fieldEntry } from "./field-log";
 import { sticker } from "./lab/decide";
 import { FRESH_OFF } from "./line-switch";
 import {
+  MINE_LEVEL_IDS,
   NO_GRANITE_PILES,
   NO_LEVEL_MACHINES,
   levelMachines,
+  type MineLevelId,
 } from "./mine-levels";
 import { createMountain, type Mountain } from "./mountain";
 import { PART_THREE_OFF, PART_TWO_OFF } from "./part-switch";
@@ -240,16 +243,17 @@ describe("assigning hoists as moves (#724)", () => {
   const hoisted = (
     sunk: boolean,
     hoists: number,
-    assigned: Readonly<Partial<Record<"topsoil" | "granite", number>>> = {},
+    assigned: Partial<Record<MineLevelId, number>> = {},
   ): Mountain => {
     const start = mine(sunk);
+    const counts: Record<MineLevelId, number> = { ...NO_HOISTS_ASSIGNED };
+    for (const level of MINE_LEVEL_IDS) {
+      counts[level] = assigned[level] ?? 0;
+    }
     return {
       ...start,
       owned: { ...start.owned, hoist: hoists },
-      cages: {
-        ...start.cages,
-        assigned: { topsoil: 0, granite: 0, ...assigned },
-      },
+      cages: { ...start.cages, assigned: counts },
     };
   };
   const hoistMoves = (mountain: Mountain): readonly Action[] =>

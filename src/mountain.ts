@@ -24,6 +24,7 @@ import { makerRecord, type MakerId } from "./makers";
 import { UNSUNK, type Granite } from "./mine-levels";
 import { NO_CAGES, type Cages } from "./cages";
 import { flowMineLive, landedMine } from "./mine-cages";
+import { wholeSeconds } from "./piles";
 import { IDLE_STATION, withMaterials, type Station } from "./factory";
 import {
   flowMine,
@@ -729,9 +730,7 @@ type Stretch = Accrual & {
 
 /** The end of the whole second in which `seconds` from `from` falls, at least one on; Infinity stays. */
 function secondMark(from: number, seconds: number): number {
-  return Number.isFinite(seconds)
-    ? from + Math.max(1, Math.ceil(seconds - 1e-9)) * 1000
-    : Infinity;
+  return from + wholeSeconds(seconds) * 1000;
 }
 
 /** A building's steps, in order. */

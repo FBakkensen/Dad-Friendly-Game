@@ -16,7 +16,7 @@ import {
   type CageTrips,
   type ShaftCage,
 } from "./cages";
-import { makerRate, makerTakes, type MakerId } from "./makers";
+import { makerOutput, makerRate, makerTakes, type MakerId } from "./makers";
 import { MINE_LEVEL_IDS, openGranite, type MineLevelId } from "./mine-levels";
 import {
   faceHolds,
@@ -30,7 +30,13 @@ import {
 } from "./mine-piles";
 import type { Mountain } from "./mountain";
 import { partThreeOn } from "./part-switch";
-import { chainChange, flowWhole, type Chain, type Pile } from "./piles";
+import {
+  chainChange,
+  flowWhole,
+  wholeSeconds,
+  type Chain,
+  type Pile,
+} from "./piles";
 import type { Stock } from "./stock";
 import { stockpileRoom } from "./stockyard";
 
@@ -45,15 +51,10 @@ import { stockpileRoom } from "./stockyard";
  * Imported only by `mountain`.
  */
 
-/** Each level's maker and the good it makes: the kilns on the Topsoil, the saws on the Granite. */
-const MAKER_OF: Readonly<
-  Record<
-    MineLevelId,
-    { readonly maker: MakerId; readonly good: "brick" | "cutStone" }
-  >
-> = {
-  topsoil: { maker: "kiln", good: "brick" },
-  granite: { maker: "saw", good: "cutStone" },
+/** Each level's maker: the kilns on the Topsoil, the saws on the Granite. */
+const MAKER_OF: Readonly<Record<MineLevelId, MakerId>> = {
+  topsoil: "kiln",
+  granite: "saw",
 };
 
 /** What one open level works at and holds in this call, worked out once. */
@@ -139,7 +140,8 @@ function planOf(mountain: Mountain, pay: number, drilling: boolean): Plan {
   const cages = work.cages.map((cage) => ({ ...cage, load: cage.load * pay }));
   const levels: Partial<Record<MineLevelId, LevelPlan>> = {};
   for (const level of openLevels(mountain)) {
-    const { maker, good } = MAKER_OF[level];
+    const maker = MAKER_OF[level];
+    const good = makerOutput(maker);
     levels[level] = {
       drill: drilling ? work.levels[level].face * pay : 0,
       haul: work.levels[level].haul * pay,
@@ -308,13 +310,6 @@ function stepChains(live: Live, plan: Plan): readonly LevelStep[] {
   });
 }
 
-/** Seconds, rounded up to a whole one and at least one; Infinity stays. */
-function whole(seconds: number): number {
-  return Number.isFinite(seconds)
-    ? Math.max(1, Math.ceil(seconds - 1e-9))
-    : Infinity;
-}
-
 /**
  * The step's length (ruling 11): to the next leg's end, the next change in a
  * chain below the shaft, and one second while a cage waits at the top with
@@ -325,9 +320,9 @@ function stepLength(
   steps: readonly LevelStep[],
   left: number,
 ): number {
-  let next = Math.min(left, whole(nextLegEnd(live.trips)));
+  let next = Math.min(left, wholeSeconds(nextLegEnd(live.trips)));
   for (const step of steps) {
-    next = Math.min(next, whole(chainChange(step.below)));
+    next = Math.min(next, wholeSeconds(chainChange(step.below)));
   }
   return topWaits(live.trips) ? Math.min(next, 1) : next;
 }

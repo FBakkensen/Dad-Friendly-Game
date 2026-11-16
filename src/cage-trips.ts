@@ -252,7 +252,11 @@ function cageStep(cage: ShaftCage, trip: Cage, work: Work): Cage {
   }
 }
 
-/** A cage stepped until it rests, within the same instant, so a second instant changes nothing. */
+/**
+ * A cage stepped until it rests, within the same instant, so a second
+ * instant changes nothing. It rests within `SETTLE_STEPS`; one that does not
+ * would break that, so it is a bug and throws.
+ */
 function settled(cage: ShaftCage, trip: Cage, work: Work): Cage {
   let now = trip;
   for (let step = 0; step < SETTLE_STEPS; step += 1) {
@@ -262,7 +266,7 @@ function settled(cage: ShaftCage, trip: Cage, work: Work): Cage {
     }
     now = next;
   }
-  return now;
+  throw new Error(`cage ${cage.key} did not rest within an instant`);
 }
 
 /** The instant's outcome; the same trips and scene when nothing changed. */
@@ -331,10 +335,13 @@ export function landCages(
 
 /** Every leg's time left less `seconds`, never below 0. */
 export function cagesAfter(trips: CageTrips, seconds: number): CageTrips {
+  if (seconds <= 0) {
+    return trips;
+  }
   let after: Partial<Record<CageKey, Cage>> | undefined;
   for (const [key, trip] of Object.entries(trips) as [CageKey, Cage][]) {
     const { leg } = trip;
-    if ((leg.kind !== "down" && leg.kind !== "up") || seconds <= 0) {
+    if (leg.kind !== "down" && leg.kind !== "up") {
       continue;
     }
     const left = Math.max(0, leg.left - seconds);

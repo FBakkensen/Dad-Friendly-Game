@@ -88,7 +88,6 @@ import {
   type MineLevelId,
 } from "./mine-levels";
 import {
-  NO_CAGES,
   carriedBy,
   cageKeys,
   hoistsOwned,
@@ -978,22 +977,18 @@ type CageMaps = {
  * key or level this build does not know is `newer`.
  */
 function readCageMaps(value: unknown): Part<CageMaps> {
-  if (value === undefined) {
-    return {
-      assigned: { ...NO_CAGES.assigned },
-      carried: { topsoil: 0, granite: 0 },
-    };
-  }
-  if (!isRecord(value)) {
+  // Left out, the cages are all zero: each map reads as `readCounts`' zeros.
+  const maps = value === undefined ? {} : value;
+  if (!isRecord(maps)) {
     return "bad";
   }
-  const assigned = readCounts(value["assigned"], MINE_LEVEL_IDS, UNCAPPED);
-  const carried = readCounts(value["carried"], MINE_LEVEL_IDS, UNCAPPED);
+  const assigned = readCounts(maps["assigned"], MINE_LEVEL_IDS, UNCAPPED);
+  const carried = readCounts(maps["carried"], MINE_LEVEL_IDS, UNCAPPED);
   const failed = worst([assigned, carried]);
   if (failed === "bad") {
     return "bad";
   }
-  if (failed === "newer" || unknownKeys(value, CAGE_KEYS)) {
+  if (failed === "newer" || unknownKeys(maps, CAGE_KEYS)) {
     return "newer";
   }
   return { assigned: assigned as LevelCounts, carried: carried as LevelCounts };
@@ -1039,7 +1034,8 @@ function readCages(
   if (typeof maps === "string") {
     return maps;
   }
-  // A part the cages lean on that cannot be read decides the read itself.
+  // A part the cages lean on that cannot be read stops the cages here, as
+  // `cagesFit` cannot run on it; its failure is reported once, by its own part.
   if (typeof facts === "string") {
     return facts;
   }

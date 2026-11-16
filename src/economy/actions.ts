@@ -408,15 +408,22 @@ function levelActions(mountain: Mountain): readonly Action[] {
  */
 function hoistActions(mountain: Mountain): readonly Action[] {
   const free = unassignedHoists(mountain) > 0;
-  return MINE_LEVEL_IDS.flatMap((level): Action[] => [
-    ...(free ? [{ kind: "assignHoist", level, count: 1 } as const] : []),
-    ...(mountain.cages.assigned[level] > 0
-      ? [{ kind: "unassignHoist", level, count: 1 } as const]
-      : []),
-  ]);
+  return MINE_LEVEL_IDS.flatMap((level) => {
+    const moves: Action[] = [];
+    if (free) {
+      moves.push({ kind: "assignHoist", level, count: 1 });
+    }
+    if (mountain.cages.assigned[level] > 0) {
+      moves.push({ kind: "unassignHoist", level, count: 1 });
+    }
+    return moves;
+  });
 }
 
-/** A hoist move applied: `assignHoists` guards itself on the Granite, and taking one off has no lock (ruling 5). */
+/**
+ * A hoist move applied: `assignHoists` guards itself on the Granite, and
+ * taking one off has no lock (ruling 5).
+ */
 function hoistApplied(mountain: Mountain, action: HoistAction): Mountain {
   return action.kind === "assignHoist"
     ? assignHoists(mountain, action.level, action.count)
@@ -424,9 +431,11 @@ function hoistApplied(mountain: Mountain, action: HoistAction): Mountain {
 }
 
 /**
- * A part 3 move applied. A Granite machine is the card buy, then placed on
- * the Granite only if he owns one more, so a refused buy changes nothing and
- * the first borer brings the first engineer as on the Topsoil.
+ * A part 3 move applied. A hoist move returns early, past the Granite's
+ * guard below on purpose: taking a hoist off has no lock (ruling 5). A
+ * Granite machine is the card buy, then placed on the Granite only if he
+ * owns one more, so a refused buy changes nothing and the first borer brings
+ * the first engineer as on the Topsoil.
  */
 function levelApplied(mountain: Mountain, action: LevelAction): Mountain {
   if (action.kind === "assignHoist" || action.kind === "unassignHoist") {

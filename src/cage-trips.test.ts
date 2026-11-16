@@ -529,12 +529,13 @@ describe("trip by trip", () => {
       fc.property(inputArb, ({ cages, trips, scene: shaft }) => {
         const once = cageInstant(cages, trips, shaft);
         expect(rockIn(once.trips, once.scene)).toBe(rockIn(trips, shaft));
-        const poured =
-          (once.toMaker.topsoil ?? 0) +
-          (once.toMaker.granite ?? 0) +
-          once.toStone;
         expect(once.scene.stone.held - shaft.stone.held).toBe(once.toStone);
-        expect(poured).toBeGreaterThanOrEqual(0);
+        // What each maker's pile gained is what was poured into it.
+        for (const level of MINE_LEVEL_IDS) {
+          const before = shaft.levels[level]?.maker.held ?? 0;
+          const after = once.scene.levels[level]?.maker.held ?? 0;
+          expect(after - before).toBe(once.toMaker[level] ?? 0);
+        }
         const landed = landCages(cages, trips, shaft);
         expect(rockIn(landed.trips, landed.scene)).toBe(rockIn(trips, shaft));
       }),

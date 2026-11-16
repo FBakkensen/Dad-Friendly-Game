@@ -40,7 +40,7 @@ export const partTwo = <T>(body: () => T): T =>
   withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 }, body);
 
 export type Setup = {
-  /** Workers on the Topsoil's drilling and haulage: 3 a second each, with tools. */
+  /** Workers on the Topsoil's drilling and haulage: 3 a second each with tools, more as the workforce passes the workers' marks (6 at 25 workers, 12 at 50). */
   readonly topsoil?: number;
   /** Workers on the Granite's drilling and haulage. */
   readonly granite?: number;

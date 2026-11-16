@@ -689,6 +689,39 @@ describe("the cages in the save (#724)", () => {
     }
   });
 
+  it("unloads a cage that came back with more than its load in one second at the top (Task 8)", () => {
+    // Two Topsoil cages carrying 400 and 300 read back as one cage with 700,
+    // past a hoist's load of 600; the Granite's 40 takes the next cage.
+    const start = shaft({
+      "hoist:2": { level: "topsoil", carried: 400, leg: { kind: "loading" } },
+      winch: { level: "topsoil", carried: 300, leg: { kind: "up", left: 1 } },
+      "hoist:0": {
+        level: "granite",
+        carried: 40,
+        leg: { kind: "down", left: 3 },
+      },
+    });
+    const read = throughJson(start);
+    if (read.kind !== "ok") {
+      throw new Error(`the save did not read: ${read.kind}`);
+    }
+    expect(read.mountain.cages.trips["hoist:0"]?.carried).toBe(700);
+    const after = partThree(
+      () =>
+        accrue({ mountain: read.mountain, from: 0, to: 1_000, live: true })
+          .mountain,
+    );
+    // No kiln and no saw, so all of it is stone, and none is dug again.
+    expect(after.stock.stones).toBe(start.stock.stones + 740);
+    expect(
+      Object.values(after.cages.trips).reduce(
+        (sum, trip) => sum + (trip?.carried ?? 0),
+        0,
+      ),
+    ).toBe(0);
+    expect(after.rockDug).toBe(start.rockDug);
+  });
+
   it("writes a part 2 save's game map as before: no cages key", () => {
     // A guard: today's mountain has no cages, so this held before #724.
     expect(Object.keys(writeGame(createMountain()))).not.toContain("cages");

@@ -5,20 +5,20 @@ import {
   NO_HOISTS_ASSIGNED,
   assignHoists,
   cageAt,
-  carriedBy,
-  restoredTrips,
-  unassignHoists,
-  unassignedHoists,
   cageKeys,
   cagePileRoom,
   cageRates,
+  carriedBy,
   hoistsOwned,
   largestLoad,
   legSeconds,
+  restoredTrips,
   shaftCages,
   tripSeconds,
-  type HoistsAssigned,
+  unassignHoists,
+  unassignedHoists,
   type CageKey,
+  type HoistsAssigned,
   type ShaftCage,
 } from "./cages";
 import { withFactors } from "./economy/factors";
@@ -258,6 +258,28 @@ describe("which cages the shaft has (rules 5.5, 5.8, 5.10, call 70)", () => {
       "hoist:1": "both",
       winch: "both",
     });
+  });
+
+  it("keeps the winch for both even with more assigned than he owns, a state no move makes", () => {
+    const cages = cagesOf({ hoist: 1 }, work({ hoist: 1 }, 1), {
+      assigned: { topsoil: 3, granite: 2 },
+      twoLevels: true,
+    });
+    expect(servesOf(cages)).toEqual({ "hoist:0": "topsoil", winch: "both" });
+  });
+
+  it("keeps each key's kind and place, an engine's and a hoist's past nine", () => {
+    const cages = cagesOf(
+      { machine: 11, hoist: 11 },
+      work({ machine: 10, hoist: 11 }),
+    );
+    const runs = Object.fromEntries(cages.map((cage) => [cage.key, cage.runs]));
+    expect(runs["machine:9"]).toBe(true);
+    expect(runs["machine:10"]).toBe(false);
+    expect(runs["hoist:10"]).toBe(true);
+    expect(cages.find((cage) => cage.key === "machine:0")?.load).toBe(
+      speed.machine * 10,
+    );
   });
 
   it("serves the Topsoil with every cage while one level is open, whatever is assigned", () => {

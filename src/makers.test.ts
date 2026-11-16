@@ -6,6 +6,7 @@ import {
   kilnRate,
   makerMakes,
   makerOpen,
+  makerOutput,
   makerPrice,
   makerRate,
   makerTakes,
@@ -201,6 +202,8 @@ describe("the saws (#673)", () => {
   it("makes 30 cut stone a second from three rock each", () => {
     expect(makerMakes("saw")).toBe(30);
     expect(makerTakes("saw")).toBe(3);
+    expect(makerOutput("saw")).toBe("cutStone");
+    expect(makerOutput("kiln")).toBe("brick");
   });
 
   it("opens with the Granite in part 3 only; the kilns as before", () => {

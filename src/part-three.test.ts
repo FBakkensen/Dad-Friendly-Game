@@ -24,8 +24,12 @@ import type { Project } from "./city";
  * Part 3's mine (slice 1, rules 3 and 5, #673): each level has its own
  * drilling, haulage, drilled rock and rock at the shaft, the shaft's cages
  * lift from both (#724), the Granite's rock goes to the saws first, three
- * rock for a cut stone, and what they cannot take bypasses to stone. With the
- * shaft not sunk, or part 3 off, the mine plays exactly as part 2 (ruling 6).
+ * rock for a cut stone, and what they cannot take bypasses to stone. With
+ * part 3 off, the mine plays exactly as part 2 (ruling 6). With the shaft not
+ * sunk and part 3 on, it plays as part 2 but for the cages (#724, call 65):
+ * the piles they use hold loads of the largest cage, and the winch lifts no
+ * more than a hoist; with `piles.loads` at 0 and no more on the winch than a
+ * hoist lifts, it plays exactly as part 2.
  *
  * Unattended time counts the cages as rates (rule 5.14). A hoist's cage
  * carries a load of 600 (its 60 a second times the Topsoil's 10 s trip): 60
@@ -491,7 +495,7 @@ describe("parts 1 and 2 do not change (#673)", () => {
     },
   });
 
-  it("plays a mine whose shaft is not sunk exactly as part 2, with part 3 on", () => {
+  it("plays a mine whose shaft is not sunk as part 2 with part 3 on, with the cages' rooms at 300 and the winch under its cap", () => {
     fc.assert(
       fc.property(
         fc.record({
@@ -537,6 +541,43 @@ describe("parts 1 and 2 do not change (#673)", () => {
       ),
       { numRuns: 30 },
     );
+  });
+
+  it("gives a mine whose shaft is not sunk the cages' rooms at the default knob, with part 3 on (#724)", () => {
+    // No Granite: every cage serves the Topsoil. A hoist's load is 600, and
+    // the piles the cages use hold that for each cage, at least three loads.
+    const room = (setup: Setup) => {
+      const mountain = levels({ ...setup, sunk: false });
+      return partThree(() => ({
+        shaft: shaftHolds(mountain),
+        kiln: makerHolds(mountain, "kiln"),
+      }));
+    };
+    // One hoist and the winch: three loads of 600.
+    expect(room({ hoists: 1, hoisting: 1, kilns: 1 })).toEqual({
+      shaft: 1_800,
+      kiln: 1_800,
+    });
+    // Four hoists and the winch: five cages, a load of 600 each.
+    expect(room({ hoists: 4, hoisting: 4, kilns: 1 })).toEqual({
+      shaft: 3_000,
+      kiln: 3_000,
+    });
+    // The winch alone, 40 on it: 120 a second capped at a hoist's 60, a
+    // load of 600, so three loads; uncapped it would be 3,600.
+    expect(room({ hoisting: 40, kilns: 1 })).toEqual({
+      shaft: 1_800,
+      kiln: 1_800,
+    });
+    // The winch alone, 2 on it: a load of 60, three loads 180, so 300.
+    expect(room({ hoisting: 2, kilns: 1 })).toEqual({ shaft: 300, kiln: 300 });
+    // No kiln: the kilns' pile has no room, whatever the cages.
+    expect(room({ hoists: 1, hoisting: 1 })).toEqual({ shaft: 1_800, kiln: 0 });
+    // Part 3 off: part 2's 300, whatever he owns.
+    const owned = levels({ hoists: 4, hoisting: 4, kilns: 1, sunk: false });
+    expect(
+      partTwo(() => [shaftHolds(owned), makerHolds(owned, "kiln")]),
+    ).toEqual([300, 300]);
   });
 
   it("leaves a sunk Granite alone with part 3 off: the Topsoil plays as part 2", () => {
