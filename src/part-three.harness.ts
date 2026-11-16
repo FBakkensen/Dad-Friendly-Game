@@ -13,7 +13,7 @@ import {
 import type { MinePiles } from "./mine-piles";
 import { createMountain, type Mountain } from "./mountain";
 import type { Jobs } from "./workforce";
-import { PART_THREE_OFF, PART_TWO_OFF } from "./part-switch";
+import { PART_TWO_OFF, PLAY_FACTORS } from "./part-switch";
 import { EMPTY_STOCK, type GoodId, type Stock } from "./stock";
 
 /**
@@ -22,11 +22,8 @@ import { EMPTY_STOCK, type GoodId, type Stock } from "./stock";
  * no test writes a sunk Granite by hand.
  */
 
-/** Slice 1 with parts 2 and 3 on. */
-const PART_THREE_FACTORS: Readonly<Record<string, 0>> = {
-  [PART_TWO_OFF]: 0,
-  [PART_THREE_OFF]: 0,
-};
+/** Slice 1 with parts 2 and 3 on: the game's own map since #682. */
+const PART_THREE_FACTORS: Readonly<Record<string, 0>> = PLAY_FACTORS;
 
 /** Slice 1 with parts 2 and 3 on, and any other knobs set too. */
 export const partThree = <T>(

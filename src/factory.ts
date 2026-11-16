@@ -25,8 +25,8 @@ import {
  * carries its stone and its materials to the station, shared with the city's
  * order (`transport.ts`); it is done when everything it requires has arrived,
  * and he installs it. The gear, its effects and its live timers are the
- * workshop's (`workshop.ts`). Off in play: the station opens with the shaft,
- * behind part 3's switch.
+ * workshop's (`workshop.ts`). The station opens with the shaft, behind
+ * part 3's switch, on in play since #682.
  */
 
 /**

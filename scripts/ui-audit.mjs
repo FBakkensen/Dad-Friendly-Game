@@ -41,6 +41,7 @@ import {
   sliceRoofSave,
   sliceStartSave,
   sliceFoundryRoofSave,
+  sliceWarehouseRoofSave,
   sliceWarehouseSave,
   sliceWarehouseTrucksSave,
   sliceYardFullSave,
@@ -774,6 +775,21 @@ async function main() {
     });
     await new Promise((resolve) => setTimeout(resolve, 500));
     await expectText(opened.page, /planning its next building/i, "end card");
+    return opened;
+  });
+  // The Warehouse's card in part 3: its power and trucks, the Foundry next (#682).
+  await capture("slice-card-built", async (viewport) => {
+    const opened = await openAuditPage(
+      viewport,
+      sliceWarehouseRoofSave(Date.now()),
+    );
+    await frameCardUp(opened.page);
+    await press(opened.page, ".frame-card-key");
+    await opened.page.waitForSelector('.frame-card[data-card="built"]', {
+      visible: true,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    await expectText(opened.page, /Opens trucks/i, "the Warehouse's card");
     return opened;
   });
   await capture("slice-ledger-busy", async (viewport) => {
