@@ -441,7 +441,7 @@ describe("the line's machines, off in play (#533)", () => {
     });
     expect(hoist.opensAt).toBeUndefined();
     expect(train).toMatchObject({
-      name: "Pit train",
+      name: "Locomotive",
       stage: "haul",
       firstCost: 30_000_000,
       staff: 8,

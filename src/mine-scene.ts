@@ -596,10 +596,23 @@ function cageSpeed(): number {
 }
 
 /**
+ * The drawn depths for a new count of cages: the cages at the top merge and
+ * split, so the drawn ones are matched to the targets deepest first and a
+ * cage below keeps riding; a target with none drawn is put at once.
+ */
+export function alignDeepest(
+  drawn: readonly number[],
+  targets: readonly number[],
+): number[] {
+  const offset = drawn.length - targets.length;
+  return targets.map((target, k) => drawn[k + offset] ?? target);
+}
+
+/**
  * The cages' depths as drawn, ridden toward the trips' depths: the trips
  * step once a second, and the cages ride between at a cage's speed. Drawn
  * and target are matched shallowest first, as cages in one shaft look
- * alike; a new count, or a cage too far behind, is put at once.
+ * alike; a cage too far behind is put at once.
  */
 function rideCages(
   motion: Motion,
@@ -608,8 +621,8 @@ function rideCages(
 ): boolean {
   const targets = cages.map((cage) => cage.depth).sort((a, b) => a - b);
   if (motion.cages.length !== targets.length) {
-    motion.cages = targets;
-    return false;
+    // Cages merge and split at the top: those below keep their place, matched deepest first.
+    motion.cages = alignDeepest(motion.cages, targets);
   }
   const step = cageSpeed() * 1.25 * dt;
   let moved = false;

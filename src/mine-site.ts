@@ -3,8 +3,9 @@ import { tierBuyMove } from "./economy/actions";
 import type { FrameState } from "./frame-state";
 import { listenSteps } from "./job-steps";
 import { STAGES, type Stage } from "./line";
-import { graniteOpen } from "./mine-levels";
+import { graniteOpen, isLevelMachine } from "./mine-levels";
 import {
+  levelsView,
   shaftGate,
   twoLevelScene,
   type TwoLevelScene,
@@ -110,6 +111,10 @@ export function paintIcon(icon: HTMLImageElement, good: GoodId): void {
 /**
  * A machine's key in the mine keys' form, which a stage's list uses too
  * (#661). A tap buys what `pick` finds at that moment, when he can pay.
+ * With two levels a drilling or haulage machine's key asks which level on
+ * the machine card instead (ruling 5), wherever the key is: every buy of a
+ * level's machine goes through the card. Hoisting's serves the shaft and
+ * buys at once.
  */
 export function buildMachineKey(
   state: FrameState,
@@ -118,7 +123,14 @@ export function buildMachineKey(
 ): KeyParts {
   return buildKeyFace(className, () => {
     const key = pick();
-    if (key !== undefined && key.can) {
+    if (key === undefined) {
+      return;
+    }
+    if (isLevelMachine(key.id) && graniteOpen(state.mountain())) {
+      state.openMachine(key.id);
+      return;
+    }
+    if (key.can) {
       void state.progress.dispatch(tierBuyMove(key.id, key.count));
     }
   });
@@ -139,24 +151,16 @@ export function paintMachineKey(
 }
 
 /**
- * A stage's key at the mine's foot. It buys the stage's next machine, or,
- * with two levels, drilling's and haulage's ask which level on the machine
- * card (ruling 5); Hoisting's serves the shaft and buys at once.
+ * A stage's key at the mine's foot: the stage's next machine
+ * (`buildMachineKey`), so with two levels drilling's and haulage's ask
+ * which level on the machine card (ruling 5).
  */
 function buildKey(state: FrameState, stage: Stage): KeyParts {
-  const key = buildKeyFace("mine-key", () => {
-    const mountain = state.mountain();
-    if (stage !== "lift" && graniteOpen(mountain)) {
-      state.openMachine(stage);
-      return;
-    }
-    const offered = machineKeys(mountain, state.amount()).find(
+  const key = buildMachineKey(state, "mine-key", () =>
+    machineKeys(state.mountain(), state.amount()).find(
       (each) => each.stage === stage,
-    );
-    if (offered !== undefined && offered.can) {
-      void state.progress.dispatch(tierBuyMove(offered.id, offered.count));
-    }
-  });
+    ),
+  );
   key.root.dataset["stage"] = stage;
   return key;
 }
@@ -338,18 +342,24 @@ export function createMineSite(
         hide(note, true);
         return;
       }
-      scene = sceneOf(mountain);
+      // One reading of the mine with two levels a paint, for its rows, its strip and the scene.
+      const view = levelsView(mountain, now);
+      scene =
+        view === undefined
+          ? mineScene(mountain)
+          : twoLevelScene(mountain, view);
       paintKeys(keys, machineKeys(mountain, state.amount(), now));
-      const two = graniteOpen(mountain);
+      const two = view !== undefined;
       hide(over.root, two);
       hide(rowBox, two);
       if (granite.levels !== undefined) {
         hide(granite.levels.over, !two);
         hide(granite.levels.foot, !two);
       }
-      const canPlace = two
-        ? levels().paint(mountain, now)
-        : paintOne(mountain, now);
+      const canPlace =
+        view === undefined
+          ? paintOne(mountain, now)
+          : levels().paint(mountain, view);
       // A + that can place a worker takes the no-free-worker line down; the hoists' line stays its time.
       if (canPlace && note.textContent === NO_FREE_WORKER) {
         hide(note, true);

@@ -1,6 +1,7 @@
 import { el, hide, mark, setAttr, write } from "./board-dom";
 import type { FrameState } from "./frame-state";
 import { paintSteps, stepper } from "./job-steps";
+import type { MineLevelId } from "./mine-levels";
 import { pileWords, type StageRow } from "./mine-view";
 import type { BuyAmount } from "./tiers";
 
@@ -45,6 +46,8 @@ export type RowHead = {
   readonly name: string;
   readonly lead: string | undefined;
   readonly title: string;
+  /** With two levels, the level a drilling or haulage row is on: a tap opens that level's list. */
+  readonly level?: MineLevelId;
 };
 
 export function buildRow(
@@ -54,11 +57,11 @@ export function buildRow(
 ): RowParts {
   const root = el("div", "mine-stage");
   root.dataset["stage"] = row.stage;
-  // A tap on the row's words opens the stage's list (#661).
+  // A tap on the row's words opens the stage's list (#661), a level's row its level's (#680).
   const info = el("button", "mine-stage-info");
   info.type = "button";
   info.addEventListener("click", () => {
-    state.openStage(row.stage);
+    state.openStage(row.stage, head.level);
   });
   const band = el("span", "mine-band");
   const bandCan = el("i", "mine-band-can");

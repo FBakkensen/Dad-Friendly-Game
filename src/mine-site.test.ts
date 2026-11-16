@@ -494,7 +494,7 @@ describe("the mine with two levels", () => {
     expect(dispatch).toHaveBeenLastCalledWith(tierBuyMove("borer", 1));
     dispatch.mockClear();
     button('.mine-key[data-stage="haul"]').click();
-    expect(title()).toBe("A train for which level?");
+    expect(title()).toBe("A locomotive for which level?");
     button(".machine-card-not-now").click();
     expect(card?.hidden).toBe(true);
     expect(dispatch).not.toHaveBeenCalled();
@@ -523,6 +523,68 @@ describe("the mine with two levels", () => {
     } finally {
       now.mockRestore();
     }
+  });
+
+  it("opens a level's own list from its row, whose machine keys ask which level", () => {
+    const mountain = levels({
+      topsoil: 2,
+      granite: 2,
+      hoisting: 2,
+      hoists: 1,
+      stock: { stones: 1e9, cutStone: 1e9 },
+    });
+    const { root, button, progress } = mount(twoLevels(mountain));
+    const dispatch = sent(progress);
+    const sheet = root.querySelector<HTMLElement>(".stage-sheet");
+    const card = root.querySelector<HTMLElement>(".machine-card");
+    button(
+      '.mine-level-rows[data-level="granite"] .mine-stage[data-stage="face"] .mine-stage-info',
+    ).click();
+    expect(sheet?.hidden).toBe(false);
+    expect(sheet?.querySelector(".frame-sheet-title")?.textContent).toBe(
+      "Granite drilling",
+    );
+    const [, granite] = mineLevels(progress.getSnapshot().mountain);
+    expect(sheet?.querySelector(".stage-total")?.textContent).toBe(
+      `Moves${granite?.rows[0].now ?? ""}/s of ${granite?.rows[0].can ?? ""}`,
+    );
+    // The drill's key in the list asks which level; it buys nothing by itself.
+    button(
+      '.stage-page[data-stage="face"] .stage-row[data-machine="drill"] .stage-key',
+    ).click();
+    expect(dispatch).not.toHaveBeenCalled();
+    expect(card?.hidden).toBe(false);
+    expect(card?.querySelector(".machine-card-title")?.textContent).toBe(
+      machineCardTitle("drill"),
+    );
+    button('.machine-card-level[data-level="granite"]').click();
+    expect(dispatch).toHaveBeenLastCalledWith(graniteBuyMove("drill", 1));
+    // Hoisting's list buys its hoist at once, and says what its row says.
+    button(
+      '.mine-hoisting .mine-stage[data-stage="lift"] .mine-stage-info',
+    ).click();
+    expect(sheet?.querySelector(".frame-sheet-title")?.textContent).toBe(
+      "Hoisting",
+    );
+    const lift = hoistingRow(progress.getSnapshot().mountain);
+    expect(sheet?.querySelector(".stage-total")?.textContent).toBe(
+      `Moves${lift.now}/s of ${lift.can}`,
+    );
+  });
+
+  it("gives the card the key's rate while a crew timer runs", () => {
+    const base = levels({ topsoil: 2, stock: { cutStone: 1e6 } });
+    const mountain = {
+      ...base,
+      clocks: { ...base.clocks, "blasting-charge": Date.now() + 600_000 },
+    };
+    const { root, button } = mount(twoLevels(mountain));
+    const key = root.querySelector('.mine-key[data-stage="face"]');
+    button('.mine-key[data-stage="face"]').click();
+    expect(
+      root.querySelector(".machine-card .machine-card-machine .mine-key-face")
+        ?.textContent,
+    ).toBe(key?.querySelector(".mine-key-face")?.textContent);
   });
 
   it("buys nothing from a dark level key", () => {

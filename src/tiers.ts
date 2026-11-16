@@ -151,8 +151,9 @@ const TIER_ROWS = [
     // The haul's second machine (M15, #533): 3,200 at the line's ×3, about
     // 1,067 in today's units. Opens at the Crystal Caves.
     id: "train",
-    name: "Pit train",
-    shortName: "Train",
+    // On screen the locomotive (the slice 1 spec's Names, #680); the id stays "train".
+    name: "Locomotive",
+    shortName: "Locomotive",
     firstCost: 30_000_000,
     perSecond: 1_067,
     staff: 8,

@@ -12,7 +12,6 @@ import {
   machineCardTitle,
 } from "./mine-level-view";
 import {
-  LEVEL_MACHINE_IDS,
   MINE_LEVEL_IDS,
   graniteOpen,
   levelMachines,
@@ -20,13 +19,13 @@ import {
   type MineLevelId,
 } from "./mine-levels";
 import { paintIcon } from "./mine-site";
-import { machineKeys, type MachineKey } from "./mine-view";
+import { machineKey, type MachineKey } from "./mine-view";
 import type { Mountain } from "./mountain";
-import type { LevelStage } from "./workforce";
+import { tierById } from "./tiers";
 
 export type MachineCard = {
   readonly root: HTMLElement;
-  readonly open: (stage: LevelStage) => void;
+  readonly open: (id: LevelMachineId) => void;
   readonly close: () => void;
   readonly paint: (mountain: Mountain) => void;
 };
@@ -34,12 +33,18 @@ export type MachineCard = {
 /** A drilling or haulage machine at the amount key's amount, and its kind as a level machine. */
 type Offered = { readonly key: MachineKey; readonly id: LevelMachineId };
 
-function offered(state: FrameState, stage: LevelStage): Offered | undefined {
-  const key = machineKeys(state.mountain(), state.amount()).find(
-    (each) => each.stage === stage,
-  );
-  const id = LEVEL_MACHINE_IDS.find((each) => each === key?.id);
-  return key === undefined || id === undefined ? undefined : { key, id };
+/** The machine's key as the key he tapped reads it, on the same clock: the card's rate is the key's. */
+function offered(
+  state: FrameState,
+  id: LevelMachineId,
+  now: () => number,
+): Offered {
+  const tier = tierById(id);
+  const stage = tier.stage === "face" ? "face" : "haul";
+  return {
+    key: machineKey(state.mountain(), stage, tier, state.amount(), now()),
+    id,
+  };
 }
 
 type MachineParts = {
@@ -113,9 +118,9 @@ function paintMachine(
 }
 
 /**
- * The machine card (ruling 5; spec, The mine, With two levels): a tap on
- * drilling's or haulage's key with two levels asks which level the machine
- * is for. It shows the machine's key, that it stays on its level, what each
+ * The machine card (ruling 5; spec, The mine, With two levels): with two
+ * levels a tap on a drilling or haulage machine's key, on the mine or in a
+ * stage's list, asks which level that machine is for. It shows the machine's key, that it stays on its level, what each
  * level has of its kind, a key for each level and "Not now". A level's key
  * buys at the amount key's amount: the Topsoil's as the mine's keys do, the
  * Granite's as `buyGraniteMachine`. It opens over the frame as a stage's
@@ -125,9 +130,10 @@ function paintMachine(
 export function createMachineCard(
   state: FrameState,
   board: BoardHost,
+  now: () => number,
 ): MachineCard {
   const parts = buildMachineCard();
-  let open: LevelStage | undefined;
+  let open: LevelMachineId | undefined;
   const trackers: PressTracker[] = [];
   const forget = forgetAll(trackers);
   const close = (): void => {
@@ -148,15 +154,14 @@ export function createMachineCard(
     if (open === undefined) {
       return;
     }
-    const machine = graniteOpen(mountain) ? offered(state, open) : undefined;
-    if (machine === undefined) {
+    if (!graniteOpen(mountain)) {
       close();
       return;
     }
-    paintMachine(parts, mountain, machine);
+    paintMachine(parts, mountain, offered(state, open, now));
   };
   const buy = (level: MineLevelId): void => {
-    const machine = open === undefined ? undefined : offered(state, open);
+    const machine = open === undefined ? undefined : offered(state, open, now);
     if (machine === undefined || !machine.key.can) {
       return;
     }
@@ -187,9 +192,9 @@ export function createMachineCard(
   press(parts.notNow, "not-now", close);
   return {
     root: parts.root,
-    open: (stage) => {
+    open: (id) => {
       const opening = open === undefined;
-      open = stage;
+      open = id;
       hide(parts.root, false);
       if (opening) {
         forget();

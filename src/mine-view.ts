@@ -2,9 +2,14 @@ import { tierOnSale } from "./crew";
 import { formatCompact } from "./format";
 import { GOOD_NAMES } from "./frame-view";
 import { STAGES, type Stage } from "./line";
-import { PILE_HOLDS, mineChain, type PileId } from "./mine-piles";
+import type { MineLevelId } from "./mine-levels";
+import {
+  faceHolds,
+  mineLevelFlows,
+  shaftHolds,
+  type PileId,
+} from "./mine-piles";
 import type { Mountain } from "./mountain";
-import { chainFlows } from "./piles";
 import { crewTimer, effectiveRates } from "./rates";
 import { MACHINE_WORDS, TOOL_WORDS, formatSpeed, plural } from "./screen-words";
 import type { GoodId } from "./stock";
@@ -56,11 +61,12 @@ export type LevelPlate = {
 
 /**
  * What each stage moves now through the piles, a second: drilling, haulage
- * and hoisting, read from the mine's own chain.
+ * and hoisting, from the mine's flows (`mineLevelFlows`): the Topsoil's
+ * drilling and haulage, and what hoisting lifts.
  */
 function movingNow(mountain: Mountain, now: number | undefined): number[] {
-  const timer = crewTimer(mountain, now);
-  return chainFlows(mineChain(mountain, 1, true)).map((flow) => flow * timer);
+  const { levels, lift } = mineLevelFlows(mountain, now);
+  return [levels.topsoil.face, levels.topsoil.haul, lift];
 }
 
 /** The level's plate: its name, and what comes up as stone now. */
@@ -314,7 +320,7 @@ export type RowPile = {
 };
 
 /** The pile each stage puts its rock on. Hoisting lifts it up as stone. */
-const PILE_AFTER: Readonly<Record<Stage, PileId | undefined>> = {
+const PILE_AFTER: Readonly<Record<Stage, "face" | "shaft" | undefined>> = {
   face: "face",
   haul: "shaft",
   lift: undefined,
@@ -333,15 +339,30 @@ export function pileWords(pile: RowPile): string {
   return `${pile.label}: ${formatCompact(pile.held)} of ${formatCompact(pile.holds)}`;
 }
 
+/**
+ * A level's pile after drilling or haulage (#703, #680): the rock it holds,
+ * and its room: the drilled rock's `faceHolds`, the rock at the shaft's
+ * `shaftHolds` (the cages' room from part 3). The one-level rows and each
+ * level's piles are built from it.
+ */
+export function levelPile(
+  mountain: Mountain,
+  id: "face" | "shaft",
+  level: MineLevelId,
+  held: number,
+): RowPile {
+  return {
+    label: PILE_LABELS[id],
+    held,
+    holds: id === "face" ? faceHolds(level) : shaftHolds(mountain),
+  };
+}
+
 function rowPile(mountain: Mountain, stage: Stage): RowPile | undefined {
   const id = PILE_AFTER[stage];
   return id === undefined
     ? undefined
-    : {
-        label: PILE_LABELS[id],
-        held: mountain.piles[id],
-        holds: PILE_HOLDS[id],
-      };
+    : levelPile(mountain, id, "topsoil", mountain.piles[id]);
 }
 
 /** A stage's row. */
@@ -355,6 +376,8 @@ export type StageRow = {
   readonly can: string;
   /** The band behind the row: what it can move, and what it moves, of the strongest stage. */
   readonly band: { readonly can: number; readonly now: number };
+  /** The share of what it can move that it moves now: the scene stands who waits on a pile. */
+  readonly busy: number;
   readonly parts: readonly RowPart[];
   readonly sum: readonly [string, string, string];
   /** Each part's moves as printed, so the parts add up to `can` (a stage's list shows them as rows). */
@@ -398,6 +421,9 @@ export type RowInput = {
   readonly pile: RowPile | undefined;
 };
 
+const share = (part: number, whole: number): number =>
+  whole > 0 ? Math.min(1, part / whole) : 0;
+
 /** A stage's row from what it is made of: its numbers printed so the parts add up to what it can move. */
 export function stageRow(input: RowInput): StageRow {
   const { stage, parts, can, moving, strongest, workers } = input;
@@ -412,6 +438,7 @@ export function stageRow(input: RowInput): StageRow {
     now: formatCompact(moving),
     can: `${printed.total}/s`,
     band: { can: can / strongest, now: Math.min(moving, can) / strongest },
+    busy: share(moving, can),
     parts,
     sum: sumForms(stage, parts, printed.parts),
     printed: printed.parts,
@@ -469,14 +496,10 @@ export type StageScene = {
 };
 
 /**
- * What the scene shows (spec, The mine: the state is seen in the scene),
- * from what each stage moves now through the piles (#703): rock lies at the
- * face and at the shaft as much as the piles hold, and a stage that waits
- * on a pile stands. Nothing here is said in words.
+ * A level's drilling and haulage in the scene, its two piles and its tubs
+ * (#703, #680): the one-level scene's, and each level's with two levels.
  */
-export type MineScene = {
-  readonly moving: boolean;
-  readonly stages: Readonly<Record<Stage, StageScene>>;
+export type LevelScene = Readonly<Record<"face" | "haul", StageScene>> & {
   /** The drilled rock, between drilling and haulage: the share of its room it holds. */
   readonly facePile: number;
   /** The pile at the shaft, between haulage and hoisting. */
@@ -487,11 +510,19 @@ export type MineScene = {
   readonly unload: number;
 };
 
-const share = (part: number, whole: number): number =>
-  whole > 0 ? Math.min(1, part / whole) : 0;
+/**
+ * What the scene shows (spec, The mine: the state is seen in the scene),
+ * from what each stage moves now through the piles (#703): rock lies at the
+ * face and at the shaft as much as the piles hold, and a stage that waits
+ * on a pile stands. Nothing here is said in words.
+ */
+export type MineScene = Omit<LevelScene, "face" | "haul"> & {
+  readonly moving: boolean;
+  readonly stages: Readonly<Record<Stage, StageScene>>;
+};
 
 /** A stage in the scene from its row's parts: the machines it owns, runs and leaves standing. */
-export function stageScene(
+function stageScene(
   parts: readonly RowPart[],
   workers: number,
   busy: number,
@@ -511,46 +542,49 @@ export function stageScene(
   return { workers, busy, owned, running, standing };
 }
 
-export function mineScene(mountain: Mountain): MineScene {
-  const rates = effectiveRates(mountain);
-  const work = lineWork(mountain, rates.tierSpeed);
-  const tool = toolSpeed(rates.tierSpeed);
-  const [drills = 0, hauls = 0, lifts = 0] = chainFlows(
-    mineChain(mountain, 1, true),
-  );
-  const flows: Readonly<Record<Stage, number>> = {
-    face: drills,
-    haul: hauls,
-    lift: lifts,
-  };
-  const stages = Object.fromEntries(
-    STAGES.map((stage) => {
-      const parts = rowParts(
-        stageMachines(mountain, rates.tierSpeed, stage),
-        mountain.jobs[STAGE_JOB[stage]],
-        tool,
-      );
-      return [
-        stage,
-        stageScene(
-          parts,
-          mountain.jobs[STAGE_JOB[stage]],
-          share(flows[stage], work.stages[stage]),
-        ),
-      ];
-    }),
-  ) as Record<Stage, StageScene>;
+/** A stage in the scene from its row. */
+function rowScene(row: StageRow): StageScene {
+  return stageScene(row.parts, row.workers, row.busy);
+}
+
+/**
+ * A level in the scene from its drilling and haulage rows and its piles,
+ * the one rule for one level and for two. Its tubs leave the face empty
+ * while its drilled rock is bare, and queue at the shaft while the rock
+ * there is at its room: haulage moves less than it could.
+ */
+export function levelScene(
+  face: StageRow,
+  haul: StageRow,
+  piles: { readonly face: RowPile; readonly shaft: RowPile },
+): LevelScene {
   return {
-    moving: drills + hauls + lifts > 0,
-    stages,
-    facePile: share(mountain.piles.face, PILE_HOLDS.face),
-    shaftPile: share(mountain.piles.shaft, PILE_HOLDS.shaft),
-    // Tubs leave the face empty while its pile is bare, and queue at the
-    // shaft while its pile is full: haulage moves less than it could.
-    load: mountain.piles.face > 0 ? 1 : share(hauls, work.stages.haul),
-    unload:
-      mountain.piles.shaft < PILE_HOLDS.shaft
-        ? 1
-        : share(hauls, work.stages.haul),
+    face: rowScene(face),
+    haul: rowScene(haul),
+    facePile: share(piles.face.held, piles.face.holds),
+    shaftPile: share(piles.shaft.held, piles.shaft.holds),
+    load: piles.face.held > 0 ? 1 : haul.busy,
+    unload: piles.shaft.held < piles.shaft.holds ? 1 : haul.busy,
+  };
+}
+
+/** The one-level scene, from the one-level rows and their piles. */
+export function mineScene(mountain: Mountain): MineScene {
+  const [face, haul, lift] = stageRows(mountain);
+  if (face === undefined || haul === undefined || lift === undefined) {
+    throw new Error("mine-view: the mine has no stage rows");
+  }
+  const {
+    face: drilling,
+    haul: haulage,
+    ...piles
+  } = levelScene(face, haul, {
+    face: levelPile(mountain, "face", "topsoil", mountain.piles.face),
+    shaft: levelPile(mountain, "shaft", "topsoil", mountain.piles.shaft),
+  });
+  return {
+    moving: [face, haul, lift].some((row) => row.busy > 0),
+    stages: { face: drilling, haul: haulage, lift: rowScene(lift) },
+    ...piles,
   };
 }

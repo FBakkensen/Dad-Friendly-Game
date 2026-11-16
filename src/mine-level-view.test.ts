@@ -11,7 +11,6 @@ import {
   SHAFT_WAITS_LINE,
   SINK_KEY,
   SINK_LINE,
-  WORKFORCE_GROUPS,
   hoistStrip,
   hoistingRow,
   levelHasLine,
@@ -270,11 +269,12 @@ describe("hoisting's row and the strip", () => {
     });
   });
 
-  it("is today's hoisting row with one level", () => {
+  it("is today's hoisting row with one level, which has no strip", () => {
     partThree(() => {
       const m = levels({ topsoil: 2, hoisting: 2, hoists: 1, sunk: false });
       expect(hoistingRow(m).stage).toBe("lift");
       expect(hoistingRow(m).name).toBe("Hoisting");
+      expect(() => hoistStrip(m)).toThrow();
     });
   });
 });
@@ -316,9 +316,9 @@ describe("the words with two levels", () => {
     expect(machineCardTitle("drill")).toBe("A drill for which level?");
     expect(machineCardTitle("cart")).toBe("A cart for which level?");
     expect(machineCardTitle("borer")).toBe("A borer for which level?");
-    expect(machineCardTitle("train")).toBe("A train for which level?");
+    expect(machineCardTitle("train")).toBe("A locomotive for which level?");
     expect(levelHasLine("topsoil", "drill", 2)).toBe("Topsoil: 2 drills");
-    expect(levelHasLine("granite", "train", 1)).toBe("Granite: 1 train");
+    expect(levelHasLine("granite", "train", 1)).toBe("Granite: 1 locomotive");
   });
 
   it("says no face, no hands and no limit", () => {
@@ -332,16 +332,10 @@ describe("the words with two levels", () => {
       NOT_NOW,
       BOTH_IN_TURN,
       ...Object.values(LEVEL_NAMES),
-      ...Object.values(WORKFORCE_GROUPS),
     ];
     for (const line of words) {
       expect(line).not.toMatch(/\bface\b|\bhands?\b|by hand|limit|bottleneck/i);
     }
-    expect(WORKFORCE_GROUPS).toEqual({
-      topsoil: "Topsoil",
-      granite: "Granite",
-      shaft: "Shaft",
-    });
   });
 });
 
@@ -516,33 +510,36 @@ describe("the scene with two levels", () => {
     partThree(() => {
       const m = levels({
         topsoil: 4,
-        granite: 2,
         hoisting: 3,
         piles: { face: 150 },
         granitePiles: { face: 0, shaft: 30 },
+        // One driller and three haulers on the Granite: haulage moves a third of what it can.
+        jobs: { graniteDrilling: 1, graniteHaulage: 3 },
       });
       const scene = twoLevelScene(m);
       expect(scene.levels.topsoil.face.workers).toBe(4);
-      expect(scene.levels.granite.haul.workers).toBe(2);
-      expect(scene.levels.topsoil.facePile).toBeCloseTo(
-        150 / faceHolds("topsoil"),
-        9,
-      );
-      expect(scene.levels.granite.shaftPile).toBeCloseTo(30 / shaftHolds(m), 9);
+      expect(scene.levels.granite.haul.workers).toBe(3);
+      expect(scene.levels.topsoil.facePile).toBe(0.5);
+      expect(scene.levels.granite.shaftPile).toBe(0.1);
       // The Granite's drilled rock is bare, so its tubs leave as full as
       // haulage moves of what it can.
-      const [, graniteHaul] = mineLevels(m)[1]?.rows ?? [];
-      expect(scene.levels.granite.load).toBeCloseTo(
-        (graniteHaul?.band.now ?? 0) / (graniteHaul?.band.can ?? 1),
-        9,
-      );
+      expect(scene.levels.granite.haul.busy).toBeCloseTo(1 / 3, 9);
+      expect(scene.levels.granite.load).toBeCloseTo(1 / 3, 9);
       expect(scene.levels.topsoil.load).toBe(1);
-      expect(scene.hoisting.workers).toBe(3);
-      const lift = hoistingRow(m);
-      expect(scene.hoisting.busy).toBeCloseTo(
-        lift.band.can > 0 ? lift.band.now / lift.band.can : 0,
-        9,
-      );
+      expect(scene.hoisting).toEqual({ workers: 3, busy: 1 });
+    });
+  });
+
+  it("draws the cages at the top as one, loaded if any of them is", () => {
+    partThree(() => {
+      const top = levels({
+        hoisting: 3,
+        hoists: 2,
+        trips: {
+          "hoist:0": { level: "topsoil", carried: 40, leg: { kind: "top" } },
+        },
+      });
+      expect(twoLevelScene(top).cages).toEqual([{ depth: 0, loaded: true }]);
     });
   });
 

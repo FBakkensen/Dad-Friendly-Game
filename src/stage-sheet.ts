@@ -3,6 +3,7 @@ import { el, hide, mark, setAttr, write } from "./board-dom";
 import { paintAmountKey } from "./buys-amount";
 import type { FrameState } from "./frame-state";
 import { STAGES, type Stage } from "./line";
+import type { MineLevelId } from "./mine-levels";
 import { buildMachineKey, paintMachineKey, type KeyParts } from "./mine-site";
 import type { Mountain } from "./mountain";
 import {
@@ -27,7 +28,8 @@ import "./stage-sheet.css";
 
 export type StageSheet = {
   readonly root: HTMLElement;
-  readonly open: (stage: Stage) => void;
+  /** With two levels, `level` is the level whose row was tapped: the sheet is that level's list (#680). */
+  readonly open: (stage: Stage, level?: MineLevelId) => void;
   readonly close: () => void;
   readonly paint: (mountain: Mountain) => void;
 };
@@ -297,6 +299,7 @@ export function createStageSheet(
   );
   root.append(box);
   let open: Stage | undefined;
+  let level: MineLevelId | undefined;
   const shut = (): void => {
     open = undefined;
     hide(root, true);
@@ -306,7 +309,7 @@ export function createStageSheet(
     if (open === undefined) {
       return;
     }
-    const view = stageList(mountain, open, state.amount(), now());
+    const view = stageList(mountain, open, state.amount(), now(), level);
     write(title, view.name);
     setAttr(root, "aria-label", view.name);
     paintMoves(moves, view);
@@ -320,8 +323,9 @@ export function createStageSheet(
   };
   return {
     root,
-    open: (stage) => {
+    open: (stage, at) => {
       open = stage;
+      level = at;
       hide(root, false);
       paint(state.mountain());
     },

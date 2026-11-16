@@ -46,6 +46,16 @@ describe("the workforce sheet's job groups", () => {
     expect(
       groups.map((box) => box.querySelector("h3")?.textContent),
     ).not.toContain("Mine");
+    // Each key names its level: no two keys share a label (#680).
+    const labels = [
+      ...sheet.root.querySelectorAll<HTMLElement>(
+        ".frame-jobs-group:not([hidden]) .frame-step",
+      ),
+    ].map((key) => key.getAttribute("aria-label"));
+    expect(new Set(labels).size).toBe(labels.length);
+    expect(labels).toContain("Put a worker on granite drilling");
+    expect(labels).toContain("Take a worker off topsoil haulage");
+    expect(labels).toContain("Put a worker on hoisting");
     const all = [...sheet.root.querySelectorAll(".frame-job")];
     const jobs = all.map((row) => (row as HTMLElement).dataset["job"]);
     expect(new Set(jobs).size).toBe(jobs.length);
@@ -59,5 +69,23 @@ describe("the workforce sheet's job groups", () => {
       job: "graniteDrilling",
       count: 1,
     });
+  });
+});
+
+describe("the workforce sheet with one level", () => {
+  it("says the job alone on its keys, as today", () => {
+    const mountain = createMountain();
+    const sheet = createWorkforceSheet(
+      stateOf(
+        mountain,
+        vi.fn(() => Promise.resolve()),
+      ),
+    );
+    sheet.paint(mountain);
+    expect(
+      sheet.root
+        .querySelector('.frame-step[data-job="drilling"][data-way="place"]')
+        ?.getAttribute("aria-label"),
+    ).toBe("Put a worker on drilling");
   });
 });

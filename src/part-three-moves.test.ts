@@ -214,6 +214,7 @@ describe("the shaft and the Granite's machines as moves (#673)", () => {
         },
       ]);
       const short = stocked(mine(true), { [good]: price - 1 });
+      const before = structuredClone(short);
       expect(
         applyMove(
           short,
@@ -221,6 +222,11 @@ describe("the shaft and the Granite's machines as moves (#673)", () => {
           0,
         ),
       ).toEqual({ kind: "refused" });
+      // Short of ten, he buys none: the mine is as it was.
+      expect(short).toEqual(before);
+      expect(levelMachines(short, "granite").drill).toBe(
+        levelMachines(start, "granite").drill,
+      );
     });
   });
 

@@ -54,6 +54,13 @@ const SITE_JOBS: Readonly<Record<SiteId, readonly JobId[]>> = {
   city: ["driving", "building"],
 };
 
+/** The mine's groups' names with the Granite open (ruling 9): the one copy. */
+const GROUP_NAMES = {
+  topsoil: "Topsoil",
+  granite: "Granite",
+  shaft: "Shaft",
+} as const;
+
 /**
  * With the Granite open, the mine's jobs are three groups, one a level and
  * the shaft's (#680, ruling 9); else the one mine group.
@@ -63,14 +70,30 @@ const MINE_GROUPS: readonly {
   readonly name: string;
   readonly jobs: readonly JobId[];
 }[] = [
-  { key: "mine:topsoil", name: "Topsoil", jobs: ["drilling", "haulage"] },
+  {
+    key: "mine:topsoil",
+    name: GROUP_NAMES.topsoil,
+    jobs: ["drilling", "haulage"],
+  },
   {
     key: "mine:granite",
-    name: "Granite",
+    name: GROUP_NAMES.granite,
     jobs: ["graniteDrilling", "graniteHaulage"],
   },
-  { key: "mine:shaft", name: "Shaft", jobs: ["hoisting"] },
+  { key: "mine:shaft", name: GROUP_NAMES.shaft, jobs: ["hoisting"] },
 ];
+
+/** Each level's jobs by job: the level and the stage it works. */
+const LEVEL_OF_JOB: Partial<
+  Record<JobId, { readonly level: MineLevelId; readonly stage: LevelStage }>
+> = Object.fromEntries(
+  (["topsoil", "granite"] as const).flatMap((level) =>
+    (["face", "haul"] as const).map((stage) => [
+      LEVEL_JOBS[level][stage],
+      { level, stage },
+    ]),
+  ),
+);
 
 /** One group of jobs: a site's, or with two levels, a level's of the mine. */
 type JobSite = {
@@ -219,14 +242,9 @@ function kilnsNote(mountain: Mountain): string {
 }
 
 function jobNote(mountain: Mountain, job: JobId): string {
-  if (graniteOpen(mountain)) {
-    for (const level of ["topsoil", "granite"] as const) {
-      for (const stage of ["face", "haul"] as const) {
-        if (LEVEL_JOBS[level][stage] === job) {
-          return levelNote(mountain, level, stage);
-        }
-      }
-    }
+  const place = LEVEL_OF_JOB[job];
+  if (place !== undefined && graniteOpen(mountain)) {
+    return levelNote(mountain, place.level, place.stage);
   }
   const stage = STAGES.find((at) => STAGE_JOB[at] === job);
   if (stage !== undefined) {
@@ -242,6 +260,8 @@ function jobNote(mountain: Mountain, job: JobId): string {
 export type JobRow = {
   readonly job: JobId;
   readonly name: string;
+  /** The job where it is said in words, on its keys: with two levels a level's job names its level ("Granite drilling"). */
+  readonly title: string;
   readonly note: string;
   readonly count: number;
   /** A free worker to put on it, and room for him (#715). */
@@ -260,9 +280,14 @@ type JobGroup = {
 
 /** One job's row: its name, what its workers do, its count, and its − and +. */
 export function jobRow(mountain: Mountain, job: JobId): JobRow {
+  const place = LEVEL_OF_JOB[job];
   return {
     job,
     name: JOB_NAMES[job],
+    title:
+      place !== undefined && graniteOpen(mountain)
+        ? `${GROUP_NAMES[place.level]} ${JOB_NAMES[job].toLowerCase()}`
+        : JOB_NAMES[job],
     note: jobNote(mountain, job),
     count: mountain.jobs[job],
     canPlace: placeable(mountain, job) > 0,

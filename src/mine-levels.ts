@@ -18,6 +18,11 @@ export const LEVEL_MACHINE_IDS = [
 export type LevelMachineId = (typeof LEVEL_MACHINE_IDS)[number];
 export type LevelMachines = Readonly<Record<LevelMachineId, number>>;
 
+/** Whether a machine is one a level has of its own: a drilling or haulage machine. */
+export function isLevelMachine(id: string): id is LevelMachineId {
+  return (LEVEL_MACHINE_IDS as readonly string[]).includes(id);
+}
+
 export const NO_LEVEL_MACHINES: LevelMachines = {
   cart: 0,
   drill: 0,

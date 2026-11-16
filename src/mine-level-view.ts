@@ -16,25 +16,20 @@ import {
   type MineLevelId,
   type SunkGranite,
 } from "./mine-levels";
+import { mineLevelFlows, mineTurnPerLoad, mineWork } from "./mine-piles";
 import {
-  faceHolds,
-  mineLevelFlows,
-  mineTurnPerLoad,
-  mineWork,
-  shaftHolds,
-} from "./mine-piles";
-import {
-  PILE_LABELS,
+  STAGE_NAMES,
+  levelPile,
+  levelScene,
   printedParts,
   rowParts,
   stageRow,
   stageRows,
-  stageScene,
   timed,
+  type LevelScene,
   type RowPart,
   type RowPile,
   type StageRow,
-  type StageScene,
 } from "./mine-view";
 import type { Mountain } from "./mountain";
 import { partThreeOn } from "./part-switch";
@@ -106,12 +101,10 @@ export function levelHasLine(
   return `${LEVEL_NAMES[level]}: ${String(count)} ${plural(count, MACHINE_WORDS[id])}`;
 }
 
-/** The workforce's groups with the Granite open (ruling 9). */
-export const WORKFORCE_GROUPS = {
-  topsoil: "Topsoil",
-  granite: "Granite",
-  shaft: "Shaft",
-} as const;
+/** "Topsoil drilling", "Granite haulage": a level's row where it is said in words, and the title of the list it opens. */
+export function levelStageTitle(level: MineLevelId, stage: LevelStage): string {
+  return `${LEVEL_NAMES[level]} ${STAGE_NAMES[stage].toLowerCase()}`;
+}
 
 /** A level on the mine: its drilling and haulage rows, and the piles under its gallery. */
 export type MineLevel = {
@@ -141,22 +134,32 @@ function winchWorkers(part: RowPart): number {
   return part.kind === "stands" ? part.workers : 0;
 }
 
+/** The shaft's running cages and what a load for both lifts a second: one reading of the shaft a paint. */
+type ShaftReading = {
+  readonly running: readonly ShaftCage[];
+  readonly perLoad: number;
+};
+
 /**
  * Hoisting's parts with two levels (ruling 3): the hoists' and engines'
  * kinds, each moving what its running cages lift as they are assigned, and
  * the winch's workers moving the winch's lift, all under the crew timer.
  * The counts read the cages' own clock (`mineWork`, with no `now`), so what
- * runs and what it lifts are one reading of the shaft.
+ * runs and what it lifts are one reading of the shaft; the speeds are the
+ * paint's, as the keys read them.
  */
-function hoistParts(mountain: Mountain, timer: number): RowPart[] {
-  const speed = effectiveRates(mountain).tierSpeed;
+function hoistParts(
+  mountain: Mountain,
+  speed: Readonly<Record<TierId, number>>,
+  timer: number,
+  shaft: ShaftReading,
+): RowPart[] {
   const parts = rowParts(
     stageMachines(mountain, speed, "lift"),
     mountain.jobs[STAGE_JOB.lift],
     toolSpeed(speed),
   );
-  const running = mineWork(mountain).cages.filter((cage) => cage.runs);
-  const perLoad = mineTurnPerLoad(mountain);
+  const { running, perLoad } = shaft;
   const lift = (cages: readonly ShaftCage[]): number => liftOf(cages, perLoad);
   const winch = lift(running.filter((cage) => cage.key === "winch"));
   const onWinch = parts.reduce((sum, part) => sum + winchWorkers(part), 0);
@@ -175,6 +178,7 @@ function hoistParts(mountain: Mountain, timer: number): RowPart[] {
 type LevelsWork = {
   readonly speed: Readonly<Record<TierId, number>>;
   readonly timer: number;
+  readonly shaft: ShaftReading;
   readonly hoisting: readonly RowPart[];
   readonly hoistCan: number;
   readonly cans: Readonly<Record<MineLevelId, Record<LevelStage, number>>>;
@@ -187,7 +191,11 @@ function levelsWork(mountain: Mountain, now: number | undefined): LevelsWork {
   const speed = effectiveRates(mountain, now).tierSpeed;
   const timer = crewTimer(mountain, now);
   const { levels } = lineWork(mountain, speed);
-  const hoisting = hoistParts(mountain, timer);
+  const shaft: ShaftReading = {
+    running: mineWork(mountain).cages.filter((cage) => cage.runs),
+    perLoad: mineTurnPerLoad(mountain),
+  };
+  const hoisting = hoistParts(mountain, speed, timer, shaft);
   const hoistCan = hoisting.reduce((sum, part) => sum + part.moves, 0);
   const cans = {
     topsoil: {
@@ -202,6 +210,7 @@ function levelsWork(mountain: Mountain, now: number | undefined): LevelsWork {
   return {
     speed,
     timer,
+    shaft,
     hoisting,
     hoistCan,
     cans,
@@ -219,7 +228,7 @@ function levelsWork(mountain: Mountain, now: number | undefined): LevelsWork {
   };
 }
 
-/** A level's two piles: its drilled rock, and its rock at the shaft. */
+/** A level's two piles: its drilled rock, and its rock at the shaft (`levelPile`, as the one-level rows have them). */
 function levelPiles(
   mountain: Mountain,
   granite: SunkGranite,
@@ -227,12 +236,8 @@ function levelPiles(
 ): MineLevel["piles"] {
   const held = level === "topsoil" ? mountain.piles : granite.piles;
   return {
-    face: { label: PILE_LABELS.face, held: held.face, holds: faceHolds(level) },
-    shaft: {
-      label: PILE_LABELS.shaft,
-      held: held.shaft,
-      holds: shaftHolds(mountain),
-    },
+    face: levelPile(mountain, "face", level, held.face),
+    shaft: levelPile(mountain, "shaft", level, held.shaft),
   };
 }
 
@@ -264,17 +269,13 @@ function levelRow(
   });
 }
 
-/** The mine's two levels while the shaft is sunk and part 3 plays (ruling 1), else none. */
-export function mineLevels(
+/** Each level's two rows, from the one reading of the mine a paint (`levelsWork`). */
+function levelViews(
   mountain: Mountain,
-  now?: number,
-): readonly MineLevel[] {
-  const granite = openGranite(mountain);
-  if (granite === undefined) {
-    return [];
-  }
-  const work = levelsWork(mountain, now);
-  return MINE_LEVEL_IDS.map((level) => {
+  granite: SunkGranite,
+  work: LevelsWork,
+): readonly [MineLevel, MineLevel] {
+  const view = (level: MineLevelId): MineLevel => {
     const piles = levelPiles(mountain, granite, level);
     return {
       level,
@@ -285,25 +286,17 @@ export function mineLevels(
       ],
       piles,
     };
-  });
+  };
+  return [view("topsoil"), view("granite")];
 }
 
 /**
- * Hoisting's row (ruling 3). With two levels, it can move what the running
+ * Hoisting's row with two levels (ruling 3): it can move what the running
  * cages lift as they are assigned, and moves now what the shared hoisting
  * lifts through the piles; its sum is the hoists' and engines' parts and the
- * winch's. With one level, it is the one-level mine's hoisting row.
+ * winch's.
  */
-export function hoistingRow(mountain: Mountain, now?: number): StageRow {
-  const granite = openGranite(mountain);
-  if (granite === undefined) {
-    const lift = stageRows(mountain, now).find((row) => row.stage === "lift");
-    if (lift === undefined) {
-      throw new Error("mine-level-view: the mine has no hoisting row");
-    }
-    return lift;
-  }
-  const work = levelsWork(mountain, now);
+function shaftRow(mountain: Mountain, work: LevelsWork): StageRow {
   return stageRow({
     stage: "lift",
     job: STAGE_JOB.lift,
@@ -337,24 +330,19 @@ const STRIP_PLACES = ["topsoil", "granite", "both"] as const;
  * both in turn, adding up to the hoists and engines he owns; and what the
  * running ones lift, adding up to Hoisting's row's hoists and engines. −
  * is dark at none, + dark with none left for both; the both cell has no
- * keys. Read with the Granite open: with one level every cage serves the
- * Topsoil.
+ * keys.
  */
-export function hoistStrip(
+function stripOf(
   mountain: Mountain,
-  now?: number,
+  work: LevelsWork,
 ): readonly [StripCell, StripCell, StripCell] {
-  const timer = crewTimer(mountain, now);
-  const hoists = mineWork(mountain).cages.filter(
-    (cage) => cage.runs && cage.key !== "winch",
-  );
-  const perLoad = mineTurnPerLoad(mountain);
+  const hoists = work.shaft.running.filter((cage) => cage.key !== "winch");
   const values = STRIP_PLACES.map(
     (place) =>
       liftOf(
         hoists.filter((cage) => cage.serves === place),
-        perLoad,
-      ) * timer,
+        work.shaft.perLoad,
+      ) * work.timer,
   );
   const printed = printedParts(
     values,
@@ -378,6 +366,70 @@ export function hoistStrip(
     };
   };
   return [cell(0), cell(1), cell(2)];
+}
+
+/** The mine with two levels as one paint reads it: each level, Hoisting's row and the strip. */
+export type LevelsView = {
+  readonly levels: readonly [MineLevel, MineLevel];
+  readonly hoisting: StageRow;
+  readonly strip: readonly [StripCell, StripCell, StripCell];
+};
+
+/**
+ * The mine with two levels while the shaft is sunk and part 3 plays (ruling
+ * 1), worked out once (`levelsWork`) for the rows, the strip and the scene;
+ * undefined with one level.
+ */
+export function levelsView(
+  mountain: Mountain,
+  now?: number,
+): LevelsView | undefined {
+  const granite = openGranite(mountain);
+  if (granite === undefined) {
+    return undefined;
+  }
+  const work = levelsWork(mountain, now);
+  return {
+    levels: levelViews(mountain, granite, work),
+    hoisting: shaftRow(mountain, work),
+    strip: stripOf(mountain, work),
+  };
+}
+
+/** The mine's two levels while the shaft is sunk and part 3 plays (ruling 1), else none. */
+export function mineLevels(
+  mountain: Mountain,
+  now?: number,
+): readonly MineLevel[] {
+  return levelsView(mountain, now)?.levels ?? [];
+}
+
+/**
+ * Hoisting's row (ruling 3): with two levels the shaft's (`shaftRow`), with
+ * one the one-level mine's hoisting row. Hoisting's list reads it too.
+ */
+export function hoistingRow(mountain: Mountain, now?: number): StageRow {
+  const view = levelsView(mountain, now);
+  if (view !== undefined) {
+    return view.hoisting;
+  }
+  const lift = stageRows(mountain, now).find((row) => row.stage === "lift");
+  if (lift === undefined) {
+    throw new Error("mine-level-view: the mine has no hoisting row");
+  }
+  return lift;
+}
+
+/** The strip, while the Granite is open (ruling 4); it throws with one level, which has no strip. */
+export function hoistStrip(
+  mountain: Mountain,
+  now?: number,
+): readonly [StripCell, StripCell, StripCell] {
+  const view = levelsView(mountain, now);
+  if (view === undefined) {
+    throw new Error("mine-level-view: the strip has one level");
+  }
+  return view.strip;
 }
 
 /** The shaft's gate before it is sunk (ruling 7): what it waits for, or its price. */
@@ -419,18 +471,6 @@ export function shaftGate(mountain: Mountain): ShaftGate | undefined {
  */
 export type CageSprite = { readonly depth: number; readonly loaded: boolean };
 
-/** A level in the scene: its drilling and haulage, its two piles, and its tubs, as the one-level scene has them. */
-type SceneLevel = Readonly<Record<LevelStage, StageScene>> & {
-  /** The drilled rock: the share of its room it holds. */
-  readonly facePile: number;
-  /** The rock at the shaft. */
-  readonly shaftPile: number;
-  /** The share of tubs that leave the drilling end with rock in them. */
-  readonly load: number;
-  /** The share of the time the tubs can unload at the shaft. */
-  readonly unload: number;
-};
-
 /**
  * What the scene with two levels shows (ruling 8): each level's stages,
  * piles and tubs, every cage where its trip has taken it, and hoisting's
@@ -438,7 +478,7 @@ type SceneLevel = Readonly<Record<LevelStage, StageScene>> & {
  * is said in words.
  */
 export type TwoLevelScene = {
-  readonly levels: Readonly<Record<MineLevelId, SceneLevel>>;
+  readonly levels: Readonly<Record<MineLevelId, LevelScene>>;
   readonly cages: readonly CageSprite[];
   readonly hoisting: { readonly workers: number; readonly busy: number };
 };
@@ -488,46 +528,23 @@ function cageSprites(mountain: Mountain): readonly CageSprite[] {
     : [{ depth: 0, loaded: top.some((sprite) => sprite.loaded) }, ...below];
 }
 
-/** The share of what a row can move that it moves now. */
-function rowBusy(row: StageRow): number {
-  return row.band.can > 0 ? row.band.now / row.band.can : 0;
-}
-
-/** The share of its room a pile holds. */
-function pileShare(pile: RowPile): number {
-  return pile.holds > 0 ? Math.min(1, pile.held / pile.holds) : 0;
-}
-
-/**
- * A level in the scene from its rows and piles. Its tubs leave empty while
- * its drilled rock is bare, and queue at the shaft while the rock there is
- * at its room: haulage moves less than it could.
- */
-function sceneLevel(view: MineLevel): SceneLevel {
-  const [face, haul] = view.rows;
-  const { piles } = view;
-  return {
-    face: stageScene(face.parts, face.workers, rowBusy(face)),
-    haul: stageScene(haul.parts, haul.workers, rowBusy(haul)),
-    facePile: pileShare(piles.face),
-    shaftPile: pileShare(piles.shaft),
-    load: piles.face.held > 0 ? 1 : rowBusy(haul),
-    unload: piles.shaft.held < piles.shaft.holds ? 1 : rowBusy(haul),
-  };
-}
-
-/** The scene with two levels, while the Granite is open (ruling 8); it throws with one level. */
-export function twoLevelScene(mountain: Mountain): TwoLevelScene {
-  const [topsoil, granite] = mineLevels(mountain);
-  if (topsoil === undefined || granite === undefined) {
+/** The scene with two levels, while the Granite is open (ruling 8), from the paint's view; it throws with one level. */
+export function twoLevelScene(
+  mountain: Mountain,
+  view: LevelsView | undefined = levelsView(mountain),
+): TwoLevelScene {
+  if (view === undefined) {
     throw new Error("mine-level-view: the scene has one level");
   }
+  const [topsoil, granite] = view.levels;
+  const scene = (level: MineLevel): LevelScene =>
+    levelScene(level.rows[0], level.rows[1], level.piles);
   return {
-    levels: { topsoil: sceneLevel(topsoil), granite: sceneLevel(granite) },
+    levels: { topsoil: scene(topsoil), granite: scene(granite) },
     cages: cageSprites(mountain),
     hoisting: {
-      workers: mountain.jobs[STAGE_JOB.lift],
-      busy: rowBusy(hoistingRow(mountain)),
+      workers: view.hoisting.workers,
+      busy: view.hoisting.busy,
     },
   };
 }

@@ -1,6 +1,8 @@
 import { formatCompact } from "./format";
 import type { Stage } from "./line";
 import { markLine } from "./milestones";
+import { hoistingRow, levelStageTitle, levelsView } from "./mine-level-view";
+import type { MineLevelId } from "./mine-levels";
 import {
   machineKey,
   stageRows,
@@ -12,7 +14,8 @@ import {
 import type { Mountain } from "./mountain";
 import { MACHINE_WORDS, TOOL_WORDS, formatSpeed, plural } from "./screen-words";
 import type { Price } from "./stock";
-import { TIERS, tierInPlay, type BuyAmount, type MachineId } from "./tiers";
+import { effectiveRates } from "./rates";
+import { tierById, type BuyAmount, type MachineId } from "./tiers";
 import { upgradeShown } from "./upgrade-reveal";
 import { upgradeRowView } from "./upgrade-rows";
 import {
@@ -22,6 +25,7 @@ import {
   type Upgrade,
   type UpgradeId,
 } from "./upgrades";
+import { stageMachines } from "./workforce";
 
 /**
  * A stage's list (#661; spec, "What the prototype does not show"): what the
@@ -151,29 +155,77 @@ function shownUpgrades(
   ).map((upgrade) => upgradeRow(mountain, upgrade, now));
 }
 
+/**
+ * The list's name and row: with two levels a level's drilling or haulage
+ * (its own row, "Granite drilling"), and Hoisting the shaft's row
+ * (`hoistingRow`), so a list says what the row he tapped says; with one
+ * level, the one-level row.
+ */
+function listHead(
+  mountain: Mountain,
+  stage: Stage,
+  now: number,
+  level: MineLevelId | undefined,
+): {
+  readonly name: string;
+  readonly row: StageRow | undefined;
+  /** The level it shows, or undefined for the whole mine's stage. */
+  readonly level: MineLevelId | undefined;
+} {
+  if (stage === "lift") {
+    return {
+      name: STAGE_NAMES.lift,
+      row: hoistingRow(mountain, now),
+      level: undefined,
+    };
+  }
+  const shown = levelsView(mountain, now)?.levels.find(
+    (each) => each.level === level,
+  );
+  return shown === undefined
+    ? {
+        name: STAGE_NAMES[stage],
+        row: stageRows(mountain, now).find((each) => each.stage === stage),
+        level: undefined,
+      }
+    : {
+        name: levelStageTitle(shown.level, stage),
+        row: shown.rows[stage === "face" ? 0 : 1],
+        level: shown.level,
+      };
+}
+
+/**
+ * A stage's list. With two levels, `level` is the level whose row opened
+ * it: the list shows that level's numbers and machines (#680).
+ */
 export function stageList(
   mountain: Mountain,
   stage: Stage,
   amount: BuyAmount,
   now: number,
+  level?: MineLevelId,
 ): StageList {
-  const row = stageRows(mountain, now).find((each) => each.stage === stage);
-  const machines = TIERS.filter(
-    (tier) => tier.stage === stage && tierInPlay(tier),
-  ).map((tier): ListMachine => {
-    const id = tier.id as MachineId;
-    const count = mountain.owned[id];
-    return {
-      id,
-      name: capital(MACHINE_WORDS[id][1]),
-      owned: `${formatCompact(count)} owned`,
-      mark: markLine(id, count, formatCompact),
-      key: machineKey(mountain, stage, tier, amount, now),
-    };
-  });
+  const head = listHead(mountain, stage, now, level);
+  const { name, row } = head;
+  const speed = effectiveRates(mountain, now).tierSpeed;
+  // A level's list counts that level's machines; the marks count every one he owns.
+  const machines = stageMachines(mountain, speed, stage, head.level).map(
+    (machine): ListMachine => {
+      const { id } = machine;
+      const total = mountain.owned[id];
+      return {
+        id,
+        name: capital(MACHINE_WORDS[id][1]),
+        owned: `${formatCompact(head.level === undefined ? total : machine.owned)} owned`,
+        mark: markLine(id, total, formatCompact),
+        key: machineKey(mountain, stage, tierById(id), amount, now),
+      };
+    },
+  );
   return {
     stage,
-    name: STAGE_NAMES[stage],
+    name,
     now: `${row?.now ?? "0"}/s`,
     can: row?.can ?? "0/s",
     band: row?.band ?? { can: 0, now: 0 },

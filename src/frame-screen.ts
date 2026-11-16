@@ -438,11 +438,11 @@ export function mountFrameScreen({
     openWorkforce: () => {
       sheet.open();
     },
-    openStage: (stage) => {
-      stageSheet.open(stage);
+    openStage: (stage, level) => {
+      stageSheet.open(stage, level);
     },
-    openMachine: (stage) => {
-      machineCard.open(stage);
+    openMachine: (id) => {
+      machineCard.open(id);
     },
   };
   // One board host for the Ledger and the save's cards: one settle (#707, #708).
@@ -468,7 +468,7 @@ export function mountFrameScreen({
   const frame = buildFrame(state, now, ledger.key, signal);
   const sheet = createWorkforceSheet(state, now);
   const stageSheet = createStageSheet(state, now);
-  const machineCard = createMachineCard(state, board);
+  const machineCard = createMachineCard(state, board, now);
   /** A card comes up: every sheet and the Ledger close under it. */
   const closeUnderCard = (): void => {
     closeSheets();

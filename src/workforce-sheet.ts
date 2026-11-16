@@ -56,7 +56,7 @@ function buildRow(row: {
 function paintRow(parts: RowParts, row: JobRow, amount: BuyAmount): void {
   write(parts.note, row.note);
   write(parts.count, String(row.count));
-  paintSteps(parts, row, amount);
+  paintSteps(parts, { ...row, name: row.title }, amount);
 }
 
 type HeadParts = {

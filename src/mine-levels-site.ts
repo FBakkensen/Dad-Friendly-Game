@@ -8,9 +8,10 @@ import {
   LEVEL_NAMES,
   SINK_KEY,
   SINK_LINE,
-  hoistStrip,
   hoistingRow,
+  levelStageTitle,
   mineLevels,
+  type LevelsView,
   type MineLevel,
   type ShaftGate,
   type StripCell,
@@ -131,10 +132,19 @@ type LevelParts = {
 
 /** "TOPSOIL drilling 1,300 of 1,300/s" over "HAULAGE 1,300 of 1,600/s". */
 function rowHeads(level: MineLevelId): readonly [RowHead, RowHead] {
-  const name = LEVEL_NAMES[level];
   return [
-    { name, lead: "drilling", title: `${name} drilling` },
-    { name: "Haulage", lead: undefined, title: `${name} haulage` },
+    {
+      name: LEVEL_NAMES[level],
+      lead: "drilling",
+      title: levelStageTitle(level, "face"),
+      level,
+    },
+    {
+      name: "Haulage",
+      lead: undefined,
+      title: levelStageTitle(level, "haul"),
+      level,
+    },
   ];
 }
 
@@ -318,8 +328,8 @@ export type LevelsSite = {
   readonly over: HTMLElement;
   /** Hoisting's row and the strip, under the keys. */
   readonly foot: HTMLElement;
-  /** Paints both and says whether a + can place a worker now. */
-  readonly paint: (mountain: Mountain, now: number | undefined) => boolean;
+  /** Paints both from the paint's view and says whether a + can place a worker now. */
+  readonly paint: (mountain: Mountain, view: LevelsView) => boolean;
 };
 
 /** The two levels, built from the mountain's first view with the Granite open. */
@@ -349,21 +359,21 @@ export function createLevelsSite(
   return {
     over,
     foot,
-    paint: (current, now) => {
+    paint: (current, view) => {
       const amount = state.amount();
-      for (const view of mineLevels(current, now)) {
-        const parts = levels.get(view.level);
+      for (const level of view.levels) {
+        const parts = levels.get(level.level);
         if (parts !== undefined) {
-          paintLevel(parts, view, current, amount);
+          paintLevel(parts, level, current, amount);
         }
       }
-      const row = hoistingRow(current, now);
+      const row = view.hoisting;
       paintRow(lift, row, {
         amount,
         lamp: stageCount(current, "lift") > 0,
         pile: false,
       });
-      for (const [index, cell] of hoistStrip(current, now).entries()) {
+      for (const [index, cell] of view.strip.entries()) {
         const parts = cells[index];
         if (parts !== undefined) {
           paintCell(parts, cell);
