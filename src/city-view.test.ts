@@ -5,6 +5,7 @@ import {
   plots,
   projectCard,
   transportPlate,
+  vehicleHint,
   vehicleKeys,
 } from "./city-view";
 import { withFactors } from "./economy/factors";
@@ -409,6 +410,56 @@ describe("the truck key (#673)", () => {
       ]);
     });
   });
+
+  it("words the truck's price in brick (#754)", () => {
+    partThree(() => {
+      const rich = {
+        ...warehoused,
+        stock: { ...warehoused.stock, brick: 200_000 },
+      };
+      const [wagon, truck] = vehicleKeys(rich, "one");
+      expect(truck).toMatchObject({
+        id: "truck",
+        good: "brick",
+        face: "+Truck · 400/s",
+        price: "150K",
+        staff: "1 to run",
+        can: true,
+      });
+      expect(truck?.label).toBe(
+        "Buy a truck for 150K brick. It carries 400/s and takes 1 to run.",
+      );
+      expect(wagon?.good).toBe("stones");
+      expect(wagon?.label).toContain("stone.");
+      expect(wagon?.label).not.toContain("brick");
+      expect(vehicleKeys(warehoused, "one")[1]?.can).toBe(false);
+    });
+  });
+
+  it("says trucks come after the Warehouse while it is the project in hand, in part 3 (#754)", () => {
+    const lit = {
+      ...createMountain(),
+      operational: ["lightTower"] as const,
+    };
+    const ordered = partThree(() => placeOrder(lit));
+    partThree(() => {
+      expect(vehicleHint(lit)).toBe("Trucks: after the Warehouse");
+      expect(vehicleHint(ordered)).toBe("Trucks: after the Warehouse");
+      expect(vehicleHint(holdOrder(ordered))).toBe(
+        "Trucks: after the Warehouse",
+      );
+      // The Light Tower still in hand, or the trucks' own key up: no hint.
+      expect(vehicleHint(createMountain())).toBeUndefined();
+      expect(vehicleHint(placeOrder(createMountain()))).toBeUndefined();
+      expect(vehicleHint(warehoused)).toBeUndefined();
+    });
+    withFactors({ [PART_TWO_OFF]: 0 }, () => {
+      expect(vehicleHint(ordered)).toBeUndefined();
+    });
+    fresh(() => {
+      expect(vehicleHint(ordered)).toBeUndefined();
+    });
+  });
 });
 
 describe("what a building opens, in part 2 (#671)", () => {
@@ -419,6 +470,20 @@ describe("what a building opens, in part 2 (#671)", () => {
     partTwo(() => {
       const card = projectCard(createMountain());
       expect(card.kind === "project" && card.completion).toBe(
+        "On completion: night shift output 45%, up from 30%. Opens the refinery.",
+      );
+    });
+  });
+
+  it("says the Warehouse opens trucks in part 3 (#754)", () => {
+    const lit = { ...createMountain(), operational: ["lightTower" as const] };
+    withFactors({ [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 }, () => {
+      const card = projectCard(lit);
+      expect(card.kind === "project" && card.completion).toBe(
+        "On completion: stockyard capacity ×2. Opens trucks.",
+      );
+      const tower = projectCard(createMountain());
+      expect(tower.kind === "project" && tower.completion).toBe(
         "On completion: night shift output 45%, up from 30%. Opens the refinery.",
       );
     });

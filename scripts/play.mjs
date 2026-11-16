@@ -48,6 +48,7 @@ import {
   sliceTwoLevelsSave,
   sliceWarehouseRoofSave,
   sliceWarehouseSave,
+  sliceWarehouseTrucksSave,
 } from "../tools/browser/fixtures.ts";
 
 /**
@@ -171,6 +172,12 @@ const SAVES = {
   "granite-unsunk": {
     note: "part 3: the Light Tower up and the stone and brick to sink the shaft",
     save: () => sliceGraniteUnsunkSave(Date.now()),
+    key: DEV_BACKUP_KEY,
+    search: PART_THREE,
+  },
+  "warehouse-trucks": {
+    note: "part 3: the Warehouse operational and the brick for a truck",
+    save: () => sliceWarehouseTrucksSave(Date.now()),
     key: DEV_BACKUP_KEY,
     search: PART_THREE,
   },

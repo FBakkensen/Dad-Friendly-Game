@@ -72,6 +72,27 @@
   gap: var(--target-gap);
 }
 
+/*
+ * The trucks' hint (#754): a dark cell in the truck key's place, the key's
+ * size and edge, that takes no tap.
+ */
+.frame .city-hint {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  height: var(--target-min);
+  padding: 0 var(--art);
+  background: var(--frame-scrim);
+  box-shadow: inset 0 0 0 var(--art) var(--frame-edge);
+  color: var(--frame-quiet);
+  font-size: var(--board-type-13);
+  font-weight: 600;
+  line-height: 1.15;
+  text-align: center;
+}
+
 /* The plots' tags, under the road. */
 .city-tags {
   position: absolute;
@@ -219,7 +240,8 @@
 .city-steps[hidden],
 .city-completion[hidden],
 .frame .city-order[hidden],
-.frame .city-key[hidden] {
+.frame .city-key[hidden],
+.frame .city-hint[hidden] {
   display: none;
 }
 

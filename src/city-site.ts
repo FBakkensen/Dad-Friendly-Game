@@ -13,10 +13,12 @@ import {
   plots,
   projectCard,
   transportPlate,
+  vehicleHint,
   vehicleKeys,
   type CityScene,
   type OrderKey,
   type ProjectCard,
+  type VehicleKey,
 } from "./city-view";
 import type { FrameState } from "./frame-state";
 import { listenSteps, paintSteps, stepper } from "./job-steps";
@@ -24,6 +26,7 @@ import type { Mountain } from "./mountain";
 import { priceIcon } from "./price-icons";
 import { runScene } from "./scene-paint";
 import type { BuyAmount } from "./tiers";
+import { VEHICLE_IDS, type VehicleId } from "./transport";
 import { NO_FREE_WORKER } from "./workforce-view";
 import "./city.css";
 
@@ -52,17 +55,50 @@ function steps(job: "driving" | "building"): Steps {
   };
 }
 
+/** One vehicle's key: its face, and its price with its good's icon and its driver. */
+type KeyParts = {
+  readonly key: HTMLButtonElement;
+  readonly face: HTMLElement;
+  readonly price: HTMLElement;
+  readonly icon: HTMLImageElement;
+  readonly staff: HTMLElement;
+};
+
 type PlateParts = {
   readonly root: HTMLElement;
   readonly drivers: HTMLElement;
   readonly state: HTMLElement;
   readonly fleet: HTMLElement;
   readonly steps: Steps;
-  readonly key: HTMLButtonElement;
-  readonly face: HTMLElement;
-  readonly price: HTMLElement;
-  readonly staff: HTMLElement;
+  readonly keys: Readonly<Record<VehicleId, KeyParts>>;
+  /** The dark cell in the trucks' key's place while the Warehouse is in hand (#754). */
+  readonly hint: HTMLElement;
 };
+
+/** A key for `id`, hidden until the view offers it; a tap buys what the view offers. */
+function buildVehicleKey(state: FrameState, id: VehicleId): KeyParts {
+  const key = el("button", "city-key");
+  key.type = "button";
+  key.dataset["vehicle"] = id;
+  key.hidden = true;
+  const face = el("span", "mine-key-face");
+  const price = el("span", "board-num");
+  const staff = el("span", "mine-key-staff");
+  const icon = el("img", "mine-key-icon");
+  icon.alt = "";
+  const small = el("span", "mine-key-small");
+  small.append(price, icon, staff);
+  key.append(face, small);
+  key.addEventListener("click", () => {
+    const offer = vehicleKeys(state.mountain(), state.amount()).find(
+      (each) => each.id === id,
+    );
+    if (offer !== undefined && offer.can) {
+      void state.progress.dispatch(vehicleBuyMove(offer.id, offer.count));
+    }
+  });
+  return { key, face, price, icon, staff };
+}
 
 function buildPlate(state: FrameState): PlateParts {
   const root = el("div", "city-plate");
@@ -71,39 +107,45 @@ function buildPlate(state: FrameState): PlateParts {
   const now = el("span", "city-state");
   head.append(el("b", "city-plate-name", "Transport"), drivers, now);
   const fleet = el("p", "city-fleet");
-  const keys = el("div", "city-plate-keys");
+  const row = el("div", "city-plate-keys");
   const driving = steps("driving");
-  const key = el("button", "city-key");
-  key.type = "button";
-  key.dataset["vehicle"] = "horseWagon";
-  const face = el("span", "mine-key-face");
-  const price = el("span", "board-num");
-  const staff = el("span", "mine-key-staff");
-  const stone = el("img", "mine-key-icon");
-  stone.src = stoneUrl;
-  stone.alt = "";
-  const small = el("span", "mine-key-small");
-  small.append(price, stone, staff);
-  key.append(face, small);
-  key.addEventListener("click", () => {
-    const offer = vehicleKeys(state.mountain(), state.amount())[0];
-    if (offer !== undefined && offer.can) {
-      void state.progress.dispatch(vehicleBuyMove(offer.id, offer.count));
-    }
-  });
-  keys.append(driving.minus, driving.plus, key);
-  root.append(head, fleet, keys);
+  const keys = Object.fromEntries(
+    VEHICLE_IDS.map((id) => [id, buildVehicleKey(state, id)]),
+  ) as Record<VehicleId, KeyParts>;
+  const hint = el("div", "city-hint");
+  hint.hidden = true;
+  row.append(
+    driving.minus,
+    driving.plus,
+    ...VEHICLE_IDS.map((id) => keys[id].key),
+    hint,
+  );
+  root.append(head, fleet, row);
   return {
     root,
     drivers,
     state: now,
     fleet,
     steps: driving,
-    key,
-    face,
-    price,
-    staff,
+    keys,
+    hint,
   };
+}
+
+function paintVehicleKey(parts: KeyParts, key: VehicleKey | undefined): void {
+  hide(parts.key, key === undefined);
+  if (key === undefined) {
+    return;
+  }
+  write(parts.face, key.face);
+  write(parts.price, key.price);
+  write(parts.staff, ` · ${key.staff}`);
+  const src = priceIcon(key.good) ?? stoneUrl;
+  if (parts.icon.getAttribute("src") !== src) {
+    parts.icon.src = src;
+  }
+  mark(parts.key, "can", key.can);
+  setAttr(parts.key, "aria-label", key.label);
 }
 
 function paintPlate(
@@ -116,15 +158,16 @@ function paintPlate(
   write(parts.state, plate.state);
   write(parts.fleet, plate.fleet);
   paintSteps(parts.steps, plate.steps, amount);
-  const key = vehicleKeys(mountain, amount)[0];
-  hide(parts.key, key === undefined);
-  if (key !== undefined) {
-    write(parts.face, key.face);
-    write(parts.price, key.price);
-    write(parts.staff, ` · ${key.staff}`);
-    mark(parts.key, "can", key.can);
-    setAttr(parts.key, "aria-label", key.label);
+  const offered = vehicleKeys(mountain, amount);
+  for (const id of VEHICLE_IDS) {
+    paintVehicleKey(
+      parts.keys[id],
+      offered.find((key) => key.id === id),
+    );
   }
+  const hint = vehicleHint(mountain);
+  hide(parts.hint, hint === undefined);
+  write(parts.hint, hint ?? "");
 }
 
 type TagParts = { readonly name: HTMLElement; readonly state: HTMLElement };

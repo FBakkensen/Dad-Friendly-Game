@@ -30,6 +30,7 @@ import {
   sliceTwoLevelsSave,
   sliceWarehouseRoofSave,
   sliceWarehouseSave,
+  sliceWarehouseTrucksSave,
   sliceYardFullSave,
 } from "../../tools/browser/fixtures.ts";
 import { targetsCloserThan } from "../../src/ui-audit-measure.ts";
@@ -811,6 +812,119 @@ for (const size of SIZES) {
       );
     } finally {
       await close();
+    }
+  });
+}
+
+/**
+ * The transport plate's row (#754): each shown key's and the trucks' hint's
+ * box in board px, the hint's words, and whether any of them is cut.
+ */
+async function truckRowFacts(page) {
+  return page.evaluate(() => {
+    const board = globalThis.__board();
+    const row = document.querySelector(".city-plate-keys");
+    const cells = [...(row?.children ?? [])]
+      .filter((el) => el.getClientRects().length > 0)
+      .map((el) => {
+        const r = el.getBoundingClientRect();
+        return {
+          name: el.dataset.vehicle ?? el.dataset.way ?? el.className,
+          button: el.tagName === "BUTTON",
+          t: (r.top - board.top) / board.scale,
+          l: (r.left - board.left) / board.scale,
+          w: r.width / board.scale,
+          h: r.height / board.scale,
+          cut:
+            el.scrollWidth > el.clientWidth + 1 ||
+            el.scrollHeight > el.clientHeight + 1,
+        };
+      });
+    const hint = document.querySelector(".city-hint");
+    return {
+      cells,
+      hint: hint === null || hint.hidden ? undefined : (hint.textContent ?? ""),
+    };
+  });
+}
+
+/** Every cell of the row on one line, at least 48px, none cut, in this order. */
+function truckRowFits(facts, names) {
+  const { cells } = facts;
+  return (
+    cells.length === names.length &&
+    cells.every(
+      (cell, at) =>
+        cell.name.split(" ").includes(names[at]) &&
+        Math.abs(cell.t - cells[0].t) < 0.5 &&
+        cell.w >= 47.5 &&
+        cell.h >= 47.5 &&
+        !cell.cut,
+    )
+  );
+}
+
+for (const size of SIZES) {
+  const label = `${String(size[0])}x${String(size[1])}`;
+  // Part 3 (#754): the truck key beside the wagon's, and before it the hint.
+  section(`${label} slice city trucks`, async () => {
+    const rows = [
+      {
+        name: "key",
+        save: sliceWarehouseTrucksSave(Date.now()),
+        cells: ["free", "place", "horseWagon", "truck"],
+        hint: undefined,
+      },
+      {
+        name: "hint",
+        save: sliceWarehouseSave(Date.now()),
+        cells: ["free", "place", "horseWagon", "city-hint"],
+        hint: "Trucks: after the Warehouse",
+      },
+    ];
+    for (const row of rows) {
+      const { page, close } = await openScreen(size, row.save, {
+        search: "?memorySave=1&part3=1",
+        seedKey: DEV_BACKUP_KEY,
+      });
+      try {
+        await page.waitForSelector(".frame-next-line");
+        await tap(page, '.frame-site[data-site="city"]');
+        const at = `${label} slice city trucks ${row.name}:`;
+        const facts = await truckRowFacts(page);
+        const frame = await frameFacts(page);
+        await shot(page, `slice-city-trucks-${row.name}-${label}`);
+        check(
+          truckRowFits(facts, row.cells),
+          `${at} − + wagon and the ${row.name} on one row, each at least 48px and none cut (${JSON.stringify(facts.cells)})`,
+        );
+        check(
+          facts.hint === row.hint,
+          `${at} the hint reads ${JSON.stringify(row.hint)} (${JSON.stringify(facts.hint)})`,
+        );
+        check(
+          facts.cells.every(
+            (cell) => cell.button !== (cell.name === "city-hint"),
+          ),
+          `${at} every cell but the hint is a key`,
+        );
+        check(
+          cityFits(frame),
+          `${at} the plate on top, the tags over the card at the foot (${JSON.stringify(frame.city)})`,
+        );
+        check(
+          frame.small.length === 0 && frame.cut.length === 0,
+          `${at} every key is at least 48px and no word is cut (${JSON.stringify([frame.small, frame.cut])})`,
+        );
+        const close8 = await keyGaps(page, FRAME_KEYS);
+        check(
+          close8.length === 0,
+          `${at} every key stands at least 8px from the next (${close8.join("; ")})`,
+        );
+        check(await noScroll(page), `${at} the page does not scroll`);
+      } finally {
+        await close();
+      }
     }
   });
 }

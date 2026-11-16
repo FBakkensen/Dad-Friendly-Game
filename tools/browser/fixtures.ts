@@ -433,6 +433,29 @@ export function sliceGraniteUnsunkSave(now: number): SeedSave {
 }
 
 /**
+ * Part 3 (#754), on a dev page with `?part3=1`: the Light Tower and the
+ * Warehouse operational, two wagons with their drivers, and the brick for a
+ * truck. The city's transport plate has the truck key beside the wagon's.
+ */
+export function sliceWarehouseTrucksSave(now: number): SeedSave {
+  return sliceSave(now, {
+    owned: { helper: 16, cart: 2 },
+    stock: { stones: 120_000, brick: 200_000 },
+    jobs: {
+      drilling: 4,
+      haulage: 3,
+      hoisting: 4,
+      driving: 2,
+      building: 2,
+      kilns: 1,
+    },
+    fleet: { horseWagon: 2 },
+    marks: { operational: ["lightTower", "warehouse"] },
+    makers: { kiln: 1 },
+  });
+}
+
+/**
  * Part 3 (#680), on a dev page with `?part3=1`: the shaft sunk, both levels
  * working on their own workers and machines, a hoist assigned to each
  * level and one for both in turn, rock in every level's piles, two free
