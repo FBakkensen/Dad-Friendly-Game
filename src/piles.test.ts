@@ -694,6 +694,61 @@ describe("chains side by side (#673)", () => {
     drain: fc.oneof(fc.constant(0), hundredths(5_000)),
   });
 
+  it("in whole goods, against a drained side pile, no pile ends over its room and nothing is made or lost, as one chain does", () => {
+    fc.assert(
+      fc.property(
+        fc.array(levels, { minLength: 2, maxLength: 2 }),
+        hundredths(100_000),
+        fc.record({
+          held: fc.oneof(
+            fc.constant(1_000),
+            fc.integer({ min: 0, max: 1_000 }),
+          ),
+          holds: fc.oneof(fc.constant(1_000), fc.constant(Infinity)),
+          drain: hundredths(5_000).map((drain) => drain + 0.01),
+        }),
+        fc.integer({ min: 1, max: 3_600 }),
+        (drawn, rate, side, seconds) => {
+          const branches = drawn.map(({ rates, held, take }) =>
+            level({
+              dig: rates[0],
+              haul: rates[1],
+              make: rates[2],
+              draw: rates[3],
+              face: pile(held[0], 300),
+              shaft: pile(held[1], 300),
+              maker: pile(held[2], 300),
+              stockpile: pile(held[3], 500),
+              take,
+            }),
+          );
+          const flows = flowBranchesWhole(shaft(branches, rate, side), seconds);
+          for (const [index, branch] of branches.entries()) {
+            const flow = flows[index];
+            if (flow === undefined) {
+              throw new Error("no flow");
+            }
+            for (const [at, before] of branch.piles.entries()) {
+              const take = branch.takes?.[at + 1] ?? 1;
+              const out = at === branch.spillFrom ? flow.spilled : 0;
+              expect(flow.piles[at]).toBe(
+                before.held +
+                  (flow.moved[at] ?? 0) -
+                  take * (flow.moved[at + 1] ?? 0) -
+                  out,
+              );
+              expect(flow.piles[at]).toBeGreaterThanOrEqual(0);
+              expect(flow.piles[at]).toBeLessThanOrEqual(
+                Math.max(before.holds, before.held),
+              );
+            }
+          }
+        },
+      ),
+      { numRuns: 500 },
+    );
+  });
+
   it("in whole goods, makes and loses nothing, lifts no more than the shared rate, and fills no side pile with no drain past its room", () => {
     fc.assert(
       fc.property(

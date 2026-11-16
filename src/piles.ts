@@ -464,6 +464,15 @@ export type Branches = {
   readonly side: SidePile;
 };
 
+/** Item `index` of a list as long as the branches: one missing is a bug, never rock dropped. */
+function nth<T>(items: readonly T[], index: number): T {
+  const item = items[index];
+  if (item === undefined) {
+    throw new Error(`piles: no branch ${String(index)}`);
+  }
+  return item;
+}
+
 /** A side pile of no limit, to see what a branch would spill. */
 const OPEN_SIDE: SidePile = { held: 0, holds: Infinity, drain: 0 };
 
@@ -521,7 +530,12 @@ export function branchChains(set: Branches): readonly Chain[] {
 
 /** Seconds until a flow in any branch changes, or the side pile fills or empties, or Infinity. */
 export function branchesChange(set: Branches): number {
-  return Math.min(Infinity, ...branchChains(set).map(chainChange));
+  return leastChange(branchChains(set));
+}
+
+/** The soonest `chainChange` of these chains, or Infinity. */
+function leastChange(chains: readonly Chain[]): number {
+  return Math.min(Infinity, ...chains.map(chainChange));
 }
 
 /** The phase bound for a set: each branch's, with its spill. */
@@ -556,12 +570,15 @@ function stepBranches(
 ): { readonly flows: readonly ChainFlow[]; readonly set: Branches } {
   const runs = chains.map((chain) => runChain(chain, seconds));
   const branches = set.branches.map((branch, index) => {
-    const state = runs[index]?.state;
-    return state === undefined
-      ? branch
-      : { ...branch, source: state.source, piles: state.piles };
+    const { state } = nth(runs, index);
+    return { ...branch, source: state.source, piles: state.piles };
   });
-  const parts = runs.map((run) => run.state.spill ?? OPEN_SIDE);
+  const parts = runs.map(({ state }) => {
+    if (state.spill === undefined) {
+      throw new Error("piles: a branch's chain has no part of the side pile");
+    }
+    return state.spill;
+  });
   return {
     flows: runs.map((run) => run.flow),
     set: { ...set, branches, side: sideAfter(set.side, parts) },
@@ -580,7 +597,7 @@ export function branchesSettled(
   let after = 0;
   for (let phase = 0; phase < branchesPhaseLimit(set); phase += 1) {
     const chains = branchChains(state);
-    const next = Math.min(Infinity, ...chains.map(chainChange));
+    const next = leastChange(chains);
     if (after + next > within) {
       break;
     }
@@ -630,12 +647,11 @@ function runBranches(set: Branches, seconds: number): readonly ChainFlow[] {
     if (allStill(chains)) {
       break;
     }
-    const step = Math.min(left, ...chains.map(chainChange));
+    const step = Math.min(left, leastChange(chains));
     const stepped = stepBranches(state, chains, step);
-    totals = totals.map((total, index) => {
-      const flow = stepped.flows[index];
-      return flow === undefined ? total : addFlow(total, flow);
-    });
+    totals = totals.map((total, index) =>
+      addFlow(total, nth(stepped.flows, index)),
+    );
     state = stepped.set;
     left -= step;
   }
@@ -658,11 +674,14 @@ export function flowBranchesWhole(
   const wholes: ChainFlow[] = [];
   let taken = 0;
   for (const [index, branch] of set.branches.entries()) {
-    const flow = exact[index] ?? stillFlow(branch);
+    const flow = nth(exact, index);
     const after = floored
       .slice(index + 1)
       .reduce((sum, amount) => sum + amount, 0);
-    const room = { ...set.side, held: set.side.held + taken + after };
+    // Only a side pile nothing drains keeps what the others spill: a drained
+    // one takes a branch's part-good as it does a lone chain's.
+    const others = set.side.drain > 0 ? 0 : taken + after;
+    const room = { ...set.side, held: set.side.held + others };
     const { stage, rate } = set.shared;
     const whole = wholeOf(branchAt(branch, stage, rate, room), flow);
     wholes.push(whole);
