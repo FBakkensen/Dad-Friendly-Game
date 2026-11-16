@@ -5,7 +5,6 @@ import { graniteBuyMove, tierBuyMove } from "./economy/actions";
 import { cardShell } from "./frame-cards";
 import type { FrameState } from "./frame-state";
 import {
-  LEVEL_NAMES,
   MACHINE_CARD_STAYS,
   NOT_NOW,
   levelHasLine,
@@ -19,7 +18,7 @@ import {
   type MineLevelId,
 } from "./mine-levels";
 import { paintIcon } from "./mine-site";
-import { machineKey, type MachineKey } from "./mine-view";
+import { LEVEL_NAMES, machineKey, type MachineKey } from "./mine-view";
 import type { Mountain } from "./mountain";
 import { tierById } from "./tiers";
 

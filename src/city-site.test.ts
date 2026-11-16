@@ -5,7 +5,7 @@ import { projectCard, transportPlate } from "./city-view";
 import { holdFactors } from "./economy/factors";
 import { mountFrameScreen } from "./frame-screen";
 import { EMPTY_STOCK } from "./stock";
-import { PART_TWO_OFF } from "./part-switch";
+import { PART_THREE_OFF, PART_TWO_OFF } from "./part-switch";
 import { createMemoryStorage } from "./test-fixtures";
 import type { Mountain } from "./mountain";
 import { createProgressStore } from "./progress-store";
@@ -117,6 +117,55 @@ describe("the city", () => {
     const poor = mount(withStones(0));
     poor.button(".city-key").click();
     expect(poor.progress.getSnapshot().mountain.fleet.horseWagon).toBe(1);
+  });
+
+  it("paints the truck key beside the wagon's, and the hint before it (#754)", () => {
+    holdFactors({ [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 });
+    const lit = mount((m) => ({ ...m, operational: ["lightTower"] }));
+    const hint = lit.root.querySelector<HTMLElement>(".city-hint");
+    expect(hint?.hidden).toBe(false);
+    expect(hint?.textContent).toBe("Trucks: after the Warehouse");
+    expect(hint?.closest("button")).toBeNull();
+    expect(hint?.closest(".city-plate-keys")).not.toBeNull();
+    expect(
+      lit.root.querySelector<HTMLElement>('[data-vehicle="truck"]')?.hidden,
+    ).toBe(true);
+    unmount.abort();
+    unmount = new AbortController();
+    const warehoused = mount((m) => ({
+      ...m,
+      operational: ["lightTower", "warehouse"],
+      stock: { ...m.stock, brick: 200_000 },
+    }));
+    expect(
+      warehoused.root.querySelector<HTMLElement>(".city-hint")?.hidden,
+    ).toBe(true);
+    const truck = warehoused.button('[data-vehicle="truck"]');
+    expect(truck.hidden).toBe(false);
+    expect(truck.textContent).toBe("+Truck · 400/s150K · 1 to run");
+    expect(truck.getAttribute("aria-label")).toContain("brick");
+    expect(truck.querySelector("img")?.src).toContain("res-brick");
+    expect(
+      warehoused.button('[data-vehicle="horseWagon"]').querySelector("img")
+        ?.src,
+    ).toContain("res-stone");
+    truck.click();
+    const after = warehoused.progress.getSnapshot().mountain;
+    expect(after.fleet.truck).toBe(1);
+    expect(after.fleet.horseWagon).toBe(1);
+  });
+
+  it("paints no truck key and no hint with part 3 off (#754)", () => {
+    holdFactors({ [PART_TWO_OFF]: 0 });
+    const { root } = mount((m) => ({
+      ...m,
+      operational: ["lightTower", "warehouse"],
+      stock: { ...m.stock, brick: 200_000 },
+    }));
+    expect(root.querySelector<HTMLElement>(".city-hint")?.hidden).toBe(true);
+    expect(
+      root.querySelector<HTMLElement>('[data-vehicle="truck"]')?.hidden,
+    ).toBe(true);
   });
 
   it("buys ten wagons on ×10 (#715)", () => {

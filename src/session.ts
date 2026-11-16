@@ -18,6 +18,7 @@ import {
   type TroubleTier,
 } from "./hazards";
 import { fieldEntry } from "./field-log";
+import { graniteOpen } from "./mine-levels";
 import type { LogEvent } from "./log";
 import { runStartedAt, type AwayReport, type Mountain } from "./mountain";
 import { advance, timeInput } from "./session-time";
@@ -61,7 +62,15 @@ export type Notice =
    * already running it, or a copy adopted from another device, does not
    * announce it.
    */
-  | { readonly kind: "operational"; readonly building: BuildingId };
+  | { readonly kind: "operational"; readonly building: BuildingId }
+  /**
+   * A level reached: the shaft sunk to the Granite (#754). A loaded save
+   * already sunk, or a copy that comes into play rebased (a guest resume, a
+   * restore from Saved copies), does not announce it. A cloud copy taken
+   * over while the game is open keeps the baselines, so a shaft sunk on
+   * another device is told here, as with `operational`.
+   */
+  | { readonly kind: "level"; readonly level: "granite" };
 
 export type NoticeKind = Notice["kind"];
 export type NoticeOf<K extends NoticeKind> = Extract<Notice, { kind: K }>;
@@ -91,6 +100,9 @@ export function firstNotice<K extends NoticeKind>(
 const WELCOME_KINDS: readonly NoticeKind[] = ["away"];
 const CARD_KINDS: readonly NoticeKind[] = [...WELCOME_KINDS, "craft"];
 
+/** What the session reached since its baselines: a fresh open or a new run forgets them unread. */
+const ARRIVAL_KINDS: readonly NoticeKind[] = ["craft", "level", "operational"];
+
 /** What this open has to tell, and has not shown yet. None of it is saved. */
 type SessionNews = {
   /** Every notice not yet shown, in arrival order. */
@@ -107,6 +119,8 @@ type SessionNews = {
 type Baselines = {
   readonly craft: Crafted | undefined;
   readonly operational: readonly BuildingId[] | undefined;
+  /** Whether the Granite was open (the shaft sunk, part 3). */
+  readonly granite: boolean | undefined;
 };
 
 export type Session = {
@@ -148,7 +162,7 @@ export type SessionInput =
   | { readonly kind: "press" | "fix"; readonly tier: TroubleTier }
   /** Shows trouble at once (the layout check), since trouble is never saved. */
   | { readonly kind: "preview-trouble"; readonly tier: TroubleTier }
-  /** Crafts and buildings reached since the baselines. */
+  /** Crafts, levels and buildings reached since the baselines. */
   | { readonly kind: "notice" }
   /** A new run (Start over, or the mine passed down). */
   | { readonly kind: "begin"; readonly mountain: Mountain }
@@ -182,6 +196,7 @@ const NO_NEWS: SessionNews = {
 const NO_BASELINES: Baselines = {
   craft: undefined,
   operational: undefined,
+  granite: undefined,
 };
 
 export function createSession(mountain: Mountain, hazardSeed: number): Session {
@@ -216,7 +231,7 @@ export function troubleMark(session: Session): string {
     : `${trouble.tier}:${String(trouble.startedAt)}`;
 }
 
-/** The crafted levels and the running buildings, before away pay moves them. */
+/** The crafted levels, the Granite and the running buildings, before away pay moves them. */
 function primeArrivals(session: Session): Session {
   return {
     ...session,
@@ -224,16 +239,17 @@ function primeArrivals(session: Session): Session {
       ...session.baselines,
       craft: { ...session.mountain.crafted },
       operational: session.mountain.operational,
+      granite: graniteOpen(session.mountain),
     },
   };
 }
 
-/** A fresh open: no baselines, no unread crafts or buildings. */
+/** A fresh open: no baselines, no unread crafts, levels or buildings. */
 export function forgetArrivals(session: Session): Session {
   return {
     ...session,
     baselines: NO_BASELINES,
-    news: dropNotices(session.news, ["craft", "operational"]),
+    news: dropNotices(session.news, ARRIVAL_KINDS),
   };
 }
 
@@ -587,9 +603,22 @@ function previewTrouble(
   };
 }
 
-/** Crafts and buildings reached since the baselines, in that order. */
+/** Crafts, the Granite and buildings reached since the baselines, in that order. */
 function notice(session: Session, now: number, out: Effects): Session {
-  return noteOperational(noteCrafts(session, now, out));
+  return noteOperational(noteGranite(noteCrafts(session, now, out)));
+}
+
+/** The Granite reached since the baseline: the shaft sunk, announced once (#754). */
+function noteGranite(session: Session): Session {
+  const open = graniteOpen(session.mountain);
+  const reached = session.baselines.granite === false && open;
+  return {
+    ...session,
+    news: reached
+      ? addNotices(session.news, [{ kind: "level", level: "granite" }])
+      : session.news,
+    baselines: { ...session.baselines, granite: open },
+  };
 }
 
 /** Each building that went operational since the baseline, announced once. */
@@ -656,7 +685,7 @@ function beginRun(
     hazards: freshHazards(now),
     lastSeen: runStartedAt(mountain),
     news: {
-      ...dropNotices(session.news, ["away", "craft", "operational"]),
+      ...dropNotices(session.news, [...WELCOME_KINDS, ...ARRIVAL_KINDS]),
       homecomings: [],
     },
     baselines: session.baselines,

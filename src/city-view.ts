@@ -9,9 +9,15 @@ import {
 } from "./city";
 import { etaShort, formatCompact } from "./format";
 import { powerWords } from "./frame-cards-words";
-import { STEP_NAMES, orderStrip, requirements, type Pip } from "./frame-view";
+import {
+  GOOD_WORDS,
+  STEP_NAMES,
+  orderStrip,
+  requirements,
+  type Pip,
+} from "./frame-view";
 import type { Mountain } from "./mountain";
-import { partTwoOn } from "./part-switch";
+import { partThreeOn, partTwoOn } from "./part-switch";
 import type { BuyAmount } from "./tiers";
 import type { GoodId } from "./stock";
 import { effectiveRates } from "./rates";
@@ -23,6 +29,7 @@ import {
 } from "./screen-words";
 import {
   VEHICLES,
+  VEHICLE_IDS,
   drivenFleet,
   fleetRate,
   orderLimit,
@@ -30,6 +37,7 @@ import {
   orderShares,
   vehicleOpen,
   vehicleQuote,
+  vehicleRecord,
   type Vehicle,
   type VehicleId,
 } from "./transport";
@@ -100,6 +108,8 @@ export function transportPlate(mountain: Mountain): TransportPlate {
 /** A key for more vehicles at the amount key's amount, in the mine keys' form (#715). */
 export type VehicleKey = {
   readonly id: VehicleId;
+  /** What it is bought with: stone for a wagon, brick for a truck. */
+  readonly good: GoodId;
   readonly count: number;
   readonly cost: number;
   readonly can: boolean;
@@ -111,7 +121,10 @@ export type VehicleKey = {
   readonly label: string;
 };
 
-/** Part 1 sells horse wagons; trucks come with part 3 and have no key before then. */
+/**
+ * Part 1 sells horse wagons; trucks come with part 3 and the Warehouse, for
+ * brick, and have no key before then (#754).
+ */
 export function vehicleKeys(
   mountain: Mountain,
   amount: BuyAmount,
@@ -124,8 +137,10 @@ export function vehicleKeys(
       const key = plural(count, VEHICLE_KEYS[vehicle.id]);
       const words = plural(count, VEHICLE_WORDS[vehicle.id]);
       const price = formatCompact(cost);
+      const good = GOOD_WORDS[vehicle.good];
       return {
         id: vehicle.id,
+        good: vehicle.good,
         count,
         cost,
         can: cost <= mountain.stock[vehicle.good],
@@ -135,11 +150,23 @@ export function vehicleKeys(
         price,
         staff: `${String(count)} to run`,
         label: one
-          ? `Buy a ${words} for ${price} stone. It carries ${moves} and takes 1 to run.`
-          : `Buy ${String(count)} ${words} for ${price} stone. They carry ${moves} and take ${String(count)} to run.`,
+          ? `Buy a ${words} for ${price} ${good}. It carries ${moves} and takes 1 to run.`
+          : `Buy ${String(count)} ${words} for ${price} ${good}. They carry ${moves} and take ${String(count)} to run.`,
       };
     },
   );
+}
+
+/**
+ * The dark cell in the trucks' key's place while the Warehouse is the
+ * project in hand in part 3 (#754; spec, The city): it says when trucks
+ * come and buys nothing. Undefined before part 3, with the Light Tower in
+ * hand, and once the Warehouse is operational and the key itself shows.
+ */
+export function vehicleHint(mountain: Mountain): string | undefined {
+  return partThreeOn() && inHand(mountain) === "warehouse"
+    ? "Trucks: after the Warehouse"
+    : undefined;
 }
 
 /** How far the building in hand has risen: its step and the share of it built in. */
@@ -337,18 +364,24 @@ export type ProjectCard =
     };
 
 /**
- * The power a building gives, as the card says it, and what it opens in the
- * parts that are live: the Light Tower opens the refinery in part 2 (#671;
+ * What a building opens in the parts that are live: the Light Tower opens
+ * the refinery in part 2 (#671), the Warehouse trucks in part 3 (#754;
  * spec, While a part is the end of the game).
  */
+function opens(id: BuildingId): string {
+  if (id === "lightTower" && partTwoOn()) {
+    return " Opens the refinery.";
+  }
+  return id === "warehouse" && partThreeOn() ? " Opens trucks." : "";
+}
+
+/** The power a building gives, as the card says it, and what it opens. */
 function completion(id: BuildingId): string {
   const words = powerWords(id);
   if (words.length === 0) {
     return "";
   }
-  const opens =
-    id === "lightTower" && partTwoOn() ? " Opens the refinery." : "";
-  return `On completion: ${words.join(" ")}${opens}`;
+  return `On completion: ${words.join(" ")}${opens(id)}`;
 }
 
 export function projectCard(mountain: Mountain, now?: number): ProjectCard {
@@ -393,9 +426,9 @@ export type CityScene = {
   readonly builders: number;
   /** The share of the builders' time they build in. */
   readonly building: number;
-  /** Vehicles with a driver, and those without. */
-  readonly driven: number;
-  readonly undriven: number;
+  /** Vehicles with a driver, and those without, by kind (#754). */
+  readonly driven: Readonly<Record<VehicleId, number>>;
+  readonly undriven: Readonly<Record<VehicleId, number>>;
   /** What transport brings of what the driven fleet carries: 0 when it stands. */
   readonly load: number;
 };
@@ -411,11 +444,11 @@ export function cityScene(mountain: Mountain, now?: number): CityScene {
   // The wagons carry the factory's work order too (rule 7.7, #681).
   const toStation = orderShares(mountain, 1, { stones: line }).station;
   const rate = buildRate(mountain);
-  const driven = Object.values(drivenFleet(mountain)).reduce(
-    (sum, n) => sum + n,
-    0,
-  );
-  const owned = Object.values(mountain.fleet).reduce((sum, n) => sum + n, 0);
+  const driven = drivenFleet(mountain);
+  const undriven = vehicleRecord(0);
+  for (const id of VEHICLE_IDS) {
+    undriven[id] = mountain.fleet[id] - driven[id];
+  }
   const ordered =
     project.kind === "unordered" ? undefined : project.site.building;
   const at = shown.findIndex(
@@ -431,7 +464,7 @@ export function cityScene(mountain: Mountain, now?: number): CityScene {
     builders: mountain.jobs.building,
     building: numbers.kind === "unordered" ? 0 : share(numbers.builds, rate),
     driven,
-    undriven: owned - driven,
+    undriven,
     load: share(
       (numbers.kind === "unordered" ? 0 : numbers.brings) + toStation,
       fleetRate(mountain),

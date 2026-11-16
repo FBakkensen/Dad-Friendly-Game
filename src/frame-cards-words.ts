@@ -6,8 +6,9 @@ import { percent } from "./screen-words";
 /**
  * The words of the frame's cards (#663; spec, "The cards", "While a part is
  * the end of the game"): the first evening's card (#703), the end card of a
- * part's last roof, and in part 2 the Light Tower's card that opens the
- * refinery (#671), in one place so a change of copy is one edit. The shift report's
+ * part's last roof, in part 2 the Light Tower's card that opens the
+ * refinery (#671), and in part 3 the card of a level reached (#754), in one
+ * place so a change of copy is one edit. The shift report's
  * words are its own view (src/shift-report-view.ts). They name no
  * bottleneck, no limit and no best buy.
  */
@@ -84,4 +85,20 @@ export const FIRST_EVENING: CardWords = {
     "Move him between the jobs. Every worker you hire moves more.",
   ],
   key: "Start",
+};
+
+/**
+ * Part 3 (#754; spec, The cards, A level is reached): the shaft is sunk and
+ * the Granite is open. The words are the prototype's
+ * (`docs/superpowers/specs/slice-1/level-reached-card.png`).
+ */
+export const LEVEL_REACHED: CardWords = {
+  title: "The Granite: reached",
+  paragraphs: [
+    "A second level, twice as deep, with its own drilling and its own haulage. Nobody works there yet: put workers on it with − and + on the level.",
+    "A hoist serves both levels in turn: down to one, up, then down to the other. A trip to the Granite takes twice as long. Under Hoisting, − and + assign a hoist to one level only.",
+    "Topsoil rock goes to the kilns. Granite rock goes to the saws, which have their own pile of rock.",
+    "Opened: saws in the refinery, the factory, and locomotives for haulage.",
+  ],
+  key: "Continue",
 };

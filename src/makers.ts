@@ -64,7 +64,17 @@ const MAKER_ROWS = [
 
 export type MakerId = (typeof MAKER_ROWS)[number]["id"];
 
-type Maker = Omit<MakerRow, "id"> & { readonly id: MakerId };
+/** The jobs whose workers run the makers: the kilns, and the saws. */
+export type MakerJob = (typeof MAKER_ROWS)[number]["job"];
+
+/** The goods the makers make: brick, and cut stone. */
+type MakerOutput = (typeof MAKER_ROWS)[number]["output"];
+
+type Maker = Omit<MakerRow, "id" | "job" | "output"> & {
+  readonly id: MakerId;
+  readonly job: MakerJob;
+  readonly output: MakerOutput;
+};
 
 const MAKERS: readonly Maker[] = MAKER_ROWS;
 
@@ -100,6 +110,16 @@ export function makerOpen(
 }
 
 /**
+ * The makers the refinery shows (#754): the kilns whenever it is open, and
+ * the saws once the Granite is.
+ */
+export function refineryMakers(
+  mountain: Pick<Mountain, "operational" | "granite">,
+): readonly MakerId[] {
+  return MAKER_IDS.filter((id) => id === "kiln" || makerOpen(mountain, id));
+}
+
+/**
  * The next one's price, on a machine's curve: a lab sweep of `growth.machine`
  * or `price.kiln` moves it as it moves a machine's (#667).
  */
@@ -128,7 +148,7 @@ export function buyMaker(mountain: Mountain, id: MakerId): Mountain {
 }
 
 /** The job whose workers run a maker (rule 2.7). */
-export function makerJob(id: MakerId): JobId {
+export function makerJob(id: MakerId): MakerJob {
   return makerById(id).job;
 }
 
@@ -142,7 +162,7 @@ export function makerTakes(id: MakerId): number {
 }
 
 /** The good a maker makes. */
-export function makerOutput(id: MakerId): GoodId {
+export function makerOutput(id: MakerId): MakerOutput {
   return makerById(id).output;
 }
 

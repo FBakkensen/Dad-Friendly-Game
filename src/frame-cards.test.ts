@@ -8,14 +8,18 @@ import { nightReport } from "./frame-cards";
 import {
   END_CARD,
   FIRST_EVENING,
+  LEVEL_REACHED,
   refineryOpens,
   endCard,
 } from "./frame-cards-words";
 import { mountFrameScreen } from "./frame-screen";
-import { PART_TWO_OFF } from "./part-switch";
+import { shaftPrice } from "./mine-levels";
+import { levels } from "./part-three.harness";
+import { PART_THREE_OFF, PART_TWO_OFF } from "./part-switch";
 import { createMemoryStorage } from "./test-fixtures";
 import { createMountain, type Mountain } from "./mountain";
 import { createProgressStore } from "./progress-store";
+import { firstNotice } from "./session";
 import { writeSessionSave } from "./session-save";
 import { TO_STOCKYARD, shiftReport } from "./shift-report-view";
 import { stockpileRoom } from "./stockyard";
@@ -542,6 +546,133 @@ describe("the end card", () => {
   });
 });
 
+describe("the Granite's card (#754)", () => {
+  const PART_THREE = { [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 };
+  /** Part 3's mine past the refinery's card: the Light Tower up and a kiln. */
+  const working = { topsoil: 3, hoisting: 3, driving: 1, kilns: 1 };
+  /** That mine with the shaft unsunk, and these goods. */
+  const unsunk = (stock: Partial<Mountain["stock"]> = {}): Mountain =>
+    levels({ ...working, sunk: false, stock });
+  const price = (): Partial<Mountain["stock"]> =>
+    Object.fromEntries(shaftPrice().map(({ good, amount }) => [good, amount]));
+
+  it("shows the Granite's card after a night's report and before a building's", () => {
+    holdFactors(PART_THREE);
+    const { card, press, progress } = mount({ saved: unsunk(), at: 9 * HOUR });
+    expect(card().kind).toBe("report");
+    // The Warehouse's roof goes on first, then the shaft is sunk.
+    progress.applyMutation((mountain) => ({
+      ...mountain,
+      operational: ["lightTower", "warehouse"],
+      stock: { ...mountain.stock, ...price() },
+    }));
+    progress.dispatch({ kind: "sinkShaft" });
+    expect(progress.getSnapshot().mountain.granite.kind).toBe("sunk");
+    expect(card().kind).toBe("report");
+    press();
+    expect(card()).toMatchObject({
+      shown: true,
+      kind: "level",
+      title: "The Granite: reached",
+      lines: [
+        "A second level, twice as deep, with its own drilling and its own haulage. Nobody works there yet: put workers on it with − and + on the level.",
+        "A hoist serves both levels in turn: down to one, up, then down to the other. A trip to the Granite takes twice as long. Under Hoisting, − and + assign a hoist to one level only.",
+        "Topsoil rock goes to the kilns. Granite rock goes to the saws, which have their own pile of rock.",
+        "Opened: saws in the refinery, the factory, and locomotives for haulage.",
+      ],
+    });
+    expect(card().key?.textContent).toBe("Continue");
+    press();
+    expect(card()).toMatchObject({ shown: true, kind: "end" });
+    press();
+    expect(card().shown).toBe(false);
+  });
+
+  it("its Continue dismisses it, and it does not come again", () => {
+    holdFactors(PART_THREE);
+    const { card, press, progress, screen } = mount({
+      saved: unsunk(price()),
+      at: 1_000,
+    });
+    expect(card().shown).toBe(false);
+    progress.dispatch({ kind: "sinkShaft" });
+    expect(card()).toMatchObject({ shown: true, kind: "level" });
+    expect(card().key?.textContent).toBe(LEVEL_REACHED.key);
+    press();
+    expect(card().shown).toBe(false);
+    expect(firstNotice(progress.getSnapshot(), "level")).toBeUndefined();
+    screen.paint();
+    expect(card().shown).toBe(false);
+  });
+
+  it("is not news for a save already sunk when it loads", () => {
+    holdFactors(PART_THREE);
+    const { card, screen, progress } = mount({
+      saved: levels(working),
+      at: 1_000,
+    });
+    expect(progress.getSnapshot().mountain.granite.kind).toBe("sunk");
+    screen.paint();
+    expect(card().shown).toBe(false);
+  });
+
+  it("is not news for a signed-in save already sunk when it loads", async () => {
+    holdFactors(PART_THREE);
+    const { card, progress, load } = await mountSignedIn(
+      levels(working),
+      9 * HOUR,
+    );
+    load();
+    await vi.waitFor(() => {
+      expect(progress.getSnapshot().mountain.granite.kind).toBe("sunk");
+    });
+    expect(card().shown).toBe(false);
+  });
+
+  // As the end card: a cloud copy taken over while open keeps the news
+  // baselines, so a shaft sunk on another device is told here.
+  it("comes up for a copy from another device that sank the shaft", async () => {
+    holdFactors(PART_THREE);
+    const { card, progress, cloudSave, load } = await mountSignedIn(
+      unsunk(),
+      9 * HOUR,
+    );
+    load();
+    await vi.waitFor(() => {
+      expect(progress.getSnapshot().ready).toBe(true);
+    });
+    expect(card().shown).toBe(false);
+    const remote = await cloudSave.load({ uid: user.uid });
+    if (remote.kind !== "found") {
+      throw new Error("the cloud copy is there");
+    }
+    const here = progress.getSnapshot().mountain;
+    await cloudSave.write({
+      uid: user.uid,
+      mountain: {
+        ...here,
+        rockDug: here.rockDug + 5_000,
+        granite: levels(working).granite,
+      },
+      lastSeen: 9 * HOUR,
+      rev: (remote.rev ?? 0) + 1,
+      deviceId: "kitchen-pc",
+    });
+    await vi.waitFor(() => {
+      expect(progress.getSnapshot().mountain.granite.kind).toBe("sunk");
+    });
+    expect(card()).toMatchObject({ shown: true, kind: "level" });
+  });
+
+  it("never comes with part 3 off: the shaft cannot be sunk", () => {
+    holdFactors({ [PART_TWO_OFF]: 0 });
+    const { card, progress } = mount({ saved: unsunk(price()), at: 1_000 });
+    progress.dispatch({ kind: "sinkShaft" });
+    expect(progress.getSnapshot().mountain.granite.kind).toBe("unsunk");
+    expect(card().shown).toBe(false);
+  });
+});
+
 describe("the first evening's card", () => {
   it("greets the first evening once", () => {
     const { card, press, screen } = mount();
@@ -662,6 +793,8 @@ describe("the cards' words", () => {
       FIRST_EVENING.key,
       ...refineryOpens().paragraphs,
       ...endCard("warehouse").paragraphs,
+      LEVEL_REACHED.title,
+      ...LEVEL_REACHED.paragraphs,
     ].join(" ");
     expect(words).not.toMatch(
       /bottleneck|limit|best buy|\bhands?\b|by hand|\bface\b/i,

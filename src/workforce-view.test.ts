@@ -231,3 +231,24 @@ describe("the mine's jobs by level (#680)", () => {
     expect(mine[0]?.rows[0]?.note).not.toMatch(/drill/);
   });
 });
+
+describe("the refinery's jobs with the saws (#754)", () => {
+  const refinery = (mountain: Mountain) =>
+    jobSites(mountain)
+      .find((group) => group.site === "refinery")
+      ?.jobs.map((job) => job.job);
+
+  it("lists the saws in the refinery once the Granite is sunk", () => {
+    partThree(() => {
+      expect(refinery(levels({}))).toEqual(["kilns", "saws"]);
+      expect(notes(levels({}))["Saws"]).toBe("No saws yet");
+      expect(notes(levels({ saws: 2, onSaws: 1 }))["Saws"]).toBe(
+        "1 of 2 saws run",
+      );
+      expect(refinery(levels({ sunk: false }))).toEqual(["kilns"]);
+    });
+    partTwo(() => {
+      expect(refinery(levels({}))).toEqual(["kilns"]);
+    });
+  });
+});
