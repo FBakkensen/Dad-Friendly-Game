@@ -15,7 +15,6 @@
     "src/lab/measures/*.ts",
     "src/lab/fresh-policies/*.ts",
     "src/lab/fixtures/**/*.ts",
-    "mockups/preview.html",
     "prototypes/slice-1/build.mjs"
   ]
 }

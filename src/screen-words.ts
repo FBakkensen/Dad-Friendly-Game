@@ -144,7 +144,7 @@ export function crewPostsShort(total: number, free: number): string {
 }
 
 /** 9:05, or 1:02:03 past an hour. */
-export const formatClock = (ms: number): string => {
+const formatClock = (ms: number): string => {
   const total = Math.ceil(ms / 1000);
   const hours = Math.floor(total / 3600);
   const minutes = Math.floor((total % 3600) / 60);
@@ -155,7 +155,7 @@ export const formatClock = (ms: number): string => {
 };
 
 /** "worker" or "workers". The save field stays `helpers`. */
-export const workerWords = (count: number): string =>
+const workerWords = (count: number): string =>
   count === 1 ? "worker" : "workers";
 
 /** "1 stone a second" or "6 stones a second": the crew line and Buys' aria. */
@@ -1081,10 +1081,6 @@ export const OTHER_TAB_PLAY = "Play here";
 /** A newer build is waiting: the card that reloads into it. */
 export const UPDATE_TITLE = "Update available";
 export const UPDATE_RELOAD = "Reload";
-/** Spelled-out tap for the mock. The live button does the same handoff. */
-export const OTHER_TAB_TAP =
-  "Presses in. This tab takes the mountain, after the other one saves. Stones already mined stay. Silent until unmuted.";
-
 /** The live layer card. Granite matches the approved mock, word for word. */
 const LAYER_CARD = {
   granite: {

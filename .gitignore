@@ -20,9 +20,6 @@ firestore-rules-analysis.md
 # Strategy lab output. `npm run lab` writes it.
 reports/
 
-# M9-2 mockup PNGs. `npm run mockups` writes them; the PR attaches the artifacts.
-mockups/shots/
-
 .env
 .env.*
 !.env.example

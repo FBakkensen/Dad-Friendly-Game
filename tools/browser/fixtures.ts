@@ -1,1019 +1,29 @@
 /**
- * Seed saves shared by the real-browser scripts: the layout guard
- * (scripts/visual-check.mjs), the screen audit (scripts/ui-audit.mjs) and the
- * play-test shots (scripts/play.mjs).
- * Each is what a tab finds in localStorage on its first load.
+ * Seed saves shared by the real-browser scripts: the visual check
+ * (scripts/visual-check.mjs), the screen audit (scripts/ui-audit.mjs), the
+ * play-test shots (scripts/play.mjs) and the gameplay journeys
+ * (tools/journeys). Each is what a tab finds in localStorage on its first
+ * load. Today's mountain's seeds went with the old board (#738).
  */
-
-import type { DutyEngineer, EngineerName } from "../../src/engineers.ts";
-import type { FindId, SavedExpedition } from "../../src/expeditions.ts";
-import type { MaterialId } from "../../src/layers.ts";
-import type { SaveDocument } from "../../src/persist.ts";
-import type { SaveGame } from "../../src/save-format.ts";
-import type { TeachId } from "../../src/teach.ts";
-import type { UpgradeId } from "../../src/upgrades.ts";
-import type { Bench, RecipeId } from "../../src/workshop.ts";
 
 export { SAVE_KEY } from "./harness.ts";
 
-/**
- * A mountain as a seed writes it, in the game's own field names. The scripts
- * leave out what they do not need (the game reads a missing fact as its
- * default), so only the first three fields are required.
- */
-export type SeedMountain = {
-  readonly remaining: number;
-  readonly pocket: number;
-  readonly helpers: number;
-  readonly carts?: number;
-  readonly hoists?: number;
-  readonly drills?: number;
-  readonly borers?: number;
-  readonly trains?: number;
-  readonly machines?: number;
-  readonly kids?: number;
-  readonly upgrades?: Readonly<Partial<Record<UpgradeId, number>>>;
-  readonly startedAt?: number;
-  /** An engineer away on a trip is at post "tunnel", as the save keeps it. */
-  readonly engineers?: readonly DutyEngineer[];
-  readonly expeditions?: readonly SavedExpedition[];
-  readonly finds?: readonly FindId[];
-};
-
-/** The workshop's half of a seed: materials, recipes, crafts and their clocks. */
-export type SeedWorkshop = {
-  readonly materials?: Readonly<Partial<Record<MaterialId, number>>>;
-  readonly recipes?: readonly RecipeId[];
-  readonly crafted?: Readonly<Partial<Record<RecipeId, number>>>;
-  readonly bench?: Bench;
-  readonly chargeUntil?: number;
-  readonly axleUntil?: number;
-  readonly emberUntil?: number;
-  readonly seen?: readonly TeachId[];
-  readonly taught?: readonly TeachId[];
-};
-
-/** A seed save: what a tab finds on its first load, before `seedJson` writes it as version 10. */
-export type Seed = {
-  readonly lastSeen: number;
-  readonly mountain: SeedMountain;
-  readonly workshop?: SeedWorkshop;
-};
-
-/** A seed that always carries its workshop half. */
-export type WorkshopSeed = Seed & { readonly workshop: SeedWorkshop };
-
-/** A stored value with no mountain, written as it is: a later build's save, or none. */
-export type StoredAsIs = {
-  readonly mountain?: undefined;
+/** A stored value, written as it is: a slice 1 save, a later build's save, or a bare value. */
+export type SeedSave = {
   readonly [key: string]: unknown;
 };
 
-/** Anything seedJson stores. */
-export type SeedSave = Seed | StoredAsIs;
-
-// Every tier so far on screen: the compact, three-to-a-row grid.
-export const CREW: SeedMountain = {
-  remaining: 240_000_000 - 9_300_000,
-  pocket: 9_765,
-  helpers: 51,
-  carts: 24,
-  drills: 6,
-  borers: 2,
-};
-
-/** A save that owns a borer has its first engineer. */
-function withFirstEngineer(mountain: SeedMountain): SeedMountain {
-  if ((mountain.borers ?? 0) < 1 || mountain.engineers !== undefined) {
-    return mountain;
-  }
-  return {
-    ...mountain,
-    engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
-  };
-}
-
-/** The stones on the mountain at the start of a run. */
-export const MOUNTAIN = 240_000_000;
-
-const TIER_IDS = {
-  helpers: "helper",
-  carts: "cart",
-  hoists: "hoist",
-  drills: "drill",
-  borers: "borer",
-  trains: "train",
-  machines: "machine",
-  kids: "kid",
-} as const;
-
-const TIMER_IDS = {
-  chargeUntil: "blasting-charge",
-  axleUntil: "axle-grease",
-  emberUntil: "heartstone-ember",
-} as const;
-
-const MOUNTAIN_KEYS: readonly string[] = [
-  "remaining",
-  "pocket",
-  "upgrades",
-  "startedAt",
-  "engineers",
-  "expeditions",
-  "finds",
-  ...Object.keys(TIER_IDS),
-];
-const WORKSHOP_KEYS: readonly string[] = [
-  "materials",
-  "recipes",
-  "crafted",
-  "bench",
-  "seen",
-  "taught",
-  ...Object.keys(TIMER_IDS),
-];
-
-/** A field the converter does not know would be lost without a word: fail loudly. */
-function knownKeys(part: object, known: readonly string[], what: string): void {
-  const odd = Object.keys(part).filter((key) => !known.includes(key));
-  if (odd.length > 0) {
-    throw new Error(`fixtures: ${what} has no save fact for ${odd.join(", ")}`);
-  }
-}
-
-/** The non-zero counts, as the writer keeps them. */
-function counts<K extends string>(
-  entries: readonly (readonly [K, number | undefined])[],
-): Partial<Record<K, number>> {
-  const out: Partial<Record<K, number>> = {};
-  for (const [id, amount] of entries) {
-    if (amount !== undefined && amount !== 0) {
-      out[id] = amount;
-    }
-  }
-  return out;
-}
-
-/** The key only when its value is not empty, as the writer leaves it out. */
-function some<K extends string, V extends object>(
-  key: K,
-  value: V | undefined,
-): Partial<Record<K, V>> {
-  if (value === undefined) {
-    return {};
-  }
-  const empty = Array.isArray(value)
-    ? value.length === 0
-    : Object.keys(value).length === 0;
-  return empty ? {} : ({ [key]: value } as Record<K, V>);
-}
-
-/**
- * A seed as the version 10 save the game writes for it (#558). A mirror of
- * `writeGame` in src/save-format.ts: the browser scripts load this file under
- * Node's type stripping, which cannot load `src` modules. fixtures.test.ts
- * proves the real reader takes each seed, and the real writer writes it back
- * the same.
- */
-export function toDocument(seed: Seed): SaveDocument {
-  const mountain = withFirstEngineer(seed.mountain);
-  const workshop = seed.workshop ?? {};
-  knownKeys(mountain, MOUNTAIN_KEYS, "the mountain");
-  knownKeys(workshop, WORKSHOP_KEYS, "the workshop");
-  const tiers = Object.entries(TIER_IDS) as [keyof typeof TIER_IDS, string][];
-  const timers = Object.entries(TIMER_IDS) as [
-    keyof typeof TIMER_IDS,
-    string,
-  ][];
-  const dug = MOUNTAIN - Math.ceil(mountain.remaining);
-  const game = {
-    ...some("owned", counts(tiers.map(([field, id]) => [id, mountain[field]]))),
-    ...some(
-      "stock",
-      counts([
-        ["stones", mountain.pocket],
-        ...Object.entries(workshop.materials ?? {}),
-      ]),
-    ),
-    ...some(
-      "levels",
-      counts([
-        ...Object.entries(mountain.upgrades ?? {}),
-        ...Object.entries(workshop.crafted ?? {}),
-      ]),
-    ),
-    ...some(
-      "clocks",
-      counts(timers.map(([field, id]) => [id, workshop[field]] as const)),
-    ),
-    ...some("marks", {
-      ...some("seen", workshop.seen),
-      ...some("taught", workshop.taught),
-      ...some("recipes", workshop.recipes),
-      ...some("finds", mountain.finds),
-    }),
-    ...some("run", counts([["dug", dug]])),
-    ...some("engineers", mountain.engineers),
-    ...some("expeditions", mountain.expeditions),
-    ...(workshop.bench === undefined ? {} : { bench: workshop.bench }),
-  } as SaveGame;
-  const startedAt = mountain.startedAt ?? 0;
-  return {
-    version: 10,
-    lastSeen: seed.lastSeen,
-    ...(startedAt === 0 ? {} : { startedAt }),
-    game,
-  };
-}
-
-/**
- * The counts a stored version 10 save holds, in the mountain's field names:
- * what the browser checks compare after a tap. Missing reads as zero.
- */
-export function storedCounts(document: unknown): {
-  readonly remaining: number;
-  readonly pocket: number;
-  readonly helpers: number;
-  readonly carts: number;
-  readonly drills: number;
-  readonly borers: number;
-  readonly engineers: readonly DutyEngineer[];
-} {
-  const game = (document as { game?: SaveGame } | null)?.game ?? {};
-  const owned = game.owned ?? {};
-  return {
-    remaining: MOUNTAIN - (game.run?.dug ?? 0),
-    pocket: game.stock?.stones ?? 0,
-    helpers: owned.helper ?? 0,
-    carts: owned.cart ?? 0,
-    drills: owned.drill ?? 0,
-    borers: owned.borer ?? 0,
-    engineers: game.engineers ?? [],
-  };
-}
-
 /** The stored JSON for a seed save. */
 export function seedJson(save: SeedSave): string {
-  return JSON.stringify(save.mountain === undefined ? save : toDocument(save));
+  return JSON.stringify(save);
 }
 
 /** A save a later build wrote: this build opens the update card and writes nothing (#558). */
-export function newerSave(now: number): StoredAsIs {
+export function newerSave(now: number): SeedSave {
   return { version: 11, lastSeen: now, game: {} };
 }
 
-export function workshopSave(now: number, busy: boolean): WorkshopSeed {
-  return {
-    lastSeen: now,
-    mountain: {
-      remaining: 240_000_000 - 12_000_000,
-      pocket: busy ? 50_000 : 200_000,
-      helpers: 4,
-      carts: 1,
-      startedAt: now - 1_000,
-    },
-    workshop: {
-      materials: {
-        clay: busy ? 0 : 2,
-        iron: busy ? 0 : 1,
-        crystal: 0,
-        heartstone: 0,
-      },
-      recipes: [
-        "iron-rails",
-        "sturdy-props",
-        "blasting-charge",
-        "reinforce",
-        "axle-grease",
-      ],
-      ...(busy
-        ? {
-            bench: {
-              recipe: "sturdy-props",
-              startedAt: now - 60_000,
-              endsAt: now + 9 * 60_000,
-            },
-            axleUntil: now + 12 * 60_000,
-          }
-        : {}),
-    },
-  };
-}
-
-/** The free bench with 10 clay: the charge can be crafted, and the Workshop is not taught (#374). */
-export function firstCraftSave(now: number): Seed {
-  const save = workshopSave(now, false);
-  return {
-    ...save,
-    workshop: {
-      ...save.workshop,
-      materials: { ...save.workshop.materials, clay: 10 },
-    },
-  };
-}
-
-/** The first charge working: its row shows the payoff (#374). */
-export function chargePayoffSave(now: number): Seed {
-  const save = workshopSave(now, false);
-  return {
-    ...save,
-    workshop: {
-      ...save.workshop,
-      crafted: { "blasting-charge": 1 },
-      chargeUntil: now + 20 * 60_000,
-      seen: ["workshop"],
-      taught: ["workshop"],
-    },
-  };
-}
-
-const EMPTY_WORKSHOP: SeedWorkshop = {
-  materials: { clay: 0, iron: 0, crystal: 0, heartstone: 0 },
-  recipes: ["iron-rails", "sturdy-props", "blasting-charge"],
-};
-
-/** A fresh mountain. lastSeen is now so the welcome card stays shut. */
-export function freshMountain(): Seed {
-  return {
-    lastSeen: Date.now(),
-    mountain: { remaining: 240_000_000, pocket: 0, helpers: 0 },
-    workshop: EMPTY_WORKSHOP,
-  };
-}
-
-// 25M deep: Granite is open and a borer is owned, so Workshop and Engineers
-// open too.
-export function openMountain(): WorkshopSeed {
-  return {
-    lastSeen: Date.now(),
-    mountain: {
-      remaining: 240_000_000 - 25_000_000,
-      pocket: 5_000_000,
-      helpers: 20,
-      carts: 5,
-      drills: 2,
-      borers: 1,
-    },
-    workshop: {
-      ...EMPTY_WORKSHOP,
-      recipes: [
-        "iron-rails",
-        "sturdy-props",
-        "blasting-charge",
-        "reinforce",
-        "axle-grease",
-      ],
-    },
-  };
-}
-
-/** A crewed Topsoil, so both lists are long and the crew line is on screen. */
-export function crewMountain(): Seed {
-  return {
-    lastSeen: Date.now(),
-    mountain: {
-      remaining: 240_000_000 - 500_000,
-      pocket: 6_854,
-      helpers: 18,
-      carts: 6,
-    },
-    workshop: EMPTY_WORKSHOP,
-  };
-}
-
-/** The last stone of a run: one tap finds the legend. */
-export function lastStoneSave(): Seed {
-  return {
-    mountain: {
-      remaining: 1,
-      pocket: 0,
-      helpers: 999,
-      kids: 999,
-    },
-    lastSeen: Date.now(),
-  };
-}
-
-/** The Crystal Caves (#371): drills and borers at work, the window's third view. */
-export function crystalMountain(): Seed {
-  const open = openMountain();
-  return {
-    ...open,
-    mountain: {
-      remaining: 180_000_000,
-      pocket: 3_000_000,
-      helpers: 30,
-      carts: 10,
-      drills: 6,
-      borers: 2,
-    },
-  };
-}
-
-/**
- * The Deep Heart (#371): the Great Machine on the surface, and a kid by the
- * lamp.
- */
-export function heartMountain(): Seed {
-  const open = openMountain();
-  return {
-    ...open,
-    mountain: {
-      remaining: 110_000_000,
-      pocket: 40_000_000,
-      helpers: 60,
-      kids: 3,
-      carts: 20,
-      drills: 10,
-      borers: 4,
-      machines: 1,
-    },
-  };
-}
-
-/**
- * Granite with a hand free and nothing affordable (#372): the Ready now plate
- * saves for a cart, with the time.
- */
-export function savingMountain(): Seed {
-  const open = openMountain();
-  return {
-    ...open,
-    mountain: {
-      remaining: 240_000_000 - 25_000_000,
-      pocket: 100,
-      helpers: 18,
-      carts: 6,
-      borers: 1,
-    },
-  };
-}
-
-/** A big Granite fleet (#372): 120 carts, so the cart bay shows three flaps. */
-export function fleetMountain(): Seed {
-  const open = openMountain();
-  return {
-    ...open,
-    mountain: {
-      remaining: 240_000_000 - 30_000_000,
-      pocket: 50_000_000,
-      helpers: 170,
-      carts: 120,
-      drills: 30,
-      borers: 2,
-    },
-  };
-}
-
-/**
- * Granite with a borer he can afford but not staff (#373): three hands free
- * beside 6 carts, 4 drills and the borer, and a pocket over the next borer's
- * price. The borer row reads "Needs 8 workers".
- */
-export function shortMountain(): Seed {
-  const open = openMountain();
-  return {
-    ...open,
-    mountain: {
-      remaining: 240_000_000 - 25_000_000,
-      pocket: 6_000_000,
-      helpers: 21,
-      carts: 6,
-      drills: 4,
-      borers: 1,
-    },
-  };
-}
-
-/**
- * Carts standing idle on a crewed Topsoil (#373): 6 carts and 3 workers, and
- * staffing never taught, so Buys shows the staffing New row.
- */
-export function idleMountain(): Seed {
-  return {
-    lastSeen: Date.now(),
-    mountain: {
-      remaining: 240_000_000 - 500_000,
-      pocket: 6_854,
-      helpers: 3,
-      carts: 6,
-    },
-    workshop: EMPTY_WORKSHOP,
-  };
-}
-
-/**
- * The Great Machine with the Kid row locked (#373): one Great Machine and no
- * kids, short of the Kid worker's depth (70M stones down), so the Kid
- * worker row shows, dim and locked. Buys runs longer than the drawer (C1).
- * With ?trouble=cave-in the cart, which has no bay beside the machine, lights
- * the Buys key's red lamp (C3).
- */
-export function machineMountain(): Seed {
-  const open = openMountain();
-  return {
-    ...open,
-    mountain: {
-      remaining: 240_000_000 - 60_000_000,
-      pocket: 2_000_000,
-      helpers: 75,
-      kids: 0,
-      carts: 20,
-      drills: 10,
-      borers: 4,
-      machines: 1,
-    },
-  };
-}
-
-/**
- * A full Granite before the Great Machine (#373): so many hands on carts,
- * drills and borers, with two engineers, that the Buys crew chips take two
- * rows. Mid-game Buys still fits its drawer.
- */
-export function fullGraniteMountain(): Seed {
-  const open = openMountain();
-  return {
-    ...open,
-    mountain: {
-      remaining: 240_000_000 - 30_000_000,
-      pocket: 80_000_000,
-      helpers: 80,
-      carts: 24,
-      drills: 8,
-      borers: 3,
-      engineers: [
-        { name: "Ada", rank: 0, trips: 0, post: "borer" },
-        { name: "Nils", rank: 0, trips: 0, post: "drill" },
-      ],
-      upgrades: { boots: 1, cartSyn: 1 },
-    },
-  };
-}
-
-/**
- * The Great Machine era with the Great Machine the Ready now pick and Ada
- * tending it (#373): its row's flag gives way on the name's line.
- */
-export function machinePickMountain(): Seed {
-  const machine = machineMountain();
-  return {
-    ...machine,
-    mountain: {
-      ...machine.mountain,
-      pocket: 200_000_000,
-      helpers: 90,
-      engineers: [{ name: "Ada", rank: 0, trips: 0, post: "machine" }],
-    },
-  };
-}
-
-// ---------------------------------------------------------------------------
-// The visual check's builders: one per screen state it seeds.
-// ---------------------------------------------------------------------------
-
-/** The save the craft-done notice and layer-card sections start from. */
-export function noticeSave({
-  mined,
-  lastSeen,
-  mountain = {},
-  workshop = {},
-}: {
-  readonly mined: number;
-  readonly lastSeen: number;
-  readonly mountain?: Partial<SeedMountain>;
-  readonly workshop?: Partial<SeedWorkshop>;
-}): Seed {
-  return {
-    lastSeen,
-    mountain: {
-      remaining: 240_000_000 - mined,
-      pocket: 20,
-      helpers: 0,
-      carts: 0,
-      ...mountain,
-    },
-    workshop: {
-      materials: { clay: 0, iron: 0, crystal: 0, heartstone: 0 },
-      recipes: ["iron-rails", "sturdy-props", "blasting-charge"],
-      ...workshop,
-    },
-  };
-}
-
-export function crewSave(pocket: number): Seed {
-  return {
-    lastSeen: Date.now(),
-    mountain: {
-      remaining: 240_000_000 - 12_000_000,
-      pocket,
-      helpers: 18,
-      carts: 7,
-      drills: 2,
-    },
-    workshop: {
-      materials: { clay: 10, iron: 0, crystal: 0, heartstone: 0 },
-      recipes: ["iron-rails", "sturdy-props", "blasting-charge", "reinforce"],
-    },
-  };
-}
-
-/** The running countdowns: how many are on screen decides what the save holds (0, 1, 9). */
-export function effectSave(count: number): Seed {
-  const now = Date.now();
-  // 0 and 1 are that many chips. 9 is three craft clocks, the bench, and five trips.
-  const names: readonly EngineerName[] = ["Ada", "Nils", "Ruth", "Otto", "Mae"];
-  const full = count >= 9;
-  const tripCount = full ? 5 : count >= 1 ? 1 : 0;
-  const expeditions = Array.from(
-    { length: tripCount },
-    (_, index): SavedExpedition => ({
-      engineer: names[index] as EngineerName,
-      tunnel: "side-seam",
-      sentAt: now - 60_000,
-      // Longer than the craft clocks, so a clock stays on screen when the row is full.
-      returnsAt: now + (40 + index) * 60_000,
-      home: "camp",
-      find: { kind: "quiet" },
-    }),
-  );
-  const engineers = names
-    .slice(0, Math.max(1, tripCount))
-    .map((name, index): DutyEngineer => ({
-      name,
-      rank: 0,
-      trips: 0,
-      post: index < tripCount ? "tunnel" : "camp",
-    }));
-  return {
-    lastSeen: now,
-    mountain: {
-      remaining: 240_000_000 - 12_000_000,
-      pocket: 5_000_000,
-      helpers: 20,
-      carts: 2,
-      borers: 1,
-      engineers,
-      expeditions,
-    },
-    workshop: {
-      materials: { clay: 0, iron: 0, crystal: 0, heartstone: 0 },
-      recipes: ["iron-rails", "sturdy-props", "blasting-charge"],
-      ...(full
-        ? {
-            chargeUntil: now + 8 * 60_000,
-            axleUntil: now + 12 * 60_000,
-            emberUntil: now + 15 * 60_000,
-            bench: {
-              recipe: "iron-rails",
-              startedAt: now - 1_000,
-              endsAt: now + 9 * 60_000,
-            },
-          }
-        : {}),
-    },
-  };
-}
-
-export function guardSave(
-  lastSeen: number,
-  remaining: number = 200_000_000,
-): Seed {
-  return {
-    lastSeen,
-    mountain: {
-      remaining,
-      pocket: 3_250_000,
-      helpers: 34,
-      carts: 12,
-      drills: 4,
-      borers: 1,
-      engineers: [{ name: "Ada", rank: 1, trips: 3, post: "camp" }],
-    },
-    workshop: {
-      materials: { clay: 12, iron: 6, crystal: 2, heartstone: 0 },
-      recipes: ["iron-rails", "sturdy-props", "blasting-charge"],
-    },
-  };
-}
-
-/** The mid save with hands and stones for the borer: the borer is the pick, Ada on it. */
-export function borerPickMountain(): Seed {
-  const open = openMountain();
-  return {
-    ...open,
-    mountain: { ...open.mountain, helpers: 28, pocket: 6_000_000 },
-  };
-}
-
-// The inline literals the visual check wrote where it used them.
-
-/** The Buys drawer's fit check: the crew's tiers on a big pocket and a long mountain. */
-export function buysFitSave(
-  crew: Omit<SeedMountain, "remaining" | "pocket"> & {
-    remaining?: number;
-    pocket?: number;
-  },
-): Seed {
-  return {
-    mountain: {
-      remaining: 240_000_000 - 50_000_000,
-      pocket: 49_999_999,
-      ...crew,
-    },
-    lastSeen: Date.now(),
-  };
-}
-
-// One stone short of 1M deep, away for ten minutes.
-const SHALLOW: SeedMountain = {
-  remaining: 240_000_000 - 999_999,
-  pocket: 180,
-  helpers: 0,
-  carts: 0,
-};
-
-/** The welcome-back card. */
-export function welcomeBackSave(): Seed {
-  return {
-    mountain: { ...SHALLOW, helpers: 5 },
-    lastSeen: Date.now() - 10 * 60 * 1000,
-  };
-}
-
-const FOUND_BELOW: SeedMountain = {
-  remaining: 240_000_000 - 26_000_000,
-  pocket: 100,
-  helpers: 12,
-  carts: 2,
-  drills: 1,
-  borers: 1,
-  machines: 0,
-  kids: 0,
-  finds: ["map", "boots", "drawing", "watch", "whistle", "pebble", "ribbon"],
-};
-
-/** Every tool and keepsake found: the found sheets must fit. */
-export function foundBelowSave(): Seed {
-  return { mountain: FOUND_BELOW, lastSeen: Date.now() };
-}
-
-/** The bottom of the mountain, with a big crew. */
-export function fullShelfSave(): Seed {
-  return {
-    mountain: {
-      remaining: 0,
-      pocket: 0,
-      helpers: 40,
-      carts: 10,
-      drills: 0,
-      borers: 0,
-      machines: 0,
-      kids: 0,
-    },
-    lastSeen: Date.now(),
-  };
-}
-
-/** One stone left on the 240M mountain, so the mine reaches the bottom soon. */
-export function mantleSave(): Seed {
-  return {
-    mountain: {
-      remaining: 1,
-      pocket: 0,
-      helpers: 999,
-      carts: 999,
-      drills: 999,
-      borers: 999,
-      machines: 999,
-      kids: 999,
-    },
-    lastSeen: Date.now(),
-  };
-}
-
-/** An engineer out on a trip: the Running now note shows its clock. */
-export function awayTripSave(now: number): Seed {
-  return {
-    mountain: {
-      remaining: 240_000_000 - 9_300_000,
-      pocket: 9_765,
-      helpers: 51,
-      carts: 24,
-      drills: 6,
-      borers: 2,
-      engineers: [{ name: "Ada", rank: 0, trips: 0, post: "tunnel" }],
-      expeditions: [
-        {
-          engineer: "Ada",
-          tunnel: "old-shaft",
-          sentAt: now,
-          returnsAt: now + 40 * 60_000,
-          home: "borer",
-          find: { kind: "quiet" },
-        },
-      ],
-    },
-    lastSeen: now,
-  };
-}
-
-/** Five engineers on their posts and one trip out. */
-export function campPostsSave(now: number): Seed {
-  return {
-    mountain: {
-      remaining: 240_000_000 - 9_300_000,
-      pocket: 9_765,
-      helpers: 51,
-      carts: 24,
-      drills: 6,
-      borers: 2,
-      engineers: [
-        { name: "Ada", rank: 1, trips: 3, post: "borer" },
-        { name: "Nils", rank: 0, trips: 0, post: "camp" },
-        { name: "Ruth", rank: 2, trips: 9, post: "drill" },
-        { name: "Otto", rank: 0, trips: 0, post: "tunnel" },
-        { name: "Mae", rank: 0, trips: 0, post: "cart" },
-      ],
-      expeditions: [
-        {
-          engineer: "Otto",
-          tunnel: "old-shaft",
-          sentAt: now,
-          returnsAt: now + 40 * 60_000,
-          home: "camp",
-          find: { kind: "quiet" },
-        },
-      ],
-      finds: ["drawing", "watch"],
-    },
-    lastSeen: now,
-  };
-}
-
-/** A trip back with a tool, two hours after the player left. */
-export function toolHomeSave(now: number): Seed {
-  return {
-    mountain: {
-      remaining: 240_000_000 - 9_300_000,
-      pocket: 9_765,
-      helpers: 20,
-      carts: 1,
-      drills: 1,
-      borers: 1,
-      engineers: [{ name: "Ada", rank: 0, trips: 0, post: "tunnel" }],
-      expeditions: [
-        {
-          engineer: "Ada",
-          tunnel: "old-shaft",
-          sentAt: now - 90 * 60_000,
-          returnsAt: now - 30 * 60_000,
-          home: "borer",
-          find: { kind: "tool", id: "map" },
-        },
-      ],
-    },
-    lastSeen: now - 2 * 60 * 60_000,
-  };
-}
-
-const RECIPES: readonly RecipeId[] = [
-  "iron-rails",
-  "sturdy-props",
-  "blasting-charge",
-  "reinforce",
-  "axle-grease",
-  "diamond-bits",
-  "engineers-kit",
-  "heartstone-core",
-  "heartstone-ember",
-];
 const HOUR = 60 * 60 * 1000;
-
-/**
- * Tiers a shot overrides. A key set to `undefined` drops the tier from the
- * saved JSON (quietCrew does, to leave the crew bare).
- */
-export type MountainOverrides = {
-  readonly [K in keyof SeedMountain]?: SeedMountain[K] | undefined;
-};
-
-/**
- * A late-game save. Real pocket, crew and materials. Spread `mountain` /
- * `workshop` over the defaults when a shot needs a different moment.
- * (The UI audit's builder.)
- */
-export function late(
-  now: number,
-  mined: number,
-  mountain: MountainOverrides = {},
-  workshop: Partial<SeedWorkshop> = {},
-): Seed {
-  const deep = mined >= 70_000_000;
-  const built = mined >= 25_000_000;
-  return {
-    lastSeen: now,
-    mountain: {
-      remaining: MOUNTAIN - mined,
-      pocket: 80_000_000,
-      helpers: 80,
-      kids: deep ? 4 : 0,
-      carts: 24,
-      drills: 8,
-      borers: 3,
-      machines: built ? 2 : 0,
-      startedAt: now - 86_400_000,
-      engineers: [
-        {
-          name: "Ada",
-          rank: 0,
-          trips: 0,
-          post: built ? "machine" : "borer",
-        },
-        { name: "Nils", rank: 0, trips: 0, post: "drill" },
-      ],
-      upgrades: { boots: 1, cartSyn: 1 },
-      finds: ["drawing"],
-      // The undefined keys quietCrew sends are dropped by JSON; the cast only
-      // admits them past exactOptionalPropertyTypes.
-      ...(mountain as Partial<SeedMountain>),
-    },
-    workshop: {
-      materials: { clay: 40, iron: 28, crystal: 12, heartstone: 3 },
-      recipes: RECIPES,
-      ...workshop,
-    },
-  };
-}
-
-/** A small, plain crew: no engineers, finds or upgrades. (The UI audit's.) */
-export function quietCrew(extra: MountainOverrides = {}): MountainOverrides {
-  return {
-    helpers: 8,
-    kids: 0,
-    carts: 2,
-    drills: 0,
-    borers: 0,
-    machines: 0,
-    engineers: undefined,
-    finds: undefined,
-    upgrades: undefined,
-    ...extra,
-  };
-}
-
-/** play's `edge` save: four stones above the Granite with 13 carts. */
-export function playEdgeSave(): Seed {
-  return {
-    lastSeen: Date.now(),
-    mountain: {
-      remaining: 240_000_000 - 9_999_996,
-      pocket: 2_000_000,
-      helpers: 40,
-      carts: 13,
-      drills: 4,
-    },
-    workshop: openMountain().workshop,
-  };
-}
-
-/** play's `away` save: the mid save, last seen 9 hours ago. */
-export function playAwaySave(): Seed {
-  return { ...openMountain(), lastSeen: Date.now() - 9 * HOUR };
-}
-
-/**
- * play's `crafted` save (#464): section 16's craft save, Iron rails on the bench, done three
- * seconds after it opens, so the craft-done card opens on the board.
- */
-export function playCraftSave(): Seed {
-  const now = Date.now();
-  return noticeSave({
-    mined: 12_000_000,
-    lastSeen: now,
-    mountain: { helpers: 1, carts: 1, pocket: 5_000_000 },
-    workshop: {
-      materials: { clay: 10, iron: 6, crystal: 0, heartstone: 0 },
-      recipes: [
-        "iron-rails",
-        "sturdy-props",
-        "blasting-charge",
-        "reinforce",
-        "axle-grease",
-      ],
-      bench: {
-        recipe: "iron-rails",
-        startedAt: now - 600_000,
-        endsAt: now + 3_000,
-      },
-    },
-  });
-}
-
-/** play's `brief` save: the mid save, last seen 2 minutes ago. */
-export function playBriefSave(): Seed {
-  return { ...openMountain(), lastSeen: Date.now() - HOUR / 30 };
-}
 
 /** The account a memory save (`?memorySave=1`) signs in as (src/boot.ts, `MEMORY_DEV`). */
 export const DEV_UID = "dev-dad";
@@ -1029,16 +39,16 @@ export const DEV_BACKUP_KEY = `dad-friendly-game-backup:${DEV_UID}`;
  * The same save as a guest's, for SAVE_KEY: the document inside a phone backup, without the
  * account (the journeys play as a guest, #664).
  */
-export function asGuest(backup: StoredAsIs): StoredAsIs {
+export function asGuest(backup: SeedSave): SeedSave {
   const save = backup["save"];
   if (typeof save !== "object" || save === null) {
     throw new Error("Not a phone backup");
   }
-  return save as StoredAsIs;
+  return save as SeedSave;
 }
 
 /** A slice 1 save: the phone backup of the dev account, holding this game map as version 10. */
-function sliceSave(now: number, game: Record<string, unknown>): StoredAsIs {
+function sliceSave(now: number, game: Record<string, unknown>): SeedSave {
   return { uid: DEV_UID, save: { version: 10, lastSeen: now, game } };
 }
 
@@ -1056,7 +66,7 @@ const FIRST_EVENING_JOBS = {
  * given horse wagon, nothing ordered, and some drilled rock waiting.
  * The frame opens on the first evening's card.
  */
-export function sliceStartSave(now: number): StoredAsIs {
+export function sliceStartSave(now: number): SeedSave {
   return sliceSave(now, {
     owned: { helper: 1 },
     jobs: { drilling: 1 },
@@ -1070,7 +80,7 @@ export function sliceStartSave(now: number): StoredAsIs {
  * takes each stone as it is hoisted, so nothing is affordable and the line
  * runs. Next's "nothing" line (#659).
  */
-export function sliceOrderedSave(now: number): StoredAsIs {
+export function sliceOrderedSave(now: number): SeedSave {
   return sliceSave(now, {
     owned: { helper: 12 },
     jobs: FIRST_EVENING_JOBS,
@@ -1086,7 +96,7 @@ export function sliceOrderedSave(now: number): StoredAsIs {
 }
 
 /** The same, with nobody hoisting: the line moves nothing, and stands. */
-export function sliceStandsSave(now: number): StoredAsIs {
+export function sliceStandsSave(now: number): SeedSave {
   return sliceSave(now, {
     owned: { helper: 12 },
     jobs: { ...FIRST_EVENING_JOBS, hoisting: 0 },
@@ -1105,7 +115,7 @@ export function sliceStandsSave(now: number): StoredAsIs {
  * The Light Tower's structure rising (#662): 150K of its 250K built in, 300
  * on the site, and a second wagon with nobody to drive it, behind the road.
  */
-export function sliceStructureSave(now: number): StoredAsIs {
+export function sliceStructureSave(now: number): SeedSave {
   return sliceSave(now, {
     owned: { helper: 14, cart: 2 },
     stock: { stones: 40_000 },
@@ -1126,7 +136,7 @@ export function sliceStructureSave(now: number): StoredAsIs {
  * Tower and the Warehouse operational and nothing to order, so the city's
  * card says the city is planning its next building.
  */
-export function sliceDoneSave(now: number): StoredAsIs {
+export function sliceDoneSave(now: number): SeedSave {
   return sliceSave(now, {
     owned: { helper: 15, cart: 2 },
     stock: { stones: 120_000, brick: 40_000 },
@@ -1150,7 +160,7 @@ export function sliceDoneSave(now: number): StoredAsIs {
  * and more stone than the stockyard's room, since part 1 had none. Its first
  * session greets with the refinery's card.
  */
-export function slicePartOneDoneSave(now: number): StoredAsIs {
+export function slicePartOneDoneSave(now: number): SeedSave {
   return sliceSave(now, {
     owned: { helper: 14, cart: 2 },
     stock: { stones: 8_000_000 },
@@ -1165,7 +175,7 @@ export function slicePartOneDoneSave(now: number): StoredAsIs {
  * the Warehouse's foundation built in, and stone and brick on their way on
  * the second plot.
  */
-export function sliceWarehouseSave(now: number): StoredAsIs {
+export function sliceWarehouseSave(now: number): SeedSave {
   return sliceSave(now, {
     owned: { helper: 18, cart: 2 },
     stock: { stones: 420_000, brick: 60_000 },
@@ -1196,7 +206,7 @@ export function sliceWarehouseSave(now: number): StoredAsIs {
  * night delivers it, the builders build it in, and the frame opens on the
  * report, then the end card (#672).
  */
-export function sliceWarehouseRoofSave(now: number): StoredAsIs {
+export function sliceWarehouseRoofSave(now: number): SeedSave {
   return sliceSave(now - 12 * HOUR, {
     owned: { helper: 13 },
     jobs: { ...FIRST_EVENING_JOBS, kilns: 1 },
@@ -1218,7 +228,7 @@ export function sliceWarehouseRoofSave(now: number): StoredAsIs {
  * kiln with its worker, rock at the kilns, and stone and brick in the
  * stockyard. The refinery's tab is in the site bar.
  */
-export function sliceRefinerySave(now: number): StoredAsIs {
+export function sliceRefinerySave(now: number): SeedSave {
   return sliceSave(now, {
     owned: { helper: 18, cart: 2 },
     stock: { stones: 420_000, brick: 18_000 },
@@ -1242,7 +252,7 @@ export function sliceRefinerySave(now: number): StoredAsIs {
  * and nothing ordered: the night fills both stockpiles, the mine stands, and
  * the shift report says the stockyard stopped it (#671).
  */
-export function sliceYardFullSave(now: number): StoredAsIs {
+export function sliceYardFullSave(now: number): SeedSave {
   return sliceSave(now - 12 * HOUR, {
     owned: { helper: 18, cart: 2 },
     stock: { stones: 5_900_000, brick: 990_000 },
@@ -1266,7 +276,7 @@ export function sliceYardFullSave(now: number): StoredAsIs {
  * foundation on order and stone in the pocket. Next counts the mine's and
  * the city's buys, and the workforce shows machines that run (#659).
  */
-export function sliceBusySave(now: number): StoredAsIs {
+export function sliceBusySave(now: number): SeedSave {
   return sliceSave(now, {
     owned: { helper: 16, cart: 2 },
     stock: { stones: 60_000 },
@@ -1286,7 +296,7 @@ export function sliceBusySave(now: number): StoredAsIs {
  * The foundation on order, closed nine hours ago: the frame opens on the
  * shift report of a night (#663), the mine stopped by the eight-hour clock.
  */
-export function sliceNightSave(now: number): StoredAsIs {
+export function sliceNightSave(now: number): SeedSave {
   return sliceSave(now - 9 * HOUR, {
     owned: { helper: 12 },
     jobs: FIRST_EVENING_JOBS,
@@ -1307,7 +317,7 @@ export function sliceNightSave(now: number): StoredAsIs {
  * the night delivers it, the builders build it in, and the frame opens on
  * the report, then the end card (#663).
  */
-export function sliceRoofSave(now: number): StoredAsIs {
+export function sliceRoofSave(now: number): SeedSave {
   return sliceSave(now - 12 * HOUR, {
     owned: { helper: 12 },
     jobs: FIRST_EVENING_JOBS,
@@ -1327,7 +337,7 @@ export function sliceRoofSave(now: number): StoredAsIs {
  * Haul roads are open in their stages' lists, thirty workers for Work
  * boots in the workforce, and the stone for all three (#661).
  */
-export function sliceListSave(now: number): StoredAsIs {
+export function sliceListSave(now: number): SeedSave {
   return sliceSave(now, {
     owned: { helper: 30, cart: 6, drill: 5, hoist: 3 },
     stock: { stones: 3_000_000 },
