@@ -1,0 +1,141 @@
+import type { HoistsAssigned } from "./cages";
+import type { Project } from "./city";
+import { withFactors } from "./economy/factors";
+import { FRESH_OFF } from "./line-switch";
+import {
+  NO_GRANITE_PILES,
+  NO_LEVEL_MACHINES,
+  shaftPrice,
+  sinkShaft,
+  type Granite,
+  type GranitePiles,
+  type LevelMachines,
+} from "./mine-levels";
+import type { MinePiles } from "./mine-piles";
+import { createMountain, type Mountain } from "./mountain";
+import { PART_THREE_OFF, PART_TWO_OFF } from "./part-switch";
+import { EMPTY_STOCK, type GoodId, type Stock } from "./stock";
+
+/**
+ * Part 3's test mine (slice 1, #673, #724): a fresh mine with the Light
+ * Tower up and the shaft sunk, shared by the tests that play the Granite, so
+ * no test writes a sunk Granite by hand.
+ */
+
+/** Slice 1 with parts 2 and 3 on. */
+const PART_THREE_FACTORS: Readonly<Record<string, 0>> = {
+  [FRESH_OFF]: 0,
+  [PART_TWO_OFF]: 0,
+  [PART_THREE_OFF]: 0,
+};
+
+export const partThree = <T>(body: () => T): T =>
+  withFactors(PART_THREE_FACTORS, body);
+
+export const partTwo = <T>(body: () => T): T =>
+  withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 }, body);
+
+export type Setup = {
+  /** Workers on the Topsoil's drilling and haulage: 3 a second each, with tools. */
+  readonly topsoil?: number;
+  /** Workers on the Granite's drilling and haulage. */
+  readonly granite?: number;
+  /** Workers on hoisting: one runs each hoist, the rest the winch. */
+  readonly hoisting?: number;
+  /** Hoists he owns (#724). */
+  readonly hoists?: number;
+  /** The hoists assigned to each level (#724). */
+  readonly assigned?: Partial<HoistsAssigned>;
+  readonly kilns?: number;
+  readonly onKilns?: number;
+  readonly saws?: number;
+  readonly onSaws?: number;
+  readonly piles?: Partial<MinePiles>;
+  readonly granitePiles?: Partial<GranitePiles>;
+  readonly machines?: Partial<LevelMachines>;
+  readonly sunk?: boolean;
+  readonly stock?: Partial<Stock>;
+  readonly project?: Project;
+  readonly driving?: number;
+  readonly building?: number;
+};
+
+/** The Granite as `sinkShaft` sinks it, with these machines and piles. */
+function sunkGranite(machines: LevelMachines, piles: GranitePiles): Granite {
+  const sunk = partThree(() => {
+    const start = createMountain();
+    const stock: Record<GoodId, number> = { ...EMPTY_STOCK };
+    for (const { good, amount } of shaftPrice()) {
+      stock[good] = amount;
+    }
+    return sinkShaft({ ...start, stock, operational: ["lightTower"] });
+  }).granite;
+  if (sunk.kind !== "sunk") {
+    throw new Error("the harness could not sink the shaft");
+  }
+  return { ...sunk, machines, piles };
+}
+
+/** A fresh mine with the Light Tower up, the shaft sunk (by default), and these workers, makers, hoists and piles. */
+export function levels({
+  topsoil = 0,
+  granite = 0,
+  hoisting = 0,
+  hoists = 0,
+  assigned = {},
+  kilns = 0,
+  onKilns = kilns,
+  saws = 0,
+  onSaws = saws,
+  piles = {},
+  granitePiles = {},
+  machines = {},
+  sunk = true,
+  stock = {},
+  project = { kind: "unordered" },
+  driving = 0,
+  building = 0,
+}: Setup): Mountain {
+  const start = createMountain();
+  const own = { ...NO_LEVEL_MACHINES, ...machines };
+  return {
+    ...start,
+    owned: {
+      ...start.owned,
+      helper:
+        2 * topsoil +
+        2 * granite +
+        hoisting +
+        onKilns +
+        onSaws +
+        driving +
+        building,
+      cart: start.owned.cart + own.cart,
+      drill: start.owned.drill + own.drill,
+      hoist: start.owned.hoist + hoists,
+    },
+    jobs: {
+      drilling: topsoil,
+      haulage: topsoil,
+      hoisting,
+      driving,
+      building,
+      kilns: onKilns,
+      graniteDrilling: granite,
+      graniteHaulage: granite,
+      saws: onSaws,
+    },
+    stock: { ...EMPTY_STOCK, ...stock },
+    makers: { kiln: kilns, saw: saws },
+    piles: { face: 0, shaft: 0, kiln: 0, ...piles },
+    granite: sunk
+      ? sunkGranite(own, { ...NO_GRANITE_PILES, ...granitePiles })
+      : { kind: "unsunk" },
+    cages: {
+      ...start.cages,
+      assigned: { ...start.cages.assigned, ...assigned },
+    },
+    operational: ["lightTower"],
+    project,
+  };
+}
