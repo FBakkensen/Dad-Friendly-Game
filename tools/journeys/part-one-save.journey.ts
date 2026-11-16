@@ -1,10 +1,9 @@
 /**
  * A save from part 1 when part 2 is switched on (#672): the Light Tower operational, nothing
  * ordered, no kiln, and more stone than the stockyard's room, last seen twelve hours ago. The
- * full stockyard stood the mine all night, so nothing happened and no report comes up: the
- * session greets with the refinery's card, its tab is in the site bar, and the stockpile reads what the rules say, full.
- * The full stockyard stands the mine until he spends the stone, so a night later nothing has
- * happened: the rules bring no report, and no card comes up.
+ * full stockyard stands the mine until he spends the stone, so nothing happens in a night: the
+ * rules bring no report, at the open or eight hours later. The session greets with the
+ * refinery's card, its tab is in the site bar, and the stockpile reads what the rules say, full.
  */
 import { refineryOpens } from "../../src/frame-cards-words.ts";
 import { asGuest, slicePartOneDoneSave } from "../browser/fixtures.ts";
