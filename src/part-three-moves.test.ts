@@ -20,6 +20,7 @@ import {
 import { createMountain, type Mountain } from "./mountain";
 import { PART_THREE_OFF, PART_TWO_OFF } from "./part-switch";
 import { EMPTY_STOCK, type Stock } from "./stock";
+import { tierById, tierGood, tierQuote } from "./tiers";
 
 const partThree = <T>(body: () => T): T =>
   withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 }, body);
@@ -88,7 +89,11 @@ describe("the truck as a move (#673)", () => {
 
 describe("the shaft and the Granite's machines as moves (#673)", () => {
   const SINK: Action = { kind: "sinkShaft" };
-  const GRANITE_BORER: Action = { kind: "buyGraniteMachine", id: "borer" };
+  const GRANITE_BORER: Action = {
+    kind: "buyGraniteMachine",
+    id: "borer",
+    count: 1,
+  };
 
   const stocked = (mountain: Mountain, stock: Partial<Stock>): Mountain => ({
     ...mountain,
@@ -142,10 +147,10 @@ describe("the shaft and the Granite's machines as moves (#673)", () => {
   it("lists a Granite machine for each level machine on sale once the shaft is sunk", () => {
     partThree(() => {
       expect(levelMoves(mine(true))).toEqual([
-        { kind: "buyGraniteMachine", id: "cart" },
-        { kind: "buyGraniteMachine", id: "drill" },
-        { kind: "buyGraniteMachine", id: "borer" },
-        { kind: "buyGraniteMachine", id: "train" },
+        { kind: "buyGraniteMachine", id: "cart", count: 1 },
+        { kind: "buyGraniteMachine", id: "drill", count: 1 },
+        { kind: "buyGraniteMachine", id: "borer", count: 1 },
+        { kind: "buyGraniteMachine", id: "train", count: 1 },
       ]);
       expect(
         levelMoves(mine(false)).filter(
@@ -180,6 +185,45 @@ describe("the shaft and the Granite's machines as moves (#673)", () => {
     });
   });
 
+  it("buys ten drills for the Granite at the ten-drill price", () => {
+    partThree(() => {
+      const drill = tierById("drill");
+      const good = tierGood("drill");
+      const price = tierQuote(mine(true), drill, "ten").cost;
+      const start = stocked(mine(true), { [good]: price });
+      const result = applyMove(
+        start,
+        { kind: "buyGraniteMachine", id: "drill", count: 10 },
+        0,
+      );
+      expect(result.kind).toBe("applied");
+      if (result.kind !== "applied") {
+        return;
+      }
+      const after = result.mountain;
+      expect(after.owned.drill).toBe(start.owned.drill + 10);
+      expect(levelMachines(after, "granite").drill).toBe(
+        levelMachines(start, "granite").drill + 10,
+      );
+      expect(result.spent[good]).toBe(price);
+      expect(result.events).toEqual([
+        {
+          kind: "graniteMachineBought",
+          id: "drill",
+          count: levelMachines(after, "granite").drill,
+        },
+      ]);
+      const short = stocked(mine(true), { [good]: price - 1 });
+      expect(
+        applyMove(
+          short,
+          { kind: "buyGraniteMachine", id: "drill", count: 10 },
+          0,
+        ),
+      ).toEqual({ kind: "refused" });
+    });
+  });
+
   it("refuses a Granite machine he cannot pay for: nothing changes", () => {
     partThree(() => {
       const broke = stocked(mine(true), { cutStone: 39_999 });
@@ -191,7 +235,7 @@ describe("the shaft and the Granite's machines as moves (#673)", () => {
     partTwo(() => {
       const rich = stocked(mine(true), { stones: 1e9, cutStone: 1e9 });
       expect(
-        applyMove(rich, { kind: "buyGraniteMachine", id: "cart" }, 0),
+        applyMove(rich, { kind: "buyGraniteMachine", id: "cart", count: 1 }, 0),
       ).toEqual({ kind: "refused" });
     });
   });
