@@ -1,5 +1,5 @@
 import { formatCompact, shiftDuration } from "./format";
-import { BAY_ORDER, GOOD_NAMES, GOOD_WORDS, stockpiles } from "./frame-view";
+import { GOOD_NAMES, GOOD_WORDS, bayOrder, stockpiles } from "./frame-view";
 import {
   makerJob,
   makerMakes,
@@ -257,10 +257,10 @@ function makerPlate(
   };
 }
 
-/** The stockpiles' bays, brick then stone, read from the top row's own stockpiles. */
+/** The stockpiles' bays, brick then stone and then cut stone, read from the top row's own stockpiles. */
 function bays(mountain: Mountain): readonly Bay[] {
   const piles = stockpiles(mountain);
-  return BAY_ORDER.flatMap((good) => {
+  return bayOrder(mountain).flatMap((good) => {
     const pile = piles.find((each) => each.good === good);
     return pile?.room === undefined
       ? []

@@ -3,7 +3,7 @@ import { el, hide, icon, mark, setAttr, write } from "./board-dom";
 import type { FrameState } from "./frame-state";
 import { listenSteps, paintSteps, stepper } from "./job-steps";
 import type { MakerId } from "./makers";
-import type { MineLevelId } from "./mine-levels";
+import { MINE_LEVEL_IDS, type MineLevelId } from "./mine-levels";
 import type { LevelHopper } from "./mine-view";
 import { buildKeyFace, paintMachineKey, type KeyParts } from "./mine-site";
 import type { Mountain } from "./mountain";
@@ -135,9 +135,9 @@ function paintPlate(
 }
 
 /**
- * The makers' plates, one for each open maker, side by side when there are
- * two. They are built again when the makers change, as the Granite opens,
- * as the workforce sheet builds its groups again.
+ * The makers' plates, one for each open maker (side by side with the site's
+ * `.two`). They are built again when the makers change, as the Granite
+ * opens, as the workforce sheet builds its groups again.
  */
 function buildPlates(state: FrameState): {
   readonly root: HTMLElement;
@@ -157,7 +157,6 @@ function buildPlates(state: FrameState): {
       parts.set(plate.id, buildPlate(state, plate));
     }
     root.replaceChildren(...[...parts.values()].map((each) => each.root));
-    mark(root, "two", plates.length > 1);
   };
   return {
     root,
@@ -188,7 +187,12 @@ function buildYard(state: FrameState): YardParts {
   const canvas = el("canvas", "refinery-yard-canvas");
   canvas.setAttribute("aria-hidden", "true");
   const labels = el("div", "refinery-bays");
-  const bays = [el("span", "refinery-bay"), el("span", "refinery-bay")];
+  // Brick, stone, and cut stone once the saws open: a bay with no stockpile is hidden.
+  const bays = [
+    el("span", "refinery-bay"),
+    el("span", "refinery-bay"),
+    el("span", "refinery-bay"),
+  ];
   labels.append(...bays);
   const expand = el("button", "refinery-expand");
   expand.type = "button";
@@ -263,7 +267,9 @@ function buildOverlay(): {
   readonly bypass: HTMLElement;
 } {
   const root = el("div", "refinery-over");
-  const ins = { topsoil: buildIn("topsoil"), granite: buildIn("granite") };
+  const ins = Object.fromEntries(
+    MINE_LEVEL_IDS.map((level) => [level, buildIn(level)]),
+  ) as Record<MineLevelId, InParts>;
   const chute = el("p", "refinery-bypass");
   const bypass = el("span", "board-num");
   chute.append(
@@ -271,7 +277,7 @@ function buildOverlay(): {
     bypass,
     el("span", "", BYPASS_RECIPE),
   );
-  root.append(ins.topsoil.root, ins.granite.root, chute);
+  root.append(...MINE_LEVEL_IDS.map((level) => ins[level].root), chute);
   return { root, ins, bypass };
 }
 
@@ -351,7 +357,10 @@ export function createRefinerySite(
     yard.canvas,
     {
       shown: () => visible,
-      ground: paintYardGround,
+      ground: (c, height) => {
+        paintYardGround(c, height, view.scene.bays.length);
+      },
+      layout: () => view.scene.bays.length,
       draw: (c) => {
         drawYard(c, sprites, view.scene.bays);
       },
@@ -375,7 +384,7 @@ export function createRefinerySite(
         view.stockyard.expand !== undefined,
       );
       mark(root, "two", view.scene.saws !== undefined);
-      for (const level of ["topsoil", "granite"] as const) {
+      for (const level of MINE_LEVEL_IDS) {
         paintIn(
           over.ins[level],
           view.hoppers.find((hopper) => hopper.level === level),

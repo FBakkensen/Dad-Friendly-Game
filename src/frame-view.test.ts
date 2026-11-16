@@ -1,8 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { holdOrder, placeOrder, type Project } from "./city";
 import { withFactors } from "./economy/factors";
-import { hireKey, orderStrip, stockpiles, workersView } from "./frame-view";
+import {
+  BAY_ORDER,
+  bayOrder,
+  hireKey,
+  orderStrip,
+  stockpiles,
+  workersView,
+} from "./frame-view";
 import { PART_TWO_OFF } from "./part-switch";
+import { levels, partThree, partTwo } from "./part-three.harness";
 import { createMountain, type Mountain } from "./mountain";
 import { crewedStart } from "./test-fixtures";
 import { EMPTY_STOCK } from "./stock";
@@ -128,6 +136,44 @@ describe("top row", () => {
       expect(stockpiles({ ...lit, operational: [] })).toEqual([
         { good: "stones", count: 33_200, text: "33.2K" },
       ]);
+    });
+  });
+
+  it("adds the cut stone stockpile once the saws open (#754)", () => {
+    const sunk = levels({ stock: { cutStone: 100_000 } });
+    partThree(() => {
+      const piles = stockpiles(sunk);
+      expect(piles.map((pile) => pile.good)).toEqual([
+        "stones",
+        "brick",
+        "cutStone",
+      ]);
+      expect(piles[2]).toEqual({
+        good: "cutStone",
+        count: 100_000,
+        text: "100K",
+        room: "of 250K",
+        fill: 100_000 / 250_000,
+        full: false,
+      });
+      expect(bayOrder(sunk)).toEqual(["brick", "stones", "cutStone"]);
+      // Its room grows with the stockyard, as the others' do.
+      expect(stockpiles({ ...sunk, stockyard: 1 })[2]?.room).toBe("of 750K");
+      // Before the shaft is sunk the saws are shut: stone and brick, as before.
+      const unsunk = levels({ sunk: false, stock: { cutStone: 100_000 } });
+      expect(stockpiles(unsunk).map((pile) => pile.good)).toEqual([
+        "stones",
+        "brick",
+      ]);
+      expect(bayOrder(unsunk)).toBe(BAY_ORDER);
+    });
+    // Part 3 off: the sunk save paints as today.
+    partTwo(() => {
+      expect(stockpiles(sunk).map((pile) => pile.good)).toEqual([
+        "stones",
+        "brick",
+      ]);
+      expect(bayOrder(sunk)).toBe(BAY_ORDER);
     });
   });
 

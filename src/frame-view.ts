@@ -8,6 +8,7 @@ import {
   type StepIndex,
 } from "./city";
 import { formatCompact } from "./format";
+import { makerOpen } from "./makers";
 import type { Mountain } from "./mountain";
 import { workforceCount } from "./next-view";
 import { EMPTY_STOCK, priceAmount, type GoodId } from "./stock";
@@ -176,17 +177,28 @@ export type Stockpile = {
   readonly full?: boolean;
 };
 
+/** The good the saws make: its stockpile shows once they open (part 3, #754). */
+const SAWS_GOOD: GoodId = "cutStone";
+
+/** `goods`, with cut stone after them once the saws are open. */
+const withSaws = (
+  mountain: Pick<Mountain, "operational" | "granite">,
+  goods: readonly GoodId[],
+): readonly GoodId[] =>
+  makerOpen(mountain, "saw") ? [...goods, SAWS_GOOD] : goods;
+
 /**
  * The goods he has met: stone, and brick once the stockyard opens with the
- * Light Tower in part 2 (#671), each with its room. Part 1 has stone alone,
- * with no room.
+ * Light Tower in part 2 (#671), each with its room, and cut stone once the
+ * saws open with the Granite in part 3 (#754). Part 1 has stone alone, with
+ * no room.
  */
 export function stockpiles(mountain: Mountain): readonly Stockpile[] {
   if (!stockyardOpen(mountain)) {
     const count = mountain.stock.stones;
     return [{ good: "stones", count, text: formatCompact(count) }];
   }
-  return STOCKPILE_GOODS.map((good) => {
+  return withSaws(mountain, STOCKPILE_GOODS).map((good) => {
     const count = mountain.stock[good];
     const room = stockpileRoom(mountain, good);
     return {
@@ -202,6 +214,13 @@ export function stockpiles(mountain: Mountain): readonly Stockpile[] {
 
 /** The stockyard's bays left to right, and the shift report's marks: brick, then stone (#671). */
 export const BAY_ORDER: readonly GoodId[] = ["brick", "stones"];
+
+/** The stockyard's bays left to right: brick and stone, and cut stone once the saws open (#754). */
+export function bayOrder(
+  mountain: Pick<Mountain, "operational" | "granite">,
+): readonly GoodId[] {
+  return withSaws(mountain, BAY_ORDER);
+}
 
 /** The count of workers in the top row, and the hire key beside it. */
 export type WorkersView = {

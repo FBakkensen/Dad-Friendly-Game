@@ -97,18 +97,18 @@ describe("the refinery with the saws", () => {
 
   it("sets the two plates side by side, and one plate as today", () => {
     const two = mount(sunk());
-    expect(
-      two.root.querySelector(".refinery-plates")?.classList.contains("two"),
-    ).toBe(true);
+    expect(two.root.querySelector(".refinery")?.classList.contains("two")).toBe(
+      true,
+    );
     unmount.abort();
     unmount = new AbortController();
     holdFactors({ [PART_TWO_OFF]: 0 });
     const one = mount(sunk());
     expect(one.root.querySelectorAll(".refinery-plate")).toHaveLength(1);
     expect(plateNames(one.root)).toEqual(["Kilns"]);
-    expect(
-      one.root.querySelector(".refinery-plates")?.classList.contains("two"),
-    ).toBe(false);
+    expect(one.root.querySelector(".refinery")?.classList.contains("two")).toBe(
+      false,
+    );
     expect(
       one.root.querySelector<HTMLElement>(".refinery-in-granite")?.hidden,
     ).toBe(true);
@@ -126,5 +126,52 @@ describe("the refinery with the saws", () => {
     expect(plateNames(root)).toEqual(["Kilns"]);
     progress.applyMutation(() => levels({ kilns: 1 }));
     expect(plateNames(root)).toEqual(["Kilns", "Saws"]);
+  });
+
+  it("acts once on a tap after the plates are built again", () => {
+    /** One kiln with its worker, two workers free, and the stone for many kilns. */
+    const kilns = (sunk: boolean): Mountain => {
+      const base = levels({ kilns: 1, sunk, stock: { stones: 1e9 } });
+      return {
+        ...base,
+        owned: { ...base.owned, helper: base.owned.helper + 2 },
+      };
+    };
+    const { progress, button } = mount(kilns(false));
+    progress.applyMutation(() => kilns(true));
+    const mountain = () => progress.getSnapshot().mountain;
+    button(".refinery-kiln-key").click();
+    expect(mountain().makers.kiln).toBe(2);
+    button('.refinery .frame-step[data-job="kilns"][data-way="place"]').click();
+    expect(mountain().jobs.kilns).toBe(2);
+  });
+
+  it("shows the cut stone stockpile in the top row and its bay in the stockyard", () => {
+    const shown = (root: HTMLElement, selector: string): string[] =>
+      [...root.querySelectorAll<HTMLElement>(selector)]
+        .filter((each) => each.closest("[hidden]") === null)
+        .map((each) => each.textContent);
+    const goods = (root: HTMLElement): string[] =>
+      [...root.querySelectorAll<HTMLElement>(".frame-top .frame-pile")]
+        .filter((each) => !each.hidden)
+        .map((each) => each.dataset["good"] ?? "");
+    const open = mount(sunk());
+    expect(goods(open.root)).toEqual(["stones", "brick", "cutStone"]);
+    const cut = open.root.querySelector('.frame-pile[data-good="cutStone"]');
+    expect(cut?.querySelector("img")?.getAttribute("src")).toBe(
+      priceIcon("cutStone"),
+    );
+    expect(cut?.querySelector(".frame-pile-room")?.textContent).toBe("of 250K");
+    const bays = shown(open.root, ".refinery-bay");
+    expect(bays).toHaveLength(3);
+    expect(bays[0]).toMatch(/^Brick .+ of 1M$/);
+    expect(bays[1]).toBe("Stone 0 of 6M");
+    expect(bays[2]).toBe("Cut stone 0 of 250K");
+    unmount.abort();
+    unmount = new AbortController();
+    // The shaft not yet sunk: stone and brick, as today.
+    const shut = mount(levels({ kilns: 1, sunk: false }));
+    expect(goods(shut.root)).toEqual(["stones", "brick"]);
+    expect(shown(shut.root, ".refinery-bay")).toHaveLength(2);
   });
 });

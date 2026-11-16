@@ -1007,8 +1007,12 @@ async function refineryFacts(page) {
       panel: panel === null || panel === undefined ? undefined : px(panel),
       plates,
       labels,
-      piles: document.querySelectorAll(".frame-top.two-piles .frame-pile")
-        .length,
+      piles: [
+        ...document.querySelectorAll(".frame-top.two-piles .frame-pile"),
+      ].filter(shown).length,
+      bays: [...(scene?.querySelectorAll(".refinery-bay") ?? [])]
+        .filter(shown)
+        .map((el) => el.textContent ?? ""),
       small,
       cut,
       hires: hires.map((el) => el.parentElement?.className ?? ""),
@@ -1105,6 +1109,22 @@ for (const size of SIZES) {
           Math.abs(kilns.t - saws.t) < 0.5 &&
           kilns.r <= saws.l,
         `${at} the kilns' and the saws' plates side by side (${JSON.stringify(facts.plates)})`,
+      );
+      check(
+        facts.scene !== undefined &&
+          facts.plates.length === 2 &&
+          kilns.l >= facts.scene.l - 0.5 &&
+          saws.r <= facts.scene.r + 0.5,
+        `${at} both plates sit inside the refinery from side to side (${JSON.stringify([facts.scene, facts.plates])})`,
+      );
+      // The saws' good has its stockpile (#754): the top row's third, and the stockyard's third bay.
+      check(
+        facts.piles === 3,
+        `${at} the top row shows stone, brick and cut stone (${String(facts.piles)})`,
+      );
+      check(
+        facts.bays.length === 3 && /^Cut stone /.test(facts.bays[2] ?? ""),
+        `${at} the stockyard has a bay for cut stone (${JSON.stringify(facts.bays)})`,
       );
       const names = facts.labels.map((each) => each.name).join(", ");
       check(

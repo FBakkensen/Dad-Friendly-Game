@@ -3,6 +3,7 @@ import kilnUrl from "./assets/board/mach-kiln.png";
 import sawDimUrl from "./assets/board/mach-saw-dim.png";
 import sawUrl from "./assets/board/mach-saw.png";
 import brickUrl from "./assets/board/res-brick.png";
+import cutStoneUrl from "./assets/board/res-cut-stone.png";
 import type { Bay, RefineryScene } from "./refinery-view";
 import {
   SCENE_W,
@@ -61,7 +62,10 @@ const GRANITE_ROCK = ["#74808f", "#566170", "#8d99a8"] as const;
 type Rock = readonly [string, string, string];
 
 type Sprites = Readonly<
-  Record<"kiln" | "kilnDim" | "saw" | "sawDim" | "brick", HTMLImageElement>
+  Record<
+    "kiln" | "kilnDim" | "saw" | "sawDim" | "brick" | "cutStone",
+    HTMLImageElement
+  >
 >;
 
 export function loadRefinerySprites(): Sprites {
@@ -71,6 +75,7 @@ export function loadRefinerySprites(): Sprites {
     saw: sawUrl,
     sawDim: sawDimUrl,
     brick: brickUrl,
+    cutStone: cutStoneUrl,
   });
 }
 
@@ -334,10 +339,14 @@ export function drawRefinery(
   }
 }
 
-/** The stockyard's strip: a bay for each stockpile, as full as it is. */
+/** A bay's width in art px: half the strip for brick and stone, a third with cut stone (#754). */
+const baySpan = (count: number): number => SCENE_W / Math.max(2, count);
+
+/** The stockyard's strip: a bay for each of `count` stockpiles, as full as it is. */
 export function paintYardGround(
   c: CanvasRenderingContext2D,
   height: number,
+  count = 2,
 ): void {
   for (let y = 0; y < height; y += 1) {
     for (let x = 0; x < SCENE_W; x += 1) {
@@ -352,15 +361,25 @@ export function paintYardGround(
       );
     }
   }
-  for (const x of [0, SCENE_W / 2 - 1, SCENE_W - 3]) {
+  for (const x of postsX(count)) {
     rect(c, x, 0, 3, height, "#7a5530");
   }
 }
 
-/** A stack of brick, row on row, as high as the bay is full. */
-function brickStack(
+/** The posts between the bays, in art px: one at each end and one between each two. */
+function postsX(count: number): readonly number[] {
+  const bays = Math.max(2, count);
+  const between = Array.from(
+    { length: bays - 1 },
+    (_, k) => (k + 1) * baySpan(bays) - 1,
+  );
+  return [0, ...between, SCENE_W - 3];
+}
+
+/** A stack of brick or cut stone, row on row, as high as the bay is full. */
+function stack(
   c: CanvasRenderingContext2D,
-  sprites: Sprites,
+  sprite: HTMLImageElement,
   x0: number,
   w: number,
   base: number,
@@ -374,7 +393,7 @@ function brickStack(
     const count = Math.max(1, Math.floor(w / 12) - row);
     const off = x0 + (w - count * 12) / 2;
     for (let k = 0; k < count; k += 1) {
-      frame(c, sprites.brick, 1, 0, [off + k * 12, base - 8 - row * 6]);
+      frame(c, sprite, 1, 0, [off + k * 12, base - 8 - row * 6]);
     }
   }
 }
@@ -386,12 +405,14 @@ export function drawYard(
   bays: readonly Bay[],
 ): void {
   const base = c.canvas.height - 2;
-  const half = SCENE_W / 2;
+  const span = baySpan(bays.length);
   for (const [index, bay] of bays.entries()) {
-    const x0 = index * half + 6;
-    const w = half - 12;
+    const x0 = index * span + 6;
+    const w = span - 12;
     if (bay.good === "brick") {
-      brickStack(c, sprites, x0, w, base, bay.fill);
+      stack(c, sprites.brick, x0, w, base, bay.fill);
+    } else if (bay.good === "cutStone") {
+      stack(c, sprites.cutStone, x0, w, base, bay.fill);
     } else {
       heap(c, x0, base, w, bay.fill, 65 + index);
     }

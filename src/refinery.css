@@ -173,26 +173,26 @@
  * Two plates side by side: a plate's words take its whole width, and its
  * − and + sit on the line under them.
  */
-.refinery-plates.two .refinery-row {
+.refinery.two .refinery-row {
   flex-wrap: wrap;
   row-gap: var(--target-gap);
 }
 
-.refinery-plates.two .refinery-info {
+.refinery.two .refinery-info {
   flex-basis: 100%;
   margin-right: 0;
 }
 
-.refinery-plates.two .mine-stage-head {
+.refinery.two .mine-stage-head {
   flex-wrap: wrap;
   column-gap: calc(var(--art) * 3);
 }
 
-.refinery-plates.two .mine-stage-name {
+.refinery.two .mine-stage-name {
   width: auto;
 }
 
-.refinery-plates.two .refinery-machines {
+.refinery.two .refinery-machines {
   white-space: normal;
 }
 

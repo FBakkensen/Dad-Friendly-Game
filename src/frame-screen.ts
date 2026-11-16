@@ -1,6 +1,7 @@
 import workerUrl from "./assets/helper-miner.png";
 import stoneUrl from "./assets/board/res-stone.png";
 import brickUrl from "./assets/board/res-brick.png";
+import cutStoneUrl from "./assets/board/res-cut-stone.png";
 import wagonUrl from "./assets/city/horse-wagon.png";
 import pickUrl from "./assets/pick.png";
 import kilnUrl from "./assets/board/mach-kiln.png";
@@ -156,6 +157,8 @@ type TopParts = {
   readonly stones: HTMLElement;
   readonly stonePile: PileParts;
   readonly brickPile: PileParts;
+  /** Cut stone's, once the saws open (part 3, #754). */
+  readonly cutStonePile: PileParts;
   readonly workers: HTMLButtonElement;
   readonly count: HTMLElement;
   readonly free: HTMLElement;
@@ -171,6 +174,8 @@ function buildTop(state: FrameState): TopParts {
   stonePile.root.dataset["good"] = "stones";
   const brickPile = buildPile(brickUrl, "frame-pile-num");
   brickPile.root.dataset["good"] = "brick";
+  const cutStonePile = buildPile(cutStoneUrl, "frame-pile-num");
+  cutStonePile.root.dataset["good"] = "cutStone";
   const stones = stonePile.count;
   const workers = el("button", "frame-workers");
   workers.type = "button";
@@ -189,12 +194,13 @@ function buildTop(state: FrameState): TopParts {
     const key = hireKey(state.mountain(), state.amount());
     void state.progress.dispatch(tierBuyMove("helper", key.count));
   });
-  root.append(stonePile.root, brickPile.root, workers, hire);
+  root.append(stonePile.root, brickPile.root, cutStonePile.root, workers, hire);
   return {
     root,
     stones,
     stonePile,
     brickPile,
+    cutStonePile,
     workers,
     count,
     free,
@@ -216,6 +222,10 @@ function paintTop(
   paintPile(
     parts.brickPile,
     piles.find((pile) => pile.good === "brick"),
+  );
+  paintPile(
+    parts.cutStonePile,
+    piles.find((pile) => pile.good === "cutStone"),
   );
   mark(parts.root, "two-piles", piles.length > 1);
   // The exact count, as the odometer carried it, for the journeys (#664).
