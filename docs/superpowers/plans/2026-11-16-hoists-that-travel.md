@@ -21,6 +21,8 @@
 - No player-facing line. The screens are #680, the lab's numbers #675. Log codes are not copy.
 - No function in non-test `src` is over 150 lines or a cognitive complexity of 15 (`npm run functions`). No runtime import cycle (`npm run cycles`). `cages` and `cage-trips` import `Mountain` as a type only, and `mine-cages` is imported only by `mountain`. Knip clean: export only what another module or a test imports. Coverage floors stay.
 - `lineWork` and `effectiveRates` are the labs' hot path. `lineWork` gains one field that it already computes, and `effectiveRates` does not change. The cages are worked out once per `Rates` in `mine-piles`' existing cache, and only while part 3 is on.
+- `flowMineLive` works out the cages, the rooms and transport's draw (`mineWork`, `shaftHolds`, `makerHolds`, `faceHolds`, `mineDraw`) once per call. It never builds a new `Mountain` per step: every new mountain is a full `readRates`.
+- Every test this plan sketches with an empty or comment-only body is written with real assertions. An empty `it` passes, so it proves nothing.
 - Commit after each task and push the branch (`git push`). Each message is a plain sentence ending "(#724)", a blank line, then exactly these two lines:
 
   ```
@@ -29,6 +31,15 @@
   ```
 
   Use `git commit -F -` with a heredoc. Never amend, and never force-push.
+
+## Working beside #674
+
+A thread building #674 at the same time adds `dug` to the sunk Granite (`mine-levels`), a line in `mine-piles`' `flowLevels`, and changes `src/transport.ts` (`deliver`, `stockDraw`, `drawChange`, `secondsToStep`). Before Task 4, the controller checks whether #674 has merged to `main`, and merges `main` into this branch if it has. Otherwise whoever merges second resolves the conflicts. To keep them small:
+
+- Task 4 moves `part-three.test.ts`'s `levels` helper into a shared `src/part-three.harness.ts`, so `mine-cages.test.ts` (Tasks 6 and 7) reuses it and no test copies a sunk-Granite literal. `dug` is then added in one place.
+- Task 4 extracts the mine's write-back into one `mine-piles` helper, so a drilled-rock-to-`dug` line lives once, for rates and for live play.
+- `mineDraw` follows `stockDraw`'s signature as it stands on the branch when Task 4 is built.
+- The pacing ledger is written last (Task 10).
 
 ## Rulings (agent-run sitting)
 
@@ -44,8 +55,8 @@ These answer the questions a brainstorm would ask. Each goes in the PR body unde
 8. **Live plays cages, and away counts rates.** `accrue({ live: true })` (the session's tick and the lab's live step) plays cages trip by trip. `accrueAway` counts rates. A caller that accrues without `live` gets rates, as today.
 9. **The live state.** `Mountain.cages` is `{ assigned, trips }`. `trips` holds, by key, a cage that is not fresh: `{ level, carried, leg }`, where `leg` is `top`, `down` (seconds left), `loading` or `up` (seconds left). A cage with no entry is empty at the top. It last served the Granite if its place in the order is even, and the Topsoil if odd. So the cages for both start on alternate levels, like the prototype's stagger: without it, six cages for both would reach the Topsoil together and find three loads between them.
 10. **An instant** (`cageInstant`). An instant happens at every whole second where something happens, and the cages are taken in order. A leg whose time is up arrives. At the top, a cage pours its load into its level's maker pile, then into the stone stockpile, and waits with what finds no room (rule 5.6). Once empty, it goes down: to its own level; or, for a cage for both, to the other level if that level is in the turn, else to the same level if it is in the turn; else it stands. At a level, it pours the rock at the shaft into itself. Then it goes up unless it waits. It waits while it runs, has one level to serve there, carries less than its load, and either rock is coming or it is empty (rule 5.9). It has one level to serve there when it is assigned to that level, when the mine has one level, or when it serves both and the other level is out of the turn. Rock is coming while the level has a rate at haulage and either drilled rock or a rate at drilling. A cage at a level it no longer serves takes what is there and goes up. A cage that does not run finishes its trip (rule 5.11). On the way down it turns back, by the way it came. At a level it goes up with what it carries. At the top it unloads, then stands.
-11. **Between instants.** `piles` moves the rock. Below the shaft, each level is a `Chain`: drilling, haulage and the loading of the first waiting cage at that level, with that cage as the last pile (its carried rock, and its load as the room). It loads at haulage's rate: once the cage has poured in what was waiting, the rock at the shaft is empty, so it loads what haulage brings, and the shaft pile fills only while no cage waits. At the top, each maker's `Chain` runs from its pile into its stockpile, drained at transport's take. The stone stockpile and the maker piles take rock only when a cage unloads. A step ends at the soonest of: the next leg's end; the next change in a chain below the shaft (a cage full, a pile filled or emptied), rounded up to a whole second; and one second while a cage waits at the top with a load, so it tries again each second as transport makes room. Every step is in whole goods (`flowWhole`), as the mine is today.
-12. **The save holds what the cages carry, not where they are** (call 63). The game map gains `cages: { assigned?, carried? }`, each by level, and each left out when it is all zero, so a part 2 save writes the same map. A read puts each level's carried rock in a cage at the top: the Topsoil's in the first cage in order, the Granite's in the second. The first live step unloads it. The reader refuses: assigned counts that together exceed the hoists he owns; any assigned count, or rock carried from the Granite, while the shaft is unsunk; and rock carried from both levels when he owns no hoist and no engine, since only the winch's cage could hold it. Any key or id it does not know is `newer`.
+11. **Between instants.** `piles` moves the rock. Below the shaft, each level is a `Chain`: drilling, haulage and the loading of the first waiting cage at that level, with that cage as the last pile (its carried rock, and its load as the room). It loads at haulage's rate: once the cage has poured in what was waiting, the rock at the shaft is empty, so it loads what haulage brings, and the shaft pile fills only while no cage waits. At the top, each maker's `Chain` runs from its pile into its stockpile, drained at transport's take. The stone stockpile and the maker piles take rock only when a cage unloads. Between instants the scene's stone stockpile drains at transport's take, as `stoneSide` does in `flowMine`, so a cage waiting at the top finds the room transport makes within the same call. A step ends at the soonest of: the next leg's end; the next change in a chain below the shaft (a cage full, a pile filled or emptied), rounded up to a whole second; and one second while a cage waits at the top with a load, so it tries again each second as transport makes room. Every step is in whole goods (`flowWhole`), as the mine is today.
+12. **The save holds what the cages carry, not where they are** (call 63). The game map gains `cages: { assigned?, carried? }`, each by level, and each left out when it is all zero, so a part 2 save writes the same map. A read puts each level's carried rock in a cage at the top: each level with rock takes the next cage in order, the Topsoil first. So the Granite's rock goes in the first cage when the Topsoil carries none, and in the second when both carry rock. Only rock from both levels needs two cages, which is what the winch-only refusal below assumes. The PR's Rulings state it in these words. The first live step unloads it. The reader refuses: assigned counts that together exceed the hoists he owns; any assigned count, or rock carried from the Granite, while the shaft is unsunk; and rock carried from both levels when he owns no hoist and no engine, since only the winch's cage could hold it. Any key or id it does not know is `newer`.
 13. **A night lands the cages first.** `accrueNight` brings every cage to the top before its first stretch. Each unloads what it can, into the maker pile and then the stone stockpile, in order. What finds no room waits in its cage at the top until play resumes. What landed counts in the night's report as produced. The rest of the night counts the cages as rates.
 14. **The merge.** Neither fact is progress or coverage. An assignment is free and instant, like a worker's job. Rock carried is rock already counted in rock dug. Two copies that differ only there are settled the same way as two copies that differ only in jobs. `save-merge` needs no code change, and a test pins it.
 15. **The moves.** `assignHoist` and `unassignHoist` take `{ level, count }`. Once the Granite is open they are listed with count 1 (the amount key is the screens', #680): assign while a hoist is unassigned, unassign while the level has one. They log `hoist.assign` and `hoist.unassign` with `{ id: level, count }`, the count being that level's after the move. The lab gives them no income (`{ gainPerSec: 0, cost: 0, paybackSec: Infinity }`, #675).
@@ -80,8 +91,8 @@ These answer the questions a brainstorm would ask. Each goes in the PR body unde
   - `tripSeconds(level: MineLevelId): number` (ruling 3); `legSeconds(level: MineLevelId, way: "down" | "up"): number`.
   - `type CageKey = \`machine:${number}\` | \`hoist:${number}\` | "winch"`; `cageKeys(owned: Readonly<Record<TierId, number>>): readonly CageKey[]`, which lists the engines, then the hoists, then `"winch"`.
   - `hoistsOwned(owned: Readonly<Record<TierId, number>>): number` = `owned.hoist + owned.machine`.
-  - `type HoistsAssigned = Readonly<Record<MineLevelId, number>>`; `NO_HOISTS_ASSIGNED`.
-  - `type CageService = MineLevelId | "both"`; `type ShaftCage = { readonly key: CageKey; readonly load: number; readonly runs: boolean; readonly serves: CageService }`.
+  - `type HoistsAssigned = Readonly<Record<MineLevelId, number>>`; `NO_HOISTS_ASSIGNED`, `{ topsoil: 0, granite: 0 }`. `cages.test.ts` imports it as the default `assigned` of its `shaftCages` cases, and Task 2 builds `NO_CAGES.assigned` from it, never from a second literal.
+  - `type CageService = MineLevelId | "both"`, exported only if `cage-trips`, `mine-cages`, `save-format` or a test names it (knip); `type ShaftCage = { readonly key: CageKey; readonly load: number; readonly runs: boolean; readonly serves: CageService }`.
   - `shaftCages(input: { readonly owned: Readonly<Record<TierId, number>>; readonly hoisting: StageWork; readonly speed: Readonly<Record<TierId, number>>; readonly assigned: HoistsAssigned; readonly twoLevels: boolean; readonly pay: number }): readonly ShaftCage[]`, in `cageKeys` order (rulings 2 to 4).
   - `largestLoad(cages: readonly ShaftCage[]): number`: the largest load of a hoist or engine, 0 with none. The winch is never counted.
   - `cagePileRoom(base: number, largest: number): number` (ruling 7).
@@ -190,24 +201,25 @@ describe("the piles the cages use (Starting numbers)", () => {
 
 **Files:**
 
-- Modify: `src/cages.ts` (the live state's types, `NO_CAGES`, `carriedBy`, `restoredTrips`, `unassignedHoists`, `assignHoists`, `unassignHoists`)
+- Modify: `src/cages.ts` (the live state's types, `NO_CAGES`, `cageAt`, `carriedBy`, `restoredTrips`, `unassignedHoists`, `assignHoists`, `unassignHoists`)
+- Modify: `src/workforce.ts` (export `movable`)
 - Modify: `src/mountain.ts` (`Mountain.cages`, `BARE_MOUNTAIN.cages: NO_CAGES`, added after `granite`)
 - Test: `src/cages.test.ts`, and every fixture `tsc` names for a complete `Mountain` literal
 
 **Interfaces:**
 
-- Consumes: `CageKey`, `HoistsAssigned`, `hoistsOwned`, `cageKeys` (Task 1); `graniteOpen` (`mine-levels`).
+- Consumes: `CageKey`, `HoistsAssigned`, `NO_HOISTS_ASSIGNED`, `hoistsOwned`, `cageKeys` (Task 1); `graniteOpen` (`mine-levels`); `movable` (`workforce`, exported in this task).
 - Produces:
-  - `type CageLeg = { readonly kind: "top" } | { readonly kind: "down"; readonly left: number } | { readonly kind: "loading" } | { readonly kind: "up"; readonly left: number }`.
+  - `type CageLeg = { readonly kind: "top" } | { readonly kind: "down"; readonly left: number } | { readonly kind: "loading" } | { readonly kind: "up"; readonly left: number }`, exported only if `cage-trips`, `mine-cages`, `save-format` or a test names it (knip).
   - `type Cage = { readonly level: MineLevelId; readonly carried: number; readonly leg: CageLeg }`; `type CageTrips = Readonly<Partial<Record<CageKey, Cage>>>`.
-  - `type Cages = { readonly assigned: HoistsAssigned; readonly trips: CageTrips }`; `NO_CAGES: Cages = { assigned: { topsoil: 0, granite: 0 }, trips: {} }`.
+  - `type Cages = { readonly assigned: HoistsAssigned; readonly trips: CageTrips }`; `NO_CAGES: Cages = { assigned: NO_HOISTS_ASSIGNED, trips: {} }`.
   - `cageAt(trips: CageTrips, key: CageKey, place: number): Cage`: the entry, or a fresh cage at the top, empty, whose `level` is the Granite for an even `place` and the Topsoil for an odd one (ruling 9).
   - `carriedBy(trips: CageTrips): Readonly<Record<MineLevelId, number>>`.
-  - `restoredTrips(carried: Readonly<Record<MineLevelId, number>>, keys: readonly CageKey[]): CageTrips` (ruling 12): each level with rock gets the next key, at the top. It throws if there are more such levels than keys, since the reader refuses that save first.
+  - `restoredTrips(carried: Readonly<Record<MineLevelId, number>>, keys: readonly CageKey[]): CageTrips` (ruling 12): each level with rock gets the next key, at the top, the Topsoil first. With rock from the Granite alone, it takes the first key. It throws if there are more such levels than keys, since the reader refuses that save first.
   - `unassignedHoists(mountain: Pick<Mountain, "owned" | "cages">): number`.
-  - `assignHoists<M extends Pick<Mountain, "owned" | "cages" | "granite">>(mountain: M, level: MineLevelId, count?: number): M` and `unassignHoists<M extends Pick<Mountain, "cages">>(mountain: M, level: MineLevelId, count?: number): M` (ruling 5). A count is read as `workforce`'s `movable` reads one: whole, NaN none, Infinity all. A move that changes nothing returns the same object.
+  - `assignHoists<M extends Pick<Mountain, "owned" | "cages" | "granite">>(mountain: M, level: MineLevelId, count?: number): M` and `unassignHoists<M extends Pick<Mountain, "cages">>(mountain: M, level: MineLevelId, count?: number): M` (ruling 5). A count is read by `workforce`'s own `movable` (whole, NaN none, Infinity all), which this task exports from `workforce` and `cages` imports. It is never copied. A move that changes nothing returns the same object.
 
-- [ ] **Step 1: Write the failing tests** in `src/cages.test.ts`, with `sunk(mountain)` as in `part-three-moves.test.ts`:
+- [ ] **Step 1: Write the failing tests** in `src/cages.test.ts`. A sunk mine is built as `part-three-moves.test.ts`'s `mine(true)` builds one, or by a small helper built on `sinkShaft` with the stock to pay for it:
 
 ```ts
 describe("hoists assigned to a level (rule 5.8)", () => {
@@ -248,6 +260,11 @@ describe("what the cages carry (call 63)", () => {
       "hoist:0": { level: "topsoil", carried: 400, leg: { kind: "top" } },
       winch: { level: "granite", carried: 120, leg: { kind: "top" } },
     });
+    expect(
+      restoredTrips({ topsoil: 0, granite: 120 }, ["hoist:0", "winch"]),
+    ).toEqual({
+      "hoist:0": { level: "granite", carried: 120, leg: { kind: "top" } },
+    });
     expect(restoredTrips({ topsoil: 0, granite: 0 }, ["winch"])).toEqual({});
   });
   it("starts a fresh cage empty at the top, on alternate levels by its place", () => {
@@ -287,7 +304,7 @@ describe("what the cages carry (call 63)", () => {
 - Produces:
   - `export type Pile = { readonly held: number; readonly holds: number }`.
   - `pour(load: number, piles: readonly Pile[]): { readonly into: readonly number[]; readonly left: number }`: a whole load into each pile in order. Each pile takes up to its room, `Math.floor(holds − held + EDGE)` (Infinity stays Infinity), and none if it is at or over its room. What is left is the rest.
-  - `Branches.shared: { readonly stage: number; readonly turn: { readonly loads: number; readonly trips: readonly number[] } }`. Branch `i` is in the turn while `rates[stage − 1] > 0` or `piles[stage − 1].held > 0`. Its rate at `stage` is its own `rates[stage]` plus, in the turn, `turn.loads / Σ trips[j]` over the branches `j` in the turn. `evenShares` stays for `stockDraw` alone.
+  - `Branches.shared: { readonly stage: number; readonly turn: { readonly loads: number; readonly trips: readonly number[] } }`. Branch `i` is in the turn while `rates[stage − 1] > 0` or `piles[stage − 1].held > EDGE`. A pile the chain itself counts as empty (a phase can leave one at 1e-12) so drops its level out of the turn (rule 5.7) and wastes no share. Its rate at `stage` is its own `rates[stage]` plus, in the turn, `turn.loads / Σ trips[j]` over the branches `j` in the turn. `evenShares` stays for `stockDraw` alone.
   - `flowBranchesWhole` floors each branch with its own rate at `stage` (the one `branchChains` gave it in the first phase). `wholeOf` reads only the piles and the spill, so any rate gives the same floor.
 
 - [ ] **Step 1: Write the failing tests.** In `src/piles.test.ts`, `shaft(branches, rate)` becomes `shaft(branches, loads, trips = [10, 20])`, and `level({ lift })` sets the branch's own rate at stage 2. Replace #673's two even-split tests ("shares the stage's rate evenly…" and "leaves the whole rate to a branch…") with:
@@ -343,24 +360,29 @@ Change the last property to "in whole goods, makes and loses nothing, lifts no m
 **Files:**
 
 - Modify: `src/mine-piles.ts`
+- Create: `src/part-three.harness.ts` (the `levels` helper, moved out of `part-three.test.ts` so `mine-cages.test.ts` reuses it; the limits already skip `*.harness.ts`)
 - Test: `src/part-three.test.ts`
 
 **Interfaces:**
 
 - Consumes: `shaftCages`, `cageRates`, `largestLoad`, `cagePileRoom`, `tripSeconds`, `ShaftCage`, `CageRates` (Task 1); `Mountain.cages` (Task 2); `Branches.shared.turn` (Task 3); `LineWork.hoisting` (Task 1).
 - Produces:
-  - `export type MineWork = { readonly stages: StageSpeeds; readonly levels: LineWork["levels"]; readonly cages: readonly ShaftCage[]; readonly lift: CageRates | undefined }`, and `mineWork(mountain: Mountain): MineWork`, the existing `stagesOf` cache made public. `cages` is `[]` and `lift` is `undefined` while part 3 is off, and nothing about cages is worked out then.
+  - `export type MineWork = { readonly stages: StageSpeeds; readonly levels: LineWork["levels"]; readonly cages: readonly ShaftCage[]; readonly lift: CageRates | undefined }`, and `mineWork(mountain: Mountain): MineWork`, the existing `stagesOf` cache made public. `cages` is `[]` and `lift` is `undefined` while part 3 is off, and nothing about cages is worked out then. `MineWork` is exported only if `mine-cages` or a test names it (knip).
   - `shaftHolds(mountain: Mountain): number`: 300 with part 3 off, else `cagePileRoom(300, largestLoad(...))`. It is the room of the rock at the shaft on both levels.
-  - `makerHolds(mountain: Mountain, id: MakerId): number` (exported): 0 until he owns one; `PILE_HOLDS.kiln` with part 3 off; else `cagePileRoom(PILE_HOLDS.kiln, largestLoad(...))`. `kilnHolds` keeps its signature.
+  - `makerHolds(mountain: Mountain, id: MakerId): number` (exported): 0 until he owns one; `PILE_HOLDS.kiln` with part 3 off; else `cagePileRoom(PILE_HOLDS.kiln, largestLoad(...))`. It takes the whole `Mountain`, because `largestLoad` reads `mineWork`.
+  - `kilnHolds(mountain: Mountain)` widens from `Pick<Mountain, "makers">` to `Mountain`, so it can call `makerHolds`. Its only callers, in `refinery-view.ts`, already pass a full `Mountain`. Its part-3-off answer stays `PILE_HOLDS.kiln` (Starting numbers: until part 3 the kilns' pile holds 300).
+  - `faceHolds(level: MineLevelId): number` (exported): the drilled rock's room on a level, `PILE_HOLDS.face` on the Topsoil and the private `GRANITE_PILE_HOLDS.face` on the Granite. It is 300 on both and does not follow the cages ("the drilled rock stays as the lab set it").
+  - The write-back, extracted into one private `mine-piles` helper that `flowTopsoil` and `flowLevels` both call: from the piles and flows after a step, it writes `piles`, `granite.piles` (with the Granite sunk), the stock and `rockDug`, and returns the same mountain when nothing moved. Task 6 exports it for `flowMineLive`, so the drilled-rock-to-`dug` line (#674) lives once.
   - The Topsoil's LIFT rate in `topsoilBranch` is `(lift?.own.topsoil ?? stages.lift) * pay`. With the Granite open, it is `lift.own.topsoil * pay`, and the Granite's is `lift.own.granite * pay`. `mineBranches`' `shared` is `{ stage: LIFT, turn: { loads: lift.loads * pay, trips: [tripSeconds("topsoil"), tripSeconds("granite")] } }`.
   - `export type MineFlow` (today's private type).
-  - `mineDraw(mountain: Mountain, pay: number, drilling: boolean): Partial<Stock>`: what transport takes a second from each stockpile, the `stockDraw(...)` expression that `mineChain` and `levelsSet` already use. It is `{}` while the stockyard is shut.
+  - `mineDraw(mountain: Mountain, pay: number, drilling: boolean): Partial<Stock>`: what transport takes a second from each stockpile, the `stockDraw(...)` expression that `mineChain` and `levelsSet` already use. It is `{}` while the stockyard is shut. It follows `stockDraw`'s signature as it stands on the branch when this task is built (Working beside #674).
 
-- [ ] **Step 1: Write the failing tests** in `src/part-three.test.ts`, under `describe("the cages as rates, unattended (rule 5.14, #724)")`. The `levels` helper gains `hoists` (owned and running) and `assigned`:
+- [ ] **Step 1: Write the failing tests** in `src/part-three.test.ts`, under `describe("the cages as rates, unattended (rule 5.14, #724)")`. First move the `levels` helper into `src/part-three.harness.ts` and import it from there. It gains `hoists` (owned and running) and `assigned`:
 
 ```ts
-it("lifts a hoist's rating from the Topsoil alone", () => {
-  // unsunk, 1 hoist, 1 on hoisting, Topsoil haul plenty: an hour's night lifts 60 a second × awayPay
+it("lifts from the cages, not from hoisting's workers, with the Topsoil alone", () => {
+  // unsunk, 1 hoist, 40 on hoisting, Topsoil haul plenty: an hour's night lifts 120 a second × awayPay
+  // (the hoist's 60 and the winch's cage capped at a hoist's 60), not stages.lift's 177
 });
 it("lifts a load in 20 s from the Granite for a hoist assigned there", () => {});
 it("lifts two loads in 30 s for a hoist for both, one from each level", () => {});
@@ -372,15 +394,16 @@ it("lifts nothing from a level that no hoist serves when nobody is on the winch 
   // 1 hoist assigned to the Topsoil, 1 on hoisting: the Granite's rock at the shaft fills and stays (Review Focus 3, the rates half)
 });
 it("makes the rock at the shaft and the makers' piles hold three loads of his largest cage, never less than 300", () => {
-  // 1 hoist: shaftHolds 1_800, makerHolds(kiln owned) 1_800, makerHolds(saw not owned) 0; no hoist: 300; partTwo: 300 whatever he owns
+  // 1 hoist: shaftHolds 1_800, makerHolds(kiln owned) 1_800, kilnHolds 1_800, makerHolds(saw not owned) 0; no hoist: 300; partTwo: 300 whatever he owns
+  // faceHolds("topsoil") and faceHolds("granite") are 300 with any cage
 });
 ```
 
-Rewrite the existing tests in this file whose numbers came from #673's one shared hoist, so that they state the cage rates in their comments. Those are "goes to the saws first…", "settles both levels…", "counts a mine where only the Granite works…" and "stops the saws at a full cut stone stockpile…". Give their set-ups a hoist assigned to the Granite where they need a steady lift. The `parts 1 and 2 do not change` block stays as it is and must pass unchanged.
+Rewrite the existing tests in this file whose numbers came from #673's one shared hoist, so that they state the cage rates in their comments. Those are "goes to the saws first…", "settles both levels…", "counts a mine where only the Granite works…", "stops the saws at a full cut stone stockpile…" and "runs a night until the stockyard is full, with both levels". The last still passes, but its comment states #673's 72/s, 32.4/s and 8.6 h: with the winch capped at a load of 600 it is 40/s, about 15 h. Give their set-ups a hoist assigned to the Granite where they need a steady lift. The `parts 1 and 2 do not change` block stays as it is and must pass unchanged.
 
 - [ ] **Step 2: Run them to see them fail.** Run `npx vitest run src/part-three.test.ts`. Expected: FAIL on the new rates and rooms.
 
-- [ ] **Step 3: Implement** what the Interfaces say. `stagesOf` becomes `mineWork`. It builds `cages` with `shaftCages({ owned, hoisting, speed: rates.tierSpeed, assigned: mountain.cages.assigned, twoLevels: graniteOpen(mountain), pay: 1 })` only under `partThreeOn()`, and builds `lift` from it. Pay is applied where each rate is used. `GRANITE_PILE_HOLDS.shaft` gives way to `shaftHolds`, and `face` stays.
+- [ ] **Step 3: Implement** what the Interfaces say. `stagesOf` becomes `mineWork`. It builds `cages` with `shaftCages({ owned, hoisting, speed: rates.tierSpeed, assigned: mountain.cages.assigned, twoLevels: graniteOpen(mountain), pay: 1 })` only under `partThreeOn()`, and builds `lift` from it. Pay is applied where each rate is used. `GRANITE_PILE_HOLDS.shaft` gives way to `shaftHolds`, and `face` stays, read through `faceHolds`. Pull the write-back out of `flowTopsoil` and `flowLevels` into the one helper; both keep their results.
 
 - [ ] **Step 4: Run them to see them pass.** Run `npx vitest run src/part-three.test.ts src/part-two.test.ts src/part-two-stretches.test.ts src/fresh-night.test.ts src/mine-view.test.ts src/refinery-view.test.ts && npm run gate -- fast`. Expected: PASS, with the part 2 tests unchanged.
 
@@ -399,7 +422,7 @@ Rewrite the existing tests in this file whose numbers came from #673's one share
 - Consumes: `ShaftCage`, `legSeconds`, `CageTrips`, `Cage`, `cageAt` (Tasks 1 and 2); `pour`, `Pile` (Task 3).
 - Produces:
   - `type LevelScene = { readonly shaft: Pile; readonly maker: Pile; readonly coming: boolean; readonly inTurn: boolean }`.
-  - `type ShaftScene = { readonly levels: Readonly<Partial<Record<MineLevelId, LevelScene>>>; readonly stone: Pile }`, with only the open levels in it.
+  - `type ShaftScene = { readonly levels: Readonly<Partial<Record<MineLevelId, LevelScene>>>; readonly stone: Pile }`, with only the open levels in it. `cage-trips` only pours into `stone`. It never drains it: Task 6 drains it between instants.
   - `type Instant = { readonly trips: CageTrips; readonly scene: ShaftScene; readonly toMaker: Readonly<Partial<Record<MineLevelId, number>>>; readonly toStone: number; readonly changed: boolean }`.
   - `cageInstant(cages: readonly ShaftCage[], trips: CageTrips, scene: ShaftScene): Instant` (ruling 10). It is idempotent: a second call on its own result changes nothing.
   - `landCages(cages: readonly ShaftCage[], trips: CageTrips, scene: ShaftScene): Instant`: every cage at the top, unloaded as at an instant (ruling 13).
@@ -449,12 +472,18 @@ describe("going down (rules 5.7, 5.8)", () => {
 
 describe("trip by trip", () => {
   it("is the same instant twice", () => {
-    fc.assert(fc.property(/* cages 1..7, trips, scenes */, (input) => {
+    fc.assert(fc.property(/* cages 1..7, trips, scenes; among them a cage that stops running on its way down with 0 s travelled, and a fresh cage whose level is the Granite in a scene with the Topsoil alone */, (input) => {
       // const once = cageInstant(...); cageInstant(cages, once.trips, once.scene) changes nothing (changed false, equal trips and scene)
     }));
   });
   it("loses and makes no rock at an instant", () => {
     // property: Σ shaft + Σ carried + Σ maker + stone is the same before and after
+  });
+  it("lands a cage turned back with 0 s travelled within the same instant", () => {
+    // down to the Topsoil with 5 of 5 s left, runs false: the way up is 0 s, so it is at the top, unloaded, standing
+  });
+  it("pours nothing into a level that is not in the scene", () => {
+    // Topsoil alone, a fresh cage at place 0 (level granite, carried 0): no pour, and the scene has no granite key
   });
   it("counts the legs down and says when the next one ends", () => {});
   it("lands every cage at the top and unloads it, keeping what finds no room (ruling 13)", () => {});
@@ -463,7 +492,7 @@ describe("trip by trip", () => {
 
 - [ ] **Step 2: Run them to see them fail.** Run `npx vitest run src/cage-trips.test.ts`. Expected: FAIL, because the module does not exist.
 
-- [ ] **Step 3: Implement** what the Interfaces say. A cage with no entry in `trips` is `cageAt(trips, key, place)`. A cage that ends empty and fresh-like keeps its entry, so its level alternates.
+- [ ] **Step 3: Implement** what the Interfaces say. A cage with no entry in `trips` is `cageAt(trips, key, place)`. A cage that ends empty and fresh-like keeps its entry, so its level alternates. To keep `cageInstant` idempotent, settle each cage within the same instant until it rests: a way up of 0 s (a cage turned back before it travelled) lands at once and unloads. Skip a pour of 0, and any pour into a level that is not in the scene.
 
 - [ ] **Step 4: Run them to see them pass.** Run `npx vitest run src/cage-trips.test.ts && npm run gate -- fast`. Expected: PASS.
 
@@ -477,13 +506,15 @@ describe("trip by trip", () => {
 
 - Create: `src/mine-cages.ts`, `src/mine-cages.test.ts`
 - Modify: `src/mountain.ts` (`accrue` passes `live` to `accrueStretches`, `accrueMine` and `workStretch`; `accrueNight` lands the cages first)
+- Modify: `src/mine-piles.ts` (export Task 4's write-back helper)
+- Modify: `src/part-three.harness.ts` (`levels` gains `trips` and `operational`)
 - Test: `src/mine-cages.test.ts`
 
 **Interfaces:**
 
-- Consumes: `mineWork`, `MineFlow`, `flowMine`, `mineDraw`, `shaftHolds`, `makerHolds`, `PILE_HOLDS` (Task 4); `cageInstant`, `landCages`, `cagesAfter`, `nextLegEnd`, `waitingCage`, `withCarried`, `topWaits` (Task 5); `flowWhole`, `chainChange`, `Chain` (`piles`); `makerRate`, `makerTakes` (`makers`); `stockpileRoom` (`stockyard`); `openGranite` (`mine-levels`).
+- Consumes: `mineWork`, `MineFlow`, `flowMine`, `mineDraw`, `shaftHolds`, `makerHolds`, `faceHolds`, the write-back helper (Task 4); `levels` (`src/part-three.harness.ts`, Task 4); `cageInstant`, `landCages`, `cagesAfter`, `nextLegEnd`, `waitingCage`, `withCarried`, `topWaits` (Task 5); `flowWhole`, `chainChange`, `Chain` (`piles`); `makerRate`, `makerTakes` (`makers`); `stockpileRoom` (`stockyard`); `openGranite` (`mine-levels`).
 - Produces:
-  - `flowMineLive(mountain: Mountain, seconds: number, pay: number, drilling: boolean): MineFlow`. It is `flowMine(...)` exactly while part 3 is off. Otherwise it plays `mineWork(mountain).cages`, each load × pay (ruling 18), and runs a loop of steps (ruling 11), each beginning with `cageInstant`, plus one instant at the end. For each open level, the chain below the shaft is `{ source: Infinity, rates: [drilling ? face × pay : 0, haul × pay, waiting ? haul × pay : 0, 0], piles: [face, shaft (holds shaftHolds), waiting?.pile ?? { held: 0, holds: 0 }] }`. Each maker's chain is `{ source: 0, rates: [0, makerRate × pay, draw[good]], piles: [maker pile, its stockpile], takes: [1, makerTakes, 1] }`, with the kilns on the Topsoil and the saws on the Granite. Both run through `flowWhole`. `mined` is what the cages unloaded at the top. `gained` is the stone unloaded plus what the makers made. `rockDug` grows by what was drilled. The piles go back where `flowMine` puts them, and `cages.trips` takes the cages' state. A mine where no rock moves and no cage changes comes back as the same object.
+  - `flowMineLive(mountain: Mountain, seconds: number, pay: number, drilling: boolean): MineFlow`. It is `flowMine(...)` exactly while part 3 is off. Otherwise it plays `mineWork(mountain).cages`, each load × pay (ruling 18), and runs a loop of steps (ruling 11), each beginning with `cageInstant`, plus one instant at the end. For each open level, the chain below the shaft is `{ source: Infinity, rates: [drilling ? face × pay : 0, haul × pay, waiting ? haul × pay : 0, 0], piles: [face (holds faceHolds(level)), shaft (holds shaftHolds), waiting?.pile ?? { held: 0, holds: 0 }] }`. Each maker's chain is `{ source: 0, rates: [0, makerRate × pay, draw[good]], piles: [maker pile, its stockpile], takes: [1, makerTakes, 1] }`, with the kilns on the Topsoil and the saws on the Granite. Both run through `flowWhole`. Between instants the scene's `stone.held` drains by `mineDraw(...).stones × step`, never below 0, as `stoneSide` does in `flowMine` (ruling 11), so a cage waiting at the top finds the room transport makes. The stock still gains the gross amount unloaded, and `deliver` still takes it afterwards in `workStretch` (rules 4 and 5.6). `mined` is what the cages unloaded at the top. `gained` is the stone unloaded plus what the makers made. `rockDug` grows by what was drilled. The piles, the stock and `rockDug` go back through Task 4's write-back helper, the one `flowMine` uses, never a copy of it. `cages.trips` takes the cages' state. A mine where no rock moves and no cage changes comes back as the same object.
   - `landedMine(mountain: Mountain): MineFlow`: `landCages` on the mountain's piles. It is the same object while part 3 is off or no cage carries rock.
 - In `mountain.ts`:
   - `accrueStretches(mountain, from, to, pay, live)` and `workStretch(mountain, span, pay, drilling, live)`. Within them the flow is `live ? flowMineLive(...) : flowMine(...)`. `nightStretch` passes `false`.
@@ -491,7 +522,7 @@ describe("trip by trip", () => {
   - `accrueNight` starts from `landedMine(mountain)`. Its `gained` goes into the log and its `mined` into the night's `mined`.
 - The loop's step is `Math.min(left, whole(nextLegEnd), whole(least chainChange below), topWaits ? 1 : Infinity)`, where `whole(x) = Math.max(1, Math.ceil(x - 1e-9))` and Infinity stays Infinity. It runs at most `seconds` steps.
 
-- [ ] **Step 1: Write the failing tests** in `src/mine-cages.test.ts`. A `mine(setup)` helper is `part-three.test.ts`'s `levels` with `hoists`, `assigned`, `trips` and `operational` added. `play = (m, s) => accrue({ mountain: m, from: 0, to: s * 1000, live: true })`.
+- [ ] **Step 1: Write the failing tests** in `src/mine-cages.test.ts`. A `mine(setup)` helper calls `levels` from `src/part-three.harness.ts`, which gains `trips` and `operational` here. It never copies a sunk-Granite literal. `play = (m, s) => accrue({ mountain: m, from: 0, to: s * 1000, live: true })`.
 
 ```ts
 describe("rock is in stock when a cage unloads at the top (rules 5.5, 5.6)", () => {
@@ -537,9 +568,9 @@ describe("parts 1 and 2 do not change (#724)", () => {
 });
 ```
 
-- [ ] **Step 2: Run them to see them fail.** Run `npx vitest run src/mine-cages.test.ts`. Expected: FAIL.
+- [ ] **Step 2: Run them to see them fail.** Run `npx vitest run src/mine-cages.test.ts`. Expected: FAIL, except "plays live exactly as before with part 3 off". Expected: this guard passes already, because `live` touches nothing in the fresh-mine path today. Keep it as a guard, and say so in the task's report.
 
-- [ ] **Step 3: Implement** what the Interfaces say. Keep each function under the limits. Use one helper to build the scene from the state, one to run the chains of a step, one for a level's chain below the shaft, one for a maker's chain, and one to write the state back onto the mountain. The scene's `coming` for a level is `haul > 0 && (face > 0 || (drilling && face rate > 0))`, and its `inTurn` is `haul > 0 || shaft > 0`, both read from `mineWork(...).levels` at pay.
+- [ ] **Step 3: Implement** what the Interfaces say. Keep each function under the limits. Use one helper to build the scene from the state, one to run the chains of a step, one for a level's chain below the shaft, and one for a maker's chain. The state goes back onto the mountain through Task 4's write-back helper, plus `cages.trips`. Work out `mineWork`, the rooms and `mineDraw` once, before the loop. The scene's `coming` for a level is `haul > 0 && (face > 0 || (drilling && face rate > 0))`, and its `inTurn` is `haul > 0 || shaft > 0`, both read from `mineWork(...).levels` at pay.
 
 - [ ] **Step 4: Run them to see them pass.** Run `npx vitest run src/mine-cages.test.ts src/part-three.test.ts src/part-two.test.ts src/part-two-stretches.test.ts src/fresh-night.test.ts src/session-night.test.ts src/session-time.test.ts src/mountain.test.ts && npm run gate -- fast`. Expected: PASS.
 
@@ -559,7 +590,7 @@ describe("parts 1 and 2 do not change (#724)", () => {
 - Consumes: `flowMineLive` (Task 6); `flowMine` (Task 4); `carriedBy` (Task 2).
 - Produces: `CAGE_GAP_GUESS = 0.02`, a constant in `src/cages.sim.test.ts` with the comment: the lab's `cageGap` (#675) replaces it.
 
-- [ ] **Step 1: Write the failing tests.** They should fail only where Task 6 has a bug. If one passes at once, check that it fails with the bug it pins put in by hand, then take the bug out again. Add to `src/mine-cages.test.ts`:
+- [ ] **Step 1: Write the failing tests.** They should fail only where Task 6 has a bug. If one passes at once, check that it fails with the bug it pins put in by hand, then take the bug out again. The generators build their mines with `levels` from `src/part-three.harness.ts`, never a literal of their own. Add to `src/mine-cages.test.ts`:
 
 ```ts
 describe("what the shaft holds (Proof)", () => {
@@ -678,7 +709,7 @@ it("settles copies that differ only in hoists assigned or rock carried as copies
 });
 ```
 
-- [ ] **Step 2: Run them to see them fail.** Run `npx vitest run src/save-ledger.test.ts src/save-merge.test.ts`. Expected: FAIL on the ledger and the new key.
+- [ ] **Step 2: Run them to see them fail.** Run `npx vitest run src/save-ledger.test.ts src/save-merge.test.ts`. Expected: FAIL on the ledger and the new key, except "writes a part 2 save's game map as before: no cages key". Expected: this guard passes already. Keep it as a guard, and say so in the task's report.
 
 - [ ] **Step 3: Implement** what the Interfaces say. Use one helper for the maps and one for the refusals (`cagesFit`), the way `readGranite` uses `readGraniteMaps` and `graniteFits`.
 
@@ -696,13 +727,15 @@ it("settles copies that differ only in hoists assigned or rock carried as copies
 - Modify: `src/field-log.ts` (`hoist.assign`, `hoist.unassign`)
 - Modify: `src/lab/score.ts`, `src/lab/measure.ts` (`MOVE_KIND_ORDER`), `src/lab/decide.ts`: the new kinds in each exhaustive switch
 - Test: `src/part-three-moves.test.ts`
+- Test: `src/economy/actions.test.ts` (add `assignHoist` and `unassignHoist` to `FIXTURES`, which `satisfies` every `Action["kind"]`; give its sunk part-3 fixture, near line 544, an owned hoist and one assigned, so "lists every kind" sees both moves. The snapshot stays as it is.)
 
 **Interfaces:**
 
 - Consumes: `assignHoists`, `unassignHoists`, `unassignedHoists` (Task 2); `graniteOpen`.
 - Produces:
   - `LevelAction` gains `{ readonly kind: "assignHoist"; readonly level: MineLevelId; readonly count: number }` and `{ readonly kind: "unassignHoist"; readonly level: MineLevelId; readonly count: number }`.
-  - `levelActions` lists, after the Granite's machines and once the Granite is open, for each level in `MINE_LEVEL_IDS` order: `assignHoist` with count 1 while `unassignedHoists > 0`, then `unassignHoist` with count 1 while that level's count is above 0. An `unassignHoist` for a level whose count is above 0 is also listed while the Granite is shut, so a count can always be taken off.
+  - `levelActions` lists, after the Granite's machines and once the Granite is open, for each level in `MINE_LEVEL_IDS` order: `assignHoist` with count 1 while `unassignedHoists > 0`, then `unassignHoist` with count 1 while that level's count is above 0. Both moves are listed only while `graniteOpen`, so `levelActions` reads `mountain.cages` only then. `unassignHoists` itself stays lock-free (ruling 5), and Task 2's test of the function covers it with the Granite shut.
+  - `levelApplied` routes the two hoist kinds first, ahead of its `!graniteOpen` guard, to a new `hoistApplied` helper. That helper calls `assignHoists`, which guards itself on `graniteOpen`, or `unassignHoists`.
   - `MoveEvent` gains `{ kind: "hoistAssigned" | "hoistUnassigned"; level: MineLevelId; count: number }`, the count being that level's after the move. `fieldEntry` maps them to `{ code: "hoist.assign" | "hoist.unassign", data: { id: level, count } }`.
   - `valueOf`: `{ gainPerSec: 0, cost: 0, paybackSec: Infinity }` (ruling 15). `score.ts` keys them `${kind}:${level}`. `decide.ts` gives them a cost of 0 and no tier.
 
@@ -715,13 +748,13 @@ it("assigns at once, free, and logs it", () => {
   // fieldEntry → { code: "hoist.assign", data: { id: "granite", count: 1 } }
 });
 it("refuses an assign with every hoist assigned: nothing changes", () => {});
-it("lists taking a hoist off a level while it has one, also with the Granite shut", () => {});
+it("lists taking a hoist off a level while it has one", () => {});
 it("values neither as income (the lab's, #675)", () => {});
 ```
 
 - [ ] **Step 2: Run them to see them fail.** Run `npx vitest run src/part-three-moves.test.ts`. Expected: FAIL, because the new kinds do not exist.
 
-- [ ] **Step 3: Implement** what the Interfaces say. Put each new case after the existing ones in each switch.
+- [ ] **Step 3: Implement** what the Interfaces say. Put each new case after the existing ones in each switch. `levelApplied` is an if-chain, not a switch: there the hoist kinds go first, to `hoistApplied`, before the `!graniteOpen` guard and the `action.id` checks.
 
 - [ ] **Step 4: Run them to see them pass.** Run `npx vitest run src/part-three-moves.test.ts src/economy/actions.test.ts src/economy/invariants.test.ts src/field-log.test.ts src/ledger-rows.test.ts src/lab/score.test.ts && npm run gate -- fast`. Expected: PASS. `src/economy/__snapshots__/actions.test.ts.snap` does not change.
 
@@ -750,7 +783,7 @@ it("values neither as income (the lab's, #675)", () => {});
 
   In "The game map" bullet of the save section, add `cages`: what the cages carry, by level, and not where they are; and the hoists assigned, never more than he owns.
 
-- [ ] **Step 2: Write the ledger again.** Run `npm run lab:ledger` in the background and wait for it to finish. Then run `git diff --word-diff=porcelain docs/pacing-ledger.md | grep -E '^[-+][^-+]'`. Expected: every changed word is an End hash, and no day moved. If a day moved, part 3 leaked into play: stop, find the leak with `superpowers:systematic-debugging`, and fix it before going on.
+- [ ] **Step 2: Write the ledger again.** It is written last, on top of whatever `main` holds (Working beside #674): if #674 merged while this plan ran, merge `main` in first. Run `npm run lab:ledger` in the background and wait for it to finish. Then run `git diff --word-diff=porcelain docs/pacing-ledger.md | grep -E '^[-+][^-+]'`. Expected: every changed word is an End hash, and no day moved. If a day moved, part 3 leaked into play: stop, find the leak with `superpowers:systematic-debugging`, and fix it before going on.
 
 - [ ] **Step 3:** Run `npm run gate -- fast`. Expected: OK, including prettier on both docs.
 
