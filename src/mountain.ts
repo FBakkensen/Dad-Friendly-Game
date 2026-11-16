@@ -28,6 +28,7 @@ import {
 } from "./city";
 import { NO_JOBS, workersOnJobs, type Jobs } from "./workforce";
 import { makerRecord, type MakerId } from "./makers";
+import { UNSUNK, type Granite } from "./mine-levels";
 import { chainChange, chainSettled } from "./piles";
 import {
   chainIncome,
@@ -172,6 +173,8 @@ export type Mountain = {
    * of a fresh mine, whose mountain never shrinks. Always 0 in today's game.
    */
   readonly rockDug: number;
+  /** The shaft to the Granite (slice 1, part 3, src/mine-levels.ts). Always unsunk in today's game. */
+  readonly granite: Granite;
 };
 
 /** A sanity cap for saves; no dad gets near it. */
@@ -211,6 +214,7 @@ export const BARE_MOUNTAIN: Mountain = {
   makers: makerRecord(0),
   stockyard: 0,
   rockDug: 0,
+  granite: UNSUNK,
 };
 
 /**

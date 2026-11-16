@@ -47,7 +47,8 @@ describe("the game map (#558)", () => {
       makers: "makers",
       stockyard: "stockyard",
       rockDug: "run",
-    } as const satisfies Record<keyof Mountain, string>;
+      // The Granite is not saved yet: its save facts are #673's Task 9.
+    } as const satisfies Record<Exclude<keyof Mountain, "granite">, string>;
     const fresh = createMountain();
     const full: Mountain = {
       ...fresh,
