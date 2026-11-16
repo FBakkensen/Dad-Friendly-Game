@@ -3,7 +3,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   cardArt,
   cardLine,
-  cardLines,
   createBoardCard,
   type BoardCard,
 } from "./board-card";
@@ -251,21 +250,6 @@ describe("the board card", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
     observer.disconnect();
     expect(changes).toHaveLength(1);
-  });
-
-  it("cardLines rebuilds a box only when its words change, and hides it empty", () => {
-    const box = document.createElement("ul");
-    cardLines(box, "legacy-rate", ["Workers 1/s to 2/s"], "li");
-    const first = box.firstElementChild;
-    expect(first?.matches("li.board-card-line.legacy-rate")).toBe(true);
-    cardLines(box, "legacy-rate", ["Workers 1/s to 2/s"], "li");
-    expect(box.firstElementChild).toBe(first);
-    expect(box.hidden).toBe(false);
-    cardLines(box, "legacy-rate", []);
-    expect(box.childElementCount).toBe(0);
-    expect(box.hidden).toBe(true);
-    cardLines(box, "welcome-return", ["Home."]);
-    expect(box.firstElementChild?.tagName).toBe("P");
   });
 
   it("cardArt draws at the asked size", () => {

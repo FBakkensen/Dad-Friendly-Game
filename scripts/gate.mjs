@@ -78,7 +78,7 @@ const changed = changedSinceMain();
 const read = (path) =>
   existsSync(path) ? readFileSync(path, "utf8") : undefined;
 
-/** Every file the strategy lab runs: its commands, loader, policies and measures. */
+/** Every file the strategy lab runs: its command, loader, policies and measures. */
 function labClosure() {
   const discovered = LAB_DIRS.flatMap((dir) =>
     readdirSync(dir)

@@ -24,9 +24,10 @@ service cloud.firestore {
     //
     // Collection: gameArchive/{uid}/copies (version 8 on, #558)
     // A copy left behind, kept seven days: the side not chosen in a
-    // conflict, the one a restore replaced, the one a Start over or a pass
-    // left (#480), or a copy from before the current version (reason
-    // 'reset'), kept as it was stored under `raw`.
+    // conflict, the one a restore replaced, the one a Start over left
+    // (#480), or a copy from before the current version (reason 'reset'),
+    // kept as it was stored under `raw`. A copy a pass left (reason 'pass')
+    // still reads, but no build makes one since #729.
     //
     // Collections saves and saveArchive: the saves from before version 8.
     // Readable by the owner, never written again.
@@ -99,7 +100,7 @@ service cloud.firestore {
     }
 
     function isGameArchive(data) {
-      return data.reason in ['conflict', 'restore', 'start-over', 'pass', 'reset'] &&
+      return data.reason in ['conflict', 'restore', 'start-over', 'reset'] &&
         keptAWeek(data) &&
         data.rev is int &&
         data.rev >= 0 &&
@@ -177,7 +178,10 @@ service cloud.firestore {
         (!('expeditions' in shot) || isFieldTrips(shot.expeditions)) &&
         isIdleCounts(shot.idle) &&
         shot.left is int && shot.left >= 0 && shot.left <= 240000000 &&
-        shot.legacy is int && shot.legacy >= 0 && shot.legacy <= 1000 &&
+        // Optional for one release: a tab from #728's build still sends it.
+        // The current build never does. #740 removes it when the field log
+        // changes again.
+        (!('legacy' in shot) || (shot.legacy is int && shot.legacy >= 0 && shot.legacy <= 1000)) &&
         shot.mined is int && shot.mined >= 0 && shot.mined <= 240000000 &&
         shot.pocket is int && shot.pocket >= 0 && shot.pocket <= 1000000000000000 &&
         isFieldUpgrades(shot.upgrades) &&

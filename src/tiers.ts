@@ -1,4 +1,4 @@
-import { BAND_STARTS, stretch } from "./scale";
+import { BAND_STARTS } from "./scale";
 import { factor } from "./economy/factors";
 import { freshMineOn, lineOn } from "./line-switch";
 import type { Stage } from "./line";
@@ -208,7 +208,7 @@ export function isMachine(
 
 /**
  * The machines, in tier order: every staffed tier. The one list the lab reads
- * (bands, generations, report), so a new machine tier joins it (#388).
+ * (bands, report), so a new machine tier joins it (#388).
  */
 export const MACHINE_IDS: readonly MachineId[] = TIERS.filter(isMachine).map(
   (tier) => tier.id,
@@ -261,7 +261,7 @@ export function setOwned(
 }
 
 /** Cookie Clicker curve: machines climb ×1.15, helpers ×1.06. */
-export function tierCost(tier: Tier, ownedCount: number, k = 1): number {
+export function tierCost(tier: Tier, ownedCount: number): number {
   // toPrecision drops float dust (500 × 1.6² is 1280.0000000000002, not 1,281).
   // A sweep multiplies the sticker and the growth. Both factors are 1 in play.
   const workerCurve = tier.staff === 0;
@@ -276,7 +276,7 @@ export function tierCost(tier: Tier, ownedCount: number, k = 1): number {
   const sticker = line
     ? (LINE_FIRST_COST[tier.id] ?? tier.firstCost)
     : tier.firstCost;
-  const first = sticker * factor(`price.${tier.id}`) * k;
+  const first = sticker * factor(`price.${tier.id}`);
   return Math.ceil(Number((first * growth ** ownedCount).toPrecision(12)));
 }
 
@@ -297,9 +297,8 @@ export function tierQuote(
   amount: BuyAmount,
 ): TierQuote {
   const count = owned(mountain, tier);
-  const k = stretch(mountain);
   return quoteRun(
-    (nth) => tierCost(tier, count + nth, k),
+    (nth) => tierCost(tier, count + nth),
     amount,
     mountain.stock.stones,
   );
@@ -333,9 +332,7 @@ export function quoteRun(
 
 /** The next one of the tier, as a price (#560). Every tier is priced in stones. */
 function tierPrice(mountain: Mountain, id: TierId): Price {
-  return stonesPrice(
-    tierCost(tierById(id), mountain.owned[id], stretch(mountain)),
-  );
+  return stonesPrice(tierCost(tierById(id), mountain.owned[id]));
 }
 
 /** Pays for one of the tier from the stock; unaffordable returns the same mountain. */

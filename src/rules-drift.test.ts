@@ -9,7 +9,7 @@ import {
   snapshot,
   type FieldLogDocument,
 } from "./field-log";
-import { ARCHIVE_REASONS } from "./cloud-save";
+import { ARCHIVE_WRITE_REASONS } from "./cloud-save";
 import { DEVICE_ID_MAX } from "./device-id";
 import { createMountain } from "./mountain";
 import { SAVE_VERSION, type SaveDocument } from "./persist";
@@ -95,8 +95,10 @@ describe("firestore.rules match the game", () => {
       "0.0.0",
     );
     const doc: FieldLogDocument = { snapshot: shot, events: [], updatedAt: 1 };
+    // `legacy` stays listed for one release, for tabs from #728's build;
+    // the current snapshot never has it (#740 removes it).
     expect(keys(/shot\.keys\(\)\.hasOnly\(\[([^\]]*)\]\)/).sort()).toEqual(
-      Object.keys(shot).sort(),
+      [...Object.keys(shot), "legacy"].sort(),
     );
     expect(
       keys(
@@ -122,11 +124,11 @@ describe("firestore.rules match the game", () => {
     expect(device).toContain("allow delete: if false");
   });
 
-  it("takes every reason a copy is archived for (#480, #558)", () => {
+  it("takes every reason a copy is archived for, and no pass (#480, #558, #729)", () => {
     const match = /data\.reason in \[([^\]]*)\]/.exec(rules);
     const listedReasons = (match?.[1] ?? "")
       .split(",")
       .map((id) => id.trim().replace(/'/g, ""));
-    expect(listedReasons.sort()).toEqual([...ARCHIVE_REASONS].sort());
+    expect(listedReasons.sort()).toEqual([...ARCHIVE_WRITE_REASONS].sort());
   });
 });

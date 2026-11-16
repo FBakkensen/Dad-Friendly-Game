@@ -2,6 +2,8 @@
 
 Status: draft for Flemming. This spec covers several slivers. It ships on its own, and each later sitting plans and builds one sliver from it (`.claude/rules/superpowers.md`). The evidence is in `docs/balance-review.md`. The lab measures that grade it are described in `docs/DESIGN.md`, "Check-in pacing". The numbers in this spec are probes and the slivers' history. Today's values are in [Numbers now](DESIGN.md#numbers-now).
 
+Since #729 the pass to the kid, Legacy, kid runs and their stretch k, Grandpa and the generations lab are gone. Where this spec names them, it is history.
+
 ## The problem in one paragraph
 
 From day 2 on, a short check-in usually has nothing to buy. The best buy, nearly always the next borer or Great Machine, is several sittings away, and the cheaper buttons are scenery. The lab now measures this. At 3 seeds on main, the two-minute check-in dad buys nothing in 47% of his sittings after day 1, and the checker in 50%. Their median buys per sitting are 0.67 and 0.5. The checker opens with the best buy in reach only 30% of the time, and waits up to 5.7 sittings in a row. Even the casual two-sitting dad buys a median of only two things per sitting. The causes are structural:

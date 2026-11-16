@@ -1,4 +1,3 @@
-import { stretch } from "../scale";
 import { tierLocked } from "../crew";
 import {
   LAYERS,
@@ -79,8 +78,7 @@ export function createBandLog(): (mountain: Mountain) => readonly BandEvent[] {
         seen.add(`a:${layer}:${id}`);
         events.push({ kind: "available", tier: id, layer });
       }
-      const covers =
-        mountain.stock.stones >= tierCost(tier, count, stretch(mountain));
+      const covers = mountain.stock.stones >= tierCost(tier, count);
       if ((covers || bought > 0) && !seen.has(`p:${layer}:${id}`)) {
         seen.add(`p:${layer}:${id}`);
         events.push({ kind: "affordable", tier: id, layer, share, count: 0 });

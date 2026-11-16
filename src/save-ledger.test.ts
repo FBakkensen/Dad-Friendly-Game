@@ -5,7 +5,8 @@ import { readGame, shippedFacts, writeGame } from "./save-format";
 /**
  * The ledger of what has shipped (#558; spec, "The ledger of what has
  * shipped"). Every id, named value and cap a version 10 save may hold, as this
- * build reads it. Adding a line is fine: an older build reads the new value as
+ * build reads it. A retired key (#729) is still read at its cap and never
+ * written, so it moves to its own list rather than going. Adding a line is fine: an older build reads the new value as
  * `newer` and goes read-only. Removing a line or lowering a cap would turn a
  * save this build wrote into one it refuses, so it needs a version bump and a
  * reset, said in chat first.
@@ -96,10 +97,13 @@ const LEDGER = {
     operational: ["lightTower", "warehouse"],
   },
   run: {
-    generation: 1000,
-    stretch: 1000000,
     dug: 240000000,
     rock: Number.MAX_SAFE_INTEGER,
+  },
+  // Retired (#729): still read at these caps, and never written.
+  retiredRun: {
+    generation: 1000,
+    stretch: 1000000,
   },
   engineerNames: ["Ada", "Nils", "Ruth", "Otto", "Mae"],
   posts: ["cart", "drill", "borer", "machine", "camp", "tunnel"],

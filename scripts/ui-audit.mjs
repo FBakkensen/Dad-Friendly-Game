@@ -403,11 +403,9 @@ async function collect(page) {
       ".welcome-continue",
       ".layer-dig",
       ".craft-accept",
-      ".legacy-confirm",
       ".other-tab-play",
       ".update-reload",
       ".engineer-promote",
-      ".ledger-pass",
       ".ledger-yes",
       ".save-conflict-play",
       ".save-conflict-commit",
@@ -464,7 +462,6 @@ async function collect(page) {
         ".craft-notice .board-card-face",
         ".other-tab .board-card-face",
         ".update-prompt .board-card-face",
-        ".legacy-dialog .board-card-face",
         ".saved-copies .board-card-face",
         ".engineer-row",
       ],
@@ -476,7 +473,7 @@ async function collect(page) {
         ".layer-arrival",
         ".board-sheet-kick.is-done",
       ],
-      badge: [".legacy-badge", ".board-row-badge", ".board-row-flag"],
+      badge: [".board-row-badge", ".board-row-flag"],
     };
     const components = {};
     for (const [group, selectors] of Object.entries(groups)) {

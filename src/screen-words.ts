@@ -345,14 +345,6 @@ function awayStretchWords(report: {
     : "Your crew saved a full day's haul for you. Good to have you back.";
 }
 
-/** Grandpa's crew chip (#338): "Grandpa on carts". */
-export const grandpaChipWords = (post: TierId): string =>
-  `Grandpa on ${crewPostLabel(post) ?? "the crew"}`;
-
-/** What a screen reader hears about Grandpa (#338). */
-export const grandpaSentence = (post: TierId): string =>
-  `Grandpa tends ${post === "machine" ? "the Great Machine" : `the ${crewPostLabel(post) ?? "crew"}`}, slow and steady.`;
-
 /** The small note a short absence leaves on the mountain (#334). */
 export const quietAwayWords = (stones: number): string =>
   `+${formatCount(stones)} ${stones === 1 ? "stone" : "stones"} while you were away`;
@@ -1079,11 +1071,6 @@ export const SAVED_COPIES_TITLE = "Saved copies";
 export const SAVED_COPIES_EMPTY = "No saved copies yet.";
 export const SAVED_COPY_GONE = "That copy is no longer here.";
 
-/** Pass the mine to your kid (M6): the confirm card's title and its two answers. */
-export const PASS_TITLE = "Pass the mine to your kid.";
-export const PASS_NOT_YET = "Not yet";
-export const PASS_IT_ON = "Pass it on";
-
 /** One mountain, one tab. The other tabs wait. */
 export const OTHER_TAB_TITLE = "Playing in another tab";
 export const OTHER_TAB_BODY =
@@ -1267,11 +1254,6 @@ export const TONIGHT_LEGEND = "Tonight";
 export const MINE_LEGEND = "The mine";
 /** The Ledger's "i" cards go back to the list under this. */
 export const LEDGER_BACK = "Back to the Ledger";
-/** The Pass the mine plate's short fit; the full words stay on its label. */
-export const PASS_SHORT = "Pass the mine";
-/** Passing the mine, in full: the Pass plate's label and the legacy panel's door. */
-export const PASS_FULL = "Pass the mine to your kid";
-
 /** Start over, and its confirm page (moved from the menu, #375). */
 export const START_OVER = "Start over";
 export const START_OVER_TITLE = "Start over?";

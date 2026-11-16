@@ -95,13 +95,6 @@ export type Mountain = {
    * A save from an older run never replaces a newer one.
    */
   readonly startedAt: number;
-  /** Mountains passed to your kid (M6). */
-  readonly legacy: number;
-  /**
-   * How much bigger this run is (M13, src/scale.ts). Set when the mine passes
-   * to the kid; 1 is unstretched, so a run already under way keeps its numbers.
-   */
-  readonly stretch: number;
   /** Named engineers (M7), at most five. See src/engineers.ts. */
   readonly engineers: readonly Engineer[];
   /**
@@ -156,9 +149,6 @@ export type Mountain = {
   readonly rockDug: number;
 };
 
-/** A sanity cap for saves; no dad gets near it. */
-export const MAX_LEGACY = 1000;
-
 /** 0 for a first run that was never started over. */
 export function runStartedAt(mountain: Mountain): number {
   return mountain.startedAt;
@@ -171,8 +161,6 @@ export const BARE_MOUNTAIN: Mountain = {
   owned: tierRecord(0),
   upgrades: NO_UPGRADES,
   startedAt: 0,
-  legacy: 0,
-  stretch: 1,
   engineers: [],
   expeditions: [],
   finds: [],

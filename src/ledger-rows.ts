@@ -215,7 +215,8 @@ export function tonightText(event: FieldEvent): string | undefined {
 export function tonightLines(
   events: readonly FieldEvent[],
 ): readonly TonightLine[] {
-  // A Start over, a pass, or a save set aside for a fresh mountain begins a new Tonight.
+  // A Start over, a save set aside for a fresh mountain, or a pass from a
+  // ring kept before #729 begins a new Tonight.
   const codes = events.map((each) => each.code);
   const start = Math.max(
     codes.lastIndexOf("run.start-over"),
@@ -238,7 +239,7 @@ export function tonightLines(
 /** The stones row: how many are left, the exact count, and the materials met. */
 export function stonesRowView(mountain: Mountain): StonesRowView {
   const left = Math.ceil(stonesLeft(mountain));
-  const total = shownStones(mountain, MOUNTAIN_STONES);
+  const total = shownStones(MOUNTAIN_STONES);
   const name = `${formatCompact(left)} stones left`;
   const materials = metMaterialChips(mountain)
     .map((chip) => chip.text)

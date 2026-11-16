@@ -1,4 +1,4 @@
-import { oneOffStretch, stretch } from "./scale";
+import { oneOffStretch } from "./scale";
 import {
   onTrip,
   promote,
@@ -152,7 +152,7 @@ function isDadBuy(action: Action, withUpgrades: boolean): action is DadBuy {
 function sticker(mountain: Mountain, action: DadBuy): number {
   if (action.kind === "buyTier") {
     const tier = tierById(action.id);
-    return tierCost(tier, owned(mountain, tier), stretch(mountain));
+    return tierCost(tier, owned(mountain, tier));
   }
   return upgradeCost(
     upgradeById(action.id),
@@ -200,8 +200,6 @@ export function simulateDad(options: DadRunOptions): Map<number, number> {
 
 /** What `simulateDadRun` takes. */
 type DadRunOptions = {
-  /** Mountains already passed down: a second run starts with legacy 1. */
-  legacy?: number;
   /**
    * Puts trouble right within three seconds. A never-fixing dad leaves it
    * until an engineer clears it, or the session ends.
@@ -371,7 +369,6 @@ export function simulateDadRun({
   milestones,
   maxDays = 30,
   buysUpgrades = false,
-  legacy = 0,
   fixesTrouble = true,
   onDecision,
 }: DadRunOptions): DadRun {
@@ -380,16 +377,10 @@ export function simulateDadRun({
     milestones,
     maxDays,
     buysUpgrades,
-    legacy,
     fixesTrouble,
     onDecision,
   };
-  let world: World = createWorld(
-    1,
-    withFirstWorker(
-      legacy > 0 ? { ...createMountain(), legacy } : createMountain(),
-    ),
-  );
+  let world: World = createWorld(1, withFirstWorker(createMountain()));
   for (let session = 0; session < maxDays * DAD.sessionsPerDay; session += 1) {
     for (let second = 0; second < DAD.sessionSeconds; second += 1) {
       world = liveSecond(world, second, options, log);

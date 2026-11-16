@@ -371,9 +371,8 @@ function fillLine(
  * Hands left over once the level is reached go to the lowest stage that
  * still has an idle machine, up to the next stage, so a stage the tending
  * raises later finds the next one ready. Unless `spareAbove`, a stage
- * already above the line gets none: a machine there moves nothing, and it
- * could pull Grandpa off the group he tends. Which is better depends on
- * where the tending lands, so the search weighs both.
+ * already above the line gets none: a machine there moves nothing. Which
+ * is better depends on where the tending lands, so the search weighs both.
  */
 function spareToLowest(
   base: StageSpeeds,
@@ -426,8 +425,8 @@ const LINE_COUNTS_KEPT = 16;
 /**
  * With the line on (#534): every count of the big machines the hands can
  * run, each filled for the line, and the few that move the line the most
- * on these speeds, best first: the tending floor and Grandpa, weighed
- * later, can reorder them. The line is flat while a stage is empty, so a climb from
+ * on these speeds, best first: the tending floor, weighed later, can
+ * reorder them. The line is flat while a stage is empty, so a climb from
  * the sum's best can stall there; while the hands can staff at most
  * `LINE_COUNTS_TRIED` counts, all are tried. None when there are more.
  */

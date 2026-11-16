@@ -25,7 +25,6 @@ const dad: FieldLogRecord = {
       left: 88,
       pocket: 3,
       crewSpeed: 1.5,
-      legacy: 0,
       crew: { helper: 2, cart: 1 },
       idle: { cart: 1 },
       upgrades: { boots: 1 },
@@ -168,7 +167,6 @@ describe("formatFieldLogSummary", () => {
         "Left 88",
         "Pocket 3",
         "Crew speed 1.5",
-        "Legacy 0",
         "Crew",
         "  cart 1",
         "  helper 2",
@@ -185,6 +183,17 @@ describe("formatFieldLogSummary", () => {
         "  yesterday  save.write",
       ].join("\n"),
     );
+  });
+
+  it("prints the legacy of a log from before #729 as a field it no longer knows", () => {
+    const data = dad.data as { snapshot: Record<string, unknown> };
+    const older: FieldLogRecord = {
+      uid: "dad",
+      data: { ...data, snapshot: { ...data.snapshot, legacy: 0 } },
+    };
+    const text = formatFieldLogSummary([older], ZONE);
+    expect(text).toContain("legacy 0");
+    expect(text).not.toContain("Legacy");
   });
 
   it("keeps UTC midnight as 00:00:00 and separates players", () => {

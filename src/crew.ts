@@ -2,7 +2,7 @@ import { factor } from "./economy/factors";
 import { grantFirstEngineer } from "./engineers";
 import type { Mountain } from "./mountain";
 import { freshMineOn } from "./line-switch";
-import { KID_MACHINE_OPENS, minedOut, shownStones } from "./scale";
+import { minedOut, shownStones } from "./scale";
 import {
   buyTier,
   freshDoor,
@@ -23,7 +23,7 @@ export type TierLock =
   | {
       readonly kind: "depth";
       readonly depth: number;
-      /** The depth in this run's stones, for the card (M13). */
+      /** The depth in stones, for the card (M13). */
       readonly at: number;
     }
   | {
@@ -41,15 +41,6 @@ function freshLock(tier: Tier): TierLock | undefined {
   return door.kind === "later" ? { kind: "later", at: door.at } : undefined;
 }
 
-/**
- * From run 2 on (a stretched run), the Great Machine opens a little sooner,
- * so a once-a-day dad gets a full sitting with it on sale (M13, #253).
- */
-function kidOpens(mountain: Mountain, tier: Tier): number {
-  // Only a kid's run is stretched: a stretch is always above 1.
-  return tier.id === "machine" && mountain.stretch > 1 ? KID_MACHINE_OPENS : 1;
-}
-
 /** Why this tier is not for sale yet, or undefined when it is. */
 export function tierLock(mountain: Mountain, tier: Tier): TierLock | undefined {
   if (freshMineOn()) {
@@ -60,7 +51,7 @@ export function tierLock(mountain: Mountain, tier: Tier): TierLock | undefined {
   const opensAt =
     tier.opensAt === undefined
       ? undefined
-      : tier.opensAt * kidOpens(mountain, tier) * factor(`opens.${tier.id}`);
+      : tier.opensAt * factor(`opens.${tier.id}`);
   if (
     opensAt !== undefined &&
     owned(mountain, tier) === 0 &&
@@ -69,7 +60,7 @@ export function tierLock(mountain: Mountain, tier: Tier): TierLock | undefined {
     return {
       kind: "depth",
       depth: opensAt,
-      at: shownStones(mountain, opensAt),
+      at: shownStones(opensAt),
     };
   }
   return undefined;

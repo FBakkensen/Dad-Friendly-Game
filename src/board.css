@@ -976,7 +976,7 @@ button.board-row:focus-visible {
   text-overflow: ellipsis;
 }
 
-/* The four plates, two by two. Each keeps its own cell, so a hidden Pass moves nothing. */
+/* The three plates, two by two. Each keeps its own cell. */
 .ledger-doors {
   position: relative;
   flex: none;
@@ -995,10 +995,6 @@ button.board-row:focus-visible {
 
 .ledger-doors > .ledger-start-over {
   grid-area: 2 / 1;
-}
-
-.ledger-doors > .ledger-pass {
-  grid-area: 2 / 2;
 }
 
 /* A page of a drawer (board-page.ts, #455): the Ledger's Start over and field log, the
@@ -1281,31 +1277,6 @@ button.board-row:focus-visible {
 
 .saved-copy > .board-card-plate {
   margin-top: calc(var(--art) * 3);
-}
-
-/* Pass the mine (#466): the Legacy step in amber, the real numbers, then what
-   carries over and what starts fresh; Not yet and Pass it on side by side. */
-.legacy-lead {
-  font-size: var(--board-type-20);
-  font-weight: 700;
-  color: var(--board-amber);
-}
-
-.legacy-rates {
-  display: flex;
-  flex-direction: column;
-  gap: calc(var(--art) * 1);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.legacy-rates > .board-card-line {
-  font-weight: 700;
-}
-
-.legacy-legend {
-  font-style: italic;
 }
 
 /* Last, so a hidden part hides over its own display. */

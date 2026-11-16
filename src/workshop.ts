@@ -6,7 +6,7 @@ import {
   type MaterialId,
 } from "./layers";
 import type { Mountain } from "./mountain";
-import { minedOut, stretch } from "./scale";
+import { minedOut } from "./scale";
 import {
   GOOD_IDS,
   pay,
@@ -377,15 +377,13 @@ function scaledCount(base: number, scale: number): number {
 /**
  * Stones and materials a craft spends right now, as a price (#560): the
  * goods it asks, stones first, none at 0. The cost factor defaults to 1.
- * `k` is the run's stretch (M13): only the stone price grows with the
- * mountain; materials stay the same count.
  */
-export function recipePrice(id: RecipeId, k = 1): Price {
+export function recipePrice(id: RecipeId): Price {
   const recipe = recipeById(id);
   const scale = factor(recipeCostId(id));
   return pricedGoods((good) =>
     good === "stones"
-      ? scaledCount(recipe.stones, scale * k)
+      ? scaledCount(recipe.stones, scale)
       : good === "brick"
         ? 0
         : scaledCount(recipe.materials[good] ?? 0, scale),
@@ -456,7 +454,7 @@ export function startCraft(
   if (atCap(recipe, mountain)) {
     return mountain;
   }
-  const paid = pay(mountain, recipePrice(id, stretch(mountain)));
+  const paid = pay(mountain, recipePrice(id));
   if (paid === mountain) {
     return mountain;
   }
@@ -566,8 +564,8 @@ function refundUnits(
 }
 
 /** What is still owed if this craft leaves the bench before it finishes, as a price. */
-function owed(mountain: Mountain, bench: Bench, now: number): Price {
-  const cost = recipePrice(bench.recipe, stretch(mountain));
+function owed(bench: Bench, now: number): Price {
+  const cost = recipePrice(bench.recipe);
   const duration = liveTimerMs(recipeById(bench.recipe));
   if (duration === undefined) {
     return cost;
@@ -593,7 +591,7 @@ export function cancelRefund(
   if (now >= bench.endsAt) {
     return [];
   }
-  return owed(mountain, bench, now);
+  return owed(bench, now);
 }
 
 /**
@@ -611,7 +609,7 @@ export function cancelCraft(mountain: Mountain, now: number): Mountain {
   if (now >= bench.endsAt) {
     return settleBench(mountain, now);
   }
-  return refund(dropBench(mountain), owed(mountain, bench, now));
+  return refund(dropBench(mountain), owed(bench, now));
 }
 
 /** Live buffs the sheet can count down. A charge, grease, or ember. */

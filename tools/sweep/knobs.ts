@@ -1,6 +1,6 @@
 /**
  * Economy knobs for `npm run lab:sweep`. One entry each.
- * `factor` is the id `tierCost`, crew speed, `tendingTenths`, and layer
+ * `factor` is the id `tierCost`, crew speed, `engineerTenths`, and layer
  * hardness, and recipe strength and cost already read. `low` and `high` are
  * multipliers on today's number. 1 is the game. A new price, output, growth,
  * tending, hardness, or recipe knob is one entry here. Worker growth is the

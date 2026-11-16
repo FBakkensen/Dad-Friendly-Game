@@ -534,10 +534,10 @@ describe("the Ledger drawer (#375)", () => {
     }
   });
 
-  it("saved copies opens its card, which closes onto the key; passing the mine is not live (#466, #708)", () => {
+  it("saved copies opens its card, which closes onto the key; there is no Pass plate (#466, #708, #729)", () => {
     const screen = mount(granite());
     keyOf(screen).click();
-    expect(part(screen, ".ledger-pass").hidden).toBe(true);
+    expect(screen.root.querySelector(".ledger-pass")).toBeNull();
     part(screen, ".ledger-saved-copies").click();
     expect(isOpen(screen)).toBe(false);
     expect(
@@ -765,7 +765,6 @@ describe("the Ledger panel on its own", () => {
       board: createBoardHost({ clock: () => 0, reduced: () => true }),
       overSave: () => false,
       door,
-      legacy: { offered: () => false, open: () => undefined },
       savedCopies: { open: () => undefined },
       onStartOver: () => undefined,
       sound: soundSetting(createMemoryStorage()),
@@ -783,7 +782,7 @@ describe("the Ledger panel on its own", () => {
   });
 
   /** The drawer with no signal, on a board clock the test turns. */
-  const onItsOwn = (offered: boolean) => {
+  const onItsOwn = () => {
     const auth = createMemoryAuth();
     const progress = createProgressStore({
       auth,
@@ -792,7 +791,6 @@ describe("the Ledger panel on its own", () => {
     });
     const clock = { now: 10_000 };
     const door = document.createElement("button");
-    const legacyOpen = vi.fn();
     const onStartOver = vi.fn();
     const ledger = createLedgerPanel({
       progress,
@@ -801,7 +799,6 @@ describe("the Ledger panel on its own", () => {
       board: createBoardHost({ clock: () => clock.now, reduced: () => true }),
       overSave: () => false,
       door,
-      legacy: { offered: () => offered, open: legacyOpen },
       savedCopies: { open: () => undefined },
       onStartOver,
       sound: soundSetting(createMemoryStorage()),
@@ -812,23 +809,11 @@ describe("the Ledger panel on its own", () => {
       if (!(found instanceof HTMLElement)) throw new Error(`no ${selector}`);
       return found;
     };
-    return { ledger, progress, clock, door, legacyOpen, onStartOver, plate };
+    return { ledger, progress, clock, door, onStartOver, plate };
   };
 
-  it("offers Pass the mine when the legacy says so, and hands the key to its card", () => {
-    const own = onItsOwn(true);
-    own.ledger.open(own.door);
-    own.ledger.render();
-    own.clock.now += PAST_SETTLE;
-    expect(own.plate(".ledger-pass").hidden).toBe(false);
-    own.plate(".ledger-pass").click();
-    expect(own.legacyOpen).toHaveBeenCalledWith(own.door);
-    expect(own.ledger.sheet.root.classList.contains("is-open")).toBe(false);
-    own.progress.dispose();
-  });
-
   it("a second Yes while the run starts does nothing, and a drawer shut meanwhile stays shut", async () => {
-    const own = onItsOwn(false);
+    const own = onItsOwn();
     const startOver = vi.spyOn(own.progress, "startOver");
     own.ledger.open(own.door);
     own.ledger.render();

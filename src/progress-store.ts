@@ -21,7 +21,6 @@ import {
   type FieldLog,
 } from "./field-log";
 import type { TroubleTier } from "./hazards";
-import { passTheMine } from "./legacy";
 import { createLogger, type Logger } from "./log";
 import { createMountain, type Mountain } from "./mountain";
 import { reconcileRev } from "./save-adopt";
@@ -127,11 +126,6 @@ export type ProgressStore = {
    * false when it could not, and the mountain stays in play.
    */
   readonly startOver: (stillWanted?: () => boolean) => Promise<boolean>;
-  /**
-   * Passes the finished mine to your kid (M6), after keeping it in Saved
-   * copies like a Start over; false if it isn't finished or was not kept.
-   */
-  readonly passTheMine: (stillWanted?: () => boolean) => Promise<boolean>;
   /** One tap on a troubled card. The fifth tap fixes it. */
   readonly pressTrouble: (tier: TroubleTier) => void;
   /** A short hold on a troubled card fixes it. */
@@ -248,12 +242,6 @@ function storeApi(ctx: StoreContext, unsubscribe: () => void): ProgressStore {
       keepThenBegin(ctx, {
         reason: "start-over",
         next: () => ({ ...createMountain(), startedAt: now() }),
-        ...(stillWanted === undefined ? {} : { stillWanted }),
-      }),
-    passTheMine: (stillWanted) =>
-      keepThenBegin(ctx, {
-        reason: "pass",
-        next: (playing) => passTheMine(playing, now()),
         ...(stillWanted === undefined ? {} : { stillWanted }),
       }),
     tonightEvents: () => ctx.ring.sinceMark(),

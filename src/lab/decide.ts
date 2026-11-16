@@ -1,4 +1,4 @@
-import { oneOffStretch, stretch } from "../scale";
+import { oneOffStretch } from "../scale";
 import type { Trouble } from "../hazards";
 import {
   incomePerSecond,
@@ -245,7 +245,7 @@ export function sticker(mountain: Mountain, action: Action): number {
   switch (action.kind) {
     case "buyTier": {
       const tier = tierById(action.id);
-      return tierCost(tier, owned(mountain, tier), stretch(mountain));
+      return tierCost(tier, owned(mountain, tier));
     }
     case "buyUpgrade": {
       const price = upgradeCost(
@@ -258,10 +258,7 @@ export function sticker(mountain: Mountain, action: Action): number {
     case "promote":
       return promoteCost(mountain);
     case "craft":
-      return priceAmount(
-        recipePrice(action.recipe, stretch(mountain)),
-        "stones",
-      );
+      return priceAmount(recipePrice(action.recipe), "stones");
     case "buyVehicle":
       return priceAmount(vehiclePrice(mountain, action.id), "stones");
     case "buyMaker":
@@ -429,9 +426,7 @@ function craftHasRoom(mountain: Mountain, id: RecipeId): boolean {
 }
 
 function materialsCover(mountain: Mountain, id: RecipeId): boolean {
-  const materials = recipePrice(id, stretch(mountain)).filter(
-    (line) => line.good !== "stones",
-  );
+  const materials = recipePrice(id).filter((line) => line.good !== "stones");
   return stockCovers(mountain.stock, materials);
 }
 

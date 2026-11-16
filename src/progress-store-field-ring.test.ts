@@ -10,9 +10,7 @@ import {
 } from "./field-ring";
 import { FIELD_RING_GAP_MS } from "./local-saves";
 import { createLogger, type LogEvent } from "./log";
-import { createMountain } from "./mountain";
 import { createProgressStore } from "./progress-store";
-import { writeSessionSave } from "./session-save";
 import { LOADING_LOG_MS } from "./store-actions";
 import type { TabWriter } from "./tab-writer";
 
@@ -113,7 +111,7 @@ describe("the field log kept on this device (#479)", () => {
     progress.dispose();
   });
 
-  it("logs a Start over or a pass the store refuses while the save loads", async () => {
+  it("logs a Start over the store refuses while the save loads", async () => {
     const storage = createMemoryStorage();
     const logger = createLogger({ limit: 20 });
     const progress = createProgressStore({
@@ -125,7 +123,6 @@ describe("the field log kept on this device (#479)", () => {
     });
     expect(progress.getSnapshot().ready).toBe(false);
     await progress.startOver();
-    await expect(progress.passTheMine()).resolves.toBe(false);
     const refused = progress
       .fieldLog()
       .events.filter((event) => event.code === "run.refused");
@@ -142,7 +139,7 @@ describe("the field log kept on this device (#479)", () => {
     progress.dispose();
   });
 
-  it("logs a pass refused while another tab plays", async () => {
+  it("logs a Start over refused while another tab plays", async () => {
     const logger = createLogger({ limit: 20 });
     const reader: TabWriter = {
       seat: () => "other",
@@ -161,8 +158,7 @@ describe("the field log kept on this device (#479)", () => {
       tabWriter: reader,
       now: () => 5_000,
     });
-    await expect(progress.passTheMine()).resolves.toBe(false);
-    await progress.startOver();
+    await expect(progress.startOver()).resolves.toBe(false);
     expect(
       progress
         .fieldLog()
@@ -272,30 +268,6 @@ describe("the field log kept on this device (#479)", () => {
     progress.dispose();
     await progress.startOver();
     expect(codes(progress.fieldLog().events)).toEqual(["tier.buy"]);
-  });
-
-  it("logs a pass refused while the save loads", async () => {
-    const storage = createMemoryStorage();
-    writeSessionSave({
-      storage,
-      mountain: { ...createMountain(), remaining: 0 },
-      lastSeen: 1_000,
-    });
-    const progress = createProgressStore({
-      auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
-      cloudSave: silentCloud(),
-      sessionStorage: storage,
-      now: () => 5_000,
-    });
-    expect(progress.getSnapshot().mountain.remaining).toBe(0);
-    await expect(progress.passTheMine()).resolves.toBe(false);
-    expect(
-      progress
-        .fieldLog()
-        .events.filter((event) => event.code === "run.refused")
-        .map((event) => event.data),
-    ).toEqual([{ id: "pass", source: "loading" }]);
-    progress.dispose();
   });
 
   it("plays signed in on a device with no storage", async () => {

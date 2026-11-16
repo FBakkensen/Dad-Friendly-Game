@@ -34,8 +34,6 @@ export type SeedMountain = {
   readonly kids?: number;
   readonly upgrades?: Readonly<Partial<Record<UpgradeId, number>>>;
   readonly startedAt?: number;
-  /** The run's generation: how many times the mine was passed down. */
-  readonly legacy?: number;
   /** An engineer away on a trip is at post "tunnel", as the save keeps it. */
   readonly engineers?: readonly DutyEngineer[];
   readonly expeditions?: readonly SavedExpedition[];
@@ -120,7 +118,6 @@ const MOUNTAIN_KEYS: readonly string[] = [
   "pocket",
   "upgrades",
   "startedAt",
-  "legacy",
   "engineers",
   "expeditions",
   "finds",
@@ -215,13 +212,7 @@ export function toDocument(seed: Seed): SaveDocument {
       ...some("recipes", workshop.recipes),
       ...some("finds", mountain.finds),
     }),
-    ...some(
-      "run",
-      counts([
-        ["generation", mountain.legacy],
-        ["dug", dug],
-      ]),
-    ),
+    ...some("run", counts([["dug", dug]])),
     ...some("engineers", mountain.engineers),
     ...some("expeditions", mountain.expeditions),
     ...(workshop.bench === undefined ? {} : { bench: workshop.bench }),
@@ -390,7 +381,7 @@ export function crewMountain(): Seed {
   };
 }
 
-/** The last stone of a run: one tap finds the legend and offers to pass the mine. */
+/** The last stone of a run: one tap finds the legend. */
 export function lastStoneSave(): Seed {
   return {
     mountain: {
@@ -398,7 +389,6 @@ export function lastStoneSave(): Seed {
       pocket: 0,
       helpers: 999,
       kids: 999,
-      legacy: 1,
     },
     lastSeen: Date.now(),
   };
@@ -421,8 +411,8 @@ export function crystalMountain(): Seed {
 }
 
 /**
- * The Deep Heart on a kid's run (#371): the Great Machine on the surface, a
- * kid by the lamp, and the Legacy plate on the window's frame.
+ * The Deep Heart (#371): the Great Machine on the surface, and a kid by the
+ * lamp.
  */
 export function heartMountain(): Seed {
   const open = openMountain();
@@ -437,7 +427,6 @@ export function heartMountain(): Seed {
       drills: 10,
       borers: 4,
       machines: 1,
-      legacy: 1,
     },
   };
 }
@@ -535,12 +524,6 @@ export function machineMountain(): Seed {
       machines: 1,
     },
   };
-}
-
-/** A kid's run after one pass (#338): the crewed Topsoil, Grandpa on the carts. */
-export function heirMountain(): Seed {
-  const crew = crewMountain();
-  return { ...crew, mountain: { ...crew.mountain, legacy: 1 } };
 }
 
 /**

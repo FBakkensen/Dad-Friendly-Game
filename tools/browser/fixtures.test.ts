@@ -117,7 +117,6 @@ const EXPECTED = {
       pocket: 0,
       helpers: 999,
       kids: 999,
-      legacy: 1,
     },
     lastSeen: 1700000000000,
   },
@@ -153,7 +152,6 @@ const EXPECTED = {
       drills: 10,
       borers: 4,
       machines: 1,
-      legacy: 1,
     },
     workshop: {
       materials: { clay: 0, iron: 0, crystal: 0, heartstone: 0 },
@@ -262,20 +260,6 @@ const EXPECTED = {
         "reinforce",
         "axle-grease",
       ],
-    },
-  },
-  heirMountain: {
-    lastSeen: 1700000000000,
-    mountain: {
-      remaining: 239500000,
-      pocket: 6854,
-      helpers: 18,
-      carts: 6,
-      legacy: 1,
-    },
-    workshop: {
-      materials: { clay: 0, iron: 0, crystal: 0, heartstone: 0 },
-      recipes: ["iron-rails", "sturdy-props", "blasting-charge"],
     },
   },
   fullGraniteMountain: {
@@ -411,7 +395,6 @@ const BUILDERS = [
   "shortMountain",
   "idleMountain",
   "machineMountain",
-  "heirMountain",
   "fullGraniteMountain",
   "machinePickMountain",
 ] as const;
@@ -445,7 +428,7 @@ function seeds(): Record<string, Seed> {
     guard: f.guardSave(FIXED),
     borerPick: f.borerPickMountain(),
     late: f.late(FIXED, 130_000_000),
-    lateFull: f.late(FIXED, 240_000_000, { legacy: 2 }),
+    lateFull: f.late(FIXED, 240_000_000),
     lateQuiet: f.late(FIXED, 20_000_000, f.quietCrew({ pocket: 2_000_000 })),
     playEdge: f.playEdgeSave(),
     playAway: f.playAwaySave(),
@@ -689,7 +672,7 @@ describe("the audit's and play's saves", () => {
     late_edgeDeep:
       '{"lastSeen":1700000000000,"mountain":{"remaining":170000000,"pocket":80000000,"helpers":80,"kids":4,"carts":24,"drills":8,"borers":3,"machines":2,"startedAt":1699913600000,"engineers":[{"name":"Ada","rank":0,"trips":0,"post":"machine"},{"name":"Nils","rank":0,"trips":0,"post":"drill"}],"upgrades":{"boots":1,"cartSyn":1},"finds":["drawing"]},"workshop":{"materials":{"clay":40,"iron":28,"crystal":12,"heartstone":3},"recipes":["iron-rails","sturdy-props","blasting-charge","reinforce","axle-grease","diamond-bits","engineers-kit","heartstone-core","heartstone-ember"]}}',
     late_full:
-      '{"lastSeen":1700000000000,"mountain":{"remaining":0,"pocket":80000000,"helpers":80,"kids":4,"carts":24,"drills":8,"borers":3,"machines":2,"startedAt":1699913600000,"engineers":[{"name":"Ada","rank":0,"trips":0,"post":"machine"},{"name":"Nils","rank":0,"trips":0,"post":"drill"}],"upgrades":{"boots":1,"cartSyn":1},"finds":["drawing"],"legacy":2},"workshop":{"materials":{"clay":40,"iron":28,"crystal":12,"heartstone":3},"recipes":["iron-rails","sturdy-props","blasting-charge","reinforce","axle-grease","diamond-bits","engineers-kit","heartstone-core","heartstone-ember"]}}',
+      '{"lastSeen":1700000000000,"mountain":{"remaining":0,"pocket":80000000,"helpers":80,"kids":4,"carts":24,"drills":8,"borers":3,"machines":2,"startedAt":1699913600000,"engineers":[{"name":"Ada","rank":0,"trips":0,"post":"machine"},{"name":"Nils","rank":0,"trips":0,"post":"drill"}],"upgrades":{"boots":1,"cartSyn":1},"finds":["drawing"]},"workshop":{"materials":{"clay":40,"iron":28,"crystal":12,"heartstone":3},"recipes":["iron-rails","sturdy-props","blasting-charge","reinforce","axle-grease","diamond-bits","engineers-kit","heartstone-core","heartstone-ember"]}}',
     late_both:
       '{"lastSeen":1699999995000,"mountain":{"remaining":200000000,"pocket":80000000,"helpers":65,"kids":0,"carts":24,"drills":8,"borers":3,"machines":2,"startedAt":1699913595000,"engineers":[{"name":"Ada","rank":0,"trips":0,"post":"machine"},{"name":"Nils","rank":0,"trips":0,"post":"drill"}],"upgrades":{"boots":1,"cartSyn":1},"finds":["drawing"]},"workshop":{"materials":{"clay":40,"iron":28,"crystal":12,"heartstone":3},"recipes":["iron-rails","sturdy-props","blasting-charge","reinforce","axle-grease","diamond-bits","engineers-kit","heartstone-core","heartstone-ember"],"bench":{"recipe":"sturdy-props","startedAt":1699999999000,"endsAt":1700000001000}}}',
     late_quiet:
@@ -718,7 +701,7 @@ describe("the audit's and play's saves", () => {
       late_built: () => f.late(FIXED, 30_000_000, { machines: 0, kids: 0 }),
       late_edgeBuilt: () => f.late(FIXED, 25_000_000),
       late_edgeDeep: () => f.late(FIXED, 70_000_000),
-      late_full: () => f.late(FIXED, 240_000_000, { legacy: 2 }),
+      late_full: () => f.late(FIXED, 240_000_000),
       late_both: () =>
         f.late(
           FIXED - 5000,

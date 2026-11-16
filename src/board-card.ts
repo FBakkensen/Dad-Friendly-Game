@@ -1,4 +1,4 @@
-import { el, hide } from "./board-dom";
+import { el } from "./board-dom";
 import type { BoardHost } from "./board-host";
 import type { CardId } from "./board-interaction";
 import { plateButton } from "./board-save";
@@ -23,7 +23,7 @@ export interface BoardCardOptions {
   readonly titleId: string;
   readonly board: BoardHost;
   /**
-   * A card the player opened (Saved copies, Pass the mine, #466) closes the way a dialog does:
+   * A card the player opened (Saved copies, #466) closes the way a dialog does:
    * Escape runs this. The cards that open by themselves leave it out and have no Escape.
    */
   readonly dismiss?: () => void;
@@ -150,25 +150,6 @@ export function createBoardCard({
 /** A line on a card: p.board-card-line.<hook>. Write it with `board-dom#write`, only on a change. */
 export function cardLine(hook: string): HTMLElement {
   return el("p", `board-card-line ${hook}`);
-}
-
-/**
- * A box of lines (`p`, or `li` in a list), rebuilt only when its words change; hidden while it
- * has none.
- */
-export function cardLines(
-  box: HTMLElement,
-  hook: string,
-  lines: readonly string[],
-  tag: "p" | "li" = "p",
-): void {
-  const now = [...box.children].map((line) => line.textContent);
-  if (now.length !== lines.length || now.some((line, i) => line !== lines[i])) {
-    box.replaceChildren(
-      ...lines.map((line) => el(tag, `board-card-line ${hook}`, line)),
-    );
-  }
-  hide(box, lines.length === 0);
 }
 
 /** Art on a card at exactly 2x: img.board-card-art, alt "", not draggable. */

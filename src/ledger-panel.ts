@@ -39,12 +39,12 @@ import { createSoundKey, type SoundSetting } from "./sound";
 
 /*
  * The Ledger drawer (#375): the game's one Sound key in the head (#491), Tonight's newest
- * lines, the mine (stones left with the materials met), the account row, and four plates: Saved copies, Copy field
- * log, Start over and Pass the mine. Start over asks on a page of the drawer, and where the
+ * lines, the mine (stones left with the materials met), the account row, and three plates: Saved copies, Copy field
+ * log and Start over. Start over asks on a page of the drawer, and where the
  * browser refuses the clipboard the field log shows on one. Its rows and lines come from
  * ledger-rows.ts and its own controls from ledger-parts.ts. Every press goes through the
  * board's model, so the settle, the hold and the blink are the board's. Nothing here saves:
- * Start over, signing in and out, Saved copies and Pass the mine are today's calls. The Sound
+ * Start over, signing in and out, and Saved copies are today's calls. The Sound
  * key's choice is this device's, not the save's (sound.ts).
  */
 
@@ -183,12 +183,11 @@ interface LedgerDoorDeps {
   readonly progress: ProgressStore;
   readonly sheet: () => BoardSheet;
   readonly door: HTMLButtonElement;
-  readonly legacy: { open(from: HTMLElement | undefined): void };
   readonly savedCopies: { open(from?: HTMLElement): void };
   readonly onStartOver: () => void;
 }
 
-/** The two pages and the four plates, each wired to where it leads. */
+/** The two pages and the three plates, each wired to where it leads. */
 function wireDoors(deps: LedgerDoorDeps): {
   readonly doors: LedgerDoors;
   readonly startOverPage: ReturnType<typeof createStartOverPage>;
@@ -259,11 +258,6 @@ function wireDoors(deps: LedgerDoorDeps): {
         startOverPage.say(true);
         sheet().showPage(startOverPage.root);
       },
-      pass: () => {
-        handOff();
-        // The card's Not yet gives focus back to the Ledger key.
-        deps.legacy.open(door);
-      },
     },
   });
   return { doors, startOverPage, starting: () => starting };
@@ -282,7 +276,6 @@ export function createLedgerPanel({
   board,
   overSave,
   door,
-  legacy,
   savedCopies,
   onStartOver,
   sound,
@@ -297,8 +290,6 @@ export function createLedgerPanel({
   overSave: () => boolean;
   /** The Ledger key on the rail: the shell writes its aria-expanded. */
   door: HTMLButtonElement;
-  /** Pass the mine: offered on a finished mountain, and today's card. */
-  legacy: { offered(): boolean; open(from: HTMLElement | undefined): void };
   /** Today's Saved copies card. */
   savedCopies: { open(from?: HTMLElement): void };
   /** After a Start over. */
@@ -318,7 +309,6 @@ export function createLedgerPanel({
     progress,
     sheet: () => sheet,
     door,
-    legacy,
     savedCopies,
     onStartOver,
   });
@@ -387,7 +377,7 @@ export function createLedgerPanel({
       paintLoading(parts, onBoard);
     }
     onBoard.paint("account", parts.account, accountRowView(auth.getState()));
-    wired.doors.paint({ ready: view.ready, passOffered: legacy.offered() });
+    wired.doors.paint({ ready: view.ready });
     wired.startOverPage.paint(view.ready && !wired.starting());
     paintTonight();
   };

@@ -95,7 +95,6 @@ export type FieldSnapshot = {
   /** Owned machines with nobody to run them, by machine id. */
   readonly idle: Readonly<Record<MachineId, number>>;
   readonly upgrades: Readonly<Record<UpgradeId, number>>;
-  readonly legacy: number;
   /** Name, rank (0 apprentice, 1 journeyman, 2 master), and post. */
   readonly engineers: readonly {
     readonly name: string;
@@ -156,7 +155,7 @@ export function snapshot(
     at: new Date(now).toISOString(),
     deviceId: stamp.deviceId ?? "",
     rev: stamp.rev ?? 0,
-    // Depth in run-1 stones, whole, as the rules want (a kid run digs fractions).
+    // Depth in stones, whole, as the rules want (a deep band digs fractions).
     mined: Math.floor(minedOut(mountain)),
     left: Math.ceil(mountain.remaining),
     pocket: Math.min(mountain.stock.stones, FIELD_STONES_CAP),
@@ -164,7 +163,6 @@ export function snapshot(
     crewSpeed: rates.crewPerSecond,
     idle,
     upgrades,
-    legacy: mountain.legacy,
     engineers,
     expeditions,
   };
@@ -448,7 +446,6 @@ export function maxFieldLogDocumentBytes(): number {
       crewSpeed: 100_000_000,
       idle,
       upgrades,
-      legacy: 1000,
       deviceId: "x".repeat(FIELD_LOG_TEXT_MAX),
       rev: 1_000_000,
       engineers: ENGINEER_NAMES.map((name) => ({

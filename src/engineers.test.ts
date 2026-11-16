@@ -21,7 +21,7 @@ import {
   station,
   TENDED_MACHINE_STAFF,
   tendBestTier,
-  tendingTenths,
+  engineerTenths,
   type Engineer,
 } from "./engineers";
 import {
@@ -31,14 +31,13 @@ import {
   createMountain,
   type Mountain,
 } from "./mountain";
-import { BAND_SCALE, kidStretch, oneOffStretch } from "./scale";
 import { effectiveRates } from "./rates";
 import { gameOf, minedMountain, reloaded } from "./test-fixtures";
 import { tierById } from "./tiers";
 
-/** A tier's tending tenths as the crew is staffed now. */
+/** A tier's tending tenths from the engineers at home. */
 function tenthsOf(mountain: Mountain, tierId: TierId): number {
-  return tendingTenths(mountain, tierId, effectiveRates(mountain).running);
+  return engineerTenths(mountain, tierId);
 }
 
 const ada: Engineer = { name: "Ada", rank: 0, trips: 0, post: "borer" };
@@ -213,43 +212,23 @@ describe("promote", () => {
     expect(nextEngineerName(full.engineers)).toBe(undefined);
   });
 
-  // #356: k × s × 2^n is not whole on kid runs (k has a denominator of 128,
-  // the Granite adds a half), and a fractional pocket no longer parses.
-  it.each([1, 3])(
-    "prices a whole promotion in every band on kid run legacy %i, and the save still loads",
-    (legacy) => {
-      for (const depth of [2_000_000, 12_000_000, 50_000_000, 130_000_000]) {
-        for (const engineers of [[], [ada]]) {
-          const mountain = {
-            ...crew(engineers),
-            stock: { ...crew(engineers).stock, stones: 10_000_000_000 },
-            remaining: MOUNTAIN_STONES - depth,
-            legacy,
-            stretch: kidStretch(legacy),
-          };
-          const price = promoteCost(mountain);
-          expect(Number.isSafeInteger(price)).toBe(true);
-          const hired = promote(mountain);
-          expect(hired.stock.stones).toBe(mountain.stock.stones - price);
-          expect(reloaded(hired)?.stock.stones).toBe(hired.stock.stones);
-        }
+  // #356: a band's scale times 2^n need not be whole, and a fractional
+  // pocket no longer parses.
+  it("prices a whole promotion in every band, and the save still loads", () => {
+    for (const depth of [2_000_000, 12_000_000, 50_000_000, 130_000_000]) {
+      for (const engineers of [[], [ada]]) {
+        const mountain = {
+          ...crew(engineers),
+          stock: { ...crew(engineers).stock, stones: 10_000_000_000 },
+          remaining: MOUNTAIN_STONES - depth,
+        };
+        const price = promoteCost(mountain);
+        expect(Number.isSafeInteger(price)).toBe(true);
+        const hired = promote(mountain);
+        expect(hired.stock.stones).toBe(mountain.stock.stones - price);
+        expect(reloaded(hired)?.stock.stones).toBe(hired.stock.stones);
       }
-    },
-  );
-
-  it("rounds Nils's Granite price on run 2 up to a whole stone", () => {
-    const mountain = {
-      ...crew([ada]),
-      remaining: MOUNTAIN_STONES - 12_000_000,
-      legacy: 1,
-      stretch: kidStretch(1),
-    };
-    // Nils is the second engineer: twice the base, times the Granite scale
-    // and the run-2 stretch. That is not a whole number, so it rounds up.
-    const raw = PROMOTE_BASE_COST * 2 * oneOffStretch(mountain);
-    expect(Number.isInteger(raw)).toBe(false);
-    expect(promoteCost(mountain)).toBe(Math.ceil(raw));
-    expect(oneOffStretch(mountain)).toBe(BAND_SCALE[1] * kidStretch(1));
+    }
   });
 });
 
