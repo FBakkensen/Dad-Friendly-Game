@@ -40,8 +40,6 @@ export type ShiftReport = {
 /** The second key's words, beside Resume, when the stockyard stood the mine. */
 export const TO_STOCKYARD = "To the stockyard";
 
-/** A fresh night's away report: the only one with a shift report. */
-
 /** A good as the report says it: "stone". */
 const GOOD_WORDS: Readonly<Record<GoodId, string>> = {
   stones: "stone",
