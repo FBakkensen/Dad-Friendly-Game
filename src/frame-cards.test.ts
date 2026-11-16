@@ -306,9 +306,16 @@ describe("the shift report", () => {
 });
 
 describe("the shift report once the stockyard is open (#671)", () => {
-  /** The crew under the Light Tower's roof, its stone a few minutes from full. */
+  /**
+   * The crew under the Light Tower's roof, its stone a few minutes from full,
+   * with a kiln bought (and nobody on it), so no refinery card follows (#672).
+   */
   function nearlyFull(): Mountain {
-    const lit = { ...crew(NO_PROJECT), operational: ["lightTower" as const] };
+    const lit = {
+      ...crew(NO_PROJECT),
+      operational: ["lightTower" as const],
+      makers: { kiln: 1 },
+    };
     return {
       ...lit,
       stock: { ...lit.stock, stones: stockpileRoom(lit, "stones") - 1_000 },
@@ -625,6 +632,17 @@ describe("the refinery's card for a save from part 1 (#672)", () => {
     for (const saved of [kiln, expanded, ordered]) {
       expect(mount({ saved, at: 1_000 }).card().shown).toBe(false);
     }
+  });
+
+  it("waits behind the report of the night the session opens on", () => {
+    holdFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 });
+    const saved = { ...crew(NO_PROJECT), operational: ["lightTower" as const] };
+    const { card, press } = mount({ saved, at: 9 * HOUR });
+    expect(card().kind).toBe("report");
+    press();
+    expect(card()).toMatchObject({ shown: true, kind: "opens" });
+    press();
+    expect(card().shown).toBe(false);
   });
 
   it("does not greet with part 2 off", () => {

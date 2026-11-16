@@ -77,14 +77,17 @@ const GREETINGS: readonly {
 ];
 
 /**
- * What the session greets with, decided on its first ready view: a session
- * that opens on a night greets with its report alone.
+ * What the session greets with, decided on its first ready view. A session
+ * that opens on a night is not a first evening; the refinery's card waits
+ * behind the night's report, as the end card does.
  */
 function greets(view: CardView): Greeting {
-  if (nightReport(view) !== undefined) {
-    return "none";
-  }
-  return GREETINGS.find((each) => each.holds(view.mountain))?.kind ?? "none";
+  const night = nightReport(view) !== undefined;
+  return (
+    GREETINGS.find(
+      (each) => (!night || each.kind !== "first") && each.holds(view.mountain),
+    )?.kind ?? "none"
+  );
 }
 
 function hasNight(report: AwayReport): report is NightAwayReport {
