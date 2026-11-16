@@ -109,7 +109,7 @@ page is the map, plus the rules that keep it that way.
    is complete (#415): every field is present, with 0 for a cold clock, and
    `undefined` only for a free bench. A loaded save
    is played as it was: no grant is added on load (#558). The news is one
-   queue of typed `Notice`s (away, quiet, layer, craft, operational, level), in arrival
+   queue of typed `Notice`s (away, craft, operational, level), in arrival
    order; screens read it with `firstNotice` and
    `noticesOf`, and `dismiss(kind)` closes the oldest of a kind (`"away"`
    closes the whole welcome card). Homecomings stay their own list, since the

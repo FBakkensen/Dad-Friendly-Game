@@ -109,7 +109,8 @@ function paintHead(
  * The jobs, grouped by site (the mine by level once the Granite is open),
  * built for every site; a group shows while it is open, so the refinery
  * joins when it opens (#671). The groups are built again when their layout
- * changes, as the Granite opens (#680).
+ * changes: as the Granite opens (#680), or as a group's jobs change, as the
+ * saws join the refinery's (#754).
  */
 function buildJobs(): {
   readonly root: HTMLElement;
@@ -123,7 +124,12 @@ function buildJobs(): {
   let shown = "";
   const layout = (mountain: Mountain, after: HTMLElement): void => {
     const groups = jobSites(mountain);
-    const key = groups.map((group) => group.key).join(",");
+    // Each group's key and its jobs: a maker can join a group whose key stays.
+    const key = groups
+      .map(
+        (group) => `${group.key}:${group.jobs.map((job) => job.job).join("+")}`,
+      )
+      .join(",");
     if (key === shown) {
       return;
     }

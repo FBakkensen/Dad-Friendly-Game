@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { PLOT_SPANS, buildingX, roadVehicles, siteYard } from "./city-scene";
+import { createMountain } from "./mountain";
+import { drivenFleet } from "./transport";
 
 /** The site's yard beside the building in hand (#672; docs/ART.md, the Warehouse). */
 
@@ -60,5 +62,15 @@ describe("the vehicles on the road (#754)", () => {
       "truck",
       "truck",
     ]);
+  });
+
+  it("draws in the order the drivers take the vehicles", () => {
+    const begin = createMountain();
+    const fleet = { horseWagon: 2, truck: 2 };
+    const driven = drivenFleet({
+      fleet,
+      jobs: { ...begin.jobs, driving: 3 },
+    });
+    expect(roadVehicles(driven, 3)).toEqual(["truck", "truck", "horseWagon"]);
   });
 });

@@ -316,6 +316,27 @@ describe("a steady bypass (#754)", () => {
     });
   });
 
+  it("bypasses all the Topsoil lifts while a full brick stockpile stops the kilns", () => {
+    partThree(() => {
+      const stopped = (room: number): Mountain => {
+        const mountain = fed(room);
+        const brick = stockpileRoom(mountain, "brick");
+        return { ...mountain, stock: { ...mountain.stock, brick } };
+      };
+      const under = view(stopped(1));
+      const [kilnsPlate] = under.plates;
+      const [topsoil] = under.hoppers;
+      expect(kilnsPlate?.now).toBe("0");
+      expect(topsoil?.lifted ?? 0).toBeGreaterThan(0);
+      // The kilns take nothing: every rock the Topsoil lifts goes past them, steady.
+      expect(under.bypass.rate).toBe(
+        `${formatCompact(topsoil?.lifted ?? 0)}/s`,
+      );
+      expect(under.bypass.rate).toBe(view(stopped(0)).bypass.rate);
+      expect(under.scene.bypassing).toBe(true);
+    });
+  });
+
   it("reads as before with one level, whenever the pile is full or has room for more than a load", () => {
     partThree(() => {
       for (const mountain of [fed(0), fed(load(fed(0)) + 1)]) {

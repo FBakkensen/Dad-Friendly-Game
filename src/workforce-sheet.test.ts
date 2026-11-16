@@ -4,6 +4,13 @@ import type { FrameState } from "./frame-state";
 import { createMountain, type Mountain } from "./mountain";
 import { levels, partThree } from "./part-three.harness";
 import { createWorkforceSheet } from "./workforce-sheet";
+import { jobSites } from "./workforce-view";
+
+// The sheet's groups, as the view gives them unless a test says otherwise.
+vi.mock("./workforce-view", async (importOriginal) => {
+  const real = await importOriginal<typeof import("./workforce-view")>();
+  return { ...real, jobSites: vi.fn(real.jobSites) };
+});
 
 /** The sheet rebuilds its job groups as the Granite opens (#680). */
 function stateOf(
@@ -69,6 +76,53 @@ describe("the workforce sheet's job groups", () => {
       job: "graniteDrilling",
       count: 1,
     });
+  });
+});
+
+describe("the workforce sheet's layout (#754)", () => {
+  it("builds a group again when its jobs change and its key does not", async () => {
+    const real =
+      await vi.importActual<typeof import("./workforce-view")>(
+        "./workforce-view",
+      );
+    const sites = vi.mocked(jobSites);
+    const current: Mountain = {
+      ...createMountain(),
+      operational: ["lightTower"],
+    };
+    const sheet = createWorkforceSheet(
+      stateOf(
+        current,
+        vi.fn(() => Promise.resolve()),
+      ),
+    );
+    const rows = (): (string | undefined)[] =>
+      [
+        ...sheet.root.querySelectorAll<HTMLElement>(
+          '.frame-jobs-group[data-group="refinery"] .frame-job',
+        ),
+      ].map((row) => row.dataset["job"]);
+    try {
+      partThree(() => {
+        sheet.paint(current);
+        expect(rows()).toEqual(["kilns"]);
+        // A maker that opens on its own: the refinery's key stays, its jobs grow.
+        sites.mockImplementation((mountain) =>
+          real.jobSites(mountain).map((group) =>
+            group.key === "refinery"
+              ? {
+                  ...group,
+                  jobs: [...group.jobs, { job: "saws", name: "Saws" }],
+                }
+              : group,
+          ),
+        );
+        sheet.paint(current);
+      });
+      expect(rows()).toEqual(["kilns", "saws"]);
+    } finally {
+      sites.mockImplementation(real.jobSites);
+    }
   });
 });
 

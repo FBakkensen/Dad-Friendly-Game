@@ -5,7 +5,7 @@ import truckUrl from "./assets/city/truck.png";
 import warehouseUrl from "./assets/city/warehouse.png";
 import type { BuildingId } from "./city";
 import type { CityScene, Plot } from "./city-view";
-import { VEHICLES, type VehicleId } from "./transport";
+import { BY_LOAD, type VehicleId } from "./transport";
 import {
   SCENE_W,
   frame,
@@ -238,19 +238,16 @@ const BEDS: Readonly<
 };
 
 /**
- * The vehicles drawn on the road, or behind it: at most `room`, the best
- * carriers first, as the drivers take them (#754).
+ * The vehicles drawn on the road, or behind it: at most `room`, in the
+ * drivers' own order (`BY_LOAD`), so the road draws the kinds that drive (#754).
  */
 export function roadVehicles(
   counts: Readonly<Record<VehicleId, number>>,
   room: number,
 ): readonly VehicleId[] {
-  return [...VEHICLES]
-    .sort((a, b) => b.carries - a.carries)
-    .flatMap((vehicle) =>
-      Array.from({ length: counts[vehicle.id] }, () => vehicle.id),
-    )
-    .slice(0, room);
+  return BY_LOAD.flatMap((vehicle) =>
+    Array.from({ length: counts[vehicle.id] }, () => vehicle.id),
+  ).slice(0, room);
 }
 
 /**
