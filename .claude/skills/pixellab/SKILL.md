@@ -22,6 +22,8 @@ Before any create/edit/animate call, send one short ask:
 
 Wait for a yes. If they change the prompt, use theirs.
 
+Flemming approved PixelLab for the project (11 Nov 2026), and each new picture's spend is still asked first, as a number of generations. His yes to the prompt, the size or the spend is not his look at the finished picture: show it to him, and record his answer in `docs/ART.md`.
+
 Cap: **one sheet or one loop per sitting**. No "while we are here, generate the cast."
 
 ## With an image or without
@@ -74,7 +76,16 @@ Where the token comes from:
 
 Before promising art, check that PixelLab tools are in your tool list (Claude Code names them `mcp__pixellab__<tool>`; they are deferred and connect a few seconds after start, so search for them). Use the names the list gives you. Do not guess.
 
-If there are no PixelLab tools:
+### A cloud session where the tools never load
+
+A session that starts in the folder above the repo never reads `.mcp.json`, so no `mcp__pixellab__` tool appears, however long you wait. PixelLab is still reachable there, because the proxy injects the token for `api.pixellab.ai`. Speak MCP to the same server over HTTP. This is the MCP endpoint, not the REST API:
+
+- POST JSON-RPC to `https://api.pixellab.ai/mcp` with the headers `Authorization: Bearer proxy-injected` and `Accept: application/json, text/event-stream`: first `initialize`, then `tools/list` and `tools/call`. The answer comes as SSE `data:` lines.
+- `wait_for_jobs` is free and saves polling. `get_balance` is free too.
+- Download a finished picture from `https://api.pixellab.ai/mcp/images/<job_id>/download` with the same headers.
+- The account runs at most 10 jobs at once.
+
+If that endpoint refuses the call too, there are no PixelLab tools:
 
 - Do not curl the REST API.
 - Do not invent PNGs.
@@ -95,6 +106,17 @@ Prefer, in order:
 Do not use unless the human raises the ceiling: tilesets, isometric maps, `create_8_direction_object`, `create_character` with 4 or 8 directions, path tiles, building kits.
 
 Match style to existing assets in `assets/` (palette, outline, size). Prefer URL references over huge inline base64. PixelLab jobs are async. Poll the matching `get_*` tool. Save the PNG into the repo. Wire the game to the real file.
+
+## What has worked
+
+The prompt, seed and init of every picture in the game are in `docs/ART.md`. Read the section for the nearest picture before a new one. In short:
+
+- **Small icons.** `create_image_pixflux` refuses a canvas under 32×32. For a 16, 20, 24 or 28 square icon use `create_image_pixen` (one generation, no palette or init image). At 16×16 a first try is often hard to read: name the shape plainly ("a round brass pocket watch with a white clock face and two hands") and try once more. Pixen sometimes leaves stray pixels in the corners: check the alpha and clear them.
+- **A flat side view in the board's style.** A plain prompt comes out isometric, even with `view: side`. Pass a strip of the existing pictures' colours as `color_image_base64`, and a rough hand-drawn silhouette as `init_image_base64` at strength 110 to 220. One polish pass from the best try at strength 300 can help a machine. It made the horse worse.
+- **A building.** A tall or square canvas gives a house. A long low canvas, with the goods it holds named in the prompt, gave the Warehouse. A tower came out right from the prompt alone, and a sketch as init at strength 60 to 80 made its lamp room bigger.
+- **A vehicle.** Best from the prompt alone: an init made a blob of the horse. PixelLab sometimes draws a strip of ground under it: clear those rows by hand.
+- **After the picture.** Pixen's colours are its own: `scripts/palette-icon.py` snaps them to the palette. `scripts/outline-icon.py` gives every picture the house's black outline. A dim icon is a recolour (`scripts/dim-icon.py`), with no PixelLab call.
+- **Tries in parallel.** Start them as background shell jobs, with the `cd` on a line of its own first, or they start in the wrong folder.
 
 ## After the file lands
 

@@ -5,14 +5,17 @@ How we build is dad-friendly too. The superpowers plugin is the workflow (`super
 ## Sittings
 
 - One sitting produces one user-visible sliver. The game still boots. Next sitting starts from a running game.
+- Work is planned, split and ordered as vertical slices (Flemming, 14 Nov 2026: "This should be a general principle"): thin end-to-end pieces of the road-to-Mars game, the start of the game first. Every slice leaves the game playable on his phone, so he plays the beginning before the rest exists. Never a layer across the whole game that pays off only at the end. A slice is still built as slivers.
 - Chores (lint, folders, vendor setup) are not a sitting by themselves unless they unblock that same sliver, or the human picks them.
 - GitHub is the backbone: issues, PRs, and the dependency graph. An issue is a sliver: work worth its own sitting and PR. Use the github-issues skill.
 - A sliver that resets the save (a version bump: the old save is set aside and a fresh mountain starts) says "Resets the save" in its issue and PR body before it is built, and in chat before the merge.
+- While Flemming is the only player, a save carries no backwards compatibility (14 Nov 2026: "we start fresh"). No migration, old-save grant or old-save test fixture is written. A new id, or a new key with a default, must not reset the save.
 - The game is built in the road's order (#563), foundations first. An idea of Flemming's is recorded at once and gets an honest answer on what it needs first. It is never built just because it was said (github-issues, Ideas).
 
 ## Docs
 
 - Open GitHub issues are the plan. Specs and plans for a sliver follow `.claude/rules/superpowers.md`.
+- `docs/decisions.md` is the record of Flemming's rulings. A PR that carries out a new ruling adds its line. What is learned goes in the repo, never only in a chat or an account's memory (`working-with-flemming.md`).
 - `docs/DESIGN.md` (the numbers and milestone history), `docs/design-intent.md` (why each part exists), `docs/ARCHITECTURE.md`, `docs/ART.md`, and `docs/ui-audit.md` describe how the game works now. A PR that changes behavior updates them in the same PR.
 
 ## Stack

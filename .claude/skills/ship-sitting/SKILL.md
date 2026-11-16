@@ -27,6 +27,8 @@ Commit and push the sitting's branch as work lands, with `git push` from the she
 
 A cloud session can be given a branch whose last PR was already squash-merged. Start the new sitting from `main` without a force push: `git fetch origin`, `git checkout -B <branch> origin/main`, then `git merge -s ours -m "Start from main" origin/<branch>`. The merge changes no files, and the first push fast-forwards. Never force-push.
 
+That `checkout -B` sets the branch's upstream to `origin/main`, so a bare `git push` fails, and a `| tail -1` hides the error. Push once with `git push -u origin <branch>`, then check `git ls-remote origin <branch>` against `git rev-parse HEAD` before you open the PR.
+
 ## The gate
 
 The proof is the gate, run by hand, and the `signoff` status that records it. GitHub runs two checks on a PR: the Claude review (Babysit) and `merge-check` (below).
@@ -53,7 +55,7 @@ Do not open the PR until the review returns only Minor findings, or none. Every 
 
 ## Open the PR
 
-Use `superpowers:finishing-a-development-branch` with "Push and create a Pull Request" already chosen, against `main`. Its test suite here is `npm run gate -- fast`: see it green, push, and open the PR, so the Claude review starts at once (#585). Then start `npm run gate -- full` in the background and babysit while both run. Do not edit the working tree while a full gate runs: a fix waits for it, or stops it, and the full gate runs again after the last fix push. The title matches the sliver. The PR body:
+Use `superpowers:finishing-a-development-branch` with "Push and create a Pull Request" already chosen, against `main`. Its test suite here is `npm run gate -- fast`: see it green, push, and open the PR, so the Claude review starts at once (#585). Then start `npm run gate -- full` in the background and babysit while both run. Do not edit the working tree while a full gate runs: a fix waits for it, or stops it, and the full gate runs again after the last fix push. The title matches the sliver. A PR that changes a rule (`.claude/rules/`, `CLAUDE.md`, a skill) quotes the words of Flemming's that ask for it in its body: the review flags a rule change with no approval of his. The PR body:
 
 ```markdown
 ## Summary
@@ -101,3 +103,5 @@ Dependabot opens two kinds of PR (#605, `.github/dependabot.yml`): a security up
 - A red gate is fixed on the bot's branch only when the fix is small and in the same packages. Otherwise, close the PR with a comment and file an issue for the upgrade.
 - A major bump is never merged from a bot PR (Flemming, 14 Nov 2026: majors go through an issue first). File an issue for it, link the PR, and close the PR. The issue gets `ready-for-agent` at once (github-issues, Triage: a dependency upgrade is an engineering call). A major that fixes a security alert gets a `fast-lane` issue at once. A major too disruptive to take now (a tool in the chain does not support it yet) swaps `ready-for-agent` for `maybe`, with the reason and what to wait for on the issue. Unlike a hill-climb `maybe`, it does not wait for Flemming: the scheduled triage pass (github-issues, Triage) rechecks its wait-for condition and swaps it back to `ready-for-agent` once the condition holds.
 - Never merge a bot PR without the full gate: the bot cannot run it.
+- Every bot PR touches `package-lock.json`, so two of them often conflict, and each would need its own full gate. When several are open, merge their branches into the sitting's branch, run `npm ci` and `npm audit`, and ship them as one PR with one full gate. Then close the bot PRs with a comment that points at it.
+- After a dependency bump, run `npx eslint .` before the full gate. The fast gate lints only the changed files, and a new typescript-eslint can add errors anywhere.
