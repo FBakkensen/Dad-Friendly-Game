@@ -5,6 +5,8 @@ import { projectCard, transportPlate } from "./city-view";
 import { holdFactors } from "./economy/factors";
 import { mountFrameScreen } from "./frame-screen";
 import { FRESH_OFF } from "./line-switch";
+import { EMPTY_STOCK } from "./stock";
+import { PART_TWO_OFF } from "./part-switch";
 import { createMemoryStorage } from "./test-fixtures";
 import type { Mountain } from "./mountain";
 import { createProgressStore } from "./progress-store";
@@ -182,6 +184,30 @@ describe("the city", () => {
     expect(text(".city-completion")).toBe(
       "On completion: night shift output 45%, up from 30%.",
     );
+  });
+
+  it("marks each of the Warehouse's bars with its own good's picture (#672)", () => {
+    holdFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 });
+    const { root } = mount((m) => ({
+      ...m,
+      operational: ["lightTower"],
+      project: {
+        kind: "delivering",
+        site: {
+          building: "warehouse",
+          step: 0,
+          arrived: EMPTY_STOCK,
+          onSite: EMPTY_STOCK,
+        },
+      },
+    }));
+    const rows = [...root.querySelectorAll<HTMLElement>(".city-bar")];
+    expect(rows.map((row) => row.dataset["good"])).toEqual(["stones", "brick"]);
+    const icons = rows.map(
+      (row) => row.querySelector<HTMLImageElement>(".city-bar-icon")?.src ?? "",
+    );
+    expect(icons[0]).toContain("res-stone");
+    expect(icons[1]).toContain("res-brick");
   });
 
   it("moves drivers and builders with − and +, and says where a free worker comes from", () => {

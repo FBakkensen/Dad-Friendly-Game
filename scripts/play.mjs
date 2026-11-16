@@ -34,12 +34,15 @@ import {
   sliceDoneSave,
   sliceNightSave,
   sliceOrderedSave,
+  slicePartOneDoneSave,
   sliceRefinerySave,
   sliceYardFullSave,
   sliceRoofSave,
   sliceStartSave,
   sliceStandsSave,
   sliceStructureSave,
+  sliceWarehouseRoofSave,
+  sliceWarehouseSave,
 } from "../tools/browser/fixtures.ts";
 
 /**
@@ -47,8 +50,6 @@ import {
  * The frame's saves are the dev account's phone backup, played on a memory save (#664).
  */
 const MEMORY = "?memorySave=1";
-/** Part 2 on a dev page, before #672 switches it on (#671). */
-const PART_TWO = "?memorySave=1&part2=1";
 const SAVES = {
   fresh: {
     note: "first open, nothing saved: the first evening",
@@ -83,7 +84,7 @@ const SAVES = {
     search: MEMORY,
   },
   done: {
-    note: "the Light Tower operational, nothing to order",
+    note: "the Light Tower and the Warehouse operational, nothing to order",
     save: () => sliceDoneSave(Date.now()),
     key: DEV_BACKUP_KEY,
     search: MEMORY,
@@ -107,22 +108,40 @@ const SAVES = {
     search: MEMORY,
   },
   roof: {
-    note: "the roof goes on in the night: the shift report, then the end card",
+    note: "the roof goes on in the night: the shift report, then the refinery opens",
     save: () => sliceRoofSave(Date.now()),
     key: DEV_BACKUP_KEY,
     search: MEMORY,
   },
+  partonedone: {
+    note: "a part 1 save after the Light Tower's roof, 8M stone: the refinery's card greets it",
+    save: () => slicePartOneDoneSave(Date.now()),
+    key: DEV_BACKUP_KEY,
+    search: MEMORY,
+  },
   refinery: {
-    note: "part 2: a kiln with its worker, brick and stone in the stockyard",
+    note: "a kiln with its worker, brick and stone in the stockyard",
     save: () => sliceRefinerySave(Date.now()),
     key: DEV_BACKUP_KEY,
-    search: PART_TWO,
+    search: MEMORY,
   },
   yardfull: {
-    note: "part 2, closed twelve hours ago: the stockyard fills and stops the mine",
+    note: "closed twelve hours ago: the stockyard fills and stops the mine",
     save: () => sliceYardFullSave(Date.now()),
     key: DEV_BACKUP_KEY,
-    search: PART_TWO,
+    search: MEMORY,
+  },
+  warehouse: {
+    note: "the Warehouse's first step delivering, stone and brick on the way",
+    save: () => sliceWarehouseSave(Date.now()),
+    key: DEV_BACKUP_KEY,
+    search: MEMORY,
+  },
+  warehouseroof: {
+    note: "the Warehouse's roof goes on in the night: the shift report, then the end card",
+    save: () => sliceWarehouseRoofSave(Date.now()),
+    key: DEV_BACKUP_KEY,
+    search: MEMORY,
   },
 };
 

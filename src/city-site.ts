@@ -1,3 +1,4 @@
+import brickUrl from "./assets/board/res-brick.png";
 import stoneUrl from "./assets/board/res-stone.png";
 import { el, hide, mark, setAttr, write } from "./board-dom";
 import { vehicleBuyMove, type Move } from "./economy/actions";
@@ -241,7 +242,6 @@ function paintBars(
       ...card.bars.map(() => {
         const row = el("div", "city-bar");
         const icon = el("img", "city-bar-icon");
-        icon.src = stoneUrl;
         icon.alt = "";
         const words = el("span", "city-bar-line");
         const track = el("i", "city-bar-track");
@@ -253,6 +253,13 @@ function paintBars(
   }
   card.bars.forEach((bar, at) => {
     const row = target.children[at];
+    if (row instanceof HTMLElement && row.dataset["good"] !== bar.good) {
+      row.dataset["good"] = bar.good;
+      const icon = row.querySelector<HTMLImageElement>(".city-bar-icon");
+      if (icon != null) {
+        icon.src = bar.good === "brick" ? brickUrl : stoneUrl;
+      }
+    }
     const words = row?.querySelector<HTMLElement>(".city-bar-line");
     const fill = row?.querySelector<HTMLElement>("u");
     if (words != null && fill != null) {

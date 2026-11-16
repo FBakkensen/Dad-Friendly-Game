@@ -172,6 +172,7 @@ type TopParts = {
 function buildTop(state: FrameState): TopParts {
   const root = el("div", "frame-top");
   const stonePile = buildPile(stoneUrl, "frame-pile-count");
+  stonePile.root.dataset["good"] = "stones";
   const brickPile = buildPile(brickUrl, "frame-pile-num");
   brickPile.root.dataset["good"] = "brick";
   const stones = stonePile.count;
@@ -504,7 +505,8 @@ export function mountFrameScreen({
   );
   paint = () => {
     const { mountain, ready } = progress.getSnapshot();
-    // A site that is not open (a dev page left part 2) is never shown.
+    // A site that is not open (the refinery, before the Light Tower) is never shown;
+    // a save loaded from the cloud or a Saved copy can close the one in view.
     if (!siteOpen(mountain, site)) {
       site = "mine";
     }

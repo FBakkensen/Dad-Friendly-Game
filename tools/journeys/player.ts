@@ -3,7 +3,8 @@
  * named save, taps, buys and reads the numbers the player sees, and never reaches into the
  * game. The save, the clock and Math.random are set before the page boots. Since part 1 was
  * switched on (#664) it plays the frame: the mine and the city, their keys and the workers'
- * − and +, and the cards.
+ * − and +, and the cards. Since part 2 (#672) it also reads the stockyard's piles and goes to
+ * the refinery from the shift report.
  */
 import {
   test as base,
@@ -14,6 +15,7 @@ import {
 import { DRAWER_SETTLE_MS } from "../../src/board-interaction.ts";
 import type { Action } from "../../src/economy/actions.ts";
 import type { Mountain } from "../../src/mountain.ts";
+import type { GoodId } from "../../src/stock.ts";
 import { machineKeys } from "../../src/mine-view.ts";
 import { seedJson, type SeedSave } from "../browser/fixtures.ts";
 import { SAVE_KEY, seedScript } from "../browser/harness.ts";
@@ -38,7 +40,7 @@ const CARD = ".frame-card:not([hidden])";
 /** The jobs on the mine's stage rows; driving and building are on the city's plates. */
 const MINE_JOBS: readonly string[] = ["drilling", "haulage", "hoisting"];
 
-type Site = "mine" | "city";
+type Site = "mine" | "refinery" | "city";
 
 export class Player {
   private tab: Page;
@@ -234,6 +236,7 @@ export class Player {
     title: string;
     key: string;
     lines: readonly string[];
+    marks: readonly string[];
   }> {
     const card = this.page.locator(CARD);
     await expect(card).toBeVisible();
@@ -241,6 +244,31 @@ export class Player {
       title: (await card.locator(".frame-card-title").textContent()) ?? "",
       key: (await card.locator(".frame-card-key").textContent()) ?? "",
       lines: await card.locator(".frame-card-line").allTextContents(),
+      marks: await card.locator(".frame-card-mark").allTextContents(),
+    };
+  }
+
+  /**
+   * Closes the shift report by its second key, "To the stockyard", once it has settled: the
+   * frame goes to the refinery (#671).
+   */
+  async toStockyard(): Promise<void> {
+    const card = this.page.locator(CARD);
+    await expect(card).toBeVisible();
+    await this.wait(PAST_SETTLE_MS);
+    await card.locator(".frame-card-yard").tap();
+    await expect(card).toBeHidden();
+    await expect(
+      this.page.locator('.frame-scene[data-site="refinery"]'),
+    ).toBeAttached();
+  }
+
+  /** A stockpile in the top row as the player reads it: its count and its room. */
+  async pile(good: GoodId): Promise<{ text: string; room: string }> {
+    const pile = this.page.locator(`.frame-pile[data-good="${good}"]`);
+    return {
+      text: (await pile.locator(".board-num").textContent()) ?? "",
+      room: (await pile.locator(".frame-pile-room").textContent()) ?? "",
     };
   }
 

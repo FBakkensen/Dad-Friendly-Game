@@ -1139,13 +1139,38 @@ export function sliceStructureSave(now: number): StoredAsIs {
 }
 
 /**
- * After part 1's last roof (#662): the Light Tower operational and nothing
- * to order, so the city's card says the city is planning its next building.
+ * After the last roof that is live (#662; part 2's since #672): the Light
+ * Tower and the Warehouse operational and nothing to order, so the city's
+ * card says the city is planning its next building.
  */
 export function sliceDoneSave(now: number): StoredAsIs {
   return sliceSave(now, {
+    owned: { helper: 15, cart: 2 },
+    stock: { stones: 120_000, brick: 40_000 },
+    jobs: {
+      drilling: 4,
+      haulage: 3,
+      hoisting: 4,
+      driving: 1,
+      building: 2,
+      kilns: 1,
+    },
+    fleet: { horseWagon: 2 },
+    marks: { operational: ["lightTower", "warehouse"] },
+    makers: { kiln: 1 },
+  });
+}
+
+/**
+ * A save from part 1 after its last roof, as a player had it when part 2 was
+ * switched on (#672): the Light Tower operational, nothing ordered, no kiln,
+ * and more stone than the stockyard's room, since part 1 had none. Its first
+ * session greets with the refinery's card.
+ */
+export function slicePartOneDoneSave(now: number): StoredAsIs {
+  return sliceSave(now, {
     owned: { helper: 14, cart: 2 },
-    stock: { stones: 120_000 },
+    stock: { stones: 8_000_000 },
     jobs: { drilling: 4, haulage: 3, hoisting: 4, driving: 1, building: 2 },
     fleet: { horseWagon: 2 },
     marks: { operational: ["lightTower"] },
@@ -1153,7 +1178,60 @@ export function sliceDoneSave(now: number): StoredAsIs {
 }
 
 /**
- * Part 2 (#671), on a page with `?part2=1`: the Light Tower operational, a
+ * The Warehouse's structure going up (#672): the Light Tower operational,
+ * the Warehouse's foundation built in, and stone and brick on their way on
+ * the second plot.
+ */
+export function sliceWarehouseSave(now: number): StoredAsIs {
+  return sliceSave(now, {
+    owned: { helper: 18, cart: 2 },
+    stock: { stones: 420_000, brick: 60_000 },
+    jobs: {
+      drilling: 4,
+      haulage: 3,
+      hoisting: 4,
+      driving: 1,
+      building: 2,
+      kilns: 1,
+    },
+    fleet: { horseWagon: 2 },
+    marks: { operational: ["lightTower"] },
+    makers: { kiln: 1 },
+    piles: { face: 200, shaft: 150, kiln: 120 },
+    project: {
+      building: "warehouse",
+      state: "delivering",
+      step: 1,
+      arrived: { stones: 6_000_000, brick: 1_500_000 },
+      onSite: { stones: 200, brick: 100 },
+    },
+  });
+}
+
+/**
+ * The Warehouse's roof a thousand brick short, closed twelve hours ago: the
+ * night delivers it, the builders build it in, and the frame opens on the
+ * report, then the end card (#672).
+ */
+export function sliceWarehouseRoofSave(now: number): StoredAsIs {
+  return sliceSave(now - 12 * HOUR, {
+    owned: { helper: 13 },
+    jobs: { ...FIRST_EVENING_JOBS, kilns: 1 },
+    fleet: { horseWagon: 1 },
+    stock: { brick: 1_000 },
+    marks: { operational: ["lightTower"] },
+    makers: { kiln: 1 },
+    project: {
+      building: "warehouse",
+      state: "delivering",
+      step: 2,
+      arrived: { brick: 11_999_000 },
+    },
+  });
+}
+
+/**
+ * Part 2 (#671): the Light Tower operational, a
  * kiln with its worker, rock at the kilns, and stone and brick in the
  * stockyard. The refinery's tab is in the site bar.
  */

@@ -10,6 +10,7 @@ import { holdFactors } from "../../src/economy/factors.ts";
 import type { Action, Move } from "../../src/economy/actions.ts";
 import { freshPlan } from "../../src/lab/fresh-dad.ts";
 import { FRESH_OFF } from "../../src/line-switch.ts";
+import { PART_TWO_OFF } from "../../src/part-switch.ts";
 import {
   createMountain,
   type AwayReport,
@@ -25,8 +26,8 @@ import {
   type Session,
 } from "../../src/session.ts";
 
-// The game ships the fresh mine (#664): the rules here play it too, as the page does.
-holdFactors({ [FRESH_OFF]: 0 });
+// The game ships the fresh mine (#664) with part 2 (#672): the rules here play it too, as the page does.
+holdFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 });
 
 /** How often the open game folds the crew's work in (src/frame-screen.ts). */
 export const TICK_MS = 1000;
