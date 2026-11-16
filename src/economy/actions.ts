@@ -32,6 +32,16 @@ import {
 } from "../city";
 import { freshMineOn } from "../line-switch";
 import {
+  BLUEPRINT_IDS,
+  blueprintOpen,
+  installable,
+  cancelWorkOrder,
+  installWorkOrder,
+  placeWorkOrder,
+  stationOpen,
+  type BlueprintId,
+} from "../factory";
+import {
   LEVEL_MACHINE_IDS,
   graniteOpen,
   levelMachines,
@@ -171,7 +181,90 @@ export type Action =
   | OrderAction
   | WorkerAction
   | YardAction
-  | LevelAction;
+  | LevelAction
+  | FactoryAction;
+
+/**
+ * The factory's moves (slice 1, rule 7.13, #674), only while its station is
+ * open: place a work order from a blueprint, cancel it, install it once
+ * done. Placing is free: transport brings what it requires.
+ */
+type FactoryAction =
+  | { readonly kind: "placeWorkOrder"; readonly blueprint: BlueprintId }
+  | { readonly kind: "cancelWorkOrder" }
+  | { readonly kind: "installWorkOrder" };
+
+/** The station's moves: a blueprint for an idle one, else cancel, and install once done. */
+function factoryActions(mountain: Mountain): readonly Action[] {
+  if (!stationOpen(mountain)) {
+    return [];
+  }
+  switch (mountain.station.kind) {
+    case "idle":
+      return BLUEPRINT_IDS.filter((id) => blueprintOpen(mountain, id)).map(
+        (blueprint) => ({ kind: "placeWorkOrder", blueprint }),
+      );
+    case "delivering":
+      return [{ kind: "cancelWorkOrder" }];
+    case "done":
+      return installable(mountain)
+        ? [{ kind: "installWorkOrder" }, { kind: "cancelWorkOrder" }]
+        : [{ kind: "cancelWorkOrder" }];
+  }
+}
+
+/** A factory move applied; nothing while the station is closed. */
+function factoryApplied(
+  mountain: Mountain,
+  action: FactoryAction,
+  now: number,
+): Mountain {
+  if (!stationOpen(mountain)) {
+    return mountain;
+  }
+  switch (action.kind) {
+    case "placeWorkOrder":
+      return placeWorkOrder(mountain, action.blueprint);
+    case "cancelWorkOrder":
+      return cancelWorkOrder(mountain);
+    case "installWorkOrder":
+      return installWorkOrder(mountain, now);
+  }
+}
+
+/** What an applied factory move did, for the field log: the blueprint, and an installed gear's level. */
+function factoryEvents(
+  before: Mountain,
+  next: Mountain,
+  action: FactoryAction,
+): readonly MoveEvent[] {
+  const { station } = before;
+  /* v8 ignore next 3 -- an applied cancel or install had a work order */
+  const blueprint =
+    action.kind === "placeWorkOrder"
+      ? action.blueprint
+      : station.kind === "idle"
+        ? undefined
+        : station.blueprint;
+  /* v8 ignore next 3 -- an applied factory move names a blueprint */
+  if (blueprint === undefined) {
+    return [];
+  }
+  switch (action.kind) {
+    case "placeWorkOrder":
+      return [{ kind: "workOrderPlaced", blueprint }];
+    case "cancelWorkOrder":
+      return [{ kind: "workOrderCancelled", blueprint }];
+    case "installWorkOrder":
+      return [
+        {
+          kind: "workOrderInstalled",
+          blueprint,
+          level: craftedLevel(next, blueprint),
+        },
+      ];
+  }
+}
 
 /**
  * Part 3's moves at the shaft (slice 1, rules 1.3 and 5.2, #673), only while
@@ -266,6 +359,7 @@ export function listActions(
     ...workerActions(mountain),
     ...yardActions(mountain),
     ...levelActions(mountain),
+    ...factoryActions(mountain),
   ];
 }
 
@@ -648,6 +742,16 @@ export type MoveEvent =
       readonly id: LevelMachineId;
       /** That machine on the Granite after the move. */
       readonly count: number;
+    }
+  | {
+      readonly kind: "workOrderPlaced" | "workOrderCancelled";
+      readonly blueprint: BlueprintId;
+    }
+  | {
+      readonly kind: "workOrderInstalled";
+      readonly blueprint: BlueprintId;
+      /** The gear's level after it. */
+      readonly level: number;
     };
 
 /**
@@ -736,6 +840,10 @@ function actionApplied(
     case "sinkShaft":
     case "buyGraniteMachine":
       return levelApplied(mountain, action);
+    case "placeWorkOrder":
+    case "cancelWorkOrder":
+    case "installWorkOrder":
+      return factoryApplied(mountain, action, now);
     /* v8 ignore next 3 -- exhaustiveness guard, unreachable */
     default: {
       const unexpected: never = action;
@@ -886,6 +994,10 @@ function actionEvents(
           count: levelMachines(next, "granite")[action.id],
         },
       ];
+    case "placeWorkOrder":
+    case "cancelWorkOrder":
+    case "installWorkOrder":
+      return factoryEvents(before, next, action);
     /* v8 ignore next 3 -- exhaustiveness guard, unreachable */
     default: {
       const unexpected: never = action;
@@ -1012,6 +1124,11 @@ export function valueOf(
       };
     case "buyGraniteMachine":
       return { gainPerSec: 0, cost: 0, paybackSec: Infinity };
+    case "placeWorkOrder":
+    case "cancelWorkOrder":
+    case "installWorkOrder":
+      // The lab learns what a work order is worth with the whole slice (#675).
+      return { gainPerSec: 0, cost: 0, paybackSec: Infinity };
     /* v8 ignore next 3 -- exhaustiveness guard, unreachable */
     default: {
       const unexpected: never = action;
@@ -1125,8 +1242,8 @@ export function helperBill(mountain: Mountain, count: number): number {
   return cost;
 }
 
-/** Hands not already running a machine. The sim dad's spare count too. */
-export function freeHelpers(mountain: Mountain): number {
+/** Workers not already running a machine. */
+function freeHelpers(mountain: Mountain): number {
   const rates = effectiveRates(mountain);
   const used = TIERS.reduce(
     (total, tier) =>

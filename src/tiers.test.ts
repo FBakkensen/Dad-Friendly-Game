@@ -13,10 +13,11 @@ import {
 import { AWAY_PAY_RATE, effectiveRates } from "./rates";
 import { MOUNTAIN_STONES, stonesLeft } from "./scale";
 import { withFactors } from "./economy/factors";
+import { UPGRADES, upgradePrice } from "./upgrades";
 import { listActions } from "./economy/actions";
 import { LINE_OFF, FRESH_OFF } from "./line-switch";
 import { NO_GRANITE_PILES, NO_LEVEL_MACHINES } from "./mine-levels";
-import { PART_THREE_OFF, PART_TWO_OFF } from "./part-switch";
+import { PART_THREE_OFF, PART_TWO_OFF, PLAY_FACTORS } from "./part-switch";
 import {
   HELPER_COST_GROWTH,
   LINE_MACHINE_COST_GROWTH,
@@ -76,7 +77,6 @@ describe("tiers", () => {
   });
 
   it("lists every tier cheapest first, each a big jump in speed", () => {
-    // First prices are pinned once, in src/tuning.test.ts (#381).
     expect(TIERS.map(({ id, perSecond }) => [id, perSecond])).toEqual([
       ["helper", 1],
       ["cart", 6],
@@ -269,7 +269,7 @@ describe("kid helpers", () => {
     const kid = tierById("kid");
     expect(tierLocked(minedMountain(69_999_999), kid)).toBe(true);
     expect(tierLocked(minedMountain(70_000_000), kid)).toBe(false);
-    // Kids share the workers' curve (the price is pinned in src/tuning.test.ts).
+    // Kids share the workers' curve.
     expect(tierCost(kid, 0)).toBe(kid.firstCost);
     expect(tierCost(kid, 1)).toBe(
       Math.ceil(Number((kid.firstCost * HELPER_COST_GROWTH).toPrecision(12))),
@@ -553,6 +553,72 @@ describe("the line's prices, labs only (#543)", () => {
     });
     expect(tierCost(tierById("machine"), 0)).toBe(120_600_000);
     expect(tierCost(tierById("cart"), 1)).toBe(690);
+  });
+});
+
+/**
+ * The deliberate pins on the prices play charges (#381, kept in #738 when
+ * `tuning.test.ts` went with today's game). A price-only retune breaks these
+ * and nothing else: every other test computes its prices from `tierCost`.
+ * They match docs/DESIGN.md "Numbers now"; change both together.
+ */
+describe("the prices play charges (#738)", () => {
+  it("prices the first of each machine and worker as the page does", () => {
+    withFactors(PLAY_FACTORS, () => {
+      expect(TIERS.map((tier) => [tier.id, tierCost(tier, 0)])).toEqual([
+        ["helper", 60],
+        ["cart", 600],
+        ["hoist", 6_000],
+        ["drill", 73_080],
+        ["borer", 4_940_000],
+        ["train", 30_000_000],
+        ["machine", 96_480_000],
+        ["kid", 250_000],
+      ]);
+    });
+  });
+
+  it("climbs machines x1.219 a unit and workers x1.06", () => {
+    expect(LINE_MACHINE_COST_GROWTH).toBe(1.219);
+    expect(HELPER_COST_GROWTH).toBe(1.06);
+    withFactors(PLAY_FACTORS, () => {
+      // Anchors on the rounded curves.
+      expect(tierCost(tierById("cart"), 12)).toBe(6_460);
+      expect(tierCost(tierById("helper"), 50)).toBe(1_106);
+    });
+  });
+
+  it("prices each crew upgrade as the page does", () => {
+    withFactors(PLAY_FACTORS, () => {
+      const fresh = createMountain();
+      expect(
+        UPGRADES.map(({ id, costGrowth }) => [
+          id,
+          upgradePrice(fresh, id),
+          costGrowth,
+        ]),
+      ).toEqual([
+        ["boots", [{ good: "stones", amount: 1_625_000 }], 1],
+        ["cartSyn", [{ good: "stones", amount: 2_000_000 }], 1],
+        ["drillSyn", [{ good: "stones", amount: 3_000_000 }], 1],
+        ["borerSyn", [{ good: "stones", amount: 15_000_000 }], 1],
+        ["machineSyn", [{ good: "stones", amount: 30_000_000 }], 1],
+      ]);
+    });
+  });
+
+  it("prices part 3's borer and locomotive in cut stone", () => {
+    withFactors({ ...PLAY_FACTORS, [PART_THREE_OFF]: 0 }, () => {
+      expect(
+        [tierById("borer"), tierById("train")].map((tier) => [
+          tierGood(tier.id),
+          tierCost(tier, 0),
+        ]),
+      ).toEqual([
+        ["cutStone", 40_000],
+        ["cutStone", 60_000],
+      ]);
+    });
   });
 });
 

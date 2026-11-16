@@ -76,7 +76,7 @@ const LIVE: ValueContext = {
   awaySeconds: 0,
 };
 
-/** One session and the gap before the next, as the pacing dad plays it. */
+/** One session and the gap before the next, as a typical dad plays it. */
 const SESSION_S = 10 * 60;
 const GAP_S = 12 * 60 * 60 - SESSION_S;
 const CASUAL: ValueContext = {
@@ -119,6 +119,9 @@ const FIXTURES = {
   expandStockyard: { kind: "expandStockyard" },
   sinkShaft: { kind: "sinkShaft" },
   buyGraniteMachine: { kind: "buyGraniteMachine", id: "borer" },
+  placeWorkOrder: { kind: "placeWorkOrder", blueprint: "iron-rails" },
+  cancelWorkOrder: { kind: "cancelWorkOrder" },
+  installWorkOrder: { kind: "installWorkOrder" },
 } as const satisfies {
   [K in Action["kind"]]: Extract<Action, { kind: K }>;
 };
@@ -195,8 +198,12 @@ function direct(mountain: Mountain, action: Action, now: number): Mountain {
     case "expandStockyard":
     case "sinkShaft":
     case "buyGraniteMachine":
-      // Only a fresh mine takes them (#654, #689, #666, #673: src/fresh-orders.test.ts,
-      // src/workforce.test.ts, src/part-two.test.ts, src/part-three-moves.test.ts).
+    case "placeWorkOrder":
+    case "cancelWorkOrder":
+    case "installWorkOrder":
+      // Only a fresh mine takes them (#654, #689, #666, #673, #674: src/fresh-orders.test.ts,
+      // src/workforce.test.ts, src/part-two.test.ts, src/part-three-moves.test.ts,
+      // src/factory-moves.test.ts).
       return mountain;
     default: {
       const unexpected: never = action;
@@ -214,7 +221,7 @@ function expectSameMove(mountain: Mountain, action: Action, now: number): void {
   }
 }
 
-/** Spare hands, as `pacing.ts` `bestValue` counts them. */
+/** Workers not already running a machine. */
 function freeHelpers(mountain: Mountain): number {
   const rates = effectiveRates(mountain);
   return (
@@ -229,7 +236,7 @@ function freeHelpers(mountain: Mountain): number {
 }
 
 /**
- * Gain and cost `bestValue` would score for this tier today.
+ * The gain and cost the catalogue's own tier value gives this tier today.
  * Workers: crew delta of one hire. Machines: current unit speed, plus the
  * workers still needed on the cost.
  */
@@ -549,7 +556,12 @@ describe("listActions", () => {
             piles: NO_GRANITE_PILES,
           },
         };
-        for (const one of [lit, sunk]) {
+        // The factory's station opens with the shaft (#674).
+        const done: Mountain = {
+          ...sunk,
+          station: { kind: "done", blueprint: "reinforce" },
+        };
+        for (const one of [lit, sunk, done]) {
           for (const action of listActions(one, NOW)) {
             seen.add(action.kind);
           }
@@ -658,7 +670,7 @@ describe("applyAction", () => {
 
 describe("valueOf", () => {
   // valueOf reads no price: the buys here carry 0 (#367).
-  it("matches bestValue for every listed tier", () => {
+  it("matches the catalogue's tier value for every listed tier", () => {
     const mountains = [fresh, withHelper, rich, broke, lockedMachine, crowned];
     for (const mountain of mountains) {
       for (const action of listActions(mountain, NOW)) {

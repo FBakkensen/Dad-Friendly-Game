@@ -7,7 +7,7 @@ import { advance } from "../session-time";
 export type PlayMode = "live" | "away";
 
 /**
- * One clock the pacing sim and the strategy lab share.
+ * The strategy lab's clock.
  * The seed rolls hazards. A find is fixed when its expedition leaves.
  */
 export type World = {

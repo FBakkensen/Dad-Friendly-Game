@@ -51,19 +51,6 @@ export async function startServer(
   return start(options.port);
 }
 
-/** A bare page in its own context, for callers that drive navigation themselves (mockups). */
-export async function newWindow(
-  browser: Browser,
-  viewport: Viewport,
-): Promise<{ page: Page; close(): Promise<void> }> {
-  // Its own context, so its own window: a background tab in a shared
-  // window gets no animation frames, and the frame-polled waits stall.
-  const context = await browser.createBrowserContext();
-  const page = await context.newPage();
-  await page.setViewport(viewport);
-  return { page, close: () => context.close() };
-}
-
 /** The localStorage key the game keeps its save under; tools/browser/fixtures.ts re-exports it. */
 export const SAVE_KEY = "dad-friendly-game";
 

@@ -5,7 +5,7 @@ import { FRESH_OFF } from "./line-switch";
 import { placeOrder } from "./city";
 import { createMountain, type Mountain } from "./mountain";
 import { PART_THREE_OFF, PART_TWO_OFF } from "./part-switch";
-import { priceAmount } from "./stock";
+import { EMPTY_STOCK, priceAmount } from "./stock";
 import {
   STOCKPILE_GOODS,
   deadStockpiles,
@@ -144,6 +144,25 @@ describe("a dead stockpile (#667)", () => {
         },
       };
       expect(deadStockpiles(roof)).toEqual(["stones"]);
+      // A work order that still requires stone takes it too (#674).
+      const railing: Mountain = {
+        ...roof,
+        station: {
+          kind: "delivering",
+          blueprint: "iron-rails",
+          arrived: EMPTY_STOCK,
+        },
+      };
+      expect(deadStockpiles(railing)).toEqual([]);
+      const greasing: Mountain = {
+        ...roof,
+        station: {
+          kind: "delivering",
+          blueprint: "axle-grease",
+          arrived: EMPTY_STOCK,
+        },
+      };
+      expect(deadStockpiles(greasing)).toEqual(["stones"]);
     });
   });
 });

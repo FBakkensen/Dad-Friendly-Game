@@ -114,7 +114,6 @@ describe("crew synergies", () => {
     expect(
       ["drillSyn", "borerSyn", "machineSyn"].map((id) => {
         const upgrade = upgradeById(id as "drillSyn");
-        // Their prices are pinned in src/tuning.test.ts.
         return [upgrade.unlock, upgrade.synergy];
       }),
     ).toEqual([

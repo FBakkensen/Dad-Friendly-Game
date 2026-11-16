@@ -598,6 +598,8 @@ export function mineWritten(mountain: Mountain, step: MineStep): MineFlow {
           ? mountain.granite
           : { ...granite, piles: step.granitePiles },
       rockDug: mountain.rockDug + step.dug.topsoil + step.dug.granite,
+      // Counted where it is drilled, for the Granite's iron (#674).
+      graniteDug: mountain.graniteDug + step.dug.granite,
     },
     mined: step.mined,
     gained,

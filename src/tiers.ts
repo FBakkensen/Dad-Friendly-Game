@@ -89,7 +89,7 @@ type TierRow = {
   readonly line?: true;
 };
 
-/** Cheapest first. Each tier is 6–10× the speed of the last; tuned by src/pacing.test.ts. */
+/** Cheapest first. Each tier is 6–10× the speed of the last. */
 const TIER_ROWS = [
   {
     id: "helper",
@@ -207,9 +207,6 @@ export type MachineId = Extract<
  * yet: the stage bays and Buys by stage (#537, #538) widen the screens.
  */
 export type LineTierId = "hoist" | "train";
-
-/** A tier the screens show today. */
-export type ShownTierId = Exclude<TierId, LineTierId>;
 
 export function isShownTier<T extends TierId>(
   id: T,

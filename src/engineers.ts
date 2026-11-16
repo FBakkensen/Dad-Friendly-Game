@@ -96,7 +96,7 @@ export const MASTER_TRIPS = 9;
 /**
  * Stones for the next promotion. Doubles for each engineer already in the
  * crew: 1,000,000 with none, so 2,000,000 once Ada is here (Nils), then
- * 4,000,000, 8,000,000 and 16,000,000. The pacing sim pays this same price.
+ * 4,000,000, 8,000,000 and 16,000,000.
  * The plain dad then reaches the bottom on day 5.5, and a second run on
  * day 4. The first mountain still takes at least 5 days (#163, #171).
  */
@@ -279,7 +279,7 @@ export function staffForBuy(
 }
 
 /**
- * The pacing dad's one engineer. A Great Machine comes first, because that
+ * The post for one engineer. A Great Machine comes first, because that
  * is what lets it run on a small crew; otherwise the borers. Someone already
  * in a tunnel stays there.
  */

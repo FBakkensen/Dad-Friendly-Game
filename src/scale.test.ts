@@ -47,7 +47,7 @@ describe("the mountain's size (M13, #729)", () => {
     const runOne = minedMountain(25_000_000);
     expect(tierLock(runOne, machine)).toMatchObject({
       depth: 120_000_000,
-      // 10M x s1 + 35M x s2 + 75M x s3; the scales are pinned in src/tuning.test.ts.
+      // 10M x s1 + 35M x s2 + 75M x s3.
       at:
         10_000_000 * BAND_SCALE[0] +
         35_000_000 * BAND_SCALE[1] +
