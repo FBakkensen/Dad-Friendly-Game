@@ -93,11 +93,12 @@ describe("tournament", () => {
     );
     const cell = (id: string) =>
       result.rows[0]?.cells.find((item) => item.measureId === id)?.value;
-    // The fresh mine's first two days: the check-in buys in three sittings
-    // of four, sixteen buys in the median one, and every open whose sheet
-    // prices a crew buy finds it in reach.
-    expect(cell("zeroBuySittings")).toBe(0.25);
-    expect(cell("buysPerSitting")).toBe(16);
+    // The fresh mine's first two days, with part 3's stages set apart
+    // (#682): the check-in buys in seven sittings of eight, seven or eight
+    // buys in the median one, and every open whose sheet prices a crew buy
+    // finds it in reach.
+    expect(cell("zeroBuySittings")).toBe(0.125);
+    expect(cell("buysPerSitting")).toBe(7.5);
     expect(cell("bestOpenShare")).toBe(1);
   }, 30_000);
 });
