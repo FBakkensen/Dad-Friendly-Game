@@ -1,7 +1,8 @@
 import { factor } from "./economy/factors";
-import type { MineLevelId } from "./mine-levels";
+import { MINE_LEVEL_IDS, graniteOpen, type MineLevelId } from "./mine-levels";
+import type { Mountain } from "./mountain";
 import type { TierId } from "./tiers";
-import { toolSpeed, type StageWork } from "./workforce";
+import { movable, toolSpeed, type StageWork } from "./workforce";
 
 /**
  * The shaft's cages (slice 1, part 3, rules 5.5 to 5.14, #724): which cages
@@ -205,4 +206,138 @@ export function cageRates(cages: readonly ShaftCage[]): CageRates {
     }
   }
   return { own, loads };
+}
+
+/** Where a cage is on its trip: at the top, on the way down or up (seconds left), or loading at its level. */
+type CageLeg =
+  | { readonly kind: "top" }
+  | { readonly kind: "down"; readonly left: number }
+  | { readonly kind: "loading" }
+  | { readonly kind: "up"; readonly left: number };
+
+/** One cage's trip (ruling 9): the level it serves this trip, the rock it carries, and its leg. */
+export type Cage = {
+  readonly level: MineLevelId;
+  readonly carried: number;
+  readonly leg: CageLeg;
+};
+
+/** The cages that are not fresh, by key. A cage with no entry is empty at the top. */
+export type CageTrips = Readonly<Partial<Record<CageKey, Cage>>>;
+
+/** The shaft's live state on the mountain: the hoists assigned to each level, and the cages' trips. */
+export type Cages = {
+  readonly assigned: HoistsAssigned;
+  readonly trips: CageTrips;
+};
+
+export const NO_CAGES: Cages = { assigned: NO_HOISTS_ASSIGNED, trips: {} };
+
+/**
+ * A cage's trip, or a fresh one: empty at the top, last at the Granite for
+ * an even place in the order and the Topsoil for an odd one, so the cages
+ * for both levels start on alternate levels (ruling 9).
+ */
+export function cageAt(trips: CageTrips, key: CageKey, place: number): Cage {
+  return (
+    trips[key] ?? {
+      level: place % 2 === 0 ? "granite" : "topsoil",
+      carried: 0,
+      leg: { kind: "top" },
+    }
+  );
+}
+
+/** The rock every cage carries, level by level. */
+export function carriedBy(
+  trips: CageTrips,
+): Readonly<Record<MineLevelId, number>> {
+  const carried: Record<MineLevelId, number> = { topsoil: 0, granite: 0 };
+  for (const cage of Object.values(trips)) {
+    if (cage !== undefined) {
+      carried[cage.level] += cage.carried;
+    }
+  }
+  return carried;
+}
+
+/**
+ * The trips a save's carried rock comes back as (ruling 12): each level with
+ * rock puts it in the next cage in order, at the top, the Topsoil first.
+ * The reader refuses a save with more such levels than cages, so this throws.
+ */
+export function restoredTrips(
+  carried: Readonly<Record<MineLevelId, number>>,
+  keys: readonly CageKey[],
+): CageTrips {
+  const trips: Partial<Record<CageKey, Cage>> = {};
+  let next = 0;
+  for (const level of MINE_LEVEL_IDS) {
+    if (carried[level] <= 0) {
+      continue;
+    }
+    const key = keys[next];
+    if (key === undefined) {
+      throw new Error(`no cage for the rock carried from ${level}`);
+    }
+    trips[key] = { level, carried: carried[level], leg: { kind: "top" } };
+    next += 1;
+  }
+  return trips;
+}
+
+/** The hoists he owns, the engines among them, that no level has (ruling 5). */
+export function unassignedHoists(
+  mountain: Pick<Mountain, "owned" | "cages">,
+): number {
+  const { topsoil, granite } = mountain.cages.assigned;
+  return Math.max(0, hoistsOwned(mountain.owned) - topsoil - granite);
+}
+
+/**
+ * Up to `count` unassigned hoists onto a level, free and at once, only while
+ * the Granite is open (ruling 5). A count is read as a worker move reads it.
+ */
+export function assignHoists<
+  M extends Pick<Mountain, "owned" | "cages" | "granite">,
+>(mountain: M, level: MineLevelId, count = 1): M {
+  if (!graniteOpen(mountain)) {
+    return mountain;
+  }
+  return assignedBy(
+    mountain,
+    level,
+    Math.min(movable(count), unassignedHoists(mountain)),
+  );
+}
+
+/** Up to `count` hoists off a level, at any time: there is no lock (ruling 5). */
+export function unassignHoists<M extends Pick<Mountain, "cages">>(
+  mountain: M,
+  level: MineLevelId,
+  count = 1,
+): M {
+  return assignedBy(
+    mountain,
+    level,
+    -Math.min(movable(count), mountain.cages.assigned[level]),
+  );
+}
+
+function assignedBy<M extends Pick<Mountain, "cages">>(
+  mountain: M,
+  level: MineLevelId,
+  by: number,
+): M {
+  if (by === 0) {
+    return mountain;
+  }
+  const { cages } = mountain;
+  return {
+    ...mountain,
+    cages: {
+      ...cages,
+      assigned: { ...cages.assigned, [level]: cages.assigned[level] + by },
+    },
+  };
 }

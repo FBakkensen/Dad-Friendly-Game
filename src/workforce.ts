@@ -162,7 +162,7 @@ export function freeWorker<M extends Crew>(
 }
 
 /** A count a move can carry: whole and not below 0. NaN moves none, and Infinity all there are. */
-function movable(count: number): number {
+export function movable(count: number): number {
   return count > 0 ? Math.floor(count) : 0;
 }
 

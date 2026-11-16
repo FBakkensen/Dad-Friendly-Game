@@ -1,6 +1,14 @@
+import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import {
+  NO_CAGES,
   NO_HOISTS_ASSIGNED,
+  assignHoists,
+  cageAt,
+  carriedBy,
+  restoredTrips,
+  unassignHoists,
+  unassignedHoists,
   cageKeys,
   cagePileRoom,
   cageRates,
@@ -14,7 +22,8 @@ import {
 } from "./cages";
 import { withFactors } from "./economy/factors";
 import { FRESH_OFF } from "./line-switch";
-import { createMountain } from "./mountain";
+import { MINE_LEVEL_IDS, sinkShaft } from "./mine-levels";
+import { createMountain, type Mountain } from "./mountain";
 import { PART_THREE_OFF, PART_TWO_OFF } from "./part-switch";
 import { effectiveRates } from "./rates";
 import { tierRecord, type MachineId, type TierId } from "./tiers";
@@ -351,5 +360,203 @@ describe("the piles the cages use (Starting numbers)", () => {
     expect(largestLoad(cagesOf({ hoist: 1 }, work({}, 40)))).toBe(
       speed.hoist * 10,
     );
+  });
+});
+
+/** A mine with the shaft sunk and paid for, owning these tiers, in part 3. */
+function sunkMine(owned: Partial<Record<TierId, number>> = {}): Mountain {
+  return partThree(() => {
+    const fresh = createMountain();
+    const sunk = sinkShaft({
+      ...fresh,
+      operational: ["lightTower"],
+      stock: { ...fresh.stock, stones: 10_000_000, brick: 1_500_000 },
+    });
+    expect(sunk.granite.kind).toBe("sunk");
+    return { ...sunk, owned: { ...sunk.owned, ...owned } };
+  });
+}
+
+const partTwo = <T>(body: () => T): T =>
+  withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 }, body);
+
+describe("hoists assigned to a level (rule 5.8)", () => {
+  it("assigns up to the hoists he owns that are not assigned, free and at once", () => {
+    partThree(() => {
+      const mine = sunkMine({ hoist: 2 });
+      expect(unassignedHoists(mine)).toBe(2);
+      const after = assignHoists(mine, "granite", 5);
+      expect(after.cages.assigned).toEqual({ topsoil: 0, granite: 2 });
+      expect(after.stock).toEqual(mine.stock);
+      expect(after.cages.trips).toBe(mine.cages.trips);
+      expect(unassignedHoists(after)).toBe(0);
+      // None left to assign: the same object.
+      expect(assignHoists(after, "topsoil")).toBe(after);
+      const one = assignHoists(mine, "topsoil");
+      expect(one.cages.assigned).toEqual({ topsoil: 1, granite: 0 });
+      expect(assignHoists(one, "granite").cages.assigned).toEqual({
+        topsoil: 1,
+        granite: 1,
+      });
+    });
+  });
+
+  it("counts a winding engine as a hoist (call 70)", () => {
+    partThree(() => {
+      const mine = sunkMine({ hoist: 1, machine: 1 });
+      expect(unassignedHoists(mine)).toBe(2);
+      expect(assignHoists(mine, "topsoil", 3).cages.assigned.topsoil).toBe(2);
+    });
+  });
+
+  it("reads a count as a worker move does: whole, NaN none, Infinity all", () => {
+    partThree(() => {
+      const mine = sunkMine({ hoist: 3 });
+      expect(assignHoists(mine, "granite", Number.NaN)).toBe(mine);
+      expect(assignHoists(mine, "granite", 0)).toBe(mine);
+      expect(assignHoists(mine, "granite", -1)).toBe(mine);
+      expect(assignHoists(mine, "granite", 1.9).cages.assigned.granite).toBe(1);
+      const all = assignHoists(mine, "granite", Infinity);
+      expect(all.cages.assigned.granite).toBe(3);
+      expect(unassignHoists(all, "granite", Number.NaN)).toBe(all);
+      expect(unassignHoists(all, "granite", 2.5).cages.assigned.granite).toBe(
+        1,
+      );
+      expect(
+        unassignHoists(all, "granite", Infinity).cages.assigned.granite,
+      ).toBe(0);
+      // Nothing on the level: the same object.
+      expect(unassignHoists(all, "topsoil")).toBe(all);
+    });
+  });
+
+  it("assigns nothing while the Granite is shut, and takes off at any time: no lock", () => {
+    partThree(() => {
+      const unsunk = {
+        ...createMountain(),
+        owned: { ...tierRecord(0), hoist: 2 },
+      };
+      expect(unassignedHoists(unsunk)).toBe(2);
+      expect(assignHoists(unsunk, "granite")).toBe(unsunk);
+      expect(assignHoists(unsunk, "topsoil")).toBe(unsunk);
+    });
+    const held = partThree(() =>
+      assignHoists(sunkMine({ hoist: 2 }), "granite"),
+    );
+    expect(held.cages.assigned.granite).toBe(1);
+    partTwo(() => {
+      expect(assignHoists(held, "granite")).toBe(held);
+      expect(unassignHoists(held, "granite").cages.assigned.granite).toBe(0);
+    });
+  });
+
+  it("never assigns more than he owns, whatever the moves (property)", () => {
+    const base = sunkMine();
+    fc.assert(
+      fc.property(
+        fc.array(
+          fc.record({
+            level: fc.constantFrom(...MINE_LEVEL_IDS),
+            count: fc.integer({ min: -2, max: 4 }),
+            on: fc.boolean(),
+          }),
+        ),
+        fc.integer({ min: 0, max: 6 }),
+        (moves, hoists) => {
+          partThree(() => {
+            let mine: Mountain = {
+              ...base,
+              owned: { ...base.owned, hoist: hoists },
+            };
+            for (const move of moves) {
+              mine = move.on
+                ? assignHoists(mine, move.level, move.count)
+                : unassignHoists(mine, move.level, move.count);
+              const { topsoil, granite } = mine.cages.assigned;
+              expect(topsoil).toBeGreaterThanOrEqual(0);
+              expect(granite).toBeGreaterThanOrEqual(0);
+              expect(topsoil + granite).toBeLessThanOrEqual(
+                hoistsOwned(mine.owned),
+              );
+              expect(unassignedHoists(mine)).toBe(
+                hoistsOwned(mine.owned) - topsoil - granite,
+              );
+            }
+          });
+        },
+      ),
+    );
+  });
+});
+
+describe("what the cages carry (call 63)", () => {
+  it("adds what every cage carries, level by level", () => {
+    expect(carriedBy({})).toEqual({ topsoil: 0, granite: 0 });
+    expect(
+      carriedBy({
+        "hoist:0": { level: "topsoil", carried: 400, leg: { kind: "top" } },
+        "hoist:1": {
+          level: "granite",
+          carried: 120,
+          leg: { kind: "up", left: 4 },
+        },
+        "machine:0": {
+          level: "topsoil",
+          carried: 30,
+          leg: { kind: "down", left: 2 },
+        },
+        winch: { level: "granite", carried: 7, leg: { kind: "loading" } },
+      }),
+    ).toEqual({ topsoil: 430, granite: 127 });
+  });
+
+  it("puts each level's carried rock in a cage at the top, the Topsoil's first", () => {
+    expect(
+      restoredTrips({ topsoil: 400, granite: 120 }, ["hoist:0", "winch"]),
+    ).toEqual({
+      "hoist:0": { level: "topsoil", carried: 400, leg: { kind: "top" } },
+      winch: { level: "granite", carried: 120, leg: { kind: "top" } },
+    });
+    expect(
+      restoredTrips({ topsoil: 0, granite: 120 }, ["hoist:0", "winch"]),
+    ).toEqual({
+      "hoist:0": { level: "granite", carried: 120, leg: { kind: "top" } },
+    });
+    expect(restoredTrips({ topsoil: 0, granite: 0 }, ["winch"])).toEqual({});
+    expect(restoredTrips({ topsoil: 5, granite: 0 }, ["winch"])).toEqual({
+      winch: { level: "topsoil", carried: 5, leg: { kind: "top" } },
+    });
+    // The reader refuses this save first: only the winch's cage for both levels' rock.
+    expect(() =>
+      restoredTrips({ topsoil: 5, granite: 5 }, ["winch"]),
+    ).toThrow();
+  });
+
+  it("carries back what it restored", () => {
+    const carried = { topsoil: 400, granite: 120 };
+    expect(carriedBy(restoredTrips(carried, ["hoist:0", "winch"]))).toEqual(
+      carried,
+    );
+  });
+
+  it("starts a fresh cage empty at the top, on alternate levels by its place", () => {
+    expect(cageAt({}, "hoist:0", 0)).toEqual({
+      level: "granite",
+      carried: 0,
+      leg: { kind: "top" },
+    });
+    expect(cageAt({}, "hoist:1", 1).level).toBe("topsoil");
+    expect(cageAt({}, "winch", 2).level).toBe("granite");
+    const held = {
+      level: "topsoil",
+      carried: 9,
+      leg: { kind: "loading" },
+    } as const;
+    expect(cageAt({ "hoist:0": held }, "hoist:0", 0)).toBe(held);
+  });
+
+  it("starts every fresh mine with none assigned and nothing carried", () => {
+    expect(createMountain().cages).toEqual(NO_CAGES);
+    expect(NO_CAGES).toEqual({ assigned: NO_HOISTS_ASSIGNED, trips: {} });
   });
 });

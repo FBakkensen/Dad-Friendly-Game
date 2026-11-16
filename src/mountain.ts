@@ -22,6 +22,7 @@ import {
 import { NO_JOBS, workersOnJobs, type Jobs } from "./workforce";
 import { makerRecord, type MakerId } from "./makers";
 import { UNSUNK, type Granite } from "./mine-levels";
+import { NO_CAGES, type Cages } from "./cages";
 import {
   flowMine,
   mineMakes,
@@ -148,6 +149,11 @@ export type Mountain = {
   readonly rockDug: number;
   /** The shaft to the Granite (slice 1, part 3, src/mine-levels.ts). Always unsunk in today's game. */
   readonly granite: Granite;
+  /**
+   * The shaft's cages (slice 1, part 3, src/cages.ts, #724): the hoists
+   * assigned to each level and the cages' trips. None in today's game.
+   */
+  readonly cages: Cages;
 };
 
 /** 0 for a first run that was never started over. */
@@ -180,6 +186,7 @@ export const BARE_MOUNTAIN: Mountain = {
   stockyard: 0,
   rockDug: 0,
   granite: UNSUNK,
+  cages: NO_CAGES,
 };
 
 /**
