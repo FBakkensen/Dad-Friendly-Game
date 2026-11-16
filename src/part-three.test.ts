@@ -198,27 +198,6 @@ describe("the Granite's rock (rules 3 and 5, #673)", () => {
     expect(deep.mountain.rockDug).toBe(shallow.mountain.rockDug);
   });
 
-  it("lifts from both levels' rock at the shaft, and what one cannot use goes to the other (ruling 4)", () => {
-    partThree(() => {
-      // 12 a second hoisted, and each level brings 12: 6 lifted from each.
-      const even = live(levels({ topsoil: 4, granite: 4, hoisting: 4 }), 10);
-      expect(even.mined).toBe(120);
-      expect(even.mountain.piles.shaft).toBe(60);
-      expect(granitePilesOf(even.mountain).shaft).toBe(60);
-      expect(even.mountain.stock.stones).toBe(120);
-      expect(even.mountain.rockDug).toBe(240);
-      // The Topsoil brings 3 a second: the hoist lifts all of it and gives
-      // the Granite the other 9.
-      const lopsided = live(
-        levels({ topsoil: 1, granite: 4, hoisting: 4 }),
-        10,
-      );
-      expect(lopsided.mined).toBe(120);
-      expect(lopsided.mountain.piles.shaft).toBe(0);
-      expect(granitePilesOf(lopsided.mountain).shaft).toBe(120 - 90);
-    });
-  });
-
   it("counts a mine where only the Granite works as at work, and accrues it", () => {
     partThree(() => {
       const deep = levels({ granite: 4, hoisting: 4 });

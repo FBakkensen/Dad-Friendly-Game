@@ -270,8 +270,8 @@ function chainWith(
 /**
  * The Granite's level as one of chains side by side (part 3, #673): its own
  * drilling and haulage, its drilled rock and rock at the shaft, then the
- * saws' pile, the saws and the cut stone stockpile. Its hoisting is the
- * set's shared rate.
+ * saws' pile, the saws and the cut stone stockpile. Its own hoisting is
+ * 0: it lifts its share of the set's turn.
  */
 function graniteBranch(
   mountain: Mountain,
@@ -279,14 +279,14 @@ function graniteBranch(
   { pay, drilling }: { readonly pay: number; readonly drilling: boolean },
   draw: Partial<Stock>,
 ): Branch {
-  const { stages, levels } = stagesOf(mountain);
+  const { levels } = stagesOf(mountain);
   const piles = granite.piles;
   return {
     source: Infinity,
     rates: [
       drilling ? levels.granite.face * pay : 0,
       levels.granite.haul * pay,
-      stages.lift * pay,
+      0,
       makerRate(mountain, "saw") * pay,
       draw.cutStone ?? 0,
     ],
@@ -305,10 +305,12 @@ function graniteBranch(
 }
 
 /**
- * The mine's two levels side by side (part 3, #673, ruling 4): the Topsoil's
- * chain and the Granite's, sharing the one hoist's rate and the stone
- * stockpile, with transport taking `draw` a second from the stockpiles.
- * Drilling is 0 on both while `drilling` is false.
+ * The mine's two levels side by side (part 3, #673): the Topsoil's chain and
+ * the Granite's, sharing the stone stockpile, with transport taking `draw` a
+ * second from the stockpiles. Drilling is 0 on both while `drilling` is
+ * false. Until the cages (#724, Task 4), hoisting's rate is one turn for both
+ * levels with a trip of a second each, and neither lifts on its own: #673's
+ * even split, apart from what a level in the turn cannot use.
  */
 function mineBranches(
   mountain: Mountain,
@@ -316,12 +318,21 @@ function mineBranches(
   run: { readonly pay: number; readonly drilling: boolean },
   draw: Partial<Stock>,
 ): Branches {
+  const topsoil = topsoilBranch(mountain, run.pay, run.drilling, draw);
+  const rates = [...topsoil.rates];
+  rates[LIFT] = 0;
   return {
     branches: [
-      topsoilBranch(mountain, run.pay, run.drilling, draw),
+      { ...topsoil, rates },
       graniteBranch(mountain, granite, run, draw),
     ],
-    shared: { stage: LIFT, rate: stagesOf(mountain).stages.lift * run.pay },
+    shared: {
+      stage: LIFT,
+      turn: {
+        loads: stagesOf(mountain).stages.lift * run.pay,
+        trips: [1, 1],
+      },
+    },
     side: stoneSide(mountain, draw),
   };
 }
