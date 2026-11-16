@@ -15,6 +15,8 @@ import {
   stageWork,
   toolSpeed,
   workersOnJobs,
+  STAGE_JOB,
+  type LevelStage,
   type StageMachine,
 } from "./workforce";
 import { createMountain, type Mountain } from "./mountain";
@@ -26,7 +28,21 @@ import { fieldEntry } from "./field-log";
 import { synergyBonus, upgradeById } from "./upgrades";
 import { FRESH_OFF } from "./line-switch";
 import { PART_THREE_OFF, PART_TWO_OFF } from "./part-switch";
-import { NO_GRANITE_PILES, NO_LEVEL_MACHINES } from "./mine-levels";
+import {
+  MINE_LEVEL_IDS,
+  NO_GRANITE_PILES,
+  NO_LEVEL_MACHINES,
+  type LevelMachineId,
+  type MineLevelId,
+} from "./mine-levels";
+import { STAGES } from "./line";
+import {
+  TIERS,
+  tierInPlay,
+  tierRecord,
+  type MachineId,
+  type TierId,
+} from "./tiers";
 
 const fresh = <T>(body: () => T): T => withFactors({ [FRESH_OFF]: 0 }, body);
 const partTwo = <T>(body: () => T): T =>
@@ -633,5 +649,279 @@ describe("the moves (rule 2.4)", () => {
       expect(promoted.owned.helper).toBe(3);
       expect(freeWorkers(promoted)).toBe(0);
     });
+  });
+});
+
+describe("each level's work (rule 5.1, 5.2, #673)", () => {
+  const LEVEL_STAGES: readonly LevelStage[] = ["face", "haul"];
+  /** The machines of each level stage's kinds: the one in play first. */
+  const STAGE_KINDS: Readonly<Record<LevelStage, readonly LevelMachineId[]>> = {
+    face: ["drill", "borer"],
+    haul: ["cart", "train"],
+  };
+
+  /** Tier speeds: a worker with a tool moves 3, every machine beats him. */
+  const SPEED: Readonly<Record<TierId, number>> = {
+    ...tierRecord(0),
+    helper: 1,
+    cart: 50,
+    drill: 100,
+    hoist: 40,
+  };
+
+  type Setup = {
+    readonly jobs: Partial<Mountain["jobs"]>;
+    readonly topsoil?: Partial<Record<LevelMachineId, number>>;
+    readonly granite?: Partial<Record<LevelMachineId, number>>;
+    readonly hoists?: number;
+  };
+
+  /** A fresh mine with the shaft sunk, these jobs and each level's machines. */
+  function levels(setup: Setup): Mountain {
+    const placed = crew(0, setup.jobs);
+    const granite = { ...NO_LEVEL_MACHINES, ...setup.granite };
+    const topsoil = { ...NO_LEVEL_MACHINES, ...setup.topsoil };
+    return {
+      ...placed,
+      owned: {
+        ...placed.owned,
+        helper: workersOnJobs(placed),
+        cart: topsoil.cart + granite.cart,
+        drill: topsoil.drill + granite.drill,
+        borer: topsoil.borer + granite.borer,
+        train: topsoil.train + granite.train,
+        hoist: setup.hoists ?? 0,
+      },
+      granite: { kind: "sunk", machines: granite, piles: NO_GRANITE_PILES },
+    };
+  }
+
+  /** The line as it was before the Granite: every machine he owns on the one level. */
+  function todaysLine(
+    mountain: Mountain,
+    speed: Readonly<Record<TierId, number>>,
+  ) {
+    const tool = toolSpeed(speed);
+    const running = tierRecord(0);
+    const stages = { face: 0, haul: 0, lift: 0 };
+    let short = 0;
+    for (const stage of STAGES) {
+      const machines = TIERS.filter(
+        (tier) => tier.stage === stage && tierInPlay(tier),
+      ).map((tier) => ({
+        id: tier.id as MachineId,
+        owned: mountain.owned[tier.id],
+        staff: tier.staff,
+        speed: speed[tier.id],
+      }));
+      const work = stageWork(machines, mountain.jobs[STAGE_JOB[stage]], tool);
+      Object.assign(running, work.running);
+      running.helper += work.tools;
+      stages[stage] = work.moves;
+      short += work.short;
+    }
+    return {
+      running,
+      stages,
+      line: Math.min(stages.face, stages.haul, stages.lift),
+      short,
+    };
+  }
+
+  it("runs a level's machines with that level's workers of that stage only", () => {
+    partThree(() => {
+      const work = lineWork(
+        levels({ jobs: { drilling: 3 }, granite: { drill: 1 } }),
+        SPEED,
+      );
+      expect(work.levels.granite.face).toBe(0);
+      expect(work.levels.topsoil.face).toBe(3 * toolSpeed(SPEED));
+      expect(work.stages.face).toBe(9);
+      expect(work.running.drill).toBe(0);
+      expect(work.running.helper).toBe(3);
+      // The Granite's drill stands for want of its one worker there.
+      expect(work.short).toBe(1);
+    });
+  });
+
+  it("moves both levels' machines of a kind at the one tier speed", () => {
+    partThree(() => {
+      const work = lineWork(
+        levels({
+          jobs: { drilling: 1, graniteDrilling: 1 },
+          topsoil: { drill: 1 },
+          granite: { drill: 1 },
+        }),
+        SPEED,
+      );
+      expect(work.levels.topsoil.face).toBe(SPEED.drill);
+      expect(work.levels.granite.face).toBe(SPEED.drill);
+      expect(work.running.drill).toBe(2);
+      expect(work.running.helper).toBe(0);
+      expect(work.short).toBe(0);
+    });
+  });
+
+  it("lifts what hoisting lifts or both levels' slowest stages together, whichever is less", () => {
+    partThree(() => {
+      // Topsoil: two picks (6) and a cart (50). Granite: a drill (100) and
+      // two barrows (6). Hoisting: a hoist (40).
+      const jobs = {
+        drilling: 2,
+        haulage: 1,
+        graniteDrilling: 1,
+        graniteHaulage: 2,
+        hoisting: 1,
+      };
+      const setup = {
+        jobs,
+        topsoil: { cart: 1 },
+        granite: { drill: 1 },
+        hoists: 1,
+      };
+      const both = lineWork(levels(setup), SPEED);
+      const { topsoil, granite } = both.levels;
+      expect(topsoil).toEqual({ face: 6, haul: 50 });
+      expect(granite).toEqual({ face: 100, haul: 6 });
+      expect(both.stages).toEqual({ face: 6, haul: 50, lift: 40 });
+      expect(both.line).toBe(12);
+      expect(both.line).toBe(
+        Math.min(
+          both.stages.lift,
+          Math.min(topsoil.face, topsoil.haul) +
+            Math.min(granite.face, granite.haul),
+        ),
+      );
+      // One winch (3) lifts less than both levels bring.
+      const winch = lineWork(levels({ ...setup, hoists: 0 }), SPEED);
+      expect(winch.stages.lift).toBe(3);
+      expect(winch.line).toBe(3);
+    });
+  });
+
+  it("is part 2's line while the Granite is not open", () => {
+    fc.assert(
+      fc.property(
+        fc.record({
+          drilling: fc.nat(12),
+          haulage: fc.nat(12),
+          hoisting: fc.nat(12),
+          graniteDrilling: fc.nat(12),
+          graniteHaulage: fc.nat(12),
+        }),
+        fc.nat(3),
+        fc.nat(3),
+        fc.nat(3),
+        fc.nat(3),
+        fc.nat(3),
+        fc.integer({ min: 1, max: 200 }),
+        fc.integer({ min: 1, max: 20 }),
+        (jobs, cart, drill, hoist, graniteCart, graniteDrill, fast, hand) => {
+          const speed = { ...SPEED, helper: hand, drill: fast };
+          const sunkMine = levels({
+            jobs,
+            topsoil: { cart, drill },
+            granite: { cart: graniteCart, drill: graniteDrill },
+            hoists: hoist,
+          });
+          const unsunk: Mountain = { ...sunkMine, granite: { kind: "unsunk" } };
+          const shut = { face: 0, haul: 0 };
+          for (const [run, mountain] of [
+            [partThree, unsunk],
+            [partTwo, unsunk],
+            [partTwo, sunkMine],
+          ] as const) {
+            run(() => {
+              const work = lineWork(mountain, speed);
+              const today = todaysLine(mountain, speed);
+              expect(work.line).toBe(today.line);
+              expect(work.stages).toEqual(today.stages);
+              expect(work.running).toEqual(today.running);
+              expect(work.short).toBe(today.short);
+              expect(work.levels.granite).toEqual(shut);
+              expect(work.levels.topsoil).toEqual({
+                face: today.stages.face,
+                haul: today.stages.haul,
+              });
+            });
+          }
+        },
+      ),
+    );
+  });
+
+  it("never moves less on a level with one more machine or worker there, and never changes the other level (#673)", () => {
+    const counts = fc.record({
+      drilling: fc.nat(12),
+      haulage: fc.nat(12),
+      hoisting: fc.nat(12),
+      graniteDrilling: fc.nat(12),
+      graniteHaulage: fc.nat(12),
+    });
+    const machines = fc.record({
+      cart: fc.nat(3),
+      drill: fc.nat(3),
+      borer: fc.nat(3),
+      train: fc.nat(3),
+    });
+    fc.assert(
+      fc.property(
+        counts,
+        machines,
+        machines,
+        fc.nat(3),
+        fc.integer({ min: 1, max: 200 }),
+        fc.integer({ min: 1, max: 20 }),
+        (jobs, topsoil, granite, hoists, fast, hand) => {
+          partThree(() => {
+            const speed = { ...SPEED, helper: hand, cart: fast };
+            const setup: Setup = { jobs, topsoil, granite, hoists };
+            const now = lineWork(levels(setup), speed);
+            const check = (
+              more: Setup,
+              level: MineLevelId,
+              stage: LevelStage,
+            ) => {
+              const then = lineWork(levels(more), speed);
+              const other = MINE_LEVEL_IDS.find((id) => id !== level);
+              expect(then.levels[level][stage]).toBeGreaterThanOrEqual(
+                now.levels[level][stage],
+              );
+              expect(then.levels[other ?? level]).toEqual(
+                now.levels[other ?? level],
+              );
+              expect(then.line).toBeGreaterThanOrEqual(now.line);
+            };
+            for (const level of MINE_LEVEL_IDS) {
+              const own = level === "topsoil" ? topsoil : granite;
+              for (const stage of LEVEL_STAGES) {
+                const job = LEVEL_JOBS[level][stage];
+                check(
+                  {
+                    ...setup,
+                    jobs: { ...jobs, [job]: (setup.jobs[job] ?? 0) + 1 },
+                  },
+                  level,
+                  stage,
+                );
+                for (const kind of STAGE_KINDS[stage]) {
+                  const added = { ...own, [kind]: own[kind] + 1 };
+                  check({ ...setup, [level]: added }, level, stage);
+                }
+              }
+            }
+            for (const more of [
+              { ...setup, jobs: { ...jobs, hoisting: jobs.hoisting + 1 } },
+              { ...setup, hoists: hoists + 1 },
+            ]) {
+              const then = lineWork(levels(more), speed);
+              expect(then.stages.lift).toBeGreaterThanOrEqual(now.stages.lift);
+              expect(then.levels).toEqual(now.levels);
+              expect(then.line).toBeGreaterThanOrEqual(now.line);
+            }
+          });
+        },
+      ),
+    );
   });
 });
