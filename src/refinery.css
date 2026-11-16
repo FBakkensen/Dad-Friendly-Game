@@ -1,7 +1,9 @@
 /*
  * The refinery on slice 1's frame (#671): the flow's canvas fills the site,
  * the Topsoil's rock and the bypass are named over it, and the kilns' plate
- * and the stockyard sit at its foot, as the mine's rows do.
+ * and the stockyard sit at its foot, as the mine's rows do. With the saws
+ * (#754, `.two`) the Granite's rock is named over its hopper on the right,
+ * the bypass over the middle chute, and the two plates sit side by side.
  */
 .refinery {
   position: relative;
@@ -44,6 +46,28 @@
   color: var(--frame-ink);
 }
 
+.frame .refinery-in[hidden] {
+  display: none;
+}
+
+/*
+ * Beside the saws each level is named at its own edge, in plain letters over
+ * the wall as the prototype has them, so its rock is seen falling behind.
+ */
+.refinery.two .refinery-in {
+  background: none;
+  text-shadow: 0 var(--art) 0 var(--frame-dark);
+}
+
+.refinery.two .refinery-in-topsoil {
+  left: calc(var(--art) * 4);
+}
+
+.refinery.two .refinery-in-granite {
+  left: auto;
+  right: calc(var(--art) * 4);
+}
+
 .refinery-bypass {
   top: calc(var(--art) * 34);
   right: calc(var(--art) * 4);
@@ -54,6 +78,13 @@
   line-height: 1.25;
   text-align: center;
   color: var(--frame-quiet);
+}
+
+/* Over the middle chute, between the hoppers. */
+.refinery.two .refinery-bypass {
+  right: auto;
+  left: 50%;
+  transform: translateX(-50%);
 }
 
 .refinery-bypass > span {
@@ -76,9 +107,16 @@
   gap: var(--target-gap);
 }
 
+.refinery-plates {
+  display: flex;
+  gap: var(--target-gap);
+}
+
 .refinery-plate {
   display: flex;
+  flex: 1;
   flex-direction: column;
+  min-width: 0;
   gap: var(--target-gap);
   padding: 0 0 calc(var(--art) * 2);
   background: var(--frame-scrim);
@@ -126,9 +164,36 @@
   display: none;
 }
 
-.frame .refinery-kiln-key {
+.frame .refinery-maker-key {
   flex: none;
   margin: 0 calc(var(--art) * 2);
+}
+
+/*
+ * Two plates side by side: a plate's words take its whole width, and its
+ * − and + sit on the line under them.
+ */
+.refinery-plates.two .refinery-row {
+  flex-wrap: wrap;
+  row-gap: var(--target-gap);
+}
+
+.refinery-plates.two .refinery-info {
+  flex-basis: 100%;
+  margin-right: 0;
+}
+
+.refinery-plates.two .mine-stage-head {
+  flex-wrap: wrap;
+  column-gap: calc(var(--art) * 3);
+}
+
+.refinery-plates.two .mine-stage-name {
+  width: auto;
+}
+
+.refinery-plates.two .refinery-machines {
+  white-space: normal;
 }
 
 .refinery-yard {

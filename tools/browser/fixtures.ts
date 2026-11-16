@@ -436,11 +436,13 @@ export function sliceGraniteUnsunkSave(now: number): SeedSave {
  * Part 3 (#680), on a dev page with `?part3=1`: the shaft sunk, both levels
  * working on their own workers and machines, a hoist assigned to each
  * level and one for both in turn, rock in every level's piles, two free
- * workers, and the cut stone to buy a borer for either level.
+ * workers, the cut stone to buy a borer for either level, and in the
+ * refinery a kiln and two saws, each with its worker, and the brick for
+ * another saw (#754).
  */
 export function sliceTwoLevelsSave(now: number): SeedSave {
   return sliceSave(now, {
-    owned: { helper: 24, cart: 3, drill: 2, hoist: 3 },
+    owned: { helper: 26, cart: 3, drill: 2, hoist: 3 },
     stock: {
       stones: 2_000_000,
       brick: 200_000,
@@ -457,14 +459,15 @@ export function sliceTwoLevelsSave(now: number): SeedSave {
       driving: 2,
       building: 2,
       kilns: 1,
+      saws: 2,
     },
     fleet: { horseWagon: 2 },
     marks: { operational: ["lightTower", "warehouse"] },
-    makers: { kiln: 1 },
+    makers: { kiln: 1, saw: 2 },
     piles: { face: 200, shaft: 150, kiln: 120 },
     granite: {
       machines: { cart: 1, drill: 1 },
-      piles: { face: 150, shaft: 120 },
+      piles: { face: 150, shaft: 120, saw: 90 },
     },
     cages: { assigned: { topsoil: 1, granite: 1 } },
     run: { rock: 30_000_000, granite: 1_000_000 },

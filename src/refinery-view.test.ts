@@ -179,8 +179,30 @@ describe("a plate for each open maker (#754)", () => {
         hopper: 0,
         saws: 2,
         running: 2,
+        lifting: false,
         making: false,
       });
+    });
+  });
+
+  it("has rock fall on the saws' side only while the Granite lifts", () => {
+    partThree(() => {
+      const both = view(working(1));
+      expect(both.hoppers.map((h) => h.lifted > 0)).toEqual([true, true]);
+      expect(both.scene.lifting).toBe(true);
+      expect(both.scene.saws?.lifting).toBe(true);
+      // Only the Topsoil is worked and hoisted: the Granite's side stays still.
+      const topsoil = view(
+        levels({
+          topsoil: 3,
+          hoisting: 2,
+          hoists: 1,
+          saws: 1,
+          piles: { face: 300, shaft: 300 },
+        }),
+      );
+      expect(topsoil.scene.lifting).toBe(true);
+      expect(topsoil.scene.saws?.lifting).toBe(false);
     });
   });
 

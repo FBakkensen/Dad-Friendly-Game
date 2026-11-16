@@ -123,6 +123,8 @@ type SawScene = {
   readonly hopper: number;
   readonly saws: number;
   readonly running: number;
+  /** The Granite's rock comes up, into its own hopper. */
+  readonly lifting: boolean;
   readonly making: boolean;
 };
 
@@ -340,7 +342,7 @@ export function refineryView(mountain: Mountain, now?: number): RefineryView {
       hopper: pileFill(mountain, "kiln"),
       kilns: mountain.makers.kiln,
       running: runningMakers(mountain, "kiln"),
-      lifting: (hoppers[0]?.lifted ?? 0) > 0,
+      lifting: lifted(hoppers, "topsoil"),
       making: income.made.kiln > 0,
       bypassing: income.stones > 0,
       bays: yard,
@@ -350,6 +352,7 @@ export function refineryView(mountain: Mountain, now?: number): RefineryView {
               hopper: pileFill(mountain, "saw"),
               saws: mountain.makers.saw,
               running: runningMakers(mountain, "saw"),
+              lifting: lifted(hoppers, "granite"),
               making: income.made.saw > 0,
             },
           }
@@ -357,6 +360,12 @@ export function refineryView(mountain: Mountain, now?: number): RefineryView {
     },
   };
 }
+
+/** Whether hoisting lifts any of a level's rock now: rock falls into its hopper. */
+const lifted = (
+  hoppers: readonly LevelHopper[],
+  level: LevelHopper["level"],
+): boolean => (hoppers.find((each) => each.level === level)?.lifted ?? 0) > 0;
 
 /** A maker's pile, 0..1 of its room: its hopper is as full. */
 function pileFill(mountain: Mountain, id: MakerId): number {

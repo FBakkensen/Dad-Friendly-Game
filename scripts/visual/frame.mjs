@@ -850,6 +850,8 @@ async function refineryFacts(page) {
       return {
         t: (r.top - board.top) / board.scale,
         b: (r.bottom - board.top) / board.scale,
+        l: (r.left - board.left) / board.scale,
+        r: (r.right - board.left) / board.scale,
         w: r.width / board.scale,
         h: r.height / board.scale,
       };
@@ -857,6 +859,17 @@ async function refineryFacts(page) {
     const shown = (el) =>
       el.getClientRects().length > 0 && el.closest("[hidden]") === null;
     const scene = document.querySelector(".refinery:not([hidden])");
+    const plates = [...(scene?.querySelectorAll(".refinery-plate") ?? [])].map(
+      (el) => ({
+        name: el.querySelector(".mine-stage-name")?.textContent ?? "",
+        ...px(el),
+      }),
+    );
+    const labels = [
+      ...(scene?.querySelectorAll(".refinery-in, .refinery-bypass") ?? []),
+    ]
+      .filter(shown)
+      .map((el) => ({ name: el.className, ...px(el) }));
     const panel = scene?.querySelector(".refinery-panel");
     const small = [...(scene?.querySelectorAll("button") ?? [])]
       .filter(shown)
@@ -878,6 +891,8 @@ async function refineryFacts(page) {
     return {
       scene: scene === null ? undefined : px(scene),
       panel: panel === null || panel === undefined ? undefined : px(panel),
+      plates,
+      labels,
       piles: document.querySelectorAll(".frame-top.two-piles .frame-pile")
         .length,
       small,
@@ -887,6 +902,44 @@ async function refineryFacts(page) {
     };
   });
 }
+
+/** What the refinery has to meet at any size, with one plate or two. */
+async function checkRefinery(page, at, facts) {
+  check(await noScroll(page), `${at} the page does not scroll`);
+  check(
+    facts.scene !== undefined &&
+      facts.panel !== undefined &&
+      facts.panel.t >= facts.scene.t - 0.5 &&
+      facts.panel.b <= facts.scene.b + 0.5,
+    `${at} the makers' plates and the stockyard sit inside the refinery (${JSON.stringify([facts.scene, facts.panel])})`,
+  );
+  check(
+    facts.hires.length === 1 && facts.hires[0].split(" ").includes("frame-top"),
+    `${at} one hire key, in the top row (${facts.hires.join(", ")})`,
+  );
+  check(
+    facts.small.length === 0,
+    `${at} every key is at least 48px (${JSON.stringify(facts.small)})`,
+  );
+  check(
+    facts.cut.length === 0,
+    `${at} no word is cut (${facts.cut.join(", ")})`,
+  );
+  check(
+    !/\bhands?\b|by hand|bottleneck|\blimit|best buy|\bface\b/i.test(
+      facts.words,
+    ),
+    `${at} no hands, no face, and no bottleneck, limit or best buy named`,
+  );
+  const near = await keyGaps(page, FRAME_KEYS);
+  check(
+    near.length === 0,
+    `${at} every key stands at least 8px from the next (${near.join("; ")})`,
+  );
+}
+
+/** Two boxes in board px that share any point. */
+const overlap = (a, b) => a.l < b.r && a.r > b.l && a.t < b.b && a.b > b.t;
 
 for (const size of SIZES) {
   const label = `${String(size[0])}x${String(size[1])}`;
@@ -902,41 +955,61 @@ for (const size of SIZES) {
       const at = `${label} slice refinery:`;
       const facts = await refineryFacts(page);
       await shot(page, `slice-refinery-${label}`);
-      check(await noScroll(page), `${at} the page does not scroll`);
-      check(
-        facts.scene !== undefined &&
-          facts.panel !== undefined &&
-          facts.panel.t >= facts.scene.t - 0.5 &&
-          facts.panel.b <= facts.scene.b + 0.5,
-        `${at} the kilns' plate and the stockyard sit inside the refinery (${JSON.stringify([facts.scene, facts.panel])})`,
-      );
+      await checkRefinery(page, at, facts);
       check(
         facts.piles === 2,
         `${at} the top row shows the two stockpiles (${String(facts.piles)})`,
       );
       check(
-        facts.hires.length === 1 &&
-          facts.hires[0].split(" ").includes("frame-top"),
-        `${at} one hire key, in the top row (${facts.hires.join(", ")})`,
+        facts.plates.length === 1 && facts.plates[0].name === "Kilns",
+        `${at} the kilns' plate alone (${JSON.stringify(facts.plates)})`,
+      );
+    } finally {
+      await close();
+    }
+  });
+
+  // Part 3 (#754): the saws' plate beside the kilns', the Granite's hopper over it.
+  section(`${label} slice refinery two levels`, async () => {
+    const { page, close } = await openScreen(
+      size,
+      sliceTwoLevelsSave(Date.now()),
+      { search: "?memorySave=1&part3=1", seedKey: DEV_BACKUP_KEY },
+    );
+    try {
+      await page.waitForSelector('.frame-site[data-site="refinery"]');
+      await tap(page, '.frame-site[data-site="refinery"]');
+      const at = `${label} slice refinery two levels:`;
+      const facts = await refineryFacts(page);
+      await shot(page, `slice-refinery-two-levels-${label}`);
+      await checkRefinery(page, at, facts);
+      const [kilns, saws] = facts.plates;
+      check(
+        facts.plates.length === 2 &&
+          kilns.name === "Kilns" &&
+          saws.name === "Saws" &&
+          Math.abs(kilns.t - saws.t) < 0.5 &&
+          kilns.r <= saws.l,
+        `${at} the kilns' and the saws' plates side by side (${JSON.stringify(facts.plates)})`,
+      );
+      const names = facts.labels.map((each) => each.name).join(", ");
+      check(
+        facts.labels.length === 3,
+        `${at} the Topsoil, the Granite and the bypass are named (${names})`,
+      );
+      const crossed = facts.labels.flatMap((a, i) =>
+        facts.labels
+          .slice(i + 1)
+          .filter((b) => overlap(a, b))
+          .map((b) => `${a.name} / ${b.name}`),
       );
       check(
-        facts.small.length === 0,
-        `${at} every key is at least 48px (${JSON.stringify(facts.small)})`,
+        crossed.length === 0,
+        `${at} the names over the hoppers and the chute do not cover each other (${crossed.join("; ")})`,
       );
       check(
-        facts.cut.length === 0,
-        `${at} no word is cut (${facts.cut.join(", ")})`,
-      );
-      check(
-        !/\bhands?\b|by hand|bottleneck|\blimit|best buy|\bface\b/i.test(
-          facts.words,
-        ),
-        `${at} no hands, no face, and no bottleneck, limit or best buy named`,
-      );
-      const near = await keyGaps(page, FRAME_KEYS);
-      check(
-        near.length === 0,
-        `${at} every key stands at least 8px from the next (${near.join("; ")})`,
+        facts.labels.every((each) => each.b <= (facts.panel?.t ?? 0)),
+        `${at} the names sit above the plates (${JSON.stringify(facts.labels)})`,
       );
     } finally {
       await close();
