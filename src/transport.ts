@@ -16,6 +16,7 @@ import {
 } from "./city";
 import type { Mountain } from "./mountain";
 import { partThreeOn } from "./part-switch";
+import { evenShares } from "./piles";
 import { quoteRun, type BuyAmount, type TierQuote } from "./tiers";
 import { GOOD_IDS, pay, type GoodId, type Price, type Stock } from "./stock";
 
@@ -278,13 +279,10 @@ export function stockDraw(
   const gives = (good: GoodId): number =>
     mountain.stock[good] > 0 ? Infinity : (income[good] ?? 0);
   const goods = GOOD_IDS.filter((good) => need[good] > 0 && gives(good) > 0);
-  goods.sort((a, b) => gives(a) - gives(b));
+  const shares = evenShares(rate, goods.map(gives));
   const draw: Partial<Record<GoodId, number>> = {};
-  let left = rate;
   for (const [index, good] of goods.entries()) {
-    const take = Math.min(gives(good), left / (goods.length - index));
-    draw[good] = take;
-    left -= take;
+    draw[good] = shares[index] ?? 0;
   }
   return draw;
 }

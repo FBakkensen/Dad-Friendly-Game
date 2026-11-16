@@ -21,6 +21,11 @@
  * pile for each it makes, the way a kiln takes two rock for one brick. Its
  * rate and its total are what it makes, and its pile goes down by its take
  * times that.
+ *
+ * Chains may run side by side (#673), the way the mine's levels do: each
+ * `Branch` is a chain of its own, they share one stage's rate (hoisting)
+ * evenly, and they spill to one side pile (the stone stockpile), each in
+ * proportion to what it brings.
  */
 
 /** What a pile holds now, and its room. A pile over its room is full (ruling 2). */
@@ -54,7 +59,10 @@ function takeOf(chain: Chain, index: number): number {
  * holding `held` of `holds`, drained at `drain` a second. A side pile that is
  * full takes no more than its drain, and one over its room takes nothing.
  */
-type Spill = Pile & { readonly from: number; readonly drain: number };
+type Spill = SidePile & { readonly from: number };
+
+/** A side pile: what it holds, its room, and what drains it a second. */
+type SidePile = Pile & { readonly drain: number };
 
 /**
  * What a chain did over a stretch: each stage's total, each pile after, the
@@ -305,10 +313,14 @@ function phaseLimit(chain: Chain): number {
 }
 
 /**
- * The chain over `seconds`, exact in real numbers: in phases, each at
- * constant flows until a pile fills or empties or the source runs out.
+ * The chain over `seconds`, exact in real numbers, and the chain after it: in
+ * phases, each at constant flows until a pile fills or empties or the source
+ * runs out.
  */
-export function flowChain(chain: Chain, seconds: number): ChainFlow {
+function runChain(
+  chain: Chain,
+  seconds: number,
+): { readonly flow: ChainFlow; readonly state: Chain } {
   const totals = chain.rates.map(() => 0);
   let spilled = 0;
   let state = chain;
@@ -326,12 +338,18 @@ export function flowChain(chain: Chain, seconds: number): ChainFlow {
     state = advance(state, flows, step);
     left -= step;
   }
-  return {
+  const flow = {
     moved: totals,
     piles: state.piles.map((pile) => pile.held),
     source: state.source,
     spilled,
   };
+  return { flow, state };
+}
+
+/** The chain over `seconds`, exact in real numbers (`runChain`). */
+export function flowChain(chain: Chain, seconds: number): ChainFlow {
+  return runChain(chain, seconds).flow;
 }
 
 /**
@@ -355,7 +373,14 @@ function sideRoom(spill: Spill, floored: number): number {
  * nothing is made or lost. A part-good a call is dropped.
  */
 export function flowWhole(chain: Chain, seconds: number): ChainFlow {
-  const exact = flowChain(chain, seconds);
+  return wholeOf(chain, flowChain(chain, seconds));
+}
+
+/**
+ * `exact`, what `chain` did in real numbers, in whole goods (`flowWhole`).
+ * The chain's side pile is what is left of the real one's room.
+ */
+function wholeOf(chain: Chain, exact: ChainFlow): ChainFlow {
   const totals = exact.moved.map((amount) => Math.floor(amount + EDGE));
   const piles = chain.piles.map(
     (pile, index) =>
@@ -391,4 +416,257 @@ export function flowWhole(chain: Chain, seconds: number): ChainFlow {
     source: chain.source - (totals[0] ?? 0),
     spilled,
   };
+}
+
+/**
+ * `capacity` shared out evenly (the stockpiles' draw, and the shaft's
+ * hoisting between levels, #673), in the order of `wants`: no share is above
+ * its want, and what a want leaves goes evenly to the others. The smallest
+ * wants are served first, so the rest is split among the larger.
+ */
+export function evenShares(
+  capacity: number,
+  wants: readonly number[],
+): number[] {
+  const shares = wants.map(() => 0);
+  const order = wants.flatMap((want, index) => (want > 0 ? [index] : []));
+  // Not `a - b`: two wants of Infinity are a tie, not NaN.
+  order.sort((a, b) => ascending(wants[a] ?? 0, wants[b] ?? 0));
+  let left = capacity;
+  for (const [at, index] of order.entries()) {
+    const take = Math.min(wants[index] ?? 0, left / (order.length - at));
+    shares[index] = take;
+    left -= take;
+  }
+  return shares;
+}
+
+/** -1, 0 or 1 as `a` is below, at or above `b`, Infinity included. */
+function ascending(a: number, b: number): number {
+  return Number(a > b) - Number(a < b);
+}
+
+/**
+ * One of chains side by side (#673): a chain whose stage at the set's shared
+ * stage takes a share of one rate, and whose pile `spillFrom` spills to the
+ * set's one side pile.
+ */
+export type Branch = Omit<Chain, "spill"> & { readonly spillFrom: number };
+
+/**
+ * Chains side by side (#673): the levels of the mine, each with its own
+ * stages and piles, sharing one rate at `shared.stage` (hoisting) and one side
+ * pile (the stone stockpile). Each branch's own rate at that stage is ignored.
+ */
+export type Branches = {
+  readonly branches: readonly Branch[];
+  readonly shared: { readonly stage: number; readonly rate: number };
+  readonly side: SidePile;
+};
+
+/** A side pile of no limit, to see what a branch would spill. */
+const OPEN_SIDE: SidePile = { held: 0, holds: Infinity, drain: 0 };
+
+/** The branch as a chain with `rate` at the shared stage, spilling to `side`. */
+function branchAt(
+  branch: Branch,
+  stage: number,
+  rate: number,
+  side: SidePile,
+): Chain {
+  const { spillFrom, ...rest } = branch;
+  const rates = [...rest.rates];
+  rates[stage] = rate;
+  return { ...rest, rates, spill: { from: spillFrom, ...side } };
+}
+
+/**
+ * The part of `side` a branch spilling `weight` of the whole has: its room
+ * and drain in proportion, so every part fills when the whole does.
+ */
+function sidePart(side: SidePile, weight: number): SidePile {
+  return {
+    held: side.held * weight,
+    holds: side.holds === Infinity ? Infinity : side.holds * weight,
+    drain: side.drain * weight,
+  };
+}
+
+/**
+ * The chains as they run until the next change (#673): the shared rate split
+ * evenly by what each can take with all of it, and the side pile split by
+ * what each would spill at its share.
+ */
+export function branchChains(set: Branches): readonly Chain[] {
+  const { stage, rate } = set.shared;
+  const wants = set.branches.map(
+    (branch) => chainFlows(branchAt(branch, stage, rate, set.side))[stage] ?? 0,
+  );
+  const shares = evenShares(rate, wants);
+  const spills = set.branches.map((branch, index) =>
+    chainSpill(branchAt(branch, stage, shares[index] ?? 0, OPEN_SIDE)),
+  );
+  const total = spills.reduce((sum, spill) => sum + spill, 0);
+  return set.branches.map((branch, index) => {
+    const weight =
+      total > 0 ? (spills[index] ?? 0) / total : 1 / set.branches.length;
+    return branchAt(
+      branch,
+      stage,
+      shares[index] ?? 0,
+      sidePart(set.side, weight),
+    );
+  });
+}
+
+/** Seconds until a flow in any branch changes, or the side pile fills or empties, or Infinity. */
+export function branchesChange(set: Branches): number {
+  return Math.min(Infinity, ...branchChains(set).map(chainChange));
+}
+
+/** The phase bound for a set: each branch's, with its spill. */
+function branchesPhaseLimit(set: Branches): number {
+  return (
+    8 * set.branches.reduce((sum, branch) => sum + branch.rates.length + 3, 0)
+  );
+}
+
+/**
+ * The side pile after each chain's part of it: their sum, snapped to its
+ * edges. Parts all at their room are the whole at its room, and a side pile
+ * within its room never ends over it for float noise.
+ */
+function sideAfter(side: SidePile, parts: readonly SidePile[]): SidePile {
+  if (parts.every((part) => part.held === part.holds)) {
+    return { ...side, held: side.holds };
+  }
+  const sum = parts.reduce((total, part) => total + part.held, 0);
+  const held = moved({ held: sum, holds: side.holds }, 0).held;
+  return {
+    ...side,
+    held: side.held <= side.holds ? Math.min(held, side.holds) : held,
+  };
+}
+
+/** Each chain run `seconds` (within one phase), and the set after them. */
+function stepBranches(
+  set: Branches,
+  chains: readonly Chain[],
+  seconds: number,
+): { readonly flows: readonly ChainFlow[]; readonly set: Branches } {
+  const runs = chains.map((chain) => runChain(chain, seconds));
+  const branches = set.branches.map((branch, index) => {
+    const state = runs[index]?.state;
+    return state === undefined
+      ? branch
+      : { ...branch, source: state.source, piles: state.piles };
+  });
+  const parts = runs.map((run) => run.state.spill ?? OPEN_SIDE);
+  return {
+    flows: runs.map((run) => run.flow),
+    set: { ...set, branches, side: sideAfter(set.side, parts) },
+  };
+}
+
+/**
+ * The set past every change in its first `within` seconds, and the seconds
+ * from now the last of them came (as `chainSettled`, #673).
+ */
+export function branchesSettled(
+  set: Branches,
+  within: number,
+): { readonly set: Branches; readonly after: number } {
+  let state = set;
+  let after = 0;
+  for (let phase = 0; phase < branchesPhaseLimit(set); phase += 1) {
+    const chains = branchChains(state);
+    const next = Math.min(Infinity, ...chains.map(chainChange));
+    if (after + next > within) {
+      break;
+    }
+    state = stepBranches(state, chains, next).set;
+    after += next;
+  }
+  return { set: state, after };
+}
+
+/** `flow` added to `total`, stage by stage, with the piles and source after it. */
+function addFlow(total: ChainFlow, flow: ChainFlow): ChainFlow {
+  return {
+    moved: total.moved.map(
+      (amount, index) => amount + (flow.moved[index] ?? 0),
+    ),
+    piles: flow.piles,
+    source: flow.source,
+    spilled: total.spilled + flow.spilled,
+  };
+}
+
+/** What a branch did before it moved: nothing. */
+function stillFlow(branch: Branch): ChainFlow {
+  return {
+    moved: branch.rates.map(() => 0),
+    piles: branch.piles.map((pile) => pile.held),
+    source: branch.source,
+    spilled: 0,
+  };
+}
+
+/** Whether no stage of any chain moves. */
+function allStill(chains: readonly Chain[]): boolean {
+  return chains.every((chain) => chainFlows(chain).every((flow) => flow <= 0));
+}
+
+/**
+ * The set over `seconds`, exact in real numbers: in phases, each split again
+ * and every chain stepped by the least change.
+ */
+function runBranches(set: Branches, seconds: number): readonly ChainFlow[] {
+  let totals = set.branches.map(stillFlow);
+  let state = set;
+  let left = Math.max(0, seconds);
+  for (let phase = 0; left > 0 && phase < branchesPhaseLimit(set); phase += 1) {
+    const chains = branchChains(state);
+    if (allStill(chains)) {
+      break;
+    }
+    const step = Math.min(left, ...chains.map(chainChange));
+    const stepped = stepBranches(state, chains, step);
+    totals = totals.map((total, index) => {
+      const flow = stepped.flows[index];
+      return flow === undefined ? total : addFlow(total, flow);
+    });
+    state = stepped.set;
+    left -= step;
+  }
+  return totals;
+}
+
+/**
+ * The set over `seconds` in whole goods (#673): one flow per branch, in
+ * order, each as `flowWhole` floors a chain. A branch's spill takes no room
+ * the side pile has already given the branches before it, nor what the
+ * branches after it spill for certain (their exact spill floored), so with
+ * no drain the side pile never ends over its room.
+ */
+export function flowBranchesWhole(
+  set: Branches,
+  seconds: number,
+): readonly ChainFlow[] {
+  const exact = runBranches(set, seconds);
+  const floored = exact.map((flow) => Math.floor(flow.spilled + EDGE));
+  const wholes: ChainFlow[] = [];
+  let taken = 0;
+  for (const [index, branch] of set.branches.entries()) {
+    const flow = exact[index] ?? stillFlow(branch);
+    const after = floored
+      .slice(index + 1)
+      .reduce((sum, amount) => sum + amount, 0);
+    const room = { ...set.side, held: set.side.held + taken + after };
+    const { stage, rate } = set.shared;
+    const whole = wholeOf(branchAt(branch, stage, rate, room), flow);
+    wholes.push(whole);
+    taken += whole.spilled;
+  }
+  return wholes;
 }
