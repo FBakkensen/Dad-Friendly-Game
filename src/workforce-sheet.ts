@@ -3,7 +3,7 @@ import { paintAmountKey } from "./buys-amount";
 import { tierBuyMove } from "./economy/actions";
 import type { FrameState } from "./frame-state";
 import { hireKey } from "./frame-view";
-import { createMountain, type Mountain } from "./mountain";
+import type { Mountain } from "./mountain";
 import type { BuyAmount } from "./tiers";
 import { listenSteps, paintSteps, stepper } from "./job-steps";
 import { rowText, upgradeRows } from "./stage-sheet";
@@ -194,7 +194,6 @@ export function createWorkforceSheet(
   const jobs = buildJobs();
   const workers = buildWorkers(state, now);
   jobs.root.append(workers.root);
-  jobs.layout(createMountain(), workers.root);
   const close = el("button", "frame-sheet-close", "Close");
   close.type = "button";
   box.append(
