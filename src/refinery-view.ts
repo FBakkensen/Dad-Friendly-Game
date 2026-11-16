@@ -154,15 +154,23 @@ export type RefineryView = {
 
 const rate = (perSecond: number): string => `${formatCompact(perSecond)}/s`;
 
-/** Each maker's level's chain now: the kilns' the Topsoil's, the saws' the Granite's while it is open. */
 /** The level whose rock each maker takes. */
 const MAKER_LEVELS = {
   kiln: "topsoil",
   saw: "granite",
 } as const satisfies Record<MakerId, MineLevelId>;
 
+/** Each level's chain now: the Granite's only while it is open. */
+const LEVEL_CHAINS: Readonly<
+  Record<MineLevelId, (mountain: Mountain) => Chain | undefined>
+> = { topsoil: topsoilChain, granite: graniteChain };
+
+/** Each maker's level's chain now, read through `MAKER_LEVELS`. */
 function makerChains(mountain: Mountain): Record<MakerId, Chain | undefined> {
-  return { kiln: topsoilChain(mountain), saw: graniteChain(mountain) };
+  return {
+    kiln: LEVEL_CHAINS[MAKER_LEVELS.kiln](mountain),
+    saw: LEVEL_CHAINS[MAKER_LEVELS.saw](mountain),
+  };
 }
 
 /**
