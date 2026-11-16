@@ -94,9 +94,32 @@ describe("the mine's levels", () => {
       const m = levels({ topsoil: 3, hoisting: 2, sunk: false });
       const [face = 0, haul = 0, lift = 0] = chainFlows(mineChain(m, 1, true));
       expect(mineLevelFlows(m)).toEqual({
-        levels: { topsoil: { face, haul }, granite: { face: 0, haul: 0 } },
+        levels: {
+          topsoil: { face, haul, lift },
+          granite: { face: 0, haul: 0, lift: 0 },
+        },
         lift,
       });
+    });
+  });
+
+  it("gives each level what hoisting lifts from it, adding up to the shaft's", () => {
+    partThree(() => {
+      const m = levels({
+        topsoil: 3,
+        granite: 3,
+        hoisting: 5,
+        hoists: 3,
+        assigned: { topsoil: 1, granite: 1 },
+        piles: { face: 300, shaft: 300 },
+        granitePiles: { face: 300, shaft: 300 },
+      });
+      const flows = mineLevelFlows(m);
+      expect(flows.levels.topsoil.lift).toBeGreaterThan(0);
+      expect(flows.levels.granite.lift).toBeGreaterThan(0);
+      expect(flows.levels.topsoil.lift + flows.levels.granite.lift).toBe(
+        flows.lift,
+      );
     });
   });
 

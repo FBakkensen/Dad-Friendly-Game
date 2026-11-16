@@ -2,6 +2,7 @@ import { buildRate } from "./building-site";
 import { formatCompact } from "./format";
 import { STAGES, type Stage } from "./line";
 import type { Mountain } from "./mountain";
+import { LEVEL_NAMES, levelStageTitle } from "./mine-level-view";
 import { graniteOpen, type MineLevelId } from "./mine-levels";
 import { runningKilns } from "./makers";
 import type { SiteId } from "./next-view";
@@ -54,12 +55,8 @@ const SITE_JOBS: Readonly<Record<SiteId, readonly JobId[]>> = {
   city: ["driving", "building"],
 };
 
-/** The mine's groups' names with the Granite open (ruling 9): the one copy. */
-const GROUP_NAMES = {
-  topsoil: "Topsoil",
-  granite: "Granite",
-  shaft: "Shaft",
-} as const;
+/** The mine's groups' names with the Granite open (ruling 9): the levels' own names, and the shaft. */
+const GROUP_NAMES = { ...LEVEL_NAMES, shaft: "Shaft" } as const;
 
 /**
  * With the Granite open, the mine's jobs are three groups, one a level and
@@ -286,7 +283,7 @@ export function jobRow(mountain: Mountain, job: JobId): JobRow {
     name: JOB_NAMES[job],
     title:
       place !== undefined && graniteOpen(mountain)
-        ? `${GROUP_NAMES[place.level]} ${JOB_NAMES[job].toLowerCase()}`
+        ? levelStageTitle(place.level, place.stage)
         : JOB_NAMES[job],
     note: jobNote(mountain, job),
     count: mountain.jobs[job],

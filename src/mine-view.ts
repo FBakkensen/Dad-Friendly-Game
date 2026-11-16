@@ -60,13 +60,14 @@ export type LevelPlate = {
 };
 
 /**
- * What each stage moves now through the piles, a second: drilling, haulage
- * and hoisting, from the mine's flows (`mineLevelFlows`): the Topsoil's
- * drilling and haulage, and what hoisting lifts.
+ * What each Topsoil stage moves now through the piles, a second, from the
+ * mine's flows (`mineLevelFlows`): its drilling, its haulage, and what
+ * hoisting lifts from it. With two levels the Granite's lifted rock goes to
+ * the saws, so the plate and the refinery count the Topsoil's alone.
  */
 function movingNow(mountain: Mountain, now: number | undefined): number[] {
-  const { levels, lift } = mineLevelFlows(mountain, now);
-  return [levels.topsoil.face, levels.topsoil.haul, lift];
+  const { face, haul, lift } = mineLevelFlows(mountain, now).levels.topsoil;
+  return [face, haul, lift];
 }
 
 /** The level's plate: its name, and what comes up as stone now. */

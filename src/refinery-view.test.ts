@@ -10,6 +10,7 @@ import {
   type RefineryView,
 } from "./refinery-view";
 import { stockpileRoom } from "./stockyard";
+import { levels, partThree } from "./part-three.harness";
 import { crewedStart } from "./test-fixtures";
 
 /** The refinery's numbers (slice 1, part 2, #671). */
@@ -78,6 +79,26 @@ describe("the kilns' plate (#671)", () => {
       expect(refinery.plate.pile).toBeUndefined();
       expect(refinery.bypass.rate).toBe(refinery.hopper.rate);
       expect(refinery.bypass.recipe).toBe(BYPASS_RECIPE);
+    });
+  });
+
+  it("with two levels, has the Topsoil's hoisted rock come in and bypass to stone with no kilns (#680)", () => {
+    partThree(() => {
+      // Each level hoists its own: a hoist for each, one for both. The Granite's rock goes to the saws' side.
+      const refinery = view(
+        levels({
+          topsoil: 3,
+          granite: 3,
+          hoisting: 5,
+          hoists: 3,
+          assigned: { topsoil: 1, granite: 1 },
+          piles: { face: 300, shaft: 300 },
+          granitePiles: { face: 300, shaft: 300 },
+        }),
+      );
+      expect(refinery.plate.machines).toBe("No kilns yet");
+      expect(refinery.hopper.rate).not.toBe("0/s");
+      expect(refinery.bypass.rate).toBe(refinery.hopper.rate);
     });
   });
 
