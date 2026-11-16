@@ -7,12 +7,17 @@
  * night, and the end card behind the report of the night the Light Tower's
  * roof went on. The start (#703): the first evening's card, then the mine's
  * pile lines. Part 2 (#671): the refinery, two stockpiles on the top row, and
- * the report of a night the stockyard stopped, with its second key.
+ * the report of a night the stockyard stopped, with its second key. Part 3
+ * (#681), on a dev page with `?part3=1`: the factory, idle, delivering and
+ * done, and a blueprint dragged onto the station.
  */
 import {
   DEV_BACKUP_KEY,
   sliceBusySave,
   sliceDoneSave,
+  sliceFactoryDoneSave,
+  sliceFactoryOrderSave,
+  sliceFactorySave,
   sliceListSave,
   sliceNightSave,
   sliceOrderedSave,
@@ -984,4 +989,210 @@ for (const size of SIZES) {
       await close();
     }
   });
+}
+
+/**
+ * The factory in board px (#681): its scene, the station and the strip
+ * inside it, every shown key's size, the words that must stay whole, and
+ * its words.
+ */
+async function factoryFacts(page) {
+  return page.evaluate(() => {
+    const board = globalThis.__board();
+    const px = (el) => {
+      const r = el.getBoundingClientRect();
+      return {
+        t: (r.top - board.top) / board.scale,
+        b: (r.bottom - board.top) / board.scale,
+        w: r.width / board.scale,
+        h: r.height / board.scale,
+      };
+    };
+    const shown = (el) =>
+      el.getClientRects().length > 0 && el.closest("[hidden]") === null;
+    const scene = document.querySelector(".factory:not([hidden])");
+    const station = scene?.querySelector(".factory-station");
+    const strip = scene?.querySelector(".factory-strip");
+    const small = [
+      ...(scene?.querySelectorAll(".factory-station button") ?? []),
+    ]
+      .filter(shown)
+      .map((el) => ({ name: el.className, ...px(el) }))
+      .filter((b) => b.w < 47.5 || b.h < 47.5);
+    const cut = [
+      ...(scene?.querySelectorAll(
+        ".factory-installed, .factory-bin, .factory-station-title, .factory-station-line, .factory-good, .factory-install, .factory-cancel b, .factory-cancel small",
+      ) ?? []),
+    ]
+      .filter(shown)
+      .filter(
+        (el) =>
+          el.scrollWidth > el.clientWidth + 1 ||
+          el.scrollHeight > el.clientHeight + 1,
+      )
+      .map((el) => el.className);
+    // A card's words stay inside the card.
+    const spill = [...(scene?.querySelectorAll(".factory-card") ?? [])]
+      .filter((card) => card.scrollHeight > card.clientHeight + 1)
+      .map((card) => card.dataset.blueprint);
+    return {
+      scene: scene === null ? undefined : px(scene),
+      station:
+        station === null || station === undefined ? undefined : px(station),
+      strip: strip === null || strip === undefined ? undefined : px(strip),
+      cards: scene?.querySelectorAll(".factory-card").length ?? 0,
+      scrolls:
+        strip === null || strip === undefined
+          ? false
+          : strip.scrollWidth > strip.clientWidth,
+      small,
+      cut,
+      spill,
+      kind: station?.getAttribute("data-station") ?? undefined,
+      words: scene?.textContent ?? "",
+    };
+  });
+}
+
+/** A blueprint pressed and dragged up onto the station's middle, with the mouse. */
+async function dragOntoStation(page, blueprint) {
+  const from = await page.$eval(
+    `.factory-card[data-blueprint="${blueprint}"]`,
+    (el) => {
+      const r = el.getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    },
+  );
+  const to = await page.$eval(".factory-station", (el) => {
+    const r = el.getBoundingClientRect();
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  });
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  await page.mouse.move(from.x, from.y - 20, { steps: 2 });
+  await page.mouse.move(to.x, to.y, { steps: 6 });
+  // The copy under the finger is the card's size, and sits on the finger.
+  const held = await page.evaluate(
+    (card, at) => {
+      const ghost = document.querySelector(".factory-ghost");
+      const home = document.querySelector(card);
+      if (ghost === null || home === null) {
+        return undefined;
+      }
+      const g = ghost.getBoundingClientRect();
+      const c = home.getBoundingClientRect();
+      return {
+        height: g.height / c.height,
+        width: g.width / c.width,
+        onFinger:
+          at.x >= g.left - 8 &&
+          at.x <= g.right + 8 &&
+          at.y >= g.top - 8 &&
+          at.y <= g.bottom + 8,
+      };
+    },
+    `.factory-card[data-blueprint="${blueprint}"]`,
+    to,
+  );
+  await page.mouse.up();
+  return held;
+}
+
+const FACTORY_SAVES = [
+  { name: "idle", save: () => sliceFactorySave(Date.now()), kind: "idle" },
+  {
+    name: "order",
+    save: () => sliceFactoryOrderSave(Date.now()),
+    kind: "delivering",
+  },
+  { name: "done", save: () => sliceFactoryDoneSave(Date.now()), kind: "done" },
+];
+
+for (const size of SIZES) {
+  const label = `${String(size[0])}x${String(size[1])}`;
+  for (const { name, save, kind } of FACTORY_SAVES) {
+    section(`${label} slice factory ${name}`, async () => {
+      const { page, close } = await openScreen(size, save(), {
+        search: "?memorySave=1&part3=1",
+        seedKey: DEV_BACKUP_KEY,
+      });
+      try {
+        await page.waitForSelector('.frame-site[data-site="factory"]');
+        await tap(page, '.frame-site[data-site="factory"]');
+        const at = `${label} slice factory ${name}:`;
+        const facts = await factoryFacts(page);
+        await shot(page, `slice-factory-${name}-${label}`);
+        check(await noScroll(page), `${at} the page does not scroll`);
+        check(
+          facts.kind === kind,
+          `${at} the station is ${kind} (${String(facts.kind)})`,
+        );
+        check(
+          facts.scene !== undefined &&
+            facts.station !== undefined &&
+            facts.strip !== undefined &&
+            facts.station.t >= facts.scene.t - 0.5 &&
+            facts.station.b <= facts.strip.t + 0.5 &&
+            facts.strip.b <= facts.scene.b + 0.5,
+          `${at} the station and the blueprints sit inside the factory, the station above (${JSON.stringify([facts.scene, facts.station, facts.strip])})`,
+        );
+        check(
+          facts.cards === 5 && facts.scrolls,
+          `${at} five blueprints in a strip that scrolls sideways (${String(facts.cards)}, ${String(facts.scrolls)})`,
+        );
+        check(
+          facts.small.length === 0,
+          `${at} every key is at least 48px (${JSON.stringify(facts.small)})`,
+        );
+        check(
+          facts.cut.length === 0 && facts.spill.length === 0,
+          `${at} no word is cut (${[...facts.cut, ...facts.spill].join(", ")})`,
+        );
+        check(
+          !/\bhands?\b|by hand|bottleneck|\blimit|best buy|\bface\b|waiting/i.test(
+            facts.words,
+          ),
+          `${at} no hands, no face, and no bottleneck, limit, best buy or waiting named`,
+        );
+        const near = await keyGaps(page, FRAME_KEYS);
+        check(
+          near.length === 0,
+          `${at} every key stands at least 8px from the next (${near.join("; ")})`,
+        );
+        if (name === "idle") {
+          // The strip's far end: the last blueprint is whole in its box.
+          const last = await page.$eval(".factory-strip", (strip) => {
+            strip.scrollLeft = strip.scrollWidth;
+            const box = strip.getBoundingClientRect();
+            const card = strip.lastElementChild?.getBoundingClientRect();
+            return (
+              card !== undefined &&
+              card.left >= box.left - 0.5 &&
+              card.right <= box.right + 0.5
+            );
+          });
+          await shot(page, `slice-factory-strip-end-${label}`);
+          check(last, `${at} the strip scrolls to its last blueprint, whole`);
+          await page.$eval(".factory-strip", (strip) => {
+            strip.scrollLeft = 0;
+          });
+          const held = await dragOntoStation(page, "sturdy-props");
+          check(
+            held !== undefined &&
+              Math.abs(held.height - 1) < 0.1 &&
+              Math.abs(held.width - 1) < 0.1 &&
+              held.onFinger,
+            `${at} the dragged blueprint's copy is the card's size, on the finger (${JSON.stringify(held)})`,
+          );
+          const after = await factoryFacts(page);
+          check(
+            after.kind === "delivering" && /Sturdy props/i.test(after.words),
+            `${at} a blueprint dragged onto the station places its work order (${String(after.kind)})`,
+          );
+        }
+      } finally {
+        await close();
+      }
+    });
+  }
 }

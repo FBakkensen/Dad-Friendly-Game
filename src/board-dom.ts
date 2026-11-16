@@ -19,6 +19,15 @@ export function el<K extends keyof HTMLElementTagNameMap>(
   return made;
 }
 
+/** A picture that only decorates: no alt text, and never dragged. */
+export function icon(url: string, className: string): HTMLImageElement {
+  const img = el("img", className);
+  img.src = url;
+  img.alt = "";
+  img.draggable = false;
+  return img;
+}
+
 /** Text that is written only when it changes. */
 export function write(target: HTMLElement, text: string): void {
   if (target.textContent !== text) {

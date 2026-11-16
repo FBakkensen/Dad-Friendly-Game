@@ -308,6 +308,10 @@
   background: var(--frame-refinery-ground);
 }
 
+.frame-scene[data-site="factory"] {
+  background: var(--frame-factory-ground);
+}
+
 /* Next: what it points at, or what is affordable, and the count of everything. */
 .frame .frame-next {
   display: flex;
