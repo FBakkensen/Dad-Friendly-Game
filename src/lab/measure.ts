@@ -8,8 +8,8 @@ import type { MachineBuy, SittingEvent } from "./sittings";
 
 /**
  * One moment on the table. Official fields use payback. `stretch.value` is
- * the dad's own table scored by stones of income per stone of cost, so the
- * earlier diagnosis can be read beside the official numbers.
+ * the dad's own table scored by stones of income per stone of cost, which
+ * the value-per-stone stretch (`longestValueStretch`) reads.
  */
 export type DecisionSample = {
   /** Milliseconds from the start of the run. */
