@@ -51,6 +51,7 @@ The design is `docs/superpowers/specs/2026-11-14-slice-1-design.md`. Its "Calls 
 - **15 Nov 2026: approved lines.** Next's empty lines (11:54). The stage row's third-state words (12:30). The shift report and end card (13:33). The workers' upgrade lines, the hoist marks and "Every worker with a tool works twice as fast." (14:11; two of the names became Work boots and Loading crews in #711). "Drilled rock: N of 300", "Rock at the shaft: N of 300", the first evening card and the fresh save card's lines (15:13). The Ledger's words: Tonight "Bought cart 3.", Start over "Keep my mine", the way back "Close" (15:45).
 - **15 Nov 2026, 17:48: three copy calls from the part 1 playtest** (#715). The "4 crews" line is not shown in part 1. The order key reads "Foundation 25K · Structure 250K · Roof 1M". The workforce list says "3 hired".
 - **16 Nov 2026, 05:25: the refinery screen's 17 lines** (#671): his A.
+- **16 Nov 2026, 09:55: the factory screen's ten lines** (#681): "i think this is fine for now", his A. He added that it "feels more like research than a factory work": that went to the idea pipeline, not to #681.
 - **For every screen sliver.** A new line of copy or a new look is his to approve first, asked as one question with pictures. No line promises what is not live.
 
 ## Art
