@@ -1,6 +1,6 @@
 /**
- * `--factors a=1,recipe.iron-rails.cost=0.5` as a sweep factor map, for both
- * labs (#534). Undefined when the text is empty or a pair is not id=number,
+ * `--factors a=1,recipe.iron-rails.cost=0.5` as a factor map, for the
+ * strategy lab (#534). Undefined when the text is empty or a pair is not id=number,
  * so a lab can refuse a bad pair instead of running with it.
  */
 export function parseFactors(

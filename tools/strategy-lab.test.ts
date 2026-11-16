@@ -88,6 +88,21 @@ describe("strategy lab command", () => {
     });
   });
 
+  it("--factors line.off=1 is refused", () => {
+    expect(parseLabArgs(["--factors", "line.off=1"])).toEqual({
+      kind: "error",
+      message:
+        "--factors line.off must be 0: the fresh mine always plays the line (#737).",
+    });
+    expect(
+      parseLabArgs(["--factors", "a=2", "--factors", "line.off=0.5"]).kind,
+    ).toBe("error");
+    expect(parseLabArgs(["--factors", "line.off=0"])).toMatchObject({
+      kind: "run",
+      factors: { "line.off": 0 },
+    });
+  });
+
   it("--factors part2.off=1 runs and --ledger check refuses it", async () => {
     expect(
       parseLabArgs(["--ci", "--ledger", "check", "--factors", "part2.off=1"])
@@ -200,7 +215,7 @@ describe("strategy lab command", () => {
     expect(ledger).toContain("| The Light Tower | The Warehouse |");
   });
 
-  it("plays the line under --factors line.off=0 and says so in the report (#534)", async () => {
+  it("names --factors line.off=0 in the report, and reads the line the fresh mine plays (#534, #737)", async () => {
     const outDir = mkdtempSync(path.join(tmpdir(), "strategy-lab-"));
     const parsed = parseLabArgs([
       "--policy",

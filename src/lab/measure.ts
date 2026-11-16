@@ -7,15 +7,15 @@ import type { RevealEvent } from "./reveal";
 import type { MachineBuy, SittingEvent } from "./sittings";
 
 /**
- * One moment on the table. Official fields use payback. `byValue` is the
- * same moment scored by stones of income per stone of cost, so the earlier
- * diagnosis can be read beside the official numbers.
+ * One moment on the table. Official fields use payback. `stretch.value` is
+ * the dad's own table scored by stones of income per stone of cost, so the
+ * earlier diagnosis can be read beside the official numbers.
  */
 export type DecisionSample = {
   /** Milliseconds from the start of the run. */
   readonly atMs: number;
   /**
-   * The dad bought something (crew, a kid, a promotion, an upgrade level)
+   * The dad bought something (crew, a machine, an upgrade level)
    * since the sample before. Crafts do not count. A buy ends a dead stretch (#335): samples land on
    * a drifting grid, so a sitting's first sample can already be spent down.
    */
@@ -45,14 +45,6 @@ export type DecisionSample = {
   readonly layer?: LayerId;
   /** Kinds on the table at this moment. */
   readonly optionKinds: readonly Action["kind"][];
-  readonly byValue: {
-    readonly liveCount: number;
-    readonly affordableLive: number;
-    readonly bestId: string;
-    readonly waitToAffordSec: number;
-    /** Best move's income per second, per stone of cost. */
-    readonly perStone: number;
-  };
   /**
    * Appear and first-use events since the previous sample. The last sample
    * of a run also carries any events after it.
@@ -64,7 +56,7 @@ export type DecisionSample = {
   readonly nights?: readonly NightRecord[];
   /** Sittings that closed since the previous sample (balance review). */
   readonly sittings?: readonly SittingEvent[];
-  /** Day the mountain emptied, when the run finished. Same on every sample. */
+  /** Day the last building in play went operational, when the run finished. Same on every sample. */
   readonly finishDay?: number;
   /**
    * Second-best finite payback divided by the best. 1 when they match.

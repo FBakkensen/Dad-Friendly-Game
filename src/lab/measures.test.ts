@@ -53,13 +53,6 @@ function decision(
     outputShare: over.outputShare ?? {},
     ...(over.layer === undefined ? {} : { layer: over.layer }),
     optionKinds: over.optionKinds ?? ["buyTier"],
-    byValue: {
-      liveCount: over.valueLive ?? liveCount,
-      affordableLive: over.valueAffordable ?? affordableLive,
-      bestId,
-      waitToAffordSec: wait,
-      perStone: 1,
-    },
     nextPaybackRatio: 1,
     stretch: {
       payback: {

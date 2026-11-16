@@ -2,6 +2,8 @@ import { mkdtempSync, readdirSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { withFactors } from "../economy/factors";
+import { PLAY_FACTORS } from "../part-switch";
 import { defineMeasure, parseMeasureExport, resultsOf } from "./measure";
 import casual from "./fresh-policies/casual-2x10";
 import {
@@ -44,13 +46,6 @@ describe("registry", () => {
           pocket: 0,
           outputShare: {},
           optionKinds: ["buyTier"],
-          byValue: {
-            liveCount: 1,
-            affordableLive: 1,
-            bestId: "buyTier:helper",
-            waitToAffordSec: 0,
-            perStone: 0,
-          },
           nextPaybackRatio: 1,
           stretch: {
             payback: {
@@ -79,13 +74,6 @@ describe("registry", () => {
           pocket: 0,
           outputShare: {},
           optionKinds: ["buyTier"],
-          byValue: {
-            liveCount: 3,
-            affordableLive: 0,
-            bestId: "buyTier:cart",
-            waitToAffordSec: 1,
-            perStone: 0,
-          },
           nextPaybackRatio: 1,
           stretch: {
             payback: {
@@ -190,7 +178,9 @@ describe("policy registry", () => {
     expect(policies).toHaveLength(names.length);
     expect(policies.length).toBeGreaterThan(0);
     for (const policy of policies) {
-      const run = runPolicy({ policy, seed: 1, maxLiveSeconds: 1 });
+      const run = withFactors(PLAY_FACTORS, () =>
+        runPolicy({ policy, seed: 1, maxLiveSeconds: 1 }),
+      );
       expect(run.world.clock).toBe(MS_PER_SECOND);
     }
   });

@@ -53,7 +53,6 @@ type Summary = {
   readonly bestId: string;
   readonly bestKind: Action["kind"] | "";
   readonly waitToAffordSec: number;
-  readonly perStone: number;
 };
 
 const EMPTY: Summary = {
@@ -62,7 +61,6 @@ const EMPTY: Summary = {
   bestId: "",
   bestKind: "",
   waitToAffordSec: 0,
-  perStone: 0,
 };
 
 function actionId(action: Action): string {
@@ -193,7 +191,6 @@ function byPayback(moves: readonly Priced[]): Summary {
     bestId: best.id,
     bestKind: best.kind,
     waitToAffordSec: best.waitSec,
-    perStone: best.perStone,
   };
 }
 
@@ -251,7 +248,6 @@ function byValue(moves: readonly Priced[]): Summary {
     bestId: best.id,
     bestKind: best.kind,
     waitToAffordSec: best.waitSec,
-    perStone: best.perStone,
   };
 }
 
@@ -349,7 +345,6 @@ export function scoreDecision(input: ScoreInput): DecisionSample {
     price(input.mountain, action, input.context, input.now),
   );
   const payback = byPayback(priced);
-  const value = byValue(priced);
   const stretchPriced =
     input.stretchActions === undefined
       ? priced
@@ -358,8 +353,7 @@ export function scoreDecision(input: ScoreInput): DecisionSample {
         );
   const stretchPayback =
     input.stretchActions === undefined ? payback : byPayback(stretchPriced);
-  const stretchValue =
-    input.stretchActions === undefined ? value : byValue(stretchPriced);
+  const stretchValue = byValue(stretchPriced);
   const rates = effectiveRates(input.mountain, input.now, input.trouble);
   return {
     atMs: input.atMs,
@@ -374,13 +368,6 @@ export function scoreDecision(input: ScoreInput): DecisionSample {
     ...(lineOn() ? { line: lineView(rates.tierSpeed, rates.running) } : {}),
     layer: layerOf(input.mountain).id,
     optionKinds: optionKinds(actions),
-    byValue: {
-      liveCount: value.liveCount,
-      affordableLive: value.affordableLive,
-      bestId: value.bestId,
-      waitToAffordSec: value.waitToAffordSec,
-      perStone: value.perStone,
-    },
     nextPaybackRatio: nextPaybackRatio(priced),
     stretch: {
       payback: viewOf(stretchPayback),

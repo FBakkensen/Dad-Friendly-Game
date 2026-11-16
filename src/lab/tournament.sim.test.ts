@@ -89,15 +89,15 @@ describe("tournament", () => {
       ),
     );
     const result = withFactors(PLAY_FACTORS, () =>
-      runTournament({ policies, measures, targets: [], seeds: [1], days: 1 }),
+      runTournament({ policies, measures, targets: [], seeds: [1], days: 2 }),
     );
     const cell = (id: string) =>
       result.rows[0]?.cells.find((item) => item.measureId === id)?.value;
-    // The fresh mine's first day: the check-in buys in some sittings, not all.
-    expect(cell("zeroBuySittings")).toBeGreaterThan(0);
-    expect(cell("zeroBuySittings")).toBeLessThan(1);
-    expect(cell("buysPerSitting")).toBeGreaterThanOrEqual(1);
-    // A first day's opens can all be empty tables, so the share may be NaN.
-    expect(typeof cell("bestOpenShare")).toBe("number");
+    // The fresh mine's first two days: the check-in buys in three sittings
+    // of four, sixteen buys in the median one, and every open whose sheet
+    // prices a crew buy finds it in reach.
+    expect(cell("zeroBuySittings")).toBe(0.25);
+    expect(cell("buysPerSitting")).toBe(16);
+    expect(cell("bestOpenShare")).toBe(1);
   }, 30_000);
 });

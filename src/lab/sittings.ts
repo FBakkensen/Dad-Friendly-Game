@@ -23,11 +23,11 @@ export type SittingEvent = {
   /** 0-based, counted the same way as the reveal log's sitting clock. */
   readonly sitting: number;
   readonly openedAtMs: number;
-  /** Rises in the owned count (crew, kids, engineers, upgrade levels). */
+  /** Rises in the owned count (crew, machines, upgrade levels). */
   readonly buys: number;
   /**
    * Taps those buys take with the Buys drawer on Max (#358): one for every tier bought,
-   * however many, and one for every other buy (an upgrade level, an engineer).
+   * however many, and one for every other buy (an upgrade level).
    */
   readonly taps: number;
   readonly open: SittingOpen;

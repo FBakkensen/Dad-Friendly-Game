@@ -8,7 +8,7 @@ import {
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { withFactors } from "../src/economy/factors";
-import { FRESH_OFF } from "../src/line-switch";
+import { FRESH_OFF, LINE_OFF } from "../src/line-switch";
 import { PLAY_FACTORS } from "../src/part-switch";
 import { parseMeasureExport } from "../src/lab/measure";
 import { parsePolicyExport } from "../src/lab/policy";
@@ -57,8 +57,9 @@ Seeds default to ${String(LOCAL_SEEDS)} (1 through that count). --ci uses ${Stri
 Every run plays the mine the live game plays: the fresh mine with part 2
 (fresh.off=0, part2.off=0), with the player types in src/lab/fresh-policies,
 to the last building in play (#737).
---factors holds sweep factors on top for every run (part2.off=1 plays part 1
-only, #534). fresh.off must stay 0: today's mountain is not played.
+--factors holds factors on top for every run (part2.off=1 plays part 1
+only, #534). fresh.off and line.off must stay 0: today's mountain is not
+played, and the fresh mine always plays the line.
 A missed guardrail is a warning unless LAB_STRICT=1, which exits 1. The fresh
 mine has no guardrail yet.
 --ledger check fails when the run's pacing ledger differs from ${LEDGER_PATH};
@@ -68,6 +69,7 @@ Reports land in reports/strategy-lab.md, reports/strategy-lab.json and
 reports/pacing-ledger.md.`;
 
 const FRESH_ONLY = `--factors ${FRESH_OFF} must be 0: the lab plays only the fresh mine (#737).`;
+const LINE_ONLY = `--factors ${LINE_OFF} must be 0: the fresh mine always plays the line (#737).`;
 
 export type LabArgs =
   | { readonly kind: "help" }
@@ -146,6 +148,9 @@ export function parseLabArgs(
       factors = { ...factors, ...parsed };
       if ((factors[FRESH_OFF] ?? 0) !== 0) {
         return { kind: "error", message: FRESH_ONLY };
+      }
+      if ((factors[LINE_OFF] ?? 0) !== 0) {
+        return { kind: "error", message: LINE_ONLY };
       }
       index += 2;
       continue;
@@ -254,7 +259,7 @@ export async function executeLab(
   readonly ledger: string;
 }> {
   const root = repoRoot();
-  // The live game's mine, with the sweep's factors on top (#737).
+  // The live game's mine, with --factors on top (#737).
   const factors = { ...PLAY_FACTORS, ...args.factors };
   const policiesDir =
     dirs?.policies ?? path.join(root, "src/lab/fresh-policies");

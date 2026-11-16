@@ -30,9 +30,9 @@ describe("scoreDecision", () => {
       atMs: 0,
     });
     expect(sample.liveCount).toBe(1);
-    expect(sample.byValue.liveCount).toBe(1);
+    expect(sample.stretch.value.liveCount).toBe(1);
     expect(sample.affordableLive).toBe(1);
-    expect(sample.byValue.affordableLive).toBe(1);
+    expect(sample.stretch.value.affordableLive).toBe(1);
     expect(sample.waitToAffordSec).toBe(0);
     expect(sample.bestId).toBe("buyTier:helper");
     expect(sample.nextPaybackRatio).toBe(Number.POSITIVE_INFINITY);
@@ -165,8 +165,8 @@ describe("scoreDecision", () => {
       actions: [{ kind: "station", index: 0, post: "borer" }],
       atMs: 0,
     });
-    expect(helpful.byValue.perStone).toBe(Number.POSITIVE_INFINITY);
-    expect(helpful.byValue.liveCount).toBe(1);
+    expect(helpful.stretch.value.bestId).toBe("station:0:borer");
+    expect(helpful.stretch.value.liveCount).toBe(1);
     expect(helpful.bestId).toBe("station:0:borer");
     expect(helpful.waitToAffordSec).toBe(0);
 
@@ -177,7 +177,7 @@ describe("scoreDecision", () => {
       actions: [{ kind: "station", index: 0, post: "cart" }],
       atMs: 1,
     });
-    expect(useless.byValue.liveCount).toBe(0);
+    expect(useless.stretch.value.liveCount).toBe(0);
     expect(useless.liveCount).toBe(0);
   });
 });

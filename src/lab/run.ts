@@ -1,12 +1,13 @@
 import type { Action } from "../economy/actions";
 import type { Mountain } from "../mountain";
 import { nextBuilding } from "../city";
+import { freshMineOn } from "../line-switch";
 import { createWorld, step, type World } from "./world";
 import { sticker } from "./decide";
 import { playFresh } from "./fresh-dad";
 import { fixDelayMs, type Policy, type PolicyParams } from "./policy";
+import { dayNumber } from "./sittings";
 import {
-  DAY_MS,
   DEFAULT_MAX_DAYS,
   MS_PER_SECOND,
   SAMPLE_INTERVAL_SEC,
@@ -37,12 +38,19 @@ export type RunOptions = {
   readonly until?: (world: World) => boolean;
 };
 
+/** What a run says when its caller forgot the game's factors (#737). */
+export const NOT_FRESH =
+  "runPolicy plays only the fresh mine: wrap the run in withFactors(PLAY_FACTORS, ...) (#737).";
+
 /**
  * Plays one policy on the shared clock. Live seconds tick and the dad
  * plays his plans. The gap pays away time. The same seed replays the same
- * run.
+ * run. Only a fresh mine is played: outside one it throws (#737).
  */
 export function runPolicy(options: RunOptions): PolicyRun {
+  if (!freshMineOn()) {
+    throw new Error(NOT_FRESH);
+  }
   const { policy, seed } = options;
   const params = policy.params;
   const maxDays = options.maxDays ?? DEFAULT_MAX_DAYS;
@@ -52,7 +60,7 @@ export function runPolicy(options: RunOptions): PolicyRun {
   let live = 0;
   const note = () => {
     if (finishDay === undefined && runDone(world.mountain)) {
-      finishDay = world.clock / DAY_MS + 1;
+      finishDay = dayNumber(world.clock);
     }
   };
   const stop = (): boolean => {
@@ -137,7 +145,7 @@ function playSecond(
   buys: PolicyPurchase[],
 ): World {
   const worked = liveSecond(world, policy.params);
-  const day = worked.clock / DAY_MS + 1;
+  const day = dayNumber(worked.clock);
   const played = playFresh(
     worked.mountain,
     worked.clock,

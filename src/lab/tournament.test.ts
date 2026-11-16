@@ -1,6 +1,8 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { withFactors } from "../economy/factors";
+import { PLAY_FACTORS } from "../part-switch";
 import { EMPTY_MATERIALS, LAYERS } from "../layers";
 import { createMountain, type Mountain } from "../mountain";
 import { MOUNTAIN_STONES } from "../scale";
@@ -137,13 +139,6 @@ function decision(over: {
     pocket: 0,
     outputShare: over.outputShare ?? {},
     optionKinds: over.optionKinds ?? ["buyTier"],
-    byValue: {
-      liveCount,
-      affordableLive: over.affordableLive ?? 0,
-      bestId: over.bestId ?? "buyTier:helper",
-      waitToAffordSec: over.waitToAffordSec ?? DEAD_STRETCH.minWaitSec,
-      perStone: 1,
-    },
     nextPaybackRatio: over.nextPaybackRatio ?? 1,
     stretch: {
       payback: {
@@ -885,5 +880,19 @@ describe("openingView", () => {
         context,
       ),
     ).toEqual({ kind: "affordable" });
+  });
+
+  it("says nothing when no crew buy on the sheet earns anything", () => {
+    const context = valueContext(policy.params);
+    withFactors(PLAY_FACTORS, () => {
+      // A fresh mine's first evening: the worker, cart, hoist and drill are
+      // on the sheet, but none of them adds income the stretch can price.
+      const fresh = createMountain();
+      const rich = { ...fresh, stock: { ...fresh.stock, stones: 1_000_000 } };
+      const kinds = actionsOnTable(rich, 0).map((action) => action.kind);
+      expect(kinds).toContain("buyTier");
+      expect(openingView(fresh, 0, context)).toEqual({ kind: "nothing" });
+      expect(openingView(rich, 0, context)).toEqual({ kind: "nothing" });
+    });
   });
 });
