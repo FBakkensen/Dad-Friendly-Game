@@ -153,7 +153,7 @@ The picture as it came is `mockups/refinery/art/res-brick-pixellab.png`, in pixe
 
 ## Part 3: the saw, the cut stone, the truck and the Foundry (#676, #677, #678, #679)
 
-The second maker, the second made good, the second vehicle and the city's third building, for slice 1's part 3. No code draws them yet: the mine and refinery screens (#680) and the city (#681) do. Flemming's yes, on 16 Nov 2026, was to the spend on the four together, and 17 PixelLab generations were used. The prompts, the sizes and the tools were the thread's calls and are written down here. His look at the four finished pictures, at phone size, was asked for in the project chat the same day.
+The second maker, the second made good, the second vehicle and the city's third building, for slice 1's part 3. No code draws them yet: the mine and refinery screens (#680) and the city (#681) do. Flemming's yes, on 16 Nov 2026, was to the spend on the four together, and 17 PixelLab generations were used. The prompts, the sizes and the tools were the thread's calls and are written down here. He saw the four finished pictures at phone size in the project chat and approved them the same day ("the 4 pictures are fine"). That approval covers the prompts and the sizes they were made with.
 
 | File                                 | Size  | Use                                                                                       |
 | ------------------------------------ | ----- | ----------------------------------------------------------------------------------------- |
