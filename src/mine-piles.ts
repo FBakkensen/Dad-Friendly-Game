@@ -31,7 +31,7 @@ import {
   type Chain,
   type ChainFlow,
 } from "./piles";
-import { effectiveRates, type Rates } from "./rates";
+import { crewTimer, effectiveRates, type Rates } from "./rates";
 import { addedStock, type Stock } from "./stock";
 import { stockpileRoom, stockyardOpen } from "./stockyard";
 import { fleetRate, stockDraw } from "./transport";
@@ -238,6 +238,42 @@ function levelsSet(
     { pay, drilling },
     mineDraw(mountain, pay, drilling),
   );
+}
+
+/** What a level's own stages move a second: drilling and haulage. */
+type LevelFlow = { readonly face: number; readonly haul: number };
+
+/** A level's flow from its chain's flows: 0 for a stage past its end. */
+function levelFlow(flows: readonly number[]): LevelFlow {
+  return { face: flows[0] ?? 0, haul: flows[1] ?? 0 };
+}
+
+/**
+ * What the mine moves now through the piles, a second, at pay 1 and under
+ * the crew timer (#680): each level's drilling and haulage, and the shaft's
+ * hoisting from both. With the Granite shut the Granite's are 0, and the
+ * Topsoil's are `mineChain`'s.
+ */
+export function mineLevelFlows(
+  mountain: Mountain,
+  now?: number,
+): {
+  readonly levels: Readonly<Record<MineLevelId, LevelFlow>>;
+  readonly lift: number;
+} {
+  const timer = crewTimer(mountain, now);
+  const granite = openGranite(mountain);
+  const chains =
+    granite === undefined
+      ? [mineChain(mountain, 1, true)]
+      : branchChains(levelsSet(mountain, granite, 1, true));
+  const [topsoil = [], deep = []] = chains.map((chain) =>
+    chainFlows(chain).map((flow) => flow * timer),
+  );
+  return {
+    levels: { topsoil: levelFlow(topsoil), granite: levelFlow(deep) },
+    lift: (topsoil[LIFT] ?? 0) + (deep[LIFT] ?? 0),
+  };
 }
 
 /**

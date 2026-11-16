@@ -1,13 +1,16 @@
 import { tierOnSale } from "./crew";
 import { formatCompact } from "./format";
+import { GOOD_NAMES } from "./frame-view";
 import { STAGES, type Stage } from "./line";
 import { PILE_HOLDS, mineChain, type PileId } from "./mine-piles";
 import type { Mountain } from "./mountain";
 import { chainFlows } from "./piles";
 import { crewTimer, effectiveRates } from "./rates";
 import { MACHINE_WORDS, TOOL_WORDS, formatSpeed, plural } from "./screen-words";
+import type { GoodId } from "./stock";
 import {
   TIERS,
+  tierGood,
   tierQuote,
   type BuyAmount,
   type MachineId,
@@ -79,6 +82,8 @@ export type MachineKey = {
   readonly id: MachineId;
   readonly count: number;
   readonly cost: number;
+  /** The good it is paid in: cut stone for the borer and the locomotive in part 3, else stone (#673). */
+  readonly good: GoodId;
   readonly can: boolean;
   /** "+Drill · 108/s", "+10 Drills · 1,080/s". */
   readonly face: string;
@@ -108,19 +113,22 @@ export function machineKey(
   const name = count === 1 ? kind : `${formatCompact(count)} ${kind}`;
   const moves = `${formatSpeed(speed[id] * count * timer)}/s`;
   const takes = tier.staff * count;
+  const good = tierGood(id);
+  const paidIn = GOOD_NAMES[good].toLowerCase();
   return {
     stage,
     id,
     count,
     cost,
-    can: cost <= mountain.stock.stones,
+    good,
+    can: cost <= mountain.stock[good],
     face: `+${name} · ${moves}`,
     price: formatCompact(cost),
     staff: `${formatCompact(takes)} to run`,
     label:
       count === 1
-        ? `Buy a ${MACHINE_WORDS[id][0]} for ${formatCompact(cost)} stone. It moves ${moves} and takes ${String(takes)} to run.`
-        : `Buy ${String(count)} ${MACHINE_WORDS[id][1]} for ${formatCompact(cost)} stone. They move ${moves} and take ${String(takes)} to run.`,
+        ? `Buy a ${MACHINE_WORDS[id][0]} for ${formatCompact(cost)} ${paidIn}. It moves ${moves} and takes ${String(takes)} to run.`
+        : `Buy ${String(count)} ${MACHINE_WORDS[id][1]} for ${formatCompact(cost)} ${paidIn}. They move ${moves} and take ${String(takes)} to run.`,
   };
 }
 
@@ -359,7 +367,7 @@ export type StageRow = {
 };
 
 /** A part under a crew timer (a charge or grease): every machine and tool moves that much more. */
-function timed(part: RowPart, timer: number): RowPart {
+export function timed(part: RowPart, timer: number): RowPart {
   if (timer === 1) {
     return part;
   }
@@ -370,6 +378,48 @@ function timed(part: RowPart, timer: number): RowPart {
         onMachines: part.onMachines * timer,
       }
     : { ...part, moves: part.moves * timer };
+}
+
+/**
+ * What a row is made of: a stage's job and workers, its parts already under
+ * the crew timer, what it can move and moves now, and the strongest stage
+ * the band is scaled by. The one-level rows and each level's rows (#680)
+ * are built from it.
+ */
+export type RowInput = {
+  readonly stage: Stage;
+  readonly job: JobId;
+  readonly workers: number;
+  readonly parts: readonly RowPart[];
+  readonly can: number;
+  readonly moving: number;
+  readonly strongest: number;
+  readonly free: number;
+  readonly pile: RowPile | undefined;
+};
+
+/** A stage's row from what it is made of: its numbers printed so the parts add up to what it can move. */
+export function stageRow(input: RowInput): StageRow {
+  const { stage, parts, can, moving, strongest, workers } = input;
+  const printed = printedParts(
+    parts.map((part) => part.moves),
+    can,
+  );
+  return {
+    stage,
+    job: input.job,
+    name: STAGE_NAMES[stage],
+    now: formatCompact(moving),
+    can: `${printed.total}/s`,
+    band: { can: can / strongest, now: Math.min(moving, can) / strongest },
+    parts,
+    sum: sumForms(stage, parts, printed.parts),
+    printed: printed.parts,
+    workers,
+    canPlace: input.free > 0,
+    canFree: workers > 0,
+    pile: input.pile,
+  };
 }
 
 export function stageRows(
@@ -389,32 +439,21 @@ export function stageRows(
   return STAGES.map((stage) => {
     const job = STAGE_JOB[stage];
     const workers = mountain.jobs[job];
-    const parts = rowParts(
-      stageMachines(mountain, rates.tierSpeed, stage),
-      workers,
-      tool,
-    ).map((part) => timed(part, timer));
-    const can = work.stages[stage] * timer;
-    const moving = moves[STAGES.indexOf(stage)] ?? 0;
-    const printed = printedParts(
-      parts.map((part) => part.moves),
-      can,
-    );
-    return {
+    return stageRow({
       stage,
       job,
-      name: STAGE_NAMES[stage],
-      now: formatCompact(moving),
-      can: `${printed.total}/s`,
-      band: { can: can / strongest, now: Math.min(moving, can) / strongest },
-      parts,
-      sum: sumForms(stage, parts, printed.parts),
-      printed: printed.parts,
       workers,
-      canPlace: free > 0,
-      canFree: workers > 0,
+      parts: rowParts(
+        stageMachines(mountain, rates.tierSpeed, stage),
+        workers,
+        tool,
+      ).map((part) => timed(part, timer)),
+      can: work.stages[stage] * timer,
+      moving: moves[STAGES.indexOf(stage)] ?? 0,
+      strongest,
+      free,
       pile: rowPile(mountain, stage),
-    };
+    });
   });
 }
 

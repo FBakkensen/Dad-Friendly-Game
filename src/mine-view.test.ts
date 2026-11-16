@@ -12,6 +12,7 @@ import {
 } from "./mine-view";
 import { PILE_HOLDS } from "./mine-piles";
 import { createMountain, type Mountain } from "./mountain";
+import { levels, partThree } from "./part-three.harness";
 import { crewedStart } from "./test-fixtures";
 import { effectiveRates } from "./rates";
 import { toolSpeed } from "./workforce";
@@ -47,6 +48,34 @@ describe("machine keys", () => {
       expect(cart?.face).toBe(`+10 Carts · ${String(speed.cart * 10)}/s`);
       expect(cart?.staff).toBe("10 to run");
       expect(cart?.can).toBe(true);
+    });
+  });
+
+  it("prices a borer in cut stone in part 3, lit only by cut stone", () => {
+    partThree(() => {
+      const mountain = levels({
+        topsoil: 1,
+        stock: { stones: 1e12, cutStone: 0 },
+      });
+      const borer = machineKeys(mountain, "one").find(
+        (key) => key.id === "borer",
+      );
+      expect(borer?.good).toBe("cutStone");
+      expect(borer?.can).toBe(false);
+      expect(borer?.label).toContain("cut stone");
+      const paid = machineKeys(
+        { ...mountain, stock: { ...mountain.stock, cutStone: 1e12 } },
+        "one",
+      ).find((key) => key.id === "borer");
+      expect(paid?.can).toBe(true);
+    });
+  });
+
+  it("prices every machine in stone with part 3 off", () => {
+    fresh(() => {
+      const keys = machineKeys(withStones(createMountain(), 1e9), "one");
+      expect(keys.every((key) => key.good === "stones")).toBe(true);
+      expect(keys.every((key) => key.label.includes(" stone."))).toBe(true);
     });
   });
 });
