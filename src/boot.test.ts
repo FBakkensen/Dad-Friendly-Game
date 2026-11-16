@@ -42,13 +42,7 @@ describe("parseBootOptions", () => {
       previewSave: undefined,
       previewCopies: false,
       previewUpdate: false,
-      partTwo: false,
     });
-  });
-
-  it("reads part2=1, so a dev page can show part 2 before it is switched on (#671)", () => {
-    expect(parseBootOptions("?part2=1").partTwo).toBe(true);
-    expect(parseBootOptions("?part2=0").partTwo).toBe(false);
   });
 
   it("reads update=shown, so play can see the update card", () => {
@@ -122,28 +116,17 @@ describe("createAppServices", () => {
     }
   });
 
-  it("plays part 2 on a dev page with part2=1, and never in the build (#671)", async () => {
-    for (const [devMode, on] of [
-      [true, true],
-      [false, false],
-    ] as const) {
+  it("plays part 2 on every boot, in dev and in the build (#672)", async () => {
+    for (const devMode of [true, false]) {
       holdFactors({});
       const { progress } = await createAppServices({
         env: {},
-        search: "?part2=1",
+        search: "",
         devMode,
       });
-      expect(partTwoOn()).toBe(on);
+      expect(partTwoOn()).toBe(true);
       progress.dispose();
     }
-    holdFactors({});
-    const { progress } = await createAppServices({
-      env: {},
-      search: "",
-      devMode: true,
-    });
-    expect(partTwoOn()).toBe(false);
-    progress.dispose();
   });
 
   it("trouble=cave-in previews a cave-in while developing", async () => {

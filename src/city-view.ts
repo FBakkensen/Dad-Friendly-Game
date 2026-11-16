@@ -13,6 +13,7 @@ import { STEP_NAMES, orderStrip, requirements, type Pip } from "./frame-view";
 import type { Mountain } from "./mountain";
 import { partTwoOn } from "./part-switch";
 import type { BuyAmount } from "./tiers";
+import type { GoodId } from "./stock";
 import { effectiveRates } from "./rates";
 import {
   VEHICLE_KEYS,
@@ -287,7 +288,7 @@ function buildersRow(mountain: Mountain): BuildersRow {
 
 /** One good the step requires: what is built in of it, and its bar. */
 type CardBar = {
-  readonly good: string;
+  readonly good: GoodId;
   readonly line: string;
   readonly share: number;
 };

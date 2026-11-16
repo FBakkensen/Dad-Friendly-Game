@@ -20,6 +20,8 @@ import {
   sliceRoofSave,
   sliceStartSave,
   sliceStructureSave,
+  sliceWarehouseRoofSave,
+  sliceWarehouseSave,
   sliceYardFullSave,
 } from "../../tools/browser/fixtures.ts";
 import { targetsCloserThan } from "../../src/ui-audit-measure.ts";
@@ -35,9 +37,13 @@ const SAVES = [
   { name: "ordered", save: () => sliceOrderedSave(Date.now()) },
   { name: "busy", save: () => sliceBusySave(Date.now()) },
   { name: "structure", save: () => sliceStructureSave(Date.now()) },
+  { name: "warehouse", save: () => sliceWarehouseSave(Date.now()) },
   { name: "done", save: () => sliceDoneSave(Date.now()) },
   { name: "list", save: () => sliceListSave(Date.now()) },
 ];
+
+/** The workforce's jobs: five, and the kilns once the refinery is open (part 2, #672). */
+const jobsOf = (name) => (name === "warehouse" || name === "done" ? 6 : 5);
 
 /** The Light Tower's picture, in board px: it has to fit between the plate and the road. */
 const TOWER_H = 182;
@@ -363,7 +369,8 @@ for (const size of SIZES) {
             );
           }
           check(
-            facts.hires.length === 1 && facts.hires[0] === "frame-top",
+            facts.hires.length === 1 &&
+              facts.hires[0].split(" ").includes("frame-top"),
             `${at} ${site}: one hire key, in the top row (${facts.hires.join(", ")})`,
           );
           check(
@@ -439,8 +446,8 @@ for (const size of SIZES) {
         const sheet = await sheetFacts(page);
         await shot(page, `slice-workforce-${name}-${label}`);
         check(
-          sheet.open && sheet.inside && sheet.rows === 5,
-          `${at} the workforce opens above the save line with its five jobs`,
+          sheet.open && sheet.inside && sheet.rows === jobsOf(name),
+          `${at} the workforce opens above the save line with its ${String(jobsOf(name))} jobs`,
         );
         check(
           await noScroll(page),
@@ -527,14 +534,30 @@ function checkCard(facts, at, kind) {
   );
 }
 
+/**
+ * The night saves, and the card behind each night's report: the Light
+ * Tower's roof opens the refinery, and the Warehouse's is the end of part 2
+ * (#672).
+ */
 const NIGHTS = [
   { name: "night", save: () => sliceNightSave(Date.now()) },
-  { name: "roof", save: () => sliceRoofSave(Date.now()) },
+  {
+    name: "roof",
+    save: () => sliceRoofSave(Date.now()),
+    building: "The Light Tower",
+    behind: "opens",
+  },
+  {
+    name: "warehouse roof",
+    save: () => sliceWarehouseRoofSave(Date.now()),
+    building: "The Warehouse",
+    behind: "end",
+  },
 ];
 
 for (const size of SIZES) {
   const label = `${String(size[0])}x${String(size[1])}`;
-  for (const { name, save } of NIGHTS) {
+  for (const { name, save, building, behind } of NIGHTS) {
     section(`${label} slice frame ${name}`, async () => {
       const { page, close } = await openScreen(size, save(), {
         search: "?memorySave=1",
@@ -544,32 +567,49 @@ for (const size of SIZES) {
         await page.waitForSelector(".frame-card:not([hidden])");
         const at = `${label} slice frame ${name}:`;
         const report = await cardFacts(page);
-        await shot(page, `slice-card-report-${name}-${label}`);
+        const shotName = name.replace(" ", "-");
+        await shot(page, `slice-card-report-${shotName}-${label}`);
         checkCard(report, at, "report");
         check(
           await noScroll(page),
           `${at} the report does not scroll the page`,
         );
-        if (name === "roof") {
+        if (building !== undefined) {
           check(
-            report.words.includes("The Light Tower: operational."),
-            `${at} the report says the Light Tower is operational`,
+            report.words.includes(`${building}: operational.`),
+            `${at} the report says ${building} is operational`,
           );
         }
         await tap(page, ".frame-card-key");
         const after = await cardFacts(page);
-        if (name === "roof") {
-          await shot(page, `slice-card-end-${label}`);
-          checkCard(after, at, "end");
+        if (behind !== undefined) {
+          await shot(page, `slice-card-${behind}-${label}`);
+          checkCard(after, at, behind);
+          check(
+            behind === "opens"
+              ? after.words.includes("New site: the refinery.") &&
+                  !after.words.includes("later update")
+              : after.words.includes("later update"),
+            `${at} the ${behind} card says what is live, and promises nothing more`,
+          );
           check(
             await noScroll(page),
-            `${at} the end card does not scroll the page`,
+            `${at} the ${behind} card does not scroll the page`,
           );
           await tap(page, ".frame-card-key");
           check(
             !(await cardFacts(page)).shown,
-            `${at} Continue closes the end card`,
+            `${at} Continue closes the ${behind} card`,
           );
+          if (behind === "opens") {
+            check(
+              await page.$eval(
+                '.frame-site[data-site="refinery"]',
+                (el) => el.getClientRects().length > 0,
+              ),
+              `${at} the refinery's tab is in the site bar`,
+            );
+          }
         } else {
           check(
             !after.shown,
@@ -789,9 +829,6 @@ async function cityNoteFacts(page) {
   });
 }
 
-/** Part 2 is on only behind the dev page's `?part2=1` until #672 switches it on. */
-const PART_TWO = "?memorySave=1&part2=1";
-
 /**
  * The refinery in board px (#671): its scene, its panel (the kilns' plate
  * and the stockyard) inside it, every shown key's size, the words that must
@@ -849,7 +886,7 @@ for (const size of SIZES) {
     const { page, close } = await openScreen(
       size,
       sliceRefinerySave(Date.now()),
-      { search: PART_TWO, seedKey: DEV_BACKUP_KEY },
+      { search: "?memorySave=1", seedKey: DEV_BACKUP_KEY },
     );
     try {
       await page.waitForSelector('.frame-site[data-site="refinery"]');
@@ -902,7 +939,7 @@ for (const size of SIZES) {
     const { page, close } = await openScreen(
       size,
       sliceYardFullSave(Date.now()),
-      { search: PART_TWO, seedKey: DEV_BACKUP_KEY },
+      { search: "?memorySave=1", seedKey: DEV_BACKUP_KEY },
     );
     try {
       await page.waitForSelector(".frame-card:not([hidden])");
@@ -942,39 +979,6 @@ for (const size of SIZES) {
       check(
         !after.shown && site === "refinery",
         `${at} To the stockyard closes the report and opens the refinery (${String(site)})`,
-      );
-    } finally {
-      await close();
-    }
-  });
-
-  section(`${label} slice refinery opens`, async () => {
-    const { page, close } = await openScreen(size, sliceRoofSave(Date.now()), {
-      search: PART_TWO,
-      seedKey: DEV_BACKUP_KEY,
-    });
-    try {
-      await page.waitForSelector(".frame-card:not([hidden])");
-      const at = `${label} slice refinery opens:`;
-      checkCard(await cardFacts(page), at, "report");
-      await tap(page, ".frame-card-key");
-      const opens = await cardFacts(page);
-      await shot(page, `slice-card-opens-${label}`);
-      checkCard(opens, at, "opens");
-      check(
-        opens.words.includes("New site: the refinery.") &&
-          !opens.words.includes("later update"),
-        `${at} the Light Tower's card opens the refinery, and promises nothing more`,
-      );
-      check(await noScroll(page), `${at} the card does not scroll the page`);
-      await tap(page, ".frame-card-key");
-      const tab = await page.$eval(
-        '.frame-site[data-site="refinery"]',
-        (el) => !el.hidden,
-      );
-      check(
-        !(await cardFacts(page)).shown && tab,
-        `${at} Continue closes the card, and the refinery's tab is in the site bar`,
       );
     } finally {
       await close();

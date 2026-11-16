@@ -57,7 +57,10 @@ export function endCard(id: BuildingId): CardWords {
   ]);
 }
 
-/** The end of part 1: the Light Tower's roof is on. */
+/**
+ * Part 1's end card, the Light Tower's: shown only with part 2 off (unit
+ * tests and labs), so it goes with the old game's clean-up (#665).
+ */
 export const END_CARD: CardWords = endCard("lightTower");
 
 /**

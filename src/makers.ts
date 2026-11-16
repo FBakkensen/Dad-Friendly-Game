@@ -10,8 +10,8 @@ import { LINE_MACHINE_COST_GROWTH } from "./tiers";
  * one of its good, two rock for one brick at the kilns. What it cannot take
  * bypasses to stone (src/mine-piles.ts). A maker is bought like a machine and
  * runs with one worker on its job (rule 2.7); one with nobody on it is idle,
- * not lost. It takes no engineer, no gear and no trouble. Off in play: part
- * 2's switch (`partTwoOn`) opens the kilns with the Light Tower.
+ * not lost. It takes no engineer, no gear and no trouble. Part 2's switch
+ * (`partTwoOn`, on in play since #672) opens the kilns with the Light Tower.
  */
 
 type MakerRow = {

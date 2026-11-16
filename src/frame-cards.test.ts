@@ -306,9 +306,16 @@ describe("the shift report", () => {
 });
 
 describe("the shift report once the stockyard is open (#671)", () => {
-  /** The crew under the Light Tower's roof, its stone a few minutes from full. */
+  /**
+   * The crew under the Light Tower's roof, its stone a few minutes from full,
+   * with a kiln bought (and nobody on it), so no refinery card follows (#672).
+   */
   function nearlyFull(): Mountain {
-    const lit = { ...crew(NO_PROJECT), operational: ["lightTower" as const] };
+    const lit = {
+      ...crew(NO_PROJECT),
+      operational: ["lightTower" as const],
+      makers: { kiln: 1 },
+    };
     return {
       ...lit,
       stock: { ...lit.stock, stones: stockpileRoom(lit, "stones") - 1_000 },
@@ -592,6 +599,54 @@ describe("the first evening's card", () => {
       expect(progress.getSnapshot().ready).toBe(true);
     });
     expect(card().kind).toBe("first");
+  });
+});
+
+describe("the refinery's card for a save from part 1 (#672)", () => {
+  /** A part 1 save after its last roof: the Light Tower up, nothing since. */
+  const partOneDone = (): Mountain => ({
+    ...crew(NO_PROJECT, 8_000_000),
+    operational: ["lightTower"],
+  });
+
+  it("greets a session whose refinery is open and untouched, once, until its key", () => {
+    holdFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 });
+    const { card, press, screen } = mount({ saved: partOneDone(), at: 1_000 });
+    expect(card()).toMatchObject({
+      shown: true,
+      kind: "opens",
+      title: refineryOpens().title,
+      lines: [...refineryOpens().paragraphs],
+    });
+    press();
+    expect(card().shown).toBe(false);
+    screen.paint();
+    expect(card().shown).toBe(false);
+  });
+
+  it("does not greet once a kiln is bought, the stockyard expanded or the Warehouse ordered", () => {
+    holdFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 });
+    const kiln = { ...partOneDone(), makers: { kiln: 1 } };
+    const expanded = { ...partOneDone(), stockyard: 1 };
+    const ordered = placeOrder(partOneDone());
+    for (const saved of [kiln, expanded, ordered]) {
+      expect(mount({ saved, at: 1_000 }).card().shown).toBe(false);
+    }
+  });
+
+  it("waits behind the report of the night the session opens on", () => {
+    holdFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 });
+    const saved = { ...crew(NO_PROJECT), operational: ["lightTower" as const] };
+    const { card, press } = mount({ saved, at: 9 * HOUR });
+    expect(card().kind).toBe("report");
+    press();
+    expect(card()).toMatchObject({ shown: true, kind: "opens" });
+    press();
+    expect(card().shown).toBe(false);
+  });
+
+  it("does not greet with part 2 off", () => {
+    expect(mount({ saved: partOneDone(), at: 1_000 }).card().shown).toBe(false);
   });
 });
 

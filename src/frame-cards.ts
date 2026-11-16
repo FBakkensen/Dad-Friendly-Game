@@ -6,6 +6,7 @@ import {
   endCard,
   type CardWords,
 } from "./frame-cards-words";
+import { makersOpen } from "./makers";
 import { FRESH_START_JOBS, type AwayReport, type Mountain } from "./mountain";
 import { partTwoOn } from "./part-switch";
 import type { ProgressSnapshot, ProgressStore } from "./progress-store";
@@ -29,7 +30,10 @@ import {
  * comes first and the end card waits
  * behind it. The first evening's card (#703) greets a session that opens
  * with nothing ordered and nothing operational, once, until its key is
- * pressed; it is not a save fact. The game runs on behind every card.
+ * pressed; it is not a save fact. A save from part 1 whose Light Tower was
+ * already up when part 2 was switched on (#672) never saw the refinery's
+ * card, so a session that opens on the refinery untouched greets with it the
+ * same way. The game runs on behind every card.
  */
 
 type FrameCard =
@@ -51,11 +55,39 @@ const nothingYet = (mountain: Mountain): boolean =>
   JOB_IDS.every((job) => mountain.jobs[job] === FRESH_START_JOBS[job]);
 
 /**
- * Whether the session greets its first evening, decided on its first ready
- * view: a session that opens on a night is not a first evening.
+ * The refinery open and untouched since the Light Tower's roof: no kiln, the
+ * stockyard as it opened, and nothing more ordered (#672).
  */
-function greets(view: CardView): boolean {
-  return nightReport(view) === undefined && nothingYet(view.mountain);
+const refineryUntouched = (mountain: Mountain): boolean =>
+  makersOpen(mountain) &&
+  mountain.makers.kiln === 0 &&
+  mountain.stockyard === 0 &&
+  mountain.project.kind === "unordered" &&
+  mountain.operational.length === 1;
+
+/** The card a session greets with on its first ready view, until its key. */
+type Greeting = "first" | "opens" | "none";
+
+const GREETINGS: readonly {
+  readonly kind: Exclude<Greeting, "none">;
+  readonly holds: (mountain: Mountain) => boolean;
+}[] = [
+  { kind: "first", holds: nothingYet },
+  { kind: "opens", holds: refineryUntouched },
+];
+
+/**
+ * What the session greets with, decided on its first ready view. A session
+ * that opens on a night is not a first evening; the refinery's card waits
+ * behind the night's report, as the end card does.
+ */
+function greets(view: CardView): Greeting {
+  const night = nightReport(view) !== undefined;
+  return (
+    GREETINGS.find(
+      (each) => (!night || each.kind !== "first") && each.holds(view.mountain),
+    )?.kind ?? "none"
+  );
 }
 
 function hasNight(report: AwayReport): report is NightAwayReport {
@@ -75,7 +107,7 @@ export function nightReport(
  * open, else the first evening's while the session greets it and nothing
  * is ordered or operational.
  */
-function frameCard(view: CardView, greet: boolean): FrameCard | undefined {
+function frameCard(view: CardView, greet: Greeting): FrameCard | undefined {
   const report = nightReport(view);
   if (report !== undefined) {
     return { kind: "report", report };
@@ -87,7 +119,10 @@ function frameCard(view: CardView, greet: boolean): FrameCard | undefined {
       ? { kind: "opens" }
       : { kind: "end", building };
   }
-  return greet && nothingYet(view.mountain) ? { kind: "first" } : undefined;
+  const greeting = GREETINGS.find((each) => each.kind === greet);
+  return greeting?.holds(view.mountain) === true
+    ? { kind: greeting.kind }
+    : undefined;
 }
 
 const sameCard = (a: FrameCard | undefined, b: FrameCard | undefined) =>
@@ -216,7 +251,7 @@ export function createFrameCards({
 }): FrameCards {
   const parts = buildCard();
   let shown: FrameCard | undefined;
-  let greet: boolean | undefined;
+  let greet: Greeting | undefined;
 
   const paint = (): void => {
     const view = progress.getSnapshot();
@@ -237,9 +272,10 @@ export function createFrameCards({
   };
 
   parts.key.addEventListener("click", () => {
-    if (shown?.kind === "first") {
-      greet = false;
-    } else if (shown !== undefined) {
+    if (shown?.kind === "first" || shown?.kind === "opens") {
+      greet = "none";
+    }
+    if (shown !== undefined && shown.kind !== "first") {
       progress.dismiss(shown.kind === "report" ? "away" : "operational");
     }
     paint();
