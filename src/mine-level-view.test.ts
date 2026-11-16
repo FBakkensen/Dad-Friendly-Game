@@ -5,7 +5,6 @@ import {
   BOTH_IN_TURN,
   GRANITE_NOT_REACHED,
   HOIST_WAITS_LINE,
-  LEVEL_NAMES,
   MACHINE_CARD_STAYS,
   NOT_NOW,
   SHAFT_WAITS_LINE,
@@ -26,7 +25,7 @@ import {
   mineWork,
   shaftHolds,
 } from "./mine-piles";
-import { printedParts } from "./mine-view";
+import { LEVEL_NAMES, printedParts } from "./mine-view";
 import { levels, partThree, partTwo } from "./part-three.harness";
 import { chainFlows } from "./piles";
 import { crewTimer } from "./rates";

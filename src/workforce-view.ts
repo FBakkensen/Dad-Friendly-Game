@@ -2,14 +2,21 @@ import { buildRate } from "./building-site";
 import { formatCompact } from "./format";
 import { STAGES, type Stage } from "./line";
 import type { Mountain } from "./mountain";
-import { LEVEL_NAMES, levelStageTitle } from "./mine-level-view";
+import { levelStageTitle } from "./mine-level-view";
+import { LEVEL_NAMES } from "./mine-view";
 import { graniteOpen, type MineLevelId } from "./mine-levels";
-import { runningKilns } from "./makers";
+import {
+  MAKER_IDS,
+  makerJob,
+  refineryMakers,
+  runningMakers,
+  type MakerId,
+} from "./makers";
 import type { SiteId } from "./next-view";
 import { SITES, SITE_NAMES, openSites } from "./next-view";
 import { effectiveRates } from "./rates";
 import { MACHINE_IDS, tierById, tierInPlay, type MachineId } from "./tiers";
-import { MACHINE_WORDS, TOOL_WORDS, plural } from "./screen-words";
+import { MACHINE_WORDS, MAKER_WORDS, TOOL_WORDS, plural } from "./screen-words";
 import { VEHICLES, drivenFleet } from "./transport";
 import {
   LEVEL_JOBS,
@@ -46,7 +53,10 @@ const JOB_NAMES: Readonly<Record<JobId, string>> = {
   saws: "Saws",
 };
 
-/** The jobs of each site, in the sheet's order; a site shows while it is open (#671). */
+/**
+ * The jobs of each site, in the sheet's order; a site shows while it is open
+ * (#671). The refinery's are its makers' (`refineryJobs`).
+ */
 const SITE_JOBS: Readonly<Record<SiteId, readonly JobId[]>> = {
   mine: STAGES.map((stage) => STAGE_JOB[stage]),
   refinery: ["kilns"],
@@ -115,6 +125,16 @@ function siteGroup(
   };
 }
 
+/** The refinery's jobs (#754): the kilns, and the saws once the Granite is open. */
+function refineryJobs(mountain: Mountain): readonly JobId[] {
+  return refineryMakers(mountain).map(makerJob);
+}
+
+/** A site's jobs now: the refinery's are its open makers'. */
+function siteJobs(mountain: Mountain, site: SiteId): readonly JobId[] {
+  return site === "refinery" ? refineryJobs(mountain) : SITE_JOBS[site];
+}
+
 /** Every site's jobs by name, open or not: the sheet builds them and shows the open ones (#671). */
 export function jobSites(mountain: Mountain): readonly JobSite[] {
   return SITES.filter((site) => SITE_JOBS[site].length > 0).flatMap((site) =>
@@ -122,7 +142,7 @@ export function jobSites(mountain: Mountain): readonly JobSite[] {
       ? MINE_GROUPS.map((group) =>
           siteGroup(group.key, site, group.name, group.jobs),
         )
-      : [siteGroup(site, site, SITE_NAMES[site], SITE_JOBS[site])],
+      : [siteGroup(site, site, SITE_NAMES[site], siteJobs(mountain, site))],
   );
 }
 
@@ -224,19 +244,24 @@ function buildingNote(): string {
   return `each builds ${formatCompact(oneBuilderBuilds())}/s`;
 }
 
-/** "1 of 2 kilns run": the kilns with a worker, of the kilns he owns (#671). */
-/** Before the first kiln, here and on the kilns' plate (#671). */
-export const NO_KILNS = "No kilns yet";
-
-function kilnsNote(mountain: Mountain): string {
-  if (mountain.makers.kiln === 0) {
-    return NO_KILNS;
-  }
-  return runsOf(runningKilns(mountain), mountain.makers.kiln, [
-    "kiln",
-    "kilns",
-  ]);
+/** "No kilns yet", "No saws yet": before the first, here and on its plate (#671, #754). */
+export function noMakersYet(id: MakerId): string {
+  return `No ${MAKER_WORDS[id][1]} yet`;
 }
+
+/** "1 of 2 kilns run": the makers with a worker, of those he owns (#671, #754). */
+function makersNote(mountain: Mountain, id: MakerId): string {
+  const owned = mountain.makers[id];
+  if (owned === 0) {
+    return noMakersYet(id);
+  }
+  return runsOf(runningMakers(mountain, id), owned, MAKER_WORDS[id]);
+}
+
+/** The maker a job runs, if it is a maker's job. */
+const MAKER_OF_JOB: Partial<Record<JobId, MakerId>> = Object.fromEntries(
+  MAKER_IDS.map((id) => [makerJob(id), id]),
+);
 
 function jobNote(mountain: Mountain, job: JobId): string {
   const place = LEVEL_OF_JOB[job];
@@ -247,8 +272,9 @@ function jobNote(mountain: Mountain, job: JobId): string {
   if (stage !== undefined) {
     return stageNote(mountain, stage);
   }
-  if (job === "kilns") {
-    return kilnsNote(mountain);
+  const maker = MAKER_OF_JOB[job];
+  if (maker !== undefined) {
+    return makersNote(mountain, maker);
   }
   return job === "driving" ? drivingNote(mountain) : buildingNote();
 }

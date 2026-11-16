@@ -6,7 +6,7 @@ import { mineMoves } from "./mine-piles";
 import { canPay } from "./stock";
 import { installable, stationOpen } from "./factory";
 import { recipeById } from "./workshop";
-import { makerPrice, makersOpen } from "./makers";
+import { MAKER_IDS, makerOpen, makerPrice, makersOpen } from "./makers";
 import { partTwoOn } from "./part-switch";
 import { MAX_STOCKYARD_LEVEL, expandPrice, stockyardOpen } from "./stockyard";
 import { TIERS, tierGood, tierQuote } from "./tiers";
@@ -89,19 +89,23 @@ export function stageCount(mountain: Mountain, stage: Stage): number {
   return machines + upgrades;
 }
 
-/** The refinery's buys he can afford now: a kiln, and the next stockyard level (#671). */
+/** The refinery's buys he can afford now: a kiln, a saw once they are open (#754), and the next stockyard level (#671). */
 function refineryCount(mountain: Mountain): number {
   if (!siteOpen(mountain, "refinery")) {
     return 0;
   }
-  const kiln = canPay(mountain.stock, makerPrice(mountain, "kiln")) ? 1 : 0;
+  const makers = MAKER_IDS.filter(
+    (id) =>
+      makerOpen(mountain, id) &&
+      canPay(mountain.stock, makerPrice(mountain, id)),
+  ).length;
   const level =
     stockyardOpen(mountain) &&
     mountain.stockyard < MAX_STOCKYARD_LEVEL &&
     canPay(mountain.stock, expandPrice(mountain))
       ? 1
       : 0;
-  return kiln + level;
+  return makers + level;
 }
 
 /**

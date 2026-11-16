@@ -8,6 +8,7 @@ import {
   type EngineerRank,
 } from "./engineers";
 import type { LostToolId } from "./lost-tools";
+import type { MakerId } from "./makers";
 import {
   KEEPSAKES,
   type FindId,
@@ -71,6 +72,13 @@ export const MACHINE_WORDS: Readonly<
   train: ["locomotive", "locomotives"],
   machine: ["great machine", "great machines"],
 };
+
+/** A maker's noun (#754), as the machines' are: the refinery's plates and the workforce's notes. */
+export const MAKER_WORDS: Readonly<Record<MakerId, readonly [string, string]>> =
+  {
+    kiln: ["kiln", "kilns"],
+    saw: ["saw", "saws"],
+  };
 
 /** Per-unit speed: one decimal while small and fractional (Work boots). */
 export const formatSpeed = (speed: number): string =>

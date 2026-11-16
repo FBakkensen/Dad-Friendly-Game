@@ -15,7 +15,7 @@ import {
   BYPASS_RECIPE,
   nightForecast,
   refineryView,
-  type KilnPlate,
+  type MakerPlate,
   type RefineryView,
   type StockyardView,
 } from "./refinery-view";
@@ -56,7 +56,7 @@ type PlateParts = {
 /** One more kiln, on the mine's own key (a maker is bought one at a time). */
 function buildKey(state: FrameState): KeyParts {
   return buildKeyFace("mine-key refinery-kiln-key", () => {
-    if (refineryView(state.mountain()).plate.key.can) {
+    if (refineryView(state.mountain()).plates[0]?.key.can === true) {
       void state.progress.dispatch({ kind: "buyMaker", id: "kiln" });
     }
   });
@@ -106,7 +106,7 @@ function buildPlate(state: FrameState): PlateParts {
 
 function paintPlate(
   parts: PlateParts,
-  plate: KilnPlate,
+  plate: MakerPlate,
   amount: BuyAmount,
 ): void {
   write(parts.recipe, plate.recipe);
@@ -120,7 +120,7 @@ function paintPlate(
   write(parts.count, String(plate.workers));
   write(parts.unit, plate.workers === 1 ? "worker" : "workers");
   paintSteps(parts, plate, amount);
-  paintMachineKey(parts.key, plate.key);
+  paintMachineKey(parts.key, plate.key, plate.key.good);
 }
 
 type YardParts = {
@@ -295,12 +295,16 @@ export function createRefinerySite(
         now ?? Date.now(),
         view.stockyard.expand !== undefined,
       );
-      write(over.rate, view.hopper.rate);
+      // The kilns' plate and the Topsoil's hopper: the saws' are painted beside them later (#754).
+      const [kilns] = view.plates;
+      write(over.rate, view.hoppers[0]?.rate ?? "");
       write(over.bypass, view.bypass.rate);
-      if (view.plate.canPlace) {
+      if (kilns?.canPlace === true) {
         hide(note, true);
       }
-      paintPlate(plate, view.plate, state.amount());
+      if (kilns !== undefined) {
+        paintPlate(plate, kilns, state.amount());
+      }
       paintYard(yard, view.stockyard, forecast.words);
     },
   };

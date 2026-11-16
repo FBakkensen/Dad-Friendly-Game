@@ -2,7 +2,8 @@ import { tierOnSale } from "./crew";
 import { formatCompact } from "./format";
 import { GOOD_NAMES } from "./frame-view";
 import { STAGES, type Stage } from "./line";
-import type { MineLevelId } from "./mine-levels";
+import type { MakerId } from "./makers";
+import { MINE_LEVEL_IDS, graniteOpen, type MineLevelId } from "./mine-levels";
 import {
   faceHolds,
   mineLevelFlows,
@@ -70,10 +71,43 @@ function movingNow(mountain: Mountain, now: number | undefined): number[] {
   return [face, haul, lift];
 }
 
+/** The levels' names, as the mine, the strip and the refinery's hoppers say them. */
+export const LEVEL_NAMES: Readonly<Record<MineLevelId, "Topsoil" | "Granite">> =
+  { topsoil: "Topsoil", granite: "Granite" };
+
+/** A level's plate from what hoisting lifts from it a second. */
+function liftedPlate(level: MineLevelId, lifted: number): LevelPlate {
+  return {
+    name: LEVEL_NAMES[level],
+    rate: `${formatCompact(lifted)}/s`,
+    lifted,
+  };
+}
+
 /** The level's plate: its name, and what comes up as stone now. */
 export function levelPlate(mountain: Mountain, now?: number): LevelPlate {
   const lifted = movingNow(mountain, now)[STAGES.indexOf("lift")] ?? 0;
-  return { name: "Topsoil", rate: `${formatCompact(lifted)}/s`, lifted };
+  return liftedPlate("topsoil", lifted);
+}
+
+/** A level's hopper in the refinery (#754): its plate, and which level it is. */
+export type LevelHopper = LevelPlate & { readonly level: MineLevelId };
+
+/**
+ * The refinery's hoppers (#754): a hopper for each open level, what hoisting
+ * lifts from it now (`mineLevelFlows`), the Topsoil's over the kilns and,
+ * once the Granite is open, the Granite's over the saws.
+ */
+export function levelHoppers(
+  mountain: Mountain,
+  now?: number,
+): readonly LevelHopper[] {
+  const flows = mineLevelFlows(mountain, now).levels;
+  const open = graniteOpen(mountain) ? MINE_LEVEL_IDS : (["topsoil"] as const);
+  return open.map((level) => ({
+    level,
+    ...liftedPlate(level, flows[level].lift),
+  }));
 }
 
 /** The strongest machine a stage can buy now: in play, shown and open. */
@@ -100,7 +134,8 @@ export type MachineKey = {
   readonly label: string;
 };
 
-const capital = (words: string): string =>
+/** "Drill" from "drill": a key's face. */
+export const capital = (words: string): string =>
   `${words.charAt(0).toUpperCase()}${words.slice(1)}`;
 
 /** A machine's key at the amount key's amount: the mine's keys, and a row in a stage's list (#661). */
@@ -328,11 +363,13 @@ const PILE_AFTER: Readonly<Record<Stage, "face" | "shaft" | undefined>> = {
 };
 
 /** The piles' words (#703), approved by Flemming on 15 Nov 2026 (no "face"). */
-export const PILE_LABELS: Readonly<Record<PileId, string>> = {
+export const PILE_LABELS: Readonly<Record<PileId | MakerId, string>> = {
   face: "Drilled rock",
   shaft: "Rock at the shaft",
   // Part 2: on the kilns' plate in the refinery (#671).
   kiln: "Rock at the kilns",
+  // Part 3: on the saws' plate, the Granite's rock (#754).
+  saw: "Rock at the saws",
 };
 
 /** "Drilled rock: 200 of 300": a stage's pile, or the kilns'. */

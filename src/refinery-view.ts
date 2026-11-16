@@ -1,21 +1,39 @@
 import { formatCompact, shiftDuration } from "./format";
 import { BAY_ORDER, GOOD_NAMES, stockpiles } from "./frame-view";
 import {
+  makerJob,
   makerMakes,
+  makerOutput,
   makerPrice,
+  makerRate,
   makerTakes,
-  runningKilns,
-  kilnRate,
+  refineryMakers,
+  runningMakers,
+  type MakerId,
+  type MakerJob,
 } from "./makers";
-import { chainIncome, kilnHolds, topsoilChain } from "./mine-piles";
-import { PILE_LABELS, levelPlate, pileWords } from "./mine-view";
+import { openGranite } from "./mine-levels";
+import {
+  chainMade,
+  graniteChain,
+  makerHolds,
+  topsoilChain,
+} from "./mine-piles";
+import {
+  PILE_LABELS,
+  capital,
+  levelHoppers,
+  pileWords,
+  type LevelHopper,
+} from "./mine-view";
 import { accrueAway, type Mountain } from "./mountain";
+import { chainSpill, type Chain } from "./piles";
 import { crewTimer } from "./rates";
-import { plural } from "./screen-words";
+import { MAKER_WORDS, plural } from "./screen-words";
 import { canPay, type GoodId } from "./stock";
 import { MAX_STOCKYARD_LEVEL, ROOM_GROWTH, expandPrice } from "./stockyard";
 import { placeable } from "./workforce";
-import { NO_KILNS } from "./workforce-view";
+import { noMakersYet } from "./workforce-view";
 
 /**
  * The refinery on slice 1's frame (#671; spec, The refinery): a flow from
@@ -24,43 +42,56 @@ import { NO_KILNS } from "./workforce-view";
  * reads like a stage's row, and the stockyard is at the foot. The page shows
  * the numbers and never names the one that limits. Pure: it reads the
  * mountain and never writes it.
+ *
+ * Part 3 (#754): once the Granite is open, its rock comes up into a hopper
+ * of its own over the saws, whose plate reads as the kilns' does, and what
+ * the saws' pile cannot take bypasses to stone with the Topsoil's.
  */
 
 /** The bypass chute's recipe: a rock no maker takes is a stone. */
 export const BYPASS_RECIPE = "1 rock → 1 stone";
 
-/** The key for one more kiln, in the mine keys' form. */
-type KilnKey = {
-  /** "+Kiln · 12/s". */
+/** The key for one more maker, in the mine keys' form. */
+type MakerKey = {
+  /** "+Kiln · 12/s", "+Saw · 30/s". */
   readonly face: string;
   readonly price: string;
   /** "1 to run". */
   readonly staff: string;
   readonly can: boolean;
   readonly label: string;
+  /** The good its price is in, for the key's icon: stone for a kiln, brick for a saw. */
+  readonly good: GoodId;
 };
 
-/** The kilns' plate. */
-export type KilnPlate = {
+/** A maker's plate's own words (#754): its name and its good a second. */
+const PLATE_WORDS = {
+  kiln: { name: "Kilns", unit: "brick/s" },
+  saw: { name: "Saws", unit: "cut stone/s" },
+} as const satisfies Record<MakerId, { name: string; unit: string }>;
+
+/** A maker's plate: the kilns', and the saws' once the Granite is open (#754). */
+export type MakerPlate = {
+  readonly id: MakerId;
   /** "Recipe: 2 rock → 1 brick". */
   readonly recipe: string;
-  readonly name: "Kilns";
-  /** What the kilns make now, and what the running kilns can make. */
+  readonly name: (typeof PLATE_WORDS)[MakerId]["name"];
+  /** What the makers make now, and what the running ones can make. */
   readonly now: string;
   readonly can: string;
-  readonly unit: "brick/s";
+  readonly unit: (typeof PLATE_WORDS)[MakerId]["unit"];
   /** "4 kilns: 4 of 4 workers", "1 of 2 kilns: 1 of 2 workers", "No kilns yet". */
   readonly machines: string;
-  /** "+ 2 without a kiln": workers on the job with no kiln to run. */
+  /** "+ 2 without a kiln": workers on the job with no maker to run. */
   readonly idle?: string;
-  /** "Rock at the kilns: 120 of 300", while he owns a kiln. */
+  /** "Rock at the kilns: 120 of 300", while he owns one. */
   readonly pile?: string;
   readonly workers: number;
   /** For − and +, as a job's row has them. */
-  readonly job: "kilns";
+  readonly job: MakerJob;
   readonly canPlace: boolean;
   readonly canFree: boolean;
-  readonly key: KilnKey;
+  readonly key: MakerKey;
 };
 
 /** One stockpile's bay at the foot. */
@@ -86,6 +117,15 @@ export type StockyardView = {
   readonly expand?: ExpandKey;
 };
 
+/** The saws' side of the scene (#754): as the kilns' fields are. */
+type SawScene = {
+  /** The saws' pile, 0..1 of its room. */
+  readonly hopper: number;
+  readonly saws: number;
+  readonly running: number;
+  readonly making: boolean;
+};
+
 /** What the scene draws: how full and how busy each part is. */
 export type RefineryScene = {
   /** The kilns' pile, 0..1 of its room: the hopper is as full. */
@@ -97,12 +137,15 @@ export type RefineryScene = {
   readonly making: boolean;
   readonly bypassing: boolean;
   readonly bays: readonly Bay[];
+  /** Set only with the saws open. */
+  readonly saws?: SawScene;
 };
 
 export type RefineryView = {
-  /** "Topsoil" and the rock hoisting lifts now. */
-  readonly hopper: { readonly name: string; readonly rate: string };
-  readonly plate: KilnPlate;
+  /** Each open level's name and the rock hoisting lifts from it now: the Topsoil's, then the Granite's. */
+  readonly hoppers: readonly LevelHopper[];
+  /** The kilns', then the saws' once they are open. */
+  readonly plates: readonly MakerPlate[];
   readonly bypass: { readonly rate: string; readonly recipe: string };
   readonly stockyard: StockyardView;
   readonly scene: RefineryScene;
@@ -110,77 +153,111 @@ export type RefineryView = {
 
 const rate = (perSecond: number): string => `${formatCompact(perSecond)}/s`;
 
-/** What reaches the stockpiles a second now: brick from the kilns, the rest as stone. */
+/** Each maker's level's chain now: the kilns' the Topsoil's, the saws' the Granite's while it is open. */
+function makerChains(mountain: Mountain): Record<MakerId, Chain | undefined> {
+  return { kiln: topsoilChain(mountain), saw: graniteChain(mountain) };
+}
+
+/**
+ * What reaches the stockpiles a second now: each maker's good, and what no
+ * maker takes on either level as stone.
+ */
 function incomeNow(
   mountain: Mountain,
   now: number | undefined,
-): { readonly brick: number; readonly stones: number } {
+): {
+  readonly made: Readonly<Record<MakerId, number>>;
+  readonly stones: number;
+} {
   const timer = crewTimer(mountain, now);
-  const income = chainIncome(topsoilChain(mountain));
+  const chains = makerChains(mountain);
+  const made = (chain: Chain | undefined): number =>
+    chain === undefined ? 0 : chainMade(chain) * timer;
+  const stones = Object.values(chains).reduce(
+    (sum, chain) => sum + (chain === undefined ? 0 : chainSpill(chain)),
+    0,
+  );
   return {
-    brick: (income.brick ?? 0) * timer,
-    stones: (income.stones ?? 0) * timer,
+    made: { kiln: made(chains.kiln), saw: made(chains.saw) },
+    stones: stones * timer,
   };
 }
 
-function machinesLine(owned: number, running: number): string {
+/** A good as a plate says it, in lower case: "stone", "brick", "cut stone". */
+const goodWord = (good: GoodId): string => GOOD_NAMES[good].toLowerCase();
+
+function machinesLine(id: MakerId, owned: number, running: number): string {
   if (owned === 0) {
-    return NO_KILNS;
+    return noMakersYet(id);
   }
   // The mine's runs line (mine-view's partWords): what runs, then who runs it.
   const runs =
     running < owned ? `${String(running)} of ${String(owned)}` : String(owned);
-  return `${runs} ${plural(owned, ["kiln", "kilns"])}: ${String(running)} of ${String(owned)} ${plural(owned, ["worker", "workers"])}`;
+  return `${runs} ${plural(owned, MAKER_WORDS[id])}: ${String(running)} of ${String(owned)} ${plural(owned, ["worker", "workers"])}`;
 }
 
-function kilnKey(mountain: Mountain): KilnKey {
-  const price = makerPrice(mountain, "kiln");
-  const amount = price[0]?.amount ?? 0;
-  const makes = formatCompact(makerMakes("kiln"));
+function makerKey(mountain: Mountain, id: MakerId): MakerKey {
+  const price = makerPrice(mountain, id);
+  const amount = formatCompact(price[0]?.amount ?? 0);
+  const good = price[0]?.good ?? "stones";
+  const makes = formatCompact(makerMakes(id));
+  const [one] = MAKER_WORDS[id];
   return {
-    face: `+Kiln · ${makes}/s`,
-    price: formatCompact(amount),
+    face: `+${capital(one)} · ${makes}/s`,
+    price: amount,
     staff: "1 to run",
     can: canPay(mountain.stock, price),
-    label: `Buy a kiln for ${formatCompact(amount)} stone. It makes ${makes} brick a second and takes 1 to run.`,
+    label: `Buy a ${one} for ${amount} ${goodWord(good)}. It makes ${makes} ${goodWord(makerOutput(id))} a second and takes 1 to run.`,
+    good,
   };
 }
 
-function kilnPlate(
+/** The rock in a maker's pile: the kilns' on the Topsoil, the saws' on the Granite. */
+function makerHeld(mountain: Mountain, id: MakerId): number {
+  return id === "kiln"
+    ? mountain.piles.kiln
+    : (openGranite(mountain)?.piles.saw ?? 0);
+}
+
+/** A maker's pile's words while he owns one: "Rock at the kilns: 120 of 300". */
+function makerPile(mountain: Mountain, id: MakerId): string | undefined {
+  const holds = makerHolds(mountain, id);
+  return holds > 0
+    ? pileWords({
+        label: PILE_LABELS[id],
+        held: makerHeld(mountain, id),
+        holds,
+      })
+    : undefined;
+}
+
+function makerPlate(
   mountain: Mountain,
-  brickNow: number,
+  id: MakerId,
+  made: number,
   timer: number,
-): KilnPlate {
-  const owned = mountain.makers.kiln;
-  const running = runningKilns(mountain);
-  const extra = mountain.jobs.kilns - owned;
-  const holds = kilnHolds(mountain);
+): MakerPlate {
+  const owned = mountain.makers[id];
+  const job = makerJob(id);
+  const workers = mountain.jobs[job];
+  const extra = workers - owned;
+  const pile = makerPile(mountain, id);
   return {
-    recipe: `Recipe: ${String(makerTakes("kiln"))} rock → 1 brick`,
-    name: "Kilns",
-    now: formatCompact(brickNow),
-    can: formatCompact(kilnRate(mountain) * timer),
-    unit: "brick/s",
-    machines: machinesLine(owned, running),
+    id,
+    recipe: `Recipe: ${String(makerTakes(id))} rock → 1 ${goodWord(makerOutput(id))}`,
+    ...PLATE_WORDS[id],
+    now: formatCompact(made),
+    can: formatCompact(makerRate(mountain, id) * timer),
+    machines: machinesLine(id, owned, runningMakers(mountain, id)),
     ...(extra > 0
-      ? {
-          idle: `+ ${String(extra)} without a kiln`,
-        }
+      ? { idle: `+ ${String(extra)} without a ${MAKER_WORDS[id][0]}` }
       : {}),
-    ...(holds > 0
-      ? {
-          pile: pileWords({
-            label: PILE_LABELS.kiln,
-            held: mountain.piles.kiln,
-            holds,
-          }),
-        }
-      : {}),
-    workers: mountain.jobs.kilns,
-    job: "kilns",
-    canPlace: placeable(mountain, "kilns") > 0,
-    canFree: mountain.jobs.kilns > 0,
-    key: kilnKey(mountain),
+    ...(pile === undefined ? {} : { pile }),
+    workers,
+    job,
+    canPlace: placeable(mountain, job) > 0,
+    canFree: workers > 0,
+    key: makerKey(mountain, id),
   };
 }
 
@@ -246,24 +323,43 @@ function expandKey(mountain: Mountain): ExpandKey | undefined {
  * rows read it. A kiln is bought one at a time (a maker has no amount key).
  */
 export function refineryView(mountain: Mountain, now?: number): RefineryView {
-  const hopper = levelPlate(mountain, now);
+  const hoppers = levelHoppers(mountain, now);
   const income = incomeNow(mountain, now);
+  const timer = crewTimer(mountain, now);
+  const makers = refineryMakers(mountain);
   const yard = bays(mountain);
   const expand = expandKey(mountain);
-  const holds = kilnHolds(mountain);
   return {
-    hopper,
-    plate: kilnPlate(mountain, income.brick, crewTimer(mountain, now)),
+    hoppers,
+    plates: makers.map((id) =>
+      makerPlate(mountain, id, income.made[id], timer),
+    ),
     bypass: { rate: rate(income.stones), recipe: BYPASS_RECIPE },
     stockyard: { bays: yard, ...(expand === undefined ? {} : { expand }) },
     scene: {
-      hopper: holds > 0 ? Math.min(1, mountain.piles.kiln / holds) : 0,
+      hopper: pileFill(mountain, "kiln"),
       kilns: mountain.makers.kiln,
-      running: runningKilns(mountain),
-      lifting: hopper.lifted > 0,
-      making: income.brick > 0,
+      running: runningMakers(mountain, "kiln"),
+      lifting: (hoppers[0]?.lifted ?? 0) > 0,
+      making: income.made.kiln > 0,
       bypassing: income.stones > 0,
       bays: yard,
+      ...(makers.includes("saw")
+        ? {
+            saws: {
+              hopper: pileFill(mountain, "saw"),
+              saws: mountain.makers.saw,
+              running: runningMakers(mountain, "saw"),
+              making: income.made.saw > 0,
+            },
+          }
+        : {}),
     },
   };
+}
+
+/** A maker's pile, 0..1 of its room: its hopper is as full. */
+function pileFill(mountain: Mountain, id: MakerId): number {
+  const holds = makerHolds(mountain, id);
+  return holds > 0 ? Math.min(1, makerHeld(mountain, id) / holds) : 0;
 }

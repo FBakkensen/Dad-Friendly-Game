@@ -4,6 +4,8 @@ import { withFactors } from "./economy/factors";
 import { workersView } from "./frame-view";
 import { createMountain, type Mountain } from "./mountain";
 import { crewedStart } from "./test-fixtures";
+import { levels, partThree as granite } from "./part-three.harness";
+import { makerPrice } from "./makers";
 import { PART_THREE_OFF, PART_TWO_OFF } from "./part-switch";
 import {
   LINE_STANDS,
@@ -213,6 +215,21 @@ describe("the refinery's site (#671)", () => {
       expect(siteCounts(lit(15_000)).refinery).toBe(1);
       expect(siteCounts(lit(15_000, 150_000)).refinery).toBe(2);
       expect(siteCounts(lit(0, 150_000)).refinery).toBe(1);
+    });
+  });
+
+  it("counts a saw he can afford in the refinery (#754)", () => {
+    granite(() => {
+      const poor = levels({});
+      const brick = makerPrice(poor, "saw")[0]?.amount ?? 0;
+      const rich = levels({ stock: { brick } });
+      expect(brick).toBeGreaterThan(0);
+      expect(siteCounts(rich).refinery).toBe(siteCounts(poor).refinery + 1);
+      // With the Granite shut, no saw is counted.
+      const shut = levels({ sunk: false, stock: { brick } });
+      expect(siteCounts(shut).refinery).toBe(
+        siteCounts(levels({ sunk: false })).refinery,
+      );
     });
   });
 
