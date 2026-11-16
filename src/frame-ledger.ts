@@ -16,7 +16,7 @@ import { soundSetting } from "./sound";
  * today's panels on a board host the frame shares with the save's cards, so
  * every press keeps the settle. The Ledger slides up in today's sheet clip,
  * with today's scrim over the frame above it; Saved copies is a board card
- * over the frame. Passing the mine is not live in a fresh mine.
+ * over the frame.
  */
 export type FrameLedger = {
   /** The key at the order strip's end. */
@@ -27,12 +27,6 @@ export type FrameLedger = {
   /** A card came up over it: it shuts, and focus stays where it is. */
   readonly close: () => void;
 };
-
-/** Passing the mine waits for its step on the road (#642). */
-const NO_PASS = {
-  offered: () => false,
-  open: () => undefined,
-} as const;
 
 export function createFrameLedger({
   progress,
@@ -85,7 +79,6 @@ export function createFrameLedger({
     board,
     overSave,
     door: key,
-    legacy: NO_PASS,
     savedCopies,
     onStartOver: requestPaint,
     sound: soundSetting(storage),
@@ -101,7 +94,7 @@ export function createFrameLedger({
   const clip = el("div", "board-sheet-clip");
   clip.append(
     ledger.sheet.root,
-    createSheetScrim({ board, sheets: [ledger.sheet], sockets: () => [] }),
+    createSheetScrim({ board, sheets: [ledger.sheet] }),
   );
   return {
     key,

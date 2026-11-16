@@ -23,12 +23,8 @@ const dad = {
     pocket: 3,
     crew: { helper: 2, cart: 1 },
     crewSpeed: 1.5,
-    tapYield: 2,
     idle: { cart: 1 },
-    relics: ["lantern"],
-    upgrades: { tap: 1 },
-    boosts: [{ id: "sharper", endsAt: "2026-01-02T04:00:00.000Z" }],
-    legacy: 0,
+    upgrades: { boots: 1 },
   },
   events: [
     {
@@ -42,7 +38,7 @@ const dad = {
 
 const phoneEvent = {
   at: "2026-01-02T03:02:00.000Z",
-  code: "vein.tap",
+  code: "away.report",
   data: { stones: 60 },
 };
 
@@ -55,12 +51,8 @@ const mom = {
     pocket: 1,
     crew: { helper: 0 },
     crewSpeed: 0,
-    tapYield: 1,
     idle: {},
-    relics: [],
     upgrades: {},
-    boosts: [],
-    legacy: 0,
   },
   events: [],
   updatedAt: Date.parse(at),
@@ -96,7 +88,6 @@ describe("field-log reader on the Firestore emulator", () => {
     expect(flagged.stdout).toContain("fieldLogs/dad");
     expect(flagged.stdout).toContain("Updated 2026-01-02 03:04:05");
     expect(flagged.stdout).toContain("Crew speed 1.5");
-    expect(flagged.stdout).toContain("sharper until 2026-01-02 04:00:00");
     expect(flagged.stdout).toContain(
       "2026-01-02 03:00:00  tier.buy  count=1 id=helper",
     );
@@ -120,7 +111,7 @@ describe("field-log reader on the Firestore emulator", () => {
         "fieldLogs/dad: together",
         "Events",
         "  2026-01-02 03:00:00  tier.buy  count=1 id=helper  [account]",
-        "  2026-01-02 03:02:00  vein.tap  stones=60  [phone-de]",
+        "  2026-01-02 03:02:00  away.report  stones=60  [phone-de]",
       ].join("\n"),
     );
   });

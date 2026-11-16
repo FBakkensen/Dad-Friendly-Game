@@ -1,26 +1,15 @@
 import type { AuthState } from "./auth";
-import { BOOSTS } from "./boosts";
 import { ENGINEER_NAMES } from "./engineers";
 import type { FieldEvent, FieldEventData } from "./field-log";
 import { formatCompact, formatTimeOfDay } from "./format";
-import { legacyBonus } from "./legacy";
-import { legacyWords } from "./legacy-panel";
 import {
   LAYERS,
   materialsFromMined,
-  nextLayer,
   type LayerId,
   type MaterialId,
 } from "./layers";
 import type { Mountain } from "./mountain";
-import {
-  RELICS,
-  foundRelics,
-  nextRelic,
-  relicGoal,
-  type RelicId,
-} from "./relics";
-import type { RowLamp, RowState, RowView } from "./row-view";
+import type { RowView } from "./row-view";
 import { freshMineLines } from "./save-sheet-copy";
 import { MOUNTAIN_STONES, minedOut, shownStones, stonesLeft } from "./scale";
 import {
@@ -34,21 +23,12 @@ import {
   TROUBLE_FIXED,
   awayDugLine,
   benchStartedLine,
-  boostStartedLine,
   cameHomeLine,
   craftFittedLine,
   exploreCheer,
-  kidMineWords,
   layerCardWords,
-  nextLayerHint,
-  nextRelicWords,
   promoteCheer,
   recallConfirm,
-  relicFoundLine,
-  relicProgressLabel,
-  RELICS_ALL_FOUND,
-  RELICS_UNGUIDED,
-  relicsFoundWords,
   signedInWords,
   stationCheer,
   tierBuyLine,
@@ -56,7 +36,6 @@ import {
   machineBuyLine,
   MACHINE_WORDS,
   vehicleBuyLine,
-  veinGaveLine,
   type TendPost,
   materialCountWords,
 } from "./screen-words";
@@ -91,7 +70,7 @@ export function metMaterialChips(mountain: Mountain): readonly MaterialChip[] {
 
 /*
  * The Ledger drawer's rows and lines (#375), as pure views: this run's field log as Tonight's
- * lines, the mountain as the stones and relics rows, and the account as its row. Display only,
+ * lines, the mountain as the stones row, and the account as its row. Display only,
  * no DOM and no art, as upgrade-rows.ts is.
  */
 
@@ -107,14 +86,6 @@ export interface TonightLine {
 /** The stones row, and the exact count its `title` gives. */
 export interface StonesRowView extends RowView {
   readonly title: string;
-}
-
-/** The relics row: which relic it shows, lit or dark, and its bar. */
-export interface RelicsRowView extends RowView {
-  readonly icon: RelicId;
-  readonly lit: boolean;
-  readonly progress: number | undefined;
-  readonly barLabel: string;
 }
 
 const NONE: readonly string[] = [];
@@ -181,15 +152,6 @@ function engineer(
   return name === undefined ? undefined : words(name);
 }
 
-/** A boost's line: its name and how long it runs from when it started. */
-function boostLine(event: FieldEvent): string | undefined {
-  const boost = BOOSTS.find((each) => each.id === event.data.id);
-  const runs = Date.parse(event.data.endsAt ?? "") - Date.parse(event.at);
-  return boost === undefined || !(runs > 0)
-    ? undefined
-    : boostStartedLine(boost.name, runs);
-}
-
 /** Stones worth saying: more than none. */
 function stones(
   data: FieldEventData,
@@ -219,19 +181,13 @@ const WORDING: Readonly<
     named(UPGRADE_IDS, data, (id, level) =>
       upgradeLevelLine(upgradeById(id).name, level),
     ),
-  "boost.start": boostLine,
   "craft.start": ({ data }) => recipe(data, benchStartedLine),
   "craft.done": ({ data }) => recipe(data, craftFittedLine),
-  "relic.found": ({ data }) => {
-    const relic = RELICS.find((each) => each.id === data.id);
-    return relic === undefined ? undefined : relicFoundLine(relic.name);
-  },
   "layer.enter": ({ data }) => {
     const id = known(LAYER_IDS, data.id);
     return id === undefined ? undefined : layerCardWords(id)?.arrival;
   },
   "away.report": ({ data }) => stones(data, awayDugLine),
-  "vein.tap": ({ data }) => stones(data, veinGaveLine),
   "trouble.fix": () => TROUBLE_FIXED,
   "engineer.promote": ({ data }) => engineer(data, promoteCheer),
   "engineer.station": ({ data }) => {
@@ -259,7 +215,8 @@ export function tonightText(event: FieldEvent): string | undefined {
 export function tonightLines(
   events: readonly FieldEvent[],
 ): readonly TonightLine[] {
-  // A Start over, a pass, or a save set aside for a fresh mountain begins a new Tonight.
+  // A Start over, a save set aside for a fresh mountain, or a pass from a
+  // ring kept before #729 begins a new Tonight.
   const codes = events.map((each) => each.code);
   const start = Math.max(
     codes.lastIndexOf("run.start-over"),
@@ -282,7 +239,7 @@ export function tonightLines(
 /** The stones row: how many are left, the exact count, and the materials met. */
 export function stonesRowView(mountain: Mountain): StonesRowView {
   const left = Math.ceil(stonesLeft(mountain));
-  const total = shownStones(mountain, MOUNTAIN_STONES);
+  const total = shownStones(MOUNTAIN_STONES);
   const name = `${formatCompact(left)} stones left`;
   const materials = metMaterialChips(mountain)
     .map((chip) => chip.text)
@@ -317,61 +274,15 @@ function quietRow(name: string, under: string): RowView {
 }
 
 /**
- * The Ledger's mine in a fresh mine (#708): no depth, no mountain's size
- * and no relics. The stone in the stockpile with the project in hand, and
- * the workers with their wagons over the machines, in the save card's words.
+ * The Ledger's mine in a fresh mine (#708): no depth and no mountain's size.
+ * The stone in the stockpile with the project in hand, and the workers with
+ * their wagons over the machines, in the save card's words.
  */
 export function freshLedgerRows(mountain: Mountain): FreshLedgerRows {
   const lines = freshMineLines(mountain);
   return {
     stock: quietRow(lines.pocket, lines.depth),
     crew: quietRow(lines.crew, lines.machines),
-  };
-}
-
-/** The goal's words: today's guide line, unguided, done or the next relic. */
-function goalWords(mountain: Mountain): string {
-  const goal = relicGoal(mountain);
-  switch (goal.kind) {
-    case "unguided":
-      return mountain.legacy > 0
-        ? kidMineWords(legacyWords(legacyBonus(mountain)))
-        : RELICS_UNGUIDED;
-    case "done":
-      return RELICS_ALL_FOUND;
-    case "next":
-      return nextRelicWords(goal.name, goal.hint);
-  }
-}
-
-const GOAL_LAMP: Readonly<
-  Record<ReturnType<typeof relicGoal>["kind"], RowLamp>
-> = { unguided: "off", next: "amber", done: "off" };
-
-/** The relics row: the count found, the goal, the next layer's hint and the bar. */
-export function relicsRowView(mountain: Mountain): RelicsRowView {
-  const goal = relicGoal(mountain);
-  const name = relicsFoundWords(foundRelics(mountain).length);
-  const info = goalWords(mountain);
-  const hint = nextLayerHint(nextLayer(mountain)?.id);
-  const why = hint ?? "";
-  const done = goal.kind === "done";
-  const barLabel =
-    goal.kind === "next" ? relicProgressLabel(goal.name, hint) : "";
-  const state: RowState = done ? "found" : "owned";
-  return {
-    ...QUIET_ROW,
-    name,
-    info: [info],
-    why,
-    lamp: GOAL_LAMP[goal.kind],
-    state,
-    aria: [name, info, why].filter((part) => part !== "").join(". "),
-    // The next relic, dark; once there is none, every relic is found and the Mantle is lit.
-    icon: nextRelic(mountain)?.id ?? "mantle",
-    lit: done,
-    progress: goal.kind === "next" ? goal.percent / 100 : undefined,
-    barLabel,
   };
 }
 

@@ -1,9 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { boostById } from "./boosts";
 import { onTrip } from "./engineers";
 import { createMountain, MOUNTAIN_STONES, type Mountain } from "./mountain";
 import { readGame, writeGame } from "./save-format";
-import { boostUsed } from "./upgrade-reveal";
 
 const ADA = { name: "Ada", rank: 0, trips: 0, post: "borer" } as const;
 
@@ -24,19 +22,14 @@ describe("the game map (#558)", () => {
       stock: "stock",
       owned: "owned",
       upgrades: "levels",
-      boosts: "clocks",
       startedAt: "envelope",
-      legacy: "run",
       engineers: "engineers",
       expeditions: "expeditions",
       finds: "marks",
-      stretch: "run",
       bench: "bench",
       crafted: "levels",
       recipes: "marks",
       clocks: "clocks",
-      rushUntil: "clocks",
-      rushBank: "run",
       seen: "marks",
       taught: "marks",
       fleet: "fleet",
@@ -73,11 +66,8 @@ describe("the game map (#558)", () => {
         machine: 1,
         kid: 1,
       },
-      upgrades: { ...fresh.upgrades, tap: 1 },
-      boosts: { ...fresh.boosts, sharper: 9_000 },
+      upgrades: { ...fresh.upgrades, boots: 1 },
       startedAt: 500,
-      legacy: 1,
-      stretch: 2,
       engineers: [ADA],
       expeditions: [
         {
@@ -88,13 +78,15 @@ describe("the game map (#558)", () => {
           find: { kind: "quiet" },
         },
       ],
-      finds: ["pick"],
+      finds: ["map"],
       bench: { recipe: "iron-rails", startedAt: 10, endsAt: 20 },
       crafted: { ...fresh.crafted, "sturdy-props": 1 },
       recipes: [...fresh.recipes, "reinforce"],
-      clocks: { ...fresh.clocks, "axle-grease": 3_000, "crystal-flare": 4_000 },
-      rushUntil: 6_000,
-      rushBank: 40,
+      clocks: {
+        ...fresh.clocks,
+        "axle-grease": 3_000,
+        "blasting-charge": 4_000,
+      },
       seen: ["workshop"],
       taught: ["engineers"],
       fleet: { ...fresh.fleet, horseWagon: 3 },
@@ -292,19 +284,16 @@ describe("the game map (#558)", () => {
       ...fresh,
       owned: { ...fresh.owned, helper: 3, hoist: 1 },
       stock: { ...fresh.stock, stones: 40 },
-      upgrades: { ...fresh.upgrades, tap: 2 },
+      upgrades: { ...fresh.upgrades, cartSyn: 1 },
       crafted: { ...fresh.crafted, "iron-rails": 1 },
-      boosts: { ...fresh.boosts, overtime: 9 },
-      clocks: { ...fresh.clocks, "blasting-charge": 7 },
-      rushUntil: 11,
+      clocks: { ...fresh.clocks, "blasting-charge": 7, "axle-grease": 9 },
     });
     expect(game.owned).toEqual({ helper: 3, hoist: 1 });
     expect(game.stock).toEqual({ stones: 40 });
-    expect(game.levels).toEqual({ tap: 2, "iron-rails": 1 });
+    expect(game.levels).toEqual({ cartSyn: 1, "iron-rails": 1 });
     expect(game.clocks).toEqual({
-      overtime: 9,
       "blasting-charge": 7,
-      "gold-rush": 11,
+      "axle-grease": 9,
     });
   });
 
@@ -333,18 +322,6 @@ describe("the game map (#558)", () => {
     expect(writeGame({ ...mountain, engineers: [] }).expeditions).toEqual([
       { ...trip, home: "camp" },
     ]);
-  });
-
-  it("keeps a boost's row once it has run, long after it ends", () => {
-    const ran: Mountain = {
-      ...createMountain(),
-      boosts: { ...createMountain().boosts, overtime: 5_000 },
-    };
-    const loaded = roundTrip(ran);
-    expect(loaded?.boosts.overtime).toBe(5_000);
-    expect(
-      loaded !== undefined && boostUsed(loaded, boostById("overtime")),
-    ).toBe(true);
   });
 
   it("a game map that is not a map is bad", () => {
@@ -393,10 +370,40 @@ describe("the game map (#558)", () => {
     );
   });
 
-  it("a stretch past its cap is newer, below 1 is bad", () => {
+  it("a retired stretch past its cap is newer, below 1 is bad", () => {
     expect(readGame({ run: { stretch: 2_000_000 } }, 0).kind).toBe("newer");
     expect(readGame({ run: { stretch: 0.5 } }, 0).kind).toBe("bad");
     expect(readGame({ run: { stretch: 2.5 } }, 0).kind).toBe("ok");
+  });
+
+  it("a retired generation past its cap is newer, a part-run is bad", () => {
+    expect(readGame({ run: { generation: 1000 } }, 0).kind).toBe("ok");
+    expect(readGame({ run: { generation: 1001 } }, 0).kind).toBe("newer");
+    expect(readGame({ run: { generation: 1.5 } }, 0).kind).toBe("bad");
+  });
+
+  it("a v10 save with run.generation 0 and run.stretch 1 reads ok, and the writer writes neither (#729)", () => {
+    const read = readGame(
+      { run: { generation: 0, stretch: 1, dug: 5_000, rock: 12 } },
+      0,
+    );
+    expect(read.kind).toBe("ok");
+    const mountain = read.kind === "ok" ? read.mountain : createMountain();
+    expect(mountain.remaining).toBe(MOUNTAIN_STONES - 5_000);
+    expect(mountain.rockDug).toBe(12);
+    expect(mountain).not.toHaveProperty("legacy");
+    expect(mountain).not.toHaveProperty("stretch");
+    expect(writeGame(mountain).run).toEqual({ dug: 5_000, rock: 12 });
+  });
+
+  it("a v10 save from a kid run reads ok at the retired caps, and drops both on the next write (#729)", () => {
+    const read = readGame(
+      { run: { generation: 1000, stretch: 1_000_000, dug: 7 } },
+      0,
+    );
+    expect(read.kind).toBe("ok");
+    const mountain = read.kind === "ok" ? read.mountain : createMountain();
+    expect(writeGame(mountain).run).toEqual({ dug: 7 });
   });
 
   it("a mark twice is newer", () => {

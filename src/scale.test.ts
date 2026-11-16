@@ -1,93 +1,48 @@
 import { priceAmount } from "./stock";
 import { describe, expect, it } from "vitest";
-import { BOOSTS, boostById, boostCost } from "./boosts";
 import { tierLock } from "./crew";
 import { ENGINEER_NAMES, PROMOTE_BASE_COST, promoteCost } from "./engineers";
-import { howItWorks } from "./how-it-works";
 import {
   accrueAway,
   createMountain,
   digStones,
   MOUNTAIN_STONES,
-  mineByHand,
   type Mountain,
 } from "./mountain";
-import { mineVein } from "./veins";
-import { serializeSave } from "./persist";
-import { gameOf, reloaded } from "./test-fixtures";
+import { reloaded } from "./test-fixtures";
 import { withFactors } from "./economy/factors";
 import { LINE_OFF } from "./line-switch";
 import {
   BAND_SCALE,
   BAND_STARTS,
-  KID_MACHINE_OPENS,
-  KID_RUN_GROWTH,
-  MAX_STRETCH,
   depthAfterStones,
-  kidStretch,
   minedOut,
   oneOffStretch,
   shownStones,
   stonesLeft,
   stonesToNextBand,
-  stretch,
 } from "./scale";
 import { minedMountain } from "./test-fixtures";
 import { TIERS, tierById, tierCost } from "./tiers";
-import {
-  UPGRADES,
-  buyUpgrade,
-  upgradeById,
-  upgradeCost,
-  NO_UPGRADES,
-} from "./upgrades";
-import { veinReward } from "./veins";
-import {
-  RECIPE_IDS,
-  recipePrice,
-  startCraft,
-  TOPSOIL_BENCH_FROM,
-} from "./workshop";
-import { formatCompact } from "./format";
+import { UPGRADES, buyUpgrade, upgradeById, upgradeCost } from "./upgrades";
+import { RECIPE_IDS, recipePrice } from "./workshop";
 
-describe("kid-run stretch (M13, #253)", () => {
-  it("grows the stretch every generation", () => {
-    expect(kidStretch(0)).toBe(1);
-    expect(kidStretch(1)).toBeCloseTo(1.5 * (1 + KID_RUN_GROWTH) ** 2);
-    const ks = Array.from({ length: 12 }, (_, i) => kidStretch(i));
-    ks.slice(1).forEach((k, i) => {
-      expect(k).toBeGreaterThan(ks[i] as number);
-    });
-  });
-
-  it("leaves a save without a stretch as it is", () => {
+describe("the mountain's size (M13, #729)", () => {
+  it("counts a fresh mountain's stones band by band", () => {
     const fresh = createMountain();
-    expect(stretch(fresh)).toBe(1);
-    expect(stonesLeft(fresh)).toBe(shownStones(fresh, MOUNTAIN_STONES));
-    expect(shownStones(fresh, 7_000_000)).toBe(7_000_000);
+    expect(stonesLeft(fresh)).toBe(shownStones(MOUNTAIN_STONES));
+    expect(shownStones(7_000_000)).toBe(7_000_000);
   });
 
-  it("makes a kid's mountain k times the stones, and every price k times", () => {
-    const kid = { ...createMountain(), stretch: 2 };
-    expect(stonesLeft(kid)).toBe(2 * stonesLeft(createMountain()));
-    const dug = digStones(kid, 1_000);
+  it("digs one stone of depth per stone in the Topsoil", () => {
+    const fresh = createMountain();
+    const dug = digStones(fresh, 1_000);
     expect(dug.stock.stones).toBe(1_000);
-    expect(kid.remaining - dug.remaining).toBe(500);
-    expect(digStones(kid, stonesLeft(kid)).remaining).toBe(0);
-    const cart = tierById("cart");
-    expect(tierCost(cart, 0, 2)).toBe(2 * tierCost(cart, 0));
-    const tap = upgradeById("tap");
-    expect(upgradeCost(tap, 0, 2)).toBe(2 * (upgradeCost(tap, 0) ?? 0));
-    const pricing = { crewPerSecond: 0, tapYield: 0 };
-    const sharper = boostById("sharper");
-    expect(boostCost(sharper, pricing, 2)).toBe(
-      2 * boostCost(sharper, pricing),
-    );
-    expect(promoteCost(kid)).toBe(2 * promoteCost(createMountain()));
-    expect(veinReward(kid)).toBe(2 * veinReward(createMountain()));
+    expect(fresh.remaining - dug.remaining).toBe(1_000);
+    expect(digStones(fresh, stonesLeft(fresh)).remaining).toBe(0);
   });
 
-  it("opens the Great Machine sooner from run 2 on, and names this run's stones", () => {
+  it("locks a tier at its depth, named in stones", () => {
     const machine = tierById("machine");
     const runOne = minedMountain(25_000_000);
     expect(tierLock(runOne, machine)).toMatchObject({
@@ -98,87 +53,19 @@ describe("kid-run stretch (M13, #253)", () => {
         35_000_000 * BAND_SCALE[1] +
         75_000_000 * BAND_SCALE[2],
     });
-    const kid = { ...runOne, stretch: 1.75 };
-    const lock = tierLock(kid, machine);
-    expect(lock).toEqual({
-      kind: "depth",
-      depth: 120_000_000 * KID_MACHINE_OPENS,
-      at: shownStones(kid, 120_000_000 * KID_MACHINE_OPENS),
-    });
-    const borer = tierLock(
-      { ...minedMountain(0), stretch: 2 },
-      tierById("borer"),
-    );
-    expect(borer).toEqual({ kind: "depth", depth: 10_000_000, at: 20_000_000 });
-  });
-
-  it("prices the how-it-works copy in this run's stones", () => {
-    expect(howItWorks(2).engineers.steps[0]?.[1]).not.toBe(
-      howItWorks(1).engineers.steps[0]?.[1],
-    );
-  });
-
-  it("saves the stretch beside the mountain, whole depth for the cloud", () => {
-    const kid = digStones({ ...createMountain(), stretch: 1.75 }, 1);
-    expect(Number.isInteger(kid.remaining)).toBe(false);
-    const saved = serializeSave({ mountain: kid, lastSeen: 1 });
-    expect(saved.game.run).toEqual({ stretch: 1.75 });
-    expect(reloaded(kid)?.stretch).toBe(1.75);
-    expect(reloaded(createMountain())?.stretch).toBe(1);
-    for (const stretch of [0.5, 1e9, "2"]) {
-      expect(gameOf({ run: { stretch } })).toBeUndefined();
-    }
-  });
-
-  it("stretches workshop recipe stones with the mountain, not materials", () => {
-    expect(priceAmount(recipePrice("blasting-charge"), "stones")).toBe(100_000);
-    expect(priceAmount(recipePrice("blasting-charge", 2), "stones")).toBe(
-      200_000,
-    );
-    expect(priceAmount(recipePrice("blasting-charge", 2), "clay")).toBe(
-      priceAmount(recipePrice("blasting-charge"), "clay"),
-    );
-    const kid = {
-      ...minedMountain(TOPSOIL_BENCH_FROM),
-      stretch: 2,
-      stock: {
-        ...minedMountain(TOPSOIL_BENCH_FROM).stock,
-        stones: 250_000,
-        clay: 10,
-        iron: 0,
-        crystal: 0,
-        heartstone: 0,
-      },
-    };
-    const spent = startCraft(kid, "blasting-charge", 1);
-    expect(spent).not.toBe(kid);
-    expect(spent.stock.stones).toBe(50_000);
-  });
-
-  it("keeps run 10-12 numbers sane: short text, safe whole numbers, a good save", () => {
-    for (const legacy of [9, 10, 11]) {
-      const k = kidStretch(legacy);
-      const kid = { ...createMountain(), legacy, stretch: k };
-      expect(formatCompact(stonesLeft(kid))).toMatch(/^\d+(\.\d)?B$/);
-      const priciest = tierCost(tierById("machine"), 3, k);
-      expect(Number.isSafeInteger(Math.round(priciest))).toBe(true);
-      expect(formatCompact(priciest).length).toBeLessThanOrEqual(6);
-      expect(reloaded(digStones(kid, 1e9))?.stretch).toBe(k);
-    }
+    const borer = tierLock(minedMountain(0), tierById("borer"));
+    expect(borer).toEqual({ kind: "depth", depth: 10_000_000, at: 10_000_000 });
   });
 });
 
 describe("stones to the next band (#592)", () => {
-  const at = (mined: number, k = 1) => ({
-    remaining: MOUNTAIN_STONES - mined,
-    stretch: k,
-  });
+  const at = (mined: number) => ({ remaining: MOUNTAIN_STONES - mined });
 
-  it("counts the stones left in this band, at its scale and the run's stretch", () => {
+  it("counts the stones left in this band, at its scale", () => {
     expect(stonesToNextBand(at(0))).toBe(BAND_STARTS[1] * BAND_SCALE[0]);
     expect(stonesToNextBand(at(BAND_STARTS[1] - 500))).toBe(500);
-    expect(stonesToNextBand(at(BAND_STARTS[2] - 100, 2))).toBeCloseTo(
-      100 * BAND_SCALE[1] * 2,
+    expect(stonesToNextBand(at(BAND_STARTS[2] - 100))).toBeCloseTo(
+      100 * BAND_SCALE[1],
       6,
     );
   });
@@ -205,20 +92,13 @@ describe("band scales (#356)", () => {
   const full = at120 + (MOUNTAIN_STONES - 120 * M) * BAND_SCALE[3];
 
   it("counts stones band by band", () => {
-    expect(shownStones(fresh, 10 * M)).toBe(at10);
-    expect(shownStones(fresh, 45 * M)).toBe(at45);
-    expect(shownStones(fresh, MOUNTAIN_STONES)).toBe(full);
-  });
-
-  it("multiplies the whole count by the kid-run stretch", () => {
-    const kid = { ...fresh, stretch: 1.75 };
-    expect(shownStones(kid, 10 * M)).toBeCloseTo(at10 * 1.75);
-    expect(shownStones(kid, 45 * M)).toBeCloseTo(at45 * 1.75);
-    expect(shownStones(kid, MOUNTAIN_STONES)).toBeCloseTo(full * 1.75);
+    expect(shownStones(10 * M)).toBe(at10);
+    expect(shownStones(45 * M)).toBe(at45);
+    expect(shownStones(MOUNTAIN_STONES)).toBe(full);
   });
 
   it("counts the stones left", () => {
-    expect(stonesLeft(fresh)).toBe(shownStones(fresh, MOUNTAIN_STONES));
+    expect(stonesLeft(fresh)).toBe(shownStones(MOUNTAIN_STONES));
     expect(stonesLeft(minedMountain(9 * M))).toBe(full - 9 * M * BAND_SCALE[0]);
   });
 
@@ -238,34 +118,25 @@ describe("band scales (#356)", () => {
   };
 
   it.each([
-    ["Crystal", 100_000_000, 1, 1_000_000],
-    ["Heart", 239_999_000, 1, 3_000],
-    ["Heart, kid run", 239_999_000, 1.75, 3_000],
+    ["Crystal", 100_000_000, 1_000_000],
+    ["Heart", 239_999_000, 3_000],
   ])(
     "keeps the pocket whole all the way down from the %s",
-    (_name, at, k, haul) => {
+    (_name, at, haul) => {
       let m: Mountain = {
         ...minedMountain(at),
-        stretch: k,
         owned: { ...minedMountain(at).owned, helper: 3 },
         remaining: MOUNTAIN_STONES - at - 1 / 3,
       };
       for (let step = 0; step < 5_000 && m.remaining > 0; step += 1) {
-        const turn = step % 3;
-        if (turn === 0) {
-          m = mineByHand({
-            ...m,
-            upgrades: { ...NO_UPGRADES, tap: 5 },
-            owned: { ...m.owned, helper: 500 },
-          });
-        } else if (turn === 1) {
+        if (step % 2 === 0) {
+          m = digStones(m, Math.min(stonesLeft(m), 331));
+        } else {
           m = accrueAway({
             mountain: { ...m, owned: { ...m.owned, helper: haul } },
             lastSeen: 0,
             now: 7_000,
           }).mountain;
-        } else {
-          m = mineVein({ ...m, owned: { ...m.owned, helper: 40 } });
         }
         whole(m);
         roundTrips(m);
@@ -292,7 +163,7 @@ describe("band scale knobs (#365)", () => {
   const bandLeft = (m: Mountain, band: Band): number => {
     const end = ENDS[band];
     const from = Math.min(end, Math.max(BAND_STARTS[band], minedOut(m)));
-    return shownStones(m, end) - shownStones(m, from);
+    return shownStones(end) - shownStones(from);
   };
   const doubled = <T>(id: string, body: () => T): T =>
     withFactors({ [id]: 2 }, body);
@@ -346,10 +217,9 @@ describe("band scale knobs (#365)", () => {
 });
 
 describe("one-off stretch (#356)", () => {
-  const at = (mined: number, k?: number): Mountain => ({
+  const at = (mined: number): Mountain => ({
     ...createMountain(),
     remaining: MOUNTAIN_STONES - mined,
-    ...(k === undefined ? {} : { stretch: k }),
   });
 
   it("is 1 on a fresh mountain", () => {
@@ -360,7 +230,7 @@ describe("one-off stretch (#356)", () => {
     expect(oneOffStretch(at(9_999_999))).toBe(BAND_SCALE[0]);
     expect(oneOffStretch(at(10_000_000))).toBe(BAND_SCALE[1]);
     expect(oneOffStretch(at(45_000_000))).toBe(BAND_SCALE[2]);
-    expect(oneOffStretch(at(120_000_000, 1.75))).toBe(BAND_SCALE[3] * 1.75);
+    expect(oneOffStretch(at(120_000_000))).toBe(BAND_SCALE[3]);
   });
 
   it("prices Work boots and a promotion by the band", () => {
@@ -388,56 +258,13 @@ describe("one-off stretch (#356)", () => {
   });
 });
 
-describe("the stretch cap keeps every count a safe integer (#366)", () => {
-  const roundTrip = (m: Mountain) => reloaded(m);
-
-  it("stops growing at MAX_STRETCH, where the whole mountain is still a safe count", () => {
-    const whole = shownStones({ stretch: MAX_STRETCH }, MOUNTAIN_STONES);
-    expect(Number.isSafeInteger(whole)).toBe(true);
-    // Half the limit: room for a band retune before the cap has to move.
-    expect(2 * whole).toBeLessThanOrEqual(Number.MAX_SAFE_INTEGER);
-    // Runs keep growing far past any real evening (run 200 is years away)...
-    expect(kidStretch(200)).toBeLessThan(MAX_STRETCH);
-    // ...and stop at the cap long before the rules' Legacy cap of 1000.
-    expect(kidStretch(1_000)).toBe(MAX_STRETCH);
-    const ks = Array.from({ length: 1_001 }, (_, legacy) => kidStretch(legacy));
-    ks.slice(1).forEach((k, i) => {
-      expect(k).toBeGreaterThanOrEqual(ks[i] as number);
-      expect(k).toBeLessThanOrEqual(MAX_STRETCH);
-    });
-  });
-
-  it("digs the whole mountain at the cap into a pocket that saves and loads", () => {
-    const kid: Mountain = {
-      ...createMountain(),
-      legacy: 1_000,
-      stretch: kidStretch(1_000),
-    };
-    const dug = digStones(kid, stonesLeft(kid));
-    expect(dug.remaining).toBe(0);
-    expect(Number.isSafeInteger(dug.stock.stones)).toBe(true);
-    const back = roundTrip(dug);
-    expect(back?.stock.stones).toBe(dug.stock.stones);
-    expect(back?.stretch).toBe(MAX_STRETCH);
-    expect(back?.legacy).toBe(1_000);
-  });
-
-  const ks = [
-    ...Array.from({ length: 11 }, (_, legacy) => kidStretch(legacy)),
-    MAX_STRETCH,
-  ];
-  const cases = ks.flatMap((k) =>
-    BAND_STARTS.map((start, band) => [k, band + 1, start] as const),
-  );
-
+describe("every price is a whole, safe count (#366)", () => {
   /** Every price a buy can show at this mountain: stones only. */
   function prices(m: Mountain): number[] {
-    const k = stretch(m);
     const oneOff = oneOffStretch(m);
-    const crew = { crewPerSecond: 0, tapYield: 0 };
     return [
       ...TIERS.flatMap((tier) =>
-        Array.from({ length: 31 }, (_, owned) => tierCost(tier, owned, k)),
+        Array.from({ length: 31 }, (_, owned) => tierCost(tier, owned)),
       ),
       ...UPGRADES.flatMap((upgrade) =>
         Array.from(
@@ -456,22 +283,19 @@ describe("the stretch cap keeps every count a safe integer (#366)", () => {
           })),
         }),
       ),
-      ...BOOSTS.map((boost) => boostCost(boost, crew, k)),
-      ...RECIPE_IDS.map((id) => priceAmount(recipePrice(id, k), "stones")),
-      veinReward(m),
+      ...RECIPE_IDS.map((id) => priceAmount(recipePrice(id), "stones")),
     ];
   }
 
-  it.each(cases)(
-    "at k %d in band %d, every price is a whole number of stones",
-    (k, _band, start) => {
+  it.each(BAND_STARTS.map((start, band) => [band + 1, start] as const))(
+    "in band %d, every price is a whole number of stones",
+    (_band, start) => {
       const m: Mountain = {
         ...createMountain(),
         remaining: MOUNTAIN_STONES - start,
-        stretch: k,
       };
-      // A price under the whole mountain is then a safe count, since the
-      // cap keeps the whole mountain safe. One above it is never paid (below).
+      // A price under the whole mountain is then a safe count. One above it
+      // is never paid (below).
       for (const price of prices(m)) {
         expect(Number.isInteger(price)).toBe(true);
         expect(price).toBeGreaterThanOrEqual(0);
@@ -479,13 +303,11 @@ describe("the stretch cap keeps every count a safe integer (#366)", () => {
     },
   );
 
-  it("never pays a price above every stone of the run, so the pocket stays safe", () => {
+  it("prices every upgrade under every stone of the run, so the pocket stays safe", () => {
     const deep: Mountain = {
       ...createMountain(),
       remaining: MOUNTAIN_STONES - BAND_STARTS[3],
-      stretch: MAX_STRETCH,
-      owned: { ...createMountain().owned, helper: 10, cart: 3 },
-      upgrades: { ...NO_UPGRADES, tap: 9 },
+      owned: { ...createMountain().owned, machine: 1 },
     };
     // The most a pocket can hold: every stone of this run.
     const full = {
@@ -495,13 +317,13 @@ describe("the stretch cap keeps every count a safe integer (#366)", () => {
         stones: stonesLeft({ ...deep, remaining: MOUNTAIN_STONES }),
       },
     };
-    const tap = upgradeCost(upgradeById("tap"), 9, oneOffStretch(deep)) ?? 0;
-    expect(tap).toBeGreaterThan(Number.MAX_SAFE_INTEGER);
-    expect(buyUpgrade(full, "tap")).toBe(full);
-    // The same pocket still buys a level it can afford, so only the price
-    // stops the one above.
-    const cheap = { ...full, upgrades: { ...NO_UPGRADES, tap: 0 } };
-    expect(buyUpgrade(cheap, "tap").upgrades.tap).toBe(1);
+    // Every upgrade has one level (#728), so its first price is its dearest.
+    for (const upgrade of UPGRADES) {
+      const price = upgradeCost(upgrade, 0, oneOffStretch(deep)) ?? 0;
+      expect(Number.isSafeInteger(price)).toBe(true);
+      expect(price).toBeLessThan(full.stock.stones);
+    }
+    expect(buyUpgrade(full, "machineSyn").upgrades.machineSyn).toBe(1);
   });
 });
 

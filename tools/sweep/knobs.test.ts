@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { withFactors } from "../../src/economy/factors";
-import { tendingTenths } from "../../src/engineers";
+import { engineerTenths } from "../../src/engineers";
 import { LAYERS } from "../../src/layers";
 import { BARE_MOUNTAIN, createMountain } from "../../src/mountain";
 import { effectiveRates } from "../../src/rates";
@@ -15,7 +15,6 @@ import {
   recipeById,
   recipePrice,
   troubleGapScale,
-  veinOftenScale,
   COLD_CLOCKS,
   NOTHING_CRAFTED,
   withClock,
@@ -61,7 +60,7 @@ function reading(factorId: string): number {
     return effectiveRates(posted).tierSpeed[id];
   }
   if (factorId === "tending.gain") {
-    return tendingTenths(posted, "borer", effectiveRates(posted).running);
+    return engineerTenths(posted, "borer");
   }
   if (factorId.startsWith("recipe.") && factorId.endsWith(".cost")) {
     const id = factorId.slice("recipe.".length, -".cost".length) as RecipeId;
@@ -86,7 +85,6 @@ function reading(factorId: string): number {
       clocks: {
         ...COLD_CLOCKS,
         "blasting-charge": 10_000,
-        "crystal-flare": 10_000,
         "heartstone-ember": 10_000,
       },
     };
@@ -96,14 +94,10 @@ function reading(factorId: string): number {
         return gearMultiplier(geared, effect.tier);
       case "trouble":
         return troubleGapScale(geared);
-      case "veins":
-        return veinOftenScale(geared);
       case "trip":
         return expeditionCraftScale(geared);
       case "charge":
         return chargeCrewMultiplier(geared, 0);
-      case "flare":
-        return veinOftenScale(geared, 0);
       case "ember":
         return emberMachineMultiplier(geared, 0);
       case "reinforce":

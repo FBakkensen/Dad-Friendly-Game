@@ -171,11 +171,10 @@ async function collect(page) {
       }
       return el.tagName.toLowerCase();
     };
-    // A tier, boost, upgrade, recipe or side names its parts, and itself:
-    // the three machine bays (#372) and the Buys rows (#373) are each a
-    // [data-tier] host, so each bay and row is its own target and a part
-    // reads as the bay's (.board-bay-*) or the row's (.board-row-*).
-    const KEYS = ["tier", "boost", "upgrade", "recipe", "side"];
+    // A tier, upgrade, recipe or side names its parts, and itself: the Buys
+    // rows (#373) are each a [data-tier] host, so each row is its own target
+    // and a part reads as the row's (.board-row-*).
+    const KEYS = ["tier", "upgrade", "recipe", "side"];
     const keyed = (host) => {
       const key = KEYS.find((name) => host.dataset[name]);
       return key === undefined
@@ -187,7 +186,7 @@ async function collect(page) {
         return `#${el.id}`;
       }
       const host = el.closest(
-        "[data-tier], [data-boost], [data-upgrade], [data-recipe], [data-side]",
+        "[data-tier], [data-upgrade], [data-recipe], [data-side]",
       );
       const own = classBit(el);
       if (host instanceof HTMLElement) {
@@ -390,7 +389,7 @@ async function collect(page) {
     remember(document.documentElement, "html");
     remember(document.querySelector("#app"), "#app");
     for (const el of document.querySelectorAll(
-      "[role='dialog'], [role='alertdialog'], .sheet, .workshop-sheet, .board-sheet-list, .board-sheet-how, .relic-page, .board-card-face",
+      "[role='dialog'], [role='alertdialog'], .sheet, .workshop-sheet, .board-sheet-list, .board-sheet-how, .board-card-face",
     )) {
       if (visible(el)) {
         remember(el, selectorOf(el));
@@ -398,21 +397,15 @@ async function collect(page) {
     }
 
     const primarySelectors = [
-      ".board-window",
-      ".board-ready",
-      ".board-dig-button",
       ".go",
       ".board-row.upgrade",
       ".workshop-recipe",
       ".welcome-continue",
       ".layer-dig",
-      ".relic-page-carry",
       ".craft-accept",
-      ".legacy-confirm",
       ".other-tab-play",
       ".update-reload",
       ".engineer-promote",
-      ".ledger-pass",
       ".ledger-yes",
       ".save-conflict-play",
       ".save-conflict-commit",
@@ -465,30 +458,22 @@ async function collect(page) {
         ".save-card",
         ".saved-copy",
         ".welcome-back .board-card-face",
-        ".relic-page",
         ".layer-arrival .board-card-face",
         ".craft-notice .board-card-face",
         ".other-tab .board-card-face",
         ".update-prompt .board-card-face",
-        ".legacy-dialog .board-card-face",
         ".saved-copies .board-card-face",
         ".engineer-row",
       ],
-      chip: [".boost-chip", ".expedition-chip"],
-      timer: [".workshop-timers", ".workshop-bar", ".boost"],
+      chip: [".expedition-chip"],
+      timer: [".workshop-bar"],
       notice: [
         ".craft-notice",
-        ".vein-note",
         ".welcome-back",
         ".layer-arrival",
         ".board-sheet-kick.is-done",
       ],
-      badge: [
-        ".legacy-badge",
-        ".board-row-badge",
-        ".board-row-flag",
-        ".board-key-dot",
-      ],
+      badge: [".board-row-badge", ".board-row-flag"],
     };
     const components = {};
     for (const [group, selectors] of Object.entries(groups)) {

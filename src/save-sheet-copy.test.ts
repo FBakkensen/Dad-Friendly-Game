@@ -47,7 +47,7 @@ describe("save card lines", () => {
       now,
     );
     expect(lines).toEqual({
-      depth: `Granite, ${formatCompact(shownStones(minedMountain(0), 12_400_000))} deep`,
+      depth: `Granite, ${formatCompact(shownStones(12_400_000))} deep`,
       pocket: "1.2M stones in the pocket",
       machines: "6 carts · 4 drills · 1 borer · the Great Machine",
       crew: "28 workers · 4 engineers",

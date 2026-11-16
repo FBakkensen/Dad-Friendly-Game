@@ -1,6 +1,5 @@
-import { stretch } from "../scale";
 import type { Trouble } from "../hazards";
-import { mineByHand, type Mountain } from "../mountain";
+import type { Mountain } from "../mountain";
 import { effectiveRates } from "../rates";
 import { onTrip, station } from "../engineers";
 import { layerOf } from "../layers";
@@ -81,7 +80,6 @@ function actionId(action: Action): string {
   switch (action.kind) {
     case "buyTier":
     case "buyUpgrade":
-    case "buyBoost":
       return `${action.kind}:${action.id}`;
     case "promote":
       return "promote";
@@ -142,7 +140,7 @@ function craftIsReady(mountain: Mountain, action: Action): boolean {
   if (action.kind !== "craft") {
     return false;
   }
-  return canPay(mountain.stock, recipePrice(action.recipe, stretch(mountain)));
+  return canPay(mountain.stock, recipePrice(action.recipe));
 }
 
 function price(
@@ -282,16 +280,6 @@ function rested(mountain: Mountain): Mountain {
   return next;
 }
 
-function tapStones(
-  mountain: Mountain,
-  now: number,
-  trouble: Trouble | undefined,
-): number {
-  return (
-    mineByHand(mountain, now, trouble).stock.stones - mountain.stock.stones
-  );
-}
-
 function withoutGear(mountain: Mountain): Mountain {
   // The bench is where a live timer is already paying. Leaving it on the
   // bare copy hid that share for the whole sitting.
@@ -306,7 +294,6 @@ function withoutGear(mountain: Mountain): Mountain {
 function outputShare(
   mountain: Mountain,
   now: number,
-  context: ValueContext,
   trouble: Trouble | undefined,
 ): Readonly<Record<string, number>> {
   const bare = withoutGear(mountain);
@@ -344,17 +331,6 @@ function outputShare(
   if (craftedCrew > 0) {
     parts.set(CRAFTED_SOURCE, craftedCrew);
     total += craftedCrew;
-  }
-  const tapBare = context.tapsPerSecond * tapStones(bare, now, trouble);
-  const tapCraft =
-    context.tapsPerSecond * tapStones(mountain, now, trouble) - tapBare;
-  if (tapBare > 0) {
-    parts.set("tap", tapBare);
-    total += tapBare;
-  }
-  if (tapCraft > 0) {
-    parts.set(CRAFTED_SOURCE, (parts.get(CRAFTED_SOURCE) ?? 0) + tapCraft);
-    total += tapCraft;
   }
   if (!(total > 0)) {
     return {};
@@ -409,12 +385,7 @@ export function scoreDecision(input: ScoreInput): DecisionSample {
     waitToAffordSec: payback.waitToAffordSec,
     crewPerSec: rates.exactCrewPerSecond,
     pocket: input.mountain.stock.stones,
-    outputShare: outputShare(
-      input.mountain,
-      input.now,
-      input.context,
-      input.trouble,
-    ),
+    outputShare: outputShare(input.mountain, input.now, input.trouble),
     ...(lineOn() ? { line: lineView(rates.tierSpeed, rates.running) } : {}),
     layer: layerOf(input.mountain).id,
     workshopOpen: workshopUnlocked(input.mountain),

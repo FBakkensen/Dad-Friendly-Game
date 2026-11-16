@@ -1,4 +1,4 @@
-import { oneOffStretch, stretch } from "./scale";
+import { oneOffStretch } from "./scale";
 import {
   onTrip,
   promote,
@@ -13,7 +13,6 @@ import {
 } from "./expeditions";
 import {
   applyAction,
-  buyEveryBoost,
   freeHelpers,
   helperBill,
   listActions,
@@ -21,14 +20,8 @@ import {
   type Action,
   type ValueContext,
 } from "./economy/actions";
-import { tapQuickVein } from "./lab/run";
-import { createWorld, step, type World } from "./lab/world";
-import {
-  createMountain,
-  mineByHand,
-  minedOut,
-  type Mountain,
-} from "./mountain";
+import { createWorld, step, withFirstWorker, type World } from "./lab/world";
+import { createMountain, minedOut, type Mountain } from "./mountain";
 import { owned, tierById, tierCost } from "./tiers";
 import { upgradeById, upgradeCost, upgradeLevel } from "./upgrades";
 
@@ -36,7 +29,6 @@ import { upgradeById, upgradeCost, upgradeLevel } from "./upgrades";
 const DAD = {
   sessionsPerDay: 2,
   sessionSeconds: 10 * 60,
-  tapsPerSecond: 3,
 } as const;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -48,7 +40,6 @@ const GAP_MS = DAY_MS / DAD.sessionsPerDay - DAD.sessionSeconds * 1000;
  * The strategy lab samples this schedule (#173).
  */
 export const DAD_SCHEDULE: ValueContext = {
-  tapsPerSecond: DAD.tapsPerSecond,
   liveSeconds: DAD.sessionSeconds,
   awaySeconds: GAP_MS / 1000,
 };
@@ -161,7 +152,7 @@ function isDadBuy(action: Action, withUpgrades: boolean): action is DadBuy {
 function sticker(mountain: Mountain, action: DadBuy): number {
   if (action.kind === "buyTier") {
     const tier = tierById(action.id);
-    return tierCost(tier, owned(mountain, tier), stretch(mountain));
+    return tierCost(tier, owned(mountain, tier));
   }
   return upgradeCost(
     upgradeById(action.id),
@@ -172,8 +163,8 @@ function sticker(mountain: Mountain, action: DadBuy): number {
 
 /**
  * The buy with the most gain per stone, from the catalogue. Crew is always
- * on offer. Lasting upgrades are, when this dad buys them. Boosts, posts,
- * and promotions are decided elsewhere.
+ * on offer. Lasting upgrades are, when this dad buys them. Posts and
+ * promotions are decided elsewhere.
  */
 function bestValue(
   mountain: Mountain,
@@ -209,16 +200,12 @@ export function simulateDad(options: DadRunOptions): Map<number, number> {
 
 /** What `simulateDadRun` takes. */
 type DadRunOptions = {
-  /** Mountains already passed down: a second run starts with legacy 1. */
-  legacy?: number;
   /**
    * Puts trouble right within three seconds. A never-fixing dad leaves it
    * until an engineer clears it, or the session ends.
    */
   fixesTrouble?: boolean;
-  /** Also starts Sharper picks and Overtime whenever they're affordable and idle. */
-  buysBoosts?: boolean;
-  /** Also weighs Strong arms, Work boots and Night foreman against crew, by stones a day per stone. */
+  /** Also weighs the upgrades (Work boots and the synergies) against crew, by stones a day per stone. */
   buysUpgrades?: boolean;
   milestones: readonly number[];
   maxDays?: number;
@@ -323,28 +310,14 @@ function promoteAndRecord(world: World, promotions: DadPromotion[]): World {
   return next;
 }
 
-/** The dad's hand taps for one second. */
-function tapSecond(world: World): Mountain {
-  const trouble =
-    world.hazards.phase === "trouble" ? world.hazards.trouble : undefined;
-  let tapped = world.mountain;
-  for (let tap = 0; tap < DAD.tapsPerSecond; tap += 1) {
-    tapped = mineByHand(tapped, world.clock, trouble);
-  }
-  return tapped;
-}
-
-/** One live second: boosts, tending, scouts, taps, income, buys, Nils. */
+/** One live second: tending, scouts, income, buys, Nils. */
 function liveSecond(
   start: World,
   second: number,
   options: LiveOptions,
   log: DadLog,
 ): World {
-  let world = options.buysBoosts
-    ? { ...start, mountain: buyEveryBoost(start.mountain, start.clock) }
-    : start;
-  world = { ...world, mountain: tendBestTier(world.mountain) };
+  let world: World = { ...start, mountain: tendBestTier(start.mountain) };
   if (second === 0) {
     world = {
       ...world,
@@ -352,7 +325,7 @@ function liveSecond(
     };
   }
   world = step(
-    { ...world, mountain: tapSecond(world) },
+    world,
     1_000,
     "live",
     options.fixesTrouble ? { playerFixMs: SIM_FIX_MS } : undefined,
@@ -396,8 +369,6 @@ export function simulateDadRun({
   milestones,
   maxDays = 30,
   buysUpgrades = false,
-  buysBoosts = false,
-  legacy = 0,
   fixesTrouble = true,
   onDecision,
 }: DadRunOptions): DadRun {
@@ -406,15 +377,10 @@ export function simulateDadRun({
     milestones,
     maxDays,
     buysUpgrades,
-    buysBoosts,
-    legacy,
     fixesTrouble,
     onDecision,
   };
-  let world: World = createWorld(
-    1,
-    legacy > 0 ? { ...createMountain(), legacy } : createMountain(),
-  );
+  let world: World = createWorld(1, withFirstWorker(createMountain()));
   for (let session = 0; session < maxDays * DAD.sessionsPerDay; session += 1) {
     for (let second = 0; second < DAD.sessionSeconds; second += 1) {
       world = liveSecond(world, second, options, log);
@@ -423,8 +389,7 @@ export function simulateDadRun({
     if (session % 2 === 1) {
       world = nightTrips(world, world.clock + GAP_MS);
     }
-    // He opens and taps the quick vein: the Gold rush pays what the open held (#468).
-    world = tapQuickVein(step(world, GAP_MS, "away"));
+    world = step(world, GAP_MS, "away");
     noteMilestones(world, milestones, log.reached);
     if (world.mountain.remaining === 0) {
       break;

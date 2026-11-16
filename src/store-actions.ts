@@ -198,15 +198,11 @@ export function previewTrouble(ctx: StoreContext, tier: TroubleTier): void {
  * A new run the store will not start, said in the field log and on the save
  * line (#479): a press that does nothing must at least leave a trace.
  */
-function refuseRun(
-  ctx: StoreContext,
-  code: "run.start-over" | "run.pass",
-  block: PlayBlock,
-): void {
+function refuseRun(ctx: StoreContext, block: PlayBlock): void {
   if (block === "closed") {
     return;
   }
-  const id = code === "run.pass" ? "pass" : "start-over";
+  const id = "start-over";
   record(ctx, "run.refused", { id, source: block });
   log(ctx, {
     level: "error",
@@ -219,16 +215,16 @@ function refuseRun(
   emit(ctx);
 }
 
-/** Starts a new run (Start over, or the mine passed down), saved at once. */
+/** Starts a new run (Start over), saved at once. */
 export function beginRun(
   ctx: StoreContext,
   next: Mountain,
   detail: string,
-  code: "run.start-over" | "run.pass",
+  code: "run.start-over",
 ): boolean {
   const block = playBlock(ctx);
   if (block !== undefined) {
-    refuseRun(ctx, code, block);
+    refuseRun(ctx, block);
     return false;
   }
   cancelQueuedWrite(ctx);

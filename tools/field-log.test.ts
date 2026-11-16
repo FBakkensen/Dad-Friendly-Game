@@ -25,13 +25,9 @@ const dad: FieldLogRecord = {
       left: 88,
       pocket: 3,
       crewSpeed: 1.5,
-      tapYield: 2,
-      legacy: 0,
       crew: { helper: 2, cart: 1 },
       idle: { cart: 1 },
-      relics: ["lantern"],
-      upgrades: { tap: 1 },
-      boosts: [{ id: "sharper", endsAt: "2026-01-02T04:00:00.000Z" }],
+      upgrades: { boots: 1 },
       engineers: [{ name: "Ada", rank: 0, post: "borer" }],
       expeditions: [
         {
@@ -171,19 +167,13 @@ describe("formatFieldLogSummary", () => {
         "Left 88",
         "Pocket 3",
         "Crew speed 1.5",
-        "Tap yield 2",
-        "Legacy 0",
         "Crew",
         "  cart 1",
         "  helper 2",
         "Idle",
         "  cart 1",
-        "Relics",
-        "  lantern",
         "Upgrades",
-        "  tap 1",
-        "Boosts",
-        "  sharper until 2026-01-01 23:00:00",
+        "  boots 1",
         "Engineers",
         "  Ada rank 0 borer",
         "Expeditions",
@@ -193,6 +183,17 @@ describe("formatFieldLogSummary", () => {
         "  yesterday  save.write",
       ].join("\n"),
     );
+  });
+
+  it("prints the legacy of a log from before #729 as a field it no longer knows", () => {
+    const data = dad.data as { snapshot: Record<string, unknown> };
+    const older: FieldLogRecord = {
+      uid: "dad",
+      data: { ...data, snapshot: { ...data.snapshot, legacy: 0 } },
+    };
+    const text = formatFieldLogSummary([older], ZONE);
+    expect(text).toContain("legacy 0");
+    expect(text).not.toContain("Legacy");
   });
 
   it("keeps UTC midnight as 00:00:00 and separates players", () => {
@@ -222,15 +223,13 @@ describe("formatFieldLogSummary", () => {
     );
   });
 
-  it("says when there are no logs, relics, or boosts", () => {
+  it("says when there are no logs or engineers", () => {
     expect(formatFieldLogSummary([], "UTC")).toBe("No field logs.");
     const empty: FieldLogRecord = {
       uid: "dad",
       data: {
         updatedAt: Date.parse(AT),
         snapshot: {
-          relics: [],
-          boosts: [],
           crew: {},
           idle: {},
           engineers: [],
@@ -241,8 +240,6 @@ describe("formatFieldLogSummary", () => {
     };
     const text = formatFieldLogSummary([empty], "UTC");
     expect(text).toContain("Crew\n  none");
-    expect(text).toContain("Relics\n  none");
-    expect(text).toContain("Boosts\n  none");
     expect(text).toContain("Engineers\n  none");
     expect(text).toContain("Expeditions\n  none");
     expect(text).toContain("Events\n  none");
@@ -295,7 +292,7 @@ describe("each device's log, read together (#485)", () => {
     data: {
       updatedAt: 2,
       events: [
-        { at: "2026-01-02T03:10:00.000Z", code: "vein.tap", data: {} },
+        { at: "2026-01-02T03:10:00.000Z", code: "away.report", data: {} },
         "not an event",
       ],
     },
@@ -318,7 +315,7 @@ describe("each device's log, read together (#485)", () => {
       "fieldLogs/dad: together",
       "Events",
       "  2026-01-02 03:00:00  tier.buy  [phone-12]",
-      "  2026-01-02 03:10:00  vein.tap  [pc-98765]",
+      "  2026-01-02 03:10:00  away.report  [pc-98765]",
       "  2026-01-02 03:20:00  run.start-over  [phone-12]",
     ]);
     // One log alone has no Together.

@@ -80,27 +80,21 @@ describe("snapshot", () => {
         kid: 0,
       },
       crewSpeed: rates.crewPerSecond,
-      tapYield: rates.tapYield,
       idle: { cart: 0, hoist: 0, drill: 0, borer: 0, train: 0, machine: 0 },
-      relics: [],
       upgrades: {
-        tap: 0,
         boots: 0,
-        steady: 0,
         cartSyn: 0,
         drillSyn: 0,
         borerSyn: 0,
         machineSyn: 0,
       },
-      boosts: [],
-      legacy: 0,
       engineers: [],
       expeditions: [],
     });
     expect(JSON.parse(JSON.stringify(shot))).toEqual(shot);
   });
 
-  it("counts the crew, idle machines, relics, upgrades, running boosts, and legacy", () => {
+  it("counts the crew, idle machines and upgrades, and keeps no legacy (#729)", () => {
     const mountain: Mountain = {
       ...createMountain(),
       remaining: MOUNTAIN_STONES - 1_000_000,
@@ -112,9 +106,7 @@ describe("snapshot", () => {
         drill: 2,
         kid: 2,
       },
-      upgrades: { ...NO_UPGRADES, tap: 2 },
-      boosts: { sharper: AT + 60_000, overtime: AT - 1 },
-      legacy: 3,
+      upgrades: { ...NO_UPGRADES, boots: 1 },
       engineers: [{ name: "Ada", rank: 1, trips: 3, post: "borer" }],
       expeditions: [
         {
@@ -144,7 +136,6 @@ describe("snapshot", () => {
       kid: 2,
     });
     expect(shot.crewSpeed).toBe(rates.crewPerSecond);
-    expect(shot.tapYield).toBe(rates.tapYield);
     // Two kids run both drills (1 each since #252), so the cart idles.
     expect(shot.idle).toEqual({
       cart: 1,
@@ -154,13 +145,9 @@ describe("snapshot", () => {
       train: 0,
       machine: 0,
     });
-    expect(shot.relics).toEqual(["lantern"]);
-    expect(shot.upgrades.tap).toBe(2);
-    expect(shot.upgrades.boots).toBe(0);
-    expect(shot.boosts).toEqual([
-      { id: "sharper", endsAt: new Date(AT + 60_000).toISOString() },
-    ]);
-    expect(shot.legacy).toBe(3);
+    expect(shot.upgrades.boots).toBe(1);
+    expect(shot.upgrades.cartSyn).toBe(0);
+    expect(shot).not.toHaveProperty("legacy");
     // Away on the trip below, so the log reads the saved post.
     expect(shot.engineers).toEqual([{ name: "Ada", rank: 1, post: "tunnel" }]);
     expect(shot.expeditions).toEqual([
@@ -197,7 +184,7 @@ describe("EventRing", () => {
       data: { stones: 1_600_000_000 },
     });
     ring.push({ at: "x", code: "away.report", data: { stones: 2e15 } });
-    ring.push({ at: "x", code: "vein.tap", data: { stones: 5 } });
+    ring.push({ at: "x", code: "away.report", data: { stones: 5 } });
     expect(ring.last(3).map((e) => e.data.stones)).toEqual([
       1_600_000_000,
       FIELD_STONES_CAP,
@@ -351,7 +338,7 @@ describe("field log cloud copy", () => {
     expect(
       fieldLogFingerprint({
         snapshot: shot,
-        events: [{ at: "t", code: "vein.tap", data: { stones: 1 } }],
+        events: [{ at: "t", code: "away.report", data: { stones: 1 } }],
       }),
     ).not.toBe(same);
   });
@@ -466,15 +453,11 @@ describe("fieldEntry", () => {
       code: "tier.buy",
       data: { id: "cart", count: 3 },
     });
-    expect(fieldEntry({ kind: "upgradeBought", id: "tap", level: 2 })).toEqual({
-      code: "upgrade.buy",
-      data: { id: "tap", count: 2 },
-    });
     expect(
-      fieldEntry({ kind: "boostStarted", id: "sharper", endsAt: AT }),
+      fieldEntry({ kind: "upgradeBought", id: "boots", level: 1 }),
     ).toEqual({
-      code: "boost.start",
-      data: { id: "sharper", endsAt: "2026-01-02T03:04:05.000Z" },
+      code: "upgrade.buy",
+      data: { id: "boots", count: 1 },
     });
     expect(fieldEntry({ kind: "craftStarted", recipe: "iron-rails" })).toEqual({
       code: "craft.start",
@@ -501,18 +484,6 @@ describe("fieldEntry", () => {
     ).toEqual({
       code: "engineer.station",
       data: { id: "Ada", source: "camp" },
-    });
-    expect(fieldEntry({ kind: "veinTapped", stones: 60 })).toEqual({
-      code: "vein.tap",
-      data: { stones: 60 },
-    });
-    expect(fieldEntry({ kind: "quickVeinTapped", stones: 60 })).toEqual({
-      code: "vein.tap",
-      data: { stones: 60, source: "rush" },
-    });
-    expect(fieldEntry({ kind: "rushLanded", stones: 810 })).toEqual({
-      code: "rush.land",
-      data: { stones: 810 },
     });
   });
 

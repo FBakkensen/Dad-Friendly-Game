@@ -6,7 +6,6 @@ const WITH_UPGRADES: SpendWeights = {
   worker: 1,
   machine: 1,
   upgrade: 1,
-  boost: 0,
   promote: 0,
 };
 

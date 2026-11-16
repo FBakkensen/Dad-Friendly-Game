@@ -5,11 +5,8 @@ import { hide, legend, setAttr } from "./board-dom";
 import { createBoardSheet, type BoardSheet } from "./board-drawer";
 import type { BoardHost } from "./board-host";
 import type { Pointer } from "./board-interaction";
-import { RELIC_DARK, RELIC_LIT } from "./board-relics";
 import {
   createBoardRow,
-  paintRowBar,
-  rowBar,
   rowsOnBoard,
   type BoardRow,
   type RowsOnBoard,
@@ -26,7 +23,6 @@ import {
 import {
   accountRowView,
   freshLedgerRows,
-  relicsRowView,
   stonesRowView,
   tonightLines,
 } from "./ledger-rows";
@@ -43,13 +39,12 @@ import { createSoundKey, type SoundSetting } from "./sound";
 
 /*
  * The Ledger drawer (#375): the game's one Sound key in the head (#491), Tonight's newest
- * lines, the mine (stones left with the materials met, then the relics with the goal, the next
- * layer's hint and the guide bar), the account row, and four plates: Saved copies, Copy field
- * log, Start over and Pass the mine. Start over asks on a page of the drawer, and where the
+ * lines, the mine (stones left with the materials met), the account row, and three plates: Saved copies, Copy field
+ * log and Start over. Start over asks on a page of the drawer, and where the
  * browser refuses the clipboard the field log shows on one. Its rows and lines come from
  * ledger-rows.ts and its own controls from ledger-parts.ts. Every press goes through the
  * board's model, so the settle, the hold and the blink are the board's. Nothing here saves:
- * Start over, signing in and out, Saved copies and Pass the mine are today's calls. The Sound
+ * Start over, signing in and out, and Saved copies are today's calls. The Sound
  * key's choice is this device's, not the save's (sound.ts).
  */
 
@@ -59,8 +54,6 @@ interface LedgerParts {
   readonly tonight: ReturnType<typeof createTonightBox>;
   readonly mineSec: HTMLElement;
   readonly stones: BoardRow;
-  readonly relics: BoardRow;
-  readonly bar: ReturnType<typeof rowBar>;
   /** A fresh mine's second row, the workers over the machines (#708). */
   readonly crew: BoardRow;
   readonly account: BoardRow;
@@ -68,13 +61,10 @@ interface LedgerParts {
 }
 
 /**
- * The Ledger's rows: the stones row, the relics row and a fresh mine's crew row take no tap;
- * the account row does.
+ * The Ledger's rows: the stones row and a fresh mine's crew row take no tap; the account row
+ * does.
  */
-function buildLedgerRows(): Pick<
-  LedgerParts,
-  "stones" | "relics" | "bar" | "crew" | "account"
-> {
+function buildLedgerRows(): Pick<LedgerParts, "stones" | "crew" | "account"> {
   const stones = createBoardRow({
     tag: "div",
     className: "ledger-stones",
@@ -84,16 +74,6 @@ function buildLedgerRows(): Pick<
     iconPx: 32,
   });
   stones.setIcon(stoneUrl);
-  const relics = createBoardRow({
-    tag: "div",
-    className: "ledger-relics",
-    data: { ledger: "relics" },
-    name: "",
-    icon: true,
-    iconPx: 48,
-  });
-  const bar = rowBar();
-  relics.root.append(bar.bar);
   const crew = createBoardRow({
     tag: "div",
     className: "ledger-crew",
@@ -114,11 +94,9 @@ function buildLedgerRows(): Pick<
   account.root
     .querySelector(".board-row-info")
     ?.setAttribute("aria-live", "polite");
-  // A fresh mine has no relics yet; today's mine has no crew row (#708).
-  const fresh = freshMineOn();
-  hide(relics.root, fresh);
-  hide(crew.root, !fresh);
-  return { stones, relics, bar, crew, account };
+  // Today's mine has no crew row (#708).
+  hide(crew.root, !freshMineOn());
+  return { stones, crew, account };
 }
 
 /** Puts every part in the list, in its order: Tonight, the mine, the account and the doors. */
@@ -138,7 +116,6 @@ function buildLedgerList(sheet: BoardSheet, doors: LedgerDoors): LedgerParts {
     parts.tonight.root,
     parts.mineSec,
     parts.stones.root,
-    parts.relics.root,
     parts.crew.root,
     parts.account.root,
     doors.root,
@@ -146,7 +123,7 @@ function buildLedgerList(sheet: BoardSheet, doors: LedgerDoors): LedgerParts {
   return parts;
 }
 
-/** The stones and relics rows from a ready save, or a fresh mine's two rows. */
+/** The stones row from a ready save, or a fresh mine's two rows. */
 function paintReady(
   parts: LedgerParts,
   onBoard: RowsOnBoard,
@@ -161,19 +138,13 @@ function paintReady(
   const stones = stonesRowView(view.mountain);
   onBoard.paint("stones", parts.stones, stones);
   setAttr(parts.stones.root, "title", stones.title);
-  const relics = relicsRowView(view.mountain);
-  onBoard.paint("relics", parts.relics, relics);
-  parts.relics.setIcon((relics.lit ? RELIC_LIT : RELIC_DARK)[relics.icon]);
-  paintRowBar(parts.bar.bar, parts.bar.fill, relics.progress, relics.barLabel);
 }
 
-/** Until the save is in, the stones and relics rows go dark and blank, with no bar. */
+/** Until the save is in, the rows go dark and blank. */
 function paintLoading(parts: LedgerParts, onBoard: RowsOnBoard): void {
   onBoard.paint("stones", parts.stones, undefined);
   setAttr(parts.stones.root, "title", undefined);
-  onBoard.paint("relics", parts.relics, undefined);
   onBoard.paint("crew", parts.crew, undefined);
-  paintRowBar(parts.bar.bar, parts.bar.fill, undefined, "");
 }
 
 /**
@@ -212,12 +183,11 @@ interface LedgerDoorDeps {
   readonly progress: ProgressStore;
   readonly sheet: () => BoardSheet;
   readonly door: HTMLButtonElement;
-  readonly legacy: { open(from: HTMLElement | undefined): void };
   readonly savedCopies: { open(from?: HTMLElement): void };
   readonly onStartOver: () => void;
 }
 
-/** The two pages and the four plates, each wired to where it leads. */
+/** The two pages and the three plates, each wired to where it leads. */
 function wireDoors(deps: LedgerDoorDeps): {
   readonly doors: LedgerDoors;
   readonly startOverPage: ReturnType<typeof createStartOverPage>;
@@ -288,11 +258,6 @@ function wireDoors(deps: LedgerDoorDeps): {
         startOverPage.say(true);
         sheet().showPage(startOverPage.root);
       },
-      pass: () => {
-        handOff();
-        // The card's Not yet gives focus back to the Ledger key.
-        deps.legacy.open(door);
-      },
     },
   });
   return { doors, startOverPage, starting: () => starting };
@@ -311,7 +276,6 @@ export function createLedgerPanel({
   board,
   overSave,
   door,
-  legacy,
   savedCopies,
   onStartOver,
   sound,
@@ -326,11 +290,9 @@ export function createLedgerPanel({
   overSave: () => boolean;
   /** The Ledger key on the rail: the shell writes its aria-expanded. */
   door: HTMLButtonElement;
-  /** Pass the mine: offered on a finished mountain, and today's card. */
-  legacy: { offered(): boolean; open(from: HTMLElement | undefined): void };
   /** Today's Saved copies card. */
   savedCopies: { open(from?: HTMLElement): void };
-  /** After a Start over (the screen resets its vein wait). */
+  /** After a Start over. */
   onStartOver: () => void;
   /** The game's one sound (#491): its key sits in the head, beside the "i". */
   sound: SoundSetting;
@@ -347,7 +309,6 @@ export function createLedgerPanel({
     progress,
     sheet: () => sheet,
     door,
-    legacy,
     savedCopies,
     onStartOver,
   });
@@ -356,9 +317,9 @@ export function createLedgerPanel({
     name: "ledger",
     title: "Ledger",
     infoLabel: "Tonight and the mine",
-    // Today's cards tell relics and time away: a fresh mine has neither yet (#708).
+    // Today's card tells time away: a fresh mine has none yet (#708).
     how: {
-      systems: freshMineOn() ? [] : ["away", "relics"],
+      systems: freshMineOn() ? [] : ["away"],
       backLabel: LEDGER_BACK,
     },
     board,
@@ -416,7 +377,7 @@ export function createLedgerPanel({
       paintLoading(parts, onBoard);
     }
     onBoard.paint("account", parts.account, accountRowView(auth.getState()));
-    wired.doors.paint({ ready: view.ready, passOffered: legacy.offered() });
+    wired.doors.paint({ ready: view.ready });
     wired.startOverPage.paint(view.ready && !wired.starting());
     paintTonight();
   };

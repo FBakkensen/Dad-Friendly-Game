@@ -22,7 +22,6 @@ export function unlimitedSinks(
   for (const id of [
     "blasting-charge",
     "axle-grease",
-    "crystal-flare",
     "heartstone-ember",
   ] as const) {
     const used = (crafted?.[id] ?? 0) > 0;

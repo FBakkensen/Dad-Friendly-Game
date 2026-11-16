@@ -8,20 +8,12 @@ import { haulageWorkers } from "./workforce";
 
 /** Permanent, one-level-at-a-time purchases. See docs/DESIGN.md "M3: Strategy". */
 export type UpgradeId =
-  | "tap"
-  | "boots"
-  | "steady"
-  | "cartSyn"
-  | "drillSyn"
-  | "borerSyn"
-  | "machineSyn";
+  "boots" | "cartSyn" | "drillSyn" | "borerSyn" | "machineSyn";
 
 export type Upgrades = Readonly<Record<UpgradeId, number>>;
 
 export const NO_UPGRADES: Upgrades = {
-  tap: 0,
   boots: 0,
-  steady: 0,
   cartSyn: 0,
   drillSyn: 0,
   borerSyn: 0,
@@ -43,16 +35,6 @@ export type Upgrade = {
 };
 
 const BY_ID: Readonly<Record<UpgradeId, Upgrade>> = {
-  tap: {
-    id: "tap",
-    name: "Strong arms",
-    perLevel: "Each tap also mines 1.65% of your crew's speed.",
-    firstCost: 46_000,
-    costGrowth: 8,
-    maxLevel: 10,
-    // A fixed point in the climb (M12-2, #250), not a share of the pocket.
-    unlock: { tier: "cart", count: 3 },
-  },
   boots: {
     id: "boots",
     name: "Work boots",
@@ -61,15 +43,6 @@ const BY_ID: Readonly<Record<UpgradeId, Upgrade>> = {
     costGrowth: 1,
     maxLevel: 1,
     unlock: { tier: "helper", count: 10 },
-  },
-  steady: {
-    id: "steady",
-    name: "Night foreman",
-    perLevel: "Time away pays 25% more.",
-    firstCost: 10_000_000,
-    costGrowth: 1,
-    maxLevel: 1,
-    unlock: { tier: "cart", count: 1 },
   },
   cartSyn: {
     id: "cartSyn",
@@ -115,38 +88,16 @@ const BY_ID: Readonly<Record<UpgradeId, Upgrade>> = {
 
 export const UPGRADES: readonly Upgrade[] = Object.values(BY_ID);
 
-/** Tap power: each level adds this share of the crew's speed to every tap. */
-export const TAP_SHARE_PER_LEVEL = 0.0165;
-
 /** Crew synergies: speed each `from` unit adds to its `to` tier. */
 export const SYNERGY_PER_UNIT = 0.01;
 
 /** Work boots: helper speed gained per level. */
 export const BOOTS_SPEED_PER_LEVEL = 1.36;
-/** Night foreman: away pay gained per level, relative to the base rate. */
-export const STEADY_AWAY_PER_LEVEL = 0.25;
-
-/**
- * Upgrades a fresh mine leaves out (slice 1, Where today's parts land, #653):
- * Strong arms goes with the dig button, and Night foreman goes because the
- * Light Tower lights the night.
- */
-const GONE_IN_A_FRESH_MINE: ReadonlySet<UpgradeId> = new Set<UpgradeId>([
-  "tap",
-  "steady",
-]);
-
-/** False for an upgrade a fresh mine leaves out: never shown or bought. */
-export function upgradeInPlay(upgrade: Upgrade): boolean {
-  return !(freshMineOn() && GONE_IN_A_FRESH_MINE.has(upgrade.id));
-}
-
 /** Whether the crew owns enough to see and buy this upgrade. */
 export function upgradeUnlocked(mountain: Mountain, upgrade: Upgrade): boolean {
   return (
-    upgradeInPlay(upgrade) &&
-    (upgrade.unlock === undefined ||
-      owned(mountain, tierById(upgrade.unlock.tier)) >= upgrade.unlock.count)
+    upgrade.unlock === undefined ||
+    owned(mountain, tierById(upgrade.unlock.tier)) >= upgrade.unlock.count
   );
 }
 

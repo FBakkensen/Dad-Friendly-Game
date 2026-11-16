@@ -4,7 +4,7 @@
  * nothing is lost.
  */
 import { archiveWithin } from "./archive-wait";
-import type { ArchiveReason, ArchivedCopy } from "./cloud-save";
+import type { ArchiveWriteReason, ArchivedCopy } from "./cloud-save";
 import { markCloudDirty, persistCloudSoon } from "./cloud-writer";
 import { persistPhoneBackup } from "./local-saves";
 import { rockDugInAll, runStartedAt, type Mountain } from "./mountain";
@@ -156,7 +156,7 @@ export async function restoreCopy(
   }
   const { mountain, lastSeen } = comeBack(ctx, found);
   playChosen(ctx, mountain, lastSeen);
-  // Its relics and layers were found when it was played: news counts from here, as a watch's copy.
+  // Its layers were found when it was played: news counts from here, as a watch's copy.
   ctx.session = openBaselines(ctx.session, true);
   const data = { rev: ctx.syncedRev + 1, mined: rockDugInAll(mountain) };
   record(ctx, "save.restore", data);
@@ -186,7 +186,7 @@ function comeBack(
 async function keepInPlay(
   ctx: StoreContext,
   stance: Stance,
-  reason: ArchiveReason,
+  reason: ArchiveWriteReason,
 ): Promise<boolean> {
   const archiveCopy = ctx.ports.cloudSave.archiveCopy;
   if (archiveCopy === undefined) {
@@ -210,9 +210,9 @@ async function keepInPlay(
   );
 }
 
-/** A new run: Start over, or the mine passed down. */
+/** A new run: Start over. */
 export type NewRun = {
-  readonly reason: "start-over" | "pass";
+  readonly reason: "start-over";
   /** The new run's mountain from the one in play, or undefined when it cannot start. */
   readonly next: (playing: Mountain) => Mountain | undefined;
   /** Asked once the copy lands: false when he backed out while it was on its way. */
@@ -221,7 +221,6 @@ export type NewRun = {
 
 const RUN_WORDS = {
   "start-over": { detail: "start over", code: "run.start-over" },
-  pass: { detail: "passed to the kid", code: "run.pass" },
 } as const;
 
 function startRun(ctx: StoreContext, run: NewRun): boolean {

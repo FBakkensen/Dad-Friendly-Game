@@ -3,7 +3,6 @@ import { withFactors } from "./economy/factors";
 import { TENDING_GAIN, TENDING_TENTHS, station } from "./engineers";
 import type { Trouble } from "./hazards";
 import { milestoneMultiplier } from "./milestones";
-import { holdForRush, startRush } from "./gold-rush";
 import {
   AWAY_PAY_RATE,
   effectiveRates,
@@ -19,7 +18,6 @@ import { LINE_OFF } from "./line-switch";
 import { minedMountain, patched, type MountainPatch } from "./test-fixtures";
 import type { Mountain } from "./mountain";
 import { TIERS } from "./tiers";
-import { NO_BOOSTS } from "./boosts";
 import { NO_UPGRADES } from "./upgrades";
 
 describe("effectiveRates", () => {
@@ -60,7 +58,6 @@ describe("effectiveRates", () => {
         kid: 0,
       },
     });
-    expect(rates.tapYield).toBe(1);
     expect(rates.tierSpeed).toEqual(
       Object.fromEntries(TIERS.map((tier) => [tier.id, tier.perSecond])),
     );
@@ -102,29 +99,6 @@ describe("effectiveRates", () => {
     expect(effectiveRates(crew, 120_000, trouble).tierSpeed.cart).toBe(3);
     expect(effectiveRates(crew, 180_000, trouble).tierSpeed.cart).toBe(3);
     expect(effectiveRates(crew, undefined, trouble).tierSpeed.cart).toBe(4.5);
-  });
-
-  it("Grandfather's pick makes taps a little stronger and leaves the crew alone", () => {
-    const crew = {
-      ...minedMountain(0),
-      owned: {
-        ...minedMountain(0).owned,
-        helper: 9,
-        cart: 1,
-        borer: 1,
-        kid: 0,
-      },
-    };
-    const plain = effectiveRates(crew);
-    const picked = effectiveRates({ ...crew, finds: ["pick"] });
-    expect(picked.tapYield).toBeGreaterThan(plain.tapYield);
-    expect(picked.tapYield).toBe(Math.ceil(plain.tapYield * 1.25));
-    expect(picked.crewPerSecond).toBe(plain.crewPerSecond);
-    expect(picked.tierSpeed).toEqual(plain.tierSpeed);
-    expect(picked.awayPay).toBe(plain.awayPay);
-    expect(
-      effectiveRates({ ...crew, finds: ["lamp", "map", "boots"] }).tapYield,
-    ).toBe(plain.tapYield);
   });
 });
 
@@ -357,36 +331,6 @@ describe("tendingGain", () => {
   });
 });
 
-describe("the Gold rush in the rates", () => {
-  const crew = {
-    ...minedMountain(0),
-    owned: { ...minedMountain(0).owned, helper: 10, kid: 0 },
-  };
-  const T = 5_000_000;
-  const rushed = startRush(holdForRush(crew, 1_000_000, 10), T);
-
-  it("never counts in the crew's speed: held stones were dug while away (#525)", () => {
-    const plain = effectiveRates(crew, T);
-    expect(effectiveRates(rushed, T).crewPerSecond).toBe(plain.crewPerSecond);
-    expect(effectiveRates(rushed, T).exactCrewPerSecond).toBe(
-      plain.exactCrewPerSecond,
-    );
-    const both = effectiveRates(
-      { ...rushed, boosts: { ...NO_BOOSTS, overtime: T + 60_000 } },
-      T,
-    );
-    // Overtime's ×2 of the crew, and nothing for the rush
-    expect(both.crewPerSecond).toBe(plain.crewPerSecond * 2);
-    expect(both.tapYield).toBe(plain.tapYield);
-  });
-
-  it("is ignored with no clock", () => {
-    expect(effectiveRates(rushed).crewPerSecond).toBe(
-      effectiveRates(crew).crewPerSecond,
-    );
-  });
-});
-
 describe("what more hands add (#490)", () => {
   const base = (rates: ReturnType<typeof effectiveRates>): number =>
     TIERS.reduce(
@@ -424,7 +368,7 @@ describe("what more hands add (#490)", () => {
       ...minedMountain(0),
       owned: { ...minedMountain(0).owned, helper: 20, cart: 30, kid: 2 },
     };
-    const timed = { ...crew, boosts: { ...NO_BOOSTS, overtime: 9e15 } };
+    const timed = { ...crew, clocks: { ...crew.clocks, "axle-grease": 9e15 } };
     for (const [tier, count] of [
       ["helper", 10],
       ["kid", 1],
@@ -482,53 +426,50 @@ describe("what more hands add (#490)", () => {
 });
 
 describe("staffing never slows the crew (#500)", () => {
-  it("one more worker, drill, borer or machine never mines less, with Grandpa and the floor", () => {
+  it("one more worker, drill, borer or machine never mines less, with the floor", () => {
     const posts = ["borer", "machine", "camp"] as const;
     let checked = 0;
-    for (const legacy of [0, 1]) {
-      for (const post of posts) {
-        for (const machines of [0, 1, 2]) {
-          for (const borers of [0, 1, 3]) {
-            for (const drills of [0, 10, 50]) {
-              for (let helpers = 0; helpers <= 60; helpers += 3) {
-                const crew = {
-                  ...minedMountain(10_000_000),
-                  helpers,
-                  drills,
-                  borers,
-                  machines,
-                  legacy,
-                  engineers:
-                    post === "camp"
-                      ? []
-                      : [
-                          {
-                            name: "Ada" as const,
-                            rank: 0 as const,
-                            trips: 0,
-                            post,
-                          },
-                        ],
-                };
-                const now = effectiveRates(crew).exactCrewPerSecond;
-                for (const more of [
-                  { ...crew, owned: { ...crew.owned, helper: helpers + 1 } },
-                  { ...crew, owned: { ...crew.owned, drill: drills + 1 } },
-                  { ...crew, owned: { ...crew.owned, borer: borers + 1 } },
-                  { ...crew, owned: { ...crew.owned, machine: machines + 1 } },
-                ]) {
-                  expect(
-                    effectiveRates(more).exactCrewPerSecond,
-                  ).toBeGreaterThanOrEqual(now - 1e-6);
-                  checked += 1;
-                }
+    for (const post of posts) {
+      for (const machines of [0, 1, 2]) {
+        for (const borers of [0, 1, 3]) {
+          for (const drills of [0, 10, 50]) {
+            for (let helpers = 0; helpers <= 60; helpers += 3) {
+              const crew = {
+                ...minedMountain(10_000_000),
+                helpers,
+                drills,
+                borers,
+                machines,
+                engineers:
+                  post === "camp"
+                    ? []
+                    : [
+                        {
+                          name: "Ada" as const,
+                          rank: 0 as const,
+                          trips: 0,
+                          post,
+                        },
+                      ],
+              };
+              const now = effectiveRates(crew).exactCrewPerSecond;
+              for (const more of [
+                { ...crew, owned: { ...crew.owned, helper: helpers + 1 } },
+                { ...crew, owned: { ...crew.owned, drill: drills + 1 } },
+                { ...crew, owned: { ...crew.owned, borer: borers + 1 } },
+                { ...crew, owned: { ...crew.owned, machine: machines + 1 } },
+              ]) {
+                expect(
+                  effectiveRates(more).exactCrewPerSecond,
+                ).toBeGreaterThanOrEqual(now - 1e-6);
+                checked += 1;
               }
             }
           }
         }
       }
     }
-    expect(checked).toBe(2 * 3 * 3 * 3 * 3 * 21 * 4);
+    expect(checked).toBe(3 * 3 * 3 * 3 * 21 * 4);
   });
 
   it("trades one kind for another when the engineers' posts can move", () => {
@@ -539,7 +480,6 @@ describe("staffing never slows the crew (#500)", () => {
       const base = minedMountain(50_000_000);
       const crew: Mountain = {
         ...base,
-        legacy: 0,
         owned: {
           ...base.owned,
           helper: 28,
@@ -594,7 +534,6 @@ describe("staffing for the line (#534)", () => {
           borer: 1,
           train: 2,
         },
-        legacy: 0,
         engineers: [],
       };
       const before = effectiveRates(crew);
@@ -697,7 +636,6 @@ describe("the line's rule behind its factor (#532)", () => {
           hoist: 20,
           machine: 1,
         },
-        legacy: 0,
       };
       const at = (post: "camp" | "cart" | "borer"): number =>
         effectiveRates({

@@ -114,12 +114,6 @@ export default defineConfig({
           functions: 100,
           lines: 100,
         },
-        "src/boosts.ts": {
-          statements: 100,
-          branches: 100,
-          functions: 100,
-          lines: 100,
-        },
         "src/cloud-save.ts": {
           statements: 88,
           branches: 94,
@@ -271,12 +265,6 @@ export default defineConfig({
           functions: 100,
           lines: 100,
         },
-        "src/relics.ts": {
-          statements: 100,
-          branches: 100,
-          functions: 100,
-          lines: 100,
-        },
         "src/session-save.ts": {
           statements: 100,
           branches: 91,
@@ -331,29 +319,11 @@ export default defineConfig({
           functions: 100,
           lines: 100,
         },
-        "src/legacy.ts": {
-          statements: 100,
-          branches: 100,
-          functions: 100,
-          lines: 100,
-        },
-        "src/legacy-panel.ts": {
-          statements: 100,
-          branches: 85,
-          functions: 100,
-          lines: 100,
-        },
         "src/screen-words.ts": {
           statements: 95,
           branches: 90,
           functions: 100,
           lines: 95,
-        },
-        "src/veins.ts": {
-          statements: 90,
-          branches: 95,
-          functions: 100,
-          lines: 90,
         },
         "src/field-log.ts": {
           statements: 100,

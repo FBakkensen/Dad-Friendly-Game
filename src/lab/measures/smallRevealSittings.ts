@@ -6,6 +6,6 @@ export default defineMeasure({
   id: "smallRevealSittings",
   label: "Small things, reveal to first use",
   unit: "sittings",
-  why: "An upgrade, boost or new system should be tried within a sitting or two.",
+  why: "An upgrade or new system should be tried within a sitting or two.",
   aggregate: (samples) => smallRevealSittings(samples),
 });

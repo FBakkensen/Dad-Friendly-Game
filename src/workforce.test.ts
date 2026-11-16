@@ -134,9 +134,7 @@ describe("one workforce (slice 1, rule 2, #689)", () => {
     expect(partTwo(() => listActions(sunk(start), 0))).not.toContainEqual(
       place,
     );
-    const refused = partThree(() =>
-      applyMove(start, place, 0, { trouble: undefined }),
-    );
+    const refused = partThree(() => applyMove(start, place, 0));
     expect(refused.kind).toBe("refused");
   });
 
@@ -521,8 +519,6 @@ describe("the line in a fresh mine (rule 2.5, 2.9)", () => {
 });
 
 describe("the moves (rule 2.4)", () => {
-  const NO_TROUBLE = { trouble: undefined };
-
   it("lists a free worker's move onto each job, and a move off each job with someone on it", () => {
     fresh(() => {
       const moves = (mountain: Mountain): string[] =>
@@ -553,7 +549,6 @@ describe("the moves (rule 2.4)", () => {
         crew(12, { haulage: 1 }),
         { kind: "placeWorker", job: "drilling", count: 10 },
         0,
-        NO_TROUBLE,
       );
       expect(moved.kind === "applied" && moved.mountain.jobs.drilling).toBe(10);
       expect(moved.kind === "applied" && moved.events).toEqual([
@@ -568,7 +563,6 @@ describe("the moves (rule 2.4)", () => {
         crew(2, { haulage: 1 }),
         { kind: "placeWorker", job: "hoisting", count: 1 },
         0,
-        NO_TROUBLE,
       );
       if (moved.kind !== "applied") {
         throw new Error("move refused");
@@ -582,7 +576,6 @@ describe("the moves (rule 2.4)", () => {
         moved.mountain,
         { kind: "freeWorker", job: "hoisting", count: 1 },
         0,
-        NO_TROUBLE,
       );
       expect(back.kind === "applied" && back.events).toEqual([
         { kind: "workerFreed", job: "hoisting", count: 0 },
@@ -609,16 +602,11 @@ describe("the moves (rule 2.4)", () => {
           crew(1, { haulage: 1 }),
           { kind: "placeWorker", job: "drilling", count: 1 },
           0,
-          NO_TROUBLE,
         ).kind,
       ).toBe("refused");
       expect(
-        applyMove(
-          crew(1),
-          { kind: "freeWorker", job: "drilling", count: 1 },
-          0,
-          NO_TROUBLE,
-        ).kind,
+        applyMove(crew(1), { kind: "freeWorker", job: "drilling", count: 1 }, 0)
+          .kind,
       ).toBe("refused");
     });
     const today = {
@@ -629,18 +617,14 @@ describe("the moves (rule 2.4)", () => {
       listActions(today, 0).some((action) => action.kind === "placeWorker"),
     ).toBe(false);
     expect(
-      applyMove(
-        today,
-        { kind: "placeWorker", job: "drilling", count: 1 },
-        0,
-        NO_TROUBLE,
-      ).kind,
+      applyMove(today, { kind: "placeWorker", job: "drilling", count: 1 }, 0)
+        .kind,
     ).toBe("refused");
   });
 
   it("values a move at what the line gains, for free", () => {
     fresh(() => {
-      const context = { tapsPerSecond: 0, liveSeconds: 60, awaySeconds: 0 };
+      const context = { liveSeconds: 60, awaySeconds: 0 };
       // One on each stage moves 3; a fourth on haulage moves nothing more.
       const mine = crew(4, { drilling: 1, haulage: 1, hoisting: 1 });
       const haul = valueOf(

@@ -6,7 +6,7 @@ import {
   minedOut,
   type Mountain,
 } from "./mountain";
-import { RELICS } from "./relics";
+import { BUILDING_IDS } from "./city";
 import {
   createSession,
   firstNotice,
@@ -35,23 +35,14 @@ function playing(mountain: Mountain = createMountain()): Session {
 }
 
 describe("session step", () => {
-  it("announces a relic and a band reached since the baselines, once", () => {
-    const relic = RELICS[0];
+  it("announces a band reached since the baselines, once", () => {
     const band = LAYERS[1];
-    if (relic === undefined) {
-      throw new Error("the first relic");
-    }
-    const deep = Math.max(relic.depth, band.from);
     const session = playing();
-    const dug = { ...session, mountain: minedTo(deep) };
+    const dug = { ...session, mountain: minedTo(band.from) };
     const noticed = step(dug, { kind: "notice" }, 0);
-    expect(firstNotice(noticed.session.news, "reveal")?.relic.id).toBe(
-      relic.id,
-    );
     expect(firstNotice(noticed.session.news, "layer")?.layer.id).toBe(band.id);
-    expect(codes(noticed.effects)).toEqual(
-      expect.arrayContaining(["relic.found", "layer.enter"]),
-    );
+    expect(codes(noticed.effects)).toContain("layer.enter");
+    expect(codes(noticed.effects)).not.toContain("relic.found");
     const again = step(noticed.session, { kind: "notice" }, 0);
     expect(codes(again.effects)).not.toContain("layer.enter");
     expect(again.session.news.notices).toEqual(noticed.session.news.notices);
@@ -141,7 +132,7 @@ describe("session step", () => {
         ...session,
         news: {
           ...session.news,
-          notices: [quiet(12), ...RELICS.map(reveal)],
+          notices: [quiet(12), ...BUILDING_IDS.map(lit)],
         },
       },
       { kind: "begin", mountain: { ...createMountain(), startedAt: 5_000 } },
@@ -149,7 +140,6 @@ describe("session step", () => {
     );
     expect(begun.session.lastSeen).toBe(5_000);
     expect(begun.session.news.notices).toEqual([]);
-    expect(begun.session.baselines.reveal).toBe(0);
     expect(begun.effects).toEqual([{ kind: "remember" }]);
   });
 
@@ -157,33 +147,33 @@ describe("session step", () => {
     const session = playing();
     const news: Session = {
       ...session,
-      news: { ...session.news, notices: [reveal(RELICS[0]), quiet(3)] },
+      news: { ...session.news, notices: [lit(BUILDING_IDS[0]), quiet(3)] },
     };
-    expect(hasNews(session, "reveal")).toBe(false);
-    expect(hasNews(news, "reveal")).toBe(true);
+    expect(hasNews(session, "operational")).toBe(false);
+    expect(hasNews(news, "operational")).toBe(true);
     const quietClosed = step(news, { kind: "dismiss", what: "quiet" }, 0);
     expect(hasNews(quietClosed.session, "quiet")).toBe(false);
-    expect(quietClosed.session.news.notices).toEqual([reveal(RELICS[0])]);
+    expect(quietClosed.session.news.notices).toEqual([lit(BUILDING_IDS[0])]);
     expect(step(session, { kind: "dismiss", what: "craft" }, 0).session).toBe(
       session,
     );
   });
 
   it("dismisses two notices of one kind one at a time, in order (#415)", () => {
-    const [first, second] = RELICS;
+    const [first, second] = BUILDING_IDS;
     const session = playing();
     const two: Session = {
       ...session,
       news: {
         ...session.news,
-        notices: [reveal(first), quiet(3), reveal(second)],
+        notices: [lit(first), quiet(3), lit(second)],
       },
     };
-    const one = step(two, { kind: "dismiss", what: "reveal" }, 0).session;
-    expect(firstNotice(one.news, "reveal")?.relic).toBe(second);
+    const one = step(two, { kind: "dismiss", what: "operational" }, 0).session;
+    expect(firstNotice(one.news, "operational")?.building).toBe(second);
     expect(noticesOf(one.news, "quiet")).toEqual([quiet(3)]);
-    const none = step(one, { kind: "dismiss", what: "reveal" }, 0).session;
-    expect(hasNews(none, "reveal")).toBe(false);
+    const none = step(one, { kind: "dismiss", what: "operational" }, 0).session;
+    expect(hasNews(none, "operational")).toBe(false);
     expect(none.news.notices).toEqual([quiet(3)]);
   });
 
@@ -194,7 +184,7 @@ describe("session step", () => {
       ...session,
       news: {
         ...session.news,
-        notices: [band, reveal(RELICS[0])],
+        notices: [band, lit(BUILDING_IDS[0])],
         homecomings: [
           {
             engineer: "Ada",
@@ -209,15 +199,15 @@ describe("session step", () => {
     const closed = step(card, { kind: "dismiss", what: "away" }, 0);
     expect(closed.effects).toEqual([{ kind: "remember" }]);
     expect(hasNews(closed.session, "away")).toBe(false);
-    expect(closed.session.news.notices).toEqual([reveal(RELICS[0])]);
+    expect(closed.session.news.notices).toEqual([lit(BUILDING_IDS[0])]);
     expect(closed.session.news.homecomings).toEqual([]);
   });
 });
 
 const quiet = (stones: number): Notice => ({ kind: "quiet", stones });
-const reveal = (relic: (typeof RELICS)[number] | undefined): Notice => {
-  if (relic === undefined) {
-    throw new Error("a relic");
+const lit = (building: (typeof BUILDING_IDS)[number] | undefined): Notice => {
+  if (building === undefined) {
+    throw new Error("a building");
   }
-  return { kind: "reveal", relic };
+  return { kind: "operational", building };
 };

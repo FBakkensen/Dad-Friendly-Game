@@ -5,7 +5,7 @@
  * mountain behind and by the set-aside of a copy from before this version
  * (#558).
  */
-import type { ArchiveReason, CloudWriteResult } from "./cloud-save";
+import type { ArchiveWriteReason, CloudWriteResult } from "./cloud-save";
 import { settleWithin, type GaveUp } from "./settle-within";
 import { log, record, type StoreContext } from "./store-context";
 import { emit } from "./store-session";
@@ -17,7 +17,7 @@ import { emit } from "./store-session";
 export async function archiveWithin(
   ctx: StoreContext,
   write: Promise<CloudWriteResult>,
-  reason: ArchiveReason,
+  reason: ArchiveWriteReason,
   mined: number,
   still: () => boolean,
 ): Promise<boolean> {

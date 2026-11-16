@@ -68,10 +68,8 @@ const STATE_CLASS: Readonly<Record<RowState, string>> = {
   found: "is-found",
 };
 const DONE = "Done";
-/** An icon's CSS px: 32 art px (a machine), 24 (a relic) or 16 (a small icon), at 2 px each. */
-type IconPx = 32 | 48 | 64;
-/** The row bar's length in art px: the row's middle and right columns (board.css). */
-const BAR_ART = 156;
+/** An icon's CSS px: 32 art px (a machine) or 16 (a small icon), at 2 px each. */
+type IconPx = 32 | 64;
 
 /** Text that hides its box when empty. */
 function line(target: HTMLElement, text: string): void {
@@ -378,43 +376,6 @@ export function createBoardRow(options: RowOptions): BoardRow {
     },
     render,
   };
-}
-
-/** The bar at a row's foot, under its middle and right columns: hidden until it has progress. */
-export function rowBar(): {
-  readonly bar: HTMLElement;
-  readonly fill: HTMLElement;
-} {
-  const bar = el("i", "board-row-bar");
-  bar.setAttribute("role", "progressbar");
-  bar.setAttribute("aria-valuemin", "0");
-  bar.setAttribute("aria-valuemax", "100");
-  bar.hidden = true;
-  const fill = el("span", "board-row-bar-fill");
-  bar.append(fill);
-  return { bar, fill };
-}
-
-/**
- * Paints the bar at `progress` (0..1) in whole art px, with no transition, or hides it for
- * none. Writes only what changed.
- */
-export function paintRowBar(
-  bar: HTMLElement,
-  fill: HTMLElement,
-  progress: number | undefined,
-  label: string,
-): void {
-  hide(bar, progress === undefined);
-  if (progress === undefined) {
-    return;
-  }
-  setAttr(bar, "aria-valuenow", String(Math.round(progress * 100)));
-  setAttr(bar, "aria-label", label);
-  const art = String(Math.round(progress * BAR_ART));
-  if (fill.style.getPropertyValue("--fill") !== art) {
-    fill.style.setProperty("--fill", art);
-  }
 }
 
 /** A drawer's rows on the board's model: their taps, what those led to, and their Done and blink. */

@@ -124,12 +124,12 @@ describe("the settle", () => {
   });
 
   it("lets a tap that closes a drawer through to what it closed over", () => {
-    // The scrim closes the drawers and hands the same tap to the relic socket under it.
+    // The scrim closes the drawers and lets the same tap through to the board under it.
     const scrim = after(
       { kind: "open", overlay: "buys", at: 0 },
       { kind: "close", overlay: "buys", at: 1000, by: "tap-through" },
     );
-    expect(decide(scrim, finger("board", "socket:0", 1000))).toBe("act");
+    expect(decide(scrim, finger("board", "key:ledger", 1000))).toBe("act");
     const timed = after(
       { kind: "open", overlay: "buys", at: 0 },
       { kind: "close", overlay: "buys", at: 1000, by: "program" },
@@ -628,11 +628,11 @@ describe("the freeze", () => {
   it("keeps the order a drawer gives as it opens while the save loads again", () => {
     // Upgrades keeps its order through a reload: it gives that order as it opens.
     const kept: Layout = {
-      parts: ["boost:sharper", "upgrade:tap"],
+      parts: ["upgrade:cartSyn", "upgrade:boots"],
       chipRows: 0,
     };
     const landed: Layout = {
-      parts: ["upgrade:tap", "boost:sharper"],
+      parts: ["upgrade:boots", "upgrade:cartSyn"],
       chipRows: 0,
     };
     const state = after(
@@ -653,11 +653,11 @@ describe("the freeze", () => {
     // Upgrades lists every row it can show, hidden ones too: their places hold, and
     // showing or hiding one in place is the painter's.
     const all: Layout = {
-      parts: ["boost:sharper", "upgrade:tap"],
+      parts: ["upgrade:cartSyn", "upgrade:boots"],
       chipRows: 0,
     };
     const reordered: Layout = {
-      parts: ["upgrade:tap", "boost:sharper"],
+      parts: ["upgrade:boots", "upgrade:cartSyn"],
       chipRows: 0,
     };
     const state = after(
@@ -666,12 +666,17 @@ describe("the freeze", () => {
       laid(reordered, "upgrades"),
     );
     expect(shown(state, "upgrades")).toBe(all);
-    expect(decide(state, finger("upgrades", "upgrade:tap", 1000))).toBe("act");
+    expect(decide(state, finger("upgrades", "upgrade:boots", 1000))).toBe(
+      "act",
+    );
   });
 
   it("freezes each drawer on its own", () => {
-    const U1: Layout = { parts: ["boost:sharper"], chipRows: 0 };
-    const U2: Layout = { parts: ["boost:sharper", "upgrade:tap"], chipRows: 0 };
+    const U1: Layout = { parts: ["upgrade:cartSyn"], chipRows: 0 };
+    const U2: Layout = {
+      parts: ["upgrade:cartSyn", "upgrade:boots"],
+      chipRows: 0,
+    };
     const state = after(
       laid(L1),
       open(),

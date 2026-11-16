@@ -450,11 +450,10 @@ describe("measures", () => {
       "iron-rails",
       "sturdy-props",
       "reinforce",
-      "crystal-lamp",
       "engineers-kit",
     ] as const;
     const ironCap = materialDemand("iron", ironRecipes, NOTHING_CRAFTED, []);
-    expect(ironCap).toBe(4 * 2 + 4 + 5 * 5 + 4 + 4);
+    expect(ironCap).toBe(4 * 2 + 4 + 5 * 5 + 4);
     const pocket = { clay: 0, iron: ironCap, crystal: 0, heartstone: 0 };
     const atCap = decision({
       workshopOpen: true,

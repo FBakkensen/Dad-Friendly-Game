@@ -4,7 +4,7 @@ Cloud save is the cross-device copy. The phone keeps a backup. Failures must be 
 
 Signed-in progress lives in one Firestore document per Google uid. The phone also keeps one localStorage backup of the full save for that uid. It is written when the mountain changes, and synchronously on hide and pagehide. It is never deleted. Launch keeps the copy that is ahead: a later run, else more rock dug in all (stones mined from the mountain plus rock drilling dug in a fresh mine, a count that only grows), else a newer `lastSeen`. A tie between two real copies keeps the phone. A phone that has never saved keeps the cloud document. The phone is uploaded only when it is strictly ahead.
 
-Every copy has one shape, version 9 (`docs/ARCHITECTURE.md`, The save). A save from a later build is read-only: it is never played, and nothing is written to the cloud, the phone or Saved copies while it is there; the update card asks for the new build. A save from before the current version is set aside, never converted: the phone keeps its text at `{key}:v{version}`, the cloud keeps it in Saved copies, and a fresh mountain starts with the old run stamp.
+Every copy has one shape, version 10 (`docs/ARCHITECTURE.md`, The save). A save from a later build is read-only: it is never played, and nothing is written to the cloud, the phone or Saved copies while it is there; the update card asks for the new build. A save from before the current version is set aside, never converted: the phone keeps its text at `{key}:v{version}`, the cloud keeps it in Saved copies, and a fresh mountain starts with the old run stamp.
 
 ## Do
 

@@ -86,7 +86,6 @@ describe("the truck as a move (#673)", () => {
 describe("the shaft and the Granite's machines as moves (#673)", () => {
   const SINK: Action = { kind: "sinkShaft" };
   const GRANITE_BORER: Action = { kind: "buyGraniteMachine", id: "borer" };
-  const NO_TROUBLE = { trouble: undefined };
 
   const stocked = (mountain: Mountain, stock: Partial<Stock>): Mountain => ({
     ...mountain,
@@ -116,7 +115,7 @@ describe("the shaft and the Granite's machines as moves (#673)", () => {
         stones: 10_000_000,
         brick: 1_500_000,
       });
-      const result = applyMove(start, SINK, 0, NO_TROUBLE);
+      const result = applyMove(start, SINK, 0);
       expect(result.kind).toBe("applied");
       if (result.kind !== "applied") {
         return;
@@ -133,7 +132,7 @@ describe("the shaft and the Granite's machines as moves (#673)", () => {
         data: { id: "granite" },
       });
       // Short of the price, it is refused.
-      expect(applyMove(mine(false), SINK, 0, NO_TROUBLE).kind).toBe("refused");
+      expect(applyMove(mine(false), SINK, 0).kind).toBe("refused");
     });
   });
 
@@ -159,7 +158,7 @@ describe("the shaft and the Granite's machines as moves (#673)", () => {
   it("buys it for the Granite: what he owns and the Granite's count rise together, and it is logged", () => {
     partThree(() => {
       const start = stocked(mine(true), { cutStone: 40_000 });
-      const result = applyMove(start, GRANITE_BORER, 0, NO_TROUBLE);
+      const result = applyMove(start, GRANITE_BORER, 0);
       expect(result.kind).toBe("applied");
       if (result.kind !== "applied") {
         return;
@@ -181,7 +180,7 @@ describe("the shaft and the Granite's machines as moves (#673)", () => {
   it("refuses a Granite machine he cannot pay for: nothing changes", () => {
     partThree(() => {
       const broke = stocked(mine(true), { cutStone: 39_999 });
-      expect(applyMove(broke, GRANITE_BORER, 0, NO_TROUBLE)).toEqual({
+      expect(applyMove(broke, GRANITE_BORER, 0)).toEqual({
         kind: "refused",
       });
     });
@@ -189,12 +188,7 @@ describe("the shaft and the Granite's machines as moves (#673)", () => {
     partTwo(() => {
       const rich = stocked(mine(true), { stones: 1e9, cutStone: 1e9 });
       expect(
-        applyMove(
-          rich,
-          { kind: "buyGraniteMachine", id: "cart" },
-          0,
-          NO_TROUBLE,
-        ),
+        applyMove(rich, { kind: "buyGraniteMachine", id: "cart" }, 0),
       ).toEqual({ kind: "refused" });
     });
   });
@@ -203,7 +197,7 @@ describe("the shaft and the Granite's machines as moves (#673)", () => {
     partThree(() => {
       const start = stocked(mine(true), { cutStone: 40_000 });
       expect(start.engineers).toEqual([]);
-      const result = applyMove(start, GRANITE_BORER, 0, NO_TROUBLE);
+      const result = applyMove(start, GRANITE_BORER, 0);
       expect(
         result.kind === "applied" && result.mountain.engineers.length,
       ).toBe(1);

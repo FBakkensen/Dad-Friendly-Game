@@ -27,7 +27,6 @@ import {
   type AwayReport,
   type Mountain,
 } from "./mountain";
-import { relicsUncovered, type Relic } from "./relics";
 import { advance, timeInput } from "./session-time";
 import { GOOD_IDS } from "./stock";
 import { recordFirstUse } from "./teach";
@@ -54,9 +53,6 @@ export const WELCOME_MIN_AWAY_MS = 60 * 1000;
  */
 export const QUIET_AWAY_MS = 5 * 60 * 1000;
 
-/** One settled stretch away: how long, and the moment it was settled. */
-export type AwayGap = { readonly ms: number; readonly at: number };
-
 /**
  * One fitted craft, named once. The screen words it from the mountain at
  * the moment it was fitted, so the number is the one the crew felt then.
@@ -74,8 +70,6 @@ export type Notice =
   | { readonly kind: "away"; readonly report: AwayReport }
   /** Stones a short absence paid: a small note, not the card (#334). */
   | { readonly kind: "quiet"; readonly stones: number }
-  /** A relic uncovered and not yet celebrated. */
-  | { readonly kind: "reveal"; readonly relic: Relic }
   /** A band broken into. A loaded save already in a band does not announce it again. */
   | { readonly kind: "layer"; readonly layer: Layer }
   /** A craft fitted, with the mountain at the moment it finished. */
@@ -119,7 +113,6 @@ const CARD_KINDS: readonly NoticeKind[] = [...WELCOME_KINDS, "layer", "craft"];
 type SessionNews = {
   /** Every notice not yet shown, in arrival order. */
   readonly notices: readonly Notice[];
-  readonly awayGap: AwayGap | undefined;
   /** The welcome-back card has had its chance this open. */
   readonly welcomed: boolean;
   readonly homecomings: readonly Homecoming[];
@@ -128,11 +121,10 @@ type SessionNews = {
 };
 
 /**
- * Where news was last checked. Unset until a save is loaded, so relics,
- * bands and crafts already in a loaded save are never announced again.
+ * Where news was last checked. Unset until a save is loaded, so bands and
+ * crafts already in a loaded save are never announced again.
  */
 type Baselines = {
-  readonly reveal: number | undefined;
   readonly layer: number | undefined;
   readonly craft: Crafted | undefined;
   readonly operational: readonly BuildingId[] | undefined;
@@ -177,7 +169,7 @@ export type SessionInput =
   | { readonly kind: "press" | "fix"; readonly tier: TroubleTier }
   /** Shows trouble at once (the layout check), since trouble is never saved. */
   | { readonly kind: "preview-trouble"; readonly tier: TroubleTier }
-  /** Relics, bands, crafts and buildings reached since the baselines. */
+  /** Bands, crafts and buildings reached since the baselines. */
   | { readonly kind: "notice" }
   /** A new run (Start over, or the mine passed down). */
   | { readonly kind: "begin"; readonly mountain: Mountain }
@@ -206,14 +198,12 @@ export type Stepped = {
 
 const NO_NEWS: SessionNews = {
   notices: [],
-  awayGap: undefined,
   welcomed: false,
   homecomings: [],
   pending: false,
 };
 
 const NO_BASELINES: Baselines = {
-  reveal: undefined,
   layer: undefined,
   craft: undefined,
   operational: undefined,
@@ -412,7 +402,6 @@ function settleAway(
       mountain: moved.mountain,
       hazards: moved.hazards,
       lastSeen: moved.settledAt,
-      news: { ...session.news, awayGap: { ms: report.awayMs, at: now } },
     },
     moved.homecomings,
     out,
@@ -507,8 +496,6 @@ function noteHomecomings(
 /** The find the ring stores. A quiet tunnel has no shelf id. */
 function findToken(find: Homecoming["find"]): string {
   switch (find.kind) {
-    case "glimmer":
-      return find.relic;
     case "tool":
     case "keepsake":
       return find.id;
@@ -561,7 +548,7 @@ function noteHazards(
 }
 
 /**
- * The clock and the trouble the move sees are the settled ones. A refused
+ * The clock the move sees is the settled one. A refused
  * move changes nothing, but a first use the settle revealed is still marked.
  */
 function applyPlayerMove(
@@ -570,9 +557,7 @@ function applyPlayerMove(
   now: number,
   out: Effects,
 ): Session {
-  const result = applyMove(settled.mountain, move, now, {
-    trouble: activeTrouble(settled),
-  });
+  const result = applyMove(settled.mountain, move, now);
   out.push({ kind: "moved", result });
   return commitChange(
     settled,
@@ -643,11 +628,9 @@ function previewTrouble(
   };
 }
 
-/** Relics, bands, crafts and buildings reached since the baselines, in that order. */
+/** Bands, crafts and buildings reached since the baselines, in that order. */
 function notice(session: Session, now: number, out: Effects): Session {
-  return noteOperational(
-    noteCrafts(noteLayers(noteReveals(session, out), out), now, out),
-  );
+  return noteOperational(noteCrafts(noteLayers(session, out), now, out));
 }
 
 /** Each building that went operational since the baseline, announced once. */
@@ -663,30 +646,6 @@ function noteOperational(session: Session): Session {
       lit.map((building) => ({ kind: "operational", building })),
     ),
     baselines: { ...session.baselines, operational: running },
-  };
-}
-
-function noteReveals(session: Session, out: Effects): Session {
-  const mined = minedOut(session.mountain);
-  const before = session.baselines.reveal;
-  const found =
-    before === undefined ? [] : relicsUncovered({ before, after: mined });
-  for (const relic of found) {
-    out.log({
-      level: "info",
-      code: "relic.found",
-      detail: relic.id,
-      data: { mined },
-    });
-    out.record("relic.found", { id: relic.id });
-  }
-  return {
-    ...session,
-    news: addNotices(
-      session.news,
-      found.map((relic) => ({ kind: "reveal", relic })),
-    ),
-    baselines: { ...session.baselines, reveal: mined },
   };
 }
 
@@ -777,14 +736,13 @@ function beginRun(
       ...dropNotices(session.news, [
         "away",
         "quiet",
-        "reveal",
         "layer",
         "craft",
         "operational",
       ]),
       homecomings: [],
     },
-    baselines: { ...session.baselines, reveal: 0 },
+    baselines: session.baselines,
   });
 }
 
@@ -836,19 +794,9 @@ export function hasNews(session: Session, what: DismissTarget): boolean {
  * from this mountain; otherwise a baseline already set is kept.
  */
 export function openBaselines(session: Session, rebase: boolean): Session {
-  const withReveal: Session = {
-    ...session,
-    baselines: {
-      ...session.baselines,
-      reveal:
-        rebase || session.baselines.reveal === undefined
-          ? minedOut(session.mountain)
-          : session.baselines.reveal,
-    },
-  };
-  return rebase || withReveal.baselines.layer === undefined
-    ? primeArrivals(withReveal)
-    : withReveal;
+  return rebase || session.baselines.layer === undefined
+    ? primeArrivals(session)
+    : session;
 }
 
 /** The welcome-back card has had its chance this open. */

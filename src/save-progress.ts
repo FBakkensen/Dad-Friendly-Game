@@ -56,7 +56,6 @@ export function playedSinceNew(
     rockDugInAll(mountain) > 0 ||
     (countStamp && runStartedAt(mountain) > 0) ||
     mountain.stock.stones > 0 ||
-    mountain.legacy > 0 ||
     mountain.operational.length > 0 ||
     mountain.project.kind !== "unordered" ||
     TIER_IDS.some((id) => mountain.owned[id] > start.owned[id]) ||

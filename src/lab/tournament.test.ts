@@ -49,14 +49,12 @@ function dad(spec: Pick<PlainSpec, "id" | "label" | "kind">): Policy {
     ...spec,
     sessionsPerDay: 1,
     minutesPerSession: 1,
-    tapsPerSecond: 0,
     promote: "never",
     promoteCap: 0,
     explore: "never",
     tend: "never",
     trouble: "never",
     workers: "never",
-    boosts: "never",
   });
 }
 
@@ -639,7 +637,6 @@ describe("tournament", () => {
       seed: 1,
       bands: { topsoil: 1 },
       machines: {},
-      relics: {},
       finishDay: 6,
       endHash: "0000abcd",
     };
@@ -794,7 +791,6 @@ describe("tournament", () => {
     for (const file of ["tournament.ts", "report.ts"]) {
       const source = readFileSync(path.resolve("src/lab", file), "utf8");
       expect(source.includes("casual-2x10")).toBe(false);
-      expect(source.includes("tap-only")).toBe(false);
       expect(source.includes('"regret"')).toBe(false);
       expect(source.includes('"finishDay"')).toBe(false);
       expect(source.includes("node:fs")).toBe(false);
@@ -824,7 +820,6 @@ describe("openingView", () => {
       sessionsPerDay: 1,
       minutesPerSession: 1,
       craft: "always",
-      boosts: "always",
       ...(spend === undefined ? {} : { spend }),
     });
   }
@@ -865,15 +860,13 @@ describe("openingView", () => {
       worker: 0,
       machine: 0,
       upgrade: 0,
-      boost: 1,
       promote: 0,
     });
     const rich = { ...granite, stock: { ...granite.stock, stones: 1_000_000 } };
     const kinds = actionsOnTable(rich, 0, policy.params).map(
       (action) => action.kind,
     );
-    // Boosts and crafts are on his table, but none of them is on the Buys sheet.
-    expect(kinds).toContain("buyBoost");
+    // Crafts are on his table, but none of them is on the Buys sheet.
     expect(kinds).toContain("craft");
     expect(kinds).not.toContain("buyTier");
     expect(kinds).not.toContain("buyUpgrade");

@@ -21,12 +21,9 @@ const ART = {
   borer: "/src/assets/tunnel-borer.png",
   machine: "/src/assets/great-machine.png",
   kid: "/src/assets/kid-helper.png",
-  pick: "/src/assets/pick.png",
   boot: "/src/assets/boot-tile.png",
-  gold: "/src/assets/gold-nugget.png",
   ore: "/src/assets/ore-lump.png",
   hammer: "/src/assets/relics/hammer.png",
-  lantern: "/src/assets/relics/lantern.png",
   upgrades: "/src/assets/upgrades-icon.png",
   mountain: "/src/assets/mountain.png",
   map: "/src/assets/worn-map.png",
@@ -145,29 +142,7 @@ type TimerSpec = {
 };
 
 const TIMERS: readonly TimerSpec[] = [
-  {
-    id: "picks",
-    name: "Sharper picks",
-    art: ART.pick,
-    times: "×2",
-    ms: 299_000,
-  },
   { id: "boots", name: "Quick boots", art: ART.boot, times: "×3", ms: 62_000 },
-  { id: "vein", name: "Golden vein", art: ART.gold, times: "×7", ms: 18_000 },
-  {
-    id: "lamp",
-    name: "Miner's lamp",
-    art: ART.lantern,
-    times: "×2",
-    ms: 1_800_000,
-  },
-  {
-    id: "crew",
-    name: "Overtime",
-    art: ART.helper,
-    times: "×2",
-    ms: 97_200_000,
-  },
   {
     id: "drill",
     name: "Drill rush",
@@ -247,11 +222,9 @@ export function renderPartsControls(view: PartsView): string {
 }
 
 const STEPS = [
-  [ART.pick, "Tap the mountain to dig stones."],
   [ART.helper, "Hire workers. They dig while you rest."],
   [ART.cart, "Carts, drills and borers each need workers to run."],
   [ART.hammer, "Craft at the Workshop with the ore you find."],
-  [ART.lantern, "Timers boost your digging. They all show on top."],
 ] as const;
 
 export function renderPartsHow(view: PartsView): string {

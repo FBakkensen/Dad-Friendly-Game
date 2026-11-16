@@ -16,14 +16,12 @@ import {
   layerOf,
   layersEntered,
   materialsFromMined,
-  nextLayer,
   materialsGained,
   materialLeftToDig,
   type LayerId,
   type MaterialId,
 } from "./layers";
 import { LINE_OFF } from "./line-switch";
-import { RELICS } from "./relics";
 import { MOUNTAIN_STONES } from "./scale";
 import { TIERS, tierById } from "./tiers";
 import { effectiveRates } from "./rates";
@@ -348,14 +346,6 @@ describe("what the rest of the mountain still gives (#492)", () => {
 });
 
 describe("breaking into a band", () => {
-  it("names the next band, and nothing below the Deep Heart", () => {
-    expect(nextLayer(minedMountain(0))?.id).toBe("granite");
-    expect(nextLayer(minedMountain(10_000_000))?.id).toBe("crystal");
-    expect(nextLayer(minedMountain(45_000_000))?.id).toBe("heart");
-    expect(nextLayer(minedMountain(120_000_000))).toBeUndefined();
-    expect(nextLayer(minedMountain(MOUNTAIN_STONES))).toBeUndefined();
-  });
-
   it("announces each break-in once, and skips the Topsoil", () => {
     expect(layersEntered(0, 0)).toEqual([]);
     expect(layersEntered(5, 4)).toEqual([]);
@@ -381,8 +371,7 @@ describe("breaking into a band", () => {
         continue;
       }
       const suits = tierById(favours.suits);
-      const unlockDepth =
-        RELICS.find((relic) => relic.id === suits.needs)?.depth ?? 0;
+      const unlockDepth = suits.opensAt ?? 0;
       const nextFrom: number =
         index < LAYERS.length ? LAYERS[index as 2 | 3].from : Infinity;
       expect(unlockDepth).toBeLessThan(nextFrom);

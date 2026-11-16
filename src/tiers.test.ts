@@ -87,8 +87,8 @@ describe("tiers", () => {
       ["machine", 2_100],
       ["kid", 25],
     ]);
-    expect(tierById("machine").needs).toBe("hammer");
-    expect(tierById("kid").needs).toBe("crown");
+    // #728: the Kid worker opens where the Crown of Wisdom lay.
+    expect(tierById("kid").opensAt).toBe(70_000_000);
     // #356: the borer opens at the Granite start, the band that suits it.
     expect(tierById("borer").opensAt).toBe(10_000_000);
     // M12 retune (#252): the Great Machine opens at the Deep Heart.
@@ -264,8 +264,8 @@ describe("crew staffing", () => {
   });
 });
 
-describe("Crown of Wisdom: kid helpers", () => {
-  it("are locked until the Crown, then for sale on the helpers' curve", () => {
+describe("kid helpers", () => {
+  it("are locked until 70M mined, then for sale on the helpers' curve", () => {
     const kid = tierById("kid");
     expect(tierLocked(minedMountain(69_999_999), kid)).toBe(true);
     expect(tierLocked(minedMountain(70_000_000), kid)).toBe(false);
@@ -365,25 +365,23 @@ describe("tierQuote: what ×1, ×10 and Max cost (#358)", () => {
   const cart = tierById("cart");
   /** Ten carts after the six owned, unit by unit, as buyTier charges them. */
   const tenFrom6 = Array.from({ length: 10 }, (_, i) =>
-    tierCost(cart, 6 + i, 2),
+    tierCost(cart, 6 + i),
   ).reduce((sum, price) => sum + price, 0);
 
   it("×1 is one at today's price", () => {
     const m = at({
       stock: { ...EMPTY_STOCK, stones: 0 },
-      stretch: 2,
       owned: { ...NONE_OWNED, cart: 6 },
     });
     expect(tierQuote(m, cart, "one")).toEqual({
       count: 1,
-      cost: tierCost(cart, 6, 2),
+      cost: tierCost(cart, 6),
     });
   });
 
   it("×10 is exactly ten, the sum buyTier would charge, affordable or not", () => {
     const m = at({
       stock: { ...EMPTY_STOCK, stones: 0 },
-      stretch: 2,
       owned: { ...NONE_OWNED, cart: 6 },
     });
     expect(tierQuote(m, cart, "ten")).toEqual({ count: 10, cost: tenFrom6 });
@@ -400,8 +398,7 @@ describe("tierQuote: what ×1, ×10 and Max cost (#358)", () => {
   it("Max is as many as the pocket holds", () => {
     const m = at({
       owned: { ...NONE_OWNED, cart: 6 },
-      stock: { ...EMPTY_STOCK, stones: tenFrom6 + tierCost(cart, 16, 2) - 1 },
-      stretch: 2,
+      stock: { ...EMPTY_STOCK, stones: tenFrom6 + tierCost(cart, 16) - 1 },
     });
     expect(tierQuote(m, cart, "max")).toEqual({ count: 10, cost: tenFrom6 });
   });
@@ -409,12 +406,11 @@ describe("tierQuote: what ×1, ×10 and Max cost (#358)", () => {
   it("Max with nothing affordable quotes one, at its price", () => {
     const m = at({
       stock: { ...EMPTY_STOCK, stones: 5 },
-      stretch: 2,
       owned: { ...NONE_OWNED, cart: 6 },
     });
     expect(tierQuote(m, cart, "max")).toEqual({
       count: 1,
-      cost: tierCost(cart, 6, 2),
+      cost: tierCost(cart, 6),
     });
   });
 
@@ -717,7 +713,6 @@ describe("part 3's machines (#673)", () => {
         kind: "later",
         at: "granite",
       });
-      expect(tierCost(borer, 2)).toBe(tierCost(borer, 2, 1));
     });
     partThree(() => {
       expect(tierGood("cart")).toBe("stones");

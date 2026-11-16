@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
-import { formatCompact, formatCount } from "../src/format.ts";
+import { formatCompact } from "../src/format.ts";
 import { effectiveRates } from "../src/rates.ts";
 import {
   buyPriceWords,
@@ -381,9 +381,8 @@ describe("design token mocks (#234)", () => {
     expect(screensCss).not.toMatch(/font-size:\s*\d/);
   });
 
-  it("shows the scale, the next drill, and the boost sheet without a question mark", () => {
+  it("shows the scale, the next drill, and the upgrades sheet without a question mark", () => {
     const drill = formatCompact(tierCost(tierById("drill"), 8));
-    const arms = buyPriceWords(mustCost(upgradeCost(upgradeById("tap"), 3)));
     const roads = buyPriceWords(
       mustCost(upgradeCost(upgradeById("drillSyn"), 0)),
     );
@@ -402,7 +401,7 @@ describe("design token mocks (#234)", () => {
     );
     const sheet = host(renderMock(view({ scene: "token-sheet" })));
     expect(sheet.textContent).toContain("+2.5 · 203/s");
-    expect(sheet.textContent).toContain(arms);
+    expect(sheet.textContent).toContain(roads);
     expect(sheet.textContent).toContain(crewPostsShort(84, 2));
     expect(sheet.textContent).toContain(`Running · ${formatClock(600_000)}`);
     expect(sheet.textContent).toContain("Clay 40");
@@ -453,27 +452,22 @@ describe("design token mocks (#234)", () => {
     ).toBe(true);
 
     const upgrades = host(renderMock(view({ scene: "upgrades-tokens" })));
-    expect(upgrades.textContent).toContain(arms);
     expect(upgrades.textContent).toContain(roads);
     expect(upgrades.textContent).toContain(crews);
     expect(upgrades.textContent).toContain(tracks);
-    expect(upgrades.textContent).toContain(`Running · ${formatClock(600_000)}`);
-    expect(upgrades.textContent).toContain(
-      `Running · ${formatClock(1_800_000)}`,
-    );
-    expect(upgrades.textContent).toContain("now 1,410");
-    expect(upgrades.textContent).toContain("22.7K/s");
     expect(
       upgrades.querySelector(".tok-close")?.getAttribute("aria-label"),
     ).toBe("Back to the mountain");
-    expect(upgrades.querySelectorAll(".tok-action")).toHaveLength(6);
+    expect(upgrades.querySelectorAll(".tok-action")).toHaveLength(3);
     expect(upgrades.textContent).not.toMatch(/\?/);
     expect(upgrades.querySelector("audio, video")).toBeNull();
   });
 
   it("keeps three different directions on the real prices", () => {
     const drill = formatCompact(tierCost(tierById("drill"), 8));
-    const arms = buyPriceWords(mustCost(upgradeCost(upgradeById("tap"), 3)));
+    const roads = buyPriceWords(
+      mustCost(upgradeCost(upgradeById("drillSyn"), 0)),
+    );
     for (const which of ["a", "c"] as const) {
       const mountain = host(renderMock(view({ scene: `mountain-${which}` })));
       expect(mountain.textContent).toContain(drill);
@@ -484,9 +478,7 @@ describe("design token mocks (#234)", () => {
       expect(mountain.textContent).toContain("+2.5 · 203/s");
       expect(mountain.textContent).not.toMatch(/\?/);
       const sheet = host(renderMock(view({ scene: `upgrades-${which}` })));
-      expect(sheet.textContent).toContain(arms);
-      expect(sheet.textContent).toContain("Running · 10:00");
-      expect(sheet.textContent).toContain("Running · 30:00");
+      expect(sheet.textContent).toContain(roads);
       expect(sheet.textContent).toContain("Back to the mountain");
       expect(sheet.textContent).not.toMatch(/\?/);
     }
@@ -547,21 +539,6 @@ describe("design token mocks (#234)", () => {
       /pays back|worth it|best value|\?|in \d+ min/i,
     );
     const sheetB = host(renderMock(view({ scene: "upgrades-b" })));
-    const before = rates.tapYield;
-    const after = effectiveRates({
-      ...mountainB,
-      upgrades: {
-        ...mountainB.upgrades,
-        tap: upgradeLevel(mountainB, "tap") + 1,
-      },
-    }).tapYield;
-    // Strong arms is dear at 2.9M (#250), so its card keeps the reading
-    // in the spoken label rather than on the face.
-    expect(sheetB.innerHTML).toContain(
-      `Tap ${formatCount(before)} to ${formatCount(after)}`,
-    );
-    expect(sheetB.textContent).toContain("Taps ×2 for 10 min.");
-    expect(sheetB.textContent).toContain("Crew ×2 for 30 min.");
     const helped = effectiveRates({
       ...mountainB,
       upgrades: {
@@ -597,21 +574,21 @@ describe("design token mocks (#234)", () => {
       ["mountain-tokens", "rest", ""],
       ["mountain-tokens", "press", "drill"],
       ["upgrades-tokens", "rest", ""],
-      ["upgrades-tokens", "press", "arms"],
+      ["upgrades-tokens", "press", "roads"],
       ["mountain-a", "rest", ""],
       ["mountain-a", "press", "drill"],
       ["upgrades-a", "rest", ""],
-      ["upgrades-a", "press", "arms"],
+      ["upgrades-a", "press", "roads"],
       ["mountain-b", "rest", ""],
       ["mountain-b", "press", "buys"],
       ["mountain-b-open", "rest", ""],
       ["mountain-b-open", "press", "drill"],
       ["upgrades-b", "rest", ""],
-      ["upgrades-b", "press", "arms"],
+      ["upgrades-b", "press", "hands"],
       ["mountain-c", "rest", ""],
       ["mountain-c", "press", "buy"],
       ["upgrades-c", "rest", ""],
-      ["upgrades-c", "press", "arms"],
+      ["upgrades-c", "press", "roads"],
     ] as const;
     for (const [scene, phase, control] of shots) {
       const root = mountTokens(scene, phase, control);
@@ -666,10 +643,10 @@ describe("component mocks (#235)", () => {
     );
   });
 
-  it("keeps every timer on one line, three across, with no overflow chip", () => {
+  it("keeps every timer on one line, with no overflow chip", () => {
     const root = mountTokens("parts-controls", "rest", "");
     const timers = [...root.querySelectorAll(".kit-timer")];
-    expect(timers).toHaveLength(6);
+    expect(timers).toHaveLength(2);
     for (const timer of timers) {
       expect(timer.querySelector("img.kit-icon")).not.toBeNull();
       expect(timer.textContent).toMatch(/^×\d+(\d+:\d\d|\d+h \d+m|\d+d \d+h)$/);
@@ -682,7 +659,7 @@ describe("component mocks (#235)", () => {
   it("fits How it works on one card with no question marks", () => {
     const root = mountTokens("parts-how", "rest", "");
     expect(root.querySelectorAll(".kit-how")).toHaveLength(1);
-    expect(root.querySelectorAll(".kit-step img.kit-icon")).toHaveLength(5);
+    expect(root.querySelectorAll(".kit-step img.kit-icon")).toHaveLength(3);
     expect(root.textContent).not.toMatch(/\?/);
   });
 });
@@ -694,13 +671,11 @@ describe("teaching mock, hybrid pattern (#240)", () => {
     "payoff",
     "how",
     "dot",
-    "reveal",
     "engineers",
     "tending",
     "staffing",
     "promotion",
     "welcome",
-    "legacy",
   ] as const;
 
   it("keeps every step to the house rules", () => {
@@ -723,21 +698,6 @@ describe("teaching mock, hybrid pattern (#240)", () => {
       );
       root.remove();
     }
-  });
-
-  it("reveals an opened upgrade with the dot, a New card and no wait time (#245)", () => {
-    const root = mountTokens("teach", "rest", "reveal");
-    expect(
-      root.querySelector("[data-bar='upgrades'] .teach-dot"),
-    ).not.toBeNull();
-    expect(root.querySelector(".teach-note")).toBeNull();
-    const first = root.querySelector(".teach-sheet .kit-card");
-    expect(first?.querySelector(".teach-tag")?.textContent).toBe("New");
-    expect(first?.querySelector("button")?.textContent).toBe("Buy · 46K");
-    expect(root.querySelector(".teach-sheet")?.textContent).not.toMatch(
-      /\d+:\d\d|min left|until/,
-    );
-    root.remove();
   });
 
   it("shows a big system as a dot and one note, with no pop-up", () => {
@@ -828,16 +788,10 @@ describe("chipTime (#235)", () => {
   });
 });
 
-describe("welcome-back and pass-to-kid mock (#247)", () => {
-  it("names the away ore and the Legacy in real numbers", () => {
+describe("welcome-back mock (#247)", () => {
+  it("names the away ore", () => {
     const welcome = mountTokens("teach", "rest", "welcome");
     expect(welcome.textContent).toContain("Ore for the Workshop: +");
     expect(welcome.textContent).toContain("Craft it into gear for the crew.");
-    const legacy = mountTokens("teach", "rest", "legacy");
-    expect(legacy.textContent).toContain("Legacy ×1.5, for good");
-    expect(legacy.textContent).toContain("Workers 1/s to 1.5/s");
-    expect(legacy.textContent).toContain(
-      "A bigger mountain for your kid, with the Legacy and",
-    );
   });
 });

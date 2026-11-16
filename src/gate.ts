@@ -182,14 +182,13 @@ function tsc(project: string, name: string): readonly string[] {
 }
 
 /**
- * Where the strategy lab starts: both commands, their loader, and the policy
+ * Where the strategy lab starts: its command, its loader, and the policy
  * and measure folders it discovers at run time. The committed pacing ledger
  * (#554) is an input too: the `lab` step checks its run against it, so a
  * changed ledger runs the lab again and is never reused.
  */
 export const LAB_ENTRIES: readonly string[] = [
   "tools/strategy-lab.ts",
-  "tools/generations-lab.ts",
   "tools/lab-register.mjs",
   "tools/lab-hooks.mjs",
   "docs/pacing-ledger.md",
@@ -261,15 +260,10 @@ const LAB = ["--import", "./tools/lab-register.mjs"];
  * The steps that fill every core, in the order they take turns: visual first (#403). The
  * journeys' Chrome on a jumping clock is heavy too, and its timing must not starve (#552).
  */
-const HEAVY: ReadonlySet<string> = new Set([
-  "visual",
-  "journeys",
-  "lab",
-  "lab:generations",
-]);
+const HEAVY: ReadonlySet<string> = new Set(["visual", "journeys", "lab"]);
 
-/** The seeded labs: the same inputs give the same result, so a green run can stand (#403). */
-const REUSABLE: ReadonlySet<string> = new Set(["lab", "lab:generations"]);
+/** The seeded lab: the same inputs give the same result, so a green run can stand (#403). */
+const REUSABLE: ReadonlySet<string> = new Set(["lab"]);
 
 /**
  * Every step either tier can run. `changed` is the code changed since
@@ -291,7 +285,7 @@ export function gateSteps(
   const full: readonly Tier[] = ["full"];
   // The checks that catch two green PRs breaking each other once merged (#617): a renamed
   // export, a broken import, a test of one PR against the other's code. The browsers, the
-  // emulator and the labs stay in the full tier, which deploy-hosting runs on main.
+  // emulator and the lab stay in the full tier, which deploy-hosting runs on main.
   const whole: readonly Tier[] = ["merge", "full"];
   const step = (
     name: string,
@@ -317,14 +311,6 @@ export function gateSteps(
           "lab",
           "node",
           [...LAB, "tools/strategy-lab.ts", "--ci", "--ledger", "check"],
-          full,
-          AFTER_TESTS,
-          { LAB_STRICT: "1" },
-        ),
-        step(
-          "lab:generations",
-          "node",
-          [...LAB, "tools/generations-lab.ts", "--ci"],
           full,
           AFTER_TESTS,
           { LAB_STRICT: "1" },

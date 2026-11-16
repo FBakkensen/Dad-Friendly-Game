@@ -3,7 +3,7 @@ import { freeWorkers } from "./workforce";
 import { oneOffStretch } from "./scale";
 import { factor } from "./economy/factors";
 import type { Mountain } from "./mountain";
-import { TIERS, setOwned, type TierId } from "./tiers";
+import { setOwned, type TierId } from "./tiers";
 import { pay, stonesPrice, type Price } from "./stock";
 
 /**
@@ -115,7 +115,7 @@ export function rankOf(trips: number): EngineerRank {
   return 0;
 }
 
-/** Rounded up to a whole stone, as upgradeCost is: a kid-run stretch is not whole, and the pocket must stay whole. */
+/** Rounded up to a whole stone, as upgradeCost is: a band scale is not whole, and the pocket must stay whole. */
 export function promoteCost(mountain: Mountain): number {
   return Math.ceil(
     Number(
@@ -321,71 +321,10 @@ function hasEngineerOutOfTunnel(mountain: Mountain): boolean {
 export const TENDING_GAIN = 1.25;
 
 /**
- * Grandpa (#338): after you pass the mine, the old dad stays on. He only
- * tends, at an apprentice's pace (gentle, so the kid's run still stretches:
- * the pacing sims pin it), never explores, and is never promoted. Nothing is
- * saved for him: he is there whenever the Legacy is. Tending speeds his tier;
- * it does not change its crew bill.
- */
-export const GRANDPA_RANK: EngineerRank = 0;
-
-/**
- * The group Grandpa tends: of the machines that are running (fully staffed,
- * as `effectiveRates` staffs them, #500) and that no engineer tends, the one
- * with the most base output, `running * tier.perSecond`. A tie goes to the
- * higher tier. Undefined before a pass, or with nothing running to tend.
- * An idle machine never takes him, and one new borer never pulls him off a
- * big group of drills, so buying a machine never slows the crew (#356).
- */
-export function grandpaPost(
-  mountain: Mountain,
-  running: Readonly<Record<TierId, number>>,
-): TierId | undefined {
-  if (mountain.legacy < 1) {
-    return undefined;
-  }
-  const tended = new Set<TierId | EngineerPost>(
-    atHome(mountain).map((one) => one.post),
-  );
-  let best: TierId | undefined;
-  let bestOutput = 0;
-  for (const tier of [...TIERS].reverse()) {
-    const output = running[tier.id] * tier.perSecond;
-    // Biggest tier first, so only a strictly larger group displaces a tie.
-    if (
-      tier.staff > 0 &&
-      running[tier.id] > 0 &&
-      !tended.has(tier.id) &&
-      output > bestOutput
-    ) {
-      best = tier.id;
-      bestOutput = output;
-    }
-  }
-  return best;
-}
-
-/**
  * How many tenths faster a tier runs because an engineer is posted there.
  * The best rank wins; they do not stack. Camp and tunnel tend nothing.
- * After a pass, Grandpa counts at GRANDPA_RANK on his post (#338), which
- * he picks from what `running` says runs.
  * Ranks are +1, +2 and +3 tenths, times TENDING_GAIN. A sweep may scale it.
  */
-export function tendingTenths(
-  mountain: Mountain,
-  tierId: TierId,
-  running: Readonly<Record<TierId, number>>,
-): number {
-  const scale = factor("tending.gain") * TENDING_GAIN;
-  const grandpa =
-    grandpaPost(mountain, running) === tierId
-      ? TENDING_TENTHS[GRANDPA_RANK] * scale
-      : 0;
-  return Math.max(grandpa, engineerTenths(mountain, tierId));
-}
-
-/** The tenths the engineers at home add to a tier, without Grandpa. */
 export function engineerTenths(mountain: Mountain, tierId: TierId): number {
   const scale = factor("tending.gain") * TENDING_GAIN;
   let best = 0;

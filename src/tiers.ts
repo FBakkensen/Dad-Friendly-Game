@@ -1,9 +1,8 @@
-import { BAND_STARTS, stretch } from "./scale";
+import { BAND_STARTS } from "./scale";
 import { factor } from "./economy/factors";
 import { freshMineOn, lineOn } from "./line-switch";
 import type { Stage } from "./line";
 import type { Mountain } from "./mountain";
-import type { RelicId } from "./relics";
 import { partThreeOn } from "./part-switch";
 import { pay, type GoodId, type Price } from "./stock";
 
@@ -30,8 +29,7 @@ export const LINE_MACHINE_COST_GROWTH = 1.219;
  * First prices that differ on the line (#543). A worker is 60, three times
  * today's: it keeps the optimizer within a quarter of the evening dad's run
  * (regret) without the steeper worker curve that stalled late kid runs. It
- * costs the opening: the first ten minutes mine about 42K, not 247K, and the
- * Hammer comes half a day later (the Lantern does not move). The Great
+ * costs the opening: the first ten minutes mine about 42K, not 247K. The Great
  * Machine is 0.8 of today's, so a checker's best buy is in reach within two
  * check-ins.
  */
@@ -78,8 +76,6 @@ type TierRow = {
    * src/line.ts). Every machine has one; the hands have none.
    */
   readonly stage?: Stage;
-  /** A relic that must be found before it can be built (see crew.ts). */
-  readonly needs?: RelicId;
   /**
    * Stones mined before it opens for sale (M12-2, #250). Until then the
    * card shows locked with this depth, so the next machine is a fixed,
@@ -174,19 +170,19 @@ const TIER_ROWS = [
     perSecond: 2_100,
     staff: 10,
     stage: "lift",
-    needs: "hammer",
     // M12 retune (#252): the Deep Heart entrance, the band that suits it.
     opensAt: 120_000_000,
   },
   {
-    // Crown of Wisdom: kids mine, staff machines, and teach the crew (rates.ts).
+    // Kids mine, staff machines, and teach the crew (rates.ts).
     id: "kid",
     name: "Kid worker",
     shortName: "Kid",
     firstCost: KID_FIRST_COST,
     perSecond: 25,
     staff: 0,
-    needs: "crown",
+    // Where the Crown of Wisdom lay, before the relics left (#728).
+    opensAt: 70_000_000,
   },
 ] as const satisfies readonly TierRow[];
 
@@ -229,7 +225,7 @@ export function isMachine(
 
 /**
  * The machines, in tier order: every staffed tier. The one list the lab reads
- * (bands, generations, report), so a new machine tier joins it (#388).
+ * (bands, report), so a new machine tier joins it (#388).
  */
 export const MACHINE_IDS: readonly MachineId[] = TIERS.filter(isMachine).map(
   (tier) => tier.id,
@@ -288,7 +284,7 @@ function lineSticker(tier: Tier): number {
 }
 
 /** Cookie Clicker curve: machines climb ×1.15, helpers ×1.06. */
-export function tierCost(tier: Tier, ownedCount: number, k = 1): number {
+export function tierCost(tier: Tier, ownedCount: number): number {
   // toPrecision drops float dust (500 × 1.6² is 1280.0000000000002, not 1,281).
   // A sweep multiplies the sticker and the growth. Both factors are 1 in play.
   const workerCurve = tier.staff === 0;
@@ -301,7 +297,7 @@ export function tierCost(tier: Tier, ownedCount: number, k = 1): number {
   const growth =
     base * factor(workerCurve ? "growth.worker" : "growth.machine");
   const sticker = line ? lineSticker(tier) : tier.firstCost;
-  const first = sticker * factor(`price.${tier.id}`) * k;
+  const first = sticker * factor(`price.${tier.id}`);
   return Math.ceil(Number((first * growth ** ownedCount).toPrecision(12)));
 }
 
@@ -322,9 +318,8 @@ export function tierQuote(
   amount: BuyAmount,
 ): TierQuote {
   const count = owned(mountain, tier);
-  const k = stretch(mountain);
   return quoteRun(
-    (nth) => tierCost(tier, count + nth, k),
+    (nth) => tierCost(tier, count + nth),
     amount,
     mountain.stock[tierGood(tier.id)],
   );
@@ -359,10 +354,7 @@ export function quoteRun(
 /** The next one of the tier, as a price (#560): in stones, or cut stone in part 3 (#673). */
 function tierPrice(mountain: Mountain, id: TierId): Price {
   return [
-    {
-      good: tierGood(id),
-      amount: tierCost(tierById(id), mountain.owned[id], stretch(mountain)),
-    },
+    { good: tierGood(id), amount: tierCost(tierById(id), mountain.owned[id]) },
   ];
 }
 

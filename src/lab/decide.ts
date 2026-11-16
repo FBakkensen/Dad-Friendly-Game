@@ -1,6 +1,5 @@
-import { oneOffStretch, stretch } from "../scale";
+import { oneOffStretch } from "../scale";
 import type { Trouble } from "../hazards";
-import { boostById, boostCost } from "../boosts";
 import {
   incomePerSecond,
   listActions,
@@ -11,7 +10,6 @@ import { promoteCost, staffNeeded } from "../engineers";
 import type { TunnelId } from "../expeditions";
 import type { Mountain } from "../mountain";
 import { minedOut } from "../scale";
-import { effectiveRates } from "../rates";
 import { owned, tierById, tierCost, TIERS, type Tier } from "../tiers";
 import { upgradeById, upgradeCost, upgradeLevel } from "../upgrades";
 import {
@@ -248,7 +246,7 @@ export function sticker(mountain: Mountain, action: Action): number {
   switch (action.kind) {
     case "buyTier": {
       const tier = tierById(action.id);
-      return tierCost(tier, owned(mountain, tier), stretch(mountain));
+      return tierCost(tier, owned(mountain, tier));
     }
     case "buyUpgrade": {
       const price = upgradeCost(
@@ -258,19 +256,10 @@ export function sticker(mountain: Mountain, action: Action): number {
       );
       return price ?? Number.POSITIVE_INFINITY;
     }
-    case "buyBoost":
-      return boostCost(
-        boostById(action.id),
-        effectiveRates(mountain),
-        stretch(mountain),
-      );
     case "promote":
       return promoteCost(mountain);
     case "craft":
-      return priceAmount(
-        recipePrice(action.recipe, stretch(mountain)),
-        "stones",
-      );
+      return priceAmount(recipePrice(action.recipe), "stones");
     case "buyVehicle":
       return priceAmount(vehiclePrice(mountain, action.id), "stones");
     case "buyMaker":
@@ -343,8 +332,6 @@ function spendKey(
       return tierKey(mountain, tierById(action.id), params);
     case "buyUpgrade":
       return "upgrade";
-    case "buyBoost":
-      return params.boosts === "never" ? undefined : "boost";
     case "promote":
       return params.promote === "on-value" ? "promote" : undefined;
     // A fresh mine's orders and vehicles are left out too: the lab learns
@@ -398,14 +385,10 @@ function staffShort(mountain: Mountain): number {
 
 function isPurchase(
   action: Action,
-): action is Extract<
-  Action,
-  { kind: "buyTier" | "buyUpgrade" | "buyBoost" | "promote" }
-> {
+): action is Extract<Action, { kind: "buyTier" | "buyUpgrade" | "promote" }> {
   return (
     action.kind === "buyTier" ||
     action.kind === "buyUpgrade" ||
-    action.kind === "buyBoost" ||
     action.kind === "promote"
   );
 }
@@ -451,9 +434,7 @@ function craftHasRoom(mountain: Mountain, id: RecipeId): boolean {
 }
 
 function materialsCover(mountain: Mountain, id: RecipeId): boolean {
-  const materials = recipePrice(id, stretch(mountain)).filter(
-    (line) => line.good !== "stones",
-  );
+  const materials = recipePrice(id).filter((line) => line.good !== "stones");
   return stockCovers(mountain.stock, materials);
 }
 

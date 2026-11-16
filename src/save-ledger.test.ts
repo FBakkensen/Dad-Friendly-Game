@@ -6,8 +6,9 @@ import { readGame, shippedFacts, writeGame } from "./save-format";
 
 /**
  * The ledger of what has shipped (#558; spec, "The ledger of what has
- * shipped"). Every id, named value and cap a version 9 save may hold, as this
- * build reads it. Adding a line is fine: an older build reads the new value as
+ * shipped"). Every id, named value and cap a version 10 save may hold, as this
+ * build reads it. A retired key (#729) is still read at its cap and never
+ * written, so it moves to its own list rather than going. Adding a line is fine: an older build reads the new value as
  * `newer` and goes read-only. Removing a line or lowering a cap would turn a
  * save this build wrote into one it refuses, so it needs a version bump and a
  * reset, said in chat first.
@@ -51,9 +52,7 @@ const LEDGER = {
     "cutStone",
   ],
   levels: {
-    tap: 10,
     boots: 1,
-    steady: 1,
     cartSyn: 1,
     drillSyn: 1,
     borerSyn: 1,
@@ -64,21 +63,11 @@ const LEDGER = {
     reinforce: 1000,
     "axle-grease": 1000,
     "diamond-bits": 1000,
-    "crystal-flare": 1000,
-    "crystal-lamp": 1000,
     "engineers-kit": 1000,
     "heartstone-core": 1000,
     "heartstone-ember": 1000,
   },
-  clocks: [
-    "sharper",
-    "overtime",
-    "blasting-charge",
-    "axle-grease",
-    "crystal-flare",
-    "heartstone-ember",
-    "gold-rush",
-  ],
+  clocks: ["blasting-charge", "axle-grease", "heartstone-ember"],
   marks: {
     seen: [
       "workshop",
@@ -86,11 +75,7 @@ const LEDGER = {
       "tending",
       "promotion",
       "staffing",
-      "boost:sharper",
-      "boost:overtime",
-      "upgrade:tap",
       "upgrade:boots",
-      "upgrade:steady",
       "upgrade:cartSyn",
       "upgrade:drillSyn",
       "upgrade:borerSyn",
@@ -102,11 +87,7 @@ const LEDGER = {
       "tending",
       "promotion",
       "staffing",
-      "boost:sharper",
-      "boost:overtime",
-      "upgrade:tap",
       "upgrade:boots",
-      "upgrade:steady",
       "upgrade:cartSyn",
       "upgrade:drillSyn",
       "upgrade:borerSyn",
@@ -119,42 +100,31 @@ const LEDGER = {
       "reinforce",
       "axle-grease",
       "diamond-bits",
-      "crystal-flare",
-      "crystal-lamp",
       "engineers-kit",
       "heartstone-core",
       "heartstone-ember",
     ],
-    finds: [
-      "pick",
-      "lamp",
-      "map",
-      "boots",
-      "drawing",
-      "watch",
-      "whistle",
-      "pebble",
-      "ribbon",
-    ],
+    finds: ["map", "boots", "drawing", "watch", "whistle", "pebble", "ribbon"],
     operational: ["lightTower", "warehouse"],
   },
   run: {
+    dug: 240000000,
+    rock: Number.MAX_SAFE_INTEGER,
+  },
+  // Retired (#729): still read at these caps, and never written.
+  retiredRun: {
     generation: 1000,
     stretch: 1000000,
-    dug: 240000000,
-    rushBank: Number.MAX_SAFE_INTEGER,
-    rock: Number.MAX_SAFE_INTEGER,
   },
   engineerNames: ["Ada", "Nils", "Ruth", "Otto", "Mae"],
   posts: ["cart", "drill", "borer", "machine", "camp", "tunnel"],
   tunnels: ["side-seam", "old-shaft", "deep-dark"],
   tripFinds: {
     quiet: [],
-    glimmer: ["lantern", "shield", "hammer", "heart", "crown", "mantle"],
-    tool: ["pick", "lamp", "map", "boots"],
+    tool: ["map", "boots"],
     keepsake: ["drawing", "watch", "whistle", "pebble", "ribbon"],
     engineer: ["Ada", "Nils", "Ruth", "Otto", "Mae"],
-    recipe: ["crystal-lamp", "engineers-kit"],
+    recipe: ["engineers-kit"],
   },
   fleet: ["horseWagon", "truck"],
   projectStates: ["delivering", "onHold"],

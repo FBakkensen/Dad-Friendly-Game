@@ -1,14 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { AuthState } from "./auth";
 import type { FieldEvent, FieldEventData } from "./field-log";
-import { legacyWords } from "./legacy-panel";
-import { legacyBonus } from "./legacy";
 import {
   TONIGHT_LINES,
   accountRowView,
   freshLedgerRows,
   metMaterialChips,
-  relicsRowView,
   stonesRowView,
   tonightLines,
   tonightText,
@@ -51,15 +48,10 @@ describe("tonightText words each event the field log keeps (#375)", () => {
     );
   });
 
-  it("words an upgrade's level and a boost's length", () => {
-    expect(text("upgrade.buy", { id: "tap", count: 3 })).toBe(
-      "Strong arms, level 3.",
+  it("words an upgrade's level", () => {
+    expect(text("upgrade.buy", { id: "boots", count: 1 })).toBe(
+      "Work boots, level 1.",
     );
-    const start = event("boost.start", {
-      id: "overtime",
-      endsAt: new Date(Date.parse(event("x").at) + 30 * 60_000).toISOString(),
-    });
-    expect(tonightText(start)).toBe("Overtime started for 30:00.");
   });
 
   it("words a craft started and fitted", () => {
@@ -71,21 +63,16 @@ describe("tonightText words each event the field log keeps (#375)", () => {
     );
   });
 
-  it("words a relic found and a layer broken into", () => {
-    expect(text("relic.found", { id: "hammer" })).toBe(
-      "Found the Hammer of the Builder.",
-    );
+  it("words a layer broken into, and no relic (#728)", () => {
+    expect(text("relic.found", { id: "hammer" })).toBe(undefined);
     expect(text("layer.enter", { id: "granite" })).toBe(
       "You broke into the Granite!",
     );
   });
 
-  it("words the away haul and a vein's stones", () => {
+  it("words the away haul", () => {
     expect(text("away.report", { ms: 3_600_000, stones: 1_234_567 })).toBe(
       "Came back. The crew dug 1.2M while you were away.",
-    );
-    expect(text("vein.tap", { stones: 4_200 })).toBe(
-      "A golden vein gave 4,200 stones.",
     );
   });
 
@@ -135,20 +122,14 @@ describe("tonightText words each event the field log keeps (#375)", () => {
     expect(text("tier.buy", { id: "cart", count: Number.NaN })).toBe(undefined);
     expect(text("tier.buy", { count: 1 })).toBe(undefined);
     expect(text("upgrade.buy", { id: "jetpack", count: 1 })).toBe(undefined);
-    expect(text("upgrade.buy", { id: "tap", count: 0 })).toBe(undefined);
-    expect(text("boost.start", { id: "nap", endsAt: event("x").at })).toBe(
-      undefined,
-    );
-    expect(text("boost.start", { id: "overtime" })).toBe(undefined);
-    expect(text("boost.start", { id: "overtime", endsAt: "soon" })).toBe(
-      undefined,
-    );
-    expect(text("boost.start", { id: "overtime", endsAt: event("x").at })).toBe(
+    expect(text("upgrade.buy", { id: "boots", count: 0 })).toBe(undefined);
+    // An older build's boost line has nothing left to word (#728).
+    const later = new Date(Date.parse(event("x").at) + 60_000).toISOString();
+    expect(text("boost.start", { id: "overtime", endsAt: later })).toBe(
       undefined,
     );
     expect(text("craft.start", { id: "jet-boots" })).toBe(undefined);
     expect(text("craft.done", { id: "jet-boots", count: 1 })).toBe(undefined);
-    expect(text("relic.found", { id: "sword" })).toBe(undefined);
     expect(text("layer.enter", { id: "magma" })).toBe(undefined);
     expect(text("layer.enter", { id: "topsoil" })).toBe(undefined);
     expect(text("engineer.promote", { id: "Bob" })).toBe(undefined);
@@ -157,8 +138,8 @@ describe("tonightText words each event the field log keeps (#375)", () => {
     );
     expect(text("engineer.station", { id: "Nils" })).toBe(undefined);
     expect(text("expedition.send", {})).toBe(undefined);
-    expect(text("vein.tap", {})).toBe(undefined);
-    expect(text("vein.tap", { stones: 0 })).toBe(undefined);
+    // A code from a deleted feature has no line (golden veins, #728).
+    expect(text("vein.tap", { stones: 4_200 })).toBe(undefined);
   });
 
   it("skips an away haul of no stones", () => {
@@ -184,13 +165,13 @@ describe("tonightLines (#375)", () => {
       event("tier.buy", { id: "helper", count: 2 }, 21, 5),
       event("tier.buy", { id: "cart", count: 1 }, 21, 9),
       event("crew.staff", { count: 1 }, 21, 10),
-      event("upgrade.buy", { id: "tap", count: 2 }, 22, 3),
+      event("upgrade.buy", { id: "boots", count: 1 }, 22, 3),
       event("trouble.fix", { id: "cart" }, 7, 5),
     ];
     expect(TONIGHT_LINES).toBe(3);
     expect(tonightLines(events)).toEqual([
       { time: "07:05", text: "Fixed! The crew cheers." },
-      { time: "22:03", text: "Strong arms, level 2." },
+      { time: "22:03", text: "Work boots, level 1." },
       { time: "21:09", text: "Bought mine cart 1." },
     ]);
   });
@@ -272,77 +253,6 @@ describe("stonesRowView (#375)", () => {
     const view = stonesRowView(createMountain());
     expect(view.info).toEqual([]);
     expect(view.aria).toBe(view.name);
-  });
-});
-
-describe("relicsRowView (#375)", () => {
-  it("an unguided fresh mountain: none found, the dark Lantern, no bar", () => {
-    const view = relicsRowView(createMountain());
-    expect(view.name).toBe("0 of 6 relics found");
-    expect(view.info).toEqual([
-      "Six Legendary Relics of Fatherhood lie deep inside. Tap to mine.",
-    ]);
-    expect(view.why).toBe("Below the topsoil, the rock turns hard and grey.");
-    expect(view).toMatchObject({
-      icon: "lantern",
-      lit: false,
-      progress: undefined,
-      barLabel: "",
-      lamp: "off",
-      state: "owned",
-      can: false,
-    });
-  });
-
-  it("an unguided kid's run speaks of the Legacy", () => {
-    const kid = { ...createMountain(), legacy: 1 };
-    const view = relicsRowView(kid);
-    expect(view.info).toEqual([
-      `Your kid's mine: six relics wait inside. Legacy ${legacyWords(legacyBonus(kid))}.`,
-    ]);
-  });
-
-  it("a next relic: the goal, the layer hint and the bar", () => {
-    const view = relicsRowView(minedMountain(4_600_000));
-    expect(view.name).toBe("1 of 6 relics found");
-    expect(view.info).toEqual(["Next: Shield of Protection · Getting closer"]);
-    expect(view.why).toBe("Below the topsoil, the rock turns hard and grey.");
-    expect(view.progress).toBe(0.4);
-    expect(view.barLabel).toBe(
-      "Progress to the Shield of Protection. Below the topsoil, the rock turns hard and grey.",
-    );
-    expect(view).toMatchObject({
-      icon: "shield",
-      lit: false,
-      lamp: "amber",
-      state: "owned",
-    });
-    expect(view.aria).toBe(
-      "1 of 6 relics found. Next: Shield of Protection · Getting closer. Below the topsoil, the rock turns hard and grey.",
-    );
-  });
-
-  it("a next relic with no layer below: the bar's label is the relic alone", () => {
-    const view = relicsRowView(heart(1_000_000));
-    expect(view.why).toBe("");
-    expect(view.barLabel).toBe("Progress to the Mantle of the Hero");
-    expect(view.icon).toBe("mantle");
-    expect(view.lit).toBe(false);
-    expect(view.aria).toBe(`5 of 6 relics found. ${view.info[0] ?? ""}`);
-  });
-
-  it("every relic found: the lit Mantle and the done sentence", () => {
-    const view = relicsRowView({ ...createMountain(), remaining: 0 });
-    expect(view.name).toBe("6 of 6 relics found");
-    expect(view.info).toEqual(["Every relic is yours. You are a legend."]);
-    expect(view).toMatchObject({
-      icon: "mantle",
-      lit: true,
-      progress: undefined,
-      lamp: "off",
-      state: "found",
-      why: "",
-    });
   });
 });
 

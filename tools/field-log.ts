@@ -39,15 +39,11 @@ const SNAPSHOT_FIELDS = [
   "left",
   "pocket",
   "crewSpeed",
-  "tapYield",
-  "legacy",
   "deviceId",
   "rev",
   "crew",
   "idle",
-  "relics",
   "upgrades",
-  "boosts",
   "engineers",
   "expeditions",
 ] as const;
@@ -61,8 +57,6 @@ const SCALAR_LABELS: Readonly<Record<string, string>> = {
   left: "Left",
   pocket: "Pocket",
   crewSpeed: "Crew speed",
-  tapYield: "Tap yield",
-  legacy: "Legacy",
   deviceId: "Device",
   rev: "Rev",
 };
@@ -367,8 +361,6 @@ function snapshotBody(
     "left",
     "pocket",
     "crewSpeed",
-    "tapYield",
-    "legacy",
   ] as const) {
     if (!Object.hasOwn(snapshot, key)) {
       continue;
@@ -386,14 +378,8 @@ function snapshotBody(
   if (Object.hasOwn(snapshot, "idle")) {
     lines.push(...countBlock("Idle", snapshot.idle));
   }
-  if (Object.hasOwn(snapshot, "relics")) {
-    lines.push(...nameBlock("Relics", snapshot.relics));
-  }
   if (Object.hasOwn(snapshot, "upgrades")) {
     lines.push(...countBlock("Upgrades", snapshot.upgrades));
-  }
-  if (Object.hasOwn(snapshot, "boosts")) {
-    lines.push(...boostBlock(snapshot.boosts, timeZone));
   }
   if (Object.hasOwn(snapshot, "engineers")) {
     lines.push(...engineerBlock(snapshot.engineers));
@@ -419,28 +405,6 @@ function countBlock(title: string, value: unknown): string[] {
     return [title, "  none"];
   }
   return [title, ...keys.map((key) => `  ${key} ${showScalar(value[key])}`)];
-}
-
-function nameBlock(title: string, value: unknown): string[] {
-  if (!Array.isArray(value) || value.length === 0) {
-    return [title, "  none"];
-  }
-  return [title, ...value.map((item) => `  ${showScalar(item)}`)];
-}
-
-function boostBlock(value: unknown, timeZone: string): string[] {
-  if (!Array.isArray(value) || value.length === 0) {
-    return ["Boosts", "  none"];
-  }
-  return [
-    "Boosts",
-    ...value.map((item) => {
-      if (isRecord(item) && typeof item.id === "string") {
-        return `  ${item.id} until ${showTime(item.endsAt, timeZone)}`;
-      }
-      return `  ${showScalar(item)}`;
-    }),
-  ];
 }
 
 function engineerBlock(value: unknown): string[] {

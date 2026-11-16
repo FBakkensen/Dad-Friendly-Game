@@ -3,8 +3,7 @@ import { describe, expect, it } from "vitest";
 import { LAYERS } from "../layers";
 import { createMountain, type Mountain } from "../mountain";
 import { MOUNTAIN_STONES } from "../scale";
-import { RELICS } from "../relics";
-import { machinesInPlay } from "../tiers";
+import { machinesInPlay, tierById } from "../tiers";
 import {
   createLedgerLog,
   endHash,
@@ -27,16 +26,15 @@ function dug(mined: number, over: MountainPatch = {}): Mountain {
 }
 
 describe("pacing ledger", () => {
-  it("stamps the day each band, machine and relic first shows up, and the finish", () => {
+  it("stamps the day each band and machine first shows up, and the finish", () => {
     const granite = LAYERS[1];
-    const lantern = RELICS[0];
     const machine = machinesInPlay()[0];
-    if (lantern === undefined || machine === undefined) {
-      throw new Error("the game has no lantern or machine");
+    if (machine === undefined) {
+      throw new Error("the game has no machine");
     }
     const log = createLedgerLog();
     log.observe(at(0, createMountain()));
-    log.observe(at(6 * HOUR_MS, dug(lantern.depth)));
+    log.observe(at(6 * HOUR_MS, dug(1_000_000)));
     log.observe(
       at(
         DAY_MS,
@@ -58,7 +56,6 @@ describe("pacing ledger", () => {
     expect(entry.seed).toBe(2);
     expect(entry.bands["topsoil"]).toBe(1);
     expect(entry.bands[granite.id]).toBe(2);
-    expect(entry.relics[lantern.id]).toBe(1.25);
     expect(entry.machines[machine]).toBe(2);
     expect(entry.finishDay).toBe(4);
     expect(entry.endHash).toBe(endHash(end));
@@ -76,9 +73,6 @@ describe("pacing ledger", () => {
     });
     expect(entry.bands["heart"]).toBeUndefined();
     expect(entry.finishDay).toBeUndefined();
-    expect(RELICS.map((relic) => entry.relics[relic.id])).toEqual(
-      RELICS.map(() => undefined),
-    );
   });
 
   it("hashes the end state, so any change in where the run ended shows", () => {
@@ -95,7 +89,6 @@ describe("pacing ledger", () => {
       seed,
       bands: { topsoil: 1, granite: 2.345 },
       machines: {},
-      relics: {},
       finishDay: seed === 1 ? 6.5 : undefined,
       endHash: "0000abcd",
     });
@@ -105,6 +98,16 @@ describe("pacing ledger", () => {
       entry("alpha", 2),
       entry("alpha", 1),
     ]);
+    expect(markdown.split("\n")).toContain(
+      `| ${[
+        "Policy",
+        "Seed",
+        ...LAYERS.map((layer) => layer.name),
+        ...machinesInPlay().map((id) => tierById(id).name),
+        "Finish",
+        "End hash",
+      ].join(" | ")} |`,
+    );
     const rows = markdown
       .split("\n")
       .filter((line) => /^\| (alpha|beta|Zeta) /.test(line));

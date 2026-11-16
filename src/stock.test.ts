@@ -12,7 +12,6 @@ import {
   samePrice,
   stockMoved,
   stonesPrice,
-  take,
   materialsOf,
   UNSHOWN_PRICE,
   type Price,
@@ -140,15 +139,6 @@ describe("paying and adding", () => {
       clay: 1,
     });
     expect(refund(paid, [])).toEqual(paid);
-  });
-
-  it("takes back goods the same step put in, without asking if they are covered", () => {
-    const paidOut = holding({ stones: 8_000 });
-    expect(take(paidOut, stonesPrice(8_100)).stock.stones).toBe(-100);
-    expect(take(paidOut, stonesPrice(100)).stock).toEqual({
-      ...EMPTY_STOCK,
-      stones: 7_900,
-    });
   });
 
   it("adds to every good in the goods table", () => {

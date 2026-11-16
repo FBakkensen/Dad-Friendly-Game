@@ -23,7 +23,6 @@ import {
   type Firestore,
 } from "firebase/firestore";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { BOOSTS, type Boosts } from "../src/boosts";
 import { ENGINEER_NAMES, MAX_ENGINEERS, type Engineer } from "../src/engineers";
 import {
   APP_VERSION,
@@ -86,7 +85,7 @@ function admin() {
   return adminStore(app);
 }
 
-/** A late crew with something in every map: engineers, a trip, a bench, every clock, a Gold rush and its bank. */
+/** A late crew with something in every map: engineers, a trip, a bench, every clock. */
 function lateCrew(): Mountain {
   const fresh = createMountain();
   return {
@@ -103,7 +102,6 @@ function lateCrew(): Mountain {
       hoist: 9,
       train: 3,
     },
-    legacy: 3,
     startedAt: 1_700,
     engineers: [
       { name: "Ada", rank: 1, trips: 3, post: "borer" },
@@ -122,16 +120,9 @@ function lateCrew(): Mountain {
     upgrades: Object.fromEntries(
       UPGRADES.map((upgrade) => [upgrade.id, upgrade.maxLevel]),
     ) as Upgrades,
-    boosts: Object.fromEntries(
-      BOOSTS.map((boost) => [boost.id, 1_800_000_000_000]),
-    ) as Boosts,
     clocks: Object.fromEntries(
       Object.keys(fresh.clocks).map((id) => [id, 1_800_000_000_000]),
     ) as Mountain["clocks"],
-    // A Gold rush running, with stones held for it (#612). Its own end time,
-    // so a reader that mixed it with a boost clock would not read back equal.
-    rushUntil: 1_800_000_060_000,
-    rushBank: 5_000_000,
     crafted: { ...fresh.crafted, "sturdy-props": 1 },
     recipes: [...fresh.recipes, "reinforce"],
     seen: ["workshop"],
@@ -183,9 +174,9 @@ describe("firestore.rules: games/{uid} (#558)", () => {
     await expect(setDoc(ref(), { ...game(1), version: 7 })).rejects.toThrow(
       denied,
     );
-    await setDoc(ref(), { ...game(1), version: 10 });
+    await setDoc(ref(), { ...game(1), version: 11 });
     await expect(setDoc(ref(), game(2))).rejects.toThrow(denied);
-    await setDoc(ref(), { ...game(2), version: 10 });
+    await setDoc(ref(), { ...game(2), version: 11 });
   });
 
   it("takes the reset at part 1 over a stored version 8 save, and refuses a version 8 write (#664)", async () => {
@@ -212,7 +203,35 @@ describe("firestore.rules: games/{uid} (#558)", () => {
     ).rejects.toThrow(denied);
     await setDoc(ref(), game(7, { ...createMountain(), startedAt: 40 }));
     const stored = (await getDoc(ref())).data();
-    expect(stored?.["version"]).toBe(9);
+    expect(stored?.["version"]).toBe(10);
+    expect(stored?.["rev"]).toBe(7);
+  });
+
+  it("takes the reset at #728 over a stored version 9 save, and refuses a version 9 write", async () => {
+    await admin().doc("games/dad").delete();
+    await expect(setDoc(ref(), { ...game(1), version: 9 })).rejects.toThrow(
+      denied,
+    );
+    await admin()
+      .doc("games/dad")
+      .set({
+        version: 9,
+        rev: 6,
+        lastSeen: 1,
+        startedAt: 40,
+        deviceId: DEVICE,
+        game: { owned: { helper: 3 } },
+        savedAt: 1,
+      });
+    await expect(
+      setDoc(ref(), {
+        ...game(7, { ...createMountain(), startedAt: 40 }),
+        version: 9,
+      }),
+    ).rejects.toThrow(denied);
+    await setDoc(ref(), game(7, { ...createMountain(), startedAt: 40 }));
+    const stored = (await getDoc(ref())).data();
+    expect(stored?.["version"]).toBe(10);
     expect(stored?.["rev"]).toBe(7);
   });
 
@@ -300,8 +319,8 @@ describe("firestore.rules: gameArchive (#480, #558)", () => {
     await expect(deleteDoc(copy("one"))).rejects.toThrow(denied);
   });
 
-  it("takes a copy left by a restore, a Start over or a pass, and no other reason", async () => {
-    for (const reason of ["restore", "start-over", "pass"]) {
+  it("takes a copy left by a restore or a Start over, and no other reason", async () => {
+    for (const reason of ["restore", "start-over"]) {
       await setDoc(copy(reason), archive({ reason }));
       expect((await getDoc(copy(reason))).data()?.["reason"]).toBe(reason);
     }
@@ -311,6 +330,20 @@ describe("firestore.rules: gameArchive (#480, #558)", () => {
     await expect(setDoc(copy("old"), archive({ version: 7 }))).rejects.toThrow(
       denied,
     );
+  });
+
+  it("refuses a create with archive reason pass, and still reads a stored one (#729)", async () => {
+    await expect(
+      setDoc(copy("pass"), archive({ reason: "pass" })),
+    ).rejects.toThrow(denied);
+    await admin()
+      .doc("gameArchive/dad/copies/old-pass")
+      .set({
+        ...archive({ reason: "pass" }),
+        archivedAt: new Date(),
+        expiresAt: new Date(Date.now() + WEEK),
+      });
+    expect((await getDoc(copy("old-pass"))).data()?.["reason"]).toBe("pass");
   });
 
   it("keeps an older copy as it was stored, with reason reset", async () => {
@@ -371,12 +404,12 @@ function maximalMountain(): Mountain {
       index === 0
         ? { kind: "keepsake", id: "drawing" }
         : index === 1
-          ? { kind: "tool", id: "pick" }
+          ? { kind: "tool", id: "map" }
           : index === 2
-            ? { kind: "glimmer", id: "heart" }
+            ? { kind: "recipe", id: "engineers-kit" }
             : index === 3
               ? { kind: "quiet" }
-              : { kind: "glimmer", id: "lantern" },
+              : { kind: "tool", id: "boots" },
   }));
   return {
     ...createMountain(),
@@ -402,11 +435,7 @@ function maximalMountain(): Mountain {
     upgrades: Object.fromEntries(
       UPGRADES.map((upgrade) => [upgrade.id, upgrade.maxLevel]),
     ) as Upgrades,
-    boosts: Object.fromEntries(
-      BOOSTS.map((boost) => [boost.id, 1_800_000_000_000]),
-    ) as Boosts,
     startedAt: 0,
-    legacy: 1,
     engineers,
     expeditions,
     finds: [...FIND_IDS],
@@ -419,7 +448,6 @@ function maximalMountain(): Mountain {
     crafted: Object.fromEntries(RECIPE_IDS.map((id) => [id, 1])) as Crafted,
     clocks: {
       "blasting-charge": 50_000,
-      "crystal-flare": 60_000,
       "heartstone-ember": 70_000,
       "axle-grease": 80_000,
     },
@@ -508,6 +536,30 @@ describe("firestore.rules: fieldLogs/{uid}", () => {
     expect((await getDoc(doc(db, "fieldLogs", "dad"))).data()).toEqual(written);
   });
 
+  it("accepts a snapshot without legacy, and one from an old tab with legacy 0 (#729)", async () => {
+    const written = fieldLog([event]);
+    expect(written.snapshot).not.toHaveProperty("legacy");
+    await setDoc(doc(db, "fieldLogs", "dad"), written);
+    expect((await getDoc(doc(db, "fieldLogs", "dad"))).data()).toEqual(written);
+    const old = {
+      ...written,
+      snapshot: { ...gameSnapshot(), legacy: 0 },
+    };
+    await setDoc(doc(db, "fieldLogs", "dad"), old);
+    expect((await getDoc(doc(db, "fieldLogs", "dad"))).data()).toEqual(old);
+  });
+
+  it("refuses a snapshot whose legacy is out of range (#729)", async () => {
+    for (const legacy of [-1, 1001, 1.5, "0"]) {
+      await expect(
+        setDoc(doc(db, "fieldLogs", "dad"), {
+          ...fieldLog([event]),
+          snapshot: { ...gameSnapshot(), legacy },
+        }),
+      ).rejects.toThrow(denied);
+    }
+  });
+
   it("accepts a maximal late-game snapshot and a full ring (#219)", async () => {
     const mountain = maximalMountain();
     const now = 1;
@@ -523,8 +575,6 @@ describe("firestore.rules: fieldLogs/{uid}", () => {
     };
     expect(written.snapshot.engineers).toHaveLength(MAX_ENGINEERS);
     expect(written.snapshot.expeditions).toHaveLength(MAX_EXPEDITIONS);
-    expect(written.snapshot.boosts).toHaveLength(BOOSTS.length);
-    expect(written.snapshot.relics).toHaveLength(6);
     expect(Object.keys(written.snapshot.upgrades)).toHaveLength(
       UPGRADES.length,
     );
@@ -563,7 +613,7 @@ describe("firestore.rules: fieldLogs/{uid}", () => {
     const events = Array.from({ length: EVENT_RING_LIMIT }, () => event);
     const written = {
       ...fieldLog(events),
-      snapshot: { ...gameSnapshot(), crewSpeed: 1.5, tapYield: 0.25 },
+      snapshot: { ...gameSnapshot(), crewSpeed: 1.5 },
     };
     await setDoc(doc(db, "fieldLogs", "dad"), written);
     const snap = await getDoc(doc(db, "fieldLogs", "dad"));

@@ -26,7 +26,7 @@
   --ink-bare:#eceee4;   /* legends painted straight on the enamel */
   --amber-bare:#ffd38c;
   --ink-flap:#e4dcc6;
-  --amber:#e8ac4c;      /* sodium: rare, means "act" or "boost" */
+  --amber:#e8ac4c;      /* sodium: rare, means "act" */
   --green:#9fcf86;
   --rust:#e39a78;
   --night:#0b0e0f;
@@ -57,15 +57,6 @@ body.desk #housing{display:block}
   background:#1a2421 url(assets/art/ind-board/panel-face.png) -12px 0/448px 896px no-repeat}
 .row{position:absolute;left:0;width:424px}
 
-/* ---------- relic plate ---------- */
-#rRelics{left:4px;width:416px;height:64px}
-.relic{position:absolute;top:4px;width:56px;height:56px}
-.relic .sock{position:absolute;left:0;top:0;width:56px;height:56px}
-.relic .rl{position:absolute;left:4px;top:4px;width:48px;height:48px}
-.relicLegend{position:absolute;left:100px;top:56px;width:216px;height:20px;display:none;align-items:center;justify-content:center;white-space:nowrap;color:var(--ink-plate);z-index:2}
-#stage[data-mode="924"] .relicLegend{display:flex}
-.relicLegend span{position:relative}
-
 /* ---------- stockpile row ---------- */
 #rStock{height:88px}
 .odo{position:absolute;left:8px;top:0;width:240px;height:80px}
@@ -78,12 +69,7 @@ body.desk #housing{display:block}
 .odoLegend .lg{line-height:12px}
 .odoLegend .spend{color:var(--rust);opacity:0}
 .odoLegend.spending .spend{opacity:1}
-.boost{position:absolute;right:8px;top:0;display:flex;align-items:center;gap:6px;height:88px}
-.boost .txt{display:flex;flex-direction:column;align-items:flex-end;text-align:right;margin-top:-4px}
-.boost .mul{font-size:24px;line-height:29px;font-weight:700;color:var(--amber-bare)}
-.boost .left{font-size:20px;line-height:24px;color:var(--ink-bare)}
-.boost .lg,.dig .lg,.key .lg,.key .sub{color:var(--ink-bare)}
-.boost .dial{width:88px;height:88px;background-size:2728px 88px}
+.key .lg,.key .sub{color:var(--ink-bare)}
 
 /* ---------- gauge row: gauge, the mine window, crew ---------- */
 #rGauge{height:238px}
@@ -115,8 +101,6 @@ body.desk #housing{display:block}
 #wMiner.behind{z-index:0}
 #wFill{width:32px;height:32px;background-size:128px 32px;display:none}
 #wDust{width:32px;height:32px;background-size:128px 32px;display:none}
-#wPlus{font-size:14px;line-height:14px;color:var(--amber-bare);display:none;white-space:nowrap;
-  text-shadow:1px 0 0 #0a0c0e,-1px 0 0 #0a0c0e,0 1px 0 #0a0c0e,0 -1px 0 #0a0c0e,1px 1px 0 #0a0c0e,-1px -1px 0 #0a0c0e,1px -1px 0 #0a0c0e,-1px 1px 0 #0a0c0e}
 #win .glass{width:184px;height:152px}
 #win .wtag{left:46px;top:2px;width:88px;height:20px;display:flex;align-items:center;justify-content:center;color:var(--ink-plate);white-space:nowrap;pointer-events:none}
 #win .wtag span{position:relative}
@@ -153,7 +137,7 @@ body.desk #housing{display:block}
 .ptag{position:relative;height:20px;display:flex;align-items:center;justify-content:center;color:var(--ink-plate);font-size:14px;line-height:20px}
 .ptag span{position:relative}
 
-/* ---------- ready + dig ---------- */
+/* ---------- ready ---------- */
 #rReady{height:118px}
 #ready{position:absolute;left:6px;top:0;width:288px;height:96px;text-align:left}
 #ready > *{position:absolute}
@@ -167,14 +151,6 @@ body.desk #housing{display:block}
 #ready .main{font-size:18px;line-height:20px;font-weight:700;color:var(--ink-plate);white-space:nowrap}
 #ready .why{font-size:13px;line-height:16px;font-weight:600;color:var(--ink-plate-2);white-space:nowrap}
 #ready .main,#ready .why{text-shadow:0 1px 0 rgba(255,255,255,.22)}
-.dig{position:absolute;left:304px;top:0;width:112px;height:118px}
-#digBtn{position:absolute;left:0;top:0;width:112px;height:104px;display:block;overflow:visible}
-#digBtn .spr{position:absolute;left:0;top:0}
-#digBtn .spr{width:112px;height:112px;background-size:336px 112px}
-.dig .lg{position:absolute;left:0;right:0;top:100px;text-align:center;white-space:nowrap;pointer-events:none}
-.dig .lg b{color:var(--ink);font-weight:700}
-.dig.hit .lg b{color:var(--amber)}
-
 /* ---------- rail ---------- */
 #rRail{height:92px}
 .key{position:absolute;top:0;width:64px;height:76px;display:flex;flex-direction:column;align-items:center}
@@ -281,13 +257,6 @@ body.desk #housing{display:block}
 <div id="housing"><canvas class="sk" data-sk="frame"></canvas></div>
 <main id="stage" data-mode="868" aria-label="Mine control board">
 
-  <!-- relic plate -->
-  <section class="row" id="rRelics" aria-label="Relics of Fatherhood, 2 of 6 found">
-    <canvas class="sk" data-sk="frame"></canvas>
-    <div id="sockets"></div>
-    <div class="relicLegend lg" id="relicLegend"><canvas class="sk" data-sk="tag"></canvas><span>Relics of Fatherhood · 2 of 6</span></div>
-  </section>
-
   <!-- stockpile -->
   <section class="row" id="rStock">
     <div class="odo" id="odo" role="img" aria-label="Stones 412.4K">
@@ -302,10 +271,6 @@ body.desk #housing{display:block}
       <img class="dec" id="odoDec3" src="assets/art/ind-board/odo-dec-3.png" width="28" height="50" style="left:144px" alt="">
       <img class="dot" id="odoDot" src="assets/art/ind-board/odo-dot.png" width="4" height="4" style="left:136px;top:52px" alt="">
       <div class="odoLegend" id="odoLegend"><span class="lg engrave">Stones</span><span class="lg engrave spend num" id="spend"></span></div>
-    </div>
-    <div class="boost" id="boost" role="img" aria-label="Overtime boost">
-      <span class="txt engrave"><span class="lg">Overtime</span><span class="mul" id="bMul">×2</span><span class="left num" id="bLeft">7:09</span><span class="lg">left</span></span>
-      <i class="spr dial" id="dial" style="background-image:url(assets/art/ind-board/dial-boost-sheet.png)"></i>
     </div>
   </section>
 
@@ -324,7 +289,7 @@ body.desk #housing{display:block}
       </i>
     </div>
 
-    <button id="win" aria-label="Dig: add stones by hand">
+    <div id="win" role="img" aria-label="The mine window">
       <span class="view" id="view">
         <img src="assets/art/ind-board/mine-view.png" width="184" height="152" alt="">
         <i class="spr" id="wSheave" style="background-image:url(assets/art/ind-board/anim/sheave-4f.png)"></i>
@@ -336,12 +301,11 @@ body.desk #housing{display:block}
         <span id="wRun"><img id="wTub" src="assets/art/ind-board/tub-empty.png" width="28" height="24" alt=""><i class="spr" id="wMiner" style="background-image:url(assets/art/ind-board/anim/miner-18f.png)"></i><img id="wCage" src="assets/art/ind-board/cage.png" width="40" height="50" alt=""></span>
         <i class="spr" id="wFill" style="background-image:url(assets/art/ind-board/anim/dust-burst-4f.png)"></i>
         <i class="spr" id="wDust" style="background-image:url(assets/art/ind-board/anim/dust-burst-4f.png)"></i>
-        <span class="num" id="wPlus">+10</span>
         <img class="glass" src="assets/art/ind-board/window-glass.png" width="184" height="152" alt="">
       </span>
       <img class="frame" src="assets/art/ind-board/window-frame.png" width="212" height="180" alt="">
       <span class="wtag lg"><canvas class="sk" data-sk="tag"></canvas><span>No. 2 Shaft</span></span>
-    </button>
+    </div>
 
     <div class="crew" id="crew" role="img" aria-label="Crew">
       <canvas class="sk" data-sk="frame"></canvas>
@@ -381,17 +345,13 @@ body.desk #housing{display:block}
     </button>
   </section>
 
-  <!-- ready now + dig -->
+  <!-- ready now -->
   <section class="row" id="rReady">
     <button id="ready" aria-live="polite">
       <span class="kick lg engrave" id="rdKick">Ready now</span>
       <i class="spr guard" id="guard" style="background-image:url(assets/art/ind-board/ready-guard.png)"></i>
       <span class="plate"><img src="assets/art/ind-board/plate.png" width="208" height="64" alt=""><span class="pt"><span class="main" id="rdMain">Buy a cart · 204.8K</span><span class="why" id="rdWhy">+12/s · your free worker can run it</span></span></span>
     </button>
-    <div class="dig" id="dig">
-      <button id="digBtn" aria-label="Dig: add stones by hand"><i class="spr" id="digSpr" style="background-image:url(assets/art/ind-board/dig-button.png)"></i></button>
-      <span class="lg engrave" id="digLg"><span id="digW">Dig</span> · <b id="digN">+10</b></span>
-    </div>
   </section>
 
   <!-- rail of keys -->
@@ -635,10 +595,9 @@ const lamp = (el, k) => frameX(el, LAMP[k], 40);
 
 /* ---------- State: the player's real numbers ---------- */
 const S = {
-  stones: 412_400, mul: 2,
-  boostLeft: 7 * 60 + 9, boostLen: 30 * 60,
+  stones: 412_400,
   workers: 56, free: 1, carts: 30, drills: 25, borers: 0,
-  tapLevel: 1, boots: false, picksLeft: 0,
+  boots: false,
   mined: 10_840_000, iron: 14, clay: 6,
   bench: null, saveTries: 3,
 };
@@ -651,7 +610,7 @@ const curve = (first, g, n) => Math.ceil(Number((first * g ** n).toPrecision(12)
 const priceOf = id => curve(GAME.tiers[id].firstCost, id === "helper" ? GAME.growth.worker : GAME.growth.machine, COUNT[id]());
 /* src/milestones.ts: every mark reached doubles every one of that tier */
 const marksOf = (id, n) => GAME.milestones.marks[id].filter(m => n >= m.at).length;
-/* src/rates.ts: one of a tier, in the Granite, with its marks, before boots and Overtime */
+/* src/rates.ts: one of a tier, in the Granite, with its marks, before boots */
 const plainOf = id => GAME.tiers[id].perSecond * (GAME.granite[id] ?? 1) * GAME.milestones.multiplier ** marksOf(id, COUNT[id]());
 /* Work boots speed every worker by GAME.boots of his own output */
 const eachOf = id => plainOf(id) * (id === "helper" && S.boots ? 1 + GAME.boots : 1);
@@ -668,8 +627,7 @@ function milestoneLine(id){
    lead; the last one clips with an ellipsis (Flemming's call on #387) */
 const markInfo = id => { const line = milestoneLine(id); return [line, line.replace(GAME.milestones.reachedLine + " ", "")]; };
 const base = () => Object.keys(COUNT).reduce((sum, id) => sum + eachOf(id) * COUNT[id](), 0);
-const rate = () => base() * S.mul;
-const tapPower = () => (1 + Math.floor(rate() * 0.01 * S.tapLevel)) * (S.picksLeft > 0 ? 2 : 1);
+const rate = () => base();
 const T0 = new Date(); T0.setHours(22, 14, 0, 0);
 const loadAt = performance.now();
 const nowDate = () => new Date(T0.getTime() + (performance.now() - loadAt));
@@ -699,37 +657,27 @@ function eta(sec){
 /* ---------- Buys, upgrades, workshop (same rules as the game) ---------- */
 const BUY = {
   worker: { key: "worker", group: "Crew", name: "Worker", one: "worker", icon: "mach-worker", verb: "Hire",
-    cost: () => priceOf("helper"), gain: () => eachOf("helper") * S.mul,
+    cost: () => priceOf("helper"), gain: () => eachOf("helper"),
     info: () => markInfo("helper"),
     buy(){ S.workers++; S.free++; return { text: `Worker ${S.workers} is on the crew` }; } },
   cart: { key: "cart", group: "Machines", name: "Mine cart", one: "cart", icon: "mach-cart", verb: "Buy", staff: STAFF.cart,
-    cost: () => priceOf("cart"), gain: () => eachOf("cart") * S.mul,
+    cost: () => priceOf("cart"), gain: () => eachOf("cart"),
     info: () => markInfo("cart"),
     buy(){ S.carts++; S.free--; return { text: `Cart ${S.carts} is rolling`, bay: "bayCart" }; } },
   drill: { key: "drill", group: "Machines", name: "Steam drill", one: "drill", icon: "mach-drill", verb: "Buy", staff: STAFF.drill,
-    cost: () => priceOf("drill"), gain: () => Math.round(eachOf("drill") * S.mul),
+    cost: () => priceOf("drill"), gain: () => Math.round(eachOf("drill")),
     info: () => markInfo("drill"),
     buy(){ S.drills++; S.free -= 1; return { text: `Drill ${S.drills} is drilling`, bay: "bayDrill" }; } },
   borer: { key: "borer", group: "Machines", name: "Tunnel borer", one: "borer", icon: "mach-borer-tarp", verb: "Buy", staff: STAFF.borer,
-    cost: () => priceOf("borer"), gain: () => Math.round(eachOf("borer") * S.mul),
+    cost: () => priceOf("borer"), gain: () => Math.round(eachOf("borer")),
     info: () => markInfo("borer"),
     buy(){ S.borers++; S.free -= 8; return { text: `Borer ${S.borers} is boring in`, bay: "bayBorer" }; } },
 };
 const BUYS = [BUY.worker, BUY.cart, BUY.drill, BUY.borer];
 const MACHINES = [BUY.borer, BUY.drill, BUY.cart];
 const UPGRADES = [
-  { key: "picks", group: "Quick boosts", name: "Sharper picks", verb: "Buy",
-    cost: () => 1_200, gainText: () => "Taps ×2", info: () => S.picksLeft > 0 ? `${clock(S.picksLeft)} left` : "For 10 minutes",
-    buy(){ S.picksLeft = 600; return { text: "Sharper picks are on" }; } },
-  { key: "overtime", group: "Quick boosts", name: "Overtime", verb: "Refresh",
-    cost: () => Math.ceil(base() * 180), gainText: () => "to 30:00", info: () => S.boostLeft > 0 ? `Crew ×2 · ${clock(S.boostLeft)} left` : "Crew ×2 for 30 min",
-    buy(){ S.mul = 2; S.boostLeft = S.boostLen; return { text: "Overtime runs to 30:00" }; } },
-  { key: "arms", group: "Lasting", name: "Strong arms", verb: "Buy",
-    cost: () => 40_000 * 5 ** S.tapLevel, gainText: () => "+" + short(Math.floor(rate() * .01 * (S.tapLevel + 1)) - Math.floor(rate() * .01 * S.tapLevel)) + "/tap",
-    info: () => `Level ${S.tapLevel} to ${S.tapLevel + 1} · grows with crew`,
-    buy(){ S.tapLevel++; return { text: `Strong arms, level ${S.tapLevel}` }; } },
   { key: "boots", group: "Lasting", name: "Work boots", verb: "Buy", once: () => S.boots,
-    cost: () => 650_000, gainText: () => "+" + short(S.workers * plainOf("helper") * GAME.boots * S.mul) + "/s", info: () => "Every worker, every band",
+    cost: () => 650_000, gainText: () => "+" + short(S.workers * plainOf("helper") * GAME.boots) + "/s", info: () => "Every worker, every band",
     buy(){ S.boots = true; return { text: "Work boots for the crew" }; } },
 ];
 const WORKSHOP = [
@@ -776,33 +724,6 @@ function suggest(){
   const w = BUY.worker;
   if (S.stones >= w.cost()) return { def: w, ready: true, why: ["every hand is busy", "every hand busy"] };
   return { def: w, ready: false, why: "every hand is busy" };
-}
-
-/* ---------- Relics ---------- */
-const RELICS = [
-  { id: "lantern", name: "Lantern of Guidance", virtue: "Guide", found: true, note: "It lights the way to the next one." },
-  { id: "shield", name: "Shield of Protection", virtue: "Protect", found: true, note: "Time away is kept, however long." },
-  { id: "hammer", name: "Hammer of the Builder", found: false, next: true, note: "Far below." },
-  { id: "heart", found: false, note: "Somewhere in the deep." },
-  { id: "crown", found: false, note: "Somewhere in the deep." },
-  { id: "mantle", found: false, note: "At the very bottom." },
-];
-const HINT = "Under the granite, something glitters.";
-function buildRelics(){
-  const box = $("#sockets"); box.innerHTML = "";
-  RELICS.forEach((r, i) => {
-    const b = document.createElement("button");
-    b.className = "relic"; b.style.left = (15 + i * 66) + "px";
-    b.setAttribute("aria-label", (r.found ? r.name + ", found" : r.next ? "Next relic: " + r.name + ". " + r.note : "A relic, " + r.note) + ". 2 of 6 found");
-    const inner = r.found ? `<img class="rl" src="${ART}relic-${r.id}.png" alt="">` : r.next ? `<img class="rl" src="${ART}relic-${r.id}-dark.png" alt="">` : "";
-    b.innerHTML = `<img class="sock" src="${ART}relic-socket.png" alt="">${inner}`;
-    b.addEventListener("click", () => {
-      if (r.found) showNote(b, `<span class="h">${r.name}</span><span class="b">${r.virtue}. ${r.note}</span><span class="q">Relics of Fatherhood · 2 of 6 found</span>`);
-      else if (r.next) showNote(b, `<span class="h">Next relic</span><span class="b">${r.name}. ${r.note}</span><span class="q">${HINT}</span>`);
-      else showNote(b, `<span class="h">A relic</span><span class="b">${r.note}</span><span class="q">2 of 6 found</span>`);
-    });
-    box.appendChild(b);
-  });
 }
 
 /* ---------- Odometer: five drums that roll on hard steps ---------- */
@@ -893,7 +814,7 @@ function kickNeedle(v){ G.vel += v; }
    Coordinates below are art px inside the 92x76 view. */
 const V = {
   sheave: $("#wSheave"), steam: $("#wSteam"), drill: $("#wDrill"), tarp: $("#wTarp"), borer: $("#wBorer"),
-  bdust: $("#wBDust"), tub: $("#wTub"), miner: $("#wMiner"), cage: $("#wCage"), fill: $("#wFill"), dust: $("#wDust"), plus: $("#wPlus"),
+  bdust: $("#wBDust"), tub: $("#wTub"), miner: $("#wMiner"), cage: $("#wCage"), fill: $("#wFill"), dust: $("#wDust"),
 };
 /* The haulage run. A miner pushes a tub out to the face, walks round behind it while it is filled,
    pushes it back, tips it at the cage and walks round again. All in whole art px, on hard steps.
@@ -1060,7 +981,7 @@ function windowBeat(key, firstBorer){
     W.nw = true;     // the handover happens at the tub's next visit to the cage
   } else if (key === "drill"){
     W.drill.rest = 0; W.drill.seq = 0; W.drill.acc = 0; W.drill.strokes = 9;
-    puff(69, 53, false);
+    puff(69, 53);
   } else if (key === "borer"){
     if (firstBorer){
       V.borer.style.display = "block"; frameX(V.borer, 0, 56);
@@ -1069,19 +990,10 @@ function windowBeat(key, firstBorer){
     }
   }
 }
-/* dig feedback inside the window: a dust puff and the stones it gave */
-function puff(xArt, yArt, withPlus, n){
+/* a dust puff inside the window */
+function puff(xArt, yArt){
   W.dust = { f: 0, acc: 0 };
   V.dust.style.left = px(xArt); V.dust.style.top = px(yArt); V.dust.style.display = "block"; frameX(V.dust, reduce ? 1 : 0, 32);
-  if (withPlus){
-    V.plus.textContent = "+" + short(n);
-    W.plus = { x: xArt, y: yArt - 2, step: 0, acc: 0 };
-    V.plus.style.display = "block";
-    const w = Math.ceil(V.plus.offsetWidth / 2);
-    W.plus.x = Math.max(1, Math.min(91 - w, xArt + 8 - Math.round(w / 2)));
-    W.plus.y = Math.max(1, Math.min(67, yArt - 2));
-    V.plus.style.left = px(W.plus.x); V.plus.style.top = px(W.plus.y);
-  }
 }
 function fxTick(dt){
   if (W.dust){
@@ -1092,15 +1004,6 @@ function fxTick(dt){
   if (W.fill){
     const d = W.fill; d.acc += dt;
     while (d.acc >= .09 && W.fill){ d.acc -= .09; d.f++; if (d.f > 3){ W.fill = null; V.fill.style.display = "none"; } else frameX(V.fill, d.f, 32); }
-  }
-  if (W.plus){
-    const p = W.plus; p.acc += dt;
-    const per = reduce ? .7 : .07;
-    while (p.acc >= per && W.plus){
-      p.acc -= per; p.step++;
-      if (reduce || p.step > 12){ W.plus = null; V.plus.style.display = "none"; break; }
-      V.plus.style.top = px(p.y - p.step);
-    }
   }
 }
 function windowTick(dt){
@@ -1208,14 +1111,6 @@ function paintCrew(){
   $("#crew").classList.toggle("none", S.free < 1);
   $("#crew").setAttribute("aria-label", `Crew: ${S.workers} workers, ${S.free} free`);
 }
-let lastDialF = -1;
-function paintBoost(){
-  const m = S.boostLeft > 0 ? Math.min(30, Math.floor(S.boostLeft / 60)) : 0;
-  if (m !== lastDialF){ lastDialF = m; frameX($("#dial"), m, 88); }
-  if (S.boostLeft > 0){ $("#bMul").textContent = "×" + S.mul; $("#bLeft").textContent = clock(S.boostLeft); }
-  else { $("#bMul").textContent = "×1"; $("#bLeft").textContent = "rested"; }
-  $("#boost").setAttribute("aria-label", S.boostLeft > 0 ? `Overtime: crew ×${S.mul}, ${clock(S.boostLeft)} left of 30:00` : "Overtime is over");
-}
 let odoAt = 0, odoNow = false;
 function paintHud(){
   const t = performance.now();
@@ -1225,7 +1120,6 @@ function paintHud(){
   const r = gaugeFmt(rate());
   if ($("#gRead").textContent !== r) $("#gRead").textContent = r;
   $("#gauge").setAttribute("aria-label", `Output: ${Math.floor(rate()).toLocaleString("en-US")} stones a second`);
-  if (!tally) $("#digN").textContent = "+" + short(tapPower());
   const upLit = UPGRADES.some(u => status(u).ready);
   const ku = $("#kUp .cap"); if (!ku.parentElement.classList.contains("down")) frameX(ku, upLit ? 3 : 0, 64);
   $("#spPhone").textContent = short(S.stones);
@@ -1289,52 +1183,11 @@ function spend(def, st){
   if (def.bench) S.bench = { name: def.name, left: def.bench };
   spendMark("−" + (st.c ? short(st.c) : def.priceText));
   logEvent(gain ? `${res.text}. <b>${gain}</b>` : res.text + ".");
-  paintBays(true); paintCrew(); paintHud(); paintBoost(); paintEng();
+  paintBays(true); paintCrew(); paintHud(); paintEng();
   if (def.gain){ kickNeedle(120); windowBeat(def.key, firstBorer); }
   if (!W.tarp) paintMachines();
   return { text: res.text, gain, def };
 }
-
-/* ---------- Digging: the red button, or a tap on the window ---------- */
-const digBtn = $("#digBtn"), digSpr = $("#digSpr");
-let digT, digT2, digHitT, tally = 0, handTotal = 0;
-digBtn.addEventListener("pointerdown", () => { clearTimeout(digT); clearTimeout(digT2); frameX(digSpr, 1, 112); });
-function dig(n){
-  S.stones += n; S.mined += n; handTotal += n;
-  kickNeedle(150);
-  const d = $("#dig"); d.classList.add("hit");
-  tally += n; $("#digW").textContent = "By hand"; $("#digN").textContent = "+" + short(tally);
-  clearTimeout(digHitT); digHitT = setTimeout(() => { d.classList.remove("hit"); tally = 0; $("#digW").textContent = "Dig"; $("#digN").textContent = "+" + short(tapPower()); }, 1500);
-  paintHud();
-}
-digBtn.addEventListener("click", () => {
-  const n = tapPower(); dig(n);
-  frameX(digSpr, 2, 112); clearTimeout(digT); digT = setTimeout(() => frameX(digSpr, 0, 112), 70);
-  puff(67, 30, true, n);           // the same puff at the upper face
-});
-addEventListener("pointerup", () => { if (!digT) frameX(digSpr, 0, 112); });
-addEventListener("pointercancel", () => frameX(digSpr, 0, 112));
-
-/* the window: a tap anywhere digs, the puff comes up where the finger was */
-const win = $("#win"), view = $("#view");
-let winPt = null;
-win.addEventListener("pointerdown", e => {
-  const r = view.getBoundingClientRect(), s = r.width / 184;
-  winPt = { x: (e.clientX - r.left) / s / 2, y: (e.clientY - r.top) / s / 2 };
-});
-win.addEventListener("click", () => {
-  if (current || sp.classList.contains("on")){ closeSheet(); closeSave(); winPt = null; return; }   // the scrim catches this; belt and braces
-  const n = tapPower(); dig(n);
-  let x = 67, y = 30;
-  if (winPt){ x = Math.round(winPt.x) - 8; y = Math.round(winPt.y) - 8; }
-  x = Math.max(-2, Math.min(78, x)); y = Math.max(-2, Math.min(62, y));
-  winPt = null;
-  puff(x, y, true, n);
-  // the red button runs its press frames with it, so both dig paths look the same
-  clearTimeout(digT); clearTimeout(digT2);
-  frameX(digSpr, 1, 112);
-  digT = setTimeout(() => { frameX(digSpr, 2, 112); digT2 = setTimeout(() => { frameX(digSpr, 0, 112); digT = 0; }, 60); }, 80);
-});
 
 /* ---------- Keys ---------- */
 document.querySelectorAll(".key").forEach(k => {
@@ -1367,14 +1220,13 @@ function showNote(anchor, html, ms = 3400){
   note.querySelectorAll("canvas.sk").forEach(c => { c.__ok = false; paintSk(c); });
   clearTimeout(noteT); noteT = setTimeout(() => note.classList.remove("on"), ms);
 }
-document.addEventListener("pointerdown", e => { if (!e.target.closest("#note") && !e.target.closest(".relic")) note.classList.remove("on"); });
+document.addEventListener("pointerdown", e => { if (!e.target.closest("#note")) note.classList.remove("on"); });
 $("#bayBtn").addEventListener("click", () => openSheet("buys"));
 
 /* ---------- Ledger ---------- */
 const LOG = [
   { t: ago(1), line: "Couldn't reach your save. Every stone is kept on this phone." },
   { t: ago(7), line: "Hired worker 56. One hand is free." },
-  { t: ago(23), line: "Overtime started. Crew <b>×2</b> for 30:00." },
   { t: ago(26), line: "Came back. The crew dug <b>1.2M</b> while you slept." },
 ];
 let freshLog = false;
@@ -1389,7 +1241,7 @@ function renderLog(){
 /* ---------- Sheets ---------- */
 const SHEETS = {
   buys: { title: "Buys", kick: "Crew and machines that mine while you rest", rows: BUYS },
-  upgrades: { title: "Upgrades", kick: "Boosts for tonight, gear for good", rows: UPGRADES },
+  upgrades: { title: "Upgrades", kick: "Gear for good", rows: UPGRADES },
   workshop: { title: "Workshop", kick: "One bench. Crafts finish while you are away", rows: WORKSHOP, mats: true },
   engineers: { title: "Engineers", kick: () => S.borers > 0 ? "Your best hands, by the borers" : "Locked. Here is why", engineers: true },
   ledger: { title: "Ledger", kick: "Tonight, and the mine so far", ledger: true },
@@ -1439,7 +1291,6 @@ function openSheet(key){
     html += secHTML("Tonight");
     html += `<div class="log" id="logBox"><canvas class="sk" data-sk="frame"></canvas></div>`;
     html += secHTML("The mine");
-    html += `<div class="srow info-row"><canvas class="sk" data-sk="frame"></canvas>${lampHTML("amber")}<img class="ico" src="${ART}relic-hammer-dark.png" width="48" height="48" style="width:48px;height:48px;justify-self:center" alt=""><span class="mid"><span class="nm">2 of 6 relics found</span><span class="info">Next · Hammer of the Builder · far below</span><span class="info">${HINT}</span></span><span></span></div>`;
     html += `<button class="srow noico" id="ledgerSave"><canvas class="sk" data-sk="frame"></canvas>${lampHTML("amber")}<span class="mid"><span class="nm">Couldn't reach your save</span><span class="info">Kept on this phone · Google</span></span><span class="go">Why?</span></button>`;
   }
   /* what a short sheet leaves free is a recessed backplate, screwed at the corners, with the maker's plate on it */
@@ -1472,12 +1323,8 @@ function closeSheet(){
 }
 const scrim = $("#scrim");
 function paintScrim(){ scrim.classList.toggle("on", !!current || sp.classList.contains("on")); }
-/* a tap on the scrim closes the drawer; over a relic socket it also shows that relic's note */
-scrim.addEventListener("click", e => {
-  const under = [...document.querySelectorAll(".relic")].find(b => { const r = b.getBoundingClientRect(); return e.clientX >= r.left && e.clientX < r.right && e.clientY >= r.top && e.clientY < r.bottom; });
-  closeSheet(); closeSave();
-  if (under) under.click();
-});
+/* a tap on the scrim closes the drawer */
+scrim.addEventListener("click", () => { closeSheet(); closeSave(); });
 $("#back").addEventListener("click", closeSheet);
 document.addEventListener("keydown", e => { if (e.key === "Escape"){ closeSheet(); closeSave(); } });
 function paintRows(){
@@ -1583,13 +1430,13 @@ $("#spClose").addEventListener("click", () => closeSave());
 
 /* ---------- Layout: one board, two heights, scaled to fit everything else ----------
    868 is the installed PWA (status and gesture bars kept), 924 the full screen.
-   Between the two, the extra height goes evenly into the six gaps, in whole 2px steps.
+   Between the two, the extra height goes evenly into the five gaps, in whole 2px steps.
    Narrower or shorter screens scale the whole board; it never rearranges. */
 const LAY = {
-  "868": { relic: 6, stock: 76, gauge: 162, bays: 412, ready: 610, keys: 726, bayH: 58 },
-  "924": { relic: 6, stock: 86, gauge: 176, bays: 430, ready: 644, keys: 768, bayH: 62 },
+  "868": { stock: 76, gauge: 162, bays: 412, ready: 610, keys: 726, bayH: 58 },
+  "924": { stock: 86, gauge: 176, bays: 430, ready: 644, keys: 768, bayH: 62 },
 };
-const ROWS = [["relic", "#rRelics"], ["stock", "#rStock"], ["gauge", "#rGauge"], ["bays", "#rBays"], ["ready", "#rReady"], ["keys", "#rRail"]];
+const ROWS = [["stock", "#rStock"], ["gauge", "#rGauge"], ["bays", "#rBays"], ["ready", "#rReady"], ["keys", "#rRail"]];
 let mode = null, scale = 1, Hd = 868;
 function layout(){
   const vw = document.documentElement.clientWidth, vh = document.documentElement.clientHeight;
@@ -1610,7 +1457,7 @@ function layout(){
   const m = h >= 924 ? "924" : "868";
   if (m !== mode){ mode = m; stage.dataset.mode = m; document.querySelectorAll(".bay .sub").forEach(x => x.__fit = null); }
   const L = LAY[m], q = (h - (m === "924" ? 924 : 868)) / 2;
-  ROWS.forEach(([k, sel], i) => { $(sel).style.top = (L[k] + 2 * Math.floor(q * i / 6)) + "px"; });
+  ROWS.forEach(([k, sel], i) => { $(sel).style.top = (L[k] + 2 * Math.floor(q * i / 5)) + "px"; });
   $("#rBays").style.height = (3 * L.bayH + 20) + "px";
   $("#bayBtn").style.height = (3 * L.bayH) + "px";
   $("#saveline").style.top = (h - 56) + "px";
@@ -1637,10 +1484,7 @@ function frame(t){
   acc += dt; slow += dt;
   if (acc >= 1){
     acc -= 1;
-    if (S.boostLeft > 0){ S.boostLeft--; if (S.boostLeft === 0) S.mul = 1; }
-    if (S.picksLeft > 0) S.picksLeft--;
     if (S.bench){ S.bench.left--; if (S.bench.left <= 0) S.bench = null; }
-    paintBoost();
   }
   if (slow >= .25){ slow = 0; paintRows(); paintReady(); paintHud(); paintBayLamps(); }
   if (!reduce){ paintGauge(dt); windowTick(dt); stepDrill(dt); }
@@ -1648,9 +1492,8 @@ function frame(t){
   requestAnimationFrame(frame);
 }
 addEventListener("resize", layout);
-buildRelics();
 Promise.all(Object.values(SK).map(s => load(s.src).then(im => { READY[s.src] = im; }))).then(() => { layout(); skinAll(); });
-layout(); paintOdo(true); paintCrew(); paintBoost(); paintHud(); paintReady(true); paintGauge(0);
+layout(); paintOdo(true); paintCrew(); paintHud(); paintReady(true); paintGauge(0);
 windowRest(); paintMachines(); paintEng();
 if (reduce){ const f = Math.round((targetAng() + 135) / 5); G.frame = -1; G.ang = -135 + f * 5; G.vel = 0; paintGauge(0); }
 requestAnimationFrame(t => { last = t; frame(t); });
@@ -1658,7 +1501,6 @@ document.fonts && document.fonts.ready.then(() => layout());
 window.__S = S;
 window.__mock = {
   S, suggest, gauge: G, window: W,
-  get handTotal(){ return handTotal; }, tapPower,
   get layout(){ return { mode, scale, Hd }; },
   hold(on){ paused = !!on; },   // test hook: freeze the board (for paired screenshots)
   setStones(n){ S.stones = n; odoNow = true; paintHud(); paintReady(true); paintRows(); },

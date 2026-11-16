@@ -1,8 +1,6 @@
 import { EMPTY_STOCK, priceAmount, stonesPrice, UNSHOWN_PRICE } from "../stock";
 import { milestoneMultiplier } from "../milestones";
-import { RUSH_MS } from "../gold-rush";
 import { describe, expect, it } from "vitest";
-import { BOOSTS, boostById, buyBoost, boostLeft, NO_BOOSTS } from "../boosts";
 import { buyCrew } from "../crew";
 import { holdOrder, placeOrder } from "../city";
 import { freeWorker } from "../workforce";
@@ -22,14 +20,9 @@ import {
 import { recall, send } from "../expeditions";
 import { markTaught, showsDot } from "../teach";
 import type { Trouble } from "../hazards";
-import { createMountain, mineByHand, type Mountain } from "../mountain";
+import { createMountain, type Mountain } from "../mountain";
 import { minedMountain, patched, type MountainPatch } from "../test-fixtures";
-import {
-  AWAY_FULL_MS,
-  AWAY_PAY_RATE,
-  effectiveRates,
-  paidAwayMs,
-} from "../rates";
+import { AWAY_PAY_RATE, effectiveRates, paidAwayMs } from "../rates";
 import {
   TIERS,
   owned,
@@ -40,9 +33,7 @@ import {
 } from "../tiers";
 import {
   BOOTS_SPEED_PER_LEVEL,
-  STEADY_AWAY_PER_LEVEL,
   SYNERGY_PER_UNIT,
-  TAP_SHARE_PER_LEVEL,
   buyUpgrade,
   upgradeById,
   upgradeCost,
@@ -65,7 +56,6 @@ import {
 import {
   applyAction,
   applyMove,
-  buyEveryBoost,
   buyWithTeach,
   listActions,
   sinkRecipes,
@@ -80,9 +70,8 @@ import { vehicleQuote } from "../transport";
 const NOW = 1_700_000_000_000;
 const HORIZON = 6 * 60 * 60;
 
-/** At the mountain the whole time, never tapping. Income is the unrounded crew. */
+/** At the mountain the whole time. Income is the unrounded crew. */
 const LIVE: ValueContext = {
-  tapsPerSecond: 0,
   liveSeconds: 1,
   awaySeconds: 0,
 };
@@ -91,7 +80,6 @@ const LIVE: ValueContext = {
 const SESSION_S = 10 * 60;
 const GAP_S = 12 * 60 * 60 - SESSION_S;
 const CASUAL: ValueContext = {
-  tapsPerSecond: 3,
   liveSeconds: SESSION_S,
   awaySeconds: GAP_S,
 };
@@ -113,8 +101,7 @@ const ada: Engineer = { name: "Ada", rank: 0, trips: 0, post: "borer" };
  */
 const FIXTURES = {
   buyTier: { kind: "buyTier", id: "helper" },
-  buyUpgrade: { kind: "buyUpgrade", id: "tap", price: [] },
-  buyBoost: { kind: "buyBoost", id: "sharper" },
+  buyUpgrade: { kind: "buyUpgrade", id: "boots", price: [] },
   promote: { kind: "promote", price: [] },
   station: { kind: "station", index: 0, post: "drill" },
   send: { kind: "send", index: 0, tunnel: "old-shaft" },
@@ -168,13 +155,6 @@ function direct(mountain: Mountain, action: Action, now: number): Mountain {
       return buyWithTeach(mountain, action.id);
     case "buyUpgrade":
       return buyUpgrade(mountain, action.id);
-    case "buyBoost":
-      return buyBoost({
-        mountain,
-        id: action.id,
-        now,
-        pricing: effectiveRates(mountain),
-      });
     case "promote":
       return promote(mountain);
     case "station": {
@@ -399,17 +379,11 @@ describe("listActions", () => {
       names({ ...fresh, stock: { ...fresh.stock, stones: 1e12 } }),
     ).toEqual(["buyTier:helper"]);
     expect(
-      names({ ...fresh, owned: { ...fresh.owned, helper: 1, cart: 3 } }),
-    ).toEqual(
-      expect.arrayContaining([
-        "buyUpgrade:tap",
-        "buyUpgrade:steady",
-        "buyBoost:sharper",
-      ]),
-    );
+      names({ ...fresh, owned: { ...fresh.owned, helper: 1, cart: 5 } }),
+    ).toEqual(expect.arrayContaining(["buyUpgrade:cartSyn"]));
     expect(
-      names({ ...fresh, owned: { ...fresh.owned, helper: 1, cart: 3 } }),
-    ).not.toContain("buyBoost:overtime");
+      names({ ...fresh, owned: { ...fresh.owned, helper: 1, cart: 5 } }),
+    ).not.toContain("buyUpgrade:boots");
   });
 
   it("shows the next tier once the previous one is owned, and hides a locked one", () => {
@@ -425,7 +399,7 @@ describe("listActions", () => {
     expect(locked.map((action) => action.id)).toContain("borer");
   });
 
-  it("lists a kid once the Crown is found and a machine is owned", () => {
+  it("lists a kid once 70M is mined and a machine is owned", () => {
     const ids = listActions(crowned, NOW)
       .filter((action) => action.kind === "buyTier")
       .map((action) => action.id);
@@ -433,24 +407,16 @@ describe("listActions", () => {
     expect(ids).toContain("machine");
   });
 
-  it("keeps unaffordable buys and drops a maxed upgrade or a running boost", () => {
+  it("keeps unaffordable buys and drops a bought upgrade", () => {
     const offers = listActions(broke, NOW);
     expect(offers.some((action) => action.kind === "buyTier")).toBe(true);
     expect(offers.some((action) => action.kind === "promote")).toBe(true);
-    const maxed: Mountain = { ...rich, upgrades: { ...NO_UPGRADES, tap: 10 } };
+    const maxed: Mountain = { ...rich, upgrades: { ...NO_UPGRADES, boots: 1 } };
     expect(
       listActions(maxed, NOW).some(
-        (action) => action.kind === "buyUpgrade" && action.id === "tap",
+        (action) => action.kind === "buyUpgrade" && action.id === "boots",
       ),
     ).toBe(false);
-    const running: Mountain = {
-      ...rich,
-      boosts: { sharper: NOW + 60_000, overtime: NOW + 60_000 },
-    };
-    expect(
-      listActions(running, NOW).some((action) => action.kind === "buyBoost"),
-    ).toBe(false);
-    expect(boostLeft(running, "sharper", NOW)).toBeGreaterThan(0);
   });
 
   it("offers posts and tunnels for an engineer at camp, and a recall while they are out", () => {
@@ -668,7 +634,6 @@ describe("applyAction", () => {
       if (
         action.kind === "buyTier" ||
         action.kind === "buyUpgrade" ||
-        action.kind === "buyBoost" ||
         action.kind === "promote"
       ) {
         expect(applyAction(broke, action, NOW)).toBe(broke);
@@ -853,7 +818,6 @@ describe("valueOf", () => {
       score(eleven, { kind: "buyUpgrade", id: "boots", price: [] }).gainPerSec,
     ).toBeCloseTo(11 * BOOTS_SPEED_PER_LEVEL, 10);
     const quietSchedule: ValueContext = {
-      tapsPerSecond: 0,
       liveSeconds: 0,
       awaySeconds: 0,
     };
@@ -865,14 +829,6 @@ describe("valueOf", () => {
         quietSchedule,
       ).gainPerSec,
     ).toBeCloseTo(11 * BOOTS_SPEED_PER_LEVEL, 10);
-
-    const heir: Mountain = { ...ten, legacy: 1 };
-    expect(
-      score(heir, { kind: "buyUpgrade", id: "boots", price: [] }).gainPerSec,
-    ).toBeCloseTo(
-      10 * effectiveRates(heir).tierSpeed.helper * BOOTS_SPEED_PER_LEVEL,
-      8,
-    );
 
     expect(
       score(ten, { kind: "buyUpgrade", id: "cartSyn", price: [] }).gainPerSec,
@@ -897,93 +853,13 @@ describe("valueOf", () => {
     expect(shortHands.gainPerSec).not.toBeCloseTo(1.2, 8);
   });
 
-  it("pays Strong arms for taps, Night foreman for time away, and Sharper picks for both", () => {
-    const tapping: ValueContext = {
-      tapsPerSecond: 3,
-      liveSeconds: 1,
-      awaySeconds: 0,
-    };
-    const arms = { kind: "buyUpgrade", id: "tap", price: [] } as const;
-    const crew: Mountain = {
-      ...fresh,
-      owned: { ...fresh.owned, helper: 100, cart: 3 },
-    };
-    expect(score(crew, arms, HORIZON, tapping).gainPerSec).toBeGreaterThan(0);
-    expect(score(crew, arms, HORIZON, LIVE).gainPerSec).toBe(0);
-    const small: Mountain = {
-      ...fresh,
-      owned: { ...fresh.owned, helper: 10, cart: 3 },
-    };
-    expect(score(small, arms, HORIZON, tapping).gainPerSec).toBe(0);
-
-    const yard: Mountain = {
-      ...fresh,
-      owned: { ...fresh.owned, helper: 10, cart: 1 },
-    };
-    const steady = { kind: "buyUpgrade", id: "steady", price: [] } as const;
-    const aMinute: ValueContext = {
-      tapsPerSecond: 0,
-      liveSeconds: 0,
-      awaySeconds: 60,
-    };
-    expect(score(yard, steady, HORIZON, aMinute).gainPerSec).toBeGreaterThan(0);
-    expect(score(yard, steady, HORIZON, LIVE).gainPerSec).toBe(0);
-    const week: ValueContext = {
-      tapsPerSecond: 0,
-      liveSeconds: 0,
-      awaySeconds: 7 * 24 * 60 * 60,
-    };
-    const atCap: ValueContext = {
-      tapsPerSecond: 0,
-      liveSeconds: 0,
-      awaySeconds: AWAY_FULL_MS / 1000,
-    };
-    expect(score(yard, steady, HORIZON, week).gainPerSec).toBeLessThan(
-      score(yard, steady, HORIZON, atCap).gainPerSec,
-    );
-
-    const sharper = { kind: "buyBoost", id: "sharper" } as const;
-    expect(score(small, sharper, 10 * 60, tapping).gainPerSec).toBeGreaterThan(
-      0,
-    );
-    expect(score(small, sharper, 10 * 60, LIVE).gainPerSec).toBe(0);
-  });
-
-  it("spreads a boost across the horizon and leaves a permanent gain alone", () => {
+  it("leaves a permanent gain alone at a zero horizon", () => {
     const crew: Mountain = {
       ...fresh,
       stock: { ...fresh.stock, stones: 1e15 },
       owned: { ...fresh.owned, helper: 10 },
     };
-    const overtime = { kind: "buyBoost", id: "overtime" } as const;
-    const full = score(crew, overtime, 30 * 60);
-    const half = score(crew, overtime, 60 * 60);
-    expect(full.gainPerSec).toBe(10);
-    expect(half.gainPerSec).toBe(5);
-    // Its crew seconds' worth of a 10-a-second crew.
-    const price = boostById("overtime").priceUnits * 10;
-    expect(full.cost).toBe(price);
-    expect(full.paybackSec).toBe(price / 10);
-    expect(score(crew, overtime, Number.POSITIVE_INFINITY).gainPerSec).toBe(0);
     expect(score(crew, FIXTURES.buyTier, 0).gainPerSec).toBe(1);
-    const queued: Mountain = {
-      ...crew,
-      boosts: { sharper: 5_000, overtime: 1_000 },
-    };
-    expect(score(queued, overtime, 30 * 60).gainPerSec).toBe(full.gainPerSec);
-    const sharper = score(crew, { kind: "buyBoost", id: "sharper" }, 60 * 60);
-    expect(sharper.gainPerSec).toBe(0);
-    expect(sharper.paybackSec).toBe(Number.POSITIVE_INFINITY);
-  });
-
-  it("does not let a running boost change a tier's score", () => {
-    const plain = score(withHelper, { kind: "buyTier", id: "helper" }, HORIZON);
-    const boosted = score(
-      { ...withHelper, boosts: { ...NO_BOOSTS, overtime: NOW + 60_000 } },
-      { kind: "buyTier", id: "helper" },
-      HORIZON,
-    );
-    expect(boosted).toEqual(plain);
   });
 
   it("values a fix as the crew speed trouble was holding back", () => {
@@ -1109,8 +985,8 @@ describe("valueOf", () => {
     expect(machine.gainPerSec).toBe(0);
     expect(machine.paybackSec).toBe(Number.POSITIVE_INFINITY);
     const maxed = score(
-      { ...rich, upgrades: { ...NO_UPGRADES, tap: 10 } },
-      { kind: "buyUpgrade", id: "tap", price: [] },
+      { ...rich, upgrades: { ...NO_UPGRADES, boots: 1 } },
+      { kind: "buyUpgrade", id: "boots", price: [] },
       HORIZON,
     );
     expect(maxed.gainPerSec).toBe(0);
@@ -1120,9 +996,8 @@ describe("valueOf", () => {
   it("matches the casual dad's stones a day, and shows where the upgrade dad's hand formulas differ", () => {
     const cycle = SESSION_S + GAP_S;
     const perDay = (gainPerSec: number) => gainPerSec * cycle * 2;
-    const paidGapS = paidAwayMs(fresh, GAP_S * 1000) / 1000;
+    const paidGapS = paidAwayMs(GAP_S * 1000) / 1000;
     const crewDay = 2 * (SESSION_S + paidGapS * AWAY_PAY_RATE);
-    const tapDay = 2 * SESSION_S;
 
     const worker = score(
       fresh,
@@ -1147,51 +1022,6 @@ describe("valueOf", () => {
       4,
     );
 
-    const yard: Mountain = {
-      ...fresh,
-      owned: { ...fresh.owned, helper: 10, cart: 1 },
-    };
-    const steady = score(
-      yard,
-      { kind: "buyUpgrade", id: "steady", price: [] },
-      HORIZON,
-      CASUAL,
-    );
-    const steadyHand =
-      effectiveRates(yard).exactCrewPerSecond *
-      AWAY_PAY_RATE *
-      STEADY_AWAY_PER_LEVEL *
-      2 *
-      paidGapS;
-    expect(perDay(steady.gainPerSec)).toBeCloseTo(steadyHand, 4);
-
-    const small: Mountain = { ...fresh, owned: { ...fresh.owned, helper: 50 } };
-    const arms = score(
-      small,
-      { kind: "buyUpgrade", id: "tap", price: [] },
-      HORIZON,
-      CASUAL,
-    );
-    expect(arms.gainPerSec).toBe(0);
-    expect(
-      effectiveRates(small).exactCrewPerSecond * TAP_SHARE_PER_LEVEL,
-    ).toBeCloseTo(3.3, 6);
-
-    const hundred: Mountain = {
-      ...fresh,
-      owned: { ...fresh.owned, helper: 24, cart: 9 },
-    };
-    const bigArms = score(
-      hundred,
-      { kind: "buyUpgrade", id: "tap", price: [] },
-      HORIZON,
-      CASUAL,
-    );
-    expect(perDay(bigArms.gainPerSec)).toBeCloseTo(
-      CASUAL.tapsPerSecond * tapDay,
-      4,
-    );
-
     const idle: Mountain = {
       ...fresh,
       owned: { ...fresh.owned, helper: 4, cart: 5 },
@@ -1204,14 +1034,6 @@ describe("valueOf", () => {
     );
     expect(perDay(hands.gainPerSec)).toBeCloseTo(0.96 * crewDay, 3);
     expect(perDay(hands.gainPerSec)).not.toBeCloseTo(1.2 * crewDay, 3);
-
-    const sharper = score(
-      fresh,
-      { kind: "buyBoost", id: "sharper" },
-      HORIZON,
-      CASUAL,
-    );
-    expect(sharper.gainPerSec).toBeGreaterThan(0);
   });
 
   it("values gear, timers, and reinforce, and keeps a refund off the table", () => {
@@ -1231,23 +1053,18 @@ describe("valueOf", () => {
         },
         extra,
       );
-    const quiet: ValueContext = {
-      tapsPerSecond: 0,
-      liveSeconds: 0,
-      awaySeconds: 0,
-    };
-
     expect(
       listActions(fresh, NOW).some((action) => action.kind === "craft"),
     ).toBe(false);
     expect(sinkRecipes(shed())).toContain("reinforce");
-    expect(sinkRecipes(shed()).includes("crystal-lamp")).toBe(false);
-    const withLamp = shed({
-      recipes: [...shed().recipes, "crystal-lamp", "engineers-kit"],
+    expect(sinkRecipes(shed()).includes("engineers-kit")).toBe(false);
+    const withKit = shed({
+      recipes: [...shed().recipes, "engineers-kit"],
     });
     expect(
-      listActions(withLamp, NOW).some(
-        (action) => action.kind === "craft" && action.recipe === "crystal-lamp",
+      listActions(withKit, NOW).some(
+        (action) =>
+          action.kind === "craft" && action.recipe === "engineers-kit",
       ),
     ).toBe(true);
     expect(
@@ -1336,14 +1153,25 @@ describe("valueOf", () => {
     expect(liveCharge.gainPerSec).toBeGreaterThan(0);
     expect(awayCharge.gainPerSec).toBeGreaterThan(0);
     expect(liveCharge.gainPerSec).toBeGreaterThan(awayCharge.gainPerSec);
+    // A timed effect spread over an endless horizon is worth nothing a second.
+    expect(
+      score(shed(), charge, Number.POSITIVE_INFINITY, LIVE).gainPerSec,
+    ).toBe(0);
+    // A schedule with no time in it still weighs props' trouble as if the dad were here.
+    const noTime: ValueContext = { liveSeconds: 0, awaySeconds: 0 };
+    expect(
+      score(shed(), { kind: "craft", recipe: "sturdy-props" }, HORIZON, noTime)
+        .gainPerSec,
+    ).toBe(
+      score(shed(), { kind: "craft", recipe: "sturdy-props" }, HORIZON, LIVE)
+        .gainPerSec,
+    );
 
     const deep = shed({
       owned: { machine: 1, helper: 40 },
       recipes: [
         ...shed().recipes,
         "diamond-bits",
-        "crystal-flare",
-        "crystal-lamp",
         "engineers-kit",
         "heartstone-core",
         "heartstone-ember",
@@ -1357,14 +1185,6 @@ describe("valueOf", () => {
     ).toBeGreaterThan(0);
     expect(
       score(deep, { kind: "craft", recipe: "heartstone-ember" }).gainPerSec,
-    ).toBeGreaterThan(0);
-    expect(
-      score(deep, { kind: "craft", recipe: "crystal-flare" }, HORIZON, CASUAL)
-        .gainPerSec,
-    ).toBeGreaterThan(0);
-    expect(
-      score(deep, { kind: "craft", recipe: "crystal-lamp" }, HORIZON, quiet)
-        .gainPerSec,
     ).toBeGreaterThan(0);
     expect(
       score(deep, { kind: "craft", recipe: "engineers-kit" }).gainPerSec,
@@ -1423,17 +1243,15 @@ describe("valueOf", () => {
     expect(granted.bench?.recipe).toBe("reinforce");
     const plain = shed();
     expect(
-      applyAction(plain, { kind: "craft", recipe: "crystal-lamp" }, NOW),
+      applyAction(plain, { kind: "craft", recipe: "engineers-kit" }, NOW),
     ).toBe(plain);
   });
 });
 
 describe("applyMove (#409)", () => {
-  const calm = { trouble: undefined };
-
   it("applies a buy, with what it spent, and refuses one the pocket cannot pay", () => {
     const cart = { kind: "buyTier", id: "cart" } as const;
-    const bought = applyMove(rich, cart, NOW, calm);
+    const bought = applyMove(rich, cart, NOW);
     expect(bought.kind).toBe("applied");
     if (bought.kind !== "applied") return;
     expect(bought.mountain.owned.cart).toBe(rich.owned.cart + 1);
@@ -1442,13 +1260,13 @@ describe("applyMove (#409)", () => {
       stones: rich.stock.stones - bought.mountain.stock.stones,
     });
     expect(bought.gained).toEqual(EMPTY_STOCK);
-    expect(applyMove(broke, cart, NOW, calm)).toEqual({ kind: "refused" });
+    expect(applyMove(broke, cart, NOW)).toEqual({ kind: "refused" });
   });
 
   it("buys several of a tier as one move, all or nothing (#358)", () => {
     const tenCarts = { kind: "buyTiers", id: "cart", count: 10 } as const;
     const quote = tierQuote(rich, tierById("cart"), "ten");
-    const bought = applyMove(rich, tenCarts, NOW, calm);
+    const bought = applyMove(rich, tenCarts, NOW);
     expect(bought).toEqual({
       kind: "applied",
       mountain: {
@@ -1465,7 +1283,7 @@ describe("applyMove (#409)", () => {
       ...rich,
       stock: { ...rich.stock, stones: quote.cost - 1 },
     };
-    expect(applyMove(short, tenCarts, NOW, calm)).toEqual({ kind: "refused" });
+    expect(applyMove(short, tenCarts, NOW)).toEqual({ kind: "refused" });
   });
 
   it("buys several wagons as one move, all or nothing (#715)", () => {
@@ -1481,9 +1299,9 @@ describe("applyMove (#409)", () => {
     });
     const quote = vehicleQuote(rich, "horseWagon", "ten");
     // Outside a fresh mine no wagon is bought, one or ten, as buyVehicle is refused.
-    expect(applyMove(rich, tenWagons, NOW, calm)).toEqual({ kind: "refused" });
+    expect(applyMove(rich, tenWagons, NOW)).toEqual({ kind: "refused" });
     withFactors({ [FRESH_OFF]: 0 }, () => {
-      const bought = applyMove(rich, tenWagons, NOW, calm);
+      const bought = applyMove(rich, tenWagons, NOW);
       expect(
         bought.kind === "applied" && bought.mountain.fleet.horseWagon,
       ).toBe(rich.fleet.horseWagon + 10);
@@ -1495,7 +1313,7 @@ describe("applyMove (#409)", () => {
         ...rich,
         stock: { ...rich.stock, stones: quote.cost - 1 },
       };
-      expect(applyMove(short, tenWagons, NOW, calm)).toEqual({
+      expect(applyMove(short, tenWagons, NOW)).toEqual({
         kind: "refused",
       });
     });
@@ -1511,7 +1329,6 @@ describe("applyMove (#409)", () => {
       idle,
       { kind: "buyTiers", id: "helper", count: 3 },
       NOW,
-      calm,
     );
     expect(hired.kind === "applied" && hired.mountain.owned.helper).toBe(3);
     expect(hired.kind === "applied" && hired.mountain.taught).toContain(
@@ -1526,7 +1343,7 @@ describe("applyMove (#409)", () => {
       owned: { ...rich.owned, helper: 0 },
     };
     expect(showsDot(idle, "staffing")).toBe(true);
-    const hired = applyMove(idle, { kind: "buyTier", id: "helper" }, NOW, calm);
+    const hired = applyMove(idle, { kind: "buyTier", id: "helper" }, NOW);
     expect(hired.kind === "applied" && hired.mountain.taught).toContain(
       "staffing",
     );
@@ -1537,14 +1354,13 @@ describe("applyMove (#409)", () => {
       rich,
       { kind: "station", index: 0, post: "camp" },
       NOW,
-      calm,
     );
     expect(moved.kind === "applied" && moved.mountain.taught).toContain(
       "tending",
     );
     // No engineer at that index: nothing changes, so nothing is marked either.
     expect(
-      applyMove(rich, { kind: "station", index: 9, post: "camp" }, NOW, calm),
+      applyMove(rich, { kind: "station", index: 9, post: "camp" }, NOW),
     ).toEqual({ kind: "refused" });
   });
 
@@ -1553,7 +1369,6 @@ describe("applyMove (#409)", () => {
       travelling,
       { kind: "station", index: 0, post: "camp" },
       NOW,
-      calm,
     );
     expect(moved.kind).toBe("applied");
     if (moved.kind !== "applied") return;
@@ -1562,80 +1377,18 @@ describe("applyMove (#409)", () => {
     expect(moved.mountain.taught).toContain("tending");
   });
 
-  it("digs with the trouble it is given: a slowed machine gives a tap less, never nothing", () => {
-    const tapper: Mountain = { ...rich, upgrades: { ...NO_UPGRADES, tap: 5 } };
-    const calmDig = applyMove(tapper, { kind: "dig" }, NOW, calm);
-    const caveIn = applyMove(tapper, { kind: "dig" }, NOW, { trouble });
-    const gained = (result: typeof calmDig) =>
-      result.kind === "applied" ? result.gained.stones : -1;
-    expect(gained(caveIn)).toBe(
-      mineByHand(tapper, NOW, trouble).stock.stones - tapper.stock.stones,
-    );
-    expect(gained(caveIn)).toBeGreaterThan(0);
-    expect(gained(caveIn)).toBeLessThan(gained(calmDig));
-  });
-
-  it("digs by hand with what it mined, and taps a vein", () => {
-    const dug = applyMove(fresh, { kind: "dig" }, NOW, calm);
-    expect(dug.kind === "applied" && dug.gained.stones).toBeGreaterThan(0);
-    expect(dug.kind === "applied" && dug.spent.stones).toBe(0);
-    const vein = applyMove(rich, { kind: "tapVein" }, NOW, calm);
-    expect(vein.kind === "applied" && vein.gained.stones).toBeGreaterThan(0);
-  });
-
-  it("pays a quick vein like a vein, then starts a Gold rush", () => {
-    const owed = { ...rich, rushBank: 8_100 };
-    const vein = applyMove(rich, { kind: "tapVein" }, NOW, calm);
-    const quick = applyMove(owed, { kind: "tapQuickVein" }, NOW, calm);
-    expect(quick.kind === "applied" && quick.gained.stones).toBe(
-      vein.kind === "applied" ? vein.gained.stones : -1,
-    );
-    expect(quick.kind === "applied" && quick.mountain.rushUntil).toBe(
-      NOW + RUSH_MS,
-    );
-    expect(quick.kind === "applied" && quick.events).toEqual([
-      {
-        kind: "quickVeinTapped",
-        stones: quick.kind === "applied" ? quick.gained.stones : -1,
-      },
-    ]);
-  });
-
-  it("lands the held stones when the quick vein is missed, once", () => {
-    const owed = { ...rich, rushBank: 8_100 };
-    const missed = applyMove(owed, { kind: "missQuickVein" }, NOW, calm);
-    expect(missed.kind === "applied" && missed.gained.stones).toBe(8_100);
-    expect(missed.kind === "applied" && missed.events).toEqual([
-      { kind: "rushLanded", stones: 8_100 },
-    ]);
-    expect(applyMove(rich, { kind: "missQuickVein" }, NOW, calm).kind).toBe(
-      "refused",
-    );
-    // a rush that has started is not landed early
-    const rushed = { ...owed, rushUntil: NOW + RUSH_MS };
-    expect(applyMove(rushed, { kind: "missQuickVein" }, NOW, calm).kind).toBe(
-      "refused",
-    );
-  });
-
   it("marks a sheet seen, and refuses a mark already made", () => {
-    const seen = applyMove(
-      fresh,
-      { kind: "markSeen", id: "workshop" },
-      NOW,
-      calm,
-    );
+    const seen = applyMove(fresh, { kind: "markSeen", id: "workshop" }, NOW);
     expect(seen.kind).toBe("applied");
     if (seen.kind !== "applied") return;
     expect(seen.mountain.seen).toContain("workshop");
     expect(
-      applyMove(seen.mountain, { kind: "markSeen", id: "workshop" }, NOW, calm),
+      applyMove(seen.mountain, { kind: "markSeen", id: "workshop" }, NOW),
     ).toEqual({ kind: "refused" });
     const all = applyMove(
       fresh,
       { kind: "markAllSeen", ids: ["workshop", "engineers"] },
       NOW,
-      calm,
     );
     expect(all.kind === "applied" && all.mountain.seen).toEqual([
       "workshop",
@@ -1644,30 +1397,16 @@ describe("applyMove (#409)", () => {
   });
 
   const eventsOf = (mountain: Mountain, move: Move) => {
-    const result = applyMove(mountain, move, NOW, calm);
+    const result = applyMove(mountain, move, NOW);
     return result.kind === "applied" ? result.events : undefined;
   };
 
-  it("says what a buy, an upgrade, a boost and a craft did", () => {
+  it("says what a buy, an upgrade and a craft did", () => {
     expect(eventsOf(rich, { kind: "buyTier", id: "cart" })).toEqual([
       { kind: "tierBought", id: "cart", count: rich.owned.cart + 1 },
     ]);
-    expect(eventsOf(rich, upgradeAt(rich, "tap"))).toEqual([
-      { kind: "upgradeBought", id: "tap", level: 1 },
-    ]);
-    const boosted = applyMove(
-      rich,
-      { kind: "buyBoost", id: "sharper" },
-      NOW,
-      calm,
-    );
-    expect(boosted.kind === "applied" && boosted.events).toEqual([
-      {
-        kind: "boostStarted",
-        id: "sharper",
-        endsAt:
-          boosted.kind === "applied" ? boosted.mountain.boosts.sharper : 0,
-      },
+    expect(eventsOf(rich, upgradeAt(rich, "boots"))).toEqual([
+      { kind: "upgradeBought", id: "boots", level: 1 },
     ]);
     expect(eventsOf(rich, { kind: "craft", recipe: "sturdy-props" })).toEqual([
       { kind: "craftStarted", recipe: "sturdy-props" },
@@ -1690,25 +1429,29 @@ describe("applyMove (#409)", () => {
       ...rich,
       remaining: minedMountain(10_000_000).remaining,
     };
-    const armsShown = upgradePrice(topsoil, "tap") ?? [];
+    const bootsShown = upgradePrice(topsoil, "boots") ?? [];
     const promoteShown = promotePrice(topsoil);
     expect(oneOffStretch(granite)).toBeGreaterThan(oneOffStretch(topsoil));
-    const arms = { kind: "buyUpgrade", id: "tap", price: armsShown } as const;
+    const boots = {
+      kind: "buyUpgrade",
+      id: "boots",
+      price: bootsShown,
+    } as const;
     const stepUp = { kind: "promote", price: promoteShown } as const;
     // The band crossed between the paint and the tap: the dearer price is refused.
-    expect(applyMove(granite, arms, NOW, calm)).toEqual({ kind: "refused" });
-    expect(applyMove(granite, stepUp, NOW, calm)).toEqual({ kind: "refused" });
+    expect(applyMove(granite, boots, NOW)).toEqual({ kind: "refused" });
+    expect(applyMove(granite, stepUp, NOW)).toEqual({ kind: "refused" });
     // At the price he saw, it buys, and that is what it takes.
-    const bought = applyMove(topsoil, arms, NOW, calm);
+    const bought = applyMove(topsoil, boots, NOW);
     expect(bought.kind === "applied" && bought.spent.stones).toBe(
-      priceAmount(armsShown, "stones"),
+      priceAmount(bootsShown, "stones"),
     );
     // An upgrade with no level left has no price today: nothing it was
     // shown, not even a free price, buys it.
-    const maxed: Mountain = { ...rich, upgrades: { ...NO_UPGRADES, tap: 10 } };
-    for (const price of [[], UNSHOWN_PRICE, armsShown]) {
+    const maxed: Mountain = { ...rich, upgrades: { ...NO_UPGRADES, boots: 1 } };
+    for (const price of [[], UNSHOWN_PRICE, bootsShown]) {
       expect(
-        applyMove(maxed, { kind: "buyUpgrade", id: "tap", price }, NOW, calm),
+        applyMove(maxed, { kind: "buyUpgrade", id: "boots", price }, NOW),
       ).toEqual({ kind: "refused" });
     }
     // Every good of the shown price must match, not only the stones.
@@ -1716,10 +1459,10 @@ describe("applyMove (#409)", () => {
       kind: "promote",
       price: [...promoteShown, { good: "clay", amount: 1 }],
     } as const;
-    expect(applyMove(topsoil, plusClay, NOW, calm)).toEqual({
+    expect(applyMove(topsoil, plusClay, NOW)).toEqual({
       kind: "refused",
     });
-    const promoted = applyMove(topsoil, stepUp, NOW, calm);
+    const promoted = applyMove(topsoil, stepUp, NOW);
     expect(promoted.kind === "applied" && promoted.spent.stones).toBe(
       priceAmount(promoteShown, "stones"),
     );
@@ -1779,95 +1522,23 @@ describe("applyMove (#409)", () => {
     ).toEqual([{ kind: "recalled", name: "Ada", tunnel: "old-shaft" }]);
   });
 
-  it("says what a vein tap gave, and nothing for a dig, a seen mark or a cancelled craft", () => {
-    const vein = applyMove(rich, { kind: "tapVein" }, NOW, calm);
-    expect(vein.kind === "applied" && vein.events).toEqual([
-      {
-        kind: "veinTapped",
-        stones: vein.kind === "applied" ? vein.gained.stones : -1,
-      },
-    ]);
-    expect(eventsOf(fresh, { kind: "dig" })).toEqual([]);
+  it("says nothing for a seen mark or a cancelled craft", () => {
     expect(eventsOf(fresh, { kind: "markSeen", id: "workshop" })).toEqual([]);
     const crafting = applyMove(
       rich,
       { kind: "craft", recipe: "sturdy-props" },
       NOW,
-      calm,
     );
     if (crafting.kind !== "applied") throw new Error("craft refused");
     expect(eventsOf(crafting.mountain, { kind: "cancelCraft" })).toEqual([]);
   });
 
-  it("buys a boost again once it has run out, with the new end", () => {
-    const first = applyMove(
-      rich,
-      { kind: "buyBoost", id: "sharper" },
-      NOW,
-      calm,
-    );
-    if (first.kind !== "applied") throw new Error("boost refused");
-    const topped = {
-      ...first.mountain,
-      stock: { ...first.mountain.stock, stones: 1e15 },
-    };
-    const later = NOW + boostById("sharper").durationMs + 1;
-    const again = applyMove(
-      topped,
-      { kind: "buyBoost", id: "sharper" },
-      later,
-      calm,
-    );
-    if (again.kind !== "applied") throw new Error("boost not bought again");
-    const endsAt = again.mountain.boosts.sharper;
-    expect(again.events).toEqual([
-      { kind: "boostStarted", id: "sharper", endsAt },
-    ]);
-    expect(endsAt).toBeGreaterThan(first.mountain.boosts.sharper);
-  });
-
   it("gives the lab's applyAction the same mountain for every listed move", () => {
     for (const action of listActions(rich, NOW, trouble)) {
-      const moved = applyMove(rich, action, NOW, calm);
+      const moved = applyMove(rich, action, NOW);
       expect(applyAction(rich, action, NOW)).toEqual(
         moved.kind === "applied" ? moved.mountain : rich,
       );
     }
-  });
-});
-
-describe("buyEveryBoost", () => {
-  const NOW = 1_000_000;
-
-  it("starts every boost the pocket can pay, in catalogue order", () => {
-    const rich = {
-      ...createMountain(),
-      stock: { ...createMountain().stock, stones: 1_000_000 },
-    };
-    const one = buyBoost({
-      mountain: rich,
-      id: "sharper",
-      now: NOW,
-      pricing: effectiveRates(rich),
-    });
-    const both = buyBoost({
-      mountain: one,
-      id: "overtime",
-      now: NOW,
-      pricing: effectiveRates(one),
-    });
-    expect(BOOSTS.map((boost) => boost.id)).toEqual(["sharper", "overtime"]);
-    expect(buyEveryBoost(rich, NOW)).toEqual(both);
-    expect(boostLeft(both, "sharper", NOW)).toBeGreaterThan(0);
-    expect(boostLeft(both, "overtime", NOW)).toBeGreaterThan(0);
-  });
-
-  it("leaves a running boost, and one the pocket cannot pay", () => {
-    const running = {
-      ...createMountain(),
-      stock: { ...createMountain().stock, stones: 0 },
-      boosts: { ...NO_BOOSTS, sharper: NOW + 1_000 },
-    };
-    expect(buyEveryBoost(running, NOW)).toBe(running);
   });
 });

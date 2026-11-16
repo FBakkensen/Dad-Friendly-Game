@@ -13,11 +13,9 @@ describe("the board's How it works art (#373)", () => {
     "staffing",
     "layers",
     "upgrades",
-    "boosts",
     "workshop",
     "materials",
     "away",
-    "relics",
     "engineers",
     "expeditions",
     "tending",
@@ -44,11 +42,6 @@ describe("the board's How it works art (#373)", () => {
         img.getAttribute("height"),
       ),
     ).toEqual(["64", "64", "64", "64"]);
-  });
-
-  it("renders boosts at 32, 64 and 32", () => {
-    const card = boardHowCard("boosts", "Back to Upgrades", () => undefined);
-    expect(widths(card)).toEqual(["32", "64", "32"]);
   });
 
   it("is today's card: its title, words, data-how and Back plate", () => {
@@ -89,7 +82,7 @@ describe("the board's How it works art (#373)", () => {
     expect(widths(card)).toEqual(["32", "64", "64", "32"]);
   });
 
-  it("renders the Workshop's four steps: the hammer at 48, clay at 32, the cart at 64 (#374)", () => {
+  it("renders the Workshop's four steps: the pick at 32, clay at 32, the cart at 64 (#374, #728)", () => {
     const card = boardHowCard(
       "workshop",
       "Back to the Workshop",
@@ -99,16 +92,16 @@ describe("the board's How it works art (#373)", () => {
     const imgs = [...card.querySelectorAll("img")];
     expect(imgs).toHaveLength(4);
     expect(HOW_IT_WORKS.workshop.steps.map(([art]) => art)).toEqual([
-      "relics/hammer",
+      "pick",
       "ore-lump",
       "upgrades-icon",
       "mine-cart",
     ]);
-    expect(imgs[0]?.getAttribute("src")).toContain("relic-hammer");
+    expect(imgs[0]?.getAttribute("src")).toContain("res-pick");
     expect(imgs[1]?.getAttribute("src")).toContain("res-clay");
-    expect(widths(card)).toEqual(["48", "32", "32", "64"]);
+    expect(widths(card)).toEqual(["32", "32", "32", "64"]);
     expect(imgs.map((img) => img.getAttribute("height"))).toEqual([
-      "48",
+      "32",
       "32",
       "32",
       "64",
@@ -126,41 +119,24 @@ describe("the board's How it works art (#373)", () => {
     );
     expect(sources).toHaveLength(3);
     expect(sources[0]).toContain("res-clay");
-    expect(sources[2]).toContain("relic-hammer");
-    expect(widths(card)).toEqual(["32", "32", "48"]);
+    expect(sources[2]).toContain("res-pick");
+    expect(widths(card)).toEqual(["32", "32", "32"]);
   });
 
-  it("renders the Relics card's three steps with the lit relic art at 48 (#375)", () => {
-    const card = boardHowCard("relics", "Back to the Ledger", () => undefined);
-    expect(card.dataset["how"]).toBe("relics");
-    const imgs = [...card.querySelectorAll("img")];
-    expect(imgs).toHaveLength(3);
-    expect(imgs.map((img) => img.getAttribute("src"))).toEqual([
-      BOARD_HOW_ART["relics/lantern"]?.src,
-      BOARD_HOW_ART["relics/shield"]?.src,
-      BOARD_HOW_ART["relics/crown"]?.src,
-    ]);
-    expect(imgs[0]?.getAttribute("src")).toContain("relic-lantern");
-    expect(imgs[0]?.getAttribute("src")).not.toContain("dark");
-    expect(imgs[1]?.getAttribute("src")).toContain("relic-shield");
-    expect(imgs[2]?.getAttribute("src")).toContain("relic-crown");
-    expect(widths(card)).toEqual(["48", "48", "48"]);
-  });
-
-  it("renders the Time away card: the worker at 64, the stone and upgrades at 32 (#375)", () => {
+  it("renders the Time away card: the worker at 64, the stone at 32 (#375, #728)", () => {
     const card = boardHowCard("away", "Back to the Ledger", () => undefined);
     expect(card.dataset["how"]).toBe("away");
     const sources = [...card.querySelectorAll("img")].map(
       (img) => img.getAttribute("src") ?? "",
     );
-    expect(sources).toHaveLength(3);
+    // Night foreman's upgrades step went with him (#728).
+    expect(sources).toHaveLength(2);
     expect(sources[0]).toContain("mach-worker");
     expect(sources[1]).toContain("res-stone");
-    expect(sources[2]).toContain("icon-upgrades");
-    expect(widths(card)).toEqual(["64", "32", "32"]);
+    expect(widths(card)).toEqual(["64", "32"]);
   });
 
-  it("renders the Engineers card's four steps: the worker at 64, the crown at 48, the map and the boot at 32 (#455)", () => {
+  it("renders the Engineers card's four steps: the worker at 64 twice, the map and the boot at 32 (#455, #728)", () => {
     const card = boardHowCard(
       "engineers",
       "Back to your engineers",
@@ -172,10 +148,10 @@ describe("the board's How it works art (#373)", () => {
     );
     expect(sources).toHaveLength(4);
     expect(sources[0]).toContain("mach-worker");
-    expect(sources[1]).toContain("relic-crown");
+    expect(sources[1]).toContain("mach-worker");
     expect(sources[2]).toContain("res-map");
     expect(sources[3]).toContain("res-boot");
-    expect(widths(card)).toEqual(["64", "48", "32", "32"]);
+    expect(widths(card)).toEqual(["64", "64", "32", "32"]);
   });
 
   it("renders the Expeditions card with the map, the nugget and the worker, and Tending with the board's machines (#455)", () => {

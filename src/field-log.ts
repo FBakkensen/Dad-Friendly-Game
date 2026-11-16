@@ -1,11 +1,9 @@
 import { appVersion } from "./build-stamp";
-import { BOOSTS, type BoostId } from "./boosts";
 import { DEVICE_ID_MAX } from "./device-id";
 import type { MoveEvent } from "./economy/actions";
 import { ENGINEER_NAMES, onDuty } from "./engineers";
 import type { Mountain } from "./mountain";
 import type { Rates } from "./rates";
-import { foundRelics, type RelicId } from "./relics";
 import { minedOut } from "./scale";
 import {
   MACHINE_IDS,
@@ -94,17 +92,9 @@ export type FieldSnapshot = {
   /** Every tier's count, by id, the line's machines included. */
   readonly crew: Readonly<Record<TierId, number>>;
   readonly crewSpeed: number;
-  readonly tapYield: number;
   /** Owned machines with nobody to run them, by machine id. */
   readonly idle: Readonly<Record<MachineId, number>>;
-  readonly relics: readonly RelicId[];
   readonly upgrades: Readonly<Record<UpgradeId, number>>;
-  /** Boosts still running, with ISO end times. */
-  readonly boosts: readonly {
-    readonly id: BoostId;
-    readonly endsAt: string;
-  }[];
-  readonly legacy: number;
   /** Name, rank (0 apprentice, 1 journeyman, 2 master), and post. */
   readonly engineers: readonly {
     readonly name: string;
@@ -149,14 +139,6 @@ export function snapshot(
   const upgrades = Object.fromEntries(
     UPGRADES.map((upgrade) => [upgrade.id, upgradeLevel(mountain, upgrade.id)]),
   ) as Record<UpgradeId, number>;
-  const boosts: { id: BoostId; endsAt: string }[] = [];
-  for (const boost of BOOSTS) {
-    const endsAt = mountain.boosts[boost.id];
-    if (endsAt === 0 || endsAt <= now) {
-      continue;
-    }
-    boosts.push({ id: boost.id, endsAt: new Date(endsAt).toISOString() });
-  }
   // The log keeps the saved post: "tunnel" while away.
   const engineers = onDuty(mountain).map((engineer) => ({
     name: engineer.name,
@@ -173,18 +155,14 @@ export function snapshot(
     at: new Date(now).toISOString(),
     deviceId: stamp.deviceId ?? "",
     rev: stamp.rev ?? 0,
-    // Depth in run-1 stones, whole, as the rules want (a kid run digs fractions).
+    // Depth in stones, whole, as the rules want (a deep band digs fractions).
     mined: Math.floor(minedOut(mountain)),
     left: Math.ceil(mountain.remaining),
     pocket: Math.min(mountain.stock.stones, FIELD_STONES_CAP),
     crew,
     crewSpeed: rates.crewPerSecond,
-    tapYield: rates.tapYield,
     idle,
-    relics: foundRelics(mountain).map((relic) => relic.id),
     upgrades,
-    boosts,
-    legacy: mountain.legacy,
     engineers,
     expeditions,
   };
@@ -199,11 +177,6 @@ export function fieldEntry(event: MoveEvent): Omit<FieldEvent, "at"> {
       return {
         code: "upgrade.buy",
         data: { id: event.id, count: event.level },
-      };
-    case "boostStarted":
-      return {
-        code: "boost.start",
-        data: { id: event.id, endsAt: new Date(event.endsAt).toISOString() },
       };
     case "craftStarted":
       return { code: "craft.start", data: { id: event.recipe } };
@@ -227,15 +200,6 @@ export function fieldEntry(event: MoveEvent): Omit<FieldEvent, "at"> {
         code: "engineer.station",
         data: { id: event.name, source: event.post },
       };
-    case "veinTapped":
-      return { code: "vein.tap", data: { stones: event.stones } };
-    case "quickVeinTapped":
-      return {
-        code: "vein.tap",
-        data: { stones: event.stones, source: "rush" },
-      };
-    case "rushLanded":
-      return { code: "rush.land", data: { stones: event.stones } };
     case "vehicleBought":
       return {
         code: "vehicle.buy",
@@ -472,9 +436,7 @@ export function maxFieldLogDocumentBytes(): number {
   const crew = tierRecord(1);
   const idle = machineRecord(1);
   const upgrades = {
-    tap: 10,
     boots: 1,
-    steady: 1,
     cartSyn: 1,
     drillSyn: 1,
     borerSyn: 1,
@@ -489,15 +451,8 @@ export function maxFieldLogDocumentBytes(): number {
       pocket: 100_000_000,
       crew,
       crewSpeed: 100_000_000,
-      tapYield: 100_000_000,
       idle,
-      relics: ["lantern", "shield", "hammer", "heart", "crown", "mantle"],
       upgrades,
-      boosts: [
-        { id: "overtime", endsAt: maxText() },
-        { id: "sharper", endsAt: maxText() },
-      ],
-      legacy: 1000,
       deviceId: "x".repeat(FIELD_LOG_TEXT_MAX),
       rev: 1_000_000,
       engineers: ENGINEER_NAMES.map((name) => ({

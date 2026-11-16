@@ -12,7 +12,7 @@ import {
   revealGaps,
   type RevealEvent,
 } from "./reveal";
-import { NO_BOOSTS } from "../boosts";
+import { NO_UPGRADES } from "../upgrades";
 
 const HOUR = 3600;
 
@@ -30,8 +30,8 @@ describe("createRevealLog", () => {
     const start = createMountain();
     const first = log(start, 0);
     expect(ids(first, "appeared")).toContain("tier:helper");
-    // Boosts wait for the first machine of their tier (#250).
-    expect(ids(first, "appeared")).not.toContain("boost:sharper");
+    // Upgrades wait for their owned count (#250).
+    expect(ids(first, "appeared")).not.toContain("upgrade:boots");
     expect(ids(first, "appeared")).not.toContain("tier:drill");
     expect(ids(first, "appeared")).not.toContain("system:workshop");
     expect(log(start, 1)).toEqual([]);
@@ -90,12 +90,12 @@ describe("createRevealLog", () => {
     const log = createRevealLog();
     log(createMountain(), 0);
     const events = log(
-      { ...createMountain(), boosts: { ...NO_BOOSTS, sharper: 10 } },
+      { ...createMountain(), upgrades: { ...NO_UPGRADES, boots: 1 } },
       5,
     );
     expect(events).toContainEqual({
       kind: "firstUse",
-      id: "boost:sharper",
+      id: "upgrade:boots",
       liveSec: 5,
     });
     const promote = log(

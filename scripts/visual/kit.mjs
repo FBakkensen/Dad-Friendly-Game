@@ -49,22 +49,10 @@ const STANDALONE_INSETS = { top: 24, bottom: 48, left: 0, right: 0 };
 /**
  * The board in viewport px: #app's box, its scale, and the top of the
  * save line, where every sheet stops (#370). In-page code calls
- * globalThis.__board(). globalThis.__showVein(spot) shows the golden vein at a
- * veinSpot spot (window art px) as board-window.ts places it, and null hides it.
+ * globalThis.__board().
  */
 async function boardProbe(page) {
   await page.evaluateOnNewDocument(() => {
-    globalThis.__showVein = (spot) => {
-      const vein = document.querySelector(".golden-vein");
-      if (vein === null) {
-        return;
-      }
-      if (spot !== null) {
-        vein.style.left = `${String((7 + spot.left) * 2)}px`;
-        vein.style.top = `${String((7 + spot.top) * 2)}px`;
-      }
-      vein.hidden = spot === null;
-    };
     globalThis.__board = () => {
       const app = document.querySelector("#app")?.getBoundingClientRect();
       const line = document
@@ -103,8 +91,8 @@ async function openScreen(
     seed: { kind: "once", guard: "visual-seeded", json: seedJson(save) },
     // A phone backup's key for the slice 1 preview's saves (#659); SAVE_KEY when undefined.
     seedKey,
-    // A clock the check can push forward, for veins and other timed things; stopped, a crew of
-    // thousands cannot reach a relic mid-check. A held tap clock moves only by stepTapClock.
+    // A clock the check can push forward, for timed things; stopped, a crew of
+    // thousands cannot reach a new band mid-check. A held tap clock moves only by stepTapClock.
     clock: { date: stopClock ? "stopped" : "skewable", tap: tapClock },
     search,
     onPageError: (error) => {

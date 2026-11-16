@@ -8,11 +8,10 @@ import {
 import { DRAWER_SETTLE_MS } from "./board-drawer";
 import { READY_HOLD_MS } from "./board-interaction";
 import { createBoardHost } from "./board-host";
-import { RELIC_DARK, RELIC_LIT } from "./board-relics";
 import { createMemoryCloudSave, type CloudSave } from "./cloud-save";
 import { createLedgerPanel } from "./ledger-panel";
-import { relicsRowView, stonesRowView } from "./ledger-rows";
-import { MOUNTAIN_STONES, createMountain, type Mountain } from "./mountain";
+import { stonesRowView } from "./ledger-rows";
+import { createMountain, type Mountain } from "./mountain";
 import { mountFrameScreen } from "./frame-screen";
 import { createProgressStore } from "./progress-store";
 import { SOUND_KEY, soundSetting } from "./sound";
@@ -109,7 +108,7 @@ function mount(
   return screen;
 }
 
-/** A Granite mountain with clay and iron met and two relics found. */
+/** A Granite mountain with clay and iron met. */
 function granite(over: MountainPatch = {}): Mountain {
   return patched(
     {
@@ -216,23 +215,17 @@ describe("the Ledger drawer (#375)", () => {
           (each as HTMLElement).dataset["ledger"] ??
           each.className.split(" ")[0],
       );
-    expect(order).toEqual([
-      "mine",
-      "stones",
-      "relics",
-      "account",
-      "ledger-doors",
-    ]);
+    expect(order).toEqual(["mine", "stones", "account", "ledger-doors"]);
     expect(part(screen, ".board-sheet-title").textContent).toBe("Ledger");
     expect(part(screen, ".board-sheet-kick").textContent).toBe(
       "Tonight, and the mine so far",
     );
     expect(keyOf(screen).getAttribute("aria-expanded")).toBe("true");
-    // The "i": Time away, then Relics, under Back to the Ledger.
+    // The "i": Time away, under Back to the Ledger.
     part(screen, ".board-sheet-info").click();
     const how = part(screen, ".board-sheet-how");
     expect(how.hidden).toBe(false);
-    expect(how.children).toHaveLength(2);
+    expect(how.children).toHaveLength(1);
     expect(how.textContent).toContain("Back to the Ledger");
   });
 
@@ -248,7 +241,6 @@ describe("the Ledger drawer (#375)", () => {
 
     screen.progress.dispatch({ kind: "buyTier", id: "helper" });
     screen.progress.dispatch({ kind: "buyTier", id: "cart" });
-    screen.progress.dispatch({ kind: "buyBoost", id: "overtime" });
     keyOf(screen).click();
     expect(part(screen, '.board-sec[data-sec="tonight"]').hidden).toBe(false);
     const lines = [
@@ -258,11 +250,7 @@ describe("the Ledger drawer (#375)", () => {
     ];
     expect(
       lines.map((line) => line.querySelector(".ledger-log-text")?.textContent),
-    ).toEqual([
-      "Overtime started for 30:00.",
-      "Bought mine cart 3.",
-      "Hired worker 5.",
-    ]);
+    ).toEqual(["Bought mine cart 3.", "Hired worker 5."]);
     for (const line of lines) {
       expect(line.querySelector(".ledger-log-time")?.textContent).toMatch(
         /^\d\d:\d\d$/,
@@ -285,36 +273,8 @@ describe("the Ledger drawer (#375)", () => {
       (part(screen, ".ledger-stones .board-row-icon") as HTMLImageElement)
         .width,
     ).toBe(32);
-
-    const relics = relicsRowView(mountain);
-    expect(rowPart(screen, "relics", "name")).toBe("2 of 6 relics found");
-    expect(rowPart(screen, "relics", "info")).toMatch(/^Next: /);
-    expect(rowPart(screen, "relics", "why")).toBe(relics.why);
-    const icon = part(
-      screen,
-      ".ledger-relics .board-row-icon",
-    ) as HTMLImageElement;
-    expect(icon.width).toBe(48);
-    expect(icon.getAttribute("src")).toBe(RELIC_DARK[relics.icon]);
-    const bar = part(screen, ".ledger-relics .board-row-bar");
-    expect(bar.hidden).toBe(false);
-    expect(bar.getAttribute("aria-valuenow")).toBe(
-      String(Math.round((relics.progress ?? 0) * 100)),
-    );
-    expect(bar.getAttribute("aria-label")).toBe(relics.barLabel);
-  });
-
-  it("every relic found shows the lit Mantle and no bar", () => {
-    const screen = mount(minedMountain(MOUNTAIN_STONES));
-    keyOf(screen).click();
-    expect(rowPart(screen, "relics", "name")).toBe("6 of 6 relics found");
-    expect(rowPart(screen, "relics", "info")).toBe(
-      "Every relic is yours. You are a legend.",
-    );
-    expect(
-      part(screen, ".ledger-relics .board-row-icon").getAttribute("src"),
-    ).toBe(RELIC_LIT.mantle);
-    expect(part(screen, ".ledger-relics .board-row-bar").hidden).toBe(true);
+    // The relics row left with the relics (#728).
+    expect(screen.root.querySelector(".ledger-relics")).toBeNull();
   });
 
   it("a double tap on the key does nothing under the finger", () => {
@@ -574,10 +534,10 @@ describe("the Ledger drawer (#375)", () => {
     }
   });
 
-  it("saved copies opens its card, which closes onto the key; passing the mine is not live (#466, #708)", () => {
+  it("saved copies opens its card, which closes onto the key; there is no Pass plate (#466, #708, #729)", () => {
     const screen = mount(granite());
     keyOf(screen).click();
-    expect(part(screen, ".ledger-pass").hidden).toBe(true);
+    expect(screen.root.querySelector(".ledger-pass")).toBeNull();
     part(screen, ".ledger-saved-copies").click();
     expect(isOpen(screen)).toBe(false);
     expect(
@@ -645,7 +605,6 @@ describe("the Ledger drawer (#375)", () => {
     expect(isOpen(screen)).toBe(true);
     expect(part(screen, ".ledger-stones").classList).not.toContain("is-owned");
     expect(part(screen, ".ledger-stones").hasAttribute("title")).toBe(false);
-    expect(part(screen, ".ledger-relics .board-row-bar").hidden).toBe(true);
     expect(button(screen, ".ledger-start-over").disabled).toBe(true);
     expect(button(screen, ".ledger-field-log").disabled).toBe(true);
     expect(button(screen, ".ledger-saved-copies").disabled).toBe(false);
@@ -806,7 +765,6 @@ describe("the Ledger panel on its own", () => {
       board: createBoardHost({ clock: () => 0, reduced: () => true }),
       overSave: () => false,
       door,
-      legacy: { offered: () => false, open: () => undefined },
       savedCopies: { open: () => undefined },
       onStartOver: () => undefined,
       sound: soundSetting(createMemoryStorage()),
@@ -824,7 +782,7 @@ describe("the Ledger panel on its own", () => {
   });
 
   /** The drawer with no signal, on a board clock the test turns. */
-  const onItsOwn = (offered: boolean) => {
+  const onItsOwn = () => {
     const auth = createMemoryAuth();
     const progress = createProgressStore({
       auth,
@@ -833,7 +791,6 @@ describe("the Ledger panel on its own", () => {
     });
     const clock = { now: 10_000 };
     const door = document.createElement("button");
-    const legacyOpen = vi.fn();
     const onStartOver = vi.fn();
     const ledger = createLedgerPanel({
       progress,
@@ -842,7 +799,6 @@ describe("the Ledger panel on its own", () => {
       board: createBoardHost({ clock: () => clock.now, reduced: () => true }),
       overSave: () => false,
       door,
-      legacy: { offered: () => offered, open: legacyOpen },
       savedCopies: { open: () => undefined },
       onStartOver,
       sound: soundSetting(createMemoryStorage()),
@@ -853,23 +809,11 @@ describe("the Ledger panel on its own", () => {
       if (!(found instanceof HTMLElement)) throw new Error(`no ${selector}`);
       return found;
     };
-    return { ledger, progress, clock, door, legacyOpen, onStartOver, plate };
+    return { ledger, progress, clock, door, onStartOver, plate };
   };
 
-  it("offers Pass the mine when the legacy says so, and hands the key to its card", () => {
-    const own = onItsOwn(true);
-    own.ledger.open(own.door);
-    own.ledger.render();
-    own.clock.now += PAST_SETTLE;
-    expect(own.plate(".ledger-pass").hidden).toBe(false);
-    own.plate(".ledger-pass").click();
-    expect(own.legacyOpen).toHaveBeenCalledWith(own.door);
-    expect(own.ledger.sheet.root.classList.contains("is-open")).toBe(false);
-    own.progress.dispose();
-  });
-
   it("a second Yes while the run starts does nothing, and a drawer shut meanwhile stays shut", async () => {
-    const own = onItsOwn(false);
+    const own = onItsOwn();
     const startOver = vi.spyOn(own.progress, "startOver");
     own.ledger.open(own.door);
     own.ledger.render();

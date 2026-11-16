@@ -5,7 +5,6 @@
  * Each is what a tab finds in localStorage on its first load.
  */
 
-import type { BoostId } from "../../src/boosts.ts";
 import type { DutyEngineer, EngineerName } from "../../src/engineers.ts";
 import type { FindId, SavedExpedition } from "../../src/expeditions.ts";
 import type { MaterialId } from "../../src/layers.ts";
@@ -34,10 +33,7 @@ export type SeedMountain = {
   readonly machines?: number;
   readonly kids?: number;
   readonly upgrades?: Readonly<Partial<Record<UpgradeId, number>>>;
-  readonly boosts?: Readonly<Partial<Record<BoostId, number>>>;
   readonly startedAt?: number;
-  /** The run's generation: how many times the mine was passed down. */
-  readonly legacy?: number;
   /** An engineer away on a trip is at post "tunnel", as the save keeps it. */
   readonly engineers?: readonly DutyEngineer[];
   readonly expeditions?: readonly SavedExpedition[];
@@ -52,13 +48,12 @@ export type SeedWorkshop = {
   readonly bench?: Bench;
   readonly chargeUntil?: number;
   readonly axleUntil?: number;
-  readonly flareUntil?: number;
   readonly emberUntil?: number;
   readonly seen?: readonly TeachId[];
   readonly taught?: readonly TeachId[];
 };
 
-/** A seed save: what a tab finds on its first load, before `seedJson` writes it as version 9. */
+/** A seed save: what a tab finds on its first load, before `seedJson` writes it as version 10. */
 export type Seed = {
   readonly lastSeen: number;
   readonly mountain: SeedMountain;
@@ -85,8 +80,6 @@ export const CREW: SeedMountain = {
   carts: 24,
   drills: 6,
   borers: 2,
-  // Both boosts running: their chips must sit in the mountain, not the flow.
-  boosts: { sharper: Date.now() + 3_600_000, overtime: Date.now() + 3_600_000 },
 };
 
 /** A save that owns a borer has its first engineer. */
@@ -117,7 +110,6 @@ const TIER_IDS = {
 const TIMER_IDS = {
   chargeUntil: "blasting-charge",
   axleUntil: "axle-grease",
-  flareUntil: "crystal-flare",
   emberUntil: "heartstone-ember",
 } as const;
 
@@ -125,9 +117,7 @@ const MOUNTAIN_KEYS: readonly string[] = [
   "remaining",
   "pocket",
   "upgrades",
-  "boosts",
   "startedAt",
-  "legacy",
   "engineers",
   "expeditions",
   "finds",
@@ -179,7 +169,7 @@ function some<K extends string, V extends object>(
 }
 
 /**
- * A seed as the version 9 save the game writes for it (#558). A mirror of
+ * A seed as the version 10 save the game writes for it (#558). A mirror of
  * `writeGame` in src/save-format.ts: the browser scripts load this file under
  * Node's type stripping, which cannot load `src` modules. fixtures.test.ts
  * proves the real reader takes each seed, and the real writer writes it back
@@ -214,10 +204,7 @@ export function toDocument(seed: Seed): SaveDocument {
     ),
     ...some(
       "clocks",
-      counts([
-        ...Object.entries(mountain.boosts ?? {}),
-        ...timers.map(([field, id]) => [id, workshop[field]] as const),
-      ]),
+      counts(timers.map(([field, id]) => [id, workshop[field]] as const)),
     ),
     ...some("marks", {
       ...some("seen", workshop.seen),
@@ -225,20 +212,14 @@ export function toDocument(seed: Seed): SaveDocument {
       ...some("recipes", workshop.recipes),
       ...some("finds", mountain.finds),
     }),
-    ...some(
-      "run",
-      counts([
-        ["generation", mountain.legacy],
-        ["dug", dug],
-      ]),
-    ),
+    ...some("run", counts([["dug", dug]])),
     ...some("engineers", mountain.engineers),
     ...some("expeditions", mountain.expeditions),
     ...(workshop.bench === undefined ? {} : { bench: workshop.bench }),
   } as SaveGame;
   const startedAt = mountain.startedAt ?? 0;
   return {
-    version: 9,
+    version: 10,
     lastSeen: seed.lastSeen,
     ...(startedAt === 0 ? {} : { startedAt }),
     game,
@@ -246,7 +227,7 @@ export function toDocument(seed: Seed): SaveDocument {
 }
 
 /**
- * The counts a stored version 9 save holds, in the mountain's field names:
+ * The counts a stored version 10 save holds, in the mountain's field names:
  * what the browser checks compare after a tap. Missing reads as zero.
  */
 export function storedCounts(document: unknown): {
@@ -278,7 +259,7 @@ export function seedJson(save: SeedSave): string {
 
 /** A save a later build wrote: this build opens the update card and writes nothing (#558). */
 export function newerSave(now: number): StoredAsIs {
-  return { version: 10, lastSeen: now, game: {} };
+  return { version: 11, lastSeen: now, game: {} };
 }
 
 export function workshopSave(now: number, busy: boolean): WorkshopSeed {
@@ -360,8 +341,8 @@ export function freshMountain(): Seed {
   };
 }
 
-// Hammer depth, so three relics glow. Granite is open and a borer is owned,
-// so Workshop and Engineers open too.
+// 25M deep: Granite is open and a borer is owned, so Workshop and Engineers
+// open too.
 export function openMountain(): WorkshopSeed {
   return {
     lastSeen: Date.now(),
@@ -400,7 +381,7 @@ export function crewMountain(): Seed {
   };
 }
 
-/** The last stone of a run: one tap finds the legend and offers to pass the mine. */
+/** The last stone of a run: one tap finds the legend. */
 export function lastStoneSave(): Seed {
   return {
     mountain: {
@@ -408,7 +389,6 @@ export function lastStoneSave(): Seed {
       pocket: 0,
       helpers: 999,
       kids: 999,
-      legacy: 1,
     },
     lastSeen: Date.now(),
   };
@@ -431,8 +411,8 @@ export function crystalMountain(): Seed {
 }
 
 /**
- * The Deep Heart on a kid's run (#371): the Great Machine on the surface, a
- * kid by the lamp, and the Legacy plate on the window's frame.
+ * The Deep Heart (#371): the Great Machine on the surface, and a kid by the
+ * lamp.
  */
 export function heartMountain(): Seed {
   const open = openMountain();
@@ -447,7 +427,6 @@ export function heartMountain(): Seed {
       drills: 10,
       borers: 4,
       machines: 1,
-      legacy: 1,
     },
   };
 }
@@ -524,24 +503,8 @@ export function idleMountain(): Seed {
 }
 
 /**
- * The mid save with upgrades owned and levelled (#373): Work boots bought,
- * Strong arms at level 2, and Grandfather's pick and the old lamp found.
- */
-export function toolsMountain(): Seed {
-  const open = openMountain();
-  return {
-    ...open,
-    mountain: {
-      ...open.mountain,
-      upgrades: { boots: 1, tap: 2 },
-      finds: ["pick", "lamp"],
-    },
-  };
-}
-
-/**
- * The Great Machine with the Kid row locked (#373): past the Hammer with one
- * Great Machine and no kids, short of the Crown (70M stones down), so the Kid
+ * The Great Machine with the Kid row locked (#373): one Great Machine and no
+ * kids, short of the Kid worker's depth (70M stones down), so the Kid
  * worker row shows, dim and locked. Buys runs longer than the drawer (C1).
  * With ?trouble=cave-in the cart, which has no bay beside the machine, lights
  * the Buys key's red lamp (C3).
@@ -561,12 +524,6 @@ export function machineMountain(): Seed {
       machines: 1,
     },
   };
-}
-
-/** A kid's run after one pass (#338): the crewed Topsoil, Grandpa on the carts. */
-export function heirMountain(): Seed {
-  const crew = crewMountain();
-  return { ...crew, mountain: { ...crew.mountain, legacy: 1 } };
 }
 
 /**
@@ -589,7 +546,7 @@ export function fullGraniteMountain(): Seed {
         { name: "Ada", rank: 0, trips: 0, post: "borer" },
         { name: "Nils", rank: 0, trips: 0, post: "drill" },
       ],
-      upgrades: { tap: 3, boots: 1, steady: 1, cartSyn: 1 },
+      upgrades: { boots: 1, cartSyn: 1 },
     },
   };
 }
@@ -661,31 +618,25 @@ export function crewSave(pocket: number): Seed {
   };
 }
 
-/** The running countdowns: how many are on screen decides what the save holds (0, 1, 2, 3, 12). */
+/** The running countdowns: how many are on screen decides what the save holds (0, 1, 9). */
 export function effectSave(count: number): Seed {
   const now = Date.now();
-  // 0, 1, and 3 are that many chips. 12 is both boosts, four craft clocks, the bench, and five trips.
+  // 0 and 1 are that many chips. 9 is three craft clocks, the bench, and five trips.
   const names: readonly EngineerName[] = ["Ada", "Nils", "Ruth", "Otto", "Mae"];
-  const full = count >= 12;
-  const tripCount = full ? 5 : count >= 3 ? 1 : 0;
+  const full = count >= 9;
+  const tripCount = full ? 5 : count >= 1 ? 1 : 0;
   const expeditions = Array.from(
     { length: tripCount },
     (_, index): SavedExpedition => ({
       engineer: names[index] as EngineerName,
       tunnel: "side-seam",
       sentAt: now - 60_000,
-      // Longer than the boosts, so a clock stays on screen when the row is full.
+      // Longer than the craft clocks, so a clock stays on screen when the row is full.
       returnsAt: now + (40 + index) * 60_000,
       home: "camp",
       find: { kind: "quiet" },
     }),
   );
-  const boosts =
-    count >= 2
-      ? { sharper: now + 10 * 60_000, overtime: now + 20 * 60_000 }
-      : count >= 1
-        ? { sharper: now + 10 * 60_000 }
-        : {};
   const engineers = names
     .slice(0, Math.max(1, tripCount))
     .map((name, index): DutyEngineer => ({
@@ -704,7 +655,6 @@ export function effectSave(count: number): Seed {
       borers: 1,
       engineers,
       expeditions,
-      boosts,
     },
     workshop: {
       materials: { clay: 0, iron: 0, crystal: 0, heartstone: 0 },
@@ -713,7 +663,6 @@ export function effectSave(count: number): Seed {
         ? {
             chargeUntil: now + 8 * 60_000,
             axleUntil: now + 12 * 60_000,
-            flareUntil: now + 50 * 60_000,
             emberUntil: now + 15 * 60_000,
             bench: {
               recipe: "iron-rails",
@@ -740,22 +689,10 @@ export function guardSave(
       drills: 4,
       borers: 1,
       engineers: [{ name: "Ada", rank: 1, trips: 3, post: "camp" }],
-      boosts: { sharper: lastSeen + 3_600_000 },
     },
     workshop: {
       materials: { clay: 12, iron: 6, crystal: 2, heartstone: 0 },
       recipes: ["iron-rails", "sturdy-props", "blasting-charge"],
-    },
-  };
-}
-
-export function overtimeSave(): Seed {
-  const save = openMountain();
-  return {
-    ...save,
-    mountain: {
-      ...save.mountain,
-      boosts: { overtime: Date.now() + 20 * 60_000 },
     },
   };
 }
@@ -770,11 +707,6 @@ export function borerPickMountain(): Seed {
 }
 
 // The inline literals the visual check wrote where it used them.
-
-/** The crew with both boosts running. */
-export function boostedCrewSave(): Seed {
-  return { mountain: CREW, lastSeen: Date.now() };
-}
 
 /** The Buys drawer's fit check: the crew's tiers on a big pocket and a long mountain. */
 export function buysFitSave(
@@ -793,18 +725,18 @@ export function buysFitSave(
   };
 }
 
-// One stone short of the Lantern of Guidance, away for ten minutes.
-const BEFORE_LANTERN: SeedMountain = {
+// One stone short of 1M deep, away for ten minutes.
+const SHALLOW: SeedMountain = {
   remaining: 240_000_000 - 999_999,
   pocket: 180,
   helpers: 0,
   carts: 0,
 };
 
-/** The welcome-back card, then the relic it uncovered. */
+/** The welcome-back card. */
 export function welcomeBackSave(): Seed {
   return {
-    mountain: { ...BEFORE_LANTERN, helpers: 5 },
+    mountain: { ...SHALLOW, helpers: 5 },
     lastSeen: Date.now() - 10 * 60 * 1000,
   };
 }
@@ -818,17 +750,7 @@ const FOUND_BELOW: SeedMountain = {
   borers: 1,
   machines: 0,
   kids: 0,
-  finds: [
-    "pick",
-    "lamp",
-    "map",
-    "boots",
-    "drawing",
-    "watch",
-    "whistle",
-    "pebble",
-    "ribbon",
-  ],
+  finds: ["map", "boots", "drawing", "watch", "whistle", "pebble", "ribbon"],
 };
 
 /** Every tool and keepsake found: the found sheets must fit. */
@@ -836,7 +758,7 @@ export function foundBelowSave(): Seed {
   return { mountain: FOUND_BELOW, lastSeen: Date.now() };
 }
 
-/** Every relic found: the shelf scrolls inside itself. */
+/** The bottom of the mountain, with a big crew. */
 export function fullShelfSave(): Seed {
   return {
     mountain: {
@@ -853,7 +775,7 @@ export function fullShelfSave(): Seed {
   };
 }
 
-/** One stone left on the 240M mountain, so the tap finds the Mantle. */
+/** One stone left on the 240M mountain, so the mine reaches the bottom soon. */
 export function mantleSave(): Seed {
   return {
     mountain: {
@@ -947,7 +869,7 @@ export function toolHomeSave(now: number): Seed {
           sentAt: now - 90 * 60_000,
           returnsAt: now - 30 * 60_000,
           home: "borer",
-          find: { kind: "tool", id: "pick" },
+          find: { kind: "tool", id: "map" },
         },
       ],
     },
@@ -962,8 +884,6 @@ const RECIPES: readonly RecipeId[] = [
   "reinforce",
   "axle-grease",
   "diamond-bits",
-  "crystal-flare",
-  "crystal-lamp",
   "engineers-kit",
   "heartstone-core",
   "heartstone-ember",
@@ -1012,8 +932,8 @@ export function late(
         },
         { name: "Nils", rank: 0, trips: 0, post: "drill" },
       ],
-      upgrades: { tap: 3, boots: 1, steady: 1, cartSyn: 1 },
-      finds: ["pick", "lamp", "drawing"],
+      upgrades: { boots: 1, cartSyn: 1 },
+      finds: ["drawing"],
       // The undefined keys quietCrew sends are dropped by JSON; the cast only
       // admits them past exactOptionalPropertyTypes.
       ...(mountain as Partial<SeedMountain>),
@@ -1117,9 +1037,9 @@ export function asGuest(backup: StoredAsIs): StoredAsIs {
   return save as StoredAsIs;
 }
 
-/** A slice 1 save: the phone backup of the dev account, holding this game map as version 9. */
+/** A slice 1 save: the phone backup of the dev account, holding this game map as version 10. */
 function sliceSave(now: number, game: Record<string, unknown>): StoredAsIs {
-  return { uid: DEV_UID, save: { version: 9, lastSeen: now, game } };
+  return { uid: DEV_UID, save: { version: 10, lastSeen: now, game } };
 }
 
 /** The fresh mine's twelve workers, as the first evening places them. */

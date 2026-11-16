@@ -9,7 +9,7 @@ import {
   type Mountain,
 } from "../mountain";
 import { startCraft } from "../workshop";
-import { createWorld, step, type World } from "./world";
+import { createWorld, step, withFirstWorker, type World } from "./world";
 
 const ada = { name: "Ada", rank: 0, trips: 0, post: "borer" } as const;
 
@@ -43,7 +43,7 @@ describe("world step", () => {
     const world = createWorld(1);
     expect(world.clock).toBe(0);
     expect(world.hazards).toEqual({ phase: "idle", seed: 1 });
-    expect(world.mountain).toEqual(createMountain());
+    expect(world.mountain).toEqual(withFirstWorker(createMountain()));
   });
 
   it("gives the same world for the same seed", () => {

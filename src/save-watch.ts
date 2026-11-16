@@ -11,7 +11,6 @@ import {
   restoreFieldRing,
   setAsideLocal,
 } from "./local-saves";
-import { minedOut } from "./mountain";
 import {
   phoneBackupKey,
   readPhoneBackup,
@@ -98,13 +97,6 @@ function resumeFromSession(ctx: StoreContext): void {
   const stored = read.save;
   if (!isWriter(ctx)) {
     setGame(ctx, stored.mountain, stored.lastSeen);
-    ctx.session = {
-      ...ctx.session,
-      baselines: {
-        ...ctx.session.baselines,
-        reveal: minedOut(stored.mountain),
-      },
-    };
     ctx.saveKind = "session";
     emit(ctx);
     return;

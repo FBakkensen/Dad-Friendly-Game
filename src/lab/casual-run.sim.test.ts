@@ -17,22 +17,26 @@ describe("casual run", { timeout: 120_000 }, () => {
     // day 1.5. The value-per-stone score waits out the night before the
     // Deep Heart's next Great Machine (11.95 h from day 3.5). That is the
     // report-only value-per-stone score. It passes the half-day limit with
-    // about 3 minutes to spare (0.498 of a day). The payback score waited
-    // about a minute until the Gold rush (#468); now he taps the quick vein
-    // and the held stones come in with no dead minute.
+    // about 3 minutes to spare (0.498 of a day). The quick vein and the Gold
+    // rush that once brought the held stones in went in #728.
     // Since away pay splits at a band crossing (#592), the night before the
     // Deep Heart's next Great Machine is quiet on the payback table too:
     // 11.98 h from day 3.5, inside the half-day limit by about a minute.
-    expect(run.finishDay).toBe(4.5);
-    expect(readFinishDay(run.samples)).toBe(4.5);
-    expect(report.value.singleShare).toBeCloseTo(0.443, 3);
+    // #728 took the upgrades and boosts that were the second buy at most
+    // moments: the climb ends on day 6 (was 4.5), both scores have one live
+    // buy at 0.28 of the samples (value 0.443, payback 0.314 before), and the
+    // first long wait is the night on day 2 saving for the borer, still
+    // 11.98 h and inside the half-day limit.
+    expect(run.finishDay).toBe(6);
+    expect(readFinishDay(run.samples)).toBe(6);
+    expect(report.value.singleShare).toBeCloseTo(0.28, 3);
     expect(report.value.deadHours).toBeCloseTo(11.98, 2);
     expect(report.value.deadHours / HOURS_PER_DAY).toBeLessThanOrEqual(0.5);
-    expect(report.value.deadStartDay).toBeCloseTo(3.5, 1);
-    expect(report.payback.singleShare).toBeCloseTo(0.314, 3);
+    expect(report.value.deadStartDay).toBeCloseTo(2, 1);
+    expect(report.payback.singleShare).toBeCloseTo(0.28, 3);
     expect(report.payback.deadHours).toBeCloseTo(11.98, 2);
     expect(report.payback.deadHours / HOURS_PER_DAY).toBeLessThanOrEqual(0.5);
-    expect(report.payback.deadStartDay).toBeCloseTo(3.5, 1);
+    expect(report.payback.deadStartDay).toBeCloseTo(2, 1);
   });
 
   it("keeps the payback wait to half a day at most after the first borer", () => {
@@ -63,14 +67,15 @@ describe("casual run", { timeout: 120_000 }, () => {
     // Report-only (#252 follow-up): the value-per-stone dad saves at most a
     // day. Pinned so a change shows.
     expect(value.value).toBeLessThanOrEqual(HOURS_PER_DAY);
-    // #357 tune: the night on day 3 before the next Great Machine is the one
-    // long wait (about 11.95 h in the value-per-stone score), logged once for
-    // each score.
-    expect(result.deadStretches).toHaveLength(2);
-    expect(
-      result.deadStretches.every(
-        (note) => note.savingFor === "buyTier:machine",
-      ),
-    ).toBe(true);
+    // #357 tune: the night on day 3 before the next Great Machine was the one
+    // long wait, logged once for each score. Since #728 there are seven, each
+    // just under 12 h: the waits from day 2 and day 2.5 saving for the borer
+    // (in both scores), the one from day 4.5 saving for a Great Machine
+    // (both), and the one from day 4 for it in the value-per-stone score.
+    expect(result.deadStretches).toHaveLength(7);
+    expect(result.deadStretches.map((note) => note.savingFor).sort()).toEqual([
+      ...Array<string>(4).fill("buyTier:borer"),
+      ...Array<string>(3).fill("buyTier:machine"),
+    ]);
   }, 120_000);
 });

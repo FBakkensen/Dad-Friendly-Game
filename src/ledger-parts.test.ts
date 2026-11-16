@@ -93,7 +93,7 @@ afterEach(() => {
 
 describe("the Tonight box (#375)", () => {
   const lines = [
-    { time: "22:13", text: "Overtime started for 30:00." },
+    { time: "22:13", text: "Work boots, level 1." },
     { time: "22:10", text: "Bought mine cart 3." },
     { time: "07:05", text: "Hired worker 56." },
   ];
@@ -155,23 +155,22 @@ describe("the Tonight box (#375)", () => {
   });
 });
 
-describe("the Ledger's four plates (#375)", () => {
+describe("the Ledger's three plates (#375, #729)", () => {
   const mount = () => {
     const on = {
       savedCopies: vi.fn(),
       fieldLog: vi.fn(),
       startOver: vi.fn(),
-      pass: vi.fn(),
     };
     const doors = createLedgerDoors({ board, on });
     sheet.place([doors.root]);
-    doors.paint({ ready: true, passOffered: true });
+    doors.paint({ ready: true });
     const plate = (name: string): HTMLButtonElement =>
       find(doors.root, `.ledger-${name}`, HTMLButtonElement);
     return { doors, on, plate };
   };
 
-  it("four plates, two by two, with today's words", () => {
+  it("three plates, two by two, with today's words, and no Pass (#729)", () => {
     const { doors, plate } = mount();
     expect(doors.root.classList.contains("ledger-doors")).toBe(true);
     const plates = [...doors.root.querySelectorAll("button.board-platebtn")];
@@ -180,19 +179,11 @@ describe("the Ledger's four plates (#375)", () => {
         (each) =>
           [...each.classList].find((name) => name.startsWith("ledger-")) ?? "",
       ),
-    ).toEqual([
-      "ledger-saved-copies",
-      "ledger-field-log",
-      "ledger-start-over",
-      "ledger-pass",
-    ]);
+    ).toEqual(["ledger-saved-copies", "ledger-field-log", "ledger-start-over"]);
     expect(words(plate("saved-copies"))).toBe("Saved copies");
     expect(words(plate("field-log"))).toBe("Copy field log");
     expect(words(plate("start-over"))).toBe("Start over");
-    expect(words(plate("pass"))).toBe("Pass the mine");
-    expect(plate("pass").getAttribute("aria-label")).toBe(
-      "Pass the mine to your kid",
-    );
+    expect(doors.root.querySelector(".ledger-pass")).toBeNull();
   });
 
   it("a press past the settle calls its door with the plate", () => {
@@ -201,14 +192,12 @@ describe("the Ledger's four plates (#375)", () => {
     press(plate("saved-copies"));
     press(plate("field-log"));
     press(plate("start-over"));
-    press(plate("pass"));
     expect(on.savedCopies).toHaveBeenCalledWith(
       plate("saved-copies"),
       "finger",
     );
     expect(on.fieldLog).toHaveBeenCalledWith(plate("field-log"), "finger");
     expect(on.startOver).toHaveBeenCalledWith(plate("start-over"), "finger");
-    expect(on.pass).toHaveBeenCalledWith(plate("pass"), "finger");
   });
 
   it("forget drops a finger-down time the drawer moved on from", () => {
@@ -254,25 +243,13 @@ describe("the Ledger's four plates (#375)", () => {
 
   it("until the save is ready, Copy field log and Start over are disabled, Saved copies is not", () => {
     const { doors, plate } = mount();
-    doors.paint({ ready: false, passOffered: true });
+    doors.paint({ ready: false });
     expect(plate("field-log").disabled).toBe(true);
     expect(plate("start-over").disabled).toBe(true);
     expect(plate("saved-copies").disabled).toBe(false);
-    doors.paint({ ready: true, passOffered: true });
+    doors.paint({ ready: true });
     expect(plate("field-log").disabled).toBe(false);
     expect(plate("start-over").disabled).toBe(false);
-  });
-
-  it("Pass hides unless it is offered, and Start over keeps its column", () => {
-    const { doors, plate } = mount();
-    doors.paint({ ready: true, passOffered: false });
-    expect(plate("pass").hidden).toBe(true);
-    // The CSS pins each plate to its own grid cell, so a hidden Pass moves nothing.
-    expect(plate("start-over").classList.contains("ledger-start-over")).toBe(
-      true,
-    );
-    doors.paint({ ready: true, passOffered: true });
-    expect(plate("pass").hidden).toBe(false);
   });
 
   it("Copied holds the plate: a second press does nothing, and the words come back", () => {

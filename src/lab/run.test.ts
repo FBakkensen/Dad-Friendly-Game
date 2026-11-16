@@ -1,29 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { RUSH_MS } from "../gold-rush";
 import { minedMountain } from "../test-fixtures";
 import { withFactors } from "../economy/factors";
 import { FRESH_OFF, LINE_OFF } from "../line-switch";
 import { createMountain, MOUNTAIN_STONES } from "../mountain";
 import casual from "./fresh-policies/casual-2x10";
-import { runDone, runPolicy, tapQuickVein, tendBest } from "./run";
-import { createWorld } from "./world";
-
-describe("the lab's quick vein (#468)", () => {
-  it("starts the Gold rush on the held stones, and leaves the vein's pay out", () => {
-    const mountain = {
-      ...minedMountain(0),
-      owned: { ...minedMountain(0).owned, helper: 10, kid: 0 },
-      rushBank: 8_100,
-    };
-    const world = { ...createWorld(1, mountain), clock: 5_000 };
-    const tapped = tapQuickVein(world);
-    expect(tapped.mountain.stock.stones).toBe(mountain.stock.stones);
-    expect(tapped.mountain.rushUntil).toBe(5_000 + RUSH_MS);
-    // nothing held, no rush
-    const none = { ...createWorld(1, minedMountain(0)), clock: 5_000 };
-    expect(tapQuickVein(none).mountain).toHaveProperty("rushUntil", 0);
-  });
-});
+import { runDone, runPolicy, tendBest } from "./run";
 
 describe("where a best-tending dad sends her (#543)", () => {
   const crew = {
@@ -37,7 +18,6 @@ describe("where a best-tending dad sends her (#543)", () => {
       hoist: 20,
       machine: 1,
     },
-    legacy: 0,
     engineers: [
       {
         name: "Ada" as const,
@@ -114,9 +94,8 @@ describe("a fresh mine's run (#655)", () => {
 
   it("plays a fresh type the old way while the fresh mine is off", () => {
     const run = runPolicy({ policy: casual, seed: 1, maxLiveSeconds: 1 });
-    // Today's dad taps by hand; part 1's dad never does.
-    expect(casual.params.tapsPerSecond).toBeGreaterThan(0);
-    expect(run.world.mountain.remaining).toBeLessThan(MOUNTAIN_STONES);
+    // Today's dad has no order to place; part 1's dad orders at once.
+    expect(run.world.mountain.project.kind).toBe("unordered");
   });
 
   it("plays part 1's dad: he orders in his first second", () => {

@@ -24,7 +24,6 @@ const WORKERS = 84;
 const FREE_WORKERS = 2;
 
 const TEN_MINUTES = 10 * 60 * 1000;
-const THIRTY_MINUTES = 30 * 60 * 1000;
 
 type CrewCard = {
   readonly id: TierId;
@@ -94,7 +93,9 @@ function hit(
 }
 
 export function renderTokenSheet(view: TokenView): string {
-  const buy = buyPriceWords(priced(upgradeCost(upgradeById("tap"), 3), "tap"));
+  const buy = buyPriceWords(
+    priced(upgradeCost(upgradeById("drillSyn"), 0), "Haul roads"),
+  );
   const workers = crewPostsShort(WORKERS, FREE_WORKERS);
   const next = `Next: a drill · ${drillPrice()}`;
   const running = `Running · ${formatClock(TEN_MINUTES)}`;
@@ -206,9 +207,6 @@ export function renderMountainTokens(view: TokenView): string {
 }
 
 export function renderUpgradesTokens(view: TokenView): string {
-  const arms = buyPriceWords(
-    priced(upgradeCost(upgradeById("tap"), 3), "Strong arms"),
-  );
   const roads = buyPriceWords(
     priced(upgradeCost(upgradeById("drillSyn"), 0), "Haul roads"),
   );
@@ -218,25 +216,8 @@ export function renderUpgradesTokens(view: TokenView): string {
   const tracks = buyPriceWords(
     priced(upgradeCost(upgradeById("machineSyn"), 0), "Borer tracks"),
   );
-  const sharper = `Running · ${formatClock(TEN_MINUTES)}`;
-  const overtime = `Running · ${formatClock(THIRTY_MINUTES)}`;
   const actions = (
     [
-      [
-        "sharper",
-        "tok-secondary",
-        "Sharper picks",
-        sharper,
-        "Sharper picks keeps running.",
-      ],
-      [
-        "overtime",
-        "tok-secondary",
-        "Overtime",
-        overtime,
-        "Overtime keeps running.",
-      ],
-      ["arms", "tok-primary", "Strong arms", arms, "Buys Strong arms."],
       ["roads", "tok-primary", "Haul roads", roads, "Buys Haul roads."],
       ["crews", "tok-primary", "Drill crews", crews, "Buys Drill crews."],
       ["tracks", "tok-primary", "Borer tracks", tracks, "Buys Borer tracks."],
@@ -254,15 +235,10 @@ export function renderUpgradesTokens(view: TokenView): string {
     </header>
     <div class="tok-read">
       <p class="tok-pocket">You have ${escapeHtml(formatCount(POCKET))} stones.</p>
-      <p>Strong arms · level 3 of 10 · now 1,410</p>
       <p>Haul roads · drills would 24%</p>
       <p>Drill crews · borers would 8%</p>
       <p>Borer tracks · the Great Machine would 3%</p>
-      <p>Sharper picks · 1,410 a tap</p>
-      <p>Overtime · 22.7K/s</p>
-      <p class="tok-quiet">Owned · Work boots, Night foreman, Loading crews</p>
-      <p class="tok-quiet">Grandfather's pick · Found. Your taps bite a little deeper.</p>
-      <p class="tok-quiet">Old miner's lamp · Found. Golden veins linger longer in its light.</p>
+      <p class="tok-quiet">Owned · Work boots, Loading crews</p>
     </div>
     <div class="tok-actions">${actions}</div>
   </section>`;

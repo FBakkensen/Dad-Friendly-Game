@@ -103,7 +103,7 @@ export const SKINS: Readonly<Record<SkinKind, SkinSpec>> = {
     row: 16,
     fill: [14, 14, 4, 4],
   },
-  /* The Legacy plate (#371): its rivets sit in its 8px corners, so a 64x16 plate keeps all four. */
+  /* The brass plate (#371; the Legacy plate until #729): its rivets sit in its 8px corners, so a 64x16 plate keeps all four. */
   brass: {
     src: "brass",
     ox: 3,

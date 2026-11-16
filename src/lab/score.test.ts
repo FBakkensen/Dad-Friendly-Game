@@ -41,11 +41,11 @@ describe("scoreDecision", () => {
   });
 
   it("scores the whole table when the caller does not pass one", () => {
-    // An unstaffed cart opens Sharper picks and Night foreman (#250).
+    // A cart's worker makes the crew pay, so more than one move pays back (the dig is gone, #728).
     const mountain = {
       ...createMountain(),
       stock: { ...createMountain().stock, stones: 100 },
-      owned: { ...createMountain().owned, cart: 1 },
+      owned: { ...createMountain().owned, helper: 1, cart: 1 },
     };
     const sample = scoreDecision({
       mountain,
@@ -54,7 +54,7 @@ describe("scoreDecision", () => {
       atMs: 0,
     });
     expect(sample.optionKinds.length).toBeGreaterThan(1);
-    expect(sample.crewPerSec).toBe(0);
+    expect(sample.crewPerSec).toBe(7);
     expect(sample.nextPaybackRatio).toBeGreaterThanOrEqual(1);
     expect(Number.isFinite(sample.nextPaybackRatio)).toBe(true);
   });
@@ -96,7 +96,7 @@ describe("scoreDecision", () => {
       },
       crafted: { ...NOTHING_CRAFTED, "iron-rails": 1 as const },
     };
-    const context = { ...DAD_SCHEDULE, tapsPerSecond: 0 };
+    const context = DAD_SCHEDULE;
     const off = scoreDecision({
       mountain,
       now: 0,

@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import type { Engineer } from "./engineers";
 import {
   BARE_MOUNTAIN,
-  MAX_LEGACY,
   MOUNTAIN_STONES,
   createMountain,
   digStones,
@@ -34,7 +33,6 @@ function lived(): Mountain {
     remaining: MOUNTAIN_STONES - 80_000,
     stock: { ...fresh.stock, stones: 1_234 },
     owned: { ...fresh.owned, helper: 30, cart: 12, drill: 4, borer: 1, kid: 2 },
-    legacy: 3,
     startedAt: 1_700,
     engineers: [ADA, { ...NILS, post: "drill" }],
     expeditions: [
@@ -47,8 +45,7 @@ function lived(): Mountain {
       },
     ],
     bench: { recipe: "iron-rails", startedAt: 10, endsAt: 20 },
-    upgrades: { ...fresh.upgrades, tap: 2, boots: 1 },
-    boosts: { ...fresh.boosts, sharper: 9_000 },
+    upgrades: { ...fresh.upgrades, boots: 1 },
     clocks: { ...fresh.clocks, "axle-grease": 3_000 },
     crafted: { ...fresh.crafted, "sturdy-props": 1 },
     recipes: [...fresh.recipes, "reinforce"],
@@ -65,11 +62,11 @@ function withGame(part: Record<string, unknown>): unknown {
   return { ...saved, game: { ...saved.game, ...part } };
 }
 
-describe("the version 9 save (#558, #664)", () => {
+describe("the version 10 save (#558, #728)", () => {
   it("a fresh mountain writes a few lines", () => {
     const fresh = createMountain();
     expect(serializeSave({ mountain: fresh, lastSeen: 5 })).toEqual({
-      version: 9,
+      version: 10,
       lastSeen: 5,
       game: { marks: { recipes: STARTING_RECIPE_IDS } },
     });
@@ -141,10 +138,10 @@ describe("the version 9 save (#558, #664)", () => {
     expect(readSave({ ...saved, startedAt: -1 }).kind).toBe("bad");
   });
 
-  it("a version above 9 is newer, below is older, with its stamp and rev", () => {
-    expect(readSave({ version: 10, lastSeen: 1, world: {} })).toEqual({
+  it("a version above 10 is newer, below is older, with its stamp and rev", () => {
+    expect(readSave({ version: 11, lastSeen: 1, world: {} })).toEqual({
       kind: "newer",
-      version: 10,
+      version: 11,
     });
     expect(
       readSave({ version: 7, rev: 4, mountain: { startedAt: 12 } }),
@@ -155,17 +152,17 @@ describe("the version 9 save (#558, #664)", () => {
       startedAt: 12,
       rev: 4,
     });
-    // Today's game, version 8, is set aside for the fresh mine (#664).
+    // Today's game, version 9, is set aside for the version 10 bump (#728).
     expect(
       readSave({
-        version: 8,
+        version: 9,
         lastSeen: 1,
         startedAt: 40,
         rev: 6,
         deviceId: "device-1234",
         game: { owned: { helper: 3 } },
       }),
-    ).toEqual({ kind: "older", version: 8, startedAt: 40, rev: 6 });
+    ).toEqual({ kind: "older", version: 9, startedAt: 40, rev: 6 });
     expect(readSave({ version: 1, grid: {} })).toEqual({
       kind: "older",
       version: 1,
@@ -196,6 +193,19 @@ describe("the version 9 save (#558, #664)", () => {
     expect(readSave({ ...saved, weather: "rain" }).kind).toBe("newer");
   });
 
+  it("a save holding the retired run.generation 0 and run.stretch 1 reads ok, and plays on (#729)", () => {
+    const plain = okMountain(readSave(withGame({})));
+    const run = { dug: 80_000, generation: 0, stretch: 1 };
+    const read = okMountain(readSave(withGame({ run })));
+    expect(read).toEqual(plain);
+    const next = digStones(read ?? createMountain(), 10);
+    const again = stored(serializeSave({ mountain: next, lastSeen: 10 })) as {
+      game: { run?: Record<string, number> };
+    };
+    expect(again.game.run).toEqual({ dug: 80_010 });
+    expect(okMountain(readSave(again))?.remaining).toBe(next.remaining);
+  });
+
   it("a count above its cap is newer", () => {
     expect(readSave(withGame({ levels: { boots: 2 } })).kind).toBe("newer");
     const crew = ["Ada", "Nils", "Ruth", "Otto", "Mae", "Bo"].map((name) => ({
@@ -205,9 +215,10 @@ describe("the version 9 save (#558, #664)", () => {
     expect(readSave(withGame({ engineers: crew, expeditions: [] })).kind).toBe(
       "newer",
     );
-    expect(
-      readSave(withGame({ run: { generation: MAX_LEGACY + 1 } })).kind,
-    ).toBe("newer");
+    // A retired count still has its cap (#729).
+    expect(readSave(withGame({ run: { generation: 1_001 } })).kind).toBe(
+      "newer",
+    );
     expect(readSave(withGame({ run: { dug: MOUNTAIN_STONES + 1 } })).kind).toBe(
       "newer",
     );
@@ -227,7 +238,7 @@ describe("the version 9 save (#558, #664)", () => {
     ) as Record<string, unknown>;
     expect(readSave(withGame({ owned: { helper: "3" } })).kind).toBe("bad");
     expect(readSave(withGame({ stock: { stones: -1 } })).kind).toBe("bad");
-    expect(readSave(withGame({ levels: { tap: 1.5 } })).kind).toBe("bad");
+    expect(readSave(withGame({ levels: { boots: 1.5 } })).kind).toBe("bad");
     expect(readSave(withGame({ marks: { seen: [1] } })).kind).toBe("bad");
     expect(readSave(withGame({ marks: "seen" })).kind).toBe("bad");
     expect(readSave(withGame({ run: [] })).kind).toBe("bad");
@@ -238,7 +249,7 @@ describe("the version 9 save (#558, #664)", () => {
     expect(readSave({ ...saved, game: undefined }).kind).toBe("bad");
     expect(readSave({ ...saved, lastSeen: undefined }).kind).toBe("bad");
     expect(readSave({ ...saved, version: 7.5 }).kind).toBe("bad");
-    expect(readSave({ ...saved, version: "9" }).kind).toBe("bad");
+    expect(readSave({ ...saved, version: "10" }).kind).toBe("bad");
     expect(readSave(null).kind).toBe("bad");
     expect(readSave([saved]).kind).toBe("bad");
   });
@@ -250,7 +261,7 @@ describe("the version 9 save (#558, #664)", () => {
   });
 
   it("a missing key reads as its default", () => {
-    expect(readSave({ version: 9, lastSeen: 1, game: {} })).toEqual({
+    expect(readSave({ version: 10, lastSeen: 1, game: {} })).toEqual({
       kind: "ok",
       save: {
         mountain: BARE_MOUNTAIN,

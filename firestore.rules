@@ -8,7 +8,7 @@ service cloud.firestore {
     // Collection: games (version 8 on, #558)
     // Document ID: Firebase Auth uid
     // Fields, the envelope only:
-    //   - version: int >= 9 (#664), never lower than the stored one. A later
+    //   - version: int >= 10 (#728), never lower than the stored one. A later
     //       build may raise it; an earlier build then reads the copy as
     //       newer and never writes over it.
     //   - rev: int. Create is rev 1; an update is exactly the stored rev + 1.
@@ -24,9 +24,10 @@ service cloud.firestore {
     //
     // Collection: gameArchive/{uid}/copies (version 8 on, #558)
     // A copy left behind, kept seven days: the side not chosen in a
-    // conflict, the one a restore replaced, the one a Start over or a pass
-    // left (#480), or a copy from before the current version (reason
-    // 'reset'), kept as it was stored under `raw`.
+    // conflict, the one a restore replaced, the one a Start over left
+    // (#480), or a copy from before the current version (reason 'reset'),
+    // kept as it was stored under `raw`. A copy a pass left (reason 'pass')
+    // still reads, but no build makes one since #729.
     //
     // Collections saves and saveArchive: the saves from before version 8.
     // Readable by the owner, never written again.
@@ -76,7 +77,7 @@ service cloud.firestore {
     // The envelope this version writes. `game` is read by the client.
     function isGameEnvelope(data) {
       return data.version is int &&
-        data.version >= 9 &&
+        data.version >= 10 &&
         data.rev is int &&
         isDeviceId(data.deviceId) &&
         (!('deviceLabel' in data) || isDeviceLabel(data.deviceLabel)) &&
@@ -99,7 +100,7 @@ service cloud.firestore {
     }
 
     function isGameArchive(data) {
-      return data.reason in ['conflict', 'restore', 'start-over', 'pass', 'reset'] &&
+      return data.reason in ['conflict', 'restore', 'start-over', 'reset'] &&
         keptAWeek(data) &&
         data.rev is int &&
         data.rev >= 0 &&
@@ -123,10 +124,8 @@ service cloud.firestore {
 
     function isFieldUpgrades(upgrades) {
       return upgrades is map &&
-        upgrades.keys().hasOnly(['tap', 'boots', 'steady', 'cartSyn', 'drillSyn', 'borerSyn', 'machineSyn']) &&
-        (!('tap' in upgrades) || (upgrades.tap is int && upgrades.tap >= 0 && upgrades.tap <= 10)) &&
+        upgrades.keys().hasOnly(['boots', 'cartSyn', 'drillSyn', 'borerSyn', 'machineSyn']) &&
         (!('boots' in upgrades) || (upgrades.boots is int && upgrades.boots >= 0 && upgrades.boots <= 1)) &&
-        (!('steady' in upgrades) || (upgrades.steady is int && upgrades.steady >= 0 && upgrades.steady <= 1)) &&
         (!('cartSyn' in upgrades) || (upgrades.cartSyn is int && upgrades.cartSyn >= 0 && upgrades.cartSyn <= 1)) &&
         (!('drillSyn' in upgrades) || (upgrades.drillSyn is int && upgrades.drillSyn >= 0 && upgrades.drillSyn <= 1)) &&
         (!('borerSyn' in upgrades) || (upgrades.borerSyn is int && upgrades.borerSyn >= 0 && upgrades.borerSyn <= 1)) &&
@@ -144,29 +143,6 @@ service cloud.firestore {
     // Idle machines by machine id, held the same way.
     function isIdleCounts(idle) {
       return idle is map && idle.size() <= 16;
-    }
-
-    // Naming every relic, on top of a full snapshot, crosses the 1000-expression
-    // budget once the shelf is full. The list is capped at 6. The client
-    // writes the closed ids. A huge string still cannot blow the document up:
-    // the client refuses a field log over 50 KB.
-    function isRelicList(relics) {
-      return relics is list && relics.size() <= 6;
-    }
-
-    function isFieldBoost(boost) {
-      return boost is map &&
-        boost.keys().hasOnly(['endsAt', 'id']) &&
-        boost.id in ['sharper', 'overtime'] &&
-        isIsoText(boost.endsAt);
-    }
-
-    // The second boost's shape, beside a full shelf and a full crew, crosses
-    // the 1000-expression budget. The list is capped at 2. The first boost
-    // carries the shape check.
-    function isFieldBoostList(boosts) {
-      return boosts is list && boosts.size() <= 2 &&
-        (boosts.size() < 1 || isFieldBoost(boosts[0]));
     }
 
     // A full name/post/rank check, on top of the snapshot and the first event,
@@ -192,22 +168,22 @@ service cloud.firestore {
 
     function isFieldSnapshot(shot) {
       return shot is map &&
-        shot.keys().hasOnly(['at', 'boosts', 'crew', 'crewSpeed', 'deviceId', 'engineers', 'expeditions', 'idle', 'left', 'legacy', 'mined', 'pocket', 'relics', 'rev', 'tapYield', 'upgrades', 'version']) &&
+        shot.keys().hasOnly(['at', 'crew', 'crewSpeed', 'deviceId', 'engineers', 'expeditions', 'idle', 'left', 'legacy', 'mined', 'pocket', 'rev', 'upgrades', 'version']) &&
         isIsoText(shot.at) &&
         shot.deviceId is string &&
         shot.rev is int &&
-        isFieldBoostList(shot.boosts) &&
         isCrewCounts(shot.crew) &&
         shot.crewSpeed is number && shot.crewSpeed >= 0 && shot.crewSpeed <= 1000000000 &&
         (!('engineers' in shot) || isFieldEngineers(shot.engineers)) &&
         (!('expeditions' in shot) || isFieldTrips(shot.expeditions)) &&
         isIdleCounts(shot.idle) &&
         shot.left is int && shot.left >= 0 && shot.left <= 240000000 &&
-        shot.legacy is int && shot.legacy >= 0 && shot.legacy <= 1000 &&
+        // Optional for one release: a tab from #728's build still sends it.
+        // The current build never does. #740 removes it when the field log
+        // changes again.
+        (!('legacy' in shot) || (shot.legacy is int && shot.legacy >= 0 && shot.legacy <= 1000)) &&
         shot.mined is int && shot.mined >= 0 && shot.mined <= 240000000 &&
         shot.pocket is int && shot.pocket >= 0 && shot.pocket <= 1000000000000000 &&
-        isRelicList(shot.relics) &&
-        shot.tapYield is number && shot.tapYield >= 0 && shot.tapYield <= 1000000000 &&
         isFieldUpgrades(shot.upgrades) &&
         isShortText(shot.version);
     }

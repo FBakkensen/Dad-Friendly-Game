@@ -23,7 +23,6 @@ import evening from "./policies/evening-1x20";
 import fiveMin from "./policies/five-min-a-day";
 import marathon from "./policies/marathon";
 import allIn from "./policies/all-in-engineers";
-import boostJunkie from "./policies/boost-junkie";
 import hoarder from "./policies/hoarder";
 import machinesOnly from "./policies/machines-only";
 import neverFix from "./policies/never-fix-trouble";
@@ -31,7 +30,6 @@ import neverWorkers from "./policies/never-workers";
 import noEngineers from "./policies/no-engineers";
 import optimizer from "./policies/optimizer";
 import skipCrafting from "./policies/skip-crafting";
-import tapOnly from "./policies/tap-only";
 import workersOnly from "./policies/workers-only";
 import { plainPolicy } from "./plain";
 import {
@@ -95,9 +93,9 @@ describe("spend table", () => {
   it("leaves out a free post and an upgrade this dad will not buy", () => {
     const mountain = {
       ...createMountain(),
-      // Three carts open Strong arms (#250).
-      owned: { ...createMountain().owned, helper: 4, cart: 3 },
-      stock: { ...createMountain().stock, stones: 23_000 },
+      // Five carts open Loading crews (#250).
+      owned: { ...createMountain().owned, helper: 4, cart: 5 },
+      stock: { ...createMountain().stock, stones: 3_000_000 },
       engineers: [{ name: "Ada", rank: 0, trips: 0, post: "camp" } as const],
     };
     const weighed = actionsOnTable(mountain, 0, casual.params);
@@ -172,7 +170,6 @@ describe("other schedules", () => {
     expect(fiveMin.params).toMatchObject({
       sessionsPerDay: 1,
       minutesPerSession: 5,
-      tapsPerSecond: casual.params.tapsPerSecond,
     });
     expect(fiveMin.schedule.sessionMs).toBe(5 * 60 * 1000);
     expect(marathon.params).toMatchObject({
@@ -186,7 +183,7 @@ describe("other schedules", () => {
 
 describe("extremes", () => {
   it("never hires a worker except to staff a machine already owned", () => {
-    // The third cart opens Strong arms (#250).
+    // Ten workers open Work boots (#250).
     const rich = withPocket(1_000_000_000, {
       owned: { ...NONE_OWNED, cart: 3, helper: 10 },
     });
@@ -225,25 +222,6 @@ describe("extremes", () => {
     }
   });
 
-  it("taps, and never buys", () => {
-    const rich = withPocket(1_000_000_000, {
-      owned: { ...NONE_OWNED, helper: 40, borer: 1 },
-      engineers: [ada],
-    });
-    expect(
-      tapOnly.decide({ mountain: rich, now: 0, params: tapOnly.params }),
-    ).toBeUndefined();
-    const run = runPolicy({
-      policy: tapOnly,
-      seed: 1,
-      mountain: rich,
-      maxLiveSeconds: 5,
-    });
-    expect(run.buys).toEqual([]);
-    expect(run.promotions).toEqual([]);
-    expect(run.world.mountain.expeditions).toEqual([]);
-  });
-
   it("buys machines, and workers only for those machines", () => {
     const rich = withPocket(1_000_000_000, {
       owned: { ...NONE_OWNED, helper: 40 },
@@ -254,7 +232,6 @@ describe("extremes", () => {
       params: machinesOnly.params,
     });
     expect(action?.kind).not.toBe("buyUpgrade");
-    expect(action?.kind).not.toBe("buyBoost");
     expect(action).toMatchObject({ kind: "buyTier" });
     if (action?.kind === "buyTier") {
       expect(action.id).not.toBe("helper");
@@ -377,17 +354,6 @@ describe("extremes", () => {
     expect(fixDelayMs("fast")).toBe(FIX_FAST_MS);
     expect(fixDelayMs("slow")).toBe(FIX_SLOW_MS);
   });
-
-  it("starts every affordable boost before the second's dig", () => {
-    const run = runPolicy({
-      policy: boostJunkie,
-      seed: 1,
-      mountain: withPocket(10_000, { owned: { ...NONE_OWNED, helper: 4 } }),
-      maxLiveSeconds: 1,
-    });
-    expect(run.world.mountain.boosts.sharper).toBeGreaterThan(0);
-    expect(run.world.mountain.boosts.overtime).toBeGreaterThan(0);
-  });
 });
 
 describe("optimizer", () => {
@@ -404,23 +370,12 @@ describe("optimizer", () => {
         params: optimizer.params,
       }),
     ).toBeUndefined();
-    expect(
-      optimizerDecide({
-        mountain: createMountain(),
-        now: 0,
-        params: { ...optimizer.params, tapsPerSecond: 0 },
-      }),
-    ).toBeUndefined();
     const rich = optimizerDecide({
       mountain: withPocket(1_000_000),
       now: 0,
       params: optimizer.params,
     });
-    expect(
-      rich?.kind === "buyTier" ||
-        rich?.kind === "buyUpgrade" ||
-        rich?.kind === "buyBoost",
-    ).toBe(true);
+    expect(rich?.kind === "buyTier" || rich?.kind === "buyUpgrade").toBe(true);
   });
 
   it("plays the same run when the seed is the same", () => {
@@ -531,19 +486,16 @@ describe("policy shape", () => {
     expect(
       sticker(mountain, {
         kind: "buyUpgrade",
-        id: "tap",
+        id: "boots",
         price: stonesPrice(0),
       }),
     ).toBeGreaterThan(0);
     expect(
       sticker(
-        { ...mountain, upgrades: { ...NO_UPGRADES, tap: 10 } },
-        { kind: "buyUpgrade", id: "tap", price: stonesPrice(0) },
+        { ...mountain, upgrades: { ...NO_UPGRADES, boots: 1 } },
+        { kind: "buyUpgrade", id: "boots", price: stonesPrice(0) },
       ),
     ).toBe(Number.POSITIVE_INFINITY);
-    expect(
-      sticker(mountain, { kind: "buyBoost", id: "sharper" }),
-    ).toBeGreaterThan(0);
     expect(sticker(mountain, { kind: "promote", price: stonesPrice(0) })).toBe(
       nilsPrice,
     );
@@ -573,7 +525,7 @@ describe("policy shape", () => {
 
   it("stops when the caller says the second is enough", () => {
     const run = runPolicy({
-      policy: tapOnly,
+      policy: casual,
       seed: 1,
       maxLiveSeconds: 10,
       until: (world) => world.clock >= 2 * 1000,
@@ -588,7 +540,6 @@ describe("policy shape", () => {
       kind: "extreme",
       sessionsPerDay: 2,
       minutesPerSession: 1,
-      tapsPerSecond: 0,
       promote: "never",
       explore: "never",
       tend: "never",
@@ -604,12 +555,11 @@ describe("policy shape", () => {
       kind: "extreme",
       sessionsPerDay: 1,
       minutesPerSession: 1,
-      tapsPerSecond: 0,
       promote: "on-value",
       explore: "never",
       tend: "never",
       workers: "never",
-      spend: { worker: 0, machine: 0, upgrade: 0, boost: 0, promote: 1 },
+      spend: { worker: 0, machine: 0, upgrade: 0, promote: 1 },
     });
     const hired = runPolicy({
       policy: onValue,
@@ -638,7 +588,6 @@ describe("policy shape", () => {
       kind: "extreme",
       sessionsPerDay: 1,
       minutesPerSession: 1,
-      tapsPerSecond: 0,
       promote: "never",
       explore: "never",
       tend: "never",
@@ -656,25 +605,6 @@ describe("policy shape", () => {
     });
     expect(missed.promotions).toEqual([]);
     expect(missed.world.mountain.engineers).toEqual([]);
-    const boosting = plainPolicy({
-      id: "buys-a-boost",
-      label: "One boost",
-      kind: "extreme",
-      sessionsPerDay: 1,
-      minutesPerSession: 1,
-      tapsPerSecond: 0,
-      promote: "never",
-      explore: "never",
-      tend: "never",
-      decide: () => ({ kind: "buyBoost", id: "sharper" }),
-    });
-    const boosted = runPolicy({
-      policy: boosting,
-      seed: 1,
-      mountain: withPocket(1_000),
-      maxLiveSeconds: 1,
-    });
-    expect(boosted.world.mountain.boosts.sharper).toBeGreaterThan(0);
   });
 
   it("sends a scout when the expected find beats the post they leave", () => {
@@ -686,7 +616,7 @@ describe("policy shape", () => {
       minutesPerSession: 10,
       explore: "on-value",
       promote: "on-value",
-      spend: { worker: 1, machine: 1, upgrade: 0, boost: 1, promote: 1 },
+      spend: { worker: 1, machine: 1, upgrade: 0, promote: 1 },
     });
     const mountain = withPocket(1_000_000, {
       owned: { ...NONE_OWNED, helper: 8, borer: 1 },
@@ -792,8 +722,7 @@ describe("crafting", () => {
       kind: "extreme",
       sessionsPerDay: 1,
       minutesPerSession: 1,
-      tapsPerSecond: 0,
-      spend: { worker: 0, machine: 0, upgrade: 0, boost: 0, promote: 0 },
+      spend: { worker: 0, machine: 0, upgrade: 0, promote: 0 },
       promote: "never",
       explore: "never",
       craft: "idle",
@@ -829,13 +758,6 @@ describe("crafting", () => {
         (action) => action.kind === "craft",
       ),
     ).toBe(false);
-    expect(
-      tapOnly.decide({
-        mountain: workshop(),
-        now: 0,
-        params: tapOnly.params,
-      }),
-    ).toBeUndefined();
   });
 
   it("pays for a craft only when the materials, the room, and the hoard allow it", () => {
@@ -843,7 +765,7 @@ describe("crafting", () => {
     const charge = { kind: "craft", recipe: "blasting-charge" } as const;
     const bits = { kind: "craft", recipe: "diamond-bits" } as const;
     const ember = { kind: "craft", recipe: "heartstone-ember" } as const;
-    const lamp = { kind: "craft", recipe: "crystal-lamp" } as const;
+    const kit = { kind: "craft", recipe: "engineers-kit" } as const;
     const open = workshop();
     expect(canPay(open, charge, 1)).toBe(true);
     expect(canPay(open, rails, 1)).toBe(true);
@@ -879,16 +801,16 @@ describe("crafting", () => {
         1,
       ),
     ).toBe(false);
-    expect(canPay(open, lamp, 1)).toBe(false);
+    expect(canPay(open, kit, 1)).toBe(false);
     const noMaterials = {
       ...open,
       stock: { ...open.stock, ...EMPTY_MATERIALS },
     };
     expect(canPay(noMaterials, charge, 1)).toBe(false);
     const unlisted = { ...open, recipes: [] };
-    expect(canPay(unlisted, lamp, 1)).toBe(false);
-    const found = withRecipes(open, ["crystal-lamp"]);
-    expect(canPay(found, lamp, 1)).toBe(true);
+    expect(canPay(unlisted, kit, 1)).toBe(false);
+    const found = withRecipes(open, ["engineers-kit"]);
+    expect(canPay(found, kit, 1)).toBe(true);
     const chargeStones = priceAmount(recipePrice("blasting-charge"), "stones");
     expect(
       canPay(
@@ -931,15 +853,12 @@ describe("crafting", () => {
       stock: { stones: 0 },
       owned: { helper: 50, cart: 12, drill: 6, borer: 0, machine: 1 },
       upgrades: {
-        tap: 10,
         boots: 1,
-        steady: 1,
         cartSyn: 1,
         drillSyn: 1,
         borerSyn: 1,
         machineSyn: 1,
       },
-      boosts: { sharper: 1, overtime: 1 },
     });
     const picked = optimizerDecide({
       mountain: late,

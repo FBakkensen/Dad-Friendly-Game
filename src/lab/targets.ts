@@ -132,7 +132,8 @@ type TargetBase = {
    * A miss is still in the report. It does not fail `LAB_STRICT`.
    * The finish-day rows set it until the line turns on in play (#536) and
    * the five-day floor turns strict (#556; the line's numbers meet it, #543). every-tier-bought sets it as a report row
-   * for the milestones sliver (#357).
+   * for the milestones sliver (#357). single-share, extreme-win and optimizer-regret set it
+   * until today's mountain leaves the lab (#737).
    */
   readonly reportOnly?: boolean;
 };
@@ -166,10 +167,14 @@ export const TARGETS: readonly Target[] = [
     // Flemming, 8 Nov 2026 (#357): 0.26 after the milestone marks; the
     // checker's opening Topsoil and deep Great Machine stretch are fixed
     // one-buy moments. Flemming, 11 Nov 2026 (#468): 0.27, because a big
-    // buy now waits about a minute at the open for the Gold rush to bring
-    // in the held stones.
+    // buy waited about a minute at the open for the Gold rush (gone since
+    // #728) to bring in the held stones.
     value: 0.27,
     why: "Most moments should offer more than one live option.",
+    // Flemming, 16 Nov 2026 (#728): report-only until #729 deletes today's
+    // mountain (now #737). With the dig, boosts, the Gold rush and the relic powers
+    // gone, it runs slower.
+    reportOnly: true,
   },
   {
     id: "live-median-after-open",
@@ -218,8 +223,7 @@ export const TARGETS: readonly Target[] = [
     value: 5,
     why: "A run takes at least five days and has no ceiling: a meaningful decision at all times matters more than the day count.",
     // Flemming, 14 Nov 2026 (#556): the 3-5 day target is gone. Not less
-    // than five days, likely weeks in the end. Report only, as since 7 Nov:
-    // the generations lab keeps each pass to the kid strict.
+    // than five days, likely weeks in the end. Report only, as since 7 Nov.
     reportOnly: true,
   },
   {
@@ -241,6 +245,10 @@ export const TARGETS: readonly Target[] = [
     // sitting finishes on day 5 against the casual dad's day 6 (0.167).
     value: 0.17,
     why: "An extreme should not finish much sooner than a casual dad.",
+    // Flemming, 16 Nov 2026 (#728): report-only until #729 deletes today's
+    // mountain (now #737). With the dig, boosts, the Gold rush and the relic powers
+    // gone, it runs slower.
+    reportOnly: true,
   },
   {
     id: "optimizer-regret",
@@ -249,6 +257,11 @@ export const TARGETS: readonly Target[] = [
     op: "lte",
     value: 1.25,
     why: "The smart dad may finish sooner, and not by more than a quarter.",
+    // Flemming, 16 Nov 2026 (#728): report-only until #729 deletes today's
+    // mountain (now #737). Deleting the dig, boosts, the Gold rush and the relic powers
+    // moved today's mountain's pace; here the evening player now takes 1.40x
+    // the smart player's time, a wider gap than before.
+    reportOnly: true,
   },
   {
     id: "crafted-from-granite",
@@ -276,7 +289,7 @@ export const TARGETS: readonly Target[] = [
     scope: { kind: "policyKinds", kinds: ["casual"] },
     op: "lte",
     value: 2,
-    why: "An upgrade, boost or new system should be tried within two sittings of showing up.",
+    why: "An upgrade or new system should be tried within two sittings of showing up.",
   },
   {
     id: "favoured-in-band",
@@ -362,9 +375,6 @@ export const TARGETS: readonly Target[] = [
  * sitting plus the gap before it, because away pay shows up first.
  */
 export const LOOKAHEAD_SESSIONS = 1;
-
-/** The plain dad taps this fast while the sitting is open. */
-export const TAPS_PER_SECOND = 3;
 
 /**
  * A fresh mine's dad (slice 1, #655). A gain or a difference this small is
@@ -502,17 +512,3 @@ export function meetsTarget(target: Target, actual: number): boolean {
  */
 export const REPORT_SMALL_SITTINGS = 1;
 export const REPORT_MACHINE_SITTINGS = 2;
-
-/**
- * Kid runs (M13, #253), strict: every player type's run N+1 finishes later
- * than run N, with no ceiling (Flemming, 4 Nov 2026). CI plays this many.
- */
-export const KID_RUNS_CI = 8;
-
-/**
- * Days each kid run may take, with the line on, before the generations lab
- * calls it unfinished (#543). With the line off it keeps runPolicy's 30.
- * Since #556 a run takes at least five days and kid runs grow to weeks: with
- * the line's numbers run 8 lands past day 30.
- */
-export const KID_RUN_MAX_DAYS = 60;

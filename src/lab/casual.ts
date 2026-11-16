@@ -2,7 +2,7 @@ import type { Trouble } from "../hazards";
 import type { World } from "./world";
 import { listActions } from "../economy/actions";
 import { DAD_SCHEDULE, simulateDadRun } from "../pacing";
-import { RELICS } from "../relics";
+import { MOUNTAIN_STONES } from "../scale";
 import type { DecisionSample, ScoreMethod } from "./measure";
 import { scoreDecision } from "./score";
 import { singleShareOf } from "./measures/singleShare";
@@ -78,13 +78,9 @@ export function sampleCasualRun(): {
   readonly samples: readonly DecisionSample[];
   readonly finishDay: number | undefined;
 } {
-  const mantle = RELICS.find((relic) => relic.id === "mantle");
-  if (mantle === undefined) {
-    throw new Error('Relic "mantle" is missing');
-  }
   const samples: DecisionSample[] = [];
   const run = simulateDadRun({
-    milestones: [mantle.depth],
+    milestones: [MOUNTAIN_STONES],
     onDecision(world, second) {
       if (!isSampleSecond(second)) {
         return;
@@ -105,6 +101,6 @@ export function sampleCasualRun(): {
       );
     },
   });
-  const finishDay = run.reached.get(mantle.depth);
+  const finishDay = run.reached.get(MOUNTAIN_STONES);
   return { samples: withFinish(samples, finishDay), finishDay };
 }

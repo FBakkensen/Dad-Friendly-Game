@@ -2,9 +2,8 @@ import { factor } from "./economy/factors";
 import { grantFirstEngineer } from "./engineers";
 import { graniteOpen } from "./mine-levels";
 import type { Mountain } from "./mountain";
-import { hasRelic, RELICS, type Relic } from "./relics";
 import { freshMineOn } from "./line-switch";
-import { KID_MACHINE_OPENS, minedOut, shownStones } from "./scale";
+import { minedOut, shownStones } from "./scale";
 import {
   buyTier,
   freshDoor,
@@ -18,17 +17,16 @@ import {
 } from "./tiers";
 
 /**
- * What a locked tier waits for: a depth (M12-2, #250), a relic, or, in a
- * fresh mine, a later part (slice 1, rule 1, #653).
+ * What a locked tier waits for: a depth (M12-2, #250), or, in a fresh
+ * mine, a later part (slice 1, rule 1, #653).
  */
 export type TierLock =
   | {
       readonly kind: "depth";
       readonly depth: number;
-      /** The depth in this run's stones, for the card (M13). */
+      /** The depth in stones, for the card (M13). */
       readonly at: number;
     }
-  | { readonly kind: "relic"; readonly relic: Relic; readonly at: number }
   | {
       /** A later part's door in a fresh mine: never for sale in part 1. */
       readonly kind: "later";
@@ -50,15 +48,6 @@ function freshLock(mountain: Mountain, tier: Tier): TierLock | undefined {
     : { kind: "later", at: door.at };
 }
 
-/**
- * From run 2 on (a stretched run), the Great Machine opens a little sooner,
- * so a once-a-day dad gets a full sitting with it on sale (M13, #253).
- */
-function kidOpens(mountain: Mountain, tier: Tier): number {
-  // Only a kid's run is stretched: a stretch is always above 1.
-  return tier.id === "machine" && mountain.stretch > 1 ? KID_MACHINE_OPENS : 1;
-}
-
 /** Why this tier is not for sale yet, or undefined when it is. */
 export function tierLock(mountain: Mountain, tier: Tier): TierLock | undefined {
   if (freshMineOn()) {
@@ -69,7 +58,7 @@ export function tierLock(mountain: Mountain, tier: Tier): TierLock | undefined {
   const opensAt =
     tier.opensAt === undefined
       ? undefined
-      : tier.opensAt * kidOpens(mountain, tier) * factor(`opens.${tier.id}`);
+      : tier.opensAt * factor(`opens.${tier.id}`);
   if (
     opensAt !== undefined &&
     owned(mountain, tier) === 0 &&
@@ -78,12 +67,8 @@ export function tierLock(mountain: Mountain, tier: Tier): TierLock | undefined {
     return {
       kind: "depth",
       depth: opensAt,
-      at: shownStones(mountain, opensAt),
+      at: shownStones(opensAt),
     };
-  }
-  const relic = RELICS.find((candidate) => candidate.id === tier.needs);
-  if (relic !== undefined && !hasRelic(mountain, relic.id)) {
-    return { kind: "relic", relic, at: shownStones(mountain, relic.depth) };
   }
   return undefined;
 }
@@ -97,7 +82,7 @@ export function tierOnSale(mountain: Mountain, tier: Tier): boolean {
   );
 }
 
-/** A tier waiting on a depth or a relic: shown, but not for sale. */
+/** A tier waiting on a depth or a later part: shown, but not for sale. */
 export function tierLocked(mountain: Mountain, tier: Tier): boolean {
   return tierLock(mountain, tier) !== undefined;
 }

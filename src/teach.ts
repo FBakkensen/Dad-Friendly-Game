@@ -1,12 +1,8 @@
 import type { Mountain } from "./mountain";
 import { atHome } from "./engineers";
-import { BOOSTS } from "./boosts";
 import { firstIdleTier, firstTend, promotePayoff } from "./rates";
 import {
   type RevealRowId,
-  boostRowId,
-  boostShown,
-  boostUsed,
   upgradeRowId,
   upgradeShown,
   upgradeUsed,
@@ -29,7 +25,7 @@ import { workshopUnlocked } from "./workshop";
 
 type TeachSize = "big" | "small";
 
-/** Every system the game teaches: its big notes, its small dots, and each boost and upgrade row. */
+/** Every system the game teaches: its big notes, its small dots, and each upgrade row. */
 export type TeachId =
   "workshop" | "engineers" | "tending" | "promotion" | "staffing" | RevealRowId;
 
@@ -96,13 +92,7 @@ const TEACH_SPECS: readonly TeachSpec[] = [
     unlocked: (mountain) => firstIdleTier(mountain) !== undefined,
     used: () => false,
   },
-  // Small systems (#245): each boost and upgrade row, once it shows.
-  ...BOOSTS.map((boost): TeachSpec => ({
-    id: boostRowId(boost),
-    size: "small",
-    unlocked: (mountain) => boostShown(mountain, boost),
-    used: (mountain) => boostUsed(mountain, boost),
-  })),
+  // Small systems (#245): each upgrade row, once it shows.
   ...UPGRADES.map((upgrade): TeachSpec => ({
     id: upgradeRowId(upgrade),
     size: "small",
