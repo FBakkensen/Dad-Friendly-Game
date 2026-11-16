@@ -276,7 +276,11 @@ function factoryEvents(
  */
 type LevelAction =
   | { readonly kind: "sinkShaft" }
-  | { readonly kind: "buyGraniteMachine"; readonly id: LevelMachineId }
+  | {
+      readonly kind: "buyGraniteMachine";
+      readonly id: LevelMachineId;
+      readonly count: number;
+    }
   | HoistAction;
 
 type HoistAction =
@@ -393,7 +397,7 @@ function levelActions(mountain: Mountain): readonly Action[] {
   }
   return [
     ...LEVEL_MACHINE_IDS.filter((id) => tierOnSale(mountain, tierById(id))).map(
-      (id): Action => ({ kind: "buyGraniteMachine", id }),
+      (id): Action => graniteBuyMove(id, 1),
     ),
     ...hoistActions(mountain),
   ];
@@ -445,10 +449,29 @@ function levelApplied(mountain: Mountain, action: LevelAction): Mountain {
   if (!graniteOpen(mountain)) {
     return mountain;
   }
-  const bought = buyWithTeach(mountain, action.id);
-  return bought.owned[action.id] > mountain.owned[action.id]
-    ? withGraniteMachine(bought, action.id)
+  return allOf(mountain, action.count, (next) =>
+    graniteBought(next, action.id),
+  );
+}
+
+/** One machine bought as the card does, placed on the Granite only if he owns one more. */
+function graniteBought(mountain: Mountain, id: LevelMachineId): Mountain {
+  const bought = buyWithTeach(mountain, id);
+  return bought.owned[id] > mountain.owned[id]
+    ? withGraniteMachine(bought, id)
     : mountain;
+}
+
+/**
+ * A buy of `count` of a level machine for the Granite: one is the listed move,
+ * and the amount key's ten or Max buys several, all or nothing as `buyTiers`
+ * does.
+ */
+export function graniteBuyMove(
+  id: LevelMachineId,
+  count: number,
+): Extract<Action, { kind: "buyGraniteMachine" }> {
+  return { kind: "buyGraniteMachine", id, count };
 }
 
 /** The makers once they are open, and the next stockyard level until the last. */

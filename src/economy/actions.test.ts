@@ -111,7 +111,7 @@ const FIXTURES = {
   buyMaker: { kind: "buyMaker", id: "kiln" },
   expandStockyard: { kind: "expandStockyard" },
   sinkShaft: { kind: "sinkShaft" },
-  buyGraniteMachine: { kind: "buyGraniteMachine", id: "borer" },
+  buyGraniteMachine: { kind: "buyGraniteMachine", id: "borer", count: 1 },
   placeWorkOrder: { kind: "placeWorkOrder", blueprint: "iron-rails" },
   cancelWorkOrder: { kind: "cancelWorkOrder" },
   installWorkOrder: { kind: "installWorkOrder" },

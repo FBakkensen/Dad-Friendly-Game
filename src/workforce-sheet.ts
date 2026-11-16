@@ -9,7 +9,6 @@ import { listenSteps, paintSteps, stepper } from "./job-steps";
 import { rowText, upgradeRows } from "./stage-sheet";
 import { workersList } from "./stage-list-view";
 import type { JobId } from "./workforce";
-import type { SiteId } from "./next-view";
 import {
   NO_FREE_WORKER,
   jobSites,
@@ -57,7 +56,7 @@ function buildRow(row: {
 function paintRow(parts: RowParts, row: JobRow, amount: BuyAmount): void {
   write(parts.note, row.note);
   write(parts.count, String(row.count));
-  paintSteps(parts, row, amount);
+  paintSteps(parts, { ...row, name: row.title }, amount);
 }
 
 type HeadParts = {
@@ -107,30 +106,48 @@ function paintHead(
 }
 
 /**
- * The jobs, grouped by site, built once for every site; a site's group
- * shows while it is open, so the refinery joins when it opens (#671).
+ * The jobs, grouped by site (the mine by level once the Granite is open),
+ * built for every site; a group shows while it is open, so the refinery
+ * joins when it opens (#671). The groups are built again when their layout
+ * changes, as the Granite opens (#680).
  */
 function buildJobs(): {
   readonly root: HTMLElement;
-  readonly rows: ReadonlyMap<JobId, RowParts>;
-  readonly sites: ReadonlyMap<SiteId, HTMLElement>;
+  readonly rows: Map<JobId, RowParts>;
+  readonly sites: Map<string, HTMLElement>;
+  readonly layout: (mountain: Mountain, after: HTMLElement) => void;
 } {
   const root = el("div", "frame-jobs");
   const rows = new Map<JobId, RowParts>();
-  const sites = new Map<SiteId, HTMLElement>();
-  for (const group of jobSites()) {
-    const box = el("div", "frame-jobs-group");
-    box.dataset["site"] = group.site;
-    box.append(el("h3", "frame-jobs-site", group.name));
-    for (const job of group.jobs) {
-      const parts = buildRow(job);
-      rows.set(job.job, parts);
-      box.append(parts.root);
+  const sites = new Map<string, HTMLElement>();
+  let shown = "";
+  const layout = (mountain: Mountain, after: HTMLElement): void => {
+    const groups = jobSites(mountain);
+    const key = groups.map((group) => group.key).join(",");
+    if (key === shown) {
+      return;
     }
-    sites.set(group.site, box);
-    root.append(box);
-  }
-  return { root, rows, sites };
+    shown = key;
+    for (const box of sites.values()) {
+      box.remove();
+    }
+    rows.clear();
+    sites.clear();
+    for (const group of groups) {
+      const box = el("div", "frame-jobs-group");
+      box.dataset["site"] = group.site;
+      box.dataset["group"] = group.key;
+      box.append(el("h3", "frame-jobs-site", group.name));
+      for (const job of group.jobs) {
+        const parts = buildRow(job);
+        rows.set(job.job, parts);
+        box.append(parts.root);
+      }
+      sites.set(group.key, box);
+      root.insertBefore(box, after);
+    }
+  };
+  return { root, rows, sites, layout };
 }
 
 /**
@@ -202,13 +219,14 @@ export function createWorkforceSheet(
     paint: (mountain) => {
       paintHead(head, mountain, state.amount());
       workers.paint(mountain);
+      jobs.layout(mountain, workers.root);
       const view = workforceView(mountain);
       // A hire, or a worker taken off another job, answers the note.
       if (view.free > 0) {
         hide(note, true);
       }
-      for (const [site, box] of jobs.sites) {
-        hide(box, !view.groups.some((group) => group.site === site));
+      for (const [key, box] of jobs.sites) {
+        hide(box, !view.groups.some((group) => group.key === key));
       }
       for (const row of view.groups.flatMap((group) => group.rows)) {
         const parts = jobs.rows.get(row.job);

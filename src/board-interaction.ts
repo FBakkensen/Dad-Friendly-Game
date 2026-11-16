@@ -30,7 +30,8 @@ export type CardId =
   | "conflict"
   | "other-tab"
   | "update"
-  | "copies";
+  | "copies"
+  | "machine";
 export type OverlayId = DrawerId | CardId | "save" | "note";
 /** Where a control sits: on an overlay, or on the board under them all. */
 export type Layer = OverlayId | "board";
@@ -177,6 +178,7 @@ const CARD_IDS: readonly CardId[] = [
   "other-tab",
   "update",
   "copies",
+  "machine",
 ];
 
 function isCard(overlay: Layer): overlay is CardId {

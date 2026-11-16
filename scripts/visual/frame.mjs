@@ -9,7 +9,8 @@
  * pile lines. Part 2 (#671): the refinery, two stockpiles on the top row, and
  * the report of a night the stockyard stopped, with its second key. Part 3
  * (#681), on a dev page with `?part3=1`: the factory, idle, delivering and
- * done, and a blueprint dragged onto the station.
+ * done, and a blueprint dragged onto the station; and the mine with two
+ * levels (#680), its machine card, and the two levels the Sink key opens.
  */
 import {
   DEV_BACKUP_KEY,
@@ -18,6 +19,7 @@ import {
   sliceFactoryDoneSave,
   sliceFactoryOrderSave,
   sliceFactorySave,
+  sliceGraniteUnsunkSave,
   sliceListSave,
   sliceNightSave,
   sliceOrderedSave,
@@ -25,6 +27,7 @@ import {
   sliceRoofSave,
   sliceStartSave,
   sliceStructureSave,
+  sliceTwoLevelsSave,
   sliceWarehouseRoofSave,
   sliceWarehouseSave,
   sliceYardFullSave,
@@ -1195,4 +1198,268 @@ for (const size of SIZES) {
       }
     });
   }
+}
+
+/**
+ * The mine with two levels in board px (#680): each level's rows and its
+ * piles line under its gallery, top down, the keys, Hoisting's row and the
+ * strip under them, and the mine's words.
+ */
+async function levelsFacts(page) {
+  return page.evaluate(() => {
+    const board = globalThis.__board();
+    const px = (el) => {
+      const r = el.getBoundingClientRect();
+      return {
+        t: (r.top - board.top) / board.scale,
+        b: (r.bottom - board.top) / board.scale,
+      };
+    };
+    const mine = document.querySelector(".mine:not([hidden])");
+    const shown = (el) => el.closest("[hidden]") === null;
+    const all = (selector) =>
+      [...(mine?.querySelectorAll(selector) ?? [])].filter(shown).map(px);
+    const one = (selector) => {
+      const found = mine?.querySelector(selector);
+      return found === null || found === undefined ? undefined : px(found);
+    };
+    return {
+      scene: mine === null ? undefined : px(mine),
+      panel: one(".mine-panel"),
+      rows: all(".mine-level-rows"),
+      piles: all(".mine-piles"),
+      strip: all(".mine-strip-cell").length,
+      words: mine?.textContent ?? "",
+    };
+  });
+}
+
+/** The levels stack top down, each pile line under its rows, and the last above the keys. */
+function levelsFit(facts) {
+  const { scene, panel, rows, piles } = facts;
+  if (scene === undefined || panel === undefined) {
+    return false;
+  }
+  if (rows.length !== 2 || piles.length !== 2) {
+    return false;
+  }
+  const order = [rows[0], piles[0], rows[1], piles[1]];
+  return (
+    order.every(
+      (part, index) =>
+        part.t >= scene.t - 0.5 &&
+        (index === 0 || part.t >= order[index - 1].b - 0.5),
+    ) &&
+    piles[1].b <= panel.t + 0.5 &&
+    panel.b <= scene.b + 0.5
+  );
+}
+
+/** The machine card in board px: inside the board above the save line, and its keys. */
+async function machineCardFacts(page) {
+  return page.evaluate(() => {
+    const board = globalThis.__board();
+    const card = document.querySelector(".machine-card");
+    const box = card?.querySelector(".machine-card-box");
+    const line = document.querySelector(".board-saveline");
+    if (card === null || box === null || line === null) {
+      return { open: false };
+    }
+    const r = box.getBoundingClientRect();
+    const keys = [...card.querySelectorAll("button")].filter(
+      (el) => el.getClientRects().length > 0,
+    );
+    return {
+      open: !card.hidden,
+      inside:
+        r.top >= board.top - 0.5 &&
+        r.bottom <= line.getBoundingClientRect().top + 0.5,
+      levels: card.querySelectorAll(".machine-card-level").length,
+      small: keys
+        .map((el) => {
+          const b = el.getBoundingClientRect();
+          return {
+            name: el.className,
+            w: b.width / board.scale,
+            h: b.height / board.scale,
+          };
+        })
+        .filter((b) => b.w < 47.5 || b.h < 47.5),
+      words: card.textContent ?? "",
+    };
+  });
+}
+
+/** What the mine with two levels has to meet at a size: the frame's checks, and its own. */
+async function checkTwoLevels(page, at) {
+  const facts = await frameFacts(page);
+  const levels = await levelsFacts(page);
+  check(await noScroll(page), `${at} the page does not scroll`);
+  check(
+    stacked(facts),
+    `${at} the order strip, the top row, the ground, Next and the site bar stack above the save line`,
+  );
+  check(
+    levelsFit(levels),
+    `${at} each level's rows and piles sit on it, top down, above the keys (${JSON.stringify(levels)})`,
+  );
+  check(
+    levels.strip === 3,
+    `${at} the strip has the Topsoil, the Granite and both in turn (${String(levels.strip)})`,
+  );
+  check(
+    facts.mine !== undefined && facts.mine.spill.length === 0,
+    `${at} every row's words stay inside it (${JSON.stringify(facts.mine?.spill)})`,
+  );
+  check(
+    facts.small.length === 0,
+    `${at} every key is at least 48px (${JSON.stringify(facts.small)})`,
+  );
+  check(
+    facts.cut.length === 0,
+    `${at} no word in the frame is cut (${facts.cut.join(", ")})`,
+  );
+  check(
+    !/\bhands?\b|by hand|bottleneck|\blimit|best buy|\bface\b/i.test(
+      levels.words,
+    ),
+    `${at} no hands, no face, and no bottleneck, limit or best buy named`,
+  );
+  const near = await keyGaps(page, FRAME_KEYS);
+  check(
+    near.length === 0,
+    `${at} every key stands at least 8px from the next (${near.join("; ")})`,
+  );
+}
+
+/** The Granite's plate and the Sink key's words that spill out of their box. */
+async function gateCut(page) {
+  return page.evaluate(() =>
+    [
+      ...document.querySelectorAll(
+        ".mine:not([hidden]) :is(.mine-granite-name, .mine-granite-line, .mine-sink-title, .mine-sink-small, .mine-sink-price)",
+      ),
+    ]
+      .filter(
+        (el) =>
+          el.getClientRects().length > 0 &&
+          (el.scrollWidth > el.clientWidth + 1 ||
+            el.scrollHeight > el.clientHeight + 1),
+      )
+      .map((el) => el.className),
+  );
+}
+
+/** Each pile line holds no more than its room: "Rock at the shaft: 396 of 300" reads as a bug. */
+function pilesOverRoom(piles) {
+  const number = (text) => Number(text.replace(/,/g, ""));
+  return piles.filter((line) => {
+    const found = /: ([\d,.]+[KMB]?) of ([\d,.]+[KMB]?)$/.exec(line);
+    return (
+      found !== null &&
+      !/[KMB]/.test(line) &&
+      number(found[1]) > number(found[2])
+    );
+  });
+}
+
+/** The one-level mine with the Granite's plate and the Sink key: the frame's checks, and its own. */
+async function checkGate(page, at) {
+  const facts = await frameFacts(page);
+  check(await noScroll(page), `${at} the page does not scroll before the Sink`);
+  check(
+    stacked(facts),
+    `${at} the order strip, the top row, the ground, Next and the site bar stack above the save line`,
+  );
+  check(
+    mineFits(facts),
+    `${at} the mine's keys and rows sit under the gallery and the line under the Granite's plate (${JSON.stringify(facts.mine)})`,
+  );
+  check(
+    facts.small.length === 0,
+    `${at} every key is at least 48px (${JSON.stringify(facts.small)})`,
+  );
+  const cut = [...facts.cut, ...(await gateCut(page))];
+  check(
+    cut.length === 0,
+    `${at} no word in the frame is cut (${cut.join(", ")})`,
+  );
+  const over = pilesOverRoom(facts.mine?.piles ?? []);
+  check(
+    over.length === 0,
+    `${at} no pile holds more than its room (${over.join("; ")})`,
+  );
+  const mineWords = await page.$eval(".mine", (el) => el.textContent ?? "");
+  check(
+    !/\bhands?\b|by hand|bottleneck|\blimit|best buy|\bface\b/i.test(mineWords),
+    `${at} no hands, no face, and no bottleneck, limit or best buy named`,
+  );
+  const near = await keyGaps(page, FRAME_KEYS);
+  check(
+    near.length === 0,
+    `${at} every key stands at least 8px from the next (${near.join("; ")})`,
+  );
+}
+
+for (const size of SIZES) {
+  const label = `${String(size[0])}x${String(size[1])}`;
+  section(`${label} slice mine two levels`, async () => {
+    const { page, close } = await openScreen(
+      size,
+      sliceTwoLevelsSave(Date.now()),
+      {
+        search: "?memorySave=1&part3=1",
+        seedKey: DEV_BACKUP_KEY,
+      },
+    );
+    try {
+      await page.waitForSelector(".mine-levels:not([hidden])");
+      const at = `${label} slice mine two levels:`;
+      await shot(page, `slice-mine-two-levels-${label}`);
+      await checkTwoLevels(page, at);
+      // A drill's key asks which level (ruling 5).
+      await tap(page, '.mine-key[data-stage="face"]');
+      await page.waitForSelector(".machine-card:not([hidden])");
+      const card = await machineCardFacts(page);
+      await shot(page, `slice-mine-machine-card-${label}`);
+      check(
+        card.open && card.inside && card.levels === 2,
+        `${at} the machine card opens above the save line with a key for each level (${JSON.stringify(card)})`,
+      );
+      check(
+        card.small.length === 0,
+        `${at} the machine card: every key is at least 48px (${JSON.stringify(card.small)})`,
+      );
+      const cardNear = await keyGaps(page, ".machine-card:not([hidden])");
+      check(
+        cardNear.length === 0,
+        `${at} the machine card: every key stands at least 8px from the next (${cardNear.join("; ")})`,
+      );
+      await tap(page, ".machine-card-not-now");
+      const shut = await page.$eval(".machine-card", (el) => el.hidden);
+      check(shut, `${at} "Not now" closes the machine card`);
+    } finally {
+      await close();
+    }
+  });
+
+  section(`${label} slice mine two levels from the Sink`, async () => {
+    const { page, close } = await openScreen(
+      size,
+      sliceGraniteUnsunkSave(Date.now()),
+      { search: "?memorySave=1&part3=1", seedKey: DEV_BACKUP_KEY },
+    );
+    try {
+      await page.waitForSelector(".mine-sink:not([hidden])");
+      const at = `${label} slice mine two levels from the Sink:`;
+      await shot(page, `slice-mine-granite-unsunk-${label}`);
+      await checkGate(page, at);
+      await tap(page, ".mine-sink");
+      await page.waitForSelector(".mine-levels:not([hidden])");
+      await shot(page, `slice-mine-sunk-${label}`);
+      await checkTwoLevels(page, at);
+    } finally {
+      await close();
+    }
+  });
 }

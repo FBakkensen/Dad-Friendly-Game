@@ -280,7 +280,7 @@ describe("the line's machines (#533)", () => {
       staff: 1,
     });
     expect(train).toMatchObject({
-      name: "Pit train",
+      name: "Locomotive",
       stage: "haul",
       firstCost: 30_000_000,
       staff: 8,

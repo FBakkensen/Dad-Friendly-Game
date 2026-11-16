@@ -1,4 +1,4 @@
-import { el, hide, mark } from "./board-dom";
+import { el, hide, mark, write } from "./board-dom";
 import type { Move } from "./economy/actions";
 import type { FrameState } from "./frame-state";
 import type { Mountain } from "./mountain";
@@ -12,7 +12,7 @@ import { JOB_IDS, freeWorkers, type JobId } from "./workforce";
  */
 
 /** How many a − or + moves at this amount: one, up to ten, or all there are. */
-function moveCount(amount: BuyAmount, there: number): number {
+export function moveCount(amount: BuyAmount, there: number): number {
   return amount === "one" ? 1 : amount === "ten" ? 10 : Math.max(1, there);
 }
 
@@ -73,17 +73,39 @@ export function paintSteps(
 /** How long the no-free-worker note stays up (#715). */
 export const NOTE_MS = 4000;
 
+/** Each note's timer: one note says one line at a time, whoever writes it. */
+const noteTimers = new WeakMap<HTMLElement, ReturnType<typeof setTimeout>>();
+
+/** Shows `words` in `note` for a few seconds. */
+export function flashNote(note: HTMLElement, words: string): void {
+  clearTimeout(noteTimers.get(note));
+  write(note, words);
+  hide(note, false);
+  noteTimers.set(
+    note,
+    setTimeout(() => {
+      hide(note, true);
+    }, NOTE_MS),
+  );
+}
+
+/** Takes `note` down at once. */
+export function dropNote(note: HTMLElement): void {
+  clearTimeout(noteTimers.get(note));
+  hide(note, true);
+}
+
 /**
  * Moves workers on a tap of any − or + inside `root`. A + with no free
- * worker shows `note` for a few seconds and moves nobody; any other move
- * takes it down.
+ * worker shows `note` for a few seconds, in the words it had when this was
+ * set up, and moves nobody; any other move takes it down.
  */
 export function listenSteps(
   root: HTMLElement,
   state: FrameState,
   note: HTMLElement,
 ): void {
-  let timer: ReturnType<typeof setTimeout> | undefined;
+  const words = note.textContent;
   root.addEventListener("click", (event) => {
     const key = (event.target as Element).closest<HTMLElement>("[data-way]");
     const job = JOB_IDS.find((id) => id === key?.dataset["job"]);
@@ -92,15 +114,11 @@ export function listenSteps(
     }
     const way = key.dataset["way"] === "place" ? "place" : "free";
     const mountain = state.mountain();
-    clearTimeout(timer);
     if (way === "place" && freeWorkers(mountain) === 0) {
-      hide(note, false);
-      timer = setTimeout(() => {
-        hide(note, true);
-      }, NOTE_MS);
+      flashNote(note, words);
       return;
     }
-    hide(note, true);
+    dropNote(note);
     void state.progress.dispatch(
       workerMove(mountain, state.amount(), job, way),
     );

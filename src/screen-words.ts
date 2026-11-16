@@ -68,7 +68,7 @@ export const MACHINE_WORDS: Readonly<
   hoist: ["hoist", "hoists"],
   drill: ["drill", "drills"],
   borer: ["borer", "borers"],
-  train: ["train", "trains"],
+  train: ["locomotive", "locomotives"],
   machine: ["great machine", "great machines"],
 };
 
