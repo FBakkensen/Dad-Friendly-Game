@@ -1376,8 +1376,8 @@ for (const size of SIZES) {
           `${at} the station and the blueprints sit inside the factory, the station above (${JSON.stringify([facts.scene, facts.station, facts.strip])})`,
         );
         check(
-          facts.cards === 5 && facts.scrolls,
-          `${at} five blueprints in a strip that scrolls sideways (${String(facts.cards)}, ${String(facts.scrolls)})`,
+          facts.cards === 4 && facts.scrolls,
+          `${at} four blueprints in a strip that scrolls sideways (${String(facts.cards)}, ${String(facts.scrolls)})`,
         );
         check(
           facts.small.length === 0,
@@ -1415,7 +1415,7 @@ for (const size of SIZES) {
           await page.$eval(".factory-strip", (strip) => {
             strip.scrollLeft = 0;
           });
-          const held = await dragOntoStation(page, "sturdy-props");
+          const held = await dragOntoStation(page, "blasting-charge");
           check(
             held !== undefined &&
               Math.abs(held.height - 1) < 0.1 &&
@@ -1425,7 +1425,7 @@ for (const size of SIZES) {
           );
           const after = await factoryFacts(page);
           check(
-            after.kind === "delivering" && /Sturdy props/i.test(after.words),
+            after.kind === "delivering" && /Blasting charge/i.test(after.words),
             `${at} a blueprint dragged onto the station places its work order (${String(after.kind)})`,
           );
         }

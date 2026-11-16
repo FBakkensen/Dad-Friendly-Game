@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { withFactors } from "./economy/factors";
 import {
-  BLUEPRINT_IDS,
+  ORDER_IDS,
   IDLE_STATION,
   type BlueprintId,
   type Station,
@@ -192,46 +192,36 @@ describe("the blueprints (#681)", () => {
     const cards = view(
       sunk({ stock: { stones: 300_000, clay: 2 } }),
     ).blueprints;
-    expect(cards.map((card) => card.id)).toEqual(BLUEPRINT_IDS);
+    expect(cards.map((card) => card.id)).toEqual(ORDER_IDS);
     expect(cards.map((card) => [card.name, card.effect])).toEqual([
       ["Iron rails", "Carts +25%"],
-      ["Sturdy props", "Trouble 30% rarer"],
       ["Blasting charge", "Throughput ×2 for 20 min"],
       ["Reinforce", "Drills +5%"],
       ["Axle grease", "Throughput ×2 for 20 min"],
     ]);
-    expect(cards[1]?.requires.map((need) => need.text)).toEqual([
-      "250K",
-      "10",
-      "4",
-    ]);
-    expect(cards[1]?.requires.map((need) => need.good)).toEqual([
+    expect(cards[0]?.requires.map((need) => need.text)).toEqual(["250K", "4"]);
+    expect(cards[0]?.requires.map((need) => need.good)).toEqual([
       "stones",
-      "clay",
       "iron",
     ]);
     // What the stockyard holds less than: shown, not said.
-    expect(cards[1]?.requires.map((need) => need.short)).toEqual([
-      false,
-      true,
-      true,
-    ]);
+    expect(cards[0]?.requires.map((need) => need.short)).toEqual([false, true]);
+  });
+
+  it("leave out sturdy props: trouble is out of the game (16 Nov 2026)", () => {
+    const cards = view(sunk()).blueprints;
+    expect(cards.map((card) => card.id)).not.toContain("sturdy-props");
+    expect(
+      cards.some((card) => /trouble/i.test(`${card.name} ${card.effect}`)),
+    ).toBe(false);
   });
 
   it("count what is installed of the last level, and say when it is full", () => {
-    const cards = view(
-      sunk({ crafted: { "iron-rails": 1, "sturdy-props": 1 } }),
-    ).blueprints;
-    expect(cards.map((card) => card.level)).toEqual([
-      "1/2",
-      "1/1",
-      "",
-      "0/5",
-      "",
-    ]);
-    expect(cards[1]).toMatchObject({ state: "installed" });
-    expect(cards[1]?.requires).toEqual([]);
-    expect(cards[1]?.line).toBe("Fully installed");
+    const cards = view(sunk({ crafted: { "iron-rails": 2 } })).blueprints;
+    expect(cards.map((card) => card.level)).toEqual(["2/2", "", "0/5", ""]);
+    expect(cards[0]).toMatchObject({ state: "installed" });
+    expect(cards[0]?.requires).toEqual([]);
+    expect(cards[0]?.line).toBe("Fully installed");
   });
 
   it("are placeable on an idle station only", () => {
@@ -247,14 +237,14 @@ describe("the blueprints (#681)", () => {
       ...sunk(),
       owned: { ...start.owned, cart: 1, drill: 2 },
     }).blueprints;
-    expect(drills[3]?.effect).toBe("Borers +5%");
+    expect(drills[2]?.effect).toBe("Borers +5%");
   });
 });
 
 describe("the factory's head (#681)", () => {
   it("says what is installed of the lasting gear", () => {
     expect(view(sunk({ crafted: { "iron-rails": 1 } })).installed).toBe(
-      "Installed: rails 1/2 · props 0/1 · reinforce 0/5",
+      "Installed: rails 1/2 · reinforce 0/5",
     );
   });
 

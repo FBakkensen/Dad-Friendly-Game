@@ -45,6 +45,16 @@ export const BLUEPRINT_IDS = [
 export type BlueprintId = (typeof BLUEPRINT_IDS)[number];
 
 /**
+ * The blueprints he can order: all but sturdy props. They made trouble
+ * rarer, and expeditions, trouble and engineers are out of the game
+ * (Flemming, 16 Nov 2026, `docs/decisions.md`). The id stays in
+ * `BLUEPRINT_IDS`, which the save reads, so no save is reset.
+ */
+export const ORDER_IDS: readonly BlueprintId[] = BLUEPRINT_IDS.filter(
+  (id) => id !== "sturdy-props",
+);
+
+/**
  * The stone each work order requires, as the lab sized it with no clock
  * (`src/lab/work-orders.ts`, #674): lasting gear about half an hour of half
  * a part 3 fleet, a blasting charge about five minutes, and reinforce and
@@ -112,14 +122,19 @@ function levelInHand(
 }
 
 /**
- * Whether this blueprint can be placed: the station is open and the gear is
- * not at its last level, counting a craft of it still on the old bench.
+ * Whether this blueprint can be placed: one he can order, the station is
+ * open, and the gear is not at its last level, counting a craft of it still
+ * on the old bench.
  */
 export function blueprintOpen(
   mountain: Pick<Mountain, "granite" | "crafted" | "bench">,
   id: BlueprintId,
 ): boolean {
-  return stationOpen(mountain) && levelInHand(mountain, id) < lastLevel(id);
+  return (
+    ORDER_IDS.includes(id) &&
+    stationOpen(mountain) &&
+    levelInHand(mountain, id) < lastLevel(id)
+  );
 }
 
 /**

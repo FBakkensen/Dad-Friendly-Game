@@ -445,15 +445,15 @@ export function sliceFactorySave(now: number): SeedSave {
   return sliceSave(now, factoryGame({ levels: { "iron-rails": 1 } }));
 }
 
-/** The same, with sturdy props on the station: stone and clay part arrived, the iron not yet. */
+/** The same, with iron rails on the station: the stone part arrived, the iron not yet. */
 export function sliceFactoryOrderSave(now: number): SeedSave {
   return sliceSave(
     now,
     factoryGame({
       station: {
-        blueprint: "sturdy-props",
+        blueprint: "iron-rails",
         state: "delivering",
-        arrived: { stones: 105_000, clay: 1_500 },
+        arrived: { stones: 105_000 },
       },
     }),
   );

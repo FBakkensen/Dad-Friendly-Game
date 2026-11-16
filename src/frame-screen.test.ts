@@ -384,7 +384,7 @@ describe("the factory on the frame (#681)", () => {
     expect(root.querySelector<HTMLElement>(".factory")?.hidden).toBe(true);
   });
 
-  it("opens with the shaft: the bins, the idle station and five blueprints", () => {
+  it("opens with the shaft: the bins, the idle station and four blueprints", () => {
     partThree();
     const { root, button } = mount(sunk);
     expect(tab(root)?.hidden).toBe(false);
@@ -396,9 +396,9 @@ describe("the factory on the frame (#681)", () => {
     expect(root.querySelector(".factory-station-title")?.textContent).toBe(
       "Station idle",
     );
-    expect(root.querySelectorAll(".factory-card")).toHaveLength(5);
+    expect(root.querySelectorAll(".factory-card")).toHaveLength(4);
     expect(root.querySelector(".factory-installed")?.textContent).toBe(
-      "Installed: rails 0/2 · props 0/1 · reinforce 0/5",
+      "Installed: rails 0/2 · reinforce 0/5",
     );
     // The factory takes no workers: no − and +.
     expect(root.querySelectorAll(".factory .frame-step")).toHaveLength(0);
@@ -478,7 +478,7 @@ describe("the factory on the frame (#681)", () => {
       expect(copy?.getAttribute("aria-hidden")).toBe("true");
       expect(copy?.hasAttribute("data-blueprint")).toBe(false);
       expect(copy?.hasAttribute("aria-label")).toBe(false);
-      expect(root.querySelectorAll("[data-blueprint]")).toHaveLength(5);
+      expect(root.querySelectorAll("[data-blueprint]")).toHaveLength(4);
       pointer(rails, "pointerup", 52, 200);
       expect(ghost(root)).toBeNull();
       expect(station(progress)).toMatchObject({
@@ -521,11 +521,11 @@ describe("the factory on the frame (#681)", () => {
       pointer(rails, "pointerdown", 50, 500);
       pointer(rails, "pointerup", 50, 500);
       rails.click();
-      const props = card(root, "sturdy-props");
-      pointer(props, "pointerdown", 50, 500);
-      pointer(props, "pointermove", 52, 200);
+      const charge = card(root, "blasting-charge");
+      pointer(charge, "pointerdown", 50, 500);
+      pointer(charge, "pointermove", 52, 200);
       expect(ghost(root)).toBeNull();
-      pointer(props, "pointerup", 52, 200);
+      pointer(charge, "pointerup", 52, 200);
       expect(station(progress)).toMatchObject({ blueprint: "iron-rails" });
     });
   });

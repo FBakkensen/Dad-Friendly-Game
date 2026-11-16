@@ -369,7 +369,8 @@ const FRESH_DOORS: Readonly<Record<TierId, FreshDoor>> = {
   // The locomotive and the borer open with the Granite (part 3).
   borer: { kind: "later", at: "granite" },
   train: { kind: "later", at: "granite" },
-  // The winding engine, once the Foundry is operational (part 3).
+  // The old Great Machine (the winding engine) never opens: it is out of
+  // the game (Flemming, 16 Nov 2026, `docs/decisions.md`).
   machine: { kind: "later", at: "foundry" },
   // Kid workers wait for the School, a later slice.
   kid: { kind: "later", at: "school" },

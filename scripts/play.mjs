@@ -170,7 +170,7 @@ const SAVES = {
     search: MEMORY,
   },
   factoryorder: {
-    note: "part 3: sturdy props on the station, stone and clay arriving",
+    note: "part 3: iron rails on the station, stone arriving",
     save: () => sliceFactoryOrderSave(Date.now()),
     key: DEV_BACKUP_KEY,
     search: MEMORY,

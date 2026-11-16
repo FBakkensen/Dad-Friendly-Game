@@ -1,6 +1,6 @@
 import { factor } from "./economy/factors";
 import {
-  BLUEPRINT_IDS,
+  ORDER_IDS,
   MATERIAL_HOLDS,
   blueprintOpen,
   installable,
@@ -290,7 +290,6 @@ function card(mountain: Mountain, id: BlueprintId): BlueprintCard {
 /** The lasting gear the head counts, in short. */
 const HEAD_GEAR: readonly (readonly [BlueprintId, string])[] = [
   ["iron-rails", "rails"],
-  ["sturdy-props", "props"],
   ["reinforce", "reinforce"],
 ];
 
@@ -332,6 +331,6 @@ export function factoryView(mountain: Mountain, now?: number): FactoryView {
     timers: timers(mountain, now),
     bins: bins(mountain),
     station: stationView(mountain, now),
-    blueprints: BLUEPRINT_IDS.map((id) => card(mountain, id)),
+    blueprints: ORDER_IDS.map((id) => card(mountain, id)),
   };
 }
