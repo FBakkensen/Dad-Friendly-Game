@@ -483,13 +483,6 @@ function hotAt(until: number, now: number): boolean {
   return until !== 0 && until > now;
 }
 
-function timerFrom(bench: Bench, previous: number, extend: boolean): number {
-  if (extend && previous > bench.startedAt) {
-    return previous;
-  }
-  return bench.startedAt;
-}
-
 /**
  * A craft whose clock has rung is fitted once: the bench clears and the
  * level goes up. Calling it again, after a reload, does not fit it twice.
@@ -503,30 +496,37 @@ export function settleBench(mountain: Mountain, now: number): Mountain {
   if (bench === undefined || now < bench.endsAt) {
     return mountain;
   }
-  const recipe = recipeById(bench.recipe);
+  return fitGear(dropBench(mountain), bench.recipe, bench.startedAt);
+}
+
+/**
+ * One more of this gear, fitted at `from` (epoch ms): the level goes up, to
+ * its last at most, and a live timer starts at `from`. A charge still
+ * running past `from` keeps its end and adds another stretch after it; an
+ * ember or grease replaces its clock. The old bench fits from when its craft
+ * started, and the factory's station from when he installs (#674).
+ */
+export function fitGear<T extends Pick<Mountain, "crafted" | "clocks">>(
+  mountain: T,
+  id: RecipeId,
+  from: number,
+): T {
+  const recipe = recipeById(id);
   const level = effectLevel(recipe, {
-    crafted: {
-      ...mountain.crafted,
-      [recipe.id]: craftedLevel(mountain, recipe.id) + 1,
-    },
+    crafted: { ...mountain.crafted, [id]: craftedLevel(mountain, id) + 1 },
   });
-  const fitted = dropBench({
-    ...mountain,
-    crafted: { ...mountain.crafted, [recipe.id]: level },
-  });
-  if (recipe.effect.kind === "charge") {
-    const from = timerFrom(bench, mountain.clocks["blasting-charge"], true);
-    return withClock(
-      fitted,
-      "blasting-charge",
-      from + recipe.effect.durationMs,
-    );
+  const fitted = { ...mountain, crafted: { ...mountain.crafted, [id]: level } };
+  const effect = recipe.effect;
+  if (effect.kind === "charge") {
+    const running = mountain.clocks["blasting-charge"];
+    const start = running > from ? running : from;
+    return withClock(fitted, "blasting-charge", start + effect.durationMs);
   }
-  if (recipe.effect.kind === "ember" || recipe.effect.kind === "axle") {
+  if (effect.kind === "ember" || effect.kind === "axle") {
     return withClock(
       fitted,
-      recipe.id as TimerId,
-      bench.startedAt + Math.round(tuned(recipe.effect.durationMs, recipe.id)),
+      id as TimerId,
+      from + Math.round(tuned(effect.durationMs, id)),
     );
   }
   return fitted;
@@ -631,11 +631,11 @@ export const COLD_CLOCKS: Clocks = {
 };
 
 /** The same mountain with one live timer set to stop at `until`. */
-export function withClock(
-  mountain: Mountain,
+export function withClock<T extends Pick<Mountain, "clocks">>(
+  mountain: T,
   id: TimerId,
   until: number,
-): Mountain {
+): T {
   return { ...mountain, clocks: { ...mountain.clocks, [id]: until } };
 }
 
