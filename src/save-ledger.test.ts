@@ -521,6 +521,16 @@ describe("the factory's work order and the Granite's rock in the save (#674)", (
         JSON.stringify(station),
       ).toBe("newer");
     }
+    // A Granite this build cannot read leaves the work order to it.
+    expect(
+      readGame(
+        {
+          granite: { lift: {} },
+          station: { blueprint: "axle-grease", state: "done" },
+        },
+        0,
+      ).kind,
+    ).toBe("newer");
   });
 
   it("refuses a work order past what it requires, one already all in, a done one with goods, or one with no shaft", () => {
