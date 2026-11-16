@@ -41,8 +41,8 @@ service cloud.firestore {
     //       (engineer, tunnel, returnsAt). Hazards are events only, never saved.
     //   - events: list of { at, code, data } (size <= 200)
     //   - updatedAt: int epoch ms
-    // Snapshot mined and left are depth units (<= 240M). Snapshot pocket and
-    // event stones are stones, which deep bands multiply: <= 10^15.
+    // Snapshot pocket and event stones are stones: <= 10^15. The snapshot's
+    // mined, left and legacy went with depth and the pass (#729, #740).
     // String caps and the 200-event cap keep the document under 50 KB.
     // Ownership is the document ID. No uid, role, or PII fields.
     //
@@ -168,7 +168,7 @@ service cloud.firestore {
 
     function isFieldSnapshot(shot) {
       return shot is map &&
-        shot.keys().hasOnly(['at', 'crew', 'crewSpeed', 'deviceId', 'engineers', 'expeditions', 'idle', 'left', 'legacy', 'mined', 'pocket', 'rev', 'upgrades', 'version']) &&
+        shot.keys().hasOnly(['at', 'crew', 'crewSpeed', 'deviceId', 'engineers', 'expeditions', 'idle', 'pocket', 'rev', 'upgrades', 'version']) &&
         isIsoText(shot.at) &&
         shot.deviceId is string &&
         shot.rev is int &&
@@ -177,12 +177,6 @@ service cloud.firestore {
         (!('engineers' in shot) || isFieldEngineers(shot.engineers)) &&
         (!('expeditions' in shot) || isFieldTrips(shot.expeditions)) &&
         isIdleCounts(shot.idle) &&
-        shot.left is int && shot.left >= 0 && shot.left <= 240000000 &&
-        // Optional for one release: a tab from #728's build still sends it.
-        // The current build never does. #740 removes it when the field log
-        // changes again.
-        (!('legacy' in shot) || (shot.legacy is int && shot.legacy >= 0 && shot.legacy <= 1000)) &&
-        shot.mined is int && shot.mined >= 0 && shot.mined <= 240000000 &&
         shot.pocket is int && shot.pocket >= 0 && shot.pocket <= 1000000000000000 &&
         isFieldUpgrades(shot.upgrades) &&
         isShortText(shot.version);

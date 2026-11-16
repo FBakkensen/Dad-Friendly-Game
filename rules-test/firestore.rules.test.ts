@@ -531,25 +531,21 @@ describe("firestore.rules: fieldLogs/{uid}", () => {
     expect((await getDoc(doc(db, "fieldLogs", "dad"))).data()).toEqual(written);
   });
 
-  it("accepts a snapshot without legacy, and one from an old tab with legacy 0 (#729)", async () => {
+  it("accepts a snapshot with no mined, left or legacy (#740)", async () => {
     const written = fieldLog([event]);
-    expect(written.snapshot).not.toHaveProperty("legacy");
+    for (const key of ["mined", "left", "legacy"]) {
+      expect(written.snapshot).not.toHaveProperty(key);
+    }
     await setDoc(doc(db, "fieldLogs", "dad"), written);
     expect((await getDoc(doc(db, "fieldLogs", "dad"))).data()).toEqual(written);
-    const old = {
-      ...written,
-      snapshot: { ...gameSnapshot(), legacy: 0 },
-    };
-    await setDoc(doc(db, "fieldLogs", "dad"), old);
-    expect((await getDoc(doc(db, "fieldLogs", "dad"))).data()).toEqual(old);
   });
 
-  it("refuses a snapshot whose legacy is out of range (#729)", async () => {
-    for (const legacy of [-1, 1001, 1.5, "0"]) {
+  it("refuses a snapshot that still carries mined, left or legacy (#740)", async () => {
+    for (const old of [{ mined: 0 }, { left: 240_000_000 }, { legacy: 0 }]) {
       await expect(
         setDoc(doc(db, "fieldLogs", "dad"), {
           ...fieldLog([event]),
-          snapshot: { ...gameSnapshot(), legacy },
+          snapshot: { ...gameSnapshot(), ...old },
         }),
       ).rejects.toThrow(denied);
     }

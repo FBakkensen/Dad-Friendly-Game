@@ -95,10 +95,9 @@ describe("firestore.rules match the game", () => {
       "0.0.0",
     );
     const doc: FieldLogDocument = { snapshot: shot, events: [], updatedAt: 1 };
-    // `legacy` stays listed for one release, for tabs from #728's build;
-    // the current snapshot never has it (#740 removes it).
+    // `legacy`, `mined` and `left` left the snapshot and the rules (#729, #740).
     expect(keys(/shot\.keys\(\)\.hasOnly\(\[([^\]]*)\]\)/).sort()).toEqual(
-      [...Object.keys(shot), "legacy"].sort(),
+      Object.keys(shot).sort(),
     );
     expect(
       keys(

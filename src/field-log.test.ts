@@ -65,8 +65,6 @@ describe("snapshot", () => {
       at: new Date(AT).toISOString(),
       deviceId: "",
       rev: 0,
-      mined: 0,
-      left: 240_000_000,
       pocket: 0,
       // Every tier and every machine by id, the line's included (#559).
       crew: {
@@ -94,7 +92,7 @@ describe("snapshot", () => {
     expect(JSON.parse(JSON.stringify(shot))).toEqual(shot);
   });
 
-  it("counts the crew, idle machines and upgrades, and keeps no legacy (#729)", () => {
+  it("counts the crew, idle machines and upgrades, and keeps no legacy, mined or left (#729, #740)", () => {
     const mountain: Mountain = {
       ...createMountain(),
       stock: { ...createMountain().stock, stones: 1234 },
@@ -146,6 +144,8 @@ describe("snapshot", () => {
     expect(shot.upgrades.boots).toBe(1);
     expect(shot.upgrades.cartSyn).toBe(0);
     expect(shot).not.toHaveProperty("legacy");
+    expect(shot).not.toHaveProperty("mined");
+    expect(shot).not.toHaveProperty("left");
     // Away on the trip below, so the log reads the saved post.
     expect(shot.engineers).toEqual([{ name: "Ada", rank: 1, post: "tunnel" }]);
     expect(shot.expeditions).toEqual([

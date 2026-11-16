@@ -85,8 +85,6 @@ export type FieldSnapshot = {
   readonly deviceId: string;
   /** High-water save rev. 0 until a v7 document exists. */
   readonly rev: number;
-  readonly mined: number;
-  readonly left: number;
   readonly pocket: number;
   /** Every tier's count, by id, the line's machines included. */
   readonly crew: Readonly<Record<TierId, number>>;
@@ -154,9 +152,6 @@ export function snapshot(
     at: new Date(now).toISOString(),
     deviceId: stamp.deviceId ?? "",
     rev: stamp.rev ?? 0,
-    // The mountain has no depth (#740): nothing mined out, and all of it left.
-    mined: 0,
-    left: 240_000_000,
     pocket: Math.min(mountain.stock.stones, FIELD_STONES_CAP),
     crew,
     crewSpeed: rates.crewPerSecond,
@@ -464,8 +459,6 @@ export function maxFieldLogDocumentBytes(): number {
     snapshot: {
       version: maxText(),
       at: maxText(),
-      mined: 100_000_000,
-      left: 100_000_000,
       pocket: 100_000_000,
       crew,
       crewSpeed: 100_000_000,

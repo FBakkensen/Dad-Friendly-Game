@@ -15,7 +15,7 @@ Since #664 the phone plays slice 1's part 1, the start of the road to Mars. It i
 - **The factory shows what arrives, not what is short (#681).** A work order on the station lists each good it requires with what has arrived of it, beside the bins' clay and iron, so a material that holds it up is seen in two numbers and never named. It takes no workers and costs nothing to place, so the decision is which work order goes on the station next, and when: it shares transport with the city's order.
 - **The stockyard ends the night, not a clock (#672).** Once the refinery opens, a night runs until the stockyard is full, so its room is the second thing he plans for before closing the phone: a bigger stockyard is a longer night. The Warehouse, part 2's order, takes brick as well as stone, so the kilns matter to the city, and its roof doubles the stockyard.
 
-The sections below are the reasons for the game before #664, kept until its clean-up (#665). #728 took the dig, the relics, golden veins, the Gold rush and the boosts out of that game too, and the parts below no longer name them.
+The sections below are the reasons for the game before #664, kept until its clean-up (#665). #728 took the dig, the relics, golden veins, the Gold rush and the boosts out of that game too, and the parts below no longer name them. #740 deleted depth, the bands and the mountain's size: where the parts below name a band, its material or the bottom, they are that game's reasons, not today's.
 
 ## The core loop and the story
 
@@ -86,7 +86,7 @@ The choices are the game. Real numbers let the player reason for himself. A numb
 
 One written exception (decision D1, #372): the Ready now plate's Saving for time, "in 4m", is the time until the pocket reaches the price at the current speed, rounded up to the minute, and to the second in its last minute, so a cart three seconds away never reads "in 1m" (#517). It shows only on that plate, and never at zero speed. Nor does it show when the price is more than the pocket plus the stones left: the mountain runs out first, so the plate says "Saving for …" with no time (#610).
 
-**A choice must not be obvious.** If every option grows the same way, the best buy is a single sort and the other buttons are scenery. Before #356 every machine added a fixed output and doubled in price (it now climbs a gentle curve, and the deeper bands dig more stones per stone of depth; [Numbers now](DESIGN.md#numbers-now)), so "cheapest output per stone" is always the answer. The lab agrees: the same move is best 25–47% of the time, and boosts and crafts are almost never the best move.
+**A choice must not be obvious.** If every option grows the same way, the best buy is a single sort and the other buttons are scenery. Before #356 every machine added a fixed output and doubled in price (it now climbs a gentle curve, and until #740 the deeper bands dug more stones per stone of depth; [Numbers now](DESIGN.md#numbers-now)), so "cheapest output per stone" is always the answer. The lab agrees: the same move is best 25–47% of the time, and boosts and crafts are almost never the best move.
 
 What makes a decision interesting (Sid Meier): there is a trade-off, the situation decides, and the player can read the consequences. The cures for a dominant strategy are trade-offs on several axes, feedback loops, and shared scarce resources (Adams and Dormans; Machinations). Idle games do it with growth curves that differ, synergies, milestones and prestige (Pecorella; Cookie Clicker; AdVenture Capitalist).
 
