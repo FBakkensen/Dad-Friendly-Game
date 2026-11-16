@@ -15,6 +15,7 @@ import {
   type Site,
 } from "./city";
 import type { Mountain } from "./mountain";
+import { partThreeOn } from "./part-switch";
 import { quoteRun, type BuyAmount, type TierQuote } from "./tiers";
 import { GOOD_IDS, pay, type GoodId, type Price, type Stock } from "./stock";
 
@@ -55,6 +56,15 @@ const VEHICLE_ROWS = [
     // stones to buy with (risk 4).
     carries: 9,
     given: 1,
+  },
+  {
+    id: "truck",
+    name: "Truck",
+    good: "brick",
+    firstCost: 150_000,
+    growth: 1.219,
+    carries: 400,
+    given: 0,
   },
 ] as const satisfies readonly VehicleRow[];
 
@@ -161,8 +171,25 @@ export function vehicleQuote(
   );
 }
 
+/**
+ * Whether the vehicle is for sale: the horse wagon always, the truck while
+ * part 3 plays and the Warehouse is operational (#673).
+ */
+export function vehicleOpen(
+  mountain: Pick<Mountain, "operational">,
+  id: VehicleId,
+): boolean {
+  return (
+    id === "horseWagon" ||
+    (partThreeOn() && mountain.operational.includes("warehouse"))
+  );
+}
+
 /** Buys one more, at once (rule 7.13); a pocket that does not cover it buys none. */
 export function buyVehicle(mountain: Mountain, id: VehicleId): Mountain {
+  if (!vehicleOpen(mountain, id)) {
+    return mountain;
+  }
   const paid = pay(mountain, vehiclePrice(mountain, id));
   return paid === mountain
     ? mountain

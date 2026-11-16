@@ -62,6 +62,7 @@ import {
 import {
   VEHICLE_IDS,
   buyVehicle,
+  vehicleOpen,
   vehiclePrice,
   type VehicleId,
 } from "../transport";
@@ -322,7 +323,9 @@ function orderActions(mountain: Mountain): readonly Action[] {
   if (!freshMineOn()) {
     return [];
   }
-  const vehicles: Action[] = VEHICLE_IDS.map((id) => ({
+  const vehicles: Action[] = VEHICLE_IDS.filter((id) =>
+    vehicleOpen(mountain, id),
+  ).map((id) => ({
     kind: "buyVehicle",
     id,
   }));

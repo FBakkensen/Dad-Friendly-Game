@@ -53,6 +53,7 @@ export const VEHICLE_WORDS: Readonly<
   Record<VehicleId, readonly [string, string]>
 > = {
   horseWagon: ["horse wagon", "horse wagons"],
+  truck: ["truck", "trucks"],
 };
 
 /** A vehicle on its key in the city: "+Wagon", "+10 Wagons". */
@@ -60,6 +61,7 @@ export const VEHICLE_KEYS: Readonly<
   Record<VehicleId, readonly [string, string]>
 > = {
   horseWagon: ["Wagon", "Wagons"],
+  truck: ["Truck", "Trucks"],
 };
 
 /** A machine as the workforce and the mine count it: one, and more than one. */

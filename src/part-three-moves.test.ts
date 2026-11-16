@@ -46,3 +46,27 @@ describe("part 3's buys as moves (#673)", () => {
     });
   });
 });
+
+describe("the truck as a move (#673)", () => {
+  const TRUCK: Action = { kind: "buyVehicle", id: "truck" };
+  const warehoused = (operational: Mountain["operational"]): Mountain => ({
+    ...createMountain(),
+    operational,
+  });
+  const truckMoves = (mountain: Mountain): readonly Action[] =>
+    listActions(mountain, 0).filter(
+      (action) => action.kind === "buyVehicle" && action.id === "truck",
+    );
+
+  it("lists a truck once the Warehouse is operational in part 3, and never in part 2", () => {
+    partThree(() => {
+      expect(truckMoves(warehoused(["lightTower"]))).toEqual([]);
+      expect(truckMoves(warehoused(["lightTower", "warehouse"]))).toEqual([
+        TRUCK,
+      ]);
+    });
+    partTwo(() => {
+      expect(truckMoves(warehoused(["lightTower", "warehouse"]))).toEqual([]);
+    });
+  });
+});

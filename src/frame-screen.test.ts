@@ -177,7 +177,7 @@ describe("frame screen", () => {
     const { root, button } = mount((m) => ({
       ...withStones(1_700_000)(placeOrder(m)),
       owned: { ...m.owned, cart: 60, hoist: 40, drill: 30 },
-      fleet: { horseWagon: 60 },
+      fleet: { horseWagon: 60, truck: 0 },
     }));
     expect(root.querySelector(".frame-next-line")?.textContent).toBe(
       "Workforce 1",
@@ -191,7 +191,7 @@ describe("frame screen", () => {
   it("opens the workforce from Next when only this site and the workforce have something", () => {
     const { root, button } = mount((m) => ({
       ...withStones(1_700_000)(placeOrder(m)),
-      fleet: { horseWagon: 60 },
+      fleet: { horseWagon: 60, truck: 0 },
     }));
     expect(root.querySelector(".frame-next-line")?.textContent).toBe(
       "Mine 3 · Workforce 1",

@@ -6,7 +6,13 @@ import type { Mountain } from "../mountain";
 import { effectiveRates } from "../rates";
 import { deadStockpiles, stockyardOpen } from "../stockyard";
 import { TIERS, tierInPlay } from "../tiers";
-import { fleetSize, orderLimit, vehiclePrice, VEHICLE_IDS } from "../transport";
+import {
+  fleetSize,
+  orderLimit,
+  vehicleOpen,
+  vehiclePrice,
+  VEHICLE_IDS,
+} from "../transport";
 import {
   JOB_IDS,
   freeWorkers,
@@ -90,7 +96,7 @@ export function cheapestBuy(mountain: Mountain): number {
       );
     }
   }
-  for (const id of VEHICLE_IDS) {
+  for (const id of VEHICLE_IDS.filter((open) => vehicleOpen(mountain, open))) {
     cheapest = Math.min(
       cheapest,
       vehiclePrice(mountain, id)[0]?.amount ?? Infinity,

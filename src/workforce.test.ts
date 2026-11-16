@@ -235,7 +235,7 @@ describe("one workforce (slice 1, rule 2, #689)", () => {
   });
 
   it("stops transport at the vehicles: one driver each (#715)", () => {
-    const some = { ...crew(30), fleet: { horseWagon: 13 } };
+    const some = { ...crew(30), fleet: { horseWagon: 13, truck: 0 } };
     expect(placeWorker(some, "driving", Infinity).jobs.driving).toBe(13);
     expect(placeWorker(some, "driving", 10).jobs.driving).toBe(10);
     const full = placeWorker(some, "driving", Infinity);
@@ -245,7 +245,10 @@ describe("one workforce (slice 1, rule 2, #689)", () => {
     expect(placeable(full, "building")).toBe(17);
     expect(placeWorker(full, "building", Infinity).jobs.building).toBe(17);
     // A save with more drivers than vehicles is read as it is.
-    const over = { ...crew(30, { driving: 20 }), fleet: { horseWagon: 13 } };
+    const over = {
+      ...crew(30, { driving: 20 }),
+      fleet: { horseWagon: 13, truck: 0 },
+    };
     expect(jobRoom(over, "driving")).toBe(0);
     expect(placeWorker(over, "driving")).toBe(over);
     expect(freeWorker(over, "driving").jobs.driving).toBe(19);

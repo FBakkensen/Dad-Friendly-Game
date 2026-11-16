@@ -27,6 +27,7 @@ import {
   fleetRate,
   orderLimit,
   orderNumbers,
+  vehicleOpen,
   vehicleQuote,
   type Vehicle,
   type VehicleId,
@@ -101,26 +102,30 @@ export function vehicleKeys(
   mountain: Mountain,
   amount: BuyAmount,
 ): readonly VehicleKey[] {
-  return VEHICLES.map((vehicle) => {
-    const { count, cost } = vehicleQuote(mountain, vehicle.id, amount);
-    const one = count === 1;
-    const moves = `${formatSpeed(vehicle.carries * count)}/s`;
-    const key = plural(count, VEHICLE_KEYS[vehicle.id]);
-    const words = plural(count, VEHICLE_WORDS[vehicle.id]);
-    const price = formatCompact(cost);
-    return {
-      id: vehicle.id,
-      count,
-      cost,
-      can: cost <= mountain.stock[vehicle.good],
-      face: one ? `+${key} · ${moves}` : `+${String(count)} ${key} · ${moves}`,
-      price,
-      staff: `${String(count)} to run`,
-      label: one
-        ? `Buy a ${words} for ${price} stone. It carries ${moves} and takes 1 to run.`
-        : `Buy ${String(count)} ${words} for ${price} stone. They carry ${moves} and take ${String(count)} to run.`,
-    };
-  });
+  return VEHICLES.filter((vehicle) => vehicleOpen(mountain, vehicle.id)).map(
+    (vehicle) => {
+      const { count, cost } = vehicleQuote(mountain, vehicle.id, amount);
+      const one = count === 1;
+      const moves = `${formatSpeed(vehicle.carries * count)}/s`;
+      const key = plural(count, VEHICLE_KEYS[vehicle.id]);
+      const words = plural(count, VEHICLE_WORDS[vehicle.id]);
+      const price = formatCompact(cost);
+      return {
+        id: vehicle.id,
+        count,
+        cost,
+        can: cost <= mountain.stock[vehicle.good],
+        face: one
+          ? `+${key} · ${moves}`
+          : `+${String(count)} ${key} · ${moves}`,
+        price,
+        staff: `${String(count)} to run`,
+        label: one
+          ? `Buy a ${words} for ${price} stone. It carries ${moves} and takes 1 to run.`
+          : `Buy ${String(count)} ${words} for ${price} stone. They carry ${moves} and take ${String(count)} to run.`,
+      };
+    },
+  );
 }
 
 /** How far the building in hand has risen: its step and the share of it built in. */

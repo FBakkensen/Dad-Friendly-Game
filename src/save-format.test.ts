@@ -150,7 +150,7 @@ describe("the game map (#558)", () => {
     const fresh = createMountain();
     const game = writeGame({
       ...fresh,
-      fleet: { horseWagon: 2 },
+      fleet: { horseWagon: 2, truck: 0 },
       project: {
         kind: "delivering",
         site: {
@@ -245,7 +245,7 @@ describe("the game map (#558)", () => {
     expect(
       project({ ...good, building: "rocketPad", arrived: { stones: -5 } }),
     ).toBe("bad");
-    expect(readGame({ fleet: { truck: 1 } }, 0).kind).toBe("newer");
+    expect(readGame({ fleet: { crane: 1 } }, 0).kind).toBe("newer");
   });
 
   it("saves the workers on each job, and refuses more on jobs than he owns (#689)", () => {

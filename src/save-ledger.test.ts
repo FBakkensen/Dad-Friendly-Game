@@ -153,7 +153,7 @@ const LEDGER = {
     engineer: ["Ada", "Nils", "Ruth", "Otto", "Mae"],
     recipe: ["crystal-lamp", "engineers-kit"],
   },
-  fleet: ["horseWagon"],
+  fleet: ["horseWagon", "truck"],
   projectStates: ["delivering", "onHold"],
   jobs: [
     "drilling",
