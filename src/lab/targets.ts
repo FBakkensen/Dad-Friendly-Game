@@ -143,7 +143,9 @@ export type Target =
  *
  * Empty since #737: the rows judged today's mountain, and the lab plays only
  * the fresh mine now. Flemming, 16 Nov 2026 ("agree" to option A, #737): the
- * fresh mine has no strict guardrail until new ones are designed.
+ * fresh mine has no strict guardrail until new ones are designed. The
+ * five-day floor (#556), and any old row that carries over, come back when
+ * the lab plays the whole slice (the slice 1 spec, sliver 17), as a stop.
  */
 export const TARGETS: readonly Target[] = [];
 

@@ -882,11 +882,14 @@ describe("openingView", () => {
     ).toEqual({ kind: "affordable" });
   });
 
-  it("says nothing when no crew buy on the sheet earns anything", () => {
+  it("says nothing while no crew buy on the sheet is priced to earn anything", () => {
     const context = valueContext(policy.params);
     withFactors(PLAY_FACTORS, () => {
-      // A fresh mine's first evening: the worker, cart, hoist and drill are
-      // on the sheet, but none of them adds income the stretch can price.
+      // The "nothing" branch, read on a fresh mine's first evening: the
+      // worker, cart, hoist and drill are on the sheet, and the stretch
+      // prices none of them to earn. That is how the scoring reads the line
+      // today, not a rule (#748, Rulings). A scoring that prices them moves
+      // this case to "affordable" and this test with it.
       const fresh = createMountain();
       const rich = { ...fresh, stock: { ...fresh.stock, stones: 1_000_000 } };
       const kinds = actionsOnTable(rich, 0).map((action) => action.kind);
