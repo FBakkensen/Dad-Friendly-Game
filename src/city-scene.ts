@@ -1,9 +1,11 @@
 import minerUrl from "./assets/board/miner-18f.png";
 import wagonUrl from "./assets/city/horse-wagon.png";
 import towerUrl from "./assets/city/light-tower.png";
+import truckUrl from "./assets/city/truck.png";
 import warehouseUrl from "./assets/city/warehouse.png";
 import type { BuildingId } from "./city";
 import type { CityScene, Plot } from "./city-view";
+import { VEHICLES, type VehicleId } from "./transport";
 import {
   SCENE_W,
   frame,
@@ -22,8 +24,8 @@ import {
  * its own picture behind scaffold. What is on the site lies beside it, the
  * builders work at it, and the wagons drive along the road to it, as full as
  * transport brings, or stand. The sky, the ground, the road, the scaffold
- * and a plot's stakes are drawn in code; the Light Tower, the horse wagon
- * and the builders are the game's own pictures.
+ * and a plot's stakes are drawn in code; the buildings, the horse wagon,
+ * the truck and the builders are the game's own pictures.
  */
 
 /**
@@ -88,7 +90,12 @@ function drawnBuilding(id: BuildingId): id is keyof typeof BUILDING_URLS {
   return id in BUILDING_URLS;
 }
 
-const SPRITE_URLS = { miner: minerUrl, wagon: wagonUrl, ...BUILDING_URLS };
+const SPRITE_URLS = {
+  miner: minerUrl,
+  horseWagon: wagonUrl,
+  truck: truckUrl,
+  ...BUILDING_URLS,
+};
 
 type Sprites = Readonly<Record<keyof typeof SPRITE_URLS, HTMLImageElement>>;
 
@@ -219,22 +226,49 @@ function drawBuilding(
 }
 
 /**
- * A horse wagon facing left, to the site: its heap of stones shows `load`,
- * the share of a full wagon it carries.
+ * Where each vehicle's picture carries its goods (#754): the columns of its
+ * bed from the left, and the top rows over it that are its heap of stones.
+ * Both pictures face right.
  */
-function drawWagon(
+const BEDS: Readonly<
+  Record<VehicleId, { readonly bed: number; readonly heapRows: number }>
+> = {
+  horseWagon: { bed: 26, heapRows: 9 },
+  truck: { bed: 24, heapRows: 9 },
+};
+
+/**
+ * The vehicles drawn on the road, or behind it: at most `room`, the best
+ * carriers first, as the drivers take them (#754).
+ */
+export function roadVehicles(
+  counts: Readonly<Record<VehicleId, number>>,
+  room: number,
+): readonly VehicleId[] {
+  return [...VEHICLES]
+    .sort((a, b) => b.carries - a.carries)
+    .flatMap((vehicle) =>
+      Array.from({ length: counts[vehicle.id] }, () => vehicle.id),
+    )
+    .slice(0, room);
+}
+
+/**
+ * A vehicle facing left, to the site: its heap of stones shows `load`, the
+ * share of a full one it carries.
+ */
+function drawVehicle(
   c: CanvasRenderingContext2D,
-  img: HTMLImageElement,
-  x: number,
-  y: number,
+  sprites: Sprites,
+  id: VehicleId,
+  [x, y]: readonly [number, number],
   load: number,
 ): void {
+  const img = sprites[id];
   if (!img.complete || img.naturalWidth === 0) {
     return;
   }
-  // The picture's top rows over the wagon bed are its stones.
-  const heapRows = 9;
-  const bed = 26;
+  const { bed, heapRows } = BEDS[id];
   const cut = heapRows - Math.round(heapRows * Math.min(1, load));
   c.save();
   c.translate(Math.round(x) + img.naturalWidth, Math.round(y));
@@ -302,35 +336,38 @@ function drawSite(
   }
 }
 
-/** The wagons: driving to the site while transport brings, else standing. */
-function drawWagons(
+/**
+ * The vehicles, each kind its own picture (#754): driving to the site while
+ * transport brings, else standing.
+ */
+function drawVehicles(
   c: CanvasRenderingContext2D,
-  img: HTMLImageElement,
+  sprites: Sprites,
   scene: CityScene,
   g: number,
   t: number,
 ): void {
   // A vehicle with no driver stands behind the road, empty, with nobody on it.
-  for (let k = 0; k < Math.min(2, scene.undriven); k += 1) {
-    drawWagon(c, img, SCENE_W - 72 - k * 48, g - 24, 0);
-  }
-  const shown = Math.min(3, scene.driven);
+  roadVehicles(scene.undriven, 2).forEach((id, k) => {
+    drawVehicle(c, sprites, id, [SCENE_W - 72 - k * 48, g - 24], 0);
+  });
+  const shown = roadVehicles(scene.driven, 3);
   const road = g + CITY_FOOT.road - 24;
   if (scene.load <= 0) {
-    for (let k = 0; k < shown; k += 1) {
+    shown.forEach((id, k) => {
       const x = SCENE_W - 48 - k * 48;
-      drawWagon(c, img, x, road, 0);
+      drawVehicle(c, sprites, id, [x, road], 0);
       zed(c, x + 8, road - 6 - (Math.floor(t * 2 + k) % 2));
-    }
+    });
     return;
   }
   // They stop at the yard's heap, where the site's goods lie (`siteYard`).
   const end = siteYard(scene.sitePlot ?? 0).heap - 2;
   const span = SCENE_W - end;
-  for (let k = 0; k < shown; k += 1) {
-    const x = SCENE_W - ((t * 9 + (k * span) / shown) % span);
-    drawWagon(c, img, x, road, scene.load);
-  }
+  shown.forEach((id, k) => {
+    const x = SCENE_W - ((t * 9 + (k * span) / shown.length) % span);
+    drawVehicle(c, sprites, id, [x, road], scene.load);
+  });
 }
 
 /** One frame of the city's moving parts, over the ground. */
@@ -354,5 +391,5 @@ export function drawCity(
     drawBuilding(c, sprites[plot.building], buildingX(at), g, plot.risen, t);
   });
   drawSite(c, sprites, scene, g, t);
-  drawWagons(c, sprites.wagon, scene, g, t);
+  drawVehicles(c, sprites, scene, g, t);
 }

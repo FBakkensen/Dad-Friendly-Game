@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PLOT_SPANS, buildingX, siteYard } from "./city-scene";
+import { PLOT_SPANS, buildingX, roadVehicles, siteYard } from "./city-scene";
 
 /** The site's yard beside the building in hand (#672; docs/ART.md, the Warehouse). */
 
@@ -37,5 +37,28 @@ describe("the site's yard", () => {
     }
     expect(x - 6).toBeGreaterThanOrEqual(span.x - 1);
     expect(x + WAREHOUSE_W + 6).toBeLessThanOrEqual(span.x + span.w + 1);
+  });
+});
+
+describe("the vehicles on the road (#754)", () => {
+  it("draws a wagon fleet as wagons, as many as fit", () => {
+    expect(roadVehicles({ horseWagon: 5, truck: 0 }, 3)).toEqual([
+      "horseWagon",
+      "horseWagon",
+      "horseWagon",
+    ]);
+    expect(roadVehicles({ horseWagon: 0, truck: 0 }, 3)).toEqual([]);
+  });
+
+  it("draws each truck as a truck, the best carriers first", () => {
+    expect(roadVehicles({ horseWagon: 2, truck: 1 }, 3)).toEqual([
+      "truck",
+      "horseWagon",
+      "horseWagon",
+    ]);
+    expect(roadVehicles({ horseWagon: 1, truck: 4 }, 2)).toEqual([
+      "truck",
+      "truck",
+    ]);
   });
 });

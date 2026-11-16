@@ -338,8 +338,8 @@ describe("the city's scene", () => {
       expect(scene.siteFill).toBe(0.5);
       expect(scene.builders).toBe(2);
       expect(scene.building).toBe(1);
-      expect(scene.driven).toBe(1);
-      expect(scene.undriven).toBe(0);
+      expect(scene.driven).toEqual({ horseWagon: 1, truck: 0 });
+      expect(scene.undriven).toEqual({ horseWagon: 0, truck: 0 });
       expect(scene.load).toBe(1);
     });
   });
@@ -369,10 +369,23 @@ describe("the city's scene", () => {
       expect(idle).toMatchObject({
         sitePlot: undefined,
         load: 0,
-        driven: 1,
-        undriven: 1,
+        driven: { horseWagon: 1, truck: 0 },
+        undriven: { horseWagon: 1, truck: 0 },
         building: 0,
       });
+    });
+  });
+
+  it("counts the vehicles by kind: the drivers take the trucks first (#754)", () => {
+    withFactors({ [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 }, () => {
+      const begin = withJobs(start(), { driving: 2 });
+      const scene = cityScene({
+        ...begin,
+        operational: ["lightTower", "warehouse"],
+        fleet: { horseWagon: 2, truck: 1 },
+      });
+      expect(scene.driven).toEqual({ horseWagon: 1, truck: 1 });
+      expect(scene.undriven).toEqual({ horseWagon: 1, truck: 0 });
     });
   });
 });

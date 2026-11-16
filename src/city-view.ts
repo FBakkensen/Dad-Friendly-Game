@@ -29,6 +29,7 @@ import {
 } from "./screen-words";
 import {
   VEHICLES,
+  VEHICLE_IDS,
   drivenFleet,
   fleetRate,
   orderLimit,
@@ -36,6 +37,7 @@ import {
   orderShares,
   vehicleOpen,
   vehicleQuote,
+  vehicleRecord,
   type Vehicle,
   type VehicleId,
 } from "./transport";
@@ -424,9 +426,9 @@ export type CityScene = {
   readonly builders: number;
   /** The share of the builders' time they build in. */
   readonly building: number;
-  /** Vehicles with a driver, and those without. */
-  readonly driven: number;
-  readonly undriven: number;
+  /** Vehicles with a driver, and those without, by kind (#754). */
+  readonly driven: Readonly<Record<VehicleId, number>>;
+  readonly undriven: Readonly<Record<VehicleId, number>>;
   /** What transport brings of what the driven fleet carries: 0 when it stands. */
   readonly load: number;
 };
@@ -442,11 +444,11 @@ export function cityScene(mountain: Mountain, now?: number): CityScene {
   // The wagons carry the factory's work order too (rule 7.7, #681).
   const toStation = orderShares(mountain, 1, { stones: line }).station;
   const rate = buildRate(mountain);
-  const driven = Object.values(drivenFleet(mountain)).reduce(
-    (sum, n) => sum + n,
-    0,
-  );
-  const owned = Object.values(mountain.fleet).reduce((sum, n) => sum + n, 0);
+  const driven = drivenFleet(mountain);
+  const undriven = vehicleRecord(0);
+  for (const id of VEHICLE_IDS) {
+    undriven[id] = mountain.fleet[id] - driven[id];
+  }
   const ordered =
     project.kind === "unordered" ? undefined : project.site.building;
   const at = shown.findIndex(
@@ -462,7 +464,7 @@ export function cityScene(mountain: Mountain, now?: number): CityScene {
     builders: mountain.jobs.building,
     building: numbers.kind === "unordered" ? 0 : share(numbers.builds, rate),
     driven,
-    undriven: owned - driven,
+    undriven,
     load: share(
       (numbers.kind === "unordered" ? 0 : numbers.brings) + toStation,
       fleetRate(mountain),
