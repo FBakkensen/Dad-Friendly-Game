@@ -229,7 +229,7 @@ function freeHelpers(mountain: Mountain): number {
 }
 
 /**
- * Gain and cost `bestValue` would score for this tier today.
+ * The gain and cost the catalogue's own tier value gives this tier today.
  * Workers: crew delta of one hire. Machines: current unit speed, plus the
  * workers still needed on the cost.
  */
@@ -658,7 +658,7 @@ describe("applyAction", () => {
 
 describe("valueOf", () => {
   // valueOf reads no price: the buys here carry 0 (#367).
-  it("matches bestValue for every listed tier", () => {
+  it("matches the catalogue's tier value for every listed tier", () => {
     const mountains = [fresh, withHelper, rich, broke, lockedMachine, crowned];
     for (const mountain of mountains) {
       for (const action of listActions(mountain, NOW)) {

@@ -448,11 +448,6 @@ describe("token check", () => {
   });
 });
 
-/**
- * The control board's tokens: one art pixel, the save line, and --board-*
- * (#370); the gauge row's height and the column's top under it (#371); the
- * drawers' top and their rows' height (#373).
- */
 /** The control board mockup's :root values that the board's tokens copied (#370). */
 const CONTROL_BOARD_ROOT: readonly (readonly [string, string])[] = [
   ["--save-h", "56px"],
@@ -469,6 +464,11 @@ const CONTROL_BOARD_ROOT: readonly (readonly [string, string])[] = [
   ["--board-ink-flap", "#e4dcc6"],
 ];
 
+/**
+ * The control board's tokens: one art pixel, the save line, and --board-*
+ * (#370); the gauge row's height and the column's top under it (#371); the
+ * drawers' top and their rows' height (#373).
+ */
 const BOARD_TOKEN =
   /^--(art|save-h|gauge-row-h|column-top|bays-top|ready-top|rail-top|bay-h|sheet-top|row-h|board-[\w-]+)$/;
 
