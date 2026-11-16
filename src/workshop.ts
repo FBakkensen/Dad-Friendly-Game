@@ -367,7 +367,7 @@ export function recipeCostId(id: RecipeId): string {
   return `recipe.${id}.cost`;
 }
 
-function scaledCount(base: number, scale: number): number {
+export function scaledCount(base: number, scale: number): number {
   if (base === 0) {
     return 0;
   }

@@ -68,6 +68,14 @@ import {
   type Jobs,
 } from "./workforce";
 import { PILE_IDS, type MinePiles, type PileId } from "./mine-piles";
+import {
+  BLUEPRINT_IDS,
+  IDLE_STATION,
+  isBlueprintId,
+  requiredLoads,
+  type BlueprintId,
+  type Station,
+} from "./factory";
 import { MAKER_IDS, makerJob, type MakerId } from "./makers";
 import {
   GRANITE_PILE_IDS,
@@ -96,7 +104,8 @@ const MARK_IDS = {
 type MarkKind = keyof typeof MARK_IDS;
 const MARK_KINDS = Object.keys(MARK_IDS) as readonly MarkKind[];
 
-type RunKey = "dug" | "rock";
+/** `granite` is the part of the rock dug that was drilled on the Granite (#674). */
+type RunKey = "dug" | "rock" | "granite";
 
 /**
  * Run keys a version 10 save may hold that this build no longer writes
@@ -124,6 +133,7 @@ const GAME_KEYS = [
   "makers",
   "stockyard",
   "granite",
+  "station",
 ] as const;
 
 /** The Granite's own keys (#673): its machines and its piles. */
@@ -152,6 +162,20 @@ type SavedProject = {
 };
 
 const PROJECT_STATES = ["delivering", "onHold"] as const;
+
+/**
+ * The factory's work order, as saved (#674): its blueprint, its state, and
+ * what has arrived of each good, in loads. An idle station saves none; a
+ * done one saves no `arrived`.
+ */
+type SavedStation = {
+  readonly blueprint: BlueprintId;
+  readonly state: "delivering" | "done";
+  readonly arrived?: Readonly<Partial<Record<GoodId, number>>>;
+};
+
+const STATION_STATES = ["delivering", "done"] as const;
+const STATION_KEYS = ["blueprint", "state", "arrived"] as const;
 
 /** The game map as saved. Every key is left out when it would be zero or empty. */
 export type SaveGame = {
@@ -188,6 +212,8 @@ export type SaveGame = {
    * while unsunk, so a part 2 save writes the same map as before.
    */
   readonly granite?: SavedGranite;
+  /** The factory's work order (#674). Left out while the station is idle. */
+  readonly station?: SavedStation;
 };
 
 // ---------------------------------------------------------------------------
@@ -266,7 +292,28 @@ function savedRun(mountain: Mountain): NonNullable<SaveGame["run"]> {
   return {
     ...only("dug", dug, dug !== 0),
     ...only("rock", mountain.rockDug, mountain.rockDug !== 0),
+    ...only("granite", mountain.graniteDug, mountain.graniteDug !== 0),
   };
+}
+
+function savedStation(station: Station): Partial<SaveGame> {
+  switch (station.kind) {
+    case "idle":
+      return {};
+    case "done":
+      return { station: { blueprint: station.blueprint, state: "done" } };
+    case "delivering":
+      return {
+        station: {
+          blueprint: station.blueprint,
+          state: "delivering",
+          ...some(
+            "arrived",
+            positives(GOOD_IDS, (id) => station.arrived[id]),
+          ),
+        },
+      };
+  }
 }
 
 function savedProject(project: Project): Partial<SaveGame> {
@@ -352,6 +399,7 @@ export function writeGame(mountain: Mountain): SaveGame {
     ),
     ...(mountain.stockyard === 0 ? {} : { stockyard: mountain.stockyard }),
     ...savedGranite(mountain.granite),
+    ...savedStation(mountain.station),
   };
 }
 
@@ -490,7 +538,7 @@ function readMarks(value: unknown): Part<Marks> {
   };
 }
 
-type Run = Pick<Mountain, "remaining" | "rockDug">;
+type Run = Pick<Mountain, "remaining" | "rockDug" | "graniteDug">;
 
 /** A retired stretch (#729): checked as it always was, then ignored. */
 function readRetiredStretch(value: unknown): Part<true> {
@@ -505,7 +553,7 @@ function readRetiredStretch(value: unknown): Part<true> {
 
 function readRun(value: unknown): Part<Run> {
   if (value === undefined) {
-    return { remaining: MOUNTAIN_STONES, rockDug: 0 };
+    return { remaining: MOUNTAIN_STONES, rockDug: 0, graniteDug: 0 };
   }
   if (!isRecord(value)) {
     return "bad";
@@ -514,7 +562,7 @@ function readRun(value: unknown): Part<Run> {
     Object.fromEntries(
       Object.entries(value).filter(([key]) => key !== "stretch"),
     ),
-    ["generation", "dug", "rock"] as const,
+    ["generation", "dug", "rock", "granite"] as const,
     (id) =>
       id === "generation"
         ? RETIRED_RUN_CAPS.generation
@@ -527,8 +575,16 @@ function readRun(value: unknown): Part<Run> {
   if (failed !== undefined) {
     return failed;
   }
-  const run = counts as Record<"generation" | "dug" | "rock", number>;
-  return { remaining: MOUNTAIN_STONES - run.dug, rockDug: run.rock };
+  const run = counts as Record<"generation" | RunKey, number>;
+  // The Granite's drilled rock is a part of all the rock dug (#674).
+  if (run.granite > run.rock) {
+    return "bad";
+  }
+  return {
+    remaining: MOUNTAIN_STONES - run.dug,
+    rockDug: run.rock,
+    graniteDug: run.granite,
+  };
 }
 
 /** Right types for an engineer; whether this build knows the names is the parser's call. */
@@ -712,6 +768,67 @@ function readProject(value: unknown, marks: Part<Marks>): Part<Project> {
   return { kind: value["state"] as SavedProject["state"], site };
 }
 
+function stationTyped(value: Entries): boolean {
+  return (
+    typeof value["blueprint"] === "string" && typeof value["state"] === "string"
+  );
+}
+
+/** A blueprint, state or key this build does not know. */
+function stationNewer(value: Entries): boolean {
+  return (
+    !isBlueprintId(value["blueprint"]) ||
+    !(STATION_STATES as readonly string[]).includes(value["state"] as string) ||
+    unknownKeys(value, STATION_KEYS)
+  );
+}
+
+/** Whether the work order's goods fit it: none past what it requires, and a delivering one not all in. */
+function stationFits(station: Station): boolean {
+  if (station.kind !== "delivering") {
+    return true;
+  }
+  const required = requiredLoads(station.blueprint);
+  return (
+    GOOD_IDS.every((good) => station.arrived[good] <= required[good]) &&
+    GOOD_IDS.some((good) => station.arrived[good] < required[good])
+  );
+}
+
+/**
+ * The factory's work order (#674). A blueprint, state or good this build
+ * does not know is `newer`. A wrong type, more arrived than it requires, a
+ * delivering one already all in, a done one with goods, or a work order
+ * while the shaft is not sunk is `bad`.
+ */
+function readStation(value: unknown, granite: Part<Granite>): Part<Station> {
+  if (value === undefined) {
+    return IDLE_STATION;
+  }
+  if (!isRecord(value) || !stationTyped(value)) {
+    return "bad";
+  }
+  const arrived = readCounts(value["arrived"] ?? {}, GOOD_IDS, UNCAPPED);
+  if (arrived === "bad") {
+    return "bad";
+  }
+  if (arrived === "newer" || stationNewer(value)) {
+    return "newer";
+  }
+  if (typeof granite === "string") {
+    return granite;
+  }
+  const blueprint = value["blueprint"] as BlueprintId;
+  const station: Station =
+    value["state"] === "done"
+      ? { kind: "done", blueprint }
+      : { kind: "delivering", blueprint, arrived };
+  const stray = value["state"] === "done" && value["arrived"] !== undefined;
+  return granite.kind === "unsunk" || stray || !stationFits(station)
+    ? "bad"
+    : station;
+}
+
 /** The stockyard's level: a whole number, 0 when left out, newer past the last (#666). */
 function readLevel(value: unknown): Part<number> {
   if (value === undefined) {
@@ -797,6 +914,14 @@ function readGranite(
   return graniteFits(granite, facts.owned, jobs, makers) ? granite : "bad";
 }
 
+/** Rock drilled on the Granite only once the shaft is sunk (#674). */
+function graniteDugFits(run: Part<Run>, granite: Part<Granite>): Part<true> {
+  if (typeof run === "string" || typeof granite === "string") {
+    return true;
+  }
+  return run.graniteDug > 0 && granite.kind === "unsunk" ? "bad" : true;
+}
+
 type Facts = Pick<
   Mountain,
   "owned" | "stock" | "upgrades" | "crafted" | "clocks"
@@ -852,6 +977,7 @@ export function readGame(value: unknown, startedAt: number): GameRead {
   const makers = readCounts(value["makers"], MAKER_IDS, UNCAPPED);
   const stockyard = readLevel(value["stockyard"]);
   const granite = readGranite(value["granite"], facts, jobs, makers);
+  const station = readStation(value["station"], granite);
   const failed = worst([
     facts,
     marks,
@@ -865,6 +991,8 @@ export function readGame(value: unknown, startedAt: number): GameRead {
     makers,
     stockyard,
     granite,
+    station,
+    graniteDugFits(run, granite),
   ]);
   if (failed !== undefined) {
     return { kind: failed };
@@ -888,6 +1016,7 @@ export function readGame(value: unknown, startedAt: number): GameRead {
       makers: makers as Makers,
       stockyard: stockyard as number,
       granite: granite as Granite,
+      station: station as Station,
       startedAt,
     },
   };
@@ -918,6 +1047,9 @@ export type ShippedFacts = {
   readonly makers: readonly string[];
   readonly caps: Readonly<Record<string, number>>;
   readonly granite: Readonly<Record<"machines" | "piles", readonly string[]>>;
+  readonly station: Readonly<
+    Record<"blueprints" | "states", readonly string[]>
+  >;
 };
 
 export function shippedFacts(): ShippedFacts {
@@ -928,7 +1060,11 @@ export function shippedFacts(): ShippedFacts {
     levels: Object.fromEntries(LEVEL_IDS.map((id) => [id, levelCap(id)])),
     clocks: TIMER_IDS,
     marks: MARK_IDS,
-    run: { dug: MOUNTAIN_STONES, rock: Number.MAX_SAFE_INTEGER },
+    run: {
+      dug: MOUNTAIN_STONES,
+      rock: Number.MAX_SAFE_INTEGER,
+      granite: Number.MAX_SAFE_INTEGER,
+    },
     retiredRun: RETIRED_RUN_CAPS,
     engineerNames: ENGINEER_NAMES,
     posts: [...ENGINEER_POSTS, "tunnel"],
@@ -949,5 +1085,6 @@ export function shippedFacts(): ShippedFacts {
       stockyard: MAX_STOCKYARD_LEVEL,
     },
     granite: { machines: LEVEL_MACHINE_IDS, piles: GRANITE_PILE_IDS },
+    station: { blueprints: BLUEPRINT_IDS, states: STATION_STATES },
   };
 }

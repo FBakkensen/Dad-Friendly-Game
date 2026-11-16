@@ -31,6 +31,7 @@ const LEDGER = {
     "makers",
     "stockyard",
     "granite",
+    "station",
   ],
   owned: [
     "helper",
@@ -110,6 +111,7 @@ const LEDGER = {
   run: {
     dug: 240000000,
     rock: Number.MAX_SAFE_INTEGER,
+    granite: Number.MAX_SAFE_INTEGER,
   },
   // Retired (#729): still read at these caps, and never written.
   retiredRun: {
@@ -154,6 +156,16 @@ const LEDGER = {
     machines: ["cart", "drill", "borer", "train"],
     piles: ["face", "shaft", "saw"],
   },
+  station: {
+    blueprints: [
+      "iron-rails",
+      "sturdy-props",
+      "blasting-charge",
+      "reinforce",
+      "axle-grease",
+    ],
+    states: ["delivering", "done"],
+  },
 };
 
 describe("the ledger of what has shipped (#558)", () => {
@@ -181,6 +193,7 @@ describe("the ledger of what has shipped (#558)", () => {
       Object.keys(facts.tripFinds),
       ...Object.values(facts.tripFinds),
       ...Object.values(facts.granite),
+      ...Object.values(facts.station),
     ];
     for (const list of lists) {
       expect(new Set(list).size).toBe(list.length);
@@ -433,5 +446,114 @@ describe("part 3's facts in the save (#673)", () => {
     expect(read.kind === "ok" && writeGame(read.mountain)).toEqual(
       writeGame(sunk),
     );
+  });
+});
+
+describe("the factory's work order and the Granite's rock in the save (#674)", () => {
+  const sunk = (): Mountain => ({
+    ...createMountain(),
+    rockDug: 5_000_000,
+    graniteDug: 2_000_000,
+    granite: {
+      kind: "sunk",
+      machines: NO_LEVEL_MACHINES,
+      piles: NO_GRANITE_PILES,
+    },
+  });
+  const back = (mountain: Mountain): Mountain | undefined => {
+    const read = readGame(JSON.parse(JSON.stringify(writeGame(mountain))), 0);
+    return read.kind === "ok" ? read.mountain : undefined;
+  };
+
+  it("saves nothing for an idle station and no Granite rock, so a part 2 save writes as before", () => {
+    const game = writeGame(createMountain());
+    expect(game).not.toHaveProperty("station");
+    expect(game).not.toHaveProperty("run");
+  });
+
+  it("round-trips the Granite's rock beside the rock dug in all", () => {
+    const mountain = sunk();
+    expect(writeGame(mountain).run).toEqual({
+      rock: 5_000_000,
+      granite: 2_000_000,
+    });
+    expect(back(mountain)).toEqual(mountain);
+  });
+
+  it("round-trips a delivering work order, in loads, and a done one with no goods", () => {
+    const delivering: Mountain = {
+      ...sunk(),
+      station: {
+        kind: "delivering",
+        blueprint: "iron-rails",
+        arrived: { ...createMountain().stock, stones: 1_000, iron: 750 },
+      },
+    };
+    expect(writeGame(delivering).station).toEqual({
+      blueprint: "iron-rails",
+      state: "delivering",
+      arrived: { stones: 1_000, iron: 750 },
+    });
+    expect(back(delivering)).toEqual(delivering);
+    const done: Mountain = {
+      ...sunk(),
+      station: { kind: "done", blueprint: "axle-grease" },
+    };
+    expect(writeGame(done).station).toEqual({
+      blueprint: "axle-grease",
+      state: "done",
+    });
+    expect(back(done)).toEqual(done);
+  });
+
+  it("reads a blueprint, state or key it does not know as newer", () => {
+    const game = { ...writeGame(sunk()) };
+    const newer = [
+      { blueprint: "diamond-bits", state: "delivering" },
+      { blueprint: "rocket", state: "delivering" },
+      { blueprint: "iron-rails", state: "onHold" },
+      { blueprint: "iron-rails", state: "delivering", speed: 2 },
+      { blueprint: "iron-rails", state: "delivering", arrived: { fuel: 1 } },
+    ];
+    for (const station of newer) {
+      expect(
+        readGame({ ...game, station }, 0).kind,
+        JSON.stringify(station),
+      ).toBe("newer");
+    }
+  });
+
+  it("refuses a work order past what it requires, one already all in, a done one with goods, or one with no shaft", () => {
+    const game = { ...writeGame(sunk()) };
+    const bad = [
+      {
+        blueprint: "iron-rails",
+        state: "delivering",
+        arrived: { iron: 2_001 },
+      },
+      { blueprint: "axle-grease", state: "delivering", arrived: { iron: 500 } },
+      { blueprint: "axle-grease", state: "done", arrived: { iron: 500 } },
+      { blueprint: "iron-rails", state: "delivering", arrived: { iron: 1.5 } },
+      { blueprint: 3, state: "delivering" },
+      "iron-rails",
+    ];
+    for (const station of bad) {
+      expect(
+        readGame({ ...game, station }, 0).kind,
+        JSON.stringify(station),
+      ).toBe("bad");
+    }
+    const unsunk = writeGame(createMountain());
+    expect(
+      readGame(
+        { ...unsunk, station: { blueprint: "axle-grease", state: "done" } },
+        0,
+      ).kind,
+    ).toBe("bad");
+  });
+
+  it("refuses Granite rock past all the rock dug, or with no shaft", () => {
+    expect(readGame({ run: { rock: 10, granite: 11 } }, 0).kind).toBe("bad");
+    expect(readGame({ run: { rock: 10, granite: 5 } }, 0).kind).toBe("bad");
   });
 });

@@ -35,7 +35,7 @@ export function onSiteTotal(site: Site): number {
  * Up to `capacity` goods split evenly between the goods in `wants`, each at
  * most its want. What one good cannot use goes to the others.
  */
-function shareOut(
+export function shareOut(
   capacity: number,
   wants: Readonly<Partial<Record<GoodId, number>>>,
 ): Partial<Record<GoodId, number>> {
