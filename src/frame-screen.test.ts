@@ -4,7 +4,6 @@ import { createUnconfiguredAuth } from "./auth";
 import { placeOrder } from "./city";
 import { holdFactors } from "./economy/factors";
 import { mountFrameScreen } from "./frame-screen";
-import { FRESH_OFF } from "./line-switch";
 import { PART_TWO_OFF } from "./part-switch";
 import type { Mountain } from "./mountain";
 import { createProgressStore } from "./progress-store";
@@ -16,7 +15,7 @@ import { NO_FREE_WORKER } from "./workforce-view";
 let unmount = new AbortController();
 
 beforeEach(() => {
-  holdFactors({ [FRESH_OFF]: 0 });
+  holdFactors({});
 });
 
 afterEach(() => {
@@ -270,7 +269,7 @@ describe("the refinery on the frame (#671)", () => {
   });
 
   it("opens the refinery in part 2 once the Light Tower is operational", () => {
-    holdFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 });
+    holdFactors({ [PART_TWO_OFF]: 0 });
     const { root, button } = mount(lit);
     expect(tab(root)?.hidden).toBe(false);
     button('.frame-site[data-site="refinery"]').click();
@@ -290,14 +289,14 @@ describe("the refinery on the frame (#671)", () => {
   });
 
   it("has one hire key on the refinery too", () => {
-    holdFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 });
+    holdFactors({ [PART_TWO_OFF]: 0 });
     const { root, button } = mount(lit);
     button('.frame-site[data-site="refinery"]').click();
     expect(hireKeysInFrame(root)).toHaveLength(1);
   });
 
   it("moves a worker onto the kilns and off with − and +", () => {
-    holdFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 });
+    holdFactors({ [PART_TWO_OFF]: 0 });
     const { root, progress, button } = mount((mountain) => ({
       ...lit(mountain),
       owned: { ...mountain.owned, helper: mountain.owned.helper + 1 },
@@ -315,7 +314,7 @@ describe("the refinery on the frame (#671)", () => {
   });
 
   it("expands the stockyard for its brick", () => {
-    holdFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 });
+    holdFactors({ [PART_TWO_OFF]: 0 });
     const { progress, button } = mount((mountain) => ({
       ...lit(mountain),
       stock: { ...lit(mountain).stock, brick: 150_000 },
@@ -338,7 +337,7 @@ describe("the refinery on the frame (#671)", () => {
     expect(group(one.root)?.hidden).toBe(true);
     unmount.abort();
     unmount = new AbortController();
-    holdFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 });
+    holdFactors({ [PART_TWO_OFF]: 0 });
     const two = mount(lit);
     two.button(".frame-workers").click();
     expect(group(two.root)?.hidden).toBe(false);
@@ -346,7 +345,7 @@ describe("the refinery on the frame (#671)", () => {
   });
 
   it("goes back to the mine when the refinery closes under it", () => {
-    holdFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 });
+    holdFactors({ [PART_TWO_OFF]: 0 });
     const { root, progress, button } = mount(lit);
     button('.frame-site[data-site="refinery"]').click();
     expect(button(".frame-site.on").dataset["site"]).toBe("refinery");

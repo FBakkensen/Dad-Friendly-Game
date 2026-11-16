@@ -2,7 +2,6 @@ import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { SITE_HOLDS } from "./building-site";
 import { withFactors } from "./economy/factors";
-import { FRESH_OFF } from "./line-switch";
 import { PART_THREE_OFF, PART_TWO_OFF } from "./part-switch";
 import { createMountain, type Mountain } from "./mountain";
 import { EMPTY_STOCK, priceAmount } from "./stock";
@@ -22,7 +21,7 @@ import {
 } from "./transport";
 import { stepRequires, type Project } from "./city";
 
-const fresh = <T>(body: () => T): T => withFactors({ [FRESH_OFF]: 0 }, body);
+const fresh = <T>(body: () => T): T => withFactors({}, body);
 
 /** The Light Tower at `step`, `stones` arrived and `onSite` of them not built in. */
 function site(
@@ -464,12 +463,9 @@ describe("the time to finish the step in hand (#663)", () => {
 
 describe("trucks (#673)", () => {
   const partThree = <T>(body: () => T): T =>
-    withFactors(
-      { [FRESH_OFF]: 0, [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 },
-      body,
-    );
+    withFactors({ [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 }, body);
   const partTwo = <T>(body: () => T): T =>
-    withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 }, body);
+    withFactors({ [PART_TWO_OFF]: 0 }, body);
   const stocked = (operational: Mountain["operational"]): Mountain => {
     const start = createMountain();
     return {

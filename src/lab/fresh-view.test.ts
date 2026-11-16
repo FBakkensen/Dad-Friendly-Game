@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { SITE_HOLDS } from "../building-site";
 import { holdOrder, placeOrder } from "../city";
 import { withFactors } from "../economy/factors";
-import { FRESH_OFF } from "../line-switch";
 import { createMountain, type Mountain } from "../mountain";
 import { PART_TWO_OFF } from "../part-switch";
 import { EMPTY_STOCK } from "../stock";
@@ -29,9 +28,9 @@ import type { DecisionSample } from "./measure";
 import type { SittingEvent } from "./sittings";
 
 /** What the lab reads off a fresh mine (#655). */
-const fresh = <T>(body: () => T): T => withFactors({ [FRESH_OFF]: 0 }, body);
+const fresh = <T>(body: () => T): T => withFactors({}, body);
 const partTwo = <T>(body: () => T): T =>
-  withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 }, body);
+  withFactors({ [PART_TWO_OFF]: 0 }, body);
 
 function mine(
   jobs: Partial<Jobs>,

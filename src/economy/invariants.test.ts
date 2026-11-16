@@ -30,7 +30,6 @@ import { VEHICLE_IDS } from "../transport";
 import { freeWorkers } from "../workforce";
 import { SITE_HOLDS, onSiteTotal } from "../building-site";
 import { withFactors } from "./factors";
-import { FRESH_OFF } from "../line-switch";
 
 const SECOND = 1000;
 const MINUTE = 60 * SECOND;
@@ -455,7 +454,7 @@ describe("economy invariants on random play (#555)", () => {
         fc.nat(1000),
         fc.array(stepArb, { minLength: 1, maxLength: 40, size: "max" }),
         (pocket, seed, steps) => {
-          withFactors({ [FRESH_OFF]: 0 }, () => {
+          withFactors({}, () => {
             const start = createMountain();
             let world: World = {
               mountain: { ...start, stock: { ...start.stock, stones: pocket } },

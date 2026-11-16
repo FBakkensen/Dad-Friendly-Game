@@ -12,7 +12,6 @@ import {
   type RawArchive,
 } from "./cloud-save";
 import { holdFactors } from "./economy/factors";
-import { FRESH_OFF } from "./line-switch";
 import { createMountain, digStones, minedOut, type Mountain } from "./mountain";
 import { createProgressStore } from "./progress-store";
 import { SESSION_SAVE_KEY } from "./session-save";
@@ -338,7 +337,7 @@ describe("the reset at the version 10 bump: the old version 9 save (#728)", () =
   });
 
   it("the phone's and the cloud's version 9 copies are set aside for a fresh mine", async () => {
-    holdFactors({ [FRESH_OFF]: 0 });
+    holdFactors({});
     const storage = createMemoryStorage();
     const v9 = {
       version: 9,

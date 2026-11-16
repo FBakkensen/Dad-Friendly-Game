@@ -3,7 +3,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createUnconfiguredAuth } from "./auth";
 import { holdFactors } from "./economy/factors";
 import { mountFrameScreen } from "./frame-screen";
-import { FRESH_OFF } from "./line-switch";
 import { createMemoryStorage } from "./test-fixtures";
 import { createProgressStore } from "./progress-store";
 import {
@@ -20,7 +19,7 @@ import { createMemoryBus, createTabWriter, type TabWriter } from "./tab-writer";
 let unmount = new AbortController();
 
 beforeEach(() => {
-  holdFactors({ [FRESH_OFF]: 0 });
+  holdFactors({});
 });
 
 afterEach(() => {

@@ -7,7 +7,6 @@ import { effectiveRates } from "./rates";
 import { MOUNTAIN_STONES } from "./scale";
 import { withFactors } from "./economy/factors";
 import { UPGRADES, upgradePrice } from "./upgrades";
-import { FRESH_OFF } from "./line-switch";
 import { NO_GRANITE_PILES, NO_LEVEL_MACHINES } from "./mine-levels";
 import { PART_THREE_OFF, PART_TWO_OFF, PLAY_FACTORS } from "./part-switch";
 import {
@@ -426,12 +425,9 @@ describe("counts by id (#559)", () => {
 
 describe("part 3's machines (#673)", () => {
   const partTwo = <T>(body: () => T): T =>
-    withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 }, body);
+    withFactors({ [PART_TWO_OFF]: 0 }, body);
   const partThree = <T>(body: () => T): T =>
-    withFactors(
-      { [FRESH_OFF]: 0, [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 },
-      body,
-    );
+    withFactors({ [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 }, body);
   const borer = tierById("borer");
   const train = tierById("train");
   const sunk = (

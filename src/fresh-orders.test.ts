@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { withFactors } from "./economy/factors";
 import { applyMove, listActions, valueOf } from "./economy/actions";
-import { FRESH_OFF } from "./line-switch";
 import {
   MOUNTAIN_STONES,
   accrue,
@@ -14,7 +13,7 @@ import { EMPTY_STOCK } from "./stock";
 import type { Project } from "./city";
 
 /** Orders and transport in a fresh mine (slice 1, rules 4, 6, 7, #654). */
-const fresh = <T>(body: () => T): T => withFactors({ [FRESH_OFF]: 0 }, body);
+const fresh = <T>(body: () => T): T => withFactors({}, body);
 
 const HOUR = 60 * 60 * 1000;
 

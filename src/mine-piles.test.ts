@@ -1,12 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { withFactors } from "./economy/factors";
-import { FRESH_OFF } from "./line-switch";
 import { createMountain, type Mountain } from "./mountain";
 import { PILE_HOLDS, flowMine, mineChain, mineChange } from "./mine-piles";
 import { NO_JOBS, freeWorker, placeWorker, type JobId } from "./workforce";
 
 /** Drilled rock and rock at the shaft in a fresh mine (#703, rule 2). */
-const fresh = <T>(body: () => T): T => withFactors({ [FRESH_OFF]: 0 }, body);
+const fresh = <T>(body: () => T): T => withFactors({}, body);
 
 /** A fresh mine with one worker, on `job`, and these piles. */
 function lone(job: JobId, piles = { face: 0, shaft: 0, kiln: 0 }): Mountain {

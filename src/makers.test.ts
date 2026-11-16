@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { withFactors } from "./economy/factors";
-import { FRESH_OFF } from "./line-switch";
 import {
   buyMaker,
   kilnRate,
@@ -20,8 +19,8 @@ import { jobOpen } from "./workforce";
 
 /** The kilns (slice 1, rule 3, #666). */
 const partTwo = <T>(body: () => T): T =>
-  withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 }, body);
-const partOne = <T>(body: () => T): T => withFactors({ [FRESH_OFF]: 0 }, body);
+  withFactors({ [PART_TWO_OFF]: 0 }, body);
+const partOne = <T>(body: () => T): T => withFactors({}, body);
 
 function lit(stones: number): Mountain {
   const start = createMountain();
@@ -174,10 +173,7 @@ describe("the kilns' job and price under the lab (#666)", () => {
 
 describe("the saws (#673)", () => {
   const partThree = <T>(body: () => T): T =>
-    withFactors(
-      { [FRESH_OFF]: 0, [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 },
-      body,
-    );
+    withFactors({ [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 }, body);
   const sunk = (stock: Partial<Mountain["stock"]> = {}): Mountain => ({
     ...lit(0),
     stock: { ...lit(0).stock, ...stock },

@@ -26,7 +26,6 @@ import { applyMove, listActions, valueOf } from "./economy/actions";
 import { promote } from "./engineers";
 import { fieldEntry } from "./field-log";
 import { synergyBonus, upgradeById } from "./upgrades";
-import { FRESH_OFF } from "./line-switch";
 import { PART_THREE_OFF, PART_TWO_OFF } from "./part-switch";
 import {
   MINE_LEVEL_IDS,
@@ -44,11 +43,11 @@ import {
   type TierId,
 } from "./tiers";
 
-const fresh = <T>(body: () => T): T => withFactors({ [FRESH_OFF]: 0 }, body);
+const fresh = <T>(body: () => T): T => withFactors({}, body);
 const partTwo = <T>(body: () => T): T =>
-  withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 }, body);
+  withFactors({ [PART_TWO_OFF]: 0 }, body);
 const partThree = <T>(body: () => T): T =>
-  withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 }, body);
+  withFactors({ [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 }, body);
 
 /** The mountain with the shaft sunk, as `sinkShaft` leaves it. */
 const sunk = (mountain: Mountain): Mountain => ({

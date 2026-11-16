@@ -2,7 +2,6 @@ import { patched, type MountainPatch } from "../test-fixtures";
 import { describe, expect, it } from "vitest";
 import { buildingById, buildingsInPlay } from "../city";
 import { withFactors } from "../economy/factors";
-import { FRESH_OFF } from "../line-switch";
 import { createMountain, type Mountain } from "../mountain";
 import { PLAY_FACTORS } from "../part-switch";
 import { MOUNTAIN_STONES } from "../scale";
@@ -149,7 +148,7 @@ describe("pacing ledger", () => {
   });
 
   it("names only part 1's building when part 2 is off", () => {
-    const markdown = withFactors({ [FRESH_OFF]: 0 }, () => renderLedger([]));
+    const markdown = withFactors({}, () => renderLedger([]));
     expect(markdown).toContain(`| ${buildingById("lightTower").name} |`);
     expect(markdown).not.toContain(buildingById("warehouse").name);
   });

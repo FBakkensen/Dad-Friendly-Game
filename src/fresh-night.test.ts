@@ -1,13 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { withFactors } from "./economy/factors";
-import { FRESH_OFF } from "./line-switch";
 import { accrueAway, createMountain, type Mountain } from "./mountain";
 import { effectiveRates } from "./rates";
 import { EMPTY_STOCK } from "./stock";
 import type { Project } from "./city";
 
 /** The night's facts in a fresh mine, for the shift report (#663, rule 4, rule 7.12). */
-const fresh = <T>(body: () => T): T => withFactors({ [FRESH_OFF]: 0 }, body);
+const fresh = <T>(body: () => T): T => withFactors({}, body);
 
 const HOUR = 60 * 60 * 1000;
 const EIGHT_HOURS = 8 * HOUR;

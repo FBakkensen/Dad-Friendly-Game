@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { withFactors } from "./economy/factors";
-import { FRESH_OFF } from "./line-switch";
 import { createMountain, type Mountain } from "./mountain";
 import {
   createSession,
@@ -15,7 +14,7 @@ import { EMPTY_STOCK } from "./stock";
 import type { Project } from "./city";
 
 /** The session greets a fresh mine's night by what happened in it (#663). */
-const fresh = <T>(body: () => T): T => withFactors({ [FRESH_OFF]: 0 }, body);
+const fresh = <T>(body: () => T): T => withFactors({}, body);
 
 const MINUTE = 60 * 1000;
 

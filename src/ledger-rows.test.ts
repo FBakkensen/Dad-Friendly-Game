@@ -10,7 +10,6 @@ import {
   tonightText,
 } from "./ledger-rows";
 import { withFactors } from "./economy/factors";
-import { FRESH_OFF } from "./line-switch";
 import { MOUNTAIN_STONES, createMountain, type Mountain } from "./mountain";
 
 /** One field log event at a local time on 11 November 2026. */
@@ -248,7 +247,7 @@ describe("accountRowView (#375)", () => {
 
 /** The Ledger's rows in a fresh mine (#708): the save card's fresh lines, no depth. */
 describe("the Ledger's rows in a fresh mine", () => {
-  const fresh = <T>(body: () => T): T => withFactors({ [FRESH_OFF]: 0 }, body);
+  const fresh = <T>(body: () => T): T => withFactors({}, body);
   const grown = (): Mountain => {
     const mountain = createMountain();
     return {

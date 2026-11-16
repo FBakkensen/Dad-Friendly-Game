@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { placeOrder } from "./city";
 import { withFactors } from "./economy/factors";
-import { FRESH_OFF } from "./line-switch";
 import { workersView } from "./frame-view";
 import { createMountain, type Mountain } from "./mountain";
 import { crewedStart } from "./test-fixtures";
@@ -19,9 +18,9 @@ import {
 } from "./next-view";
 
 /** What Next and the lamps count (slice 1, #659). */
-const fresh = <T>(body: () => T): T => withFactors({ [FRESH_OFF]: 0 }, body);
+const fresh = <T>(body: () => T): T => withFactors({}, body);
 const partTwo = <T>(body: () => T): T =>
-  withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 }, body);
+  withFactors({ [PART_TWO_OFF]: 0 }, body);
 
 function withStones(mountain: Mountain, stones: number): Mountain {
   return { ...mountain, stock: { ...mountain.stock, stones } };
@@ -251,17 +250,14 @@ describe("Next's city count with trucks (#673)", () => {
   });
 
   it("counts a truck he can pay for once part 3 plays", () => {
-    withFactors(
-      { [FRESH_OFF]: 0, [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 },
-      () => {
-        const start = createMountain();
-        const rich: Mountain = {
-          ...start,
-          operational: ["lightTower", "warehouse"],
-          stock: { ...start.stock, stones: 0, brick: 10_000_000 },
-        };
-        expect(siteCounts(rich).city).toBe(1);
-      },
-    );
+    withFactors({ [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 }, () => {
+      const start = createMountain();
+      const rich: Mountain = {
+        ...start,
+        operational: ["lightTower", "warehouse"],
+        stock: { ...start.stock, stones: 0, brick: 10_000_000 },
+      };
+      expect(siteCounts(rich).city).toBe(1);
+    });
   });
 });

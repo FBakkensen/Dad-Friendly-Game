@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { withFactors } from "./economy/factors";
 import { applyMove, listActions, type Action } from "./economy/actions";
 import { tierLock, tierLocked } from "./crew";
-import { FRESH_OFF } from "./line-switch";
 import {
   MOUNTAIN_STONES,
   accrue,
@@ -21,8 +20,8 @@ import { upgradeShown } from "./upgrade-reveal";
 import { promote } from "./engineers";
 import { workshopUnlocked } from "./workshop";
 
-/** The fresh mine (slice 1, part 1), switched on as a lab run does (#653). */
-const FRESH = { [FRESH_OFF]: 0 };
+/** Part 1 of the fresh mine: no switch held, whatever is held outside. */
+const FRESH = {};
 
 function fresh<T>(body: () => T): T {
   return withFactors(FRESH, body);

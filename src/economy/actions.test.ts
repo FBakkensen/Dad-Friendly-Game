@@ -4,7 +4,6 @@ import { buyCrew } from "../crew";
 import { holdOrder, placeOrder } from "../city";
 import { freeWorker } from "../workforce";
 import { withFactors } from "./factors";
-import { FRESH_OFF } from "../line-switch";
 import { PART_THREE_OFF, PART_TWO_OFF } from "../part-switch";
 import { NO_GRANITE_PILES, NO_LEVEL_MACHINES } from "../mine-levels";
 import {
@@ -487,7 +486,7 @@ describe("listActions", () => {
     }
     // A fresh mine lists the orders and the wagon (#654), each by its
     // state, and moves a worker on and off a job (#689).
-    withFactors({ [FRESH_OFF]: 0 }, () => {
+    withFactors({}, () => {
       const mine = createMountain();
       const ordered = placeOrder(mine);
       const oneFree = freeWorker(mine, "drilling");
@@ -498,7 +497,7 @@ describe("listActions", () => {
       }
     });
     // Part 2 lists a kiln and the stockyard once the Light Tower is up (#667).
-    withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 }, () => {
+    withFactors({ [PART_TWO_OFF]: 0 }, () => {
       const lit: Mountain = {
         ...createMountain(),
         operational: ["lightTower"],
@@ -508,33 +507,30 @@ describe("listActions", () => {
       }
     });
     // Part 3 lists the shaft, then a machine for the Granite once it is sunk (#673).
-    withFactors(
-      { [FRESH_OFF]: 0, [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 },
-      () => {
-        const lit: Mountain = {
-          ...createMountain(),
-          operational: ["lightTower"],
-        };
-        const sunk: Mountain = {
-          ...lit,
-          granite: {
-            kind: "sunk",
-            machines: NO_LEVEL_MACHINES,
-            piles: NO_GRANITE_PILES,
-          },
-        };
-        // The factory's station opens with the shaft (#674).
-        const done: Mountain = {
-          ...sunk,
-          station: { kind: "done", blueprint: "reinforce" },
-        };
-        for (const one of [lit, sunk, done]) {
-          for (const action of listActions(one, NOW)) {
-            seen.add(action.kind);
-          }
+    withFactors({ [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 }, () => {
+      const lit: Mountain = {
+        ...createMountain(),
+        operational: ["lightTower"],
+      };
+      const sunk: Mountain = {
+        ...lit,
+        granite: {
+          kind: "sunk",
+          machines: NO_LEVEL_MACHINES,
+          piles: NO_GRANITE_PILES,
+        },
+      };
+      // The factory's station opens with the shaft (#674).
+      const done: Mountain = {
+        ...sunk,
+        station: { kind: "done", blueprint: "reinforce" },
+      };
+      for (const one of [lit, sunk, done]) {
+        for (const action of listActions(one, NOW)) {
+          seen.add(action.kind);
         }
-      },
-    );
+      }
+    });
     for (const kind of Object.keys(FIXTURES) as Action["kind"][]) {
       expect(seen.has(kind)).toBe(true);
     }

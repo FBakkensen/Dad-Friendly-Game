@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { withFactors } from "./economy/factors";
-import { FRESH_OFF } from "./line-switch";
 import { createMountain, type Mountain } from "./mountain";
 import { minedMountain } from "./test-fixtures";
 import {
@@ -34,7 +33,7 @@ describe("save card lines", () => {
 
 /** A save card in a fresh mine (#707): its project, stone, machines and workers. */
 describe("save card lines in a fresh mine", () => {
-  const fresh = <T>(body: () => T): T => withFactors({ [FRESH_OFF]: 0 }, body);
+  const fresh = <T>(body: () => T): T => withFactors({}, body);
   const now = at(2026, 11, 15, 21, 0);
 
   const grown = (): Mountain => {

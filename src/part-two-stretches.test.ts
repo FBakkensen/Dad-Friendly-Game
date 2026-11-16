@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
 import { withFactors } from "./economy/factors";
-import { FRESH_OFF } from "./line-switch";
 import * as minePiles from "./mine-piles";
 import { accrue, accrueAway, createMountain, type Mountain } from "./mountain";
 import { PART_TWO_OFF } from "./part-switch";
@@ -21,7 +20,7 @@ const HOUR = 60 * 60 * 1000;
  */
 describe("long stretches with the stockyard open (#666)", () => {
   it("runs a long night with transport faster than the mine in a handful of stretches", () => {
-    withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 }, () => {
+    withFactors({ [PART_TWO_OFF]: 0 }, () => {
       const start = createMountain();
       const mountain: Mountain = {
         ...start,
@@ -60,7 +59,7 @@ describe("long stretches with the stockyard open (#666)", () => {
   });
 
   it("keeps a full stone stockpile in long stretches while transport takes from it", () => {
-    withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 }, () => {
+    withFactors({ [PART_TWO_OFF]: 0 }, () => {
       const start = createMountain();
       // No kilns: all the rock is stone, and the stockpile sits at its room
       // as transport takes stone and brick for the Warehouse's foundation.
@@ -127,7 +126,7 @@ describe("long stretches with the stockyard open (#666)", () => {
   }
 
   it("with less rock lifted than transport carries, the kilns take it all and transport takes brick", () => {
-    withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 }, () => {
+    withFactors({ [PART_TWO_OFF]: 0 }, () => {
       // Hoisting lifts 6 a second, the kilns can make 24, the wagon carries 9:
       // every stone of rock goes to the kilns, so no stone comes in to take.
       const flowMine = vi.mocked(minePiles.flowMine);
@@ -146,7 +145,7 @@ describe("long stretches with the stockyard open (#666)", () => {
   });
 
   it("with more rock lifted than transport carries, the brick stockpile stays at its room", () => {
-    withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 }, () => {
+    withFactors({ [PART_TWO_OFF]: 0 }, () => {
       // Hoisting lifts 60 a second and the wagon carries 9, half of each good:
       // the kilns make what transport takes, of two rock a brick (#723), and
       // the rest is stone.

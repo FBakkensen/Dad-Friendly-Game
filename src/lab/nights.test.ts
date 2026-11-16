@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { withFactors } from "../economy/factors";
-import { FRESH_OFF } from "../line-switch";
 import { createMountain, type Mountain, type NightReport } from "../mountain";
 import { PART_TWO_OFF } from "../part-switch";
 import { EMPTY_STOCK } from "../stock";
@@ -14,7 +13,7 @@ import { createWorld, step, type World } from "./world";
 
 /** How the lab reads a long night once the stockyard is open (#667). */
 const partTwo = <T>(body: () => T): T =>
-  withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 }, body);
+  withFactors({ [PART_TWO_OFF]: 0 }, body);
 
 const lit: Mountain = { ...createMountain(), operational: ["lightTower"] };
 

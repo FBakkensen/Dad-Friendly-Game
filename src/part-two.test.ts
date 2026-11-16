@@ -1,7 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { withFactors } from "./economy/factors";
-import { FRESH_OFF } from "./line-switch";
 import { makerTakes } from "./makers";
 import { mineMoves } from "./mine-piles";
 import { accrue, accrueAway, createMountain, type Mountain } from "./mountain";
@@ -17,8 +16,8 @@ import { stockpileRoom } from "./stockyard";
  * full stockpile takes no more, and a night runs until the stockyard is full.
  */
 const partTwo = <T>(body: () => T): T =>
-  withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 }, body);
-const partOne = <T>(body: () => T): T => withFactors({ [FRESH_OFF]: 0 }, body);
+  withFactors({ [PART_TWO_OFF]: 0 }, body);
+const partOne = <T>(body: () => T): T => withFactors({}, body);
 
 const HOUR = 60 * 60 * 1000;
 

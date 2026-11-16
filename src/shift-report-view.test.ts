@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { withFactors } from "./economy/factors";
-import { FRESH_OFF } from "./line-switch";
 import {
   accrueAway,
   createMountain,
@@ -175,7 +174,7 @@ describe("the shift report (#663)", () => {
   });
 
   it("reads a real night from the rules", () => {
-    withFactors({ [FRESH_OFF]: 0 }, () => {
+    withFactors({}, () => {
       const start = createMountain();
       const night = accrueAway({
         mountain: {

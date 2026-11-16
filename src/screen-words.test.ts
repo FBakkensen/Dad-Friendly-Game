@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { withFactors } from "./economy/factors";
-import { FRESH_OFF } from "./line-switch";
 import { createMountain } from "./mountain";
 import { KEEPSAKES } from "./expeditions";
 import { LOST_TOOLS } from "./lost-tools";
@@ -898,8 +897,7 @@ describe("boostOverWords (#527)", () => {
 });
 
 /** A fresh mine's words for the worker's and the stages' upgrades (#661, the spec's call 41). */
-const freshWords = <T>(body: () => T): T =>
-  withFactors({ [FRESH_OFF]: 0 }, body);
+const freshWords = <T>(body: () => T): T => withFactors({}, body);
 
 const boots = upgradeById("boots");
 const helpers = upgradeById("cartSyn");

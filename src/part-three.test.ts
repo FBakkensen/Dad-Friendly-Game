@@ -1,7 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { withFactors } from "./economy/factors";
-import { FRESH_OFF } from "./line-switch";
 import { makerTakes } from "./makers";
 import {
   NO_GRANITE_PILES,
@@ -24,9 +23,9 @@ import type { Project } from "./city";
  * sunk, or part 3 off, the mine plays exactly as part 2 (ruling 6).
  */
 const partThree = <T>(body: () => T): T =>
-  withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 }, body);
+  withFactors({ [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 }, body);
 const partTwo = <T>(body: () => T): T =>
-  withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 }, body);
+  withFactors({ [PART_TWO_OFF]: 0 }, body);
 
 const HOUR = 60 * 60 * 1000;
 
