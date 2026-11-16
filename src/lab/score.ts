@@ -19,9 +19,10 @@ import {
   NOTHING_CRAFTED,
   recipePrice,
   workshopUnlocked,
+  type Crafted,
+  type RecipeId,
 } from "../workshop";
 import { MOVE_KINDS, type DecisionSample } from "./measure";
-import { unlimitedSinks } from "./measures/materialIdle";
 import type { CraftRule } from "./policy";
 import {
   CRAFTED_SOURCE,
@@ -31,6 +32,33 @@ import {
   VALUE_TIE,
 } from "./targets";
 import { canPay, materialsOf } from "../stock";
+
+/**
+ * Repeatable sinks are unlimited only when this dad actually uses them:
+ * the habit commits (always, or charges for a blasting charge), or a level
+ * is already fitted. Otherwise the recipe does not eat the pile. Axle
+ * grease is the repeatable iron sink: a live crew timer that refreshes
+ * and does not stack.
+ */
+function unlimitedSinks(
+  craft: CraftRule | undefined,
+  crafted: Crafted | undefined,
+): readonly RecipeId[] {
+  const ids: RecipeId[] = [];
+  for (const id of [
+    "blasting-charge",
+    "axle-grease",
+    "heartstone-ember",
+  ] as const) {
+    const used = (crafted?.[id] ?? 0) > 0;
+    const commits =
+      craft === "always" || (craft === "charges" && id === "blasting-charge");
+    if (used || commits) {
+      ids.push(id);
+    }
+  }
+  return ids;
+}
 
 export type ScoreInput = {
   readonly mountain: Mountain;

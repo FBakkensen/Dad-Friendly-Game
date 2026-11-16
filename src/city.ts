@@ -129,6 +129,11 @@ function buildingInPlay(building: Pick<Building, "part">): boolean {
   return building.part === 1 || partTwoOn();
 }
 
+/** The buildings in play, in the order he builds them (the pacing ledger's columns, #737). */
+export function buildingsInPlay(): readonly Building[] {
+  return BUILDINGS.filter(buildingInPlay);
+}
+
 /**
  * The next building to order, or none when every one in play is
  * operational (the end of the part, until the next part is switched on).

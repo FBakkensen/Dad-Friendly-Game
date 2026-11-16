@@ -14,7 +14,6 @@ import {
 } from "./bands";
 import type { DecisionSample } from "./measure";
 import type { RevealEvent } from "./reveal";
-import { TARGETS } from "./targets";
 import { patched, type MountainPatch } from "../test-fixtures";
 
 const GRANITE = 10_000_000;
@@ -325,18 +324,5 @@ describe("fewestMachineBuys", () => {
   it("a machine never bought makes it 0", () => {
     expect(fewestMachineBuys([sample([])])).toBe(0);
     expect(fewestMachineBuys([])).toBe(0);
-  });
-
-  it("is a report-only casual target of at least 5", () => {
-    expect(TARGETS).toContainEqual(
-      expect.objectContaining({
-        id: "every-tier-bought",
-        measure: "fewestMachineBuys",
-        scope: { kind: "policyKinds", kinds: ["casual"] },
-        op: "gte",
-        value: 5,
-        reportOnly: true,
-      }),
-    );
   });
 });

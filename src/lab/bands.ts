@@ -344,30 +344,6 @@ export function createSittingClock(): (clock: number) => number {
 }
 
 /**
- * M12-4 (#252) guardrail reads. Each takes one run's samples.
- */
-
-/** Bands from the Granite down, where a machine is favoured. */
-const FAVOURED_LAYERS: readonly LayerId[] = LAYERS.flatMap((layer) =>
-  favouredOf(layer.id) === undefined ? [] : [layer.id],
-);
-
-/**
- * The latest share of its band at which a favoured machine was first
- * bought, over the bands where the pocket reached its price. A band where
- * it was affordable and never bought counts as 1. NaN when no favoured
- * machine was affordable in any band (the run never got there).
- */
-export function favouredBuyShare(samples: readonly DecisionSample[]): number {
-  const { favoured } = runBands(samples);
-  const shares = FAVOURED_LAYERS.flatMap((layer) => {
-    const entry = favoured.get(layer);
-    return entry?.afford === undefined ? [] : [entry.buy ?? 1];
-  });
-  return shares.length === 0 ? Number.NaN : Math.max(...shares);
-}
-
-/**
  * #357. The smallest total of machines bought of any one tier in a run. A
  * tier never bought counts 0, so one idle tier pulls the whole row to 0.
  */
@@ -383,74 +359,6 @@ export function fewestMachineBuys(samples: readonly DecisionSample[]): number {
     fewest = Math.min(fewest, totals.get(id) ?? 0);
   }
   return fewest;
-}
-
-/**
- * Rule 3, scoped (#252): a machine misses a band when it was buyable there
- * (shown, not locked, and the pocket reached its price) and none was bought,
- * counted only in the band where it opens and in the band that suits it.
- * Older machines may rest in other bands; they are not useless on arrival
- * and the band that suits them brings them back.
- */
-export function scopedRule3Misses(samples: readonly DecisionSample[]): number {
-  const { opened, affordable, bought } = bandLedger(samples);
-  let misses = 0;
-  for (const id of machinesInPlay()) {
-    for (const layer of scopedBands(id, opened)) {
-      const key = `${layer}:${id}`;
-      if (affordable.has(key) && !bought.has(key)) {
-        misses += 1;
-      }
-    }
-  }
-  return misses;
-}
-
-/**
- * Where each machine first showed, and the `layer:tier` keys where the pocket
- * reached its price and where one was bought.
- */
-function bandLedger(samples: readonly DecisionSample[]): {
-  readonly opened: ReadonlyMap<MachineId, LayerId>;
-  readonly affordable: ReadonlySet<string>;
-  readonly bought: ReadonlySet<string>;
-} {
-  const opened = new Map<MachineId, LayerId>();
-  const affordable = new Set<string>();
-  const bought = new Set<string>();
-  for (const event of samples.flatMap((sample) => sample.bands ?? [])) {
-    if (event.kind === "available") {
-      if (!opened.has(event.tier)) {
-        opened.set(event.tier, event.layer);
-      }
-      continue;
-    }
-    const key = `${event.layer}:${event.tier}`;
-    if (event.kind === "affordable") {
-      affordable.add(key);
-    } else if (event.count > 0) {
-      bought.add(key);
-    }
-  }
-  return { opened, affordable, bought };
-}
-
-/** The bands rule 3 checks for a machine: where it opened, and where it is favoured. */
-function scopedBands(
-  id: MachineId,
-  opened: ReadonlyMap<MachineId, LayerId>,
-): ReadonlySet<LayerId> {
-  const bands = new Set<LayerId>();
-  const open = opened.get(id);
-  if (open !== undefined) {
-    bands.add(open);
-  }
-  for (const layer of FAVOURED_LAYERS) {
-    if (favouredOf(layer) === id) {
-      bands.add(layer);
-    }
-  }
-  return bands;
 }
 
 /** Worst sittings from a machine showing to its first buy. NaN with none. */

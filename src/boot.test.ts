@@ -2,9 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createAppServices, parseBootOptions } from "./boot";
 import type { AuthController } from "./auth";
 import type { CloudSave } from "./cloud-save";
-import { holdFactors } from "./economy/factors";
+import { activeFactors, holdFactors } from "./economy/factors";
 import { freshMineOn } from "./line-switch";
-import { partTwoOn } from "./part-switch";
+import { PLAY_FACTORS, partTwoOn } from "./part-switch";
 import { minedMountain } from "./test-fixtures";
 
 const firebaseStubs = vi.hoisted(() => ({
@@ -125,6 +125,8 @@ describe("createAppServices", () => {
         devMode,
       });
       expect(partTwoOn()).toBe(true);
+      // The same map the strategy lab plays under (#737).
+      expect(activeFactors()).toBe(PLAY_FACTORS);
       progress.dispose();
     }
   });

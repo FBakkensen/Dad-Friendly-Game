@@ -23,7 +23,6 @@ import {
 } from "./report";
 import dominantShare from "./measures/dominantShare";
 import extremeWinMeasure from "./measures/extremeWin";
-import featureShare from "./measures/featureShare";
 import singleShare from "./measures/singleShare";
 import { scoreDecision } from "./score";
 import {
@@ -38,11 +37,71 @@ import {
   DEAD_STRETCH,
   HOUR_MS,
   OPTIMIZER_REFERENCE_ID,
-  TARGETS,
   TENDING_SOURCE,
   meetsTarget,
   type Target,
 } from "./targets";
+
+/**
+ * Fixture guardrails: the judging engine stays though `TARGETS` is empty
+ * since #737, so these tests bring their own rows.
+ */
+const casualFinish: Target = {
+  id: "casual-finish",
+  measure: "finishDay",
+  scope: { kind: "policyKinds", kinds: ["casual"] },
+  op: "gte",
+  value: 5,
+  why: "A run takes at least five days and has no ceiling.",
+  reportOnly: true,
+};
+
+const shareCaps: readonly Target[] = [
+  {
+    id: "single-share",
+    measure: "singleShare",
+    scope: { kind: "policyKinds", kinds: ["casual", "optimizer"] },
+    op: "lte",
+    value: 0.27,
+    why: "Most moments should offer more than one live option.",
+  },
+  {
+    id: "dominant-share",
+    measure: "dominantShare",
+    scope: { kind: "policyKinds", kinds: ["casual", "optimizer"] },
+    op: "lte",
+    value: 0.4,
+    why: "One move should not be the right buy for most of the run.",
+  },
+];
+
+/** Tending's share of output, as a fixture measure for a source-scoped guardrail. */
+const tendingShare = defineMeasure({
+  id: "tendingShare",
+  label: "Tending share",
+  unit: "share",
+  why: "Tending should show up in the output once the borer runs.",
+  aggregate: (samples) =>
+    samples.length === 0
+      ? Number.NaN
+      : samples.reduce(
+          (sum, sample) => sum + (sample.outputShare[TENDING_SOURCE] ?? 0),
+          0,
+        ) / samples.length,
+});
+
+const tendingFromBorer: Target = {
+  id: "tending-from-borer",
+  measure: "tendingShare",
+  scope: {
+    kind: "fromSource",
+    source: BORER_SOURCE,
+    kinds: ["casual", "optimizer"],
+  },
+  op: "gte",
+  value: 0.08,
+  why: "An apprentice on the borer should be a real share of the output.",
+};
 
 function dad(spec: Pick<PlainSpec, "id" | "label" | "kind">): Policy {
   return plainPolicy({
@@ -578,7 +637,7 @@ describe("tournament", () => {
     const result = judge({
       policies: [early, late, never],
       measures: [finishDayMeasure],
-      targets: TARGETS.filter((target) => target.id === "casual-finish"),
+      targets: [casualFinish],
       runs: [
         run(early, 1, [decision({ finishDay: 4 })]),
         run(late, 1, [decision({ finishDay: 30 })]),
@@ -610,7 +669,7 @@ describe("tournament", () => {
     const result = judge({
       policies: [casual],
       measures: [finishDayMeasure, count],
-      targets: TARGETS.filter((target) => target.id === "casual-finish"),
+      targets: [casualFinish],
       seeds: [1, 2, 3],
       runs: [
         run(casual, 1, [decision({ finishDay: 8 })]),
@@ -635,7 +694,7 @@ describe("tournament", () => {
     const row = {
       policyId: "alpha",
       seed: 1,
-      bands: { topsoil: 1 },
+      buildings: { lightTower: 1 },
       machines: {},
       finishDay: 6,
       endHash: "0000abcd",
@@ -709,11 +768,7 @@ describe("tournament", () => {
     const result = judge({
       policies: [casual, extreme],
       measures: [singleShare, dominantShare],
-      targets: TARGETS.filter(
-        (target) =>
-          target.measure === "singleShare" ||
-          target.measure === "dominantShare",
-      ),
+      targets: shareCaps,
       runs: [
         run(casual, 1, [decision({ atMs: HOUR_MS, liveCount: 1 })]),
         run(extreme, 1, [decision({ atMs: HOUR_MS, liveCount: 1 })]),
@@ -730,18 +785,12 @@ describe("tournament", () => {
   });
 
   it("marks tending n/a when no sample owns a borer, and still judges one that does", () => {
-    const tending = TARGETS.find(
-      (target) => target.id === "tending-from-borer",
-    );
-    expect(tending).toBeDefined();
-    if (tending === undefined) {
-      return;
-    }
+    const tending = tendingFromBorer;
     const plain = dad({ id: "alpha", label: "Alpha", kind: "casual" });
     const owner = dad({ id: "beta", label: "Beta", kind: "casual" });
     const extreme = dad({ id: "gamma", label: "Gamma", kind: "extreme" });
     const shared = {
-      measures: [featureShare],
+      measures: [tendingShare],
       targets: [tending],
     };
     const absent = judge({

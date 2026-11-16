@@ -1,4 +1,4 @@
-import { LAYERS, layerOf, type LayerId } from "../layers";
+import { buildingsInPlay, type BuildingId } from "../city";
 import { machinesInPlay, owned, tierById, type MachineId } from "../tiers";
 import { dayNumber } from "./casual";
 import {
@@ -9,15 +9,16 @@ import {
 import type { World } from "./world";
 
 /**
- * The pacing ledger (#554): when each band and machine first came to
- * one player type on one seed, when the run ended, and a hash of where it
- * ended. A record to read, not a bound: the gate shows a move as its diff.
+ * The pacing ledger (#554): when each building's roof went on and each
+ * machine first came to one player type on one seed, when the run ended, and
+ * a hash of where it ended. A record to read, not a bound: the gate shows a
+ * move as its diff.
  */
 export type LedgerEntry = {
   readonly policyId: string;
   readonly seed: number;
-  /** Day each band is first reached. The Topsoil is day 1. */
-  readonly bands: Readonly<Partial<Record<LayerId, number>>>;
+  /** Day each building in play is first operational (#737). */
+  readonly buildings: Readonly<Partial<Record<BuildingId, number>>>;
   /** Day each machine in play is first owned. */
   readonly machines: Readonly<Partial<Record<MachineId, number>>>;
   readonly finishDay: number | undefined;
@@ -37,7 +38,8 @@ export type LedgerLog = {
 /** Watches one run. Only a new mountain is read, so a still second costs nothing. */
 export function createLedgerLog(): LedgerLog {
   const machineIds = machinesInPlay();
-  const bands: Partial<Record<LayerId, number>> = {};
+  const buildingIds = buildingsInPlay().map((building) => building.id);
+  const buildings: Partial<Record<BuildingId, number>> = {};
   const machines: Partial<Record<MachineId, number>> = Object.fromEntries(
     machineIds.map((id) => [id, undefined]),
   );
@@ -50,10 +52,9 @@ export function createLedgerLog(): LedgerLog {
       }
       last = mountain;
       const day = dayNumber(world.clock);
-      const reached = layerOf(mountain).from;
-      for (const layer of LAYERS) {
-        if (layer.from <= reached && bands[layer.id] === undefined) {
-          bands[layer.id] = day;
+      for (const id of buildingIds) {
+        if (buildings[id] === undefined && mountain.operational.includes(id)) {
+          buildings[id] = day;
         }
       }
       for (const id of machineIds) {
@@ -66,7 +67,7 @@ export function createLedgerLog(): LedgerLog {
       return {
         policyId,
         seed,
-        bands: { ...bands },
+        buildings: { ...buildings },
         machines: { ...machines },
         finishDay,
         endHash: endHash(end),
@@ -103,10 +104,11 @@ function byText(left: string, right: string): number {
 /** The committed ledger: one row per player type and seed, sorted. */
 export function renderLedger(entries: readonly LedgerEntry[]): string {
   const machineIds = machinesInPlay();
+  const inPlay = buildingsInPlay();
   const headers = [
     "Policy",
     "Seed",
-    ...LAYERS.map((layer) => layer.name),
+    ...inPlay.map((building) => building.name),
     ...machineIds.map((id) => tierById(id).name),
     "Finish",
     "End hash",
@@ -119,7 +121,7 @@ export function renderLedger(entries: readonly LedgerEntry[]): string {
     [
       entry.policyId,
       String(entry.seed),
-      ...LAYERS.map((layer) => dayText(entry.bands[layer.id])),
+      ...inPlay.map((building) => dayText(entry.buildings[building.id])),
       ...machineIds.map((id) => dayText(entry.machines[id])),
       dayText(entry.finishDay),
       entry.endHash,
@@ -128,7 +130,7 @@ export function renderLedger(entries: readonly LedgerEntry[]): string {
   return [
     "# Pacing ledger",
     "",
-    "Written by `npm run lab:ledger` (#554). The day each band is reached and each machine first bought, for every player type on the gate's seeds; the day the run ends; and a hash of where it ended. A record to read, not a bound. The gate's `lab` step fails when a fresh run differs, so a change that moves the pace shows here as a diff.",
+    "Written by `npm run lab:ledger` (#554). The day each building's roof is on and each machine first bought, for every player type on the gate's seeds; the day the run ends; and a hash of where it ended. A record to read, not a bound. The gate's `lab` step fails when a fresh run differs, so a change that moves the pace shows here as a diff.",
     "",
     `| ${headers.join(" | ")} |`,
     `| ${headers.map(() => "---").join(" | ")} |`,

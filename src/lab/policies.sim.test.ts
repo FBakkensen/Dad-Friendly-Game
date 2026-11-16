@@ -6,11 +6,6 @@ import casual from "./policies/casual-2x10";
 import checker from "./policies/checker-6x3";
 import optimizer from "./policies/optimizer";
 import skipCrafting from "./policies/skip-crafting";
-import { isSampleSecond } from "./casual";
-import type { DecisionSample } from "./measure";
-import { longestMaterialIdleDays } from "./measures/materialIdle";
-import { valueContext } from "./policy";
-import { scoreDecision } from "./score";
 import { runPolicy, type PolicyRun } from "./run";
 import { NOTHING_CRAFTED } from "../workshop";
 
@@ -64,36 +59,5 @@ describe("optimizer", () => {
       playCasual().finishDay ?? Infinity,
     );
     expect(run.finishDay).toBeTypeOf("number");
-  }, 120_000);
-});
-
-describe("crafting", () => {
-  it("keeps a casual dad's iron inside what the open recipes can take", () => {
-    const samples: DecisionSample[] = [];
-    let live = 0;
-    let iron = 0;
-    const context = valueContext(casual.params);
-    runPolicy({
-      policy: casual,
-      seed: 1,
-      maxDays: 8,
-      observe(world) {
-        if (isSampleSecond(live)) {
-          samples.push(
-            scoreDecision({
-              mountain: world.mountain,
-              now: world.clock,
-              context,
-              atMs: world.clock,
-              craft: casual.params.craft,
-            }),
-          );
-          iron = Math.max(iron, world.mountain.stock.iron);
-        }
-        live += 1;
-      },
-    });
-    expect(iron).toBeGreaterThan(0);
-    expect(longestMaterialIdleDays(samples)).toBe(0);
   }, 120_000);
 });

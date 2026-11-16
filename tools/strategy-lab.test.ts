@@ -3,12 +3,7 @@ import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import {
-  CI_SEEDS,
-  DEFAULT_MAX_DAYS,
-  LOCAL_SEEDS,
-  TARGETS,
-} from "../src/lab/targets";
+import { CI_SEEDS, DEFAULT_MAX_DAYS, LOCAL_SEEDS } from "../src/lab/targets";
 import {
   LEDGER_PATH,
   executeLab,
@@ -76,6 +71,52 @@ describe("strategy lab command", () => {
     expect(parseLabArgs(["--factors", "line.off=x"]).kind).toBe("error");
   });
 
+  it("--factors fresh.off=1 is refused", () => {
+    const refused = parseLabArgs(["--factors", "fresh.off=1"]);
+    expect(refused).toEqual({
+      kind: "error",
+      message:
+        "--factors fresh.off must be 0: the lab plays only the fresh mine (#737).",
+    });
+    expect(
+      parseLabArgs(["--factors", "line.off=0", "--factors", "fresh.off=0.5"])
+        .kind,
+    ).toBe("error");
+    expect(parseLabArgs(["--factors", "fresh.off=0"])).toMatchObject({
+      kind: "run",
+      factors: { "fresh.off": 0 },
+    });
+  });
+
+  it("--factors part2.off=1 runs and --ledger check refuses it", async () => {
+    expect(
+      parseLabArgs(["--ci", "--ledger", "check", "--factors", "part2.off=1"])
+        .kind,
+    ).toBe("error");
+    const outDir = mkdtempSync(path.join(tmpdir(), "strategy-lab-"));
+    const parsed = parseLabArgs([
+      "--policy",
+      "five-min-a-day",
+      "--seeds",
+      "1",
+      "--days",
+      "1",
+      "--factors",
+      "part2.off=1",
+      "--out",
+      outDir,
+    ]);
+    expect(parsed.kind).toBe("run");
+    if (parsed.kind !== "run") {
+      return;
+    }
+    const { markdown, ledger } = await executeLab(parsed);
+    expect(markdown).toContain("Factors: part2.off=1");
+    // Part 1 only: the Light Tower is the last building.
+    expect(ledger).toContain("| The Light Tower |");
+    expect(ledger).not.toContain("The Warehouse");
+  });
+
   it("checks or writes the pacing ledger only on the gate's run (#554)", () => {
     expect(parseLabArgs(["--ci", "--ledger", "check"])).toMatchObject({
       kind: "run",
@@ -141,9 +182,9 @@ describe("strategy lab command", () => {
       return;
     }
     const { markdown, checks } = await executeLab(parsed);
-    expect(checks.map((check) => check.targetId)).toEqual(
-      TARGETS.map((target) => target.id),
-    );
+    // The fresh mine has no guardrail until new ones are designed (#737).
+    expect(checks).toEqual([]);
+    expect(markdown).not.toContain("Factors:");
     expect(markdown).toContain("Five minutes a day");
     expect(markdown).toContain("Finish day");
     expect(markdown).not.toContain("Casual, two 10-minute sittings");
@@ -155,6 +196,8 @@ describe("strategy lab command", () => {
     expect(json.rows.map((row) => row.id)).toEqual(["five-min-a-day"]);
     const ledger = readFileSync(path.join(outDir, "pacing-ledger.md"), "utf8");
     expect(ledger).toContain("| five-min-a-day | 1 |");
+    // The gate's run plays part 2: the Warehouse is a column.
+    expect(ledger).toContain("| The Light Tower | The Warehouse |");
   });
 
   it("plays the line under --factors line.off=0 and says so in the report (#534)", async () => {

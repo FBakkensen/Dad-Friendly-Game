@@ -49,7 +49,7 @@ export type DecisionSample = {
   readonly workshopOpen?: boolean;
   /** No craft is on the bench. */
   readonly benchFree?: boolean;
-  /** Materials in hand. `materialIdle` compares them to a full recipe. */
+  /** Materials in hand. */
   readonly materials?: Materials;
   /**
    * Recipes this dad could spend a material on if the bench were free.

@@ -440,7 +440,7 @@ function troubleActions(trouble: Trouble | undefined): readonly Action[] {
 /**
  * Recipes the dad could put on a free bench: known at this depth, plus any
  * found recipe already on the mountain, and not finished. The bench being
- * busy does not remove the sink. `materialIdle` reads this list.
+ * busy does not remove the sink.
  */
 export function sinkRecipes(mountain: Mountain): readonly RecipeId[] {
   return knownRecipeIds(mountain).filter(
