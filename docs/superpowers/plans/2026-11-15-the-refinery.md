@@ -1,6 +1,6 @@
 # The refinery and the stockyard, and the shift report's night bar (#671)
 
-Spec: `docs/superpowers/specs/2026-11-14-slice-1-design.md`, "The refinery", "The frame, the same on every site", "What Next and the lamps count", "The cards" and "While a part is the end of the game", as #722 amended them. Picture: `docs/superpowers/specs/slice-1/refinery.png`. Parent #530; after #666 (rules), #667 (lab), #668 and #669 (kiln and brick art), and #723 (the recipe). Off in play: everything here shows only while `partTwoOn()`, which #672 turns on. Agent-run sitting: the calls below are the thread's rulings, recorded here, on the issue and in the PR body. The new lines went to Flemming on 15 Nov 2026 (21:58Z) and nothing ships before his answer.
+Spec: `docs/superpowers/specs/2026-11-14-slice-1-design.md`, "The refinery", "The frame, the same on every site", "What Next and the lamps count", "The cards" and "While a part is the end of the game", as #722 amended them. Picture: `docs/superpowers/specs/slice-1/refinery.png`. Parent #530; after #666 (rules), #667 (lab), #668 and #669 (kiln and brick art), and #723 (the recipe). Off in play: everything here shows only while `partTwoOn()`, which #672 turns on. Agent-run sitting: the calls below are the thread's rulings, recorded here, on the issue and in the PR body. The new lines went to Flemming on 15 Nov 2026 (21:58Z, with two addenda: the top row's room, the Warehouse's completion line, and the end card moving to the Warehouse). He said yes to all 17 as written ("A", 16 Nov 2026, 05:25Z).
 
 ## Rulings
 
