@@ -8,7 +8,7 @@ import { EMPTY_STOCK } from "../stock";
 import { stockpileRoom } from "../stockyard";
 import { NO_JOBS, type Jobs } from "../workforce";
 import { hirePrice } from "./fresh-kit";
-import { bothLevels, narrowAt } from "./line-view";
+import { narrowAt } from "./line-view";
 import {
   cageGap,
   cheapestBuy,
@@ -356,13 +356,19 @@ describe("the part 3 measures (#675)", () => {
     });
   });
 
-  it("reads the narrow stage on both levels together, hoisting by the cages (#675)", () => {
+  it("reads the narrow stage of the level that moves less, hoisting by the cages (#675)", () => {
     partThree(() => {
       const winch = levels({ topsoil: 3, granite: 3, hoisting: 2 });
-      expect(bothLevels(winch)).toEqual({ face: 18, haul: 36, lift: 12 });
       expect(narrowAt(winch, 0)).toBe("lift");
       const hoists = levels({ topsoil: 3, granite: 3, hoisting: 2, hoists: 2 });
       expect(narrowAt(hoists, 0)).toBe("face");
+      // The Topsoil short on haulage and the Granite on drilling: the
+      // level that moves less names its own narrow stage.
+      const crossed = {
+        ...hoists,
+        jobs: { ...hoists.jobs, haulage: 1, graniteDrilling: 2 },
+      };
+      expect(narrowAt(crossed, 0)).toBe("haul");
     });
   });
 
