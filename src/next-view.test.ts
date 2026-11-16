@@ -364,3 +364,31 @@ describe("the factory's site (#681)", () => {
     });
   });
 });
+
+describe("a stage's count in part 3 (#680)", () => {
+  /** The shaft sunk, so the borer and the locomotive are on sale, with this stock. */
+  function granite(cutStone: number): Mountain {
+    const start = crewedStart();
+    return {
+      ...start,
+      operational: ["lightTower", "warehouse"],
+      granite: {
+        kind: "sunk",
+        machines: { cart: 0, drill: 0, borer: 0, train: 0 },
+        piles: { face: 0, shaft: 0, saw: 0 },
+      },
+      stock: { ...start.stock, stones: 1_000_000_000, cutStone },
+    };
+  }
+
+  it("weighs the borer and the locomotive against the cut stone they are paid in, not the stones", () => {
+    withFactors({ [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 }, () => {
+      expect(stageCount(granite(40_000), "face")).toBe(
+        stageCount(granite(0), "face") + 1,
+      );
+      expect(stageCount(granite(60_000), "haul")).toBe(
+        stageCount(granite(0), "haul") + 1,
+      );
+    });
+  });
+});
