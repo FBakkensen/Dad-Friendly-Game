@@ -536,23 +536,28 @@ describe("firestore.rules: fieldLogs/{uid}", () => {
     expect((await getDoc(doc(db, "fieldLogs", "dad"))).data()).toEqual(written);
   });
 
-  it("a field-log write without legacy is accepted over a stored one with it, and one with legacy is refused (#729)", async () => {
-    await admin()
-      .doc("fieldLogs/dad")
-      .set({
-        ...fieldLog([event]),
-        snapshot: { ...gameSnapshot(), legacy: 0 },
-      });
+  it("accepts a snapshot without legacy, and one from an old tab with legacy 0 (#729)", async () => {
     const written = fieldLog([event]);
     expect(written.snapshot).not.toHaveProperty("legacy");
     await setDoc(doc(db, "fieldLogs", "dad"), written);
     expect((await getDoc(doc(db, "fieldLogs", "dad"))).data()).toEqual(written);
-    await expect(
-      setDoc(doc(db, "fieldLogs", "dad"), {
-        ...written,
-        snapshot: { ...gameSnapshot(), legacy: 0 },
-      }),
-    ).rejects.toThrow(/permission/i);
+    const old = {
+      ...written,
+      snapshot: { ...gameSnapshot(), legacy: 0 },
+    };
+    await setDoc(doc(db, "fieldLogs", "dad"), old);
+    expect((await getDoc(doc(db, "fieldLogs", "dad"))).data()).toEqual(old);
+  });
+
+  it("refuses a snapshot whose legacy is out of range (#729)", async () => {
+    for (const legacy of [-1, 1001, 1.5, "0"]) {
+      await expect(
+        setDoc(doc(db, "fieldLogs", "dad"), {
+          ...fieldLog([event]),
+          snapshot: { ...gameSnapshot(), legacy },
+        }),
+      ).rejects.toThrow(denied);
+    }
   });
 
   it("accepts a maximal late-game snapshot and a full ring (#219)", async () => {

@@ -133,7 +133,7 @@ type TargetBase = {
    * The finish-day rows set it until the line turns on in play (#536) and
    * the five-day floor turns strict (#556; the line's numbers meet it, #543). every-tier-bought sets it as a report row
    * for the milestones sliver (#357). single-share, extreme-win and optimizer-regret set it
-   * until #729 deletes today's mountain (#728).
+   * until today's mountain leaves the lab (#737).
    */
   readonly reportOnly?: boolean;
 };
@@ -172,7 +172,7 @@ export const TARGETS: readonly Target[] = [
     value: 0.27,
     why: "Most moments should offer more than one live option.",
     // Flemming, 16 Nov 2026 (#728): report-only until #729 deletes today's
-    // mountain. With the dig, boosts, the Gold rush and the relic powers
+    // mountain (now #737). With the dig, boosts, the Gold rush and the relic powers
     // gone, it runs slower.
     reportOnly: true,
   },
@@ -246,7 +246,7 @@ export const TARGETS: readonly Target[] = [
     value: 0.17,
     why: "An extreme should not finish much sooner than a casual dad.",
     // Flemming, 16 Nov 2026 (#728): report-only until #729 deletes today's
-    // mountain. With the dig, boosts, the Gold rush and the relic powers
+    // mountain (now #737). With the dig, boosts, the Gold rush and the relic powers
     // gone, it runs slower.
     reportOnly: true,
   },
@@ -258,7 +258,7 @@ export const TARGETS: readonly Target[] = [
     value: 1.25,
     why: "The smart dad may finish sooner, and not by more than a quarter.",
     // Flemming, 16 Nov 2026 (#728): report-only until #729 deletes today's
-    // mountain. Deleting the dig, boosts, the Gold rush and the relic powers
+    // mountain (now #737). Deleting the dig, boosts, the Gold rush and the relic powers
     // moved today's mountain's pace; here the evening player now takes 1.40x
     // the smart player's time, a wider gap than before.
     reportOnly: true,
