@@ -61,7 +61,9 @@ page is the map, plus the rules that keep it that way.
    its top, pinned by its own test.
    The full gate (`npm run check`, run on the PR's final commit before the merge) runs the strategy lab and
    `lab:generations` with `--ci` and `LAB_STRICT=1` when the branch changes
-   a file the lab imports, and a miss fails the gate. `tools/generations-lab.ts`
+   a file the lab imports, and a miss fails the gate (a report-only row, and
+   since #728 the run-length rule, `RUN_LENGTH_RULE`, is printed, not failed).
+   `tools/generations-lab.ts`
    plays each policy and seed in its own child process, one per core
    (`LAB_JOBS` sets the count, `tools/lab-pool.ts`); the runs of one seed stay
    in order, and the report is assembled in policy and seed order (#314). The crafted-share and idle-material rows are strict

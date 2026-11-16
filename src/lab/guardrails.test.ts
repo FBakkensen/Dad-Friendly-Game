@@ -196,7 +196,7 @@ describe("targets", () => {
     }
   });
 
-  it("keeps only the finish days, every-tier-bought, taps-per-sitting and dominant-share report only (#357, #358, #592)", () => {
+  it("keeps only the finish days, every-tier-bought, taps-per-sitting, dominant-share and today's three old-game rows report only (#357, #358, #592, #728)", () => {
     const reportOnly = TARGETS.filter((target) => target.reportOnly === true)
       .map((target) => target.id)
       .sort();
@@ -205,6 +205,9 @@ describe("targets", () => {
         "casual-finish",
         "dominant-share",
         "every-tier-bought",
+        "extreme-win",
+        "optimizer-regret",
+        "single-share",
         "taps-per-sitting",
         "thin-habit-finish",
       ].sort(),

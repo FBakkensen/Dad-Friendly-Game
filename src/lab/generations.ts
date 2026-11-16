@@ -70,7 +70,10 @@ export function runGenerations({
   return runs;
 }
 
-/** The run-length rule (strict, every type): run N+1 finishes later than run N, forever. */
+/**
+ * The run-length rule (every type): run N+1 finishes later than run N,
+ * forever. Report-only until #729 (`RUN_LENGTH_RULE`, #728).
+ */
 export function eachRunLonger(days: readonly (number | undefined)[]): boolean {
   let before = Number.NEGATIVE_INFINITY;
   for (const day of days) {

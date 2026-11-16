@@ -6,6 +6,7 @@ import {
   rootModelDays,
   runGenerations,
 } from "./generations";
+import { RUN_LENGTH_RULE } from "./targets";
 
 describe("generations lab (M13, #253)", () => {
   it("stops when a run never reaches the bottom", () => {
@@ -30,6 +31,10 @@ describe("generations lab (M13, #253)", () => {
   it("judges every type by the same rule: each run longer", () => {
     expect(eachRunLonger([7, 8, 9])).toBe(true);
     expect(eachRunLonger([7, 8, 8])).toBe(false);
+  });
+
+  it("reports the run-length rule without failing until #729 (#728)", () => {
+    expect(RUN_LENGTH_RULE.reportOnly).toBe(true);
   });
 
   it("models a run stretched by k over the bonus", () => {

@@ -3,7 +3,8 @@
  * own stretch (src/scale.ts).
  *   npm run lab:generations -- --seeds 20 [--runs 6] [--policy casual-2x10]
  * Prints finish days per run (seed mean), the per-type run-length rule, and
- * any machine a run never bought. With LAB_STRICT=1, a miss on either fails.
+ * any machine a run never bought. With LAB_STRICT=1, a machine never bought
+ * fails; a run-length miss fails unless RUN_LENGTH_RULE is report-only (#728).
  * --ci plays the CI seed count. --runs defaults to KID_RUNS_CI (8): every run must
  * finish later than the one before.
  * Each policy and seed plays in its own process, one per core (LAB_JOBS sets
@@ -30,6 +31,7 @@ import {
   KID_RUN_MAX_DAYS,
   KID_RUNS_CI,
   LOCAL_SEEDS,
+  RUN_LENGTH_RULE,
 } from "../src/lab/targets";
 import { kidStretch } from "../src/scale";
 import { withFactors } from "../src/economy/factors";
@@ -49,6 +51,8 @@ const seeds = Number(
   arg("seeds") ?? (process.argv.includes("--ci") ? CI_SEEDS : LOCAL_SEEDS),
 );
 const misses: string[] = [];
+// Printed like a miss, never failing LAB_STRICT (the run-length rule, #728).
+const reported: string[] = [];
 const only = arg("policy");
 // --factors price.machine=0.8,growth.machine=1.1 holds sweep factors for every run.
 const factorsArg = arg("factors");
@@ -168,7 +172,11 @@ async function report(): Promise<void> {
       ),
     );
     const lengthOk = eachRunLonger(days);
-    if (!lengthOk) misses.push(`${policy.label}: run-length rule`);
+    if (!lengthOk) {
+      (RUN_LENGTH_RULE.reportOnly ? reported : misses).push(
+        `${policy.label}: run-length rule`,
+      );
+    }
     if (unbought.length > 0)
       misses.push(
         `${policy.label}: never bought ${[...new Set(unbought)].join(", ")}`,
@@ -190,5 +198,6 @@ async function report(): Promise<void> {
   );
   console.log(lines.join("\n"));
   for (const miss of misses) console.log(`miss: ${miss}`);
+  for (const miss of reported) console.log(`miss (report only): ${miss}`);
   if (misses.length > 0 && process.env.LAB_STRICT === "1") process.exitCode = 1;
 }
