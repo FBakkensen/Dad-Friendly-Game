@@ -379,12 +379,12 @@ function factoryGame(game: Record<string, unknown>): Record<string, unknown> {
   };
 }
 
-export function sliceFactorySave(now: number): StoredAsIs {
+export function sliceFactorySave(now: number): SeedSave {
   return sliceSave(now, factoryGame({ levels: { "iron-rails": 1 } }));
 }
 
 /** The same, with sturdy props on the station: stone and clay part arrived, the iron not yet. */
-export function sliceFactoryOrderSave(now: number): StoredAsIs {
+export function sliceFactoryOrderSave(now: number): SeedSave {
   return sliceSave(
     now,
     factoryGame({
@@ -398,7 +398,7 @@ export function sliceFactoryOrderSave(now: number): StoredAsIs {
 }
 
 /** The same, with iron rails done on the station: Next points at it, and Install is lit. */
-export function sliceFactoryDoneSave(now: number): StoredAsIs {
+export function sliceFactoryDoneSave(now: number): SeedSave {
   return sliceSave(
     now,
     factoryGame({ station: { blueprint: "iron-rails", state: "done" } }),

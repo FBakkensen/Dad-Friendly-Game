@@ -10,11 +10,11 @@ import {
   type BlueprintId,
   type Station,
 } from "./factory";
-import { chipTime, formatCompact } from "./format";
+import { formatCompact } from "./format";
 import type { Mountain } from "./mountain";
 import { effectiveRates } from "./rates";
 import { GOOD_NAMES } from "./frame-view";
-import { formatSpeed, percent } from "./screen-words";
+import { formatClock, formatSpeed, percent } from "./screen-words";
 import { GOOD_IDS, priceAmount, type GoodId } from "./stock";
 import type { TierId } from "./tiers";
 import { stationTake } from "./transport";
@@ -313,7 +313,7 @@ function timers(
   }
   return hotTimers(mountain, now).flatMap((timer) => {
     return TIMED.has(timer.id)
-      ? [`${throughput(timer.id)}: ${chipTime(timer.until - now)}`]
+      ? [`${throughput(timer.id)}: ${formatClock(timer.until - now)}`]
       : [];
   });
 }
