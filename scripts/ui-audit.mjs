@@ -36,6 +36,7 @@ import {
   sliceNightSave,
   sliceRefinerySave,
   sliceFactoryOrderSave,
+  sliceTwoLevelsSave,
   sliceRoofSave,
   sliceStartSave,
   sliceWarehouseRoofSave,
@@ -697,6 +698,12 @@ async function main() {
   // Part 3 on a dev page, before #682 switches it on (#681).
   await capture("slice-factory", (viewport) =>
     openFrame(viewport, sliceFactoryOrderSave(Date.now()), "factory", {
+      search: `${MEMORY}&part3=1`,
+    }),
+  );
+  // The mine with two levels, on the same dev page (#680).
+  await capture("slice-mine-two-levels", (viewport) =>
+    openFrame(viewport, sliceTwoLevelsSave(Date.now()), "mine", {
       search: `${MEMORY}&part3=1`,
     }),
   );

@@ -2,10 +2,9 @@ import { STAGES, type Stage, type StageSpeeds } from "./line";
 import type { Mountain } from "./mountain";
 import { makerOpen } from "./makers";
 import {
-  LEVEL_MACHINE_IDS,
   graniteOpen,
+  isLevelMachine,
   levelMachines,
-  type LevelMachineId,
   type LevelMachines,
   type MineLevelId,
 } from "./mine-levels";
@@ -394,10 +393,6 @@ function levelWorks(
       tool,
     );
   return { face: work("face"), haul: work("haul") };
-}
-
-function isLevelMachine(id: TierId): id is LevelMachineId {
-  return (LEVEL_MACHINE_IDS as readonly TierId[]).includes(id);
 }
 
 /**

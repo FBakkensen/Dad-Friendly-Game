@@ -554,17 +554,44 @@ function inTurn(branch: Branch, stage: number): boolean {
   );
 }
 
-/**
- * Each branch's rate at the shared stage now (#724): its own, plus, while it
- * is in the turn, the turn's loads over the trips of those in the turn.
- */
-function sharedRates(set: Branches): readonly number[] {
+/** The branches in the turn now, and the seconds of a round of their trips. */
+function turnOf(set: Branches): {
+  readonly turning: readonly boolean[];
+  readonly round: number;
+} {
   const { stage, turn } = set.shared;
   const turning = set.branches.map((branch) => inTurn(branch, stage));
   const round = turning.reduce(
     (sum, turns, index) => (turns ? sum + (turn.trips[index] ?? 0) : sum),
     0,
   );
+  return { turning, round };
+}
+
+/**
+ * What one load of the turn lifts a second now, over all the branches (rule
+ * 5.7, #680): a load from each branch in the turn once a round of their
+ * trips, so the turn's loads lift `loads × turnPerLoad` in all, as
+ * `sharedRates` shares them out. With no branch in the turn nothing comes to
+ * the shared stage, and a load is counted as every branch would take it.
+ */
+export function turnPerLoad(set: Branches): number {
+  const { turning, round } = turnOf(set);
+  const taking = turning.filter((turns) => turns).length;
+  if (taking > 0 && round > 0) {
+    return taking / round;
+  }
+  const all = set.shared.turn.trips.reduce((sum, trip) => sum + trip, 0);
+  return all > 0 ? set.branches.length / all : 0;
+}
+
+/**
+ * Each branch's rate at the shared stage now (#724): its own, plus, while it
+ * is in the turn, the turn's loads over the trips of those in the turn.
+ */
+function sharedRates(set: Branches): readonly number[] {
+  const { stage, turn } = set.shared;
+  const { turning, round } = turnOf(set);
   return set.branches.map((branch, index) => {
     const own = branch.rates[stage] ?? 0;
     return turning[index] === true && round > 0

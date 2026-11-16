@@ -1,6 +1,3 @@
-import clayUrl from "./assets/board/res-clay.png";
-import ironUrl from "./assets/board/res-iron.png";
-import stoneUrl from "./assets/board/res-stone.png";
 import { el, hide, icon, mark, setAttr, write } from "./board-dom";
 import type { BlueprintId } from "./factory";
 import {
@@ -19,8 +16,8 @@ import {
 } from "./factory-view";
 import type { FrameState } from "./frame-state";
 import type { Mountain } from "./mountain";
+import { priceIcon } from "./price-icons";
 import { runScene } from "./scene-paint";
-import type { GoodId } from "./stock";
 import "./factory.css";
 
 /**
@@ -36,12 +33,6 @@ import "./factory.css";
 export type FactorySite = {
   readonly root: HTMLElement;
   readonly paint: (mountain: Mountain, shown: boolean, now?: number) => void;
-};
-
-const GOOD_ICONS: Readonly<Partial<Record<GoodId, string>>> = {
-  stones: stoneUrl,
-  clay: clayUrl,
-  iron: ironUrl,
 };
 
 type HeadParts = {
@@ -226,7 +217,7 @@ function paintRequires(target: HTMLElement, card: BlueprintCard): void {
         need.short ? "factory-need short" : "factory-need",
       );
       part.append(need.text);
-      const url = GOOD_ICONS[need.good];
+      const url = priceIcon(need.good);
       if (url !== undefined) {
         part.append(icon(url, "factory-need-icon"));
       }

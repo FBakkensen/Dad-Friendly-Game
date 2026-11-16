@@ -109,6 +109,7 @@ describe("sticker", () => {
       sticker(mountain, {
         kind: "buyGraniteMachine",
         id: LEVEL_MACHINE_IDS[0],
+        count: 1,
       }),
     ).toBe(0);
   });

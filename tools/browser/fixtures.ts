@@ -404,3 +404,69 @@ export function sliceFactoryDoneSave(now: number): SeedSave {
     factoryGame({ station: { blueprint: "iron-rails", state: "done" } }),
   );
 }
+
+/**
+ * Part 3 (#680), on a dev page with `?part3=1`: the Light Tower and the
+ * Warehouse operational, the stockyard expanded once, and the stone and
+ * brick in it to sink the shaft, which is not yet sunk. The mine shows the
+ * Granite's plate under the Topsoil, with the Sink key lit.
+ */
+export function sliceGraniteUnsunkSave(now: number): SeedSave {
+  return sliceSave(now, {
+    owned: { helper: 18, cart: 2, drill: 1, hoist: 2 },
+    stock: { stones: 12_000_000, brick: 2_000_000 },
+    jobs: {
+      drilling: 4,
+      haulage: 3,
+      hoisting: 4,
+      driving: 2,
+      building: 2,
+      kilns: 1,
+    },
+    fleet: { horseWagon: 2 },
+    marks: { operational: ["lightTower", "warehouse"] },
+    makers: { kiln: 1 },
+    stockyard: 1,
+    piles: { face: 200, shaft: 150, kiln: 120 },
+    run: { rock: 30_000_000 },
+  });
+}
+
+/**
+ * Part 3 (#680), on a dev page with `?part3=1`: the shaft sunk, both levels
+ * working on their own workers and machines, a hoist assigned to each
+ * level and one for both in turn, rock in every level's piles, two free
+ * workers, and the cut stone to buy a borer for either level.
+ */
+export function sliceTwoLevelsSave(now: number): SeedSave {
+  return sliceSave(now, {
+    owned: { helper: 24, cart: 3, drill: 2, hoist: 3 },
+    stock: {
+      stones: 2_000_000,
+      brick: 200_000,
+      cutStone: 100_000,
+      clay: 8,
+      iron: 11,
+    },
+    jobs: {
+      drilling: 4,
+      haulage: 3,
+      hoisting: 5,
+      graniteDrilling: 3,
+      graniteHaulage: 2,
+      driving: 2,
+      building: 2,
+      kilns: 1,
+    },
+    fleet: { horseWagon: 2 },
+    marks: { operational: ["lightTower", "warehouse"] },
+    makers: { kiln: 1 },
+    piles: { face: 200, shaft: 150, kiln: 120 },
+    granite: {
+      machines: { cart: 1, drill: 1 },
+      piles: { face: 150, shaft: 120 },
+    },
+    cages: { assigned: { topsoil: 1, granite: 1 } },
+    run: { rock: 30_000_000, granite: 1_000_000 },
+  });
+}

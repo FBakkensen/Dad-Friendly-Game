@@ -52,6 +52,7 @@ The design is `docs/superpowers/specs/2026-11-14-slice-1-design.md`. Its "Calls 
 - **15 Nov 2026, 17:48: three copy calls from the part 1 playtest** (#715). The "4 crews" line is not shown in part 1. The order key reads "Foundation 25K · Structure 250K · Roof 1M". The workforce list says "3 hired".
 - **16 Nov 2026, 05:25: the refinery screen's 17 lines** (#671): his A.
 - **16 Nov 2026, 09:55: the factory screen's ten lines** (#681): "i think this is fine for now", his A. He added that it "feels more like research than a factory work": that went to the idea pipeline, not to #681.
+- **16 Nov 2026, 12:49: the mine with two levels' lines** (#680): his A to all five, as shown. They are: the level card ("A borer for which level?", "It stays on the level it is bought for.", "Topsoil: 0 borers", "Not now"); the hoist strip's cells and its line; "Granite · not reached", with its Light Tower line and the Sink key; the workforce groups Topsoil, Granite and Shaft; and "2 on winches".
 - **For every screen sliver.** A new line of copy or a new look is his to approve first, asked as one question with pictures. No line promises what is not live.
 
 ## Art

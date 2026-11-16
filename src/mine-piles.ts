@@ -26,12 +26,13 @@ import {
   chainSpill,
   flowBranchesWhole,
   flowWhole,
+  turnPerLoad,
   type Branch,
   type Branches,
   type Chain,
   type ChainFlow,
 } from "./piles";
-import { effectiveRates, type Rates } from "./rates";
+import { crewTimer, effectiveRates, type Rates } from "./rates";
 import { addedStock, type Stock } from "./stock";
 import { stockpileRoom, stockyardOpen } from "./stockyard";
 import { fleetRate, stockDraw } from "./transport";
@@ -238,6 +239,82 @@ function levelsSet(
     { pay, drilling },
     mineDraw(mountain, pay, drilling),
   );
+}
+
+/**
+ * Each level's chain as the mine runs it now at pay 1 (#680): with the
+ * Granite shut, `mineChain`; with it open, the Topsoil's and the Granite's
+ * side by side, each hoisting its own cages and its share of the turn.
+ */
+function levelChains(mountain: Mountain): readonly Chain[] {
+  const granite = openGranite(mountain);
+  return granite === undefined
+    ? [mineChain(mountain, 1, true)]
+    : branchChains(levelsSet(mountain, granite, 1, true));
+}
+
+/**
+ * The Topsoil's chain now (#680): what reaches the kilns and the stone
+ * stockpile, which the refinery reads. With two levels the Granite's lifted
+ * rock goes to the saws, and the Topsoil hoists its share of the turn too.
+ */
+export function topsoilChain(mountain: Mountain): Chain {
+  const [topsoil] = levelChains(mountain);
+  if (topsoil === undefined) {
+    throw new Error("mine-piles: the mine has no Topsoil");
+  }
+  return topsoil;
+}
+
+/**
+ * What a level's stages move a second: its drilling and haulage, and what
+ * hoisting lifts from it (the Topsoil's to the kilns and the stone
+ * stockpile, the Granite's to the saws).
+ */
+type LevelFlow = {
+  readonly face: number;
+  readonly haul: number;
+  readonly lift: number;
+};
+
+/** A level's flow from its chain's flows: 0 for a stage past its end. */
+function levelFlow(flows: readonly number[]): LevelFlow {
+  return { face: flows[0] ?? 0, haul: flows[1] ?? 0, lift: flows[LIFT] ?? 0 };
+}
+
+/**
+ * What the mine moves now through the piles, a second, at pay 1 and under
+ * the crew timer (#680): each level's drilling, haulage and what hoisting
+ * lifts from it, and the shaft's hoisting from both. With the Granite shut the Granite's are 0, and the
+ * Topsoil's are `mineChain`'s.
+ */
+export function mineLevelFlows(
+  mountain: Mountain,
+  now?: number,
+): {
+  readonly levels: Readonly<Record<MineLevelId, LevelFlow>>;
+  readonly lift: number;
+} {
+  const timer = crewTimer(mountain, now);
+  const [topsoil = levelFlow([]), deep = levelFlow([])] = levelChains(
+    mountain,
+  ).map((chain) => levelFlow(chainFlows(chain).map((flow) => flow * timer)));
+  return {
+    levels: { topsoil, granite: deep },
+    lift: topsoil.lift + deep.lift,
+  };
+}
+
+/**
+ * What one load of the cages for both lifts a second now (#680): a load
+ * from each level in the turn once a round of their trips (`turnPerLoad`),
+ * as the night counts it. With the Granite shut there is no turn: 0.
+ */
+export function mineTurnPerLoad(mountain: Mountain): number {
+  const granite = openGranite(mountain);
+  return granite === undefined
+    ? 0
+    : turnPerLoad(levelsSet(mountain, granite, 1, true));
 }
 
 /**

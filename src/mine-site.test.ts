@@ -1,12 +1,26 @@
 // @vitest-environment happy-dom
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createUnconfiguredAuth } from "./auth";
+import { graniteBuyMove, tierBuyMove } from "./economy/actions";
+import { DRAWER_SETTLE_MS } from "./board-interaction";
 import { holdFactors } from "./economy/factors";
 import { mountFrameScreen } from "./frame-screen";
+import {
+  HOIST_WAITS_LINE,
+  NOT_NOW,
+  SHAFT_WAITS_LINE,
+  hoistingRow,
+  machineCardTitle,
+  mineLevels,
+} from "./mine-level-view";
+import { shaftPrice } from "./mine-levels";
 import { DEEPER_STRATA, stageRows } from "./mine-view";
 import type { Mountain } from "./mountain";
+import { PART_THREE_OFF, PART_TWO_OFF } from "./part-switch";
+import { levels } from "./part-three.harness";
 import { createProgressStore } from "./progress-store";
 import { createMemoryStorage, CREWED_JOBS } from "./test-fixtures";
+import type { BuyAmount } from "./tiers";
 import { NO_FREE_WORKER } from "./workforce-view";
 
 /** The mine on slice 1's frame, on the DOM (#660). */
@@ -23,7 +37,10 @@ afterEach(() => {
   holdFactors({});
 });
 
-function mount(change: (mountain: Mountain) => Mountain = (m) => m) {
+function mount(
+  change: (mountain: Mountain) => Mountain = (m) => m,
+  amount: BuyAmount = "one",
+) {
   const root = document.createElement("div");
   document.body.replaceChildren(root);
   const auth = createUnconfiguredAuth();
@@ -40,11 +57,13 @@ function mount(change: (mountain: Mountain) => Mountain = (m) => m) {
       jobs: CREWED_JOBS,
     }),
   );
+  const storage = createMemoryStorage();
+  storage.setItem("dad-friendly-buy-amount", amount);
   mountFrameScreen({
     root,
     auth,
     progress,
-    storage: createMemoryStorage(),
+    storage,
     signal: unmount.signal,
   });
   const button = (selector: string): HTMLButtonElement => {
@@ -236,10 +255,379 @@ describe("the mine", () => {
     }
   });
 
+  it("paints today's mine with part 3 off", () => {
+    const { root } = mount(withStones(50_000));
+    const mine = root.querySelector<HTMLElement>(".mine");
+    expect({
+      text: mine?.textContent,
+      stages: [...(mine?.querySelectorAll("[data-stage]") ?? [])].map(
+        (each) => `${each.className}:${each.getAttribute("data-stage") ?? ""}`,
+      ),
+      elements: mine?.querySelectorAll("*").length,
+    }).toMatchInlineSnapshot(`
+      {
+        "elements": 87,
+        "stages": [
+          "mine-zone:lift",
+          "mine-zone:haul",
+          "mine-zone:face",
+          "mine-key:face",
+          "mine-key can:haul",
+          "mine-key can:lift",
+          "mine-stage:face",
+          "mine-stage:haul",
+          "mine-stage:lift",
+        ],
+        "text": "Topsoil18/sHoistingHaulageDrillingDeeper strata: not yet surveyed. The city has to grow first.No free worker. Hire one, or take one off another job.+Drill · 108/s73K · 1 to run+Cart · 60/s600 · 1 to run+Hoist · 60/s6,000 · 1 to runDrilling18 of 18/s6 with picks 18/sDrilled rock: 0 of 300−6workers+Haulage18 of 18/s6 with barrows 18/sRock at the shaft: 0 of 300−6workers+Hoisting18 of 18/s6 on winches 18/s−6workers+",
+      }
+    `);
+  });
+
   it("never says hands, and names no limit", () => {
     const { root } = mount();
     expect(root.querySelector(".mine")?.textContent).not.toMatch(
       /\bhands?\b|by hand|bottleneck|limit/i,
     );
+  });
+});
+
+/** A finger's tap: down, up, then its click. */
+function fingerTap(target: HTMLElement): void {
+  target.dispatchEvent(
+    new PointerEvent("pointerdown", { bubbles: true, button: 0 }),
+  );
+  target.dispatchEvent(
+    new PointerEvent("pointerup", { bubbles: true, button: 0 }),
+  );
+  target.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 1 }));
+}
+
+/** Part 3's mine, on the DOM (#680): the Granite's gate, its two levels, the strip and the machine card. */
+describe("the mine with two levels", () => {
+  beforeEach(() => {
+    holdFactors({ [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 });
+  });
+
+  const twoLevels = (mountain: Mountain) => () => mountain;
+
+  /** The moves the site sends, with nothing applied: a tap's move is what is checked. */
+  function sent(progress: ReturnType<typeof mount>["progress"]) {
+    return vi
+      .spyOn(progress, "dispatch")
+      .mockImplementation(() => ({ kind: "refused", reason: "no-change" }));
+  }
+
+  it("paints each level's rows on the level and its piles under its gallery", () => {
+    const mountain = levels({
+      topsoil: 3,
+      granite: 2,
+      hoisting: 2,
+      hoists: 1,
+      piles: { face: 20, shaft: 5 },
+      granitePiles: { face: 7, shaft: 3 },
+    });
+    const { root, progress } = mount(twoLevels(mountain));
+    const views = mineLevels(progress.getSnapshot().mountain);
+    const boxes = [...root.querySelectorAll<HTMLElement>(".mine-level-rows")];
+    expect(boxes.map((box) => box.dataset["level"])).toEqual([
+      "topsoil",
+      "granite",
+    ]);
+    for (const [index, box] of boxes.entries()) {
+      const view = views[index];
+      const rows = [...box.querySelectorAll(".mine-stage")];
+      expect(rows.map((row) => row.getAttribute("data-stage"))).toEqual([
+        "face",
+        "haul",
+      ]);
+      const [drilling, haulage] = view?.rows ?? [];
+      const head = (at: number, part: string) =>
+        rows[at]?.querySelector(part)?.textContent;
+      // "TOPSOIL drilling 1,300 of 1,300/s": the name is upper case in the CSS, as every row's is.
+      expect(head(0, ".mine-stage-name")).toBe(view?.name);
+      expect(head(0, ".mine-stage-rate")).toBe(
+        `drilling ${drilling?.now ?? ""} of ${drilling?.can ?? ""}`,
+      );
+      expect(head(1, ".mine-stage-name")).toBe("Haulage");
+      expect(head(1, ".mine-stage-rate")).toBe(
+        `${haulage?.now ?? ""} of ${haulage?.can ?? ""}`,
+      );
+      expect(
+        rows[0]
+          ?.querySelector('[data-job][data-way="place"]')
+          ?.getAttribute("data-job"),
+      ).toBe(index === 0 ? "drilling" : "graniteDrilling");
+    }
+    const piles = (level: string) =>
+      root.querySelector(`.mine-piles[data-level="${level}"]`)?.textContent;
+    expect(piles("topsoil")).toMatch(
+      /^Rock at the shaft: 5 of [\d,]+Drilled rock: 20 of [\d,]+$/,
+    );
+    expect(piles("granite")).toMatch(
+      /^Rock at the shaft: 3 of [\d,]+Drilled rock: 7 of [\d,]+$/,
+    );
+    // The one-level rows, the plate and the zones give way to the levels' own.
+    expect(root.querySelector<HTMLElement>(".mine-stages")?.hidden).toBe(true);
+    expect(root.querySelector<HTMLElement>(".mine-over")?.hidden).toBe(true);
+    // Hoisting has the one row under the keys.
+    const lift = hoistingRow(progress.getSnapshot().mountain);
+    expect(
+      root.querySelector(
+        '.mine-hoisting .mine-stage[data-stage="lift"] .mine-stage-rate',
+      )?.textContent,
+    ).toBe(`${lift.now} of ${lift.can}`);
+    expect(root.querySelector(".mine")?.textContent).not.toMatch(
+      /\bhands?\b|by hand|\bface\b|bottleneck|limit/i,
+    );
+  });
+
+  it("assigns a hoist from the strip", () => {
+    const mountain = levels({ hoisting: 4, hoists: 2 });
+    for (const [amount, count] of [
+      ["one", 1],
+      ["ten", 10],
+      ["max", 2],
+    ] as const) {
+      const { button, progress } = mount(twoLevels(mountain), amount);
+      const dispatch = sent(progress);
+      button('.mine-strip-cell[data-place="granite"] .mine-strip-more').click();
+      expect(dispatch).toHaveBeenCalledWith({
+        kind: "assignHoist",
+        level: "granite",
+        count,
+      });
+    }
+  });
+
+  it("moves nothing at Max with no hoist left for both, and takes all a level has", () => {
+    const mountain = levels({
+      hoisting: 4,
+      hoists: 3,
+      assigned: { topsoil: 2, granite: 1 },
+    });
+    const { root, button, progress } = mount(twoLevels(mountain), "max");
+    const dispatch = sent(progress);
+    button('.mine-strip-cell[data-place="granite"] .mine-strip-more').click();
+    expect(dispatch).not.toHaveBeenCalled();
+    expect(root.querySelector(".mine-note")?.textContent).toBe(
+      HOIST_WAITS_LINE,
+    );
+    button('.mine-strip-cell[data-place="topsoil"] .mine-strip-less').click();
+    expect(dispatch).toHaveBeenCalledWith({
+      kind: "unassignHoist",
+      level: "topsoil",
+      count: 2,
+    });
+  });
+
+  it("writes the hoists' line when a tap moves nothing", () => {
+    const mountain = levels({
+      hoisting: 2,
+      hoists: 1,
+      assigned: { topsoil: 1 },
+    });
+    const { root, button, progress } = mount(twoLevels(mountain));
+    const dispatch = sent(progress);
+    const note = root.querySelector<HTMLElement>(".mine-note");
+    const more = button(
+      '.mine-strip-cell[data-place="granite"] .mine-strip-more',
+    );
+    expect(more.classList.contains("can")).toBe(false);
+    more.click();
+    expect(note?.hidden).toBe(false);
+    expect(note?.textContent).toBe(HOIST_WAITS_LINE);
+    button('.mine-strip-cell[data-place="granite"] .mine-strip-less').click();
+    button('.mine-strip-cell[data-place="both"]').click();
+    root
+      .querySelector<HTMLElement>(
+        '.mine-strip-cell[data-place="granite"] .mine-strip-name',
+      )
+      ?.click();
+    expect(dispatch).not.toHaveBeenCalled();
+    // A tap that moves a hoist takes the line down.
+    button('.mine-strip-cell[data-place="topsoil"] .mine-strip-less').click();
+    expect(note?.hidden).toBe(true);
+    expect(dispatch).toHaveBeenCalledWith({
+      kind: "unassignHoist",
+      level: "topsoil",
+      count: 1,
+    });
+  });
+
+  it("asks which level when a drill's key is tapped, and buys for the chosen level", () => {
+    // With the Granite open, drilling's next machine is the borer, paid in cut stone (#673).
+    const mountain = levels({ topsoil: 2, stock: { cutStone: 1e6 } });
+    const { root, button, progress } = mount(twoLevels(mountain));
+    const dispatch = sent(progress);
+    const card = root.querySelector<HTMLElement>(".machine-card");
+    expect(card?.hidden).toBe(true);
+    button('.mine-key[data-stage="face"]').click();
+    expect(card?.hidden).toBe(false);
+    const title = () => card?.querySelector(".machine-card-title")?.textContent;
+    expect(title()).toBe(machineCardTitle("borer"));
+    expect(title()).toBe("A borer for which level?");
+    expect(card?.querySelector(".machine-card-machine")?.textContent).toBe(
+      root.querySelector('.mine-key[data-stage="face"]')?.textContent,
+    );
+    const keys = [
+      ...(card?.querySelectorAll<HTMLElement>(".machine-card-level") ?? []),
+    ];
+    expect(keys.map((key) => key.textContent)).toEqual(["Topsoil", "Granite"]);
+    // Drawn alike: neither is the answer.
+    expect(keys.map((key) => key.className)).toEqual([
+      "machine-card-level can",
+      "machine-card-level can",
+    ]);
+    expect(card?.textContent).toContain(
+      "It stays on the level it is bought for.",
+    );
+    expect(card?.textContent).toContain("Topsoil: 0 borers");
+    expect(card?.textContent).toContain("Granite: 0 borers");
+    expect(button(".machine-card-not-now").textContent).toBe(NOT_NOW);
+    expect(dispatch).not.toHaveBeenCalled();
+    button('.machine-card-level[data-level="granite"]').click();
+    expect(dispatch).toHaveBeenLastCalledWith(graniteBuyMove("borer", 1));
+    expect(card?.hidden).toBe(true);
+    button('.mine-key[data-stage="face"]').click();
+    button('.machine-card-level[data-level="topsoil"]').click();
+    expect(dispatch).toHaveBeenLastCalledWith(tierBuyMove("borer", 1));
+    dispatch.mockClear();
+    button('.mine-key[data-stage="haul"]').click();
+    expect(title()).toBe("A locomotive for which level?");
+    button(".machine-card-not-now").click();
+    expect(card?.hidden).toBe(true);
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  it("lets the second tap of a double tap on a key land on the card and buy nothing", () => {
+    let clock = 10_000;
+    const now = vi.spyOn(performance, "now").mockImplementation(() => clock);
+    try {
+      const mountain = levels({ topsoil: 2, stock: { cutStone: 1e6 } });
+      const { root, button, progress } = mount(twoLevels(mountain));
+      const dispatch = sent(progress);
+      fingerTap(button('.mine-key[data-stage="face"]'));
+      const card = root.querySelector<HTMLElement>(".machine-card");
+      expect(card?.hidden).toBe(false);
+      // The habit's second tap lands where the card's key now is.
+      clock += 120;
+      fingerTap(button('.machine-card-level[data-level="granite"]'));
+      fingerTap(button(".machine-card-not-now"));
+      expect(dispatch).not.toHaveBeenCalled();
+      expect(card?.hidden).toBe(false);
+      clock += DRAWER_SETTLE_MS;
+      fingerTap(button('.machine-card-level[data-level="granite"]'));
+      expect(dispatch).toHaveBeenCalledWith(graniteBuyMove("borer", 1));
+      expect(card?.hidden).toBe(true);
+    } finally {
+      now.mockRestore();
+    }
+  });
+
+  it("opens a level's own list from its row, whose machine keys ask which level", () => {
+    const mountain = levels({
+      topsoil: 2,
+      granite: 2,
+      hoisting: 2,
+      hoists: 1,
+      stock: { stones: 1e9, cutStone: 1e9 },
+    });
+    const { root, button, progress } = mount(twoLevels(mountain));
+    const dispatch = sent(progress);
+    const sheet = root.querySelector<HTMLElement>(".stage-sheet");
+    const card = root.querySelector<HTMLElement>(".machine-card");
+    button(
+      '.mine-level-rows[data-level="granite"] .mine-stage[data-stage="face"] .mine-stage-info',
+    ).click();
+    expect(sheet?.hidden).toBe(false);
+    expect(sheet?.querySelector(".frame-sheet-title")?.textContent).toBe(
+      "Granite drilling",
+    );
+    const [, granite] = mineLevels(progress.getSnapshot().mountain);
+    expect(sheet?.querySelector(".stage-total")?.textContent).toBe(
+      `Moves${granite?.rows[0].now ?? ""}/s of ${granite?.rows[0].can ?? ""}`,
+    );
+    // The drill's key in the list asks which level; it buys nothing by itself.
+    button(
+      '.stage-page[data-stage="face"] .stage-row[data-machine="drill"] .stage-key',
+    ).click();
+    expect(dispatch).not.toHaveBeenCalled();
+    expect(card?.hidden).toBe(false);
+    expect(card?.querySelector(".machine-card-title")?.textContent).toBe(
+      machineCardTitle("drill"),
+    );
+    button('.machine-card-level[data-level="granite"]').click();
+    expect(dispatch).toHaveBeenLastCalledWith(graniteBuyMove("drill", 1));
+    // Hoisting's list buys its hoist at once, and says what its row says.
+    button(
+      '.mine-hoisting .mine-stage[data-stage="lift"] .mine-stage-info',
+    ).click();
+    expect(sheet?.querySelector(".frame-sheet-title")?.textContent).toBe(
+      "Hoisting",
+    );
+    const lift = hoistingRow(progress.getSnapshot().mountain);
+    expect(sheet?.querySelector(".stage-total")?.textContent).toBe(
+      `Moves${lift.now}/s of ${lift.can}`,
+    );
+  });
+
+  it("gives the card the key's rate while a crew timer runs", () => {
+    const base = levels({ topsoil: 2, stock: { cutStone: 1e6 } });
+    const mountain = {
+      ...base,
+      clocks: { ...base.clocks, "blasting-charge": Date.now() + 600_000 },
+    };
+    const { root, button } = mount(twoLevels(mountain));
+    const key = root.querySelector('.mine-key[data-stage="face"]');
+    button('.mine-key[data-stage="face"]').click();
+    expect(
+      root.querySelector(".machine-card .machine-card-machine .mine-key-face")
+        ?.textContent,
+    ).toBe(key?.querySelector(".mine-key-face")?.textContent);
+  });
+
+  it("buys nothing from a dark level key", () => {
+    const { root, button, progress } = mount(twoLevels(levels({ topsoil: 2 })));
+    const dispatch = sent(progress);
+    button('.mine-key[data-stage="face"]').click();
+    const granite = button('.machine-card-level[data-level="granite"]');
+    expect(granite.classList.contains("can")).toBe(false);
+    granite.click();
+    expect(dispatch).not.toHaveBeenCalled();
+    expect(root.querySelector<HTMLElement>(".machine-card")?.hidden).toBe(
+      false,
+    );
+  });
+
+  it("buys hoisting's machine at once, with no card", () => {
+    const mountain = levels({ stock: { stones: 1e9 } });
+    const { root, button, progress } = mount(twoLevels(mountain));
+    const dispatch = sent(progress);
+    button('.mine-key[data-stage="lift"]').click();
+    expect(root.querySelector<HTMLElement>(".machine-card")?.hidden).toBe(true);
+    expect(dispatch).toHaveBeenCalledWith(tierBuyMove("hoist", 1));
+  });
+
+  it("sinks the shaft from the Granite's plate", () => {
+    const stock = Object.fromEntries(
+      shaftPrice().map(({ good, amount }) => [good, amount]),
+    );
+    const open = mount(twoLevels(levels({ sunk: false, stock })));
+    const dispatch = sent(open.progress);
+    const sink = open.button(".mine-sink");
+    expect(open.text(".mine-granite-name")).toBe("Granite · not reached");
+    expect(sink.hidden).toBe(false);
+    expect(sink.classList.contains("can")).toBe(true);
+    expect(sink.textContent).toMatch(/^Sink the shaft to the Granite/);
+    sink.click();
+    expect(dispatch).toHaveBeenCalledWith({ kind: "sinkShaft" });
+    expect(open.root.querySelector(".mine-level-rows")).toBeNull();
+
+    const waits = mount(twoLevels(levels({ sunk: false, operational: [] })));
+    expect(waits.text(".mine-granite-line")).toBe(SHAFT_WAITS_LINE);
+    expect(
+      waits.root.querySelector<HTMLElement>(".mine-sink")?.hidden ?? true,
+    ).toBe(true);
+    expect(waits.text(".mine-deep")).toBe(DEEPER_STRATA);
   });
 });
