@@ -507,7 +507,7 @@ describe("the factory on the frame (#681)", () => {
       expect(station(progress)).toMatchObject({ blueprint: "iron-rails" });
     });
 
-    it("takes a sideways drag as the strip's scroll, and lifts no busy card", () => {
+    it("takes a sideways drag as the strip's scroll, never a tap, and lifts no busy card", () => {
       partThree();
       const { root, progress, button } = mount(sunk);
       button('.frame-site[data-site="factory"]').click();
@@ -517,6 +517,10 @@ describe("the factory on the frame (#681)", () => {
       pointer(rails, "pointermove", 150, 480);
       expect(ghost(root)).toBeNull();
       pointer(rails, "pointerup", 150, 480);
+      rails.click();
+      expect(station(progress)).toEqual({ kind: "idle" });
+      pointer(rails, "pointerdown", 50, 500);
+      pointer(rails, "pointerup", 50, 500);
       rails.click();
       const props = card(root, "sturdy-props");
       pointer(props, "pointerdown", 50, 500);

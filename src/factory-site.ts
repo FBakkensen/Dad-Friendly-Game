@@ -295,7 +295,7 @@ function listenDrag(
   let start: { x: number; y: number; id: number } | undefined;
   let ghost: HTMLElement | undefined;
   let scale = 1;
-  let dragged = false;
+  let moved = false;
   const drop = (): void => {
     ghost?.remove();
     ghost = undefined;
@@ -303,7 +303,7 @@ function listenDrag(
   };
   card.addEventListener("pointerdown", (event) => {
     start = { x: event.clientX, y: event.clientY, id: event.pointerId };
-    dragged = false;
+    moved = false;
   });
   card.addEventListener("pointermove", (event) => {
     if (start === undefined || event.pointerId !== start.id) {
@@ -311,6 +311,8 @@ function listenDrag(
     }
     const dx = event.clientX - start.x;
     const dy = event.clientY - start.y;
+    // A press that moved is no tap, whichever way it went.
+    moved ||= Math.hypot(dx, dy) >= DRAG_FROM;
     if (ghost === undefined) {
       if (-dy < DRAG_FROM || Math.abs(dx) > -dy) {
         return;
@@ -318,7 +320,6 @@ function listenDrag(
       if (card.dataset["state"] !== "open") {
         return;
       }
-      dragged = true;
       card.setPointerCapture(event.pointerId);
       scale = boardScale(card);
       ghost = ghostOf(card, blueprint);
@@ -347,9 +348,9 @@ function listenDrag(
   });
   card.addEventListener("pointercancel", drop);
   card.addEventListener("click", () => {
-    // A drag that ended is not also a tap.
-    if (dragged) {
-      dragged = false;
+    // A drag or a scroll that ended is not also a tap.
+    if (moved) {
+      moved = false;
       return;
     }
     place();
