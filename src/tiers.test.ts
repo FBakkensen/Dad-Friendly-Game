@@ -13,6 +13,7 @@ import {
 import { AWAY_PAY_RATE, effectiveRates } from "./rates";
 import { MOUNTAIN_STONES, stonesLeft } from "./scale";
 import { withFactors } from "./economy/factors";
+import { UPGRADES, upgradePrice } from "./upgrades";
 import { listActions } from "./economy/actions";
 import { LINE_OFF, FRESH_OFF } from "./line-switch";
 import { NO_GRANITE_PILES, NO_LEVEL_MACHINES } from "./mine-levels";
@@ -584,6 +585,25 @@ describe("the prices play charges (#738)", () => {
       // Anchors on the rounded curves.
       expect(tierCost(tierById("cart"), 12)).toBe(6_460);
       expect(tierCost(tierById("helper"), 50)).toBe(1_106);
+    });
+  });
+
+  it("prices each crew upgrade as the page does", () => {
+    withFactors(PLAY_FACTORS, () => {
+      const fresh = createMountain();
+      expect(
+        UPGRADES.map(({ id, costGrowth }) => [
+          id,
+          upgradePrice(fresh, id),
+          costGrowth,
+        ]),
+      ).toEqual([
+        ["boots", [{ good: "stones", amount: 1_625_000 }], 1],
+        ["cartSyn", [{ good: "stones", amount: 2_000_000 }], 1],
+        ["drillSyn", [{ good: "stones", amount: 3_000_000 }], 1],
+        ["borerSyn", [{ good: "stones", amount: 15_000_000 }], 1],
+        ["machineSyn", [{ good: "stones", amount: 30_000_000 }], 1],
+      ]);
     });
   });
 
