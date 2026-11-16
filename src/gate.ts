@@ -194,7 +194,6 @@ export const LAB_ENTRIES: readonly string[] = [
   "docs/pacing-ledger.md",
 ];
 export const LAB_DIRS: readonly string[] = [
-  "src/lab/policies",
   "src/lab/fresh-policies",
   "src/lab/measures",
 ];

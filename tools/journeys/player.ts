@@ -19,7 +19,7 @@ import type { GoodId } from "../../src/stock.ts";
 import { machineKeys } from "../../src/mine-view.ts";
 import { seedJson, type SeedSave } from "../browser/fixtures.ts";
 import { SAVE_KEY, seedScript } from "../browser/harness.ts";
-import { createRng } from "../sweep/random.ts";
+import { createRng } from "./random.ts";
 import { TICK_MS } from "./expected.ts";
 import { PHONE } from "./phone.ts";
 
@@ -116,7 +116,7 @@ export class Player {
     // The clock stands where the journey says and moves only when the journey waits.
     await this.page.clock.install({ time: this.at - TICK_MS });
     await this.page.clock.pauseAt(this.at);
-    // The sweep's own seeded stream, put in before any of the game's code runs.
+    // A seeded stream (random.ts), put in before any of the game's code runs.
     await this.page.addInitScript({
       content: `Math.random = (${createRng.toString()})(${String(RANDOM_SEED)});`,
     });

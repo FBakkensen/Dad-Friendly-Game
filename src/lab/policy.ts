@@ -1,6 +1,3 @@
-import type { Action } from "../economy/actions";
-import type { Mountain } from "../mountain";
-import type { TunnelId } from "../expeditions";
 import {
   DAY_MS,
   FIX_FAST_MS,
@@ -10,63 +7,24 @@ import {
   jitteredGap,
 } from "./targets";
 
-/** How a dad treats a habit that is not a purchase. */
-export type Habit = "never" | "asap" | "on-value";
-
-/** Which tunnel an exploring dad walks. `shift` is the plain dad's pair. */
-export type TunnelPlan = TunnelId | "shift";
-
-/** Where a spare engineer stands when this dad tends. */
-export type TendChoice = "best" | "never";
-
 /** How quickly this dad puts trouble right by hand. */
 export type TroubleFix = "never" | "slow" | "fast";
 
 /**
- * Workers bought for their own digging, only to staff a machine already
- * owned, or not at all.
- */
-export type WorkerRule = "any" | "staff-only" | "never";
-
-/**
- * How this dad uses the bench. `idle` crafts when the next buy can wait.
- * `value` lets a craft win on payback. `always` fills a free bench.
- * `charges` spends clay on blasting charges. `never` skips the workshop.
- */
-export type CraftRule = "idle" | "value" | "always" | "charges" | "never";
-
-/** Multipliers on stones-per-second per stone. Zero leaves that spend out. */
-export type SpendWeights = {
-  readonly worker: number;
-  readonly machine: number;
-  readonly upgrade: number;
-  readonly promote: number;
-};
-
-/**
- * One simulated dad. Sessions and weights are the knobs; habits say what
- * they refuse. Shared lab numbers live in `targets.ts`.
+ * One simulated dad's sittings and pocket. How he plays the fresh mine is
+ * `FreshHabits`. Shared lab numbers live in `targets.ts`.
  */
 export type PolicyParams = {
   readonly sessionsPerDay: number;
   readonly minutesPerSession: number;
   /** Fraction of the gap that the seed may slide either way. Zero is fixed. */
   readonly gapJitter: number;
-  readonly spend: SpendWeights;
   /**
    * Pay only when the pocket holds this many times the sticker price.
    * One is "buy it when it can be paid".
    */
   readonly hoardK: number;
-  readonly promote: Habit;
-  /** Promotions after Ada when `promote` is `asap`. One hires Nils. */
-  readonly promoteCap: number;
-  readonly explore: Habit;
-  readonly tunnel: TunnelPlan;
-  readonly tend: TendChoice;
   readonly trouble: TroubleFix;
-  readonly workers: WorkerRule;
-  readonly craft: CraftRule;
 };
 
 /** When the sittings are. Built from the params so a file cannot drift. */
@@ -75,13 +33,6 @@ export type Schedule = {
   readonly sessionMs: number;
   /** Gap after `session` (0-based), for this run's seed. */
   readonly gapMs: (session: number, seed: number) => number;
-};
-
-/** What `decide` sees. The world stays outside so a policy cannot step it. */
-export type DecideInput = {
-  readonly mountain: Mountain;
-  readonly now: number;
-  readonly params: PolicyParams;
 };
 
 export type PolicyKind = "casual" | "extreme" | "optimizer";
@@ -94,11 +45,7 @@ export type PolicyKind = "casual" | "extreme" | "optimizer";
  */
 export type WorkerMoves = "once" | "idle";
 
-/**
- * How a dad plays a fresh mine (slice 1, #655). Only part 1's player types
- * (`src/lab/fresh-policies`) carry it, and a run plays them only with the
- * fresh mine on.
- */
+/** How a dad plays a fresh mine (slice 1, #655). */
 export type FreshHabits = {
   readonly moves: WorkerMoves;
   /** `on-value` puts the order on hold while a buy pays back sooner; `never` never does. */
@@ -113,31 +60,13 @@ export type Policy = {
   readonly kind: PolicyKind;
   readonly params: PolicyParams;
   readonly schedule: Schedule;
-  readonly decide: (input: DecideInput) => Action | undefined;
-  /** Part 1's habits: present only on a fresh mine's player type. */
-  readonly fresh?: FreshHabits;
+  readonly fresh: FreshHabits;
 };
 
 const KINDS: readonly PolicyKind[] = ["casual", "extreme", "optimizer"];
 const MOVES: readonly WorkerMoves[] = ["once", "idle"];
 const HOLDS: readonly FreshHabits["hold"][] = ["on-value", "never"];
-const HABITS: readonly Habit[] = ["never", "asap", "on-value"];
-const TUNNELS: readonly TunnelPlan[] = [
-  "old-shaft",
-  "deep-dark",
-  "side-seam",
-  "shift",
-];
-const TENDS: readonly TendChoice[] = ["best", "never"];
 const FIXES: readonly TroubleFix[] = ["never", "slow", "fast"];
-const WORKERS: readonly WorkerRule[] = ["any", "staff-only", "never"];
-const CRAFTS: readonly CraftRule[] = [
-  "idle",
-  "value",
-  "always",
-  "charges",
-  "never",
-];
 
 /** The gap with no jitter: the day split across the sittings, minus play. */
 function baseGapMs(params: PolicyParams): number {
@@ -169,21 +98,6 @@ export function fixDelayMs(trouble: TroubleFix): number | undefined {
     case "fast":
       return FIX_FAST_MS;
   }
-}
-
-/** Tunnel at the start of a sitting. */
-export function dayTunnel(plan: TunnelPlan): TunnelId {
-  return plan === "shift" ? "old-shaft" : plan;
-}
-
-/** Tunnel on the gap that ends a day. */
-export function nightTunnel(plan: TunnelPlan): TunnelId {
-  return plan === "shift" ? "deep-dark" : plan;
-}
-
-/** True when the gap after `session` is the one that ends the day. */
-export function isNightGap(session: number, sessionsPerDay: number): boolean {
-  return (session + 1) % sessionsPerDay === 0;
 }
 
 /**
@@ -232,10 +146,7 @@ export function isPolicy(value: unknown): value is Policy {
   if (!isParams(value["params"]) || !isSchedule(value["schedule"])) {
     return false;
   }
-  if (value["fresh"] !== undefined && !isFresh(value["fresh"])) {
-    return false;
-  }
-  return typeof value["decide"] === "function";
+  return isFresh(value["fresh"]);
 }
 
 function isFresh(value: unknown): value is FreshHabits {
@@ -255,16 +166,8 @@ function isParams(value: unknown): value is PolicyParams {
     isPositive(value["sessionsPerDay"]) &&
     isPositive(value["minutesPerSession"]) &&
     isNonNegative(value["gapJitter"]) &&
-    isWeights(value["spend"]) &&
     isNonNegative(value["hoardK"]) &&
-    isOneOf(value["promote"], HABITS) &&
-    isNonNegative(value["promoteCap"]) &&
-    isOneOf(value["explore"], HABITS) &&
-    isOneOf(value["tunnel"], TUNNELS) &&
-    isOneOf(value["tend"], TENDS) &&
-    isOneOf(value["trouble"], FIXES) &&
-    isOneOf(value["workers"], WORKERS) &&
-    isOneOf(value["craft"], CRAFTS)
+    isOneOf(value["trouble"], FIXES)
   );
 }
 
@@ -276,18 +179,6 @@ function isSchedule(value: unknown): value is Schedule {
     isPositive(value["sessionsPerDay"]) &&
     isPositive(value["sessionMs"]) &&
     typeof value["gapMs"] === "function"
-  );
-}
-
-function isWeights(value: unknown): value is SpendWeights {
-  if (!isRecord(value)) {
-    return false;
-  }
-  return (
-    isNonNegative(value["worker"]) &&
-    isNonNegative(value["machine"]) &&
-    isNonNegative(value["upgrade"]) &&
-    isNonNegative(value["promote"])
   );
 }
 

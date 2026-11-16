@@ -58,7 +58,7 @@ export function deadStretches(
 }
 
 /** The longest waiting run, or undefined when the dad is never stuck. */
-export function longestStretch(
+function longestStretch(
   samples: readonly DecisionSample[],
   method: ScoreMethod,
 ): Stretch | undefined {

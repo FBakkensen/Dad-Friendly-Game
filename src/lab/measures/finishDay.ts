@@ -1,6 +1,6 @@
 import { defineMeasure, type DecisionSample } from "../measure";
 
-/** The day the mountain emptied. Infinity when the run did not finish. */
+/** The day the last building in play went operational. Infinity when the run did not finish. */
 export function readFinishDay(samples: readonly DecisionSample[]): number {
   for (const sample of samples) {
     if (sample.finishDay !== undefined && Number.isFinite(sample.finishDay)) {

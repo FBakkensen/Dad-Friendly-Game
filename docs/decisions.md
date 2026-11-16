@@ -14,7 +14,7 @@ Until 16 Nov 2026 these lived only in the memory of the claude.ai project the ga
 - **14 Nov 2026, 09:25: run length.** The old finish target of three to five days is gone. A run takes at least five days, in the end probably weeks, and the exact length is not important. A meaningful decision at all times matters most (#556).
 - **14 Nov 2026, 18:46: vertical slices.** "we should develop in vertical slices", so that he can play the start of the game before everything is completed. "This should be a general principle." At 18:55 he chose to rebuild the road (#563) as slices (#649).
 - **14 Nov 2026, 21:47: no more building on the old game.** "Why are we still building on the current version." All new building comes from slice 1. The line on the old board (#536 to #538) was closed as not planned, and PR #650 was closed unmerged. Do not restart them.
-- **16 Nov 2026: "Delete everything about the old game."** The old board, the relics, the veins, the Gold rush, the dig, the pass, Legacy, kid runs and Grandpa are deleted (#727, #728, #729), and the rest goes under #665. Until #729 the old game's four guardrails were report-only (his A, 05:25).
+- **16 Nov 2026: "Delete everything about the old game."** The old board, the relics, the veins, the Gold rush, the dig, the pass, Legacy, kid runs and Grandpa are deleted (#727, #728, #729), and the rest goes under #665. Until #729 the old game's four guardrails were report-only (his A, 05:25). At 07:51 he agreed ("agree", to option A) that the old game's guardrails are deleted with its lab code, and the fresh mine gets new guardrails once they are designed (#737).
 
 ## What the game is
 

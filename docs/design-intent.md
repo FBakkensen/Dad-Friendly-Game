@@ -53,7 +53,7 @@ Tapping, boosts and the relics had rows here until #728 deleted them, and passin
 
 ## Where the game breaks its own theory today
 
-Measured by the strategy lab (main at 77d4599, 20 seeds). Every new thing should come with a reason, a moment and a first use in the same sitting. Today:
+Measured by the strategy lab on today's mountain (main at 77d4599, 20 seeds), before #737 moved the lab to the fresh mine. Every new thing should come with a reason, a moment and a first use in the same sitting. Today:
 
 - **Clay waits a day.** First clay comes at day 0.5; the workshop opens at day 1.5. Nothing can use clay before then.
 - **The favoured machine comes late.** Granite hardness actually favours drills, and the screen never says which machine suits a band. The 9M borer is affordable only 2–40% of the way into the Granite, depending on the player.
@@ -101,7 +101,7 @@ Each one stays readable from the real numbers on the card.
 6. **Synergies and material forks.** One tier makes another stronger ("+1% to every drill for each cart"), and each band's material feeds two recipes for different play styles.
 7. **Kid-run twists.** Each generation has a bigger mountain, costs that grow faster than the Legacy bonus, and one new rule, so each run is longer and different. (Gone with kid runs in #729.)
 
-The order and the done-when lines are in `docs/plans/next-milestones.md`. Any lab threshold change needs Flemming's OK.
+The order and the done-when lines are in `docs/plans/next-milestones.md`. Any lab threshold change needs Flemming's OK. Since #737 the lab plays only the fresh mine and judges no guardrail: the old rows judged today's mountain, and the fresh mine's own are not designed yet (Flemming, 16 Nov 2026).
 
 ## Sources
 

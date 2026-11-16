@@ -1,34 +1,13 @@
-import { applyAction, type Action } from "../economy/actions";
-import {
-  ENGINEER_POSTS,
-  onTrip,
-  promote,
-  promoteCost,
-  station,
-  tendBestTier,
-  type EngineerPost,
-} from "../engineers";
-import { send, settle, TUNNELS, type TunnelId } from "../expeditions";
+import type { Action } from "../economy/actions";
 import type { Mountain } from "../mountain";
-import { freshMineOn, lineOn } from "../line-switch";
 import { nextBuilding } from "../city";
-import { effectiveRates } from "../rates";
-import { moreStones } from "../staffing";
-import { tierById } from "../tiers";
+import { freshMineOn } from "../line-switch";
 import { createWorld, step, type World } from "./world";
-import { canPay, sendWorthIt, sticker } from "./decide";
+import { sticker } from "./decide";
 import { playFresh } from "./fresh-dad";
+import { fixDelayMs, type Policy, type PolicyParams } from "./policy";
+import { dayNumber } from "./sittings";
 import {
-  dayTunnel,
-  fixDelayMs,
-  isNightGap,
-  nightTunnel,
-  type FreshHabits,
-  type Policy,
-  type PolicyParams,
-} from "./policy";
-import {
-  DAY_MS,
   DEFAULT_MAX_DAYS,
   MS_PER_SECOND,
   SAMPLE_INTERVAL_SEC,
@@ -40,16 +19,9 @@ type PolicyPurchase = {
   readonly price: number;
 };
 
-type PolicyPromotion = {
-  readonly day: number;
-  readonly name: string;
-  readonly price: number;
-};
-
 export type PolicyRun = {
   readonly finishDay: number | undefined;
   readonly buys: readonly PolicyPurchase[];
-  readonly promotions: readonly PolicyPromotion[];
   readonly world: World;
 };
 
@@ -60,34 +32,43 @@ export type RunOptions = {
   /** Stop after this many live seconds. The gap after them is not played. */
   readonly maxLiveSeconds?: number;
   readonly mountain?: Mountain;
-  /** Called at the end of each live second, after buys and promotions. */
+  /** Called at the end of each live second, after the dad's moves. */
   readonly observe?: (world: World) => void;
   /** Stop after the second or gap where this becomes true. */
   readonly until?: (world: World) => boolean;
 };
 
+/** What a run says when its caller forgot the game's factors (#737). */
+export const NOT_FRESH =
+  "runPolicy plays only the fresh mine: wrap the run in withFactors(PLAY_FACTORS, ...) (#737).";
+
 /**
- * Plays one policy on the shared clock. Live seconds tick, buy, and
- * promote. The gap pays away time. The same seed replays the same run.
+ * Plays one policy on the shared clock. Live seconds tick and the dad
+ * plays his plans. The gap pays away time. The same seed replays the same
+ * run. Only a fresh mine is played: outside one it throws (#737).
  */
 export function runPolicy(options: RunOptions): PolicyRun {
+  if (!freshMineOn()) {
+    throw new Error(NOT_FRESH);
+  }
   const { policy, seed } = options;
   const params = policy.params;
   const maxDays = options.maxDays ?? DEFAULT_MAX_DAYS;
   let world = createWorld(seed, options.mountain);
   const buys: PolicyPurchase[] = [];
-  const promotions: PolicyPromotion[] = [];
   let finishDay: number | undefined;
   let live = 0;
   const note = () => {
     if (finishDay === undefined && runDone(world.mountain)) {
-      finishDay = world.clock / DAY_MS + 1;
+      finishDay = dayNumber(world.clock);
     }
   };
   const stop = (): boolean => {
     options.observe?.(world);
     return options.until?.(world) === true;
   };
+  const spent = (): boolean =>
+    options.maxLiveSeconds !== undefined && live >= options.maxLiveSeconds;
 
   for (
     let session = 0;
@@ -96,184 +77,34 @@ export function runPolicy(options: RunOptions): PolicyRun {
   ) {
     const seconds = params.minutesPerSession * SAMPLE_INTERVAL_SEC;
     for (let second = 0; second < seconds; second += 1) {
-      if (
-        options.maxLiveSeconds !== undefined &&
-        live >= options.maxLiveSeconds
-      ) {
-        return { finishDay, buys, promotions, world };
+      if (spent()) {
+        return { finishDay, buys, world };
       }
-      world = playSecond(world, policy, second, buys, promotions);
+      world = playSecond(world, policy, buys);
       live += 1;
       note();
       if (stop()) {
-        return { finishDay, buys, promotions, world };
+        return { finishDay, buys, world };
       }
     }
-    if (
-      options.maxLiveSeconds !== undefined &&
-      live >= options.maxLiveSeconds
-    ) {
-      return { finishDay, buys, promotions, world };
+    if (spent()) {
+      return { finishDay, buys, world };
     }
-    world = playGap(world, policy, session, seed);
+    world = step(world, policy.schedule.gapMs(session, seed), "away");
     note();
     if (stop() || runDone(world.mountain)) {
       break;
     }
   }
-  return { finishDay, buys, promotions, world };
+  return { finishDay, buys, world };
 }
 
 /**
- * The run's end: the mountain emptied, or in a fresh mine the last building
- * built so far is operational (slice 1, Lab: the Light Tower's roof in part 1).
+ * The run's end: the last building built so far is operational (slice 1,
+ * Lab: the Warehouse's roof with part 2 on).
  */
 export function runDone(mountain: Mountain): boolean {
-  return freshMineOn()
-    ? nextBuilding(mountain) === undefined
-    : mountain.remaining === 0;
-}
-
-/**
- * Promotes while the habit is asap, the borer brought Ada, and the cap
- * is still open. One scout is Nils. The whole crew is the cap at four.
- */
-export function promoteAsap(
-  mountain: Mountain,
-  params: PolicyParams,
-): { readonly mountain: Mountain; readonly hired: readonly Hired[] } {
-  if (params.promote !== "asap") {
-    return { mountain, hired: [] };
-  }
-  const hired: Hired[] = [];
-  let next = mountain;
-  const limit = 1 + params.promoteCap;
-  while (next.engineers.length < limit) {
-    const count = next.engineers.length;
-    if (count < 1 || next.owned.borer < 1) {
-      break;
-    }
-    const price = promoteCost(next);
-    const promoted = promote(next);
-    if (promoted === next) {
-      break;
-    }
-    for (const engineer of promoted.engineers.slice(count)) {
-      hired.push({ name: engineer.name, price });
-    }
-    next = promoted;
-  }
-  return { mountain: next, hired };
-}
-
-type Hired = {
-  readonly name: string;
-  readonly price: number;
-};
-
-/**
- * The policy's buys after this second's income, one after another while the
- * pocket can pay the next. A buy that changes nothing ends the run of buys.
- */
-function buyWhileAffordable(
-  start: World,
-  policy: Policy,
-  buys: PolicyPurchase[],
-  promotions: PolicyPromotion[],
-): World {
-  const params = policy.params;
-  let world = start;
-  const decide = () =>
-    policy.decide({ mountain: world.mountain, now: world.clock, params });
-  for (
-    let action = decide();
-    action !== undefined && canPay(world.mountain, action, params.hoardK);
-    action = decide()
-  ) {
-    const before = world.mountain;
-    const next = applyAction(before, action, world.clock);
-    if (next === before) {
-      break;
-    }
-    const tended = tendsAfter(params, action) ? tendBest(next) : next;
-    remember(world, before, action, tended, buys, promotions);
-    world = { ...world, mountain: tended };
-  }
-  return world;
-}
-
-/**
- * Where a best-tending dad sends his engineers. On the line (#543) each one
- * at home goes to the post where the line gains most, as her page shows it,
- * since a post on a stage that is not narrow adds nothing. Off the line,
- * the Great Machine, else the borers, as always.
- */
-export function tendBest(mountain: Mountain): Mountain {
-  if (!lineOn()) {
-    return tendBestTier(mountain);
-  }
-  let next = mountain;
-  for (const [index, engineer] of mountain.engineers.entries()) {
-    if (onTrip(next, engineer.name)) {
-      continue;
-    }
-    let best = next;
-    let line = effectiveRates(next).exactCrewPerSecond;
-    for (const post of ENGINEER_POSTS) {
-      const moved = station(next, index, post);
-      const speed = effectiveRates(moved).exactCrewPerSecond;
-      if (moreStones(speed, line)) {
-        best = moved;
-        line = speed;
-      }
-    }
-    next = best;
-  }
-  return next;
-}
-
-/** A best-tending player re-tends after buying a staffed machine. */
-function tendsAfter(params: PolicyParams, action: Action): boolean {
-  return (
-    params.tend === "best" &&
-    action.kind === "buyTier" &&
-    tierById(action.id).staff > 0
-  );
-}
-
-function playSecond(
-  world: World,
-  policy: Policy,
-  second: number,
-  buys: PolicyPurchase[],
-  promotions: PolicyPromotion[],
-): World {
-  const params = policy.params;
-  if (policy.fresh !== undefined && freshMineOn()) {
-    return playFreshSecond(world, policy.fresh, params, buys);
-  }
-  let mountain = world.mountain;
-  // On the line she is weighed post by post, so only as he sits down and
-  // after a staffed buy (tendsAfter), not every second.
-  if (params.tend === "best" && (second === 0 || !lineOn())) {
-    mountain = tendBest(mountain);
-  }
-  if (second === 0 && params.explore !== "never") {
-    mountain = sendExplorers(
-      mountain,
-      world.clock,
-      dayTunnel(params.tunnel),
-      params,
-    );
-  }
-  world = liveSecond({ ...world, mountain }, params);
-  world = buyWhileAffordable(world, policy, buys, promotions);
-  const scouted = promoteAsap(world.mountain, params);
-  const day = world.clock / DAY_MS + 1;
-  for (const hire of scouted.hired) {
-    promotions.push({ day, name: hire.name, price: hire.price });
-  }
-  return { ...world, mountain: scouted.mountain };
+  return nextBuilding(mountain) === undefined;
 }
 
 /** One live second of the mine, with the dad's way of fixing trouble. */
@@ -305,22 +136,21 @@ function isBuy(action: Action): action is Buy {
 }
 
 /**
- * A second in a fresh mine (#655): the mine works, then part 1's dad plays
- * his plans. No engineers or tunnels: part 1 has none.
+ * A second in a fresh mine (#655): the mine works, then the dad plays his
+ * plans. No engineers or tunnels: the fresh mine has none.
  */
-function playFreshSecond(
+function playSecond(
   world: World,
-  habits: FreshHabits,
-  params: PolicyParams,
+  policy: Policy,
   buys: PolicyPurchase[],
 ): World {
-  const worked = liveSecond(world, params);
-  const day = worked.clock / DAY_MS + 1;
+  const worked = liveSecond(world, policy.params);
+  const day = dayNumber(worked.clock);
   const played = playFresh(
     worked.mountain,
     worked.clock,
-    habits,
-    params.hoardK,
+    policy.fresh,
+    policy.params.hoardK,
     (before, action) => {
       if (isBuy(action)) {
         buys.push({ day, id: action.id, price: sticker(before, action) });
@@ -328,111 +158,4 @@ function playFreshSecond(
     },
   );
   return { ...worked, mountain: played };
-}
-
-function playGap(
-  world: World,
-  policy: Policy,
-  session: number,
-  seed: number,
-): World {
-  const params = policy.params;
-  const gap = policy.schedule.gapMs(session, seed);
-  if (
-    params.explore !== "never" &&
-    isNightGap(session, params.sessionsPerDay)
-  ) {
-    const gapEnd = world.clock + gap;
-    const due = world.mountain.expeditions
-      .map((trip) => trip.returnsAt)
-      .filter((returnsAt) => returnsAt > world.clock && returnsAt < gapEnd);
-    const back = due.length === 0 ? world.clock : Math.min(...due);
-    let mountain = world.mountain;
-    if (back > world.clock) {
-      mountain = settle(mountain, back).mountain;
-    }
-    mountain = sendExplorers(
-      mountain,
-      back,
-      nightTunnel(params.tunnel),
-      params,
-    );
-    world = { ...world, mountain };
-  }
-  return step(world, gap, "away");
-}
-
-function sendExplorers(
-  mountain: Mountain,
-  now: number,
-  tunnel: TunnelId,
-  params: PolicyParams,
-): Mountain {
-  const spec = TUNNELS.find((item) => item.id === tunnel);
-  // Tunnel ids are the closed TUNNELS list, so the find hits.
-  /* v8 ignore next 3 -- unreachable for a TunnelId */
-  if (spec === undefined) {
-    return mountain;
-  }
-  let next = mountain;
-  for (const [index, engineer] of mountain.engineers.entries()) {
-    if (
-      onTrip(mountain, engineer.name) ||
-      keepsPost(engineer.post) ||
-      engineer.rank < spec.minRank
-    ) {
-      continue;
-    }
-    if (
-      params.explore === "on-value" &&
-      !sendWorthIt(next, index, tunnel, params)
-    ) {
-      continue;
-    }
-    next = send(next, index, tunnel, now);
-  }
-  return next;
-}
-
-/** Tending and travelling engineers stay. Camp is free to walk. */
-function keepsPost(post: EngineerPost): boolean {
-  return (
-    post === "cart" ||
-    post === "drill" ||
-    post === "borer" ||
-    post === "machine"
-  );
-}
-
-function remember(
-  world: World,
-  before: Mountain,
-  action: Action,
-  after: Mountain,
-  buys: PolicyPurchase[],
-  promotions: PolicyPromotion[],
-): void {
-  const day = world.clock / DAY_MS + 1;
-  if (action.kind === "buyTier" || action.kind === "buyUpgrade") {
-    buys.push({
-      day,
-      id: action.id,
-      price: sticker(before, action),
-    });
-    return;
-  }
-  if (action.kind !== "promote") {
-    return;
-  }
-  const hired = after.engineers[before.engineers.length];
-  // apply no-ops when the hire does not happen, so this loop already stopped.
-  /* v8 ignore next 3 -- promote added the engineer */
-  if (hired === undefined) {
-    return;
-  }
-  promotions.push({
-    day,
-    name: hired.name,
-    price: sticker(before, action),
-  });
 }

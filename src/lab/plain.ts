@@ -1,95 +1,43 @@
-import { parameterisedDecide } from "./decide";
 import {
   definePolicy,
   scheduleFrom,
-  type Habit,
+  type FreshHabits,
   type Policy,
   type PolicyKind,
   type PolicyParams,
-  type SpendWeights,
-  type TendChoice,
-  type CraftRule,
   type TroubleFix,
-  type TunnelPlan,
-  type WorkerRule,
-  type FreshHabits,
   type WorkerMoves,
 } from "./policy";
 
-/** The plain dad's spends: crew and machines, nothing lasting. */
-const PLAIN_SPEND: SpendWeights = {
-  worker: 1,
-  machine: 1,
-  upgrade: 0,
-  promote: 0,
-};
-
-export type PlainSpec = {
+export type FreshSpec = {
   readonly id: string;
   readonly label: string;
   readonly kind: PolicyKind;
   readonly sessionsPerDay: number;
   readonly minutesPerSession: number;
   readonly gapJitter?: number;
-  readonly spend?: SpendWeights;
   readonly hoardK?: number;
-  readonly promote?: Habit;
-  readonly promoteCap?: number;
-  readonly explore?: Habit;
-  readonly tunnel?: TunnelPlan;
-  readonly tend?: TendChoice;
   readonly trouble?: TroubleFix;
-  readonly workers?: WorkerRule;
-  /** Defaults to crafting when the next buy can wait. */
-  readonly craft?: CraftRule;
-  readonly decide?: Policy["decide"];
-};
-
-/** Params for a dad who plays like today's plain dad, plus the overrides. */
-export function plainParams(spec: PlainSpec): PolicyParams {
-  return {
-    sessionsPerDay: spec.sessionsPerDay,
-    minutesPerSession: spec.minutesPerSession,
-    gapJitter: spec.gapJitter ?? 0,
-    spend: spec.spend ?? PLAIN_SPEND,
-    hoardK: spec.hoardK ?? 1,
-    promote: spec.promote ?? "asap",
-    promoteCap: spec.promoteCap ?? 1,
-    explore: spec.explore ?? "asap",
-    tunnel: spec.tunnel ?? "shift",
-    tend: spec.tend ?? "best",
-    trouble: spec.trouble ?? "fast",
-    workers: spec.workers ?? "any",
-    craft: spec.craft ?? "idle",
-  };
-}
-
-/**
- * A player type that starts from the plain dad. Each file passes the
- * habit that makes it different. The loader reads the default export.
- */
-export function plainPolicy(spec: PlainSpec): Policy {
-  const params = plainParams(spec);
-  return definePolicy({
-    id: spec.id,
-    label: spec.label,
-    kind: spec.kind,
-    params,
-    schedule: scheduleFrom(params),
-    decide: spec.decide ?? parameterisedDecide,
-  });
-}
-
-export type FreshSpec = PlainSpec & {
   readonly moves: WorkerMoves;
   readonly hold?: FreshHabits["hold"];
   readonly upgrades?: boolean;
 };
 
+/** Params for the plain dad's sittings, plus the overrides. */
+function plainParams(spec: FreshSpec): PolicyParams {
+  return {
+    sessionsPerDay: spec.sessionsPerDay,
+    minutesPerSession: spec.minutesPerSession,
+    gapJitter: spec.gapJitter ?? 0,
+    hoardK: spec.hoardK ?? 1,
+    trouble: spec.trouble ?? "fast",
+  };
+}
+
 /**
- * Part 1's player type (slice 1, Lab, #655): today's plain dad's sittings,
- * and how he plays a fresh mine. His moves are `src/lab/fresh-dad.ts`; the
- * `decide` he keeps for today's game is never asked in a fresh mine.
+ * A fresh mine's player type (slice 1, Lab, #655): the plain dad's
+ * sittings, and how he plays the mine. His moves are `src/lab/fresh-dad.ts`.
+ * The loader reads each file's default export.
  */
 export function freshPolicy(spec: FreshSpec): Policy {
   const params = plainParams(spec);
@@ -99,7 +47,6 @@ export function freshPolicy(spec: FreshSpec): Policy {
     kind: spec.kind,
     params,
     schedule: scheduleFrom(params),
-    decide: parameterisedDecide,
     fresh: {
       moves: spec.moves,
       hold: spec.hold ?? "on-value",

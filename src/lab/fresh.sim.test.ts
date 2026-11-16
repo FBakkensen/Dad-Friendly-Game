@@ -2,7 +2,8 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { withFactors } from "../economy/factors";
 import { FRESH_OFF } from "../line-switch";
-import { PART_TWO_OFF } from "../part-switch";
+import { PART_TWO_OFF, PLAY_FACTORS } from "../part-switch";
+import checker from "./fresh-policies/checker-6x3";
 import { discover } from "./registry";
 import { freshPlan } from "./fresh-dad";
 import { freshView } from "./fresh-view";
@@ -36,7 +37,7 @@ describe("the lab plays part 1 (#655)", { timeout: 300_000 }, () => {
               return;
             }
             // A live second's plans settle well inside PLANS_A_SECOND.
-            if (live && policy.fresh !== undefined) {
+            if (live) {
               expect(
                 freshPlan(world.mountain, policy.fresh, policy.params.hoardK),
                 policy.id,
@@ -80,4 +81,24 @@ describe("the lab plays part 2 (#667)", { timeout: 600_000 }, () => {
       }
     });
   });
+});
+
+// Three one-day runs of the checker in the game's mine: the sim project.
+describe("the checker's sittings", () => {
+  it("jitters the checker's gaps from the seed, and replays them", () => {
+    expect(checker.params).toMatchObject({
+      sessionsPerDay: 6,
+      minutesPerSession: 3,
+    });
+    expect(checker.schedule.gapMs(0, 1)).toBe(checker.schedule.gapMs(0, 1));
+    expect(checker.schedule.gapMs(0, 1)).not.toBe(checker.schedule.gapMs(0, 2));
+    withFactors(PLAY_FACTORS, () => {
+      const again = runPolicy({ policy: checker, seed: 3, maxDays: 1 });
+      expect(again).toEqual(
+        runPolicy({ policy: checker, seed: 3, maxDays: 1 }),
+      );
+      const other = runPolicy({ policy: checker, seed: 9, maxDays: 1 });
+      expect(other.world.clock).not.toBe(again.world.clock);
+    });
+  }, 30_000);
 });

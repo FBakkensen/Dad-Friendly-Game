@@ -26,8 +26,6 @@ export type RevealEvent = {
   readonly liveSec: number;
   /** Sittings started before this one. The tournament stamps it. */
   readonly sitting?: number;
-  /** Stones mined at this moment. The tournament stamps it. */
-  readonly mined?: number;
 };
 
 /** One thing's wait, from showing up to its first use, in live hours. */

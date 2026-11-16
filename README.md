@@ -43,7 +43,7 @@ Tests run in plain `node`. A test file that needs the DOM opens with `// @vitest
 
 ## Strategy lab
 
-`npm run lab` plays every registered player type and writes `reports/strategy-lab.md` and `reports/strategy-lab.json`. Those files are gitignored. Locally the seed count is `LOCAL_SEEDS`. `--ci` uses `CI_SEEDS` (see `src/lab/targets.ts`). `--seeds` overrides either. The lab is not part of the game the player runs. The full gate runs it with `--ci` and `LAB_STRICT=1` when economy code changed, so a missed guardrail fails the gate. Without that variable a miss is a warning.
+`npm run lab` plays every registered player type on the mine the live game plays (the fresh mine with part 2, #737) and writes `reports/strategy-lab.md` and `reports/strategy-lab.json`. Those files are gitignored. Locally the seed count is `LOCAL_SEEDS`. `--ci` uses `CI_SEEDS` (see `src/lab/targets.ts`). `--seeds` overrides either. The lab is not part of the game the player runs. The full gate runs it with `--ci` and `LAB_STRICT=1` when economy code changed, so a missed guardrail fails the gate. Without that variable a miss is a warning.
 
 The markdown table is one row per player type and one column per measure. A green pass or a red fail means a guardrail in `src/lab/targets.ts` covers that cell. A bare number has no guardrail. The header gives the optimizer's finish day and the plain dad's (`casual-2x10`); regret and extreme win use those two figures.
 
@@ -54,13 +54,7 @@ npm run lab
 npm run lab -- --policy casual-2x10 --seeds 1 --days 7
 ```
 
-A new file in `src/lab/policies/` adds a row. A new file in `src/lab/measures/` adds a column. A new entry in `src/lab/targets.ts` adds a pass or fail. Nothing else has to change.
-
-`npm run lab:sweep` asks which economy knobs move the measures. Morris screening runs first, then Sobol (S1 and ST) on the top knobs. The report is `reports/sweep.md`, also gitignored. It is not part of `npm run check`. The default run is the casual dad and `longestDeadStretch`, `singleShare`, `dominantShare`, and `finishDay`. Knobs are one entry each in `tools/sweep/knobs.ts`.
-
-```bash
-npm run lab:sweep -- --morris 4 --sobol 16 --top 4 --days 30
-```
+A new file in `src/lab/fresh-policies/` adds a row. A new file in `src/lab/measures/` adds a column. A new entry in `src/lab/targets.ts` adds a pass or fail. Nothing else has to change.
 
 ## Field log reader
 
