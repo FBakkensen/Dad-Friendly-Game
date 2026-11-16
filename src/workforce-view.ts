@@ -41,7 +41,8 @@ import {
 export const NO_FREE_WORKER =
   "No free worker. Hire one, or take one off another job.";
 
-const JOB_NAMES: Readonly<Record<JobId, string>> = {
+/** Each job's name: a row's in the sheet, and a maker's plate's in the refinery (#754). */
+export const JOB_NAMES = {
   drilling: "Drilling",
   haulage: "Haulage",
   hoisting: "Hoisting",
@@ -51,15 +52,16 @@ const JOB_NAMES: Readonly<Record<JobId, string>> = {
   graniteDrilling: "Drilling",
   graniteHaulage: "Haulage",
   saws: "Saws",
-};
+} as const satisfies Readonly<Record<JobId, string>>;
 
 /**
- * The jobs of each site, in the sheet's order; a site shows while it is open
- * (#671). The refinery's are its makers' (`refineryJobs`).
+ * The jobs of each site but the refinery, in the sheet's order; a site shows
+ * while it is open (#671). The refinery's are its makers' (`refineryJobs`).
  */
-const SITE_JOBS: Readonly<Record<SiteId, readonly JobId[]>> = {
+const SITE_JOBS: Readonly<
+  Record<Exclude<SiteId, "refinery">, readonly JobId[]>
+> = {
   mine: STAGES.map((stage) => STAGE_JOB[stage]),
-  refinery: ["kilns"],
   // The factory takes no workers in slice 1 (rule 2.12), so it has no group.
   factory: [],
   city: ["driving", "building"],
@@ -137,12 +139,13 @@ function siteJobs(mountain: Mountain, site: SiteId): readonly JobId[] {
 
 /** Every site's jobs by name, open or not: the sheet builds them and shows the open ones (#671). */
 export function jobSites(mountain: Mountain): readonly JobSite[] {
-  return SITES.filter((site) => SITE_JOBS[site].length > 0).flatMap((site) =>
-    site === "mine" && graniteOpen(mountain)
-      ? MINE_GROUPS.map((group) =>
-          siteGroup(group.key, site, group.name, group.jobs),
-        )
-      : [siteGroup(site, site, SITE_NAMES[site], siteJobs(mountain, site))],
+  return SITES.filter((site) => siteJobs(mountain, site).length > 0).flatMap(
+    (site) =>
+      site === "mine" && graniteOpen(mountain)
+        ? MINE_GROUPS.map((group) =>
+            siteGroup(group.key, site, group.name, group.jobs),
+          )
+        : [siteGroup(site, site, SITE_NAMES[site], siteJobs(mountain, site))],
   );
 }
 

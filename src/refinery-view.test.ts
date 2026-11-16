@@ -1,9 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { withFactors } from "./economy/factors";
 import { formatCompact } from "./format";
-import { chainSpill } from "./piles";
-import { graniteChain, topsoilChain } from "./mine-piles";
-import { crewTimer } from "./rates";
+import { graniteChain } from "./mine-piles";
 import type { Mountain } from "./mountain";
 import { PART_TWO_OFF } from "./part-switch";
 import {
@@ -252,15 +250,10 @@ describe("a plate for each open maker (#754)", () => {
       const saws = refinery.plates[1];
       expect(saws?.pile).toBeUndefined();
       expect(saws?.machines).toBe("No saws yet");
-      const granite = graniteChain(mountain);
-      expect(granite).toBeDefined();
-      const graniteSpill = granite === undefined ? 0 : chainSpill(granite);
-      expect(graniteSpill).toBeGreaterThan(0);
-      const both =
-        (chainSpill(topsoilChain(mountain)) + graniteSpill) *
-        crewTimer(mountain, 0);
-      expect(refinery.bypass.rate).toBe(`${formatCompact(both)}/s`);
-      expect(refinery.hoppers[1]?.lifted).toBeGreaterThan(0);
+      // Each level lifts its own (a hoist each, one for both in turn), and
+      // with no kiln and no saw every rock of both reaches the chute.
+      expect(refinery.hoppers.map((h) => h.rate)).toEqual(["82/s", "52/s"]);
+      expect(refinery.bypass.rate).toBe("134/s");
     });
   });
 

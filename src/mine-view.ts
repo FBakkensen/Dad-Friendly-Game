@@ -3,7 +3,7 @@ import { formatCompact } from "./format";
 import { GOOD_NAMES } from "./frame-view";
 import { STAGES, type Stage } from "./line";
 import type { MakerId } from "./makers";
-import { MINE_LEVEL_IDS, graniteOpen, type MineLevelId } from "./mine-levels";
+import { openLevels, type MineLevelId } from "./mine-levels";
 import {
   faceHolds,
   mineLevelFlows,
@@ -103,8 +103,7 @@ export function levelHoppers(
   now?: number,
 ): readonly LevelHopper[] {
   const flows = mineLevelFlows(mountain, now).levels;
-  const open = graniteOpen(mountain) ? MINE_LEVEL_IDS : (["topsoil"] as const);
-  return open.map((level) => ({
+  return openLevels(mountain).map((level) => ({
     level,
     ...liftedPlate(level, flows[level].lift),
   }));

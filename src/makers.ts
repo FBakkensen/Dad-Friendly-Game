@@ -67,9 +67,13 @@ export type MakerId = (typeof MAKER_ROWS)[number]["id"];
 /** The jobs whose workers run the makers: the kilns, and the saws. */
 export type MakerJob = (typeof MAKER_ROWS)[number]["job"];
 
-type Maker = Omit<MakerRow, "id" | "job"> & {
+/** The goods the makers make: brick, and cut stone. */
+type MakerOutput = (typeof MAKER_ROWS)[number]["output"];
+
+type Maker = Omit<MakerRow, "id" | "job" | "output"> & {
   readonly id: MakerId;
   readonly job: MakerJob;
+  readonly output: MakerOutput;
 };
 
 const MAKERS: readonly Maker[] = MAKER_ROWS;
@@ -158,7 +162,7 @@ export function makerTakes(id: MakerId): number {
 }
 
 /** The good a maker makes. */
-export function makerOutput(id: MakerId): GoodId {
+export function makerOutput(id: MakerId): MakerOutput {
   return makerById(id).output;
 }
 

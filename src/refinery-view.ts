@@ -1,5 +1,5 @@
 import { formatCompact, shiftDuration } from "./format";
-import { BAY_ORDER, GOOD_NAMES, stockpiles } from "./frame-view";
+import { BAY_ORDER, GOOD_NAMES, GOOD_WORDS, stockpiles } from "./frame-view";
 import {
   makerJob,
   makerMakes,
@@ -33,7 +33,7 @@ import { MAKER_WORDS, plural } from "./screen-words";
 import { canPay, type GoodId } from "./stock";
 import { MAX_STOCKYARD_LEVEL, ROOM_GROWTH, expandPrice } from "./stockyard";
 import { placeable } from "./workforce";
-import { noMakersYet } from "./workforce-view";
+import { JOB_NAMES, noMakersYet } from "./workforce-view";
 
 /**
  * The refinery on slice 1's frame (#671; spec, The refinery): a flow from
@@ -64,22 +64,18 @@ type MakerKey = {
   readonly good: GoodId;
 };
 
-/** A maker's plate's own words (#754): its name and its good a second. */
-const PLATE_WORDS = {
-  kiln: { name: "Kilns", unit: "brick/s" },
-  saw: { name: "Saws", unit: "cut stone/s" },
-} as const satisfies Record<MakerId, { name: string; unit: string }>;
-
 /** A maker's plate: the kilns', and the saws' once the Granite is open (#754). */
 export type MakerPlate = {
   readonly id: MakerId;
   /** "Recipe: 2 rock → 1 brick". */
   readonly recipe: string;
-  readonly name: (typeof PLATE_WORDS)[MakerId]["name"];
+  /** Its job's name: "Kilns", "Saws". */
+  readonly name: (typeof JOB_NAMES)[MakerJob];
   /** What the makers make now, and what the running ones can make. */
   readonly now: string;
   readonly can: string;
-  readonly unit: (typeof PLATE_WORDS)[MakerId]["unit"];
+  /** "brick/s", "cut stone/s". */
+  readonly unit: `${(typeof GOOD_WORDS)[ReturnType<typeof makerOutput>]}/s`;
   /** "4 kilns: 4 of 4 workers", "1 of 2 kilns: 1 of 2 workers", "No kilns yet". */
   readonly machines: string;
   /** "+ 2 without a kiln": workers on the job with no maker to run. */
@@ -166,12 +162,11 @@ function makerChains(mountain: Mountain): Record<MakerId, Chain | undefined> {
  */
 function incomeNow(
   mountain: Mountain,
-  now: number | undefined,
+  timer: number,
 ): {
   readonly made: Readonly<Record<MakerId, number>>;
   readonly stones: number;
 } {
-  const timer = crewTimer(mountain, now);
   const chains = makerChains(mountain);
   const made = (chain: Chain | undefined): number =>
     chain === undefined ? 0 : chainMade(chain) * timer;
@@ -184,9 +179,6 @@ function incomeNow(
     stones: stones * timer,
   };
 }
-
-/** A good as a plate says it, in lower case: "stone", "brick", "cut stone". */
-const goodWord = (good: GoodId): string => GOOD_NAMES[good].toLowerCase();
 
 function machinesLine(id: MakerId, owned: number, running: number): string {
   if (owned === 0) {
@@ -209,7 +201,7 @@ function makerKey(mountain: Mountain, id: MakerId): MakerKey {
     price: amount,
     staff: "1 to run",
     can: canPay(mountain.stock, price),
-    label: `Buy a ${one} for ${amount} ${goodWord(good)}. It makes ${makes} ${goodWord(makerOutput(id))} a second and takes 1 to run.`,
+    label: `Buy a ${one} for ${amount} ${GOOD_WORDS[good]}. It makes ${makes} ${GOOD_WORDS[makerOutput(id)]} a second and takes 1 to run.`,
     good,
   };
 }
@@ -244,10 +236,12 @@ function makerPlate(
   const workers = mountain.jobs[job];
   const extra = workers - owned;
   const pile = makerPile(mountain, id);
+  const output = GOOD_WORDS[makerOutput(id)];
   return {
     id,
-    recipe: `Recipe: ${String(makerTakes(id))} rock → 1 ${goodWord(makerOutput(id))}`,
-    ...PLATE_WORDS[id],
+    recipe: `Recipe: ${String(makerTakes(id))} rock → 1 ${output}`,
+    name: JOB_NAMES[job],
+    unit: `${output}/s` as const,
     now: formatCompact(made),
     can: formatCompact(makerRate(mountain, id) * timer),
     machines: machinesLine(id, owned, runningMakers(mountain, id)),
@@ -326,8 +320,8 @@ function expandKey(mountain: Mountain): ExpandKey | undefined {
  */
 export function refineryView(mountain: Mountain, now?: number): RefineryView {
   const hoppers = levelHoppers(mountain, now);
-  const income = incomeNow(mountain, now);
   const timer = crewTimer(mountain, now);
+  const income = incomeNow(mountain, timer);
   const makers = refineryMakers(mountain);
   const yard = bays(mountain);
   const expand = expandKey(mountain);

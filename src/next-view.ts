@@ -6,7 +6,7 @@ import { mineMoves } from "./mine-piles";
 import { canPay } from "./stock";
 import { installable, stationOpen } from "./factory";
 import { recipeById } from "./workshop";
-import { MAKER_IDS, makerOpen, makerPrice, makersOpen } from "./makers";
+import { makerPrice, makersOpen, refineryMakers } from "./makers";
 import { partTwoOn } from "./part-switch";
 import { MAX_STOCKYARD_LEVEL, expandPrice, stockyardOpen } from "./stockyard";
 import { TIERS, tierGood, tierQuote } from "./tiers";
@@ -94,10 +94,8 @@ function refineryCount(mountain: Mountain): number {
   if (!siteOpen(mountain, "refinery")) {
     return 0;
   }
-  const makers = MAKER_IDS.filter(
-    (id) =>
-      makerOpen(mountain, id) &&
-      canPay(mountain.stock, makerPrice(mountain, id)),
+  const makers = refineryMakers(mountain).filter((id) =>
+    canPay(mountain.stock, makerPrice(mountain, id)),
   ).length;
   const level =
     stockyardOpen(mountain) &&

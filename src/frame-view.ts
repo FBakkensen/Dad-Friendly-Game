@@ -44,6 +44,17 @@ export const GOOD_NAMES: Readonly<Record<GoodId, string>> = {
   cutStone: "Cut stone",
 };
 
+/** A good inside a line, as the night's report and the refinery's plates say it: "stone". */
+export const GOOD_WORDS = {
+  stones: "stone",
+  clay: "clay",
+  iron: "iron",
+  crystal: "crystal",
+  heartstone: "heartstone",
+  brick: "brick",
+  cutStone: "cut stone",
+} as const satisfies Readonly<Record<GoodId, string>>;
+
 /** A pip for each of the three steps: built, in hand, or still to come. */
 export type Pip = "done" | "now" | "later";
 

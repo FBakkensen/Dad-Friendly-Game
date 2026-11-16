@@ -1,9 +1,9 @@
 import { ROOF, buildingById, type Building } from "./city";
 import { formatCompact, shiftDuration } from "./format";
-import { BAY_ORDER, GOOD_NAMES, STEP_NAMES } from "./frame-view";
+import { BAY_ORDER, GOOD_NAMES, GOOD_WORDS, STEP_NAMES } from "./frame-view";
 import type { AwayReport, NightReport } from "./mountain";
 import { percent } from "./screen-words";
-import { GOOD_IDS, type GoodId, type Stock } from "./stock";
+import { GOOD_IDS, type Stock } from "./stock";
 
 /**
  * The shift report after unattended time in a fresh mine (#663; spec, "The
@@ -39,17 +39,6 @@ export type ShiftReport = {
 
 /** The second key's words, beside Resume, when the stockyard stood the mine. */
 export const TO_STOCKYARD = "To the stockyard";
-
-/** A good as the report says it: "stone". */
-const GOOD_WORDS: Readonly<Record<GoodId, string>> = {
-  stones: "stone",
-  clay: "clay",
-  iron: "iron",
-  crystal: "crystal",
-  heartstone: "heartstone",
-  brick: "brick",
-  cutStone: "cut stone",
-};
 
 /** The building whose roof went on and lit the night, if one did. */
 function litBy(night: NightReport): Building | undefined {
