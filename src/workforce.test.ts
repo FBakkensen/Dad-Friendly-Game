@@ -811,6 +811,20 @@ describe("each level's work (rule 5.1, 5.2, #673)", () => {
     });
   });
 
+  it("names hoisting's work: the hoists that run and the winch's workers (#724)", () => {
+    partThree(() => {
+      // Three on hoisting and two hoists: each hoist takes one, one on the winch.
+      const work = lineWork(
+        levels({ jobs: { hoisting: 3 }, hoists: 2 }),
+        SPEED,
+      );
+      expect(work.hoisting.running.hoist).toBe(2);
+      expect(work.hoisting.tools).toBe(1);
+      expect(work.hoisting.moves).toBe(work.stages.lift);
+      expect(work.hoisting.moves).toBe(2 * SPEED.hoist + toolSpeed(SPEED));
+    });
+  });
+
   it("is part 2's line while the Granite is not open", () => {
     fc.assert(
       fc.property(

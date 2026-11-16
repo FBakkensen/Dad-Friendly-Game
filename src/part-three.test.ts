@@ -1,116 +1,46 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { withFactors } from "./economy/factors";
-import { FRESH_OFF } from "./line-switch";
 import { makerTakes } from "./makers";
+import { NO_LEVEL_MACHINES, type GranitePiles } from "./mine-levels";
 import {
-  NO_GRANITE_PILES,
-  NO_LEVEL_MACHINES,
-  type GranitePiles,
-  type LevelMachines,
-} from "./mine-levels";
-import { mineMoves, mineSettled, type MinePiles } from "./mine-piles";
+  faceHolds,
+  kilnHolds,
+  makerHolds,
+  mineDraw,
+  mineMoves,
+  mineSettled,
+  mineWork,
+  shaftHolds,
+  takeIncome,
+} from "./mine-piles";
 import { accrue, accrueAway, createMountain, type Mountain } from "./mountain";
-import { PART_THREE_OFF, PART_TWO_OFF } from "./part-switch";
+import { levels, partThree, partTwo, type Setup } from "./part-three.harness";
 import { effectiveRates } from "./rates";
-import { EMPTY_STOCK, type Stock } from "./stock";
+import { EMPTY_STOCK } from "./stock";
+import { stockDraw } from "./transport";
 import type { Project } from "./city";
 
 /**
  * Part 3's mine (slice 1, rules 3 and 5, #673): each level has its own
- * drilling, haulage, drilled rock and rock at the shaft, the one hoist lifts
- * from both, the Granite's rock goes to the saws first, three rock for a cut
- * stone, and what they cannot take bypasses to stone. With the shaft not
- * sunk, or part 3 off, the mine plays exactly as part 2 (ruling 6).
+ * drilling, haulage, drilled rock and rock at the shaft, the shaft's cages
+ * lift from both (#724), the Granite's rock goes to the saws first, three
+ * rock for a cut stone, and what they cannot take bypasses to stone. With
+ * part 3 off, the mine plays exactly as part 2 (ruling 6). With the shaft not
+ * sunk and part 3 on, it plays as part 2 but for the cages (#724, call 65):
+ * the piles they use hold loads of the largest cage, and the winch lifts no
+ * more than a hoist. While those rooms stay 300 it plays exactly as part 2;
+ * with `piles.loads` at 0 and no more on the winch than a
+ * hoist lifts, it plays exactly as part 2.
+ *
+ * Unattended time counts the cages as rates (rule 5.14). A hoist's cage
+ * carries a load of 600 (its 60 a second times the Topsoil's 10 s trip): 60
+ * a second from the Topsoil, or 30 from the Granite (20 s), for a hoist
+ * assigned there. The winch's cage carries its workers' tools for 10 s, up
+ * to a hoist's 600, and serves both levels: a cage for both lifts its load
+ * once a round of the levels in the turn, so each level in the turn gets
+ * `load / 30` with both in it.
  */
-const partThree = <T>(body: () => T): T =>
-  withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 }, body);
-const partTwo = <T>(body: () => T): T =>
-  withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 }, body);
-
 const HOUR = 60 * 60 * 1000;
-
-type Setup = {
-  /** Workers on the Topsoil's drilling and haulage: 3 a second each, with tools. */
-  readonly topsoil?: number;
-  /** Workers on the Granite's drilling and haulage. */
-  readonly granite?: number;
-  /** Workers on the one hoist. */
-  readonly hoisting?: number;
-  readonly kilns?: number;
-  readonly onKilns?: number;
-  readonly saws?: number;
-  readonly onSaws?: number;
-  readonly piles?: Partial<MinePiles>;
-  readonly granitePiles?: Partial<GranitePiles>;
-  readonly machines?: Partial<LevelMachines>;
-  readonly sunk?: boolean;
-  readonly stock?: Partial<Stock>;
-  readonly project?: Project;
-  readonly driving?: number;
-  readonly building?: number;
-};
-
-/** A fresh mine with the Light Tower up, the shaft sunk (by default), and these workers, makers and piles. */
-function levels({
-  topsoil = 0,
-  granite = 0,
-  hoisting = 0,
-  kilns = 0,
-  onKilns = kilns,
-  saws = 0,
-  onSaws = saws,
-  piles = {},
-  granitePiles = {},
-  machines = {},
-  sunk = true,
-  stock = {},
-  project = { kind: "unordered" },
-  driving = 0,
-  building = 0,
-}: Setup): Mountain {
-  const start = createMountain();
-  const own = { ...NO_LEVEL_MACHINES, ...machines };
-  return {
-    ...start,
-    owned: {
-      ...start.owned,
-      helper:
-        2 * topsoil +
-        2 * granite +
-        hoisting +
-        onKilns +
-        onSaws +
-        driving +
-        building,
-      cart: start.owned.cart + own.cart,
-      drill: start.owned.drill + own.drill,
-    },
-    jobs: {
-      drilling: topsoil,
-      haulage: topsoil,
-      hoisting,
-      driving,
-      building,
-      kilns: onKilns,
-      graniteDrilling: granite,
-      graniteHaulage: granite,
-      saws: onSaws,
-    },
-    stock: { ...EMPTY_STOCK, ...stock },
-    makers: { kiln: kilns, saw: saws },
-    piles: { face: 0, shaft: 0, kiln: 0, ...piles },
-    granite: sunk
-      ? {
-          kind: "sunk",
-          machines: own,
-          piles: { ...NO_GRANITE_PILES, ...granitePiles },
-        }
-      : { kind: "unsunk" },
-    operational: ["lightTower"],
-    project,
-  };
-}
 
 const live = (mountain: Mountain, seconds: number) =>
   accrue({ mountain, from: 0, to: seconds * 1000 });
@@ -139,17 +69,30 @@ function rockWaiting(mountain: Mountain): number {
   );
 }
 
+/** The Granite's sawing mine: 16 on each of its stages and on hoisting, three hoists assigned there, and a saw. */
+const SAWING: Setup = {
+  granite: 16,
+  hoisting: 16,
+  hoists: 3,
+  assigned: { granite: 3 },
+  saws: 1,
+};
+
 describe("the Granite's rock (rules 3 and 5, #673)", () => {
   it("goes to the saws first, three rock for a cut stone, and the rest bypasses to stone", () => {
     partThree(() => {
-      // 49 workers reach the 25 workers' mark: 6 a second each. 96 a second
-      // lifted from the Granite, one saw takes 90 for its 30 cut stone: its
-      // pile of 300 fills in fifty seconds, and the rest bypasses.
-      const after = live(levels({ granite: 16, hoisting: 16, saws: 1 }), 100);
-      expect(after.mined).toBe(9_600);
-      expect(after.mountain.stock.cutStone).toBe(3_000);
-      expect(granitePilesOf(after.mountain).saw).toBe(300);
-      expect(after.mountain.stock.stones).toBe(9_600 - 3 * 3_000 - 300);
+      // 49 workers reach the 25 workers' mark: 6 a second each. Three
+      // hoists assigned to the Granite lift 30 a second each, and the
+      // winch's cage (13 on tools, capped at 600) 30 more with the Granite
+      // alone in the turn: 120, more than the Granite's haulage brings, so
+      // 96 a second is lifted. One saw takes 90 for its 30 cut stone: its
+      // pile of 2,400 (a load of 600 for each of the four cages) fills in
+      // 400 seconds, and the rest then bypasses.
+      const after = live(levels(SAWING), 500);
+      expect(after.mined).toBe(48_000);
+      expect(after.mountain.stock.cutStone).toBe(15_000);
+      expect(granitePilesOf(after.mountain).saw).toBe(2_400);
+      expect(after.mountain.stock.stones).toBe(48_000 - 3 * 15_000 - 2_400);
       expect(after.mountain.stock.brick).toBe(0);
     });
   });
@@ -158,20 +101,19 @@ describe("the Granite's rock (rules 3 and 5, #673)", () => {
     partThree(() => {
       // As above: 96 a second lifted from the Granite, the saw takes 90, so
       // its pile grows 6 a second. Nothing else changes until it is full:
-      // from empty in 300 / 6 = 50 seconds, from 120 in 180 / 6 = 30.
-      const saws = { granite: 16, hoisting: 16, saws: 1 };
-      const empty = mineSettled(levels(saws), 1, true);
-      expect(empty.change).toBe(50);
+      // from empty in 2,400 / 6 = 400 seconds, from 120 in 2,280 / 6 = 380.
+      const empty = mineSettled(levels(SAWING), 1, true);
+      expect(empty.change).toBe(400);
       expect(empty.income.cutStone).toBe(30);
       expect(empty.income.stones ?? 0).toBe(0);
-      const begun = levels({ ...saws, granitePiles: { saw: 120 } });
-      expect(mineSettled(begun, 1, true).change).toBe(30);
+      const begun = levels({ ...SAWING, granitePiles: { saw: 120 } });
+      expect(mineSettled(begun, 1, true).change).toBe(380);
       // Drilling stopped, 288 drilled rock waiting: the saws' pile is full at
-      // 297 + 6 × 0.5, inside the first second, and the drilled rock runs
+      // 2,397 + 6 × 0.5, inside the first second, and the drilled rock runs
       // out at 288 / 96 = 3 seconds from now, not from the settling.
       const draining = levels({
-        ...saws,
-        granitePiles: { face: 288, saw: 297 },
+        ...SAWING,
+        granitePiles: { face: 288, saw: 2_397 },
       });
       expect(mineSettled(draining, 1, false).change).toBe(3);
     });
@@ -198,30 +140,15 @@ describe("the Granite's rock (rules 3 and 5, #673)", () => {
     expect(deep.mountain.rockDug).toBe(shallow.mountain.rockDug);
   });
 
-  it("lifts from both levels' rock at the shaft, and what one cannot use goes to the other (ruling 4)", () => {
-    partThree(() => {
-      // 12 a second hoisted, and each level brings 12: 6 lifted from each.
-      const even = live(levels({ topsoil: 4, granite: 4, hoisting: 4 }), 10);
-      expect(even.mined).toBe(120);
-      expect(even.mountain.piles.shaft).toBe(60);
-      expect(granitePilesOf(even.mountain).shaft).toBe(60);
-      expect(even.mountain.stock.stones).toBe(120);
-      expect(even.mountain.rockDug).toBe(240);
-      // The Topsoil brings 3 a second: the hoist lifts all of it and gives
-      // the Granite the other 9.
-      const lopsided = live(
-        levels({ topsoil: 1, granite: 4, hoisting: 4 }),
-        10,
-      );
-      expect(lopsided.mined).toBe(120);
-      expect(lopsided.mountain.piles.shaft).toBe(0);
-      expect(granitePilesOf(lopsided.mountain).shaft).toBe(120 - 90);
-    });
-  });
-
   it("counts a mine where only the Granite works as at work, and accrues it", () => {
     partThree(() => {
-      const deep = levels({ granite: 4, hoisting: 4 });
+      // A hoist assigned to the Granite, and the winch's cage for both.
+      const deep = levels({
+        granite: 4,
+        hoisting: 4,
+        hoists: 1,
+        assigned: { granite: 1 },
+      });
       expect(mineMoves(deep)).toBe(true);
       // Nobody on the hoist: the Granite still drills and hauls to its piles.
       const hoistless = levels({ granite: 4 });
@@ -238,16 +165,22 @@ describe("the Granite's rock (rules 3 and 5, #673)", () => {
 
   it("stops the saws at a full cut stone stockpile, and their rock then bypasses to stone", () => {
     partThree(() => {
+      // 13 workers: 3 a second each, so haulage brings 12 a second. A hoist
+      // assigned to the Granite lifts 30 a second, and the winch's cage (3
+      // on tools, a load of 90) 4.5 more: all 12 is lifted. The saws' pile
+      // is full at three loads of the hoist's 600.
       const start = levels({
         granite: 4,
         hoisting: 4,
+        hoists: 1,
+        assigned: { granite: 1 },
         saws: 1,
-        granitePiles: { saw: 300 },
+        granitePiles: { saw: 1_800 },
         stock: { cutStone: 250_000 },
       });
       const after = live(start, 100);
       expect(after.mountain.stock.cutStone).toBe(250_000);
-      expect(granitePilesOf(after.mountain).saw).toBe(300);
+      expect(granitePilesOf(after.mountain).saw).toBe(1_800);
       expect(after.mined).toBe(1_200);
       expect(after.mountain.stock.stones).toBe(1_200);
     });
@@ -296,14 +229,17 @@ describe("the Granite's rock (rules 3 and 5, #673)", () => {
       expect(away.mountain.stock.cutStone).toBe(250_000);
       const facts = away.report.night;
       expect(facts?.stop).toBe("stockyard");
-      // 37 workers: 6 a second each. 72 a second hoisted, 32.4 at the night
-      // shift output, fills the stone in about 8.6 hours: past the old
+      // 37 workers: 6 a second each. No hoist: the winch's cage is 12 on
+      // tools, 72 a second, capped at a hoist's load of 600, so both levels
+      // in the turn lift 600 / 30 = 20 a second each. 40 a second, 18 at the
+      // night shift output, fills the stone in about 15 hours: past the old
       // eight-hour clock, and short of the night.
       expect(facts?.producedMs).toBeGreaterThan(8 * HOUR);
       expect(facts?.producedMs).toBeLessThan(24 * HOUR);
       expect(away.report.capped).toBe(false);
-      // Every rock lifted is in a stockpile or waits at the saws.
-      expect(away.mined).toBe(1_000_000 + 3 * 1_000 + 300);
+      // Every rock lifted is in a stockpile or waits at the saws, whose pile
+      // holds three loads of the winch's 600.
+      expect(away.mined).toBe(1_000_000 + 3 * 1_000 + 1_800);
     });
   });
 
@@ -366,6 +302,188 @@ describe("the Granite's rock (rules 3 and 5, #673)", () => {
   });
 });
 
+describe("the cages as rates, unattended (rule 5.14, #724)", () => {
+  /** The rock lifted from each level over a run whose piles start empty and never fill: drilled, less what waits. */
+  const liftedFrom = (after: Mountain, drilled: number) => ({
+    topsoil: drilled - after.piles.face - after.piles.shaft,
+    granite: drilled - granitePilesOf(after).face - granitePilesOf(after).shaft,
+  });
+
+  it("lifts from the cages, not from hoisting's workers, with the Topsoil alone", () => {
+    partThree(() => {
+      // 80 workers reach the 50 workers' mark: 12 a second each, so the
+      // Topsoil drills and hauls 240 a second. One hoist runs (60 a
+      // second), and the winch's 39 on tools would move 468, but its cage
+      // carries no more than a hoist's: 120 a second, not hoisting's 528.
+      const start = levels({
+        topsoil: 20,
+        hoisting: 40,
+        hoists: 1,
+        sunk: false,
+      });
+      const pay = effectiveRates(start).awayPay;
+      expect(pay).toBeGreaterThan(0);
+      const away = night(start, HOUR);
+      expect(away.mined).toBe(Math.round(120 * pay * 3_600));
+    });
+  });
+
+  it("lifts a load in 20 s from the Granite for a hoist assigned there", () => {
+    partThree(() => {
+      // 25 workers: 6 a second each, so the Granite hauls 72 a second. The
+      // hoist's load of 600 every 20 s is 30 a second. Nobody is on the
+      // winch, so the Topsoil's rock at the shaft stays where it is.
+      const start = levels({
+        granite: 12,
+        hoisting: 1,
+        hoists: 1,
+        assigned: { granite: 1 },
+        piles: { shaft: 300 },
+      });
+      const after = live(start, 100);
+      expect(after.mined).toBe(3_000);
+      expect(after.mountain.piles.shaft).toBe(300);
+      expect(after.mountain.stock.stones).toBe(3_000);
+    });
+  });
+
+  it("lifts two loads in 30 s for a hoist for both, one from each level", () => {
+    partThree(() => {
+      // 25 workers: 6 a second each, so each level drills and hauls 36 a
+      // second. The hoist serves both: its 600 once a round of 10 s and 20
+      // s, so each level is lifted 600 / 30 = 20 a second, the Topsoil as
+      // fast as the Granite, and each level's rock at the shaft grows 16 a
+      // second (strictly in turn: what one cannot use is not handed on).
+      const start = levels({
+        topsoil: 6,
+        granite: 6,
+        hoisting: 1,
+        hoists: 1,
+      });
+      const after = live(start, 100);
+      expect(after.mined).toBe(4_000);
+      expect(liftedFrom(after.mountain, 3_600)).toEqual({
+        topsoil: 2_000,
+        granite: 2_000,
+      });
+      expect(after.mountain.piles.shaft).toBe(1_600);
+      expect(granitePilesOf(after.mountain).shaft).toBe(1_600);
+    });
+  });
+
+  it("gives a hoist for both to the Granite alone while the Topsoil has nobody on haulage and nothing at the shaft (rule 5.7)", () => {
+    partThree(() => {
+      // 25 workers: the Granite hauls 72 a second. The Topsoil is out of
+      // the turn, so the hoist makes every trip to the Granite: 600 every
+      // 20 s, 30 a second, not the 20 it would get in turn with the Topsoil.
+      const start = levels({ granite: 12, hoisting: 1, hoists: 1 });
+      const after = live(start, 100);
+      expect(after.mined).toBe(3_000);
+      expect(after.mountain.piles).toEqual({ face: 0, shaft: 0, kiln: 0 });
+    });
+  });
+
+  it("caps the winch's cage at a hoist's load", () => {
+    partThree(() => {
+      // 80 workers: 12 a second each. 40 on the winch would move 480 a
+      // second with their tools; its cage carries a hoist's 600 in 10 s.
+      const start = levels({ topsoil: 20, hoisting: 40, sunk: false });
+      const after = live(start, 100);
+      expect(after.mined).toBe(100 * effectiveRates(start).tierSpeed.hoist);
+      expect(after.mined).toBe(6_000);
+    });
+  });
+
+  it("lifts nothing from a level that no hoist serves when nobody is on the winch (rule 5.8)", () => {
+    partThree(() => {
+      // 25 workers: each level hauls 36 a second. The one hoist is assigned
+      // to the Topsoil and lifts all of it. The Granite's rock at the shaft
+      // fills to its 1,800 in 50 s and stays; then its haulage stops, and its
+      // drilled rock fills to 300. No rock is lost.
+      const start = levels({
+        topsoil: 6,
+        granite: 6,
+        hoisting: 1,
+        hoists: 1,
+        assigned: { topsoil: 1 },
+      });
+      const after = live(start, 100).mountain;
+      expect(granitePilesOf(after)).toEqual({
+        face: 300,
+        shaft: 1_800,
+        saw: 0,
+      });
+      expect(after.stock.stones).toBe(3_600);
+      expect(after.rockDug).toBe(3_600 + 1_800 + 300);
+    });
+  });
+
+  it("makes the rock at the shaft and the makers' piles hold a load of his largest cage for each cage, at least three, never less than 300", () => {
+    partThree(() => {
+      const hoisted = levels({ hoists: 1, kilns: 1 });
+      expect(shaftHolds(hoisted)).toBe(1_800);
+      expect(makerHolds(hoisted, "kiln")).toBe(1_800);
+      expect(kilnHolds(hoisted)).toBe(1_800);
+      expect(makerHolds(hoisted, "saw")).toBe(0);
+      // The winch's cage counts too (rule 5.10): 40 on tools carry 600.
+      const winched = levels({ kilns: 1, saws: 1, hoisting: 40 });
+      expect(shaftHolds(winched)).toBe(1_800);
+      expect(makerHolds(winched, "kiln")).toBe(1_800);
+      expect(makerHolds(winched, "saw")).toBe(1_800);
+      // A load for each cage past three: six hoists and the winch hold seven.
+      const six = levels({ hoists: 6, kilns: 1 });
+      expect(shaftHolds(six)).toBe(7 * 600);
+      expect(makerHolds(six, "kiln")).toBe(7 * 600);
+      // An idle winch carries nothing: with no hoist the piles stay 300.
+      expect(shaftHolds(levels({ kilns: 1 }))).toBe(300);
+      // The drilled rock stays as the lab set it.
+      for (const level of ["topsoil", "granite"] as const) {
+        expect(faceHolds(level)).toBe(300);
+      }
+    });
+    partTwo(() => {
+      const hoisted = levels({ hoists: 3, kilns: 1, sunk: false });
+      expect(shaftHolds(hoisted)).toBe(300);
+      expect(makerHolds(hoisted, "kiln")).toBe(300);
+      expect(kilnHolds(hoisted)).toBe(300);
+    });
+  });
+
+  it("works the cages out only while part 3 is on, and transport's draw only once the stockyard is open", () => {
+    const setup: Setup = { hoists: 1, hoisting: 3, sunk: false };
+    const off = partTwo(() => mineWork(levels(setup)));
+    expect(off.cages).toEqual([]);
+    expect(off.lift).toBeUndefined();
+    const on = partThree(() => mineWork(levels(setup)));
+    expect(on.cages.map((cage) => cage.key)).toEqual(["hoist:0", "winch"]);
+    expect(on.lift).toEqual({ own: { topsoil: 60 + 6, granite: 0 }, loads: 0 });
+    partThree(() => {
+      const dark = { ...levels({ topsoil: 2 }), operational: [] };
+      expect(mineDraw(dark, 1, true)).toEqual({});
+      const delivering = levels({
+        topsoil: 2,
+        hoisting: 2,
+        driving: 1,
+        stock: { stones: 500 },
+        project: {
+          kind: "delivering",
+          site: {
+            building: "warehouse",
+            step: 0,
+            arrived: EMPTY_STOCK,
+            onSite: EMPTY_STOCK,
+          },
+        },
+      });
+      const draw = mineDraw(delivering, 1, true);
+      expect(draw.stones).toBeGreaterThan(0);
+      expect(draw).toEqual(
+        stockDraw(delivering, 1, takeIncome(delivering, 1, true)),
+      );
+    });
+  });
+});
+
 describe("parts 1 and 2 do not change (#673)", () => {
   /** The Warehouse's foundation with `stones` of its stone arrived. */
   const warehouse = (stones: number): Project => ({
@@ -378,7 +496,7 @@ describe("parts 1 and 2 do not change (#673)", () => {
     },
   });
 
-  it("plays a mine whose shaft is not sunk exactly as part 2, with part 3 on", () => {
+  it("plays a mine whose shaft is not sunk as part 2 with part 3 on, with the cages' rooms at 300 and the winch under its cap", () => {
     fc.assert(
       fc.property(
         fc.record({
@@ -410,6 +528,64 @@ describe("parts 1 and 2 do not change (#673)", () => {
               ? {}
               : { project: warehouse(setup.arrived) }),
           });
+          // The one change is the room of the piles the cages use, which
+          // the winch's cage sets from part 3 (#724): with its knob at 0
+          // they hold part 2's 300, and the rest plays exactly as part 2.
+          const sameRooms = { "piles.loads": 0 };
+          expect(partThree(() => live(start, seconds), sameRooms)).toEqual(
+            partTwo(() => live(start, seconds)),
+          );
+          expect(
+            partThree(() => night(start, seconds * 1000), sameRooms),
+          ).toEqual(partTwo(() => night(start, seconds * 1000)));
+        },
+      ),
+      { numRuns: 30 },
+    );
+  });
+
+  it("plays a mine whose shaft is not sunk as part 2 with part 3 on at the default knob, while the cages' rooms stay 300 (#724)", () => {
+    // Up to 3 on the winch and no hoist, and fewer than 25 workers in all
+    // (at most 14 + 3 + 1 + 2 + 3 = 23), so the tools stay at 3 a second: a
+    // load of at most 90, three loads at most 270, so the piles the cages use
+    // keep part 2's 300 and nothing differs from part 2, with no knob set. At
+    // 25 workers the tools lift 6 a second and the rooms grow (call 65).
+    fc.assert(
+      fc.property(
+        fc.record({
+          topsoil: fc.nat(7),
+          hoisting: fc.nat(3),
+          kilns: fc.nat(3),
+          onKilns: fc.nat(3),
+          face: fc.nat(300),
+          shaft: fc.nat(300),
+          kiln: fc.nat(300),
+          stones: fc.nat(6_000_100),
+          brick: fc.nat(1_000_100),
+          driving: fc.nat(1),
+          building: fc.nat(2),
+          arrived: fc.option(fc.nat(8_000_000), { nil: undefined }),
+        }),
+        fc.integer({ min: 1, max: 4 * 3_600 }),
+        (setup, seconds) => {
+          const start = levels({
+            ...setup,
+            sunk: false,
+            piles: {
+              face: setup.face,
+              shaft: setup.shaft,
+              kiln: setup.kilns > 0 ? setup.kiln : 0,
+            },
+            stock: { stones: setup.stones, brick: setup.brick },
+            ...(setup.arrived === undefined
+              ? {}
+              : { project: warehouse(setup.arrived) }),
+          });
+          expect(
+            partThree(() => [shaftHolds(start), makerHolds(start, "kiln")]),
+          ).toEqual(
+            partTwo(() => [shaftHolds(start), makerHolds(start, "kiln")]),
+          );
           expect(partThree(() => live(start, seconds))).toEqual(
             partTwo(() => live(start, seconds)),
           );
@@ -420,6 +596,43 @@ describe("parts 1 and 2 do not change (#673)", () => {
       ),
       { numRuns: 30 },
     );
+  });
+
+  it("gives a mine whose shaft is not sunk the cages' rooms at the default knob, with part 3 on (#724)", () => {
+    // No Granite: every cage serves the Topsoil. A hoist's load is 600, and
+    // the piles the cages use hold that for each cage, at least three loads.
+    const room = (setup: Setup) => {
+      const mountain = levels({ ...setup, sunk: false });
+      return partThree(() => ({
+        shaft: shaftHolds(mountain),
+        kiln: makerHolds(mountain, "kiln"),
+      }));
+    };
+    // One hoist and the winch: three loads of 600.
+    expect(room({ hoists: 1, hoisting: 1, kilns: 1 })).toEqual({
+      shaft: 1_800,
+      kiln: 1_800,
+    });
+    // Four hoists and the winch: five cages, a load of 600 each.
+    expect(room({ hoists: 4, hoisting: 4, kilns: 1 })).toEqual({
+      shaft: 3_000,
+      kiln: 3_000,
+    });
+    // The winch alone, 40 on it: 120 a second capped at a hoist's 60, a
+    // load of 600, so three loads; uncapped it would be 3,600.
+    expect(room({ hoisting: 40, kilns: 1 })).toEqual({
+      shaft: 1_800,
+      kiln: 1_800,
+    });
+    // The winch alone, 2 on it: a load of 60, three loads 180, so 300.
+    expect(room({ hoisting: 2, kilns: 1 })).toEqual({ shaft: 300, kiln: 300 });
+    // No kiln: the kilns' pile has no room, whatever the cages.
+    expect(room({ hoists: 1, hoisting: 1 })).toEqual({ shaft: 1_800, kiln: 0 });
+    // Part 3 off: part 2's 300, whatever he owns.
+    const owned = levels({ hoists: 4, hoisting: 4, kilns: 1, sunk: false });
+    expect(
+      partTwo(() => [shaftHolds(owned), makerHolds(owned, "kiln")]),
+    ).toEqual([300, 300]);
   });
 
   it("leaves a sunk Granite alone with part 3 off: the Topsoil plays as part 2", () => {
