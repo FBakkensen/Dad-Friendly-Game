@@ -545,13 +545,15 @@ describe("parts 1 and 2 do not change (#673)", () => {
   });
 
   it("plays a mine whose shaft is not sunk as part 2 with part 3 on at the default knob, while the cages' rooms stay 300 (#724)", () => {
-    // Up to 3 on the winch and no hoist: a load of at most 90, three loads
-    // at most 270, so the piles the cages use keep part 2's 300 and nothing
-    // differs from part 2, with no knob set.
+    // Up to 3 on the winch and no hoist, and fewer than 25 workers in all
+    // (at most 14 + 3 + 1 + 2 + 3 = 23), so the tools stay at 3 a second: a
+    // load of at most 90, three loads at most 270, so the piles the cages use
+    // keep part 2's 300 and nothing differs from part 2, with no knob set. At
+    // 25 workers the tools lift 6 a second and the rooms grow (call 65).
     fc.assert(
       fc.property(
         fc.record({
-          topsoil: fc.nat(8),
+          topsoil: fc.nat(7),
           hoisting: fc.nat(3),
           kilns: fc.nat(3),
           onKilns: fc.nat(3),
