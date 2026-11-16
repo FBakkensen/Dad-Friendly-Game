@@ -127,16 +127,16 @@ export function buyMaker(mountain: Mountain, id: MakerId): Mountain {
     : { ...paid, makers: { ...paid.makers, [id]: paid.makers[id] + 1 } };
 }
 
-/**
- * The rock a maker takes for one of its good (#723). A lab sweep of
- * `recipe.<id>` scales it, rounded to whole rock and never under one, so
- * whole goods stay whole.
- */
 /** The job whose workers run a maker (rule 2.7). */
 export function makerJob(id: MakerId): JobId {
   return makerById(id).job;
 }
 
+/**
+ * The rock a maker takes for one of its good (#723). A lab sweep of
+ * `recipe.<id>` scales it, rounded to whole rock and never under one, so
+ * whole goods stay whole.
+ */
 export function makerTakes(id: MakerId): number {
   return Math.max(1, Math.round(makerById(id).takes * factor(`recipe.${id}`)));
 }
