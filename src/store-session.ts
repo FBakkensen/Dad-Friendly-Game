@@ -2,13 +2,8 @@
  * Runs the session core for the store: each step's effects go through the
  * store's ports, and each change is shown to the listeners as one snapshot.
  */
-import { persistCloudSoon } from "./cloud-writer";
 import { formatLogEvent } from "./log";
-import {
-  keepFieldRing,
-  persistSession,
-  rememberHomecomings,
-} from "./local-saves";
+import { keepFieldRing, rememberHomecomings } from "./local-saves";
 import {
   activeTrouble,
   step,
@@ -47,10 +42,6 @@ function applyEffect(ctx: StoreContext, effect: SessionEffect): void {
       return;
     case "remember":
       rememberHomecomings(ctx);
-      return;
-    case "granted":
-      persistSession(ctx);
-      persistCloudSoon(ctx);
       return;
     case "moved":
       return;
@@ -91,7 +82,7 @@ export function snapshot(ctx: StoreContext): ProgressSnapshot {
 }
 
 /**
- * Notes the bands and crafts reached (not while a signed-in save is
+ * Notes the crafts and buildings reached (not while a signed-in save is
  * still loading, nor under the conflict sheet), then tells every listener.
  */
 export function emit(ctx: StoreContext): void {

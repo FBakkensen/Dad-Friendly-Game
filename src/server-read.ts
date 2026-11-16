@@ -12,7 +12,6 @@ import {
   persistCloudSoon,
 } from "./cloud-writer";
 import { persistPhoneBackup } from "./local-saves";
-import { rockDugInAll } from "./mountain";
 import { applyMerged } from "./save-adopt";
 import { saveCounts } from "./session";
 import { settleWithin, type GaveUp } from "./settle-within";
@@ -125,7 +124,7 @@ function resumeLine(
   rev: number,
 ): void {
   const mountain = ctx.session.mountain;
-  record(ctx, "save.resume", { rev, stones: rockDugInAll(mountain) });
+  record(ctx, "save.resume", { rev, stones: mountain.rockDug });
   log(ctx, {
     level,
     code: "save.resume",

@@ -1,11 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { LAYERS } from "./layers";
-import {
-  MOUNTAIN_STONES,
-  createMountain,
-  minedOut,
-  type Mountain,
-} from "./mountain";
+import { createMountain, type Mountain } from "./mountain";
 import { BUILDING_IDS } from "./city";
 import {
   createSession,
@@ -24,32 +18,17 @@ import { NOTHING_CRAFTED } from "./workshop";
 const codes = (effects: readonly SessionEffect[]): string[] =>
   effects.flatMap((effect) => (effect.kind === "record" ? [effect.code] : []));
 
-function minedTo(depth: number): Mountain {
-  const mountain = { ...createMountain(), remaining: MOUNTAIN_STONES - depth };
-  expect(minedOut(mountain)).toBe(depth);
-  return mountain;
-}
-
 function playing(mountain: Mountain = createMountain()): Session {
   return openBaselines(createSession(mountain, 1), true);
 }
 
 describe("session step", () => {
-  it("announces a band reached since the baselines, once", () => {
-    const band = LAYERS[1];
-    const session = playing();
-    const dug = { ...session, mountain: minedTo(band.from) };
-    const noticed = step(dug, { kind: "notice" }, 0);
-    expect(firstNotice(noticed.session.news, "layer")?.layer.id).toBe(band.id);
-    expect(codes(noticed.effects)).toContain("layer.enter");
-    expect(codes(noticed.effects)).not.toContain("relic.found");
-    const again = step(noticed.session, { kind: "notice" }, 0);
-    expect(codes(again.effects)).not.toContain("layer.enter");
-    expect(again.session.news.notices).toEqual(noticed.session.news.notices);
-  });
-
   it("does not announce what a loaded save already holds", () => {
-    const loaded = playing(minedTo(50_000_000));
+    const loaded = playing({
+      ...createMountain(),
+      crafted: { ...NOTHING_CRAFTED, "iron-rails": 1 },
+      operational: [...BUILDING_IDS],
+    });
     const noticed = step(loaded, { kind: "notice" }, 0);
     expect(noticed.session.news.notices).toEqual([]);
   });
@@ -132,7 +111,7 @@ describe("session step", () => {
         ...session,
         news: {
           ...session.news,
-          notices: [deeper, ...BUILDING_IDS.map(lit)],
+          notices: [craftNews, ...BUILDING_IDS.map(lit)],
         },
       },
       { kind: "begin", mountain: { ...createMountain(), startedAt: 5_000 } },
@@ -147,13 +126,13 @@ describe("session step", () => {
     const session = playing();
     const news: Session = {
       ...session,
-      news: { ...session.news, notices: [lit(BUILDING_IDS[0]), deeper] },
+      news: { ...session.news, notices: [lit(BUILDING_IDS[0]), craftNews] },
     };
     expect(hasNews(session, "operational")).toBe(false);
     expect(hasNews(news, "operational")).toBe(true);
-    const bandClosed = step(news, { kind: "dismiss", what: "layer" }, 0);
-    expect(hasNews(bandClosed.session, "layer")).toBe(false);
-    expect(bandClosed.session.news.notices).toEqual([lit(BUILDING_IDS[0])]);
+    const craftClosed = step(news, { kind: "dismiss", what: "craft" }, 0);
+    expect(hasNews(craftClosed.session, "craft")).toBe(false);
+    expect(craftClosed.session.news.notices).toEqual([lit(BUILDING_IDS[0])]);
     expect(step(session, { kind: "dismiss", what: "craft" }, 0).session).toBe(
       session,
     );
@@ -166,25 +145,24 @@ describe("session step", () => {
       ...session,
       news: {
         ...session.news,
-        notices: [lit(first), deeper, lit(second)],
+        notices: [lit(first), craftNews, lit(second)],
       },
     };
     const one = step(two, { kind: "dismiss", what: "operational" }, 0).session;
     expect(firstNotice(one.news, "operational")?.building).toBe(second);
-    expect(noticesOf(one.news, "layer")).toEqual([deeper]);
+    expect(noticesOf(one.news, "craft")).toEqual([craftNews]);
     const none = step(one, { kind: "dismiss", what: "operational" }, 0).session;
     expect(hasNews(none, "operational")).toBe(false);
-    expect(none.news.notices).toEqual([deeper]);
+    expect(none.news.notices).toEqual([craftNews]);
   });
 
-  it("closes the whole welcome card: its bands, crafts and homecomings", () => {
+  it("closes the whole welcome card: its crafts and homecomings", () => {
     const session = playing();
-    const band: Notice = { kind: "layer", layer: LAYERS[1] };
     const card: Session = {
       ...session,
       news: {
         ...session.news,
-        notices: [band, lit(BUILDING_IDS[0])],
+        notices: [craftNews, lit(BUILDING_IDS[0])],
         homecomings: [
           {
             engineer: "Ada",
@@ -204,8 +182,11 @@ describe("session step", () => {
   });
 });
 
-/** A band broken into: a notice the welcome card does not close one by one. */
-const deeper: Notice = { kind: "layer", layer: LAYERS[1] };
+/** A craft fitted: a notice the welcome card closes with the rest of its news. */
+const craftNews: Notice = {
+  kind: "craft",
+  craft: { id: "iron-rails", level: 1, mountain: createMountain(), at: 0 },
+};
 const lit = (building: (typeof BUILDING_IDS)[number] | undefined): Notice => {
   if (building === undefined) {
     throw new Error("a building");

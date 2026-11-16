@@ -1,15 +1,8 @@
 import { factor } from "./economy/factors";
-import {
-  LAYERS,
-  MATERIAL_EVERY,
-  type LayerId,
-  type MaterialId,
-} from "./layers";
+import type { MaterialId } from "./layers";
 import type { Mountain } from "./mountain";
-import { minedOut } from "./scale";
 import {
   GOOD_IDS,
-  pay,
   refund,
   priceAmount,
   type GoodId,
@@ -44,7 +37,7 @@ const CORE_PER_LEVEL = 0.1;
 const PROPS_RARER = 0.3;
 const KIT_SHORTER = 0.2;
 const CHARGE_MULTIPLIER = 2;
-/** Clay in one Blasting charge, and so the clay that opens the Topsoil bench. */
+/** Clay in one Blasting charge. */
 const CHARGE_CLAY = 4;
 const REINFORCE_PER_LEVEL = 0.05;
 const REINFORCE_CAP = 5;
@@ -76,14 +69,16 @@ export const RECIPE_IDS = [
 
 export type RecipeId = (typeof RECIPE_IDS)[number];
 
-/** Known before the workshop opens. Crafting still waits for the Granite. */
+/**
+ * The recipes a fresh mine knows. The old bench that crafted them never
+ * opens (#740); the factory's station builds gear from its own
+ * blueprints (`BLUEPRINT_IDS` in `factory`).
+ */
 export const STARTING_RECIPE_IDS = [
   "iron-rails",
   "sturdy-props",
   "blasting-charge",
 ] as const satisfies readonly RecipeId[];
-
-type Unlock = "start" | "granite" | "crystal" | "heart" | "found";
 
 type TierEffect = {
   readonly kind: "tier";
@@ -121,7 +116,6 @@ export type Recipe = {
   readonly craftMs: number;
   /** Missing means the sink can be crafted until the save cap. */
   readonly maxLevel?: number;
-  readonly unlock: Unlock;
   readonly effect: RecipeEffect;
 };
 
@@ -143,7 +137,6 @@ const BY_ID: Readonly<Record<RecipeId, Recipe>> = {
     materials: { iron: 4 },
     craftMs: 10 * MINUTE,
     maxLevel: 2,
-    unlock: "start",
     effect: { kind: "tier", tier: "cart", perLevel: RAILS_PER_LEVEL },
   },
   "sturdy-props": {
@@ -153,7 +146,6 @@ const BY_ID: Readonly<Record<RecipeId, Recipe>> = {
     materials: { clay: 10, iron: 4 },
     craftMs: 10 * MINUTE,
     maxLevel: 1,
-    unlock: "start",
     effect: { kind: "trouble", rarer: PROPS_RARER },
   },
   "blasting-charge": {
@@ -162,7 +154,6 @@ const BY_ID: Readonly<Record<RecipeId, Recipe>> = {
     stones: 100_000,
     materials: { clay: CHARGE_CLAY },
     craftMs: 10 * MINUTE,
-    unlock: "start",
     effect: {
       kind: "charge",
       multiplier: CHARGE_MULTIPLIER,
@@ -175,7 +166,6 @@ const BY_ID: Readonly<Record<RecipeId, Recipe>> = {
     stones: 0,
     materials: { iron: 5 },
     craftMs: 10 * MINUTE,
-    unlock: "granite",
     maxLevel: REINFORCE_CAP,
     effect: { kind: "reinforce", perLevel: REINFORCE_PER_LEVEL },
   },
@@ -185,7 +175,6 @@ const BY_ID: Readonly<Record<RecipeId, Recipe>> = {
     stones: 0,
     materials: { iron: 1 },
     craftMs: 10 * MINUTE,
-    unlock: "granite",
     effect: { kind: "axle", bonus: AXLE_BONUS, durationMs: AXLE_MS },
   },
   "diamond-bits": {
@@ -195,7 +184,6 @@ const BY_ID: Readonly<Record<RecipeId, Recipe>> = {
     materials: { crystal: 5 },
     craftMs: 10 * MINUTE,
     maxLevel: 3,
-    unlock: "crystal",
     effect: { kind: "tier", tier: "drill", perLevel: BITS_PER_LEVEL },
   },
   "engineers-kit": {
@@ -205,7 +193,6 @@ const BY_ID: Readonly<Record<RecipeId, Recipe>> = {
     materials: { iron: 4, crystal: 4 },
     craftMs: 4 * HOUR,
     maxLevel: 1,
-    unlock: "found",
     effect: { kind: "trip", shorter: KIT_SHORTER },
   },
   "heartstone-core": {
@@ -215,7 +202,6 @@ const BY_ID: Readonly<Record<RecipeId, Recipe>> = {
     materials: { heartstone: 4 },
     craftMs: HOUR,
     maxLevel: 3,
-    unlock: "heart",
     effect: { kind: "tier", tier: "machine", perLevel: CORE_PER_LEVEL },
   },
   "heartstone-ember": {
@@ -224,16 +210,11 @@ const BY_ID: Readonly<Record<RecipeId, Recipe>> = {
     stones: 500_000,
     materials: { heartstone: 2 },
     craftMs: 10 * MINUTE,
-    unlock: "heart",
     effect: { kind: "ember", bonus: EMBER_BONUS, durationMs: EMBER_MS },
   },
 };
 
 export const RECIPES: readonly Recipe[] = RECIPE_IDS.map((id) => BY_ID[id]);
-
-const GRANITE_FROM = LAYERS[1].from;
-const CRYSTAL_FROM = LAYERS[2].from;
-const HEART_FROM = LAYERS[3].from;
 
 export type Bench = {
   readonly recipe: RecipeId;
@@ -248,84 +229,12 @@ export const NOTHING_CRAFTED: Crafted = Object.fromEntries(
 ) as Record<RecipeId, number>;
 
 /**
- * Clay-only recipes work in the Topsoil (D1, #244): the bench opens once the
- * Topsoil has dug the clay for one Blasting charge. Everything that needs a
- * deeper material waits for the full workshop in the Granite.
+ * The old clocked bench never opens (#740). It opened by depth, and the
+ * fresh mine has none; the factory's station took its place (#674, rule 7).
+ * A save's bench still settles and cancels.
  */
-function clayOnly(id: RecipeId): boolean {
-  return recipePrice(id).every(
-    (line) => line.good === "stones" || line.good === "clay",
-  );
-}
-
-/** Stones dug when the first charge's clay is in hand: 4 clay is 4M. */
-export const TOPSOIL_BENCH_FROM = CHARGE_CLAY * MATERIAL_EVERY.clay;
-
-/** The bench is open: from the first charge's clay in the Topsoil. */
-export function workshopUnlocked(mountain: {
-  readonly remaining: number;
-}): boolean {
-  return minedOut(mountain) >= TOPSOIL_BENCH_FROM;
-}
-
-/** Every recipe is open from the first Granite stone. */
-export function fullWorkshop(mountain: {
-  readonly remaining: number;
-}): boolean {
-  return minedOut(mountain) >= GRANITE_FROM;
-}
-
-/** This recipe can go on the bench at this depth. */
-export function recipeOpen(
-  mountain: { readonly remaining: number },
-  id: RecipeId,
-): boolean {
-  return workshopUnlocked(mountain) && (fullWorkshop(mountain) || clayOnly(id));
-}
-
-function knownWhen(unlock: Unlock, mined: number): boolean {
-  switch (unlock) {
-    case "start":
-      return true;
-    case "granite":
-      return mined >= GRANITE_FROM;
-    case "crystal":
-      return mined >= CRYSTAL_FROM;
-    case "heart":
-      return mined >= HEART_FROM;
-    case "found":
-      return false;
-  }
-}
-
-/**
- * Starting three, plus the Granite sink once that band is reached, plus each
- * layer recipe for a band already reached. The kit is found, not granted.
- */
-export function recipesForMined(mined: number): readonly RecipeId[] {
-  const reached = Math.max(0, mined);
-  return RECIPES.filter((recipe) => knownWhen(recipe.unlock, reached)).map(
-    (recipe) => recipe.id,
-  );
-}
-
-/** Recipes a break-in hands over. The Topsoil's three are known from the start. */
-export function layerRecipeIds(id: LayerId): readonly RecipeId[] {
-  switch (id) {
-    case "topsoil":
-      return [];
-    case "granite":
-      return ["reinforce", "axle-grease"];
-    case "crystal":
-      return ["diamond-bits"];
-    case "heart":
-      return ["heartstone-core", "heartstone-ember"];
-    /* v8 ignore next 3 -- layer ids are the closed list */
-    default: {
-      const never: never = id;
-      return never;
-    }
-  }
+export function workshopUnlocked(): boolean {
+  return false;
 }
 
 /**
@@ -429,48 +338,6 @@ function strengthOf(id: RecipeId): number {
 /** First-cut number times this recipe's strength factor. 1 leaves it alone. */
 function tuned(base: number, id: RecipeId): number {
   return base * strengthOf(id);
-}
-
-function atCap(recipe: Recipe, mountain: Mountain): boolean {
-  const level = craftedLevel(mountain, recipe.id);
-  if (level >= MAX_CRAFTED_LEVEL) {
-    return true;
-  }
-  return recipe.maxLevel !== undefined && level >= recipe.maxLevel;
-}
-
-/**
- * Puts one craft on the bench and spends the cost. The same mountain comes
- * back when the workshop is locked, the recipe is unknown, the bench is
- * taken, the gear is finished, or the pocket is short.
- */
-export function startCraft(
-  mountain: Mountain,
-  id: RecipeId,
-  now: number,
-): Mountain {
-  if (!recipeOpen(mountain, id) || !isWhole(now)) {
-    return mountain;
-  }
-  if (!mountain.recipes.includes(id) || mountain.bench !== undefined) {
-    return mountain;
-  }
-  const recipe = recipeById(id);
-  if (atCap(recipe, mountain)) {
-    return mountain;
-  }
-  const paid = pay(mountain, recipePrice(id));
-  if (paid === mountain) {
-    return mountain;
-  }
-  return {
-    ...paid,
-    bench: {
-      recipe: id,
-      startedAt: now,
-      endsAt: now + recipe.craftMs,
-    },
-  };
 }
 
 function dropBench(mountain: Mountain): Mountain {

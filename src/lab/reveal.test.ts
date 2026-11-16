@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createMountain, type Mountain } from "../mountain";
 import { withFactors } from "../economy/factors";
-import { minedMountain } from "../test-fixtures";
 import { NO_GRANITE_PILES, NO_LEVEL_MACHINES } from "../mine-levels";
 import { PART_THREE_OFF, PART_TWO_OFF } from "../part-switch";
 import revealNeverUsed from "./measures/revealNeverUsed";
@@ -99,46 +98,6 @@ describe("createRevealLog", () => {
         { kind: "firstUse", id: "system:promote", liveSec: 6 },
       ]),
     );
-  });
-});
-
-describe("a busy bench counts as use", () => {
-  const rich: Mountain = {
-    ...minedMountain(5_000_000),
-    stock: {
-      ...minedMountain(5_000_000).stock,
-      stones: 1e12,
-      clay: 1000,
-      iron: 1000,
-      crystal: 1000,
-      heartstone: 1000,
-    },
-    recipes: ["axle-grease", "blasting-charge"],
-  };
-
-  it("logs clay and the Blasting charge as used while axle grease runs", () => {
-    const log = createRevealLog();
-    const busy: Mountain = {
-      ...rich,
-      bench: { recipe: "axle-grease", startedAt: 0, endsAt: 60_000 },
-    };
-    const events = log(busy, 0);
-    expect(events).toContainEqual({
-      kind: "firstUse",
-      id: "material:clay",
-      liveSec: 0,
-    });
-    expect(events).toContainEqual({
-      kind: "firstUse",
-      id: "recipe:blasting-charge",
-      liveSec: 0,
-    });
-  });
-
-  it("keeps an idle bench unused", () => {
-    const events = createRevealLog()(rich, 0);
-    expect(ids(events, "firstUse")).not.toContain("material:clay");
-    expect(ids(events, "firstUse")).not.toContain("recipe:blasting-charge");
   });
 });
 

@@ -11,10 +11,7 @@ const widths = (card: HTMLElement): string[] =>
 describe("the board's How it works art (#373)", () => {
   it.each([
     "staffing",
-    "layers",
     "upgrades",
-    "workshop",
-    "materials",
     "away",
     "engineers",
     "expeditions",
@@ -62,65 +59,6 @@ describe("the board's How it works art (#373)", () => {
     expect(back?.textContent).toBe("Back to Upgrades");
     back?.click();
     expect(onBack).toHaveBeenCalledTimes(1);
-  });
-
-  it.each(["layers", "workshop", "materials"] as const)(
-    "draws the board's own art for %s, not today's",
-    (system) => {
-      const card = boardHowCard(system, "Back", () => undefined);
-      const sources = [...card.querySelectorAll("img")].map(
-        (img) => img.getAttribute("src") ?? "",
-      );
-      expect(sources).toEqual(
-        HOW_IT_WORKS[system].steps.map(([art]) => BOARD_HOW_ART[art]?.src),
-      );
-    },
-  );
-
-  it("renders layers at 32, 64, 64 and 32", () => {
-    const card = boardHowCard("layers", "Back to Buys", () => undefined);
-    expect(widths(card)).toEqual(["32", "64", "64", "32"]);
-  });
-
-  it("renders the Workshop's four steps: the pick at 32, clay at 32, the cart at 64 (#374, #728)", () => {
-    const card = boardHowCard(
-      "workshop",
-      "Back to the Workshop",
-      () => undefined,
-    );
-    expect(card.dataset["how"]).toBe("workshop");
-    const imgs = [...card.querySelectorAll("img")];
-    expect(imgs).toHaveLength(4);
-    expect(HOW_IT_WORKS.workshop.steps.map(([art]) => art)).toEqual([
-      "pick",
-      "ore-lump",
-      "upgrades-icon",
-      "mine-cart",
-    ]);
-    expect(imgs[0]?.getAttribute("src")).toContain("res-pick");
-    expect(imgs[1]?.getAttribute("src")).toContain("res-clay");
-    expect(widths(card)).toEqual(["32", "32", "32", "64"]);
-    expect(imgs.map((img) => img.getAttribute("height"))).toEqual([
-      "32",
-      "32",
-      "32",
-      "64",
-    ]);
-  });
-
-  it("renders Materials' three steps with no fallback stone where real art is mapped (#374)", () => {
-    const card = boardHowCard(
-      "materials",
-      "Back to the Workshop",
-      () => undefined,
-    );
-    const sources = [...card.querySelectorAll("img")].map(
-      (img) => img.getAttribute("src") ?? "",
-    );
-    expect(sources).toHaveLength(3);
-    expect(sources[0]).toContain("res-clay");
-    expect(sources[2]).toContain("res-pick");
-    expect(widths(card)).toEqual(["32", "32", "32"]);
   });
 
   it("renders the Time away card: the worker at 64, the stone at 32 (#375, #728)", () => {

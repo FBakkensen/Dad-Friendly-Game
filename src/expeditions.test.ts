@@ -19,10 +19,9 @@ import {
   type DutyEngineer,
   type Engineer,
 } from "./engineers";
-import { knownRecipeIds } from "./economy/actions";
 import { createMountain } from "./mountain";
 import { gameOf, reloaded } from "./test-fixtures";
-import { recipesForMined } from "./workshop";
+import { STARTING_RECIPE_IDS } from "./workshop";
 
 const SEAM = 10 * 60_000;
 const HOUR = 60 * 60_000;
@@ -310,7 +309,6 @@ describe("finds", () => {
         })),
       ),
       finds: [...LOST_TOOLS, ...KEEPSAKES],
-      remaining: 0,
       recipes: [...createMountain().recipes, "engineers-kit"],
     };
     const quiet = send(full, 0, "deep-dark", 7);
@@ -356,7 +354,6 @@ describe("finds", () => {
             post: index === 0 ? "borer" : "camp",
           })),
         ),
-        remaining: 0,
         finds: [...LOST_TOOLS, ...KEEPSAKES],
         expeditions: [
           {
@@ -380,7 +377,6 @@ describe("finds", () => {
           journeyman,
           { name: "Nils", rank: 0, trips: 0, post: "camp" },
         ]),
-        remaining: 0,
         finds: [...LOST_TOOLS, ...KEEPSAKES],
         expeditions: [
           {
@@ -473,11 +469,10 @@ describe("finds", () => {
     const home = settle(first, seed + 4 * HOUR);
     expect(home.finds[0]).toEqual({ kind: "recipe", id: "engineers-kit" });
     expect(home.mountain.recipes).toContain("engineers-kit");
-    expect(knownRecipeIds(home.mountain)).toContain("engineers-kit");
     expect(settle(home.mountain, seed + 4 * HOUR).finds).toEqual([]);
     const known = send(home.mountain, 0, "deep-dark", seed);
     expect(known.expeditions[0]?.find.kind).not.toBe("recipe");
-    const unlisted = { ...dark, recipes: recipesForMined(0) };
+    const unlisted = { ...dark, recipes: [...STARTING_RECIPE_IDS] };
     expect(send(unlisted, 0, "deep-dark", seed).expeditions[0]?.find).toEqual({
       kind: "recipe",
       id: "engineers-kit",

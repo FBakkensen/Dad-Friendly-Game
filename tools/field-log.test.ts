@@ -21,8 +21,6 @@ const dad: FieldLogRecord = {
     snapshot: {
       version: "0.0.0",
       at: AT,
-      mined: 12,
-      left: 88,
       pocket: 3,
       crewSpeed: 1.5,
       crew: { helper: 2, cart: 1 },
@@ -163,8 +161,6 @@ describe("formatFieldLogSummary", () => {
         "",
         "Version 0.0.0",
         "Snapshot 2026-01-01 22:04:05",
-        "Mined 12",
-        "Left 88",
         "Pocket 3",
         "Crew speed 1.5",
         "Crew",
@@ -183,6 +179,19 @@ describe("formatFieldLogSummary", () => {
         "  yesterday  save.write",
       ].join("\n"),
     );
+  });
+
+  it("prints mined and left of a log from before #740 as fields it no longer knows", () => {
+    const data = dad.data as { snapshot: Record<string, unknown> };
+    const older: FieldLogRecord = {
+      uid: "dad",
+      data: { ...data, snapshot: { ...data.snapshot, mined: 12, left: 88 } },
+    };
+    const text = formatFieldLogSummary([older], ZONE);
+    expect(text).toContain("mined 12");
+    expect(text).toContain("left 88");
+    expect(text).not.toContain("Mined");
+    expect(text).not.toContain("Left");
   });
 
   it("prints the legacy of a log from before #729 as a field it no longer knows", () => {

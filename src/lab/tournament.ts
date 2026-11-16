@@ -586,7 +586,6 @@ function coversPolicy(target: Target, policy: Policy): boolean {
     case "all":
       return true;
     case "fromSource":
-    case "fromLayer":
       return (
         target.scope.kinds === undefined ||
         target.scope.kinds.includes(policy.kind)

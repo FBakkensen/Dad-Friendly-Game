@@ -1,5 +1,3 @@
-import type { LayerId } from "../layers";
-
 /**
  * Every tunable lab number lives here. A measure file reads these names.
  * A guardrail is one entry in `TARGETS`: change the value, nothing else.
@@ -107,15 +105,6 @@ export type TargetScope =
       /**
        * When set, only these player kinds are graded. The source still
        * drops samples from before that output. Omitted means every kind.
-       */
-      readonly kinds?: readonly PolicyKind[];
-    }
-  | {
-      readonly kind: "fromLayer";
-      readonly layer: LayerId;
-      /**
-       * When set, only these player kinds are graded. The layer still
-       * drops samples from before that band. Omitted means every kind.
        */
       readonly kinds?: readonly PolicyKind[];
     };

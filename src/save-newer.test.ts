@@ -6,11 +6,11 @@
 import { describe, expect, it, vi } from "vitest";
 import { createMemoryAuth } from "./auth";
 import { createMemoryCloudSave } from "./cloud-save";
-import { digStones, minedOut, type Mountain } from "./mountain";
+import type { Mountain } from "./mountain";
 import { createProgressStore } from "./progress-store";
 import { SESSION_SAVE_KEY } from "./session-save";
 import { createMemoryBus, createTabWriter } from "./tab-writer";
-import { minedMountain, saveText } from "./test-fixtures";
+import { digStones, minedMountain, saveText } from "./test-fixtures";
 import type { RecipeId } from "./workshop";
 
 const user = { uid: "test-dad", label: "Test Dad" };
@@ -255,7 +255,7 @@ describe("a save from a later build (#558)", () => {
     await vi.waitFor(() => {
       expect(progress.getSnapshot().newer).toBe(true);
     });
-    expect(minedOut(docs.get(user.uid) ?? minedMountain(0))).toBe(5);
+    expect((docs.get(user.uid) ?? minedMountain(0)).rockDug).toBe(5);
     progress.dispose();
   });
 
@@ -301,7 +301,7 @@ describe("a phone backup this build cannot read (#558)", () => {
     await vi.waitFor(() => {
       expect(progress.getSnapshot().saveKind).toBe("account");
     });
-    expect(minedOut(progress.getSnapshot().mountain)).toBe(5);
+    expect(progress.getSnapshot().mountain.rockDug).toBe(5);
     expect(storage.getItem(BACKUP_KEY)).toBe("{not json");
     progress.dispose();
   });

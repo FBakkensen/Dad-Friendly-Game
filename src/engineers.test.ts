@@ -24,13 +24,7 @@ import {
   engineerTenths,
   type Engineer,
 } from "./engineers";
-import {
-  MOUNTAIN_STONES,
-  accrue,
-  accrueAway,
-  createMountain,
-  type Mountain,
-} from "./mountain";
+import { accrue, accrueAway, createMountain, type Mountain } from "./mountain";
 import { effectiveRates } from "./rates";
 import { NO_JOBS } from "./workforce";
 import { gameOf, reloaded } from "./test-fixtures";
@@ -216,22 +210,18 @@ describe("promote", () => {
     expect(nextEngineerName(full.engineers)).toBe(undefined);
   });
 
-  // #356: a band's scale times 2^n need not be whole, and a fractional
-  // pocket no longer parses.
-  it("prices a whole promotion in every band, and the save still loads", () => {
-    for (const depth of [2_000_000, 12_000_000, 50_000_000, 130_000_000]) {
-      for (const engineers of [[], [ada]]) {
-        const mountain = {
-          ...crew(engineers),
-          stock: { ...crew(engineers).stock, stones: 10_000_000_000 },
-          remaining: MOUNTAIN_STONES - depth,
-        };
-        const price = promoteCost(mountain);
-        expect(Number.isSafeInteger(price)).toBe(true);
-        const hired = promote(mountain);
-        expect(hired.stock.stones).toBe(mountain.stock.stones - price);
-        expect(reloaded(hired)?.stock.stones).toBe(hired.stock.stones);
-      }
+  // #356: a fractional pocket no longer parses, so a promotion is whole.
+  it("prices a whole promotion, and the save still loads", () => {
+    for (const engineers of [[], [ada]]) {
+      const mountain = {
+        ...crew(engineers),
+        stock: { ...crew(engineers).stock, stones: 10_000_000_000 },
+      };
+      const price = promoteCost(mountain);
+      expect(Number.isSafeInteger(price)).toBe(true);
+      const hired = promote(mountain);
+      expect(hired.stock.stones).toBe(mountain.stock.stones - price);
+      expect(reloaded(hired)?.stock.stones).toBe(hired.stock.stones);
     }
   });
 });
