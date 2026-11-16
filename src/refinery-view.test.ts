@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { withFactors } from "./economy/factors";
 import { formatCompact } from "./format";
-import { graniteChain } from "./mine-piles";
+import { largestLoad } from "./cages";
+import { makerTakes } from "./makers";
+import { graniteChain, makerHolds, mineWork, topsoilChain } from "./mine-piles";
+import { chainSpill } from "./piles";
+import { crewTimer } from "./rates";
 import type { Mountain } from "./mountain";
 import { PART_TWO_OFF } from "./part-switch";
 import {
@@ -260,6 +264,78 @@ describe("a plate for each open maker (#754)", () => {
   it("has no Granite chain with one level", () => {
     partThree(() => {
       expect(graniteChain(levels({ sunk: false }))).toBeUndefined();
+    });
+  });
+});
+
+describe("a steady bypass (#754)", () => {
+  /** The Topsoil worked and hoisted by a hoist of its own, a kiln running, and rock at the kilns `room` short of full. */
+  const fed = (room: number, sunk = false): Mountain => {
+    const base = levels({
+      sunk,
+      topsoil: 3,
+      hoisting: 2,
+      hoists: 1,
+      assigned: sunk ? { topsoil: 1 } : {},
+      kilns: 1,
+      piles: { face: 300, shaft: 300 },
+    });
+    const holds = makerHolds(base, "kiln");
+    return { ...base, piles: { ...base.piles, kiln: holds - room } };
+  };
+  const load = (mountain: Mountain): number =>
+    largestLoad(mineWork(mountain).cages);
+  /** What the chain spills a second at this instant, as the view read it before. */
+  const instant = (mountain: Mountain): string => {
+    const chain = topsoilChain(mountain);
+    return `${formatCompact(chainSpill(chain) * crewTimer(mountain, 0))}/s`;
+  };
+
+  it("reads what the Topsoil lifts past the kilns while their pile is within a load of full", () => {
+    partThree(() => {
+      const full = fed(0);
+      const under = fed(1);
+      expect(load(under)).toBeGreaterThan(1);
+      // The cages unload in loads: a pile a rock short of full spills nothing this instant.
+      expect(instant(under)).toBe("0/s");
+      const steady = view(under);
+      expect(steady.bypass.rate).toBe(view(full).bypass.rate);
+      expect(steady.bypass.rate).not.toBe("0/s");
+      expect(steady.scene.bypassing).toBe(true);
+      // The lift past the kilns: the hopper's rate less what the kilns take.
+      const [kilnsPlate] = steady.plates;
+      const [topsoil] = steady.hoppers;
+      const takes = Number(kilnsPlate?.now) * makerTakes("kiln");
+      expect(steady.bypass.rate).toBe(
+        `${formatCompact((topsoil?.lifted ?? 0) - takes)}/s`,
+      );
+      // With room for more than a load, the pile is filling: nothing bypasses.
+      const filling = view(fed(load(under) + 1));
+      expect(filling.bypass.rate).toBe("0/s");
+      expect(filling.scene.bypassing).toBe(false);
+    });
+  });
+
+  it("reads as before with one level, whenever the pile is full or has room for more than a load", () => {
+    partThree(() => {
+      for (const mountain of [fed(0), fed(load(fed(0)) + 1)]) {
+        expect(view(mountain).bypass.rate).toBe(instant(mountain));
+      }
+    });
+    partTwo(() => {
+      // Part 2 has no cages: no load, so the bypass is the chain's own, at any room.
+      for (const room of [0, 1, 100]) {
+        const mountain = lit({ kilns: 1, kilnPile: 300 - room });
+        expect(view(mountain).bypass.rate).toBe(instant(mountain));
+      }
+    });
+  });
+
+  it("adds each level's steady bypass with the Granite open", () => {
+    partThree(() => {
+      const under = fed(1, true);
+      expect(view(under).bypass.rate).toBe(view(fed(0, true)).bypass.rate);
+      expect(view(under).bypass.rate).not.toBe("0/s");
     });
   });
 });

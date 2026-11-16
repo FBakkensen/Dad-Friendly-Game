@@ -12,11 +12,13 @@ import {
   type MakerId,
   type MakerJob,
 } from "./makers";
+import { largestLoad } from "./cages";
 import { openGranite } from "./mine-levels";
 import {
   chainMade,
   graniteChain,
   makerHolds,
+  mineWork,
   topsoilChain,
 } from "./mine-piles";
 import {
@@ -157,8 +159,31 @@ function makerChains(mountain: Mountain): Record<MakerId, Chain | undefined> {
 }
 
 /**
+ * What a level's rock bypasses to stone a second, read steady (#754): what
+ * it lifts past its makers while their pile is within one cage load of full,
+ * as the chain spills it from a full pile, and nothing while the pile has
+ * room for more than a load. The cages unload in loads, so a pile that takes
+ * the rest sits just under full between them; the chain's spill at that
+ * instant would read 0 in most frames. With no cages (part 2) the load is 0,
+ * and this is the chain's own spill. The night and the piles' rules are the
+ * chain's, untouched: this is how the screen reads it.
+ */
+function steadySpill(chain: Chain, load: number): number {
+  const from = chain.spill?.from;
+  const pile = from === undefined ? undefined : chain.piles[from];
+  if (pile === undefined || pile.holds - pile.held > load) {
+    return chainSpill(chain);
+  }
+  const full = { held: Math.max(pile.held, pile.holds), holds: pile.holds };
+  return chainSpill({
+    ...chain,
+    piles: chain.piles.map((each) => (each === pile ? full : each)),
+  });
+}
+
+/**
  * What reaches the stockpiles a second now: each maker's good, and what no
- * maker takes on either level as stone.
+ * maker takes on either level as stone, read steady (`steadySpill`).
  */
 function incomeNow(
   mountain: Mountain,
@@ -170,8 +195,9 @@ function incomeNow(
   const chains = makerChains(mountain);
   const made = (chain: Chain | undefined): number =>
     chain === undefined ? 0 : chainMade(chain) * timer;
+  const load = largestLoad(mineWork(mountain).cages);
   const stones = Object.values(chains).reduce(
-    (sum, chain) => sum + (chain === undefined ? 0 : chainSpill(chain)),
+    (sum, chain) => sum + (chain === undefined ? 0 : steadySpill(chain, load)),
     0,
   );
   return {
