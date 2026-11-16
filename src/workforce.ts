@@ -161,7 +161,7 @@ export function freeWorker<M extends Crew>(
 }
 
 /** A count a move can carry: whole and not below 0. NaN moves none, and Infinity all there are. */
-function movable(count: number): number {
+export function movable(count: number): number {
   return count > 0 ? Math.floor(count) : 0;
 }
 
@@ -273,6 +273,8 @@ export type LineWork = {
   readonly stages: StageSpeeds;
   /** Each level's drilling and haulage: the Granite's are 0 while it is not open. */
   readonly levels: Readonly<Record<MineLevelId, LevelStages>>;
+  /** Hoisting's work: the hoists and engines that run, and the winch's workers (#724). */
+  readonly hoisting: StageWork;
   /**
    * What the line moves (rule 2.5): its slowest stage; with the Granite open,
    * hoisting or both levels' slowest stages together, whichever is less.
@@ -349,6 +351,7 @@ export function lineWork(
       topsoil: { face: stages.face, haul: stages.haul },
       granite: granite ?? SHUT_LEVEL,
     },
+    hoisting: works.lift,
     line: lineOf(stages, granite),
     short: tally.short,
   };

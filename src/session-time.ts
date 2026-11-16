@@ -92,6 +92,7 @@ function advanceLive(
     mountain: settled.mountain,
     from: input.from,
     to: input.to,
+    live: true,
   });
   const hazards = stepHazards(world.hazards, {
     now: input.to,

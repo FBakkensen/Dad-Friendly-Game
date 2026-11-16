@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { send } from "./expeditions";
 import { closeHazards, freshHazards, stepHazards } from "./hazards";
 import { accrue, accrueAway, createMountain, type Mountain } from "./mountain";
+import { levels, partThree } from "./part-three.harness";
 import { LIVE_GAP_MS, advance, timeInput } from "./session-time";
 
 const ada = { name: "Ada", rank: 0, trips: 0, post: "borer" } as const;
@@ -53,6 +54,27 @@ describe("advance", () => {
         mountain: live.mountain,
       }),
     );
+  });
+
+  it("plays the cages trip by trip in a live stretch with part 3 on, as the tick does (#724)", () => {
+    partThree(() => {
+      const mountain = levels({
+        sunk: false,
+        hoists: 1,
+        hoisting: 1,
+        piles: { shaft: 1_800 },
+      });
+      const world = { mountain, hazards: freshHazards(3) };
+      const nine = advance(world, { kind: "live", from: 0, to: 9_000 });
+      expect(nine.mountain.stock.stones).toBe(0);
+      expect(nine.mountain.cages.trips["hoist:0"]).toEqual({
+        level: "topsoil",
+        carried: 600,
+        leg: { kind: "up", left: 1 },
+      });
+      const ten = advance(world, { kind: "live", from: 0, to: 10_000 });
+      expect(ten.mountain.stock.stones).toBe(600);
+    });
   });
 
   // The fresh mine's live pace never read trouble (#739).

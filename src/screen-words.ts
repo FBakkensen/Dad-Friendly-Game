@@ -143,7 +143,7 @@ export function crewPostsShort(total: number, free: number): string {
 }
 
 /** 9:05, or 1:02:03 past an hour. */
-const formatClock = (ms: number): string => {
+export const formatClock = (ms: number): string => {
   const total = Math.ceil(ms / 1000);
   const hours = Math.floor(total / 3600);
   const minutes = Math.floor((total % 3600) / 60);

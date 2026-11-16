@@ -1,10 +1,21 @@
+import {
+  cagePileRoom,
+  cageRates,
+  shaftCages,
+  tripSeconds,
+  type CageRates,
+  type ShaftCage,
+} from "./cages";
 import type { Mountain } from "./mountain";
 import { kilnRate, makerRate, makerTakes, type MakerId } from "./makers";
 import {
+  graniteOpen,
   openGranite,
-  type GranitePileId,
+  type GranitePiles,
+  type MineLevelId,
   type SunkGranite,
 } from "./mine-levels";
+import { partThreeOn } from "./part-switch";
 import {
   branchChains,
   branchesChange,
@@ -24,6 +35,7 @@ import { effectiveRates, type Rates } from "./rates";
 import { addedStock, type Stock } from "./stock";
 import { stockpileRoom, stockyardOpen } from "./stockyard";
 import { fleetRate, stockDraw } from "./transport";
+import type { StageSpeeds } from "./line";
 import { lineWork, type LineWork } from "./workforce";
 
 /**
@@ -43,9 +55,12 @@ import { lineWork, type LineWork } from "./workforce";
  * Part 3 (#673) adds the Granite once the shaft is sunk: a chain of its own
  * beside the Topsoil's (`Branches` in src/piles.ts), with its own drilling,
  * haulage, drilled rock and rock at the shaft, then the saws' pile, the saws
- * and the cut stone stockpile. The one hoist lifts from both levels' rock at
- * the shaft, and both bypass to the one stone stockpile. While the Granite is
- * not open, the mine is the Topsoil's chain alone, exactly as in part 2.
+ * and the cut stone stockpile. The shaft's cages (src/cages.ts, #724) lift
+ * from both levels' rock at the shaft, counted here as rates (rule 5.14):
+ * each level its own cages', and the cages for both in turn. Both bypass to
+ * the one stone stockpile. While the Granite is not open, the mine is the
+ * Topsoil's chain alone, as in part 2, with every cage serving the Topsoil
+ * once part 3 is on; with part 3 off, hoisting's workers lift it, as today.
  */
 
 /** The piles, by where the rock waits: the kilns' pile is part 2's (#666). */
@@ -68,33 +83,79 @@ export type MinePiles = Readonly<Record<PileId, number>>;
 export const PILE_HOLDS: MinePiles = { face: 300, shaft: 300, kiln: 300 };
 
 /**
- * The Granite's drilled rock and rock at the shaft (part 3, ruling 7): 300
- * each, as the Topsoil's. The saws' pile is a maker's (`makerHolds`).
+ * The Granite's drilled rock (part 3, ruling 7): 300, as the Topsoil's
+ * (`faceHolds`). Its rock at the shaft is the cages' (`shaftHolds`), and the
+ * saws' pile a maker's (`makerHolds`).
  */
-const GRANITE_PILE_HOLDS: Readonly<
-  Record<Exclude<GranitePileId, "saw">, number>
-> = { face: 300, shaft: 300 };
-
-/** What the workforce moves on the mine's stages: the Topsoil's and the shaft's, and each level's own. */
-type MineWork = Pick<LineWork, "stages" | "levels">;
+const GRANITE_FACE_HOLDS = 300;
 
 /**
- * Each stage's own speed, kept per answer of `effectiveRates`: a night
- * builds the same mine's chain more than once a stretch, and that answer is
- * kept per mountain already (#314).
+ * What the workforce moves on the mine's stages (the Topsoil's and the
+ * shaft's, and each level's own), and, while part 3 is on, the shaft's cages
+ * at pay 1 and what they lift a second as rates (#724). With part 3 off the
+ * cages are none and `lift` is undefined: hoisting's workers lift, as today.
  */
-const stageSpeeds = new WeakMap<Rates, MineWork>();
+type MineWork = {
+  readonly stages: StageSpeeds;
+  readonly levels: LineWork["levels"];
+  readonly cages: readonly ShaftCage[];
+  readonly lift: CageRates | undefined;
+};
 
-function stagesOf(mountain: Mountain): MineWork {
+/**
+ * The mine's work, kept per answer of `effectiveRates`: a night builds the
+ * same mine's chain more than once a stretch, and that answer is kept per
+ * mountain already (#314). The cages are worked out here once, and only
+ * while part 3 is on.
+ */
+const mineWorks = new WeakMap<Rates, MineWork>();
+
+export function mineWork(mountain: Mountain): MineWork {
   const rates = effectiveRates(mountain);
-  const kept = stageSpeeds.get(rates);
+  const kept = mineWorks.get(rates);
   if (kept !== undefined) {
     return kept;
   }
-  const { stages, levels } = lineWork(mountain, rates.tierSpeed);
-  const work = { stages, levels };
-  stageSpeeds.set(rates, work);
+  const { stages, levels, hoisting } = lineWork(mountain, rates.tierSpeed);
+  const cagesPlay = partThreeOn();
+  const cages = cagesPlay
+    ? shaftCages({
+        owned: mountain.owned,
+        hoisting,
+        speed: rates.tierSpeed,
+        assigned: mountain.cages.assigned,
+        twoLevels: graniteOpen(mountain),
+        pay: 1,
+      })
+    : [];
+  const work: MineWork = {
+    stages,
+    levels,
+    cages,
+    lift: cagesPlay ? cageRates(cages) : undefined,
+  };
+  mineWorks.set(rates, work);
   return work;
+}
+
+/**
+ * The room of a pile the cages use (ruling 7): from part 3, a load of the
+ * largest cage, the winch's among them, for every cage in the shaft and
+ * never fewer than three (`cagePileRoom`), never less than `base`; before
+ * it, `base`.
+ */
+function cageUsedRoom(mountain: Mountain, base: number): number {
+  return partThreeOn() ? cagePileRoom(base, mineWork(mountain).cages) : base;
+}
+
+/** The rock at the shaft's room, on both levels: 300, and from part 3 a load of his largest cage for each cage, at least three. */
+export function shaftHolds(mountain: Mountain): number {
+  return cageUsedRoom(mountain, PILE_HOLDS.shaft);
+}
+
+/** The drilled rock's room on a level: 300 on both, whatever the cages (ruling 7). */
+export function faceHolds(level: MineLevelId): number {
+  return level === "topsoil" ? PILE_HOLDS.face : GRANITE_FACE_HOLDS;
 }
 
 /**
@@ -106,13 +167,17 @@ const MAKER = 3;
 /** The stages that make something: the line and the maker. */
 const MAKING = MAKER + 1;
 
-/** A maker's pile's room (the rock at the kilns, or at the saws): none until he owns one. */
-function makerHolds(mountain: Pick<Mountain, "makers">, id: MakerId): number {
-  return mountain.makers[id] > 0 ? PILE_HOLDS.kiln : 0;
+/**
+ * A maker's pile's room (the rock at the kilns, or at the saws): none until
+ * he owns one, then 300, and from part 3 a load of his largest cage for
+ * each cage, at least three.
+ */
+export function makerHolds(mountain: Mountain, id: MakerId): number {
+  return mountain.makers[id] > 0 ? cageUsedRoom(mountain, PILE_HOLDS.kiln) : 0;
 }
 
 /** The kilns' pile's room: none until he owns a kiln. */
-export function kilnHolds(mountain: Pick<Mountain, "makers">): number {
+export function kilnHolds(mountain: Mountain): number {
   return makerHolds(mountain, "kiln");
 }
 
@@ -143,6 +208,21 @@ export function mineChain(
 }
 
 /**
+ * What transport takes a second from each stockpile while the mine runs
+ * (#666): `stockDraw` from what the mine can give it (`takeIncome`), on both
+ * levels once the Granite is open. Nothing while the stockyard is shut.
+ */
+export function mineDraw(
+  mountain: Mountain,
+  pay: number,
+  drilling: boolean,
+): Partial<Stock> {
+  return stockyardOpen(mountain)
+    ? stockDraw(mountain, pay, takeIncome(mountain, pay, drilling))
+    : {};
+}
+
+/**
  * The mine's two levels as chains side by side (part 3, #673), with
  * transport's take worked out as `mineChain` works it out for one.
  */
@@ -156,9 +236,7 @@ function levelsSet(
     mountain,
     granite,
     { pay, drilling },
-    stockyardOpen(mountain)
-      ? stockDraw(mountain, pay, levelsTake(mountain, granite, pay, drilling))
-      : {},
+    mineDraw(mountain, pay, drilling),
   );
 }
 
@@ -215,7 +293,9 @@ function levelsTake(
  * The Topsoil's level as one of chains side by side: drilling, haulage and
  * hoisting at their own speeds times `pay`, with the face and shaft piles
  * between them, then the kilns' pile, the kilns and the brick stockpile,
- * spilling from hoisting to the stone stockpile.
+ * spilling from hoisting to the stone stockpile. From part 3 its hoisting is
+ * its own cages' (rule 5.14): every cage with the Topsoil alone, and those
+ * assigned to it with the Granite open.
  */
 function topsoilBranch(
   mountain: Mountain,
@@ -223,19 +303,19 @@ function topsoilBranch(
   drilling: boolean,
   draw: Partial<Stock>,
 ): Branch {
-  const { stages } = stagesOf(mountain);
+  const { stages, lift } = mineWork(mountain);
   return {
     source: Infinity,
     rates: [
       drilling ? stages.face * pay : 0,
       stages.haul * pay,
-      stages.lift * pay,
+      (lift?.own.topsoil ?? stages.lift) * pay,
       kilnRate(mountain) * pay,
       draw.brick ?? 0,
     ],
     piles: [
-      { held: mountain.piles.face, holds: PILE_HOLDS.face },
-      { held: mountain.piles.shaft, holds: PILE_HOLDS.shaft },
+      { held: mountain.piles.face, holds: faceHolds("topsoil") },
+      { held: mountain.piles.shaft, holds: shaftHolds(mountain) },
       { held: mountain.piles.kiln, holds: kilnHolds(mountain) },
       {
         held: mountain.stock.brick,
@@ -270,8 +350,8 @@ function chainWith(
 /**
  * The Granite's level as one of chains side by side (part 3, #673): its own
  * drilling and haulage, its drilled rock and rock at the shaft, then the
- * saws' pile, the saws and the cut stone stockpile. Its hoisting is the
- * set's shared rate.
+ * saws' pile, the saws and the cut stone stockpile. Its own hoisting is
+ * its assigned cages' (#724), and it lifts its share of the set's turn.
  */
 function graniteBranch(
   mountain: Mountain,
@@ -279,20 +359,20 @@ function graniteBranch(
   { pay, drilling }: { readonly pay: number; readonly drilling: boolean },
   draw: Partial<Stock>,
 ): Branch {
-  const { stages, levels } = stagesOf(mountain);
+  const { levels, lift } = mineWork(mountain);
   const piles = granite.piles;
   return {
     source: Infinity,
     rates: [
       drilling ? levels.granite.face * pay : 0,
       levels.granite.haul * pay,
-      stages.lift * pay,
+      (lift?.own.granite ?? 0) * pay,
       makerRate(mountain, "saw") * pay,
       draw.cutStone ?? 0,
     ],
     piles: [
-      { held: piles.face, holds: GRANITE_PILE_HOLDS.face },
-      { held: piles.shaft, holds: GRANITE_PILE_HOLDS.shaft },
+      { held: piles.face, holds: faceHolds("granite") },
+      { held: piles.shaft, holds: shaftHolds(mountain) },
       { held: piles.saw, holds: makerHolds(mountain, "saw") },
       {
         held: mountain.stock.cutStone,
@@ -305,10 +385,12 @@ function graniteBranch(
 }
 
 /**
- * The mine's two levels side by side (part 3, #673, ruling 4): the Topsoil's
- * chain and the Granite's, sharing the one hoist's rate and the stone
- * stockpile, with transport taking `draw` a second from the stockpiles.
- * Drilling is 0 on both while `drilling` is false.
+ * The mine's two levels side by side (part 3, #673): the Topsoil's chain and
+ * the Granite's, sharing the stone stockpile, with transport taking `draw` a
+ * second from the stockpiles. Drilling is 0 on both while `drilling` is
+ * false. Each level lifts its own cages' rate, and the cages for both lift
+ * their loads once a round of the trips of the levels in the turn, strictly
+ * in turn (ruling 6, rule 5.14).
  */
 function mineBranches(
   mountain: Mountain,
@@ -321,7 +403,13 @@ function mineBranches(
       topsoilBranch(mountain, run.pay, run.drilling, draw),
       graniteBranch(mountain, granite, run, draw),
     ],
-    shared: { stage: LIFT, rate: stagesOf(mountain).stages.lift * run.pay },
+    shared: {
+      stage: LIFT,
+      turn: {
+        loads: (mineWork(mountain).lift?.loads ?? 0) * run.pay,
+        trips: [tripSeconds("topsoil"), tripSeconds("granite")],
+      },
+    },
     side: stoneSide(mountain, draw),
   };
 }
@@ -343,7 +431,7 @@ const IN_STEP = { held: 0, holds: 0 } as const;
  * in the same order: a change to one is a change to both.
  */
 export function steadyIncome(mountain: Mountain): Partial<Stock> {
-  const { stages } = stagesOf(mountain);
+  const { stages } = mineWork(mountain);
   return chainIncome({
     source: Infinity,
     rates: [stages.face, stages.haul, stages.lift, kilnRate(mountain), 0],
@@ -448,11 +536,73 @@ export function mineSettled(
 }
 
 /** What the mine did over a stretch: the mountain after, the rock hoisting lifted, and what reached the stockpiles. */
-type MineFlow = {
+export type MineFlow = {
   readonly mountain: Mountain;
   readonly mined: number;
   readonly gained: Partial<Stock>;
 };
+
+/**
+ * What a step of the mine moved and left (rates or cages, #724): the rock
+ * drilled on each level, the rock lifted, what reached the stockpiles, and
+ * every pile after it. `granitePiles` is the Granite's, while it is open.
+ */
+export type MineStep = {
+  readonly dug: Readonly<Record<MineLevelId, number>>;
+  readonly mined: number;
+  readonly gained: Partial<Stock>;
+  readonly piles: MinePiles;
+  readonly granitePiles: GranitePiles | undefined;
+};
+
+/** Whether a step moved nothing: no rock drilled or lifted, no good made, and every pile as it was. */
+function stood(
+  mountain: Mountain,
+  granite: SunkGranite | undefined,
+  step: MineStep,
+): boolean {
+  return (
+    step.dug.topsoil === 0 &&
+    step.dug.granite === 0 &&
+    step.mined === 0 &&
+    Object.values(step.gained).every((amount) => amount === 0) &&
+    samePiles(step.piles, mountain.piles) &&
+    (granite === undefined ||
+      step.granitePiles === undefined ||
+      samePiles(step.granitePiles, granite.piles))
+  );
+}
+
+/**
+ * The mine's write-back after a step, for rates and live play alike
+ * (`mine-cages`): the piles, the Granite's piles while it is open, the stock
+ * and rock dug. A step that moved nothing gives the same mountain back.
+ */
+export function mineWritten(mountain: Mountain, step: MineStep): MineFlow {
+  const granite = openGranite(mountain);
+  if (stood(mountain, granite, step)) {
+    return { mountain, mined: 0, gained: {} };
+  }
+  const { gained } = step;
+  return {
+    mountain: {
+      ...mountain,
+      stock: Object.values(gained).every((amount) => amount === 0)
+        ? mountain.stock
+        : addedStock(mountain.stock, gained),
+      piles: step.piles,
+      granite:
+        granite === undefined || step.granitePiles === undefined
+          ? mountain.granite
+          : { ...granite, piles: step.granitePiles },
+      rockDug: mountain.rockDug + step.dug.topsoil + step.dug.granite,
+      // Counted where it is drilled, for the Granite's iron (#674).
+      graniteDug: mountain.graniteDug + step.dug.granite,
+    },
+    mined: step.mined,
+    gained,
+  };
+}
 
 /**
  * The mine over `seconds`, in whole stones: rock moves through the piles,
@@ -473,7 +623,6 @@ export function flowMine(
     ? flowTopsoil(mountain, seconds, pay, drilling)
     : flowLevels(
         mountain,
-        granite,
         seconds,
         levelsSet(mountain, granite, pay, drilling),
       );
@@ -487,36 +636,14 @@ function flowTopsoil(
   drilling: boolean,
 ): MineFlow {
   const flow = flowWhole(mineChain(mountain, pay, drilling), seconds);
-  const dug = flow.moved[0] ?? 0;
-  const mined = flow.moved[LIFT] ?? 0;
-  const brick = flow.moved[MAKER] ?? 0;
-  const stones = flow.spilled;
-  const [face = 0, shaft = 0, kiln = 0] = flow.piles;
-  const piles = mountain.piles;
-  if (
-    dug === 0 &&
-    mined === 0 &&
-    brick === 0 &&
-    face === piles.face &&
-    shaft === piles.shaft &&
-    kiln === piles.kiln
-  ) {
-    return { mountain, mined: 0, gained: {} };
-  }
-  const gained = { stones, brick };
-  return {
-    mountain: {
-      ...mountain,
-      stock:
-        stones === 0 && brick === 0
-          ? mountain.stock
-          : addedStock(mountain.stock, gained),
-      piles: { face, shaft, kiln },
-      rockDug: mountain.rockDug + dug,
-    },
-    mined,
-    gained,
-  };
+  const [face, shaft, kiln] = threePiles(flow);
+  return mineWritten(mountain, {
+    dug: { topsoil: movedAt(flow, 0), granite: 0 },
+    mined: movedAt(flow, LIFT),
+    gained: { stones: flow.spilled, brick: movedAt(flow, MAKER) },
+    piles: { face, shaft, kiln },
+    granitePiles: undefined,
+  });
 }
 
 /** Stage `index`'s total in a flow, 0 past its end. */
@@ -532,50 +659,28 @@ function threePiles(flow: ChainFlow): readonly [number, number, number] {
 
 /**
  * `flowMine` with both levels (#673): each level's drilling, piles and maker
- * on its own, the hoist's lift and the stone stockpile shared. The Topsoil's
+ * on its own, the cages' lift and the stone stockpile shared. The Topsoil's
  * piles go in `piles`, the Granite's in `granite.piles`.
  */
 function flowLevels(
   mountain: Mountain,
-  granite: SunkGranite,
   seconds: number,
   set: Branches,
 ): MineFlow {
   const [topsoil, deep] = levelPair(flowBranchesWhole(set, seconds));
-  const dug = movedAt(topsoil, 0) + movedAt(deep, 0);
-  const mined = movedAt(topsoil, LIFT) + movedAt(deep, LIFT);
-  const gained = {
-    stones: topsoil.spilled + deep.spilled,
-    brick: movedAt(topsoil, MAKER),
-    cutStone: movedAt(deep, MAKER),
-  };
   const [face, shaft, kiln] = threePiles(topsoil);
   const [graniteFace, graniteShaft, saw] = threePiles(deep);
-  const piles = { face, shaft, kiln };
-  const granitePiles = { face: graniteFace, shaft: graniteShaft, saw };
-  const still =
-    dug === 0 &&
-    mined === 0 &&
-    gained.brick === 0 &&
-    gained.cutStone === 0 &&
-    samePiles(piles, mountain.piles) &&
-    samePiles(granitePiles, granite.piles);
-  if (still) {
-    return { mountain, mined: 0, gained: {} };
-  }
-  return {
-    mountain: {
-      ...mountain,
-      stock: addedStock(mountain.stock, gained),
-      piles,
-      granite: { ...granite, piles: granitePiles },
-      rockDug: mountain.rockDug + dug,
-      // Counted where it is drilled, for the Granite's iron (#674).
-      graniteDug: mountain.graniteDug + movedAt(deep, 0),
+  return mineWritten(mountain, {
+    dug: { topsoil: movedAt(topsoil, 0), granite: movedAt(deep, 0) },
+    mined: movedAt(topsoil, LIFT) + movedAt(deep, LIFT),
+    gained: {
+      stones: topsoil.spilled + deep.spilled,
+      brick: movedAt(topsoil, MAKER),
+      cutStone: movedAt(deep, MAKER),
     },
-    mined,
-    gained,
-  };
+    piles: { face, shaft, kiln },
+    granitePiles: { face: graniteFace, shaft: graniteShaft, saw },
+  });
 }
 
 /** Whether two sets of piles hold the same rock, pile by pile. */

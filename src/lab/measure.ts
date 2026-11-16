@@ -123,6 +123,8 @@ const MOVE_KIND_ORDER = {
   placeWorkOrder: true,
   cancelWorkOrder: true,
   installWorkOrder: true,
+  assignHoist: true,
+  unassignHoist: true,
 } as const satisfies Record<Action["kind"], true>;
 
 export const MOVE_KINDS = Object.keys(

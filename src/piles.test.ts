@@ -12,6 +12,8 @@ import {
   flowBranchesWhole,
   flowChain,
   flowWhole,
+  pour,
+  wholeSeconds,
   type Branch,
   type Branches,
   type Chain,
@@ -463,15 +465,71 @@ describe("a stage with a recipe (#723)", () => {
   });
 });
 
+describe("sharing a capacity out evenly (the stockpiles' draw, #673)", () => {
+  it("shares out evenly: never above a want, never above the capacity, and the rest to the others", () => {
+    expect(evenShares(100, [10, Infinity, 0])).toEqual([10, 90, 0]);
+    expect(evenShares(100, [80, 80])).toEqual([50, 50]);
+    expect(evenShares(0, [5, 5])).toEqual([0, 0]);
+    expect(evenShares(90, [Infinity, 5, Infinity])).toEqual([42.5, 5, 42.5]);
+    expect(evenShares(60, [Infinity, Infinity])).toEqual([30, 30]);
+    expect(evenShares(100, [])).toEqual([]);
+  });
+});
+
+describe("whole seconds (#724)", () => {
+  it("rounds up to a whole second, at least one, and keeps Infinity", () => {
+    expect(wholeSeconds(0)).toBe(1);
+    expect(wholeSeconds(0.2)).toBe(1);
+    expect(wholeSeconds(2)).toBe(2);
+    expect(wholeSeconds(2 + 1e-12)).toBe(2);
+    expect(wholeSeconds(2.01)).toBe(3);
+    expect(wholeSeconds(Infinity)).toBe(Infinity);
+  });
+});
+
+describe("pouring a load (rule 5.6)", () => {
+  it("fills each pile in order up to its room, and keeps what finds none", () => {
+    expect(
+      pour(600, [
+        { held: 1_500, holds: 1_800 },
+        { held: 0, holds: Infinity },
+      ]),
+    ).toEqual({ into: [300, 300], left: 0 });
+    expect(
+      pour(600, [
+        { held: 1_800, holds: 1_800 },
+        { held: 99, holds: 100 },
+      ]),
+    ).toEqual({ into: [0, 1], left: 599 });
+    expect(pour(50, [{ held: 2_000, holds: 1_800 }])).toEqual({
+      into: [0],
+      left: 50,
+    });
+  });
+
+  it("takes a room within float noise of a whole good as that good, and pours nothing into no piles", () => {
+    expect(pour(10, [{ held: 0.5 + 1e-12, holds: 3.5 }])).toEqual({
+      into: [3],
+      left: 7,
+    });
+    expect(pour(0, [{ held: 0, holds: 300 }])).toEqual({ into: [0], left: 0 });
+    expect(pour(40, [])).toEqual({ into: [], left: 40 });
+  });
+});
+
 /**
  * Chains side by side (#673): the Topsoil and the Granite each run their own
- * chain, share one hoisting rate evenly, and spill to one stone stockpile.
+ * chain and spill to one stone stockpile. At hoisting each lifts its own rate
+ * (its assigned cages) and, while it is in the turn, a share of the cages for
+ * both: their loads once per round of the trips of the levels in the turn
+ * (#724, rule 5.14).
  */
-describe("chains side by side (#673)", () => {
-  /** A level: drilling, haulage, hoisting (shared), saws and the draw, into drilled rock, the shaft, the saws' rock and their stockpile. */
+describe("chains side by side (#673, #724)", () => {
+  /** A level: drilling, haulage, hoisting (its own rate), saws and the draw, into drilled rock, the shaft, the saws' rock and their stockpile. */
   function level({
     dig = 0,
     haul = 0,
+    lift = 0,
     make = 0,
     draw = 0,
     face = pile(0, 300),
@@ -482,6 +540,7 @@ describe("chains side by side (#673)", () => {
   }: {
     readonly dig?: number;
     readonly haul?: number;
+    readonly lift?: number;
     readonly make?: number;
     readonly draw?: number;
     readonly face?: { held: number; holds: number };
@@ -492,64 +551,104 @@ describe("chains side by side (#673)", () => {
   }): Branch {
     return {
       source: Infinity,
-      rates: [dig, haul, 0, make, draw],
+      rates: [dig, haul, lift, make, draw],
       piles: [face, shaft, maker, stockpile],
       takes: [1, 1, 1, take, 1],
       spillFrom: 2,
     };
   }
 
-  /** Two or more levels sharing `rate` of hoisting, spilling to `side`. */
+  /** Two or more levels taking `loads` in turn, a round of `trips`, spilling to `side`. */
   function shaft(
     branches: readonly Branch[],
-    rate: number,
+    loads: number,
+    trips: readonly number[] = [10, 20],
     side = { held: 0, holds: Infinity, drain: 0 },
   ): Branches {
-    return { branches, shared: { stage: 2, rate }, side };
+    return { branches, shared: { stage: 2, turn: { loads, trips } }, side };
   }
 
-  /** The chain one branch is, alone, with the whole rate and side pile. */
+  /** The chain one branch is, alone in the turn, with its own rate and the whole turn and side pile. */
   function alone(set: Branches): Chain {
     const [branch] = set.branches;
-    if (branch === undefined) {
+    const [trip] = set.shared.turn.trips;
+    if (branch === undefined || trip === undefined) {
       throw new Error("no branch");
     }
     const { spillFrom, ...rest } = branch;
     const rates = [...rest.rates];
-    rates[set.shared.stage] = set.shared.rate;
+    rates[set.shared.stage] =
+      (rates[set.shared.stage] ?? 0) + set.shared.turn.loads / trip;
     return { ...rest, rates, spill: { from: spillFrom, ...set.side } };
   }
 
-  it("shares out evenly: never above a want, never above the capacity, and the rest to the others", () => {
-    expect(evenShares(100, [10, Infinity, 0])).toEqual([10, 90, 0]);
-    expect(evenShares(100, [80, 80])).toEqual([50, 50]);
-    expect(evenShares(0, [5, 5])).toEqual([0, 0]);
-    expect(evenShares(90, [Infinity, 5, Infinity])).toEqual([42.5, 5, 42.5]);
-    expect(evenShares(60, [Infinity, Infinity])).toEqual([30, 30]);
-    expect(evenShares(100, [])).toEqual([]);
-  });
+  /** What each chain lifts now. */
+  const lifts = (set: Branches) =>
+    branchChains(set).map((chain) => chainFlows(chain)[2]);
 
-  it("shares the stage's rate evenly, and what one branch cannot use goes to the other", () => {
-    // The Topsoil's shaft is empty and haulage brings 100 a second; the
-    // Granite's shaft is full.
+  it("lifts each branch's own rate, and the turn's loads in the time of the trips of those in the turn", () => {
+    // Both have rock waiting: a round is 10 + 20 seconds, so each takes
+    // 600 / 30 a second, and the Granite lifts its own 30 besides.
     const set = shaft(
-      [level({ dig: 100, haul: 100 }), level({ shaft: pile(300, 300) })],
+      [
+        level({ shaft: pile(300, 300) }),
+        level({ lift: 30, shaft: pile(300, 300) }),
+      ],
       600,
     );
-    const lifts = branchChains(set).map((chain) => chainFlows(chain)[2]);
-    expect(lifts).toEqual([100, 500]);
-  });
-
-  it("leaves the whole rate to a branch when the other has nothing to lift", () => {
-    const set = shaft(
-      [level({}), level({ shaft: pile(300, 300), make: 50 })],
-      600,
-    );
+    expect(lifts(set)).toEqual([600 / 30, 30 + 600 / 30]);
     const chains = branchChains(set);
-    expect(chains.map((chain) => chainFlows(chain)[2])).toEqual([0, 600]);
-    expect(chains.map((chain) => chain.rates[2])).toEqual([0, 600]);
+    expect(chains.map((chain) => chain.rates[2])).toEqual([20, 50]);
     // Each chain keeps its own rates at every other stage.
-    expect(chains[1]?.rates).toEqual([0, 0, 600, 50, 0]);
+    expect(chains[1]?.rates).toEqual([0, 0, 50, 0, 0]);
+  });
+
+  it("leaves a branch with no rate at haulage and nothing at the shaft out of the turn: the other takes the loads in its own trip", () => {
+    const granite = level({ shaft: pile(300, 300) });
+    expect(lifts(shaft([level({}), granite], 600))).toEqual([0, 600 / 20]);
+    expect(
+      branchChains(shaft([level({}), granite], 600)).map(
+        (chain) => chain.rates[2],
+      ),
+    ).toEqual([0, 30]);
+    // A shaft the chain counts as empty (float noise a phase can leave) is out of the turn too (rule 5.7).
+    expect(
+      lifts(shaft([level({ shaft: pile(1e-12, 300) }), granite], 600)),
+    ).toEqual([0, 30]);
+    // The Topsoil's 100 at the shaft lasts 5 seconds at 20 a second; then
+    // the Granite takes the loads in its own 20 s trip, 30 a second.
+    const flows = flowBranchesWhole(
+      shaft([level({ shaft: pile(100, 300) }), granite], 600),
+      10,
+    );
+    expect(flows.map((flow) => flow.moved[2])).toEqual([100, 5 * 20 + 5 * 30]);
+    expect(flows.map((flow) => flow.piles[1])).toEqual([0, 300 - 250]);
+  });
+
+  it("gives a branch in the turn that cannot use its share none of it to the other (strictly in turn)", () => {
+    // The Topsoil's shaft is empty and haulage brings 5 a second: it is in
+    // the turn, lifts its 5, and the Granite still has 600 / 30.
+    const set = shaft(
+      [level({ dig: 5, haul: 5 }), level({ shaft: pile(300, 300) })],
+      600,
+    );
+    expect(lifts(set)).toEqual([5, 20]);
+    const flows = flowBranchesWhole(set, 10);
+    expect(flows.map((flow) => flow.moved[2])).toEqual([50, 200]);
+  });
+
+  it("lifts none for both when no branch is in the turn", () => {
+    // The Granite keeps its own rate, but nothing is at either shaft and
+    // nothing comes.
+    const set = shaft([level({}), level({ lift: 30 })], 600);
+    expect(branchChains(set).map((chain) => chain.rates[2])).toEqual([0, 30]);
+    expect(lifts(set)).toEqual([0, 0]);
+    expect(branchesChange(set)).toBe(Infinity);
+    const flows = flowBranchesWhole(set, 3_600);
+    expect(flows.map((flow) => flow.moved)).toEqual([
+      [0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0],
+    ]);
   });
 
   it("fills one side pile from both: it is full when their spills together fill it", () => {
@@ -559,6 +658,7 @@ describe("chains side by side (#673)", () => {
         level({ dig: 200, haul: 200, make: 50, maker: pile(300, 300) }),
       ],
       600,
+      [1, 1],
       { held: 1_000, holds: 10_000, drain: 10 },
     );
     const spills = branchChains(set).map((chain) => chainSpill(chain));
@@ -581,6 +681,7 @@ describe("chains side by side (#673)", () => {
         level({ dig: 200, haul: 200, make: 52, maker: pile(300, 300) }),
       ],
       600,
+      [1, 1],
       { held: 10_000, holds: 10_000, drain: 10 },
     );
     const chains = branchChains(set);
@@ -600,19 +701,31 @@ describe("chains side by side (#673)", () => {
 
   it("flows one branch as the chain it is", () => {
     const sets = [
-      shaft([level({ dig: 9, haul: 3 })], 6),
+      shaft([level({ dig: 9, haul: 3 })], 6, [1]),
       shaft(
         [level({ dig: 30, haul: 30, make: 12, maker: pile(299, 300) })],
         18,
+        [1],
       ),
       shaft(
         [level({ dig: 20, haul: 18.7, make: 12.3, shaft: pile(300, 300) })],
-        18,
+        180,
+        [10],
         { held: 900, holds: 1_000, drain: 2 },
       ),
       shaft(
-        [level({ dig: 40, haul: 40, make: 12, take: 3, maker: pile(7, 300) })],
-        30.5,
+        [
+          level({
+            dig: 40,
+            haul: 40,
+            lift: 0.5,
+            make: 12,
+            take: 3,
+            maker: pile(7, 300),
+          }),
+        ],
+        30,
+        [1],
         { held: 1_000, holds: 1_000, drain: 0 },
       ),
       shaft(
@@ -627,6 +740,7 @@ describe("chains side by side (#673)", () => {
           }),
         ],
         20,
+        [1],
         { held: 0, holds: 500, drain: 1.5 },
       ),
     ];
@@ -647,15 +761,16 @@ describe("chains side by side (#673)", () => {
         level({ shaft: pile(300, 300), make: 8, maker: pile(300, 300) }),
       ],
       18,
+      [1, 1],
       { held: 999, holds: 1_000, drain: 2 },
     );
     // With the side pile not full, each lifts 9 of the 18: they spill 5 and 1.
     const settled = branchesSettled(set, 1);
     expect(settled.after).toBeCloseTo(0.25, 9);
     expect(settled.set.side.held).toBe(1_000);
-    // Full, it drains 1 a second for each, so the Granite lifts 9: its shaft
-    // of 297.75 is empty next.
-    expect(branchesChange(settled.set)).toBeCloseTo(297.75 / 9, 6);
+    // Full, its drain of 2 goes by what each could spill into it, 2 and 1,
+    // so the Granite lifts 8 + 2/3: its shaft of 297.75 is empty next.
+    expect(branchesChange(settled.set)).toBeCloseTo(297.75 / (8 + 2 / 3), 6);
     // A change past the first second is left for the stretch to end at.
     const later = branchesSettled(
       { ...set, side: { held: 0, holds: 1_000, drain: 2 } },
@@ -673,6 +788,7 @@ describe("chains side by side (#673)", () => {
     fc.integer({ min: 0, max: most }).map((n) => n / 100);
 
   const levels = fc.record({
+    lift: fc.oneof(fc.constant(0), hundredths(20_000)),
     rates: fc.tuple(
       hundredths(40_000),
       hundredths(40_000),
@@ -687,6 +803,12 @@ describe("chains side by side (#673)", () => {
     ),
     take: fc.integer({ min: 1, max: 3 }),
   });
+
+  /** A round of the cages for both: each level's trip, in whole seconds. */
+  const trips = fc.tuple(
+    fc.integer({ min: 1, max: 30 }),
+    fc.integer({ min: 1, max: 30 }),
+  );
 
   const sides = fc.record({
     held: fc.oneof(fc.constant(1_000), fc.integer({ min: 0, max: 1_200 })),
@@ -707,12 +829,14 @@ describe("chains side by side (#673)", () => {
           holds: fc.oneof(fc.constant(1_000), fc.constant(Infinity)),
           drain: hundredths(5_000).map((drain) => drain + 0.01),
         }),
+        trips,
         fc.integer({ min: 1, max: 3_600 }),
-        (drawn, rate, side, seconds) => {
-          const branches = drawn.map(({ rates, held, take }) =>
+        (drawn, loads, side, round, seconds) => {
+          const branches = drawn.map(({ lift, rates, held, take }) =>
             level({
               dig: rates[0],
               haul: rates[1],
+              lift,
               make: rates[2],
               draw: rates[3],
               face: pile(held[0], 300),
@@ -722,7 +846,10 @@ describe("chains side by side (#673)", () => {
               take,
             }),
           );
-          const flows = flowBranchesWhole(shaft(branches, rate, side), seconds);
+          const flows = flowBranchesWhole(
+            shaft(branches, loads, round, side),
+            seconds,
+          );
           for (const [index, branch] of branches.entries()) {
             const flow = flows[index];
             if (flow === undefined) {
@@ -749,18 +876,20 @@ describe("chains side by side (#673)", () => {
     );
   });
 
-  it("in whole goods, makes and loses nothing, lifts no more than the shared rate, and fills no side pile with no drain past its room", () => {
+  it("in whole goods, makes and loses nothing, lifts no more than each branch's own rate and its turn share, and fills no side pile with no drain past its room", () => {
     fc.assert(
       fc.property(
         fc.array(levels, { minLength: 2, maxLength: 2 }),
         hundredths(100_000),
         sides,
+        trips,
         fc.integer({ min: 1, max: 3_600 }),
-        (drawn, rate, side, seconds) => {
-          const branches = drawn.map(({ rates, held, take }) =>
+        (drawn, loads, side, round, seconds) => {
+          const branches = drawn.map(({ lift, rates, held, take }) =>
             level({
               dig: rates[0],
               haul: rates[1],
+              lift,
               make: rates[2],
               draw: rates[3],
               face: pile(held[0], 300),
@@ -770,10 +899,14 @@ describe("chains side by side (#673)", () => {
               take,
             }),
           );
-          const set = shaft(branches, rate, side);
+          const set = shaft(branches, loads, round, side);
           const flows = flowBranchesWhole(set, seconds);
           expect(flows).toHaveLength(2);
-          let lifted = 0;
+          // Both always in the turn (a rate at haulage): each takes the
+          // loads once per round of both trips, and never the other's.
+          const bothInTurn = branches.every(
+            (branch) => (branch.rates[1] ?? 0) > 0,
+          );
           let spilled = 0;
           for (const [index, branch] of branches.entries()) {
             const flow = flows[index];
@@ -795,10 +928,13 @@ describe("chains side by side (#673)", () => {
               expect(Number.isInteger(amount)).toBe(true);
               expect(amount).toBeGreaterThanOrEqual(0);
             }
-            lifted += flow.moved[2] ?? 0;
+            const own = branch.rates[2] ?? 0;
+            const trip = bothInTurn ? round[0] + round[1] : (round[index] ?? 1);
+            expect(flow.moved[2] ?? 0).toBeLessThanOrEqual(
+              (own + loads / trip) * seconds + 1e-6,
+            );
             spilled += flow.spilled;
           }
-          expect(lifted).toBeLessThanOrEqual(rate * seconds + 1e-6);
           if (side.drain === 0 && side.held <= side.holds) {
             expect(side.held + spilled).toBeLessThanOrEqual(side.holds);
           }

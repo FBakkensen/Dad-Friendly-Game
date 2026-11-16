@@ -80,11 +80,20 @@ import { MAKER_IDS, makerJob, type MakerId } from "./makers";
 import {
   GRANITE_PILE_IDS,
   LEVEL_MACHINE_IDS,
+  MINE_LEVEL_IDS,
   UNSUNK,
   type Granite,
   type GranitePileId,
   type LevelMachineId,
+  type MineLevelId,
 } from "./mine-levels";
+import {
+  carriedBy,
+  cageKeys,
+  hoistsOwned,
+  restoredTrips,
+  type Cages,
+} from "./cages";
 
 type LevelId = UpgradeId | RecipeId;
 
@@ -134,7 +143,20 @@ const GAME_KEYS = [
   "stockyard",
   "granite",
   "station",
+  "cages",
 ] as const;
+
+/**
+ * The cages' own keys (#724, ruling 12): the hoists assigned to each level,
+ * and what the cages carry from each level. Never where a cage is (call 63).
+ */
+const CAGE_KEYS = ["assigned", "carried"] as const;
+
+/** The cages as saved, each part by level. Left out while both are empty. */
+type SavedCages = {
+  readonly assigned?: Readonly<Partial<Record<MineLevelId, number>>>;
+  readonly carried?: Readonly<Partial<Record<MineLevelId, number>>>;
+};
 
 /** The Granite's own keys (#673): its machines and its piles. */
 const GRANITE_KEYS = ["machines", "piles"] as const;
@@ -214,6 +236,12 @@ export type SaveGame = {
   readonly granite?: SavedGranite;
   /** The factory's work order (#674). Left out while the station is idle. */
   readonly station?: SavedStation;
+  /**
+   * The shaft's cages (#724, ruling 12): the hoists assigned to each level
+   * and what the cages carry from each, never where they are. Left out while
+   * both are all zero, so a part 2 save writes the same map as before.
+   */
+  readonly cages?: SavedCages;
 };
 
 // ---------------------------------------------------------------------------
@@ -353,6 +381,21 @@ function savedGranite(granite: Granite): Partial<SaveGame> {
   };
 }
 
+/** What the cages carry and the hoists assigned, by level; nothing while all zero. */
+function savedCages(cages: Cages): Partial<SaveGame> {
+  const carried = carriedBy(cages.trips);
+  return some("cages", {
+    ...some(
+      "assigned",
+      positives(MINE_LEVEL_IDS, (id) => cages.assigned[id]),
+    ),
+    ...some(
+      "carried",
+      positives(MINE_LEVEL_IDS, (id) => carried[id]),
+    ),
+  });
+}
+
 /** The game map this mountain writes. */
 export function writeGame(mountain: Mountain): SaveGame {
   return {
@@ -400,6 +443,7 @@ export function writeGame(mountain: Mountain): SaveGame {
     ...(mountain.stockyard === 0 ? {} : { stockyard: mountain.stockyard }),
     ...savedGranite(mountain.granite),
     ...savedStation(mountain.station),
+    ...savedCages(mountain.cages),
   };
 }
 
@@ -922,6 +966,91 @@ function graniteDugFits(run: Part<Run>, granite: Part<Granite>): Part<true> {
   return run.graniteDug > 0 && granite.kind === "unsunk" ? "bad" : true;
 }
 
+type LevelCounts = Record<MineLevelId, number>;
+type CageMaps = {
+  readonly assigned: LevelCounts;
+  readonly carried: LevelCounts;
+};
+
+/**
+ * The cages' own maps. Missing is none. Counts are whole and uncapped; a
+ * key or level this build does not know is `newer`.
+ */
+function readCageMaps(value: unknown): Part<CageMaps> {
+  // Left out, the cages are all zero: each map reads as `readCounts`' zeros.
+  const maps = value === undefined ? {} : value;
+  if (!isRecord(maps)) {
+    return "bad";
+  }
+  const assigned = readCounts(maps["assigned"], MINE_LEVEL_IDS, UNCAPPED);
+  const carried = readCounts(maps["carried"], MINE_LEVEL_IDS, UNCAPPED);
+  const failed = worst([assigned, carried]);
+  if (failed === "bad") {
+    return "bad";
+  }
+  if (failed === "newer" || unknownKeys(maps, CAGE_KEYS)) {
+    return "newer";
+  }
+  return { assigned: assigned as LevelCounts, carried: carried as LevelCounts };
+}
+
+/**
+ * Whether the cages fit the rest of the save (ruling 12): no more hoists
+ * assigned than he owns, the engines among them; none assigned and no rock
+ * carried from the Granite while the shaft is unsunk; and no more levels
+ * with rock carried than the shaft has cages, so the winch's cage alone
+ * never holds rock from both.
+ */
+function cagesFit(
+  maps: CageMaps,
+  owned: Facts["owned"],
+  granite: Granite,
+): boolean {
+  const { assigned, carried } = maps;
+  if (assigned.topsoil + assigned.granite > hoistsOwned(owned)) {
+    return false;
+  }
+  const unsunk = granite.kind === "unsunk";
+  if (
+    unsunk &&
+    (assigned.topsoil + assigned.granite > 0 || carried.granite > 0)
+  ) {
+    return false;
+  }
+  const levelsCarried = MINE_LEVEL_IDS.filter((id) => carried[id] > 0).length;
+  return levelsCarried <= cageKeys(owned).length;
+}
+
+/**
+ * The cages (#724), refused when they do not fit the rest of the save. Each
+ * level's carried rock comes back in a cage at the top (ruling 12).
+ */
+function readCages(
+  value: unknown,
+  facts: Part<Facts>,
+  granite: Part<Granite>,
+): Part<Cages> {
+  const maps = readCageMaps(value);
+  if (typeof maps === "string") {
+    return maps;
+  }
+  // A part the cages lean on that cannot be read stops the cages here, as
+  // `cagesFit` cannot run on it; its failure is reported once, by its own part.
+  if (typeof facts === "string") {
+    return facts;
+  }
+  if (typeof granite === "string") {
+    return granite;
+  }
+  if (!cagesFit(maps, facts.owned, granite)) {
+    return "bad";
+  }
+  return {
+    assigned: maps.assigned,
+    trips: restoredTrips(maps.carried, cageKeys(facts.owned)),
+  };
+}
+
 type Facts = Pick<
   Mountain,
   "owned" | "stock" | "upgrades" | "crafted" | "clocks"
@@ -978,6 +1107,7 @@ export function readGame(value: unknown, startedAt: number): GameRead {
   const stockyard = readLevel(value["stockyard"]);
   const granite = readGranite(value["granite"], facts, jobs, makers);
   const station = readStation(value["station"], granite);
+  const cages = readCages(value["cages"], facts, granite);
   const failed = worst([
     facts,
     marks,
@@ -992,6 +1122,7 @@ export function readGame(value: unknown, startedAt: number): GameRead {
     stockyard,
     granite,
     station,
+    cages,
     graniteDugFits(run, granite),
   ]);
   if (failed !== undefined) {
@@ -1017,6 +1148,7 @@ export function readGame(value: unknown, startedAt: number): GameRead {
       stockyard: stockyard as number,
       granite: granite as Granite,
       station: station as Station,
+      cages: cages as Cages,
       startedAt,
     },
   };
@@ -1049,6 +1181,9 @@ export type ShippedFacts = {
   readonly granite: Readonly<Record<"machines" | "piles", readonly string[]>>;
   readonly station: Readonly<
     Record<"blueprints" | "states", readonly string[]>
+  >;
+  readonly cages: Readonly<
+    Record<(typeof CAGE_KEYS)[number], readonly string[]>
   >;
 };
 
@@ -1086,5 +1221,6 @@ export function shippedFacts(): ShippedFacts {
     },
     granite: { machines: LEVEL_MACHINE_IDS, piles: GRANITE_PILE_IDS },
     station: { blueprints: BLUEPRINT_IDS, states: STATION_STATES },
+    cages: { assigned: MINE_LEVEL_IDS, carried: MINE_LEVEL_IDS },
   };
 }

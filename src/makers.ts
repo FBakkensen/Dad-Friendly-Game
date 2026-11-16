@@ -141,6 +141,11 @@ export function makerTakes(id: MakerId): number {
   return Math.max(1, Math.round(makerById(id).takes * factor(`recipe.${id}`)));
 }
 
+/** The good a maker makes. */
+export function makerOutput(id: MakerId): GoodId {
+  return makerById(id).output;
+}
+
 /** What one running maker makes a second, at full output (#671). */
 export function makerMakes(id: MakerId): number {
   return makerById(id).makes;

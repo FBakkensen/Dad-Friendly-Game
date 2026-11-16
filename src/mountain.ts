@@ -14,6 +14,9 @@ import {
 import { NO_JOBS, workersOnJobs, type Jobs } from "./workforce";
 import { makerRecord, type MakerId } from "./makers";
 import { UNSUNK, type Granite } from "./mine-levels";
+import { NO_CAGES, type Cages } from "./cages";
+import { flowMineLive, landedMine } from "./mine-cages";
+import { wholeSeconds } from "./piles";
 import { IDLE_STATION, withMaterials, type Station } from "./factory";
 import {
   flowMine,
@@ -29,6 +32,7 @@ import {
   stockyardOpen,
 } from "./stockyard";
 import type { GoodId } from "./stock";
+import { partThreeOn } from "./part-switch";
 import {
   deliver,
   drawChange,
@@ -141,6 +145,11 @@ export type Mountain = {
   readonly graniteDug: number;
   /** The shaft to the Granite (slice 1, part 3, src/mine-levels.ts). Always unsunk in today's game. */
   readonly granite: Granite;
+  /**
+   * The shaft's cages (slice 1, part 3, src/cages.ts, #724): the hoists
+   * assigned to each level and the cages' trips. None in today's game.
+   */
+  readonly cages: Cages;
   /** The factory's station and its work order (slice 1, part 3, src/factory.ts). Always idle in today's game. */
   readonly station: Station;
 };
@@ -176,6 +185,7 @@ export const BARE_MOUNTAIN: Mountain = {
   rockDug: 0,
   graniteDug: 0,
   granite: UNSUNK,
+  cages: NO_CAGES,
   station: IDLE_STATION,
 };
 
@@ -248,12 +258,15 @@ export function accrue({
   from,
   to,
   pay = 1,
+  live = false,
 }: {
   mountain: Mountain;
   from: number;
   to: number;
   /** Share of the crew's speed paid: 1 while playing, the night shift output away. */
   pay?: number;
+  /** Live play: once part 3 is on, the cages play trip by trip (#724). Away time never does. */
+  live?: boolean;
 }): Accrual {
   if (to <= from) {
     return { mountain, mined: 0, settledAt: Math.max(from, to) };
@@ -262,10 +275,15 @@ export function accrue({
   // One that finishes during the window is fitted at the end, once.
   const ready = settleBench(mountain, from);
   if (stockyardOpen(ready)) {
-    const worked = accrueStretches(ready, from, to, pay);
+    const worked = accrueStretches(ready, from, to, pay, live);
     return { ...worked, mountain: settleBench(worked.mountain, to) };
   }
-  const worked = withDelivery(accrueMine(ready, from, to, pay), from, to, pay);
+  const worked = withDelivery(
+    accrueMine(ready, from, to, pay, live),
+    from,
+    to,
+    pay,
+  );
   const fitted = settleBench(worked.mountain, to);
   return fitted === worked.mountain ? worked : { ...worked, mountain: fitted };
 }
@@ -273,19 +291,21 @@ export function accrue({
 /**
  * A fresh mine's work with the stockyard open (part 2, #666): the mine,
  * transport and the builders in stretches, as a night runs, so a full
- * stockpile takes no more than transport empties from it.
+ * stockpile takes no more than transport empties from it. Live, the cages
+ * play trip by trip once part 3 is on (#724).
  */
 function accrueStretches(
   mountain: Mountain,
   from: number,
   to: number,
   pay: number,
+  live: boolean,
 ): Accrual {
   let state = mountain;
   let cursor = from;
   let mined = 0;
   while (to - cursor >= 1000) {
-    const part = workStretch(state, { from: cursor, end: to }, pay, true);
+    const part = workStretch(state, { from: cursor, end: to }, pay, true, live);
     state = part.mountain;
     mined += part.mined;
     cursor = Math.max(part.settledAt, cursor + 1000);
@@ -324,19 +344,24 @@ function withDelivery(
  * at its own speed times `pay`, with rock waiting in the face and shaft
  * piles, and what hoisting lifts in the stock. A mine where no stage can
  * move spends the whole window, as a crew with nothing to do always has.
+ * Live with part 3 on, the cages play trip by trip (#724), and a cage can
+ * travel while no pile moves.
  */
 function accrueMine(
   mountain: Mountain,
   from: number,
   to: number,
   pay: number,
+  live: boolean,
 ): Accrual {
-  if (!mineMakes(mountain, pay)) {
+  const cages = live && partThreeOn();
+  if (!cages && !mineMakes(mountain, pay)) {
     return { mountain, mined: 0, settledAt: to };
   }
   const seconds = Math.floor((to - from) / 1000);
+  const flow = cages ? flowMineLive : flowMine;
   return {
-    ...flowMine(mountain, seconds, pay, true),
+    ...flow(mountain, seconds, pay, true),
     settledAt: from + seconds * 1000,
   };
 }
@@ -423,6 +448,7 @@ function nightStretch(
     { from, end },
     effectiveRates(mountain).awayPay,
     drilling,
+    false,
   );
 }
 
@@ -433,13 +459,15 @@ function nightStretch(
  * what transport takes from a stockpile changes (#666), so a full stockpile
  * is topped up by no more than transport took. A pile that fills or empties
  * within the first second is taken as filled or empty, so a stockpile a few
- * goods short of its room does not cut the stretch to a second.
+ * goods short of its room does not cut the stretch to a second. Live, the
+ * cages play trip by trip once part 3 is on (#724).
  */
 function workStretch(
   mountain: Mountain,
   { from, end }: { readonly from: number; readonly end: number },
   pay: number,
   drilling: boolean,
+  live: boolean,
 ): Stretch {
   // A stretch is a second at least: what changes within it is made for it.
   const settled = mineSettled(mountain, pay, drilling);
@@ -459,7 +487,12 @@ function workStretch(
       : Infinity,
   );
   const seconds = Math.floor((to - from) / 1000);
-  const mine = flowMine(mountain, seconds, pay, drilling);
+  const mine = (live ? flowMineLive : flowMine)(
+    mountain,
+    seconds,
+    pay,
+    drilling,
+  );
   // Clay and iron come with the rock drilled (rule 5.13, #674).
   const dug = withMaterials(mountain, mine.mountain);
   return {
@@ -485,9 +518,7 @@ type Stretch = Accrual & {
 
 /** The end of the whole second in which `seconds` from `from` falls, at least one on; Infinity stays. */
 function secondMark(from: number, seconds: number): number {
-  return Number.isFinite(seconds)
-    ? from + Math.max(1, Math.ceil(seconds - 1e-9)) * 1000
-    : Infinity;
+  return from + wholeSeconds(seconds) * 1000;
 }
 
 /** A building's steps, in order. */
@@ -569,9 +600,10 @@ function logStretch(
  * haulage and hoisting bring up what waits in the piles (#703). Transport carries to
  * what he ordered, from the pocket, for the whole night at the same share.
  * A roof that goes on in the night lights the rest of it. A fresh mine has
- * no expeditions, so none of their splits apply. The
- * report's `night` holds what the shift report says (#663). This is the
- * crew's work while the game was closed.
+ * no expeditions, so none of their splits apply. The cages land first
+ * (#724, ruling 13): what they unload counts as produced, and the rest of the
+ * night counts them as rates. The report's `night` holds what the shift
+ * report says (#663). This is the crew's work while the game was closed.
  */
 export function accrueAway({
   mountain,
@@ -587,22 +619,26 @@ export function accrueAway({
 } {
   const awayMs = Math.max(0, now - lastSeen);
   const clockStops = lastSeen + Math.min(awayMs, NIGHT_CLOCK_MS);
+  const landed = landedMine(mountain);
   const log: NightLog = {
     producedMs: 0,
     producedTo: 0,
     steps: [],
     litAtMs: undefined,
-    gained: EMPTY_STOCK,
+    gained:
+      landed.mountain === mountain
+        ? EMPTY_STOCK
+        : addedStock(EMPTY_STOCK, landed.gained),
     fullAtMs: Object.fromEntries(
-      STOCKPILE_GOODS.filter((good) => stockpileFull(mountain, good)).map(
-        (good) => [good, 0],
-      ),
+      STOCKPILE_GOODS.filter((good) =>
+        stockpileFull(landed.mountain, good),
+      ).map((good) => [good, 0]),
     ),
     deadMs: 0,
   };
-  let state = mountain;
+  let state = landed.mountain;
   let cursor = lastSeen;
-  let mined = 0;
+  let mined = landed.mined;
   while (now - cursor >= 1000) {
     // The clock goes once the stockyard is open (part 2, rule 4): the mine
     // runs until the stockyard is full.

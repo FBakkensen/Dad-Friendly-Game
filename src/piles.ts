@@ -23,13 +23,18 @@
  * times that.
  *
  * Chains may run side by side (#673), the way the mine's levels do: each
- * `Branch` is a chain of its own, they share one stage's rate (hoisting)
- * evenly, and they spill to one side pile (the stone stockpile), each in
- * proportion to what it brings.
+ * `Branch` is a chain of its own, and they spill to one side pile (the
+ * stone stockpile), each in proportion to what it brings. At one shared
+ * stage (hoisting) each lifts its own rate, and the branches in the turn
+ * take a set of loads strictly in turn (#724, rule 5.14).
+ *
+ * A load may also be poured at an instant (#724, rule 5.6), the way a cage
+ * unloads into the piles at the top or loads what waits at the shaft
+ * (`pour`).
  */
 
 /** What a pile holds now, and its room. A pile over its room is full (ruling 2). */
-type Pile = { readonly held: number; readonly holds: number };
+export type Pile = { readonly held: number; readonly holds: number };
 
 /**
  * Stages in order, with one pile between each pair
@@ -240,6 +245,16 @@ export function chainChange(chain: Chain): number {
 }
 
 /**
+ * Seconds rounded up to a whole one, and at least one; Infinity stays. A
+ * change a hair past a second (float noise) falls in that second.
+ */
+export function wholeSeconds(seconds: number): number {
+  return Number.isFinite(seconds)
+    ? Math.max(1, Math.ceil(seconds - 1e-9))
+    : Infinity;
+}
+
+/**
  * The chain past every change in its first `within` seconds, and the seconds
  * from now the last of them came (#666). A stretch at least that long sees
  * those changes as made: a stockpile a few goods short of its room is full
@@ -419,10 +434,29 @@ function wholeOf(chain: Chain, exact: ChainFlow): ChainFlow {
 }
 
 /**
- * `capacity` shared out evenly (the stockpiles' draw, and the shaft's
- * hoisting between levels, #673), in the order of `wants`: no share is above
- * its want, and what a want leaves goes evenly to the others. The smallest
- * wants are served first, so the rest is split among the larger.
+ * A whole `load` poured at once into each pile in order (#724, rule 5.6):
+ * each takes up to its room in whole goods, and none at or over its room.
+ * What finds no room is left.
+ */
+export function pour(
+  load: number,
+  piles: readonly Pile[],
+): { readonly into: readonly number[]; readonly left: number } {
+  let left = load;
+  const into = piles.map((pile) => {
+    const room = Math.max(0, Math.floor(pile.holds - pile.held + EDGE));
+    const taken = Math.min(left, room);
+    left -= taken;
+    return taken;
+  });
+  return { into, left };
+}
+
+/**
+ * `capacity` shared out evenly (the stockpiles' draw, #673), in the order
+ * of `wants`: no share is above its want, and what a want leaves goes
+ * evenly to the others. The smallest wants are served first, so the rest
+ * is split among the larger.
  */
 export function evenShares(
   capacity: number,
@@ -448,19 +482,29 @@ function ascending(a: number, b: number): number {
 
 /**
  * One of chains side by side (#673): a chain whose stage at the set's shared
- * stage takes a share of one rate, and whose pile `spillFrom` spills to the
- * set's one side pile.
+ * stage lifts its own rate and, in the turn, a share of the turn's loads, and
+ * whose pile `spillFrom` spills to the set's one side pile.
  */
 export type Branch = Omit<Chain, "spill"> & { readonly spillFrom: number };
 
 /**
  * Chains side by side (#673): the levels of the mine, each with its own
- * stages and piles, sharing one rate at `shared.stage` (hoisting) and one side
- * pile (the stone stockpile). Each branch's own rate at that stage is ignored.
+ * stages and piles, sharing one side pile (the stone stockpile). At
+ * `shared.stage` (hoisting) each lifts its own rate (its assigned cages), and
+ * the cages for both are `shared.turn` (#724, rule 5.14): `loads` lifted once
+ * per round of the trips of the branches in the turn, branch `i`'s trip being
+ * `trips[i]`. Each branch in the turn takes `loads / Σ trips` of them, strictly
+ * in turn: what one cannot use is not handed to another.
  */
 export type Branches = {
   readonly branches: readonly Branch[];
-  readonly shared: { readonly stage: number; readonly rate: number };
+  readonly shared: {
+    readonly stage: number;
+    readonly turn: {
+      readonly loads: number;
+      readonly trips: readonly number[];
+    };
+  };
   readonly side: SidePile;
 };
 
@@ -472,9 +516,6 @@ function nth<T>(items: readonly T[], index: number): T {
   }
   return item;
 }
-
-/** A side pile of no limit, to see what a branch would spill. */
-const OPEN_SIDE: SidePile = { held: 0, holds: Infinity, drain: 0 };
 
 /** The branch as a chain with `rate` at the shared stage, spilling to `side`. */
 function branchAt(
@@ -502,27 +543,55 @@ function sidePart(side: SidePile, weight: number): SidePile {
 }
 
 /**
- * The chains as they run until the next change (#673): the shared rate split
- * evenly by what each can take with all of it, and the side pile split by
- * what each would spill at its share.
+ * Whether a branch is in the turn (rule 5.7): it has a rate at the stage
+ * before the shared one (haulage), or rock in front of it. A pile the chain
+ * counts as empty (float noise a phase can leave) puts no branch in the turn.
+ */
+function inTurn(branch: Branch, stage: number): boolean {
+  return (
+    (branch.rates[stage - 1] ?? 0) > 0 ||
+    (branch.piles[stage - 1]?.held ?? 0) > EDGE
+  );
+}
+
+/**
+ * Each branch's rate at the shared stage now (#724): its own, plus, while it
+ * is in the turn, the turn's loads over the trips of those in the turn.
+ */
+function sharedRates(set: Branches): readonly number[] {
+  const { stage, turn } = set.shared;
+  const turning = set.branches.map((branch) => inTurn(branch, stage));
+  const round = turning.reduce(
+    (sum, turns, index) => (turns ? sum + (turn.trips[index] ?? 0) : sum),
+    0,
+  );
+  return set.branches.map((branch, index) => {
+    const own = branch.rates[stage] ?? 0;
+    return turning[index] === true && round > 0
+      ? own + turn.loads / round
+      : own;
+  });
+}
+
+/**
+ * The chains as they run until the next change (#673): each at its rate at
+ * the shared stage (`sharedRates`), and the side pile split by what each
+ * would spill into the whole of it at that rate.
  */
 export function branchChains(set: Branches): readonly Chain[] {
-  const { stage, rate } = set.shared;
-  const wants = set.branches.map(
-    (branch) => chainFlows(branchAt(branch, stage, rate, set.side))[stage] ?? 0,
-  );
-  const shares = evenShares(rate, wants);
+  const { stage } = set.shared;
+  const rates = sharedRates(set);
   const spills = set.branches.map((branch, index) =>
-    chainSpill(branchAt(branch, stage, shares[index] ?? 0, OPEN_SIDE)),
+    chainSpill(branchAt(branch, stage, nth(rates, index), set.side)),
   );
   const total = spills.reduce((sum, spill) => sum + spill, 0);
   return set.branches.map((branch, index) => {
     const weight =
-      total > 0 ? (spills[index] ?? 0) / total : 1 / set.branches.length;
+      total > 0 ? nth(spills, index) / total : 1 / set.branches.length;
     return branchAt(
       branch,
       stage,
-      shares[index] ?? 0,
+      nth(rates, index),
       sidePart(set.side, weight),
     );
   });
@@ -663,7 +732,9 @@ function runBranches(set: Branches, seconds: number): readonly ChainFlow[] {
  * order, each as `flowWhole` floors a chain. A branch's spill takes no room
  * the side pile has already given the branches before it, nor what the
  * branches after it spill for certain (their exact spill floored), so with
- * no drain the side pile never ends over its room.
+ * no drain the side pile never ends over its room. Each is floored with
+ * its rate at the shared stage in the first phase: `wholeOf` reads only the
+ * piles and the spill, so any rate gives the same floor.
  */
 export function flowBranchesWhole(
   set: Branches,
@@ -682,8 +753,10 @@ export function flowBranchesWhole(
     // one takes a branch's part-good as it does a lone chain's.
     const others = set.side.drain > 0 ? 0 : taken + after;
     const room = { ...set.side, held: set.side.held + others };
-    const { stage, rate } = set.shared;
-    const whole = wholeOf(branchAt(branch, stage, rate, room), flow);
+    // `wholeOf` reads no rate, so the branch keeps its own at the shared stage.
+    const own = nth(branch.rates, set.shared.stage);
+    const at = branchAt(branch, set.shared.stage, own, room);
+    const whole = wholeOf(at, flow);
     wholes.push(whole);
     taken += whole.spilled;
   }

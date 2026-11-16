@@ -333,6 +333,46 @@ describe("mergeSaves in a fresh mine (#664)", () => {
     expect(merged.kind === "fast-forward" && merged.mountain).toBe(after);
   });
 
+  it("settles copies that differ only in hoists assigned or rock carried as copies that differ only in jobs (#724)", () => {
+    const owned = { ...start.owned, helper: 1, hoist: 2 };
+    const base = dug(1_000, { owned, granite: sunk() });
+    const assigned = {
+      ...base,
+      cages: { ...base.cages, assigned: { topsoil: 1, granite: 1 } },
+    };
+    const carried = {
+      ...base,
+      cages: {
+        ...base.cages,
+        trips: {
+          "hoist:0": {
+            level: "granite",
+            carried: 300,
+            leg: { kind: "top" },
+          },
+        },
+      },
+    } satisfies Mountain;
+    const jobbed = { ...base, jobs: { ...base.jobs, haulage: 1 } };
+    const settled = (one: Mountain, other: Mountain) => [
+      mergeSaves(copy(one, 2), copy(other, 3)).kind,
+      mergeSaves(copy(other, 2), copy(one, 3)).kind,
+    ];
+    const byJobs = settled(jobbed, base);
+    expect(byJobs).toEqual(["conflict", "conflict"]);
+    expect(settled(assigned, base)).toEqual(byJobs);
+    expect(settled(carried, base)).toEqual(byJobs);
+    // A copy further on rock dug fast-forwards, whatever it assigned or carries.
+    for (const behind of [assigned, carried, base]) {
+      const further = { ...base, rockDug: 1_200 };
+      const merged = mergeSaves(copy(behind, 2), copy(further, 3));
+      expect(merged.kind === "fast-forward" && merged.mountain).toBe(further);
+      const ahead = { ...behind, rockDug: 1_200 };
+      const back = mergeSaves(copy(base, 2), copy(ahead, 3));
+      expect(back.kind === "fast-forward" && back.mountain).toBe(ahead);
+    }
+  });
+
   it("counts the steps built and what has arrived as progress", () => {
     const ordered = placeOrder(dug(1_000));
     const site =

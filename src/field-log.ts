@@ -244,6 +244,16 @@ export function fieldEntry(event: MoveEvent): Omit<FieldEvent, "at"> {
         code: "work.install",
         data: { id: event.blueprint, count: event.level },
       };
+    case "hoistAssigned":
+      return {
+        code: "hoist.assign",
+        data: { id: event.level, count: event.count },
+      };
+    case "hoistUnassigned":
+      return {
+        code: "hoist.unassign",
+        data: { id: event.level, count: event.count },
+      };
     /* v8 ignore next 3 -- exhaustiveness guard, unreachable */
     default: {
       const unexpected: never = event;
