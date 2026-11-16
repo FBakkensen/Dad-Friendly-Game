@@ -1,22 +1,14 @@
 import { tierLocked } from "../crew";
 import { atHome } from "../engineers";
-import { MATERIAL_IDS, type MaterialId } from "../layers";
 import type { Mountain } from "../mountain";
 import { owned, tierInPlay, TIERS } from "../tiers";
 import { UPGRADES, upgradeLevel } from "../upgrades";
 import { upgradeShown } from "../upgrade-reveal";
-import {
-  craftedLevel,
-  recipePrice,
-  workshopUnlocked,
-  type RecipeId,
-} from "../workshop";
 import { HOUR_MS, MS_PER_SECOND } from "./targets";
-import { canPay, priceAmount } from "../stock";
 
 /**
  * When a thing first shows on screen and when the dad first uses it.
- * Ids read `kind:id`, e.g. `upgrade:boots` or `system:workshop`.
+ * Ids read `kind:id`, e.g. `upgrade:boots` or `system:expeditions`.
  * `liveSec` counts live play only, so a night away adds nothing.
  */
 export type RevealEvent = {
@@ -35,56 +27,17 @@ export type RevealGap = {
 
 const SECONDS_PER_HOUR = HOUR_MS / MS_PER_SECOND;
 
-function knownRecipes(mountain: Mountain): readonly RecipeId[] {
-  return workshopUnlocked(mountain) ? mountain.recipes : [];
-}
-
-/** The pocket and the materials cover one craft of this recipe. */
-function recipeAffordable(mountain: Mountain, id: RecipeId): boolean {
-  return canPay(mountain.stock, recipePrice(id));
-}
-
-/** A known recipe that spends this material is affordable right now. */
-function materialAffordable(mountain: Mountain, material: MaterialId): boolean {
-  return knownRecipes(mountain).some(
-    (id) =>
-      priceAmount(recipePrice(id), material) > 0 &&
-      recipeAffordable(mountain, id),
-  );
-}
-
-/** A busy bench counts as use: the dad cannot start a second craft on it. */
-function materialUsed(mountain: Mountain, material: MaterialId): boolean {
-  const bench = mountain.bench?.recipe;
-  return (
-    mountain.bench !== undefined ||
-    knownRecipes(mountain).some(
-      (id) =>
-        priceAmount(recipePrice(id), material) > 0 &&
-        (craftedLevel(mountain, id) > 0 || bench === id),
-    )
-  );
-}
-
-function anyCraft(mountain: Mountain): boolean {
-  return (
-    mountain.bench !== undefined ||
-    Object.values(mountain.crafted).some((level) => level > 0)
-  );
-}
-
 type Watch = {
   readonly id: string;
-  /**
-   * On screen for buys and systems. Recipes and materials count from the
-   * moment one craft is affordable: a discovery or an honest material wait
-   * is not a reveal the dad could act on.
-   */
+  /** On screen. */
   readonly shown: (mountain: Mountain) => boolean;
   readonly used: (mountain: Mountain) => boolean;
 };
 
-/** Everything the lab watches: buys, recipes, materials, systems. */
+/**
+ * Everything the lab watches: buys and systems. The old bench's recipes,
+ * its materials and the workshop went in #740: the bench never opens.
+ */
 const WATCHES: readonly Watch[] = [
   ...TIERS.map((tier) => ({
     id: `tier:${tier.id}`,
@@ -100,16 +53,6 @@ const WATCHES: readonly Watch[] = [
     shown: (mountain: Mountain) => upgradeShown(mountain, upgrade),
     used: (mountain: Mountain) => upgradeLevel(mountain, upgrade.id) > 0,
   })),
-  ...MATERIAL_IDS.map((material) => ({
-    id: `material:${material}`,
-    shown: (mountain: Mountain) => materialAffordable(mountain, material),
-    used: (mountain: Mountain) => materialUsed(mountain, material),
-  })),
-  {
-    id: "system:workshop",
-    shown: (mountain: Mountain) => workshopUnlocked(mountain),
-    used: anyCraft,
-  },
   {
     id: "system:expeditions",
     shown: (mountain: Mountain) => mountain.engineers.length > 0,
@@ -130,16 +73,6 @@ const WATCHES: readonly Watch[] = [
   },
 ];
 
-function recipeWatch(id: RecipeId): Watch {
-  return {
-    id: `recipe:${id}`,
-    shown: (mountain) =>
-      knownRecipes(mountain).includes(id) && recipeAffordable(mountain, id),
-    used: (mountain) =>
-      mountain.bench !== undefined || craftedLevel(mountain, id) > 0,
-  };
-}
-
 /**
  * Remembers what already appeared and what was already used, and returns
  * the new events each time it looks at the mountain. A first use with no
@@ -151,15 +84,9 @@ export function createRevealLog(): (
 ) => readonly RevealEvent[] {
   const appeared = new Set<string>();
   const used = new Set<string>();
-  const recipes = new Map<RecipeId, Watch>();
   return (mountain, liveSec) => {
     const events: RevealEvent[] = [];
-    for (const id of knownRecipes(mountain)) {
-      if (!recipes.has(id)) {
-        recipes.set(id, recipeWatch(id));
-      }
-    }
-    for (const watch of [...WATCHES, ...recipes.values()]) {
+    for (const watch of WATCHES) {
       const isUsed = !used.has(watch.id) && watch.used(mountain);
       if (!appeared.has(watch.id) && (isUsed || watch.shown(mountain))) {
         appeared.add(watch.id);

@@ -172,8 +172,6 @@ export function fieldEntry(event: MoveEvent): Omit<FieldEvent, "at"> {
         code: "upgrade.buy",
         data: { id: event.id, count: event.level },
       };
-    case "craftStarted":
-      return { code: "craft.start", data: { id: event.recipe } };
     case "promoted":
       return {
         code: "engineer.promote",

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { activeFactors, withFactors } from "./economy/factors";
+import { withFactors } from "./economy/factors";
 import { nextTrouble } from "./hazards";
-import { type MaterialId, type Materials, EMPTY_MATERIALS } from "./layers";
-import { priceAmount } from "./stock";
+import { type MaterialId, type Materials } from "./layers";
+import { pay, priceAmount } from "./stock";
 import { expeditionAwayMs } from "./lost-tools";
 import {
   accrue,
@@ -10,8 +10,7 @@ import {
   type Mountain,
   BARE_MOUNTAIN,
 } from "./mountain";
-import { levels, partThree } from "./part-three.harness";
-import { patched, type MountainPatch } from "./test-fixtures";
+import { benchCraft, patched, type MountainPatch } from "./test-fixtures";
 import { effectiveRates } from "./rates";
 import {
   CHARGE_MS,
@@ -39,7 +38,6 @@ import {
   recipePrice,
   settleBench,
   fitGear,
-  startCraft,
   troubleGapScale,
   workshopUnlocked,
   type RecipeId,
@@ -175,23 +173,20 @@ const FULL: Materials = {
   heartstone: 80,
 };
 
-/** The shaft sunk (the bench opens with the Granite, in part 3, #740). */
-const SUNK = levels({}).granite;
-
 /**
- * Starts a craft in part 3, where the bench is open, with any knobs a test
- * holds around it.
+ * A craft on the old bench, paid for as a save holds it. Play never starts
+ * one since #740 (the bench never opens); a save's craft still settles,
+ * fits and cancels.
  */
 function craft(mountain: Mountain, id: RecipeId, now: number): Mountain {
-  return partThree(() => startCraft(mountain, id, now), activeFactors() ?? {});
+  return benchCraft(pay(mountain, recipePrice(id)), id, now);
 }
 
-/** The shaft is sunk, the pocket can pay, and every recipe is known. */
+/** The pocket can pay, and every recipe is known. */
 function openShed(extra: MountainPatch = {}): Mountain {
   return patched(
     {
       ...createMountain(),
-      granite: SUNK,
       stock: { ...createMountain().stock, stones: 80_000_000, ...FULL },
       recipes: [...RECIPE_IDS],
     },
@@ -263,54 +258,8 @@ describe("workshop rules", () => {
     }
   });
 
-  it("stays shut until part 3's Granite, and spends nothing it cannot pay", () => {
-    const locked = {
-      ...createMountain(),
-      stock: { ...createMountain().stock, stones: 80_000_000, ...FULL },
-      recipes: [...RECIPE_IDS],
-    };
-    expect(workshopUnlocked(locked)).toBe(false);
-    // Closed until part 3 (#740): a sunk shaft with part 3 off stays shut.
-    expect(workshopUnlocked(openShed())).toBe(false);
-    expect(startCraft(openShed(), "iron-rails", 1)).toEqual(openShed());
-    expect(partThree(() => workshopUnlocked(openShed()))).toBe(true);
-    expect(craft(locked, "iron-rails", 1)).toBe(locked);
-    const shed = openShed();
-    expect(craft(shed, "iron-rails", -1)).toBe(shed);
-    expect(craft(shed, "iron-rails", 1.5)).toBe(shed);
-    expect(shed.recipes).toEqual([...RECIPE_IDS]);
-    const unknown = { ...shed, recipes: [] };
-    expect(craft(unknown, "iron-rails", 1)).toBe(unknown);
-    const onlyProps = { ...shed, recipes: ["sturdy-props" as const] };
-    expect(craft(onlyProps, "iron-rails", 1)).toBe(onlyProps);
-    const started = craft(shed, "iron-rails", 1);
-    expect(craft(started, "sturdy-props", 2)).toBe(started);
-    const maxed = { ...shed, crafted: { ...NOTHING_CRAFTED, "iron-rails": 3 } };
-    expect(craft(maxed, "iron-rails", 1)).toBe(maxed);
-    const capped = {
-      ...shed,
-      crafted: { ...NOTHING_CRAFTED, "heartstone-ember": MAX_CRAFTED_LEVEL },
-    };
-    expect(craft(capped, "heartstone-ember", 1)).toBe(capped);
-    const poor = { ...shed, stock: { ...shed.stock, stones: 10 } };
-    expect(craft(poor, "iron-rails", 1)).toBe(poor);
-    expect(materialsIn(shed)).toEqual(FULL);
-    const bare = { ...shed, stock: { ...shed.stock, ...EMPTY_MATERIALS } };
-    expect(craft(bare, "reinforce", 1)).toBe(bare);
-    const shortClay = { ...shed, stock: { ...shed.stock, ...FULL, clay: 0 } };
-    expect(craft(shortClay, "blasting-charge", 1)).toBe(shortClay);
-    const shortIron = { ...shed, stock: { ...shed.stock, ...FULL, iron: 0 } };
-    expect(craft(shortIron, "reinforce", 1)).toBe(shortIron);
-    const shortCrystal = {
-      ...shed,
-      stock: { ...shed.stock, ...FULL, crystal: 0 },
-    };
-    expect(craft(shortCrystal, "diamond-bits", 1)).toBe(shortCrystal);
-    const shortHeart = {
-      ...shed,
-      stock: { ...shed.stock, ...FULL, heartstone: 0 },
-    };
-    expect(craft(shortHeart, "heartstone-ember", 1)).toBe(shortHeart);
+  it("never opens: the factory's station took its place (#740)", () => {
+    expect(workshopUnlocked()).toBe(false);
   });
 
   it("puts one craft on the bench and returns every stone and material on cancel", () => {
@@ -341,6 +290,8 @@ describe("workshop rules", () => {
   it("adds another twenty minutes when a second charge finishes while one is hot", () => {
     const first = settleBench(craft(openShed(), "blasting-charge", 0), 600_000);
     expect(first.clocks["blasting-charge"]).toBe(CHARGE_MS);
+    // A hot charge doubles the live crew.
+    expect(chargeCrewMultiplier(first, 1)).toBe(2);
     const next = craft(first, "blasting-charge", 600_000);
     const second = settleBench(next, next.bench?.endsAt ?? 0);
     expect(second.crafted["blasting-charge"]).toBe(2);

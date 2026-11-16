@@ -1,10 +1,8 @@
 import { factor } from "./economy/factors";
 import type { MaterialId } from "./layers";
-import { graniteOpen } from "./mine-levels";
 import type { Mountain } from "./mountain";
 import {
   GOOD_IDS,
-  pay,
   refund,
   priceAmount,
   type GoodId,
@@ -227,12 +225,12 @@ export const NOTHING_CRAFTED: Crafted = Object.fromEntries(
 ) as Record<RecipeId, number>;
 
 /**
- * The bench is closed until part 3 (#740): it opens with the Granite, as
- * the factory's station does (`stationOpen`). Its depth gates went with
- * depth, and live play never opens it.
+ * The old clocked bench never opens (#740). It opened by depth, and the
+ * fresh mine has none; the factory's station took its place (#674, rule 7).
+ * A save's bench still settles and cancels.
  */
-export function workshopUnlocked(mountain: Pick<Mountain, "granite">): boolean {
-  return graniteOpen(mountain);
+export function workshopUnlocked(): boolean {
+  return false;
 }
 
 /**
@@ -336,48 +334,6 @@ function strengthOf(id: RecipeId): number {
 /** First-cut number times this recipe's strength factor. 1 leaves it alone. */
 function tuned(base: number, id: RecipeId): number {
   return base * strengthOf(id);
-}
-
-function atCap(recipe: Recipe, mountain: Mountain): boolean {
-  const level = craftedLevel(mountain, recipe.id);
-  if (level >= MAX_CRAFTED_LEVEL) {
-    return true;
-  }
-  return recipe.maxLevel !== undefined && level >= recipe.maxLevel;
-}
-
-/**
- * Puts one craft on the bench and spends the cost. The same mountain comes
- * back when the workshop is locked, the recipe is unknown, the bench is
- * taken, the gear is finished, or the pocket is short.
- */
-export function startCraft(
-  mountain: Mountain,
-  id: RecipeId,
-  now: number,
-): Mountain {
-  if (!workshopUnlocked(mountain) || !isWhole(now)) {
-    return mountain;
-  }
-  if (!mountain.recipes.includes(id) || mountain.bench !== undefined) {
-    return mountain;
-  }
-  const recipe = recipeById(id);
-  if (atCap(recipe, mountain)) {
-    return mountain;
-  }
-  const paid = pay(mountain, recipePrice(id));
-  if (paid === mountain) {
-    return mountain;
-  }
-  return {
-    ...paid,
-    bench: {
-      recipe: id,
-      startedAt: now,
-      endsAt: now + recipe.craftMs,
-    },
-  };
 }
 
 function dropBench(mountain: Mountain): Mountain {

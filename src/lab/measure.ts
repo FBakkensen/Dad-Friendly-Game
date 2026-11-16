@@ -105,7 +105,6 @@ const MOVE_KIND_ORDER = {
   send: true,
   recall: true,
   fixTrouble: true,
-  craft: true,
   cancelCraft: true,
   buyVehicle: true,
   buyMaker: true,

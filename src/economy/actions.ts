@@ -9,7 +9,6 @@ import {
   promotePrice,
   staffForBuy,
   staffNeeded,
-  station,
   type Engineer,
   type EngineerName,
   type EngineerPost,
@@ -80,16 +79,7 @@ import {
   vehiclePrice,
   type VehicleId,
 } from "../transport";
-import {
-  ENGINEER_FIX_MS,
-  TROUBLE_MAX_MS,
-  TROUBLE_MIN_MS,
-  kindForTier,
-  slowedSpeed,
-  type Trouble,
-  type TroubleTier,
-} from "../hazards";
-import { MATERIAL_IDS } from "../layers";
+import { kindForTier, type Trouble, type TroubleTier } from "../hazards";
 import { upgradeShown } from "../upgrade-reveal";
 import { expeditionAwayMs } from "../lost-tools";
 import type { Mountain } from "../mountain";
@@ -100,20 +90,7 @@ import {
   showsDot,
   type TeachId,
 } from "../teach";
-import {
-  MAX_CRAFTED_LEVEL,
-  cancelCraft,
-  craftedLevel,
-  expeditionCraftScale,
-  recipeById,
-  recipePrice,
-  STARTING_RECIPE_IDS,
-  settleBench,
-  startCraft,
-  troubleGapScale,
-  workshopUnlocked,
-  type RecipeId,
-} from "../workshop";
+import { cancelCraft, craftedLevel, settleBench } from "../workshop";
 import { effectiveRates, paidAwayMs } from "../rates";
 import {
   TIERS,
@@ -141,7 +118,6 @@ import {
   samePrice,
   stockMoved,
   UNSHOWN_PRICE,
-  type GoodId,
   type Price,
   type Stock,
 } from "../stock";
@@ -175,7 +151,6 @@ export type Action =
       readonly tier: TroubleTier;
       readonly startedAt: number;
     }
-  | { readonly kind: "craft"; readonly recipe: RecipeId }
   | { readonly kind: "cancelCraft" }
   | OrderAction
   | WorkerAction
@@ -338,7 +313,7 @@ export type ValueContext = {
 
 /** What `valueOf` says a move is worth. Payback is seconds. */
 export type ActionValue = {
-  /** Extra income, stones a second, spread across `horizon` for a timer. */
+  /** Extra income, stones a second. */
   readonly gainPerSec: number;
   /** Stones to pay. A machine includes the workers it still needs. */
   readonly cost: number;
@@ -609,11 +584,10 @@ function handActions(
 
 function workshopActions(mountain: Mountain, now: number): readonly Action[] {
   const bench = mountain.bench;
-  if (bench !== undefined) {
-    return now < bench.endsAt ? [{ kind: "cancelCraft" }] : [];
-  }
-  return workshopUnlocked(mountain)
-    ? sinkRecipes(mountain).map((recipe) => ({ kind: "craft", recipe }))
+  // The old bench never opens (#740): only a save's running craft can be
+  // called off.
+  return bench !== undefined && now < bench.endsAt
+    ? [{ kind: "cancelCraft" }]
     : [];
 }
 
@@ -627,17 +601,6 @@ function troubleActions(trouble: Trouble | undefined): readonly Action[] {
           startedAt: trouble.startedAt,
         },
       ];
-}
-
-/**
- * Recipes the dad could put on an open bench: the starting ones, plus any
- * found recipe already on the mountain, and not finished. The bench being
- * busy does not remove the sink.
- */
-export function sinkRecipes(mountain: Mountain): readonly RecipeId[] {
-  return workshopUnlocked(mountain)
-    ? knownRecipeIds(mountain).filter((id) => craftHasRoom(mountain, id))
-    : [];
 }
 
 /**
@@ -734,7 +697,6 @@ export type MoveEvent =
       readonly id: UpgradeId;
       readonly level: number;
     }
-  | { readonly kind: "craftStarted"; readonly recipe: RecipeId }
   | {
       readonly kind: "promoted";
       readonly name: EngineerName;
@@ -863,13 +825,6 @@ function actionApplied(
       return recall(mountain, action.index);
     case "fixTrouble":
       return mountain;
-    case "craft": {
-      const prepared = grantStartingRecipe(mountain, action.recipe);
-      const started = startCraft(prepared, action.recipe, now);
-      // A starting recipe is written onto the mountain only when the craft
-      // actually starts. A refused craft leaves the save untouched.
-      return started === prepared ? mountain : started;
-    }
     case "cancelCraft":
       return cancelCraft(mountain, now);
     case "placeOrder":
@@ -986,8 +941,6 @@ function actionEvents(
           level: upgradeLevel(next, action.id),
         },
       ];
-    case "craft":
-      return [{ kind: "craftStarted", recipe: action.recipe }];
     case "promote": {
       const crew = crewOf(next).length;
       return [
@@ -1098,8 +1051,8 @@ export function applyAction(
  * crew and away pay from the same factor as
  * `accrueAway`, weighted by `context`. No second copy of the upgrade maths.
  * A machine's cost includes the workers it still needs. `horizon` is
- * seconds: a timer's extra income is spread across it, and a permanent
- * move is not.
+ * seconds: an expedition's finds are spread across it. A timer's share of
+ * it went with the old bench's crafts (#740).
  */
 export function valueOf(
   mountain: Mountain,
@@ -1110,9 +1063,9 @@ export function valueOf(
 ): ActionValue {
   switch (action.kind) {
     case "buyTier":
-      return valueTier(mountain, action.id, horizon, context);
+      return valueTier(mountain, action.id, context);
     case "buyUpgrade":
-      return valueUpgrade(mountain, action.id, horizon, context);
+      return valueUpgrade(mountain, action.id, context);
     case "promote":
       return valuePromote(mountain, horizon, context);
     case "station":
@@ -1124,7 +1077,6 @@ export function valueOf(
           context,
         ),
         0,
-        horizon,
         context,
       );
     case "send":
@@ -1136,13 +1088,10 @@ export function valueOf(
         mountain,
         troubleGain(mountain, action, context),
         0,
-        horizon,
         context,
       );
-    case "craft":
-      return valueCraft(mountain, action.recipe, horizon, context, now);
     case "cancelCraft":
-      return valueCancel(mountain, horizon, context, now);
+      return valueCancel(mountain, context, now);
     case "placeOrder":
     case "holdOrder":
     case "resumeOrder":
@@ -1170,7 +1119,6 @@ export function valueOf(
         mountain,
         incomeGain(mountain, workerApplied(mountain, action), context),
         0,
-        horizon,
         context,
       );
     case "sinkShaft":
@@ -1202,14 +1150,13 @@ export function valueOf(
 function valueTier(
   mountain: Mountain,
   id: TierId,
-  horizon: number,
   context: ValueContext,
 ): ActionValue {
   const tier = tierById(id);
   const price = tierCost(tier, owned(mountain, tier));
   const cost = price + staffBill(mountain, tier);
   if (tierLocked(mountain, tier)) {
-    return rateValue(mountain, 0, cost, horizon, context);
+    return rateValue(mountain, 0, cost, context);
   }
   // Workers and kids: hiring one, including any idle machine they start.
   // A machine: the income of that tier once the workers it needs are at
@@ -1218,7 +1165,7 @@ function valueTier(
     tier.staff === 0
       ? incomeGain(mountain, buyCrew(funded(mountain, price), id), context)
       : machineGain(mountain, tier, context);
-  return rateValue(mountain, gain, cost, horizon, context);
+  return rateValue(mountain, gain, cost, context);
 }
 
 function machineGain(
@@ -1244,19 +1191,17 @@ function machineGain(
 function valueUpgrade(
   mountain: Mountain,
   id: UpgradeId,
-  horizon: number,
   context: ValueContext,
 ): ActionValue {
   const upgrade = upgradeById(id);
   const price = upgradeCost(upgrade, upgradeLevel(mountain, id));
   if (price === undefined || !upgradeUnlocked(mountain, upgrade)) {
-    return rateValue(mountain, 0, price ?? 0, horizon, context);
+    return rateValue(mountain, 0, price ?? 0, context);
   }
   return rateValue(
     mountain,
     incomeGain(mountain, buyUpgrade(funded(mountain, price), id), context),
     price,
-    horizon,
     context,
   );
 }
@@ -1372,13 +1317,13 @@ function valuePromote(
   const hired = promote(funded(mountain, cost));
   const crew = hired.engineers;
   if (crew.length === before) {
-    return rateValue(mountain, 0, cost, horizon, context);
+    return rateValue(mountain, 0, cost, context);
   }
   const index = crew.length - 1;
   const tend = incomeGain(mountain, bestPost(hired, index, context), context);
   const finds = findStones(hired, "old-shaft", horizon, context);
   const findRate = horizon > 0 ? finds / horizon : 0;
-  return rateValue(mountain, tend + findRate, cost, horizon, context);
+  return rateValue(mountain, tend + findRate, cost, context);
 }
 
 /**
@@ -1397,7 +1342,7 @@ function valueSend(
   const spec = TUNNELS.find((tunnel) => tunnel.id === action.tunnel);
   /* v8 ignore next 3 -- tunnel ids are the closed TUNNELS list */
   if (spec === undefined) {
-    return rateValue(mountain, 0, 0, horizon, context);
+    return rateValue(mountain, 0, 0, context);
   }
   const tripSec = expeditionAwayMs(spec.awayMs, mountain) / 1000;
   const window = horizon > 0 ? horizon : tripSec;
@@ -1407,7 +1352,7 @@ function valueSend(
   // up on the trip, so a short seam does not pay back in zero seconds
   // and crowd out every other buy.
   const lossStones = Math.max(0, -rateDelta) * away;
-  return rateValue(mountain, finds / window, lossStones, horizon, context);
+  return rateValue(mountain, finds / window, lossStones, context);
 }
 
 /**
@@ -1447,7 +1392,7 @@ function valueRecall(
   const FORFEIT = 8;
   const MIN_RECALL_SEC = 12 * 60 * 60;
   const cost = Math.max(finds * fraction * FORFEIT, restored * MIN_RECALL_SEC);
-  return rateValue(mountain, restored, cost, horizon, context);
+  return rateValue(mountain, restored, cost, context);
 }
 
 /** The mountain with this engineer on the post that pays the most. */
@@ -1503,365 +1448,22 @@ function remainingFraction(
 }
 
 /**
- * A craft's payback is the usual wait, plus the time the bench is busy
- * before the gear starts paying. Timers are spread by `timedSpread`.
- * Props and the kit are not a crew rate, so they are expected
- * stones over the horizon, the same idea as an expedition find.
- */
-function valueCraft(
-  mountain: Mountain,
-  id: RecipeId,
-  horizon: number,
-  context: ValueContext,
-  now: number,
-  pricing: "best-use" | "stones-only" = "best-use",
-): ActionValue {
-  const recipe = recipeById(id);
-  const stones =
-    priceAmount(recipePrice(id), "stones") +
-    (pricing === "best-use"
-      ? materialsPrice(mountain, id, horizon, context, now)
-      : 0);
-  const benchSec = recipe.craftMs / 1000;
-  const preview = previewCraft(mountain, id, now);
-  if (preview === undefined) {
-    return withBench(
-      rateValue(mountain, 0, stones, horizon, context),
-      benchSec,
-    );
-  }
-  const { fitted, endsAt } = preview;
-  switch (recipe.effect.kind) {
-    case "tier":
-    case "reinforce":
-      return withBench(
-        rateValue(
-          mountain,
-          incomeGain(mountain, fitted, context),
-          stones,
-          horizon,
-          context,
-        ),
-        benchSec,
-      );
-    case "charge":
-      return withBench(
-        timedCraft(
-          mountain,
-          fitted,
-          endsAt,
-          recipe.effect.durationMs / 1000,
-          stones,
-          horizon,
-          context,
-        ),
-        benchSec,
-      );
-    case "ember":
-      return withBench(
-        timedCraft(
-          mountain,
-          fitted,
-          endsAt,
-          settledSec(fitted.clocks["heartstone-ember"], endsAt),
-          stones,
-          horizon,
-          context,
-        ),
-        benchSec,
-      );
-    case "axle":
-      // The clock covers a sitting and is refreshed the next time the
-      // bench is free, so the gain is the live share of every cycle.
-      // incomeGain already leaves the away hours out.
-      return withBench(
-        timedCraft(
-          mountain,
-          fitted,
-          endsAt,
-          Number.POSITIVE_INFINITY,
-          stones,
-          horizon,
-          context,
-        ),
-        benchSec,
-      );
-    case "trouble":
-      return withBench(
-        rateValue(
-          mountain,
-          propsGain(mountain, fitted, context),
-          stones,
-          horizon,
-          context,
-        ),
-        benchSec,
-      );
-    case "trip":
-      return withBench(
-        rateValue(
-          mountain,
-          kitGain(mountain, fitted, context),
-          stones,
-          horizon,
-          context,
-        ),
-        benchSec,
-      );
-    /* v8 ignore next 3 -- effect kinds are the closed recipe list */
-    default: {
-      const unexpected: never = recipe.effect;
-      return unexpected;
-    }
-  }
-}
-
-/**
  * Calling the craft off gives the stones back and gives up the gear.
  * The rate change is not a raise, so the payback stays infinite and a
  * dad who is choosing keeps what is already on the bench.
  */
 function valueCancel(
   mountain: Mountain,
-  horizon: number,
   context: ValueContext,
   now: number,
 ): ActionValue {
   const bench = mountain.bench;
   if (bench === undefined || !(now < bench.endsAt)) {
-    return rateValue(mountain, 0, 0, horizon, context);
+    return rateValue(mountain, 0, 0, context);
   }
   const kept = settleBench(mountain, bench.endsAt);
   const gain = incomeGain(kept, cancelCraft(mountain, now), context);
-  return rateValue(mountain, gain, 0, horizon, context);
-}
-
-function previewCraft(
-  mountain: Mountain,
-  id: RecipeId,
-  now: number,
-): { readonly fitted: Mountain; readonly endsAt: number } | undefined {
-  if (mountain.bench !== undefined || !workshopUnlocked(mountain)) {
-    return undefined;
-  }
-  const prepared = fundCraft(mountain, id);
-  const started = startCraft(prepared, id, now);
-  const bench = started.bench;
-  if (bench === undefined) {
-    return undefined;
-  }
-  return { fitted: settleBench(started, bench.endsAt), endsAt: bench.endsAt };
-}
-
-/**
- * What the materials in a craft are worth: their best other use, not the
- * stones it took to dig them (#244, Flemming picked this on #281). Dug ore
- * is sunk; spending it only costs what the next-best open recipe would have
- * made from it over the horizon, per unit, net of that recipe's stones.
- * With no other open recipe for a material it costs nothing. Iron keeps a
- * price while rails and grease also want it, so Reinforce cannot look free.
- */
-function materialsPrice(
-  mountain: Mountain,
-  id: RecipeId,
-  horizon: number,
-  context: ValueContext,
-  now: number,
-): number {
-  // A horizon with no end (or none) has no next-best use to weigh.
-  if (!Number.isFinite(horizon) || horizon <= 0) {
-    return 0;
-  }
-  const cost = recipePrice(id);
-  const others = sinkRecipes(mountain).filter((other) => other !== id);
-  let price = 0;
-  for (const material of MATERIAL_IDS) {
-    const units = priceAmount(cost, material);
-    if (units <= 0) {
-      continue;
-    }
-    let best = 0;
-    for (const other of others) {
-      const otherCost = recipePrice(other);
-      const otherUnits = priceAmount(otherCost, material);
-      if (otherUnits <= 0) {
-        continue;
-      }
-      const made = valueCraft(
-        mountain,
-        other,
-        horizon,
-        context,
-        now,
-        "stones-only",
-      );
-      const net = made.gainPerSec * horizon - priceAmount(otherCost, "stones");
-      best = Math.max(best, net / otherUnits);
-    }
-    price += units * best;
-  }
-  return price;
-}
-
-function fundCraft(mountain: Mountain, id: RecipeId): Mountain {
-  // The stones on top of the pocket; each material only up to the price.
-  const cost = recipePrice(id);
-  const have = mountain.stock;
-  const gains: Partial<Record<GoodId, number>> = {};
-  for (const line of cost) {
-    gains[line.good] =
-      line.good === "stones"
-        ? line.amount
-        : Math.max(0, line.amount - have[line.good]);
-  }
-  return add(grantStartingRecipe(mountain, id), gains);
-}
-
-/**
- * A starting recipe is known even when the save has not written it yet. A
- * found recipe stays found only.
- */
-function grantStartingRecipe(mountain: Mountain, id: RecipeId): Mountain {
-  const known = mountain.recipes;
-  if (known.includes(id) || !isStartingRecipe(id)) {
-    return mountain;
-  }
-  return { ...mountain, recipes: [...known, id] };
-}
-
-function isStartingRecipe(id: RecipeId): boolean {
-  return (STARTING_RECIPE_IDS as readonly RecipeId[]).includes(id);
-}
-
-export function knownRecipeIds(mountain: Mountain): readonly RecipeId[] {
-  const found = mountain.recipes.filter((id) => !isStartingRecipe(id));
-  return [...STARTING_RECIPE_IDS, ...found];
-}
-
-function craftHasRoom(mountain: Mountain, id: RecipeId): boolean {
-  const recipe = recipeById(id);
-  const level = craftedLevel(mountain, id);
-  if (level >= MAX_CRAFTED_LEVEL) {
-    return false;
-  }
-  return recipe.maxLevel === undefined || level < recipe.maxLevel;
-}
-
-function timedCraft(
-  mountain: Mountain,
-  fitted: Mountain,
-  endsAt: number,
-  durationSec: number,
-  stones: number,
-  horizon: number,
-  context: ValueContext,
-): ActionValue {
-  return rateValue(
-    mountain,
-    incomeGain(mountain, fitted, context, { now: endsAt }),
-    stones,
-    horizon,
-    context,
-    timedSpread(context, durationSec, horizon),
-  );
-}
-
-/**
- * Share of the horizon a short effect is counted across. A dad who is away
- * part of the cycle gets a little more than the raw clock, so a blasting
- * charge can win without being the only buy.
- */
-function timedSpread(
-  context: ValueContext,
-  durationSec: number,
-  horizon: number,
-): number {
-  return context.awaySeconds > 0
-    ? Math.min(horizon, durationSec * 1.45)
-    : durationSec;
-}
-
-/** Seconds the settled timer runs. Settle writes the clock past `endsAt`. */
-function settledSec(until: number, endsAt: number): number {
-  /* v8 ignore next -- settleBench writes the ember clock */
-  if (until <= endsAt) {
-    return 0;
-  }
-  return (until - endsAt) / 1000;
-}
-
-function withBench(value: ActionValue, benchSec: number): ActionValue {
-  if (!Number.isFinite(value.paybackSec)) {
-    return value;
-  }
-  return { ...value, paybackSec: value.paybackSec + benchSec };
-}
-
-/**
- * Stones a second that trouble is expected to eat. Props stretch the gap.
- * Trouble starts once a borer is owned, and only while the dad is here.
- */
-function propsGain(
-  before: Mountain,
-  after: Mountain,
-  context: ValueContext,
-): number {
-  if (before.owned.borer < 1) {
-    return 0;
-  }
-  return troubleLossPerSec(before, context) - troubleLossPerSec(after, context);
-}
-
-function troubleLossPerSec(mountain: Mountain, context: ValueContext): number {
-  const meanGapSec = (TROUBLE_MIN_MS + TROUBLE_MAX_MS) / 2 / 1000;
-  const gapSec = meanGapSec * troubleGapScale(mountain);
-  const lost = 1 - slowedSpeed(1, 0, 0);
-  const downSec = ENGINEER_FIX_MS / 1000;
-  const income = incomePerSecond(mountain, context);
-  return (1 / gapSec) * income * lost * downSec * liveShare(context);
-}
-
-/**
- * The kit brings an expedition home sooner. The stones are the best tend
- * that engineer does in the time one old-shaft trip gives back, spread
- * across a day. No crew, no tend, no stones.
- */
-function kitGain(
-  before: Mountain,
-  after: Mountain,
-  context: ValueContext,
-): number {
-  const crew = before.engineers;
-  if (crew.length === 0) {
-    return 0;
-  }
-  const saved = 1 - expeditionCraftScale(after) / expeditionCraftScale(before);
-  const shaft = TUNNELS.find((tunnel) => tunnel.id === "old-shaft");
-  /* v8 ignore next 3 -- old-shaft is in the closed TUNNELS list */
-  if (shaft === undefined) {
-    return 0;
-  }
-  const tend = tendRate(before, 0, context);
-  const daySec = 24 * 60 * 60;
-  return (tend * (shaft.awayMs / 1000) * saved) / daySec;
-}
-
-function tendRate(
-  mountain: Mountain,
-  index: number,
-  context: ValueContext,
-): number {
-  const home = incomePerSecond(bestPost(mountain, index, context), context);
-  const camp = incomePerSecond(station(mountain, index, "camp"), context);
-  return Math.max(0, home - camp);
-}
-
-function liveShare(context: ValueContext): number {
-  const cycle = context.liveSeconds + context.awaySeconds;
-  if (!(cycle > 0)) {
-    return 1;
-  }
-  return context.liveSeconds / cycle;
+  return rateValue(mountain, gain, 0, context);
 }
 
 function funded(mountain: Mountain, price: number): Mountain {
@@ -1872,11 +1474,9 @@ function rateValue(
   mountain: Mountain,
   instantGain: number,
   cost: number,
-  horizon: number,
   context: ValueContext,
-  durationSec = Number.POSITIVE_INFINITY,
 ): ActionValue {
-  const gainPerSec = instantGain * activeShare(horizon, durationSec);
+  const gainPerSec = instantGain;
   return {
     gainPerSec,
     cost,
@@ -1887,20 +1487,6 @@ function rateValue(
       gainPerSec,
     ),
   };
-}
-
-/**
- * Share of the horizon a timed effect is actually running. A permanent move
- * fills the window. A non-positive horizon means "the rate while it lasts".
- */
-function activeShare(horizon: number, durationSec: number): number {
-  if (!(horizon > 0) || !Number.isFinite(durationSec)) {
-    return 1;
-  }
-  if (!Number.isFinite(horizon)) {
-    return 0;
-  }
-  return Math.min(durationSec, horizon) / horizon;
 }
 
 function payback(

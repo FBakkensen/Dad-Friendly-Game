@@ -19,7 +19,6 @@ import {
   type DutyEngineer,
   type Engineer,
 } from "./engineers";
-import { knownRecipeIds } from "./economy/actions";
 import { createMountain } from "./mountain";
 import { gameOf, reloaded } from "./test-fixtures";
 import { STARTING_RECIPE_IDS } from "./workshop";
@@ -470,7 +469,6 @@ describe("finds", () => {
     const home = settle(first, seed + 4 * HOUR);
     expect(home.finds[0]).toEqual({ kind: "recipe", id: "engineers-kit" });
     expect(home.mountain.recipes).toContain("engineers-kit");
-    expect(knownRecipeIds(home.mountain)).toContain("engineers-kit");
     expect(settle(home.mountain, seed + 4 * HOUR).finds).toEqual([]);
     const known = send(home.mountain, 0, "deep-dark", seed);
     expect(known.expeditions[0]?.find.kind).not.toBe("recipe");

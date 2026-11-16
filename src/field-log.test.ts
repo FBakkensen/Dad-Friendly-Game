@@ -457,10 +457,6 @@ describe("fieldEntry", () => {
       code: "upgrade.buy",
       data: { id: "boots", count: 1 },
     });
-    expect(fieldEntry({ kind: "craftStarted", recipe: "iron-rails" })).toEqual({
-      code: "craft.start",
-      data: { id: "iron-rails" },
-    });
     expect(fieldEntry({ kind: "promoted", name: "Nils", crew: 2 })).toEqual({
       code: "engineer.promote",
       data: { id: "Nils", count: 2 },

@@ -4,7 +4,6 @@ import { promoteCost } from "../engineers";
 import type { Mountain } from "../mountain";
 import { owned, tierById, tierCost } from "../tiers";
 import { upgradeById, upgradeCost, upgradeLevel } from "../upgrades";
-import { recipePrice } from "../workshop";
 import { priceAmount } from "../stock";
 import { vehiclePrice } from "../transport";
 import { makerPrice } from "../makers";
@@ -29,8 +28,6 @@ export function sticker(mountain: Mountain, action: Action): number {
     }
     case "promote":
       return promoteCost(mountain);
-    case "craft":
-      return priceAmount(recipePrice(action.recipe), "stones");
     case "buyVehicle":
       return priceAmount(vehiclePrice(mountain, action.id), "stones");
     case "buyMaker":
@@ -67,7 +64,8 @@ export function sticker(mountain: Mountain, action: Action): number {
 }
 
 /**
- * The spends the lab weighs for every dad: crew, machines and crafts.
+ * The spends the lab weighs for every dad: crew and machines (the old
+ * bench's crafts went in #740).
  * Free posts, recalls, fixes and upgrades stay off, and so do a fresh
  * mine's orders, vehicles, kilns and the stockyard: the fresh dad weighs
  * those himself (`fresh-dad.ts`). Dead stretch reads this list: a zero
@@ -79,6 +77,6 @@ export function actionsOnTable(
   trouble?: Trouble,
 ): readonly Action[] {
   return listActions(mountain, now, trouble).filter(
-    (action) => action.kind === "craft" || action.kind === "buyTier",
+    (action) => action.kind === "buyTier",
   );
 }

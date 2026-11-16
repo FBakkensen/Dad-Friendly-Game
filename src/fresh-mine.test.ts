@@ -86,7 +86,7 @@ describe("one level, no depth (rule 1)", () => {
       // The old mountain held 240M stones (#740: its size is gone).
       expect(month.mined).toBeGreaterThan(240_000_000);
       expect(month.mountain.stock.stones).toBe(month.mined);
-      expect(workshopUnlocked(month.mountain)).toBe(false);
+      expect(workshopUnlocked()).toBe(false);
       // No band's material comes up with it.
       expect(month.mountain.stock).toEqual({
         ...createMountain().stock,

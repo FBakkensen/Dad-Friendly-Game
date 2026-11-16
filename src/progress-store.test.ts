@@ -24,6 +24,7 @@ import {
   BARE_MOUNTAIN,
 } from "./mountain";
 import {
+  benchCraft,
   CREWED_JOBS,
   crewedStart,
   guestSave,
@@ -44,7 +45,6 @@ import { WELCOME_MIN_AWAY_MS, createProgressStore } from "./progress-store";
 import { SESSION_SAVE_KEY, writeSessionSave } from "./session-save";
 import { buyTier, tierById, tierCost } from "./tiers";
 import { upgradeById, upgradeCost, NO_UPGRADES } from "./upgrades";
-import { levels, partThree } from "./part-three.harness";
 import { onTrip, promoteCost, promotePrice } from "./engineers";
 import { EMPTY_STOCK, stonesPrice } from "./stock";
 import { send, type Expedition } from "./expeditions";
@@ -2450,10 +2450,8 @@ describe("craft-done notice", () => {
       now,
     });
 
-  // The bench opens with the Granite, in part 3 (#740).
   const shed = (): Mountain => ({
     ...createMountain(),
-    granite: levels({}).granite,
     owned: { ...createMountain().owned, helper: 1, cart: 1 },
     stock: {
       ...createMountain().stock,
@@ -2469,16 +2467,8 @@ describe("craft-done notice", () => {
     const storage = createMemoryStorage();
     let clock = 0;
     const progress = guest(storage, () => clock);
-    progress.applyMutation(() => shed());
-    partThree(() => {
-      progress.dispatch({ kind: "craft", recipe: "iron-rails" });
-    });
-    expect(progress.fieldLog().events).toContainEqual(
-      expect.objectContaining({
-        code: "craft.start",
-        data: { id: "iron-rails" },
-      }),
-    );
+    // A save's craft: the old bench never opens in play (#740).
+    progress.applyMutation(() => benchCraft(shed(), "iron-rails", 0));
     expect(
       noticesOf(progress.getSnapshot(), "craft").map(({ craft }) => craft),
     ).toEqual([]);

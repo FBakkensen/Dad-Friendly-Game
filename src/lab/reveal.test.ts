@@ -101,54 +101,6 @@ describe("createRevealLog", () => {
   });
 });
 
-describe("a busy bench counts as use", () => {
-  // The bench opens with the Granite, in part 3 (#740).
-  const partThree = <T>(body: () => T): T =>
-    withFactors({ [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 }, body);
-  const rich: Mountain = {
-    ...createMountain(),
-    granite: {
-      kind: "sunk",
-      machines: NO_LEVEL_MACHINES,
-      piles: NO_GRANITE_PILES,
-    },
-    stock: {
-      ...createMountain().stock,
-      stones: 1e12,
-      clay: 1000,
-      iron: 1000,
-      crystal: 1000,
-      heartstone: 1000,
-    },
-    recipes: ["axle-grease", "blasting-charge"],
-  };
-
-  it("logs clay and the Blasting charge as used while axle grease runs", () => {
-    const log = createRevealLog();
-    const busy: Mountain = {
-      ...rich,
-      bench: { recipe: "axle-grease", startedAt: 0, endsAt: 60_000 },
-    };
-    const events = partThree(() => log(busy, 0));
-    expect(events).toContainEqual({
-      kind: "firstUse",
-      id: "material:clay",
-      liveSec: 0,
-    });
-    expect(events).toContainEqual({
-      kind: "firstUse",
-      id: "recipe:blasting-charge",
-      liveSec: 0,
-    });
-  });
-
-  it("keeps an idle bench unused", () => {
-    const events = partThree(() => createRevealLog()(rich, 0));
-    expect(ids(events, "firstUse")).not.toContain("material:clay");
-    expect(ids(events, "firstUse")).not.toContain("recipe:blasting-charge");
-  });
-});
-
 describe("revealGaps and neverUsed", () => {
   const events: RevealEvent[] = [
     { kind: "appeared", id: "a", liveSec: 0 },

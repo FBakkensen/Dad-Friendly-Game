@@ -92,7 +92,7 @@ const STARTS: readonly Mountain[] = [
 
 /**
  * What the dad has to spend when a run starts: a little, a fair amount, or a
- * fortune, so cheap buys, upgrades, promotions and crafts all get played.
+ * fortune, so cheap buys, upgrades and promotions all get played.
  */
 const pocketArb = fc.oneof(
   fc.nat(1000),
@@ -348,7 +348,6 @@ function isCrewBuy(move: Move | undefined): boolean {
   switch (move?.kind) {
     case "buyTier":
     case "buyUpgrade":
-    case "craft":
       return true;
     default:
       return false;
@@ -357,7 +356,7 @@ function isCrewBuy(move: Move | undefined): boolean {
 
 /**
  * Moves with a price. A shown price is what it costs (#367); every buy of a
- * machine costs stones. A craft may cost only materials.
+ * machine costs stones.
  */
 function priceOf(move: Move | undefined): number | "some" | undefined {
   switch (move?.kind) {
