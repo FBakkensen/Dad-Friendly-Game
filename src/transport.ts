@@ -299,7 +299,7 @@ export function orderShares(
   }
   const city =
     mountain.project.kind === "delivering"
-      ? Math.min(cityCan(mountain, share, income), carry * STATION_SHARE)
+      ? Math.min(cityCan(mountain, share, income), carry * (1 - STATION_SHARE))
       : 0;
   const station = Math.min(stationGives(mountain, income).total, carry - city);
   return { station, city: carry - station };
