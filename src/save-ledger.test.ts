@@ -110,7 +110,7 @@ const LEDGER = {
       "heartstone-ember",
     ],
     finds: ["map", "boots", "drawing", "watch", "whistle", "pebble", "ribbon"],
-    operational: ["lightTower", "warehouse"],
+    operational: ["lightTower", "warehouse", "foundry"],
   },
   run: {
     dug: 240000000,

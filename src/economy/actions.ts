@@ -659,11 +659,14 @@ export function sinkRecipes(mountain: Mountain): readonly RecipeId[] {
 /**
  * Today's card buy: one of `id`. Any worker hired while a machine stands
  * idle is the first use of staffing (#246), so it marks staffing taught. The game and the
- * lab buy the same way (#409).
+ * lab buy the same way (#409). The fresh mine's screens show no teach dot,
+ * so a fresh mine skips the check: it reads the rates, and the lab hires
+ * thousands of times a run (#675).
  */
 export function buyWithTeach(mountain: Mountain, id: TierId): Mountain {
   const next = buyCrew(mountain, id);
   return id === "helper" &&
+    !freshMineOn() &&
     next.owned.helper > mountain.owned.helper &&
     showsDot(mountain, "staffing")
     ? markTaught(next, "staffing")

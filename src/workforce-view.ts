@@ -6,7 +6,13 @@ import { runningKilns } from "./makers";
 import type { SiteId } from "./next-view";
 import { SITES, SITE_NAMES, openSites } from "./next-view";
 import { effectiveRates } from "./rates";
-import { MACHINE_IDS, tierById, tierInPlay, type MachineId } from "./tiers";
+import {
+  MACHINE_IDS,
+  machineStaff,
+  tierById,
+  tierInPlay,
+  type MachineId,
+} from "./tiers";
 import { MACHINE_WORDS, TOOL_WORDS, plural } from "./screen-words";
 import { VEHICLES, drivenFleet } from "./transport";
 import {
@@ -78,7 +84,7 @@ function stageNote(mountain: Mountain, stage: Stage): string {
       tier.stage === stage && tierInPlay(tier) && mountain.owned[tier.id] > 0,
   );
   const staffed = machines.reduce(
-    (sum, tier) => sum + running[tier.id] * tier.staff,
+    (sum, tier) => sum + running[tier.id] * machineStaff(tier),
     0,
   );
   const tools = mountain.jobs[STAGE_JOB[stage]] - staffed;

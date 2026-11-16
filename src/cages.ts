@@ -107,7 +107,7 @@ function cageRating(key: CageKey, input: CageInput): number {
   const kind = cageKind(key);
   if (kind === undefined) {
     return Math.min(
-      input.hoisting.tools * toolSpeed(input.speed),
+      input.hoisting.tools * toolSpeed(input.speed, "lift"),
       input.speed.hoist,
     );
   }

@@ -195,7 +195,7 @@ describe("a stage's row", () => {
       const start = createMountain();
       const mountain = { ...start, piles: { face: 200, shaft: 0, kiln: 0 } };
       const rows = stageRows(mountain);
-      const pick = toolSpeed(effectiveRates(mountain).tierSpeed);
+      const pick = toolSpeed(effectiveRates(mountain).tierSpeed, "face");
       expect(mountain.jobs.drilling).toBe(1);
       expect(rows.map((row) => row.now)).toEqual([String(pick), "0", "0"]);
       expect(rows[0]?.can).toBe(`${String(pick)}/s`);

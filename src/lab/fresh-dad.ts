@@ -1,5 +1,11 @@
 import { buildRate, onSiteTotal } from "../building-site";
-import { buildingById, nextBuilding, resumeOrder } from "../city";
+import {
+  buildingById,
+  nextBuilding,
+  resumeOrder,
+  stillRequired,
+} from "../city";
+import { graniteOpen, shaftPrice } from "../mine-levels";
 import { tierLocked } from "../crew";
 import {
   applyAction,
@@ -8,12 +14,12 @@ import {
   type Action,
 } from "../economy/actions";
 import { STAGES, type Stage } from "../line";
-import { makerPrice, makersOpen } from "../makers";
-import { PILE_HOLDS, mineChain, steadyIncome } from "../mine-piles";
+import { makerJob, makerPrice, makersOpen, type MakerId } from "../makers";
+import { PILE_HOLDS, mineChain } from "../mine-piles";
 import type { Mountain } from "../mountain";
 import { chainFlows } from "../piles";
 import { effectiveRates } from "../rates";
-import type { GoodId, Price, Stock } from "../stock";
+import type { GoodId, Price } from "../stock";
 import {
   MAX_STOCKYARD_LEVEL,
   STOCKPILE_GOODS,
@@ -21,15 +27,16 @@ import {
   stockpileRoom,
   stockyardOpen,
 } from "../stockyard";
-import { TIERS, tierInPlay, type Tier } from "../tiers";
+import { TIERS, machineStaff, tierInPlay, type Tier } from "../tiers";
 import {
   fleetRate,
   fleetSize,
   orderLimit,
   orderNumbers,
-  secondsToFinish,
   vehiclePrice,
   VEHICLE_IDS,
+  vehicleOpen,
+  type VehicleId,
 } from "../transport";
 import {
   NO_JOBS,
@@ -39,13 +46,41 @@ import {
   type JobId,
 } from "../workforce";
 import { sticker } from "./decide";
+import {
+  applied,
+  buildingSeconds,
+  coversPrice,
+  earnSeconds,
+  funded,
+  goodsAhead,
+  goodsIncome,
+  pays,
+  planPrice,
+  staffed,
+  weighed,
+  worth,
+  type Plan,
+  type Priced,
+  type Weighed,
+} from "./fresh-kit";
+import {
+  goodRaise,
+  levelMoves,
+  levelPlace,
+  levelRaises,
+  makerWithLevel,
+  makersWanted,
+  waitsForShaft,
+} from "./fresh-levels";
 import type { FreshHabits } from "./policy";
 import {
   FRESH_DUST,
   PLANS_A_SECOND,
   RAISE_STEPS,
   RESTORE_STEPS,
+  SOONER_SHARE,
   STARVED_SHARE,
+  WEIGH_AGAIN_CALLS,
   YARD_NEARLY_FULL,
 } from "./targets";
 
@@ -63,9 +98,6 @@ import {
  * worker of the first evening must be moved.
  */
 
-/** Moves that go together, applied in order. Empty: nothing to do now. */
-export type Plan = readonly Action[];
-
 /** The fresh mine's line now: what it moves and each stage. */
 type LineNow = {
   readonly line: number;
@@ -80,41 +112,6 @@ function lineNow(mountain: Mountain): LineNow {
   };
 }
 
-/**
- * What the mine brings of each good a second at full output: the running
- * kilns take their rock first and make brick of it, and the rest is stone
- * (rule 3, #666). Before part 2 it is all stone. The chain's own split
- * (`steadyIncome`), so the dad plans on what the mine does.
- */
-export function goodsIncome(mountain: Mountain): Partial<Stock> {
-  return steadyIncome(mountain);
-}
-
-/** A copy with a pocket that pays for anything, to try a plan on. */
-function funded(mountain: Mountain): Mountain {
-  return {
-    ...mountain,
-    stock: {
-      ...mountain.stock,
-      stones: Number.MAX_SAFE_INTEGER,
-      brick: Number.MAX_SAFE_INTEGER,
-    },
-  };
-}
-
-function applied(mountain: Mountain, plan: Plan): Mountain {
-  let next = mountain;
-  for (const action of plan) {
-    next = applyAction(next, action, 0);
-  }
-  return next;
-}
-
-/** What the next worker costs. */
-export function hirePrice(mountain: Mountain): number {
-  return helperBill(mountain, 1);
-}
-
 /** The stage that moves least; the first in rock order on a tie. */
 function slowestStage(now: LineNow): Stage {
   let slowest: Stage = "face";
@@ -126,27 +123,11 @@ function slowestStage(now: LineNow): Stage {
   return slowest;
 }
 
-/** One buy with its stones: a plan and what it costs. */
-type Priced = { readonly plan: Plan; readonly cost: number };
-
-/** Hire one and put him on `job`, or put a free one there. */
-function staffed(mountain: Mountain, job: JobId, free: number): Priced {
-  return free > 0
-    ? { plan: [{ kind: "placeWorker", job, count: 1 }], cost: 0 }
-    : {
-        plan: [
-          { kind: "buyTier", id: "helper" },
-          { kind: "placeWorker", job, count: 1 },
-        ],
-        cost: hirePrice(mountain),
-      };
-}
-
 /** A machine and the workers it takes, hired onto its stage (the spec's Lab). */
 function machineBuy(mountain: Mountain, tier: Tier, stage: Stage): Priced {
   const buy: Action = { kind: "buyTier", id: tier.id };
   const plan: Action[] = [buy];
-  for (let hire = 0; hire < tier.staff; hire += 1) {
+  for (let hire = 0; hire < machineStaff(tier); hire += 1) {
     plan.push(
       { kind: "buyTier", id: "helper" },
       { kind: "placeWorker", job: STAGE_JOB[stage], count: 1 },
@@ -154,7 +135,7 @@ function machineBuy(mountain: Mountain, tier: Tier, stage: Stage): Priced {
   }
   return {
     plan,
-    cost: sticker(mountain, buy) + helperBill(mountain, tier.staff),
+    cost: sticker(mountain, buy) + helperBill(mountain, machineStaff(tier)),
   };
 }
 
@@ -317,9 +298,10 @@ function placeFree(mountain: Mountain, habits: FreshHabits): Plan {
   ) {
     return [{ kind: "placeWorker", job: "building", count: 1 }];
   }
-  return [
-    { kind: "placeWorker", job: STAGE_JOB[pileStage(mountain)], count: 1 },
-  ];
+  const level = graniteOpen(mountain) ? levelPlace(mountain, habits) : [];
+  return level.length > 0
+    ? level
+    : [{ kind: "placeWorker", job: STAGE_JOB[pileStage(mountain)], count: 1 }];
 }
 
 /**
@@ -358,6 +340,12 @@ function orderCrew(
  * while it moves rock again.
  */
 function pileMove(mountain: Mountain): Plan {
+  if (graniteOpen(mountain)) {
+    // With two levels the cages serve both, and the level habits place the
+    // workers (`levelMoves`, #675): the Topsoil's chain alone would read
+    // the cages for both as no hoisting at all.
+    return [];
+  }
   const chain = mineChain(mountain, 1, true);
   const flows = chainFlows(chain);
   const rates = chain.rates;
@@ -504,9 +492,11 @@ function asDelivering(mountain: Mountain, habits: FreshHabits): Mountain {
   return state;
 }
 
-/** A vehicle and its driver, when transport holds the order back. */
-function vehicleBuy(mountain: Mountain): Priced {
-  const id = VEHICLE_IDS[0] ?? "horseWagon";
+/** A vehicle and its driver, when transport holds the order back: a horse wagon unless `id` says. */
+function vehicleBuy(
+  mountain: Mountain,
+  id: VehicleId = VEHICLE_IDS[0] ?? "horseWagon",
+): Priced {
   const driver = staffed(mountain, "driving", freeWorkers(mountain));
   const plan: Action[] = [{ kind: "buyVehicle", id }, ...driver.plan];
   let cost = (vehiclePrice(mountain, id)[0]?.amount ?? Infinity) + driver.cost;
@@ -523,11 +513,6 @@ function vehicleBuy(mountain: Mountain): Priced {
     state = applied(state, builder.plan);
   }
   return { plan, cost };
-}
-
-/** Seconds until the building is up if the order delivered from now, at what the mine brings of each good. */
-function buildingSeconds(mountain: Mountain): number {
-  return secondsToFinish(resumeOrder(mountain), 1, goodsIncome(mountain));
 }
 
 /**
@@ -630,15 +615,15 @@ function brickFix(mountain: Mountain): Priced | undefined {
   const brick = steps.some((price) =>
     price.some((line) => line.good === "brick" && line.amount > 0),
   );
-  return brick ? kilnBuy(mountain) : undefined;
+  return brick ? makerBuy(mountain) : undefined;
 }
 
-/** A kiln and a worker on it, hired when none is free (rule 2.7, #667). */
-function kilnBuy(mountain: Mountain): Priced {
-  const worker = staffed(mountain, "kilns", freeWorkers(mountain));
+/** A maker and a worker on it, hired when none is free (rule 2.7, #667): a kiln unless `id` says. */
+function makerBuy(mountain: Mountain, id: MakerId = "kiln"): Priced {
+  const worker = staffed(mountain, makerJob(id), freeWorkers(mountain));
   return {
-    plan: [{ kind: "buyMaker", id: "kiln" }, ...worker.plan],
-    cost: stonesOf(makerPrice(mountain, "kiln")) + worker.cost,
+    plan: [{ kind: "buyMaker", id }, ...worker.plan],
+    cost: stonesOf(makerPrice(mountain, id)) + worker.cost,
   };
 }
 
@@ -729,12 +714,17 @@ function settlePlan(
 ): Plan {
   if (
     mountain.project.kind === "unordered" &&
-    nextBuilding(mountain) !== undefined
+    nextBuilding(mountain) !== undefined &&
+    !waitsForShaft(mountain)
   ) {
     return [{ kind: "placeOrder" }];
   }
   if (freeWorkers(mountain) > 0) {
     return placeFree(mountain, habits);
+  }
+  const levels = levelMoves(mountain, habits);
+  if (levels.length > 0) {
+    return levels;
   }
   const moved =
     habits.moves === "idle"
@@ -749,9 +739,15 @@ function spendPlan(
   habits: FreshHabits,
   hoardK: number,
 ): Plan {
+  if (waitsForShaft(mountain)) {
+    return shaftPlan(mountain, habits, hoardK);
+  }
   const crew = orderCrew(mountain, habits);
   if (crew !== undefined && covers(mountain, crew, hoardK)) {
     return crew.plan;
+  }
+  if (graniteOpen(mountain) && mountain.project.kind !== "unordered") {
+    return levelsSpend(mountain, habits, hoardK);
   }
   const fix = orderFix(mountain, habits);
   if (fix !== undefined) {
@@ -785,6 +781,297 @@ function raisePlan(
     return best.plan;
   }
   return holdPlan(mountain, habits, best);
+}
+
+/** Each good of a price, with his hoard, fits below the line where he stops raising (`fits`, good by good). */
+function fitsPrice(mountain: Mountain, price: Price, hoardK: number): boolean {
+  return price.every(
+    (line) =>
+      line.amount * Math.max(1, hoardK) <=
+      stockpileRoom(mountain, line.good) * YARD_NEARLY_FULL,
+  );
+}
+
+/** Seconds until the pocket holds the price with his hoard, at what the mine makes now. */
+function saveSeconds(mountain: Mountain, price: Price, hoardK: number): number {
+  const income = goodsIncome(mountain);
+  let seconds = 0;
+  for (const line of price) {
+    const short = line.amount * Math.max(1, hoardK) - mountain.stock[line.good];
+    const rate = income[line.good] ?? 0;
+    if (short > 0) {
+      seconds = Math.max(seconds, rate > FRESH_DUST ? short / rate : Infinity);
+    }
+  }
+  return seconds;
+}
+
+/**
+ * While the next building waits for the shaft (ruling 3, #675): room for
+ * its price first, then the shaft once the pocket holds it. Meanwhile he
+ * raises the line only with a buy that pays back before he would have the
+ * shaft's price.
+ */
+function shaftPlan(
+  mountain: Mountain,
+  habits: FreshHabits,
+  hoardK: number,
+): Plan {
+  const price = shaftPrice();
+  if (!fitsPrice(mountain, price, hoardK)) {
+    return yardPlan(mountain, true, hoardK);
+  }
+  if (coversPrice(mountain, price, hoardK)) {
+    return [{ kind: "sinkShaft" }];
+  }
+  const raise = stoneFilling(mountain)
+    ? undefined
+    : bestRaise(mountain, habits);
+  return raise !== undefined &&
+    covers(mountain, raise, hoardK) &&
+    raise.cost / raise.gain < saveSeconds(mountain, price, hoardK)
+    ? raise.plan
+    : [];
+}
+
+/**
+ * The fix for what holds the order back, step by step until the building is
+ * up sooner (ruling 7, #675): the best vehicle for its price when transport
+ * is the limit, a builder when the builders are, and when a good is, its
+ * maker or its level's raise. Like the line's raise, a chain: more kilns
+ * help only once transport carries their brick, and the other way round.
+ */
+function orderRaise(mountain: Mountain, habits: FreshHabits): Plan | undefined {
+  const real = (state: Mountain): Mountain => ({
+    ...state,
+    stock: mountain.stock,
+  });
+  const start = buildingSeconds(mountain);
+  let state = funded(mountain);
+  const plan: Action[] = [];
+  for (let step = 0; step < RAISE_STEPS; step += 1) {
+    const now = real(state);
+    if (buildingSeconds(now) < start * (1 - SOONER_SHARE)) {
+      return plan;
+    }
+    const fix = limitStep(now, habits);
+    if (fix === undefined || fix.length === 0) {
+      return undefined;
+    }
+    plan.push(...fix);
+    state = applied(state, fix);
+  }
+  return buildingSeconds(real(state)) < start * (1 - SOONER_SHARE)
+    ? plan
+    : undefined;
+}
+
+/**
+ * One step of `orderRaise`: of the fixes for each thing that can hold the
+ * building back (transport, the builders, each good still ahead), the one
+ * that brings it soonest, with the pocket as it is. When none does alone,
+ * two that do together: transport and a good, say, both at the same rate.
+ * When no two do, all of them.
+ */
+function limitStep(mountain: Mountain, habits: FreshHabits): Plan | undefined {
+  const fixes: Plan[] = [
+    bestVehicle(mountain),
+    staffed(mountain, "building", freeWorkers(mountain)).plan,
+    ...[...goodsAhead(mountain)].map((good) => goodFix(mountain, habits, good)),
+  ].filter((plan): plan is Plan => plan !== undefined && plan.length > 0);
+  const pairs = fixes.flatMap((first, index) =>
+    fixes.slice(index + 1).map((second) => [...first, ...second]),
+  );
+  return (
+    soonestFix(mountain, fixes) ??
+    soonestFix(mountain, pairs) ??
+    soonestFix(mountain, [fixes.flat()])
+  );
+}
+
+/** Of these plans, the one that brings the building soonest with the pocket as it is, if any does. */
+function soonestFix(
+  mountain: Mountain,
+  plans: readonly Plan[],
+): Plan | undefined {
+  const before = buildingSeconds(mountain);
+  let best: { plan: Plan; seconds: number } | undefined;
+  for (const plan of plans) {
+    const after = { ...applied(funded(mountain), plan), stock: mountain.stock };
+    const seconds = buildingSeconds(after);
+    if (
+      seconds < before * (1 - SOONER_SHARE) &&
+      (best === undefined || seconds < best.seconds)
+    ) {
+      best = { plan, seconds };
+    }
+  }
+  return best?.plan;
+}
+
+/** A good's fix: its maker, with its level when nobody works there, or its level's raise. */
+function goodFix(
+  mountain: Mountain,
+  habits: FreshHabits,
+  good: GoodId,
+): Plan | undefined {
+  return goodRaise(mountain, habits, good, (id) =>
+    makerWithLevel(mountain, habits, id, makerBuy(mountain, id).plan),
+  );
+}
+
+/** The open vehicle, with its driver, that adds most to what transport carries for the income its price takes. */
+function bestVehicle(mountain: Mountain): Plan | undefined {
+  let best: { plan: Plan; worth: number } | undefined;
+  const carry = fleetRate(mountain);
+  for (const id of VEHICLE_IDS.filter((open) => vehicleOpen(mountain, open))) {
+    const plan = vehicleBuy(mountain, id).plan;
+    const gain = fleetRate(applied(funded(mountain), plan)) - carry;
+    const value = gain / earnSeconds(mountain, planPrice(mountain, plan));
+    if (value > 0 && (best === undefined || value > best.worth)) {
+      best = { plan, worth: value };
+    }
+  }
+  return best?.plan;
+}
+
+/** Every plan the dad weighs with the Granite open: the levels' raises, vehicles, a builder, makers and, if he weighs them, upgrades. */
+function levelsPlans(mountain: Mountain, habits: FreshHabits): readonly Plan[] {
+  const vehicles = VEHICLE_IDS.filter((id) => vehicleOpen(mountain, id)).map(
+    (id) => vehicleBuy(mountain, id).plan,
+  );
+  const upgrades = habits.upgrades
+    ? upgradeRaises(mountain).map((raise) => raise.plan)
+    : [];
+  const order = orderRaise(mountain, habits);
+  return [
+    ...(order === undefined ? [] : [order]),
+    ...levelRaises(mountain, habits),
+    ...vehicles,
+    staffed(mountain, "building", freeWorkers(mountain)).plan,
+    ...makersWanted(mountain).map((id) =>
+      makerWithLevel(mountain, habits, id, makerBuy(mountain, id).plan),
+    ),
+    ...upgrades,
+  ];
+}
+
+/** The order's step in hand still requires a good the price asks for: saving it needs the order on hold. */
+function orderTakes(mountain: Mountain, price: Price): boolean {
+  const project = mountain.project;
+  if (project.kind === "unordered") {
+    return false;
+  }
+  const left = stillRequired(project.site);
+  return price.some((line) => left[line.good] > 0);
+}
+
+/**
+ * The dad's spend with the Granite open (rulings 5 to 7, #675): of the
+ * plans that bring the building sooner by more than the mine takes to make
+ * their price, the one that brings it soonest for that time. He buys it
+ * when the pocket holds it, makes room for it when it would not fit, and
+ * holds the order while he saves a good the order takes. With nothing worth
+ * saving for, he resumes.
+ */
+function levelsSpend(
+  mountain: Mountain,
+  habits: FreshHabits,
+  hoardK: number,
+): Plan {
+  const best = bestLevelsPlan(mountain, habits, hoardK);
+  const held = mountain.project.kind === "onHold";
+  if (best === undefined) {
+    return held ? [{ kind: "resumeOrder" }] : [];
+  }
+  if (coversPrice(mountain, best.price, hoardK)) {
+    return best.plan;
+  }
+  if (!fitsPrice(mountain, best.price, hoardK)) {
+    return yardPlan(mountain, true, hoardK);
+  }
+  const takes = orderTakes(mountain, best.price);
+  if (takes && habits.hold === "on-value" && !held) {
+    return [{ kind: "holdOrder" }];
+  }
+  return held && !takes ? [{ kind: "resumeOrder" }] : [];
+}
+
+/** The plan that pays best now (`levelsSpend`), weighed afresh. */
+function weighBest(
+  mountain: Mountain,
+  habits: FreshHabits,
+): Weighed | undefined {
+  let best: Weighed | undefined;
+  for (const plan of levelsPlans(mountain, habits)) {
+    const weigh = weighed(mountain, plan);
+    if (pays(weigh) && (best === undefined || worth(weigh) > worth(best))) {
+      best = weigh;
+    }
+  }
+  return best;
+}
+
+/**
+ * What the dad weighed last, and on which mine: he does not weigh every plan
+ * again each second while he only waits (#675). The mine's key is all but
+ * its pocket. One entry: the lab plays one run at a time.
+ */
+let lastWeighed:
+  | {
+      readonly key: string;
+      readonly best: Weighed | undefined;
+      calls: number;
+    }
+  | undefined;
+
+/** Everything the dad's plans read but the pocket. */
+function mineKey(
+  mountain: Mountain,
+  habits: FreshHabits,
+  hoardK: number,
+): string {
+  const project = mountain.project;
+  return JSON.stringify([
+    habits,
+    hoardK,
+    mountain.owned,
+    mountain.makers,
+    mountain.fleet,
+    mountain.cages.assigned,
+    mountain.granite.kind === "sunk" ? mountain.granite.machines : 0,
+    mountain.upgrades,
+    mountain.stockyard,
+    mountain.operational,
+    project.kind,
+    project.kind === "unordered" ? 0 : project.site.step,
+  ]);
+}
+
+/**
+ * The best plan, weighed again when the mine changed, when the pocket now
+ * covers the last best (so he buys what is best then), or after
+ * `WEIGH_AGAIN_CALLS` calls on the same mine.
+ */
+function bestLevelsPlan(
+  mountain: Mountain,
+  habits: FreshHabits,
+  hoardK: number,
+): Weighed | undefined {
+  const key = mineKey(mountain, habits, hoardK);
+  const kept = lastWeighed;
+  if (
+    kept !== undefined &&
+    kept.key === key &&
+    kept.calls < WEIGH_AGAIN_CALLS &&
+    (kept.best === undefined || !coversPrice(mountain, kept.best.price, hoardK))
+  ) {
+    kept.calls += 1;
+    return kept.best;
+  }
+  const best = weighBest(mountain, habits);
+  lastWeighed = { key, best, calls: 0 };
+  return best;
 }
 
 /**

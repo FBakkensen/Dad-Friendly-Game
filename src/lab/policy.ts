@@ -52,7 +52,16 @@ export type FreshHabits = {
   readonly hold: "on-value" | "never";
   /** Weighs the upgrades beside the line's buys. */
   readonly upgrades: boolean;
+  /**
+   * Where he puts the levels' work once the Granite is open (#675): `need`
+   * builds on both levels by need, assigns hoists and moves workers between
+   * the levels; `even` splits the workers once and leaves every hoist for
+   * both; `whole` works one level at a time with the whole workforce.
+   */
+  readonly levels: LevelHabit;
 };
+
+export type LevelHabit = "need" | "even" | "whole";
 
 export type Policy = {
   readonly id: string;
@@ -66,6 +75,7 @@ export type Policy = {
 const KINDS: readonly PolicyKind[] = ["casual", "extreme", "optimizer"];
 const MOVES: readonly WorkerMoves[] = ["once", "idle"];
 const HOLDS: readonly FreshHabits["hold"][] = ["on-value", "never"];
+const LEVELS: readonly LevelHabit[] = ["need", "even", "whole"];
 const FIXES: readonly TroubleFix[] = ["never", "slow", "fast"];
 
 /** The gap with no jitter: the day split across the sittings, minus play. */
@@ -154,7 +164,8 @@ function isFresh(value: unknown): value is FreshHabits {
     isRecord(value) &&
     isOneOf(value["moves"], MOVES) &&
     isOneOf(value["hold"], HOLDS) &&
-    typeof value["upgrades"] === "boolean"
+    typeof value["upgrades"] === "boolean" &&
+    isOneOf(value["levels"], LEVELS)
   );
 }
 

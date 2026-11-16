@@ -14,7 +14,12 @@ import {
   takeIncome,
 } from "./mine-piles";
 import { accrue, accrueAway, createMountain, type Mountain } from "./mountain";
-import { levels, partThree, partTwo, type Setup } from "./part-three.harness";
+import {
+  levels,
+  partThreeAsBuilt as partThree,
+  partTwo,
+  type Setup,
+} from "./part-three.harness";
 import { effectiveRates } from "./rates";
 import { EMPTY_STOCK } from "./stock";
 import { stockDraw } from "./transport";

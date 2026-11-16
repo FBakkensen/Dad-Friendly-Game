@@ -8,13 +8,15 @@ import { PART_TWO_OFF } from "../part-switch";
 import { EMPTY_STOCK } from "../stock";
 import { stockpileRoom } from "../stockyard";
 import { NO_JOBS, type Jobs } from "../workforce";
-import { hirePrice } from "./fresh-dad";
+import { hirePrice } from "./fresh-kit";
 import {
+  cageGap,
   cheapestBuy,
   freshMean,
   freshShare,
   freshView,
   ordered,
+  shareTaps,
   workerTaps,
   type FreshView,
 } from "./fresh-view";
@@ -25,6 +27,11 @@ import siteFull from "./measures/siteFull";
 import starved from "./measures/starved";
 import transportLimit from "./measures/transportLimit";
 import workerMoves from "./measures/workerMoves";
+import cageGapMeasure from "./measures/cageGap";
+import hoistWorkers from "./measures/hoistWorkers";
+import shareMoves from "./measures/shareMoves";
+import sliceDays from "./measures/sliceDays";
+import { levels, partThree } from "../part-three.harness";
 import type { DecisionSample } from "./measure";
 import type { SittingEvent } from "./sittings";
 
@@ -60,6 +67,7 @@ function view(over: Partial<FreshView> = {}): FreshView {
     idleMachines: Number.NaN,
     yardOpen: false,
     deadGood: false,
+    partThree: false,
     ...over,
   };
 }
@@ -300,5 +308,100 @@ describe("the fresh measures (#655)", () => {
       { sittings: [sitting(0)] },
     ] as unknown as readonly DecisionSample[];
     expect(workerMoves.aggregate(none)).toBeNaN();
+  });
+});
+
+describe("the part 3 measures (#675)", () => {
+  const sitting = (
+    at: number,
+    over: Partial<SittingEvent> = {},
+  ): SittingEvent => ({
+    sitting: at,
+    openedAtMs: at,
+    buys: 0,
+    taps: 0,
+    open: { kind: "nothing" },
+    ...over,
+  });
+  const run = (...events: SittingEvent[]) =>
+    [{ sittings: events }] as unknown as readonly DecisionSample[];
+
+  it("reads the share on hoisting with the Granite open, and part 3", () => {
+    const mine = levels({ topsoil: 3, granite: 2, hoisting: 2 });
+    const viewed = partThree(() => freshView(mine));
+    // 6 on the Topsoil, 4 on the Granite, 2 on hoisting.
+    expect(viewed?.hoistShare).toBeCloseTo(2 / 12, 9);
+    expect(viewed?.partThree).toBe(true);
+    const shut = partThree(() =>
+      freshView(levels({ topsoil: 3, sunk: false })),
+    );
+    expect(shut?.hoistShare).toBeUndefined();
+    expect(
+      hoistWorkers.aggregate(
+        samples(view({ hoistShare: 0.1 }), view({ hoistShare: 0.3 }), view()),
+      ),
+    ).toBeCloseTo(0.2, 9);
+    expect(hoistWorkers.aggregate(samples(view()))).toBeNaN();
+  });
+
+  it("reads the slice's days only from a run that plays part 3", () => {
+    const finished = (partThree: boolean) =>
+      [
+        { fresh: view({ partThree }), finishDay: 16 },
+      ] as unknown as readonly DecisionSample[];
+    expect(sliceDays.aggregate(finished(true))).toBe(16);
+    expect(sliceDays.aggregate(finished(false))).toBeNaN();
+    expect(sliceDays.aggregate(samples(view({ partThree: true })))).toBe(
+      Infinity,
+    );
+  });
+
+  it("counts the taps that set the share: the Granite's jobs and the hoists on each level", () => {
+    const before = partThree(() =>
+      levels({ topsoil: 4, granite: 1, hoists: 3 }),
+    );
+    expect(partThree(() => shareTaps(before, before))).toBe(0);
+    const after = partThree(() =>
+      levels({
+        topsoil: 4,
+        granite: 12,
+        hoists: 3,
+        assigned: { topsoil: 1, granite: 2 },
+      }),
+    );
+    // 11 more on each Granite stage: two taps each. One hoist and two hoists: three taps.
+    expect(partThree(() => shareTaps(before, after))).toBe(7);
+    const shut = levels({ topsoil: 4, sunk: false });
+    expect(partThree(() => shareTaps(shut, shut))).toBeUndefined();
+    expect(
+      shareMoves.aggregate(
+        run(
+          sitting(0, { shareTaps: 2 }),
+          sitting(1, { shareTaps: 4 }),
+          sitting(2),
+        ),
+      ),
+    ).toBe(3);
+    expect(shareMoves.aggregate(run(sitting(0)))).toBeNaN();
+  });
+
+  it("plays ten minutes of the cages against the rates, and keeps the largest gap", () => {
+    const mine = partThree(() =>
+      levels({ topsoil: 8, granite: 8, hoisting: 3, hoists: 2 }),
+    );
+    const gap = partThree(() => cageGap(mine));
+    expect(gap).toBeGreaterThanOrEqual(0);
+    expect(gap).toBeLessThan(0.05);
+    expect(cageGap(createMountain())).toBeUndefined();
+    expect(
+      cageGapMeasure.aggregate(
+        run(
+          sitting(0, { cageGap: 0.01 }),
+          sitting(1, { cageGap: 0.03 }),
+          sitting(2),
+        ),
+      ),
+    ).toBe(0.03);
+    expect(cageGapMeasure.aggregate(run(sitting(0)))).toBeNaN();
   });
 });

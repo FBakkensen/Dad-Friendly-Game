@@ -8,6 +8,7 @@ import { crewTimer, effectiveRates } from "./rates";
 import { MACHINE_WORDS, TOOL_WORDS, formatSpeed, plural } from "./screen-words";
 import {
   TIERS,
+  machineStaff,
   tierQuote,
   type BuyAmount,
   type MachineId,
@@ -107,7 +108,7 @@ export function machineKey(
   const kind = capital(plural(count, MACHINE_WORDS[id]));
   const name = count === 1 ? kind : `${formatCompact(count)} ${kind}`;
   const moves = `${formatSpeed(speed[id] * count * timer)}/s`;
-  const takes = tier.staff * count;
+  const takes = machineStaff(tier) * count;
   return {
     stage,
     id,
@@ -379,7 +380,6 @@ export function stageRows(
   const rates = effectiveRates(mountain, now);
   const timer = crewTimer(mountain, now);
   const work = lineWork(mountain, rates.tierSpeed);
-  const tool = toolSpeed(rates.tierSpeed);
   const moves = movingNow(mountain, now);
   const strongest = Math.max(
     1,
@@ -392,7 +392,7 @@ export function stageRows(
     const parts = rowParts(
       stageMachines(mountain, rates.tierSpeed, stage),
       workers,
-      tool,
+      toolSpeed(rates.tierSpeed, stage),
     ).map((part) => timed(part, timer));
     const can = work.stages[stage] * timer;
     const moving = moves[STAGES.indexOf(stage)] ?? 0;
@@ -474,7 +474,6 @@ function stageScene(
 export function mineScene(mountain: Mountain): MineScene {
   const rates = effectiveRates(mountain);
   const work = lineWork(mountain, rates.tierSpeed);
-  const tool = toolSpeed(rates.tierSpeed);
   const [drills = 0, hauls = 0, lifts = 0] = chainFlows(
     mineChain(mountain, 1, true),
   );
@@ -488,7 +487,7 @@ export function mineScene(mountain: Mountain): MineScene {
       const parts = rowParts(
         stageMachines(mountain, rates.tierSpeed, stage),
         mountain.jobs[STAGE_JOB[stage]],
-        tool,
+        toolSpeed(rates.tierSpeed, stage),
       );
       return [
         stage,

@@ -130,9 +130,10 @@ describe("which cages the shaft has (rules 5.5, 5.8, 5.10, call 70)", () => {
   });
 
   it("loads a hoist with its rating times the Topsoil's trip", () => {
-    expect(speed.hoist).toBe(60);
+    // Part 3 rates a hoist at 480 a second (rule 2.14, #675).
+    expect(speed.hoist).toBe(480);
     expect(cagesOf({ hoist: 1 }, work({ hoist: 1 }))).toEqual([
-      { key: "hoist:0", load: 600, runs: true, serves: "topsoil" },
+      { key: "hoist:0", load: 4_800, runs: true, serves: "topsoil" },
       { key: "winch", load: 0, runs: false, serves: "topsoil" },
     ]);
     // The trip that sets the load is the Topsoil's, whichever level it serves.
@@ -162,15 +163,16 @@ describe("which cages the shaft has (rules 5.5, 5.8, 5.10, call 70)", () => {
   it("loads the winch with its workers' tools, never more than a hoist's load", () => {
     const winch = (tools: number, owned = {}) =>
       cagesOf(owned, work({}, tools)).find((cage) => cage.key === "winch");
-    expect(toolSpeed(speed)).toBe(3);
+    // The cages are read outside part 3's switch here, so the winch's tool is today's.
+    expect(toolSpeed(speed, "lift")).toBe(3);
     expect(winch(2)).toEqual({
       key: "winch",
-      load: 2 * toolSpeed(speed) * 10,
+      load: 2 * toolSpeed(speed, "lift") * 10,
       runs: true,
       serves: "topsoil",
     });
-    expect(winch(40)?.load).toBe(speed.hoist * 10);
-    expect(winch(40, { hoist: 2 })?.load).toBe(speed.hoist * 10);
+    expect(winch(200)?.load).toBe(speed.hoist * 10);
+    expect(winch(200, { hoist: 2 })?.load).toBe(speed.hoist * 10);
     expect(winch(0)).toEqual({
       key: "winch",
       load: 0,
@@ -307,7 +309,7 @@ describe("which cages the shaft has (rules 5.5, 5.8, 5.10, call 70)", () => {
     expect(once.map((cage) => cage.load)).toEqual([
       speed.machine * 10,
       speed.hoist * 10,
-      2 * toolSpeed(speed) * 10,
+      2 * toolSpeed(speed, "lift") * 10,
     ]);
     expect(twice.map((cage) => cage.runs)).toEqual(
       once.map((cage) => cage.runs),

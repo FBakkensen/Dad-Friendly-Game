@@ -8,7 +8,7 @@ import { discover } from "./registry";
 import { freshPlan } from "./fresh-dad";
 import { freshView } from "./fresh-view";
 import { parsePolicyExport } from "./policy";
-import { runPolicy } from "./run";
+import { LAB_FACTORS, runPolicy } from "./run";
 import { MS_PER_SECOND, SAMPLE_INTERVAL_SEC } from "./targets";
 
 // Plays part 1 to the Light Tower's roof for every player type, so it lives
@@ -78,6 +78,31 @@ describe("the lab plays part 2 (#667)", { timeout: 600_000 }, () => {
         ]);
         expect(mountain.makers.kiln, policy.id).toBeGreaterThan(0);
         expect(mountain.jobs.kilns, policy.id).toBe(mountain.makers.kiln);
+      }
+    });
+  });
+});
+
+// Plays the whole slice to the Foundry's roof for every player type (#675).
+describe("the lab plays part 3 (#675)", { timeout: 900_000 }, () => {
+  it("brings every player type to the Foundry's roof, with the shaft sunk and saws running", async () => {
+    const policies = await discover(
+      path.resolve("src/lab/fresh-policies"),
+      parsePolicyExport,
+    );
+    withFactors(LAB_FACTORS, () => {
+      for (const policy of policies) {
+        const run = runPolicy({ policy, seed: 1 });
+        const mountain = run.world.mountain;
+        expect(run.finishDay, policy.id).toBeDefined();
+        expect(mountain.operational, policy.id).toEqual([
+          "lightTower",
+          "warehouse",
+          "foundry",
+        ]);
+        expect(mountain.granite.kind, policy.id).toBe("sunk");
+        expect(mountain.makers.saw, policy.id).toBeGreaterThan(0);
+        expect(mountain.jobs.saws, policy.id).toBe(mountain.makers.saw);
       }
     });
   });

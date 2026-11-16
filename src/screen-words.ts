@@ -241,7 +241,7 @@ export function upgradeEffectLine(
     case "boots":
       // In a fresh mine Work boots lifts only a worker with a tool (rule 2.9).
       return freshMineOn()
-        ? `Workers with a tool ${fromTo(change, (rates) => `${formatSpeed(toolSpeed(rates.tierSpeed))}/s`)}.`
+        ? `Workers with a tool ${fromTo(change, (rates) => `${formatSpeed(toolSpeed(rates.tierSpeed, "face"))}/s`)}.`
         : `Workers ${fromTo(change, (rates) => `${formatSpeed(rates.tierSpeed.helper)}/s`)}.`;
     case "cartSyn":
     case "drillSyn":

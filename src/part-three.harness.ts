@@ -36,6 +36,26 @@ export const partThree = <T>(
   knobs: Readonly<Record<string, number>> = {},
 ): T => withFactors({ ...PART_THREE_FACTORS, ...knobs }, body);
 
+/**
+ * The knobs that put part 3's stages back as #724 built the cages on (#675
+ * set them apart: rule 2.14): a hoist rated 60, so its load to the Topsoil
+ * is 600; the tools of haulage and hoisting as drilling's; a drill on one
+ * worker. The cages' and piles' tests do their sums on these numbers, and
+ * `workforce.test.ts` tests part 3's own.
+ */
+export const AS_BUILT: Readonly<Record<string, number>> = {
+  "output.hoist": 1 / 8,
+  "tool.haul": 1 / 2,
+  "tool.lift": 1 / 3,
+  "staff.drill": 1 / 3,
+};
+
+/** Part 3 on, with its stages as #724 built the cages on (`AS_BUILT`). */
+export const partThreeAsBuilt = <T>(
+  body: () => T,
+  knobs: Readonly<Record<string, number>> = {},
+): T => partThree(body, { ...AS_BUILT, ...knobs });
+
 export const partTwo = <T>(body: () => T): T =>
   withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 }, body);
 

@@ -158,6 +158,27 @@ export const FRESH_DUST = 1e-9;
 /** Most buys one raise of the line may chain: three stages tied, and room for a tool step. */
 export const RAISE_STEPS = 6;
 
+/**
+ * Part 3's dad (#675). A free move or a fix must bring the building this
+ * share of its time sooner: float noise is not a move.
+ */
+export const SOONER_SHARE = 1e-9;
+
+/** Calls a weighing (of buys, or of free moves that found none) is kept while the mine stays the same: about half a minute of play. */
+export const WEIGH_AGAIN_CALLS = 30;
+
+/** How many times more the other level's good must be short before the whole-workforce dad moves everyone: he does not go back and forth. */
+export const WHOLE_MOVE_MARGIN = 2;
+
+/** The even dad's split of the Topsoil's drilling and haulage: one part in this many to the Granite. */
+export const EVEN_SPLIT = 2;
+
+/** Goods a second, for a good of a level nobody works: as if it came at once while he weighs the rest. */
+export const AT_ONCE = 1e12;
+
+/** Seconds of the mine played live against the rates at a sitting's open (`cageGap`). */
+export const CAGE_GAP_SECONDS = 600;
+
 /** Most workers the mover puts back from the mine when an order delivers. */
 export const RESTORE_STEPS = 64;
 

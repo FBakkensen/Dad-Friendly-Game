@@ -21,6 +21,7 @@ export type FreshSpec = {
   readonly moves: WorkerMoves;
   readonly hold?: FreshHabits["hold"];
   readonly upgrades?: boolean;
+  readonly levels?: FreshHabits["levels"];
 };
 
 /** Params for the plain dad's sittings, plus the overrides. */
@@ -51,6 +52,7 @@ export function freshPolicy(spec: FreshSpec): Policy {
       moves: spec.moves,
       hold: spec.hold ?? "on-value",
       upgrades: spec.upgrades ?? false,
+      levels: spec.levels ?? "need",
     },
   });
 }
