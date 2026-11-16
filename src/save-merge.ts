@@ -3,6 +3,7 @@ import { rockDugInAll, runStartedAt, type Mountain } from "./mountain";
 import { serializeSave } from "./persist";
 import { compareSaveProgress, type SaveMoment } from "./save-progress";
 import { MAKER_IDS } from "./makers";
+import { LEVEL_MACHINE_IDS } from "./mine-levels";
 import { GOOD_IDS } from "./stock";
 import { TIER_IDS } from "./tiers";
 import { VEHICLE_IDS } from "./transport";
@@ -14,11 +15,11 @@ import { RECIPE_IDS, craftedLevel } from "./workshop";
  *
  * A later run wins whole. A lower rev is never adopted. When one copy is at
  * least as far on every counted fact and further on rock dug, upgrades,
- * crafts, recipes, finds, engineer trips, the stockyard's level, or the
- * city's buildings (what is operational, the steps built and what has
- * arrived for the step in hand), that copy is a silent fast-forward.
- * Machines, makers, crew and vehicles count too: being behind on them blocks
- * the fast-forward (#664, #666).
+ * crafts, recipes, finds, engineer trips, the stockyard's level, the sunk
+ * shaft, or the city's buildings (what is operational, the steps built and
+ * what has arrived for the step in hand), that copy is a silent fast-forward.
+ * Machines on each level, makers, crew and vehicles count too: being behind
+ * on them blocks the fast-forward (#664, #666, #673).
  * A lead that is only machines, crew or vehicles, or a split where each side has
  * something the other lacks, is a conflict. The two copies come back as they
  * are. Nothing is blended into a third save.
@@ -54,10 +55,17 @@ type Facts = {
   readonly operational: readonly string[];
   /** Steps built in on the city, then what has arrived for the step in hand. */
   readonly city: readonly [number, number];
-  /** Every tier he owns (workers, kids, machines), every vehicle and every maker. */
+  /**
+   * Every tier he owns (workers, kids, machines), every vehicle and every
+   * maker. A level's machines count on the Topsoil under their own id and on
+   * the Granite as `granite:<id>`, so a machine placed on another level is a
+   * split, not a fast-forward (#673).
+   */
   readonly owned: Readonly<Record<string, number>>;
   /** The stockyard's level (#666). */
   readonly stockyard: number;
+  /** The shaft: 1 once sunk, else 0 (#673). Read from the save, whatever the build plays. */
+  readonly shaft: number;
 };
 
 export function mergeSaves(local: SaveCopy, remote: SaveCopy): MergeResult {
@@ -188,6 +196,7 @@ function facts(mountain: Mountain): Facts {
     city: cityProgress(mountain),
     owned: ownedCounts(mountain),
     stockyard: mountain.stockyard,
+    shaft: mountain.granite.kind === "sunk" ? 1 : 0,
   };
 }
 
@@ -221,6 +230,13 @@ function ownedCounts(mountain: Mountain): Record<string, number> {
   for (const id of MAKER_IDS) {
     owned[`maker:${id}`] = mountain.makers[id];
   }
+  const { granite } = mountain;
+  if (granite.kind === "sunk") {
+    for (const id of LEVEL_MACHINE_IDS) {
+      owned[id] = mountain.owned[id] - granite.machines[id];
+      owned[`granite:${id}`] = granite.machines[id];
+    }
+  }
   return owned;
 }
 
@@ -232,12 +248,12 @@ function cityAhead(
   return left[0] === right[0] ? left[1] - right[1] : left[0] - right[0];
 }
 
-/** Rock, upgrades, crafts, recipes, finds, trips, the stockyard, or buildings. Not machines. */
+/** Rock, upgrades, crafts, recipes, finds, trips, the stockyard, the shaft, or buildings. Not machines. */
 function aheadOnProgress(left: Facts, right: Facts): boolean {
   if (left.mined > right.mined || cityAhead(left.city, right.city) > 0) {
     return true;
   }
-  if (left.stockyard > right.stockyard) {
+  if (left.stockyard > right.stockyard || left.shaft > right.shaft) {
     return true;
   }
   if (someOnly(left.operational, right.operational)) {
@@ -270,6 +286,7 @@ function covers(left: Facts, right: Facts): boolean {
   return (
     left.mined >= right.mined &&
     left.stockyard >= right.stockyard &&
+    left.shaft >= right.shaft &&
     coversNumbers(left.upgrades, right.upgrades) &&
     coversNumbers(left.crafts, right.crafts) &&
     coversNumbers(left.engineers, right.engineers) &&
