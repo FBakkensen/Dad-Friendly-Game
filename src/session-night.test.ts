@@ -44,6 +44,7 @@ function mine(perStage: number, pocket: number, project: Project): Mountain {
       kilns: 0,
       graniteDrilling: 0,
       graniteHaulage: 0,
+      saws: 0,
     },
     stock: { ...start.stock, stones: pocket },
     project,

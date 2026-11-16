@@ -74,6 +74,7 @@ function crew(helpers: number, jobs: Partial<Mountain["jobs"]> = {}): Mountain {
       kilns: 0,
       graniteDrilling: 0,
       graniteHaulage: 0,
+      saws: 0,
       ...jobs,
     },
   };
@@ -90,6 +91,7 @@ describe("one workforce (slice 1, rule 2, #689)", () => {
       "kilns",
       "graniteDrilling",
       "graniteHaulage",
+      "saws",
     ]);
   });
 
@@ -101,6 +103,13 @@ describe("one workforce (slice 1, rule 2, #689)", () => {
       expect(partTwo(() => jobOpen(sunk(start), job))).toBe(false);
     }
     expect(partThree(() => jobOpen(start, "drilling"))).toBe(true);
+  });
+
+  it("opens the saws' job with the saw: the shaft sunk, in part 3 only (#673)", () => {
+    const start = partTwo(() => createMountain());
+    expect(partThree(() => jobOpen(start, "saws"))).toBe(false);
+    expect(partThree(() => jobOpen(sunk(start), "saws"))).toBe(true);
+    expect(partTwo(() => jobOpen(sunk(start), "saws"))).toBe(false);
   });
 
   it("gives each level its face and haul jobs (#673)", () => {
@@ -771,6 +780,7 @@ describe("each level's work (rule 5.1, 5.2, #673)", () => {
         haulage: 1,
         graniteDrilling: 1,
         graniteHaulage: 2,
+        saws: 0,
         hoisting: 1,
       };
       const setup = {

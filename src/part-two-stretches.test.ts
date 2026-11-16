@@ -35,9 +35,10 @@ describe("long stretches with the stockyard open (#666)", () => {
           kilns: 1,
           graniteDrilling: 0,
           graniteHaulage: 0,
+          saws: 0,
         },
         stock: EMPTY_STOCK,
-        makers: { kiln: 1 },
+        makers: { kiln: 1, saw: 0 },
         piles: { face: 300, shaft: 300, kiln: 300 },
         operational: ["lightTower"],
         project: {
@@ -107,9 +108,10 @@ describe("long stretches with the stockyard open (#666)", () => {
         kilns: 2,
         graniteDrilling: 0,
         graniteHaulage: 0,
+        saws: 0,
       },
       stock: { ...EMPTY_STOCK, brick: 1_000_000 },
-      makers: { kiln: 2 },
+      makers: { kiln: 2, saw: 0 },
       piles: { face: 300, shaft: 300, kiln: 300 },
       operational: ["lightTower"],
       project: {

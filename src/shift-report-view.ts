@@ -51,6 +51,7 @@ const GOOD_WORDS: Readonly<Record<GoodId, string>> = {
   crystal: "crystal",
   heartstone: "heartstone",
   brick: "brick",
+  cutStone: "cut stone",
 };
 
 /** The building whose roof went on and lit the night, if one did. */

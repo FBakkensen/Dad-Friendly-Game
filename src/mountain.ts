@@ -232,6 +232,7 @@ export const FRESH_START_JOBS: Jobs = {
   kilns: 0,
   graniteDrilling: 0,
   graniteHaulage: 0,
+  saws: 0,
 };
 
 export function createMountain(): Mountain {

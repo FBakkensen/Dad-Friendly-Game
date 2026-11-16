@@ -262,7 +262,7 @@ describe("mergeSaves in a fresh mine (#664)", () => {
   it("is a conflict when the copy with more rock is behind on kilns or the stockyard (#666)", () => {
     const remote = copy(dug(1_200), 3);
     const behind = [
-      dug(1_000, { makers: { kiln: 1 } }),
+      dug(1_000, { makers: { kiln: 1, saw: 0 } }),
       dug(1_000, { stockyard: 1 }),
     ];
     for (const mountain of behind) {

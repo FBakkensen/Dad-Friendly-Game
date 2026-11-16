@@ -4,9 +4,10 @@ import { withFactors } from "./economy/factors";
 import { FRESH_OFF } from "./line-switch";
 import { placeOrder } from "./city";
 import { createMountain, type Mountain } from "./mountain";
-import { PART_TWO_OFF } from "./part-switch";
+import { PART_THREE_OFF, PART_TWO_OFF } from "./part-switch";
 import { priceAmount } from "./stock";
 import {
+  STOCKPILE_GOODS,
   deadStockpiles,
   expandPrice,
   expandStockyard,
@@ -144,5 +145,29 @@ describe("a dead stockpile (#667)", () => {
       };
       expect(deadStockpiles(roof)).toEqual(["stones"]);
     });
+  });
+});
+
+describe("cut stone's room (#673)", () => {
+  const partThree = <T>(body: () => T): T =>
+    withFactors(
+      { [FRESH_OFF]: 0, [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 },
+      body,
+    );
+
+  it("holds 250K at level 0 in part 3, three times as much a level, twice with the Warehouse; none before", () => {
+    partThree(() => {
+      expect(stockpileRoom(yard(0, ["lightTower"]), "cutStone")).toBe(250_000);
+      expect(stockpileRoom(yard(1, ["lightTower"]), "cutStone")).toBe(750_000);
+      expect(
+        stockpileRoom(yard(1, ["lightTower", "warehouse"]), "cutStone"),
+      ).toBe(1_500_000);
+      expect(stockpileRoom(yard(0, []), "cutStone")).toBe(Infinity);
+    });
+    partTwo(() => {
+      expect(stockpileRoom(yard(0, ["lightTower"]), "cutStone")).toBe(Infinity);
+      expect(stockpileRoom(yard(0, ["lightTower"]), "brick")).toBe(1_000_000);
+    });
+    expect(STOCKPILE_GOODS).toEqual(["stones", "brick"]);
   });
 });

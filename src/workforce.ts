@@ -1,6 +1,6 @@
 import { STAGES, type Stage, type StageSpeeds } from "./line";
 import type { Mountain } from "./mountain";
-import { makersOpen } from "./makers";
+import { makerOpen } from "./makers";
 import {
   LEVEL_MACHINE_IDS,
   graniteOpen,
@@ -38,6 +38,7 @@ export const JOB_IDS = [
   "kilns",
   "graniteDrilling",
   "graniteHaulage",
+  "saws",
 ] as const;
 
 export type JobId = (typeof JOB_IDS)[number];
@@ -53,6 +54,7 @@ export const NO_JOBS: Jobs = {
   kilns: 0,
   graniteDrilling: 0,
   graniteHaulage: 0,
+  saws: 0,
 };
 
 /** Each stage of the line and its job. */
@@ -87,7 +89,10 @@ export function jobOpen(
   if (job === "graniteDrilling" || job === "graniteHaulage") {
     return graniteOpen(mountain);
   }
-  return job !== "kilns" || makersOpen(mountain);
+  if (job === "saws") {
+    return makerOpen(mountain, "saw");
+  }
+  return job !== "kilns" || makerOpen(mountain, "kiln");
 }
 
 /** Workers on haulage, on both levels: what Loading crews counts (rule 5.2). */

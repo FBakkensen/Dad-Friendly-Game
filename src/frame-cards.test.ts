@@ -53,6 +53,7 @@ function crew(project: Mountain["project"], stones = 0): Mountain {
       kilns: 0,
       graniteDrilling: 0,
       graniteHaulage: 0,
+      saws: 0,
     },
     stock: { ...start.stock, stones },
     project,
@@ -316,7 +317,7 @@ describe("the shift report once the stockyard is open (#671)", () => {
     const lit = {
       ...crew(NO_PROJECT),
       operational: ["lightTower" as const],
-      makers: { kiln: 1 },
+      makers: { kiln: 1, saw: 0 },
     };
     return {
       ...lit,
@@ -628,7 +629,7 @@ describe("the refinery's card for a save from part 1 (#672)", () => {
 
   it("does not greet once a kiln is bought, the stockyard expanded or the Warehouse ordered", () => {
     holdFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 });
-    const kiln = { ...partOneDone(), makers: { kiln: 1 } };
+    const kiln = { ...partOneDone(), makers: { kiln: 1, saw: 0 } };
     const expanded = { ...partOneDone(), stockyard: 1 };
     const ordered = placeOrder(partOneDone());
     for (const saved of [kiln, expanded, ordered]) {

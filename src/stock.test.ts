@@ -37,6 +37,7 @@ describe("the goods table (#560)", () => {
       "crystal",
       "heartstone",
       "brick",
+      "cutStone",
     ]);
     expect(EMPTY_STOCK).toEqual({
       stones: 0,
@@ -45,6 +46,7 @@ describe("the goods table (#560)", () => {
       crystal: 0,
       heartstone: 0,
       brick: 0,
+      cutStone: 0,
     });
   });
 
@@ -52,6 +54,8 @@ describe("the goods table (#560)", () => {
     const from = Object.fromEntries(GOOD_ROWS.map((row) => [row.id, row.from]));
     expect(from.stones).toBe("mountain");
     expect(from.brick).toBe("kilns");
+    expect(from.cutStone).toBe("saws");
+    expect(GOOD_IDS.slice(-2)).toEqual(["brick", "cutStone"]);
     for (const layer of LAYERS) {
       expect(from[layer.material]).toBe(layer.id);
     }

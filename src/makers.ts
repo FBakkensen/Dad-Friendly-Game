@@ -1,7 +1,9 @@
 import { factor } from "./economy/factors";
+import { graniteOpen } from "./mine-levels";
 import type { Mountain } from "./mountain";
 import { partTwoOn } from "./part-switch";
 import { pay, type GoodId, type Price } from "./stock";
+import type { JobId } from "./workforce";
 import { LINE_MACHINE_COST_GROWTH } from "./tiers";
 
 /**
@@ -28,6 +30,8 @@ type MakerRow = {
   readonly output: GoodId;
   /** Its recipe (#723): the rock it takes for one of its good. A whole number. */
   readonly takes: number;
+  /** The job whose workers run it (rule 2.7). */
+  readonly job: JobId;
 };
 
 /** Part 2 has the kiln; the saw comes with part 3. The spec's starting numbers, for the lab (#667). */
@@ -43,6 +47,18 @@ const MAKER_ROWS = [
     output: "brick",
     // Made up, for the balancing he asked for (spec, rule 3).
     takes: 2,
+    job: "kilns",
+  },
+  {
+    id: "saw",
+    name: "Saw",
+    good: "brick",
+    firstCost: 25_000,
+    growth: LINE_MACHINE_COST_GROWTH,
+    makes: 30,
+    output: "cutStone",
+    takes: 3,
+    job: "saws",
   },
 ] as const satisfies readonly MakerRow[];
 
@@ -75,6 +91,14 @@ export function makersOpen(mountain: Pick<Mountain, "operational">): boolean {
   return partTwoOn() && mountain.operational.includes("lightTower");
 }
 
+/** Whether a maker is open: the kiln with the kilns, the saw once the shaft is sunk (part 3). */
+export function makerOpen(
+  mountain: Pick<Mountain, "operational" | "granite">,
+  id: MakerId,
+): boolean {
+  return id === "saw" ? graniteOpen(mountain) : makersOpen(mountain);
+}
+
 /**
  * The next one's price, on a machine's curve: a lab sweep of `growth.machine`
  * or `price.kiln` moves it as it moves a machine's (#667).
@@ -94,7 +118,7 @@ export function makerPrice(
 
 /** Buys one more, at once (rule 7.14); a closed maker or a short stock buys none. */
 export function buyMaker(mountain: Mountain, id: MakerId): Mountain {
-  if (!makersOpen(mountain)) {
+  if (!makerOpen(mountain, id)) {
     return mountain;
   }
   const paid = pay(mountain, makerPrice(mountain, id));
@@ -117,14 +141,30 @@ export function makerMakes(id: MakerId): number {
   return makerById(id).makes;
 }
 
+/** The makers of a kind that run: each with one worker on its job (rule 2.7). */
+export function runningMakers(
+  mountain: Pick<Mountain, "makers" | "jobs">,
+  id: MakerId,
+): number {
+  return Math.min(mountain.makers[id], mountain.jobs[makerById(id).job]);
+}
+
+/** The good a second the running makers of a kind make, at full output. */
+export function makerRate(
+  mountain: Pick<Mountain, "makers" | "jobs">,
+  id: MakerId,
+): number {
+  return runningMakers(mountain, id) * makerMakes(id);
+}
+
 /** The kilns that run: each with one worker on the kilns' job (rule 2.7). */
 export function runningKilns(
   mountain: Pick<Mountain, "makers" | "jobs">,
 ): number {
-  return Math.min(mountain.makers.kiln, mountain.jobs.kilns);
+  return runningMakers(mountain, "kiln");
 }
 
 /** Brick a second the running kilns make, at full output. */
 export function kilnRate(mountain: Pick<Mountain, "makers" | "jobs">): number {
-  return runningKilns(mountain) * makerMakes("kiln");
+  return makerRate(mountain, "kiln");
 }

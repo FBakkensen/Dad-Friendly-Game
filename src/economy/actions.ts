@@ -43,7 +43,7 @@ import {
   MAKER_IDS,
   buyMaker,
   makerPrice,
-  makersOpen,
+  makerOpen,
   type MakerId,
 } from "../makers";
 import {
@@ -267,11 +267,11 @@ export function listActions(
   ];
 }
 
-/** The kilns once they are open, and the next stockyard level until the last. */
+/** The makers once they are open, and the next stockyard level until the last. */
 function yardActions(mountain: Mountain): readonly Action[] {
-  const makers: Action[] = makersOpen(mountain)
-    ? MAKER_IDS.map((id) => ({ kind: "buyMaker", id }))
-    : [];
+  const makers: Action[] = MAKER_IDS.filter((id) =>
+    makerOpen(mountain, id),
+  ).map((id) => ({ kind: "buyMaker", id }));
   return stockyardOpen(mountain) && mountain.stockyard < MAX_STOCKYARD_LEVEL
     ? [...makers, { kind: "expandStockyard" }]
     : makers;

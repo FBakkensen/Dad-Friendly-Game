@@ -33,6 +33,7 @@ const start = (): Mountain => {
       kilns: 0,
       graniteDrilling: 0,
       graniteHaulage: 0,
+      saws: 0,
     },
   };
 };

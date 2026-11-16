@@ -4,13 +4,18 @@ import { FRESH_OFF } from "./line-switch";
 import {
   buyMaker,
   kilnRate,
+  makerMakes,
+  makerOpen,
   makerPrice,
+  makerRate,
   makerTakes,
   makersOpen,
   runningKilns,
+  runningMakers,
 } from "./makers";
 import { createMountain, type Mountain } from "./mountain";
-import { PART_TWO_OFF } from "./part-switch";
+import { PART_THREE_OFF, PART_TWO_OFF } from "./part-switch";
+import { NO_GRANITE_PILES, NO_LEVEL_MACHINES } from "./mine-levels";
 import { jobOpen } from "./workforce";
 
 /** The kilns (slice 1, rule 3, #666). */
@@ -48,7 +53,7 @@ describe("the kilns (#666)", () => {
     expect(makerPrice(start, "kiln")).toEqual([
       { good: "stones", amount: 15_000 },
     ]);
-    expect(makerPrice({ makers: { kiln: 2 } }, "kiln")).toEqual([
+    expect(makerPrice({ makers: { kiln: 2, saw: 0 } }, "kiln")).toEqual([
       { good: "stones", amount: Math.ceil(15_000 * 1.219 ** 2) },
     ]);
   });
@@ -71,7 +76,7 @@ describe("the kilns (#666)", () => {
 
   it("run with one worker each; one with nobody on it is idle", () => {
     const start = createMountain();
-    const three = { ...start, makers: { kiln: 3 } };
+    const three = { ...start, makers: { kiln: 3, saw: 0 } };
     expect(runningKilns({ ...three, jobs: { ...start.jobs, kilns: 0 } })).toBe(
       0,
     );
@@ -90,7 +95,7 @@ describe("the kilns' recipe (#723)", () => {
     const start = createMountain();
     return {
       ...start,
-      makers: { kiln: 3 },
+      makers: { kiln: 3, saw: 0 },
       jobs: { ...start.jobs, kilns: 2 },
     };
   };
@@ -158,11 +163,85 @@ describe("the kilns' job and price under the lab (#666)", () => {
   });
 
   it("moves with a sweep of the machines' growth and the kiln's price", () => {
-    const owned = { makers: { kiln: 1 } };
+    const owned = { makers: { kiln: 1, saw: 0 } };
     withFactors({ "growth.machine": 2, "price.kiln": 0.5 }, () => {
       expect(makerPrice(owned, "kiln")).toEqual([
         { good: "stones", amount: Math.ceil(7_500 * 1.219 * 2) },
       ]);
     });
+  });
+});
+
+describe("the saws (#673)", () => {
+  const partThree = <T>(body: () => T): T =>
+    withFactors(
+      { [FRESH_OFF]: 0, [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 },
+      body,
+    );
+  const sunk = (stock: Partial<Mountain["stock"]> = {}): Mountain => ({
+    ...lit(0),
+    stock: { ...lit(0).stock, ...stock },
+    granite: {
+      kind: "sunk",
+      machines: NO_LEVEL_MACHINES,
+      piles: NO_GRANITE_PILES,
+    },
+  });
+
+  it("prices a saw at 25,000 brick on a machine's curve, x1.219", () => {
+    const start = createMountain();
+    expect(makerPrice(start, "saw")).toEqual([
+      { good: "brick", amount: 25_000 },
+    ]);
+    expect(makerPrice({ makers: { kiln: 0, saw: 1 } }, "saw")).toEqual([
+      { good: "brick", amount: 30_475 },
+    ]);
+  });
+
+  it("makes 30 cut stone a second from three rock each", () => {
+    expect(makerMakes("saw")).toBe(30);
+    expect(makerTakes("saw")).toBe(3);
+  });
+
+  it("opens with the Granite in part 3 only; the kilns as before", () => {
+    partThree(() => {
+      expect(makerOpen(sunk(), "saw")).toBe(true);
+      expect(makerOpen(lit(0), "saw")).toBe(false);
+      expect(makerOpen(sunk(), "kiln")).toBe(true);
+      expect(makerOpen(createMountain(), "kiln")).toBe(false);
+    });
+    partTwo(() => {
+      expect(makerOpen(sunk(), "saw")).toBe(false);
+      expect(makerOpen(lit(0), "kiln")).toBe(true);
+    });
+  });
+
+  it("refuses a saw before the shaft, and buys one with the brick once it is sunk", () => {
+    partThree(() => {
+      const before = { ...lit(0), stock: { ...lit(0).stock, brick: 30_000 } };
+      expect(buyMaker(before, "saw")).toBe(before);
+      const bought = buyMaker(sunk({ brick: 30_000 }), "saw");
+      expect(bought.makers.saw).toBe(1);
+      expect(bought.stock.brick).toBe(5_000);
+    });
+  });
+
+  it("runs a saw only with a worker on the saws' job (rule 2.7)", () => {
+    const crew = {
+      makers: { kiln: 0, saw: 3 },
+      jobs: { ...createMountain().jobs, saws: 2 },
+    };
+    expect(runningMakers(crew, "saw")).toBe(2);
+    expect(makerRate(crew, "saw")).toBe(60);
+    expect(runningMakers(crew, "kiln")).toBe(0);
+  });
+
+  it("leaves the kilns' numbers as they were: runningKilns and kilnRate are the kiln's", () => {
+    const crew = {
+      makers: { kiln: 3, saw: 5 },
+      jobs: { ...createMountain().jobs, kilns: 2, saws: 5 },
+    };
+    expect(runningKilns(crew)).toBe(2);
+    expect(makerRate(crew, "kiln")).toBe(24);
   });
 });

@@ -75,6 +75,7 @@ export const CREWED_JOBS = {
   kilns: 0,
   graniteDrilling: 0,
   graniteHaulage: 0,
+  saws: 0,
 } as const;
 
 /**

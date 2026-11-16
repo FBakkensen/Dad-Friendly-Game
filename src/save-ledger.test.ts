@@ -38,7 +38,15 @@ const LEDGER = {
     "machine",
     "kid",
   ],
-  stock: ["stones", "clay", "iron", "crystal", "heartstone", "brick"],
+  stock: [
+    "stones",
+    "clay",
+    "iron",
+    "crystal",
+    "heartstone",
+    "brick",
+    "cutStone",
+  ],
   levels: {
     tap: 10,
     boots: 1,
@@ -156,9 +164,10 @@ const LEDGER = {
     "kilns",
     "graniteDrilling",
     "graniteHaulage",
+    "saws",
   ],
   piles: ["face", "shaft", "kiln"],
-  makers: ["kiln"],
+  makers: ["kiln", "saw"],
   caps: {
     engineers: 5,
     engineerTrips: 1000000,
@@ -262,7 +271,7 @@ describe("part 2's facts in the save (#666)", () => {
       stock: { ...start.stock, stones: 40, brick: 7 },
       jobs: { ...start.jobs, kilns: 2 },
       piles: { ...start.piles, kiln: 120 },
-      makers: { kiln: 3 },
+      makers: { kiln: 3, saw: 0 },
       stockyard: 2,
     };
     const game = writeGame(mountain);
@@ -280,11 +289,11 @@ describe("part 2's facts in the save (#666)", () => {
   });
 
   it("refuses a part-kiln or a negative level, and a maker it does not know is newer", () => {
-    expect(readGame({ makers: { kiln: 1.5 } }, 0).kind).toBe("bad");
+    expect(readGame({ makers: { kiln: 1.5, saw: 0 } }, 0).kind).toBe("bad");
     expect(readGame({ stockyard: -1 }, 0).kind).toBe("bad");
     expect(readGame({ stockyard: 1.5 }, 0).kind).toBe("bad");
     expect(readGame({ stockyard: "2" }, 0).kind).toBe("bad");
-    expect(readGame({ makers: { saw: 1 } }, 0).kind).toBe("newer");
+    expect(readGame({ makers: { crusher: 1 } }, 0).kind).toBe("newer");
   });
 
   it("reads a stockyard past this build's last level as newer", () => {

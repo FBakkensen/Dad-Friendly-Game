@@ -231,7 +231,7 @@ describe("the refinery's site (#671)", () => {
   it("has a green lamp with something to afford, else dark", () => {
     partTwo(() => {
       expect(siteLamp(lit(15_000), "refinery")).toBe("green");
-      const running = { ...lit(0), makers: { kiln: 1 } };
+      const running = { ...lit(0), makers: { kiln: 1, saw: 0 } };
       expect(siteLamp(running, "refinery")).toBe("dark");
     });
   });
