@@ -1225,6 +1225,22 @@ export function sliceDoneSave(now: number): StoredAsIs {
 }
 
 /**
+ * A save from part 1 after its last roof, as a player had it when part 2 was
+ * switched on (#672): the Light Tower operational, nothing ordered, no kiln,
+ * and more stone than the stockyard's room, since part 1 had none. Its first
+ * session greets with the refinery's card.
+ */
+export function slicePartOneDoneSave(now: number): StoredAsIs {
+  return sliceSave(now, {
+    owned: { helper: 14, cart: 2 },
+    stock: { stones: 8_000_000 },
+    jobs: { drilling: 4, haulage: 3, hoisting: 4, driving: 1, building: 2 },
+    fleet: { horseWagon: 2 },
+    marks: { operational: ["lightTower"] },
+  });
+}
+
+/**
  * The Warehouse's structure going up (#672): the Light Tower operational,
  * the Warehouse's foundation built in, and stone and brick on their way on
  * the second plot.

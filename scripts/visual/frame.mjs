@@ -601,6 +601,15 @@ for (const size of SIZES) {
             !(await cardFacts(page)).shown,
             `${at} Continue closes the ${behind} card`,
           );
+          if (behind === "opens") {
+            check(
+              await page.$eval(
+                '.frame-site[data-site="refinery"]',
+                (el) => el.getClientRects().length > 0,
+              ),
+              `${at} the refinery's tab is in the site bar`,
+            );
+          }
         } else {
           check(
             !after.shown,

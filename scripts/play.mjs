@@ -34,6 +34,7 @@ import {
   sliceDoneSave,
   sliceNightSave,
   sliceOrderedSave,
+  slicePartOneDoneSave,
   sliceRefinerySave,
   sliceYardFullSave,
   sliceRoofSave,
@@ -109,6 +110,12 @@ const SAVES = {
   roof: {
     note: "the roof goes on in the night: the shift report, then the refinery opens",
     save: () => sliceRoofSave(Date.now()),
+    key: DEV_BACKUP_KEY,
+    search: MEMORY,
+  },
+  partonedone: {
+    note: "a part 1 save after the Light Tower's roof, 8M stone: the refinery's card greets it",
+    save: () => slicePartOneDoneSave(Date.now()),
     key: DEV_BACKUP_KEY,
     search: MEMORY,
   },

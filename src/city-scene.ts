@@ -58,7 +58,7 @@ export function buildingX(plot: number): number {
 
 /**
  * The yard of the building in hand, in art px: where its builders stand and
- * where its goods lie. The first plot has room beside the Light Tower. The
+ * where its goods lie, which is where the wagons stop. The first plot has room beside the Light Tower. The
  * second has none beside the Warehouse, so its yard is to its left, on the
  * first plot's free ground beside the Light Tower, operational by then
  * (#672; docs/ART.md, the Warehouse). The third plot's yard comes with part 3.
@@ -324,8 +324,8 @@ function drawWagons(
     }
     return;
   }
-  const site = PLOT_SPANS[scene.sitePlot ?? 0] ?? { x: 0, w: 0 };
-  const end = site.x + site.w - 20;
+  // They stop at the yard's heap, where the site's goods lie (`siteYard`).
+  const end = siteYard(scene.sitePlot ?? 0).heap - 2;
   const span = SCENE_W - end;
   for (let k = 0; k < shown; k += 1) {
     const x = SCENE_W - ((t * 9 + (k * span) / shown) % span);

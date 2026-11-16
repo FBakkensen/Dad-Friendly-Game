@@ -595,6 +595,43 @@ describe("the first evening's card", () => {
   });
 });
 
+describe("the refinery's card for a save from part 1 (#672)", () => {
+  /** A part 1 save after its last roof: the Light Tower up, nothing since. */
+  const partOneDone = (): Mountain => ({
+    ...crew(NO_PROJECT, 8_000_000),
+    operational: ["lightTower"],
+  });
+
+  it("greets a session whose refinery is open and untouched, once, until its key", () => {
+    holdFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 });
+    const { card, press, screen } = mount({ saved: partOneDone(), at: 1_000 });
+    expect(card()).toMatchObject({
+      shown: true,
+      kind: "opens",
+      title: refineryOpens().title,
+      lines: [...refineryOpens().paragraphs],
+    });
+    press();
+    expect(card().shown).toBe(false);
+    screen.paint();
+    expect(card().shown).toBe(false);
+  });
+
+  it("does not greet once a kiln is bought, the stockyard expanded or the Warehouse ordered", () => {
+    holdFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 });
+    const kiln = { ...partOneDone(), makers: { kiln: 1 } };
+    const expanded = { ...partOneDone(), stockyard: 1 };
+    const ordered = placeOrder(partOneDone());
+    for (const saved of [kiln, expanded, ordered]) {
+      expect(mount({ saved, at: 1_000 }).card().shown).toBe(false);
+    }
+  });
+
+  it("does not greet with part 2 off", () => {
+    expect(mount({ saved: partOneDone(), at: 1_000 }).card().shown).toBe(false);
+  });
+});
+
 describe("the cards' words", () => {
   it("name no bottleneck, no limit, no best buy, and no hands", () => {
     const words = [

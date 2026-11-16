@@ -505,7 +505,7 @@ export function mountFrameScreen({
   );
   paint = () => {
     const { mountain, ready } = progress.getSnapshot();
-    // A site that is not open (a dev page left part 2) is never shown.
+    // A site that is not open (a save from another, with no refinery yet) is never shown.
     if (!siteOpen(mountain, site)) {
       site = "mine";
     }
