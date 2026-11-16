@@ -18,6 +18,7 @@ import {
 } from "./mine-levels";
 import { mineLevelFlows, mineTurnPerLoad, mineWork } from "./mine-piles";
 import {
+  LEVEL_NAMES,
   STAGE_NAMES,
   levelPile,
   levelScene,
@@ -56,10 +57,6 @@ import {
  * Nothing here names a limit, the bottleneck or which level a hoist should
  * serve.
  */
-
-/** The levels' names, as the mine and the strip say them. */
-export const LEVEL_NAMES: Readonly<Record<MineLevelId, "Topsoil" | "Granite">> =
-  { topsoil: "Topsoil", granite: "Granite" };
 
 /** The strip's third cell: the hoists no level has. */
 export const BOTH_IN_TURN = "Both in turn";

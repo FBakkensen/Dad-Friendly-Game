@@ -8,12 +8,14 @@ import {
   UNSUNK,
   graniteOpen,
   levelMachines,
+  openLevels,
   shaftOpen,
   shaftPrice,
   sinkShaft,
   withGraniteMachine,
 } from "./mine-levels";
 import { createMountain, type Mountain } from "./mountain";
+import { levels } from "./part-three.harness";
 import { PART_THREE_OFF, PART_TWO_OFF, partThreeOn } from "./part-switch";
 import type { Stock } from "./stock";
 
@@ -181,5 +183,19 @@ describe("a machine bought for the Granite (#673)", () => {
       const unsunk = createMountain();
       expect(withGraniteMachine(unsunk, "borer")).toBe(unsunk);
     });
+  });
+});
+
+describe("the open levels (#754)", () => {
+  it("are the Topsoil, and the Granite too once it is open", () => {
+    expect(partThree(() => openLevels(levels({})))).toEqual([
+      "topsoil",
+      "granite",
+    ]);
+    expect(partThree(() => openLevels(levels({ sunk: false })))).toEqual([
+      "topsoil",
+    ]);
+    // A sunk save with part 3 off has the Topsoil alone.
+    expect(partTwo(() => openLevels(levels({})))).toEqual(["topsoil"]);
   });
 });

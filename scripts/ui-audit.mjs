@@ -36,11 +36,13 @@ import {
   sliceNightSave,
   sliceRefinerySave,
   sliceFactoryOrderSave,
+  sliceGraniteUnsunkSave,
   sliceTwoLevelsSave,
   sliceRoofSave,
   sliceStartSave,
   sliceWarehouseRoofSave,
   sliceWarehouseSave,
+  sliceWarehouseTrucksSave,
   sliceYardFullSave,
 } from "../tools/browser/fixtures.ts";
 
@@ -707,6 +709,42 @@ async function main() {
       search: `${MEMORY}&part3=1`,
     }),
   );
+  // The saws, the trucks and the Granite's card, on the same dev page (#754).
+  await capture("slice-refinery-two-levels", (viewport) =>
+    openFrame(viewport, sliceTwoLevelsSave(Date.now()), "refinery", {
+      search: `${MEMORY}&part3=1`,
+    }),
+  );
+  await capture("slice-city-trucks", (viewport) =>
+    openFrame(viewport, sliceWarehouseTrucksSave(Date.now()), "city", {
+      search: `${MEMORY}&part3=1`,
+    }),
+  );
+  await capture("slice-city-trucks-hint", (viewport) =>
+    openFrame(viewport, sliceWarehouseSave(Date.now()), "city", {
+      search: `${MEMORY}&part3=1`,
+    }),
+  );
+  await capture("slice-card-granite", async (viewport) => {
+    const opened = await openFrame(
+      viewport,
+      sliceGraniteUnsunkSave(Date.now()),
+      "mine",
+      { search: `${MEMORY}&part3=1` },
+    );
+    await press(opened.page, ".mine-sink");
+    await opened.page.waitForSelector('.frame-card[data-card="level"]', {
+      visible: true,
+      timeout: 8_000,
+    });
+    await frameCardUp(opened.page);
+    await expectText(
+      opened.page,
+      /The Granite: reached/i,
+      "the Granite's card",
+    );
+    return opened;
+  });
   await capture("slice-card-report-yard", async (viewport) => {
     const opened = await openAuditPage(viewport, sliceYardFullSave(Date.now()));
     await frameCardUp(opened.page);

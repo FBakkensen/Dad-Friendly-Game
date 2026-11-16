@@ -10,7 +10,8 @@
  * the report of a night the stockyard stopped, with its second key. Part 3
  * (#681), on a dev page with `?part3=1`: the factory, idle, delivering and
  * done, and a blueprint dragged onto the station; and the mine with two
- * levels (#680), its machine card, and the two levels the Sink key opens.
+ * levels (#680), its machine card, and the two levels the Sink key opens,
+ * behind the card that says the Granite is reached (#754).
  */
 import {
   DEV_BACKUP_KEY,
@@ -30,6 +31,7 @@ import {
   sliceTwoLevelsSave,
   sliceWarehouseRoofSave,
   sliceWarehouseSave,
+  sliceWarehouseTrucksSave,
   sliceYardFullSave,
 } from "../../tools/browser/fixtures.ts";
 import { targetsCloserThan } from "../../src/ui-audit-measure.ts";
@@ -815,6 +817,119 @@ for (const size of SIZES) {
   });
 }
 
+/**
+ * The transport plate's row (#754): each shown key's and the trucks' hint's
+ * box in board px, the hint's words, and whether any of them is cut.
+ */
+async function truckRowFacts(page) {
+  return page.evaluate(() => {
+    const board = globalThis.__board();
+    const row = document.querySelector(".city-plate-keys");
+    const cells = [...(row?.children ?? [])]
+      .filter((el) => el.getClientRects().length > 0)
+      .map((el) => {
+        const r = el.getBoundingClientRect();
+        return {
+          name: el.dataset.vehicle ?? el.dataset.way ?? el.className,
+          button: el.tagName === "BUTTON",
+          t: (r.top - board.top) / board.scale,
+          l: (r.left - board.left) / board.scale,
+          w: r.width / board.scale,
+          h: r.height / board.scale,
+          cut:
+            el.scrollWidth > el.clientWidth + 1 ||
+            el.scrollHeight > el.clientHeight + 1,
+        };
+      });
+    const hint = document.querySelector(".city-hint");
+    return {
+      cells,
+      hint: hint === null || hint.hidden ? undefined : (hint.textContent ?? ""),
+    };
+  });
+}
+
+/** Every cell of the row on one line, at least 48px, none cut, in this order. */
+function truckRowFits(facts, names) {
+  const { cells } = facts;
+  return (
+    cells.length === names.length &&
+    cells.every(
+      (cell, at) =>
+        cell.name.split(" ").includes(names[at]) &&
+        Math.abs(cell.t - cells[0].t) < 0.5 &&
+        cell.w >= 47.5 &&
+        cell.h >= 47.5 &&
+        !cell.cut,
+    )
+  );
+}
+
+for (const size of SIZES) {
+  const label = `${String(size[0])}x${String(size[1])}`;
+  // Part 3 (#754): the truck key beside the wagon's, and before it the hint.
+  section(`${label} slice city trucks`, async () => {
+    const rows = [
+      {
+        name: "key",
+        save: sliceWarehouseTrucksSave(Date.now()),
+        cells: ["free", "place", "horseWagon", "truck"],
+        hint: undefined,
+      },
+      {
+        name: "hint",
+        save: sliceWarehouseSave(Date.now()),
+        cells: ["free", "place", "horseWagon", "city-hint"],
+        hint: "Trucks: after the Warehouse",
+      },
+    ];
+    for (const row of rows) {
+      const { page, close } = await openScreen(size, row.save, {
+        search: "?memorySave=1&part3=1",
+        seedKey: DEV_BACKUP_KEY,
+      });
+      try {
+        await page.waitForSelector(".frame-next-line");
+        await tap(page, '.frame-site[data-site="city"]');
+        const at = `${label} slice city trucks ${row.name}:`;
+        const facts = await truckRowFacts(page);
+        const frame = await frameFacts(page);
+        await shot(page, `slice-city-trucks-${row.name}-${label}`);
+        check(
+          truckRowFits(facts, row.cells),
+          `${at} − + wagon and the ${row.name} on one row, each at least 48px and none cut (${JSON.stringify(facts.cells)})`,
+        );
+        check(
+          facts.hint === row.hint,
+          `${at} the hint reads ${JSON.stringify(row.hint)} (${JSON.stringify(facts.hint)})`,
+        );
+        check(
+          facts.cells.every(
+            (cell) => cell.button !== (cell.name === "city-hint"),
+          ),
+          `${at} every cell but the hint is a key`,
+        );
+        check(
+          cityFits(frame),
+          `${at} the plate on top, the tags over the card at the foot (${JSON.stringify(frame.city)})`,
+        );
+        check(
+          frame.small.length === 0 && frame.cut.length === 0,
+          `${at} every key is at least 48px and no word is cut (${JSON.stringify([frame.small, frame.cut])})`,
+        );
+        const close8 = await keyGaps(page, FRAME_KEYS);
+        check(
+          close8.length === 0,
+          `${at} every key stands at least 8px from the next (${close8.join("; ")})`,
+        );
+        check(await noScroll(page), `${at} the page does not scroll`);
+      } finally {
+        await close();
+      }
+    }
+  });
+}
+
 /** The city's no-free-worker note: whether it is up, and the plot names it covers. */
 async function cityNoteFacts(page) {
   return page.evaluate(() => {
@@ -850,6 +965,8 @@ async function refineryFacts(page) {
       return {
         t: (r.top - board.top) / board.scale,
         b: (r.bottom - board.top) / board.scale,
+        l: (r.left - board.left) / board.scale,
+        r: (r.right - board.left) / board.scale,
         w: r.width / board.scale,
         h: r.height / board.scale,
       };
@@ -857,6 +974,17 @@ async function refineryFacts(page) {
     const shown = (el) =>
       el.getClientRects().length > 0 && el.closest("[hidden]") === null;
     const scene = document.querySelector(".refinery:not([hidden])");
+    const plates = [...(scene?.querySelectorAll(".refinery-plate") ?? [])].map(
+      (el) => ({
+        name: el.querySelector(".mine-stage-name")?.textContent ?? "",
+        ...px(el),
+      }),
+    );
+    const labels = [
+      ...(scene?.querySelectorAll(".refinery-in, .refinery-bypass") ?? []),
+    ]
+      .filter(shown)
+      .map((el) => ({ name: el.className, ...px(el) }));
     const panel = scene?.querySelector(".refinery-panel");
     const small = [...(scene?.querySelectorAll("button") ?? [])]
       .filter(shown)
@@ -878,8 +1006,14 @@ async function refineryFacts(page) {
     return {
       scene: scene === null ? undefined : px(scene),
       panel: panel === null || panel === undefined ? undefined : px(panel),
-      piles: document.querySelectorAll(".frame-top.two-piles .frame-pile")
-        .length,
+      plates,
+      labels,
+      piles: [
+        ...document.querySelectorAll(".frame-top.two-piles .frame-pile"),
+      ].filter(shown).length,
+      bays: [...(scene?.querySelectorAll(".refinery-bay") ?? [])]
+        .filter(shown)
+        .map((el) => el.textContent ?? ""),
       small,
       cut,
       hires: hires.map((el) => el.parentElement?.className ?? ""),
@@ -887,6 +1021,44 @@ async function refineryFacts(page) {
     };
   });
 }
+
+/** What the refinery has to meet at any size, with one plate or two. */
+async function checkRefinery(page, at, facts) {
+  check(await noScroll(page), `${at} the page does not scroll`);
+  check(
+    facts.scene !== undefined &&
+      facts.panel !== undefined &&
+      facts.panel.t >= facts.scene.t - 0.5 &&
+      facts.panel.b <= facts.scene.b + 0.5,
+    `${at} the makers' plates and the stockyard sit inside the refinery (${JSON.stringify([facts.scene, facts.panel])})`,
+  );
+  check(
+    facts.hires.length === 1 && facts.hires[0].split(" ").includes("frame-top"),
+    `${at} one hire key, in the top row (${facts.hires.join(", ")})`,
+  );
+  check(
+    facts.small.length === 0,
+    `${at} every key is at least 48px (${JSON.stringify(facts.small)})`,
+  );
+  check(
+    facts.cut.length === 0,
+    `${at} no word is cut (${facts.cut.join(", ")})`,
+  );
+  check(
+    !/\bhands?\b|by hand|bottleneck|\blimit|best buy|\bface\b/i.test(
+      facts.words,
+    ),
+    `${at} no hands, no face, and no bottleneck, limit or best buy named`,
+  );
+  const near = await keyGaps(page, FRAME_KEYS);
+  check(
+    near.length === 0,
+    `${at} every key stands at least 8px from the next (${near.join("; ")})`,
+  );
+}
+
+/** Two boxes in board px that share any point. */
+const overlap = (a, b) => a.l < b.r && a.r > b.l && a.t < b.b && a.b > b.t;
 
 for (const size of SIZES) {
   const label = `${String(size[0])}x${String(size[1])}`;
@@ -902,41 +1074,77 @@ for (const size of SIZES) {
       const at = `${label} slice refinery:`;
       const facts = await refineryFacts(page);
       await shot(page, `slice-refinery-${label}`);
-      check(await noScroll(page), `${at} the page does not scroll`);
-      check(
-        facts.scene !== undefined &&
-          facts.panel !== undefined &&
-          facts.panel.t >= facts.scene.t - 0.5 &&
-          facts.panel.b <= facts.scene.b + 0.5,
-        `${at} the kilns' plate and the stockyard sit inside the refinery (${JSON.stringify([facts.scene, facts.panel])})`,
-      );
+      await checkRefinery(page, at, facts);
       check(
         facts.piles === 2,
         `${at} the top row shows the two stockpiles (${String(facts.piles)})`,
       );
       check(
-        facts.hires.length === 1 &&
-          facts.hires[0].split(" ").includes("frame-top"),
-        `${at} one hire key, in the top row (${facts.hires.join(", ")})`,
+        facts.plates.length === 1 && facts.plates[0].name === "Kilns",
+        `${at} the kilns' plate alone (${JSON.stringify(facts.plates)})`,
+      );
+    } finally {
+      await close();
+    }
+  });
+
+  // Part 3 (#754): the saws' plate beside the kilns', the Granite's hopper over it.
+  section(`${label} slice refinery two levels`, async () => {
+    const { page, close } = await openScreen(
+      size,
+      sliceTwoLevelsSave(Date.now()),
+      { search: "?memorySave=1&part3=1", seedKey: DEV_BACKUP_KEY },
+    );
+    try {
+      await page.waitForSelector('.frame-site[data-site="refinery"]');
+      await tap(page, '.frame-site[data-site="refinery"]');
+      const at = `${label} slice refinery two levels:`;
+      const facts = await refineryFacts(page);
+      await shot(page, `slice-refinery-two-levels-${label}`);
+      await checkRefinery(page, at, facts);
+      const [kilns, saws] = facts.plates;
+      check(
+        facts.plates.length === 2 &&
+          kilns.name === "Kilns" &&
+          saws.name === "Saws" &&
+          Math.abs(kilns.t - saws.t) < 0.5 &&
+          kilns.r <= saws.l,
+        `${at} the kilns' and the saws' plates side by side (${JSON.stringify(facts.plates)})`,
       );
       check(
-        facts.small.length === 0,
-        `${at} every key is at least 48px (${JSON.stringify(facts.small)})`,
+        facts.scene !== undefined &&
+          facts.plates.length === 2 &&
+          kilns.l >= facts.scene.l - 0.5 &&
+          saws.r <= facts.scene.r + 0.5,
+        `${at} both plates sit inside the refinery from side to side (${JSON.stringify([facts.scene, facts.plates])})`,
+      );
+      // The saws' good has its stockpile (#754): the top row's third, and the stockyard's third bay.
+      check(
+        facts.piles === 3,
+        `${at} the top row shows stone, brick and cut stone (${String(facts.piles)})`,
       );
       check(
-        facts.cut.length === 0,
-        `${at} no word is cut (${facts.cut.join(", ")})`,
+        facts.bays.length === 3 && /^Cut stone /.test(facts.bays[2] ?? ""),
+        `${at} the stockyard has a bay for cut stone (${JSON.stringify(facts.bays)})`,
+      );
+      const names = facts.labels.map((each) => each.name).join(", ");
+      check(
+        facts.labels.length === 3,
+        `${at} the Topsoil, the Granite and the bypass are named (${names})`,
+      );
+      const crossed = facts.labels.flatMap((a, i) =>
+        facts.labels
+          .slice(i + 1)
+          .filter((b) => overlap(a, b))
+          .map((b) => `${a.name} / ${b.name}`),
       );
       check(
-        !/\bhands?\b|by hand|bottleneck|\blimit|best buy|\bface\b/i.test(
-          facts.words,
-        ),
-        `${at} no hands, no face, and no bottleneck, limit or best buy named`,
+        crossed.length === 0,
+        `${at} the names over the hoppers and the chute do not cover each other (${crossed.join("; ")})`,
       );
-      const near = await keyGaps(page, FRAME_KEYS);
       check(
-        near.length === 0,
-        `${at} every key stands at least 8px from the next (${near.join("; ")})`,
+        facts.labels.every((each) => each.b <= (facts.panel?.t ?? 0)),
+        `${at} the names sit above the plates (${JSON.stringify(facts.labels)})`,
       );
     } finally {
       await close();
@@ -1401,6 +1609,17 @@ async function checkGate(page, at) {
   );
 }
 
+/**
+ * Taps the Sink and waits for the card that says the Granite is reached
+ * (#754), which comes over the frame before the two levels are seen.
+ */
+async function sinkTheShaft(page) {
+  await page.waitForSelector(".mine-sink:not([hidden])");
+  await tap(page, ".mine-sink");
+  await page.waitForSelector('.frame-card[data-card="level"]:not([hidden])');
+  return cardFacts(page);
+}
+
 for (const size of SIZES) {
   const label = `${String(size[0])}x${String(size[1])}`;
   section(`${label} slice mine two levels`, async () => {
@@ -1454,10 +1673,40 @@ for (const size of SIZES) {
       const at = `${label} slice mine two levels from the Sink:`;
       await shot(page, `slice-mine-granite-unsunk-${label}`);
       await checkGate(page, at);
-      await tap(page, ".mine-sink");
+      await sinkTheShaft(page);
+      await tap(page, ".frame-card-key");
       await page.waitForSelector(".mine-levels:not([hidden])");
       await shot(page, `slice-mine-sunk-${label}`);
       await checkTwoLevels(page, at);
+    } finally {
+      await close();
+    }
+  });
+
+  section(`${label} slice card granite`, async () => {
+    const { page, close } = await openScreen(
+      size,
+      sliceGraniteUnsunkSave(Date.now()),
+      { search: "?memorySave=1&part3=1", seedKey: DEV_BACKUP_KEY },
+    );
+    try {
+      const at = `${label} slice card granite:`;
+      const card = await sinkTheShaft(page);
+      await shot(page, `slice-card-granite-${label}`);
+      checkCard(card, at, "level");
+      check(
+        /The Granite: reached/i.test(card.words) &&
+          card.words.includes("Continue"),
+        `${at} the card says the Granite is reached, with Continue`,
+      );
+      check(
+        await noScroll(page),
+        `${at} the Granite's card does not scroll the page`,
+      );
+      await tap(page, ".frame-card-key");
+      check(!(await cardFacts(page)).shown, `${at} Continue closes the card`);
+      const levels = await page.$eval(".mine-levels", (el) => !el.hidden);
+      check(levels, `${at} the mine shows its two levels behind the card`);
     } finally {
       await close();
     }

@@ -103,8 +103,12 @@ function vehicleById(id: VehicleId): Vehicle {
   return VEHICLE_BY_ID[id];
 }
 
-/** The best carriers first: the drivers take the trucks first (rule 2.7). */
-const BY_LOAD: readonly Vehicle[] = [...VEHICLES].sort(
+/**
+ * The best carriers first: the drivers take the trucks first (rule 2.7).
+ * The order `drivenFleet` hands drivers out in, which the city's road
+ * draws in too (#754).
+ */
+export const BY_LOAD: readonly Vehicle[] = [...VEHICLES].sort(
   (a, b) => b.carries - a.carries,
 );
 

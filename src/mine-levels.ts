@@ -91,6 +91,13 @@ export function graniteOpen(mountain: Pick<Mountain, "granite">): boolean {
   return openGranite(mountain) !== undefined;
 }
 
+/** The open levels, the Topsoil first: the cages' plan and the refinery's hoppers read them (#754). */
+export function openLevels(
+  mountain: Pick<Mountain, "granite">,
+): readonly MineLevelId[] {
+  return graniteOpen(mountain) ? MINE_LEVEL_IDS : ["topsoil"];
+}
+
 /**
  * The mountain with the shaft sunk and paid for, or the same object when it
  * cannot be sunk or the stock does not cover the price.

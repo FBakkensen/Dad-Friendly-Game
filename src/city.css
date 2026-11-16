@@ -72,6 +72,18 @@
   gap: var(--target-gap);
 }
 
+/*
+ * The trucks' hint (#754): a dark cell in the truck key's place, with the
+ * key's look (mine.css, which this outranks wherever the sheets load), that
+ * takes no tap. Its words are the key's small line and may wrap.
+ */
+.frame .city-plate-keys > .city-hint {
+  padding: 0 var(--art);
+  font-size: var(--board-type-13);
+  font-weight: 600;
+  white-space: normal;
+}
+
 /* The plots' tags, under the road. */
 .city-tags {
   position: absolute;
@@ -219,7 +231,8 @@
 .city-steps[hidden],
 .city-completion[hidden],
 .frame .city-order[hidden],
-.frame .city-key[hidden] {
+.frame .city-key[hidden],
+.frame .city-hint[hidden] {
   display: none;
 }
 

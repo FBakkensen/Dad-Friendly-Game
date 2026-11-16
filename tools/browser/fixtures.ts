@@ -433,14 +433,40 @@ export function sliceGraniteUnsunkSave(now: number): SeedSave {
 }
 
 /**
+ * Part 3 (#754), on a dev page with `?part3=1`: the Light Tower and the
+ * Warehouse operational, two wagons with their drivers, and the brick for a
+ * truck. The city's transport plate has the truck key beside the wagon's.
+ */
+export function sliceWarehouseTrucksSave(now: number): SeedSave {
+  return sliceSave(now, {
+    owned: { helper: 16, cart: 2 },
+    stock: { stones: 120_000, brick: 200_000 },
+    jobs: {
+      drilling: 4,
+      haulage: 3,
+      hoisting: 4,
+      driving: 2,
+      building: 2,
+      kilns: 1,
+    },
+    fleet: { horseWagon: 2 },
+    marks: { operational: ["lightTower", "warehouse"] },
+    makers: { kiln: 1 },
+  });
+}
+
+/**
  * Part 3 (#680), on a dev page with `?part3=1`: the shaft sunk, both levels
  * working on their own workers and machines, a hoist assigned to each
  * level and one for both in turn, rock in every level's piles, two free
- * workers, and the cut stone to buy a borer for either level.
+ * workers, the cut stone to buy a borer for either level, and in the
+ * refinery a kiln with its worker and two saws with one, the brick for
+ * another saw, and both makers' piles full: the Topsoil's rock past the
+ * kilns bypasses to stone, and the Granite's hopper is fed (#754).
  */
 export function sliceTwoLevelsSave(now: number): SeedSave {
   return sliceSave(now, {
-    owned: { helper: 24, cart: 3, drill: 2, hoist: 3 },
+    owned: { helper: 25, cart: 3, drill: 2, hoist: 3 },
     stock: {
       stones: 2_000_000,
       brick: 200_000,
@@ -457,14 +483,15 @@ export function sliceTwoLevelsSave(now: number): SeedSave {
       driving: 2,
       building: 2,
       kilns: 1,
+      saws: 1,
     },
     fleet: { horseWagon: 2 },
     marks: { operational: ["lightTower", "warehouse"] },
-    makers: { kiln: 1 },
-    piles: { face: 200, shaft: 150, kiln: 120 },
+    makers: { kiln: 1, saw: 2 },
+    piles: { face: 200, shaft: 150, kiln: 2_400 },
     granite: {
       machines: { cart: 1, drill: 1 },
-      piles: { face: 150, shaft: 120 },
+      piles: { face: 150, shaft: 120, saw: 2_400 },
     },
     cages: { assigned: { topsoil: 1, granite: 1 } },
     run: { rock: 30_000_000, granite: 1_000_000 },

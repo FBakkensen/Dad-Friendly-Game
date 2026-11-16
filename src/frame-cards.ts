@@ -2,6 +2,7 @@ import { el, write, writeFigures } from "./board-dom";
 import type { BuildingId } from "./city";
 import {
   FIRST_EVENING,
+  LEVEL_REACHED,
   refineryOpens,
   endCard,
   type CardWords,
@@ -10,7 +11,7 @@ import { makersOpen } from "./makers";
 import { FRESH_START_JOBS, type AwayReport, type Mountain } from "./mountain";
 import { partTwoOn } from "./part-switch";
 import type { ProgressSnapshot, ProgressStore } from "./progress-store";
-import { firstNotice } from "./session";
+import { firstNotice, type DismissTarget } from "./session";
 import { JOB_IDS, workersOnJobs } from "./workforce";
 import {
   shiftReport,
@@ -26,8 +27,9 @@ import {
  * end card when a part's last roof goes on (its `operational` notice,
  * closed the same way; in part 2 the Light Tower's roof brings the card that
  * opens the refinery, and the Warehouse's the end card, #671). The report
- * comes first and the end card waits
- * behind it. The first evening's card (#703) greets a session that opens
+ * comes first and the end card waits behind it. In part 3 the card of a
+ * level reached (the shaft sunk, its `level` notice, #754) comes between
+ * them. The first evening's card (#703) greets a session that opens
  * with nothing ordered and nothing operational, once, until its key is
  * pressed; it is not a save fact. A save from part 1 whose Light Tower was
  * already up when part 2 was switched on (#672) never saw the refinery's
@@ -37,6 +39,7 @@ import {
 
 type FrameCard =
   | { readonly kind: "report"; readonly report: AwayReport }
+  | { readonly kind: "level" }
   | { readonly kind: "end"; readonly building: BuildingId }
   | { readonly kind: "opens" }
   | { readonly kind: "first" };
@@ -97,14 +100,17 @@ export function nightReport(
 }
 
 /**
- * The card to show now: the report, else the end card while its notice is
- * open, else the first evening's while the session greets it and nothing
- * is ordered or operational.
+ * The card to show now: the report, else a level reached, else the end card
+ * while its notice is open, else the first evening's while the session
+ * greets it and nothing is ordered or operational.
  */
 function frameCard(view: CardView, greet: Greeting): FrameCard | undefined {
   const report = nightReport(view);
   if (report !== undefined) {
     return { kind: "report", report };
+  }
+  if (firstNotice(view, "level") !== undefined) {
+    return { kind: "level" };
   }
   const building = firstNotice(view, "operational")?.building;
   if (building !== undefined) {
@@ -117,6 +123,14 @@ function frameCard(view: CardView, greet: Greeting): FrameCard | undefined {
   return greeting?.holds(view.mountain) === true
     ? { kind: greeting.kind }
     : undefined;
+}
+
+/** The notice a card's key closes: the first evening's is not a notice. */
+function noticeOf(card: Exclude<FrameCard, { kind: "first" }>): DismissTarget {
+  if (card.kind === "report") {
+    return "away";
+  }
+  return card.kind === "level" ? "level" : "operational";
 }
 
 const sameCard = (a: FrameCard | undefined, b: FrameCard | undefined) =>
@@ -230,6 +244,9 @@ function cardWords(card: Exclude<FrameCard, { kind: "report" }>): CardWords {
   if (card.kind === "first") {
     return FIRST_EVENING;
   }
+  if (card.kind === "level") {
+    return LEVEL_REACHED;
+  }
   return card.kind === "opens" ? refineryOpens() : endCard(card.building);
 }
 
@@ -291,7 +308,7 @@ export function createFrameCards({
       greet = "none";
     }
     if (shown !== undefined && shown.kind !== "first") {
-      progress.dismiss(shown.kind === "report" ? "away" : "operational");
+      progress.dismiss(noticeOf(shown));
     }
     paint();
   });

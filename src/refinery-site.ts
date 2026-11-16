@@ -2,6 +2,9 @@ import brickUrl from "./assets/board/res-brick.png";
 import { el, hide, icon, mark, setAttr, write } from "./board-dom";
 import type { FrameState } from "./frame-state";
 import { listenSteps, paintSteps, stepper } from "./job-steps";
+import type { MakerId } from "./makers";
+import { MINE_LEVEL_IDS, type MineLevelId } from "./mine-levels";
+import type { LevelHopper } from "./mine-view";
 import { buildKeyFace, paintMachineKey, type KeyParts } from "./mine-site";
 import type { Mountain } from "./mountain";
 import {
@@ -15,7 +18,7 @@ import {
   BYPASS_RECIPE,
   nightForecast,
   refineryView,
-  type KilnPlate,
+  type MakerPlate,
   type RefineryView,
   type StockyardView,
 } from "./refinery-view";
@@ -31,6 +34,9 @@ import "./refinery.css";
  * and the stockyard at the foot with its bays and "Expand the stockyard".
  * It paints the pure view (refinery-view) and changes the game only through
  * `progress.dispatch`. There is no hire key here: hiring is in the frame.
+ *
+ * Part 3 (#754): with the saws open their plate sits beside the kilns', and
+ * the Granite's rock is named over its own hopper on the right.
  */
 
 export type RefinerySite = {
@@ -53,17 +59,22 @@ type PlateParts = {
   readonly key: KeyParts;
 };
 
-/** One more kiln, on the mine's own key (a maker is bought one at a time). */
-function buildKey(state: FrameState): KeyParts {
-  return buildKeyFace("mine-key refinery-kiln-key", () => {
-    if (refineryView(state.mountain()).plate.key.can) {
-      void state.progress.dispatch({ kind: "buyMaker", id: "kiln" });
+/** One more kiln or saw, on the mine's own key (a maker is bought one at a time). */
+function buildKey(state: FrameState, id: MakerId): KeyParts {
+  return buildKeyFace(`mine-key refinery-maker-key refinery-${id}-key`, () => {
+    const plate = refineryView(state.mountain()).plates.find(
+      (each) => each.id === id,
+    );
+    if (plate?.key.can === true) {
+      void state.progress.dispatch({ kind: "buyMaker", id });
     }
   });
 }
 
-function buildPlate(state: FrameState): PlateParts {
+/** A maker's plate, for its maker: its name, its unit and its job do not change. */
+function buildPlate(state: FrameState, plate: MakerPlate): PlateParts {
   const root = el("div", "refinery-plate");
+  root.dataset["maker"] = plate.id;
   const recipe = el("p", "refinery-recipe");
   const row = el("div", "refinery-row");
   const info = el("div", "refinery-info");
@@ -71,22 +82,22 @@ function buildPlate(state: FrameState): PlateParts {
   const now = el("b", "board-num");
   const can = el("i", "board-num");
   const rate = el("span", "mine-stage-rate");
-  rate.append(now, " of ", can, " brick/s");
-  head.append(el("span", "mine-stage-name", "Kilns"), rate);
+  rate.append(now, " of ", can, ` ${plate.unit}`);
+  head.append(el("span", "mine-stage-name", plate.name), rate);
   const runs = el("span", "refinery-machines");
   const machines = el("span", "");
   const idle = el("span", "refinery-idle");
   runs.append(machines, idle);
   const pile = el("span", "mine-stage-pile");
   info.append(head, runs, pile);
-  const minus = stepper("−", "kilns", "free");
-  const plus = stepper("+", "kilns", "place");
+  const minus = stepper("−", plate.job, "free");
+  const plus = stepper("+", plate.job, "place");
   const count = el("b", "board-num");
   const unit = el("small", "");
   const workers = el("span", "mine-stage-count");
   workers.append(count, unit);
   row.append(info, minus, workers, plus);
-  const key = buildKey(state);
+  const key = buildKey(state, plate.id);
   root.append(recipe, row, key.root);
   return {
     root,
@@ -106,7 +117,7 @@ function buildPlate(state: FrameState): PlateParts {
 
 function paintPlate(
   parts: PlateParts,
-  plate: KilnPlate,
+  plate: MakerPlate,
   amount: BuyAmount,
 ): void {
   write(parts.recipe, plate.recipe);
@@ -120,7 +131,45 @@ function paintPlate(
   write(parts.count, String(plate.workers));
   write(parts.unit, plate.workers === 1 ? "worker" : "workers");
   paintSteps(parts, plate, amount);
-  paintMachineKey(parts.key, plate.key);
+  paintMachineKey(parts.key, plate.key, plate.key.good);
+}
+
+/**
+ * The makers' plates, one for each open maker (side by side with the site's
+ * `.two`). They are built again when the makers change, as the Granite
+ * opens, as the workforce sheet builds its groups again.
+ */
+function buildPlates(state: FrameState): {
+  readonly root: HTMLElement;
+  readonly paint: (plates: readonly MakerPlate[], amount: BuyAmount) => void;
+} {
+  const root = el("div", "refinery-plates");
+  const parts = new Map<MakerId, PlateParts>();
+  let shown = "";
+  const layout = (plates: readonly MakerPlate[]): void => {
+    const key = plates.map((plate) => plate.id).join(",");
+    if (key === shown) {
+      return;
+    }
+    shown = key;
+    parts.clear();
+    for (const plate of plates) {
+      parts.set(plate.id, buildPlate(state, plate));
+    }
+    root.replaceChildren(...[...parts.values()].map((each) => each.root));
+  };
+  return {
+    root,
+    paint: (plates, amount) => {
+      layout(plates);
+      for (const plate of plates) {
+        const each = parts.get(plate.id);
+        if (each !== undefined) {
+          paintPlate(each, plate, amount);
+        }
+      }
+    },
+  };
 }
 
 type YardParts = {
@@ -138,7 +187,12 @@ function buildYard(state: FrameState): YardParts {
   const canvas = el("canvas", "refinery-yard-canvas");
   canvas.setAttribute("aria-hidden", "true");
   const labels = el("div", "refinery-bays");
-  const bays = [el("span", "refinery-bay"), el("span", "refinery-bay")];
+  // Brick, stone, and cut stone once the saws open: a bay with no stockpile is hidden.
+  const bays = [
+    el("span", "refinery-bay"),
+    el("span", "refinery-bay"),
+    el("span", "refinery-bay"),
+  ];
   labels.append(...bays);
   const expand = el("button", "refinery-expand");
   expand.type = "button";
@@ -184,16 +238,38 @@ function paintYard(
   }
 }
 
-/** The overlay over the canvas: the Topsoil's rock coming up, and the bypass. */
+/** A level's name and its rate over its hopper. */
+type InParts = {
+  readonly root: HTMLElement;
+  readonly name: HTMLElement;
+  readonly rate: HTMLElement;
+};
+
+function buildIn(level: MineLevelId): InParts {
+  const root = el("p", `refinery-in refinery-in-${level}`);
+  const name = el("b", "");
+  const rate = el("span", "board-num");
+  root.append(name, " ", rate);
+  return { root, name, rate };
+}
+
+/** A level's rock over its hopper, or nothing while the level is shut. */
+function paintIn(parts: InParts, hopper: LevelHopper | undefined): void {
+  hide(parts.root, hopper === undefined);
+  write(parts.name, hopper?.name ?? "");
+  write(parts.rate, hopper?.rate ?? "");
+}
+
+/** The overlay over the canvas: each level's rock coming up, and the bypass. */
 function buildOverlay(): {
   readonly root: HTMLElement;
-  readonly rate: HTMLElement;
+  readonly ins: Readonly<Record<MineLevelId, InParts>>;
   readonly bypass: HTMLElement;
 } {
   const root = el("div", "refinery-over");
-  const hopper = el("p", "refinery-in");
-  const rate = el("span", "board-num");
-  hopper.append(el("b", "", "Topsoil"), " ", rate);
+  const ins = Object.fromEntries(
+    MINE_LEVEL_IDS.map((level) => [level, buildIn(level)]),
+  ) as Record<MineLevelId, InParts>;
   const chute = el("p", "refinery-bypass");
   const bypass = el("span", "board-num");
   chute.append(
@@ -201,8 +277,8 @@ function buildOverlay(): {
     bypass,
     el("span", "", BYPASS_RECIPE),
   );
-  root.append(hopper, chute);
-  return { root, rate, bypass };
+  root.append(...MINE_LEVEL_IDS.map((level) => ins[level].root), chute);
+  return { root, ins, bypass };
 }
 
 /** How often the night forecast is played again: it is a whole night on a copy. */
@@ -214,9 +290,15 @@ type Forecast = {
   readonly words: string;
 };
 
-/** What the forecast turns on at once: the stockyard's level, the kilns and who runs them. */
+/** What the forecast turns on at once: the stockyard's level, the makers and who runs them. */
 const forecastKey = (mountain: Mountain): string =>
-  [mountain.stockyard, mountain.makers.kiln, mountain.jobs.kilns].join(":");
+  [
+    mountain.stockyard,
+    mountain.makers.kiln,
+    mountain.jobs.kilns,
+    mountain.makers.saw,
+    mountain.jobs.saws,
+  ].join(":");
 
 /**
  * The forecast again once a second, or at once when a buy or a move changed
@@ -248,10 +330,10 @@ export function createRefinerySite(
   const panel = el("div", "refinery-panel");
   const note = el("p", "mine-note", NO_FREE_WORKER);
   note.hidden = true;
-  const plate = buildPlate(state);
+  const plates = buildPlates(state);
   const yard = buildYard(state);
-  panel.append(note, plate.root, yard.root);
-  listenSteps(plate.root, state, note);
+  panel.append(note, plates.root, yard.root);
+  listenSteps(plates.root, state, note);
   root.append(canvas, over.root, panel);
   let view: RefineryView = refineryView(state.mountain());
   let visible = false;
@@ -261,7 +343,10 @@ export function createRefinerySite(
     canvas,
     {
       shown: () => visible,
-      ground: paintWall,
+      ground: (c, height) => {
+        paintWall(c, height, view.scene.saws !== undefined);
+      },
+      layout: () => (view.scene.saws === undefined ? 1 : 2),
       draw: (c, clock) => {
         drawRefinery(c, sprites, view.scene, clock);
       },
@@ -272,7 +357,10 @@ export function createRefinerySite(
     yard.canvas,
     {
       shown: () => visible,
-      ground: paintYardGround,
+      ground: (c, height) => {
+        paintYardGround(c, height, view.scene.bays.length);
+      },
+      layout: () => view.scene.bays.length,
       draw: (c) => {
         drawYard(c, sprites, view.scene.bays);
       },
@@ -295,12 +383,18 @@ export function createRefinerySite(
         now ?? Date.now(),
         view.stockyard.expand !== undefined,
       );
-      write(over.rate, view.hopper.rate);
+      mark(root, "two", view.scene.saws !== undefined);
+      for (const level of MINE_LEVEL_IDS) {
+        paintIn(
+          over.ins[level],
+          view.hoppers.find((hopper) => hopper.level === level),
+        );
+      }
       write(over.bypass, view.bypass.rate);
-      if (view.plate.canPlace) {
+      if (view.plates.some((plate) => plate.canPlace)) {
         hide(note, true);
       }
-      paintPlate(plate, view.plate, state.amount());
+      plates.paint(view.plates, state.amount());
       paintYard(yard, view.stockyard, forecast.words);
     },
   };

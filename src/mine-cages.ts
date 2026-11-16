@@ -17,7 +17,12 @@ import {
   type ShaftCage,
 } from "./cages";
 import { makerOutput, makerRate, makerTakes, type MakerId } from "./makers";
-import { MINE_LEVEL_IDS, openGranite, type MineLevelId } from "./mine-levels";
+import {
+  MINE_LEVEL_IDS,
+  openGranite,
+  openLevels,
+  type MineLevelId,
+} from "./mine-levels";
 import {
   faceHolds,
   flowMine,
@@ -124,13 +129,6 @@ function strayCages(
     }
   }
   return strays;
-}
-
-/** The open levels, the Topsoil first. */
-function openLevels(mountain: Mountain): readonly MineLevelId[] {
-  return openGranite(mountain) === undefined
-    ? ["topsoil"]
-    : ["topsoil", "granite"];
 }
 
 /** Everything a call works out once: the cages (each load × pay, ruling 18), the rates and rooms, and transport's take. */

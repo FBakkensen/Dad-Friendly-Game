@@ -5,7 +5,6 @@ import { dropNote, flashNote, listenSteps, moveCount } from "./job-steps";
 import {
   GRANITE_NOT_REACHED,
   HOIST_WAITS_LINE,
-  LEVEL_NAMES,
   SINK_KEY,
   SINK_LINE,
   hoistingRow,
@@ -26,7 +25,7 @@ import {
   type RowParts,
 } from "./mine-row";
 import { LEVEL, LEVELS, levelTop } from "./mine-scene";
-import { pileWords } from "./mine-view";
+import { LEVEL_NAMES, pileWords } from "./mine-view";
 import type { Mountain } from "./mountain";
 import { stageCount } from "./next-view";
 import { priceIcon } from "./price-icons";

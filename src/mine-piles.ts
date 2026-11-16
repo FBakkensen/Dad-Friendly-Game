@@ -267,6 +267,14 @@ export function topsoilChain(mountain: Mountain): Chain {
 }
 
 /**
+ * The Granite's chain now (#754): what reaches the saws and the stone
+ * stockpile, which the refinery reads. With one level there is none.
+ */
+export function graniteChain(mountain: Mountain): Chain | undefined {
+  return levelChains(mountain)[1];
+}
+
+/**
  * What a level's stages move a second: its drilling and haulage, and what
  * hoisting lifts from it (the Topsoil's to the kilns and the stone
  * stockpile, the Granite's to the saws).
@@ -586,11 +594,16 @@ export function steadyLevels(
   return { topsoil: topsoil ?? SHUT, granite: granite ?? SHUT };
 }
 
+/** What a level's maker makes a second now: the Topsoil's brick, the Granite's cut stone. */
+export function chainMade(chain: Chain): number {
+  return chainFlows(chain)[MAKER] ?? 0;
+}
+
 /** What a mine's chain brings to the stockpiles a second now: stone and brick. */
-export function chainIncome(chain: Chain): Partial<Stock> {
+function chainIncome(chain: Chain): Partial<Stock> {
   return {
     stones: chainSpill(chain),
-    brick: chainFlows(chain)[MAKER] ?? 0,
+    brick: chainMade(chain),
   };
 }
 
@@ -602,8 +615,8 @@ function branchesIncome(set: Branches): Partial<Stock> {
   const [topsoil, granite] = levelPair(branchChains(set));
   return {
     stones: chainSpill(topsoil) + chainSpill(granite),
-    brick: chainFlows(topsoil)[MAKER] ?? 0,
-    cutStone: chainFlows(granite)[MAKER] ?? 0,
+    brick: chainMade(topsoil),
+    cutStone: chainMade(granite),
   };
 }
 
