@@ -2,9 +2,12 @@ import { describe, expect, it } from "vitest";
 import fc from "fast-check";
 import {
   JOB_IDS,
+  LEVEL_JOBS,
   NO_JOBS,
   freeWorker,
   freeWorkers,
+  haulageWorkers,
+  jobOpen,
   jobRoom,
   lineWork,
   placeable,
@@ -22,8 +25,24 @@ import { promote } from "./engineers";
 import { fieldEntry } from "./field-log";
 import { synergyBonus, upgradeById } from "./upgrades";
 import { FRESH_OFF } from "./line-switch";
+import { PART_THREE_OFF, PART_TWO_OFF } from "./part-switch";
+import { NO_GRANITE_PILES, NO_LEVEL_MACHINES } from "./mine-levels";
 
 const fresh = <T>(body: () => T): T => withFactors({ [FRESH_OFF]: 0 }, body);
+const partTwo = <T>(body: () => T): T =>
+  withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 }, body);
+const partThree = <T>(body: () => T): T =>
+  withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 }, body);
+
+/** The mountain with the shaft sunk, as `sinkShaft` leaves it. */
+const sunk = (mountain: Mountain): Mountain => ({
+  ...mountain,
+  granite: {
+    kind: "sunk",
+    machines: NO_LEVEL_MACHINES,
+    piles: NO_GRANITE_PILES,
+  },
+});
 
 function crew(helpers: number, jobs: Partial<Mountain["jobs"]> = {}): Mountain {
   const start = fresh(() => createMountain());
@@ -37,13 +56,15 @@ function crew(helpers: number, jobs: Partial<Mountain["jobs"]> = {}): Mountain {
       driving: 0,
       building: 0,
       kilns: 0,
+      graniteDrilling: 0,
+      graniteHaulage: 0,
       ...jobs,
     },
   };
 }
 
 describe("one workforce (slice 1, rule 2, #689)", () => {
-  it("has the five jobs of part 1, and the kilns of part 2 (#666)", () => {
+  it("has the five jobs of part 1, the kilns of part 2 (#666), and the Granite's two (#673)", () => {
     expect(JOB_IDS).toEqual([
       "drilling",
       "haulage",
@@ -51,7 +72,89 @@ describe("one workforce (slice 1, rule 2, #689)", () => {
       "driving",
       "building",
       "kilns",
+      "graniteDrilling",
+      "graniteHaulage",
     ]);
+  });
+
+  it("opens the Granite's drilling and haulage with the shaft, in part 3 only (rule 5.1)", () => {
+    const start = partTwo(() => createMountain());
+    for (const job of ["graniteDrilling", "graniteHaulage"] as const) {
+      expect(partThree(() => jobOpen(start, job))).toBe(false);
+      expect(partThree(() => jobOpen(sunk(start), job))).toBe(true);
+      expect(partTwo(() => jobOpen(sunk(start), job))).toBe(false);
+    }
+    expect(partThree(() => jobOpen(start, "drilling"))).toBe(true);
+  });
+
+  it("gives each level its face and haul jobs (#673)", () => {
+    expect(LEVEL_JOBS).toEqual({
+      topsoil: { face: "drilling", haul: "haulage" },
+      granite: { face: "graniteDrilling", haul: "graniteHaulage" },
+    });
+  });
+
+  it("lists the Granite's moves once the shaft is sunk, and none before", () => {
+    const start = partThree(() => ({
+      ...crew(3),
+      operational: ["lightTower"] as Mountain["operational"],
+    }));
+    const place = {
+      kind: "placeWorker",
+      job: "graniteHaulage",
+      count: 1,
+    } as const;
+    expect(partThree(() => listActions(start, 0))).not.toContainEqual(place);
+    expect(partThree(() => listActions(sunk(start), 0))).toContainEqual(place);
+    expect(partTwo(() => listActions(sunk(start), 0))).not.toContainEqual(
+      place,
+    );
+    const refused = partThree(() =>
+      applyMove(start, place, 0, { trouble: undefined }),
+    );
+    expect(
+      refused.kind === "applied" && refused.mountain.jobs.graniteHaulage,
+    ).not.toBe(1);
+  });
+
+  it("never changes how many workers he has, with the Granite's jobs too (#673)", () => {
+    fc.assert(
+      fc.property(
+        fc.nat(20),
+        fc.array(
+          fc.record({
+            job: fc.constantFrom(...JOB_IDS),
+            place: fc.boolean(),
+            count: fc.constantFrom(1, 10, Infinity),
+          }),
+          { maxLength: 40 },
+        ),
+        (helpers, moves) => {
+          let state = sunk(crew(helpers));
+          for (const move of moves) {
+            state = partThree(() =>
+              move.place
+                ? placeWorker(state, move.job, move.count)
+                : freeWorker(state, move.job, move.count),
+            );
+            expect(state.owned.helper).toBe(helpers);
+            expect(freeWorkers(state)).toBeGreaterThanOrEqual(0);
+            expect(workersOnJobs(state)).toBeLessThanOrEqual(helpers);
+          }
+        },
+      ),
+    );
+  });
+
+  it("takes a worker off a Granite job even while it is closed: no lock", () => {
+    const stuck = crew(3, { graniteDrilling: 2 });
+    const freed = partTwo(() => freeWorker(stuck, "graniteDrilling"));
+    expect(freed.jobs.graniteDrilling).toBe(1);
+    expect(partTwo(() => listActions(stuck, 0))).toContainEqual({
+      kind: "freeWorker",
+      job: "graniteDrilling",
+      count: 1,
+    });
   });
 
   it("starts a fresh mine with its one worker on a job: drilling (#703)", () => {
@@ -352,6 +455,17 @@ describe("the line in a fresh mine (rule 2.5, 2.9)", () => {
       );
       expect(booted.tierSpeed.cart).toBe(60);
       expect(booted.tierSpeed.helper).toBeCloseTo(2.36);
+    });
+  });
+
+  it("counts haulage's workers on both levels for Loading crews (rule 5.2)", () => {
+    fresh(() => {
+      const hands = upgradeById("cartSyn");
+      const both = line({ haulage: 2, graniteHaulage: 3, drilling: 1 }, {}, 3);
+      const one = line({ haulage: 5, drilling: 1 }, {}, 3);
+      expect(haulageWorkers(both)).toBe(5);
+      expect(synergyBonus(both, hands)).toBeCloseTo(0.05);
+      expect(synergyBonus(both, hands)).toBe(synergyBonus(one, hands));
     });
   });
 

@@ -4,6 +4,7 @@ import { oneOffStretch } from "./scale";
 import type { Mountain } from "./mountain";
 import { owned, tierById, type TierId } from "./tiers";
 import { pay, stonesPrice, type Price } from "./stock";
+import { haulageWorkers } from "./workforce";
 
 /** Permanent, one-level-at-a-time purchases. See docs/DESIGN.md "M3: Strategy". */
 export type UpgradeId =
@@ -157,7 +158,7 @@ export function synergyBonus(mountain: Mountain, upgrade: Upgrade): number {
   // In a fresh mine, Loading crews counts the workers on haulage (rule 2.9).
   const count =
     upgrade.synergy.from === "helper" && freshMineOn()
-      ? mountain.jobs.haulage
+      ? haulageWorkers(mountain)
       : owned(mountain, tierById(upgrade.synergy.from));
   return count * SYNERGY_PER_UNIT;
 }

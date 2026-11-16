@@ -147,7 +147,16 @@ const LEDGER = {
   },
   fleet: ["horseWagon"],
   projectStates: ["delivering", "onHold"],
-  jobs: ["drilling", "haulage", "hoisting", "driving", "building", "kilns"],
+  jobs: [
+    "drilling",
+    "haulage",
+    "hoisting",
+    "driving",
+    "building",
+    "kilns",
+    "graniteDrilling",
+    "graniteHaulage",
+  ],
   piles: ["face", "shaft", "kiln"],
   makers: ["kiln"],
   caps: {

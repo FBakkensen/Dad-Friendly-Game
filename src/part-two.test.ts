@@ -61,6 +61,8 @@ function works({
       driving,
       building,
       kilns: onKilns,
+      graniteDrilling: 0,
+      graniteHaulage: 0,
     },
     stock: { ...EMPTY_STOCK, ...stock },
     makers: { kiln: kilns },

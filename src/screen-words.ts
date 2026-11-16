@@ -27,7 +27,7 @@ import { freshMineOn } from "./line-switch";
 import { owned, tierById, type MachineId, type TierId } from "./tiers";
 import type { VehicleId } from "./transport";
 import { upgradeLevel, type Upgrade, type UpgradeId } from "./upgrades";
-import { toolSpeed } from "./workforce";
+import { haulageWorkers, toolSpeed } from "./workforce";
 
 // Player-facing wording shared by the screen's panels.
 
@@ -277,7 +277,7 @@ export function upgradeEffectLine(
 const synergyFed = (upgrade: Upgrade, mountain: Mountain): boolean =>
   upgrade.synergy !== undefined &&
   (upgrade.synergy.from === "helper" && freshMineOn()
-    ? mountain.jobs.haulage
+    ? haulageWorkers(mountain)
     : owned(mountain, tierById(upgrade.synergy.from))) > 0;
 
 function synergyEffectLine(

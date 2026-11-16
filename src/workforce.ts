@@ -1,6 +1,7 @@
 import { STAGES, type Stage, type StageSpeeds } from "./line";
 import type { Mountain } from "./mountain";
 import { makersOpen } from "./makers";
+import { graniteOpen, type MineLevelId } from "./mine-levels";
 import { fleetSize } from "./transport";
 import {
   TIERS,
@@ -28,6 +29,8 @@ export const JOB_IDS = [
   "driving",
   "building",
   "kilns",
+  "graniteDrilling",
+  "graniteHaulage",
 ] as const;
 
 export type JobId = (typeof JOB_IDS)[number];
@@ -41,6 +44,8 @@ export const NO_JOBS: Jobs = {
   driving: 0,
   building: 0,
   kilns: 0,
+  graniteDrilling: 0,
+  graniteHaulage: 0,
 };
 
 /** Each stage of the line and its job. */
@@ -50,17 +55,37 @@ export const STAGE_JOB: Readonly<Record<Stage, JobId>> = {
   lift: "hoisting",
 };
 
+/** A stage a level has of its own: the one hoist serves both levels. */
+export type LevelStage = Exclude<Stage, "lift">;
+
+/** Each level's jobs: `drilling` and `haulage` stay the Topsoil's, shipped ids. */
+export const LEVEL_JOBS: Readonly<
+  Record<MineLevelId, Readonly<Record<LevelStage, JobId>>>
+> = {
+  topsoil: { face: "drilling", haul: "haulage" },
+  granite: { face: "graniteDrilling", haul: "graniteHaulage" },
+};
+
 type Crew = Pick<Mountain, "owned" | "jobs">;
 
 /**
- * Whether a job is open (rule 2.3): the kilns' with the kilns (part 2, the
- * Light Tower operational), every other from the first evening.
+ * Whether a job is open (rule 2.3): the Granite's two with the shaft sunk
+ * (part 3), the kilns' with the kilns (part 2, the Light Tower operational),
+ * every other from the first evening.
  */
 export function jobOpen(
-  mountain: Pick<Mountain, "operational">,
+  mountain: Pick<Mountain, "operational" | "granite">,
   job: JobId,
 ): boolean {
+  if (job === "graniteDrilling" || job === "graniteHaulage") {
+    return graniteOpen(mountain);
+  }
   return job !== "kilns" || makersOpen(mountain);
+}
+
+/** Workers on haulage, on both levels: what Loading crews counts (rule 5.2). */
+export function haulageWorkers(mountain: Pick<Mountain, "jobs">): number {
+  return mountain.jobs.haulage + mountain.jobs.graniteHaulage;
 }
 
 /** Workers on a job, of every job. */

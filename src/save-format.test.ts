@@ -107,6 +107,8 @@ describe("the game map (#558)", () => {
         driving: 3,
         building: 2,
         kilns: 1,
+        graniteDrilling: 0,
+        graniteHaulage: 0,
       },
       piles: { face: 40, shaft: 9, kiln: 30 },
       makers: { kiln: 2 },
@@ -257,6 +259,8 @@ describe("the game map (#558)", () => {
         driving: 1,
         building: 0,
         kilns: 0,
+        graniteDrilling: 0,
+        graniteHaulage: 0,
       },
     };
     expect(writeGame(crew).jobs).toEqual({

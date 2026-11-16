@@ -46,6 +46,8 @@ function mine(
       driving: 1,
       building: 2,
       kilns: 0,
+      graniteDrilling: 0,
+      graniteHaulage: 0,
     },
     stock: { ...start.stock, stones: pocket },
     fleet: { ...start.fleet, horseWagon: 1 },
