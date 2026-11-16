@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   BUILDINGS,
   buildIn,
+  buildingsInPlay,
   holdOrder,
   nextBuilding,
   nightShiftShare,
@@ -13,6 +14,7 @@ import {
   type Project,
 } from "./city";
 import { createMountain, type Mountain } from "./mountain";
+import { partThree, partTwo } from "./part-three.harness";
 import { EMPTY_STOCK, priceAmount } from "./stock";
 
 /** The Light Tower at `step`, `stones` arrived and `onSite` of them not built in. */
@@ -51,6 +53,45 @@ describe("the city's buildings (rule 6)", () => {
     expect(
       nextBuilding(at({ kind: "unordered" }, ["lightTower"])),
     ).toBeUndefined();
+  });
+});
+
+describe("the Foundry (part 3, #675)", () => {
+  it("is the third building with part 3 on, in the spec's three steps of brick and cut stone", () => {
+    partThree(() => {
+      expect(buildingsInPlay().map((building) => building.id)).toEqual([
+        "lightTower",
+        "warehouse",
+        "foundry",
+      ]);
+      const foundry = buildingsInPlay()[2];
+      expect(
+        foundry?.steps.map((step) => [
+          priceAmount(step, "brick"),
+          priceAmount(step, "cutStone"),
+        ]),
+      ).toEqual([
+        [15_000_000, 4_000_000],
+        [20_000_000, 15_000_000],
+        [30_000_000, 40_000_000],
+      ]);
+      expect(
+        nextBuilding(at({ kind: "unordered" }, ["lightTower", "warehouse"]))
+          ?.id,
+      ).toBe("foundry");
+    });
+  });
+
+  it("waits for part 3's switch: with part 2 alone the Warehouse is the last", () => {
+    partTwo(() => {
+      expect(buildingsInPlay().map((building) => building.id)).toEqual([
+        "lightTower",
+        "warehouse",
+      ]);
+      expect(
+        nextBuilding(at({ kind: "unordered" }, ["lightTower", "warehouse"])),
+      ).toBeUndefined();
+    });
   });
 });
 

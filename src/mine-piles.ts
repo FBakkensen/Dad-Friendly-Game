@@ -35,7 +35,7 @@ import { effectiveRates, type Rates } from "./rates";
 import { addedStock, type Stock } from "./stock";
 import { stockpileRoom, stockyardOpen } from "./stockyard";
 import { fleetRate, stockDraw } from "./transport";
-import type { StageSpeeds } from "./line";
+import type { Stage, StageSpeeds } from "./line";
 import { lineWork, type LineWork } from "./workforce";
 
 /**
@@ -422,23 +422,91 @@ function chainTakes(maker: MakerId): number[] {
 /** A pile with no room: the stages around it run in step. */
 const IN_STEP = { held: 0, holds: 0 } as const;
 
+/** A stockpile or side pile with no limit: nothing is full in the steady line. */
+const OPEN = { held: 0, holds: Infinity } as const;
+
+/**
+ * A level's branch run steady (#667, #675): no rock waiting, no stockpile
+ * full and nothing drawn, so the stages run in step at full output.
+ */
+function steadied(branch: Branch): Branch {
+  return {
+    ...branch,
+    rates: branch.rates.map((rate, index) =>
+      index === branch.rates.length - 1 ? 0 : rate,
+    ),
+    piles: [IN_STEP, IN_STEP, IN_STEP, OPEN],
+  };
+}
+
+/**
+ * The mine's levels run steady (#675): the Topsoil's chain alone while the
+ * Granite is shut, else both branches with the cages for both in turn, as
+ * `mineBranches` runs them. `steadyIncome` and `steadyLevels` read it.
+ */
+function steadyChains(mountain: Mountain): readonly Chain[] {
+  const side = { ...OPEN, drain: 0 };
+  const topsoil = steadied(topsoilBranch(mountain, 1, true, {}));
+  const granite = openGranite(mountain);
+  if (granite === undefined) {
+    const { spillFrom, ...chain } = topsoil;
+    return [{ ...chain, spill: { from: spillFrom, ...side } }];
+  }
+  const set = mineBranches(mountain, granite, { pay: 1, drilling: true }, {});
+  return branchChains({
+    ...set,
+    branches: set.branches.map(steadied),
+    side,
+  });
+}
+
 /**
  * What the mine brings each stockpile a second once it runs steady at full
- * output (#667): the same chain with no rock waiting and no stockpile full,
- * so the stages run in step, the kilns take what they can of what is lifted,
- * and the rest is stone. The lab's planner reads it, so it plans on the
- * split the chain itself makes. Its stages, piles, spill and takes are `chainWith`'s
- * in the same order: a change to one is a change to both.
+ * output (#667): the same chains with no rock waiting and no stockpile full,
+ * so the stages run in step, the kilns and the saws take what they can of
+ * what is lifted, and the rest is stone. From part 3 hoisting is the cages'
+ * rates (#675), and with the Granite open both levels count. The lab's
+ * planner reads it, so it plans on the split the chain itself makes. Its
+ * stages, piles, spill and takes are `topsoilBranch`'s and `graniteBranch`'s:
+ * a change to one is a change to both.
  */
 export function steadyIncome(mountain: Mountain): Partial<Stock> {
-  const { stages } = mineWork(mountain);
-  return chainIncome({
-    source: Infinity,
-    rates: [stages.face, stages.haul, stages.lift, kilnRate(mountain), 0],
-    piles: [IN_STEP, IN_STEP, IN_STEP, { held: 0, holds: Infinity }],
-    spill: { from: LIFT, held: 0, holds: Infinity, drain: 0 },
-    takes: chainTakes("kiln"),
-  });
+  const chains = steadyChains(mountain);
+  const [topsoil, granite] = chains;
+  if (topsoil === undefined) {
+    throw new Error("mine-piles: a level is missing");
+  }
+  return granite === undefined
+    ? chainIncome(topsoil)
+    : {
+        stones: chainSpill(topsoil) + chainSpill(granite),
+        brick: chainFlows(topsoil)[MAKER] ?? 0,
+        cutStone: chainFlows(granite)[MAKER] ?? 0,
+      };
+}
+
+/** A level's three stages' rates, the line's own. */
+export type LevelRates = Readonly<Record<Stage, number>>;
+
+const SHUT: LevelRates = { face: 0, haul: 0, lift: 0 };
+
+/**
+ * Each level's drilling, haulage and hoisting rates in the steady line
+ * (#675): hoisting is what the cages lift from that level, its own cages and
+ * its share of the turn. The Granite's are 0 while it is shut. The lab's dad
+ * raises a level's slowest stage.
+ */
+export function steadyLevels(
+  mountain: Mountain,
+): Readonly<Record<MineLevelId, LevelRates>> {
+  const [topsoil, granite] = steadyChains(mountain).map(
+    (chain): LevelRates => ({
+      face: chain.rates[0] ?? 0,
+      haul: chain.rates[1] ?? 0,
+      lift: chain.rates[LIFT] ?? 0,
+    }),
+  );
+  return { topsoil: topsoil ?? SHUT, granite: granite ?? SHUT };
 }
 
 /** What a mine's chain brings to the stockpiles a second now: stone and brick. */
