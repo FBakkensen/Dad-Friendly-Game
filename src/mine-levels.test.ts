@@ -12,6 +12,7 @@ import {
   shaftOpen,
   shaftPrice,
   sinkShaft,
+  withGraniteMachine,
 } from "./mine-levels";
 import { createMountain, type Mountain } from "./mountain";
 import { PART_THREE_OFF, PART_TWO_OFF, partThreeOn } from "./part-switch";
@@ -165,6 +166,21 @@ describe("a level's machines (rule 5.2, 5.3)", () => {
       const mine = { ...base, owned: { ...base.owned, borer: 3 } };
       expect(levelMachines(mine, "topsoil").borer).toBe(3);
       expect(levelMachines(mine, "granite")).toEqual(NO_LEVEL_MACHINES);
+    });
+  });
+});
+
+describe("a machine bought for the Granite (#673)", () => {
+  it("puts a machine bought for the Granite there, where it stays (rule 5.2, call 55)", () => {
+    partThree(() => {
+      const base = sunk({});
+      const bought = { ...base, owned: { ...base.owned, borer: 1 } };
+      const placed = withGraniteMachine(bought, "borer");
+      expect(levelMachines(placed, "granite").borer).toBe(1);
+      expect(levelMachines(placed, "topsoil").borer).toBe(0);
+      expect(placed.owned).toBe(bought.owned);
+      const unsunk = createMountain();
+      expect(withGraniteMachine(unsunk, "borer")).toBe(unsunk);
     });
   });
 });

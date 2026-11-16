@@ -116,3 +116,25 @@ export function levelMachines(
     train: mountain.owned.train - own.train,
   };
 }
+
+/**
+ * One more machine of this kind on the Granite while it is sunk, the same
+ * object otherwise. It pays nothing: the move buys first (call 55: no move
+ * takes a machine off a level).
+ */
+export function withGraniteMachine(
+  mountain: Mountain,
+  id: LevelMachineId,
+): Mountain {
+  const { granite } = mountain;
+  if (granite.kind !== "sunk") {
+    return mountain;
+  }
+  return {
+    ...mountain,
+    granite: {
+      ...granite,
+      machines: { ...granite.machines, [id]: granite.machines[id] + 1 },
+    },
+  };
+}

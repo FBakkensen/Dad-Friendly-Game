@@ -4,7 +4,8 @@ import { freshMineOn, lineOn } from "./line-switch";
 import type { Stage } from "./line";
 import type { Mountain } from "./mountain";
 import type { RelicId } from "./relics";
-import { pay, stonesPrice, type Price } from "./stock";
+import { partThreeOn } from "./part-switch";
+import { pay, type GoodId, type Price } from "./stock";
 
 /** All tier numbers live here. See docs/DESIGN.md "M2: Automation". */
 /**
@@ -38,6 +39,22 @@ const LINE_FIRST_COST: Readonly<Partial<Record<TierId, number>>> = {
   helper: 60,
   machine: 96_480_000,
 };
+/**
+ * Part 3's first prices (#673): the borer and the locomotive cost cut stone,
+ * on the line's curve. With part 3 off they cost what they did.
+ */
+const PART_THREE_PRICE: Readonly<
+  Partial<Record<TierId, { readonly good: GoodId; readonly first: number }>>
+> = {
+  borer: { good: "cutStone", first: 40_000 },
+  train: { good: "cutStone", first: 60_000 },
+};
+
+/** The good a tier is paid in: cut stone for the borer and the locomotive in part 3, else stones. */
+export function tierGood(id: TierId): GoodId {
+  return (partThreeOn() ? PART_THREE_PRICE[id]?.good : undefined) ?? "stones";
+}
+
 /**
  * Kids follow the workers' curve from a late-game price. #327: cheap and
  * quick enough (25/s) that one pays back in hours, not days.
@@ -277,8 +294,9 @@ export function tierCost(tier: Tier, ownedCount: number, k = 1): number {
       : MACHINE_COST_GROWTH;
   const growth =
     base * factor(workerCurve ? "growth.worker" : "growth.machine");
+  const partThree = partThreeOn() ? PART_THREE_PRICE[tier.id] : undefined;
   const sticker = line
-    ? (LINE_FIRST_COST[tier.id] ?? tier.firstCost)
+    ? (partThree?.first ?? LINE_FIRST_COST[tier.id] ?? tier.firstCost)
     : tier.firstCost;
   const first = sticker * factor(`price.${tier.id}`) * k;
   return Math.ceil(Number((first * growth ** ownedCount).toPrecision(12)));
@@ -305,7 +323,7 @@ export function tierQuote(
   return quoteRun(
     (nth) => tierCost(tier, count + nth, k),
     amount,
-    mountain.stock.stones,
+    mountain.stock[tierGood(tier.id)],
   );
 }
 
@@ -335,11 +353,14 @@ export function quoteRun(
   return { count: bought, cost };
 }
 
-/** The next one of the tier, as a price (#560). Every tier is priced in stones. */
+/** The next one of the tier, as a price (#560): in stones, or cut stone in part 3 (#673). */
 function tierPrice(mountain: Mountain, id: TierId): Price {
-  return stonesPrice(
-    tierCost(tierById(id), mountain.owned[id], stretch(mountain)),
-  );
+  return [
+    {
+      good: tierGood(id),
+      amount: tierCost(tierById(id), mountain.owned[id], stretch(mountain)),
+    },
+  ];
 }
 
 /** Pays for one of the tier from the stock; unaffordable returns the same mountain. */
@@ -386,11 +407,13 @@ export function freshDoor(id: TierId): FreshDoor {
 /**
  * False for a machine of the line while the line's rule is off (#533): it is
  * never shown, never for sale, takes no hands and moves nothing. In a fresh
- * mine, false for a tier whose door is a later part's (#653).
+ * mine, false for a tier whose door is a later part's (#653), except the
+ * Granite's while part 3 plays (#673).
  */
 export function tierInPlay(tier: Tier): boolean {
   if (freshMineOn()) {
-    return FRESH_DOORS[tier.id].kind !== "later";
+    const door = FRESH_DOORS[tier.id];
+    return door.kind !== "later" || (door.at === "granite" && partThreeOn());
   }
   return tier.line !== true || lineOn();
 }

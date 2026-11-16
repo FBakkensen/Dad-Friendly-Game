@@ -675,6 +675,8 @@ describe("each level's work (rule 5.1, 5.2, #673)", () => {
     helper: 1,
     cart: 50,
     drill: 100,
+    borer: 300,
+    train: 150,
     hoist: 40,
   };
 

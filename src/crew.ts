@@ -1,5 +1,6 @@
 import { factor } from "./economy/factors";
 import { grantFirstEngineer } from "./engineers";
+import { graniteOpen } from "./mine-levels";
 import type { Mountain } from "./mountain";
 import { hasRelic, RELICS, type Relic } from "./relics";
 import { freshMineOn } from "./line-switch";
@@ -38,9 +39,15 @@ export type TierLock =
  * A fresh mine's door (rule 1's table): a tier whose door is a later part's
  * is always locked; the rest are for sale from the start (rule 2.6, #689).
  */
-function freshLock(tier: Tier): TierLock | undefined {
+function freshLock(mountain: Mountain, tier: Tier): TierLock | undefined {
   const door = freshDoor(tier.id);
-  return door.kind === "later" ? { kind: "later", at: door.at } : undefined;
+  if (door.kind !== "later") {
+    return undefined;
+  }
+  // The Granite's door is open once the shaft is sunk (#673).
+  return door.at === "granite" && graniteOpen(mountain)
+    ? undefined
+    : { kind: "later", at: door.at };
 }
 
 /**
@@ -55,7 +62,7 @@ function kidOpens(mountain: Mountain, tier: Tier): number {
 /** Why this tier is not for sale yet, or undefined when it is. */
 export function tierLock(mountain: Mountain, tier: Tier): TierLock | undefined {
   if (freshMineOn()) {
-    return freshLock(tier);
+    return freshLock(mountain, tier);
   }
   // An older save that already runs one keeps buying: the depth only
   // gates the first, so nothing it owns ever shows as locked.
