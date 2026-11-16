@@ -207,7 +207,6 @@ describe("gateSteps", () => {
       "rules",
       "visual",
       "journeys",
-      "mockups",
     ]);
     // Coverage names no project, so it measures unit and sim together.
     expect(plan.steps.find((each) => each.name === "coverage")?.args).toEqual([
@@ -216,7 +215,7 @@ describe("gateSteps", () => {
     ]);
     const statics = plan.steps.filter((each) => each.after.length === 0);
     const late = plan.steps.filter((each) => each.after.length > 0);
-    expect(names(late)).toEqual(["rules", "visual", "journeys", "mockups"]);
+    expect(names(late)).toEqual(["rules", "visual", "journeys"]);
     const staticNames = names(statics).filter((name) => name !== "coverage");
     // The emulator is light: it runs beside the tests.
     expect(late[0]?.after).toEqual(staticNames);

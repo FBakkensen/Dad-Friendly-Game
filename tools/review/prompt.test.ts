@@ -54,7 +54,7 @@ describe("lensesFor", () => {
     [["package-lock.json"], ["guards"]],
     [["docs/superpowers/specs/2026-11-14-x.md"], ["spec"]],
     [["docs/DESIGN.md"], ["spec"]],
-    [["mockups/page.ts"], ["spec"]],
+    [["mockups/city/art/notes.txt"], ["spec"]],
     [["README.md"], ["spec"]],
     [["index.html"], ["code"]],
   ])("%j reviews as %j", (paths, lenses) => {

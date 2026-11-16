@@ -23,9 +23,8 @@ page is the map, plus the rules that keep it that way.
    Buys' ×10 and Max, `buyTiers`: several card buys in one move, all or
    nothing, logged as one `tier.buy` with the final count, #358), and
    `applyMove` is the one place the UI changes the mountain, and the lab's
-   `applyAction` too (#409). The lab's runner and the pacing sim still call some
-   rule functions directly (`promote`, `send`, `tendBestTier`),
-   which R1 (#420) folds in. A lasting upgrade's buy and a promotion carry the
+   `applyAction` too (#409). Until #738 the pacing sim still called some
+   rule functions directly (`promote`, `send`, `tendBestTier`). A lasting upgrade's buy and a promotion carry the
    price the player was shown (`price`), and a different price today refuses
    the move: a band crossed while the tap settles the crew cannot charge more
    (#367). Both prices are a `Price`, and every good must match (`samePrice`).
@@ -34,7 +33,7 @@ page is the map, plus the rules that keep it that way.
    machine marks staffing taught, a real station marks tending taught and first
    calls a party back, and a recall with no expedition sends the hand to camp. A craft's
    payback adds the bench time. `lab/world` steps one seeded clock for the
-   pacing sim and the strategy lab through the game's own time step
+   strategy lab through the game's own time step
    (`session-time`'s `advance`: parties due come home, the crew is paid, then
    the hazards step; away time pays the capped gap and clears trouble), so the
    lab and the game advance the world identically (#414). `lab/targets` is the only place a lab threshold lives.
@@ -449,12 +448,12 @@ paths are read-only.
 - The browser harness (#438): `tools/browser/harness.ts` is the one home for
   driving Chrome. It starts the Vite server (`startServer`, skipped when a URL
   is given), finds and launches Chrome (`chromePath`, `launchChrome`), and
-  opens pages (`open`, `openPair` for two tabs, `newWindow` for a bare page).
+  opens pages (`open`, and `openPair` for two tabs).
   It also seeds a save and controls the page clocks, and presses and holds a
   control as a phone tap (`press`, `holdThrough`,
   `stepTapClock`). Each script chooses its own options: the visual check seeds
   once a tab and can stop `Date.now` and hold the tap clock, the UI audit
-  seeds on every load, `play` seeds once, and the mockup check seeds nothing.
+  seeds on every load, and `play` seeds once.
   `play -- --tabs 2` opens the save with `openPair` and plays the second
   tab, which shows the other-tab card (#464). `play`, the UI audit and the
   visual check open the phone only (#498). The dev-only boot hooks
@@ -463,10 +462,12 @@ paths are read-only.
   `?save=loading` or `error`, `?copies=shelf`, `?memorySave=1`, and
   `?update=shown` (the update card, as a newer service worker opens it).
   Outside dev they are ignored.
-  `visual-check`, `ui-audit`, `play`, `mockup-check` and `env-report` all use
+  `visual-check`, `ui-audit`, `play` and `env-report` all use
   it. The saves they seed come from `tools/browser/fixtures.ts` (#439), typed
-  as `SeedSave`; no script writes a versioned save literal, and
-  `fixtures.test.ts` pins every save's value.
+  as `SeedSave`: slice 1's saves, each the dev account's phone backup, and a
+  later build's save. No script writes a versioned save literal, and
+  `fixtures.test.ts` reads every slice save back as the game plays it.
+  Today's mountain's seeds went in #738.
 - Gameplay journeys (#552, on the frame since #664): Playwright Test
   (`@playwright/test`, pinned) drives a phone-sized Chrome (424×924, touch)
   through stored player journeys, `tools/journeys/*.journey.ts`: the first
@@ -614,7 +615,7 @@ returnsAt, home, find }[]` (≤5, `returnsAt > sentAt`, no longer than the deep
   keeps Ada on the borers until he owns a Great Machine, then moves her onto it.
   He fixes trouble within 3 seconds. From the first borer, the sim pays the real
   promotion for Nils (2,000,000 stones and one worker) and he waits at camp.
-  Pacing days now live in `src/pacing.sim.test.ts`. History (#163, #171): the plain dad reached the
+  Pacing days lived in `src/pacing.sim.test.ts` until #738 deleted it. History (#163, #171): the plain dad reached the
   bottom on day 5.5, upgrade and boost dads on day 5.0, a second run on day 4.
   Nils walks the old shaft at the start of every session and, once a journeyman,
   the deep dark each night. Finds apply.

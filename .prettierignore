@@ -6,9 +6,6 @@ package-lock.json
 # Superpowers scratch: plan ledgers, briefs, and brainstorm sessions
 .superpowers
 
-# Reference mockup for the control board spec, kept as built
-mockups/control-board/
-
 # The slice 1 prototype's hand-written one-page source: inline style and script that Prettier would reflow
 prototypes/slice-1/proto.src.html
 
