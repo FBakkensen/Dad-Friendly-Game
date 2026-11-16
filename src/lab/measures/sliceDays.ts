@@ -2,8 +2,8 @@ import { defineMeasure } from "../measure";
 import { readFinishDay } from "./finishDay";
 
 /**
- * #675, report-only until Flemming sets its floor (slice 1 spec, "Lab";
- * #556). The finish day of a run that plays part 3, so ends at the
+ * #675, guarded by `slice-five-days` (five days or more, Flemming's A,
+ * 16 Nov 2026; slice 1 spec, "Lab"; #556). The finish day of a run that plays part 3, so ends at the
  * Foundry's roof. NaN before part 3, and Infinity when the run did not
  * reach the roof.
  */

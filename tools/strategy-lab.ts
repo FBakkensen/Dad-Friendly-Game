@@ -60,7 +60,7 @@ to the last building in play (#737, #675).
 it is live, to the Warehouse; part2.off=1 plays part 1 only, #534). fresh.off
 and line.off are refused: the fresh mine is the only mine (#739).
 A missed guardrail is a warning unless LAB_STRICT=1, which exits 1. The fresh
-mine has no guardrail yet.
+mine's one guardrail is the five-day floor for the whole slice (#675).
 --ledger check fails when the run's pacing ledger differs from ${LEDGER_PATH};
 --ledger write (npm run lab:ledger) writes it. Both need the gate's run: --ci,
 every player type, no factors and the default days.

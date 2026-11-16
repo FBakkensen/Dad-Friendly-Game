@@ -43,7 +43,7 @@
 14. **The shaft waits for its price.** As built, before the Foundry is ordered the dad waits for the shaft and sinks it once the pocket holds its price (`waitsForShaft`), and raises the line meanwhile as part 2 does.
 15. **The lab is slower, and that is the slice.** The `--ci` lab takes about 5 minutes against main's 1m15s: the slice plays two to three times more days, and the levels' moves are weighed each second. Recorded, not tuned away.
 16. **The economy is not tuned here.** The slice ends in 14.5 to 21.5 days on seed 1, every type over five. The borer and the locomotive are never bought. Worker and wagon growth, builders against trucks and the Foundry's size are a follow-up sliver; this one sets only the stages apart.
-17. **The five-day floor.** The row (`sliceDays`, every player type, at least 5) is a guardrail in `src/lab/targets.ts`, which only Flemming's own words may add. It is asked once with the numbers, and the PR waits for his answer only at the merge.
+17. **The five-day floor.** The row (`sliceDays`, every player type, at least 5) is a guardrail in `src/lab/targets.ts`, which only Flemming's own words may add. It is asked once with the numbers, and the PR waits for his answer only at the merge. He answered A (16 Nov 2026, 14:22, and "a to bot[h]" at 14:26): the row is `slice-five-days`, strict.
 
 ## Review Focus
 

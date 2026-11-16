@@ -102,7 +102,7 @@ Each one stays readable from the real numbers on the card.
 6. **Synergies and material forks.** One tier makes another stronger ("+1% to every drill for each cart"), and each band's material feeds two recipes for different play styles.
 7. **Kid-run twists.** Each generation has a bigger mountain, costs that grow faster than the Legacy bonus, and one new rule, so each run is longer and different. (Gone with kid runs in #729.)
 
-The order and the done-when lines are in `docs/plans/next-milestones.md`. Any lab threshold change needs Flemming's OK. Since #737 the lab plays only the fresh mine and judges no guardrail: the old rows judged today's mountain, and the fresh mine's own are not designed yet (Flemming, 16 Nov 2026). Since #675 it plays the whole slice to the Foundry's roof with three level habits (by need, split evenly once, the whole workforce on one level), so what sharing the levels is worth is measured, not assumed, and every habit needs five days or more (#556).
+The order and the done-when lines are in `docs/plans/next-milestones.md`. Any lab threshold change needs Flemming's OK. Since #737 the lab plays only the fresh mine and judges no guardrail: the old rows judged today's mountain, and the fresh mine's own are not designed yet (Flemming, 16 Nov 2026). Since #675 it plays the whole slice to the Foundry's roof with three level habits (by need, split evenly once, the whole workforce on one level), so what sharing the levels is worth is measured, not assumed. Its one guardrail is the five-day floor for the whole slice: every player type needs five days or more to the Foundry's roof (#556; Flemming's A, 16 Nov 2026).
 
 ## Sources
 

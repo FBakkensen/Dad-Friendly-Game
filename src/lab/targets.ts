@@ -141,13 +141,20 @@ export type Target =
  * Guardrails. `measure` is a registered measure id. `scope` says which runs
  * or samples the bound covers. Edit a value here to move a guardrail.
  *
- * Empty since #737: the rows judged today's mountain, and the lab plays only
- * the fresh mine now. Flemming, 16 Nov 2026 ("agree" to option A, #737): the
- * fresh mine has no strict guardrail until new ones are designed. The
- * five-day floor (#556), and any old row that carries over, come back when
- * the lab plays the whole slice (the slice 1 spec, sliver 17), as a stop.
+ * The old rows judged today's mountain and went with it (#737). The fresh
+ * mine's first row is the five-day floor (#556) for the whole slice:
+ * Flemming, 16 Nov 2026, 14:22, "A" to adding it (#675).
  */
-export const TARGETS: readonly Target[] = [];
+export const TARGETS: readonly Target[] = [
+  {
+    id: "slice-five-days",
+    measure: "sliceDays",
+    scope: { kind: "all" },
+    op: "gte",
+    value: 5,
+    why: "The whole slice, to the Foundry's roof, takes five days or more for every player type, with no ceiling.",
+  },
+];
 
 /**
  * A fresh mine's dad (slice 1, #655). A gain or a difference this small is

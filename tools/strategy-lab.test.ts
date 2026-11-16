@@ -183,8 +183,11 @@ describe("strategy lab command", () => {
       return;
     }
     const { markdown, checks } = await executeLab(parsed);
-    // The fresh mine has no guardrail until new ones are designed (#737).
-    expect(checks).toEqual([]);
+    // The five-day floor holds: one day does not reach the Foundry's roof,
+    // and the slice has no ceiling (#675).
+    expect(checks.map((check) => [check.targetId, check.pass])).toEqual([
+      ["slice-five-days", true],
+    ]);
     expect(markdown).not.toContain("Factors:");
     expect(markdown).toContain("Five minutes a day");
     expect(markdown).toContain("Finish day");
