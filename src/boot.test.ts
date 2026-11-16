@@ -4,7 +4,7 @@ import type { AuthController } from "./auth";
 import type { CloudSave } from "./cloud-save";
 import { holdFactors } from "./economy/factors";
 import { freshMineOn } from "./line-switch";
-import { partTwoOn } from "./part-switch";
+import { partThreeOn, partTwoOn } from "./part-switch";
 import { minedMountain } from "./test-fixtures";
 
 const firebaseStubs = vi.hoisted(() => ({
@@ -125,6 +125,19 @@ describe("createAppServices", () => {
         devMode,
       });
       expect(partTwoOn()).toBe(true);
+      progress.dispose();
+    }
+  });
+
+  it("keeps part 3 off on every boot (#673)", async () => {
+    for (const devMode of [true, false]) {
+      holdFactors({});
+      const { progress } = await createAppServices({
+        env: {},
+        search: "",
+        devMode,
+      });
+      expect(partThreeOn()).toBe(false);
       progress.dispose();
     }
   });

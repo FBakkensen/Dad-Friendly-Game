@@ -1,7 +1,7 @@
 import { stillRequired, stockyardTimes } from "./city";
 import { factor } from "./economy/factors";
 import type { Mountain } from "./mountain";
-import { partTwoOn } from "./part-switch";
+import { partThreeOn, partTwoOn } from "./part-switch";
 import { pay, type GoodId, type Price } from "./stock";
 
 /**
@@ -15,17 +15,26 @@ import { pay, type GoodId, type Price } from "./stock";
 /**
  * Each stockpile's room at level 0, as the lab set it (#667): twice the
  * spec's guess: a casual dad's long night that fills it fills it late, and
- * the dads away a whole day sit on a full stockpile less than at 3M. Cut
- * stone's comes with part 3. A good with no row
- * has no limit. The lab sweeps it with `room.stockyard`; above about 1.9 the
- * last level's room is past a safe integer, so a sweep stays below that.
+ * the dads away a whole day sit on a full stockpile less than at 3M. A good
+ * with no row has no limit. The lab sweeps it with `room.stockyard`; above
+ * about 1.9 the last level's room is past a safe integer, so a sweep stays
+ * below that.
  */
 const ROOM_AT_ZERO: Readonly<Partial<Record<GoodId, number>>> = {
   stones: 6_000_000,
   brick: 1_000_000,
 };
 
-/** The goods with a stockpile in the stockyard: the rows above (#667). */
+/**
+ * Cut stone's room at level 0 (part 3): it has a stockpile only while part 3
+ * plays, so it is not in `ROOM_AT_ZERO` or `STOCKPILE_GOODS` (the frame's
+ * stockpiles and the night's full time are the screens' and the lab's).
+ */
+const PART_THREE_ROOM: Readonly<Partial<Record<GoodId, number>>> = {
+  cutStone: 250_000,
+};
+
+/** The goods with a stockpile in the stockyard: `ROOM_AT_ZERO`'s rows (#667). */
 export const STOCKPILE_GOODS: readonly GoodId[] = (
   Object.keys(ROOM_AT_ZERO) as GoodId[]
 ).filter((good) => ROOM_AT_ZERO[good] !== undefined);
@@ -55,7 +64,8 @@ export function stockpileRoom(
   mountain: Pick<Mountain, "operational" | "stockyard">,
   good: GoodId,
 ): number {
-  const base = ROOM_AT_ZERO[good];
+  const base =
+    ROOM_AT_ZERO[good] ?? (partThreeOn() ? PART_THREE_ROOM[good] : undefined);
   if (base === undefined || !stockyardOpen(mountain)) {
     return Infinity;
   }

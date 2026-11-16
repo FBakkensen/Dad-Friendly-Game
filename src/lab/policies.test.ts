@@ -516,7 +516,7 @@ describe("policy shape", () => {
     // A fresh mine's moves (#654): a wagon has its price, an order is free.
     expect(
       sticker(
-        { ...mountain, fleet: { horseWagon: 1 } },
+        { ...mountain, fleet: { horseWagon: 1, truck: 0 } },
         { kind: "buyVehicle", id: "horseWagon" },
       ),
     ).toBe(500);

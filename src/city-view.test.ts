@@ -11,7 +11,7 @@ import { withFactors } from "./economy/factors";
 import { formatCompact } from "./format";
 import { orderStrip } from "./frame-view";
 import { FRESH_OFF } from "./line-switch";
-import { PART_TWO_OFF } from "./part-switch";
+import { PART_THREE_OFF, PART_TWO_OFF } from "./part-switch";
 import { createMountain, type Mountain } from "./mountain";
 import { EMPTY_STOCK } from "./stock";
 
@@ -31,6 +31,9 @@ const start = (): Mountain => {
       driving: 1,
       building: 2,
       kilns: 0,
+      graniteDrilling: 0,
+      graniteHaulage: 0,
+      saws: 0,
     },
   };
 };
@@ -331,6 +334,44 @@ describe("the city's scene", () => {
         undriven: 1,
         building: 0,
       });
+    });
+  });
+});
+
+describe("the truck key (#673)", () => {
+  const warehoused = {
+    ...createMountain(),
+    operational: ["lightTower", "warehouse"] as const,
+  };
+  const partThree = <T>(body: () => T): T =>
+    withFactors(
+      { [FRESH_OFF]: 0, [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 },
+      body,
+    );
+
+  it("shows no truck key with part 3 off, even with the Warehouse operational", () => {
+    withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 }, () => {
+      expect(vehicleKeys(warehoused, "one").map((key) => key.id)).toEqual([
+        "horseWagon",
+      ]);
+    });
+    withFactors({ [FRESH_OFF]: 0 }, () => {
+      expect(vehicleKeys(warehoused, "one").map((key) => key.id)).toEqual([
+        "horseWagon",
+      ]);
+    });
+  });
+
+  it("shows the truck key once part 3 plays and the Warehouse is operational", () => {
+    partThree(() => {
+      expect(vehicleKeys(warehoused, "one").map((key) => key.id)).toEqual([
+        "horseWagon",
+        "truck",
+      ]);
+      const early = { ...warehoused, operational: ["lightTower" as const] };
+      expect(vehicleKeys(early, "one").map((key) => key.id)).toEqual([
+        "horseWagon",
+      ]);
     });
   });
 });

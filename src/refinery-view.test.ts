@@ -36,7 +36,7 @@ function lit({
     owned: { ...start.owned, helper: start.owned.helper + onKilns },
     jobs: { ...start.jobs, kilns: onKilns },
     operational: ["lightTower"],
-    makers: { kiln: kilns },
+    makers: { kiln: kilns, saw: 0 },
     piles: { face: 300, shaft: 300, kiln: kilnPile },
     stock: { ...start.stock, stones, brick },
   };

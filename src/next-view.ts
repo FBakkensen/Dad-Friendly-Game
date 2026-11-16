@@ -8,7 +8,7 @@ import { makerPrice, makersOpen } from "./makers";
 import { partTwoOn } from "./part-switch";
 import { MAX_STOCKYARD_LEVEL, expandPrice, stockyardOpen } from "./stockyard";
 import { TIERS, tierQuote } from "./tiers";
-import { VEHICLES, vehiclePrice } from "./transport";
+import { VEHICLES, vehicleOpen, vehiclePrice } from "./transport";
 import { upgradeShown } from "./upgrade-reveal";
 import { UPGRADES, upgradePrice, upgradeStage, type Upgrade } from "./upgrades";
 
@@ -103,8 +103,10 @@ export function siteCounts(mountain: Mountain): Record<SiteId, number> {
     (sum, stage) => sum + stageCount(mountain, stage),
     0,
   );
-  const vehicles = VEHICLES.filter((vehicle) =>
-    canPay(mountain.stock, vehiclePrice(mountain, vehicle.id)),
+  const vehicles = VEHICLES.filter(
+    (vehicle) =>
+      vehicleOpen(mountain, vehicle.id) &&
+      canPay(mountain.stock, vehiclePrice(mountain, vehicle.id)),
   ).length;
   return { mine, refinery: refineryCount(mountain), city: vehicles };
 }

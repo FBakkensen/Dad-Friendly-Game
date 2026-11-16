@@ -1,6 +1,6 @@
 import { EMPTY_STOCK } from "./stock";
 import { describe, expect, it } from "vitest";
-import { tierLocked } from "./crew";
+import { buyCrew, tierLock, tierLocked } from "./crew";
 import { minedMountain, reloaded, NONE_OWNED } from "./test-fixtures";
 import {
   accrue,
@@ -8,13 +8,15 @@ import {
   stonesPerSecond,
   type Mountain,
   BARE_MOUNTAIN,
+  createMountain,
 } from "./mountain";
 import { AWAY_PAY_RATE, effectiveRates } from "./rates";
 import { MOUNTAIN_STONES, stonesLeft } from "./scale";
 import { withFactors } from "./economy/factors";
 import { listActions } from "./economy/actions";
-import { buyCrew } from "./crew";
-import { LINE_OFF } from "./line-switch";
+import { LINE_OFF, FRESH_OFF } from "./line-switch";
+import { NO_GRANITE_PILES, NO_LEVEL_MACHINES } from "./mine-levels";
+import { PART_THREE_OFF, PART_TWO_OFF } from "./part-switch";
 import {
   HELPER_COST_GROWTH,
   LINE_MACHINE_COST_GROWTH,
@@ -31,6 +33,7 @@ import {
   buyTier,
   tierById,
   tierCost,
+  tierGood,
   tierQuote,
   tierShown,
   type TierId,
@@ -604,5 +607,116 @@ describe("counts by id (#559)", () => {
       ) as Mountain["owned"],
     };
     expect(reloaded(counted)?.owned).toEqual(counted.owned);
+  });
+});
+
+describe("part 3's machines (#673)", () => {
+  const partTwo = <T>(body: () => T): T =>
+    withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 }, body);
+  const partThree = <T>(body: () => T): T =>
+    withFactors(
+      { [FRESH_OFF]: 0, [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 },
+      body,
+    );
+  const borer = tierById("borer");
+  const train = tierById("train");
+  const sunk = (
+    stock: Partial<Mountain["stock"]>,
+    machines: Partial<typeof NO_LEVEL_MACHINES> = {},
+  ): Mountain => {
+    const start = createMountain();
+    return {
+      ...start,
+      stock: { ...start.stock, ...stock },
+      granite: {
+        kind: "sunk",
+        machines: { ...NO_LEVEL_MACHINES, ...machines },
+        piles: NO_GRANITE_PILES,
+      },
+    };
+  };
+
+  it("leaves the borer and the locomotive out of play until part 3, and locks them until the shaft is sunk", () => {
+    partTwo(() => {
+      expect(tierInPlay(borer)).toBe(false);
+      expect(tierInPlay(train)).toBe(false);
+    });
+    partThree(() => {
+      expect(tierInPlay(borer)).toBe(true);
+      expect(tierInPlay(train)).toBe(true);
+      expect(tierLock(createMountain(), borer)).toEqual({
+        kind: "later",
+        at: "granite",
+      });
+      expect(tierLock(createMountain(), train)).toEqual({
+        kind: "later",
+        at: "granite",
+      });
+      expect(tierLock(sunk({}), borer)).toBeUndefined();
+      expect(tierLock(sunk({}), train)).toBeUndefined();
+      // The winding engine and the kids stay out.
+      expect(tierInPlay(tierById("machine"))).toBe(false);
+      expect(tierInPlay(tierById("kid"))).toBe(false);
+    });
+  });
+
+  it("prices them in cut stone: 40,000 and 60,000, x1.219", () => {
+    partThree(() => {
+      const mine = sunk({ cutStone: 40_000, stones: 7 });
+      const bought = buyCrew(mine, "borer");
+      expect(bought.owned.borer).toBe(1);
+      expect(bought.stock.cutStone).toBe(0);
+      expect(bought.stock.stones).toBe(7);
+      expect(tierCost(borer, 0)).toBe(40_000);
+      expect(tierCost(borer, 1)).toBe(48_760);
+      expect(tierCost(train, 0)).toBe(60_000);
+      const rich = sunk({ cutStone: 100_000 });
+      expect(tierQuote(rich, train, "max")).toEqual({ count: 1, cost: 60_000 });
+      // Stones do not pay for it.
+      const stony = sunk({ stones: 1e12 });
+      expect(buyCrew(stony, "borer")).toBe(stony);
+    });
+  });
+
+  it("rates the borer 1,071 and the locomotive 1,600, each with eight workers", () => {
+    partThree(() => {
+      const { tierSpeed } = effectiveRates(createMountain());
+      expect(tierSpeed.borer).toBeCloseTo(1_071, 6);
+      expect(tierSpeed.train).toBeCloseTo(1_600, 6);
+      expect(borer.staff).toBe(8);
+      expect(train.staff).toBe(8);
+    });
+  });
+
+  it("counts that kind on both levels for its price and marks", () => {
+    partThree(() => {
+      const base = sunk({ cutStone: 1e9 }, { borer: 2 });
+      const mine = { ...base, owned: { ...base.owned, borer: 3 } };
+      expect(tierQuote(mine, borer, "one").cost).toBe(tierCost(borer, 3));
+      expect(buyCrew(mine, "borer").owned.borer).toBe(4);
+    });
+  });
+
+  it("keeps today's price and door with part 3 off", () => {
+    partTwo(() => {
+      expect(tierCost(borer, 0)).toBe(Math.ceil(borer.firstCost));
+      expect(tierCost(train, 0)).toBe(Math.ceil(30_000_000));
+      expect(tierGood("borer")).toBe("stones");
+      expect(tierGood("train")).toBe("stones");
+      expect(tierInPlay(borer)).toBe(false);
+      expect(tierLock(createMountain(), borer)).toEqual({
+        kind: "later",
+        at: "granite",
+      });
+      // A sunk Granite in a save changes neither the door nor the price.
+      expect(tierLock(sunk({}), borer)).toEqual({
+        kind: "later",
+        at: "granite",
+      });
+    });
+    partThree(() => {
+      expect(tierGood("cart")).toBe("stones");
+      expect(tierGood("borer")).toBe("cutStone");
+    });
   });
 });

@@ -153,6 +153,18 @@ describe("the view of a fresh mine (#655)", () => {
     });
   });
 
+  it("leaves a closed truck out of the cheapest buy (#673)", () => {
+    partTwo(() => {
+      const start = mine(START, { wagons: 40 });
+      const lit = {
+        ...start,
+        operational: ["lightTower", "warehouse"] as const,
+      };
+      expect(cheapestBuy(lit)).not.toBe(150_000);
+      expect(cheapestBuy(lit)).toBeLessThanOrEqual(hirePrice(lit));
+    });
+  });
+
   it("prices the cheapest buy at a hire or less", () => {
     fresh(() => {
       const start = mine(START);

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { SITE_HOLDS } from "./building-site";
 import { withFactors } from "./economy/factors";
 import { FRESH_OFF } from "./line-switch";
+import { PART_THREE_OFF, PART_TWO_OFF } from "./part-switch";
 import { createMountain, type Mountain } from "./mountain";
 import { EMPTY_STOCK, priceAmount } from "./stock";
 import {
@@ -16,6 +17,7 @@ import {
   secondsToFinish,
   secondsToStep,
   vehiclePrice,
+  vehicleOpen,
   vehicleQuote,
 } from "./transport";
 import { stepRequires, type Project } from "./city";
@@ -67,7 +69,10 @@ function mine(
 
 describe("the fleet (rule 7.5, 7.6)", () => {
   it("is horse wagons that carry 9 goods a second each (#655)", () => {
-    expect(VEHICLES.map((vehicle) => vehicle.id)).toEqual(["horseWagon"]);
+    expect(VEHICLES.map((vehicle) => vehicle.id)).toEqual([
+      "horseWagon",
+      "truck",
+    ]);
     expect(fleetRate(mine(1, 0, { kind: "unordered" }))).toBe(9);
     expect(fleetRate(mine(4, 0, { kind: "unordered" }))).toBe(36);
   });
@@ -78,6 +83,7 @@ describe("the fleet (rule 7.5, 7.6)", () => {
     expect(fleetRate(mine(3, 0, { kind: "unordered" }, 5))).toBe(27);
     expect(drivenFleet(mine(3, 0, { kind: "unordered" }, 2))).toEqual({
       horseWagon: 2,
+      truck: 0,
     });
     const idle = mine(2, 10_000, site(0), 0);
     expect(deliver(idle, 10, 1)).toBe(idle);
@@ -105,7 +111,10 @@ describe("the fleet (rule 7.5, 7.6)", () => {
     let fleet = one;
     for (let bought = 0; bought < 10; bought += 1) {
       ten += priceAmount(vehiclePrice(fleet, "horseWagon"), "stones");
-      fleet = { ...fleet, fleet: { horseWagon: fleet.fleet.horseWagon + 1 } };
+      fleet = {
+        ...fleet,
+        fleet: { horseWagon: fleet.fleet.horseWagon + 1, truck: 0 },
+      };
     }
     expect(vehicleQuote(one, "horseWagon", "ten")).toEqual({
       count: 10,
@@ -451,5 +460,72 @@ describe("the time to finish the step in hand (#663)", () => {
     expect(secondsToStep(mine(4, 0, { kind: "unordered" }), 1, 0)).toBe(
       Infinity,
     );
+  });
+});
+
+describe("trucks (#673)", () => {
+  const partThree = <T>(body: () => T): T =>
+    withFactors(
+      { [FRESH_OFF]: 0, [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 },
+      body,
+    );
+  const partTwo = <T>(body: () => T): T =>
+    withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 }, body);
+  const stocked = (operational: Mountain["operational"]): Mountain => {
+    const start = createMountain();
+    return {
+      ...start,
+      operational,
+      stock: { ...start.stock, brick: 1_000_000 },
+    };
+  };
+
+  it("cost 150,000 brick, x1.219, carry 400 a second, and none is given", () => {
+    const truck = VEHICLES.find((vehicle) => vehicle.id === "truck");
+    expect(truck).toMatchObject({
+      good: "brick",
+      firstCost: 150_000,
+      growth: 1.219,
+      carries: 400,
+      given: 0,
+    });
+    const none = stocked(["lightTower", "warehouse"]);
+    expect(priceAmount(vehiclePrice(none, "truck"), "brick")).toBe(150_000);
+    const one = { ...none, fleet: { ...none.fleet, truck: 1 } };
+    expect(priceAmount(vehiclePrice(one, "truck"), "brick")).toBe(182_850);
+    expect(createMountain().fleet.truck).toBe(0);
+    expect(fresh(() => createMountain()).fleet.truck).toBe(0);
+  });
+
+  it("open with the Warehouse in part 3 only", () => {
+    const before = stocked(["lightTower"]);
+    const after = stocked(["lightTower", "warehouse"]);
+    partThree(() => {
+      expect(vehicleOpen(before, "truck")).toBe(false);
+      expect(buyVehicle(before, "truck")).toBe(before);
+      expect(vehicleOpen(after, "truck")).toBe(true);
+      const bought = buyVehicle(after, "truck");
+      expect(bought.fleet.truck).toBe(1);
+      expect(bought.stock.brick).toBe(850_000);
+      expect(vehicleOpen(before, "horseWagon")).toBe(true);
+    });
+    partTwo(() => {
+      expect(vehicleOpen(after, "truck")).toBe(false);
+      expect(buyVehicle(after, "truck")).toBe(after);
+    });
+    fresh(() => {
+      expect(vehicleOpen(after, "truck")).toBe(false);
+    });
+  });
+
+  it("take the drivers first (rule 2.7)", () => {
+    const start = fresh(() => createMountain());
+    const both: Mountain = {
+      ...start,
+      fleet: { ...start.fleet, horseWagon: 1, truck: 1 },
+      jobs: { ...start.jobs, driving: 1 },
+    };
+    expect(drivenFleet(both)).toEqual({ horseWagon: 0, truck: 1 });
+    expect(fleetRate(both)).toBe(400);
   });
 });

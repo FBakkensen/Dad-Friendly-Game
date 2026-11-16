@@ -43,7 +43,7 @@ function lit(
     owned: { ...start.owned, helper: onJobs },
     jobs: placed,
     stock: { ...EMPTY_STOCK, ...stock },
-    makers: { kiln: kilns },
+    makers: { kiln: kilns, saw: 0 },
     piles: { face: 150, shaft: 150, kiln: 0 },
     operational,
     stockyard,

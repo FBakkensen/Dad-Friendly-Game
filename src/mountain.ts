@@ -21,12 +21,11 @@ import {
 } from "./city";
 import { NO_JOBS, workersOnJobs, type Jobs } from "./workforce";
 import { makerRecord, type MakerId } from "./makers";
-import { chainChange, chainSettled } from "./piles";
+import { UNSUNK, type Granite } from "./mine-levels";
 import {
-  chainIncome,
-  chainMakes,
   flowMine,
-  mineChain,
+  mineMakes,
+  mineSettled,
   takeIncome,
   type MinePiles,
 } from "./mine-piles";
@@ -147,6 +146,8 @@ export type Mountain = {
    * of a fresh mine, whose mountain never shrinks. Always 0 in today's game.
    */
   readonly rockDug: number;
+  /** The shaft to the Granite (slice 1, part 3, src/mine-levels.ts). Always unsunk in today's game. */
+  readonly granite: Granite;
 };
 
 /** 0 for a first run that was never started over. */
@@ -178,6 +179,7 @@ export const BARE_MOUNTAIN: Mountain = {
   makers: makerRecord(0),
   stockyard: 0,
   rockDug: 0,
+  granite: UNSUNK,
 };
 
 /**
@@ -193,6 +195,9 @@ export const FRESH_START_JOBS: Jobs = {
   driving: 0,
   building: 0,
   kilns: 0,
+  graniteDrilling: 0,
+  graniteHaulage: 0,
+  saws: 0,
 };
 
 export function createMountain(): Mountain {
@@ -373,7 +378,7 @@ function accrueMine(
   to: number,
   pay: number,
 ): Accrual {
-  if (!chainMakes(mineChain(mountain, pay, true))) {
+  if (!mineMakes(mountain, pay)) {
     return { mountain, mined: 0, settledAt: to };
   }
   const seconds = Math.floor((to - from) / 1000);
@@ -646,12 +651,12 @@ function workStretch(
   drilling: boolean,
 ): Stretch {
   // A stretch is a second at least: what changes within it is made for it.
-  const settled = chainSettled(mineChain(mountain, pay, drilling), 1);
-  const income = chainIncome(settled.chain);
+  const settled = mineSettled(mountain, pay, drilling);
+  const { income } = settled;
   const to = Math.min(
     end,
     secondMark(from, secondsToStep(mountain, pay, income)),
-    secondMark(from, settled.after + chainChange(settled.chain)),
+    secondMark(from, settled.change),
     stockyardOpen(mountain)
       ? secondMark(
           from,

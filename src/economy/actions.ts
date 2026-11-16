@@ -1,4 +1,4 @@
-import { buyCrew, tierLocked } from "../crew";
+import { buyCrew, tierLocked, tierOnSale } from "../crew";
 import {
   ENGINEER_POSTS,
   MAX_ENGINEERS,
@@ -32,10 +32,20 @@ import {
 } from "../city";
 import { freshMineOn } from "../line-switch";
 import {
+  LEVEL_MACHINE_IDS,
+  graniteOpen,
+  levelMachines,
+  shaftOpen,
+  shaftPrice,
+  sinkShaft,
+  withGraniteMachine,
+  type LevelMachineId,
+} from "../mine-levels";
+import {
   MAKER_IDS,
   buyMaker,
   makerPrice,
-  makersOpen,
+  makerOpen,
   type MakerId,
 } from "../makers";
 import {
@@ -54,6 +64,7 @@ import {
 import {
   VEHICLE_IDS,
   buyVehicle,
+  vehicleOpen,
   vehiclePrice,
   type VehicleId,
 } from "../transport";
@@ -159,7 +170,17 @@ export type Action =
   | { readonly kind: "cancelCraft" }
   | OrderAction
   | WorkerAction
-  | YardAction;
+  | YardAction
+  | LevelAction;
+
+/**
+ * Part 3's moves at the shaft (slice 1, rules 1.3 and 5.2, #673), only while
+ * open: sink the shaft once the Light Tower is up, then buy a level machine
+ * for the Granite. Both are instant (rule 7.14).
+ */
+type LevelAction =
+  | { readonly kind: "sinkShaft" }
+  | { readonly kind: "buyGraniteMachine"; readonly id: LevelMachineId };
 
 /**
  * Part 2's buys at the mine (slice 1, rules 3 and 4, #666, #667), only while
@@ -244,14 +265,49 @@ export function listActions(
     ...orderActions(mountain),
     ...workerActions(mountain),
     ...yardActions(mountain),
+    ...levelActions(mountain),
   ];
 }
 
-/** The kilns once they are open, and the next stockyard level until the last. */
+/**
+ * The shaft while it can be sunk; once the Granite is open, a buy for it of
+ * each level machine on sale, in `LEVEL_MACHINE_IDS` order.
+ */
+function levelActions(mountain: Mountain): readonly Action[] {
+  if (shaftOpen(mountain)) {
+    return [{ kind: "sinkShaft" }];
+  }
+  if (!graniteOpen(mountain)) {
+    return [];
+  }
+  return LEVEL_MACHINE_IDS.filter((id) =>
+    tierOnSale(mountain, tierById(id)),
+  ).map((id) => ({ kind: "buyGraniteMachine", id }));
+}
+
+/**
+ * A part 3 move applied. A Granite machine is the card buy, then placed on
+ * the Granite only if he owns one more, so a refused buy changes nothing and
+ * the first borer brings the first engineer as on the Topsoil.
+ */
+function levelApplied(mountain: Mountain, action: LevelAction): Mountain {
+  if (action.kind === "sinkShaft") {
+    return sinkShaft(mountain);
+  }
+  if (!graniteOpen(mountain)) {
+    return mountain;
+  }
+  const bought = buyWithTeach(mountain, action.id);
+  return bought.owned[action.id] > mountain.owned[action.id]
+    ? withGraniteMachine(bought, action.id)
+    : mountain;
+}
+
+/** The makers once they are open, and the next stockyard level until the last. */
 function yardActions(mountain: Mountain): readonly Action[] {
-  const makers: Action[] = makersOpen(mountain)
-    ? MAKER_IDS.map((id) => ({ kind: "buyMaker", id }))
-    : [];
+  const makers: Action[] = MAKER_IDS.filter((id) =>
+    makerOpen(mountain, id),
+  ).map((id) => ({ kind: "buyMaker", id }));
   return stockyardOpen(mountain) && mountain.stockyard < MAX_STOCKYARD_LEVEL
     ? [...makers, { kind: "expandStockyard" }]
     : makers;
@@ -302,7 +358,9 @@ function orderActions(mountain: Mountain): readonly Action[] {
   if (!freshMineOn()) {
     return [];
   }
-  const vehicles: Action[] = VEHICLE_IDS.map((id) => ({
+  const vehicles: Action[] = VEHICLE_IDS.filter((id) =>
+    vehicleOpen(mountain, id),
+  ).map((id) => ({
     kind: "buyVehicle",
     id,
   }));
@@ -583,6 +641,13 @@ export type MoveEvent =
       readonly job: JobId;
       /** Workers on the job after the move. */
       readonly count: number;
+    }
+  | { readonly kind: "shaftSunk" }
+  | {
+      readonly kind: "graniteMachineBought";
+      readonly id: LevelMachineId;
+      /** That machine on the Granite after the move. */
+      readonly count: number;
     };
 
 /**
@@ -668,6 +733,9 @@ function actionApplied(
     case "buyMaker":
     case "expandStockyard":
       return yardApplied(mountain, action);
+    case "sinkShaft":
+    case "buyGraniteMachine":
+      return levelApplied(mountain, action);
     /* v8 ignore next 3 -- exhaustiveness guard, unreachable */
     default: {
       const unexpected: never = action;
@@ -808,6 +876,16 @@ function actionEvents(
       ];
     case "expandStockyard":
       return [{ kind: "stockyardExpanded", level: next.stockyard }];
+    case "sinkShaft":
+      return [{ kind: "shaftSunk" }];
+    case "buyGraniteMachine":
+      return [
+        {
+          kind: "graniteMachineBought",
+          id: action.id,
+          count: levelMachines(next, "granite")[action.id],
+        },
+      ];
     /* v8 ignore next 3 -- exhaustiveness guard, unreachable */
     default: {
       const unexpected: never = action;
@@ -925,6 +1003,15 @@ export function valueOf(
         horizon,
         context,
       );
+    case "sinkShaft":
+      // Neither raises stone income: the lab learns what the Granite is worth (#675).
+      return {
+        gainPerSec: 0,
+        cost: priceAmount(shaftPrice(), "stones"),
+        paybackSec: Infinity,
+      };
+    case "buyGraniteMachine":
+      return { gainPerSec: 0, cost: 0, paybackSec: Infinity };
     /* v8 ignore next 3 -- exhaustiveness guard, unreachable */
     default: {
       const unexpected: never = action;

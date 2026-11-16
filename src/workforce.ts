@@ -1,6 +1,14 @@
 import { STAGES, type Stage, type StageSpeeds } from "./line";
 import type { Mountain } from "./mountain";
-import { makersOpen } from "./makers";
+import { makerOpen } from "./makers";
+import {
+  LEVEL_MACHINE_IDS,
+  graniteOpen,
+  levelMachines,
+  type LevelMachineId,
+  type LevelMachines,
+  type MineLevelId,
+} from "./mine-levels";
 import { fleetSize } from "./transport";
 import {
   TIERS,
@@ -28,6 +36,9 @@ export const JOB_IDS = [
   "driving",
   "building",
   "kilns",
+  "graniteDrilling",
+  "graniteHaulage",
+  "saws",
 ] as const;
 
 export type JobId = (typeof JOB_IDS)[number];
@@ -41,6 +52,9 @@ export const NO_JOBS: Jobs = {
   driving: 0,
   building: 0,
   kilns: 0,
+  graniteDrilling: 0,
+  graniteHaulage: 0,
+  saws: 0,
 };
 
 /** Each stage of the line and its job. */
@@ -50,17 +64,46 @@ export const STAGE_JOB: Readonly<Record<Stage, JobId>> = {
   lift: "hoisting",
 };
 
+/** A stage a level has of its own: the one hoist serves both levels. */
+export type LevelStage = Exclude<Stage, "lift">;
+
+/** Each level's jobs: `drilling` and `haulage` stay the Topsoil's, shipped ids. */
+export const LEVEL_JOBS: Readonly<
+  Record<MineLevelId, Readonly<Record<LevelStage, JobId>>>
+> = {
+  topsoil: { face: "drilling", haul: "haulage" },
+  granite: { face: "graniteDrilling", haul: "graniteHaulage" },
+};
+
 type Crew = Pick<Mountain, "owned" | "jobs">;
 
 /**
- * Whether a job is open (rule 2.3): the kilns' with the kilns (part 2, the
- * Light Tower operational), every other from the first evening.
+ * Whether a job is open (rule 2.3): the Granite's two with the shaft sunk
+ * (part 3), the kilns' with the kilns (part 2, the Light Tower operational),
+ * every other from the first evening.
  */
 export function jobOpen(
-  mountain: Pick<Mountain, "operational">,
+  mountain: Pick<Mountain, "operational" | "granite">,
   job: JobId,
 ): boolean {
-  return job !== "kilns" || makersOpen(mountain);
+  if (job === "graniteDrilling" || job === "graniteHaulage") {
+    return graniteOpen(mountain);
+  }
+  if (job === "saws") {
+    return makerOpen(mountain, "saw");
+  }
+  return job !== "kilns" || makerOpen(mountain, "kiln");
+}
+
+/**
+ * Workers on haulage, on both levels while the Granite is open: what Loading
+ * crews counts (rule 5.2). With it shut, the Topsoil's alone.
+ */
+export function haulageWorkers(
+  mountain: Pick<Mountain, "jobs" | "granite">,
+): number {
+  const { haulage, graniteHaulage } = mountain.jobs;
+  return graniteOpen(mountain) ? haulage + graniteHaulage : haulage;
 }
 
 /** Workers on a job, of every job. */
@@ -220,44 +263,95 @@ function bestRun(
   return best as Run;
 }
 
+/** What a level's own stages move: drilling and haulage. */
+type LevelStages = Readonly<Record<LevelStage, number>>;
+
 /** What the workforce moves on the line, and what runs. */
 export type LineWork = {
-  /** Machines that run, and `helper`: the workers with a tool on the three stages. */
+  /** Machines that run on both levels, and `helper`: the workers with a tool on every stage. */
   readonly running: Record<TierId, number>;
+  /** The Topsoil's drilling and haulage, and the shaft's hoisting. */
   readonly stages: StageSpeeds;
-  /** What the line moves: its slowest stage (rule 2.5). */
+  /** Each level's drilling and haulage: the Granite's are 0 while it is not open. */
+  readonly levels: Readonly<Record<MineLevelId, LevelStages>>;
+  /**
+   * What the line moves (rule 2.5): its slowest stage; with the Granite open,
+   * hoisting or both levels' slowest stages together, whichever is less.
+   */
   readonly line: number;
   /** Workers the stages are short of, for machines that would beat a tool. */
   readonly short: number;
 };
+
+const SHUT_LEVEL: LevelStages = { face: 0, haul: 0 };
+
+type Tally = { readonly running: Record<TierId, number>; short: number };
+
+/** Adds a stage's work into the tally: its machines, its tools, its shortfall. */
+function addWork(tally: Tally, work: StageWork): void {
+  for (const [id, count] of Object.entries(work.running) as [
+    MachineId,
+    number,
+  ][]) {
+    tally.running[id] += count;
+  }
+  tally.running.helper += work.tools;
+  tally.short += work.short;
+}
+
+/**
+ * The line's rate: the slowest stage with one level (today's); with the
+ * Granite open, hoisting or both levels' slowest stages added, whichever is
+ * less (ruling 18).
+ */
+function lineOf(stages: StageSpeeds, granite: LevelStages | undefined): number {
+  if (granite === undefined) {
+    return Math.min(stages.face, stages.haul, stages.lift);
+  }
+  return Math.min(
+    stages.lift,
+    Math.min(stages.face, stages.haul) + Math.min(granite.face, granite.haul),
+  );
+}
 
 /**
  * The line in a fresh mine: each stage's workers run its machines or work
  * with a tool, and no worker spreads to the slowest stage. A worker with a
  * tool does his stage's share of the line spec's worker, three times his
  * own speed (Work boots and the worker marks are in it). A worker on a
- * machine does no other work.
+ * machine does no other work. With the Granite open, its drilling and
+ * haulage work beside the Topsoil's, at the same tier speeds (rule 5.2).
  */
 export function lineWork(
-  mountain: Pick<Mountain, "owned" | "jobs">,
+  mountain: Pick<Mountain, "owned" | "jobs" | "granite">,
   speed: Readonly<Record<TierId, number>>,
 ): LineWork {
   const works = stageWorks(mountain, speed);
-  const running = tierRecord(0);
-  const stages = { face: 0, haul: 0, lift: 0 };
-  let short = 0;
+  const tally: Tally = { running: tierRecord(0), short: 0 };
   for (const stage of STAGES) {
-    const work = works[stage];
-    Object.assign(running, work.running);
-    running.helper += work.tools;
-    stages[stage] = work.moves;
-    short += work.short;
+    addWork(tally, works[stage]);
+  }
+  const stages = {
+    face: works.face.moves,
+    haul: works.haul.moves,
+    lift: works.lift.moves,
+  };
+  let granite: LevelStages | undefined;
+  if (graniteOpen(mountain)) {
+    const own = levelWorks(mountain, speed, "granite");
+    addWork(tally, own.face);
+    addWork(tally, own.haul);
+    granite = { face: own.face.moves, haul: own.haul.moves };
   }
   return {
-    running,
+    running: tally.running,
     stages,
-    line: Math.min(stages.face, stages.haul, stages.lift),
-    short,
+    levels: {
+      topsoil: { face: stages.face, haul: stages.haul },
+      granite: granite ?? SHUT_LEVEL,
+    },
+    line: lineOf(stages, granite),
+    short: tally.short,
   };
 }
 
@@ -266,33 +360,64 @@ export function toolSpeed(speed: Readonly<Record<TierId, number>>): number {
   return speed.helper * STAGES.length;
 }
 
-/** Each stage's work in a fresh mine: what runs, the tools, what it moves (rule 2.5). */
+/**
+ * Each stage's work in a fresh mine (rule 2.5): the Topsoil's drilling and
+ * haulage and the shaft's hoisting: what runs, the tools, what it moves.
+ */
 export function stageWorks(
-  mountain: Pick<Mountain, "owned" | "jobs">,
+  mountain: Pick<Mountain, "owned" | "jobs" | "granite">,
   speed: Readonly<Record<TierId, number>>,
 ): Readonly<Record<Stage, StageWork>> {
-  const tool = toolSpeed(speed);
-  const works = {} as Record<Stage, StageWork>;
-  for (const stage of STAGES) {
-    works[stage] = stageWork(
-      stageMachines(mountain, speed, stage),
-      mountain.jobs[STAGE_JOB[stage]],
-      tool,
-    );
-  }
-  return works;
+  return {
+    ...levelWorks(mountain, speed, "topsoil"),
+    lift: stageWork(
+      stageMachines(mountain, speed, "lift"),
+      mountain.jobs[STAGE_JOB.lift],
+      toolSpeed(speed),
+    ),
+  };
 }
 
-/** A stage's machines in play: how many he owns, the workers each takes, what each moves. */
+/** A level's drilling and haulage: that level's workers on its own machines. */
+function levelWorks(
+  mountain: Pick<Mountain, "owned" | "jobs" | "granite">,
+  speed: Readonly<Record<TierId, number>>,
+  level: MineLevelId,
+): Readonly<Record<LevelStage, StageWork>> {
+  const tool = toolSpeed(speed);
+  const work = (stage: LevelStage): StageWork =>
+    stageWork(
+      stageMachines(mountain, speed, stage, level),
+      mountain.jobs[LEVEL_JOBS[level][stage]],
+      tool,
+    );
+  return { face: work("face"), haul: work("haul") };
+}
+
+function isLevelMachine(id: TierId): id is LevelMachineId {
+  return (LEVEL_MACHINE_IDS as readonly TierId[]).includes(id);
+}
+
+/**
+ * A stage's machines in play: how many there are, the workers each takes,
+ * what each moves. Drilling's and haulage's are the level's own; hoisting's
+ * are every one he owns, for the one shaft.
+ */
 export function stageMachines(
-  mountain: Pick<Mountain, "owned">,
+  mountain: Pick<Mountain, "owned" | "granite">,
   speed: Readonly<Record<TierId, number>>,
   stage: Stage,
+  level: MineLevelId = "topsoil",
 ): StageMachine[] {
+  const own: LevelMachines | undefined =
+    stage === "lift" ? undefined : levelMachines(mountain, level);
   return TIERS.filter((tier) => tier.stage === stage && tierInPlay(tier)).map(
     (tier) => ({
       id: tier.id as MachineId,
-      owned: mountain.owned[tier.id],
+      owned:
+        own !== undefined && isLevelMachine(tier.id)
+          ? own[tier.id]
+          : mountain.owned[tier.id],
       staff: tier.staff,
       speed: speed[tier.id],
     }),

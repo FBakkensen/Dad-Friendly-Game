@@ -40,6 +40,7 @@ describe("the game map (#558)", () => {
       makers: "makers",
       stockyard: "stockyard",
       rockDug: "run",
+      granite: "granite",
     } as const satisfies Record<keyof Mountain, string>;
     const fresh = createMountain();
     const full: Mountain = {
@@ -98,11 +99,19 @@ describe("the game map (#558)", () => {
         driving: 3,
         building: 2,
         kilns: 1,
+        graniteDrilling: 0,
+        graniteHaulage: 0,
+        saws: 0,
       },
       piles: { face: 40, shaft: 9, kiln: 30 },
-      makers: { kiln: 2 },
+      makers: { kiln: 2, saw: 0 },
       stockyard: 1,
       rockDug: 12_345,
+      granite: {
+        kind: "sunk",
+        machines: { cart: 1, drill: 0, borer: 1, train: 0 },
+        piles: { face: 5, shaft: 0, saw: 3 },
+      },
     };
     // Part 1 has one building, so an operational one and a project in hand
     // are two mountains (#654).
@@ -138,7 +147,7 @@ describe("the game map (#558)", () => {
     const fresh = createMountain();
     const game = writeGame({
       ...fresh,
-      fleet: { horseWagon: 2 },
+      fleet: { horseWagon: 2, truck: 0 },
       project: {
         kind: "delivering",
         site: {
@@ -233,7 +242,7 @@ describe("the game map (#558)", () => {
     expect(
       project({ ...good, building: "rocketPad", arrived: { stones: -5 } }),
     ).toBe("bad");
-    expect(readGame({ fleet: { truck: 1 } }, 0).kind).toBe("newer");
+    expect(readGame({ fleet: { crane: 1 } }, 0).kind).toBe("newer");
   });
 
   it("saves the workers on each job, and refuses more on jobs than he owns (#689)", () => {
@@ -248,6 +257,9 @@ describe("the game map (#558)", () => {
         driving: 1,
         building: 0,
         kilns: 0,
+        graniteDrilling: 0,
+        graniteHaulage: 0,
+        saws: 0,
       },
     };
     expect(writeGame(crew).jobs).toEqual({
@@ -263,7 +275,7 @@ describe("the game map (#558)", () => {
     expect(read({ jobs: { haulage: 1 } })).toBe("bad");
     expect(read({ owned: { helper: 5 }, jobs: { drilling: -1 } })).toBe("bad");
     expect(read({ owned: { helper: 5 }, jobs: { building: 1 } })).toBe("ok");
-    expect(read({ owned: { helper: 5 }, jobs: { saws: 1 } })).toBe("newer");
+    expect(read({ owned: { helper: 5 }, jobs: { crushers: 1 } })).toBe("newer");
   });
 
   it("keys each fact by id, in the five maps", () => {

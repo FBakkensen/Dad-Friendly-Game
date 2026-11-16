@@ -37,6 +37,7 @@ import {
 import { canPay as stockCovers, priceAmount } from "../stock";
 import { vehiclePrice } from "../transport";
 import { makerPrice } from "../makers";
+import { shaftPrice } from "../mine-levels";
 
 /**
  * The purchase this dad wants most, or nothing if every legal spend is
@@ -266,6 +267,11 @@ export function sticker(mountain: Mountain, action: Action): number {
     case "expandStockyard":
       // Brick, not stone: the fresh dad prices it good by good (#667).
       return 0;
+    case "sinkShaft":
+      return priceAmount(shaftPrice(), "stones");
+    case "buyGraniteMachine":
+      // As `valueOf` prices it until the lab learns the Granite (#675).
+      return 0;
     case "station":
     case "send":
     case "recall":
@@ -344,6 +350,8 @@ function spendKey(
     case "expandStockyard":
     case "placeWorker":
     case "freeWorker":
+    case "sinkShaft":
+    case "buyGraniteMachine":
       return undefined;
   }
 }
