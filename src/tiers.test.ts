@@ -76,7 +76,6 @@ describe("tiers", () => {
   });
 
   it("lists every tier cheapest first, each a big jump in speed", () => {
-    // First prices are pinned once, in src/tuning.test.ts (#381).
     expect(TIERS.map(({ id, perSecond }) => [id, perSecond])).toEqual([
       ["helper", 1],
       ["cart", 6],
@@ -269,7 +268,7 @@ describe("kid helpers", () => {
     const kid = tierById("kid");
     expect(tierLocked(minedMountain(69_999_999), kid)).toBe(true);
     expect(tierLocked(minedMountain(70_000_000), kid)).toBe(false);
-    // Kids share the workers' curve (the price is pinned in src/tuning.test.ts).
+    // Kids share the workers' curve.
     expect(tierCost(kid, 0)).toBe(kid.firstCost);
     expect(tierCost(kid, 1)).toBe(
       Math.ceil(Number((kid.firstCost * HELPER_COST_GROWTH).toPrecision(12))),

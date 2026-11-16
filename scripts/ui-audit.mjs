@@ -171,10 +171,10 @@ async function collect(page) {
       }
       return el.tagName.toLowerCase();
     };
-    // A tier, upgrade, recipe or side names its parts, and itself: the Buys
-    // rows (#373) are each a [data-tier] host, so each row is its own target
-    // and a part reads as the row's (.board-row-*).
-    const KEYS = ["tier", "upgrade", "recipe", "side"];
+    // An upgrade or a side names its parts, and itself: a stage list's
+    // upgrade and a save card's side are each a keyed host, so each is its
+    // own target and a part reads as its host's.
+    const KEYS = ["upgrade", "side"];
     const keyed = (host) => {
       const key = KEYS.find((name) => host.dataset[name]);
       return key === undefined
@@ -185,9 +185,7 @@ async function collect(page) {
       if (el.id) {
         return `#${el.id}`;
       }
-      const host = el.closest(
-        "[data-tier], [data-upgrade], [data-recipe], [data-side]",
-      );
+      const host = el.closest("[data-upgrade], [data-side]");
       const own = classBit(el);
       if (host instanceof HTMLElement) {
         const key = keyed(host);
@@ -389,7 +387,7 @@ async function collect(page) {
     remember(document.documentElement, "html");
     remember(document.querySelector("#app"), "#app");
     for (const el of document.querySelectorAll(
-      "[role='dialog'], [role='alertdialog'], .sheet, .workshop-sheet, .board-sheet-list, .board-sheet-how, .board-card-face",
+      "[role='dialog'], [role='alertdialog'], .board-sheet-list, .board-sheet-how, .board-card-face",
     )) {
       if (visible(el)) {
         remember(el, selectorOf(el));
@@ -398,14 +396,8 @@ async function collect(page) {
 
     const primarySelectors = [
       ".go",
-      ".board-row.upgrade",
-      ".workshop-recipe",
-      ".welcome-continue",
-      ".layer-dig",
-      ".craft-accept",
       ".other-tab-play",
       ".update-reload",
-      ".engineer-promote",
       ".ledger-yes",
       ".save-conflict-play",
       ".save-conflict-commit",
@@ -452,27 +444,13 @@ async function collect(page) {
     const scope = layer;
     const groups = {
       card: [
-        ".tier",
-        ".upgrade",
-        ".workshop-recipe",
         ".save-card",
         ".saved-copy",
-        ".welcome-back .board-card-face",
-        ".layer-arrival .board-card-face",
-        ".craft-notice .board-card-face",
         ".other-tab .board-card-face",
         ".update-prompt .board-card-face",
         ".saved-copies .board-card-face",
-        ".engineer-row",
       ],
-      chip: [".expedition-chip"],
-      timer: [".workshop-bar"],
-      notice: [
-        ".craft-notice",
-        ".welcome-back",
-        ".layer-arrival",
-        ".board-sheet-kick.is-done",
-      ],
+      notice: [".board-sheet-kick.is-done"],
       badge: [".board-row-badge", ".board-row-flag"],
     };
     const components = {};
@@ -903,8 +881,6 @@ function summarise(rows) {
   const questions = [];
   const components = {
     card: {},
-    chip: {},
-    timer: {},
     notice: {},
     badge: {},
     button: {},

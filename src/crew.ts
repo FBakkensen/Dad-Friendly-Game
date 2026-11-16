@@ -91,7 +91,6 @@ export function tierLocked(mountain: Mountain, tier: Tier): boolean {
  * Buys one of a tier if it is unlocked and affordable; otherwise the same
  * mountain. The first borer brings the first engineer, already tending it.
  * Later purchases leave her post alone: the engineers sheet chooses it.
- * The pacing sim still moves her, through tendBestTier.
  */
 export function buyCrew(mountain: Mountain, id: TierId): Mountain {
   const tier = tierById(id);

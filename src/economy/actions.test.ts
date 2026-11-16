@@ -76,7 +76,7 @@ const LIVE: ValueContext = {
   awaySeconds: 0,
 };
 
-/** One session and the gap before the next, as the pacing dad plays it. */
+/** One session and the gap before the next, as a typical dad plays it. */
 const SESSION_S = 10 * 60;
 const GAP_S = 12 * 60 * 60 - SESSION_S;
 const CASUAL: ValueContext = {
@@ -214,7 +214,7 @@ function expectSameMove(mountain: Mountain, action: Action, now: number): void {
   }
 }
 
-/** Spare hands, as `pacing.ts` `bestValue` counts them. */
+/** Workers not already running a machine. */
 function freeHelpers(mountain: Mountain): number {
   const rates = effectiveRates(mountain);
   return (

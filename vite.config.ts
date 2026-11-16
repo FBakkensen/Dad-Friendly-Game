@@ -156,12 +156,6 @@ export default defineConfig({
           functions: 100,
           lines: 100,
         },
-        "src/pacing.ts": {
-          statements: 100,
-          branches: 96,
-          functions: 100,
-          lines: 100,
-        },
         "src/persist.ts": {
           statements: 97,
           branches: 94,

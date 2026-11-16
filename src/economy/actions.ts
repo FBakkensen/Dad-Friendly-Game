@@ -1125,8 +1125,8 @@ export function helperBill(mountain: Mountain, count: number): number {
   return cost;
 }
 
-/** Hands not already running a machine. The sim dad's spare count too. */
-export function freeHelpers(mountain: Mountain): number {
+/** Workers not already running a machine. */
+function freeHelpers(mountain: Mountain): number {
   const rates = effectiveRates(mountain);
   const used = TIERS.reduce(
     (total, tier) =>

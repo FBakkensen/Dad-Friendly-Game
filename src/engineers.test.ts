@@ -139,7 +139,7 @@ describe("promote", () => {
     });
     expect(hired.owned.helper).toBe(9);
     expect(hired.stock.stones).toBe(100_000_000 - PROMOTE_BASE_COST * 2);
-    // The base price is pinned in src/tuning.test.ts; it doubles per engineer.
+    // It doubles per engineer.
     expect(promoteCost(crew([]))).toBe(PROMOTE_BASE_COST);
     expect(promoteCost(crew([ada]))).toBe(PROMOTE_BASE_COST * 2);
     expect(promoteCost(hired)).toBe(PROMOTE_BASE_COST * 4);
