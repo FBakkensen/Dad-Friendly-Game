@@ -26,6 +26,7 @@ import {
   chainSpill,
   flowBranchesWhole,
   flowWhole,
+  turnPerLoad,
   type Branch,
   type Branches,
   type Chain,
@@ -274,6 +275,18 @@ export function mineLevelFlows(
     levels: { topsoil: levelFlow(topsoil), granite: levelFlow(deep) },
     lift: (topsoil[LIFT] ?? 0) + (deep[LIFT] ?? 0),
   };
+}
+
+/**
+ * What one load of the cages for both lifts a second now (#680): a load
+ * from each level in the turn once a round of their trips (`turnPerLoad`),
+ * as the night counts it. With the Granite shut there is no turn: 0.
+ */
+export function mineTurnPerLoad(mountain: Mountain): number {
+  const granite = openGranite(mountain);
+  return granite === undefined
+    ? 0
+    : turnPerLoad(levelsSet(mountain, granite, 1, true));
 }
 
 /**

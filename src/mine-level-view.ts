@@ -1,9 +1,4 @@
-import {
-  cageRates,
-  tripSeconds,
-  unassignedHoists,
-  type ShaftCage,
-} from "./cages";
+import { cageRates, unassignedHoists, type ShaftCage } from "./cages";
 import { formatCompact } from "./format";
 import {
   MINE_LEVEL_IDS,
@@ -14,7 +9,13 @@ import {
   type MineLevelId,
   type SunkGranite,
 } from "./mine-levels";
-import { faceHolds, mineLevelFlows, mineWork, shaftHolds } from "./mine-piles";
+import {
+  faceHolds,
+  mineLevelFlows,
+  mineTurnPerLoad,
+  mineWork,
+  shaftHolds,
+} from "./mine-piles";
 import {
   PILE_LABELS,
   printedParts,
@@ -115,15 +116,12 @@ export type MineLevel = {
 /**
  * What the running cages lift a second, counted as rates (rule 5.14): a
  * cage for one level its load each trip to that level; the cages for both
- * their loads once a round, one load from each level (`Branches`' turn).
+ * `perLoad` a second for each load: a load from each level in the turn once
+ * a round of their trips (`mineTurnPerLoad`), as the night shares them out.
  */
-function liftOf(cages: readonly ShaftCage[]): number {
+function liftOf(cages: readonly ShaftCage[], perLoad: number): number {
   const { own, loads } = cageRates(cages);
-  const round = MINE_LEVEL_IDS.reduce(
-    (sum, level) => sum + tripSeconds(level),
-    0,
-  );
-  return own.topsoil + own.granite + (MINE_LEVEL_IDS.length * loads) / round;
+  return own.topsoil + own.granite + loads * perLoad;
 }
 
 /** The workers a part has on tools: those who run the winch. */
@@ -149,12 +147,14 @@ function hoistParts(mountain: Mountain, timer: number): RowPart[] {
     toolSpeed(speed),
   );
   const running = mineWork(mountain).cages.filter((cage) => cage.runs);
-  const winch = liftOf(running.filter((cage) => cage.key === "winch"));
+  const perLoad = mineTurnPerLoad(mountain);
+  const lift = (cages: readonly ShaftCage[]): number => liftOf(cages, perLoad);
+  const winch = lift(running.filter((cage) => cage.key === "winch"));
   const onWinch = parts.reduce((sum, part) => sum + winchWorkers(part), 0);
   return parts.map((part) => {
     const moves =
       part.kind === "runs"
-        ? liftOf(running.filter((cage) => cage.key.startsWith(`${part.id}:`)))
+        ? lift(running.filter((cage) => cage.key.startsWith(`${part.id}:`)))
         : onWinch > 0
           ? (winch * winchWorkers(part)) / onWinch
           : 0;
@@ -339,8 +339,13 @@ export function hoistStrip(
   const hoists = mineWork(mountain).cages.filter(
     (cage) => cage.runs && cage.key !== "winch",
   );
+  const perLoad = mineTurnPerLoad(mountain);
   const values = STRIP_PLACES.map(
-    (place) => liftOf(hoists.filter((cage) => cage.serves === place)) * timer,
+    (place) =>
+      liftOf(
+        hoists.filter((cage) => cage.serves === place),
+        perLoad,
+      ) * timer,
   );
   const printed = printedParts(
     values,

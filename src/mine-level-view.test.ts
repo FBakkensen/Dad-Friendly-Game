@@ -30,6 +30,7 @@ import { printedParts } from "./mine-view";
 import { levels, partThree, partTwo } from "./part-three.harness";
 import { chainFlows } from "./piles";
 import { crewTimer } from "./rates";
+import { readGame } from "./save-format";
 import { LEVEL_JOBS } from "./workforce";
 
 /** The mine's two levels as views (#680): each level's rows and piles, Hoisting's row, the strip and the shaft's gate. */
@@ -339,6 +340,89 @@ describe("the words with two levels", () => {
       topsoil: "Topsoil",
       granite: "Granite",
       shaft: "Shaft",
+    });
+  });
+});
+
+describe("hoisting's now against its can", () => {
+  /** What Hoisting's row can lift: its parts add up to it. */
+  const canLift = (row: ReturnType<typeof hoistingRow>): number =>
+    row.parts.reduce((sum, part) => sum + part.moves, 0);
+
+  it("never lifts more now than it can, on the factory's dev mine with the Granite idle", () => {
+    partThree(() => {
+      // The part 3 dev save (tools/browser/fixtures.ts, `factoryGame`): the
+      // shaft sunk, nobody on the Granite, and the winch the only cage.
+      const read = readGame(
+        {
+          owned: { helper: 18, cart: 2 },
+          stock: { stones: 420_000, brick: 60_000, clay: 8, iron: 11 },
+          jobs: {
+            drilling: 4,
+            haulage: 3,
+            hoisting: 4,
+            driving: 2,
+            building: 2,
+            kilns: 1,
+          },
+          fleet: { horseWagon: 2 },
+          marks: { operational: ["lightTower", "warehouse"] },
+          makers: { kiln: 1 },
+          granite: {},
+          run: { rock: 30_000_000, granite: 1_000_000 },
+          levels: { "iron-rails": 1 },
+        },
+        0,
+      );
+      if (read.kind !== "ok") {
+        throw new Error(`the dev save reads ${read.kind}`);
+      }
+      const m = read.mountain;
+      const row = hoistingRow(m);
+      const now = mineLevelFlows(m).lift;
+      expect(now).toBeGreaterThan(0);
+      expect(now).toBeLessThanOrEqual(canLift(row) + 1e-9);
+      // Only the Topsoil is in the turn, so the winch, which serves both,
+      // brings up its whole load every Topsoil trip.
+      const winch = mineWork(m).cages.find((cage) => cage.key === "winch");
+      expect(canLift(row)).toBeCloseTo(
+        (winch?.load ?? 0) / tripSeconds("topsoil"),
+        9,
+      );
+    });
+  });
+
+  it("never lifts more now than it can with two levels, whatever the setup", () => {
+    partThree(() => {
+      for (const topsoil of [0, 3]) {
+        for (const granite of [0, 2]) {
+          for (const hoisting of [0, 2, 5]) {
+            for (const hoists of [0, 1, 3]) {
+              for (const assigned of [
+                {},
+                { topsoil: Math.min(1, hoists) },
+                { granite: Math.min(1, hoists) },
+              ]) {
+                for (const shaft of [0, 100]) {
+                  const m = levels({
+                    topsoil,
+                    granite,
+                    hoisting,
+                    hoists,
+                    assigned,
+                    piles: { shaft },
+                    granitePiles: { shaft: 100 - shaft },
+                  });
+                  const now = mineLevelFlows(m).lift;
+                  expect(now).toBeLessThanOrEqual(
+                    canLift(hoistingRow(m)) + 1e-9,
+                  );
+                }
+              }
+            }
+          }
+        }
+      }
     });
   });
 });
