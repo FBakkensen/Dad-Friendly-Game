@@ -1,7 +1,9 @@
 /**
  * The fresh server read on becoming visible: cloud writes and the crew's pay
- * wait for it. Taps during the read stay on the phone and are dug back on if
- * the merge would drop them. A read that never returns gives up and retries.
+ * wait for it. The phone backup still records during the read, and the merge
+ * keeps the copy that is ahead (`observable-saves.md`). Until #739 a tap in
+ * the gap was dug back on; a fresh mine has no taps (#728). A read that never
+ * returns gives up and retries.
  */
 import type { CloudLoadResult } from "./cloud-save";
 import {

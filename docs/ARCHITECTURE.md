@@ -153,8 +153,9 @@ page is the map, plus the rules that keep it that way.
    next cloud write. The read gives up after 5s, logs `save.resume` timeout,
    and lets the crew settle; the next server snapshot (or the same backoff
    as a listener retry) releases the held write. The phone backup still
-   records during that read, and a tap in the gap is dug back onto the merged
-   mountain. The same account reported again (a token refresh) changes
+   records during that read, and the merge keeps the copy that is ahead. Until
+   #739 a tap in the gap was dug back onto the merged mountain; the fresh mine
+   has no taps (#728). The same account reported again (a token refresh) changes
    nothing. A real account change ends the old watch's held read, its give-up
    timer and retry, and any write still in flight, so the new account loads
    and saves; their late answers are dropped (#481). One tab holds the writer seat (Web Locks, or a localStorage
@@ -682,7 +683,7 @@ field-log` lists every log; `--uid` or a positional uid reads one. The default
   snapshot: it is never saved. Choosing a post while a party is out records the
   recall and, when the new post is not the one they left, the station.
 - `lost-tools` (rules layer, pure): `hasLostTool`, `expeditionAwayMs`, `wearsSteelToes`, for the two tools left, the worn map and the steel-toe boots (Grandfather's pick and the Old miner's lamp went with the tap and the veins, #728). Keepsake stories live in `screen-words`. No new save field: the shelf is still `finds`. Built (#148).
-- `layers` (rules layer, pure): four bands from stones mined: the Topsoil, the Granite, the Crystal Caves and the Deep Heart through the bottom, starting at `BAND_STARTS` ([Numbers now](DESIGN.md#numbers-now)). `layerOf` reads `minedOut`. Entering a band includes its first stone, so 10M is the Granite. Hardness is a per-tier speed in `effectiveRates`, and the sweep factor `layer.<n>.<tier>.hardness` multiplies it. `accrue` (live ticks and time away alike) splits a stretch at the whole second the crew digs past a band's start (`stonesToNextBand`) and reads the new band's speed from there, as live play does a second at a time (#592). Workers and kids stay at 1. No layer field. Each band drops its material on the tuned gap in `MATERIAL_EVERY` (1,000,000 clay, 1,000,000 iron, 5,000,000 crystal, 10,000,000 heartstone). `accrue`, `accrueAway`, and a hand tap add the units. The remainder stays in the stone total. `materialLeftToDig` counts what the rest of the run's mountain still holds of one material; its one user, the Workshop sheet's "No clay this deep" (#492), went with the board (#727). Built (#194, #195, #198).
+- `layers` (rules layer, pure): four bands from stones mined: the Topsoil, the Granite, the Crystal Caves and the Deep Heart through the bottom, starting at `BAND_STARTS` ([Numbers now](DESIGN.md#numbers-now)). `layerOf` reads `minedOut`. Entering a band includes its first stone, so 10M is the Granite. Hardness is a per-tier speed in `effectiveRates`, and the sweep factor `layer.<n>.<tier>.hardness` multiplies it. Until #739, `accrue` split a stretch at the whole second the crew dug past a band's start (`stonesToNextBand`, #592); the fresh mine never crosses a band, so that split went in #739. Workers and kids stay at 1. No layer field. Each band drops its material on the tuned gap in `MATERIAL_EVERY` (1,000,000 clay, 1,000,000 iron, 5,000,000 crystal, 10,000,000 heartstone). `accrue`, `accrueAway`, and a hand tap add the units. The remainder stays in the stone total. `materialLeftToDig` counts what the rest of the run's mountain still holds of one material; its one user, the Workshop sheet's "No clay this deep" (#492), went with the board (#727). Built (#194, #195, #198).
 - The envelope carries `rev`, `deviceId`, and `savedAt` (first in v7). `rev`
   starts at 1 on a new doc and the rules accept only `stored + 1`. `savedAt`
   must be `request.time`. One cloud write is in flight, at most one a second, and the

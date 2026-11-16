@@ -77,7 +77,8 @@ describe("advance", () => {
     });
   });
 
-  // The fresh mine's live pace never read trouble (#739).
+  // The fresh mine's live pace does not read trouble yet: trouble by stage
+  // comes with part 3 (slice 1 spec, "Where today's parts land"; #539).
   it("pays a live stretch as the line runs, and steps the trouble with the player's fix time", () => {
     const trouble = { kind: "cave-in", tier: "cart", startedAt: 0 } as const;
     const hazards = { phase: "trouble", seed: 1, taps: 0, trouble } as const;

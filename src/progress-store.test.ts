@@ -2078,8 +2078,8 @@ describe("trouble at the machines (#149)", () => {
     };
   }
 
-  // The fresh mine's live pace never read trouble (#739): only the
-  // valuation weighs it.
+  // The fresh mine's live pace does not read trouble yet (trouble by stage
+  // comes with part 3, #539): only the valuation weighs it.
   it("leaves away pay alone, then clears on a break", () => {
     const awaySlow = open();
     const awayPlain = open();
