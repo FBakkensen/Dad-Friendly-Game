@@ -1660,6 +1660,23 @@ describe("field log events for the deep (#150)", () => {
     );
   });
 
+  it("a press on a tier with no trouble does nothing", () => {
+    const { progress } = guest();
+    progress.applyMutation((mountain) => ({
+      ...mountain,
+      owned: { ...mountain.owned, cart: 1, drill: 1 },
+    }));
+    progress.layoutPreview.trouble("cart");
+    const painted = vi.fn();
+    const stop = progress.subscribe(painted);
+    painted.mockClear();
+    progress.pressTrouble("drill");
+    expect(progress.getSnapshot().trouble?.tier).toBe("cart");
+    expect(painted).not.toHaveBeenCalled();
+    stop();
+    progress.dispose();
+  });
+
   it("a tap on trouble an engineer fixed meanwhile repaints the card and fixes nothing more", () => {
     const { progress, advance } = guest();
     progress.applyMutation((mountain) => ({

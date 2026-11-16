@@ -8,7 +8,6 @@
 import type { BuildingId } from "./city";
 import type { Homecoming } from "./expeditions";
 import {
-  engineerFixDelay,
   fix as fixHazard,
   freshHazards,
   kindForTier,
@@ -352,9 +351,6 @@ function tick(
     moved.homecomings,
     out,
   );
-  if (input.kind === "live") {
-    noteHazards(session.hazards, next.hazards, next.mountain, "engineer", out);
-  }
   return { session: next, mined: moved.mined };
 }
 
@@ -484,41 +480,17 @@ function findToken(find: Homecoming["find"]): string {
 }
 
 /**
- * Trouble starting, or ending by hand or by the engineer on that tier.
- * Leaving the game clears trouble without a fix. Dropping the last borer
- * does too: there is nothing left to trouble.
+ * Trouble put right by hand. Trouble never starts in live play: it is out of the game
+ * (Flemming, 16 Nov 2026), so only a previewed one is here to fix. Leaving the
+ * game clears it without a fix.
  */
 function noteHazards(
   before: HazardState,
   after: HazardState,
-  mountain: Mountain,
-  fixBy: "hand" | "engineer",
   out: Effects,
 ): void {
-  if (
-    before.phase === "waiting" &&
-    after.phase === "waiting" &&
-    after.seed !== before.seed &&
-    engineerFixDelay(mountain, before.tier) === 0
-  ) {
-    out.record("trouble.start", { id: before.tier, source: before.kind });
-    out.record("trouble.fix", { id: before.tier, source: "engineer" });
-    return;
-  }
-  const was = before.phase === "trouble" ? before.trouble : undefined;
-  const next = after.phase === "trouble" ? after.trouble : undefined;
-  if (
-    was !== undefined &&
-    (next === undefined || next.startedAt !== was.startedAt) &&
-    !(after.phase === "idle" && mountain.owned.borer < 1)
-  ) {
-    out.record("trouble.fix", { id: was.tier, source: fixBy });
-  }
-  if (
-    next !== undefined &&
-    (was === undefined || was.startedAt !== next.startedAt)
-  ) {
-    out.record("trouble.start", { id: next.tier, source: next.kind });
+  if (before.phase === "trouble" && after.phase !== "trouble") {
+    out.record("trouble.fix", { id: before.trouble.tier, source: "hand" });
   }
 }
 
@@ -577,7 +549,7 @@ function handleTrouble(
     kind === "press"
       ? pressHazard(hazards, session.mountain)
       : fixHazard(hazards, session.mountain);
-  noteHazards(hazards, next, session.mountain, "hand", out);
+  noteHazards(hazards, next, out);
   return { ...session, hazards: next };
 }
 

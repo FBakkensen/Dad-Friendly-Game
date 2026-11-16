@@ -201,6 +201,9 @@ describe("fixing trouble", () => {
       engineerFixDelay({ ...mountain, engineers: [ada("cart", 0)] }, "cart"),
     ).toBe(ENGINEER_FIX_MS);
     expect(
+      engineerFixDelay({ ...mountain, engineers: [ada("drill", 2)] }, "cart"),
+    ).toBeUndefined();
+    expect(
       engineerFixDelay({ ...mountain, engineers: [ada("cart", 1)] }, "cart"),
     ).toBe(ENGINEER_FIX_MS);
     expect(
