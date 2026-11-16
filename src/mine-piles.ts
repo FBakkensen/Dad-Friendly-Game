@@ -549,7 +549,7 @@ export type MineFlow = {
  * drilled on each level, the rock lifted, what reached the stockpiles, and
  * every pile after it. `granitePiles` is the Granite's, while it is open.
  */
-type MineStep = {
+export type MineStep = {
   readonly dug: Readonly<Record<MineLevelId, number>>;
   readonly mined: number;
   readonly gained: Partial<Stock>;
@@ -576,11 +576,11 @@ function stood(
 }
 
 /**
- * The mine's write-back after a step, for rates and live play alike: the
- * piles, the Granite's piles while it is open, the stock and rock dug. A
- * step that moved nothing gives the same mountain back.
+ * The mine's write-back after a step, for rates and live play alike
+ * (`mine-cages`): the piles, the Granite's piles while it is open, the stock
+ * and rock dug. A step that moved nothing gives the same mountain back.
  */
-function mineWritten(mountain: Mountain, step: MineStep): MineFlow {
+export function mineWritten(mountain: Mountain, step: MineStep): MineFlow {
   const granite = openGranite(mountain);
   if (stood(mountain, granite, step)) {
     return { mountain, mined: 0, gained: {} };

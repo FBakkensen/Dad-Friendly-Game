@@ -1,4 +1,4 @@
-import type { HoistsAssigned } from "./cages";
+import type { CageTrips, HoistsAssigned } from "./cages";
 import type { Project } from "./city";
 import { withFactors } from "./economy/factors";
 import { FRESH_OFF } from "./line-switch";
@@ -46,6 +46,8 @@ export type Setup = {
   readonly hoists?: number;
   /** The hoists assigned to each level (#724). */
   readonly assigned?: Partial<HoistsAssigned>;
+  /** The cages that are not fresh, by key (#724). */
+  readonly trips?: CageTrips;
   readonly kilns?: number;
   readonly onKilns?: number;
   readonly saws?: number;
@@ -58,6 +60,8 @@ export type Setup = {
   readonly project?: Project;
   readonly driving?: number;
   readonly building?: number;
+  /** The buildings up: the Light Tower by default, so the stockyard is open. */
+  readonly operational?: Mountain["operational"];
 };
 
 /** The Granite as `sinkShaft` sinks it, with these machines and piles. */
@@ -76,13 +80,14 @@ function sunkGranite(machines: LevelMachines, piles: GranitePiles): Granite {
   return { ...sunk, machines, piles };
 }
 
-/** A fresh mine with the Light Tower up, the shaft sunk (by default), and these workers, makers, hoists and piles. */
+/** A fresh mine with the Light Tower up and the shaft sunk (by default), and these workers, makers, hoists, cages and piles. */
 export function levels({
   topsoil = 0,
   granite = 0,
   hoisting = 0,
   hoists = 0,
   assigned = {},
+  trips = {},
   kilns = 0,
   onKilns = kilns,
   saws = 0,
@@ -95,6 +100,7 @@ export function levels({
   project = { kind: "unordered" },
   driving = 0,
   building = 0,
+  operational = ["lightTower"],
 }: Setup): Mountain {
   const start = createMountain();
   const own = { ...NO_LEVEL_MACHINES, ...machines };
@@ -134,8 +140,9 @@ export function levels({
     cages: {
       ...start.cages,
       assigned: { ...start.cages.assigned, ...assigned },
+      trips,
     },
-    operational: ["lightTower"],
+    operational,
     project,
   };
 }
