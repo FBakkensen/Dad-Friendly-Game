@@ -34,7 +34,6 @@ import {
 } from "./scale";
 import { minedMountain } from "./test-fixtures";
 import { TIERS, tierById, tierCost } from "./tiers";
-import { lockBodyLine } from "./tier-lock-words";
 import {
   UPGRADES,
   buyUpgrade,
@@ -106,11 +105,6 @@ describe("kid-run stretch (M13, #253)", () => {
       depth: 120_000_000 * KID_MACHINE_OPENS,
       at: shownStones(kid, 120_000_000 * KID_MACHINE_OPENS),
     });
-    expect(
-      lockBodyLine(machine, lock ?? { kind: "depth", depth: 0, at: 0 }),
-    ).toBe(
-      `The Great Machine joins your crew at ${formatCompact(shownStones(kid, 120_000_000 * KID_MACHINE_OPENS))} stones. Keep digging, Dad!`,
-    );
     const borer = tierLock(
       { ...minedMountain(0), stretch: 2 },
       tierById("borer"),

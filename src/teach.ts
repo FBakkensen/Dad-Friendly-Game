@@ -140,17 +140,6 @@ export function showsDot(mountain: Mountain, id: TeachId): boolean {
   );
 }
 
-/** The one big system whose note shows now, if any. */
-export function noteFor(mountain: Mountain): TeachId | undefined {
-  return TEACH_SPECS.find(
-    (spec) =>
-      spec.size === "big" &&
-      spec.unlocked(mountain) &&
-      !mountain.seen.includes(spec.id) &&
-      !isTaught(mountain, spec.id),
-  )?.id;
-}
-
 function added(list: readonly TeachId[], id: TeachId): readonly TeachId[] {
   return list.includes(id) ? list : [...list, id];
 }

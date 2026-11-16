@@ -6,10 +6,9 @@ import { holdFactors } from "./economy/factors";
 import { mountFrameScreen } from "./frame-screen";
 import { FRESH_OFF } from "./line-switch";
 import { PART_TWO_OFF } from "./part-switch";
-import { createMemoryStorage } from "./mountain-screen.harness";
 import type { Mountain } from "./mountain";
 import { createProgressStore } from "./progress-store";
-import { CREWED_JOBS } from "./test-fixtures";
+import { createMemoryStorage, CREWED_JOBS } from "./test-fixtures";
 import { NO_FREE_WORKER } from "./workforce-view";
 
 /** Slice 1's frame and its workforce, on the DOM (#659). */

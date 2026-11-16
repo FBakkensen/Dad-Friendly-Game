@@ -41,9 +41,6 @@ export const SLOW_EASE_MS = 2 * 60 * 1000;
 /** Taps on the troubled card that put it right. */
 export const FIX_TAPS = 5;
 
-/** A short hold on the card fixes it without those taps. */
-export const FIX_HOLD_MS = 600;
-
 /**
  * An apprentice or journeyman tending the tier fixes it alone after this
  * long. A Master fixes it at once (delay 0).

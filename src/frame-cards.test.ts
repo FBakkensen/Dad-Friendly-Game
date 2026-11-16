@@ -14,7 +14,7 @@ import {
 import { mountFrameScreen } from "./frame-screen";
 import { FRESH_OFF } from "./line-switch";
 import { PART_TWO_OFF } from "./part-switch";
-import { createMemoryStorage } from "./mountain-screen.harness";
+import { createMemoryStorage } from "./test-fixtures";
 import { createMountain, type Mountain } from "./mountain";
 import { createProgressStore } from "./progress-store";
 import { writeSessionSave } from "./session-save";

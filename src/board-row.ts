@@ -23,8 +23,8 @@ import type { RowLamp, RowState, RowView } from "./row-view";
 
 /*
  * One drawer row (#373): lamp, icon, name with its badge and flag, info, needs and why, then
- * the gain, the price tag and the verb. buys-rows.ts and upgrade-rows.ts decide what a row says;
- * the board's model decides when it holds Done and blinks. This draws both, writing only what
+ * the gain, the price tag and the verb. The Ledger and the save conflict card decide what a row
+ * says; the board's model decides when it holds Done and blinks. This draws both, writing only what
  * changed.
  */
 

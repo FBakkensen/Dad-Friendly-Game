@@ -1,8 +1,7 @@
 // @vitest-environment happy-dom
 import { describe, expect, it, vi } from "vitest";
-import { BOARD_HOW_ART, boardHowCard, createHowPricer } from "./board-how-art";
-import { HOW_IT_WORKS, howItWorks } from "./how-it-works";
-import { createMountain } from "./mountain";
+import { BOARD_HOW_ART, boardHowCard } from "./board-how-art";
+import { HOW_IT_WORKS } from "./how-it-works";
 
 const widths = (card: HTMLElement): string[] =>
   [...card.querySelectorAll("img")].map(
@@ -190,59 +189,5 @@ describe("the board's How it works art (#373)", () => {
     expect(widths(trips)).toEqual(["32", "32", "64"]);
     const tending = boardHowCard("tending", "Back", () => undefined);
     expect(widths(tending)).toEqual(["64", "64", "64"]);
-  });
-});
-
-describe("createHowPricer (#455)", () => {
-  const steps = (card: HTMLElement): string[] =>
-    [...card.querySelectorAll(".teach-how-steps li span")].map(
-      (span) => span.textContent,
-    );
-
-  const cards = (): HTMLElement => {
-    const how = document.createElement("div");
-    how.append(
-      boardHowCard("engineers", "Back", () => undefined),
-      boardHowCard("upgrades", "Back", () => undefined),
-    );
-    return how;
-  };
-
-  const card = (how: HTMLElement, system: string): HTMLElement => {
-    const found = how.querySelector<HTMLElement>(`[data-how="${system}"]`);
-    if (found === null) {
-      throw new Error(`no ${system} card`);
-    }
-    return found;
-  };
-
-  it("reprices the cards it lists when the stretch changes, and leaves the others", () => {
-    const how = cards();
-    const price = createHowPricer(how, ["engineers"]);
-    const upgrades = steps(card(how, "upgrades"));
-    const stretched = { ...createMountain(), stretch: 4 };
-    price(stretched);
-    const copy = howItWorks(4, 4);
-    expect(steps(card(how, "engineers"))).toEqual(
-      copy.engineers.steps.map(([, words]) => words),
-    );
-    expect(steps(card(how, "engineers"))).not.toEqual(
-      HOW_IT_WORKS.engineers.steps.map(([, words]) => words),
-    );
-    expect(steps(card(how, "upgrades"))).toEqual(upgrades);
-  });
-
-  it("writes nothing while the stretch holds", () => {
-    const how = cards();
-    const price = createHowPricer(how, ["engineers"]);
-    price(createMountain());
-    const engineers = card(how, "engineers");
-    const first = engineers.querySelector(".teach-how-steps li span");
-    if (first === null) {
-      throw new Error("no step");
-    }
-    first.textContent = "kept";
-    price(createMountain());
-    expect(first.textContent).toBe("kept");
   });
 });

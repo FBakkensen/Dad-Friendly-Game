@@ -40,7 +40,7 @@ const SAVE: readonly RegExp[] = [
   /^src\/[^/]*save[^/]*\.ts$/,
   /^src\/(persist|phone-backup|cloud-writer|progress-store|server-read|tab-writer|tab-lease|log)\.ts$/,
   // The write path: per-dig and hide saves, and the boot that wires them.
-  /^src\/(store-(actions|session|context)|boot|main|mountain-screen)\.ts$/,
+  /^src\/(store-(actions|session|context)|boot|main)\.ts$/,
   /^firestore\.rules$/,
   /^firebase\.json$/,
   /^public\/sw\.js$/,
@@ -57,7 +57,7 @@ const CODE: readonly RegExp[] = [
 
 const GAME: readonly RegExp[] = [
   /^src\/(economy|lab)\//,
-  /^src\/(tiers|rates|scale|milestones|line|boosts|expeditions|engineers|gold-rush|upgrades|workshop|hazards|veins|mountain|crew-rate|pacing|legacy|relics|haulage)\.ts$/,
+  /^src\/(tiers|rates|scale|milestones|line|boosts|expeditions|engineers|gold-rush|upgrades|workshop|hazards|veins|mountain|pacing|legacy|relics)\.ts$/,
   /^src\/[^/]*words\.ts$/,
 ];
 

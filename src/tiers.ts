@@ -198,9 +198,6 @@ export type LineTierId = "hoist" | "train";
 /** A tier the screens show today. */
 export type ShownTierId = Exclude<TierId, LineTierId>;
 
-/** A machine the screens show today. */
-export type ShownMachineId = Exclude<MachineId, LineTierId>;
-
 export function isShownTier<T extends TierId>(
   id: T,
 ): id is Exclude<T, LineTierId> {

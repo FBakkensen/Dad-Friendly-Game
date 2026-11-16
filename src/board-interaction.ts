@@ -186,11 +186,6 @@ function isCard(overlay: Layer): overlay is CardId {
   return (CARD_IDS as readonly Layer[]).includes(overlay);
 }
 
-/** Whether a drawer is on the stack. A note or the save drawer alone is not a drawer. */
-export function drawerOpen(view: BoardView): boolean {
-  return view.stack.some(isDrawer);
-}
-
 export function initialBoard(): BoardState {
   return {
     stack: [],

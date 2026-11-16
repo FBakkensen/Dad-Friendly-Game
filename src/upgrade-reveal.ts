@@ -1,9 +1,7 @@
-import { BOOSTS, boostInPlay, type Boost, type BoostId } from "./boosts";
+import { boostInPlay, type Boost, type BoostId } from "./boosts";
 import type { Mountain } from "./mountain";
 import { owned, tierById } from "./tiers";
 import {
-  UPGRADES,
-  upgradeCost,
   upgradeInPlay,
   upgradeLevel,
   upgradeUnlocked,
@@ -60,26 +58,5 @@ export function boostShown(mountain: Mountain, boost: Boost): boolean {
     (boostUsed(mountain, boost) ||
       seen(mountain, boostRowId(boost)) ||
       owned(mountain, tierById(boost.unlock.tier)) >= boost.unlock.count)
-  );
-}
-
-/** Every row showing now, for marking them seen. */
-export function shownRows(mountain: Mountain): readonly RevealRowId[] {
-  return [
-    ...BOOSTS.filter((boost) => boostShown(mountain, boost)).map(boostRowId),
-    ...UPGRADES.filter((upgrade) => upgradeShown(mountain, upgrade)).map(
-      upgradeRowId,
-    ),
-  ];
-}
-
-/** Rows still hidden that the dad could one day buy. */
-export function anyHiddenRow(mountain: Mountain): boolean {
-  return (
-    UPGRADES.some(
-      (upgrade) =>
-        upgradeCost(upgrade, upgradeLevel(mountain, upgrade.id)) !==
-          undefined && !upgradeShown(mountain, upgrade),
-    ) || BOOSTS.some((boost) => !boostShown(mountain, boost))
   );
 }

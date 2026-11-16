@@ -13,10 +13,8 @@ import pickUrl from "./assets/board/res-pick.png";
 import stoneUrl from "./assets/board/res-stone.png";
 import { RELIC_LIT } from "./board-relics";
 import { plateButton } from "./board-save";
-import { HOW_IT_WORKS, howItWorks, type HowArt } from "./how-it-works";
-import type { Mountain } from "./mountain";
-import { oneOffStretch, stretch } from "./scale";
-import { createHowCard, setHowSteps, type HowCardStep } from "./teach-ui";
+import { HOW_IT_WORKS, type HowArt } from "./how-it-works";
+import { createHowCard, type HowCardStep } from "./teach-ui";
 
 /*
  * How it works in the drawer skin (#373): the same cards and words, drawn with the board's own
@@ -95,29 +93,4 @@ export function boardHowCard(
   plate.addEventListener("click", onBack);
   card.querySelector(".teach-how-back")?.replaceWith(plate);
   return card;
-}
-
-/**
- * Reprices the cards of `systems` under `how` by the mountain's stretch: their numbers are the
- * run's real prices. Writes only when the stretch changed.
- */
-export function createHowPricer(
-  how: HTMLElement,
-  systems: readonly BoardHowSystem[],
-): (current: Mountain) => void {
-  let priced = "1:1";
-  return (current) => {
-    const key = `${String(stretch(current))}:${String(oneOffStretch(current))}`;
-    if (key === priced) {
-      return;
-    }
-    priced = key;
-    const copy = howItWorks(stretch(current), oneOffStretch(current));
-    for (const card of how.querySelectorAll<HTMLElement>("[data-how]")) {
-      const system = systems.find((each) => each === card.dataset["how"]);
-      if (system !== undefined) {
-        setHowSteps(card, copy[system].steps);
-      }
-    }
-  };
 }

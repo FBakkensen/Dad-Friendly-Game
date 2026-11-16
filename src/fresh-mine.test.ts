@@ -2,8 +2,6 @@ import { describe, expect, it } from "vitest";
 import { withFactors } from "./economy/factors";
 import { applyMove, listActions, type Action } from "./economy/actions";
 import { tierLock, tierLocked } from "./crew";
-import { readyNow } from "./ready-now";
-import { bayTiers } from "./machine-bays";
 import { FRESH_OFF, freshMineOn, lineOn } from "./line-switch";
 import {
   MOUNTAIN_STONES,
@@ -246,11 +244,6 @@ describe("machines open by where they open, and nothing else (rule 1's table, ru
         expect(tierLock(crew, tier)).toEqual({ kind: "later", at });
         expect(tierLocked(crew, tier)).toBe(true);
       }
-      const pick = readyNow(crew, 0);
-      expect(
-        pick.kind === "ready" || pick.kind === "saving" ? pick.tier : "none",
-      ).not.toMatch(/^(borer|train|machine|kid)$/);
-      expect(bayTiers(crew)).not.toContain("machine");
     });
   });
 
