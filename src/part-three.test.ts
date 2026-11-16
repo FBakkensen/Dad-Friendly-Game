@@ -28,7 +28,8 @@ import type { Project } from "./city";
  * part 3 off, the mine plays exactly as part 2 (ruling 6). With the shaft not
  * sunk and part 3 on, it plays as part 2 but for the cages (#724, call 65):
  * the piles they use hold loads of the largest cage, and the winch lifts no
- * more than a hoist; with `piles.loads` at 0 and no more on the winch than a
+ * more than a hoist. While those rooms stay 300 it plays exactly as part 2;
+ * with `piles.loads` at 0 and no more on the winch than a
  * hoist lifts, it plays exactly as part 2.
  *
  * Unattended time counts the cages as rates (rule 5.14). A hoist's cage
@@ -537,6 +538,58 @@ describe("parts 1 and 2 do not change (#673)", () => {
           expect(
             partThree(() => night(start, seconds * 1000), sameRooms),
           ).toEqual(partTwo(() => night(start, seconds * 1000)));
+        },
+      ),
+      { numRuns: 30 },
+    );
+  });
+
+  it("plays a mine whose shaft is not sunk as part 2 with part 3 on at the default knob, while the cages' rooms stay 300 (#724)", () => {
+    // Up to 3 on the winch and no hoist: a load of at most 90, three loads
+    // at most 270, so the piles the cages use keep part 2's 300 and nothing
+    // differs from part 2, with no knob set.
+    fc.assert(
+      fc.property(
+        fc.record({
+          topsoil: fc.nat(8),
+          hoisting: fc.nat(3),
+          kilns: fc.nat(3),
+          onKilns: fc.nat(3),
+          face: fc.nat(300),
+          shaft: fc.nat(300),
+          kiln: fc.nat(300),
+          stones: fc.nat(6_000_100),
+          brick: fc.nat(1_000_100),
+          driving: fc.nat(1),
+          building: fc.nat(2),
+          arrived: fc.option(fc.nat(8_000_000), { nil: undefined }),
+        }),
+        fc.integer({ min: 1, max: 4 * 3_600 }),
+        (setup, seconds) => {
+          const start = levels({
+            ...setup,
+            sunk: false,
+            piles: {
+              face: setup.face,
+              shaft: setup.shaft,
+              kiln: setup.kilns > 0 ? setup.kiln : 0,
+            },
+            stock: { stones: setup.stones, brick: setup.brick },
+            ...(setup.arrived === undefined
+              ? {}
+              : { project: warehouse(setup.arrived) }),
+          });
+          expect(
+            partThree(() => [shaftHolds(start), makerHolds(start, "kiln")]),
+          ).toEqual(
+            partTwo(() => [shaftHolds(start), makerHolds(start, "kiln")]),
+          );
+          expect(partThree(() => live(start, seconds))).toEqual(
+            partTwo(() => live(start, seconds)),
+          );
+          expect(partThree(() => night(start, seconds * 1000))).toEqual(
+            partTwo(() => night(start, seconds * 1000)),
+          );
         },
       ),
       { numRuns: 30 },
