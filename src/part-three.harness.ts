@@ -13,6 +13,7 @@ import {
 } from "./mine-levels";
 import type { MinePiles } from "./mine-piles";
 import { createMountain, type Mountain } from "./mountain";
+import type { Jobs } from "./workforce";
 import { PART_THREE_OFF, PART_TWO_OFF } from "./part-switch";
 import { EMPTY_STOCK, type GoodId, type Stock } from "./stock";
 
@@ -62,6 +63,8 @@ export type Setup = {
   readonly building?: number;
   /** The buildings up: the Light Tower by default, so the stockyard is open. */
   readonly operational?: Mountain["operational"];
+  /** Jobs staffed on their own, over the counts above (each level's drilling apart from its haulage). */
+  readonly jobs?: Partial<Jobs>;
 };
 
 /** The Granite as `sinkShaft` sinks it, with these machines and piles. */
@@ -101,36 +104,33 @@ export function levels({
   driving = 0,
   building = 0,
   operational = ["lightTower"],
+  jobs = {},
 }: Setup): Mountain {
   const start = createMountain();
   const own = { ...NO_LEVEL_MACHINES, ...machines };
+  const staffed: Jobs = {
+    drilling: topsoil,
+    haulage: topsoil,
+    hoisting,
+    driving,
+    building,
+    kilns: onKilns,
+    graniteDrilling: granite,
+    graniteHaulage: granite,
+    saws: onSaws,
+    ...jobs,
+  };
   return {
     ...start,
     owned: {
       ...start.owned,
-      helper:
-        2 * topsoil +
-        2 * granite +
-        hoisting +
-        onKilns +
-        onSaws +
-        driving +
-        building,
+      // Every worker has a job.
+      helper: Object.values(staffed).reduce((sum, count) => sum + count, 0),
       cart: start.owned.cart + own.cart,
       drill: start.owned.drill + own.drill,
       hoist: start.owned.hoist + hoists,
     },
-    jobs: {
-      drilling: topsoil,
-      haulage: topsoil,
-      hoisting,
-      driving,
-      building,
-      kilns: onKilns,
-      graniteDrilling: granite,
-      graniteHaulage: granite,
-      saws: onSaws,
-    },
+    jobs: staffed,
     stock: { ...EMPTY_STOCK, ...stock },
     makers: { kiln: kilns, saw: saws },
     piles: { face: 0, shaft: 0, kiln: 0, ...piles },

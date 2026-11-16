@@ -1,14 +1,27 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import type { Cage, CageKey, CageTrips } from "./cages";
+import {
+  carriedBy,
+  legSeconds,
+  type Cage,
+  type CageKey,
+  type CageTrips,
+} from "./cages";
 import type { GranitePiles } from "./mine-levels";
 import type { Project } from "./city";
 import { makerTakes } from "./makers";
 import { flowMineLive, landedMine } from "./mine-cages";
-import { flowMine, mineDraw, mineWork, shaftHolds } from "./mine-piles";
+import {
+  faceHolds,
+  flowMine,
+  makerHolds,
+  mineDraw,
+  mineWork,
+  shaftHolds,
+} from "./mine-piles";
 import { accrue, accrueAway, type Mountain } from "./mountain";
 import { levels, partThree, partTwo, type Setup } from "./part-three.harness";
-import { EMPTY_STOCK } from "./stock";
+import { EMPTY_STOCK, type Stock } from "./stock";
 import { stockpileRoom } from "./stockyard";
 
 /**
@@ -547,6 +560,313 @@ describe("one call of live play (ruling 11)", () => {
         deep.saw +
         after.stock.brick * kilnTakes +
         after.stock.cutStone * sawTakes,
+    );
+  });
+});
+
+/** What an arbitrary draws. */
+type Drawn<A> = A extends fc.Arbitrary<infer T> ? T : never;
+
+/** A share from 0 to 1, in thousandths: where a pile or a cage stands within its room or leg. */
+const share = fc.nat(1_000).map((thousandths) => thousandths / 1_000);
+
+const legKinds = ["top", "down", "loading", "up"] as const;
+
+/** One cage's trip as drawn: whether it has one, its level, leg, how far along, and how full. */
+const tripDrawn = fc.record({
+  present: fc.boolean(),
+  granite: fc.boolean(),
+  leg: fc.constantFrom(...legKinds),
+  along: share,
+  full: share,
+});
+
+type TripDrawn = Drawn<typeof tripDrawn>;
+
+/** A mine as drawn: workers on each job, hoists and their assignment, makers, piles, and the stone stock near its room or not. */
+const mineDrawn = fc.record({
+  sunk: fc.boolean(),
+  jobs: fc.record({
+    drilling: fc.nat(8),
+    haulage: fc.nat(8),
+    graniteDrilling: fc.nat(8),
+    graniteHaulage: fc.nat(8),
+  }),
+  hoists: fc.nat(4),
+  topsoilAssigned: fc.nat(4),
+  graniteAssigned: fc.nat(4),
+  hoisting: fc.nat(8),
+  kilns: fc.nat(2),
+  onKilns: fc.nat(2),
+  saws: fc.nat(2),
+  onSaws: fc.nat(2),
+  piles: fc.array(share, { minLength: 6, maxLength: 6 }),
+  stoneShort: fc.option(fc.nat(2_000)),
+  trips: fc.array(tripDrawn, { minLength: 7, maxLength: 7 }),
+});
+
+type MineDrawn = Drawn<typeof mineDrawn>;
+
+/** One cage's trip from what was drawn: within its leg's seconds and its load. */
+function tripOfDrawn(
+  drawn: TripDrawn,
+  sunk: boolean,
+  load: number,
+): Cage | undefined {
+  if (!drawn.present) {
+    return undefined;
+  }
+  const level = sunk && drawn.granite ? "granite" : "topsoil";
+  const carried = Math.floor(drawn.full * load);
+  switch (drawn.leg) {
+    case "top":
+      return { level, carried, leg: { kind: "top" } };
+    case "loading":
+      return { level, carried, leg: { kind: "loading" } };
+    case "down":
+    case "up": {
+      const seconds = legSeconds(level, drawn.leg);
+      const left = 1 + Math.floor(drawn.along * (seconds - 1));
+      return {
+        level,
+        // A cage goes down only once it is empty.
+        carried: drawn.leg === "down" ? 0 : carried,
+        leg: { kind: drawn.leg, left },
+      };
+    }
+  }
+}
+
+/**
+ * A mine from the shared harness as drawn: the assignment within the hoists
+ * he owns (none while the shaft is unsunk), the piles within their rooms,
+ * and the cages' trips at random legs, each within its load.
+ */
+function drawnMine(
+  drawn: MineDrawn,
+  tripFor: (drawn: TripDrawn, sunk: boolean, load: number) => Cage | undefined,
+): Mountain {
+  const topsoil = drawn.sunk
+    ? Math.min(drawn.topsoilAssigned, drawn.hoists)
+    : 0;
+  const granite = drawn.sunk
+    ? Math.min(drawn.graniteAssigned, drawn.hoists - topsoil)
+    : 0;
+  const setup: Setup = {
+    sunk: drawn.sunk,
+    hoists: drawn.hoists,
+    hoisting: drawn.hoisting,
+    assigned: { topsoil, granite },
+    kilns: drawn.kilns,
+    onKilns: drawn.onKilns,
+    saws: drawn.sunk ? drawn.saws : 0,
+    onSaws: drawn.sunk ? drawn.onSaws : 0,
+    jobs: drawn.sunk
+      ? drawn.jobs
+      : { ...drawn.jobs, graniteDrilling: 0, graniteHaulage: 0 },
+  };
+  const bare = mine(setup);
+  const [face = 0, shaft = 0, kiln = 0, deepFace = 0, deepShaft = 0, saw = 0] =
+    drawn.piles;
+  const rooms = partThree(() => ({
+    shaft: shaftHolds(bare),
+    kiln: makerHolds(bare, "kiln"),
+    saw: makerHolds(bare, "saw"),
+    stones: stockpileRoom(bare, "stones"),
+  }));
+  const trips: Partial<Record<CageKey, Cage>> = {};
+  partThree(() => mineWork(bare)).cages.forEach((cage, place) => {
+    const drawnTrip = drawn.trips[place];
+    const trip =
+      drawnTrip === undefined
+        ? undefined
+        : partThree(() => tripFor(drawnTrip, drawn.sunk, cage.load));
+    if (trip !== undefined) {
+      trips[cage.key] = trip;
+    }
+  });
+  return mine({
+    ...setup,
+    piles: {
+      face: Math.floor(face * faceHolds("topsoil")),
+      shaft: Math.floor(shaft * rooms.shaft),
+      kiln: Math.floor(kiln * rooms.kiln),
+    },
+    granitePiles: {
+      face: Math.floor(deepFace * faceHolds("granite")),
+      shaft: Math.floor(deepShaft * rooms.shaft),
+      saw: Math.floor(saw * rooms.saw),
+    },
+    stock:
+      drawn.stoneShort === null
+        ? {}
+        : { stones: Math.max(0, rooms.stones - drawn.stoneShort) },
+    trips,
+  });
+}
+
+/** The rock waiting in the mine's piles, both levels: drilled, at the shaft and at the makers. */
+function rockInPiles(mountain: Mountain): number {
+  const { face, shaft, kiln } = mountain.piles;
+  const deep =
+    mountain.granite.kind === "sunk"
+      ? mountain.granite.piles.face +
+        mountain.granite.piles.shaft +
+        mountain.granite.piles.saw
+      : 0;
+  return face + shaft + kiln + deep;
+}
+
+/** The rock at the saws, 0 while the shaft is unsunk. */
+function sawPile(mountain: Mountain): number {
+  return mountain.granite.kind === "sunk" ? mountain.granite.piles.saw : 0;
+}
+
+/** The rock every cage carries. */
+function rockInCages(mountain: Mountain): number {
+  const { topsoil, granite } = carriedBy(mountain.cages.trips);
+  return topsoil + granite;
+}
+
+/** The rock a flow put in the stockpiles: stone, and the rock in the brick and cut stone made. */
+function rockGained(gained: Partial<Stock>): number {
+  return partThree(
+    () =>
+      (gained.stones ?? 0) +
+      makerTakes("kiln") * (gained.brick ?? 0) +
+      makerTakes("saw") * (gained.cutStone ?? 0),
+  );
+}
+
+describe("what the shaft holds (Proof)", () => {
+  it("makes and loses no rock in the shaft", () => {
+    fc.assert(
+      fc.property(
+        mineDrawn,
+        fc.integer({ min: 1, max: 120 }),
+        (drawn, seconds) => {
+          const before = drawnMine(drawn, tripOfDrawn);
+          const flow = partThree(() => flowMineLive(before, seconds, 1, true));
+          const after = flow.mountain;
+          const dug = after.rockDug - before.rockDug;
+          expect(dug).toBeGreaterThanOrEqual(0);
+          expect(dug).toBe(
+            rockInPiles(after) -
+              rockInPiles(before) +
+              rockInCages(after) -
+              rockInCages(before) +
+              rockGained(flow.gained),
+          );
+          // The stock gains what reached it, gross: transport takes it after.
+          expect(after.stock.stones).toBe(
+            before.stock.stones + (flow.gained.stones ?? 0),
+          );
+        },
+      ),
+      { numRuns: 60 },
+    );
+  });
+
+  it("raises neither the stone stockpile nor a maker's pile while every cage is down, but brick and cut stone may rise", () => {
+    /** Every cage loading at a level or on its way down: none can reach the top within four seconds. */
+    const below = (drawn: TripDrawn, sunk: boolean, load: number): Cage => {
+      const trip = tripOfDrawn(
+        {
+          ...drawn,
+          present: true,
+          leg: drawn.leg === "down" ? "down" : "loading",
+        },
+        sunk,
+        load,
+      );
+      if (trip === undefined) {
+        throw new Error("a cage below has a trip");
+      }
+      return trip;
+    };
+    fc.assert(
+      fc.property(
+        mineDrawn,
+        fc.integer({ min: 1, max: 4 }),
+        (drawn, seconds) => {
+          const before = drawnMine(drawn, below);
+          const flow = partThree(() => flowMineLive(before, seconds, 1, true));
+          const after = flow.mountain;
+          expect(flow.mined).toBe(0);
+          expect(after.stock.stones).toBe(before.stock.stones);
+          expect(after.piles.kiln).toBeLessThanOrEqual(before.piles.kiln);
+          expect(sawPile(after)).toBeLessThanOrEqual(sawPile(before));
+          expect(after.stock.brick).toBeGreaterThanOrEqual(before.stock.brick);
+          expect(after.stock.cutStone).toBeGreaterThanOrEqual(
+            before.stock.cutStone,
+          );
+        },
+      ),
+      { numRuns: 100 },
+    );
+  });
+});
+
+describe("live play through transport (#724, Task 6 review)", () => {
+  /** The rock in goods: stone, and the rock in brick and cut stone. */
+  const rockIn = (goods: Stock): number =>
+    rockGained({
+      stones: goods.stones,
+      brick: goods.brick,
+      cutStone: goods.cutStone,
+    });
+
+  /** The rock in the stock and delivered to the Warehouse's site (`arrived` counts it all, built or not). */
+  function rockDelivered(mountain: Mountain): number {
+    const project = mountain.project;
+    const site =
+      project.kind === "unordered" ? 0 : rockIn(project.site.arrived);
+    return rockIn(mountain.stock) + site;
+  }
+
+  it("loses no rock while the stockyard is full and transport drains it", () => {
+    fc.assert(
+      fc.property(
+        fc.record({
+          topsoil: fc.integer({ min: 1, max: 8 }),
+          granite: fc.nat(8),
+          hoists: fc.nat(3),
+          hoisting: fc.integer({ min: 1, max: 6 }),
+          kilns: fc.nat(2),
+          driving: fc.integer({ min: 1, max: 3 }),
+          short: fc.nat(2_000),
+        }),
+        fc.integer({ min: 1, max: 300 }),
+        (setup, seconds) => {
+          const room = partThree(() => stockpileRoom(levels({}), "stones"));
+          const before = mine({
+            ...setup,
+            piles: { shaft: 1_800 },
+            stock: { stones: room - setup.short },
+            project: {
+              kind: "delivering",
+              site: {
+                building: "warehouse",
+                step: 0,
+                arrived: EMPTY_STOCK,
+                onSite: EMPTY_STOCK,
+              },
+            },
+          });
+          const after = played(before, seconds);
+          // Transport carried stone off the full stockpile.
+          expect(rockDelivered(after) - rockIn(after.stock)).toBeGreaterThan(0);
+          expect(after.rockDug - before.rockDug).toBe(
+            rockInPiles(after) -
+              rockInPiles(before) +
+              rockInCages(after) -
+              rockInCages(before) +
+              rockDelivered(after) -
+              rockDelivered(before),
+          );
+        },
+      ),
+      { numRuns: 30 },
     );
   });
 });
