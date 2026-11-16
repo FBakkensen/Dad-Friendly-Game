@@ -38,18 +38,25 @@ export type CloudWriteResult =
   | { readonly kind: "failed"; readonly message: string };
 
 /**
- * Why a mountain went to Saved copies: the side not chosen in a conflict,
- * the one in play when a copy was restored, the one left by a Start over or
- * a pass (#480), or a copy from before this version, kept as it was stored
- * (#558).
+ * Why a mountain goes to Saved copies: the side not chosen in a conflict,
+ * the one in play when a copy was restored, the one left by a Start over
+ * (#480), or a copy from before this version, kept as it was stored
+ * (#558). The rules take a new copy for these reasons only.
  */
-export const ARCHIVE_REASONS = [
+export const ARCHIVE_WRITE_REASONS = [
   "conflict",
   "restore",
   "start-over",
-  "pass",
   "reset",
 ] as const;
+
+export type ArchiveWriteReason = (typeof ARCHIVE_WRITE_REASONS)[number];
+
+/**
+ * Every reason a kept copy may hold: the ones written, and "pass", which no
+ * build writes since #729, so a copy a pass left before it still reads.
+ */
+const ARCHIVE_REASONS = [...ARCHIVE_WRITE_REASONS, "pass"] as const;
 
 export type ArchiveReason = (typeof ARCHIVE_REASONS)[number];
 
@@ -75,7 +82,7 @@ export type CloudSave = {
     rev: number;
     deviceId: string;
     deviceLabel: string;
-    reason: ArchiveReason;
+    reason: ArchiveWriteReason;
   }) => Promise<CloudWriteResult>;
   /**
    * Keeps a copy from before this version as it was stored, for seven days
@@ -105,7 +112,7 @@ export type RawArchive = {
   readonly raw: unknown;
   readonly version: number;
   readonly rev: number;
-  readonly reason: ArchiveReason;
+  readonly reason: ArchiveWriteReason;
 };
 
 export type ArchivedCopy = {

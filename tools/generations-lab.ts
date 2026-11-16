@@ -25,7 +25,6 @@ import {
   runGenerations,
   type GenerationRun,
 } from "../src/lab/generations";
-import { LEGACY_STEP } from "../src/rates";
 import {
   CI_SEEDS,
   KID_RUN_MAX_DAYS,
@@ -33,8 +32,6 @@ import {
   LOCAL_SEEDS,
   RUN_LENGTH_RULE,
 } from "../src/lab/targets";
-import { kidStretch } from "../src/scale";
-import { withFactors } from "../src/economy/factors";
 import { LINE_OFF } from "../src/line-switch";
 import { parseFactors } from "./lab-factors";
 import { inOrder } from "./lab-pool";
@@ -128,9 +125,8 @@ if (job === undefined) {
 }
 
 async function report(): Promise<void> {
-  const ks = Array.from({ length: runCount }, (_, i) =>
-    withFactors(factors, () => kidStretch(i)),
-  );
+  // The pass is gone (#729): every run is unstretched, with no Legacy.
+  const ks = Array.from({ length: runCount }, () => 1);
   const mean = (values: readonly number[]) =>
     values.reduce((sum, value) => sum + value, 0) / values.length;
 
@@ -191,7 +187,7 @@ async function report(): Promise<void> {
     `Models from the mean run 1 (${first.toFixed(2)} days): ` +
       ks
         .map((k, i) => {
-          const bonus = 1 + LEGACY_STEP * i;
+          const bonus = 1;
           return `run ${String(i + 1)} linear ${linearModelDays(first, k, bonus).toFixed(2)}, root ${rootModelDays(first, k, bonus).toFixed(2)}`;
         })
         .join("; "),

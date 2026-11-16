@@ -76,8 +76,7 @@ describe("materials from digging", () => {
     // divides whole seconds (3M + 4M x 2.625 = 13.5M stones, #357 tune).
     const depth = 14_000_000;
     const mountain = setOwned(minedMountain(7_000_000), "helper", helpers);
-    const stones =
-      shownStones(mountain, depth) - shownStones(mountain, 7_000_000);
+    const stones = shownStones(depth) - shownStones(7_000_000);
     // 1,500 workers hold the top three marks, so each digs 8 a second.
     const liveMs = (stones / (helpers * 8)) * 1_000;
     const awayMs = liveMs / AWAY_PAY_RATE;

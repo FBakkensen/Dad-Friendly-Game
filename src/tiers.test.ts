@@ -362,25 +362,23 @@ describe("tierQuote: what ×1, ×10 and Max cost (#358)", () => {
   const cart = tierById("cart");
   /** Ten carts after the six owned, unit by unit, as buyTier charges them. */
   const tenFrom6 = Array.from({ length: 10 }, (_, i) =>
-    tierCost(cart, 6 + i, 2),
+    tierCost(cart, 6 + i),
   ).reduce((sum, price) => sum + price, 0);
 
   it("×1 is one at today's price", () => {
     const m = at({
       stock: { ...EMPTY_STOCK, stones: 0 },
-      stretch: 2,
       owned: { ...NONE_OWNED, cart: 6 },
     });
     expect(tierQuote(m, cart, "one")).toEqual({
       count: 1,
-      cost: tierCost(cart, 6, 2),
+      cost: tierCost(cart, 6),
     });
   });
 
   it("×10 is exactly ten, the sum buyTier would charge, affordable or not", () => {
     const m = at({
       stock: { ...EMPTY_STOCK, stones: 0 },
-      stretch: 2,
       owned: { ...NONE_OWNED, cart: 6 },
     });
     expect(tierQuote(m, cart, "ten")).toEqual({ count: 10, cost: tenFrom6 });
@@ -397,8 +395,7 @@ describe("tierQuote: what ×1, ×10 and Max cost (#358)", () => {
   it("Max is as many as the pocket holds", () => {
     const m = at({
       owned: { ...NONE_OWNED, cart: 6 },
-      stock: { ...EMPTY_STOCK, stones: tenFrom6 + tierCost(cart, 16, 2) - 1 },
-      stretch: 2,
+      stock: { ...EMPTY_STOCK, stones: tenFrom6 + tierCost(cart, 16) - 1 },
     });
     expect(tierQuote(m, cart, "max")).toEqual({ count: 10, cost: tenFrom6 });
   });
@@ -406,12 +403,11 @@ describe("tierQuote: what ×1, ×10 and Max cost (#358)", () => {
   it("Max with nothing affordable quotes one, at its price", () => {
     const m = at({
       stock: { ...EMPTY_STOCK, stones: 5 },
-      stretch: 2,
       owned: { ...NONE_OWNED, cart: 6 },
     });
     expect(tierQuote(m, cart, "max")).toEqual({
       count: 1,
-      cost: tierCost(cart, 6, 2),
+      cost: tierCost(cart, 6),
     });
   });
 

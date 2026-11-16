@@ -10,7 +10,7 @@ import { TUNNELS } from "./expeditions";
 import { formatCompact, formatDuration } from "./format";
 import { ENGINEER_FIX_MS, FIX_TAPS } from "./hazards";
 import { LAYERS } from "./layers";
-import { AWAY_PAY_RATE, AWAY_END_MS, LEGACY_STEP } from "./rates";
+import { AWAY_PAY_RATE, AWAY_END_MS } from "./rates";
 import { tierById } from "./tiers";
 import { UPGRADES } from "./upgrades";
 import { recipeById } from "./workshop";
@@ -66,7 +66,6 @@ export const HOW_SYSTEMS = [
   "workshop",
   "recipes",
   "away",
-  "legacy",
 ] as const;
 
 export type HowSystem = (typeof HOW_SYSTEMS)[number];
@@ -97,10 +96,9 @@ const crewTimerLine =
     ? `A blasting charge or axle grease doubles the crew for ${formatDuration(chargeMs)}.`
     : `A blasting charge doubles the crew for ${formatDuration(chargeMs)}, axle grease for ${formatDuration(greaseMs)}.`;
 
-/** Stone prices for this run: `stones` for k, `oneOffStones` for upgrades and promotions. */
+/** Stone prices on the cards: the first band's, as the buttons start. */
 interface Prices {
   readonly stones: (count: number) => string;
-  readonly oneOffStones: (count: number) => string;
 }
 
 type Cards<S extends HowSystem> = Readonly<Record<S, HowItWorks>>;
@@ -170,7 +168,7 @@ function crewCards({
 }
 
 /** What stones buy for good. */
-function spendCards({ oneOffStones }: Prices): Cards<"upgrades"> {
+function spendCards({ stones }: Prices): Cards<"upgrades"> {
   return {
     upgrades: {
       title: "Upgrades",
@@ -178,7 +176,7 @@ function spendCards({ oneOffStones }: Prices): Cards<"upgrades"> {
       steps: [
         [
           "upgrades-icon",
-          `Upgrades start at ${oneOffStones(firstUpgrade)} and last the whole mountain.`,
+          `Upgrades start at ${stones(firstUpgrade)} and last the whole mountain.`,
         ],
         [
           "helper-miner",
@@ -192,7 +190,7 @@ function spendCards({ oneOffStones }: Prices): Cards<"upgrades"> {
 
 /** The engineers: promotion, tending and expeditions. */
 function engineerCards({
-  oneOffStones,
+  stones,
 }: Prices): Cards<"engineers" | "tending" | "expeditions"> {
   return {
     engineers: {
@@ -201,7 +199,7 @@ function engineerCards({
       steps: [
         [
           "helper-miner",
-          `Promote a worker for ${oneOffStones(PROMOTE_BASE_COST)}. Each next one costs double.`,
+          `Promote a worker for ${stones(PROMOTE_BASE_COST)}. Each next one costs double.`,
         ],
         [
           "helper-miner",
@@ -324,8 +322,8 @@ function depthCards(): Cards<"layers" | "materials" | "workshop" | "recipes"> {
   };
 }
 
-/** Time away and the pass to your kid. */
-function endCards(): Cards<"away" | "legacy"> {
+/** Time away. */
+function endCards(): Cards<"away"> {
   return {
     away: {
       title: "Time away",
@@ -341,35 +339,13 @@ function endCards(): Cards<"away" | "legacy"> {
         ],
       ],
     },
-    legacy: {
-      title: "Passing to your kid",
-      reveal: "Reach the bottom and pass the mine to your kid.",
-      steps: [
-        ["mountain", "Reach the bottom and you can pass the mine on."],
-        ["kid-helper", "Your kid starts a bigger mountain, with your recipes."],
-        [
-          "helper-miner",
-          `Each pass makes crew ${percent(LEGACY_STEP)} stronger, for good.`,
-        ],
-      ],
-    },
   };
 }
 
-/**
- * The how-it-works copy for a run stretched by k (M13): every stone price
- * shows this run's number. Upgrades and promotions also scale with the band
- * (#356), so they take `oneOff` (oneOffStretch), the factor the buttons use.
- */
-export function howItWorks(
-  k: number,
-  oneOff = k,
-): Readonly<Record<HowSystem, HowItWorks>> {
-  const stones = (count: number): string =>
-    `${formatCompact(count * k)} stones`;
-  const oneOffStones = (count: number): string =>
-    `${formatCompact(count * oneOff)} stones`;
-  const prices: Prices = { stones, oneOffStones };
+/** The how-it-works copy, with real stone prices. */
+function howItWorks(): Readonly<Record<HowSystem, HowItWorks>> {
+  const stones = (count: number): string => `${formatCompact(count)} stones`;
+  const prices: Prices = { stones };
   return {
     ...crewCards(prices),
     ...spendCards(prices),
@@ -379,5 +355,5 @@ export function howItWorks(
   };
 }
 
-/** Run-1 copy, for cards with no stone price on them. */
-export const HOW_IT_WORKS = howItWorks(1);
+/** The how-it-works copy every card reads. */
+export const HOW_IT_WORKS = howItWorks();

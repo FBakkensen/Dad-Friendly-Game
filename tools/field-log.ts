@@ -39,7 +39,6 @@ const SNAPSHOT_FIELDS = [
   "left",
   "pocket",
   "crewSpeed",
-  "legacy",
   "deviceId",
   "rev",
   "crew",
@@ -58,7 +57,6 @@ const SCALAR_LABELS: Readonly<Record<string, string>> = {
   left: "Left",
   pocket: "Pocket",
   crewSpeed: "Crew speed",
-  legacy: "Legacy",
   deviceId: "Device",
   rev: "Rev",
 };
@@ -363,7 +361,6 @@ function snapshotBody(
     "left",
     "pocket",
     "crewSpeed",
-    "legacy",
   ] as const) {
     if (!Object.hasOwn(snapshot, key)) {
       continue;

@@ -88,14 +88,13 @@ describe("snapshot", () => {
         borerSyn: 0,
         machineSyn: 0,
       },
-      legacy: 0,
       engineers: [],
       expeditions: [],
     });
     expect(JSON.parse(JSON.stringify(shot))).toEqual(shot);
   });
 
-  it("counts the crew, idle machines, upgrades, and legacy", () => {
+  it("counts the crew, idle machines and upgrades, and keeps no legacy (#729)", () => {
     const mountain: Mountain = {
       ...createMountain(),
       remaining: MOUNTAIN_STONES - 1_000_000,
@@ -108,7 +107,6 @@ describe("snapshot", () => {
         kid: 2,
       },
       upgrades: { ...NO_UPGRADES, boots: 1 },
-      legacy: 3,
       engineers: [{ name: "Ada", rank: 1, trips: 3, post: "borer" }],
       expeditions: [
         {
@@ -149,7 +147,7 @@ describe("snapshot", () => {
     });
     expect(shot.upgrades.boots).toBe(1);
     expect(shot.upgrades.cartSyn).toBe(0);
-    expect(shot.legacy).toBe(3);
+    expect(shot).not.toHaveProperty("legacy");
     // Away on the trip below, so the log reads the saved post.
     expect(shot.engineers).toEqual([{ name: "Ada", rank: 1, post: "tunnel" }]);
     expect(shot.expeditions).toEqual([

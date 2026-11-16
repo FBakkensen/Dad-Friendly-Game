@@ -25,7 +25,6 @@ const dad = {
     crewSpeed: 1.5,
     idle: { cart: 1 },
     upgrades: { boots: 1 },
-    legacy: 0,
   },
   events: [
     {
@@ -54,7 +53,6 @@ const mom = {
     crewSpeed: 0,
     idle: {},
     upgrades: {},
-    legacy: 0,
   },
   events: [],
   updatedAt: Date.parse(at),

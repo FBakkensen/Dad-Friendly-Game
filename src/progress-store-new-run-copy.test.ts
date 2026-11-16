@@ -170,29 +170,37 @@ describe("a new run keeps the mountain he left in Saved copies (#480)", () => {
     progress.dispose();
   });
 
-  it("passing the mine keeps the finished mine, and it can be passed again", async () => {
+  it("a copy a pass left before #729 still lists and restores", async () => {
+    const memory = createMemoryCloudSave();
+    await memory.archiveCopy?.({
+      uid: user.uid,
+      mountain: { ...minedMountain(MOUNTAIN_STONES), startedAt: 500 },
+      lastSeen: 1,
+      rev: 1,
+      deviceId: "other-device",
+      deviceLabel: "Safari on iPhone",
+      reason: "start-over",
+    });
+    // No build writes a pass copy since #729: the shelf says it was one.
+    const shelf: CloudSave = {
+      ...memory,
+      listCopies: async (args) =>
+        ((await memory.listCopies?.(args)) ?? []).map((copy) => ({
+          ...copy,
+          reason: "pass" as const,
+        })),
+    };
     let clock = 1_000_000;
     const { progress } = await playing(
-      { ...minedMountain(MOUNTAIN_STONES - 10), startedAt: 500 },
-      { now: () => clock },
+      { ...minedMountain(40_000), startedAt: 600 },
+      { cloud: shelf, now: () => clock },
     );
-    progress.applyMutation((mountain) => ({ ...mountain, remaining: 0 }));
-    clock += 10;
-    await expect(progress.passTheMine()).resolves.toBe(true);
-    expect(progress.getSnapshot().mountain.legacy).toBe(1);
     const [copy] = await progress.savedCopies();
     expect(copy?.reason).toBe("pass");
     expect(copy?.mountain.remaining).toBe(0);
-    expect(copy?.mountain.legacy).toBe(0);
-
     clock += 10;
     await expect(progress.restoreCopy(copy?.id ?? "")).resolves.toBe("saved");
-    expect(progress.getSnapshot().mountain.legacy).toBe(0);
-    clock += 10;
-    // The Legacy comes from the mine itself, so passing it again adds one, not two.
-    // A pass still wanted when its copy lands goes ahead.
-    await expect(progress.passTheMine(() => true)).resolves.toBe(true);
-    expect(progress.getSnapshot().mountain.legacy).toBe(1);
+    expect(progress.getSnapshot().mountain.remaining).toBe(0);
     progress.dispose();
   });
 
@@ -233,7 +241,6 @@ describe("a new run keeps the mountain he left in Saved copies (#480)", () => {
         },
       },
     );
-    await expect(progress.passTheMine()).resolves.toBe(false);
     await expect(progress.startOver()).resolves.toBe(false);
     expect(progress.getSnapshot().mountain.startedAt).toBe(500);
     expect(logger.latest()?.detail).toBe("start-over rejected");

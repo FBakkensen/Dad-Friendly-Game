@@ -23,8 +23,6 @@ import {
   LEDGER_KICK,
   MINE_LEGEND,
   NOT_SIGNED_IN,
-  PASS_FULL,
-  PASS_SHORT,
   SIGN_IN,
   SIGN_IN_GOOGLE,
   SIGN_OUT,
@@ -128,8 +126,6 @@ import {
   upgradeWhyLine,
   awayCheerWords,
   quietAwayWords,
-  grandpaChipWords,
-  grandpaSentence,
   AWAY_CHEER,
   DREAM_AWAY_MS,
   ENGINEERS_BACK,
@@ -827,24 +823,12 @@ describe("quietAwayWords (#334)", () => {
   });
 });
 
-describe("grandpa words (#338)", () => {
-  it("names his post on the chip and in a sentence, with no numbers", () => {
-    expect(grandpaChipWords("cart")).toBe("Grandpa on carts");
-    expect(grandpaChipWords("machine")).toBe("Grandpa on the machine");
-    expect(grandpaSentence("borer")).toBe(
-      "Grandpa tends the borers, slow and steady.",
-    );
-  });
-});
-
 describe("the Ledger's words (#375)", () => {
-  it("names the drawer's kick, legends, Back and the short Pass plate", () => {
+  it("names the drawer's kick, legends and Back", () => {
     expect(LEDGER_KICK).toBe("Tonight, and the mine so far");
     expect(TONIGHT_LEGEND).toBe("Tonight");
     expect(MINE_LEGEND).toBe("The mine");
     expect(LEDGER_BACK).toBe("Back to the Ledger");
-    expect(PASS_SHORT).toBe("Pass the mine");
-    expect(PASS_FULL).toBe("Pass the mine to your kid");
   });
 
   it("keeps today's Start over and account words, with the one question on the title", () => {

@@ -380,6 +380,8 @@ describe("a save from another version (#558)", () => {
   it("takes every archive reason, a reset among them, and nothing else", () => {
     expect(isArchiveReason("reset")).toBe(true);
     expect(isArchiveReason("conflict")).toBe(true);
+    // Read, never written, since #729.
+    expect(isArchiveReason("pass")).toBe(true);
     expect(isArchiveReason("migrate")).toBe(false);
   });
 

@@ -79,11 +79,11 @@ function sweep(grid: Grid): { checked: number; misses: string[] } {
           ? []
           : [{ name: "Ada" as const, rank: 0 as const, trips: 0, post }];
       const rate = (crew: Crew): number => {
-        const { legacy, ...counts } = crew;
+        // The pass is gone (#729): `crew.legacy` no longer reaches the crew.
+        const counts = Object.fromEntries(COUNTED.map((id) => [id, crew[id]]));
         const base = minedMountain(50_000_000);
         return effectiveRates({
           ...base,
-          legacy,
           owned: { ...base.owned, ...counts },
           engineers,
         }).exactCrewPerSecond;

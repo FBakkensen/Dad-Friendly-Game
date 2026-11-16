@@ -31,8 +31,8 @@ interface CopyParts {
 /**
  * The archived copies (#466), on the board card shell, opened from the Ledger's Saved copies
  * plate. Each copy is an inset with its lines and Play this one, which plays it through the same
- * archive-then-switch path. A copy from an earlier run, such as the mountain a Start over or a
- * pass left (#480), comes back as a new run. Back to the mountain and
+ * archive-then-switch path. A copy from an earlier run, such as the mountain a Start over (or,
+ * before #729, a pass) left (#480), comes back as a new run. Back to the mountain and
  * Escape close it. A copy's inset is built once, and a repaint writes only the lines that
  * changed, so its plate and the keyboard's focus stay put.
  */

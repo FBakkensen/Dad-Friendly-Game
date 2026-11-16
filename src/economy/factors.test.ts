@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Mountain } from "../mountain";
 import type { TierId } from "../tiers";
 import { activeFactors, factor, holdFactors, withFactors } from "./factors";
-import { tendingTenths } from "../engineers";
+import { engineerTenths } from "../engineers";
 import { effectiveRates } from "../rates";
 import {
   HELPER_COST_GROWTH,
@@ -12,9 +12,9 @@ import {
 } from "../tiers";
 import { BARE_MOUNTAIN } from "../mountain";
 
-/** A tier's tending tenths as the crew is staffed now. */
+/** A tier's tending tenths from the engineers at home. */
 function tenthsOf(mountain: Mountain, tierId: TierId): number {
-  return tendingTenths(mountain, tierId, effectiveRates(mountain).running);
+  return engineerTenths(mountain, tierId);
 }
 
 const posted = {

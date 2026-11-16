@@ -1,10 +1,8 @@
 import { withFactors } from "../economy/factors";
-import { passTheMine } from "../legacy";
-import { createMountain, type Mountain } from "../mountain";
+import { createMountain } from "../mountain";
 import type { Policy } from "./policy";
 import { runPolicy } from "./run";
 import { withFirstWorker } from "./world";
-import { stretch } from "../scale";
 import { machinesInPlay } from "../tiers";
 
 export type GenerationRun = {
@@ -20,9 +18,8 @@ export type GenerationRun = {
 };
 
 /**
- * Plays one policy through `runs` consecutive kid runs. Each run starts from
- * `passTheMine` of the last, so the Legacy grows by one and the game stretches
- * the kid's mountain (src/scale.ts). Stops early if a run never finishes.
+ * Plays one policy's run. The pass is gone (#729), so there is no kid run
+ * after it, whatever `runs` asks; #729's second task deletes this lab.
  */
 export function runGenerations({
   policy,
@@ -38,36 +35,28 @@ export function runGenerations({
   readonly runs: number;
   readonly maxDays?: number;
 }): readonly GenerationRun[] {
-  const runs: GenerationRun[] = [];
-  let mountain: Mountain = withFirstWorker(createMountain());
-  for (let index = 0; index < count; index += 1) {
-    const played = withFactors(factors, () =>
-      runPolicy({
-        policy,
-        seed,
-        mountain,
-        ...(maxDays === undefined ? {} : { maxDays }),
-      }),
-    );
-    const bought = new Set(played.buys.map((buy) => buy.id));
-    // Read under the run's factors, so a run with the line on lists them.
-    const machines = withFactors(factors, machinesInPlay);
-    runs.push({
-      run: index + 1,
-      k: stretch(mountain),
+  if (count < 1) {
+    return [];
+  }
+  const played = withFactors(factors, () =>
+    runPolicy({
+      policy,
+      seed,
+      mountain: withFirstWorker(createMountain()),
+      ...(maxDays === undefined ? {} : { maxDays }),
+    }),
+  );
+  const bought = new Set(played.buys.map((buy) => buy.id));
+  // Read under the run's factors, so a run with the line on lists them.
+  const machines = withFactors(factors, machinesInPlay);
+  return [
+    {
+      run: 1,
+      k: 1,
       finishDay: played.finishDay,
       unbought: machines.filter((id) => !bought.has(id)),
-    });
-    const next = withFactors(factors, () =>
-      passTheMine(played.world.mountain, played.world.clock),
-    );
-    if (next === undefined) {
-      break;
-    }
-    // Each run is its own lab clock, starting at 0.
-    mountain = withFirstWorker({ ...next, startedAt: 0 });
-  }
-  return runs;
+    },
+  ];
 }
 
 /**

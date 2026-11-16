@@ -70,7 +70,7 @@ import { LAYERS } from "../layers";
 import { upgradeShown } from "../upgrade-reveal";
 import { expeditionAwayMs } from "../lost-tools";
 import type { Mountain } from "../mountain";
-import { minedOut, oneOffStretch, stretch } from "../scale";
+import { minedOut, oneOffStretch } from "../scale";
 import {
   markAllSeen,
   markSeen,
@@ -940,7 +940,7 @@ function valueTier(
   context: ValueContext,
 ): ActionValue {
   const tier = tierById(id);
-  const price = tierCost(tier, owned(mountain, tier), stretch(mountain));
+  const price = tierCost(tier, owned(mountain, tier));
   const cost = price + staffBill(mountain, tier);
   if (tierLocked(mountain, tier)) {
     return rateValue(mountain, 0, cost, horizon, context);
@@ -1033,7 +1033,7 @@ export function helperBill(mountain: Mountain, count: number): number {
   const helper = tierById("helper");
   let cost = 0;
   for (let extra = 0; extra < count; extra += 1) {
-    cost += tierCost(helper, mountain.owned.helper + extra, stretch(mountain));
+    cost += tierCost(helper, mountain.owned.helper + extra);
   }
   return cost;
 }
@@ -1257,7 +1257,7 @@ function valueCraft(
 ): ActionValue {
   const recipe = recipeById(id);
   const stones =
-    priceAmount(recipePrice(id, stretch(mountain)), "stones") +
+    priceAmount(recipePrice(id), "stones") +
     (pricing === "best-use"
       ? materialsPrice(mountain, id, horizon, context, now)
       : 0);
@@ -1411,7 +1411,7 @@ function materialsPrice(
   if (!Number.isFinite(horizon) || horizon <= 0) {
     return 0;
   }
-  const cost = recipePrice(id, stretch(mountain));
+  const cost = recipePrice(id);
   const others = sinkRecipes(mountain).filter((other) => other !== id);
   let price = 0;
   for (const layer of LAYERS) {
@@ -1421,7 +1421,7 @@ function materialsPrice(
     }
     let best = 0;
     for (const other of others) {
-      const otherCost = recipePrice(other, stretch(mountain));
+      const otherCost = recipePrice(other);
       const otherUnits = priceAmount(otherCost, layer.material);
       if (otherUnits <= 0) {
         continue;
@@ -1444,7 +1444,7 @@ function materialsPrice(
 
 function fundCraft(mountain: Mountain, id: RecipeId): Mountain {
   // The stones on top of the pocket; each material only up to the price.
-  const cost = recipePrice(id, stretch(mountain));
+  const cost = recipePrice(id);
   const have = mountain.stock;
   const gains: Partial<Record<GoodId, number>> = {};
   for (const line of cost) {

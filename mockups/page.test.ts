@@ -676,7 +676,6 @@ describe("teaching mock, hybrid pattern (#240)", () => {
     "staffing",
     "promotion",
     "welcome",
-    "legacy",
   ] as const;
 
   it("keeps every step to the house rules", () => {
@@ -789,16 +788,10 @@ describe("chipTime (#235)", () => {
   });
 });
 
-describe("welcome-back and pass-to-kid mock (#247)", () => {
-  it("names the away ore and the Legacy in real numbers", () => {
+describe("welcome-back mock (#247)", () => {
+  it("names the away ore", () => {
     const welcome = mountTokens("teach", "rest", "welcome");
     expect(welcome.textContent).toContain("Ore for the Workshop: +");
     expect(welcome.textContent).toContain("Craft it into gear for the crew.");
-    const legacy = mountTokens("teach", "rest", "legacy");
-    expect(legacy.textContent).toContain("Legacy ×1.5, for good");
-    expect(legacy.textContent).toContain("Workers 1/s to 1.5/s");
-    expect(legacy.textContent).toContain(
-      "A bigger mountain for your kid, with the Legacy and",
-    );
   });
 });

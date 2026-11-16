@@ -18,7 +18,6 @@ describe("where a best-tending dad sends her (#543)", () => {
       hoist: 20,
       machine: 1,
     },
-    legacy: 0,
     engineers: [
       {
         name: "Ada" as const,

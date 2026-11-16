@@ -33,8 +33,6 @@ const BOARD_SELECTORS = [
   ".board-card .save-conflict-error",
   ".saved-copies-list",
   ".saved-copy",
-  ".legacy-lead",
-  ".legacy-rates",
 ];
 
 /** WCAG 2 contrast ratio of two #rrggbb colours. */

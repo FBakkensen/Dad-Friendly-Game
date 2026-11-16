@@ -29,7 +29,6 @@ describe("phone backup", () => {
     const storage = memory();
     const mountain = {
       ...minedMountain(12),
-      legacy: 1,
       owned: { ...minedMountain(12).owned, helper: 2 },
     };
     expect(

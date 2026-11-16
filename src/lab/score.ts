@@ -1,4 +1,3 @@
-import { stretch } from "../scale";
 import type { Trouble } from "../hazards";
 import type { Mountain } from "../mountain";
 import { effectiveRates } from "../rates";
@@ -137,7 +136,7 @@ function craftIsReady(mountain: Mountain, action: Action): boolean {
   if (action.kind !== "craft") {
     return false;
   }
-  return canPay(mountain.stock, recipePrice(action.recipe, stretch(mountain)));
+  return canPay(mountain.stock, recipePrice(action.recipe));
 }
 
 function price(

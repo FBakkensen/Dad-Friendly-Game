@@ -59,7 +59,7 @@ function readServer(ctx: StoreContext): Promise<void> {
     return Promise.resolve();
   }
   const generation = ctx.hydrateGeneration;
-  // Counted in pocket stones: deep bands and kid runs dig less than one
+  // Counted in pocket stones: deep bands dig less than one
   // stone of depth per stone, so a depth difference is not a tap count.
   const leftAtHold = stonesLeft(ctx.session.mountain);
   ctx.read = { kind: "holding", wasSeen: serverSeen(ctx) };

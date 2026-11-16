@@ -1,4 +1,3 @@
-import { stretch } from "../scale";
 import { tierLocked } from "../crew";
 import { atHome } from "../engineers";
 import { LAYERS, type MaterialId } from "../layers";
@@ -45,7 +44,7 @@ function knownRecipes(mountain: Mountain): readonly RecipeId[] {
 
 /** The pocket and the materials cover one craft of this recipe. */
 function recipeAffordable(mountain: Mountain, id: RecipeId): boolean {
-  return canPay(mountain.stock, recipePrice(id, stretch(mountain)));
+  return canPay(mountain.stock, recipePrice(id));
 }
 
 /** A known recipe that spends this material is affordable right now. */

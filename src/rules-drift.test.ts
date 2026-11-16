@@ -9,7 +9,7 @@ import {
   snapshot,
   type FieldLogDocument,
 } from "./field-log";
-import { ARCHIVE_REASONS } from "./cloud-save";
+import { ARCHIVE_WRITE_REASONS } from "./cloud-save";
 import { DEVICE_ID_MAX } from "./device-id";
 import { createMountain } from "./mountain";
 import { SAVE_VERSION, type SaveDocument } from "./persist";
@@ -122,11 +122,11 @@ describe("firestore.rules match the game", () => {
     expect(device).toContain("allow delete: if false");
   });
 
-  it("takes every reason a copy is archived for (#480, #558)", () => {
+  it("takes every reason a copy is archived for, and no pass (#480, #558, #729)", () => {
     const match = /data\.reason in \[([^\]]*)\]/.exec(rules);
     const listedReasons = (match?.[1] ?? "")
       .split(",")
       .map((id) => id.trim().replace(/'/g, ""));
-    expect(listedReasons.sort()).toEqual([...ARCHIVE_REASONS].sort());
+    expect(listedReasons.sort()).toEqual([...ARCHIVE_WRITE_REASONS].sort());
   });
 });

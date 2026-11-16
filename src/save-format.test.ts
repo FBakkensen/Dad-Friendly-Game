@@ -23,11 +23,9 @@ describe("the game map (#558)", () => {
       owned: "owned",
       upgrades: "levels",
       startedAt: "envelope",
-      legacy: "run",
       engineers: "engineers",
       expeditions: "expeditions",
       finds: "marks",
-      stretch: "run",
       bench: "bench",
       crafted: "levels",
       recipes: "marks",
@@ -69,8 +67,6 @@ describe("the game map (#558)", () => {
       },
       upgrades: { ...fresh.upgrades, boots: 1 },
       startedAt: 500,
-      legacy: 1,
-      stretch: 2,
       engineers: [ADA],
       expeditions: [
         {
@@ -362,10 +358,40 @@ describe("the game map (#558)", () => {
     );
   });
 
-  it("a stretch past its cap is newer, below 1 is bad", () => {
+  it("a retired stretch past its cap is newer, below 1 is bad", () => {
     expect(readGame({ run: { stretch: 2_000_000 } }, 0).kind).toBe("newer");
     expect(readGame({ run: { stretch: 0.5 } }, 0).kind).toBe("bad");
     expect(readGame({ run: { stretch: 2.5 } }, 0).kind).toBe("ok");
+  });
+
+  it("a retired generation past its cap is newer, a part-run is bad", () => {
+    expect(readGame({ run: { generation: 1000 } }, 0).kind).toBe("ok");
+    expect(readGame({ run: { generation: 1001 } }, 0).kind).toBe("newer");
+    expect(readGame({ run: { generation: 1.5 } }, 0).kind).toBe("bad");
+  });
+
+  it("a v10 save with run.generation 0 and run.stretch 1 reads ok, and the writer writes neither (#729)", () => {
+    const read = readGame(
+      { run: { generation: 0, stretch: 1, dug: 5_000, rock: 12 } },
+      0,
+    );
+    expect(read.kind).toBe("ok");
+    const mountain = read.kind === "ok" ? read.mountain : createMountain();
+    expect(mountain.remaining).toBe(MOUNTAIN_STONES - 5_000);
+    expect(mountain.rockDug).toBe(12);
+    expect(mountain).not.toHaveProperty("legacy");
+    expect(mountain).not.toHaveProperty("stretch");
+    expect(writeGame(mountain).run).toEqual({ dug: 5_000, rock: 12 });
+  });
+
+  it("a v10 save from a kid run reads ok at the retired caps, and drops both on the next write (#729)", () => {
+    const read = readGame(
+      { run: { generation: 1000, stretch: 1_000_000, dug: 7 } },
+      0,
+    );
+    expect(read.kind).toBe("ok");
+    const mountain = read.kind === "ok" ? read.mountain : createMountain();
+    expect(writeGame(mountain).run).toEqual({ dug: 7 });
   });
 
   it("a mark twice is newer", () => {

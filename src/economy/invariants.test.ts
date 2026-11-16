@@ -240,7 +240,6 @@ function wholeCounts(mountain: Mountain): readonly [string, number][] {
     ...TIERS.map(
       (tier) => [tier.id, mountain.owned[tier.id]] as [string, number],
     ),
-    ["legacy", mountain.legacy],
     ["pocket", mountain.stock.stones],
     ...Object.entries(mountain.upgrades).map(
       ([id, level]) => [`upgrades.${id}`, level] as [string, number],
@@ -300,7 +299,6 @@ function badNumbers(mountain: Mountain): readonly string[] {
 function lifetime(mountain: Mountain): Record<string, number> {
   return {
     mined: minedOut(mountain),
-    legacy: mountain.legacy,
     recipes: mountain.recipes.length,
     finds: mountain.finds.length,
     taught: mountain.taught.length,

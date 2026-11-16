@@ -42,13 +42,7 @@ import {
   type FindId,
   type SavedExpedition,
 } from "./expeditions";
-import {
-  BARE_MOUNTAIN,
-  MAX_LEGACY,
-  MOUNTAIN_STONES,
-  type Mountain,
-} from "./mountain";
-import { MAX_STRETCH } from "./scale";
+import { BARE_MOUNTAIN, MOUNTAIN_STONES, type Mountain } from "./mountain";
 import { MAX_STOCKYARD_LEVEL } from "./stockyard";
 import { TEACH_IDS, type TeachId } from "./teach";
 import { TIER_IDS, type TierId } from "./tiers";
@@ -88,7 +82,16 @@ const MARK_IDS = {
 type MarkKind = keyof typeof MARK_IDS;
 const MARK_KINDS = Object.keys(MARK_IDS) as readonly MarkKind[];
 
-type RunKey = "generation" | "stretch" | "dug" | "rock";
+type RunKey = "dug" | "rock";
+
+/**
+ * Run keys a version 10 save may hold that this build no longer writes
+ * (#729): the pass's count of runs and the kid run's stretch. The reader
+ * still checks them against these caps, so a save that held them reads,
+ * and ignores their values.
+ */
+const RETIRED_RUN_CAPS = { generation: 1000, stretch: 1_000_000 } as const;
+type RetiredRunKey = keyof typeof RETIRED_RUN_CAPS;
 
 const GAME_KEYS = [
   "owned",
@@ -133,7 +136,7 @@ export type SaveGame = {
     readonly finds?: readonly FindId[];
     readonly operational?: readonly BuildingId[];
   };
-  readonly run?: Readonly<Partial<Record<RunKey, number>>>;
+  readonly run?: Readonly<Partial<Record<RunKey | RetiredRunKey, number>>>;
   /** An engineer away on a trip is saved at post "tunnel". */
   readonly engineers?: readonly DutyEngineer[];
   /** Each trip keeps the post its engineer left, as `home`. */
@@ -221,12 +224,10 @@ function savedMarks(mountain: Mountain): NonNullable<SaveGame["marks"]> {
 }
 
 function savedRun(mountain: Mountain): NonNullable<SaveGame["run"]> {
-  // A stretched run digs in fractions of a depth stone. The save keeps whole
+  // A deep band digs in fractions of a depth stone. The save keeps whole
   // numbers, so the stones left round up: at most one stone of depth comes back.
   const dug = MOUNTAIN_STONES - Math.ceil(mountain.remaining);
   return {
-    ...only("generation", mountain.legacy, mountain.legacy !== 0),
-    ...only("stretch", mountain.stretch, mountain.stretch !== 1),
     ...only("dug", dug, dug !== 0),
     ...only("rock", mountain.rockDug, mountain.rockDug !== 0),
   };
@@ -434,26 +435,22 @@ function readMarks(value: unknown): Part<Marks> {
   };
 }
 
-type Run = Pick<Mountain, "legacy" | "stretch" | "remaining" | "rockDug">;
+type Run = Pick<Mountain, "remaining" | "rockDug">;
 
-function readStretch(value: unknown): Part<number> {
+/** A retired stretch (#729): checked as it always was, then ignored. */
+function readRetiredStretch(value: unknown): Part<true> {
   if (value === undefined) {
-    return 1;
+    return true;
   }
   if (typeof value !== "number" || !Number.isFinite(value) || value < 1) {
     return "bad";
   }
-  return value > MAX_STRETCH ? "newer" : value;
+  return value > RETIRED_RUN_CAPS.stretch ? "newer" : true;
 }
 
 function readRun(value: unknown): Part<Run> {
   if (value === undefined) {
-    return {
-      legacy: 0,
-      stretch: 1,
-      remaining: MOUNTAIN_STONES,
-      rockDug: 0,
-    };
+    return { remaining: MOUNTAIN_STONES, rockDug: 0 };
   }
   if (!isRecord(value)) {
     return "bad";
@@ -465,23 +462,18 @@ function readRun(value: unknown): Part<Run> {
     ["generation", "dug", "rock"] as const,
     (id) =>
       id === "generation"
-        ? MAX_LEGACY
+        ? RETIRED_RUN_CAPS.generation
         : id === "dug"
           ? MOUNTAIN_STONES
           : Number.MAX_SAFE_INTEGER,
   );
-  const stretch = readStretch(value["stretch"]);
+  const stretch = readRetiredStretch(value["stretch"]);
   const failed = worst([counts, stretch]);
   if (failed !== undefined) {
     return failed;
   }
   const run = counts as Record<"generation" | "dug" | "rock", number>;
-  return {
-    legacy: run.generation,
-    stretch: stretch as number,
-    remaining: MOUNTAIN_STONES - run.dug,
-    rockDug: run.rock,
-  };
+  return { remaining: MOUNTAIN_STONES - run.dug, rockDug: run.rock };
 }
 
 /** Right types for an engineer; whether this build knows the names is the parser's call. */
@@ -790,6 +782,8 @@ export type ShippedFacts = {
   readonly clocks: readonly string[];
   readonly marks: Readonly<Record<string, readonly string[]>>;
   readonly run: Readonly<Record<string, number>>;
+  /** Run keys still read at these caps and never written (#729). */
+  readonly retiredRun: Readonly<Record<string, number>>;
   readonly engineerNames: readonly string[];
   readonly posts: readonly string[];
   readonly tunnels: readonly string[];
@@ -810,12 +804,8 @@ export function shippedFacts(): ShippedFacts {
     levels: Object.fromEntries(LEVEL_IDS.map((id) => [id, levelCap(id)])),
     clocks: TIMER_IDS,
     marks: MARK_IDS,
-    run: {
-      generation: MAX_LEGACY,
-      stretch: MAX_STRETCH,
-      dug: MOUNTAIN_STONES,
-      rock: Number.MAX_SAFE_INTEGER,
-    },
+    run: { dug: MOUNTAIN_STONES, rock: Number.MAX_SAFE_INTEGER },
+    retiredRun: RETIRED_RUN_CAPS,
     engineerNames: ENGINEER_NAMES,
     posts: [...ENGINEER_POSTS, "tunnel"],
     tunnels: TUNNELS.map((tunnel) => tunnel.id),

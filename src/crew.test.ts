@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { buyCrew, tierLock, tierLocked } from "./crew";
-import { createMountain } from "./mountain";
 import { shownStones } from "./scale";
 import { effectiveRates } from "./rates";
 import { minedMountain } from "./test-fixtures";
@@ -29,7 +28,7 @@ describe("crew unlocks", () => {
     expect(tierLock(minedMountain(25_000_000), machine)).toEqual({
       kind: "depth",
       depth: 120_000_000,
-      at: shownStones(createMountain(), 120_000_000),
+      at: shownStones(120_000_000),
     });
     expect(tierLocked(nearDeep, tierById("borer"))).toBe(false);
   });
@@ -48,7 +47,7 @@ describe("crew unlocks", () => {
     expect(tierLock(near, kid)).toEqual({
       kind: "depth",
       depth: 70_000_000,
-      at: shownStones(createMountain(), 70_000_000),
+      at: shownStones(70_000_000),
     });
     expect(buyCrew(near, "kid")).toBe(near);
     expect(tierLock(at, kid)).toBeUndefined();
@@ -109,7 +108,7 @@ describe("crew unlocks", () => {
     expect(tierLock(deep, tierById("machine"))).toEqual({
       kind: "depth",
       depth: 120_000_000,
-      at: shownStones(createMountain(), 120_000_000),
+      at: shownStones(120_000_000),
     });
     expect(tierLock(deep, tierById("helper"))).toBeUndefined();
     // An older save that already owns a borer keeps buying them.

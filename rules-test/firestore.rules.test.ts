@@ -102,7 +102,6 @@ function lateCrew(): Mountain {
       hoist: 9,
       train: 3,
     },
-    legacy: 3,
     startedAt: 1_700,
     engineers: [
       { name: "Ada", rank: 1, trips: 3, post: "borer" },
@@ -320,8 +319,8 @@ describe("firestore.rules: gameArchive (#480, #558)", () => {
     await expect(deleteDoc(copy("one"))).rejects.toThrow(denied);
   });
 
-  it("takes a copy left by a restore, a Start over or a pass, and no other reason", async () => {
-    for (const reason of ["restore", "start-over", "pass"]) {
+  it("takes a copy left by a restore or a Start over, and no other reason", async () => {
+    for (const reason of ["restore", "start-over"]) {
       await setDoc(copy(reason), archive({ reason }));
       expect((await getDoc(copy(reason))).data()?.["reason"]).toBe(reason);
     }
@@ -331,6 +330,20 @@ describe("firestore.rules: gameArchive (#480, #558)", () => {
     await expect(setDoc(copy("old"), archive({ version: 7 }))).rejects.toThrow(
       denied,
     );
+  });
+
+  it("refuses a create with archive reason pass, and still reads a stored one (#729)", async () => {
+    await expect(
+      setDoc(copy("pass"), archive({ reason: "pass" })),
+    ).rejects.toThrow(denied);
+    await admin()
+      .doc("gameArchive/dad/copies/old-pass")
+      .set({
+        ...archive({ reason: "pass" }),
+        archivedAt: new Date(),
+        expiresAt: new Date(Date.now() + WEEK),
+      });
+    expect((await getDoc(copy("old-pass"))).data()?.["reason"]).toBe("pass");
   });
 
   it("keeps an older copy as it was stored, with reason reset", async () => {
@@ -423,7 +436,6 @@ function maximalMountain(): Mountain {
       UPGRADES.map((upgrade) => [upgrade.id, upgrade.maxLevel]),
     ) as Upgrades,
     startedAt: 0,
-    legacy: 1,
     engineers,
     expeditions,
     finds: [...FIND_IDS],
@@ -522,6 +534,25 @@ describe("firestore.rules: fieldLogs/{uid}", () => {
     const written = { ...fieldLog([event]), snapshot: older };
     await setDoc(doc(db, "fieldLogs", "dad"), written);
     expect((await getDoc(doc(db, "fieldLogs", "dad"))).data()).toEqual(written);
+  });
+
+  it("a field-log write without legacy is accepted over a stored one with it, and one with legacy is refused (#729)", async () => {
+    await admin()
+      .doc("fieldLogs/dad")
+      .set({
+        ...fieldLog([event]),
+        snapshot: { ...gameSnapshot(), legacy: 0 },
+      });
+    const written = fieldLog([event]);
+    expect(written.snapshot).not.toHaveProperty("legacy");
+    await setDoc(doc(db, "fieldLogs", "dad"), written);
+    expect((await getDoc(doc(db, "fieldLogs", "dad"))).data()).toEqual(written);
+    await expect(
+      setDoc(doc(db, "fieldLogs", "dad"), {
+        ...written,
+        snapshot: { ...gameSnapshot(), legacy: 0 },
+      }),
+    ).rejects.toThrow(/permission/i);
   });
 
   it("accepts a maximal late-game snapshot and a full ring (#219)", async () => {

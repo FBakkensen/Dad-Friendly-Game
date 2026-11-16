@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import type { Engineer } from "./engineers";
 import {
   BARE_MOUNTAIN,
-  MAX_LEGACY,
   MOUNTAIN_STONES,
   createMountain,
   digStones,
@@ -34,7 +33,6 @@ function lived(): Mountain {
     remaining: MOUNTAIN_STONES - 80_000,
     stock: { ...fresh.stock, stones: 1_234 },
     owned: { ...fresh.owned, helper: 30, cart: 12, drill: 4, borer: 1, kid: 2 },
-    legacy: 3,
     startedAt: 1_700,
     engineers: [ADA, { ...NILS, post: "drill" }],
     expeditions: [
@@ -195,6 +193,19 @@ describe("the version 10 save (#558, #728)", () => {
     expect(readSave({ ...saved, weather: "rain" }).kind).toBe("newer");
   });
 
+  it("a save holding the retired run.generation 0 and run.stretch 1 reads ok, and plays on (#729)", () => {
+    const plain = okMountain(readSave(withGame({})));
+    const run = { dug: 80_000, generation: 0, stretch: 1 };
+    const read = okMountain(readSave(withGame({ run })));
+    expect(read).toEqual(plain);
+    const next = digStones(read ?? createMountain(), 10);
+    const again = stored(serializeSave({ mountain: next, lastSeen: 10 })) as {
+      game: { run?: Record<string, number> };
+    };
+    expect(again.game.run).toEqual({ dug: 80_010 });
+    expect(okMountain(readSave(again))?.remaining).toBe(next.remaining);
+  });
+
   it("a count above its cap is newer", () => {
     expect(readSave(withGame({ levels: { boots: 2 } })).kind).toBe("newer");
     const crew = ["Ada", "Nils", "Ruth", "Otto", "Mae", "Bo"].map((name) => ({
@@ -204,9 +215,10 @@ describe("the version 10 save (#558, #728)", () => {
     expect(readSave(withGame({ engineers: crew, expeditions: [] })).kind).toBe(
       "newer",
     );
-    expect(
-      readSave(withGame({ run: { generation: MAX_LEGACY + 1 } })).kind,
-    ).toBe("newer");
+    // A retired count still has its cap (#729).
+    expect(readSave(withGame({ run: { generation: 1_001 } })).kind).toBe(
+      "newer",
+    );
     expect(readSave(withGame({ run: { dug: MOUNTAIN_STONES + 1 } })).kind).toBe(
       "newer",
     );

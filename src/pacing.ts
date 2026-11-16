@@ -1,4 +1,4 @@
-import { oneOffStretch, stretch } from "./scale";
+import { oneOffStretch } from "./scale";
 import {
   onTrip,
   promote,
@@ -152,7 +152,7 @@ function isDadBuy(action: Action, withUpgrades: boolean): action is DadBuy {
 function sticker(mountain: Mountain, action: DadBuy): number {
   if (action.kind === "buyTier") {
     const tier = tierById(action.id);
-    return tierCost(tier, owned(mountain, tier), stretch(mountain));
+    return tierCost(tier, owned(mountain, tier));
   }
   return upgradeCost(
     upgradeById(action.id),
@@ -386,9 +386,8 @@ export function simulateDadRun({
   };
   let world: World = createWorld(
     1,
-    withFirstWorker(
-      legacy > 0 ? { ...createMountain(), legacy } : createMountain(),
-    ),
+    // The pass is gone (#729): every run starts fresh, whatever `legacy` says.
+    withFirstWorker(createMountain()),
   );
   for (let session = 0; session < maxDays * DAD.sessionsPerDay; session += 1) {
     for (let second = 0; second < DAD.sessionSeconds; second += 1) {

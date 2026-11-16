@@ -426,53 +426,50 @@ describe("what more hands add (#490)", () => {
 });
 
 describe("staffing never slows the crew (#500)", () => {
-  it("one more worker, drill, borer or machine never mines less, with Grandpa and the floor", () => {
+  it("one more worker, drill, borer or machine never mines less, with the floor", () => {
     const posts = ["borer", "machine", "camp"] as const;
     let checked = 0;
-    for (const legacy of [0, 1]) {
-      for (const post of posts) {
-        for (const machines of [0, 1, 2]) {
-          for (const borers of [0, 1, 3]) {
-            for (const drills of [0, 10, 50]) {
-              for (let helpers = 0; helpers <= 60; helpers += 3) {
-                const crew = {
-                  ...minedMountain(10_000_000),
-                  helpers,
-                  drills,
-                  borers,
-                  machines,
-                  legacy,
-                  engineers:
-                    post === "camp"
-                      ? []
-                      : [
-                          {
-                            name: "Ada" as const,
-                            rank: 0 as const,
-                            trips: 0,
-                            post,
-                          },
-                        ],
-                };
-                const now = effectiveRates(crew).exactCrewPerSecond;
-                for (const more of [
-                  { ...crew, owned: { ...crew.owned, helper: helpers + 1 } },
-                  { ...crew, owned: { ...crew.owned, drill: drills + 1 } },
-                  { ...crew, owned: { ...crew.owned, borer: borers + 1 } },
-                  { ...crew, owned: { ...crew.owned, machine: machines + 1 } },
-                ]) {
-                  expect(
-                    effectiveRates(more).exactCrewPerSecond,
-                  ).toBeGreaterThanOrEqual(now - 1e-6);
-                  checked += 1;
-                }
+    for (const post of posts) {
+      for (const machines of [0, 1, 2]) {
+        for (const borers of [0, 1, 3]) {
+          for (const drills of [0, 10, 50]) {
+            for (let helpers = 0; helpers <= 60; helpers += 3) {
+              const crew = {
+                ...minedMountain(10_000_000),
+                helpers,
+                drills,
+                borers,
+                machines,
+                engineers:
+                  post === "camp"
+                    ? []
+                    : [
+                        {
+                          name: "Ada" as const,
+                          rank: 0 as const,
+                          trips: 0,
+                          post,
+                        },
+                      ],
+              };
+              const now = effectiveRates(crew).exactCrewPerSecond;
+              for (const more of [
+                { ...crew, owned: { ...crew.owned, helper: helpers + 1 } },
+                { ...crew, owned: { ...crew.owned, drill: drills + 1 } },
+                { ...crew, owned: { ...crew.owned, borer: borers + 1 } },
+                { ...crew, owned: { ...crew.owned, machine: machines + 1 } },
+              ]) {
+                expect(
+                  effectiveRates(more).exactCrewPerSecond,
+                ).toBeGreaterThanOrEqual(now - 1e-6);
+                checked += 1;
               }
             }
           }
         }
       }
     }
-    expect(checked).toBe(2 * 3 * 3 * 3 * 3 * 21 * 4);
+    expect(checked).toBe(3 * 3 * 3 * 3 * 21 * 4);
   });
 
   it("trades one kind for another when the engineers' posts can move", () => {
@@ -483,7 +480,6 @@ describe("staffing never slows the crew (#500)", () => {
       const base = minedMountain(50_000_000);
       const crew: Mountain = {
         ...base,
-        legacy: 0,
         owned: {
           ...base.owned,
           helper: 28,
@@ -538,7 +534,6 @@ describe("staffing for the line (#534)", () => {
           borer: 1,
           train: 2,
         },
-        legacy: 0,
         engineers: [],
       };
       const before = effectiveRates(crew);
@@ -641,7 +636,6 @@ describe("the line's rule behind its factor (#532)", () => {
           hoist: 20,
           machine: 1,
         },
-        legacy: 0,
       };
       const at = (post: "camp" | "cart" | "borer"): number =>
         effectiveRates({

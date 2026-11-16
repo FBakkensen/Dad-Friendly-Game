@@ -13,8 +13,6 @@ import { forgetAll, type PressTracker } from "./card-tap";
 import { TONIGHT_LINES, type TonightLine } from "./ledger-rows";
 import { freshMineOn } from "./line-switch";
 import {
-  PASS_FULL,
-  PASS_SHORT,
   SAVED_COPIES_TITLE,
   START_OVER,
   START_OVER_DETAIL,
@@ -107,10 +105,9 @@ export function createTonightBox(): {
   };
 }
 
-/** What the plates show: whether the save is in, and whether passing the mine is offered. */
+/** What the plates show: whether the save is in. */
 interface DoorsView {
   readonly ready: boolean;
-  readonly passOffered: boolean;
 }
 
 /** Where each plate leads; each gets the plate it was pressed on, and how. */
@@ -118,7 +115,6 @@ export interface LedgerDoorsOn {
   savedCopies(from: HTMLButtonElement, by: Pointer): void;
   fieldLog(from: HTMLButtonElement, by: Pointer): void;
   startOver(from: HTMLButtonElement, by: Pointer): void;
-  pass(from: HTMLButtonElement, by: Pointer): void;
 }
 
 export interface LedgerDoors {
@@ -132,7 +128,7 @@ export interface LedgerDoors {
 
 const FIELD_LOG: ControlRef = { layer: "ledger", id: "field-log" };
 
-/** The four plates, two by two: Saved copies and Copy field log, Start over and Pass the mine. */
+/** The three plates, two by two: Saved copies and Copy field log, then Start over. */
 export function createLedgerDoors({
   board,
   on,
@@ -166,11 +162,7 @@ export function createLedgerDoors({
       on.startOver(p, by);
     },
   );
-  const pass = ledgerPlate(board, trackers, [PASS_SHORT, "pass"], (p, by) => {
-    on.pass(p, by);
-  });
-  pass.setAttribute("aria-label", PASS_FULL);
-  root.append(saved, fieldLog, startOver, pass);
+  root.append(saved, fieldLog, startOver);
 
   const fieldLogText =
     fieldLog.querySelector<HTMLElement>(".board-platebtn-text") ?? fieldLog;
@@ -182,10 +174,9 @@ export function createLedgerDoors({
 
   return {
     root,
-    paint({ ready, passOffered }) {
+    paint({ ready }) {
       fieldLog.disabled = !ready;
       startOver.disabled = !ready;
-      hide(pass, !passOffered);
     },
     forget: forgetAll(trackers),
     copied() {

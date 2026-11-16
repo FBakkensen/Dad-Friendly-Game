@@ -802,14 +802,6 @@ describe("valueOf", () => {
       ).gainPerSec,
     ).toBeCloseTo(11 * BOOTS_SPEED_PER_LEVEL, 10);
 
-    const heir: Mountain = { ...ten, legacy: 1 };
-    expect(
-      score(heir, { kind: "buyUpgrade", id: "boots", price: [] }).gainPerSec,
-    ).toBeCloseTo(
-      10 * effectiveRates(heir).tierSpeed.helper * BOOTS_SPEED_PER_LEVEL,
-      8,
-    );
-
     expect(
       score(ten, { kind: "buyUpgrade", id: "cartSyn", price: [] }).gainPerSec,
     ).toBeCloseTo(10 * SYNERGY_PER_UNIT * 5 * tierById("cart").perSecond, 8);

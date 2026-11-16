@@ -167,7 +167,7 @@ export type StoreContext = {
   fieldLogAt: number | undefined;
   fieldLogFingerprint: string | undefined;
   readonly ring: EventRing;
-  /** A Start over or a pass is keeping the left mountain in Saved copies (#480). */
+  /** A Start over is keeping the left mountain in Saved copies (#480). */
   keepingLeft: boolean;
   /**
    * The mountain in play is a fresh one a set-aside left (#558): its run stamp

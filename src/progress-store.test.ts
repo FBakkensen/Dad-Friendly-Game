@@ -1,6 +1,5 @@
 // @vitest-environment happy-dom
 import { describe, expect, it, vi } from "vitest";
-import { kidStretch } from "./scale";
 import { EMPTY_MATERIALS } from "./layers";
 import { createMemoryAuth } from "./auth";
 import {
@@ -853,7 +852,6 @@ describe("start over", () => {
           machine: 0,
           kid: 0,
         },
-        legacy: 2,
       },
       lastSeen: 0,
     });
@@ -904,50 +902,6 @@ describe("start over", () => {
     expect(progress.getSnapshot().mountain.remaining).toBe(
       createMountain().remaining,
     );
-  });
-
-  it("passes the mine to your kid only at the bottom, saving the Legacy at once (#131)", async () => {
-    const cloud = signedInCloud(minedMountain(99_999_999));
-    let clock = 10_000;
-    const progress = createProgressStore({
-      auth: createMemoryAuth({ state: { kind: "signed-in", user }, user }),
-      cloudSave: cloud.cloudSave,
-      sessionStorage: createMemoryStorage(),
-      now: () => clock,
-      cloudWriteGapMs: 60_000,
-    });
-    await expect(progress.passTheMine()).resolves.toBe(false);
-    progress.applyMutation((mountain) => ({ ...mountain, remaining: 0 }));
-    clock += 10;
-
-    await expect(progress.passTheMine()).resolves.toBe(true);
-    await Promise.resolve();
-
-    const fresh = {
-      ...createMountain(),
-      legacy: 1,
-      stretch: kidStretch(1),
-      startedAt: 10_010,
-      recipes: [
-        "iron-rails",
-        "sturdy-props",
-        "blasting-charge",
-        "reinforce",
-        "axle-grease",
-        "diamond-bits",
-        "heartstone-core",
-        "heartstone-ember",
-      ] as const,
-    };
-    expect(progress.getSnapshot().mountain).toEqual(fresh);
-    expect(cloud.writes.at(-1)).toEqual(fresh);
-    // A late snapshot of the finished run can't bring it back.
-    cloud.push({
-      kind: "found",
-      mountain: minedMountain(100_000_000),
-      lastSeen: 0,
-    });
-    expect(progress.getSnapshot().mountain.legacy).toBe(1);
   });
 
   it("ignores a stale snapshot from before the reset and re-uploads the new run", async () => {
@@ -1393,7 +1347,7 @@ describe("field log", () => {
     expect(events[0]?.data).toEqual({ ms: 120_000, stones: 36 });
   });
 
-  it("keeps the old run's events through Start over and a pass, and starts Tonight afresh", async () => {
+  it("keeps the old run's events through Start over, and starts Tonight afresh", async () => {
     const progress = guest(() => 8_000);
     progress.applyMutation((mountain) =>
       buyTier(
@@ -1408,17 +1362,6 @@ describe("field log", () => {
     expect(codes()).toEqual([...before, "run.start-over"]);
     expect(progress.tonightEvents().map((event) => event.code)).toEqual([
       "run.start-over",
-    ]);
-    progress.applyMutation((mountain) => ({ ...mountain, remaining: 0 }));
-    await expect(progress.passTheMine()).resolves.toBe(true);
-    await expect(progress.passTheMine()).resolves.toBe(false);
-    expect(codes().slice(0, before.length + 1)).toEqual([
-      ...before,
-      "run.start-over",
-    ]);
-    expect(codes().at(-1)).toBe("run.pass");
-    expect(progress.tonightEvents().map((event) => event.code)).toEqual([
-      "run.pass",
     ]);
   });
 
@@ -2017,7 +1960,7 @@ describe("field log cloud copy", () => {
     progress.dispose();
   });
 
-  it("writes the doc at once on Start over and passing the mine, keeping the run before", async () => {
+  it("writes the doc at once on Start over, keeping the run before", async () => {
     let clock = 8_000;
     const { fieldLogs, progress } = signedIn(() => clock, firstWorker);
     progress.dispatch({ kind: "buyTier", id: "helper" });
@@ -2043,20 +1986,6 @@ describe("field log cloud copy", () => {
     expect(fieldLogOf(fieldLogs, user.uid)?.updatedAt).toBe(
       (resetAt ?? 0) + 10,
     );
-
-    progress.applyMutation((mountain) => ({ ...mountain, remaining: 0 }));
-    await expect(progress.passTheMine()).resolves.toBe(true);
-    const passed = fieldLogOf(fieldLogs, user.uid);
-    const passedCodes = passed?.events.map((event) => event.code) ?? [];
-    expect(passedCodes.slice(0, 4)).toEqual([
-      "tier.buy",
-      "save.archive",
-      "run.start-over",
-      "run.start-over",
-    ]);
-    expect(passedCodes.at(-1)).toBe("run.pass");
-    expect(passed?.snapshot.legacy).toBe(1);
-    expect(passed?.updatedAt).toBe(clock);
     progress.dispose();
   });
 
@@ -3708,19 +3637,15 @@ describe("fresh read, one writer, and a pending offline write", () => {
     progress.dispose();
   });
 
-  // #356: in deep bands and kid runs a stone digs less than one unit of
-  // depth, so a tap held over the resume read must be counted in stones.
-  it.each([
-    { name: "in the Granite", depth: 12_000_000, stretch: undefined },
-    { name: "in a kid run", depth: 2_000_000, stretch: kidStretch(1) },
-  ])(
+  // #356: in deep bands a stone digs less than one unit of depth, so a
+  // tap held over the resume read must be counted in stones.
+  it.each([{ name: "in the Granite", depth: 12_000_000 }])(
     "keeps a whole tap from the resume gap $name",
-    async ({ depth, stretch }) => {
+    async ({ depth }) => {
       const storage = createMemoryStorage();
       const start: Mountain = {
         ...minedMountain(5_000_000),
         remaining: MOUNTAIN_STONES - depth,
-        ...(stretch === undefined ? {} : { stretch }),
       };
       let server = { mountain: start, rev: 1, lastSeen: 1 };
       let release: (() => void) | undefined;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { withFactors } from "../../src/economy/factors";
-import { tendingTenths } from "../../src/engineers";
+import { engineerTenths } from "../../src/engineers";
 import { LAYERS } from "../../src/layers";
 import { BARE_MOUNTAIN, createMountain } from "../../src/mountain";
 import { effectiveRates } from "../../src/rates";
@@ -60,7 +60,7 @@ function reading(factorId: string): number {
     return effectiveRates(posted).tierSpeed[id];
   }
   if (factorId === "tending.gain") {
-    return tendingTenths(posted, "borer", effectiveRates(posted).running);
+    return engineerTenths(posted, "borer");
   }
   if (factorId.startsWith("recipe.") && factorId.endsWith(".cost")) {
     const id = factorId.slice("recipe.".length, -".cost".length) as RecipeId;
