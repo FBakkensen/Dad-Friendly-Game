@@ -29,6 +29,7 @@ import {
 import { printedParts } from "./mine-view";
 import { levels, partThree, partTwo } from "./part-three.harness";
 import { chainFlows } from "./piles";
+import { crewTimer } from "./rates";
 import { LEVEL_JOBS } from "./workforce";
 
 /** The mine's two levels as views (#680): each level's rows and piles, Hoisting's row, the strip and the shaft's gate. */
@@ -199,6 +200,44 @@ describe("hoisting's row and the strip", () => {
     });
   });
 
+  it("reads hoisting's counts and moves on the cages' one clock while a crew timer runs", () => {
+    partThree(() => {
+      const base = three();
+      const now = 1_000;
+      const m = {
+        ...base,
+        clocks: { ...base.clocks, "blasting-charge": now + 60_000 },
+      };
+      const timer = crewTimer(m, now);
+      expect(timer).toBeGreaterThan(1);
+      const still = hoistingRow(m);
+      const row = hoistingRow(m, now);
+      const running = mineWork(m).cages.filter((cage) => cage.runs);
+      for (const part of row.parts) {
+        if (part.kind === "runs") {
+          expect(part.running).toBe(
+            running.filter((cage) => cage.key.startsWith(`${part.id}:`)).length,
+          );
+        }
+      }
+      row.parts.forEach((part, index) => {
+        expect(part.moves).toBeCloseTo(
+          (still.parts[index]?.moves ?? 0) * timer,
+          9,
+        );
+      });
+      const winch = row.parts
+        .filter((part) => part.kind !== "runs")
+        .reduce((sum, part) => sum + part.moves, 0);
+      const can = row.parts.reduce((sum, part) => sum + part.moves, 0);
+      const rates = hoistStrip(m, now).reduce(
+        (sum, cell) => sum + cell.rateValue,
+        0,
+      );
+      expect(Math.abs(rates - (can - winch))).toBeLessThan(1e-9);
+    });
+  });
+
   it("darkens − at none and + with none left for both", () => {
     partThree(() => {
       const m = levels({
@@ -275,9 +314,9 @@ describe("the words with two levels", () => {
     expect(machineCardTitle("drill")).toBe("A drill for which level?");
     expect(machineCardTitle("cart")).toBe("A cart for which level?");
     expect(machineCardTitle("borer")).toBe("A borer for which level?");
-    expect(machineCardTitle("train")).toBe("A locomotive for which level?");
+    expect(machineCardTitle("train")).toBe("A train for which level?");
     expect(levelHasLine("topsoil", "drill", 2)).toBe("Topsoil: 2 drills");
-    expect(levelHasLine("granite", "train", 1)).toBe("Granite: 1 locomotive");
+    expect(levelHasLine("granite", "train", 1)).toBe("Granite: 1 train");
   });
 
   it("says no face, no hands and no limit", () => {

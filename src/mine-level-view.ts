@@ -29,7 +29,7 @@ import {
 import type { Mountain } from "./mountain";
 import { partThreeOn } from "./part-switch";
 import { crewTimer, effectiveRates } from "./rates";
-import { plural } from "./screen-words";
+import { MACHINE_WORDS, plural } from "./screen-words";
 import { canPay, type GoodId } from "./stock";
 import type { TierId } from "./tiers";
 import {
@@ -82,18 +82,9 @@ export const SINK_LINE =
 export const MACHINE_CARD_STAYS = "It stays on the level it is bought for.";
 export const NOT_NOW = "Not now";
 
-/** A level's machine as the card names it: one, and more than one. */
-const CARD_WORDS: Readonly<Record<LevelMachineId, readonly [string, string]>> =
-  {
-    cart: ["cart", "carts"],
-    drill: ["drill", "drills"],
-    borer: ["borer", "borers"],
-    train: ["locomotive", "locomotives"],
-  };
-
 /** "A drill for which level?" */
 export function machineCardTitle(id: LevelMachineId): string {
-  return `A ${CARD_WORDS[id][0]} for which level?`;
+  return `A ${MACHINE_WORDS[id][0]} for which level?`;
 }
 
 /** "Topsoil: 2 drills": what a level has of a kind. */
@@ -102,7 +93,7 @@ export function levelHasLine(
   id: LevelMachineId,
   count: number,
 ): string {
-  return `${LEVEL_NAMES[level]}: ${String(count)} ${plural(count, CARD_WORDS[id])}`;
+  return `${LEVEL_NAMES[level]}: ${String(count)} ${plural(count, MACHINE_WORDS[id])}`;
 }
 
 /** The workforce's groups with the Granite open (ruling 9). */
@@ -147,12 +138,11 @@ function winchWorkers(part: RowPart): number {
  * Hoisting's parts with two levels (ruling 3): the hoists' and engines'
  * kinds, each moving what its running cages lift as they are assigned, and
  * the winch's workers moving the winch's lift, all under the crew timer.
+ * The counts read the cages' own clock (`mineWork`, with no `now`), so what
+ * runs and what it lifts are one reading of the shaft.
  */
-function hoistParts(
-  mountain: Mountain,
-  speed: Readonly<Record<TierId, number>>,
-  timer: number,
-): RowPart[] {
+function hoistParts(mountain: Mountain, timer: number): RowPart[] {
+  const speed = effectiveRates(mountain).tierSpeed;
   const parts = rowParts(
     stageMachines(mountain, speed, "lift"),
     mountain.jobs[STAGE_JOB.lift],
@@ -188,7 +178,7 @@ function levelsWork(mountain: Mountain, now: number | undefined): LevelsWork {
   const speed = effectiveRates(mountain, now).tierSpeed;
   const timer = crewTimer(mountain, now);
   const { levels } = lineWork(mountain, speed);
-  const hoisting = hoistParts(mountain, speed, timer);
+  const hoisting = hoistParts(mountain, timer);
   const hoistCan = hoisting.reduce((sum, part) => sum + part.moves, 0);
   const cans = {
     topsoil: {
