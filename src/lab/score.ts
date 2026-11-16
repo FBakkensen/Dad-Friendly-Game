@@ -2,7 +2,6 @@ import type { Trouble } from "../hazards";
 import type { Mountain } from "../mountain";
 import { effectiveRates } from "../rates";
 import { onTrip, station } from "../engineers";
-import { layerOf } from "../layers";
 import { lineOf, lineView } from "../line";
 import { TIERS } from "../tiers";
 import {
@@ -11,7 +10,7 @@ import {
   type Action,
   type ValueContext,
 } from "../economy/actions";
-import { COLD_CLOCKS, NOTHING_CRAFTED, recipePrice } from "../workshop";
+import { COLD_CLOCKS, NOTHING_CRAFTED } from "../workshop";
 import { MOVE_KINDS, type DecisionSample } from "./measure";
 import {
   CRAFTED_SOURCE,
@@ -20,7 +19,6 @@ import {
   TENDING_SOURCE,
   VALUE_TIE,
 } from "./targets";
-import { canPay } from "../stock";
 
 export type ScoreInput = {
   readonly mountain: Mountain;
@@ -77,8 +75,6 @@ function actionId(action: Action): string {
       return `recall:${String(action.index)}`;
     case "fixTrouble":
       return `fixTrouble:${action.tier}`;
-    case "craft":
-      return `craft:${action.recipe}`;
     case "cancelCraft":
     case "placeOrder":
     case "holdOrder":
@@ -124,19 +120,6 @@ function waitToAfford(
   return afford > 0 ? afford : 0;
 }
 
-/**
- * A craft is affordable when the pocket can pay its stone price and the
- * materials are already in hand. Payback still prices the iron, so a free
- * bench does not beat every machine, but a dad who can start the craft is
- * not waiting.
- */
-function craftIsReady(mountain: Mountain, action: Action): boolean {
-  if (action.kind !== "craft") {
-    return false;
-  }
-  return canPay(mountain.stock, recipePrice(action.recipe));
-}
-
 function price(
   mountain: Mountain,
   action: Action,
@@ -148,16 +131,13 @@ function price(
   const cost = priced.cost;
   const perStone =
     cost > 0 ? gain / cost : gain > 0 ? Number.POSITIVE_INFINITY : 0;
-  const ready = action.kind === "craft" && craftIsReady(mountain, action);
   return {
     id: actionId(action),
     kind: action.kind,
     paybackSec: priced.paybackSec,
     perStone,
-    waitSec: ready
-      ? 0
-      : waitToAfford(mountain.stock.stones, cost, gain, priced.paybackSec),
-    affordable: ready || !(cost > mountain.stock.stones),
+    waitSec: waitToAfford(mountain.stock.stones, cost, gain, priced.paybackSec),
+    affordable: !(cost > mountain.stock.stones),
   };
 }
 
@@ -377,7 +357,6 @@ export function scoreDecision(input: ScoreInput): DecisionSample {
     pocket: input.mountain.stock.stones,
     outputShare: outputShare(input.mountain, input.now, input.trouble),
     line: lineView(rates.tierSpeed, rates.running),
-    layer: layerOf(input.mountain).id,
     optionKinds: optionKinds(actions),
     nextPaybackRatio: nextPaybackRatio(priced),
     stretch: {

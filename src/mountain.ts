@@ -2,7 +2,7 @@ import { effectiveRates } from "./rates";
 import type { Engineer } from "./engineers";
 import { type Expedition, type FindId, type Homecoming } from "./expeditions";
 import { NO_UPGRADES, type Upgrades } from "./upgrades";
-import { materialsGained } from "./layers";
+import { EMPTY_MATERIALS } from "./layers";
 import { EMPTY_STOCK, addedStock, stockMoved, type Stock } from "./stock";
 import type { TeachId } from "./teach";
 import {
@@ -46,7 +46,7 @@ import type { Materials } from "./layers";
 import {
   COLD_CLOCKS,
   NOTHING_CRAFTED,
-  recipesForMined,
+  STARTING_RECIPE_IDS,
   settleBench,
   type Bench,
   type Clocks,
@@ -54,19 +54,12 @@ import {
   type RecipeId,
 } from "./workshop";
 
-/** Mountain numbers live here; tier numbers in src/tiers.ts. See docs/DESIGN.md. */
-import { MOUNTAIN_STONES, minedOut } from "./scale";
-
-export { MOUNTAIN_STONES };
-
 /**
  * One run's state. Never changed in place: every move returns a new object.
  * `effectiveRates` keeps its clockless answer per mountain object and relies
  * on that (#314).
  */
 export type Mountain = {
-  /** Stones still in the mountain. 0..MOUNTAIN_STONES. */
-  readonly remaining: number;
   /**
    * What he holds, by good (src/stock.ts): the stones mined and not yet
    * spent, and the clay, iron, crystal and heartstone dug with them (#560).
@@ -132,9 +125,9 @@ export type Mountain = {
   /** The stockyard's level (slice 1, part 2, src/stockyard.ts); 0 is the first. */
   readonly stockyard: number;
   /**
-   * Rock dug in all (slice 1, call 13, #664): every stone drilling has
-   * dug this run. It only grows, and it breaks a tie between two copies
-   * of a fresh mine, whose mountain never shrinks. Always 0 in today's game.
+   * Rock dug (slice 1, call 13, #664): every stone drilling has dug this
+   * run. It only grows, and it breaks a tie between two copies of a fresh
+   * mine, whose mountain never shrinks (#740: the mountain has no depth).
    */
   readonly rockDug: number;
   /**
@@ -161,7 +154,6 @@ export function runStartedAt(mountain: Mountain): number {
 
 /** A mountain with nothing dug and nothing owned. */
 export const BARE_MOUNTAIN: Mountain = {
-  remaining: MOUNTAIN_STONES,
   stock: EMPTY_STOCK,
   owned: tierRecord(0),
   upgrades: NO_UPGRADES,
@@ -208,7 +200,7 @@ export const FRESH_START_JOBS: Jobs = {
 };
 
 export function createMountain(): Mountain {
-  const start = { ...BARE_MOUNTAIN, recipes: recipesForMined(0) };
+  const start = { ...BARE_MOUNTAIN, recipes: [...STARTING_RECIPE_IDS] };
   return {
     ...start,
     owned: {
@@ -217,27 +209,6 @@ export function createMountain(): Mountain {
     },
     jobs: FRESH_START_JOBS,
     fleet: givenFleet(),
-  };
-}
-
-export { minedOut };
-
-/**
- * How far a run has come, for which copy is ahead (call 13, #664): rock
- * dug from today's mountain, and rock drilling dug in a fresh mine.
- */
-export function rockDugInAll(mountain: Mountain): number {
-  return minedOut(mountain) + mountain.rockDug;
-}
-
-/**
- * Stones go to the stock. A fresh mine has no depth (slice 1, rule 1,
- * #653): the mountain stays full, so its one level never runs out.
- */
-export function digStones(mountain: Mountain, mined: number): Mountain {
-  return {
-    ...mountain,
-    stock: addedStock(mountain.stock, { stones: mined }),
   };
 }
 
@@ -666,7 +637,7 @@ export function accrueAway({
       awayMs,
       paidMs: clockless ? awayMs : clockStops - lastSeen,
       capped: !clockless && awayMs > NIGHT_CLOCK_MS,
-      materials: materialsGained(0, 0),
+      materials: EMPTY_MATERIALS,
       night: nightReport(log, mountain, state, awayMs),
     },
   };

@@ -17,15 +17,14 @@ import {
   type FieldLogDocument,
 } from "./field-log";
 import {
-  MOUNTAIN_STONES,
   createMountain,
-  minedOut,
   accrue,
   accrueAway,
   type Mountain,
   BARE_MOUNTAIN,
 } from "./mountain";
 import {
+  benchCraft,
   CREWED_JOBS,
   crewedStart,
   guestSave,
@@ -46,7 +45,6 @@ import { WELCOME_MIN_AWAY_MS, createProgressStore } from "./progress-store";
 import { SESSION_SAVE_KEY, writeSessionSave } from "./session-save";
 import { buyTier, tierById, tierCost } from "./tiers";
 import { upgradeById, upgradeCost, NO_UPGRADES } from "./upgrades";
-import { recipesForMined } from "./workshop";
 import { onTrip, promoteCost, promotePrice } from "./engineers";
 import { EMPTY_STOCK, stonesPrice } from "./stock";
 import { send, type Expedition } from "./expeditions";
@@ -54,14 +52,13 @@ import { ENGINEER_FIX_MS, nextTrouble } from "./hazards";
 import { firstNotice, noticesOf } from "./session";
 
 /**
- * A tap's worth of progress: `count` stones taken from the mountain into
- * the stock, so the merge's rock dug in all (`rockDugInAll`) grows with it.
- * The fresh mine's own `digStones` only adds stock (#739).
+ * A tap's worth of progress: `count` stones of rock dug, and into the stock,
+ * so the merge's rock dug grows with it.
  */
 function dig(mountain: Mountain, count: number): Mountain {
   return {
     ...mountain,
-    remaining: mountain.remaining - count,
+    rockDug: mountain.rockDug + count,
     stock: { ...mountain.stock, stones: mountain.stock.stones + count },
   };
 }
@@ -237,7 +234,7 @@ describe("createProgressStore", () => {
         }),
       );
       progress.applyMutation((mountain) => dig(mountain, 1));
-      expect(minedOut(progress.getSnapshot().mountain)).toBe(2);
+      expect(progress.getSnapshot().mountain.rockDug).toBe(2);
     } finally {
       progress.dispose();
     }
@@ -736,7 +733,7 @@ describe("away earnings", () => {
       kind: "found",
       mountain: {
         ...crew,
-        remaining: MOUNTAIN_STONES - 30,
+        rockDug: crew.rockDug + 30,
         stock: { ...crew.stock, stones: 35 },
       },
       lastSeen: 40_000,
@@ -818,8 +815,8 @@ describe("start over", () => {
       ...createMountain(),
       startedAt: 10_010,
     });
-    expect(progress.getSnapshot().mountain.remaining).toBe(
-      createMountain().remaining,
+    expect(progress.getSnapshot().mountain.rockDug).toBe(
+      createMountain().rockDug,
     );
   });
 
@@ -844,8 +841,8 @@ describe("start over", () => {
         lastSeen: 0,
       });
 
-      expect(progress.getSnapshot().mountain.remaining).toBe(
-        createMountain().remaining,
+      expect(progress.getSnapshot().mountain.rockDug).toBe(
+        createMountain().rockDug,
       );
       expect(cloud.writes.length).toBe(writesAfterReset + 1);
       expect(cloud.writes.at(-1)?.startedAt).toBeDefined();
@@ -2046,7 +2043,6 @@ describe("field log cloud copy", () => {
 describe("trouble at the machines (#149)", () => {
   const crew = {
     ...BARE_MOUNTAIN,
-    remaining: 50_000_000,
     stock: { ...BARE_MOUNTAIN.stock, stones: 0 },
     owned: {
       ...BARE_MOUNTAIN.owned,
@@ -2446,7 +2442,7 @@ describe("expeditions through the save", () => {
   });
 });
 
-describe("layer card and craft-done notice", () => {
+describe("craft-done notice", () => {
   const guest = (storage: Storage, now: () => number) =>
     createProgressStore({
       auth: createMemoryAuth(),
@@ -2455,141 +2451,24 @@ describe("layer card and craft-done notice", () => {
     });
 
   const shed = (): Mountain => ({
-    ...minedMountain(12_000_000),
-    owned: { ...minedMountain(12_000_000).owned, helper: 1, cart: 1 },
+    ...createMountain(),
+    owned: { ...createMountain().owned, helper: 1, cart: 1 },
     stock: {
-      ...minedMountain(12_000_000).stock,
+      ...createMountain().stock,
       stones: 5_000_000,
       clay: 20,
       iron: 20,
       crystal: 0,
       heartstone: 0,
     },
-    recipes: recipesForMined(12_000_000),
-  });
-
-  it("shows a break-in once across a reload, and not for a band already reached", () => {
-    const storage = createMemoryStorage();
-    writeSessionSave({
-      storage,
-      mountain: minedMountain(9_999_999),
-      lastSeen: 0,
-    });
-    const progress = guest(storage, () => 0);
-    expect(
-      noticesOf(progress.getSnapshot(), "layer").map(({ layer }) => layer),
-    ).toEqual([]);
-    progress.dismiss("layer");
-    progress.dismiss("craft");
-
-    progress.applyMutation(() => minedMountain(10_000_000));
-    expect(
-      noticesOf(progress.getSnapshot(), "layer")
-        .map(({ layer }) => layer)
-        .map((layer) => layer.id),
-    ).toEqual(["granite"]);
-    expect(progress.fieldLog().events).toContainEqual(
-      expect.objectContaining({
-        code: "layer.enter",
-        data: { id: "granite" },
-      }),
-    );
-    expect(progress.getSnapshot().mountain.recipes).toEqual(
-      expect.arrayContaining(["reinforce", "axle-grease"]),
-    );
-    expect(progress.fieldLog().events).toContainEqual(
-      expect.objectContaining({
-        code: "recipe.found",
-        data: { id: "reinforce", source: "granite" },
-      }),
-    );
-    expect(progress.fieldLog().events).toContainEqual(
-      expect.objectContaining({
-        code: "recipe.found",
-        data: { id: "axle-grease", source: "granite" },
-      }),
-    );
-    progress.dismiss("layer");
-    expect(
-      noticesOf(progress.getSnapshot(), "layer").map(({ layer }) => layer),
-    ).toEqual([]);
-    progress.dispose();
-
-    const again = guest(storage, () => 0);
-    expect(
-      noticesOf(again.getSnapshot(), "layer").map(({ layer }) => layer),
-    ).toEqual([]);
-    expect(again.fieldLog().events.map((event) => event.code)).not.toContain(
-      "layer.enter",
-    );
-    again.dispose();
-
-    const deep = createMemoryStorage();
-    writeSessionSave({
-      storage: deep,
-      mountain: minedMountain(15_000_000),
-      lastSeen: 0,
-    });
-    const sitting = guest(deep, () => 0);
-    expect(
-      noticesOf(sitting.getSnapshot(), "layer").map(({ layer }) => layer),
-    ).toEqual([]);
-    expect(sitting.getSnapshot().mountain.recipes).toEqual(
-      expect.arrayContaining(["reinforce", "axle-grease"]),
-    );
-    expect(sitting.fieldLog().events).toContainEqual(
-      expect.objectContaining({
-        code: "recipe.found",
-        data: { id: "reinforce", source: "granite" },
-      }),
-    );
-    sitting.dispose();
-    const reopened = guest(deep, () => 0);
-    expect(
-      reopened
-        .fieldLog()
-        .events.filter((event) => event.code === "recipe.found"),
-    ).toEqual([]);
-    expect(reopened.getSnapshot().mountain.recipes).toEqual(
-      expect.arrayContaining(["reinforce", "axle-grease"]),
-    );
-    reopened.dispose();
-  });
-
-  it("queues every band a single dig breaks into, shallowest first", () => {
-    const progress = guest(createMemoryStorage(), () => 0);
-    progress.applyMutation(() => minedMountain(120_000_000));
-    expect(
-      noticesOf(progress.getSnapshot(), "layer")
-        .map(({ layer }) => layer)
-        .map((layer) => layer.id),
-    ).toEqual(["granite", "crystal", "heart"]);
-    const enters = progress
-      .fieldLog()
-      .events.filter((event) => event.code === "layer.enter")
-      .map((event) => event.data.id);
-    expect(enters).toEqual(["granite", "crystal", "heart"]);
-    progress.dismiss("layer");
-    progress.dismiss("layer");
-    progress.dismiss("layer");
-    expect(
-      noticesOf(progress.getSnapshot(), "layer").map(({ layer }) => layer),
-    ).toEqual([]);
-    progress.dispose();
   });
 
   it("names a finished craft once, during play and after time away", () => {
     const storage = createMemoryStorage();
     let clock = 0;
     const progress = guest(storage, () => clock);
-    progress.applyMutation(() => shed());
-    progress.dispatch({ kind: "craft", recipe: "iron-rails" });
-    expect(progress.fieldLog().events).toContainEqual(
-      expect.objectContaining({
-        code: "craft.start",
-        data: { id: "iron-rails" },
-      }),
-    );
+    // A save's craft: the old bench never opens in play (#740).
+    progress.applyMutation(() => benchCraft(shed(), "iron-rails", 0));
     expect(
       noticesOf(progress.getSnapshot(), "craft").map(({ craft }) => craft),
     ).toEqual([]);
@@ -2680,7 +2559,7 @@ describe("save integrity: the phone keeps every tap (#222)", () => {
       }
       first.dispose();
 
-      expect(minedOut(docs.get("test-dad") ?? createMountain())).toBeLessThan(
+      expect((docs.get("test-dad") ?? createMountain()).rockDug).toBeLessThan(
         150,
       );
 
@@ -2692,10 +2571,9 @@ describe("save integrity: the phone keeps every tap (#222)", () => {
         cloudWriteGapMs: 0,
       });
       expect(second.getSnapshot().ready).toBe(true);
-      expect(minedOut(second.getSnapshot().mountain)).toBe(150);
       expect(second.getSnapshot().mountain.stock.stones).toBe(150);
       await Promise.resolve();
-      expect(minedOut(docs.get("test-dad") ?? createMountain())).toBe(150);
+      expect((docs.get("test-dad") ?? createMountain()).stock.stones).toBe(150);
       second.dispose();
     } finally {
       vi.useRealTimers();
@@ -2731,7 +2609,7 @@ describe("save integrity: the phone keeps every tap (#222)", () => {
       clock += 10;
       first.applyMutation((mountain) => dig(mountain, 1));
     }
-    expect(minedOut(first.getSnapshot().mountain)).toBe(150);
+    expect(first.getSnapshot().mountain.stock.stones).toBe(150);
     first.dispose();
     expect(docs.size).toBe(0);
 
@@ -2742,9 +2620,9 @@ describe("save integrity: the phone keeps every tap (#222)", () => {
       now: () => clock,
       cloudWriteGapMs: 0,
     });
-    expect(minedOut(second.getSnapshot().mountain)).toBe(150);
+    expect(second.getSnapshot().mountain.stock.stones).toBe(150);
     await Promise.resolve();
-    expect(minedOut(docs.get("test-dad") ?? createMountain())).toBe(150);
+    expect((docs.get("test-dad") ?? createMountain()).stock.stones).toBe(150);
     second.dispose();
   });
 
@@ -2811,7 +2689,7 @@ describe("save integrity: the phone keeps every tap (#222)", () => {
         progress.applyMutation((mountain) => dig(mountain, 1));
       }
       await Promise.resolve();
-      expect(minedOut(progress.getSnapshot().mountain)).toBe(4);
+      expect(progress.getSnapshot().mountain.rockDug).toBe(4);
       expect(docs.has("test-dad")).toBe(false);
 
       await vi.advanceTimersByTimeAsync(999);
@@ -2822,13 +2700,13 @@ describe("save integrity: the phone keeps every tap (#222)", () => {
       broken = false;
       await vi.advanceTimersByTimeAsync(2_000);
       expect(watches).toBe(3);
-      expect(minedOut(docs.get("test-dad") ?? createMountain())).toBe(4);
+      expect((docs.get("test-dad") ?? createMountain()).rockDug).toBe(4);
 
       clock += 10;
       progress.applyMutation((mountain) => dig(mountain, 1));
       await Promise.resolve();
-      expect(minedOut(progress.getSnapshot().mountain)).toBe(5);
-      expect(minedOut(docs.get("test-dad") ?? createMountain())).toBe(5);
+      expect(progress.getSnapshot().mountain.rockDug).toBe(5);
+      expect((docs.get("test-dad") ?? createMountain()).rockDug).toBe(5);
       expect(progress.getSnapshot().saveKind).toBe("account");
 
       const open = watches;
@@ -2882,12 +2760,12 @@ describe("save integrity: the phone keeps every tap (#222)", () => {
           lastSeen: clock - 1,
         });
       }
-      expect(minedOut(progress.getSnapshot().mountain)).toBe(tap);
+      expect(progress.getSnapshot().mountain.rockDug).toBe(tap);
       expect(
         progress.getSnapshot().mountain.stock.stones,
       ).toBeGreaterThanOrEqual(tap);
     }
-    expect(minedOut(docs.get("test-dad") ?? createMountain())).toBe(150);
+    expect((docs.get("test-dad") ?? createMountain()).rockDug).toBe(150);
     progress.dispose();
   });
 
@@ -2903,7 +2781,7 @@ describe("save integrity: the phone keeps every tap (#222)", () => {
         write: ({ mountain }) => {
           inflight += 1;
           maxInflight = Math.max(maxInflight, inflight);
-          writes.push(minedOut(mountain));
+          writes.push(mountain.rockDug);
           return new Promise((resolve) => {
             release = (result) => {
               inflight -= 1;
@@ -2989,7 +2867,7 @@ describe("save integrity: the phone keeps every tap (#222)", () => {
       cloudWriteGapMs: 0,
     });
     expect(progress.getSnapshot().ready).toBe(true);
-    expect(minedOut(progress.getSnapshot().mountain)).toBe(10);
+    expect(progress.getSnapshot().mountain.stock.stones).toBe(10);
 
     server = {
       mountain: {
@@ -3004,7 +2882,7 @@ describe("save integrity: the phone keeps every tap (#222)", () => {
       expect(progress.getSnapshot().saveConflict).toBeDefined();
     });
     expect(server.rev).toBe(6);
-    expect(minedOut(progress.getSnapshot().mountain)).toBe(30);
+    expect(progress.getSnapshot().mountain.rockDug).toBe(30);
     expect(progress.getSnapshot().mountain.upgrades).toEqual(NO_UPGRADES);
     expect(
       progress.getSnapshot().saveConflict?.remote.mountain.upgrades,
@@ -3019,7 +2897,7 @@ describe("save integrity: the phone keeps every tap (#222)", () => {
     expect(progress.fieldLog().events.map((event) => event.code)).toContain(
       "save.conflict",
     );
-    const kept = minedOut(progress.getSnapshot().mountain);
+    const kept = progress.getSnapshot().mountain.stock.stones;
     progress.dispose();
 
     const again = createProgressStore({
@@ -3050,7 +2928,7 @@ describe("save integrity: the phone keeps every tap (#222)", () => {
       cloudWriteGapMs: 0,
     });
     await Promise.resolve();
-    expect(minedOut(again.getSnapshot().mountain)).toBe(kept);
+    expect(again.getSnapshot().mountain.stock.stones).toBe(kept);
     again.dispose();
   });
 
@@ -3077,20 +2955,16 @@ describe("save integrity: the phone keeps every tap (#222)", () => {
       clock += 5;
       first.applyMutation((mountain) => dig(mountain, 1));
       await Promise.resolve();
-      const there = minedOut(second.getSnapshot().mountain);
+      const there = second.getSnapshot().mountain.rockDug;
       expect(there).toBeGreaterThanOrEqual(seen);
       seen = there;
-      expect(minedOut(first.getSnapshot().mountain)).toBeGreaterThanOrEqual(
-        tap,
-      );
+      expect(first.getSnapshot().mountain.rockDug).toBeGreaterThanOrEqual(tap);
     }
     await vi.waitFor(() => {
       expect(
-        minedOut(docs.get("test-dad") ?? createMountain()),
+        (docs.get("test-dad") ?? createMountain()).rockDug,
       ).toBeGreaterThanOrEqual(150);
-      expect(minedOut(second.getSnapshot().mountain)).toBeGreaterThanOrEqual(
-        150,
-      );
+      expect(second.getSnapshot().mountain.rockDug).toBeGreaterThanOrEqual(150);
     });
     first.dispose();
     second.dispose();
@@ -3167,21 +3041,19 @@ describe("save integrity: the phone keeps every tap (#222)", () => {
       live.applyMutation((currentMountain) => dig(currentMountain, 1));
     }
     await vi.waitFor(() => {
-      expect(minedOut(mountain)).toBeGreaterThanOrEqual(150);
+      expect(mountain.rockDug).toBeGreaterThanOrEqual(150);
     });
-    expect(minedOut(frozen.getSnapshot().mountain)).toBe(0);
+    expect(frozen.getSnapshot().mountain.rockDug).toBe(0);
     const trail: number[] = [];
     frozen.applyMutation((currentMountain) => {
-      trail.push(minedOut(currentMountain));
+      trail.push(currentMountain.rockDug);
       return currentMountain;
     });
     frozen.flush();
     await vi.waitFor(() => {
-      expect(minedOut(frozen.getSnapshot().mountain)).toBeGreaterThanOrEqual(
-        150,
-      );
+      expect(frozen.getSnapshot().mountain.rockDug).toBeGreaterThanOrEqual(150);
     });
-    expect(minedOut(mountain)).toBeGreaterThanOrEqual(150);
+    expect(mountain.rockDug).toBeGreaterThanOrEqual(150);
     for (let index = 1; index < trail.length; index += 1) {
       expect(trail[index] ?? 0).toBeGreaterThanOrEqual(trail[index - 1] ?? 0);
     }
@@ -3240,10 +3112,10 @@ describe("save integrity: the phone keeps every tap (#222)", () => {
       now: () => 80_000,
       cloudWriteGapMs: 0,
     });
-    expect(minedOut(progress.getSnapshot().mountain)).toBe(40);
+    expect(progress.getSnapshot().mountain.stock.stones).toBe(40);
     await vi.waitFor(() => {
       expect(doc.rev).toBeGreaterThanOrEqual(3);
-      expect(minedOut(doc.mountain)).toBe(40);
+      expect(doc.mountain.stock.stones).toBe(40);
     });
     progress.dispose();
   });
@@ -3471,7 +3343,7 @@ describe("fresh read, one writer, and a pending offline write", () => {
     }
     // The gap's change is lost to the newer copy: a fresh mine has no
     // hand taps to carry over the read (#739).
-    expect(minedOut(progress.getSnapshot().mountain)).toBe(10);
+    expect(progress.getSnapshot().mountain.stock.stones).toBe(10);
     await vi.waitFor(() => {
       expect(server.mountain.stock.stones).toBe(10);
     });
@@ -3605,7 +3477,7 @@ describe("fresh read, one writer, and a pending offline write", () => {
     }
     // The fresh read's copy, not the watch's 40. A fresh mine has no hand
     // taps to carry over the read (#739).
-    expect(minedOut(progress.getSnapshot().mountain)).toBe(4);
+    expect(progress.getSnapshot().mountain.rockDug).toBe(4);
     progress.dispose();
   });
 
@@ -4364,7 +4236,7 @@ describe("fresh read, one writer, and a pending offline write", () => {
     progress.applyMutation((mountain) => ({
       ...mountain,
       stock: { ...mountain.stock, stones: mountain.stock.stones + 1 },
-      remaining: mountain.remaining - 1,
+      rockDug: mountain.rockDug + 1,
     }));
     expect(phonePocket(storage)).toBe(2);
     expect(written).toEqual([]);
@@ -5131,7 +5003,7 @@ describe("two saves found (#226)", () => {
       holdEcho.held = true;
       await cloud.write({
         uid: user.uid,
-        mountain: { ...here, remaining: here.remaining - 5_000 },
+        mountain: { ...here, rockDug: here.rockDug + 5_000 },
         rev: (saved.kind === "found" ? (saved.rev ?? 0) : 0) + 1,
         deviceId: "other-device",
         lastSeen: clock,
@@ -5140,8 +5012,8 @@ describe("two saves found (#226)", () => {
       if (resume.kind === "reading") {
         await resume.done;
       }
-      expect(progress.getSnapshot().mountain.remaining).toBe(
-        here.remaining - 5_000,
+      expect(progress.getSnapshot().mountain.rockDug).toBe(
+        here.rockDug + 5_000,
       );
       expect(codes(progress.tonightEvents())).not.toContain("tier.buy");
       expect(codes(progress.fieldLog().events)).toContain("tier.buy");

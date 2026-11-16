@@ -25,7 +25,6 @@ export type DrawerId =
  */
 export type CardId =
   | "welcome"
-  | "layer"
   | "craft"
   | "conflict"
   | "other-tab"
@@ -172,7 +171,6 @@ function isDrawer(overlay: Layer): overlay is DrawerId {
 
 const CARD_IDS: readonly CardId[] = [
   "welcome",
-  "layer",
   "craft",
   "conflict",
   "other-tab",

@@ -2,18 +2,8 @@ import { describe, expect, it } from "vitest";
 import { withFactors } from "./economy/factors";
 import { applyMove, listActions, type Action } from "./economy/actions";
 import { tierLock, tierLocked } from "./crew";
-import {
-  MOUNTAIN_STONES,
-  accrue,
-  accrueAway,
-  createMountain,
-  digStones,
-  minedOut,
-  type Mountain,
-} from "./mountain";
+import { accrue, accrueAway, createMountain, type Mountain } from "./mountain";
 import { effectiveRates } from "./rates";
-import { layerOf } from "./layers";
-import { stonesLeft } from "./scale";
 import { TIERS, tierById, tierInPlay, type TierId } from "./tiers";
 import { UPGRADES, buyUpgrade } from "./upgrades";
 import { upgradeShown } from "./upgrade-reveal";
@@ -76,17 +66,7 @@ describe("one level, no depth (rule 1)", () => {
     });
   });
 
-  it("puts what is dug in the stock and never lowers the mountain", () => {
-    fresh(() => {
-      const dug = digStones(createMountain(), 250_000_000);
-      expect(dug.stock.stones).toBe(250_000_000);
-      expect(dug.remaining).toBe(MOUNTAIN_STONES);
-      expect(minedOut(dug)).toBe(0);
-      expect(stonesLeft()).toBe(Infinity);
-    });
-  });
-
-  it("a month of live play never mines it out or leaves the Topsoil", () => {
+  it("a month of live play digs more than the old mountain held, with the workshop shut", () => {
     fresh(() => {
       const crew = {
         ...owning({ helper: 40, cart: 10, hoist: 10, drill: 10 }, 0),
@@ -103,11 +83,10 @@ describe("one level, no depth (rule 1)", () => {
         },
       };
       const month = accrue({ mountain: crew, from: 0, to: 30 * DAY });
-      expect(month.mined).toBeGreaterThan(MOUNTAIN_STONES);
+      // The old mountain held 240M stones (#740: its size is gone).
+      expect(month.mined).toBeGreaterThan(240_000_000);
       expect(month.mountain.stock.stones).toBe(month.mined);
-      expect(month.mountain.remaining).toBe(MOUNTAIN_STONES);
-      expect(layerOf(month.mountain).name).toBe(layerOf(createMountain()).name);
-      expect(workshopUnlocked(month.mountain)).toBe(false);
+      expect(workshopUnlocked()).toBe(false);
       // No band's material comes up with it.
       expect(month.mountain.stock).toEqual({
         ...createMountain().stock,
@@ -123,7 +102,6 @@ describe("one level, no depth (rule 1)", () => {
       const away = accrueAway({ mountain: crew, lastSeen: 0, now: 2 * HOUR });
       expect(away.mined).toBe(Math.floor(2 * 3600 * speed * 0.3));
       expect(away.mountain.stock.stones).toBe(away.mined);
-      expect(away.mountain.remaining).toBe(MOUNTAIN_STONES);
     });
   });
 

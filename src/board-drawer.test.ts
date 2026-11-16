@@ -664,12 +664,12 @@ describe("the drawer shell", () => {
   describe("the how cards", () => {
     it("builds the cards, hides the first Back, and opens them from the i", () => {
       const sheet = make({
-        how: { systems: ["staffing", "layers"], backLabel: "Back to Buys" },
+        how: { systems: ["staffing", "upgrades"], backLabel: "Back to Buys" },
       });
       const cards = [...sheet.how.querySelectorAll<HTMLElement>("[data-how]")];
       expect(cards.map((card) => card.dataset["how"])).toEqual([
         "staffing",
-        "layers",
+        "upgrades",
       ]);
       const backs = sheet.how.querySelectorAll<HTMLElement>(".teach-how-back");
       expect(backs[0]?.hidden).toBe(true);

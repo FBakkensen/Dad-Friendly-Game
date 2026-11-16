@@ -117,7 +117,7 @@ export type ProgressStore = {
   readonly tick: () => void;
   /**
    * Closes the oldest notice of a kind; the next one (if any) follows.
-   * `"away"` closes the whole welcome-back card, with any band or craft folded into it.
+   * `"away"` closes the whole welcome-back card, with any craft folded into it.
    */
   readonly dismiss: (what: DismissTarget) => void;
   /**

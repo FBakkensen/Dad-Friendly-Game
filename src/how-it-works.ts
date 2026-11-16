@@ -9,11 +9,9 @@ import {
 import { TUNNELS } from "./expeditions";
 import { formatCompact, formatDuration } from "./format";
 import { ENGINEER_FIX_MS, FIX_TAPS } from "./hazards";
-import { LAYERS } from "./layers";
 import { AWAY_PAY_RATE, AWAY_END_MS } from "./rates";
 import { tierById } from "./tiers";
 import { UPGRADES } from "./upgrades";
-import { recipeById } from "./workshop";
 
 /**
  * The reveal line and the How it works card for every system (M11, #242).
@@ -61,10 +59,6 @@ export const HOW_SYSTEMS = [
   "engineers",
   "tending",
   "expeditions",
-  "layers",
-  "materials",
-  "workshop",
-  "recipes",
   "away",
 ] as const;
 
@@ -78,25 +72,12 @@ const cart = tierById("cart");
 const drill = tierById("drill");
 const borer = tierById("borer");
 const machine = tierById("machine");
-const granite = LAYERS[1];
 const firstUpgrade = Math.min(...UPGRADES.map((item) => item.firstCost));
 const shortTunnel = TUNNELS[0];
 const longTunnel = TUNNELS[TUNNELS.length - 1] ?? TUNNELS[0];
-const charge = recipeById("blasting-charge");
-const reinforce = recipeById("reinforce");
-const grease = recipeById("axle-grease");
-const reinforcePerLevel =
-  reinforce.effect.kind === "reinforce" ? reinforce.effect.perLevel : 0;
-const greaseMs = grease.effect.kind === "axle" ? grease.effect.durationMs : 0;
-const chargeMs = charge.effect.kind === "charge" ? charge.effect.durationMs : 0;
 const tend = (rank: 0 | 1 | 2): string => String(TENDING_TENTHS[rank] * 10);
 
-const crewTimerLine =
-  chargeMs === greaseMs
-    ? `A blasting charge or axle grease doubles the crew for ${formatDuration(chargeMs)}.`
-    : `A blasting charge doubles the crew for ${formatDuration(chargeMs)}, axle grease for ${formatDuration(greaseMs)}.`;
-
-/** Stone prices on the cards: the first band's, as the buttons start. */
+/** Stone prices on the cards, as the buttons start. */
 interface Prices {
   readonly stones: (count: number) => string;
 }
@@ -254,74 +235,6 @@ function engineerCards({
   };
 }
 
-/** Deeper rock: layers, ore, the Workshop and its recipes. */
-function depthCards(): Cards<"layers" | "materials" | "workshop" | "recipes"> {
-  return {
-    layers: {
-      title: "Layers and hardness",
-      reveal: "Deeper rock is new rock. Each layer digs differently.",
-      steps: [
-        [
-          "mountain",
-          `The mountain has ${String(LAYERS.length)} layers, each with its own rock.`,
-        ],
-        [
-          "tunnel-borer",
-          "Each deeper layer suits one machine. It digs a little faster there.",
-        ],
-        [
-          "steam-drill",
-          "One other machine finds that rock tough and slows a little.",
-        ],
-        [
-          "stone",
-          "The line under your stones names the layer and what it suits.",
-        ],
-      ],
-    },
-    materials: {
-      title: "Materials",
-      reveal: "Each layer gives up its own ore as you dig.",
-      steps: [
-        [
-          "ore-lump",
-          `Digging brings up ore: clay first, iron from ${granite.name}.`,
-        ],
-        ["stone", "Ore comes on its own as the crew digs. Nothing to buy."],
-        ["pick", "Ore goes into gear at the Workshop."],
-      ],
-    },
-    workshop: {
-      title: "Workshop",
-      reveal: "Turn your clay into gear for the crew.",
-      steps: [
-        ["pick", "Pick a recipe. The bench makes one at a time."],
-        ["ore-lump", crewTimerLine],
-        [
-          "upgrades-icon",
-          `Reinforce makes a machine ${percent(reinforcePerLevel)} faster a level, up to ${String(reinforce.maxLevel ?? 1)} levels.`,
-        ],
-        [
-          "mine-cart",
-          "Cancel any time and get back the share you did not use.",
-        ],
-      ],
-    },
-    recipes: {
-      title: "Recipes",
-      reveal: "New recipes turn up as you dig deeper.",
-      steps: [
-        [
-          "worn-map",
-          "Deeper rock keeps new recipes, folded like old sketches.",
-        ],
-        ["pick", "Each one shows up at the Workshop when found."],
-        ["ore-lump", "Some keep for good, even past the bottom."],
-      ],
-    },
-  };
-}
-
 /** Time away. */
 function endCards(): Cards<"away"> {
   return {
@@ -350,7 +263,6 @@ function howItWorks(): Readonly<Record<HowSystem, HowItWorks>> {
     ...crewCards(prices),
     ...spendCards(prices),
     ...engineerCards(prices),
-    ...depthCards(),
     ...endCards(),
   };
 }

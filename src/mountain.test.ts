@@ -23,7 +23,6 @@ describe("accrue", () => {
   it("does nothing without helpers or when the clock goes backwards", () => {
     const idle = {
       ...BARE_MOUNTAIN,
-      remaining: 10,
       stock: { ...BARE_MOUNTAIN.stock, stones: 0 },
       owned: {
         ...BARE_MOUNTAIN.owned,

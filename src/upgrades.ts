@@ -1,5 +1,4 @@
 import type { Stage } from "./line";
-import { oneOffStretch } from "./scale";
 import type { Mountain } from "./mountain";
 import { owned, tierById, type TierId } from "./tiers";
 import { pay, stonesPrice, type Price } from "./stock";
@@ -146,27 +145,22 @@ export function upgradeLevel(mountain: Mountain, id: UpgradeId): number {
 export function upgradeCost(
   upgrade: Upgrade,
   level: number,
-  k = 1,
 ): number | undefined {
   return level >= upgrade.maxLevel
     ? undefined
     : Math.ceil(
         Number(
-          (upgrade.firstCost * k * upgrade.costGrowth ** level).toPrecision(12),
+          (upgrade.firstCost * upgrade.costGrowth ** level).toPrecision(12),
         ),
       );
 }
 
-/** The next level's stones at this mountain's band, or undefined once maxed: the one the Buy shows. */
+/** The next level's stones, or undefined once maxed: the one the Buy shows. */
 export function nextUpgradeCost(
   mountain: Mountain,
   id: UpgradeId,
 ): number | undefined {
-  return upgradeCost(
-    upgradeById(id),
-    upgradeLevel(mountain, id),
-    oneOffStretch(mountain),
-  );
+  return upgradeCost(upgradeById(id), upgradeLevel(mountain, id));
 }
 
 /** The next level's price (#560), or undefined once maxed. */

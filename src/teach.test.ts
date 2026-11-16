@@ -1,41 +1,27 @@
 import { describe, expect, it } from "vitest";
 import { createMountain, type Mountain } from "./mountain";
+import { levels, partThree } from "./part-three.harness";
 import { markSeen, parseTeachIds, recordFirstUse, showsDot } from "./teach";
-import { workshopUnlocked, NOTHING_CRAFTED } from "./workshop";
+import { NOTHING_CRAFTED } from "./workshop";
 
+/** A mine that has not crafted. */
 function granite(): Mountain {
-  // Mine until the Workshop opens, without using it.
-  let mountain = createMountain();
-  let mined = 0;
-  while (!workshopUnlocked(mountain) && mountain.remaining > 0) {
-    mined += 1_000;
-    mountain = {
-      ...mountain,
-      remaining: Math.max(0, mountain.remaining - 1_000),
-    };
-  }
-  expect(mined).toBeGreaterThan(0);
-  return mountain;
+  return createMountain();
 }
 
 describe("teach", () => {
-  it("shows nothing before the system opens", () => {
+  it("never shows the Workshop's dot: the old bench never opens (#740)", () => {
     const fresh = createMountain();
     expect(showsDot(fresh, "workshop")).toBe(false);
-  });
-
-  it("shows the dot once the Workshop opens", () => {
-    const mountain = granite();
-    expect(showsDot(mountain, "workshop")).toBe(true);
-  });
-
-  it("keeps the dot when seen, until first use", () => {
-    const seen = markSeen(granite(), "workshop");
-    expect(showsDot(seen, "workshop")).toBe(true);
+    // Not in part 3 with the shaft sunk either: the factory's station took
+    // its place.
+    expect(partThree(() => showsDot(levels({}), "workshop"))).toBe(false);
+    const seen = markSeen(fresh, "workshop");
+    expect(showsDot(seen, "workshop")).toBe(false);
     expect(markSeen(seen, "workshop")).toBe(seen);
   });
 
-  it("drops the dot and writes taught at the first craft", () => {
+  it("writes taught at a save's first craft", () => {
     const used = recordFirstUse({
       ...granite(),
       crafted: { ...NOTHING_CRAFTED, "blasting-charge": 1 },

@@ -3,7 +3,6 @@ import { NONE_OWNED, patched, type MountainPatch } from "./test-fixtures";
 import { describe, expect, it } from "vitest";
 import { formatCompact, formatCount } from "./format";
 import { createMountain, type Mountain } from "./mountain";
-import { oneOffStretch } from "./scale";
 import { upgradeEffectLine, upgradeWhyLine } from "./screen-words";
 import { upgradeRowView } from "./upgrade-rows";
 import { UPGRADES, upgradeById, upgradeCost, NO_UPGRADES } from "./upgrades";
@@ -17,8 +16,8 @@ function mountainWith(fields: MountainPatch): Mountain {
   return patched(createMountain(), fields);
 }
 
-function nextUpgradeCost(mountain: Mountain, id: "cartSyn"): number {
-  const cost = upgradeCost(upgradeById(id), 0, oneOffStretch(mountain));
+function firstUpgradeCost(id: "cartSyn"): number {
+  const cost = upgradeCost(upgradeById(id), 0);
   if (cost === undefined) {
     throw new Error("maxed");
   }
@@ -30,7 +29,7 @@ describe("lasting upgrade rows", () => {
     const climbing = mountainWith({
       owned: { ...NONE_OWNED, cart: 5 },
     });
-    const cost = nextUpgradeCost(climbing, "cartSyn");
+    const cost = firstUpgradeCost("cartSyn");
     const view = upgradeRowView(
       { ...climbing, stock: { ...climbing.stock, stones: cost } },
       NOW,

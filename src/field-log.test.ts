@@ -23,7 +23,7 @@ import {
   type FieldEventData,
   type FieldSnapshot,
 } from "./field-log";
-import { MOUNTAIN_STONES, createMountain, type Mountain } from "./mountain";
+import { createMountain, type Mountain } from "./mountain";
 import { effectiveRates } from "./rates";
 import { NO_UPGRADES } from "./upgrades";
 
@@ -65,8 +65,6 @@ describe("snapshot", () => {
       at: new Date(AT).toISOString(),
       deviceId: "",
       rev: 0,
-      mined: 0,
-      left: MOUNTAIN_STONES,
       pocket: 0,
       // Every tier and every machine by id, the line's included (#559).
       crew: {
@@ -94,10 +92,9 @@ describe("snapshot", () => {
     expect(JSON.parse(JSON.stringify(shot))).toEqual(shot);
   });
 
-  it("counts the crew, idle machines and upgrades, and keeps no legacy (#729)", () => {
+  it("counts the crew, idle machines and upgrades, and keeps no legacy, mined or left (#729, #740)", () => {
     const mountain: Mountain = {
       ...createMountain(),
-      remaining: MOUNTAIN_STONES - 1_000_000,
       stock: { ...createMountain().stock, stones: 1234 },
       owned: {
         ...createMountain().owned,
@@ -122,8 +119,6 @@ describe("snapshot", () => {
     const shot = snapshot(mountain, rates, AT, "test-build");
 
     expect(shot.version).toBe("test-build");
-    expect(shot.mined).toBe(1_000_000);
-    expect(shot.left).toBe(mountain.remaining);
     expect(shot.pocket).toBe(1234);
     expect(shot.crew).toEqual({
       helper: 0,
@@ -149,6 +144,8 @@ describe("snapshot", () => {
     expect(shot.upgrades.boots).toBe(1);
     expect(shot.upgrades.cartSyn).toBe(0);
     expect(shot).not.toHaveProperty("legacy");
+    expect(shot).not.toHaveProperty("mined");
+    expect(shot).not.toHaveProperty("left");
     // Away on the trip below, so the log reads the saved post.
     expect(shot.engineers).toEqual([{ name: "Ada", rank: 1, post: "tunnel" }]);
     expect(shot.expeditions).toEqual([
@@ -459,10 +456,6 @@ describe("fieldEntry", () => {
     ).toEqual({
       code: "upgrade.buy",
       data: { id: "boots", count: 1 },
-    });
-    expect(fieldEntry({ kind: "craftStarted", recipe: "iron-rails" })).toEqual({
-      code: "craft.start",
-      data: { id: "iron-rails" },
     });
     expect(fieldEntry({ kind: "promoted", name: "Nils", crew: 2 })).toEqual({
       code: "engineer.promote",

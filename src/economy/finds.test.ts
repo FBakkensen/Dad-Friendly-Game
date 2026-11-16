@@ -73,7 +73,6 @@ describe("expectedFindStones", () => {
     }));
     const mined: Mountain = {
       ...createMountain(),
-      remaining: 0,
       finds: [...LOST_TOOLS, ...KEEPSAKES],
       engineers: full,
     };

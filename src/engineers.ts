@@ -1,5 +1,4 @@
 import { freeWorkers } from "./workforce";
-import { oneOffStretch } from "./scale";
 import { factor } from "./economy/factors";
 import type { Mountain } from "./mountain";
 import { setOwned, type TierId } from "./tiers";
@@ -114,15 +113,11 @@ export function rankOf(trips: number): EngineerRank {
   return 0;
 }
 
-/** Rounded up to a whole stone, as upgradeCost is: a band scale is not whole, and the pocket must stay whole. */
+/** Rounded up to a whole stone, as upgradeCost is: the pocket must stay whole. */
 export function promoteCost(mountain: Mountain): number {
   return Math.ceil(
     Number(
-      (
-        PROMOTE_BASE_COST *
-        oneOffStretch(mountain) *
-        2 ** mountain.engineers.length
-      ).toPrecision(12),
+      (PROMOTE_BASE_COST * 2 ** mountain.engineers.length).toPrecision(12),
     ),
   );
 }

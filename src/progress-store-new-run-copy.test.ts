@@ -8,9 +8,8 @@ import {
 } from "./cloud-save";
 import { holdFactors } from "./economy/factors";
 import { createLogger } from "./log";
-import { MOUNTAIN_STONES, createMountain, type Mountain } from "./mountain";
+import { createMountain, type Mountain } from "./mountain";
 import { createProgressStore } from "./progress-store";
-import { noticesOf } from "./session";
 import { minedMountain } from "./test-fixtures";
 
 function createMemoryStorage(): Storage {
@@ -120,7 +119,7 @@ describe("a new run keeps the mountain he left in Saved copies (#480)", () => {
     );
     const back = progress.getSnapshot().mountain;
     expect(back.owned.helper).toBe(3);
-    expect(back.remaining).toBe(left.remaining);
+    expect(back.stock.stones).toBe(left.stock.stones);
     // A new run: later than the one in play, so the later-run rule keeps it.
     expect(back.startedAt).toBe(clock);
     expect(back.startedAt).toBeGreaterThan(fresh);
@@ -132,22 +131,6 @@ describe("a new run keeps the mountain he left in Saved copies (#480)", () => {
     const after = await progress.savedCopies();
     // The fresh run had nothing mined, so the restore kept no copy of it.
     expect(after.map((copy) => copy.reason)).toEqual(["start-over"]);
-    progress.dispose();
-  });
-
-  it("does not find its layers again when it comes back", async () => {
-    const { progress } = await playing({
-      ...minedMountain(60_000_000),
-      startedAt: 500,
-    });
-    await expect(progress.startOver()).resolves.toBe(true);
-    const [copy] = await progress.savedCopies();
-    await expect(progress.restoreCopy(copy?.id ?? "")).resolves.toBe("saved");
-    expect(progress.getSnapshot().mountain.remaining).toBe(
-      copy?.mountain.remaining,
-    );
-    expect(noticesOf(progress.getSnapshot(), "layer")).toEqual([]);
-    expect(codes(progress.fieldLog().events)).not.toContain("layer.enter");
     progress.dispose();
   });
 
@@ -173,7 +156,7 @@ describe("a new run keeps the mountain he left in Saved copies (#480)", () => {
     const memory = createMemoryCloudSave();
     await memory.archiveCopy?.({
       uid: user.uid,
-      mountain: { ...minedMountain(MOUNTAIN_STONES), startedAt: 500 },
+      mountain: { ...minedMountain(240_000_000), startedAt: 500 },
       lastSeen: 1,
       rev: 1,
       deviceId: "other-device",
@@ -196,10 +179,10 @@ describe("a new run keeps the mountain he left in Saved copies (#480)", () => {
     );
     const [copy] = await progress.savedCopies();
     expect(copy?.reason).toBe("pass");
-    expect(copy?.mountain.remaining).toBe(0);
+    expect(copy?.mountain.stock.stones).toBe(240_000_000);
     clock += 10;
     await expect(progress.restoreCopy(copy?.id ?? "")).resolves.toBe("saved");
-    expect(progress.getSnapshot().mountain.remaining).toBe(0);
+    expect(progress.getSnapshot().mountain.stock.stones).toBe(240_000_000);
     progress.dispose();
   });
 
@@ -474,9 +457,9 @@ describe("a new run keeps the mountain he left in Saved copies (#480)", () => {
       sessionStorage: createMemoryStorage(),
       now: () => 2_000,
     });
-    progress.applyMutation((mountain) => ({ ...mountain, remaining: 10 }));
+    progress.applyMutation((mountain) => ({ ...mountain, rockDug: 10 }));
     const started = progress.startOver();
-    expect(progress.getSnapshot().mountain.remaining).toBe(MOUNTAIN_STONES);
+    expect(progress.getSnapshot().mountain.rockDug).toBe(0);
     await expect(started).resolves.toBe(true);
     progress.dispose();
   });

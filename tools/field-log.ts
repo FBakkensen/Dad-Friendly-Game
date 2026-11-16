@@ -35,8 +35,6 @@ The Firestore emulator (FIRESTORE_EMULATOR_HOST) needs no credentials.`;
 const SNAPSHOT_FIELDS = [
   "version",
   "at",
-  "mined",
-  "left",
   "pocket",
   "crewSpeed",
   "deviceId",
@@ -53,8 +51,6 @@ const SNAPSHOT_FIELD_SET: ReadonlySet<string> = new Set(SNAPSHOT_FIELDS);
 const SCALAR_LABELS: Readonly<Record<string, string>> = {
   version: "Version",
   at: "Snapshot",
-  mined: "Mined",
-  left: "Left",
   pocket: "Pocket",
   crewSpeed: "Crew speed",
   deviceId: "Device",
@@ -354,14 +350,7 @@ function snapshotBody(
   timeZone: string,
 ): string[] {
   const lines: string[] = [];
-  for (const key of [
-    "version",
-    "at",
-    "mined",
-    "left",
-    "pocket",
-    "crewSpeed",
-  ] as const) {
+  for (const key of ["version", "at", "pocket", "crewSpeed"] as const) {
     if (!Object.hasOwn(snapshot, key)) {
       continue;
     }
