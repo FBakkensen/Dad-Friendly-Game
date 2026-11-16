@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { CHARGE_MS, AXLE_MS } from "../workshop";
-import { PART_THREE_START, workOrderTimes } from "./work-orders";
+import { PART_THREE_START } from "./targets";
+import { workOrderTimes } from "./work-orders";
 
 /**
  * The work orders sized again with no clock (#674): what each takes of
@@ -8,7 +9,10 @@ import { PART_THREE_START, workOrderTimes } from "./work-orders";
  */
 describe("the work orders, sized with no clock (#674)", () => {
   const times = Object.fromEntries(
-    workOrderTimes(PART_THREE_START).map((time) => [time.blueprint, time]),
+    workOrderTimes(PART_THREE_START).map((time) => [
+      time.blueprint,
+      { ...time, carryMinutes: time.carryHours * 60 },
+    ]),
   );
 
   it("takes lasting gear about half an hour of half the fleet", () => {
@@ -38,7 +42,7 @@ describe("the work orders, sized with no clock (#674)", () => {
     expect(
       workOrderTimes(PART_THREE_START).map((time) => ({
         id: time.blueprint,
-        carry: Math.round(time.carryMinutes * 10) / 10,
+        carry: Math.round(time.carryHours * 600) / 10,
         materials: Math.round(time.materialHours * 100) / 100,
       })),
     ).toEqual([

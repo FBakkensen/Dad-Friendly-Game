@@ -6,43 +6,41 @@ import {
 } from "../factory";
 import { MATERIAL_EVERY } from "../layers";
 import { GOOD_IDS, priceAmount } from "../stock";
+import {
+  HOUR_MS,
+  MS_PER_SECOND,
+  PART_THREE_START,
+  WORK_ORDER_SHARE,
+} from "./targets";
 
 /**
  * How the lab sizes the work orders with no clock (slice 1, rule 7.13,
  * #674). A work order's time is what transport takes to carry it and what
  * its materials take to be drilled, so its requirement is sized against a
  * part 3 mine as the lab's players reach it: the end of part 2, when the
- * shaft opens the factory. The whole slice's replay is #675.
+ * shaft opens the factory (`PART_THREE_START`). The whole slice's replay is
+ * #675.
  */
 
 /** A part 3 mine to size against: transport, and the rock each level drills a second. */
 export type Reference = {
-  /** Goods a second the fleet carries. */
   readonly carry: number;
-  /** Rock a second drilled on the Topsoil (its clay) and on the Granite (its iron). */
   readonly topsoil: number;
   readonly granite: number;
 };
 
-/**
- * The lab's player types at the Warehouse's roof (the part 2 replay, seed 1,
- * 16 Nov 2026): 288 to 351 goods a second of horse wagons, and 1,800 to
- * 7,272 stone a second up the shaft. The Granite opens with nobody on it;
- * one drill's 600 a second is its first guess.
- */
-export const PART_THREE_START: Reference = {
-  carry: 320,
-  topsoil: 3_000,
-  granite: 600,
-};
-
 export type WorkOrderTime = {
   readonly blueprint: BlueprintId;
-  /** Minutes to carry it all at half the fleet (the city's order has the other half, rule 7.7). */
-  readonly carryMinutes: number;
+  /** Hours to carry it all at the work order's share of the fleet (rule 7.7). */
+  readonly carryHours: number;
   /** Hours its materials take to be drilled from nothing, the slower of clay and iron. */
   readonly materialHours: number;
 };
+
+/** Seconds as hours. */
+function hours(seconds: number): number {
+  return (seconds * MS_PER_SECOND) / HOUR_MS;
+}
 
 /** One work order's time at `reference`. */
 export function workOrderTime(
@@ -52,18 +50,14 @@ export function workOrderTime(
   const loads = requiredLoads(blueprint);
   const total = GOOD_IDS.reduce((sum, good) => sum + loads[good], 0);
   const price = workOrderPrice(blueprint);
-  const clayHours =
-    (priceAmount(price, "clay") * MATERIAL_EVERY.clay) /
-    reference.topsoil /
-    3_600;
-  const ironHours =
-    (priceAmount(price, "iron") * MATERIAL_EVERY.iron) /
-    reference.granite /
-    3_600;
+  const clay =
+    (priceAmount(price, "clay") * MATERIAL_EVERY.clay) / reference.topsoil;
+  const iron =
+    (priceAmount(price, "iron") * MATERIAL_EVERY.iron) / reference.granite;
   return {
     blueprint,
-    carryMinutes: total / (reference.carry / 2) / 60,
-    materialHours: Math.max(clayHours, ironHours),
+    carryHours: hours(total / (reference.carry * WORK_ORDER_SHARE)),
+    materialHours: hours(Math.max(clay, iron)),
   };
 }
 
