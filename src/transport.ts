@@ -370,6 +370,22 @@ function stationDraw(
   return draw;
 }
 
+/**
+ * What the station's work order takes of each good a second now, at `share`
+ * of transport's rate: goods, not loads (#681 shows it as "arriving").
+ */
+export function stationTake(
+  mountain: Mountain,
+  share: number,
+  income: Partial<Stock> = {},
+): Partial<Stock> {
+  return stationDraw(
+    mountain,
+    orderShares(mountain, share, income).station,
+    income,
+  );
+}
+
 /** `income` less what the station takes of each good a second: what the city's take can count on. */
 function lessTaken(
   income: Partial<Stock>,

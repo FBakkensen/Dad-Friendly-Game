@@ -27,6 +27,7 @@ import {
   fleetRate,
   orderLimit,
   orderNumbers,
+  orderShares,
   vehicleOpen,
   vehicleQuote,
   type Vehicle,
@@ -58,6 +59,19 @@ const PLATE_STATES: Readonly<Record<Mountain["project"]["kind"], string>> = {
   unordered: "idle: no order",
 };
 
+/**
+ * What transport is doing: the city's state, or the factory's work order
+ * beside it (rule 7.7, #681), in the prototype's words.
+ */
+function plateState(mountain: Mountain): string {
+  if (mountain.station.kind !== "delivering") {
+    return PLATE_STATES[mountain.project.kind];
+  }
+  return mountain.project.kind === "delivering"
+    ? "shared: city, factory"
+    : "serving the factory";
+}
+
 function fleetWords(
   mountain: Mountain,
   vehicle: Vehicle,
@@ -75,7 +89,7 @@ export function transportPlate(mountain: Mountain): TransportPlate {
   const driven = drivenFleet(mountain);
   return {
     drivers: `${String(driving)} ${plural(driving, ["driver", "drivers"])}`,
-    state: PLATE_STATES[mountain.project.kind],
+    state: plateState(mountain),
     fleet: VEHICLES.filter((vehicle) => mountain.fleet[vehicle.id] > 0)
       .map((vehicle) => fleetWords(mountain, vehicle, driven[vehicle.id]))
       .join(" · "),
@@ -392,10 +406,10 @@ const share = (part: number, whole: number): number =>
 export function cityScene(mountain: Mountain, now?: number): CityScene {
   const shown = plots(mountain);
   const project = mountain.project;
-  const numbers = orderNumbers(
-    mountain,
-    effectiveRates(mountain, now).exactCrewPerSecond,
-  );
+  const line = effectiveRates(mountain, now).exactCrewPerSecond;
+  const numbers = orderNumbers(mountain, line);
+  // The wagons carry the factory's work order too (rule 7.7, #681).
+  const toStation = orderShares(mountain, 1, { stones: line }).station;
   const rate = buildRate(mountain);
   const driven = Object.values(drivenFleet(mountain)).reduce(
     (sum, n) => sum + n,
@@ -418,9 +432,9 @@ export function cityScene(mountain: Mountain, now?: number): CityScene {
     building: numbers.kind === "unordered" ? 0 : share(numbers.builds, rate),
     driven,
     undriven: owned - driven,
-    load:
-      numbers.kind === "unordered"
-        ? 0
-        : share(numbers.brings, fleetRate(mountain)),
+    load: share(
+      (numbers.kind === "unordered" ? 0 : numbers.brings) + toStation,
+      fleetRate(mountain),
+    ),
   };
 }

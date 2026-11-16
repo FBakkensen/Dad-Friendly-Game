@@ -352,3 +352,55 @@ export function sliceListSave(now: number): SeedSave {
     },
   });
 }
+
+/**
+ * Part 3 (#681), on a dev page with `?part3=1`: the shaft sunk, the Light
+ * Tower and the Warehouse operational, clay and iron in their bins, and the
+ * station idle. The factory's tab is in the site bar.
+ */
+function factoryGame(game: Record<string, unknown>): Record<string, unknown> {
+  return {
+    owned: { helper: 18, cart: 2 },
+    stock: { stones: 420_000, brick: 60_000, clay: 8, iron: 11 },
+    jobs: {
+      drilling: 4,
+      haulage: 3,
+      hoisting: 4,
+      driving: 2,
+      building: 2,
+      kilns: 1,
+    },
+    fleet: { horseWagon: 2 },
+    marks: { operational: ["lightTower", "warehouse"] },
+    makers: { kiln: 1 },
+    granite: {},
+    run: { rock: 30_000_000, granite: 1_000_000 },
+    ...game,
+  };
+}
+
+export function sliceFactorySave(now: number): SeedSave {
+  return sliceSave(now, factoryGame({ levels: { "iron-rails": 1 } }));
+}
+
+/** The same, with sturdy props on the station: stone and clay part arrived, the iron not yet. */
+export function sliceFactoryOrderSave(now: number): SeedSave {
+  return sliceSave(
+    now,
+    factoryGame({
+      station: {
+        blueprint: "sturdy-props",
+        state: "delivering",
+        arrived: { stones: 105_000, clay: 1_500 },
+      },
+    }),
+  );
+}
+
+/** The same, with iron rails done on the station: Next points at it, and Install is lit. */
+export function sliceFactoryDoneSave(now: number): SeedSave {
+  return sliceSave(
+    now,
+    factoryGame({ station: { blueprint: "iron-rails", state: "done" } }),
+  );
+}

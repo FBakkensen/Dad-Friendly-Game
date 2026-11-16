@@ -159,6 +159,16 @@
   --frame-mine-ground: #1d1712;
   --frame-city-ground: #0b1030;
   --frame-refinery-ground: #2a1612;
+  /* The factory (#681): the bench's frame, the station's lines, and the blueprints' paper (the prototype's inline values). */
+  --frame-factory-ground: #5c3f24;
+  --frame-station-ink: #dff3ea;
+  --frame-station-quiet: #a9c9bd;
+  --frame-paper: #2f5f9a;
+  --frame-paper-grid: #3a6dab;
+  --frame-paper-edge: #1d3f6e;
+  --frame-paper-ink: #eaf3ff;
+  --frame-paper-quiet: #cfe2ff;
+  --frame-paper-short: #ffb19c;
   /* "full" on a stockpile (#671): the lamp rule's red. */
   --frame-red: #ef6a55;
   --frame-scrim: #000000c4;

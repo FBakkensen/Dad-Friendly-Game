@@ -35,6 +35,7 @@ import {
   sliceListSave,
   sliceNightSave,
   sliceRefinerySave,
+  sliceFactoryOrderSave,
   sliceRoofSave,
   sliceStartSave,
   sliceWarehouseRoofSave,
@@ -692,6 +693,12 @@ async function main() {
   // Part 2 (#671, switched on in #672).
   await capture("slice-refinery", (viewport) =>
     openFrame(viewport, sliceRefinerySave(Date.now()), "refinery"),
+  );
+  // Part 3 on a dev page, before #682 switches it on (#681).
+  await capture("slice-factory", (viewport) =>
+    openFrame(viewport, sliceFactoryOrderSave(Date.now()), "factory", {
+      search: `${MEMORY}&part3=1`,
+    }),
   );
   await capture("slice-card-report-yard", async (viewport) => {
     const opened = await openAuditPage(viewport, sliceYardFullSave(Date.now()));

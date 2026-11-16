@@ -43,6 +43,8 @@ const JOB_NAMES: Readonly<Record<JobId, string>> = {
 const SITE_JOBS: Readonly<Record<SiteId, readonly JobId[]>> = {
   mine: STAGES.map((stage) => STAGE_JOB[stage]),
   refinery: ["kilns"],
+  // The factory takes no workers in slice 1 (rule 2.12), so it has no group.
+  factory: [],
   city: ["driving", "building"],
 };
 
@@ -52,7 +54,7 @@ export function jobSites(): readonly {
   readonly name: string;
   readonly jobs: readonly { readonly job: JobId; readonly name: string }[];
 }[] {
-  return SITES.map((site) => ({
+  return SITES.filter((site) => SITE_JOBS[site].length > 0).map((site) => ({
     site,
     name: SITE_NAMES[site],
     jobs: SITE_JOBS[site].map((job) => ({ job, name: JOB_NAMES[job] })),
