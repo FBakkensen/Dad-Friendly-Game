@@ -251,7 +251,7 @@ Four milestones of features landed fast. Before Legacy, pay down the cost. Rules
 
 - **Behavior-preserving.** No player-visible change unless it fixes a bug found here (then its own PR, with a test that failed first).
 - **Tests first.** Before moving code, pin its behavior with characterization tests; the refactor PR must not touch those tests.
-- **Coverage never drops** on the critical modules (`mountain`, `rates`, `persist`, `progress-store`, `tiers`, `crew`, `upgrades`, `boosts`, `relics`), measured by `npm run coverage` (added in the test audit) with thresholds in CI.
+- **Coverage never drops** on the critical modules (`mountain`, `rates`, `persist`, `progress-store`, `tiers`, `crew`, `upgrades`), measured by `npm run coverage` (added in the test audit) with thresholds in CI.
 - Pacing sim, the browser layout check and the Firestore emulator rules tests all stay green. Small PRs, squash-merge on green only.
 
 Issues, in order:
@@ -407,7 +407,7 @@ Decision quality comes first. A moment should offer more than one live buy, a de
 
 An extreme may finish later. It may not finish much sooner than the casual dad (at most 15%). The optimizer may finish sooner than a casual dad, and not by more than a quarter. These two comparisons were strict until #728; since then they are report-only, with `single-share` and the generations lab's run-length rule, until #729 deletes today's mountain (Flemming, 16 Nov 2026). With the dig, boosts, the Gold rush and the relic powers gone, today's mountain runs slower.
 
-A single absence longer than half a day pays 16 hours instead of 8, so one 20-minute evening stays within a quarter of the optimizer. Two shorter gaps in a day stay on the 8-hour cap. `liveMedian` after the first hour grades casual player types and the optimizer, the same population as single share and dominant share. The payback dead stretch is strict for casual player types. The optimizer's save for the borer and the Great Machine is still about half a day and is reported, not a failing guardrail: a real purchase in that window also moves the pinned pacing days or the casual wait. Workers-only, machines-only, never-workers, and tap-only may finish late: no finish target names them, and extreme win only limits finishing sooner.
+A single absence longer than half a day pays 16 hours instead of 8, so one 20-minute evening stays within a quarter of the optimizer. Two shorter gaps in a day stay on the 8-hour cap. `liveMedian` after the first hour grades casual player types and the optimizer, the same population as single share and dominant share. The payback dead stretch is strict for casual player types. The optimizer's save for the borer and the Great Machine is still about half a day and is reported, not a failing guardrail: a real purchase in that window also moves the pinned pacing days or the casual wait. Workers-only, machines-only, and never-workers may finish late: no finish target names them, and extreme win only limits finishing sooner.
 
 #177 closed the casual payback dead stretch (it had been about a day from day 4). The optimizer still saves about half a day for the borer and the Great Machine; that wait is listed in the report and does not fail the build. The value-per-stone stretch is still reported beside it. The retune moved the economy. It did not move these targets to go green.
 

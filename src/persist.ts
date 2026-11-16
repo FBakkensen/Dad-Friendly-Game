@@ -3,8 +3,8 @@
  * the device that wrote it, and the game map from `save-format.ts`.
  *
  * Reading answers one of four: `ok` plays; `newer` came from a later build
- * and is never written over; `older` came before version 8 and is set aside
- * for a fresh mountain; `bad` is nonsense.
+ * and is never written over; `older` is from a version before `SAVE_VERSION`
+ * and is set aside for a fresh mountain; `bad` is nonsense.
  */
 import type { Mountain } from "./mountain";
 import { readGame, writeGame, type SaveGame } from "./save-format";
@@ -114,7 +114,7 @@ export function serializeSave({
   };
 }
 
-/** What a copy from before version 8 keeps through a reset: its stamp and rev. */
+/** What a copy from before `SAVE_VERSION` keeps through a reset: its stamp and rev. */
 function olderRead(record: Record<string, unknown>, version: number): SaveRead {
   const startedAt = record["startedAt"];
   const rev = record["rev"];

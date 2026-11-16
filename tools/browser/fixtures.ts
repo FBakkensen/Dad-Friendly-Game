@@ -792,7 +792,7 @@ export function fullShelfSave(): Seed {
   };
 }
 
-/** One stone left on the 240M mountain, so the tap reaches the bottom. */
+/** One stone left on the 240M mountain, so the mine reaches the bottom soon. */
 export function mantleSave(): Seed {
   return {
     mountain: {

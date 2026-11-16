@@ -259,8 +259,9 @@ export const TARGETS: readonly Target[] = [
     value: 1.25,
     why: "The smart dad may finish sooner, and not by more than a quarter.",
     // Flemming, 16 Nov 2026 (#728): report-only until #729 deletes today's
-    // mountain. With the dig, boosts, the Gold rush and the relic powers
-    // gone, it runs slower.
+    // mountain. Deleting the dig, boosts, the Gold rush and the relic powers
+    // moved today's mountain's pace; here the evening player now takes 1.40x
+    // the smart player's time, a wider gap than before.
     reportOnly: true,
   },
   {
@@ -289,7 +290,7 @@ export const TARGETS: readonly Target[] = [
     scope: { kind: "policyKinds", kinds: ["casual"] },
     op: "lte",
     value: 2,
-    why: "An upgrade, boost or new system should be tried within two sittings of showing up.",
+    why: "An upgrade or new system should be tried within two sittings of showing up.",
   },
   {
     id: "favoured-in-band",

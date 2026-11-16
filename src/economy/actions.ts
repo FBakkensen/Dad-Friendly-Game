@@ -587,8 +587,7 @@ export type MoveEvent =
 
 /**
  * What a move did: applied, with what it took from the stock and what it put in, good by
- * good (each at least 0: a dig's stones and materials, a cancelled craft's
- * refund), or refused because it changed nothing.
+ * good (each at least 0: a craft's output, a cancelled craft's refund), or refused because it changed nothing.
  */
 export type MoveResult =
   | {
