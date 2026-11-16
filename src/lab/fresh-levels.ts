@@ -104,7 +104,7 @@ function workedLevel(mountain: Mountain): MineLevelId {
 }
 
 /** The levels he builds on: every open one, or the one the whole-workforce dad works. */
-export function buildLevels(
+function buildLevels(
   mountain: Mountain,
   habits: FreshHabits,
 ): readonly MineLevelId[] {
