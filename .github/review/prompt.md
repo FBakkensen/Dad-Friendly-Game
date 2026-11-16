@@ -8,7 +8,7 @@ The change is `git diff {{BASE}}...{{HEAD}}`. Your shell runs one program, `revi
 - `review-git grep [-i] [-w] [--] <pattern> [path...]`: search the PR's tree. Put `--` before a pattern that starts with `-`.
 - `review-git ls-files [path...]`: list files.
 
-Read files with Read. You do not need to run anything else: the project's gate runs the typecheck, the tests, lint, prettier and the browser checks.
+Read files with Read. Keep what you read small, since every turn re-reads it: in a large file, find the part you need with `review-git grep` and Read only that part, with an offset and a limit. Never read a whole long doc such as `docs/ARCHITECTURE.md` or `docs/DESIGN.md`. You do not need to run anything else: the project's gate runs the typecheck, the tests, lint, prettier and the browser checks.
 
 Before you judge the change, read `CLAUDE.md` and every file in `.claude/rules/`. They are the project's rules. When the PR edits one of those files, judge the PR by the rule as it is on the base (`review-git show {{BASE}}:<path>`). Read `docs/ARCHITECTURE.md` where the change touches what it describes.
 
