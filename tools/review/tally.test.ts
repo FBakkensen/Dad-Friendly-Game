@@ -163,6 +163,7 @@ describe("tally against what findings.ts writes", () => {
         lenses: "code",
         head: "b".repeat(40),
         cost: 0.42,
+        model: "Haiku 5.5",
         runUrl: "https://example.test",
       },
     );
