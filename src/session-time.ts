@@ -57,7 +57,8 @@ export function timeInput(
 /**
  * Moves the world through one stretch of time. Live play brings home any
  * party due by the end of the stretch, pays the crew (the cages trip by trip
- * once part 3 is on, #724), then steps the hazards. Away time is the night
+ * once part 3 is on, #724), and starts no trouble: trouble is out of the
+ * game (16 Nov 2026). Away time is the night
  * (`accrueAway`): no party comes home in it, and it clears trouble, the same
  * as closing the game.
  */
