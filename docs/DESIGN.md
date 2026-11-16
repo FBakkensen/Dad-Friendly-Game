@@ -381,6 +381,8 @@ Veterans return as **engineers**: a few named, experienced hands (never more tha
 
 #### 5. Hazards ("Trouble at the machines")
 
+Out of the game since 16 Nov 2026 (`docs/decisions.md`): live play no longer steps the hazards, so trouble never starts. What follows is how it worked.
+
 - **Only while you play.** Never while away, never saved; closing the game clears any trouble. Leaving the game is rest, not risk.
 - From the first borer, roughly every 3–6 minutes of live play, one machine tier gets trouble: a **cave-in** (carts), a **flood** (drills), a **jam** (borers, Great Machine). The card shows it, and that tier slows by a quarter at first, easing toward half over two minutes.
 - **Fix it with your hands:** five taps on the card or a short hold, then a small thank-you burst and "Fixed! The crew cheers." An engineer tending that tier fixes it for you (see above). At most one trouble at a time. Steel-toe boots double the gap between troubles (`wearsSteelToes`, #148).
