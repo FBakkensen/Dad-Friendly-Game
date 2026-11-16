@@ -34,6 +34,9 @@ const JOB_NAMES: Readonly<Record<JobId, string>> = {
   driving: "Transport",
   building: "Building",
   kilns: "Kilns",
+  graniteDrilling: "Drilling",
+  graniteHaulage: "Haulage",
+  saws: "Saws",
 };
 
 /** The jobs of each site, in the sheet's order; a site shows while it is open (#671). */

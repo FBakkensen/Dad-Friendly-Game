@@ -177,7 +177,7 @@ describe("frame screen", () => {
     const { root, button } = mount((m) => ({
       ...withStones(1_700_000)(placeOrder(m)),
       owned: { ...m.owned, cart: 60, hoist: 40, drill: 30 },
-      fleet: { horseWagon: 60 },
+      fleet: { horseWagon: 60, truck: 0 },
     }));
     expect(root.querySelector(".frame-next-line")?.textContent).toBe(
       "Workforce 1",
@@ -191,7 +191,7 @@ describe("frame screen", () => {
   it("opens the workforce from Next when only this site and the workforce have something", () => {
     const { root, button } = mount((m) => ({
       ...withStones(1_700_000)(placeOrder(m)),
-      fleet: { horseWagon: 60 },
+      fleet: { horseWagon: 60, truck: 0 },
     }));
     expect(root.querySelector(".frame-next-line")?.textContent).toBe(
       "Mine 3 · Workforce 1",
@@ -301,7 +301,7 @@ describe("the refinery on the frame (#671)", () => {
     const { root, progress, button } = mount((mountain) => ({
       ...lit(mountain),
       owned: { ...mountain.owned, helper: mountain.owned.helper + 1 },
-      makers: { kiln: 1 },
+      makers: { kiln: 1, saw: 0 },
     }));
     button('.frame-site[data-site="refinery"]').click();
     const kilns = () => progress.getSnapshot().mountain.jobs.kilns;

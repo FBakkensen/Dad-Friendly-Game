@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { conflictIsReal, mergeSaves, type SaveCopy } from "./save-merge";
 import { placeOrder } from "./city";
+import {
+  NO_GRANITE_PILES,
+  NO_LEVEL_MACHINES,
+  type Granite,
+} from "./mine-levels";
 import { createMountain, minedOut, type Mountain } from "./mountain";
 import { minedMountain } from "./test-fixtures";
 import { NOTHING_CRAFTED } from "./workshop";
@@ -265,7 +270,7 @@ describe("mergeSaves in a fresh mine (#664)", () => {
   it("is a conflict when the copy with more rock is behind on kilns or the stockyard (#666)", () => {
     const remote = copy(dug(1_200), 3);
     const behind = [
-      dug(1_000, { makers: { kiln: 1 } }),
+      dug(1_000, { makers: { kiln: 1, saw: 0 } }),
       dug(1_000, { stockyard: 1 }),
     ];
     for (const mountain of behind) {
@@ -277,6 +282,55 @@ describe("mergeSaves in a fresh mine (#664)", () => {
     const bigger = dug(1_000, { stockyard: 1 });
     const merged = mergeSaves(copy(dug(1_000), 2), copy(bigger, 3));
     expect(merged.kind === "fast-forward" && merged.mountain).toBe(bigger);
+  });
+
+  const sunk = (machines = NO_LEVEL_MACHINES): Granite => ({
+    kind: "sunk",
+    machines,
+    piles: NO_GRANITE_PILES,
+  });
+
+  it("is a conflict when the copy with more rock never sank the shaft (#673)", () => {
+    const shaft = dug(1_000, { granite: sunk() });
+    const more = dug(1_200);
+    expect(mergeSaves(copy(shaft, 2), copy(more, 3)).kind).toBe("conflict");
+    expect(mergeSaves(copy(more, 2), copy(shaft, 3)).kind).toBe("conflict");
+  });
+
+  it("fast-forwards a sunk shaft with the same rock dug (#673)", () => {
+    const shaft = dug(1_000, { granite: sunk() });
+    const merged = mergeSaves(copy(dug(1_000), 2), copy(shaft, 3));
+    expect(merged.kind === "fast-forward" && merged.mountain).toBe(shaft);
+  });
+
+  it("is a conflict when one copy put a machine on the Granite and the other on the Topsoil (#673)", () => {
+    const owned = { ...start.owned, borer: 2 };
+    const onGranite = dug(1_000, {
+      owned,
+      granite: sunk({ ...NO_LEVEL_MACHINES, borer: 1 }),
+    });
+    const onTopsoil = dug(1_200, { owned, granite: sunk() });
+    expect(mergeSaves(copy(onGranite, 2), copy(onTopsoil, 3)).kind).toBe(
+      "conflict",
+    );
+    expect(
+      mergeSaves(copy({ ...onGranite, rockDug: 1_400 }, 2), copy(onTopsoil, 3))
+        .kind,
+    ).toBe("conflict");
+  });
+
+  it("fast-forwards a machine added on the Granite (#673)", () => {
+    const owned = { ...start.owned, borer: 2 };
+    const before = dug(1_000, {
+      owned: { ...owned, borer: 1 },
+      granite: sunk(),
+    });
+    const after = dug(1_200, {
+      owned,
+      granite: sunk({ ...NO_LEVEL_MACHINES, borer: 1 }),
+    });
+    const merged = mergeSaves(copy(before, 2), copy(after, 3));
+    expect(merged.kind === "fast-forward" && merged.mountain).toBe(after);
   });
 
   it("counts the steps built and what has arrived as progress", () => {

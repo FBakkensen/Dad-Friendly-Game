@@ -9,6 +9,7 @@ import { recipePrice } from "../workshop";
 import { priceAmount } from "../stock";
 import { vehiclePrice } from "../transport";
 import { makerPrice } from "../makers";
+import { shaftPrice } from "../mine-levels";
 
 /**
  * What the pocket pays. A machine's workers are not in this price.
@@ -38,6 +39,11 @@ export function sticker(mountain: Mountain, action: Action): number {
       return priceAmount(makerPrice(mountain, action.id), "stones");
     case "expandStockyard":
       // Brick, not stone: the fresh dad prices it good by good (#667).
+      return 0;
+    case "sinkShaft":
+      return priceAmount(shaftPrice(), "stones");
+    case "buyGraniteMachine":
+      // As `valueOf` prices it until the lab learns the Granite (#675).
       return 0;
     case "station":
     case "send":

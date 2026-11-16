@@ -5,7 +5,7 @@ import { FRESH_OFF } from "./line-switch";
 import { workersView } from "./frame-view";
 import { createMountain, type Mountain } from "./mountain";
 import { crewedStart } from "./test-fixtures";
-import { PART_TWO_OFF } from "./part-switch";
+import { PART_THREE_OFF, PART_TWO_OFF } from "./part-switch";
 import {
   LINE_STANDS,
   NOTHING_TO_BUY,
@@ -231,8 +231,37 @@ describe("the refinery's site (#671)", () => {
   it("has a green lamp with something to afford, else dark", () => {
     partTwo(() => {
       expect(siteLamp(lit(15_000), "refinery")).toBe("green");
-      const running = { ...lit(0), makers: { kiln: 1 } };
+      const running = { ...lit(0), makers: { kiln: 1, saw: 0 } };
       expect(siteLamp(running, "refinery")).toBe("dark");
     });
+  });
+});
+
+describe("Next's city count with trucks (#673)", () => {
+  it("counts no truck with part 3 off, even rich with the Warehouse operational", () => {
+    partTwo(() => {
+      const start = createMountain();
+      const rich: Mountain = {
+        ...start,
+        operational: ["lightTower", "warehouse"],
+        stock: { ...start.stock, stones: 0, brick: 10_000_000 },
+      };
+      expect(siteCounts(rich).city).toBe(0);
+    });
+  });
+
+  it("counts a truck he can pay for once part 3 plays", () => {
+    withFactors(
+      { [FRESH_OFF]: 0, [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 },
+      () => {
+        const start = createMountain();
+        const rich: Mountain = {
+          ...start,
+          operational: ["lightTower", "warehouse"],
+          stock: { ...start.stock, stones: 0, brick: 10_000_000 },
+        };
+        expect(siteCounts(rich).city).toBe(1);
+      },
+    );
   });
 });

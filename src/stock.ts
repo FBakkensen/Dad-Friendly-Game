@@ -10,13 +10,13 @@ import type { LayerId, MaterialId, Materials } from "./layers";
  * A good: the stones, one band's material, or brick, which the kilns make
  * (slice 1, rule 3, #666).
  */
-export type GoodId = "stones" | MaterialId | "brick";
+export type GoodId = "stones" | MaterialId | "brick" | "cutStone";
 
 /** One row of the goods table: its id and where it comes from. */
 export type GoodRow = {
   readonly id: GoodId;
   /** The mountain itself, the band whose digging turns it up, or the maker that makes it. */
-  readonly from: "mountain" | LayerId | "kilns";
+  readonly from: "mountain" | LayerId | "kilns" | "saws";
 };
 
 /** Each material is the one its band names in `layers` (the test holds them together). */
@@ -27,6 +27,7 @@ export const GOOD_ROWS: readonly GoodRow[] = [
   { id: "crystal", from: "crystal" },
   { id: "heartstone", from: "heart" },
   { id: "brick", from: "kilns" },
+  { id: "cutStone", from: "saws" },
 ];
 
 export const GOOD_IDS: readonly GoodId[] = GOOD_ROWS.map((row) => row.id);
@@ -41,6 +42,7 @@ export const EMPTY_STOCK: Stock = {
   crystal: 0,
   heartstone: 0,
   brick: 0,
+  cutStone: 0,
 };
 
 /** One good and how much of it a price asks. */
@@ -121,6 +123,7 @@ export function addedStock(stock: Stock, gains: Partial<Stock>): Stock {
     crystal: stock.crystal + (gains.crystal ?? 0),
     heartstone: stock.heartstone + (gains.heartstone ?? 0),
     brick: stock.brick + (gains.brick ?? 0),
+    cutStone: stock.cutStone + (gains.cutStone ?? 0),
   };
 }
 

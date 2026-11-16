@@ -24,7 +24,7 @@ import { freshMineOn } from "./line-switch";
 import { owned, tierById, type MachineId, type TierId } from "./tiers";
 import type { VehicleId } from "./transport";
 import { upgradeLevel, type Upgrade, type UpgradeId } from "./upgrades";
-import { toolSpeed } from "./workforce";
+import { haulageWorkers, toolSpeed } from "./workforce";
 
 // Player-facing wording shared by the screen's panels.
 
@@ -50,6 +50,7 @@ export const VEHICLE_WORDS: Readonly<
   Record<VehicleId, readonly [string, string]>
 > = {
   horseWagon: ["horse wagon", "horse wagons"],
+  truck: ["truck", "trucks"],
 };
 
 /** A vehicle on its key in the city: "+Wagon", "+10 Wagons". */
@@ -57,6 +58,7 @@ export const VEHICLE_KEYS: Readonly<
   Record<VehicleId, readonly [string, string]>
 > = {
   horseWagon: ["Wagon", "Wagons"],
+  truck: ["Truck", "Trucks"],
 };
 
 /** A machine as the workforce and the mine count it: one, and more than one. */
@@ -256,7 +258,7 @@ export function upgradeEffectLine(
 const synergyFed = (upgrade: Upgrade, mountain: Mountain): boolean =>
   upgrade.synergy !== undefined &&
   (upgrade.synergy.from === "helper" && freshMineOn()
-    ? mountain.jobs.haulage
+    ? haulageWorkers(mountain)
     : owned(mountain, tierById(upgrade.synergy.from))) > 0;
 
 function synergyEffectLine(

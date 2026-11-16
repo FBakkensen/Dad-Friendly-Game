@@ -3,6 +3,7 @@ import { listActions } from "../economy/actions";
 import { withFactors } from "../economy/factors";
 import { promoteCost } from "../engineers";
 import { createMountain, type Mountain } from "../mountain";
+import { LEVEL_MACHINE_IDS } from "../mine-levels";
 import { PLAY_FACTORS } from "../part-switch";
 import { stonesPrice } from "../stock";
 import { NO_UPGRADES } from "../upgrades";
@@ -99,7 +100,7 @@ describe("sticker", () => {
     // order is free, and the stockyard is paid in brick.
     expect(
       sticker(
-        { ...mountain, fleet: { horseWagon: 1 } },
+        { ...mountain, fleet: { horseWagon: 1, truck: 0 } },
         { kind: "buyVehicle", id: "horseWagon" },
       ),
     ).toBe(500);
@@ -108,5 +109,14 @@ describe("sticker", () => {
     );
     expect(sticker(mountain, { kind: "placeOrder" })).toBe(0);
     expect(sticker(mountain, { kind: "expandStockyard" })).toBe(0);
+    // Part 3's moves (#673): the shaft has its stone price, and a Granite
+    // machine is free until the lab learns the Granite (#675).
+    expect(sticker(mountain, { kind: "sinkShaft" })).toBe(10_000_000);
+    expect(
+      sticker(mountain, {
+        kind: "buyGraniteMachine",
+        id: LEVEL_MACHINE_IDS[0],
+      }),
+    ).toBe(0);
   });
 });

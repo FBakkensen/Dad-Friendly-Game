@@ -50,9 +50,12 @@ export function stageOf(tierId: TierId): Stage | undefined {
  * second, ten times today's, so it beats what one worker moves with a tool
  * and every worker mark of part 1 (24 a second at a hundred workers), and no
  * cart stands idle because a tool moves more. The hoist (60) and the drill
- * (108) already do.
+ * (108) already do. The locomotive is rated 1,600 (Starting numbers, #673).
  */
-const FRESH_RATING: Readonly<Partial<Record<TierId, number>>> = { cart: 10 };
+const FRESH_RATING: Readonly<Partial<Record<TierId, number>>> = {
+  cart: 10,
+  train: 1_600 / 1_067,
+};
 
 /** A machine's rating on the line, times today's; the hands keep theirs. */
 export function lineRating(tierId: TierId): number {

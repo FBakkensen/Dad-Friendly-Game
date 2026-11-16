@@ -15,6 +15,8 @@ import {
   type Site,
 } from "./city";
 import type { Mountain } from "./mountain";
+import { partThreeOn } from "./part-switch";
+import { evenShares } from "./piles";
 import { quoteRun, type BuyAmount, type TierQuote } from "./tiers";
 import { GOOD_IDS, pay, type GoodId, type Price, type Stock } from "./stock";
 
@@ -55,6 +57,15 @@ const VEHICLE_ROWS = [
     // stones to buy with (risk 4).
     carries: 9,
     given: 1,
+  },
+  {
+    id: "truck",
+    name: "Truck",
+    good: "brick",
+    firstCost: 150_000,
+    growth: 1.219,
+    carries: 400,
+    given: 0,
   },
 ] as const satisfies readonly VehicleRow[];
 
@@ -161,8 +172,25 @@ export function vehicleQuote(
   );
 }
 
+/**
+ * Whether the vehicle is for sale: the horse wagon always, the truck while
+ * part 3 plays and the Warehouse is operational (#673).
+ */
+export function vehicleOpen(
+  mountain: Pick<Mountain, "operational">,
+  id: VehicleId,
+): boolean {
+  return (
+    id === "horseWagon" ||
+    (partThreeOn() && mountain.operational.includes("warehouse"))
+  );
+}
+
 /** Buys one more, at once (rule 7.13); a pocket that does not cover it buys none. */
 export function buyVehicle(mountain: Mountain, id: VehicleId): Mountain {
+  if (!vehicleOpen(mountain, id)) {
+    return mountain;
+  }
   const paid = pay(mountain, vehiclePrice(mountain, id));
   return paid === mountain
     ? mountain
@@ -251,13 +279,10 @@ export function stockDraw(
   const gives = (good: GoodId): number =>
     mountain.stock[good] > 0 ? Infinity : (income[good] ?? 0);
   const goods = GOOD_IDS.filter((good) => need[good] > 0 && gives(good) > 0);
-  goods.sort((a, b) => gives(a) - gives(b));
+  const shares = evenShares(rate, goods.map(gives));
   const draw: Partial<Record<GoodId, number>> = {};
-  let left = rate;
   for (const [index, good] of goods.entries()) {
-    const take = Math.min(gives(good), left / (goods.length - index));
-    draw[good] = take;
-    left -= take;
+    draw[good] = shares[index] ?? 0;
   }
   return draw;
 }

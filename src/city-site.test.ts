@@ -39,6 +39,9 @@ const crewed = (mountain: Mountain): Mountain => ({
     driving: 1,
     building: 2,
     kilns: 0,
+    graniteDrilling: 0,
+    graniteHaulage: 0,
+    saws: 0,
   },
 });
 

@@ -4,7 +4,7 @@ import type { AuthController } from "./auth";
 import type { CloudSave } from "./cloud-save";
 import { activeFactors, holdFactors } from "./economy/factors";
 import { freshMineOn } from "./line-switch";
-import { PLAY_FACTORS, partTwoOn } from "./part-switch";
+import { PLAY_FACTORS, partThreeOn, partTwoOn } from "./part-switch";
 import { minedMountain } from "./test-fixtures";
 
 const firebaseStubs = vi.hoisted(() => ({
@@ -127,6 +127,19 @@ describe("createAppServices", () => {
       expect(partTwoOn()).toBe(true);
       // The same map the strategy lab plays under (#737).
       expect(activeFactors()).toBe(PLAY_FACTORS);
+      progress.dispose();
+    }
+  });
+
+  it("keeps part 3 off on every boot (#673)", async () => {
+    for (const devMode of [true, false]) {
+      holdFactors({});
+      const { progress } = await createAppServices({
+        env: {},
+        search: "",
+        devMode,
+      });
+      expect(partThreeOn()).toBe(false);
       progress.dispose();
     }
   });

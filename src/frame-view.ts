@@ -41,6 +41,7 @@ export const GOOD_NAMES: Readonly<Record<GoodId, string>> = {
   crystal: "Crystal",
   heartstone: "Heartstone",
   brick: "Brick",
+  cutStone: "Cut stone",
 };
 
 /** A pip for each of the three steps: built, in hand, or still to come. */
