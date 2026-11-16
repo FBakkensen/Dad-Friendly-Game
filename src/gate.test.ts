@@ -237,12 +237,11 @@ describe("the strategy lab in the full tier", () => {
 
   it("is left out when no economy code changed", () => {
     expect(names(steps(false))).not.toContain("lab");
-    expect(names(steps(false))).not.toContain("lab:generations");
   });
 
-  it("runs both strict lab commands beside the browser checks", () => {
+  it("runs the strict lab command beside the browser checks", () => {
     const lab = steps(true).filter((each) => each.name.startsWith("lab"));
-    expect(names(lab)).toEqual(["lab", "lab:generations"]);
+    expect(names(lab)).toEqual(["lab"]);
     for (const each of lab) {
       expect(each.env).toEqual({ LAB_STRICT: "1" });
       expect(each.args).toContain("--ci");
@@ -253,7 +252,7 @@ describe("the strategy lab in the full tier", () => {
     }
     expect(
       lab.map((each) => each.args.find((arg) => arg.endsWith("-lab.ts"))),
-    ).toEqual(["tools/strategy-lab.ts", "tools/generations-lab.ts"]);
+    ).toEqual(["tools/strategy-lab.ts"]);
   });
 
   it("checks the strategy lab's run against the committed pacing ledger (#554)", () => {
@@ -262,14 +261,9 @@ describe("the strategy lab in the full tier", () => {
     expect(LAB_ENTRIES).toContain("docs/pacing-ledger.md");
   });
 
-  it("puts the browser checks and both labs in the heavy lane, visual first", () => {
+  it("puts the browser checks and the lab in the heavy lane, visual first", () => {
     const heavy = steps(true).filter((each) => each.lane === "heavy");
-    expect(names(heavy)).toEqual([
-      "visual",
-      "journeys",
-      "lab",
-      "lab:generations",
-    ]);
+    expect(names(heavy)).toEqual(["visual", "journeys", "lab"]);
   });
 
   it("runs the gameplay journeys with Playwright Test's own config (#552)", () => {
@@ -280,9 +274,9 @@ describe("the strategy lab in the full tier", () => {
     expect(journeys?.reusable).toBe(false);
   });
 
-  it("reuses only the two labs", () => {
+  it("reuses only the lab", () => {
     const reusable = steps(true).filter((each) => each.reusable);
-    expect(names(reusable)).toEqual(["lab", "lab:generations"]);
+    expect(names(reusable)).toEqual(["lab"]);
   });
 
   it("is never in the fast tier", () => {
@@ -342,11 +336,10 @@ describe("importClosure and economyChanged", () => {
     expect(economyChanged([], closure)).toBe(false);
   });
 
-  it("starts from both lab commands and their loader", () => {
+  it("starts from the lab command and its loader", () => {
     expect(LAB_ENTRIES).toEqual(
       expect.arrayContaining([
         "tools/strategy-lab.ts",
-        "tools/generations-lab.ts",
         "tools/lab-register.mjs",
       ]),
     );
@@ -382,7 +375,7 @@ describe("the merge tier (#617)", () => {
     expect(unit?.tiers).toEqual(["merge"]);
   });
 
-  it("leaves the browsers, the emulator and the labs to the full tier", () => {
+  it("leaves the browsers, the emulator and the lab to the full tier", () => {
     const steps = merge(["src/a.ts"], true);
     for (const heavy of ["visual", "journeys", "rules", "coverage", "lab"]) {
       expect(names(steps)).not.toContain(heavy);

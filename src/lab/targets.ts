@@ -223,8 +223,7 @@ export const TARGETS: readonly Target[] = [
     value: 5,
     why: "A run takes at least five days and has no ceiling: a meaningful decision at all times matters more than the day count.",
     // Flemming, 14 Nov 2026 (#556): the 3-5 day target is gone. Not less
-    // than five days, likely weeks in the end. Report only, as since 7 Nov:
-    // the generations lab keeps each pass to the kid strict.
+    // than five days, likely weeks in the end. Report only, as since 7 Nov.
     reportOnly: true,
   },
   {
@@ -513,29 +512,3 @@ export function meetsTarget(target: Target, actual: number): boolean {
  */
 export const REPORT_SMALL_SITTINGS = 1;
 export const REPORT_MACHINE_SITTINGS = 2;
-
-/**
- * Kid runs (M13, #253), strict: every player type's run N+1 finishes later
- * than run N, with no ceiling (Flemming, 4 Nov 2026). CI plays this many.
- */
-export const KID_RUNS_CI = 8;
-
-/**
- * The generations lab's run-length rule (each kid run finishes later than
- * the one before). A report-only miss is printed, not failed, under LAB_STRICT.
- * Flemming, 16 Nov 2026 (#728): report-only until #729 deletes today's
- * mountain. With the dig, boosts, the Gold rush and the relic powers gone,
- * it runs slower, and later kid runs no longer finish in the window. A
- * machine a run never bought still fails.
- */
-export const RUN_LENGTH_RULE: { readonly reportOnly: boolean } = {
-  reportOnly: true,
-};
-
-/**
- * Days each kid run may take, with the line on, before the generations lab
- * calls it unfinished (#543). With the line off it keeps runPolicy's 30.
- * Since #556 a run takes at least five days and kid runs grow to weeks: with
- * the line's numbers run 8 lands past day 30.
- */
-export const KID_RUN_MAX_DAYS = 60;

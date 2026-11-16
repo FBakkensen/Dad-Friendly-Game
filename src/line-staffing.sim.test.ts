@@ -4,19 +4,10 @@ import { LINE_OFF } from "./line-switch";
 import { effectiveRates } from "./rates";
 import { minedMountain } from "./test-fixtures";
 
-/**
- * How far one more hand or machine may lower the line while Grandpa's tenth
- * still goes by machine group, not by stage (docs/DESIGN.md; the engineers
- * by stage are #539). The worst seen is about 4%. With no Grandpa, posted
- * engineer or not, it may not lower it at all: her floor is a share of the
- * line since #543.
- */
-const TENDED_SLIP = 0.05;
-
 type Counted =
   "helper" | "cart" | "hoist" | "drill" | "borer" | "train" | "machine";
 
-type Crew = Readonly<Record<Counted | "legacy", number>>;
+type Crew = Readonly<Record<Counted, number>>;
 
 type Grid = { readonly [K in keyof Crew]: readonly number[] };
 
@@ -36,7 +27,6 @@ const MORE: readonly (readonly [string, (crew: Crew) => Crew])[] = COUNTED.map(
 
 /** Early crews: every fifth count of workers, and where a big crew just fits. */
 const EARLY: Grid = {
-  legacy: [0, 1],
   cart: [0, 10],
   hoist: [0, 5],
   drill: [0, 50],
@@ -48,7 +38,6 @@ const EARLY: Grid = {
 
 /** Late crews, with hundreds of ways to staff the big machines. */
 const LATE: Grid = {
-  legacy: [0, 1],
   cart: [10, 40],
   hoist: [5, 60],
   drill: [20, 100],
@@ -79,22 +68,18 @@ function sweep(grid: Grid): { checked: number; misses: string[] } {
           ? []
           : [{ name: "Ada" as const, rank: 0 as const, trips: 0, post }];
       const rate = (crew: Crew): number => {
-        // The pass is gone (#729): `crew.legacy` no longer reaches the crew.
-        const counts = Object.fromEntries(COUNTED.map((id) => [id, crew[id]]));
         const base = minedMountain(50_000_000);
         return effectiveRates({
           ...base,
-          owned: { ...base.owned, ...counts },
+          owned: { ...base.owned, ...crew },
           engineers,
         }).exactCrewPerSecond;
       };
       for (const crew of crews(grid)) {
         const now = rate(crew);
-        const tended = crew.legacy > 0;
-        const allowed = tended ? now * TENDED_SLIP : 0;
         for (const [what, more] of MORE) {
           const after = rate(more(crew));
-          if (after < now - allowed - 1e-6) {
+          if (after < now - 1e-6) {
             misses.push(
               `${what} on ${JSON.stringify({ post, ...crew })}: ${String(now)} to ${String(after)}`,
             );
@@ -111,7 +96,7 @@ const size = (grid: Grid): number =>
   Object.values(grid).reduce((total, values) => total * values.length, 3);
 
 describe("staffing by the line never slows it (#534)", () => {
-  it("early: one more worker or machine never slows the line; tended, at most a small slip", () => {
+  it("early: one more worker or machine never slows the line", () => {
     const { checked, misses } = sweep(EARLY);
     expect(checked).toBe(size(EARLY) * MORE.length);
     expect(misses).toEqual([]);

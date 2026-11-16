@@ -18,7 +18,7 @@ The sections below are the reasons for the game before #664, kept until its clea
 
 ## The core loop and the story
 
-A dad starts with one worker in front of a mountain far too big to dig. He builds a crew, learns the mountain, and in the end passes the mine to his kid. The size of the mountain is the point: it makes automation necessary, the Cookie Clicker premise. Costs grow faster than output, so the next goal is always just in reach (Pecorella). The player learns by doing, in small loops of action and feedback (Dan Cook).
+A dad starts with one worker in front of a mountain far too big to dig. He builds a crew, learns the mountain, and in the end reaches the bottom (until #729 he then passed the mine to his kid). The size of the mountain is the point: it makes automation necessary, the Cookie Clicker premise. Costs grow faster than output, so the next goal is always just in reach (Pecorella). The player learns by doing, in small loops of action and feedback (Dan Cook).
 
 Two sessions, two feelings:
 
@@ -34,8 +34,7 @@ flowchart LR
   D --> L[New rock band: new material, a new favoured tool]
   L --> W[Workshop crafts]
   W --> B
-  D --> K[The bottom: pass the mine to your kid]
-  K --> S
+  D --> K[The bottom]
 ```
 
 ## Why each system exists
@@ -49,9 +48,8 @@ flowchart LR
 | Engineers and expeditions                | Named people who grow, a job for the middle game                                                                     | Tend a machine, or explore for a find             | My best people grow and go exploring                                                                    |
 | Rock bands and hazards                   | The mountain changes as you go down, and the mine window shows each band's own view; trouble shows in the window too | Which tool suits this band; fix trouble now       | Each layer asks for a new tool; trouble needs a hand, not a penalty                                     |
 | Time away                                | Life comes first                                                                                                     | None; it's a gift                                 | The mountain waited, and my crew kept going. After a night away, the mountain dreamt of something below |
-| Passing to the kid                       | The end becomes a new beginning                                                                                      | When to pass the mine                             | I became the hero, now I teach                                                                          |
 
-Tapping, boosts and the relics had rows here until #728 deleted them.
+Tapping, boosts and the relics had rows here until #728 deleted them, and passing to the kid until #729.
 
 ## Where the game breaks its own theory today
 
@@ -61,7 +59,7 @@ Measured by the strategy lab (main at 77d4599, 20 seeds). Every new thing should
 - **The favoured machine comes late.** Granite hardness actually favours drills, and the screen never says which machine suits a band. The 9M borer is affordable only 2–40% of the way into the Granite, depending on the player.
 - **The Great Machine is late.** It's affordable 48–69% of the way through the Crystal.
 - **Upgrades appear with no trigger.** They unlock silently behind a button with no badge.
-- **Kid runs get shorter** (5.5 → 4.5 → 3.5 days). Each run should be longer than the last.
+- **Kid runs get shorter** (5.5 → 4.5 → 3.5 days). Each run should be longer than the last. (Kid runs went in #729.)
 
 ## The reveal pattern (M11)
 
@@ -101,7 +99,7 @@ Each one stays readable from the real numbers on the card.
 4. **A contested worker pool.** Machines, tending, crafts and repairs all draw on the same free workers. Shown as "Needs 8 workers · 5 free".
 5. **Short and long crafts.** A strong short timer and a gentle long one, so the right pick depends on the session. (Boosts were the other half until #728.)
 6. **Synergies and material forks.** One tier makes another stronger ("+1% to every drill for each cart"), and each band's material feeds two recipes for different play styles.
-7. **Kid-run twists.** Each generation has a bigger mountain, costs that grow faster than the Legacy bonus, and one new rule, so each run is longer and different.
+7. **Kid-run twists.** Each generation has a bigger mountain, costs that grow faster than the Legacy bonus, and one new rule, so each run is longer and different. (Gone with kid runs in #729.)
 
 The order and the done-when lines are in `docs/plans/next-milestones.md`. Any lab threshold change needs Flemming's OK.
 

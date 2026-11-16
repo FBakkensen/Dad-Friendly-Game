@@ -208,7 +208,7 @@ export function isMachine(
 
 /**
  * The machines, in tier order: every staffed tier. The one list the lab reads
- * (bands, generations, report), so a new machine tier joins it (#388).
+ * (bands, report), so a new machine tier joins it (#388).
  */
 export const MACHINE_IDS: readonly MachineId[] = TIERS.filter(isMachine).map(
   (tier) => tier.id,

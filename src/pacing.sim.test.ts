@@ -77,25 +77,6 @@ function expectPaidForNils(run: DadRun, gapDays: number, band: 1 | 2): void {
   expect(gap).toBeCloseTo(gapDays, 2);
 }
 
-// Second run (M6): the kid's crew is ×1.5. Since #728 the bottom is day 4
-// (day 3 before), still a shorter climb than the first (day 5).
-describe("pacing: a second run with one Legacy (×1.5)", () => {
-  const run = simulateDadRun({
-    milestones: [depth("bottom")],
-    legacy: 1,
-    buysUpgrades: true,
-  });
-  it("reaches the bottom on day 4", () => {
-    expect(run.reached.get(depth("bottom"))).toBe(4);
-  });
-
-  // Grandpa (#338) tends from the first cart; Nils joins in the borer's
-  // sitting, in the Crystal Caves.
-  it("pays the real promotion for Nils", () => {
-    expectPaidForNils(run, 0, 2);
-  });
-});
-
 /** Longest stretch with nothing bought, from the first borer through `until`. */
 function quietStretch(run: DadRun, until: number): number {
   const firstBorer = run.buys.find((buy) => buy.id === "borer")?.day;
