@@ -1,4 +1,4 @@
-/** One deterministic stream. The same seed replays the same draws. */
+/** One deterministic stream for the journeys. The same seed replays the same draws. */
 export function createRng(seed: number): () => number {
   let state = seed >>> 0;
   return () => {

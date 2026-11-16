@@ -1,6 +1,8 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { withFactors } from "../economy/factors";
+import { PLAY_FACTORS } from "../part-switch";
 import { EMPTY_MATERIALS, LAYERS } from "../layers";
 import { createMountain, type Mountain } from "../mountain";
 import { MOUNTAIN_STONES } from "../scale";
@@ -13,7 +15,7 @@ import {
 import { neverBest } from "./measures/typeEverBest";
 import liveMedian from "./measures/liveMedian";
 import finishDayMeasure, { readFinishDay } from "./measures/finishDay";
-import { plainPolicy, type PlainSpec } from "./plain";
+import { freshPolicy, type FreshSpec } from "./plain";
 import { valueContext, type Policy } from "./policy";
 import {
   formatMeasure,
@@ -23,7 +25,6 @@ import {
 } from "./report";
 import dominantShare from "./measures/dominantShare";
 import extremeWinMeasure from "./measures/extremeWin";
-import featureShare from "./measures/featureShare";
 import singleShare from "./measures/singleShare";
 import { scoreDecision } from "./score";
 import {
@@ -38,23 +39,79 @@ import {
   DEAD_STRETCH,
   HOUR_MS,
   OPTIMIZER_REFERENCE_ID,
-  TARGETS,
   TENDING_SOURCE,
   meetsTarget,
   type Target,
 } from "./targets";
 
-function dad(spec: Pick<PlainSpec, "id" | "label" | "kind">): Policy {
-  return plainPolicy({
+/**
+ * Fixture guardrails: the judging engine stays though `TARGETS` is empty
+ * since #737, so these tests bring their own rows.
+ */
+const casualFinish: Target = {
+  id: "casual-finish",
+  measure: "finishDay",
+  scope: { kind: "policyKinds", kinds: ["casual"] },
+  op: "gte",
+  value: 5,
+  why: "A run takes at least five days and has no ceiling.",
+  reportOnly: true,
+};
+
+const shareCaps: readonly Target[] = [
+  {
+    id: "single-share",
+    measure: "singleShare",
+    scope: { kind: "policyKinds", kinds: ["casual", "optimizer"] },
+    op: "lte",
+    value: 0.27,
+    why: "Most moments should offer more than one live option.",
+  },
+  {
+    id: "dominant-share",
+    measure: "dominantShare",
+    scope: { kind: "policyKinds", kinds: ["casual", "optimizer"] },
+    op: "lte",
+    value: 0.4,
+    why: "One move should not be the right buy for most of the run.",
+  },
+];
+
+/** Tending's share of output, as a fixture measure for a source-scoped guardrail. */
+const tendingShare = defineMeasure({
+  id: "tendingShare",
+  label: "Tending share",
+  unit: "share",
+  why: "Tending should show up in the output once the borer runs.",
+  aggregate: (samples) =>
+    samples.length === 0
+      ? Number.NaN
+      : samples.reduce(
+          (sum, sample) => sum + (sample.outputShare[TENDING_SOURCE] ?? 0),
+          0,
+        ) / samples.length,
+});
+
+const tendingFromBorer: Target = {
+  id: "tending-from-borer",
+  measure: "tendingShare",
+  scope: {
+    kind: "fromSource",
+    source: BORER_SOURCE,
+    kinds: ["casual", "optimizer"],
+  },
+  op: "gte",
+  value: 0.08,
+  why: "An apprentice on the borer should be a real share of the output.",
+};
+
+function dad(spec: Pick<FreshSpec, "id" | "label" | "kind">): Policy {
+  return freshPolicy({
     ...spec,
     sessionsPerDay: 1,
     minutesPerSession: 1,
-    promote: "never",
-    promoteCap: 0,
-    explore: "never",
-    tend: "never",
     trouble: "never",
-    workers: "never",
+    moves: "once",
   });
 }
 
@@ -82,13 +139,6 @@ function decision(over: {
     pocket: 0,
     outputShare: over.outputShare ?? {},
     optionKinds: over.optionKinds ?? ["buyTier"],
-    byValue: {
-      liveCount,
-      affordableLive: over.affordableLive ?? 0,
-      bestId: over.bestId ?? "buyTier:helper",
-      waitToAffordSec: over.waitToAffordSec ?? DEAD_STRETCH.minWaitSec,
-      perStone: 1,
-    },
     nextPaybackRatio: over.nextPaybackRatio ?? 1,
     stretch: {
       payback: {
@@ -578,7 +628,7 @@ describe("tournament", () => {
     const result = judge({
       policies: [early, late, never],
       measures: [finishDayMeasure],
-      targets: TARGETS.filter((target) => target.id === "casual-finish"),
+      targets: [casualFinish],
       runs: [
         run(early, 1, [decision({ finishDay: 4 })]),
         run(late, 1, [decision({ finishDay: 30 })]),
@@ -610,7 +660,7 @@ describe("tournament", () => {
     const result = judge({
       policies: [casual],
       measures: [finishDayMeasure, count],
-      targets: TARGETS.filter((target) => target.id === "casual-finish"),
+      targets: [casualFinish],
       seeds: [1, 2, 3],
       runs: [
         run(casual, 1, [decision({ finishDay: 8 })]),
@@ -635,7 +685,7 @@ describe("tournament", () => {
     const row = {
       policyId: "alpha",
       seed: 1,
-      bands: { topsoil: 1 },
+      buildings: { lightTower: 1 },
       machines: {},
       finishDay: 6,
       endHash: "0000abcd",
@@ -709,11 +759,7 @@ describe("tournament", () => {
     const result = judge({
       policies: [casual, extreme],
       measures: [singleShare, dominantShare],
-      targets: TARGETS.filter(
-        (target) =>
-          target.measure === "singleShare" ||
-          target.measure === "dominantShare",
-      ),
+      targets: shareCaps,
       runs: [
         run(casual, 1, [decision({ atMs: HOUR_MS, liveCount: 1 })]),
         run(extreme, 1, [decision({ atMs: HOUR_MS, liveCount: 1 })]),
@@ -730,18 +776,12 @@ describe("tournament", () => {
   });
 
   it("marks tending n/a when no sample owns a borer, and still judges one that does", () => {
-    const tending = TARGETS.find(
-      (target) => target.id === "tending-from-borer",
-    );
-    expect(tending).toBeDefined();
-    if (tending === undefined) {
-      return;
-    }
+    const tending = tendingFromBorer;
     const plain = dad({ id: "alpha", label: "Alpha", kind: "casual" });
     const owner = dad({ id: "beta", label: "Beta", kind: "casual" });
     const extreme = dad({ id: "gamma", label: "Gamma", kind: "extreme" });
     const shared = {
-      measures: [featureShare],
+      measures: [tendingShare],
       targets: [tending],
     };
     const absent = judge({
@@ -812,22 +852,11 @@ describe("openingView", () => {
     },
   };
 
-  function crafter(spend?: PlainSpec["spend"]): Policy {
-    return plainPolicy({
-      id: "crafter",
-      label: "Crafter",
-      kind: "casual",
-      sessionsPerDay: 1,
-      minutesPerSession: 1,
-      craft: "always",
-      ...(spend === undefined ? {} : { spend }),
-    });
-  }
+  const policy = dad({ id: "crafter", label: "Crafter", kind: "casual" });
 
   it("keeps a ready craft from making the open affordable", () => {
-    const policy = crafter();
     const context = valueContext(policy.params);
-    const table = actionsOnTable(granite, 0, policy.params);
+    const table = actionsOnTable(granite, 0);
     // On the whole table, the free axle grease is the best buy and needs no wait.
     const whole = scoreDecision({
       mountain: granite,
@@ -836,12 +865,11 @@ describe("openingView", () => {
       atMs: 0,
       actions: table,
       stretchActions: table,
-      craft: policy.params.craft,
     }).stretch.value;
     expect(whole.bestId).toBe("craft:axle-grease");
     expect(whole.waitToAffordSec).toBe(0);
     // The Buys sheet leaves it off, so the dad is still saving for crew.
-    const open = openingView(granite, 0, policy, context);
+    const open = openingView(granite, 0, context);
     expect(open.kind).toBe("waiting");
     expect(open.kind === "waiting" && open.waitSec > 0).toBe(true);
     // With the stones for a helper in the pocket, the same open is affordable.
@@ -849,29 +877,25 @@ describe("openingView", () => {
       openingView(
         { ...granite, stock: { ...granite.stock, stones: 100 } },
         0,
-        policy,
         context,
       ),
     ).toEqual({ kind: "affordable" });
   });
 
-  it("says nothing when the dad weighs no crew, machine, or upgrade", () => {
-    const policy = crafter({
-      worker: 0,
-      machine: 0,
-      upgrade: 0,
-      promote: 0,
-    });
-    const rich = { ...granite, stock: { ...granite.stock, stones: 1_000_000 } };
-    const kinds = actionsOnTable(rich, 0, policy.params).map(
-      (action) => action.kind,
-    );
-    // Crafts are on his table, but none of them is on the Buys sheet.
-    expect(kinds).toContain("craft");
-    expect(kinds).not.toContain("buyTier");
-    expect(kinds).not.toContain("buyUpgrade");
-    expect(openingView(rich, 0, policy, valueContext(policy.params))).toEqual({
-      kind: "nothing",
+  it("says nothing while no crew buy on the sheet is priced to earn anything", () => {
+    const context = valueContext(policy.params);
+    withFactors(PLAY_FACTORS, () => {
+      // The "nothing" branch, read on a fresh mine's first evening: the
+      // worker, cart, hoist and drill are on the sheet, and the stretch
+      // prices none of them to earn. That is how the scoring reads the line
+      // today, not a rule (#748, Rulings). A scoring that prices them moves
+      // this case to "affordable" and this test with it.
+      const fresh = createMountain();
+      const rich = { ...fresh, stock: { ...fresh.stock, stones: 1_000_000 } };
+      const kinds = actionsOnTable(rich, 0).map((action) => action.kind);
+      expect(kinds).toContain("buyTier");
+      expect(openingView(fresh, 0, context)).toEqual({ kind: "nothing" });
+      expect(openingView(rich, 0, context)).toEqual({ kind: "nothing" });
     });
   });
 });

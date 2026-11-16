@@ -1,23 +1,21 @@
 import type { Action } from "../economy/actions";
-import type { LayerId, Materials } from "../layers";
+import type { LayerId } from "../layers";
 import type { LineView } from "../line";
-import type { Crafted, RecipeId } from "../workshop";
-import type { BandEvent } from "./bands";
 import type { FreshView } from "./fresh-view";
 import type { NightRecord } from "./nights";
 import type { RevealEvent } from "./reveal";
-import type { SittingEvent } from "./sittings";
+import type { MachineBuy, SittingEvent } from "./sittings";
 
 /**
- * One moment on the table. Official fields use payback. `byValue` is the
- * same moment scored by stones of income per stone of cost, so the earlier
- * diagnosis can be read beside the official numbers.
+ * One moment on the table. Official fields use payback. `stretch.value` is
+ * the dad's own table scored by stones of income per stone of cost, which
+ * the value-per-stone stretch (`longestValueStretch`) reads.
  */
 export type DecisionSample = {
   /** Milliseconds from the start of the run. */
   readonly atMs: number;
   /**
-   * The dad bought something (crew, a kid, a promotion, an upgrade level)
+   * The dad bought something (crew, a machine, an upgrade level)
    * since the sample before. Crafts do not count. A buy ends a dead stretch (#335): samples land on
    * a drifting grid, so a sitting's first sample can already be spent down.
    */
@@ -45,48 +43,20 @@ export type DecisionSample = {
   readonly fresh?: FreshView;
   /** Rock band at this moment. Scopes such as "from the Granite on" read it. */
   readonly layer?: LayerId;
-  /** The workshop is open, so a craft can start once the bench is free. */
-  readonly workshopOpen?: boolean;
-  /** No craft is on the bench. */
-  readonly benchFree?: boolean;
-  /** Materials in hand. `materialIdle` compares them to a full recipe. */
-  readonly materials?: Materials;
-  /**
-   * Recipes this dad could spend a material on if the bench were free.
-   * Finished gear is left out, so a capped sink does not hide a pile.
-   */
-  readonly openRecipes?: readonly RecipeId[];
-  /** Every recipe known here, including ones already finished. */
-  readonly knownRecipes?: readonly RecipeId[];
-  /** Levels already fitted. Missing means nothing is made. */
-  readonly crafted?: Crafted;
-  /**
-   * Repeatable timers this dad keeps using. They are an unlimited sink.
-   * A capped recipe is not on this list.
-   */
-  readonly unlimitedSinks?: readonly RecipeId[];
   /** Kinds on the table at this moment. */
   readonly optionKinds: readonly Action["kind"][];
-  readonly byValue: {
-    readonly liveCount: number;
-    readonly affordableLive: number;
-    readonly bestId: string;
-    readonly waitToAffordSec: number;
-    /** Best move's income per second, per stone of cost. */
-    readonly perStone: number;
-  };
   /**
    * Appear and first-use events since the previous sample. The last sample
    * of a run also carries any events after it.
    */
   readonly reveals?: readonly RevealEvent[];
-  /** Machine sales and purchases per band since the previous sample (#249). */
-  readonly bands?: readonly BandEvent[];
+  /** Machines bought since the previous sample (#357). */
+  readonly machineBuys?: readonly MachineBuy[];
   /** Long nights with the stockyard open that ended since the previous sample (#667). */
   readonly nights?: readonly NightRecord[];
   /** Sittings that closed since the previous sample (balance review). */
   readonly sittings?: readonly SittingEvent[];
-  /** Day the mountain emptied, when the run finished. Same on every sample. */
+  /** Day the last building in play went operational, when the run finished. Same on every sample. */
   readonly finishDay?: number;
   /**
    * Second-best finite payback divided by the best. 1 when they match.

@@ -43,7 +43,7 @@ The top 3–5, and every claim built on numbers, get the cheapest probe that cou
 
 | Claim             | Probe                                                                                                                                                                                                   |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| economy or pacing | `npm run lab`, `npm run lab:sweep`, or a scratchpad sim. Quote the numbers.                                                                                                                             |
+| economy or pacing | `npm run lab` (with `--factors` to try a knob), or a scratchpad sim. Quote the numbers.                                                                                                                 |
 | reads on a phone  | a scratchpad HTML mockup, or CSS injected into the running game, shot at 424×830                                                                                                                        |
 | feels good        | JS or CSS injected into the running game. A working-tree edit only if `git status --porcelain` was empty when the round began: edit, shoot, `git checkout -- <file>`, and the tree is clean at the end. |
 

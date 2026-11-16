@@ -8,7 +8,8 @@ import {
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { withFactors } from "../src/economy/factors";
-import { freshMineOn } from "../src/line-switch";
+import { FRESH_OFF, LINE_OFF } from "../src/line-switch";
+import { PLAY_FACTORS } from "../src/part-switch";
 import { parseMeasureExport } from "../src/lab/measure";
 import { parsePolicyExport } from "../src/lab/policy";
 import {
@@ -46,23 +47,29 @@ Usage:
   npm run lab -- --ci
   npm run lab -- --policy <id> [--policy <id>]
   npm run lab -- --seeds <n> --days <n> --out <dir>
-  npm run lab -- --factors line.off=0,layer.3.cart.hardness=0.8
+  npm run lab -- --factors part2.off=1
   npm run lab -- --ci --ledger check
   npm run lab:ledger
 
 Seeds default to ${String(LOCAL_SEEDS)} (1 through that count). --ci uses ${String(CI_SEEDS)}.
 --seeds wins over both. Days default to ${String(DEFAULT_MAX_DAYS)}.
 --policy limits the rows. The columns are still every registered measure.
---factors holds sweep factors for every run (line.off=0 plays the line, #534).
-fresh.off=0 plays slice 1's fresh mine with part 1's player types
-(src/lab/fresh-policies) to the last building built so far, and judges no
-guardrail (#655).
-A missed guardrail is a warning unless LAB_STRICT=1, which exits 1.
+Every run plays the mine the live game plays: the fresh mine with part 2
+(fresh.off=0, part2.off=0), with the player types in src/lab/fresh-policies,
+to the last building in play (#737).
+--factors holds factors on top for every run (part2.off=1 plays part 1
+only, #534). fresh.off and line.off must stay 0: today's mountain is not
+played, and the fresh mine always plays the line.
+A missed guardrail is a warning unless LAB_STRICT=1, which exits 1. The fresh
+mine has no guardrail yet.
 --ledger check fails when the run's pacing ledger differs from ${LEDGER_PATH};
 --ledger write (npm run lab:ledger) writes it. Both need the gate's run: --ci,
 every player type, no factors and the default days.
 Reports land in reports/strategy-lab.md, reports/strategy-lab.json and
 reports/pacing-ledger.md.`;
+
+const FRESH_ONLY = `--factors ${FRESH_OFF} must be 0: the lab plays only the fresh mine (#737).`;
+const LINE_ONLY = `--factors ${LINE_OFF} must be 0: the fresh mine always plays the line (#737).`;
 
 export type LabArgs =
   | { readonly kind: "help" }
@@ -139,6 +146,12 @@ export function parseLabArgs(
       }
       // A second --factors adds to the first.
       factors = { ...factors, ...parsed };
+      if ((factors[FRESH_OFF] ?? 0) !== 0) {
+        return { kind: "error", message: FRESH_ONLY };
+      }
+      if ((factors[LINE_OFF] ?? 0) !== 0) {
+        return { kind: "error", message: LINE_ONLY };
+      }
       index += 2;
       continue;
     }
@@ -246,13 +259,10 @@ export async function executeLab(
   readonly ledger: string;
 }> {
   const root = repoRoot();
-  // A fresh mine plays part 1's player types and judges no guardrail: its
-  // measures are report-only (slice 1, Lab, #655).
-  const fresh = withFactors(args.factors, freshMineOn);
-  const targets = fresh ? [] : TARGETS;
+  // The live game's mine, with --factors on top (#737).
+  const factors = { ...PLAY_FACTORS, ...args.factors };
   const policiesDir =
-    dirs?.policies ??
-    path.join(root, fresh ? "src/lab/fresh-policies" : "src/lab/policies");
+    dirs?.policies ?? path.join(root, "src/lab/fresh-policies");
   const measuresDir = dirs?.measures ?? path.join(root, "src/lab/measures");
   const loaded = await discover(policiesDir, parsePolicyExport);
   const policies =
@@ -270,11 +280,11 @@ export async function executeLab(
   });
   const started = performance.now();
   // The run and the report read the factors (#534); the checks read none.
-  const { result, markdown, json, ledger } = withFactors(args.factors, () => {
+  const { result, markdown, json, ledger } = withFactors(factors, () => {
     const played = runTournament({
       policies,
       measures,
-      targets,
+      targets: TARGETS,
       seeds: seedsFromCount(args.seeds),
       days: args.days,
     });
@@ -286,7 +296,7 @@ export async function executeLab(
     };
   });
   const elapsedMs = performance.now() - started;
-  const checks = guardrailChecks(targets, result.rows);
+  const checks = guardrailChecks(TARGETS, result.rows);
   const outDir = path.resolve(args.outDir);
   mkdirSync(outDir, { recursive: true });
   writeFileSync(path.join(outDir, "strategy-lab.md"), markdown);

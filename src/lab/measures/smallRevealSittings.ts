@@ -1,4 +1,4 @@
-import { smallRevealSittings } from "../bands";
+import { smallRevealSittings } from "../sittings";
 import { defineMeasure } from "../measure";
 
 /** M12-4 (#252). One run's worst; the lab takes the mean over seeds. */

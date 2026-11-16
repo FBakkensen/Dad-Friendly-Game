@@ -1,4 +1,4 @@
-import { fewestMachineBuys } from "../bands";
+import { fewestMachineBuys } from "../sittings";
 import { defineMeasure } from "../measure";
 
 /** #357. One run's fewest; the lab takes the mean over seeds. */
