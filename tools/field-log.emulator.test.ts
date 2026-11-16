@@ -24,8 +24,7 @@ const dad = {
     crew: { helper: 2, cart: 1 },
     crewSpeed: 1.5,
     idle: { cart: 1 },
-    upgrades: { tap: 1 },
-    boosts: [{ id: "sharper", endsAt: "2026-01-02T04:00:00.000Z" }],
+    upgrades: { boots: 1 },
     legacy: 0,
   },
   events: [
@@ -55,7 +54,6 @@ const mom = {
     crewSpeed: 0,
     idle: {},
     upgrades: {},
-    boosts: [],
     legacy: 0,
   },
   events: [],
@@ -92,7 +90,6 @@ describe("field-log reader on the Firestore emulator", () => {
     expect(flagged.stdout).toContain("fieldLogs/dad");
     expect(flagged.stdout).toContain("Updated 2026-01-02 03:04:05");
     expect(flagged.stdout).toContain("Crew speed 1.5");
-    expect(flagged.stdout).toContain("sharper until 2026-01-02 04:00:00");
     expect(flagged.stdout).toContain(
       "2026-01-02 03:00:00  tier.buy  count=1 id=helper",
     );

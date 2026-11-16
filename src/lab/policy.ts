@@ -28,9 +28,6 @@ export type TroubleFix = "never" | "slow" | "fast";
  */
 export type WorkerRule = "any" | "staff-only" | "never";
 
-/** Boosts compete on value, start whenever they are affordable, or never. */
-export type BoostRule = "value" | "always" | "never";
-
 /**
  * How this dad uses the bench. `idle` crafts when the next buy can wait.
  * `value` lets a craft win on payback. `always` fills a free bench.
@@ -43,7 +40,6 @@ export type SpendWeights = {
   readonly worker: number;
   readonly machine: number;
   readonly upgrade: number;
-  readonly boost: number;
   readonly promote: number;
 };
 
@@ -70,7 +66,6 @@ export type PolicyParams = {
   readonly tend: TendChoice;
   readonly trouble: TroubleFix;
   readonly workers: WorkerRule;
-  readonly boosts: BoostRule;
   readonly craft: CraftRule;
 };
 
@@ -136,7 +131,6 @@ const TUNNELS: readonly TunnelPlan[] = [
 const TENDS: readonly TendChoice[] = ["best", "never"];
 const FIXES: readonly TroubleFix[] = ["never", "slow", "fast"];
 const WORKERS: readonly WorkerRule[] = ["any", "staff-only", "never"];
-const BOOSTS: readonly BoostRule[] = ["value", "always", "never"];
 const CRAFTS: readonly CraftRule[] = [
   "idle",
   "value",
@@ -270,7 +264,6 @@ function isParams(value: unknown): value is PolicyParams {
     isOneOf(value["tend"], TENDS) &&
     isOneOf(value["trouble"], FIXES) &&
     isOneOf(value["workers"], WORKERS) &&
-    isOneOf(value["boosts"], BOOSTS) &&
     isOneOf(value["craft"], CRAFTS)
   );
 }
@@ -294,7 +287,6 @@ function isWeights(value: unknown): value is SpendWeights {
     isNonNegative(value["worker"]) &&
     isNonNegative(value["machine"]) &&
     isNonNegative(value["upgrade"]) &&
-    isNonNegative(value["boost"]) &&
     isNonNegative(value["promote"])
   );
 }

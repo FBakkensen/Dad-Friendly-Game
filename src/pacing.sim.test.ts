@@ -22,12 +22,6 @@ const depth = (id: keyof typeof MARKS): number => MARKS[id];
 describe.each([
   ["a plain dad (crew only)", {}, 4.5, 2],
   ["a dad who also buys lasting upgrades", { buysUpgrades: true }, 3.5, 2],
-  [
-    "a dad who buys upgrades and starts every boost he can afford",
-    { buysUpgrades: true, buysBoosts: true },
-    3.5,
-    2,
-  ],
 ])("pacing: %s", (_, options, bottomDay, hammerDay) => {
   const reached = simulateDad({
     milestones: [depth("1M"), depth("25M"), depth("bottom")],
@@ -123,22 +117,12 @@ describe.each([
   // The borer opens at the Granite start (#356). On the #357 retune every
   // dad hires Nils in the borer's sitting on day 2: the plain dad still in
   // the Granite, the upgrade dads already in the Crystal Caves. The first
-  // Great Machine comes on day 3 (day 2.5 with boosts), and no dad goes
+  // Great Machine comes on day 3, and no dad goes
   // more than half a day without a buy after the first borer. Since away pay
   // splits at a band crossing (#592), the plain dad's comes on day 3.5 and
   // he runs 9 by the bottom (was day 3 and 12).
   ["a plain dad", {}, 4.5, 0.5, 9, 0, 1, 3.5],
   ["an upgrade-buying dad", { buysUpgrades: true }, 3.5, 0.5, 6, 0, 2, 3],
-  [
-    "a dad who buys upgrades and boosts",
-    { buysUpgrades: true, buysBoosts: true },
-    3.5,
-    0.5,
-    9,
-    0,
-    2,
-    2.5,
-  ],
 ] as const)(
   "pacing: no dead zone for %s (#140)",
   (

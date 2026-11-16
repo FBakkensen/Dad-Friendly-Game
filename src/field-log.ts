@@ -1,5 +1,4 @@
 import { appVersion } from "./build-stamp";
-import { BOOSTS, type BoostId } from "./boosts";
 import { DEVICE_ID_MAX } from "./device-id";
 import type { MoveEvent } from "./economy/actions";
 import { ENGINEER_NAMES, onDuty } from "./engineers";
@@ -96,11 +95,6 @@ export type FieldSnapshot = {
   /** Owned machines with nobody to run them, by machine id. */
   readonly idle: Readonly<Record<MachineId, number>>;
   readonly upgrades: Readonly<Record<UpgradeId, number>>;
-  /** Boosts still running, with ISO end times. */
-  readonly boosts: readonly {
-    readonly id: BoostId;
-    readonly endsAt: string;
-  }[];
   readonly legacy: number;
   /** Name, rank (0 apprentice, 1 journeyman, 2 master), and post. */
   readonly engineers: readonly {
@@ -146,14 +140,6 @@ export function snapshot(
   const upgrades = Object.fromEntries(
     UPGRADES.map((upgrade) => [upgrade.id, upgradeLevel(mountain, upgrade.id)]),
   ) as Record<UpgradeId, number>;
-  const boosts: { id: BoostId; endsAt: string }[] = [];
-  for (const boost of BOOSTS) {
-    const endsAt = mountain.boosts[boost.id];
-    if (endsAt === 0 || endsAt <= now) {
-      continue;
-    }
-    boosts.push({ id: boost.id, endsAt: new Date(endsAt).toISOString() });
-  }
   // The log keeps the saved post: "tunnel" while away.
   const engineers = onDuty(mountain).map((engineer) => ({
     name: engineer.name,
@@ -178,7 +164,6 @@ export function snapshot(
     crewSpeed: rates.crewPerSecond,
     idle,
     upgrades,
-    boosts,
     legacy: mountain.legacy,
     engineers,
     expeditions,
@@ -194,11 +179,6 @@ export function fieldEntry(event: MoveEvent): Omit<FieldEvent, "at"> {
       return {
         code: "upgrade.buy",
         data: { id: event.id, count: event.level },
-      };
-    case "boostStarted":
-      return {
-        code: "boost.start",
-        data: { id: event.id, endsAt: new Date(event.endsAt).toISOString() },
       };
     case "craftStarted":
       return { code: "craft.start", data: { id: event.recipe } };
@@ -451,9 +431,7 @@ export function maxFieldLogDocumentBytes(): number {
   const crew = tierRecord(1);
   const idle = machineRecord(1);
   const upgrades = {
-    tap: 10,
     boots: 1,
-    steady: 1,
     cartSyn: 1,
     drillSyn: 1,
     borerSyn: 1,
@@ -470,10 +448,6 @@ export function maxFieldLogDocumentBytes(): number {
       crewSpeed: 100_000_000,
       idle,
       upgrades,
-      boosts: [
-        { id: "overtime", endsAt: maxText() },
-        { id: "sharper", endsAt: maxText() },
-      ],
       legacy: 1000,
       deviceId: "x".repeat(FIELD_LOG_TEXT_MAX),
       rev: 1_000_000,

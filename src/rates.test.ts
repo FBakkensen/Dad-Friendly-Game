@@ -18,7 +18,6 @@ import { LINE_OFF } from "./line-switch";
 import { minedMountain, patched, type MountainPatch } from "./test-fixtures";
 import type { Mountain } from "./mountain";
 import { TIERS } from "./tiers";
-import { NO_BOOSTS } from "./boosts";
 import { NO_UPGRADES } from "./upgrades";
 
 describe("effectiveRates", () => {
@@ -100,24 +99,6 @@ describe("effectiveRates", () => {
     expect(effectiveRates(crew, 120_000, trouble).tierSpeed.cart).toBe(3);
     expect(effectiveRates(crew, 180_000, trouble).tierSpeed.cart).toBe(3);
     expect(effectiveRates(crew, undefined, trouble).tierSpeed.cart).toBe(4.5);
-  });
-
-  it("Grandfather's pick leaves the crew alone", () => {
-    const crew = {
-      ...minedMountain(0),
-      owned: {
-        ...minedMountain(0).owned,
-        helper: 9,
-        cart: 1,
-        borer: 1,
-        kid: 0,
-      },
-    };
-    const plain = effectiveRates(crew);
-    const picked = effectiveRates({ ...crew, finds: ["pick"] });
-    expect(picked.crewPerSecond).toBe(plain.crewPerSecond);
-    expect(picked.tierSpeed).toEqual(plain.tierSpeed);
-    expect(picked.awayPay).toBe(plain.awayPay);
   });
 });
 
@@ -387,7 +368,7 @@ describe("what more hands add (#490)", () => {
       ...minedMountain(0),
       owned: { ...minedMountain(0).owned, helper: 20, cart: 30, kid: 2 },
     };
-    const timed = { ...crew, boosts: { ...NO_BOOSTS, overtime: 9e15 } };
+    const timed = { ...crew, clocks: { ...crew.clocks, "axle-grease": 9e15 } };
     for (const [tier, count] of [
       ["helper", 10],
       ["kid", 1],

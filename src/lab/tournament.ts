@@ -160,8 +160,8 @@ export type JudgedInput = TournamentInput & {
 /**
  * Crew, kids, engineers, and upgrade levels: what a buy adds to (#335). An
  * engineer counts twice, because a promotion turns a worker into one: the
- * crew drops by one and this still rises. Boosts and crafts are timers and
- * are not counted.
+ * crew drops by one and this still rises. Crafts are timers and are not
+ * counted.
  */
 function ownedCount(mountain: Mountain): number {
   const crew = TIERS.reduce((total, tier) => total + owned(mountain, tier), 0);
@@ -343,8 +343,8 @@ function attach(
 
 /**
  * The best buy on this dad's Buys sheet, by stones a second per stone, as
- * he sits down: crew, machines and upgrades he weighs. Bench timers and
- * boosts stay off it; a cheap axle grease would otherwise hide the machine
+ * he sits down: crew, machines and upgrades he weighs. Bench timers stay
+ * off it; a cheap axle grease would otherwise hide the machine
  * he is saving for. Away time has cleared any trouble, so none is passed.
  */
 export function openingView(

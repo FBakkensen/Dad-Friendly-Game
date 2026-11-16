@@ -51,13 +51,7 @@ import {
   type StaffSlot,
   type Staffing,
 } from "./staffing";
-import { boostById, boostLeft } from "./boosts";
-import {
-  BOOTS_SPEED_PER_LEVEL,
-  STEADY_AWAY_PER_LEVEL,
-  tierSynergy,
-  upgradeLevel,
-} from "./upgrades";
+import { BOOTS_SPEED_PER_LEVEL, tierSynergy, upgradeLevel } from "./upgrades";
 
 /**
  * Share of the crew's speed paid for time away (app closed or in the
@@ -81,10 +75,10 @@ export function paidAwayMs(awayMs: number): number {
   return full + AWAY_SLOPE_SHARE * slope;
 }
 
-/** Each Legacy (a mountain passed to your kid) adds this to crew and tap speed. */
+/** Each Legacy (a mountain passed to your kid) adds this to crew speed. */
 export const LEGACY_STEP = 0.5;
 
-/** ×1, ×1.5, ×2, …: the kid's crew and taps. Never away pay's share. */
+/** ×1, ×1.5, ×2, …: the kid's crew. Never away pay's share. */
 export function legacyBonus(mountain: Mountain): number {
   return 1 + LEGACY_STEP * mountain.legacy;
 }
@@ -120,27 +114,22 @@ export type Rates = {
 };
 
 /**
- * Axle grease, a blasting charge, and Overtime each speed the live crew.
- * The crew runs at the strongest of them. Three timers at ×2 stay ×2.
- * Away pay passes no `now`, and each one is then 1. A stronger recipe
- * still shows on the crew line.
+ * Axle grease and a blasting charge each speed the live crew. The crew runs
+ * at the stronger of them. Two timers at ×2 stay ×2. Away pay passes no
+ * `now`, and each one is then 1. A stronger recipe still shows on the crew
+ * line.
  */
 export function crewTimer(mountain: Mountain, now: number | undefined): number {
-  const overtime =
-    now !== undefined && boostLeft(mountain, "overtime", now) > 0
-      ? boostById("overtime").multiplier
-      : 1;
   return Math.max(
     axleCrewMultiplier(mountain, now),
     chargeCrewMultiplier(mountain, now),
-    overtime,
   );
 }
 
 /**
  * Every multiplier in one place: live ticks, away earnings and the UI
  * all read from here, so they can't disagree. Pass `now` while playing so
- * running boosts count; leave it out for away time, which boosts never touch.
+ * running crew timers count; leave it out for away time, which they never touch.
  */
 export function effectiveRates(
   mountain: Mountain,
@@ -233,9 +222,7 @@ function readRates(mountain: Mountain, now?: number, trouble?: Trouble): Rates {
     exactCrewPerSecond: exactBase * timer,
     crewPerSecond: baseCrew * timer,
     // A building's power lights the night (slice 1, the Light Tower: 45%).
-    awayPay:
-      (nightShiftShare(mountain) ?? AWAY_PAY_RATE) *
-      (1 + upgradeLevel(mountain, "steady") * STEADY_AWAY_PER_LEVEL),
+    awayPay: nightShiftShare(mountain) ?? AWAY_PAY_RATE,
   };
 }
 

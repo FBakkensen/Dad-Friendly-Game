@@ -47,8 +47,7 @@ function lived(): Mountain {
       },
     ],
     bench: { recipe: "iron-rails", startedAt: 10, endsAt: 20 },
-    upgrades: { ...fresh.upgrades, tap: 2, boots: 1 },
-    boosts: { ...fresh.boosts, sharper: 9_000 },
+    upgrades: { ...fresh.upgrades, boots: 1 },
     clocks: { ...fresh.clocks, "axle-grease": 3_000 },
     crafted: { ...fresh.crafted, "sturdy-props": 1 },
     recipes: [...fresh.recipes, "reinforce"],
@@ -227,7 +226,7 @@ describe("the version 10 save (#558, #728)", () => {
     ) as Record<string, unknown>;
     expect(readSave(withGame({ owned: { helper: "3" } })).kind).toBe("bad");
     expect(readSave(withGame({ stock: { stones: -1 } })).kind).toBe("bad");
-    expect(readSave(withGame({ levels: { tap: 1.5 } })).kind).toBe("bad");
+    expect(readSave(withGame({ levels: { boots: 1.5 } })).kind).toBe("bad");
     expect(readSave(withGame({ marks: { seen: [1] } })).kind).toBe("bad");
     expect(readSave(withGame({ marks: "seen" })).kind).toBe("bad");
     expect(readSave(withGame({ run: [] })).kind).toBe("bad");

@@ -10,7 +10,7 @@ import {
 } from "./engineers";
 import { LOST_TOOLS, expeditionAwayMs, type LostToolId } from "./lost-tools";
 import type { Mountain } from "./mountain";
-import { grantRecipes } from "./workshop";
+import { grantRecipes, type RecipeId } from "./workshop";
 
 /**
  * Expeditions (M7 §4). One engineer, one tunnel, a return time, and a find
@@ -132,9 +132,8 @@ const QUIET_TEXT = "The tunnel was quiet, and they came home safe.";
  */
 type FindKind = "tool" | "keepsake" | "quiet" | "engineer" | "recipe";
 
-/** The old shaft hides the lamp. The deep dark hides the kit. Once each. */
+/** The deep dark hides the kit. Once. */
 const EXPEDITION_RECIPES = {
-  "old-shaft": "crystal-lamp",
   "deep-dark": "engineers-kit",
 } as const;
 
@@ -154,7 +153,7 @@ export const TRIP_FIND_IDS: Readonly<Record<FindKind, readonly string[]>> = {
 };
 
 function tunnelRecipe(tunnel: TunnelId): ExpeditionRecipeId | undefined {
-  if (tunnel === "old-shaft" || tunnel === "deep-dark") {
+  if (tunnel === "deep-dark") {
     return EXPEDITION_RECIPES[tunnel];
   }
   return undefined;
@@ -170,9 +169,12 @@ function recipeOpen(mountain: Mountain, tunnel: TunnelId): boolean {
   if (id === undefined || mountain.recipes.includes(id)) {
     return false;
   }
-  return !mountain.expeditions.some(
-    (trip) => trip.find.kind === "recipe" && trip.find.id === id,
-  );
+  return !mountain.expeditions.some((trip) => isSketch(trip.find, id));
+}
+
+/** Whether a stored find is this recipe's sketch. Any recipe, so a second sketch needs no change here. */
+function isSketch(find: StoredFind, id: RecipeId): boolean {
+  return find.kind === "recipe" && find.id === id;
 }
 
 /**
@@ -423,7 +425,7 @@ const FIND_ODDS: Readonly<Record<TunnelId, FindOdds>> = {
     rest: "tool",
   },
   "old-shaft": {
-    recipe: [90, Number.POSITIVE_INFINITY],
+    recipe: null,
     bands: [
       [45, "tool"],
       [75, "keepsake"],

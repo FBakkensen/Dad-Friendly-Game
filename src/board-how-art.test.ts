@@ -13,7 +13,6 @@ describe("the board's How it works art (#373)", () => {
     "staffing",
     "layers",
     "upgrades",
-    "boosts",
     "workshop",
     "materials",
     "away",
@@ -43,11 +42,6 @@ describe("the board's How it works art (#373)", () => {
         img.getAttribute("height"),
       ),
     ).toEqual(["64", "64", "64", "64"]);
-  });
-
-  it("renders boosts at 32, 64 and 32", () => {
-    const card = boardHowCard("boosts", "Back to Upgrades", () => undefined);
-    expect(widths(card)).toEqual(["32", "64", "32"]);
   });
 
   it("is today's card: its title, words, data-how and Back plate", () => {
@@ -129,17 +123,17 @@ describe("the board's How it works art (#373)", () => {
     expect(widths(card)).toEqual(["32", "32", "32"]);
   });
 
-  it("renders the Time away card: the worker at 64, the stone and upgrades at 32 (#375)", () => {
+  it("renders the Time away card: the worker at 64, the stone at 32 (#375, #728)", () => {
     const card = boardHowCard("away", "Back to the Ledger", () => undefined);
     expect(card.dataset["how"]).toBe("away");
     const sources = [...card.querySelectorAll("img")].map(
       (img) => img.getAttribute("src") ?? "",
     );
-    expect(sources).toHaveLength(3);
+    // Night foreman's upgrades step went with him (#728).
+    expect(sources).toHaveLength(2);
     expect(sources[0]).toContain("mach-worker");
     expect(sources[1]).toContain("res-stone");
-    expect(sources[2]).toContain("icon-upgrades");
-    expect(widths(card)).toEqual(["64", "32", "32"]);
+    expect(widths(card)).toEqual(["64", "32"]);
   });
 
   it("renders the Engineers card's four steps: the worker at 64 twice, the map and the boot at 32 (#455, #728)", () => {

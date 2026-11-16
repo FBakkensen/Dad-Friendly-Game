@@ -241,7 +241,6 @@ describe("the Ledger drawer (#375)", () => {
 
     screen.progress.dispatch({ kind: "buyTier", id: "helper" });
     screen.progress.dispatch({ kind: "buyTier", id: "cart" });
-    screen.progress.dispatch({ kind: "buyBoost", id: "overtime" });
     keyOf(screen).click();
     expect(part(screen, '.board-sec[data-sec="tonight"]').hidden).toBe(false);
     const lines = [
@@ -251,11 +250,7 @@ describe("the Ledger drawer (#375)", () => {
     ];
     expect(
       lines.map((line) => line.querySelector(".ledger-log-text")?.textContent),
-    ).toEqual([
-      "Overtime started for 30:00.",
-      "Bought mine cart 3.",
-      "Hired worker 5.",
-    ]);
+    ).toEqual(["Bought mine cart 3.", "Hired worker 5."]);
     for (const line of lines) {
       expect(line.querySelector(".ledger-log-time")?.textContent).toMatch(
         /^\d\d:\d\d$/,

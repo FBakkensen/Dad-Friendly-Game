@@ -935,7 +935,6 @@ describe("start over", () => {
         "reinforce",
         "axle-grease",
         "diamond-bits",
-        "crystal-flare",
         "heartstone-core",
         "heartstone-ember",
       ] as const,
@@ -1310,7 +1309,7 @@ describe("field log", () => {
     expect(progress.fieldLog().snapshot.version).toBe(APP_VERSION);
   });
 
-  it("records a tier buy, an upgrade, and a boost with its end time", () => {
+  it("records a tier buy and an upgrade", () => {
     const at = 1_000_000;
     const progress = guest(() => at);
     progress.applyMutation((mountain) => ({
@@ -1326,39 +1325,25 @@ describe("field log", () => {
       count: 1,
     });
 
-    // Three carts open Strong arms (#250). The set-up is not a move.
+    // Ten workers open Work boots (#250). The set-up is not a move.
     progress.applyMutation((mountain) => ({
       ...mountain,
-      owned: { ...mountain.owned, cart: 3 },
+      owned: { ...mountain.owned, helper: 10 },
       stock: {
         ...mountain.stock,
-        stones: upgradeCost(upgradeById("tap"), 0) ?? Number.NaN,
+        stones: upgradeCost(upgradeById("boots"), 0) ?? Number.NaN,
       },
     }));
     const from = progress.fieldLog().events.length;
     progress.dispatch({
       kind: "buyUpgrade",
-      id: "tap",
-      price: stonesPrice(upgradeCost(upgradeById("tap"), 0) ?? Number.NaN),
+      id: "boots",
+      price: stonesPrice(upgradeCost(upgradeById("boots"), 0) ?? Number.NaN),
     });
-    progress.applyMutation((mountain) => ({
-      ...mountain,
-      stock: { ...mountain.stock, stones: 1_000 },
-    }));
-    progress.dispatch({ kind: "buyBoost", id: "sharper" });
 
     const moves = progress.fieldLog().events.slice(from);
-    expect(moves.map((event) => event.code)).toEqual([
-      "upgrade.buy",
-      "boost.start",
-    ]);
-    expect(moves[0]?.data).toEqual({ id: "tap", count: 1 });
-    const endsAt = progress.getSnapshot().mountain.boosts.sharper;
-    expect(endsAt).toBeTypeOf("number");
-    expect(moves[1]?.data).toEqual({
-      id: "sharper",
-      endsAt: new Date(endsAt).toISOString(),
-    });
+    expect(moves.map((event) => event.code)).toEqual(["upgrade.buy"]);
+    expect(moves[0]?.data).toEqual({ id: "boots", count: 1 });
   });
 
   it("records no move events for the applyMutation seam", () => {
@@ -1381,10 +1366,6 @@ describe("field log", () => {
       engineers: [{ name: "Ada", rank: 0, trips: 0, post: "cart" }],
     }));
     const before = progress.fieldLog().events;
-    expect(progress.dispatch({ kind: "buyBoost", id: "sharper" })).toEqual({
-      kind: "refused",
-      reason: "no-change",
-    });
     expect(
       progress.dispatch({ kind: "station", index: 0, post: "cart" }),
     ).toEqual({ kind: "refused", reason: "no-change" });
@@ -1696,7 +1677,7 @@ describe("field log events for the deep (#150)", () => {
       find: Expedition["find"];
       source: string;
     }[] = [
-      { find: { kind: "tool", id: "pick" }, source: "pick" },
+      { find: { kind: "tool", id: "map" }, source: "map" },
       { find: { kind: "keepsake", id: "drawing" }, source: "drawing" },
       { find: { kind: "engineer", id: "Ruth" }, source: "Ruth" },
       { find: { kind: "quiet" }, source: "quiet" },
@@ -1737,11 +1718,11 @@ describe("field log events for the deep (#150)", () => {
     progress.applyMutation((mountain) => ({
       ...mountain,
       owned: { ...mountain.owned, borer: 1 },
-      engineers: [{ name: "Nils", rank: 0, trips: 0, post: "camp" }],
+      engineers: [{ name: "Nils", rank: 1, trips: 3, post: "camp" }],
     }));
     const sentAt = at();
     progress.applyMutation((mountain) => {
-      const sent = send(mountain, 0, "old-shaft", sentAt);
+      const sent = send(mountain, 0, "deep-dark", sentAt);
       const next = sent.expeditions[0];
       if (next === undefined) {
         return mountain;
@@ -1752,22 +1733,22 @@ describe("field log events for the deep (#150)", () => {
           {
             ...next,
             returnsAt: sentAt + 2_000,
-            find: { kind: "recipe", id: "crystal-lamp" },
+            find: { kind: "recipe", id: "engineers-kit" },
           },
         ],
       };
     });
     advance(2_000);
     progress.tick();
-    expect(progress.getSnapshot().mountain.recipes).toContain("crystal-lamp");
+    expect(progress.getSnapshot().mountain.recipes).toContain("engineers-kit");
     expect(progress.getSnapshot().homecomings[0]?.find).toEqual({
       kind: "recipe",
-      id: "crystal-lamp",
+      id: "engineers-kit",
     });
     expect(progress.fieldLog().events).toContainEqual(
       expect.objectContaining({
         code: "recipe.found",
-        data: { id: "crystal-lamp", source: "old-shaft" },
+        data: { id: "engineers-kit", source: "deep-dark" },
       }),
     );
     progress.dispose();
@@ -4925,10 +4906,13 @@ describe("two saves found (#226)", () => {
     holdEcho.held = true;
     first.applyMutation((mountain) => ({
       ...mountain,
-      upgrades: { ...NO_UPGRADES, tap: 1 },
+      upgrades: { ...NO_UPGRADES, boots: 1 },
     }));
     await vi.waitFor(() => {
-      expect(docs.get(user.uid)?.upgrades).toEqual({ ...NO_UPGRADES, tap: 1 });
+      expect(docs.get(user.uid)?.upgrades).toEqual({
+        ...NO_UPGRADES,
+        boots: 1,
+      });
     });
     expect(first.getSnapshot().saveConflict).toBeUndefined();
     const otherMaterials = { clay: 9, iron: 4, crystal: 0, heartstone: 0 };
@@ -4946,7 +4930,7 @@ describe("two saves found (#226)", () => {
     expect(conflict?.local.mountain.stock).toMatchObject(otherMaterials);
     expect(conflict?.remote.mountain.upgrades).toEqual({
       ...NO_UPGRADES,
-      tap: 1,
+      boots: 1,
     });
     expect(conflict?.remote.mountain.owned.cart).toBe(0);
     expect(first.getSnapshot().saveConflict).toBeUndefined();
@@ -4974,7 +4958,7 @@ describe("two saves found (#226)", () => {
     });
     expect(
       reloaded.getSnapshot().saveConflict?.remote.mountain.upgrades,
-    ).toEqual({ ...NO_UPGRADES, tap: 1 });
+    ).toEqual({ ...NO_UPGRADES, boots: 1 });
     expect(firstNotice(reloaded.getSnapshot(), "away")?.report).toBeUndefined();
     const phone = readPhoneBackup({ storage: storageB, uid: user.uid });
     expect(phone.kind).toBe("present");
@@ -4997,7 +4981,7 @@ describe("two saves found (#226)", () => {
     expect(reloaded.getSnapshot().mountain.upgrades).toEqual(NO_UPGRADES);
     const copies = await reloaded.savedCopies();
     expect(copies).toHaveLength(1);
-    expect(copies[0]?.mountain.upgrades).toEqual({ ...NO_UPGRADES, tap: 1 });
+    expect(copies[0]?.mountain.upgrades).toEqual({ ...NO_UPGRADES, boots: 1 });
     expect(copies[0]?.mountain.owned.cart).toBe(0);
     const events = reloaded.fieldLog().events.map((event) => event.code);
     expect(events).toContain("save.conflict");
@@ -5022,7 +5006,7 @@ describe("two saves found (#226)", () => {
     await vi.waitFor(() => {
       expect(reloaded.getSnapshot().mountain.upgrades).toEqual({
         ...NO_UPGRADES,
-        tap: 1,
+        boots: 1,
       });
     });
     expect(reloaded.getSnapshot().mountain.owned.cart).toBe(0);
@@ -5148,7 +5132,7 @@ describe("two saves found (#226)", () => {
     });
     progress.applyMutation((mountain) => ({
       ...mountain,
-      upgrades: { ...NO_UPGRADES, tap: 1 },
+      upgrades: { ...NO_UPGRADES, boots: 1 },
     }));
     other.applyMutation((mountain) => ({
       ...mountain,
@@ -5303,7 +5287,7 @@ describe("two saves found (#226)", () => {
 
     progress.applyMutation((mountain) => ({
       ...mountain,
-      upgrades: { ...NO_UPGRADES, tap: 1 },
+      upgrades: { ...NO_UPGRADES, boots: 1 },
     }));
     expect(writes).toBe(1);
     server = {
@@ -5320,7 +5304,7 @@ describe("two saves found (#226)", () => {
     }
     expect(
       progress.getSnapshot().saveConflict?.local.mountain.upgrades,
-    ).toEqual({ ...NO_UPGRADES, tap: 1 });
+    ).toEqual({ ...NO_UPGRADES, boots: 1 });
     expect(
       progress.getSnapshot().saveConflict?.remote.mountain.owned.drill,
     ).toBe(1);
@@ -5336,14 +5320,14 @@ describe("two saves found (#226)", () => {
     });
     expect(progress.getSnapshot().mountain.upgrades).toEqual({
       ...NO_UPGRADES,
-      tap: 1,
+      boots: 1,
     });
     expect(progress.getSnapshot().mountain.owned.borer).toBe(0);
     expect(writes).toBe(writesAtSheet);
     deliver({ kind: "unavailable" });
     expect(
       progress.getSnapshot().saveConflict?.local.mountain.upgrades,
-    ).toEqual({ ...NO_UPGRADES, tap: 1 });
+    ).toEqual({ ...NO_UPGRADES, boots: 1 });
     progress.dispose();
   });
 

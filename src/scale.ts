@@ -81,8 +81,8 @@ function bandScale(band: Band): number {
 /**
  * What one-off buys (upgrades, promotions) scale by: the kid-run stretch times
  * the scale of the band the run stands in, so deeper rock costs more (#356).
- * A band begins at its start, inclusive. Machines, workers, recipes and boosts
- * never use this.
+ * A band begins at its start, inclusive. Machines, workers and recipes never
+ * use this.
  */
 export function oneOffStretch(mountain: Sized): number {
   const mined = minedOut(mountain);

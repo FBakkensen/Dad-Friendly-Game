@@ -41,8 +41,7 @@ describe("scoreDecision", () => {
   });
 
   it("scores the whole table when the caller does not pass one", () => {
-    // A cart opens Sharper picks and Night foreman (#250). Its worker makes
-    // the crew pay, so more than one move pays back (the dig is gone, #728).
+    // A cart's worker makes the crew pay, so more than one move pays back (the dig is gone, #728).
     const mountain = {
       ...createMountain(),
       stock: { ...createMountain().stock, stones: 100 },

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { accrue, accrueAway, stonesPerSecond } from "./mountain";
-import { AWAY_PAY_RATE, effectiveRates } from "./rates";
+import { accrueAway } from "./mountain";
+import { effectiveRates } from "./rates";
 import { minedMountain } from "./test-fixtures";
 import {
   buyUpgrade,
@@ -9,7 +9,6 @@ import {
   tierSynergy,
   upgradeById,
   upgradeCost,
-  upgradeLevel,
   upgradeUnlocked,
   NO_UPGRADES,
 } from "./upgrades";
@@ -22,105 +21,25 @@ function mustCost(price: number | undefined): number {
   return price;
 }
 
-const crew = {
-  ...minedMountain(0),
-  owned: { ...minedMountain(0).owned, helper: 500 },
-}; // 500 workers, x8 at the 100 mark: 4,000 a second
-
-describe("Strong arms", () => {
-  const arms = upgradeById("tap");
-
-  // The price and growth are pinned in src/tuning.test.ts (#381).
-  it("climbs its growth each level, up to level 10", () => {
-    expect([0, 1, 2, 3].map((level) => upgradeCost(arms, level))).toEqual(
-      [0, 1, 2, 3].map((level) =>
-        Math.ceil(
-          Number((arms.firstCost * arms.costGrowth ** level).toPrecision(12)),
-        ),
-      ),
-    );
-    expect(upgradeCost(arms, 9)).toBeDefined();
-    expect(upgradeCost(arms, 10)).toBeUndefined();
-  });
-
-  it("buys one level at a time from the pocket", () => {
-    // Strong arms opens with the third cart (#250).
-    const shut = {
-      ...crew,
-      stock: { ...crew.stock, stones: 1e9 },
-      owned: { ...crew.owned, cart: 2 },
-    };
-    expect(buyUpgrade(shut, "tap")).toBe(shut);
-    const open = { ...crew, owned: { ...crew.owned, cart: 3 } };
-    const first = mustCost(upgradeCost(arms, 0));
-    const second = mustCost(upgradeCost(arms, 1));
-    const poor = { ...open, stock: { ...open.stock, stones: first - 1 } };
-    expect(buyUpgrade(poor, "tap")).toBe(poor);
-    const one = buyUpgrade(
-      { ...open, stock: { ...open.stock, stones: first + second } },
-      "tap",
-    );
-    expect(upgradeLevel(one, "tap")).toBe(1);
-    expect(one.stock.stones).toBe(second);
-    const two = buyUpgrade(one, "tap");
-    expect(upgradeLevel(two, "tap")).toBe(2);
-    expect(two.stock.stones).toBe(0);
-    const maxed = {
-      ...crew,
-      stock: { ...crew.stock, stones: 1e15 },
-      upgrades: { ...NO_UPGRADES, tap: 10 },
-    };
-    expect(buyUpgrade(maxed, "tap")).toBe(maxed);
-  });
-
-  it("doesn't change the crew's own speed or away pay", () => {
-    const strong = { ...crew, upgrades: { ...NO_UPGRADES, tap: 5 } };
-    expect(stonesPerSecond(strong)).toBe(4_000);
-    expect(effectiveRates(strong).awayPay).toBe(effectiveRates(crew).awayPay);
-  });
-
-  it("reads saved levels and rejects anything odd", () => {
-    expect(parseUpgrades({})).toEqual(NO_UPGRADES);
-    expect(parseUpgrades({ tap: 3 })).toEqual({ ...NO_UPGRADES, tap: 3 });
-    for (const bad of [
-      null,
-      [],
-      { tap: -1 },
-      { tap: 1.5 },
-      { tap: 11 },
-      { tap: "2" },
-      { wings: 1 },
-    ]) {
-      expect(parseUpgrades(bad)).toBeUndefined();
-    }
-  });
-});
-
-describe("lasting upgrades: Work boots and Night foreman", () => {
+describe("Work boots", () => {
   const base = {
     ...minedMountain(0),
     stock: { ...minedMountain(0).stock, stones: 20_000_000 },
   };
 
-  it("unlock from the crew: boots at 10 helpers, Night foreman with a first cart", () => {
+  it("unlocks from the crew at 10 helpers", () => {
     const boots = upgradeById("boots");
-    const steady = upgradeById("steady");
     expect(
       upgradeUnlocked({ ...base, owned: { ...base.owned, helper: 9 } }, boots),
     ).toBe(false);
     expect(
       upgradeUnlocked({ ...base, owned: { ...base.owned, helper: 10 } }, boots),
     ).toBe(true);
-    expect(upgradeUnlocked(base, steady)).toBe(false);
-    expect(
-      upgradeUnlocked({ ...base, owned: { ...base.owned, cart: 1 } }, steady),
-    ).toBe(true);
     // Locked: buying does nothing.
     expect(buyUpgrade(base, "boots")).toBe(base);
-    expect(buyUpgrade(base, "steady")).toBe(base);
   });
 
-  it("are one-time buys", () => {
+  it("is a one-time buy", () => {
     const once = buyUpgrade(
       { ...base, owned: { ...base.owned, helper: 10 } },
       "boots",
@@ -130,7 +49,7 @@ describe("lasting upgrades: Work boots and Night foreman", () => {
       20_000_000 - mustCost(upgradeCost(upgradeById("boots"), 0)),
     );
     expect(buyUpgrade(once, "boots")).toBe(once);
-    expect(upgradeCost(upgradeById("steady"), 1)).toBeUndefined();
+    expect(upgradeCost(upgradeById("boots"), 1)).toBeUndefined();
   });
 
   it("Work boots makes helpers 10% faster, in whole stones a second", () => {
@@ -150,30 +69,20 @@ describe("lasting upgrades: Work boots and Night foreman", () => {
     ).toBe(23 + 2 * rates.tierSpeed.cart);
   });
 
-  it("Night foreman pays time away 25% more, and live play is untouched", () => {
-    const crew = { ...base, owned: { ...base.owned, helper: 100 } };
-    const steady = { ...crew, upgrades: { ...NO_UPGRADES, steady: 1 } };
-    expect(effectiveRates(steady).awayPay).toBeCloseTo(AWAY_PAY_RATE * 1.25);
-    expect(
-      accrueAway({ mountain: crew, lastSeen: 0, now: 100_000 }).mined,
-    ).toBe(24_000);
-    expect(
-      accrueAway({ mountain: steady, lastSeen: 0, now: 100_000 }).mined,
-    ).toBe(30_000);
-    expect(
-      accrue({ mountain: steady, from: 0, to: 100_000, live: true }).mined,
-    ).toBe(80_000);
-  });
-
-  it("saves and reads all three, and rejects levels past the top", () => {
-    expect(parseUpgrades({ tap: 3, boots: 1, steady: 1 })).toEqual({
-      ...NO_UPGRADES,
-      tap: 3,
-      boots: 1,
-      steady: 1,
-    });
-    expect(parseUpgrades({ boots: 2 })).toBeUndefined();
-    expect(parseUpgrades({ steady: -1 })).toBeUndefined();
+  it("reads saved levels and rejects anything odd", () => {
+    expect(parseUpgrades({})).toEqual(NO_UPGRADES);
+    expect(parseUpgrades({ boots: 1 })).toEqual({ ...NO_UPGRADES, boots: 1 });
+    for (const bad of [
+      null,
+      [],
+      { boots: -1 },
+      { boots: 0.5 },
+      { boots: 2 },
+      { boots: "1" },
+      { wings: 1 },
+    ]) {
+      expect(parseUpgrades(bad)).toBeUndefined();
+    }
   });
 });
 

@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { BOOSTS } from "./boosts";
 import { PROMOTE_BASE_COST, TENDED_MACHINE_STAFF } from "./engineers";
 import { formatCompact } from "./format";
 import { HOW_IT_WORKS, HOW_SYSTEMS } from "./how-it-works";
@@ -31,7 +30,10 @@ describe("How it works copy", () => {
 
   it("fits on one screen: 3 or 4 short lines and a one-line reveal", () => {
     for (const item of all) {
-      expect(item.steps.length).toBeGreaterThanOrEqual(3);
+      // Time away kept two lines when Night foreman's went (#728).
+      expect(item.steps.length).toBeGreaterThanOrEqual(
+        item === HOW_IT_WORKS.away ? 2 : 3,
+      );
       expect(item.steps.length).toBeLessThanOrEqual(4);
       expect(item.reveal.length).toBeLessThanOrEqual(56);
       expect(item.title.length).toBeLessThanOrEqual(24);
@@ -54,9 +56,6 @@ describe("How it works copy", () => {
     expect(words("tending")).toContain(String(TENDED_MACHINE_STAFF));
     expect(words("staffing")).toContain(String(tierById("machine").staff));
     expect(words("staffing")).toContain(String(TENDED_MACHINE_STAFF));
-    for (const boost of BOOSTS) {
-      expect(words("boosts")).toContain(boost.effect);
-    }
   });
 
   it("keeps discoveries vague", () => {

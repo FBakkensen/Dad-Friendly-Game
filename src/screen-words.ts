@@ -15,7 +15,6 @@ import {
   type SettledFind,
   type TunnelId,
 } from "./expeditions";
-import type { BoostId } from "./boosts";
 import { formatCompact, formatCount, formatDuration } from "./format";
 import type { LayerId, Materials, MaterialId } from "./layers";
 import type { Mountain } from "./mountain";
@@ -178,20 +177,6 @@ export function crewMinesWords(
     : `Your crew mines ${stonesASecond(rate)}`;
 }
 
-/** "1%", "1.65%", "133%". Keeps a second decimal only when the tenth needs it. */
-const shareWords = (share: number): string => {
-  const pct = share * 100;
-  const whole = Math.round(pct);
-  if (Math.abs(pct - whole) < 1e-6) {
-    return `${String(whole)}%`;
-  }
-  const tenth = Math.round(pct * 10) / 10;
-  if (Math.abs(pct - tenth) < 1e-6) {
-    return `${tenth.toFixed(1)}%`;
-  }
-  return `${pct.toFixed(2)}%`;
-};
-
 /** The same mountain with one upgrade at another level. */
 const withLevel = (
   mountain: Mountain,
@@ -251,16 +236,11 @@ export function upgradeEffectLine(
 ): string {
   const change = upgradeChange(upgrade, mountain, at);
   switch (upgrade.id) {
-    case "tap":
-      // Strong arms has nothing left to raise since the dig went (#728).
-      return "";
     case "boots":
       // In a fresh mine Work boots lifts only a worker with a tool (rule 2.9).
       return freshMineOn()
         ? `Workers with a tool ${fromTo(change, (rates) => `${formatSpeed(toolSpeed(rates.tierSpeed))}/s`)}.`
         : `Workers ${fromTo(change, (rates) => `${formatSpeed(rates.tierSpeed.helper)}/s`)}.`;
-    case "steady":
-      return `Away pay ${fromTo(change, (rates) => shareWords(rates.awayPay))}.`;
     case "cartSyn":
     case "drillSyn":
     case "borerSyn":
@@ -294,9 +274,7 @@ function synergyEffectLine(
 
 /** The card's quiet second line: why it is worth it, never the effect again. */
 const UPGRADE_WHY: Record<UpgradeId, string> = {
-  tap: "Each tap takes a little more.",
   boots: "The workers pick up their feet.",
-  steady: "Time away pays a little more.",
   cartSyn: "Each worker makes carts 1% faster.",
   drillSyn: "Each cart makes the drills a little quicker.",
   borerSyn: "Each drill makes the borers a little quicker.",
@@ -694,25 +672,6 @@ export function promoteNeeds(cost: number): string {
   return `Needs ${formatCompact(cost)} stones`;
 }
 
-/**
- * What buying a boost does right now, in stones. The × is the rule;
- * the count is the output.
- */
-export function boostOutcome(
-  id: BoostId,
-  effect: string,
-  multiplier: number,
-  rates: { readonly crewPerSecond: number },
-  running: boolean,
-): string {
-  // Sharper picks has no tap left to sharpen since the dig went (#728).
-  if (id === "sharper") {
-    return effect;
-  }
-  const crew = running ? rates.crewPerSecond : rates.crewPerSecond * multiplier;
-  return `${effect} ${formatCompact(crew)}/s.`;
-}
-
 export const exploreTitle = (tunnel: TunnelId): string => TUNNEL_TITLE[tunnel];
 
 export const exploreBenefit = (tunnel: TunnelId): string =>
@@ -779,14 +738,6 @@ export const FOUND_LABEL = "Found";
 const LOST_TOOL_WORDS: Readonly<
   Record<LostToolId, { readonly name: string; readonly line: string }>
 > = {
-  pick: {
-    name: "Grandfather's pick",
-    line: "Your taps bite a little deeper.",
-  },
-  lamp: {
-    name: "Old miner's lamp",
-    line: "Golden veins linger longer in its light.",
-  },
   map: {
     name: "Worn map",
     line: "The tunnels bring them home a little sooner.",
@@ -902,15 +853,11 @@ function awayShort(leftMs: number): string {
 
 /** What a tool does, short enough for the welcome card on a small phone. */
 const TOOL_HELPS = {
-  pick: "Taps bite deeper.",
-  lamp: "Golden veins linger.",
   map: "Trips come home sooner.",
   boots: "Fewer troubles at the machines.",
 } as const;
 
 const TOOL_IN_SENTENCE = {
-  pick: "Grandfather's pick",
-  lamp: "an old miner's lamp",
   map: "a worn map",
   boots: "steel-toe boots",
 } as const;
@@ -1039,8 +986,8 @@ export function stoneCostWords(stones: number): string {
 }
 
 /**
- * Another crew timer is already this strong. Grease, a charge, and Overtime
- * do not multiply, so the card does not promise a bigger crew.
+ * Another crew timer is already this strong. Grease and a charge do not
+ * multiply, so the card does not promise a bigger crew.
  */
 export function crewAlreadyWords(mark: number): string {
   return `Crew already at ×${formatCraftSpeed(mark)}.`;
@@ -1376,13 +1323,9 @@ export function vehicleBuyLine(id: VehicleId, count: number): string {
   return machineBuyLine(VEHICLE_WORDS[id][0], count);
 }
 
-/** "Strong arms, level 3." */
+/** "Work boots, level 1." */
 export const upgradeLevelLine = (name: string, level: number): string =>
   `${name}, level ${level.toLocaleString("en-US")}.`;
-
-/** "Overtime started for 30:00." */
-export const boostStartedLine = (name: string, ms: number): string =>
-  `${name} started for ${formatClock(ms)}.`;
 
 /** "Iron rails went on the bench." */
 export const benchStartedLine = (name: string): string =>

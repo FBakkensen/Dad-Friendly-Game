@@ -29,7 +29,7 @@ describe("mergeSaves", () => {
       {
         ...minedMountain(10),
         startedAt: 50,
-        upgrades: { ...NO_UPGRADES, tap: 3 },
+        upgrades: { ...NO_UPGRADES, cartSyn: 1 },
       },
       2,
     );
@@ -48,7 +48,7 @@ describe("mergeSaves", () => {
     }
     expect(merged.mountain).toBe(local.mountain);
     expect(merged.rev).toBe(4);
-    expect(merged.mountain.upgrades).toEqual({ ...NO_UPGRADES, tap: 3 });
+    expect(merged.mountain.upgrades).toEqual({ ...NO_UPGRADES, cartSyn: 1 });
     expect(minedOut(merged.mountain)).toBe(10);
   });
 
@@ -70,7 +70,7 @@ describe("mergeSaves", () => {
     const local = copy(
       {
         ...minedMountain(10),
-        upgrades: { ...NO_UPGRADES, tap: 1 },
+        upgrades: { ...NO_UPGRADES, cartSyn: 1 },
         recipes: ["iron-rails"],
       },
       2,
@@ -78,11 +78,11 @@ describe("mergeSaves", () => {
     const remote = copy(
       {
         ...minedMountain(30),
-        upgrades: { ...NO_UPGRADES, tap: 2 },
+        upgrades: { ...NO_UPGRADES, cartSyn: 1, drillSyn: 1 },
         recipes: ["iron-rails", "sturdy-props"],
         crafted: { ...NOTHING_CRAFTED, "iron-rails": 1 },
         engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
-        finds: ["pick"],
+        finds: ["map"],
         owned: { ...minedMountain(30).owned, cart: 2, helper: 4 },
       },
       3,
@@ -101,7 +101,7 @@ describe("mergeSaves", () => {
     const local = copy(
       {
         ...minedMountain(100),
-        upgrades: { ...NO_UPGRADES, tap: 2 },
+        upgrades: { ...NO_UPGRADES, cartSyn: 1 },
         recipes: ["iron-rails"],
         crafted: { ...NOTHING_CRAFTED, "iron-rails": 1 },
         engineers: [{ name: "Ada", rank: 1, trips: 4, post: "drill" }],
@@ -119,7 +119,7 @@ describe("mergeSaves", () => {
           { name: "Ada", rank: 0, trips: 1, post: "cart" },
           { name: "Nils", rank: 0, trips: 0, post: "camp" },
         ],
-        finds: ["lamp"],
+        finds: ["boots"],
       },
       7,
       12,
@@ -132,12 +132,15 @@ describe("mergeSaves", () => {
     expect(merged.local).toBe(local);
     expect(merged.remote).toBe(remote);
     expect(minedOut(merged.local.mountain)).toBe(100);
-    expect(merged.local.mountain.upgrades).toEqual({ ...NO_UPGRADES, tap: 2 });
+    expect(merged.local.mountain.upgrades).toEqual({
+      ...NO_UPGRADES,
+      cartSyn: 1,
+    });
     expect(merged.remote.mountain.upgrades).toEqual({
       ...NO_UPGRADES,
       boots: 1,
     });
-    expect(merged.remote.mountain.finds).toEqual(["lamp"]);
+    expect(merged.remote.mountain.finds).toEqual(["boots"]);
   });
 
   it("treats more machines with equal stones as a conflict", () => {
@@ -164,7 +167,7 @@ describe("mergeSaves", () => {
 
   it("does not add the other copy's stones or take the higher upgrade", () => {
     const local = copy(
-      { ...minedMountain(100), upgrades: { ...NO_UPGRADES, tap: 2 } },
+      { ...minedMountain(100), upgrades: { ...NO_UPGRADES, cartSyn: 1 } },
       6,
     );
     const remote = copy(

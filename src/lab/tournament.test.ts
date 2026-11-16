@@ -55,7 +55,6 @@ function dad(spec: Pick<PlainSpec, "id" | "label" | "kind">): Policy {
     tend: "never",
     trouble: "never",
     workers: "never",
-    boosts: "never",
   });
 }
 
@@ -821,7 +820,6 @@ describe("openingView", () => {
       sessionsPerDay: 1,
       minutesPerSession: 1,
       craft: "always",
-      boosts: "always",
       ...(spend === undefined ? {} : { spend }),
     });
   }
@@ -862,15 +860,13 @@ describe("openingView", () => {
       worker: 0,
       machine: 0,
       upgrade: 0,
-      boost: 1,
       promote: 0,
     });
     const rich = { ...granite, stock: { ...granite.stock, stones: 1_000_000 } };
     const kinds = actionsOnTable(rich, 0, policy.params).map(
       (action) => action.kind,
     );
-    // Boosts and crafts are on his table, but none of them is on the Buys sheet.
-    expect(kinds).toContain("buyBoost");
+    // Crafts are on his table, but none of them is on the Buys sheet.
     expect(kinds).toContain("craft");
     expect(kinds).not.toContain("buyTier");
     expect(kinds).not.toContain("buyUpgrade");

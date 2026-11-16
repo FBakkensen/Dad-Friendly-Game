@@ -13,7 +13,6 @@ import {
 } from "./expeditions";
 import {
   applyAction,
-  buyEveryBoost,
   freeHelpers,
   helperBill,
   listActions,
@@ -164,8 +163,8 @@ function sticker(mountain: Mountain, action: DadBuy): number {
 
 /**
  * The buy with the most gain per stone, from the catalogue. Crew is always
- * on offer. Lasting upgrades are, when this dad buys them. Boosts, posts,
- * and promotions are decided elsewhere.
+ * on offer. Lasting upgrades are, when this dad buys them. Posts and
+ * promotions are decided elsewhere.
  */
 function bestValue(
   mountain: Mountain,
@@ -208,9 +207,7 @@ type DadRunOptions = {
    * until an engineer clears it, or the session ends.
    */
   fixesTrouble?: boolean;
-  /** Also starts Sharper picks and Overtime whenever they're affordable and idle. */
-  buysBoosts?: boolean;
-  /** Also weighs Strong arms, Work boots and Night foreman against crew, by stones a day per stone. */
+  /** Also weighs the upgrades (Work boots and the synergies) against crew, by stones a day per stone. */
   buysUpgrades?: boolean;
   milestones: readonly number[];
   maxDays?: number;
@@ -315,17 +312,14 @@ function promoteAndRecord(world: World, promotions: DadPromotion[]): World {
   return next;
 }
 
-/** One live second: boosts, tending, scouts, income, buys, Nils. */
+/** One live second: tending, scouts, income, buys, Nils. */
 function liveSecond(
   start: World,
   second: number,
   options: LiveOptions,
   log: DadLog,
 ): World {
-  let world = options.buysBoosts
-    ? { ...start, mountain: buyEveryBoost(start.mountain, start.clock) }
-    : start;
-  world = { ...world, mountain: tendBestTier(world.mountain) };
+  let world: World = { ...start, mountain: tendBestTier(start.mountain) };
   if (second === 0) {
     world = {
       ...world,
@@ -377,7 +371,6 @@ export function simulateDadRun({
   milestones,
   maxDays = 30,
   buysUpgrades = false,
-  buysBoosts = false,
   legacy = 0,
   fixesTrouble = true,
   onDecision,
@@ -387,7 +380,6 @@ export function simulateDadRun({
     milestones,
     maxDays,
     buysUpgrades,
-    buysBoosts,
     legacy,
     fixesTrouble,
     onDecision,

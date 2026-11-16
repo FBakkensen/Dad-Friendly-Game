@@ -81,7 +81,6 @@ function actionId(action: Action): string {
   switch (action.kind) {
     case "buyTier":
     case "buyUpgrade":
-    case "buyBoost":
       return `${action.kind}:${action.id}`;
     case "promote":
       return "promote";

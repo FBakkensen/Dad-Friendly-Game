@@ -10,14 +10,11 @@ import { expeditionCraftScale } from "./workshop";
  */
 
 /** Closed list. Order is the shelf order on the Upgrades sheet. */
-export const LOST_TOOLS = ["pick", "lamp", "map", "boots"] as const;
+export const LOST_TOOLS = ["map", "boots"] as const;
 
 export type LostToolId = (typeof LOST_TOOLS)[number];
 
 type Shelf = Pick<Mountain, "finds" | "crafted">;
-
-/** Old miner's lamp: a golden vein glints this many times as long. */
-export const LAMP_LINGER_SCALE = 2;
 
 /** Worn map: the next expedition takes three quarters of the tunnel's time. */
 export const MAP_RETURN_NUMERATOR = 3;
@@ -32,11 +29,6 @@ export function hasLostTool(mountain: Shelf, id: LostToolId): boolean {
  */
 export function wearsSteelToes(mountain: Shelf): boolean {
   return hasLostTool(mountain, "boots");
-}
-
-/** How many times longer a golden vein stays, once the old lamp is home. */
-export function glintScale(mountain: Shelf): number {
-  return hasLostTool(mountain, "lamp") ? LAMP_LINGER_SCALE : 1;
 }
 
 /** How long the next expedition stays out. Already-walking parties keep their clock. */

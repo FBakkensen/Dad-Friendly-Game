@@ -23,7 +23,6 @@ import {
   type Firestore,
 } from "firebase/firestore";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { BOOSTS, type Boosts } from "../src/boosts";
 import { ENGINEER_NAMES, MAX_ENGINEERS, type Engineer } from "../src/engineers";
 import {
   APP_VERSION,
@@ -122,9 +121,6 @@ function lateCrew(): Mountain {
     upgrades: Object.fromEntries(
       UPGRADES.map((upgrade) => [upgrade.id, upgrade.maxLevel]),
     ) as Upgrades,
-    boosts: Object.fromEntries(
-      BOOSTS.map((boost) => [boost.id, 1_800_000_000_000]),
-    ) as Boosts,
     clocks: Object.fromEntries(
       Object.keys(fresh.clocks).map((id) => [id, 1_800_000_000_000]),
     ) as Mountain["clocks"],
@@ -395,7 +391,7 @@ function maximalMountain(): Mountain {
       index === 0
         ? { kind: "keepsake", id: "drawing" }
         : index === 1
-          ? { kind: "tool", id: "pick" }
+          ? { kind: "tool", id: "map" }
           : index === 2
             ? { kind: "recipe", id: "engineers-kit" }
             : index === 3
@@ -426,9 +422,6 @@ function maximalMountain(): Mountain {
     upgrades: Object.fromEntries(
       UPGRADES.map((upgrade) => [upgrade.id, upgrade.maxLevel]),
     ) as Upgrades,
-    boosts: Object.fromEntries(
-      BOOSTS.map((boost) => [boost.id, 1_800_000_000_000]),
-    ) as Boosts,
     startedAt: 0,
     legacy: 1,
     engineers,
@@ -443,7 +436,6 @@ function maximalMountain(): Mountain {
     crafted: Object.fromEntries(RECIPE_IDS.map((id) => [id, 1])) as Crafted,
     clocks: {
       "blasting-charge": 50_000,
-      "crystal-flare": 60_000,
       "heartstone-ember": 70_000,
       "axle-grease": 80_000,
     },
@@ -547,7 +539,6 @@ describe("firestore.rules: fieldLogs/{uid}", () => {
     };
     expect(written.snapshot.engineers).toHaveLength(MAX_ENGINEERS);
     expect(written.snapshot.expeditions).toHaveLength(MAX_EXPEDITIONS);
-    expect(written.snapshot.boosts).toHaveLength(BOOSTS.length);
     expect(Object.keys(written.snapshot.upgrades)).toHaveLength(
       UPGRADES.length,
     );

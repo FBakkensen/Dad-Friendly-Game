@@ -27,7 +27,7 @@ describe("expectedFindStones", () => {
       [ada],
       "old-shaft",
       100,
-      (next) => (next.finds.includes("pick") ? 5 : 1),
+      (next) => (next.finds.includes("map") ? 5 : 1),
     );
     expect(boosted).toBeGreaterThan(flat);
   });

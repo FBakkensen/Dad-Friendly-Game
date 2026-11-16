@@ -661,13 +661,13 @@ describe("a drawer's rows on the board's model", () => {
   it("presses a row on its own drawer's layer, and forgets every row's finger-down time", () => {
     const board = host();
     const rows = rowsOnBoard(board, "upgrades");
-    const row = make({ data: { boost: "sharper" } });
+    const row = make({ data: { upgrade: "cartSyn" } });
     const button = row.root as HTMLButtonElement;
-    rows.paint("boost:sharper", row, ready());
+    rows.paint("upgrade:cartSyn", row, ready());
     const decisions: string[] = [];
     rows.tap(button, (press, event) => {
-      decisions.push(rows.press("boost:sharper", press, event, "act"));
-      rows.result("boost:sharper", "applied");
+      decisions.push(rows.press("upgrade:cartSyn", press, event, "act"));
+      rows.result("upgrade:cartSyn", "applied");
     });
     board.send({ kind: "open", overlay: "upgrades", at: 0 });
     // A finger that came down in the settle, forgotten as the drawer moved on.
@@ -678,6 +678,6 @@ describe("a drawer's rows on the board's model", () => {
     time += 500;
     button.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 1 }));
     expect(decisions).toEqual(["act"]);
-    expect(board.view().held.has("upgrades/boost:sharper")).toBe(true);
+    expect(board.view().held.has("upgrades/upgrade:cartSyn")).toBe(true);
   });
 });

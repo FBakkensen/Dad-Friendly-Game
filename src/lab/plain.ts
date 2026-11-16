@@ -2,7 +2,6 @@ import { parameterisedDecide } from "./decide";
 import {
   definePolicy,
   scheduleFrom,
-  type BoostRule,
   type Habit,
   type Policy,
   type PolicyKind,
@@ -17,12 +16,11 @@ import {
   type WorkerMoves,
 } from "./policy";
 
-/** The plain dad's spends: crew and machines, nothing lasting, no boosts. */
+/** The plain dad's spends: crew and machines, nothing lasting. */
 const PLAIN_SPEND: SpendWeights = {
   worker: 1,
   machine: 1,
   upgrade: 0,
-  boost: 0,
   promote: 0,
 };
 
@@ -42,7 +40,6 @@ export type PlainSpec = {
   readonly tend?: TendChoice;
   readonly trouble?: TroubleFix;
   readonly workers?: WorkerRule;
-  readonly boosts?: BoostRule;
   /** Defaults to crafting when the next buy can wait. */
   readonly craft?: CraftRule;
   readonly decide?: Policy["decide"];
@@ -63,7 +60,6 @@ export function plainParams(spec: PlainSpec): PolicyParams {
     tend: spec.tend ?? "best",
     trouble: spec.trouble ?? "fast",
     workers: spec.workers ?? "any",
-    boosts: spec.boosts ?? "value",
     craft: spec.craft ?? "idle",
   };
 }

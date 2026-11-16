@@ -3,7 +3,7 @@ import type { Mountain } from "./mountain";
 import type { RowView } from "./row-view";
 import { upgradeEffectLine, upgradeWhyLine } from "./screen-words";
 import { upgradeShown } from "./upgrade-reveal";
-import { upgradeLevel, nextUpgradeCost, type Upgrade } from "./upgrades";
+import { nextUpgradeCost, type Upgrade } from "./upgrades";
 
 /** An Upgrades row (#373), and whether it shows. */
 export type UpgradeRowView = RowView & { readonly shown: boolean };
@@ -32,15 +32,15 @@ function buyFace(
 const NO_FLAG: readonly string[] = [];
 
 /**
- * A lasting upgrade's row: its level, #324's before-and-after line (the
- * line is the gain) and the why line. Bought out, it reads Owned.
+ * A lasting upgrade's row: #324's before-and-after line (the line is the
+ * gain) and the why line. Every upgrade has one level, so a bought one
+ * reads Owned and no row carries a level badge (#728).
  */
 export function upgradeRowView(
   mountain: Mountain,
   now: number,
   upgrade: Upgrade,
 ): UpgradeRowView {
-  const level = upgradeLevel(mountain, upgrade.id);
   const cost = nextUpgradeCost(mountain, upgrade.id);
   const info = upgradeEffectLine(upgrade, mountain, now);
   const face =
@@ -57,10 +57,7 @@ export function upgradeRowView(
   const name = upgrade.name;
   return {
     name,
-    badge:
-      upgrade.maxLevel > 1
-        ? `Lv ${String(level)}/${String(upgrade.maxLevel)}`
-        : "",
+    badge: "",
     info: [info],
     need: "",
     why: upgradeWhyLine(upgrade, mountain),

@@ -114,12 +114,6 @@ export default defineConfig({
           functions: 100,
           lines: 100,
         },
-        "src/boosts.ts": {
-          statements: 100,
-          branches: 100,
-          functions: 100,
-          lines: 100,
-        },
         "src/cloud-save.ts": {
           statements: 88,
           branches: 94,
@@ -266,12 +260,6 @@ export default defineConfig({
           lines: 98,
         },
         "src/rates.ts": {
-          statements: 100,
-          branches: 100,
-          functions: 100,
-          lines: 100,
-        },
-        "src/relics.ts": {
           statements: 100,
           branches: 100,
           functions: 100,

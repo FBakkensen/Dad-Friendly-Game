@@ -50,7 +50,6 @@ export type BoardHowSystem =
   | "staffing"
   | "layers"
   | "upgrades"
-  | "boosts"
   | "workshop"
   | "materials"
   | "away"

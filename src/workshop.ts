@@ -54,14 +54,13 @@ const REINFORCE_CAP = 5;
  */
 const AXLE_BONUS = 1;
 export const AXLE_MS = 20 * MINUTE;
-const FLARE_MS = HOUR;
 /** Added to 1 for the Great Machine while a heartstone ember is hot. ×1.25 at strength 1. */
 const EMBER_BONUS = 0.25;
 const EMBER_MS = 20 * MINUTE;
 
 /**
- * Recipe ids the save may name. Expedition finds (the lamp and the kit) are
- * valid ids and are not granted when an older save moves to v6.
+ * Recipe ids the save may name. An expedition find (the kit) is a valid id
+ * and is not granted when an older save moves to v6.
  */
 export const RECIPE_IDS = [
   "iron-rails",
@@ -70,8 +69,6 @@ export const RECIPE_IDS = [
   "reinforce",
   "axle-grease",
   "diamond-bits",
-  "crystal-flare",
-  "crystal-lamp",
   "engineers-kit",
   "heartstone-core",
   "heartstone-ember",
@@ -97,16 +94,12 @@ type TierEffect = {
 type RecipeEffect =
   | TierEffect
   | { readonly kind: "trouble"; readonly rarer: number }
-  /** Gear that does nothing: the lamp only brought golden veins, which went (#728). */
-  | { readonly kind: "none" }
   | { readonly kind: "trip"; readonly shorter: number }
   | {
       readonly kind: "charge";
       readonly multiplier: number;
       readonly durationMs: number;
     }
-  /** A live timer with no effect: the flare only brought golden veins (#728). */
-  | { readonly kind: "flare"; readonly durationMs: number }
   | {
       readonly kind: "ember";
       readonly bonus: number;
@@ -138,10 +131,9 @@ export type Recipe = {
  * the buff starts when the craft goes on the bench, so a ten-minute sitting
  * feels it before the dad walks away. Reinforce stops at 5. Axle grease
  * is a live crew timer: crafting it again refreshes the clock and does not
- * stack. Crystal flare and the heartstone ember work the same way. Axle
- * grease and a blasting charge do not multiply with each other or with
- * Overtime; `effectiveRates` keeps the strongest crew timer. None of those
- * timers change away pay.
+ * stack. The heartstone ember works the same way. Axle grease and a
+ * blasting charge do not multiply with each other; `effectiveRates` keeps
+ * the stronger crew timer. None of those timers change away pay.
  */
 const BY_ID: Readonly<Record<RecipeId, Recipe>> = {
   "iron-rails": {
@@ -205,25 +197,6 @@ const BY_ID: Readonly<Record<RecipeId, Recipe>> = {
     maxLevel: 3,
     unlock: "crystal",
     effect: { kind: "tier", tier: "drill", perLevel: BITS_PER_LEVEL },
-  },
-  "crystal-flare": {
-    id: "crystal-flare",
-    name: "Crystal flare",
-    stones: 200_000,
-    materials: { crystal: 4 },
-    craftMs: 10 * MINUTE,
-    unlock: "crystal",
-    effect: { kind: "flare", durationMs: FLARE_MS },
-  },
-  "crystal-lamp": {
-    id: "crystal-lamp",
-    name: "Miner's crystal lamp",
-    stones: 0,
-    materials: { crystal: 6, iron: 4 },
-    craftMs: HOUR,
-    maxLevel: 1,
-    unlock: "found",
-    effect: { kind: "none" },
   },
   "engineers-kit": {
     id: "engineers-kit",
@@ -327,8 +300,7 @@ function knownWhen(unlock: Unlock, mined: number): boolean {
 
 /**
  * Starting three, plus the Granite sink once that band is reached, plus each
- * layer recipe for a band already reached. The lamp and the kit are found,
- * not granted.
+ * layer recipe for a band already reached. The kit is found, not granted.
  */
 export function recipesForMined(mined: number): readonly RecipeId[] {
   const reached = Math.max(0, mined);
@@ -345,7 +317,7 @@ export function layerRecipeIds(id: LayerId): readonly RecipeId[] {
     case "granite":
       return ["reinforce", "axle-grease"];
     case "crystal":
-      return ["diamond-bits", "crystal-flare"];
+      return ["diamond-bits"];
     case "heart":
       return ["heartstone-core", "heartstone-ember"];
     /* v8 ignore next 3 -- layer ids are the closed list */
@@ -524,8 +496,8 @@ function timerFrom(bench: Bench, previous: number, extend: boolean): number {
  * A craft whose clock has rung is fitted once: the bench clears and the
  * level goes up. Calling it again, after a reload, does not fit it twice.
  * A charge's twenty minutes are measured from when the craft started, and
- * a later charge adds another twenty after the window still running. A
- * flare or an ember replaces its clock from that same start; crafting it
+ * a later charge adds another twenty after the window still running. An
+ * ember or grease replaces its clock from that same start; crafting it
  * again does not multiply the effect.
  */
 export function settleBench(mountain: Mountain, now: number): Mountain {
@@ -552,11 +524,7 @@ export function settleBench(mountain: Mountain, now: number): Mountain {
       from + recipe.effect.durationMs,
     );
   }
-  if (
-    recipe.effect.kind === "flare" ||
-    recipe.effect.kind === "ember" ||
-    recipe.effect.kind === "axle"
-  ) {
+  if (recipe.effect.kind === "ember" || recipe.effect.kind === "axle") {
     return withClock(
       fitted,
       recipe.id as TimerId,
@@ -577,7 +545,6 @@ function liveTimerMs(recipe: Recipe): number | undefined {
   switch (effect.kind) {
     case "charge":
       return effect.durationMs;
-    case "flare":
     case "ember":
     case "axle":
       return Math.round(tuned(effect.durationMs, recipe.id));
@@ -647,11 +614,10 @@ export function cancelCraft(mountain: Mountain, now: number): Mountain {
   return refund(dropBench(mountain), owed(mountain, bench, now));
 }
 
-/** Live buffs the sheet can count down. A charge, grease, flare, or ember. */
+/** Live buffs the sheet can count down. A charge, grease, or ember. */
 export const TIMER_IDS = [
   "blasting-charge",
   "axle-grease",
-  "crystal-flare",
   "heartstone-ember",
 ] as const;
 
@@ -663,7 +629,6 @@ export type Clocks = Readonly<Record<TimerId, number>>;
 export const COLD_CLOCKS: Clocks = {
   "blasting-charge": 0,
   "axle-grease": 0,
-  "crystal-flare": 0,
   "heartstone-ember": 0,
 };
 
@@ -686,11 +651,10 @@ function timerDurationMs(id: TimerId): number {
   switch (effect.kind) {
     case "charge":
       return effect.durationMs;
-    case "flare":
     case "ember":
     case "axle":
       return Math.round(tuned(effect.durationMs, id));
-    /* v8 ignore next 3 -- these four recipes are live timers */
+    /* v8 ignore next 3 -- these three recipes are live timers */
     default:
       return 0;
   }
@@ -800,7 +764,7 @@ export function troubleGapScale(mountain: Pick<Mountain, "crafted">): number {
  */
 function benchWindow(
   mountain: Pick<Mountain, "bench">,
-  id: "blasting-charge" | "crystal-flare" | "heartstone-ember" | "axle-grease",
+  id: "blasting-charge" | "heartstone-ember" | "axle-grease",
   durationMs: number,
   now: number | undefined,
 ): boolean {
@@ -844,8 +808,8 @@ export function emberMachineMultiplier(
  * Crew multiplier while axle grease is hot, including the minutes it is
  * still on the bench. 1 with no `now`, so away pay never sees it. Crafting
  * another one refreshes the clock, and the crafted count does not multiply
- * it. Overlapping a charge or Overtime does not multiply this; the strongest
- * crew timer wins in `effectiveRates`.
+ * it. Overlapping a charge does not multiply this; the stronger crew timer
+ * wins in `effectiveRates`.
  */
 export function axleCrewMultiplier(
   mountain: Pick<Mountain, "clocks" | "bench">,
@@ -891,7 +855,7 @@ export function expeditionCraftScale(
  * Crew multiplier while a blasting charge is still hot, including the
  * minutes it is still on the bench. Away pay passes no `now`, so a charge
  * never doubles stones earned while the app was closed. It does not multiply
- * with axle grease or Overtime.
+ * with axle grease.
  */
 export function chargeCrewMultiplier(
   mountain: Mountain,

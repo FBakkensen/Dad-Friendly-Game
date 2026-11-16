@@ -381,9 +381,8 @@ describe("design token mocks (#234)", () => {
     expect(screensCss).not.toMatch(/font-size:\s*\d/);
   });
 
-  it("shows the scale, the next drill, and the boost sheet without a question mark", () => {
+  it("shows the scale, the next drill, and the upgrades sheet without a question mark", () => {
     const drill = formatCompact(tierCost(tierById("drill"), 8));
-    const arms = buyPriceWords(mustCost(upgradeCost(upgradeById("tap"), 3)));
     const roads = buyPriceWords(
       mustCost(upgradeCost(upgradeById("drillSyn"), 0)),
     );
@@ -402,7 +401,7 @@ describe("design token mocks (#234)", () => {
     );
     const sheet = host(renderMock(view({ scene: "token-sheet" })));
     expect(sheet.textContent).toContain("+2.5 · 203/s");
-    expect(sheet.textContent).toContain(arms);
+    expect(sheet.textContent).toContain(roads);
     expect(sheet.textContent).toContain(crewPostsShort(84, 2));
     expect(sheet.textContent).toContain(`Running · ${formatClock(600_000)}`);
     expect(sheet.textContent).toContain("Clay 40");
@@ -453,27 +452,22 @@ describe("design token mocks (#234)", () => {
     ).toBe(true);
 
     const upgrades = host(renderMock(view({ scene: "upgrades-tokens" })));
-    expect(upgrades.textContent).toContain(arms);
     expect(upgrades.textContent).toContain(roads);
     expect(upgrades.textContent).toContain(crews);
     expect(upgrades.textContent).toContain(tracks);
-    expect(upgrades.textContent).toContain(`Running · ${formatClock(600_000)}`);
-    expect(upgrades.textContent).toContain(
-      `Running · ${formatClock(1_800_000)}`,
-    );
-    expect(upgrades.textContent).toContain("now 1,410");
-    expect(upgrades.textContent).toContain("22.7K/s");
     expect(
       upgrades.querySelector(".tok-close")?.getAttribute("aria-label"),
     ).toBe("Back to the mountain");
-    expect(upgrades.querySelectorAll(".tok-action")).toHaveLength(6);
+    expect(upgrades.querySelectorAll(".tok-action")).toHaveLength(3);
     expect(upgrades.textContent).not.toMatch(/\?/);
     expect(upgrades.querySelector("audio, video")).toBeNull();
   });
 
   it("keeps three different directions on the real prices", () => {
     const drill = formatCompact(tierCost(tierById("drill"), 8));
-    const arms = buyPriceWords(mustCost(upgradeCost(upgradeById("tap"), 3)));
+    const roads = buyPriceWords(
+      mustCost(upgradeCost(upgradeById("drillSyn"), 0)),
+    );
     for (const which of ["a", "c"] as const) {
       const mountain = host(renderMock(view({ scene: `mountain-${which}` })));
       expect(mountain.textContent).toContain(drill);
@@ -484,9 +478,7 @@ describe("design token mocks (#234)", () => {
       expect(mountain.textContent).toContain("+2.5 · 203/s");
       expect(mountain.textContent).not.toMatch(/\?/);
       const sheet = host(renderMock(view({ scene: `upgrades-${which}` })));
-      expect(sheet.textContent).toContain(arms);
-      expect(sheet.textContent).toContain("Running · 10:00");
-      expect(sheet.textContent).toContain("Running · 30:00");
+      expect(sheet.textContent).toContain(roads);
       expect(sheet.textContent).toContain("Back to the mountain");
       expect(sheet.textContent).not.toMatch(/\?/);
     }
@@ -547,8 +539,6 @@ describe("design token mocks (#234)", () => {
       /pays back|worth it|best value|\?|in \d+ min/i,
     );
     const sheetB = host(renderMock(view({ scene: "upgrades-b" })));
-    expect(sheetB.textContent).toContain("Taps ×2 for 10 min.");
-    expect(sheetB.textContent).toContain("Crew ×2 for 30 min.");
     const helped = effectiveRates({
       ...mountainB,
       upgrades: {
@@ -584,21 +574,21 @@ describe("design token mocks (#234)", () => {
       ["mountain-tokens", "rest", ""],
       ["mountain-tokens", "press", "drill"],
       ["upgrades-tokens", "rest", ""],
-      ["upgrades-tokens", "press", "arms"],
+      ["upgrades-tokens", "press", "roads"],
       ["mountain-a", "rest", ""],
       ["mountain-a", "press", "drill"],
       ["upgrades-a", "rest", ""],
-      ["upgrades-a", "press", "arms"],
+      ["upgrades-a", "press", "roads"],
       ["mountain-b", "rest", ""],
       ["mountain-b", "press", "buys"],
       ["mountain-b-open", "rest", ""],
       ["mountain-b-open", "press", "drill"],
       ["upgrades-b", "rest", ""],
-      ["upgrades-b", "press", "arms"],
+      ["upgrades-b", "press", "hands"],
       ["mountain-c", "rest", ""],
       ["mountain-c", "press", "buy"],
       ["upgrades-c", "rest", ""],
-      ["upgrades-c", "press", "arms"],
+      ["upgrades-c", "press", "roads"],
     ] as const;
     for (const [scene, phase, control] of shots) {
       const root = mountTokens(scene, phase, control);

@@ -1,6 +1,5 @@
 import { priceAmount } from "./stock";
 import { describe, expect, it } from "vitest";
-import { BOOSTS, boostById, boostCost } from "./boosts";
 import { tierLock } from "./crew";
 import { ENGINEER_NAMES, PROMOTE_BASE_COST, promoteCost } from "./engineers";
 import { howItWorks } from "./how-it-works";
@@ -32,13 +31,7 @@ import {
 } from "./scale";
 import { minedMountain } from "./test-fixtures";
 import { TIERS, tierById, tierCost } from "./tiers";
-import {
-  UPGRADES,
-  buyUpgrade,
-  upgradeById,
-  upgradeCost,
-  NO_UPGRADES,
-} from "./upgrades";
+import { UPGRADES, buyUpgrade, upgradeById, upgradeCost } from "./upgrades";
 import {
   RECIPE_IDS,
   recipePrice,
@@ -73,13 +66,8 @@ describe("kid-run stretch (M13, #253)", () => {
     expect(digStones(kid, stonesLeft(kid)).remaining).toBe(0);
     const cart = tierById("cart");
     expect(tierCost(cart, 0, 2)).toBe(2 * tierCost(cart, 0));
-    const tap = upgradeById("tap");
-    expect(upgradeCost(tap, 0, 2)).toBe(2 * (upgradeCost(tap, 0) ?? 0));
-    const pricing = { crewPerSecond: 0 };
-    const sharper = boostById("sharper");
-    expect(boostCost(sharper, pricing, 2)).toBe(
-      2 * boostCost(sharper, pricing),
-    );
+    const boots = upgradeById("boots");
+    expect(upgradeCost(boots, 0, 2)).toBe(2 * (upgradeCost(boots, 0) ?? 0));
     expect(promoteCost(kid)).toBe(2 * promoteCost(createMountain()));
   });
 
@@ -423,7 +411,6 @@ describe("the stretch cap keeps every count a safe integer (#366)", () => {
   function prices(m: Mountain): number[] {
     const k = stretch(m);
     const oneOff = oneOffStretch(m);
-    const crew = { crewPerSecond: 0 };
     return [
       ...TIERS.flatMap((tier) =>
         Array.from({ length: 31 }, (_, owned) => tierCost(tier, owned, k)),
@@ -445,7 +432,6 @@ describe("the stretch cap keeps every count a safe integer (#366)", () => {
           })),
         }),
       ),
-      ...BOOSTS.map((boost) => boostCost(boost, crew, k)),
       ...RECIPE_IDS.map((id) => priceAmount(recipePrice(id, k), "stones")),
     ];
   }
@@ -467,13 +453,12 @@ describe("the stretch cap keeps every count a safe integer (#366)", () => {
     },
   );
 
-  it("never pays a price above every stone of the run, so the pocket stays safe", () => {
+  it("prices every upgrade under every stone of the run, so the pocket stays safe", () => {
     const deep: Mountain = {
       ...createMountain(),
       remaining: MOUNTAIN_STONES - BAND_STARTS[3],
       stretch: MAX_STRETCH,
-      owned: { ...createMountain().owned, helper: 10, cart: 3 },
-      upgrades: { ...NO_UPGRADES, tap: 9 },
+      owned: { ...createMountain().owned, machine: 1 },
     };
     // The most a pocket can hold: every stone of this run.
     const full = {
@@ -483,13 +468,13 @@ describe("the stretch cap keeps every count a safe integer (#366)", () => {
         stones: stonesLeft({ ...deep, remaining: MOUNTAIN_STONES }),
       },
     };
-    const tap = upgradeCost(upgradeById("tap"), 9, oneOffStretch(deep)) ?? 0;
-    expect(tap).toBeGreaterThan(Number.MAX_SAFE_INTEGER);
-    expect(buyUpgrade(full, "tap")).toBe(full);
-    // The same pocket still buys a level it can afford, so only the price
-    // stops the one above.
-    const cheap = { ...full, upgrades: { ...NO_UPGRADES, tap: 0 } };
-    expect(buyUpgrade(cheap, "tap").upgrades.tap).toBe(1);
+    // Every upgrade has one level (#728), so its first price is its dearest.
+    for (const upgrade of UPGRADES) {
+      const price = upgradeCost(upgrade, 0, oneOffStretch(deep)) ?? 0;
+      expect(Number.isSafeInteger(price)).toBe(true);
+      expect(price).toBeLessThan(full.stock.stones);
+    }
+    expect(buyUpgrade(full, "machineSyn").upgrades.machineSyn).toBe(1);
   });
 });
 

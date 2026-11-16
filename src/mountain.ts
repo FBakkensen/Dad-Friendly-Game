@@ -1,6 +1,5 @@
 import type { Trouble } from "./hazards";
 import { effectiveRates, paidAwayMs } from "./rates";
-import { NO_BOOSTS, type Boosts } from "./boosts";
 import type { Engineer } from "./engineers";
 import {
   clampExpeditions,
@@ -92,11 +91,6 @@ export type Mountain = {
   /** Permanent upgrade levels (src/upgrades.ts); 0 is none. */
   readonly upgrades: Upgrades;
   /**
-   * Quick boosts as end times (src/boosts.ts). 0 means never run; a boost
-   * that has run keeps its last end time, so its row stays shown.
-   */
-  readonly boosts: Boosts;
-  /**
    * When this run began (epoch ms), set by "Start over". 0 is the first run.
    * A save from an older run never replaces a newer one.
    */
@@ -176,7 +170,6 @@ export const BARE_MOUNTAIN: Mountain = {
   stock: EMPTY_STOCK,
   owned: tierRecord(0),
   upgrades: NO_UPGRADES,
-  boosts: NO_BOOSTS,
   startedAt: 0,
   legacy: 0,
   stretch: 1,
@@ -267,7 +260,7 @@ export function digStones(mountain: Mountain, mined: number): Mountain {
   };
 }
 
-/** The crew's speed; pass `now` while playing to count running boosts. */
+/** The crew's speed; pass `now` while playing to count running crew timers. */
 export function stonesPerSecond(
   mountain: Mountain,
   now?: number,
@@ -301,7 +294,7 @@ export function accrue({
   to: number;
   /** Share of the crew's speed paid: 1 while playing, AWAY_PAY_RATE away. */
   pay?: number;
-  /** Live play counts boosts running at `from`; away time never does. */
+  /** Live play counts crew timers running at `from`; away time never does. */
   live?: boolean;
   /** Session trouble. Ignored unless `live`: away pay never slows for it. */
   trouble?: Trouble;

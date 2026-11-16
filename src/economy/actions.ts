@@ -1,11 +1,3 @@
-import {
-  BOOSTS,
-  boostById,
-  boostCost,
-  boostLeft,
-  buyBoost,
-  type BoostId,
-} from "../boosts";
 import { buyCrew, tierLocked } from "../crew";
 import {
   ENGINEER_POSTS,
@@ -75,7 +67,7 @@ import {
   type TroubleTier,
 } from "../hazards";
 import { LAYERS } from "../layers";
-import { boostShown, upgradeShown } from "../upgrade-reveal";
+import { upgradeShown } from "../upgrade-reveal";
 import { expeditionAwayMs } from "../lost-tools";
 import type { Mountain } from "../mountain";
 import { minedOut, oneOffStretch, stretch } from "../scale";
@@ -146,7 +138,6 @@ export type Action =
       /** The price the player was shown: a different price today refuses the buy (#367). */
       readonly price: Price;
     }
-  | { readonly kind: "buyBoost"; readonly id: BoostId }
   | {
       readonly kind: "promote";
       /** The price the player was shown: a different price today refuses it (#367). */
@@ -219,7 +210,7 @@ export type ValueContext = {
 
 /** What `valueOf` says a move is worth. Payback is seconds. */
 export type ActionValue = {
-  /** Extra income, stones a second, spread across `horizon` for a boost. */
+  /** Extra income, stones a second, spread across `horizon` for a timer. */
   readonly gainPerSec: number;
   /** Stones to pay. A machine includes the workers it still needs. */
   readonly cost: number;
@@ -244,7 +235,6 @@ export function listActions(
   return [
     ...tierActions(mountain),
     ...upgradeActions(mountain),
-    ...boostActions(mountain, now),
     ...promoteActions(mountain),
     ...mountain.engineers.flatMap((hand, index) =>
       handActions(mountain, hand, index, now),
@@ -395,13 +385,6 @@ function upgradeActions(mountain: Mountain): readonly Action[] {
         : [{ kind: "buyUpgrade", id: upgrade.id, price }];
     },
   );
-}
-
-function boostActions(mountain: Mountain, now: number): readonly Action[] {
-  return BOOSTS.filter(
-    (boost) =>
-      boostLeft(mountain, boost.id, now) === 0 && boostShown(mountain, boost),
-  ).map((boost) => ({ kind: "buyBoost", id: boost.id }));
 }
 
 function promoteActions(mountain: Mountain): readonly Action[] {
@@ -559,11 +542,6 @@ export type MoveEvent =
       readonly id: UpgradeId;
       readonly level: number;
     }
-  | {
-      readonly kind: "boostStarted";
-      readonly id: BoostId;
-      readonly endsAt: number;
-    }
   | { readonly kind: "craftStarted"; readonly recipe: RecipeId }
   | {
       readonly kind: "promoted";
@@ -639,24 +617,6 @@ function moved(mountain: Mountain, move: Move, now: number): Mountain {
   }
 }
 
-/**
- * Starts every boost that is idle and that the pocket can pay, in catalogue
- * order, each priced from the mountain as the one before it left it. The
- * sim dad and the lab's always-boost players do this every second.
- */
-export function buyEveryBoost(mountain: Mountain, now: number): Mountain {
-  let next = mountain;
-  for (const boost of BOOSTS) {
-    next = buyBoost({
-      mountain: next,
-      id: boost.id,
-      now,
-      pricing: effectiveRates(next),
-    });
-  }
-  return next;
-}
-
 function actionApplied(
   mountain: Mountain,
   action: Action,
@@ -673,13 +633,6 @@ function actionApplied(
       )
         ? buyUpgrade(mountain, action.id)
         : mountain;
-    case "buyBoost":
-      return buyBoost({
-        mountain,
-        id: action.id,
-        now,
-        pricing: effectiveRates(mountain),
-      });
     case "promote":
       return samePrice(action.price, promotePrice(mountain))
         ? promote(mountain)
@@ -763,11 +716,6 @@ function crewOf(mountain: Mountain): readonly Engineer[] {
   return mountain.engineers;
 }
 
-/** When the boost an applied buy started ends, as `buyBoost` wrote it. */
-function boostEnd(mountain: Mountain, id: BoostId): number {
-  return mountain.boosts[id];
-}
-
 /**
  * Who left a trip and where they stand now, for `recall` and `station` on one engineer.
  * A trip ends with `recalled`; a post other than the one they left
@@ -813,14 +761,6 @@ function actionEvents(
           kind: "upgradeBought",
           id: action.id,
           level: upgradeLevel(next, action.id),
-        },
-      ];
-    case "buyBoost":
-      return [
-        {
-          kind: "boostStarted",
-          id: action.id,
-          endsAt: boostEnd(next, action.id),
         },
       ];
     case "craft":
@@ -911,7 +851,7 @@ export function applyAction(
  * crew and away pay from the same factor as
  * `accrueAway`, weighted by `context`. No second copy of the upgrade maths.
  * A machine's cost includes the workers it still needs. `horizon` is
- * seconds: a boost's extra income is spread across it, and a permanent
+ * seconds: a timer's extra income is spread across it, and a permanent
  * move is not.
  */
 export function valueOf(
@@ -926,8 +866,6 @@ export function valueOf(
       return valueTier(mountain, action.id, horizon, context);
     case "buyUpgrade":
       return valueUpgrade(mountain, action.id, horizon, context);
-    case "buyBoost":
-      return valueBoost(mountain, action.id, horizon, context);
     case "promote":
       return valuePromote(mountain, horizon, context);
     case "station":
@@ -1059,38 +997,6 @@ function valueUpgrade(
     price,
     horizon,
     context,
-  );
-}
-
-function valueBoost(
-  mountain: Mountain,
-  id: BoostId,
-  horizon: number,
-  context: ValueContext,
-): ActionValue {
-  const boost = boostById(id);
-  const pricing = effectiveRates(mountain);
-  const cost = boostCost(boost, pricing, stretch(mountain));
-  // After every boost already on the clock, so this purchase is the only
-  // one running when its speed is read. Away pay never counts a boost.
-  const now = clockAfterBoosts(mountain);
-  const bought = buyBoost({
-    mountain: funded(mountain, cost),
-    id,
-    now,
-    pricing,
-  });
-  const durationSec = boost.durationMs / 1000;
-  // Twice the clock, not the whole horizon: enough that Overtime can be
-  // the best buy, not so much that it is the only one.
-  const spread = timedSpread(context, durationSec, horizon);
-  return rateValue(
-    mountain,
-    incomeGain(mountain, bought, context, { now }),
-    cost,
-    horizon,
-    context,
-    spread,
   );
 }
 
@@ -1338,7 +1244,7 @@ function remainingFraction(
 
 /**
  * A craft's payback is the usual wait, plus the time the bench is busy
- * before the gear starts paying. Timers are spread the way a boost is.
+ * before the gear starts paying. Timers are spread by `timedSpread`.
  * Props and the kit are not a crew rate, so they are expected
  * stones over the horizon, the same idea as an expedition find.
  */
@@ -1418,13 +1324,6 @@ function valueCraft(
           horizon,
           context,
         ),
-        benchSec,
-      );
-    case "flare":
-    case "none":
-      // The flare and the lamp only brought golden veins, which went (#728).
-      return withBench(
-        rateValue(mountain, 0, stones, horizon, context),
         benchSec,
       );
     case "trouble":
@@ -1606,9 +1505,8 @@ function timedCraft(
 
 /**
  * Share of the horizon a short effect is counted across. A dad who is away
- * part of the cycle gets a little more than the raw clock, the same stretch
- * a boost uses, so Overtime and a blasting charge can win without being
- * the only buy.
+ * part of the cycle gets a little more than the raw clock, so a blasting
+ * charge can win without being the only buy.
  */
 function timedSpread(
   context: ValueContext,
@@ -1705,16 +1603,6 @@ function liveShare(context: ValueContext): number {
 
 function funded(mountain: Mountain, price: number): Mountain {
   return add(mountain, { stones: price });
-}
-
-function clockAfterBoosts(mountain: Mountain): number {
-  let latest = 0;
-  for (const endsAt of Object.values(mountain.boosts)) {
-    if (endsAt > latest) {
-      latest = endsAt;
-    }
-  }
-  return latest + 1;
 }
 
 function rateValue(

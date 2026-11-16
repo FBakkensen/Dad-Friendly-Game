@@ -16,5 +16,4 @@ export default plainPolicy({
   tend: "never",
   trouble: "never",
   workers: "never",
-  boosts: "never",
 });

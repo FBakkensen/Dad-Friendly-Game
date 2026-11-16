@@ -6,13 +6,12 @@ const MACHINES: SpendWeights = {
   worker: 1,
   machine: 1,
   upgrade: 0,
-  boost: 0,
   promote: 0,
 };
 
 /**
- * Buys machines, plus the workers those machines still need. No upgrades,
- * boosts, or promotions. Tending stays, so a free engineer can run one.
+ * Buys machines, plus the workers those machines still need. No upgrades
+ * or promotions. Tending stays, so a free engineer can run one.
  */
 export default plainPolicy({
   id: "machines-only",
@@ -25,5 +24,4 @@ export default plainPolicy({
   promote: "never",
   promoteCap: 0,
   explore: "never",
-  boosts: "never",
 });

@@ -9,7 +9,7 @@ import type { Seed } from "./fixtures.ts";
 /**
  * Every value the browser scripts seed, pinned. EXPECTED was printed by
  * scripts/fixtures.mjs (before it moved here) with Date.now frozen at FIXED.
- * CREW reads the clock when the module loads, so the clock is frozen first.
+ * The module is loaded with the clock already frozen.
  */
 const FIXED = 1_700_000_000_000;
 
@@ -21,7 +21,6 @@ const EXPECTED = {
     carts: 24,
     drills: 6,
     borers: 2,
-    boosts: { sharper: 1700003600000, overtime: 1700003600000 },
   },
   SAVE_KEY: "dad-friendly-game",
   workshopBusy: {
@@ -242,29 +241,6 @@ const EXPECTED = {
       recipes: ["iron-rails", "sturdy-props", "blasting-charge"],
     },
   },
-  toolsMountain: {
-    lastSeen: 1700000000000,
-    mountain: {
-      remaining: 215000000,
-      pocket: 5000000,
-      helpers: 20,
-      carts: 5,
-      drills: 2,
-      borers: 1,
-      upgrades: { boots: 1, tap: 2 },
-      finds: ["pick", "lamp"],
-    },
-    workshop: {
-      materials: { clay: 0, iron: 0, crystal: 0, heartstone: 0 },
-      recipes: [
-        "iron-rails",
-        "sturdy-props",
-        "blasting-charge",
-        "reinforce",
-        "axle-grease",
-      ],
-    },
-  },
   machineMountain: {
     lastSeen: 1700000000000,
     mountain: {
@@ -315,7 +291,7 @@ const EXPECTED = {
         { name: "Ada", rank: 0, trips: 0, post: "borer" },
         { name: "Nils", rank: 0, trips: 0, post: "drill" },
       ],
-      upgrades: { tap: 3, boots: 1, steady: 1, cartSyn: 1 },
+      upgrades: { boots: 1, cartSyn: 1 },
     },
     workshop: {
       materials: { clay: 0, iron: 0, crystal: 0, heartstone: 0 },
@@ -372,23 +348,17 @@ const VISUAL_EXPECTED: Record<string, string> = {
   crewSave1234567:
     '{"lastSeen":1700000000000,"mountain":{"remaining":228000000,"pocket":1234567,"helpers":18,"carts":7,"drills":2},"workshop":{"materials":{"clay":10,"iron":0,"crystal":0,"heartstone":0},"recipes":["iron-rails","sturdy-props","blasting-charge","reinforce"]}}',
   effectSave0:
-    '{"lastSeen":1700000000000,"mountain":{"remaining":228000000,"pocket":5000000,"helpers":20,"carts":2,"borers":1,"engineers":[{"name":"Ada","rank":0,"trips":0,"post":"camp"}],"expeditions":[],"boosts":{}},"workshop":{"materials":{"clay":0,"iron":0,"crystal":0,"heartstone":0},"recipes":["iron-rails","sturdy-props","blasting-charge"]}}',
+    '{"lastSeen":1700000000000,"mountain":{"remaining":228000000,"pocket":5000000,"helpers":20,"carts":2,"borers":1,"engineers":[{"name":"Ada","rank":0,"trips":0,"post":"camp"}],"expeditions":[]},"workshop":{"materials":{"clay":0,"iron":0,"crystal":0,"heartstone":0},"recipes":["iron-rails","sturdy-props","blasting-charge"]}}',
   effectSave1:
-    '{"lastSeen":1700000000000,"mountain":{"remaining":228000000,"pocket":5000000,"helpers":20,"carts":2,"borers":1,"engineers":[{"name":"Ada","rank":0,"trips":0,"post":"camp"}],"expeditions":[],"boosts":{"sharper":1700000600000}},"workshop":{"materials":{"clay":0,"iron":0,"crystal":0,"heartstone":0},"recipes":["iron-rails","sturdy-props","blasting-charge"]}}',
-  effectSave2:
-    '{"lastSeen":1700000000000,"mountain":{"remaining":228000000,"pocket":5000000,"helpers":20,"carts":2,"borers":1,"engineers":[{"name":"Ada","rank":0,"trips":0,"post":"camp"}],"expeditions":[],"boosts":{"sharper":1700000600000,"overtime":1700001200000}},"workshop":{"materials":{"clay":0,"iron":0,"crystal":0,"heartstone":0},"recipes":["iron-rails","sturdy-props","blasting-charge"]}}',
-  effectSave3:
-    '{"lastSeen":1700000000000,"mountain":{"remaining":228000000,"pocket":5000000,"helpers":20,"carts":2,"borers":1,"engineers":[{"name":"Ada","rank":0,"trips":0,"post":"tunnel"}],"expeditions":[{"engineer":"Ada","tunnel":"side-seam","sentAt":1699999940000,"returnsAt":1700002400000,"home":"camp","find":{"kind":"quiet"}}],"boosts":{"sharper":1700000600000,"overtime":1700001200000}},"workshop":{"materials":{"clay":0,"iron":0,"crystal":0,"heartstone":0},"recipes":["iron-rails","sturdy-props","blasting-charge"]}}',
-  effectSave12:
-    '{"lastSeen":1700000000000,"mountain":{"remaining":228000000,"pocket":5000000,"helpers":20,"carts":2,"borers":1,"engineers":[{"name":"Ada","rank":0,"trips":0,"post":"tunnel"},{"name":"Nils","rank":0,"trips":0,"post":"tunnel"},{"name":"Ruth","rank":0,"trips":0,"post":"tunnel"},{"name":"Otto","rank":0,"trips":0,"post":"tunnel"},{"name":"Mae","rank":0,"trips":0,"post":"tunnel"}],"expeditions":[{"engineer":"Ada","tunnel":"side-seam","sentAt":1699999940000,"returnsAt":1700002400000,"home":"camp","find":{"kind":"quiet"}},{"engineer":"Nils","tunnel":"side-seam","sentAt":1699999940000,"returnsAt":1700002460000,"home":"camp","find":{"kind":"quiet"}},{"engineer":"Ruth","tunnel":"side-seam","sentAt":1699999940000,"returnsAt":1700002520000,"home":"camp","find":{"kind":"quiet"}},{"engineer":"Otto","tunnel":"side-seam","sentAt":1699999940000,"returnsAt":1700002580000,"home":"camp","find":{"kind":"quiet"}},{"engineer":"Mae","tunnel":"side-seam","sentAt":1699999940000,"returnsAt":1700002640000,"home":"camp","find":{"kind":"quiet"}}],"boosts":{"sharper":1700000600000,"overtime":1700001200000}},"workshop":{"materials":{"clay":0,"iron":0,"crystal":0,"heartstone":0},"recipes":["iron-rails","sturdy-props","blasting-charge"],"chargeUntil":1700000480000,"axleUntil":1700000720000,"flareUntil":1700003000000,"emberUntil":1700000900000,"bench":{"recipe":"iron-rails","startedAt":1699999999000,"endsAt":1700000540000}}}',
+    '{"lastSeen":1700000000000,"mountain":{"remaining":228000000,"pocket":5000000,"helpers":20,"carts":2,"borers":1,"engineers":[{"name":"Ada","rank":0,"trips":0,"post":"tunnel"}],"expeditions":[{"engineer":"Ada","tunnel":"side-seam","sentAt":1699999940000,"returnsAt":1700002400000,"home":"camp","find":{"kind":"quiet"}}]},"workshop":{"materials":{"clay":0,"iron":0,"crystal":0,"heartstone":0},"recipes":["iron-rails","sturdy-props","blasting-charge"]}}',
+  effectSave9:
+    '{"lastSeen":1700000000000,"mountain":{"remaining":228000000,"pocket":5000000,"helpers":20,"carts":2,"borers":1,"engineers":[{"name":"Ada","rank":0,"trips":0,"post":"tunnel"},{"name":"Nils","rank":0,"trips":0,"post":"tunnel"},{"name":"Ruth","rank":0,"trips":0,"post":"tunnel"},{"name":"Otto","rank":0,"trips":0,"post":"tunnel"},{"name":"Mae","rank":0,"trips":0,"post":"tunnel"}],"expeditions":[{"engineer":"Ada","tunnel":"side-seam","sentAt":1699999940000,"returnsAt":1700002400000,"home":"camp","find":{"kind":"quiet"}},{"engineer":"Nils","tunnel":"side-seam","sentAt":1699999940000,"returnsAt":1700002460000,"home":"camp","find":{"kind":"quiet"}},{"engineer":"Ruth","tunnel":"side-seam","sentAt":1699999940000,"returnsAt":1700002520000,"home":"camp","find":{"kind":"quiet"}},{"engineer":"Otto","tunnel":"side-seam","sentAt":1699999940000,"returnsAt":1700002580000,"home":"camp","find":{"kind":"quiet"}},{"engineer":"Mae","tunnel":"side-seam","sentAt":1699999940000,"returnsAt":1700002640000,"home":"camp","find":{"kind":"quiet"}}]},"workshop":{"materials":{"clay":0,"iron":0,"crystal":0,"heartstone":0},"recipes":["iron-rails","sturdy-props","blasting-charge"],"chargeUntil":1700000480000,"axleUntil":1700000720000,"emberUntil":1700000900000,"bench":{"recipe":"iron-rails","startedAt":1699999999000,"endsAt":1700000540000}}}',
   guardNow:
-    '{"lastSeen":1700000000000,"mountain":{"remaining":200000000,"pocket":3250000,"helpers":34,"carts":12,"drills":4,"borers":1,"engineers":[{"name":"Ada","rank":1,"trips":3,"post":"camp"}],"boosts":{"sharper":1700003600000}},"workshop":{"materials":{"clay":12,"iron":6,"crystal":2,"heartstone":0},"recipes":["iron-rails","sturdy-props","blasting-charge"]}}',
+    '{"lastSeen":1700000000000,"mountain":{"remaining":200000000,"pocket":3250000,"helpers":34,"carts":12,"drills":4,"borers":1,"engineers":[{"name":"Ada","rank":1,"trips":3,"post":"camp"}]},"workshop":{"materials":{"clay":12,"iron":6,"crystal":2,"heartstone":0},"recipes":["iron-rails","sturdy-props","blasting-charge"]}}',
   guardWelcome:
-    '{"lastSeen":1699989200000,"mountain":{"remaining":200000000,"pocket":3250000,"helpers":34,"carts":12,"drills":4,"borers":1,"engineers":[{"name":"Ada","rank":1,"trips":3,"post":"camp"}],"boosts":{"sharper":1699992800000}},"workshop":{"materials":{"clay":12,"iron":6,"crystal":2,"heartstone":0},"recipes":["iron-rails","sturdy-props","blasting-charge"]}}',
+    '{"lastSeen":1699989200000,"mountain":{"remaining":200000000,"pocket":3250000,"helpers":34,"carts":12,"drills":4,"borers":1,"engineers":[{"name":"Ada","rank":1,"trips":3,"post":"camp"}]},"workshop":{"materials":{"clay":12,"iron":6,"crystal":2,"heartstone":0},"recipes":["iron-rails","sturdy-props","blasting-charge"]}}',
   guardRemaining5:
-    '{"lastSeen":1700000000000,"mountain":{"remaining":5,"pocket":3250000,"helpers":34,"carts":12,"drills":4,"borers":1,"engineers":[{"name":"Ada","rank":1,"trips":3,"post":"camp"}],"boosts":{"sharper":1700003600000}},"workshop":{"materials":{"clay":12,"iron":6,"crystal":2,"heartstone":0},"recipes":["iron-rails","sturdy-props","blasting-charge"]}}',
-  overtimeSave:
-    '{"lastSeen":1700000000000,"mountain":{"remaining":215000000,"pocket":5000000,"helpers":20,"carts":5,"drills":2,"borers":1,"boosts":{"overtime":1700001200000}},"workshop":{"materials":{"clay":0,"iron":0,"crystal":0,"heartstone":0},"recipes":["iron-rails","sturdy-props","blasting-charge","reinforce","axle-grease"]}}',
+    '{"lastSeen":1700000000000,"mountain":{"remaining":5,"pocket":3250000,"helpers":34,"carts":12,"drills":4,"borers":1,"engineers":[{"name":"Ada","rank":1,"trips":3,"post":"camp"}]},"workshop":{"materials":{"clay":12,"iron":6,"crystal":2,"heartstone":0},"recipes":["iron-rails","sturdy-props","blasting-charge"]}}',
   borerPickMountain:
     '{"lastSeen":1700000000000,"mountain":{"remaining":215000000,"pocket":6000000,"helpers":28,"carts":5,"drills":2,"borers":1},"workshop":{"materials":{"clay":0,"iron":0,"crystal":0,"heartstone":0},"recipes":["iron-rails","sturdy-props","blasting-charge","reinforce","axle-grease"]}}',
   buysFit_longPocket:
@@ -397,12 +367,10 @@ const VISUAL_EXPECTED: Record<string, string> = {
     '{"mountain":{"remaining":190000000,"pocket":49999999,"helpers":999,"carts":999,"drills":999,"borers":999,"machines":999,"upgrades":{"boots":1,"cartSyn":1,"drillSyn":1,"borerSyn":1,"machineSyn":1}},"lastSeen":1700000000000}',
   buysFit_noBorers:
     '{"mountain":{"remaining":190000000,"pocket":49999999,"helpers":120,"carts":85,"drills":40,"borers":0},"lastSeen":1700000000000}',
-  boostedCrew:
-    '{"mountain":{"remaining":230700000,"pocket":9765,"helpers":51,"carts":24,"drills":6,"borers":2,"boosts":{"sharper":1700003600000,"overtime":1700003600000}},"lastSeen":1700000000000}',
   welcomeBack:
     '{"mountain":{"remaining":239000001,"pocket":180,"helpers":5,"carts":0},"lastSeen":1699999400000}',
   foundBelow:
-    '{"mountain":{"remaining":214000000,"pocket":100,"helpers":12,"carts":2,"drills":1,"borers":1,"machines":0,"kids":0,"finds":["pick","lamp","map","boots","drawing","watch","whistle","pebble","ribbon"]},"lastSeen":1700000000000}',
+    '{"mountain":{"remaining":214000000,"pocket":100,"helpers":12,"carts":2,"drills":1,"borers":1,"machines":0,"kids":0,"finds":["map","boots","drawing","watch","whistle","pebble","ribbon"]},"lastSeen":1700000000000}',
   fullShelf:
     '{"mountain":{"remaining":0,"pocket":0,"helpers":40,"carts":10,"drills":0,"borers":0,"machines":0,"kids":0},"lastSeen":1700000000000}',
   mantle:
@@ -411,7 +379,7 @@ const VISUAL_EXPECTED: Record<string, string> = {
   posts:
     '{"mountain":{"remaining":230700000,"pocket":9765,"helpers":51,"carts":24,"drills":6,"borers":2,"engineers":[{"name":"Ada","rank":1,"trips":3,"post":"borer"},{"name":"Nils","rank":0,"trips":0,"post":"camp"},{"name":"Ruth","rank":2,"trips":9,"post":"drill"},{"name":"Otto","rank":0,"trips":0,"post":"tunnel"},{"name":"Mae","rank":0,"trips":0,"post":"cart"}],"expeditions":[{"engineer":"Otto","tunnel":"old-shaft","sentAt":1700000000000,"returnsAt":1700002400000,"home":"camp","find":{"kind":"quiet"}}],"finds":["drawing","watch"]},"lastSeen":1700000000000}',
   toolHome:
-    '{"mountain":{"remaining":230700000,"pocket":9765,"helpers":20,"carts":1,"drills":1,"borers":1,"engineers":[{"name":"Ada","rank":0,"trips":0,"post":"tunnel"}],"expeditions":[{"engineer":"Ada","tunnel":"old-shaft","sentAt":1699994600000,"returnsAt":1699998200000,"home":"borer","find":{"kind":"tool","id":"pick"}}]},"lastSeen":1699992800000}',
+    '{"mountain":{"remaining":230700000,"pocket":9765,"helpers":20,"carts":1,"drills":1,"borers":1,"engineers":[{"name":"Ada","rank":0,"trips":0,"post":"tunnel"}],"expeditions":[{"engineer":"Ada","tunnel":"old-shaft","sentAt":1699994600000,"returnsAt":1699998200000,"home":"borer","find":{"kind":"tool","id":"map"}}]},"lastSeen":1699992800000}',
   firstCraft:
     '{"lastSeen":1700000000000,"mountain":{"remaining":228000000,"pocket":200000,"helpers":4,"carts":1,"startedAt":1699999999000},"workshop":{"materials":{"clay":10,"iron":1,"crystal":0,"heartstone":0},"recipes":["iron-rails","sturdy-props","blasting-charge","reinforce","axle-grease"]}}',
   chargePayoff:
@@ -442,7 +410,6 @@ const BUILDERS = [
   "fleetMountain",
   "shortMountain",
   "idleMountain",
-  "toolsMountain",
   "machineMountain",
   "heirMountain",
   "fullGraniteMountain",
@@ -460,7 +427,6 @@ function seeds(): Record<string, Seed> {
       mountain: { ...f.CREW, helpers: 3 },
       lastSeen: FIXED,
     },
-    boostedCrew: f.boostedCrewSave(),
     buysFit: f.buysFitSave({ helpers: 120, carts: 85, drills: 40 }),
     welcomeBack: f.welcomeBackSave(),
     foundBelow: f.foundBelowSave(),
@@ -474,10 +440,9 @@ function seeds(): Record<string, Seed> {
     notice: f.noticeSave({ mined: 9_999_999, lastSeen: FIXED }),
     crewSave: f.crewSave(1_234_567),
     effect0: f.effectSave(0),
-    effect3: f.effectSave(3),
-    effect12: f.effectSave(12),
+    effect1: f.effectSave(1),
+    effect9: f.effectSave(9),
     guard: f.guardSave(FIXED),
-    overtime: f.overtimeSave(),
     borerPick: f.borerPickMountain(),
     late: f.late(FIXED, 130_000_000),
     lateFull: f.late(FIXED, 240_000_000, { legacy: 2 }),
@@ -494,7 +459,7 @@ describe("fixtures values", () => {
     expect(f.SAVE_KEY).toBe(EXPECTED.SAVE_KEY);
   });
 
-  it("CREW keeps its import-time boosts", () => {
+  it("CREW is the compact crew", () => {
     expect(f.CREW).toEqual(EXPECTED.CREW);
   });
 
@@ -676,20 +641,16 @@ describe("the visual check's builders", () => {
       crewSave1234567: () => f.crewSave(1_234_567),
       effectSave0: () => f.effectSave(0),
       effectSave1: () => f.effectSave(1),
-      effectSave2: () => f.effectSave(2),
-      effectSave3: () => f.effectSave(3),
-      effectSave12: () => f.effectSave(12),
+      effectSave9: () => f.effectSave(9),
       guardNow: () => f.guardSave(FIXED),
       guardWelcome: () => f.guardSave(FIXED - 3 * 3_600_000),
       guardRemaining5: () => f.guardSave(FIXED, 5),
-      overtimeSave: () => f.overtimeSave(),
       borerPickMountain: () => f.borerPickMountain(),
       buysFit_longPocket: () =>
         f.buysFitSave({ helpers: 24, carts: 12, pocket: 888_888 }),
       buysFit_wide: () => f.buysFitSave(SYNERGIES),
       buysFit_noBorers: () =>
         f.buysFitSave({ helpers: 120, carts: 85, drills: 40, borers: 0 }),
-      boostedCrew: () => f.boostedCrewSave(),
       welcomeBack: () => f.welcomeBackSave(),
       foundBelow: () => f.foundBelowSave(),
       fullShelf: () => f.fullShelfSave(),
@@ -718,23 +679,23 @@ describe("the visual check's builders", () => {
 describe("the audit's and play's saves", () => {
   const EXPECTED_AUDIT: Record<string, string> = {
     late_rest:
-      '{"lastSeen":1700000000000,"mountain":{"remaining":110000000,"pocket":80000000,"helpers":80,"kids":4,"carts":24,"drills":8,"borers":3,"machines":2,"startedAt":1699913600000,"engineers":[{"name":"Ada","rank":0,"trips":0,"post":"machine"},{"name":"Nils","rank":0,"trips":0,"post":"drill"}],"upgrades":{"tap":3,"boots":1,"steady":1,"cartSyn":1},"finds":["pick","lamp","drawing"]},"workshop":{"materials":{"clay":40,"iron":28,"crystal":12,"heartstone":3},"recipes":["iron-rails","sturdy-props","blasting-charge","reinforce","axle-grease","diamond-bits","crystal-flare","crystal-lamp","engineers-kit","heartstone-core","heartstone-ember"]}}',
+      '{"lastSeen":1700000000000,"mountain":{"remaining":110000000,"pocket":80000000,"helpers":80,"kids":4,"carts":24,"drills":8,"borers":3,"machines":2,"startedAt":1699913600000,"engineers":[{"name":"Ada","rank":0,"trips":0,"post":"machine"},{"name":"Nils","rank":0,"trips":0,"post":"drill"}],"upgrades":{"boots":1,"cartSyn":1},"finds":["drawing"]},"workshop":{"materials":{"clay":40,"iron":28,"crystal":12,"heartstone":3},"recipes":["iron-rails","sturdy-props","blasting-charge","reinforce","axle-grease","diamond-bits","engineers-kit","heartstone-core","heartstone-ember"]}}',
     late_young:
-      '{"lastSeen":1700000000000,"mountain":{"remaining":220000000,"pocket":80000000,"helpers":80,"kids":0,"carts":24,"drills":8,"borers":3,"machines":0,"startedAt":1699913600000,"engineers":[{"name":"Ada","rank":0,"trips":0,"post":"borer"},{"name":"Nils","rank":0,"trips":0,"post":"drill"}],"upgrades":{"tap":3,"boots":1,"steady":1,"cartSyn":1},"finds":["pick","lamp","drawing"]},"workshop":{"materials":{"clay":40,"iron":28,"crystal":12,"heartstone":3},"recipes":["iron-rails","sturdy-props","blasting-charge","reinforce","axle-grease","diamond-bits","crystal-flare","crystal-lamp","engineers-kit","heartstone-core","heartstone-ember"]}}',
+      '{"lastSeen":1700000000000,"mountain":{"remaining":220000000,"pocket":80000000,"helpers":80,"kids":0,"carts":24,"drills":8,"borers":3,"machines":0,"startedAt":1699913600000,"engineers":[{"name":"Ada","rank":0,"trips":0,"post":"borer"},{"name":"Nils","rank":0,"trips":0,"post":"drill"}],"upgrades":{"boots":1,"cartSyn":1},"finds":["drawing"]},"workshop":{"materials":{"clay":40,"iron":28,"crystal":12,"heartstone":3},"recipes":["iron-rails","sturdy-props","blasting-charge","reinforce","axle-grease","diamond-bits","engineers-kit","heartstone-core","heartstone-ember"]}}',
     late_built:
-      '{"lastSeen":1700000000000,"mountain":{"remaining":210000000,"pocket":80000000,"helpers":80,"kids":0,"carts":24,"drills":8,"borers":3,"machines":0,"startedAt":1699913600000,"engineers":[{"name":"Ada","rank":0,"trips":0,"post":"machine"},{"name":"Nils","rank":0,"trips":0,"post":"drill"}],"upgrades":{"tap":3,"boots":1,"steady":1,"cartSyn":1},"finds":["pick","lamp","drawing"]},"workshop":{"materials":{"clay":40,"iron":28,"crystal":12,"heartstone":3},"recipes":["iron-rails","sturdy-props","blasting-charge","reinforce","axle-grease","diamond-bits","crystal-flare","crystal-lamp","engineers-kit","heartstone-core","heartstone-ember"]}}',
+      '{"lastSeen":1700000000000,"mountain":{"remaining":210000000,"pocket":80000000,"helpers":80,"kids":0,"carts":24,"drills":8,"borers":3,"machines":0,"startedAt":1699913600000,"engineers":[{"name":"Ada","rank":0,"trips":0,"post":"machine"},{"name":"Nils","rank":0,"trips":0,"post":"drill"}],"upgrades":{"boots":1,"cartSyn":1},"finds":["drawing"]},"workshop":{"materials":{"clay":40,"iron":28,"crystal":12,"heartstone":3},"recipes":["iron-rails","sturdy-props","blasting-charge","reinforce","axle-grease","diamond-bits","engineers-kit","heartstone-core","heartstone-ember"]}}',
     late_edgeBuilt:
-      '{"lastSeen":1700000000000,"mountain":{"remaining":215000000,"pocket":80000000,"helpers":80,"kids":0,"carts":24,"drills":8,"borers":3,"machines":2,"startedAt":1699913600000,"engineers":[{"name":"Ada","rank":0,"trips":0,"post":"machine"},{"name":"Nils","rank":0,"trips":0,"post":"drill"}],"upgrades":{"tap":3,"boots":1,"steady":1,"cartSyn":1},"finds":["pick","lamp","drawing"]},"workshop":{"materials":{"clay":40,"iron":28,"crystal":12,"heartstone":3},"recipes":["iron-rails","sturdy-props","blasting-charge","reinforce","axle-grease","diamond-bits","crystal-flare","crystal-lamp","engineers-kit","heartstone-core","heartstone-ember"]}}',
+      '{"lastSeen":1700000000000,"mountain":{"remaining":215000000,"pocket":80000000,"helpers":80,"kids":0,"carts":24,"drills":8,"borers":3,"machines":2,"startedAt":1699913600000,"engineers":[{"name":"Ada","rank":0,"trips":0,"post":"machine"},{"name":"Nils","rank":0,"trips":0,"post":"drill"}],"upgrades":{"boots":1,"cartSyn":1},"finds":["drawing"]},"workshop":{"materials":{"clay":40,"iron":28,"crystal":12,"heartstone":3},"recipes":["iron-rails","sturdy-props","blasting-charge","reinforce","axle-grease","diamond-bits","engineers-kit","heartstone-core","heartstone-ember"]}}',
     late_edgeDeep:
-      '{"lastSeen":1700000000000,"mountain":{"remaining":170000000,"pocket":80000000,"helpers":80,"kids":4,"carts":24,"drills":8,"borers":3,"machines":2,"startedAt":1699913600000,"engineers":[{"name":"Ada","rank":0,"trips":0,"post":"machine"},{"name":"Nils","rank":0,"trips":0,"post":"drill"}],"upgrades":{"tap":3,"boots":1,"steady":1,"cartSyn":1},"finds":["pick","lamp","drawing"]},"workshop":{"materials":{"clay":40,"iron":28,"crystal":12,"heartstone":3},"recipes":["iron-rails","sturdy-props","blasting-charge","reinforce","axle-grease","diamond-bits","crystal-flare","crystal-lamp","engineers-kit","heartstone-core","heartstone-ember"]}}',
+      '{"lastSeen":1700000000000,"mountain":{"remaining":170000000,"pocket":80000000,"helpers":80,"kids":4,"carts":24,"drills":8,"borers":3,"machines":2,"startedAt":1699913600000,"engineers":[{"name":"Ada","rank":0,"trips":0,"post":"machine"},{"name":"Nils","rank":0,"trips":0,"post":"drill"}],"upgrades":{"boots":1,"cartSyn":1},"finds":["drawing"]},"workshop":{"materials":{"clay":40,"iron":28,"crystal":12,"heartstone":3},"recipes":["iron-rails","sturdy-props","blasting-charge","reinforce","axle-grease","diamond-bits","engineers-kit","heartstone-core","heartstone-ember"]}}',
     late_full:
-      '{"lastSeen":1700000000000,"mountain":{"remaining":0,"pocket":80000000,"helpers":80,"kids":4,"carts":24,"drills":8,"borers":3,"machines":2,"startedAt":1699913600000,"engineers":[{"name":"Ada","rank":0,"trips":0,"post":"machine"},{"name":"Nils","rank":0,"trips":0,"post":"drill"}],"upgrades":{"tap":3,"boots":1,"steady":1,"cartSyn":1},"finds":["pick","lamp","drawing"],"legacy":2},"workshop":{"materials":{"clay":40,"iron":28,"crystal":12,"heartstone":3},"recipes":["iron-rails","sturdy-props","blasting-charge","reinforce","axle-grease","diamond-bits","crystal-flare","crystal-lamp","engineers-kit","heartstone-core","heartstone-ember"]}}',
+      '{"lastSeen":1700000000000,"mountain":{"remaining":0,"pocket":80000000,"helpers":80,"kids":4,"carts":24,"drills":8,"borers":3,"machines":2,"startedAt":1699913600000,"engineers":[{"name":"Ada","rank":0,"trips":0,"post":"machine"},{"name":"Nils","rank":0,"trips":0,"post":"drill"}],"upgrades":{"boots":1,"cartSyn":1},"finds":["drawing"],"legacy":2},"workshop":{"materials":{"clay":40,"iron":28,"crystal":12,"heartstone":3},"recipes":["iron-rails","sturdy-props","blasting-charge","reinforce","axle-grease","diamond-bits","engineers-kit","heartstone-core","heartstone-ember"]}}',
     late_both:
-      '{"lastSeen":1699999995000,"mountain":{"remaining":200000000,"pocket":80000000,"helpers":65,"kids":0,"carts":24,"drills":8,"borers":3,"machines":2,"startedAt":1699913595000,"engineers":[{"name":"Ada","rank":0,"trips":0,"post":"machine"},{"name":"Nils","rank":0,"trips":0,"post":"drill"}],"upgrades":{"tap":3,"boots":1,"steady":1,"cartSyn":1},"finds":["pick","lamp","drawing"]},"workshop":{"materials":{"clay":40,"iron":28,"crystal":12,"heartstone":3},"recipes":["iron-rails","sturdy-props","blasting-charge","reinforce","axle-grease","diamond-bits","crystal-flare","crystal-lamp","engineers-kit","heartstone-core","heartstone-ember"],"bench":{"recipe":"sturdy-props","startedAt":1699999999000,"endsAt":1700000001000}}}',
+      '{"lastSeen":1699999995000,"mountain":{"remaining":200000000,"pocket":80000000,"helpers":65,"kids":0,"carts":24,"drills":8,"borers":3,"machines":2,"startedAt":1699913595000,"engineers":[{"name":"Ada","rank":0,"trips":0,"post":"machine"},{"name":"Nils","rank":0,"trips":0,"post":"drill"}],"upgrades":{"boots":1,"cartSyn":1},"finds":["drawing"]},"workshop":{"materials":{"clay":40,"iron":28,"crystal":12,"heartstone":3},"recipes":["iron-rails","sturdy-props","blasting-charge","reinforce","axle-grease","diamond-bits","engineers-kit","heartstone-core","heartstone-ember"],"bench":{"recipe":"sturdy-props","startedAt":1699999999000,"endsAt":1700000001000}}}',
     late_quiet:
-      '{"lastSeen":1700000000000,"mountain":{"remaining":220000000,"pocket":2000000,"helpers":8,"kids":0,"carts":2,"drills":0,"borers":0,"machines":0,"startedAt":1699913600000},"workshop":{"materials":{"clay":1,"iron":2,"crystal":3,"heartstone":4},"recipes":["iron-rails","sturdy-props","blasting-charge","reinforce","axle-grease","diamond-bits","crystal-flare","crystal-lamp","engineers-kit","heartstone-core","heartstone-ember"]}}',
+      '{"lastSeen":1700000000000,"mountain":{"remaining":220000000,"pocket":2000000,"helpers":8,"kids":0,"carts":2,"drills":0,"borers":0,"machines":0,"startedAt":1699913600000},"workshop":{"materials":{"clay":1,"iron":2,"crystal":3,"heartstone":4},"recipes":["iron-rails","sturdy-props","blasting-charge","reinforce","axle-grease","diamond-bits","engineers-kit","heartstone-core","heartstone-ember"]}}',
     late_quiet2:
-      '{"lastSeen":1699999999993,"mountain":{"remaining":220000000,"pocket":20,"helpers":0,"kids":0,"carts":0,"drills":0,"borers":0,"machines":0,"startedAt":1699913599993},"workshop":{"materials":{"clay":40,"iron":28,"crystal":12,"heartstone":3},"recipes":["iron-rails","sturdy-props","blasting-charge","reinforce","axle-grease","diamond-bits","crystal-flare","crystal-lamp","engineers-kit","heartstone-core","heartstone-ember"]}}',
+      '{"lastSeen":1699999999993,"mountain":{"remaining":220000000,"pocket":20,"helpers":0,"kids":0,"carts":0,"drills":0,"borers":0,"machines":0,"startedAt":1699913599993},"workshop":{"materials":{"clay":40,"iron":28,"crystal":12,"heartstone":3},"recipes":["iron-rails","sturdy-props","blasting-charge","reinforce","axle-grease","diamond-bits","engineers-kit","heartstone-core","heartstone-ember"]}}',
     quietBare:
       '{"helpers":8,"kids":0,"carts":2,"drills":0,"borers":0,"machines":0}',
     quietExtra:

@@ -14,7 +14,6 @@ import {
   axleCrewMultiplier,
   recipeById,
   recipePrice,
-  recipeWindowMs,
   troubleGapScale,
   COLD_CLOCKS,
   NOTHING_CRAFTED,
@@ -86,7 +85,6 @@ function reading(factorId: string): number {
       clocks: {
         ...COLD_CLOCKS,
         "blasting-charge": 10_000,
-        "crystal-flare": 10_000,
         "heartstone-ember": 10_000,
       },
     };
@@ -100,9 +98,6 @@ function reading(factorId: string): number {
         return expeditionCraftScale(geared);
       case "charge":
         return chargeCrewMultiplier(geared, 0);
-      case "flare":
-        // With the veins gone (#728) its strength only stretches its hour.
-        return recipeWindowMs(id) ?? 0;
       case "ember":
         return emberMachineMultiplier(geared, 0);
       case "reinforce":

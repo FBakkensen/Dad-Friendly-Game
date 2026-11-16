@@ -82,15 +82,12 @@ describe("snapshot", () => {
       crewSpeed: rates.crewPerSecond,
       idle: { cart: 0, hoist: 0, drill: 0, borer: 0, train: 0, machine: 0 },
       upgrades: {
-        tap: 0,
         boots: 0,
-        steady: 0,
         cartSyn: 0,
         drillSyn: 0,
         borerSyn: 0,
         machineSyn: 0,
       },
-      boosts: [],
       legacy: 0,
       engineers: [],
       expeditions: [],
@@ -98,7 +95,7 @@ describe("snapshot", () => {
     expect(JSON.parse(JSON.stringify(shot))).toEqual(shot);
   });
 
-  it("counts the crew, idle machines, upgrades, running boosts, and legacy", () => {
+  it("counts the crew, idle machines, upgrades, and legacy", () => {
     const mountain: Mountain = {
       ...createMountain(),
       remaining: MOUNTAIN_STONES - 1_000_000,
@@ -110,8 +107,7 @@ describe("snapshot", () => {
         drill: 2,
         kid: 2,
       },
-      upgrades: { ...NO_UPGRADES, tap: 2 },
-      boosts: { sharper: AT + 60_000, overtime: AT - 1 },
+      upgrades: { ...NO_UPGRADES, boots: 1 },
       legacy: 3,
       engineers: [{ name: "Ada", rank: 1, trips: 3, post: "borer" }],
       expeditions: [
@@ -151,11 +147,8 @@ describe("snapshot", () => {
       train: 0,
       machine: 0,
     });
-    expect(shot.upgrades.tap).toBe(2);
-    expect(shot.upgrades.boots).toBe(0);
-    expect(shot.boosts).toEqual([
-      { id: "sharper", endsAt: new Date(AT + 60_000).toISOString() },
-    ]);
+    expect(shot.upgrades.boots).toBe(1);
+    expect(shot.upgrades.cartSyn).toBe(0);
     expect(shot.legacy).toBe(3);
     // Away on the trip below, so the log reads the saved post.
     expect(shot.engineers).toEqual([{ name: "Ada", rank: 1, post: "tunnel" }]);
@@ -462,15 +455,11 @@ describe("fieldEntry", () => {
       code: "tier.buy",
       data: { id: "cart", count: 3 },
     });
-    expect(fieldEntry({ kind: "upgradeBought", id: "tap", level: 2 })).toEqual({
-      code: "upgrade.buy",
-      data: { id: "tap", count: 2 },
-    });
     expect(
-      fieldEntry({ kind: "boostStarted", id: "sharper", endsAt: AT }),
+      fieldEntry({ kind: "upgradeBought", id: "boots", level: 1 }),
     ).toEqual({
-      code: "boost.start",
-      data: { id: "sharper", endsAt: "2026-01-02T03:04:05.000Z" },
+      code: "upgrade.buy",
+      data: { id: "boots", count: 1 },
     });
     expect(fieldEntry({ kind: "craftStarted", recipe: "iron-rails" })).toEqual({
       code: "craft.start",

@@ -17,8 +17,7 @@ import { layerOf } from "./layers";
 import { stonesLeft, stonesToNextBand } from "./scale";
 import { TIERS, tierById, tierInPlay, tierShown, type TierId } from "./tiers";
 import { UPGRADES, buyUpgrade } from "./upgrades";
-import { upgradeShown, boostShown } from "./upgrade-reveal";
-import { BOOSTS, buyBoost } from "./boosts";
+import { upgradeShown } from "./upgrade-reveal";
 import { promote } from "./engineers";
 import { workshopUnlocked } from "./workshop";
 
@@ -226,36 +225,18 @@ describe("machines open by where they open, and nothing else (rule 1's table, ru
 });
 
 describe("what leaves the rules at part 1 (What goes)", () => {
-  it("takes out Strong arms and Night foreman, and keeps Work boots and the machine upgrades", () => {
+  it("keeps Work boots and the machine upgrades", () => {
     fresh(() => {
       const crew = owning({ helper: 40, cart: 10, hoist: 5, drill: 10 });
       const shown = UPGRADES.filter((upgrade) =>
         upgradeShown(crew, upgrade),
       ).map((upgrade) => upgrade.id);
       expect(shown).toEqual(["boots", "cartSyn", "drillSyn"]);
-      expect(buyUpgrade(crew, "tap")).toBe(crew);
-      expect(buyUpgrade(crew, "steady")).toBe(crew);
       expect(buyUpgrade(crew, "boots")).not.toBe(crew);
       const offered = listActions(crew, 0).flatMap((action) =>
         action.kind === "buyUpgrade" ? [action.id] : [],
       );
       expect(offered).toEqual(["boots", "cartSyn", "drillSyn"]);
-    });
-  });
-
-  it("takes out Sharper picks and Overtime", () => {
-    fresh(() => {
-      const crew = owning({ helper: 40, cart: 10, hoist: 5, drill: 10 });
-      for (const boost of BOOSTS) {
-        expect(boostShown(crew, boost)).toBe(false);
-        const pricing = effectiveRates(crew);
-        expect(
-          buyBoost({ mountain: crew, id: boost.id, now: 0, pricing }),
-        ).toBe(crew);
-      }
-      expect(
-        listActions(crew, 0).some((action) => action.kind === "buyBoost"),
-      ).toBe(false);
     });
   });
 

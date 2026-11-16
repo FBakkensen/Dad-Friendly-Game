@@ -360,7 +360,6 @@ function isCrewBuy(move: Move | undefined): boolean {
   switch (move?.kind) {
     case "buyTier":
     case "buyUpgrade":
-    case "buyBoost":
     case "craft":
       return true;
     default:
@@ -370,7 +369,7 @@ function isCrewBuy(move: Move | undefined): boolean {
 
 /**
  * Moves with a price. A shown price is what it costs (#367); every buy of a
- * machine or a boost costs stones. A craft may cost only materials.
+ * machine costs stones. A craft may cost only materials.
  */
 function priceOf(move: Move | undefined): number | "some" | undefined {
   switch (move?.kind) {
@@ -378,7 +377,6 @@ function priceOf(move: Move | undefined): number | "some" | undefined {
     case "promote":
       return priceAmount(move.price, "stones");
     case "buyTier":
-    case "buyBoost":
     case "buyVehicle":
       return "some";
     default:

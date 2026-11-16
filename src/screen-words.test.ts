@@ -37,7 +37,6 @@ import {
   TONIGHT_LEGEND,
   awayDugLine,
   benchStartedLine,
-  boostStartedLine,
   cameHomeLine,
   signedInWords,
   tierBuyLine,
@@ -109,7 +108,6 @@ import {
   exploreCheer,
   exploreTitle,
   homeCheer,
-  boostOutcome,
   promoteCheer,
   promoteConfirm,
   promoteNeeds,
@@ -374,37 +372,6 @@ describe("engineer words", () => {
     expect(PROMOTE_STEP_UP).toBe("Step up");
   });
 
-  it("states a boost's output in stones", () => {
-    // Sharper picks has no tap to count since the dig went (#728).
-    expect(
-      boostOutcome(
-        "sharper",
-        "Taps mine ×2 for 10 minutes.",
-        2,
-        { crewPerSecond: 10 },
-        false,
-      ),
-    ).toBe("Taps mine ×2 for 10 minutes.");
-    expect(
-      boostOutcome(
-        "overtime",
-        "Your crew mines ×2 for 30 minutes while you play.",
-        2,
-        { crewPerSecond: 400 },
-        false,
-      ),
-    ).toBe("Your crew mines ×2 for 30 minutes while you play. 800/s.");
-    expect(
-      boostOutcome(
-        "overtime",
-        "Your crew mines ×2 for 30 minutes while you play.",
-        2,
-        { crewPerSecond: 800 },
-        true,
-      ),
-    ).toBe("Your crew mines ×2 for 30 minutes while you play. 800/s.");
-  });
-
   it("counts an expedition down in words, never a clock", () => {
     const hour = 60 * 60_000;
     expect(expeditionChip("Ada", 4 * hour)).toBe(
@@ -438,12 +405,6 @@ describe("engineer words", () => {
   });
 
   it("says who came back and names the find, with no numbers", () => {
-    expect(cameBack("Ada", "old-shaft", { kind: "tool", id: "pick" })).toBe(
-      "Ada came back from the old shaft with Grandfather's pick. Taps bite deeper.",
-    );
-    expect(cameBack("Ada", "side-seam", { kind: "tool", id: "lamp" })).toBe(
-      "Ada came back from a side seam with an old miner's lamp. Golden veins linger.",
-    );
     expect(cameBack("Nils", "deep-dark", { kind: "tool", id: "map" })).toBe(
       "Nils came back from the deep dark with a worn map. Trips come home sooner.",
     );
@@ -481,12 +442,12 @@ describe("engineer words", () => {
     ).toBe(
       "Ada came back from the deep dark. The lost engineer had already found a place.",
     );
-    const sketch = cameBack("Nils", "old-shaft", {
+    const sketch = cameBack("Nils", "deep-dark", {
       kind: "recipe",
-      id: "crystal-lamp",
+      id: "engineers-kit",
     });
     expect(sketch).toBe(
-      "Nils came back from the old shaft with a sketch folded in a pocket.",
+      "Nils came back from the deep dark with a sketch folded in a pocket.",
     );
     expect(sketch).not.toMatch(/[0-9?]|lamp|kit|crystal|iron/i);
     expect(
@@ -523,10 +484,11 @@ describe("lost tools and keepsakes (#148)", () => {
 
   it("reads keepsakes the engineers brought home, and skips lost tools", () => {
     expect(keepsakesBroughtHome(undefined)).toEqual([]);
-    expect(keepsakesBroughtHome(["pick", "lamp"])).toEqual([]);
-    expect(keepsakesBroughtHome(["pick", "drawing", "boots", "watch"])).toEqual(
-      ["drawing", "watch"],
-    );
+    expect(keepsakesBroughtHome(["map", "boots"])).toEqual([]);
+    expect(keepsakesBroughtHome(["map", "drawing", "boots", "watch"])).toEqual([
+      "drawing",
+      "watch",
+    ]);
     expect(broughtHomeNames(["drawing", "watch"])).toBe(
       "A child's drawing, A pocket watch",
     );
@@ -741,13 +703,6 @@ describe("upgrade card before and after (#324)", () => {
   const line = (id: UpgradeId, mountain: Mountain): string =>
     upgradeEffectLine(upgradeById(id), mountain, at);
 
-  it("Night foreman says away pay before and after, bought or not", () => {
-    expect(line("steady", crew)).toBe("Away pay 30% to 37.5%.");
-    expect(
-      line("steady", { ...crew, upgrades: { ...NO_UPGRADES, steady: 1 } }),
-    ).toBe("Away pay 30% to 37.5%.");
-  });
-
   it("a synergy says one boosted machine's speed before and after, bought or not", () => {
     expect(line("cartSyn", crew)).toBe("Carts 6/s to 6.7/s.");
     expect(
@@ -775,12 +730,11 @@ describe("upgrade card before and after (#324)", () => {
     expect(line("boots", crew)).toBe("Workers 1/s to 2.4/s.");
   });
 
-  it("no upgrade says taps, and Strong arms says nothing, since the dig went (#728)", () => {
+  it("no upgrade says taps, since the dig went (#728)", () => {
     const deep = {
       ...crew,
       owned: { ...crew.owned, helper: 200, borer: 3, machine: 1 },
     };
-    expect(line("tap", deep)).toBe("");
     for (const upgrade of Object.values(UPGRADES)) {
       const maxed = {
         ...deep,
@@ -925,8 +879,7 @@ describe("the Ledger's words (#375)", () => {
       tierBuyLine("cart", 3),
       tierBuyLine("machine", 1),
       tierBuyLine("helper", 12_345),
-      upgradeLevelLine("Strong arms", 3),
-      boostStartedLine("Overtime", 30 * 60_000),
+      upgradeLevelLine("Work boots", 1),
       benchStartedLine("Iron rails"),
       awayDugLine(1_234_567),
       cameHomeLine("Ada"),
@@ -937,8 +890,7 @@ describe("the Ledger's words (#375)", () => {
       "Bought mine cart 3.",
       "Bought Great Machine 1.",
       "Hired worker 12,345.",
-      "Strong arms, level 3.",
-      "Overtime started for 30:00.",
+      "Work boots, level 1.",
       "Iron rails went on the bench.",
       "Came back. The crew dug 1.2M while you were away.",
       "Ada came home.",
@@ -975,9 +927,6 @@ describe("boostOverWords (#527)", () => {
     );
     expect(crewMinesWords(154_197)).toBe("Your crew mines 154.1K stones/s");
     expect(crewMinesWords(586.9)).toBe("Your crew mines 586 stones a second");
-    expect(boostOverWords("Overtime", 586)).toBe(
-      "Overtime over.\nYour crew mines 586 stones a second now.",
-    );
     expect(boostOverWords("Axle grease", 1)).toBe(
       "Axle grease over.\nYour crew mines 1 stone a second now.",
     );

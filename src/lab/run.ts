@@ -1,4 +1,4 @@
-import { applyAction, buyEveryBoost, type Action } from "../economy/actions";
+import { applyAction, type Action } from "../economy/actions";
 import {
   ENGINEER_POSTS,
   onTrip,
@@ -252,10 +252,7 @@ function playSecond(
   if (policy.fresh !== undefined && freshMineOn()) {
     return playFreshSecond(world, policy.fresh, params, buys);
   }
-  let mountain =
-    params.boosts === "always"
-      ? buyEveryBoost(world.mountain, world.clock)
-      : world.mountain;
+  let mountain = world.mountain;
   // On the line she is weighed post by post, so only as he sits down and
   // after a staffed buy (tendsAfter), not every second.
   if (params.tend === "best" && (second === 0 || !lineOn())) {
@@ -309,7 +306,7 @@ function isBuy(action: Action): action is Buy {
 
 /**
  * A second in a fresh mine (#655): the mine works, then part 1's dad plays
- * his plans. No taps, engineers, tunnels or boosts: part 1 has none.
+ * his plans. No engineers or tunnels: part 1 has none.
  */
 function playFreshSecond(
   world: World,

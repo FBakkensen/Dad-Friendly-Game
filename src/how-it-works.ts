@@ -1,4 +1,3 @@
-import { BOOSTS, type Boost } from "./boosts";
 import {
   JOURNEYMAN_TRIPS,
   MASTER_TRIPS,
@@ -13,7 +12,7 @@ import { ENGINEER_FIX_MS, FIX_TAPS } from "./hazards";
 import { LAYERS } from "./layers";
 import { AWAY_PAY_RATE, AWAY_END_MS, LEGACY_STEP } from "./rates";
 import { tierById } from "./tiers";
-import { STEADY_AWAY_PER_LEVEL, UPGRADES } from "./upgrades";
+import { UPGRADES } from "./upgrades";
 import { recipeById } from "./workshop";
 
 /**
@@ -50,7 +49,7 @@ export type HowItWorks = {
   readonly title: string;
   /** One line for the reveal: the note, or the sheet's intro. */
   readonly reveal: string;
-  /** Three or four lines, one icon each. One screen, no scroll. */
+  /** Three or four lines (Time away two, #728), one icon each. One screen, no scroll. */
   readonly steps: readonly HowStep[];
 };
 
@@ -59,7 +58,6 @@ export const HOW_SYSTEMS = [
   "machines",
   "staffing",
   "upgrades",
-  "boosts",
   "engineers",
   "tending",
   "expeditions",
@@ -81,16 +79,6 @@ const cart = tierById("cart");
 const drill = tierById("drill");
 const borer = tierById("borer");
 const machine = tierById("machine");
-const boost = (id: Boost["id"]): Boost => {
-  const found = BOOSTS.find((item) => item.id === id);
-  /* v8 ignore next 3 -- both ids are in BOOSTS */
-  if (found === undefined) {
-    throw new Error(`No boost ${id}`);
-  }
-  return found;
-};
-const sharper = boost("sharper");
-const overtime = boost("overtime");
 const granite = LAYERS[1];
 const firstUpgrade = Math.min(...UPGRADES.map((item) => item.firstCost));
 const shortTunnel = TUNNELS[0];
@@ -104,7 +92,7 @@ const greaseMs = grease.effect.kind === "axle" ? grease.effect.durationMs : 0;
 const chargeMs = charge.effect.kind === "charge" ? charge.effect.durationMs : 0;
 const tend = (rank: 0 | 1 | 2): string => String(TENDING_TENTHS[rank] * 10);
 
-const boostLine =
+const crewTimerLine =
   chargeMs === greaseMs
     ? `A blasting charge or axle grease doubles the crew for ${formatDuration(chargeMs)}.`
     : `A blasting charge doubles the crew for ${formatDuration(chargeMs)}, axle grease for ${formatDuration(greaseMs)}.`;
@@ -181,8 +169,8 @@ function crewCards({
   };
 }
 
-/** What stones buy for good or for a while. */
-function spendCards({ oneOffStones }: Prices): Cards<"upgrades" | "boosts"> {
+/** What stones buy for good. */
+function spendCards({ oneOffStones }: Prices): Cards<"upgrades"> {
   return {
     upgrades: {
       title: "Upgrades",
@@ -197,18 +185,6 @@ function spendCards({ oneOffStones }: Prices): Cards<"upgrades" | "boosts"> {
           "Some wait until your crew grows. They show up when ready.",
         ],
         ["pick", "Each card says exactly what it does before you buy."],
-      ],
-    },
-    boosts: {
-      title: "Boosts",
-      reveal: "A boost gives the crew a short, big push.",
-      steps: [
-        ["pick", `${sharper.name}: ${sharper.effect}`],
-        ["helper-miner", `${overtime.name}: ${overtime.effect}`],
-        [
-          "stone",
-          "Its timer shows on top while it runs. Buy it again once it ends.",
-        ],
       ],
     },
   };
@@ -322,7 +298,7 @@ function depthCards(): Cards<"layers" | "materials" | "workshop" | "recipes"> {
       reveal: "Turn your clay into gear for the crew.",
       steps: [
         ["pick", "Pick a recipe. The bench makes one at a time."],
-        ["ore-lump", boostLine],
+        ["ore-lump", crewTimerLine],
         [
           "upgrades-icon",
           `Reinforce makes a machine ${percent(reinforcePerLevel)} faster a level, up to ${String(reinforce.maxLevel ?? 1)} levels.`,
@@ -362,10 +338,6 @@ function endCards(): Cards<"away" | "legacy"> {
         [
           "stone",
           `They dig hard, then ease off, and rest after ${formatDuration(AWAY_END_MS)}.`,
-        ],
-        [
-          "upgrades-icon",
-          `Night foreman makes time away pay ${percent(STEADY_AWAY_PER_LEVEL)} more.`,
         ],
       ],
     },

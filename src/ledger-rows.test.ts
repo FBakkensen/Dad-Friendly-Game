@@ -48,15 +48,10 @@ describe("tonightText words each event the field log keeps (#375)", () => {
     );
   });
 
-  it("words an upgrade's level and a boost's length", () => {
-    expect(text("upgrade.buy", { id: "tap", count: 3 })).toBe(
-      "Strong arms, level 3.",
+  it("words an upgrade's level", () => {
+    expect(text("upgrade.buy", { id: "boots", count: 1 })).toBe(
+      "Work boots, level 1.",
     );
-    const start = event("boost.start", {
-      id: "overtime",
-      endsAt: new Date(Date.parse(event("x").at) + 30 * 60_000).toISOString(),
-    });
-    expect(tonightText(start)).toBe("Overtime started for 30:00.");
   });
 
   it("words a craft started and fitted", () => {
@@ -127,15 +122,10 @@ describe("tonightText words each event the field log keeps (#375)", () => {
     expect(text("tier.buy", { id: "cart", count: Number.NaN })).toBe(undefined);
     expect(text("tier.buy", { count: 1 })).toBe(undefined);
     expect(text("upgrade.buy", { id: "jetpack", count: 1 })).toBe(undefined);
-    expect(text("upgrade.buy", { id: "tap", count: 0 })).toBe(undefined);
-    expect(text("boost.start", { id: "nap", endsAt: event("x").at })).toBe(
-      undefined,
-    );
-    expect(text("boost.start", { id: "overtime" })).toBe(undefined);
-    expect(text("boost.start", { id: "overtime", endsAt: "soon" })).toBe(
-      undefined,
-    );
-    expect(text("boost.start", { id: "overtime", endsAt: event("x").at })).toBe(
+    expect(text("upgrade.buy", { id: "boots", count: 0 })).toBe(undefined);
+    // An older build's boost line has nothing left to word (#728).
+    const later = new Date(Date.parse(event("x").at) + 60_000).toISOString();
+    expect(text("boost.start", { id: "overtime", endsAt: later })).toBe(
       undefined,
     );
     expect(text("craft.start", { id: "jet-boots" })).toBe(undefined);
@@ -175,13 +165,13 @@ describe("tonightLines (#375)", () => {
       event("tier.buy", { id: "helper", count: 2 }, 21, 5),
       event("tier.buy", { id: "cart", count: 1 }, 21, 9),
       event("crew.staff", { count: 1 }, 21, 10),
-      event("upgrade.buy", { id: "tap", count: 2 }, 22, 3),
+      event("upgrade.buy", { id: "boots", count: 1 }, 22, 3),
       event("trouble.fix", { id: "cart" }, 7, 5),
     ];
     expect(TONIGHT_LINES).toBe(3);
     expect(tonightLines(events)).toEqual([
       { time: "07:05", text: "Fixed! The crew cheers." },
-      { time: "22:03", text: "Strong arms, level 2." },
+      { time: "22:03", text: "Work boots, level 1." },
       { time: "21:09", text: "Bought mine cart 1." },
     ]);
   });

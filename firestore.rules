@@ -123,10 +123,8 @@ service cloud.firestore {
 
     function isFieldUpgrades(upgrades) {
       return upgrades is map &&
-        upgrades.keys().hasOnly(['tap', 'boots', 'steady', 'cartSyn', 'drillSyn', 'borerSyn', 'machineSyn']) &&
-        (!('tap' in upgrades) || (upgrades.tap is int && upgrades.tap >= 0 && upgrades.tap <= 10)) &&
+        upgrades.keys().hasOnly(['boots', 'cartSyn', 'drillSyn', 'borerSyn', 'machineSyn']) &&
         (!('boots' in upgrades) || (upgrades.boots is int && upgrades.boots >= 0 && upgrades.boots <= 1)) &&
-        (!('steady' in upgrades) || (upgrades.steady is int && upgrades.steady >= 0 && upgrades.steady <= 1)) &&
         (!('cartSyn' in upgrades) || (upgrades.cartSyn is int && upgrades.cartSyn >= 0 && upgrades.cartSyn <= 1)) &&
         (!('drillSyn' in upgrades) || (upgrades.drillSyn is int && upgrades.drillSyn >= 0 && upgrades.drillSyn <= 1)) &&
         (!('borerSyn' in upgrades) || (upgrades.borerSyn is int && upgrades.borerSyn >= 0 && upgrades.borerSyn <= 1)) &&
@@ -144,21 +142,6 @@ service cloud.firestore {
     // Idle machines by machine id, held the same way.
     function isIdleCounts(idle) {
       return idle is map && idle.size() <= 16;
-    }
-
-    function isFieldBoost(boost) {
-      return boost is map &&
-        boost.keys().hasOnly(['endsAt', 'id']) &&
-        boost.id in ['sharper', 'overtime'] &&
-        isIsoText(boost.endsAt);
-    }
-
-    // The second boost's shape, beside a full shelf and a full crew, crosses
-    // the 1000-expression budget. The list is capped at 2. The first boost
-    // carries the shape check.
-    function isFieldBoostList(boosts) {
-      return boosts is list && boosts.size() <= 2 &&
-        (boosts.size() < 1 || isFieldBoost(boosts[0]));
     }
 
     // A full name/post/rank check, on top of the snapshot and the first event,
@@ -184,11 +167,10 @@ service cloud.firestore {
 
     function isFieldSnapshot(shot) {
       return shot is map &&
-        shot.keys().hasOnly(['at', 'boosts', 'crew', 'crewSpeed', 'deviceId', 'engineers', 'expeditions', 'idle', 'left', 'legacy', 'mined', 'pocket', 'rev', 'upgrades', 'version']) &&
+        shot.keys().hasOnly(['at', 'crew', 'crewSpeed', 'deviceId', 'engineers', 'expeditions', 'idle', 'left', 'legacy', 'mined', 'pocket', 'rev', 'upgrades', 'version']) &&
         isIsoText(shot.at) &&
         shot.deviceId is string &&
         shot.rev is int &&
-        isFieldBoostList(shot.boosts) &&
         isCrewCounts(shot.crew) &&
         shot.crewSpeed is number && shot.crewSpeed >= 0 && shot.crewSpeed <= 1000000000 &&
         (!('engineers' in shot) || isFieldEngineers(shot.engineers)) &&

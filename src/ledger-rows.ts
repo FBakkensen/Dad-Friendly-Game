@@ -1,5 +1,4 @@
 import type { AuthState } from "./auth";
-import { BOOSTS } from "./boosts";
 import { ENGINEER_NAMES } from "./engineers";
 import type { FieldEvent, FieldEventData } from "./field-log";
 import { formatCompact, formatTimeOfDay } from "./format";
@@ -24,7 +23,6 @@ import {
   TROUBLE_FIXED,
   awayDugLine,
   benchStartedLine,
-  boostStartedLine,
   cameHomeLine,
   craftFittedLine,
   exploreCheer,
@@ -154,15 +152,6 @@ function engineer(
   return name === undefined ? undefined : words(name);
 }
 
-/** A boost's line: its name and how long it runs from when it started. */
-function boostLine(event: FieldEvent): string | undefined {
-  const boost = BOOSTS.find((each) => each.id === event.data.id);
-  const runs = Date.parse(event.data.endsAt ?? "") - Date.parse(event.at);
-  return boost === undefined || !(runs > 0)
-    ? undefined
-    : boostStartedLine(boost.name, runs);
-}
-
 /** Stones worth saying: more than none. */
 function stones(
   data: FieldEventData,
@@ -192,7 +181,6 @@ const WORDING: Readonly<
     named(UPGRADE_IDS, data, (id, level) =>
       upgradeLevelLine(upgradeById(id).name, level),
     ),
-  "boost.start": boostLine,
   "craft.start": ({ data }) => recipe(data, benchStartedLine),
   "craft.done": ({ data }) => recipe(data, craftFittedLine),
   "layer.enter": ({ data }) => {

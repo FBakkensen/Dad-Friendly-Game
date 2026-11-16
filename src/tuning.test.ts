@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { BOOSTS } from "./boosts";
 import { PROMOTE_BASE_COST } from "./engineers";
 import { BAND_SCALE, BAND_STARTS } from "./scale";
 import {
@@ -57,9 +56,7 @@ describe("tuned prices", () => {
         costGrowth,
       ]),
     ).toEqual([
-      ["tap", 46_000, 8],
       ["boots", 1_625_000, 1],
-      ["steady", 10_000_000, 1],
       ["cartSyn", 2_000_000, 1],
       ["drillSyn", 3_000_000, 1],
       ["borerSyn", 15_000_000, 1],
@@ -69,19 +66,5 @@ describe("tuned prices", () => {
 
   it("prices a promotion from 1M, doubling per engineer", () => {
     expect(PROMOTE_BASE_COST).toBe(1_000_000);
-  });
-
-  it("prices each boost in taps or crew seconds, with a floor", () => {
-    expect(
-      BOOSTS.map(({ id, priceIn, priceUnits, minCost }) => [
-        id,
-        priceIn,
-        priceUnits,
-        minCost,
-      ]),
-    ).toEqual([
-      ["sharper", "taps", 120, 100],
-      ["overtime", "crewSeconds", 180, 500],
-    ]);
   });
 });

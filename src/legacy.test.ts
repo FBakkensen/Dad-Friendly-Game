@@ -7,7 +7,6 @@ import { gameOf } from "./test-fixtures";
 import { effectiveRates } from "./rates";
 import { minedMountain } from "./test-fixtures";
 import { NOTHING_CRAFTED, COLD_CLOCKS } from "./workshop";
-import { NO_BOOSTS } from "./boosts";
 import { NO_UPGRADES } from "./upgrades";
 
 const bottom: Mountain = {
@@ -22,8 +21,7 @@ const bottom: Mountain = {
     machine: 2,
     kid: 7,
   },
-  upgrades: { ...NO_UPGRADES, tap: 3, boots: 1 },
-  boosts: { ...NO_BOOSTS, overtime: 9_999_999 },
+  upgrades: { ...NO_UPGRADES, boots: 1 },
   startedAt: 1_000,
 };
 
@@ -95,7 +93,6 @@ describe("passing the mine to your kid", () => {
       clocks: {
         ...COLD_CLOCKS,
         "blasting-charge": 9_000,
-        "crystal-flare": 9_001,
         "heartstone-ember": 9_002,
       },
       recipes: [
@@ -103,7 +100,7 @@ describe("passing the mine to your kid", () => {
         "sturdy-props",
         "blasting-charge",
         "diamond-bits",
-        "crystal-lamp",
+        "engineers-kit",
         "heartstone-core",
       ] as const,
     };
