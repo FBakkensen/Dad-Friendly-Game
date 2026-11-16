@@ -137,9 +137,7 @@ describe("one workforce (slice 1, rule 2, #689)", () => {
     const refused = partThree(() =>
       applyMove(start, place, 0, { trouble: undefined }),
     );
-    expect(
-      refused.kind === "applied" && refused.mountain.jobs.graniteHaulage,
-    ).not.toBe(1);
+    expect(refused.kind).toBe("refused");
   });
 
   it("never changes how many workers he has, with the Granite's jobs too (#673)", () => {
@@ -487,13 +485,28 @@ describe("the line in a fresh mine (rule 2.5, 2.9)", () => {
   });
 
   it("counts haulage's workers on both levels for Loading crews (rule 5.2)", () => {
-    fresh(() => {
+    partThree(() => {
       const hands = upgradeById("cartSyn");
-      const both = line({ haulage: 2, graniteHaulage: 3, drilling: 1 }, {}, 3);
+      const both = sunk(
+        line({ haulage: 2, graniteHaulage: 3, drilling: 1 }, {}, 3),
+      );
       const one = line({ haulage: 5, drilling: 1 }, {}, 3);
       expect(haulageWorkers(both)).toBe(5);
       expect(synergyBonus(both, hands)).toBeCloseTo(0.05);
       expect(synergyBonus(both, hands)).toBe(synergyBonus(one, hands));
+    });
+  });
+
+  it("counts only the Topsoil's haulage for Loading crews with part 3 off (#673)", () => {
+    partTwo(() => {
+      const hands = upgradeById("cartSyn");
+      const deep = sunk(
+        line({ haulage: 2, graniteHaulage: 3, drilling: 1 }, {}, 3),
+      );
+      const shallow = line({ haulage: 2, drilling: 1 }, {}, 6);
+      expect(haulageWorkers(deep)).toBe(2);
+      expect(synergyBonus(deep, hands)).toBeCloseTo(0.02);
+      expect(synergyBonus(deep, hands)).toBe(synergyBonus(shallow, hands));
     });
   });
 

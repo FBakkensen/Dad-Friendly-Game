@@ -1,6 +1,6 @@
 import { EMPTY_STOCK } from "./stock";
 import { describe, expect, it } from "vitest";
-import { tierLock, tierLocked } from "./crew";
+import { buyCrew, tierLock, tierLocked } from "./crew";
 import { minedMountain, reloaded, NONE_OWNED } from "./test-fixtures";
 import {
   accrue,
@@ -8,14 +8,13 @@ import {
   stonesPerSecond,
   type Mountain,
   BARE_MOUNTAIN,
+  createMountain,
 } from "./mountain";
 import { AWAY_PAY_RATE, effectiveRates } from "./rates";
 import { MOUNTAIN_STONES, stonesLeft } from "./scale";
 import { withFactors } from "./economy/factors";
 import { listActions } from "./economy/actions";
-import { buyCrew } from "./crew";
 import { LINE_OFF, FRESH_OFF } from "./line-switch";
-import { createMountain } from "./mountain";
 import { NO_GRANITE_PILES, NO_LEVEL_MACHINES } from "./mine-levels";
 import { PART_THREE_OFF, PART_TWO_OFF } from "./part-switch";
 import {

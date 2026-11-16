@@ -132,6 +132,11 @@ export function buyMaker(mountain: Mountain, id: MakerId): Mountain {
  * `recipe.<id>` scales it, rounded to whole rock and never under one, so
  * whole goods stay whole.
  */
+/** The job whose workers run a maker (rule 2.7). */
+export function makerJob(id: MakerId): JobId {
+  return makerById(id).job;
+}
+
 export function makerTakes(id: MakerId): number {
   return Math.max(1, Math.round(makerById(id).takes * factor(`recipe.${id}`)));
 }

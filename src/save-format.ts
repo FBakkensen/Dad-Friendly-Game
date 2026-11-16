@@ -68,9 +68,15 @@ import {
 } from "./workshop";
 import { GOOD_IDS, priceAmount, type GoodId } from "./stock";
 import { VEHICLE_IDS, type VehicleId } from "./transport";
-import { JOB_IDS, workersOnJobs, type JobId, type Jobs } from "./workforce";
+import {
+  JOB_IDS,
+  LEVEL_JOBS,
+  workersOnJobs,
+  type JobId,
+  type Jobs,
+} from "./workforce";
 import { PILE_IDS, type MinePiles, type PileId } from "./mine-piles";
-import { MAKER_IDS, type MakerId } from "./makers";
+import { MAKER_IDS, makerJob, type MakerId } from "./makers";
 import {
   GRANITE_PILE_IDS,
   LEVEL_MACHINE_IDS,
@@ -132,11 +138,10 @@ const GAME_KEYS = [
 const GRANITE_KEYS = ["machines", "piles"] as const;
 
 /** The jobs and maker that stand on the Granite: none while it is unsunk (ruling 2). */
-const GRANITE_JOBS = [
-  "graniteDrilling",
-  "graniteHaulage",
-  "saws",
-] as const satisfies readonly JobId[];
+const GRANITE_JOBS: readonly JobId[] = [
+  ...Object.values(LEVEL_JOBS.granite),
+  makerJob("saw"),
+];
 
 /** The Granite as saved: present once the shaft is sunk, `{}` with nothing on it. */
 type SavedGranite = {

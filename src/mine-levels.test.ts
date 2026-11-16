@@ -143,7 +143,7 @@ describe("a level's machines (rule 5.2, 5.3)", () => {
         ...createMountain(),
         owned: { ...createMountain().owned, cart: 3 },
       };
-      expect(levelMachines(mine, "topsoil")).toEqual({
+      expect(levelMachines(mine, "topsoil")).toMatchObject({
         ...NO_LEVEL_MACHINES,
         cart: 3,
       });

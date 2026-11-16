@@ -9,9 +9,10 @@ import {
   type GranitePiles,
   type LevelMachines,
 } from "./mine-levels";
-import { mineMoves, type MinePiles } from "./mine-piles";
+import { mineMoves, mineSettled, type MinePiles } from "./mine-piles";
 import { accrue, accrueAway, createMountain, type Mountain } from "./mountain";
 import { PART_THREE_OFF, PART_TWO_OFF } from "./part-switch";
+import { effectiveRates } from "./rates";
 import { EMPTY_STOCK, type Stock } from "./stock";
 import type { Project } from "./city";
 
@@ -150,6 +151,29 @@ describe("the Granite's rock (rules 3 and 5, #673)", () => {
       expect(granitePilesOf(after.mountain).saw).toBe(300);
       expect(after.mountain.stock.stones).toBe(9_600 - 3 * 3_000 - 300);
       expect(after.mountain.stock.brick).toBe(0);
+    });
+  });
+
+  it("settles both levels and says when the saws' pile fills (#673)", () => {
+    partThree(() => {
+      // As above: 96 a second lifted from the Granite, the saw takes 90, so
+      // its pile grows 6 a second. Nothing else changes until it is full:
+      // from empty in 300 / 6 = 50 seconds, from 120 in 180 / 6 = 30.
+      const saws = { granite: 16, hoisting: 16, saws: 1 };
+      const empty = mineSettled(levels(saws), 1, true);
+      expect(empty.change).toBe(50);
+      expect(empty.income.cutStone).toBe(30);
+      expect(empty.income.stones ?? 0).toBe(0);
+      const begun = levels({ ...saws, granitePiles: { saw: 120 } });
+      expect(mineSettled(begun, 1, true).change).toBe(30);
+      // Drilling stopped, 288 drilled rock waiting: the saws' pile is full at
+      // 297 + 6 × 0.5, inside the first second, and the drilled rock runs
+      // out at 288 / 96 = 3 seconds from now, not from the settling.
+      const draining = levels({
+        ...saws,
+        granitePiles: { face: 288, saw: 297 },
+      });
+      expect(mineSettled(draining, 1, false).change).toBe(3);
     });
   });
 
@@ -408,10 +432,20 @@ describe("parts 1 and 2 do not change (#673)", () => {
         saws: 1,
         piles: { face: 200, shaft: 100, kiln: 50 },
         granitePiles: { face: 300, shaft: 200, saw: 100 },
+        machines: { cart: 2 },
         stock: { stones: 1_000, cutStone: 10 },
       };
-      const sunk = levels(setup);
-      const unsunk = levels({ ...setup, sunk: false });
+      // Loading crews bought: the Granite's haulage must not speed the carts.
+      const loading = { ...createMountain().upgrades, cartSyn: 1 };
+      const sunk = { ...levels(setup), upgrades: loading };
+      // Part 2's copy: the same workers, those of the Granite's jobs free.
+      const shallow = levels({ ...setup, sunk: false });
+      const unsunk = {
+        ...shallow,
+        upgrades: loading,
+        jobs: { ...shallow.jobs, graniteDrilling: 0, graniteHaulage: 0 },
+      };
+      expect(effectiveRates(sunk)).toEqual(effectiveRates(unsunk));
       for (const run of [
         (mountain: Mountain) => live(mountain, 3_600),
         (mountain: Mountain) => night(mountain, 12 * HOUR),

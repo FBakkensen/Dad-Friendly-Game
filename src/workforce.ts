@@ -95,9 +95,15 @@ export function jobOpen(
   return job !== "kilns" || makerOpen(mountain, "kiln");
 }
 
-/** Workers on haulage, on both levels: what Loading crews counts (rule 5.2). */
-export function haulageWorkers(mountain: Pick<Mountain, "jobs">): number {
-  return mountain.jobs.haulage + mountain.jobs.graniteHaulage;
+/**
+ * Workers on haulage, on both levels while the Granite is open: what Loading
+ * crews counts (rule 5.2). With it shut, the Topsoil's alone.
+ */
+export function haulageWorkers(
+  mountain: Pick<Mountain, "jobs" | "granite">,
+): number {
+  const { haulage, graniteHaulage } = mountain.jobs;
+  return graniteOpen(mountain) ? haulage + graniteHaulage : haulage;
 }
 
 /** Workers on a job, of every job. */

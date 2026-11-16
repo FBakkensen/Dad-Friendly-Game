@@ -66,9 +66,24 @@ export function shaftOpen(
   );
 }
 
-/** Whether the Granite is open: part 3, and the shaft sunk. */
+/** The Granite once the shaft is sunk. */
+export type SunkGranite = Extract<Granite, { readonly kind: "sunk" }>;
+
+/**
+ * The Granite while it is open (the shaft sunk, part 3), else undefined: the
+ * mine is the Topsoil alone. The save is read before the switch, so a mine
+ * without the shaft asks no factor.
+ */
+export function openGranite(
+  mountain: Pick<Mountain, "granite">,
+): SunkGranite | undefined {
+  const { granite } = mountain;
+  return granite.kind === "sunk" && partThreeOn() ? granite : undefined;
+}
+
+/** Whether the Granite is open: the shaft sunk, and part 3. */
 export function graniteOpen(mountain: Pick<Mountain, "granite">): boolean {
-  return partThreeOn() && mountain.granite.kind === "sunk";
+  return openGranite(mountain) !== undefined;
 }
 
 /**
@@ -95,17 +110,18 @@ export function sinkShaft(mountain: Mountain): Mountain {
 
 /**
  * One level's machines: the Granite's own counts while it is open, else none;
- * the Topsoil's are what he owns less the Granite's.
+ * the Topsoil's are what he owns less the Granite's. With the Granite shut
+ * the Topsoil's are what he owns, read without a copy.
  */
 export function levelMachines(
   mountain: Pick<Mountain, "owned" | "granite">,
   level: MineLevelId,
 ): LevelMachines {
-  const { granite } = mountain;
-  const own =
-    graniteOpen(mountain) && granite.kind === "sunk"
-      ? granite.machines
-      : NO_LEVEL_MACHINES;
+  const granite = openGranite(mountain);
+  if (granite === undefined) {
+    return level === "granite" ? NO_LEVEL_MACHINES : mountain.owned;
+  }
+  const own = granite.machines;
   if (level === "granite") {
     return own;
   }

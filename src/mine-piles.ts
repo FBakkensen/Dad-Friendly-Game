@@ -1,6 +1,10 @@
 import type { Mountain } from "./mountain";
 import { kilnRate, makerRate, makerTakes, type MakerId } from "./makers";
-import { graniteOpen, type Granite, type GranitePileId } from "./mine-levels";
+import {
+  openGranite,
+  type GranitePileId,
+  type SunkGranite,
+} from "./mine-levels";
 import {
   branchChains,
   branchesChange,
@@ -110,15 +114,6 @@ function makerHolds(mountain: Pick<Mountain, "makers">, id: MakerId): number {
 /** The kilns' pile's room: none until he owns a kiln. */
 export function kilnHolds(mountain: Pick<Mountain, "makers">): number {
   return makerHolds(mountain, "kiln");
-}
-
-/** The Granite while it is open (part 3, the shaft sunk), else undefined: the mine is the Topsoil alone. */
-type SunkGranite = Extract<Granite, { readonly kind: "sunk" }>;
-
-function openGranite(mountain: Mountain): SunkGranite | undefined {
-  return graniteOpen(mountain) && mountain.granite.kind === "sunk"
-    ? mountain.granite
-    : undefined;
 }
 
 /**

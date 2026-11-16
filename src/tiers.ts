@@ -281,6 +281,12 @@ export function setOwned(
   return { ...mountain, owned: { ...mountain.owned, [id]: count } };
 }
 
+/** A tier's first price in the line: part 3's, else the line's, else its own. */
+function lineSticker(tier: Tier): number {
+  const partThree = partThreeOn() ? PART_THREE_PRICE[tier.id] : undefined;
+  return partThree?.first ?? LINE_FIRST_COST[tier.id] ?? tier.firstCost;
+}
+
 /** Cookie Clicker curve: machines climb ×1.15, helpers ×1.06. */
 export function tierCost(tier: Tier, ownedCount: number, k = 1): number {
   // toPrecision drops float dust (500 × 1.6² is 1280.0000000000002, not 1,281).
@@ -294,10 +300,7 @@ export function tierCost(tier: Tier, ownedCount: number, k = 1): number {
       : MACHINE_COST_GROWTH;
   const growth =
     base * factor(workerCurve ? "growth.worker" : "growth.machine");
-  const partThree = partThreeOn() ? PART_THREE_PRICE[tier.id] : undefined;
-  const sticker = line
-    ? (partThree?.first ?? LINE_FIRST_COST[tier.id] ?? tier.firstCost)
-    : tier.firstCost;
+  const sticker = line ? lineSticker(tier) : tier.firstCost;
   const first = sticker * factor(`price.${tier.id}`) * k;
   return Math.ceil(Number((first * growth ** ownedCount).toPrecision(12)));
 }
