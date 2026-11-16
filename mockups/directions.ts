@@ -474,7 +474,7 @@ function renderMountainBOpen(view: DirectionView): string {
     ${readout(mountain, true)}
     <div class="dir-peek">${icon(ART.mountain)}</div>
     <div class="dir-buys">${mountainCards(view, mountain)}</div>
-    ${btn(view, "close", "tok-secondary dir-buy", "Back to the mountain", "The sheet closes and the rock is the tap again.")}
+    ${btn(view, "close", "tok-secondary dir-buy", "Back to the mountain", "The sheet closes back to the mountain.")}
   </section>`;
 }
 

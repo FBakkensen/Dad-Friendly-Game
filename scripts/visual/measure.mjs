@@ -6,21 +6,12 @@ import {
 } from "../../src/ui-audit-measure.ts";
 
 /**
- * The board's own controls; the save drawer's buttons join when it is open.
- * The mine window is the gauge row's (#371). The keys on the
- * rail, and an open drawer's rows, plates and "i" (#373).
+ * The board's own controls: the save line, and the save drawer's buttons when it
+ * is open, and an open drawer's rows, plates and "i" (#373).
  */
 const BOARD_TARGETS = [
-  ".board-socket",
-  ".board-dial",
   ".save-status",
   ".board-save-drawer.is-open .board-platebtn",
-  ".board-note.on .board-platebtn",
-  ".board-window",
-  ".board-bay",
-  ".board-ready",
-  ".board-dig-button",
-  ".board-key:not(:disabled)",
   ".board-sheet.is-open button.board-row:not([hidden])",
   ".board-sheet.is-open .board-platebtn",
   ".board-sheet.is-open .board-sheet-info",
@@ -30,62 +21,26 @@ const BOARD_TARGETS = [
 ].join(", ");
 /** Every other control a finger can reach on the board at that moment. */
 const NEIGHBOURS = "#app button, #app [role='button']";
-/**
- * The bays' and the Ready row's words (#372): the band tag, each bay's name,
- * sub-line, price legend and price, the flap digits, the plate's three lines
- * and the red button's legend.
- */
-const BAY_LEGENDS = [
-  ".board-band .board-lg",
-  ".board-bay-name",
-  ".board-bay-sub",
-  ".board-bay-price-lg",
-  ".board-bay-tag-text",
-  ".board-flap-d",
-  ".board-ready-kick",
-  ".board-ready-main",
-  ".board-ready-why",
-  ".board-dig-lg",
-  ".board-dig-lg b",
-];
-/** A board card's words (#464): its title, lines, big number and plates. */
+/** A board card's words (#464): its title, lines and plates. */
 const CARD_LEGENDS = [
   ".board-card .board-card-title",
   ".board-card .board-card-line",
-  ".board-card .board-card-big",
-  ".board-card .welcome-ore-line",
-  ".board-card .welcome-ore-use",
   ".board-card .board-platebtn-text",
 ];
 /** Board text read against the board's art: the bars ask 4.5:1 of these. */
 const BOARD_LEGENDS = [
-  ".board-odo-legend .board-lg:not(.board-spend)",
-  ".board-dial .board-lg",
-  ".board-tag .board-lg",
   ".board-save-words",
   ".board-save-safe",
   ".board-save-why",
-  // The gauge row (#371): Stones a second, the crew plate, No. 2 Shaft and the
-  // Legacy plate's words.
-  ".board-gauge-legend",
-  ".board-crew-legend",
-  ".board-crew-n",
-  ".board-crew-free",
-  ".board-window-tag .board-lg",
-  ".board-legacy .legacy-badge",
-  ...BAY_LEGENDS,
-  // The key rail (#373): each key's name and its unlock line or clock.
-  ".board-key-name",
-  ".board-key-sub",
   // A board card's words (#464).
   ...CARD_LEGENDS,
 ].join(", ");
 /** The board's parts whose text and art the bars measure. */
 const BOARD_PARTS =
-  ".board-top, .board-gauge-row, .board-bays, .board-ready-row, .board-rail, .board-saveline, .board-save-drawer.is-open, .board-note.on, .board-sheet.is-open, .board-card:not([hidden])";
-/** Parts whose every img and sprite is measured; a note's art is its skins. */
+  ".board-saveline, .board-save-drawer.is-open, .board-sheet.is-open, .board-card:not([hidden])";
+/** Parts whose every img and sprite is measured. */
 const BOARD_ART =
-  ".board-top, .board-gauge-row, .board-bays, .board-ready-row, .board-rail, .board-saveline, .board-sheet.is-open, .board-card:not([hidden])";
+  ".board-saveline, .board-sheet.is-open, .board-card:not([hidden])";
 
 /**
  * Visible controls in board px (rendered size / --board-scale): the board's
@@ -122,15 +77,12 @@ async function boardTargets(page) {
         );
         return hit !== null && (el.contains(hit) || hit.contains(el));
       };
-      // So is one the open note or drawer lies over: it is beneath the
-      // popup, which takes every tap there (an open note is pointer-events
-      // auto), and the popup's own buttons are what a finger meets there.
-      // That holds for the board's own controls too. A bay's thanks note is
-      // pointer-events none (#372): taps pass through it, so a bay under it
-      // is still in reach and still measured.
+      // So is one an open drawer or card lies over: it is beneath the
+      // popup, which takes every tap there, and the popup's own buttons are
+      // what a finger meets there. That holds for the board's own controls too.
       const popupEls = [
         ...document.querySelectorAll(
-          ".board-note.on, .board-save-drawer.is-open, .board-sheet.is-open, .board-card:not([hidden])",
+          ".board-save-drawer.is-open, .board-sheet.is-open, .board-card:not([hidden])",
         ),
       ].filter((popup) => getComputedStyle(popup).pointerEvents !== "none");
       const popups = popupEls.map((popup) => popup.getBoundingClientRect());

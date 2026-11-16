@@ -18,7 +18,7 @@ import { AWAY_MATERIALS_USE, awayMaterialsWords } from "../src/screen-words.ts";
  * Big systems (the Workshop, crystal, the kid tier): a red dot on the bar
  * button and one "New" note above the bar, styled like the bar. The note
  * opens the sheet straight away; there is no pop-up in between.
- * Small systems (an upgrade, a boost, one new clay craft): the dot only.
+ * Small systems (an upgrade, one new clay craft): the dot only.
  *
  * Inside the sheet: a one-line intro, then the new card first, lit and
  * tagged New, with one big first-action button the dad can afford now.
@@ -34,7 +34,6 @@ const TEACH_STEPS = [
   "payoff",
   "how",
   "dot",
-  "reveal",
   "engineers",
   "tending",
   "staffing",
@@ -46,11 +45,9 @@ type TeachStep = (typeof TEACH_STEPS)[number];
 
 const ART = {
   helper: "/src/assets/helper-miner.png",
-  pick: "/src/assets/pick.png",
   ore: "/src/assets/ore-lump.png",
   stone: "/src/assets/stone.png",
   hammer: "/src/assets/relics/hammer.png",
-  lantern: "/src/assets/relics/lantern.png",
   upgrades: "/src/assets/upgrades-icon.png",
   mountain: "/src/assets/mountain.png",
   map: "/src/assets/worn-map.png",
@@ -103,11 +100,6 @@ const OTHERS: readonly SheetCard[] = [
   },
 ];
 
-const RUNNING = [
-  { art: ART.pick, times: "×2", ms: 299_000, name: "Sharper picks" },
-  { art: ART.helper, times: "×2", ms: 1_740_000, name: "Overtime" },
-] as const;
-
 function esc(value: string): string {
   return value
     .replaceAll("&", "&amp;")
@@ -124,29 +116,15 @@ function icon(src: string, extra = ""): string {
   return `<img class="kit-icon${extra}" src="${src}" alt="" />`;
 }
 
+/** The timer row: empty until the first charge runs, then its fresh chip. */
 function timers(step: TeachStep): string {
-  const running: {
-    art: string;
-    times: string;
-    ms: number;
-    name: string;
-    fresh?: boolean;
-  }[] = [...RUNNING];
-  if (step === "payoff") {
-    running.push({
-      art: ART.ore,
-      times: "×2",
-      ms: TWENTY_MIN,
-      name: "Blasting charge",
-      fresh: true,
-    });
+  if (step !== "payoff") {
+    return `<div class="kit-timers"></div>`;
   }
-  return `<div class="kit-timers">${running
-    .map((timer) => {
-      const left = chipTime(timer.ms);
-      return `<button type="button" class="kit-timer${timer.fresh === true ? " is-fresh" : ""}" data-tap="${esc(tap(`Shows the name, ${timer.name}, ${timer.times} for ${left}.`))}" aria-label="${esc(`${timer.name} ${timer.times} ${left}`)}">${icon(timer.art)}<span class="kit-timer-times">${esc(timer.times)}</span><span class="kit-timer-left">${esc(left)}</span></button>`;
-    })
-    .join("")}</div>`;
+  const name = "Blasting charge";
+  const times = "×2";
+  const left = chipTime(TWENTY_MIN);
+  return `<div class="kit-timers"><button type="button" class="kit-timer is-fresh" data-tap="${esc(tap(`Shows the name, ${name}, ${times} for ${left}.`))}" aria-label="${esc(`${name} ${times} ${left}`)}">${icon(ART.ore)}<span class="kit-timer-times">${esc(times)}</span><span class="kit-timer-left">${esc(left)}</span></button></div>`;
 }
 
 /** The red dot sits on the Workshop until the first craft, or on Upgrades for the small example. */
@@ -154,7 +132,7 @@ function bar(step: TeachStep): string {
   const dotOn =
     step === "note" || step === "sheet" || step === "how"
       ? "workshop"
-      : step === "dot" || step === "reveal"
+      : step === "dot"
         ? "upgrades"
         : step === "engineers" || step === "tending" || step === "promotion"
           ? "engineers"
@@ -224,37 +202,6 @@ function sheet(done: boolean): string {
     <header class="teach-sheet-head"><h2 class="kit-title">Workshop</h2><button type="button" class="kit-btn kit-outline kit-info" data-info="1" data-tap="${esc(tap("Opens How it works for the Workshop."))}" aria-label="How it works">i</button></header>
     ${done ? "" : `<p class="teach-intro">${esc(INTRO)}</p>`}
     <div class="kit-stack">${newCard(done)}${OTHERS.map(plainCard).join("")}</div>
-  </section>`;
-}
-
-/**
- * M11-7 (#245): the Upgrades sheet once Strong arms opens (the third cart since #250).
- * Rows far off stay hidden behind one quiet line; the new row comes first,
- * lit and tagged New, with its real price on the one big button. No wait
- * time and no countdown: only whether the row is there.
- */
-function revealSheet(): string {
-  const arms = `<div class="card kit-card is-new" data-card="arms" data-tap="${esc(tap("Buys Strong arms for 46K. The tag and the dot go away."))}">
-    <div class="teach-new-top">
-      ${icon(ART.hammer)}
-      <span class="kit-card-body"><span class="kit-card-head"><span class="kit-card-title">Strong arms</span><span class="teach-tag">New</span></span>
-        <span class="kit-card-line">Each tap also mines 1.65% of your crew's speed.</span>
-      </span>
-    </div>
-    <button type="button" class="kit-btn kit-primary kit-wide" data-tap="${esc(tap("Buys Strong arms for 46K."))}">${esc(`Buy · ${formatCompact(46_000)}`)}</button>
-  </div>`;
-  const picks = plainCard({
-    id: "picks",
-    art: ART.pick,
-    name: "Sharper picks",
-    price: `Buy · ${formatCompact(120)}`,
-    line: "Taps ×2 for 10 min.",
-  });
-  return `<section class="card teach-sheet" role="dialog" aria-label="Upgrades">
-    <header class="teach-sheet-head"><h2 class="kit-title">Upgrades</h2></header>
-    <p class="teach-intro">Something new for the crew, right on top.</p>
-    <div class="kit-stack">${arms}${picks}</div>
-    <p class="teach-intro">More open up as your crew grows.</p>
   </section>`;
 }
 
@@ -457,8 +404,6 @@ export function renderTeach(control: string): string {
       return frame(step, how("workshop"));
     case "dot":
       return frame(step, rock());
-    case "reveal":
-      return frame(step, revealSheet());
     case "engineers":
       return frame(step, engineersSheet());
     case "tending":

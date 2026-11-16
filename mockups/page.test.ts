@@ -643,10 +643,10 @@ describe("component mocks (#235)", () => {
     );
   });
 
-  it("keeps every timer on one line, three across, with no overflow chip", () => {
+  it("keeps every timer on one line, with no overflow chip", () => {
     const root = mountTokens("parts-controls", "rest", "");
     const timers = [...root.querySelectorAll(".kit-timer")];
-    expect(timers).toHaveLength(6);
+    expect(timers).toHaveLength(2);
     for (const timer of timers) {
       expect(timer.querySelector("img.kit-icon")).not.toBeNull();
       expect(timer.textContent).toMatch(/^×\d+(\d+:\d\d|\d+h \d+m|\d+d \d+h)$/);
@@ -659,7 +659,7 @@ describe("component mocks (#235)", () => {
   it("fits How it works on one card with no question marks", () => {
     const root = mountTokens("parts-how", "rest", "");
     expect(root.querySelectorAll(".kit-how")).toHaveLength(1);
-    expect(root.querySelectorAll(".kit-step img.kit-icon")).toHaveLength(5);
+    expect(root.querySelectorAll(".kit-step img.kit-icon")).toHaveLength(3);
     expect(root.textContent).not.toMatch(/\?/);
   });
 });
@@ -671,7 +671,6 @@ describe("teaching mock, hybrid pattern (#240)", () => {
     "payoff",
     "how",
     "dot",
-    "reveal",
     "engineers",
     "tending",
     "staffing",
@@ -700,21 +699,6 @@ describe("teaching mock, hybrid pattern (#240)", () => {
       );
       root.remove();
     }
-  });
-
-  it("reveals an opened upgrade with the dot, a New card and no wait time (#245)", () => {
-    const root = mountTokens("teach", "rest", "reveal");
-    expect(
-      root.querySelector("[data-bar='upgrades'] .teach-dot"),
-    ).not.toBeNull();
-    expect(root.querySelector(".teach-note")).toBeNull();
-    const first = root.querySelector(".teach-sheet .kit-card");
-    expect(first?.querySelector(".teach-tag")?.textContent).toBe("New");
-    expect(first?.querySelector("button")?.textContent).toBe("Buy · 46K");
-    expect(root.querySelector(".teach-sheet")?.textContent).not.toMatch(
-      /\d+:\d\d|min left|until/,
-    );
-    root.remove();
   });
 
   it("shows a big system as a dot and one note, with no pop-up", () => {

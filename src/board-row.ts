@@ -68,8 +68,8 @@ const STATE_CLASS: Readonly<Record<RowState, string>> = {
   found: "is-found",
 };
 const DONE = "Done";
-/** An icon's CSS px: 32 art px (a machine), 24 or 16 (a small icon), at 2 px each. */
-type IconPx = 32 | 48 | 64;
+/** An icon's CSS px: 32 art px (a machine) or 16 (a small icon), at 2 px each. */
+type IconPx = 32 | 64;
 
 /** Text that hides its box when empty. */
 function line(target: HTMLElement, text: string): void {

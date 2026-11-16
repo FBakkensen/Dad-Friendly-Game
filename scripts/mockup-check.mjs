@@ -80,7 +80,7 @@ const SHOTS = [
   ["parts-cards", "press", "cart"],
   ["parts-controls", "rest", ""],
   ["parts-controls", "press", "primary"],
-  ["parts-controls", "press", "picks"],
+  ["parts-controls", "press", "boots"],
   ["parts-how", "rest", ""],
   ["parts-how", "press", "got"],
   ...[
@@ -89,7 +89,6 @@ const SHOTS = [
     "payoff",
     "how",
     "dot",
-    "reveal",
     "engineers",
     "tending",
     "staffing",

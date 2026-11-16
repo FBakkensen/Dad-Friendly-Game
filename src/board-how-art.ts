@@ -24,7 +24,7 @@ import { createHowCard, type HowCardStep } from "./teach-ui";
 /** One board icon for a How it works step, and its CSS px. */
 export interface BoardHowArt {
   readonly src: string;
-  readonly px: 32 | 48 | 64;
+  readonly px: 32 | 64;
 }
 
 /** The board's icon for each How it works art the drawers' cards use. */
