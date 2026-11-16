@@ -1,5 +1,4 @@
 import { shareOut } from "./building-site";
-import { factor } from "./economy/factors";
 import { MATERIAL_EVERY } from "./layers";
 import { graniteOpen } from "./mine-levels";
 import type { Mountain } from "./mountain";
@@ -17,8 +16,7 @@ import {
   craftedLevel,
   fitGear,
   recipeById,
-  recipeCostId,
-  scaledCount,
+  recipePrice,
   type RecipeId,
 } from "./workshop";
 
@@ -65,24 +63,9 @@ export function isBlueprintId(value: unknown): value is BlueprintId {
   return BLUEPRINT_IDS.some((id) => id === value);
 }
 
-/** What a work order requires, as a price: stone first, then its materials. Scaled by `recipe.<id>.cost`. */
+/** What a work order requires, as a price: its own stone, then its recipe's materials. Scaled by `recipe.<id>.cost`. */
 export function workOrderPrice(id: BlueprintId): Price {
-  const scale = factor(recipeCostId(id));
-  const materials = recipeById(id).materials;
-  const price: { good: GoodId; amount: number }[] = [];
-  for (const good of GOOD_IDS) {
-    const base =
-      good === "stones"
-        ? WORK_ORDER_STONES[id]
-        : good === "clay" || good === "iron"
-          ? (materials[good] ?? 0)
-          : 0;
-    const amount = scaledCount(base, scale);
-    if (amount > 0) {
-      price.push({ good, amount });
-    }
-  }
-  return price;
+  return recipePrice(id, WORK_ORDER_STONES[id]);
 }
 
 /**

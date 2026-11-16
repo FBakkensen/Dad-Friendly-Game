@@ -528,6 +528,3 @@ export const PART_THREE_START = {
   topsoil: 3_000,
   granite: 600,
 } as const;
-
-/** The work order's share of transport while the city's order delivers too (rule 7.7: half each). */
-export const WORK_ORDER_SHARE = 0.5;

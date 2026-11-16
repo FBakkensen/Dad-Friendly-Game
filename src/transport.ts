@@ -278,6 +278,9 @@ function toStation(
 /** What each order gets of transport (rule 7.7): loads a second to the station, goods a second to the city. */
 type Shares = { readonly station: number; readonly city: number };
 
+/** The work order's share of transport while the city's order delivers too (rule 7.7: half each). */
+export const STATION_SHARE = 0.5;
+
 /**
  * Transport's rate at `share`, split between the factory's work order and
  * the city's project (rule 7.7, #674): with both delivering each gets half,
@@ -296,7 +299,7 @@ export function orderShares(
   }
   const city =
     mountain.project.kind === "delivering"
-      ? Math.min(cityCan(mountain, share, income), carry / 2)
+      ? Math.min(cityCan(mountain, share, income), carry * STATION_SHARE)
       : 0;
   const station = Math.min(stationGives(mountain, income).total, carry - city);
   return { station, city: carry - station };

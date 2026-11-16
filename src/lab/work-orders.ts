@@ -6,12 +6,8 @@ import {
 } from "../factory";
 import { MATERIAL_EVERY } from "../layers";
 import { GOOD_IDS, priceAmount } from "../stock";
-import {
-  HOUR_MS,
-  MS_PER_SECOND,
-  PART_THREE_START,
-  WORK_ORDER_SHARE,
-} from "./targets";
+import { STATION_SHARE } from "../transport";
+import { HOUR_MS, MS_PER_SECOND, PART_THREE_START } from "./targets";
 
 /**
  * How the lab sizes the work orders with no clock (slice 1, rule 7.13,
@@ -56,7 +52,7 @@ function workOrderTime(
     (priceAmount(price, "iron") * MATERIAL_EVERY.iron) / reference.granite;
   return {
     blueprint,
-    carryHours: hours(total / (reference.carry * WORK_ORDER_SHARE)),
+    carryHours: hours(total / (reference.carry * STATION_SHARE)),
     materialHours: hours(Math.max(clay, iron)),
   };
 }

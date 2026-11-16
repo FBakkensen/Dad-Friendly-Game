@@ -367,7 +367,7 @@ export function recipeCostId(id: RecipeId): string {
   return `recipe.${id}.cost`;
 }
 
-export function scaledCount(base: number, scale: number): number {
+function scaledCount(base: number, scale: number): number {
   if (base === 0) {
     return 0;
   }
@@ -377,13 +377,18 @@ export function scaledCount(base: number, scale: number): number {
 /**
  * Stones and materials a craft spends right now, as a price (#560): the
  * goods it asks, stones first, none at 0. The cost factor defaults to 1.
+ * `stones` replaces the recipe's own stone base: the factory's work order
+ * (#674) requires its own stone and the recipe's materials, scaled alike.
  */
-export function recipePrice(id: RecipeId): Price {
+export function recipePrice(
+  id: RecipeId,
+  stones: number = recipeById(id).stones,
+): Price {
   const recipe = recipeById(id);
   const scale = factor(recipeCostId(id));
   return pricedGoods((good) =>
     good === "stones"
-      ? scaledCount(recipe.stones, scale)
+      ? scaledCount(stones, scale)
       : good === "brick" || good === "cutStone"
         ? 0
         : scaledCount(recipe.materials[good] ?? 0, scale),
@@ -472,12 +477,6 @@ function dropBench(mountain: Mountain): Mountain {
   return { ...mountain, bench: undefined };
 }
 
-/**
- * Where a timer's window is measured from. A charge still running past the
- * new craft keeps its end and then adds another stretch. Every other timer
- * starts when the craft goes on the bench, so the sitting that started it
- * is the sitting that feels it.
- */
 /** A clock still running at `now`. 0 is a cold clock, whatever the clock says. */
 function hotAt(until: number, now: number): boolean {
   return until !== 0 && until > now;
