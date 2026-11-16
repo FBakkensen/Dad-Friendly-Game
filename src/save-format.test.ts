@@ -17,7 +17,6 @@ function roundTrip(mountain: Mountain): Mountain | undefined {
 describe("the game map (#558)", () => {
   it("saves every field of the mountain: a mountain with none at its default comes back whole", () => {
     // A new Mountain field must be named here, with the map it is saved in.
-    // The cages are saved from #724's Task 8, which names them here.
     const homes = {
       remaining: "run",
       stock: "stock",
@@ -44,7 +43,8 @@ describe("the game map (#558)", () => {
       graniteDug: "run",
       granite: "granite",
       station: "station",
-    } as const satisfies Record<Exclude<keyof Mountain, "cages">, string>;
+      cages: "cages",
+    } as const satisfies Record<keyof Mountain, string>;
     const fresh = createMountain();
     const full: Mountain = {
       ...fresh,
@@ -120,6 +120,15 @@ describe("the game map (#558)", () => {
         kind: "delivering",
         blueprint: "sturdy-props",
         arrived: { ...fresh.stock, stones: 900, clay: 1_250 },
+      },
+      // The cages come back as the save keeps them: what each level's cages
+      // carry, in a cage at the top (ruling 12 of #724).
+      cages: {
+        assigned: { topsoil: 1, granite: 2 },
+        trips: {
+          "machine:0": { level: "topsoil", carried: 20, leg: { kind: "top" } },
+          "hoist:0": { level: "granite", carried: 30, leg: { kind: "top" } },
+        },
       },
     };
     // Part 1 has one building, so an operational one and a project in hand

@@ -1,6 +1,9 @@
+import fc from "fast-check";
 import { describe, expect, it } from "vitest";
+import type { CageTrips } from "./cages";
 import { NO_GRANITE_PILES, NO_LEVEL_MACHINES, UNSUNK } from "./mine-levels";
-import { createMountain, type Mountain } from "./mountain";
+import { accrue, createMountain, type Mountain } from "./mountain";
+import { levels, partThree } from "./part-three.harness";
 import { partThreeOn } from "./part-switch";
 import { readGame, shippedFacts, writeGame } from "./save-format";
 
@@ -32,6 +35,7 @@ const LEDGER = {
     "stockyard",
     "granite",
     "station",
+    "cages",
   ],
   owned: [
     "helper",
@@ -166,6 +170,10 @@ const LEDGER = {
     ],
     states: ["delivering", "done"],
   },
+  cages: {
+    assigned: ["topsoil", "granite"],
+    carried: ["topsoil", "granite"],
+  },
 };
 
 describe("the ledger of what has shipped (#558)", () => {
@@ -194,6 +202,7 @@ describe("the ledger of what has shipped (#558)", () => {
       ...Object.values(facts.tripFinds),
       ...Object.values(facts.granite),
       ...Object.values(facts.station),
+      ...Object.values(facts.cages),
     ];
     for (const list of lists) {
       expect(new Set(list).size).toBe(list.length);
@@ -565,5 +574,262 @@ describe("the factory's work order and the Granite's rock in the save (#674)", (
   it("refuses Granite rock past all the rock dug, or with no shaft", () => {
     expect(readGame({ run: { rock: 10, granite: 11 } }, 0).kind).toBe("bad");
     expect(readGame({ run: { rock: 10, granite: 5 } }, 0).kind).toBe("bad");
+  });
+});
+
+describe("the cages in the save (#724)", () => {
+  const throughJson = (mountain: Mountain) =>
+    readGame(JSON.parse(JSON.stringify(writeGame(mountain))), 0);
+  /** A sunk shaft with three hoists, one assigned to each level. */
+  const shaft = (trips: CageTrips = {}): Mountain =>
+    partThree(() =>
+      levels({
+        hoists: 3,
+        hoisting: 1,
+        assigned: { topsoil: 1, granite: 1 },
+        trips,
+      }),
+    );
+
+  it("round-trips the hoists assigned and what the cages carry, level by level", () => {
+    const atTop: CageTrips = {
+      "hoist:0": { level: "topsoil", carried: 600, leg: { kind: "top" } },
+      "hoist:1": { level: "granite", carried: 250, leg: { kind: "top" } },
+    };
+    const mountain = shaft(atTop);
+    expect(writeGame(mountain).cages).toEqual({
+      assigned: { topsoil: 1, granite: 1 },
+      carried: { topsoil: 600, granite: 250 },
+    });
+    expect(throughJson(mountain)).toEqual({ kind: "ok", mountain });
+    // Two cages carrying from the Topsoil come back as one cage at the top
+    // with both loads, and the Granite's rock takes the next cage.
+    const spread = throughJson(
+      shaft({
+        "hoist:2": { level: "topsoil", carried: 300, leg: { kind: "loading" } },
+        "hoist:0": {
+          level: "granite",
+          carried: 40,
+          leg: { kind: "down", left: 3 },
+        },
+        winch: { level: "topsoil", carried: 200, leg: { kind: "up", left: 1 } },
+      }),
+    );
+    expect(spread.kind === "ok" && spread.mountain.cages.trips).toEqual({
+      "hoist:0": { level: "topsoil", carried: 500, leg: { kind: "top" } },
+      "hoist:1": { level: "granite", carried: 40, leg: { kind: "top" } },
+    });
+    // The Granite's rock alone takes the first cage.
+    const granite = throughJson(
+      shaft({
+        winch: { level: "granite", carried: 90, leg: { kind: "up", left: 4 } },
+      }),
+    );
+    expect(granite.kind === "ok" && granite.mountain.cages.trips).toEqual({
+      "hoist:0": { level: "granite", carried: 90, leg: { kind: "top" } },
+    });
+    // Each part is written only when it has a positive entry.
+    const carriedOnly = {
+      ...mountain,
+      cages: { ...mountain.cages, assigned: { topsoil: 0, granite: 0 } },
+    };
+    expect(writeGame(carriedOnly).cages).toEqual({
+      carried: { topsoil: 600, granite: 250 },
+    });
+    expect(writeGame(shaft()).cages).toEqual({
+      assigned: { topsoil: 1, granite: 1 },
+    });
+    expect(throughJson(shaft())).toEqual({ kind: "ok", mountain: shaft() });
+  });
+
+  it("saves where no cage is: a cage mid-trip reads back at the top with its load (call 63, Review Focus 1)", () => {
+    const midTrip: CageTrips = {
+      "hoist:0": { level: "granite", carried: 250, leg: { kind: "loading" } },
+    };
+    const build = (saws: number) =>
+      partThree(() =>
+        levels({
+          hoists: 1,
+          hoisting: 1,
+          assigned: { granite: 1 },
+          trips: midTrip,
+          saws,
+          onSaws: 0,
+        }),
+      );
+    for (const saws of [0, 1]) {
+      const start = build(saws);
+      const read = throughJson(start);
+      if (read.kind !== "ok") {
+        throw new Error(`the save did not read: ${read.kind}`);
+      }
+      expect(read.mountain.cages.trips).toEqual({
+        "hoist:0": { level: "granite", carried: 250, leg: { kind: "top" } },
+      });
+      const after = partThree(
+        () =>
+          accrue({ mountain: read.mountain, from: 0, to: 1_000, live: true })
+            .mountain,
+      );
+      expect(
+        after.cages.trips["hoist:0"]?.carried ?? 0,
+        `saws ${String(saws)}`,
+      ).toBe(0);
+      if (saws === 0) {
+        expect(after.stock.stones).toBe(start.stock.stones + 250);
+      } else {
+        expect(after.stock.stones).toBe(start.stock.stones);
+        expect(after.granite.kind === "sunk" && after.granite.piles.saw).toBe(
+          250,
+        );
+      }
+      // The rock was dug before: unloading it is not digging.
+      expect(after.rockDug).toBe(start.rockDug);
+      expect(after.graniteDug).toBe(start.graniteDug);
+    }
+  });
+
+  it("writes a part 2 save's game map as before: no cages key", () => {
+    // A guard: today's mountain has no cages, so this held before #724.
+    expect(Object.keys(writeGame(createMountain()))).not.toContain("cages");
+    // Cages that carry nothing, with no hoist assigned, write no key either.
+    const empty = shaft({
+      "hoist:0": {
+        level: "granite",
+        carried: 0,
+        leg: { kind: "down", left: 2 },
+      },
+    });
+    const bare = {
+      ...empty,
+      cages: { ...empty.cages, assigned: { topsoil: 0, granite: 0 } },
+    };
+    expect(writeGame(bare)).not.toHaveProperty("cages");
+  });
+
+  it("refuses more hoists assigned than he owns, an engine counted", () => {
+    expect(
+      readGame(
+        {
+          owned: { hoist: 1 },
+          granite: {},
+          cages: { assigned: { granite: 2 } },
+        },
+        0,
+      ).kind,
+    ).toBe("bad");
+    expect(
+      readGame(
+        {
+          owned: { hoist: 1, machine: 1 },
+          granite: {},
+          cages: { assigned: { granite: 2 } },
+        },
+        0,
+      ).kind,
+    ).toBe("ok");
+    expect(
+      readGame(
+        {
+          owned: { hoist: 2 },
+          granite: {},
+          cages: { assigned: { topsoil: 1, granite: 2 } },
+        },
+        0,
+      ).kind,
+    ).toBe("bad");
+  });
+
+  it("refuses hoists assigned, or rock carried from the Granite, while the shaft is not sunk", () => {
+    const owned = { hoist: 2 };
+    const refused = [
+      { assigned: { topsoil: 1 } },
+      { assigned: { granite: 1 } },
+      { carried: { granite: 1 } },
+    ];
+    for (const cages of refused) {
+      expect(readGame({ owned, cages }, 0).kind, JSON.stringify(cages)).toBe(
+        "bad",
+      );
+      expect(
+        readGame({ owned, granite: {}, cages }, 0).kind,
+        JSON.stringify(cages),
+      ).toBe("ok");
+    }
+    // The Topsoil alone plays cages too: its rock carried reads.
+    const topsoil = readGame({ owned, cages: { carried: { topsoil: 70 } } }, 0);
+    expect(topsoil.kind === "ok" && topsoil.mountain.cages).toEqual({
+      assigned: { topsoil: 0, granite: 0 },
+      trips: {
+        "hoist:0": { level: "topsoil", carried: 70, leg: { kind: "top" } },
+      },
+    });
+  });
+
+  it("refuses rock carried from both levels with only the winch's cage", () => {
+    const both = { carried: { topsoil: 5, granite: 6 } };
+    expect(readGame({ granite: {}, cages: both }, 0).kind).toBe("bad");
+    expect(
+      readGame({ owned: { hoist: 1 }, granite: {}, cages: both }, 0).kind,
+    ).toBe("ok");
+    expect(
+      readGame({ owned: { machine: 1 }, granite: {}, cages: both }, 0).kind,
+    ).toBe("ok");
+    const one = readGame(
+      { granite: {}, cages: { carried: { granite: 6 } } },
+      0,
+    );
+    expect(one.kind === "ok" && one.mountain.cages.trips).toEqual({
+      winch: { level: "granite", carried: 6, leg: { kind: "top" } },
+    });
+  });
+
+  it("reads a cages key or level it does not know as newer, and a part-rock or a negative as bad", () => {
+    const granite = {};
+    const newer = [
+      { lift: {} },
+      { assigned: { basalt: 1 } },
+      { carried: { basalt: 1 } },
+    ];
+    for (const cages of newer) {
+      expect(readGame({ granite, cages }, 0).kind, JSON.stringify(cages)).toBe(
+        "newer",
+      );
+    }
+    const bad = [
+      { carried: { topsoil: 1.5 } },
+      { assigned: { granite: -1 } },
+      { assigned: "granite" },
+      { lift: {}, carried: { topsoil: 1.5 } },
+      1,
+      [],
+      null,
+    ];
+    for (const cages of bad) {
+      expect(readGame({ granite, cages }, 0).kind, JSON.stringify(cages)).toBe(
+        "bad",
+      );
+    }
+  });
+
+  it("refuses a save whose hoists assigned are more than he owns, whatever the counts (property)", () => {
+    fc.assert(
+      fc.property(
+        fc.nat(6),
+        fc.nat(6),
+        fc.nat(6),
+        (hoists, topsoil, granite) => {
+          const read = readGame(
+            {
+              owned: { hoist: hoists },
+              granite: {},
+              cages: { assigned: { topsoil, granite } },
+            },
+            0,
+          );
+          expect(read.kind).toBe(topsoil + granite > hoists ? "bad" : "ok");
+        },
+      ),
+    );
   });
 });
