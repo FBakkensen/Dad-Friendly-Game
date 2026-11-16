@@ -1,12 +1,10 @@
 import type { Action } from "../economy/actions";
-import type { LayerId, Materials } from "../layers";
+import type { LayerId } from "../layers";
 import type { LineView } from "../line";
-import type { Crafted, RecipeId } from "../workshop";
-import type { BandEvent } from "./bands";
 import type { FreshView } from "./fresh-view";
 import type { NightRecord } from "./nights";
 import type { RevealEvent } from "./reveal";
-import type { SittingEvent } from "./sittings";
+import type { MachineBuy, SittingEvent } from "./sittings";
 
 /**
  * One moment on the table. Official fields use payback. `byValue` is the
@@ -45,26 +43,6 @@ export type DecisionSample = {
   readonly fresh?: FreshView;
   /** Rock band at this moment. Scopes such as "from the Granite on" read it. */
   readonly layer?: LayerId;
-  /** The workshop is open, so a craft can start once the bench is free. */
-  readonly workshopOpen?: boolean;
-  /** No craft is on the bench. */
-  readonly benchFree?: boolean;
-  /** Materials in hand. */
-  readonly materials?: Materials;
-  /**
-   * Recipes this dad could spend a material on if the bench were free.
-   * Finished gear is left out, so a capped sink does not hide a pile.
-   */
-  readonly openRecipes?: readonly RecipeId[];
-  /** Every recipe known here, including ones already finished. */
-  readonly knownRecipes?: readonly RecipeId[];
-  /** Levels already fitted. Missing means nothing is made. */
-  readonly crafted?: Crafted;
-  /**
-   * Repeatable timers this dad keeps using. They are an unlimited sink.
-   * A capped recipe is not on this list.
-   */
-  readonly unlimitedSinks?: readonly RecipeId[];
   /** Kinds on the table at this moment. */
   readonly optionKinds: readonly Action["kind"][];
   readonly byValue: {
@@ -80,8 +58,8 @@ export type DecisionSample = {
    * of a run also carries any events after it.
    */
   readonly reveals?: readonly RevealEvent[];
-  /** Machine sales and purchases per band since the previous sample (#249). */
-  readonly bands?: readonly BandEvent[];
+  /** Machines bought since the previous sample (#357). */
+  readonly machineBuys?: readonly MachineBuy[];
   /** Long nights with the stockyard open that ended since the previous sample (#667). */
   readonly nights?: readonly NightRecord[];
   /** Sittings that closed since the previous sample (balance review). */

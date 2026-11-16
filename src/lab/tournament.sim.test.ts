@@ -3,6 +3,8 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { parseMeasureExport } from "./measure";
 import { parsePolicyExport } from "./policy";
+import { withFactors } from "../economy/factors";
+import { PLAY_FACTORS } from "../part-switch";
 import { discover } from "./registry";
 import { renderReport } from "./report";
 import { runTournament } from "./tournament";
@@ -11,7 +13,10 @@ import { CASUAL_REFERENCE_ID, OPTIMIZER_REFERENCE_ID } from "./targets";
 describe("tournament", () => {
   it("adds a row and a column when fixture files are included", async () => {
     const policies = [
-      ...(await discover(path.resolve("src/lab/policies"), parsePolicyExport)),
+      ...(await discover(
+        path.resolve("src/lab/fresh-policies"),
+        parsePolicyExport,
+      )),
       ...(await discover(
         path.resolve("src/lab/fixtures/extra"),
         parsePolicyExport,
@@ -30,22 +35,24 @@ describe("tournament", () => {
         parseMeasureExport,
       )),
     ];
-    const result = runTournament({
-      policies,
-      measures,
-      targets: [
-        {
-          id: "fixture-bonus",
-          measure: "bonusShare",
-          scope: { kind: "policies", ids: ["extra-dad"] },
-          op: "gte",
-          value: 1,
-          why: "The fixture measure should show up as a pass or fail cell.",
-        },
-      ],
-      seeds: [1],
-      days: 1,
-    });
+    const result = withFactors(PLAY_FACTORS, () =>
+      runTournament({
+        policies,
+        measures,
+        targets: [
+          {
+            id: "fixture-bonus",
+            measure: "bonusShare",
+            scope: { kind: "policies", ids: ["extra-dad"] },
+            op: "gte",
+            value: 1,
+            why: "The fixture measure should show up as a pass or fail cell.",
+          },
+        ],
+        seeds: [1],
+        days: 1,
+      }),
+    );
     expect(result.rows.map((row) => row.id).sort()).toEqual(
       [CASUAL_REFERENCE_ID, OPTIMIZER_REFERENCE_ID, "extra-dad"].sort(),
     );
@@ -72,7 +79,7 @@ describe("tournament", () => {
 
   it("logs each sitting's buys and its opening table", async () => {
     const policies = (
-      await discover(path.resolve("src/lab/policies"), parsePolicyExport)
+      await discover(path.resolve("src/lab/fresh-policies"), parsePolicyExport)
     ).filter((policy) => policy.id === "checkin-4x2");
     const measures = (
       await discover(path.resolve("src/lab/measures"), parseMeasureExport)
@@ -81,21 +88,16 @@ describe("tournament", () => {
         measure.id,
       ),
     );
-    const result = runTournament({
-      policies,
-      measures,
-      targets: [],
-      seeds: [1],
-      days: 1,
-    });
+    const result = withFactors(PLAY_FACTORS, () =>
+      runTournament({ policies, measures, targets: [], seeds: [1], days: 1 }),
+    );
     const cell = (id: string) =>
       result.rows[0]?.cells.find((item) => item.measureId === id)?.value;
-    // Day one is a shopping spree: every check-in buys, many things each.
-    expect(cell("zeroBuySittings")).toBe(0);
-    expect(cell("buysPerSitting")).toBeGreaterThanOrEqual(5);
-    const open = cell("bestOpenShare");
-    expect(open).not.toBeNaN();
-    expect(open).toBeGreaterThanOrEqual(0);
-    expect(open).toBeLessThanOrEqual(1);
+    // The fresh mine's first day: the check-in buys in some sittings, not all.
+    expect(cell("zeroBuySittings")).toBeGreaterThan(0);
+    expect(cell("zeroBuySittings")).toBeLessThan(1);
+    expect(cell("buysPerSitting")).toBeGreaterThanOrEqual(1);
+    // A first day's opens can all be empty tables, so the share may be NaN.
+    expect(typeof cell("bestOpenShare")).toBe("number");
   }, 30_000);
 });

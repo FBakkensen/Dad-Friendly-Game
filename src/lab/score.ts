@@ -7,23 +7,13 @@ import { lineOf, lineView } from "../line";
 import { lineOn } from "../line-switch";
 import { TIERS } from "../tiers";
 import {
-  knownRecipeIds,
   listActions,
-  sinkRecipes,
   valueOf,
   type Action,
   type ValueContext,
 } from "../economy/actions";
-import {
-  COLD_CLOCKS,
-  NOTHING_CRAFTED,
-  recipePrice,
-  workshopUnlocked,
-  type Crafted,
-  type RecipeId,
-} from "../workshop";
+import { COLD_CLOCKS, NOTHING_CRAFTED, recipePrice } from "../workshop";
 import { MOVE_KINDS, type DecisionSample } from "./measure";
-import type { CraftRule } from "./policy";
 import {
   CRAFTED_SOURCE,
   HORIZON_SEC,
@@ -31,34 +21,7 @@ import {
   TENDING_SOURCE,
   VALUE_TIE,
 } from "./targets";
-import { canPay, materialsOf } from "../stock";
-
-/**
- * Repeatable sinks are unlimited only when this dad actually uses them:
- * the habit commits (always, or charges for a blasting charge), or a level
- * is already fitted. Otherwise the recipe does not eat the pile. Axle
- * grease is the repeatable iron sink: a live crew timer that refreshes
- * and does not stack.
- */
-function unlimitedSinks(
-  craft: CraftRule | undefined,
-  crafted: Crafted | undefined,
-): readonly RecipeId[] {
-  const ids: RecipeId[] = [];
-  for (const id of [
-    "blasting-charge",
-    "axle-grease",
-    "heartstone-ember",
-  ] as const) {
-    const used = (crafted?.[id] ?? 0) > 0;
-    const commits =
-      craft === "always" || (craft === "charges" && id === "blasting-charge");
-    if (used || commits) {
-      ids.push(id);
-    }
-  }
-  return ids;
-}
+import { canPay } from "../stock";
 
 export type ScoreInput = {
   readonly mountain: Mountain;
@@ -73,8 +36,6 @@ export type ScoreInput = {
    * (or the whole legal list, when that was omitted too).
    */
   readonly stretchActions?: readonly Action[];
-  /** How this dad uses the bench. Repeatable timers read it. */
-  readonly craft?: CraftRule;
 };
 
 type Priced = {
@@ -412,13 +373,6 @@ export function scoreDecision(input: ScoreInput): DecisionSample {
     outputShare: outputShare(input.mountain, input.now, input.trouble),
     ...(lineOn() ? { line: lineView(rates.tierSpeed, rates.running) } : {}),
     layer: layerOf(input.mountain).id,
-    workshopOpen: workshopUnlocked(input.mountain),
-    benchFree: input.mountain.bench === undefined,
-    materials: materialsOf(input.mountain.stock),
-    openRecipes: sinkRecipes(input.mountain),
-    knownRecipes: knownRecipeIds(input.mountain),
-    crafted: input.mountain.crafted,
-    unlimitedSinks: unlimitedSinks(input.craft, input.mountain.crafted),
     optionKinds: optionKinds(actions),
     byValue: {
       liveCount: value.liveCount,

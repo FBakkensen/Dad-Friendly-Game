@@ -1,4 +1,3 @@
-import { dayNumber, isSampleSecond, withFinish } from "./casual";
 import { actionsOnTable } from "./decide";
 import { readFinishDay } from "./measures/finishDay";
 import {
@@ -9,26 +8,26 @@ import {
   type ScoreMethod,
 } from "./measure";
 import { valueContext, type Policy } from "./policy";
-import {
-  createBandLog,
-  createSittingClock,
-  runBands,
-  summarizeBands,
-  type BandEvent,
-  type BandSummary,
-} from "./bands";
 import { createLedgerLog, type LedgerEntry } from "./ledger";
 import { createRevealLog, type RevealEvent } from "./reveal";
-import { createSittingLog, placeSittings, type SittingOpen } from "./sittings";
+import {
+  createMachineBuyLog,
+  createSittingClock,
+  createSittingLog,
+  dayNumber,
+  isSampleSecond,
+  placeSittings,
+  withFinish,
+  type MachineBuy,
+  type SittingOpen,
+} from "./sittings";
 import type { ValueContext } from "../economy/actions";
-import { minedOut } from "../scale";
 import type { Mountain } from "../mountain";
 import { TIERS, owned } from "../tiers";
 import { narrowAt, zeroGainBuysBetween } from "./line-view";
 import { freshView, workerTaps } from "./fresh-view";
 import { nightRecord, type NightRecord } from "./nights";
 import type { World } from "./world";
-import { freshMineOn } from "../line-switch";
 import { runPolicy } from "./run";
 import { scoreDecision } from "./score";
 import { mean, median } from "./stats";
@@ -141,16 +140,8 @@ export type TournamentResult = {
   readonly rows: readonly PolicyRow[];
   readonly timelines: readonly TimelineRow[];
   readonly deadStretches: readonly DeadStretchNote[];
-  /** Per-band report (#249), one entry per policy. Report only. */
-  readonly bands: readonly BandRow[];
   /** The pacing ledger (#554): one row per run that carries one. */
   readonly ledger: readonly LedgerEntry[];
-};
-
-type BandRow = {
-  readonly policyId: string;
-  readonly label: string;
-  readonly summary: BandSummary;
 };
 
 export type JudgedInput = TournamentInput & {
@@ -158,10 +149,8 @@ export type JudgedInput = TournamentInput & {
 };
 
 /**
- * Crew, kids, engineers, and upgrade levels: what a buy adds to (#335). An
- * engineer counts twice, because a promotion turns a worker into one: the
- * crew drops by one and this still rises. Crafts are timers and are not
- * counted.
+ * Crew and upgrade levels: what a buy adds to (#335). Crafts are timers
+ * and are not counted.
  */
 function ownedCount(mountain: Mountain): number {
   const crew = TIERS.reduce((total, tier) => total + owned(mountain, tier), 0);
@@ -169,8 +158,7 @@ function ownedCount(mountain: Mountain): number {
     (total: number, level) => total + level,
     0,
   );
-  const engineers = mountain.engineers.length;
-  return crew + engineers + engineers + levels;
+  return crew + levels;
 }
 
 /**
@@ -187,10 +175,10 @@ function samplePolicy(
   let liveSec = 0;
   let lastClock = 0;
   let pending: RevealEvent[] = [];
-  let pendingBands: BandEvent[] = [];
+  let pendingBuys: MachineBuy[] = [];
   const nights = createNightLog();
   const reveal = createRevealLog();
-  const bands = createBandLog();
+  const machineBuys = createMachineBuyLog();
   const sittingAt = createSittingClock();
   const sittingLog = createSittingLog();
   const ledger = createLedgerLog();
@@ -208,15 +196,13 @@ function samplePolicy(
       lastClock = world.clock;
       ledger.observe(world);
       const sitting = sittingAt(world.clock);
-      const mined = minedOut(world.mountain);
       pending.push(
         ...reveal(world.mountain, liveSec).map((event) => ({
           ...event,
           sitting,
-          mined,
         })),
       );
-      pendingBands.push(...bands(world.mountain));
+      pendingBuys.push(...machineBuys(world.mountain));
       nights.observe(world);
       placeSittings(
         samples,
@@ -224,14 +210,14 @@ function samplePolicy(
           clock: world.clock,
           owned: ownedCount(world.mountain),
           tiers: TIERS.map((tier) => owned(world.mountain, tier)),
-          open: () => openingView(world.mountain, world.clock, policy, context),
+          open: () => openingView(world.mountain, world.clock, context),
           narrow: () => narrowAt(world.mountain, world.clock),
           zeroGainBuys:
             before === undefined
               ? undefined
               : zeroGainBuysBetween(before, world.mountain, world.clock),
           workerTaps:
-            before === undefined || !freshMineOn()
+            before === undefined
               ? undefined
               : workerTaps(
                   { helper: before.owned.helper, jobs: before.jobs },
@@ -246,15 +232,11 @@ function samplePolicy(
       if (isSampleSecond(live)) {
         const trouble =
           world.hazards.phase === "trouble" ? world.hazards.trouble : undefined;
-        const stretchActions =
-          trouble === undefined
-            ? actionsOnTable(world.mountain, world.clock, policy.params)
-            : actionsOnTable(
-                world.mountain,
-                world.clock,
-                policy.params,
-                trouble,
-              );
+        const stretchActions = actionsOnTable(
+          world.mountain,
+          world.clock,
+          trouble,
+        );
         const ownedNow = ownedCount(world.mountain);
         const fresh = freshView(world.mountain);
         samples.push({
@@ -266,21 +248,20 @@ function samplePolicy(
             context,
             atMs: world.clock,
             stretchActions,
-            craft: policy.params.craft,
             ...(trouble === undefined ? {} : { trouble }),
           }),
         });
         ownedBefore = ownedNow;
-        attach(samples, pending, pendingBands);
+        attach(samples, pending, pendingBuys);
         nights.attach(samples);
         pending = [];
-        pendingBands = [];
+        pendingBuys = [];
       }
       live += 1;
     },
   });
   placeSittings(samples, sittingLog.flush());
-  attach(samples, pending, pendingBands);
+  attach(samples, pending, pendingBuys);
   nights.attach(samples);
   return {
     policy,
@@ -327,34 +308,33 @@ function createNightLog(): {
 function attach(
   samples: DecisionSample[],
   events: readonly RevealEvent[],
-  bandEvents: readonly BandEvent[],
+  buys: readonly MachineBuy[],
 ): void {
   const index = samples.length - 1;
   const last = samples[index];
-  if (last === undefined || events.length + bandEvents.length === 0) {
+  if (last === undefined || events.length + buys.length === 0) {
     return;
   }
   samples[index] = {
     ...last,
     reveals: [...(last.reveals ?? []), ...events],
-    bands: [...(last.bands ?? []), ...bandEvents],
+    machineBuys: [...(last.machineBuys ?? []), ...buys],
   };
 }
 
 /**
  * The best buy on this dad's Buys sheet, by stones a second per stone, as
- * he sits down: crew, machines and upgrades he weighs. Bench timers stay
- * off it; a cheap axle grease would otherwise hide the machine
- * he is saving for. Away time has cleared any trouble, so none is passed.
+ * he sits down: the crew and machines he weighs. Bench timers stay off it;
+ * a cheap axle grease would otherwise hide the machine he is saving for.
+ * Away time has cleared any trouble, so none is passed.
  */
 export function openingView(
   mountain: Mountain,
   now: number,
-  policy: Policy,
   context: ValueContext,
 ): SittingOpen {
-  const table = actionsOnTable(mountain, now, policy.params).filter(
-    (action) => action.kind === "buyTier" || action.kind === "buyUpgrade",
+  const table = actionsOnTable(mountain, now).filter(
+    (action) => action.kind === "buyTier",
   );
   const view = scoreDecision({
     mountain,
@@ -363,7 +343,6 @@ export function openingView(
     atMs: now,
     actions: table,
     stretchActions: table,
-    craft: policy.params.craft,
   }).stretch.value;
   if (view.bestId === "") {
     return { kind: "nothing" };
@@ -414,13 +393,6 @@ export function judgeTournament(input: JudgedInput): TournamentResult {
     rows,
     timelines: timelinesFor(input, grouped),
     deadStretches: stretchesFor(input, grouped),
-    bands: input.policies.map((policy) => ({
-      policyId: policy.id,
-      label: policy.label,
-      summary: summarizeBands(
-        (grouped.get(policy.id) ?? []).map((run) => runBands(run.samples)),
-      ),
-    })),
     ledger: input.runs.flatMap((run) =>
       run.ledger === undefined ? [] : [run.ledger],
     ),

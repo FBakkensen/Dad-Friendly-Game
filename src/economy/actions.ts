@@ -199,7 +199,7 @@ type OrderAction =
 
 /**
  * How a player spends the horizon. The player type's schedule supplies it
- * (`src/lab/policies`, #172). The catalogue does not pick a dad of its own.
+ * (`src/lab/fresh-policies`, #172). The catalogue does not pick a dad of its own.
  */
 export type ValueContext = {
   /** Seconds at the mountain in one cycle of the schedule. */
@@ -1070,9 +1070,8 @@ type ValueClock = {
  * Stones a second of the schedule. Live time pays the unrounded crew.
  * Away time pays the same factor as `accrueAway`,
  * and only up to the away cap. The rest of a long absence pays nothing.
- * The lab reads this for its lookahead so it does not keep a second formula.
  */
-export function incomePerSecond(
+function incomePerSecond(
   mountain: Mountain,
   context: ValueContext,
   clock?: ValueClock,

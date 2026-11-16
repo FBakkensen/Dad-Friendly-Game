@@ -359,11 +359,11 @@ export function recipeById(id: RecipeId): Recipe {
   return BY_ID[id];
 }
 
-export function recipeStrengthId(id: RecipeId): string {
+function recipeStrengthId(id: RecipeId): string {
   return `recipe.${id}.strength`;
 }
 
-export function recipeCostId(id: RecipeId): string {
+function recipeCostId(id: RecipeId): string {
   return `recipe.${id}.cost`;
 }
 

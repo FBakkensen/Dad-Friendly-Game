@@ -1,6 +1,10 @@
 import type { Stage } from "../line";
+import type { Mountain } from "../mountain";
+import { machinesInPlay, owned, tierById, type MachineId } from "../tiers";
+import type { DecisionSample } from "./measure";
+import type { RevealEvent } from "./reveal";
 import { mean, median } from "./stats";
-import { MS_PER_SECOND } from "./targets";
+import { DAY_MS, MS_PER_SECOND, SAMPLE_INTERVAL_SEC } from "./targets";
 
 /**
  * Sitting-level pacing (balance review, Nov 2026). The minute samples say
@@ -265,4 +269,137 @@ export function longestBestWait(events: readonly SittingEvent[]): number {
     longest = Math.max(longest, run);
   }
   return longest;
+}
+
+/** 1-based day, the same clock the pacing ledger prints. */
+export function dayNumber(ms: number): number {
+  return ms / DAY_MS + 1;
+}
+
+/** A sample second: every play-minute, which includes the session start. */
+export function isSampleSecond(second: number): boolean {
+  return second % SAMPLE_INTERVAL_SEC === 0;
+}
+
+/** Stamps the finish day onto every sample. An unfinished run is unchanged. */
+export function withFinish(
+  samples: readonly DecisionSample[],
+  finishDay: number | undefined,
+): readonly DecisionSample[] {
+  if (finishDay === undefined) {
+    return samples;
+  }
+  return samples.map((sample) => ({ ...sample, finishDay }));
+}
+
+/**
+ * Counts sittings for the reveal log. A clock step longer than one second
+ * is time away, so the next live second starts a new sitting.
+ */
+export function createSittingClock(): (clock: number) => number {
+  let sitting = 0;
+  let last: number | undefined;
+  return (clock) => {
+    if (last !== undefined && clock - last > MS_PER_SECOND) {
+      sitting += 1;
+    }
+    last = clock;
+    return sitting;
+  };
+}
+
+/** Machines of one tier bought since the last look (#357). */
+export type MachineBuy = {
+  readonly tier: MachineId;
+  readonly count: number;
+};
+
+/** Watches the machines in play and logs every purchase. */
+export function createMachineBuyLog(): (
+  mountain: Mountain,
+) => readonly MachineBuy[] {
+  const last = new Map<MachineId, number>();
+  return (mountain) => {
+    const events: MachineBuy[] = [];
+    for (const id of machinesInPlay()) {
+      const count = owned(mountain, tierById(id));
+      const bought = count - (last.get(id) ?? 0);
+      last.set(id, count);
+      if (bought > 0) {
+        events.push({ tier: id, count: bought });
+      }
+    }
+    return events;
+  };
+}
+
+/**
+ * #357. The smallest total of machines bought of any one tier in a run. A
+ * tier never bought counts 0, so one idle tier pulls the whole row to 0.
+ */
+export function fewestMachineBuys(samples: readonly DecisionSample[]): number {
+  const totals = new Map<MachineId, number>();
+  for (const event of samples.flatMap((sample) => sample.machineBuys ?? [])) {
+    totals.set(event.tier, (totals.get(event.tier) ?? 0) + event.count);
+  }
+  let fewest = Number.POSITIVE_INFINITY;
+  for (const id of machinesInPlay()) {
+    fewest = Math.min(fewest, totals.get(id) ?? 0);
+  }
+  return fewest;
+}
+
+const MACHINE_PREFIX = "tier:";
+
+function isMachineId(id: string): boolean {
+  return machinesInPlay().some(
+    (machine) => `${MACHINE_PREFIX}${machine}` === id,
+  );
+}
+
+/**
+ * Sittings started from a thing showing to its first use (M12-4, #252). A
+ * machine keeps its first wait only; each small thing's wait is kept.
+ */
+function revealWaits(samples: readonly DecisionSample[]): {
+  readonly machines: readonly number[];
+  readonly small: readonly number[];
+} {
+  const machines = new Map<string, number>();
+  const small: number[] = [];
+  const start = new Map<string, RevealEvent>();
+  for (const event of samples.flatMap((sample) => sample.reveals ?? [])) {
+    if (event.kind === "appeared") {
+      start.set(event.id, event);
+      continue;
+    }
+    const from = start.get(event.id);
+    if (from === undefined) {
+      continue;
+    }
+    start.delete(event.id);
+    const sittings = (event.sitting ?? 0) - (from.sitting ?? 0);
+    if (!isMachineId(event.id)) {
+      small.push(sittings);
+    } else if (!machines.has(event.id)) {
+      machines.set(event.id, sittings);
+    }
+  }
+  return { machines: [...machines.values()], small };
+}
+
+/** Worst sittings from a machine showing to its first buy. NaN with none. */
+export function machineRevealSittings(
+  samples: readonly DecisionSample[],
+): number {
+  const waits = revealWaits(samples).machines;
+  return waits.length === 0 ? Number.NaN : Math.max(...waits);
+}
+
+/** Worst sittings from a small thing showing to its first use. NaN with none. */
+export function smallRevealSittings(
+  samples: readonly DecisionSample[],
+): number {
+  const waits = revealWaits(samples).small;
+  return waits.length === 0 ? Number.NaN : Math.max(...waits);
 }

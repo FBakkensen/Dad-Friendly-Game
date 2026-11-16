@@ -1,16 +1,29 @@
 import { describe, expect, it } from "vitest";
+import { createMountain, type Mountain } from "../mountain";
+import type { DecisionSample } from "./measure";
+import type { RevealEvent } from "./reveal";
 import {
   bestOpenShare,
+  createMachineBuyLog,
+  createSittingClock,
   createSittingLog,
+  dayNumber,
+  fewestMachineBuys,
+  isSampleSecond,
   longestBestWait,
+  machineRevealSittings,
   medianBuys,
   medianTaps,
   placeSittings,
   sittingsOf,
+  smallRevealSittings,
+  withFinish,
   zeroBuyShare,
+  type MachineBuy,
   type SittingEvent,
   type SittingOpen,
 } from "./sittings";
+import { DAY_MS, SAMPLE_INTERVAL_SEC } from "./targets";
 
 const AFFORDABLE: SittingOpen = { kind: "affordable" };
 const WAITING: SittingOpen = { kind: "waiting", waitSec: 600 };
@@ -230,5 +243,105 @@ describe("sitting measures", () => {
     expect(medianBuys([])).toBeNaN();
     expect(bestOpenShare([sitting(0, 1, NOTHING)])).toBeNaN();
     expect(longestBestWait([])).toBeNaN();
+  });
+});
+
+describe("the sample clock", () => {
+  it("samples every play-minute, including the start of a session", () => {
+    expect(isSampleSecond(0)).toBe(true);
+    expect(isSampleSecond(SAMPLE_INTERVAL_SEC)).toBe(true);
+    expect(isSampleSecond(1)).toBe(false);
+    expect(dayNumber(0)).toBe(1);
+    expect(dayNumber(DAY_MS)).toBe(2);
+    const bare = withFinish([], undefined);
+    expect(bare).toEqual([]);
+    expect(withFinish(bare, 5).map((sample) => sample.finishDay)).toEqual([]);
+  });
+
+  it("starts a new sitting after time away", () => {
+    const sittingAt = createSittingClock();
+    expect(sittingAt(0)).toBe(0);
+    expect(sittingAt(1000)).toBe(0);
+    expect(sittingAt(60_000)).toBe(1);
+    expect(sittingAt(61_000)).toBe(1);
+  });
+});
+
+function withOwned(owned: Partial<Mountain["owned"]>): Mountain {
+  const start = createMountain();
+  return { ...start, owned: { ...start.owned, helper: 1, ...owned } };
+}
+
+function carrying(over: {
+  readonly machineBuys?: readonly MachineBuy[];
+  readonly reveals?: readonly RevealEvent[];
+}): DecisionSample {
+  return over as unknown as DecisionSample;
+}
+
+describe("machine buys (#357)", () => {
+  it("logs each machine bought since the last look", () => {
+    const log = createMachineBuyLog();
+    expect(log(withOwned({}))).toEqual([]);
+    expect(log(withOwned({ cart: 2 }))).toEqual([{ tier: "cart", count: 2 }]);
+    expect(log(withOwned({ cart: 2 }))).toEqual([]);
+  });
+
+  it("reads the smallest per-tier total, and 0 for a machine never bought", () => {
+    const samples = [
+      carrying({
+        machineBuys: [
+          { tier: "cart", count: 30 },
+          { tier: "drill", count: 25 },
+          { tier: "borer", count: 6 },
+          { tier: "machine", count: 9 },
+        ],
+      }),
+      carrying({
+        machineBuys: [
+          { tier: "cart", count: 20 },
+          { tier: "drill", count: 20 },
+          { tier: "borer", count: 10 },
+          { tier: "machine", count: 10 },
+        ],
+      }),
+    ];
+    expect(fewestMachineBuys(samples)).toBe(16);
+    expect(fewestMachineBuys([carrying({ machineBuys: [] })])).toBe(0);
+    expect(fewestMachineBuys([])).toBe(0);
+  });
+});
+
+describe("reveal to first use (M12-4, #252)", () => {
+  it("reads the worst wait in sittings for a machine and for a small thing", () => {
+    const samples = [
+      carrying({
+        reveals: [
+          { kind: "appeared", id: "tier:borer", liveSec: 0, sitting: 1 },
+          { kind: "appeared", id: "tier:cart", liveSec: 0 },
+          { kind: "appeared", id: "system:workshop", liveSec: 60, sitting: 1 },
+          { kind: "firstUse", id: "tier:borer", liveSec: 600, sitting: 3 },
+          { kind: "appeared", id: "tier:borer", liveSec: 700, sitting: 4 },
+          { kind: "firstUse", id: "tier:borer", liveSec: 800, sitting: 9 },
+          { kind: "firstUse", id: "system:workshop", liveSec: 180, sitting: 4 },
+          { kind: "firstUse", id: "never:shown", liveSec: 1 },
+        ],
+      }),
+      carrying({
+        reveals: [{ kind: "appeared", id: "upgrade:x", liveSec: 0 }],
+      }),
+      carrying({
+        reveals: [{ kind: "firstUse", id: "upgrade:x", liveSec: 120 }],
+      }),
+      carrying({}),
+    ];
+    // The borer's second showing does not count: a machine keeps its first wait.
+    expect(machineRevealSittings(samples)).toBe(2);
+    expect(smallRevealSittings(samples)).toBe(3);
+  });
+
+  it("is not a number when nothing was shown and used", () => {
+    expect(machineRevealSittings([])).toBeNaN();
+    expect(smallRevealSittings([])).toBeNaN();
   });
 });

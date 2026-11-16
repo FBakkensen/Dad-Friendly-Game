@@ -149,10 +149,6 @@ describe("scoreDecision", () => {
     );
     expect(sum).toBeCloseTo(1, 5);
     expect(sample.layer).toBe("topsoil");
-    expect(sample.workshopOpen).toBe(false);
-    expect(sample.benchFree).toBe(true);
-    // The Topsoil bench takes clay-only recipes; iron ones wait for the Granite (#244).
-    expect(sample.openRecipes).not.toContain("iron-rails");
   });
 
   it("treats a free improvement as infinitely good per stone", () => {

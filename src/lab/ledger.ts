@@ -1,6 +1,6 @@
 import { buildingsInPlay, type BuildingId } from "../city";
 import { machinesInPlay, owned, tierById, type MachineId } from "../tiers";
-import { dayNumber } from "./casual";
+import { dayNumber } from "./sittings";
 import {
   LEDGER_DAY_DIGITS as DAY_DIGITS,
   LEDGER_HASH_DIGITS as HASH_DIGITS,

@@ -13,7 +13,7 @@ import {
 import { neverBest } from "./measures/typeEverBest";
 import liveMedian from "./measures/liveMedian";
 import finishDayMeasure, { readFinishDay } from "./measures/finishDay";
-import { plainPolicy, type PlainSpec } from "./plain";
+import { freshPolicy, type FreshSpec } from "./plain";
 import { valueContext, type Policy } from "./policy";
 import {
   formatMeasure,
@@ -103,17 +103,13 @@ const tendingFromBorer: Target = {
   why: "An apprentice on the borer should be a real share of the output.",
 };
 
-function dad(spec: Pick<PlainSpec, "id" | "label" | "kind">): Policy {
-  return plainPolicy({
+function dad(spec: Pick<FreshSpec, "id" | "label" | "kind">): Policy {
+  return freshPolicy({
     ...spec,
     sessionsPerDay: 1,
     minutesPerSession: 1,
-    promote: "never",
-    promoteCap: 0,
-    explore: "never",
-    tend: "never",
     trouble: "never",
-    workers: "never",
+    moves: "once",
   });
 }
 
@@ -861,22 +857,11 @@ describe("openingView", () => {
     },
   };
 
-  function crafter(spend?: PlainSpec["spend"]): Policy {
-    return plainPolicy({
-      id: "crafter",
-      label: "Crafter",
-      kind: "casual",
-      sessionsPerDay: 1,
-      minutesPerSession: 1,
-      craft: "always",
-      ...(spend === undefined ? {} : { spend }),
-    });
-  }
+  const policy = dad({ id: "crafter", label: "Crafter", kind: "casual" });
 
   it("keeps a ready craft from making the open affordable", () => {
-    const policy = crafter();
     const context = valueContext(policy.params);
-    const table = actionsOnTable(granite, 0, policy.params);
+    const table = actionsOnTable(granite, 0);
     // On the whole table, the free axle grease is the best buy and needs no wait.
     const whole = scoreDecision({
       mountain: granite,
@@ -885,12 +870,11 @@ describe("openingView", () => {
       atMs: 0,
       actions: table,
       stretchActions: table,
-      craft: policy.params.craft,
     }).stretch.value;
     expect(whole.bestId).toBe("craft:axle-grease");
     expect(whole.waitToAffordSec).toBe(0);
     // The Buys sheet leaves it off, so the dad is still saving for crew.
-    const open = openingView(granite, 0, policy, context);
+    const open = openingView(granite, 0, context);
     expect(open.kind).toBe("waiting");
     expect(open.kind === "waiting" && open.waitSec > 0).toBe(true);
     // With the stones for a helper in the pocket, the same open is affordable.
@@ -898,29 +882,8 @@ describe("openingView", () => {
       openingView(
         { ...granite, stock: { ...granite.stock, stones: 100 } },
         0,
-        policy,
         context,
       ),
     ).toEqual({ kind: "affordable" });
-  });
-
-  it("says nothing when the dad weighs no crew, machine, or upgrade", () => {
-    const policy = crafter({
-      worker: 0,
-      machine: 0,
-      upgrade: 0,
-      promote: 0,
-    });
-    const rich = { ...granite, stock: { ...granite.stock, stones: 1_000_000 } };
-    const kinds = actionsOnTable(rich, 0, policy.params).map(
-      (action) => action.kind,
-    );
-    // Crafts are on his table, but none of them is on the Buys sheet.
-    expect(kinds).toContain("craft");
-    expect(kinds).not.toContain("buyTier");
-    expect(kinds).not.toContain("buyUpgrade");
-    expect(openingView(rich, 0, policy, valueContext(policy.params))).toEqual({
-      kind: "nothing",
-    });
   });
 });

@@ -3,7 +3,13 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { defineMeasure, parseMeasureExport, resultsOf } from "./measure";
-import { parsePolicyExport } from "./policy";
+import casual from "./fresh-policies/casual-2x10";
+import {
+  definePolicy,
+  isPolicy,
+  parsePolicyExport,
+  type Policy,
+} from "./policy";
 import { assertKnownMeasures, discover, isDiscoveredFile } from "./registry";
 import { runPolicy } from "./run";
 import { MS_PER_SECOND, TARGETS } from "./targets";
@@ -140,6 +146,12 @@ describe("registry", () => {
     expect(() => {
       assertKnownMeasures([{ id: "ghost", measure: "missing" }], []);
     }).toThrow(/missing/);
+    expect(() => {
+      assertKnownMeasures(
+        [{ id: "known", measure: "count" }],
+        [{ id: "count" }],
+      );
+    }).not.toThrow();
   });
 
   it("is the only lab file that reads the filesystem", () => {
@@ -196,7 +208,7 @@ describe("policy registry", () => {
   });
 
   it("loads every policy file through the same loader as measures", async () => {
-    const dir = path.join(labDir, "policies");
+    const dir = path.join(labDir, "fresh-policies");
     const policies = await discover(dir, parsePolicyExport);
     const names = readdirSync(dir)
       .filter(isDiscoveredFile)
@@ -205,5 +217,56 @@ describe("policy registry", () => {
       names.map((name) => name.replace(/\.ts$/, "")),
     );
     expect(policies.some((policy) => policy.kind === "optimizer")).toBe(true);
+  });
+
+  it("rejects a default export that is not a player type", () => {
+    expect(isPolicy(casual)).toBe(true);
+    for (const bad of [null, "casual", [], { ...casual, fresh: undefined }]) {
+      expect(isPolicy(bad)).toBe(false);
+    }
+    for (const id of ["", "-bad", "a--b", "trail-", "NO"]) {
+      expect(isPolicy({ ...casual, id })).toBe(false);
+    }
+    expect(isPolicy({ ...casual, label: "" })).toBe(false);
+    expect(isPolicy({ ...casual, kind: "dad" })).toBe(false);
+    expect(isPolicy({ ...casual, params: null })).toBe(false);
+    expect(isPolicy({ ...casual, schedule: null })).toBe(false);
+    expect(
+      isPolicy({ ...casual, schedule: { ...casual.schedule, gapMs: 0 } }),
+    ).toBe(false);
+    expect(
+      isPolicy({ ...casual, params: { ...casual.params, sessionsPerDay: 0 } }),
+    ).toBe(false);
+    expect(
+      isPolicy({ ...casual, params: { ...casual.params, hoardK: -1 } }),
+    ).toBe(false);
+    expect(
+      isPolicy({ ...casual, params: { ...casual.params, trouble: "later" } }),
+    ).toBe(false);
+    // The fresh mine's habits: well formed, or the type is refused.
+    for (const fresh of [
+      "idle",
+      { moves: "idle" },
+      { moves: "often", hold: "never", upgrades: false },
+      { moves: "once", hold: "sometimes", upgrades: false },
+      { moves: "once", hold: "never", upgrades: "yes" },
+    ]) {
+      expect(isPolicy({ ...casual, fresh })).toBe(false);
+    }
+    expect(() => {
+      parsePolicyExport(null, "x.ts");
+    }).toThrow(/default export/);
+    expect(() => {
+      parsePolicyExport({}, "x.ts");
+    }).toThrow(/default export/);
+    expect(() => {
+      parsePolicyExport({ default: { id: "nope" } }, "x.ts");
+    }).toThrow(/not a policy/);
+    expect(() => {
+      definePolicy({ ...casual, id: "Bad" });
+    }).toThrow('Invalid policy "Bad"');
+    expect(() =>
+      definePolicy({ ...casual, id: 4 } as unknown as Policy),
+    ).toThrow('Invalid policy "?"');
   });
 });

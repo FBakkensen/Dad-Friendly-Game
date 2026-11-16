@@ -11,7 +11,7 @@ export const LIVE_RATIO = 1.5;
 export const MS_PER_SECOND = 1000;
 const SECONDS_PER_MINUTE = 60;
 const MINUTES_PER_HOUR = 60;
-export const HOURS_PER_DAY = 24;
+const HOURS_PER_DAY = 24;
 
 export const HOUR_MS = MINUTES_PER_HOUR * SECONDS_PER_MINUTE * MS_PER_SECOND;
 export const DAY_MS = HOURS_PER_DAY * HOUR_MS;
@@ -148,12 +148,6 @@ export type Target =
 export const TARGETS: readonly Target[] = [];
 
 /**
- * Sittings the optimizer may save across. One is the next session: that
- * sitting plus the gap before it, because away pay shows up first.
- */
-export const LOOKAHEAD_SESSIONS = 1;
-
-/**
  * A fresh mine's dad (slice 1, #655). A gain or a difference this small is
  * float dust, not a move of the line.
  */
@@ -237,9 +231,6 @@ export const CHECKIN_MINUTES = 2;
 export const FIVE_MINUTES = 5;
 export const MARATHON_MINUTES = 3 * MINUTES_PER_HOUR;
 
-/** A hoarder pays only when the pocket holds this many times the sticker. */
-export const HOARD_MULTIPLE = 8;
-
 /** Both sides of a jitter roll, so the gap can land early or late. */
 const JITTER_POLES = 2;
 
@@ -281,11 +272,3 @@ export function meetsTarget(target: Target, actual: number): boolean {
   const [low, high] = target.value;
   return actual >= low && actual <= high;
 }
-
-/**
- * Band report flags (M12-1, report only, no guardrail reads them). From the
- * reveal research: a small thing should not sit on screen for more than one
- * sitting before its first use, and a machine for no more than two.
- */
-export const REPORT_SMALL_SITTINGS = 1;
-export const REPORT_MACHINE_SITTINGS = 2;
