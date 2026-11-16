@@ -721,10 +721,10 @@ async function main() {
     await expectText(opened.page, /Light Tower.s roof/i, "the roof's report");
     return opened;
   });
-  // Part 2 (#671), on the dev page's `?part2=1` until #672 switches it on.
+  // Part 2 (#671, switched on in #672).
   await capture("slice-refinery", (viewport) =>
     openFrame(viewport, sliceRefinerySave(Date.now()), "refinery", {
-      search: `${MEMORY}&part2=1`,
+      search: MEMORY,
     }),
   );
   await capture("slice-card-report-yard", async (viewport) => {
@@ -732,7 +732,7 @@ async function main() {
       viewport,
       sliceYardFullSave(Date.now()),
       {
-        search: `${MEMORY}&part2=1`,
+        search: MEMORY,
       },
     );
     await frameCardUp(opened.page);
@@ -741,7 +741,7 @@ async function main() {
   });
   await capture("slice-card-opens", async (viewport) => {
     const opened = await openAuditPage(viewport, sliceRoofSave(Date.now()), {
-      search: `${MEMORY}&part2=1`,
+      search: MEMORY,
     });
     await frameCardUp(opened.page);
     await press(opened.page, ".frame-card-key");

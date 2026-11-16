@@ -1,6 +1,7 @@
 import minerUrl from "./assets/board/miner-18f.png";
 import wagonUrl from "./assets/city/horse-wagon.png";
 import towerUrl from "./assets/city/light-tower.png";
+import warehouseUrl from "./assets/city/warehouse.png";
 import type { BuildingId } from "./city";
 import type { CityScene, Plot } from "./city-view";
 import {
@@ -45,12 +46,42 @@ export const PLOT_SPANS: readonly { readonly x: number; readonly w: number }[] =
   ];
 
 /**
- * The buildings drawn so far. The Warehouse (#666) is drawn when part 2's
- * city lays its site out for the second plot (#671); until then its plot
- * shows its stakes.
+ * Where each plot's building stands, in art px from the scene's left: the
+ * Light Tower 6 into the first plot, and the Warehouse 5 into the second, so
+ * its 46-wide picture and its scaffold fit the 56-wide plot (#672).
  */
+const BUILDING_INSETS: readonly number[] = [6, 5, 6];
+
+export function buildingX(plot: number): number {
+  return (PLOT_SPANS[plot]?.x ?? 0) + (BUILDING_INSETS[plot] ?? 6);
+}
+
+/**
+ * The yard of the building in hand, in art px: where its builders stand and
+ * where its goods lie. The first plot has room beside the Light Tower. The
+ * second has none beside the Warehouse, so its yard is to its left, on the
+ * first plot's free ground beside the Light Tower, operational by then
+ * (#672; docs/ART.md, the Warehouse). The third plot's yard comes with part 3.
+ */
+const SITE_YARDS: readonly {
+  readonly builders: number;
+  readonly heap: number;
+}[] = [
+  { builders: 46, heap: 74 },
+  { builders: 62, heap: 44 },
+];
+
+export function siteYard(plot: number): {
+  readonly builders: number;
+  readonly heap: number;
+} {
+  return SITE_YARDS[plot] ?? SITE_YARDS[0] ?? { builders: 0, heap: 0 };
+}
+
+/** The buildings drawn: the Light Tower (#662) and the Warehouse (#672). */
 const BUILDING_URLS = {
   lightTower: towerUrl,
+  warehouse: warehouseUrl,
 } as const satisfies Partial<Record<BuildingId, string>>;
 
 function drawnBuilding(id: BuildingId): id is keyof typeof BUILDING_URLS {
@@ -235,7 +266,8 @@ function drawWagon(
 
 /**
  * The site of the building in hand: what lies on it, and the builders at
- * it. With no order the builders wait on the first plot with a "z".
+ * it, in its yard (`siteYard`). With no order the builders wait in the first
+ * plot's yard with a "z".
  */
 function drawSite(
   c: CanvasRenderingContext2D,
@@ -244,17 +276,14 @@ function drawSite(
   g: number,
   t: number,
 ): void {
-  const span = PLOT_SPANS[scene.sitePlot ?? 0];
-  if (span === undefined) {
-    return;
-  }
+  const yard = siteYard(scene.sitePlot ?? 0);
   if (scene.sitePlot !== undefined) {
-    heap(c, span.x + span.w - 18, g, 16, scene.siteFill, 95);
+    heap(c, yard.heap, g, 16, scene.siteFill, 95);
   }
   const drawn = Math.min(3, scene.builders);
   const waiting = Math.round(drawn * (1 - scene.building));
   for (let j = 0; j < drawn; j += 1) {
-    const x = span.x + 42 + j * 10;
+    const x = yard.builders + j * 10;
     const y = g - 21;
     if (j >= drawn - waiting) {
       frame(c, sprites.miner, 18, 14, [x, y]);
@@ -322,7 +351,7 @@ export function drawCity(
       stakes(c, span.x + 6, span.w - 12, g);
       return;
     }
-    drawBuilding(c, sprites[plot.building], span.x + 6, g, plot.risen, t);
+    drawBuilding(c, sprites[plot.building], buildingX(at), g, plot.risen, t);
   });
   drawSite(c, sprites, scene, g, t);
   drawWagons(c, sprites.wagon, scene, g, t);

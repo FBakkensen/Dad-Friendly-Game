@@ -41,8 +41,6 @@ export function parseBootOptions(search: string): {
   previewCopies: boolean;
   /** Dev-only layout hook: the update card, as a newer service worker opens it. */
   previewUpdate: boolean;
-  /** Dev-only: part 2's rules and screens, before #672 switches them on (#671). */
-  partTwo: boolean;
 } {
   const params = new URLSearchParams(search);
   const save = params.get("save");
@@ -53,7 +51,6 @@ export function parseBootOptions(search: string): {
     previewSave: save === "loading" || save === "error" ? save : undefined,
     previewCopies: params.get("copies") === "shelf",
     previewUpdate: params.get("update") === "shown",
-    partTwo: params.get("part2") === "1",
   };
 }
 
@@ -78,14 +75,10 @@ export async function createAppServices({
   devMode?: boolean;
 }): Promise<AppServices> {
   const options = parseBootOptions(search);
-  // Part 1 is switched on (#664): every page plays the fresh mine. Today's
-  // game stays in the code, behind the switch, for the tests and the labs
-  // until its clean-up (#665).
-  // `?part2=1` plays part 2 on a dev page (#671) until #672 switches it on.
-  holdFactors({
-    [FRESH_OFF]: 0,
-    ...(devMode && options.partTwo ? { [PART_TWO_OFF]: 0 } : {}),
-  });
+  // Parts 1 and 2 are switched on (#664, #672): every page plays the fresh
+  // mine with brick, the stockyard and the Warehouse. Outside the page both
+  // switches read off, so the unit tests and the labs play what they set.
+  holdFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 });
   const user = devMode ? memoryUser(options) : undefined;
   let services =
     user === undefined
