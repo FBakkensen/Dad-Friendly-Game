@@ -1,10 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { withFactors } from "./economy/factors";
 import { formatCompact } from "./format";
-import { largestLoad } from "./cages";
+import {
+  largestLoad,
+  shortestRound,
+  tripSeconds,
+  type ShaftCage,
+} from "./cages";
 import { makerTakes } from "./makers";
 import { graniteChain, makerHolds, mineWork, topsoilChain } from "./mine-piles";
-import { chainSpill } from "./piles";
+import { chainFlows, chainSpill, type Chain } from "./piles";
 import { crewTimer } from "./rates";
 import type { Mountain } from "./mountain";
 import { PART_TWO_OFF } from "./part-switch";
@@ -12,6 +17,7 @@ import {
   BYPASS_RECIPE,
   nightForecast,
   refineryView,
+  steadySpill,
   type RefineryView,
 } from "./refinery-view";
 import { stockpileRoom } from "./stockyard";
@@ -323,17 +329,68 @@ describe("a steady bypass (#754)", () => {
         const brick = stockpileRoom(mountain, "brick");
         return { ...mountain, stock: { ...mountain.stock, brick } };
       };
-      const under = view(stopped(1));
-      const [kilnsPlate] = under.plates;
-      const [topsoil] = under.hoppers;
+      const full = view(stopped(0));
+      const [kilnsPlate] = full.plates;
+      const [topsoil] = full.hoppers;
       expect(kilnsPlate?.now).toBe("0");
       expect(topsoil?.lifted ?? 0).toBeGreaterThan(0);
-      // The kilns take nothing: every rock the Topsoil lifts goes past them, steady.
-      expect(under.bypass.rate).toBe(
-        `${formatCompact(topsoil?.lifted ?? 0)}/s`,
-      );
-      expect(under.bypass.rate).toBe(view(stopped(0)).bypass.rate);
-      expect(under.scene.bypassing).toBe(true);
+      // The kilns take nothing: every rock the Topsoil lifts goes past them.
+      expect(full.bypass.rate).toBe(`${formatCompact(topsoil?.lifted ?? 0)}/s`);
+      expect(full.scene.bypassing).toBe(true);
+      // Nothing drains the pile between loads, so a pile with room is still filling: no stone yet.
+      expect(view(stopped(1)).bypass.rate).toBe("0/s");
+    });
+  });
+
+  /** A pile `room` short of 1,000, lifted into at `lift` and taken from at `take` a second, its overflow to stone. */
+  const fill = (room: number, lift: number, take: number): Chain => ({
+    source: Infinity,
+    rates: [lift, take],
+    piles: [{ held: 1_000 - room, holds: 1_000 }],
+    spill: { from: 0, held: 0, holds: Infinity, drain: 0 },
+  });
+
+  /** One running hoist for the Topsoil alone. */
+  const ownHoist: ShaftCage = {
+    key: "hoist:0",
+    load: 150,
+    runs: true,
+    serves: "topsoil",
+  };
+
+  it("shows no stone from a pile still filling from below (PR review)", () => {
+    // A load every 5 s round trip, and the kilns take 24/s: a steady pile
+    // drains 120 between loads, so 150 short and lifted into at 26/s it is filling.
+    withFactors({ "trip.topsoil": 0.5 }, () => {
+      const between = shortestRound([ownHoist], "topsoil");
+      expect(between).toBe(5);
+      expect(chainSpill(fill(0, 26, 24))).toBe(2);
+      expect(steadySpill(fill(150, 26, 24), between)).toBe(0);
+      expect(steadySpill(fill(120, 26, 24), between)).toBe(2);
+    });
+    // No cage serving the level (part 2 has none): the chain's own spill.
+    expect(steadySpill(fill(1, 26, 24), 0)).toBe(0);
+    expect(steadySpill(fill(0, 26, 24), 0)).toBe(2);
+  });
+
+  it("reads steady only within what the kilns take over a cage's round trip", () => {
+    partThree(() => {
+      const mountain = fed(0);
+      const chain = topsoilChain(mountain);
+      const flows = chainFlows(chain);
+      const from = chain.spill?.from ?? 0;
+      const takes = (flows[from + 1] ?? 0) * makerTakes("kiln");
+      const round = shortestRound(mineWork(mountain).cages, "topsoil");
+      expect(round).toBe(tripSeconds("topsoil"));
+      const window = takes * round * crewTimer(mountain, 0);
+      expect(flows[from] ?? 0).toBeGreaterThan(takes);
+      const steady = view(mountain).bypass.rate;
+      expect(steady).not.toBe("0/s");
+      expect(view(fed(Math.floor(window))).bypass.rate).toBe(steady);
+      // Past the window the pile is filling, and the board says so: the chain's own spill.
+      const filling = fed(Math.floor(window) + 1);
+      expect(view(filling).bypass.rate).toBe("0/s");
+      expect(view(filling).bypass.rate).toBe(instant(filling));
     });
   });
 

@@ -177,6 +177,29 @@ export function largestLoad(cages: readonly ShaftCage[]): number {
   return largest;
 }
 
+/**
+ * The shortest round trip among the running cages that serve `level` (#754):
+ * a cage that serves it unloads there at least once a round while rock
+ * waits. A cage for that level alone goes there every trip; one for both
+ * in turn, the winch among them, goes there once a trip to each level.
+ * Infinity with no cage serving it.
+ */
+export function shortestRound(
+  cages: readonly ShaftCage[],
+  level: MineLevelId,
+): number {
+  const both = MINE_LEVEL_IDS.reduce((sum, each) => sum + tripSeconds(each), 0);
+  let shortest = Infinity;
+  for (const cage of cages) {
+    if (cage.runs && cage.serves === level) {
+      shortest = Math.min(shortest, tripSeconds(level));
+    } else if (cage.runs && cage.serves === "both") {
+      shortest = Math.min(shortest, both);
+    }
+  }
+  return shortest;
+}
+
 /** The fewest loads a pile the cages use holds: the spec's "three loads". */
 const LEAST_LOADS = 3;
 

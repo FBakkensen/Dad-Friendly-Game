@@ -1,6 +1,7 @@
 import { formatCompact, shiftDuration } from "./format";
 import { GOOD_NAMES, GOOD_WORDS, bayOrder, stockpiles } from "./frame-view";
 import {
+  MAKER_IDS,
   makerJob,
   makerMakes,
   makerOutput,
@@ -12,8 +13,8 @@ import {
   type MakerId,
   type MakerJob,
 } from "./makers";
-import { largestLoad } from "./cages";
-import { openGranite } from "./mine-levels";
+import { shortestRound } from "./cages";
+import { openGranite, type MineLevelId } from "./mine-levels";
 import {
   chainMade,
   graniteChain,
@@ -29,7 +30,7 @@ import {
   type LevelHopper,
 } from "./mine-view";
 import { accrueAway, type Mountain } from "./mountain";
-import { chainSpill, type Chain } from "./piles";
+import { chainFlows, chainSpill, type Chain } from "./piles";
 import { crewTimer } from "./rates";
 import { MAKER_WORDS, plural } from "./screen-words";
 import { canPay, type GoodId } from "./stock";
@@ -154,27 +155,44 @@ export type RefineryView = {
 const rate = (perSecond: number): string => `${formatCompact(perSecond)}/s`;
 
 /** Each maker's level's chain now: the kilns' the Topsoil's, the saws' the Granite's while it is open. */
+/** The level whose rock each maker takes. */
+const MAKER_LEVELS = {
+  kiln: "topsoil",
+  saw: "granite",
+} as const satisfies Record<MakerId, MineLevelId>;
+
 function makerChains(mountain: Mountain): Record<MakerId, Chain | undefined> {
   return { kiln: topsoilChain(mountain), saw: graniteChain(mountain) };
 }
 
 /**
- * What a level's rock bypasses to stone a second, read steady (#754): what
- * it lifts past its makers while their pile is within one cage load of full,
- * as the chain spills it from a full pile, and nothing while the pile has
- * room for more than a load. The cages unload in loads, so a pile that takes
- * the rest sits just under full between them; the chain's spill at that
- * instant would read 0 in most frames. With no cages (part 2) the load is 0,
- * and this is the chain's own spill. The night and the piles' rules are the
- * chain's, untouched: this is how the screen reads it.
+ * What a level's rock bypasses to stone a second, read steady (#754). The
+ * cages unload in loads: right after one the makers' pile is full and the
+ * rest bypasses, then the makers drain it until a cage that serves the
+ * level comes again, at most `between` seconds later (the shortest round
+ * trip among them, `shortestRound`, in the chain's seconds). So while the
+ * pile's room is no more than the makers take in that time, the bypass
+ * reads what the chain spills from a full pile: the lift past the makers.
+ * Outside that window, and with no cage serving the level (part 2 has no
+ * cages) or no lift, it is the chain's own spill now, which is 0 while the
+ * pile has room: a pile filling from below shows no stone that does not
+ * arrive. The night and the piles' rules are the chain's, untouched: this
+ * is how the screen reads it.
  */
-function steadySpill(chain: Chain, load: number): number {
+export function steadySpill(chain: Chain, between: number): number {
   const from = chain.spill?.from;
   const pile = from === undefined ? undefined : chain.piles[from];
-  if (pile === undefined || pile.holds - pile.held > load) {
+  if (from === undefined || pile === undefined) {
     return chainSpill(chain);
   }
-  const full = { held: Math.max(pile.held, pile.holds), holds: pile.holds };
+  const flows = chainFlows(chain);
+  const lift = flows[from] ?? 0;
+  const takes = (flows[from + 1] ?? 0) * (chain.takes?.[from + 1] ?? 1);
+  const room = pile.holds - pile.held;
+  if (room <= 0 || lift <= 0 || !(room <= takes * between)) {
+    return chainSpill(chain);
+  }
+  const full = { held: pile.holds, holds: pile.holds };
   return chainSpill({
     ...chain,
     piles: chain.piles.map((each) => (each === pile ? full : each)),
@@ -195,11 +213,16 @@ function incomeNow(
   const chains = makerChains(mountain);
   const made = (chain: Chain | undefined): number =>
     chain === undefined ? 0 : chainMade(chain) * timer;
-  const load = largestLoad(mineWork(mountain).cages);
-  const stones = Object.values(chains).reduce(
-    (sum, chain) => sum + (chain === undefined ? 0 : steadySpill(chain, load)),
-    0,
-  );
+  const { cages } = mineWork(mountain);
+  /** The longest a maker's pile waits for a load, in the chain's seconds: none with no cage serving its level. */
+  const between = (id: MakerId): number => {
+    const round = shortestRound(cages, MAKER_LEVELS[id]);
+    return Number.isFinite(round) ? round * timer : 0;
+  };
+  const stones = MAKER_IDS.reduce((sum, id) => {
+    const chain = chains[id];
+    return sum + (chain === undefined ? 0 : steadySpill(chain, between(id)));
+  }, 0);
   return {
     made: { kiln: made(chains.kiln), saw: made(chains.saw) },
     stones: stones * timer,

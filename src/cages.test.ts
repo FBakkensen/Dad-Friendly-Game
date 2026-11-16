@@ -11,6 +11,7 @@ import {
   carriedBy,
   hoistsOwned,
   largestLoad,
+  shortestRound,
   legSeconds,
   restoredTrips,
   shaftCages,
@@ -365,6 +366,36 @@ describe("the piles the cages use (Starting numbers)", () => {
     load,
     runs: true,
     serves: "both",
+  });
+
+  it("serve a level at least once a round trip: the shortest of the cages that serve it (#754)", () => {
+    const serving = (serves: ShaftCage["serves"], runs = true): ShaftCage => ({
+      ...loaded("hoist:0", 600),
+      serves,
+      runs,
+    });
+    const both = tripSeconds("topsoil") + tripSeconds("granite");
+    expect(shortestRound([serving("topsoil")], "topsoil")).toBe(
+      tripSeconds("topsoil"),
+    );
+    expect(shortestRound([serving("granite")], "granite")).toBe(
+      tripSeconds("granite"),
+    );
+    // A cage for both in turn, the winch among them, comes once a trip to each level.
+    expect(shortestRound([loaded("winch", 120)], "granite")).toBe(both);
+    // The shortest of several wins; a cage for the other level alone never serves it.
+    expect(
+      shortestRound(
+        [serving("granite"), serving("both"), serving("topsoil")],
+        "topsoil",
+      ),
+    ).toBe(tripSeconds("topsoil"));
+    expect(shortestRound([serving("topsoil")], "granite")).toBe(Infinity);
+    // A cage that does not run unloads nowhere; no cages, no round.
+    expect(shortestRound([serving("topsoil", false)], "topsoil")).toBe(
+      Infinity,
+    );
+    expect(shortestRound([], "topsoil")).toBe(Infinity);
   });
 
   it("hold three loads of the largest cage with three cages or fewer, never less than 300", () => {
