@@ -193,6 +193,8 @@ export type Header = {
   lenses: string;
   head: string;
   cost: number;
+  /** The model that reviewed, as people say it ("Haiku 5.5"). */
+  model: string;
   runUrl: string;
   /** On a re-check (#585), the commit the last review covered. */
   since?: string;
@@ -207,8 +209,24 @@ function counts(findings: readonly Finding[]): string {
   return `Findings: ${parts.join(", ")}.`;
 }
 
+/** "claude-haiku-5-5" as "Haiku 5.5"; any other id as it is. */
+function spoken(id: string): string {
+  const match = /^claude-([a-z]+)-(\d+)(?:-(\d+))?$/.exec(id);
+  if (match === null) return id;
+  const [, family = "", major = "", minor] = match;
+  const name = family.charAt(0).toUpperCase() + family.slice(1);
+  return `${name} ${major}${minor === undefined ? "" : `.${minor}`}`;
+}
+
+/** The models `claude -p`'s JSON output says the run spent its cost on. */
+export function modelName(output: unknown): string {
+  const usage = isRecord(output) ? output.modelUsage : undefined;
+  const ids = isRecord(usage) ? Object.keys(usage) : [];
+  return ids.length === 0 ? "Claude" : ids.map(spoken).join(", ");
+}
+
 function footer(header: Header): string {
-  return `---\n_Opus 5.5 via \`claude -p\`, paid from the monthly API credit: $${header.cost.toFixed(2)}. ([run](${header.runUrl}))_`;
+  return `---\n_${header.model} via \`claude -p\`, paid from the monthly API credit: $${header.cost.toFixed(2)}. ([run](${header.runUrl}))_`;
 }
 
 function heading(header: Header): string {
@@ -307,6 +325,7 @@ function post(args: readonly string[]): void {
       head: option(args, "head"),
       lenses: option(args, "lenses"),
       cost: Number(option(args, "cost")),
+      model: modelName(output),
       runUrl: option(args, "run"),
       ...(args.includes("--since") ? { since: option(args, "since") } : {}),
     },

@@ -71,3 +71,27 @@ The code, save and game lenses now ask the reviewer to walk each changed behavio
   Part of the lower cost ($5.34 against $6.86) is the walk reporting less, most of all on #476 ($0.93 against $1.99). The `rushUntil` gap on #472 is still caught. It is still on `main`, and it is #612.
 
 - **The review alone will not catch these known bugs.** Each needs following several steps of play with real timing: a second sign-in during a hold, a kill with no pagehide, crew that ticks on while the board is open. Those are what the gameplay journeys (#552, #553) and the economy invariants (#555) are for. #573 was found by a journey, and #592 by the invariants. The review is the net for rules, guards and single-step logic. The journeys and invariants are the net for play over time.
+
+## Third replay: a cheaper model (#744)
+
+On 16 Nov 2026 Flemming asked for a cheaper review: "the costs are adding up too fast". Opus 5.5 had cost $47.17 for 148 reviews since 14 Nov (61 first reviews at $0.57 on average, 87 re-checks at $0.15), and $28.62 on 15 Nov alone, so the $200 monthly credit would last about a week. Most of a review's cost is context, not answer: on #476 Opus wrote 90K tokens to the cache and read 1.5M back over 40 turns, and the output was a fifth of the bill.
+
+The same eight PRs were replayed with the tools at this PR's branch, on Haiku 5.5 and Sonnet 5.5 at several efforts, for $6.68 in all. The yardstick is the six findings the two Opus replays caught and someone checked: #574's prompt read from the PR (the known bug #576), #476's coverage floors, #402's Ready plate (#610), #472's `rushUntil` gap (#612), #461's loosened board CSS test, and #513's copy question.
+
+| Run                                      | Cost for 8 | Turns | Of the 6 checked | Missed                         |
+| ---------------------------------------- | ---------- | ----- | ---------------- | ------------------------------ |
+| Opus 5.5 (second replay, for scale)      | $5.34      | 9–43  | 6                | –                              |
+| Haiku 5.5, no effort set                 | $0.35      | 16–51 | 4                | #576, #610                     |
+| Haiku 5.5, no effort set, again          | $0.48      | 12–41 | 3                | #576, #610, the board CSS test |
+| Sonnet 5.5, no effort set                | $0.39      | 4–13  | 3                | #576, #610, the board CSS test |
+| Sonnet 5.5, high, again                  | $2.54      | 7–49  | 3                | #576, #610, the board CSS test |
+| Haiku 5.5, high                          | $1.92      | 16–71 | 5                | #610                           |
+| Haiku 5.5, high, reads long docs in part | $1.00      | 16–63 | 5                | #610                           |
+
+Sonnet with no effort set barely read anything (4 to 13 turns); at high effort it read more, cost six times as much, and caught no more. #610 was caught by one Opus run of two, so it is the hardest of the six.
+
+The cheap runs found real things Opus did not. Checked: on #476 a test that checks the craft line against the function that makes it, and on #513 the Ledger's one-line check widened to two lines for every row (it is in the diff as `lineHeight * 2 + 1`). Unchecked but repeated across runs: on #402 the Ready plate buys a machine in trouble where the Buys card presses its fix, and on #482 a failed read of the kept field log is swallowed. None of their findings read as wrong; the weakest is an Important on #501 for a copied storage helper, which is close to taste.
+
+Haiku's price is five times higher once a request's context passes 100K tokens, and at high effort it read past that on most large PRs: #476 cost $0.44 with 216K tokens cached. So the prompt now tells the reviewer to find the part of a long file it needs and read only that, never a whole `docs/ARCHITECTURE.md` (112 KB) or `docs/DESIGN.md` (154 KB). That halved the cost and kept the five catches.
+
+**What changed.** PRs are reviewed by Haiku 5.5 at high effort, with the part-reading prompt and a $1 cap per run. On these eight PRs that is about a fifth of Opus's cost for five of its six checked catches. At 15 Nov's pace (30 first reviews and 49 re-checks) it comes to about $5.40 a day instead of $28.62, inside the credit. A replay takes `model` and `effort` inputs, so another model can be compared on the same eight PRs before a switch.
