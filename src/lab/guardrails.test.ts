@@ -132,11 +132,11 @@ describe("guardrails", () => {
 
   it("prints a report-only miss and still exits 0 when the lab is strict", () => {
     const noted: GuardrailCheck = {
-      targetId: "crafted-from-granite",
-      measure: "craftShare",
+      targetId: "fixture-noted",
+      measure: "finishDay",
       pass: false,
       reportOnly: true,
-      detail: "crafted-from-granite misses for Casual, two 10-minute sittings.",
+      detail: "fixture-noted misses for Alpha.",
     };
     const warnings: string[] = [];
     expect(
@@ -145,13 +145,17 @@ describe("guardrails", () => {
       }),
     ).toBe(0);
     expect(warnings).toEqual([noted.detail]);
-    const rows = [rowFor(TARGETS, false)];
-    const checks = guardrailChecks(TARGETS, rows);
-    const crafted = checks.find(
-      (check) => check.targetId === "crafted-from-granite",
-    );
-    expect(crafted?.reportOnly).toBe(false);
-    expect(crafted?.pass).toBe(false);
+    const strict: Target = {
+      id: "fixture-strict",
+      measure: "finishDay",
+      scope: { kind: "all" },
+      op: "lte",
+      value: 1,
+      why: "A fixture bound that is not report only.",
+    };
+    const checks = guardrailChecks([strict], [rowFor([strict], false)]);
+    expect(checks[0]?.reportOnly).toBe(false);
+    expect(checks[0]?.pass).toBe(false);
   });
 });
 
@@ -196,32 +200,8 @@ describe("targets", () => {
     }
   });
 
-  it("keeps only the finish days, every-tier-bought, taps-per-sitting, dominant-share and today's three old-game rows report only (#357, #358, #592, #728)", () => {
-    const reportOnly = TARGETS.filter((target) => target.reportOnly === true)
-      .map((target) => target.id)
-      .sort();
-    expect(reportOnly).toEqual(
-      [
-        "casual-finish",
-        "dominant-share",
-        "every-tier-bought",
-        "extreme-win",
-        "optimizer-regret",
-        "single-share",
-        "taps-per-sitting",
-        "thin-habit-finish",
-      ].sort(),
-    );
-    for (const id of [
-      "zero-buy-sittings",
-      "buys-per-sitting",
-      "best-open-share",
-      "best-wait-sittings",
-    ]) {
-      expect(TARGETS.find((target) => target.id === id)?.reportOnly).not.toBe(
-        true,
-      );
-    }
+  it("holds no row: the fresh mine has no guardrail until new ones are designed (#737)", () => {
+    expect(TARGETS).toEqual([]);
   });
 
   it("fails when a target names an unknown measure", async () => {

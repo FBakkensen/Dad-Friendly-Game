@@ -12,8 +12,7 @@ import {
   type CloudSave,
 } from "./cloud-save";
 import { holdFactors } from "./economy/factors";
-import { FRESH_OFF } from "./line-switch";
-import { PART_TWO_OFF } from "./part-switch";
+import { PLAY_FACTORS } from "./part-switch";
 import { createMountain, type Mountain } from "./mountain";
 import { createProgressStore, type ProgressStore } from "./progress-store";
 import { createBrowserTabWriter, type TabWriter } from "./tab-writer";
@@ -77,8 +76,9 @@ export async function createAppServices({
   const options = parseBootOptions(search);
   // Parts 1 and 2 are switched on (#664, #672): every page plays the fresh
   // mine with brick, the stockyard and the Warehouse. Outside the page both
-  // switches read off, so the unit tests and the labs play what they set.
-  holdFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 });
+  // switches read off, so the unit tests play what they set; the strategy
+  // lab plays the same map (#737).
+  holdFactors(PLAY_FACTORS);
   const user = devMode ? memoryUser(options) : undefined;
   let services =
     user === undefined

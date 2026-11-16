@@ -3,6 +3,7 @@ import {
   ANSWER_SCHEMA,
   type Answer,
   commentableLines,
+  modelName,
   parseAnswer,
   reviewPost,
 } from "./findings.ts";
@@ -39,6 +40,7 @@ const HEADER = {
   lenses: "code, spec",
   head: "a".repeat(40),
   cost: 0.4,
+  model: "Haiku 5.5",
   runUrl: "https://example.test/run",
 };
 
@@ -154,6 +156,28 @@ describe("parseAnswer", () => {
   });
 });
 
+describe("modelName", () => {
+  it("names the model the run's cost was spent on", () => {
+    expect(modelName({ modelUsage: { "claude-haiku-5-5": {} } })).toBe(
+      "Haiku 5.5",
+    );
+    expect(modelName({ modelUsage: { "claude-opus-5-5": {} } })).toBe(
+      "Opus 5.5",
+    );
+    expect(modelName({ modelUsage: { "claude-sonnet-5": {} } })).toBe(
+      "Sonnet 5",
+    );
+  });
+
+  it("names every model a run used, and Claude when it cannot tell", () => {
+    expect(
+      modelName({ modelUsage: { "claude-haiku-5-5": {}, "claude-x": {} } }),
+    ).toBe("Haiku 5.5, claude-x");
+    expect(modelName({})).toBe("Claude");
+    expect(modelName("nope")).toBe("Claude");
+  });
+});
+
 describe("reviewPost", () => {
   it("puts a finding on its line when the hunk shows it", () => {
     const post = reviewPost(
@@ -222,6 +246,7 @@ describe("reviewPost", () => {
     );
     expect(post.review.body).toContain("Findings: 1 Critical, 1 Minor.");
     expect(post.review.body).toContain("$0.40");
+    expect(post.review.body).toContain("_Haiku 5.5 via `claude -p`");
   });
 
   it("marks the commit it reviewed, and heads a re-check as one", () => {

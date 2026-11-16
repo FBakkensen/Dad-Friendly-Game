@@ -1,78 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { minedMountain } from "../test-fixtures";
 import { withFactors } from "../economy/factors";
-import { FRESH_OFF, LINE_OFF } from "../line-switch";
-import { createMountain, MOUNTAIN_STONES } from "../mountain";
+import { FRESH_OFF } from "../line-switch";
+import { createMountain } from "../mountain";
 import casual from "./fresh-policies/casual-2x10";
-import { runDone, runPolicy, tendBest } from "./run";
-
-describe("where a best-tending dad sends her (#543)", () => {
-  const crew = {
-    ...minedMountain(130_000_000),
-    owned: {
-      ...minedMountain(130_000_000).owned,
-      helper: 60,
-      cart: 10,
-      drill: 20,
-      borer: 2,
-      hoist: 20,
-      machine: 1,
-    },
-    engineers: [
-      {
-        name: "Ada" as const,
-        rank: 0 as const,
-        trips: 0,
-        post: "borer" as const,
-      },
-    ],
-  };
-
-  it("on the line, to the post where the line gains most", () => {
-    withFactors({ [LINE_OFF]: 0 }, () => {
-      expect(tendBest(crew).engineers[0]?.post).toBe("cart");
-    });
-  });
-
-  it("off the line, to the Great Machine as always", () => {
-    expect(tendBest(crew).engineers[0]?.post).toBe("machine");
-  });
-
-  it("leaves an engineer who is out exploring where she is", () => {
-    withFactors({ [LINE_OFF]: 0 }, () => {
-      const away = {
-        ...crew,
-        expeditions: [
-          {
-            engineer: "Ada" as const,
-            tunnel: "side-seam" as const,
-            sentAt: 0,
-            returnsAt: 60_000,
-            find: { kind: "quiet" as const },
-          },
-        ],
-      };
-      expect(tendBest(away)).toBe(away);
-    });
-  });
-
-  it("leaves her where she is when no post lifts the line", () => {
-    withFactors({ [LINE_OFF]: 0 }, () => {
-      const idle = {
-        ...crew,
-        owned: {
-          ...crew.owned,
-          cart: 0,
-          drill: 0,
-          borer: 0,
-          hoist: 0,
-          machine: 0,
-        },
-      };
-      expect(tendBest(idle)).toBe(idle);
-    });
-  });
-});
+import { freshPolicy } from "./plain";
+import { fixDelayMs } from "./policy";
+import { NOT_FRESH, runDone, runPolicy } from "./run";
+import { FIX_FAST_MS, FIX_SLOW_MS, MS_PER_SECOND } from "./targets";
 
 describe("a fresh mine's run (#655)", () => {
   const FRESH = { [FRESH_OFF]: 0 };
@@ -85,17 +19,10 @@ describe("a fresh mine's run (#655)", () => {
     });
   });
 
-  it("ends today's run when the mountain is empty", () => {
-    const start = createMountain();
-    expect(start.remaining).toBe(MOUNTAIN_STONES);
-    expect(runDone(start)).toBe(false);
-    expect(runDone({ ...start, remaining: 0 })).toBe(true);
-  });
-
-  it("plays a fresh type the old way while the fresh mine is off", () => {
-    const run = runPolicy({ policy: casual, seed: 1, maxLiveSeconds: 1 });
-    // Today's dad has no order to place; part 1's dad orders at once.
-    expect(run.world.mountain.project.kind).toBe("unordered");
+  it("throws when the caller forgot the fresh mine's factors", () => {
+    expect(() =>
+      runPolicy({ policy: casual, seed: 1, maxLiveSeconds: 1 }),
+    ).toThrow(NOT_FRESH);
   });
 
   it("plays part 1's dad: he orders in his first second", () => {
@@ -103,5 +30,40 @@ describe("a fresh mine's run (#655)", () => {
       const run = runPolicy({ policy: casual, seed: 1, maxLiveSeconds: 1 });
       expect(run.world.mountain.project.kind).not.toBe("unordered");
     });
+  });
+
+  it("stops when the caller says the second is enough", () => {
+    withFactors(FRESH, () => {
+      const run = runPolicy({
+        policy: casual,
+        seed: 1,
+        maxLiveSeconds: 10,
+        until: (world) => world.clock >= 2 * MS_PER_SECOND,
+      });
+      expect(run.world.clock).toBe(2 * MS_PER_SECOND);
+    });
+  });
+
+  it("does not pay the gap once the live seconds are used up", () => {
+    const brief = freshPolicy({
+      id: "brief",
+      label: "One minute",
+      kind: "extreme",
+      sessionsPerDay: 2,
+      minutesPerSession: 1,
+      moves: "once",
+    });
+    withFactors(FRESH, () => {
+      const run = runPolicy({ policy: brief, seed: 1, maxLiveSeconds: 60 });
+      expect(run.world.clock).toBe(60 * MS_PER_SECOND);
+    });
+  });
+});
+
+describe("fixing trouble", () => {
+  it("waits the dad's delay, or never fixes", () => {
+    expect(fixDelayMs("fast")).toBe(FIX_FAST_MS);
+    expect(fixDelayMs("slow")).toBe(FIX_SLOW_MS);
+    expect(fixDelayMs("never")).toBeUndefined();
   });
 });

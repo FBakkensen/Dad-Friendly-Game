@@ -11,7 +11,7 @@ export const LIVE_RATIO = 1.5;
 export const MS_PER_SECOND = 1000;
 const SECONDS_PER_MINUTE = 60;
 const MINUTES_PER_HOUR = 60;
-export const HOURS_PER_DAY = 24;
+const HOURS_PER_DAY = 24;
 
 export const HOUR_MS = MINUTES_PER_HOUR * SECONDS_PER_MINUTE * MS_PER_SECOND;
 export const DAY_MS = HOURS_PER_DAY * HOUR_MS;
@@ -27,7 +27,7 @@ export const HORIZON_SEC =
  */
 export const SAMPLE_INTERVAL_SEC = SECONDS_PER_MINUTE;
 
-/** dominantShare leaves this many hours out. The live-median guardrail does too. */
+/** dominantShare leaves this many hours out. */
 export const OPENING_HOURS = 1;
 
 /** singleShare counts a sample with at most this many live options. */
@@ -69,17 +69,14 @@ export const REVEAL_LIST_SIZE = 8;
 /** Two sides of a sorted list, for the median. */
 export const MIDPOINT_DIVISOR = 2;
 
-/** Output-share key for the tending bonus. featureShare reads it. */
+/** Output-share key for the tending bonus. */
 export const TENDING_SOURCE = "tending";
 
-/** Output-share key for the tunnel borer. The tending guardrail starts here. */
+/** Output-share key for the tunnel borer. */
 export const BORER_SOURCE = "borer";
 
 /** Output-share key for stones that come from crafted gear and timers. */
 export const CRAFTED_SOURCE = "crafted";
-
-/** The workshop opens on this band. The crafted-output guardrail starts here. */
-const GRANITE_LAYER = "granite" satisfies LayerId;
 
 type PolicyKind = "casual" | "extreme" | "optimizer";
 
@@ -128,13 +125,7 @@ type TargetBase = {
   readonly measure: string;
   readonly scope: TargetScope;
   readonly why: string;
-  /**
-   * A miss is still in the report. It does not fail `LAB_STRICT`.
-   * The finish-day rows set it until the line turns on in play (#536) and
-   * the five-day floor turns strict (#556; the line's numbers meet it, #543). every-tier-bought sets it as a report row
-   * for the milestones sliver (#357). single-share, extreme-win and optimizer-regret set it
-   * until today's mountain leaves the lab (#737).
-   */
+  /** A miss is still in the report. It does not fail `LAB_STRICT`. */
   readonly reportOnly?: boolean;
 };
 
@@ -149,232 +140,14 @@ export type Target =
 /**
  * Guardrails. `measure` is a registered measure id. `scope` says which runs
  * or samples the bound covers. Edit a value here to move a guardrail.
+ *
+ * Empty since #737: the rows judged today's mountain, and the lab plays only
+ * the fresh mine now. Flemming, 16 Nov 2026 ("agree" to option A, #737): the
+ * fresh mine has no strict guardrail until new ones are designed. The
+ * five-day floor (#556), and any old row that carries over, come back when
+ * the lab plays the whole slice (the slice 1 spec, sliver 17), as a stop.
  */
-export const TARGETS: readonly Target[] = [
-  {
-    id: "dead-stretch",
-    measure: "longestDeadStretch",
-    scope: { kind: "policyKinds", kinds: ["casual"] },
-    op: "lte",
-    value: 0.5 * HOURS_PER_DAY,
-    why: "A casual dad waiting on the next buy for half a day has nothing to decide. The optimizer's save is reported beside it.",
-  },
-  {
-    id: "single-share",
-    measure: "singleShare",
-    scope: { kind: "policyKinds", kinds: ["casual", "optimizer"] },
-    op: "lte",
-    // Flemming, 8 Nov 2026 (#357): 0.26 after the milestone marks; the
-    // checker's opening Topsoil and deep Great Machine stretch are fixed
-    // one-buy moments. Flemming, 11 Nov 2026 (#468): 0.27, because a big
-    // buy waited about a minute at the open for the Gold rush (gone since
-    // #728) to bring in the held stones.
-    value: 0.27,
-    why: "Most moments should offer more than one live option.",
-    // Flemming, 16 Nov 2026 (#728): report-only until #729 deletes today's
-    // mountain (now #737). With the dig, boosts, the Gold rush and the relic powers
-    // gone, it runs slower.
-    reportOnly: true,
-  },
-  {
-    id: "live-median-after-open",
-    measure: "liveMedian",
-    scope: {
-      kind: "afterHour",
-      hour: OPENING_HOURS,
-      kinds: ["casual", "optimizer"],
-    },
-    op: "gte",
-    value: 2,
-    why: "After the first hour the typical moment should be a real choice.",
-  },
-  {
-    id: "dominant-share",
-    measure: "dominantShare",
-    scope: { kind: "policyKinds", kinds: ["casual", "optimizer"] },
-    op: "lte",
-    value: 0.4,
-    why: "One move should not be the right buy for most of the run.",
-    // Report only since #592. With away pay fixed at a band crossing, the
-    // casual 2x10 dad's top move is the best buy 0.475 of the time (0.392
-    // before, held under by the bug); the other types still pass. Flemming,
-    // 14 Nov 2026: "I don't care about the existing version, we should focus
-    // in the new version road to mars". The new version's buys (#563) are
-    // where it is fixed, and this turns strict again there.
-    reportOnly: true,
-  },
-  {
-    id: "tending-from-borer",
-    measure: "featureShare",
-    scope: {
-      kind: "fromSource",
-      source: BORER_SOURCE,
-      kinds: ["casual", "optimizer"],
-    },
-    op: "gte",
-    value: 0.08,
-    why: "An apprentice on the borer should be a real share of the output for a casual dad and for the optimizer.",
-  },
-  {
-    id: "casual-finish",
-    measure: "finishDay",
-    scope: { kind: "policyKinds", kinds: ["casual"] },
-    op: "gte",
-    value: 5,
-    why: "A run takes at least five days and has no ceiling: a meaningful decision at all times matters more than the day count.",
-    // Flemming, 14 Nov 2026 (#556): the 3-5 day target is gone. Not less
-    // than five days, likely weeks in the end. Report only, as since 7 Nov.
-    reportOnly: true,
-  },
-  {
-    id: "thin-habit-finish",
-    measure: "finishDay",
-    scope: { kind: "policies", ids: ["five-min-a-day"] },
-    op: "gte",
-    value: 5,
-    why: "Five minutes a day also takes at least five days, with no ceiling.",
-    // Ruling (#556): the 14-day ceiling went with the 3-5 day target.
-    reportOnly: true,
-  },
-  {
-    id: "extreme-win",
-    measure: "extremeWin",
-    scope: { kind: "policyKinds", kinds: ["extreme"] },
-    op: "lte",
-    // Flemming's decision (M12 retune, #252): the Marathon's one 3-hour
-    // sitting finishes on day 5 against the casual dad's day 6 (0.167).
-    value: 0.17,
-    why: "An extreme should not finish much sooner than a casual dad.",
-    // Flemming, 16 Nov 2026 (#728): report-only until #729 deletes today's
-    // mountain (now #737). With the dig, boosts, the Gold rush and the relic powers
-    // gone, it runs slower.
-    reportOnly: true,
-  },
-  {
-    id: "optimizer-regret",
-    measure: "regret",
-    scope: { kind: "policyKinds", kinds: ["casual"] },
-    op: "lte",
-    value: 1.25,
-    why: "The smart dad may finish sooner, and not by more than a quarter.",
-    // Flemming, 16 Nov 2026 (#728): report-only until #729 deletes today's
-    // mountain (now #737). Deleting the dig, boosts, the Gold rush and the relic powers
-    // moved today's mountain's pace; here the evening player now takes 1.40x
-    // the smart player's time, a wider gap than before.
-    reportOnly: true,
-  },
-  {
-    id: "crafted-from-granite",
-    measure: "craftShare",
-    scope: {
-      kind: "fromLayer",
-      layer: GRANITE_LAYER,
-      kinds: ["casual", "optimizer"],
-    },
-    op: "gte",
-    value: 0.08,
-    why: "Crafted gear should be a real share of the output once the workshop is open, for a casual dad and for the optimizer.",
-  },
-  {
-    id: "material-idle",
-    measure: "materialIdle",
-    scope: { kind: "policyKinds", kinds: ["casual"] },
-    op: "lte",
-    value: 0.5,
-    why: "A casual dad should not sit on a material that has nothing to spend it on for more than half a day.",
-  },
-  {
-    id: "small-reveal-wait",
-    measure: "smallRevealSittings",
-    scope: { kind: "policyKinds", kinds: ["casual"] },
-    op: "lte",
-    value: 2,
-    why: "An upgrade or new system should be tried within two sittings of showing up.",
-  },
-  {
-    id: "favoured-in-band",
-    measure: "favouredBuyShare",
-    scope: { kind: "policyKinds", kinds: ["casual"] },
-    op: "lte",
-    value: 0.5,
-    why: "each band's favoured machine should be bought in the first half of the band where it shines.",
-  },
-  {
-    id: "scoped-rule-3",
-    measure: "scopedRule3Misses",
-    scope: { kind: "policyKinds", kinds: ["casual"] },
-    op: "lte",
-    value: 0,
-    why: "no machine sits unbought where it opens or where the rock suits it, once the pocket reaches it.",
-  },
-  {
-    id: "machine-reveal-wait",
-    measure: "machineRevealSittings",
-    scope: { kind: "policyKinds", kinds: ["casual"] },
-    op: "lte",
-    value: 2,
-    why: "a new machine should be bought within two sittings of showing up.",
-  },
-  // Check-in pacing (balance review, docs/balance-review.md). Strict since
-  // the milestones sliver (#357): with the new curve (#356) and marks on
-  // every tier, a casual dad's check-ins hold them.
-  {
-    id: "zero-buy-sittings",
-    measure: "zeroBuySittings",
-    scope: { kind: "afterHour", hour: HOURS_PER_DAY, kinds: ["casual"] },
-    op: "lte",
-    value: 0.2,
-    why: "After day one, at most one check-in in five should buy nothing.",
-  },
-  {
-    id: "buys-per-sitting",
-    measure: "buysPerSitting",
-    scope: { kind: "afterHour", hour: HOURS_PER_DAY, kinds: ["casual"] },
-    op: "gte",
-    value: 3,
-    why: "After day one, a typical check-in should buy at least three things.",
-  },
-  {
-    id: "taps-per-sitting",
-    measure: "tapsPerSitting",
-    scope: { kind: "afterHour", hour: HOURS_PER_DAY, kinds: ["casual"] },
-    op: "lte",
-    value: 5,
-    why: "After day one, a typical check-in spends its return in about five taps on Max (#358).",
-    reportOnly: true,
-  },
-  {
-    id: "best-open-share",
-    measure: "bestOpenShare",
-    scope: { kind: "afterHour", hour: HOURS_PER_DAY, kinds: ["casual"] },
-    op: "gte",
-    value: 0.6,
-    why: "After day one, most check-ins should open with the best buy in reach.",
-  },
-  {
-    id: "best-wait-sittings",
-    measure: "bestWaitSittings",
-    scope: { kind: "afterHour", hour: HOURS_PER_DAY, kinds: ["casual"] },
-    op: "lte",
-    value: 2,
-    why: "The best buy should never stay out of reach for more than two check-ins in a row.",
-  },
-  {
-    id: "every-tier-bought",
-    measure: "fewestMachineBuys",
-    scope: { kind: "policyKinds", kinds: ["casual"] },
-    op: "gte",
-    value: 5,
-    why: "Every machine tier is bought at least five times in a run.",
-    reportOnly: true,
-  },
-];
-
-/**
- * Sittings the optimizer may save across. One is the next session: that
- * sitting plus the gap before it, because away pay shows up first.
- */
-export const LOOKAHEAD_SESSIONS = 1;
+export const TARGETS: readonly Target[] = [];
 
 /**
  * A fresh mine's dad (slice 1, #655). A gain or a difference this small is
@@ -460,9 +233,6 @@ export const CHECKIN_MINUTES = 2;
 export const FIVE_MINUTES = 5;
 export const MARATHON_MINUTES = 3 * MINUTES_PER_HOUR;
 
-/** A hoarder pays only when the pocket holds this many times the sticker. */
-export const HOARD_MULTIPLE = 8;
-
 /** Both sides of a jitter roll, so the gap can land early or late. */
 const JITTER_POLES = 2;
 
@@ -504,14 +274,6 @@ export function meetsTarget(target: Target, actual: number): boolean {
   const [low, high] = target.value;
   return actual >= low && actual <= high;
 }
-
-/**
- * Band report flags (M12-1, report only, no guardrail reads them). From the
- * reveal research: a small thing should not sit on screen for more than one
- * sitting before its first use, and a machine for no more than two.
- */
-export const REPORT_SMALL_SITTINGS = 1;
-export const REPORT_MACHINE_SITTINGS = 2;
 
 /**
  * The part 3 mine the work orders are sized against (#674,

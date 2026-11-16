@@ -7,22 +7,13 @@ import { lineOf, lineView } from "../line";
 import { lineOn } from "../line-switch";
 import { TIERS } from "../tiers";
 import {
-  knownRecipeIds,
   listActions,
-  sinkRecipes,
   valueOf,
   type Action,
   type ValueContext,
 } from "../economy/actions";
-import {
-  COLD_CLOCKS,
-  NOTHING_CRAFTED,
-  recipePrice,
-  workshopUnlocked,
-} from "../workshop";
+import { COLD_CLOCKS, NOTHING_CRAFTED, recipePrice } from "../workshop";
 import { MOVE_KINDS, type DecisionSample } from "./measure";
-import { unlimitedSinks } from "./measures/materialIdle";
-import type { CraftRule } from "./policy";
 import {
   CRAFTED_SOURCE,
   HORIZON_SEC,
@@ -30,7 +21,7 @@ import {
   TENDING_SOURCE,
   VALUE_TIE,
 } from "./targets";
-import { canPay, materialsOf } from "../stock";
+import { canPay } from "../stock";
 
 export type ScoreInput = {
   readonly mountain: Mountain;
@@ -45,8 +36,6 @@ export type ScoreInput = {
    * (or the whole legal list, when that was omitted too).
    */
   readonly stretchActions?: readonly Action[];
-  /** How this dad uses the bench. Repeatable timers read it. */
-  readonly craft?: CraftRule;
 };
 
 type Priced = {
@@ -64,7 +53,6 @@ type Summary = {
   readonly bestId: string;
   readonly bestKind: Action["kind"] | "";
   readonly waitToAffordSec: number;
-  readonly perStone: number;
 };
 
 const EMPTY: Summary = {
@@ -73,7 +61,6 @@ const EMPTY: Summary = {
   bestId: "",
   bestKind: "",
   waitToAffordSec: 0,
-  perStone: 0,
 };
 
 function actionId(action: Action): string {
@@ -213,7 +200,6 @@ function byPayback(moves: readonly Priced[]): Summary {
     bestId: best.id,
     bestKind: best.kind,
     waitToAffordSec: best.waitSec,
-    perStone: best.perStone,
   };
 }
 
@@ -271,7 +257,6 @@ function byValue(moves: readonly Priced[]): Summary {
     bestId: best.id,
     bestKind: best.kind,
     waitToAffordSec: best.waitSec,
-    perStone: best.perStone,
   };
 }
 
@@ -369,7 +354,6 @@ export function scoreDecision(input: ScoreInput): DecisionSample {
     price(input.mountain, action, input.context, input.now),
   );
   const payback = byPayback(priced);
-  const value = byValue(priced);
   const stretchPriced =
     input.stretchActions === undefined
       ? priced
@@ -378,8 +362,7 @@ export function scoreDecision(input: ScoreInput): DecisionSample {
         );
   const stretchPayback =
     input.stretchActions === undefined ? payback : byPayback(stretchPriced);
-  const stretchValue =
-    input.stretchActions === undefined ? value : byValue(stretchPriced);
+  const stretchValue = byValue(stretchPriced);
   const rates = effectiveRates(input.mountain, input.now, input.trouble);
   return {
     atMs: input.atMs,
@@ -393,21 +376,7 @@ export function scoreDecision(input: ScoreInput): DecisionSample {
     outputShare: outputShare(input.mountain, input.now, input.trouble),
     ...(lineOn() ? { line: lineView(rates.tierSpeed, rates.running) } : {}),
     layer: layerOf(input.mountain).id,
-    workshopOpen: workshopUnlocked(input.mountain),
-    benchFree: input.mountain.bench === undefined,
-    materials: materialsOf(input.mountain.stock),
-    openRecipes: sinkRecipes(input.mountain),
-    knownRecipes: knownRecipeIds(input.mountain),
-    crafted: input.mountain.crafted,
-    unlimitedSinks: unlimitedSinks(input.craft, input.mountain.crafted),
     optionKinds: optionKinds(actions),
-    byValue: {
-      liveCount: value.liveCount,
-      affordableLive: value.affordableLive,
-      bestId: value.bestId,
-      waitToAffordSec: value.waitToAffordSec,
-      perStone: value.perStone,
-    },
     nextPaybackRatio: nextPaybackRatio(priced),
     stretch: {
       payback: viewOf(stretchPayback),
