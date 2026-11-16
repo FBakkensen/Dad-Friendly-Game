@@ -29,12 +29,10 @@ import {
 import { NO_JOBS, workersOnJobs, type Jobs } from "./workforce";
 import { makerRecord, type MakerId } from "./makers";
 import { UNSUNK, type Granite } from "./mine-levels";
-import { chainChange, chainSettled } from "./piles";
 import {
-  chainIncome,
-  chainMakes,
   flowMine,
-  mineChain,
+  mineMakes,
+  mineSettled,
   takeIncome,
   type MinePiles,
 } from "./mine-piles";
@@ -431,7 +429,7 @@ function accrueMine(
   to: number,
   pay: number,
 ): Accrual {
-  if (!chainMakes(mineChain(mountain, pay, true))) {
+  if (!mineMakes(mountain, pay)) {
     return { mountain, mined: 0, settledAt: to };
   }
   const seconds = Math.floor((to - from) / 1000);
@@ -727,12 +725,12 @@ function workStretch(
   drilling: boolean,
 ): Stretch {
   // A stretch is a second at least: what changes within it is made for it.
-  const settled = chainSettled(mineChain(mountain, pay, drilling), 1);
-  const income = chainIncome(settled.chain);
+  const settled = mineSettled(mountain, pay, drilling);
+  const { income } = settled;
   const to = Math.min(
     end,
     secondMark(from, secondsToStep(mountain, pay, income)),
-    secondMark(from, settled.after + chainChange(settled.chain)),
+    secondMark(from, settled.change),
     stockyardOpen(mountain)
       ? secondMark(
           from,
