@@ -40,7 +40,9 @@ describe("the game map (#558)", () => {
       makers: "makers",
       stockyard: "stockyard",
       rockDug: "run",
+      graniteDug: "run",
       granite: "granite",
+      station: "station",
     } as const satisfies Record<keyof Mountain, string>;
     const fresh = createMountain();
     const full: Mountain = {
@@ -107,10 +109,16 @@ describe("the game map (#558)", () => {
       makers: { kiln: 2, saw: 0 },
       stockyard: 1,
       rockDug: 12_345,
+      graniteDug: 2_345,
       granite: {
         kind: "sunk",
         machines: { cart: 1, drill: 0, borer: 1, train: 0 },
         piles: { face: 5, shaft: 0, saw: 3 },
+      },
+      station: {
+        kind: "delivering",
+        blueprint: "sturdy-props",
+        arrived: { ...fresh.stock, stones: 900, clay: 1_250 },
       },
     };
     // Part 1 has one building, so an operational one and a project in hand

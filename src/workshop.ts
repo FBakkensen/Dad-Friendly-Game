@@ -377,13 +377,18 @@ function scaledCount(base: number, scale: number): number {
 /**
  * Stones and materials a craft spends right now, as a price (#560): the
  * goods it asks, stones first, none at 0. The cost factor defaults to 1.
+ * `stones` replaces the recipe's own stone base: the factory's work order
+ * (#674) requires its own stone and the recipe's materials, scaled alike.
  */
-export function recipePrice(id: RecipeId): Price {
+export function recipePrice(
+  id: RecipeId,
+  stones: number = recipeById(id).stones,
+): Price {
   const recipe = recipeById(id);
   const scale = factor(recipeCostId(id));
   return pricedGoods((good) =>
     good === "stones"
-      ? scaledCount(recipe.stones, scale)
+      ? scaledCount(stones, scale)
       : good === "brick" || good === "cutStone"
         ? 0
         : scaledCount(recipe.materials[good] ?? 0, scale),
@@ -472,22 +477,9 @@ function dropBench(mountain: Mountain): Mountain {
   return { ...mountain, bench: undefined };
 }
 
-/**
- * Where a timer's window is measured from. A charge still running past the
- * new craft keeps its end and then adds another stretch. Every other timer
- * starts when the craft goes on the bench, so the sitting that started it
- * is the sitting that feels it.
- */
 /** A clock still running at `now`. 0 is a cold clock, whatever the clock says. */
 function hotAt(until: number, now: number): boolean {
   return until !== 0 && until > now;
-}
-
-function timerFrom(bench: Bench, previous: number, extend: boolean): number {
-  if (extend && previous > bench.startedAt) {
-    return previous;
-  }
-  return bench.startedAt;
 }
 
 /**
@@ -503,30 +495,37 @@ export function settleBench(mountain: Mountain, now: number): Mountain {
   if (bench === undefined || now < bench.endsAt) {
     return mountain;
   }
-  const recipe = recipeById(bench.recipe);
+  return fitGear(dropBench(mountain), bench.recipe, bench.startedAt);
+}
+
+/**
+ * One more of this gear, fitted at `from` (epoch ms): the level goes up, to
+ * its last at most, and a live timer starts at `from`. A charge still
+ * running past `from` keeps its end and adds another stretch after it; an
+ * ember or grease replaces its clock. The old bench fits from when its craft
+ * started, and the factory's station from when he installs (#674).
+ */
+export function fitGear<T extends Pick<Mountain, "crafted" | "clocks">>(
+  mountain: T,
+  id: RecipeId,
+  from: number,
+): T {
+  const recipe = recipeById(id);
   const level = effectLevel(recipe, {
-    crafted: {
-      ...mountain.crafted,
-      [recipe.id]: craftedLevel(mountain, recipe.id) + 1,
-    },
+    crafted: { ...mountain.crafted, [id]: craftedLevel(mountain, id) + 1 },
   });
-  const fitted = dropBench({
-    ...mountain,
-    crafted: { ...mountain.crafted, [recipe.id]: level },
-  });
-  if (recipe.effect.kind === "charge") {
-    const from = timerFrom(bench, mountain.clocks["blasting-charge"], true);
-    return withClock(
-      fitted,
-      "blasting-charge",
-      from + recipe.effect.durationMs,
-    );
+  const fitted = { ...mountain, crafted: { ...mountain.crafted, [id]: level } };
+  const effect = recipe.effect;
+  if (effect.kind === "charge") {
+    const running = mountain.clocks["blasting-charge"];
+    const start = running > from ? running : from;
+    return withClock(fitted, "blasting-charge", start + effect.durationMs);
   }
-  if (recipe.effect.kind === "ember" || recipe.effect.kind === "axle") {
+  if (effect.kind === "ember" || effect.kind === "axle") {
     return withClock(
       fitted,
-      recipe.id as TimerId,
-      bench.startedAt + Math.round(tuned(recipe.effect.durationMs, recipe.id)),
+      id as TimerId,
+      from + Math.round(tuned(effect.durationMs, id)),
     );
   }
   return fitted;
@@ -631,11 +630,11 @@ export const COLD_CLOCKS: Clocks = {
 };
 
 /** The same mountain with one live timer set to stop at `until`. */
-export function withClock(
-  mountain: Mountain,
+export function withClock<T extends Pick<Mountain, "clocks">>(
+  mountain: T,
   id: TimerId,
   until: number,
-): Mountain {
+): T {
   return { ...mountain, clocks: { ...mountain.clocks, [id]: until } };
 }
 

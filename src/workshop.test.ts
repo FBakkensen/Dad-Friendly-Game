@@ -53,6 +53,7 @@ import {
   recipePrice,
   recipesForMined,
   settleBench,
+  fitGear,
   startCraft,
   troubleGapScale,
   workshopUnlocked,
@@ -996,5 +997,39 @@ describe("workshop rules", () => {
         ),
     );
     expect(cooled).toEqual([]);
+  });
+});
+
+describe("fitting gear from a moment (#674)", () => {
+  it("raises a lasting gear's level once, up to its last", () => {
+    const once = fitGear(BARE_MOUNTAIN, "iron-rails", 1_000);
+    expect(once.crafted["iron-rails"]).toBe(1);
+    const twice = fitGear(once, "iron-rails", 2_000);
+    expect(twice.crafted["iron-rails"]).toBe(2);
+    expect(fitGear(twice, "iron-rails", 3_000).crafted["iron-rails"]).toBe(2);
+    expect(twice.clocks).toEqual(COLD_CLOCKS);
+  });
+
+  it("starts a live timer from that moment, and a charge still running gets another stretch after it", () => {
+    const charged = fitGear(BARE_MOUNTAIN, "blasting-charge", 10_000);
+    expect(charged.clocks["blasting-charge"]).toBe(10_000 + CHARGE_MS);
+    const again = fitGear(charged, "blasting-charge", 20_000);
+    expect(again.clocks["blasting-charge"]).toBe(10_000 + 2 * CHARGE_MS);
+    const greased = fitGear(BARE_MOUNTAIN, "axle-grease", 5_000);
+    expect(greased.clocks["axle-grease"]).toBe(5_000 + AXLE_MS);
+    // Grease replaces its clock: a second one does not stack.
+    expect(fitGear(greased, "axle-grease", 6_000).clocks["axle-grease"]).toBe(
+      6_000 + AXLE_MS,
+    );
+  });
+
+  it("is what a finished bench fits, from when the craft started", () => {
+    const bench = {
+      recipe: "blasting-charge" as const,
+      startedAt: 0,
+      endsAt: 600_000,
+    };
+    const settled = settleBench({ ...BARE_MOUNTAIN, bench }, 600_000);
+    expect(settled).toEqual(fitGear(BARE_MOUNTAIN, "blasting-charge", 0));
   });
 });

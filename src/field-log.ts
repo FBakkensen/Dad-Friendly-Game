@@ -235,6 +235,15 @@ export function fieldEntry(event: MoveEvent): Omit<FieldEvent, "at"> {
         code: "granite.buy",
         data: { id: event.id, count: event.count },
       };
+    case "workOrderPlaced":
+      return { code: "work.place", data: { id: event.blueprint } };
+    case "workOrderCancelled":
+      return { code: "work.cancel", data: { id: event.blueprint } };
+    case "workOrderInstalled":
+      return {
+        code: "work.install",
+        data: { id: event.blueprint, count: event.level },
+      };
     /* v8 ignore next 3 -- exhaustiveness guard, unreachable */
     default: {
       const unexpected: never = event;

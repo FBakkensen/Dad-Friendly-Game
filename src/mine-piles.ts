@@ -570,6 +570,8 @@ function flowLevels(
       piles,
       granite: { ...granite, piles: granitePiles },
       rockDug: mountain.rockDug + dug,
+      // Counted where it is drilled, for the Granite's iron (#674).
+      graniteDug: mountain.graniteDug + movedAt(deep, 0),
     },
     mined,
     gained,
