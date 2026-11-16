@@ -33,10 +33,10 @@ Turn-based or idle are both in bounds. Real-time twitch play is not.
 
 ## An engineering game
 
-It is an engineering game, not a clicker and not a kids' game (Flemming, 14 and 15 Nov 2026).
+It is an engineering game, not a kids' game (Flemming, 14 and 15 Nov 2026). What a screen has to meet, line by line, is in the slice 1 spec (`docs/superpowers/specs/2026-11-14-slice-1-design.md`, What any screen has to meet). These are the principles under it.
 
 - **No manual mining.** No button mines, and no button delivers. The player hires, assigns, buys and orders.
-- **Plain engineering words.** Drilling, haulage, hoisting, stockpile, stockyard, refinery, factory, city, order. Never "face", "hands" or "by hand", and no cute or mining-romance wording, on a screen or in a question to Flemming. The approved names are the table in the slice 1 spec (`docs/superpowers/specs/2026-11-14-slice-1-design.md`, Names). Use them and do not ask again. Ids in code are free.
+- **Plain engineering words.** Drilling, haulage, hoisting, stockpile, stockyard, refinery, factory, city, order. Never "face", "hands" or "by hand", and no cute or mining-romance wording, on a screen or in a question to Flemming. The approved names are the table in that spec (Names). Use them and do not ask again. Ids in code are free.
 - **Show the numbers, never the answer** (15 Nov 2026). Nothing names the bottleneck, a limit or the best buy. Show the counts, the rates, what each worker and machine adds, and how the stages and parts depend on each other. The player finds the system, does the maths, and gains by balancing all its parts. That is the game.
 - **Every stage has its own buffer** (15 Nov 2026). Chained stages never run in lockstep: each fills a stock with a limit, and the next one takes from it. A full stockyard stops production, also over a night.
 - **State is seen.** What is idle shows: workers, machines, vehicles, and a buffer that is full. A count of machines shows the workers it has and the workers it takes. A number that jumps or drops shows why: a change with no reason on screen reads as a bug.

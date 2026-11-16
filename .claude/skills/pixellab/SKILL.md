@@ -22,7 +22,7 @@ Before any create/edit/animate call, send one short ask:
 
 Wait for a yes. If they change the prompt, use theirs.
 
-Flemming approved PixelLab for the project (11 Nov 2026), and each new picture's spend is still asked first, as a number of generations. His yes to the prompt, the size or the spend is not his look at the finished picture: show it to him, and record his answer in `docs/ART.md`.
+Flemming approved PixelLab for the project (11 Nov 2026), and since 15 Nov 2026 each new picture's spend is asked first, as a number of generations. His yes to the prompt, the size or the spend is not his look at the finished picture: show it to him, and record his answer in `docs/ART.md`.
 
 Cap: **one sheet or one loop per sitting**. No "while we are here, generate the cast."
 
@@ -111,10 +111,10 @@ Match style to existing assets in `assets/` (palette, outline, size). Prefer URL
 
 The prompt, seed and init of every picture in the game are in `docs/ART.md`. Read the section for the nearest picture before a new one. In short:
 
-- **Small icons.** `create_image_pixflux` refuses a canvas under 32×32. For a 16, 20, 24 or 28 square icon use `create_image_pixen` (one generation, no palette or init image). At 16×16 a first try is often hard to read: name the shape plainly ("a round brass pocket watch with a white clock face and two hands") and try once more. Pixen sometimes leaves stray pixels in the corners: check the alpha and clear them.
-- **A flat side view in the board's style.** A plain prompt comes out isometric, even with `view: side`. Pass a strip of the existing pictures' colours as `color_image_base64`, and a rough hand-drawn silhouette as `init_image_base64` at strength 110 to 220. One polish pass from the best try at strength 300 can help a machine. It made the horse worse.
+- **Small icons.** `create_image_pixflux` refuses a canvas under 32×32. For a 16, 20, 24 or 28 square icon use `create_image_pixen` (one generation, no palette or init image). At 16×16 a first try is often hard to read: name the shape and its parts plainly, and try once more. Pixen sometimes leaves stray pixels in the corners: check the alpha and clear them.
+- **A flat side view in the board's style.** A plain prompt comes out isometric, even with `view: side`. Pass a strip of the existing pictures' colours as `color_image_base64`, and a rough sketch of the silhouette as `init_image_base64`. The strength that worked ran from 110 (the kiln, the truck) through 140 to 220 (the hoist, the pit train) to 450 (the saw). One polish pass from the best try at strength 300 can help a machine. It made the horse wagon worse.
 - **A building.** A tall or square canvas gives a house. A long low canvas, with the goods it holds named in the prompt, gave the Warehouse. A tower came out right from the prompt alone, and a sketch as init at strength 60 to 80 made its lamp room bigger.
-- **A vehicle.** Best from the prompt alone: an init made a blob of the horse. PixelLab sometimes draws a strip of ground under it: clear those rows by hand.
+- **A vehicle.** The horse wagon was best from the prompt alone: an init made a blob of the horse. The truck took an init at strength 110. PixelLab sometimes draws a strip of ground under a vehicle: clear those rows yourself.
 - **After the picture.** Pixen's colours are its own: `scripts/palette-icon.py` snaps them to the palette. `scripts/outline-icon.py` gives every picture the house's black outline. A dim icon is a recolour (`scripts/dim-icon.py`), with no PixelLab call.
 - **Tries in parallel.** Start them as background shell jobs, with the `cd` on a line of its own first, or they start in the wrong folder.
 
