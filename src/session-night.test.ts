@@ -11,6 +11,8 @@ import {
 } from "./session";
 import { EMPTY_STOCK } from "./stock";
 import type { Project } from "./city";
+import { shaftPrice } from "./mine-levels";
+import { levels, partThree } from "./part-three.harness";
 
 /** The session greets a fresh mine's night by what happened in it (#663). */
 const fresh = <T>(body: () => T): T => withFactors({}, body);
@@ -199,6 +201,98 @@ describe("announcing a building that went operational (#663)", () => {
       expect(noticesOf(noted.news, "operational")).toEqual([
         { kind: "operational", building: "lightTower" },
       ]);
+    });
+  });
+});
+
+describe("announcing the Granite when the shaft is sunk (#754)", () => {
+  /** Part 3's mine with the Light Tower up, the shaft unsunk, and its price in stock. */
+  const ready = (): Mountain =>
+    levels({
+      sunk: false,
+      topsoil: 3,
+      hoisting: 3,
+      stock: Object.fromEntries(
+        shaftPrice().map(({ good, amount }) => [good, amount]),
+      ),
+    });
+  const sink = { kind: "move", move: { kind: "sinkShaft" } } as const;
+  const sunk = (): Mountain => levels({ topsoil: 3, hoisting: 3 });
+  const granite = { kind: "level", level: "granite" } as const;
+
+  it("announces the Granite once when the shaft is sunk", () => {
+    partThree(() => {
+      const open = playing(ready());
+      const moved = step(open, sink, 1_000).session;
+      expect(moved.mountain.granite.kind).toBe("sunk");
+      const noted = step(moved, { kind: "notice" }, 1_000).session;
+      expect(noticesOf(noted.news, "level")).toEqual([granite]);
+      const again = step(noted, { kind: "notice" }, 2_000).session;
+      expect(noticesOf(again.news, "level")).toEqual([granite]);
+      const closed = step(again, { kind: "dismiss", what: "level" }, 3_000);
+      expect(noticesOf(closed.session.news, "level")).toEqual([]);
+      const after = step(closed.session, { kind: "notice" }, 4_000).session;
+      expect(noticesOf(after.news, "level")).toEqual([]);
+    });
+  });
+
+  it("does not announce a Granite already sunk at load, or on an adopted copy", () => {
+    partThree(() => {
+      const loaded = step(playing(sunk()), { kind: "notice" }, 0).session;
+      expect(noticesOf(loaded.news, "level")).toEqual([]);
+      const adopted = openBaselines(
+        { ...playing(ready()), mountain: sunk() },
+        true,
+      );
+      const noted = step(adopted, { kind: "notice" }, 0).session;
+      expect(noticesOf(noted.news, "level")).toEqual([]);
+    });
+  });
+
+  it("keeps the Granite's notice when the night's report closes", () => {
+    partThree(() => {
+      // A full stockyard stops the night: the price comes in after it.
+      const night = step(
+        playing({ ...ready(), stock: EMPTY_STOCK }),
+        { kind: "away", since: 0 },
+        9 * 60 * MINUTE,
+      ).session;
+      expect(firstNotice(night.news, "away")).toBeDefined();
+      const paid = step(
+        night,
+        {
+          kind: "change",
+          update: (m) => ({
+            mountain: { ...m, stock: ready().stock },
+            events: [],
+          }),
+        },
+        9 * 60 * MINUTE,
+      ).session;
+      const moved = step(paid, sink, 9 * 60 * MINUTE).session;
+      expect(moved.mountain.granite.kind).toBe("sunk");
+      const noted = step(moved, { kind: "notice" }, 9 * 60 * MINUTE).session;
+      expect(noticesOf(noted.news, "level")).toEqual([granite]);
+      const closed = step(
+        noted,
+        { kind: "dismiss", what: "away" },
+        9 * 60 * MINUTE,
+      ).session;
+      expect(firstNotice(closed.news, "away")).toBeUndefined();
+      expect(noticesOf(closed.news, "level")).toEqual([granite]);
+    });
+  });
+
+  it("forgets an unread Granite on a fresh open, and a new run starts with none", () => {
+    partThree(() => {
+      const moved = step(playing(ready()), sink, 1_000).session;
+      const noted = step(moved, { kind: "notice" }, 1_000).session;
+      const begun = step(
+        noted,
+        { kind: "begin", mountain: ready() },
+        2_000,
+      ).session;
+      expect(noticesOf(begun.news, "level")).toEqual([]);
     });
   });
 });

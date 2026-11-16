@@ -10,7 +10,8 @@
  * the report of a night the stockyard stopped, with its second key. Part 3
  * (#681), on a dev page with `?part3=1`: the factory, idle, delivering and
  * done, and a blueprint dragged onto the station; and the mine with two
- * levels (#680), its machine card, and the two levels the Sink key opens.
+ * levels (#680), its machine card, and the two levels the Sink key opens,
+ * behind the card that says the Granite is reached (#754).
  */
 import {
   DEV_BACKUP_KEY,
@@ -1608,6 +1609,17 @@ async function checkGate(page, at) {
   );
 }
 
+/**
+ * Taps the Sink and waits for the card that says the Granite is reached
+ * (#754), which comes over the frame before the two levels are seen.
+ */
+async function sinkTheShaft(page) {
+  await page.waitForSelector(".mine-sink:not([hidden])");
+  await tap(page, ".mine-sink");
+  await page.waitForSelector('.frame-card[data-card="level"]:not([hidden])');
+  return cardFacts(page);
+}
+
 for (const size of SIZES) {
   const label = `${String(size[0])}x${String(size[1])}`;
   section(`${label} slice mine two levels`, async () => {
@@ -1661,10 +1673,40 @@ for (const size of SIZES) {
       const at = `${label} slice mine two levels from the Sink:`;
       await shot(page, `slice-mine-granite-unsunk-${label}`);
       await checkGate(page, at);
-      await tap(page, ".mine-sink");
+      await sinkTheShaft(page);
+      await tap(page, ".frame-card-key");
       await page.waitForSelector(".mine-levels:not([hidden])");
       await shot(page, `slice-mine-sunk-${label}`);
       await checkTwoLevels(page, at);
+    } finally {
+      await close();
+    }
+  });
+
+  section(`${label} slice card granite`, async () => {
+    const { page, close } = await openScreen(
+      size,
+      sliceGraniteUnsunkSave(Date.now()),
+      { search: "?memorySave=1&part3=1", seedKey: DEV_BACKUP_KEY },
+    );
+    try {
+      const at = `${label} slice card granite:`;
+      const card = await sinkTheShaft(page);
+      await shot(page, `slice-card-granite-${label}`);
+      checkCard(card, at, "level");
+      check(
+        /The Granite: reached/i.test(card.words) &&
+          card.words.includes("Continue"),
+        `${at} the card says the Granite is reached, with Continue`,
+      );
+      check(
+        await noScroll(page),
+        `${at} the Granite's card does not scroll the page`,
+      );
+      await tap(page, ".frame-card-key");
+      check(!(await cardFacts(page)).shown, `${at} Continue closes the card`);
+      const levels = await page.$eval(".mine-levels", (el) => !el.hidden);
+      check(levels, `${at} the mine shows its two levels behind the card`);
     } finally {
       await close();
     }
