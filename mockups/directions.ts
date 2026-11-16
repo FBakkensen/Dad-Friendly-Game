@@ -4,14 +4,11 @@ import { staffForBuy, staffNeeded } from "../src/engineers.ts";
 import { createMountain, type Mountain } from "../src/mountain.ts";
 import { effectiveRates } from "../src/rates.ts";
 import { layerOf } from "../src/layers.ts";
-import { nextRelic } from "../src/relics.ts";
 import { MOUNTAIN_STONES } from "../src/scale.ts";
-import { boostCost, BOOSTS } from "../src/boosts.ts";
 import {
   buyPriceWords,
   crewPostLabel,
   crewPostsShort,
-  formatClock,
   formatSpeed,
   layerCardWords,
   workerWords,
@@ -47,8 +44,6 @@ export type DirectionView = {
 
 const POCKET = 80_000_000;
 const STONES_LEFT = 110_000_000;
-const TEN_MINUTES = 10 * 60 * 1000;
-const THIRTY_MINUTES = 30 * 60 * 1000;
 
 const ART = {
   mountain: "/src/assets/mountain.png",
@@ -74,7 +69,6 @@ function priced(cost: number | undefined, name: string): number {
 
 const DRILL = formatCompact(tierCost(tierById("drill"), 8));
 const MACHINE = formatCompact(tierCost(tierById("machine"), 2));
-const ARMS = buyPriceWords(priced(upgradeCost(upgradeById("tap"), 3), "arms"));
 const ROADS = buyPriceWords(
   priced(upgradeCost(upgradeById("drillSyn"), 0), "roads"),
 );
@@ -84,8 +78,6 @@ const CREWS = buyPriceWords(
 const TRACKS = buyPriceWords(
   priced(upgradeCost(upgradeById("machineSyn"), 0), "tracks"),
 );
-const SHARPER = `Running · ${formatClock(TEN_MINUTES)}`;
-const OVERTIME = `Running · ${formatClock(THIRTY_MINUTES)}`;
 const POCKET_WORDS = formatCount(POCKET);
 const LEFT_WORDS = formatCount(STONES_LEFT);
 const CREW_LINE = crewPostsShort(84, 2);
@@ -127,7 +119,7 @@ function tools(view: DirectionView): string {
   const items = [
     ["workshop", "Workshop", ART.workshop, "Opens the workshop."],
     ["engineers", "Engineers", ART.engineers, "Opens the engineers."],
-    ["upgrades", "Upgrades", ART.upgrades, "Opens upgrades and boosts."],
+    ["upgrades", "Upgrades", ART.upgrades, "Opens upgrades."],
   ] as const;
   return items
     .map(([control, label, src, action]) =>
@@ -166,16 +158,9 @@ function renderUpgradesA(view: DirectionView): string {
       <p class="dir-kicker">Upgrades</p>
       <p class="dir-hero-num">${escapeHtml(POCKET_WORDS)}</p>
       <p class="dir-gold">stones to spend</p>
-      <p>Strong arms · level 3 of 10 · now 1,410</p>
-      <p class="dir-quiet">Owned · Work boots, Night foreman, Loading crews</p>
-      <p class="dir-quiet">Grandfather's pick is home. The lamp is too.</p>
+      <p class="dir-quiet">Owned · Work boots, Loading crews</p>
     </div>
     <div class="dir-actions">
-      <div class="dir-dock dir-pair">
-        ${btn(view, "sharper", "tok-secondary dir-buy", `<span>Sharper picks</span><span>${escapeHtml(SHARPER)}</span>`, "Sharper picks keeps running.")}
-        ${btn(view, "overtime", "tok-secondary dir-buy", `<span>Overtime</span><span>${escapeHtml(OVERTIME)}</span>`, "Overtime keeps running.")}
-      </div>
-      ${btn(view, "arms", "tok-primary dir-buy", `<span>Strong arms</span><span>${escapeHtml(ARMS)}</span>`, "Buys Strong arms.")}
       <div class="dir-dock dir-pair">
         ${btn(view, "roads", "tok-secondary dir-buy", `<span>Haul roads</span><span>${escapeHtml(ROADS)}</span>`, "Buys Haul roads.")}
         ${btn(view, "crews", "tok-secondary dir-buy", `<span>Drill crews</span><span>${escapeHtml(CREWS)}</span>`, "Buys Drill crews.")}
@@ -201,7 +186,7 @@ export function boardB(): Mountain {
       machine: 0,
       kid: 0,
     },
-    upgrades: { ...NO_UPGRADES, tap: 2, boots: 1 },
+    upgrades: { ...NO_UPGRADES, boots: 1 },
   };
 }
 
@@ -232,19 +217,12 @@ const DOES: Record<ShownTierId, string> = {
 };
 
 const UPGRADE_DOES: Partial<Record<UpgradeId, string>> = {
-  tap: "Each tap takes a little more.",
   boots: "The workers pick up their feet.",
-  steady: "Time away pays a little more.",
   cartSyn: "Each worker makes carts 1% faster.",
   drillSyn: "Drills make the borers a little quicker.",
   borerSyn: "Borers make the machine a little quicker.",
   machineSyn: "The machine makes the whole crew a little quicker.",
 };
-
-const BOOST_DOES = {
-  sharper: "A short push while you are here.",
-  overtime: "Twice as fast, then they rest.",
-} as const;
 
 function crewArt(id: ShownTierId): string {
   switch (id) {
@@ -339,9 +317,6 @@ function oneMore(mountain: Mountain, id: UpgradeId): Mountain {
 function upgradeSpan(mountain: Mountain, id: UpgradeId): string {
   const before = effectiveRates(mountain);
   const after = effectiveRates(oneMore(mountain, id));
-  if (id === "tap") {
-    return `Tap ${formatCount(before.tapYield)} to ${formatCount(after.tapYield)}`;
-  }
   if (id === "boots") {
     return `Workers ${formatSpeed(before.tierSpeed.helper)}/s to ${formatSpeed(after.tierSpeed.helper)}/s`;
   }
@@ -499,7 +474,7 @@ function renderMountainBOpen(view: DirectionView): string {
     ${readout(mountain, true)}
     <div class="dir-peek">${icon(ART.mountain)}</div>
     <div class="dir-buys">${mountainCards(view, mountain)}</div>
-    ${btn(view, "close", "tok-secondary dir-buy", "Back to the mountain", "The sheet closes and the rock is the tap again.")}
+    ${btn(view, "close", "tok-secondary dir-buy", "Back to the mountain", "The sheet closes back to the mountain.")}
   </section>`;
 }
 
@@ -553,48 +528,13 @@ function upgradeCard(
 
 function renderUpgradesB(view: DirectionView): string {
   const mountain = boardB();
-  const rates = effectiveRates(mountain);
-  const pricing = {
-    crewPerSecond: rates.crewPerSecond,
-    tapYield: rates.tapYield,
-  };
-  const armsCost = upgradeCost(
-    upgradeById("tap"),
-    upgradeLevel(mountain, "tap"),
-  );
   const hands = upgradeById("cartSyn");
   const handsCost = upgradeCost(hands, upgradeLevel(mountain, "cartSyn"));
   const handsWhy = UPGRADE_DOES.cartSyn ?? hands.perLevel;
-  const tease =
-    nextRelic(mountain)?.tease ?? "Deeper on, the walls start to glitter.";
+  const tease = "Deeper on, the walls start to glitter.";
   const roads = upgradeById("drillSyn");
   const cards = [
     upgradeCard(view, mountain, roads),
-    buyCard(
-      view,
-      "arms",
-      "Strong arms",
-      buyPriceWords(priced(armsCost, "Strong arms")),
-      armsCost !== undefined && mountain.stock.stones >= armsCost
-        ? "ready"
-        : "dear",
-      [upgradeSpan(mountain, "tap")],
-      `Buys Strong arms. ${upgradeSpan(mountain, "tap")} ${UPGRADE_DOES.tap ?? ""}`,
-      ART.upgrades,
-    ),
-    ...BOOSTS.map((boost) => {
-      const cost = boostCost(boost, pricing);
-      return buyCard(
-        view,
-        boost.id,
-        boost.name,
-        buyPriceWords(cost),
-        mountain.stock.stones >= cost ? "ready" : "dear",
-        [boost.effect],
-        `${boost.name}. ${boost.effect} ${BOOST_DOES[boost.id]}`,
-        boost.id === "sharper" ? ART.stone : ART.worker,
-      );
-    }),
     buyCard(
       view,
       "hands",
@@ -659,21 +599,15 @@ function renderUpgradesC(view: DirectionView): string {
       </div>
       <figcaption class="dir-caption">
         <p class="dir-hero-b">${escapeHtml(POCKET_WORDS)}</p>
-        <p class="dir-quiet">stones to spend · now 1,410 a tap</p>
+        <p class="dir-quiet">stones to spend</p>
       </figcaption>
     </figure>
-    <div class="dir-portraits">
-      ${btn(view, "sharper", "tok-secondary dir-portrait-btn", `${icon(ART.stone)}<span>Sharper picks</span><span class="dir-num">${escapeHtml(SHARPER)}</span>`, "Sharper picks keeps running.")}
-      ${btn(view, "arms", "tok-primary dir-portrait-btn", `${icon(ART.upgrades)}<span>Strong arms</span><span class="dir-num">${escapeHtml(ARMS)}</span>`, "Buys Strong arms.")}
-    </div>
     <div class="dir-shelf">
-      ${btn(view, "overtime", "tok-secondary dir-chip", `${icon(ART.worker)}<span>Overtime</span><span class="dir-num">${escapeHtml(OVERTIME)}</span>`, "Overtime keeps running.")}
       ${btn(view, "roads", "tok-secondary dir-chip", `${icon(ART.workshop)}<span>Roads</span><span class="dir-num">${escapeHtml(ROADS)}</span>`, "Buys Haul roads.")}
       ${btn(view, "crews", "tok-secondary dir-chip", `${icon(ART.drill)}<span>Crews</span><span class="dir-num">${escapeHtml(CREWS)}</span>`, "Buys Drill crews.")}
     </div>
     ${btn(view, "tracks", "tok-secondary dir-buy", `<span>Borer tracks</span><span>${escapeHtml(TRACKS)}</span>`, "Buys Borer tracks.")}
     ${btn(view, "close", "tok-secondary dir-buy", "Back to the mountain", "The sheet closes back to the mountain.")}
-    <p class="dir-quiet dir-center">Grandfather's pick is home. The lamp is too.</p>
   </section>`;
 }
 

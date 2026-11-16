@@ -84,8 +84,8 @@ describe("tiers", () => {
       ["machine", 2_100],
       ["kid", 25],
     ]);
-    expect(tierById("machine").needs).toBe("hammer");
-    expect(tierById("kid").needs).toBe("crown");
+    // #728: the Kid worker opens where the Crown of Wisdom lay.
+    expect(tierById("kid").opensAt).toBe(70_000_000);
     // #356: the borer opens at the Granite start, the band that suits it.
     expect(tierById("borer").opensAt).toBe(10_000_000);
     // M12 retune (#252): the Great Machine opens at the Deep Heart.
@@ -261,8 +261,8 @@ describe("crew staffing", () => {
   });
 });
 
-describe("Crown of Wisdom: kid helpers", () => {
-  it("are locked until the Crown, then for sale on the helpers' curve", () => {
+describe("kid helpers", () => {
+  it("are locked until 70M mined, then for sale on the helpers' curve", () => {
     const kid = tierById("kid");
     expect(tierLocked(minedMountain(69_999_999), kid)).toBe(true);
     expect(tierLocked(minedMountain(70_000_000), kid)).toBe(false);

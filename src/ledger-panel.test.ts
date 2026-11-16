@@ -8,11 +8,10 @@ import {
 import { DRAWER_SETTLE_MS } from "./board-drawer";
 import { READY_HOLD_MS } from "./board-interaction";
 import { createBoardHost } from "./board-host";
-import { RELIC_DARK, RELIC_LIT } from "./board-relics";
 import { createMemoryCloudSave, type CloudSave } from "./cloud-save";
 import { createLedgerPanel } from "./ledger-panel";
-import { relicsRowView, stonesRowView } from "./ledger-rows";
-import { MOUNTAIN_STONES, createMountain, type Mountain } from "./mountain";
+import { stonesRowView } from "./ledger-rows";
+import { createMountain, type Mountain } from "./mountain";
 import { mountFrameScreen } from "./frame-screen";
 import { createProgressStore } from "./progress-store";
 import { SOUND_KEY, soundSetting } from "./sound";
@@ -109,7 +108,7 @@ function mount(
   return screen;
 }
 
-/** A Granite mountain with clay and iron met and two relics found. */
+/** A Granite mountain with clay and iron met. */
 function granite(over: MountainPatch = {}): Mountain {
   return patched(
     {
@@ -216,23 +215,17 @@ describe("the Ledger drawer (#375)", () => {
           (each as HTMLElement).dataset["ledger"] ??
           each.className.split(" ")[0],
       );
-    expect(order).toEqual([
-      "mine",
-      "stones",
-      "relics",
-      "account",
-      "ledger-doors",
-    ]);
+    expect(order).toEqual(["mine", "stones", "account", "ledger-doors"]);
     expect(part(screen, ".board-sheet-title").textContent).toBe("Ledger");
     expect(part(screen, ".board-sheet-kick").textContent).toBe(
       "Tonight, and the mine so far",
     );
     expect(keyOf(screen).getAttribute("aria-expanded")).toBe("true");
-    // The "i": Time away, then Relics, under Back to the Ledger.
+    // The "i": Time away, under Back to the Ledger.
     part(screen, ".board-sheet-info").click();
     const how = part(screen, ".board-sheet-how");
     expect(how.hidden).toBe(false);
-    expect(how.children).toHaveLength(2);
+    expect(how.children).toHaveLength(1);
     expect(how.textContent).toContain("Back to the Ledger");
   });
 
@@ -248,7 +241,6 @@ describe("the Ledger drawer (#375)", () => {
 
     screen.progress.dispatch({ kind: "buyTier", id: "helper" });
     screen.progress.dispatch({ kind: "buyTier", id: "cart" });
-    screen.progress.dispatch({ kind: "buyBoost", id: "overtime" });
     keyOf(screen).click();
     expect(part(screen, '.board-sec[data-sec="tonight"]').hidden).toBe(false);
     const lines = [
@@ -258,11 +250,7 @@ describe("the Ledger drawer (#375)", () => {
     ];
     expect(
       lines.map((line) => line.querySelector(".ledger-log-text")?.textContent),
-    ).toEqual([
-      "Overtime started for 30:00.",
-      "Bought mine cart 3.",
-      "Hired worker 5.",
-    ]);
+    ).toEqual(["Bought mine cart 3.", "Hired worker 5."]);
     for (const line of lines) {
       expect(line.querySelector(".ledger-log-time")?.textContent).toMatch(
         /^\d\d:\d\d$/,
@@ -285,36 +273,8 @@ describe("the Ledger drawer (#375)", () => {
       (part(screen, ".ledger-stones .board-row-icon") as HTMLImageElement)
         .width,
     ).toBe(32);
-
-    const relics = relicsRowView(mountain);
-    expect(rowPart(screen, "relics", "name")).toBe("2 of 6 relics found");
-    expect(rowPart(screen, "relics", "info")).toMatch(/^Next: /);
-    expect(rowPart(screen, "relics", "why")).toBe(relics.why);
-    const icon = part(
-      screen,
-      ".ledger-relics .board-row-icon",
-    ) as HTMLImageElement;
-    expect(icon.width).toBe(48);
-    expect(icon.getAttribute("src")).toBe(RELIC_DARK[relics.icon]);
-    const bar = part(screen, ".ledger-relics .board-row-bar");
-    expect(bar.hidden).toBe(false);
-    expect(bar.getAttribute("aria-valuenow")).toBe(
-      String(Math.round((relics.progress ?? 0) * 100)),
-    );
-    expect(bar.getAttribute("aria-label")).toBe(relics.barLabel);
-  });
-
-  it("every relic found shows the lit Mantle and no bar", () => {
-    const screen = mount(minedMountain(MOUNTAIN_STONES));
-    keyOf(screen).click();
-    expect(rowPart(screen, "relics", "name")).toBe("6 of 6 relics found");
-    expect(rowPart(screen, "relics", "info")).toBe(
-      "Every relic is yours. You are a legend.",
-    );
-    expect(
-      part(screen, ".ledger-relics .board-row-icon").getAttribute("src"),
-    ).toBe(RELIC_LIT.mantle);
-    expect(part(screen, ".ledger-relics .board-row-bar").hidden).toBe(true);
+    // The relics row left with the relics (#728).
+    expect(screen.root.querySelector(".ledger-relics")).toBeNull();
   });
 
   it("a double tap on the key does nothing under the finger", () => {
@@ -645,7 +605,6 @@ describe("the Ledger drawer (#375)", () => {
     expect(isOpen(screen)).toBe(true);
     expect(part(screen, ".ledger-stones").classList).not.toContain("is-owned");
     expect(part(screen, ".ledger-stones").hasAttribute("title")).toBe(false);
-    expect(part(screen, ".ledger-relics .board-row-bar").hidden).toBe(true);
     expect(button(screen, ".ledger-start-over").disabled).toBe(true);
     expect(button(screen, ".ledger-field-log").disabled).toBe(true);
     expect(button(screen, ".ledger-saved-copies").disabled).toBe(false);

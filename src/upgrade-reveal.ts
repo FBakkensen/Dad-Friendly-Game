@@ -1,8 +1,5 @@
-import { boostInPlay, type Boost, type BoostId } from "./boosts";
 import type { Mountain } from "./mountain";
-import { owned, tierById } from "./tiers";
 import {
-  upgradeInPlay,
   upgradeLevel,
   upgradeUnlocked,
   type Upgrade,
@@ -10,23 +7,20 @@ import {
 } from "./upgrades";
 
 /**
- * When an upgrade or boost row shows in the Upgrades sheet. M12-2 (#250)
- * drops the old "nearly affordable" share of the pocket (D2, #245): a row
- * shows at a fixed, predictable point in the climb, never because of what
- * the pocket holds at that moment.
- *
- * - An upgrade shows once its owned-count unlock is met (`upgradeUnlocked`).
- * - A boost shows once the crew owns its first machine of the boost's tier.
+ * When an upgrade row shows in the Upgrades sheet. M12-2 (#250) drops the
+ * old "nearly affordable" share of the pocket (D2, #245): a row shows at a
+ * fixed, predictable point in the climb, never because of what the pocket
+ * holds at that moment. An upgrade shows once its owned-count unlock is met
+ * (`upgradeUnlocked`).
  *
  * Once shown, a row stays: it is bought before (taught), or the dad has
  * had it in front of him (its id is in `seen`). The sheet never shows how
  * long the wait is; this is only whether the row is there.
  */
-export type RevealRowId = `upgrade:${UpgradeId}` | `boost:${BoostId}`;
+export type RevealRowId = `upgrade:${UpgradeId}`;
 
 export const upgradeRowId = (upgrade: Upgrade): RevealRowId =>
   `upgrade:${upgrade.id}`;
-export const boostRowId = (boost: Boost): RevealRowId => `boost:${boost.id}`;
 
 function seen(mountain: Mountain, id: RevealRowId): boolean {
   return mountain.seen.includes(id);
@@ -36,27 +30,11 @@ export function upgradeUsed(mountain: Mountain, upgrade: Upgrade): boolean {
   return upgradeLevel(mountain, upgrade.id) > 0;
 }
 
-export function boostUsed(mountain: Mountain, boost: Boost): boolean {
-  // A boost that has run keeps its last end time.
-  return mountain.boosts[boost.id] > 0;
-}
-
 /** The row shows: open to this crew, or already bought or seen. */
 export function upgradeShown(mountain: Mountain, upgrade: Upgrade): boolean {
   return (
-    upgradeInPlay(upgrade) &&
-    (upgradeUnlocked(mountain, upgrade) ||
-      upgradeUsed(mountain, upgrade) ||
-      seen(mountain, upgradeRowId(upgrade)))
-  );
-}
-
-/** The row shows once the crew owns the boost's first machine. */
-export function boostShown(mountain: Mountain, boost: Boost): boolean {
-  return (
-    boostInPlay() &&
-    (boostUsed(mountain, boost) ||
-      seen(mountain, boostRowId(boost)) ||
-      owned(mountain, tierById(boost.unlock.tier)) >= boost.unlock.count)
+    upgradeUnlocked(mountain, upgrade) ||
+    upgradeUsed(mountain, upgrade) ||
+    seen(mountain, upgradeRowId(upgrade))
   );
 }

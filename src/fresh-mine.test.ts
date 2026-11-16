@@ -13,16 +13,13 @@ import {
   type Mountain,
 } from "./mountain";
 import { effectiveRates } from "./rates";
-import { foundRelics } from "./relics";
 import { layerOf } from "./layers";
 import { stonesLeft, stonesToNextBand } from "./scale";
 import { TIERS, tierById, tierInPlay, tierShown, type TierId } from "./tiers";
 import { UPGRADES, buyUpgrade } from "./upgrades";
-import { upgradeShown, boostShown } from "./upgrade-reveal";
-import { BOOSTS, buyBoost } from "./boosts";
+import { upgradeShown } from "./upgrade-reveal";
 import { promote } from "./engineers";
 import { workshopUnlocked } from "./workshop";
-import { mineVein } from "./veins";
 
 /** The fresh mine (slice 1, part 1), switched on as a lab run does (#653). */
 const FRESH = { [FRESH_OFF]: 0 };
@@ -108,7 +105,7 @@ describe("one level, no depth (rule 1)", () => {
     });
   });
 
-  it("a month of live play never mines it out, finds a relic or leaves the Topsoil", () => {
+  it("a month of live play never mines it out or leaves the Topsoil", () => {
     fresh(() => {
       const crew = {
         ...owning({ helper: 40, cart: 10, hoist: 10, drill: 10 }, 0),
@@ -125,7 +122,6 @@ describe("one level, no depth (rule 1)", () => {
       expect(month.mined).toBeGreaterThan(MOUNTAIN_STONES);
       expect(month.mountain.stock.stones).toBe(month.mined);
       expect(month.mountain.remaining).toBe(MOUNTAIN_STONES);
-      expect(foundRelics(month.mountain)).toEqual([]);
       expect(layerOf(month.mountain).name).toBe(layerOf(createMountain()).name);
       expect(workshopUnlocked(month.mountain)).toBe(false);
       // No band's material comes up with it.
@@ -136,15 +132,13 @@ describe("one level, no depth (rule 1)", () => {
     });
   });
 
-  it("pays time away in full, and holds nothing back for a Gold rush", () => {
+  it("pays time away in full", () => {
     fresh(() => {
       const crew = owning({ helper: 12, cart: 1 }, 0);
       const speed = effectiveRates(crew).crewPerSecond;
       const away = accrueAway({ mountain: crew, lastSeen: 0, now: 2 * HOUR });
       expect(away.mined).toBe(Math.floor(2 * 3600 * speed * 0.3));
       expect(away.mountain.stock.stones).toBe(away.mined);
-      expect(away.mountain.rushBank).toBe(0);
-      expect(away.report.heldForRush).toBe(0);
       expect(away.mountain.remaining).toBe(MOUNTAIN_STONES);
     });
   });
@@ -159,28 +153,6 @@ describe("one level, no depth (rule 1)", () => {
       expect(rates.tierSpeed.cart).toBe(60);
       expect(rates.tierSpeed.hoist).toBe(60);
       expect(rates.tierSpeed.drill).toBe(108);
-    });
-  });
-});
-
-describe("nothing is mined by a tap (What goes)", () => {
-  it("a tap yields nothing and a dig is refused", () => {
-    fresh(() => {
-      const crew = owning({ helper: 30, cart: 3 }, 0);
-      expect(effectiveRates(crew).tapYield).toBe(0);
-      const dig = applyMove(crew, { kind: "dig" }, 0, { trouble: undefined });
-      expect(dig.kind).toBe("refused");
-    });
-  });
-
-  it("a golden vein pays nothing, so its tap is refused", () => {
-    fresh(() => {
-      const crew = owning({ helper: 30, cart: 3 }, 0);
-      expect(mineVein(crew)).toBe(crew);
-      const tap = applyMove(crew, { kind: "tapVein" }, 0, {
-        trouble: undefined,
-      });
-      expect(tap.kind).toBe("refused");
     });
   });
 });
@@ -200,9 +172,7 @@ describe("machines open by where they open, and nothing else (rule 1's table, ru
   it("sells a machine before anyone can run it, and it stands idle", () => {
     fresh(() => {
       const start = owning({}, 1e12);
-      const bought = applyMove(start, { kind: "buyTier", id: "drill" }, 0, {
-        trouble: undefined,
-      });
+      const bought = applyMove(start, { kind: "buyTier", id: "drill" }, 0);
       if (bought.kind !== "applied") {
         throw new Error("drill refused");
       }
@@ -221,9 +191,7 @@ describe("machines open by where they open, and nothing else (rule 1's table, ru
         const tier = tierById(id);
         expect(tierInPlay(tier)).toBe(false);
         expect(tierShown(crew, tier)).toBe(false);
-        const tap = applyMove(crew, { kind: "buyTier", id }, 0, {
-          trouble: undefined,
-        });
+        const tap = applyMove(crew, { kind: "buyTier", id }, 0);
         expect(tap.kind).toBe("refused");
       }
       expect(buys(crew)).toEqual(["helper", "cart", "hoist", "drill"]);
@@ -257,36 +225,18 @@ describe("machines open by where they open, and nothing else (rule 1's table, ru
 });
 
 describe("what leaves the rules at part 1 (What goes)", () => {
-  it("takes out Strong arms and Night foreman, and keeps Work boots and the machine upgrades", () => {
+  it("keeps Work boots and the machine upgrades", () => {
     fresh(() => {
       const crew = owning({ helper: 40, cart: 10, hoist: 5, drill: 10 });
       const shown = UPGRADES.filter((upgrade) =>
         upgradeShown(crew, upgrade),
       ).map((upgrade) => upgrade.id);
       expect(shown).toEqual(["boots", "cartSyn", "drillSyn"]);
-      expect(buyUpgrade(crew, "tap")).toBe(crew);
-      expect(buyUpgrade(crew, "steady")).toBe(crew);
       expect(buyUpgrade(crew, "boots")).not.toBe(crew);
       const offered = listActions(crew, 0).flatMap((action) =>
         action.kind === "buyUpgrade" ? [action.id] : [],
       );
       expect(offered).toEqual(["boots", "cartSyn", "drillSyn"]);
-    });
-  });
-
-  it("takes out Sharper picks and Overtime", () => {
-    fresh(() => {
-      const crew = owning({ helper: 40, cart: 10, hoist: 5, drill: 10 });
-      for (const boost of BOOSTS) {
-        expect(boostShown(crew, boost)).toBe(false);
-        const pricing = effectiveRates(crew);
-        expect(
-          buyBoost({ mountain: crew, id: boost.id, now: 0, pricing }),
-        ).toBe(crew);
-      }
-      expect(
-        listActions(crew, 0).some((action) => action.kind === "buyBoost"),
-      ).toBe(false);
     });
   });
 
@@ -302,10 +252,9 @@ describe("what leaves the rules at part 1 (What goes)", () => {
 });
 
 describe("today's game is unchanged with the switch off", () => {
-  it("still lets a worker buy a cart, a tap mine, and a promotion go through", () => {
+  it("still lets a worker buy a cart, and a promotion go through", () => {
     const today = owning({ helper: 1 }, 1e9);
     expect(buys(today)).toContain("cart");
-    expect(effectiveRates(today).tapYield).toBeGreaterThan(0);
     expect(promote(today)).not.toBe(today);
     expect(digStones(createMountain(), 10).remaining).toBe(
       MOUNTAIN_STONES - 10,

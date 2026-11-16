@@ -9,7 +9,6 @@
  * read-only rather than write back a save it does not fully understand.
  * Nonsense (a wrong type, a negative, a broken number) is `bad`.
  */
-import { BOOSTS, NO_BOOSTS, type BoostId, type Boosts } from "./boosts";
 import {
   BUILDING_IDS,
   NO_PROJECT,
@@ -55,7 +54,6 @@ import { TEACH_IDS, type TeachId } from "./teach";
 import { TIER_IDS, type TierId } from "./tiers";
 import { NO_UPGRADES, UPGRADES, type UpgradeId } from "./upgrades";
 import {
-  COLD_CLOCKS,
   MAX_CRAFTED_LEVEL,
   MAX_CRAFT_MS,
   NOTHING_CRAFTED,
@@ -72,20 +70,11 @@ import { JOB_IDS, workersOnJobs, type JobId, type Jobs } from "./workforce";
 import { PILE_IDS, type MinePiles, type PileId } from "./mine-piles";
 import { MAKER_IDS, type MakerId } from "./makers";
 
-/** The Gold rush's end time, in the clocks map. */
-const GOLD_RUSH = "gold-rush";
-
 type LevelId = UpgradeId | RecipeId;
-type ClockId = BoostId | TimerId | typeof GOLD_RUSH;
 
 const LEVEL_IDS: readonly LevelId[] = [
   ...UPGRADES.map((upgrade) => upgrade.id),
   ...RECIPE_IDS,
-];
-const CLOCK_IDS: readonly ClockId[] = [
-  ...BOOSTS.map((boost) => boost.id),
-  ...TIMER_IDS,
-  GOLD_RUSH,
 ];
 
 /** The mark kinds, each a list of ids that have happened. */
@@ -99,7 +88,7 @@ const MARK_IDS = {
 type MarkKind = keyof typeof MARK_IDS;
 const MARK_KINDS = Object.keys(MARK_IDS) as readonly MarkKind[];
 
-type RunKey = "generation" | "stretch" | "dug" | "rushBank" | "rock";
+type RunKey = "generation" | "stretch" | "dug" | "rock";
 
 const GAME_KEYS = [
   "owned",
@@ -136,7 +125,7 @@ export type SaveGame = {
   readonly owned?: Readonly<Partial<Record<TierId, number>>>;
   readonly stock?: Readonly<Partial<Record<GoodId, number>>>;
   readonly levels?: Readonly<Partial<Record<LevelId, number>>>;
-  readonly clocks?: Readonly<Partial<Record<ClockId, number>>>;
+  readonly clocks?: Readonly<Partial<Record<TimerId, number>>>;
   readonly marks?: {
     readonly seen?: readonly TeachId[];
     readonly taught?: readonly TeachId[];
@@ -208,15 +197,6 @@ function levelOf(mountain: Mountain, id: LevelId): number {
     : mountain.crafted[id as RecipeId];
 }
 
-function clockOf(mountain: Mountain, id: ClockId): number {
-  if (id === GOLD_RUSH) {
-    return mountain.rushUntil;
-  }
-  return id in mountain.boosts
-    ? mountain.boosts[id as BoostId]
-    : mountain.clocks[id as TimerId];
-}
-
 /** A trip with the post its engineer will come back to. */
 function savedTrip(mountain: Mountain, trip: Expedition): SavedExpedition {
   const hand = mountain.engineers.find((one) => one.name === trip.engineer);
@@ -248,7 +228,6 @@ function savedRun(mountain: Mountain): NonNullable<SaveGame["run"]> {
     ...only("generation", mountain.legacy, mountain.legacy !== 0),
     ...only("stretch", mountain.stretch, mountain.stretch !== 1),
     ...only("dug", dug, dug !== 0),
-    ...only("rushBank", mountain.rushBank, mountain.rushBank !== 0),
     ...only("rock", mountain.rockDug, mountain.rockDug !== 0),
   };
 }
@@ -289,7 +268,7 @@ export function writeGame(mountain: Mountain): SaveGame {
     ),
     ...some(
       "clocks",
-      positives(CLOCK_IDS, (id) => clockOf(mountain, id)),
+      positives(TIMER_IDS, (id) => mountain.clocks[id]),
     ),
     ...some("marks", savedMarks(mountain)),
     ...some("run", savedRun(mountain)),
@@ -455,10 +434,7 @@ function readMarks(value: unknown): Part<Marks> {
   };
 }
 
-type Run = Pick<
-  Mountain,
-  "legacy" | "stretch" | "remaining" | "rushBank" | "rockDug"
->;
+type Run = Pick<Mountain, "legacy" | "stretch" | "remaining" | "rockDug">;
 
 function readStretch(value: unknown): Part<number> {
   if (value === undefined) {
@@ -476,7 +452,6 @@ function readRun(value: unknown): Part<Run> {
       legacy: 0,
       stretch: 1,
       remaining: MOUNTAIN_STONES,
-      rushBank: 0,
       rockDug: 0,
     };
   }
@@ -487,7 +462,7 @@ function readRun(value: unknown): Part<Run> {
     Object.fromEntries(
       Object.entries(value).filter(([key]) => key !== "stretch"),
     ),
-    ["generation", "dug", "rushBank", "rock"] as const,
+    ["generation", "dug", "rock"] as const,
     (id) =>
       id === "generation"
         ? MAX_LEGACY
@@ -500,15 +475,11 @@ function readRun(value: unknown): Part<Run> {
   if (failed !== undefined) {
     return failed;
   }
-  const run = counts as Record<
-    "generation" | "dug" | "rushBank" | "rock",
-    number
-  >;
+  const run = counts as Record<"generation" | "dug" | "rock", number>;
   return {
     legacy: run.generation,
     stretch: stretch as number,
     remaining: MOUNTAIN_STONES - run.dug,
-    rushBank: run.rushBank,
     rockDug: run.rock,
   };
 }
@@ -716,7 +687,7 @@ function readJobs(value: unknown, facts: Part<Facts>): Part<Jobs> {
 
 type Facts = Pick<
   Mountain,
-  "owned" | "stock" | "upgrades" | "crafted" | "boosts" | "clocks" | "rushUntil"
+  "owned" | "stock" | "upgrades" | "crafted" | "clocks"
 >;
 
 /** The four count maps, laid onto the mountain's own fields. */
@@ -724,7 +695,7 @@ function readFacts(record: Entries): Part<Facts> {
   const owned = readCounts(record["owned"], TIER_IDS, UNCAPPED);
   const stock = readCounts(record["stock"], GOOD_IDS, UNCAPPED);
   const levels = readCounts(record["levels"], LEVEL_IDS, levelCap);
-  const clocks = readCounts(record["clocks"], CLOCK_IDS, UNCAPPED);
+  const clocks = readCounts(record["clocks"], TIMER_IDS, UNCAPPED);
   const failed = worst([owned, stock, levels, clocks]);
   if (failed !== undefined) {
     return failed;
@@ -733,7 +704,7 @@ function readFacts(record: Entries): Part<Facts> {
     owned: owned as Record<TierId, number>,
     stock: stock as Record<GoodId, number>,
     ...levelCounts(levels as Record<LevelId, number>),
-    ...clockCounts(clocks as Record<ClockId, number>),
+    clocks: clocks as Record<TimerId, number>,
   };
 }
 
@@ -749,24 +720,6 @@ function levelCounts(
     crafted[id] = levels[id];
   }
   return { upgrades, crafted };
-}
-
-function clockCounts(
-  clocks: Record<ClockId, number>,
-): Pick<Mountain, "boosts" | "clocks" | "rushUntil"> {
-  const boosts: Record<BoostId, number> = { ...NO_BOOSTS };
-  for (const boost of BOOSTS) {
-    boosts[boost.id] = clocks[boost.id];
-  }
-  const timers: Record<TimerId, number> = { ...COLD_CLOCKS };
-  for (const id of TIMER_IDS) {
-    timers[id] = clocks[id];
-  }
-  return {
-    boosts: boosts satisfies Boosts,
-    clocks: timers,
-    rushUntil: clocks[GOLD_RUSH],
-  };
 }
 
 /** The game map as a complete mountain, on the run that began at `startedAt`. */
@@ -855,13 +808,12 @@ export function shippedFacts(): ShippedFacts {
     owned: TIER_IDS,
     stock: GOOD_IDS,
     levels: Object.fromEntries(LEVEL_IDS.map((id) => [id, levelCap(id)])),
-    clocks: CLOCK_IDS,
+    clocks: TIMER_IDS,
     marks: MARK_IDS,
     run: {
       generation: MAX_LEGACY,
       stretch: MAX_STRETCH,
       dug: MOUNTAIN_STONES,
-      rushBank: Number.MAX_SAFE_INTEGER,
       rock: Number.MAX_SAFE_INTEGER,
     },
     engineerNames: ENGINEER_NAMES,

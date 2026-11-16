@@ -153,7 +153,6 @@ describe("the Ledger in a fresh mine", () => {
     expect(row("stones", "info")).toBe("The Light Tower · Foundation");
     expect(row("crew", "name")).toBe("28 workers · 1 horse wagon");
     expect(row("crew", "info")).toBe("4 drills · 6 carts · 3 hoists");
-    expect(find(".ledger-relics").hidden).toBe(true);
     expect(find(".ledger-pass").hidden).toBe(true);
     expect(find(".board-sheet-info").hidden).toBe(true);
     expect(find(".ledger-stones").getAttribute("title")).toBeNull();

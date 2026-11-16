@@ -3,6 +3,7 @@ import { passTheMine } from "../legacy";
 import { createMountain, type Mountain } from "../mountain";
 import type { Policy } from "./policy";
 import { runPolicy } from "./run";
+import { withFirstWorker } from "./world";
 import { stretch } from "../scale";
 import { machinesInPlay } from "../tiers";
 
@@ -38,7 +39,7 @@ export function runGenerations({
   readonly maxDays?: number;
 }): readonly GenerationRun[] {
   const runs: GenerationRun[] = [];
-  let mountain: Mountain = createMountain();
+  let mountain: Mountain = withFirstWorker(createMountain());
   for (let index = 0; index < count; index += 1) {
     const played = withFactors(factors, () =>
       runPolicy({
@@ -64,12 +65,15 @@ export function runGenerations({
       break;
     }
     // Each run is its own lab clock, starting at 0.
-    mountain = { ...next, startedAt: 0 };
+    mountain = withFirstWorker({ ...next, startedAt: 0 });
   }
   return runs;
 }
 
-/** The run-length rule (strict, every type): run N+1 finishes later than run N, forever. */
+/**
+ * The run-length rule (every type): run N+1 finishes later than run N,
+ * forever. Report-only until #729 (`RUN_LENGTH_RULE`, #728).
+ */
 export function eachRunLonger(days: readonly (number | undefined)[]): boolean {
   let before = Number.NEGATIVE_INFINITY;
   for (const day of days) {

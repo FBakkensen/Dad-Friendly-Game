@@ -23,7 +23,6 @@ import {
   type Firestore,
 } from "firebase/firestore";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { BOOSTS, type Boosts } from "../src/boosts";
 import { ENGINEER_NAMES, MAX_ENGINEERS, type Engineer } from "../src/engineers";
 import {
   APP_VERSION,
@@ -86,7 +85,7 @@ function admin() {
   return adminStore(app);
 }
 
-/** A late crew with something in every map: engineers, a trip, a bench, every clock, a Gold rush and its bank. */
+/** A late crew with something in every map: engineers, a trip, a bench, every clock. */
 function lateCrew(): Mountain {
   const fresh = createMountain();
   return {
@@ -122,16 +121,9 @@ function lateCrew(): Mountain {
     upgrades: Object.fromEntries(
       UPGRADES.map((upgrade) => [upgrade.id, upgrade.maxLevel]),
     ) as Upgrades,
-    boosts: Object.fromEntries(
-      BOOSTS.map((boost) => [boost.id, 1_800_000_000_000]),
-    ) as Boosts,
     clocks: Object.fromEntries(
       Object.keys(fresh.clocks).map((id) => [id, 1_800_000_000_000]),
     ) as Mountain["clocks"],
-    // A Gold rush running, with stones held for it (#612). Its own end time,
-    // so a reader that mixed it with a boost clock would not read back equal.
-    rushUntil: 1_800_000_060_000,
-    rushBank: 5_000_000,
     crafted: { ...fresh.crafted, "sturdy-props": 1 },
     recipes: [...fresh.recipes, "reinforce"],
     seen: ["workshop"],
@@ -183,9 +175,9 @@ describe("firestore.rules: games/{uid} (#558)", () => {
     await expect(setDoc(ref(), { ...game(1), version: 7 })).rejects.toThrow(
       denied,
     );
-    await setDoc(ref(), { ...game(1), version: 10 });
+    await setDoc(ref(), { ...game(1), version: 11 });
     await expect(setDoc(ref(), game(2))).rejects.toThrow(denied);
-    await setDoc(ref(), { ...game(2), version: 10 });
+    await setDoc(ref(), { ...game(2), version: 11 });
   });
 
   it("takes the reset at part 1 over a stored version 8 save, and refuses a version 8 write (#664)", async () => {
@@ -212,7 +204,35 @@ describe("firestore.rules: games/{uid} (#558)", () => {
     ).rejects.toThrow(denied);
     await setDoc(ref(), game(7, { ...createMountain(), startedAt: 40 }));
     const stored = (await getDoc(ref())).data();
-    expect(stored?.["version"]).toBe(9);
+    expect(stored?.["version"]).toBe(10);
+    expect(stored?.["rev"]).toBe(7);
+  });
+
+  it("takes the reset at #728 over a stored version 9 save, and refuses a version 9 write", async () => {
+    await admin().doc("games/dad").delete();
+    await expect(setDoc(ref(), { ...game(1), version: 9 })).rejects.toThrow(
+      denied,
+    );
+    await admin()
+      .doc("games/dad")
+      .set({
+        version: 9,
+        rev: 6,
+        lastSeen: 1,
+        startedAt: 40,
+        deviceId: DEVICE,
+        game: { owned: { helper: 3 } },
+        savedAt: 1,
+      });
+    await expect(
+      setDoc(ref(), {
+        ...game(7, { ...createMountain(), startedAt: 40 }),
+        version: 9,
+      }),
+    ).rejects.toThrow(denied);
+    await setDoc(ref(), game(7, { ...createMountain(), startedAt: 40 }));
+    const stored = (await getDoc(ref())).data();
+    expect(stored?.["version"]).toBe(10);
     expect(stored?.["rev"]).toBe(7);
   });
 
@@ -371,12 +391,12 @@ function maximalMountain(): Mountain {
       index === 0
         ? { kind: "keepsake", id: "drawing" }
         : index === 1
-          ? { kind: "tool", id: "pick" }
+          ? { kind: "tool", id: "map" }
           : index === 2
-            ? { kind: "glimmer", id: "heart" }
+            ? { kind: "recipe", id: "engineers-kit" }
             : index === 3
               ? { kind: "quiet" }
-              : { kind: "glimmer", id: "lantern" },
+              : { kind: "tool", id: "boots" },
   }));
   return {
     ...createMountain(),
@@ -402,9 +422,6 @@ function maximalMountain(): Mountain {
     upgrades: Object.fromEntries(
       UPGRADES.map((upgrade) => [upgrade.id, upgrade.maxLevel]),
     ) as Upgrades,
-    boosts: Object.fromEntries(
-      BOOSTS.map((boost) => [boost.id, 1_800_000_000_000]),
-    ) as Boosts,
     startedAt: 0,
     legacy: 1,
     engineers,
@@ -419,7 +436,6 @@ function maximalMountain(): Mountain {
     crafted: Object.fromEntries(RECIPE_IDS.map((id) => [id, 1])) as Crafted,
     clocks: {
       "blasting-charge": 50_000,
-      "crystal-flare": 60_000,
       "heartstone-ember": 70_000,
       "axle-grease": 80_000,
     },
@@ -523,8 +539,6 @@ describe("firestore.rules: fieldLogs/{uid}", () => {
     };
     expect(written.snapshot.engineers).toHaveLength(MAX_ENGINEERS);
     expect(written.snapshot.expeditions).toHaveLength(MAX_EXPEDITIONS);
-    expect(written.snapshot.boosts).toHaveLength(BOOSTS.length);
-    expect(written.snapshot.relics).toHaveLength(6);
     expect(Object.keys(written.snapshot.upgrades)).toHaveLength(
       UPGRADES.length,
     );
@@ -563,7 +577,7 @@ describe("firestore.rules: fieldLogs/{uid}", () => {
     const events = Array.from({ length: EVENT_RING_LIMIT }, () => event);
     const written = {
       ...fieldLog(events),
-      snapshot: { ...gameSnapshot(), crewSpeed: 1.5, tapYield: 0.25 },
+      snapshot: { ...gameSnapshot(), crewSpeed: 1.5 },
     };
     await setDoc(doc(db, "fieldLogs", "dad"), written);
     const snap = await getDoc(doc(db, "fieldLogs", "dad"));

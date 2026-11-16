@@ -136,7 +136,7 @@ describe("a new run keeps the mountain he left in Saved copies (#480)", () => {
     progress.dispose();
   });
 
-  it("does not find its relics and layers again when it comes back", async () => {
+  it("does not find its layers again when it comes back", async () => {
     const { progress } = await playing({
       ...minedMountain(60_000_000),
       startedAt: 500,
@@ -147,9 +147,8 @@ describe("a new run keeps the mountain he left in Saved copies (#480)", () => {
     expect(progress.getSnapshot().mountain.remaining).toBe(
       copy?.mountain.remaining,
     );
-    expect(noticesOf(progress.getSnapshot(), "reveal")).toEqual([]);
     expect(noticesOf(progress.getSnapshot(), "layer")).toEqual([]);
-    expect(codes(progress.fieldLog().events)).not.toContain("relic.found");
+    expect(codes(progress.fieldLog().events)).not.toContain("layer.enter");
     progress.dispose();
   });
 

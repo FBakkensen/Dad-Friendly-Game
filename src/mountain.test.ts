@@ -1,7 +1,6 @@
 import { EMPTY_MATERIALS, type Materials } from "./layers";
 import { minedMountain } from "./test-fixtures";
 import { setOwned } from "./tiers";
-import { SHIELD_AWAY_CAP_MS, heartBonus } from "./rates";
 import { describe, expect, it } from "vitest";
 import { BAND_SCALE, BAND_STARTS, shownStones, stonesLeft } from "./scale";
 import { materialsGained } from "./layers";
@@ -12,7 +11,6 @@ import {
   accrue,
   createMountain,
   digStones,
-  mineByHand,
   minedOut,
   stonesPerSecond,
   BARE_MOUNTAIN,
@@ -48,11 +46,8 @@ describe("mountain", () => {
     expect(minedOut(createMountain())).toBe(0);
   });
 
-  it("moves exactly one stone from the mountain to the pocket per tap", () => {
-    let mountain = createMountain();
-    for (let tap = 0; tap < 3; tap += 1) {
-      mountain = mineByHand(mountain);
-    }
+  it("moves exactly the stones dug from the mountain to the pocket", () => {
+    const mountain = digStones(createMountain(), 3);
     expect(mountain).toEqual({
       ...createMountain(),
       remaining: MOUNTAIN_STONES - 3,
@@ -60,34 +55,16 @@ describe("mountain", () => {
     });
     expect(minedOut(mountain)).toBe(3);
   });
-
-  it("stops at zero and returns the same mountain", () => {
-    const empty = {
-      ...BARE_MOUNTAIN,
-      remaining: 0,
-      stock: { ...BARE_MOUNTAIN.stock, stones: 5 },
-      owned: {
-        ...BARE_MOUNTAIN.owned,
-        helper: 0,
-        cart: 0,
-        drill: 0,
-        borer: 0,
-        machine: 0,
-        kid: 0,
-      },
-    };
-    expect(mineByHand(empty)).toBe(empty);
-  });
 });
 
 describe("materials from digging", () => {
-  it("pays a hand tap when the stones cross a gap", () => {
+  it("pays the dug stones when they cross a gap", () => {
     const mountain = {
       ...createMountain(),
       remaining: MOUNTAIN_STONES - 999_999,
       stock: { ...createMountain().stock, stones: 999_999 },
     };
-    const tapped = mineByHand(mountain);
+    const tapped = digStones(mountain, 1);
     expect(minedOut(tapped)).toBe(1_000_000);
     expect(materialsIn(tapped)).toEqual({ ...EMPTY_MATERIALS, clay: 1 });
     expect(tapped.stock.stones).toBe(1_000_000);
@@ -363,11 +340,9 @@ describe("accrueAway", () => {
     expect(result.settledAt).toBe(90_000);
     expect(result.report).toEqual({
       mined: 54,
-      heldForRush: 0,
       awayMs: 90_500,
       paidMs: 90_500,
       capped: false,
-      heart: 1,
       materials: EMPTY_MATERIALS,
     });
   });
@@ -407,71 +382,38 @@ describe("accrueAway", () => {
       accrueAway({ mountain: crew, lastSeen: 5_000, now: 1_000 }).report,
     ).toEqual({
       mined: 0,
-      heldForRush: 0,
       awayMs: 0,
       paidMs: 0,
       capped: false,
-      heart: 1,
       materials: EMPTY_MATERIALS,
     });
   });
 });
 
-describe("Shield of Protection: away cap", () => {
+describe("the away cap", () => {
   const crew = {
     ...minedMountain(0),
     owned: { ...minedMountain(0).owned, helper: 10 },
   };
-  const shielded = {
-    ...minedMountain(10_000_000),
-    owned: { ...minedMountain(10_000_000).owned, helper: 10 },
-  };
-  const DAY = 24 * 3_600_000;
-
-  it("pays 13.2 hours of a long absence without the Shield, and a whole day with it", () => {
-    const plain = accrueAway({ mountain: crew, lastSeen: 0, now: 2 * DAY });
-    expect(plain.report.capped).toBe(true);
-    expect(plain.report.paidMs).toBeCloseTo(13.2 * 3_600_000, 3);
-    expect(plain.mined).toBe(Math.floor(13.2 * 3600 * 10 * AWAY_PAY_RATE));
-    const safe = accrueAway({
-      mountain: shielded,
-      lastSeen: 0,
-      now: 20 * 3_600_000,
-    });
-    expect(safe.report.capped).toBe(false);
-    expect(safe.mined).toBe(Math.floor(20 * 3600 * 10 * AWAY_PAY_RATE));
-    const long = accrueAway({ mountain: shielded, lastSeen: 0, now: 3 * DAY });
-    expect(long.report.capped).toBe(true);
-    expect(long.mined).toBe(Math.floor(24 * 3600 * 10 * AWAY_PAY_RATE));
-    expect(long.report.paidMs).toBe(SHIELD_AWAY_CAP_MS);
-  });
-});
-
-describe("Heart of Patience: away pay grows", () => {
-  const crew = {
-    ...minedMountain(10_000_000),
-    owned: { ...minedMountain(10_000_000).owned, helper: 10 },
-  };
-  const hearty = {
+  const deep = {
     ...minedMountain(45_000_000),
     owned: { ...minedMountain(45_000_000).owned, helper: 10 },
   };
   const HOUR = 3_600_000;
+  const DAY = 24 * HOUR;
 
-  it("climbs from ×1 to ×1.5 over 12 hours, and only with the Heart", () => {
-    expect(heartBonus(crew, 12 * HOUR)).toBe(1);
-    expect(heartBonus(hearty, 0)).toBe(1);
-    expect(heartBonus(hearty, 6 * HOUR)).toBe(1.25);
-    expect(heartBonus(hearty, 12 * HOUR)).toBe(1.5);
-    expect(heartBonus(hearty, 20 * HOUR)).toBe(1.5);
+  it("pays 13.2 hours of a long absence, however deep the mine (#728)", () => {
+    for (const mountain of [crew, deep]) {
+      const away = accrueAway({ mountain, lastSeen: 0, now: 2 * DAY });
+      expect(away.report.capped).toBe(true);
+      expect(away.report.paidMs).toBeCloseTo(13.2 * HOUR, 3);
+      expect(away.mined).toBe(Math.floor(13.2 * 3600 * 10 * AWAY_PAY_RATE));
+    }
   });
 
-  it("multiplies the away pay and reports the bonus", () => {
-    const away = accrueAway({ mountain: hearty, lastSeen: 0, now: 6 * HOUR });
-    expect(away.report.heart).toBe(1.25);
-    expect(away.mined).toBe(Math.floor(6 * 3600 * 10 * AWAY_PAY_RATE * 1.25));
-    const plain = accrueAway({ mountain: crew, lastSeen: 0, now: 6 * HOUR });
-    expect(plain.report.heart).toBe(1);
+  it("pays the away rate, never more for a longer absence (#728)", () => {
+    const away = accrueAway({ mountain: deep, lastSeen: 0, now: 6 * HOUR });
+    expect(away.mined).toBe(Math.floor(6 * 3600 * 10 * AWAY_PAY_RATE));
   });
 
   it("pays the unslowed crew while a machine is in trouble", () => {
@@ -498,12 +440,6 @@ describe("Heart of Patience: away pay grows", () => {
     expect(slowed.mined).toBeLessThan(plain.mined);
     expect(ignored.mined).toBe(plain.mined);
     expect(away.mined).toBe(Math.floor(plain.mined * AWAY_PAY_RATE));
-  });
-
-  it("counts only the paid time, up to the Shield's 24 hours", () => {
-    const away = accrueAway({ mountain: hearty, lastSeen: 0, now: 40 * HOUR });
-    expect(away.report.heart).toBe(1.5);
-    expect(away.mined).toBe(Math.floor(24 * 3600 * 10 * AWAY_PAY_RATE * 1.5));
   });
 });
 
@@ -537,8 +473,6 @@ describe("digging through band scales (#356)", () => {
     const over = digStones(m, left + 5);
     expect(over.remaining).toBe(0);
     expect(over.stock.stones - m.stock.stones).toBe(left + 5);
-    const tapped = mineByHand({ ...m, remaining: 0 });
-    expect(tapped.remaining).toBe(0);
   });
 
   it("an hour in the Granite moves depth by stones over the band scale", () => {

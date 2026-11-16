@@ -18,7 +18,7 @@ export type DecisionSample = {
   readonly atMs: number;
   /**
    * The dad bought something (crew, a kid, a promotion, an upgrade level)
-   * since the sample before. Boosts and crafts do not count. A buy ends a dead stretch (#335): samples land on
+   * since the sample before. Crafts do not count. A buy ends a dead stretch (#335): samples land on
    * a drifting grid, so a sitting's first sample can already be spent down.
    */
   readonly boughtSince?: boolean;
@@ -133,7 +133,6 @@ export type Measure = {
 const MOVE_KIND_ORDER = {
   buyTier: true,
   buyUpgrade: true,
-  buyBoost: true,
   promote: true,
   station: true,
   send: true,

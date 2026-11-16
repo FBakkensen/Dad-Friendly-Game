@@ -1,12 +1,11 @@
 import { stretch } from "../scale";
-import { BOOSTS } from "../boosts";
 import { tierLocked } from "../crew";
 import { atHome } from "../engineers";
 import { LAYERS, type MaterialId } from "../layers";
 import type { Mountain } from "../mountain";
 import { owned, tierShown, TIERS } from "../tiers";
 import { UPGRADES, upgradeLevel } from "../upgrades";
-import { boostShown, upgradeShown } from "../upgrade-reveal";
+import { upgradeShown } from "../upgrade-reveal";
 import {
   craftedLevel,
   recipePrice,
@@ -89,11 +88,11 @@ type Watch = {
   readonly used: (mountain: Mountain) => boolean;
 };
 
-/** Everything the lab watches: buys, boosts, recipes, materials, systems. */
+/** Everything the lab watches: buys, recipes, materials, systems. */
 const WATCHES: readonly Watch[] = [
   ...TIERS.map((tier) => ({
     id: `tier:${tier.id}`,
-    // A locked preview card (a depth or a relic still ahead, #250) is not
+    // A locked preview card (a depth still ahead, #250) is not
     // a reveal: the wait starts when the card opens for sale.
     shown: (mountain: Mountain) =>
       tierShown(mountain, tier) && !tierLocked(mountain, tier),
@@ -104,11 +103,6 @@ const WATCHES: readonly Watch[] = [
     // The row shows once its owned count opens it (#250).
     shown: (mountain: Mountain) => upgradeShown(mountain, upgrade),
     used: (mountain: Mountain) => upgradeLevel(mountain, upgrade.id) > 0,
-  })),
-  ...BOOSTS.map((boost) => ({
-    id: `boost:${boost.id}`,
-    shown: (mountain: Mountain) => boostShown(mountain, boost),
-    used: (mountain: Mountain) => mountain.boosts[boost.id] > 0,
   })),
   ...LAYERS.map((layer) => ({
     id: `material:${layer.material}`,

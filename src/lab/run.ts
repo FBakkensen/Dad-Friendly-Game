@@ -1,5 +1,4 @@
-import { applyAction, buyEveryBoost, type Action } from "../economy/actions";
-import { QUICK_VEIN_AWAY_MS, startRush } from "../gold-rush";
+import { applyAction, type Action } from "../economy/actions";
 import {
   ENGINEER_POSTS,
   onTrip,
@@ -10,7 +9,7 @@ import {
   type EngineerPost,
 } from "../engineers";
 import { send, settle, TUNNELS, type TunnelId } from "../expeditions";
-import { mineByHand, type Mountain } from "../mountain";
+import type { Mountain } from "../mountain";
 import { freshMineOn, lineOn } from "../line-switch";
 import { nextBuilding } from "../city";
 import { effectiveRates } from "../rates";
@@ -68,7 +67,7 @@ export type RunOptions = {
 };
 
 /**
- * Plays one policy on the shared clock. Live seconds tick, tap, buy, and
+ * Plays one policy on the shared clock. Live seconds tick, buy, and
  * promote. The gap pays away time. The same seed replays the same run.
  */
 export function runPolicy(options: RunOptions): PolicyRun {
@@ -242,16 +241,6 @@ function tendsAfter(params: PolicyParams, action: Action): boolean {
   );
 }
 
-/**
- * A dad who is there sees the quick vein and taps it: the Gold rush starts and
- * pays the stones the open held back (#468). The lab leaves golden veins out,
- * as it always has: the quick vein is a vein come early, so only its rush is
- * played.
- */
-export function tapQuickVein(world: World): World {
-  return { ...world, mountain: startRush(world.mountain, world.clock) };
-}
-
 function playSecond(
   world: World,
   policy: Policy,
@@ -263,10 +252,7 @@ function playSecond(
   if (policy.fresh !== undefined && freshMineOn()) {
     return playFreshSecond(world, policy.fresh, params, buys);
   }
-  let mountain =
-    params.boosts === "always"
-      ? buyEveryBoost(world.mountain, world.clock)
-      : world.mountain;
+  let mountain = world.mountain;
   // On the line she is weighed post by post, so only as he sits down and
   // after a staffed buy (tendsAfter), not every second.
   if (params.tend === "best" && (second === 0 || !lineOn())) {
@@ -279,11 +265,6 @@ function playSecond(
       dayTunnel(params.tunnel),
       params,
     );
-  }
-  const trouble =
-    world.hazards.phase === "trouble" ? world.hazards.trouble : undefined;
-  for (let tap = 0; tap < params.tapsPerSecond; tap += 1) {
-    mountain = mineByHand(mountain, world.clock, trouble);
   }
   world = liveSecond({ ...world, mountain }, params);
   world = buyWhileAffordable(world, policy, buys, promotions);
@@ -325,7 +306,7 @@ function isBuy(action: Action): action is Buy {
 
 /**
  * A second in a fresh mine (#655): the mine works, then part 1's dad plays
- * his plans. No taps, engineers, tunnels or boosts: part 1 has none.
+ * his plans. No engineers or tunnels: part 1 has none.
  */
 function playFreshSecond(
   world: World,
@@ -378,9 +359,7 @@ function playGap(
     );
     world = { ...world, mountain };
   }
-  const back = step(world, gap, "away");
-  // He opens after an hour away and taps the quick vein (#468).
-  return gap >= QUICK_VEIN_AWAY_MS ? tapQuickVein(back) : back;
+  return step(world, gap, "away");
 }
 
 function sendExplorers(

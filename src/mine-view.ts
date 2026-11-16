@@ -358,7 +358,7 @@ export type StageRow = {
   readonly pile: RowPile | undefined;
 };
 
-/** A part under a crew timer (Overtime and the like): every machine and tool moves that much more. */
+/** A part under a crew timer (a charge or grease): every machine and tool moves that much more. */
 function timed(part: RowPart, timer: number): RowPart {
   if (timer === 1) {
     return part;

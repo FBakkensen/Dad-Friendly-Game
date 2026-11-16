@@ -10,14 +10,11 @@ import type { Mountain } from "../mountain";
 
 /**
  * Seconds of the schedule's income a lost tool is worth, on top of any
- * change `effectiveRates` already shows (Grandfather's pick). The lamp,
- * the map, and the boots are not a rate, so this is the stones they are
- * worth over the horizon. Keepsakes and glimmers stay at 0: a heart and a
- * hint are not a price. #178.
+ * change `effectiveRates` already shows. The map and the boots are not a
+ * rate, so this is the stones they are worth over the horizon. Keepsakes
+ * stay at 0: a heart is not a price. #178.
  */
 const TOOL_SECONDS: Readonly<Record<LostToolId, number>> = {
-  pick: 0,
-  lamp: 8 * 60,
   map: 12 * 60,
   boots: 10 * 60,
 };
@@ -59,8 +56,6 @@ function findKey(find: StoredFind): string {
   switch (find.kind) {
     case "quiet":
       return "quiet";
-    case "glimmer":
-      return `glimmer:${find.id}`;
     case "tool":
       return `tool:${find.id}`;
     case "keepsake":
@@ -82,7 +77,6 @@ function stonesOf(
   switch (find.kind) {
     case "quiet":
     case "keepsake":
-    case "glimmer":
       return 0;
     case "tool":
       return toolStones(mountain, find.id, horizon, rateOf);

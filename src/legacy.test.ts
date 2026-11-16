@@ -5,10 +5,8 @@ import { MOUNTAIN_STONES, createMountain, type Mountain } from "./mountain";
 import { writeGame } from "./save-format";
 import { gameOf } from "./test-fixtures";
 import { effectiveRates } from "./rates";
-import { hasRelic } from "./relics";
 import { minedMountain } from "./test-fixtures";
 import { NOTHING_CRAFTED, COLD_CLOCKS } from "./workshop";
-import { NO_BOOSTS } from "./boosts";
 import { NO_UPGRADES } from "./upgrades";
 
 const bottom: Mountain = {
@@ -23,8 +21,7 @@ const bottom: Mountain = {
     machine: 2,
     kid: 7,
   },
-  upgrades: { ...NO_UPGRADES, tap: 3, boots: 1 },
-  boosts: { ...NO_BOOSTS, overtime: 9_999_999 },
+  upgrades: { ...NO_UPGRADES, boots: 1 },
   startedAt: 1_000,
 };
 
@@ -36,28 +33,27 @@ describe("legacy bonus", () => {
     expect(legacyBonus({ ...createMountain(), legacy: 2 })).toBe(2);
   });
 
-  it("speeds up the crew and every tap, but not the away pay share", () => {
+  it("speeds up the crew, but not the away pay share", () => {
     const crew = {
       ...createMountain(),
       owned: { ...createMountain().owned, helper: 100 },
       // No machines: Grandpa (#338) has nothing to tend, so this compares
       // the Legacy alone. A cart's own speed still shows the Legacy.
-      upgrades: { ...NO_UPGRADES, tap: 5 },
     };
     const plain = effectiveRates(crew);
     const heir = effectiveRates({ ...crew, legacy: 2 });
     expect(heir.crewPerSecond).toBe(plain.crewPerSecond * 2);
     expect(heir.tierSpeed.cart).toBe(plain.tierSpeed.cart * 2);
-    expect(heir.tapYield).toBe(plain.tapYield * 2);
     expect(heir.awayPay).toBe(plain.awayPay);
-    expect(effectiveRates({ ...createMountain(), legacy: 1 }).tapYield).toBe(1);
   });
 });
 
 describe("passing the mine to your kid", () => {
-  it("is only possible at the bottom, with the Mantle found", () => {
-    expect(passTheMine(minedMountain(99_999_999), 5_000)).toBeUndefined();
-    expect(hasRelic(bottom, "mantle")).toBe(true);
+  it("is only possible at the bottom", () => {
+    expect(
+      passTheMine(minedMountain(MOUNTAIN_STONES - 1), 5_000),
+    ).toBeUndefined();
+    expect(passTheMine(bottom, 5_000)).toBeDefined();
   });
 
   it("starts a fresh mountain, keeps the Legacy (+1) and starts a newer run", () => {
@@ -99,7 +95,6 @@ describe("passing the mine to your kid", () => {
       clocks: {
         ...COLD_CLOCKS,
         "blasting-charge": 9_000,
-        "crystal-flare": 9_001,
         "heartstone-ember": 9_002,
       },
       recipes: [
@@ -107,7 +102,7 @@ describe("passing the mine to your kid", () => {
         "sturdy-props",
         "blasting-charge",
         "diamond-bits",
-        "crystal-lamp",
+        "engineers-kit",
         "heartstone-core",
       ] as const,
     };

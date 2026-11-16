@@ -12,9 +12,11 @@ describe("generations lab (M13, #253)", () => {
     expect(runs.map((run) => run.k)).toEqual([1, kidStretch(1)]);
     // Regression pin on the #357 retune (was 4.5 on #356). Since away pay
     // splits at a band crossing (#592), run 1 ends a minute into day 4 and
-    // run 2 finishes later, on day 6.5 (was 6).
-    expect(runs[0]?.finishDay).toBeCloseTo(4, 2);
-    expect(runs[1]?.finishDay).toBe(6.5);
+    // run 2 finishes later, on day 6.5 (was 6). Since #728 (the dig, boosts,
+    // the Gold rush and the relic powers gone) run 1 ends on day 6 and run 2
+    // on day 9.
+    expect(runs[0]?.finishDay).toBe(6);
+    expect(runs[1]?.finishDay).toBe(9);
     expect(runs[0]?.unbought).toEqual([]);
     expect(MACHINE_IDS).toContain("borer");
   }, 60_000);

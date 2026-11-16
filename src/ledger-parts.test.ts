@@ -93,7 +93,7 @@ afterEach(() => {
 
 describe("the Tonight box (#375)", () => {
   const lines = [
-    { time: "22:13", text: "Overtime started for 30:00." },
+    { time: "22:13", text: "Work boots, level 1." },
     { time: "22:10", text: "Bought mine cart 3." },
     { time: "07:05", text: "Hired worker 56." },
   ];

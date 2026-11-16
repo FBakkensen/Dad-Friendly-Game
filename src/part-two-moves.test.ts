@@ -73,7 +73,7 @@ describe("part 2's buys as moves (#667)", () => {
     partTwo(() => {
       const start = mine({ stones: 1_000_000 });
       const price = makerPrice(start, "kiln")[0]?.amount ?? 0;
-      const result = applyMove(start, KILN, 0, { trouble: undefined });
+      const result = applyMove(start, KILN, 0);
       expect(result.kind).toBe("applied");
       if (result.kind !== "applied") {
         return;
@@ -90,7 +90,7 @@ describe("part 2's buys as moves (#667)", () => {
     partTwo(() => {
       const start = mine({ brick: 400_000 });
       const price = expandPrice(start)[0]?.amount ?? 0;
-      const result = applyMove(start, EXPAND, 0, { trouble: undefined });
+      const result = applyMove(start, EXPAND, 0);
       expect(result.kind).toBe("applied");
       if (result.kind !== "applied") {
         return;
@@ -104,19 +104,15 @@ describe("part 2's buys as moves (#667)", () => {
   it("refuses either when the stock is short", () => {
     partTwo(() => {
       const broke = mine({});
-      expect(applyMove(broke, KILN, 0, { trouble: undefined }).kind).toBe(
-        "refused",
-      );
-      expect(applyMove(broke, EXPAND, 0, { trouble: undefined }).kind).toBe(
-        "refused",
-      );
+      expect(applyMove(broke, KILN, 0).kind).toBe("refused");
+      expect(applyMove(broke, EXPAND, 0).kind).toBe("refused");
     });
   });
 
   it("adds no stone income: the lab's own planner weighs them (#667)", () => {
     partTwo(() => {
       const start = mine({});
-      const context = { tapsPerSecond: 0, liveSeconds: 600, awaySeconds: 0 };
+      const context = { liveSeconds: 600, awaySeconds: 0 };
       const price = makerPrice(start, "kiln")[0]?.amount ?? 0;
       expect(valueOf(start, KILN, 3600, context)).toEqual({
         gainPerSec: 0,

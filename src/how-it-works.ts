@@ -1,4 +1,3 @@
-import { BOOSTS, type Boost } from "./boosts";
 import {
   JOURNEYMAN_TRIPS,
   MASTER_TRIPS,
@@ -13,8 +12,7 @@ import { ENGINEER_FIX_MS, FIX_TAPS } from "./hazards";
 import { LAYERS } from "./layers";
 import { AWAY_PAY_RATE, AWAY_END_MS, LEGACY_STEP } from "./rates";
 import { tierById } from "./tiers";
-import { STEADY_AWAY_PER_LEVEL, UPGRADES } from "./upgrades";
-import { VEIN_GLINT_MS } from "./veins";
+import { UPGRADES } from "./upgrades";
 import { recipeById } from "./workshop";
 
 /**
@@ -23,8 +21,8 @@ import { recipeById } from "./workshop";
  * every word. Shown through the shared card in src/teach-ui.ts.
  *
  * Numbers rule: buying, tending and crafting say real numbers, read from
- * the game data below, never typed in. Discoveries (relics, finds, new
- * recipes) stay vague. No question marks, no payback or time-to-afford.
+ * the game data below, never typed in. Discoveries (finds, new recipes)
+ * stay vague. No question marks, no payback or time-to-afford.
  */
 
 /** An asset under src/assets, without ".png". */
@@ -42,13 +40,7 @@ export type HowArt =
   | "stone"
   | "worn-map"
   | "boot-tile"
-  | "mountain"
-  | "relics/lantern"
-  | "relics/shield"
-  | "relics/hammer"
-  | "relics/heart"
-  | "relics/crown"
-  | "relics/mantle";
+  | "mountain";
 
 type HowStep = readonly [HowArt, string];
 
@@ -57,19 +49,15 @@ export type HowItWorks = {
   readonly title: string;
   /** One line for the reveal: the note, or the sheet's intro. */
   readonly reveal: string;
-  /** Three or four lines, one icon each. One screen, no scroll. */
+  /** Three or four lines (Time away two, #728), one icon each. One screen, no scroll. */
   readonly steps: readonly HowStep[];
 };
 
 export const HOW_SYSTEMS = [
-  "tapping",
   "workers",
   "machines",
   "staffing",
   "upgrades",
-  "boosts",
-  "veins",
-  "relics",
   "engineers",
   "tending",
   "expeditions",
@@ -91,16 +79,6 @@ const cart = tierById("cart");
 const drill = tierById("drill");
 const borer = tierById("borer");
 const machine = tierById("machine");
-const boost = (id: Boost["id"]): Boost => {
-  const found = BOOSTS.find((item) => item.id === id);
-  /* v8 ignore next 3 -- both ids are in BOOSTS */
-  if (found === undefined) {
-    throw new Error(`No boost ${id}`);
-  }
-  return found;
-};
-const sharper = boost("sharper");
-const overtime = boost("overtime");
 const granite = LAYERS[1];
 const firstUpgrade = Math.min(...UPGRADES.map((item) => item.firstCost));
 const shortTunnel = TUNNELS[0];
@@ -114,7 +92,7 @@ const greaseMs = grease.effect.kind === "axle" ? grease.effect.durationMs : 0;
 const chargeMs = charge.effect.kind === "charge" ? charge.effect.durationMs : 0;
 const tend = (rank: 0 | 1 | 2): string => String(TENDING_TENTHS[rank] * 10);
 
-const boostLine =
+const crewTimerLine =
   chargeMs === greaseMs
     ? `A blasting charge or axle grease doubles the crew for ${formatDuration(chargeMs)}.`
     : `A blasting charge doubles the crew for ${formatDuration(chargeMs)}, axle grease for ${formatDuration(greaseMs)}.`;
@@ -127,23 +105,11 @@ interface Prices {
 
 type Cards<S extends HowSystem> = Readonly<Record<S, HowItWorks>>;
 
-/** The first cards: digging, the crew and its machines. */
+/** The first cards: the crew and its machines. */
 function crewCards({
   stones,
-}: Prices): Cards<"tapping" | "workers" | "machines" | "staffing"> {
+}: Prices): Cards<"workers" | "machines" | "staffing"> {
   return {
-    tapping: {
-      title: "Tapping",
-      reveal: "Tap the mountain. Every tap is a stone.",
-      steps: [
-        [
-          "mountain",
-          "Tap the mountain to dig. Each tap is a stone in your pocket.",
-        ],
-        ["stone", "Stones buy workers, machines and upgrades."],
-        ["pick", "Tapping is a bonus. Your crew does the heavy lifting."],
-      ],
-    },
     workers: {
       title: "Workers",
       reveal: "Hire a worker and the mountain digs itself.",
@@ -203,10 +169,8 @@ function crewCards({
   };
 }
 
-/** What stones buy for good or for a while, and what the mountain gives back. */
-function spendCards({
-  oneOffStones,
-}: Prices): Cards<"upgrades" | "boosts" | "veins" | "relics"> {
+/** What stones buy for good. */
+function spendCards({ oneOffStones }: Prices): Cards<"upgrades"> {
   return {
     upgrades: {
       title: "Upgrades",
@@ -221,45 +185,6 @@ function spendCards({
           "Some wait until your crew grows. They show up when ready.",
         ],
         ["pick", "Each card says exactly what it does before you buy."],
-      ],
-    },
-    boosts: {
-      title: "Boosts",
-      reveal: "A boost gives the crew a short, big push.",
-      steps: [
-        ["pick", `${sharper.name}: ${sharper.effect}`],
-        ["helper-miner", `${overtime.name}: ${overtime.effect}`],
-        [
-          "stone",
-          "Its timer shows on top while it runs. Buy it again once it ends.",
-        ],
-      ],
-    },
-    veins: {
-      title: "Golden veins",
-      reveal: "A golden vein glints now and then. Tap it quick.",
-      steps: [
-        ["gold-nugget", "Now and then a golden vein glints on the mountain."],
-        [
-          "pick",
-          `Tap it within ${formatDuration(VEIN_GLINT_MS)} for a big handful of stones.`,
-        ],
-        ["relics/lantern", "Miss one and another comes along soon."],
-      ],
-    },
-    relics: {
-      title: "Relics and the shelf",
-      reveal: "Something old is buried deep. Keep digging.",
-      steps: [
-        ["relics/lantern", "Old relics rest deep in the mountain."],
-        [
-          "relics/shield",
-          "Dig deep enough and one turns up. Each helps for good.",
-        ],
-        [
-          "relics/crown",
-          "Found relics sit on the shelf. Tap one to see its gift.",
-        ],
       ],
     },
   };
@@ -279,7 +204,7 @@ function engineerCards({
           `Promote a worker for ${oneOffStones(PROMOTE_BASE_COST)}. Each next one costs double.`,
         ],
         [
-          "relics/crown",
+          "helper-miner",
           `Up to ${String(MAX_ENGINEERS)} engineers, each with a name.`,
         ],
         [
@@ -365,15 +290,15 @@ function depthCards(): Cards<"layers" | "materials" | "workshop" | "recipes"> {
           `Digging brings up ore: clay first, iron from ${granite.name}.`,
         ],
         ["stone", "Ore comes on its own as the crew digs. Nothing to buy."],
-        ["relics/hammer", "Ore goes into gear at the Workshop."],
+        ["pick", "Ore goes into gear at the Workshop."],
       ],
     },
     workshop: {
       title: "Workshop",
       reveal: "Turn your clay into gear for the crew.",
       steps: [
-        ["relics/hammer", "Pick a recipe. The bench makes one at a time."],
-        ["ore-lump", boostLine],
+        ["pick", "Pick a recipe. The bench makes one at a time."],
+        ["ore-lump", crewTimerLine],
         [
           "upgrades-icon",
           `Reinforce makes a machine ${percent(reinforcePerLevel)} faster a level, up to ${String(reinforce.maxLevel ?? 1)} levels.`,
@@ -392,7 +317,7 @@ function depthCards(): Cards<"layers" | "materials" | "workshop" | "recipes"> {
           "worn-map",
           "Deeper rock keeps new recipes, folded like old sketches.",
         ],
-        ["relics/hammer", "Each one shows up at the Workshop when found."],
+        ["pick", "Each one shows up at the Workshop when found."],
         ["ore-lump", "Some keep for good, even past the bottom."],
       ],
     },
@@ -412,11 +337,7 @@ function endCards(): Cards<"away" | "legacy"> {
         ],
         [
           "stone",
-          `They dig hard, then ease off, and rest after ${formatDuration(AWAY_END_MS)}. A relic keeps them going.`,
-        ],
-        [
-          "upgrades-icon",
-          `Night foreman makes time away pay ${percent(STEADY_AWAY_PER_LEVEL)} more.`,
+          `They dig hard, then ease off, and rest after ${formatDuration(AWAY_END_MS)}.`,
         ],
       ],
     },
@@ -424,14 +345,11 @@ function endCards(): Cards<"away" | "legacy"> {
       title: "Passing to your kid",
       reveal: "Reach the bottom and pass the mine to your kid.",
       steps: [
-        [
-          "relics/mantle",
-          "Reach the bottom with the last relic and you can pass the mine on.",
-        ],
+        ["mountain", "Reach the bottom and you can pass the mine on."],
         ["kid-helper", "Your kid starts a bigger mountain, with your recipes."],
         [
           "helper-miner",
-          `Each pass makes crew and taps ${percent(LEGACY_STEP)} stronger, for good.`,
+          `Each pass makes crew ${percent(LEGACY_STEP)} stronger, for good.`,
         ],
       ],
     },

@@ -4,49 +4,12 @@ import { describe, expect, it } from "vitest";
 // Vitest runs from the repo root.
 const boardCss = readFileSync("src/board.css", "utf8");
 
-/**
- * The board's parts that took over from the pocket pill and the relic shelf
- * (#370), and from the rock, its vein and the Legacy badge (#371).
- */
+/** The board's parts that still stand: the save line, the drawers and the cards. */
 const BOARD_SELECTORS = [
-  ".board-top",
-  ".board-stock",
-  ".board-odo",
-  ".board-dial",
-  ".board-relics",
-  ".board-tag",
   ".board-saveline",
-  ".board-note",
-  ".board-running",
-  ".board-gauge-row",
-  ".board-gauge",
-  ".board-crew",
-  ".board-mine",
-  ".board-window",
-  ".board-legacy",
-  ".golden-vein",
-  ".vein-note",
-  ".board-bays",
-  ".board-bay",
-  ".board-band",
-  ".board-flap",
-  ".board-thanks",
-  ".board-ready-row",
-  ".board-ready",
-  ".board-dig-button",
   ".board-sheet",
   ".board-row",
   ".board-scrim",
-  ".board-rail",
-  ".board-key",
-  ".board-key-cap",
-  ".board-key-dot",
-  ".board-sign-slot",
-  ".board-sign",
-  ".workshop-mats",
-  ".workshop-mat",
-  ".workshop-bench",
-  ".board-row-bar",
   ".ledger-log",
   ".ledger-log-line",
   ".ledger-log-time",
@@ -58,34 +21,13 @@ const BOARD_SELECTORS = [
   ".board-page-answers",
   ".ledger-field-log-well",
   ".ledger-field-log-text",
-  ".relic-page",
-  ".relic-page-kicker",
-  ".relic-page-title",
-  ".relic-page-line",
-  ".relic-page-boost",
-  ".relic-page-answers",
-  ".relic-reveal-stage",
-  ".relic-reveal-art",
-  ".relic-reveal-light",
-  ".relic-legend-shelf",
-  ".relic-keepsakes",
-  ".relic-keepsake-list",
-  ".relic-keepsake-story",
-  ".workshop-timers",
-  ".workshop-pager",
   ".sound-key",
   ".board-card",
   ".board-card-face",
   ".board-card-title",
   ".board-card-line",
-  ".board-card-big",
   ".board-card-foot",
   ".board-card-plate",
-  ".welcome-mined-unit",
-  ".welcome-ore",
-  ".welcome-returns",
-  ".welcome-layers",
-  ".welcome-crafts",
   ".save-card",
   ".save-conflict-confirm",
   ".board-card .save-conflict-error",
@@ -93,9 +35,6 @@ const BOARD_SELECTORS = [
   ".saved-copy",
   ".legacy-lead",
   ".legacy-rates",
-  ".engineer-walk",
-  ".engineer-page-plates",
-  ".engineer-brought-page",
 ];
 
 /** WCAG 2 contrast ratio of two #rrggbb colours. */
@@ -222,12 +161,6 @@ describe("board.css", () => {
     expect(contrast(hex ?? "#000000", "#111518")).toBeGreaterThanOrEqual(4.5);
   });
 
-  it("stands the Ready row at its top in #app, under the bays (#372)", () => {
-    const rule = /^\.board-ready-row \{([^}]*)\}/m.exec(boardCss)?.[1] ?? "";
-    expect(rule).toMatch(/position:\s*absolute/);
-    expect(rule).toMatch(/top:\s*var\(--ready-top\)/);
-  });
-
   it("a shut drawer takes no taps, from the moment it shuts (#373)", () => {
     // It slides away for 200ms: a second tap on Back must not land on a row.
     expect(boardCss).toMatch(
@@ -242,25 +175,6 @@ describe("board.css", () => {
         /pointer-events:\s*auto/.test(body),
     );
     expect(inside.map(([, selector = ""]) => selector.trim())).toEqual([]);
-  });
-
-  it("lets an open note take taps, so none falls through to the dial or the menu", () => {
-    expect(boardCss).toMatch(
-      /^\.board-note\.on \{[^}]*pointer-events:\s*auto/m,
-    );
-  });
-
-  it("lets taps pass through a bay's thanks note to the bay under it (#372)", () => {
-    expect(boardCss).toMatch(
-      /^\.board-note\.on:has\(\.board-thanks\) \{[^}]*pointer-events:\s*none/m,
-    );
-  });
-
-  it("caps the note at the mockup's width inside #app, over #app > *", () => {
-    expect(boardCss).toMatch(/^#app > \* \{/m);
-    expect(boardCss).toMatch(
-      /^#app > \.board-note \{[^}]*max-width:\s*calc\(var\(--art\) \* 150\)/m,
-    );
   });
 
   it("stops every board animation under reduced motion", () => {
@@ -280,34 +194,13 @@ describe("board.css", () => {
     }
   });
 
-  it("lets a long crew row wrap rather than clip a chip (#371)", () => {
-    expect(boardCss).toMatch(/^\.crew-row \{[^}]*flex-wrap:\s*wrap/m);
-    expect(boardCss).not.toMatch(/^\.crew-row \{[^}]*flex-wrap:\s*nowrap/m);
-  });
-
-  it("blanks the Crew section in its place while a save loads again, and speaks the posts unseen (#373)", () => {
-    expect(boardCss).toMatch(
-      /^\.board-sheet \.crew\.is-blank,\n\.board-sheet \.board-sec\.is-blank \{[^}]*visibility:\s*hidden/m,
-    );
-    // The screen-reader-only pattern: 1px, clipped, never zero-sized; the save line's spoken
-    // separator and the Ready plate's live words (#517) too.
-    for (const selector of [
-      "crew-posts-words",
-      "board-save-sep",
-      "board-ready-live",
-    ]) {
-      const rule = declared(`.${selector}`);
-      expect(rule).toMatch(/clip-path:\s*inset\(50%\)/);
-      expect(rule).toMatch(/width:\s*var\(--board-hair\)/);
-      expect(rule).toMatch(/height:\s*var\(--board-hair\)/);
-      expect(rule).toMatch(/overflow:\s*hidden/);
-    }
-  });
-
-  it("keeps the open drawer's chip rows from wrapping (#373)", () => {
-    expect(boardCss).toMatch(
-      /^\.board-sheet \.crew-posts\.is-frozen \.crew-row \{[^}]*flex-wrap:\s*nowrap/m,
-    );
+  it("speaks the save line's separator unseen", () => {
+    // The screen-reader-only pattern: 1px, clipped, never zero-sized.
+    const rule = declared(".board-save-sep");
+    expect(rule).toMatch(/clip-path:\s*inset\(50%\)/);
+    expect(rule).toMatch(/width:\s*var\(--board-hair\)/);
+    expect(rule).toMatch(/height:\s*var\(--board-hair\)/);
+    expect(rule).toMatch(/overflow:\s*hidden/);
   });
 
   it("the drawers' clip can never scroll (#373)", () => {
@@ -342,94 +235,16 @@ describe("board.css", () => {
     expect(boardCss).toMatch(/^\.board-spare \{[^}]*overflow:\s*hidden/m);
   });
 
-  it("styles the Crew section in the Buys drawer, its chips on the tag skin (#373)", () => {
-    expect(boardCss).toMatch(/^\.board-sheet \.crew \{/m);
-    expect(boardCss).toMatch(/^\.board-sheet \.crew-status \{/m);
-    expect(boardCss).toMatch(/^\.crew-bit,\n\.crew-bit\.board-skinned \{/m);
+  it("prints a row's tag figure in bold 17px Barlow with tabular figures (#505)", () => {
+    const rule = declared(".board-row-tag");
+    expect(rule).toMatch(/font-family:\s*"Barlow Condensed"/);
+    expect(rule).toMatch(/font-size:\s*var\(--board-type-17\)/);
+    expect(rule).toMatch(/font-weight:\s*700/);
+    expect(rule).toMatch(/font-variant-numeric:\s*tabular-nums/);
   });
-
-  it("the walk home holds still under reduced motion (#455)", () => {
-    const reduced = [
-      ...boardCss.matchAll(
-        /@media \(prefers-reduced-motion: reduce\) \{([\s\S]*?)\n\}/g,
-      ),
-    ]
-      .map((m) => m[1] ?? "")
-      .find((body) => body.includes(".engineer-walker"));
-    expect(reduced).toBeDefined();
-    expect(reduced).toMatch(/\.engineer-walker[^{]*\{[^}]*animation:\s*none/);
-  });
-
-  it("the reveal's rise, light and words hold still under reduced motion (#523)", () => {
-    expect(boardCss).toMatch(
-      /^\.relic-reveal-page\.is-entering \.relic-reveal-art \{[^}]*animation:\s*board-relic-rise [^;]*steps\(/m,
-    );
-    expect(boardCss).toMatch(
-      /^\.relic-reveal-page\.is-entering \.relic-reveal-light \{[^}]*board-relic-shine [^;]*steps\(1\)[^;]*infinite/m,
-    );
-    const reduced =
-      /@media \(prefers-reduced-motion: reduce\) \{([\s\S]*?)\n\}/.exec(
-        boardCss,
-      )?.[1];
-    for (const part of [
-      "\\.relic-reveal-art",
-      "\\.relic-reveal-light",
-      "\\.relic-page-title",
-      "\\.relic-page-line",
-      "\\.relic-page-boost",
-    ]) {
-      expect(reduced).toMatch(
-        // Under .board-sheet: the block stands before the rules it must beat.
-        new RegExp(
-          `^  \\.board-sheet \\.relic-reveal-page\\.is-entering ${part} \\{[^}]*animation:\\s*none`,
-          "m",
-        ),
-      );
-    }
-  });
-
-  it("the New sign takes no taps: they go through to the plate or the key (#373)", () => {
-    const rule = /^\.board-sign-slot \{([^}]*)\}/m.exec(boardCss)?.[1] ?? "";
-    expect(rule).toMatch(/pointer-events:\s*none/);
-  });
-
-  it("sits her page's plate words on the key face, and the guided first trip across the row (#455)", () => {
-    // The key skin's 8 art px edge and 2 more: the inset engineer-parts#fitsPlate fits against.
-    expect(declared(".engineer-page-plates > .board-platebtn")).toMatch(
-      /padding:\s*0 calc\(var\(--art\) \* 10\)/,
-    );
-    expect(
-      declared(".engineer-page-plates > .board-platebtn.is-small"),
-    ).toMatch(/font-size:\s*var\(--board-type-14\)/);
-    expect(
-      declared(".engineer-page-plates > .board-platebtn.teach-new"),
-    ).toMatch(/grid-column:\s*1 \/ -1/);
-  });
-
-  it.each([".board-bay-tag", ".board-row-tag"])(
-    "prints %s's figure in bold 17px Barlow with tabular figures (#505)",
-    (tag) => {
-      const rule = declared(tag);
-      expect(rule).toMatch(/font-family:\s*"Barlow Condensed"/);
-      expect(rule).toMatch(/font-size:\s*var\(--board-type-17\)/);
-      expect(rule).toMatch(/font-weight:\s*700/);
-      expect(rule).toMatch(/font-variant-numeric:\s*tabular-nums/);
-    },
-  );
 
   it("keeps the plate's face on a row's price, over the mono of .board-num (#505)", () => {
     expect(declared(".board-row-price")).toMatch(/font-family:\s*inherit/);
-  });
-
-  it("keeps a three-flap bay's trouble shout at 13px, so it is never cut (#505)", () => {
-    expect(
-      declared(".board-bay.is-three[data-trouble] .board-bay-sub"),
-    ).toMatch(/font-size:\s*var\(--board-type-13\)/);
-  });
-
-  it("keeps a relic-locked bay's line at 13px, so it is never cut (#505)", () => {
-    const line = declared('.board-bay[data-lock="relic"] .board-bay-sub');
-    expect(line).toMatch(/font-size:\s*var\(--board-type-13\)/);
   });
 
   it("lets a row's info line take two lines when it has the room, ending in an ellipsis past them (#506)", () => {
@@ -442,30 +257,17 @@ describe("board.css", () => {
     );
   });
 
-  it("keeps a post's sentence on an engineer's page the quiet 13px line (#505)", () => {
-    const post = declared(".engineer-post .board-row-info");
-    expect(post).toMatch(/font-size:\s*var\(--board-type-13\)/);
-    expect(post).toMatch(/line-height:\s*var\(--board-row-line-lead\)/);
-  });
-
-  it("sets the rate and effect lines at 15px, their words quiet and their figures bright and bold (#505, #506)", () => {
-    for (const line of [".board-bay-sub", ".board-row-info"]) {
-      expect(declared(line)).toMatch(/font-size:\s*var\(--board-type-15\)/);
-      expect(declared(line)).toMatch(/color:\s*var\(--board-ink-2\)/);
-      expect(declared(line)).not.toMatch(/font-weight/);
-    }
+  it("sets a row's info line at 15px, its words quiet and its figures bright and bold (#505, #506)", () => {
+    const info = declared(".board-row-info");
+    expect(info).toMatch(/font-size:\s*var\(--board-type-15\)/);
+    expect(info).toMatch(/color:\s*var\(--board-ink-2\)/);
+    expect(info).not.toMatch(/font-weight/);
     expect(declared(".board-fig")).toMatch(/font-weight:\s*700/);
     expect(declared(".board-fig")).toMatch(/color:\s*var\(--board-ink-bare\)/);
     // Trouble has no figure, so the whole shout stays bright and semi-bold.
-    for (const shout of [
-      ".board-bay[data-trouble] .board-bay-sub",
-      ".board-row.is-trouble .board-row-info",
-    ]) {
-      expect(declared(shout)).toMatch(
-        /font-weight:\s*var\(--board-weight-semi\)/,
-      );
-      expect(declared(shout)).toMatch(/color:\s*var\(--board-ink\);/);
-    }
+    const shout = declared(".board-row.is-trouble .board-row-info");
+    expect(shout).toMatch(/font-weight:\s*var\(--board-weight-semi\)/);
+    expect(shout).toMatch(/color:\s*var\(--board-ink\);/);
     // A shortfall keeps its rust, semi-bold at the same size.
     expect(declared(".board-row-need")).toMatch(
       /font-size:\s*var\(--board-type-15\)/,
@@ -481,15 +283,7 @@ describe("board.css", () => {
     expect(declared(".board-row-why")).toMatch(/color:\s*var\(--board-ink-2\)/);
   });
 
-  it("makes Ready now's reason and a row's gain bold (#505)", () => {
-    // The reason is worded to fit the plate at 13px: bigger, it would fall back to the gain alone.
-    expect(declared(".board-ready-why")).toMatch(
-      /font-size:\s*var\(--board-type-13\)/,
-    );
-    expect(declared(".board-ready-why")).toMatch(/font-weight:\s*700/);
-    expect(declared(".board-ready-why")).toMatch(
-      /color:\s*var\(--board-ink-plate\);/,
-    );
+  it("makes a row's gain bold (#505)", () => {
     expect(declared(".board-row-gain")).toMatch(
       /font-family:\s*"Barlow Condensed"/,
     );
@@ -546,30 +340,6 @@ describe("today's CSS", () => {
       /^html,\nbody \{[^}]*background:\s*var\(--board-night\)/m,
     );
     expect(boardCss).toMatch(/^html,\nbody \{[^}]*overflow:\s*hidden/m);
-  });
-
-  it("draws the odometer's point four art pixels square (#507)", () => {
-    const dot = declared(".board-odo-dot");
-    expect(dot).toMatch(/width:\s*calc\(var\(--art\) \* 4\)/);
-    expect(dot).toMatch(/height:\s*calc\(var\(--art\) \* 4\)/);
-    // The file is its size in art pixels: the board shows art at exactly 2x.
-    const png = readFileSync("src/assets/board/odo-dot.png");
-    expect([png.readUInt32BE(16), png.readUInt32BE(20)]).toEqual([4, 4]);
-  });
-
-  it("reads the gauge's rate at 20px, its unit on a plate over the needle (#507)", () => {
-    expect(declared(".board-gauge-read")).toMatch(
-      /font-size:\s*var\(--board-type-20\)/,
-    );
-    const unit = declared(".board-gauge-unit");
-    expect(unit).toMatch(/background:\s*var\(--board-gauge-face\)/);
-    expect(unit).toMatch(
-      /outline:\s*calc\(var\(--art\) \* 1\) solid var\(--board-gauge-rim\)/,
-    );
-    // A skinned host is relative by default: the counter keeps its place on the face.
-    expect(declared(".board-gauge-counter.board-skinned")).toMatch(
-      /position:\s*absolute/,
-    );
   });
 
   it("a hidden board row takes no room (#376)", () => {

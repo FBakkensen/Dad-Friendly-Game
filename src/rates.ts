@@ -29,7 +29,6 @@ import { handsSpeed, lineOf, lineRating } from "./line";
 import { freshMineOn, lineOn } from "./line-switch";
 import { nightShiftShare } from "./city";
 import { lineWork } from "./workforce";
-import { tapWithPick } from "./lost-tools";
 import type { Mountain } from "./mountain";
 import {
   TIERS,
@@ -42,7 +41,6 @@ import {
   type MachineId,
   type TierId,
 } from "./tiers";
-import { hasRelic } from "./relics";
 import {
   biggestFirst,
   fillForLine,
@@ -53,18 +51,11 @@ import {
   type StaffSlot,
   type Staffing,
 } from "./staffing";
-import { boostById, boostLeft } from "./boosts";
-import {
-  BOOTS_SPEED_PER_LEVEL,
-  STEADY_AWAY_PER_LEVEL,
-  TAP_SHARE_PER_LEVEL,
-  tierSynergy,
-  upgradeLevel,
-} from "./upgrades";
+import { BOOTS_SPEED_PER_LEVEL, tierSynergy, upgradeLevel } from "./upgrades";
 
 /**
  * Share of the crew's speed paid for time away (app closed or in the
- * background). Tuned by src/pacing.test.ts; the Heart of Patience may raise it.
+ * background). Tuned by src/pacing.test.ts.
  */
 export const AWAY_PAY_RATE = 0.3;
 
@@ -76,44 +67,23 @@ export const AWAY_PAY_RATE = 0.3;
 export const AWAY_FULL_MS = 6 * 60 * 60 * 1000;
 const AWAY_SLOPE_SHARE = 0.4;
 export const AWAY_END_MS = 24 * 60 * 60 * 1000;
-/** With the Shield, a whole day pays in full. */
-export const SHIELD_AWAY_CAP_MS = 24 * 60 * 60 * 1000;
-
-/**
- * Paid time away, as hours at the full away rate. The Shield pays a whole
- * day in full; otherwise the slope above.
- */
-export function paidAwayMs(mountain: Mountain, awayMs: number): number {
+/** Paid time away, as hours at the full away rate: the slope above. */
+export function paidAwayMs(awayMs: number): number {
   const gone = Math.max(0, awayMs);
-  if (hasRelic(mountain, "shield")) {
-    return Math.min(gone, SHIELD_AWAY_CAP_MS);
-  }
   const full = Math.min(gone, AWAY_FULL_MS);
   const slope = Math.max(0, Math.min(gone, AWAY_END_MS) - AWAY_FULL_MS);
   return full + AWAY_SLOPE_SHARE * slope;
 }
 
-/** Heart of Patience: away pay climbs from ×1 to ×2 over this long away. */
-const HEART_MAX_BONUS = 0.5;
-const HEART_FULL_MS = 12 * 60 * 60 * 1000;
-
-/** The Heart of Patience multiplier for a stretch of paid time away (×1 without the Heart). */
-export function heartBonus(mountain: Mountain, paidMs: number): number {
-  if (!hasRelic(mountain, "heart")) {
-    return 1;
-  }
-  return 1 + HEART_MAX_BONUS * Math.min(1, Math.max(0, paidMs) / HEART_FULL_MS);
-}
-
-/** Each Legacy (a mountain passed to your kid) adds this to crew and tap speed. */
+/** Each Legacy (a mountain passed to your kid) adds this to crew speed. */
 export const LEGACY_STEP = 0.5;
 
-/** ×1, ×1.5, ×2, …: the kid's crew and taps. Never away pay's share. */
+/** ×1, ×1.5, ×2, …: the kid's crew. Never away pay's share. */
 export function legacyBonus(mountain: Mountain): number {
   return 1 + LEGACY_STEP * mountain.legacy;
 }
 
-/** Crown of Wisdom: each kid helper makes every helper and kid this much faster. */
+/** Each kid helper makes every helper and kid this much faster. */
 const KID_TEACH_PER_KID = 0.02;
 
 /**
@@ -125,8 +95,6 @@ const KID_TEACH_PER_KID = 0.02;
 const TENDING_FLOOR_PERCENT = [12, 16, 20] as const;
 
 export type Rates = {
-  /** Stones one tap mines. */
-  readonly tapYield: number;
   /** Stones a second one of each tier mines. */
   readonly tierSpeed: Readonly<Record<TierId, number>>;
   /** How many of each tier have the helpers to run (helpers always run). */
@@ -146,27 +114,22 @@ export type Rates = {
 };
 
 /**
- * Axle grease, a blasting charge, and Overtime each speed the live crew.
- * The crew runs at the strongest of them. Three timers at ×2 stay ×2.
- * Away pay passes no `now`, and each one is then 1. A stronger recipe
- * still shows on the crew line.
+ * Axle grease and a blasting charge each speed the live crew. The crew runs
+ * at the stronger of them. Two timers at ×2 stay ×2. Away pay passes no
+ * `now`, and each one is then 1. A stronger recipe still shows on the crew
+ * line.
  */
 export function crewTimer(mountain: Mountain, now: number | undefined): number {
-  const overtime =
-    now !== undefined && boostLeft(mountain, "overtime", now) > 0
-      ? boostById("overtime").multiplier
-      : 1;
   return Math.max(
     axleCrewMultiplier(mountain, now),
     chargeCrewMultiplier(mountain, now),
-    overtime,
   );
 }
 
 /**
- * Every multiplier in one place: live ticks, away earnings, taps and the UI
+ * Every multiplier in one place: live ticks, away earnings and the UI
  * all read from here, so they can't disagree. Pass `now` while playing so
- * running boosts count; leave it out for away time, which boosts never touch.
+ * running crew timers count; leave it out for away time, which they never touch.
  */
 export function effectiveRates(
   mountain: Mountain,
@@ -201,10 +164,6 @@ const clocklessRates = new WeakMap<
 >();
 
 function readRates(mountain: Mountain, now?: number, trouble?: Trouble): Rates {
-  const sharper =
-    now !== undefined && boostLeft(mountain, "sharper", now) > 0
-      ? boostById("sharper").multiplier
-      : 1;
   const taught = 1 + mountain.owned.kid * KID_TEACH_PER_KID;
   const layer = layerOf(mountain);
   const tierSpeed = Object.fromEntries(
@@ -255,28 +214,15 @@ function readRates(mountain: Mountain, now?: number, trouble?: Trouble): Rates {
   );
   // Whole stones a second, so what the crew line says is what gets mined.
   const baseCrew = Math.floor(exactBase + 1e-9);
-  // Tap power takes its share of the unboosted crew, before any crew timer.
-  const tapShare = upgradeLevel(mountain, "tap") * TAP_SHARE_PER_LEVEL;
-  // Legacy multiplies the whole tap; its share of the crew is taken before it.
-  // Grandfather's pick strengthens that bare tap; Sharper picks still doubles the result.
-  const bareTap = Math.floor(
-    (1 + Math.floor((baseCrew / legacy) * tapShare + 1e-9)) * legacy + 1e-9,
-  );
-  // A Gold rush pays held stones on its own (src/gold-rush.ts): they were dug
-  // while away, so the crew's speed never counts them (#525).
   const timer = crewTimer(mountain, now);
   return {
-    // Nothing is mined by a tap in a fresh mine (slice 1, What goes, #653).
-    tapYield: freshMineOn() ? 0 : tapWithPick(bareTap, mountain) * sharper,
     tierSpeed,
     running,
     helpersShort,
     exactCrewPerSecond: exactBase * timer,
     crewPerSecond: baseCrew * timer,
     // A building's power lights the night (slice 1, the Light Tower: 45%).
-    awayPay:
-      (nightShiftShare(mountain) ?? AWAY_PAY_RATE) *
-      (1 + upgradeLevel(mountain, "steady") * STEADY_AWAY_PER_LEVEL),
+    awayPay: nightShiftShare(mountain) ?? AWAY_PAY_RATE,
   };
 }
 
@@ -301,7 +247,7 @@ function crewRun(
   }
   // Staffing: the hands run the machines that mine the most (#500); a
   // machine short of its crew sits idle. Helpers still mine by hand while
-  // they run a machine. Kids count as staff too (Crown of Wisdom).
+  // they run a machine. Kids count as staff too.
   const running = keptStaffing(mountain, steady);
   const needed = TIERS.filter(tierInPlay).reduce(
     (total, tier) =>

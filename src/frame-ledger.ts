@@ -101,7 +101,7 @@ export function createFrameLedger({
   const clip = el("div", "board-sheet-clip");
   clip.append(
     ledger.sheet.root,
-    createSheetScrim({ board, sheets: [ledger.sheet], sockets: () => [] }),
+    createSheetScrim({ board, sheets: [ledger.sheet] }),
   );
   return {
     key,

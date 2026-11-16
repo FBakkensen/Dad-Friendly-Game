@@ -11,8 +11,7 @@
  *
  * Rules by design, which the checks allow for rather than flag:
  * - the save keeps whole depth, rounded up (save-format.ts);
- * - past the full-pay length an hour away pays less (`paidAwayMs`);
- * - with the Heart of Patience a longer absence pays more an hour (`heartBonus`).
+ * - past the full-pay length an hour away pays less (`paidAwayMs`).
  */
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
@@ -20,8 +19,7 @@ import { fix, freshHazards, type HazardState } from "../hazards";
 import { LAYERS } from "../layers";
 import { accrueAway, createMountain, type Mountain } from "../mountain";
 import { readSave, serializeSave } from "../persist";
-import { AWAY_FULL_MS, SHIELD_AWAY_CAP_MS, effectiveRates } from "../rates";
-import { hasRelic } from "../relics";
+import { AWAY_FULL_MS, effectiveRates } from "../rates";
 import { MOUNTAIN_STONES, minedOut } from "../scale";
 import { advance, type TimeInput } from "../session-time";
 import { TIERS } from "../tiers";
@@ -67,9 +65,7 @@ function crewed(start: Mountain, buys: number): Mountain {
     for (let tried = 0; tried < moves.length; tried += 1) {
       const move = moves[(bought + tried) % moves.length];
       const result =
-        move === undefined
-          ? undefined
-          : applyMove(mountain, move, START, { trouble: undefined });
+        move === undefined ? undefined : applyMove(mountain, move, START);
       if (result?.kind === "applied") {
         next = result.mountain;
         break;
@@ -147,10 +143,7 @@ function troubleOf(hazards: HazardState) {
 }
 
 function movesOn(world: World): readonly Move[] {
-  return [
-    { kind: "dig" },
-    ...listActions(world.mountain, world.clock, troubleOf(world.hazards)),
-  ];
+  return listActions(world.mountain, world.clock, troubleOf(world.hazards));
 }
 
 /** Time passes to `to`, paid from `lastSeen`, so part seconds carry as in the game. */
@@ -181,7 +174,11 @@ function play(world: World, step: Step): Played {
   switch (step.kind) {
     case "move": {
       const moves = movesOn(world);
-      const move = moves[step.pick % moves.length] ?? { kind: "dig" };
+      const move = moves[step.pick % moves.length];
+      if (move === undefined) {
+        // Nothing to do here: the step is a look, and the mountain stays.
+        return { before: world, after: world, applied: false, spent: 0 };
+      }
       if (move.kind === "fixTrouble") {
         // The hold on the troubled card: the hazards clear, the mountain stays.
         const hazards = fix(world.hazards, world.mountain);
@@ -194,9 +191,7 @@ function play(world: World, step: Step): Played {
           spent: 0,
         };
       }
-      const result = applyMove(world.mountain, move, world.clock, {
-        trouble: troubleOf(world.hazards),
-      });
+      const result = applyMove(world.mountain, move, world.clock);
       return result.kind === "applied"
         ? {
             before: world,
@@ -247,7 +242,6 @@ function wholeCounts(mountain: Mountain): readonly [string, number][] {
     ),
     ["legacy", mountain.legacy],
     ["pocket", mountain.stock.stones],
-    ["rushBank", mountain.rushBank],
     ...Object.entries(mountain.upgrades).map(
       ([id, level]) => [`upgrades.${id}`, level] as [string, number],
     ),
@@ -366,7 +360,6 @@ function isCrewBuy(move: Move | undefined): boolean {
   switch (move?.kind) {
     case "buyTier":
     case "buyUpgrade":
-    case "buyBoost":
     case "craft":
       return true;
     default:
@@ -376,7 +369,7 @@ function isCrewBuy(move: Move | undefined): boolean {
 
 /**
  * Moves with a price. A shown price is what it costs (#367); every buy of a
- * machine or a boost costs stones. A craft may cost only materials.
+ * machine costs stones. A craft may cost only materials.
  */
 function priceOf(move: Move | undefined): number | "some" | undefined {
   switch (move?.kind) {
@@ -384,7 +377,6 @@ function priceOf(move: Move | undefined): number | "some" | undefined {
     case "promote":
       return priceAmount(move.price, "stones");
     case "buyTier":
-    case "buyBoost":
     case "buyVehicle":
       return "some";
     default:
@@ -514,23 +506,13 @@ function tolerance(mined: number, stretches: number): number {
   return stretches + mined * 1e-6;
 }
 
-/**
- * How long an absence is paid in full. Past it, by design (`paidAwayMs`), an
- * hour pays less, so one long absence pays less than two short ones.
- */
-function fullPayMs(mountain: Mountain): number {
-  return hasRelic(mountain, "shield") ? SHIELD_AWAY_CAP_MS : AWAY_FULL_MS;
-}
-
 function minedAway(mountain: Mountain, ends: readonly number[]): number {
   return minedOut(awayThrough(mountain, START, ends)) - minedOut(mountain);
 }
 
 /**
- * Stones the stretches pay before the Heart of Patience's bonus. With the
- * Heart a longer stretch pays more an hour, by design (`heartBonus`), so each
- * stretch's haul is divided by its own bonus: what is left must not depend on
- * the slicing, in every band. Without the Heart the bonus is 1.
+ * Stones the stretches pay, one after another: what they pay must not depend
+ * on the slicing, in every band.
  */
 function basePay(mountain: Mountain, ends: readonly number[]): number {
   let current = mountain;
@@ -538,7 +520,7 @@ function basePay(mountain: Mountain, ends: readonly number[]): number {
   let base = 0;
   for (const now of ends) {
     const paid = accrueAway({ mountain: current, lastSeen, now });
-    base += paid.report.mined / paid.report.heart;
+    base += paid.report.mined;
     current = paid.mountain;
     lastSeen = paid.settledAt;
   }
@@ -553,7 +535,9 @@ describe("time away pays the same however it is sliced (#555)", () => {
         fc.double({ min: 0, max: 1, noNaN: true }),
         fc.double({ min: 0.01, max: 0.99, noNaN: true }),
         (start, length, at) => {
-          const ms = Math.round(MINUTE + length * (fullPayMs(start) - MINUTE));
+          // Past the full-pay length an hour pays less, by design (`paidAwayMs`),
+          // so the absence stays inside it.
+          const ms = Math.round(MINUTE + length * (AWAY_FULL_MS - MINUTE));
           const split = START + Math.round(ms * at);
           const once = basePay(start, [START + ms]);
           const twice = basePay(start, [split, START + ms]);
@@ -587,16 +571,6 @@ describe("time away pays the same however it is sliced (#555)", () => {
       ),
       { numRuns: 40 },
     );
-  });
-
-  it("with the Heart of Patience, one long absence pays more than the same time in parts, by design", () => {
-    const deep = BAND_STARTS.find((mountain) => hasRelic(mountain, "heart"));
-    if (deep === undefined) {
-      throw new Error("no band start has found the Heart of Patience");
-    }
-    const once = minedAway(deep, [START + 6 * HOUR]);
-    const twice = minedAway(deep, [START + 3 * HOUR, START + 6 * HOUR]);
-    expect(once).toBeGreaterThan(twice);
   });
 
   const GRANITE = LAYERS[1];

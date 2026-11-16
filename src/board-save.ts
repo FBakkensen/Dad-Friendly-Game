@@ -69,7 +69,7 @@ export function plateButton(label: string): HTMLButtonElement {
 }
 
 /**
- * A plate on a drawer's page (the Ledger's, the relics drawer's) whose press, past the settle
+ * A plate on a drawer's page (the Ledger's) whose press, past the settle
  * and any hold, runs `act` with the plate and how the press came. Its tracker goes in
  * `trackers`, so the drawer can drop a finger-down time left over.
  */

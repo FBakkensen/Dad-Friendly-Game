@@ -1,7 +1,7 @@
 import { factor } from "./economy/factors";
 import { freshMineOn, lineOn } from "./line-switch";
 
-/** Stones in the whole mountain. Near-leaf (it reads only factors and line), so relics and rates can share it without an import cycle. */
+/** Stones in the whole mountain. Near-leaf (it reads only factors and line), so rates and layers can share it without an import cycle. */
 export const MOUNTAIN_STONES = 240_000_000;
 
 /**
@@ -45,7 +45,7 @@ export type Sized = { readonly remaining: number; readonly stretch?: number };
 
 /**
  * The run's stretch k: each stone dug takes 1/k of a stone of depth, so the
- * mountain, layer starts and relic depths are k times deeper in stones, and
+ * mountain and layer starts are k times deeper in stones, and
  * stone prices are k times higher. Saves from before M13 have none, so 1.
  */
 export function stretch(mountain: { readonly stretch?: number }): number {
@@ -81,8 +81,8 @@ function bandScale(band: Band): number {
 /**
  * What one-off buys (upgrades, promotions) scale by: the kid-run stretch times
  * the scale of the band the run stands in, so deeper rock costs more (#356).
- * A band begins at its start, inclusive. Machines, workers, recipes and boosts
- * never use this.
+ * A band begins at its start, inclusive. Machines, workers and recipes never
+ * use this.
  */
 export function oneOffStretch(mountain: Sized): number {
   const mined = minedOut(mountain);
@@ -181,7 +181,7 @@ export function depthAfterStones(mountain: Sized, stones: number): number {
   return MOUNTAIN_STONES;
 }
 
-/** Stones dug out so far. Here (not in mountain.ts) so relics can use it without a cycle. */
+/** Stones dug out so far. Here (not in mountain.ts) so layers and crew can use it without a cycle. */
 export function minedOut(mountain: { readonly remaining: number }): number {
   return MOUNTAIN_STONES - mountain.remaining;
 }

@@ -1,9 +1,7 @@
 import { parameterisedDecide } from "./decide";
-import { TAPS_PER_SECOND } from "./targets";
 import {
   definePolicy,
   scheduleFrom,
-  type BoostRule,
   type Habit,
   type Policy,
   type PolicyKind,
@@ -18,12 +16,11 @@ import {
   type WorkerMoves,
 } from "./policy";
 
-/** The plain dad's spends: crew and machines, nothing lasting, no boosts. */
+/** The plain dad's spends: crew and machines, nothing lasting. */
 const PLAIN_SPEND: SpendWeights = {
   worker: 1,
   machine: 1,
   upgrade: 0,
-  boost: 0,
   promote: 0,
 };
 
@@ -34,7 +31,6 @@ export type PlainSpec = {
   readonly sessionsPerDay: number;
   readonly minutesPerSession: number;
   readonly gapJitter?: number;
-  readonly tapsPerSecond?: number;
   readonly spend?: SpendWeights;
   readonly hoardK?: number;
   readonly promote?: Habit;
@@ -44,7 +40,6 @@ export type PlainSpec = {
   readonly tend?: TendChoice;
   readonly trouble?: TroubleFix;
   readonly workers?: WorkerRule;
-  readonly boosts?: BoostRule;
   /** Defaults to crafting when the next buy can wait. */
   readonly craft?: CraftRule;
   readonly decide?: Policy["decide"];
@@ -56,7 +51,6 @@ export function plainParams(spec: PlainSpec): PolicyParams {
     sessionsPerDay: spec.sessionsPerDay,
     minutesPerSession: spec.minutesPerSession,
     gapJitter: spec.gapJitter ?? 0,
-    tapsPerSecond: spec.tapsPerSecond ?? TAPS_PER_SECOND,
     spend: spec.spend ?? PLAIN_SPEND,
     hoardK: spec.hoardK ?? 1,
     promote: spec.promote ?? "asap",
@@ -66,7 +60,6 @@ export function plainParams(spec: PlainSpec): PolicyParams {
     tend: spec.tend ?? "best",
     trouble: spec.trouble ?? "fast",
     workers: spec.workers ?? "any",
-    boosts: spec.boosts ?? "value",
     craft: spec.craft ?? "idle",
   };
 }

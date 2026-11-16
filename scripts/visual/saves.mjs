@@ -394,7 +394,8 @@ const cardTable = (screens, scenarios) =>
           const stored = kept?.save ?? kept;
           return [
             [
-              stored?.version === 10 && stored.game !== undefined,
+              stored?.version === newerSave(0).version &&
+                stored.game !== undefined,
               `a later build's save is left as it was (${JSON.stringify(stored)})`,
             ],
           ];

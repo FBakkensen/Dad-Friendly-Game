@@ -1,12 +1,11 @@
 import { createMountain, runStartedAt, type Mountain } from "./mountain";
-import { hasRelic } from "./relics";
 import { kidStretch } from "./scale";
 
 /** The bonus itself lives in rates.ts with every other multiplier. */
 export { LEGACY_STEP, legacyBonus } from "./rates";
 
 /**
- * Pass the mine to your kid (M6): only at the bottom, with the Mantle found.
+ * Pass the mine to your kid (M6): only at the bottom.
  * Everything starts fresh except the Legacy, which grows by one, and the
  * kid's mountain is stretched by kidStretch. The new run
  * starts later than the old one, so a stale cloud snapshot can't bring it back.
@@ -15,7 +14,7 @@ export function passTheMine(
   mountain: Mountain,
   now: number,
 ): Mountain | undefined {
-  if (mountain.remaining > 0 || !hasRelic(mountain, "mantle")) {
+  if (mountain.remaining > 0) {
     return undefined;
   }
   const fresh = createMountain();

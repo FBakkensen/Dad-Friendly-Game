@@ -18,7 +18,7 @@ export const PRESS_AGE_LIMIT_MS = 10_000;
 
 /** Drawers replace one another. The save drawer and a board note open on top. */
 export type DrawerId =
-  "buys" | "upgrades" | "workshop" | "engineers" | "ledger" | "relics";
+  "buys" | "upgrades" | "workshop" | "engineers" | "ledger";
 /**
  * The cards that open over the board by themselves or when something happens (#464). A card
  * goes on top of what is open, and its close takes off only itself.
@@ -164,7 +164,6 @@ const DRAWER_IDS: readonly DrawerId[] = [
   "workshop",
   "engineers",
   "ledger",
-  "relics",
 ];
 
 function isDrawer(overlay: Layer): overlay is DrawerId {

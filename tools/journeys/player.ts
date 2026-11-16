@@ -28,7 +28,7 @@ export const NINE_PM = Date.UTC(2026, 10, 16, 21, 0, 0);
 
 export const HOUR_MS = 60 * 60 * 1000;
 
-/** The seed of the page's Math.random, so a vein or a wobble lands the same every run. */
+/** The seed of the page's Math.random, so a wobble lands the same every run. */
 const RANDOM_SEED = 552;
 
 /** The whole ticks a drawer or a card takes to settle, so the next tap counts. */

@@ -2,9 +2,10 @@
 """Recolour a board icon into its dim silhouette (#535).
 
 The board allows no CSS filters, so a dim icon is its own file: every pixel
-keeps its place and takes one of mach-kid-dim.png's five greys by how bright
-it was. This is how mach-hoist-dim, mach-train-dim, mach-cart-dim,
-mach-drill-dim and mach-kiln-dim (#668) were made.
+keeps its place and takes one of five greys (STEPS, first taken from the kid
+worker's dim icon, gone since #728) by how bright it was. This is how
+mach-hoist-dim, mach-train-dim, mach-cart-dim, mach-drill-dim and
+mach-kiln-dim (#668) were made.
 
     python3 scripts/dim-icon.py src/assets/board/mach-hoist.png src/assets/board/mach-hoist-dim.png
 

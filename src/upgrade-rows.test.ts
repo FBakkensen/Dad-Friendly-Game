@@ -1,7 +1,6 @@
 import { EMPTY_STOCK } from "./stock";
 import { NONE_OWNED, patched, type MountainPatch } from "./test-fixtures";
 import { describe, expect, it } from "vitest";
-import { NO_BOOSTS } from "./boosts";
 import { formatCompact, formatCount } from "./format";
 import { createMountain, type Mountain } from "./mountain";
 import { oneOffStretch } from "./scale";
@@ -11,19 +10,15 @@ import { UPGRADES, upgradeById, upgradeCost, NO_UPGRADES } from "./upgrades";
 import { COLD_CLOCKS } from "./workshop";
 
 const NOW = 1_700_000_000_000;
-const arms = upgradeById("tap");
+const crews = upgradeById("cartSyn");
 const boots = upgradeById("boots");
 
 function mountainWith(fields: MountainPatch): Mountain {
   return patched(createMountain(), fields);
 }
 
-function nextUpgradeCost(
-  mountain: Mountain,
-  id: "tap" | "steady" | "cartSyn",
-  level = 0,
-): number {
-  const cost = upgradeCost(upgradeById(id), level, oneOffStretch(mountain));
+function nextUpgradeCost(mountain: Mountain, id: "cartSyn"): number {
+  const cost = upgradeCost(upgradeById(id), 0, oneOffStretch(mountain));
   if (cost === undefined) {
     throw new Error("maxed");
   }
@@ -33,18 +28,17 @@ function nextUpgradeCost(
 describe("lasting upgrade rows", () => {
   it("a lasting upgrade", () => {
     const climbing = mountainWith({
-      owned: { ...NONE_OWNED, cart: 3 },
-      upgrades: { ...NO_UPGRADES, tap: 2 },
+      owned: { ...NONE_OWNED, cart: 5 },
     });
-    const cost = nextUpgradeCost(climbing, "tap", 2);
+    const cost = nextUpgradeCost(climbing, "cartSyn");
     const view = upgradeRowView(
       { ...climbing, stock: { ...climbing.stock, stones: cost } },
       NOW,
-      arms,
+      crews,
     );
     expect(view).toMatchObject({
-      name: "Strong arms",
-      badge: "Lv 2/10",
+      name: "Loading crews",
+      badge: "",
       need: "",
       gain: "",
       flag: [],
@@ -59,26 +53,25 @@ describe("lasting upgrade rows", () => {
     });
     expect(view.info).toEqual([
       upgradeEffectLine(
-        arms,
+        crews,
         { ...climbing, stock: { ...climbing.stock, stones: cost } },
         NOW,
       ),
     ]);
     expect(view.why).toBe(
-      upgradeWhyLine(
-        arms,
-        { ...climbing, stock: { ...climbing.stock, stones: cost } },
-        NOW,
-      ),
+      upgradeWhyLine(crews, {
+        ...climbing,
+        stock: { ...climbing.stock, stones: cost },
+      }),
     );
     expect(view.aria).toBe(
-      `Strong arms. ${view.info[0] ?? ""} Buy for ${formatCount(cost)} stone`,
+      `Loading crews. ${view.info[0] ?? ""} Buy for ${formatCount(cost)} stone`,
     );
 
     const dear = upgradeRowView(
       { ...climbing, stock: { ...climbing.stock, stones: cost - 1 } },
       NOW,
-      arms,
+      crews,
     );
     expect(dear).toMatchObject({
       state: "dear",
@@ -111,24 +104,8 @@ describe("lasting upgrade rows", () => {
     expect(bought.aria).toBe(`Work boots. ${bought.info[0] ?? ""} Owned`);
   });
 
-  it("every level bought still reads Owned, with its badge", () => {
-    const maxed = upgradeRowView(
-      mountainWith({
-        upgrades: { ...NO_UPGRADES, tap: 10 },
-        owned: { ...NONE_OWNED, cart: 3 },
-      }),
-      NOW,
-      arms,
-    );
-    expect(maxed).toMatchObject({
-      badge: "Lv 10/10",
-      state: "owned",
-      price: "Owned",
-    });
-  });
-
   it("hides an upgrade until its count opens it", () => {
-    expect(upgradeRowView(createMountain(), NOW, arms).shown).toBe(false);
+    expect(upgradeRowView(createMountain(), NOW, crews).shown).toBe(false);
   });
 });
 
@@ -147,10 +124,9 @@ describe("display only", () => {
     const fields: Partial<Mountain> = {
       owned: { ...NONE_OWNED, helper: 10, cart: 5, drill: 1 },
       stock: { ...EMPTY_STOCK, stones: 5_000_000 },
-      upgrades: { ...NO_UPGRADES, tap: 2, boots: 1 },
-      boosts: { ...NO_BOOSTS, overtime: NOW + 60_000 },
-      finds: ["pick", "map"],
-      seen: ["upgrade:tap"],
+      upgrades: { ...NO_UPGRADES, cartSyn: 1, boots: 1 },
+      finds: ["boots", "map"],
+      seen: ["upgrade:drillSyn"],
       clocks: { ...COLD_CLOCKS, "axle-grease": NOW + 60_000 },
     };
     const mountain = deepFreeze(mountainWith(fields));

@@ -1,11 +1,3 @@
-import {
-  BOOSTS,
-  boostById,
-  boostCost,
-  boostLeft,
-  buyBoost,
-  type BoostId,
-} from "../boosts";
 import { buyCrew, tierLocked } from "../crew";
 import {
   ENGINEER_POSTS,
@@ -75,9 +67,9 @@ import {
   type TroubleTier,
 } from "../hazards";
 import { LAYERS } from "../layers";
-import { boostShown, upgradeShown } from "../upgrade-reveal";
+import { upgradeShown } from "../upgrade-reveal";
 import { expeditionAwayMs } from "../lost-tools";
-import { mineByHand, type Mountain } from "../mountain";
+import type { Mountain } from "../mountain";
 import { minedOut, oneOffStretch, stretch } from "../scale";
 import {
   markAllSeen,
@@ -86,13 +78,6 @@ import {
   showsDot,
   type TeachId,
 } from "../teach";
-import { releaseRush, rushOwed, startRush } from "../gold-rush";
-import {
-  VEIN_MAX_GAP_MS,
-  VEIN_MIN_GAP_MS,
-  mineVein,
-  veinReward,
-} from "../veins";
 import {
   MAX_CRAFTED_LEVEL,
   cancelCraft,
@@ -104,12 +89,11 @@ import {
   settleBench,
   startCraft,
   troubleGapScale,
-  veinOftenScale,
   recipeOpen,
   workshopUnlocked,
   type RecipeId,
 } from "../workshop";
-import { effectiveRates, heartBonus, paidAwayMs } from "../rates";
+import { effectiveRates, paidAwayMs } from "../rates";
 import {
   TIERS,
   owned,
@@ -154,7 +138,6 @@ export type Action =
       /** The price the player was shown: a different price today refuses the buy (#367). */
       readonly price: Price;
     }
-  | { readonly kind: "buyBoost"; readonly id: BoostId }
   | {
       readonly kind: "promote";
       /** The price the player was shown: a different price today refuses it (#367). */
@@ -219,8 +202,6 @@ type OrderAction =
  * (`src/lab/policies`, #172). The catalogue does not pick a dad of its own.
  */
 export type ValueContext = {
-  /** Taps while they are at the mountain. Zero when they never tap. */
-  readonly tapsPerSecond: number;
   /** Seconds at the mountain in one cycle of the schedule. */
   readonly liveSeconds: number;
   /** Seconds away in that same cycle, before the away cap. */
@@ -229,7 +210,7 @@ export type ValueContext = {
 
 /** What `valueOf` says a move is worth. Payback is seconds. */
 export type ActionValue = {
-  /** Extra income, stones a second, spread across `horizon` for a boost. */
+  /** Extra income, stones a second, spread across `horizon` for a timer. */
   readonly gainPerSec: number;
   /** Stones to pay. A machine includes the workers it still needs. */
   readonly cost: number;
@@ -254,7 +235,6 @@ export function listActions(
   return [
     ...tierActions(mountain),
     ...upgradeActions(mountain),
-    ...boostActions(mountain, now),
     ...promoteActions(mountain),
     ...mountain.engineers.flatMap((hand, index) =>
       handActions(mountain, hand, index, now),
@@ -407,13 +387,6 @@ function upgradeActions(mountain: Mountain): readonly Action[] {
   );
 }
 
-function boostActions(mountain: Mountain, now: number): readonly Action[] {
-  return BOOSTS.filter(
-    (boost) =>
-      boostLeft(mountain, boost.id, now) === 0 && boostShown(mountain, boost),
-  ).map((boost) => ({ kind: "buyBoost", id: boost.id }));
-}
-
 function promoteActions(mountain: Mountain): readonly Action[] {
   return mountain.engineers.length < MAX_ENGINEERS && promotionOpen(mountain)
     ? [{ kind: "promote", price: promotePrice(mountain) }]
@@ -541,9 +514,8 @@ export function vehicleBuyMove(
     : { kind: "buyVehicles", id, count };
 }
 
-/** A move only the screen makes: the lab plays taps and marks through its value model. */
+/** A move only the screen makes: the lab plays marks through its value model. */
 type ScreenMove =
-  | { readonly kind: "dig" }
   | {
       /** Several of a tier in one tap (#358). The lab plans single buys. */
       readonly kind: "buyTiers";
@@ -556,11 +528,6 @@ type ScreenMove =
       readonly id: VehicleId;
       readonly count: number;
     }
-  | { readonly kind: "tapVein" }
-  /** The first vein after an hour away: it pays, then starts a Gold rush (#468). */
-  | { readonly kind: "tapQuickVein" }
-  /** The quick vein's glint went by: the stones held for the rush land now. */
-  | { readonly kind: "missQuickVein" }
   | { readonly kind: "markSeen"; readonly id: TeachId }
   | { readonly kind: "markAllSeen"; readonly ids: readonly TeachId[] };
 
@@ -574,11 +541,6 @@ export type MoveEvent =
       readonly kind: "upgradeBought";
       readonly id: UpgradeId;
       readonly level: number;
-    }
-  | {
-      readonly kind: "boostStarted";
-      readonly id: BoostId;
-      readonly endsAt: number;
     }
   | { readonly kind: "craftStarted"; readonly recipe: RecipeId }
   | {
@@ -601,9 +563,6 @@ export type MoveEvent =
       readonly name: EngineerName;
       readonly post: EngineerPost;
     }
-  | { readonly kind: "veinTapped"; readonly stones: number }
-  | { readonly kind: "quickVeinTapped"; readonly stones: number }
-  | { readonly kind: "rushLanded"; readonly stones: number }
   | {
       readonly kind: "vehicleBought";
       readonly id: VehicleId;
@@ -628,8 +587,7 @@ export type MoveEvent =
 
 /**
  * What a move did: applied, with what it took from the stock and what it put in, good by
- * good (each at least 0: a dig's or a vein's stones and materials, a cancelled craft's
- * refund), or refused because it changed nothing.
+ * good (each at least 0: a craft's output, a cancelled craft's refund), or refused because it changed nothing.
  */
 export type MoveResult =
   | {
@@ -641,26 +599,8 @@ export type MoveResult =
     }
   | { readonly kind: "refused" };
 
-/** What a move sees besides the mountain and the clock. */
-export interface MoveContext {
-  readonly trouble: Trouble | undefined;
-}
-
-function moved(
-  mountain: Mountain,
-  move: Move,
-  now: number,
-  context: MoveContext,
-): Mountain {
+function moved(mountain: Mountain, move: Move, now: number): Mountain {
   switch (move.kind) {
-    case "dig":
-      return mineByHand(mountain, now, context.trouble);
-    case "tapVein":
-      return mineVein(mountain);
-    case "tapQuickVein":
-      return startRush(mineVein(mountain), now);
-    case "missQuickVein":
-      return rushOwed(mountain) ? releaseRush(mountain) : mountain;
     case "buyTiers":
       return buyMany(mountain, move.id, move.count);
     case "buyVehicles":
@@ -674,24 +614,6 @@ function moved(
     default:
       return actionApplied(mountain, move, now);
   }
-}
-
-/**
- * Starts every boost that is idle and that the pocket can pay, in catalogue
- * order, each priced from the mountain as the one before it left it. The
- * sim dad and the lab's always-boost players do this every second.
- */
-export function buyEveryBoost(mountain: Mountain, now: number): Mountain {
-  let next = mountain;
-  for (const boost of BOOSTS) {
-    next = buyBoost({
-      mountain: next,
-      id: boost.id,
-      now,
-      pricing: effectiveRates(next),
-    });
-  }
-  return next;
 }
 
 function actionApplied(
@@ -710,13 +632,6 @@ function actionApplied(
       )
         ? buyUpgrade(mountain, action.id)
         : mountain;
-    case "buyBoost":
-      return buyBoost({
-        mountain,
-        id: action.id,
-        now,
-        pricing: effectiveRates(mountain),
-      });
     case "promote":
       return samePrice(action.price, promotePrice(mountain))
         ? promote(mountain)
@@ -769,9 +684,8 @@ export function applyMove(
   mountain: Mountain,
   move: Move,
   now: number,
-  context: MoveContext,
 ): MoveResult {
-  const next = moved(mountain, move, now, context);
+  const next = moved(mountain, move, now);
   if (next === mountain) {
     return { kind: "refused" };
   }
@@ -799,11 +713,6 @@ function engineerAt(mountain: Mountain, index: number): Engineer {
 /** The crew an applied promote made, so a missing one means the move and the mountain disagree. */
 function crewOf(mountain: Mountain): readonly Engineer[] {
   return mountain.engineers;
-}
-
-/** When the boost an applied buy started ends, as `buyBoost` wrote it. */
-function boostEnd(mountain: Mountain, id: BoostId): number {
-  return mountain.boosts[id];
 }
 
 /**
@@ -851,14 +760,6 @@ function actionEvents(
           kind: "upgradeBought",
           id: action.id,
           level: upgradeLevel(next, action.id),
-        },
-      ];
-    case "buyBoost":
-      return [
-        {
-          kind: "boostStarted",
-          id: action.id,
-          endsAt: boostEnd(next, action.id),
         },
       ];
     case "craft":
@@ -922,26 +823,10 @@ function moveEvents(
   move: Move,
 ): readonly MoveEvent[] {
   switch (move.kind) {
-    case "tapVein":
-      return [
-        { kind: "veinTapped", stones: next.stock.stones - before.stock.stones },
-      ];
-    case "tapQuickVein":
-      return [
-        {
-          kind: "quickVeinTapped",
-          stones: next.stock.stones - before.stock.stones,
-        },
-      ];
-    case "missQuickVein":
-      return [
-        { kind: "rushLanded", stones: next.stock.stones - before.stock.stones },
-      ];
     case "buyTiers":
       return actionEvents(before, next, { kind: "buyTier", id: move.id });
     case "buyVehicles":
       return actionEvents(before, next, { kind: "buyVehicle", id: move.id });
-    case "dig":
     case "markSeen":
     case "markAllSeen":
       return [];
@@ -950,22 +835,22 @@ function moveEvents(
   }
 }
 
-/** The lab's move: the same rules as the game, with no trouble passed in. */
+/** The lab's move: the same rules as the game, and a refused move keeps the mountain. */
 export function applyAction(
   mountain: Mountain,
   action: Action,
   now: number,
 ): Mountain {
-  const result = applyMove(mountain, action, now, { trouble: undefined });
+  const result = applyMove(mountain, action, now);
   return result.kind === "applied" ? result.mountain : mountain;
 }
 
 /**
  * Values a move from income before and after. Income mixes the unrounded
- * crew, taps from `mineByHand`, and away pay from the same factor as
+ * crew and away pay from the same factor as
  * `accrueAway`, weighted by `context`. No second copy of the upgrade maths.
  * A machine's cost includes the workers it still needs. `horizon` is
- * seconds: a boost's extra income is spread across it, and a permanent
+ * seconds: a timer's extra income is spread across it, and a permanent
  * move is not.
  */
 export function valueOf(
@@ -980,8 +865,6 @@ export function valueOf(
       return valueTier(mountain, action.id, horizon, context);
     case "buyUpgrade":
       return valueUpgrade(mountain, action.id, horizon, context);
-    case "buyBoost":
-      return valueBoost(mountain, action.id, horizon, context);
     case "promote":
       return valuePromote(mountain, horizon, context);
     case "station":
@@ -1116,38 +999,6 @@ function valueUpgrade(
   );
 }
 
-function valueBoost(
-  mountain: Mountain,
-  id: BoostId,
-  horizon: number,
-  context: ValueContext,
-): ActionValue {
-  const boost = boostById(id);
-  const pricing = effectiveRates(mountain);
-  const cost = boostCost(boost, pricing, stretch(mountain));
-  // After every boost already on the clock, so this purchase is the only
-  // one running when its speed is read. Away pay never counts a boost.
-  const now = clockAfterBoosts(mountain);
-  const bought = buyBoost({
-    mountain: funded(mountain, cost),
-    id,
-    now,
-    pricing,
-  });
-  const durationSec = boost.durationMs / 1000;
-  // Twice the clock, not the whole horizon: enough that Overtime can be
-  // the best buy, not so much that it is the only one.
-  const spread = timedSpread(context, durationSec, horizon);
-  return rateValue(
-    mountain,
-    incomeGain(mountain, bought, context, { now }),
-    cost,
-    horizon,
-    context,
-    spread,
-  );
-}
-
 function troubleGain(
   mountain: Mountain,
   action: Extract<Action, { kind: "fixTrouble" }>,
@@ -1216,8 +1067,8 @@ type ValueClock = {
 };
 
 /**
- * Stones a second of the schedule. Live time pays the unrounded crew and
- * each tap (`mineByHand`). Away time pays the same factor as `accrueAway`,
+ * Stones a second of the schedule. Live time pays the unrounded crew.
+ * Away time pays the same factor as `accrueAway`,
  * and only up to the away cap. The rest of a long absence pays nothing.
  * The lab reads this for its lookahead so it does not keep a second formula.
  */
@@ -1228,33 +1079,21 @@ export function incomePerSecond(
 ): number {
   const liveRates = effectiveRates(mountain, clock?.now, clock?.trouble);
   const awayRates = effectiveRates(mountain);
-  const tap = oneTap(mountain, clock?.now, clock?.trouble);
-  const liveIncome = liveRates.exactCrewPerSecond + context.tapsPerSecond * tap;
+  const liveIncome = liveRates.exactCrewPerSecond;
   const liveSeconds = context.liveSeconds;
   const awaySeconds = context.awaySeconds;
   const cycle = liveSeconds + awaySeconds;
-  const paidAway =
-    awaySeconds <= 0 ? 0 : paidAwayMs(mountain, awaySeconds * 1000) / 1000;
-  const awayIncome =
-    awayRates.exactCrewPerSecond * awayFactor(mountain, paidAway * 1000);
+  const paidAway = awaySeconds <= 0 ? 0 : paidAwayMs(awaySeconds * 1000) / 1000;
+  const awayIncome = awayRates.exactCrewPerSecond * awayFactor(mountain);
   if (!(cycle > 0)) {
     return liveIncome;
   }
   return (liveSeconds * liveIncome + paidAway * awayIncome) / cycle;
 }
 
-/** What one tap adds to the pocket. Zero on an empty mountain. */
-function oneTap(mountain: Mountain, now?: number, trouble?: Trouble): number {
-  return (
-    mineByHand(mountain, now, trouble).stock.stones - mountain.stock.stones
-  );
-}
-
-/** The pay fraction `accrueAway` applies, including the Heart of Patience. */
-function awayFactor(mountain: Mountain, paidMs: number): number {
-  const rates = effectiveRates(mountain);
-  const heart = heartBonus(mountain, paidMs);
-  return Math.round(rates.awayPay * heart * 1e9) / 1e9;
+/** The pay fraction `accrueAway` applies. */
+function awayFactor(mountain: Mountain): number {
+  return Math.round(effectiveRates(mountain).awayPay * 1e9) / 1e9;
 }
 
 /**
@@ -1404,8 +1243,8 @@ function remainingFraction(
 
 /**
  * A craft's payback is the usual wait, plus the time the bench is busy
- * before the gear starts paying. Timers are spread the way a boost is.
- * Props, the lamp, and the kit are not a crew rate, so they are expected
+ * before the gear starts paying. Timers are spread by `timedSpread`.
+ * Props and the kit are not a crew rate, so they are expected
  * stones over the horizon, the same idea as an expedition find.
  */
 function valueCraft(
@@ -1480,33 +1319,6 @@ function valueCraft(
           fitted,
           endsAt,
           Number.POSITIVE_INFINITY,
-          stones,
-          horizon,
-          context,
-        ),
-        benchSec,
-      );
-    case "flare":
-      return withBench(
-        rateValue(
-          mountain,
-          veinGain(mountain, fitted, endsAt, context),
-          stones,
-          horizon,
-          context,
-          timedSpread(
-            context,
-            settledSec(fitted.clocks["crystal-flare"], endsAt),
-            horizon,
-          ),
-        ),
-        benchSec,
-      );
-    case "veins":
-      return withBench(
-        rateValue(
-          mountain,
-          veinGain(mountain, fitted, undefined, context),
           stones,
           horizon,
           context,
@@ -1692,9 +1504,8 @@ function timedCraft(
 
 /**
  * Share of the horizon a short effect is counted across. A dad who is away
- * part of the cycle gets a little more than the raw clock, the same stretch
- * a boost uses, so Overtime and a blasting charge can win without being
- * the only buy.
+ * part of the cycle gets a little more than the raw clock, so a blasting
+ * charge can win without being the only buy.
  */
 function timedSpread(
   context: ValueContext,
@@ -1708,7 +1519,7 @@ function timedSpread(
 
 /** Seconds the settled timer runs. Settle writes the clock past `endsAt`. */
 function settledSec(until: number, endsAt: number): number {
-  /* v8 ignore next -- settleBench writes the flare and ember clocks */
+  /* v8 ignore next -- settleBench writes the ember clock */
   if (until <= endsAt) {
     return 0;
   }
@@ -1720,29 +1531,6 @@ function withBench(value: ActionValue, benchSec: number): ActionValue {
     return value;
   }
   return { ...value, paybackSec: value.paybackSec + benchSec };
-}
-
-/** Extra vein stones a second, counted only while the dad is at the mountain. */
-function veinGain(
-  before: Mountain,
-  after: Mountain,
-  now: number | undefined,
-  context: ValueContext,
-): number {
-  return (
-    (veinStonesPerLiveSecond(after, now) -
-      veinStonesPerLiveSecond(before, now)) *
-    liveShare(context)
-  );
-}
-
-function veinStonesPerLiveSecond(
-  mountain: Mountain,
-  now: number | undefined,
-): number {
-  const meanGapSec = (VEIN_MIN_GAP_MS + VEIN_MAX_GAP_MS) / 2 / 1000;
-  const often = veinOftenScale(mountain, now);
-  return (veinReward(mountain) * often) / meanGapSec;
 }
 
 /**
@@ -1814,16 +1602,6 @@ function liveShare(context: ValueContext): number {
 
 function funded(mountain: Mountain, price: number): Mountain {
   return add(mountain, { stones: price });
-}
-
-function clockAfterBoosts(mountain: Mountain): number {
-  let latest = 0;
-  for (const endsAt of Object.values(mountain.boosts)) {
-    if (endsAt > latest) {
-      latest = endsAt;
-    }
-  }
-  return latest + 1;
 }
 
 function rateValue(

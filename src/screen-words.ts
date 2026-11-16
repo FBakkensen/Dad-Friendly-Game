@@ -15,13 +15,10 @@ import {
   type SettledFind,
   type TunnelId,
 } from "./expeditions";
-import type { BoostId } from "./boosts";
 import { formatCompact, formatCount, formatDuration } from "./format";
-import { RUSH_MS } from "./gold-rush";
 import type { LayerId, Materials, MaterialId } from "./layers";
 import type { Mountain } from "./mountain";
 import { AWAY_END_MS, effectiveRates, type Rates } from "./rates";
-import { RELICS } from "./relics";
 import type { Stage } from "./line";
 import { freshMineOn } from "./line-switch";
 import { owned, tierById, type MachineId, type TierId } from "./tiers";
@@ -180,20 +177,6 @@ export function crewMinesWords(
     : `Your crew mines ${stonesASecond(rate)}`;
 }
 
-/** "1%", "1.65%", "133%". Keeps a second decimal only when the tenth needs it. */
-const shareWords = (share: number): string => {
-  const pct = share * 100;
-  const whole = Math.round(pct);
-  if (Math.abs(pct - whole) < 1e-6) {
-    return `${String(whole)}%`;
-  }
-  const tenth = Math.round(pct * 10) / 10;
-  if (Math.abs(pct - tenth) < 1e-6) {
-    return `${tenth.toFixed(1)}%`;
-  }
-  return `${pct.toFixed(2)}%`;
-};
-
 /** The same mountain with one upgrade at another level. */
 const withLevel = (
   mountain: Mountain,
@@ -253,15 +236,11 @@ export function upgradeEffectLine(
 ): string {
   const change = upgradeChange(upgrade, mountain, at);
   switch (upgrade.id) {
-    case "tap":
-      return `Taps ${fromTo(change, (rates) => formatCount(rates.tapYield))}.`;
     case "boots":
       // In a fresh mine Work boots lifts only a worker with a tool (rule 2.9).
       return freshMineOn()
         ? `Workers with a tool ${fromTo(change, (rates) => `${formatSpeed(toolSpeed(rates.tierSpeed))}/s`)}.`
         : `Workers ${fromTo(change, (rates) => `${formatSpeed(rates.tierSpeed.helper)}/s`)}.`;
-    case "steady":
-      return `Away pay ${fromTo(change, (rates) => shareWords(rates.awayPay))}.`;
     case "cartSyn":
     case "drillSyn":
     case "borerSyn":
@@ -295,9 +274,7 @@ function synergyEffectLine(
 
 /** The card's quiet second line: why it is worth it, never the effect again. */
 const UPGRADE_WHY: Record<UpgradeId, string> = {
-  tap: "Each tap takes a little more.",
   boots: "The workers pick up their feet.",
-  steady: "Time away pays a little more.",
   cartSyn: "Each worker makes carts 1% faster.",
   drillSyn: "Each cart makes the drills a little quicker.",
   borerSyn: "Each drill makes the borers a little quicker.",
@@ -339,29 +316,15 @@ const tierPlural = (id: TierId): string =>
 
 /**
  * The why line under the effect line (#342). A synergy with none of its
- * source already shows its rule, so this says what makes it count. Strong arms
- * on a crew too small to move the number says it grows with the crew.
+ * source already shows its rule, so this says what makes it count.
  */
-export function upgradeWhyLine(
-  upgrade: Upgrade,
-  mountain: Mountain,
-  at: number,
-): string {
+export function upgradeWhyLine(upgrade: Upgrade, mountain: Mountain): string {
   const words = freshWords(upgrade.id);
   if (upgrade.synergy !== undefined && !synergyFed(upgrade, mountain)) {
     // A fresh mine's rule is already the effect line, and it has no other approved words.
     return words?.rule === undefined
       ? `It counts once you have ${tierPlural(upgrade.synergy.from)}.`
       : "";
-  }
-  if (upgrade.id === "tap") {
-    const change = upgradeChange(upgrade, mountain, at);
-    if (
-      change.kind === "next" &&
-      formatCount(change.before.tapYield) === formatCount(change.after.tapYield)
-    ) {
-      return "It grows with your crew's speed.";
-    }
   }
   return words?.why ?? UPGRADE_WHY[upgrade.id];
 }
@@ -406,17 +369,12 @@ export const awayMinedWords = (
   unit: mined === 1 ? "stone" : "stones",
 });
 
-/** How long you were gone, how the crew dug, and the Heart of Patience's share. */
+/** How long you were gone, and how the crew dug. */
 export function awayGoneWords(report: {
   readonly awayMs: number;
   readonly paidMs: number;
-  readonly heart: number;
 }): string {
-  const heart =
-    report.heart > 1
-      ? ` The Heart of Patience made it ×${report.heart.toFixed(2).replace(/0$/, "")}.`
-      : "";
-  return `You were gone ${formatDuration(report.awayMs)}. ${awayStretchWords(report)}${heart}`;
+  return `You were gone ${formatDuration(report.awayMs)}. ${awayStretchWords(report)}`;
 }
 
 /** The welcome card's quote line, under the haul. */
@@ -445,9 +403,6 @@ export function awayCheerWords(awayMs: number, band: LayerId): string {
       return "While you were gone, the Deep Heart beat slow and steady.";
   }
 }
-
-const tapWords = (stones: number): string =>
-  stones === 1 ? "one stone" : `${formatCount(stones)} stones`;
 
 export const TROUBLE_FIXED = "Fixed! The crew cheers.";
 
@@ -586,7 +541,7 @@ const TUNNEL_PLACE: Readonly<Record<TunnelId, string>> = {
 const TUNNEL_BENEFIT: Readonly<Record<TunnelId, string>> = {
   "side-seam": "Back in a few minutes with a small find.",
   "old-shaft": "About an hour, often a lost tool or keepsake.",
-  "deep-dark": "All night, the best chance of a relic hint or a new engineer.",
+  "deep-dark": "All night, the best chance of a new engineer.",
 };
 
 /**
@@ -717,25 +672,6 @@ export function promoteNeeds(cost: number): string {
   return `Needs ${formatCompact(cost)} stones`;
 }
 
-/**
- * What buying a boost does right now, in stones. The × is the rule;
- * the count is the output.
- */
-export function boostOutcome(
-  id: BoostId,
-  effect: string,
-  multiplier: number,
-  rates: { readonly tapYield: number; readonly crewPerSecond: number },
-  running: boolean,
-): string {
-  if (id === "sharper") {
-    const taps = running ? rates.tapYield : rates.tapYield * multiplier;
-    return `${effect} ${formatCount(taps)} a tap.`;
-  }
-  const crew = running ? rates.crewPerSecond : rates.crewPerSecond * multiplier;
-  return `${effect} ${formatCompact(crew)}/s.`;
-}
-
 export const exploreTitle = (tunnel: TunnelId): string => TUNNEL_TITLE[tunnel];
 
 export const exploreBenefit = (tunnel: TunnelId): string =>
@@ -802,14 +738,6 @@ export const FOUND_LABEL = "Found";
 const LOST_TOOL_WORDS: Readonly<
   Record<LostToolId, { readonly name: string; readonly line: string }>
 > = {
-  pick: {
-    name: "Grandfather's pick",
-    line: "Your taps bite a little deeper.",
-  },
-  lamp: {
-    name: "Old miner's lamp",
-    line: "Golden veins linger longer in its light.",
-  },
   map: {
     name: "Worn map",
     line: "The tunnels bring them home a little sooner.",
@@ -925,15 +853,11 @@ function awayShort(leftMs: number): string {
 
 /** What a tool does, short enough for the welcome card on a small phone. */
 const TOOL_HELPS = {
-  pick: "Taps bite deeper.",
-  lamp: "Golden veins linger.",
   map: "Trips come home sooner.",
   boots: "Fewer troubles at the machines.",
 } as const;
 
 const TOOL_IN_SENTENCE = {
-  pick: "Grandfather's pick",
-  lamp: "an old miner's lamp",
   map: "a worn map",
   boots: "steel-toe boots",
 } as const;
@@ -957,13 +881,11 @@ export const cameBack = (
     case "tool":
       return `${name} came back from ${from} with ${TOOL_IN_SENTENCE[find.id]}. ${TOOL_HELPS[find.id]}`;
     case "keepsake":
-      return `${name} came back from ${from} with ${KEEPSAKE_IN_SENTENCE[find.id]}. It waits on the relic shelf.`;
+      return `${name} came back from ${from} with ${KEEPSAKE_IN_SENTENCE[find.id]}.`;
     case "engineer":
       return find.joined
         ? `${name} came back from ${from} with ${find.name}, who joined the crew.`
         : `${name} came back from ${from}. The lost engineer had already found a place.`;
-    case "glimmer":
-      return `${name} came back from ${from}. ${find.text}`;
     case "recipe":
       return `${name} came back from ${from} with a sketch folded in a pocket.`;
     case "quiet":
@@ -1064,8 +986,8 @@ export function stoneCostWords(stones: number): string {
 }
 
 /**
- * Another crew timer is already this strong. Grease, a charge, and Overtime
- * do not multiply, so the card does not promise a bigger crew.
+ * Another crew timer is already this strong. Grease and a charge do not
+ * multiply, so the card does not promise a bigger crew.
  */
 export function crewAlreadyWords(mark: number): string {
   return `Crew already at ×${formatCraftSpeed(mark)}.`;
@@ -1251,29 +1173,6 @@ export function layerCardWords(id: LayerId): LayerCardWords | undefined {
   }
 }
 
-/**
- * What the next band feels like, before you arrive. No depth, no material
- * name. The Deep Heart has nothing below it.
- */
-export function nextLayerHint(id: LayerId | undefined): string | undefined {
-  switch (id) {
-    case "granite":
-      return "Below the topsoil, the rock turns hard and grey.";
-    case "crystal":
-      return "Deeper on, the walls start to glitter.";
-    case "heart":
-      return "Something warm is still waiting below.";
-    case "topsoil":
-    case undefined:
-      return undefined;
-    /* v8 ignore next 3 -- layer ids are the closed list */
-    default: {
-      const never: never = id;
-      return never;
-    }
-  }
-}
-
 /** One line for the welcome card: the arrival and the advice. */
 export function layerWelcomeWords(id: LayerId): string | undefined {
   const words = layerCardWords(id);
@@ -1373,37 +1272,13 @@ export const PASS_SHORT = "Pass the mine";
 /** Passing the mine, in full: the Pass plate's label and the legacy panel's door. */
 export const PASS_FULL = "Pass the mine to your kid";
 
-/** "2 of 6 relics found": the Ledger's relics row. */
-export const relicsFoundWords = (found: number): string =>
-  `${String(found)} of ${String(RELICS.length)} relics found`;
-
-/** The relics row's goal before the Lantern lights the way, on a first mountain. */
-export const RELICS_UNGUIDED =
-  "Six Legendary Relics of Fatherhood lie deep inside. Tap to mine.";
-/** The relics row's goal before the Lantern, on a mine passed down: `legacy` is its bonus. */
-export const kidMineWords = (legacy: string): string =>
-  `Your kid's mine: six relics wait inside. Legacy ${legacy}.`;
-/** The relics row's goal once every relic is found. */
-export const RELICS_ALL_FOUND = "Every relic is yours. You are a legend.";
-/** The relics row's goal: the next relic and its vague hint. */
-export const nextRelicWords = (name: string, hint: string): string =>
-  `Next: ${name} · ${hint}`;
-/** The relics bar's label: the relic it fills toward, and the next layer's hint if any. */
-export const relicProgressLabel = (
-  name: string,
-  hint: string | undefined,
-): string =>
-  hint === undefined
-    ? `Progress to the ${name}`
-    : `Progress to the ${name}. ${hint}`;
-
 /** Start over, and its confirm page (moved from the menu, #375). */
 export const START_OVER = "Start over";
 export const START_OVER_TITLE = "Start over?";
 export const START_OVER_DETAIL =
-  "You will lose all your progress: every stone mined, your whole crew, and every relic you found. The mountain fills back up. This can't be undone.";
+  "You will lose all your progress: every stone mined and your whole crew. The mountain fills back up. This can't be undone.";
 export const START_OVER_KEEP = "Keep my mountain";
-/** Start over in a fresh mine (#708): no relics and no mountain to fill. */
+/** Start over in a fresh mine (#708): no mountain to fill. */
 export const START_OVER_FRESH_DETAIL =
   "You will lose all your progress: the stone in the stockpile, every worker and machine, and the city's buildings. The mine starts again from the beginning. This can't be undone.";
 export const START_OVER_FRESH_KEEP = "Keep my mine";
@@ -1448,44 +1323,20 @@ export function vehicleBuyLine(id: VehicleId, count: number): string {
   return machineBuyLine(VEHICLE_WORDS[id][0], count);
 }
 
-/** "Strong arms, level 3." */
+/** "Work boots, level 1." */
 export const upgradeLevelLine = (name: string, level: number): string =>
   `${name}, level ${level.toLocaleString("en-US")}.`;
-
-/** "Overtime started for 30:00." */
-export const boostStartedLine = (name: string, ms: number): string =>
-  `${name} started for ${formatClock(ms)}.`;
 
 /** "Iron rails went on the bench." */
 export const benchStartedLine = (name: string): string =>
   `${name} went on the bench.`;
 
-/** "Found the Hammer of the Builder." */
-export const relicFoundLine = (name: string): string => `Found the ${name}.`;
-
 /** "Came back. The crew dug 1.2M while you were away." */
 export const awayDugLine = (stones: number): string =>
   `Came back. The crew dug ${formatCompact(stones)} while you were away.`;
 
-/** "A golden vein gave 4,200 stones." */
-export const veinGaveLine = (stones: number): string =>
-  `A golden vein gave ${tapWords(stones)}.`;
-
 /** "Ada came home." */
 export const cameHomeLine = (name: string): string => `${name} came home.`;
-
-/**
- * The vein's payout note. A quick vein's also names the Gold rush, on a line
- * of its own so the note stays inside the board (Flemming, 11 Nov 2026): the
- * held stones it brings in, never a × on the crew (#525). `held` is 0 for an
- * ordinary vein.
- */
-export function veinWords(reward: number, held: number): string {
-  const paid = `Golden vein! +${formatCount(reward)} ${reward === 1 ? "stone" : "stones"}`;
-  return held > 0
-    ? `${paid}.\nGold rush: ${formatCompact(held)} held stones come in over ${String(RUSH_MS / 1000)} seconds.`
-    : paid;
-}
 
 /**
  * The note on the Pace dial when the crew timer runs out (#527): what
@@ -1493,13 +1344,4 @@ export function veinWords(reward: number, held: number): string {
  */
 export function boostOverWords(name: string, crewPerSecond: number): string {
   return `${name} over.\n${crewMinesWords(crewPerSecond, " a second")} now.`;
-}
-
-/**
- * The welcome card's line for the stones an hour away held for the Gold rush
- * (#468): they pour in over the rush's 90 seconds. Flemming, 11 Nov 2026.
- */
-export function rushHeldWords(held: number): string {
-  // The welcome card's short figures (#508): "474.8K", like the haul above it.
-  return `${formatCompact(held)} of them wait for your Gold rush: watch for the golden vein.`;
 }

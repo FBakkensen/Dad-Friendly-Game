@@ -83,7 +83,7 @@ describe("createBandLog", () => {
     });
   });
 
-  it("skips a machine still waiting on its relic", () => {
+  it("skips a machine still waiting on its depth", () => {
     const log = createBandLog();
     const events = log(at(0, { owned: { borer: 1 }, stock: { stones: 1e12 } }));
     expect(events.some((event) => event.tier === "machine")).toBe(false);

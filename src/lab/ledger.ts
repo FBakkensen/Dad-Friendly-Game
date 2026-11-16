@@ -1,5 +1,4 @@
 import { LAYERS, layerOf, type LayerId } from "../layers";
-import { RELICS, hasRelic, type RelicId } from "../relics";
 import { machinesInPlay, owned, tierById, type MachineId } from "../tiers";
 import { dayNumber } from "./casual";
 import {
@@ -10,7 +9,7 @@ import {
 import type { World } from "./world";
 
 /**
- * The pacing ledger (#554): when each band, machine and relic first came to
+ * The pacing ledger (#554): when each band and machine first came to
  * one player type on one seed, when the run ended, and a hash of where it
  * ended. A record to read, not a bound: the gate shows a move as its diff.
  */
@@ -21,8 +20,6 @@ export type LedgerEntry = {
   readonly bands: Readonly<Partial<Record<LayerId, number>>>;
   /** Day each machine in play is first owned. */
   readonly machines: Readonly<Partial<Record<MachineId, number>>>;
-  /** Day each relic is first found. */
-  readonly relics: Readonly<Partial<Record<RelicId, number>>>;
   readonly finishDay: number | undefined;
   readonly endHash: string;
 };
@@ -44,9 +41,6 @@ export function createLedgerLog(): LedgerLog {
   const machines: Partial<Record<MachineId, number>> = Object.fromEntries(
     machineIds.map((id) => [id, undefined]),
   );
-  const relics: Partial<Record<RelicId, number>> = Object.fromEntries(
-    RELICS.map((relic) => [relic.id, undefined]),
-  );
   let last: World["mountain"] | undefined;
   return {
     observe(world) {
@@ -67,11 +61,6 @@ export function createLedgerLog(): LedgerLog {
           machines[id] = day;
         }
       }
-      for (const relic of RELICS) {
-        if (relics[relic.id] === undefined && hasRelic(mountain, relic.id)) {
-          relics[relic.id] = day;
-        }
-      }
     },
     entry({ policyId, seed, finishDay, end }) {
       return {
@@ -79,7 +68,6 @@ export function createLedgerLog(): LedgerLog {
         seed,
         bands: { ...bands },
         machines: { ...machines },
-        relics: { ...relics },
         finishDay,
         endHash: endHash(end),
       };
@@ -120,7 +108,6 @@ export function renderLedger(entries: readonly LedgerEntry[]): string {
     "Seed",
     ...LAYERS.map((layer) => layer.name),
     ...machineIds.map((id) => tierById(id).name),
-    ...RELICS.map((relic) => relic.name),
     "Finish",
     "End hash",
   ];
@@ -134,7 +121,6 @@ export function renderLedger(entries: readonly LedgerEntry[]): string {
       String(entry.seed),
       ...LAYERS.map((layer) => dayText(entry.bands[layer.id])),
       ...machineIds.map((id) => dayText(entry.machines[id])),
-      ...RELICS.map((relic) => dayText(entry.relics[relic.id])),
       dayText(entry.finishDay),
       entry.endHash,
     ].join(" | "),
@@ -142,7 +128,7 @@ export function renderLedger(entries: readonly LedgerEntry[]): string {
   return [
     "# Pacing ledger",
     "",
-    "Written by `npm run lab:ledger` (#554). The day each band is reached, each machine first bought and each relic found, for every player type on the gate's seeds; the day the run ends; and a hash of where it ended. A record to read, not a bound. The gate's `lab` step fails when a fresh run differs, so a change that moves the pace shows here as a diff.",
+    "Written by `npm run lab:ledger` (#554). The day each band is reached and each machine first bought, for every player type on the gate's seeds; the day the run ends; and a hash of where it ended. A record to read, not a bound. The gate's `lab` step fails when a fresh run differs, so a change that moves the pace shows here as a diff.",
     "",
     `| ${headers.join(" | ")} |`,
     `| ${headers.map(() => "---").join(" | ")} |`,

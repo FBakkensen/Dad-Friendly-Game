@@ -97,7 +97,7 @@ const advance = (ms: number): void => {
 /** What a finger's tap on the board under the drawers would be judged as now. */
 const boardTap = (): string =>
   board.press({
-    control: { layer: "board", id: "socket" },
+    control: { layer: "board", id: "key:ledger" },
     by: "finger",
     intent: "act",
     downAt: undefined,
@@ -696,7 +696,7 @@ describe("the drawer shell", () => {
 
     it("one card keeps its Back: it is the only way back (#465)", () => {
       const sheet = make({
-        how: { systems: ["relics"], backLabel: "Back to the shelf" },
+        how: { systems: ["away"], backLabel: "Back to the Ledger" },
       });
       const backs = [
         ...sheet.how.querySelectorAll<HTMLElement>(".teach-how-back"),
@@ -1159,33 +1159,12 @@ describe("the drawer shell", () => {
 });
 
 describe("the scrim", () => {
-  const rect = (left: number, top: number, size: number): DOMRect =>
-    ({
-      left,
-      top,
-      right: left + size,
-      bottom: top + size,
-      width: size,
-      height: size,
-      x: left,
-      y: top,
-    }) as DOMRect;
-
   const setup = () => {
     const buys = make();
     const upgrades = make({ name: "upgrades", title: "Upgrades" });
-    const socket = document.createElement("button");
-    socket.getBoundingClientRect = () => rect(100, 20, 56);
-    const onSocket = vi.fn();
-    socket.addEventListener("click", onSocket);
-    document.body.append(socket);
-    const scrim = createSheetScrim({
-      board,
-      sheets: [buys, upgrades],
-      sockets: () => [socket],
-    });
+    const scrim = createSheetScrim({ board, sheets: [buys, upgrades] });
     document.body.append(scrim);
-    return { buys, upgrades, scrim, onSocket };
+    return { buys, upgrades, scrim };
   };
 
   const tap = (scrim: HTMLElement, x: number, y: number): void => {
@@ -1221,69 +1200,40 @@ describe("the scrim", () => {
     expect(scrim.classList.contains("is-on")).toBe(false);
   });
 
-  it("a tap over a relic socket closes the sheet and shows that relic's note", () => {
-    const { buys, scrim, onSocket } = setup();
-    buys.open();
-    time += DRAWER_SETTLE_MS;
-    tap(scrim, 120, 40);
-    expect(buys.isOpen()).toBe(false);
-    expect(onSocket).toHaveBeenCalledTimes(1);
-  });
-
-  it("hands the socket a finger's click, so its note does not take focus", () => {
-    const { buys, scrim, onSocket } = setup();
-    buys.open();
-    time += DRAWER_SETTLE_MS;
-    tap(scrim, 120, 40);
-    const click = onSocket.mock.calls[0]?.[0] as MouseEvent | undefined;
-    expect(click?.detail).toBe(1);
-    expect(click?.bubbles).toBe(true);
-  });
-
-  it("a scrim close is a tap-through: the socket's click still acts", () => {
-    const { buys, scrim, onSocket } = setup();
+  it("a scrim close is a tap-through: what lies under it does not settle", () => {
+    const { buys, scrim } = setup();
     buys.open();
     time += 500;
     tap(scrim, 120, 40);
-    expect(onSocket).toHaveBeenCalledTimes(1);
+    expect(buys.isOpen()).toBe(false);
     // The tap went on to what lay under the drawer: nothing there settles.
     expect(boardTap()).toBe("act");
   });
 
-  it("a tap elsewhere only closes", () => {
-    const { buys, upgrades, scrim, onSocket } = setup();
+  it("a tap closes every open drawer", () => {
+    const { buys, upgrades, scrim } = setup();
     buys.open();
     upgrades.open();
     time += DRAWER_SETTLE_MS;
     tap(scrim, 300, 40);
     expect(buys.isOpen()).toBe(false);
     expect(upgrades.isOpen()).toBe(false);
-    expect(onSocket).not.toHaveBeenCalled();
   });
 
   it("the second tap of the tap that opened the drawer lands on nothing (#708)", () => {
-    const { buys, scrim, onSocket } = setup();
+    const { buys, scrim } = setup();
     buys.open();
     time += 120;
     tap(scrim, 120, 40);
     expect(buys.isOpen()).toBe(true);
-    expect(onSocket).not.toHaveBeenCalled();
     time += DRAWER_SETTLE_MS;
     tap(scrim, 120, 40);
     expect(buys.isOpen()).toBe(false);
   });
 
   it("a tap with no drawer open does nothing", () => {
-    const { buys, scrim, onSocket } = setup();
+    const { buys, scrim } = setup();
     tap(scrim, 120, 40);
     expect(buys.isOpen()).toBe(false);
-    expect(onSocket).not.toHaveBeenCalled();
-  });
-
-  it("a socket's far edge is outside it", () => {
-    const { buys, scrim, onSocket } = setup();
-    buys.open();
-    tap(scrim, 156, 40);
-    expect(onSocket).not.toHaveBeenCalled();
   });
 });

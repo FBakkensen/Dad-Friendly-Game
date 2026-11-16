@@ -15,7 +15,6 @@ import {
   recipeById,
   recipePrice,
   troubleGapScale,
-  veinOftenScale,
   COLD_CLOCKS,
   NOTHING_CRAFTED,
   withClock,
@@ -86,7 +85,6 @@ function reading(factorId: string): number {
       clocks: {
         ...COLD_CLOCKS,
         "blasting-charge": 10_000,
-        "crystal-flare": 10_000,
         "heartstone-ember": 10_000,
       },
     };
@@ -96,14 +94,10 @@ function reading(factorId: string): number {
         return gearMultiplier(geared, effect.tier);
       case "trouble":
         return troubleGapScale(geared);
-      case "veins":
-        return veinOftenScale(geared);
       case "trip":
         return expeditionCraftScale(geared);
       case "charge":
         return chargeCrewMultiplier(geared, 0);
-      case "flare":
-        return veinOftenScale(geared, 0);
       case "ember":
         return emberMachineMultiplier(geared, 0);
       case "reinforce":

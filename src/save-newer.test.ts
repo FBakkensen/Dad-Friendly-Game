@@ -6,7 +6,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { createMemoryAuth } from "./auth";
 import { createMemoryCloudSave } from "./cloud-save";
-import { minedOut, type Mountain } from "./mountain";
+import { digStones, minedOut, type Mountain } from "./mountain";
 import { createProgressStore } from "./progress-store";
 import { SESSION_SAVE_KEY } from "./session-save";
 import { createMemoryBus, createTabWriter } from "./tab-writer";
@@ -39,7 +39,7 @@ function createMemoryStorage(): Storage & { writes: string[] } {
   };
 }
 
-/** Every way the game saves: ticks, a dig, a hide and a pagehide. */
+/** Every way the game saves: ticks, a change, a hide and a pagehide. */
 function tryToSave(
   progress: ReturnType<typeof createProgressStore>,
   clock: { at: number },
@@ -48,7 +48,7 @@ function tryToSave(
     clock.at += 1_000;
     progress.tick();
   }
-  progress.dispatch({ kind: "dig" });
+  progress.applyMutation((mountain) => digStones(mountain, 1));
   progress.flush();
   progress.flush();
 }
@@ -102,7 +102,7 @@ describe("a save from a later build (#558)", () => {
   it("a newer phone backup writes nothing", async () => {
     const docs = new Map<string, Mountain>();
     const storage = createMemoryStorage();
-    const raw = JSON.stringify({ uid: user.uid, save: { version: 10 } });
+    const raw = JSON.stringify({ uid: user.uid, save: { version: 11 } });
     storage.setItem(BACKUP_KEY, raw);
     storage.writes.length = 0;
     const clock = { at: 1_000 };
@@ -154,7 +154,7 @@ describe("a save from a later build (#558)", () => {
       expect(second.getSnapshot().elsewhere).toBe(true);
     });
     first.dispose();
-    const raw = JSON.stringify({ uid: user.uid, save: { version: 10 } });
+    const raw = JSON.stringify({ uid: user.uid, save: { version: 11 } });
     storage.setItem(BACKUP_KEY, raw);
     await second.playHere();
     await vi.waitFor(() => {
@@ -167,7 +167,7 @@ describe("a save from a later build (#558)", () => {
   it("a newer guest save met at sign-in writes nothing", async () => {
     const docs = new Map<string, Mountain>();
     const storage = createMemoryStorage();
-    const raw = JSON.stringify({ version: 10, lastSeen: 1 });
+    const raw = JSON.stringify({ version: 11, lastSeen: 1 });
     storage.setItem(SESSION_SAVE_KEY, raw);
     storage.writes.length = 0;
     const clock = { at: 1_000 };
@@ -191,7 +191,7 @@ describe("a save from a later build (#558)", () => {
 
   it("a newer guest save writes nothing", () => {
     const storage = createMemoryStorage();
-    const raw = JSON.stringify({ version: 10, lastSeen: 1 });
+    const raw = JSON.stringify({ version: 11, lastSeen: 1 });
     storage.setItem(SESSION_SAVE_KEY, raw);
     storage.writes.length = 0;
     const clock = { at: 1_000 };
@@ -250,7 +250,7 @@ describe("a save from a later build (#558)", () => {
       expect(progress.getSnapshot().saveKind).toBe("account");
     });
     newerDocs.add(user.uid);
-    progress.dispatch({ kind: "dig" });
+    progress.applyMutation((mountain) => digStones(mountain, 1));
     progress.flush();
     await vi.waitFor(() => {
       expect(progress.getSnapshot().newer).toBe(true);
@@ -275,7 +275,7 @@ describe("a save from a later build (#558)", () => {
     await vi.waitFor(() => {
       expect(progress.getSnapshot().saveKind).toBe("account");
     });
-    progress.dispatch({ kind: "dig" });
+    progress.applyMutation((mountain) => digStones(mountain, 1));
     progress.flush();
     expect(progress.getSnapshot().newer).toBe(false);
     expect(progress.getSnapshot().mountain.stock.stones).toBeGreaterThan(0);
@@ -396,6 +396,6 @@ describe("the writer reads back what it sends (#558)", () => {
   it("a fresh guest save text reads ok", () => {
     expect(
       JSON.parse(saveText(minedMountain(2), 1)) as { version: number },
-    ).toMatchObject({ version: 9 });
+    ).toMatchObject({ version: 10 });
   });
 });

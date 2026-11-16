@@ -7,7 +7,6 @@ const SMART_SPEND: SpendWeights = {
   worker: 1,
   machine: 1,
   upgrade: 1,
-  boost: 1,
   promote: 1,
 };
 
@@ -16,7 +15,7 @@ const SMART_SPEND: SpendWeights = {
  * session (`LOOKAHEAD_SESSIONS` in `targets.ts`). Same sittings and fast
  * fix as the plain dad. Promotions, tunnels, and crafts are taken when
  * `valueOf` says they pay, not the moment the pocket can cover them.
- * Upgrades and boosts compete the same way. #178. #197.
+ * Upgrades compete the same way. #178. #197.
  */
 const params = plainParams({
   id: "optimizer",

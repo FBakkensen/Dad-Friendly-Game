@@ -1,7 +1,7 @@
 // Long economy sims: the sim project (npm run gate -- full), not the fast tier.
 import { describe, expect, it } from "vitest";
-import { RELICS } from "../relics";
 import { simulateDadRun } from "../pacing";
+import { MOUNTAIN_STONES } from "../scale";
 import casual from "./policies/casual-2x10";
 import checker from "./policies/checker-6x3";
 import optimizer from "./policies/optimizer";
@@ -14,7 +14,7 @@ import { scoreDecision } from "./score";
 import { runPolicy, type PolicyRun } from "./run";
 import { NOTHING_CRAFTED } from "../workshop";
 
-const mantle = RELICS.find((relic) => relic.id === "mantle")?.depth ?? 0;
+const bottom = MOUNTAIN_STONES;
 
 let casualRun: PolicyRun | undefined;
 
@@ -25,9 +25,9 @@ function playCasual(): PolicyRun {
 
 describe("casual-2x10", () => {
   it("lets a dad who skips the workshop match today's plain dad", () => {
-    const dad = simulateDadRun({ milestones: [mantle] });
+    const dad = simulateDadRun({ milestones: [bottom] });
     const run = runPolicy({ policy: skipCrafting, seed: 1 });
-    expect(run.finishDay).toBe(dad.reached.get(mantle));
+    expect(run.finishDay).toBe(dad.reached.get(bottom));
     expect(run.buys).toEqual(
       dad.buys.map(({ day, id, price }) => ({ day, id, price })),
     );

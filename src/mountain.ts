@@ -1,12 +1,5 @@
 import type { Trouble } from "./hazards";
-import { effectiveRates, heartBonus, paidAwayMs } from "./rates";
-import { NO_BOOSTS, type Boosts } from "./boosts";
-import {
-  QUICK_VEIN_AWAY_MS,
-  holdForRush,
-  payRush,
-  resumeRush,
-} from "./gold-rush";
+import { effectiveRates, paidAwayMs } from "./rates";
 import type { Engineer } from "./engineers";
 import {
   clampExpeditions,
@@ -75,7 +68,6 @@ import {
 } from "./scale";
 
 export { MOUNTAIN_STONES };
-/** Base away cap; the Shield of Protection relic will lift it. */
 
 /**
  * One run's state. Never changed in place: every move returns a new object.
@@ -99,11 +91,6 @@ export type Mountain = {
   /** Permanent upgrade levels (src/upgrades.ts); 0 is none. */
   readonly upgrades: Upgrades;
   /**
-   * Quick boosts as end times (src/boosts.ts). 0 means never run; a boost
-   * that has run keeps its last end time, so its row stays shown.
-   */
-  readonly boosts: Boosts;
-  /**
    * When this run began (epoch ms), set by "Start over". 0 is the first run.
    * A save from an older run never replaces a newer one.
    */
@@ -124,7 +111,6 @@ export type Mountain = {
   readonly expeditions: readonly Expedition[];
   /**
    * Lost tools and keepsakes already brought home.
-   * Glimmers are not stored; they are a line, not a thing on the shelf.
    */
   readonly finds: readonly FindId[];
   /** The craft on the one bench. A required key: undefined is a free bench. */
@@ -138,10 +124,6 @@ export type Mountain = {
    * fields in the workshop map.
    */
   readonly clocks: Clocks;
-  /** When the Gold rush stops paying its held stones (src/gold-rush.ts); 0 is none. */
-  readonly rushUntil: number;
-  /** Stones of an away haul held for the Gold rush, paid as it runs (src/gold-rush.ts). */
-  readonly rushBank: number;
   /** Systems whose "New" note has been opened (M11, src/teach.ts). */
   readonly seen: readonly TeachId[];
   /** Systems used at least once; their dot is gone (M11, src/teach.ts). */
@@ -188,7 +170,6 @@ export const BARE_MOUNTAIN: Mountain = {
   stock: EMPTY_STOCK,
   owned: tierRecord(0),
   upgrades: NO_UPGRADES,
-  boosts: NO_BOOSTS,
   startedAt: 0,
   legacy: 0,
   stretch: 1,
@@ -199,8 +180,6 @@ export const BARE_MOUNTAIN: Mountain = {
   crafted: NOTHING_CRAFTED,
   recipes: [],
   clocks: COLD_CLOCKS,
-  rushUntil: 0,
-  rushBank: 0,
   seen: [],
   taught: [],
   fleet: vehicleRecord(0),
@@ -253,23 +232,6 @@ export function rockDugInAll(mountain: Mountain): number {
   return minedOut(mountain) + mountain.rockDug;
 }
 
-/** One tap mines its yield (see effectiveRates); an empty mountain returns the same object. */
-export function mineByHand(
-  mountain: Mountain,
-  now?: number,
-  trouble?: Trouble,
-): Mountain {
-  // Nothing is mined by a tap in a fresh mine (slice 1, What goes, #653).
-  if (mountain.remaining === 0 || freshMineOn()) {
-    return mountain;
-  }
-  const mined = Math.min(
-    stonesLeft(mountain),
-    effectiveRates(mountain, now, trouble).tapYield,
-  );
-  return digStones(mountain, mined);
-}
-
 /**
  * Stones leave the mountain, and the band they came from drops its material.
  * A fresh mine has no depth (slice 1, rule 1, #653): the stones go to the
@@ -298,7 +260,7 @@ export function digStones(mountain: Mountain, mined: number): Mountain {
   };
 }
 
-/** The crew's speed; pass `now` while playing to count running boosts. */
+/** The crew's speed; pass `now` while playing to count running crew timers. */
 export function stonesPerSecond(
   mountain: Mountain,
   now?: number,
@@ -332,7 +294,7 @@ export function accrue({
   to: number;
   /** Share of the crew's speed paid: 1 while playing, AWAY_PAY_RATE away. */
   pay?: number;
-  /** Live play counts boosts running at `from`; away time never does. */
+  /** Live play counts crew timers running at `from`; away time never does. */
   live?: boolean;
   /** Session trouble. Ignored unless `live`: away pay never slows for it. */
   trouble?: Trouble;
@@ -357,8 +319,7 @@ export function accrue({
         live,
         ...(trouble === undefined ? {} : { trouble }),
       });
-  const rushed = live ? withRushPay(crew, from, to) : crew;
-  const worked = freshMineOn() ? withDelivery(rushed, from, to, pay) : rushed;
+  const worked = freshMineOn() ? withDelivery(crew, from, to, pay) : crew;
   const fitted = settleBench(worked.mountain, to);
   return fitted === worked.mountain ? worked : { ...worked, mountain: fitted };
 }
@@ -432,14 +393,6 @@ function accrueMine(
     ...flowMine(mountain, seconds, pay, true),
     settledAt: from + seconds * 1000,
   };
-}
-
-/** The Gold rush's held stones paid over the same whole seconds as the crew. */
-function withRushPay(crew: Accrual, from: number, to: number): Accrual {
-  const rush = payRush(crew.mountain, from, Math.floor((to - from) / 1000));
-  return rush.paid === 0 && rush.mountain === crew.mountain
-    ? crew
-    : { ...crew, mountain: rush.mountain, mined: crew.mined + rush.paid };
 }
 
 function accrueCrew({
@@ -518,13 +471,9 @@ export type AwayReport = {
   readonly mined: number;
   /** Real time away, before the cap. */
   readonly awayMs: number;
-  /** Stones of `mined` held back for the Gold rush (#468); 0 when none. */
-  readonly heldForRush: number;
   /** Time that actually paid. */
   readonly paidMs: number;
   readonly capped: boolean;
-  /** Heart of Patience multiplier on away pay (1 without the Heart). */
-  readonly heart: number;
   /** Ore the crew brought up while you were away. */
   readonly materials: Materials;
   /** A fresh mine's night, for the shift report (#663). Never in today's game. */
@@ -575,7 +524,7 @@ export type NightReport = {
 
 /** The crew's work while the game was closed: away pay of their speed, up to the away cap (see effectiveRates). */
 export function accrueAway({
-  mountain: closed,
+  mountain,
   lastSeen,
   now,
 }: {
@@ -587,18 +536,14 @@ export function accrueAway({
   readonly homecomings: readonly Homecoming[];
 } {
   if (freshMineOn()) {
-    return accrueNight({ mountain: closed, lastSeen, now });
+    return accrueNight({ mountain, lastSeen, now });
   }
   const awayMs = Math.max(0, now - lastSeen);
-  // Close is pause for a Gold rush, over a short break (src/gold-rush.ts).
-  const mountain = resumeRush(closed, lastSeen, now);
-  const long = awayMs >= QUICK_VEIN_AWAY_MS;
   const rates = effectiveRates(mountain);
-  const paidMs = paidAwayMs(mountain, awayMs);
+  const paidMs = paidAwayMs(awayMs);
   const capped = awayMs > paidMs;
-  const heart = heartBonus(mountain, paidMs);
-  // Rounded so 0.3 × 1.5 pays 0.45, not 0.44999… (one stone short).
-  const pay = Math.round(rates.awayPay * heart * 1e9) / 1e9;
+  // Rounded so float dust never pays one stone short.
+  const pay = Math.round(rates.awayPay * 1e9) / 1e9;
   // Pay the most recent stretch, and split it where an expedition comes
   // home, so the machine they left speeds up again from that moment.
   const walked = accrueAcrossExpeditions({
@@ -607,20 +552,13 @@ export function accrueAway({
     to: now,
     pay,
   });
-  // After an hour away, part of the haul waits for the Gold rush (#468).
-  const held = long
-    ? holdForRush(walked.mountain, walked.mined, rates.exactCrewPerSecond)
-    : walked.mountain;
   return {
     ...walked,
-    mountain: held,
     report: {
       mined: walked.mined,
-      heldForRush: long ? held.rushBank : 0,
       awayMs,
       paidMs,
       capped,
-      heart,
       materials: materialsGained(minedOut(mountain), minedOut(walked.mountain)),
     },
   };
@@ -839,7 +777,7 @@ function logStretch(
  * haulage and hoisting bring up what waits in the piles (#703). Transport carries to
  * what he ordered, from the pocket, for the whole night at the same share.
  * A roof that goes on in the night lights the rest of it. A fresh mine has
- * no relics, expeditions or Gold rush, so none of their splits apply. The
+ * no expeditions, so none of their splits apply. The
  * report's `night` holds what the shift report says (#663).
  */
 function accrueNight({
@@ -896,11 +834,9 @@ function accrueNight({
     homecomings: [],
     report: {
       mined,
-      heldForRush: 0,
       awayMs,
       paidMs: clockless ? awayMs : clockStops - lastSeen,
       capped: !clockless && awayMs > NIGHT_CLOCK_MS,
-      heart: 1,
       materials: materialsGained(0, 0),
       night: nightReport(log, mountain, state, awayMs),
     },
