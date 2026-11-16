@@ -430,6 +430,103 @@ describe("the factory on the frame (#681)", () => {
     expect(station(progress)).toEqual({ kind: "idle" });
   });
 
+  describe("a drag up onto the station", () => {
+    const card = (root: HTMLElement, id: string): HTMLElement => {
+      const found = root.querySelector<HTMLElement>(
+        `.factory-card[data-blueprint="${id}"]`,
+      );
+      if (found === null) {
+        throw new Error(`no card ${id}`);
+      }
+      found.setPointerCapture = () => undefined;
+      return found;
+    };
+    /** The station sits at 0..400 x 100..300 on screen. */
+    const placeStation = (root: HTMLElement): void => {
+      const box = root.querySelector<HTMLElement>(".factory-station");
+      if (box === null) {
+        throw new Error("no station");
+      }
+      box.getBoundingClientRect = () => new DOMRect(0, 100, 400, 200);
+    };
+    const pointer = (
+      target: HTMLElement,
+      type: string,
+      x: number,
+      y: number,
+    ): void => {
+      target.dispatchEvent(
+        new PointerEvent(type, {
+          clientX: x,
+          clientY: y,
+          pointerId: 1,
+          bubbles: true,
+        }),
+      );
+    };
+    const ghost = (root: HTMLElement): HTMLElement | null =>
+      root.querySelector(".factory-ghost");
+
+    it("places a work order, with a copy of the card that is no second button", () => {
+      partThree();
+      const { root, progress, button } = mount(sunk);
+      button('.frame-site[data-site="factory"]').click();
+      placeStation(root);
+      const rails = card(root, "iron-rails");
+      pointer(rails, "pointerdown", 50, 500);
+      pointer(rails, "pointermove", 52, 300);
+      const copy = ghost(root);
+      expect(copy?.getAttribute("aria-hidden")).toBe("true");
+      expect(copy?.hasAttribute("data-blueprint")).toBe(false);
+      expect(copy?.hasAttribute("aria-label")).toBe(false);
+      expect(root.querySelectorAll("[data-blueprint]")).toHaveLength(5);
+      pointer(rails, "pointerup", 52, 200);
+      expect(ghost(root)).toBeNull();
+      expect(station(progress)).toMatchObject({
+        kind: "delivering",
+        blueprint: "iron-rails",
+      });
+    });
+
+    it("places nothing when dropped off the station, nor on the click after it", () => {
+      partThree();
+      const { root, progress, button } = mount(sunk);
+      button('.frame-site[data-site="factory"]').click();
+      placeStation(root);
+      const rails = card(root, "iron-rails");
+      pointer(rails, "pointerdown", 50, 500);
+      pointer(rails, "pointermove", 52, 380);
+      pointer(rails, "pointerup", 52, 380);
+      rails.click();
+      expect(ghost(root)).toBeNull();
+      expect(station(progress)).toEqual({ kind: "idle" });
+      // The next press is a tap again.
+      pointer(rails, "pointerdown", 50, 500);
+      pointer(rails, "pointerup", 50, 500);
+      rails.click();
+      expect(station(progress)).toMatchObject({ blueprint: "iron-rails" });
+    });
+
+    it("takes a sideways drag as the strip's scroll, and lifts no busy card", () => {
+      partThree();
+      const { root, progress, button } = mount(sunk);
+      button('.frame-site[data-site="factory"]').click();
+      placeStation(root);
+      const rails = card(root, "iron-rails");
+      pointer(rails, "pointerdown", 50, 500);
+      pointer(rails, "pointermove", 150, 480);
+      expect(ghost(root)).toBeNull();
+      pointer(rails, "pointerup", 150, 480);
+      rails.click();
+      const props = card(root, "sturdy-props");
+      pointer(props, "pointerdown", 50, 500);
+      pointer(props, "pointermove", 52, 200);
+      expect(ghost(root)).toBeNull();
+      pointer(props, "pointerup", 52, 200);
+      expect(station(progress)).toMatchObject({ blueprint: "iron-rails" });
+    });
+  });
+
   it("installs a done work order, and Next points at it until then", () => {
     partThree();
     const { root, progress, button } = mount((mountain) => ({

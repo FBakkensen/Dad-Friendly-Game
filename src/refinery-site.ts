@@ -1,5 +1,5 @@
 import brickUrl from "./assets/board/res-brick.png";
-import { el, hide, mark, setAttr, write } from "./board-dom";
+import { el, hide, icon, mark, setAttr, write } from "./board-dom";
 import type { FrameState } from "./frame-state";
 import { listenSteps, paintSteps, stepper } from "./job-steps";
 import { buildKeyFace, paintMachineKey, type KeyParts } from "./mine-site";
@@ -37,14 +37,6 @@ export type RefinerySite = {
   readonly root: HTMLElement;
   readonly paint: (mountain: Mountain, shown: boolean, now?: number) => void;
 };
-
-function icon(url: string, className: string): HTMLImageElement {
-  const img = el("img", className);
-  img.src = url;
-  img.alt = "";
-  img.draggable = false;
-  return img;
-}
 
 type PlateParts = {
   readonly root: HTMLElement;

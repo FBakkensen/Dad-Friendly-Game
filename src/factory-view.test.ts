@@ -16,6 +16,7 @@ import { FRESH_OFF } from "./line-switch";
 import { NO_GRANITE_PILES, NO_LEVEL_MACHINES } from "./mine-levels";
 import { createMountain, type Mountain } from "./mountain";
 import { PART_THREE_OFF, PART_TWO_OFF } from "./part-switch";
+import { formatSpeed } from "./screen-words";
 import { EMPTY_STOCK, type Stock } from "./stock";
 import { NOTHING_CRAFTED, type RecipeId } from "./workshop";
 
@@ -112,8 +113,10 @@ describe("the station (#681)", () => {
     }
     expect(station.blueprint).toBe("sturdy-props");
     expect(station.title).toBe("Sturdy props");
-    // Four wagons, 9 goods a second each, all to the station.
-    expect(station.line).toBe("arriving 36/s");
+    // Four wagons, 9 loads a second each, all to the station, split evenly
+    // between the three goods: 12 stone, and 12 loads of clay and of iron,
+    // a clay or an iron a load of 500. Goods, not loads: 12.05 a second.
+    expect(station.line).toBe("arriving 12/s");
     expect(station.goods.map((good) => good.text)).toEqual([
       "Stone 105K of 250K",
       "Clay 3 of 10",
@@ -123,6 +126,20 @@ describe("the station (#681)", () => {
     expect(station.percent).toBe("41%");
     expect(station.share).toBeCloseTo(106_500 / 257_000);
     expect(station.cancel).toBe("Cancel · what arrived goes back");
+  });
+
+  it("counts goods arriving, not loads: an iron-only work order brings little a second", () => {
+    const station = view(
+      sunk({
+        stock: { stones: 0, clay: 0, iron: 35 },
+        station: delivering("reinforce", {}),
+      }),
+    ).station;
+    if (station.kind !== "delivering") {
+      throw new Error(`delivering, not ${station.kind}`);
+    }
+    // 36 loads a second of iron, 500 to an iron: 0.072 iron a second.
+    expect(station.line).toBe(`arriving ${formatSpeed(36 / 500)}/s`);
   });
 
   it("names no limit when a material it requires is out of stock: the count says it", () => {

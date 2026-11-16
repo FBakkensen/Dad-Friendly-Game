@@ -335,6 +335,18 @@ describe("the factory's site (#681)", () => {
     });
   });
 
+  it("is dark for a done work order that can no longer be installed, as Next and Install say", () => {
+    partThree(() => {
+      const done = sunk({ kind: "done", blueprint: "sturdy-props" });
+      const full = {
+        ...done,
+        crafted: { ...done.crafted, "sturdy-props": 1 },
+      };
+      expect(siteLamp(full, "factory")).toBe("dark");
+      expect(nextView(full).kind).not.toBe("install");
+    });
+  });
+
   it("has Next point at a work order that waits to be installed", () => {
     partThree(() => {
       const view = nextView(sunk({ kind: "done", blueprint: "iron-rails" }));

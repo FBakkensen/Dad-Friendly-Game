@@ -1071,7 +1071,31 @@ async function dragOntoStation(page, blueprint) {
   await page.mouse.down();
   await page.mouse.move(from.x, from.y - 20, { steps: 2 });
   await page.mouse.move(to.x, to.y, { steps: 6 });
+  // The copy under the finger is the card's size, and sits on the finger.
+  const held = await page.evaluate(
+    (card, at) => {
+      const ghost = document.querySelector(".factory-ghost");
+      const home = document.querySelector(card);
+      if (ghost === null || home === null) {
+        return undefined;
+      }
+      const g = ghost.getBoundingClientRect();
+      const c = home.getBoundingClientRect();
+      return {
+        height: g.height / c.height,
+        width: g.width / c.width,
+        onFinger:
+          at.x >= g.left - 8 &&
+          at.x <= g.right + 8 &&
+          at.y >= g.top - 8 &&
+          at.y <= g.bottom + 8,
+      };
+    },
+    `.factory-card[data-blueprint="${blueprint}"]`,
+    to,
+  );
   await page.mouse.up();
+  return held;
 }
 
 const FACTORY_SAVES = [
@@ -1152,7 +1176,14 @@ for (const size of SIZES) {
           await page.$eval(".factory-strip", (strip) => {
             strip.scrollLeft = 0;
           });
-          await dragOntoStation(page, "sturdy-props");
+          const held = await dragOntoStation(page, "sturdy-props");
+          check(
+            held !== undefined &&
+              Math.abs(held.height - 1) < 0.1 &&
+              Math.abs(held.width - 1) < 0.1 &&
+              held.onFinger,
+            `${at} the dragged blueprint's copy is the card's size, on the finger (${JSON.stringify(held)})`,
+          );
           const after = await factoryFacts(page);
           check(
             after.kind === "delivering" && /Sturdy props/i.test(after.words),

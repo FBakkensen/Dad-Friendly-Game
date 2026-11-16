@@ -7,7 +7,7 @@ import kilnUrl from "./assets/board/mach-kiln.png";
 import workshopUrl from "./assets/board/icon-workshop.png";
 import type { AuthController } from "./auth";
 import { createSaveLine } from "./board-save";
-import { el, hide, mark, setAttr, write } from "./board-dom";
+import { el, hide, icon, mark, setAttr, write } from "./board-dom";
 import { deviceAmount, type DeviceStorage } from "./buys-amount";
 import {
   hireKey,
@@ -59,14 +59,6 @@ const SITE_ICONS: Readonly<Record<SiteId, string>> = {
   factory: workshopUrl,
   city: wagonUrl,
 };
-
-function icon(url: string, className: string): HTMLImageElement {
-  const img = el("img", className);
-  img.src = url;
-  img.alt = "";
-  img.draggable = false;
-  return img;
-}
 
 type OrderParts = {
   readonly root: HTMLButtonElement;

@@ -172,8 +172,7 @@
   display: none;
 }
 
-.frame .factory-card,
-.factory-ghost {
+.frame .factory-card {
   position: relative;
   display: flex;
   flex: none;
@@ -202,7 +201,7 @@
   opacity: 0.62;
 }
 
-.factory-ghost {
+.frame .factory-card.factory-ghost {
   position: absolute;
   z-index: 3;
   height: calc(var(--art) * 84);

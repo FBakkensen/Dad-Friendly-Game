@@ -13,10 +13,11 @@ import {
 import { chipTime, formatCompact } from "./format";
 import type { Mountain } from "./mountain";
 import { effectiveRates } from "./rates";
-import { formatSpeed } from "./screen-words";
+import { GOOD_NAMES } from "./frame-view";
+import { formatSpeed, percent } from "./screen-words";
 import { GOOD_IDS, priceAmount, type GoodId } from "./stock";
 import type { TierId } from "./tiers";
-import { orderShares } from "./transport";
+import { stationTake } from "./transport";
 import {
   MAX_CRAFTED_LEVEL,
   craftedLevel,
@@ -68,12 +69,6 @@ function bins(mountain: Mountain): readonly Bin[] {
   });
 }
 
-const GOOD_NAMES: Readonly<Partial<Record<GoodId, string>>> = {
-  stones: "Stone",
-  clay: "Clay",
-  iron: "Iron",
-};
-
 /** One good a work order requires, and how much of it has arrived. */
 export type StationGood = {
   readonly good: GoodId;
@@ -93,7 +88,7 @@ export type StationView =
       readonly kind: "delivering";
       readonly blueprint: BlueprintId;
       readonly title: string;
-      /** "arriving 36/s": goods a second transport brings it now. */
+      /** "arriving 18/s": goods a second transport brings it now, every good added. */
       readonly line: string;
       readonly goods: readonly StationGood[];
       /** How far it is, over every load it requires. */
@@ -114,8 +109,18 @@ export type StationView =
     };
 
 const strength = (id: RecipeId): number => factor(`recipe.${id}.strength`);
-const percent = (share: number): string =>
-  `${String(Math.round(share * 100))}%`;
+
+/** "Throughput ×2": what a blasting charge or axle grease does while it runs. */
+function throughput(id: RecipeId): string {
+  const effect = recipeById(id).effect;
+  const times =
+    effect.kind === "charge"
+      ? 1 + (effect.multiplier - 1) * strength(id)
+      : effect.kind === "axle"
+        ? 1 + effect.bonus * strength(id)
+        : 1;
+  return `Throughput ×${formatSpeed(times)}`;
+}
 
 /** "Drills", "Borers": the machine reinforce lifts. */
 const REINFORCED: Readonly<Partial<Record<TierId, string>>> = {
@@ -136,9 +141,9 @@ export function effectWords(mountain: Mountain, id: BlueprintId): string {
     case "trouble":
       return `Trouble ${percent(effect.rarer * strength(id))} rarer`;
     case "charge":
-      return `Throughput ×${formatSpeed(1 + (effect.multiplier - 1) * strength(id))} for ${String(Math.round(effect.durationMs / 60_000))} min`;
+      return `${throughput(id)} for ${String(Math.round(effect.durationMs / 60_000))} min`;
     case "axle":
-      return `Throughput ×${formatSpeed(1 + effect.bonus * strength(id))} for ${String(Math.round((effect.durationMs * strength(id)) / 60_000))} min`;
+      return `${throughput(id)} for ${String(Math.round((effect.durationMs * strength(id)) / 60_000))} min`;
     case "reinforce":
       return `${REINFORCED[reinforceTier(mountain) ?? "drill"] ?? "Drills"} +${percent(effect.perLevel * strength(id))}`;
     /* v8 ignore next 2 -- the blueprints are the five above */
@@ -158,15 +163,16 @@ function stationGoods(
   const required = requiredLoads(blueprint);
   return GOOD_IDS.filter((good) => required[good] > 0).map((good) => ({
     good,
-    text: `${GOOD_NAMES[good] ?? good} ${formatCompact(unitsOf(good, arrived[good]))} of ${formatCompact(unitsOf(good, required[good]))}`,
+    text: `${GOOD_NAMES[good]} ${formatCompact(unitsOf(good, arrived[good]))} of ${formatCompact(unitsOf(good, required[good]))}`,
     share: Math.min(1, arrived[good] / required[good]),
   }));
 }
 
-/** Goods a second transport brings the station now: its share of the fleet (rule 7.7). */
+/** Goods a second transport brings the station now, every good added: its share of the fleet (rule 7.7). */
 function arriving(mountain: Mountain, now: number | undefined): number {
   const line = effectiveRates(mountain, now).exactCrewPerSecond;
-  return orderShares(mountain, 1, { stones: line }).station;
+  const take = stationTake(mountain, 1, { stones: line });
+  return GOOD_IDS.reduce((sum, good) => sum + (take[good] ?? 0), 0);
 }
 
 function stationView(mountain: Mountain, now: number | undefined): StationView {
@@ -264,10 +270,7 @@ function card(mountain: Mountain, id: BlueprintId): BlueprintCard {
           short: mountain.stock[good] < priceAmount(price, good),
         }));
   const needs = requires
-    .map(
-      (need) =>
-        `${need.text} ${(GOOD_NAMES[need.good] ?? need.good).toLowerCase()}`,
-    )
+    .map((need) => `${need.text} ${GOOD_NAMES[need.good].toLowerCase()}`)
     .join(", ");
   return {
     id,
@@ -298,11 +301,8 @@ function installedLine(mountain: Mountain): string {
   ).join(" · ")}`;
 }
 
-/** What a live timer does while it runs, as the head says it. */
-const TIMER_WORDS: Readonly<Partial<Record<TimerId, string>>> = {
-  "blasting-charge": "Throughput ×2",
-  "axle-grease": "Throughput ×2",
-};
+/** The timers the head shows while they run. */
+const TIMED: ReadonlySet<TimerId> = new Set(["blasting-charge", "axle-grease"]);
 
 function timers(
   mountain: Mountain,
@@ -312,10 +312,9 @@ function timers(
     return [];
   }
   return hotTimers(mountain, now).flatMap((timer) => {
-    const words = TIMER_WORDS[timer.id];
-    return words === undefined
-      ? []
-      : [`${words}: ${chipTime(timer.until - now)}`];
+    return TIMED.has(timer.id)
+      ? [`${throughput(timer.id)}: ${chipTime(timer.until - now)}`]
+      : [];
   });
 }
 

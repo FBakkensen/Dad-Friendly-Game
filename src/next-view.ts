@@ -252,7 +252,7 @@ export function siteLamp(mountain: Mountain, site: SiteId): Lamp {
   }
   if (site === "factory") {
     // Something to do: a work order done waits to be installed (#681).
-    return mountain.station.kind === "done"
+    return installable(mountain)
       ? "green"
       : mountain.station.kind === "delivering"
         ? "amber"

@@ -1,7 +1,7 @@
 import clayUrl from "./assets/board/res-clay.png";
 import ironUrl from "./assets/board/res-iron.png";
 import stoneUrl from "./assets/board/res-stone.png";
-import { el, hide, mark, setAttr, write } from "./board-dom";
+import { el, hide, icon, mark, setAttr, write } from "./board-dom";
 import type { BlueprintId } from "./factory";
 import {
   drawFactory,
@@ -43,14 +43,6 @@ const GOOD_ICONS: Readonly<Partial<Record<GoodId, string>>> = {
   clay: clayUrl,
   iron: ironUrl,
 };
-
-function icon(url: string, className: string): HTMLImageElement {
-  const img = el("img", className);
-  img.src = url;
-  img.alt = "";
-  img.draggable = false;
-  return img;
-}
 
 type HeadParts = {
   readonly root: HTMLElement;
@@ -257,6 +249,34 @@ function paintCard(parts: CardParts, card: BlueprintCard): void {
   );
 }
 
+/**
+ * How much the board is scaled on screen: a phone narrower than the board
+ * zooms it, and the finger moves in screen px.
+ */
+function boardScale(card: HTMLElement): number {
+  const shown = card.getBoundingClientRect().width;
+  return card.offsetWidth > 0 && shown > 0 ? shown / card.offsetWidth : 1;
+}
+
+/**
+ * The copy of a card that follows the finger: a picture of it, not a second
+ * button, with its drawing painted again (a clone's canvas is blank).
+ */
+function ghostOf(card: HTMLElement, id: BlueprintId): HTMLElement {
+  const ghost = card.cloneNode(true) as HTMLElement;
+  ghost.classList.add("factory-ghost");
+  ghost.removeAttribute("data-blueprint");
+  ghost.removeAttribute("aria-label");
+  ghost.removeAttribute("aria-disabled");
+  ghost.setAttribute("aria-hidden", "true");
+  const drawing = ghost.querySelector("canvas");
+  const c = drawing?.getContext("2d") ?? null;
+  if (c !== null) {
+    paintBlueprintIcon(c, id);
+  }
+  return ghost;
+}
+
 /** How far a finger moves before a press is a drag, in px. */
 const DRAG_FROM = 10;
 
@@ -271,8 +291,10 @@ function listenDrag(
   card: HTMLButtonElement,
   place: () => void,
 ): void {
+  const blueprint = card.dataset["blueprint"] as BlueprintId;
   let start: { x: number; y: number; id: number } | undefined;
   let ghost: HTMLElement | undefined;
+  let scale = 1;
   let dragged = false;
   const drop = (): void => {
     ghost?.remove();
@@ -298,16 +320,16 @@ function listenDrag(
       }
       dragged = true;
       card.setPointerCapture(event.pointerId);
-      ghost = card.cloneNode(true) as HTMLElement;
-      ghost.classList.add("factory-ghost");
+      scale = boardScale(card);
+      ghost = ghostOf(card, blueprint);
       const box = card.getBoundingClientRect();
       const home = site.getBoundingClientRect();
-      ghost.style.left = `${String(box.left - home.left)}px`;
-      ghost.style.top = `${String(box.top - home.top)}px`;
-      ghost.style.width = `${String(box.width)}px`;
+      ghost.style.left = `${String((box.left - home.left) / scale)}px`;
+      ghost.style.top = `${String((box.top - home.top) / scale)}px`;
+      ghost.style.width = `${String(box.width / scale)}px`;
       site.append(ghost);
     }
-    ghost.style.transform = `translate(${String(dx)}px, ${String(dy)}px) rotate(-3deg)`;
+    ghost.style.transform = `translate(${String(dx / scale)}px, ${String(dy / scale)}px) rotate(-3deg)`;
   });
   card.addEventListener("pointerup", (event) => {
     if (ghost !== undefined) {
