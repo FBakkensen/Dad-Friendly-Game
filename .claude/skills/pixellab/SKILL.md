@@ -78,7 +78,7 @@ Before promising art, check that PixelLab tools are in your tool list (Claude Co
 
 ### A cloud session where the tools never load
 
-A session that starts in the folder above the repo never reads `.mcp.json`, so no `mcp__pixellab__` tool appears, however long you wait. PixelLab is still reachable there, because the proxy injects the token for `api.pixellab.ai`. Speak MCP to the same server over HTTP. This is the MCP endpoint, not the REST API:
+A session that starts in the folder above the repo never reads `.mcp.json`, so no `mcp__pixellab__` tool appears, however long you wait. PixelLab is still reachable there, because the proxy injects the token for `api.pixellab.ai`. Speak MCP to the same server over HTTP. This is the MCP endpoint that `.mcp.json` names, with the same token, not the REST API. It is how the pictures of #535, #656, #657, #668 to #670 and #676 to #679 were made. Nothing else changes: ask first, wait for the yes, and keep to the cap and the ceiling. No call that spends is sent before his yes.
 
 - POST JSON-RPC to `https://api.pixellab.ai/mcp` with the headers `Authorization: Bearer proxy-injected` and `Accept: application/json, text/event-stream`: first `initialize`, then `tools/list` and `tools/call`. The answer comes as SSE `data:` lines.
 - `wait_for_jobs` is free and saves polling. `get_balance` is free too.
