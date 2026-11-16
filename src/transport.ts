@@ -14,6 +14,7 @@ import {
   stillToBuild,
   type Site,
 } from "./city";
+import { loadOf, loadStation, loadable, stillToArrive } from "./factory";
 import type { Mountain } from "./mountain";
 import { partThreeOn } from "./part-switch";
 import { evenShares } from "./piles";
@@ -218,14 +219,15 @@ export function deliver(
   seconds: number,
   share: number,
 ): Mountain {
-  let state = mountain;
+  const loaded = toStation(mountain, seconds, share);
+  let state = loaded.mountain;
   let left = seconds;
   for (;;) {
     const project = state.project;
     if (project.kind === "unordered") {
       return state;
     }
-    const carry = project.kind === "delivering" ? fleetRate(state) * share : 0;
+    const carry = project.kind === "delivering" ? loaded.cityCarry : 0;
     const work = stepWork(
       project.site,
       state.stock,
@@ -252,25 +254,188 @@ export function deliver(
 }
 
 /**
+ * The work order's part of `seconds` of transport at `share` of its rate
+ * (rule 7.7, #674), carried to the station first, and the goods a second
+ * left for the city's project. With the station idle the city has it all.
+ */
+function toStation(
+  mountain: Mountain,
+  seconds: number,
+  share: number,
+): { readonly mountain: Mountain; readonly cityCarry: number } {
+  const carry = fleetRate(mountain) * share;
+  if (mountain.station.kind !== "delivering" || seconds <= 0) {
+    return { mountain, cityCarry: carry };
+  }
+  const shares = orderShares(mountain, share, {});
+  const loaded = loadStation(mountain, shares.station * seconds);
+  return {
+    mountain: loaded.mountain,
+    cityCarry: carry - loaded.used / seconds,
+  };
+}
+
+/** What each order gets of transport (rule 7.7): loads a second to the station, goods a second to the city. */
+type Shares = { readonly station: number; readonly city: number };
+
+/**
+ * Transport's rate at `share`, split between the factory's work order and
+ * the city's project (rule 7.7, #674): with both delivering each gets half,
+ * and what one cannot use goes to the other. Alone, an order gets it all.
+ * `income` is what a dry stockpile gives a second. With the station idle the
+ * city's part is the whole rate, exactly as before the factory.
+ */
+export function orderShares(
+  mountain: Mountain,
+  share: number,
+  income: Partial<Stock>,
+): Shares {
+  const carry = fleetRate(mountain) * share;
+  if (mountain.station.kind !== "delivering") {
+    return { station: 0, city: carry };
+  }
+  const city =
+    mountain.project.kind === "delivering"
+      ? Math.min(cityCan(mountain, share, income), carry / 2)
+      : 0;
+  const station = Math.min(stationGives(mountain, income).total, carry - city);
+  return { station, city: carry - station };
+}
+
+/**
+ * What the station can take a second, good by good, in loads: unbounded
+ * from a good it can load now (`loadable`), what comes in of a dry one, and
+ * nothing of a good it no longer requires.
+ */
+function stationGives(
+  mountain: Mountain,
+  income: Partial<Stock>,
+): {
+  readonly goods: readonly GoodId[];
+  readonly gives: readonly number[];
+  readonly total: number;
+} {
+  const can = loadable(mountain);
+  const need = stillToArrive(mountain.station);
+  const goods = GOOD_IDS.filter((good) => need[good] > 0);
+  const gives = goods.map((good) =>
+    (can[good] ?? 0) > 0 ? Infinity : (income[good] ?? 0) * loadOf(good),
+  );
+  return { goods, gives, total: gives.reduce((sum, one) => sum + one, 0) };
+}
+
+/** Goods a second the city's project could take of transport now: no more than the builders once its site is full, nor than its goods give. */
+function cityCan(
+  mountain: Mountain,
+  share: number,
+  income: Partial<Stock>,
+): number {
+  const project = mountain.project;
+  /* v8 ignore next 3 -- orderShares asks only while the project is delivering */
+  if (project.kind !== "delivering") {
+    return 0;
+  }
+  const site =
+    onSiteTotal(project.site) >= SITE_HOLDS
+      ? buildRate(mountain) * share
+      : Infinity;
+  const need = stillRequired(project.site);
+  let gives = 0;
+  for (const good of GOOD_IDS) {
+    if (need[good] > 0) {
+      gives += mountain.stock[good] > 0 ? Infinity : (income[good] ?? 0);
+    }
+  }
+  return Math.min(site, gives);
+}
+
+/** The station's take a second, good by good (not loads), from its part of transport. */
+function stationDraw(
+  mountain: Mountain,
+  rate: number,
+  income: Partial<Stock>,
+): Partial<Stock> {
+  if (rate <= 0) {
+    return {};
+  }
+  const { goods, gives } = stationGives(mountain, income);
+  const loads = evenShares(rate, gives);
+  const draw: Partial<Record<GoodId, number>> = {};
+  for (const [index, good] of goods.entries()) {
+    draw[good] = (loads[index] ?? 0) / loadOf(good);
+  }
+  return draw;
+}
+
+/** `income` less what the station takes of each good a second: what the city's take can count on. */
+function lessTaken(
+  income: Partial<Stock>,
+  taken: Partial<Stock>,
+): Partial<Stock> {
+  if (Object.keys(taken).length === 0) {
+    return income;
+  }
+  const out: Partial<Record<GoodId, number>> = { ...income };
+  for (const good of GOOD_IDS) {
+    if ((taken[good] ?? 0) > 0) {
+      out[good] = Math.max(0, (income[good] ?? 0) - (taken[good] ?? 0));
+    }
+  }
+  return out;
+}
+
+/** Two takes a second added, good by good; the first as it is when the second is empty. */
+function bothTakes(
+  first: Partial<Stock>,
+  second: Partial<Stock>,
+): Partial<Stock> {
+  if (Object.keys(second).length === 0) {
+    return first;
+  }
+  const out: Partial<Record<GoodId, number>> = { ...first };
+  for (const good of GOOD_IDS) {
+    if (second[good] !== undefined) {
+      out[good] = (first[good] ?? 0) + (second[good] ?? 0);
+    }
+  }
+  return out;
+}
+
+/**
  * What transport takes from each stockpile a second now, at `share` of its
- * rate (#666): split evenly between the goods the step still requires that
- * the stockyard holds or the mine brings in, and no more than the builders
- * build in once the site is full. A dry stockpile gives no more than
- * `income` brings it a second, and what it cannot give goes to the others,
- * as `deliver` shares out what transport carries. The mine's chain drains
- * the stockpiles at it, so a full stockpile fills again as fast as transport
- * empties it. `deliver` is still what takes.
+ * rate (#666): the work order's take (#674), and the city's, split evenly
+ * between the goods the step still requires that the stockyard holds or the
+ * mine brings in, and no more than the builders build in once the site is
+ * full. A dry stockpile gives no more than `income` brings it a second, and
+ * what it cannot give goes to the others, as `deliver` shares out what
+ * transport carries. The mine's chain drains the stockpiles at it, so a full
+ * stockpile fills again as fast as transport empties it. `deliver` is still
+ * what takes.
  */
 export function stockDraw(
   mountain: Mountain,
   share: number,
   income: Partial<Stock> = {},
 ): Partial<Stock> {
+  const shares = orderShares(mountain, share, income);
+  const station = stationDraw(mountain, shares.station, income);
+  return bothTakes(
+    cityDraw(mountain, shares.city, share, lessTaken(income, station)),
+    station,
+  );
+}
+
+/** The city's take a second, good by good, at `carry` goods a second (`stockDraw`). */
+function cityDraw(
+  mountain: Mountain,
+  carry: number,
+  share: number,
+  income: Partial<Stock>,
+): Partial<Stock> {
   const project = mountain.project;
   if (project.kind !== "delivering") {
     return {};
   }
-  const carry = fleetRate(mountain) * share;
   const rate =
     onSiteTotal(project.site) >= SITE_HOLDS
       ? Math.min(carry, buildRate(mountain) * share)
@@ -303,11 +468,72 @@ export function drawChange(
     income,
   }: { readonly take: Partial<Stock>; readonly income: Partial<Stock> },
 ): number {
+  const shares = orderShares(mountain, share, take);
+  const station = stationDraw(mountain, shares.station, take);
+  const soonest = stationChange(mountain, station, income);
   const project = mountain.project;
+  if (project.kind !== "delivering") {
+    return soonest;
+  }
+  return Math.min(
+    soonest,
+    cityChange(mountain, {
+      share,
+      carry: shares.city,
+      draw: cityDraw(mountain, shares.city, share, lessTaken(take, station)),
+      income: lessTaken(income, station),
+    }),
+  );
+}
+
+/** When the station's take changes (#674): a good's need met, its stockpile dry, or a dry one filling. */
+function stationChange(
+  mountain: Mountain,
+  draw: Partial<Stock>,
+  income: Partial<Stock>,
+): number {
+  const need = stillToArrive(mountain.station);
+  let soonest = Infinity;
+  for (const good of GOOD_IDS) {
+    if ((draw[good] ?? 0) <= 0) {
+      continue;
+    }
+    soonest = Math.min(
+      soonest,
+      goodChange(
+        need[good] / loadOf(good),
+        mountain.stock[good],
+        draw[good] ?? 0,
+        income[good] ?? 0,
+      ),
+    );
+  }
+  return soonest;
+}
+
+/**
+ * When the city's take changes (`drawChange`), at `carry` goods a second,
+ * with `draw` its take and `income` what comes in less the station's take.
+ */
+function cityChange(
+  mountain: Mountain,
+  {
+    share,
+    carry,
+    draw,
+    income,
+  }: {
+    readonly share: number;
+    readonly carry: number;
+    readonly draw: Partial<Stock>;
+    readonly income: Partial<Stock>;
+  },
+): number {
+  const project = mountain.project;
+  /* v8 ignore next 3 -- drawChange asks only while the project is delivering */
   if (project.kind !== "delivering") {
     return Infinity;
   }
-  const draw = stockDraw(mountain, share, take);
   const need = stillRequired(project.site);
   let soonest = Infinity;
   for (const good of GOOD_IDS) {
@@ -321,7 +547,6 @@ export function drawChange(
       ),
     );
   }
-  const carry = fleetRate(mountain) * share;
   const build = buildRate(mountain) * share;
   const held = onSiteTotal(project.site);
   if (held < SITE_HOLDS && carry > build) {
@@ -448,7 +673,7 @@ export function orderLimit(mountain: Mountain, dug: Dug): OrderLimit {
     return { kind: project.kind };
   }
   const income = incomeOf(dug);
-  const carry = fleetRate(mountain);
+  const carry = orderShares(mountain, 1, income).city;
   const need = stillRequired(project.site);
   let slowest: (Leg & { readonly good: GoodId }) | undefined;
   for (const leg of legs(need, mountain.stock, income, carry)) {
@@ -500,7 +725,12 @@ export function orderNumbers(mountain: Mountain, dug: Dug): OrderNumbers {
   const rate = buildRate(mountain);
   const carried =
     project.kind === "delivering"
-      ? arriving(site, mountain.stock, incomeOf(dug), fleetRate(mountain))
+      ? arriving(
+          site,
+          mountain.stock,
+          incomeOf(dug),
+          orderShares(mountain, 1, incomeOf(dug)).city,
+        )
       : 0;
   const held = onSiteTotal(site);
   const brings = held >= SITE_HOLDS ? Math.min(carried, rate) : carried;
@@ -558,7 +788,10 @@ function walkSteps(
     return Infinity;
   }
   const income = incomeOf(dug);
-  const carry = project.kind === "delivering" ? fleetRate(mountain) * share : 0;
+  const carry =
+    project.kind === "delivering"
+      ? orderShares(mountain, share, income).city
+      : 0;
   const build = buildRate(mountain) * share;
   let site: Site | undefined = project.site;
   let stock = mountain.stock;

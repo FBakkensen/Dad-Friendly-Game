@@ -22,7 +22,7 @@ import {
 import { NO_JOBS, workersOnJobs, type Jobs } from "./workforce";
 import { makerRecord, type MakerId } from "./makers";
 import { UNSUNK, type Granite } from "./mine-levels";
-import { IDLE_STATION, type Station } from "./factory";
+import { IDLE_STATION, withMaterials, type Station } from "./factory";
 import {
   flowMine,
   mineMakes,
@@ -680,8 +680,10 @@ function workStretch(
   );
   const seconds = Math.floor((to - from) / 1000);
   const mine = flowMine(mountain, seconds, pay, drilling);
+  // Clay and iron come with the rock drilled (rule 5.13, #674).
+  const dug = withMaterials(mountain, mine.mountain);
   return {
-    mountain: deliver(mine.mountain, seconds, pay),
+    mountain: deliver(dug, seconds, pay),
     mined: mine.mined,
     gained: mine.gained,
     settledAt: from + seconds * 1000,
