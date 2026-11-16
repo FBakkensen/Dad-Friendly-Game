@@ -325,10 +325,6 @@ function awayStretchWords(report: {
     : "Your crew saved a full day's haul for you. Good to have you back.";
 }
 
-/** The small note a short absence leaves on the mountain (#334). */
-export const quietAwayWords = (stones: number): string =>
-  `+${formatCount(stones)} ${stones === 1 ? "stone" : "stones"} while you were away`;
-
 /**
  * The welcome card's big number and its unit, read together: "+1.2M stones", "+1 stone".
  * The card sets the unit smaller beside the number.

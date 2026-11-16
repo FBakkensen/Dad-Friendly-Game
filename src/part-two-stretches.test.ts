@@ -53,7 +53,7 @@ describe("long stretches with the stockyard open (#666)", () => {
       const flowMine = vi.mocked(minePiles.flowMine);
       flowMine.mockClear();
       const away = accrueAway({ mountain, lastSeen: 0, now: 48 * HOUR });
-      expect(away.report.night?.delivered.brick).toBeGreaterThan(0);
+      expect(away.report.night.delivered.brick).toBeGreaterThan(0);
       expect(flowMine.mock.calls.length).toBeLessThan(20);
     });
   });
@@ -137,8 +137,8 @@ describe("long stretches with the stockyard open (#666)", () => {
         now: 24 * HOUR,
       });
       const night = away.report.night;
-      expect(night?.delivered.stones ?? 0).toBeLessThanOrEqual(20);
-      expect(night?.delivered.brick).toBeGreaterThan(0);
+      expect(night.delivered.stones).toBeLessThanOrEqual(20);
+      expect(night.delivered.brick).toBeGreaterThan(0);
       expect(away.mountain.stock.stones).toBeLessThanOrEqual(20);
       expect(flowMine.mock.calls.length).toBeLessThan(20);
     });
@@ -159,7 +159,7 @@ describe("long stretches with the stockyard open (#666)", () => {
       const brick = away.mountain.stock.brick;
       expect(brick).toBeGreaterThanOrEqual(1_000_000 - 20);
       expect(brick).toBeLessThanOrEqual(1_000_000 + 20);
-      expect(away.report.night?.delivered.stones).toBeGreaterThan(0);
+      expect(away.report.night.delivered.stones).toBeGreaterThan(0);
       expect(flowMine.mock.calls.length).toBeLessThan(20);
     });
   });

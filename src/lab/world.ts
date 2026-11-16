@@ -55,7 +55,7 @@ export function step(
   );
   const away = next.away;
   const night =
-    away?.night === undefined
+    away === undefined
       ? undefined
       : { awayMs: away.awayMs, report: away.night };
   return {

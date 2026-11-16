@@ -325,10 +325,10 @@ describe("the night's report counts the clay and iron drilled (#674)", () => {
         now: 3_600_000,
       });
       const facts = night.report.night;
-      expect(facts?.produced.clay).toBe(1);
-      expect(facts?.produced.iron).toBe(1);
-      expect(facts?.delivered.iron).toBe(1);
-      expect(facts?.delivered.clay).toBe(0);
+      expect(facts.produced.clay).toBe(1);
+      expect(facts.produced.iron).toBe(1);
+      expect(facts.delivered.iron).toBe(1);
+      expect(facts.delivered.clay).toBe(0);
       expect(night.mountain.stock).toMatchObject({ clay: 1, iron: 0 });
       expect(night.mountain.station).toEqual({
         kind: "done",

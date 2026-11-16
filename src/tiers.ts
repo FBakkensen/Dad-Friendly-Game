@@ -200,9 +200,9 @@ export const MACHINE_IDS: readonly MachineId[] = TIERS.filter(isMachine).map(
 );
 
 /**
- * The machines in play: `MACHINE_IDS` less the line's machines while the
- * line is off (#533). What the lab measures and reports, so a run with the
- * line off reads as before.
+ * The machines in play: `MACHINE_IDS` whose door is open in the fresh mine
+ * (`tierInPlay`). What the lab measures and reports (#533; until #739 it
+ * also left out the line's machines while the line was off).
  */
 export function machinesInPlay(): readonly MachineId[] {
   return MACHINE_IDS.filter((id) => tierInPlay(tierById(id)));

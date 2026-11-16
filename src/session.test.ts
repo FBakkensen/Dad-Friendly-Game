@@ -132,7 +132,7 @@ describe("session step", () => {
         ...session,
         news: {
           ...session.news,
-          notices: [quiet(12), ...BUILDING_IDS.map(lit)],
+          notices: [deeper, ...BUILDING_IDS.map(lit)],
         },
       },
       { kind: "begin", mountain: { ...createMountain(), startedAt: 5_000 } },
@@ -147,13 +147,13 @@ describe("session step", () => {
     const session = playing();
     const news: Session = {
       ...session,
-      news: { ...session.news, notices: [lit(BUILDING_IDS[0]), quiet(3)] },
+      news: { ...session.news, notices: [lit(BUILDING_IDS[0]), deeper] },
     };
     expect(hasNews(session, "operational")).toBe(false);
     expect(hasNews(news, "operational")).toBe(true);
-    const quietClosed = step(news, { kind: "dismiss", what: "quiet" }, 0);
-    expect(hasNews(quietClosed.session, "quiet")).toBe(false);
-    expect(quietClosed.session.news.notices).toEqual([lit(BUILDING_IDS[0])]);
+    const bandClosed = step(news, { kind: "dismiss", what: "layer" }, 0);
+    expect(hasNews(bandClosed.session, "layer")).toBe(false);
+    expect(bandClosed.session.news.notices).toEqual([lit(BUILDING_IDS[0])]);
     expect(step(session, { kind: "dismiss", what: "craft" }, 0).session).toBe(
       session,
     );
@@ -166,15 +166,15 @@ describe("session step", () => {
       ...session,
       news: {
         ...session.news,
-        notices: [lit(first), quiet(3), lit(second)],
+        notices: [lit(first), deeper, lit(second)],
       },
     };
     const one = step(two, { kind: "dismiss", what: "operational" }, 0).session;
     expect(firstNotice(one.news, "operational")?.building).toBe(second);
-    expect(noticesOf(one.news, "quiet")).toEqual([quiet(3)]);
+    expect(noticesOf(one.news, "layer")).toEqual([deeper]);
     const none = step(one, { kind: "dismiss", what: "operational" }, 0).session;
     expect(hasNews(none, "operational")).toBe(false);
-    expect(none.news.notices).toEqual([quiet(3)]);
+    expect(none.news.notices).toEqual([deeper]);
   });
 
   it("closes the whole welcome card: its bands, crafts and homecomings", () => {
@@ -204,7 +204,8 @@ describe("session step", () => {
   });
 });
 
-const quiet = (stones: number): Notice => ({ kind: "quiet", stones });
+/** A band broken into: a notice the welcome card does not close one by one. */
+const deeper: Notice = { kind: "layer", layer: LAYERS[1] };
 const lit = (building: (typeof BUILDING_IDS)[number] | undefined): Notice => {
   if (building === undefined) {
     throw new Error("a building");

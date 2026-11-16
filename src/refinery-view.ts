@@ -218,12 +218,12 @@ export function nightForecast(mountain: Mountain, now: number): string {
     lastSeen: now,
     now: now + FORECAST_MS,
   }).report.night;
-  if (night?.stop === "stockyard") {
+  if (night.stop === "stockyard") {
     return night.producedMs < FULL_NOW_MS
       ? "Full now."
       : `Full after ${shiftDuration(night.producedMs)} unattended.`;
   }
-  return (night?.producedMs ?? 0) > 0 ? "Holds 12 h unattended." : "No output.";
+  return night.producedMs > 0 ? "Holds 12 h unattended." : "No output.";
 }
 
 /** The gives line without the forecast: the site adds it, once a second. */

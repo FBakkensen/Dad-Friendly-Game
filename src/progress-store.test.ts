@@ -685,7 +685,7 @@ describe("away earnings", () => {
     expect(progress.getSnapshot().mountain.stock.stones).toBe(5 + 318);
   });
 
-  it("keeps the full card for a real absence, and no note under a minute", () => {
+  it("keeps the full card for a real absence, and none under a minute", () => {
     const open = (at: number) => {
       const storage = createMemoryStorage();
       writeSessionSave({ storage, mountain: crew, lastSeen: 0 });
@@ -697,10 +697,8 @@ describe("away earnings", () => {
     };
     const real = open(5 * 60_000);
     expect(firstNotice(real, "away")?.report).toBeDefined();
-    expect(firstNotice(real, "quiet")?.stones).toBeUndefined();
     const reload = open(WELCOME_MIN_AWAY_MS - 1_000);
     expect(firstNotice(reload, "away")?.report).toBeUndefined();
-    expect(firstNotice(reload, "quiet")?.stones).toBeUndefined();
   });
 
   it("pays another device's save silently after the first load", async () => {
@@ -791,9 +789,6 @@ describe("start over", () => {
     const fresh = { ...createMountain(), startedAt: 60_000 };
     expect(progress.getSnapshot().mountain).toEqual(fresh);
     expect(firstNotice(progress.getSnapshot(), "away")?.report).toBeUndefined();
-    expect(
-      firstNotice(progress.getSnapshot(), "quiet")?.stones,
-    ).toBeUndefined();
     expect(guestSave(storage)).toEqual({
       mountain: fresh,
       lastSeen: 60_000,

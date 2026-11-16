@@ -375,8 +375,8 @@ export type AwayReport = {
   readonly capped: boolean;
   /** Ore the crew brought up while you were away. */
   readonly materials: Materials;
-  /** A fresh mine's night, for the shift report (#663). Never in today's game. */
-  readonly night?: NightReport;
+  /** The night, for the shift report (#663). */
+  readonly night: NightReport;
 };
 
 /** A step built in during the night; the roof's is the building going operational. */

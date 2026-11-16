@@ -10,7 +10,7 @@ import { median } from "./stats";
 
 /**
  * What the lab reads off the line while a run plays it (#534, spec "Lab").
- * Every reading is undefined, or NaN in a measure, while the line is off.
+ * A reading is undefined, or NaN in a measure, when no sitting measured it.
  */
 
 /**
@@ -83,7 +83,7 @@ export function narrowShareOf(events: readonly SittingEvent[]): number {
   return Math.max(...counts.values()) / stages.length;
 }
 
-/** Machines bought over the run that added nothing to the line. NaN with the line off. */
+/** Machines bought over the run that added nothing to the line. NaN when no sitting measured it. */
 export function zeroGainBuysOf(events: readonly SittingEvent[]): number {
   const counted = events.flatMap((event) =>
     event.zeroGainBuys === undefined ? [] : [event.zeroGainBuys],

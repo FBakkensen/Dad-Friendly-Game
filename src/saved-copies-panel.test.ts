@@ -224,7 +224,7 @@ describe("the Saved copies card (#466)", () => {
     expect(fixture.panel.root.hidden).toBe(false);
   });
 
-  it("Back to the mountain and Escape close it, focus back on what opened it", async () => {
+  it("Close and Escape close it, focus back on what opened it", async () => {
     const fixture = mount([copy("a")]);
     const key = opener();
     fixture.panel.open(key);
