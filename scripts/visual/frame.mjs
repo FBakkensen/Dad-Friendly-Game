@@ -1136,6 +1136,22 @@ for (const size of SIZES) {
           `${at} every key stands at least 8px from the next (${near.join("; ")})`,
         );
         if (name === "idle") {
+          // The strip's far end: the last blueprint is whole in its box.
+          const last = await page.$eval(".factory-strip", (strip) => {
+            strip.scrollLeft = strip.scrollWidth;
+            const box = strip.getBoundingClientRect();
+            const card = strip.lastElementChild?.getBoundingClientRect();
+            return (
+              card !== undefined &&
+              card.left >= box.left - 0.5 &&
+              card.right <= box.right + 0.5
+            );
+          });
+          await shot(page, `slice-factory-strip-end-${label}`);
+          check(last, `${at} the strip scrolls to its last blueprint, whole`);
+          await page.$eval(".factory-strip", (strip) => {
+            strip.scrollLeft = 0;
+          });
           await dragOntoStation(page, "sturdy-props");
           const after = await factoryFacts(page);
           check(

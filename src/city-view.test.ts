@@ -344,6 +344,21 @@ describe("the city's scene", () => {
     });
   });
 
+  it("drives the wagons while they carry the factory's work order (#681)", () => {
+    fresh(() => {
+      const begin = withStones(start(), 50_000);
+      const scene = cityScene({
+        ...begin,
+        station: {
+          kind: "delivering",
+          blueprint: "iron-rails",
+          arrived: EMPTY_STOCK,
+        },
+      });
+      expect(scene.load).toBe(1);
+    });
+  });
+
   it("stands the wagons with nothing to carry, and the one with no driver", () => {
     fresh(() => {
       const begin = start();

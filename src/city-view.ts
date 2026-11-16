@@ -27,6 +27,7 @@ import {
   fleetRate,
   orderLimit,
   orderNumbers,
+  orderShares,
   vehicleOpen,
   vehicleQuote,
   type Vehicle,
@@ -405,10 +406,10 @@ const share = (part: number, whole: number): number =>
 export function cityScene(mountain: Mountain, now?: number): CityScene {
   const shown = plots(mountain);
   const project = mountain.project;
-  const numbers = orderNumbers(
-    mountain,
-    effectiveRates(mountain, now).exactCrewPerSecond,
-  );
+  const line = effectiveRates(mountain, now).exactCrewPerSecond;
+  const numbers = orderNumbers(mountain, line);
+  // The wagons carry the factory's work order too (rule 7.7, #681).
+  const toStation = orderShares(mountain, 1, { stones: line }).station;
   const rate = buildRate(mountain);
   const driven = Object.values(drivenFleet(mountain)).reduce(
     (sum, n) => sum + n,
@@ -431,9 +432,9 @@ export function cityScene(mountain: Mountain, now?: number): CityScene {
     building: numbers.kind === "unordered" ? 0 : share(numbers.builds, rate),
     driven,
     undriven: owned - driven,
-    load:
-      numbers.kind === "unordered"
-        ? 0
-        : share(numbers.brings, fleetRate(mountain)),
+    load: share(
+      (numbers.kind === "unordered" ? 0 : numbers.brings) + toStation,
+      fleetRate(mountain),
+    ),
   };
 }

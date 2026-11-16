@@ -297,7 +297,7 @@ function listenDrag(
         return;
       }
       dragged = true;
-      card.setPointerCapture?.(event.pointerId);
+      card.setPointerCapture(event.pointerId);
       ghost = card.cloneNode(true) as HTMLElement;
       ghost.classList.add("factory-ghost");
       const box = card.getBoundingClientRect();

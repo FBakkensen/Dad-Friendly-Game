@@ -132,8 +132,13 @@ export function paintBench(c: CanvasRenderingContext2D, height: number): void {
   paintStation(c, height);
 }
 
-/** One drawn part of a gear: a box in its 24 art px square, and its colour. */
-type Part = readonly [number, number, number, number, string];
+/**
+ * One drawn part of a gear: a box in its 24 art px square and its colour,
+ * and "solid" for a fill a line drawing leaves out.
+ */
+type Part =
+  | readonly [number, number, number, number, string]
+  | readonly [number, number, number, number, string, "solid"];
 
 const RAILS: readonly Part[] = [
   ...[2, 7, 12, 17, 21].map((x): Part => [x, 3, 2, 18, "#8a6238"]),
@@ -177,12 +182,20 @@ const REINFORCE: readonly Part[] = [
   ...[3, 8, 15, 20].map((x): Part => [x, 18, 1, 1, "#4a4f58"]),
 ];
 
-/** A tin of axle grease with its spout, and the grease on it. */
+/**
+ * A tin of axle grease with its spout. Its fill and its grease are left out
+ * of a line drawing (`solid`), so the blueprint shows the tin's outline.
+ */
 const GREASE: readonly Part[] = [
-  [5, 8, 14, 14, "#59606a"],
+  [6, 9, 12, 13, "#3a3f47", "solid"],
+  [8, 13, 8, 5, "#d8a25e", "solid"],
+  [8, 13, 8, 1, "#ffcf6a", "solid"],
   [5, 8, 14, 2, "#aab4bf"],
-  [7, 12, 10, 6, "#d8a25e"],
-  [7, 12, 10, 1, "#ffcf6a"],
+  [5, 10, 1, 12, "#59606a"],
+  [18, 10, 1, 12, "#59606a"],
+  [5, 21, 14, 1, "#59606a"],
+  [8, 12, 8, 1, "#7b848f"],
+  [8, 18, 8, 1, "#7b848f"],
   [16, 4, 2, 4, "#7b848f"],
   [17, 2, 4, 2, "#7b848f"],
   [19, 1, 2, 1, "#ffcf6a"],
@@ -208,7 +221,10 @@ export function drawGear(
   scale: number,
   ink?: string,
 ): void {
-  for (const [px, py, w, h, colour] of DRAWINGS[id]) {
+  for (const [px, py, w, h, colour, solid] of DRAWINGS[id]) {
+    if (ink !== undefined && solid === "solid") {
+      continue;
+    }
     rect(
       c,
       x + px * scale,
