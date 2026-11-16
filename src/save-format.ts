@@ -71,6 +71,14 @@ import { VEHICLE_IDS, type VehicleId } from "./transport";
 import { JOB_IDS, workersOnJobs, type JobId, type Jobs } from "./workforce";
 import { PILE_IDS, type MinePiles, type PileId } from "./mine-piles";
 import { MAKER_IDS, type MakerId } from "./makers";
+import {
+  GRANITE_PILE_IDS,
+  LEVEL_MACHINE_IDS,
+  UNSUNK,
+  type Granite,
+  type GranitePileId,
+  type LevelMachineId,
+} from "./mine-levels";
 
 /** The Gold rush's end time, in the clocks map. */
 const GOLD_RUSH = "gold-rush";
@@ -117,7 +125,24 @@ const GAME_KEYS = [
   "piles",
   "makers",
   "stockyard",
+  "granite",
 ] as const;
+
+/** The Granite's own keys (#673): its machines and its piles. */
+const GRANITE_KEYS = ["machines", "piles"] as const;
+
+/** The jobs and maker that stand on the Granite: none while it is unsunk (ruling 2). */
+const GRANITE_JOBS = [
+  "graniteDrilling",
+  "graniteHaulage",
+  "saws",
+] as const satisfies readonly JobId[];
+
+/** The Granite as saved: present once the shaft is sunk, `{}` with nothing on it. */
+type SavedGranite = {
+  readonly machines?: Readonly<Partial<Record<LevelMachineId, number>>>;
+  readonly piles?: Readonly<Partial<Record<GranitePileId, number>>>;
+};
 
 /** A project in hand, as saved: an unordered city saves none (#654). */
 type SavedProject = {
@@ -160,6 +185,12 @@ export type SaveGame = {
   readonly makers?: Readonly<Partial<Record<MakerId, number>>>;
   /** The stockyard's level (#666); 0 is left out. */
   readonly stockyard?: number;
+  /**
+   * The Granite once the shaft is sunk (#673): its share of each level
+   * machine he owns (the Topsoil has the rest), and its piles. Left out
+   * while unsunk, so a part 2 save writes the same map as before.
+   */
+  readonly granite?: SavedGranite;
 };
 
 // ---------------------------------------------------------------------------
@@ -272,6 +303,24 @@ function savedProject(project: Project): Partial<SaveGame> {
   };
 }
 
+function savedGranite(granite: Granite): Partial<SaveGame> {
+  if (granite.kind === "unsunk") {
+    return {};
+  }
+  return {
+    granite: {
+      ...some(
+        "machines",
+        positives(LEVEL_MACHINE_IDS, (id) => granite.machines[id]),
+      ),
+      ...some(
+        "piles",
+        positives(GRANITE_PILE_IDS, (id) => granite.piles[id]),
+      ),
+    },
+  };
+}
+
 /** The game map this mountain writes. */
 export function writeGame(mountain: Mountain): SaveGame {
   return {
@@ -317,6 +366,7 @@ export function writeGame(mountain: Mountain): SaveGame {
       positives(MAKER_IDS, (id) => mountain.makers[id]),
     ),
     ...(mountain.stockyard === 0 ? {} : { stockyard: mountain.stockyard }),
+    ...savedGranite(mountain.granite),
   };
 }
 
@@ -714,6 +764,71 @@ function readJobs(value: unknown, facts: Part<Facts>): Part<Jobs> {
   return workersOnJobs({ jobs }) > facts.owned.helper ? "bad" : jobs;
 }
 
+type Makers = Record<MakerId, number>;
+
+/**
+ * The Granite's own maps. Missing is unsunk. Ids are read as counts, and
+ * a pile is uncapped (ruling 2 of #703): over the room it is full.
+ */
+function readGraniteMaps(value: unknown): Part<Granite> {
+  if (value === undefined) {
+    return UNSUNK;
+  }
+  if (!isRecord(value)) {
+    return "bad";
+  }
+  const machines = readCounts(value["machines"], LEVEL_MACHINE_IDS, UNCAPPED);
+  const piles = readCounts(value["piles"], GRANITE_PILE_IDS, UNCAPPED);
+  const failed = worst([machines, piles]);
+  if (failed === "bad") {
+    return "bad";
+  }
+  if (failed === "newer" || unknownKeys(value, GRANITE_KEYS)) {
+    return "newer";
+  }
+  return {
+    kind: "sunk",
+    machines: machines as Record<LevelMachineId, number>,
+    piles: piles as Record<GranitePileId, number>,
+  };
+}
+
+/**
+ * Whether the Granite fits the rest of the save: no more of a machine on it
+ * than he owns (the Topsoil has the rest), and while it is unsunk nobody on
+ * its jobs or the saws, and no saw (ruling 2).
+ */
+function graniteFits(
+  granite: Granite,
+  owned: Facts["owned"],
+  jobs: Jobs,
+  makers: Makers,
+): boolean {
+  if (granite.kind === "unsunk") {
+    return GRANITE_JOBS.every((job) => jobs[job] === 0) && makers.saw === 0;
+  }
+  return LEVEL_MACHINE_IDS.every((id) => granite.machines[id] <= owned[id]);
+}
+
+/** The Granite (#673), refused when it does not fit the rest of the save. */
+function readGranite(
+  value: unknown,
+  facts: Part<Facts>,
+  jobs: Part<Jobs>,
+  makers: Part<Makers>,
+): Part<Granite> {
+  const granite = readGraniteMaps(value);
+  if (
+    typeof granite === "string" ||
+    typeof facts === "string" ||
+    typeof jobs === "string" ||
+    typeof makers === "string"
+  ) {
+    return granite;
+  }
+  return graniteFits(granite, facts.owned, jobs, makers) ? granite : "bad";
+}
+
 type Facts = Pick<
   Mountain,
   "owned" | "stock" | "upgrades" | "crafted" | "boosts" | "clocks" | "rushUntil"
@@ -786,6 +901,7 @@ export function readGame(value: unknown, startedAt: number): GameRead {
   const piles = readCounts(value["piles"], PILE_IDS, UNCAPPED);
   const makers = readCounts(value["makers"], MAKER_IDS, UNCAPPED);
   const stockyard = readLevel(value["stockyard"]);
+  const granite = readGranite(value["granite"], facts, jobs, makers);
   const failed = worst([
     facts,
     marks,
@@ -798,6 +914,7 @@ export function readGame(value: unknown, startedAt: number): GameRead {
     piles,
     makers,
     stockyard,
+    granite,
   ]);
   if (failed !== undefined) {
     return { kind: failed };
@@ -818,8 +935,9 @@ export function readGame(value: unknown, startedAt: number): GameRead {
       project: project as Project,
       jobs: jobs as Jobs,
       piles: piles as MinePiles,
-      makers: makers as Record<MakerId, number>,
+      makers: makers as Makers,
       stockyard: stockyard as number,
+      granite: granite as Granite,
       startedAt,
     },
   };
@@ -847,6 +965,7 @@ export type ShippedFacts = {
   readonly piles: readonly string[];
   readonly makers: readonly string[];
   readonly caps: Readonly<Record<string, number>>;
+  readonly granite: Readonly<Record<"machines" | "piles", readonly string[]>>;
 };
 
 export function shippedFacts(): ShippedFacts {
@@ -882,5 +1001,6 @@ export function shippedFacts(): ShippedFacts {
       siteHolds: SITE_HOLDS,
       stockyard: MAX_STOCKYARD_LEVEL,
     },
+    granite: { machines: LEVEL_MACHINE_IDS, piles: GRANITE_PILE_IDS },
   };
 }

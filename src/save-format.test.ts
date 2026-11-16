@@ -47,8 +47,8 @@ describe("the game map (#558)", () => {
       makers: "makers",
       stockyard: "stockyard",
       rockDug: "run",
-      // The Granite is not saved yet: its save facts are #673's Task 9.
-    } as const satisfies Record<Exclude<keyof Mountain, "granite">, string>;
+      granite: "granite",
+    } as const satisfies Record<keyof Mountain, string>;
     const fresh = createMountain();
     const full: Mountain = {
       ...fresh,
@@ -115,6 +115,11 @@ describe("the game map (#558)", () => {
       makers: { kiln: 2, saw: 0 },
       stockyard: 1,
       rockDug: 12_345,
+      granite: {
+        kind: "sunk",
+        machines: { cart: 1, drill: 0, borer: 1, train: 0 },
+        piles: { face: 5, shaft: 0, saw: 3 },
+      },
     };
     // Part 1 has one building, so an operational one and a project in hand
     // are two mountains (#654).

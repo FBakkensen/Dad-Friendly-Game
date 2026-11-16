@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { createMountain } from "./mountain";
+import { NO_GRANITE_PILES, NO_LEVEL_MACHINES, UNSUNK } from "./mine-levels";
+import { createMountain, type Mountain } from "./mountain";
+import { partThreeOn } from "./part-switch";
 import { readGame, shippedFacts, writeGame } from "./save-format";
 
 /**
@@ -27,6 +29,7 @@ const LEDGER = {
     "piles",
     "makers",
     "stockyard",
+    "granite",
   ],
   owned: [
     "helper",
@@ -177,6 +180,10 @@ const LEDGER = {
     siteHolds: 500,
     stockyard: 18,
   },
+  granite: {
+    machines: ["cart", "drill", "borer", "train"],
+    piles: ["face", "shaft", "saw"],
+  },
 };
 
 describe("the ledger of what has shipped (#558)", () => {
@@ -203,6 +210,7 @@ describe("the ledger of what has shipped (#558)", () => {
       facts.makers,
       Object.keys(facts.tripFinds),
       ...Object.values(facts.tripFinds),
+      ...Object.values(facts.granite),
     ];
     for (const list of lists) {
       expect(new Set(list).size).toBe(list.length);
@@ -299,5 +307,161 @@ describe("part 2's facts in the save (#666)", () => {
   it("reads a stockyard past this build's last level as newer", () => {
     expect(readGame({ stockyard: 18 }, 0).kind).toBe("ok");
     expect(readGame({ stockyard: 19 }, 0).kind).toBe("newer");
+  });
+});
+
+describe("part 3's facts in the save (#673)", () => {
+  const start = createMountain();
+  /** A mountain with the Granite sunk, its machines, piles, jobs and saws in play. */
+  const sunk: Mountain = {
+    ...start,
+    owned: { ...start.owned, helper: 10, cart: 3, drill: 2, train: 1 },
+    stock: { ...start.stock, stones: 40, brick: 7, cutStone: 30 },
+    fleet: { ...start.fleet, truck: 1 },
+    jobs: {
+      ...start.jobs,
+      graniteDrilling: 2,
+      graniteHaulage: 1,
+      saws: 1,
+    },
+    makers: { kiln: 1, saw: 2 },
+    granite: {
+      kind: "sunk",
+      machines: { cart: 1, drill: 2, borer: 0, train: 1 },
+      piles: { face: 50, shaft: 4, saw: 12 },
+    },
+  };
+  const throughJson = (mountain: Mountain) =>
+    readGame(JSON.parse(JSON.stringify(writeGame(mountain))), 0);
+
+  it("round-trips the Granite's machines and piles, its two jobs, the saws, their workers, cut stone and a truck", () => {
+    const game = writeGame(sunk);
+    expect(game.granite).toEqual({
+      machines: { cart: 1, drill: 2, train: 1 },
+      piles: { face: 50, shaft: 4, saw: 12 },
+    });
+    expect(game.jobs).toEqual({
+      graniteDrilling: 2,
+      graniteHaulage: 1,
+      saws: 1,
+    });
+    expect(game.makers).toEqual({ kiln: 1, saw: 2 });
+    expect(game.stock).toEqual({ stones: 40, brick: 7, cutStone: 30 });
+    expect(game.fleet).toEqual({ truck: 1 });
+    expect(throughJson(sunk)).toEqual({ kind: "ok", mountain: sunk });
+  });
+
+  it("saves a sunk Granite with nothing on it as an empty map, and none while unsunk", () => {
+    const bare: Mountain = {
+      ...start,
+      granite: {
+        kind: "sunk",
+        machines: NO_LEVEL_MACHINES,
+        piles: NO_GRANITE_PILES,
+      },
+    };
+    expect(writeGame(bare).granite).toEqual({});
+    expect(throughJson(bare)).toEqual({ kind: "ok", mountain: bare });
+    expect(writeGame(createMountain())).not.toHaveProperty("granite");
+    const empty = readGame({}, 0);
+    expect(empty.kind === "ok" && empty.mountain.granite).toEqual(UNSUNK);
+  });
+
+  it("writes a part 2 save's game map as before", () => {
+    const partTwo: Mountain = {
+      ...start,
+      owned: { ...start.owned, helper: 3 },
+      stock: { ...start.stock, stones: 40, brick: 7 },
+      jobs: { ...start.jobs, drilling: 1, kilns: 2 },
+      piles: { ...start.piles, kiln: 120 },
+      makers: { kiln: 3, saw: 0 },
+      stockyard: 2,
+      project: {
+        kind: "delivering",
+        site: {
+          building: "lightTower",
+          step: 2,
+          arrived: { ...start.stock, stones: 40 },
+          onSite: start.stock,
+        },
+      },
+    };
+    const game = writeGame(partTwo);
+    expect(Object.keys(game)).toEqual([
+      "owned",
+      "stock",
+      "marks",
+      "project",
+      "jobs",
+      "piles",
+      "makers",
+      "stockyard",
+    ]);
+    expect(throughJson(partTwo)).toEqual({ kind: "ok", mountain: partTwo });
+  });
+
+  it("refuses more machines on the Granite than he owns", () => {
+    expect(
+      readGame({ owned: { borer: 1 }, granite: { machines: { borer: 2 } } }, 0)
+        .kind,
+    ).toBe("bad");
+    expect(
+      readGame({ owned: { borer: 2 }, granite: { machines: { borer: 2 } } }, 0)
+        .kind,
+    ).toBe("ok");
+    expect(readGame({ granite: { machines: { train: 1 } } }, 0).kind).toBe(
+      "bad",
+    );
+  });
+
+  it("refuses workers on the Granite's jobs or the saws, or a saw, while the shaft is not sunk", () => {
+    const owned = { helper: 2 };
+    for (const job of ["graniteDrilling", "graniteHaulage", "saws"]) {
+      expect(readGame({ owned, jobs: { [job]: 1 } }, 0).kind, job).toBe("bad");
+      expect(
+        readGame({ owned, jobs: { [job]: 1 }, granite: {} }, 0).kind,
+        job,
+      ).toBe("ok");
+    }
+    expect(readGame({ makers: { saw: 1 } }, 0).kind).toBe("bad");
+    expect(readGame({ makers: { saw: 1 }, granite: {} }, 0).kind).toBe("ok");
+    expect(readGame({ makers: { kiln: 1, saw: 0 } }, 0).kind).toBe("ok");
+  });
+
+  it("reads a Granite key or id it does not know as newer, and a part-stone pile as bad", () => {
+    expect(readGame({ granite: { lift: {} } }, 0).kind).toBe("newer");
+    expect(readGame({ granite: { machines: { crane: 1 } } }, 0).kind).toBe(
+      "newer",
+    );
+    expect(readGame({ granite: { piles: { hopper: 1 } } }, 0).kind).toBe(
+      "newer",
+    );
+    expect(readGame({ granite: { piles: { face: 1.5 } } }, 0).kind).toBe("bad");
+    expect(readGame({ granite: { piles: { saw: -1 } } }, 0).kind).toBe("bad");
+    expect(readGame({ granite: { machines: "cart" } }, 0).kind).toBe("bad");
+    expect(readGame({ granite: 1 }, 0).kind).toBe("bad");
+    expect(readGame({ granite: [] }, 0).kind).toBe("bad");
+    expect(readGame({ granite: null }, 0).kind).toBe("bad");
+    expect(
+      readGame({ granite: { lift: {}, piles: { face: 1.5 } } }, 0).kind,
+    ).toBe("bad");
+  });
+
+  it("reads a pile past the room this build allows: it is full (ruling 2 of #703)", () => {
+    const read = readGame({ granite: { piles: { face: 9_000_000 } } }, 0);
+    expect(read.kind === "ok" && read.mountain.granite).toEqual({
+      kind: "sunk",
+      machines: NO_LEVEL_MACHINES,
+      piles: { face: 9_000_000, shaft: 0, saw: 0 },
+    });
+  });
+
+  it("reads and writes a sunk Granite back unchanged with part 3 off", () => {
+    expect(partThreeOn()).toBe(false);
+    const read = throughJson(sunk);
+    expect(read).toEqual({ kind: "ok", mountain: sunk });
+    expect(read.kind === "ok" && writeGame(read.mountain)).toEqual(
+      writeGame(sunk),
+    );
   });
 });
