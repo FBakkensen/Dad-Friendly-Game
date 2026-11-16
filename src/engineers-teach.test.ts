@@ -9,7 +9,6 @@ const ada = { name: "Ada", rank: 0, trips: 0, post: "borer" } as const;
 function crew(): Mountain {
   return {
     ...createMountain(),
-    remaining: 228_000_000,
     stock: { ...createMountain().stock, stones: 2_000_000 },
     owned: {
       ...createMountain().owned,

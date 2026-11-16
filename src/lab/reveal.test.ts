@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createMountain, type Mountain } from "../mountain";
 import { withFactors } from "../economy/factors";
-import { minedMountain } from "../test-fixtures";
 import { NO_GRANITE_PILES, NO_LEVEL_MACHINES } from "../mine-levels";
 import { PART_THREE_OFF, PART_TWO_OFF } from "../part-switch";
 import revealNeverUsed from "./measures/revealNeverUsed";
@@ -103,10 +102,18 @@ describe("createRevealLog", () => {
 });
 
 describe("a busy bench counts as use", () => {
+  // The bench opens with the Granite, in part 3 (#740).
+  const partThree = <T>(body: () => T): T =>
+    withFactors({ [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 }, body);
   const rich: Mountain = {
-    ...minedMountain(5_000_000),
+    ...createMountain(),
+    granite: {
+      kind: "sunk",
+      machines: NO_LEVEL_MACHINES,
+      piles: NO_GRANITE_PILES,
+    },
     stock: {
-      ...minedMountain(5_000_000).stock,
+      ...createMountain().stock,
       stones: 1e12,
       clay: 1000,
       iron: 1000,
@@ -122,7 +129,7 @@ describe("a busy bench counts as use", () => {
       ...rich,
       bench: { recipe: "axle-grease", startedAt: 0, endsAt: 60_000 },
     };
-    const events = log(busy, 0);
+    const events = partThree(() => log(busy, 0));
     expect(events).toContainEqual({
       kind: "firstUse",
       id: "material:clay",
@@ -136,7 +143,7 @@ describe("a busy bench counts as use", () => {
   });
 
   it("keeps an idle bench unused", () => {
-    const events = createRevealLog()(rich, 0);
+    const events = partThree(() => createRevealLog()(rich, 0));
     expect(ids(events, "firstUse")).not.toContain("material:clay");
     expect(ids(events, "firstUse")).not.toContain("recipe:blasting-charge");
   });

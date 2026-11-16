@@ -1,5 +1,4 @@
 import type { Action } from "../economy/actions";
-import type { LayerId } from "../layers";
 import type { LineView } from "../line";
 import type { FreshView } from "./fresh-view";
 import type { NightRecord } from "./nights";
@@ -41,8 +40,6 @@ export type DecisionSample = {
   readonly line?: LineView;
   /** A fresh mine at this moment (slice 1, #655): the order's limit, idle workers and machines. */
   readonly fresh?: FreshView;
-  /** Rock band at this moment. Scopes such as "from the Granite on" read it. */
-  readonly layer?: LayerId;
   /** Kinds on the table at this moment. */
   readonly optionKinds: readonly Action["kind"][];
   /**

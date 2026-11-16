@@ -114,14 +114,14 @@ const LEDGER = {
     operational: ["lightTower", "warehouse"],
   },
   run: {
-    dug: 240000000,
     rock: Number.MAX_SAFE_INTEGER,
     granite: Number.MAX_SAFE_INTEGER,
   },
-  // Retired (#729): still read at these caps, and never written.
+  // Retired (#729, and dug in #740): still read at these caps, and never written.
   retiredRun: {
     generation: 1000,
     stretch: 1000000,
+    dug: 240000000,
   },
   engineerNames: ["Ada", "Nils", "Ruth", "Otto", "Mae"],
   posts: ["cart", "drill", "borer", "machine", "camp", "tunnel"],

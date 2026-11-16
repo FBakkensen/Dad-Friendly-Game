@@ -1,5 +1,5 @@
 import { ROOF } from "./city";
-import { rockDugInAll, runStartedAt, type Mountain } from "./mountain";
+import { runStartedAt, type Mountain } from "./mountain";
 import { serializeSave } from "./persist";
 import { compareSaveProgress, type SaveMoment } from "./save-progress";
 import { MAKER_IDS } from "./makers";
@@ -186,7 +186,7 @@ function facts(mountain: Mountain): Facts {
     engineers[engineer.name] = engineer.trips;
   }
   return {
-    mined: rockDugInAll(mountain),
+    mined: mountain.rockDug,
     upgrades,
     crafts,
     recipes: [...mountain.recipes],

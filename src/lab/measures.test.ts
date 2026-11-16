@@ -34,7 +34,6 @@ function decision(
     readonly stretchAffordable?: number;
     readonly stretchWait?: number;
     readonly stretchBestId?: string;
-    readonly layer?: DecisionSample["layer"];
   } = {},
 ): DecisionSample {
   const liveCount = over.liveCount ?? 1;
@@ -51,7 +50,6 @@ function decision(
     crewPerSec: 1,
     pocket: 0,
     outputShare: over.outputShare ?? {},
-    ...(over.layer === undefined ? {} : { layer: over.layer }),
     optionKinds: over.optionKinds ?? ["buyTier"],
     nextPaybackRatio: 1,
     stretch: {
@@ -327,22 +325,5 @@ describe("measures", () => {
     expect(
       applyScope({ kind: "policies", ids: ["casual-2x10"] }, [early]),
     ).toEqual([early]);
-    const topsoil = decision({ atMs: 0, layer: "topsoil" });
-    const granite = decision({ atMs: 1, layer: "granite" });
-    const deeper = decision({ atMs: 2, layer: "heart" });
-    expect(
-      applyScope({ kind: "fromLayer", layer: "granite" }, [
-        topsoil,
-        granite,
-        deeper,
-      ]),
-    ).toEqual([granite, deeper]);
-    expect(
-      applyScope({ kind: "fromLayer", layer: "granite" }, [topsoil]),
-    ).toEqual([]);
-    expect(
-      applyScope({ kind: "fromLayer", layer: "granite" }, [decision()]),
-    ).toEqual([]);
-    expect(applyScope({ kind: "fromLayer", layer: "granite" }, [])).toEqual([]);
   });
 });

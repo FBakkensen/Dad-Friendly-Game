@@ -23,7 +23,7 @@ import {
   type FieldEventData,
   type FieldSnapshot,
 } from "./field-log";
-import { MOUNTAIN_STONES, createMountain, type Mountain } from "./mountain";
+import { createMountain, type Mountain } from "./mountain";
 import { effectiveRates } from "./rates";
 import { NO_UPGRADES } from "./upgrades";
 
@@ -66,7 +66,7 @@ describe("snapshot", () => {
       deviceId: "",
       rev: 0,
       mined: 0,
-      left: MOUNTAIN_STONES,
+      left: 240_000_000,
       pocket: 0,
       // Every tier and every machine by id, the line's included (#559).
       crew: {
@@ -97,7 +97,6 @@ describe("snapshot", () => {
   it("counts the crew, idle machines and upgrades, and keeps no legacy (#729)", () => {
     const mountain: Mountain = {
       ...createMountain(),
-      remaining: MOUNTAIN_STONES - 1_000_000,
       stock: { ...createMountain().stock, stones: 1234 },
       owned: {
         ...createMountain().owned,
@@ -122,8 +121,6 @@ describe("snapshot", () => {
     const shot = snapshot(mountain, rates, AT, "test-build");
 
     expect(shot.version).toBe("test-build");
-    expect(shot.mined).toBe(1_000_000);
-    expect(shot.left).toBe(mountain.remaining);
     expect(shot.pocket).toBe(1234);
     expect(shot.crew).toEqual({
       helper: 0,

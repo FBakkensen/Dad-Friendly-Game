@@ -36,11 +36,7 @@ import {
   MAX_EXPEDITIONS,
   type Expedition,
 } from "../src/expeditions";
-import {
-  MOUNTAIN_STONES,
-  createMountain,
-  type Mountain,
-} from "../src/mountain";
+import { createMountain, type Mountain } from "../src/mountain";
 import { readSave, serializeSave } from "../src/persist";
 import { effectiveRates } from "../src/rates";
 import { UPGRADES, type Upgrades } from "../src/upgrades";
@@ -90,7 +86,7 @@ function lateCrew(): Mountain {
   const fresh = createMountain();
   return {
     ...fresh,
-    remaining: MOUNTAIN_STONES - 80_000,
+    rockDug: 80_000,
     stock: { ...fresh.stock, stones: 80_000_000 },
     owned: {
       helper: 40,
@@ -413,7 +409,6 @@ function maximalMountain(): Mountain {
   }));
   return {
     ...createMountain(),
-    remaining: 0,
     stock: {
       ...createMountain().stock,
       stones: 80_000_000,

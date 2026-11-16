@@ -1,21 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { withFactors } from "./economy/factors";
+import { activeFactors, withFactors } from "./economy/factors";
 import { nextTrouble } from "./hazards";
-import {
-  LAYERS,
-  type MaterialId,
-  type Materials,
-  EMPTY_MATERIALS,
-} from "./layers";
+import { type MaterialId, type Materials, EMPTY_MATERIALS } from "./layers";
 import { priceAmount } from "./stock";
 import { expeditionAwayMs } from "./lost-tools";
 import {
-  MOUNTAIN_STONES,
   accrue,
   createMountain,
   type Mountain,
   BARE_MOUNTAIN,
 } from "./mountain";
+import { levels, partThree } from "./part-three.harness";
 import { patched, type MountainPatch } from "./test-fixtures";
 import { effectiveRates } from "./rates";
 import {
@@ -41,9 +36,7 @@ import {
   parseRecipes,
   recipeById,
   grantRecipes,
-  layerRecipeIds,
   recipePrice,
-  recipesForMined,
   settleBench,
   fitGear,
   startCraft,
@@ -63,63 +56,24 @@ const materialsIn = (mountain: Mountain): Materials => ({
   heartstone: mountain.stock.heartstone,
 });
 
-describe("recipes granted from stones mined", () => {
-  it("starts with three, and adds a layer recipe when that band is reached", () => {
-    expect(recipesForMined(-1)).toEqual([...STARTING_RECIPE_IDS]);
-    expect(recipesForMined(0)).toEqual([...STARTING_RECIPE_IDS]);
-    expect(recipesForMined(10_000_000 - 1)).toEqual([...STARTING_RECIPE_IDS]);
-    expect(recipesForMined(10_000_000)).toEqual([
-      ...STARTING_RECIPE_IDS,
-      "reinforce",
-      "axle-grease",
-    ]);
-    expect(recipesForMined(45_000_000 - 1)).toEqual([
-      ...STARTING_RECIPE_IDS,
-      "reinforce",
-      "axle-grease",
-    ]);
-    expect(recipesForMined(45_000_000)).toEqual([
-      ...STARTING_RECIPE_IDS,
-      "reinforce",
-      "axle-grease",
-      "diamond-bits",
-    ]);
-    expect(recipesForMined(120_000_000 - 1)).toEqual([
-      ...STARTING_RECIPE_IDS,
-      "reinforce",
-      "axle-grease",
-      "diamond-bits",
-    ]);
-    expect(recipesForMined(120_000_000)).toEqual([
-      ...STARTING_RECIPE_IDS,
-      "reinforce",
-      "axle-grease",
-      "diamond-bits",
-      "heartstone-core",
-      "heartstone-ember",
-    ]);
-    expect(recipesForMined(MOUNTAIN_STONES)).not.toContain("engineers-kit");
+describe("recipes known from the start", () => {
+  it("starts with three, and leaves the expedition sketch to be found", () => {
+    expect(createMountain().recipes).toEqual([...STARTING_RECIPE_IDS]);
+    expect(createMountain().recipes).not.toContain("engineers-kit");
   });
 
-  it("hands a layer's recipes over once, and leaves the expedition sketch to be found", () => {
-    expect(layerRecipeIds("topsoil")).toEqual([]);
-    expect(layerRecipeIds("granite")).toEqual(["reinforce", "axle-grease"]);
-    expect(layerRecipeIds("crystal")).toEqual(["diamond-bits"]);
-    expect(layerRecipeIds("heart")).toEqual([
-      "heartstone-core",
-      "heartstone-ember",
-    ]);
+  it("adds a recipe once, and keeps the ones already known", () => {
     const fresh = createMountain();
-    const granite = grantRecipes(fresh, layerRecipeIds("granite"));
-    expect(granite.found).toEqual(["reinforce", "axle-grease"]);
-    expect(granite.mountain.recipes).toEqual([
+    const granted = grantRecipes(fresh, ["reinforce", "axle-grease"]);
+    expect(granted.found).toEqual(["reinforce", "axle-grease"]);
+    expect(granted.mountain.recipes).toEqual([
       ...STARTING_RECIPE_IDS,
       "reinforce",
       "axle-grease",
     ]);
-    expect(
-      grantRecipes(granite.mountain, layerRecipeIds("granite")).mountain,
-    ).toBe(granite.mountain);
+    expect(grantRecipes(granted.mountain, ["reinforce"]).mountain).toBe(
+      granted.mountain,
+    );
     const bare = grantRecipes({ ...createMountain(), recipes: [] }, [
       "axle-grease",
     ]);
@@ -221,12 +175,23 @@ const FULL: Materials = {
   heartstone: 80,
 };
 
-/** Granite is open, the pocket can pay, and every recipe is known. */
+/** The shaft sunk (the bench opens with the Granite, in part 3, #740). */
+const SUNK = levels({}).granite;
+
+/**
+ * Starts a craft in part 3, where the bench is open, with any knobs a test
+ * holds around it.
+ */
+function craft(mountain: Mountain, id: RecipeId, now: number): Mountain {
+  return partThree(() => startCraft(mountain, id, now), activeFactors() ?? {});
+}
+
+/** The shaft is sunk, the pocket can pay, and every recipe is known. */
 function openShed(extra: MountainPatch = {}): Mountain {
   return patched(
     {
       ...createMountain(),
-      remaining: MOUNTAIN_STONES - LAYERS[1].from,
+      granite: SUNK,
       stock: { ...createMountain().stock, stones: 80_000_000, ...FULL },
       recipes: [...RECIPE_IDS],
     },
@@ -290,63 +255,67 @@ describe("workshop rules", () => {
       const sink = recipeById(id);
       expect(sink.maxLevel === undefined || sink.maxLevel > 1).toBe(true);
       expect(sink.materials[material]).toBeGreaterThan(0);
-      const once = startCraft(openShed(), sink.id, 0);
+      const once = craft(openShed(), sink.id, 0);
       const fitted = settleBench(once, once.bench?.endsAt ?? 0);
-      const twice = startCraft(fitted, sink.id, once.bench?.endsAt ?? 0);
+      const twice = craft(fitted, sink.id, once.bench?.endsAt ?? 0);
       expect(twice.bench?.recipe).toBe(sink.id);
       expect(craftedLevel(fitted, sink.id)).toBe(1);
     }
   });
 
-  it("stays shut until the Granite, and spends nothing it cannot pay", () => {
+  it("stays shut until part 3's Granite, and spends nothing it cannot pay", () => {
     const locked = {
       ...createMountain(),
       stock: { ...createMountain().stock, stones: 80_000_000, ...FULL },
+      recipes: [...RECIPE_IDS],
     };
     expect(workshopUnlocked(locked)).toBe(false);
-    expect(workshopUnlocked(openShed())).toBe(true);
-    expect(startCraft(locked, "iron-rails", 1)).toBe(locked);
+    // Closed until part 3 (#740): a sunk shaft with part 3 off stays shut.
+    expect(workshopUnlocked(openShed())).toBe(false);
+    expect(startCraft(openShed(), "iron-rails", 1)).toEqual(openShed());
+    expect(partThree(() => workshopUnlocked(openShed()))).toBe(true);
+    expect(craft(locked, "iron-rails", 1)).toBe(locked);
     const shed = openShed();
-    expect(startCraft(shed, "iron-rails", -1)).toBe(shed);
-    expect(startCraft(shed, "iron-rails", 1.5)).toBe(shed);
+    expect(craft(shed, "iron-rails", -1)).toBe(shed);
+    expect(craft(shed, "iron-rails", 1.5)).toBe(shed);
     expect(shed.recipes).toEqual([...RECIPE_IDS]);
     const unknown = { ...shed, recipes: [] };
-    expect(startCraft(unknown, "iron-rails", 1)).toBe(unknown);
+    expect(craft(unknown, "iron-rails", 1)).toBe(unknown);
     const onlyProps = { ...shed, recipes: ["sturdy-props" as const] };
-    expect(startCraft(onlyProps, "iron-rails", 1)).toBe(onlyProps);
-    const started = startCraft(shed, "iron-rails", 1);
-    expect(startCraft(started, "sturdy-props", 2)).toBe(started);
+    expect(craft(onlyProps, "iron-rails", 1)).toBe(onlyProps);
+    const started = craft(shed, "iron-rails", 1);
+    expect(craft(started, "sturdy-props", 2)).toBe(started);
     const maxed = { ...shed, crafted: { ...NOTHING_CRAFTED, "iron-rails": 3 } };
-    expect(startCraft(maxed, "iron-rails", 1)).toBe(maxed);
+    expect(craft(maxed, "iron-rails", 1)).toBe(maxed);
     const capped = {
       ...shed,
       crafted: { ...NOTHING_CRAFTED, "heartstone-ember": MAX_CRAFTED_LEVEL },
     };
-    expect(startCraft(capped, "heartstone-ember", 1)).toBe(capped);
+    expect(craft(capped, "heartstone-ember", 1)).toBe(capped);
     const poor = { ...shed, stock: { ...shed.stock, stones: 10 } };
-    expect(startCraft(poor, "iron-rails", 1)).toBe(poor);
+    expect(craft(poor, "iron-rails", 1)).toBe(poor);
     expect(materialsIn(shed)).toEqual(FULL);
     const bare = { ...shed, stock: { ...shed.stock, ...EMPTY_MATERIALS } };
-    expect(startCraft(bare, "reinforce", 1)).toBe(bare);
+    expect(craft(bare, "reinforce", 1)).toBe(bare);
     const shortClay = { ...shed, stock: { ...shed.stock, ...FULL, clay: 0 } };
-    expect(startCraft(shortClay, "blasting-charge", 1)).toBe(shortClay);
+    expect(craft(shortClay, "blasting-charge", 1)).toBe(shortClay);
     const shortIron = { ...shed, stock: { ...shed.stock, ...FULL, iron: 0 } };
-    expect(startCraft(shortIron, "reinforce", 1)).toBe(shortIron);
+    expect(craft(shortIron, "reinforce", 1)).toBe(shortIron);
     const shortCrystal = {
       ...shed,
       stock: { ...shed.stock, ...FULL, crystal: 0 },
     };
-    expect(startCraft(shortCrystal, "diamond-bits", 1)).toBe(shortCrystal);
+    expect(craft(shortCrystal, "diamond-bits", 1)).toBe(shortCrystal);
     const shortHeart = {
       ...shed,
       stock: { ...shed.stock, ...FULL, heartstone: 0 },
     };
-    expect(startCraft(shortHeart, "heartstone-ember", 1)).toBe(shortHeart);
+    expect(craft(shortHeart, "heartstone-ember", 1)).toBe(shortHeart);
   });
 
   it("puts one craft on the bench and returns every stone and material on cancel", () => {
     const shed = openShed();
-    const started = startCraft(shed, "sturdy-props", 5_000);
+    const started = craft(shed, "sturdy-props", 5_000);
     expect(started).not.toBe(shed);
     expect(shed.stock.stones).toBe(80_000_000);
     expect(started.stock.stones).toBe(shed.stock.stones - 250_000);
@@ -370,19 +339,16 @@ describe("workshop rules", () => {
   });
 
   it("adds another twenty minutes when a second charge finishes while one is hot", () => {
-    const first = settleBench(
-      startCraft(openShed(), "blasting-charge", 0),
-      600_000,
-    );
+    const first = settleBench(craft(openShed(), "blasting-charge", 0), 600_000);
     expect(first.clocks["blasting-charge"]).toBe(CHARGE_MS);
-    const next = startCraft(first, "blasting-charge", 600_000);
+    const next = craft(first, "blasting-charge", 600_000);
     const second = settleBench(next, next.bench?.endsAt ?? 0);
     expect(second.crafted["blasting-charge"]).toBe(2);
     expect(second.clocks["blasting-charge"]).toBe(
       first.clocks["blasting-charge"] + CHARGE_MS,
     );
     const cooled = withClock(first, "blasting-charge", 1);
-    const restarted = startCraft(cooled, "blasting-charge", 100);
+    const restarted = craft(cooled, "blasting-charge", 100);
     const fresh = settleBench(restarted, restarted.bench?.endsAt ?? 0);
     expect(fresh.clocks["blasting-charge"]).toBe(100 + CHARGE_MS);
     const full = {
@@ -401,7 +367,7 @@ describe("workshop rules", () => {
   });
 
   it("runs an ember while it is still on the bench", () => {
-    const ember = startCraft(
+    const ember = craft(
       { ...openShed(), owned: { ...openShed().owned, helper: 25, machine: 1 } },
       "heartstone-ember",
       1_000,
@@ -441,13 +407,13 @@ describe("workshop rules", () => {
       owned: { ...openShed().owned, helper: 0, cart: 4 },
     };
     const plain = effectiveRates(crew, 1).crewPerSecond;
-    const started = startCraft(crew, "axle-grease", 0);
+    const started = craft(crew, "axle-grease", 0);
     expect(axleCrewMultiplier(started, 1)).toBeCloseTo(2);
     expect(effectiveRates(started, 1).crewPerSecond).toBe(plain * 2);
     expect(effectiveRates(started).crewPerSecond).toBe(plain);
     const fitted = settleBench(started, started.bench?.endsAt ?? 0);
     expect(fitted.clocks["axle-grease"]).toBe(AXLE_MS);
-    const again = startCraft(fitted, "axle-grease", 600_000);
+    const again = craft(fitted, "axle-grease", 600_000);
     const twice = settleBench(again, again.bench?.endsAt ?? 0);
     expect(craftedLevel(twice, "axle-grease")).toBe(2);
     expect(twice.clocks["axle-grease"]).toBe(600_000 + AXLE_MS);
@@ -462,20 +428,20 @@ describe("workshop rules", () => {
     };
     const horizon = AXLE_MS;
     const kept = accrue({
-      mountain: startCraft(crew, "axle-grease", 0),
+      mountain: craft(crew, "axle-grease", 0),
       from: 0,
       to: horizon,
     });
     const halfway = 5 * 60_000;
     const mid = accrue({
-      mountain: startCraft(crew, "axle-grease", 0),
+      mountain: craft(crew, "axle-grease", 0),
       from: 0,
       to: halfway,
     });
     const cancelled = cancelCraft(mid.mountain, halfway);
     expect(axleCrewMultiplier(cancelled, halfway + 1)).toBe(1);
     expect(cancelled.stock.iron).toBeLessThan(40);
-    const restarted = startCraft(cancelled, "axle-grease", halfway);
+    const restarted = craft(cancelled, "axle-grease", halfway);
     const again = accrue({
       mountain: restarted,
       from: halfway,
@@ -495,7 +461,7 @@ describe("workshop rules", () => {
       owned: { ...openShed().owned, helper: 4 },
       stock: { ...openShed().stock, ...FULL, clay: 20, stones: 500_000 },
     };
-    const started = startCraft(crew, "blasting-charge", 0);
+    const started = craft(crew, "blasting-charge", 0);
     const halfway = 5 * 60_000;
     const cancelled = cancelCraft(started, halfway);
     expect(chargeCrewMultiplier(cancelled, halfway + 1)).toBe(1);
@@ -507,7 +473,7 @@ describe("workshop rules", () => {
   });
 
   it("refunds the unused share of an ember", () => {
-    const ember = startCraft(
+    const ember = craft(
       {
         ...openShed(),
         owned: { ...openShed().owned, helper: 25, machine: 1 },
@@ -682,10 +648,10 @@ describe("workshop rules", () => {
 
   it("refreshes an ember instead of stacking it", () => {
     const ember = settleBench(
-      startCraft(openShed(), "heartstone-ember", 0),
+      craft(openShed(), "heartstone-ember", 0),
       600_000,
     );
-    const emberAgain = startCraft(ember, "heartstone-ember", 600_000);
+    const emberAgain = craft(ember, "heartstone-ember", 600_000);
     const emberSecond = settleBench(emberAgain, emberAgain.bench?.endsAt ?? 0);
     expect(emberSecond.clocks["heartstone-ember"]).toBe(600_000 + CHARGE_MS);
     expect(emberSecond.clocks["heartstone-ember"]).not.toBe(
@@ -695,7 +661,7 @@ describe("workshop rules", () => {
     const stretched = withFactors(
       { "recipe.heartstone-ember.strength": 2 },
       () => {
-        const started = startCraft(openShed(), "heartstone-ember", 0);
+        const started = craft(openShed(), "heartstone-ember", 0);
         return settleBench(started, started.bench?.endsAt ?? 0).clocks[
           "heartstone-ember"
         ];
@@ -706,14 +672,14 @@ describe("workshop rules", () => {
 
   it("names the refund and the hot timers", () => {
     expect(cancelRefund(openShed(), 1)).toBeUndefined();
-    const props = startCraft(openShed(), "sturdy-props", 1_000);
+    const props = craft(openShed(), "sturdy-props", 1_000);
     expect(cancelRefund(props, 1_000)).toEqual([
       { good: "stones", amount: 250_000 },
       { good: "clay", amount: 10 },
       { good: "iron", amount: 4 },
     ]);
     expect(cancelRefund(props, props.bench?.endsAt ?? 0)).toEqual([]);
-    const charge = startCraft(openShed(), "blasting-charge", 0);
+    const charge = craft(openShed(), "blasting-charge", 0);
     const halfway = cancelRefund(charge, 5 * 60_000);
     expect(priceAmount(halfway ?? [], "stones")).toBe(75_000);
     expect(priceAmount(halfway ?? [], "clay")).toBe(3);

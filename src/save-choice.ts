@@ -7,7 +7,7 @@ import { archiveWithin } from "./archive-wait";
 import type { ArchiveWriteReason, ArchivedCopy } from "./cloud-save";
 import { markCloudDirty, persistCloudSoon } from "./cloud-writer";
 import { persistPhoneBackup } from "./local-saves";
-import { rockDugInAll, runStartedAt, type Mountain } from "./mountain";
+import { runStartedAt, type Mountain } from "./mountain";
 import { playedSinceNew } from "./save-progress";
 import { conflictFacts } from "./save-adopt";
 import { payAway } from "./save-load";
@@ -157,7 +157,7 @@ export async function restoreCopy(
   playChosen(ctx, mountain, lastSeen);
   // Its layers were found when it was played: news counts from here, as a watch's copy.
   ctx.session = openBaselines(ctx.session, true);
-  const data = { rev: ctx.syncedRev + 1, mined: rockDugInAll(mountain) };
+  const data = { rev: ctx.syncedRev + 1, mined: mountain.rockDug };
   record(ctx, "save.restore", data);
   log(ctx, { level: "info", code: "save.restore", detail: id, data });
   saveChosen(ctx, lastSeen);
@@ -204,7 +204,7 @@ async function keepInPlay(
       reason,
     }),
     reason,
-    rockDugInAll(mountain),
+    mountain.rockDug,
     () => stillOn(ctx, stance),
   );
 }

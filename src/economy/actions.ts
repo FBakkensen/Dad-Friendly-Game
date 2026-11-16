@@ -89,11 +89,10 @@ import {
   type Trouble,
   type TroubleTier,
 } from "../hazards";
-import { LAYERS } from "../layers";
+import { MATERIAL_IDS } from "../layers";
 import { upgradeShown } from "../upgrade-reveal";
 import { expeditionAwayMs } from "../lost-tools";
 import type { Mountain } from "../mountain";
-import { minedOut, oneOffStretch } from "../scale";
 import {
   markAllSeen,
   markSeen,
@@ -108,11 +107,10 @@ import {
   expeditionCraftScale,
   recipeById,
   recipePrice,
-  recipesForMined,
+  STARTING_RECIPE_IDS,
   settleBench,
   startCraft,
   troubleGapScale,
-  recipeOpen,
   workshopUnlocked,
   type RecipeId,
 } from "../workshop";
@@ -632,14 +630,14 @@ function troubleActions(trouble: Trouble | undefined): readonly Action[] {
 }
 
 /**
- * Recipes the dad could put on a free bench: known at this depth, plus any
+ * Recipes the dad could put on an open bench: the starting ones, plus any
  * found recipe already on the mountain, and not finished. The bench being
  * busy does not remove the sink.
  */
 export function sinkRecipes(mountain: Mountain): readonly RecipeId[] {
-  return knownRecipeIds(mountain).filter(
-    (id) => recipeOpen(mountain, id) && craftHasRoom(mountain, id),
-  );
+  return workshopUnlocked(mountain)
+    ? knownRecipeIds(mountain).filter((id) => craftHasRoom(mountain, id))
+    : [];
 }
 
 /**
@@ -842,7 +840,7 @@ function actionApplied(
     case "buyTier":
       return buyWithTeach(mountain, action.id);
     case "buyUpgrade":
-      // The price moved since it was shown (a band crossed at the tap): no buy (#367).
+      // The price moved since it was shown: no buy (#367).
       return samePrice(
         action.price,
         upgradePrice(mountain, action.id) ?? UNSHOWN_PRICE,
@@ -866,9 +864,9 @@ function actionApplied(
     case "fixTrouble":
       return mountain;
     case "craft": {
-      const prepared = grantDepthRecipe(mountain, action.recipe);
+      const prepared = grantStartingRecipe(mountain, action.recipe);
       const started = startCraft(prepared, action.recipe, now);
-      // A depth recipe is written onto the mountain only when the craft
+      // A starting recipe is written onto the mountain only when the craft
       // actually starts. A refused craft leaves the save untouched.
       return started === prepared ? mountain : started;
     }
@@ -1250,11 +1248,7 @@ function valueUpgrade(
   context: ValueContext,
 ): ActionValue {
   const upgrade = upgradeById(id);
-  const price = upgradeCost(
-    upgrade,
-    upgradeLevel(mountain, id),
-    oneOffStretch(mountain),
-  );
+  const price = upgradeCost(upgrade, upgradeLevel(mountain, id));
   if (price === undefined || !upgradeUnlocked(mountain, upgrade)) {
     return rateValue(mountain, 0, price ?? 0, horizon, context);
   }
@@ -1647,7 +1641,7 @@ function previewCraft(
   id: RecipeId,
   now: number,
 ): { readonly fitted: Mountain; readonly endsAt: number } | undefined {
-  if (mountain.bench !== undefined || !recipeOpen(mountain, id)) {
+  if (mountain.bench !== undefined || !workshopUnlocked(mountain)) {
     return undefined;
   }
   const prepared = fundCraft(mountain, id);
@@ -1681,15 +1675,15 @@ function materialsPrice(
   const cost = recipePrice(id);
   const others = sinkRecipes(mountain).filter((other) => other !== id);
   let price = 0;
-  for (const layer of LAYERS) {
-    const units = priceAmount(cost, layer.material);
+  for (const material of MATERIAL_IDS) {
+    const units = priceAmount(cost, material);
     if (units <= 0) {
       continue;
     }
     let best = 0;
     for (const other of others) {
       const otherCost = recipePrice(other);
-      const otherUnits = priceAmount(otherCost, layer.material);
+      const otherUnits = priceAmount(otherCost, material);
       if (otherUnits <= 0) {
         continue;
       }
@@ -1720,25 +1714,28 @@ function fundCraft(mountain: Mountain, id: RecipeId): Mountain {
         ? line.amount
         : Math.max(0, line.amount - have[line.good]);
   }
-  return add(grantDepthRecipe(mountain, id), gains);
+  return add(grantStartingRecipe(mountain, id), gains);
 }
 
 /**
- * A layer recipe is known once that band is reached, even when the save
- * has not written it yet. A found recipe stays found only.
+ * A starting recipe is known even when the save has not written it yet. A
+ * found recipe stays found only.
  */
-function grantDepthRecipe(mountain: Mountain, id: RecipeId): Mountain {
+function grantStartingRecipe(mountain: Mountain, id: RecipeId): Mountain {
   const known = mountain.recipes;
-  if (known.includes(id) || !recipesForMined(minedOut(mountain)).includes(id)) {
+  if (known.includes(id) || !isStartingRecipe(id)) {
     return mountain;
   }
   return { ...mountain, recipes: [...known, id] };
 }
 
+function isStartingRecipe(id: RecipeId): boolean {
+  return (STARTING_RECIPE_IDS as readonly RecipeId[]).includes(id);
+}
+
 export function knownRecipeIds(mountain: Mountain): readonly RecipeId[] {
-  const depth = recipesForMined(minedOut(mountain));
-  const found = mountain.recipes.filter((id) => !depth.includes(id));
-  return [...depth, ...found];
+  const found = mountain.recipes.filter((id) => !isStartingRecipe(id));
+  return [...STARTING_RECIPE_IDS, ...found];
 }
 
 function craftHasRoom(mountain: Mountain, id: RecipeId): boolean {

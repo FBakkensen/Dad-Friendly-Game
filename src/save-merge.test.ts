@@ -6,7 +6,7 @@ import {
   NO_LEVEL_MACHINES,
   type Granite,
 } from "./mine-levels";
-import { createMountain, minedOut, type Mountain } from "./mountain";
+import { createMountain, type Mountain } from "./mountain";
 import { minedMountain } from "./test-fixtures";
 import { NOTHING_CRAFTED } from "./workshop";
 import { NO_UPGRADES } from "./upgrades";
@@ -54,7 +54,7 @@ describe("mergeSaves", () => {
     expect(merged.mountain).toBe(local.mountain);
     expect(merged.rev).toBe(4);
     expect(merged.mountain.upgrades).toEqual({ ...NO_UPGRADES, cartSyn: 1 });
-    expect(minedOut(merged.mountain)).toBe(10);
+    expect(merged.mountain.rockDug).toBe(10);
   });
 
   it("fast-forwards a stones-only gain", () => {
@@ -136,7 +136,7 @@ describe("mergeSaves", () => {
     }
     expect(merged.local).toBe(local);
     expect(merged.remote).toBe(remote);
-    expect(minedOut(merged.local.mountain)).toBe(100);
+    expect(merged.local.mountain.rockDug).toBe(100);
     expect(merged.local.mountain.upgrades).toEqual({
       ...NO_UPGRADES,
       cartSyn: 1,
@@ -165,9 +165,7 @@ describe("mergeSaves", () => {
     }
     expect(merged.local.mountain.owned.cart).toBe(0);
     expect(merged.remote.mountain.owned.cart).toBe(6);
-    expect(minedOut(merged.local.mountain)).toBe(
-      minedOut(merged.remote.mountain),
-    );
+    expect(merged.local.mountain.rockDug).toBe(merged.remote.mountain.rockDug);
   });
 
   it("does not add the other copy's stones or take the higher upgrade", () => {

@@ -1,13 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { send } from "../expeditions";
 import { stepHazards, type HazardState } from "../hazards";
-import {
-  MOUNTAIN_STONES,
-  accrue,
-  accrueAway,
-  createMountain,
-  type Mountain,
-} from "../mountain";
+import { accrue, accrueAway, createMountain, type Mountain } from "../mountain";
+import { levels, partThree } from "../part-three.harness";
 import { startCraft } from "../workshop";
 import { createWorld, step, type World } from "./world";
 
@@ -150,7 +145,8 @@ describe("world step", () => {
   it("fits a finished craft on the live clock", () => {
     const shed: Mountain = {
       ...createMountain(),
-      remaining: MOUNTAIN_STONES - 12_000_000,
+      // The bench opens with the Granite, in part 3 (#740).
+      granite: levels({}).granite,
       stock: {
         ...createMountain().stock,
         stones: 50_000_000,
@@ -161,7 +157,7 @@ describe("world step", () => {
       },
       owned: { ...createMountain().owned, helper: 4, cart: 1 },
     };
-    const started = startCraft(shed, "iron-rails", 0);
+    const started = partThree(() => startCraft(shed, "iron-rails", 0));
     const endsAt = started.bench?.endsAt ?? 0;
     const early = step(createWorld(1, started), endsAt - 1, "live");
     expect(early.mountain.bench?.recipe).toBe("iron-rails");

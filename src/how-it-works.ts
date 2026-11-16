@@ -9,7 +9,7 @@ import {
 import { TUNNELS } from "./expeditions";
 import { formatCompact, formatDuration } from "./format";
 import { ENGINEER_FIX_MS, FIX_TAPS } from "./hazards";
-import { LAYERS } from "./layers";
+import { LAYER_IDS } from "./layers";
 import { AWAY_PAY_RATE, AWAY_END_MS } from "./rates";
 import { tierById } from "./tiers";
 import { UPGRADES } from "./upgrades";
@@ -78,7 +78,6 @@ const cart = tierById("cart");
 const drill = tierById("drill");
 const borer = tierById("borer");
 const machine = tierById("machine");
-const granite = LAYERS[1];
 const firstUpgrade = Math.min(...UPGRADES.map((item) => item.firstCost));
 const shortTunnel = TUNNELS[0];
 const longTunnel = TUNNELS[TUNNELS.length - 1] ?? TUNNELS[0];
@@ -96,7 +95,7 @@ const crewTimerLine =
     ? `A blasting charge or axle grease doubles the crew for ${formatDuration(chargeMs)}.`
     : `A blasting charge doubles the crew for ${formatDuration(chargeMs)}, axle grease for ${formatDuration(greaseMs)}.`;
 
-/** Stone prices on the cards: the first band's, as the buttons start. */
+/** Stone prices on the cards, as the buttons start. */
 interface Prices {
   readonly stones: (count: number) => string;
 }
@@ -263,7 +262,7 @@ function depthCards(): Cards<"layers" | "materials" | "workshop" | "recipes"> {
       steps: [
         [
           "mountain",
-          `The mountain has ${String(LAYERS.length)} layers, each with its own rock.`,
+          `The mountain has ${String(LAYER_IDS.length)} layers, each with its own rock.`,
         ],
         [
           "tunnel-borer",
@@ -285,7 +284,7 @@ function depthCards(): Cards<"layers" | "materials" | "workshop" | "recipes"> {
       steps: [
         [
           "ore-lump",
-          `Digging brings up ore: clay first, iron from ${granite.name}.`,
+          "Digging brings up ore: clay first, iron from The Granite.",
         ],
         ["stone", "Ore comes on its own as the crew digs. Nothing to buy."],
         ["pick", "Ore goes into gear at the Workshop."],

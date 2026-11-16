@@ -174,7 +174,6 @@ describe("the account reported again (#481)", () => {
         dad.uid,
         {
           ...createMountain(),
-          remaining: 0,
           owned: { ...createMountain().owned, helper: 5 },
         },
       ],
@@ -199,8 +198,8 @@ describe("the account reported again (#481)", () => {
     expect(progress.getSnapshot().ready).toBe(true);
     await expect(progress.startOver()).resolves.toBe(true);
     expect(progress.getSnapshot().mountain.startedAt).toBe(50_000);
-    expect(progress.getSnapshot().mountain.remaining).toBe(
-      createMountain().remaining,
+    expect(progress.getSnapshot().mountain.rockDug).toBe(
+      createMountain().rockDug,
     );
     progress.dispose();
   });
@@ -467,10 +466,9 @@ describe("a fresh mine signing in (#664)", () => {
       await settle();
       releaseReads();
       await settle();
-      // A fresh mine's stones left are Infinity: nothing was tapped.
+      // Nothing was tapped: a fresh mine has no taps.
       const mountain = progress.getSnapshot().mountain;
       expect(mountain.stock.stones).toBe(40);
-      expect(mountain.remaining).toBe(start.remaining);
       expect(resumeLines(progress)).toBe(1);
       progress.dispose();
     } finally {

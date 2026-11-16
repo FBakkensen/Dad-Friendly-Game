@@ -3,7 +3,6 @@ import { el, frameX, hide, mark, setAttr, write } from "./board-dom";
 import type { BoardHost } from "./board-host";
 import { LAMP_FRAME, LAMP_PX } from "./board-row";
 import { skin } from "./board-skin";
-import { rockDugInAll } from "./mountain";
 import type {
   ProgressStore,
   SaveConflictView,
@@ -27,15 +26,14 @@ function splitKey(conflict: SaveConflictView): string {
   return [
     conflict.local.rev,
     conflict.remote.rev,
-    rockDugInAll(conflict.local.mountain),
-    rockDugInAll(conflict.remote.mountain),
+    conflict.local.mountain.rockDug,
+    conflict.remote.mountain.rockDug,
   ].join(":");
 }
 
-/** The side with more rock dug in all; the phone on a tie. */
+/** The side with more rock dug; the phone on a tie. */
 function preselect(conflict: SaveConflictView): Pick {
-  return rockDugInAll(conflict.remote.mountain) >
-    rockDugInAll(conflict.local.mountain)
+  return conflict.remote.mountain.rockDug > conflict.local.mountain.rockDug
     ? "remote"
     : "local";
 }

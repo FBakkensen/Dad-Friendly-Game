@@ -1,5 +1,4 @@
 import { shareOut } from "./building-site";
-import { MATERIAL_EVERY } from "./layers";
 import { graniteOpen } from "./mine-levels";
 import type { Mountain } from "./mountain";
 import {
@@ -298,13 +297,16 @@ export function installWorkOrder(mountain: Mountain, now: number): Mountain {
 /** The most of each material the stockyard holds: what its band gives in a run today (rule 5.13). */
 export const MATERIAL_HOLDS = { clay: 10, iron: 35 } as const;
 
+/** Rock drilled on a level for one unit of its material (rule 5.13): 1M for a clay or an iron. */
+export const ROCK_PER_UNIT = { clay: 1_000_000, iron: 1_000_000 } as const;
+
 /** Whole units of a material between two counts of a level's drilled rock. */
 function unitsBetween(
   material: "clay" | "iron",
   before: number,
   after: number,
 ): number {
-  const every = MATERIAL_EVERY[material];
+  const every = ROCK_PER_UNIT[material];
   return Math.floor(after / every) - Math.floor(before / every);
 }
 

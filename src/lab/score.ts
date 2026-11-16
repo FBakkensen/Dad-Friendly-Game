@@ -2,7 +2,6 @@ import type { Trouble } from "../hazards";
 import type { Mountain } from "../mountain";
 import { effectiveRates } from "../rates";
 import { onTrip, station } from "../engineers";
-import { layerOf } from "../layers";
 import { lineOf, lineView } from "../line";
 import { TIERS } from "../tiers";
 import {
@@ -377,7 +376,6 @@ export function scoreDecision(input: ScoreInput): DecisionSample {
     pocket: input.mountain.stock.stones,
     outputShare: outputShare(input.mountain, input.now, input.trouble),
     line: lineView(rates.tierSpeed, rates.running),
-    layer: layerOf(input.mountain).id,
     optionKinds: optionKinds(actions),
     nextPaybackRatio: nextPaybackRatio(priced),
     stretch: {

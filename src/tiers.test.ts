@@ -4,7 +4,6 @@ import { buyCrew, tierLock } from "./crew";
 import { minedMountain, reloaded, NONE_OWNED } from "./test-fixtures";
 import { type Mountain, BARE_MOUNTAIN, createMountain } from "./mountain";
 import { effectiveRates } from "./rates";
-import { MOUNTAIN_STONES } from "./scale";
 import { withFactors } from "./economy/factors";
 import { UPGRADES, upgradePrice } from "./upgrades";
 import { NO_GRANITE_PILES, NO_LEVEL_MACHINES } from "./mine-levels";
@@ -28,11 +27,8 @@ import {
   type TierId,
 } from "./tiers";
 
-const at = (
-  fields: Partial<Omit<Mountain, "remaining" | "startedAt">>,
-): Mountain => ({
+const at = (fields: Partial<Omit<Mountain, "startedAt">>): Mountain => ({
   ...BARE_MOUNTAIN,
-  remaining: 240_000_000,
   stock: { ...BARE_MOUNTAIN.stock, stones: 0 },
   owned: {
     ...BARE_MOUNTAIN.owned,
@@ -182,13 +178,10 @@ describe("cost curves (#356)", () => {
     });
   });
 
-  it("an old crew still prices every machine and the mountain is not smaller", () => {
-    const old = {
-      ...at({
-        owned: { ...NONE_OWNED, helper: 32, cart: 13, drill: 11, borer: 0 },
-      }),
-      remaining: MOUNTAIN_STONES - 12_000_000,
-    };
+  it("an old crew still prices every machine", () => {
+    const old = at({
+      owned: { ...NONE_OWNED, helper: 32, cart: 13, drill: 11, borer: 0 },
+    });
     const m = reloaded(old);
     if (m === undefined) {
       throw new Error("the old crew did not load");
@@ -199,7 +192,6 @@ describe("cost curves (#356)", () => {
       expect(Number.isFinite(cost)).toBe(true);
       expect(cost).toBeGreaterThan(0);
     }
-    expect(m.remaining).toBe(MOUNTAIN_STONES - 12_000_000);
   });
 });
 

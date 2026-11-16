@@ -354,7 +354,7 @@ describe("the Ledger drawer (#375)", () => {
     const fresh = screen.progress.getSnapshot().mountain;
     expect(fresh.stock.stones).toBe(0);
     expect(fresh.owned.helper).toBe(createMountain().owned.helper);
-    expect(fresh.remaining).toBe(createMountain().remaining);
+    expect(fresh.rockDug).toBe(createMountain().rockDug);
     // The page waits for the new run (#480), then closes onto the key.
     await vi.waitFor(() => {
       expect(isOpen(screen)).toBe(false);

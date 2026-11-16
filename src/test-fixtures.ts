@@ -1,16 +1,22 @@
-import { MOUNTAIN_STONES, createMountain, type Mountain } from "./mountain";
+import { createMountain, type Mountain } from "./mountain";
 import { readSave, serializeSave, type ParsedSave } from "./persist";
 import { readSessionSave } from "./session-save";
 import { readGame } from "./save-format";
+import { addedStock } from "./stock";
 import { tierRecord, type TierId } from "./tiers";
 
-/** A mountain after `count` hand taps. */
+/** A mountain with `count` stones in the pocket and as much rock dug. */
 export function minedMountain(count: number): Mountain {
   return {
     ...createMountain(),
-    remaining: MOUNTAIN_STONES - count,
+    rockDug: count,
     stock: { ...createMountain().stock, stones: count },
   };
+}
+
+/** A change that adds `stones` to the pocket: a mutation for the save tests. */
+export function digStones(mountain: Mountain, stones: number): Mountain {
+  return { ...mountain, stock: addedStock(mountain.stock, { stones }) };
 }
 
 /** The mountain after a save through JSON and back, or undefined when it does not read `ok`. */

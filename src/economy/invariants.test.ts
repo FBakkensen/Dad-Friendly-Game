@@ -17,11 +17,9 @@ import { crewedStart } from "../test-fixtures";
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { fix, freshHazards, type HazardState } from "../hazards";
-import { LAYERS } from "../layers";
 import { accrueAway, createMountain, type Mountain } from "../mountain";
 import { readSave, serializeSave } from "../persist";
 import { AWAY_FULL_MS, effectiveRates } from "../rates";
-import { MOUNTAIN_STONES, minedOut } from "../scale";
 import { advance, type TimeInput } from "../session-time";
 import { TIERS } from "../tiers";
 import { applyMove, listActions, type Move } from "./actions";
@@ -79,19 +77,18 @@ function crewed(start: Mountain, buys: number): Mountain {
   return mountain;
 }
 
-/** A save a little way into each band, with a crew bought on the way down. */
-const BAND_STARTS: readonly Mountain[] = LAYERS.map((layer) => {
-  const mined = layer.from + 1000;
-  const rich = {
-    ...createMountain(),
-    remaining: MOUNTAIN_STONES - mined,
-    stock: {
-      ...createMountain().stock,
-      stones: Math.max(1000, Math.floor(mined / 10)),
-    },
-  };
-  return crewed(rich, 60);
-});
+/**
+ * Saves with a crew bought from a small to a large pocket (the pockets each
+ * band's start held before #740 took depth away).
+ */
+const STARTS: readonly Mountain[] = [
+  1_000, 1_000_100, 4_500_100, 12_000_100,
+].map((stones) =>
+  crewed(
+    { ...createMountain(), stock: { ...createMountain().stock, stones } },
+    60,
+  ),
+);
 
 /**
  * What the dad has to spend when a run starts: a little, a fair amount, or a
@@ -298,7 +295,7 @@ function badNumbers(mountain: Mountain): readonly string[] {
 /** Things a run only ever gains. */
 function lifetime(mountain: Mountain): Record<string, number> {
   return {
-    mined: minedOut(mountain),
+    rockDug: mountain.rockDug,
     recipes: mountain.recipes.length,
     finds: mountain.finds.length,
     taught: mountain.taught.length,
@@ -334,16 +331,9 @@ function roundTrips(world: World): void {
     ),
   ) as unknown;
   const back = readSave(saved);
-  // By design (save-format.ts): the cloud keeps whole depth, rounded up.
   expect(back).toEqual({
     kind: "ok",
-    save: {
-      mountain: {
-        ...world.mountain,
-        remaining: Math.ceil(world.mountain.remaining),
-      },
-      lastSeen: world.lastSeen,
-    },
+    save: { mountain: world.mountain, lastSeen: world.lastSeen },
   });
 }
 
@@ -421,15 +411,15 @@ describe("economy invariants on random play (#555)", () => {
   it("never breaks a count, a lifetime figure, a buy's price or speed, or a save", () => {
     fc.assert(
       fc.property(
-        fc.constantFrom(...BAND_STARTS.keys()),
+        fc.constantFrom(...STARTS.keys()),
         pocketArb,
         materialsArb,
         fc.nat(1000),
         fc.array(stepArb, { minLength: 1, maxLength: 40, size: "max" }),
-        (band, pocket, materials, seed, steps) => {
+        (start, pocket, materials, seed, steps) => {
           let world: World = {
             mountain: {
-              ...(BAND_STARTS[band] ?? createMountain()),
+              ...(STARTS[start] ?? createMountain()),
               stock: { stones: pocket, brick: 0, cutStone: 0, ...materials },
             },
             hazards: freshHazards(seed),
@@ -476,25 +466,6 @@ describe("economy invariants on random play (#555)", () => {
 });
 
 /**
- * Several stretches away, each from where the last one settled, as the game
- * keeps `lastSeen`: part-seconds carry over, they are not paid twice or lost.
- */
-function awayThrough(
-  mountain: Mountain,
-  from: number,
-  ends: readonly number[],
-): Mountain {
-  let current = mountain;
-  let lastSeen = from;
-  for (const now of ends) {
-    const paid = accrueAway({ mountain: current, lastSeen, now });
-    current = paid.mountain;
-    lastSeen = paid.settledAt;
-  }
-  return current;
-}
-
-/**
  * Known gap, "part-stone": each stretch away pays whole stones and drops the
  * part stone (23 workers away pay 6.9 a second, so a 3 s stretch pays 20 and
  * three 1 s stretches pay 18). So the stated tolerance is one stone a
@@ -504,13 +475,9 @@ function tolerance(mined: number, stretches: number): number {
   return stretches + mined * 1e-6;
 }
 
-function minedAway(mountain: Mountain, ends: readonly number[]): number {
-  return minedOut(awayThrough(mountain, START, ends)) - minedOut(mountain);
-}
-
 /**
  * Stones the stretches pay, one after another: what they pay must not depend
- * on the slicing, in every band.
+ * on the slicing, from every start.
  */
 function basePay(mountain: Mountain, ends: readonly number[]): number {
   let current = mountain;
@@ -529,7 +496,7 @@ describe("time away pays the same however it is sliced (#555)", () => {
   it("one absence pays what the same absence pays in two parts", () => {
     fc.assert(
       fc.property(
-        fc.constantFrom(...BAND_STARTS),
+        fc.constantFrom(...STARTS),
         fc.double({ min: 0, max: 1, noNaN: true }),
         fc.double({ min: 0.01, max: 0.99, noNaN: true }),
         (start, length, at) => {
@@ -551,7 +518,7 @@ describe("time away pays the same however it is sliced (#555)", () => {
   it("a long absence pays what the same time pays a second at a time", () => {
     fc.assert(
       fc.property(
-        fc.constantFrom(...BAND_STARTS),
+        fc.constantFrom(...STARTS),
         fc.integer({ min: 2, max: 30 * 60 }),
         (start, seconds) => {
           const once = basePay(start, [START + seconds * SECOND]);
@@ -569,48 +536,6 @@ describe("time away pays the same however it is sliced (#555)", () => {
       ),
       { numRuns: 40 },
     );
-  });
-
-  const GRANITE = LAYERS[1];
-
-  /**
-   * A crew with drills or borers, placed so one hour away ends exactly on the
-   * Granite's first stone. Granite slows drills and suits borers.
-   */
-  function atGranite(field: "drill" | "borer"): Mountain {
-    const crew = {
-      ...createMountain(),
-      owned: {
-        ...createMountain().owned,
-        helper: 30,
-        cart: 10,
-        hoist: 10,
-        [field]: 20,
-      },
-    };
-    const hour = accrueAway({
-      mountain: crew,
-      lastSeen: START,
-      now: START + HOUR,
-    });
-    // The Topsoil's scale is 1: an hour's stones are an hour's depth.
-    return {
-      ...crew,
-      remaining: MOUNTAIN_STONES - (GRANITE.from - hour.mined),
-    };
-  }
-
-  it("band-crossing: an absence into the Granite pays the Granite's speed from its first stone (#592)", () => {
-    for (const field of ["drill", "borer"] as const) {
-      const crew = atGranite(field);
-      expect(minedOut(awayThrough(crew, START, [START + HOUR]))).toBe(
-        GRANITE.from,
-      );
-      // One 6 h absence against the same absence split where it crosses.
-      const once = minedAway(crew, [START + 6 * HOUR]);
-      const split = minedAway(crew, [START + HOUR, START + 6 * HOUR]);
-      expect(Math.abs(once - split)).toBeLessThanOrEqual(tolerance(once, 2));
-    }
   });
 });
 

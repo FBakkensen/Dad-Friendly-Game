@@ -4,7 +4,6 @@ import type { MoveEvent } from "./economy/actions";
 import { ENGINEER_NAMES, onDuty } from "./engineers";
 import type { Mountain } from "./mountain";
 import type { Rates } from "./rates";
-import { minedOut } from "./scale";
 import {
   MACHINE_IDS,
   machineRecord,
@@ -155,9 +154,9 @@ export function snapshot(
     at: new Date(now).toISOString(),
     deviceId: stamp.deviceId ?? "",
     rev: stamp.rev ?? 0,
-    // Depth in stones, whole, as the rules want (a deep band digs fractions).
-    mined: Math.floor(minedOut(mountain)),
-    left: Math.ceil(mountain.remaining),
+    // The mountain has no depth (#740): nothing mined out, and all of it left.
+    mined: 0,
+    left: 240_000_000,
     pocket: Math.min(mountain.stock.stones, FIELD_STONES_CAP),
     crew,
     crewSpeed: rates.crewPerSecond,
@@ -280,7 +279,7 @@ export class EventRing {
   }
 
   push(event: FieldEvent): void {
-    // A deep-band haul can pass 240M; only past the rules' cap does it clamp.
+    // A long haul can pass 240M; only past the rules' cap does it clamp.
     const stones = event.data.stones;
     this.#events.push(
       stones === undefined || stones <= FIELD_STONES_CAP

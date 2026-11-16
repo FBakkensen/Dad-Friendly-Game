@@ -4,7 +4,6 @@ import { buildingById, buildingsInPlay } from "../city";
 import { withFactors } from "../economy/factors";
 import { createMountain, type Mountain } from "../mountain";
 import { PLAY_FACTORS } from "../part-switch";
-import { MOUNTAIN_STONES } from "../scale";
 import { machinesInPlay, tierById } from "../tiers";
 import {
   createLedgerLog,
@@ -21,10 +20,7 @@ function at(clock: number, mountain: Mountain): World {
 }
 
 function dug(mined: number, over: MountainPatch = {}): Mountain {
-  return patched(
-    { ...createMountain(), remaining: MOUNTAIN_STONES - mined },
-    over,
-  );
+  return patched({ ...createMountain(), rockDug: mined }, over);
 }
 
 /** The live game's mine: the fresh mine with part 2 (#737). */

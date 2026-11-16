@@ -1,9 +1,4 @@
-import {
-  createMountain,
-  rockDugInAll,
-  runStartedAt,
-  type Mountain,
-} from "./mountain";
+import { createMountain, runStartedAt, type Mountain } from "./mountain";
 import { TIER_IDS } from "./tiers";
 import { VEHICLE_IDS } from "./transport";
 
@@ -33,7 +28,7 @@ export function compareSaveProgress(
   if (run !== 0) {
     return run;
   }
-  const mined = rockDugInAll(left.mountain) - rockDugInAll(right.mountain);
+  const mined = left.mountain.rockDug - right.mountain.rockDug;
   if (mined !== 0) {
     return mined;
   }
@@ -53,7 +48,7 @@ export function playedSinceNew(
 ): boolean {
   const start = createMountain();
   return (
-    rockDugInAll(mountain) > 0 ||
+    mountain.rockDug > 0 ||
     (countStamp && runStartedAt(mountain) > 0) ||
     mountain.stock.stones > 0 ||
     mountain.operational.length > 0 ||
