@@ -34,6 +34,7 @@ import { freshMineOn } from "../line-switch";
 import {
   BLUEPRINT_IDS,
   blueprintOpen,
+  installable,
   cancelWorkOrder,
   installWorkOrder,
   placeWorkOrder,
@@ -206,7 +207,9 @@ function factoryActions(mountain: Mountain): readonly Action[] {
     case "delivering":
       return [{ kind: "cancelWorkOrder" }];
     case "done":
-      return [{ kind: "installWorkOrder" }, { kind: "cancelWorkOrder" }];
+      return installable(mountain)
+        ? [{ kind: "installWorkOrder" }, { kind: "cancelWorkOrder" }]
+        : [{ kind: "cancelWorkOrder" }];
   }
 }
 

@@ -685,7 +685,13 @@ function workStretch(
   return {
     mountain: deliver(dug, seconds, pay),
     mined: mine.mined,
-    gained: mine.gained,
+    gained:
+      dug === mine.mountain
+        ? mine.gained
+        : addedStock(
+            stockMoved(mine.mountain.stock, dug.stock).gained,
+            mine.gained,
+          ),
     settledAt: from + seconds * 1000,
     producing: mine.mined > 0,
   };

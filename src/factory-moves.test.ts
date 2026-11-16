@@ -90,6 +90,12 @@ describe("the factory's moves (#674)", () => {
         { kind: "installWorkOrder" },
         { kind: "cancelWorkOrder" },
       ]);
+      // The old bench took the props to their last level first.
+      const capped = {
+        ...mine(true, { kind: "done", blueprint: "sturdy-props" }),
+        crafted: { ...mine(true).crafted, "sturdy-props": 1 },
+      };
+      expect(factoryMoves(capped)).toEqual([{ kind: "cancelWorkOrder" }]);
     });
   });
 

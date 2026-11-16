@@ -104,12 +104,30 @@ function lastLevel(id: BlueprintId): number {
   return recipeById(id).maxLevel ?? MAX_CRAFTED_LEVEL;
 }
 
-/** Whether this blueprint can be placed: the station is open and the gear is not at its last level. */
+/**
+ * Whether this blueprint can be placed: the station is open and the gear is
+ * not at its last level, counting a craft of it still on the old bench.
+ */
 export function blueprintOpen(
-  mountain: Pick<Mountain, "granite" | "crafted">,
+  mountain: Pick<Mountain, "granite" | "crafted" | "bench">,
   id: BlueprintId,
 ): boolean {
-  return stationOpen(mountain) && craftedLevel(mountain, id) < lastLevel(id);
+  const benched = mountain.bench?.recipe === id ? 1 : 0;
+  return (
+    stationOpen(mountain) &&
+    craftedLevel(mountain, id) + benched < lastLevel(id)
+  );
+}
+
+/** Whether a done work order can be installed: its gear is not at its last level (the old bench may have got there first). */
+export function installable(
+  mountain: Pick<Mountain, "station" | "crafted">,
+): boolean {
+  const { station } = mountain;
+  return (
+    station.kind === "done" &&
+    craftedLevel(mountain, station.blueprint) < lastLevel(station.blueprint)
+  );
 }
 
 /** He places a work order on an idle station. It costs nothing: transport brings what it requires. */
@@ -250,11 +268,17 @@ export function cancelWorkOrder(mountain: Mountain): Mountain {
 
 /**
  * He installs a done work order: its gear goes up a level, or its live
- * timer starts now (`fitGear`), and the station is idle again.
+ * timer starts now (`fitGear`), and the station is idle again. Not on gear
+ * already at its last level: cancel gives its goods back.
  */
 export function installWorkOrder(mountain: Mountain, now: number): Mountain {
   const { station } = mountain;
-  if (station.kind !== "done" || !Number.isSafeInteger(now) || now < 0) {
+  if (
+    station.kind !== "done" ||
+    !installable(mountain) ||
+    !Number.isSafeInteger(now) ||
+    now < 0
+  ) {
     return mountain;
   }
   return {

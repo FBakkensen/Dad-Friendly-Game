@@ -7,6 +7,7 @@ import {
   blueprintOpen,
   cancelWorkOrder,
   installWorkOrder,
+  installable,
   loadOf,
   loadStation,
   loadable,
@@ -148,6 +149,24 @@ describe("the station opens with the shaft (#674)", () => {
       expect(blueprintOpen(railed, "reinforce")).toBe(true);
     });
   });
+
+  it("places no work order for the gear the bench is taking to its last level", () => {
+    partThree(() => {
+      const bench = {
+        recipe: "sturdy-props",
+        startedAt: 0,
+        endsAt: 1,
+      } as const;
+      const benched = { ...sunk(), bench };
+      expect(blueprintOpen(benched, "sturdy-props")).toBe(false);
+      expect(blueprintOpen(benched, "iron-rails")).toBe(true);
+      const rails = {
+        ...sunk(),
+        bench: { ...bench, recipe: "iron-rails" },
+      } as const;
+      expect(blueprintOpen(rails, "iron-rails")).toBe(true);
+    });
+  });
 });
 
 describe("a work order (#674)", () => {
@@ -262,6 +281,20 @@ describe("installing a work order (#674)", () => {
     expect(installWorkOrder(grease, 9_000).clocks["axle-grease"]).toBe(
       9_000 + AXLE_MS,
     );
+  });
+
+  it("installs nothing on gear the bench took to its last level meanwhile, and cancel gives it back", () => {
+    const capped = {
+      ...sunk({}, { kind: "done", blueprint: "sturdy-props" }),
+      crafted: { ...sunk().crafted, "sturdy-props": 1 },
+    };
+    expect(installable(capped)).toBe(false);
+    expect(installWorkOrder(capped, 1)).toBe(capped);
+    expect(cancelWorkOrder(capped).stock.stones).toBe(250_000);
+    expect(
+      installable(sunk({}, { kind: "done", blueprint: "sturdy-props" })),
+    ).toBe(true);
+    expect(installable(sunk())).toBe(false);
   });
 
   it("installs only a done work order, at a real moment", () => {

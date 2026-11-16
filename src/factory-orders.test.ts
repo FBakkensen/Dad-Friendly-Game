@@ -297,6 +297,48 @@ describe("a work order over live play and a night (#674)", () => {
   });
 });
 
+describe("the night's report counts the clay and iron drilled (#674)", () => {
+  it("shows them produced, and what the work order took of them delivered", () => {
+    partThree(() => {
+      const start = yard({
+        project: { kind: "unordered" },
+        station: delivering("axle-grease"),
+        stock: { stones: 1_000_000, clay: 0, iron: 0 },
+      });
+      // Both levels a few rock short of their next 1M.
+      const drilling: Mountain = {
+        ...start,
+        owned: { ...start.owned, helper: start.owned.helper + 12 },
+        jobs: {
+          ...start.jobs,
+          drilling: 2,
+          haulage: 2,
+          graniteDrilling: 2,
+          graniteHaulage: 2,
+          hoisting: 4,
+        },
+        rockDug: 1_999_990,
+        graniteDug: 999_995,
+      };
+      const night = accrueAway({
+        mountain: drilling,
+        lastSeen: 0,
+        now: 3_600_000,
+      });
+      const facts = night.report.night;
+      expect(facts?.produced.clay).toBe(1);
+      expect(facts?.produced.iron).toBe(1);
+      expect(facts?.delivered.iron).toBe(1);
+      expect(facts?.delivered.clay).toBe(0);
+      expect(night.mountain.stock).toMatchObject({ clay: 1, iron: 0 });
+      expect(night.mountain.station).toEqual({
+        kind: "done",
+        blueprint: "axle-grease",
+      });
+    });
+  });
+});
+
 describe("no good is lost or made between the stockyard and the orders (#674)", () => {
   it("holds for any fleet, stock and seconds", () => {
     partThree(() => {
