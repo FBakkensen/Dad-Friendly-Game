@@ -289,9 +289,9 @@ function listenDrag(
   site: HTMLElement,
   station: HTMLElement,
   card: HTMLButtonElement,
+  blueprint: BlueprintId,
   place: () => void,
 ): void {
-  const blueprint = card.dataset["blueprint"] as BlueprintId;
   let start: { x: number; y: number; id: number } | undefined;
   let ghost: HTMLElement | undefined;
   let scale = 1;
@@ -366,7 +366,7 @@ function buildStrip(
   root.setAttribute("aria-label", "Blueprints");
   const cards = factoryView(state.mountain()).blueprints.map((blueprint) => {
     const parts = buildCard(blueprint.id, blueprint.name);
-    listenDrag(site, station, parts.root, () => {
+    listenDrag(site, station, parts.root, blueprint.id, () => {
       const now = factoryView(state.mountain()).blueprints.find(
         (each) => each.id === blueprint.id,
       );
