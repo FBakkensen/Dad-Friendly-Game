@@ -1,8 +1,9 @@
 import { el, write, writeFigures } from "./board-dom";
-import type { BuildingId } from "./city";
+import { buildingsInPlay, type BuildingId } from "./city";
 import {
   FIRST_EVENING,
   LEVEL_REACHED,
+  builtCard,
   refineryOpens,
   endCard,
   type CardWords,
@@ -41,6 +42,7 @@ type FrameCard =
   | { readonly kind: "report"; readonly report: AwayReport }
   | { readonly kind: "level" }
   | { readonly kind: "end"; readonly building: BuildingId }
+  | { readonly kind: "built"; readonly building: BuildingId }
   | { readonly kind: "opens" }
   | { readonly kind: "first" };
 
@@ -114,15 +116,27 @@ function frameCard(view: CardView, greet: Greeting): FrameCard | undefined {
   }
   const building = firstNotice(view, "operational")?.building;
   if (building !== undefined) {
-    // In part 2 the Light Tower opens the refinery; the Warehouse ends it (#671).
-    return building === "lightTower" && partTwoOn()
-      ? { kind: "opens" }
-      : { kind: "end", building };
+    return buildingCard(building);
   }
   const greeting = GREETINGS.find((each) => each.kind === greet);
   return greeting?.holds(view.mountain) === true
     ? { kind: greeting.kind }
     : undefined;
+}
+
+/**
+ * A building's card when its roof goes on. In part 2 the Light Tower opens
+ * the refinery (#671). The last building in play ends the part: the
+ * Warehouse in part 2, the Foundry in part 3 (#682). A building before it
+ * says what it gives and opens.
+ */
+function buildingCard(building: BuildingId): FrameCard {
+  if (building === "lightTower" && partTwoOn()) {
+    return { kind: "opens" };
+  }
+  return buildingsInPlay().at(-1)?.id === building
+    ? { kind: "end", building }
+    : { kind: "built", building };
 }
 
 /** The notice a card's key closes: the first evening's is not a notice. */
@@ -136,7 +150,8 @@ function noticeOf(card: Exclude<FrameCard, { kind: "first" }>): DismissTarget {
 const sameCard = (a: FrameCard | undefined, b: FrameCard | undefined) =>
   a?.kind === b?.kind &&
   (a?.kind !== "report" || b?.kind !== "report" || a.report === b.report) &&
-  (a?.kind !== "end" || b?.kind !== "end" || a.building === b.building);
+  (a?.kind !== "end" || b?.kind !== "end" || a.building === b.building) &&
+  (a?.kind !== "built" || b?.kind !== "built" || a.building === b.building);
 
 type CardParts = {
   readonly root: HTMLElement;
@@ -246,6 +261,9 @@ function cardWords(card: Exclude<FrameCard, { kind: "report" }>): CardWords {
   }
   if (card.kind === "level") {
     return LEVEL_REACHED;
+  }
+  if (card.kind === "built") {
+    return builtCard(card.building);
   }
   return card.kind === "opens" ? refineryOpens() : endCard(card.building);
 }

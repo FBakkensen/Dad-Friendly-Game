@@ -573,6 +573,8 @@
 }
 
 .frame-sheet .frame-sheet-close {
+  /* A long list scrolls in the sheet; the key keeps its fat height (#682). */
+  flex-shrink: 0;
   height: var(--target-min);
   margin-top: calc(var(--art) * 6);
   background: var(--frame-go);

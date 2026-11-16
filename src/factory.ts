@@ -25,8 +25,8 @@ import {
  * carries its stone and its materials to the station, shared with the city's
  * order (`transport.ts`); it is done when everything it requires has arrived,
  * and he installs it. The gear, its effects and its live timers are the
- * workshop's (`workshop.ts`). Off in play: the station opens with the shaft,
- * behind part 3's switch.
+ * workshop's (`workshop.ts`). The station opens with the shaft, behind
+ * part 3's switch, on in play since #682.
  */
 
 /**
@@ -43,6 +43,16 @@ export const BLUEPRINT_IDS = [
 ] as const satisfies readonly RecipeId[];
 
 export type BlueprintId = (typeof BLUEPRINT_IDS)[number];
+
+/**
+ * The blueprints he can order: all but sturdy props. They made trouble
+ * rarer, and expeditions, trouble and engineers are out of the game
+ * (Flemming, 16 Nov 2026, `docs/decisions.md`). The id stays in
+ * `BLUEPRINT_IDS`, which the save reads, so no save is reset.
+ */
+export const ORDER_IDS: readonly BlueprintId[] = BLUEPRINT_IDS.filter(
+  (id) => id !== "sturdy-props",
+);
 
 /**
  * The stone each work order requires, as the lab sized it with no clock
@@ -112,14 +122,19 @@ function levelInHand(
 }
 
 /**
- * Whether this blueprint can be placed: the station is open and the gear is
- * not at its last level, counting a craft of it still on the old bench.
+ * Whether this blueprint can be placed: one he can order, the station is
+ * open, and the gear is not at its last level, counting a craft of it still
+ * on the old bench.
  */
 export function blueprintOpen(
   mountain: Pick<Mountain, "granite" | "crafted" | "bench">,
   id: BlueprintId,
 ): boolean {
-  return stationOpen(mountain) && levelInHand(mountain, id) < lastLevel(id);
+  return (
+    ORDER_IDS.includes(id) &&
+    stationOpen(mountain) &&
+    levelInHand(mountain, id) < lastLevel(id)
+  );
 }
 
 /**

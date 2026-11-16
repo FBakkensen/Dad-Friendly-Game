@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { withFactors } from "./economy/factors";
 import {
   BLUEPRINT_IDS,
+  ORDER_IDS,
   IDLE_STATION,
   MATERIAL_HOLDS,
   blueprintOpen,
@@ -146,6 +147,15 @@ describe("the station opens with the shaft (#674)", () => {
       expect(blueprintOpen(railed, "iron-rails")).toBe(false);
       expect(placeWorkOrder(railed, "iron-rails")).toBe(railed);
       expect(blueprintOpen(railed, "reinforce")).toBe(true);
+    });
+  });
+
+  it("places no sturdy props: trouble is out of the game (16 Nov 2026)", () => {
+    partThree(() => {
+      const open = sunk();
+      expect(blueprintOpen(open, "sturdy-props")).toBe(false);
+      expect(placeWorkOrder(open, "sturdy-props")).toBe(open);
+      expect(ORDER_IDS).not.toContain("sturdy-props");
     });
   });
 

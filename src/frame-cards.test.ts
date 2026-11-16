@@ -451,6 +451,40 @@ describe("the end card", () => {
     ]);
   });
 
+  it("in part 3 the Warehouse's roof opens trucks, and the Foundry's ends the slice (#682)", () => {
+    holdFactors({ [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 });
+    const { card, press, progress } = mount({
+      saved: { ...crew(NO_PROJECT), operational: ["lightTower"] },
+      at: 1_000,
+    });
+    progress.applyMutation((mountain) => ({
+      ...mountain,
+      operational: ["lightTower", "warehouse"],
+    }));
+    expect(card()).toMatchObject({
+      shown: true,
+      kind: "built",
+      title: "The Warehouse: operational",
+    });
+    expect(card().lines).toEqual(["Stockyard capacity ×2.", "Opens trucks."]);
+    expect(card().lines.join(" ")).not.toMatch(/later update/);
+    press();
+    expect(card().shown).toBe(false);
+    progress.applyMutation((mountain) => ({
+      ...mountain,
+      operational: ["lightTower", "warehouse", "foundry"],
+    }));
+    expect(card()).toMatchObject({
+      shown: true,
+      kind: "end",
+      title: "The Foundry: operational",
+      lines: endCard("foundry").paragraphs,
+    });
+    expect(card().lines).toEqual([
+      "The city is planning its next building. It comes in a later update.",
+    ]);
+  });
+
   it("closes the Ledger as it comes up, and takes the focus to its key (#708)", () => {
     const { root, progress, card } = mount({
       saved: crew(ROOF_NEARLY_IN),
@@ -583,7 +617,8 @@ describe("the Granite's card (#754)", () => {
     });
     expect(card().key?.textContent).toBe("Continue");
     press();
-    expect(card()).toMatchObject({ shown: true, kind: "end" });
+    // In part 3 the Warehouse is not the last building: its card opens trucks (#682).
+    expect(card()).toMatchObject({ shown: true, kind: "built" });
     press();
     expect(card().shown).toBe(false);
   });

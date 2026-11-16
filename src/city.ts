@@ -77,7 +77,8 @@ const BUILDING_ROWS = [
   },
   {
     // The spec's starting numbers, for the lab (#675). The slice ends at
-    // its roof; the winding engine it opens waits for a later slice.
+    // its roof, and nothing opens with it (the winding engine is out of the
+    // game, Flemming, 16 Nov 2026).
     id: "foundry",
     name: "The Foundry",
     part: 3,

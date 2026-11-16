@@ -8,7 +8,7 @@ import {
   type StepIndex,
 } from "./city";
 import { etaShort, formatCompact } from "./format";
-import { powerWords } from "./frame-cards-words";
+import { opensWords, powerWords } from "./frame-cards-words";
 import {
   GOOD_WORDS,
   STEP_NAMES,
@@ -17,7 +17,7 @@ import {
   type Pip,
 } from "./frame-view";
 import type { Mountain } from "./mountain";
-import { partThreeOn, partTwoOn } from "./part-switch";
+import { partThreeOn } from "./part-switch";
 import type { BuyAmount } from "./tiers";
 import type { GoodId } from "./stock";
 import { effectiveRates } from "./rates";
@@ -363,25 +363,14 @@ export type ProjectCard =
       readonly builders: BuildersRow;
     };
 
-/**
- * What a building opens in the parts that are live: the Light Tower opens
- * the refinery in part 2 (#671), the Warehouse trucks in part 3 (#754;
- * spec, While a part is the end of the game).
- */
-function opens(id: BuildingId): string {
-  if (id === "lightTower" && partTwoOn()) {
-    return " Opens the refinery.";
-  }
-  return id === "warehouse" && partThreeOn() ? " Opens trucks." : "";
-}
-
 /** The power a building gives, as the card says it, and what it opens. */
 function completion(id: BuildingId): string {
   const words = powerWords(id);
   if (words.length === 0) {
     return "";
   }
-  return `On completion: ${words.join(" ")}${opens(id)}`;
+  const opened = opensWords(id);
+  return `On completion: ${words.join(" ")}${opened === "" ? "" : ` ${opened}`}`;
 }
 
 export function projectCard(mountain: Mountain, now?: number): ProjectCard {

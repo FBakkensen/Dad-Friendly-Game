@@ -23,7 +23,7 @@ function dug(mined: number, over: MountainPatch = {}): Mountain {
   return patched({ ...createMountain(), rockDug: mined }, over);
 }
 
-/** The live game's mine: the fresh mine with part 2 (#737). */
+/** The live game's mine: the fresh mine with parts 2 and 3 (#737, #682). */
 function inPlay<T>(body: () => T): T {
   return withFactors(PLAY_FACTORS, body);
 }
@@ -112,6 +112,7 @@ describe("pacing ledger", () => {
       expect(buildingsInPlay().map((building) => building.id)).toEqual([
         "lightTower",
         "warehouse",
+        "foundry",
       ]);
       expect(markdown.split("\n")).toContain(
         `| ${[
@@ -119,6 +120,7 @@ describe("pacing ledger", () => {
           "Seed",
           buildingById("lightTower").name,
           buildingById("warehouse").name,
+          buildingById("foundry").name,
           ...machinesInPlay().map((id) => tierById(id).name),
           "Finish",
           "End hash",

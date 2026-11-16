@@ -132,14 +132,15 @@ export function sliceStructureSave(now: number): SeedSave {
 }
 
 /**
- * After the last roof that is live (#662; part 2's since #672): the Light
- * Tower and the Warehouse operational and nothing to order, so the city's
- * card says the city is planning its next building.
+ * After the last roof that is live (#662; part 2's in #672, the slice's
+ * since #682): the shaft sunk, the Light Tower, the Warehouse and the
+ * Foundry operational and nothing to order, so the city's card says the
+ * city is planning its next building.
  */
 export function sliceDoneSave(now: number): SeedSave {
   return sliceSave(now, {
     owned: { helper: 15, cart: 2 },
-    stock: { stones: 120_000, brick: 40_000 },
+    stock: { stones: 120_000, brick: 40_000, cutStone: 20_000 },
     jobs: {
       drilling: 4,
       haulage: 3,
@@ -149,8 +150,10 @@ export function sliceDoneSave(now: number): SeedSave {
       kilns: 1,
     },
     fleet: { horseWagon: 2 },
-    marks: { operational: ["lightTower", "warehouse"] },
+    marks: { operational: ["lightTower", "warehouse", "foundry"] },
     makers: { kiln: 1 },
+    granite: {},
+    run: { rock: 30_000_000, granite: 1_000_000 },
   });
 }
 
@@ -204,7 +207,8 @@ export function sliceWarehouseSave(now: number): SeedSave {
 /**
  * The Warehouse's roof a thousand brick short, closed twelve hours ago: the
  * night delivers it, the builders build it in, and the frame opens on the
- * report, then the end card (#672).
+ * report, then the Warehouse's card: in part 3 it opens trucks, and the
+ * Foundry is next (#672, #682).
  */
 export function sliceWarehouseRoofSave(now: number): SeedSave {
   return sliceSave(now - 12 * HOUR, {
@@ -219,6 +223,64 @@ export function sliceWarehouseRoofSave(now: number): SeedSave {
       state: "delivering",
       step: 2,
       arrived: { brick: 11_999_000 },
+    },
+  });
+}
+
+/**
+ * The Foundry's structure going up (#682): the shaft sunk, the Light Tower
+ * and the Warehouse operational, a saw with its worker, and brick and cut
+ * stone on their way to the third plot.
+ */
+export function sliceFoundrySave(now: number): SeedSave {
+  return sliceSave(now, {
+    owned: { helper: 20, cart: 2 },
+    stock: { stones: 420_000, brick: 60_000, cutStone: 20_000 },
+    jobs: {
+      drilling: 4,
+      haulage: 3,
+      hoisting: 4,
+      driving: 1,
+      building: 2,
+      kilns: 1,
+      saws: 1,
+    },
+    fleet: { horseWagon: 2 },
+    marks: { operational: ["lightTower", "warehouse"] },
+    makers: { kiln: 1, saw: 1 },
+    granite: {},
+    run: { rock: 30_000_000, granite: 1_000_000 },
+    project: {
+      building: "foundry",
+      state: "delivering",
+      step: 1,
+      arrived: { brick: 8_000_000, cutStone: 5_000_000 },
+      onSite: { brick: 200, cutStone: 100 },
+    },
+  });
+}
+
+/**
+ * The Foundry's roof a thousand cut stone short, closed twelve hours ago
+ * (#682): the shaft sunk, the Light Tower and the Warehouse operational. The
+ * night delivers it, the builders build it in, and the frame opens on the
+ * report, then the slice's end card.
+ */
+export function sliceFoundryRoofSave(now: number): SeedSave {
+  return sliceSave(now - 12 * HOUR, {
+    owned: { helper: 14 },
+    jobs: { ...FIRST_EVENING_JOBS, kilns: 1, saws: 1 },
+    fleet: { horseWagon: 1 },
+    stock: { cutStone: 1_000 },
+    marks: { operational: ["lightTower", "warehouse"] },
+    makers: { kiln: 1, saw: 1 },
+    granite: {},
+    run: { rock: 30_000_000, granite: 1_000_000 },
+    project: {
+      building: "foundry",
+      state: "delivering",
+      step: 2,
+      arrived: { brick: 30_000_000, cutStone: 39_999_000 },
     },
   });
 }
@@ -354,7 +416,7 @@ export function sliceListSave(now: number): SeedSave {
 }
 
 /**
- * Part 3 (#681), on a dev page with `?part3=1`: the shaft sunk, the Light
+ * Part 3 (#681): the shaft sunk, the Light
  * Tower and the Warehouse operational, clay and iron in their bins, and the
  * station idle. The factory's tab is in the site bar.
  */
@@ -383,15 +445,15 @@ export function sliceFactorySave(now: number): SeedSave {
   return sliceSave(now, factoryGame({ levels: { "iron-rails": 1 } }));
 }
 
-/** The same, with sturdy props on the station: stone and clay part arrived, the iron not yet. */
+/** The same, with iron rails on the station: the stone part arrived, the iron not yet. */
 export function sliceFactoryOrderSave(now: number): SeedSave {
   return sliceSave(
     now,
     factoryGame({
       station: {
-        blueprint: "sturdy-props",
+        blueprint: "iron-rails",
         state: "delivering",
-        arrived: { stones: 105_000, clay: 1_500 },
+        arrived: { stones: 105_000 },
       },
     }),
   );
@@ -406,7 +468,7 @@ export function sliceFactoryDoneSave(now: number): SeedSave {
 }
 
 /**
- * Part 3 (#680), on a dev page with `?part3=1`: the Light Tower and the
+ * Part 3 (#680): the Light Tower and the
  * Warehouse operational, the stockyard expanded once, and the stone and
  * brick in it to sink the shaft, which is not yet sunk. The mine shows the
  * Granite's plate under the Topsoil, with the Sink key lit.
@@ -433,7 +495,7 @@ export function sliceGraniteUnsunkSave(now: number): SeedSave {
 }
 
 /**
- * Part 3 (#754), on a dev page with `?part3=1`: the Light Tower and the
+ * Part 3 (#754): the Light Tower and the
  * Warehouse operational, two wagons with their drivers, and the brick for a
  * truck. The city's transport plate has the truck key beside the wagon's.
  */
@@ -456,7 +518,7 @@ export function sliceWarehouseTrucksSave(now: number): SeedSave {
 }
 
 /**
- * Part 3 (#680), on a dev page with `?part3=1`: the shaft sunk, both levels
+ * Part 3 (#680): the shaft sunk, both levels
  * working on their own workers and machines, a hoist assigned to each
  * level and one for both in turn, rock in every level's piles, two free
  * workers, the cut stone to buy a borer for either level, and in the

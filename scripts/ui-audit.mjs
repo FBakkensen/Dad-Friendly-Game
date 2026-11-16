@@ -40,6 +40,7 @@ import {
   sliceTwoLevelsSave,
   sliceRoofSave,
   sliceStartSave,
+  sliceFoundryRoofSave,
   sliceWarehouseRoofSave,
   sliceWarehouseSave,
   sliceWarehouseTrucksSave,
@@ -697,32 +698,32 @@ async function main() {
   await capture("slice-refinery", (viewport) =>
     openFrame(viewport, sliceRefinerySave(Date.now()), "refinery"),
   );
-  // Part 3 on a dev page, before #682 switches it on (#681).
+  // Part 3 (#681, switched on in #682).
   await capture("slice-factory", (viewport) =>
     openFrame(viewport, sliceFactoryOrderSave(Date.now()), "factory", {
-      search: `${MEMORY}&part3=1`,
+      search: MEMORY,
     }),
   );
-  // The mine with two levels, on the same dev page (#680).
+  // The mine with two levels (#680).
   await capture("slice-mine-two-levels", (viewport) =>
     openFrame(viewport, sliceTwoLevelsSave(Date.now()), "mine", {
-      search: `${MEMORY}&part3=1`,
+      search: MEMORY,
     }),
   );
-  // The saws, the trucks and the Granite's card, on the same dev page (#754).
+  // The saws, the trucks and the Granite's card (#754).
   await capture("slice-refinery-two-levels", (viewport) =>
     openFrame(viewport, sliceTwoLevelsSave(Date.now()), "refinery", {
-      search: `${MEMORY}&part3=1`,
+      search: MEMORY,
     }),
   );
   await capture("slice-city-trucks", (viewport) =>
     openFrame(viewport, sliceWarehouseTrucksSave(Date.now()), "city", {
-      search: `${MEMORY}&part3=1`,
+      search: MEMORY,
     }),
   );
   await capture("slice-city-trucks-hint", (viewport) =>
     openFrame(viewport, sliceWarehouseSave(Date.now()), "city", {
-      search: `${MEMORY}&part3=1`,
+      search: MEMORY,
     }),
   );
   await capture("slice-card-granite", async (viewport) => {
@@ -730,7 +731,7 @@ async function main() {
       viewport,
       sliceGraniteUnsunkSave(Date.now()),
       "mine",
-      { search: `${MEMORY}&part3=1` },
+      { search: MEMORY },
     );
     await press(opened.page, ".mine-sink");
     await opened.page.waitForSelector('.frame-card[data-card="level"]', {
@@ -765,7 +766,7 @@ async function main() {
   await capture("slice-card-end", async (viewport) => {
     const opened = await openAuditPage(
       viewport,
-      sliceWarehouseRoofSave(Date.now()),
+      sliceFoundryRoofSave(Date.now()),
     );
     await frameCardUp(opened.page);
     await press(opened.page, ".frame-card-key");
@@ -774,6 +775,21 @@ async function main() {
     });
     await new Promise((resolve) => setTimeout(resolve, 500));
     await expectText(opened.page, /planning its next building/i, "end card");
+    return opened;
+  });
+  // The Warehouse's card in part 3: its power and trucks, the Foundry next (#682).
+  await capture("slice-card-built", async (viewport) => {
+    const opened = await openAuditPage(
+      viewport,
+      sliceWarehouseRoofSave(Date.now()),
+    );
+    await frameCardUp(opened.page);
+    await press(opened.page, ".frame-card-key");
+    await opened.page.waitForSelector('.frame-card[data-card="built"]', {
+      visible: true,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    await expectText(opened.page, /Opens trucks/i, "the Warehouse's card");
     return opened;
   });
   await capture("slice-ledger-busy", async (viewport) => {

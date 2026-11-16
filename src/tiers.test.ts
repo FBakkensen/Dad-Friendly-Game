@@ -309,8 +309,9 @@ describe("the prices play charges (#738)", () => {
         ["cart", 600],
         ["hoist", 6_000],
         ["drill", 73_080],
-        ["borer", 4_940_000],
-        ["train", 30_000_000],
+        // In cut stone since part 3's switch-on (#682).
+        ["borer", 40_000],
+        ["train", 60_000],
         ["machine", 96_480_000],
         ["kid", 250_000],
       ]);
@@ -347,7 +348,7 @@ describe("the prices play charges (#738)", () => {
   });
 
   it("prices part 3's borer and locomotive in cut stone", () => {
-    withFactors({ ...PLAY_FACTORS, [PART_THREE_OFF]: 0 }, () => {
+    withFactors(PLAY_FACTORS, () => {
       expect(
         [tierById("borer"), tierById("train")].map((tier) => [
           tierGood(tier.id),

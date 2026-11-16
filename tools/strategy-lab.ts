@@ -56,8 +56,8 @@ Seeds default to ${String(LOCAL_SEEDS)} (1 through that count). --ci uses ${Stri
 Every run plays the whole of slice 1: the fresh mine with parts 2 and 3
 (part2.off=0, part3.off=0), with the player types in src/lab/fresh-policies,
 to the last building in play (#737, #675).
---factors holds factors on top for every run (part3.off=1 plays the game as
-it is live, to the Warehouse; part2.off=1 plays part 1 only, #534). fresh.off
+--factors holds factors on top for every run (part3.off=1 plays parts 1 and 2
+only, to the Warehouse; part2.off=1 plays part 1 only, #534). fresh.off
 and line.off are refused: the fresh mine is the only mine (#739).
 A missed guardrail is a warning unless LAB_STRICT=1, which exits 1. The fresh
 mine's one guardrail is the five-day floor for the whole slice (#675).

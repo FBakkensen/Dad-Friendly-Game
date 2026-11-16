@@ -1,4 +1,5 @@
 import minerUrl from "./assets/board/miner-18f.png";
+import foundryUrl from "./assets/city/foundry.png";
 import wagonUrl from "./assets/city/horse-wagon.png";
 import towerUrl from "./assets/city/light-tower.png";
 import truckUrl from "./assets/city/truck.png";
@@ -49,10 +50,12 @@ export const PLOT_SPANS: readonly { readonly x: number; readonly w: number }[] =
 
 /**
  * Where each plot's building stands, in art px from the scene's left: the
- * Light Tower 6 into the first plot, and the Warehouse 5 into the second, so
- * its 46-wide picture and its scaffold fit the 56-wide plot (#672).
+ * Light Tower 6 into the first plot, the Warehouse 5 into the second, so
+ * its 46-wide picture and its scaffold fit the 56-wide plot (#672), and the
+ * Foundry 4 into the third, so its 45-wide picture fits the 54-wide plot
+ * with the same room to spare on its right (#682).
  */
-const BUILDING_INSETS: readonly number[] = [6, 5, 6];
+const BUILDING_INSETS: readonly number[] = [6, 5, 4];
 
 export function buildingX(plot: number): number {
   return (PLOT_SPANS[plot]?.x ?? 0) + (BUILDING_INSETS[plot] ?? 6);
@@ -63,13 +66,16 @@ export function buildingX(plot: number): number {
  * where its goods lie, which is where the wagons stop. The first plot has room beside the Light Tower. The
  * second has none beside the Warehouse, so its yard is to its left, on the
  * first plot's free ground beside the Light Tower, operational by then
- * (#672; docs/ART.md, the Warehouse). The third plot's yard comes with part 3.
+ * (#672; docs/ART.md, the Warehouse). The third has none beside the
+ * Foundry either, and the Warehouse stands between, so the Foundry's yard is
+ * the Warehouse's, on the same free ground (#682).
  */
 const SITE_YARDS: readonly {
   readonly builders: number;
   readonly heap: number;
 }[] = [
   { builders: 46, heap: 74 },
+  { builders: 62, heap: 44 },
   { builders: 62, heap: 44 },
 ];
 
@@ -80,10 +86,11 @@ export function siteYard(plot: number): {
   return SITE_YARDS[plot] ?? SITE_YARDS[0] ?? { builders: 0, heap: 0 };
 }
 
-/** The buildings drawn: the Light Tower (#662) and the Warehouse (#672). */
+/** The buildings drawn: the Light Tower (#662), the Warehouse (#672) and the Foundry (#682). */
 const BUILDING_URLS = {
   lightTower: towerUrl,
   warehouse: warehouseUrl,
+  foundry: foundryUrl,
 } as const satisfies Partial<Record<BuildingId, string>>;
 
 function drawnBuilding(id: BuildingId): id is keyof typeof BUILDING_URLS {

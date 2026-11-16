@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { send } from "./expeditions";
-import { closeHazards, freshHazards, stepHazards } from "./hazards";
+import { closeHazards, freshHazards } from "./hazards";
 import { accrue, accrueAway, createMountain, type Mountain } from "./mountain";
 import { levels, partThreeAsBuilt as partThree } from "./part-three.harness";
 import { LIVE_GAP_MS, advance, timeInput } from "./session-time";
@@ -37,7 +37,7 @@ describe("timeInput", () => {
 });
 
 describe("advance", () => {
-  it("brings a party home before a live stretch is paid, then steps the hazards", () => {
+  it("brings a party home before a live stretch is paid, and starts no trouble", () => {
     const sent = send(crew(), 0, "side-seam", 0);
     const returnsAt = sent.expeditions[0]?.returnsAt ?? 0;
     const world = { mountain: sent, hazards: freshHazards(3) };
@@ -47,13 +47,7 @@ describe("advance", () => {
     expect(live.mountain.expeditions).toEqual([]);
     expect(live.settledAt).toBe(returnsAt);
     expect(live.away).toBeUndefined();
-    expect(live.hazards).toEqual(
-      stepHazards(world.hazards, {
-        now: returnsAt,
-        liveMs: 1_000,
-        mountain: live.mountain,
-      }),
-    );
+    expect(live.hazards).toBe(world.hazards);
   });
 
   it("plays the cages trip by trip in a live stretch with part 3 on, as the tick does (#724)", () => {
@@ -77,9 +71,9 @@ describe("advance", () => {
     });
   });
 
-  // The fresh mine's live pace does not read trouble yet: trouble by stage
-  // comes with part 3 (slice 1 spec, "Where today's parts land"; #539).
-  it("pays a live stretch as the line runs, and steps the trouble with the player's fix time", () => {
+  // The fresh mine's live pace never reads trouble, and trouble never starts:
+  // it is out of the game (Flemming, 16 Nov 2026, `docs/decisions.md`).
+  it("pays a live stretch as the line runs, and leaves the hazards as they are: trouble is out of the game (16 Nov 2026)", () => {
     const trouble = { kind: "cave-in", tier: "cart", startedAt: 0 } as const;
     const hazards = { phase: "trouble", seed: 1, taps: 0, trouble } as const;
     const mountain = { ...crew(), owned: { ...crew().owned, cart: 3 } };
@@ -89,14 +83,7 @@ describe("advance", () => {
     );
     const paid = accrue({ mountain, from: 0, to: 4_000 });
     expect(live.mountain).toEqual(paid.mountain);
-    expect(live.hazards).toEqual(
-      stepHazards(hazards, {
-        now: 4_000,
-        liveMs: 4_000,
-        mountain: paid.mountain,
-        playerFixMs: 3_000,
-      }),
-    );
+    expect(live.hazards).toBe(hazards);
   });
 
   it("pays time away like a closed game and clears trouble", () => {

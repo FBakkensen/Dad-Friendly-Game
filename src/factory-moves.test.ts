@@ -53,20 +53,19 @@ describe("the factory's moves (#674)", () => {
     partThree(() => {
       expect(factoryMoves(mine(true))).toEqual([
         { kind: "placeWorkOrder", blueprint: "iron-rails" },
-        { kind: "placeWorkOrder", blueprint: "sturdy-props" },
         { kind: "placeWorkOrder", blueprint: "blasting-charge" },
         { kind: "placeWorkOrder", blueprint: "reinforce" },
         { kind: "placeWorkOrder", blueprint: "axle-grease" },
       ]);
-      const propped = {
+      const railed = {
         ...mine(true),
-        crafted: { ...mine(true).crafted, "sturdy-props": 1 },
+        crafted: { ...mine(true).crafted, "iron-rails": 2 },
       };
       expect(
-        factoryMoves(propped).some(
+        factoryMoves(railed).some(
           (action) =>
             action.kind === "placeWorkOrder" &&
-            action.blueprint === "sturdy-props",
+            action.blueprint === "iron-rails",
         ),
       ).toBe(false);
       expect(factoryMoves(mine(false))).toEqual([]);

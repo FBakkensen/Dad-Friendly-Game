@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { send } from "../expeditions";
-import { stepHazards, type HazardState } from "../hazards";
 import { accrue, accrueAway, createMountain, type Mountain } from "../mountain";
 import { benchCraft } from "../test-fixtures";
 import { createWorld, step, type World } from "./world";
@@ -13,10 +12,6 @@ function withBorer(): Mountain {
     owned: { ...createMountain().owned, helper: 8, borer: 1 },
     engineers: [ada],
   };
-}
-
-function gapMs(hazards: HazardState): number | undefined {
-  return hazards.phase === "waiting" ? hazards.gapMs : undefined;
 }
 
 /** The same buys, the same sends, the same steps. Only the seed may differ. */
@@ -50,13 +45,12 @@ describe("world step", () => {
     expect(again.mountain.expeditions).toEqual([]);
   });
 
-  it("gives a different wait when the seed changes", () => {
-    const first = step(createWorld(1, withBorer()), 1_000, "live");
-    const second = step(createWorld(2, withBorer()), 1_000, "live");
-    expect(first.hazards.phase).toBe("waiting");
-    expect(second.hazards.phase).toBe("waiting");
-    expect(gapMs(first.hazards)).not.toBe(gapMs(second.hazards));
-    expect(play(1)).not.toEqual(play(2));
+  it("starts no trouble in live play, even with a borer: trouble is out of the game (16 Nov 2026)", () => {
+    let world = createWorld(1, withBorer());
+    for (let second = 0; second < 400; second += 1) {
+      world = step(world, 1_000, "live");
+    }
+    expect(world.hazards).toEqual({ phase: "idle", seed: 1 });
   });
 
   it("leaves the world in place when no time passes", () => {
@@ -66,59 +60,20 @@ describe("world step", () => {
     expect(step(world, Number.NaN, "live")).toBe(world);
   });
 
-  it("pays a live second with the trouble that is already up", () => {
-    let world = createWorld(1, withBorer());
-    for (
-      let second = 0;
-      second < 400 && world.hazards.phase !== "trouble";
-      second += 1
-    ) {
-      world = step(world, 1_000, "live");
-    }
-    expect(world.hazards.phase).toBe("trouble");
-    if (world.hazards.phase !== "trouble") {
-      return;
-    }
-    const accrued = accrue({
-      mountain: world.mountain,
-      from: world.clock,
-      to: world.clock + 1_000,
-    });
-    const clock = world.clock + 1_000;
+  it("pays a live second as the mountain accrues it, and pays time away as a closed game", () => {
+    const world = createWorld(1, withBorer());
+    const accrued = accrue({ mountain: world.mountain, from: 0, to: 1_000 });
     const next = step(world, 1_000, "live");
-    expect(next.clock).toBe(clock);
+    expect(next.clock).toBe(1_000);
     expect(next.mountain.stock.stones).toBe(accrued.mountain.stock.stones);
-    expect(next.hazards).toEqual(
-      stepHazards(world.hazards, {
-        now: clock,
-        liveMs: 1_000,
-        mountain: accrued.mountain,
-      }),
-    );
-    expect(next.hazards.phase).toBe("trouble");
-  });
-
-  it("puts trouble right when the player fix is due, and clears it on away time", () => {
-    let world = createWorld(1, withBorer());
-    for (
-      let second = 0;
-      second < 400 && world.hazards.phase !== "trouble";
-      second += 1
-    ) {
-      world = step(world, 1_000, "live");
-    }
-    expect(world.hazards.phase).toBe("trouble");
-    const fixed = step(world, 3_000, "live", { playerFixMs: 3_000 });
-    expect(fixed.hazards.phase).not.toBe("trouble");
     const left = step(world, 1_000, "away");
-    expect(left.hazards.phase).toBe("waiting");
     const paid = accrueAway({
       mountain: world.mountain,
-      lastSeen: world.clock,
-      now: world.clock + 1_000,
+      lastSeen: 0,
+      now: 1_000,
     });
     expect(left.mountain).toEqual(paid.mountain);
-    expect(left.clock).toBe(world.clock + 1_000);
+    expect(left.clock).toBe(1_000);
   });
 
   it("brings a party home when the clock reaches the return", () => {

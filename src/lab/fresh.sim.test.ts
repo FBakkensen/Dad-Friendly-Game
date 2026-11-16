@@ -1,7 +1,7 @@
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { withFactors } from "../economy/factors";
-import { PART_TWO_OFF, PLAY_FACTORS } from "../part-switch";
+import { PART_THREE_OFF, PART_TWO_OFF, PLAY_FACTORS } from "../part-switch";
 import checker from "./fresh-policies/checker-6x3";
 import { discover } from "./registry";
 import { freshPlan } from "./fresh-dad";
@@ -60,14 +60,15 @@ describe("the lab plays part 1 (#655)", { timeout: 300_000 }, () => {
   });
 });
 
-// Plays part 2 to the Warehouse's roof for every player type (#667).
+// Plays parts 1 and 2 alone to the Warehouse's roof for every player type (#667): the game
+// before part 3's switch-on (#682), as `--factors part3.off=1` plays it.
 describe("the lab plays part 2 (#667)", { timeout: 600_000 }, () => {
   it("brings every player type to the Warehouse's roof, with kilns and a stockyard", async () => {
     const policies = await discover(
       path.resolve("src/lab/fresh-policies"),
       parsePolicyExport,
     );
-    withFactors(PLAY_FACTORS, () => {
+    withFactors({ ...PLAY_FACTORS, [PART_THREE_OFF]: 1 }, () => {
       for (const policy of policies) {
         const run = runPolicy({ policy, seed: 1 });
         const mountain = run.world.mountain;

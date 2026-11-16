@@ -9,9 +9,10 @@ import {
 } from "./part-switch";
 
 describe("part switch", () => {
-  it("PLAY_FACTORS holds part 2 of the fresh mine", () => {
-    expect(PLAY_FACTORS).toEqual({ [PART_TWO_OFF]: 0 });
+  it("PLAY_FACTORS holds parts 2 and 3 of the fresh mine (#682)", () => {
+    expect(PLAY_FACTORS).toEqual({ [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 });
     expect(withFactors(PLAY_FACTORS, partTwoOn)).toBe(true);
+    expect(withFactors(PLAY_FACTORS, partThreeOn)).toBe(true);
   });
 
   it("plays part 2 only when its switch is set", () => {

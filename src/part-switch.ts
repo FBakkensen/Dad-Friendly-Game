@@ -15,22 +15,23 @@ export function partTwoOn(): boolean {
 }
 
 /**
- * The mine the live game plays: the fresh mine with part 2 (#664, #672).
- * The fresh mine is the only mine since #739, so only part 2 is held. Boot
- * holds it on every page, and the strategy lab plays under it (#737), so
- * the lab's run is the game's.
+ * The sweep factor that switches slice 1's part 3 (#673): the shaft to the
+ * Granite, its machines and its jobs, the factory, trucks and the Foundry.
+ * It reads 1 (off) unless set: every page holds it at 0 since part 3's
+ * switch-on (#682, `boot`), and the labs and tests set it.
+ */
+export const PART_THREE_OFF = "part3.off";
+
+/**
+ * The mine the live game plays: the fresh mine with parts 2 and 3 (#664,
+ * #672, #682). The fresh mine is the only mine since #739, so only the two
+ * part switches are held. Boot holds them on every page, and the strategy
+ * lab plays under them (#737), so the lab's run is the game's.
  */
 export const PLAY_FACTORS: Readonly<Record<string, 0>> = Object.freeze({
   [PART_TWO_OFF]: 0,
+  [PART_THREE_OFF]: 0,
 });
-
-/**
- * The sweep factor that switches slice 1's part 3 (#673): the shaft to the
- * Granite, its machines and its jobs. It reads 1 (off) unless set, and boot
- * never sets it, so the rules behind it are built and inert until a later
- * sliver switches them on.
- */
-export const PART_THREE_OFF = "part3.off";
 
 /** True when part 3's rules play: part 3 stands on part 2's stockyard and brick. */
 export function partThreeOn(): boolean {
