@@ -264,6 +264,13 @@ export function fieldEntry(event: MoveEvent): Omit<FieldEvent, "at"> {
         code: "worker.free",
         data: { id: event.job, count: event.count },
       };
+    case "shaftSunk":
+      return { code: "shaft.sink", data: { id: "granite" } };
+    case "graniteMachineBought":
+      return {
+        code: "granite.buy",
+        data: { id: event.id, count: event.count },
+      };
     /* v8 ignore next 3 -- exhaustiveness guard, unreachable */
     default: {
       const unexpected: never = event;

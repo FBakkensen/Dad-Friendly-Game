@@ -109,6 +109,10 @@ function actionId(action: Action): string {
     case "placeWorker":
     case "freeWorker":
       return `${action.kind}:${action.job}`;
+    case "sinkShaft":
+      return action.kind;
+    case "buyGraniteMachine":
+      return `buyGraniteMachine:${action.id}`;
   }
 }
 

@@ -8,7 +8,8 @@ import { holdOrder, placeOrder } from "../city";
 import { freeWorker } from "../workforce";
 import { withFactors } from "./factors";
 import { FRESH_OFF } from "../line-switch";
-import { PART_TWO_OFF } from "../part-switch";
+import { PART_THREE_OFF, PART_TWO_OFF } from "../part-switch";
+import { NO_GRANITE_PILES, NO_LEVEL_MACHINES } from "../mine-levels";
 import {
   promote,
   promoteCost,
@@ -129,6 +130,8 @@ const FIXTURES = {
   freeWorker: { kind: "freeWorker", job: "haulage", count: 1 },
   buyMaker: { kind: "buyMaker", id: "kiln" },
   expandStockyard: { kind: "expandStockyard" },
+  sinkShaft: { kind: "sinkShaft" },
+  buyGraniteMachine: { kind: "buyGraniteMachine", id: "borer" },
 } as const satisfies {
   [K in Action["kind"]]: Extract<Action, { kind: K }>;
 };
@@ -210,8 +213,10 @@ function direct(mountain: Mountain, action: Action, now: number): Mountain {
     case "freeWorker":
     case "buyMaker":
     case "expandStockyard":
-      // Only a fresh mine takes them (#654, #689, #666: src/fresh-orders.test.ts,
-      // src/workforce.test.ts, src/part-two.test.ts).
+    case "sinkShaft":
+    case "buyGraniteMachine":
+      // Only a fresh mine takes them (#654, #689, #666, #673: src/fresh-orders.test.ts,
+      // src/workforce.test.ts, src/part-two.test.ts, src/part-three-moves.test.ts).
       return mountain;
     default: {
       const unexpected: never = action;
@@ -562,6 +567,29 @@ describe("listActions", () => {
         seen.add(action.kind);
       }
     });
+    // Part 3 lists the shaft, then a machine for the Granite once it is sunk (#673).
+    withFactors(
+      { [FRESH_OFF]: 0, [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 },
+      () => {
+        const lit: Mountain = {
+          ...createMountain(),
+          operational: ["lightTower"],
+        };
+        const sunk: Mountain = {
+          ...lit,
+          granite: {
+            kind: "sunk",
+            machines: NO_LEVEL_MACHINES,
+            piles: NO_GRANITE_PILES,
+          },
+        };
+        for (const one of [lit, sunk]) {
+          for (const action of listActions(one, NOW)) {
+            seen.add(action.kind);
+          }
+        }
+      },
+    );
     for (const kind of Object.keys(FIXTURES) as Action["kind"][]) {
       expect(seen.has(kind)).toBe(true);
     }

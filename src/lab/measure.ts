@@ -149,6 +149,8 @@ const MOVE_KIND_ORDER = {
   placeOrder: true,
   holdOrder: true,
   resumeOrder: true,
+  sinkShaft: true,
+  buyGraniteMachine: true,
 } as const satisfies Record<Action["kind"], true>;
 
 export const MOVE_KINDS = Object.keys(
