@@ -253,11 +253,11 @@ describe("the overlay stack", () => {
     // A card that opens by itself closes the open drawer after it is on the stack.
     const state = after(
       { kind: "open", overlay: "buys", at: 0 },
-      { kind: "open", overlay: "layer", at: 1000 },
+      { kind: "open", overlay: "craft", at: 1000 },
       { kind: "open", overlay: "save", at: 1100 },
       { kind: "close", overlay: "buys", at: 1200, by: "program" },
     );
-    expect(stack(state)).toEqual(["layer"]);
+    expect(stack(state)).toEqual(["craft"]);
     const under = after(
       { kind: "open", overlay: "welcome", at: 0 },
       { kind: "open", overlay: "save", at: 100 },

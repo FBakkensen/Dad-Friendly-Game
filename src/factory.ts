@@ -294,7 +294,7 @@ export function installWorkOrder(mountain: Mountain, now: number): Mountain {
   };
 }
 
-/** The most of each material the stockyard holds: what its band gives in a run today (rule 5.13). */
+/** The most of each material the stockyard holds (rule 5.13): 10 clay and 35 iron. */
 export const MATERIAL_HOLDS = { clay: 10, iron: 35 } as const;
 
 /** Rock drilled on a level for one unit of its material (rule 5.13): 1M for a clay or an iron. */

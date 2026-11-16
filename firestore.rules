@@ -42,7 +42,8 @@ service cloud.firestore {
     //   - events: list of { at, code, data } (size <= 200)
     //   - updatedAt: int epoch ms
     // Snapshot pocket and event stones are stones: <= 10^15. The snapshot's
-    // mined, left and legacy went with depth and the pass (#729, #740).
+    // legacy went with the pass (#729); mined and left went with depth (#740)
+    // and stay optional for one release (below).
     // String caps and the 200-event cap keep the document under 50 KB.
     // Ownership is the document ID. No uid, role, or PII fields.
     //
@@ -168,7 +169,7 @@ service cloud.firestore {
 
     function isFieldSnapshot(shot) {
       return shot is map &&
-        shot.keys().hasOnly(['at', 'crew', 'crewSpeed', 'deviceId', 'engineers', 'expeditions', 'idle', 'pocket', 'rev', 'upgrades', 'version']) &&
+        shot.keys().hasOnly(['at', 'crew', 'crewSpeed', 'deviceId', 'engineers', 'expeditions', 'idle', 'left', 'mined', 'pocket', 'rev', 'upgrades', 'version']) &&
         isIsoText(shot.at) &&
         shot.deviceId is string &&
         shot.rev is int &&
@@ -177,6 +178,12 @@ service cloud.firestore {
         (!('engineers' in shot) || isFieldEngineers(shot.engineers)) &&
         (!('expeditions' in shot) || isFieldTrips(shot.expeditions)) &&
         isIdleCounts(shot.idle) &&
+        // Optional for one release, as legacy was (#729): a tab still on the
+        // build before #740 sends both, and rules deploy before hosting. The
+        // current build never does. The first release after #740's removes
+        // them.
+        (!('left' in shot) || (shot.left is int && shot.left >= 0 && shot.left <= 240000000)) &&
+        (!('mined' in shot) || (shot.mined is int && shot.mined >= 0 && shot.mined <= 240000000)) &&
         shot.pocket is int && shot.pocket >= 0 && shot.pocket <= 1000000000000000 &&
         isFieldUpgrades(shot.upgrades) &&
         isShortText(shot.version);

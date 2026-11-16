@@ -18,7 +18,7 @@
 - **The lab's numbers do not move.** Run `npm run lab:ledger`, then `git diff --exit-code docs/pacing-ledger.md`. An end hash may move only because `remaining` leaves the mountain's shape. If it moves, say so in the PR body and show that every other column is unchanged.
 - `rockDugInAll(mountain)` becomes `mountain.rockDug` (rename it `rockDug` or inline it; the choice is the implementer's), and `.claude/rules/observable-saves.md`'s "ahead" rule says "more rock dug (rock drilling dug in a fresh mine, a count that only grows)". That rule-file line is the only change to `.claude/rules/`.
 - The field log (`src/field-log.ts`) loses `mined`, `left` and `legacy`. `firestore.rules` drops them from the snapshot's `hasOnly` list and their checks, and the emulator test (`npm run test:rules`) passes with a snapshot that has none of them.
-- The workshop's and session's depth gates become "closed until part 3", read from `partThreeOn()` / `stationOpen` as the factory already does. Use the existing mechanism; never add a second gate.
+- The old bench never opens, as on `main`, where its depth gate never passed in a fresh mine: `workshopUnlocked` is false, with no part 3 or Granite gate. The factory's station replaces it (#674, rule 7). What only an open bench reached (starting a craft, the craft move and its value) goes; a save's bench still settles and cancels. The session's depth gates go with depth.
 - `upgradeCost`'s band stretch (`oneOffStretch`) is 1, so the call drops its `k`. "The prices play charges (#738)" in `src/tiers.test.ts` passes unchanged.
 - Never skip a test. Never lower a coverage floor (only a deleted file's floor line goes). No function over 150 lines or cognitive complexity 15. No new player copy, and never "face", "hands" or "by hand" in new words. No guardrail in `src/lab/targets.ts` changes. `TARGETS` stays empty, and a lab measure that read depth goes, or reads a constant.
 - Ladder (`dad-friendly-work.md`): the touched tests, `npm run typecheck`, `npm run typecheck:tools`, `npm run knip`, `npm run functions`, `npm run test:rules`, `npm run gate -- fast`, then the visual and play checks above. Commit and push each task on `claude/project-thread-tj0lg3` with `git push -u origin claude/project-thread-tj0lg3`.
@@ -27,7 +27,7 @@
 
 1. A save of today reads back unchanged except for `remaining`, and a save with `run.dug` above 0, or above its old cap, gets the same verdict as before.
 2. `firestore.rules` still refuses an unknown snapshot key, and accepts the new snapshot.
-3. The workshop, the factory station and the session's gates open at the same moment as on `main` under `PLAY_FACTORS`, both with and without `part3.off`.
+3. The factory station and the session's gates open at the same moment as on `main` under `PLAY_FACTORS`, both with and without `part3.off`, and the old bench never opens.
 4. Away and live pay are identical: no stretch split, rate or material moved. `withMaterials` still gives clay and iron from rock drilled.
 5. knip finds nothing left over from #665.
 
@@ -44,7 +44,7 @@
   - `src/save-format.ts` (`run.dug` is retired, the reader ignores it and the writer stops writing it), `src/save-ledger.test.ts` and `src/save-format.test.ts`;
   - `src/save-merge.ts` and the "ahead" readers;
   - `src/server-read.ts` and `src/save-adopt.ts` (the dead tapped-stones hold);
-  - `src/upgrades.ts`, `src/rates.ts`, `src/engineers.ts`, `src/stock.ts`, `src/factory.ts`, `src/workshop.ts`, `src/session.ts` (the depth gates become "closed until part 3"), `src/economy/actions.ts`, `src/screen-words.ts`, `src/ledger-rows.ts` and `src/how-it-works.ts`;
+  - `src/upgrades.ts`, `src/rates.ts`, `src/engineers.ts`, `src/stock.ts`, `src/factory.ts`, `src/workshop.ts`, `src/session.ts` (the depth gates go; the old bench never opens), `src/economy/actions.ts`, `src/screen-words.ts`, `src/ledger-rows.ts` and `src/how-it-works.ts`;
   - `src/lab/*` (`scope`, `work-orders`, `reveal`, `decide`, `measure`, `score`, `targets`);
   - their tests.
 

@@ -540,8 +540,26 @@ describe("firestore.rules: fieldLogs/{uid}", () => {
     expect((await getDoc(doc(db, "fieldLogs", "dad"))).data()).toEqual(written);
   });
 
-  it("refuses a snapshot that still carries mined, left or legacy (#740)", async () => {
-    for (const old of [{ mined: 0 }, { left: 240_000_000 }, { legacy: 0 }]) {
+  it("accepts main's snapshot with mined and left for one release (#740)", async () => {
+    // A tab still on the build before #740 sends both, at their old caps.
+    const before = {
+      ...fieldLog([event]),
+      snapshot: { ...gameSnapshot(), mined: 0, left: 240_000_000 },
+    };
+    await setDoc(doc(db, "fieldLogs", "dad"), before);
+    expect((await getDoc(doc(db, "fieldLogs", "dad"))).data()).toEqual(before);
+  });
+
+  it("refuses mined or left out of range, and legacy at all (#729, #740)", async () => {
+    for (const old of [
+      { mined: -1 },
+      { mined: 240_000_001 },
+      { mined: 1.5 },
+      { left: -1 },
+      { left: 240_000_001 },
+      { left: "0" },
+      { legacy: 0 },
+    ]) {
       await expect(
         setDoc(doc(db, "fieldLogs", "dad"), {
           ...fieldLog([event]),

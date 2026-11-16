@@ -174,6 +174,7 @@ describe("the account reported again (#481)", () => {
         dad.uid,
         {
           ...createMountain(),
+          rockDug: 5_000,
           owned: { ...createMountain().owned, helper: 5 },
         },
       ],

@@ -69,7 +69,11 @@ export const RECIPE_IDS = [
 
 export type RecipeId = (typeof RECIPE_IDS)[number];
 
-/** Known before the workshop opens. Crafting still waits for the Granite. */
+/**
+ * The recipes a fresh mine knows. The old bench that crafted them never
+ * opens (#740); the factory's station builds gear from its own
+ * blueprints (`BLUEPRINT_IDS` in `factory`).
+ */
 export const STARTING_RECIPE_IDS = [
   "iron-rails",
   "sturdy-props",
