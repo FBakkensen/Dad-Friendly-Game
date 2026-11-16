@@ -52,7 +52,7 @@ import { BOOTS_SPEED_PER_LEVEL, tierSynergy, upgradeLevel } from "./upgrades";
 
 /**
  * Share of the crew's speed paid for time away (app closed or in the
- * background). Tuned by src/pacing.test.ts.
+ * background).
  */
 export const AWAY_PAY_RATE = 0.3;
 

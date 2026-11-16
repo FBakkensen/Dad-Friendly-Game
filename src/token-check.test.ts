@@ -63,41 +63,30 @@ describe("token lengths", () => {
   });
 
   it("keeps only the tap target from the approved mocks' scale (#376)", () => {
-    const mock = properties(readFileSync("mockups/tokens.css", "utf8"));
+    // The mocks' scale went with the old mockups (#738); its tap target was 48px and 8px apart.
     const game = properties(readFileSync("src/tokens.css", "utf8"));
-    expect(mock.get("--target-min")).toBe("48px");
     const kept = [...game.keys()].filter(
       (name) => !BOARD_TOKEN.test(name) && !FRAME_TOKENS.has(name),
     );
     expect(kept).toEqual(["--target-min", "--target-gap"]);
-    for (const name of kept) {
-      expect(game.get(name), name).toBe(mock.get(name));
-    }
+    expect(game.get("--target-min")).toBe("48px");
+    expect(game.get("--target-gap")).toBe("8px");
     const lengths = tokenLengths(readFileSync("src/tokens.css", "utf8"));
     expect(lengths.get("--target-min")).toBe(48);
     expect(lengths.get("--target-gap")).toBe(8);
     expect(lengths.get("--board-type-32")).toBe(32);
   });
 
-  it("reads the board tokens that match the control board mockup (#370)", () => {
+  it("keeps the board tokens the control board mockup approved (#370)", () => {
     // The board's raw values live in tokens.css by plan (B2 global
-    // constraints); its palette and save line come from the mockup's :root.
-    const page = readFileSync("mockups/control-board/index.html", "utf8");
-    const mock = properties(/:root\{([^}]*)\}/.exec(page)?.[1] ?? "");
+    // constraints). Its palette and save line are the mockup's :root, pinned
+    // here since the mockup went (#738).
     const game = properties(readFileSync("src/tokens.css", "utf8"));
-    const board = [...game].filter(([name]) => BOARD_TOKEN.test(name));
-    expect(board.length).toBeGreaterThan(0);
+    expect([...game].some(([name]) => BOARD_TOKEN.test(name))).toBe(true);
     expect(game.get("--art")).toBe("2px");
-    expect(game.get("--save-h")).toBe(mock.get("--save-h"));
-    let copied = 0;
-    for (const [name, value] of board) {
-      const twin = mock.get(name.replace(/^--board-/, "--"));
-      if (twin !== undefined) {
-        expect(value, name).toBe(twin);
-        copied += 1;
-      }
+    for (const [name, value] of CONTROL_BOARD_ROOT) {
+      expect(game.get(name), name).toBe(value);
     }
-    expect(copied).toBeGreaterThanOrEqual(10);
   });
 
   it("reads slice 1's frame tokens from the prototype, and names the rest (#659)", () => {
@@ -458,6 +447,22 @@ describe("token check", () => {
     ).toEqual([]);
   });
 });
+
+/** The control board mockup's :root values that the board's tokens copied (#370). */
+const CONTROL_BOARD_ROOT: readonly (readonly [string, string])[] = [
+  ["--save-h", "56px"],
+  ["--board-ink", "#d9ddd0"],
+  ["--board-ink-2", "#b3bcae"],
+  ["--board-ink-plate", "#050607"],
+  ["--board-ink-bare", "#eceee4"],
+  ["--board-amber-bare", "#ffd38c"],
+  ["--board-amber", "#e8ac4c"],
+  ["--board-green", "#9fcf86"],
+  ["--board-rust", "#e39a78"],
+  ["--board-night", "#0b0e0f"],
+  ["--board-ink-plate-2", "#0b0e10"],
+  ["--board-ink-flap", "#e4dcc6"],
+];
 
 /**
  * The control board's tokens: one art pixel, the save line, and --board-*

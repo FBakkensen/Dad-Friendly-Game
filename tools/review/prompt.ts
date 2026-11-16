@@ -22,7 +22,7 @@ const GUARDS: readonly RegExp[] = [
   /^\.claude\//,
   /^CLAUDE\.md$/,
   /^tools\/review\//,
-  /^scripts\/(gate|signoff|changed|function-limits|knip-strict|check-cycles|token-check|visual-check|test-rules|mockup-check)\./,
+  /^scripts\/(gate|signoff|changed|function-limits|knip-strict|check-cycles|token-check|visual-check|test-rules)\./,
   /^scripts\/visual\//,
   /^src\/(gate|signoff|function-limits|token-check)\.ts$/,
   /^src\/lab\/(targets|guardrails)\.ts$/,
@@ -57,7 +57,7 @@ const CODE: readonly RegExp[] = [
 
 const GAME: readonly RegExp[] = [
   /^src\/(economy|lab)\//,
-  /^src\/(tiers|rates|scale|milestones|line|expeditions|engineers|upgrades|workshop|hazards|mountain|pacing)\.ts$/,
+  /^src\/(tiers|rates|scale|milestones|line|expeditions|engineers|upgrades|workshop|hazards|mountain)\.ts$/,
   /^src\/[^/]*words\.ts$/,
 ];
 

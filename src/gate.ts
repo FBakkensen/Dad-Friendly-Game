@@ -390,7 +390,6 @@ export function gateSteps(
       full,
       AFTER_TESTS,
     ),
-    step("mockups", "node", ["scripts/mockup-check.mjs"], full, AFTER_TESTS),
     ...lab,
   ];
 }

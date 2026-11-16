@@ -1,14 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { listActions } from "../economy/actions";
+import { listActions, type ValueContext } from "../economy/actions";
 import { withFactors } from "../economy/factors";
 import { LINE_OFF } from "../line-switch";
 import { effectiveRates } from "../rates";
 import { createMountain } from "../mountain";
-import { DAD_SCHEDULE } from "../pacing";
 import { singleShareOf } from "./measures/singleShare";
 import { scoreDecision } from "./score";
 import { BORER_SOURCE, CRAFTED_SOURCE, TENDING_SOURCE } from "./targets";
 import { NOTHING_CRAFTED } from "../workshop";
+
+/** Two ten-minute sittings a day: what the old pacing sim's dad played (#738 moved it here). */
+const DAD_SCHEDULE: ValueContext = {
+  liveSeconds: 10 * 60,
+  awaySeconds: 12 * 60 * 60 - 10 * 60,
+};
 
 const ada = { name: "Ada", rank: 0, trips: 0, post: "borer" } as const;
 
