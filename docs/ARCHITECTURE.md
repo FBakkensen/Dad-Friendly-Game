@@ -6,25 +6,25 @@ page is the map, plus the rules that keep it that way.
 ## Layers (imports point down only)
 
 1. **Rules of the game (pure, no DOM):** `scale` → `mountain`, `tiers`,
-   `relics`, `layers`, `stock`, `upgrades`, `boosts`, `veins`, `crew`, `line`, `workforce`, `piles`, `mine-piles`, `city`, `building-site`, `transport`, `rates` (the one place
-   every multiplier is applied: live ticks, away pay, taps, the UI), and
+   `layers`, `stock`, `upgrades`, `crew`, `line`, `workforce`, `piles`, `mine-piles`, `city`, `building-site`, `transport`, `rates` (the one place
+   every multiplier is applied: live ticks, away pay, the UI), and
    `field-log` (a JSON snapshot and an event ring). `stock` (#560) is the
    goods table (stones, then each band's material, with where it comes from),
    the mountain's one `stock` record of them, and the `Price` every buy asks: a
    short list of goods and amounts. It is the one module that pays (`pay`,
    which refuses unless every line is covered), adds (`add`), refunds and
    takes back; the rules modules quote a `Price` (`tierPrice`, `upgradePrice`,
-   `boostPrice`, `promotePrice`, `recipePrice`) and never subtract a good
+   `promotePrice`, `recipePrice`) and never subtract a good
    themselves. `rates.exactCrewPerSecond`
    is the crew speed before the whole-stone floor. `economy/actions` lists
    every legal move, including a craft and a cancel, applies the existing
-   functions, and values income from that speed, taps, and away pay. A `Move`
-   is an `Action` or a screen-only move (a dig, a vein tap, a seen mark, or
+   functions, and values income from that speed and away pay. A `Move`
+   is an `Action` or a screen-only move (a seen mark, or
    Buys' ×10 and Max, `buyTiers`: several card buys in one move, all or
    nothing, logged as one `tier.buy` with the final count, #358), and
    `applyMove` is the one place the UI changes the mountain, and the lab's
    `applyAction` too (#409). The lab's runner and the pacing sim still call some
-   rule functions directly (`promote`, `buyBoost`, `send`, `tendBestTier`),
+   rule functions directly (`promote`, `send`, `tendBestTier`),
    which R1 (#420) folds in. A lasting upgrade's buy and a promotion carry the
    price the player was shown (`price`), and a different price today refuses
    the move: a band crossed while the tap settles the crew cannot charge more
@@ -53,12 +53,10 @@ page is the map, plus the rules that keep it that way.
    `unit` project) plays random legal moves, live waits, trouble and time away
    from a save in each band and in a fresh mine (#654: orders, wagons and deliveries), and checks after each step that counts stay whole
    and finite, lifetime figures never fall, an upgrade or a promotion spends
-   its shown price and a machine or boost spends some stones, a buy of a
-   machine, upgrade, boost or craft never slows the crew, and the save
+   its shown price and a machine spends some stones, a buy of a
+   machine, upgrade or craft never slows the crew, and the save
    round-trips. It also checks, in every band, that time away inside the
-   full-pay length pays the same however it is sliced, once each stretch's
-   Heart of Patience bonus is divided out (a long absence earns more, by
-   design), and that an absence into a new band pays what the same absence
+   full-pay length pays the same however it is sliced, and that an absence into a new band pays what the same absence
    split at the crossing pays (#592). Its known gap (part-stone) is listed at
    its top, pinned by its own test.
    The full gate (`npm run check`, run on the PR's final commit before the merge) runs the strategy lab and
@@ -103,10 +101,10 @@ page is the map, plus the rules that keep it that way.
    and its effects as data (record, log, remember the homecomings, save a
    band's recipe grant, the move's result). It covers ticks, away pay, moves,
    trouble presses and fixes, the news and a new run. The `Mountain` it holds
-   is complete (#415): every field is present, with 0 for a cold clock or a
-   boost that never ran, and `undefined` only for a free bench. A loaded save
+   is complete (#415): every field is present, with 0 for a cold clock, and
+   `undefined` only for a free bench. A loaded save
    is played as it was: no grant is added on load (#558). The news is one
-   queue of typed `Notice`s (away, quiet, reveal, layer, craft), in arrival
+   queue of typed `Notice`s (away, quiet, layer, craft, operational), in arrival
    order; screens read it with `firstNotice` and
    `noticesOf`, and `dismiss(kind)` closes the oldest of a kind (`"away"`
    closes the whole welcome card). Homecomings stay their own list, since the
@@ -254,11 +252,11 @@ page is the map, plus the rules that keep it that way.
      `--board-scale` in step with the window. The game is phone-only (#498):
      a wider window gets the same board, scaled and centred. `board-skin` is
      the 9-slice plan that draws a frame, tag or key skin on a canvas behind
-     its element. `board-relics` is the relic art, which the How it works cards
-     and the Ledger still read. `board-window` is the frame clock
+     its element. `board-window` is the frame clock
      (`runBoardLoop`) that `scene-paint` runs, and `float-text` says whether
      the device asks for reduced motion. The board's mine window, its
-     machines, the relic plate and its note went with the board (#727). `buys-amount`
+     machines, the relic plate and its note went with the board (#727), and
+     the relic art with the relics (#728). `buys-amount`
      is the device's one amount (`deviceAmount`, `paintAmountKey`), kept in
      device storage, never in the save. `upgrade-rows` is the upgrade rows'
      view the stage list reads. Shared player-facing wording lives in
@@ -282,8 +280,8 @@ paths are read-only.
   no other key. A new game fact never needs a rules change.
 - **The game map** (`save-format.ts`): `owned` (by tier id), `stock` (stones
   and the four materials), `levels` (upgrade and recipe levels), `clocks`
-  (boost ends, craft timers and the Gold rush), `marks` (`seen`, `taught`,
-  `recipes`, `finds`, `operational`), `run` (`generation`, `stretch`, `dug`, `rushBank`, `rock`: rock dug in all, #664),
+  (the live craft timers), `marks` (`seen`, `taught`,
+  `recipes`, `finds`, `operational`), `run` (`generation`, `stretch`, `dug`, `rock`: rock dug in all, #664),
   `engineers` (post `"tunnel"` while away), `expeditions` (each with the
   `home` post), `bench`, `fleet` (by vehicle id, #654), `jobs` (workers by job,
   #689), `piles` (the drilled rock, the rock at the shaft and the rock at the
@@ -332,7 +330,7 @@ paths are read-only.
 
 ## Findings
 
-- **Single source for rates holds.** All speed, tap and away math goes
+- **Single source for rates holds.** All speed and away math goes
   through `effectiveRates`; the screen never multiplies on its own.
 - **Import cycle (fixed in #104):** `relics` ↔ `mountain` ↔ `rates` broke at
   module init; `MOUNTAIN_STONES` now lives in the leaf module `scale`. `npm run cycles`
@@ -362,7 +360,9 @@ paths are read-only.
   regrown to about 1,240 lines, with `mountMountainScreen` at 1,112. #411 moves
   its interaction rules out. #431 split the rest into `screen-*` modules:
   `mountMountainScreen` is a composition root within 150 lines. The board,
-  `mountain-screen` and its parts were deleted in #727.
+  `mountain-screen` and its parts were deleted in #727, and the relic
+  drawer's modules (`relics`, `relic-rows`, `relic-pages`) with the relics in
+  #728.
 
 - **Board tap rules (#410, #425, #426):** `board-interaction` is a pure reducer that
   holds the board's tap rules once, run through `board-host`. The Ledger
@@ -427,9 +427,8 @@ paths are read-only.
 ## Guards (#118)
 
 - `npm run cycles`: no runtime import cycles in `src`.
-- `rules-drift.test.ts`: `firestore.rules` allows exactly the `Mountain` save
-  fields (a `Required<Mountain>` sample makes a new field a type error until
-  listed), every upgrade id with its max level, and every boost id.
+- `rules-drift.test.ts`: `firestore.rules` takes the envelope this version
+  writes and the field log (#558); the game map is the client's to read.
 - `knip` (strict): no unused files, exports or dependencies.
 - `prettier --check .` covers docs too; coverage floors per critical module. The fast tier runs `prettier --check` on every file changed since `origin/main` (`format:changed`).
 - Scheduling (#403): independent steps run in parallel, but the heavy lane (`visual`, `journeys`, `lab`, `lab:generations`, each filling every core) runs one at a time, visual first, so the timing checks never run under the labs' load. The labs are seeded, so a green run records the sha256 of its inputs (the lab's import closure, `package-lock.json`, the Node version, and the step's command, args and env) in `.gate/reuse/<step>.json`. A later run with the same inputs prints `reused (same inputs passed on <sha>)` instead of running, and counts as green for signoff. A red run deletes its record, and CI starts with none.
@@ -599,28 +598,25 @@ returnsAt, home, find }[]` (≤5, `returnsAt > sentAt`, no longer than the deep
   so an apprentice on the borer is +17.5%. Once a Great Machine exists and the
   best tender is not on it, that post is topped up to 12% of the untended crew.
   A second running post adds its own floor. `valueOf` prices a find as expected
-  stones over the horizon (`src/economy/finds.ts`); keepsakes and glimmers are 0. Session trouble arrives as an optional third argument and slows that tier
-  only; away pay never passes it. Built (#149). Grandfather's pick strengthens
-  the bare tap (five fourths, rounded up) before Sharper picks doubles it. Built
-  (#148). `accrueAway` splits the paid window at each `returnsAt` after clamping
+  stones over the horizon (`src/economy/finds.ts`); keepsakes and quiet trips are 0. Session trouble arrives as an optional third argument and slows that tier
+  only; away pay never passes it. Built (#149). `accrueAway` splits the paid window at each `returnsAt` after clamping
   a future `sentAt`, so the tending bonus resumes from the return; a party
   already home before that window (including during the unpaid part of a capped
   absence) tends the whole of it. Built (#146). The pacing dad (`tendBestTier`)
   keeps Ada on the borers until he owns a Great Machine, then moves her onto it.
   He fixes trouble within 3 seconds. From the first borer, the sim pays the real
   promotion for Nils (2,000,000 stones and one worker) and he waits at camp.
-  Pacing days now live in `src/pacing.sim.test.ts` (#357: plain dad 4.5, upgrade
-  dads 3.5, second run 3). History (#163, #171): the plain dad reached the
+  Pacing days now live in `src/pacing.sim.test.ts`. History (#163, #171): the plain dad reached the
   bottom on day 5.5, upgrade and boost dads on day 5.0, a second run on day 4.
   Nils walks the old shaft at the start of every session and, once a journeyman,
   the deep dark each night. Finds apply.
 - `hazards` (rules layer, pure): `nextTrouble(seed, now, mountain)`, `fix`, `pressTrouble`, `slowedSpeed`. One trouble at a time, every 3–6 minutes of live play, only once a borer is owned. Cave-in on carts, flood on drills, jam on borers or the Great Machine. The tier keeps three quarters of its speed at first and eases to half over two minutes. Five taps or a 600ms hold fixes it. An engineer tending that tier fixes it after 30 seconds; a Master fixes it at once. Steel-toe boots double the gap when `wearsSteelToes(mountain)` is true (or the caller passes `boots: true`). Built (#148). Session state lives in the store's session (`session`), never in the save, and clears on close, reload, and away time. Built (#149).
 - `field-log` (rules layer, pure): `snapshot(mountain, rates, now, version)` and
   `EventRing` (last 200) are built (#141). The ring's move entries (tier and
-  upgrade purchases, boosts started, vein tapped, craft started, promotions,
+  upgrade purchases, craft started, promotions,
   posts, sends, and recalls) come from the events a dispatched move returns,
   through `fieldEntry`; nothing diffs the mountain (#413). The session core also
-  records relic found, away report, Start over, pass the mine, and save errors. The ring is not a mountain save
+  records away report, Start over, pass the mine, and save errors. The ring is not a mountain save
   field. The device keeps a copy per account (`field-ring`, key `dad-friendly-field-log:<uid>` or
   `:guest`, #479): `local-saves` restores it when the account is known or changes, and keeps it on
   the cloud copy's throttle (`shouldWriteFieldLog`) with a 10 s gap, and at once on hide, a new
@@ -653,9 +649,9 @@ field-log` lists every log; `--uid` or a positional uid reads one. The default
   running expeditions (`engineer`, `tunnel`, ISO `returnsAt`). Rules cap each
   list at 5 and check that the first item is a map of the expected keys. A
   closed-name check, beside the snapshot and the first event, crosses the
-  1000-expression budget. A full relic shelf and a second boost are size-capped
-  only: naming every relic made a late-game field log write fail the same way
-  (#219). The client writes the typed snapshot. The ring adds
+  1000-expression budget. Until #728 a full relic shelf and a second boost
+  were size-capped only: naming every relic made a late-game field log write
+  fail the same way (#219). The client writes the typed snapshot. The ring adds
   `engineer.promote`, `engineer.station` (a machine post, or `camp` when called
   back), `expedition.send`, `expedition.return` (find id in `source`; `quiet`
   when the tunnel was empty), `expedition.recall`, `trouble.start`,
@@ -666,8 +662,8 @@ field-log` lists every log; `--uid` or a positional uid reads one. The default
   drawer's Quiet/Sound head key is the only sound control (`sound`, #491). Trouble stays out of the
   snapshot: it is never saved. Choosing a post while a party is out records the
   recall and, when the new post is not the one they left, the station.
-- `lost-tools` (rules layer, pure): `hasLostTool`, `tapWithPick`, `glintScale`, `expeditionAwayMs`, `wearsSteelToes`. The old miner's lamp doubles a golden vein's glint (`veinGlintMs`). Keepsake stories live in `screen-words`. No new save field: the shelf is still `finds`. Built (#148).
-- `layers` (rules layer, pure): four bands from stones mined: the Topsoil, the Granite, the Crystal Caves and the Deep Heart through the bottom, starting at `BAND_STARTS` ([Numbers now](DESIGN.md#numbers-now)). `layerOf` reads `minedOut`. Entering a band includes its first stone, so 10M is the Granite, beside the Shield. Hardness is a per-tier speed in `effectiveRates`, and the sweep factor `layer.<n>.<tier>.hardness` multiplies it. `accrue` (live ticks and time away alike) splits a stretch at the whole second the crew digs past a band's start (`stonesToNextBand`) and reads the new band's speed from there, as live play does a second at a time (#592). Workers and kids stay at 1. No layer field. Each band drops its material on the tuned gap in `MATERIAL_EVERY` (1,000,000 clay, 1,000,000 iron, 5,000,000 crystal, 10,000,000 heartstone). `accrue`, `accrueAway`, and a hand tap add the units. The remainder stays in the stone total. `materialLeftToDig` counts what the rest of the run's mountain still holds of one material; its one user, the Workshop sheet's "No clay this deep" (#492), went with the board (#727). Built (#194, #195, #198).
+- `lost-tools` (rules layer, pure): `hasLostTool`, `expeditionAwayMs`, `wearsSteelToes`, for the two tools left, the worn map and the steel-toe boots (Grandfather's pick and the Old miner's lamp went with the tap and the veins, #728). Keepsake stories live in `screen-words`. No new save field: the shelf is still `finds`. Built (#148).
+- `layers` (rules layer, pure): four bands from stones mined: the Topsoil, the Granite, the Crystal Caves and the Deep Heart through the bottom, starting at `BAND_STARTS` ([Numbers now](DESIGN.md#numbers-now)). `layerOf` reads `minedOut`. Entering a band includes its first stone, so 10M is the Granite. Hardness is a per-tier speed in `effectiveRates`, and the sweep factor `layer.<n>.<tier>.hardness` multiplies it. `accrue` (live ticks and time away alike) splits a stretch at the whole second the crew digs past a band's start (`stonesToNextBand`) and reads the new band's speed from there, as live play does a second at a time (#592). Workers and kids stay at 1. No layer field. Each band drops its material on the tuned gap in `MATERIAL_EVERY` (1,000,000 clay, 1,000,000 iron, 5,000,000 crystal, 10,000,000 heartstone). `accrue`, `accrueAway`, and a hand tap add the units. The remainder stays in the stone total. `materialLeftToDig` counts what the rest of the run's mountain still holds of one material; its one user, the Workshop sheet's "No clay this deep" (#492), went with the board (#727). Built (#194, #195, #198).
 - The envelope carries `rev`, `deviceId`, and `savedAt` (first in v7). `rev`
   starts at 1 on a new doc and the rules accept only `stored + 1`. `savedAt`
   must be `request.time`. One cloud write is in flight, at most one a second, and the
@@ -729,32 +725,21 @@ field-log` lists every log; `--uid` or a positional uid reads one. The default
   `settleBench` fits a craft whose clock has rung, once, including inside
   `accrue` and `accrueAway`. `cancelCraft` returns lasting gear in full, because
   its effect has not started, and only the unused share of a live timer (axle
-  grease, a blasting charge, a crystal flare, a heartstone ember). A craft whose
+  grease, a blasting charge, a heartstone ember). A craft whose
   clock has already rung is fitted instead. `cancelRefund` and `hotTimers` are
   what the drawer reads. Rails, bits, the core, and Reinforce (max 5) multiply
   tier speed in `effectiveRates`. A blasting charge doubles the live crew until
   `chargeUntil`. Axle grease doubles the live crew until `axleUntil`, including
-  while it is still on the bench. Axle grease, a blasting charge, and Overtime
-  meet in `effectiveRates`, and the crew runs at the strongest of them. A Gold
-  rush (`src/gold-rush.ts`, #468) is paid out of the away haul: after an hour
-  away `accrueAway` holds part of it back (`holdForRush`, `rushBank`), and the
-  rush pays `rushPerSecond` of those held stones beside the crew until
-  `rushUntil`, both saved in the game map (`clocks` and `run`). Live `accrue`
-  pays them (`payRush`) beside the crew's own digging. `effectiveRates` never
-  counts them (#525), so every rate reads the crew alone.
-  `resumeRush` runs first on every open: a break under an hour shifts the rush
-  later (close is pause), and an hour away or an ended rush lands what is held
-  (`releaseRush`), as does a missed glint (the `missQuickVein` move). The store's snapshot reports each settled
-  time away as `awayGap` (`ms`, and the `at` that names it), and a long one
-  arms the quick vein. A
-  heartstone ember multiplies the Great Machine by 1.25 until `emberUntil`. A
-  crystal flare makes veins 25% more often until `flareUntil`. Crafting a flare,
-  an ember, or another grease refreshes that clock and does not stack. None of
-  those timers change away pay. Sturdy props stretch the trouble gap. The lamp
-  makes golden veins more often for good. The engineer's kit shortens the next
+  while it is still on the bench. Axle grease and a blasting charge meet in
+  `effectiveRates`, and the crew runs at the stronger of them. A
+  heartstone ember multiplies the Great Machine by 1.25 until `emberUntil`.
+  Crafting an ember or another grease refreshes that clock and does not
+  stack. None of those timers change away pay. Sturdy props stretch the
+  trouble gap. The engineer's kit shortens the next
   expedition. Strength and cost factors (`recipe.<id>.strength`,
   `recipe.<id>.cost`) default to 1; strength also scales a timed buff's length.
-  Built (#196, #198, #210). Its drawer, `workshop-panel`, went with the
+  Built (#196, #198, #210). Overtime, Crystal flare, the Miner's crystal lamp
+  and the Gold rush (#468) went in #728. Its drawer, `workshop-panel`, went with the
   board (#727); a craft's countdown runs on the mountain's clock.
 - Panels: the Engineers drawer (`engineers-panel`, #161), its rows and
   pages, the welcome card's homecomings and trouble's shout on the bays and

@@ -349,11 +349,12 @@ export function previewFind(
   roll: number,
 ): StoredFind {
   const first = rolledKind(tunnel, roll, recipeOpen(mountain, tunnel));
+  // A full shelf falls back to the other shelf, then to a quiet trip, where a
+  // relic glimmer stood before #728. An engineer comes only on his own roll,
+  // so the deep dark keeps its mix once the shelves are full.
   const order: readonly FindKind[] = [
     first,
-    ...(["tool", "keepsake", "engineer"] as const).filter(
-      (kind) => kind !== first,
-    ),
+    ...(["tool", "keepsake"] as const).filter((kind) => kind !== first),
   ];
   for (const kind of order) {
     const find = findOfKind(mountain, engineers, tunnel, kind, roll);
@@ -400,9 +401,7 @@ function findOfKind(
     }
     return { kind: "recipe", id };
   }
-  if (tunnel !== "deep-dark") {
-    return undefined;
-  }
+  // Only the deep dark's odds roll an engineer, and no shelf falls back to one.
   const name = nextEngineerName(engineers, mountain.expeditions);
   return name === undefined ? undefined : { kind: "engineer", id: name };
 }

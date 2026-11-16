@@ -106,7 +106,7 @@ the document path.
 ### Privacy
 
 Only household players are read. The document holds the uid, the latest
-snapshot, and the latest event ring: stones, crew, relics, and recent events.
+snapshot, and the latest event ring: stones, crew, and recent events.
 No email and no display name. The device keeps the ring through a reload, a
 Start over and a pass (#479), and those two write the document at once. The Admin SDK bypasses the game's security rules,
 so keep these credentials on a machine you trust.

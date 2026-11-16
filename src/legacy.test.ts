@@ -50,7 +50,9 @@ describe("legacy bonus", () => {
 
 describe("passing the mine to your kid", () => {
   it("is only possible at the bottom", () => {
-    expect(passTheMine(minedMountain(99_999_999), 5_000)).toBeUndefined();
+    expect(
+      passTheMine(minedMountain(MOUNTAIN_STONES - 1), 5_000),
+    ).toBeUndefined();
     expect(passTheMine(bottom, 5_000)).toBeDefined();
   });
 

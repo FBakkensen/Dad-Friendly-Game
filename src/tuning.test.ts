@@ -13,7 +13,7 @@ import { UPGRADES } from "./upgrades";
 /**
  * The deliberate pins on the tuned prices (#381). A price-only retune breaks
  * these and nothing else: every other test computes its prices from
- * `tierCost`, `upgradeCost`, `promoteCost`, `boostCost` or `oneOffStretch`,
+ * `tierCost`, `upgradeCost`, `promoteCost` or `oneOffStretch`,
  * or from the tuned values themselves. The tier, growth and band pins match
  * docs/DESIGN.md "Numbers now"; change both together. Pacing and lab
  * regression pins (`*.sim.test.ts`, `src/lab/`) pin outcomes, not prices, and

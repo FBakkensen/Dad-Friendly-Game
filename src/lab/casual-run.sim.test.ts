@@ -17,9 +17,8 @@ describe("casual run", { timeout: 120_000 }, () => {
     // day 1.5. The value-per-stone score waits out the night before the
     // Deep Heart's next Great Machine (11.95 h from day 3.5). That is the
     // report-only value-per-stone score. It passes the half-day limit with
-    // about 3 minutes to spare (0.498 of a day). The payback score waited
-    // about a minute until the Gold rush (#468); now he taps the quick vein
-    // and the held stones come in with no dead minute.
+    // about 3 minutes to spare (0.498 of a day). The quick vein and the Gold
+    // rush that once brought the held stones in went in #728.
     // Since away pay splits at a band crossing (#592), the night before the
     // Deep Heart's next Great Machine is quiet on the payback table too:
     // 11.98 h from day 3.5, inside the half-day limit by about a minute.

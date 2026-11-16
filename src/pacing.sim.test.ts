@@ -10,19 +10,17 @@ import { BAND_SCALE, MOUNTAIN_STONES } from "./scale";
 const MARKS = { "1M": 1_000_000, "25M": 25_000_000, bottom: MOUNTAIN_STONES };
 const depth = (id: keyof typeof MARKS): number => MARKS[id];
 
-// Deterministic dads: two 10-minute sessions a day, 12 hours apart, 3 taps a
-// second, always buying the best speed per stone, paid for time away as the
-// game pays it. #198 hardened the rock; D3 (#246) lets each layer favour
-// one machine. The M12 retune (#252) opens the Great Machine at 120M; the
-// new curve (#356) opens the borer at the Granite start. On the #357 retune
-// for the milestone marks the plain dad reaches the bottom on day 4.5 and the
-// upgrade dads on day 3.5, and every dad reaches 25M on day 2. These
-// are regression pins, not limits: the run length is not graded. This sim
-// does not craft.
+// Deterministic dads: two 10-minute sessions a day, 12 hours apart, always
+// buying the best speed per stone, paid for time away as the game pays it.
+// #198 hardened the rock; D3 (#246) lets each layer favour one machine. The
+// M12 retune (#252) opens the Great Machine at 120M; the new curve (#356)
+// opens the borer at the Granite start. The days each dad reaches 25M and the
+// bottom are the pins below. They are regression pins, not limits: the run
+// length is not graded. This sim does not craft.
 describe.each([
   ["a plain dad (crew only)", {}, 4.5, 2],
   ["a dad who also buys lasting upgrades", { buysUpgrades: true }, 3.5, 2],
-])("pacing: %s", (_, options, bottomDay, hammerDay) => {
+])("pacing: %s", (_, options, bottomDay, day25M) => {
   const reached = simulateDad({
     milestones: [depth("1M"), depth("25M"), depth("bottom")],
     ...options,
@@ -37,10 +35,10 @@ describe.each([
   });
 
   it("reaches 25M on the pinned day, after 1M", () => {
-    const hammer = reached.get(depth("25M")) ?? Infinity;
+    const at25M = reached.get(depth("25M")) ?? Infinity;
     // The sim checks the depth once a tick, so the day can read a hair over.
-    expect(hammer).toBeCloseTo(hammerDay, 1);
-    expect(hammer).toBeGreaterThan(reached.get(depth("1M")) ?? Infinity);
+    expect(at25M).toBeCloseTo(day25M, 1);
+    expect(at25M).toBeGreaterThan(reached.get(depth("1M")) ?? Infinity);
   });
 
   it("reaches the bottom on the pinned day", () => {
@@ -237,12 +235,12 @@ describe("pacing: a dad who never fixes trouble (#149)", () => {
   });
 
   it("lands within a day of the usual targets", () => {
-    const lantern = reached.get(depth("1M")) ?? Infinity;
-    const hammer = reached.get(depth("25M")) ?? Infinity;
+    const at1M = reached.get(depth("1M")) ?? Infinity;
+    const at25M = reached.get(depth("25M")) ?? Infinity;
     const bottom = reached.get(depth("bottom")) ?? Infinity;
-    expect(lantern).toBeCloseTo(1.5, 1);
-    expect(hammer).toBeGreaterThanOrEqual(2);
-    expect(hammer).toBeLessThanOrEqual(4.5);
+    expect(at1M).toBeCloseTo(1.5, 1);
+    expect(at25M).toBeGreaterThanOrEqual(2);
+    expect(at25M).toBeLessThanOrEqual(4.5);
     // #357: the usual upgrade dad's bottom moved from day 4 to 3.5, and the
     // window moved with it. Measured: day 3.5.
     expect(bottom).toBeGreaterThanOrEqual(3.5);

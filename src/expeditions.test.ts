@@ -7,6 +7,7 @@ import {
   TUNNELS,
   parseExpeditions,
   parseHomecomingNews,
+  previewFind,
   send,
   settle,
   recall,
@@ -251,6 +252,28 @@ describe("finds", () => {
     const home = settle(sent, (seed ?? 0) + SEAM);
     expect(home.finds[0]).toMatchObject({ kind: "quiet" });
     expect(home.mountain.finds).toEqual([]);
+  });
+
+  it("falls back from a full shelf to a quiet trip in the deep dark, never to an engineer (#728)", () => {
+    // Tool rolls are 0..34, keepsake 35..59, quiet 60..79, an engineer 80..99.
+    const full = {
+      ...crew([journeyman]),
+      finds: [...LOST_TOOLS, ...KEEPSAKES],
+      recipes: [...createMountain().recipes, "engineers-kit" as const],
+    };
+    for (const roll of [0, 34, 35, 59]) {
+      expect(previewFind(full, full.engineers, "deep-dark", roll)).toEqual({
+        kind: "quiet",
+      });
+    }
+    expect(previewFind(full, full.engineers, "deep-dark", 90)).toMatchObject({
+      kind: "engineer",
+    });
+    // One shelf full: the roll falls back to the other shelf first.
+    const toolsOnly = { ...full, finds: [...LOST_TOOLS] };
+    expect(
+      previewFind(toolsOnly, toolsOnly.engineers, "deep-dark", 0),
+    ).toMatchObject({ kind: "keepsake" });
   });
 
   it("sometimes brings an engineer home from the deep dark, and never a sixth", () => {
