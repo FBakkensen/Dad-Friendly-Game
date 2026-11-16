@@ -40,9 +40,6 @@ export type ShiftReport = {
 /** The second key's words, beside Resume, when the stockyard stood the mine. */
 export const TO_STOCKYARD = "To the stockyard";
 
-/** A fresh night's away report: the only one with a shift report. */
-export type NightAwayReport = AwayReport & { readonly night: NightReport };
-
 /** A good as the report says it: "stone". */
 const GOOD_WORDS: Readonly<Record<GoodId, string>> = {
   stones: "stone",
@@ -62,7 +59,7 @@ function litBy(night: NightReport): Building | undefined {
     : undefined;
 }
 
-function head(report: NightAwayReport): string {
+function head(report: AwayReport): string {
   const night = report.night;
   const away = `Unattended ${shiftDuration(report.awayMs)}.`;
   const lit = litBy(night);
@@ -77,12 +74,12 @@ function head(report: NightAwayReport): string {
  * The prototype's "early": production stopped under 98.5% of the night. The
  * bar shows the idle time and the clock line names why, only then.
  */
-function early(report: NightAwayReport): boolean {
+function early(report: AwayReport): boolean {
   return report.night.producedMs < Math.max(1, report.awayMs) * 0.985;
 }
 
 /** The prototype's bar: the share produced, and its idle time when early. */
-function bar(report: NightAwayReport): ShiftBar {
+function bar(report: AwayReport): ShiftBar {
   const awayMs = Math.max(1, report.awayMs);
   const producedMs = report.night.producedMs;
   const produced = Math.max(3, Math.round((100 * producedMs) / awayMs)) / 100;
@@ -116,11 +113,11 @@ function stepLines(night: NightReport): readonly string[] {
 }
 
 /** The stockyard stood the mine before the night was over (part 2, #671). */
-function yardStopped(report: NightAwayReport): boolean {
+function yardStopped(report: AwayReport): boolean {
   return report.night.stop === "stockyard" && early(report);
 }
 
-function lines(report: NightAwayReport): readonly string[] {
+function lines(report: AwayReport): readonly string[] {
   const night = report.night;
   const produced = goodsList(night.produced);
   const delivered = goodsList(night.delivered);
@@ -148,7 +145,7 @@ function marks(night: NightReport): readonly string[] {
 }
 
 /** The shift report of a fresh night. */
-export function shiftReport(report: NightAwayReport): ShiftReport {
+export function shiftReport(report: AwayReport): ShiftReport {
   return {
     title: "Shift report",
     head: head(report),

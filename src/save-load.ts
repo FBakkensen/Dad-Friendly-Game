@@ -19,7 +19,7 @@ import {
   type SaveMoment,
 } from "./save-progress";
 import { freshServerRead } from "./server-read";
-import { markWelcomed, openBaselines, saveCounts } from "./session";
+import { openBaselines, saveCounts } from "./session";
 import {
   adopt,
   canWrite,
@@ -73,7 +73,6 @@ export function openSession(
   ctx.session = openBaselines(ctx.session, options.rebase);
   runStep(ctx, { kind: "recall", homecomings: readHomecomings(ctx) });
   const paid = options.pay ? payAway(ctx, options.since) : 0;
-  ctx.session = markWelcomed(ctx.session);
   return { paid };
 }
 

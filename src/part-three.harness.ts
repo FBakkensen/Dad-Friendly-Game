@@ -1,7 +1,6 @@
 import type { CageTrips, HoistsAssigned } from "./cages";
 import type { Project } from "./city";
 import { withFactors } from "./economy/factors";
-import { FRESH_OFF } from "./line-switch";
 import {
   NO_GRANITE_PILES,
   NO_LEVEL_MACHINES,
@@ -25,7 +24,6 @@ import { EMPTY_STOCK, type GoodId, type Stock } from "./stock";
 
 /** Slice 1 with parts 2 and 3 on. */
 const PART_THREE_FACTORS: Readonly<Record<string, 0>> = {
-  [FRESH_OFF]: 0,
   [PART_TWO_OFF]: 0,
   [PART_THREE_OFF]: 0,
 };
@@ -57,7 +55,7 @@ export const partThreeAsBuilt = <T>(
 ): T => partThree(body, { ...AS_BUILT, ...knobs });
 
 export const partTwo = <T>(body: () => T): T =>
-  withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 }, body);
+  withFactors({ [PART_TWO_OFF]: 0 }, body);
 
 export type Setup = {
   /** Workers on the Topsoil's drilling and haulage: 3 a second each with tools, more as the workforce passes the workers' marks (6 at 25 workers, 12 at 50). */

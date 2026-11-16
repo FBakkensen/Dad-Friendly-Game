@@ -4,7 +4,6 @@ import { createMemoryAuth, type AuthController } from "./auth";
 import { createMemoryCloudSave } from "./cloud-save";
 import { holdFactors } from "./economy/factors";
 import { mountFrameScreen } from "./frame-screen";
-import { FRESH_OFF } from "./line-switch";
 import { readPhoneBackup } from "./phone-backup";
 import { createProgressStore, type ProgressStore } from "./progress-store";
 import { createMemoryStorage } from "./test-fixtures";
@@ -21,7 +20,7 @@ const user = { uid: "test-dad", label: "Test Dad" };
 let unmount = new AbortController();
 
 beforeEach(() => {
-  holdFactors({ [FRESH_OFF]: 0 });
+  holdFactors({});
 });
 
 afterEach(() => {

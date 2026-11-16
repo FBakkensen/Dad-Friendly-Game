@@ -70,7 +70,7 @@ describe("snapshot", () => {
       pocket: 0,
       // Every tier and every machine by id, the line's included (#559).
       crew: {
-        helper: 0,
+        helper: createMountain().owned.helper,
         cart: 0,
         hoist: 0,
         drill: 0,
@@ -136,11 +136,12 @@ describe("snapshot", () => {
       kid: 2,
     });
     expect(shot.crewSpeed).toBe(rates.crewPerSecond);
-    // Two kids run both drills (1 each since #252), so the cart idles.
+    // The one worker on drilling runs one drill, and nobody hauls, so the
+    // cart and the other drill stand idle.
     expect(shot.idle).toEqual({
       cart: 1,
       hoist: 0,
-      drill: 0,
+      drill: 1,
       borer: 0,
       train: 0,
       machine: 0,

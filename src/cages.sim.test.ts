@@ -65,61 +65,81 @@ const makers = fc.record({
   onSaws: fc.nat(4),
 });
 
-describe("the cages as played and a night's rates (rule 5.14, ruling 17)", () => {
-  it("agree on the rock lifted in an hour within the gap, up to six hoists and six cages for both", () => {
-    fc.assert(
-      fc.property(
-        fc.integer({ min: 0, max: 6 }).chain((hoists) =>
-          fc
-            // The cages for both, the winch among them, are at most six.
-            .integer({ min: Math.max(0, hoists - 5), max: hoists })
-            .chain((assignedCount) =>
-              fc.record({
-                hoists: fc.constant(hoists),
-                topsoil: fc.integer({ min: 0, max: assignedCount }),
-                assignedCount: fc.constant(assignedCount),
-              }),
-            ),
-        ),
-        fc.record({
-          drilling: fc.nat(20),
-          haulage: fc.nat(20),
-          graniteDrilling: fc.nat(20),
-          graniteHaulage: fc.nat(20),
-        }),
-        fc.nat(12),
-        makers,
-        (shaft, jobs, hoisting, maker) => {
-          const start = mine({
-            hoists: shaft.hoists,
-            hoisting,
-            assigned: {
-              topsoil: shaft.topsoil,
-              granite: shaft.assignedCount - shaft.topsoil,
-            },
-            ...maker,
-            jobs,
-          });
-          expectWithinGap(hour(start));
-        },
-      ),
-      { numRuns: 40 },
-    );
-  });
+/**
+ * Each property plays 40 live hours trip by trip: about 9 s under coverage on
+ * the Actions runner, past vitest's default 5 s (deploy-hosting, df1022b1).
+ */
+const HOUR_RUNS_TIMEOUT_MS = 60_000;
 
-  it("agree with the Topsoil alone", () => {
-    fc.assert(
-      fc.property(
-        fc.nat(6),
-        fc.record({ drilling: fc.nat(20), haulage: fc.nat(20) }),
-        fc.nat(12),
-        fc.record({ kilns: fc.nat(2), onKilns: fc.nat(4) }),
-        (hoists, jobs, hoisting, maker) => {
-          const start = mine({ sunk: false, hoists, hoisting, ...maker, jobs });
-          expectWithinGap(hour(start));
-        },
-      ),
-      { numRuns: 40 },
-    );
-  });
+describe("the cages as played and a night's rates (rule 5.14, ruling 17)", () => {
+  it(
+    "agree on the rock lifted in an hour within the gap, up to six hoists and six cages for both",
+    () => {
+      fc.assert(
+        fc.property(
+          fc.integer({ min: 0, max: 6 }).chain((hoists) =>
+            fc
+              // The cages for both, the winch among them, are at most six.
+              .integer({ min: Math.max(0, hoists - 5), max: hoists })
+              .chain((assignedCount) =>
+                fc.record({
+                  hoists: fc.constant(hoists),
+                  topsoil: fc.integer({ min: 0, max: assignedCount }),
+                  assignedCount: fc.constant(assignedCount),
+                }),
+              ),
+          ),
+          fc.record({
+            drilling: fc.nat(20),
+            haulage: fc.nat(20),
+            graniteDrilling: fc.nat(20),
+            graniteHaulage: fc.nat(20),
+          }),
+          fc.nat(12),
+          makers,
+          (shaft, jobs, hoisting, maker) => {
+            const start = mine({
+              hoists: shaft.hoists,
+              hoisting,
+              assigned: {
+                topsoil: shaft.topsoil,
+                granite: shaft.assignedCount - shaft.topsoil,
+              },
+              ...maker,
+              jobs,
+            });
+            expectWithinGap(hour(start));
+          },
+        ),
+        { numRuns: 40 },
+      );
+    },
+    HOUR_RUNS_TIMEOUT_MS,
+  );
+
+  it(
+    "agree with the Topsoil alone",
+    () => {
+      fc.assert(
+        fc.property(
+          fc.nat(6),
+          fc.record({ drilling: fc.nat(20), haulage: fc.nat(20) }),
+          fc.nat(12),
+          fc.record({ kilns: fc.nat(2), onKilns: fc.nat(4) }),
+          (hoists, jobs, hoisting, maker) => {
+            const start = mine({
+              sunk: false,
+              hoists,
+              hoisting,
+              ...maker,
+              jobs,
+            });
+            expectWithinGap(hour(start));
+          },
+        ),
+        { numRuns: 40 },
+      );
+    },
+    HOUR_RUNS_TIMEOUT_MS,
+  );
 });

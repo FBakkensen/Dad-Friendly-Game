@@ -8,7 +8,6 @@ import {
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { withFactors } from "../src/economy/factors";
-import { FRESH_OFF, LINE_OFF } from "../src/line-switch";
 import { parseMeasureExport } from "../src/lab/measure";
 import { parsePolicyExport } from "../src/lab/policy";
 import {
@@ -55,11 +54,11 @@ Seeds default to ${String(LOCAL_SEEDS)} (1 through that count). --ci uses ${Stri
 --seeds wins over both. Days default to ${String(DEFAULT_MAX_DAYS)}.
 --policy limits the rows. The columns are still every registered measure.
 Every run plays the whole of slice 1: the fresh mine with parts 2 and 3
-(fresh.off=0, part2.off=0, part3.off=0), with the player types in
-src/lab/fresh-policies, to the last building in play (#737, #675).
+(part2.off=0, part3.off=0), with the player types in src/lab/fresh-policies,
+to the last building in play (#737, #675).
 --factors holds factors on top for every run (part3.off=1 plays the game as
-it is live, to the Warehouse; part2.off=1 plays part 1 only, #534). fresh.off and line.off must stay 0: today's mountain is not
-played, and the fresh mine always plays the line.
+it is live, to the Warehouse; part2.off=1 plays part 1 only, #534). fresh.off
+and line.off are refused: the fresh mine is the only mine (#739).
 A missed guardrail is a warning unless LAB_STRICT=1, which exits 1. The fresh
 mine has no guardrail yet.
 --ledger check fails when the run's pacing ledger differs from ${LEDGER_PATH};
@@ -68,8 +67,12 @@ every player type, no factors and the default days.
 Reports land in reports/strategy-lab.md, reports/strategy-lab.json and
 reports/pacing-ledger.md.`;
 
-const FRESH_ONLY = `--factors ${FRESH_OFF} must be 0: the lab plays only the fresh mine (#737).`;
-const LINE_ONLY = `--factors ${LINE_OFF} must be 0: the fresh mine always plays the line (#737).`;
+/** The switches that went with #739: the lab refuses them by name. */
+const GONE_SWITCHES = ["fresh.off", "line.off"] as const;
+
+function goneSwitch(name: string): string {
+  return `${name} no longer exists: the fresh mine is the only mine (#739).`;
+}
 
 export type LabArgs =
   | { readonly kind: "help" }
@@ -146,11 +149,9 @@ export function parseLabArgs(
       }
       // A second --factors adds to the first.
       factors = { ...factors, ...parsed };
-      if ((factors[FRESH_OFF] ?? 0) !== 0) {
-        return { kind: "error", message: FRESH_ONLY };
-      }
-      if ((factors[LINE_OFF] ?? 0) !== 0) {
-        return { kind: "error", message: LINE_ONLY };
+      const gone = GONE_SWITCHES.find((name) => name in factors);
+      if (gone !== undefined) {
+        return { kind: "error", message: goneSwitch(gone) };
       }
       index += 2;
       continue;

@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { placeOrder } from "./city";
 import { withFactors } from "./economy/factors";
-import { FRESH_OFF } from "./line-switch";
 import { workersView } from "./frame-view";
 import { createMountain, type Mountain } from "./mountain";
 import { crewedStart } from "./test-fixtures";
@@ -19,9 +18,9 @@ import {
 } from "./next-view";
 
 /** What Next and the lamps count (slice 1, #659). */
-const fresh = <T>(body: () => T): T => withFactors({ [FRESH_OFF]: 0 }, body);
+const fresh = <T>(body: () => T): T => withFactors({}, body);
 const partTwo = <T>(body: () => T): T =>
-  withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 }, body);
+  withFactors({ [PART_TWO_OFF]: 0 }, body);
 
 function withStones(mountain: Mountain, stones: number): Mountain {
   return { ...mountain, stock: { ...mountain.stock, stones } };
@@ -256,27 +255,21 @@ describe("Next's city count with trucks (#673)", () => {
   });
 
   it("counts a truck he can pay for once part 3 plays", () => {
-    withFactors(
-      { [FRESH_OFF]: 0, [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 },
-      () => {
-        const start = createMountain();
-        const rich: Mountain = {
-          ...start,
-          operational: ["lightTower", "warehouse"],
-          stock: { ...start.stock, stones: 0, brick: 10_000_000 },
-        };
-        expect(siteCounts(rich).city).toBe(1);
-      },
-    );
+    withFactors({ [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 }, () => {
+      const start = createMountain();
+      const rich: Mountain = {
+        ...start,
+        operational: ["lightTower", "warehouse"],
+        stock: { ...start.stock, stones: 0, brick: 10_000_000 },
+      };
+      expect(siteCounts(rich).city).toBe(1);
+    });
   });
 });
 
 describe("the factory's site (#681)", () => {
   const partThree = <T>(body: () => T): T =>
-    withFactors(
-      { [FRESH_OFF]: 0, [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 },
-      body,
-    );
+    withFactors({ [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 }, body);
 
   /** The Light Tower and the Warehouse up, the shaft sunk or not, and this station. */
   function sunk(
@@ -368,6 +361,34 @@ describe("the factory's site (#681)", () => {
         project: { kind: "unordered" },
       });
       expect(view.kind).toBe("order");
+    });
+  });
+});
+
+describe("a stage's count in part 3 (#680)", () => {
+  /** The shaft sunk, so the borer and the locomotive are on sale, with this stock. */
+  function granite(cutStone: number): Mountain {
+    const start = crewedStart();
+    return {
+      ...start,
+      operational: ["lightTower", "warehouse"],
+      granite: {
+        kind: "sunk",
+        machines: { cart: 0, drill: 0, borer: 0, train: 0 },
+        piles: { face: 0, shaft: 0, saw: 0 },
+      },
+      stock: { ...start.stock, stones: 1_000_000_000, cutStone },
+    };
+  }
+
+  it("weighs the borer and the locomotive against the cut stone they are paid in, not the stones", () => {
+    withFactors({ [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 }, () => {
+      expect(stageCount(granite(40_000), "face")).toBe(
+        stageCount(granite(0), "face") + 1,
+      );
+      expect(stageCount(granite(60_000), "haul")).toBe(
+        stageCount(granite(0), "haul") + 1,
+      );
     });
   });
 });

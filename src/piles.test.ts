@@ -13,6 +13,7 @@ import {
   flowChain,
   flowWhole,
   pour,
+  turnPerLoad,
   wholeSeconds,
   type Branch,
   type Branches,
@@ -635,6 +636,26 @@ describe("chains side by side (#673, #724)", () => {
     expect(lifts(set)).toEqual([5, 20]);
     const flows = flowBranchesWhole(set, 10);
     expect(flows.map((flow) => flow.moved[2])).toEqual([50, 200]);
+  });
+
+  it("counts what a load of the turn lifts a second over the branches in the turn, and over all with none", () => {
+    const full = pile(300, 300);
+    // Both in the turn: a load from each every 10 + 20 seconds.
+    expect(
+      turnPerLoad(shaft([level({ shaft: full }), level({ shaft: full })], 600)),
+    ).toBeCloseTo(2 / 30, 12);
+    // Only the Granite: a load each 20 s trip, as `lifts` shares it out.
+    const one = shaft([level({}), level({ shaft: full })], 600);
+    expect(turnPerLoad(one) * 600).toBeCloseTo(
+      lifts(one).reduce<number>((sum, lift) => sum + (lift ?? 0), 0),
+      9,
+    );
+    // None: nothing comes, and a load counts as both levels would take it.
+    expect(turnPerLoad(shaft([level({}), level({})], 600))).toBeCloseTo(
+      2 / 30,
+      12,
+    );
+    expect(turnPerLoad(shaft([level({}), level({})], 600, []))).toBe(0);
   });
 
   it("lifts none for both when no branch is in the turn", () => {

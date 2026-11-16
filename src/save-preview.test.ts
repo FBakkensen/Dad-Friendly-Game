@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { withFactors } from "./economy/factors";
-import { FRESH_OFF } from "./line-switch";
 import { readSave, serializeSave } from "./persist";
 import { previewConflictView } from "./save-preview";
 
@@ -24,6 +23,6 @@ describe("the conflict preview", () => {
   };
 
   it("holds two fresh mines on the slice preview (#707)", () => {
-    expect(withFactors({ [FRESH_OFF]: 0 }, readable)).toEqual(["ok", "ok"]);
+    expect(withFactors({}, readable)).toEqual(["ok", "ok"]);
   });
 });

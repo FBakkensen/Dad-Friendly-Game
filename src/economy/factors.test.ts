@@ -6,7 +6,7 @@ import { engineerTenths } from "../engineers";
 import { effectiveRates } from "../rates";
 import {
   HELPER_COST_GROWTH,
-  MACHINE_COST_GROWTH,
+  LINE_MACHINE_COST_GROWTH,
   tierById,
   tierCost,
 } from "../tiers";
@@ -58,8 +58,10 @@ describe("economy factors", () => {
   it("stays at 1 outside a sweep, and a sweep of 1 matches today's prices", () => {
     expect(factor("price.cart")).toBe(1);
     const helper = tierById("helper");
+    // The line's sticker is the first price (#738).
+    const sticker = tierCost(helper, 0);
     const second = Math.ceil(
-      Number((helper.firstCost * HELPER_COST_GROWTH).toPrecision(12)),
+      Number((sticker * HELPER_COST_GROWTH).toPrecision(12)),
     );
     expect(tierCost(helper, 1)).toBe(second);
     withFactors({ "price.helper": 1, "growth.worker": 1 }, () => {
@@ -98,24 +100,22 @@ describe("economy factors", () => {
 
   it("scales growth, output, and tending, and restores them after a throw", () => {
     // One cart up the curve, and twice the growth under the sweep.
-    const cart = tierById("cart").firstCost;
+    const cart = tierCost(tierById("cart"), 0);
     expect(tierCost(tierById("cart"), 1)).toBe(
-      Math.ceil(Number((cart * MACHINE_COST_GROWTH).toPrecision(12))),
+      Math.ceil(Number((cart * LINE_MACHINE_COST_GROWTH).toPrecision(12))),
     );
     withFactors({ "growth.machine": 2 }, () => {
       expect(tierCost(tierById("cart"), 1)).toBe(
-        Math.ceil(Number((cart * MACHINE_COST_GROWTH * 2).toPrecision(12))),
+        Math.ceil(
+          Number((cart * LINE_MACHINE_COST_GROWTH * 2).toPrecision(12)),
+        ),
       );
     });
-    expect(effectiveRates(posted).tierSpeed.borer).toBeCloseTo(
-      357 * 0.8 * 1.21875,
-      8,
-    );
+    // The borer at the line's rating, with Ada's tending (#738).
+    const borer = effectiveRates(posted).tierSpeed.borer;
+    expect(borer).toBeCloseTo(357 * 3 * 1.21875, 8);
     withFactors({ "output.borer": 2 }, () => {
-      expect(effectiveRates(posted).tierSpeed.borer).toBeCloseTo(
-        714 * 0.8 * 1.21875,
-        8,
-      );
+      expect(effectiveRates(posted).tierSpeed.borer).toBeCloseTo(borer * 2, 8);
     });
     expect(tenthsOf(posted, "borer")).toBe(1.25);
     withFactors({ "tending.gain": 2 }, () => {

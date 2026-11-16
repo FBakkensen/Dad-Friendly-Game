@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { withFactors } from "./economy/factors";
-import { FRESH_OFF } from "./line-switch";
 import {
   DEEPER_STRATA,
   levelPlate,
@@ -10,14 +9,15 @@ import {
   rowParts,
   stageRows,
 } from "./mine-view";
-import { PILE_HOLDS } from "./mine-piles";
+import { PILE_HOLDS, shaftHolds } from "./mine-piles";
 import { createMountain, type Mountain } from "./mountain";
+import { levels, partThreeAsBuilt as partThree } from "./part-three.harness";
 import { crewedStart } from "./test-fixtures";
 import { effectiveRates } from "./rates";
 import { toolSpeed } from "./workforce";
 
 /** The mine's views (#660), on a fresh mine. */
-const fresh = <T>(body: () => T): T => withFactors({ [FRESH_OFF]: 0 }, body);
+const fresh = <T>(body: () => T): T => withFactors({}, body);
 
 function withStones(mountain: Mountain, stones: number): Mountain {
   return { ...mountain, stock: { ...mountain.stock, stones } };
@@ -47,6 +47,34 @@ describe("machine keys", () => {
       expect(cart?.face).toBe(`+10 Carts · ${String(speed.cart * 10)}/s`);
       expect(cart?.staff).toBe("10 to run");
       expect(cart?.can).toBe(true);
+    });
+  });
+
+  it("prices a borer in cut stone in part 3, lit only by cut stone", () => {
+    partThree(() => {
+      const mountain = levels({
+        topsoil: 1,
+        stock: { stones: 1e12, cutStone: 0 },
+      });
+      const borer = machineKeys(mountain, "one").find(
+        (key) => key.id === "borer",
+      );
+      expect(borer?.good).toBe("cutStone");
+      expect(borer?.can).toBe(false);
+      expect(borer?.label).toContain("cut stone");
+      const paid = machineKeys(
+        { ...mountain, stock: { ...mountain.stock, cutStone: 1e12 } },
+        "one",
+      ).find((key) => key.id === "borer");
+      expect(paid?.can).toBe(true);
+    });
+  });
+
+  it("prices every machine in stone with part 3 off", () => {
+    fresh(() => {
+      const keys = machineKeys(withStones(createMountain(), 1e9), "one");
+      expect(keys.every((key) => key.good === "stones")).toBe(true);
+      expect(keys.every((key) => key.label.includes(" stone."))).toBe(true);
     });
   });
 });
@@ -122,7 +150,7 @@ describe("a stage's row", () => {
       },
     ]);
     fresh(() => {
-      withFactors({ [FRESH_OFF]: 0, "output.cart": 0.03 }, () => {
+      withFactors({ "output.cart": 0.03 }, () => {
         const start = createMountain();
         const one = {
           ...start,
@@ -329,6 +357,76 @@ describe("the level's plate and the scene", () => {
       });
       expect(full.moving).toBe(false);
       expect(full.shaftPile).toBe(1);
+    });
+  });
+});
+
+describe("the piles' room, on the row and in the scene (#680)", () => {
+  it("reads the cages' room for the rock at the shaft with part 3 on and the Granite unsunk", () => {
+    partThree(() => {
+      const mountain = levels({
+        sunk: false,
+        topsoil: 2,
+        hoisting: 3,
+        hoists: 3,
+        piles: { shaft: 396 },
+      });
+      const holds = shaftHolds(mountain);
+      expect(holds).toBe(2400);
+      expect(stageRows(mountain).map((row) => row.pile)).toEqual([
+        { label: "Drilled rock", held: 0, holds: 300 },
+        { label: "Rock at the shaft", held: 396, holds: 2400 },
+        undefined,
+      ]);
+      const scene = mineScene(mountain);
+      expect(scene.shaftPile).toBe(396 / 2400);
+      // The rock at the shaft has room: the tubs unload.
+      expect(scene.unload).toBe(1);
+    });
+  });
+
+  it("paints and reads as before with part 3 off: rooms of 300", () => {
+    fresh(() => {
+      const start = crewedStart();
+      const mountain = {
+        ...start,
+        jobs: { ...start.jobs, hoisting: 1 },
+        piles: { face: 150, shaft: 300, kiln: 0 },
+      };
+      expect(
+        stageRows(mountain).map((row) => [
+          row.pile,
+          row.now,
+          row.can,
+          row.sum[0],
+        ]),
+      ).toEqual([
+        [
+          { label: "Drilled rock", held: 150, holds: 300 },
+          "18",
+          "18/s",
+          "6 with picks 18/s",
+        ],
+        [
+          { label: "Rock at the shaft", held: 300, holds: 300 },
+          "3",
+          "18/s",
+          "6 with barrows 18/s",
+        ],
+        [undefined, "3", "3/s", "1 on a winch 3/s"],
+      ]);
+      expect(mineScene(mountain)).toEqual({
+        moving: true,
+        stages: {
+          face: { workers: 6, busy: 1, owned: 0, running: 0, standing: 0 },
+          haul: { workers: 6, busy: 1 / 6, owned: 0, running: 0, standing: 0 },
+          lift: { workers: 1, busy: 1, owned: 0, running: 0, standing: 0 },
+        },
+        facePile: 0.5,
+        shaftPile: 1,
+        load: 1,
+        unload: 1 / 6,
+      });
     });
   });
 });

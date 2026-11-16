@@ -19,7 +19,6 @@ import { readSave } from "../../src/persist.ts";
 import {
   createSession,
   firstNotice,
-  markWelcomed,
   openBaselines,
   step,
   type Session,
@@ -105,7 +104,7 @@ export class Expected {
     ).session;
     const paid = step(recalled, { kind: "away", since: saved.lastSeen }, at);
     return {
-      expected: new Expected(markWelcomed(paid.session), at, true),
+      expected: new Expected(paid.session, at, true),
       report: firstNotice(paid.session.news, "away")?.report,
     };
   }

@@ -37,6 +37,7 @@ import { createFrameLedger, type FrameLedger } from "./frame-ledger";
 import { createBoardHost } from "./board-host";
 import { createCitySite } from "./city-site";
 import { createFactorySite } from "./factory-site";
+import { createMachineCard } from "./machine-card";
 import { createMineSite } from "./mine-site";
 import { createRefinerySite } from "./refinery-site";
 import { createStageSheet, type StageSheet } from "./stage-sheet";
@@ -437,8 +438,11 @@ export function mountFrameScreen({
     openWorkforce: () => {
       sheet.open();
     },
-    openStage: (stage) => {
-      stageSheet.open(stage);
+    openStage: (stage, level) => {
+      stageSheet.open(stage, level);
+    },
+    openMachine: (id) => {
+      machineCard.open(id);
     },
   };
   // One board host for the Ledger and the save's cards: one settle (#707, #708).
@@ -446,6 +450,7 @@ export function mountFrameScreen({
   const closeSheets = (): void => {
     sheet.close();
     stageSheet.close();
+    machineCard.close();
   };
   const ledger: FrameLedger = createFrameLedger({
     progress,
@@ -463,6 +468,7 @@ export function mountFrameScreen({
   const frame = buildFrame(state, now, ledger.key, signal);
   const sheet = createWorkforceSheet(state, now);
   const stageSheet = createStageSheet(state, now);
+  const machineCard = createMachineCard(state, board, now);
   /** A card comes up: every sheet and the Ledger close under it. */
   const closeUnderCard = (): void => {
     closeSheets();
@@ -498,6 +504,7 @@ export function mountFrameScreen({
     frame.root,
     sheet.root,
     stageSheet.root,
+    machineCard.root,
     cards.root,
     ...ledger.roots,
     ...saveCards.roots,
@@ -517,6 +524,7 @@ export function mountFrameScreen({
     frame.paint(mountain);
     sheet.paint(mountain);
     stageSheet.paint(mountain);
+    machineCard.paint(mountain);
     cards.paint();
     ledger.paint();
     saveCards.paint();

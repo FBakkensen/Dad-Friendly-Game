@@ -6,20 +6,23 @@ import { tendingIntro } from "./screen-words";
 import { showsDot } from "./teach";
 
 const ada = { name: "Ada", rank: 0, trips: 1, post: "camp" } as const;
-/** After the first trip, Ada waiting at camp, a Great Machine to tend. */
+/**
+ * After the first trip, Ada waiting at camp, and the face the narrow stage:
+ * one drill against two carts and two hoists.
+ */
 function crew(): Mountain {
+  const start = createMountain();
   return {
-    ...createMountain(),
-    remaining: 200_000_000,
-    stock: { ...createMountain().stock, stones: 2_000_000 },
+    ...start,
     owned: {
-      ...createMountain().owned,
-      helper: 60,
-      cart: 10,
-      drill: 6,
-      borer: 2,
-      machine: 1,
+      ...start.owned,
+      helper: 6,
+      drill: 1,
+      cart: 2,
+      hoist: 2,
+      borer: 1,
     },
+    jobs: { ...start.jobs, drilling: 1, haulage: 2, hoisting: 2 },
     engineers: [ada],
     seen: ["workshop", "engineers"],
     taught: ["workshop", "engineers"],
@@ -29,10 +32,10 @@ function crew(): Mountain {
 describe("tending teach (#246)", () => {
   it("is small: a dot with no note, only once there is a step up", () => {
     expect(showsDot(crew(), "tending")).toBe(true);
-    // On the borers nothing pays more: no dot asks for a step down.
+    // On the drill nothing pays more: no dot asks for a step down.
     expect(
       showsDot(
-        { ...crew(), engineers: [{ ...ada, post: "borer" }] },
+        { ...crew(), engineers: [{ ...ada, post: "drill" }] },
         "tending",
       ),
     ).toBe(false);
@@ -42,34 +45,9 @@ describe("tending teach (#246)", () => {
         "tending",
       ),
     ).toBe(false);
-    expect(firstTend(crew())).toEqual({ index: 0, post: "machine" });
-    expect(
-      firstTend({ ...crew(), owned: { ...crew().owned, machine: 0 } }),
-    ).toEqual({
-      index: 0,
-      post: "borer",
-    });
+    expect(firstTend(crew())).toEqual({ index: 0, post: "drill" });
     // A save with no crew at all has no first tend.
-    const noCrew = { ...crew(), engineers: [] };
-    expect(firstTend(noCrew)).toBeUndefined();
-  });
-
-  it("skips an engineer out on a trip, for the next one at home", () => {
-    const nils = { ...ada, name: "Nils" } as const;
-    const out: Mountain = {
-      ...crew(),
-      engineers: [ada, nils],
-      expeditions: [
-        {
-          engineer: "Ada",
-          tunnel: "side-seam",
-          sentAt: 0,
-          returnsAt: 60_000,
-          find: { kind: "quiet" },
-        },
-      ],
-    };
-    expect(firstTend(out, 0)).toEqual({ index: 1, post: "machine" });
+    expect(firstTend({ ...crew(), engineers: [] })).toBeUndefined();
   });
 
   it("words the intro with no question", () => {

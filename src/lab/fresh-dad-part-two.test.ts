@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { placeOrder } from "../city";
 import { withFactors } from "../economy/factors";
-import { FRESH_OFF } from "../line-switch";
 import { createMountain, type Mountain } from "../mountain";
 import { PART_TWO_OFF } from "../part-switch";
 import { EMPTY_STOCK, type Stock } from "../stock";
@@ -13,8 +12,8 @@ import type { FreshHabits } from "./policy";
 
 /** How part 2's dad plays: kilns for brick, and room in the stockyard (#667). */
 const partTwo = <T>(body: () => T): T =>
-  withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 }, body);
-const partOne = <T>(body: () => T): T => withFactors({ [FRESH_OFF]: 0 }, body);
+  withFactors({ [PART_TWO_OFF]: 0 }, body);
+const partOne = <T>(body: () => T): T => withFactors({}, body);
 
 const ONCE: FreshHabits = {
   moves: "once",

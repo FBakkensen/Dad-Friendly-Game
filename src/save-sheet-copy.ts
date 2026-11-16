@@ -1,9 +1,6 @@
-import { shownStones } from "./scale";
 import { formatCompact } from "./format";
-import { layerOf } from "./layers";
 import { orderStrip } from "./frame-view";
-import { freshMineOn } from "./line-switch";
-import { minedOut, type Mountain } from "./mountain";
+import { type Mountain } from "./mountain";
 import { MACHINE_WORDS, VEHICLE_WORDS } from "./screen-words";
 import { STAGES } from "./line";
 import { machinesInPlay, tierById } from "./tiers";
@@ -40,17 +37,7 @@ export function saveCardLines(
 ): SaveCardLines {
   const played =
     lastSeen === undefined ? "Not played yet" : lastPlayedWords(lastSeen, now);
-  if (freshMineOn()) {
-    return { ...freshMineLines(mountain), played };
-  }
-  const band = layerOf(mountain).name.replace(/^The /, "");
-  return {
-    depth: `${band}, ${formatCompact(shownStones(minedOut(mountain)))} deep`,
-    pocket: `${formatCompact(mountain.stock.stones)} stones in the pocket`,
-    machines: machineLine(mountain),
-    crew: crewLine(mountain),
-    played,
-  };
+  return { ...freshMineLines(mountain), played };
 }
 
 /**
@@ -86,30 +73,6 @@ export function freshMineLines(
       ...vehicles,
     ].join(" · "),
   };
-}
-
-export function machineLine(mountain: Mountain): string {
-  const parts: string[] = [];
-  if (mountain.owned.cart > 0) {
-    parts.push(count(mountain.owned.cart, "cart", "carts"));
-  }
-  if (mountain.owned.drill > 0) {
-    parts.push(count(mountain.owned.drill, "drill", "drills"));
-  }
-  if (mountain.owned.borer > 0) {
-    parts.push(count(mountain.owned.borer, "borer", "borers"));
-  }
-  if (mountain.owned.machine === 1) {
-    parts.push("the Great Machine");
-  } else if (mountain.owned.machine > 1) {
-    parts.push(`${String(mountain.owned.machine)} Great Machines`);
-  }
-  return parts.length === 0 ? "No machines yet" : parts.join(" · ");
-}
-
-export function crewLine(mountain: Mountain): string {
-  const engineers = mountain.engineers.length;
-  return `${count(mountain.owned.helper, "worker", "workers")} · ${count(engineers, "engineer", "engineers")}`;
 }
 
 /** Local time. Today, yesterday, or a short date. */

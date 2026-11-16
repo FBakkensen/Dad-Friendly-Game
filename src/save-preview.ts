@@ -2,10 +2,8 @@
  * The conflict sheet's preview for the layout check (`?saves=two`): a long
  * night on this phone, a short one on another, without a second device.
  */
-import { freshMineOn } from "./line-switch";
-import { MOUNTAIN_STONES, createMountain, type Mountain } from "./mountain";
+import { createMountain, type Mountain } from "./mountain";
 import type { SaveConflictView } from "./store-context";
-import { tierRecord } from "./tiers";
 
 const DAY_MS = 86_400_000;
 
@@ -13,7 +11,7 @@ export function previewConflictView(
   now: number,
   deviceId: string,
 ): SaveConflictView {
-  const [local, remote] = freshMineOn() ? freshPair() : todaysPair();
+  const [local, remote] = freshPair();
   return {
     local: {
       mountain: local,
@@ -67,27 +65,4 @@ function freshPair(): readonly [Mountain, Mountain] {
       },
     ),
   ];
-}
-
-function todaysPair(): readonly [Mountain, Mountain] {
-  const local: Mountain = {
-    ...createMountain(),
-    remaining: MOUNTAIN_STONES - 12_400_000,
-    stock: { ...createMountain().stock, stones: 1_200_000 },
-    owned: { ...tierRecord(0), cart: 6, drill: 4, borer: 1, helper: 28 },
-    engineers: [
-      { name: "Ada", rank: 1, trips: 2, post: "drill" },
-      { name: "Nils", rank: 0, trips: 1, post: "cart" },
-      { name: "Ruth", rank: 0, trips: 0, post: "camp" },
-      { name: "Otto", rank: 0, trips: 0, post: "borer" },
-    ],
-  };
-  const remote: Mountain = {
-    ...createMountain(),
-    remaining: MOUNTAIN_STONES - 800_000,
-    stock: { ...createMountain().stock, stones: 40_000 },
-    owned: { ...tierRecord(0), cart: 2, drill: 1, helper: 8 },
-    engineers: [{ name: "Ada", rank: 0, trips: 0, post: "cart" }],
-  };
-  return [local, remote];
 }

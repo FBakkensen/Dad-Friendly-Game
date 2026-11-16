@@ -2,10 +2,9 @@ import { STAGES, type Stage, type StageSpeeds } from "./line";
 import type { Mountain } from "./mountain";
 import { makerOpen } from "./makers";
 import {
-  LEVEL_MACHINE_IDS,
   graniteOpen,
+  isLevelMachine,
   levelMachines,
-  type LevelMachineId,
   type LevelMachines,
   type MineLevelId,
 } from "./mine-levels";
@@ -24,8 +23,7 @@ import {
 /**
  * The workforce (slice 1, rule 2, #689): every worker is in one pool, on a
  * job or free. He hires a worker, who starts free, and moves one at a time
- * onto a job or off it, for free. Nothing moves a worker for him. Off in
- * play: only a fresh mine (`freshMineOn`) lists the moves.
+ * onto a job or off it, for free. Nothing moves a worker for him.
  */
 
 /**
@@ -416,10 +414,6 @@ function levelWorks(
       toolSpeed(speed, stage),
     );
   return { face: work("face"), haul: work("haul") };
-}
-
-function isLevelMachine(id: TierId): id is LevelMachineId {
-  return (LEVEL_MACHINE_IDS as readonly TierId[]).includes(id);
 }
 
 /**

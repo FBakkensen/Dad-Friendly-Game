@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import { START_OVER_FRESH_DETAIL } from "./screen-words";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { READY_HOLD_MS } from "./board-interaction";
 import {
@@ -277,17 +278,17 @@ describe("the Start over page (#375)", () => {
     return { page, onKeep, onYes };
   };
 
-  it("asks with today's words, Keep first", () => {
+  it("asks with a fresh mine's words, Keep first (#708)", () => {
     const { page } = mount();
     const root = page.root;
     expect(root.classList.contains("ledger-page")).toBe(true);
     expect(root.classList.contains("ledger-start-over-page")).toBe(true);
     expect(find(root, "h3.ledger-page-title").textContent).toBe("Start over?");
-    expect(find(root, "p.ledger-page-line").textContent).toMatch(
-      /^You will lose all your progress/,
+    expect(find(root, "p.ledger-page-line").textContent).toBe(
+      START_OVER_FRESH_DETAIL,
     );
     const plates = [...root.querySelectorAll<HTMLElement>(".board-platebtn")];
-    expect(plates.map(words)).toEqual(["Keep my mountain", "Yes, start over"]);
+    expect(plates.map(words)).toEqual(["Keep my mine", "Yes, start over"]);
     expect(plates[0]?.classList.contains("ledger-keep")).toBe(true);
     expect(plates[1]?.classList.contains("ledger-yes")).toBe(true);
   });

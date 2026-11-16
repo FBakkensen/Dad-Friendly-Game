@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { placeOrder } from "./city";
 import { withFactors } from "./economy/factors";
-import { FRESH_OFF } from "./line-switch";
 import { createMountain } from "./mountain";
 import { compareSaveProgress, playedSinceNew } from "./save-progress";
 import { minedMountain } from "./test-fixtures";
@@ -69,7 +68,7 @@ describe("which copy of a fresh mine is ahead (#664, call 13)", () => {
 });
 
 describe("playedSinceNew (#664)", () => {
-  const fresh = <T>(body: () => T): T => withFactors({ [FRESH_OFF]: 0 }, body);
+  const fresh = <T>(body: () => T): T => withFactors({}, body);
 
   it("a fresh mine's start, with its worker moved, is not played", () => {
     fresh(() => {

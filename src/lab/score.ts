@@ -4,7 +4,6 @@ import { effectiveRates } from "../rates";
 import { onTrip, station } from "../engineers";
 import { layerOf } from "../layers";
 import { lineOf, lineView } from "../line";
-import { lineOn } from "../line-switch";
 import { TIERS } from "../tiers";
 import {
   listActions,
@@ -303,9 +302,9 @@ function outputShare(
       total += amount;
     }
   }
-  // With the line on (#534), the crew moves what the line moves, so the
-  // machines' parts are scaled to it and stay in the units of the deltas.
-  if (lineOn() && total > 0) {
+  // The crew moves what the line moves (#534), so the machines' parts are
+  // scaled to it and stay in the units of the deltas.
+  if (total > 0) {
     const line = lineOf(bareResting.tierSpeed, bareResting.running);
     for (const [id, amount] of parts) {
       parts.set(id, (amount * line) / total);
@@ -377,7 +376,7 @@ export function scoreDecision(input: ScoreInput): DecisionSample {
     crewPerSec: rates.exactCrewPerSecond,
     pocket: input.mountain.stock.stones,
     outputShare: outputShare(input.mountain, input.now, input.trouble),
-    ...(lineOn() ? { line: lineView(rates.tierSpeed, rates.running) } : {}),
+    line: lineView(rates.tierSpeed, rates.running),
     layer: layerOf(input.mountain).id,
     optionKinds: optionKinds(actions),
     nextPaybackRatio: nextPaybackRatio(priced),

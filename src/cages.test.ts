@@ -22,7 +22,6 @@ import {
   type ShaftCage,
 } from "./cages";
 import { withFactors } from "./economy/factors";
-import { FRESH_OFF } from "./line-switch";
 import { MINE_LEVEL_IDS, sinkShaft } from "./mine-levels";
 import { createMountain, type Mountain } from "./mountain";
 import { PART_THREE_OFF, PART_TWO_OFF } from "./part-switch";
@@ -36,7 +35,7 @@ import { toolSpeed, type StageWork } from "./workforce";
  * serves, and what they lift a second when counted as rates.
  */
 const partThree = <T>(body: () => T): T =>
-  withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 }, body);
+  withFactors({ [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 }, body);
 
 const speed = partThree(() => effectiveRates(createMountain()).tierSpeed);
 
@@ -139,7 +138,6 @@ describe("which cages the shaft has (rules 5.5, 5.8, 5.10, call 70)", () => {
     // The trip that sets the load is the Topsoil's, whichever level it serves.
     withFactors(
       {
-        [FRESH_OFF]: 0,
         [PART_TWO_OFF]: 0,
         [PART_THREE_OFF]: 0,
         "trip.topsoil": 2,
@@ -424,7 +422,7 @@ function sunkMine(owned: Partial<Record<TierId, number>> = {}): Mountain {
 }
 
 const partTwo = <T>(body: () => T): T =>
-  withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 }, body);
+  withFactors({ [PART_TWO_OFF]: 0 }, body);
 
 describe("hoists assigned to a level (rule 5.8)", () => {
   it("assigns up to the hoists he owns that are not assigned, free and at once", () => {

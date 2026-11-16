@@ -1,7 +1,7 @@
 import type { AuthState } from "./auth";
 import { ENGINEER_NAMES } from "./engineers";
 import type { FieldEvent, FieldEventData } from "./field-log";
-import { formatCompact, formatTimeOfDay } from "./format";
+import { formatTimeOfDay } from "./format";
 import {
   LAYERS,
   materialsFromMined,
@@ -11,7 +11,7 @@ import {
 import type { Mountain } from "./mountain";
 import type { RowView } from "./row-view";
 import { freshMineLines } from "./save-sheet-copy";
-import { MOUNTAIN_STONES, minedOut, shownStones, stonesLeft } from "./scale";
+import { minedOut } from "./scale";
 import {
   ACCOUNT,
   NOT_SIGNED_IN,
@@ -40,7 +40,6 @@ import {
   materialCountWords,
 } from "./screen-words";
 import { TIERS, type MachineId, type TierId } from "./tiers";
-import { freshMineOn } from "./line-switch";
 import { VEHICLE_IDS } from "./transport";
 import { UPGRADES, upgradeById, type UpgradeId } from "./upgrades";
 import { RECIPE_IDS, recipeById, type RecipeId } from "./workshop";
@@ -81,11 +80,6 @@ export const TONIGHT_LINES = 3;
 export interface TonightLine {
   readonly time: string;
   readonly text: string;
-}
-
-/** The stones row, and the exact count its `title` gives. */
-export interface StonesRowView extends RowView {
-  readonly title: string;
 }
 
 const NONE: readonly string[] = [];
@@ -162,11 +156,11 @@ function stones(
 }
 
 /**
- * A worker or a machine bought. A fresh mine names its machines as the frame
- * does ("Bought cart 3."), not by today's names (#708).
+ * A worker or a machine bought. The machines are named as the frame names
+ * them ("Bought cart 3.", #708).
  */
 function tierLine(id: TierId, count: number): string {
-  return freshMineOn() && Object.hasOwn(MACHINE_WORDS, id)
+  return Object.hasOwn(MACHINE_WORDS, id)
     ? machineBuyLine(MACHINE_WORDS[id as MachineId][0], count)
     : tierBuyLine(id, count);
 }
@@ -234,25 +228,6 @@ export function tonightLines(
     }
   }
   return lines;
-}
-
-/** The stones row: how many are left, the exact count, and the materials met. */
-export function stonesRowView(mountain: Mountain): StonesRowView {
-  const left = Math.ceil(stonesLeft(mountain));
-  const total = shownStones(MOUNTAIN_STONES);
-  const name = `${formatCompact(left)} stones left`;
-  const materials = metMaterialChips(mountain)
-    .map((chip) => chip.text)
-    .join(" · ");
-  return {
-    ...QUIET_ROW,
-    name,
-    info: materials === "" ? NONE : [materials],
-    lamp: "off",
-    state: "owned",
-    aria: materials === "" ? name : `${name}. ${materials}`,
-    title: `${left.toLocaleString("en-US")} of ${total.toLocaleString("en-US")}`,
-  };
 }
 
 /** A fresh mine's two rows (#708): the save card's lines, without the play time. */

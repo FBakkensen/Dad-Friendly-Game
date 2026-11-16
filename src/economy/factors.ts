@@ -38,9 +38,9 @@ export function withFactors<T>(
 }
 
 /**
- * Holds these multipliers for the rest of the page (#659): every boot turns
- * the fresh mine's switch on this way since part 1 was switched on (#664),
- * so the page plays the game it ships. The rules themselves never call it.
+ * Holds these multipliers for the rest of the page (#659): every boot holds
+ * the game's switches this way (`PLAY_FACTORS`, part 2 since #672), so the
+ * page plays the game it ships. The rules themselves never call it.
  */
 export function holdFactors(factors: Readonly<Record<string, number>>): void {
   active = Object.keys(factors).length === 0 ? undefined : factors;

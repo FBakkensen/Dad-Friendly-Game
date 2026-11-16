@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { SITE_HOLDS } from "../building-site";
 import { holdOrder, placeOrder } from "../city";
 import { withFactors } from "../economy/factors";
-import { FRESH_OFF } from "../line-switch";
 import { createMountain, type Mountain } from "../mountain";
 import { PART_TWO_OFF } from "../part-switch";
 import { EMPTY_STOCK } from "../stock";
@@ -36,9 +35,9 @@ import type { DecisionSample } from "./measure";
 import type { SittingEvent } from "./sittings";
 
 /** What the lab reads off a fresh mine (#655). */
-const fresh = <T>(body: () => T): T => withFactors({ [FRESH_OFF]: 0 }, body);
+const fresh = <T>(body: () => T): T => withFactors({}, body);
 const partTwo = <T>(body: () => T): T =>
-  withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 }, body);
+  withFactors({ [PART_TWO_OFF]: 0 }, body);
 
 function mine(
   jobs: Partial<Jobs>,
@@ -83,21 +82,17 @@ function samples(
 }
 
 describe("the view of a fresh mine (#655)", () => {
-  it("reads nothing outside a fresh mine", () => {
-    expect(freshView(createMountain())).toBeUndefined();
-  });
-
   it("names the order's limit, and why nothing is delivered", () => {
     fresh(() => {
       const start = mine(START);
-      expect(freshView(start)?.limit).toBe("unordered");
-      expect(freshView(holdOrder(placeOrder(start)))?.limit).toBe("onHold");
+      expect(freshView(start).limit).toBe("unordered");
+      expect(freshView(holdOrder(placeOrder(start))).limit).toBe("onHold");
       // One wagon (9) against two builders (16): transport.
-      expect(freshView(placeOrder(start))?.limit).toBe("transport");
+      expect(freshView(placeOrder(start)).limit).toBe("transport");
       // One builder (8) against one wagon (9): the builders.
-      expect(
-        freshView(placeOrder(mine({ ...START, building: 1 })))?.limit,
-      ).toBe("builders");
+      expect(freshView(placeOrder(mine({ ...START, building: 1 }))).limit).toBe(
+        "builders",
+      );
     });
   });
 
@@ -118,8 +113,8 @@ describe("the view of a fresh mine (#655)", () => {
           },
         },
       };
-      expect(freshView(full)?.siteFull).toBe(true);
-      expect(freshView(ordered)?.siteFull).toBe(false);
+      expect(freshView(full).siteFull).toBe(true);
+      expect(freshView(ordered).siteFull).toBe(false);
     });
   });
 
@@ -132,10 +127,10 @@ describe("the view of a fresh mine (#655)", () => {
         driving: 1,
         building: 2,
       };
-      expect(freshView(placeOrder(mine(thin)))?.starved).toBe(true);
+      expect(freshView(placeOrder(mine(thin))).starved).toBe(true);
       const rich = placeOrder(mine(thin, { pocket: 100_000 }));
-      expect(freshView(rich)?.starved).toBe(false);
-      expect(freshView(placeOrder(mine(START)))?.starved).toBe(false);
+      expect(freshView(rich).starved).toBe(false);
+      expect(freshView(placeOrder(mine(START))).starved).toBe(false);
     });
   });
 
@@ -148,10 +143,10 @@ describe("the view of a fresh mine (#655)", () => {
         stock: { ...lit.stock, stones: room },
       };
       expect(freshView(lit)).toMatchObject({ yardOpen: true, deadGood: false });
-      expect(freshView(full)?.deadGood).toBe(true);
+      expect(freshView(full).deadGood).toBe(true);
       // The Warehouse's foundation takes stone: not dead while it delivers.
-      expect(freshView(placeOrder(full))?.deadGood).toBe(false);
-      expect(freshView(holdOrder(placeOrder(full)))?.deadGood).toBe(true);
+      expect(freshView(placeOrder(full)).deadGood).toBe(false);
+      expect(freshView(holdOrder(placeOrder(full))).deadGood).toBe(true);
     });
     fresh(() => {
       expect(freshView(mine(START))).toMatchObject({
@@ -186,12 +181,12 @@ describe("the view of a fresh mine (#655)", () => {
       // 21 on jobs and 1 free, nothing ordered: the driver, two builders
       // and the free one have nothing to do.
       const idle = mine(START, { free: 1 });
-      expect(freshView(idle)?.idleWorkers).toBeCloseTo(4 / 22, 9);
+      expect(freshView(idle).idleWorkers).toBeCloseTo(4 / 22, 9);
       // Delivering, all of them work.
-      expect(freshView(placeOrder(mine(START)))?.idleWorkers).toBe(0);
+      expect(freshView(placeOrder(mine(START))).idleWorkers).toBe(0);
       // A driver with no wagon is idle while it delivers.
       const noWagon = placeOrder(mine({ ...START, driving: 2 }));
-      expect(freshView(noWagon)?.idleWorkers).toBeCloseTo(1 / 22, 9);
+      expect(freshView(noWagon).idleWorkers).toBeCloseTo(1 / 22, 9);
     });
   });
 
@@ -199,16 +194,16 @@ describe("the view of a fresh mine (#655)", () => {
     fresh(() => {
       // Haulage has 8 where 6 move what the line moves.
       const wide = placeOrder(mine({ ...START, haulage: 8 }));
-      expect(freshView(wide)?.idleWorkers).toBeCloseTo(2 / 23, 9);
+      expect(freshView(wide).idleWorkers).toBeCloseTo(2 / 23, 9);
     });
   });
 
   it("reads no machine share without machines, and none idle with a cart", () => {
     fresh(() => {
-      expect(freshView(mine(START))?.idleMachines).toBeNaN();
+      expect(freshView(mine(START)).idleMachines).toBeNaN();
       // A cart (60) runs over three tools (18).
       const cart = mine({ ...START, haulage: 9 }, { cart: 1 });
-      expect(freshView(cart)?.idleMachines).toBe(0);
+      expect(freshView(cart).idleMachines).toBe(0);
     });
   });
 });

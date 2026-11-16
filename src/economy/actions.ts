@@ -30,7 +30,6 @@ import {
   resumeOrder,
   type BuildingId,
 } from "../city";
-import { freshMineOn } from "../line-switch";
 import {
   BLUEPRINT_IDS,
   blueprintOpen,
@@ -125,7 +124,6 @@ import {
   tierById,
   tierCost,
   tierInPlay,
-  tierShown,
   type Tier,
   type TierId,
 } from "../tiers";
@@ -278,7 +276,11 @@ function factoryEvents(
  */
 type LevelAction =
   | { readonly kind: "sinkShaft" }
-  | { readonly kind: "buyGraniteMachine"; readonly id: LevelMachineId }
+  | {
+      readonly kind: "buyGraniteMachine";
+      readonly id: LevelMachineId;
+      readonly count: number;
+    }
   | HoistAction;
 
 type HoistAction =
@@ -395,7 +397,7 @@ function levelActions(mountain: Mountain): readonly Action[] {
   }
   return [
     ...LEVEL_MACHINE_IDS.filter((id) => tierOnSale(mountain, tierById(id))).map(
-      (id): Action => ({ kind: "buyGraniteMachine", id }),
+      (id): Action => graniteBuyMove(id, 1),
     ),
     ...hoistActions(mountain),
   ];
@@ -447,10 +449,29 @@ function levelApplied(mountain: Mountain, action: LevelAction): Mountain {
   if (!graniteOpen(mountain)) {
     return mountain;
   }
-  const bought = buyWithTeach(mountain, action.id);
-  return bought.owned[action.id] > mountain.owned[action.id]
-    ? withGraniteMachine(bought, action.id)
+  return allOf(mountain, action.count, (next) =>
+    graniteBought(next, action.id),
+  );
+}
+
+/** One machine bought as the card does, placed on the Granite only if he owns one more. */
+function graniteBought(mountain: Mountain, id: LevelMachineId): Mountain {
+  const bought = buyWithTeach(mountain, id);
+  return bought.owned[id] > mountain.owned[id]
+    ? withGraniteMachine(bought, id)
     : mountain;
+}
+
+/**
+ * A buy of `count` of a level machine for the Granite: one is the listed move,
+ * and the amount key's ten or Max buys several, all or nothing as `buyTiers`
+ * does.
+ */
+export function graniteBuyMove(
+  id: LevelMachineId,
+  count: number,
+): Extract<Action, { kind: "buyGraniteMachine" }> {
+  return { kind: "buyGraniteMachine", id, count };
 }
 
 /** The makers once they are open, and the next stockyard level until the last. */
@@ -471,14 +492,11 @@ function yardApplied(mountain: Mountain, action: YardAction): Mountain {
 }
 
 /**
- * Each job's two moves, where they would change something; none outside a
- * fresh mine. A job that is not open yet (the kilns before part 2's Light
- * Tower, #666) takes no worker.
+ * Each job's two moves, where they would change something. A job that is
+ * not open yet (the kilns before part 2's Light Tower, #666) takes no
+ * worker.
  */
 function workerActions(mountain: Mountain): readonly Action[] {
-  if (!freshMineOn()) {
-    return [];
-  }
   return JOB_IDS.flatMap((job): Action[] => [
     ...(placeable(mountain, job) > 0 && jobOpen(mountain, job)
       ? [{ kind: "placeWorker", job, count: 1 } as const]
@@ -489,11 +507,8 @@ function workerActions(mountain: Mountain): readonly Action[] {
   ]);
 }
 
-/** A worker moved; nothing outside a fresh mine. */
+/** A worker moved. */
 function workerApplied(mountain: Mountain, action: WorkerAction): Mountain {
-  if (!freshMineOn()) {
-    return mountain;
-  }
   if (action.kind === "freeWorker") {
     return freeWorker(mountain, action.job, action.count);
   }
@@ -503,11 +518,8 @@ function workerApplied(mountain: Mountain, action: WorkerAction): Mountain {
     : mountain;
 }
 
-/** A fresh mine's vehicles, then the one order move that fits the project. */
+/** The vehicles, then the one order move that fits the project. */
 function orderActions(mountain: Mountain): readonly Action[] {
-  if (!freshMineOn()) {
-    return [];
-  }
   const vehicles: Action[] = VEHICLE_IDS.filter((id) =>
     vehicleOpen(mountain, id),
   ).map((id) => ({
@@ -526,11 +538,8 @@ function orderActions(mountain: Mountain): readonly Action[] {
   }
 }
 
-/** An order move applied; nothing outside a fresh mine. */
+/** An order move applied. */
 function orderApplied(mountain: Mountain, action: OrderAction): Mountain {
-  if (!freshMineOn()) {
-    return mountain;
-  }
   switch (action.kind) {
     case "placeOrder":
       return placeOrder(mountain);
@@ -576,7 +585,7 @@ const ORDER_EVENT = {
 
 function tierActions(mountain: Mountain): readonly Action[] {
   return TIERS.filter(
-    (tier) => tierShown(mountain, tier) && !tierLocked(mountain, tier),
+    (tier) => tierInPlay(tier) && !tierLocked(mountain, tier),
   ).map((tier) => ({ kind: "buyTier", id: tier.id }));
 }
 
@@ -659,14 +668,11 @@ export function sinkRecipes(mountain: Mountain): readonly RecipeId[] {
 /**
  * Today's card buy: one of `id`. Any worker hired while a machine stands
  * idle is the first use of staffing (#246), so it marks staffing taught. The game and the
- * lab buy the same way (#409). The fresh mine's screens show no teach dot,
- * so a fresh mine skips the check: it reads the rates, and the lab hires
- * thousands of times a run (#675).
+ * lab buy the same way (#409).
  */
 export function buyWithTeach(mountain: Mountain, id: TierId): Mountain {
   const next = buyCrew(mountain, id);
   return id === "helper" &&
-    !freshMineOn() &&
     next.owned.helper > mountain.owned.helper &&
     showsDot(mountain, "staffing")
     ? markTaught(next, "staffing")
@@ -1933,12 +1939,8 @@ function payback(
     return Number.POSITIVE_INFINITY;
   }
   const shortfall = Math.max(cost - pocket, 0);
-  const afford =
-    shortfall === 0
-      ? 0
-      : income > 0
-        ? shortfall / income
-        : Number.POSITIVE_INFINITY;
+  // Income is never negative: with none, a shortfall takes forever (x / 0).
+  const afford = shortfall === 0 ? 0 : shortfall / income;
   return afford + cost / gain;
 }
 

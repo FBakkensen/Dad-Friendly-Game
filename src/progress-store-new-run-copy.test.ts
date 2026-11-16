@@ -7,7 +7,6 @@ import {
   type CloudWriteResult,
 } from "./cloud-save";
 import { holdFactors } from "./economy/factors";
-import { FRESH_OFF } from "./line-switch";
 import { createLogger } from "./log";
 import { MOUNTAIN_STONES, createMountain, type Mountain } from "./mountain";
 import { createProgressStore } from "./progress-store";
@@ -485,7 +484,7 @@ describe("a new run keeps the mountain he left in Saved copies (#480)", () => {
 
 describe("a fresh mine he leaves is kept too (#664)", () => {
   beforeEach(() => {
-    holdFactors({ [FRESH_OFF]: 0 });
+    holdFactors({});
   });
   afterEach(() => {
     holdFactors({});

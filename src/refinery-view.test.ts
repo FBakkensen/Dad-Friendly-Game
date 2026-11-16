@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { withFactors } from "./economy/factors";
-import { FRESH_OFF } from "./line-switch";
 import type { Mountain } from "./mountain";
 import { PART_TWO_OFF } from "./part-switch";
 import {
@@ -10,11 +9,12 @@ import {
   type RefineryView,
 } from "./refinery-view";
 import { stockpileRoom } from "./stockyard";
+import { levels, partThree } from "./part-three.harness";
 import { crewedStart } from "./test-fixtures";
 
 /** The refinery's numbers (slice 1, part 2, #671). */
 const partTwo = <T>(body: () => T): T =>
-  withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 }, body);
+  withFactors({ [PART_TWO_OFF]: 0 }, body);
 
 /** The Light Tower operational, the crew of 21 on the line, and these kilns. */
 function lit({
@@ -81,6 +81,26 @@ describe("the kilns' plate (#671)", () => {
     });
   });
 
+  it("with two levels, has the Topsoil's hoisted rock come in and bypass to stone with no kilns (#680)", () => {
+    partThree(() => {
+      // Each level hoists its own: a hoist for each, one for both. The Granite's rock goes to the saws' side.
+      const refinery = view(
+        levels({
+          topsoil: 3,
+          granite: 3,
+          hoisting: 5,
+          hoists: 3,
+          assigned: { topsoil: 1, granite: 1 },
+          piles: { face: 300, shaft: 300 },
+          granitePiles: { face: 300, shaft: 300 },
+        }),
+      );
+      expect(refinery.plate.machines).toBe("No kilns yet");
+      expect(refinery.hopper.rate).not.toBe("0/s");
+      expect(refinery.bypass.rate).toBe(refinery.hopper.rate);
+    });
+  });
+
   it("makes no more than half the rock that comes in once its pile is empty", () => {
     partTwo(() => {
       // Six workers with tools on each stage lift 18 a second: 9 brick.
@@ -92,14 +112,11 @@ describe("the kilns' plate (#671)", () => {
   });
 
   it("shows the recipe a lab sweep sets", () => {
-    withFactors(
-      { [FRESH_OFF]: 0, [PART_TWO_OFF]: 0, "recipe.kiln": 1.5 },
-      () => {
-        expect(view(lit({ kilns: 1 })).plate.recipe).toBe(
-          "Recipe: 3 rock → 1 brick",
-        );
-      },
-    );
+    withFactors({ [PART_TWO_OFF]: 0, "recipe.kiln": 1.5 }, () => {
+      expect(view(lit({ kilns: 1 })).plate.recipe).toBe(
+        "Recipe: 3 rock → 1 brick",
+      );
+    });
   });
 
   it("offers one more kiln with what it makes, its price and the worker it takes", () => {

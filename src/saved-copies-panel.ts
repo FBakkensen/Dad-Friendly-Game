@@ -5,10 +5,8 @@ import { skin } from "./board-skin";
 import type { ArchivedCopy } from "./cloud-save";
 import type { ProgressStore } from "./progress-store";
 import { keptUntilWords, saveCardLines } from "./save-sheet-copy";
-import { freshMineOn } from "./line-switch";
 import {
   CLOSE,
-  BACK_TO_THE_MOUNTAIN,
   SAVE_CONFLICT_ERROR,
   SAVE_CONFLICT_PLAY,
   SAVED_COPIES_EMPTY,
@@ -32,7 +30,7 @@ interface CopyParts {
  * The archived copies (#466), on the board card shell, opened from the Ledger's Saved copies
  * plate. Each copy is an inset with its lines and Play this one, which plays it through the same
  * archive-then-switch path. A copy from an earlier run, such as the mountain a Start over (or,
- * before #729, a pass) left (#480), comes back as a new run. Back to the mountain and
+ * before #729, a pass) left (#480), comes back as a new run. Close and
  * Escape close it. A copy's inset is built once, and a repaint writes only the lines that
  * changed, so its plate and the keyboard's focus stay put.
  */
@@ -68,18 +66,13 @@ export function createSavedCopiesPanel({
   let copies: readonly ArchivedCopy[] = [];
   let note = "";
 
-  /** Back to the mountain, Escape, or a copy now in play: the focus goes back to the opener. */
+  /** Close, Escape, or a copy now in play: the focus goes back to the opener. */
   const close = (): void => {
     open = false;
     note = "";
     requestRender();
   };
-  const back = card.plate(
-    freshMineOn() ? CLOSE : BACK_TO_THE_MOUNTAIN,
-    "close",
-    "saved-copies-close",
-    close,
-  );
+  const back = card.plate(CLOSE, "close", "saved-copies-close", close);
 
   // One copy at a time: a second press while the first restores never switches again.
   let restoring = false;

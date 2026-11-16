@@ -124,7 +124,7 @@ function isLevelMachine(id: Tier["id"]): id is LevelMachineId {
 /** The machine bought for a level: on the Topsoil as before, on the Granite with its own move. */
 function machineMove(tier: Tier, level: MineLevelId): Action {
   return level === "granite" && isLevelMachine(tier.id)
-    ? { kind: "buyGraniteMachine", id: tier.id }
+    ? { kind: "buyGraniteMachine", id: tier.id, count: 1 }
     : { kind: "buyTier", id: tier.id };
 }
 

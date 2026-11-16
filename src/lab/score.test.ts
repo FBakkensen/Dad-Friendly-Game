@@ -1,13 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { listActions, type ValueContext } from "../economy/actions";
-import { withFactors } from "../economy/factors";
-import { LINE_OFF } from "../line-switch";
-import { effectiveRates } from "../rates";
-import { createMountain } from "../mountain";
+import { createMountain, type Mountain } from "../mountain";
 import { singleShareOf } from "./measures/singleShare";
 import { scoreDecision } from "./score";
-import { BORER_SOURCE, CRAFTED_SOURCE, TENDING_SOURCE } from "./targets";
-import { NOTHING_CRAFTED } from "../workshop";
 
 /** Two ten-minute sittings a day: what the old pacing sim's dad played (#738 moved it here). */
 const DAD_SCHEDULE: ValueContext = {
@@ -15,23 +10,24 @@ const DAD_SCHEDULE: ValueContext = {
   awaySeconds: 12 * 60 * 60 - 10 * 60,
 };
 
-const ada = { name: "Ada", rank: 0, trips: 0, post: "borer" } as const;
+/** A fresh mine with one worker on drilling, one on haulage and one free: hoisting would start the line. */
+function readyToLift(): Mountain {
+  const start = createMountain();
+  return {
+    ...start,
+    owned: { ...start.owned, helper: 3 },
+    jobs: { ...start.jobs, drilling: 1, haulage: 1 },
+    stock: { ...start.stock, stones: 100 },
+  };
+}
 
 describe("scoreDecision", () => {
-  it("gives singleShare 1 when the only crew buy is affordable", () => {
-    const mountain = {
-      ...createMountain(),
-      stock: { ...createMountain().stock, stones: 100 },
-    };
-    const actions = listActions(mountain, 0).filter(
-      (action) => action.kind === "buyTier",
-    );
-    expect(actions).toHaveLength(1);
+  it("gives singleShare 1 when the only move on the table pays", () => {
     const sample = scoreDecision({
-      mountain,
+      mountain: readyToLift(),
       now: 0,
       context: DAD_SCHEDULE,
-      actions,
+      actions: [{ kind: "placeWorker", job: "hoisting", count: 1 }],
       atMs: 0,
     });
     expect(sample.liveCount).toBe(1);
@@ -39,147 +35,50 @@ describe("scoreDecision", () => {
     expect(sample.affordableLive).toBe(1);
     expect(sample.stretch.value.affordableLive).toBe(1);
     expect(sample.waitToAffordSec).toBe(0);
-    expect(sample.bestId).toBe("buyTier:helper");
+    expect(sample.bestId).toBe("placeWorker:hoisting");
     expect(sample.nextPaybackRatio).toBe(Number.POSITIVE_INFINITY);
     expect(singleShareOf([sample])).toBe(1);
     expect(singleShareOf([sample], "value")).toBe(1);
   });
 
   it("scores the whole table when the caller does not pass one", () => {
-    // A cart's worker makes the crew pay, so more than one move pays back (the dig is gone, #728).
-    const mountain = {
-      ...createMountain(),
-      stock: { ...createMountain().stock, stones: 100 },
-      owned: { ...createMountain().owned, helper: 1, cart: 1 },
-    };
+    const mountain = readyToLift();
     const sample = scoreDecision({
       mountain,
       now: 0,
       context: DAD_SCHEDULE,
       atMs: 0,
     });
+    expect([...sample.optionKinds].sort()).toEqual(
+      [
+        ...new Set(listActions(mountain, 0).map((action) => action.kind)),
+      ].sort(),
+    );
     expect(sample.optionKinds.length).toBeGreaterThan(1);
-    expect(sample.crewPerSec).toBe(7);
-    expect(sample.nextPaybackRatio).toBeGreaterThanOrEqual(1);
-    expect(Number.isFinite(sample.nextPaybackRatio)).toBe(true);
-  });
-
-  it("splits tending out of the borer's output", () => {
-    const mountain = {
-      ...createMountain(),
-      owned: { ...createMountain().owned, helper: 8, borer: 1 },
-      stock: { ...createMountain().stock, stones: 1 },
-      engineers: [ada],
-    };
-    const sample = scoreDecision({
-      mountain,
-      now: 0,
-      context: DAD_SCHEDULE,
-      actions: [],
-      atMs: 0,
-    });
-    expect(sample.outputShare[TENDING_SOURCE] ?? 0).toBeGreaterThan(0);
-    expect(sample.outputShare[BORER_SOURCE] ?? 0).toBeGreaterThan(0);
-    const sum = Object.values(sample.outputShare).reduce(
-      (total, share) => total + share,
-      0,
-    );
-    expect(sum).toBeCloseTo(1, 5);
-    expect(sample.liveCount).toBe(0);
-    expect(sample.nextPaybackRatio).toBe(Number.POSITIVE_INFINITY);
-  });
-
-  it("with the line on, keeps the machines' shares in the line's units and reads the line (#534)", () => {
-    const mountain = {
-      ...createMountain(),
-      owned: {
-        ...createMountain().owned,
-        helper: 4,
-        cart: 2,
-        hoist: 1,
-        drill: 1,
-      },
-      crafted: { ...NOTHING_CRAFTED, "iron-rails": 1 as const },
-    };
-    const context = DAD_SCHEDULE;
-    const off = scoreDecision({
-      mountain,
-      now: 0,
-      context,
-      actions: [],
-      atMs: 0,
-    });
-    expect(off.line).toBeUndefined();
-    withFactors({ [LINE_OFF]: 0 }, () => {
-      const sample = scoreDecision({
-        mountain,
-        now: 0,
-        context,
-        actions: [],
-        atMs: 0,
-      });
-      const bare = effectiveRates({ ...mountain, crafted: NOTHING_CRAFTED });
-      const gear =
-        effectiveRates(mountain).exactCrewPerSecond - bare.exactCrewPerSecond;
-      expect(gear).toBeGreaterThan(0);
-      expect(sample.outputShare[CRAFTED_SOURCE]).toBeCloseTo(
-        gear / (bare.exactCrewPerSecond + gear),
-        9,
-      );
-      // Two carts are the narrow stage, and the rails speed them up.
-      expect(sample.line?.narrow).toBe("haul");
-      expect(sample.line?.handsCarry).toBeGreaterThan(0);
-      expect(sample.line?.handsCarry).toBeLessThan(1);
-    });
-  });
-
-  it("splits crafted gear out of the crew", () => {
-    const mountain = {
-      ...createMountain(),
-      owned: { ...createMountain().owned, helper: 4, cart: 2 },
-      crafted: { ...NOTHING_CRAFTED, "iron-rails": 1 as const },
-    };
-    const sample = scoreDecision({
-      mountain,
-      now: 0,
-      context: DAD_SCHEDULE,
-      actions: [],
-      atMs: 0,
-    });
-    expect(sample.outputShare[CRAFTED_SOURCE] ?? 0).toBeGreaterThan(0);
-    expect(sample.outputShare["cart"] ?? 0).toBeGreaterThan(0);
-    const sum = Object.values(sample.outputShare).reduce(
-      (total, share) => total + share,
-      0,
-    );
-    expect(sum).toBeCloseTo(1, 5);
-    expect(sample.layer).toBe("topsoil");
+    expect(sample.liveCount).toBe(1);
+    // Nobody hoists yet, so the line moves nothing.
+    expect(sample.crewPerSec).toBe(0);
   });
 
   it("treats a free improvement as infinitely good per stone", () => {
-    const mountain = {
-      ...createMountain(),
-      owned: { ...createMountain().owned, helper: 8, borer: 1 },
-      stock: { ...createMountain().stock, stones: 1 },
-      engineers: [{ ...ada, post: "camp" as const }],
-    };
+    const mountain = readyToLift();
     const helpful = scoreDecision({
       mountain,
       now: 0,
       context: DAD_SCHEDULE,
-      actions: [{ kind: "station", index: 0, post: "borer" }],
+      actions: [{ kind: "placeWorker", job: "hoisting", count: 1 }],
       atMs: 0,
     });
-    expect(helpful.stretch.value.bestId).toBe("station:0:borer");
+    expect(helpful.stretch.value.bestId).toBe("placeWorker:hoisting");
     expect(helpful.stretch.value.liveCount).toBe(1);
-    expect(helpful.bestId).toBe("station:0:borer");
+    expect(helpful.bestId).toBe("placeWorker:hoisting");
     expect(helpful.waitToAffordSec).toBe(0);
 
     const useless = scoreDecision({
       mountain,
       now: 0,
       context: DAD_SCHEDULE,
-      actions: [{ kind: "station", index: 0, post: "cart" }],
+      actions: [{ kind: "placeWorker", job: "drilling", count: 1 }],
       atMs: 1,
     });
     expect(useless.stretch.value.liveCount).toBe(0);

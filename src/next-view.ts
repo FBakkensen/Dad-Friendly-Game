@@ -9,7 +9,7 @@ import { recipeById } from "./workshop";
 import { makerPrice, makersOpen } from "./makers";
 import { partTwoOn } from "./part-switch";
 import { MAX_STOCKYARD_LEVEL, expandPrice, stockyardOpen } from "./stockyard";
-import { TIERS, tierQuote } from "./tiers";
+import { TIERS, tierGood, tierQuote } from "./tiers";
 import { VEHICLES, vehicleOpen, vehiclePrice } from "./transport";
 import { upgradeShown } from "./upgrade-reveal";
 import { UPGRADES, upgradePrice, upgradeStage, type Upgrade } from "./upgrades";
@@ -79,7 +79,8 @@ export function stageCount(mountain: Mountain, stage: Stage): number {
     (tier) =>
       tier.stage === stage &&
       tierOnSale(mountain, tier) &&
-      tierQuote(mountain, tier, "one").cost <= mountain.stock.stones,
+      tierQuote(mountain, tier, "one").cost <=
+        mountain.stock[tierGood(tier.id)],
   ).length;
   const upgrades = UPGRADES.filter(
     (upgrade) =>

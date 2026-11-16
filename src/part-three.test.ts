@@ -233,14 +233,14 @@ describe("the Granite's rock (rules 3 and 5, #673)", () => {
       expect(away.mountain.stock.stones).toBe(6_000_000);
       expect(away.mountain.stock.cutStone).toBe(250_000);
       const facts = away.report.night;
-      expect(facts?.stop).toBe("stockyard");
+      expect(facts.stop).toBe("stockyard");
       // 37 workers: 6 a second each. No hoist: the winch's cage is 12 on
       // tools, 72 a second, capped at a hoist's load of 600, so both levels
       // in the turn lift 600 / 30 = 20 a second each. 40 a second, 18 at the
       // night shift output, fills the stone in about 15 hours: past the old
       // eight-hour clock, and short of the night.
-      expect(facts?.producedMs).toBeGreaterThan(8 * HOUR);
-      expect(facts?.producedMs).toBeLessThan(24 * HOUR);
+      expect(facts.producedMs).toBeGreaterThan(8 * HOUR);
+      expect(facts.producedMs).toBeLessThan(24 * HOUR);
       expect(away.report.capped).toBe(false);
       // Every rock lifted is in a stockpile or waits at the saws, whose pile
       // holds three loads of the winch's 600.

@@ -1,6 +1,5 @@
 import { SITE_HOLDS, onSiteTotal } from "../building-site";
 import { tierLocked } from "../crew";
-import { freshMineOn } from "../line-switch";
 import { STAGES } from "../line";
 import type { Mountain } from "../mountain";
 import { effectiveRates } from "../rates";
@@ -59,11 +58,8 @@ export type FreshView = {
   readonly partThree: boolean;
 };
 
-/** The view now, or undefined outside a fresh mine. */
-export function freshView(mountain: Mountain): FreshView | undefined {
-  if (!freshMineOn()) {
-    return undefined;
-  }
+/** The view now. */
+export function freshView(mountain: Mountain): FreshView {
   const rates = effectiveRates(mountain);
   const line = rates.exactCrewPerSecond;
   const project = mountain.project;

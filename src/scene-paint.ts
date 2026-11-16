@@ -199,11 +199,14 @@ export type ScenePainter = {
   readonly shown: () => boolean;
   readonly ground: (c: CanvasRenderingContext2D, height: number) => void;
   readonly draw: (c: CanvasRenderingContext2D, clock: number) => void;
+  /** What the ground shows besides its height (the mine's levels, #680): a new one paints it again. */
+  readonly layout?: () => number;
 };
 
 /**
  * A scene's canvas and its frames, on the board's own loop: the ground is
- * painted once a height, the rest about ten times a second, on hard steps.
+ * painted once a height and a layout, the rest about ten times a second, on
+ * hard steps.
  */
 export function runScene(
   canvas: HTMLCanvasElement,
@@ -217,6 +220,7 @@ export function runScene(
   const ground = document.createElement("canvas");
   let clock = 0;
   let since = 0;
+  let layout = painter.layout?.();
   runBoardLoop((dt) => {
     clock += dt;
     since += dt;
@@ -225,7 +229,13 @@ export function runScene(
     }
     since = 0;
     const height = Math.max(1, Math.floor(canvas.clientHeight / 2));
-    if (canvas.height !== height || ground.height !== height) {
+    const now = painter.layout?.();
+    if (
+      canvas.height !== height ||
+      ground.height !== height ||
+      now !== layout
+    ) {
+      layout = now;
       canvas.width = SCENE_W;
       canvas.height = height;
       ground.width = SCENE_W;

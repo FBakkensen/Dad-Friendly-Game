@@ -1,8 +1,8 @@
 import type { Action } from "../economy/actions";
 import type { Mountain } from "../mountain";
 import { nextBuilding } from "../city";
-import { freshMineOn } from "../line-switch";
-import { PART_THREE_OFF, PLAY_FACTORS } from "../part-switch";
+import { activeFactors } from "../economy/factors";
+import { PART_THREE_OFF, PART_TWO_OFF, PLAY_FACTORS } from "../part-switch";
 import { createWorld, step, type World } from "./world";
 import { sticker } from "./decide";
 import { playFresh } from "./fresh-dad";
@@ -51,15 +51,17 @@ export const LAB_FACTORS: Readonly<Record<string, 0>> = Object.freeze({
 
 /** What a run says when its caller forgot the game's factors (#737). */
 export const NOT_FRESH =
-  "runPolicy plays only the fresh mine: wrap the run in withFactors(PLAY_FACTORS, ...) (#737).";
+  "runPolicy plays only the game's mine: wrap the run in withFactors(PLAY_FACTORS, ...), or name part2.off to play part 1 alone (#737, #739).";
 
 /**
  * Plays one policy on the shared clock. Live seconds tick and the dad
  * plays his plans. The gap pays away time. The same seed replays the same
- * run. Only a fresh mine is played: outside one it throws (#737).
+ * run. Only the game's mine is played (#737): a caller who names no part 2
+ * switch forgot `PLAY_FACTORS`, and it throws. Naming it 1 plays part 1
+ * alone, as `--factors part2.off=1` does (#739).
  */
 export function runPolicy(options: RunOptions): PolicyRun {
-  if (!freshMineOn()) {
+  if (activeFactors()?.[PART_TWO_OFF] === undefined) {
     throw new Error(NOT_FRESH);
   }
   const { policy, seed } = options;

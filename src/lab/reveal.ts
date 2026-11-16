@@ -2,7 +2,7 @@ import { tierLocked } from "../crew";
 import { atHome } from "../engineers";
 import { LAYERS, type MaterialId } from "../layers";
 import type { Mountain } from "../mountain";
-import { owned, tierShown, TIERS } from "../tiers";
+import { owned, tierInPlay, TIERS } from "../tiers";
 import { UPGRADES, upgradeLevel } from "../upgrades";
 import { upgradeShown } from "../upgrade-reveal";
 import {
@@ -92,7 +92,7 @@ const WATCHES: readonly Watch[] = [
     // A locked preview card (a depth still ahead, #250) is not
     // a reveal: the wait starts when the card opens for sale.
     shown: (mountain: Mountain) =>
-      tierShown(mountain, tier) && !tierLocked(mountain, tier),
+      tierInPlay(tier) && !tierLocked(mountain, tier),
     used: (mountain: Mountain) => owned(mountain, tier) > 0,
   })),
   ...UPGRADES.map((upgrade) => ({

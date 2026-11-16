@@ -38,12 +38,14 @@ import {
   sliceRefinerySave,
   sliceYardFullSave,
   sliceFactorySave,
+  sliceGraniteUnsunkSave,
   sliceFactoryOrderSave,
   sliceFactoryDoneSave,
   sliceRoofSave,
   sliceStartSave,
   sliceStandsSave,
   sliceStructureSave,
+  sliceTwoLevelsSave,
   sliceWarehouseRoofSave,
   sliceWarehouseSave,
 } from "../tools/browser/fixtures.ts";
@@ -166,14 +168,27 @@ const SAVES = {
     key: DEV_BACKUP_KEY,
     search: PART_THREE,
   },
+  "granite-unsunk": {
+    note: "part 3: the Light Tower up and the stone and brick to sink the shaft",
+    save: () => sliceGraniteUnsunkSave(Date.now()),
+    key: DEV_BACKUP_KEY,
+    search: PART_THREE,
+  },
+  "two-levels": {
+    note: "part 3: the shaft sunk, both levels working, a hoist on each and one for both",
+    save: () => sliceTwoLevelsSave(Date.now()),
+    key: DEV_BACKUP_KEY,
+    search: PART_THREE,
+  },
 };
 
 const plan = parsePlayArgs(process.argv.slice(2), Object.keys(SAVES));
 if (plan.kind === "help") {
   console.log(PLAY_USAGE);
   console.log("\nSaves:");
+  const width = Math.max(...Object.keys(SAVES).map((name) => name.length));
   for (const [name, { note }] of Object.entries(SAVES)) {
-    console.log(`  ${name.padEnd(9)} ${note}`);
+    console.log(`  ${name.padEnd(width)}  ${note}`);
   }
   process.exit(0);
 }

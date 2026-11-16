@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { placeOrder, holdOrder } from "../city";
 import { applyAction } from "../economy/actions";
 import { withFactors } from "../economy/factors";
-import { FRESH_OFF } from "../line-switch";
 import { createMountain, type Mountain } from "../mountain";
 import { effectiveRates } from "../rates";
 import { PILE_HOLDS } from "../mine-piles";
@@ -22,7 +21,7 @@ import { nextUpgradeCost } from "../upgrades";
 import type { FreshHabits } from "./policy";
 
 /** How part 1's dad plays a fresh mine (#655). */
-const fresh = <T>(body: () => T): T => withFactors({ [FRESH_OFF]: 0 }, body);
+const fresh = <T>(body: () => T): T => withFactors({}, body);
 
 const ONCE: FreshHabits = {
   moves: "once",

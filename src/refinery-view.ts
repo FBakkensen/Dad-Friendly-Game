@@ -7,7 +7,7 @@ import {
   runningKilns,
   kilnRate,
 } from "./makers";
-import { chainIncome, kilnHolds, mineChain } from "./mine-piles";
+import { chainIncome, kilnHolds, topsoilChain } from "./mine-piles";
 import { PILE_LABELS, levelPlate, pileWords } from "./mine-view";
 import { accrueAway, type Mountain } from "./mountain";
 import { crewTimer } from "./rates";
@@ -116,7 +116,7 @@ function incomeNow(
   now: number | undefined,
 ): { readonly brick: number; readonly stones: number } {
   const timer = crewTimer(mountain, now);
-  const income = chainIncome(mineChain(mountain, 1, true));
+  const income = chainIncome(topsoilChain(mountain));
   return {
     brick: (income.brick ?? 0) * timer,
     stones: (income.stones ?? 0) * timer,
@@ -218,12 +218,12 @@ export function nightForecast(mountain: Mountain, now: number): string {
     lastSeen: now,
     now: now + FORECAST_MS,
   }).report.night;
-  if (night?.stop === "stockyard") {
+  if (night.stop === "stockyard") {
     return night.producedMs < FULL_NOW_MS
       ? "Full now."
       : `Full after ${shiftDuration(night.producedMs)} unattended.`;
   }
-  return (night?.producedMs ?? 0) > 0 ? "Holds 12 h unattended." : "No output.";
+  return night.producedMs > 0 ? "Holds 12 h unattended." : "No output.";
 }
 
 /** The gives line without the forecast: the site adds it, once a second. */

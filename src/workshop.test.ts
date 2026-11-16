@@ -12,17 +12,11 @@ import { expeditionAwayMs } from "./lost-tools";
 import {
   MOUNTAIN_STONES,
   accrue,
-  accrueAway,
   createMountain,
   type Mountain,
   BARE_MOUNTAIN,
 } from "./mountain";
-import {
-  reloaded,
-  NONE_OWNED,
-  patched,
-  type MountainPatch,
-} from "./test-fixtures";
+import { patched, type MountainPatch } from "./test-fixtures";
 import { effectiveRates } from "./rates";
 import {
   CHARGE_MS,
@@ -34,8 +28,6 @@ import {
   cancelCraft,
   cancelRefund,
   hotTimers,
-  recipeWindowMs,
-  reinforceTier,
   AXLE_MS,
   axleCrewMultiplier,
   chargeCrewMultiplier,
@@ -377,74 +369,6 @@ describe("workshop rules", () => {
     expect(late.bench).toBeUndefined();
   });
 
-  it("fits a finished craft once across time away and a reload", () => {
-    const started = startCraft(openShed(), "iron-rails", 1_000);
-    const endsAt = started.bench?.endsAt ?? 0;
-    expect(settleBench(started, endsAt - 1)).toBe(started);
-    const away = accrueAway({
-      mountain: started,
-      lastSeen: 1_000,
-      now: endsAt + 5_000,
-    });
-    expect(away.mountain.crafted["iron-rails"]).toBe(1);
-    expect(away.mountain.bench).toBeUndefined();
-    const loaded = reloaded(away.mountain, endsAt) ?? started;
-    const again = accrueAway({
-      mountain: loaded,
-      lastSeen: endsAt,
-      now: endsAt + 60_000,
-    });
-    expect(again.mountain.crafted["iron-rails"]).toBe(1);
-    expect(
-      settleBench(again.mountain, endsAt + 60_000).crafted["iron-rails"],
-    ).toBe(1);
-    const backwards = accrue({
-      mountain: started,
-      from: endsAt,
-      to: 1_000,
-    });
-    expect(backwards.mountain).toBe(started);
-    expect(backwards.mined).toBe(0);
-  });
-
-  it("fits gear that is already done before the window, and a charge while idle", () => {
-    const due = {
-      ...openShed(),
-      owned: { ...openShed().owned, helper: 1, cart: 1 },
-      bench: {
-        recipe: "iron-rails" as const,
-        startedAt: 0,
-        endsAt: 0,
-      },
-    };
-    const fitted = accrue({ mountain: due, from: 0, to: 10_000 });
-    expect(fitted.mountain.crafted["iron-rails"]).toBe(1);
-    expect(fitted.mined).toBe(80);
-    const working = startCraft(
-      { ...openShed(), owned: { ...openShed().owned, helper: 1, cart: 1 } },
-      "iron-rails",
-      0,
-    );
-    const during = accrue({
-      mountain: working,
-      from: 0,
-      to: working.bench?.endsAt ?? 0,
-    });
-    expect(during.mined).toBe(7 * 600);
-    expect(during.mountain.crafted["iron-rails"]).toBe(1);
-    const idle = startCraft(openShed(), "blasting-charge", 0);
-    const done = accrue({
-      mountain: idle,
-      from: 0,
-      to: idle.bench?.endsAt ?? 0,
-    });
-    expect(done.mined).toBe(0);
-    expect(done.mountain.clocks["blasting-charge"]).toBe(CHARGE_MS);
-    expect(chargeCrewMultiplier(idle, 1)).toBe(2);
-    expect(chargeCrewMultiplier(idle, undefined)).toBe(1);
-    expect(done.mountain.bench).toBeUndefined();
-  });
-
   it("adds another twenty minutes when a second charge finishes while one is hot", () => {
     const first = settleBench(
       startCraft(openShed(), "blasting-charge", 0),
@@ -474,29 +398,6 @@ describe("workshop rules", () => {
     expect(held.crafted["blasting-charge"]).toBe(MAX_CRAFTED_LEVEL);
     expect(held.bench).toBeUndefined();
     expect(held.clocks["blasting-charge"]).toBe(CHARGE_MS);
-  });
-
-  it("doubles the live crew for a hot charge and leaves time away alone", () => {
-    const cool = { ...openShed(), owned: { ...openShed().owned, helper: 10 } };
-    const crew = withClock(cool, "blasting-charge", 1_000_000);
-    expect(accrueAway({ mountain: crew, lastSeen: 0, now: 10_000 }).mined).toBe(
-      accrueAway({ mountain: cool, lastSeen: 0, now: 10_000 }).mined,
-    );
-    expect(
-      accrue({ mountain: crew, from: 0, to: 10_000, live: true }).mined,
-    ).toBe(200);
-    expect(
-      accrue({ mountain: cool, from: 0, to: 10_000, live: true }).mined,
-    ).toBe(100);
-    expect(chargeCrewMultiplier(crew, undefined)).toBe(1);
-    expect(chargeCrewMultiplier(cool, 1)).toBe(1);
-    expect(
-      chargeCrewMultiplier(
-        { ...crew, clocks: { ...COLD_CLOCKS, "blasting-charge": 5 } },
-        5,
-      ),
-    ).toBe(1);
-    expect(chargeCrewMultiplier(crew, 1)).toBe(2);
   });
 
   it("runs an ember while it is still on the bench", () => {
@@ -553,43 +454,6 @@ describe("workshop rules", () => {
     expect(axleCrewMultiplier(twice, 600_001)).toBeCloseTo(2);
   });
 
-  it("runs the crew at the stronger timer when grease and a charge overlap", () => {
-    const now = 1;
-    const cool = { ...openShed(), owned: { ...openShed().owned, helper: 500 } };
-    const plain = effectiveRates(cool, now);
-    expect(plain.crewPerSecond).toBe(4_000); // 500 workers x8
-    const until = 30 * 60_000;
-    const hot = {
-      ...cool,
-      clocks: {
-        ...COLD_CLOCKS,
-        "blasting-charge": until,
-        "axle-grease": until,
-      },
-    };
-    const doubled = effectiveRates(hot, now);
-    expect(doubled.crewPerSecond).toBe(plain.crewPerSecond * 2);
-    expect(doubled.exactCrewPerSecond).toBe(plain.exactCrewPerSecond * 2);
-    expect(effectiveRates(hot).crewPerSecond).toBe(plain.crewPerSecond);
-    expect(
-      effectiveRates(
-        { ...cool, clocks: { ...COLD_CLOCKS, "axle-grease": until } },
-        now,
-      ).crewPerSecond,
-    ).toBe(plain.crewPerSecond * 2);
-    expect(
-      effectiveRates(
-        { ...cool, clocks: { ...COLD_CLOCKS, "blasting-charge": until } },
-        now,
-      ).crewPerSecond,
-    ).toBe(plain.crewPerSecond * 2);
-    const stronger = withFactors(
-      { "recipe.blasting-charge.strength": 2 },
-      () => effectiveRates(hot, now).crewPerSecond,
-    );
-    expect(stronger).toBe(plain.crewPerSecond * 3);
-  });
-
   it("does not come out ahead by cancelling a live timer and starting it again", () => {
     const crew = {
       ...openShed(),
@@ -601,14 +465,12 @@ describe("workshop rules", () => {
       mountain: startCraft(crew, "axle-grease", 0),
       from: 0,
       to: horizon,
-      live: true,
     });
     const halfway = 5 * 60_000;
     const mid = accrue({
       mountain: startCraft(crew, "axle-grease", 0),
       from: 0,
       to: halfway,
-      live: true,
     });
     const cancelled = cancelCraft(mid.mountain, halfway);
     expect(axleCrewMultiplier(cancelled, halfway + 1)).toBe(1);
@@ -618,7 +480,6 @@ describe("workshop rules", () => {
       mountain: restarted,
       from: halfway,
       to: horizon,
-      live: true,
     });
     const keptWorth = kept.mined + kept.mountain.stock.stones;
     const againWorth = mid.mined + again.mined + again.mountain.stock.stones;
@@ -843,85 +704,6 @@ describe("workshop rules", () => {
     expect(stretched).toBe(2 * CHARGE_MS);
   });
 
-  it("keeps output under a ceiling after many repeatable crafts", () => {
-    const rich = {
-      clay: 10_000,
-      iron: 10_000,
-      crystal: 10_000,
-      heartstone: 10_000,
-    };
-    const crew = openShed({
-      stock: { stones: 400_000_000, ...rich },
-      owned: { ...NONE_OWNED, helper: 25, machine: 1 },
-    });
-    let mountain = crew;
-    let clock = 1_000_000;
-    const spam = (id: RecipeId, times: number) => {
-      for (let n = 0; n < times; n += 1) {
-        const started = startCraft(mountain, id, clock);
-        if (started.bench === undefined) {
-          return;
-        }
-        clock = started.bench.endsAt;
-        mountain = settleBench(started, clock);
-      }
-    };
-    spam("blasting-charge", 30);
-    spam("reinforce", 30);
-    spam("heartstone-ember", 30);
-    spam("heartstone-ember", 1);
-    spam("blasting-charge", 1);
-    const bare = effectiveRates(crew, clock).crewPerSecond;
-    const live = effectiveRates(mountain, clock);
-    const away = effectiveRates(mountain);
-    const capped: Mountain = {
-      ...crew,
-      crafted: { ...NOTHING_CRAFTED, reinforce: 5 },
-      clocks: { ...mountain.clocks, "axle-grease": crew.clocks["axle-grease"] },
-    };
-    expect(craftedLevel(mountain, "reinforce")).toBe(5);
-    expect(craftedLevel(mountain, "heartstone-ember")).toBeGreaterThan(5);
-    expect(live.crewPerSecond).toBe(
-      effectiveRates(capped, clock).crewPerSecond,
-    );
-    expect(live.crewPerSecond).toBeGreaterThan(away.crewPerSecond);
-    expect(live.crewPerSecond).toBeLessThan(bare * 4);
-    expect(away.crewPerSecond).toBeLessThan(bare * 2);
-    expect(away.crewPerSecond).toBe(effectiveRates(capped).crewPerSecond);
-    expect(reinforceTier(capped)).toBe("machine");
-    expect(
-      reinforceTier({
-        ...capped,
-        owned: { ...capped.owned, machine: 0, borer: 0, drill: 1 },
-      }),
-    ).toBe("borer");
-    expect(
-      reinforceTier({
-        ...capped,
-        owned: { ...capped.owned, machine: 0, borer: 0, drill: 0, cart: 1 },
-      }),
-    ).toBe("drill");
-    expect(
-      reinforceTier({
-        ...capped,
-        owned: { ...capped.owned, machine: 0, borer: 0, drill: 0, cart: 0 },
-      }),
-    ).toBeUndefined();
-    expect(recipeWindowMs("iron-rails")).toBeUndefined();
-    expect(recipeWindowMs("blasting-charge")).toBe(CHARGE_MS);
-    expect(hotTimers(capped, 1.5)).toEqual([]);
-    expect(hotTimers(capped, -1)).toEqual([]);
-    expect(
-      accrueAway({ mountain, lastSeen: clock - 5_000, now: clock }).mined,
-    ).toBe(
-      accrueAway({
-        mountain: capped,
-        lastSeen: clock - 5_000,
-        now: clock,
-      }).mined,
-    );
-  });
-
   it("names the refund and the hot timers", () => {
     expect(cancelRefund(openShed(), 1)).toBeUndefined();
     const props = startCraft(openShed(), "sturdy-props", 1_000);
@@ -960,6 +742,8 @@ describe("workshop rules", () => {
     );
     expect(chargeTimer?.until).toBe(CHARGE_MS);
     expect(hotTimers(openShed(), 1_000)).toEqual([]);
+    // A clock that is not a whole moment has nothing hot (#739).
+    expect(hotTimers(stored, Number.NaN)).toEqual([]);
     const future = openShed({
       bench: {
         recipe: "axle-grease",
