@@ -76,8 +76,10 @@ export type Notice =
   | { readonly kind: "operational"; readonly building: BuildingId }
   /**
    * A level reached: the shaft sunk to the Granite (#754). A loaded save
-   * already sunk, or a copy adopted from another device, does not announce
-   * it, as with `operational`.
+   * already sunk, or a copy that comes into play rebased (a guest resume, a
+   * restore from Saved copies), does not announce it. A cloud copy taken
+   * over while the game is open keeps the baselines, so a shaft sunk on
+   * another device is told here, as with `operational`.
    */
   | { readonly kind: "level"; readonly level: "granite" };
 

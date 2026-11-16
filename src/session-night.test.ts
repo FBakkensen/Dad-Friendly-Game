@@ -236,7 +236,7 @@ describe("announcing the Granite when the shaft is sunk (#754)", () => {
     });
   });
 
-  it("does not announce a Granite already sunk at load, or on an adopted copy", () => {
+  it("does not announce a Granite already sunk at load, nor a copy that comes into play rebased", () => {
     partThree(() => {
       const loaded = step(playing(sunk()), { kind: "notice" }, 0).session;
       expect(noticesOf(loaded.news, "level")).toEqual([]);
@@ -251,7 +251,8 @@ describe("announcing the Granite when the shaft is sunk (#754)", () => {
 
   it("keeps the Granite's notice when the night's report closes", () => {
     partThree(() => {
-      // A full stockyard stops the night: the price comes in after it.
+      // An empty stock: the shaft cannot be paid for during the night, so it
+      // is paid for and sunk after the report is up.
       const night = step(
         playing({ ...ready(), stock: EMPTY_STOCK }),
         { kind: "away", since: 0 },

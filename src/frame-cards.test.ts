@@ -629,6 +629,41 @@ describe("the Granite's card (#754)", () => {
     expect(card().shown).toBe(false);
   });
 
+  // As the end card: a cloud copy taken over while open keeps the news
+  // baselines, so a shaft sunk on another device is told here.
+  it("comes up for a copy from another device that sank the shaft", async () => {
+    holdFactors(PART_THREE);
+    const { card, progress, cloudSave, load } = await mountSignedIn(
+      unsunk(),
+      9 * HOUR,
+    );
+    load();
+    await vi.waitFor(() => {
+      expect(progress.getSnapshot().ready).toBe(true);
+    });
+    expect(card().shown).toBe(false);
+    const remote = await cloudSave.load({ uid: user.uid });
+    if (remote.kind !== "found") {
+      throw new Error("the cloud copy is there");
+    }
+    const here = progress.getSnapshot().mountain;
+    await cloudSave.write({
+      uid: user.uid,
+      mountain: {
+        ...here,
+        remaining: here.remaining - 5_000,
+        granite: levels(working).granite,
+      },
+      lastSeen: 9 * HOUR,
+      rev: (remote.rev ?? 0) + 1,
+      deviceId: "kitchen-pc",
+    });
+    await vi.waitFor(() => {
+      expect(progress.getSnapshot().mountain.granite.kind).toBe("sunk");
+    });
+    expect(card()).toMatchObject({ shown: true, kind: "level" });
+  });
+
   it("never comes with part 3 off: the shaft cannot be sunk", () => {
     holdFactors({ [PART_TWO_OFF]: 0 });
     const { card, progress } = mount({ saved: unsunk(price()), at: 1_000 });
