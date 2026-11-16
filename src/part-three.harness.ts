@@ -30,8 +30,11 @@ const PART_THREE_FACTORS: Readonly<Record<string, 0>> = {
   [PART_THREE_OFF]: 0,
 };
 
-export const partThree = <T>(body: () => T): T =>
-  withFactors(PART_THREE_FACTORS, body);
+/** Slice 1 with parts 2 and 3 on, and any other knobs set too. */
+export const partThree = <T>(
+  body: () => T,
+  knobs: Readonly<Record<string, number>> = {},
+): T => withFactors({ ...PART_THREE_FACTORS, ...knobs }, body);
 
 export const partTwo = <T>(body: () => T): T =>
   withFactors({ [FRESH_OFF]: 0, [PART_TWO_OFF]: 0 }, body);

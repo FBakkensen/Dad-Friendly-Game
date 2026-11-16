@@ -18,6 +18,7 @@ import {
   shaftCages,
   tripSeconds,
   type HoistsAssigned,
+  type CageKey,
   type ShaftCage,
 } from "./cages";
 import { withFactors } from "./economy/factors";
@@ -339,21 +340,42 @@ describe("the cages as rates (rule 5.14)", () => {
 });
 
 describe("the piles the cages use (Starting numbers)", () => {
-  it("hold three loads of the largest hoist or engine he owns, never less than 300", () => {
-    expect(cagePileRoom(300, 0)).toBe(300);
-    expect(cagePileRoom(300, 90)).toBe(300);
-    expect(cagePileRoom(300, 600)).toBe(1_800);
-    expect(cagePileRoom(300, 100.2)).toBe(301);
+  const loaded = (key: CageKey, load: number): ShaftCage => ({
+    key,
+    load,
+    runs: true,
+    serves: "both",
+  });
+
+  it("hold three loads of the largest cage with three cages or fewer, never less than 300", () => {
+    expect(cagePileRoom(300, [])).toBe(300);
+    expect(cagePileRoom(300, [loaded("winch", 90)])).toBe(300);
+    expect(
+      cagePileRoom(300, [loaded("hoist:0", 600), loaded("winch", 0)]),
+    ).toBe(1_800);
+    expect(cagePileRoom(300, [loaded("winch", 100.2)])).toBe(301);
     withFactors({ "piles.loads": 0.5 }, () => {
-      expect(cagePileRoom(300, 600)).toBe(900);
+      expect(cagePileRoom(300, [loaded("hoist:0", 600)])).toBe(900);
     });
   });
 
-  it("takes the largest load of a hoist or engine, never the winch's", () => {
+  it("hold a load of the largest cage for every cage past three, so cages that arrive together each find one (Task 7)", () => {
+    const seven = [
+      ...Array.from({ length: 6 }, (_, index) =>
+        loaded(`hoist:${String(index)}` as CageKey, 600),
+      ),
+      loaded("winch", 360),
+    ];
+    expect(cagePileRoom(300, seven)).toBe(7 * 600);
+    withFactors({ "piles.loads": 0.5 }, () => {
+      expect(cagePileRoom(300, seven)).toBe(2_100);
+    });
+  });
+
+  it("takes the largest load of any cage, the winch's among them (rule 5.10)", () => {
     expect(largestLoad([])).toBe(0);
-    expect(
-      largestLoad([{ key: "winch", load: 600, runs: true, serves: "both" }]),
-    ).toBe(0);
+    // With no hoist the winch's cage sets the room: a shaft of 300 would fill during its trip.
+    expect(largestLoad([loaded("winch", 600)])).toBe(600);
     const cages = cagesOf({ machine: 1, hoist: 2 }, work({ hoist: 0 }, 40));
     // Owned, not running, still counts: the piles follow what he owns.
     expect(largestLoad(cages)).toBe(speed.machine * 10);

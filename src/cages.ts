@@ -163,23 +163,39 @@ export function shaftCages(input: CageInput): readonly ShaftCage[] {
   }));
 }
 
-/** The largest load of a hoist or engine he owns, 0 with none. The winch is never counted. */
+/**
+ * The largest load of any cage he has, the winch's among them (rule 5.10:
+ * the winch is a cage), 0 with none. Leaving the winch out would starve a
+ * shaft with no hoist: its 300 at the shaft fills during the trip of a
+ * winch that carries up to a hoist's load (Task 7's gap).
+ */
 export function largestLoad(cages: readonly ShaftCage[]): number {
   let largest = 0;
   for (const cage of cages) {
-    if (cage.key !== "winch") {
-      largest = Math.max(largest, cage.load);
-    }
+    largest = Math.max(largest, cage.load);
   }
   return largest;
 }
 
+/** The fewest loads a pile the cages use holds: the spec's "three loads". */
+const LEAST_LOADS = 3;
+
 /**
- * What a pile the cages use holds (ruling 7): three loads of the largest
- * hoist or engine he owns, never less than it holds today.
+ * What a pile the cages use holds (ruling 7, Task 7's ruling): a load of the
+ * largest cage for every cage in the shaft, and never fewer than three, so
+ * cages that arrive together each find a load; never less than `base`.
+ * With more than three cages, three loads leave the cages that come last
+ * empty, and play falls behind a night's rates. #675 sets the real room.
  */
-export function cagePileRoom(base: number, largest: number): number {
-  return Math.max(base, Math.ceil(3 * factor("piles.loads") * largest));
+export function cagePileRoom(
+  base: number,
+  cages: readonly ShaftCage[],
+): number {
+  const loads = Math.max(LEAST_LOADS, cages.length);
+  return Math.max(
+    base,
+    Math.ceil(loads * factor("piles.loads") * largestLoad(cages)),
+  );
 }
 
 /** The cages as rates (rule 5.14): each level's own, and the loads of the cages for both. */

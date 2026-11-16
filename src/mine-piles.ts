@@ -1,7 +1,6 @@
 import {
   cagePileRoom,
   cageRates,
-  largestLoad,
   shaftCages,
   tripSeconds,
   type CageRates,
@@ -142,16 +141,16 @@ export function mineWork(mountain: Mountain): MineWork {
 }
 
 /**
- * The room of a pile the cages use (ruling 7): from part 3, three loads of
- * the largest cage he owns, never less than `base`; before it, `base`.
+ * The room of a pile the cages use (ruling 7): from part 3, a load of the
+ * largest cage, the winch's among them, for every cage in the shaft and
+ * never fewer than three (`cagePileRoom`), never less than `base`; before
+ * it, `base`.
  */
 function cageUsedRoom(mountain: Mountain, base: number): number {
-  return partThreeOn()
-    ? cagePileRoom(base, largestLoad(mineWork(mountain).cages))
-    : base;
+  return partThreeOn() ? cagePileRoom(base, mineWork(mountain).cages) : base;
 }
 
-/** The rock at the shaft's room, on both levels: 300, and from part 3 three loads of his largest cage. */
+/** The rock at the shaft's room, on both levels: 300, and from part 3 a load of his largest cage for each cage, at least three. */
 export function shaftHolds(mountain: Mountain): number {
   return cageUsedRoom(mountain, PILE_HOLDS.shaft);
 }
@@ -172,7 +171,8 @@ const MAKING = MAKER + 1;
 
 /**
  * A maker's pile's room (the rock at the kilns, or at the saws): none until
- * he owns one, then 300, and from part 3 three loads of his largest cage.
+ * he owns one, then 300, and from part 3 a load of his largest cage for
+ * each cage, at least three.
  */
 export function makerHolds(mountain: Mountain, id: MakerId): number {
   return mountain.makers[id] > 0 ? cageUsedRoom(mountain, PILE_HOLDS.kiln) : 0;
