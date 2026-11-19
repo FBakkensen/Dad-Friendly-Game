@@ -60,6 +60,16 @@ The design is `docs/superpowers/specs/2026-11-14-slice-1-design.md`. Its "Calls 
 - **16 Nov 2026, 16:06: part 3 is switched on** (#682). "do one last step to switch on part 3": the whole of slice 1, to the Foundry's roof, is the game on his phone. Then nothing new is started (his stop of 08:25).
 - **For every screen sliver.** A new line of copy or a new look is his to approve first, asked as one question with pictures. No line promises what is not live.
 
+## Slice 2, the Crystal Caves
+
+The design is `docs/superpowers/specs/2026-11-19-slice-2-design.md` (#763, #764). The answered prototype is `prototypes/slice-2/proto.src.html`.
+
+- **17 Nov 2026, 09:43: physical transport runs in two parts** (#762). Every inter-site movement goes by transport, one good type per vehicle. Both parts land in Slice 2: visible even-share across active runs first, then manual `−` / `+` assignment per run in a later part of the same slice, with the save reserving room for fixed assignments from the first part so the second resets nothing.
+- **19 Nov 2026: Slice 2 scope** (#763, Option 1). Slice 2 combines physical transport runs (#762), the Research vs. steady-flow Factory split (#751), and the Crystal Caves level with its next City buildings. Slice 1 Part 3's economy kinks (#757) fold into Slice 2's lab tuning; worker upkeep (#693) waits for Slice 3.
+- **19 Nov 2026: Transport and Research on the phone** (Option 1). Transport moves out of the City page to a global sheet (sibling to Workforce), keeping the bottom site bar at 4 tabs (`Mine · Refinery · Factory · City`). Research opens from its City building (**The Research Lab**).
+- **19 Nov 2026: uniform multi-input production chain** (Option 1 + multi-input rule). Retire the small-cap clay/iron trickle bins so all five goods (`Stone`, `Brick`, `Cut stone`, `Glass`, `Parts`) share one stockyard and transport network. Both Refinery makers (starting with Glassworks) and, more prominently, Factory lines take multiple inputs with separate input buffers.
+- **19 Nov 2026: Slice 2 City buildings & prototype** (Option 1 + "Continue"). The Foundry opens Crystal Caves, Glassworks, and the steady-flow Factory; Building 4 (**The Research Lab**) opens Research as the single home for all lasting upgrades and gear; Building 5 (**The Rail Depot**) opens Trains and ends Slice 2. Answered the tappable Slice 2 prototype (`prototypes/slice-2/proto.src.html`) with "Continue".
+
 ## Art
 
 - **11 Nov 2026: PixelLab is approved.** Since 15 Nov 2026 each new picture's spend is asked first, as a number of generations (the pixellab skill).
