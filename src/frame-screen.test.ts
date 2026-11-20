@@ -365,10 +365,11 @@ describe("the factory on the frame (#681)", () => {
   const sunk = (mountain: Mountain): Mountain => ({
     ...mountain,
     operational: ["lightTower", "warehouse"],
-    granite: {
-      kind: "sunk",
-      machines: { cart: 0, drill: 0, borer: 0, train: 0 },
-      piles: { face: 0, shaft: 0, saw: 0 },
+    mineLevels: {
+      granite: {
+        machines: { cart: 0, drill: 0, borer: 0, train: 0 },
+        piles: { face: 0, shaft: 0, saw: 0 },
+      },
     },
     stock: { ...mountain.stock, stones: 20_000, clay: 8, iron: 11 },
   });

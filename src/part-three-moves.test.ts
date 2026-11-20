@@ -34,13 +34,14 @@ function mine(sunk: boolean): Mountain {
   return {
     ...createMountain(),
     operational: ["lightTower"],
-    granite: sunk
+    mineLevels: sunk
       ? {
-          kind: "sunk",
-          machines: NO_LEVEL_MACHINES,
-          piles: NO_GRANITE_PILES,
+          granite: {
+            machines: NO_LEVEL_MACHINES,
+            piles: NO_GRANITE_PILES,
+          },
         }
-      : { kind: "unsunk" },
+      : {},
   };
 }
 
@@ -127,7 +128,7 @@ describe("the shaft and the Granite's machines as moves (#673)", () => {
       if (result.kind !== "applied") {
         return;
       }
-      expect(result.mountain.granite.kind).toBe("sunk");
+      expect(result.mountain.mineLevels.granite).toBeDefined();
       expect(result.spent).toEqual({
         ...EMPTY_STOCK,
         stones: 10_000_000,

@@ -46,7 +46,7 @@ test("the shaft: workers on the Granite, a hoist assigned, and the mine works on
   await player.expectStones(rules.pocket);
 
   await make(player, rules, { kind: "sinkShaft" });
-  expect(rules.mountain.granite.kind).toBe("sunk");
+  expect(rules.mountain.mineLevels.granite).toBeDefined();
   const card = await player.card();
   expect(card.title).toBe(LEVEL_REACHED.title);
   expect(card.lines).toEqual(LEVEL_REACHED.paragraphs);

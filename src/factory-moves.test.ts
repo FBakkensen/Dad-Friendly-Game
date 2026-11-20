@@ -31,13 +31,14 @@ function mine(sunk: boolean, station: Station = { kind: "idle" }): Mountain {
   return {
     ...createMountain(),
     operational: ["lightTower"],
-    granite: sunk
+    mineLevels: sunk
       ? {
-          kind: "sunk",
-          machines: NO_LEVEL_MACHINES,
-          piles: NO_GRANITE_PILES,
+          granite: {
+            machines: NO_LEVEL_MACHINES,
+            piles: NO_GRANITE_PILES,
+          },
         }
-      : { kind: "unsunk" },
+      : {},
     station,
   };
 }

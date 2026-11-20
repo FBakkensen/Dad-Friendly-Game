@@ -104,7 +104,7 @@ export type Station =
 export const IDLE_STATION: Station = { kind: "idle" };
 
 /** The station is open with the shaft (rule 7's site bar: the factory with the shaft), in part 3. */
-export function stationOpen(mountain: Pick<Mountain, "granite">): boolean {
+export function stationOpen(mountain: Pick<Mountain, "mineLevels">): boolean {
   return graniteOpen(mountain);
 }
 
@@ -127,7 +127,7 @@ function levelInHand(
  * on the old bench.
  */
 export function blueprintOpen(
-  mountain: Pick<Mountain, "granite" | "crafted" | "bench">,
+  mountain: Pick<Mountain, "mineLevels" | "crafted" | "bench">,
   id: BlueprintId,
 ): boolean {
   return (

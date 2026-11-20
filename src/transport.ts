@@ -4,6 +4,9 @@ import {
   buildSeconds,
   goodsTotal,
   onSiteTotal,
+  shareOutKeys,
+  shareProportional,
+  siteGoodRoom,
   stepWork,
 } from "./building-site";
 import {
@@ -15,18 +18,61 @@ import {
   type Site,
 } from "./city";
 import { loadOf, loadStation, loadable, stillToArrive } from "./factory";
+import { makerBuffer, makerInputRoom } from "./makers";
+import { graniteOpen, openLevels, type MineLevelId } from "./mine-levels";
 import type { Mountain } from "./mountain";
 import { partThreeOn } from "./part-switch";
 import { evenShares } from "./piles";
+import {
+  GOOD_IDS,
+  addedStock,
+  pay,
+  type GoodId,
+  type Price,
+  type Stock,
+} from "./stock";
+import { stockpileRoom } from "./stockyard";
 import { quoteRun, type BuyAmount, type TierQuote } from "./tiers";
-import { GOOD_IDS, pay, type GoodId, type Price, type Stock } from "./stock";
 
 /**
  * Transport (slice 1, rule 7, #654): one fleet with one number. It carries
  * what he ordered from the pocket to the site, at goods a second, and only
  * what the step in hand still requires. A vehicle is bought like a machine.
  * It takes no workers, and there are no routes and nothing to dispatch.
+ *
+ * Slice 2 Part 1 (#766, rule 2): every inter-site movement runs on a typed
+ * single-good run in deterministic `RUN_ORDER` with even-share water-filling
+ * and `shareProportional` source contention; `assignedRuns` is reserved in the
+ * save for Part 3 manual assignment.
  */
+
+/** Goods that City projects deliver from the stockyard in Part 1, in `GOOD_IDS` order. */
+export const CITY_RUN_GOODS = [
+  "stones",
+  "brick",
+  "cutStone",
+] as const satisfies readonly GoodId[];
+
+export type CityRunGood = (typeof CITY_RUN_GOODS)[number];
+
+export type StockToCityRunId = `stockToCity:${CityRunGood}`;
+
+/** Every single-good transport run in deterministic allocation order (spec rule 2.2). */
+export const RUN_ORDER = [
+  "pitToStockyardStones",
+  "pitTopsoilToKilns",
+  "pitGraniteToSaws",
+  "stockToCity:stones",
+  "stockToCity:brick",
+  "stockToCity:cutStone",
+] as const;
+
+export type RunId = (typeof RUN_ORDER)[number];
+
+/** Dedicated vehicle counts per run (reserved in v11 save, active in Part 3). */
+export type AssignedRuns = Readonly<Partial<Record<RunId, number>>>;
+
+export const NO_ASSIGNED_RUNS: AssignedRuns = {};
 
 type VehicleRow = {
   readonly id: string;
@@ -851,4 +897,496 @@ function afterStep(
     );
   }
   return out;
+}
+
+// ---------------------------------------------------------------------------
+// Slice 2 Part 1: physical single-good transport runs (even share, #766)
+
+export function cityRunId(good: CityRunGood): StockToCityRunId {
+  return `stockToCity:${good}`;
+}
+
+function makerRunForLevel(level: MineLevelId): RunId {
+  return level === "topsoil" ? "pitTopsoilToKilns" : "pitGraniteToSaws";
+}
+
+function runRecord<T>(value: T): Record<RunId, T> {
+  return Object.fromEntries(RUN_ORDER.map((id) => [id, value])) as Record<
+    RunId,
+    T
+  >;
+}
+
+/** Snapshot of one single-good transport run at a moment in time. */
+export type RunSnapshot = {
+  readonly id: RunId;
+  readonly open: boolean;
+  readonly source: number;
+  readonly destRoom: number;
+  readonly active: boolean;
+};
+
+function snapshotOf(
+  id: RunId,
+  open: boolean,
+  source: number,
+  destRoom: number,
+): RunSnapshot {
+  return {
+    id,
+    open,
+    source,
+    destRoom,
+    active: open && source > 0 && destRoom > 0,
+  };
+}
+
+/** Open/source/room snapshot for every Part 1 run in deterministic `RUN_ORDER`. */
+export function runSnapshots(mountain: Mountain): readonly RunSnapshot[] {
+  const levels = openLevels(mountain);
+  const pitTotal = levels.reduce((sum, l) => sum + mountain.pithead[l], 0);
+  const stoneRoom = Math.max(
+    0,
+    stockpileRoom(mountain, "stones") - mountain.stock.stones,
+  );
+  const kilnRoom = Math.max(
+    0,
+    makerInputRoom(mountain, "kiln") -
+      makerBuffer(mountain, "kiln", "topsoilRock"),
+  );
+  const gOpen = graniteOpen(mountain);
+  const sawRoom = gOpen
+    ? Math.max(
+        0,
+        makerInputRoom(mountain, "saw") -
+          makerBuffer(mountain, "saw", "graniteRock"),
+      )
+    : 0;
+  const project = mountain.project;
+  const need =
+    project.kind === "unordered" ? undefined : stillRequired(project.site);
+  const cityRuns = CITY_RUN_GOODS.map((good) => {
+    const open = need !== undefined && need[good] > 0;
+    const room =
+      project.kind === "delivering" ? siteGoodRoom(project.site, good) : 0;
+    return snapshotOf(cityRunId(good), open, mountain.stock[good], room);
+  });
+  return [
+    snapshotOf("pitToStockyardStones", true, pitTotal, stoneRoom),
+    snapshotOf(
+      "pitTopsoilToKilns",
+      mountain.makers.kiln > 0,
+      mountain.pithead.topsoil,
+      kilnRoom,
+    ),
+    snapshotOf(
+      "pitGraniteToSaws",
+      gOpen && mountain.makers.saw > 0,
+      gOpen ? mountain.pithead.granite : 0,
+      sawRoom,
+    ),
+    ...cityRuns,
+  ];
+}
+
+/** Integer units transferred across runs in a step, with pithead breakdown for stones. */
+export type RunTransfer = {
+  readonly moved: Readonly<Record<RunId, number>>;
+  readonly stoneFromPithead: Readonly<Record<MineLevelId, number>>;
+};
+
+type TransferState = {
+  readonly open: Readonly<Record<RunId, boolean>>;
+  readonly openLvls: readonly MineLevelId[];
+  readonly pithead: Record<MineLevelId, number>;
+  readonly stock: Record<CityRunGood, number>;
+  readonly destRoom: Record<RunId, number>;
+  readonly moved: Record<RunId, number>;
+  readonly stoneFromPithead: Record<MineLevelId, number>;
+};
+
+function buildTransferState(
+  mountain: Mountain,
+  destOverride?: Readonly<Partial<Record<RunId, number>>>,
+): TransferState {
+  const snaps = runSnapshots(mountain);
+  const open = runRecord(false);
+  const destRoom = runRecord(0);
+  for (const snap of snaps) {
+    open[snap.id] = snap.open;
+    const raw = destOverride?.[snap.id] ?? snap.destRoom;
+    destRoom[snap.id] = Number.isFinite(raw)
+      ? Math.max(0, Math.floor(raw))
+      : Number.MAX_SAFE_INTEGER;
+  }
+  return {
+    open,
+    openLvls: openLevels(mountain),
+    pithead: {
+      topsoil: mountain.pithead.topsoil,
+      granite: graniteOpen(mountain) ? mountain.pithead.granite : 0,
+    },
+    stock: {
+      stones: mountain.stock.stones,
+      brick: mountain.stock.brick,
+      cutStone: mountain.stock.cutStone,
+    },
+    destRoom,
+    moved: runRecord(0),
+    stoneFromPithead: { topsoil: 0, granite: 0 },
+  };
+}
+
+function runWant(state: TransferState, id: RunId): number {
+  if (!state.open[id] || state.destRoom[id] <= 0) {
+    return 0;
+  }
+  if (id === "pitToStockyardStones") {
+    const src = state.openLvls.reduce((sum, l) => sum + state.pithead[l], 0);
+    return Math.min(src, state.destRoom[id]);
+  }
+  if (id === "pitTopsoilToKilns") {
+    return Math.min(state.pithead.topsoil, state.destRoom[id]);
+  }
+  if (id === "pitGraniteToSaws") {
+    return Math.min(state.pithead.granite, state.destRoom[id]);
+  }
+  const good = id.slice("stockToCity:".length) as CityRunGood;
+  return Math.min(state.stock[good], state.destRoom[id]);
+}
+
+function resolvePitheadPass(
+  state: TransferState,
+  proposed: Readonly<Partial<Record<RunId, number>>>,
+  tieOffset: number,
+): number {
+  const stoneProp = proposed.pitToStockyardStones ?? 0;
+  const stoneSplit = shareProportional(
+    stoneProp,
+    state.openLvls,
+    state.pithead,
+    tieOffset,
+  );
+  let total = 0;
+  for (const level of state.openLvls) {
+    const makerRun = makerRunForLevel(level);
+    const sWant = stoneSplit[level] ?? 0;
+    const mWant = proposed[makerRun] ?? 0;
+    if (sWant + mWant <= 0) {
+      continue;
+    }
+    const split = shareProportional(
+      state.pithead[level],
+      ["stone", "maker"],
+      {
+        stone: sWant,
+        maker: mWant,
+      },
+      tieOffset,
+    );
+    const sTake = split.stone ?? 0;
+    const mTake = split.maker ?? 0;
+    state.pithead[level] -= sTake + mTake;
+    state.stoneFromPithead[level] += sTake;
+    state.moved.pitToStockyardStones += sTake;
+    state.destRoom.pitToStockyardStones -= sTake;
+    state.moved[makerRun] += mTake;
+    state.destRoom[makerRun] -= mTake;
+    total += sTake + mTake;
+  }
+  return total;
+}
+
+function resolveStockPass(
+  state: TransferState,
+  proposed: Readonly<Partial<Record<RunId, number>>>,
+): number {
+  let total = 0;
+  for (const good of CITY_RUN_GOODS) {
+    const id = cityRunId(good);
+    const take = Math.min(
+      proposed[id] ?? 0,
+      state.stock[good],
+      state.destRoom[id],
+    );
+    if (take > 0) {
+      state.stock[good] -= take;
+      state.moved[id] += take;
+      state.destRoom[id] -= take;
+      total += take;
+    }
+  }
+  return total;
+}
+
+/**
+ * Computes exact integer transfers across Part 1 runs for total `capacity`
+ * goods (spec rules 2.3 & 2.4): iterative water-filling via `shareOutKeys`
+ * with proportional shared-source contention via `shareProportional`.
+ */
+export function planTransportTransfer(
+  mountain: Mountain,
+  capacity: number,
+  destOverride?: Readonly<Partial<Record<RunId, number>>>,
+  tieOffset = 0,
+): RunTransfer {
+  const state = buildTransferState(mountain, destOverride);
+  let left = Math.max(0, Math.floor(capacity));
+  for (let pass = 0; pass < RUN_ORDER.length && left > 0; pass += 1) {
+    const wants: Partial<Record<RunId, number>> = {};
+    for (const id of RUN_ORDER) {
+      const want = runWant(state, id);
+      if (want > 0) {
+        wants[id] = want;
+      }
+    }
+    const proposed = shareOutKeys(left, RUN_ORDER, wants, tieOffset);
+    const movedNow =
+      resolvePitheadPass(state, proposed, tieOffset) +
+      resolveStockPass(state, proposed);
+    if (movedNow <= 0) {
+      break;
+    }
+    left -= movedNow;
+  }
+  return { moved: state.moved, stoneFromPithead: state.stoneFromPithead };
+}
+
+/**
+ * Applies a planned integer `RunTransfer` to `mountain` (exact conservation).
+ * Returns the updated mountain, stone gained from pithead, and goods delivered
+ * to the City site.
+ */
+export function applyTransportTransfer(
+  mountain: Mountain,
+  transfer: RunTransfer,
+): {
+  readonly mountain: Mountain;
+  readonly gainedStones: number;
+  readonly cityDelivered: Partial<Stock>;
+} {
+  const { moved, stoneFromPithead } = transfer;
+  const totalMoved = RUN_ORDER.reduce((sum, id) => sum + moved[id], 0);
+  if (totalMoved <= 0) {
+    return { mountain, gainedStones: 0, cityDelivered: {} };
+  }
+  const pithead = {
+    topsoil:
+      mountain.pithead.topsoil -
+      stoneFromPithead.topsoil -
+      moved.pitTopsoilToKilns,
+    granite:
+      mountain.pithead.granite -
+      stoneFromPithead.granite -
+      moved.pitGraniteToSaws,
+  };
+  const makerBuffers = {
+    kiln:
+      moved.pitTopsoilToKilns > 0
+        ? {
+            ...mountain.makerBuffers.kiln,
+            topsoilRock:
+              (mountain.makerBuffers.kiln.topsoilRock ?? 0) +
+              moved.pitTopsoilToKilns,
+          }
+        : mountain.makerBuffers.kiln,
+    saw:
+      moved.pitGraniteToSaws > 0
+        ? {
+            ...mountain.makerBuffers.saw,
+            graniteRock:
+              (mountain.makerBuffers.saw.graniteRock ?? 0) +
+              moved.pitGraniteToSaws,
+          }
+        : mountain.makerBuffers.saw,
+  };
+  const cityDelivered: Partial<Record<GoodId, number>> = {};
+  const stockDelta: Partial<Record<GoodId, number>> = {};
+  if (moved.pitToStockyardStones > 0) {
+    stockDelta.stones = moved.pitToStockyardStones;
+  }
+  for (const good of CITY_RUN_GOODS) {
+    const amt = moved[cityRunId(good)];
+    if (amt > 0) {
+      cityDelivered[good] = amt;
+      stockDelta[good] = (stockDelta[good] ?? 0) - amt;
+    }
+  }
+  const updated: Mountain = {
+    ...mountain,
+    pithead,
+    makerBuffers,
+    stock: addedStock(mountain.stock, stockDelta),
+  };
+  const next =
+    goodsTotal(cityDelivered) > 0 ? receive(updated, cityDelivered) : updated;
+  return {
+    mountain: next,
+    gainedStones: moved.pitToStockyardStones,
+    cityDelivered,
+  };
+}
+
+/** Source rate caps & pithead proportional weights for continuous rate allocation. */
+export type RunSourceCaps = {
+  readonly openLvls: readonly MineLevelId[];
+  readonly pitheadCap: Readonly<Record<MineLevelId, number>>;
+  readonly pitheadWeight: Readonly<Record<MineLevelId, number>>;
+  readonly stockCap: Readonly<Record<CityRunGood, number>>;
+};
+
+const RATE_EPS = 1e-9;
+
+function pitheadSplitFractions(
+  openLvls: readonly MineLevelId[],
+  pitheadCap: Readonly<Record<MineLevelId, number>>,
+  pitheadWeight: Readonly<Record<MineLevelId, number>>,
+): Record<MineLevelId, number> {
+  const out: Record<MineLevelId, number> = { topsoil: 0, granite: 0 };
+  const active = openLvls.filter((l) => pitheadCap[l] > RATE_EPS);
+  if (active.length === 0) {
+    return out;
+  }
+  const wSum = active.reduce(
+    (sum, l) => sum + Math.max(0, pitheadWeight[l]),
+    0,
+  );
+  if (wSum > RATE_EPS) {
+    for (const l of active) {
+      out[l] = Math.max(0, pitheadWeight[l]) / wSum;
+    }
+    return out;
+  }
+  for (const l of active) {
+    out[l] = 1 / active.length;
+  }
+  return out;
+}
+
+function subCap(cap: number, used: number): number {
+  return Number.isFinite(cap) ? Math.max(0, cap - used) : Infinity;
+}
+
+type RateState = {
+  readonly open: Readonly<Record<RunId, boolean>>;
+  readonly openLvls: readonly MineLevelId[];
+  readonly pitheadWeight: Readonly<Record<MineLevelId, number>>;
+  readonly remDest: Record<RunId, number>;
+  readonly remPit: Record<MineLevelId, number>;
+  readonly remStock: Record<CityRunGood, number>;
+  readonly runRates: Record<RunId, number>;
+  readonly pitheadDrain: Record<MineLevelId, number>;
+};
+
+function rateWant(state: RateState, id: RunId): number {
+  if (!state.open[id] || state.remDest[id] <= RATE_EPS) {
+    return 0;
+  }
+  if (id === "pitToStockyardStones") {
+    const src = state.openLvls.reduce((sum, l) => sum + state.remPit[l], 0);
+    return Math.min(src, state.remDest[id]);
+  }
+  if (id === "pitTopsoilToKilns") {
+    return Math.min(state.remPit.topsoil, state.remDest[id]);
+  }
+  if (id === "pitGraniteToSaws") {
+    return Math.min(state.remPit.granite, state.remDest[id]);
+  }
+  const good = id.slice("stockToCity:".length) as CityRunGood;
+  return Math.min(state.remStock[good], state.remDest[id]);
+}
+
+function resolvePitheadRatePass(
+  state: RateState,
+  prop: Readonly<Record<RunId, number>>,
+): number {
+  const fracs = pitheadSplitFractions(
+    state.openLvls,
+    state.remPit,
+    state.pitheadWeight,
+  );
+  let moved = 0;
+  for (const l of state.openLvls) {
+    const mRun = makerRunForLevel(l);
+    const sWant = prop.pitToStockyardStones * fracs[l];
+    const mWant = prop[mRun];
+    const total = sWant + mWant;
+    if (total <= RATE_EPS) {
+      continue;
+    }
+    const cap = state.remPit[l];
+    const scale = Number.isFinite(cap) && total > cap ? cap / total : 1;
+    const sTake = sWant * scale;
+    const mTake = mWant * scale;
+    state.runRates.pitToStockyardStones += sTake;
+    state.runRates[mRun] += mTake;
+    state.pitheadDrain[l] += sTake + mTake;
+    state.remPit[l] = subCap(cap, sTake + mTake);
+    state.remDest.pitToStockyardStones = subCap(
+      state.remDest.pitToStockyardStones,
+      sTake,
+    );
+    state.remDest[mRun] = subCap(state.remDest[mRun], mTake);
+    moved += sTake + mTake;
+  }
+  return moved;
+}
+
+function resolveStockRatePass(
+  state: RateState,
+  prop: Readonly<Record<RunId, number>>,
+): number {
+  let moved = 0;
+  for (const good of CITY_RUN_GOODS) {
+    const id = cityRunId(good);
+    const take = Math.min(prop[id], state.remStock[good], state.remDest[id]);
+    if (take > RATE_EPS) {
+      state.runRates[id] += take;
+      state.remStock[good] = subCap(state.remStock[good], take);
+      state.remDest[id] = subCap(state.remDest[id], take);
+      moved += take;
+    }
+  }
+  return moved;
+}
+
+/**
+ * Continuous water-filling rate allocator across Part 1 runs (`evenShares` +
+ * shared pithead contention), used by the coupled-stretch offline/lab solver
+ * and live UI rate readouts.
+ */
+export function allocateRunRates(
+  fleetRateTotal: number,
+  open: Readonly<Record<RunId, boolean>>,
+  destCaps: Readonly<Record<RunId, number>>,
+  sources: RunSourceCaps,
+): {
+  readonly runRates: Readonly<Record<RunId, number>>;
+  readonly pitheadDrain: Readonly<Record<MineLevelId, number>>;
+} {
+  const state: RateState = {
+    open,
+    openLvls: sources.openLvls,
+    pitheadWeight: sources.pitheadWeight,
+    remDest: { ...destCaps },
+    remPit: { ...sources.pitheadCap },
+    remStock: { ...sources.stockCap },
+    runRates: runRecord(0),
+    pitheadDrain: { topsoil: 0, granite: 0 },
+  };
+  let left = fleetRateTotal;
+  for (let pass = 0; pass < RUN_ORDER.length && left > RATE_EPS; pass += 1) {
+    const wants = RUN_ORDER.map((id) => rateWant(state, id));
+    const shares = evenShares(left, wants);
+    const prop = Object.fromEntries(
+      RUN_ORDER.map((id, idx) => [id, shares[idx] ?? 0]),
+    ) as Record<RunId, number>;
+    const moved =
+      resolvePitheadRatePass(state, prop) + resolveStockRatePass(state, prop);
+    if (moved <= RATE_EPS) {
+      break;
+    }
+    left = Math.max(0, left - moved);
+  }
+  return { runRates: state.runRates, pitheadDrain: state.pitheadDrain };
 }

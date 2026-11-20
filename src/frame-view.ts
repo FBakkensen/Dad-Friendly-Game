@@ -182,7 +182,7 @@ const SAWS_GOOD: GoodId = "cutStone";
 
 /** `goods`, with cut stone after them once the saws are open. */
 const withSaws = (
-  mountain: Pick<Mountain, "operational" | "granite">,
+  mountain: Pick<Mountain, "operational" | "mineLevels">,
   goods: readonly GoodId[],
 ): readonly GoodId[] =>
   makerOpen(mountain, "saw") ? [...goods, SAWS_GOOD] : goods;
@@ -217,7 +217,7 @@ export const BAY_ORDER: readonly GoodId[] = ["brick", "stones"];
 
 /** The stockyard's bays left to right: brick and stone, and cut stone once the saws open (#754). */
 export function bayOrder(
-  mountain: Pick<Mountain, "operational" | "granite">,
+  mountain: Pick<Mountain, "operational" | "mineLevels">,
 ): readonly GoodId[] {
   return withSaws(mountain, BAY_ORDER);
 }

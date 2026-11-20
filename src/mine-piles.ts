@@ -13,7 +13,7 @@ import {
   openGranite,
   type GranitePiles,
   type MineLevelId,
-  type SunkGranite,
+  type SunkLevel,
 } from "./mine-levels";
 import { partThreeOn } from "./part-switch";
 import {
@@ -229,7 +229,7 @@ export function mineDraw(
  */
 function levelsSet(
   mountain: Mountain,
-  granite: SunkGranite,
+  granite: SunkLevel,
   pay: number,
   drilling: boolean,
 ): Branches {
@@ -359,7 +359,7 @@ function chainTake(
 /** `takeIncome` for both levels: cut stone is carried as stone and brick are. */
 function levelsTake(
   mountain: Mountain,
-  granite: SunkGranite,
+  granite: SunkLevel,
   pay: number,
   drilling: boolean,
 ): Partial<Stock> {
@@ -440,7 +440,7 @@ function chainWith(
  */
 function graniteBranch(
   mountain: Mountain,
-  granite: SunkGranite,
+  granite: SunkLevel,
   { pay, drilling }: { readonly pay: number; readonly drilling: boolean },
   draw: Partial<Stock>,
 ): Branch {
@@ -479,7 +479,7 @@ function graniteBranch(
  */
 function mineBranches(
   mountain: Mountain,
-  granite: SunkGranite,
+  granite: SunkLevel,
   run: { readonly pay: number; readonly drilling: boolean },
   draw: Partial<Stock>,
 ): Branches {
@@ -716,7 +716,7 @@ export type MineStep = {
 /** Whether a step moved nothing: no rock drilled or lifted, no good made, and every pile as it was. */
 function stood(
   mountain: Mountain,
-  granite: SunkGranite | undefined,
+  granite: SunkLevel | undefined,
   step: MineStep,
 ): boolean {
   return (
@@ -749,10 +749,13 @@ export function mineWritten(mountain: Mountain, step: MineStep): MineFlow {
         ? mountain.stock
         : addedStock(mountain.stock, gained),
       piles: step.piles,
-      granite:
+      mineLevels:
         granite === undefined || step.granitePiles === undefined
-          ? mountain.granite
-          : { ...granite, piles: step.granitePiles },
+          ? mountain.mineLevels
+          : {
+              ...mountain.mineLevels,
+              granite: { ...granite, piles: step.granitePiles },
+            },
       rockDug: mountain.rockDug + step.dug.topsoil + step.dug.granite,
       // Counted where it is drilled, for the Granite's iron (#674).
       graniteDug: mountain.graniteDug + step.dug.granite,
@@ -847,4 +850,195 @@ function samePiles<K extends string>(
   right: Readonly<Record<K, number>>,
 ): boolean {
   return (Object.keys(left) as K[]).every((id) => left[id] === right[id]);
+}
+
+// ---------------------------------------------------------------------------
+// Slice 2 Part 1: pithead buffers & underground chains (zero Stone bypass)
+
+/** Minimum pithead rock buffer room before Hoist #1 (spec rule 1.4, #766). */
+export const MIN_PITHEAD_ROOM = 300;
+
+/**
+ * Room of each open level's pithead rock buffer (spec rule 1.4, #766):
+ * uses `cagePileRoom` with `MIN_PITHEAD_ROOM` so live cages never fall behind
+ * offline rates past 3 cages while winches still hold at least 300 rock.
+ */
+export function pitheadRoom(mountain: Mountain): number {
+  return cageUsedRoom(mountain, MIN_PITHEAD_ROOM);
+}
+
+const NO_SIDE: Branches["side"] = { held: 0, holds: 0, drain: 0 };
+
+/** One level's underground branch into its pithead buffer, drained by transport at `drain`. */
+function pitheadBranch(
+  mountain: Mountain,
+  level: MineLevelId,
+  { pay, drilling }: { readonly pay: number; readonly drilling: boolean },
+  drain: number,
+): Branch {
+  const { levels, lift } = mineWork(mountain);
+  const granite = openGranite(mountain);
+  const faceHeld =
+    level === "topsoil" ? mountain.piles.face : (granite?.piles.face ?? 0);
+  const shaftHeld =
+    level === "topsoil" ? mountain.piles.shaft : (granite?.piles.shaft ?? 0);
+  return {
+    source: Infinity,
+    rates: [
+      drilling ? levels[level].face * pay : 0,
+      levels[level].haul * pay,
+      (lift?.own[level] ?? 0) * pay,
+      drain,
+    ],
+    piles: [
+      { held: faceHeld, holds: faceHolds(level) },
+      { held: shaftHeld, holds: shaftHolds(mountain) },
+      { held: mountain.pithead[level], holds: pitheadRoom(mountain) },
+    ],
+    spillFrom: LIFT,
+  };
+}
+
+/** Underground mine branches into pithead buffers, with shared cage turn and zero spill. */
+function undergroundPitheadSet(
+  mountain: Mountain,
+  run: { readonly pay: number; readonly drilling: boolean },
+  pitheadDrain: Readonly<Record<MineLevelId, number>>,
+): Branches {
+  return {
+    branches: [
+      pitheadBranch(mountain, "topsoil", run, pitheadDrain.topsoil),
+      pitheadBranch(mountain, "granite", run, pitheadDrain.granite),
+    ],
+    shared: {
+      stage: LIFT,
+      turn: {
+        loads: (mineWork(mountain).lift?.loads ?? 0) * run.pay,
+        trips: [tripSeconds("topsoil"), tripSeconds("granite")],
+      },
+    },
+    side: NO_SIDE,
+  };
+}
+
+/**
+ * Instantaneous underground chains into pithead buffers (Slice 2, #766):
+ * Topsoil alone when Granite is unsunk, else both sharing the cage turn.
+ * Zero bypass to stone or makers.
+ */
+export function undergroundPitheadChains(
+  mountain: Mountain,
+  pay: number,
+  drilling: boolean,
+  pitheadDrain: Readonly<Record<MineLevelId, number>>,
+): Readonly<Partial<Record<MineLevelId, Chain>>> {
+  const granite = openGranite(mountain);
+  if (granite === undefined) {
+    const branch = pitheadBranch(
+      mountain,
+      "topsoil",
+      { pay, drilling },
+      pitheadDrain.topsoil,
+    );
+    return {
+      topsoil: {
+        source: branch.source,
+        rates: branch.rates,
+        piles: branch.piles,
+      },
+    };
+  }
+  const [topsoil, deep] = levelPair(
+    branchChains(
+      undergroundPitheadSet(mountain, { pay, drilling }, pitheadDrain),
+    ),
+  );
+  return { topsoil, granite: deep };
+}
+
+/** Outcome of advancing the underground mine into pithead buffers over `seconds`. */
+export type PitheadFlow = {
+  readonly mountain: Mountain;
+  readonly hoisted: Readonly<Record<MineLevelId, number>>;
+};
+
+/**
+ * Advances underground drilling, haulage, and hoisting into `pithead[level]`
+ * over `seconds` whole seconds (Slice 2 offline/rate stepping, #766).
+ * Returns the updated mountain with `hoisted[level]` added into `pithead[level]`
+ * (transport drains it in the coupled step).
+ */
+export function flowUndergroundToPithead(
+  mountain: Mountain,
+  seconds: number,
+  pay: number,
+  drilling: boolean,
+  pitheadDrain: Readonly<Record<MineLevelId, number>>,
+): PitheadFlow {
+  const granite = openGranite(mountain);
+  if (granite === undefined) {
+    const branch = pitheadBranch(
+      mountain,
+      "topsoil",
+      { pay, drilling },
+      pitheadDrain.topsoil,
+    );
+    const chain: Chain = {
+      source: branch.source,
+      rates: branch.rates,
+      piles: branch.piles,
+    };
+    const flow = flowWhole(chain, seconds);
+    const [face = 0, shaft = 0] = flow.piles;
+    const hoisted = movedAt(flow, LIFT);
+    const dug = movedAt(flow, 0);
+    if (
+      dug === 0 &&
+      hoisted === 0 &&
+      face === mountain.piles.face &&
+      shaft === mountain.piles.shaft
+    ) {
+      return { mountain, hoisted: { topsoil: 0, granite: 0 } };
+    }
+    return {
+      mountain: {
+        ...mountain,
+        piles: { ...mountain.piles, face, shaft },
+        pithead: {
+          ...mountain.pithead,
+          topsoil: mountain.pithead.topsoil + hoisted,
+        },
+        rockDug: mountain.rockDug + dug,
+      },
+      hoisted: { topsoil: hoisted, granite: 0 },
+    };
+  }
+  const set = undergroundPitheadSet(mountain, { pay, drilling }, pitheadDrain);
+  const [topsoil, deep] = levelPair(flowBranchesWhole(set, seconds));
+  const [tFace = 0, tShaft = 0] = topsoil.piles;
+  const [gFace = 0, gShaft = 0] = deep.piles;
+  const tHoist = movedAt(topsoil, LIFT);
+  const gHoist = movedAt(deep, LIFT);
+  const tDug = movedAt(topsoil, 0);
+  const gDug = movedAt(deep, 0);
+  return {
+    mountain: {
+      ...mountain,
+      piles: { ...mountain.piles, face: tFace, shaft: tShaft },
+      mineLevels: {
+        ...mountain.mineLevels,
+        granite: {
+          ...granite,
+          piles: { ...granite.piles, face: gFace, shaft: gShaft },
+        },
+      },
+      pithead: {
+        topsoil: mountain.pithead.topsoil + tHoist,
+        granite: mountain.pithead.granite + gHoist,
+      },
+      rockDug: mountain.rockDug + tDug + gDug,
+      graniteDug: mountain.graniteDug + gDug,
+    },
+    hoisted: { topsoil: tHoist, granite: gHoist },
+  };
 }

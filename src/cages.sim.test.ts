@@ -24,10 +24,9 @@ const HOUR = 3_600;
 /** The rock waiting below the cages: drilled rock and rock at the shaft, on both levels. */
 function belowCages(mountain: Mountain): number {
   const { face, shaft } = mountain.piles;
+  const granite = mountain.mineLevels.granite;
   const deep =
-    mountain.granite.kind === "sunk"
-      ? mountain.granite.piles.face + mountain.granite.piles.shaft
-      : 0;
+    granite !== undefined ? granite.piles.face + granite.piles.shaft : 0;
   return face + shaft + deep;
 }
 

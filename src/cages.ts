@@ -339,7 +339,7 @@ export function unassignedHoists(
  * the Granite is open (ruling 5). A count is read as a worker move reads it.
  */
 export function assignHoists<
-  M extends Pick<Mountain, "owned" | "cages" | "granite">,
+  M extends Pick<Mountain, "owned" | "cages" | "mineLevels">,
 >(mountain: M, level: MineLevelId, count = 1): M {
   if (!graniteOpen(mountain)) {
     return mountain;

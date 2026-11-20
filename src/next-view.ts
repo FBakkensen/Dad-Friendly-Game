@@ -40,7 +40,7 @@ export const SITE_NAMES: Readonly<Record<SiteId, string>> = {
  * the end of the game).
  */
 export function siteOpen(
-  mountain: Pick<Mountain, "operational" | "granite">,
+  mountain: Pick<Mountain, "operational" | "mineLevels">,
   site: SiteId,
 ): boolean {
   switch (site) {
@@ -55,7 +55,7 @@ export function siteOpen(
 
 /** The open sites, in the bar's order. */
 export function openSites(
-  mountain: Pick<Mountain, "operational" | "granite">,
+  mountain: Pick<Mountain, "operational" | "mineLevels">,
 ): readonly SiteId[] {
   return SITES.filter((site) => siteOpen(mountain, site));
 }

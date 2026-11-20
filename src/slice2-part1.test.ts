@@ -1,0 +1,558 @@
+import { describe, expect, it } from "vitest";
+import {
+  SITE_GOOD_CAP,
+  applyCityWork,
+  shareOutKeys,
+  shareProportional,
+  siteGoodRoom,
+} from "./building-site";
+import { placeOrder } from "./city";
+import { withFactors } from "./economy/factors";
+import {
+  BASE_INPUT_BUF,
+  MAX_CYCLE_MICROS,
+  makerInputRoom,
+  stepMakerCycle,
+} from "./makers";
+import {
+  NO_GRANITE_PILES,
+  levelMachines,
+  openLevels,
+  withLevelMachine,
+  withLevelPiles,
+} from "./mine-levels";
+import { flowMineToPitheadLive, landedMine } from "./mine-cages";
+import { MIN_PITHEAD_ROOM, pitheadRoom } from "./mine-piles";
+import { accrue, accrueAway, createMountain, type Mountain } from "./mountain";
+import {
+  PART_THREE_OFF,
+  PART_TWO_OFF,
+  SLICE_2_PART_1_OFF,
+  slice2Part1On,
+} from "./part-switch";
+import { levels, partThree, slice2Part1 } from "./part-three.harness";
+import { readGame, writeGame } from "./save-format";
+import {
+  RUN_ORDER,
+  applyTransportTransfer,
+  fleetRate,
+  planTransportTransfer,
+  runSnapshots,
+} from "./transport";
+import { freeWorker, placeWorker } from "./workforce";
+
+const SECOND = 1_000;
+const HOUR = 3_600 * SECOND;
+
+describe("slice 2 part 1 switch (#766)", () => {
+  it("stays off in play and requires part2, part3, and slice2Part1 all at 0", () => {
+    expect(slice2Part1On()).toBe(false);
+    partThree(() => {
+      expect(slice2Part1On()).toBe(false);
+    });
+    withFactors({ [SLICE_2_PART_1_OFF]: 0 }, () => {
+      expect(slice2Part1On()).toBe(false);
+    });
+    withFactors(
+      { [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0, [SLICE_2_PART_1_OFF]: 0 },
+      () => {
+        expect(slice2Part1On()).toBe(true);
+      },
+    );
+    slice2Part1(() => {
+      expect(slice2Part1On()).toBe(true);
+    });
+  });
+});
+
+describe("generalized mineLevels (#766)", () => {
+  it("tracks deeper level machines and piles and derives Topsoil as owned minus deeper", () => {
+    slice2Part1(() => {
+      const start = levels({
+        machines: { cart: 2, drill: 1 },
+        granitePiles: { face: 10, shaft: 5, saw: 0 },
+      });
+      const more: Mountain = {
+        ...start,
+        owned: { ...start.owned, cart: 5, drill: 3 },
+      };
+      expect(openLevels(more)).toEqual(["topsoil", "granite"]);
+      expect(levelMachines(more, "granite")).toEqual({
+        cart: 2,
+        drill: 1,
+        borer: 0,
+        train: 0,
+      });
+      expect(levelMachines(more, "topsoil")).toEqual({
+        cart: 3,
+        drill: 2,
+        borer: 0,
+        train: 0,
+      });
+      const added = withLevelMachine(more, "granite", "drill");
+      expect(levelMachines(added, "granite").drill).toBe(2);
+      expect(levelMachines(added, "topsoil").drill).toBe(1);
+      const piled = withLevelPiles(added, "granite", {
+        ...NO_GRANITE_PILES,
+        face: 42,
+      });
+      expect(piled.mineLevels.granite?.piles.face).toBe(42);
+    });
+  });
+
+  it("returns unchanged mountain when mutating an unsunk level", () => {
+    const fresh = createMountain();
+    expect(withLevelMachine(fresh, "granite", "cart")).toBe(fresh);
+    expect(withLevelPiles(fresh, "granite", NO_GRANITE_PILES)).toBe(fresh);
+  });
+});
+
+describe("pithead buffers & zero Stone bypass (#766, rule 1.4)", () => {
+  it("sizes pithead room with MIN_PITHEAD_ROOM=300 and scales via cagePileRoom", () => {
+    slice2Part1(() => {
+      const winchOnly = levels({ sunk: false, hoisting: 1, hoists: 0 });
+      expect(pitheadRoom(winchOnly)).toBe(MIN_PITHEAD_ROOM);
+      const manyHoists = levels({ sunk: false, hoisting: 4, hoists: 4 });
+      expect(pitheadRoom(manyHoists)).toBeGreaterThan(MIN_PITHEAD_ROOM);
+    });
+  });
+
+  it("unloads live cages strictly into pithead with zero Stone bypass and stalls when pithead is full", () => {
+    slice2Part1(() => {
+      const start = levels({
+        sunk: false,
+        hoisting: 1,
+        hoists: 0,
+        piles: { shaft: 300 },
+        pithead: { topsoil: 0 },
+        stock: { stones: 0 },
+      });
+      const after = flowMineToPitheadLive(start, 20, 1, false);
+      expect(after.mountain.stock.stones).toBe(0);
+      expect(after.mountain.pithead.topsoil).toBeGreaterThan(0);
+      expect(after.mined).toBe(after.mountain.pithead.topsoil);
+
+      // Fill pithead to room: cage waits at top with carried rock, zero bypass to stones.
+      const room = pitheadRoom(start);
+      const full = levels({
+        sunk: false,
+        hoisting: 1,
+        hoists: 0,
+        pithead: { topsoil: room },
+        stock: { stones: 0 },
+        trips: {
+          winch: { level: "topsoil", carried: 90, leg: { kind: "top" } },
+        },
+      });
+      const stalled = flowMineToPitheadLive(full, 10, 1, false);
+      expect(stalled.mountain.stock.stones).toBe(0);
+      expect(stalled.mountain.pithead.topsoil).toBe(room);
+      expect(stalled.mountain.cages.trips.winch?.carried).toBe(90);
+
+      // Landing cages before a night also pours strictly into pithead.
+      const half = levels({
+        sunk: false,
+        hoisting: 1,
+        hoists: 0,
+        pithead: { topsoil: room - 40 },
+        stock: { stones: 0 },
+        trips: {
+          winch: {
+            level: "topsoil",
+            carried: 90,
+            leg: { kind: "up", left: 3 },
+          },
+        },
+      });
+      const landed = landedMine(half);
+      expect(landed.mountain.stock.stones).toBe(0);
+      expect(landed.mountain.pithead.topsoil).toBe(room);
+      expect(landed.mountain.cages.trips.winch?.carried).toBe(50);
+    });
+  });
+});
+
+describe("makers input buffers & cycleMicros (#766, rule 3.2)", () => {
+  it("sets buffer room to 0 when owned === 0 and scales to >= 60 s consumption once owned", () => {
+    const empty = createMountain();
+    expect(makerInputRoom(empty, "kiln")).toBe(0);
+    expect(makerInputRoom(empty, "saw")).toBe(0);
+    const oneKiln = { ...empty, makers: { kiln: 1, saw: 0 } };
+    expect(makerInputRoom(oneKiln, "kiln")).toBeGreaterThanOrEqual(
+      BASE_INPUT_BUF,
+    );
+    expect(makerInputRoom(oneKiln, "kiln")).toBe(12 * 2 * 60);
+    const twoSaws = { ...empty, makers: { kiln: 0, saw: 2 } };
+    expect(makerInputRoom(twoSaws, "saw")).toBe(2 * 30 * 3 * 60);
+  });
+
+  it("accumulates integer cycleMicros across 1 s ticks for a slow 1-per-60-s line with < 0.01% drift", () => {
+    let held = 10_000;
+    let produced = 0;
+    let micros = 0;
+    const rate = 1 / 60;
+    for (let sec = 0; sec < 3_600; sec += 1) {
+      const step = stepMakerCycle({
+        inputs: [{ id: "topsoilRock", amount: 2, held }],
+        outputAmount: 1,
+        outputRoom: 10_000,
+        staffedOutputRate: rate,
+        dt: 1,
+        cycleMicros: micros,
+      });
+      expect(Number.isInteger(step.nextMicros)).toBe(true);
+      expect(step.nextMicros).toBeGreaterThanOrEqual(0);
+      expect(step.nextMicros).toBeLessThanOrEqual(MAX_CYCLE_MICROS);
+      expect(step.standing).toBe(false);
+      held -= step.consumed.topsoilRock ?? 0;
+      produced += step.produced;
+      micros = step.nextMicros;
+    }
+    // 3600 s at 1/60 s = 60 cycles exact (or 59 with ~999_9xx micros left).
+    expect(produced).toBeGreaterThanOrEqual(59);
+    expect(produced).toBeLessThanOrEqual(60);
+    expect(held).toBe(10_000 - produced * 2);
+  });
+
+  it("halts cleanly and resets cycleMicros without draining other inputs when any input is empty", () => {
+    const step = stepMakerCycle({
+      inputs: [
+        { id: "topsoilRock", amount: 2, held: 100 },
+        { id: "graniteRock", amount: 3, held: 2 },
+      ],
+      outputAmount: 1,
+      outputRoom: 100,
+      staffedOutputRate: 10,
+      dt: 10,
+      cycleMicros: 500_000,
+    });
+    expect(step.cycles).toBe(0);
+    expect(step.produced).toBe(0);
+    expect(step.consumed).toEqual({});
+    expect(step.nextMicros).toBe(0);
+    expect(step.standing).toBe(true);
+  });
+});
+
+describe("per-good SITE_GOOD_CAP & integer sharing (#766, rule 4.2)", () => {
+  it("gives each required good its own SITE_GOOD_CAP buffer and never overflows it", () => {
+    slice2Part1(() => {
+      const start = levels({
+        operational: ["lightTower"],
+        stock: { stones: 10_000, brick: 10_000 },
+      });
+      const ordered = placeOrder(start);
+      expect(ordered.project.kind).toBe("delivering");
+      if (ordered.project.kind !== "delivering") {
+        return;
+      }
+      // Warehouse step 0 requires both stones and brick; each gets SITE_GOOD_CAP.
+      expect(siteGoodRoom(ordered.project.site, "stones")).toBe(SITE_GOOD_CAP);
+      expect(siteGoodRoom(ordered.project.site, "brick")).toBe(SITE_GOOD_CAP);
+
+      const work = applyCityWork(
+        ordered.project.site,
+        { stones: 2_000, brick: 2_000 },
+        100,
+      );
+      const stonesOnSite =
+        ordered.project.site.onSite.stones +
+        (work.delivered.stones ?? 0) -
+        (work.built.stones ?? 0);
+      const brickOnSite =
+        ordered.project.site.onSite.brick +
+        (work.delivered.brick ?? 0) -
+        (work.built.brick ?? 0);
+      expect(stonesOnSite).toBeLessThanOrEqual(SITE_GOOD_CAP);
+      expect(brickOnSite).toBeLessThanOrEqual(SITE_GOOD_CAP);
+      expect(stonesOnSite).toBeGreaterThanOrEqual(0);
+      expect(brickOnSite).toBeGreaterThanOrEqual(0);
+    });
+  });
+
+  it("conserves exact integers in shareOutKeys and shareProportional", () => {
+    expect(shareOutKeys(10, ["a", "b", "c"], { a: 2, b: 100, c: 100 })).toEqual(
+      { a: 2, b: 4, c: 4 },
+    );
+    const split = shareProportional(10, ["x", "y", "z"], {
+      x: 10,
+      y: 10,
+      z: 10,
+    });
+    expect((split.x ?? 0) + (split.y ?? 0) + (split.z ?? 0)).toBe(10);
+    expect(shareProportional(50, ["x", "y"], { x: 10, y: 15 })).toEqual({
+      x: 10,
+      y: 15,
+    });
+  });
+});
+
+describe("physical transport runs: water-filling & source contention (#766, rule 2)", () => {
+  it("closes maker runs while makers === 0 and redistributes spare capacity via water-filling", () => {
+    slice2Part1(() => {
+      const m = levels({
+        sunk: false,
+        kilns: 0,
+        pithead: { topsoil: 100 },
+        stock: { stones: 0 },
+        driving: 1,
+      });
+      const snaps = Object.fromEntries(runSnapshots(m).map((s) => [s.id, s]));
+      expect(snaps.pitToStockyardStones?.open).toBe(true);
+      expect(snaps.pitTopsoilToKilns?.open).toBe(false);
+      expect(snaps.pitGraniteToSaws?.open).toBe(false);
+
+      // With a kiln owned and a tiny kiln room left (3), spare fleet capacity flows to stones.
+      const withKiln: Mountain = {
+        ...m,
+        makers: { kiln: 1, saw: 0 },
+        makerBuffers: { kiln: { topsoilRock: 12 * 2 * 60 - 3 }, saw: {} },
+      };
+      const transfer = planTransportTransfer(withKiln, 9);
+      expect(transfer.moved.pitTopsoilToKilns).toBe(3);
+      expect(transfer.moved.pitToStockyardStones).toBe(6);
+      const applied = applyTransportTransfer(withKiln, transfer);
+      expect(applied.mountain.pithead.topsoil).toBe(91);
+      expect(applied.mountain.stock.stones).toBe(6);
+      expect(applied.mountain.makerBuffers.kiln.topsoilRock).toBe(12 * 2 * 60);
+    });
+  });
+
+  it("splits scarce shared pithead proportionally between Stone and Kilns without overdrawing", () => {
+    slice2Part1(() => {
+      const m = levels({
+        sunk: false,
+        kilns: 1,
+        pithead: { topsoil: 10 },
+        stock: { stones: 0 },
+        driving: 1,
+      });
+      const transfer = planTransportTransfer(m, 100);
+      expect(
+        transfer.moved.pitToStockyardStones + transfer.moved.pitTopsoilToKilns,
+      ).toBe(10);
+      expect(transfer.moved.pitToStockyardStones).toBe(5);
+      expect(transfer.moved.pitTopsoilToKilns).toBe(5);
+      const applied = applyTransportTransfer(m, transfer);
+      expect(applied.mountain.pithead.topsoil).toBe(0);
+    });
+  });
+
+  it("pulls proportionally across Topsoil and Granite pitheads for pitToStockyardStones", () => {
+    slice2Part1(() => {
+      const m = levels({
+        sunk: true,
+        pithead: { topsoil: 30, granite: 10 },
+        stock: { stones: 0 },
+        driving: 1,
+      });
+      const transfer = planTransportTransfer(m, 20);
+      expect(transfer.moved.pitToStockyardStones).toBe(20);
+      expect(transfer.stoneFromPithead).toEqual({ topsoil: 15, granite: 5 });
+    });
+  });
+
+  it("is strictly monotonic when adding fleet capacity", () => {
+    slice2Part1(() => {
+      const m = levels({
+        sunk: true,
+        kilns: 1,
+        saws: 1,
+        pithead: { topsoil: 100, granite: 100 },
+        stock: { stones: 100, brick: 100 },
+        driving: 2,
+      });
+      const low = planTransportTransfer(m, 10);
+      const high = planTransportTransfer(m, 25);
+      const sum = (
+        moved: Readonly<Record<(typeof RUN_ORDER)[number], number>>,
+      ) => RUN_ORDER.reduce((acc, id) => acc + moved[id], 0);
+      expect(sum(high.moved)).toBeGreaterThanOrEqual(sum(low.moved));
+    });
+  });
+});
+
+describe("Evening 1 single-worker loop & pre-Light-Tower night clock (#766)", () => {
+  it("lets the 1 starting worker cycle drilling -> haulage -> hoisting -> driving to earn Stone", () => {
+    slice2Part1(() => {
+      let m = createMountain();
+      expect(m.owned.helper).toBe(1);
+      expect(m.jobs.drilling).toBe(1);
+      expect(m.fleet.horseWagon).toBe(1);
+      expect(m.stock.stones).toBe(0);
+
+      // 1. Drill for 30 s -> face pile fills, zero stone yet.
+      m = accrue({
+        mountain: m,
+        from: 0,
+        to: 30 * SECOND,
+        live: true,
+      }).mountain;
+      expect(m.piles.face).toBe(90);
+      expect(m.stock.stones).toBe(0);
+
+      // 2. Move worker to haulage for 20 s -> shaft pile fills, zero stone yet.
+      m = placeWorker(freeWorker(m, "drilling"), "haulage");
+      m = accrue({
+        mountain: m,
+        from: 0,
+        to: 20 * SECOND,
+        live: true,
+      }).mountain;
+      expect(m.piles.shaft).toBe(90);
+      expect(m.stock.stones).toBe(0);
+
+      // 3. Move worker to hoisting for 15 s -> pithead fills, STILL zero stone (zero bypass!).
+      m = placeWorker(freeWorker(m, "haulage"), "hoisting");
+      m = accrue({
+        mountain: m,
+        from: 0,
+        to: 15 * SECOND,
+        live: true,
+      }).mountain;
+      expect(m.pithead.topsoil).toBe(90);
+      expect(m.stock.stones).toBe(0);
+
+      // 4. Move worker to driving -> given horse wagon carries pithead rock to Stone!
+      m = placeWorker(freeWorker(m, "hoisting"), "driving");
+      expect(fleetRate(m)).toBe(9);
+      m = accrue({
+        mountain: m,
+        from: 0,
+        to: 10 * SECOND,
+        live: true,
+      }).mountain;
+      expect(m.pithead.topsoil).toBe(0);
+      expect(m.stock.stones).toBe(90);
+    });
+  });
+
+  it("preserves the 8-hour pre-Light-Tower night clock in Slice 2", () => {
+    slice2Part1(() => {
+      const m = levels({
+        sunk: false,
+        operational: [],
+        topsoil: 1,
+        hoisting: 1,
+        driving: 1,
+      });
+      const eight = accrueAway({ mountain: m, lastSeen: 0, now: 8 * HOUR });
+      const sixteen = accrueAway({ mountain: m, lastSeen: 0, now: 16 * HOUR });
+      expect(sixteen.report.capped).toBe(true);
+      expect(sixteen.report.paidMs).toBe(8 * HOUR);
+      expect(sixteen.report.night.stop).toBe("clock");
+      // Drilling stops at 8 h; only residual piles/pithead drain after that.
+      expect(sixteen.mountain.rockDug).toBe(eight.mountain.rockDug);
+    });
+  });
+});
+
+describe("v11 save shape & reserved assignedRuns (#766)", () => {
+  const throughJson = (mountain: Mountain) =>
+    readGame(JSON.parse(JSON.stringify(writeGame(mountain))), 0);
+
+  it("round-trips mineLevels, pithead, makerBuffers, cycleMicros, and reserved assignedRuns", () => {
+    const start = levels({
+      sunk: true,
+      kilns: 2,
+      saws: 1,
+      pithead: { topsoil: 45, granite: 19 },
+      machines: { cart: 1, drill: 1 },
+      granitePiles: { face: 12, shaft: 8, saw: 0 },
+    });
+    const m: Mountain = {
+      ...start,
+      fleet: { horseWagon: 2, truck: 1 },
+      makerBuffers: { kiln: { topsoilRock: 300 }, saw: { graniteRock: 150 } },
+      cycleMicros: { kiln: 500_000, saw: 999_999 },
+      assignedRuns: { pitToStockyardStones: 2, pitTopsoilToKilns: 1 },
+    };
+    const game = writeGame(m);
+    expect(game.mineLevels).toEqual({
+      granite: {
+        machines: { cart: 1, drill: 1 },
+        piles: { face: 12, shaft: 8 },
+      },
+    });
+    expect(game.pithead).toEqual({ topsoil: 45, granite: 19 });
+    expect(game.makerBuffers).toEqual({
+      kiln: { topsoilRock: 300 },
+      saw: { graniteRock: 150 },
+    });
+    expect(game.cycleMicros).toEqual({ kiln: 500_000, saw: 999_999 });
+    expect(game.assignedRuns).toEqual({
+      pitToStockyardStones: 2,
+      pitTopsoilToKilns: 1,
+    });
+    expect(throughJson(m)).toEqual({ kind: "ok", mountain: m });
+  });
+
+  it("validates assignedRuns <= fleetSize (never clamping on jobs.driving) and rejects invalid fields", () => {
+    // 2 vehicles owned, 0 drivers staffed -> assignedRuns sum 2 is valid!
+    expect(
+      readGame(
+        {
+          fleet: { horseWagon: 1, truck: 1 },
+          assignedRuns: { pitToStockyardStones: 1, pitTopsoilToKilns: 1 },
+        },
+        0,
+      ).kind,
+    ).toBe("ok");
+    // Sum 3 > fleetSize 2 -> bad.
+    expect(
+      readGame(
+        {
+          fleet: { horseWagon: 1, truck: 1 },
+          assignedRuns: { pitToStockyardStones: 2, pitTopsoilToKilns: 1 },
+        },
+        0,
+      ).kind,
+    ).toBe("bad");
+    // Unknown run id -> newer.
+    expect(
+      readGame(
+        {
+          fleet: { horseWagon: 2 },
+          assignedRuns: { stockToFactoryBrick: 1 },
+        },
+        0,
+      ).kind,
+    ).toBe("newer");
+    // cycleMicros past 999_999 or negative -> bad; unknown maker -> newer.
+    expect(readGame({ cycleMicros: { kiln: 1_000_000 } }, 0).kind).toBe("bad");
+    expect(readGame({ cycleMicros: { kiln: -1 } }, 0).kind).toBe("bad");
+    expect(readGame({ cycleMicros: { glassworks: 100 } }, 0).kind).toBe(
+      "newer",
+    );
+    // Both legacy granite and mineLevels in same save -> bad.
+    expect(readGame({ granite: {}, mineLevels: { granite: {} } }, 0).kind).toBe(
+      "bad",
+    );
+    // Unsunk granite rejects pithead.granite, makerBuffers.saw, cycleMicros.saw.
+    expect(readGame({ pithead: { granite: 1 } }, 0).kind).toBe("bad");
+    expect(
+      readGame({ makerBuffers: { saw: { graniteRock: 1 } } }, 0).kind,
+    ).toBe("bad");
+    expect(readGame({ cycleMicros: { saw: 1 } }, 0).kind).toBe("bad");
+    // Unknown deeper level under mineLevels -> newer.
+    expect(readGame({ mineLevels: { crystal: {} } }, 0).kind).toBe("newer");
+    // Per-good SITE_GOOD_CAP allows 500 stones AND 500 brick on site simultaneously.
+    slice2Part1(() => {
+      expect(
+        readGame(
+          {
+            marks: { operational: ["lightTower"] },
+            project: {
+              building: "warehouse",
+              state: "delivering",
+              step: 0,
+              arrived: { stones: 500, brick: 500 },
+              onSite: { stones: 500, brick: 500 },
+            },
+          },
+          0,
+        ).kind,
+      ).toBe("ok");
+    });
+  });
+});

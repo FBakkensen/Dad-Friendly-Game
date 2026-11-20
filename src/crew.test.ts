@@ -17,10 +17,11 @@ function rich(sunk: boolean): Mountain {
     stock: { ...start.stock, stones: 1e12, cutStone: 1e9 },
     ...(sunk
       ? {
-          granite: {
-            kind: "sunk",
-            machines: NO_LEVEL_MACHINES,
-            piles: NO_GRANITE_PILES,
+          mineLevels: {
+            granite: {
+              machines: NO_LEVEL_MACHINES,
+              piles: NO_GRANITE_PILES,
+            },
           },
         }
       : {}),

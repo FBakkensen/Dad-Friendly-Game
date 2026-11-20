@@ -56,10 +56,11 @@ describe("createRevealLog", () => {
       expect(ids(log(start, 0), "appeared")).not.toContain("tier:borer");
       const open: Mountain = {
         ...start,
-        granite: {
-          kind: "sunk",
-          machines: NO_LEVEL_MACHINES,
-          piles: NO_GRANITE_PILES,
+        mineLevels: {
+          granite: {
+            machines: NO_LEVEL_MACHINES,
+            piles: NO_GRANITE_PILES,
+          },
         },
       };
       expect(log(open, 20)).toContainEqual({

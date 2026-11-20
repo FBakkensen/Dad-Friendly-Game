@@ -601,7 +601,7 @@ describe("the Granite's card (#754)", () => {
       stock: { ...mountain.stock, ...price() },
     }));
     progress.dispatch({ kind: "sinkShaft" });
-    expect(progress.getSnapshot().mountain.granite.kind).toBe("sunk");
+    expect(progress.getSnapshot().mountain.mineLevels.granite).toBeDefined();
     expect(card().kind).toBe("report");
     press();
     expect(card()).toMatchObject({
@@ -646,7 +646,7 @@ describe("the Granite's card (#754)", () => {
       saved: levels(working),
       at: 1_000,
     });
-    expect(progress.getSnapshot().mountain.granite.kind).toBe("sunk");
+    expect(progress.getSnapshot().mountain.mineLevels.granite).toBeDefined();
     screen.paint();
     expect(card().shown).toBe(false);
   });
@@ -659,7 +659,7 @@ describe("the Granite's card (#754)", () => {
     );
     load();
     await vi.waitFor(() => {
-      expect(progress.getSnapshot().mountain.granite.kind).toBe("sunk");
+      expect(progress.getSnapshot().mountain.mineLevels.granite).toBeDefined();
     });
     expect(card().shown).toBe(false);
   });
@@ -687,14 +687,14 @@ describe("the Granite's card (#754)", () => {
       mountain: {
         ...here,
         rockDug: here.rockDug + 5_000,
-        granite: levels(working).granite,
+        mineLevels: levels(working).mineLevels,
       },
       lastSeen: 9 * HOUR,
       rev: (remote.rev ?? 0) + 1,
       deviceId: "kitchen-pc",
     });
     await vi.waitFor(() => {
-      expect(progress.getSnapshot().mountain.granite.kind).toBe("sunk");
+      expect(progress.getSnapshot().mountain.mineLevels.granite).toBeDefined();
     });
     expect(card()).toMatchObject({ shown: true, kind: "level" });
   });
@@ -703,7 +703,7 @@ describe("the Granite's card (#754)", () => {
     holdFactors({ [PART_TWO_OFF]: 0 });
     const { card, progress } = mount({ saved: unsunk(price()), at: 1_000 });
     progress.dispatch({ kind: "sinkShaft" });
-    expect(progress.getSnapshot().mountain.granite.kind).toBe("unsunk");
+    expect(progress.getSnapshot().mountain.mineLevels.granite).toBeUndefined();
     expect(card().shown).toBe(false);
   });
 });

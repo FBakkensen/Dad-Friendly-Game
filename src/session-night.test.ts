@@ -224,7 +224,7 @@ describe("announcing the Granite when the shaft is sunk (#754)", () => {
     partThree(() => {
       const open = playing(ready());
       const moved = step(open, sink, 1_000).session;
-      expect(moved.mountain.granite.kind).toBe("sunk");
+      expect(moved.mountain.mineLevels.granite).toBeDefined();
       const noted = step(moved, { kind: "notice" }, 1_000).session;
       expect(noticesOf(noted.news, "level")).toEqual([granite]);
       const again = step(noted, { kind: "notice" }, 2_000).session;
@@ -271,7 +271,7 @@ describe("announcing the Granite when the shaft is sunk (#754)", () => {
         9 * 60 * MINUTE,
       ).session;
       const moved = step(paid, sink, 9 * 60 * MINUTE).session;
-      expect(moved.mountain.granite.kind).toBe("sunk");
+      expect(moved.mountain.mineLevels.granite).toBeDefined();
       const noted = step(moved, { kind: "notice" }, 9 * 60 * MINUTE).session;
       expect(noticesOf(noted.news, "level")).toEqual([granite]);
       const closed = step(

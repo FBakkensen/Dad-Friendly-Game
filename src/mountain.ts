@@ -12,8 +12,20 @@ import {
   type StepIndex,
 } from "./city";
 import { NO_JOBS, workersOnJobs, type Jobs } from "./workforce";
-import { makerRecord, type MakerId } from "./makers";
-import { UNSUNK, type Granite } from "./mine-levels";
+import {
+  EMPTY_CYCLE_MICROS,
+  EMPTY_MAKER_BUFFERS,
+  makerRecord,
+  type CycleMicros,
+  type MakerBuffers,
+  type MakerId,
+} from "./makers";
+import {
+  EMPTY_PITHEAD,
+  NO_MINE_LEVELS,
+  type MineLevels,
+  type Pithead,
+} from "./mine-levels";
 import { NO_CAGES, type Cages } from "./cages";
 import { flowMineLive, landedMine } from "./mine-cages";
 import { wholeSeconds } from "./piles";
@@ -32,13 +44,20 @@ import {
   stockyardOpen,
 } from "./stockyard";
 import type { GoodId } from "./stock";
-import { partThreeOn } from "./part-switch";
+import { partThreeOn, slice2Part1On } from "./part-switch";
 import {
+  accrueSlice2Live,
+  accrueSlice2Stretches,
+  stretchSlice2,
+} from "./slice2-flow";
+import {
+  NO_ASSIGNED_RUNS,
   deliver,
   drawChange,
   givenFleet,
   secondsToStep,
   vehicleRecord,
+  type AssignedRuns,
   type VehicleId,
 } from "./transport";
 import { tierRecord, type TierId } from "./tiers";
@@ -136,8 +155,16 @@ export type Mountain = {
    * rest. 0 until the shaft is sunk.
    */
   readonly graniteDug: number;
-  /** The shaft to the Granite (slice 1, part 3, src/mine-levels.ts). Always unsunk in today's game. */
-  readonly granite: Granite;
+  /** Sunk deeper mine levels (slice 2, #766, src/mine-levels.ts). Empty while only Topsoil is open. */
+  readonly mineLevels: MineLevels;
+  /** Pithead rock buffers per mine level awaiting physical transport (slice 2, #766). */
+  readonly pithead: Pithead;
+  /** Separate finite input buffers per maker (slice 2, #766, src/makers.ts). */
+  readonly makerBuffers: MakerBuffers;
+  /** Persisted whole-integer micro-cycle progress per maker, 0..999_999 (slice 2, #766). */
+  readonly cycleMicros: CycleMicros;
+  /** Dedicated transport vehicle counts per run, reserved in v11 for Part 3 (slice 2, #766). */
+  readonly assignedRuns: AssignedRuns;
   /**
    * The shaft's cages (slice 1, part 3, src/cages.ts, #724): the hoists
    * assigned to each level and the cages' trips. None in today's game.
@@ -176,7 +203,11 @@ export const BARE_MOUNTAIN: Mountain = {
   stockyard: 0,
   rockDug: 0,
   graniteDug: 0,
-  granite: UNSUNK,
+  mineLevels: NO_MINE_LEVELS,
+  pithead: EMPTY_PITHEAD,
+  makerBuffers: EMPTY_MAKER_BUFFERS,
+  cycleMicros: EMPTY_CYCLE_MICROS,
+  assignedRuns: NO_ASSIGNED_RUNS,
   cages: NO_CAGES,
   station: IDLE_STATION,
 };
@@ -245,6 +276,16 @@ export function accrue({
   // A craft that finished before this window is on the crew for the whole of it.
   // One that finishes during the window is fitted at the end, once.
   const ready = settleBench(mountain, from);
+  if (slice2Part1On()) {
+    const worked = live
+      ? accrueSlice2Live(ready, from, to, pay)
+      : accrueSlice2Stretches(ready, from, to, pay);
+    return {
+      mountain: settleBench(worked.mountain, to),
+      mined: worked.mined,
+      settledAt: worked.settledAt,
+    };
+  }
   if (stockyardOpen(ready)) {
     const worked = accrueStretches(ready, from, to, pay, live);
     return { ...worked, mountain: settleBench(worked.mountain, to) };
@@ -414,13 +455,11 @@ function nightStretch(
   end: number,
   drilling: boolean,
 ): Stretch {
-  return workStretch(
-    mountain,
-    { from, end },
-    effectiveRates(mountain).awayPay,
-    drilling,
-    false,
-  );
+  const awayPay = effectiveRates(mountain).awayPay;
+  if (slice2Part1On()) {
+    return stretchSlice2(mountain, { from, end }, awayPay, drilling);
+  }
+  return workStretch(mountain, { from, end }, awayPay, drilling, false);
 }
 
 /**

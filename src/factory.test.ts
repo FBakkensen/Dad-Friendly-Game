@@ -44,10 +44,11 @@ function sunk(
     ...createMountain(),
     operational: ["lightTower"],
     stock: { ...EMPTY_STOCK, ...stock },
-    granite: {
-      kind: "sunk",
-      machines: NO_LEVEL_MACHINES,
-      piles: NO_GRANITE_PILES,
+    mineLevels: {
+      granite: {
+        machines: NO_LEVEL_MACHINES,
+        piles: NO_GRANITE_PILES,
+      },
     },
     station,
   };

@@ -431,10 +431,11 @@ describe("part 3's machines (#673)", () => {
     return {
       ...start,
       stock: { ...start.stock, ...stock },
-      granite: {
-        kind: "sunk",
-        machines: { ...NO_LEVEL_MACHINES, ...machines },
-        piles: NO_GRANITE_PILES,
+      mineLevels: {
+        granite: {
+          machines: { ...NO_LEVEL_MACHINES, ...machines },
+          piles: NO_GRANITE_PILES,
+        },
       },
     };
   };

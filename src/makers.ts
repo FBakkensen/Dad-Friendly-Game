@@ -103,7 +103,7 @@ export function makersOpen(mountain: Pick<Mountain, "operational">): boolean {
 
 /** Whether a maker is open: the kiln with the kilns, the saw once the shaft is sunk (part 3). */
 export function makerOpen(
-  mountain: Pick<Mountain, "operational" | "granite">,
+  mountain: Pick<Mountain, "operational" | "mineLevels">,
   id: MakerId,
 ): boolean {
   return id === "saw" ? graniteOpen(mountain) : makersOpen(mountain);
@@ -114,7 +114,7 @@ export function makerOpen(
  * the saws once the Granite is.
  */
 export function refineryMakers(
-  mountain: Pick<Mountain, "operational" | "granite">,
+  mountain: Pick<Mountain, "operational" | "mineLevels">,
 ): readonly MakerId[] {
   return MAKER_IDS.filter((id) => id === "kiln" || makerOpen(mountain, id));
 }
@@ -197,4 +197,126 @@ export function runningKilns(
 /** Brick a second the running kilns make, at full output. */
 export function kilnRate(mountain: Pick<Mountain, "makers" | "jobs">): number {
   return makerRate(mountain, "kiln");
+}
+
+// ---------------------------------------------------------------------------
+// Slice 2 Part 1: input buffers & persisted micro-cycles (#766)
+
+/** Each maker's recipe input ids, in order (Part 1 single-input; Part 2 adds multi-input). */
+export const MAKER_INPUT_IDS = {
+  kiln: ["topsoilRock"],
+  saw: ["graniteRock"],
+} as const satisfies Readonly<Record<MakerId, readonly string[]>>;
+
+export type MakerInputId = (typeof MAKER_INPUT_IDS)[MakerId][number];
+
+export type MakerBuffers = Readonly<
+  Record<MakerId, Readonly<Partial<Record<MakerInputId, number>>>>
+>;
+
+export const EMPTY_MAKER_BUFFERS: MakerBuffers = { kiln: {}, saw: {} };
+
+/** Sub-cycle progress is persisted in whole micro-cycles (0..999_999). */
+const MICROS_PER_CYCLE = 1_000_000;
+export const MAX_CYCLE_MICROS = MICROS_PER_CYCLE - 1;
+
+export type CycleMicros = Readonly<Partial<Record<MakerId, number>>>;
+
+export const EMPTY_CYCLE_MICROS: CycleMicros = {};
+
+/** Minimum input buffer capacity once at least one maker is owned (spec rule 3.2). */
+export const BASE_INPUT_BUF = 300;
+
+/** Primary rock input id for a Part 1 maker. */
+export function makerPrimaryInput(id: MakerId): MakerInputId {
+  return id === "kiln" ? "topsoilRock" : "graniteRock";
+}
+
+/** Current amount held in a maker's input buffer. */
+export function makerBuffer(
+  mountain: Pick<Mountain, "makerBuffers">,
+  id: MakerId,
+  input: MakerInputId,
+): number {
+  return mountain.makerBuffers[id][input] ?? 0;
+}
+
+/**
+ * Input buffer capacity for a maker (spec rule 3.2): 0 while none are owned
+ * (closing its transport run), else at least BASE_INPUT_BUF and at least 60 s
+ * of full-speed consumption so high machine counts never starve between ticks.
+ */
+export function makerInputRoom(
+  mountain: Pick<Mountain, "makers">,
+  id: MakerId,
+): number {
+  const owned = mountain.makers[id];
+  if (owned <= 0) {
+    return 0;
+  }
+  const inputPerSecond = makerMakes(id) * makerTakes(id);
+  return Math.max(BASE_INPUT_BUF, Math.ceil(owned * inputPerSecond * 60));
+}
+
+export type CycleInput = {
+  readonly id: MakerInputId;
+  readonly amount: number;
+  readonly held: number;
+};
+
+export type MakerCycleStep = {
+  readonly cycles: number;
+  readonly consumed: Readonly<Partial<Record<MakerInputId, number>>>;
+  readonly produced: number;
+  readonly nextMicros: number;
+  readonly standing: boolean;
+};
+
+/**
+ * Exact whole-cycle execution with persisted integer `cycleMicros` (spec rule 3.2).
+ * Supports arbitrary multi-input recipes so Part 2 Glassworks and Factory lines
+ * share the same engine.
+ */
+export function stepMakerCycle({
+  inputs,
+  outputAmount,
+  outputRoom,
+  staffedOutputRate,
+  dt,
+  cycleMicros,
+}: {
+  readonly inputs: readonly CycleInput[];
+  readonly outputAmount: number;
+  readonly outputRoom: number;
+  readonly staffedOutputRate: number;
+  readonly dt: number;
+  readonly cycleMicros: number;
+}): MakerCycleStep {
+  let maxCycles = Math.floor(Math.max(0, outputRoom) / outputAmount);
+  for (const input of inputs) {
+    maxCycles = Math.min(maxCycles, Math.floor(input.held / input.amount));
+  }
+  const added =
+    dt > 0 && staffedOutputRate > 0
+      ? Math.trunc((staffedOutputRate * dt * MICROS_PER_CYCLE) / outputAmount)
+      : 0;
+  const wantMicros = cycleMicros + added;
+  const cycles = Math.min(Math.floor(wantMicros / MICROS_PER_CYCLE), maxCycles);
+  const nextMicros =
+    maxCycles >= 1
+      ? Math.min(MAX_CYCLE_MICROS, wantMicros - cycles * MICROS_PER_CYCLE)
+      : 0;
+  const consumed: Partial<Record<MakerInputId, number>> = {};
+  if (cycles > 0) {
+    for (const input of inputs) {
+      consumed[input.id] = cycles * input.amount;
+    }
+  }
+  return {
+    cycles,
+    consumed,
+    produced: cycles * outputAmount,
+    nextMicros,
+    standing: staffedOutputRate > 0 && maxCycles === 0,
+  };
 }

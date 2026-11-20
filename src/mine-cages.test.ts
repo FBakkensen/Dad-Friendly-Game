@@ -53,10 +53,11 @@ function tripOf(mountain: Mountain, key: CageKey): Cage | undefined {
 }
 
 function granitePilesOf(mountain: Mountain): GranitePiles {
-  if (mountain.granite.kind !== "sunk") {
+  const granite = mountain.mineLevels.granite;
+  if (granite === undefined) {
     throw new Error("the shaft is not sunk");
   }
-  return mountain.granite.piles;
+  return granite.piles;
 }
 
 /** A hoist going up from `level` with `carried`, `left` seconds from the top. */
@@ -713,18 +714,17 @@ function drawnMine(
 /** The rock waiting in the mine's piles, both levels: drilled, at the shaft and at the makers. */
 function rockInPiles(mountain: Mountain): number {
   const { face, shaft, kiln } = mountain.piles;
+  const granite = mountain.mineLevels.granite;
   const deep =
-    mountain.granite.kind === "sunk"
-      ? mountain.granite.piles.face +
-        mountain.granite.piles.shaft +
-        mountain.granite.piles.saw
+    granite !== undefined
+      ? granite.piles.face + granite.piles.shaft + granite.piles.saw
       : 0;
   return face + shaft + kiln + deep;
 }
 
 /** The rock at the saws, 0 while the shaft is unsunk. */
 function sawPile(mountain: Mountain): number {
-  return mountain.granite.kind === "sunk" ? mountain.granite.piles.saw : 0;
+  return mountain.mineLevels.granite?.piles.saw ?? 0;
 }
 
 /** The rock every cage carries. */

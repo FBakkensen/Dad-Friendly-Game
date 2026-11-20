@@ -30,11 +30,12 @@ import {
   mineDraw,
   mineWork,
   mineWritten,
+  pitheadRoom,
   shaftHolds,
   type MineFlow,
 } from "./mine-piles";
 import type { Mountain } from "./mountain";
-import { partThreeOn } from "./part-switch";
+import { partThreeOn, slice2Part1On } from "./part-switch";
 import {
   chainChange,
   flowWhole,
@@ -425,10 +426,10 @@ export function flowMineLive(
 }
 
 /**
- * Every cage brought to the top and unloaded, into its level's maker pile
- * and then the stone stockpile, before a night (ruling 13). What finds no
- * room waits in its cage at the top. The same object while part 3 is off or
- * no cage carries rock.
+ * Every cage brought to the top and unloaded before a night (ruling 13):
+ * in Slice 2 strictly into `pithead[level]` (zero Stone bypass), else into its
+ * level's maker pile and then the stone stockpile. What finds no room waits in
+ * its cage at the top. The same object while part 3 is off or no cage carries rock.
  */
 export function landedMine(mountain: Mountain): MineFlow {
   if (!partThreeOn()) {
@@ -438,8 +439,289 @@ export function landedMine(mountain: Mountain): MineFlow {
   if (carried.topsoil + carried.granite <= 0) {
     return { mountain, mined: 0, gained: {} };
   }
+  if (slice2Part1On()) {
+    return landPitheadCages(mountain);
+  }
   const plan = planOf(mountain, 1, false);
   const live = startLive(mountain, plan);
   afterInstant(live, landCages(plan.cages, live.trips, sceneOf(live, plan)));
   return writtenLive(mountain, live);
+}
+
+// ---------------------------------------------------------------------------
+// Slice 2 Part 1: live cages unload strictly into pithead buffers (#766)
+
+type PitheadLive = {
+  trips: CageTrips;
+  readonly levels: Partial<
+    Record<MineLevelId, { face: number; shaft: number; pithead: number }>
+  >;
+  readonly dug: Record<MineLevelId, number>;
+  mined: number;
+};
+
+function startPitheadLive(mountain: Mountain): PitheadLive {
+  const granite = openGranite(mountain);
+  const levels: PitheadLive["levels"] = {
+    topsoil: {
+      face: mountain.piles.face,
+      shaft: mountain.piles.shaft,
+      pithead: mountain.pithead.topsoil,
+    },
+  };
+  if (granite !== undefined) {
+    levels.granite = {
+      face: granite.piles.face,
+      shaft: granite.piles.shaft,
+      pithead: mountain.pithead.granite,
+    };
+  }
+  return {
+    trips: mountain.cages.trips,
+    levels,
+    dug: { topsoil: 0, granite: 0 },
+    mined: 0,
+  };
+}
+
+function pitheadScene(
+  live: PitheadLive,
+  plan: Plan,
+  pitRoom: number,
+): ShaftScene {
+  const levels: Partial<Record<MineLevelId, LevelScene>> = {};
+  for (const level of MINE_LEVEL_IDS) {
+    const piles = live.levels[level];
+    const rates = plan.levels[level];
+    if (piles !== undefined && rates !== undefined) {
+      levels[level] = {
+        shaft: { held: piles.shaft, holds: plan.shaftHolds },
+        maker: { held: 0, holds: 0 },
+        pithead: { held: piles.pithead, holds: pitRoom },
+        coming: rates.haul > 0 && (piles.face > 0 || rates.drill > 0),
+        inTurn: rates.haul > 0 || piles.shaft > 0,
+      };
+    }
+  }
+  return { levels, stone: { held: 0, holds: 0 }, pitheadOnly: true };
+}
+
+function afterPitheadInstant(live: PitheadLive, instant: Instant): void {
+  if (!instant.changed) {
+    return;
+  }
+  live.trips = instant.trips;
+  for (const [level, scene] of Object.entries(instant.scene.levels) as [
+    MineLevelId,
+    LevelScene,
+  ][]) {
+    const piles = live.levels[level];
+    if (piles !== undefined) {
+      piles.shaft = scene.shaft.held;
+      if (scene.pithead !== undefined) {
+        piles.pithead = scene.pithead.held;
+      }
+    }
+  }
+  for (const amount of Object.values(instant.toPithead)) {
+    live.mined += amount;
+  }
+}
+
+function stepRateForTick(
+  rate: number,
+  left: number,
+  tickIndex: number | undefined,
+): number {
+  if (left !== 1 || tickIndex === undefined || Number.isInteger(rate)) {
+    return rate;
+  }
+  return Math.max(
+    0,
+    Math.floor((tickIndex + 1) * rate + 1e-9) -
+      Math.floor(tickIndex * rate + 1e-9),
+  );
+}
+
+type PitheadLevelStep = {
+  readonly level: MineLevelId;
+  readonly piles: { face: number; shaft: number; pithead: number };
+  readonly below: Chain;
+  readonly waiting: CageKey | undefined;
+};
+
+function pitheadLevelStep(
+  level: MineLevelId,
+  piles: { face: number; shaft: number; pithead: number },
+  rates: LevelPlan,
+  plan: Plan,
+  trips: CageTrips,
+  left: number,
+  tickIndex: number | undefined,
+): PitheadLevelStep {
+  const waiting = waitingCage(plan.cages, trips, level);
+  const drill = stepRateForTick(rates.drill, left, tickIndex);
+  const haul = stepRateForTick(rates.haul, left, tickIndex);
+  return {
+    level,
+    piles,
+    below: {
+      source: Infinity,
+      rates: [drill, haul, waiting === undefined ? 0 : haul, 0],
+      piles: [
+        { held: piles.face, holds: faceHolds(level) },
+        { held: piles.shaft, holds: plan.shaftHolds },
+        waiting?.pile ?? { held: 0, holds: 0 },
+      ],
+    },
+    waiting: waiting?.key,
+  };
+}
+
+function runPitheadStep(
+  live: PitheadLive,
+  plan: Plan,
+  left: number,
+  tickIndex?: number,
+): number {
+  const chains: PitheadLevelStep[] = [];
+  for (const level of MINE_LEVEL_IDS) {
+    const piles = live.levels[level];
+    const rates = plan.levels[level];
+    if (piles !== undefined && rates !== undefined) {
+      chains.push(
+        pitheadLevelStep(
+          level,
+          piles,
+          rates,
+          plan,
+          live.trips,
+          left,
+          tickIndex,
+        ),
+      );
+    }
+  }
+  let seconds = Math.min(left, wholeSeconds(nextLegEnd(live.trips)));
+  for (const step of chains) {
+    seconds = Math.min(seconds, wholeSeconds(chainChange(step.below)));
+  }
+  if (topWaits(live.trips)) {
+    seconds = Math.min(seconds, 1);
+  }
+  for (const { level, piles, below, waiting } of chains) {
+    const rock = flowWhole(below, seconds);
+    const [face = 0, shaft = 0, carried = 0] = rock.piles;
+    piles.face = face;
+    piles.shaft = shaft;
+    if (waiting !== undefined) {
+      live.trips = withCarried(live.trips, waiting, carried);
+    }
+    live.dug[level] += rock.moved[0] ?? 0;
+  }
+  live.trips = cagesAfter(live.trips, seconds);
+  return seconds;
+}
+
+function writePitheadLive(mountain: Mountain, live: PitheadLive): MineFlow {
+  const { topsoil, granite } = live.levels;
+  const openG = openGranite(mountain);
+  const topUnchanged =
+    topsoil !== undefined &&
+    topsoil.face === mountain.piles.face &&
+    topsoil.shaft === mountain.piles.shaft &&
+    topsoil.pithead === mountain.pithead.topsoil;
+  const granUnchanged =
+    openG === undefined ||
+    (granite !== undefined &&
+      granite.face === openG.piles.face &&
+      granite.shaft === openG.piles.shaft &&
+      granite.pithead === mountain.pithead.granite);
+  const unchanged =
+    live.dug.topsoil === 0 &&
+    live.dug.granite === 0 &&
+    live.mined === 0 &&
+    live.trips === mountain.cages.trips &&
+    topUnchanged &&
+    granUnchanged;
+  if (unchanged) {
+    return { mountain, mined: 0, gained: {} };
+  }
+  return {
+    mountain: {
+      ...mountain,
+      piles: {
+        ...mountain.piles,
+        face: topsoil?.face ?? mountain.piles.face,
+        shaft: topsoil?.shaft ?? mountain.piles.shaft,
+      },
+      mineLevels:
+        openG === undefined || granite === undefined
+          ? mountain.mineLevels
+          : {
+              ...mountain.mineLevels,
+              granite: {
+                ...openG,
+                piles: {
+                  ...openG.piles,
+                  face: granite.face,
+                  shaft: granite.shaft,
+                },
+              },
+            },
+      pithead: {
+        topsoil: topsoil?.pithead ?? mountain.pithead.topsoil,
+        granite: granite?.pithead ?? mountain.pithead.granite,
+      },
+      cages:
+        live.trips === mountain.cages.trips
+          ? mountain.cages
+          : { ...mountain.cages, trips: live.trips },
+      rockDug: mountain.rockDug + live.dug.topsoil + live.dug.granite,
+      graniteDug: mountain.graniteDug + live.dug.granite,
+    },
+    mined: live.mined,
+    gained: {},
+  };
+}
+
+function landPitheadCages(mountain: Mountain): MineFlow {
+  const plan = planOf(mountain, 1, false);
+  const pitRoom = pitheadRoom(mountain);
+  const live = startPitheadLive(mountain);
+  afterPitheadInstant(
+    live,
+    landCages(plan.cages, live.trips, pitheadScene(live, plan, pitRoom)),
+  );
+  return writePitheadLive(mountain, live);
+}
+
+/**
+ * Live Slice 2 mine phase (rule 1.4, #766): cages travel trip by trip and
+ * unload strictly into `pithead[level]` with zero Stone bypass. Makers and
+ * transport run in their own phases in `src/slice2-flow.ts`.
+ */
+export function flowMineToPitheadLive(
+  mountain: Mountain,
+  seconds: number,
+  pay: number,
+  drilling: boolean,
+  tickIndex?: number,
+): MineFlow {
+  const plan = planOf(mountain, pay, drilling);
+  const pitRoom = pitheadRoom(mountain);
+  const live = startPitheadLive(mountain);
+  let left = Math.max(0, Math.floor(seconds));
+  for (let step = 0; left > 0 && step < seconds; step += 1) {
+    afterPitheadInstant(
+      live,
+      cageInstant(plan.cages, live.trips, pitheadScene(live, plan, pitRoom)),
+    );
+    left -= runPitheadStep(live, plan, left, tickIndex);
+  }
+  afterPitheadInstant(
+    live,
+    cageInstant(plan.cages, live.trips, pitheadScene(live, plan, pitRoom)),
+  );
+  return writePitheadLive(mountain, live);
 }

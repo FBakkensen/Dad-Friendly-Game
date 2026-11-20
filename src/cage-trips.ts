@@ -21,18 +21,21 @@ import { pour, type Pile } from "./piles";
 export type LevelScene = {
   readonly shaft: Pile;
   readonly maker: Pile;
+  /** Pithead rock buffer (Slice 2, #766): cages unload strictly here when `pitheadOnly` is true. */
+  readonly pithead?: Pile;
   readonly coming: boolean;
   readonly inTurn: boolean;
 };
 
 /**
  * The piles the cages pour into and take from, with only the open levels.
- * The stone stockpile only ever fills here: `mine-cages` drains it between
- * instants.
+ * The stone stockpile only ever fills here in Slice 1; in Slice 2
+ * (`pitheadOnly: true`) cages unload strictly into `pithead` with zero Stone bypass.
  */
 export type ShaftScene = {
   readonly levels: Readonly<Partial<Record<MineLevelId, LevelScene>>>;
   readonly stone: Pile;
+  readonly pitheadOnly?: boolean;
 };
 
 /** One instant's outcome: the cages, the piles, what was poured at the top, and whether anything changed. */
@@ -40,6 +43,7 @@ export type Instant = {
   readonly trips: CageTrips;
   readonly scene: ShaftScene;
   readonly toMaker: Readonly<Partial<Record<MineLevelId, number>>>;
+  readonly toPithead: Readonly<Partial<Record<MineLevelId, number>>>;
   readonly toStone: number;
   readonly changed: boolean;
 };
@@ -59,7 +63,9 @@ const SETTLE_STEPS = 8;
 type Work = {
   readonly levels: Partial<Record<MineLevelId, LevelScene>>;
   stone: Pile;
+  readonly pitheadOnly: boolean;
   readonly toMaker: Partial<Record<MineLevelId, number>>;
+  readonly toPithead: Partial<Record<MineLevelId, number>>;
   toStone: number;
   /** Whether any rock moved, at the top or at a shaft. */
   moved: boolean;
@@ -69,7 +75,9 @@ function startWork(scene: ShaftScene): Work {
   return {
     levels: { ...scene.levels },
     stone: scene.stone,
+    pitheadOnly: scene.pitheadOnly === true,
     toMaker: {},
+    toPithead: {},
     toStone: 0,
     moved: false,
   };
@@ -106,10 +114,33 @@ function arrived(cage: ShaftCage, trip: Cage): Cage {
   return { ...trip, leg: { kind: "up", left: travelled } };
 }
 
-/** The cage's rock poured into its level's maker pile, then the stone stockpile (rule 5.6). */
+/** Slice 2 unload (rule 1.4): pours strictly into the level's pithead buffer, zero Stone bypass. */
+function unloadToPithead(trip: Cage, work: Work): Cage {
+  const here = work.levels[trip.level];
+  if (here?.pithead === undefined) {
+    return trip;
+  }
+  const { into, left } = pour(trip.carried, [here.pithead]);
+  const poured = into[0] ?? 0;
+  if (poured <= 0) {
+    return trip;
+  }
+  work.levels[trip.level] = {
+    ...here,
+    pithead: { ...here.pithead, held: here.pithead.held + poured },
+  };
+  work.toPithead[trip.level] = (work.toPithead[trip.level] ?? 0) + poured;
+  work.moved = true;
+  return { ...trip, carried: left };
+}
+
+/** The cage's rock poured at the top: into pithead in Slice 2, else maker pile then stone (rule 5.6). */
 function unload(trip: Cage, work: Work): Cage {
   if (trip.carried <= 0) {
     return trip;
+  }
+  if (work.pitheadOnly) {
+    return unloadToPithead(trip, work);
   }
   const here = work.levels[trip.level];
   const piles = here === undefined ? [work.stone] : [here.maker, work.stone];
@@ -279,8 +310,15 @@ function outcome(
   const changed = written !== undefined || work.moved;
   return {
     trips: written === undefined ? trips : { ...trips, ...written },
-    scene: work.moved ? { levels: work.levels, stone: work.stone } : scene,
+    scene: work.moved
+      ? {
+          levels: work.levels,
+          stone: work.stone,
+          ...(scene.pitheadOnly === true ? { pitheadOnly: true } : {}),
+        }
+      : scene,
     toMaker: work.toMaker,
+    toPithead: work.toPithead,
     toStone: work.toStone,
     changed,
   };
