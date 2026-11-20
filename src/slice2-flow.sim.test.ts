@@ -2,12 +2,14 @@ import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { SITE_GOOD_CAP } from "./building-site";
 import { buildingById, placeOrder } from "./city";
-import { MAX_CYCLE_MICROS, makerTakes } from "./makers";
+import { MAX_CYCLE_MICROS, makerInputRoom, makerTakes } from "./makers";
+import { pitheadRoom } from "./mine-piles";
 import { accrue, accrueAway, type Mountain } from "./mountain";
 import { levels, slice2Part1, type Setup } from "./part-three.harness";
 import { effectiveRates } from "./rates";
 import { readGame, writeGame } from "./save-format";
 import { GOOD_IDS, priceAmount } from "./stock";
+import { stockpileRoom } from "./stockyard";
 import { fleetSize, RUN_ORDER } from "./transport";
 
 /**
@@ -432,6 +434,101 @@ describe("Slice 2 Part 1: 8-hour live vs. offline agreement <= 1% (#766, rule 5.
     },
     SIM_TIMEOUT_MS,
   );
+
+  it(
+    "agrees within 1% on asymmetric two-level mine (Granite sunk, Kilns on, Saws 0)",
+    () => {
+      const start = buildScenario(
+        {
+          sunk: true,
+          operational: ["lightTower"],
+          hoists: 0,
+          kilns: 1,
+          onKilns: 1,
+          saws: 0,
+          onSaws: 0,
+          fleet: { horseWagon: 1, truck: 1 },
+          jobs: {
+            drilling: 3,
+            haulage: 3,
+            graniteDrilling: 3,
+            graniteHaulage: 3,
+            hoisting: 2,
+            driving: 2,
+          },
+          stock: { stones: 0, brick: 0, cutStone: 0 },
+        },
+        false,
+      );
+      const { live, offline } = runEightHours(start);
+      expect(live.stock.stones).toBeGreaterThan(0);
+      expect(live.stock.brick).toBeGreaterThan(0);
+      expect(offline.pithead.granite).toBeLessThanOrEqual(pitheadRoom(offline));
+      expectWithinOnePercent(
+        "asymmetric stones",
+        live.stock.stones,
+        offline.stock.stones,
+      );
+      expectWithinOnePercent(
+        "asymmetric brick",
+        live.stock.brick,
+        offline.stock.brick,
+      );
+    },
+    SIM_TIMEOUT_MS,
+  );
+
+  it(
+    "agrees within 1% on high-throughput City delivery (> SITE_GOOD_CAP/s)",
+    () => {
+      const start = buildScenario(
+        {
+          sunk: false,
+          operational: ["lightTower"],
+          hoists: 0,
+          fleet: { horseWagon: 0, truck: 2 },
+          jobs: {
+            driving: 2,
+            building: 270,
+          },
+          stock: { stones: 5_000_000, brick: 0, cutStone: 0 },
+        },
+        true,
+      );
+      const live = slice2Part1(
+        () =>
+          accrue({
+            mountain: start,
+            from: 0,
+            to: 1_800 * SECOND_MS,
+            pay: 1,
+            live: true,
+          }).mountain,
+      );
+      const offline = slice2Part1(
+        () =>
+          accrue({
+            mountain: start,
+            from: 0,
+            to: 1_800 * SECOND_MS,
+            pay: 1,
+            live: false,
+          }).mountain,
+      );
+      expect(projectBuilt(live).stones).toBeGreaterThan(1_000_000);
+      if (live.project.kind !== "unordered") {
+        expect(live.project.site.onSite.stones).toBeLessThanOrEqual(
+          SITE_GOOD_CAP,
+        );
+      }
+      expectWithinOnePercent(
+        "high-throughput city built stones",
+        projectBuilt(live).stones,
+        projectBuilt(offline).stones,
+      );
+    },
+    SIM_TIMEOUT_MS,
+  );
 });
 
 describe("Slice 2 Part 1: fast-check economy & conservation invariants (#766)", () => {
@@ -457,19 +554,22 @@ describe("Slice 2 Part 1: fast-check economy & conservation invariants (#766)", 
   });
 
   function assertMountainInvariants(mountain: Mountain): void {
+    const pRoom = pitheadRoom(mountain);
     expect(mountain.pithead.topsoil).toBeGreaterThanOrEqual(0);
+    expect(mountain.pithead.topsoil).toBeLessThanOrEqual(pRoom);
     expect(mountain.pithead.granite).toBeGreaterThanOrEqual(0);
+    expect(mountain.pithead.granite).toBeLessThanOrEqual(pRoom);
     if (mountain.mineLevels.granite === undefined) {
       expect(mountain.pithead.granite).toBe(0);
       expect(mountain.makerBuffers.saw.graniteRock ?? 0).toBe(0);
       expect(mountain.cycleMicros.saw ?? 0).toBe(0);
     }
-    expect(mountain.makerBuffers.kiln.topsoilRock ?? 0).toBeGreaterThanOrEqual(
-      0,
-    );
-    expect(mountain.makerBuffers.saw.graniteRock ?? 0).toBeGreaterThanOrEqual(
-      0,
-    );
+    const kilnBuf = mountain.makerBuffers.kiln.topsoilRock ?? 0;
+    const sawBuf = mountain.makerBuffers.saw.graniteRock ?? 0;
+    expect(kilnBuf).toBeGreaterThanOrEqual(0);
+    expect(kilnBuf).toBeLessThanOrEqual(makerInputRoom(mountain, "kiln"));
+    expect(sawBuf).toBeGreaterThanOrEqual(0);
+    expect(sawBuf).toBeLessThanOrEqual(makerInputRoom(mountain, "saw"));
     for (const micros of Object.values(mountain.cycleMicros)) {
       expect(micros).toBeGreaterThanOrEqual(0);
       expect(micros).toBeLessThanOrEqual(MAX_CYCLE_MICROS);
@@ -494,6 +594,10 @@ describe("Slice 2 Part 1: fast-check economy & conservation invariants (#766)", 
     for (const good of GOOD_IDS) {
       expect(mountain.stock[good]).toBeGreaterThanOrEqual(0);
       expect(Number.isInteger(mountain.stock[good])).toBe(true);
+      const room = stockpileRoom(mountain, good);
+      if (Number.isFinite(room)) {
+        expect(mountain.stock[good]).toBeLessThanOrEqual(room);
+      }
     }
   }
 

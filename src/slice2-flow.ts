@@ -27,14 +27,12 @@ import {
   undergroundPitheadChains,
 } from "./mine-piles";
 import type { Mountain } from "./mountain";
-import { chainChange, chainFlows, evenShares, wholeSeconds } from "./piles";
+import { chainChange, chainFlows, evenShares, stepQuota } from "./piles";
 import {
   EMPTY_STOCK,
-  GOOD_IDS,
   addedStock,
   pay as payStock,
   type GoodId,
-  type Price,
   type Stock,
 } from "./stock";
 import { stockpileRoom } from "./stockyard";
@@ -46,6 +44,7 @@ import {
   cityRunId,
   fleetRate,
   planTransportTransfer,
+  priceOf,
   runSnapshots,
   type CityRunGood,
   type RunId,
@@ -55,21 +54,19 @@ import {
  * Slice 2 Part 1 coupled-stretch simulation engine (#766, spec rule 5.3).
  * Imported only by `src/mountain.ts` (mirroring `src/mine-cages.ts`).
  *
- * - Live play (`stepSlice2Live`): fixed 1 s 4-phase order:
+ * - Live play (`accrueSlice2Live`): fixed 1 s 4-phase order:
  *   (a) mine drilling/haulage/hoisting -> pithead (zero Stone bypass),
  *   (b) physical transport runs (water-filling + proportional source contention),
  *   (c) whole-cycle makers with persisted integer `cycleMicros`,
  *   (d) City builders (`shareOut`).
  * - Offline / rate play (`stretchSlice2`): deterministic event-driven stretches
- *   using fixed-point `coupledRates` and minimum time to next state change
- *   (1 s floor), keeping 8-hour live vs. offline agreement within <= 1%.
+ *   using damped fixed-point `coupledRates` and minimum time to next state
+ *   change (1 s floor), keeping 8-hour live vs. offline agreement within <= 1%.
  */
 
 export type Slice2Step = {
   readonly mountain: Mountain;
-  /** Rock hoisted into pithead buffers during this step. */
   readonly mined: number;
-  /** Goods added to stockpiles (stones carried from pithead + maker outputs). */
   readonly gained: Partial<Stock>;
   readonly settledAt: number;
   readonly producing: boolean;
@@ -77,21 +74,17 @@ export type Slice2Step = {
 
 const RATE_EPS = 1e-9;
 const MAX_FIXED_POINT_PASSES = 32;
+const LEVEL_KEYS: readonly MineLevelId[] = ["topsoil", "granite"];
 
 /** Snapshot of converged continuous rates across the entire Slice 2 chain. */
 type CoupledRates = {
   readonly hoist: Readonly<Record<MineLevelId, number>>;
   readonly runRates: Readonly<Record<RunId, number>>;
   readonly pitheadDrain: Readonly<Record<MineLevelId, number>>;
+  readonly stoneFromPithead: Readonly<Record<MineLevelId, number>>;
   readonly makerOut: Readonly<Record<MakerId, number>>;
   readonly build: Readonly<Record<CityRunGood, number>>;
 };
-
-function priceOfGoods(goods: Partial<Stock>): Price {
-  return GOOD_IDS.flatMap((good) =>
-    (goods[good] ?? 0) > 0 ? [{ good, amount: goods[good] ?? 0 }] : [],
-  );
-}
 
 function stepSingleMaker(
   mountain: Mountain,
@@ -121,7 +114,7 @@ function stepSingleMaker(
   }
   const baseRoom = stockpileRoom(mountain, outGood) - mountain.stock[outGood];
   const outRoom = Number.isFinite(baseRoom)
-    ? Math.max(0, baseRoom) + (extraOutputRoom[outGood] ?? 0)
+    ? Math.max(0, baseRoom + (extraOutputRoom[outGood] ?? 0))
     : Number.MAX_SAFE_INTEGER;
   const result = stepMakerCycle({
     inputs: [{ id: inputId, amount: makerTakes(id), held }],
@@ -195,29 +188,80 @@ function stepSlice2Makers(
   };
 }
 
-function stepQuota(rate: number, tickIndex: number): number {
-  return Math.max(
-    0,
-    Math.floor((tickIndex + 1) * rate + 1e-9) -
-      Math.floor(tickIndex * rate + 1e-9),
-  );
+/**
+ * Per-good City destination room for a 1 s tick with `buildCap` builder budget.
+ * Adds `floor(buildCap / activeGoods)` clearance headroom so high-throughput
+ * trucks + builders (`> SITE_GOOD_CAP/s`) match offline without ever leaving
+ * `onSite[good] > SITE_GOOD_CAP` after Phase (d).
+ */
+function cityTickDestOverride(
+  mountain: Mountain,
+  buildCap: number,
+): Partial<Record<RunId, number>> | undefined {
+  if (mountain.project.kind !== "delivering" || buildCap <= 0) {
+    return undefined;
+  }
+  const site = mountain.project.site;
+  const need = stillRequired(site);
+  const activeCount = CITY_RUN_GOODS.filter(
+    (good) => need[good] > 0 || site.onSite[good] > 0,
+  ).length;
+  if (activeCount <= 0) {
+    return undefined;
+  }
+  const perGoodBuild = Math.floor(buildCap / activeCount);
+  if (perGoodBuild <= 0) {
+    return undefined;
+  }
+  const override: Partial<Record<RunId, number>> = {};
+  for (const good of CITY_RUN_GOODS) {
+    if (need[good] > 0) {
+      const cap = Math.max(0, SITE_GOOD_CAP - site.onSite[good] + perGoodBuild);
+      override[cityRunId(good)] = Math.min(need[good], cap);
+    }
+  }
+  return override;
 }
 
-/** Phase (d) of live 1 s step: City builders build from what is already on site. */
+/** Phase (d) of a 1 s step: City builders build from what is already on site. */
 function stepBuildersOnly(
+  mountain: Mountain,
+  buildCap: number,
+  tickIndex: number,
+): Mountain {
+  if (mountain.project.kind === "unordered" || buildCap <= 0) {
+    return mountain;
+  }
+  const built = shareOut(buildCap, mountain.project.site.onSite, tickIndex);
+  return goodsTotal(built) > 0 ? buildIn(mountain, built) : mountain;
+}
+
+/** Shared Phases (b)–(d) for one discrete 1-second tick (live & 1 s offline stretches). */
+function stepSlice2Surface(
   mountain: Mountain,
   pay: number,
   tickIndex: number,
-): Mountain {
-  if (mountain.project.kind === "unordered") {
-    return mountain;
-  }
-  const cap = stepQuota(buildRate(mountain) * pay, tickIndex);
-  if (cap <= 0) {
-    return mountain;
-  }
-  const built = shareOut(cap, mountain.project.site.onSite, tickIndex);
-  return goodsTotal(built) > 0 ? buildIn(mountain, built) : mountain;
+): {
+  readonly mountain: Mountain;
+  readonly gained: Partial<Stock>;
+} {
+  const buildCap = stepQuota(buildRate(mountain) * pay, tickIndex);
+  const transfer = planTransportTransfer(
+    mountain,
+    stepQuota(fleetRate(mountain) * pay, tickIndex),
+    cityTickDestOverride(mountain, buildCap),
+    tickIndex,
+  );
+  const moved = applyTransportTransfer(mountain, transfer);
+  const made = stepSlice2Makers(moved.mountain, 1, pay);
+  const after = stepBuildersOnly(made.mountain, buildCap, tickIndex);
+  return {
+    mountain: after,
+    gained: {
+      ...made.made,
+      ...(moved.gainedStones > 0 ? { stones: moved.gainedStones } : {}),
+    },
+  };
 }
 
 /** One live 1-second tick in fixed 4-phase order (spec rule 5.3). */
@@ -231,25 +275,13 @@ function stepSlice2LiveSecond(
   readonly mined: number;
   readonly gained: Partial<Stock>;
 } {
-  // (a) Mine drilling, haulage & cages -> pithead (zero Stone bypass)
   const mine = flowMineToPitheadLive(mountain, 1, pay, drilling, tickIndex);
-  // (b) Physical transport runs (water-filling + shareProportional source contention)
-  const transfer = planTransportTransfer(
-    mine.mountain,
-    stepQuota(fleetRate(mine.mountain) * pay, tickIndex),
-    undefined,
-    tickIndex,
-  );
-  const moved = applyTransportTransfer(mine.mountain, transfer);
-  // (c) Makers whole-cycle execution with persisted integer cycleMicros
-  const made = stepSlice2Makers(moved.mountain, 1, pay);
-  // (d) City builders
-  const after = stepBuildersOnly(made.mountain, pay, tickIndex);
-  const gained: Partial<Stock> = {
-    ...made.made,
-    ...(moved.gainedStones > 0 ? { stones: moved.gainedStones } : {}),
+  const surface = stepSlice2Surface(mine.mountain, pay, tickIndex);
+  return {
+    mountain: surface.mountain,
+    mined: mine.mined,
+    gained: surface.gained,
   };
-  return { mountain: after, mined: mine.mined, gained };
 }
 
 /** Advances live Slice 2 play from `from` to `to` in 1-second ticks. */
@@ -407,11 +439,12 @@ function destCapsFor(
   };
 }
 
-function ratesSettled(
-  prev: Readonly<Record<RunId, number>>,
-  next: Readonly<Record<RunId, number>>,
+function recordSettled<K extends string>(
+  keys: readonly K[],
+  prev: Readonly<Record<K, number>>,
+  next: Readonly<Record<K, number>>,
 ): boolean {
-  return RUN_ORDER.every((id) => Math.abs(prev[id] - next[id]) <= RATE_EPS);
+  return keys.every((key) => Math.abs(prev[key] - next[key]) <= RATE_EPS);
 }
 
 function hoistRatesFor(
@@ -488,17 +521,18 @@ function coupledRates(
     topsoil: 0,
     granite: 0,
   };
+  let stoneFromPithead: Readonly<Record<MineLevelId, number>> = {
+    topsoil: 0,
+    granite: 0,
+  };
   let runRates: Readonly<Record<RunId, number>> = Object.fromEntries(
     RUN_ORDER.map((id) => [id, 0]),
   ) as Record<RunId, number>;
-  let hoist: Record<MineLevelId, number> = { topsoil: 0, granite: 0 };
-  let makerOut: Record<MakerId, number> = { kiln: 0, saw: 0 };
-  let build: Record<CityRunGood, number> = { stones: 0, brick: 0, cutStone: 0 };
 
   for (let pass = 0; pass < MAX_FIXED_POINT_PASSES; pass += 1) {
-    hoist = hoistRatesFor(mountain, pay, drilling, pitheadDrain);
-    build = buildRatesFor(mountain, pay, runRates);
-    makerOut = makerRatesFor(mountain, pay, runRates);
+    const hoist = hoistRatesFor(mountain, pay, drilling, pitheadDrain);
+    const build = buildRatesFor(mountain, pay, runRates);
+    const makerOut = makerRatesFor(mountain, pay, runRates);
     const destCaps = destCapsFor(mountain, runRates, makerOut, build);
     const sources = runSourcesFor(
       mountain,
@@ -508,7 +542,17 @@ function coupledRates(
       makerOut,
     );
     const next = allocateRunRates(totalFleet, open, destCaps, sources);
-    const done = pass > 0 && ratesSettled(runRates, next.runRates);
+    const settled =
+      pass > 0 &&
+      recordSettled(RUN_ORDER, runRates, next.runRates) &&
+      recordSettled(LEVEL_KEYS, pitheadDrain, next.pitheadDrain) &&
+      recordSettled(LEVEL_KEYS, stoneFromPithead, next.stoneFromPithead);
+    if (settled) {
+      runRates = next.runRates;
+      pitheadDrain = next.pitheadDrain;
+      stoneFromPithead = next.stoneFromPithead;
+      break;
+    }
     runRates =
       pass === 0
         ? next.runRates
@@ -516,12 +560,16 @@ function coupledRates(
     pitheadDrain =
       pass === 0
         ? next.pitheadDrain
-        : dampRecord(["topsoil", "granite"], pitheadDrain, next.pitheadDrain);
-    if (done) {
-      break;
-    }
+        : dampRecord(LEVEL_KEYS, pitheadDrain, next.pitheadDrain);
+    stoneFromPithead =
+      pass === 0
+        ? next.stoneFromPithead
+        : dampRecord(LEVEL_KEYS, stoneFromPithead, next.stoneFromPithead);
   }
-  return { hoist, runRates, pitheadDrain, makerOut, build };
+  const hoist = hoistRatesFor(mountain, pay, drilling, pitheadDrain);
+  const build = buildRatesFor(mountain, pay, runRates);
+  const makerOut = makerRatesFor(mountain, pay, runRates);
+  return { hoist, runRates, pitheadDrain, stoneFromPithead, makerOut, build };
 }
 
 /** Seconds until a buffer crosses 0, `room`, or `floor` at `net` units/s. */
@@ -562,30 +610,34 @@ function cityEventTime(mountain: Mountain, rates: CoupledRates): number {
         deliverRate - buildRateGood,
       ),
     );
-    if (need[good] > 0 && deliverRate > RATE_EPS) {
+    if (
+      mountain.project.kind === "delivering" &&
+      deliverRate > RATE_EPS &&
+      need[good] > 0
+    ) {
       soonest = Math.min(soonest, need[good] / deliverRate);
     }
-    if (toBuild[good] > 0 && buildRateGood > RATE_EPS) {
+    if (buildRateGood > RATE_EPS && toBuild[good] > 0) {
       soonest = Math.min(soonest, toBuild[good] / buildRateGood);
     }
   }
   return soonest;
 }
 
-/** Minimum seconds until any buffer/pile/stockpile/step changes state. */
+/** Minimum seconds until any pile, pithead, maker buffer, stockpile, or City step changes state. */
 function nextEventSeconds(
   mountain: Mountain,
   rates: CoupledRates,
   pay: number,
   drilling: boolean,
 ): number {
+  let soonest = cityEventTime(mountain, rates);
   const chains = undergroundPitheadChains(
     mountain,
     pay,
     drilling,
     rates.pitheadDrain,
   );
-  let soonest = cityEventTime(mountain, rates);
   const pRoom = pitheadRoom(mountain);
   for (const level of openLevels(mountain)) {
     const chain = chains[level];
@@ -637,56 +689,126 @@ function nextEventSeconds(
   return soonest;
 }
 
-/** Moves pithead rock into Stone and maker buffers over a multi-second stretch. */
-function moveStretchPithead(
+/** Whole City deliveries bounded by `stillRequired(site)` over a multi-second stretch. */
+function cityOutCap(
   mountain: Mountain,
   rates: CoupledRates,
   seconds: number,
-): { readonly mountain: Mountain; readonly gainedStones: number } {
+): Record<CityRunGood, number> {
+  if (mountain.project.kind !== "delivering") {
+    return { stones: 0, brick: 0, cutStone: 0 };
+  }
+  const need = stillRequired(mountain.project.site);
+  return {
+    stones: Math.min(
+      need.stones,
+      Math.floor(rates.runRates["stockToCity:stones"] * seconds + RATE_EPS),
+    ),
+    brick: Math.min(
+      need.brick,
+      Math.floor(rates.runRates["stockToCity:brick"] * seconds + RATE_EPS),
+    ),
+    cutStone: Math.min(
+      need.cutStone,
+      Math.floor(rates.runRates["stockToCity:cutStone"] * seconds + RATE_EPS),
+    ),
+  };
+}
+
+/** Exact integer maker input rock budget over `seconds` without overshooting buffer or stockpile caps. */
+function stretchMakerRockCap(
+  mountain: Mountain,
+  id: MakerId,
+  rates: CoupledRates,
+  cityOut: Readonly<Record<CityRunGood, number>>,
+  seconds: number,
+): number {
+  if (mountain.makers[id] <= 0 || (id === "saw" && !graniteOpen(mountain))) {
+    return 0;
+  }
+  const outGood = makerOutput(id);
+  const stockRoomBase =
+    stockpileRoom(mountain, outGood) - mountain.stock[outGood];
+  const outRoom = Number.isFinite(stockRoomBase)
+    ? Math.max(0, stockRoomBase + cityOut[outGood])
+    : Number.MAX_SAFE_INTEGER;
+  const cycles = Math.min(
+    Math.floor(rates.makerOut[id] * seconds + RATE_EPS),
+    outRoom,
+  );
+  const bufRoomBase =
+    makerInputRoom(mountain, id) -
+    makerBuffer(mountain, id, makerPrimaryInput(id));
+  return Math.max(0, bufRoomBase + cycles * makerTakes(id));
+}
+
+/** Planned integer pithead withdrawals per level over a multi-second stretch. */
+function planStretchPithead(
+  mountain: Mountain,
+  rates: CoupledRates,
+  cityOut: Readonly<Record<CityRunGood, number>>,
+  seconds: number,
+): {
+  readonly wantStone: Readonly<Record<MineLevelId, number>>;
+  readonly wantMaker: Readonly<Record<MineLevelId, number>>;
+  readonly drainRate: Readonly<Record<MineLevelId, number>>;
+} {
   const openLvls = openLevels(mountain);
   const stoneRoomBase =
     stockpileRoom(mountain, "stones") - mountain.stock.stones;
   const stoneCap = Number.isFinite(stoneRoomBase)
-    ? Math.max(0, stoneRoomBase) +
-      Math.floor(rates.runRates["stockToCity:stones"] * seconds + RATE_EPS)
+    ? Math.max(0, stoneRoomBase + cityOut.stones)
     : Number.MAX_SAFE_INTEGER;
-  const kilnCap =
-    Math.max(
-      0,
-      makerInputRoom(mountain, "kiln") -
-        makerBuffer(mountain, "kiln", "topsoilRock"),
-    ) +
-    Math.floor(rates.makerOut.kiln * makerTakes("kiln") * seconds + RATE_EPS);
-  const sawCap = graniteOpen(mountain)
-    ? Math.max(
-        0,
-        makerInputRoom(mountain, "saw") -
-          makerBuffer(mountain, "saw", "graniteRock"),
-      ) +
-      Math.floor(rates.makerOut.saw * makerTakes("saw") * seconds + RATE_EPS)
-    : 0;
-  const wantStone = Math.min(
-    Math.floor(rates.runRates.pitToStockyardStones * seconds + RATE_EPS),
-    stoneCap,
-  );
+  const rawStone: Record<MineLevelId, number> = {
+    topsoil: Math.floor(rates.stoneFromPithead.topsoil * seconds + RATE_EPS),
+    granite: graniteOpen(mountain)
+      ? Math.floor(rates.stoneFromPithead.granite * seconds + RATE_EPS)
+      : 0,
+  };
+  const scaled =
+    rawStone.topsoil + rawStone.granite > stoneCap
+      ? shareProportional(stoneCap, openLvls, rawStone)
+      : rawStone;
+  const wantStone: Record<MineLevelId, number> = {
+    topsoil: scaled.topsoil ?? 0,
+    granite: scaled.granite ?? 0,
+  };
   const wantMaker: Record<MineLevelId, number> = {
     topsoil: Math.min(
       Math.floor(rates.runRates.pitTopsoilToKilns * seconds + RATE_EPS),
-      kilnCap,
+      stretchMakerRockCap(mountain, "kiln", rates, cityOut, seconds),
     ),
-    granite: Math.min(
-      Math.floor(rates.runRates.pitGraniteToSaws * seconds + RATE_EPS),
-      sawCap,
-    ),
+    granite: graniteOpen(mountain)
+      ? Math.min(
+          Math.floor(rates.runRates.pitGraniteToSaws * seconds + RATE_EPS),
+          stretchMakerRockCap(mountain, "saw", rates, cityOut, seconds),
+        )
+      : 0,
   };
-  const stoneSplit = shareProportional(wantStone, openLvls, mountain.pithead);
+  return {
+    wantStone,
+    wantMaker,
+    drainRate: {
+      topsoil: (wantStone.topsoil + wantMaker.topsoil) / seconds,
+      granite: (wantStone.granite + wantMaker.granite) / seconds,
+    },
+  };
+}
+
+/** Moves pithead rock into Stone and maker buffers over a multi-second stretch. */
+function moveStretchPithead(
+  mountain: Mountain,
+  wantStone: Readonly<Record<MineLevelId, number>>,
+  wantMaker: Readonly<Record<MineLevelId, number>>,
+): { readonly mountain: Mountain; readonly gainedStones: number } {
+  const openLvls = openLevels(mountain);
   const stoneFrom: Record<MineLevelId, number> = { topsoil: 0, granite: 0 };
   const makerMoved: Record<MineLevelId, number> = { topsoil: 0, granite: 0 };
   for (const level of openLvls) {
     const split = shareProportional(
       mountain.pithead[level],
       ["stone", "maker"],
-      { stone: stoneSplit[level] ?? 0, maker: wantMaker[level] },
+      { stone: wantStone[level], maker: wantMaker[level] },
     );
     stoneFrom[level] = split.stone ?? 0;
     makerMoved[level] = split.maker ?? 0;
@@ -712,7 +834,7 @@ function moveStretchPithead(
 /** Applies City transport + builder work over a multi-second stretch cleanly. */
 function applyStretchCity(
   mountain: Mountain,
-  rates: CoupledRates,
+  cityOut: Readonly<Record<CityRunGood, number>>,
   seconds: number,
   pay: number,
 ): Mountain {
@@ -722,10 +844,7 @@ function applyStretchCity(
   const desired: Partial<Record<GoodId, number>> = {};
   if (mountain.project.kind === "delivering") {
     for (const good of CITY_RUN_GOODS) {
-      const want = Math.min(
-        mountain.stock[good],
-        Math.floor(rates.runRates[cityRunId(good)] * seconds + RATE_EPS),
-      );
+      const want = Math.min(mountain.stock[good], cityOut[good]);
       if (want > 0) {
         desired[good] = want;
       }
@@ -739,7 +858,7 @@ function applyStretchCity(
   );
   let state = mountain;
   if (goodsTotal(delivered) > 0) {
-    state = receive(payStock(state, priceOfGoods(delivered)), delivered);
+    state = receive(payStock(state, priceOf(delivered)), delivered);
   }
   if (goodsTotal(built) > 0) {
     state = buildIn(state, built);
@@ -747,10 +866,14 @@ function applyStretchCity(
   return state;
 }
 
-/** One discrete 1-second offline stretch (avoids sub-unit stalls on 1 s boundaries). */
+const ZERO_DRAIN: Readonly<Record<MineLevelId, number>> = {
+  topsoil: 0,
+  granite: 0,
+};
+
+/** One discrete 1-second offline stretch: zero assumed pithead drain (matches live Phase (a)->(b)->(c)->(d)). */
 function applyOneSecondStretch(
   mountain: Mountain,
-  rates: CoupledRates,
   pay: number,
   drilling: boolean,
   tickIndex: number,
@@ -764,24 +887,14 @@ function applyOneSecondStretch(
     1,
     pay,
     drilling,
-    rates.pitheadDrain,
-  );
-  const transfer = planTransportTransfer(
-    mine.mountain,
-    stepQuota(fleetRate(mine.mountain) * pay, tickIndex),
-    undefined,
+    ZERO_DRAIN,
     tickIndex,
   );
-  const moved = applyTransportTransfer(mine.mountain, transfer);
-  const made = stepSlice2Makers(moved.mountain, 1, pay);
-  const after = stepBuildersOnly(made.mountain, pay, tickIndex);
+  const surface = stepSlice2Surface(mine.mountain, pay, tickIndex);
   return {
-    mountain: after,
+    mountain: surface.mountain,
     mined: mine.hoisted.topsoil + mine.hoisted.granite,
-    gained: {
-      ...made.made,
-      ...(moved.gainedStones > 0 ? { stones: moved.gainedStones } : {}),
-    },
+    gained: surface.gained,
   };
 }
 
@@ -807,11 +920,12 @@ export function stretchSlice2(
   }
   const rates = coupledRates(mountain, pay, drilling);
   const eventSec = nextEventSeconds(mountain, rates, pay, drilling);
-  const seconds = Math.min(remaining, Math.max(1, wholeSeconds(eventSec)));
+  // Floor multi-second stretches so they stop before crossing any buffer/step boundary;
+  // 1-second stretches (`applyOneSecondStretch`) cross boundaries cleanly.
+  const seconds = Math.min(remaining, Math.max(1, Math.floor(eventSec)));
   if (seconds === 1) {
     const one = applyOneSecondStretch(
       mountain,
-      rates,
       pay,
       drilling,
       Math.floor(from / 1000),
@@ -822,22 +936,26 @@ export function stretchSlice2(
       producing: one.mined > 0 || goodsTotal(one.gained) > 0,
     };
   }
+  const cityOut = cityOutCap(mountain, rates, seconds);
+  const pitPlan = planStretchPithead(mountain, rates, cityOut, seconds);
   const mine = flowUndergroundToPithead(
     mountain,
     seconds,
     pay,
     drilling,
-    rates.pitheadDrain,
+    pitPlan.drainRate,
   );
-  const moved = moveStretchPithead(mine.mountain, rates, seconds);
+  const moved = moveStretchPithead(
+    mine.mountain,
+    pitPlan.wantStone,
+    pitPlan.wantMaker,
+  );
   const extraOut: Partial<Record<GoodId, number>> = {
-    brick: Math.floor(rates.runRates["stockToCity:brick"] * seconds + RATE_EPS),
-    cutStone: Math.floor(
-      rates.runRates["stockToCity:cutStone"] * seconds + RATE_EPS,
-    ),
+    brick: cityOut.brick,
+    cutStone: cityOut.cutStone,
   };
   const made = stepSlice2Makers(moved.mountain, seconds, pay, extraOut);
-  const after = applyStretchCity(made.mountain, rates, seconds, pay);
+  const after = applyStretchCity(made.mountain, cityOut, seconds, pay);
   const mined = mine.hoisted.topsoil + mine.hoisted.granite;
   const gained: Partial<Stock> = {
     ...made.made,

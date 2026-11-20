@@ -249,7 +249,7 @@ export function buyVehicle(mountain: Mountain, id: VehicleId): Mountain {
 }
 
 /** What the goods cost the pocket, as a price. */
-function priceOf(goods: Partial<Stock>): Price {
+export function priceOf(goods: Partial<Stock>): Price {
   return GOOD_IDS.flatMap((good) =>
     (goods[good] ?? 0) > 0 ? [{ good, amount: goods[good] ?? 0 }] : [],
   );
@@ -1276,6 +1276,7 @@ type RateState = {
   readonly remStock: Record<CityRunGood, number>;
   readonly runRates: Record<RunId, number>;
   readonly pitheadDrain: Record<MineLevelId, number>;
+  readonly stoneFromPithead: Record<MineLevelId, number>;
 };
 
 function rateWant(state: RateState, id: RunId): number {
@@ -1321,6 +1322,7 @@ function resolvePitheadRatePass(
     state.runRates.pitToStockyardStones += sTake;
     state.runRates[mRun] += mTake;
     state.pitheadDrain[l] += sTake + mTake;
+    state.stoneFromPithead[l] += sTake;
     state.remPit[l] = subCap(cap, sTake + mTake);
     state.remDest.pitToStockyardStones = subCap(
       state.remDest.pitToStockyardStones,
@@ -1363,6 +1365,7 @@ export function allocateRunRates(
 ): {
   readonly runRates: Readonly<Record<RunId, number>>;
   readonly pitheadDrain: Readonly<Record<MineLevelId, number>>;
+  readonly stoneFromPithead: Readonly<Record<MineLevelId, number>>;
 } {
   const state: RateState = {
     open,
@@ -1373,6 +1376,7 @@ export function allocateRunRates(
     remStock: { ...sources.stockCap },
     runRates: runRecord(0),
     pitheadDrain: { topsoil: 0, granite: 0 },
+    stoneFromPithead: { topsoil: 0, granite: 0 },
   };
   let left = fleetRateTotal;
   for (let pass = 0; pass < RUN_ORDER.length && left > RATE_EPS; pass += 1) {
@@ -1388,5 +1392,9 @@ export function allocateRunRates(
     }
     left = Math.max(0, left - moved);
   }
-  return { runRates: state.runRates, pitheadDrain: state.pitheadDrain };
+  return {
+    runRates: state.runRates,
+    pitheadDrain: state.pitheadDrain,
+    stoneFromPithead: state.stoneFromPithead,
+  };
 }

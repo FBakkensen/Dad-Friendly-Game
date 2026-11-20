@@ -26,6 +26,7 @@ import {
   chainSpill,
   flowBranchesWhole,
   flowWhole,
+  stepQuota,
   turnPerLoad,
   type Branch,
   type Branches,
@@ -869,12 +870,17 @@ export function pitheadRoom(mountain: Mountain): number {
 
 const NO_SIDE: Branches["side"] = { held: 0, holds: 0, drain: 0 };
 
+function rateForTick(rate: number, tickIndex: number | undefined): number {
+  return tickIndex === undefined ? rate : stepQuota(rate, tickIndex);
+}
+
 /** One level's underground branch into its pithead buffer, drained by transport at `drain`. */
 function pitheadBranch(
   mountain: Mountain,
   level: MineLevelId,
   { pay, drilling }: { readonly pay: number; readonly drilling: boolean },
   drain: number,
+  tickIndex?: number,
 ): Branch {
   const { levels, lift } = mineWork(mountain);
   const granite = openGranite(mountain);
@@ -885,9 +891,9 @@ function pitheadBranch(
   return {
     source: Infinity,
     rates: [
-      drilling ? levels[level].face * pay : 0,
-      levels[level].haul * pay,
-      (lift?.own[level] ?? 0) * pay,
+      rateForTick(drilling ? levels[level].face * pay : 0, tickIndex),
+      rateForTick(levels[level].haul * pay, tickIndex),
+      rateForTick((lift?.own[level] ?? 0) * pay, tickIndex),
       drain,
     ],
     piles: [
@@ -904,11 +910,12 @@ function undergroundPitheadSet(
   mountain: Mountain,
   run: { readonly pay: number; readonly drilling: boolean },
   pitheadDrain: Readonly<Record<MineLevelId, number>>,
+  tickIndex?: number,
 ): Branches {
   return {
     branches: [
-      pitheadBranch(mountain, "topsoil", run, pitheadDrain.topsoil),
-      pitheadBranch(mountain, "granite", run, pitheadDrain.granite),
+      pitheadBranch(mountain, "topsoil", run, pitheadDrain.topsoil, tickIndex),
+      pitheadBranch(mountain, "granite", run, pitheadDrain.granite, tickIndex),
     ],
     shared: {
       stage: LIFT,
@@ -974,7 +981,9 @@ export function flowUndergroundToPithead(
   pay: number,
   drilling: boolean,
   pitheadDrain: Readonly<Record<MineLevelId, number>>,
+  tickIndex?: number,
 ): PitheadFlow {
+  const discreteTick = seconds === 1 ? tickIndex : undefined;
   const granite = openGranite(mountain);
   if (granite === undefined) {
     const branch = pitheadBranch(
@@ -982,6 +991,7 @@ export function flowUndergroundToPithead(
       "topsoil",
       { pay, drilling },
       pitheadDrain.topsoil,
+      discreteTick,
     );
     const chain: Chain = {
       source: branch.source,
@@ -1013,7 +1023,12 @@ export function flowUndergroundToPithead(
       hoisted: { topsoil: hoisted, granite: 0 },
     };
   }
-  const set = undergroundPitheadSet(mountain, { pay, drilling }, pitheadDrain);
+  const set = undergroundPitheadSet(
+    mountain,
+    { pay, drilling },
+    pitheadDrain,
+    discreteTick,
+  );
   const [topsoil, deep] = levelPair(flowBranchesWhole(set, seconds));
   const [tFace = 0, tShaft = 0] = topsoil.piles;
   const [gFace = 0, gShaft = 0] = deep.piles;
@@ -1021,6 +1036,18 @@ export function flowUndergroundToPithead(
   const gHoist = movedAt(deep, LIFT);
   const tDug = movedAt(topsoil, 0);
   const gDug = movedAt(deep, 0);
+  if (
+    tDug === 0 &&
+    gDug === 0 &&
+    tHoist === 0 &&
+    gHoist === 0 &&
+    tFace === mountain.piles.face &&
+    tShaft === mountain.piles.shaft &&
+    gFace === granite.piles.face &&
+    gShaft === granite.piles.shaft
+  ) {
+    return { mountain, hoisted: { topsoil: 0, granite: 0 } };
+  }
   return {
     mountain: {
       ...mountain,

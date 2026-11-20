@@ -228,6 +228,11 @@ describe("the ledger of what has shipped (#558)", () => {
       Object.keys(facts.tripFinds),
       ...Object.values(facts.tripFinds),
       ...Object.values(facts.granite),
+      facts.mineLevels,
+      facts.pithead,
+      ...Object.values(facts.makerBuffers),
+      facts.cycleMicros,
+      facts.assignedRuns,
       ...Object.values(facts.station),
       ...Object.values(facts.cages),
     ];
