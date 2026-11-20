@@ -1354,10 +1354,11 @@ describe("field log events for the deep (#150)", () => {
       progress.applyMutation((mountain) => ({
         ...mountain,
         // The borer opens with the Granite's shaft, in part 3 (#673).
-        granite: {
-          kind: "sunk",
-          machines: NO_LEVEL_MACHINES,
-          piles: NO_GRANITE_PILES,
+        mineLevels: {
+          granite: {
+            machines: NO_LEVEL_MACHINES,
+            piles: NO_GRANITE_PILES,
+          },
         },
         // The borer, in cut stone, and stones for the workers it needs.
         stock: {

@@ -37,19 +37,32 @@ export type GranitePiles = Readonly<Record<GranitePileId, number>>;
 
 export const NO_GRANITE_PILES: GranitePiles = { face: 0, shaft: 0, saw: 0 };
 
-/**
- * The Granite on a mountain: unsunk, or sunk with its own machines and
- * piles, so machines and piles on a level that is not open cannot be written.
- */
-export type Granite =
-  | { readonly kind: "unsunk" }
-  | {
-      readonly kind: "sunk";
-      readonly machines: LevelMachines;
-      readonly piles: GranitePiles;
-    };
+/** Deeper levels below the Topsoil, in depth order (slice 2, #766). */
+export const DEEPER_LEVEL_IDS = ["granite"] as const satisfies readonly Exclude<
+  MineLevelId,
+  "topsoil"
+>[];
+export type DeeperLevelId = (typeof DEEPER_LEVEL_IDS)[number];
 
-export const UNSUNK: Granite = { kind: "unsunk" };
+/** One sunk deeper level: its own machines and its underground piles. */
+export type SunkLevel = {
+  readonly machines: LevelMachines;
+  readonly piles: GranitePiles;
+};
+
+/**
+ * Sunk deeper levels on a mountain, keyed by deeper level id (#766).
+ * Missing means unsunk, so machines and piles on a level that is not open
+ * cannot be represented.
+ */
+export type MineLevels = Readonly<Partial<Record<DeeperLevelId, SunkLevel>>>;
+
+export const NO_MINE_LEVELS: MineLevels = {};
+
+/** Pithead rock waiting for physical transport, per mine level (whole stones). */
+export type Pithead = Readonly<Record<MineLevelId, number>>;
+
+export const EMPTY_PITHEAD: Pithead = { topsoil: 0, granite: 0 };
 
 /** The shaft's price: 10M stone and 1.5M brick at once (rule 7.14), scaled by `price.shaft`. */
 export function shaftPrice(): Price {
@@ -60,42 +73,57 @@ export function shaftPrice(): Price {
   ];
 }
 
+/** Whether a deeper level has been sunk on this mountain, without checking switches. */
+export function levelSunk(
+  mountain: Pick<Mountain, "mineLevels">,
+  level: DeeperLevelId,
+): boolean {
+  return mountain.mineLevels[level] !== undefined;
+}
+
 /** Whether the shaft can be sunk now: part 3, the Light Tower up, not yet sunk. */
 export function shaftOpen(
-  mountain: Pick<Mountain, "operational" | "granite">,
+  mountain: Pick<Mountain, "operational" | "mineLevels">,
 ): boolean {
   return (
     partThreeOn() &&
     mountain.operational.includes("lightTower") &&
-    mountain.granite.kind === "unsunk"
+    !levelSunk(mountain, "granite")
   );
 }
 
-/** The Granite once the shaft is sunk. */
-export type SunkGranite = Extract<Granite, { readonly kind: "sunk" }>;
-
 /**
- * The Granite while it is open (the shaft sunk, part 3), else undefined: the
- * mine is the Topsoil alone. The save is read before the switch, so a mine
- * without the shaft asks no factor.
+ * A deeper level while it is open (sunk, and part 3 on), else undefined.
+ * The save is read before the switch, so an unsunk level asks no factor.
  */
+function openLevel(
+  mountain: Pick<Mountain, "mineLevels">,
+  level: DeeperLevelId,
+): SunkLevel | undefined {
+  const sunk = mountain.mineLevels[level];
+  return sunk !== undefined && partThreeOn() ? sunk : undefined;
+}
+
+/** The Granite while it is open (the shaft sunk, part 3), else undefined. */
 export function openGranite(
-  mountain: Pick<Mountain, "granite">,
-): SunkGranite | undefined {
-  const { granite } = mountain;
-  return granite.kind === "sunk" && partThreeOn() ? granite : undefined;
+  mountain: Pick<Mountain, "mineLevels">,
+): SunkLevel | undefined {
+  return openLevel(mountain, "granite");
 }
 
 /** Whether the Granite is open: the shaft sunk, and part 3. */
-export function graniteOpen(mountain: Pick<Mountain, "granite">): boolean {
+export function graniteOpen(mountain: Pick<Mountain, "mineLevels">): boolean {
   return openGranite(mountain) !== undefined;
 }
 
 /** The open levels, the Topsoil first: the cages' plan and the refinery's hoppers read them (#754). */
 export function openLevels(
-  mountain: Pick<Mountain, "granite">,
+  mountain: Pick<Mountain, "mineLevels">,
 ): readonly MineLevelId[] {
-  return graniteOpen(mountain) ? MINE_LEVEL_IDS : ["topsoil"];
+  const deeper = DEEPER_LEVEL_IDS.filter(
+    (level) => openLevel(mountain, level) !== undefined,
+  );
+  return deeper.length === 0 ? ["topsoil"] : ["topsoil", ...deeper];
 }
 
 /**
@@ -112,57 +140,95 @@ export function sinkShaft(mountain: Mountain): Mountain {
   }
   return {
     ...paid,
-    granite: {
-      kind: "sunk",
-      machines: NO_LEVEL_MACHINES,
-      piles: NO_GRANITE_PILES,
+    mineLevels: {
+      ...paid.mineLevels,
+      granite: {
+        machines: NO_LEVEL_MACHINES,
+        piles: NO_GRANITE_PILES,
+      },
     },
   };
 }
 
 /**
- * One level's machines: the Granite's own counts while it is open, else none;
- * the Topsoil's are what he owns less the Granite's. With the Granite shut
- * the Topsoil's are what he owns, read without a copy.
+ * One level's machines: a deeper level's own counts while it is open, else
+ * none; the Topsoil's are what he owns less every open deeper level's. With
+ * no deeper level open the Topsoil's are what he owns, read without a copy.
  */
 export function levelMachines(
-  mountain: Pick<Mountain, "owned" | "granite">,
+  mountain: Pick<Mountain, "owned" | "mineLevels">,
   level: MineLevelId,
 ): LevelMachines {
-  const granite = openGranite(mountain);
-  if (granite === undefined) {
-    return level === "granite" ? NO_LEVEL_MACHINES : mountain.owned;
+  if (level !== "topsoil") {
+    return openLevel(mountain, level)?.machines ?? NO_LEVEL_MACHINES;
   }
-  const own = granite.machines;
-  if (level === "granite") {
-    return own;
+  let anyOpen = false;
+  let cart = mountain.owned.cart;
+  let drill = mountain.owned.drill;
+  let borer = mountain.owned.borer;
+  let train = mountain.owned.train;
+  for (const id of DEEPER_LEVEL_IDS) {
+    const own = openLevel(mountain, id)?.machines;
+    if (own !== undefined) {
+      anyOpen = true;
+      cart -= own.cart;
+      drill -= own.drill;
+      borer -= own.borer;
+      train -= own.train;
+    }
   }
-  return {
-    cart: mountain.owned.cart - own.cart,
-    drill: mountain.owned.drill - own.drill,
-    borer: mountain.owned.borer - own.borer,
-    train: mountain.owned.train - own.train,
-  };
+  return anyOpen ? { cart, drill, borer, train } : mountain.owned;
 }
 
 /**
- * One more machine of this kind on the Granite while it is sunk, the same
- * object otherwise. It pays nothing: the move buys first (call 55: no move
- * takes a machine off a level).
+ * One more machine of this kind on a sunk deeper level, the same object
+ * otherwise. It pays nothing: the move buys first (call 55: no move takes a
+ * machine off a level).
  */
-export function withGraniteMachine(
+export function withLevelMachine(
   mountain: Mountain,
+  level: DeeperLevelId,
   id: LevelMachineId,
 ): Mountain {
-  const { granite } = mountain;
-  if (granite.kind !== "sunk") {
+  const sunk = mountain.mineLevels[level];
+  if (sunk === undefined) {
     return mountain;
   }
   return {
     ...mountain,
-    granite: {
-      ...granite,
-      machines: { ...granite.machines, [id]: granite.machines[id] + 1 },
+    mineLevels: {
+      ...mountain.mineLevels,
+      [level]: {
+        ...sunk,
+        machines: { ...sunk.machines, [id]: sunk.machines[id] + 1 },
+      },
+    },
+  };
+}
+
+/** One more machine of this kind on the Granite while it is sunk. */
+export function withGraniteMachine(
+  mountain: Mountain,
+  id: LevelMachineId,
+): Mountain {
+  return withLevelMachine(mountain, "granite", id);
+}
+
+/** A sunk deeper level with updated underground piles, or the same mountain if unsunk. */
+export function withLevelPiles(
+  mountain: Mountain,
+  level: DeeperLevelId,
+  piles: GranitePiles,
+): Mountain {
+  const sunk = mountain.mineLevels[level];
+  if (sunk === undefined) {
+    return mountain;
+  }
+  return {
+    ...mountain,
+    mineLevels: {
+      ...mountain.mineLevels,
+      [level]: { ...sunk, piles },
     },
   };
 }

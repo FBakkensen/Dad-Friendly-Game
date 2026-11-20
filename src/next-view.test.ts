@@ -297,13 +297,14 @@ describe("the factory's site (#681)", () => {
     return {
       ...start,
       operational: ["lightTower", "warehouse"],
-      granite: shaft
+      mineLevels: shaft
         ? {
-            kind: "sunk",
-            machines: { cart: 0, drill: 0, borer: 0, train: 0 },
-            piles: { face: 0, shaft: 0, saw: 0 },
+            granite: {
+              machines: { cart: 0, drill: 0, borer: 0, train: 0 },
+              piles: { face: 0, shaft: 0, saw: 0 },
+            },
           }
-        : { kind: "unsunk" },
+        : {},
       project: placeOrder(start).project,
       station,
     };
@@ -389,10 +390,11 @@ describe("a stage's count in part 3 (#680)", () => {
     return {
       ...start,
       operational: ["lightTower", "warehouse"],
-      granite: {
-        kind: "sunk",
-        machines: { cart: 0, drill: 0, borer: 0, train: 0 },
-        piles: { face: 0, shaft: 0, saw: 0 },
+      mineLevels: {
+        granite: {
+          machines: { cart: 0, drill: 0, borer: 0, train: 0 },
+          piles: { face: 0, shaft: 0, saw: 0 },
+        },
       },
       stock: { ...start.stock, stones: 1_000_000_000, cutStone },
     };

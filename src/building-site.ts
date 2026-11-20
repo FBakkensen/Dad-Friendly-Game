@@ -13,10 +13,25 @@ import { GOOD_IDS, addedStock, type GoodId, type Stock } from "./stock";
  */
 
 /**
- * What a building site holds, in goods. The lab (#655) left it at 500: no
- * measure moved with it, and lowering a cap a save may hold needs a version.
+ * What a building site holds, in goods (Slice 1). The lab (#655) left it at
+ * 500: no measure moved with it, and lowering a cap a save may hold needs a
+ * version.
  */
 export const SITE_HOLDS = 500;
+
+/**
+ * Per-good building site buffer cap (Slice 2, #766, rule 4.2): each good on
+ * site gets its own cap so one delivered good never chokes another.
+ */
+export const SITE_GOOD_CAP = 500;
+
+/** Room left on the building site for `good` under per-good SITE_GOOD_CAP. */
+export function siteGoodRoom(site: Site, good: GoodId): number {
+  return Math.min(
+    stillRequired(site)[good],
+    Math.max(0, SITE_GOOD_CAP - site.onSite[good]),
+  );
+}
 
 /** Goods a second one builder builds in: a little less than a horse wagon carries (#655). */
 const BUILDER_BUILDS = 8;
@@ -31,6 +46,56 @@ export function onSiteTotal(site: Site): number {
   return GOOD_IDS.reduce((sum, good) => sum + site.onSite[good], 0);
 }
 
+/** Stateless integer mix for uncorrelated, deterministic tie-breaking across ticks. */
+function aperiodicShift(tieOffset: number, count: number): number {
+  if (tieOffset === 0 || count <= 1) {
+    return 0;
+  }
+  let x = (tieOffset | 0) ^ 0x9e3779b9;
+  x = Math.imul(x ^ (x >>> 16), 0x85ebca6b);
+  x = Math.imul(x ^ (x >>> 13), 0xc2b2ae35);
+  return ((x ^ (x >>> 16)) >>> 0) % count;
+}
+
+/**
+ * Up to `capacity` whole units split evenly (water-filling) across `keys`,
+ * each at most its want. What one key cannot use goes to the others. Any
+ * indivisible remainder is distributed in `keys` order shifted by `tieOffset`.
+ */
+export function shareOutKeys<K extends string>(
+  capacity: number,
+  keys: readonly K[],
+  wants: Readonly<Partial<Record<K, number>>>,
+  tieOffset = 0,
+): Partial<Record<K, number>> {
+  const out: Partial<Record<K, number>> = {};
+  let left = Math.max(0, Math.floor(capacity));
+  let pool = keys.filter((key) => Math.floor(wants[key] ?? 0) > 0);
+  while (left > 0 && pool.length > 0) {
+    const share = Math.floor(left / pool.length);
+    const capped = pool.filter((key) => Math.floor(wants[key] ?? 0) <= share);
+    if (capped.length === 0) {
+      break;
+    }
+    for (const key of capped) {
+      const amount = Math.floor(wants[key] ?? 0);
+      out[key] = amount;
+      left -= amount;
+    }
+    pool = pool.filter((key) => out[key] === undefined);
+  }
+  if (left > 0 && pool.length > 0) {
+    const base = Math.floor(left / pool.length);
+    const rem = left - base * pool.length;
+    const shift = aperiodicShift(tieOffset, pool.length);
+    for (const [index, key] of pool.entries()) {
+      const rank = (index - shift + pool.length) % pool.length;
+      out[key] = base + (rank < rem ? 1 : 0);
+    }
+  }
+  return out;
+}
+
 /**
  * Up to `capacity` goods split evenly between the goods in `wants`, each at
  * most its want. What one good cannot use goes to the others.
@@ -39,18 +104,74 @@ export function shareOut(
   capacity: number,
   wants: Readonly<Partial<Record<GoodId, number>>>,
 ): Partial<Record<GoodId, number>> {
-  const goods = GOOD_IDS.filter((good) => (wants[good] ?? 0) > 0).sort(
+  const cap = Math.max(0, Math.floor(capacity));
+  const active = GOOD_IDS.filter((good) => (wants[good] ?? 0) > 0).sort(
     (a, b) => (wants[a] ?? 0) - (wants[b] ?? 0),
   );
   const out: Partial<Record<GoodId, number>> = {};
-  let left = capacity;
-  for (const [index, good] of goods.entries()) {
-    const even = Math.floor(left / (goods.length - index));
-    const amount = Math.min(wants[good] ?? 0, even);
+  let left = cap;
+  for (const [index, good] of active.entries()) {
+    const even = Math.floor(left / (active.length - index));
+    const amount = Math.min(Math.floor(wants[good] ?? 0), even);
     out[good] = amount;
     left -= amount;
   }
   return out;
+}
+
+/**
+ * Splits `available` whole units proportionally to `weights` (each capped at its
+ * weight) using largest-remainder integer rounding, breaking ties in `keys`
+ * order shifted by `tieOffset`. Guarantees exact conservation
+ * (`sum === min(available, sum(weights))`).
+ */
+export function shareProportional<K extends string>(
+  available: number,
+  keys: readonly K[],
+  weights: Readonly<Partial<Record<K, number>>>,
+  tieOffset = 0,
+): Partial<Record<K, number>> {
+  const avail = Math.max(0, Math.floor(available));
+  const entries = keys
+    .map((key) => ({ key, weight: Math.max(0, Math.floor(weights[key] ?? 0)) }))
+    .filter((entry) => entry.weight > 0);
+  const total = entries.reduce((sum, entry) => sum + entry.weight, 0);
+  if (avail <= 0 || total <= 0) {
+    return {};
+  }
+  if (avail >= total) {
+    return Object.fromEntries(
+      entries.map((entry) => [entry.key, entry.weight]),
+    ) as Partial<Record<K, number>>;
+  }
+  const count = entries.length;
+  const shift = aperiodicShift(tieOffset, count);
+  const parts = entries.map((entry, idx) => {
+    const exact = (avail * entry.weight) / total;
+    const base = Math.min(entry.weight, Math.floor(exact));
+    const order = (idx - shift + count) % count;
+    return {
+      key: entry.key,
+      weight: entry.weight,
+      base,
+      frac: exact - base,
+      order,
+    };
+  });
+  let left = avail - parts.reduce((sum, part) => sum + part.base, 0);
+  const byRem = [...parts].sort((a, b) => b.frac - a.frac || a.order - b.order);
+  for (const part of byRem) {
+    if (left <= 0) {
+      break;
+    }
+    if (part.base < part.weight) {
+      part.base += 1;
+      left -= 1;
+    }
+  }
+  return Object.fromEntries(
+    parts.map((part) => [part.key, part.base]),
+  ) as Partial<Record<K, number>>;
 }
 
 /** Goods in all. */
@@ -144,4 +265,46 @@ export function stepWork(
     built: shareOut(builds, addedStock(site.onSite, delivered)),
     done: false,
   };
+}
+
+/**
+ * Per-good City delivery and builder work over a stretch (Slice 2, rule 4.2):
+ * applies up to `desiredDelivery[good]` (already bounded by stock and
+ * `stillRequired`) alongside up to `buildCapacity` whole goods built in via
+ * `shareOut`, guaranteeing `0 <= onSite[good] + delivered[good] - built[good] <= SITE_GOOD_CAP`.
+ */
+export function applyCityWork(
+  site: Site,
+  desiredDelivery: Readonly<Partial<Stock>>,
+  buildCapacity: number,
+): {
+  readonly delivered: Partial<Stock>;
+  readonly built: Partial<Stock>;
+} {
+  const toBring = stillRequired(site);
+  const capped: Partial<Record<GoodId, number>> = {};
+  for (const good of GOOD_IDS) {
+    const want = Math.max(0, Math.floor(desiredDelivery[good] ?? 0));
+    if (want > 0) {
+      capped[good] = Math.min(want, toBring[good]);
+    }
+  }
+  const cap = Math.max(0, Math.floor(buildCapacity));
+  const firstBuilt = shareOut(cap, addedStock(site.onSite, capped));
+  const delivered: Partial<Record<GoodId, number>> = {};
+  for (const good of GOOD_IDS) {
+    const want = capped[good] ?? 0;
+    if (want > 0) {
+      const room = Math.max(
+        0,
+        SITE_GOOD_CAP - site.onSite[good] + (firstBuilt[good] ?? 0),
+      );
+      const amount = Math.min(want, room);
+      if (amount > 0) {
+        delivered[good] = amount;
+      }
+    }
+  }
+  const built = shareOut(cap, addedStock(site.onSite, delivered));
+  return { delivered, built };
 }

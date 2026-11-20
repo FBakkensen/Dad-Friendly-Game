@@ -9,12 +9,13 @@ import {
 import { formatCompact } from "./format";
 import {
   MINE_LEVEL_IDS,
+  levelSunk,
   openGranite,
   shaftOpen,
   shaftPrice,
   type LevelMachineId,
   type MineLevelId,
-  type SunkGranite,
+  type SunkLevel,
 } from "./mine-levels";
 import { mineLevelFlows, mineTurnPerLoad, mineWork } from "./mine-piles";
 import {
@@ -228,7 +229,7 @@ function levelsWork(mountain: Mountain, now: number | undefined): LevelsWork {
 /** A level's two piles: its drilled rock, and its rock at the shaft (`levelPile`, as the one-level rows have them). */
 function levelPiles(
   mountain: Mountain,
-  granite: SunkGranite,
+  granite: SunkLevel,
   level: MineLevelId,
 ): MineLevel["piles"] {
   const held = level === "topsoil" ? mountain.piles : granite.piles;
@@ -269,7 +270,7 @@ function levelRow(
 /** Each level's two rows, from the one reading of the mine a paint (`levelsWork`). */
 function levelViews(
   mountain: Mountain,
-  granite: SunkGranite,
+  granite: SunkLevel,
   work: LevelsWork,
 ): readonly [MineLevel, MineLevel] {
   const view = (level: MineLevelId): MineLevel => {
@@ -444,7 +445,7 @@ export type ShaftGate =
 
 /** The shaft's gate while part 3 plays and the Granite is not sunk, else undefined. */
 export function shaftGate(mountain: Mountain): ShaftGate | undefined {
-  if (!partThreeOn() || mountain.granite.kind !== "unsunk") {
+  if (!partThreeOn() || levelSunk(mountain, "granite")) {
     return undefined;
   }
   if (!shaftOpen(mountain)) {

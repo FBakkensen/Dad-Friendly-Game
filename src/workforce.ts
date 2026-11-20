@@ -84,7 +84,7 @@ type Crew = Pick<Mountain, "owned" | "jobs">;
  * every other from the first evening.
  */
 export function jobOpen(
-  mountain: Pick<Mountain, "operational" | "granite">,
+  mountain: Pick<Mountain, "operational" | "mineLevels">,
   job: JobId,
 ): boolean {
   if (job === "graniteDrilling" || job === "graniteHaulage") {
@@ -101,7 +101,7 @@ export function jobOpen(
  * crews counts (rule 5.2). With it shut, the Topsoil's alone.
  */
 export function haulageWorkers(
-  mountain: Pick<Mountain, "jobs" | "granite">,
+  mountain: Pick<Mountain, "jobs" | "mineLevels">,
 ): number {
   const { haulage, graniteHaulage } = mountain.jobs;
   return graniteOpen(mountain) ? haulage + graniteHaulage : haulage;
@@ -326,7 +326,7 @@ function lineOf(stages: StageSpeeds, granite: LevelStages | undefined): number {
  * haulage work beside the Topsoil's, at the same tier speeds (rule 5.2).
  */
 export function lineWork(
-  mountain: Pick<Mountain, "owned" | "jobs" | "granite">,
+  mountain: Pick<Mountain, "owned" | "jobs" | "mineLevels">,
   speed: Readonly<Record<TierId, number>>,
 ): LineWork {
   const works = stageWorks(mountain, speed);
@@ -388,7 +388,7 @@ function toolShare(stage: Stage): number {
  * haulage and the shaft's hoisting: what runs, the tools, what it moves.
  */
 export function stageWorks(
-  mountain: Pick<Mountain, "owned" | "jobs" | "granite">,
+  mountain: Pick<Mountain, "owned" | "jobs" | "mineLevels">,
   speed: Readonly<Record<TierId, number>>,
 ): Readonly<Record<Stage, StageWork>> {
   return {
@@ -403,7 +403,7 @@ export function stageWorks(
 
 /** A level's drilling and haulage: that level's workers on its own machines. */
 export function levelWorks(
-  mountain: Pick<Mountain, "owned" | "jobs" | "granite">,
+  mountain: Pick<Mountain, "owned" | "jobs" | "mineLevels">,
   speed: Readonly<Record<TierId, number>>,
   level: MineLevelId,
 ): Readonly<Record<LevelStage, StageWork>> {
@@ -422,7 +422,7 @@ export function levelWorks(
  * are every one he owns, for the one shaft.
  */
 export function stageMachines(
-  mountain: Pick<Mountain, "owned" | "granite">,
+  mountain: Pick<Mountain, "owned" | "mineLevels">,
   speed: Readonly<Record<TierId, number>>,
   stage: Stage,
   level: MineLevelId = "topsoil",

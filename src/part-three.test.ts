@@ -55,10 +55,11 @@ const night = (mountain: Mountain, awayMs: number) =>
 
 /** The Granite's piles on a mountain whose shaft is sunk. */
 function granitePilesOf(mountain: Mountain): GranitePiles {
-  if (mountain.granite.kind !== "sunk") {
+  const granite = mountain.mineLevels.granite;
+  if (granite === undefined) {
     throw new Error("the shaft is not sunk");
   }
-  return mountain.granite.piles;
+  return granite.piles;
 }
 
 /** Every rock waiting in a pile, on both levels. */
@@ -210,10 +211,12 @@ describe("the Granite's rock (rules 3 and 5, #673)", () => {
         expect(after.jobs).toEqual(start.jobs);
         expect(after.owned).toEqual(start.owned);
         expect(after.makers).toEqual(start.makers);
-        expect(after.granite.kind).toBe("sunk");
-        expect(
-          after.granite.kind === "sunk" ? after.granite.machines : undefined,
-        ).toEqual({ ...NO_LEVEL_MACHINES, cart: 1, drill: 1 });
+        expect(after.mineLevels.granite).toBeDefined();
+        expect(after.mineLevels.granite?.machines).toEqual({
+          ...NO_LEVEL_MACHINES,
+          cart: 1,
+          drill: 1,
+        });
         // The mine did work: the move-freeze is not a mine that stood.
         expect(after.rockDug).toBeGreaterThan(start.rockDug);
       }
@@ -670,7 +673,7 @@ describe("parts 1 and 2 do not change (#673)", () => {
       ]) {
         const deep = run(sunk);
         const shallow = run(unsunk);
-        expect(deep.mountain.granite).toEqual(sunk.granite);
+        expect(deep.mountain.mineLevels).toEqual(sunk.mineLevels);
         expect(deep.mined).toBeGreaterThan(0);
         expect(deep.mined).toBe(shallow.mined);
         expect(deep.mountain.stock).toEqual(shallow.mountain.stock);

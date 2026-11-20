@@ -101,7 +101,7 @@ describe("the lab plays part 3 (#675)", { timeout: 900_000 }, () => {
           "warehouse",
           "foundry",
         ]);
-        expect(mountain.granite.kind, policy.id).toBe("sunk");
+        expect(mountain.mineLevels.granite, policy.id).toBeDefined();
         expect(mountain.makers.saw, policy.id).toBeGreaterThan(0);
         expect(mountain.jobs.saws, policy.id).toBe(mountain.makers.saw);
       }

@@ -3,7 +3,7 @@ import { runStartedAt, type Mountain } from "./mountain";
 import { serializeSave } from "./persist";
 import { compareSaveProgress, type SaveMoment } from "./save-progress";
 import { MAKER_IDS } from "./makers";
-import { LEVEL_MACHINE_IDS } from "./mine-levels";
+import { LEVEL_MACHINE_IDS, levelSunk } from "./mine-levels";
 import { GOOD_IDS } from "./stock";
 import { TIER_IDS } from "./tiers";
 import { VEHICLE_IDS } from "./transport";
@@ -196,7 +196,7 @@ function facts(mountain: Mountain): Facts {
     city: cityProgress(mountain),
     owned: ownedCounts(mountain),
     stockyard: mountain.stockyard,
-    shaft: mountain.granite.kind === "sunk" ? 1 : 0,
+    shaft: levelSunk(mountain, "granite") ? 1 : 0,
   };
 }
 
@@ -230,8 +230,8 @@ function ownedCounts(mountain: Mountain): Record<string, number> {
   for (const id of MAKER_IDS) {
     owned[`maker:${id}`] = mountain.makers[id];
   }
-  const { granite } = mountain;
-  if (granite.kind === "sunk") {
+  const granite = mountain.mineLevels.granite;
+  if (granite !== undefined) {
     for (const id of LEVEL_MACHINE_IDS) {
       owned[id] = mountain.owned[id] - granite.machines[id];
       owned[`granite:${id}`] = granite.machines[id];

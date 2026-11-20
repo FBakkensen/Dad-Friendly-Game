@@ -360,10 +360,11 @@ describe("listActions", () => {
     withFactors({ [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 }, () => {
       const sunk: Mountain = {
         ...lockedMachine,
-        granite: {
-          kind: "sunk",
-          machines: NO_LEVEL_MACHINES,
-          piles: NO_GRANITE_PILES,
+        mineLevels: {
+          granite: {
+            machines: NO_LEVEL_MACHINES,
+            piles: NO_GRANITE_PILES,
+          },
         },
       };
       expect(tiers(sunk)).toContain("borer");
@@ -505,10 +506,11 @@ describe("listActions", () => {
       const sunk: Mountain = {
         ...lit,
         owned: { ...lit.owned, hoist: 2 },
-        granite: {
-          kind: "sunk",
-          machines: NO_LEVEL_MACHINES,
-          piles: NO_GRANITE_PILES,
+        mineLevels: {
+          granite: {
+            machines: NO_LEVEL_MACHINES,
+            piles: NO_GRANITE_PILES,
+          },
         },
         cages: {
           ...lit.cages,
@@ -617,10 +619,11 @@ describe("applyAction", () => {
         ...fresh,
         owned: { ...fresh.owned, drill: 1, helper: 8 },
         stock: { ...fresh.stock, stones: 1e12, cutStone: 1e9 },
-        granite: {
-          kind: "sunk",
-          machines: NO_LEVEL_MACHINES,
-          piles: NO_GRANITE_PILES,
+        mineLevels: {
+          granite: {
+            machines: NO_LEVEL_MACHINES,
+            piles: NO_GRANITE_PILES,
+          },
         },
       };
       const bought = applyAction(funded, { kind: "buyTier", id: "borer" }, NOW);

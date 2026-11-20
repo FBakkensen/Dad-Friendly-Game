@@ -54,10 +54,11 @@ function sunk({
     fleet: { ...start.fleet, horseWagon: wagons },
     stock: { ...EMPTY_STOCK, ...stock },
     operational: ["lightTower", "warehouse"],
-    granite: {
-      kind: "sunk",
-      machines: NO_LEVEL_MACHINES,
-      piles: NO_GRANITE_PILES,
+    mineLevels: {
+      granite: {
+        machines: NO_LEVEL_MACHINES,
+        piles: NO_GRANITE_PILES,
+      },
     },
     crafted: { ...NOTHING_CRAFTED, ...crafted },
     clocks: { ...start.clocks, ...clocks },

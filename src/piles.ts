@@ -789,3 +789,22 @@ export function flowBranchesWhole(
   }
   return wholes;
 }
+
+/**
+ * Deterministic whole-unit quota for one discrete tick `tickIndex` at continuous
+ * `rate` units/s (Bresenham stepping with ULP-scaled epsilon for real epoch
+ * timestamps), shared by live mine cages and live transport/builders (#766).
+ */
+export function stepQuota(rate: number, tickIndex: number): number {
+  if (rate <= 0) {
+    return 0;
+  }
+  if (Number.isInteger(rate)) {
+    return rate;
+  }
+  const hi = (tickIndex + 1) * rate;
+  const lo = tickIndex * rate;
+  const hiEps = Math.max(1e-9, Math.abs(hi) * 4 * Number.EPSILON);
+  const loEps = Math.max(1e-9, Math.abs(lo) * 4 * Number.EPSILON);
+  return Math.max(0, Math.floor(hi + hiEps) - Math.floor(lo + loEps));
+}

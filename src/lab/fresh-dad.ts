@@ -997,7 +997,7 @@ function mineKey(
     mountain.makers,
     mountain.fleet,
     mountain.cages.assigned,
-    mountain.granite.kind === "sunk" ? mountain.granite.machines : 0,
+    mountain.mineLevels.granite?.machines ?? 0,
     mountain.upgrades,
     mountain.stockyard,
     mountain.operational,

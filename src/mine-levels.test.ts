@@ -5,7 +5,7 @@ import {
   LEVEL_MACHINE_IDS,
   NO_GRANITE_PILES,
   NO_LEVEL_MACHINES,
-  UNSUNK,
+  NO_MINE_LEVELS,
   graniteOpen,
   levelMachines,
   openLevels,
@@ -36,10 +36,11 @@ function lit(stock: Partial<Stock> = {}): Mountain {
 
 const sunk = (machines: Partial<typeof NO_LEVEL_MACHINES>): Mountain => ({
   ...createMountain(),
-  granite: {
-    kind: "sunk",
-    machines: { ...NO_LEVEL_MACHINES, ...machines },
-    piles: NO_GRANITE_PILES,
+  mineLevels: {
+    granite: {
+      machines: { ...NO_LEVEL_MACHINES, ...machines },
+      piles: NO_GRANITE_PILES,
+    },
   },
 });
 
@@ -63,7 +64,9 @@ describe("the shaft (rule 1.3, 1.4, 5.4)", () => {
     partThree(() => {
       expect(shaftOpen(lit())).toBe(true);
       expect(shaftOpen(createMountain())).toBe(false);
-      expect(shaftOpen({ ...lit(), granite: sunk({}).granite })).toBe(false);
+      expect(shaftOpen({ ...lit(), mineLevels: sunk({}).mineLevels })).toBe(
+        false,
+      );
     });
     partTwo(() => {
       expect(shaftOpen(lit())).toBe(false);
@@ -77,8 +80,7 @@ describe("the shaft (rule 1.3, 1.4, 5.4)", () => {
       const after = sinkShaft(before);
       expect(after.stock.stones).toBe(5);
       expect(after.stock.brick).toBe(0);
-      expect(after.granite).toEqual({
-        kind: "sunk",
+      expect(after.mineLevels.granite).toEqual({
         machines: NO_LEVEL_MACHINES,
         piles: NO_GRANITE_PILES,
       });
@@ -128,7 +130,7 @@ describe("the shaft (rule 1.3, 1.4, 5.4)", () => {
   });
 
   it("starts every fresh mine unsunk", () => {
-    expect(createMountain().granite).toEqual(UNSUNK);
+    expect(createMountain().mineLevels).toEqual(NO_MINE_LEVELS);
   });
 });
 

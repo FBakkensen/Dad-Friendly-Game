@@ -78,10 +78,11 @@ function yard({
     stock: { ...EMPTY_STOCK, ...stock },
     operational: ["lightTower"],
     stockyard: 3,
-    granite: {
-      kind: "sunk",
-      machines: NO_LEVEL_MACHINES,
-      piles: NO_GRANITE_PILES,
+    mineLevels: {
+      granite: {
+        machines: NO_LEVEL_MACHINES,
+        piles: NO_GRANITE_PILES,
+      },
     },
     project,
     station,

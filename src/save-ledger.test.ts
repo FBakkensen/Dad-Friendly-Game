@@ -2,7 +2,11 @@ import fc from "fast-check";
 import { NO_JOBS } from "./workforce";
 import { describe, expect, it } from "vitest";
 import type { CageTrips } from "./cages";
-import { NO_GRANITE_PILES, NO_LEVEL_MACHINES, UNSUNK } from "./mine-levels";
+import {
+  NO_GRANITE_PILES,
+  NO_LEVEL_MACHINES,
+  NO_MINE_LEVELS,
+} from "./mine-levels";
 import { accrue, createMountain, type Mountain } from "./mountain";
 import { levels, partThree } from "./part-three.harness";
 import { partThreeOn } from "./part-switch";
@@ -35,6 +39,10 @@ const LEDGER = {
     "makers",
     "stockyard",
     "granite",
+    "pithead",
+    "makerBuffers",
+    "cycleMicros",
+    "assignedRuns",
     "station",
     "cages",
   ],
@@ -155,12 +163,28 @@ const LEDGER = {
     expeditionMs: 14400000,
     craftMs: 14400000,
     siteHolds: 500,
+    siteGoodCap: 500,
+    cycleMicros: 999999,
     stockyard: 18,
   },
   granite: {
     machines: ["cart", "drill", "borer", "train"],
     piles: ["face", "shaft", "saw"],
   },
+  pithead: ["topsoil", "granite"],
+  makerBuffers: {
+    kiln: ["topsoilRock"],
+    saw: ["graniteRock"],
+  },
+  cycleMicros: ["kiln", "saw"],
+  assignedRuns: [
+    "pitToStockyardStones",
+    "pitTopsoilToKilns",
+    "pitGraniteToSaws",
+    "stockToCity:stones",
+    "stockToCity:brick",
+    "stockToCity:cutStone",
+  ],
   station: {
     blueprints: [
       "iron-rails",
@@ -202,6 +226,10 @@ describe("the ledger of what has shipped (#558)", () => {
       Object.keys(facts.tripFinds),
       ...Object.values(facts.tripFinds),
       ...Object.values(facts.granite),
+      facts.pithead,
+      ...Object.values(facts.makerBuffers),
+      facts.cycleMicros,
+      facts.assignedRuns,
       ...Object.values(facts.station),
       ...Object.values(facts.cages),
     ];
@@ -323,10 +351,11 @@ describe("part 3's facts in the save (#673)", () => {
       saws: 1,
     },
     makers: { kiln: 1, saw: 2 },
-    granite: {
-      kind: "sunk",
-      machines: { cart: 1, drill: 2, borer: 0, train: 1 },
-      piles: { face: 50, shaft: 4, saw: 12 },
+    mineLevels: {
+      granite: {
+        machines: { cart: 1, drill: 2, borer: 0, train: 1 },
+        piles: { face: 50, shaft: 4, saw: 12 },
+      },
     },
   };
   const throughJson = (mountain: Mountain) =>
@@ -352,17 +381,20 @@ describe("part 3's facts in the save (#673)", () => {
   it("saves a sunk Granite with nothing on it as an empty map, and none while unsunk", () => {
     const bare: Mountain = {
       ...start,
-      granite: {
-        kind: "sunk",
-        machines: NO_LEVEL_MACHINES,
-        piles: NO_GRANITE_PILES,
+      mineLevels: {
+        granite: {
+          machines: NO_LEVEL_MACHINES,
+          piles: NO_GRANITE_PILES,
+        },
       },
     };
     expect(writeGame(bare).granite).toEqual({});
     expect(throughJson(bare)).toEqual({ kind: "ok", mountain: bare });
     expect(writeGame(createMountain())).not.toHaveProperty("granite");
     const empty = readGame({}, 0);
-    expect(empty.kind === "ok" && empty.mountain.granite).toEqual(UNSUNK);
+    expect(empty.kind === "ok" && empty.mountain.mineLevels).toEqual(
+      NO_MINE_LEVELS,
+    );
   });
 
   it("writes a part 2 save's game map as before", () => {
@@ -447,8 +479,7 @@ describe("part 3's facts in the save (#673)", () => {
 
   it("reads a pile past the room this build allows: it is full (ruling 2 of #703)", () => {
     const read = readGame({ granite: { piles: { face: 9_000_000 } } }, 0);
-    expect(read.kind === "ok" && read.mountain.granite).toEqual({
-      kind: "sunk",
+    expect(read.kind === "ok" && read.mountain.mineLevels.granite).toEqual({
       machines: NO_LEVEL_MACHINES,
       piles: { face: 9_000_000, shaft: 0, saw: 0 },
     });
@@ -469,10 +500,11 @@ describe("the factory's work order and the Granite's rock in the save (#674)", (
     ...createMountain(),
     rockDug: 5_000_000,
     graniteDug: 2_000_000,
-    granite: {
-      kind: "sunk",
-      machines: NO_LEVEL_MACHINES,
-      piles: NO_GRANITE_PILES,
+    mineLevels: {
+      granite: {
+        machines: NO_LEVEL_MACHINES,
+        piles: NO_GRANITE_PILES,
+      },
     },
   });
   const back = (mountain: Mountain): Mountain | undefined => {
@@ -685,9 +717,7 @@ describe("the cages in the save (#724)", () => {
         expect(after.stock.stones).toBe(start.stock.stones + 250);
       } else {
         expect(after.stock.stones).toBe(start.stock.stones);
-        expect(after.granite.kind === "sunk" && after.granite.piles.saw).toBe(
-          250,
-        );
+        expect(after.mineLevels.granite?.piles.saw).toBe(250);
       }
       // The rock was dug before: unloading it is not digging.
       expect(after.rockDug).toBe(start.rockDug);

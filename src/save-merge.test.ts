@@ -4,7 +4,7 @@ import { placeOrder } from "./city";
 import {
   NO_GRANITE_PILES,
   NO_LEVEL_MACHINES,
-  type Granite,
+  type MineLevels,
 } from "./mine-levels";
 import { createMountain, type Mountain } from "./mountain";
 import { minedMountain } from "./test-fixtures";
@@ -282,21 +282,22 @@ describe("mergeSaves in a fresh mine (#664)", () => {
     expect(merged.kind === "fast-forward" && merged.mountain).toBe(bigger);
   });
 
-  const sunk = (machines = NO_LEVEL_MACHINES): Granite => ({
-    kind: "sunk",
-    machines,
-    piles: NO_GRANITE_PILES,
+  const sunk = (machines = NO_LEVEL_MACHINES): MineLevels => ({
+    granite: {
+      machines,
+      piles: NO_GRANITE_PILES,
+    },
   });
 
   it("is a conflict when the copy with more rock never sank the shaft (#673)", () => {
-    const shaft = dug(1_000, { granite: sunk() });
+    const shaft = dug(1_000, { mineLevels: sunk() });
     const more = dug(1_200);
     expect(mergeSaves(copy(shaft, 2), copy(more, 3)).kind).toBe("conflict");
     expect(mergeSaves(copy(more, 2), copy(shaft, 3)).kind).toBe("conflict");
   });
 
   it("fast-forwards a sunk shaft with the same rock dug (#673)", () => {
-    const shaft = dug(1_000, { granite: sunk() });
+    const shaft = dug(1_000, { mineLevels: sunk() });
     const merged = mergeSaves(copy(dug(1_000), 2), copy(shaft, 3));
     expect(merged.kind === "fast-forward" && merged.mountain).toBe(shaft);
   });
@@ -305,9 +306,9 @@ describe("mergeSaves in a fresh mine (#664)", () => {
     const owned = { ...start.owned, borer: 2 };
     const onGranite = dug(1_000, {
       owned,
-      granite: sunk({ ...NO_LEVEL_MACHINES, borer: 1 }),
+      mineLevels: sunk({ ...NO_LEVEL_MACHINES, borer: 1 }),
     });
-    const onTopsoil = dug(1_200, { owned, granite: sunk() });
+    const onTopsoil = dug(1_200, { owned, mineLevels: sunk() });
     expect(mergeSaves(copy(onGranite, 2), copy(onTopsoil, 3)).kind).toBe(
       "conflict",
     );
@@ -321,11 +322,11 @@ describe("mergeSaves in a fresh mine (#664)", () => {
     const owned = { ...start.owned, borer: 2 };
     const before = dug(1_000, {
       owned: { ...owned, borer: 1 },
-      granite: sunk(),
+      mineLevels: sunk(),
     });
     const after = dug(1_200, {
       owned,
-      granite: sunk({ ...NO_LEVEL_MACHINES, borer: 1 }),
+      mineLevels: sunk({ ...NO_LEVEL_MACHINES, borer: 1 }),
     });
     const merged = mergeSaves(copy(before, 2), copy(after, 3));
     expect(merged.kind === "fast-forward" && merged.mountain).toBe(after);
@@ -333,7 +334,7 @@ describe("mergeSaves in a fresh mine (#664)", () => {
 
   it("settles copies that differ only in hoists assigned or rock carried as copies that differ only in jobs (#724)", () => {
     const owned = { ...start.owned, helper: 1, hoist: 2 };
-    const base = dug(1_000, { owned, granite: sunk() });
+    const base = dug(1_000, { owned, mineLevels: sunk() });
     const assigned = {
       ...base,
       cages: { ...base.cages, assigned: { topsoil: 1, granite: 1 } },

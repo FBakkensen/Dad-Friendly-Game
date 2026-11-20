@@ -37,3 +37,16 @@ export const PLAY_FACTORS: Readonly<Record<string, 0>> = Object.freeze({
 export function partThreeOn(): boolean {
   return partTwoOn() && factor(PART_THREE_OFF) === 0;
 }
+
+/**
+ * The sweep factor that switches slice 2's part 1 (#766): generalized
+ * mineLevels, pithead buffers with zero Stone bypass, single-good physical
+ * transport runs (even share), per-good SITE_GOOD_CAP, cycleMicros, and the
+ * coupled-stretch solver. Off in play (1) until part 1 switches on (#769).
+ */
+export const SLICE_2_PART_1_OFF = "slice2Part1.off";
+
+/** True when slice 2 part 1's rules play: stands on slice 1 part 3. */
+export function slice2Part1On(): boolean {
+  return partThreeOn() && factor(SLICE_2_PART_1_OFF) === 0;
+}

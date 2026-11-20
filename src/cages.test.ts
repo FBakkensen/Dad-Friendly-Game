@@ -447,7 +447,7 @@ function sunkMine(owned: Partial<Record<TierId, number>> = {}): Mountain {
       operational: ["lightTower"],
       stock: { ...fresh.stock, stones: 10_000_000, brick: 1_500_000 },
     });
-    expect(sunk.granite.kind).toBe("sunk");
+    expect(sunk.mineLevels.granite).toBeDefined();
     return { ...sunk, owned: { ...sunk.owned, ...owned } };
   });
 }

@@ -56,10 +56,11 @@ const PART_THREE_ON = { [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 };
 /** The mountain with the shaft sunk, as `sinkShaft` leaves it. */
 const sunk = (mountain: Mountain): Mountain => ({
   ...mountain,
-  granite: {
-    kind: "sunk",
-    machines: NO_LEVEL_MACHINES,
-    piles: NO_GRANITE_PILES,
+  mineLevels: {
+    granite: {
+      machines: NO_LEVEL_MACHINES,
+      piles: NO_GRANITE_PILES,
+    },
   },
 });
 
@@ -696,7 +697,9 @@ describe("each level's work (rule 5.1, 5.2, #673)", () => {
         train: topsoil.train + granite.train,
         hoist: setup.hoists ?? 0,
       },
-      granite: { kind: "sunk", machines: granite, piles: NO_GRANITE_PILES },
+      mineLevels: {
+        granite: { machines: granite, piles: NO_GRANITE_PILES },
+      },
     };
   }
 
@@ -890,7 +893,7 @@ describe("each level's work (rule 5.1, 5.2, #673)", () => {
             granite: { cart: graniteCart, drill: graniteDrill },
             hoists: hoist,
           });
-          const unsunk: Mountain = { ...sunkMine, granite: { kind: "unsunk" } };
+          const unsunk: Mountain = { ...sunkMine, mineLevels: {} };
           const shut = { face: 0, haul: 0 };
           for (const [run, mountain] of [
             [partThree, unsunk],

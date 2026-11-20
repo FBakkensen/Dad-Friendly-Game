@@ -416,7 +416,7 @@ function needMovesKept(mountain: Mountain): Plan {
     mountain.makers,
     mountain.fleet,
     mountain.cages.assigned,
-    mountain.granite.kind === "sunk" ? mountain.granite.machines : 0,
+    mountain.mineLevels.granite?.machines ?? 0,
     mountain.upgrades,
     mountain.project.kind,
     mountain.project.kind === "unordered" ? 0 : mountain.project.site.step,

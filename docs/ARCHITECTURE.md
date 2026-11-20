@@ -292,10 +292,9 @@ paths are read-only.
   `engineers` (post `"tunnel"` while away), `expeditions` (each with the
   `home` post), `bench`, `fleet` (by vehicle id, #654), `jobs` (workers by job,
   #689), `piles` (the drilled rock, the rock at the shaft and the rock at the
-  kilns, whole and with no upper bound, #703, #666), `makers` (by maker id,
-  #666), `stockyard` (its level, a whole number up to the ledger's `stockyard` cap, #666), `granite` (`machines` and `piles`, the Granite's share of each level machine and its three piles; written only once the shaft is sunk, `{}` with nothing on it, #673), `cages` (`assigned`, the hoists assigned to each level, never more than he owns together, and `carried`, what the cages carry by level and not where they are; each left out while all zero, #724) and `project` (the
+  kilns, whole and with no upper bound, #703, #666), `makers` (by maker id, #666), `stockyard` (its level, a whole number up to the ledger's `stockyard` cap, #666), `granite` (`machines` and `piles`, the Granite's share of each level machine and its three piles; written only once the shaft is sunk, `{}` with nothing on it, #673; loaded into `mineLevels.granite` and kept on the version 10 wire until the version 11 reset in #769 renames it to `mineLevels`), `pithead` (pithead rock awaiting physical transport by level, uncapped whole counts, refused on an unsunk level, #766), `makerBuffers` (finite per-maker input buffers by maker and input id, refused on an unsunk level, #766), `cycleMicros` (persisted integer micro-cycles `0..999_999` per maker, refused on an unsunk level, #766), `assignedRuns` (dedicated vehicles per single-good run, reserved for Slice 2 Part 3 and validated `sum <= fleetSize`, #766), `cages` (`assigned`, the hoists assigned to each level, never more than he owns together, and `carried`, what the cages carry by level and not where they are; each left out while all zero, #724) and `project` (the
   building, `state` `delivering` or `onHold`, `step` 0 to 2, the goods
-  `arrived` and what of them is `onSite`, not yet built in (#690); left out
+  `arrived` and what of them is `onSite`, not yet built in (#690), bounded per good by `SITE_GOOD_CAP` (#766); left out
   while nothing is ordered), with `operational` buildings in `marks`. A
   project for a building that already stands or is not the next one, a step
   past the roof, more on the site than arrived or than it holds, or a step

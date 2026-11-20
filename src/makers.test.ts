@@ -178,10 +178,11 @@ describe("the saws (#673)", () => {
   const sunk = (stock: Partial<Mountain["stock"]> = {}): Mountain => ({
     ...lit(0),
     stock: { ...lit(0).stock, ...stock },
-    granite: {
-      kind: "sunk",
-      machines: NO_LEVEL_MACHINES,
-      piles: NO_GRANITE_PILES,
+    mineLevels: {
+      granite: {
+        machines: NO_LEVEL_MACHINES,
+        piles: NO_GRANITE_PILES,
+      },
     },
   });
 

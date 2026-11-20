@@ -2,18 +2,21 @@ import type { CageTrips, HoistsAssigned } from "./cages";
 import type { Project } from "./city";
 import { withFactors } from "./economy/factors";
 import {
+  EMPTY_PITHEAD,
   NO_GRANITE_PILES,
   NO_LEVEL_MACHINES,
+  NO_MINE_LEVELS,
   shaftPrice,
   sinkShaft,
-  type Granite,
   type GranitePiles,
   type LevelMachines,
+  type Pithead,
+  type SunkLevel,
 } from "./mine-levels";
 import type { MinePiles } from "./mine-piles";
 import { createMountain, type Mountain } from "./mountain";
 import type { Jobs } from "./workforce";
-import { PART_TWO_OFF, PLAY_FACTORS } from "./part-switch";
+import { PART_TWO_OFF, PLAY_FACTORS, SLICE_2_PART_1_OFF } from "./part-switch";
 import { EMPTY_STOCK, type GoodId, type Stock } from "./stock";
 
 /**
@@ -30,6 +33,16 @@ export const partThree = <T>(
   body: () => T,
   knobs: Readonly<Record<string, number>> = {},
 ): T => withFactors({ ...PART_THREE_FACTORS, ...knobs }, body);
+
+/** Slice 2 Part 1 on (physical transport, pithead buffers, coupled stretches), plus any knobs. */
+export const slice2Part1 = <T>(
+  body: () => T,
+  knobs: Readonly<Record<string, number>> = {},
+): T =>
+  withFactors(
+    { ...PART_THREE_FACTORS, [SLICE_2_PART_1_OFF]: 0, ...knobs },
+    body,
+  );
 
 /**
  * The knobs that put part 3's stages back as #724 built the cages on (#675
@@ -73,6 +86,7 @@ export type Setup = {
   readonly onSaws?: number;
   readonly piles?: Partial<MinePiles>;
   readonly granitePiles?: Partial<GranitePiles>;
+  readonly pithead?: Partial<Pithead>;
   readonly machines?: Partial<LevelMachines>;
   readonly sunk?: boolean;
   readonly stock?: Partial<Stock>;
@@ -81,12 +95,14 @@ export type Setup = {
   readonly building?: number;
   /** The buildings up: the Light Tower by default, so the stockyard is open. */
   readonly operational?: Mountain["operational"];
+  /** Fleet vehicles owned (in addition to given vehicles if omitted, or exact override when provided). */
+  readonly fleet?: Partial<Mountain["fleet"]>;
   /** Jobs staffed on their own, over the counts above (each level's drilling apart from its haulage). */
   readonly jobs?: Partial<Jobs>;
 };
 
 /** The Granite as `sinkShaft` sinks it, with these machines and piles. */
-function sunkGranite(machines: LevelMachines, piles: GranitePiles): Granite {
+function sunkGranite(machines: LevelMachines, piles: GranitePiles): SunkLevel {
   const sunk = partThree(() => {
     const start = createMountain();
     const stock: Record<GoodId, number> = { ...EMPTY_STOCK };
@@ -94,8 +110,8 @@ function sunkGranite(machines: LevelMachines, piles: GranitePiles): Granite {
       stock[good] = amount;
     }
     return sinkShaft({ ...start, stock, operational: ["lightTower"] });
-  }).granite;
-  if (sunk.kind !== "sunk") {
+  }).mineLevels.granite;
+  if (sunk === undefined) {
     throw new Error("the harness could not sink the shaft");
   }
   return { ...sunk, machines, piles };
@@ -115,6 +131,7 @@ export function levels({
   onSaws = saws,
   piles = {},
   granitePiles = {},
+  pithead = {},
   machines = {},
   sunk = true,
   stock = {},
@@ -122,6 +139,7 @@ export function levels({
   driving = 0,
   building = 0,
   operational = ["lightTower"],
+  fleet = {},
   jobs = {},
 }: Setup): Mountain {
   const start = createMountain();
@@ -148,13 +166,15 @@ export function levels({
       drill: start.owned.drill + own.drill,
       hoist: start.owned.hoist + hoists,
     },
+    fleet: { ...start.fleet, ...fleet },
     jobs: staffed,
     stock: { ...EMPTY_STOCK, ...stock },
     makers: { kiln: kilns, saw: saws },
     piles: { face: 0, shaft: 0, kiln: 0, ...piles },
-    granite: sunk
-      ? sunkGranite(own, { ...NO_GRANITE_PILES, ...granitePiles })
-      : { kind: "unsunk" },
+    pithead: { ...EMPTY_PITHEAD, ...pithead },
+    mineLevels: sunk
+      ? { granite: sunkGranite(own, { ...NO_GRANITE_PILES, ...granitePiles }) }
+      : NO_MINE_LEVELS,
     cages: {
       ...start.cages,
       assigned: { ...start.cages.assigned, ...assigned },

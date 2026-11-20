@@ -41,7 +41,11 @@ describe("the game map (#558)", () => {
       stockyard: "stockyard",
       rockDug: "run",
       graniteDug: "run",
-      granite: "granite",
+      mineLevels: "granite",
+      pithead: "pithead",
+      makerBuffers: "makerBuffers",
+      cycleMicros: "cycleMicros",
+      assignedRuns: "assignedRuns",
       station: "station",
       cages: "cages",
     } as const satisfies Record<keyof Mountain, string>;
@@ -110,11 +114,16 @@ describe("the game map (#558)", () => {
       stockyard: 1,
       rockDug: 12_345,
       graniteDug: 2_345,
-      granite: {
-        kind: "sunk",
-        machines: { cart: 1, drill: 0, borer: 1, train: 0 },
-        piles: { face: 5, shaft: 0, saw: 3 },
+      mineLevels: {
+        granite: {
+          machines: { cart: 1, drill: 0, borer: 1, train: 0 },
+          piles: { face: 5, shaft: 0, saw: 3 },
+        },
       },
+      pithead: { topsoil: 15, granite: 8 },
+      makerBuffers: { kiln: { topsoilRock: 20 }, saw: { graniteRock: 12 } },
+      cycleMicros: { kiln: 250_000, saw: 125_000 },
+      assignedRuns: { pitToStockyardStones: 1, pitTopsoilToKilns: 1 },
       station: {
         kind: "delivering",
         blueprint: "sturdy-props",
