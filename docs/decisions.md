@@ -69,6 +69,7 @@ The design is `docs/superpowers/specs/2026-11-19-slice-2-design.md` (#763, #764)
 - **19 Nov 2026: Transport and Research on the phone** (Option 1). Transport moves out of the City page to a global sheet (sibling to Workforce), keeping the bottom site bar at 4 tabs (`Mine · Refinery · Factory · City`). Research opens from its City building (**The Research Lab**).
 - **19 Nov 2026: uniform multi-input production chain** (Option 1 + multi-input rule). Retire the small-cap clay/iron trickle bins so all five goods (`Stone`, `Brick`, `Cut stone`, `Glass`, `Parts`) share one stockyard and transport network. Both Refinery makers (starting with Glassworks) and, more prominently, Factory lines take multiple inputs with separate input buffers.
 - **19 Nov 2026: Slice 2 City buildings & prototype** (Option 1 + "Continue"). The Foundry opens Crystal Caves, Glassworks, and the steady-flow Factory; Building 4 (**The Research Lab**) opens Research as the single home for all lasting upgrades and gear; Building 5 (**The Rail Depot**) opens Trains and ends Slice 2. Answered the tappable Slice 2 prototype (`prototypes/slice-2/proto.src.html`) with "Continue".
+- **20 Nov 2026: physical `Mine → Stockyard` Stone run, no bypass** (PR `#765`, Option 1). Raw rock lifted from a mine level lands strictly in its pithead buffer and travels to the Stone stockpile via its own physical transport run (`pitToStockyardStones`) from Evening 1—keeping `#762` ("every movement between sites goes by transport") completely consistent with zero bypass exceptions.
 
 ## Art
 
