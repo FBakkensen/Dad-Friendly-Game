@@ -1,0 +1,3514 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>
+      Slice 2 Prototype — Crystal Caves, Transport Runs &amp; Factory/Research
+    </title>
+    <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+    <style>
+      /* Authentic industrial enamel display inside the 424px phone mockup */
+      .phone-shell {
+        width: 424px;
+        height: 820px;
+        background: #14181d;
+        color: #ece3cf;
+        border: 3px solid #353f4a;
+        border-radius: 22px;
+        box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+        overflow: hidden;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        font-family:
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          "Segoe UI",
+          Roboto,
+          sans-serif;
+        user-select: none;
+        -webkit-user-select: none;
+      }
+      .mono {
+        font-family:
+          ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-variant-numeric: tabular-nums;
+      }
+      .enamel-dark {
+        background: #0d1014;
+      }
+      .enamel-panel {
+        background: #181e25;
+      }
+      .enamel-card {
+        background: #1e252e;
+      }
+      .enamel-edge {
+        border-color: #2c3540;
+      }
+      .amber {
+        color: #f2b441;
+      }
+      .green {
+        color: #6fd66a;
+      }
+      .red {
+        color: #e2552d;
+      }
+      .blue {
+        color: #67b2f5;
+      }
+      .cyan {
+        color: #6ee7e7;
+      }
+      .quiet {
+        color: #9ea399;
+      }
+
+      .step-btn {
+        width: 34px;
+        height: 30px;
+        background: #252d37;
+        border: 1px solid #3b4754;
+        color: #ece3cf;
+        font-weight: 700;
+        font-size: 16px;
+        line-height: 1;
+        border-radius: 4px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+      }
+      .step-btn:hover:not(:disabled) {
+        background: #313c49;
+        border-color: #f2b441;
+      }
+      .step-btn:active:not(:disabled) {
+        transform: translateY(1px);
+      }
+      .step-btn:disabled {
+        opacity: 0.35;
+        cursor: default;
+      }
+
+      .buy-btn {
+        background: #233328;
+        border: 1px solid #498752;
+        color: #d9ffd2;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      .buy-btn:hover:not(:disabled) {
+        background: #2c4333;
+        border-color: #6fd66a;
+      }
+      .buy-btn:disabled {
+        background: #1d232b;
+        border-color: #2c3540;
+        color: #777e78;
+        cursor: default;
+      }
+
+      .action-btn {
+        background: #292418;
+        border: 1px solid #b5842c;
+        color: #ffe3a3;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      .action-btn:hover:not(:disabled) {
+        background: #3a321e;
+        border-color: #f2b441;
+      }
+      .action-btn:disabled {
+        background: #1d232b;
+        border-color: #2c3540;
+        color: #777e78;
+        cursor: default;
+      }
+
+      .buf-track {
+        height: 5px;
+        background: #0c0f13;
+        border-radius: 2px;
+        overflow: hidden;
+      }
+      .buf-fill {
+        height: 100%;
+        transition: width 0.1s linear;
+      }
+
+      .lamp {
+        width: 8px;
+        height: 8px;
+        border-radius: 9999px;
+        display: inline-block;
+        background: #2c3540;
+      }
+      .lamp.green {
+        background: #6fd66a;
+        box-shadow: 0 0 6px #6fd66a;
+      }
+      .lamp.amber {
+        background: #f2b441;
+        box-shadow: 0 0 6px #f2b441;
+      }
+      .lamp.red {
+        background: #e2552d;
+        box-shadow: 0 0 6px #e2552d;
+      }
+
+      .site-tab {
+        flex: 1;
+        background: #1a2027;
+        border: 2px solid #2b333c;
+        border-top-width: 3px;
+        color: #9ea399;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        position: relative;
+        cursor: pointer;
+        height: 50px;
+        border-radius: 4px;
+      }
+      .site-tab.active {
+        background: #232b34;
+        color: #ece3cf;
+        border-color: #f2b441;
+      }
+      .site-tab:disabled {
+        opacity: 0.4;
+        cursor: default;
+      }
+
+      .sheet-scroll {
+        overflow-y: auto;
+        scrollbar-width: thin;
+        scrollbar-color: #3a4552 #12161b;
+      }
+      .phone-toast {
+        position: absolute;
+        left: 16px;
+        right: 16px;
+        bottom: 104px;
+        background: rgba(13, 16, 20, 0.94);
+        border: 1.5px solid #f2b441;
+        color: #ece3cf;
+        padding: 7px 10px;
+        font-size: 13px;
+        text-align: center;
+        border-radius: 6px;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.2s;
+        z-index: 40;
+      }
+      .phone-toast.show {
+        opacity: 1;
+      }
+    </style>
+  </head>
+  <body
+    class="bg-[var(--background)] text-[var(--foreground)] antialiased m-0 p-4 min-h-screen"
+  >
+    <div
+      class="max-w-5xl mx-auto flex flex-col lg:flex-row items-start justify-center gap-6"
+    >
+      <!-- Left / Top Prototype Control Deck (outside the phone) -->
+      <div class="w-full lg:w-80 space-y-3">
+        <div
+          class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-4 space-y-3"
+        >
+          <div>
+            <div
+              class="text-xs font-semibold uppercase tracking-wider text-[var(--muted-foreground)]"
+            >
+              Throwaway Phone Prototype
+            </div>
+            <h1 class="text-base font-bold mt-0.5">Slice 2: Crystal Caves</h1>
+            <p class="text-xs text-[var(--muted-foreground)] mt-1">
+              Fake fast numbers, real taps, no placeholders for rules. Tap any
+              site, open <strong>Transport</strong> or
+              <strong>Workforce</strong>, and test Part 1 vs. Part 2 transport
+              assignment live.
+            </p>
+          </div>
+
+          <div class="space-y-1.5 pt-2 border-t border-[var(--border)]">
+            <div class="text-xs font-semibold text-[var(--muted-foreground)]">
+              Jump to Scenario
+            </div>
+            <div class="grid grid-cols-1 gap-1.5">
+              <button
+                id="sc-foundry"
+                class="text-left px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--content)] hover:border-[var(--primary)] text-xs font-medium cursor-pointer"
+              >
+                <strong>1 · Foundry's Roof</strong>
+                <div class="text-[var(--muted-foreground)]">
+                  Crystal Caves ready to sink · Factory online · Research Lab
+                  unordered
+                </div>
+              </button>
+              <button
+                id="sc-crystal"
+                class="text-left px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--content)] hover:border-[var(--primary)] text-xs font-medium cursor-pointer"
+              >
+                <strong>2 · Crystal Caves + Research Lab</strong>
+                <div class="text-[var(--muted-foreground)]">
+                  3 levels open · Multi-input Glassworks &amp; Factory ·
+                  Research Lab open
+                </div>
+              </button>
+              <button
+                id="sc-trains"
+                class="text-left px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--content)] hover:border-[var(--primary)] text-xs font-medium cursor-pointer"
+              >
+                <strong>3 · Rail Depot &amp; Trains</strong>
+                <div class="text-[var(--muted-foreground)]">
+                  All 5 buildings operational · Trains unlocked in Transport
+                </div>
+              </button>
+            </div>
+          </div>
+
+          <div class="space-y-1.5 pt-2 border-t border-[var(--border)]">
+            <div class="text-xs font-semibold text-[var(--muted-foreground)]">
+              Transport Mode (#762 two-part rollout)
+            </div>
+            <div class="grid grid-cols-2 gap-1.5">
+              <button
+                id="tm-part1"
+                class="px-2.5 py-2 rounded-lg border text-xs font-semibold cursor-pointer"
+              >
+                Part 1: Even share
+              </button>
+              <button
+                id="tm-part2"
+                class="px-2.5 py-2 rounded-lg border text-xs font-semibold cursor-pointer"
+              >
+                Part 2: Assign −/+
+              </button>
+            </div>
+            <p id="tm-desc" class="text-xs text-[var(--muted-foreground)]"></p>
+          </div>
+
+          <div class="space-y-1.5 pt-2 border-t border-[var(--border)]">
+            <div class="text-xs font-semibold text-[var(--muted-foreground)]">
+              Time &amp; Night Test
+            </div>
+            <div class="flex gap-1.5">
+              <button
+                id="btn-speed"
+                class="flex-1 px-2.5 py-2 rounded-lg border border-[var(--border)] bg-[var(--content)] hover:border-[var(--primary)] text-xs font-semibold cursor-pointer"
+              >
+                Speed: 1×
+              </button>
+              <button
+                id="btn-night"
+                class="flex-1 px-2.5 py-2 rounded-lg border border-[var(--border)] bg-[var(--content)] hover:border-[var(--primary)] text-xs font-semibold cursor-pointer"
+              >
+                Simulate 8h Night
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div
+          class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-4 space-y-2 text-xs text-[var(--muted-foreground)]"
+        >
+          <div class="font-semibold text-[var(--foreground)]">
+            What to check while tapping
+          </div>
+          <ul class="list-disc pl-4 space-y-1">
+            <li>
+              <strong>Transport sheet (top bar):</strong> sibling to Workforce.
+              Every inter-site movement is its own single-good run. Switch Part
+              1 ↔ Part 2 to compare auto even-share against manual
+              <span class="mono">−/+</span>.
+            </li>
+            <li>
+              <strong>Multi-input buffers:</strong> Glassworks takes Crystal
+              rock + Stone; Factory lines take 2 or 3 refined goods. Starve one
+              input run to watch the maker stall without the screen telling you
+              why.
+            </li>
+            <li>
+              <strong>Research Lab (City):</strong> Tap the Research Lab in City
+              to choose one active project paid in Parts &amp; refined goods,
+              delivered physically by Transport.
+            </li>
+            <li>
+              <strong>No page scroll:</strong> All 4 sites fit inside the
+              424×820 phone frame; lists open as sheets.
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Right / Center 424px Phone Frame -->
+      <div class="flex justify-center w-full lg:w-auto">
+        <div class="phone-shell" id="phone">
+          <!-- 1. Order Strip -->
+          <button
+            id="order-strip"
+            class="enamel-dark border-b-2 enamel-edge px-3 py-1.5 text-left w-full shrink-0 cursor-pointer hover:bg-[#13181f]"
+          >
+            <div class="flex items-center gap-2">
+              <span
+                id="ord-name"
+                class="font-bold text-sm uppercase tracking-wide truncate"
+                >The Research Lab</span
+              >
+              <span id="ord-step" class="text-xs amber font-semibold truncate"
+                >Foundation · delivering</span
+              >
+              <div id="ord-pips" class="ml-auto flex gap-1 shrink-0"></div>
+            </div>
+            <div id="ord-reqs" class="text-xs quiet mono mt-0.5 truncate">
+              Brick 0 of 4.0K · Parts 0 of 1.2K
+            </div>
+          </button>
+
+          <!-- 2. Global Stockpiles Strip (5 goods) -->
+          <div
+            id="stock-strip"
+            class="grid grid-cols-5 bg-[#10141a] border-b enamel-edge shrink-0"
+          ></div>
+
+          <!-- 3. Global Controls Strip: Workforce + Hire + Transport -->
+          <div
+            class="flex items-center gap-1.5 px-2 py-1.5 bg-[#12171e] border-b-2 enamel-edge shrink-0"
+          >
+            <button
+              id="btn-workforce"
+              class="flex-1 enamel-card border enamel-edge hover:border-[#f2b441] rounded px-2 py-1 flex items-center justify-between cursor-pointer"
+            >
+              <div class="text-left leading-tight">
+                <div
+                  class="text-[11px] uppercase tracking-wider quiet font-bold"
+                >
+                  Workforce
+                </div>
+                <div class="text-xs mono">
+                  <span id="wf-total" class="font-bold text-[#ece3cf]">34</span>
+                  <span id="wf-free" class="green">(4 free)</span>
+                </div>
+              </div>
+              <span class="text-xs quiet">▸</span>
+            </button>
+            <button
+              id="btn-hire"
+              class="buy-btn px-2 py-1 text-center leading-tight shrink-0"
+            >
+              <div class="text-xs font-bold">+Worker</div>
+              <div id="hire-cost" class="text-[11px] mono">1.8K St</div>
+            </button>
+            <button
+              id="btn-transport"
+              class="flex-1 enamel-card border enamel-edge hover:border-[#f2b441] rounded px-2 py-1 flex items-center justify-between cursor-pointer"
+            >
+              <div class="text-left leading-tight">
+                <div
+                  class="text-[11px] uppercase tracking-wider quiet font-bold flex items-center gap-1"
+                >
+                  Transport <span id="tr-lamp" class="lamp"></span>
+                </div>
+                <div class="text-xs mono">
+                  <span id="tr-fleet" class="font-bold text-[#ece3cf]"
+                    >8 veh</span
+                  >
+                  <span id="tr-rate" class="amber">260/s</span>
+                </div>
+              </div>
+              <span class="text-xs quiet">▸</span>
+            </button>
+          </div>
+
+          <!-- 4. Active Site Body (zero scroll inside sites) -->
+          <div
+            id="site-body"
+            class="flex-1 relative overflow-hidden bg-[#0e1217]"
+          >
+            <!-- SITE: MINE -->
+            <div
+              id="site-mine"
+              class="absolute inset-0 flex flex-col p-2 gap-1.5"
+            >
+              <!-- Top Shaft + Level Visual Canvas -->
+              <div
+                class="relative rounded border enamel-edge overflow-hidden shrink-0"
+                style="height: 112px; background: #090c10"
+              >
+                <canvas
+                  id="mine-canvas"
+                  width="406"
+                  height="112"
+                  class="w-full h-full block"
+                ></canvas>
+                <div
+                  class="absolute top-1 left-2 text-[11px] uppercase tracking-wider quiet bg-black/60 px-1.5 py-0.5 rounded"
+                >
+                  Shaft &amp; Pithead Buffers
+                </div>
+                <div
+                  id="pithead-readout"
+                  class="absolute top-1 right-2 text-[11px] mono bg-black/70 px-1.5 py-0.5 rounded text-[#ece3cf]"
+                ></div>
+              </div>
+              <!-- Level selector / cards -->
+              <div
+                id="mine-levels"
+                class="flex-1 flex flex-col gap-1.5 min-h-0"
+              ></div>
+              <!-- Shared Hoisting Strip -->
+              <div
+                id="mine-hoisting"
+                class="enamel-card border enamel-edge rounded p-2 shrink-0"
+              ></div>
+            </div>
+
+            <!-- SITE: REFINERY -->
+            <div
+              id="site-refinery"
+              class="absolute inset-0 hidden flex-col p-2 gap-1.5"
+            >
+              <div
+                class="relative rounded border enamel-edge overflow-hidden shrink-0"
+                style="height: 68px; background: #0a0d11"
+              >
+                <canvas
+                  id="refinery-canvas"
+                  width="406"
+                  height="68"
+                  class="w-full h-full block"
+                ></canvas>
+                <div
+                  class="absolute top-1 left-2 text-[11px] uppercase tracking-wider quiet bg-black/60 px-1.5 py-0.5 rounded"
+                >
+                  Refinery · Rock &amp; Multi-Input Makers
+                </div>
+              </div>
+              <div
+                id="refinery-makers"
+                class="flex-1 flex flex-col gap-1.5 min-h-0"
+              ></div>
+              <div
+                id="refinery-stockyard"
+                class="enamel-card border enamel-edge rounded p-2 shrink-0"
+              ></div>
+            </div>
+
+            <!-- SITE: FACTORY -->
+            <div
+              id="site-factory"
+              class="absolute inset-0 hidden flex-col p-2 gap-1.5"
+            >
+              <div
+                class="relative rounded border enamel-edge overflow-hidden shrink-0"
+                style="height: 82px; background: #0c1016"
+              >
+                <canvas
+                  id="factory-canvas"
+                  width="406"
+                  height="82"
+                  class="w-full h-full block"
+                ></canvas>
+                <div
+                  class="absolute top-1 left-2 text-[11px] uppercase tracking-wider quiet bg-black/60 px-1.5 py-0.5 rounded"
+                >
+                  Factory · Steady-Flow Multi-Input Lines
+                </div>
+              </div>
+              <div
+                id="factory-lines"
+                class="flex-1 flex flex-col gap-2 min-h-0"
+              ></div>
+            </div>
+
+            <!-- SITE: CITY -->
+            <div
+              id="site-city"
+              class="absolute inset-0 hidden flex-col p-2 gap-1.5"
+            >
+              <div
+                class="relative rounded border enamel-edge overflow-hidden shrink-0"
+                style="height: 158px; background: #0b101b"
+              >
+                <canvas
+                  id="city-canvas"
+                  width="406"
+                  height="158"
+                  class="w-full h-full block"
+                ></canvas>
+                <div
+                  class="absolute top-1 left-2 text-[11px] uppercase tracking-wider quiet bg-black/60 px-1.5 py-0.5 rounded"
+                >
+                  City Skyline · 5 Buildings
+                </div>
+              </div>
+              <!-- Active Project & Builders -->
+              <div
+                id="city-project"
+                class="enamel-card border enamel-edge rounded p-2.5 shrink-0"
+              ></div>
+              <!-- Research Lab Door (City Building 4) -->
+              <div
+                id="city-research-door"
+                class="enamel-card border enamel-edge rounded p-2.5 shrink-0"
+              ></div>
+              <!-- Completed Buildings List -->
+              <div
+                id="city-buildings-list"
+                class="flex-1 enamel-panel border enamel-edge rounded p-2 flex flex-col justify-between min-h-0"
+              ></div>
+            </div>
+          </div>
+
+          <!-- 5. Next Strip -->
+          <button
+            id="next-strip"
+            class="mx-1.5 mb-1 enamel-dark border enamel-edge rounded px-2.5 py-1.5 flex items-center justify-between shrink-0 cursor-pointer hover:border-[#f2b441]"
+          >
+            <div class="text-left min-w-0">
+              <div
+                class="text-[10px] uppercase tracking-widest amber font-bold"
+              >
+                Next
+              </div>
+              <div id="next-text" class="text-xs font-semibold truncate">
+                Research Lab idle · pick a project
+              </div>
+            </div>
+            <span
+              id="next-badge"
+              class="text-xs mono green font-bold ml-2 shrink-0"
+            ></span>
+          </button>
+
+          <!-- 6. Bottom 4-Tab Site Bar -->
+          <div class="flex gap-1 px-1.5 pb-1.5 shrink-0">
+            <button class="site-tab active" data-site="mine">
+              <span
+                class="lamp"
+                id="lamp-mine"
+                style="position: absolute; right: 5px; top: 4px"
+              ></span>
+              <span class="text-sm leading-none">⛏</span>
+              <span>Mine</span>
+            </button>
+            <button class="site-tab" data-site="refinery">
+              <span
+                class="lamp"
+                id="lamp-refinery"
+                style="position: absolute; right: 5px; top: 4px"
+              ></span>
+              <span class="text-sm leading-none">🔥</span>
+              <span>Refinery</span>
+            </button>
+            <button class="site-tab" data-site="factory">
+              <span
+                class="lamp"
+                id="lamp-factory"
+                style="position: absolute; right: 5px; top: 4px"
+              ></span>
+              <span class="text-sm leading-none">⚙</span>
+              <span>Factory</span>
+            </button>
+            <button class="site-tab" data-site="city">
+              <span
+                class="lamp"
+                id="lamp-city"
+                style="position: absolute; right: 5px; top: 4px"
+              ></span>
+              <span class="text-sm leading-none">🏛</span>
+              <span>City</span>
+            </button>
+          </div>
+
+          <!-- 7. Save Line -->
+          <div
+            class="enamel-dark border-t enamel-edge px-3 py-1 flex items-center justify-between text-[11px] quiet shrink-0"
+          >
+            <span class="flex items-center gap-1.5"
+              ><span class="lamp green"></span> Prototype · fake numbers</span
+            >
+            <span id="save-clock" class="mono">Run 00:00</span>
+          </div>
+
+          <!-- Toast -->
+          <div id="phone-toast" class="phone-toast"></div>
+
+          <!-- OVERLAY SHEET (Workforce / Transport / Research / Shift Report) -->
+          <div
+            id="sheet-backdrop"
+            class="hidden absolute inset-0 bg-black/75 z-30 flex flex-col p-2.5"
+          >
+            <div
+              class="enamel-panel border-2 border-[#f2b441] rounded-lg flex-1 flex flex-col overflow-hidden"
+            >
+              <div
+                class="enamel-dark border-b enamel-edge px-3 py-2 flex items-center justify-between shrink-0"
+              >
+                <div>
+                  <h2
+                    id="sheet-title"
+                    class="text-sm font-bold uppercase tracking-wider"
+                  >
+                    Transport
+                  </h2>
+                  <div id="sheet-sub" class="text-[11px] quiet"></div>
+                </div>
+                <button
+                  id="sheet-close"
+                  class="px-2.5 py-1 rounded bg-[#252d37] border border-[#3b4754] text-xs font-bold hover:border-[#f2b441] cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+              <div
+                id="sheet-content"
+                class="flex-1 sheet-scroll p-2.5 space-y-2"
+              ></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      (() => {
+        // ===== CONSTANTS & DEFINITIONS (fake fast prototype numbers) =====
+        const GOODS = [
+          { id: "stones", short: "Stone", color: "#9aa5b1" },
+          { id: "brick", short: "Brick", color: "#d97757" },
+          { id: "cutStone", short: "Cut", color: "#c9c1a6" },
+          { id: "glass", short: "Glass", color: "#6ee7e7" },
+          { id: "parts", short: "Parts", color: "#f2b441" },
+        ];
+        const GOOD_BY_ID = Object.fromEntries(GOODS.map((g) => [g.id, g]));
+
+        const LEVELS = [
+          {
+            id: "topsoil",
+            name: "Topsoil",
+            tripSec: 4,
+            rockName: "Topsoil rock",
+            sinkCost: null,
+          },
+          {
+            id: "granite",
+            name: "Granite",
+            tripSec: 7,
+            rockName: "Granite rock",
+            sinkCost: { stones: 8000 },
+          },
+          {
+            id: "crystal",
+            name: "Crystal Caves",
+            tripSec: 10,
+            rockName: "Crystal rock",
+            sinkCost: { brick: 4000, cutStone: 2500 },
+          },
+        ];
+
+        // Refinery makers — note Glassworks takes MULTIPLE inputs (Crystal rock + Stone)
+        const MAKERS = [
+          {
+            id: "kilns",
+            name: "Kilns",
+            machineName: "Kiln",
+            output: "brick",
+            outPerCycle: 1,
+            ratePerMachine: 20,
+            workersPerMachine: 1,
+            inputs: [
+              {
+                src: "pit_topsoil",
+                label: "Topsoil rock",
+                perCycle: 2,
+                cap: 4000,
+              },
+            ],
+            baseCost: { stones: 600 },
+            growth: 1.25,
+            openCheck: () => true,
+          },
+          {
+            id: "saws",
+            name: "Saws",
+            machineName: "Saw",
+            output: "cutStone",
+            outPerCycle: 1,
+            ratePerMachine: 16,
+            workersPerMachine: 1,
+            inputs: [
+              {
+                src: "pit_granite",
+                label: "Granite rock",
+                perCycle: 3,
+                cap: 4000,
+              },
+            ],
+            baseCost: { brick: 500 },
+            growth: 1.25,
+            openCheck: (s) => s.levels.granite.open,
+          },
+          {
+            id: "glassworks",
+            name: "Glassworks",
+            machineName: "Furnace",
+            output: "glass",
+            outPerCycle: 1,
+            ratePerMachine: 14,
+            workersPerMachine: 2,
+            inputs: [
+              {
+                src: "pit_crystal",
+                label: "Crystal rock",
+                perCycle: 3,
+                cap: 4000,
+              },
+              { src: "stones", label: "Stone", perCycle: 2, cap: 4000 },
+            ],
+            baseCost: { brick: 900, cutStone: 600 },
+            growth: 1.25,
+            openCheck: (s) => s.levels.crystal.open,
+          },
+        ];
+
+        // Factory lines — prominently MULTI-INPUT steady-flow manufacturing (#751)
+        const FACTORY_LINES = [
+          {
+            id: "press",
+            name: "Parts Press",
+            machineName: "Press",
+            output: "parts",
+            outPerCycle: 1,
+            ratePerMachine: 12,
+            workersPerMachine: 2,
+            inputs: [
+              { src: "brick", label: "Brick", perCycle: 2, cap: 3000 },
+              { src: "cutStone", label: "Cut stone", perCycle: 2, cap: 3000 },
+            ],
+            baseCost: { brick: 800, cutStone: 500 },
+            growth: 1.28,
+            openCheck: (s) => s.buildings.foundry,
+          },
+          {
+            id: "assembler",
+            name: "Precision Assembly",
+            machineName: "Line",
+            output: "parts",
+            outPerCycle: 3,
+            ratePerMachine: 24,
+            workersPerMachine: 3,
+            inputs: [
+              { src: "brick", label: "Brick", perCycle: 2, cap: 3000 },
+              { src: "cutStone", label: "Cut stone", perCycle: 2, cap: 3000 },
+              { src: "glass", label: "Glass", perCycle: 2, cap: 3000 },
+            ],
+            baseCost: { cutStone: 1200, glass: 800 },
+            growth: 1.28,
+            openCheck: (s) => s.levels.crystal.open,
+          },
+        ];
+
+        // City buildings (5 total through Slice 2)
+        const BUILDINGS = [
+          {
+            id: "lightTower",
+            name: "The Light Tower",
+            power: "Night shift 45% · Opens Refinery & Granite",
+            steps: [{ stones: 500 }, { stones: 1500 }, { stones: 3000 }],
+          },
+          {
+            id: "warehouse",
+            name: "The Warehouse",
+            power: "Stockyard ×2 · Opens Trucks",
+            steps: [
+              { stones: 2000, brick: 500 },
+              { stones: 4000, brick: 1200 },
+              { brick: 2500 },
+            ],
+          },
+          {
+            id: "foundry",
+            name: "The Foundry",
+            power: "Opens Crystal Caves, Glassworks & Factory",
+            steps: [
+              { brick: 2000, cutStone: 1000 },
+              { brick: 3500, cutStone: 2000 },
+              { brick: 5000, cutStone: 3500 },
+            ],
+          },
+          {
+            id: "researchLab",
+            name: "The Research Lab",
+            power: "Opens Research (single home for lasting upgrades)",
+            steps: [
+              { brick: 3000, cutStone: 2000, parts: 600 },
+              { brick: 4500, cutStone: 3500, parts: 1200 },
+              { cutStone: 5000, parts: 2000 },
+            ],
+          },
+          {
+            id: "railDepot",
+            name: "The Rail Depot",
+            power: "Opens Trains (3rd transport tier) · End of Slice 2",
+            steps: [
+              { cutStone: 4000, glass: 1500, parts: 1200 },
+              { cutStone: 6000, glass: 3000, parts: 2400 },
+              { glass: 5000, parts: 4000 },
+            ],
+          },
+        ];
+        const BUILDING_BY_ID = Object.fromEntries(
+          BUILDINGS.map((b) => [b.id, b]),
+        );
+        const STEP_NAMES = ["Foundation", "Structure", "Roof"];
+
+        // Research projects (#751 — single home for all lasting upgrades & gear)
+        const RESEARCH = [
+          {
+            id: "boots",
+            name: "Work boots",
+            effect: "Workers +100% tool speed",
+            cost: { parts: 400, stones: 2000 },
+          },
+          {
+            id: "rails",
+            name: "Iron rails",
+            effect: "Carts & haulage +35% speed",
+            cost: { parts: 700, brick: 2500 },
+          },
+          {
+            id: "kilnHeat",
+            name: "High-draft kilns",
+            effect: "Kilns & Saws +35% output",
+            cost: { parts: 1000, cutStone: 2500 },
+          },
+          {
+            id: "optics",
+            name: "Optical gauges",
+            effect: "Glassworks & Factory +40% output",
+            cost: { parts: 1400, glass: 1500 },
+          },
+          {
+            id: "couplings",
+            name: "Heavy couplings",
+            effect: "Wagons, Trucks & Trains +40% speed",
+            cost: { parts: 2000, glass: 3000 },
+          },
+        ];
+        const RESEARCH_BY_ID = Object.fromEntries(
+          RESEARCH.map((r) => [r.id, r]),
+        );
+
+        const VEHICLES = [
+          {
+            id: "wagon",
+            name: "Horse wagon",
+            short: "Wagon",
+            rate: 18,
+            baseCost: { stones: 350 },
+            growth: 1.22,
+            openCheck: () => true,
+          },
+          {
+            id: "truck",
+            name: "Truck",
+            short: "Truck",
+            rate: 75,
+            baseCost: { brick: 900 },
+            growth: 1.24,
+            openCheck: (s) => s.buildings.warehouse,
+          },
+          {
+            id: "train",
+            name: "Train",
+            short: "Train",
+            rate: 260,
+            baseCost: { cutStone: 1800, glass: 1200 },
+            growth: 1.26,
+            openCheck: (s) => s.buildings.railDepot,
+          },
+        ];
+
+        // ===== STATE =====
+        let state = null;
+        let ui = {
+          site: "mine",
+          sheet: null, // null | "workforce" | "transport" | "research" | "night"
+          transportMode: "part1", // "part1" (even share) | "part2" (manual -/+)
+          speed: 1,
+          scenario: "crystal",
+          nightReport: null,
+        };
+        let toastTimer = null;
+
+        function fmt(n) {
+          if (!Number.isFinite(n)) return "0";
+          const abs = Math.abs(n);
+          if (abs >= 1e6) return (n / 1e6).toFixed(1) + "M";
+          if (abs >= 1e4) return (n / 1e3).toFixed(1) + "K";
+          if (abs >= 1e3) return (n / 1e3).toFixed(1) + "K";
+          return Math.floor(n).toString();
+        }
+        function fmtRate(n) {
+          if (n >= 1000) return (n / 1000).toFixed(1) + "K";
+          if (n >= 10) return Math.round(n).toString();
+          if (n > 0.05) return n.toFixed(1);
+          return "0";
+        }
+        function fmtPrice(cost) {
+          return Object.entries(cost)
+            .map(([g, a]) => `${fmt(a)} ${GOOD_BY_ID[g].short}`)
+            .join(" + ");
+        }
+        function scaledCost(base, growth, count) {
+          const out = {};
+          for (const [g, a] of Object.entries(base))
+            out[g] = Math.ceil(a * Math.pow(growth, count));
+          return out;
+        }
+        function canAfford(cost) {
+          return Object.entries(cost).every(
+            ([g, a]) => (state.stock[g] || 0) >= a,
+          );
+        }
+        function pay(cost) {
+          if (!canAfford(cost)) return false;
+          for (const [g, a] of Object.entries(cost)) state.stock[g] -= a;
+          return true;
+        }
+        function say(msg) {
+          const el = document.getElementById("phone-toast");
+          el.textContent = msg;
+          el.classList.add("show");
+          clearTimeout(toastTimer);
+          toastTimer = setTimeout(() => el.classList.remove("show"), 2200);
+        }
+
+        function makeScenario(kind) {
+          const base = {
+            elapsed: 0,
+            workers: 42,
+            stockyardLevel: 1,
+            stock: {
+              stones: 6500,
+              brick: 3800,
+              cutStone: 2600,
+              glass: 0,
+              parts: 450,
+            },
+            pithead: { topsoil: 1800, granite: 1600, crystal: 0 },
+            levels: {
+              topsoil: {
+                open: true,
+                drillWorkers: 6,
+                drills: 2,
+                haulWorkers: 4,
+                carts: 2,
+                drilled: 600,
+                shaft: 1100,
+                drillNow: 0,
+                haulNow: 0,
+              },
+              granite: {
+                open: true,
+                drillWorkers: 6,
+                drills: 2,
+                haulWorkers: 4,
+                carts: 2,
+                drilled: 500,
+                shaft: 1000,
+                drillNow: 0,
+                haulNow: 0,
+              },
+              crystal: {
+                open: false,
+                drillWorkers: 0,
+                drills: 0,
+                haulWorkers: 0,
+                carts: 0,
+                drilled: 0,
+                shaft: 0,
+                drillNow: 0,
+                haulNow: 0,
+              },
+            },
+            hoisting: {
+              workers: 5,
+              hoists: 4,
+              assigned: { topsoil: 1, granite: 1, crystal: 0 },
+              cages: [],
+              liftedNow: 0,
+            },
+            makers: {
+              kilns: {
+                count: 3,
+                workers: 3,
+                buf: { pit_topsoil: 1600 },
+                now: 0,
+              },
+              saws: {
+                count: 3,
+                workers: 3,
+                buf: { pit_granite: 1400 },
+                now: 0,
+              },
+              glassworks: {
+                count: 0,
+                workers: 0,
+                buf: { pit_crystal: 0, stones: 0 },
+                now: 0,
+              },
+            },
+            factory: {
+              press: {
+                count: 2,
+                workers: 4,
+                buf: { brick: 1100, cutStone: 900 },
+                now: 0,
+              },
+              assembler: {
+                count: 0,
+                workers: 0,
+                buf: { brick: 0, cutStone: 0, glass: 0 },
+                now: 0,
+              },
+            },
+            transport: {
+              drivers: 6,
+              vehicles: { wagon: 4, truck: 2, train: 0 },
+              assigned: {}, // runId -> vehicle count (used in part2)
+              runRates: {}, // runId -> live goods/s
+            },
+            buildings: {
+              lightTower: true,
+              warehouse: true,
+              foundry: true,
+              researchLab: false,
+              railDepot: false,
+            },
+            project: {
+              kind: "unordered",
+              building: "researchLab",
+              step: 0,
+              arrived: {},
+              onSite: {},
+              builders: 3,
+              builtNow: 0,
+            },
+            research: {
+              done: {},
+              active: null, // { id, arrived: {} }
+            },
+          };
+
+          if (kind === "foundry") {
+            base.stock = {
+              stones: 9500,
+              brick: 5400,
+              cutStone: 3600,
+              glass: 0,
+              parts: 350,
+            };
+            base.project = {
+              kind: "unordered",
+              building: "researchLab",
+              step: 0,
+              arrived: {},
+              onSite: {},
+              builders: 2,
+              builtNow: 0,
+            };
+          } else if (kind === "crystal") {
+            base.workers = 58;
+            base.stockyardLevel = 2;
+            base.stock = {
+              stones: 11000,
+              brick: 6200,
+              cutStone: 4800,
+              glass: 1900,
+              parts: 1100,
+            };
+            base.pithead = { topsoil: 2200, granite: 2000, crystal: 1800 };
+            base.levels.crystal = {
+              open: true,
+              drillWorkers: 6,
+              drills: 2,
+              haulWorkers: 4,
+              carts: 2,
+              drilled: 700,
+              shaft: 1300,
+              drillNow: 0,
+              haulNow: 0,
+            };
+            base.hoisting = {
+              workers: 7,
+              hoists: 6,
+              assigned: { topsoil: 1, granite: 1, crystal: 1 },
+              cages: [],
+              liftedNow: 0,
+            };
+            base.makers.glassworks = {
+              count: 2,
+              workers: 4,
+              buf: { pit_crystal: 1400, stones: 900 },
+              now: 0,
+            };
+            base.factory.assembler = {
+              count: 1,
+              workers: 3,
+              buf: { brick: 900, cutStone: 800, glass: 700 },
+              now: 0,
+            };
+            base.transport = {
+              drivers: 9,
+              vehicles: { wagon: 5, truck: 4, train: 0 },
+              assigned: { stock_to_glass_stones: 1, stock_to_fac_glass: 1 },
+              runRates: {},
+            };
+            base.buildings.researchLab = true;
+            base.project = {
+              kind: "delivering",
+              building: "railDepot",
+              step: 0,
+              arrived: { cutStone: 1400, glass: 420, parts: 380 },
+              onSite: { cutStone: 200, glass: 80, parts: 60 },
+              builders: 4,
+              builtNow: 0,
+            };
+            base.research = {
+              done: { boots: true },
+              active: { id: "rails", arrived: { parts: 210, brick: 800 } },
+            };
+          } else if (kind === "trains") {
+            base.workers = 76;
+            base.stockyardLevel = 3;
+            base.stock = {
+              stones: 18000,
+              brick: 12000,
+              cutStone: 9500,
+              glass: 6400,
+              parts: 4200,
+            };
+            base.pithead = { topsoil: 2800, granite: 2600, crystal: 2400 };
+            base.levels.crystal = {
+              open: true,
+              drillWorkers: 8,
+              drills: 3,
+              haulWorkers: 6,
+              carts: 3,
+              drilled: 900,
+              shaft: 1800,
+              drillNow: 0,
+              haulNow: 0,
+            };
+            base.hoisting = {
+              workers: 9,
+              hoists: 8,
+              assigned: { topsoil: 2, granite: 2, crystal: 2 },
+              cages: [],
+              liftedNow: 0,
+            };
+            base.makers.kilns = {
+              count: 5,
+              workers: 5,
+              buf: { pit_topsoil: 2200 },
+              now: 0,
+            };
+            base.makers.saws = {
+              count: 4,
+              workers: 4,
+              buf: { pit_granite: 2100 },
+              now: 0,
+            };
+            base.makers.glassworks = {
+              count: 3,
+              workers: 6,
+              buf: { pit_crystal: 1800, stones: 1600 },
+              now: 0,
+            };
+            base.factory.press = {
+              count: 3,
+              workers: 6,
+              buf: { brick: 1400, cutStone: 1200 },
+              now: 0,
+            };
+            base.factory.assembler = {
+              count: 2,
+              workers: 6,
+              buf: { brick: 1500, cutStone: 1300, glass: 1200 },
+              now: 0,
+            };
+            base.transport = {
+              drivers: 13,
+              vehicles: { wagon: 5, truck: 5, train: 2 },
+              assigned: { pit_crystal_to_glass: 2, stock_to_fac_glass: 1 },
+              runRates: {},
+            };
+            base.buildings.researchLab = true;
+            base.buildings.railDepot = true;
+            base.project = {
+              kind: "planning",
+              building: "railDepot",
+              step: 2,
+              arrived: {},
+              onSite: {},
+              builders: 0,
+              builtNow: 0,
+            };
+            base.research = {
+              done: { boots: true, rails: true, kilnHeat: true },
+              active: { id: "couplings", arrived: { parts: 900, glass: 1200 } },
+            };
+          }
+
+          initCages(base);
+          return base;
+        }
+
+        function initCages(s) {
+          s.hoisting.cages = [];
+          for (let i = 0; i < 10; i++) {
+            s.hoisting.cages.push({
+              y: (i * 0.27) % 1,
+              dir: i % 2 === 0 ? 1 : -1,
+              target: "topsoil",
+              load: 0,
+            });
+          }
+        }
+
+        // ===== DERIVED NUMBERS =====
+        function assignedWorkers(s) {
+          let sum = 0;
+          for (const lv of Object.values(s.levels))
+            sum += lv.drillWorkers + lv.haulWorkers;
+          sum += s.hoisting.workers;
+          for (const mk of Object.values(s.makers)) sum += mk.workers;
+          for (const fl of Object.values(s.factory)) sum += fl.workers;
+          sum += s.transport.drivers;
+          sum += s.project.builders;
+          return sum;
+        }
+        function freeWorkers(s) {
+          return Math.max(0, s.workers - assignedWorkers(s));
+        }
+        function workerCost(s) {
+          return Math.ceil(120 * Math.pow(1.07, s.workers));
+        }
+        function stockCap(s, goodId) {
+          const base =
+            {
+              stones: 18000,
+              brick: 12000,
+              cutStone: 9000,
+              glass: 7000,
+              parts: 5000,
+            }[goodId] || 10000;
+          const mult =
+            (s.buildings.warehouse ? 2 : 1) * Math.pow(1.8, s.stockyardLevel);
+          return Math.round(base * mult);
+        }
+        function stockyardExpandCost(s) {
+          return { brick: Math.ceil(1500 * Math.pow(2.2, s.stockyardLevel)) };
+        }
+
+        function totalVehicles(s) {
+          return (
+            s.transport.vehicles.wagon +
+            s.transport.vehicles.truck +
+            s.transport.vehicles.train
+          );
+        }
+        function staffedFleet(s) {
+          const mult = s.research.done.couplings ? 1.4 : 1;
+          let d = s.transport.drivers;
+          const trains = Math.min(d, s.transport.vehicles.train);
+          d -= trains;
+          const trucks = Math.min(d, s.transport.vehicles.truck);
+          d -= trucks;
+          const wagons = Math.min(d, s.transport.vehicles.wagon);
+          d -= wagons;
+          const count = trains + trucks + wagons;
+          const totalRate = (trains * 260 + trucks * 75 + wagons * 18) * mult;
+          const avgRate = count > 0 ? totalRate / count : 0;
+          return { trains, trucks, wagons, count, totalRate, avgRate };
+        }
+
+        // Build the dynamic list of physical transport runs (#762)
+        function listRuns(s) {
+          const runs = [];
+          // 1. Mine pithead -> Refinery makers
+          if (s.makers.kilns.count > 0 || s.pithead.topsoil > 0) {
+            runs.push({
+              id: "pit_topsoil_to_kilns",
+              from: "Mine (Topsoil)",
+              to: "Kilns",
+              goodLabel: "Topsoil rock",
+              color: "#8c96a0",
+              getSrc: () => s.pithead.topsoil,
+              takeSrc: (a) => {
+                s.pithead.topsoil -= a;
+              },
+              getDst: () => s.makers.kilns.buf.pit_topsoil,
+              dstCap: 4000,
+              addDst: (a) => {
+                s.makers.kilns.buf.pit_topsoil += a;
+              },
+            });
+          }
+          if (s.levels.granite.open) {
+            runs.push({
+              id: "pit_granite_to_saws",
+              from: "Mine (Granite)",
+              to: "Saws",
+              goodLabel: "Granite rock",
+              color: "#b6b19a",
+              getSrc: () => s.pithead.granite,
+              takeSrc: (a) => {
+                s.pithead.granite -= a;
+              },
+              getDst: () => s.makers.saws.buf.pit_granite,
+              dstCap: 4000,
+              addDst: (a) => {
+                s.makers.saws.buf.pit_granite += a;
+              },
+            });
+          }
+          if (s.levels.crystal.open) {
+            runs.push({
+              id: "pit_crystal_to_glass",
+              from: "Mine (Crystal)",
+              to: "Glassworks",
+              goodLabel: "Crystal rock",
+              color: "#6ee7e7",
+              getSrc: () => s.pithead.crystal,
+              takeSrc: (a) => {
+                s.pithead.crystal -= a;
+              },
+              getDst: () => s.makers.glassworks.buf.pit_crystal,
+              dstCap: 4000,
+              addDst: (a) => {
+                s.makers.glassworks.buf.pit_crystal += a;
+              },
+            });
+            runs.push({
+              id: "stock_to_glass_stones",
+              from: "Stockyard",
+              to: "Glassworks",
+              goodLabel: "Stone",
+              color: GOOD_BY_ID.stones.color,
+              getSrc: () => s.stock.stones,
+              takeSrc: (a) => {
+                s.stock.stones -= a;
+              },
+              getDst: () => s.makers.glassworks.buf.stones,
+              dstCap: 4000,
+              addDst: (a) => {
+                s.makers.glassworks.buf.stones += a;
+              },
+            });
+          }
+
+          // 2. Stockyard -> Factory multi-input buffers (one good per run!)
+          if (s.buildings.foundry) {
+            const facGoods = s.levels.crystal.open
+              ? ["brick", "cutStone", "glass"]
+              : ["brick", "cutStone"];
+            for (const g of facGoods) {
+              const linesUsing = FACTORY_LINES.filter(
+                (l) => l.openCheck(s) && l.inputs.some((inp) => inp.src === g),
+              );
+              if (linesUsing.length === 0) continue;
+              const totalCap = linesUsing.reduce(
+                (acc, l) => acc + l.inputs.find((i) => i.src === g).cap,
+                0,
+              );
+              runs.push({
+                id: `stock_to_fac_${g}`,
+                from: "Stockyard",
+                to: "Factory",
+                goodLabel: GOOD_BY_ID[g].short,
+                color: GOOD_BY_ID[g].color,
+                getSrc: () => s.stock[g],
+                takeSrc: (a) => {
+                  s.stock[g] -= a;
+                },
+                getDst: () =>
+                  linesUsing.reduce(
+                    (acc, l) => acc + (s.factory[l.id].buf[g] || 0),
+                    0,
+                  ),
+                dstCap: totalCap,
+                addDst: (a) => {
+                  // Fill emptiest line buffer first
+                  let rem = a;
+                  const ordered = [...linesUsing].sort(
+                    (x, y) =>
+                      (s.factory[x.id].buf[g] || 0) -
+                      (s.factory[y.id].buf[g] || 0),
+                  );
+                  for (const l of ordered) {
+                    if (rem <= 0) break;
+                    const cap = l.inputs.find((i) => i.src === g).cap;
+                    const room = Math.max(
+                      0,
+                      cap - (s.factory[l.id].buf[g] || 0),
+                    );
+                    const put = Math.min(rem, room);
+                    s.factory[l.id].buf[g] =
+                      (s.factory[l.id].buf[g] || 0) + put;
+                    rem -= put;
+                  }
+                },
+              });
+            }
+          }
+
+          // 3. Stockyard -> City (one run per good the active step requires)
+          if (s.project.kind === "delivering") {
+            const b = BUILDING_BY_ID[s.project.building];
+            const reqs = b.steps[s.project.step];
+            for (const [g, needed] of Object.entries(reqs)) {
+              const already = s.project.arrived[g] || 0;
+              const onSite = s.project.onSite[g] || 0;
+              const siteCap = 1200;
+              const stillNeeded = Math.max(0, needed - already);
+              if (stillNeeded <= 0) continue;
+              runs.push({
+                id: `stock_to_city_${g}`,
+                from: "Stockyard",
+                to: `City (${b.name.replace("The ", "")})`,
+                goodLabel: GOOD_BY_ID[g].short,
+                color: GOOD_BY_ID[g].color,
+                getSrc: () => s.stock[g],
+                takeSrc: (a) => {
+                  s.stock[g] -= a;
+                },
+                getDst: () => onSite,
+                dstCap: Math.min(siteCap, onSite + stillNeeded),
+                addDst: (a) => {
+                  s.project.arrived[g] = (s.project.arrived[g] || 0) + a;
+                  s.project.onSite[g] = (s.project.onSite[g] || 0) + a;
+                },
+              });
+            }
+          }
+
+          // 4. Stockyard -> Research Lab (one run per good the active research requires)
+          if (s.buildings.researchLab && s.research.active) {
+            const proj = RESEARCH_BY_ID[s.research.active.id];
+            for (const [g, needed] of Object.entries(proj.cost)) {
+              const arr = s.research.active.arrived[g] || 0;
+              if (arr >= needed) continue;
+              runs.push({
+                id: `stock_to_res_${g}`,
+                from: "Stockyard",
+                to: "Research Lab",
+                goodLabel: GOOD_BY_ID[g].short,
+                color: GOOD_BY_ID[g].color,
+                getSrc: () => s.stock[g],
+                takeSrc: (a) => {
+                  s.stock[g] -= a;
+                },
+                getDst: () => arr,
+                dstCap: needed,
+                addDst: (a) => {
+                  s.research.active.arrived[g] =
+                    (s.research.active.arrived[g] || 0) + a;
+                },
+              });
+            }
+          }
+
+          return runs;
+        }
+
+        function sumAssignedVehicles(s, runs) {
+          const valid = new Set(runs.map((r) => r.id));
+          let total = 0;
+          for (const [id, n] of Object.entries(s.transport.assigned)) {
+            if (valid.has(id) && n > 0) total += n;
+          }
+          return total;
+        }
+
+        // ===== SIMULATION STEP (dt seconds) =====
+        function stepSim(s, dt, isNight = false) {
+          const rateMult = isNight ? (s.buildings.lightTower ? 0.45 : 0.3) : 1;
+          const toolMult = s.research.done.boots ? 2.0 : 1.0;
+          const haulMult = s.research.done.rails ? 1.35 : 1.0;
+          const kilnMult = s.research.done.kilnHeat ? 1.35 : 1.0;
+          const opticMult = s.research.done.optics ? 1.4 : 1.0;
+
+          s.elapsed += dt;
+
+          // 1. Mine Drilling & Haulage per level
+          const openLevels = LEVELS.filter((l) => s.levels[l.id].open);
+          for (const lvMeta of openLevels) {
+            const lv = s.levels[lvMeta.id];
+            const staffedDrills = Math.min(
+              lv.drills,
+              Math.floor(lv.drillWorkers / 3),
+            );
+            const freeDrillW = lv.drillWorkers - staffedDrills * 3;
+            const drillCap =
+              (staffedDrills * 65 + freeDrillW * 8 * toolMult) * rateMult;
+            const drillRoom = Math.max(0, 3000 - lv.drilled);
+            const drilled = Math.min(drillCap * dt, drillRoom);
+            lv.drilled += drilled;
+            lv.drillNow = dt > 0 ? drilled / dt : 0;
+            lv.drillMax = drillCap;
+
+            const staffedCarts = Math.min(
+              lv.carts,
+              Math.floor(lv.haulWorkers / 2),
+            );
+            const freeHaulW = lv.haulWorkers - staffedCarts * 2;
+            const haulCap =
+              (staffedCarts * 85 * haulMult + freeHaulW * 12 * toolMult) *
+              rateMult;
+            const shaftRoom = Math.max(0, 6000 - lv.shaft);
+            const hauled = Math.min(haulCap * dt, lv.drilled, shaftRoom);
+            lv.drilled -= hauled;
+            lv.shaft += hauled;
+            lv.haulNow = dt > 0 ? hauled / dt : 0;
+            lv.haulMax = haulCap;
+          }
+
+          // 2. Shared Hoisting (dedicated + both/all in turn)
+          const staffedHoists = Math.min(s.hoisting.hoists, s.hoisting.workers);
+          const winchWorkers = Math.max(0, s.hoisting.workers - staffedHoists);
+          let dedicatedSum = 0;
+          for (const lvMeta of openLevels)
+            dedicatedSum += s.hoisting.assigned[lvMeta.id] || 0;
+          // Clamp dedicated to staffed hoists
+          let remStaffed = staffedHoists;
+          const effDed = {};
+          for (const lvMeta of openLevels) {
+            const want = s.hoisting.assigned[lvMeta.id] || 0;
+            effDed[lvMeta.id] = Math.min(want, remStaffed);
+            remStaffed -= effDed[lvMeta.id];
+          }
+          const sharedHoists = remStaffed;
+          const activeForShared = openLevels.filter(
+            (l) => s.levels[l.id].shaft > 0.5 || s.levels[l.id].haulWorkers > 0,
+          );
+          const sharedPerLevel =
+            activeForShared.length > 0
+              ? sharedHoists / activeForShared.length
+              : 0;
+
+          let totalLifted = 0;
+          const stoneRoom = Math.max(0, stockCap(s, "stones") - s.stock.stones);
+          let stoneAdded = 0;
+
+          for (const lvMeta of openLevels) {
+            const lv = s.levels[lvMeta.id];
+            const tripFactor = 4 / lvMeta.tripSec; // Topsoil 1x, Granite 0.57x, Crystal 0.4x
+            const hCount =
+              effDed[lvMeta.id] +
+              (activeForShared.includes(lvMeta) ? sharedPerLevel : 0);
+            const wShare = activeForShared.includes(lvMeta)
+              ? winchWorkers / Math.max(1, activeForShared.length)
+              : 0;
+            const liftCap =
+              (hCount * 110 * tripFactor +
+                wShare * 18 * toolMult * tripFactor) *
+              rateMult;
+            const pitRoom = Math.max(0, 9000 - s.pithead[lvMeta.id]);
+            const overflowStoneRoom = Math.max(0, stoneRoom - stoneAdded);
+            const maxLift = Math.min(
+              liftCap * dt,
+              lv.shaft,
+              pitRoom + overflowStoneRoom,
+            );
+            lv.shaft -= maxLift;
+            const toPit = Math.min(maxLift, pitRoom);
+            s.pithead[lvMeta.id] += toPit;
+            const overflow = maxLift - toPit;
+            if (overflow > 0) {
+              s.stock.stones += overflow;
+              stoneAdded += overflow;
+            }
+            totalLifted += maxLift;
+          }
+          s.hoisting.liftedNow = dt > 0 ? totalLifted / dt : 0;
+
+          // 3. Transport Runs (#762 — Part 1 even-share vs. Part 2 dedicated + even-share remainder)
+          const fleet = staffedFleet(s);
+          const runs = listRuns(s);
+          const activeRuns = runs.filter(
+            (r) => r.getSrc() > 0.01 && r.dstCap - r.getDst() > 0.01,
+          );
+          s.transport.runRates = {};
+          s.transport.runVeh = {};
+
+          if (fleet.count > 0 && activeRuns.length > 0) {
+            const vehAlloc = {};
+            if (ui.transportMode === "part1") {
+              const share = fleet.count / activeRuns.length;
+              for (const r of activeRuns) vehAlloc[r.id] = share;
+            } else {
+              // Dedicated first, capped at fleet.count; remainder split evenly across active runs without full dedicated cover
+              let remVeh = fleet.count;
+              for (const r of runs) {
+                const want = s.transport.assigned[r.id] || 0;
+                const got = Math.min(want, remVeh);
+                remVeh -= got;
+                if (activeRuns.includes(r)) vehAlloc[r.id] = got;
+              }
+              const poolTargets = activeRuns.filter(
+                (r) => (s.transport.assigned[r.id] || 0) === 0,
+              );
+              const targets = poolTargets.length > 0 ? poolTargets : activeRuns;
+              if (remVeh > 0 && targets.length > 0) {
+                const share = remVeh / targets.length;
+                for (const r of targets)
+                  vehAlloc[r.id] = (vehAlloc[r.id] || 0) + share;
+              }
+            }
+
+            for (const r of activeRuns) {
+              const veh = vehAlloc[r.id] || 0;
+              const capPerSec = veh * fleet.avgRate * rateMult;
+              const moved = Math.min(
+                capPerSec * dt,
+                r.getSrc(),
+                Math.max(0, r.dstCap - r.getDst()),
+              );
+              if (moved > 0) {
+                r.takeSrc(moved);
+                r.addDst(moved);
+              }
+              s.transport.runVeh[r.id] = veh;
+              s.transport.runRates[r.id] = dt > 0 ? moved / dt : 0;
+            }
+          }
+
+          // 4. Refinery Makers (supports multi-input!)
+          for (const mkMeta of MAKERS) {
+            const mk = s.makers[mkMeta.id];
+            if (!mkMeta.openCheck(s)) continue;
+            const staffed = Math.min(
+              mk.count,
+              Math.floor(mk.workers / mkMeta.workersPerMachine),
+            );
+            const mMult = mkMeta.id === "glassworks" ? opticMult : kilnMult;
+            const outCapPerSec =
+              staffed * mkMeta.ratePerMachine * mMult * rateMult;
+            const outRoom = Math.max(
+              0,
+              stockCap(s, mkMeta.output) - s.stock[mkMeta.output],
+            );
+            let maxCycles = Math.min(
+              (outCapPerSec * dt) / mkMeta.outPerCycle,
+              outRoom / mkMeta.outPerCycle,
+            );
+            for (const inp of mkMeta.inputs) {
+              maxCycles = Math.min(
+                maxCycles,
+                (mk.buf[inp.src] || 0) / inp.perCycle,
+              );
+            }
+            maxCycles = Math.max(0, maxCycles);
+            if (maxCycles > 0) {
+              for (const inp of mkMeta.inputs)
+                mk.buf[inp.src] -= maxCycles * inp.perCycle;
+              s.stock[mkMeta.output] += maxCycles * mkMeta.outPerCycle;
+            }
+            mk.now = dt > 0 ? (maxCycles * mkMeta.outPerCycle) / dt : 0;
+            mk.max = outCapPerSec;
+          }
+
+          // 5. Factory Multi-Input Steady-Flow Lines (#751)
+          for (const flMeta of FACTORY_LINES) {
+            const fl = s.factory[flMeta.id];
+            if (!flMeta.openCheck(s)) continue;
+            const staffed = Math.min(
+              fl.count,
+              Math.floor(fl.workers / flMeta.workersPerMachine),
+            );
+            const outCapPerSec =
+              staffed * flMeta.ratePerMachine * opticMult * rateMult;
+            const outRoom = Math.max(
+              0,
+              stockCap(s, flMeta.output) - s.stock[flMeta.output],
+            );
+            let maxCycles = Math.min(
+              (outCapPerSec * dt) / flMeta.outPerCycle,
+              outRoom / flMeta.outPerCycle,
+            );
+            for (const inp of flMeta.inputs) {
+              maxCycles = Math.min(
+                maxCycles,
+                (fl.buf[inp.src] || 0) / inp.perCycle,
+              );
+            }
+            maxCycles = Math.max(0, maxCycles);
+            if (maxCycles > 0) {
+              for (const inp of flMeta.inputs)
+                fl.buf[inp.src] -= maxCycles * inp.perCycle;
+              s.stock[flMeta.output] += maxCycles * flMeta.outPerCycle;
+            }
+            fl.now = dt > 0 ? (maxCycles * flMeta.outPerCycle) / dt : 0;
+            fl.max = outCapPerSec;
+          }
+
+          // 6. City Builders (building in delivered goods on site)
+          if (s.project.kind === "delivering") {
+            const b = BUILDING_BY_ID[s.project.building];
+            const reqs = b.steps[s.project.step];
+            const buildCap = s.project.builders * 35 * toolMult * rateMult;
+            let builtTotal = 0;
+            let remCap = buildCap * dt;
+            for (const g of Object.keys(reqs)) {
+              const onSite = s.project.onSite[g] || 0;
+              const put = Math.min(remCap, onSite);
+              if (put > 0) {
+                s.project.onSite[g] -= put;
+                remCap -= put;
+                builtTotal += put;
+              }
+            }
+            s.project.builtNow = dt > 0 ? builtTotal / dt : 0;
+
+            // Check step complete
+            const stepDone = Object.entries(reqs).every(([g, need]) => {
+              const built =
+                (s.project.arrived[g] || 0) - (s.project.onSite[g] || 0);
+              return built >= need - 0.5;
+            });
+            if (stepDone) {
+              if (s.project.step < 2) {
+                s.project.step += 1;
+                s.project.arrived = {};
+                s.project.onSite = {};
+                if (!isNight)
+                  say(`${b.name}: ${STEP_NAMES[s.project.step]} started.`);
+              } else {
+                // Roof operational!
+                s.buildings[b.id] = true;
+                const idx = BUILDINGS.findIndex((x) => x.id === b.id);
+                const next = BUILDINGS[idx + 1];
+                if (next) {
+                  s.project = {
+                    kind: "unordered",
+                    building: next.id,
+                    step: 0,
+                    arrived: {},
+                    onSite: {},
+                    builders: s.project.builders,
+                    builtNow: 0,
+                  };
+                } else {
+                  s.project = {
+                    kind: "planning",
+                    building: b.id,
+                    step: 2,
+                    arrived: {},
+                    onSite: {},
+                    builders: s.project.builders,
+                    builtNow: 0,
+                  };
+                }
+                if (!isNight) say(`${b.name} operational! ${b.power}`);
+              }
+            }
+          } else {
+            s.project.builtNow = 0;
+          }
+
+          // 7. Animate hoist cages
+          if (!isNight) {
+            for (
+              let i = 0;
+              i < Math.min(staffedHoists, s.hoisting.cages.length);
+              i++
+            ) {
+              const c = s.hoisting.cages[i];
+              c.y += c.dir * dt * 0.28;
+              if (c.y >= 1) {
+                c.y = 1;
+                c.dir = -1;
+              }
+              if (c.y <= 0) {
+                c.y = 0;
+                c.dir = 1;
+              }
+            }
+          }
+        }
+
+        function simulateNight() {
+          const before = { ...state.stock };
+          const filledAt = {};
+          const stepSec = 2;
+          const totalSec = 60; // compressed 8h night (60 sim-seconds = 8h in prototype)
+          for (let t = 0; t < totalSec; t += stepSec) {
+            stepSim(state, stepSec, true);
+            for (const g of GOODS) {
+              if (
+                !filledAt[g.id] &&
+                state.stock[g.id] >= stockCap(state, g.id) - 1
+              ) {
+                const hrs = ((t + stepSec) / totalSec) * 8;
+                const hh = Math.floor(hrs);
+                const mm = Math.floor((hrs - hh) * 60);
+                filledAt[g.id] = `${hh}h ${String(mm).padStart(2, "0")}m`;
+              }
+            }
+            // Stop if all open stockpiles full
+            const openGoods = state.levels.crystal.open
+              ? GOODS
+              : GOODS.filter((g) => g.id !== "glass");
+            if (
+              openGoods.every(
+                (g) => state.stock[g.id] >= stockCap(state, g.id) - 1,
+              )
+            )
+              break;
+          }
+          const delta = {};
+          for (const g of GOODS)
+            delta[g.id] = Math.max(
+              0,
+              Math.round(state.stock[g.id] - before[g.id]),
+            );
+          ui.nightReport = { delta, filledAt };
+          ui.sheet = "night";
+          renderAll();
+        }
+
+        // ===== ACTIONS =====
+        function adjustWorker(getter, setter, delta) {
+          if (delta > 0) {
+            if (freeWorkers(state) <= 0) {
+              say("No free workers. Hire or move one from another job.");
+              return;
+            }
+            setter(getter() + 1);
+          } else if (delta < 0 && getter() > 0) {
+            setter(getter() - 1);
+          }
+          renderAll();
+        }
+
+        function adjustRunVehicles(runId, delta) {
+          const runs = listRuns(state);
+          const fleet = staffedFleet(state);
+          const cur = state.transport.assigned[runId] || 0;
+          if (delta > 0) {
+            if (sumAssignedVehicles(state, runs) >= fleet.count) {
+              say("All staffed vehicles are assigned.");
+              return;
+            }
+            state.transport.assigned[runId] = cur + 1;
+          } else if (delta < 0 && cur > 0) {
+            state.transport.assigned[runId] = cur - 1;
+          }
+          renderAll();
+        }
+
+        // ===== CANVAS PAINTERS =====
+        function drawMineCanvas() {
+          const cvs = document.getElementById("mine-canvas");
+          const ctx = cvs.getContext("2d");
+          const w = cvs.width,
+            h = cvs.height;
+          ctx.clearRect(0, 0, w, h);
+
+          const bands = [
+            { id: "topsoil", y: 0, h: 36, bg: "#2b241d", label: "TOPSOIL" },
+            { id: "granite", y: 36, h: 38, bg: "#23272e", label: "GRANITE" },
+            {
+              id: "crystal",
+              y: 74,
+              h: 38,
+              bg: "#172730",
+              label: "CRYSTAL CAVES",
+            },
+          ];
+          for (const b of bands) {
+            const open = state.levels[b.id].open;
+            ctx.fillStyle = open ? b.bg : "#111418";
+            ctx.fillRect(0, b.y, w, b.h);
+            ctx.strokeStyle = "#0a0d10";
+            ctx.beginPath();
+            ctx.moveTo(0, b.y);
+            ctx.lineTo(w, b.y);
+            ctx.stroke();
+
+            // Label
+            ctx.fillStyle = open ? "#b8b3a1" : "#4b535d";
+            ctx.font = "bold 10px ui-sans-serif, sans-serif";
+            ctx.fillText(b.label, 8, b.y + 22);
+
+            if (open) {
+              const lv = state.levels[b.id];
+              // Gallery tunnel
+              ctx.fillStyle = "#0e1116";
+              ctx.fillRect(104, b.y + 10, 210, 18);
+              // Drilled rock pile
+              const dFrac = Math.min(1, lv.drilled / 3000);
+              ctx.fillStyle =
+                b.id === "crystal"
+                  ? "#45b7c2"
+                  : b.id === "granite"
+                    ? "#989382"
+                    : "#9c7c58";
+              ctx.fillRect(280, b.y + 28 - dFrac * 14, 28, dFrac * 14);
+              // Shaft rock pile
+              const sFrac = Math.min(1, lv.shaft / 6000);
+              ctx.fillRect(110, b.y + 28 - sFrac * 14, 28, sFrac * 14);
+              // Moving haul tub
+              if (lv.haulNow > 0.1) {
+                const tx = 144 + ((state.elapsed * 45 + b.y) % 126);
+                ctx.fillStyle = "#f2b441";
+                ctx.fillRect(tx, b.y + 20, 10, 6);
+              }
+            }
+          }
+
+          // Central shaft
+          ctx.fillStyle = "#07090c";
+          ctx.fillRect(326, 0, 56, h);
+          ctx.strokeStyle = "#3c4654";
+          ctx.strokeRect(326, 0, 56, h);
+
+          const staffedH = Math.min(
+            state.hoisting.hoists,
+            state.hoisting.workers,
+          );
+          for (let i = 0; i < Math.min(staffedH, 5); i++) {
+            const c = state.hoisting.cages[i];
+            const cx = 331 + i * 10;
+            const cy = 6 + c.y * (h - 20);
+            ctx.strokeStyle = "#5b6776";
+            ctx.beginPath();
+            ctx.moveTo(cx + 3, 0);
+            ctx.lineTo(cx + 3, cy);
+            ctx.stroke();
+            ctx.fillStyle = "#f2b441";
+            ctx.fillRect(cx, cy, 7, 10);
+          }
+
+          document.getElementById("pithead-readout").textContent =
+            `Pithead: T ${fmt(state.pithead.topsoil)} · G ${fmt(state.pithead.granite)}${state.levels.crystal.open ? ` · C ${fmt(state.pithead.crystal)}` : ""}`;
+        }
+
+        function drawRefineryCanvas() {
+          const cvs = document.getElementById("refinery-canvas");
+          const ctx = cvs.getContext("2d");
+          const w = cvs.width,
+            h = cvs.height;
+          ctx.clearRect(0, 0, w, h);
+          ctx.fillStyle = "#10141b";
+          ctx.fillRect(0, 0, w, h);
+
+          const cols = [
+            { id: "kilns", x: 16, w: 118, col: "#d97757", label: "KILNS" },
+            { id: "saws", x: 144, w: 118, col: "#c9c1a6", label: "SAWS" },
+            {
+              id: "glassworks",
+              x: 272,
+              w: 118,
+              col: "#6ee7e7",
+              label: "GLASSWORKS",
+            },
+          ];
+          for (const c of cols) {
+            const mk = state.makers[c.id];
+            const active = mk.now > 0.1;
+            ctx.fillStyle = "#1b222b";
+            ctx.fillRect(c.x, 22, c.w, 38);
+            ctx.strokeStyle = active ? c.col : "#2d3642";
+            ctx.strokeRect(c.x, 22, c.w, 38);
+            ctx.fillStyle = active ? c.col : "#5f6873";
+            ctx.font = "bold 10px ui-sans-serif, sans-serif";
+            ctx.fillText(c.label, c.x + 8, 37);
+            ctx.font = "11px ui-monospace, monospace";
+            ctx.fillStyle = active ? "#ece3cf" : "#6c737c";
+            ctx.fillText(`${fmtRate(mk.now)}/s`, c.x + 8, 52);
+            if (active) {
+              const glow = 0.4 + 0.5 * Math.sin(state.elapsed * 5 + c.x);
+              ctx.fillStyle = c.col;
+              ctx.globalAlpha = glow;
+              ctx.fillRect(c.x + c.w - 18, 30, 10, 22);
+              ctx.globalAlpha = 1;
+            }
+          }
+        }
+
+        function drawFactoryCanvas() {
+          const cvs = document.getElementById("factory-canvas");
+          const ctx = cvs.getContext("2d");
+          const w = cvs.width,
+            h = cvs.height;
+          ctx.clearRect(0, 0, w, h);
+          ctx.fillStyle = "#0e131b";
+          ctx.fillRect(0, 0, w, h);
+
+          // Conveyor tracks
+          const rows = [
+            { id: "press", y: 26, label: "PARTS PRESS (2 in → Parts)" },
+            {
+              id: "assembler",
+              y: 54,
+              label: "PRECISION ASSEMBLY (3 in → Parts)",
+            },
+          ];
+          for (const r of rows) {
+            const fl = state.factory[r.id];
+            const active = fl.now > 0.1;
+            ctx.fillStyle = "#1b232d";
+            ctx.fillRect(14, r.y, 378, 20);
+            ctx.strokeStyle = active ? "#f2b441" : "#2c3540";
+            ctx.strokeRect(14, r.y, 378, 20);
+
+            if (active) {
+              for (let k = 0; k < 7; k++) {
+                const px = 22 + ((state.elapsed * 55 + k * 54) % 360);
+                ctx.fillStyle = "#f2b441";
+                ctx.fillRect(px, r.y + 6, 8, 8);
+              }
+            }
+            ctx.fillStyle = active ? "#ece3cf" : "#6d757e";
+            ctx.font = "bold 10px ui-sans-serif, sans-serif";
+            ctx.fillText(r.label, 20, r.y + 14);
+            ctx.font = "11px ui-monospace, monospace";
+            ctx.fillStyle = active ? "#6fd66a" : "#6d757e";
+            ctx.fillText(`${fmtRate(fl.now)}/s`, 340, r.y + 14);
+          }
+        }
+
+        function drawCityCanvas() {
+          const cvs = document.getElementById("city-canvas");
+          const ctx = cvs.getContext("2d");
+          const w = cvs.width,
+            h = cvs.height;
+          ctx.clearRect(0, 0, w, h);
+
+          // Night sky & ground
+          const grad = ctx.createLinearGradient(0, 0, 0, 125);
+          grad.addColorStop(0, "#0b1122");
+          grad.addColorStop(1, "#1a253a");
+          ctx.fillStyle = grad;
+          ctx.fillRect(0, 0, w, 125);
+          ctx.fillStyle = "#1d2226";
+          ctx.fillRect(0, 125, w, 33);
+          ctx.fillStyle = "#2f363e";
+          ctx.fillRect(0, 134, w, 14); // road
+
+          // Buildings
+          const slots = [
+            {
+              id: "lightTower",
+              x: 20,
+              bw: 46,
+              bh: 74,
+              col: "#e0b768",
+              short: "Tower",
+            },
+            {
+              id: "warehouse",
+              x: 84,
+              bw: 64,
+              bh: 48,
+              col: "#b96e4b",
+              short: "Wareh.",
+            },
+            {
+              id: "foundry",
+              x: 164,
+              bw: 66,
+              bh: 62,
+              col: "#8d7d6e",
+              short: "Foundry",
+            },
+            {
+              id: "researchLab",
+              x: 246,
+              bw: 66,
+              bh: 66,
+              col: "#5da9e9",
+              short: "Lab",
+            },
+            {
+              id: "railDepot",
+              x: 328,
+              bw: 66,
+              bh: 54,
+              col: "#6ee7e7",
+              short: "Rail",
+            },
+          ];
+          for (const sl of slots) {
+            const done = state.buildings[sl.id];
+            const active =
+              state.project.kind !== "planning" &&
+              state.project.building === sl.id;
+            const baseY = 125;
+            if (done) {
+              ctx.fillStyle = sl.col;
+              ctx.fillRect(sl.x, baseY - sl.bh, sl.bw, sl.bh);
+              ctx.fillStyle = "#ffe596";
+              ctx.fillRect(sl.x + 8, baseY - sl.bh + 12, 8, 8);
+              ctx.fillRect(sl.x + sl.bw - 16, baseY - sl.bh + 12, 8, 8);
+            } else if (active) {
+              const frac = (state.project.step + 0.35) / 3;
+              const curH = Math.round(sl.bh * frac);
+              ctx.strokeStyle = "#f2b441";
+              ctx.setLineDash([3, 2]);
+              ctx.strokeRect(sl.x, baseY - sl.bh, sl.bw, sl.bh);
+              ctx.setLineDash([]);
+              ctx.fillStyle = sl.col;
+              ctx.globalAlpha = 0.7;
+              ctx.fillRect(sl.x + 2, baseY - curH, sl.bw - 4, curH);
+              ctx.globalAlpha = 1;
+            } else {
+              ctx.strokeStyle = "#313c4b";
+              ctx.strokeRect(sl.x, baseY - 14, sl.bw, 14);
+            }
+            ctx.fillStyle = done ? "#ece3cf" : active ? "#f2b441" : "#677282";
+            ctx.font = "bold 10px ui-sans-serif, sans-serif";
+            ctx.fillText(sl.short, sl.x + 4, 121);
+          }
+
+          // Moving vehicles on the road
+          const fleet = staffedFleet(state);
+          if (fleet.count > 0) {
+            for (let i = 0; i < Math.min(fleet.trains, 2); i++) {
+              const x = ((state.elapsed * 75 + i * 190) % (w + 40)) - 30;
+              ctx.fillStyle = "#6ee7e7";
+              ctx.fillRect(x, 136, 26, 8);
+            }
+            for (let i = 0; i < Math.min(fleet.trucks, 3); i++) {
+              const x = ((state.elapsed * 48 + i * 130) % (w + 20)) - 15;
+              ctx.fillStyle = "#f2b441";
+              ctx.fillRect(x, 138, 14, 7);
+            }
+            for (let i = 0; i < Math.min(fleet.wagons, 3); i++) {
+              const x = ((state.elapsed * 24 + i * 115) % (w + 20)) - 15;
+              ctx.fillStyle = "#c4955d";
+              ctx.fillRect(x, 140, 10, 5);
+            }
+          }
+        }
+
+        // ===== DOM RENDERING =====
+        function renderFrame() {
+          // Order Strip
+          const b = BUILDING_BY_ID[state.project.building];
+          document.getElementById("ord-name").textContent = b.name;
+          const stepText =
+            state.project.kind === "planning"
+              ? "All Slice 2 buildings operational"
+              : `${STEP_NAMES[state.project.step]} · ${state.project.kind === "delivering" ? "delivering" : state.project.kind === "onHold" ? "on hold" : "not ordered"}`;
+          document.getElementById("ord-step").textContent = stepText;
+
+          const pipsEl = document.getElementById("ord-pips");
+          pipsEl.innerHTML = [0, 1, 2]
+            .map((i) => {
+              const cls =
+                state.project.kind === "planning" || i < state.project.step
+                  ? "bg-[#6fd66a]"
+                  : i === state.project.step
+                    ? "bg-[#f2b441]"
+                    : "bg-[#2a3138]";
+              return `<span class="inline-block w-4 h-1.5 rounded-sm ${cls}"></span>`;
+            })
+            .join("");
+
+          if (state.project.kind === "planning") {
+            document.getElementById("ord-reqs").textContent =
+              "City planning next building (Slice 3)";
+          } else {
+            const reqs = b.steps[state.project.step];
+            document.getElementById("ord-reqs").textContent = Object.entries(
+              reqs,
+            )
+              .map(([g, need]) => {
+                const built = Math.max(
+                  0,
+                  (state.project.arrived[g] || 0) -
+                    (state.project.onSite[g] || 0),
+                );
+                return `${GOOD_BY_ID[g].short} ${fmt(built)}/${fmt(need)}`;
+              })
+              .join(" · ");
+          }
+
+          // Stockpiles Strip (5 goods)
+          const stockEl = document.getElementById("stock-strip");
+          stockEl.innerHTML = GOODS.map((g) => {
+            const open = g.id !== "glass" || state.levels.crystal.open;
+            const cur = state.stock[g.id] || 0;
+            const cap = stockCap(state, g.id);
+            const pct = Math.min(100, (cur / cap) * 100);
+            const full = cur >= cap - 1;
+            return `
+        <div class="px-1.5 py-1 border-r enamel-edge last:border-r-0 ${open ? "" : "opacity-35"}">
+          <div class="flex items-baseline justify-between">
+            <span class="text-[10px] font-bold uppercase" style="color:${g.color}">${g.short}</span>
+            <span class="text-[11px] mono ${full ? "red font-bold" : "text-[#ece3cf]"}">${fmt(cur)}</span>
+          </div>
+          <div class="buf-track mt-0.5"><div class="buf-fill" style="width:${pct}%;background:${full ? "#e2552d" : g.color}"></div></div>
+        </div>
+      `;
+          }).join("");
+
+          // Global Workforce & Transport buttons
+          const free = freeWorkers(state);
+          document.getElementById("wf-total").textContent = state.workers;
+          const wfFree = document.getElementById("wf-free");
+          wfFree.textContent = `(${free} free)`;
+          wfFree.className = free > 0 ? "green" : "quiet";
+
+          const wCost = workerCost(state);
+          const hireBtn = document.getElementById("btn-hire");
+          document.getElementById("hire-cost").textContent = `${fmt(wCost)} St`;
+          hireBtn.disabled = state.stock.stones < wCost;
+
+          const fleet = staffedFleet(state);
+          document.getElementById("tr-fleet").textContent =
+            `${fleet.count}/${totalVehicles(state)} veh`;
+          document.getElementById("tr-rate").textContent =
+            `${fmtRate(fleet.totalRate)}/s`;
+          const trLamp = document.getElementById("tr-lamp");
+          trLamp.className =
+            "lamp " +
+            (fleet.count < totalVehicles(state)
+              ? "amber"
+              : fleet.count > 0
+                ? "green"
+                : "");
+
+          // Next Strip (only points at actionable states, never gives bottleneck answers)
+          const nextText = document.getElementById("next-text");
+          const nextBadge = document.getElementById("next-badge");
+          const resDone =
+            state.buildings.researchLab &&
+            state.research.active &&
+            Object.entries(RESEARCH_BY_ID[state.research.active.id].cost).every(
+              ([g, need]) =>
+                (state.research.active.arrived[g] || 0) >= need - 0.5,
+            );
+
+          if (resDone) {
+            nextText.textContent = `Research ready to install: ${RESEARCH_BY_ID[state.research.active.id].name}`;
+            nextBadge.textContent = "Install ▸";
+            document.getElementById("next-strip").onclick = () => {
+              ui.site = "city";
+              ui.sheet = "research";
+              renderAll();
+            };
+          } else if (state.project.kind === "unordered") {
+            nextText.textContent = `${b.name} ready to order in the City`;
+            nextBadge.textContent = "City ▸";
+            document.getElementById("next-strip").onclick = () => {
+              ui.site = "city";
+              renderAll();
+            };
+          } else if (
+            !state.levels.crystal.open &&
+            canAfford(LEVELS[2].sinkCost)
+          ) {
+            nextText.textContent = `Crystal Caves shaft can be sunk`;
+            nextBadge.textContent = "Mine ▸";
+            document.getElementById("next-strip").onclick = () => {
+              ui.site = "mine";
+              renderAll();
+            };
+          } else if (
+            state.buildings.researchLab &&
+            !state.research.active &&
+            RESEARCH.some((r) => !state.research.done[r.id])
+          ) {
+            nextText.textContent = `Research Lab open · no project selected`;
+            nextBadge.textContent = "Research ▸";
+            document.getElementById("next-strip").onclick = () => {
+              ui.site = "city";
+              ui.sheet = "research";
+              renderAll();
+            };
+          } else {
+            const runs = listRuns(state);
+            nextText.textContent = `${runs.length} transport runs active (${ui.transportMode === "part1" ? "even share" : "manual −/+"})`;
+            nextBadge.textContent = "Transport ▸";
+            document.getElementById("next-strip").onclick = () => {
+              ui.sheet = "transport";
+              renderAll();
+            };
+          }
+
+          // Site lamps
+          document.getElementById("lamp-mine").className =
+            "lamp " +
+            (!state.levels.crystal.open && canAfford(LEVELS[2].sinkCost)
+              ? "green"
+              : "");
+          document.getElementById("lamp-city").className =
+            "lamp " +
+            (resDone || state.project.kind === "unordered" ? "green" : "");
+
+          // Clock
+          const mins = Math.floor(state.elapsed / 60);
+          const secs = Math.floor(state.elapsed % 60);
+          document.getElementById("save-clock").textContent =
+            `Run ${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+        }
+
+        function renderMine() {
+          drawMineCanvas();
+          const lvContainer = document.getElementById("mine-levels");
+          lvContainer.innerHTML = LEVELS.map((meta) => {
+            const lv = state.levels[meta.id];
+            if (!lv.open) {
+              const ok = canAfford(meta.sinkCost);
+              return `
+          <div class="enamel-card border enamel-edge rounded p-2 flex items-center justify-between gap-2">
+            <div>
+              <div class="text-xs font-bold uppercase tracking-wide cyan">${meta.name} · not reached</div>
+              <div class="text-[11px] quiet">Depth ×2.5 · Opens Crystal rock, Glassworks &amp; Precision Assembly</div>
+            </div>
+            <button data-sink="${meta.id}" class="buy-btn px-2.5 py-1.5 text-xs font-bold shrink-0" ${ok ? "" : "disabled"}>
+              Sink shaft<div class="text-[10px] mono font-normal">${fmtPrice(meta.sinkCost)}</div>
+            </button>
+          </div>
+        `;
+            }
+            const dCost = scaledCost({ stones: 900 }, 1.25, lv.drills);
+            const cCost = scaledCost({ stones: 450 }, 1.24, lv.carts);
+            const dStalled = lv.drilled >= 2995;
+            const hStalled = lv.shaft >= 5995;
+            return `
+        <div class="enamel-card border enamel-edge rounded px-2 py-1.5 space-y-1">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold uppercase tracking-wide ${meta.id === "crystal" ? "cyan" : "text-[#ece3cf]"}">${meta.name}</span>
+            <div class="flex gap-1">
+              <button data-buy-drill="${meta.id}" class="buy-btn px-1.5 py-0.5 text-[10px] font-bold" ${canAfford(dCost) ? "" : "disabled"}>+Drill (${fmt(dCost.stones)} St)</button>
+              <button data-buy-cart="${meta.id}" class="buy-btn px-1.5 py-0.5 text-[10px] font-bold" ${canAfford(cCost) ? "" : "disabled"}>+Cart (${fmt(cCost.stones)} St)</button>
+            </div>
+          </div>
+          <!-- Drilling row -->
+          <div class="flex items-center gap-1.5 text-[11px]">
+            <div class="flex-1 min-w-0">
+              <div class="flex justify-between">
+                <span class="font-semibold">Drilling <span class="quiet">(${lv.drills}d)</span></span>
+                <span class="mono ${dStalled ? "red" : "text-[#ece3cf]"}">${fmtRate(lv.drillNow)}/${fmtRate(lv.drillMax)}/s</span>
+              </div>
+              <div class="flex items-center gap-1.5 mt-0.5">
+                <span class="text-[10px] quiet shrink-0">Drilled ${fmt(lv.drilled)}/3K</span>
+                <div class="buf-track flex-1"><div class="buf-fill" style="width:${(lv.drilled / 3000) * 100}%;background:${dStalled ? "#e2552d" : "#f2b441"}"></div></div>
+              </div>
+            </div>
+            <div class="flex items-center gap-1 shrink-0">
+              <button class="step-btn" data-lv-w="${meta.id}:drill:-1" ${lv.drillWorkers <= 0 ? "disabled" : ""}>−</button>
+              <span class="w-5 text-center mono text-xs font-bold">${lv.drillWorkers}</span>
+              <button class="step-btn" data-lv-w="${meta.id}:drill:1" ${freeWorkers(state) <= 0 ? "disabled" : ""}>+</button>
+            </div>
+          </div>
+          <!-- Haulage row -->
+          <div class="flex items-center gap-1.5 text-[11px]">
+            <div class="flex-1 min-w-0">
+              <div class="flex justify-between">
+                <span class="font-semibold">Haulage <span class="quiet">(${lv.carts}c)</span></span>
+                <span class="mono ${hStalled ? "red" : "text-[#ece3cf]"}">${fmtRate(lv.haulNow)}/${fmtRate(lv.haulMax)}/s</span>
+              </div>
+              <div class="flex items-center gap-1.5 mt-0.5">
+                <span class="text-[10px] quiet shrink-0">At shaft ${fmt(lv.shaft)}/6K</span>
+                <div class="buf-track flex-1"><div class="buf-fill" style="width:${(lv.shaft / 6000) * 100}%;background:${hStalled ? "#e2552d" : "#67b2f5"}"></div></div>
+              </div>
+            </div>
+            <div class="flex items-center gap-1 shrink-0">
+              <button class="step-btn" data-lv-w="${meta.id}:haul:-1" ${lv.haulWorkers <= 0 ? "disabled" : ""}>−</button>
+              <span class="w-5 text-center mono text-xs font-bold">${lv.haulWorkers}</span>
+              <button class="step-btn" data-lv-w="${meta.id}:haul:1" ${freeWorkers(state) <= 0 ? "disabled" : ""}>+</button>
+            </div>
+          </div>
+        </div>
+      `;
+          }).join("");
+
+          // Hoisting strip
+          const openLvs = LEVELS.filter((l) => state.levels[l.id].open);
+          const staffedH = Math.min(
+            state.hoisting.hoists,
+            state.hoisting.workers,
+          );
+          const dedSum = openLvs.reduce(
+            (a, l) => a + (state.hoisting.assigned[l.id] || 0),
+            0,
+          );
+          const sharedH = Math.max(0, staffedH - dedSum);
+          const hCost = scaledCost(
+            { stones: 1200 },
+            1.25,
+            state.hoisting.hoists,
+          );
+
+          document.getElementById("mine-hoisting").innerHTML = `
+      <div class="flex items-center justify-between gap-2">
+        <div class="text-xs">
+          <span class="font-bold uppercase">Hoisting</span>
+          <span class="mono quiet ml-1">${staffedH}/${state.hoisting.hoists} hoists · ${fmtRate(state.hoisting.liftedNow)}/s</span>
+        </div>
+        <div class="flex items-center gap-1">
+          <button id="buy-hoist" class="buy-btn px-1.5 py-0.5 text-[10px] font-bold mr-1" ${canAfford(hCost) ? "" : "disabled"}>+Hoist (${fmt(hCost.stones)} St)</button>
+          <button class="step-btn" id="hoist-w-dec" ${state.hoisting.workers <= 0 ? "disabled" : ""}>−</button>
+          <span class="w-5 text-center mono text-xs font-bold">${state.hoisting.workers}</span>
+          <button class="step-btn" id="hoist-w-inc" ${freeWorkers(state) <= 0 ? "disabled" : ""}>+</button>
+        </div>
+      </div>
+      <div class="gap-1 mt-1.5 text-[10px]" style="display:grid;grid-template-columns:repeat(${openLvs.length + 1},minmax(0,1fr));">
+        ${openLvs
+          .map((l) => {
+            const n = state.hoisting.assigned[l.id] || 0;
+            return `
+            <div class="enamel-dark border enamel-edge rounded px-1 py-1 text-center">
+              <div class="quiet uppercase font-bold truncate">${l.name.split(" ")[0]}</div>
+              <div class="flex items-center justify-center gap-1 mt-0.5">
+                <button data-h-asgn="${l.id}:-1" class="px-1.5 bg-[#252d37] rounded font-bold" ${n <= 0 ? "disabled" : ""}>−</button>
+                <span class="mono font-bold">${n}</span>
+                <button data-h-asgn="${l.id}:1" class="px-1.5 bg-[#252d37] rounded font-bold" ${dedSum >= staffedH ? "disabled" : ""}>+</button>
+              </div>
+            </div>
+          `;
+          })
+          .join("")}
+        <div class="enamel-dark border enamel-edge rounded px-1 py-1 text-center">
+          <div class="amber uppercase font-bold">In turn</div>
+          <div class="mono font-bold text-xs mt-1">${sharedH}</div>
+        </div>
+      </div>
+    `;
+
+          // Wire mine events
+          lvContainer.querySelectorAll("[data-sink]").forEach((btn) => {
+            btn.onclick = () => {
+              const meta = LEVELS.find((l) => l.id === btn.dataset.sink);
+              if (pay(meta.sinkCost)) {
+                state.levels[meta.id].open = true;
+                say(
+                  `${meta.name} reached! Glassworks & Precision Assembly unlocked.`,
+                );
+                renderAll();
+              }
+            };
+          });
+          lvContainer.querySelectorAll("[data-buy-drill]").forEach((btn) => {
+            btn.onclick = () => {
+              const lv = state.levels[btn.dataset.buyDrill];
+              if (pay(scaledCost({ stones: 900 }, 1.25, lv.drills))) {
+                lv.drills++;
+                renderAll();
+              }
+            };
+          });
+          lvContainer.querySelectorAll("[data-buy-cart]").forEach((btn) => {
+            btn.onclick = () => {
+              const lv = state.levels[btn.dataset.buyCart];
+              if (pay(scaledCost({ stones: 450 }, 1.24, lv.carts))) {
+                lv.carts++;
+                renderAll();
+              }
+            };
+          });
+          lvContainer.querySelectorAll("[data-lv-w]").forEach((btn) => {
+            btn.onclick = () => {
+              const [id, job, d] = btn.dataset.lvW.split(":");
+              const lv = state.levels[id];
+              const key = job === "drill" ? "drillWorkers" : "haulWorkers";
+              adjustWorker(
+                () => lv[key],
+                (v) => {
+                  lv[key] = v;
+                },
+                Number(d),
+              );
+            };
+          });
+          document.getElementById("buy-hoist").onclick = () => {
+            if (
+              pay(scaledCost({ stones: 1200 }, 1.25, state.hoisting.hoists))
+            ) {
+              state.hoisting.hoists++;
+              renderAll();
+            }
+          };
+          document.getElementById("hoist-w-dec").onclick = () =>
+            adjustWorker(
+              () => state.hoisting.workers,
+              (v) => (state.hoisting.workers = v),
+              -1,
+            );
+          document.getElementById("hoist-w-inc").onclick = () =>
+            adjustWorker(
+              () => state.hoisting.workers,
+              (v) => (state.hoisting.workers = v),
+              1,
+            );
+          document.querySelectorAll("[data-h-asgn]").forEach((btn) => {
+            btn.onclick = () => {
+              const [id, d] = btn.dataset.hAsgn.split(":");
+              const delta = Number(d);
+              const cur = state.hoisting.assigned[id] || 0;
+              if (delta > 0 && dedSum < staffedH)
+                state.hoisting.assigned[id] = cur + 1;
+              if (delta < 0 && cur > 0) state.hoisting.assigned[id] = cur - 1;
+              renderAll();
+            };
+          });
+        }
+
+        function renderRefinery() {
+          drawRefineryCanvas();
+          const container = document.getElementById("refinery-makers");
+          container.innerHTML = MAKERS.map((meta) => {
+            const open = meta.openCheck(state);
+            const mk = state.makers[meta.id];
+            if (!open) {
+              return `
+          <div class="enamel-card border enamel-edge rounded p-2.5 opacity-55">
+            <div class="text-xs font-bold uppercase">${meta.name} · locked</div>
+            <div class="text-[11px] quiet mt-0.5">Opens once Crystal Caves is sunk (takes Crystal rock + Stone → Glass)</div>
+          </div>
+        `;
+            }
+            const cost = scaledCost(meta.baseCost, meta.growth, mk.count);
+            const staffed = Math.min(
+              mk.count,
+              Math.floor(mk.workers / meta.workersPerMachine),
+            );
+            const recipeText =
+              meta.inputs.map((i) => `${i.perCycle} ${i.label}`).join(" + ") +
+              ` → ${meta.outPerCycle} ${GOOD_BY_ID[meta.output].short}`;
+            const idle = staffed > 0 && mk.now < 0.05;
+            return `
+        <div class="enamel-card border enamel-edge rounded p-2 space-y-1.5">
+          <div class="flex items-center justify-between gap-2">
+            <div>
+              <div class="flex items-center gap-1.5">
+                <span class="text-xs font-bold uppercase" style="color:${GOOD_BY_ID[meta.output].color}">${meta.name}</span>
+                ${meta.inputs.length > 1 ? `<span class="text-[10px] px-1 rounded bg-[#152a32] cyan font-semibold">multi-input</span>` : ""}
+                ${idle ? `<span class="text-[10px] px-1 rounded bg-[#361c17] red font-semibold">standing</span>` : ""}
+              </div>
+              <div class="text-[11px] quiet">Recipe: ${recipeText}</div>
+            </div>
+            <div class="text-right mono text-xs">
+              <div class="font-bold">${fmtRate(mk.now)}/${fmtRate(mk.max)}/s</div>
+              <div class="text-[10px] quiet">${staffed}/${mk.count} ${meta.machineName.toLowerCase()}s</div>
+            </div>
+          </div>
+          <!-- Separate input buffers -->
+          <div class="gap-1.5" style="display:grid;grid-template-columns:repeat(${meta.inputs.length},minmax(0,1fr));">
+            ${meta.inputs
+              .map((inp) => {
+                const cur = mk.buf[inp.src] || 0;
+                const empty = cur < inp.perCycle;
+                return `
+                <div class="enamel-dark border enamel-edge rounded px-1.5 py-1">
+                  <div class="flex justify-between text-[10px]">
+                    <span class="${empty ? "red font-bold" : "quiet"}">${inp.label}</span>
+                    <span class="mono ${empty ? "red font-bold" : "text-[#ece3cf]"}">${fmt(cur)}/${fmt(inp.cap)}</span>
+                  </div>
+                  <div class="buf-track mt-0.5"><div class="buf-fill" style="width:${(cur / inp.cap) * 100}%;background:${empty ? "#e2552d" : "#f2b441"}"></div></div>
+                </div>
+              `;
+              })
+              .join("")}
+          </div>
+          <div class="flex items-center justify-between pt-0.5">
+            <button data-buy-maker="${meta.id}" class="buy-btn px-2 py-1 text-[11px] font-bold" ${canAfford(cost) ? "" : "disabled"}>
+              +${meta.machineName} · ${fmtPrice(cost)}
+            </button>
+            <div class="flex items-center gap-1 text-[11px]">
+              <span class="quiet mr-0.5">${mk.workers}/${mk.count * meta.workersPerMachine} w</span>
+              <button class="step-btn" data-mk-w="${meta.id}:-1" ${mk.workers <= 0 ? "disabled" : ""}>−</button>
+              <span class="w-5 text-center mono font-bold">${mk.workers}</span>
+              <button class="step-btn" data-mk-w="${meta.id}:1" ${freeWorkers(state) <= 0 ? "disabled" : ""}>+</button>
+            </div>
+          </div>
+        </div>
+      `;
+          }).join("");
+
+          // Stockyard
+          const expCost = stockyardExpandCost(state);
+          document.getElementById("refinery-stockyard").innerHTML = `
+      <div class="flex items-center justify-between gap-2">
+        <div>
+          <div class="text-xs font-bold uppercase">Stockyard · Level ${state.stockyardLevel}</div>
+          <div class="text-[11px] quiet mono">Stone ${fmt(stockCap(state, "stones"))} · Brick ${fmt(stockCap(state, "brick"))} · Cut ${fmt(stockCap(state, "cutStone"))} · Glass ${fmt(stockCap(state, "glass"))} · Parts ${fmt(stockCap(state, "parts"))}</div>
+        </div>
+        <button id="btn-expand-yard" class="buy-btn px-2 py-1 text-xs font-bold shrink-0" ${canAfford(expCost) ? "" : "disabled"}>
+          +Expand<div class="text-[10px] mono font-normal">${fmtPrice(expCost)}</div>
+        </button>
+      </div>
+    `;
+
+          container.querySelectorAll("[data-buy-maker]").forEach((btn) => {
+            btn.onclick = () => {
+              const meta = MAKERS.find((m) => m.id === btn.dataset.buyMaker);
+              const mk = state.makers[meta.id];
+              if (pay(scaledCost(meta.baseCost, meta.growth, mk.count))) {
+                mk.count++;
+                renderAll();
+              }
+            };
+          });
+          container.querySelectorAll("[data-mk-w]").forEach((btn) => {
+            btn.onclick = () => {
+              const [id, d] = btn.dataset.mkW.split(":");
+              adjustWorker(
+                () => state.makers[id].workers,
+                (v) => (state.makers[id].workers = v),
+                Number(d),
+              );
+            };
+          });
+          document.getElementById("btn-expand-yard").onclick = () => {
+            if (pay(stockyardExpandCost(state))) {
+              state.stockyardLevel++;
+              renderAll();
+            }
+          };
+        }
+
+        function renderFactory() {
+          drawFactoryCanvas();
+          const container = document.getElementById("factory-lines");
+          container.innerHTML =
+            FACTORY_LINES.map((meta) => {
+              const open = meta.openCheck(state);
+              const fl = state.factory[meta.id];
+              if (!open) {
+                return `
+          <div class="enamel-card border enamel-edge rounded p-3 opacity-55">
+            <div class="text-xs font-bold uppercase">${meta.name} · locked</div>
+            <div class="text-xs quiet mt-1">Opens with Crystal Caves (3 inputs: Brick + Cut stone + Glass → 3 Parts)</div>
+          </div>
+        `;
+              }
+              const cost = scaledCost(meta.baseCost, meta.growth, fl.count);
+              const staffed = Math.min(
+                fl.count,
+                Math.floor(fl.workers / meta.workersPerMachine),
+              );
+              const recipeText =
+                meta.inputs.map((i) => `${i.perCycle} ${i.label}`).join(" + ") +
+                ` → ${meta.outPerCycle} ${GOOD_BY_ID[meta.output].short}`;
+              const idle = staffed > 0 && fl.now < 0.05;
+              return `
+        <div class="enamel-card border enamel-edge rounded p-2.5 space-y-2">
+          <div class="flex items-center justify-between gap-2">
+            <div>
+              <div class="flex items-center gap-1.5">
+                <span class="text-xs font-bold uppercase amber">${meta.name}</span>
+                <span class="text-[10px] px-1.5 rounded bg-[#2d2618] amber font-semibold">${meta.inputs.length} inputs</span>
+                ${idle ? `<span class="text-[10px] px-1 rounded bg-[#361c17] red font-semibold">standing</span>` : ""}
+              </div>
+              <div class="text-[11px] quiet mt-0.5">Recipe: ${recipeText}</div>
+            </div>
+            <div class="text-right mono text-xs">
+              <div class="font-bold text-[#ece3cf]">${fmtRate(fl.now)}/${fmtRate(fl.max)}/s</div>
+              <div class="text-[10px] quiet">${staffed}/${fl.count} ${meta.machineName.toLowerCase()}s</div>
+            </div>
+          </div>
+
+          <!-- Separate input buffer per required good -->
+          <div class="space-y-1">
+            ${meta.inputs
+              .map((inp) => {
+                const cur = fl.buf[inp.src] || 0;
+                const empty = cur < inp.perCycle;
+                const color = GOOD_BY_ID[inp.src].color;
+                return `
+                <div class="enamel-dark border enamel-edge rounded px-2 py-1">
+                  <div class="flex justify-between text-[11px]">
+                    <span class="${empty ? "red font-bold" : ""}" style="${empty ? "" : `color:${color}`}">${inp.label} at line</span>
+                    <span class="mono ${empty ? "red font-bold" : "text-[#ece3cf]"}">${fmt(cur)} of ${fmt(inp.cap)}</span>
+                  </div>
+                  <div class="buf-track mt-0.5"><div class="buf-fill" style="width:${(cur / inp.cap) * 100}%;background:${empty ? "#e2552d" : color}"></div></div>
+                </div>
+              `;
+              })
+              .join("")}
+          </div>
+
+          <div class="flex items-center justify-between pt-1">
+            <button data-buy-fac="${meta.id}" class="buy-btn px-2.5 py-1 text-xs font-bold" ${canAfford(cost) ? "" : "disabled"}>
+              +${meta.machineName} · ${fmtPrice(cost)}
+            </button>
+            <div class="flex items-center gap-1 text-xs">
+              <span class="quiet text-[11px] mr-0.5">${fl.workers}/${fl.count * meta.workersPerMachine} w</span>
+              <button class="step-btn" data-fl-w="${meta.id}:-1" ${fl.workers <= 0 ? "disabled" : ""}>−</button>
+              <span class="w-5 text-center mono font-bold">${fl.workers}</span>
+              <button class="step-btn" data-fl-w="${meta.id}:1" ${freeWorkers(state) <= 0 ? "disabled" : ""}>+</button>
+            </div>
+          </div>
+        </div>
+      `;
+            }).join("") +
+            `
+      <div class="enamel-panel border enamel-edge rounded p-2 text-[11px] quiet">
+        Factory lines run continuously into the <strong>Parts</strong> stockpile whenever all input buffers have stock. Lasting blueprints moved to <strong>Research</strong> in the City.
+      </div>
+    `;
+
+          container.querySelectorAll("[data-buy-fac]").forEach((btn) => {
+            btn.onclick = () => {
+              const meta = FACTORY_LINES.find(
+                (f) => f.id === btn.dataset.buyFac,
+              );
+              const fl = state.factory[meta.id];
+              if (pay(scaledCost(meta.baseCost, meta.growth, fl.count))) {
+                fl.count++;
+                renderAll();
+              }
+            };
+          });
+          container.querySelectorAll("[data-fl-w]").forEach((btn) => {
+            btn.onclick = () => {
+              const [id, d] = btn.dataset.flW.split(":");
+              adjustWorker(
+                () => state.factory[id].workers,
+                (v) => (state.factory[id].workers = v),
+                Number(d),
+              );
+            };
+          });
+        }
+
+        function renderCity() {
+          drawCityCanvas();
+          const b = BUILDING_BY_ID[state.project.building];
+          const projEl = document.getElementById("city-project");
+
+          if (state.project.kind === "planning") {
+            projEl.innerHTML = `
+        <div class="text-xs font-bold uppercase green">The Rail Depot: operational</div>
+        <div class="text-[11px] quiet mt-0.5">All 5 Slice 2 buildings stand. Trains are open in Transport. Next building comes in Slice 3.</div>
+      `;
+          } else {
+            const reqs = b.steps[state.project.step];
+            const isDel = state.project.kind === "delivering";
+            projEl.innerHTML = `
+        <div class="flex items-center justify-between gap-2">
+          <div>
+            <div class="text-xs font-bold uppercase amber">${b.name} · ${STEP_NAMES[state.project.step]}</div>
+            <div class="text-[11px] quiet">${b.power}</div>
+          </div>
+          <button id="btn-order-toggle" class="${isDel ? "action-btn" : "buy-btn"} px-2.5 py-1.5 text-xs font-bold shrink-0">
+            ${isDel ? "Hold order" : state.project.kind === "onHold" ? "Resume" : "Order project"}
+          </button>
+        </div>
+        <div class="gap-1.5 mt-2" style="display:grid;grid-template-columns:repeat(${Object.keys(reqs).length},minmax(0,1fr));">
+          ${Object.entries(reqs)
+            .map(([g, need]) => {
+              const arr = state.project.arrived[g] || 0;
+              const onSite = state.project.onSite[g] || 0;
+              const built = Math.max(0, arr - onSite);
+              return `
+              <div class="enamel-dark border enamel-edge rounded px-1.5 py-1">
+                <div class="flex justify-between text-[10px]">
+                  <span style="color:${GOOD_BY_ID[g].color}" class="font-bold">${GOOD_BY_ID[g].short}</span>
+                  <span class="mono">${fmt(built)}/${fmt(need)}</span>
+                </div>
+                <div class="buf-track mt-0.5"><div class="buf-fill" style="width:${Math.min(100, (built / need) * 100)}%;background:${GOOD_BY_ID[g].color}"></div></div>
+                <div class="text-[10px] quiet mono mt-0.5">On site: ${fmt(onSite)}</div>
+              </div>
+            `;
+            })
+            .join("")}
+        </div>
+        <div class="flex items-center justify-between mt-2 pt-1.5 border-t enamel-edge text-xs">
+          <div>
+            <span class="font-semibold">Builders</span>
+            <span class="mono quiet ml-1">${fmtRate(state.project.builtNow)}/s</span>
+          </div>
+          <div class="flex items-center gap-1">
+            <button class="step-btn" id="bld-dec" ${state.project.builders <= 0 ? "disabled" : ""}>−</button>
+            <span class="w-5 text-center mono font-bold">${state.project.builders}</span>
+            <button class="step-btn" id="bld-inc" ${freeWorkers(state) <= 0 ? "disabled" : ""}>+</button>
+          </div>
+        </div>
+      `;
+            document.getElementById("btn-order-toggle").onclick = () => {
+              state.project.kind = isDel ? "onHold" : "delivering";
+              renderAll();
+            };
+            document.getElementById("bld-dec").onclick = () =>
+              adjustWorker(
+                () => state.project.builders,
+                (v) => (state.project.builders = v),
+                -1,
+              );
+            document.getElementById("bld-inc").onclick = () =>
+              adjustWorker(
+                () => state.project.builders,
+                (v) => (state.project.builders = v),
+                1,
+              );
+          }
+
+          // Research Lab door
+          const resDoor = document.getElementById("city-research-door");
+          if (!state.buildings.researchLab) {
+            resDoor.innerHTML = `
+        <div class="flex items-center justify-between opacity-65">
+          <div>
+            <div class="text-xs font-bold uppercase blue">Research Lab · not built</div>
+            <div class="text-[11px] quiet">Build The Research Lab to unlock Research (lasting upgrades &amp; gear).</div>
+          </div>
+        </div>
+      `;
+          } else {
+            const doneCount = Object.keys(state.research.done).length;
+            const act = state.research.active
+              ? RESEARCH_BY_ID[state.research.active.id]
+              : null;
+            const ready =
+              act &&
+              Object.entries(act.cost).every(
+                ([g, n]) => (state.research.active.arrived[g] || 0) >= n - 0.5,
+              );
+            resDoor.innerHTML = `
+        <div class="flex items-center justify-between gap-2">
+          <div class="min-w-0">
+            <div class="text-xs font-bold uppercase blue flex items-center gap-1.5">
+              Research Lab <span class="lamp ${ready ? "green" : act ? "amber" : ""}"></span>
+              <span class="quiet font-normal mono">${doneCount}/${RESEARCH.length}</span>
+            </div>
+            <div class="text-[11px] ${ready ? "green font-bold" : "quiet"} truncate mt-0.5">
+              ${ready ? `Ready to install: ${act.name}` : act ? `Delivering: ${act.name}` : "Idle · choose a research project"}
+            </div>
+          </div>
+          <button id="btn-open-research" class="${ready ? "buy-btn" : "action-btn"} px-2.5 py-1.5 text-xs font-bold shrink-0">
+            Open Research ▸
+          </button>
+        </div>
+      `;
+            document.getElementById("btn-open-research").onclick = () => {
+              ui.sheet = "research";
+              renderAll();
+            };
+          }
+
+          // Buildings summary list
+          document.getElementById("city-buildings-list").innerHTML = `
+      <div class="text-[10px] uppercase tracking-wider quiet font-bold mb-1">Operational Buildings</div>
+      <div class="space-y-1 text-[11px]">
+        ${BUILDINGS.map((bld) => {
+          const op = state.buildings[bld.id];
+          return `
+            <div class="flex items-center justify-between gap-2 ${op ? "" : "opacity-40"}">
+              <span class="font-semibold truncate">${op ? "●" : "○"} ${bld.name}</span>
+              <span class="quiet text-[10px] truncate">${bld.power}</span>
+            </div>
+          `;
+        }).join("")}
+      </div>
+    `;
+        }
+
+        // ===== OVERLAY SHEETS =====
+        function renderSheet() {
+          const backdrop = document.getElementById("sheet-backdrop");
+          if (!ui.sheet) {
+            backdrop.classList.add("hidden");
+            return;
+          }
+          backdrop.classList.remove("hidden");
+
+          const title = document.getElementById("sheet-title");
+          const sub = document.getElementById("sheet-sub");
+          const body = document.getElementById("sheet-content");
+          const prevScroll = body.scrollTop;
+
+          if (ui.sheet === "workforce") {
+            title.textContent = "Workforce";
+            sub.textContent = `${state.workers} hired · ${freeWorkers(state)} free · assigned across all sites`;
+            const rows = [
+              {
+                grp: "Mine · Topsoil",
+                items: [
+                  {
+                    name: "Drilling",
+                    get: () => state.levels.topsoil.drillWorkers,
+                    set: (v) => (state.levels.topsoil.drillWorkers = v),
+                    note: `${state.levels.topsoil.drills} drills`,
+                  },
+                  {
+                    name: "Haulage",
+                    get: () => state.levels.topsoil.haulWorkers,
+                    set: (v) => (state.levels.topsoil.haulWorkers = v),
+                    note: `${state.levels.topsoil.carts} carts`,
+                  },
+                ],
+              },
+              {
+                grp: "Mine · Granite",
+                items: [
+                  {
+                    name: "Drilling",
+                    get: () => state.levels.granite.drillWorkers,
+                    set: (v) => (state.levels.granite.drillWorkers = v),
+                    note: `${state.levels.granite.drills} drills`,
+                  },
+                  {
+                    name: "Haulage",
+                    get: () => state.levels.granite.haulWorkers,
+                    set: (v) => (state.levels.granite.haulWorkers = v),
+                    note: `${state.levels.granite.carts} carts`,
+                  },
+                ],
+              },
+              ...(state.levels.crystal.open
+                ? [
+                    {
+                      grp: "Mine · Crystal Caves",
+                      items: [
+                        {
+                          name: "Drilling",
+                          get: () => state.levels.crystal.drillWorkers,
+                          set: (v) => (state.levels.crystal.drillWorkers = v),
+                          note: `${state.levels.crystal.drills} drills`,
+                        },
+                        {
+                          name: "Haulage",
+                          get: () => state.levels.crystal.haulWorkers,
+                          set: (v) => (state.levels.crystal.haulWorkers = v),
+                          note: `${state.levels.crystal.carts} carts`,
+                        },
+                      ],
+                    },
+                  ]
+                : []),
+              {
+                grp: "Shaft & Refinery",
+                items: [
+                  {
+                    name: "Hoisting",
+                    get: () => state.hoisting.workers,
+                    set: (v) => (state.hoisting.workers = v),
+                    note: `${state.hoisting.hoists} hoists`,
+                  },
+                  {
+                    name: "Kilns",
+                    get: () => state.makers.kilns.workers,
+                    set: (v) => (state.makers.kilns.workers = v),
+                    note: `${state.makers.kilns.count} kilns`,
+                  },
+                  {
+                    name: "Saws",
+                    get: () => state.makers.saws.workers,
+                    set: (v) => (state.makers.saws.workers = v),
+                    note: `${state.makers.saws.count} saws`,
+                  },
+                  ...(state.levels.crystal.open
+                    ? [
+                        {
+                          name: "Glassworks",
+                          get: () => state.makers.glassworks.workers,
+                          set: (v) => (state.makers.glassworks.workers = v),
+                          note: `${state.makers.glassworks.count} furnaces`,
+                        },
+                      ]
+                    : []),
+                ],
+              },
+              {
+                grp: "Factory, Transport & City",
+                items: [
+                  {
+                    name: "Parts Press",
+                    get: () => state.factory.press.workers,
+                    set: (v) => (state.factory.press.workers = v),
+                    note: `${state.factory.press.count} presses`,
+                  },
+                  ...(state.levels.crystal.open
+                    ? [
+                        {
+                          name: "Precision Assy",
+                          get: () => state.factory.assembler.workers,
+                          set: (v) => (state.factory.assembler.workers = v),
+                          note: `${state.factory.assembler.count} lines`,
+                        },
+                      ]
+                    : []),
+                  {
+                    name: "Drivers",
+                    get: () => state.transport.drivers,
+                    set: (v) => (state.transport.drivers = v),
+                    note: `${totalVehicles(state)} vehicles`,
+                  },
+                  {
+                    name: "Builders",
+                    get: () => state.project.builders,
+                    set: (v) => (state.project.builders = v),
+                    note: "City site",
+                  },
+                ],
+              },
+            ];
+            let idx = 0;
+            const fns = [];
+            body.innerHTML = rows
+              .map(
+                (g) => `
+        <div>
+          <div class="text-[10px] uppercase tracking-wider amber font-bold mb-1">${g.grp}</div>
+          <div class="space-y-1">
+            ${g.items
+              .map((it) => {
+                const id = idx++;
+                fns.push(it);
+                const val = it.get();
+                return `
+                <div class="enamel-card border enamel-edge rounded px-2 py-1.5 flex items-center justify-between text-xs">
+                  <div>
+                    <span class="font-semibold">${it.name}</span>
+                    <span class="quiet text-[11px] ml-1.5">${it.note}</span>
+                  </div>
+                  <div class="flex items-center gap-1">
+                    <button class="step-btn" data-wf-row="${id}:-1" ${val <= 0 ? "disabled" : ""}>−</button>
+                    <span class="w-6 text-center mono font-bold">${val}</span>
+                    <button class="step-btn" data-wf-row="${id}:1" ${freeWorkers(state) <= 0 ? "disabled" : ""}>+</button>
+                  </div>
+                </div>
+              `;
+              })
+              .join("")}
+          </div>
+        </div>
+      `,
+              )
+              .join("");
+            body.querySelectorAll("[data-wf-row]").forEach((btn) => {
+              btn.onclick = () => {
+                const [id, d] = btn.dataset.wfRow.split(":");
+                const it = fns[Number(id)];
+                adjustWorker(it.get, it.set, Number(d));
+              };
+            });
+          } else if (ui.sheet === "transport") {
+            const fleet = staffedFleet(state);
+            const runs = listRuns(state);
+            const dedTotal = sumAssignedVehicles(state, runs);
+            const unassigned = Math.max(0, fleet.count - dedTotal);
+
+            title.textContent = `Transport · ${ui.transportMode === "part1" ? "Part 1 (Even share)" : "Part 2 (Assign −/+)"}`;
+            sub.textContent = `${fleet.count} of ${totalVehicles(state)} vehicles staffed · ${fmtRate(fleet.totalRate)}/s total`;
+
+            body.innerHTML = `
+        <!-- Fleet & Drivers -->
+        <div class="enamel-card border enamel-edge rounded p-2 space-y-2">
+          <div class="flex items-center justify-between text-xs">
+            <div>
+              <span class="font-bold uppercase">Drivers</span>
+              <span class="quiet ml-1.5 mono">${fleet.trains}T · ${fleet.trucks}Tr · ${fleet.wagons}W running</span>
+            </div>
+            <div class="flex items-center gap-1">
+              <button class="step-btn" id="tr-drv-dec" ${state.transport.drivers <= 0 ? "disabled" : ""}>−</button>
+              <span class="w-6 text-center mono font-bold">${state.transport.drivers}</span>
+              <button class="step-btn" id="tr-drv-inc" ${freeWorkers(state) <= 0 ? "disabled" : ""}>+</button>
+            </div>
+          </div>
+          <div class="grid grid-cols-3 gap-1.5">
+            ${VEHICLES.map((v) => {
+              const open = v.openCheck(state);
+              const cnt = state.transport.vehicles[v.id];
+              const cost = scaledCost(v.baseCost, v.growth, cnt);
+              if (!open) {
+                return `
+                  <div class="enamel-dark border enamel-edge rounded p-1.5 text-center opacity-45">
+                    <div class="text-[11px] font-bold">${v.short}</div>
+                    <div class="text-[10px] quiet">After Rail Depot</div>
+                  </div>
+                `;
+              }
+              return `
+                <button data-buy-veh="${v.id}" class="buy-btn p-1.5 text-center" ${canAfford(cost) ? "" : "disabled"}>
+                  <div class="text-[11px] font-bold">+${v.short} (${cnt})</div>
+                  <div class="text-[10px] mono">${v.rate}/s · ${fmtPrice(cost)}</div>
+                </button>
+              `;
+            }).join("")}
+          </div>
+          <div class="text-[11px] quiet border-t enamel-edge pt-1.5">
+            ${
+              ui.transportMode === "part1"
+                ? `Part 1 rule: all ${fleet.count} staffed vehicles share evenly across active runs (1 good per vehicle).`
+                : `Part 2 rule: ${dedTotal} dedicated · ${unassigned} unassigned vehicles share evenly across remaining active runs.`
+            }
+          </div>
+        </div>
+
+        <!-- Physical Runs -->
+        <div class="space-y-1.5">
+          <div class="text-[10px] uppercase tracking-wider amber font-bold">Active Runs (${runs.length}) · 1 good per vehicle</div>
+          ${runs
+            .map((r) => {
+              const src = r.getSrc();
+              const dst = r.getDst();
+              const rate = state.transport.runRates[r.id] || 0;
+              const veh = state.transport.runVeh[r.id] || 0;
+              const ded = state.transport.assigned[r.id] || 0;
+              const dstFull = dst >= r.dstCap - 1;
+              const srcEmpty = src < 1;
+              return `
+              <div class="enamel-card border enamel-edge rounded px-2 py-1.5 space-y-1">
+                <div class="flex items-center justify-between gap-2 text-xs">
+                  <div class="min-w-0">
+                    <div class="font-semibold truncate">${r.from} → ${r.to}</div>
+                    <div class="text-[10px] flex items-center gap-1.5">
+                      <span style="color:${r.color}" class="font-bold">${r.goodLabel}</span>
+                      <span class="mono quiet">src ${fmt(src)}</span>
+                      ${dstFull ? `<span class="red font-bold">dest full</span>` : srcEmpty ? `<span class="amber">src empty</span>` : ""}
+                    </div>
+                  </div>
+                  <div class="text-right mono shrink-0">
+                    <div class="text-xs font-bold ${rate > 0.1 ? "green" : "quiet"}">${fmtRate(rate)}/s</div>
+                    <div class="text-[10px] quiet">${veh.toFixed(1)} veh</div>
+                  </div>
+                </div>
+                <div class="flex items-center gap-2">
+                  <div class="flex-1">
+                    <div class="buf-track"><div class="buf-fill" style="width:${Math.min(100, (dst / Math.max(1, r.dstCap)) * 100)}%;background:${dstFull ? "#e2552d" : r.color}"></div></div>
+                    <div class="text-[10px] quiet mono mt-0.5">Dest buffer ${fmt(dst)} / ${fmt(r.dstCap)}</div>
+                  </div>
+                  ${
+                    ui.transportMode === "part2"
+                      ? `
+                    <div class="flex items-center gap-1 shrink-0">
+                      <button class="step-btn" data-run-v="${r.id}:-1" ${ded <= 0 ? "disabled" : ""}>−</button>
+                      <span class="w-5 text-center mono text-xs font-bold">${ded}</span>
+                      <button class="step-btn" data-run-v="${r.id}:1" ${dedTotal >= fleet.count ? "disabled" : ""}>+</button>
+                    </div>
+                  `
+                      : ""
+                  }
+                </div>
+              </div>
+            `;
+            })
+            .join("")}
+        </div>
+      `;
+
+            document.getElementById("tr-drv-dec").onclick = () =>
+              adjustWorker(
+                () => state.transport.drivers,
+                (v) => (state.transport.drivers = v),
+                -1,
+              );
+            document.getElementById("tr-drv-inc").onclick = () =>
+              adjustWorker(
+                () => state.transport.drivers,
+                (v) => (state.transport.drivers = v),
+                1,
+              );
+            body.querySelectorAll("[data-buy-veh]").forEach((btn) => {
+              btn.onclick = () => {
+                const v = VEHICLES.find((x) => x.id === btn.dataset.buyVeh);
+                const cnt = state.transport.vehicles[v.id];
+                if (pay(scaledCost(v.baseCost, v.growth, cnt))) {
+                  state.transport.vehicles[v.id]++;
+                  renderAll();
+                }
+              };
+            });
+            body.querySelectorAll("[data-run-v]").forEach((btn) => {
+              btn.onclick = () => {
+                const [id, d] = btn.dataset.runV.split(":");
+                adjustRunVehicles(id, Number(d));
+              };
+            });
+          } else if (ui.sheet === "research") {
+            title.textContent = "Research Lab";
+            sub.textContent =
+              "One active project at a time · delivered by Transport · never auto-picked while away";
+
+            body.innerHTML = RESEARCH.map((r) => {
+              const done = !!state.research.done[r.id];
+              const isActive =
+                state.research.active && state.research.active.id === r.id;
+              const ready =
+                isActive &&
+                Object.entries(r.cost).every(
+                  ([g, n]) =>
+                    (state.research.active.arrived[g] || 0) >= n - 0.5,
+                );
+              return `
+          <div class="enamel-card border ${isActive ? "border-[#5da9e9]" : "enamel-edge"} rounded p-2.5 space-y-1.5 ${done ? "opacity-60" : ""}">
+            <div class="flex items-center justify-between gap-2">
+              <div>
+                <div class="text-xs font-bold ${done ? "green" : isActive ? "blue" : "text-[#ece3cf]"}">${r.name} ${done ? "✓" : ""}</div>
+                <div class="text-[11px] quiet">${r.effect}</div>
+              </div>
+              ${
+                done
+                  ? `<span class="text-[11px] green font-bold">Installed</span>`
+                  : ready
+                    ? `<button data-res-install="${r.id}" class="buy-btn px-2.5 py-1 text-xs font-bold">Install</button>`
+                    : isActive
+                      ? `<button data-res-cancel="1" class="action-btn px-2 py-1 text-[11px] font-bold">Cancel</button>`
+                      : `<button data-res-start="${r.id}" class="buy-btn px-2.5 py-1 text-xs font-bold" ${state.research.active ? "disabled" : ""}>Start</button>`
+              }
+            </div>
+            ${
+              isActive
+                ? `
+              <div class="space-y-1 pt-1 border-t enamel-edge">
+                ${Object.entries(r.cost)
+                  .map(([g, need]) => {
+                    const arr = state.research.active.arrived[g] || 0;
+                    return `
+                    <div>
+                      <div class="flex justify-between text-[10px] mono">
+                        <span style="color:${GOOD_BY_ID[g].color}">${GOOD_BY_ID[g].short}</span>
+                        <span>${fmt(arr)} / ${fmt(need)}</span>
+                      </div>
+                      <div class="buf-track mt-0.5"><div class="buf-fill" style="width:${Math.min(100, (arr / need) * 100)}%;background:${GOOD_BY_ID[g].color}"></div></div>
+                    </div>
+                  `;
+                  })
+                  .join("")}
+              </div>
+            `
+                : !done
+                  ? `<div class="text-[10px] mono quiet">Requires: ${fmtPrice(r.cost)}</div>`
+                  : ""
+            }
+          </div>
+        `;
+            }).join("");
+
+            body.querySelectorAll("[data-res-start]").forEach((btn) => {
+              btn.onclick = () => {
+                state.research.active = {
+                  id: btn.dataset.resStart,
+                  arrived: {},
+                };
+                say(
+                  `Research started: ${RESEARCH_BY_ID[btn.dataset.resStart].name}. Transport runs opened.`,
+                );
+                renderAll();
+              };
+            });
+            body.querySelectorAll("[data-res-cancel]").forEach((btn) => {
+              btn.onclick = () => {
+                // Refund arrived goods to stockyard
+                for (const [g, a] of Object.entries(
+                  state.research.active.arrived,
+                )) {
+                  state.stock[g] = Math.min(
+                    stockCap(state, g),
+                    (state.stock[g] || 0) + a,
+                  );
+                }
+                state.research.active = null;
+                renderAll();
+              };
+            });
+            body.querySelectorAll("[data-res-install]").forEach((btn) => {
+              btn.onclick = () => {
+                const id = btn.dataset.resInstall;
+                state.research.done[id] = true;
+                state.research.active = null;
+                say(
+                  `Installed ${RESEARCH_BY_ID[id].name}: ${RESEARCH_BY_ID[id].effect}`,
+                );
+                renderAll();
+              };
+            });
+          } else if (ui.sheet === "night" && ui.nightReport) {
+            title.textContent = "Shift Report · 8h Night";
+            sub.textContent = `Night shift at ${state.buildings.lightTower ? "45%" : "30%"} · stops when stockpiles fill`;
+            const { delta, filledAt } = ui.nightReport;
+            body.innerHTML = `
+        <div class="enamel-card border enamel-edge rounded p-3 space-y-2">
+          <div class="text-xs font-bold uppercase amber">Produced overnight</div>
+          <div class="space-y-1.5">
+            ${GOODS.map(
+              (g) => `
+              <div class="flex items-center justify-between text-xs mono border-b enamel-edge pb-1 last:border-b-0">
+                <span style="color:${g.color}" class="font-bold">${g.short}</span>
+                <span>+${fmt(delta[g.id])}</span>
+                <span class="${filledAt[g.id] ? "red" : "quiet"}">${filledAt[g.id] ? `Full at ${filledAt[g.id]}` : `${fmt(state.stock[g.id])}/${fmt(stockCap(state, g.id))}`}</span>
+              </div>
+            `,
+            ).join("")}
+          </div>
+        </div>
+        <div class="text-xs quiet px-1">
+          No building order or research project started while you were away. Transport kept delivering to active orders until stock or buffers filled.
+        </div>
+        <button id="night-resume" class="buy-btn w-full py-2.5 text-sm font-bold">Resume</button>
+      `;
+            document.getElementById("night-resume").onclick = () => {
+              ui.sheet = null;
+              renderAll();
+            };
+          }
+          body.scrollTop = prevScroll;
+        }
+
+        function renderControls() {
+          const p1 = document.getElementById("tm-part1");
+          const p2 = document.getElementById("tm-part2");
+          const onCls =
+            "px-2.5 py-2 rounded-lg border text-xs font-semibold cursor-pointer bg-[var(--primary)] text-[var(--primary-foreground)] border-[var(--primary)]";
+          const offCls =
+            "px-2.5 py-2 rounded-lg border text-xs font-semibold cursor-pointer bg-[var(--content)] text-[var(--foreground)] border-[var(--border)]";
+          p1.className = ui.transportMode === "part1" ? onCls : offCls;
+          p2.className = ui.transportMode === "part2" ? onCls : offCls;
+          document.getElementById("tm-desc").textContent =
+            ui.transportMode === "part1"
+              ? "Part 1: All staffed vehicles split evenly & visibly across active runs (1 good per run)."
+              : "Part 2: Open Transport to assign dedicated vehicles with −/+ per run; unassigned vehicles share evenly.";
+          document.getElementById("btn-speed").textContent =
+            `Speed: ${ui.speed}×`;
+
+          ["foundry", "crystal", "trains"].forEach((sc) => {
+            const btn = document.getElementById(`sc-${sc}`);
+            btn.style.borderColor = ui.scenario === sc ? "var(--primary)" : "";
+          });
+        }
+
+        function renderAll() {
+          renderControls();
+          renderFrame();
+          document.querySelectorAll(".site-tab").forEach((btn) => {
+            btn.classList.toggle("active", btn.dataset.site === ui.site);
+          });
+          ["mine", "refinery", "factory", "city"].forEach((id) => {
+            const el = document.getElementById(`site-${id}`);
+            el.classList.toggle("hidden", id !== ui.site);
+            el.classList.toggle("flex", id === ui.site);
+          });
+          if (ui.site === "mine") renderMine();
+          if (ui.site === "refinery") renderRefinery();
+          if (ui.site === "factory") renderFactory();
+          if (ui.site === "city") renderCity();
+          renderSheet();
+        }
+
+        // ===== EVENT WIRING =====
+        let pointerDown = false;
+        window.addEventListener("pointerdown", () => {
+          pointerDown = true;
+        });
+        window.addEventListener("pointerup", () => {
+          pointerDown = false;
+        });
+        window.addEventListener("pointercancel", () => {
+          pointerDown = false;
+        });
+
+        document.getElementById("order-strip").onclick = () => {
+          ui.site = "city";
+          ui.sheet = null;
+          renderAll();
+        };
+        document.getElementById("btn-workforce").onclick = () => {
+          ui.sheet = ui.sheet === "workforce" ? null : "workforce";
+          renderAll();
+        };
+        document.getElementById("btn-transport").onclick = () => {
+          ui.sheet = ui.sheet === "transport" ? null : "transport";
+          renderAll();
+        };
+        document.getElementById("sheet-close").onclick = () => {
+          ui.sheet = null;
+          renderAll();
+        };
+        document.getElementById("btn-hire").onclick = () => {
+          const c = workerCost(state);
+          if (state.stock.stones >= c) {
+            state.stock.stones -= c;
+            state.workers += 1;
+            renderAll();
+          }
+        };
+        document.querySelectorAll(".site-tab").forEach((btn) => {
+          btn.onclick = () => {
+            ui.site = btn.dataset.site;
+            ui.sheet = null;
+            renderAll();
+          };
+        });
+
+        document.getElementById("sc-foundry").onclick = () => {
+          ui.scenario = "foundry";
+          ui.sheet = null;
+          state = makeScenario("foundry");
+          renderAll();
+        };
+        document.getElementById("sc-crystal").onclick = () => {
+          ui.scenario = "crystal";
+          ui.sheet = null;
+          state = makeScenario("crystal");
+          renderAll();
+        };
+        document.getElementById("sc-trains").onclick = () => {
+          ui.scenario = "trains";
+          ui.sheet = null;
+          state = makeScenario("trains");
+          renderAll();
+        };
+        document.getElementById("tm-part1").onclick = () => {
+          ui.transportMode = "part1";
+          renderAll();
+        };
+        document.getElementById("tm-part2").onclick = () => {
+          ui.transportMode = "part2";
+          renderAll();
+        };
+        document.getElementById("btn-speed").onclick = () => {
+          ui.speed = ui.speed === 1 ? 4 : 1;
+          renderControls();
+        };
+        document.getElementById("btn-night").onclick = () => simulateNight();
+
+        // ===== BOOT & TICK LOOP =====
+        state = makeScenario("crystal");
+        renderAll();
+
+        let last = performance.now();
+        let uiAccum = 0;
+        function tick(now) {
+          const dt = Math.min(0.25, (now - last) / 1000) * ui.speed;
+          last = now;
+          stepSim(state, dt, false);
+          uiAccum += dt;
+          if (ui.site === "mine") drawMineCanvas();
+          if (ui.site === "refinery") drawRefineryCanvas();
+          if (ui.site === "factory") drawFactoryCanvas();
+          if (ui.site === "city") drawCityCanvas();
+          if (uiAccum >= 0.4 && !pointerDown) {
+            uiAccum = 0;
+            renderAll();
+          }
+          requestAnimationFrame(tick);
+        }
+        requestAnimationFrame(tick);
+      })();
+    </script>
+  </body>
+</html>
