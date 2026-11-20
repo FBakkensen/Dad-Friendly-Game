@@ -117,11 +117,10 @@ function expectWithinOnePercent(
   label: string,
   liveValue: number,
   offlineValue: number,
-  floorSlack = 10,
 ): void {
   const scale = Math.max(liveValue, offlineValue);
   const diff = Math.abs(liveValue - offlineValue);
-  const limit = Math.max(floorSlack, Math.ceil(scale * AGREEMENT_TOLERANCE));
+  const limit = Math.ceil(scale * AGREEMENT_TOLERANCE);
   expect(
     diff,
     `${label}: live=${String(liveValue)} offline=${String(offlineValue)} diff=${String(diff)} limit=${String(limit)}`,
@@ -391,7 +390,6 @@ describe("Slice 2 Part 1: 8-hour live vs. offline agreement <= 1% (#766, rule 5.
         "slow kiln brick",
         live.stock.brick,
         offline.stock.brick,
-        2,
       );
     },
     SIM_TIMEOUT_MS,

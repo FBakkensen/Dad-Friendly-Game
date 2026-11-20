@@ -3,7 +3,7 @@ import {
   applyCityWork,
   buildRate,
   goodsTotal,
-  shareOut,
+  shareOutKeys,
   shareProportional,
 } from "./building-site";
 import { buildIn, receive, stillRequired, stillToBuild } from "./city";
@@ -31,6 +31,7 @@ import type { Mountain } from "./mountain";
 import { chainChange, chainFlows, evenShares, stepQuota } from "./piles";
 import {
   EMPTY_STOCK,
+  GOOD_IDS,
   addedStock,
   pay as payStock,
   type GoodId,
@@ -232,7 +233,12 @@ function stepBuildersOnly(
   if (mountain.project.kind === "unordered" || buildCap <= 0) {
     return mountain;
   }
-  const built = shareOut(buildCap, mountain.project.site.onSite, tickIndex);
+  const built = shareOutKeys(
+    buildCap,
+    GOOD_IDS,
+    mountain.project.site.onSite,
+    tickIndex,
+  );
   return goodsTotal(built) > 0 ? buildIn(mountain, built) : mountain;
 }
 

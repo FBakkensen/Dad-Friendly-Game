@@ -39,7 +39,6 @@ const LEDGER = {
     "makers",
     "stockyard",
     "granite",
-    "mineLevels",
     "pithead",
     "makerBuffers",
     "cycleMicros",
@@ -172,7 +171,6 @@ const LEDGER = {
     machines: ["cart", "drill", "borer", "train"],
     piles: ["face", "shaft", "saw"],
   },
-  mineLevels: ["granite"],
   pithead: ["topsoil", "granite"],
   makerBuffers: {
     kiln: ["topsoilRock"],
@@ -228,7 +226,6 @@ describe("the ledger of what has shipped (#558)", () => {
       Object.keys(facts.tripFinds),
       ...Object.values(facts.tripFinds),
       ...Object.values(facts.granite),
-      facts.mineLevels,
       facts.pithead,
       ...Object.values(facts.makerBuffers),
       facts.cycleMicros,
@@ -366,11 +363,9 @@ describe("part 3's facts in the save (#673)", () => {
 
   it("round-trips the Granite's machines and piles, its two jobs, the saws, their workers, cut stone and a truck", () => {
     const game = writeGame(sunk);
-    expect(game.mineLevels).toEqual({
-      granite: {
-        machines: { cart: 1, drill: 2, train: 1 },
-        piles: { face: 50, shaft: 4, saw: 12 },
-      },
+    expect(game.granite).toEqual({
+      machines: { cart: 1, drill: 2, train: 1 },
+      piles: { face: 50, shaft: 4, saw: 12 },
     });
     expect(game.jobs).toEqual({
       graniteDrilling: 2,
@@ -393,9 +388,9 @@ describe("part 3's facts in the save (#673)", () => {
         },
       },
     };
-    expect(writeGame(bare).mineLevels).toEqual({ granite: {} });
+    expect(writeGame(bare).granite).toEqual({});
     expect(throughJson(bare)).toEqual({ kind: "ok", mountain: bare });
-    expect(writeGame(createMountain())).not.toHaveProperty("mineLevels");
+    expect(writeGame(createMountain())).not.toHaveProperty("granite");
     const empty = readGame({}, 0);
     expect(empty.kind === "ok" && empty.mountain.mineLevels).toEqual(
       NO_MINE_LEVELS,

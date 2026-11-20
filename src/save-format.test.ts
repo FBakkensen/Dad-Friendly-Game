@@ -41,7 +41,7 @@ describe("the game map (#558)", () => {
       stockyard: "stockyard",
       rockDug: "run",
       graniteDug: "run",
-      mineLevels: "mineLevels",
+      mineLevels: "granite",
       pithead: "pithead",
       makerBuffers: "makerBuffers",
       cycleMicros: "cycleMicros",

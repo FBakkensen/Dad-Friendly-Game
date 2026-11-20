@@ -27,6 +27,7 @@ import { accrue, accrueAway, createMountain, type Mountain } from "./mountain";
 import {
   PART_THREE_OFF,
   PART_TWO_OFF,
+  PLAY_FACTORS,
   SLICE_2_PART_1_OFF,
   slice2Part1On,
 } from "./part-switch";
@@ -46,6 +47,7 @@ const HOUR = 3_600 * SECOND;
 
 describe("slice 2 part 1 switch (#766)", () => {
   it("stays off in play and requires part2, part3, and slice2Part1 all at 0", () => {
+    expect(SLICE_2_PART_1_OFF in PLAY_FACTORS).toBe(false);
     expect(slice2Part1On()).toBe(false);
     partThree(() => {
       expect(slice2Part1On()).toBe(false);
@@ -466,7 +468,7 @@ describe("v11 save shape & reserved assignedRuns (#766)", () => {
   const throughJson = (mountain: Mountain) =>
     readGame(JSON.parse(JSON.stringify(writeGame(mountain))), 0);
 
-  it("round-trips mineLevels, pithead, makerBuffers, cycleMicros, and reserved assignedRuns", () => {
+  it("round-trips granite into mineLevels, pithead, makerBuffers, cycleMicros, and reserved assignedRuns", () => {
     const start = levels({
       sunk: true,
       kilns: 2,
@@ -483,11 +485,9 @@ describe("v11 save shape & reserved assignedRuns (#766)", () => {
       assignedRuns: { pitToStockyardStones: 2, pitTopsoilToKilns: 1 },
     };
     const game = writeGame(m);
-    expect(game.mineLevels).toEqual({
-      granite: {
-        machines: { cart: 1, drill: 1 },
-        piles: { face: 12, shaft: 8 },
-      },
+    expect(game.granite).toEqual({
+      machines: { cart: 1, drill: 1 },
+      piles: { face: 12, shaft: 8 },
     });
     expect(game.pithead).toEqual({ topsoil: 45, granite: 19 });
     expect(game.makerBuffers).toEqual({
@@ -513,12 +513,21 @@ describe("v11 save shape & reserved assignedRuns (#766)", () => {
         0,
       ).kind,
     ).toBe("ok");
-    // Sum 3 > fleetSize 2 -> bad.
+    // Sum 3 > fleetSize 2 -> bad; bad fleet propagates cleanly.
     expect(
       readGame(
         {
           fleet: { horseWagon: 1, truck: 1 },
           assignedRuns: { pitToStockyardStones: 2, pitTopsoilToKilns: 1 },
+        },
+        0,
+      ).kind,
+    ).toBe("bad");
+    expect(
+      readGame(
+        {
+          fleet: "nope",
+          assignedRuns: { pitToStockyardStones: 1 },
         },
         0,
       ).kind,
@@ -533,24 +542,43 @@ describe("v11 save shape & reserved assignedRuns (#766)", () => {
         0,
       ).kind,
     ).toBe("newer");
-    // cycleMicros past 999_999 or negative -> bad; unknown maker -> newer.
+    // cycleMicros past 999_999, negative, or non-record -> bad; 0 omitted; unknown maker -> newer.
+    expect(readGame({ cycleMicros: "nope" }, 0).kind).toBe("bad");
     expect(readGame({ cycleMicros: { kiln: 1_000_000 } }, 0).kind).toBe("bad");
     expect(readGame({ cycleMicros: { kiln: -1 } }, 0).kind).toBe("bad");
+    expect(readGame({ cycleMicros: { kiln: 0 } }, 0).kind).toBe("ok");
     expect(readGame({ cycleMicros: { glassworks: 100 } }, 0).kind).toBe(
       "newer",
     );
-    // Both legacy granite and mineLevels in same save -> bad.
-    expect(readGame({ granite: {}, mineLevels: { granite: {} } }, 0).kind).toBe(
-      "bad",
-    );
+    // makerBuffers: non-record or bad nested count -> bad; unknown maker or input -> newer.
+    expect(readGame({ makerBuffers: "nope" }, 0).kind).toBe("bad");
+    expect(
+      readGame({ makerBuffers: { kiln: { topsoilRock: -1 } } }, 0).kind,
+    ).toBe("bad");
+    expect(
+      readGame({ makerBuffers: { kiln: { crystalRock: 1 } } }, 0).kind,
+    ).toBe("newer");
+    expect(
+      readGame({ makerBuffers: { glassworks: { crystalRock: 1 } } }, 0).kind,
+    ).toBe("newer");
+    // Bad granite propagates cleanly through pithead, makerBuffers, and cycleMicros.
+    expect(
+      readGame(
+        {
+          granite: "nope",
+          pithead: { topsoil: 1 },
+          makerBuffers: { kiln: { topsoilRock: 1 } },
+          cycleMicros: { kiln: 10 },
+        },
+        0,
+      ).kind,
+    ).toBe("bad");
     // Unsunk granite rejects pithead.granite, makerBuffers.saw, cycleMicros.saw.
     expect(readGame({ pithead: { granite: 1 } }, 0).kind).toBe("bad");
     expect(
       readGame({ makerBuffers: { saw: { graniteRock: 1 } } }, 0).kind,
     ).toBe("bad");
     expect(readGame({ cycleMicros: { saw: 1 } }, 0).kind).toBe("bad");
-    // Unknown deeper level under mineLevels -> newer.
-    expect(readGame({ mineLevels: { crystal: {} } }, 0).kind).toBe("newer");
     // Per-good SITE_GOOD_CAP allows 500 stones AND 500 brick on site simultaneously.
     slice2Part1(() => {
       expect(

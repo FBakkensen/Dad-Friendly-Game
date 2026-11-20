@@ -102,7 +102,6 @@ import {
   LEVEL_MACHINE_IDS,
   MINE_LEVEL_IDS,
   NO_MINE_LEVELS,
-  type DeeperLevelId,
   type GranitePileId,
   type LevelMachineId,
   type MineLevelId,
@@ -169,7 +168,6 @@ const GAME_KEYS = [
   "makers",
   "stockyard",
   "granite",
-  "mineLevels",
   "pithead",
   "makerBuffers",
   "cycleMicros",
@@ -260,14 +258,8 @@ export type SaveGame = {
   readonly makers?: Readonly<Partial<Record<MakerId, number>>>;
   /** The stockyard's level (#666); 0 is left out. */
   readonly stockyard?: number;
-  /** Legacy v10 Granite key, still readable until v11 switch-on (#769). */
+  /** The Granite's machines and piles (#673); moves to `mineLevels` at the v11 reset (#769). */
   readonly granite?: SavedLevel;
-  /**
-   * Generalized sunk deeper mine levels (#766): each level holds its share of
-   * level machines and its underground piles. Left out while no deeper level
-   * is sunk.
-   */
-  readonly mineLevels?: Readonly<Partial<Record<DeeperLevelId, SavedLevel>>>;
   /** Pithead rock awaiting physical transport, by level (#766); zeros left out. */
   readonly pithead?: Readonly<Partial<Record<MineLevelId, number>>>;
   /** Separate finite input buffers per maker (#766); zeros left out. */
@@ -416,15 +408,9 @@ function savedLevel(sunk: SunkLevel): SavedLevel {
   };
 }
 
-function savedMineLevels(mineLevels: MineLevels): Partial<SaveGame> {
-  const out: Partial<Record<DeeperLevelId, SavedLevel>> = {};
-  for (const id of DEEPER_LEVEL_IDS) {
-    const sunk = mineLevels[id];
-    if (sunk !== undefined) {
-      out[id] = savedLevel(sunk);
-    }
-  }
-  return some("mineLevels", out);
+function savedGranite(mineLevels: MineLevels): Partial<SaveGame> {
+  const sunk = mineLevels.granite;
+  return sunk === undefined ? {} : { granite: savedLevel(sunk) };
 }
 
 function savedMakerBuffers(buffers: MakerBuffers): Partial<SaveGame> {
@@ -503,7 +489,7 @@ export function writeGame(mountain: Mountain): SaveGame {
       positives(MAKER_IDS, (id) => mountain.makers[id]),
     ),
     ...(mountain.stockyard === 0 ? {} : { stockyard: mountain.stockyard }),
-    ...savedMineLevels(mountain.mineLevels),
+    ...savedGranite(mountain.mineLevels),
     ...some(
       "pithead",
       positives(MINE_LEVEL_IDS, (id) => mountain.pithead[id]),
@@ -990,46 +976,6 @@ function readSunkLevel(value: unknown): Part<SunkLevel> {
 }
 
 /**
- * Sunk deeper mine levels (#766). Accepts either `mineLevels` or legacy v10
- * `granite` (never both). Unknown level ids are `newer`.
- */
-function readMineLevelsMaps(
-  mineLevelsValue: unknown,
-  graniteValue: unknown,
-): Part<MineLevels> {
-  if (mineLevelsValue !== undefined && graniteValue !== undefined) {
-    return "bad";
-  }
-  if (graniteValue !== undefined) {
-    const granite = readSunkLevel(graniteValue);
-    return typeof granite === "string" ? granite : { granite };
-  }
-  if (mineLevelsValue === undefined) {
-    return NO_MINE_LEVELS;
-  }
-  if (!isRecord(mineLevelsValue)) {
-    return "bad";
-  }
-  const out: Partial<Record<DeeperLevelId, SunkLevel>> = {};
-  let newer = false;
-  for (const [key, entry] of Object.entries(mineLevelsValue)) {
-    const level = readSunkLevel(entry);
-    if (level === "bad") {
-      return "bad";
-    }
-    if (
-      level === "newer" ||
-      !(DEEPER_LEVEL_IDS as readonly string[]).includes(key)
-    ) {
-      newer = true;
-      continue;
-    }
-    out[key as DeeperLevelId] = level;
-  }
-  return newer ? "newer" : out;
-}
-
-/**
  * Whether sunk deeper levels fit the rest of the save: total machines across
  * deeper levels never exceed owned (Topsoil holds the rest), and while Granite
  * is unsunk nobody works Granite jobs or owns a saw.
@@ -1054,15 +1000,20 @@ function mineLevelsFit(
   });
 }
 
-/** Sunk deeper mine levels (#766), refused when they do not fit the rest of the save. */
+/** Sunk Granite read into `mineLevels.granite` (#673, generalized in #766). */
 function readMineLevels(
-  mineLevelsValue: unknown,
   graniteValue: unknown,
   facts: Part<Facts>,
   jobs: Part<Jobs>,
   makers: Part<Makers>,
 ): Part<MineLevels> {
-  const levels = readMineLevelsMaps(mineLevelsValue, graniteValue);
+  const levels: Part<MineLevels> =
+    graniteValue === undefined
+      ? NO_MINE_LEVELS
+      : (() => {
+          const granite = readSunkLevel(graniteValue);
+          return typeof granite === "string" ? granite : { granite };
+        })();
   if (
     typeof levels === "string" ||
     typeof facts === "string" ||
@@ -1336,13 +1287,7 @@ export function readGame(value: unknown, startedAt: number): GameRead {
   const piles = readCounts(value["piles"], PILE_IDS, UNCAPPED);
   const makers = readCounts(value["makers"], MAKER_IDS, UNCAPPED);
   const stockyard = readLevel(value["stockyard"]);
-  const mineLevels = readMineLevels(
-    value["mineLevels"],
-    value["granite"],
-    facts,
-    jobs,
-    makers,
-  );
+  const mineLevels = readMineLevels(value["granite"], facts, jobs, makers);
   const pithead = readPithead(value["pithead"], mineLevels);
   const makerBuffers = readMakerBuffers(value["makerBuffers"], mineLevels);
   const cycleMicros = readCycleMicros(value["cycleMicros"], mineLevels);
@@ -1428,7 +1373,6 @@ export type ShippedFacts = {
   readonly makers: readonly string[];
   readonly caps: Readonly<Record<string, number>>;
   readonly granite: Readonly<Record<"machines" | "piles", readonly string[]>>;
-  readonly mineLevels: readonly string[];
   readonly pithead: readonly string[];
   readonly makerBuffers: Readonly<Record<MakerId, readonly string[]>>;
   readonly cycleMicros: readonly string[];
@@ -1475,7 +1419,6 @@ export function shippedFacts(): ShippedFacts {
       stockyard: MAX_STOCKYARD_LEVEL,
     },
     granite: { machines: LEVEL_MACHINE_IDS, piles: GRANITE_PILE_IDS },
-    mineLevels: DEEPER_LEVEL_IDS,
     pithead: MINE_LEVEL_IDS,
     makerBuffers: MAKER_INPUT_IDS,
     cycleMicros: MAKER_IDS,

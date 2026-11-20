@@ -103,9 +103,20 @@ export function shareOutKeys<K extends string>(
 export function shareOut(
   capacity: number,
   wants: Readonly<Partial<Record<GoodId, number>>>,
-  tieOffset = 0,
 ): Partial<Record<GoodId, number>> {
-  return shareOutKeys(capacity, GOOD_IDS, wants, tieOffset);
+  const cap = Math.max(0, Math.floor(capacity));
+  const active = GOOD_IDS.filter((good) => (wants[good] ?? 0) > 0).sort(
+    (a, b) => (wants[a] ?? 0) - (wants[b] ?? 0),
+  );
+  const out: Partial<Record<GoodId, number>> = {};
+  let left = cap;
+  for (const [index, good] of active.entries()) {
+    const even = Math.floor(left / (active.length - index));
+    const amount = Math.min(Math.floor(wants[good] ?? 0), even);
+    out[good] = amount;
+    left -= amount;
+  }
+  return out;
 }
 
 /**
