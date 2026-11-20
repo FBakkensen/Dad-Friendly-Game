@@ -486,10 +486,10 @@ describe("Slice 2 Part 1: 8-hour live vs. offline agreement <= 1% (#766, rule 5.
           sunk: false,
           operational: ["lightTower"],
           hoists: 0,
-          fleet: { horseWagon: 0, truck: 2 },
+          fleet: { horseWagon: 0, truck: 4 },
           jobs: {
-            driving: 2,
-            building: 270,
+            driving: 4,
+            building: 200,
           },
           stock: { stones: 5_000_000, brick: 0, cutStone: 0 },
         },
@@ -515,7 +515,7 @@ describe("Slice 2 Part 1: 8-hour live vs. offline agreement <= 1% (#766, rule 5.
             live: false,
           }).mountain,
       );
-      expect(projectBuilt(live).stones).toBeGreaterThan(1_000_000);
+      expect(projectBuilt(live).stones).toBeGreaterThan(2_500_000);
       if (live.project.kind !== "unordered") {
         expect(live.project.site.onSite.stones).toBeLessThanOrEqual(
           SITE_GOOD_CAP,

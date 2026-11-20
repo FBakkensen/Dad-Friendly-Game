@@ -277,6 +277,32 @@ export type MakerCycleStep = {
  * Supports arbitrary multi-input recipes so Part 2 Glassworks and Factory lines
  * share the same engine.
  */
+function addedMicros(
+  staffedOutputRate: number,
+  dt: number,
+  outputAmount: number,
+): number {
+  if (dt <= 0 || staffedOutputRate <= 0) {
+    return 0;
+  }
+  return Math.floor(
+    (staffedOutputRate * dt * MICROS_PER_CYCLE) / outputAmount + 1e-6,
+  );
+}
+
+/** Whole cycles a maker's rate and `cycleMicros` can execute over `dt` seconds. */
+export function makerCycleLimit(
+  staffedOutputRate: number,
+  dt: number,
+  cycleMicros: number,
+  outputAmount = 1,
+): number {
+  return Math.floor(
+    (cycleMicros + addedMicros(staffedOutputRate, dt, outputAmount)) /
+      MICROS_PER_CYCLE,
+  );
+}
+
 export function stepMakerCycle({
   inputs,
   outputAmount,
@@ -296,11 +322,8 @@ export function stepMakerCycle({
   for (const input of inputs) {
     maxCycles = Math.min(maxCycles, Math.floor(input.held / input.amount));
   }
-  const added =
-    dt > 0 && staffedOutputRate > 0
-      ? Math.trunc((staffedOutputRate * dt * MICROS_PER_CYCLE) / outputAmount)
-      : 0;
-  const wantMicros = cycleMicros + added;
+  const wantMicros =
+    cycleMicros + addedMicros(staffedOutputRate, dt, outputAmount);
   const cycles = Math.min(Math.floor(wantMicros / MICROS_PER_CYCLE), maxCycles);
   const nextMicros =
     maxCycles >= 1

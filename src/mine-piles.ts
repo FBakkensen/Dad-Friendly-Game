@@ -870,8 +870,17 @@ export function pitheadRoom(mountain: Mountain): number {
 
 const NO_SIDE: Branches["side"] = { held: 0, holds: 0, drain: 0 };
 
-function rateForTick(rate: number, tickIndex: number | undefined): number {
-  return tickIndex === undefined ? rate : stepQuota(rate, tickIndex);
+/** Discretizes underground stage rates (drill, haul, lift) for one 1 s tick. */
+function discretePitheadChain(chain: Chain, tickIndex: number): Chain {
+  return {
+    ...chain,
+    rates: [
+      stepQuota(chain.rates[0] ?? 0, tickIndex),
+      stepQuota(chain.rates[1] ?? 0, tickIndex),
+      stepQuota(chain.rates[2] ?? 0, tickIndex),
+      chain.rates[3] ?? 0,
+    ],
+  };
 }
 
 /** One level's underground branch into its pithead buffer, drained by transport at `drain`. */
@@ -880,7 +889,6 @@ function pitheadBranch(
   level: MineLevelId,
   { pay, drilling }: { readonly pay: number; readonly drilling: boolean },
   drain: number,
-  tickIndex?: number,
 ): Branch {
   const { levels, lift } = mineWork(mountain);
   const granite = openGranite(mountain);
@@ -891,9 +899,9 @@ function pitheadBranch(
   return {
     source: Infinity,
     rates: [
-      rateForTick(drilling ? levels[level].face * pay : 0, tickIndex),
-      rateForTick(levels[level].haul * pay, tickIndex),
-      rateForTick((lift?.own[level] ?? 0) * pay, tickIndex),
+      drilling ? levels[level].face * pay : 0,
+      levels[level].haul * pay,
+      (lift?.own[level] ?? 0) * pay,
       drain,
     ],
     piles: [
@@ -910,12 +918,11 @@ function undergroundPitheadSet(
   mountain: Mountain,
   run: { readonly pay: number; readonly drilling: boolean },
   pitheadDrain: Readonly<Record<MineLevelId, number>>,
-  tickIndex?: number,
 ): Branches {
   return {
     branches: [
-      pitheadBranch(mountain, "topsoil", run, pitheadDrain.topsoil, tickIndex),
-      pitheadBranch(mountain, "granite", run, pitheadDrain.granite, tickIndex),
+      pitheadBranch(mountain, "topsoil", run, pitheadDrain.topsoil),
+      pitheadBranch(mountain, "granite", run, pitheadDrain.granite),
     ],
     shared: {
       stage: LIFT,
@@ -991,13 +998,16 @@ export function flowUndergroundToPithead(
       "topsoil",
       { pay, drilling },
       pitheadDrain.topsoil,
-      discreteTick,
     );
-    const chain: Chain = {
+    const baseChain: Chain = {
       source: branch.source,
       rates: branch.rates,
       piles: branch.piles,
     };
+    const chain =
+      discreteTick === undefined
+        ? baseChain
+        : discretePitheadChain(baseChain, discreteTick);
     const flow = flowWhole(chain, seconds);
     const [face = 0, shaft = 0] = flow.piles;
     const hoisted = movedAt(flow, LIFT);
@@ -1023,13 +1033,17 @@ export function flowUndergroundToPithead(
       hoisted: { topsoil: hoisted, granite: 0 },
     };
   }
-  const set = undergroundPitheadSet(
-    mountain,
-    { pay, drilling },
-    pitheadDrain,
-    discreteTick,
-  );
-  const [topsoil, deep] = levelPair(flowBranchesWhole(set, seconds));
+  const set = undergroundPitheadSet(mountain, { pay, drilling }, pitheadDrain);
+  // Resolve continuous shared cage turns first so `inTurn` never flickers and
+  // shared hoist loads also get discrete Bresenham stepping on 1 s ticks.
+  const [topsoil, deep] =
+    discreteTick === undefined
+      ? levelPair(flowBranchesWhole(set, seconds))
+      : levelPair(
+          branchChains(set).map((chain) =>
+            flowWhole(discretePitheadChain(chain, discreteTick), 1),
+          ),
+        );
   const [tFace = 0, tShaft = 0] = topsoil.piles;
   const [gFace = 0, gShaft = 0] = deep.piles;
   const tHoist = movedAt(topsoil, LIFT);

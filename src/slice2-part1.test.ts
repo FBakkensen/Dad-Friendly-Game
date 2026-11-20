@@ -232,6 +232,21 @@ describe("makers input buffers & cycleMicros (#766, rule 3.2)", () => {
     expect(step.nextMicros).toBe(0);
     expect(step.standing).toBe(true);
   });
+
+  it("handles floating-point exact products like 12 * 0.3 over 15 s without truncating a cycle", () => {
+    const step = stepMakerCycle({
+      inputs: [{ id: "topsoilRock", amount: 2, held: 108 }],
+      outputAmount: 1,
+      outputRoom: 100,
+      staffedOutputRate: 12 * 0.3,
+      dt: 15,
+      cycleMicros: 0,
+    });
+    expect(step.cycles).toBe(54);
+    expect(step.produced).toBe(54);
+    expect(step.consumed).toEqual({ topsoilRock: 108 });
+    expect(step.nextMicros).toBe(0);
+  });
 });
 
 describe("per-good SITE_GOOD_CAP & integer sharing (#766, rule 4.2)", () => {

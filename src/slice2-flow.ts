@@ -10,6 +10,7 @@ import { buildIn, receive, stillRequired, stillToBuild } from "./city";
 import {
   MAKER_IDS,
   makerBuffer,
+  makerCycleLimit,
   makerInputRoom,
   makerOutput,
   makerPrimaryInput,
@@ -190,9 +191,9 @@ function stepSlice2Makers(
 
 /**
  * Per-good City destination room for a 1 s tick with `buildCap` builder budget.
- * Adds `floor(buildCap / activeGoods)` clearance headroom so high-throughput
- * trucks + builders (`> SITE_GOOD_CAP/s`) match offline without ever leaving
- * `onSite[good] > SITE_GOOD_CAP` after Phase (d).
+ * Uses water-filling (`evenShares`) over upper-bound on-site supply entering
+ * Phase (d) so uncontested fast goods get full builder throughput while
+ * Phase (d) still guarantees `onSite[good] <= SITE_GOOD_CAP`.
  */
 function cityTickDestOverride(
   mountain: Mountain,
@@ -203,24 +204,23 @@ function cityTickDestOverride(
   }
   const site = mountain.project.site;
   const need = stillRequired(site);
-  const activeCount = CITY_RUN_GOODS.filter(
-    (good) => need[good] > 0 || site.onSite[good] > 0,
-  ).length;
-  if (activeCount <= 0) {
-    return undefined;
-  }
-  const perGoodBuild = Math.floor(buildCap / activeCount);
-  if (perGoodBuild <= 0) {
-    return undefined;
-  }
+  const maxOnSite = CITY_RUN_GOODS.map(
+    (good) =>
+      site.onSite[good] +
+      (need[good] > 0 ? Math.min(need[good], mountain.stock[good]) : 0),
+  );
+  const shares = evenShares(buildCap, maxOnSite);
   const override: Partial<Record<RunId, number>> = {};
-  for (const good of CITY_RUN_GOODS) {
+  let hasOverride = false;
+  for (const [idx, good] of CITY_RUN_GOODS.entries()) {
     if (need[good] > 0) {
-      const cap = Math.max(0, SITE_GOOD_CAP - site.onSite[good] + perGoodBuild);
+      const headroom = Math.floor(shares[idx] ?? 0);
+      const cap = Math.max(0, SITE_GOOD_CAP - site.onSite[good] + headroom);
       override[cityRunId(good)] = Math.min(need[good], cap);
+      hasOverride = true;
     }
   }
-  return override;
+  return hasOverride ? override : undefined;
 }
 
 /** Phase (d) of a 1 s step: City builders build from what is already on site. */
@@ -722,6 +722,7 @@ function stretchMakerRockCap(
   rates: CoupledRates,
   cityOut: Readonly<Record<CityRunGood, number>>,
   seconds: number,
+  pay: number,
 ): number {
   if (mountain.makers[id] <= 0 || (id === "saw" && !graniteOpen(mountain))) {
     return 0;
@@ -732,9 +733,15 @@ function stretchMakerRockCap(
   const outRoom = Number.isFinite(stockRoomBase)
     ? Math.max(0, stockRoomBase + cityOut[outGood])
     : Number.MAX_SAFE_INTEGER;
+  const maxByRate = makerCycleLimit(
+    makerRate(mountain, id) * pay,
+    seconds,
+    mountain.cycleMicros[id] ?? 0,
+  );
   const cycles = Math.min(
     Math.floor(rates.makerOut[id] * seconds + RATE_EPS),
     outRoom,
+    maxByRate,
   );
   const bufRoomBase =
     makerInputRoom(mountain, id) -
@@ -748,6 +755,7 @@ function planStretchPithead(
   rates: CoupledRates,
   cityOut: Readonly<Record<CityRunGood, number>>,
   seconds: number,
+  pay: number,
 ): {
   readonly wantStone: Readonly<Record<MineLevelId, number>>;
   readonly wantMaker: Readonly<Record<MineLevelId, number>>;
@@ -776,12 +784,12 @@ function planStretchPithead(
   const wantMaker: Record<MineLevelId, number> = {
     topsoil: Math.min(
       Math.floor(rates.runRates.pitTopsoilToKilns * seconds + RATE_EPS),
-      stretchMakerRockCap(mountain, "kiln", rates, cityOut, seconds),
+      stretchMakerRockCap(mountain, "kiln", rates, cityOut, seconds, pay),
     ),
     granite: graniteOpen(mountain)
       ? Math.min(
           Math.floor(rates.runRates.pitGraniteToSaws * seconds + RATE_EPS),
-          stretchMakerRockCap(mountain, "saw", rates, cityOut, seconds),
+          stretchMakerRockCap(mountain, "saw", rates, cityOut, seconds, pay),
         )
       : 0,
   };
@@ -937,7 +945,7 @@ export function stretchSlice2(
     };
   }
   const cityOut = cityOutCap(mountain, rates, seconds);
-  const pitPlan = planStretchPithead(mountain, rates, cityOut, seconds);
+  const pitPlan = planStretchPithead(mountain, rates, cityOut, seconds, pay);
   const mine = flowUndergroundToPithead(
     mountain,
     seconds,
