@@ -35,6 +35,8 @@ import {
   sliceWarehouseSave,
   sliceWarehouseTrucksSave,
   sliceYardFullSave,
+  slice2Part1Save,
+  slice2Part1PitheadFullSave,
 } from "../../tools/browser/fixtures.ts";
 import { targetsCloserThan } from "../../src/ui-audit-measure.ts";
 import { check, section } from "./registry.mjs";
@@ -1735,6 +1737,204 @@ for (const size of SIZES) {
       check(!(await cardFacts(page)).shown, `${at} Continue closes the card`);
       const levels = await page.$eval(".mine-levels", (el) => !el.hidden);
       check(levels, `${at} the mine shows its two levels behind the card`);
+    } finally {
+      await close();
+    }
+  });
+}
+
+/** The global Transport sheet (#768) in board px: above save line, keys >= 48px, no cut text, runs count. */
+async function transportSheetFacts(page) {
+  return page.evaluate(() => {
+    const board = globalThis.__board();
+    const sheet = document.querySelector(".transport-sheet");
+    const box = sheet?.querySelector(".transport-sheet-box");
+    const line = document.querySelector(".board-saveline");
+    if (sheet === null || box === null || line === null) {
+      return { open: false };
+    }
+    const shown = (el) =>
+      el.getClientRects().length > 0 && el.closest("[hidden]") === null;
+    const r = box.getBoundingClientRect();
+    const small = [...sheet.querySelectorAll("button")]
+      .filter(shown)
+      .map((el) => {
+        const b = el.getBoundingClientRect();
+        return {
+          name: el.className,
+          w: b.width / board.scale,
+          h: b.height / board.scale,
+        };
+      })
+      .filter((b) => b.w < 47.5 || b.h < 47.5);
+    const cut = [
+      ...sheet.querySelectorAll(
+        ".frame-sheet-title, .transport-drivers, .transport-rate, .transport-fleet, .transport-rule, .transport-key, .transport-hint, .transport-run-route, .transport-run-good, .transport-run-badge, .transport-run-rate, .transport-run-source, .transport-run-dest, .transport-run-share",
+      ),
+    ]
+      .filter(shown)
+      .filter((el) => el.scrollWidth > el.clientWidth + 1)
+      .map((el) => el.className);
+    const runs = [...sheet.querySelectorAll(".transport-run")].filter(shown);
+    return {
+      open: !sheet.hidden,
+      inside:
+        r.top >= board.top - 0.5 &&
+        r.bottom <= line.getBoundingClientRect().top + 0.5,
+      small,
+      cut,
+      runs: runs.length,
+      words: sheet.textContent ?? "",
+    };
+  });
+}
+
+for (const size of SIZES) {
+  const label = `${String(size[0])}x${String(size[1])}`;
+  section(`${label} slice 2 part 1 frame transport city`, async () => {
+    const { page, close } = await openScreen(
+      size,
+      slice2Part1Save(Date.now()),
+      {
+        search: "?memorySave=1&slice2Part1=1",
+        seedKey: DEV_BACKUP_KEY,
+      },
+    );
+    try {
+      await page.waitForSelector(".mine-levels:not([hidden])");
+      const at = `${label} slice 2 part 1:`;
+      await shot(page, `slice2-p1-mine-${label}`);
+      await checkTwoLevels(page, `${at} mine`);
+
+      const topInfo = await page.evaluate(() => {
+        const chip = document.querySelector(".frame-transport");
+        const lamp = chip?.querySelector(".frame-lamp");
+        const factoryTab = document.querySelector(
+          '.frame-site[data-site="factory"]',
+        );
+        return {
+          chipShown: chip !== null && !chip.hidden,
+          chipText: chip?.textContent ?? "",
+          lamp: lamp?.getAttribute("data-lamp"),
+          factoryHidden: factoryTab?.hidden === true,
+        };
+      });
+      check(
+        topInfo.chipShown && topInfo.lamp === "amber",
+        `${at} top strip shows Transport chip with amber lamp (${JSON.stringify(topInfo)})`,
+      );
+      check(
+        topInfo.factoryHidden,
+        `${at} Factory tab stays hidden in Slice 2 Part 1`,
+      );
+
+      // Open global Transport sheet.
+      await tap(page, ".frame-transport");
+      await page.waitForSelector(".transport-sheet:not([hidden])");
+      await shot(page, `slice2-p1-transport-${label}`);
+      const sheet = await transportSheetFacts(page);
+      check(
+        sheet.open && sheet.inside && sheet.runs === 5,
+        `${at} Transport sheet opens above save line with 5 open runs (${JSON.stringify(sheet)})`,
+      );
+      check(
+        await noScroll(page),
+        `${at} Transport sheet does not scroll the page`,
+      );
+      check(
+        sheet.small.length === 0,
+        `${at} Transport sheet: every key is at least 48px (${JSON.stringify(sheet.small)})`,
+      );
+      check(
+        sheet.cut.length === 0,
+        `${at} Transport sheet: no word is cut (${sheet.cut.join(", ")})`,
+      );
+      const sheetNear = await keyGaps(page, ".transport-sheet:not([hidden])");
+      check(
+        sheetNear.length === 0,
+        `${at} Transport sheet: every key stands at least 8px from the next (${sheetNear.join("; ")})`,
+      );
+      await tap(page, ".transport-sheet .frame-sheet-close");
+      check(
+        await page.$eval(".transport-sheet", (el) => el.hidden),
+        `${at} Close shuts Transport sheet`,
+      );
+
+      // Switch to City: legacy in-City transport plate hidden, per-good on-site buffers shown.
+      await tap(page, '.frame-site[data-site="city"]');
+      await page.waitForSelector(".city:not([hidden])");
+      await shot(page, `slice2-p1-city-${label}`);
+      const cityFacts = await frameFacts(page);
+      const cityDetail = await page.evaluate(() => {
+        const plate = document.querySelector(".city-plate");
+        const sites = [...document.querySelectorAll(".city-bar-site")]
+          .filter((el) => !el.hidden)
+          .map((el) => el.textContent ?? "");
+        const crew =
+          document.querySelector(".city-crew-line")?.textContent ?? "";
+        return { plateHidden: plate?.hidden === true, sites, crew };
+      });
+      check(await noScroll(page), `${at} City does not scroll`);
+      check(stacked(cityFacts), `${at} City frame rows stack above save line`);
+      check(
+        cityDetail.plateHidden,
+        `${at} legacy in-City transport plate is hidden`,
+      );
+      check(
+        cityDetail.sites.length === 2 &&
+          cityDetail.sites.every((s) => /\/\d+ on site$/.test(s)),
+        `${at} City project bars show per-good on-site buffers (${JSON.stringify(cityDetail.sites)})`,
+      );
+      check(
+        !cityDetail.crew.includes("on site"),
+        `${at} City builders row omits legacy shared on-site total (${cityDetail.crew})`,
+      );
+      check(
+        cityFacts.small.length === 0,
+        `${at} City: every key is at least 48px (${JSON.stringify(cityFacts.small)})`,
+      );
+      check(
+        cityFacts.cut.length === 0,
+        `${at} City: no word is cut (${cityFacts.cut.join(", ")})`,
+      );
+      const cityNear = await keyGaps(page, FRAME_KEYS);
+      check(
+        cityNear.length === 0,
+        `${at} City: every key stands at least 8px from the next (${cityNear.join("; ")})`,
+      );
+    } finally {
+      await close();
+    }
+  });
+
+  section(`${label} slice 2 part 1 pithead full stall`, async () => {
+    const { page, close } = await openScreen(
+      size,
+      slice2Part1PitheadFullSave(Date.now()),
+      {
+        search: "?memorySave=1&slice2Part1=1",
+        seedKey: DEV_BACKUP_KEY,
+        stopClock: true,
+      },
+    );
+    try {
+      await page.waitForSelector(".mine-levels:not([hidden])");
+      const at = `${label} slice 2 part 1 pithead full:`;
+      await shot(page, `slice2-p1-pithead-full-${label}`);
+      await checkTwoLevels(page, at);
+      const stall = await page.evaluate(() => {
+        const pile = document.querySelector(".mine-hoisting .mine-stage-pile");
+        return {
+          text: pile?.textContent ?? "",
+          full: pile?.classList.contains("full") === true,
+        };
+      });
+      check(
+        stall.full &&
+          stall.text.includes("Granite pithead") &&
+          stall.text.includes("(full)"),
+        `${at} Hoisting row flags Granite pithead full stall (${JSON.stringify(stall)})`,
+      );
     } finally {
       await close();
     }

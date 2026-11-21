@@ -604,3 +604,8 @@
   color: var(--frame-amber);
   cursor: pointer;
 }
+
+.mine-stage-pile.full {
+  color: var(--frame-red);
+  font-weight: 700;
+}

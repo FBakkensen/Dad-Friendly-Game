@@ -7,7 +7,7 @@ import { canPay } from "./stock";
 import { installable, stationOpen } from "./factory";
 import { recipeById } from "./workshop";
 import { makerPrice, makersOpen, refineryMakers } from "./makers";
-import { partTwoOn } from "./part-switch";
+import { partTwoOn, slice2Part1On } from "./part-switch";
 import { MAX_STOCKYARD_LEVEL, expandPrice, stockyardOpen } from "./stockyard";
 import { TIERS, tierGood, tierQuote } from "./tiers";
 import { VEHICLES, vehicleOpen, vehiclePrice } from "./transport";
@@ -37,7 +37,8 @@ export const SITE_NAMES: Readonly<Record<SiteId, string>> = {
  * Whether a site is in the site bar (#671): the mine and the city from the
  * first evening, the refinery with the Light Tower once part 2 is live, and
  * the factory with the shaft once part 3 is (#681; spec, While a part is
- * the end of the game).
+ * the end of the game). Under Slice 2 Part 1 (#768), the Factory tab stays
+ * hidden until Part 2 opens the steady-flow Factory.
  */
 export function siteOpen(
   mountain: Pick<Mountain, "operational" | "mineLevels">,
@@ -47,7 +48,7 @@ export function siteOpen(
     case "refinery":
       return partTwoOn() && makersOpen(mountain);
     case "factory":
-      return stationOpen(mountain);
+      return !slice2Part1On() && stationOpen(mountain);
     default:
       return true;
   }
@@ -106,28 +107,33 @@ function refineryCount(mountain: Mountain): number {
   return makers + level;
 }
 
+/** Open transport vehicles he can afford now (global Transport in Slice 2, City in Slice 1). */
+export function transportCount(mountain: Mountain): number {
+  return VEHICLES.filter(
+    (vehicle) =>
+      vehicleOpen(mountain, vehicle.id) &&
+      canPay(mountain.stock, vehiclePrice(mountain, vehicle.id)),
+  ).length;
+}
+
 /**
  * Every buy on each site he can afford now. The mine counts what its
  * stages' lists hold; the refinery a kiln and a stockyard level; the city
- * counts its vehicles. The factory counts none: a work order costs nothing
- * to place, transport brings what it requires (#681). Hiring is not
- * counted: a worker is nearly always affordable.
+ * counts its vehicles in Slice 1 (moved to global Transport in Slice 2, #768).
+ * The factory counts none: a work order costs nothing to place, transport
+ * brings what it requires (#681). Hiring is not counted: a worker is nearly
+ * always affordable.
  */
 export function siteCounts(mountain: Mountain): Record<SiteId, number> {
   const mine = STAGES.reduce(
     (sum, stage) => sum + stageCount(mountain, stage),
     0,
   );
-  const vehicles = VEHICLES.filter(
-    (vehicle) =>
-      vehicleOpen(mountain, vehicle.id) &&
-      canPay(mountain.stock, vehiclePrice(mountain, vehicle.id)),
-  ).length;
   return {
     mine,
     refinery: refineryCount(mountain),
     factory: 0,
-    city: vehicles,
+    city: slice2Part1On() ? 0 : transportCount(mountain),
   };
 }
 
@@ -140,9 +146,9 @@ export function workforceCount(mountain: Mountain): number {
   ).length;
 }
 
-/** One count on Next's line: a site's, or the workforce's. */
+/** One count on Next's line: a site's, the workforce's, or global Transport's (#768). */
 type NextCount = {
-  readonly where: SiteId | "workforce";
+  readonly where: SiteId | "workforce" | "transport";
   readonly name: string;
   readonly count: number;
 };
@@ -208,6 +214,15 @@ export function nextView(mountain: Mountain): NextView {
       name: "Workforce",
       count: workforceCount(mountain),
     },
+    ...(slice2Part1On()
+      ? [
+          {
+            where: "transport" as const,
+            name: "Transport",
+            count: transportCount(mountain),
+          },
+        ]
+      : []),
   ].filter((entry) => entry.count > 0);
   const ready = counts.reduce((sum, entry) => sum + entry.count, 0);
   const next = nextBuilding(mountain);

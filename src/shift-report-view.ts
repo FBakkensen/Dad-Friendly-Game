@@ -123,9 +123,11 @@ function lines(report: AwayReport): readonly string[] {
   ];
 }
 
-/** "Brick full at 3 h 20 min", brick then stone, as the stockyard's bays stand. */
+/** "Brick full at 3 h 20 min", brick, stone, then cut stone, as the stockyard's bays stand. */
+const MARK_ORDER = [...BAY_ORDER, "cutStone"] as const;
+
 function marks(night: NightReport): readonly string[] {
-  return BAY_ORDER.flatMap((good) => {
+  return MARK_ORDER.flatMap((good) => {
     const at = night.fullAtMs?.[good];
     return at === undefined
       ? []

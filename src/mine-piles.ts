@@ -7,7 +7,14 @@ import {
   type ShaftCage,
 } from "./cages";
 import type { Mountain } from "./mountain";
-import { kilnRate, makerRate, makerTakes, type MakerId } from "./makers";
+import {
+  kilnRate,
+  makerBuffer,
+  makerInputRoom,
+  makerRate,
+  makerTakes,
+  type MakerId,
+} from "./makers";
 import {
   graniteOpen,
   openGranite,
@@ -15,7 +22,7 @@ import {
   type MineLevelId,
   type SunkLevel,
 } from "./mine-levels";
-import { partThreeOn } from "./part-switch";
+import { partThreeOn, slice2Part1On } from "./part-switch";
 import {
   branchChains,
   branchesChange,
@@ -291,6 +298,60 @@ function levelFlow(flows: readonly number[]): LevelFlow {
   return { face: flows[0] ?? 0, haul: flows[1] ?? 0, lift: flows[LIFT] ?? 0 };
 }
 
+function makerDrainCap(
+  mountain: Mountain,
+  id: MakerId,
+  inputId: "topsoilRock" | "graniteRock",
+  outGood: "brick" | "cutStone",
+  fleet: number,
+): number {
+  if (mountain.makers[id] <= 0) {
+    return 0;
+  }
+  if (makerInputRoom(mountain, id) > makerBuffer(mountain, id, inputId)) {
+    return fleet;
+  }
+  return stockpileRoom(mountain, outGood) > mountain.stock[outGood]
+    ? makerRate(mountain, id) * makerTakes(id)
+    : 0;
+}
+
+/** Pithead drain capacity per open level under Slice 2 Part 1 (used by mineLevelFlows / mineMakes). */
+function slice2PitheadDrain(mountain: Mountain): {
+  readonly topsoil: number;
+  readonly granite: number;
+} {
+  const fleet = fleetRate(mountain);
+  if (fleet <= 0) {
+    return { topsoil: 0, granite: 0 };
+  }
+  const stoneRoom = stockpileRoom(mountain, "stones") > mountain.stock.stones;
+  const kilnCap = makerDrainCap(
+    mountain,
+    "kiln",
+    "topsoilRock",
+    "brick",
+    fleet,
+  );
+  const sawCap = graniteOpen(mountain)
+    ? makerDrainCap(mountain, "saw", "graniteRock", "cutStone", fleet)
+    : 0;
+  const topCap = stoneRoom ? fleet : Math.min(fleet, kilnCap);
+  const granCap = graniteOpen(mountain)
+    ? stoneRoom
+      ? fleet
+      : Math.min(fleet, sawCap)
+    : 0;
+  if (topCap > 0 && granCap > 0 && topCap + granCap > fleet) {
+    const half = fleet / 2;
+    return {
+      topsoil: Math.min(topCap, half) + Math.max(0, half - granCap),
+      granite: Math.min(granCap, half) + Math.max(0, half - topCap),
+    };
+  }
+  return { topsoil: topCap, granite: granCap };
+}
+
 /**
  * What the mine moves now through the piles, a second, at pay 1 and under
  * the crew timer (#680): each level's drilling, haulage and what hoisting
@@ -305,6 +366,26 @@ export function mineLevelFlows(
   readonly lift: number;
 } {
   const timer = crewTimer(mountain, now);
+  if (slice2Part1On()) {
+    const chains = undergroundPitheadChains(
+      mountain,
+      1,
+      true,
+      slice2PitheadDrain(mountain),
+    );
+    const topsoil =
+      chains.topsoil === undefined
+        ? levelFlow([])
+        : levelFlow(chainFlows(chains.topsoil).map((flow) => flow * timer));
+    const deep =
+      chains.granite === undefined
+        ? levelFlow([])
+        : levelFlow(chainFlows(chains.granite).map((flow) => flow * timer));
+    return {
+      levels: { topsoil, granite: deep },
+      lift: topsoil.lift + deep.lift,
+    };
+  }
   const [topsoil = levelFlow([]), deep = levelFlow([])] = levelChains(
     mountain,
   ).map((chain) => levelFlow(chainFlows(chain).map((flow) => flow * timer)));
@@ -643,6 +724,29 @@ function chainMakes(chain: Chain): boolean {
  * still works.
  */
 export function mineMakes(mountain: Mountain, pay: number): boolean {
+  if (slice2Part1On()) {
+    const drain = slice2PitheadDrain(mountain);
+    const chains = undergroundPitheadChains(mountain, pay, true, {
+      topsoil: drain.topsoil * pay,
+      granite: drain.granite * pay,
+    });
+    const mineActive = [chains.topsoil, chains.granite].some(
+      (chain) => chain !== undefined && chainFlows(chain).some((f) => f > 0),
+    );
+    if (mineActive) {
+      return true;
+    }
+    const kilnActive =
+      makerRate(mountain, "kiln") * pay > 0 &&
+      makerBuffer(mountain, "kiln", "topsoilRock") >= makerTakes("kiln") &&
+      stockpileRoom(mountain, "brick") > mountain.stock.brick;
+    const sawActive =
+      graniteOpen(mountain) &&
+      makerRate(mountain, "saw") * pay > 0 &&
+      makerBuffer(mountain, "saw", "graniteRock") >= makerTakes("saw") &&
+      stockpileRoom(mountain, "cutStone") > mountain.stock.cutStone;
+    return kilnActive || sawActive;
+  }
   const granite = openGranite(mountain);
   return granite === undefined
     ? chainMakes(mineChain(mountain, pay, true))

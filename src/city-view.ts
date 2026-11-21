@@ -1,4 +1,9 @@
-import { SITE_HOLDS, buildRate, onSiteTotal } from "./building-site";
+import {
+  SITE_GOOD_CAP,
+  SITE_HOLDS,
+  buildRate,
+  onSiteTotal,
+} from "./building-site";
 import {
   BUILDINGS,
   buildingById,
@@ -17,7 +22,8 @@ import {
   type Pip,
 } from "./frame-view";
 import type { Mountain } from "./mountain";
-import { partThreeOn } from "./part-switch";
+import { partThreeOn, slice2Part1On } from "./part-switch";
+import { slice2LiveSnapshot, slice2OrderRates } from "./slice2-flow";
 import type { BuyAmount } from "./tiers";
 import type { GoodId } from "./stock";
 import { effectiveRates } from "./rates";
@@ -277,15 +283,37 @@ function placeKey(mountain: Mountain): OrderKey {
   };
 }
 
+function slice2CityFlows(mountain: Mountain): {
+  readonly brings: number;
+  readonly builds: number;
+} {
+  const snap = slice2LiveSnapshot(mountain);
+  return {
+    brings:
+      snap.runRates["stockToCity:stones"] +
+      snap.runRates["stockToCity:brick"] +
+      snap.runRates["stockToCity:cutStone"],
+    builds: snap.build.stones + snap.build.brick + snap.build.cutStone,
+  };
+}
+
 function orderKey(mountain: Mountain, now: number | undefined): OrderKey {
   const project = mountain.project;
   if (project.kind === "unordered") {
     return placeKey(mountain);
   }
+  const slice2 = slice2Part1On();
+  const s2 = slice2 ? slice2OrderRates(mountain) : undefined;
   const line = effectiveRates(mountain, now).exactCrewPerSecond;
-  const numbers = orderNumbers(mountain, line);
-  const builds = numbers.kind === "unordered" ? 0 : numbers.builds;
-  const brings = numbers.kind === "unordered" ? 0 : numbers.brings;
+  const { brings, builds } = slice2
+    ? slice2CityFlows(mountain)
+    : (() => {
+        const numbers = orderNumbers(mountain, line);
+        return {
+          brings: numbers.kind === "unordered" ? 0 : numbers.brings,
+          builds: numbers.kind === "unordered" ? 0 : numbers.builds,
+        };
+      })();
   const building = `building ${formatSpeed(builds)}/s`;
   if (project.kind === "onHold") {
     return {
@@ -297,7 +325,10 @@ function orderKey(mountain: Mountain, now: number | undefined): OrderKey {
       label: "Resume the order",
     };
   }
-  const limit = orderLimit(mountain, line);
+  const limit =
+    s2 !== undefined
+      ? orderLimit(mountain, s2.income, s2.cityCarry)
+      : orderLimit(mountain, line);
   const left =
     limit.kind === "delivering" && Number.isFinite(limit.secondsLeft)
       ? ` · ${etaShort(limit.secondsLeft * 1000)}`
@@ -318,7 +349,7 @@ function orderKey(mountain: Mountain, now: number | undefined): OrderKey {
 
 /** The builders under the bars, with their − and +. */
 type BuildersRow = JobRow & {
-  /** "2 builders ×8/s · on site 400 of 500". */
+  /** "2 builders ×8/s · on site 400 of 500" (or "2 builders ×50/s" in Slice 2 where each good has its own cap). */
   readonly line: string;
 };
 
@@ -327,7 +358,7 @@ function buildersRow(mountain: Mountain): BuildersRow {
   const each = `${String(count)} ${plural(count, ["builder", "builders"])} ×${formatSpeed(oneBuilderBuilds())}/s`;
   const project = mountain.project;
   const site =
-    project.kind === "unordered"
+    project.kind === "unordered" || slice2Part1On()
       ? ""
       : ` · on site ${formatCompact(onSiteTotal(project.site))} of ${formatCompact(SITE_HOLDS)}`;
   return { ...jobRow(mountain, "building"), line: `${each}${site}` };
@@ -337,6 +368,8 @@ function buildersRow(mountain: Mountain): BuildersRow {
 type CardBar = {
   readonly good: GoodId;
   readonly line: string;
+  /** Per-good on-site buffer under Slice 2 Part 1 ("180/500 on site"). */
+  readonly onSite?: string;
   readonly share: number;
 };
 
@@ -391,15 +424,29 @@ export function projectCard(mountain: Mountain, now?: number): ProjectCard {
     };
   }
   const id = inHand(mountain);
+  const slice2 = slice2Part1On();
+  const onSite =
+    mountain.project.kind === "unordered"
+      ? undefined
+      : mountain.project.site.onSite;
   return {
     kind: "project",
     name: strip.name,
     steps,
-    bars: strip.requires.map((r) => ({
-      good: r.good,
-      line: r.line,
-      share: r.requires > 0 ? Math.min(1, r.built / r.requires) : 0,
-    })),
+    bars: strip.requires.map((r) => {
+      const held = onSite === undefined ? 0 : onSite[r.good];
+      const bar: CardBar = {
+        good: r.good,
+        line: r.line,
+        share: r.requires > 0 ? Math.min(1, r.built / r.requires) : 0,
+        ...(slice2 && onSite !== undefined
+          ? {
+              onSite: `${formatCompact(held)}/${formatCompact(SITE_GOOD_CAP)} on site`,
+            }
+          : {}),
+      };
+      return bar;
+    }),
     key: orderKey(mountain, now),
     builders,
     completion: id === undefined ? "" : completion(id),
@@ -429,10 +476,21 @@ const share = (part: number, whole: number): number =>
 export function cityScene(mountain: Mountain, now?: number): CityScene {
   const shown = plots(mountain);
   const project = mountain.project;
+  const slice2 = slice2Part1On();
   const line = effectiveRates(mountain, now).exactCrewPerSecond;
-  const numbers = orderNumbers(mountain, line);
+  const { brings, builds } = slice2
+    ? slice2CityFlows(mountain)
+    : (() => {
+        const numbers = orderNumbers(mountain, line);
+        return {
+          brings: numbers.kind === "unordered" ? 0 : numbers.brings,
+          builds: numbers.kind === "unordered" ? 0 : numbers.builds,
+        };
+      })();
   // The wagons carry the factory's work order too (rule 7.7, #681).
-  const toStation = orderShares(mountain, 1, { stones: line }).station;
+  const toStation = slice2
+    ? 0
+    : orderShares(mountain, 1, { stones: line }).station;
   const rate = buildRate(mountain);
   const driven = drivenFleet(mountain);
   const undriven = vehicleRecord(0);
@@ -444,20 +502,25 @@ export function cityScene(mountain: Mountain, now?: number): CityScene {
   const at = shown.findIndex(
     (plot) => ordered !== undefined && plot.building === ordered,
   );
+  const siteFill =
+    project.kind === "unordered"
+      ? 0
+      : slice2
+        ? Math.max(
+            0,
+            ...Object.values(project.site.onSite).map((held) =>
+              share(held, SITE_GOOD_CAP),
+            ),
+          )
+        : share(onSiteTotal(project.site), SITE_HOLDS);
   return {
     plots: shown,
     sitePlot: at < 0 ? undefined : at,
-    siteFill:
-      project.kind === "unordered"
-        ? 0
-        : share(onSiteTotal(project.site), SITE_HOLDS),
+    siteFill,
     builders: mountain.jobs.building,
-    building: numbers.kind === "unordered" ? 0 : share(numbers.builds, rate),
+    building: project.kind === "unordered" ? 0 : share(builds, rate),
     driven,
     undriven,
-    load: share(
-      (numbers.kind === "unordered" ? 0 : numbers.brings) + toStation,
-      fleetRate(mountain),
-    ),
+    load: share(brings + toStation, fleetRate(mountain)),
   };
 }

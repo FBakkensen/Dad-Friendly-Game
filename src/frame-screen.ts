@@ -42,7 +42,10 @@ import { createMachineCard } from "./machine-card";
 import { createMineSite } from "./mine-site";
 import { createRefinerySite } from "./refinery-site";
 import { createStageSheet, type StageSheet } from "./stage-sheet";
+import { createTransportSheet, type TransportSheet } from "./transport-sheet";
+import { transportChip } from "./transport-view";
 import { createWorkforceSheet, type WorkforceSheet } from "./workforce-sheet";
+import { slice2Part1On } from "./part-switch";
 import "./frame.css";
 
 /**
@@ -166,6 +169,11 @@ type TopParts = {
   readonly hire: HTMLButtonElement;
   readonly hireFace: HTMLElement;
   readonly hirePrice: HTMLElement;
+  /** Global Transport sibling button under Slice 2 Part 1 (#768). */
+  readonly transport: HTMLButtonElement;
+  readonly transportCount: HTMLElement;
+  readonly transportRate: HTMLElement;
+  readonly transportLamp: HTMLElement;
 };
 
 function buildTop(state: FrameState): TopParts {
@@ -194,7 +202,27 @@ function buildTop(state: FrameState): TopParts {
     const key = hireKey(state.mountain(), state.amount());
     void state.progress.dispatch(tierBuyMove("helper", key.count));
   });
-  root.append(stonePile.root, brickPile.root, cutStonePile.root, workers, hire);
+  const transport = el("button", "frame-transport");
+  transport.type = "button";
+  transport.hidden = true;
+  const transportCount = el("span", "frame-transport-count board-num");
+  const transportRate = el("span", "frame-transport-rate");
+  const transportLamp = el("i", "frame-lamp");
+  transport.append(
+    icon(wagonUrl, "frame-icon"),
+    transportCount,
+    transportRate,
+    transportLamp,
+  );
+  transport.addEventListener("click", state.openTransport);
+  root.append(
+    stonePile.root,
+    brickPile.root,
+    cutStonePile.root,
+    workers,
+    hire,
+    transport,
+  );
   return {
     root,
     stones,
@@ -208,6 +236,10 @@ function buildTop(state: FrameState): TopParts {
     hire,
     hireFace,
     hirePrice,
+    transport,
+    transportCount,
+    transportRate,
+    transportLamp,
   };
 }
 
@@ -228,6 +260,7 @@ function paintTop(
     piles.find((pile) => pile.good === "cutStone"),
   );
   mark(parts.root, "two-piles", piles.length > 1);
+  setAttr(parts.root, "data-piles", String(piles.length));
   // The exact count, as the odometer carried it, for the journeys (#664).
   setAttr(parts.stones, "data-count", String(mountain.stock.stones));
   const workers = workersView(mountain);
@@ -243,6 +276,15 @@ function paintTop(
     "aria-label",
     `Hire ${key.count === 1 ? "a worker" : `${String(key.count)} workers`} for ${key.price} stone`,
   );
+  const showTransport = slice2Part1On();
+  hide(parts.transport, !showTransport);
+  if (showTransport) {
+    const chip = transportChip(mountain);
+    write(parts.transportCount, chip.count);
+    write(parts.transportRate, chip.rate);
+    setAttr(parts.transportLamp, "data-lamp", chip.lamp);
+    parts.transport.setAttribute("aria-label", chip.label);
+  }
 }
 
 type NextParts = {
@@ -255,13 +297,12 @@ type NextParts = {
 /**
  * Where a tap on Next goes: the city for an order, the factory for a work
  * order to install (#681), else the next other site
- * with something, else the workforce, else this site. The count of workers
- * opens the workforce on every site too.
+ * with something, else the workforce or transport, else this site.
  */
 function nextTarget(
   mountain: Mountain,
   here: SiteId,
-): SiteId | "workforce" | undefined {
+): SiteId | "workforce" | "transport" | undefined {
   const view = nextView(mountain);
   if (view.kind === "order") {
     return "city";
@@ -272,13 +313,14 @@ function nextTarget(
   if (view.kind === "nothing") {
     return undefined;
   }
-  // The other sites first, from the one after this, then the workforce,
-  // then this site: a tap always moves him, unless only here has something.
+  // The other sites first, from the one after this, then the workforce and
+  // transport, then this site: a tap always moves him, unless only here has something.
   const at = SITES.indexOf(here);
   const order = [
     ...SITES.slice(at + 1),
     ...SITES.slice(0, at),
     "workforce" as const,
+    "transport" as const,
     here,
   ];
   return order.find((where) =>
@@ -301,6 +343,8 @@ function buildNext(state: FrameState): NextParts {
     const target = nextTarget(state.mountain(), state.site());
     if (target === "workforce") {
       state.openWorkforce();
+    } else if (target === "transport") {
+      state.openTransport();
     } else if (target !== undefined) {
       state.go(target);
     }
@@ -362,6 +406,7 @@ export type FrameScreen = {
   /** Paints every part from the store's latest mountain. */
   readonly paint: () => void;
   readonly sheet: WorkforceSheet;
+  readonly transportSheet: TransportSheet;
   readonly stageSheet: StageSheet;
 };
 
@@ -395,6 +440,7 @@ function buildFrame(
     root,
     scene,
     paint: (mountain) => {
+      mark(root, "slice2-part1", slice2Part1On());
       paintOrder(order, mountain);
       paintTop(top, mountain, state.amount());
       paintNext(next, mountain);
@@ -446,7 +492,12 @@ export function mountFrameScreen({
       paint();
     },
     openWorkforce: () => {
+      transportSheet.close();
       sheet.open();
+    },
+    openTransport: () => {
+      sheet.close();
+      transportSheet.open();
     },
     openStage: (stage, level) => {
       stageSheet.open(stage, level);
@@ -459,6 +510,7 @@ export function mountFrameScreen({
   const board = createBoardHost({ clock: () => performance.now(), signal });
   const closeSheets = (): void => {
     sheet.close();
+    transportSheet.close();
     stageSheet.close();
     machineCard.close();
   };
@@ -477,6 +529,7 @@ export function mountFrameScreen({
   });
   const frame = buildFrame(state, now, ledger.key, signal);
   const sheet = createWorkforceSheet(state, now);
+  const transportSheet = createTransportSheet(state);
   const stageSheet = createStageSheet(state, now);
   const machineCard = createMachineCard(state, board, now);
   /** A card comes up: every sheet and the Ledger close under it. */
@@ -513,6 +566,7 @@ export function mountFrameScreen({
   root.replaceChildren(
     frame.root,
     sheet.root,
+    transportSheet.root,
     stageSheet.root,
     machineCard.root,
     cards.root,
@@ -533,6 +587,9 @@ export function mountFrameScreen({
     frame.root.toggleAttribute("data-loading", !ready);
     frame.paint(mountain);
     sheet.paint(mountain);
+    if (slice2Part1On()) {
+      transportSheet.paint(mountain);
+    }
     stageSheet.paint(mountain);
     machineCard.paint(mountain);
     cards.paint();
@@ -542,7 +599,7 @@ export function mountFrameScreen({
   };
   paint();
   runFrame(progress, paint, signal);
-  return { paint, sheet, stageSheet };
+  return { paint, sheet, transportSheet, stageSheet };
 }
 
 /**

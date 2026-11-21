@@ -148,6 +148,7 @@ export function paintRow(
   write(parts.can, row.can);
   writeSum(parts.sum, row.sum);
   hide(parts.pile, pile === undefined);
+  mark(parts.pile, "full", row.pile?.full === true);
   write(parts.pile, pile ?? "");
   parts.bandCan.style.width = `${String(Math.round(row.band.can * 1000) / 10)}%`;
   parts.bandNow.style.width = `${String(Math.round(row.band.now * 1000) / 10)}%`;

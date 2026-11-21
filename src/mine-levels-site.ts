@@ -370,7 +370,7 @@ export function createLevelsSite(
       paintRow(lift, row, {
         amount,
         lamp: stageCount(current, "lift") > 0,
-        pile: false,
+        pile: row.pile !== undefined,
       });
       for (const [index, cell] of view.strip.entries()) {
         const parts = cells[index];

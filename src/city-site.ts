@@ -23,6 +23,7 @@ import type { FrameState } from "./frame-state";
 import { listenSteps, paintSteps, stepper } from "./job-steps";
 import { buildKeyFace, paintMachineKey, type KeyParts } from "./mine-site";
 import type { Mountain } from "./mountain";
+import { slice2Part1On } from "./part-switch";
 import { priceIcon } from "./price-icons";
 import { runScene } from "./scene-paint";
 import type { BuyAmount } from "./tiers";
@@ -256,7 +257,9 @@ function paintBars(
         const words = el("span", "city-bar-line");
         const track = el("i", "city-bar-track");
         track.append(el("u", ""));
-        row.append(icon, words, track);
+        const site = el("small", "city-bar-site");
+        site.hidden = true;
+        row.append(icon, words, track, site);
         return row;
       }),
     );
@@ -272,9 +275,14 @@ function paintBars(
     }
     const words = row?.querySelector<HTMLElement>(".city-bar-line");
     const fill = row?.querySelector<HTMLElement>("u");
+    const site = row?.querySelector<HTMLElement>(".city-bar-site");
     if (words != null && fill != null) {
       write(words, bar.line);
       fill.style.width = `${String(Math.round(bar.share * 1000) / 10)}%`;
+    }
+    if (site != null) {
+      hide(site, bar.onSite === undefined);
+      write(site, bar.onSite ?? "");
     }
   });
 }
@@ -386,9 +394,18 @@ export function createCitySite(
         hide(note, true);
         return;
       }
+      const slice2 = slice2Part1On();
+      hide(plate.root, slice2);
+      if (slice2 && note.parentElement !== root) {
+        root.append(note);
+      } else if (!slice2 && note.parentElement !== plate.root) {
+        plate.root.append(note);
+      }
       scene = cityScene(mountain, now);
       const amount = state.amount();
-      paintPlate(plate, mountain, amount);
+      if (!slice2) {
+        paintPlate(plate, mountain, amount);
+      }
       plots(mountain).forEach((plot, at) => {
         const tag = tags.tags[at];
         if (tag !== undefined) {
@@ -397,7 +414,10 @@ export function createCitySite(
         }
       });
       const view = projectCard(mountain, now);
-      if (view.builders.canPlace || transportPlate(mountain).steps.canPlace) {
+      if (
+        view.builders.canPlace ||
+        (!slice2 && transportPlate(mountain).steps.canPlace)
+      ) {
         hide(note, true);
       }
       paintCard(card, view, amount);
