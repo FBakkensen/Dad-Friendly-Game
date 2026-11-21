@@ -217,8 +217,32 @@ describe("transport-view (#768)", () => {
         );
       }
 
-      // Shift report includes cutStone fullAtMs mark.
-      const rep = shiftReport({
+      // Shift report includes cutStone fullAtMs mark under Slice 2 Part 1.
+      const cutStoneReport = {
+        awayMs: 8 * 3_600_000,
+        paidMs: 4 * 3_600_000,
+        capped: false,
+        mined: 0,
+        materials: EMPTY_STOCK,
+        night: {
+          producedMs: 4 * 3_600_000,
+          deadMs: 0,
+          payFrom: 0.45,
+          payTo: 0.45,
+          produced: { ...EMPTY_STOCK, cutStone: 1000 },
+          delivered: EMPTY_STOCK,
+          steps: [],
+          stop: "stockyard" as const,
+          fullAtMs: { cutStone: 3 * 3_600_000 },
+        },
+      };
+      expect(shiftReport(cutStoneReport).marks).toEqual([
+        "Cut stone full at 3 h",
+      ]);
+    });
+    // Off in Slice 1 play: cutStone mark stays hidden.
+    expect(
+      shiftReport({
         awayMs: 8 * 3_600_000,
         paidMs: 4 * 3_600_000,
         capped: false,
@@ -235,9 +259,8 @@ describe("transport-view (#768)", () => {
           stop: "stockyard",
           fullAtMs: { cutStone: 3 * 3_600_000 },
         },
-      });
-      expect(rep.marks).toEqual(["Cut stone full at 3 h"]);
-    });
+      }).marks,
+    ).toEqual([]);
   });
 
   it("aligns multi-good City full-buffer caps, maker-buffer supply, per-good City brings, Both pitheads label, and Next stall with the solver", () => {
