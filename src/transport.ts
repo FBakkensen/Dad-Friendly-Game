@@ -17,11 +17,12 @@ import {
   stillToBuild,
   type Site,
 } from "./city";
+import { factor } from "./economy/factors";
 import { loadOf, loadStation, loadable, stillToArrive } from "./factory";
 import { makerBuffer, makerInputRoom } from "./makers";
 import { graniteOpen, openLevels, type MineLevelId } from "./mine-levels";
 import type { Mountain } from "./mountain";
-import { partThreeOn } from "./part-switch";
+import { partThreeOn, slice2Part1On } from "./part-switch";
 import { evenShares } from "./piles";
 import {
   GOOD_IDS,
@@ -179,12 +180,41 @@ export function fleetSize(mountain: Pick<Mountain, "fleet">): number {
   return VEHICLE_IDS.reduce((total, id) => total + mountain.fleet[id], 0);
 }
 
+/**
+ * Slice 2 Part 1 vehicle tuning (#767 / #757): horse wagons carry all pithead
+ * rock as well as City orders before trucks open, so their growth curve is
+ * gentler and capacity higher; trucks keep high throughput with gentler growth.
+ */
+const SLICE_2_VEHICLES: Readonly<
+  Record<
+    VehicleId,
+    {
+      readonly firstCost: number;
+      readonly growth: number;
+      readonly carries: number;
+    }
+  >
+> = {
+  horseWagon: { firstCost: 500, growth: 1.26, carries: 18 },
+  truck: { firstCost: 100_000, growth: 1.18, carries: 400 },
+};
+
+function vehicleCarries(vehicle: Vehicle): number {
+  if (!slice2Part1On()) {
+    return vehicle.carries;
+  }
+  return (
+    SLICE_2_VEHICLES[vehicle.id].carries *
+    factor(`vehicle.${vehicle.id}.carries`)
+  );
+}
+
 /** Goods a second the vehicles with a driver carry. */
 export function fleetRate(mountain: Pick<Mountain, "fleet" | "jobs">): number {
   const driven = drivenFleet(mountain);
   let rate = 0;
   for (const vehicle of VEHICLES) {
-    rate += driven[vehicle.id] * vehicle.carries;
+    rate += driven[vehicle.id] * vehicleCarries(vehicle);
   }
   return rate;
 }
@@ -192,9 +222,14 @@ export function fleetRate(mountain: Pick<Mountain, "fleet" | "jobs">): number {
 /** What the vehicle after `fleet` of them costs. The ones given are not on the curve. */
 function vehicleCost(vehicle: Vehicle, fleet: number): number {
   const bought = Math.max(0, fleet - vehicle.given);
-  return Math.ceil(
-    Number((vehicle.firstCost * vehicle.growth ** bought).toPrecision(12)),
-  );
+  const first = slice2Part1On()
+    ? SLICE_2_VEHICLES[vehicle.id].firstCost * factor(`price.${vehicle.id}`)
+    : vehicle.firstCost;
+  const growth = slice2Part1On()
+    ? SLICE_2_VEHICLES[vehicle.id].growth *
+      factor(`vehicle.${vehicle.id}.growth`)
+    : vehicle.growth;
+  return Math.ceil(Number((first * growth ** bought).toPrecision(12)));
 }
 
 /** The next one's price. */
@@ -735,14 +770,20 @@ function incomeOf(dug: Dug): Partial<Stock> {
 /**
  * The order's limit, with the goods a second and the time the step in hand
  * has left, live. `dug` is what the crew digs: stone, or each good's.
+ * When `cityCarry` is given (Slice 2 physical transport), it replaces the
+ * Slice 1 `orderShares` city carry rate.
  */
-export function orderLimit(mountain: Mountain, dug: Dug): OrderLimit {
+export function orderLimit(
+  mountain: Mountain,
+  dug: Dug,
+  cityCarry?: number,
+): OrderLimit {
   const project = mountain.project;
   if (project.kind !== "delivering") {
     return { kind: project.kind };
   }
   const income = incomeOf(dug);
-  const carry = orderShares(mountain, 1, income).city;
+  const carry = cityCarry ?? orderShares(mountain, 1, income).city;
   const need = stillRequired(project.site);
   let slowest: (Leg & { readonly good: GoodId }) | undefined;
   for (const leg of legs(need, mountain.stock, income, carry)) {
@@ -785,20 +826,25 @@ export type OrderNumbers =
  * the builders make room for once the site is full, and the builders build
  * no faster than what reaches them once it is empty.
  */
-export function orderNumbers(mountain: Mountain, dug: Dug): OrderNumbers {
+export function orderNumbers(
+  mountain: Mountain,
+  dug: Dug,
+  cityCarry?: number,
+): OrderNumbers {
   const project = mountain.project;
   if (project.kind === "unordered") {
     return project;
   }
   const site = project.site;
   const rate = buildRate(mountain);
+  const income = incomeOf(dug);
   const carried =
     project.kind === "delivering"
       ? arriving(
           site,
           mountain.stock,
-          incomeOf(dug),
-          orderShares(mountain, 1, incomeOf(dug)).city,
+          income,
+          cityCarry ?? orderShares(mountain, 1, income).city,
         )
       : 0;
   const held = onSiteTotal(site);
@@ -824,8 +870,9 @@ export function secondsToFinish(
   mountain: Mountain,
   share: number,
   dug: Dug,
+  cityCarry?: number,
 ): number {
-  return walkSteps(mountain, share, dug, Infinity);
+  return walkSteps(mountain, share, dug, Infinity, cityCarry);
 }
 
 /**
@@ -851,6 +898,7 @@ function walkSteps(
   share: number,
   dug: number | Partial<Stock>,
   steps: number,
+  cityCarry?: number,
 ): number {
   const project = mountain.project;
   if (project.kind === "unordered") {
@@ -859,7 +907,7 @@ function walkSteps(
   const income = incomeOf(dug);
   const carry =
     project.kind === "delivering"
-      ? orderShares(mountain, share, income).city
+      ? (cityCarry ?? orderShares(mountain, share, income).city)
       : 0;
   const build = buildRate(mountain) * share;
   let site: Site | undefined = project.site;

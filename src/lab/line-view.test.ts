@@ -90,4 +90,28 @@ describe("the narrow stage in a fresh mine (#655)", () => {
     ).toBe(0);
     expect(zeroGainBuysBetween(start, start, 0)).toBe(0);
   });
+
+  it("handles Granite-only machine buys without producing negative Topsoil counts", () => {
+    const start = crewedStart();
+    const withGranite: Mountain = {
+      ...start,
+      mineLevels: {
+        granite: {
+          machines: { cart: 0, drill: 0, borer: 0, train: 0 },
+          piles: { face: 0, shaft: 0, saw: 0 },
+        },
+      },
+    };
+    const afterBuy: Mountain = {
+      ...withGranite,
+      owned: { ...withGranite.owned, drill: 1, borer: 1 },
+      mineLevels: {
+        granite: {
+          machines: { cart: 0, drill: 1, borer: 1, train: 0 },
+          piles: { face: 0, shaft: 0, saw: 0 },
+        },
+      },
+    };
+    expect(() => zeroGainBuysBetween(withGranite, afterBuy, 0)).not.toThrow();
+  });
 });

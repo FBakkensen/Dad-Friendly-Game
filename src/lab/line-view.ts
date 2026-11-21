@@ -1,6 +1,12 @@
 import { STAGES, narrowStage, type Stage } from "../line";
 import { lineWork } from "../workforce";
-import { MINE_LEVEL_IDS, graniteOpen, type MineLevelId } from "../mine-levels";
+import {
+  LEVEL_MACHINE_IDS,
+  MINE_LEVEL_IDS,
+  graniteOpen,
+  type LevelMachineId,
+  type MineLevelId,
+} from "../mine-levels";
 import { levelsRates } from "./fresh-kit";
 import type { Mountain } from "../mountain";
 import { effectiveRates } from "../rates";
@@ -36,6 +42,33 @@ export function narrowAt(mountain: Mountain, now: number): Stage {
   return narrowStage(lineWork(mountain, rates.tierSpeed).stages);
 }
 
+function isLevelMachine(id: string): id is LevelMachineId {
+  return (LEVEL_MACHINE_IDS as readonly string[]).includes(id);
+}
+
+function withoutMachine(
+  before: Mountain,
+  after: Mountain,
+  id: (typeof TIERS)[number]["id"],
+): Mountain {
+  const base = setOwned(after, id, before.owned[id]);
+  const granite = base.mineLevels.granite;
+  if (granite === undefined || !isLevelMachine(id)) {
+    return base;
+  }
+  const prior = before.mineLevels.granite?.machines[id] ?? 0;
+  return {
+    ...base,
+    mineLevels: {
+      ...base.mineLevels,
+      granite: {
+        ...granite,
+        machines: { ...granite.machines, [id]: prior },
+      },
+    },
+  };
+}
+
 /**
  * Machines bought between `before` and `after` that the line does not need:
  * each kind bought is weighed alone, as `after` with that kind set back to
@@ -55,7 +88,7 @@ export function zeroGainBuysBetween(
       continue;
     }
     line ??= effectiveRates(after, now).exactCrewPerSecond;
-    const without = setOwned(after, tier.id, owned(before, tier));
+    const without = withoutMachine(before, after, tier.id);
     if (!moreStones(line, effectiveRates(without, now).exactCrewPerSecond)) {
       zero += bought;
     }

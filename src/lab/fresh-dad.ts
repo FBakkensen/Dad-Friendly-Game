@@ -15,9 +15,21 @@ import {
   type Action,
 } from "../economy/actions";
 import { STAGES, narrowStage, type Stage } from "../line";
-import { makerJob, makerPrice, makersOpen, type MakerId } from "../makers";
-import { PILE_HOLDS, mineChain } from "../mine-piles";
+import {
+  makerJob,
+  makerPrice,
+  makersOpen,
+  makerTakes,
+  type MakerId,
+} from "../makers";
+import {
+  PILE_HOLDS,
+  mineChain,
+  pitheadRoom,
+  undergroundPitheadChains,
+} from "../mine-piles";
 import type { Mountain } from "../mountain";
+import { slice2Part1On } from "../part-switch";
 import { chainFlows } from "../piles";
 import { effectiveRates } from "../rates";
 import type { GoodId, Price } from "../stock";
@@ -55,6 +67,7 @@ import {
   funded,
   goodsAhead,
   goodsIncome,
+  orderRates,
   pays,
   planPrice,
   raiseChain,
@@ -170,15 +183,72 @@ export function upgradeRaises(mountain: Mountain): readonly Raise[] {
   return raises;
 }
 
+/** Steady rock/s the Topsoil + fleet move into the stockyard and kilns (Slice 2 Part 1). */
+function slice2Throughput(mountain: Mountain): number {
+  const inc = goodsIncome(mountain);
+  return (inc.stones ?? 0) + (inc.brick ?? 0) * makerTakes("kiln");
+}
+
+/** Candidate stone-priced vehicle raises for Slice 2 Part 1 when transport limits steady rock output. */
+function slice2TransportRaises(
+  mountain: Mountain,
+  line: Raise | undefined,
+): readonly Raise[] {
+  const base = slice2Throughput(mountain);
+  const raises: Raise[] = [];
+  const fleet = fleetRate(mountain);
+  const mineLine = lineNow(mountain).line;
+  for (const id of VEHICLE_IDS.filter(
+    (open) =>
+      vehicleOpen(mountain, open) &&
+      vehiclePrice(mountain, open).every((entry) => entry.good === "stones"),
+  )) {
+    const buy = vehicleBuy(mountain, id);
+    if (!Number.isFinite(buy.cost) || buy.cost <= 0) {
+      continue;
+    }
+    const gain = slice2Throughput(applied(funded(mountain), buy.plan)) - base;
+    if (gain > FRESH_DUST) {
+      raises.push({ plan: buy.plan, cost: buy.cost, gain });
+    }
+    if (line !== undefined && fleet <= mineLine + FRESH_DUST) {
+      const bothBuy = vehicleBuy(applied(funded(mountain), line.plan), id);
+      const bothPlan = [...line.plan, ...bothBuy.plan];
+      const bothCost = stonesOf(planPrice(mountain, bothPlan));
+      const bothGain =
+        slice2Throughput(applied(funded(mountain), bothPlan)) - base;
+      if (Number.isFinite(bothCost) && bothCost > 0 && bothGain > FRESH_DUST) {
+        raises.push({ plan: bothPlan, cost: bothCost, gain: bothGain });
+      }
+    }
+  }
+  return raises;
+}
+
 /** The raise that pays back soonest, from the line's buys and, if he weighs them, the upgrades. */
 export function bestRaise(
   mountain: Mountain,
   habits: FreshHabits,
 ): Raise | undefined {
-  const raises = [
+  const line = lineRaise(mountain);
+  const baseRaises: readonly Raise[] = [
     ...(habits.upgrades ? upgradeRaises(mountain) : []),
-    ...[lineRaise(mountain)].filter((raise) => raise !== undefined),
+    ...(line !== undefined ? [line] : []),
   ];
+  const baseThroughput = slice2Part1On() ? slice2Throughput(mountain) : 0;
+  const raises = slice2Part1On()
+    ? [
+        ...(fleetRate(mountain) <= FRESH_DUST
+          ? baseRaises
+          : baseRaises.flatMap((raise) => {
+              const gain =
+                slice2Throughput(applied(funded(mountain), raise.plan)) -
+                baseThroughput;
+              return gain > FRESH_DUST ? [{ ...raise, gain }] : [];
+            })),
+        ...slice2TransportRaises(mountain, line),
+      ]
+    : baseRaises;
   let best: Raise | undefined;
   for (const raise of raises) {
     if (best === undefined || raise.cost / raise.gain < best.cost / best.gain) {
@@ -188,15 +258,17 @@ export function bestRaise(
   return best;
 }
 
-/** Goods a second one builder builds in. */
-const ONE_BUILDER = buildRate({ jobs: { ...NO_JOBS, building: 1 } });
+/** Goods a second one builder builds in (reads active factors dynamically). */
+function oneBuilder(): number {
+  return buildRate({ jobs: { ...NO_JOBS, building: 1 } });
+}
 
 /** Builders that keep pace with what reaches the site: transport, or the line when it is less. */
 function buildersWanted(mountain: Mountain, line: number): number {
-  return Math.max(
-    1,
-    Math.ceil(Math.min(fleetRate(mountain), line) / ONE_BUILDER),
-  );
+  const carry = slice2Part1On()
+    ? (orderRates(mountain).cityCarry ?? 0)
+    : Math.min(fleetRate(mountain), line);
+  return Math.max(1, Math.ceil(carry / oneBuilder()));
 }
 
 /** Nothing reaches the site and nothing is on it: the builders have nothing to do. */
@@ -228,6 +300,26 @@ function pileStage(mountain: Mountain): Stage {
   return face > 0 ? "haul" : "face";
 }
 
+/** Job whose waiting pile lets a worker move rock (adds pithead -> driving in Slice 2 Part 1). */
+function pileJob(mountain: Mountain): JobId {
+  if (!slice2Part1On()) {
+    return STAGE_JOB[pileStage(mountain)];
+  }
+  const pit = mountain.pithead.topsoil;
+  const pitShare = pileShare(pit, pitheadRoom(mountain));
+  const shaftShare = pileShare(mountain.piles.shaft, PILE_HOLDS.shaft);
+  const faceShare = pileShare(mountain.piles.face, PILE_HOLDS.face);
+  if (
+    pit > 0 &&
+    mountain.jobs.driving < fleetSize(mountain) &&
+    (mountain.jobs.driving === 0 ||
+      (pitShare >= shaftShare && pitShare >= faceShare))
+  ) {
+    return "driving";
+  }
+  return STAGE_JOB[pileStage(mountain)];
+}
+
 /** He sets drivers and builders once an order is in: the dad who sets them once, or anyone while it delivers. */
 function keepsJobs(mountain: Mountain, habits: FreshHabits): boolean {
   const project = mountain.project.kind;
@@ -237,10 +329,28 @@ function keepsJobs(mountain: Mountain, habits: FreshHabits): boolean {
   );
 }
 
+/** Whether a free worker should take an idle vehicle under Slice 2 physical transport. */
+function wantsDriverFree(mountain: Mountain): boolean {
+  if (mountain.jobs.driving >= fleetSize(mountain)) {
+    return false;
+  }
+  const mineStaffed =
+    mountain.jobs.drilling > 0 &&
+    mountain.jobs.haulage > 0 &&
+    mountain.jobs.hoisting > 0;
+  return (
+    mineStaffed || (mountain.jobs.driving === 0 && mountain.pithead.topsoil > 0)
+  );
+}
+
 /** A free worker's place: an idle vehicle, the builders, else where rock waits. */
 function placeFree(mountain: Mountain, habits: FreshHabits): Plan {
   const keeps = keepsJobs(mountain, habits);
-  if (keeps && mountain.jobs.driving < fleetSize(mountain)) {
+  if (
+    slice2Part1On()
+      ? wantsDriverFree(mountain)
+      : keeps && mountain.jobs.driving < fleetSize(mountain)
+  ) {
     return [{ kind: "placeWorker", job: "driving", count: 1 }];
   }
   if (keeps && mountain.jobs.building < 1) {
@@ -256,7 +366,7 @@ function placeFree(mountain: Mountain, habits: FreshHabits): Plan {
   const level = graniteOpen(mountain) ? levelPlace(mountain, habits) : [];
   return level.length > 0
     ? level
-    : [{ kind: "placeWorker", job: STAGE_JOB[pileStage(mountain)], count: 1 }];
+    : [{ kind: "placeWorker", job: pileJob(mountain), count: 1 }];
 }
 
 /**
@@ -265,13 +375,23 @@ function placeFree(mountain: Mountain, habits: FreshHabits): Plan {
  * line moves, the wagon would carry off every stone the lone worker brings
  * up, and he could never hire the next. A dad who never holds also waits
  * while the driver would let the order take more than half of what the
- * mine makes.
+ * mine makes. Under Slice 2 Part 1, a driver is always required once the mine
+ * lifts rock so pithead rock reaches the stockyard.
  */
 function orderCrew(
   mountain: Mountain,
   habits: FreshHabits,
 ): Priced | undefined {
-  if (!keepsJobs(mountain, habits) || lineNow(mountain).line <= FRESH_DUST) {
+  if (lineNow(mountain).line <= FRESH_DUST) {
+    return undefined;
+  }
+  if (
+    slice2Part1On() &&
+    mountain.jobs.driving < Math.min(1, fleetSize(mountain))
+  ) {
+    return staffed(mountain, "driving", freeWorkers(mountain));
+  }
+  if (!keepsJobs(mountain, habits)) {
     return undefined;
   }
   const job: JobId | undefined =
@@ -288,6 +408,60 @@ function orderCrew(
   return habits.hold === "never" && drainsTheMine(after) ? undefined : crew;
 }
 
+/** Slice 2 Part 1 single-level pile move including pithead.topsoil -> driving. */
+function slice2PileMove(mountain: Mountain): Plan {
+  const stockFull =
+    stockyardOpen(mountain) &&
+    mountain.stock.stones >= stockpileRoom(mountain, "stones");
+  const chain = undergroundPitheadChains(mountain, 1, true, {
+    topsoil: stockFull && mountain.makers.kiln === 0 ? 0 : fleetRate(mountain),
+    granite: 0,
+  }).topsoil;
+  if (chain === undefined) {
+    return [];
+  }
+  const flows = chainFlows(chain);
+  const rates = chain.rates;
+  const last = STAGES.length - 1;
+  if (
+    (rates[last] ?? 0) > FRESH_DUST &&
+    (flows[last] ?? 0) <= FRESH_DUST &&
+    mountain.piles.shaft > 0 &&
+    mountain.jobs.driving > 0 &&
+    stockFull
+  ) {
+    return [];
+  }
+  const to = pileJob(mountain);
+  for (const [index, from] of STAGES.entries()) {
+    const stands =
+      (rates[index] ?? 0) > FRESH_DUST && (flows[index] ?? 0) <= FRESH_DUST;
+    const fromJob = STAGE_JOB[from];
+    if (stands && fromJob !== to && mountain.jobs[fromJob] > 0) {
+      return [
+        { kind: "freeWorker", job: fromJob, count: 1 },
+        { kind: "placeWorker", job: to, count: 1 },
+      ];
+    }
+  }
+  const missingMineStage =
+    mountain.jobs.drilling === 0 ||
+    mountain.jobs.haulage === 0 ||
+    mountain.jobs.hoisting === 0;
+  if (
+    missingMineStage &&
+    mountain.jobs.driving > 0 &&
+    mountain.pithead.topsoil === 0 &&
+    to !== "driving"
+  ) {
+    return [
+      { kind: "freeWorker", job: "driving", count: 1 },
+      { kind: "placeWorker", job: to, count: 1 },
+    ];
+  }
+  return [];
+}
+
 /**
  * One worker from a stage that stands, with workers on it and no rock to
  * move or no room to put it (#703), to the stage whose pile lets him move
@@ -300,6 +474,9 @@ function pileMove(mountain: Mountain): Plan {
     // workers (`levelMoves`, #675): the Topsoil's chain alone would read
     // the cages for both as no hoisting at all.
     return [];
+  }
+  if (slice2Part1On()) {
+    return slice2PileMove(mountain);
   }
   const chain = mineChain(mountain, 1, true);
   const flows = chainFlows(chain);
@@ -367,6 +544,9 @@ function atLine(now: LineReading): number {
  * the slowest, when the line is better for it.
  */
 function rebalance(mountain: Mountain, habits: FreshHabits): Plan {
+  if (slice2Part1On() && graniteOpen(mountain)) {
+    return [];
+  }
   const piled = pileMove(mountain);
   if (piled.length > 0 || habits.moves !== "idle") {
     return piled;
@@ -399,23 +579,35 @@ function rebalance(mountain: Mountain, habits: FreshHabits): Plan {
  */
 function moverPlan(mountain: Mountain, habits: FreshHabits): Plan {
   const delivering = mountain.project.kind === "delivering";
-  if (!delivering && mountain.jobs.driving > 0) {
+  if (
+    !delivering &&
+    mountain.jobs.driving > (slice2Part1On() ? fleetSize(mountain) : 0)
+  ) {
     return [{ kind: "freeWorker", job: "driving", count: 1 }];
   }
-  if (siteIdle(mountain) && mountain.jobs.building > 0) {
+  const slice2Granite = slice2Part1On() && graniteOpen(mountain);
+  if (
+    siteIdle(mountain) &&
+    mountain.jobs.building > 0 &&
+    (!slice2Granite || mountain.project.kind === "unordered")
+  ) {
     return [{ kind: "freeWorker", job: "building", count: 1 }];
   }
-  const restore = delivering ? restoreStep(mountain) : [];
+  const restore =
+    (delivering || slice2Part1On()) && !slice2Granite
+      ? restoreStep(mountain, delivering)
+      : [];
   return restore.length > 0 ? restore : rebalance(mountain, habits);
 }
 
 /** A worker from the mine onto an idle vehicle, or onto the builders when they are short. */
-function restoreStep(mountain: Mountain): Plan {
+function restoreStep(mountain: Mountain, delivering = true): Plan {
   const short =
     mountain.jobs.driving < fleetSize(mountain)
       ? "driving"
-      : mountain.jobs.building <
-          buildersWanted(mountain, lineNow(mountain).line)
+      : delivering &&
+          mountain.jobs.building <
+            buildersWanted(mountain, lineNow(mountain).line)
         ? "building"
         : undefined;
   const from = short === undefined ? undefined : stageToFree(mountain);
@@ -455,6 +647,11 @@ function vehicleBuy(
   const driver = staffed(mountain, "driving", freeWorkers(mountain));
   const plan: Action[] = [{ kind: "buyVehicle", id }, ...driver.plan];
   let cost = (vehiclePrice(mountain, id)[0]?.amount ?? Infinity) + driver.cost;
+  if (slice2Part1On()) {
+    // Under Slice 2 physical transport, vehicles serve pithead/maker runs as
+    // well as City orders; builders are weighed on their own merit (#767).
+    return { plan, cost };
+  }
   // The builders keep pace with the new wagon, or it only fills the site.
   let state = applied(funded(mountain), plan);
   for (
@@ -475,9 +672,18 @@ function vehicleBuy(
  * (the spec's `starved`), so the pocket hardly grows. Otherwise it grows anyway.
  */
 export function drainsTheMine(mountain: Mountain): boolean {
-  const line = lineNow(mountain).line;
-  const numbers = orderNumbers(resumeOrder(mountain), goodsIncome(mountain));
-  return numbers.kind === "delivering" && numbers.brings > line * STARVED_SHARE;
+  const resumed = resumeOrder(mountain);
+  const rates = orderRates(resumed);
+  const numbers = orderNumbers(resumed, rates.income, rates.cityCarry);
+  if (numbers.kind !== "delivering") {
+    return false;
+  }
+  const made = slice2Part1On()
+    ? (rates.income.stones ?? 0) +
+      (rates.income.brick ?? 0) +
+      (rates.income.cutStone ?? 0)
+    : lineNow(mountain).line;
+  return numbers.brings > made * STARVED_SHARE;
 }
 
 /** Hold while the best raise pays back sooner than the building takes; resume when it does not. */
@@ -517,12 +723,20 @@ function orderFix(mountain: Mountain, habits: FreshHabits): Priced | undefined {
   if (mountain.project.kind !== "delivering") {
     return undefined;
   }
-  const limit = orderLimit(mountain, goodsIncome(mountain));
+  const rates = orderRates(mountain);
+  const limit = orderLimit(mountain, rates.income, rates.cityCarry);
   if (limit.kind !== "delivering") {
     return undefined;
   }
+  const candidates = [
+    limitFix(mountain, limit.limit),
+    ...(slice2Part1On() && limit.limit !== "transport"
+      ? [limitFix(mountain, "transport")]
+      : []),
+    brickFix(mountain),
+  ];
   let best: { priced: Priced; worth: number } | undefined;
-  for (const priced of [limitFix(mountain, limit.limit), brickFix(mountain)]) {
+  for (const priced of candidates) {
     if (
       priced === undefined ||
       (habits.hold === "never" &&
@@ -589,7 +803,8 @@ function stonesOf(price: Price): number {
 
 /** What reaches the building a second now, with the pocket as it is. */
 function brings(mountain: Mountain): number {
-  const numbers = orderNumbers(mountain, goodsIncome(mountain));
+  const rates = orderRates(mountain);
+  const numbers = orderNumbers(mountain, rates.income, rates.cityCarry);
   return numbers.kind === "unordered"
     ? 0
     : Math.min(numbers.brings, numbers.builds);

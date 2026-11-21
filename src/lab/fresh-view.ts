@@ -1,8 +1,10 @@
-import { SITE_HOLDS, onSiteTotal } from "../building-site";
+import { SITE_GOOD_CAP, SITE_HOLDS, onSiteTotal } from "../building-site";
+import { stillRequired } from "../city";
 import { tierLocked } from "../crew";
 import { STAGES, type Stage } from "../line";
 import type { Mountain } from "../mountain";
 import { effectiveRates } from "../rates";
+import { GOOD_IDS } from "../stock";
 import { deadStockpiles, stockyardOpen } from "../stockyard";
 import { TIERS, tierInPlay } from "../tiers";
 import {
@@ -30,10 +32,10 @@ import {
 import { flowMineLive } from "../mine-cages";
 import { MINE_LEVEL_IDS, graniteOpen, type MineLevelId } from "../mine-levels";
 import { flowMine } from "../mine-piles";
-import { partThreeOn } from "../part-switch";
+import { partThreeOn, slice2Part1On } from "../part-switch";
 import { sticker } from "./decide";
 import { drainsTheMine, siteIdle } from "./fresh-dad";
-import { goodsIncome, hirePrice, levelsRates } from "./fresh-kit";
+import { hirePrice, levelsRates, orderRates } from "./fresh-kit";
 import { AMOUNT_KEY_TEN, CAGE_GAP_SECONDS, FRESH_DUST } from "./targets";
 
 /**
@@ -62,12 +64,28 @@ export type FreshView = {
   readonly partThree: boolean;
 };
 
+/** Whether the building site holds all it can (per-good cap in Slice 2, shared total in Slice 1). */
+function isSiteFull(mountain: Mountain): boolean {
+  const project = mountain.project;
+  if (project.kind === "unordered") {
+    return false;
+  }
+  if (!slice2Part1On()) {
+    return onSiteTotal(project.site) >= SITE_HOLDS;
+  }
+  const need = stillRequired(project.site);
+  return GOOD_IDS.some(
+    (good) => need[good] > 0 && project.site.onSite[good] >= SITE_GOOD_CAP,
+  );
+}
+
 /** The view now. */
 export function freshView(mountain: Mountain): FreshView {
   const rates = effectiveRates(mountain);
   const line = rates.exactCrewPerSecond;
   const project = mountain.project;
-  const limit = orderLimit(mountain, goodsIncome(mountain));
+  const order = orderRates(mountain);
+  const limit = orderLimit(mountain, order.income, order.cityCarry);
   return {
     limit:
       limit.kind === "delivering"
@@ -75,8 +93,7 @@ export function freshView(mountain: Mountain): FreshView {
           ? limit.limit
           : "good"
         : limit.kind,
-    siteFull:
-      project.kind !== "unordered" && onSiteTotal(project.site) >= SITE_HOLDS,
+    siteFull: isSiteFull(mountain),
     starved:
       project.kind === "delivering" &&
       drainsTheMine(mountain) &&
@@ -207,7 +224,7 @@ function idleWorkerShare(
     return 0;
   }
   const driving =
-    mountain.project.kind === "delivering"
+    slice2Part1On() || mountain.project.kind === "delivering"
       ? Math.max(0, mountain.jobs.driving - fleetSize(mountain))
       : mountain.jobs.driving;
   const building = siteIdle(mountain) ? mountain.jobs.building : 0;

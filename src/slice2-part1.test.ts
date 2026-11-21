@@ -2,16 +2,23 @@ import { describe, expect, it } from "vitest";
 import {
   SITE_GOOD_CAP,
   applyCityWork,
+  buildRate,
   shareOutKeys,
   shareProportional,
   siteGoodRoom,
 } from "./building-site";
-import { placeOrder } from "./city";
+import { holdOrder, placeOrder } from "./city";
 import { withFactors } from "./economy/factors";
+import { bestRaise, freshPlan } from "./lab/fresh-dad";
+import casual from "./lab/fresh-policies/casual-2x10";
+import mover from "./lab/fresh-policies/casual-mover";
+import { freshView } from "./lab/fresh-view";
+import { LAB_FACTORS } from "./lab/run";
 import {
   BASE_INPUT_BUF,
   MAX_CYCLE_MICROS,
   makerInputRoom,
+  makerMakes,
   stepMakerCycle,
 } from "./makers";
 import {
@@ -33,12 +40,16 @@ import {
 } from "./part-switch";
 import { levels, partThree, slice2Part1 } from "./part-three.harness";
 import { readGame, writeGame } from "./save-format";
+import { slice2OrderRates, slice2SteadyIncome } from "./slice2-flow";
+import { stockpileRoom } from "./stockyard";
+import { tierById, tierCost } from "./tiers";
 import {
   RUN_ORDER,
   applyTransportTransfer,
   fleetRate,
   planTransportTransfer,
   runSnapshots,
+  vehiclePrice,
 } from "./transport";
 import { freeWorker, placeWorker } from "./workforce";
 
@@ -432,11 +443,11 @@ describe("Evening 1 single-worker loop & pre-Light-Tower night clock (#766)", ()
 
       // 4. Move worker to driving -> given horse wagon carries pithead rock to Stone!
       m = placeWorker(freeWorker(m, "hoisting"), "driving");
-      expect(fleetRate(m)).toBe(9);
+      expect(fleetRate(m)).toBe(18);
       m = accrue({
         mountain: m,
         from: 0,
-        to: 10 * SECOND,
+        to: 5 * SECOND,
         live: true,
       }).mountain;
       expect(m.pithead.topsoil).toBe(0);
@@ -596,6 +607,216 @@ describe("v11 save shape & reserved assignedRuns (#766)", () => {
           0,
         ).kind,
       ).toBe("ok");
+    });
+  });
+});
+
+describe("Part 1 lab & #757 economy rebalance (#767)", () => {
+  it("gates #757 economy retuning behind slice2Part1On() while LAB_FACTORS enables it", () => {
+    expect(LAB_FACTORS[SLICE_2_PART_1_OFF]).toBe(0);
+    const oneBuilder = {
+      ...createMountain(),
+      jobs: { ...createMountain().jobs, building: 1, driving: 1 },
+    };
+    withFactors(PLAY_FACTORS, () => {
+      expect(buildRate(oneBuilder)).toBe(8);
+      expect(fleetRate(oneBuilder)).toBe(9);
+      expect(makerMakes("saw")).toBe(30);
+      expect(tierCost(tierById("borer"), 0)).toBe(40_000);
+      expect(tierCost(tierById("train"), 0)).toBe(60_000);
+      expect(vehiclePrice(oneBuilder, "truck")[0]?.amount).toBe(150_000);
+    });
+    withFactors(LAB_FACTORS, () => {
+      expect(buildRate(oneBuilder)).toBe(50);
+      expect(fleetRate(oneBuilder)).toBe(18);
+      expect(makerMakes("saw")).toBe(50);
+      expect(tierCost(tierById("borer"), 0)).toBe(12_000);
+      expect(tierCost(tierById("train"), 0)).toBe(15_000);
+      expect(vehiclePrice(oneBuilder, "truck")[0]?.amount).toBe(100_000);
+      expect(tierCost(tierById("helper"), 100)).toBeLessThan(
+        withFactors(PLAY_FACTORS, () => tierCost(tierById("helper"), 100)),
+      );
+    });
+  });
+
+  it("computes steady physical transport income and City carry rate under slice2Part1On()", () => {
+    slice2Part1(() => {
+      const noDriver = levels({
+        sunk: false,
+        operational: [],
+        topsoil: 2,
+        hoisting: 2,
+        driving: 0,
+      });
+      expect(slice2SteadyIncome(noDriver)).toEqual({
+        stones: 0,
+        brick: 0,
+        cutStone: 0,
+      });
+      const driven = placeOrder(
+        levels({
+          sunk: false,
+          operational: [],
+          topsoil: 4,
+          hoisting: 4,
+          driving: 1,
+          building: 1,
+        }),
+      );
+      const steady = slice2SteadyIncome(driven);
+      expect(steady.stones).toBeGreaterThan(0);
+      const order = slice2OrderRates(driven);
+      // Fleet (18/s) splits between pitToStockyardStones and stockToCity:stones.
+      expect(order.income.stones).toBeCloseTo(9, 6);
+      expect(order.cityCarry).toBeCloseTo(9, 6);
+    });
+  });
+
+  it("rotates the lone Evening 1 worker onto driving when pithead rock waits, and keeps mover drivers active on hold", () => {
+    slice2Part1(() => {
+      const start = placeOrder(createMountain());
+      const pitReady: Mountain = {
+        ...start,
+        jobs: { ...start.jobs, drilling: 0, hoisting: 1 },
+        piles: { face: 0, shaft: 0, kiln: 0 },
+        pithead: { topsoil: 90, granite: 0 },
+      };
+      expect(freshPlan(pitReady, casual.fresh, casual.params.hoardK)).toEqual([
+        { kind: "freeWorker", job: "hoisting", count: 1 },
+        { kind: "placeWorker", job: "driving", count: 1 },
+      ]);
+
+      // Mover keeps staffed drivers on hold under Slice 2 physical transport.
+      const held = holdOrder(
+        placeOrder(
+          levels({
+            sunk: false,
+            operational: [],
+            topsoil: 2,
+            hoisting: 2,
+            driving: 1,
+            building: 0,
+          }),
+        ),
+      );
+      const moverMoves = freshPlan(held, mover.fresh, mover.params.hoardK);
+      expect(
+        moverMoves.some(
+          (action) => action.kind === "freeWorker" && action.job === "driving",
+        ),
+      ).toBe(false);
+
+      // freshView treats staffed drivers as working on hold and checks per-good SITE_GOOD_CAP.
+      const view = freshView(held);
+      expect(view.siteFull).toBe(false);
+      const fullStoneSite: Mountain = {
+        ...placeOrder(held),
+        project: {
+          kind: "delivering",
+          site: {
+            building: "lightTower",
+            step: 0,
+            arrived: { ...held.stock, stones: SITE_GOOD_CAP },
+            onSite: { ...held.stock, stones: SITE_GOOD_CAP },
+          },
+        },
+      };
+      expect(freshView(fullStoneSite).siteFull).toBe(true);
+    });
+  });
+
+  it("never overflows stockpileRoom during offline stretches when site is near SITE_GOOD_CAP", () => {
+    slice2Part1(() => {
+      const base = placeOrder(
+        levels({
+          sunk: false,
+          operational: ["lightTower", "warehouse"],
+          topsoil: 6,
+          hoisting: 6,
+          driving: 4,
+          building: 0,
+        }),
+      );
+      const room = stockpileRoom(base, "stones");
+      const nearFullSite: Mountain = {
+        ...base,
+        fleet: { horseWagon: 4, truck: 0 },
+        stock: { ...base.stock, stones: room },
+        pithead: { topsoil: 500, granite: 0 },
+        project: {
+          kind: "delivering",
+          site: {
+            building: "foundry",
+            step: 0,
+            arrived: { ...base.stock, stones: SITE_GOOD_CAP - 1 },
+            onSite: { ...base.stock, stones: SITE_GOOD_CAP - 1 },
+          },
+        },
+      };
+      const after = accrueAway({
+        mountain: nearFullSite,
+        lastSeen: 0,
+        now: 10 * SECOND,
+      }).mountain;
+      expect(after.stock.stones).toBeLessThanOrEqual(room);
+      expect(
+        after.project.kind === "delivering"
+          ? after.project.site.onSite.stones
+          : 0,
+      ).toBeLessThanOrEqual(SITE_GOOD_CAP);
+    });
+  });
+
+  it("excludes brick-priced trucks from stone-priced bestRaise while waiting for the shaft", () => {
+    slice2Part1(() => {
+      const base = levels({
+        sunk: false,
+        operational: ["lightTower", "warehouse"],
+        topsoil: 10,
+        hoisting: 10,
+        driving: 1,
+        building: 0,
+      });
+      const waiting: Mountain = {
+        ...base,
+        fleet: { horseWagon: 1, truck: 0 },
+        stock: { ...base.stock, stones: 200_000, brick: 0 },
+      };
+      const raise = bestRaise(waiting, casual.fresh);
+      expect(
+        raise?.plan.some(
+          (action) => action.kind === "buyVehicle" && action.id === "truck",
+        ) ?? false,
+      ).toBe(false);
+    });
+  });
+
+  it("never places an extra driver beyond fleetSize when casual-mover holds with pithead rock waiting", () => {
+    slice2Part1(() => {
+      const held = holdOrder(
+        placeOrder(
+          levels({
+            sunk: false,
+            operational: [],
+            topsoil: 1,
+            hoisting: 1,
+            driving: 1,
+            building: 0,
+          }),
+        ),
+      );
+      const fullPit: Mountain = {
+        ...held,
+        piles: { face: 0, shaft: 0, kiln: 0 },
+        pithead: { topsoil: 500, granite: 0 },
+        jobs: { ...held.jobs, drilling: 0, haulage: 1, hoisting: 1 },
+      };
+      const plan = freshPlan(fullPit, mover.fresh, mover.params.hoardK);
+      expect(
+        plan.some(
+          (action) => action.kind === "placeWorker" && action.job === "driving",
+        ),
+      ).toBe(false);
     });
   });
 });
