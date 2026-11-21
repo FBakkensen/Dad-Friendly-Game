@@ -30,7 +30,7 @@ import { jobRow, type JobRow } from "./workforce-view";
  * buffer bar, and idle/full markers. Never writes the mountain.
  */
 
-/** Plain rule line for Part 1 even-share transport (proposed copy, pending Flemming's review on #768). */
+/** Plain rule line for Part 1 even-share transport (approved by Flemming, 21 Nov 2026; docs/decisions.md). */
 export const TRANSPORT_RULE_PART_1 =
   "Staffed vehicles share evenly across active runs.";
 
