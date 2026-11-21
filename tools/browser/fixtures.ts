@@ -559,3 +559,89 @@ export function sliceTwoLevelsSave(now: number): SeedSave {
     run: { rock: 30_000_000, granite: 1_000_000 },
   });
 }
+
+/**
+ * Slice 2 Part 1 (#768): two levels open, Light Tower & Warehouse operational,
+ * Foundry structure delivering Brick and Cut stone with per-good on-site
+ * buffers, Kiln and Saw running, 2 wagons + 1 truck with 2 drivers (1
+ * unstaffed -> amber Transport chip), and stockpiles for +Wagon and +Truck.
+ */
+export function slice2Part1Save(now: number): SeedSave {
+  return sliceSave(now, {
+    owned: { helper: 28, cart: 3, drill: 2, hoist: 3 },
+    stock: {
+      stones: 2_000_000,
+      brick: 250_000,
+      cutStone: 120_000,
+    },
+    jobs: {
+      drilling: 4,
+      haulage: 3,
+      hoisting: 5,
+      graniteDrilling: 3,
+      graniteHaulage: 2,
+      driving: 2,
+      building: 2,
+      kilns: 1,
+      saws: 1,
+    },
+    fleet: { horseWagon: 2, truck: 1 },
+    marks: { operational: ["lightTower", "warehouse"] },
+    makers: { kiln: 1, saw: 2 },
+    piles: { face: 180, shaft: 140 },
+    granite: {
+      machines: { cart: 1, drill: 1 },
+      piles: { face: 160, shaft: 110 },
+    },
+    pithead: { topsoil: 240, granite: 180 },
+    makerBuffers: {
+      kiln: { topsoilRock: 420 },
+      saw: { graniteRock: 310 },
+    },
+    project: {
+      building: "foundry",
+      state: "delivering",
+      step: 1,
+      arrived: { brick: 1_200_000, cutStone: 400_000 },
+      onSite: { brick: 280, cutStone: 160 },
+    },
+    cages: { assigned: { topsoil: 1, granite: 1 } },
+    run: { rock: 30_000_000, granite: 1_000_000 },
+  });
+}
+
+/**
+ * Slice 2 Part 1 (#768): two levels open with zero drivers and Granite pithead
+ * filled to room, showing the visible pithead-full stall on Hoisting's row.
+ */
+export function slice2Part1PitheadFullSave(now: number): SeedSave {
+  return sliceSave(now, {
+    owned: { helper: 22, cart: 2, drill: 1, hoist: 0 },
+    stock: {
+      stones: 400_000,
+      brick: 80_000,
+      cutStone: 40_000,
+    },
+    jobs: {
+      drilling: 3,
+      haulage: 3,
+      hoisting: 3,
+      graniteDrilling: 3,
+      graniteHaulage: 2,
+      driving: 0,
+      building: 1,
+      kilns: 1,
+      saws: 1,
+    },
+    fleet: { horseWagon: 2, truck: 0 },
+    marks: { operational: ["lightTower", "warehouse"] },
+    makers: { kiln: 1, saw: 1 },
+    piles: { face: 120, shaft: 100 },
+    granite: {
+      machines: { cart: 1, drill: 1 },
+      piles: { face: 140, shaft: 120 },
+    },
+    pithead: { topsoil: 90, granite: 810 },
+    run: { rock: 30_000_000, granite: 1_000_000 },
+  });
+}

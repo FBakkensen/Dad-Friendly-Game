@@ -1312,3 +1312,42 @@ export function slice2OrderRates(mountain: Mountain): {
     cityCarry: cityUsed + unused,
   };
 }
+
+/**
+ * Instantaneous Slice 2 flow snapshot from the coupled solver (pay=1, live
+ * drilling) so Transport sheet and City order readouts match actual simulation
+ * rates, per-good SITE_GOOD_CAP buffers, maker-buffer supply, and City pass-through.
+ */
+export function slice2LiveSnapshot(mountain: Mountain): {
+  readonly runRates: Readonly<Record<RunId, number>>;
+  readonly destCaps: Readonly<Record<RunId, number>>;
+  readonly pitheadCap: Readonly<Record<MineLevelId, number>>;
+  readonly stockCap: Readonly<Record<CityRunGood, number>>;
+  readonly hoist: Readonly<Record<MineLevelId, number>>;
+  readonly makerOut: Readonly<Record<MakerId, number>>;
+  readonly build: Readonly<Record<CityRunGood, number>>;
+} {
+  const rates = coupledRates(mountain, 1, true);
+  const destCaps = destCapsFor(
+    mountain,
+    rates.runRates,
+    rates.makerOut,
+    rates.build,
+  );
+  const sources = runSourcesFor(
+    mountain,
+    openLevels(mountain),
+    rates.hoist,
+    rates.runRates,
+    rates.makerOut,
+  );
+  return {
+    runRates: rates.runRates,
+    destCaps,
+    pitheadCap: sources.pitheadCap,
+    stockCap: sources.stockCap,
+    hoist: rates.hoist,
+    makerOut: rates.makerOut,
+    build: rates.build,
+  };
+}

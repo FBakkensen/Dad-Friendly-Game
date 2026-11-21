@@ -2,6 +2,7 @@ import { ROOF, buildingById, type Building } from "./city";
 import { formatCompact, shiftDuration } from "./format";
 import { BAY_ORDER, GOOD_NAMES, GOOD_WORDS, STEP_NAMES } from "./frame-view";
 import type { AwayReport, NightReport } from "./mountain";
+import { slice2Part1On } from "./part-switch";
 import { percent } from "./screen-words";
 import { GOOD_IDS, type Stock } from "./stock";
 
@@ -123,9 +124,12 @@ function lines(report: AwayReport): readonly string[] {
   ];
 }
 
-/** "Brick full at 3 h 20 min", brick then stone, as the stockyard's bays stand. */
+/** "Brick full at 3 h 20 min": brick and stone in Slice 1; adds cut stone under Slice 2 Part 1 (#768). */
+const SLICE2_MARK_ORDER = [...BAY_ORDER, "cutStone"] as const;
+
 function marks(night: NightReport): readonly string[] {
-  return BAY_ORDER.flatMap((good) => {
+  const order = slice2Part1On() ? SLICE2_MARK_ORDER : BAY_ORDER;
+  return order.flatMap((good) => {
     const at = night.fullAtMs?.[good];
     return at === undefined
       ? []

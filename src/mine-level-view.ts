@@ -17,7 +17,12 @@ import {
   type MineLevelId,
   type SunkLevel,
 } from "./mine-levels";
-import { mineLevelFlows, mineTurnPerLoad, mineWork } from "./mine-piles";
+import {
+  mineLevelFlows,
+  mineTurnPerLoad,
+  mineWork,
+  pitheadRoom,
+} from "./mine-piles";
 import {
   LEVEL_NAMES,
   STAGE_NAMES,
@@ -34,7 +39,7 @@ import {
   type StageRow,
 } from "./mine-view";
 import type { Mountain } from "./mountain";
-import { partThreeOn } from "./part-switch";
+import { partThreeOn, slice2Part1On } from "./part-switch";
 import { crewTimer, effectiveRates } from "./rates";
 import { MACHINE_WORDS, plural } from "./screen-words";
 import { canPay, type GoodId } from "./stock";
@@ -288,6 +293,39 @@ function levelViews(
   return [view("topsoil"), view("granite")];
 }
 
+/** Pithead readout for the two-level Hoisting row under Slice 2 Part 1 (#768). */
+function shaftPitheadPile(mountain: Mountain): RowPile | undefined {
+  if (!slice2Part1On()) {
+    return undefined;
+  }
+  const holds = pitheadRoom(mountain);
+  const topsoil = mountain.pithead.topsoil;
+  const granite = mountain.pithead.granite;
+  const tFull = topsoil >= holds;
+  const gFull = granite >= holds;
+  if (tFull && gFull) {
+    return {
+      label: "Both pitheads",
+      held: holds,
+      holds,
+      full: true,
+    };
+  }
+  if (tFull) {
+    return { label: "Topsoil pithead", held: topsoil, holds, full: true };
+  }
+  if (gFull) {
+    return { label: "Granite pithead", held: granite, holds, full: true };
+  }
+  const level: MineLevelId = granite > topsoil ? "granite" : "topsoil";
+  return {
+    label: `${LEVEL_NAMES[level]} pithead`,
+    held: mountain.pithead[level],
+    holds,
+    full: false,
+  };
+}
+
 /**
  * Hoisting's row with two levels (ruling 3): it can move what the running
  * cages lift as they are assigned, and moves now what the shared hoisting
@@ -304,7 +342,7 @@ function shaftRow(mountain: Mountain, work: LevelsWork): StageRow {
     moving: work.flows.lift,
     strongest: work.strongest,
     free: work.free,
-    pile: undefined,
+    pile: shaftPitheadPile(mountain),
   });
 }
 

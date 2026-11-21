@@ -7,10 +7,12 @@ import { openLevels, type MineLevelId } from "./mine-levels";
 import {
   faceHolds,
   mineLevelFlows,
+  pitheadRoom,
   shaftHolds,
   type PileId,
 } from "./mine-piles";
 import type { Mountain } from "./mountain";
+import { slice2Part1On } from "./part-switch";
 import { crewTimer, effectiveRates } from "./rates";
 import { MACHINE_WORDS, TOOL_WORDS, formatSpeed, plural } from "./screen-words";
 import type { GoodId } from "./stock";
@@ -353,6 +355,8 @@ export type RowPile = {
   readonly label: string;
   readonly held: number;
   readonly holds: number;
+  /** True when a Slice 2 pithead buffer is full and stalls hoisting (#768). */
+  readonly full?: boolean;
 };
 
 /** The pile each stage puts its rock on. Hoisting lifts it up as stone. */
@@ -372,9 +376,10 @@ export const PILE_LABELS: Readonly<Record<PileId | MakerId, string>> = {
   saw: "Rock at the saws",
 };
 
-/** "Drilled rock: 200 of 300": a stage's pile, or the kilns'. */
+/** "Drilled rock: 200 of 300" (or "... (full)" when a Slice 2 pithead stalls hoisting). */
 export function pileWords(pile: RowPile): string {
-  return `${pile.label}: ${formatCompact(pile.held)} of ${formatCompact(pile.holds)}`;
+  const base = `${pile.label}: ${formatCompact(pile.held)} of ${formatCompact(pile.holds)}`;
+  return pile.full === true ? `${base} (full)` : base;
 }
 
 /**
@@ -397,6 +402,16 @@ export function levelPile(
 }
 
 function rowPile(mountain: Mountain, stage: Stage): RowPile | undefined {
+  if (stage === "lift" && slice2Part1On()) {
+    const holds = pitheadRoom(mountain);
+    const held = mountain.pithead.topsoil;
+    return {
+      label: "Pithead rock",
+      held,
+      holds,
+      full: held >= holds,
+    };
+  }
   const id = PILE_AFTER[stage];
   return id === undefined
     ? undefined
