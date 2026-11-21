@@ -1,12 +1,15 @@
 import { factor } from "./economy/factors";
 import type { Stage } from "./line";
 import type { Mountain } from "./mountain";
-import { partThreeOn } from "./part-switch";
+import { partThreeOn, slice2Part1On } from "./part-switch";
 import { pay, type GoodId, type Price } from "./stock";
 
 /** All tier numbers live here. See docs/DESIGN.md "M2: Automation". */
 /** #357: workers climb ×1.06 a unit, and kids share the curve. */
 export const HELPER_COST_GROWTH = 1.06;
+
+/** #767 / #757: worker curve in Slice 2 Part 1 balancing machines vs bare hands and 8-worker borers/locomotives. */
+const SLICE_2_HELPER_COST_GROWTH = 1.058;
 
 /**
  * On the line (#543): machines climb ×1.219 a unit (the old ×1.15 times
@@ -40,9 +43,22 @@ const PART_THREE_PRICE: Readonly<
   train: { good: "cutStone", first: 60_000 },
 };
 
+/** Slice 2 Part 1 (#767 / #757): borer and locomotive cut-stone prices tuned so both earn their keep on Granite. */
+const SLICE_2_PART_THREE_PRICE: Readonly<
+  Partial<Record<TierId, { readonly good: GoodId; readonly first: number }>>
+> = {
+  borer: { good: "cutStone", first: 12_000 },
+  train: { good: "cutStone", first: 15_000 },
+};
+
 /** The good a tier is paid in: cut stone for the borer and the locomotive in part 3, else stones. */
 export function tierGood(id: TierId): GoodId {
-  return (partThreeOn() ? PART_THREE_PRICE[id]?.good : undefined) ?? "stones";
+  const table = slice2Part1On()
+    ? SLICE_2_PART_THREE_PRICE
+    : partThreeOn()
+      ? PART_THREE_PRICE
+      : undefined;
+  return table?.[id]?.good ?? "stones";
 }
 
 /**
@@ -264,18 +280,26 @@ export function setOwned(
   return { ...mountain, owned: { ...mountain.owned, [id]: count } };
 }
 
-/** A tier's first price in the line: part 3's, else the line's, else its own. */
+/** A tier's first price in the line: Slice 2 Part 1's, else part 3's, else the line's, else its own. */
 function lineSticker(tier: Tier): number {
-  const partThree = partThreeOn() ? PART_THREE_PRICE[tier.id] : undefined;
+  const partThree = slice2Part1On()
+    ? SLICE_2_PART_THREE_PRICE[tier.id]
+    : partThreeOn()
+      ? PART_THREE_PRICE[tier.id]
+      : undefined;
   return partThree?.first ?? LINE_FIRST_COST[tier.id] ?? tier.firstCost;
 }
 
-/** Cookie Clicker curve: machines climb ×1.15, helpers ×1.06. */
+/** Cookie Clicker curve: machines climb ×1.15, helpers ×1.06 (×1.058 in Slice 2 Part 1). */
 export function tierCost(tier: Tier, ownedCount: number): number {
   // toPrecision drops float dust (500 × 1.6² is 1280.0000000000002, not 1,281).
   // A sweep multiplies the sticker and the growth. Both factors are 1 in play.
   const workerCurve = tier.staff === 0;
-  const base = workerCurve ? HELPER_COST_GROWTH : LINE_MACHINE_COST_GROWTH;
+  const base = workerCurve
+    ? slice2Part1On()
+      ? SLICE_2_HELPER_COST_GROWTH
+      : HELPER_COST_GROWTH
+    : LINE_MACHINE_COST_GROWTH;
   const growth =
     base * factor(workerCurve ? "growth.worker" : "growth.machine");
   const first = lineSticker(tier) * factor(`price.${tier.id}`);

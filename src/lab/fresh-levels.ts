@@ -13,6 +13,7 @@ import {
 } from "../mine-levels";
 import type { LevelRates } from "../mine-piles";
 import type { Mountain } from "../mountain";
+import { slice2Part1On } from "../part-switch";
 import { makerRate, makerTakes } from "../makers";
 import type { GoodId } from "../stock";
 import { TIERS, machineStaff, tierInPlay, type Tier } from "../tiers";
@@ -155,12 +156,17 @@ function stageBuys(
       continue;
     }
     const plan: Action[] = [machineMove(tier, level)];
-    for (let hire = 0; hire < machineStaff(tier); hire += 1) {
-      plan.push(...hireOnto(job));
+    const staff = machineStaff(tier);
+    if (slice2Part1On() && staff > 1 && mountain.jobs[job] >= staff) {
+      buys.push(plan);
     }
-    buys.push(plan);
+    const hired: Action[] = [...plan];
+    for (let hire = 0; hire < staff; hire += 1) {
+      hired.push(...hireOnto(job));
+    }
+    buys.push(hired);
     if (stage === "lift" && assigns(mountain, habits)) {
-      buys.push([...plan, { kind: "assignHoist", level, count: 1 }]);
+      buys.push([...hired, { kind: "assignHoist", level, count: 1 }]);
     }
   }
   return buys;

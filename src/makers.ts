@@ -1,7 +1,7 @@
 import { factor } from "./economy/factors";
 import { graniteOpen } from "./mine-levels";
 import type { Mountain } from "./mountain";
-import { partTwoOn } from "./part-switch";
+import { partTwoOn, slice2Part1On } from "./part-switch";
 import { pay, type GoodId, type Price } from "./stock";
 import type { JobId } from "./workforce";
 import { LINE_MACHINE_COST_GROWTH } from "./tiers";
@@ -166,9 +166,16 @@ export function makerOutput(id: MakerId): MakerOutput {
   return makerById(id).output;
 }
 
+const SLICE_2_MAKER_MAKES: Readonly<Partial<Record<MakerId, number>>> = {
+  saw: 50,
+};
+
 /** What one running maker makes a second, at full output (#671). */
 export function makerMakes(id: MakerId): number {
-  return makerById(id).makes;
+  const base = slice2Part1On()
+    ? (SLICE_2_MAKER_MAKES[id] ?? makerById(id).makes)
+    : makerById(id).makes;
+  return slice2Part1On() ? base * factor(`maker.${id}.makes`) : base;
 }
 
 /** The makers of a kind that run: each with one worker on its job (rule 2.7). */

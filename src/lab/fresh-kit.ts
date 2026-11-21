@@ -5,6 +5,8 @@ import { narrowStage, type Stage } from "../line";
 import { steadyIncome, steadyLevels } from "../mine-piles";
 import type { MineLevelId } from "../mine-levels";
 import type { Mountain } from "../mountain";
+import { slice2Part1On } from "../part-switch";
+import { slice2OrderRates, slice2SteadyIncome } from "../slice2-flow";
 import { GOOD_IDS, type GoodId, type Price, type Stock } from "../stock";
 import { secondsToFinish } from "../transport";
 import type { JobId } from "../workforce";
@@ -26,11 +28,23 @@ export type Priced = { readonly plan: Plan; readonly cost: number };
 /**
  * What the mine brings of each good a second at full output: the running
  * kilns and saws take their rock first and make their good of it, and the
- * rest is stone (rule 3, #666, #675). The chain's own split
- * (`steadyIncome`), so the dad plans on what the mine does.
+ * rest is stone (rule 3, #666, #675). Under Slice 2 Part 1 (#767), physical
+ * transport carries rock from the pitheads into stockyard and makers.
  */
-export const goodsIncome: (mountain: Mountain) => Partial<Stock> =
-  perMountain(steadyIncome);
+export const goodsIncome: (mountain: Mountain) => Partial<Stock> = perMountain(
+  (mountain) =>
+    slice2Part1On() ? slice2SteadyIncome(mountain) : steadyIncome(mountain),
+);
+
+/** Production income and City delivery carry rate for the current order. */
+export const orderRates: (mountain: Mountain) => {
+  readonly income: Partial<Stock>;
+  readonly cityCarry: number | undefined;
+} = perMountain((mountain) =>
+  slice2Part1On()
+    ? slice2OrderRates(mountain)
+    : { income: goodsIncome(mountain), cityCarry: undefined },
+);
 
 /** Each level's stages at full output (`steadyLevels`), read once a mountain. */
 export const levelsRates: typeof steadyLevels = perMountain(steadyLevels);
@@ -126,7 +140,8 @@ export function raiseChain(
     for (const buy of buys(state, stage)) {
       const after = applied(state, buy.plan);
       const next = read(after);
-      const worth = (next.stages[stage] - now.stages[stage]) / buy.cost;
+      const denom = slice2Part1On() ? Math.max(1, buy.cost) : buy.cost;
+      const worth = (next.stages[stage] - now.stages[stage]) / denom;
       if (worth > 0 && (best === undefined || worth > best.worth)) {
         best = { buy, after, now: next, worth };
       }
@@ -163,8 +178,11 @@ export function staffed(mountain: Mountain, job: JobId, free: number): Priced {
 
 /** Seconds until the building is up if the order delivered from now, at what the mine brings of each good. */
 export const buildingSeconds: (mountain: Mountain) => number = perMountain(
-  (mountain) =>
-    secondsToFinish(resumeOrder(mountain), 1, goodsIncome(mountain)),
+  (mountain) => {
+    const resumed = resumeOrder(mountain);
+    const rates = orderRates(resumed);
+    return secondsToFinish(resumed, 1, rates.income, rates.cityCarry);
+  },
 );
 
 /**
@@ -303,19 +321,21 @@ const GOOD_LEVEL: Readonly<Partial<Record<GoodId, MineLevelId>>> = {
 
 /** Seconds until the building is up as `buildingSeconds`, with the goods of a level that lifts nothing coming at once. */
 function madeSeconds(mountain: Mountain): number {
-  const income: Partial<Record<GoodId, number>> = { ...goodsIncome(mountain) };
+  const resumed = resumeOrder(mountain);
+  const rates = orderRates(resumed);
+  const income: Partial<Record<GoodId, number>> = { ...rates.income };
   const levels = levelsRates(mountain);
   for (const good of goodsAhead(mountain)) {
     const level = GOOD_LEVEL[good];
-    const rates = level === undefined ? undefined : levels[level];
+    const levelRate = level === undefined ? undefined : levels[level];
     if (
-      rates !== undefined &&
-      Math.min(rates.face, rates.haul, rates.lift) <= FRESH_DUST
+      levelRate !== undefined &&
+      Math.min(levelRate.face, levelRate.haul, levelRate.lift) <= FRESH_DUST
     ) {
       income[good] = AT_ONCE;
     }
   }
-  return secondsToFinish(resumeOrder(mountain), 1, income);
+  return secondsToFinish(resumed, 1, income, rates.cityCarry);
 }
 
 /**

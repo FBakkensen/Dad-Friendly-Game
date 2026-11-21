@@ -1,5 +1,7 @@
 import { stillRequired, type Site } from "./city";
+import { factor } from "./economy/factors";
 import type { Mountain } from "./mountain";
+import { slice2Part1On } from "./part-switch";
 import { flowWhole } from "./piles";
 import { GOOD_IDS, addedStock, type GoodId, type Stock } from "./stock";
 
@@ -33,12 +35,21 @@ export function siteGoodRoom(site: Site, good: GoodId): number {
   );
 }
 
-/** Goods a second one builder builds in: a little less than a horse wagon carries (#655). */
+/** Goods a second one builder builds in (Slice 1): a little less than a horse wagon carries (#655). */
 const BUILDER_BUILDS = 8;
+
+/**
+ * Goods a second one builder builds in (Slice 2 Part 1, #767 / #757):
+ * rebalanced alongside trucks so trucks never require 50 builders apiece.
+ */
+const SLICE_2_BUILDER_BUILDS = 50;
 
 /** Goods a second the builders build in, at full output. Nothing lifts a builder. */
 export function buildRate(mountain: Pick<Mountain, "jobs">): number {
-  return mountain.jobs.building * BUILDER_BUILDS;
+  const perBuilder = slice2Part1On()
+    ? SLICE_2_BUILDER_BUILDS * factor("builder.rate")
+    : BUILDER_BUILDS;
+  return mountain.jobs.building * perBuilder;
 }
 
 /** What is on the site, in all goods. */
