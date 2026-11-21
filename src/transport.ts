@@ -199,7 +199,8 @@ const SLICE_2_VEHICLES: Readonly<
   truck: { firstCost: 100_000, growth: 1.18, carries: 400 },
 };
 
-function vehicleCarries(vehicle: Vehicle): number {
+/** Goods a second one vehicle carries under the active factors and part switch. */
+export function vehicleCarries(vehicle: Vehicle): number {
   if (!slice2Part1On()) {
     return vehicle.carries;
   }

@@ -140,8 +140,8 @@ export function raiseChain(
     for (const buy of buys(state, stage)) {
       const after = applied(state, buy.plan);
       const next = read(after);
-      const worth =
-        (next.stages[stage] - now.stages[stage]) / Math.max(1, buy.cost);
+      const denom = slice2Part1On() ? Math.max(1, buy.cost) : buy.cost;
+      const worth = (next.stages[stage] - now.stages[stage]) / denom;
       if (worth > 0 && (best === undefined || worth > best.worth)) {
         best = { buy, after, now: next, worth };
       }

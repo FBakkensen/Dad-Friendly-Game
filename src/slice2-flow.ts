@@ -537,10 +537,22 @@ function coupledRates(
     RUN_ORDER.map((id) => [id, 0]),
   ) as Record<RunId, number>;
 
+  let prevDrain: Readonly<Record<MineLevelId, number>> | undefined;
+  let hoist: Record<MineLevelId, number> = { topsoil: 0, granite: 0 };
+  let build: Record<CityRunGood, number> = { stones: 0, brick: 0, cutStone: 0 };
+  let makerOut: Record<MakerId, number> = { kiln: 0, saw: 0 };
+  let settled = false;
+
   for (let pass = 0; pass < MAX_FIXED_POINT_PASSES; pass += 1) {
-    const hoist = hoistRatesFor(mountain, pay, drilling, pitheadDrain);
-    const build = buildRatesFor(mountain, pay, runRates);
-    const makerOut = makerRatesFor(mountain, pay, runRates);
+    if (
+      prevDrain === undefined ||
+      !recordSettled(LEVEL_KEYS, prevDrain, pitheadDrain)
+    ) {
+      hoist = hoistRatesFor(mountain, pay, drilling, pitheadDrain);
+      prevDrain = pitheadDrain;
+    }
+    build = buildRatesFor(mountain, pay, runRates);
+    makerOut = makerRatesFor(mountain, pay, runRates);
     const destCaps = destCapsFor(mountain, runRates, makerOut, build);
     const sources = runSourcesFor(
       mountain,
@@ -550,7 +562,7 @@ function coupledRates(
       makerOut,
     );
     const next = allocateRunRates(totalFleet, open, destCaps, sources);
-    const settled =
+    settled =
       pass > 0 &&
       recordSettled(RUN_ORDER, runRates, next.runRates) &&
       recordSettled(LEVEL_KEYS, pitheadDrain, next.pitheadDrain) &&
@@ -561,22 +573,22 @@ function coupledRates(
       stoneFromPithead = next.stoneFromPithead;
       break;
     }
-    runRates =
-      pass === 0
-        ? next.runRates
-        : dampRecord(RUN_ORDER, runRates, next.runRates);
-    pitheadDrain =
-      pass === 0
-        ? next.pitheadDrain
-        : dampRecord(LEVEL_KEYS, pitheadDrain, next.pitheadDrain);
-    stoneFromPithead =
-      pass === 0
-        ? next.stoneFromPithead
-        : dampRecord(LEVEL_KEYS, stoneFromPithead, next.stoneFromPithead);
+    const damp = pass >= 4;
+    runRates = damp
+      ? dampRecord(RUN_ORDER, runRates, next.runRates)
+      : next.runRates;
+    pitheadDrain = damp
+      ? dampRecord(LEVEL_KEYS, pitheadDrain, next.pitheadDrain)
+      : next.pitheadDrain;
+    stoneFromPithead = damp
+      ? dampRecord(LEVEL_KEYS, stoneFromPithead, next.stoneFromPithead)
+      : next.stoneFromPithead;
   }
-  const hoist = hoistRatesFor(mountain, pay, drilling, pitheadDrain);
-  const build = buildRatesFor(mountain, pay, runRates);
-  const makerOut = makerRatesFor(mountain, pay, runRates);
+  if (!settled) {
+    hoist = hoistRatesFor(mountain, pay, drilling, pitheadDrain);
+    build = buildRatesFor(mountain, pay, runRates);
+    makerOut = makerRatesFor(mountain, pay, runRates);
+  }
   return { hoist, runRates, pitheadDrain, stoneFromPithead, makerOut, build };
 }
 
@@ -861,8 +873,8 @@ function planStretchPithead(
     for (const level of openLvls) {
       const mRun: RunId =
         level === "topsoil" ? "pitTopsoilToKilns" : "pitGraniteToSaws";
-      const rawMaker = makerWhole(level, mRun);
-      const spill = Math.max(0, rawMaker - wantMaker[level]);
+      const floorMaker = Math.floor(rates.runRates[mRun] + RATE_EPS);
+      const spill = Math.max(0, floorMaker - wantMaker[level]);
       const extra = Math.min(spill, stoneLeft);
       wantStone[level] += extra;
       stoneLeft -= extra;

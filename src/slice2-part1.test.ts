@@ -8,6 +8,7 @@ import {
   siteGoodRoom,
 } from "./building-site";
 import { holdOrder, placeOrder } from "./city";
+import { transportPlate, vehicleKeys } from "./city-view";
 import { withFactors } from "./economy/factors";
 import { bestRaise, freshPlan } from "./lab/fresh-dad";
 import casual from "./lab/fresh-policies/casual-2x10";
@@ -621,6 +622,8 @@ describe("Part 1 lab & #757 economy rebalance (#767)", () => {
     withFactors(PLAY_FACTORS, () => {
       expect(buildRate(oneBuilder)).toBe(8);
       expect(fleetRate(oneBuilder)).toBe(9);
+      expect(vehicleKeys(oneBuilder, "one")[0]?.face).toBe("+Wagon · 9/s");
+      expect(transportPlate(oneBuilder).fleet).toContain("9/s");
       expect(makerMakes("saw")).toBe(30);
       expect(tierCost(tierById("borer"), 0)).toBe(40_000);
       expect(tierCost(tierById("train"), 0)).toBe(60_000);
@@ -629,6 +632,8 @@ describe("Part 1 lab & #757 economy rebalance (#767)", () => {
     withFactors(LAB_FACTORS, () => {
       expect(buildRate(oneBuilder)).toBe(50);
       expect(fleetRate(oneBuilder)).toBe(18);
+      expect(vehicleKeys(oneBuilder, "one")[0]?.face).toBe("+Wagon · 18/s");
+      expect(transportPlate(oneBuilder).fleet).toContain("18/s");
       expect(makerMakes("saw")).toBe(50);
       expect(tierCost(tierById("borer"), 0)).toBe(12_000);
       expect(tierCost(tierById("train"), 0)).toBe(15_000);

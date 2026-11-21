@@ -35,6 +35,7 @@ import {
   orderLimit,
   orderNumbers,
   orderShares,
+  vehicleCarries,
   vehicleOpen,
   vehicleQuote,
   vehicleRecord,
@@ -88,7 +89,7 @@ function fleetWords(
   const owned = mountain.fleet[vehicle.id];
   const kind = plural(owned, VEHICLE_WORDS[vehicle.id]);
   const drivers = plural(owned, ["driver", "drivers"]);
-  const carries = formatSpeed(driven * vehicle.carries);
+  const carries = formatSpeed(driven * vehicleCarries(vehicle));
   return `${String(owned)} ${kind}: ${String(driven)} of ${String(owned)} ${drivers} ${carries}/s`;
 }
 
@@ -133,7 +134,7 @@ export function vehicleKeys(
     (vehicle) => {
       const { count, cost } = vehicleQuote(mountain, vehicle.id, amount);
       const one = count === 1;
-      const moves = `${formatSpeed(vehicle.carries * count)}/s`;
+      const moves = `${formatSpeed(vehicleCarries(vehicle) * count)}/s`;
       const key = plural(count, VEHICLE_KEYS[vehicle.id]);
       const words = plural(count, VEHICLE_WORDS[vehicle.id]);
       const price = formatCompact(cost);
