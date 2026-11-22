@@ -69,11 +69,12 @@ export function openSession(
     readonly since: number | undefined;
     readonly rebase: boolean;
   },
-): { paid: number } {
+): { paid: number; changed: boolean } {
   ctx.session = openBaselines(ctx.session, options.rebase);
   runStep(ctx, { kind: "recall", homecomings: readHomecomings(ctx) });
-  const paid = options.pay ? payAway(ctx, options.since) : 0;
-  return { paid };
+  return options.pay
+    ? payAway(ctx, options.since)
+    : { paid: 0, changed: false };
 }
 
 /** A copy from before this version, and where it was (#558). */
@@ -128,12 +129,23 @@ export function resetFresh(
   clearHomecomings(ctx);
 }
 
-/** Pays the time a save says we were gone, unless a fresh read or the conflict sheet holds play. */
-export function payAway(ctx: StoreContext, since: number | undefined): number {
+/**
+ * Pays the time a save says we were gone, unless a fresh read or the conflict
+ * sheet holds play. Returns stones hoisted (`paid`) and whether any away work
+ * mutated the mountain (`changed`).
+ */
+export function payAway(
+  ctx: StoreContext,
+  since: number | undefined,
+): { paid: number; changed: boolean } {
   if (holding(ctx) || ctx.saveConflict !== undefined) {
-    return 0;
+    return { paid: 0, changed: false };
   }
-  return runStep(ctx, { kind: "away", since }).mined;
+  const stepped = runStep(ctx, { kind: "away", since });
+  return {
+    paid: stepped.mined,
+    changed: stepped.mined > 0 || stepped.awayWork === true,
+  };
 }
 
 /** First open, or a cloud copy that is strictly ahead. Settles once from `paidLastSeen`. */
@@ -152,7 +164,7 @@ function openFresh(
   ctx.hydrated = true;
   ctx.saveKind = "account";
   logCounts(ctx, "save.remote", detail);
-  const changed = upload || opened.paid > 0;
+  const changed = upload || opened.changed;
   if (serverSeen(ctx) && changed) {
     persistCloudSoon(ctx);
   }

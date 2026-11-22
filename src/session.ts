@@ -164,6 +164,8 @@ export type Stepped = {
   readonly effects: readonly SessionEffect[];
   /** Stones the crew mined in this step. */
   readonly mined: number;
+  /** True when away settlement changed mountain state (hoisted rock, produced/delivered goods, or built steps). */
+  readonly awayWork?: boolean;
 };
 
 const NO_NEWS: SessionNews = {
@@ -274,19 +276,20 @@ export function step(
   now: number,
 ): Stepped {
   const out = new Effects();
-  const done = (next: Session, mined = 0): Stepped => ({
+  const done = (next: Session, mined = 0, awayWork?: boolean): Stepped => ({
     session: next,
     effects: out.list,
     mined,
+    ...(awayWork === true ? { awayWork: true } : {}),
   });
   switch (input.kind) {
     case "tick": {
       const ticked = tick(session, now, out);
-      return done(ticked.session, ticked.mined);
+      return done(ticked.session, ticked.mined, ticked.awayWork);
     }
     case "away": {
       const paid = settleAway(session, input.since, now, out);
-      return done(paid.session, paid.mined);
+      return done(paid.session, paid.mined, paid.awayWork);
     }
     case "move":
       return done(applyPlayerMove(session, input.move, now, out));
@@ -313,7 +316,7 @@ function tick(
   session: Session,
   now: number,
   out: Effects,
-): { session: Session; mined: number } {
+): { session: Session; mined: number; awayWork?: boolean } {
   const input = timeInput(session.lastSeen, now);
   if (input.kind === "away") {
     return settleAway(session, session.lastSeen, now, out);
@@ -342,7 +345,7 @@ function settleAway(
   since: number | undefined,
   now: number,
   out: Effects,
-): { session: Session; mined: number } {
+): { session: Session; mined: number; awayWork?: boolean } {
   if (since === undefined) {
     return { session: { ...session, lastSeen: now }, mined: 0 };
   }
@@ -363,20 +366,12 @@ function settleAway(
     out,
   );
   if (!anythingHappened(report, moved.mined)) {
-    return { session: paid, mined: moved.mined };
+    return {
+      session: paid,
+      mined: moved.mined,
+      awayWork: moved.mined > 0,
+    };
   }
-  const producedTotal = GOOD_IDS.reduce(
-    (sum, good) => sum + report.night.produced[good],
-    0,
-  );
-  const deliveredTotal = GOOD_IDS.reduce(
-    (sum, good) => sum + report.night.delivered[good],
-    0,
-  );
-  const work = Math.max(
-    moved.mined,
-    producedTotal + deliveredTotal + report.night.steps.length,
-  );
   out.log({
     level: "info",
     code: "idle.away",
@@ -387,12 +382,15 @@ function settleAway(
     },
   });
   out.record("away.report", { ms: report.awayMs, stones: moved.mined });
-  return { session: welcome(paid, report), mined: work };
+  return { session: welcome(paid, report), mined: moved.mined, awayWork: true };
 }
 
 /**
- * Whether time away brought news: stones mined, goods delivered or a step
- * built in (#663), with the mine standing.
+ * Whether time away brought reportable news for the shift report: stockpile
+ * goods produced (`night.produced` under Slice 2 Part 1, or `mined` in Slice 1),
+ * goods delivered to orders, or a building step built in (#663, #769).
+ * Intermediate mine buffers filling alone (drilled rock, shaft rock, pithead
+ * rock) stay quiet so a stalled night never opens an empty "No output." card.
  */
 function anythingHappened(report: AwayReport, mined: number): boolean {
   const night = report.night;
@@ -408,8 +406,8 @@ function anythingHappened(report: AwayReport, mined: number): boolean {
 
 /**
  * A reload or a quick app switch isn't "away": only greet after a real break.
- * A night is always the shift report (#663), and it is greeted on a live
- * return too: a tab left open overnight (a locked phone, the app in the
+ * A reportable night opens the shift report (#663), and it is greeted on a
+ * live return too: a tab left open overnight (a locked phone, the app in the
  * background) comes back to its report.
  */
 function welcome(session: Session, report: AwayReport): Session {

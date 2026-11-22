@@ -177,6 +177,7 @@ describe("session step", () => {
       );
       expect(after.session.mountain.pithead.topsoil).toBeGreaterThan(0);
       expect(after.mined).toBeGreaterThan(0);
+      expect(after.awayWork).toBe(true);
       expect(hasNews(after.session, "away")).toBe(false);
     });
   });
@@ -197,7 +198,8 @@ describe("session step", () => {
         1 + WELCOME_MIN_AWAY_MS * 10,
       );
       expect(after.session.mountain.stock.stones).toBeGreaterThan(0);
-      expect(after.mined).toBeGreaterThan(0);
+      expect(after.mined).toBe(0);
+      expect(after.awayWork).toBe(true);
       expect(hasNews(after.session, "away")).toBe(true);
     });
   });

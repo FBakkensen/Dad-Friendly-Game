@@ -83,8 +83,7 @@ export const SHAFT_WAITS_LINE =
 
 /** The Sink key, and its small line (the prototype's). */
 export const SINK_KEY = "Sink the shaft to the Granite";
-export const SINK_LINE =
-  "A second level. Opens saws, the factory, locomotives.";
+export const SINK_LINE = "A second level. Opens saws and locomotives.";
 
 /** The machine card (ruling 5): it asks which level a machine is for. */
 export const MACHINE_CARD_STAYS = "It stays on the level it is bought for.";
