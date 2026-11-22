@@ -184,7 +184,7 @@ function workRows(
 ): readonly WorkRow[] {
   const works = stageWorks(mountain, speed);
   const open = openLevels(mountain);
-  if (open.length < 2) {
+  if (open.length <= 1) {
     return STAGES.map((stage) => ({
       stage,
       work: works[stage],

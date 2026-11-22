@@ -846,6 +846,8 @@ describe("each level's work (rule 5.1, 5.2, #673)", () => {
         ).map((tier) => speed[tier.id] / machineStaff(tier));
         return Math.max(toolSpeed(speed, stage), ...machines) * lift;
       };
+      // Part 3's rule 2.14 invariant covers Topsoil (10 s) and Granite (20 s);
+      // Crystal Caves (30 s) is Slice 2 Part 2 (tuned in #772, Winding Engine retired).
       for (const level of ["topsoil", "granite"] as const) {
         // Workers a stage takes for each rock a second the line moves.
         const [face, haul, lift] = STAGES.map(

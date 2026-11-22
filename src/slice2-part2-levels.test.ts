@@ -14,6 +14,8 @@ import { cageInstant, type ShaftScene } from "./cage-trips";
 import { applyMove, listActions, valueOf } from "./economy/actions";
 import { withFactors } from "./economy/factors";
 import { fieldEntry } from "./field-log";
+import { sticker } from "./lab/decide";
+import { planPrice } from "./lab/fresh-kit";
 import { LAB_FACTORS } from "./lab/run";
 import {
   MINE_LEVEL_IDS,
@@ -191,12 +193,19 @@ describe("Crystal Caves shaft, machines, workforce, and actions (#770)", () => {
     });
 
     slice2Part2(() => {
-      // Before sinking: lists Crystal sinkShaft.
+      // Before sinking: lists Crystal sinkShaft; planPrice reads full multi-good cost while stone-only sticker/valueOf return 0.
       const beforeActions = listActions(ready, 0);
       expect(beforeActions).toContainEqual({
         kind: "sinkShaft",
         level: "crystal",
       });
+      expect(
+        planPrice(ready, [{ kind: "sinkShaft", level: "crystal" }]),
+      ).toEqual([
+        { good: "brick", amount: 25_000_000 },
+        { good: "cutStone", amount: 15_000_000 },
+      ]);
+      expect(sticker(ready, { kind: "sinkShaft", level: "crystal" })).toBe(0);
       expect(
         valueOf(ready, { kind: "sinkShaft", level: "crystal" }, 600, {
           liveSeconds: 600,
