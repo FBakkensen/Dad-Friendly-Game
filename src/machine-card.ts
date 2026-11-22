@@ -11,7 +11,6 @@ import {
   machineCardTitle,
 } from "./mine-level-view";
 import {
-  MINE_LEVEL_IDS,
   graniteOpen,
   levelMachines,
   type LevelMachineId,
@@ -21,6 +20,8 @@ import { paintIcon } from "./mine-site";
 import { LEVEL_NAMES, machineKey, type MachineKey } from "./mine-view";
 import type { Mountain } from "./mountain";
 import { tierById } from "./tiers";
+
+const CARD_LEVELS: readonly MineLevelId[] = ["topsoil", "granite"];
 
 export type MachineCard = {
   readonly root: HTMLElement;
@@ -71,7 +72,7 @@ function buildMachineCard(): MachineParts {
   small.append(price, icon, staff);
   machine.append(face, small);
   const has = new Map(
-    MINE_LEVEL_IDS.map((level) => [level, el("span", "machine-card-has")]),
+    CARD_LEVELS.map((level) => [level, el("span", "machine-card-has")]),
   );
   const levelLines = el("p", "machine-card-line is-quiet");
   levelLines.append(...has.values());
@@ -82,7 +83,7 @@ function buildMachineCard(): MachineParts {
   );
   // One key for each level, drawn alike: neither is the answer.
   const levels = new Map(
-    MINE_LEVEL_IDS.map((level) => {
+    CARD_LEVELS.map((level) => {
       const key = el("button", "machine-card-level", LEVEL_NAMES[level]);
       key.type = "button";
       key.dataset["level"] = level;

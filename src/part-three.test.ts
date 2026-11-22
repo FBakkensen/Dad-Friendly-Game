@@ -464,7 +464,10 @@ describe("the cages as rates, unattended (rule 5.14, #724)", () => {
     expect(off.lift).toBeUndefined();
     const on = partThree(() => mineWork(levels(setup)));
     expect(on.cages.map((cage) => cage.key)).toEqual(["hoist:0", "winch"]);
-    expect(on.lift).toEqual({ own: { topsoil: 60 + 6, granite: 0 }, loads: 0 });
+    expect(on.lift).toEqual({
+      own: { topsoil: 60 + 6, granite: 0, crystal: 0 },
+      loads: 0,
+    });
     partThree(() => {
       const dark = { ...levels({ topsoil: 2 }), operational: [] };
       expect(mineDraw(dark, 1, true)).toEqual({});

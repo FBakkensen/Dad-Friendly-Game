@@ -30,7 +30,13 @@ import {
   type StageWork,
 } from "../workforce";
 import { flowMineLive } from "../mine-cages";
-import { MINE_LEVEL_IDS, graniteOpen, type MineLevelId } from "../mine-levels";
+import {
+  DEEPER_LEVEL_IDS,
+  MINE_LEVEL_IDS,
+  graniteOpen,
+  openLevels,
+  type MineLevelId,
+} from "../mine-levels";
 import { flowMine } from "../mine-piles";
 import { partThreeOn, slice2Part1On } from "../part-switch";
 import { sticker } from "./decide";
@@ -177,7 +183,8 @@ function workRows(
   line: number,
 ): readonly WorkRow[] {
   const works = stageWorks(mountain, speed);
-  if (!graniteOpen(mountain)) {
+  const open = openLevels(mountain);
+  if (open.length <= 1) {
     return STAGES.map((stage) => ({
       stage,
       work: works[stage],
@@ -189,7 +196,7 @@ function workRows(
   const rates = levelsRates(mountain);
   const levelLine = (level: MineLevelId): number =>
     Math.min(...STAGES.map((stage) => rates[level][stage]));
-  const rows: WorkRow[] = MINE_LEVEL_IDS.flatMap((level) => {
+  const rows: WorkRow[] = open.flatMap((level) => {
     const own = levelWorks(mountain, speed, level);
     return (["face", "haul"] as const).map((stage: LevelStage) => ({
       stage,
@@ -203,8 +210,8 @@ function workRows(
     stage: "lift",
     work: works.lift,
     machines: stageMachines(mountain, speed, "lift"),
-    moves: MINE_LEVEL_IDS.reduce((sum, level) => sum + rates[level].lift, 0),
-    line: MINE_LEVEL_IDS.reduce((sum, level) => sum + levelLine(level), 0),
+    moves: open.reduce((sum, level) => sum + rates[level].lift, 0),
+    line: open.reduce((sum, level) => sum + levelLine(level), 0),
   });
   return rows;
 }
@@ -261,7 +268,7 @@ function keyTaps(count: number): number {
 
 /**
  * Taps that set the share between the levels, between two moments
- * (`shareMoves`, #675): workers placed on or freed from the Granite's
+ * (`shareMoves`, #675): workers placed on or freed from deeper levels'
  * drilling and haulage, and hoists assigned to or taken off a level, each
  * with the amount key on ×10 and ×1. Undefined while the Granite is shut.
  */
@@ -273,11 +280,13 @@ export function shareTaps(
     return undefined;
   }
   let taps = 0;
-  for (const stage of ["face", "haul"] as const) {
-    const job = LEVEL_JOBS.granite[stage];
-    taps += keyTaps(Math.abs(after.jobs[job] - before.jobs[job]));
-  }
-  for (const level of MINE_LEVEL_IDS) {
+  for (const level of openLevels(after)) {
+    if (level !== "topsoil") {
+      for (const stage of ["face", "haul"] as const) {
+        const job = LEVEL_JOBS[level][stage];
+        taps += keyTaps(Math.abs(after.jobs[job] - before.jobs[job]));
+      }
+    }
     taps += keyTaps(
       Math.abs(after.cages.assigned[level] - before.cages.assigned[level]),
     );
@@ -285,13 +294,16 @@ export function shareTaps(
   return taps;
 }
 
-/** The rock waiting below the cages: drilled rock and rock at the shaft, on both levels. */
+/** The rock waiting below the cages: drilled rock and rock at the shaft, on all sunk levels. */
 function belowCages(mountain: Mountain): number {
-  const { face, shaft } = mountain.piles;
-  const granite = mountain.mineLevels.granite;
-  const deep =
-    granite !== undefined ? granite.piles.face + granite.piles.shaft : 0;
-  return face + shaft + deep;
+  let total = mountain.piles.face + mountain.piles.shaft;
+  for (const level of DEEPER_LEVEL_IDS) {
+    const sunk = mountain.mineLevels[level];
+    if (sunk !== undefined) {
+      total += sunk.piles.face + sunk.piles.shaft;
+    }
+  }
+  return total;
 }
 
 /** The rock lifted from `start` to `after`: drilled, less what still waits below the cages. */

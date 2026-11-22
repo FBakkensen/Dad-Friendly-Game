@@ -6,15 +6,15 @@ import {
   type CageTrips,
   type ShaftCage,
 } from "./cages";
-import type { MineLevelId } from "./mine-levels";
+import { MINE_LEVEL_IDS, type MineLevelId } from "./mine-levels";
 import { pour, type Pile } from "./piles";
 
 /**
  * The shaft's cages played trip by trip (slice 1, part 3, rules 5.5 to 5.11,
- * #724). At an instant each cage arrives, unloads, loads and leaves (ruling
- * 10). Pure: it decides where a cage goes and how much it may take, and the
- * rock moves only through `piles`' `pour`. Between instants `mine-cages`
- * moves the rock with `piles`' chains.
+ * #724; generalized to N open levels in #770). At an instant each cage arrives,
+ * unloads, loads and leaves (ruling 10). Pure: it decides where a cage goes
+ * and how much it may take, and the rock moves only through `piles`' `pour`.
+ * Between instants `mine-cages` moves the rock with `piles`' chains.
  */
 
 /** What a cage finds at one open level: its piles, and whether rock is coming and the level is in the turn. */
@@ -81,10 +81,6 @@ function startWork(scene: ShaftScene): Work {
     toStone: 0,
     moved: false,
   };
-}
-
-function otherLevel(level: MineLevelId): MineLevelId {
-  return level === "topsoil" ? "granite" : "topsoil";
 }
 
 /** Whether a cage carrying this much has room for one more good, as `pour` counts room. */
@@ -166,9 +162,10 @@ function unload(trip: Cage, work: Work): Cage {
 }
 
 /**
- * Where an empty cage goes down to (rules 5.7, 5.8): its own level; or, for
- * a cage for both, the other level if it is in the turn, else the same one
- * if it is. Undefined: it stands.
+ * Where an empty cage goes down to (rules 5.7, 5.8, #770): its own level; or,
+ * for a cage serving all open levels in turn, the next level in cyclic
+ * `MINE_LEVEL_IDS` order that is in the turn (wrapping back to the same level
+ * if no other is in the turn). Undefined: it stands.
  */
 function nextLevel(
   cage: ShaftCage,
@@ -181,11 +178,15 @@ function nextLevel(
   if (cage.serves !== "both") {
     return levels[cage.serves] === undefined ? undefined : cage.serves;
   }
-  const other = otherLevel(trip.level);
-  if (levels[other]?.inTurn === true) {
-    return other;
+  const start = MINE_LEVEL_IDS.indexOf(trip.level);
+  const count = MINE_LEVEL_IDS.length;
+  for (let offset = 1; offset <= count; offset += 1) {
+    const candidate = MINE_LEVEL_IDS[(start + offset) % count];
+    if (candidate !== undefined && levels[candidate]?.inTurn === true) {
+      return candidate;
+    }
   }
-  return levels[trip.level]?.inTurn === true ? trip.level : undefined;
+  return undefined;
 }
 
 /** At the top: it unloads, waits with what finds no room, else goes down or stands. */
@@ -206,9 +207,8 @@ function atTop(cage: ShaftCage, trip: Cage, work: Work): Cage {
 }
 
 /**
- * Whether the cage has one level to serve at this one (ruling 10): it is
- * assigned there, the mine has one level, or it serves both and the other
- * level is out of the turn.
+ * Whether the cage has one level to serve at this one (ruling 10, #770): it is
+ * assigned there, or no other open level is currently in the turn.
  */
 function oneLevel(
   cage: ShaftCage,
@@ -218,8 +218,13 @@ function oneLevel(
   if (cage.serves === level) {
     return true;
   }
-  const other = levels[otherLevel(level)];
-  return other === undefined || (cage.serves === "both" && !other.inTurn);
+  return MINE_LEVEL_IDS.every((other) => {
+    if (other === level) {
+      return true;
+    }
+    const entry = levels[other];
+    return entry === undefined || (cage.serves === "both" && !entry.inTurn);
+  });
 }
 
 /**
@@ -335,9 +340,12 @@ export function cageInstant(
   scene: ShaftScene,
 ): Instant {
   const work = startWork(scene);
+  const open = MINE_LEVEL_IDS.filter(
+    (level) => scene.levels[level] !== undefined,
+  );
   let written: Partial<Record<CageKey, Cage>> | undefined;
   cages.forEach((cage, place) => {
-    const start = cageAt(trips, cage.key, place);
+    const start = cageAt(trips, cage.key, place, open);
     const end = settled(cage, start, work);
     if (end !== start) {
       written = { ...written, [cage.key]: end };

@@ -91,6 +91,8 @@ describe("the game map (#558)", () => {
         graniteDrilling: 0,
         graniteHaulage: 0,
         saws: 0,
+        crystalDrilling: 0,
+        crystalHaulage: 0,
       },
       piles: { face: 40, shaft: 9, kiln: 30 },
       makers: { kiln: 2, saw: 0 },
@@ -102,14 +104,14 @@ describe("the game map (#558)", () => {
           piles: { face: 5, shaft: 0, saw: 3 },
         },
       },
-      pithead: { topsoil: 15, granite: 8 },
+      pithead: { topsoil: 15, granite: 8, crystal: 0 },
       makerBuffers: { kiln: { topsoilRock: 20 }, saw: { graniteRock: 12 } },
       cycleMicros: { kiln: 250_000, saw: 125_000 },
       assignedRuns: { pitToStockyardStones: 1, pitTopsoilToKilns: 1 },
       // The cages come back as the save keeps them: what each level's cages
       // carry, in a cage at the top (ruling 12 of #724).
       cages: {
-        assigned: { topsoil: 1, granite: 2 },
+        assigned: { topsoil: 1, granite: 2, crystal: 0 },
         trips: {
           "machine:0": { level: "topsoil", carried: 20, leg: { kind: "top" } },
           "hoist:0": { level: "granite", carried: 30, leg: { kind: "top" } },
@@ -272,6 +274,8 @@ describe("the game map (#558)", () => {
         graniteDrilling: 0,
         graniteHaulage: 0,
         saws: 0,
+        crystalDrilling: 0,
+        crystalHaulage: 0,
       },
     };
     expect(writeGame(crew).jobs).toEqual({
@@ -375,8 +379,134 @@ describe("the game map (#558)", () => {
 
   it("refuses a non-record unknown deeper level entry in mineLevels (#769)", () => {
     const game = writeGame(createMountain());
-    expect(readGame({ ...game, mineLevels: { crystal: 5 } }, 0).kind).toBe(
+    expect(readGame({ ...game, mineLevels: { deepHeart: 5 } }, 0).kind).toBe(
       "bad",
     );
+  });
+
+  it("validates Crystal Caves in v11 saves without resetting saves (#770)", () => {
+    const game = writeGame(createMountain());
+    // Crystal sunk without Granite is bad.
+    expect(readGame({ ...game, mineLevels: { crystal: {} } }, 0).kind).toBe(
+      "bad",
+    );
+    // Crystal jobs, pithead, or cages while Crystal is unsunk are bad.
+    expect(
+      readGame(
+        {
+          owned: { helper: 4 },
+          mineLevels: { granite: {} },
+          jobs: { crystalDrilling: 1 },
+        },
+        0,
+      ).kind,
+    ).toBe("bad");
+    expect(
+      readGame(
+        {
+          mineLevels: { granite: {} },
+          pithead: { crystal: 10 },
+        },
+        0,
+      ).kind,
+    ).toBe("bad");
+    expect(
+      readGame(
+        {
+          owned: { hoist: 2 },
+          mineLevels: { granite: {} },
+          cages: { assigned: { crystal: 1 } },
+        },
+        0,
+      ).kind,
+    ).toBe("bad");
+    expect(
+      readGame(
+        {
+          owned: { hoist: 2 },
+          mineLevels: { granite: {} },
+          cages: { carried: { crystal: 5 } },
+        },
+        0,
+      ).kind,
+    ).toBe("bad");
+    expect(
+      readGame(
+        {
+          owned: { helper: 4 },
+          mineLevels: { granite: {} },
+          jobs: { crystalHaulage: 1 },
+        },
+        0,
+      ).kind,
+    ).toBe("bad");
+    // Dead saw pile on Crystal Caves is bad.
+    expect(
+      readGame(
+        {
+          mineLevels: { granite: {}, crystal: { piles: { saw: 10 } } },
+        },
+        0,
+      ).kind,
+    ).toBe("bad");
+    // Combined deeper-level machines exceeding owned is bad.
+    expect(
+      readGame(
+        {
+          owned: { drill: 2 },
+          mineLevels: {
+            granite: { machines: { drill: 1 } },
+            crystal: { machines: { drill: 2 } },
+          },
+        },
+        0,
+      ).kind,
+    ).toBe("bad");
+    // 3-level assigned hoists exceeding owned is bad.
+    expect(
+      readGame(
+        {
+          owned: { hoist: 2 },
+          mineLevels: { granite: {}, crystal: {} },
+          cages: { assigned: { topsoil: 1, granite: 1, crystal: 1 } },
+        },
+        0,
+      ).kind,
+    ).toBe("bad");
+    // 3 levels carrying rock with only 2 cages (1 hoist + winch) is bad.
+    expect(
+      readGame(
+        {
+          owned: { hoist: 1 },
+          mineLevels: { granite: {}, crystal: {} },
+          cages: { carried: { topsoil: 5, granite: 5, crystal: 5 } },
+        },
+        0,
+      ).kind,
+    ).toBe("bad");
+    // Valid Crystal Caves save round-trips cleanly.
+    const valid = readGame(
+      {
+        owned: { helper: 10, drill: 3, hoist: 3 },
+        mineLevels: {
+          granite: { machines: { drill: 1 }, piles: { face: 4 } },
+          crystal: { machines: { drill: 1 }, piles: { face: 6, shaft: 2 } },
+        },
+        jobs: { crystalDrilling: 2, crystalHaulage: 1 },
+        pithead: { topsoil: 5, granite: 3, crystal: 9 },
+        cages: {
+          assigned: { topsoil: 1, granite: 1, crystal: 1 },
+          carried: { topsoil: 10, granite: 20, crystal: 30 },
+        },
+      },
+      0,
+    );
+    expect(valid.kind).toBe("ok");
+    if (valid.kind === "ok") {
+      expect(valid.mountain.pithead.crystal).toBe(9);
+      expect(valid.mountain.jobs.crystalDrilling).toBe(2);
+      expect(valid.mountain.cages.assigned.crystal).toBe(1);
+      expect(roundTrip(valid.mountain)).toEqual(valid.mountain);
+    }
   });
 });

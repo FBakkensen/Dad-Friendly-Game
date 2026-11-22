@@ -5,9 +5,9 @@ import type { Action } from "../economy/actions";
 import { STAGES, narrowStage, type Stage } from "../line";
 import {
   LEVEL_MACHINE_IDS,
-  MINE_LEVEL_IDS,
   graniteOpen,
   openGranite,
+  openLevels,
   type LevelMachineId,
   type MineLevelId,
 } from "../mine-levels";
@@ -75,11 +75,6 @@ export function makersWanted(mountain: Mountain): readonly ("kiln" | "saw")[] {
       ? (["saw"] as const)
       : []),
   ];
-}
-
-/** The levels open: the Topsoil, and the Granite once the shaft is sunk. */
-function openLevels(mountain: Mountain): readonly MineLevelId[] {
-  return graniteOpen(mountain) ? MINE_LEVEL_IDS : ["topsoil"];
 }
 
 /** The level stages' jobs: drilling and haulage on a level. */
@@ -375,7 +370,7 @@ function needMoves(mountain: Mountain): Plan {
 function hoistMoves(mountain: Mountain): readonly Plan[] {
   const plans: Plan[] = [];
   const free = unassignedHoists(mountain) > 0;
-  for (const level of MINE_LEVEL_IDS) {
+  for (const level of openLevels(mountain)) {
     if (free) {
       plans.push([{ kind: "assignHoist", level, count: 1 }]);
     }
@@ -456,7 +451,7 @@ function wholeMove(mountain: Mountain, from: MineLevelId): Plan {
 }
 
 /** The good a level's maker makes. */
-const LEVEL_GOOD: Readonly<Record<MineLevelId, GoodId>> = {
+const LEVEL_GOOD: Readonly<Partial<Record<MineLevelId, GoodId>>> = {
   topsoil: "brick",
   granite: "cutStone",
 };
@@ -468,6 +463,9 @@ function levelShortfall(mountain: Mountain, level: MineLevelId): number {
     return 0;
   }
   const good = LEVEL_GOOD[level];
+  if (good === undefined) {
+    return 0;
+  }
   return Math.max(0, stillRequired(project.site)[good] - mountain.stock[good]);
 }
 
@@ -507,7 +505,8 @@ function wholeMoves(mountain: Mountain): Plan {
  * where it is made.
  */
 function makerStranded(mountain: Mountain, level: MineLevelId): boolean {
-  const maker = MAKING[LEVEL_GOOD[level]]?.maker;
+  const good = LEVEL_GOOD[level];
+  const maker = good === undefined ? undefined : MAKING[good]?.maker;
   if (maker === undefined) {
     return false;
   }

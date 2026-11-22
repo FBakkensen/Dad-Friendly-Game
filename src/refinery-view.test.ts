@@ -503,7 +503,7 @@ describe("how long a night lasts now (#671)", () => {
         ...base,
         owned: { ...base.owned, helper: base.owned.helper + 1 },
         jobs: { ...base.jobs, driving: 1 },
-        pithead: { topsoil: 200, granite: 200 },
+        pithead: { topsoil: 200, granite: 200, crystal: 0 },
         makerBuffers: {
           kiln: { topsoilRock: 42 },
           saw: { graniteRock: 88 },

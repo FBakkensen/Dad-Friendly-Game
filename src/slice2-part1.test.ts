@@ -378,7 +378,11 @@ describe("physical transport runs: water-filling & source contention (#766, rule
       });
       const transfer = planTransportTransfer(m, 20);
       expect(transfer.moved.pitToStockyardStones).toBe(20);
-      expect(transfer.stoneFromPithead).toEqual({ topsoil: 15, granite: 5 });
+      expect(transfer.stoneFromPithead).toEqual({
+        topsoil: 15,
+        granite: 5,
+        crystal: 0,
+      });
     });
   });
 
@@ -690,7 +694,7 @@ describe("Part 1 lab & #757 economy rebalance (#767, #769)", () => {
         ...start,
         jobs: { ...start.jobs, drilling: 0, hoisting: 1 },
         piles: { face: 0, shaft: 0, kiln: 0 },
-        pithead: { topsoil: 90, granite: 0 },
+        pithead: { topsoil: 90, granite: 0, crystal: 0 },
       };
       expect(freshPlan(pitReady, casual.fresh, casual.params.hoardK)).toEqual([
         { kind: "freeWorker", job: "hoisting", count: 1 },
@@ -753,7 +757,7 @@ describe("Part 1 lab & #757 economy rebalance (#767, #769)", () => {
         ...base,
         fleet: { horseWagon: 4, truck: 0 },
         stock: { ...base.stock, stones: room },
-        pithead: { topsoil: 500, granite: 0 },
+        pithead: { topsoil: 500, granite: 0, crystal: 0 },
         project: {
           kind: "delivering",
           site: {
@@ -819,7 +823,7 @@ describe("Part 1 lab & #757 economy rebalance (#767, #769)", () => {
       const fullPit: Mountain = {
         ...held,
         piles: { face: 0, shaft: 0, kiln: 0 },
-        pithead: { topsoil: 500, granite: 0 },
+        pithead: { topsoil: 500, granite: 0, crystal: 0 },
         jobs: { ...held.jobs, drilling: 0, haulage: 1, hoisting: 1 },
       };
       const plan = freshPlan(fullPit, mover.fresh, mover.params.hoardK);

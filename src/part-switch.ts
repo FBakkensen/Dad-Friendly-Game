@@ -50,3 +50,15 @@ export function partThreeOn(): boolean {
 export function slice2Part1On(): boolean {
   return partThreeOn() && factor(SLICE_2_PART_1_OFF) === 0;
 }
+
+/**
+ * The sweep factor that switches slice 2's part 2 (#770): Crystal Caves,
+ * 3-level hoisting, multi-input Refinery & Factory, and the Research Lab.
+ * Stays off in play until Part 2's switch-on (#780).
+ */
+export const SLICE_2_PART_2_OFF = "slice2Part2.off";
+
+/** True when slice 2 part 2's rules play: stands on slice 2 part 1. */
+export function slice2Part2On(): boolean {
+  return slice2Part1On() && factor(SLICE_2_PART_2_OFF) === 0;
+}

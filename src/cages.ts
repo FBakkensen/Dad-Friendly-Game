@@ -1,20 +1,21 @@
 import { factor } from "./economy/factors";
-import { MINE_LEVEL_IDS, graniteOpen, type MineLevelId } from "./mine-levels";
+import { MINE_LEVEL_IDS, openLevels, type MineLevelId } from "./mine-levels";
 import type { Mountain } from "./mountain";
 import type { TierId } from "./tiers";
 import { movable, toolSpeed, type StageWork } from "./workforce";
 
 /**
- * The shaft's cages (slice 1, part 3, rules 5.5 to 5.14, #724): which cages
- * the shaft has, what each carries a trip, which level each serves, and what
- * they lift a second when counted as rates. Pure: it never moves rock, which
- * is `piles`' job.
+ * The shaft's cages (slice 1, part 3, rules 5.5 to 5.14, #724; slice 2, #770):
+ * which cages the shaft has, what each carries a trip, which level each serves,
+ * and what they lift a second when counted as rates. Pure: it never moves rock,
+ * which is `piles`' job.
  */
 
-/** A trip down and up again, before its knob (Starting numbers, call 71). */
+/** A trip down and up again, before its knob (Starting numbers, call 71, #770). */
 const TRIP_BASE: Readonly<Record<MineLevelId, number>> = {
   topsoil: 10,
   granite: 20,
+  crystal: 30,
 };
 
 /** No trip is shorter than this, whatever its knob. */
@@ -64,9 +65,13 @@ export function hoistsOwned(owned: Readonly<Record<TierId, number>>): number {
 /** The hoists assigned to each level: together never more than he owns. */
 export type HoistsAssigned = Readonly<Record<MineLevelId, number>>;
 
-export const NO_HOISTS_ASSIGNED: HoistsAssigned = { topsoil: 0, granite: 0 };
+export const NO_HOISTS_ASSIGNED: HoistsAssigned = {
+  topsoil: 0,
+  granite: 0,
+  crystal: 0,
+};
 
-/** What a cage serves: one level, or both in turn. */
+/** What a cage serves: one level, or all open levels in turn ("both" kept for internal stability). */
 type CageService = MineLevelId | "both";
 
 /** One cage: its key, what it carries a trip, whether it runs, and what it serves. */
@@ -82,9 +87,24 @@ type CageInput = {
   readonly hoisting: StageWork;
   readonly speed: Readonly<Record<TierId, number>>;
   readonly assigned: HoistsAssigned;
-  readonly twoLevels: boolean;
+  /** Open levels in depth order (`openLevels(mountain)`). Takes precedence over `twoLevels`. */
+  readonly levels?: readonly MineLevelId[];
+  /** Legacy 2-level shorthand used by existing unit tests. */
+  readonly twoLevels?: boolean;
   readonly pay: number;
 };
+
+const TWO_LEVELS: readonly MineLevelId[] = ["topsoil", "granite"];
+const ONE_LEVEL: readonly MineLevelId[] = ["topsoil"];
+
+function inputLevels(
+  input: Pick<CageInput, "levels" | "twoLevels">,
+): readonly MineLevelId[] {
+  if (input.levels !== undefined) {
+    return input.levels;
+  }
+  return input.twoLevels === true ? TWO_LEVELS : ONE_LEVEL;
+}
 
 /** A cage's kind and its place among its kind, from its key. */
 function cageKind(
@@ -124,29 +144,31 @@ function cageRuns(key: CageKey, hoisting: StageWork): boolean {
 }
 
 /**
- * What the cage at `place` in order serves (ruling 4): the first
- * `assigned.topsoil` the Topsoil, the next `assigned.granite` the Granite,
- * the rest both in turn. With one level open, all the Topsoil. The winch is
- * last in order, so it serves both unless more are assigned than he owns,
- * which `assignHoists` never makes and the save reader refuses; it is
- * checked anyway, so no state makes the winch serve one level.
+ * What the cage at `place` in order serves (ruling 4, #770): the first
+ * `assigned[level]` for each open level in depth order, the rest all open
+ * levels in turn. With one level open, all serve the Topsoil. The winch
+ * always serves all open levels in turn when 2+ levels are open.
  */
 function cageService(
   key: CageKey,
   place: number,
-  input: Pick<CageInput, "assigned" | "twoLevels">,
+  input: Pick<CageInput, "assigned" | "levels" | "twoLevels">,
 ): CageService {
-  const { assigned, twoLevels } = input;
-  if (!twoLevels) {
+  const levels = inputLevels(input);
+  if (levels.length <= 1) {
     return "topsoil";
   }
   if (key === "winch") {
     return "both";
   }
-  if (place < assigned.topsoil) {
-    return "topsoil";
+  let cursor = 0;
+  for (const level of levels) {
+    cursor += input.assigned[level];
+    if (place < cursor) {
+      return level;
+    }
   }
-  return place < assigned.topsoil + assigned.granite ? "granite" : "both";
+  return "both";
 }
 
 /**
@@ -178,23 +200,25 @@ export function largestLoad(cages: readonly ShaftCage[]): number {
 }
 
 /**
- * The shortest round trip among the running cages that serve `level` (#754):
+ * The shortest round trip among the running cages that serve `level` (#754, #770):
  * a cage that serves it unloads there at least once a round while rock
- * waits. A cage for that level alone goes there every trip; one for both
- * in turn, the winch among them, goes there once a trip to each level.
- * Infinity with no cage serving it.
+ * waits. A cage for that level alone goes there every trip; one for all open
+ * levels in turn goes there once a round of `open`. Infinity with no cage
+ * serving it.
  */
 export function shortestRound(
   cages: readonly ShaftCage[],
   level: MineLevelId,
+  open: readonly MineLevelId[] = TWO_LEVELS,
 ): number {
-  const both = MINE_LEVEL_IDS.reduce((sum, each) => sum + tripSeconds(each), 0);
+  const inOpen = open.includes(level);
+  const round = open.reduce((sum, each) => sum + tripSeconds(each), 0);
   let shortest = Infinity;
   for (const cage of cages) {
     if (cage.runs && cage.serves === level) {
       shortest = Math.min(shortest, tripSeconds(level));
-    } else if (cage.runs && cage.serves === "both") {
-      shortest = Math.min(shortest, both);
+    } else if (cage.runs && cage.serves === "both" && inOpen) {
+      shortest = Math.min(shortest, round);
     }
   }
   return shortest;
@@ -221,7 +245,7 @@ export function cagePileRoom(
   );
 }
 
-/** The cages as rates (rule 5.14): each level's own, and the loads of the cages for both. */
+/** The cages as rates (rule 5.14): each level's own, and the loads of the cages for all in turn. */
 export type CageRates = {
   readonly own: Readonly<Record<MineLevelId, number>>;
   readonly loads: number;
@@ -229,10 +253,14 @@ export type CageRates = {
 
 /**
  * A running cage for one level lifts its load each trip to that level; the
- * running cages for both lift their loads together once a round (ruling 6).
+ * running cages for all in turn lift their loads together once a round (ruling 6).
  */
 export function cageRates(cages: readonly ShaftCage[]): CageRates {
-  const own: Record<MineLevelId, number> = { topsoil: 0, granite: 0 };
+  const own: Record<MineLevelId, number> = {
+    topsoil: 0,
+    granite: 0,
+    crystal: 0,
+  };
   let loads = 0;
   for (const cage of cages) {
     if (!cage.runs) {
@@ -273,25 +301,39 @@ export type Cages = {
 export const NO_CAGES: Cages = { assigned: NO_HOISTS_ASSIGNED, trips: {} };
 
 /**
- * A cage's trip, or a fresh one: empty at the top, last at the Granite for
- * an even place in the order and the Topsoil for an odd one, so the cages
- * for both levels start on alternate levels (ruling 9).
+ * A cage's trip, or a fresh one: empty at the top, spread across `open` so
+ * fresh cages for all levels start staggered across the open levels (ruling 9,
+ * #770). For two levels (`topsoil`, `granite`) even places start last at the
+ * Granite and odd at the Topsoil, matching Slice 1.
  */
-export function cageAt(trips: CageTrips, key: CageKey, place: number): Cage {
-  return (
-    trips[key] ?? {
-      level: place % 2 === 0 ? "granite" : "topsoil",
-      carried: 0,
-      leg: { kind: "top" },
-    }
-  );
+export function cageAt(
+  trips: CageTrips,
+  key: CageKey,
+  place: number,
+  open: readonly MineLevelId[] = TWO_LEVELS,
+): Cage {
+  const existing = trips[key];
+  if (existing !== undefined) {
+    return existing;
+  }
+  const pool = open.length > 0 ? open : TWO_LEVELS;
+  const level = pool[(place + pool.length - 1) % pool.length] ?? "topsoil";
+  return {
+    level,
+    carried: 0,
+    leg: { kind: "top" },
+  };
 }
 
 /** The rock every cage carries, level by level. */
 export function carriedBy(
   trips: CageTrips,
 ): Readonly<Record<MineLevelId, number>> {
-  const carried: Record<MineLevelId, number> = { topsoil: 0, granite: 0 };
+  const carried: Record<MineLevelId, number> = {
+    topsoil: 0,
+    granite: 0,
+    crystal: 0,
+  };
   for (const cage of Object.values(trips)) {
     if (cage !== undefined) {
       carried[cage.level] += cage.carried;
@@ -325,23 +367,27 @@ export function restoredTrips(
   return trips;
 }
 
-/** The hoists he owns, the engines among them, that no level has (ruling 5). */
+/** The hoists he owns, the engines among them, that no level has (ruling 5, #770). */
 export function unassignedHoists(
   mountain: Pick<Mountain, "owned" | "cages">,
 ): number {
-  const { topsoil, granite } = mountain.cages.assigned;
+  let assignedTotal = 0;
+  for (const level of MINE_LEVEL_IDS) {
+    assignedTotal += mountain.cages.assigned[level];
+  }
   // Never below 0, though the save reader already refuses more assigned than owned.
-  return Math.max(0, hoistsOwned(mountain.owned) - topsoil - granite);
+  return Math.max(0, hoistsOwned(mountain.owned) - assignedTotal);
 }
 
 /**
- * Up to `count` unassigned hoists onto a level, free and at once, only while
- * the Granite is open (ruling 5). A count is read as a worker move reads it.
+ * Up to `count` unassigned hoists onto an open level, free and at once, only
+ * while at least two levels are open (ruling 5, #770).
  */
 export function assignHoists<
   M extends Pick<Mountain, "owned" | "cages" | "mineLevels">,
 >(mountain: M, level: MineLevelId, count = 1): M {
-  if (!graniteOpen(mountain)) {
+  const open = openLevels(mountain);
+  if (open.length < 2 || !open.includes(level)) {
     return mountain;
   }
   return assignedBy(

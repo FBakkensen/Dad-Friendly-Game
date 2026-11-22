@@ -746,8 +746,11 @@ export function cityRunId(good: CityRunGood): StockToCityRunId {
   return `stockToCity:${good}`;
 }
 
-function makerRunForLevel(level: MineLevelId): RunId {
-  return level === "topsoil" ? "pitTopsoilToKilns" : "pitGraniteToSaws";
+function makerRunForLevel(level: MineLevelId): RunId | undefined {
+  if (level === "topsoil") {
+    return "pitTopsoilToKilns";
+  }
+  return level === "granite" ? "pitGraniteToSaws" : undefined;
 }
 
 function runRecord<T>(value: T): Record<RunId, T> {
@@ -859,12 +862,14 @@ function buildTransferState(
       ? Math.max(0, Math.floor(raw))
       : Number.MAX_SAFE_INTEGER;
   }
+  const openLvls = openLevels(mountain);
   return {
     open,
-    openLvls: openLevels(mountain),
+    openLvls,
     pithead: {
       topsoil: mountain.pithead.topsoil,
-      granite: graniteOpen(mountain) ? mountain.pithead.granite : 0,
+      granite: openLvls.includes("granite") ? mountain.pithead.granite : 0,
+      crystal: openLvls.includes("crystal") ? mountain.pithead.crystal : 0,
     },
     stock: {
       stones: mountain.stock.stones,
@@ -873,7 +878,7 @@ function buildTransferState(
     },
     destRoom,
     moved: runRecord(0),
-    stoneFromPithead: { topsoil: 0, granite: 0 },
+    stoneFromPithead: { topsoil: 0, granite: 0, crystal: 0 },
   };
 }
 
@@ -911,7 +916,7 @@ function resolvePitheadPass(
   for (const level of state.openLvls) {
     const makerRun = makerRunForLevel(level);
     const sWant = stoneSplit[level] ?? 0;
-    const mWant = proposed[makerRun] ?? 0;
+    const mWant = makerRun === undefined ? 0 : (proposed[makerRun] ?? 0);
     if (sWant + mWant <= 0) {
       continue;
     }
@@ -930,8 +935,10 @@ function resolvePitheadPass(
     state.stoneFromPithead[level] += sTake;
     state.moved.pitToStockyardStones += sTake;
     state.destRoom.pitToStockyardStones -= sTake;
-    state.moved[makerRun] += mTake;
-    state.destRoom[makerRun] -= mTake;
+    if (makerRun !== undefined) {
+      state.moved[makerRun] += mTake;
+      state.destRoom[makerRun] -= mTake;
+    }
     total += sTake + mTake;
   }
   return total;
@@ -1019,6 +1026,7 @@ export function applyTransportTransfer(
       mountain.pithead.granite -
       stoneFromPithead.granite -
       moved.pitGraniteToSaws,
+    crystal: mountain.pithead.crystal - stoneFromPithead.crystal,
   };
   const makerBuffers = {
     kiln:
@@ -1082,7 +1090,11 @@ function pitheadSplitFractions(
   pitheadCap: Readonly<Record<MineLevelId, number>>,
   pitheadWeight: Readonly<Record<MineLevelId, number>>,
 ): Record<MineLevelId, number> {
-  const out: Record<MineLevelId, number> = { topsoil: 0, granite: 0 };
+  const out: Record<MineLevelId, number> = {
+    topsoil: 0,
+    granite: 0,
+    crystal: 0,
+  };
   const active = openLvls.filter((l) => pitheadCap[l] > RATE_EPS);
   if (active.length === 0) {
     return out;
@@ -1150,7 +1162,7 @@ function resolvePitheadRatePass(
   for (const l of state.openLvls) {
     const mRun = makerRunForLevel(l);
     const sWant = prop.pitToStockyardStones * fracs[l];
-    const mWant = prop[mRun];
+    const mWant = mRun !== undefined ? prop[mRun] : 0;
     const total = sWant + mWant;
     if (total <= RATE_EPS) {
       continue;
@@ -1160,7 +1172,9 @@ function resolvePitheadRatePass(
     const sTake = sWant * scale;
     const mTake = mWant * scale;
     state.runRates.pitToStockyardStones += sTake;
-    state.runRates[mRun] += mTake;
+    if (mRun !== undefined) {
+      state.runRates[mRun] += mTake;
+    }
     state.pitheadDrain[l] += sTake + mTake;
     state.stoneFromPithead[l] += sTake;
     state.remPit[l] = subCap(cap, sTake + mTake);
@@ -1168,7 +1182,9 @@ function resolvePitheadRatePass(
       state.remDest.pitToStockyardStones,
       sTake,
     );
-    state.remDest[mRun] = subCap(state.remDest[mRun], mTake);
+    if (mRun !== undefined) {
+      state.remDest[mRun] = subCap(state.remDest[mRun], mTake);
+    }
     moved += sTake + mTake;
   }
   return moved;
@@ -1215,8 +1231,8 @@ export function allocateRunRates(
     remPit: { ...sources.pitheadCap },
     remStock: { ...sources.stockCap },
     runRates: runRecord(0),
-    pitheadDrain: { topsoil: 0, granite: 0 },
-    stoneFromPithead: { topsoil: 0, granite: 0 },
+    pitheadDrain: { topsoil: 0, granite: 0, crystal: 0 },
+    stoneFromPithead: { topsoil: 0, granite: 0, crystal: 0 },
   };
   let left = fleetRateTotal;
   for (let pass = 0; pass < RUN_ORDER.length && left > RATE_EPS; pass += 1) {

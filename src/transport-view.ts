@@ -3,6 +3,7 @@ import { vehicleHint, vehicleKeys, type VehicleKey } from "./city-view";
 import { formatCompact } from "./format";
 import { GOOD_NAMES } from "./frame-view";
 import { makerBuffer, makerInputRoom } from "./makers";
+import { MINE_LEVEL_IDS, type MineLevelId } from "./mine-levels";
 import type { Mountain } from "./mountain";
 import { transportCount, type Lamp } from "./next-view";
 import { VEHICLE_WORDS, formatSpeed, plural } from "./screen-words";
@@ -240,11 +241,11 @@ function runStatus(
 
 function hasFlowFor(
   id: RunId,
-  pitheadCap: Readonly<Record<"topsoil" | "granite", number>>,
+  pitheadCap: Readonly<Record<MineLevelId, number>>,
   stockCap: Readonly<Record<CityRunGood, number>>,
 ): boolean {
   if (id === "pitToStockyardStones") {
-    return pitheadCap.topsoil + pitheadCap.granite > 0;
+    return MINE_LEVEL_IDS.some((level) => pitheadCap[level] > 0);
   }
   if (id === "pitTopsoilToKilns") {
     return pitheadCap.topsoil > 0;

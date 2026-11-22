@@ -88,9 +88,13 @@ function actionId(action: Action): string {
     case "freeWorker":
       return `${action.kind}:${action.job}`;
     case "sinkShaft":
-      return action.kind;
+      return action.level === "crystal"
+        ? `${action.kind}:${action.level}`
+        : action.kind;
     case "buyGraniteMachine":
-      return `buyGraniteMachine:${action.id}`;
+      return action.level === "crystal"
+        ? `buyGraniteMachine:${action.level}:${action.id}`
+        : `buyGraniteMachine:${action.id}`;
     case "assignHoist":
     case "unassignHoist":
       return `${action.kind}:${action.level}`;

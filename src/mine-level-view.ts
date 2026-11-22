@@ -8,9 +8,9 @@ import {
 } from "./cages";
 import { formatCompact } from "./format";
 import {
-  MINE_LEVEL_IDS,
   levelSunk,
   openGranite,
+  openLevels,
   shaftOpen,
   shaftPrice,
   type LevelMachineId,
@@ -111,7 +111,7 @@ export function levelStageTitle(level: MineLevelId, stage: LevelStage): string {
 /** A level on the mine: its drilling and haulage rows, and the piles under its gallery. */
 export type MineLevel = {
   readonly level: MineLevelId;
-  readonly name: "Topsoil" | "Granite";
+  readonly name: "Topsoil" | "Granite" | "Crystal Caves";
   /** Drilling, then haulage. */
   readonly rows: readonly [StageRow, StageRow];
   readonly piles: { readonly face: RowPile; readonly shaft: RowPile };
@@ -125,7 +125,7 @@ export type MineLevel = {
  */
 function liftOf(cages: readonly ShaftCage[], perLoad: number): number {
   const { own, loads } = cageRates(cages);
-  return own.topsoil + own.granite + loads * perLoad;
+  return own.topsoil + own.granite + own.crystal + loads * perLoad;
 }
 
 /** The workers a part has on tools: those who run the winch. */
@@ -208,6 +208,10 @@ function levelsWork(mountain: Mountain, now: number | undefined): LevelsWork {
       face: levels.granite.face * timer,
       haul: levels.granite.haul * timer,
     },
+    crystal: {
+      face: levels.crystal.face * timer,
+      haul: levels.crystal.haul * timer,
+    },
   };
   return {
     speed,
@@ -217,11 +221,11 @@ function levelsWork(mountain: Mountain, now: number | undefined): LevelsWork {
     hoistCan,
     cans,
     flows: mineLevelFlows(mountain),
-    // The band's scale is the strongest of all five stages (ruling 2).
+    // The band's scale is the strongest of all open stages (ruling 2).
     strongest: Math.max(
       1,
       hoistCan,
-      ...MINE_LEVEL_IDS.flatMap((level) => [
+      ...openLevels(mountain).flatMap((level) => [
         cans[level].face,
         cans[level].haul,
       ]),
@@ -513,7 +517,7 @@ export type CageSprite = { readonly depth: number; readonly loaded: boolean };
  * is said in words.
  */
 export type TwoLevelScene = {
-  readonly levels: Readonly<Record<MineLevelId, LevelScene>>;
+  readonly levels: Readonly<Record<"topsoil" | "granite", LevelScene>>;
   readonly cages: readonly CageSprite[];
   readonly hoisting: { readonly workers: number; readonly busy: number };
 };
@@ -522,6 +526,7 @@ export type TwoLevelScene = {
 const LEVEL_DEPTH: Readonly<Record<MineLevelId, number>> = {
   topsoil: 1,
   granite: 2,
+  crystal: 3,
 };
 
 /**
@@ -552,8 +557,9 @@ function cageDepth(cage: Cage): number {
  * any of them has some, first.
  */
 function cageSprites(mountain: Mountain): readonly CageSprite[] {
+  const open = openLevels(mountain);
   const sprites = mineWork(mountain).cages.map((cage, place) => {
-    const trip = cageAt(mountain.cages.trips, cage.key, place);
+    const trip = cageAt(mountain.cages.trips, cage.key, place, open);
     return { depth: cageDepth(trip), loaded: trip.carried > 0 };
   });
   const top = sprites.filter((sprite) => sprite.depth <= 0);

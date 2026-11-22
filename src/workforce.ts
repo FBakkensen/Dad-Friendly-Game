@@ -2,9 +2,13 @@ import { STAGES, type Stage, type StageSpeeds } from "./line";
 import type { Mountain } from "./mountain";
 import { makerOpen } from "./makers";
 import {
+  DEEPER_LEVEL_IDS,
+  crystalOpen,
   graniteOpen,
   isLevelMachine,
   levelMachines,
+  openDeeperLevel,
+  openLevels,
   type LevelMachines,
   type MineLevelId,
 } from "./mine-levels";
@@ -28,7 +32,8 @@ import {
 
 /**
  * Where workers work: in part 1 the line's three stages, driving and
- * building (#690); in part 2 the kilns, one worker to a kiln (#666).
+ * building (#690); in part 2 the kilns, one worker to a kiln (#666);
+ * in slice 2 part 2 Crystal Caves drilling and haulage (#770).
  */
 export const JOB_IDS = [
   "drilling",
@@ -40,6 +45,8 @@ export const JOB_IDS = [
   "graniteDrilling",
   "graniteHaulage",
   "saws",
+  "crystalDrilling",
+  "crystalHaulage",
 ] as const;
 
 export type JobId = (typeof JOB_IDS)[number];
@@ -56,6 +63,8 @@ export const NO_JOBS: Jobs = {
   graniteDrilling: 0,
   graniteHaulage: 0,
   saws: 0,
+  crystalDrilling: 0,
+  crystalHaulage: 0,
 };
 
 /** Each stage of the line and its job. */
@@ -65,7 +74,7 @@ export const STAGE_JOB: Readonly<Record<Stage, JobId>> = {
   lift: "hoisting",
 };
 
-/** A stage a level has of its own: the one hoist serves both levels. */
+/** A stage a level has of its own: the one hoist serves all open levels. */
 export type LevelStage = Exclude<Stage, "lift">;
 
 /** Each level's jobs: `drilling` and `haulage` stay the Topsoil's, shipped ids. */
@@ -74,13 +83,14 @@ export const LEVEL_JOBS: Readonly<
 > = {
   topsoil: { face: "drilling", haul: "haulage" },
   granite: { face: "graniteDrilling", haul: "graniteHaulage" },
+  crystal: { face: "crystalDrilling", haul: "crystalHaulage" },
 };
 
 type Crew = Pick<Mountain, "owned" | "jobs">;
 
 /**
- * Whether a job is open (rule 2.3): the Granite's two with the shaft sunk
- * (part 3), the kilns' with the kilns (part 2, the Light Tower operational),
+ * Whether a job is open (rule 2.3): each deeper level's two with its shaft
+ * sunk, the kilns' with the kilns (part 2, the Light Tower operational),
  * every other from the first evening.
  */
 export function jobOpen(
@@ -90,6 +100,9 @@ export function jobOpen(
   if (job === "graniteDrilling" || job === "graniteHaulage") {
     return graniteOpen(mountain);
   }
+  if (job === "crystalDrilling" || job === "crystalHaulage") {
+    return crystalOpen(mountain);
+  }
   if (job === "saws") {
     return makerOpen(mountain, "saw");
   }
@@ -97,14 +110,17 @@ export function jobOpen(
 }
 
 /**
- * Workers on haulage, on both levels while the Granite is open: what Loading
- * crews counts (rule 5.2). With it shut, the Topsoil's alone.
+ * Workers on haulage across every open level: what Loading crews counts
+ * (rule 5.2, Slice 2 spec rule 4.3).
  */
 export function haulageWorkers(
   mountain: Pick<Mountain, "jobs" | "mineLevels">,
 ): number {
-  const { haulage, graniteHaulage } = mountain.jobs;
-  return graniteOpen(mountain) ? haulage + graniteHaulage : haulage;
+  let total = 0;
+  for (const level of openLevels(mountain)) {
+    total += mountain.jobs[LEVEL_JOBS[level].haul];
+  }
+  return total;
 }
 
 /** Workers on a job, of every job. */
@@ -303,18 +319,19 @@ function addWork(tally: Tally, work: StageWork): void {
 }
 
 /**
- * The line's rate: the slowest stage with one level (today's); with the
- * Granite open, hoisting or both levels' slowest stages added, whichever is
- * less (ruling 18).
+ * The line's rate: the slowest stage with one level (today's); with deeper
+ * levels open, hoisting or every open level's slowest stage added, whichever
+ * is less (ruling 18, #770).
  */
-function lineOf(stages: StageSpeeds, granite: LevelStages | undefined): number {
-  if (granite === undefined) {
+function lineOf(stages: StageSpeeds, deeper: readonly LevelStages[]): number {
+  if (deeper.length === 0) {
     return Math.min(stages.face, stages.haul, stages.lift);
   }
-  return Math.min(
-    stages.lift,
-    Math.min(stages.face, stages.haul) + Math.min(granite.face, granite.haul),
-  );
+  let feed = Math.min(stages.face, stages.haul);
+  for (const level of deeper) {
+    feed += Math.min(level.face, level.haul);
+  }
+  return Math.min(stages.lift, feed);
 }
 
 /**
@@ -322,8 +339,8 @@ function lineOf(stages: StageSpeeds, granite: LevelStages | undefined): number {
  * with a tool, and no worker spreads to the slowest stage. A worker with a
  * tool does his stage's share of the line spec's worker, three times his
  * own speed (Work boots and the worker marks are in it). A worker on a
- * machine does no other work. With the Granite open, its drilling and
- * haulage work beside the Topsoil's, at the same tier speeds (rule 5.2).
+ * machine does no other work. Open deeper levels work beside the Topsoil,
+ * at the same tier speeds (rule 5.2, #770).
  */
 export function lineWork(
   mountain: Pick<Mountain, "owned" | "jobs" | "mineLevels">,
@@ -339,22 +356,28 @@ export function lineWork(
     haul: works.haul.moves,
     lift: works.lift.moves,
   };
-  let granite: LevelStages | undefined;
-  if (graniteOpen(mountain)) {
-    const own = levelWorks(mountain, speed, "granite");
-    addWork(tally, own.face);
-    addWork(tally, own.haul);
-    granite = { face: own.face.moves, haul: own.haul.moves };
+  const levels: Record<MineLevelId, LevelStages> = {
+    topsoil: { face: stages.face, haul: stages.haul },
+    granite: SHUT_LEVEL,
+    crystal: SHUT_LEVEL,
+  };
+  const openDeeper: LevelStages[] = [];
+  for (const id of DEEPER_LEVEL_IDS) {
+    if (openDeeperLevel(mountain, id) !== undefined) {
+      const own = levelWorks(mountain, speed, id);
+      addWork(tally, own.face);
+      addWork(tally, own.haul);
+      const rates = { face: own.face.moves, haul: own.haul.moves };
+      levels[id] = rates;
+      openDeeper.push(rates);
+    }
   }
   return {
     running: tally.running,
     stages,
-    levels: {
-      topsoil: { face: stages.face, haul: stages.haul },
-      granite: granite ?? SHUT_LEVEL,
-    },
+    levels,
     hoisting: works.lift,
-    line: lineOf(stages, granite),
+    line: lineOf(stages, openDeeper),
     short: tally.short,
   };
 }

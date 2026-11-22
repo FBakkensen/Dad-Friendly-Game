@@ -157,7 +157,7 @@ describe("transport-view (#768)", () => {
       const singleRoom = pitheadRoom(singleBase);
       const single: Mountain = {
         ...singleBase,
-        pithead: { topsoil: singleRoom, granite: 0 },
+        pithead: { topsoil: singleRoom, granite: 0, crystal: 0 },
       };
       const liftRow = stageRows(single).find((r) => r.stage === "lift");
       expect(liftRow?.pile?.full).toBe(true);
@@ -175,7 +175,7 @@ describe("transport-view (#768)", () => {
       const twoRoom = pitheadRoom(twoBase);
       const two: Mountain = {
         ...twoBase,
-        pithead: { topsoil: 10, granite: twoRoom },
+        pithead: { topsoil: 10, granite: twoRoom, crystal: 0 },
       };
       const twoView = levelsView(two);
       expect(twoView).toBeDefined();
@@ -353,7 +353,7 @@ describe("transport-view (#768)", () => {
         ...placeOrder(twoBase),
         stock: EMPTY_STOCK,
         piles: { face: 300, shaft: room, kiln: 0 },
-        pithead: { topsoil: room, granite: room },
+        pithead: { topsoil: room, granite: room, crystal: 0 },
         mineLevels: {
           ...twoBase.mineLevels,
           ...(twoBase.mineLevels.granite === undefined

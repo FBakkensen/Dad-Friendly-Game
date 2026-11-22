@@ -99,6 +99,7 @@ describe("the mine's levels", () => {
         levels: {
           topsoil: { face, haul, lift },
           granite: { face: 0, haul: 0, lift: 0 },
+          crystal: { face: 0, haul: 0, lift: 0 },
         },
         lift,
       });

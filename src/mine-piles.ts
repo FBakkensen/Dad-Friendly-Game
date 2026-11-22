@@ -16,10 +16,14 @@ import {
   type MakerId,
 } from "./makers";
 import {
+  MINE_LEVEL_IDS,
   graniteOpen,
+  openDeeperLevel,
   openGranite,
+  openLevels,
   type GranitePiles,
   type MineLevelId,
+  type MineLevels,
   type SunkLevel,
 } from "./mine-levels";
 import { partThreeOn, slice2Part1On } from "./part-switch";
@@ -31,6 +35,7 @@ import {
   chainFlows,
   chainSettled,
   chainSpill,
+  evenShares,
   flowBranchesWhole,
   flowWhole,
   stepQuota,
@@ -133,7 +138,7 @@ export function mineWork(mountain: Mountain): MineWork {
         hoisting,
         speed: rates.tierSpeed,
         assigned: mountain.cages.assigned,
-        twoLevels: graniteOpen(mountain),
+        levels: openLevels(mountain),
         pay: 1,
       })
     : [];
@@ -316,47 +321,59 @@ function makerDrainCap(
     : 0;
 }
 
-/** Pithead drain capacity per open level under Slice 2 Part 1 (used by mineLevelFlows / mineMakes). */
-function slice2PitheadDrain(mountain: Mountain): {
-  readonly topsoil: number;
-  readonly granite: number;
-} {
+function levelDrainCap(
+  mountain: Mountain,
+  level: MineLevelId,
+  stoneRoom: boolean,
+  fleet: number,
+): number {
+  if (stoneRoom) {
+    return fleet;
+  }
+  if (level === "topsoil") {
+    return Math.min(
+      fleet,
+      makerDrainCap(mountain, "kiln", "topsoilRock", "brick", fleet),
+    );
+  }
+  if (level === "granite") {
+    return Math.min(
+      fleet,
+      makerDrainCap(mountain, "saw", "graniteRock", "cutStone", fleet),
+    );
+  }
+  return 0;
+}
+
+/** Pithead drain capacity per open level under Slice 2 (used by mineLevelFlows / mineMakes, #770). */
+function slice2PitheadDrain(
+  mountain: Mountain,
+): Readonly<Record<MineLevelId, number>> {
   const fleet = fleetRate(mountain);
+  const out: Record<MineLevelId, number> = {
+    topsoil: 0,
+    granite: 0,
+    crystal: 0,
+  };
   if (fleet <= 0) {
-    return { topsoil: 0, granite: 0 };
+    return out;
   }
   const stoneRoom = stockpileRoom(mountain, "stones") > mountain.stock.stones;
-  const kilnCap = makerDrainCap(
-    mountain,
-    "kiln",
-    "topsoilRock",
-    "brick",
-    fleet,
+  const open = openLevels(mountain);
+  const caps = open.map((level) =>
+    levelDrainCap(mountain, level, stoneRoom, fleet),
   );
-  const sawCap = graniteOpen(mountain)
-    ? makerDrainCap(mountain, "saw", "graniteRock", "cutStone", fleet)
-    : 0;
-  const topCap = stoneRoom ? fleet : Math.min(fleet, kilnCap);
-  const granCap = graniteOpen(mountain)
-    ? stoneRoom
-      ? fleet
-      : Math.min(fleet, sawCap)
-    : 0;
-  if (topCap > 0 && granCap > 0 && topCap + granCap > fleet) {
-    const half = fleet / 2;
-    return {
-      topsoil: Math.min(topCap, half) + Math.max(0, half - granCap),
-      granite: Math.min(granCap, half) + Math.max(0, half - topCap),
-    };
+  const shares = evenShares(fleet, caps);
+  for (const [index, level] of open.entries()) {
+    out[level] = shares[index] ?? 0;
   }
-  return { topsoil: topCap, granite: granCap };
+  return out;
 }
 
 /**
  * What the mine moves now through the piles, a second, at pay 1 and under
- * the crew timer (#680): each level's drilling, haulage and what hoisting
- * lifts from it, and the shaft's hoisting from both. With the Granite shut the Granite's are 0, and the
- * Topsoil's are `mineChain`'s.
+ * the crew timer (#680, #770): each level's drilling, haulage and what hoisting
+ * lifts from it, and the shaft's hoisting from all open levels.
  */
 export function mineLevelFlows(mountain: Mountain): {
   readonly levels: Readonly<Record<MineLevelId, LevelFlow>>;
@@ -370,34 +387,49 @@ export function mineLevelFlows(mountain: Mountain): {
       true,
       slice2PitheadDrain(mountain),
     );
-    const topsoil =
-      chains.topsoil === undefined
-        ? levelFlow([])
-        : levelFlow(chainFlows(chains.topsoil).map((flow) => flow * timer));
-    const deep =
-      chains.granite === undefined
-        ? levelFlow([])
-        : levelFlow(chainFlows(chains.granite).map((flow) => flow * timer));
-    return {
-      levels: { topsoil, granite: deep },
-      lift: topsoil.lift + deep.lift,
+    const levels: Record<MineLevelId, LevelFlow> = {
+      topsoil: levelFlow([]),
+      granite: levelFlow([]),
+      crystal: levelFlow([]),
     };
+    let lift = 0;
+    for (const level of MINE_LEVEL_IDS) {
+      const chain = chains[level];
+      if (chain !== undefined) {
+        const flow = levelFlow(chainFlows(chain).map((rate) => rate * timer));
+        levels[level] = flow;
+        lift += flow.lift;
+      }
+    }
+    return { levels, lift };
   }
   const [topsoil = levelFlow([]), deep = levelFlow([])] = levelChains(
     mountain,
   ).map((chain) => levelFlow(chainFlows(chain).map((flow) => flow * timer)));
   return {
-    levels: { topsoil, granite: deep },
+    levels: { topsoil, granite: deep, crystal: levelFlow([]) },
     lift: topsoil.lift + deep.lift,
   };
 }
 
 /**
- * What one load of the cages for both lifts a second now (#680): a load
- * from each level in the turn once a round of their trips (`turnPerLoad`),
- * as the night counts it. With the Granite shut there is no turn: 0.
+ * What one load of the cages for all in turn lifts a second now (#680, #770):
+ * a load from each level in the turn once a round of their trips (`turnPerLoad`),
+ * as the night counts it. With only one level open there is no turn: 0.
  */
 export function mineTurnPerLoad(mountain: Mountain): number {
+  if (slice2Part1On()) {
+    const open = openLevels(mountain);
+    return open.length < 2
+      ? 0
+      : turnPerLoad(
+          undergroundPitheadSet(
+            mountain,
+            { pay: 1, drilling: true },
+            slice2PitheadDrain(mountain),
+          ),
+        );
+  }
   const granite = openGranite(mountain);
   return granite === undefined
     ? 0
@@ -656,13 +688,45 @@ const SHUT: LevelRates = { face: 0, haul: 0, lift: 0 };
 
 /**
  * Each level's drilling, haulage and hoisting rates in the steady line
- * (#675): hoisting is what the cages lift from that level, its own cages and
- * its share of the turn. The Granite's are 0 while it is shut. The lab's dad
- * raises a level's slowest stage.
+ * (#675, #770): hoisting is what the cages lift from that level, its own cages
+ * and its share of the turn. Closed levels are 0.
  */
 export function steadyLevels(
   mountain: Mountain,
 ): Readonly<Record<MineLevelId, LevelRates>> {
+  const open = openLevels(mountain);
+  if (slice2Part1On() && open.length > 2) {
+    const drain: Record<MineLevelId, number> = {
+      topsoil: Infinity,
+      granite: Infinity,
+      crystal: Infinity,
+    };
+    const set = undergroundPitheadSet(
+      mountain,
+      { pay: 1, drilling: true },
+      drain,
+    );
+    const chains = branchChains({
+      ...set,
+      branches: set.branches.map((branch) => ({
+        ...branch,
+        piles: [IN_STEP, IN_STEP, OPEN],
+      })),
+    });
+    const out: Record<MineLevelId, LevelRates> = {
+      topsoil: SHUT,
+      granite: SHUT,
+      crystal: SHUT,
+    };
+    for (const [level, chain] of openZip(open, chains)) {
+      out[level] = {
+        face: chain.rates[0] ?? 0,
+        haul: chain.rates[1] ?? 0,
+        lift: chain.rates[LIFT] ?? 0,
+      };
+    }
+    return out;
+  }
   const [topsoil, granite] = steadyChains(mountain).map(
     (chain): LevelRates => ({
       face: chain.rates[0] ?? 0,
@@ -670,7 +734,7 @@ export function steadyLevels(
       lift: chain.rates[LIFT] ?? 0,
     }),
   );
-  return { topsoil: topsoil ?? SHUT, granite: granite ?? SHUT };
+  return { topsoil: topsoil ?? SHUT, granite: granite ?? SHUT, crystal: SHUT };
 }
 
 /** What a level's maker makes a second now: the Topsoil's brick, the Granite's cut stone. */
@@ -687,25 +751,35 @@ function chainIncome(chain: Chain): Partial<Stock> {
 }
 
 /**
- * What the mine's two levels bring to the stockpiles a second now (#673):
+ * Zips `open` levels with their matching branch items in order (#770): a
+ * mismatch is a bug, never rock dropped.
+ */
+function openZip<T>(
+  open: readonly MineLevelId[],
+  items: readonly T[],
+): readonly (readonly [MineLevelId, T])[] {
+  if (items.length !== open.length) {
+    throw new Error("mine-piles: a level is missing");
+  }
+  return open.map((level, index) => [level, items[index] as T]);
+}
+
+/**
+ * What the mine's two Slice 1 levels bring to the stockpiles a second now (#673):
  * the stone both bypass, the Topsoil's brick and the Granite's cut stone.
  */
 function branchesIncome(set: Branches): Partial<Stock> {
-  const [topsoil, granite] = levelPair(branchChains(set));
+  const entries = openZip(["topsoil", "granite"], branchChains(set));
+  const topsoil = entries[0]?.[1];
+  const granite = entries[1]?.[1];
+  if (topsoil === undefined || granite === undefined) {
+    throw new Error("mine-piles: a level is missing");
+  }
   return {
     stones: chainSpill(topsoil) + chainSpill(granite),
     brick: chainMade(topsoil),
     cutStone: chainMade(granite),
   };
-}
-
-/** The Topsoil's and the Granite's, from a list in that order: one missing is a bug, never rock dropped. */
-function levelPair<T>(items: readonly T[]): readonly [T, T] {
-  const [topsoil, granite] = items;
-  if (topsoil === undefined || granite === undefined) {
-    throw new Error("mine-piles: a level is missing");
-  }
-  return [topsoil, granite];
 }
 
 /** Whether any stage of a mine's chain moves rock or makes its good now (transport's take aside). */
@@ -717,8 +791,7 @@ function chainMakes(chain: Chain): boolean {
 
 /**
  * Whether any stage of the mine moves rock or makes a good now at `pay`, on
- * either level once the Granite is open: a mine where only the Granite works
- * still works.
+ * any open level (#673, #770).
  */
 export function mineMakes(mountain: Mountain, pay: number): boolean {
   if (slice2Part1On()) {
@@ -726,10 +799,12 @@ export function mineMakes(mountain: Mountain, pay: number): boolean {
     const chains = undergroundPitheadChains(mountain, pay, true, {
       topsoil: drain.topsoil * pay,
       granite: drain.granite * pay,
+      crystal: drain.crystal * pay,
     });
-    const mineActive = [chains.topsoil, chains.granite].some(
-      (chain) => chain !== undefined && chainFlows(chain).some((f) => f > 0),
-    );
+    const mineActive = MINE_LEVEL_IDS.some((level) => {
+      const chain = chains[level];
+      return chain !== undefined && chainFlows(chain).some((f) => f > 0);
+    });
     if (mineActive) {
       return true;
     }
@@ -822,8 +897,7 @@ function stood(
   step: MineStep,
 ): boolean {
   return (
-    step.dug.topsoil === 0 &&
-    step.dug.granite === 0 &&
+    MINE_LEVEL_IDS.every((level) => step.dug[level] === 0) &&
     step.mined === 0 &&
     Object.values(step.gained).every((amount) => amount === 0) &&
     samePiles(step.piles, mountain.piles) &&
@@ -844,6 +918,10 @@ export function mineWritten(mountain: Mountain, step: MineStep): MineFlow {
     return { mountain, mined: 0, gained: {} };
   }
   const { gained } = step;
+  const totalDug = MINE_LEVEL_IDS.reduce(
+    (sum, level) => sum + step.dug[level],
+    0,
+  );
   return {
     mountain: {
       ...mountain,
@@ -858,7 +936,7 @@ export function mineWritten(mountain: Mountain, step: MineStep): MineFlow {
               ...mountain.mineLevels,
               granite: { ...granite, piles: step.granitePiles },
             },
-      rockDug: mountain.rockDug + step.dug.topsoil + step.dug.granite,
+      rockDug: mountain.rockDug + totalDug,
     },
     mined: step.mined,
     gained,
@@ -899,7 +977,7 @@ function flowTopsoil(
   const flow = flowWhole(mineChain(mountain, pay, drilling), seconds);
   const [face, shaft, kiln] = threePiles(flow);
   return mineWritten(mountain, {
-    dug: { topsoil: movedAt(flow, 0), granite: 0 },
+    dug: { topsoil: movedAt(flow, 0), granite: 0, crystal: 0 },
     mined: movedAt(flow, LIFT),
     gained: { stones: flow.spilled, brick: movedAt(flow, MAKER) },
     piles: { face, shaft, kiln },
@@ -919,20 +997,31 @@ function threePiles(flow: ChainFlow): readonly [number, number, number] {
 }
 
 /**
- * `flowMine` with both levels (#673): each level's drilling, piles and maker
- * on its own, the cages' lift and the stone stockpile shared. The Topsoil's
- * piles go in `piles`, the Granite's in `granite.piles`.
+ * `flowMine` with both Slice 1 levels (#673): each level's drilling, piles and
+ * maker on its own, the cages' lift and the stone stockpile shared.
  */
 function flowLevels(
   mountain: Mountain,
   seconds: number,
   set: Branches,
 ): MineFlow {
-  const [topsoil, deep] = levelPair(flowBranchesWhole(set, seconds));
+  const entries = openZip(
+    ["topsoil", "granite"],
+    flowBranchesWhole(set, seconds),
+  );
+  const topsoil = entries[0]?.[1];
+  const deep = entries[1]?.[1];
+  if (topsoil === undefined || deep === undefined) {
+    throw new Error("mine-piles: a level is missing");
+  }
   const [face, shaft, kiln] = threePiles(topsoil);
   const [graniteFace, graniteShaft, saw] = threePiles(deep);
   return mineWritten(mountain, {
-    dug: { topsoil: movedAt(topsoil, 0), granite: movedAt(deep, 0) },
+    dug: {
+      topsoil: movedAt(topsoil, 0),
+      granite: movedAt(deep, 0),
+      crystal: 0,
+    },
     mined: movedAt(topsoil, LIFT) + movedAt(deep, LIFT),
     gained: {
       stones: topsoil.spilled + deep.spilled,
@@ -953,7 +1042,7 @@ function samePiles<K extends string>(
 }
 
 // ---------------------------------------------------------------------------
-// Slice 2 Part 1: pithead buffers & underground chains (zero Stone bypass)
+// Slice 2: pithead buffers & underground chains across all open levels (zero Stone bypass)
 
 /** Minimum pithead rock buffer room before Hoist #1 (spec rule 1.4, #766). */
 export const MIN_PITHEAD_ROOM = 300;
@@ -990,11 +1079,12 @@ function pitheadBranch(
   drain: number,
 ): Branch {
   const { levels, lift } = mineWork(mountain);
-  const granite = openGranite(mountain);
+  const sunk =
+    level === "topsoil" ? undefined : openDeeperLevel(mountain, level);
   const faceHeld =
-    level === "topsoil" ? mountain.piles.face : (granite?.piles.face ?? 0);
+    level === "topsoil" ? mountain.piles.face : (sunk?.piles.face ?? 0);
   const shaftHeld =
-    level === "topsoil" ? mountain.piles.shaft : (granite?.piles.shaft ?? 0);
+    level === "topsoil" ? mountain.piles.shaft : (sunk?.piles.shaft ?? 0);
   return {
     source: Infinity,
     rates: [
@@ -1012,22 +1102,22 @@ function pitheadBranch(
   };
 }
 
-/** Underground mine branches into pithead buffers, with shared cage turn and zero spill. */
+/** Underground mine branches into pithead buffers for all open levels, with shared cage turn and zero spill (#770). */
 function undergroundPitheadSet(
   mountain: Mountain,
   run: { readonly pay: number; readonly drilling: boolean },
   pitheadDrain: Readonly<Record<MineLevelId, number>>,
 ): Branches {
+  const open = openLevels(mountain);
   return {
-    branches: [
-      pitheadBranch(mountain, "topsoil", run, pitheadDrain.topsoil),
-      pitheadBranch(mountain, "granite", run, pitheadDrain.granite),
-    ],
+    branches: open.map((level) =>
+      pitheadBranch(mountain, level, run, pitheadDrain[level]),
+    ),
     shared: {
       stage: LIFT,
       turn: {
         loads: (mineWork(mountain).lift?.loads ?? 0) * run.pay,
-        trips: [tripSeconds("topsoil"), tripSeconds("granite")],
+        trips: open.map(tripSeconds),
       },
     },
     side: NO_SIDE,
@@ -1035,9 +1125,9 @@ function undergroundPitheadSet(
 }
 
 /**
- * Instantaneous underground chains into pithead buffers (Slice 2, #766):
- * Topsoil alone when Granite is unsunk, else both sharing the cage turn.
- * Zero bypass to stone or makers.
+ * Instantaneous underground chains into pithead buffers (Slice 2, #766, #770):
+ * Topsoil alone when only Topsoil is open, else all open levels sharing the
+ * cage turn. Zero bypass to stone or makers.
  */
 export function undergroundPitheadChains(
   mountain: Mountain,
@@ -1045,8 +1135,8 @@ export function undergroundPitheadChains(
   drilling: boolean,
   pitheadDrain: Readonly<Record<MineLevelId, number>>,
 ): Readonly<Partial<Record<MineLevelId, Chain>>> {
-  const granite = openGranite(mountain);
-  if (granite === undefined) {
+  const open = openLevels(mountain);
+  if (open.length === 1) {
     const branch = pitheadBranch(
       mountain,
       "topsoil",
@@ -1061,12 +1151,14 @@ export function undergroundPitheadChains(
       },
     };
   }
-  const [topsoil, deep] = levelPair(
-    branchChains(
-      undergroundPitheadSet(mountain, { pay, drilling }, pitheadDrain),
-    ),
+  const chains = branchChains(
+    undergroundPitheadSet(mountain, { pay, drilling }, pitheadDrain),
   );
-  return { topsoil, granite: deep };
+  const out: Partial<Record<MineLevelId, Chain>> = {};
+  for (const [level, chain] of openZip(open, chains)) {
+    out[level] = chain;
+  }
+  return out;
 }
 
 /** Outcome of advancing the underground mine into pithead buffers over `seconds`. */
@@ -1075,11 +1167,134 @@ export type PitheadFlow = {
   readonly hoisted: Readonly<Record<MineLevelId, number>>;
 };
 
+const ZERO_HOISTED: Readonly<Record<MineLevelId, number>> = {
+  topsoil: 0,
+  granite: 0,
+  crystal: 0,
+};
+
+function flowSingleUndergroundToPithead(
+  mountain: Mountain,
+  seconds: number,
+  options: {
+    readonly pay: number;
+    readonly drilling: boolean;
+    readonly drain: number;
+    readonly discreteTick: number | undefined;
+  },
+): PitheadFlow {
+  const branch = pitheadBranch(
+    mountain,
+    "topsoil",
+    { pay: options.pay, drilling: options.drilling },
+    options.drain,
+  );
+  const baseChain: Chain = {
+    source: branch.source,
+    rates: branch.rates,
+    piles: branch.piles,
+  };
+  const chain =
+    options.discreteTick === undefined
+      ? baseChain
+      : discretePitheadChain(baseChain, options.discreteTick);
+  const flow = flowWhole(chain, seconds);
+  const [face = 0, shaft = 0] = flow.piles;
+  const hoisted = movedAt(flow, LIFT);
+  const dug = movedAt(flow, 0);
+  if (
+    dug === 0 &&
+    hoisted === 0 &&
+    face === mountain.piles.face &&
+    shaft === mountain.piles.shaft
+  ) {
+    return { mountain, hoisted: ZERO_HOISTED };
+  }
+  return {
+    mountain: {
+      ...mountain,
+      piles: { ...mountain.piles, face, shaft },
+      pithead: {
+        ...mountain.pithead,
+        topsoil: mountain.pithead.topsoil + hoisted,
+      },
+      rockDug: mountain.rockDug + dug,
+    },
+    hoisted: { topsoil: hoisted, granite: 0, crystal: 0 },
+  };
+}
+
+function updatedLevelPiles(
+  mountain: Mountain,
+  level: Exclude<MineLevelId, "topsoil">,
+  face: number,
+  shaft: number,
+): SunkLevel | undefined {
+  const sunk = openDeeperLevel(mountain, level);
+  if (
+    sunk === undefined ||
+    (face === sunk.piles.face && shaft === sunk.piles.shaft)
+  ) {
+    return undefined;
+  }
+  return { ...sunk, piles: { ...sunk.piles, face, shaft } };
+}
+
+function applyUndergroundFlows(
+  mountain: Mountain,
+  zipped: readonly (readonly [MineLevelId, ChainFlow])[],
+): PitheadFlow {
+  const hoisted: Record<MineLevelId, number> = {
+    topsoil: 0,
+    granite: 0,
+    crystal: 0,
+  };
+  let totalDug = 0;
+  let totalHoist = 0;
+  let pilesChanged = false;
+  let nextTopPiles = mountain.piles;
+  let nextMineLevels: MineLevels = mountain.mineLevels;
+  for (const [level, flow] of zipped) {
+    const [face = 0, shaft = 0] = flow.piles;
+    hoisted[level] = movedAt(flow, LIFT);
+    totalDug += movedAt(flow, 0);
+    totalHoist += hoisted[level];
+    if (level === "topsoil") {
+      if (face !== mountain.piles.face || shaft !== mountain.piles.shaft) {
+        pilesChanged = true;
+        nextTopPiles = { ...mountain.piles, face, shaft };
+      }
+      continue;
+    }
+    const nextLevel = updatedLevelPiles(mountain, level, face, shaft);
+    if (nextLevel !== undefined) {
+      pilesChanged = true;
+      nextMineLevels = { ...nextMineLevels, [level]: nextLevel };
+    }
+  }
+  if (totalDug === 0 && totalHoist === 0 && !pilesChanged) {
+    return { mountain, hoisted: ZERO_HOISTED };
+  }
+  return {
+    mountain: {
+      ...mountain,
+      piles: nextTopPiles,
+      mineLevels: nextMineLevels,
+      pithead: {
+        topsoil: mountain.pithead.topsoil + hoisted.topsoil,
+        granite: mountain.pithead.granite + hoisted.granite,
+        crystal: mountain.pithead.crystal + hoisted.crystal,
+      },
+      rockDug: mountain.rockDug + totalDug,
+    },
+    hoisted,
+  };
+}
+
 /**
  * Advances underground drilling, haulage, and hoisting into `pithead[level]`
- * over `seconds` whole seconds (Slice 2 offline/rate stepping, #766).
- * Returns the updated mountain with `hoisted[level]` added into `pithead[level]`
- * (transport drains it in the coupled step).
+ * over `seconds` whole seconds across all open levels (Slice 2 offline/rate
+ * stepping, #766, #770).
  */
 export function flowUndergroundToPithead(
   mountain: Mountain,
@@ -1090,94 +1305,23 @@ export function flowUndergroundToPithead(
   tickIndex?: number,
 ): PitheadFlow {
   const discreteTick = seconds === 1 ? tickIndex : undefined;
-  const granite = openGranite(mountain);
-  if (granite === undefined) {
-    const branch = pitheadBranch(
-      mountain,
-      "topsoil",
-      { pay, drilling },
-      pitheadDrain.topsoil,
-    );
-    const baseChain: Chain = {
-      source: branch.source,
-      rates: branch.rates,
-      piles: branch.piles,
-    };
-    const chain =
-      discreteTick === undefined
-        ? baseChain
-        : discretePitheadChain(baseChain, discreteTick);
-    const flow = flowWhole(chain, seconds);
-    const [face = 0, shaft = 0] = flow.piles;
-    const hoisted = movedAt(flow, LIFT);
-    const dug = movedAt(flow, 0);
-    if (
-      dug === 0 &&
-      hoisted === 0 &&
-      face === mountain.piles.face &&
-      shaft === mountain.piles.shaft
-    ) {
-      return { mountain, hoisted: { topsoil: 0, granite: 0 } };
-    }
-    return {
-      mountain: {
-        ...mountain,
-        piles: { ...mountain.piles, face, shaft },
-        pithead: {
-          ...mountain.pithead,
-          topsoil: mountain.pithead.topsoil + hoisted,
-        },
-        rockDug: mountain.rockDug + dug,
-      },
-      hoisted: { topsoil: hoisted, granite: 0 },
-    };
+  const open = openLevels(mountain);
+  if (open.length === 1) {
+    return flowSingleUndergroundToPithead(mountain, seconds, {
+      pay,
+      drilling,
+      drain: pitheadDrain.topsoil,
+      discreteTick,
+    });
   }
   const set = undergroundPitheadSet(mountain, { pay, drilling }, pitheadDrain);
   // Resolve continuous shared cage turns first so `inTurn` never flickers and
   // shared hoist loads also get discrete Bresenham stepping on 1 s ticks.
-  const [topsoil, deep] =
+  const rawFlows =
     discreteTick === undefined
-      ? levelPair(flowBranchesWhole(set, seconds))
-      : levelPair(
-          branchChains(set).map((chain) =>
-            flowWhole(discretePitheadChain(chain, discreteTick), 1),
-          ),
+      ? flowBranchesWhole(set, seconds)
+      : branchChains(set).map((chain) =>
+          flowWhole(discretePitheadChain(chain, discreteTick), 1),
         );
-  const [tFace = 0, tShaft = 0] = topsoil.piles;
-  const [gFace = 0, gShaft = 0] = deep.piles;
-  const tHoist = movedAt(topsoil, LIFT);
-  const gHoist = movedAt(deep, LIFT);
-  const tDug = movedAt(topsoil, 0);
-  const gDug = movedAt(deep, 0);
-  if (
-    tDug === 0 &&
-    gDug === 0 &&
-    tHoist === 0 &&
-    gHoist === 0 &&
-    tFace === mountain.piles.face &&
-    tShaft === mountain.piles.shaft &&
-    gFace === granite.piles.face &&
-    gShaft === granite.piles.shaft
-  ) {
-    return { mountain, hoisted: { topsoil: 0, granite: 0 } };
-  }
-  return {
-    mountain: {
-      ...mountain,
-      piles: { ...mountain.piles, face: tFace, shaft: tShaft },
-      mineLevels: {
-        ...mountain.mineLevels,
-        granite: {
-          ...granite,
-          piles: { ...granite.piles, face: gFace, shaft: gShaft },
-        },
-      },
-      pithead: {
-        topsoil: mountain.pithead.topsoil + tHoist,
-        granite: mountain.pithead.granite + gHoist,
-      },
-      rockDug: mountain.rockDug + tDug + gDug,
-    },
-    hoisted: { topsoil: tHoist, granite: gHoist },
-  };
+  return applyUndergroundFlows(mountain, openZip(open, rawFlows));
 }

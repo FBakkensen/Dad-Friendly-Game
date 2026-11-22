@@ -58,6 +58,8 @@ export const JOB_NAMES = {
   graniteDrilling: "Drilling",
   graniteHaulage: "Haulage",
   saws: "Saws",
+  crystalDrilling: "Drilling",
+  crystalHaulage: "Haulage",
 } as const satisfies Readonly<Record<JobId, string>>;
 
 /**
@@ -102,7 +104,7 @@ const MINE_GROUPS: readonly {
 const LEVEL_OF_JOB: Partial<
   Record<JobId, { readonly level: MineLevelId; readonly stage: LevelStage }>
 > = Object.fromEntries(
-  (["topsoil", "granite"] as const).flatMap((level) =>
+  (["topsoil", "granite", "crystal"] as const).flatMap((level) =>
     (["face", "haul"] as const).map((stage) => [
       LEVEL_JOBS[level][stage],
       { level, stage },

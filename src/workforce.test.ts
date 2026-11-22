@@ -79,13 +79,15 @@ function crew(helpers: number, jobs: Partial<Mountain["jobs"]> = {}): Mountain {
       graniteDrilling: 0,
       graniteHaulage: 0,
       saws: 0,
+      crystalDrilling: 0,
+      crystalHaulage: 0,
       ...jobs,
     },
   };
 }
 
 describe("one workforce (slice 1, rule 2, #689)", () => {
-  it("has the five jobs of part 1, the kilns of part 2 (#666), and the Granite's two (#673)", () => {
+  it("has the five jobs of part 1, the kilns of part 2 (#666), the Granite's two (#673), and Crystal's two (#770)", () => {
     expect(JOB_IDS).toEqual([
       "drilling",
       "haulage",
@@ -96,6 +98,8 @@ describe("one workforce (slice 1, rule 2, #689)", () => {
       "graniteDrilling",
       "graniteHaulage",
       "saws",
+      "crystalDrilling",
+      "crystalHaulage",
     ]);
   });
 
@@ -116,10 +120,11 @@ describe("one workforce (slice 1, rule 2, #689)", () => {
     expect(partTwo(() => jobOpen(sunk(start), "saws"))).toBe(false);
   });
 
-  it("gives each level its face and haul jobs (#673)", () => {
+  it("gives each level its face and haul jobs (#673, #770)", () => {
     expect(LEVEL_JOBS).toEqual({
       topsoil: { face: "drilling", haul: "haulage" },
       granite: { face: "graniteDrilling", haul: "graniteHaulage" },
+      crystal: { face: "crystalDrilling", haul: "crystalHaulage" },
     });
   });
 
@@ -841,7 +846,9 @@ describe("each level's work (rule 5.1, 5.2, #673)", () => {
         ).map((tier) => speed[tier.id] / machineStaff(tier));
         return Math.max(toolSpeed(speed, stage), ...machines) * lift;
       };
-      for (const level of MINE_LEVEL_IDS) {
+      // Part 3's rule 2.14 invariant covers Topsoil (10 s) and Granite (20 s);
+      // Crystal Caves (30 s) is Slice 2 Part 2 (tuned in #772, Winding Engine retired).
+      for (const level of ["topsoil", "granite"] as const) {
         // Workers a stage takes for each rock a second the line moves.
         const [face, haul, lift] = STAGES.map(
           (stage) => 1 / perWorker(stage, level),
