@@ -496,7 +496,6 @@ function writtenPithead(mountain: Mountain, live: Live): MineFlow {
           ? mountain.cages
           : { ...mountain.cages, trips: live.trips },
       rockDug: mountain.rockDug + live.dug.topsoil + live.dug.granite,
-      graniteDug: mountain.graniteDug + live.dug.granite,
     },
     mined: live.mined,
     gained: {},

@@ -1,11 +1,9 @@
 import type { Mountain } from "./mountain";
-import { expeditionCraftScale } from "./workshop";
 
 /**
  * Lost tools (M7 §4). One of each, brought home from below and kept on
  * `mountain.finds`. The effects are applied in `expeditions`, and (for
  * the boots) `hazards` via `wearsSteelToes`.
- * The engineer's kit shortens the next expedition on top of the worn map.
  * See docs/DESIGN.md.
  */
 
@@ -14,7 +12,7 @@ export const LOST_TOOLS = ["map", "boots"] as const;
 
 export type LostToolId = (typeof LOST_TOOLS)[number];
 
-type Shelf = Pick<Mountain, "finds" | "crafted">;
+type Shelf = Pick<Mountain, "finds">;
 
 /** Worn map: the next expedition takes three quarters of the tunnel's time. */
 export const MAP_RETURN_NUMERATOR = 3;
@@ -33,8 +31,7 @@ export function wearsSteelToes(mountain: Shelf): boolean {
 
 /** How long the next expedition stays out. Already-walking parties keep their clock. */
 export function expeditionAwayMs(awayMs: number, mountain: Shelf): number {
-  const mapped = hasLostTool(mountain, "map")
+  return hasLostTool(mountain, "map")
     ? Math.round((awayMs * MAP_RETURN_NUMERATOR) / MAP_RETURN_DENOMINATOR)
     : awayMs;
-  return Math.round(mapped * expeditionCraftScale(mountain));
 }

@@ -8,10 +8,10 @@ import { asGuest, sliceBusySave } from "../browser/fixtures.ts";
 import { Expected, TICK_MS } from "./expected.ts";
 import { expect, NINE_PM, type Player, test } from "./player.ts";
 
-/** Transport stops, so what hoisting lifts stays in the stockpile and it grows with each load. */
-const FREE_DRIVER: Action = { kind: "freeWorker", job: "driving", count: 1 };
+/** Put the city order on hold so hauled pithead stone stays in the stockpile and grows with each load. */
+const HOLD_ORDER: Action = { kind: "holdOrder" };
 
-/** Long enough for rock to be drilled, hauled and lifted to the top in a cage. */
+/** Long enough for rock to be drilled, hauled, lifted and driven into the stockpile. */
 const FIRST_LOAD_WITHIN_MS = 2 * 60 * 1000;
 
 /**
@@ -35,7 +35,7 @@ async function untilALoad(
 
 /**
  * A busy mine open at nine, every stage at work and an order in hand, so no card is up, and
- * its driver freed: the move the kill must keep.
+ * its city order put on hold: the move the kill must keep.
  */
 async function busyMine(player: Player): Promise<Expected> {
   const json = await player.open(asGuest(sliceBusySave(NINE_PM)));
@@ -43,8 +43,10 @@ async function busyMine(player: Player): Promise<Expected> {
   expect(await player.cardUp()).toBe(false);
   await player.expectStones(rules.pocket);
   const seen = rules.mountain;
-  expect(rules.move(FREE_DRIVER, player.now), "the rules free him").toBe(true);
-  await player.act(FREE_DRIVER, seen);
+  expect(rules.move(HOLD_ORDER, player.now), "the rules hold the order").toBe(
+    true,
+  );
+  await player.act(HOLD_ORDER, seen);
   return rules;
 }
 
@@ -57,7 +59,9 @@ test("kill the tab and reopen: the same moment", async ({ player }) => {
   await player.reopen();
   const reopened = rules.reopened(player.now).expected;
   expect(reopened.pocket, "the rules reopen the same moment").toBe(atKill);
-  expect(reopened.mountain.jobs.driving, "the move survived the kill").toBe(0);
+  expect(reopened.mountain.project.kind, "the move survived the kill").toBe(
+    "onHold",
+  );
   expect(await player.cardUp()).toBe(false);
   await player.expectStones(atKill);
 

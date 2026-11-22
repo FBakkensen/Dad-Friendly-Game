@@ -40,7 +40,6 @@ import {
   fleetRate,
   orderLimit,
   orderNumbers,
-  orderShares,
   vehicleCarries,
   vehicleOpen,
   vehicleQuote,
@@ -74,17 +73,9 @@ const PLATE_STATES: Readonly<Record<Mountain["project"]["kind"], string>> = {
   unordered: "idle: no order",
 };
 
-/**
- * What transport is doing: the city's state, or the factory's work order
- * beside it (rule 7.7, #681), in the prototype's words.
- */
+/** What transport is doing for the city's project. */
 function plateState(mountain: Mountain): string {
-  if (mountain.station.kind !== "delivering") {
-    return PLATE_STATES[mountain.project.kind];
-  }
-  return mountain.project.kind === "delivering"
-    ? "shared: city, factory"
-    : "serving the factory";
+  return PLATE_STATES[mountain.project.kind];
 }
 
 function fleetWords(
@@ -487,10 +478,6 @@ export function cityScene(mountain: Mountain, now?: number): CityScene {
           builds: numbers.kind === "unordered" ? 0 : numbers.builds,
         };
       })();
-  // The wagons carry the factory's work order too (rule 7.7, #681).
-  const toStation = slice2
-    ? 0
-    : orderShares(mountain, 1, { stones: line }).station;
   const rate = buildRate(mountain);
   const driven = drivenFleet(mountain);
   const undriven = vehicleRecord(0);
@@ -521,6 +508,6 @@ export function cityScene(mountain: Mountain, now?: number): CityScene {
     building: project.kind === "unordered" ? 0 : share(builds, rate),
     driven,
     undriven,
-    load: share(brings + toStation, fleetRate(mountain)),
+    load: share(brings, fleetRate(mountain)),
   };
 }

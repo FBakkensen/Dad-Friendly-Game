@@ -8,7 +8,6 @@ import {
   upgradeUsed,
 } from "./upgrade-reveal";
 import { UPGRADES } from "./upgrades";
-import { workshopUnlocked } from "./workshop";
 
 /**
  * Which systems the dad has been shown and which he has used (M11, #241).
@@ -17,17 +16,13 @@ import { workshopUnlocked } from "./workshop";
  * and one "New" note above the bar; a small system gets the dot only. The
  * note goes once the sheet is opened (`seen`). The dot stays until the
  * first real use (`taught`). Only one note shows at a time.
- *
- * Both lists are saved in the workshop map. A save from before them has
- * neither: nothing is seen, and anything already used counts as taught,
- * because `used` reads the mountain itself.
  */
 
 type TeachSize = "big" | "small";
 
 /** Every system the game teaches: its big notes, its small dots, and each upgrade row. */
 export type TeachId =
-  "workshop" | "engineers" | "tending" | "promotion" | "staffing" | RevealRowId;
+  "engineers" | "tending" | "promotion" | "staffing" | RevealRowId;
 
 type TeachSpec = {
   readonly id: TeachId;
@@ -40,14 +35,6 @@ type TeachSpec = {
 
 /** In the order their notes take turns. */
 const TEACH_SPECS: readonly TeachSpec[] = [
-  {
-    id: "workshop",
-    size: "big",
-    unlocked: workshopUnlocked,
-    used: (mountain) =>
-      mountain.bench !== undefined ||
-      Object.values(mountain.crafted).some((level) => level > 0),
-  },
   // Big system (#246): the first engineer arrives with the first borer.
   // The first trip is the first use.
   {

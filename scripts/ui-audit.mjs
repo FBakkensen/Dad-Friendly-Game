@@ -35,7 +35,6 @@ import {
   sliceListSave,
   sliceNightSave,
   sliceRefinerySave,
-  sliceFactoryOrderSave,
   sliceGraniteUnsunkSave,
   sliceTwoLevelsSave,
   sliceRoofSave,
@@ -45,6 +44,7 @@ import {
   sliceWarehouseSave,
   sliceWarehouseTrucksSave,
   sliceYardFullSave,
+  slice2Part1Save,
 } from "../tools/browser/fixtures.ts";
 
 const OUT = "docs/ui-audit";
@@ -698,34 +698,63 @@ async function main() {
   await capture("slice-refinery", (viewport) =>
     openFrame(viewport, sliceRefinerySave(Date.now()), "refinery"),
   );
-  // Part 3 (#681, switched on in #682).
-  await capture("slice-factory", (viewport) =>
-    openFrame(viewport, sliceFactoryOrderSave(Date.now()), "factory", {
-      search: MEMORY,
-    }),
-  );
+  // Slice 2 Part 1 (#768, #769): global Transport sheet with active runs.
+  await capture("slice-transport", async (viewport) => {
+    const opened = await openFrame(
+      viewport,
+      slice2Part1Save(Date.now()),
+      "mine",
+      {
+        search: MEMORY,
+      },
+    );
+    await press(opened.page, ".frame-transport");
+    await opened.page.waitForSelector(".transport-sheet:not([hidden])", {
+      visible: true,
+      timeout: 8_000,
+    });
+    return opened;
+  });
   // The mine with two levels (#680).
   await capture("slice-mine-two-levels", (viewport) =>
     openFrame(viewport, sliceTwoLevelsSave(Date.now()), "mine", {
       search: MEMORY,
     }),
   );
-  // The saws, the trucks and the Granite's card (#754).
+  // The saws, the trucks and the Granite's card (#754, #769).
   await capture("slice-refinery-two-levels", (viewport) =>
     openFrame(viewport, sliceTwoLevelsSave(Date.now()), "refinery", {
       search: MEMORY,
     }),
   );
-  await capture("slice-city-trucks", (viewport) =>
-    openFrame(viewport, sliceWarehouseTrucksSave(Date.now()), "city", {
-      search: MEMORY,
-    }),
-  );
-  await capture("slice-city-trucks-hint", (viewport) =>
-    openFrame(viewport, sliceWarehouseSave(Date.now()), "city", {
-      search: MEMORY,
-    }),
-  );
+  await capture("slice-city-trucks", async (viewport) => {
+    const opened = await openFrame(
+      viewport,
+      sliceWarehouseTrucksSave(Date.now()),
+      "city",
+      { search: MEMORY },
+    );
+    await press(opened.page, ".frame-transport");
+    await opened.page.waitForSelector(".transport-sheet:not([hidden])", {
+      visible: true,
+      timeout: 8_000,
+    });
+    return opened;
+  });
+  await capture("slice-city-trucks-hint", async (viewport) => {
+    const opened = await openFrame(
+      viewport,
+      sliceWarehouseSave(Date.now()),
+      "city",
+      { search: MEMORY },
+    );
+    await press(opened.page, ".frame-transport");
+    await opened.page.waitForSelector(".transport-sheet:not([hidden])", {
+      visible: true,
+      timeout: 8_000,
+    });
+    return opened;
+  });
   await capture("slice-card-granite", async (viewport) => {
     const opened = await openFrame(
       viewport,

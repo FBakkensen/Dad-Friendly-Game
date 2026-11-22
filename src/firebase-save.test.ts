@@ -88,7 +88,7 @@ describe("firestore persistent cache", () => {
     firestore.getDocFromServer.mockResolvedValue({
       exists: () => true,
       data: () => ({
-        version: 10,
+        version: 11,
         rev: 2,
         deviceId: "device-123",
         lastSeen: 10,
@@ -132,7 +132,7 @@ describe("firestore persistent cache", () => {
     listener?.({
       exists: () => true,
       data: () => ({
-        version: 10,
+        version: 11,
         rev: 3,
         deviceId: "device-123",
         lastSeen: 11,
@@ -163,7 +163,7 @@ describe("the save's home (#558)", () => {
       data: () => data,
       metadata: { fromCache: false, hasPendingWrites: false },
     });
-    firestore.getDocFromServer.mockResolvedValueOnce(snap({ version: 11 }));
+    firestore.getDocFromServer.mockResolvedValueOnce(snap({ version: 12 }));
     await expect(save.load({ uid: "dad", fresh: true })).resolves.toEqual({
       kind: "newer",
     });

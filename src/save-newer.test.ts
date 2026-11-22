@@ -10,8 +10,8 @@ import type { Mountain } from "./mountain";
 import { createProgressStore } from "./progress-store";
 import { SESSION_SAVE_KEY } from "./session-save";
 import { createMemoryBus, createTabWriter } from "./tab-writer";
+import type { TeachId } from "./teach";
 import { digStones, minedMountain, saveText } from "./test-fixtures";
-import type { RecipeId } from "./workshop";
 
 const user = { uid: "test-dad", label: "Test Dad" };
 const BACKUP_KEY = `dad-friendly-game-backup:${user.uid}`;
@@ -102,7 +102,7 @@ describe("a save from a later build (#558)", () => {
   it("a newer phone backup writes nothing", async () => {
     const docs = new Map<string, Mountain>();
     const storage = createMemoryStorage();
-    const raw = JSON.stringify({ uid: user.uid, save: { version: 11 } });
+    const raw = JSON.stringify({ uid: user.uid, save: { version: 12 } });
     storage.setItem(BACKUP_KEY, raw);
     storage.writes.length = 0;
     const clock = { at: 1_000 };
@@ -154,7 +154,7 @@ describe("a save from a later build (#558)", () => {
       expect(second.getSnapshot().elsewhere).toBe(true);
     });
     first.dispose();
-    const raw = JSON.stringify({ uid: user.uid, save: { version: 11 } });
+    const raw = JSON.stringify({ uid: user.uid, save: { version: 12 } });
     storage.setItem(BACKUP_KEY, raw);
     await second.playHere();
     await vi.waitFor(() => {
@@ -167,7 +167,7 @@ describe("a save from a later build (#558)", () => {
   it("a newer guest save met at sign-in writes nothing", async () => {
     const docs = new Map<string, Mountain>();
     const storage = createMemoryStorage();
-    const raw = JSON.stringify({ version: 11, lastSeen: 1 });
+    const raw = JSON.stringify({ version: 12, lastSeen: 1 });
     storage.setItem(SESSION_SAVE_KEY, raw);
     storage.writes.length = 0;
     const clock = { at: 1_000 };
@@ -191,7 +191,7 @@ describe("a save from a later build (#558)", () => {
 
   it("a newer guest save writes nothing", () => {
     const storage = createMemoryStorage();
-    const raw = JSON.stringify({ version: 11, lastSeen: 1 });
+    const raw = JSON.stringify({ version: 12, lastSeen: 1 });
     storage.setItem(SESSION_SAVE_KEY, raw);
     storage.writes.length = 0;
     const clock = { at: 1_000 };
@@ -324,8 +324,8 @@ describe("the writer reads back what it sends (#558)", () => {
     progress.applyMutation((mountain) => ({
       ...mountain,
       stock: { ...mountain.stock, stones: mountain.stock.stones + 10 },
-      // A recipe no build has: the reader would call this save newer.
-      recipes: [...mountain.recipes, "kiln" as RecipeId],
+      // A building no build has: the reader would call this save newer.
+      seen: [...mountain.seen, "spire" as TeachId],
     }));
     progress.flush();
     await Promise.resolve();
@@ -356,7 +356,7 @@ describe("the writer reads back what it sends (#558)", () => {
     progress.applyMutation((mountain) => ({
       ...mountain,
       stock: { ...mountain.stock, stones: mountain.stock.stones + 10 },
-      recipes: [...mountain.recipes, "kiln" as RecipeId],
+      seen: [...mountain.seen, "spire" as TeachId],
     }));
     progress.applyMutation((mountain) => ({
       ...mountain,
@@ -364,7 +364,7 @@ describe("the writer reads back what it sends (#558)", () => {
     }));
     progress.flush();
     progress.dispose();
-    expect(storage.getItem(BACKUP_KEY) ?? "").not.toContain("kiln");
+    expect(storage.getItem(BACKUP_KEY) ?? "").not.toContain("spire");
     expect(
       progress.fieldLog().events.filter((event) => event.code === "save.shape"),
     ).toHaveLength(1);
@@ -385,10 +385,10 @@ describe("the writer reads back what it sends (#558)", () => {
     progress.applyMutation((mountain) => ({
       ...mountain,
       stock: { ...mountain.stock, stones: mountain.stock.stones + 10 },
-      recipes: [...mountain.recipes, "kiln" as RecipeId],
+      seen: [...mountain.seen, "spire" as TeachId],
     }));
     progress.flush();
-    expect(storage.getItem(SESSION_SAVE_KEY) ?? "").not.toContain("kiln");
+    expect(storage.getItem(SESSION_SAVE_KEY) ?? "").not.toContain("spire");
     expect(progress.getSnapshot().log).toContain("save.shape");
     progress.dispose();
   });
@@ -396,6 +396,6 @@ describe("the writer reads back what it sends (#558)", () => {
   it("a fresh guest save text reads ok", () => {
     expect(
       JSON.parse(saveText(minedMountain(2), 1)) as { version: number },
-    ).toMatchObject({ version: 10 });
+    ).toMatchObject({ version: 11 });
   });
 });

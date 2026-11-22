@@ -1,6 +1,5 @@
 // @vitest-environment happy-dom
 import { describe, expect, it, vi } from "vitest";
-import { EMPTY_MATERIALS } from "./layers";
 import { createMemoryAuth } from "./auth";
 import {
   createMemoryCloudSave,
@@ -24,7 +23,6 @@ import {
   BARE_MOUNTAIN,
 } from "./mountain";
 import {
-  benchCraft,
   CREWED_JOBS,
   crewedStart,
   guestSave,
@@ -49,7 +47,7 @@ import { onTrip, promoteCost, promotePrice } from "./engineers";
 import { EMPTY_STOCK, stonesPrice } from "./stock";
 import { send, type Expedition } from "./expeditions";
 import { ENGINEER_FIX_MS } from "./hazards";
-import { firstNotice, noticesOf } from "./session";
+import { firstNotice } from "./session";
 
 /**
  * A tap's worth of progress: `count` stones of rock dug, and into the stock,
@@ -545,7 +543,6 @@ describe("away earnings", () => {
       awayMs: 600_000,
       paidMs: 600_000,
       capped: false,
-      materials: EMPTY_MATERIALS,
     });
     const paid = accrueAway({ mountain: crew, lastSeen: 0, now: clock });
     expect(firstNotice(progress.getSnapshot(), "away")?.report).toEqual(
@@ -1152,7 +1149,6 @@ describe("save status on the unhappy paths (#114 coverage)", () => {
     });
     progress.applyMutation(() => minedMountain(3));
     const before = progress.getSnapshot();
-    progress.dismiss("craft");
     progress.dismiss("away");
     expect(progress.getSnapshot()).toEqual(before);
     progress.dispose();
@@ -1578,47 +1574,6 @@ describe("field log events for the deep (#150)", () => {
     expect(
       progress.getSnapshot().mountain.engineers.map((hand) => hand.name),
     ).toEqual(["Ada", "Ruth"]);
-  });
-
-  it("records a sketch brought home and teaches that recipe", () => {
-    const { progress, advance, at } = guest();
-    progress.applyMutation((mountain) => ({
-      ...mountain,
-      owned: { ...mountain.owned, borer: 1 },
-      engineers: [{ name: "Nils", rank: 1, trips: 3, post: "camp" }],
-    }));
-    const sentAt = at();
-    progress.applyMutation((mountain) => {
-      const sent = send(mountain, 0, "deep-dark", sentAt);
-      const next = sent.expeditions[0];
-      if (next === undefined) {
-        return mountain;
-      }
-      return {
-        ...sent,
-        expeditions: [
-          {
-            ...next,
-            returnsAt: sentAt + 2_000,
-            find: { kind: "recipe", id: "engineers-kit" },
-          },
-        ],
-      };
-    });
-    advance(2_000);
-    progress.tick();
-    expect(progress.getSnapshot().mountain.recipes).toContain("engineers-kit");
-    expect(progress.getSnapshot().homecomings[0]?.find).toEqual({
-      kind: "recipe",
-      id: "engineers-kit",
-    });
-    expect(progress.fieldLog().events).toContainEqual(
-      expect.objectContaining({
-        code: "recipe.found",
-        data: { id: "engineers-kit", source: "deep-dark" },
-      }),
-    );
-    progress.dispose();
   });
 
   it("records trouble started and fixed by hand and by a hold", () => {
@@ -2337,99 +2292,6 @@ describe("expeditions through the save", () => {
     blocked.tick();
     expect(blocked.getSnapshot().homecomings).toHaveLength(1);
     blocked.dispose();
-  });
-});
-
-describe("craft-done notice", () => {
-  const guest = (storage: Storage, now: () => number) =>
-    createProgressStore({
-      auth: createMemoryAuth(),
-      sessionStorage: storage,
-      now,
-    });
-
-  const shed = (): Mountain => ({
-    ...createMountain(),
-    owned: { ...createMountain().owned, helper: 1, cart: 1 },
-    stock: {
-      ...createMountain().stock,
-      stones: 5_000_000,
-      clay: 20,
-      iron: 20,
-      crystal: 0,
-      heartstone: 0,
-    },
-  });
-
-  it("names a finished craft once, during play and after time away", () => {
-    const storage = createMemoryStorage();
-    let clock = 0;
-    const progress = guest(storage, () => clock);
-    // A save's craft: the old bench never opens in play (#740).
-    progress.applyMutation(() => benchCraft(shed(), "iron-rails", 0));
-    expect(
-      noticesOf(progress.getSnapshot(), "craft").map(({ craft }) => craft),
-    ).toEqual([]);
-    const endsAt = progress.getSnapshot().mountain.bench?.endsAt ?? 0;
-    while (clock < endsAt) {
-      clock = Math.min(endsAt, clock + 9_000);
-      progress.tick();
-    }
-    const fitted = noticesOf(progress.getSnapshot(), "craft").map(
-      ({ craft }) => craft,
-    );
-    expect(fitted.map(({ id, level }) => ({ id, level }))).toEqual([
-      { id: "iron-rails", level: 1 },
-    ]);
-    expect(progress.fieldLog().events).toContainEqual(
-      expect.objectContaining({
-        code: "craft.done",
-        data: { id: "iron-rails", count: 1 },
-      }),
-    );
-    progress.dismiss("craft");
-    expect(
-      noticesOf(progress.getSnapshot(), "craft").map(({ craft }) => craft),
-    ).toEqual([]);
-    progress.flush();
-    progress.dispose();
-
-    const reloaded = guest(storage, () => clock);
-    expect(
-      noticesOf(reloaded.getSnapshot(), "craft").map(({ craft }) => craft),
-    ).toEqual([]);
-    // The kept log comes back with the reload (#479), and names the craft no second time.
-    expect(
-      reloaded.fieldLog().events.filter((event) => event.code === "craft.done"),
-    ).toHaveLength(1);
-    reloaded.dispose();
-
-    const awayStore = createMemoryStorage();
-    writeSessionSave({
-      storage: awayStore,
-      mountain: {
-        ...shed(),
-        owned: { ...shed().owned, helper: 4 },
-        bench: { recipe: "iron-rails", startedAt: 0, endsAt: 60_000 },
-      },
-      lastSeen: 0,
-    });
-    let back = 120_000;
-    const away = guest(awayStore, () => back);
-    // A fresh mine's night fits no gear (#739): the first live tick does.
-    back += 1_000;
-    away.tick();
-    expect(
-      noticesOf(away.getSnapshot(), "craft")
-        .map(({ craft }) => craft)
-        .map(({ id, level }) => ({ id, level })),
-    ).toEqual([{ id: "iron-rails", level: 1 }]);
-    // The fit after time away is the craft-done notice.
-    away.dismiss("craft");
-    expect(
-      noticesOf(away.getSnapshot(), "craft").map(({ craft }) => craft),
-    ).toEqual([]);
-    away.dispose();
   });
 });
 
@@ -4367,11 +4229,11 @@ describe("two saves found (#226)", () => {
       });
     });
     expect(first.getSnapshot().saveConflict).toBeUndefined();
-    const otherMaterials = { clay: 9, iron: 4, crystal: 0, heartstone: 0 };
+    const otherGoods = { brick: 9, cutStone: 4 };
     second.applyMutation((mountain) => ({
       ...mountain,
       owned: { ...mountain.owned, cart: 2, drill: 1, helper: 4 },
-      stock: { ...mountain.stock, stones: 80, ...otherMaterials },
+      stock: { ...mountain.stock, stones: 80, ...otherGoods },
     }));
     await vi.waitFor(() => {
       expect(second.getSnapshot().saveConflict).toBeDefined();
@@ -4379,7 +4241,7 @@ describe("two saves found (#226)", () => {
     const conflict = second.getSnapshot().saveConflict;
     expect(conflict?.local.mountain.owned.cart).toBe(2);
     expect(conflict?.local.mountain.stock.stones).toBe(80);
-    expect(conflict?.local.mountain.stock).toMatchObject(otherMaterials);
+    expect(conflict?.local.mountain.stock).toMatchObject(otherGoods);
     expect(conflict?.remote.mountain.upgrades).toEqual({
       ...NO_UPGRADES,
       boots: 1,
@@ -4429,7 +4291,7 @@ describe("two saves found (#226)", () => {
     expect(reloaded.getSnapshot().mountain.owned.drill).toBe(1);
     expect(reloaded.getSnapshot().mountain.owned.helper).toBe(4);
     expect(reloaded.getSnapshot().mountain.stock.stones).toBe(80);
-    expect(reloaded.getSnapshot().mountain.stock).toMatchObject(otherMaterials);
+    expect(reloaded.getSnapshot().mountain.stock).toMatchObject(otherGoods);
     expect(reloaded.getSnapshot().mountain.upgrades).toEqual(NO_UPGRADES);
     const copies = await reloaded.savedCopies();
     expect(copies).toHaveLength(1);
@@ -4502,10 +4364,8 @@ describe("two saves found (#226)", () => {
       stock: {
         ...mountain.stock,
         stones: 40,
-        clay: 1,
-        iron: 0,
-        crystal: 0,
-        heartstone: 0,
+        brick: 1,
+        cutStone: 0,
       },
     }));
     await vi.waitFor(async () => {
@@ -4518,10 +4378,8 @@ describe("two saves found (#226)", () => {
       stock: {
         ...mountain.stock,
         stones: 70,
-        clay: 8,
-        iron: 2,
-        crystal: 1,
-        heartstone: 0,
+        brick: 8,
+        cutStone: 1,
       },
     }));
     await vi.waitFor(() => {
@@ -4538,10 +4396,8 @@ describe("two saves found (#226)", () => {
     expect(chosen.owned.drill).toBe(0);
     expect(chosen.stock.stones).toBe(40);
     expect(chosen.stock).toMatchObject({
-      clay: 1,
-      iron: 0,
-      crystal: 0,
-      heartstone: 0,
+      brick: 1,
+      cutStone: 0,
     });
     const archived = await there.savedCopies();
     expect(
@@ -4549,7 +4405,7 @@ describe("two saves found (#226)", () => {
         (copy) =>
           copy.mountain.owned.drill === 2 &&
           copy.mountain.stock.stones === 70 &&
-          copy.mountain.stock.crystal === 1,
+          copy.mountain.stock.cutStone === 1,
       ),
     ).toBe(true);
     const choice = there
@@ -5083,7 +4939,7 @@ describe("dispatch (#409)", () => {
     });
     progress.dispose();
     const saved = guestSave(sessionStorage);
-    expect(progress.dispatch({ kind: "markSeen", id: "workshop" })).toEqual({
+    expect(progress.dispatch({ kind: "markSeen", id: "tending" })).toEqual({
       kind: "refused",
       reason: "not-playing",
     });

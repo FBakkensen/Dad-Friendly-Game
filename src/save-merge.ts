@@ -8,16 +8,15 @@ import { GOOD_IDS } from "./stock";
 import { TIER_IDS } from "./tiers";
 import { VEHICLE_IDS } from "./transport";
 import { upgradeLevel, UPGRADES } from "./upgrades";
-import { RECIPE_IDS, craftedLevel } from "./workshop";
 
 /**
  * Two copies of one run.
  *
  * A later run wins whole. A lower rev is never adopted. When one copy is at
  * least as far on every counted fact and further on rock dug, upgrades,
- * crafts, recipes, finds, engineer trips, the stockyard's level, the sunk
- * shaft, or the city's buildings (what is operational, the steps built and
- * what has arrived for the step in hand), that copy is a silent fast-forward.
+ * finds, engineer trips, the stockyard's level, the sunk shaft, or the
+ * city's buildings (what is operational, the steps built and what has
+ * arrived for the step in hand), that copy is a silent fast-forward.
  * Machines on each level, makers, crew and vehicles count too: being behind
  * on them blocks the fast-forward (#664, #666, #673).
  * A lead that is only machines, crew or vehicles, or a split where each side has
@@ -48,8 +47,6 @@ export type MergeResult = FastForward | MergeConflict;
 type Facts = {
   readonly mined: number;
   readonly upgrades: Readonly<Record<string, number>>;
-  readonly crafts: Readonly<Record<string, number>>;
-  readonly recipes: readonly string[];
   readonly finds: readonly string[];
   readonly engineers: Readonly<Record<string, number>>;
   readonly operational: readonly string[];
@@ -174,13 +171,6 @@ function facts(mountain: Mountain): Facts {
       upgrades[upgrade.id] = level;
     }
   }
-  const crafts: Record<string, number> = {};
-  for (const id of RECIPE_IDS) {
-    const level = craftedLevel(mountain, id);
-    if (level > 0) {
-      crafts[id] = level;
-    }
-  }
   const engineers: Record<string, number> = {};
   for (const engineer of mountain.engineers) {
     engineers[engineer.name] = engineer.trips;
@@ -188,8 +178,6 @@ function facts(mountain: Mountain): Facts {
   return {
     mined: mountain.rockDug,
     upgrades,
-    crafts,
-    recipes: [...mountain.recipes],
     finds: [...mountain.finds],
     engineers,
     operational: [...mountain.operational],
@@ -248,7 +236,7 @@ function cityAhead(
   return left[0] === right[0] ? left[1] - right[1] : left[0] - right[0];
 }
 
-/** Rock, upgrades, crafts, recipes, finds, trips, the stockyard, the shaft, or buildings. Not machines. */
+/** Rock, upgrades, finds, trips, the stockyard, the shaft, or buildings. Not machines. */
 function aheadOnProgress(left: Facts, right: Facts): boolean {
   if (left.mined > right.mined || cityAhead(left.city, right.city) > 0) {
     return true;
@@ -260,12 +248,6 @@ function aheadOnProgress(left: Facts, right: Facts): boolean {
     return true;
   }
   if (someHigher(left.upgrades, right.upgrades)) {
-    return true;
-  }
-  if (someHigher(left.crafts, right.crafts)) {
-    return true;
-  }
-  if (someOnly(left.recipes, right.recipes)) {
     return true;
   }
   if (someOnly(left.finds, right.finds)) {
@@ -288,10 +270,8 @@ function covers(left: Facts, right: Facts): boolean {
     left.stockyard >= right.stockyard &&
     left.shaft >= right.shaft &&
     coversNumbers(left.upgrades, right.upgrades) &&
-    coversNumbers(left.crafts, right.crafts) &&
     coversNumbers(left.engineers, right.engineers) &&
     coversNames(left.engineers, right.engineers) &&
-    coversList(left.recipes, right.recipes) &&
     coversList(left.finds, right.finds) &&
     coversList(left.operational, right.operational) &&
     cityAhead(left.city, right.city) >= 0 &&

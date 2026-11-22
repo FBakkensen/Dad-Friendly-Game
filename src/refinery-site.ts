@@ -273,7 +273,7 @@ function buildOverlay(): {
   const chute = el("p", "refinery-bypass");
   const bypass = el("span", "board-num");
   chute.append(
-    el("span", "", "bypass to stone"),
+    el("span", "", "to stone"),
     bypass,
     el("span", "", BYPASS_RECIPE),
   );
@@ -376,7 +376,7 @@ export function createRefinerySite(
         hide(note, true);
         return;
       }
-      view = refineryView(mountain, now);
+      view = refineryView(mountain);
       forecast = nextForecast(
         forecast,
         mountain,

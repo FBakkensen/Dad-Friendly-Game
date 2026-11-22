@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { createMountain, type Mountain } from "./mountain";
 import { BUILDING_IDS } from "./city";
+import { withFactors } from "./economy/factors";
+import { createMountain, type Mountain } from "./mountain";
+import { PLAY_FACTORS } from "./part-switch";
 import {
   createSession,
   firstNotice,
@@ -9,11 +11,12 @@ import {
   openBaselines,
   step,
   troubleMark,
+  WELCOME_MIN_AWAY_MS,
   type Notice,
   type Session,
   type SessionEffect,
 } from "./session";
-import { NOTHING_CRAFTED } from "./workshop";
+import { stockpileRoom } from "./stockyard";
 
 const codes = (effects: readonly SessionEffect[]): string[] =>
   effects.flatMap((effect) => (effect.kind === "record" ? [effect.code] : []));
@@ -26,35 +29,10 @@ describe("session step", () => {
   it("does not announce what a loaded save already holds", () => {
     const loaded = playing({
       ...createMountain(),
-      crafted: { ...NOTHING_CRAFTED, "iron-rails": 1 },
       operational: [...BUILDING_IDS],
     });
     const noticed = step(loaded, { kind: "notice" }, 0);
     expect(noticed.session.news.notices).toEqual([]);
-  });
-
-  it("keeps the fitted mountain and the moment on a craft notice", () => {
-    const session = playing();
-    const fitted = {
-      ...session,
-      mountain: {
-        ...session.mountain,
-        crafted: { ...NOTHING_CRAFTED, "iron-rails": 1 },
-      },
-    };
-    const noticed = step(fitted, { kind: "notice" }, 42_000);
-    expect(noticed.session.news.notices).toEqual([
-      {
-        kind: "craft",
-        craft: {
-          id: "iron-rails",
-          level: 1,
-          mountain: fitted.mountain,
-          at: 42_000,
-        },
-      },
-    ]);
-    expect(codes(noticed.effects)).toContain("craft.done");
   });
 
   it("presses only the troubled tier, and the fifth press fixes it", () => {
@@ -111,7 +89,7 @@ describe("session step", () => {
         ...session,
         news: {
           ...session.news,
-          notices: [craftNews, ...BUILDING_IDS.map(lit)],
+          notices: [graniteNews, ...BUILDING_IDS.map(lit)],
         },
       },
       { kind: "begin", mountain: { ...createMountain(), startedAt: 5_000 } },
@@ -126,14 +104,14 @@ describe("session step", () => {
     const session = playing();
     const news: Session = {
       ...session,
-      news: { ...session.news, notices: [lit(BUILDING_IDS[0]), craftNews] },
+      news: { ...session.news, notices: [lit(BUILDING_IDS[0]), graniteNews] },
     };
     expect(hasNews(session, "operational")).toBe(false);
     expect(hasNews(news, "operational")).toBe(true);
-    const craftClosed = step(news, { kind: "dismiss", what: "craft" }, 0);
-    expect(hasNews(craftClosed.session, "craft")).toBe(false);
-    expect(craftClosed.session.news.notices).toEqual([lit(BUILDING_IDS[0])]);
-    expect(step(session, { kind: "dismiss", what: "craft" }, 0).session).toBe(
+    const levelClosed = step(news, { kind: "dismiss", what: "level" }, 0);
+    expect(hasNews(levelClosed.session, "level")).toBe(false);
+    expect(levelClosed.session.news.notices).toEqual([lit(BUILDING_IDS[0])]);
+    expect(step(session, { kind: "dismiss", what: "level" }, 0).session).toBe(
       session,
     );
   });
@@ -145,24 +123,24 @@ describe("session step", () => {
       ...session,
       news: {
         ...session.news,
-        notices: [lit(first), craftNews, lit(second)],
+        notices: [lit(first), graniteNews, lit(second)],
       },
     };
     const one = step(two, { kind: "dismiss", what: "operational" }, 0).session;
     expect(firstNotice(one.news, "operational")?.building).toBe(second);
-    expect(noticesOf(one.news, "craft")).toEqual([craftNews]);
+    expect(noticesOf(one.news, "level")).toEqual([graniteNews]);
     const none = step(one, { kind: "dismiss", what: "operational" }, 0).session;
     expect(hasNews(none, "operational")).toBe(false);
-    expect(none.news.notices).toEqual([craftNews]);
+    expect(none.news.notices).toEqual([graniteNews]);
   });
 
-  it("closes the whole welcome card: its crafts and homecomings", () => {
+  it("closes the whole welcome card and homecomings while leaving operational notices", () => {
     const session = playing();
     const card: Session = {
       ...session,
       news: {
         ...session.news,
-        notices: [craftNews, lit(BUILDING_IDS[0])],
+        notices: [lit(BUILDING_IDS[0])],
         homecomings: [
           {
             engineer: "Ada",
@@ -180,13 +158,52 @@ describe("session step", () => {
     expect(closed.session.news.notices).toEqual([lit(BUILDING_IDS[0])]);
     expect(closed.session.news.homecomings).toEqual([]);
   });
+
+  it("omits the shift report when Slice 2 Part 1 only fills the pithead while the stockyard is full (#769)", () => {
+    withFactors(PLAY_FACTORS, () => {
+      const base = createMountain();
+      const cap = stockpileRoom(base, "stones");
+      const fullYard: Mountain = {
+        ...base,
+        owned: { ...base.owned, helper: 3 },
+        jobs: { ...base.jobs, drilling: 1, haulage: 1, hoisting: 1 },
+        stock: { ...base.stock, stones: cap },
+      };
+      const session: Session = { ...playing(fullYard), lastSeen: 1 };
+      const after = step(
+        session,
+        { kind: "tick" },
+        1 + WELCOME_MIN_AWAY_MS * 10,
+      );
+      expect(after.session.mountain.pithead.topsoil).toBeGreaterThan(0);
+      expect(after.mined).toBeGreaterThan(0);
+      expect(hasNews(after.session, "away")).toBe(false);
+    });
+  });
+
+  it("shows the shift report when Slice 2 Part 1 moves pithead rock into an open stockyard (#769)", () => {
+    withFactors(PLAY_FACTORS, () => {
+      const base = createMountain();
+      const hauling: Mountain = {
+        ...base,
+        owned: { ...base.owned, helper: 1 },
+        jobs: { ...base.jobs, driving: 1 },
+        pithead: { ...base.pithead, topsoil: 100 },
+      };
+      const session: Session = { ...playing(hauling), lastSeen: 1 };
+      const after = step(
+        session,
+        { kind: "tick" },
+        1 + WELCOME_MIN_AWAY_MS * 10,
+      );
+      expect(after.session.mountain.stock.stones).toBeGreaterThan(0);
+      expect(after.mined).toBeGreaterThan(0);
+      expect(hasNews(after.session, "away")).toBe(true);
+    });
+  });
 });
 
-/** A craft fitted: a notice the welcome card closes with the rest of its news. */
-const craftNews: Notice = {
-  kind: "craft",
-  craft: { id: "iron-rails", level: 1, mountain: createMountain(), at: 0 },
-};
+const graniteNews: Notice = { kind: "level", level: "granite" };
 const lit = (building: (typeof BUILDING_IDS)[number] | undefined): Notice => {
   if (building === undefined) {
     throw new Error("a building");

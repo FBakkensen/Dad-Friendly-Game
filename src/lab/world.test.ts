@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { send } from "../expeditions";
 import { accrue, accrueAway, createMountain, type Mountain } from "../mountain";
-import { benchCraft } from "../test-fixtures";
 import { createWorld, step, type World } from "./world";
 
 const ada = { name: "Ada", rank: 0, trips: 0, post: "borer" } as const;
@@ -94,29 +93,5 @@ describe("world step", () => {
     expect(away.mountain).toEqual(paid.mountain);
     expect(away.mountain.engineers[0]?.post).toBe("borer");
     expect(away.hazards.phase).toBe("waiting");
-  });
-
-  it("fits a finished craft on the live clock", () => {
-    const shed: Mountain = {
-      ...createMountain(),
-      stock: {
-        ...createMountain().stock,
-        stones: 50_000_000,
-        clay: 40,
-        iron: 40,
-        crystal: 0,
-        heartstone: 0,
-      },
-      owned: { ...createMountain().owned, helper: 4, cart: 1 },
-    };
-    // A save's craft: the old bench never opens in play (#740).
-    const started = benchCraft(shed, "iron-rails", 0);
-    const endsAt = started.bench?.endsAt ?? 0;
-    const early = step(createWorld(1, started), endsAt - 1, "live");
-    expect(early.mountain.bench?.recipe).toBe("iron-rails");
-    expect(early.mountain.crafted["iron-rails"]).toBe(0);
-    const done = step(createWorld(1, started), endsAt, "live");
-    expect(done.mountain.bench).toBeUndefined();
-    expect(done.mountain.crafted["iron-rails"]).toBe(1);
   });
 });

@@ -358,14 +358,11 @@ function slice2PitheadDrain(mountain: Mountain): {
  * lifts from it, and the shaft's hoisting from both. With the Granite shut the Granite's are 0, and the
  * Topsoil's are `mineChain`'s.
  */
-export function mineLevelFlows(
-  mountain: Mountain,
-  now?: number,
-): {
+export function mineLevelFlows(mountain: Mountain): {
   readonly levels: Readonly<Record<MineLevelId, LevelFlow>>;
   readonly lift: number;
 } {
-  const timer = crewTimer(mountain, now);
+  const timer = crewTimer();
   if (slice2Part1On()) {
     const chains = undergroundPitheadChains(
       mountain,
@@ -862,8 +859,6 @@ export function mineWritten(mountain: Mountain, step: MineStep): MineFlow {
               granite: { ...granite, piles: step.granitePiles },
             },
       rockDug: mountain.rockDug + step.dug.topsoil + step.dug.granite,
-      // Counted where it is drilled, for the Granite's iron (#674).
-      graniteDug: mountain.graniteDug + step.dug.granite,
     },
     mined: step.mined,
     gained,
@@ -1182,7 +1177,6 @@ export function flowUndergroundToPithead(
         granite: mountain.pithead.granite + gHoist,
       },
       rockDug: mountain.rockDug + tDug + gDug,
-      graniteDug: mountain.graniteDug + gDug,
     },
     hoisted: { topsoil: tHoist, granite: gHoist },
   };

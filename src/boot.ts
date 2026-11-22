@@ -12,7 +12,7 @@ import {
   type CloudSave,
 } from "./cloud-save";
 import { holdFactors } from "./economy/factors";
-import { PLAY_FACTORS, SLICE_2_PART_1_OFF } from "./part-switch";
+import { PLAY_FACTORS } from "./part-switch";
 import { createMountain, type Mountain } from "./mountain";
 import { createProgressStore, type ProgressStore } from "./progress-store";
 import { createBrowserTabWriter, type TabWriter } from "./tab-writer";
@@ -40,8 +40,6 @@ export function parseBootOptions(search: string): {
   previewCopies: boolean;
   /** Dev-only layout hook: the update card, as a newer service worker opens it. */
   previewUpdate: boolean;
-  /** Dev-only: Slice 2 Part 1 rules and screens before #769 switches them on (#768). */
-  slice2Part1: boolean;
 } {
   const params = new URLSearchParams(search);
   const save = params.get("save");
@@ -52,7 +50,6 @@ export function parseBootOptions(search: string): {
     previewSave: save === "loading" || save === "error" ? save : undefined,
     previewCopies: params.get("copies") === "shelf",
     previewUpdate: params.get("update") === "shown",
-    slice2Part1: params.get("slice2Part1") === "1",
   };
 }
 
@@ -77,14 +74,8 @@ export async function createAppServices({
   devMode?: boolean;
 }): Promise<AppServices> {
   const options = parseBootOptions(search);
-  // Parts 1, 2 and 3 are switched on (#664, #672, #682): every page plays
-  // the whole of slice 1, to the Foundry's roof. `?slice2Part1=1` previews
-  // Slice 2 Part 1 on a dev page (#768) until #769 switches it on.
-  holdFactors(
-    devMode && options.slice2Part1
-      ? { ...PLAY_FACTORS, [SLICE_2_PART_1_OFF]: 0 }
-      : PLAY_FACTORS,
-  );
+  // Slice 2 Part 1 is switched on (#769): every page plays PLAY_FACTORS.
+  holdFactors(PLAY_FACTORS);
   const user = devMode ? memoryUser(options) : undefined;
   let services =
     user === undefined

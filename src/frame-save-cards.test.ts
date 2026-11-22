@@ -95,7 +95,7 @@ describe("the save's cards on the frame", () => {
 
   it("asks for the update when the save came from a later build, and writes nothing", () => {
     const storage = createMemoryStorage();
-    const raw = JSON.stringify({ version: 11, lastSeen: 1 });
+    const raw = JSON.stringify({ version: 12, lastSeen: 1 });
     storage.setItem(SESSION_SAVE_KEY, raw);
     const { card, text, root } = mount({ storage });
     expect(card(".update-prompt").hidden).toBe(false);

@@ -227,15 +227,6 @@ export function fieldEntry(event: MoveEvent): Omit<FieldEvent, "at"> {
         code: "granite.buy",
         data: { id: event.id, count: event.count },
       };
-    case "workOrderPlaced":
-      return { code: "work.place", data: { id: event.blueprint } };
-    case "workOrderCancelled":
-      return { code: "work.cancel", data: { id: event.blueprint } };
-    case "workOrderInstalled":
-      return {
-        code: "work.install",
-        data: { id: event.blueprint, count: event.level },
-      };
     case "hoistAssigned":
       return {
         code: "hoist.assign",
@@ -451,7 +442,6 @@ export function maxFieldLogDocumentBytes(): number {
     cartSyn: 1,
     drillSyn: 1,
     borerSyn: 1,
-    machineSyn: 1,
   };
   const log: FieldLogDocument = {
     snapshot: {

@@ -69,8 +69,8 @@ export type LevelPlate = {
  * hoisting lifts from it. With two levels the Granite's lifted rock goes to
  * the saws, so the plate and the refinery count the Topsoil's alone.
  */
-function movingNow(mountain: Mountain, now: number | undefined): number[] {
-  const { face, haul, lift } = mineLevelFlows(mountain, now).levels.topsoil;
+function movingNow(mountain: Mountain): number[] {
+  const { face, haul, lift } = mineLevelFlows(mountain).levels.topsoil;
   return [face, haul, lift];
 }
 
@@ -88,8 +88,8 @@ function liftedPlate(level: MineLevelId, lifted: number): LevelPlate {
 }
 
 /** The level's plate: its name, and what comes up as stone now. */
-export function levelPlate(mountain: Mountain, now?: number): LevelPlate {
-  const lifted = movingNow(mountain, now)[STAGES.indexOf("lift")] ?? 0;
+export function levelPlate(mountain: Mountain): LevelPlate {
+  const lifted = movingNow(mountain)[STAGES.indexOf("lift")] ?? 0;
   return liftedPlate("topsoil", lifted);
 }
 
@@ -101,11 +101,8 @@ export type LevelHopper = LevelPlate & { readonly level: MineLevelId };
  * lifts from it now (`mineLevelFlows`), the Topsoil's over the kilns and,
  * once the Granite is open, the Granite's over the saws.
  */
-export function levelHoppers(
-  mountain: Mountain,
-  now?: number,
-): readonly LevelHopper[] {
-  const flows = mineLevelFlows(mountain, now).levels;
+export function levelHoppers(mountain: Mountain): readonly LevelHopper[] {
+  const flows = mineLevelFlows(mountain).levels;
   return openLevels(mountain).map((level) => ({
     level,
     ...liftedPlate(level, flows[level].lift),
@@ -150,7 +147,7 @@ export function machineKey(
 ): MachineKey {
   const speed = effectiveRates(mountain, now).tierSpeed;
   // A crew timer speeds every machine, so the key says what it will move now.
-  const timer = crewTimer(mountain, now);
+  const timer = crewTimer();
   const { count, cost } = tierQuote(mountain, tier, amount);
   const id = tier.id as MachineId;
   const kind = capital(plural(count, MACHINE_WORDS[id]));
@@ -507,9 +504,9 @@ export function stageRows(
   now?: number,
 ): readonly StageRow[] {
   const rates = effectiveRates(mountain, now);
-  const timer = crewTimer(mountain, now);
+  const timer = crewTimer();
   const work = lineWork(mountain, rates.tierSpeed);
-  const moves = movingNow(mountain, now);
+  const moves = movingNow(mountain);
   const strongest = Math.max(
     1,
     ...STAGES.map((stage) => work.stages[stage] * timer),

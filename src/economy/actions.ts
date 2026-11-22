@@ -29,16 +29,6 @@ import {
   resumeOrder,
   type BuildingId,
 } from "../city";
-import {
-  BLUEPRINT_IDS,
-  blueprintOpen,
-  installable,
-  cancelWorkOrder,
-  installWorkOrder,
-  placeWorkOrder,
-  stationOpen,
-  type BlueprintId,
-} from "../factory";
 import { assignHoists, unassignHoists, unassignedHoists } from "../cages";
 import {
   LEVEL_MACHINE_IDS,
@@ -90,7 +80,6 @@ import {
   showsDot,
   type TeachId,
 } from "../teach";
-import { cancelCraft, craftedLevel, settleBench } from "../workshop";
 import { effectiveRates, paidAwayMs } from "../rates";
 import {
   TIERS,
@@ -151,94 +140,10 @@ export type Action =
       readonly tier: TroubleTier;
       readonly startedAt: number;
     }
-  | { readonly kind: "cancelCraft" }
   | OrderAction
   | WorkerAction
   | YardAction
-  | LevelAction
-  | FactoryAction;
-
-/**
- * The factory's moves (slice 1, rule 7.13, #674), only while its station is
- * open: place a work order from a blueprint, cancel it, install it once
- * done. Placing is free: transport brings what it requires.
- */
-type FactoryAction =
-  | { readonly kind: "placeWorkOrder"; readonly blueprint: BlueprintId }
-  | { readonly kind: "cancelWorkOrder" }
-  | { readonly kind: "installWorkOrder" };
-
-/** The station's moves: a blueprint for an idle one, else cancel, and install once done. */
-function factoryActions(mountain: Mountain): readonly Action[] {
-  if (!stationOpen(mountain)) {
-    return [];
-  }
-  switch (mountain.station.kind) {
-    case "idle":
-      return BLUEPRINT_IDS.filter((id) => blueprintOpen(mountain, id)).map(
-        (blueprint) => ({ kind: "placeWorkOrder", blueprint }),
-      );
-    case "delivering":
-      return [{ kind: "cancelWorkOrder" }];
-    case "done":
-      return installable(mountain)
-        ? [{ kind: "installWorkOrder" }, { kind: "cancelWorkOrder" }]
-        : [{ kind: "cancelWorkOrder" }];
-  }
-}
-
-/** A factory move applied; nothing while the station is closed. */
-function factoryApplied(
-  mountain: Mountain,
-  action: FactoryAction,
-  now: number,
-): Mountain {
-  if (!stationOpen(mountain)) {
-    return mountain;
-  }
-  switch (action.kind) {
-    case "placeWorkOrder":
-      return placeWorkOrder(mountain, action.blueprint);
-    case "cancelWorkOrder":
-      return cancelWorkOrder(mountain);
-    case "installWorkOrder":
-      return installWorkOrder(mountain, now);
-  }
-}
-
-/** What an applied factory move did, for the field log: the blueprint, and an installed gear's level. */
-function factoryEvents(
-  before: Mountain,
-  next: Mountain,
-  action: FactoryAction,
-): readonly MoveEvent[] {
-  const { station } = before;
-  /* v8 ignore next 3 -- an applied cancel or install had a work order */
-  const blueprint =
-    action.kind === "placeWorkOrder"
-      ? action.blueprint
-      : station.kind === "idle"
-        ? undefined
-        : station.blueprint;
-  /* v8 ignore next 3 -- an applied factory move names a blueprint */
-  if (blueprint === undefined) {
-    return [];
-  }
-  switch (action.kind) {
-    case "placeWorkOrder":
-      return [{ kind: "workOrderPlaced", blueprint }];
-    case "cancelWorkOrder":
-      return [{ kind: "workOrderCancelled", blueprint }];
-    case "installWorkOrder":
-      return [
-        {
-          kind: "workOrderInstalled",
-          blueprint,
-          level: craftedLevel(next, blueprint),
-        },
-      ];
-  }
-}
+  | LevelAction;
 
 /**
  * Part 3's moves at the shaft (slice 1, rules 1.3 and 5.2, #673), only while
@@ -346,13 +251,11 @@ export function listActions(
     ...mountain.engineers.flatMap((hand, index) =>
       handActions(mountain, hand, index, now),
     ),
-    ...workshopActions(mountain, now),
     ...troubleActions(trouble),
     ...orderActions(mountain),
     ...workerActions(mountain),
     ...yardActions(mountain),
     ...levelActions(mountain),
-    ...factoryActions(mountain),
   ];
 }
 
@@ -605,15 +508,6 @@ function handActions(
   return [...sends, ...posts];
 }
 
-function workshopActions(mountain: Mountain, now: number): readonly Action[] {
-  const bench = mountain.bench;
-  // The old bench never opens (#740): only a save's running craft can be
-  // called off.
-  return bench !== undefined && now < bench.endsAt
-    ? [{ kind: "cancelCraft" }]
-    : [];
-}
-
 function troubleActions(trouble: Trouble | undefined): readonly Action[] {
   return trouble === undefined
     ? []
@@ -769,16 +663,6 @@ export type MoveEvent =
       readonly count: number;
     }
   | {
-      readonly kind: "workOrderPlaced" | "workOrderCancelled";
-      readonly blueprint: BlueprintId;
-    }
-  | {
-      readonly kind: "workOrderInstalled";
-      readonly blueprint: BlueprintId;
-      /** The gear's level after it. */
-      readonly level: number;
-    }
-  | {
       readonly kind: "hoistAssigned" | "hoistUnassigned";
       readonly level: MineLevelId;
       /** The hoists assigned to that level after the move. */
@@ -787,7 +671,7 @@ export type MoveEvent =
 
 /**
  * What a move did: applied, with what it took from the stock and what it put in, good by
- * good (each at least 0: a craft's output, a cancelled craft's refund), or refused because it changed nothing.
+ * good (each at least 0), or refused because it changed nothing.
  */
 export type MoveResult =
   | {
@@ -848,8 +732,6 @@ function actionApplied(
       return recall(mountain, action.index);
     case "fixTrouble":
       return mountain;
-    case "cancelCraft":
-      return cancelCraft(mountain, now);
     case "placeOrder":
     case "holdOrder":
     case "resumeOrder":
@@ -866,10 +748,6 @@ function actionApplied(
     case "assignHoist":
     case "unassignHoist":
       return levelApplied(mountain, action);
-    case "placeWorkOrder":
-    case "cancelWorkOrder":
-    case "installWorkOrder":
-      return factoryApplied(mountain, action, now);
     /* v8 ignore next 3 -- exhaustiveness guard, unreachable */
     default: {
       const unexpected: never = action;
@@ -985,7 +863,6 @@ function actionEvents(
     case "recall":
     case "station":
       return crewEvents(before, next, action.index);
-    case "cancelCraft":
     case "fixTrouble":
       return [];
     case "placeOrder":
@@ -1018,10 +895,6 @@ function actionEvents(
           count: levelMachines(next, "granite")[action.id],
         },
       ];
-    case "placeWorkOrder":
-    case "cancelWorkOrder":
-    case "installWorkOrder":
-      return factoryEvents(before, next, action);
     case "assignHoist":
     case "unassignHoist":
       return [
@@ -1074,8 +947,7 @@ export function applyAction(
  * crew and away pay from the same factor as
  * `accrueAway`, weighted by `context`. No second copy of the upgrade maths.
  * A machine's cost includes the workers it still needs. `horizon` is
- * seconds: an expedition's finds are spread across it. A timer's share of
- * it went with the old bench's crafts (#740).
+ * seconds: an expedition's finds are spread across it.
  */
 export function valueOf(
   mountain: Mountain,
@@ -1113,8 +985,6 @@ export function valueOf(
         0,
         context,
       );
-    case "cancelCraft":
-      return valueCancel(mountain, context, now);
     case "placeOrder":
     case "holdOrder":
     case "resumeOrder":
@@ -1152,11 +1022,6 @@ export function valueOf(
         paybackSec: Infinity,
       };
     case "buyGraniteMachine":
-      return { gainPerSec: 0, cost: 0, paybackSec: Infinity };
-    case "placeWorkOrder":
-    case "cancelWorkOrder":
-    case "installWorkOrder":
-      // The lab learns what a work order is worth with the whole slice (#675).
       return { gainPerSec: 0, cost: 0, paybackSec: Infinity };
     case "assignHoist":
     case "unassignHoist":
@@ -1468,25 +1333,6 @@ function remainingFraction(
     return 1;
   }
   return (trip.returnsAt - now) / (trip.returnsAt - trip.sentAt);
-}
-
-/**
- * Calling the craft off gives the stones back and gives up the gear.
- * The rate change is not a raise, so the payback stays infinite and a
- * dad who is choosing keeps what is already on the bench.
- */
-function valueCancel(
-  mountain: Mountain,
-  context: ValueContext,
-  now: number,
-): ActionValue {
-  const bench = mountain.bench;
-  if (bench === undefined || !(now < bench.endsAt)) {
-    return rateValue(mountain, 0, 0, context);
-  }
-  const kept = settleBench(mountain, bench.endsAt);
-  const gain = incomeGain(kept, cancelCraft(mountain, now), context);
-  return rateValue(mountain, gain, 0, context);
 }
 
 function funded(mountain: Mountain, price: number): Mountain {

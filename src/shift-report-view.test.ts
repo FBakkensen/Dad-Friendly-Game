@@ -35,7 +35,6 @@ function away(
     awayMs,
     paidMs: Math.min(awayMs, 8 * HOUR),
     capped: awayMs > 8 * HOUR,
-    materials: { clay: 0, iron: 0, crystal: 0, heartstone: 0 },
     night: {
       ...NIGHT,
       produced: { ...EMPTY_STOCK, stones: mined },

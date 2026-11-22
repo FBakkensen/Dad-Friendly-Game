@@ -6,7 +6,6 @@ import { createMountain, type Mountain } from "./mountain";
 import { upgradeEffectLine, upgradeWhyLine } from "./screen-words";
 import { upgradeRowView } from "./upgrade-rows";
 import { UPGRADES, upgradeById, upgradeCost, NO_UPGRADES } from "./upgrades";
-import { COLD_CLOCKS } from "./workshop";
 
 const NOW = 1_700_000_000_000;
 const crews = upgradeById("cartSyn");
@@ -126,7 +125,6 @@ describe("display only", () => {
       upgrades: { ...NO_UPGRADES, cartSyn: 1, boots: 1 },
       finds: ["boots", "map"],
       seen: ["upgrade:drillSyn"],
-      clocks: { ...COLD_CLOCKS, "axle-grease": NOW + 60_000 },
     };
     const mountain = deepFreeze(mountainWith(fields));
     const copy = structuredClone(mountainWith(fields));

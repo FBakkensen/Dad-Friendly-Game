@@ -84,7 +84,6 @@ describe("snapshot", () => {
         cartSyn: 0,
         drillSyn: 0,
         borerSyn: 0,
-        machineSyn: 0,
       },
       engineers: [],
       expeditions: [],

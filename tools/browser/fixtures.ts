@@ -20,7 +20,7 @@ export function seedJson(save: SeedSave): string {
 
 /** A save a later build wrote: this build opens the update card and writes nothing (#558). */
 export function newerSave(now: number): SeedSave {
-  return { version: 11, lastSeen: now, game: {} };
+  return { version: 12, lastSeen: now, game: {} };
 }
 
 const HOUR = 60 * 60 * 1000;
@@ -47,9 +47,9 @@ export function asGuest(backup: SeedSave): SeedSave {
   return save as SeedSave;
 }
 
-/** A slice 1 save: the phone backup of the dev account, holding this game map as version 10. */
+/** A save in the live v11 format: the phone backup of the dev account holding this game map. */
 function sliceSave(now: number, game: Record<string, unknown>): SeedSave {
-  return { uid: DEV_UID, save: { version: 10, lastSeen: now, game } };
+  return { uid: DEV_UID, save: { version: 11, lastSeen: now, game } };
 }
 
 /** The fresh mine's twelve workers, as the first evening places them. */
@@ -152,8 +152,8 @@ export function sliceDoneSave(now: number): SeedSave {
     fleet: { horseWagon: 2 },
     marks: { operational: ["lightTower", "warehouse", "foundry"] },
     makers: { kiln: 1 },
-    granite: {},
-    run: { rock: 30_000_000, granite: 1_000_000 },
+    mineLevels: { granite: {} },
+    run: { rock: 30_000_000 },
   });
 }
 
@@ -193,7 +193,9 @@ export function sliceWarehouseSave(now: number): SeedSave {
     fleet: { horseWagon: 2 },
     marks: { operational: ["lightTower"] },
     makers: { kiln: 1 },
-    piles: { face: 200, shaft: 150, kiln: 120 },
+    piles: { face: 200, shaft: 150 },
+    pithead: { topsoil: 180 },
+    makerBuffers: { kiln: { topsoilRock: 120 } },
     project: {
       building: "warehouse",
       state: "delivering",
@@ -248,8 +250,8 @@ export function sliceFoundrySave(now: number): SeedSave {
     fleet: { horseWagon: 2 },
     marks: { operational: ["lightTower", "warehouse"] },
     makers: { kiln: 1, saw: 1 },
-    granite: {},
-    run: { rock: 30_000_000, granite: 1_000_000 },
+    mineLevels: { granite: {} },
+    run: { rock: 30_000_000 },
     project: {
       building: "foundry",
       state: "delivering",
@@ -274,8 +276,8 @@ export function sliceFoundryRoofSave(now: number): SeedSave {
     stock: { cutStone: 1_000 },
     marks: { operational: ["lightTower", "warehouse"] },
     makers: { kiln: 1, saw: 1 },
-    granite: {},
-    run: { rock: 30_000_000, granite: 1_000_000 },
+    mineLevels: { granite: {} },
+    run: { rock: 30_000_000 },
     project: {
       building: "foundry",
       state: "delivering",
@@ -298,14 +300,16 @@ export function sliceRefinerySave(now: number): SeedSave {
       drilling: 4,
       haulage: 3,
       hoisting: 4,
-      driving: 1,
+      driving: 2,
       building: 2,
       kilns: 1,
     },
     fleet: { horseWagon: 2 },
     marks: { operational: ["lightTower"] },
     makers: { kiln: 1 },
-    piles: { face: 200, shaft: 150, kiln: 120 },
+    piles: { face: 200, shaft: 150 },
+    pithead: { topsoil: 180 },
+    makerBuffers: { kiln: { topsoilRock: 120 } },
   });
 }
 
@@ -322,21 +326,23 @@ export function sliceYardFullSave(now: number): SeedSave {
       drilling: 4,
       haulage: 3,
       hoisting: 4,
-      driving: 1,
+      driving: 2,
       building: 2,
       kilns: 1,
     },
     fleet: { horseWagon: 2 },
     marks: { operational: ["lightTower"] },
     makers: { kiln: 1 },
-    piles: { face: 200, shaft: 150, kiln: 120 },
+    piles: { face: 200, shaft: 150 },
+    pithead: { topsoil: 180 },
+    makerBuffers: { kiln: { topsoilRock: 120 } },
   });
 }
 
 /**
  * A busier first night: two carts, a second wagon, three free workers, the
  * foundation on order and stone in the pocket. Next counts the mine's and
- * the city's buys, and the workforce shows machines that run (#659).
+ * transport's buys, and the workforce shows machines that run (#659).
  */
 export function sliceBusySave(now: number): SeedSave {
   return sliceSave(now, {
@@ -416,58 +422,6 @@ export function sliceListSave(now: number): SeedSave {
 }
 
 /**
- * Part 3 (#681): the shaft sunk, the Light
- * Tower and the Warehouse operational, clay and iron in their bins, and the
- * station idle. The factory's tab is in the site bar.
- */
-function factoryGame(game: Record<string, unknown>): Record<string, unknown> {
-  return {
-    owned: { helper: 18, cart: 2 },
-    stock: { stones: 420_000, brick: 60_000, clay: 8, iron: 11 },
-    jobs: {
-      drilling: 4,
-      haulage: 3,
-      hoisting: 4,
-      driving: 2,
-      building: 2,
-      kilns: 1,
-    },
-    fleet: { horseWagon: 2 },
-    marks: { operational: ["lightTower", "warehouse"] },
-    makers: { kiln: 1 },
-    granite: {},
-    run: { rock: 30_000_000, granite: 1_000_000 },
-    ...game,
-  };
-}
-
-export function sliceFactorySave(now: number): SeedSave {
-  return sliceSave(now, factoryGame({ levels: { "iron-rails": 1 } }));
-}
-
-/** The same, with iron rails on the station: the stone part arrived, the iron not yet. */
-export function sliceFactoryOrderSave(now: number): SeedSave {
-  return sliceSave(
-    now,
-    factoryGame({
-      station: {
-        blueprint: "iron-rails",
-        state: "delivering",
-        arrived: { stones: 105_000 },
-      },
-    }),
-  );
-}
-
-/** The same, with iron rails done on the station: Next points at it, and Install is lit. */
-export function sliceFactoryDoneSave(now: number): SeedSave {
-  return sliceSave(
-    now,
-    factoryGame({ station: { blueprint: "iron-rails", state: "done" } }),
-  );
-}
-
-/**
  * Part 3 (#680): the Light Tower and the
  * Warehouse operational, the stockyard expanded once, and the stone and
  * brick in it to sink the shaft, which is not yet sunk. The mine shows the
@@ -489,7 +443,9 @@ export function sliceGraniteUnsunkSave(now: number): SeedSave {
     marks: { operational: ["lightTower", "warehouse"] },
     makers: { kiln: 1 },
     stockyard: 1,
-    piles: { face: 200, shaft: 150, kiln: 120 },
+    piles: { face: 200, shaft: 150 },
+    pithead: { topsoil: 180 },
+    makerBuffers: { kiln: { topsoilRock: 120 } },
     run: { rock: 30_000_000 },
   });
 }
@@ -497,7 +453,7 @@ export function sliceGraniteUnsunkSave(now: number): SeedSave {
 /**
  * Part 3 (#754): the Light Tower and the
  * Warehouse operational, two wagons with their drivers, and the brick for a
- * truck. The city's transport plate has the truck key beside the wagon's.
+ * truck. The Transport sheet has the truck key beside the wagon's.
  */
 export function sliceWarehouseTrucksSave(now: number): SeedSave {
   return sliceSave(now, {
@@ -523,8 +479,7 @@ export function sliceWarehouseTrucksSave(now: number): SeedSave {
  * level and one for both in turn, rock in every level's piles, two free
  * workers, the cut stone to buy a borer for either level, and in the
  * refinery a kiln with its worker and two saws with one, the brick for
- * another saw, and both makers' piles full: the Topsoil's rock past the
- * kilns bypasses to stone, and the Granite's hopper is fed (#754).
+ * another saw, and both makers' buffers fed (#754, #769).
  */
 export function sliceTwoLevelsSave(now: number): SeedSave {
   return sliceSave(now, {
@@ -533,8 +488,6 @@ export function sliceTwoLevelsSave(now: number): SeedSave {
       stones: 2_000_000,
       brick: 200_000,
       cutStone: 100_000,
-      clay: 8,
-      iron: 11,
     },
     jobs: {
       drilling: 4,
@@ -550,13 +503,20 @@ export function sliceTwoLevelsSave(now: number): SeedSave {
     fleet: { horseWagon: 2 },
     marks: { operational: ["lightTower", "warehouse"] },
     makers: { kiln: 1, saw: 2 },
-    piles: { face: 200, shaft: 150, kiln: 2_400 },
-    granite: {
-      machines: { cart: 1, drill: 1 },
-      piles: { face: 150, shaft: 120, saw: 2_400 },
+    piles: { face: 200, shaft: 150 },
+    mineLevels: {
+      granite: {
+        machines: { cart: 1, drill: 1 },
+        piles: { face: 150, shaft: 120 },
+      },
+    },
+    pithead: { topsoil: 240, granite: 180 },
+    makerBuffers: {
+      kiln: { topsoilRock: 420 },
+      saw: { graniteRock: 310 },
     },
     cages: { assigned: { topsoil: 1, granite: 1 } },
-    run: { rock: 30_000_000, granite: 1_000_000 },
+    run: { rock: 30_000_000 },
   });
 }
 
@@ -589,9 +549,11 @@ export function slice2Part1Save(now: number): SeedSave {
     marks: { operational: ["lightTower", "warehouse"] },
     makers: { kiln: 1, saw: 2 },
     piles: { face: 180, shaft: 140 },
-    granite: {
-      machines: { cart: 1, drill: 1 },
-      piles: { face: 160, shaft: 110 },
+    mineLevels: {
+      granite: {
+        machines: { cart: 1, drill: 1 },
+        piles: { face: 160, shaft: 110 },
+      },
     },
     pithead: { topsoil: 240, granite: 180 },
     makerBuffers: {
@@ -606,7 +568,7 @@ export function slice2Part1Save(now: number): SeedSave {
       onSite: { brick: 280, cutStone: 160 },
     },
     cages: { assigned: { topsoil: 1, granite: 1 } },
-    run: { rock: 30_000_000, granite: 1_000_000 },
+    run: { rock: 30_000_000 },
   });
 }
 
@@ -637,11 +599,13 @@ export function slice2Part1PitheadFullSave(now: number): SeedSave {
     marks: { operational: ["lightTower", "warehouse"] },
     makers: { kiln: 1, saw: 1 },
     piles: { face: 120, shaft: 100 },
-    granite: {
-      machines: { cart: 1, drill: 1 },
-      piles: { face: 140, shaft: 120 },
+    mineLevels: {
+      granite: {
+        machines: { cart: 1, drill: 1 },
+        piles: { face: 140, shaft: 120 },
+      },
     },
     pithead: { topsoil: 90, granite: 810 },
-    run: { rock: 30_000_000, granite: 1_000_000 },
+    run: { rock: 30_000_000 },
   });
 }

@@ -192,7 +192,7 @@ type LevelsWork = {
 
 function levelsWork(mountain: Mountain, now: number | undefined): LevelsWork {
   const speed = effectiveRates(mountain, now).tierSpeed;
-  const timer = crewTimer(mountain, now);
+  const timer = crewTimer();
   const { levels } = lineWork(mountain, speed);
   const shaft: ShaftReading = {
     running: mineWork(mountain).cages.filter((cage) => cage.runs),
@@ -217,7 +217,7 @@ function levelsWork(mountain: Mountain, now: number | undefined): LevelsWork {
     hoisting,
     hoistCan,
     cans,
-    flows: mineLevelFlows(mountain, now),
+    flows: mineLevelFlows(mountain),
     // The band's scale is the strongest of all five stages (ruling 2).
     strongest: Math.max(
       1,

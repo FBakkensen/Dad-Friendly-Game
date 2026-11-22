@@ -208,6 +208,14 @@ export class Player {
       case "placeWorker":
       case "freeWorker": {
         const way = action.kind === "placeWorker" ? "place" : "free";
+        if (action.job === "driving") {
+          await this.tapShown(".frame-transport");
+          await this.tapShown(
+            `.transport-sheet .frame-step[data-job="driving"][data-way="${way}"]`,
+          );
+          await this.tapShown(".transport-sheet .frame-sheet-close");
+          return;
+        }
         await this.site(MINE_JOBS.includes(action.job) ? "mine" : "city");
         await this.tapShown(
           `.frame-scene .frame-step[data-job="${action.job}"][data-way="${way}"]`,
@@ -221,8 +229,11 @@ export class Player {
         await this.tapShown(".city-order");
         return;
       case "buyVehicle":
-        await this.site("city");
-        await this.tapShown(`.city-key[data-vehicle="${action.id}"]`);
+        await this.tapShown(".frame-transport");
+        await this.tapShown(
+          `.transport-sheet .transport-key[data-vehicle="${action.id}"]`,
+        );
+        await this.tapShown(".transport-sheet .frame-sheet-close");
         return;
       case "sinkShaft":
         await this.site("mine");

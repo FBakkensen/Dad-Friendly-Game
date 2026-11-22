@@ -13,10 +13,9 @@ import { partThreeOn } from "./part-switch";
 import { readGame, shippedFacts, writeGame } from "./save-format";
 
 /**
- * The ledger of what has shipped (#558; spec, "The ledger of what has
- * shipped"). Every id, named value and cap a version 10 save may hold, as this
- * build reads it. A retired key (#729) is still read at its cap and never
- * written, so it moves to its own list rather than going. Adding a line is fine: an older build reads the new value as
+ * The ledger of what has shipped (#558, #769; spec, "The ledger of what has
+ * shipped"). Every id, named value and cap a version 11 save may hold, as this
+ * build reads it. Adding a line is fine: an older build reads the new value as
  * `newer` and goes read-only. Removing a line or lowering a cap would turn a
  * save this build wrote into one it refuses, so it needs a version bump and a
  * reset, said in chat first.
@@ -26,24 +25,21 @@ const LEDGER = {
     "owned",
     "stock",
     "levels",
-    "clocks",
     "marks",
     "run",
     "engineers",
     "expeditions",
-    "bench",
     "fleet",
     "project",
     "jobs",
     "piles",
     "makers",
     "stockyard",
-    "granite",
+    "mineLevels",
     "pithead",
     "makerBuffers",
     "cycleMicros",
     "assignedRuns",
-    "station",
     "cages",
   ],
   owned: [
@@ -56,35 +52,15 @@ const LEDGER = {
     "machine",
     "kid",
   ],
-  stock: [
-    "stones",
-    "clay",
-    "iron",
-    "crystal",
-    "heartstone",
-    "brick",
-    "cutStone",
-  ],
+  stock: ["stones", "brick", "cutStone"],
   levels: {
     boots: 1,
     cartSyn: 1,
     drillSyn: 1,
     borerSyn: 1,
-    machineSyn: 1,
-    "iron-rails": 1000,
-    "sturdy-props": 1000,
-    "blasting-charge": 1000,
-    reinforce: 1000,
-    "axle-grease": 1000,
-    "diamond-bits": 1000,
-    "engineers-kit": 1000,
-    "heartstone-core": 1000,
-    "heartstone-ember": 1000,
   },
-  clocks: ["blasting-charge", "axle-grease", "heartstone-ember"],
   marks: {
     seen: [
-      "workshop",
       "engineers",
       "tending",
       "promotion",
@@ -93,10 +69,8 @@ const LEDGER = {
       "upgrade:cartSyn",
       "upgrade:drillSyn",
       "upgrade:borerSyn",
-      "upgrade:machineSyn",
     ],
     taught: [
-      "workshop",
       "engineers",
       "tending",
       "promotion",
@@ -105,31 +79,12 @@ const LEDGER = {
       "upgrade:cartSyn",
       "upgrade:drillSyn",
       "upgrade:borerSyn",
-      "upgrade:machineSyn",
-    ],
-    recipes: [
-      "iron-rails",
-      "sturdy-props",
-      "blasting-charge",
-      "reinforce",
-      "axle-grease",
-      "diamond-bits",
-      "engineers-kit",
-      "heartstone-core",
-      "heartstone-ember",
     ],
     finds: ["map", "boots", "drawing", "watch", "whistle", "pebble", "ribbon"],
     operational: ["lightTower", "warehouse", "foundry"],
   },
   run: {
     rock: Number.MAX_SAFE_INTEGER,
-    granite: Number.MAX_SAFE_INTEGER,
-  },
-  // Retired (#729, and dug in #740): still read at these caps, and never written.
-  retiredRun: {
-    generation: 1000,
-    stretch: 1000000,
-    dug: 240000000,
   },
   engineerNames: ["Ada", "Nils", "Ruth", "Otto", "Mae"],
   posts: ["cart", "drill", "borer", "machine", "camp", "tunnel"],
@@ -139,7 +94,6 @@ const LEDGER = {
     tool: ["map", "boots"],
     keepsake: ["drawing", "watch", "whistle", "pebble", "ribbon"],
     engineer: ["Ada", "Nils", "Ruth", "Otto", "Mae"],
-    recipe: ["engineers-kit"],
   },
   fleet: ["horseWagon", "truck"],
   projectStates: ["delivering", "onHold"],
@@ -161,13 +115,12 @@ const LEDGER = {
     engineerTrips: 1000000,
     expeditions: 5,
     expeditionMs: 14400000,
-    craftMs: 14400000,
-    siteHolds: 500,
     siteGoodCap: 500,
     cycleMicros: 999999,
     stockyard: 18,
   },
-  granite: {
+  mineLevels: {
+    ids: ["granite"],
     machines: ["cart", "drill", "borer", "train"],
     piles: ["face", "shaft", "saw"],
   },
@@ -185,16 +138,6 @@ const LEDGER = {
     "stockToCity:brick",
     "stockToCity:cutStone",
   ],
-  station: {
-    blueprints: [
-      "iron-rails",
-      "sturdy-props",
-      "blasting-charge",
-      "reinforce",
-      "axle-grease",
-    ],
-    states: ["delivering", "done"],
-  },
   cages: {
     assigned: ["topsoil", "granite"],
     carried: ["topsoil", "granite"],
@@ -213,7 +156,6 @@ describe("the ledger of what has shipped (#558)", () => {
       facts.owned,
       facts.stock,
       Object.keys(facts.levels),
-      facts.clocks,
       ...Object.values(facts.marks),
       facts.engineerNames,
       facts.posts,
@@ -225,12 +167,11 @@ describe("the ledger of what has shipped (#558)", () => {
       facts.makers,
       Object.keys(facts.tripFinds),
       ...Object.values(facts.tripFinds),
-      ...Object.values(facts.granite),
+      ...Object.values(facts.mineLevels),
       facts.pithead,
       ...Object.values(facts.makerBuffers),
       facts.cycleMicros,
       facts.assignedRuns,
-      ...Object.values(facts.station),
       ...Object.values(facts.cages),
     ];
     for (const list of lists) {
@@ -363,9 +304,11 @@ describe("part 3's facts in the save (#673)", () => {
 
   it("round-trips the Granite's machines and piles, its two jobs, the saws, their workers, cut stone and a truck", () => {
     const game = writeGame(sunk);
-    expect(game.granite).toEqual({
-      machines: { cart: 1, drill: 2, train: 1 },
-      piles: { face: 50, shaft: 4, saw: 12 },
+    expect(game.mineLevels).toEqual({
+      granite: {
+        machines: { cart: 1, drill: 2, train: 1 },
+        piles: { face: 50, shaft: 4, saw: 12 },
+      },
     });
     expect(game.jobs).toEqual({
       graniteDrilling: 2,
@@ -388,9 +331,9 @@ describe("part 3's facts in the save (#673)", () => {
         },
       },
     };
-    expect(writeGame(bare).granite).toEqual({});
+    expect(writeGame(bare).mineLevels).toEqual({ granite: {} });
     expect(throughJson(bare)).toEqual({ kind: "ok", mountain: bare });
-    expect(writeGame(createMountain())).not.toHaveProperty("granite");
+    expect(writeGame(createMountain())).not.toHaveProperty("mineLevels");
     const empty = readGame({}, 0);
     expect(empty.kind === "ok" && empty.mountain.mineLevels).toEqual(
       NO_MINE_LEVELS,
@@ -420,7 +363,6 @@ describe("part 3's facts in the save (#673)", () => {
     expect(Object.keys(game)).toEqual([
       "owned",
       "stock",
-      "marks",
       "project",
       "jobs",
       "piles",
@@ -432,16 +374,26 @@ describe("part 3's facts in the save (#673)", () => {
 
   it("refuses more machines on the Granite than he owns", () => {
     expect(
-      readGame({ owned: { borer: 1 }, granite: { machines: { borer: 2 } } }, 0)
-        .kind,
+      readGame(
+        {
+          owned: { borer: 1 },
+          mineLevels: { granite: { machines: { borer: 2 } } },
+        },
+        0,
+      ).kind,
     ).toBe("bad");
     expect(
-      readGame({ owned: { borer: 2 }, granite: { machines: { borer: 2 } } }, 0)
-        .kind,
+      readGame(
+        {
+          owned: { borer: 2 },
+          mineLevels: { granite: { machines: { borer: 2 } } },
+        },
+        0,
+      ).kind,
     ).toBe("ok");
-    expect(readGame({ granite: { machines: { train: 1 } } }, 0).kind).toBe(
-      "bad",
-    );
+    expect(
+      readGame({ mineLevels: { granite: { machines: { train: 1 } } } }, 0).kind,
+    ).toBe("bad");
   });
 
   it("refuses workers on the Granite's jobs or the saws, or a saw, while the shaft is not sunk", () => {
@@ -449,36 +401,57 @@ describe("part 3's facts in the save (#673)", () => {
     for (const job of ["graniteDrilling", "graniteHaulage", "saws"]) {
       expect(readGame({ owned, jobs: { [job]: 1 } }, 0).kind, job).toBe("bad");
       expect(
-        readGame({ owned, jobs: { [job]: 1 }, granite: {} }, 0).kind,
+        readGame({ owned, jobs: { [job]: 1 }, mineLevels: { granite: {} } }, 0)
+          .kind,
         job,
       ).toBe("ok");
     }
     expect(readGame({ makers: { saw: 1 } }, 0).kind).toBe("bad");
-    expect(readGame({ makers: { saw: 1 }, granite: {} }, 0).kind).toBe("ok");
+    expect(
+      readGame({ makers: { saw: 1 }, mineLevels: { granite: {} } }, 0).kind,
+    ).toBe("ok");
     expect(readGame({ makers: { kiln: 1, saw: 0 } }, 0).kind).toBe("ok");
   });
 
-  it("reads a Granite key or id it does not know as newer, and a part-stone pile as bad", () => {
-    expect(readGame({ granite: { lift: {} } }, 0).kind).toBe("newer");
-    expect(readGame({ granite: { machines: { crane: 1 } } }, 0).kind).toBe(
+  it("reads a mineLevels key or id it does not know as newer, and a part-stone pile as bad", () => {
+    expect(readGame({ mineLevels: { crystalCaves: {} } }, 0).kind).toBe(
       "newer",
     );
-    expect(readGame({ granite: { piles: { hopper: 1 } } }, 0).kind).toBe(
+    expect(readGame({ mineLevels: { granite: { lift: {} } } }, 0).kind).toBe(
       "newer",
     );
-    expect(readGame({ granite: { piles: { face: 1.5 } } }, 0).kind).toBe("bad");
-    expect(readGame({ granite: { piles: { saw: -1 } } }, 0).kind).toBe("bad");
-    expect(readGame({ granite: { machines: "cart" } }, 0).kind).toBe("bad");
-    expect(readGame({ granite: 1 }, 0).kind).toBe("bad");
-    expect(readGame({ granite: [] }, 0).kind).toBe("bad");
-    expect(readGame({ granite: null }, 0).kind).toBe("bad");
     expect(
-      readGame({ granite: { lift: {}, piles: { face: 1.5 } } }, 0).kind,
+      readGame({ mineLevels: { granite: { machines: { crane: 1 } } } }, 0).kind,
+    ).toBe("newer");
+    expect(
+      readGame({ mineLevels: { granite: { piles: { hopper: 1 } } } }, 0).kind,
+    ).toBe("newer");
+    expect(
+      readGame({ mineLevels: { granite: { piles: { face: 1.5 } } } }, 0).kind,
+    ).toBe("bad");
+    expect(
+      readGame({ mineLevels: { granite: { piles: { saw: -1 } } } }, 0).kind,
+    ).toBe("bad");
+    expect(
+      readGame({ mineLevels: { granite: { machines: "cart" } } }, 0).kind,
+    ).toBe("bad");
+    expect(readGame({ mineLevels: { granite: 1 } }, 0).kind).toBe("bad");
+    expect(readGame({ mineLevels: 1 }, 0).kind).toBe("bad");
+    expect(readGame({ mineLevels: [] }, 0).kind).toBe("bad");
+    expect(readGame({ mineLevels: null }, 0).kind).toBe("bad");
+    expect(
+      readGame(
+        { mineLevels: { granite: { lift: {}, piles: { face: 1.5 } } } },
+        0,
+      ).kind,
     ).toBe("bad");
   });
 
   it("reads a pile past the room this build allows: it is full (ruling 2 of #703)", () => {
-    const read = readGame({ granite: { piles: { face: 9_000_000 } } }, 0);
+    const read = readGame(
+      { mineLevels: { granite: { piles: { face: 9_000_000 } } } },
+      0,
+    );
     expect(read.kind === "ok" && read.mountain.mineLevels.granite).toEqual({
       machines: NO_LEVEL_MACHINES,
       piles: { face: 9_000_000, shaft: 0, saw: 0 },
@@ -492,126 +465,6 @@ describe("part 3's facts in the save (#673)", () => {
     expect(read.kind === "ok" && writeGame(read.mountain)).toEqual(
       writeGame(sunk),
     );
-  });
-});
-
-describe("the factory's work order and the Granite's rock in the save (#674)", () => {
-  const sunk = (): Mountain => ({
-    ...createMountain(),
-    rockDug: 5_000_000,
-    graniteDug: 2_000_000,
-    mineLevels: {
-      granite: {
-        machines: NO_LEVEL_MACHINES,
-        piles: NO_GRANITE_PILES,
-      },
-    },
-  });
-  const back = (mountain: Mountain): Mountain | undefined => {
-    const read = readGame(JSON.parse(JSON.stringify(writeGame(mountain))), 0);
-    return read.kind === "ok" ? read.mountain : undefined;
-  };
-
-  it("saves nothing for an idle station and no Granite rock, so a part 2 save writes as before", () => {
-    const game = writeGame(createMountain());
-    expect(game).not.toHaveProperty("station");
-    expect(game).not.toHaveProperty("run");
-  });
-
-  it("round-trips the Granite's rock beside the rock dug in all", () => {
-    const mountain = sunk();
-    expect(writeGame(mountain).run).toEqual({
-      rock: 5_000_000,
-      granite: 2_000_000,
-    });
-    expect(back(mountain)).toEqual(mountain);
-  });
-
-  it("round-trips a delivering work order, in loads, and a done one with no goods", () => {
-    const delivering: Mountain = {
-      ...sunk(),
-      station: {
-        kind: "delivering",
-        blueprint: "iron-rails",
-        arrived: { ...createMountain().stock, stones: 1_000, iron: 750 },
-      },
-    };
-    expect(writeGame(delivering).station).toEqual({
-      blueprint: "iron-rails",
-      state: "delivering",
-      arrived: { stones: 1_000, iron: 750 },
-    });
-    expect(back(delivering)).toEqual(delivering);
-    const done: Mountain = {
-      ...sunk(),
-      station: { kind: "done", blueprint: "axle-grease" },
-    };
-    expect(writeGame(done).station).toEqual({
-      blueprint: "axle-grease",
-      state: "done",
-    });
-    expect(back(done)).toEqual(done);
-  });
-
-  it("reads a blueprint, state or key it does not know as newer", () => {
-    const game = { ...writeGame(sunk()) };
-    const newer = [
-      { blueprint: "diamond-bits", state: "delivering" },
-      { blueprint: "rocket", state: "delivering" },
-      { blueprint: "iron-rails", state: "onHold" },
-      { blueprint: "iron-rails", state: "delivering", speed: 2 },
-      { blueprint: "iron-rails", state: "delivering", arrived: { fuel: 1 } },
-    ];
-    for (const station of newer) {
-      expect(
-        readGame({ ...game, station }, 0).kind,
-        JSON.stringify(station),
-      ).toBe("newer");
-    }
-    // A Granite this build cannot read leaves the work order to it.
-    expect(
-      readGame(
-        {
-          granite: { lift: {} },
-          station: { blueprint: "axle-grease", state: "done" },
-        },
-        0,
-      ).kind,
-    ).toBe("newer");
-  });
-
-  it("refuses a work order past what it requires, one already all in, a done one with goods, or one with no shaft", () => {
-    const game = { ...writeGame(sunk()) };
-    const bad = [
-      {
-        blueprint: "iron-rails",
-        state: "delivering",
-        arrived: { iron: 2_001 },
-      },
-      { blueprint: "axle-grease", state: "delivering", arrived: { iron: 500 } },
-      { blueprint: "axle-grease", state: "done", arrived: { iron: 500 } },
-      { blueprint: "iron-rails", state: "delivering", arrived: { iron: 1.5 } },
-      { blueprint: 3, state: "delivering" },
-      "iron-rails",
-    ];
-    for (const station of bad) {
-      expect(
-        readGame({ ...game, station }, 0).kind,
-        JSON.stringify(station),
-      ).toBe("bad");
-    }
-    const unsunk = writeGame(createMountain());
-    expect(
-      readGame(
-        { ...unsunk, station: { blueprint: "axle-grease", state: "done" } },
-        0,
-      ).kind,
-    ).toBe("bad");
-  });
-
-  it("refuses Granite rock past all the rock dug, or with no shaft", () => {
-    expect(readGame({ run: { rock: 10, granite: 11 } }, 0).kind).toBe("bad");
-    expect(readGame({ run: { rock: 10, granite: 5 } }, 0).kind).toBe("bad");
   });
 });
 
@@ -721,7 +574,6 @@ describe("the cages in the save (#724)", () => {
       }
       // The rock was dug before: unloading it is not digging.
       expect(after.rockDug).toBe(start.rockDug);
-      expect(after.graniteDug).toBe(start.graniteDug);
     }
   });
 
@@ -781,7 +633,7 @@ describe("the cages in the save (#724)", () => {
       readGame(
         {
           owned: { hoist: 1 },
-          granite: {},
+          mineLevels: { granite: {} },
           cages: { assigned: { granite: 2 } },
         },
         0,
@@ -791,7 +643,7 @@ describe("the cages in the save (#724)", () => {
       readGame(
         {
           owned: { hoist: 1, machine: 1 },
-          granite: {},
+          mineLevels: { granite: {} },
           cages: { assigned: { granite: 2 } },
         },
         0,
@@ -801,7 +653,7 @@ describe("the cages in the save (#724)", () => {
       readGame(
         {
           owned: { hoist: 2 },
-          granite: {},
+          mineLevels: { granite: {} },
           cages: { assigned: { topsoil: 1, granite: 2 } },
         },
         0,
@@ -821,7 +673,7 @@ describe("the cages in the save (#724)", () => {
         "bad",
       );
       expect(
-        readGame({ owned, granite: {}, cages }, 0).kind,
+        readGame({ owned, mineLevels: { granite: {} }, cages }, 0).kind,
         JSON.stringify(cages),
       ).toBe("ok");
     }
@@ -837,15 +689,23 @@ describe("the cages in the save (#724)", () => {
 
   it("refuses rock carried from both levels with only the winch's cage", () => {
     const both = { carried: { topsoil: 5, granite: 6 } };
-    expect(readGame({ granite: {}, cages: both }, 0).kind).toBe("bad");
+    expect(readGame({ mineLevels: { granite: {} }, cages: both }, 0).kind).toBe(
+      "bad",
+    );
     expect(
-      readGame({ owned: { hoist: 1 }, granite: {}, cages: both }, 0).kind,
+      readGame(
+        { owned: { hoist: 1 }, mineLevels: { granite: {} }, cages: both },
+        0,
+      ).kind,
     ).toBe("ok");
     expect(
-      readGame({ owned: { machine: 1 }, granite: {}, cages: both }, 0).kind,
+      readGame(
+        { owned: { machine: 1 }, mineLevels: { granite: {} }, cages: both },
+        0,
+      ).kind,
     ).toBe("ok");
     const one = readGame(
-      { granite: {}, cages: { carried: { granite: 6 } } },
+      { mineLevels: { granite: {} }, cages: { carried: { granite: 6 } } },
       0,
     );
     expect(one.kind === "ok" && one.mountain.cages.trips).toEqual({
@@ -854,16 +714,17 @@ describe("the cages in the save (#724)", () => {
   });
 
   it("reads a cages key or level it does not know as newer, and a part-rock or a negative as bad", () => {
-    const granite = {};
+    const mineLevels = { granite: {} };
     const newer = [
       { lift: {} },
       { assigned: { basalt: 1 } },
       { carried: { basalt: 1 } },
     ];
     for (const cages of newer) {
-      expect(readGame({ granite, cages }, 0).kind, JSON.stringify(cages)).toBe(
-        "newer",
-      );
+      expect(
+        readGame({ mineLevels, cages }, 0).kind,
+        JSON.stringify(cages),
+      ).toBe("newer");
     }
     const bad = [
       { carried: { topsoil: 1.5 } },
@@ -875,9 +736,10 @@ describe("the cages in the save (#724)", () => {
       null,
     ];
     for (const cages of bad) {
-      expect(readGame({ granite, cages }, 0).kind, JSON.stringify(cages)).toBe(
-        "bad",
-      );
+      expect(
+        readGame({ mineLevels, cages }, 0).kind,
+        JSON.stringify(cages),
+      ).toBe("bad");
     }
   });
 
@@ -891,7 +753,7 @@ describe("the cages in the save (#724)", () => {
           const read = readGame(
             {
               owned: { hoist: hoists },
-              granite: {},
+              mineLevels: { granite: {} },
               cages: { assigned: { topsoil, granite } },
             },
             0,

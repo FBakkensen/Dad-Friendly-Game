@@ -37,10 +37,7 @@ import {
   slicePartOneDoneSave,
   sliceRefinerySave,
   sliceYardFullSave,
-  sliceFactorySave,
   sliceGraniteUnsunkSave,
-  sliceFactoryOrderSave,
-  sliceFactoryDoneSave,
   sliceRoofSave,
   sliceStartSave,
   sliceStandsSave,
@@ -51,6 +48,8 @@ import {
   sliceFoundryRoofSave,
   sliceWarehouseSave,
   sliceWarehouseTrucksSave,
+  slice2Part1Save,
+  slice2Part1PitheadFullSave,
 } from "../tools/browser/fixtures.ts";
 
 /**
@@ -163,24 +162,6 @@ const SAVES = {
     key: DEV_BACKUP_KEY,
     search: MEMORY,
   },
-  factory: {
-    note: "part 3: the shaft sunk, clay and iron in the bins, the station idle",
-    save: () => sliceFactorySave(Date.now()),
-    key: DEV_BACKUP_KEY,
-    search: MEMORY,
-  },
-  factoryorder: {
-    note: "part 3: iron rails on the station, stone arriving",
-    save: () => sliceFactoryOrderSave(Date.now()),
-    key: DEV_BACKUP_KEY,
-    search: MEMORY,
-  },
-  factorydone: {
-    note: "part 3: iron rails done on the station, waiting to be installed",
-    save: () => sliceFactoryDoneSave(Date.now()),
-    key: DEV_BACKUP_KEY,
-    search: MEMORY,
-  },
   "granite-unsunk": {
     note: "part 3: the Light Tower up and the stone and brick to sink the shaft",
     save: () => sliceGraniteUnsunkSave(Date.now()),
@@ -196,6 +177,18 @@ const SAVES = {
   "two-levels": {
     note: "part 3: the shaft sunk, both levels working, a hoist on each and one for both",
     save: () => sliceTwoLevelsSave(Date.now()),
+    key: DEV_BACKUP_KEY,
+    search: MEMORY,
+  },
+  transport: {
+    note: "slice 2 part 1: active runs across pithead, kilns, saws, and Foundry",
+    save: () => slice2Part1Save(Date.now()),
+    key: DEV_BACKUP_KEY,
+    search: MEMORY,
+  },
+  pitheadfull: {
+    note: "slice 2 part 1: Granite pithead full stall in Mine",
+    save: () => slice2Part1PitheadFullSave(Date.now()),
     key: DEV_BACKUP_KEY,
     search: MEMORY,
   },

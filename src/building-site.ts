@@ -111,7 +111,7 @@ export function shareOutKeys<K extends string>(
  * Up to `capacity` goods split evenly between the goods in `wants`, each at
  * most its want. What one good cannot use goes to the others.
  */
-export function shareOut(
+function shareOut(
   capacity: number,
   wants: Readonly<Partial<Record<GoodId, number>>>,
 ): Partial<Record<GoodId, number>> {

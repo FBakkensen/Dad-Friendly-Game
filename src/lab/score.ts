@@ -10,7 +10,6 @@ import {
   type Action,
   type ValueContext,
 } from "../economy/actions";
-import { COLD_CLOCKS, NOTHING_CRAFTED } from "../workshop";
 import { MOVE_KINDS, type DecisionSample } from "./measure";
 import {
   CRAFTED_SOURCE,
@@ -75,7 +74,6 @@ function actionId(action: Action): string {
       return `recall:${String(action.index)}`;
     case "fixTrouble":
       return `fixTrouble:${action.tier}`;
-    case "cancelCraft":
     case "placeOrder":
     case "holdOrder":
     case "resumeOrder":
@@ -93,11 +91,6 @@ function actionId(action: Action): string {
       return action.kind;
     case "buyGraniteMachine":
       return `buyGraniteMachine:${action.id}`;
-    case "placeWorkOrder":
-      return `placeWorkOrder:${action.blueprint}`;
-    case "cancelWorkOrder":
-    case "installWorkOrder":
-      return action.kind;
     case "assignHoist":
     case "unassignHoist":
       return `${action.kind}:${action.level}`;
@@ -252,31 +245,18 @@ function rested(mountain: Mountain): Mountain {
   return next;
 }
 
-function withoutGear(mountain: Mountain): Mountain {
-  // The bench is where a live timer is already paying. Leaving it on the
-  // bare copy hid that share for the whole sitting.
-  return {
-    ...mountain,
-    crafted: NOTHING_CRAFTED,
-    clocks: COLD_CLOCKS,
-    bench: undefined,
-  };
-}
-
 function outputShare(
   mountain: Mountain,
   now: number,
   trouble: Trouble | undefined,
 ): Readonly<Record<string, number>> {
-  const bare = withoutGear(mountain);
   const posted = effectiveRates(mountain, now, trouble);
   const postedResting = effectiveRates(rested(mountain), now, trouble);
-  const bareResting = effectiveRates(rested(bare), now, trouble);
   const parts = new Map<string, number>();
   let total = 0;
   for (const tier of TIERS) {
     const amount =
-      bareResting.running[tier.id] * bareResting.tierSpeed[tier.id];
+      postedResting.running[tier.id] * postedResting.tierSpeed[tier.id];
     if (amount > 0) {
       parts.set(tier.id, amount);
       total += amount;
@@ -285,29 +265,22 @@ function outputShare(
   // The crew moves what the line moves (#534), so the machines' parts are
   // scaled to it and stay in the units of the deltas.
   if (total > 0) {
-    const line = lineOf(bareResting.tierSpeed, bareResting.running);
+    const line = lineOf(postedResting.tierSpeed, postedResting.running);
     for (const [id, amount] of parts) {
       parts.set(id, (amount * line) / total);
     }
     total = line;
   }
-  // The engineer delta includes gear on the post she stands on. The rest
-  // of the gear, measured with everyone back at camp, is the crafted share.
   const tending = posted.exactCrewPerSecond - postedResting.exactCrewPerSecond;
   if (tending > 0) {
     parts.set(TENDING_SOURCE, tending);
     total += tending;
   }
-  const craftedCrew =
-    postedResting.exactCrewPerSecond - bareResting.exactCrewPerSecond;
-  if (craftedCrew > 0) {
-    parts.set(CRAFTED_SOURCE, craftedCrew);
-    total += craftedCrew;
-  }
   if (!(total > 0)) {
     return {};
   }
-  const share: Record<string, number> = {};
+  // Crafted gear retired in #769; CRAFTED_SOURCE stays wired at 0 share.
+  const share: Record<string, number> = { [CRAFTED_SOURCE]: 0 };
   for (const [key, amount] of parts) {
     share[key] = amount / total;
   }

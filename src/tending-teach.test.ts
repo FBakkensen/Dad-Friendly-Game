@@ -24,8 +24,8 @@ function crew(): Mountain {
     },
     jobs: { ...start.jobs, drilling: 1, haulage: 2, hoisting: 2 },
     engineers: [ada],
-    seen: ["workshop", "engineers"],
-    taught: ["workshop", "engineers"],
+    seen: ["engineers"],
+    taught: ["engineers"],
   };
 }
 
@@ -41,7 +41,7 @@ describe("tending teach (#246)", () => {
     ).toBe(false);
     expect(
       showsDot(
-        { ...crew(), engineers: [{ ...ada, trips: 0 }], taught: ["workshop"] },
+        { ...crew(), engineers: [{ ...ada, trips: 0 }], taught: [] },
         "tending",
       ),
     ).toBe(false);

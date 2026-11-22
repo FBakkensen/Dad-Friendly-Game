@@ -24,7 +24,7 @@ describe("fixtures values", () => {
     expect(f.seedJson({})).toBe("{}");
     expect(readSave(JSON.parse(f.seedJson(f.newerSave(FIXED))))).toEqual({
       kind: "newer",
-      version: 11,
+      version: 12,
     });
   });
 });
@@ -35,11 +35,11 @@ describe("slice 1's play saves (#659)", () => {
   });
 
   it("holds every slice save the scripts play", () => {
-    expect(SLICE_SAVES.length).toBeGreaterThanOrEqual(14);
+    expect(SLICE_SAVES.length).toBeGreaterThanOrEqual(11);
   });
 
   it.each(SLICE_SAVES)(
-    "%s is a version 10 save of the dev account that the game reads, as it plays",
+    "%s is a version 11 save of the dev account that the game reads, as it plays",
     (_name, build) => {
       const stored = build(FIXED) as { uid?: unknown; save?: unknown };
       expect(stored.uid).toBe(f.DEV_UID);

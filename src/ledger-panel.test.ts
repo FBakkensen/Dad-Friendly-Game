@@ -108,19 +108,11 @@ function mount(
   return screen;
 }
 
-/** A Granite mountain with clay and iron met. */
 function granite(over: MountainPatch = {}): Mountain {
   return patched(
     {
       ...minedMountain(12_000_000),
       owned: { ...minedMountain(12_000_000).owned, helper: 4 },
-      stock: {
-        ...minedMountain(12_000_000).stock,
-        clay: 10,
-        iron: 4,
-        crystal: 0,
-        heartstone: 0,
-      },
     },
     over,
   );

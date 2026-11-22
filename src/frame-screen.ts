@@ -37,7 +37,6 @@ import { createFrameSaveCards } from "./frame-save-cards";
 import { createFrameLedger, type FrameLedger } from "./frame-ledger";
 import { createBoardHost } from "./board-host";
 import { createCitySite } from "./city-site";
-import { createFactorySite } from "./factory-site";
 import { createMachineCard } from "./machine-card";
 import { createMineSite } from "./mine-site";
 import { createRefinerySite } from "./refinery-site";
@@ -295,8 +294,7 @@ type NextParts = {
 };
 
 /**
- * Where a tap on Next goes: the city for an order, the factory for a work
- * order to install (#681), else the next other site
+ * Where a tap on Next goes: the city for an order, else the next other site
  * with something, else the workforce or transport, else this site.
  */
 function nextTarget(
@@ -306,9 +304,6 @@ function nextTarget(
   const view = nextView(mountain);
   if (view.kind === "order") {
     return "city";
-  }
-  if (view.kind === "install") {
-    return "factory";
   }
   if (view.kind === "nothing") {
     return undefined;
@@ -429,9 +424,8 @@ function buildFrame(
   const scene = el("div", "frame-scene");
   const mine = createMineSite(state, signal);
   const refinery = createRefinerySite(state, signal);
-  const factory = createFactorySite(state, signal);
   const city = createCitySite(state, signal);
-  scene.append(mine.root, refinery.root, factory.root, city.root);
+  scene.append(mine.root, refinery.root, city.root);
   const next = buildNext(state);
   const bar = buildSiteBar(state);
   const root = el("div", "frame");
@@ -447,7 +441,6 @@ function buildFrame(
       paintSiteBar(bar, mountain, state.site());
       mine.paint(mountain, state.site() === "mine", now());
       refinery.paint(mountain, state.site() === "refinery", now());
-      factory.paint(mountain, state.site() === "factory", now());
       city.paint(mountain, state.site() === "city", now());
       setAttr(scene, "data-site", state.site());
       setAttr(scene, "aria-label", SITE_NAMES[state.site()]);

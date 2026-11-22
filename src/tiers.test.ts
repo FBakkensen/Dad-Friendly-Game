@@ -301,7 +301,7 @@ describe("the line's prices (#543)", () => {
  * and nothing else: every other test computes its prices from `tierCost`.
  * They match docs/DESIGN.md "Numbers now"; change both together.
  */
-describe("the prices play charges (#738)", () => {
+describe("the prices play charges (#738, #769)", () => {
   it("prices the first of each machine and worker as the page does", () => {
     withFactors(PLAY_FACTORS, () => {
       expect(TIERS.map((tier) => [tier.id, tierCost(tier, 0)])).toEqual([
@@ -309,22 +309,22 @@ describe("the prices play charges (#738)", () => {
         ["cart", 600],
         ["hoist", 6_000],
         ["drill", 73_080],
-        // In cut stone since part 3's switch-on (#682).
-        ["borer", 40_000],
-        ["train", 60_000],
+        // In cut stone; retuned in Slice 2 Part 1 (#757, #767, #769).
+        ["borer", 12_000],
+        ["train", 15_000],
         ["machine", 96_480_000],
         ["kid", 250_000],
       ]);
     });
   });
 
-  it("climbs machines x1.219 a unit and workers x1.06", () => {
+  it("climbs machines x1.219 a unit and workers x1.058 in Slice 2 Part 1", () => {
     expect(LINE_MACHINE_COST_GROWTH).toBe(1.219);
     expect(HELPER_COST_GROWTH).toBe(1.06);
     withFactors(PLAY_FACTORS, () => {
       // Anchors on the rounded curves.
       expect(tierCost(tierById("cart"), 12)).toBe(6_460);
-      expect(tierCost(tierById("helper"), 50)).toBe(1_106);
+      expect(tierCost(tierById("helper"), 50)).toBe(1_006);
     });
   });
 
@@ -342,7 +342,6 @@ describe("the prices play charges (#738)", () => {
         ["cartSyn", [{ good: "stones", amount: 2_000_000 }], 1],
         ["drillSyn", [{ good: "stones", amount: 3_000_000 }], 1],
         ["borerSyn", [{ good: "stones", amount: 15_000_000 }], 1],
-        ["machineSyn", [{ good: "stones", amount: 30_000_000 }], 1],
       ]);
     });
   });
@@ -355,8 +354,8 @@ describe("the prices play charges (#738)", () => {
           tierCost(tier, 0),
         ]),
       ).toEqual([
-        ["cutStone", 40_000],
-        ["cutStone", 60_000],
+        ["cutStone", 12_000],
+        ["cutStone", 15_000],
       ]);
     });
   });

@@ -32,6 +32,37 @@ test("the first evening: from one worker to the Light Tower's roof", async ({
   rules.until(player.now);
   await player.expectStones(rules.pocket);
 
+  let seenDrilling = rules.mountain.jobs.drilling > 0;
+  let seenHaulage = false;
+  let seenHoisting = false;
+  let seenDriving = false;
+  let stonesBeforeDriving: number | undefined;
+  let stoneRoseFromDriving = false;
+  let hiredSecondAfterGain = false;
+
+  const observeOneWorker = () => {
+    const m = rules.mountain;
+    if (m.owned.helper === 1) {
+      if (m.jobs.drilling > 0) seenDrilling = true;
+      if (seenDrilling && m.jobs.haulage > 0) seenHaulage = true;
+      if (seenHaulage && m.jobs.hoisting > 0) seenHoisting = true;
+      if (seenHoisting && m.jobs.driving > 0) {
+        if (!seenDriving) {
+          seenDriving = true;
+          stonesBeforeDriving = m.stock.stones;
+        }
+        if (
+          stonesBeforeDriving !== undefined &&
+          m.stock.stones > stonesBeforeDriving
+        ) {
+          stoneRoseFromDriving = true;
+        }
+      }
+    } else if (m.owned.helper >= 2 && stoneRoseFromDriving) {
+      hiredSecondAfterGain = true;
+    }
+  };
+
   while (!rules.mountain.operational.includes("lightTower")) {
     expect(player.now - start, "the roof in time").toBeLessThan(ROOF_WITHIN_MS);
     for (let moves = 0; moves < MOVES_A_LOOK;) {
@@ -48,6 +79,7 @@ test("the first evening: from one worker to the Light Tower's roof", async ({
         }
         await player.act(action, seen);
         taken += 1;
+        observeOneWorker();
       }
       expect(taken, `the rules take ${plan[0]?.kind ?? ""}`).toBeGreaterThan(0);
       moves += taken;
@@ -55,6 +87,7 @@ test("the first evening: from one worker to the Light Tower's roof", async ({
     }
     await player.jump(LOOK_MS);
     const report = rules.jumped(player.now);
+    observeOneWorker();
     if (rules.mountain.operational.includes("lightTower")) {
       break;
     }
@@ -64,6 +97,7 @@ test("the first evening: from one worker to the Light Tower's roof", async ({
       // A tick past the jump, so a card that came up has painted.
       await player.wait(TICK_MS);
       rules.until(player.now);
+      observeOneWorker();
       expect(await player.cardUp(), "no shift report on a quiet stretch").toBe(
         false,
       );
@@ -71,9 +105,22 @@ test("the first evening: from one worker to the Light Tower's roof", async ({
       expect((await player.card()).title).toBe("Shift report");
       await player.closeCard();
       rules.until(player.now);
+      observeOneWorker();
     }
     await player.expectStones(rules.pocket);
   }
+
+  expect(seenDrilling, "Worker #1 drilled first").toBe(true);
+  expect(seenHaulage, "Worker #1 moved to haulage").toBe(true);
+  expect(seenHoisting, "Worker #1 moved to hoisting").toBe(true);
+  expect(seenDriving, "Worker #1 moved to driving").toBe(true);
+  expect(
+    stoneRoseFromDriving,
+    "Stone rose from driving (pitToStockyardStones)",
+  ).toBe(true);
+  expect(hiredSecondAfterGain, "Worker #2 was hired after stone gain").toBe(
+    true,
+  );
 
   // The roof went on in those minutes: the shift report tells it, and the refinery's card is behind.
   expect((await player.card()).title).toBe("Shift report");

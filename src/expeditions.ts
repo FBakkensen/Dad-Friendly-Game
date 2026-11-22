@@ -10,7 +10,6 @@ import {
 } from "./engineers";
 import { LOST_TOOLS, expeditionAwayMs, type LostToolId } from "./lost-tools";
 import type { Mountain } from "./mountain";
-import { grantRecipes, type RecipeId } from "./workshop";
 
 /**
  * Expeditions (M7 §4). One engineer, one tunnel, a return time, and a find
@@ -86,7 +85,6 @@ export type StoredFind =
   | { readonly kind: "tool"; readonly id: ToolId }
   | { readonly kind: "keepsake"; readonly id: KeepsakeId }
   | { readonly kind: "engineer"; readonly id: EngineerName }
-  | { readonly kind: "recipe"; readonly id: ExpeditionRecipeId }
   | { readonly kind: "quiet" };
 
 /** A trip out. The engineer's own post is where they come back to. */
@@ -109,7 +107,6 @@ export type SettledFind =
       readonly name: EngineerName;
       readonly joined: boolean;
     }
-  | { readonly kind: "recipe"; readonly id: ExpeditionRecipeId }
   | { readonly kind: "quiet"; readonly text: string };
 
 /**
@@ -130,15 +127,7 @@ const QUIET_TEXT = "The tunnel was quiet, and they came home safe.";
  * What a roll may bring. A quiet roll is a trip that finds nothing: the
  * share the relic glimmers had, which changed nothing either (#728).
  */
-type FindKind = "tool" | "keepsake" | "quiet" | "engineer" | "recipe";
-
-/** The deep dark hides the kit. Once. */
-const EXPEDITION_RECIPES = {
-  "deep-dark": "engineers-kit",
-} as const;
-
-type ExpeditionRecipeId =
-  (typeof EXPEDITION_RECIPES)[keyof typeof EXPEDITION_RECIPES];
+type FindKind = "tool" | "keepsake" | "quiet" | "engineer";
 
 /**
  * Every find a saved trip may carry, by kind (#558). The save reader takes
@@ -149,33 +138,7 @@ export const TRIP_FIND_IDS: Readonly<Record<FindKind, readonly string[]>> = {
   tool: LOST_TOOLS,
   keepsake: KEEPSAKES,
   engineer: ENGINEER_NAMES,
-  recipe: Object.values(EXPEDITION_RECIPES),
 };
-
-function tunnelRecipe(tunnel: TunnelId): ExpeditionRecipeId | undefined {
-  if (tunnel === "deep-dark") {
-    return EXPEDITION_RECIPES[tunnel];
-  }
-  return undefined;
-}
-
-function isExpeditionRecipe(value: string): value is ExpeditionRecipeId {
-  return TRIP_FIND_IDS.recipe.includes(value);
-}
-
-/** Still out there: not in the book, and not already in someone's pocket. */
-function recipeOpen(mountain: Mountain, tunnel: TunnelId): boolean {
-  const id = tunnelRecipe(tunnel);
-  if (id === undefined || mountain.recipes.includes(id)) {
-    return false;
-  }
-  return !mountain.expeditions.some((trip) => isSketch(trip.find, id));
-}
-
-/** Whether a stored find is this recipe's sketch. Any recipe, so a second sketch needs no change here. */
-function isSketch(find: StoredFind, id: RecipeId): boolean {
-  return find.kind === "recipe" && find.id === id;
-}
 
 /**
  * Moves one engineer into a tunnel. The find and the post they left are
@@ -348,7 +311,7 @@ export function previewFind(
   tunnel: TunnelId,
   roll: number,
 ): StoredFind {
-  const first = rolledKind(tunnel, roll, recipeOpen(mountain, tunnel));
+  const first = rolledKind(tunnel, roll);
   // A full shelf falls back to the other shelf, then to a quiet trip, where a
   // relic glimmer stood before #728. An engineer comes only on his own roll,
   // so the deep dark keeps its mix once the shelves are full.
@@ -357,7 +320,7 @@ export function previewFind(
     ...(["tool", "keepsake"] as const).filter((kind) => kind !== first),
   ];
   for (const kind of order) {
-    const find = findOfKind(mountain, engineers, tunnel, kind, roll);
+    const find = findOfKind(mountain, engineers, kind, roll);
     if (find !== undefined) {
       return find;
     }
@@ -377,7 +340,6 @@ function decideFind(
 function findOfKind(
   mountain: Mountain,
   engineers: readonly Engineer[],
-  tunnel: TunnelId,
   kind: FindKind,
   roll: number,
 ): StoredFind | undefined {
@@ -392,15 +354,6 @@ function findOfKind(
   if (kind === "quiet") {
     return { kind: "quiet" };
   }
-  if (kind === "recipe") {
-    const id = tunnelRecipe(tunnel);
-    // rolledKind only asks when this tunnel still has its sketch.
-    /* v8 ignore next 3 */
-    if (id === undefined || !recipeOpen(mountain, tunnel)) {
-      return undefined;
-    }
-    return { kind: "recipe", id };
-  }
   // Only the deep dark's odds roll an engineer, and no shelf falls back to one.
   const name = nextEngineerName(engineers, mountain.expeditions);
   return name === undefined ? undefined : { kind: "engineer", id: name };
@@ -408,15 +361,12 @@ function findOfKind(
 
 /** A tunnel's odds on a roll of 0..99: each kind below its bound, in order, else `rest`. */
 type FindOdds = {
-  /** The rolls, from and below, that bring the sketch home while it is still to find. */
-  readonly recipe: readonly [number, number] | null;
   readonly bands: readonly (readonly [number, FindKind])[];
   readonly rest: FindKind;
 };
 
 const FIND_ODDS: Readonly<Record<TunnelId, FindOdds>> = {
   "side-seam": {
-    recipe: null,
     bands: [
       [60, "keepsake"],
       [90, "quiet"],
@@ -424,7 +374,6 @@ const FIND_ODDS: Readonly<Record<TunnelId, FindOdds>> = {
     rest: "tool",
   },
   "old-shaft": {
-    recipe: null,
     bands: [
       [45, "tool"],
       [75, "keepsake"],
@@ -432,7 +381,6 @@ const FIND_ODDS: Readonly<Record<TunnelId, FindOdds>> = {
     rest: "quiet",
   },
   "deep-dark": {
-    recipe: [75, 80],
     bands: [
       [35, "tool"],
       [60, "keepsake"],
@@ -442,21 +390,8 @@ const FIND_ODDS: Readonly<Record<TunnelId, FindOdds>> = {
   },
 };
 
-function rolledKind(
-  tunnel: TunnelId,
-  roll: number,
-  recipeOpenNow: boolean,
-): FindKind {
+function rolledKind(tunnel: TunnelId, roll: number): FindKind {
   const odds = FIND_ODDS[tunnel];
-  const recipe = odds.recipe;
-  if (
-    recipeOpenNow &&
-    recipe !== null &&
-    roll >= recipe[0] &&
-    roll < recipe[1]
-  ) {
-    return "recipe";
-  }
   return odds.bands.find(([below]) => roll < below)?.[1] ?? odds.rest;
 }
 
@@ -560,11 +495,6 @@ function applyFind(
         },
       };
     }
-    case "recipe":
-      return {
-        mountain: grantRecipes(mountain, [find.id]).mountain,
-        settled: { kind: "recipe", id: find.id },
-      };
     case "quiet":
       return { mountain, settled: { kind: "quiet", text: QUIET_TEXT } };
   }
@@ -672,7 +602,7 @@ function parseFind(value: unknown): StoredFind | undefined {
   return namedFind(kind, id);
 }
 
-/** A find that names its tool, keepsake, engineer or sketch. */
+/** A find that names its tool, keepsake, or engineer. */
 function namedFind(kind: unknown, id: string): StoredFind | undefined {
   if (kind === "tool" && isToolId(id)) {
     return { kind, id };
@@ -681,9 +611,6 @@ function namedFind(kind: unknown, id: string): StoredFind | undefined {
     return { kind, id };
   }
   if (kind === "engineer" && isEngineerName(id)) {
-    return { kind, id };
-  }
-  if (kind === "recipe" && isExpeditionRecipe(id)) {
     return { kind, id };
   }
   return undefined;
@@ -777,9 +704,6 @@ function parseSettledFind(value: unknown): SettledFind | undefined {
   }
   if (kind === "quiet" && typeof text === "string" && text.length > 0) {
     return { kind, text };
-  }
-  if (kind === "recipe" && typeof id === "string" && isExpeditionRecipe(id)) {
-    return { kind, id };
   }
   return undefined;
 }
