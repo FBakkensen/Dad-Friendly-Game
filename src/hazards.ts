@@ -1,7 +1,6 @@
 import { wearsSteelToes } from "./lost-tools";
 import { atHome } from "./engineers";
 import type { Mountain } from "./mountain";
-import { troubleGapScale } from "./workshop";
 
 /**
  * Trouble at the machines (M7 §5). Session-only: never saved, never during
@@ -118,9 +117,7 @@ export function nextTrouble(
   const gapMs = Math.round(TROUBLE_MIN_MS + gapRoll.unit * span);
   return {
     seed: tierRoll.seed,
-    gapMs:
-      (troubleIsRarer(mountain, boots) ? gapMs * BOOTS_GAP_SCALE : gapMs) *
-      troubleGapScale(mountain),
+    gapMs: troubleIsRarer(mountain, boots) ? gapMs * BOOTS_GAP_SCALE : gapMs,
     trouble: { kind: kindForTier(tier), tier, startedAt: now },
   };
 }

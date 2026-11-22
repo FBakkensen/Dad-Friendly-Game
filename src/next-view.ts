@@ -4,8 +4,6 @@ import type { Mountain } from "./mountain";
 import { STAGES, type Stage } from "./line";
 import { mineMoves } from "./mine-piles";
 import { canPay } from "./stock";
-import { installable, stationOpen } from "./factory";
-import { recipeById } from "./workshop";
 import { makerPrice, makersOpen, refineryMakers } from "./makers";
 import { partTwoOn, slice2Part1On } from "./part-switch";
 import { MAX_STOCKYARD_LEVEL, expandPrice, stockyardOpen } from "./stockyard";
@@ -35,10 +33,9 @@ export const SITE_NAMES: Readonly<Record<SiteId, string>> = {
 
 /**
  * Whether a site is in the site bar (#671): the mine and the city from the
- * first evening, the refinery with the Light Tower once part 2 is live, and
- * the factory with the shaft once part 3 is (#681; spec, While a part is
- * the end of the game). Under Slice 2 Part 1 (#768), the Factory tab stays
- * hidden until Part 2 opens the steady-flow Factory.
+ * first evening, the refinery with the Light Tower once part 2 is live. The
+ * Factory tab stays hidden in Slice 2 Part 1 (#768, #769) until Part 2 opens
+ * the steady-flow Factory.
  */
 export function siteOpen(
   mountain: Pick<Mountain, "operational" | "mineLevels">,
@@ -48,7 +45,7 @@ export function siteOpen(
     case "refinery":
       return partTwoOn() && makersOpen(mountain);
     case "factory":
-      return !slice2Part1On() && stationOpen(mountain);
+      return false;
     default:
       return true;
   }
@@ -120,9 +117,7 @@ export function transportCount(mountain: Mountain): number {
  * Every buy on each site he can afford now. The mine counts what its
  * stages' lists hold; the refinery a kiln and a stockyard level; the city
  * counts its vehicles in Slice 1 (moved to global Transport in Slice 2, #768).
- * The factory counts none: a work order costs nothing to place, transport
- * brings what it requires (#681). Hiring is not counted: a worker is nearly
- * always affordable.
+ * Hiring is not counted: a worker is nearly always affordable.
  */
 export function siteCounts(mountain: Mountain): Record<SiteId, number> {
   const mine = STAGES.reduce(
@@ -155,16 +150,9 @@ type NextCount = {
 
 /** What Next says. */
 export type NextView =
-  /** A building nobody has ordered: one of the two things Next points at. */
+  /** A building nobody has ordered: what Next points at. */
   | {
       readonly kind: "order";
-      readonly head: string;
-      readonly line: string;
-      readonly ready: number;
-    }
-  /** A work order done and waiting to be installed (#681): the other. */
-  | {
-      readonly kind: "install";
       readonly head: string;
       readonly line: string;
       readonly ready: number;
@@ -189,16 +177,6 @@ export type NextView =
 export const NOTHING_TO_BUY = "Nothing to buy on the sites yet.";
 export const PRODUCTION_RUNS = "Production is running.";
 export const LINE_STANDS = "The line stands.";
-
-/** "iron rails", "a blasting charge": the done work order, as Next says it. */
-function installWords(mountain: Mountain): string {
-  const { station } = mountain;
-  /* v8 ignore next 3 -- asked only while a work order is done */
-  if (station.kind !== "done") {
-    return "";
-  }
-  return recipeById(station.blueprint).name.toLowerCase();
-}
 
 /** What Next says for this mountain. */
 export function nextView(mountain: Mountain): NextView {
@@ -234,14 +212,6 @@ export function nextView(mountain: Mountain): NextView {
       ready: ready + 1,
     };
   }
-  if (installable(mountain) && siteOpen(mountain, "factory")) {
-    return {
-      kind: "install",
-      head: `Next · ${SITE_NAMES.factory}`,
-      line: `Install ${installWords(mountain)}`,
-      ready: ready + 1,
-    };
-  }
   if (ready > 0) {
     return {
       kind: "affordable",
@@ -267,14 +237,6 @@ export type Lamp = "green" | "amber" | "dark";
 export function siteLamp(mountain: Mountain, site: SiteId): Lamp {
   if (siteCounts(mountain)[site] > 0) {
     return "green";
-  }
-  if (site === "factory") {
-    // Something to do: a work order done waits to be installed (#681).
-    return installable(mountain)
-      ? "green"
-      : mountain.station.kind === "delivering"
-        ? "amber"
-        : "dark";
   }
   return site === "city" && mountain.project.kind === "delivering"
     ? "amber"

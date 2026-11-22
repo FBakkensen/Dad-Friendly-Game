@@ -2,7 +2,7 @@ import type { AuthState } from "./auth";
 import { ENGINEER_NAMES } from "./engineers";
 import type { FieldEvent, FieldEventData } from "./field-log";
 import { formatTimeOfDay } from "./format";
-import { LAYER_IDS, MATERIAL_IDS, type MaterialId } from "./layers";
+import { LAYER_IDS } from "./layers";
 import type { Mountain } from "./mountain";
 import type { RowView } from "./row-view";
 import { freshMineLines } from "./save-sheet-copy";
@@ -16,9 +16,7 @@ import {
   TEND_POSTS,
   TROUBLE_FIXED,
   awayDugLine,
-  benchStartedLine,
   cameHomeLine,
-  craftFittedLine,
   exploreCheer,
   layerCardWords,
   promoteCheer,
@@ -31,27 +29,10 @@ import {
   MACHINE_WORDS,
   vehicleBuyLine,
   type TendPost,
-  materialCountWords,
 } from "./screen-words";
 import { TIERS, type MachineId, type TierId } from "./tiers";
 import { VEHICLE_IDS } from "./transport";
 import { UPGRADES, upgradeById, type UpgradeId } from "./upgrades";
-import { RECIPE_IDS, recipeById, type RecipeId } from "./workshop";
-
-/** A material the pocket can name, and its words. */
-export type MaterialChip = {
-  readonly id: MaterialId;
-  readonly text: string;
-};
-
-/** Materials the pocket can name: a chip appears while a unit is in hand. */
-export function metMaterialChips(mountain: Mountain): readonly MaterialChip[] {
-  const have = mountain.stock;
-  return MATERIAL_IDS.filter((id) => have[id] > 0).map((id) => ({
-    id,
-    text: materialCountWords(id, have[id]),
-  }));
-}
 
 /*
  * The Ledger drawer's rows and lines (#375), as pure views: this run's field log as Tonight's
@@ -113,15 +94,6 @@ function named<T extends string>(
   return id === undefined || count === undefined ? undefined : words(id, count);
 }
 
-/** A line about a recipe this build knows. */
-function recipe(
-  data: FieldEventData,
-  words: (name: string) => string,
-): string | undefined {
-  const id = known<RecipeId>(RECIPE_IDS, data.id);
-  return id === undefined ? undefined : words(recipeById(id).name);
-}
-
 /** A line about one of the crew's named engineers. */
 function engineer(
   data: FieldEventData,
@@ -160,8 +132,6 @@ const WORDING: Readonly<
     named(UPGRADE_IDS, data, (id, level) =>
       upgradeLevelLine(upgradeById(id).name, level),
     ),
-  "craft.start": ({ data }) => recipe(data, benchStartedLine),
-  "craft.done": ({ data }) => recipe(data, craftFittedLine),
   "layer.enter": ({ data }) => {
     const id = known(LAYER_IDS, data.id);
     return id === undefined ? undefined : layerCardWords(id)?.arrival;

@@ -571,21 +571,6 @@ describe("the mine with two levels", () => {
     );
   });
 
-  it("gives the card the key's rate while a crew timer runs", () => {
-    const base = levels({ topsoil: 2, stock: { cutStone: 1e6 } });
-    const mountain = {
-      ...base,
-      clocks: { ...base.clocks, "blasting-charge": Date.now() + 600_000 },
-    };
-    const { root, button } = mount(twoLevels(mountain));
-    const key = root.querySelector('.mine-key[data-stage="face"]');
-    button('.mine-key[data-stage="face"]').click();
-    expect(
-      root.querySelector(".machine-card .machine-card-machine .mine-key-face")
-        ?.textContent,
-    ).toBe(key?.querySelector(".mine-key-face")?.textContent);
-  });
-
   it("buys nothing from a dark level key", () => {
     const { root, button, progress } = mount(twoLevels(levels({ topsoil: 2 })));
     const dispatch = sent(progress);

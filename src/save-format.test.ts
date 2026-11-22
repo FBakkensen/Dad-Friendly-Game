@@ -26,10 +26,6 @@ describe("the game map (#558)", () => {
       engineers: "engineers",
       expeditions: "expeditions",
       finds: "marks",
-      bench: "bench",
-      crafted: "levels",
-      recipes: "marks",
-      clocks: "clocks",
       seen: "marks",
       taught: "marks",
       fleet: "fleet",
@@ -40,13 +36,11 @@ describe("the game map (#558)", () => {
       makers: "makers",
       stockyard: "stockyard",
       rockDug: "run",
-      graniteDug: "run",
-      mineLevels: "granite",
+      mineLevels: "mineLevels",
       pithead: "pithead",
       makerBuffers: "makerBuffers",
       cycleMicros: "cycleMicros",
       assignedRuns: "assignedRuns",
-      station: "station",
       cages: "cages",
     } as const satisfies Record<keyof Mountain, string>;
     const fresh = createMountain();
@@ -55,11 +49,8 @@ describe("the game map (#558)", () => {
       stock: {
         ...fresh.stock,
         stones: 7,
-        clay: 3,
-        iron: 2,
-        crystal: 1,
-        heartstone: 0,
         brick: 4,
+        cutStone: 2,
       },
       owned: {
         ...fresh.owned,
@@ -85,15 +76,7 @@ describe("the game map (#558)", () => {
         },
       ],
       finds: ["map"],
-      bench: { recipe: "iron-rails", startedAt: 10, endsAt: 20 },
-      crafted: { ...fresh.crafted, "sturdy-props": 1 },
-      recipes: [...fresh.recipes, "reinforce"],
-      clocks: {
-        ...fresh.clocks,
-        "axle-grease": 3_000,
-        "blasting-charge": 4_000,
-      },
-      seen: ["workshop"],
+      seen: ["engineers"],
       taught: ["engineers"],
       fleet: { ...fresh.fleet, horseWagon: 3 },
       operational: ["lightTower"],
@@ -113,7 +96,6 @@ describe("the game map (#558)", () => {
       makers: { kiln: 2, saw: 0 },
       stockyard: 1,
       rockDug: 12_345,
-      graniteDug: 2_345,
       mineLevels: {
         granite: {
           machines: { cart: 1, drill: 0, borer: 1, train: 0 },
@@ -124,11 +106,6 @@ describe("the game map (#558)", () => {
       makerBuffers: { kiln: { topsoilRock: 20 }, saw: { graniteRock: 12 } },
       cycleMicros: { kiln: 250_000, saw: 125_000 },
       assignedRuns: { pitToStockyardStones: 1, pitTopsoilToKilns: 1 },
-      station: {
-        kind: "delivering",
-        blueprint: "sturdy-props",
-        arrived: { ...fresh.stock, stones: 900, clay: 1_250 },
-      },
       // The cages come back as the save keeps them: what each level's cages
       // carry, in a cage at the top (ruling 12 of #724).
       cages: {
@@ -235,7 +212,7 @@ describe("the game map (#558)", () => {
       project({ ...good, arrived: { stones: 10 }, onSite: { stones: 11 } }),
     ).toBe("bad");
     expect(project({ ...good, onSite: { stones: -1 } })).toBe("bad");
-    expect(project({ ...good, onSite: { clay: 1 } })).toBe("bad");
+    expect(project({ ...good, onSite: { brick: 1 } })).toBe("bad");
     expect(project({ ...good, onSite: { bricks: 1 } })).toBe("newer");
   });
 
@@ -262,7 +239,7 @@ describe("the game map (#558)", () => {
     expect(project({ ...good, arrived: { stones: 25_001 } })).toBe("bad");
     // All of the step in and built in is a step done, never a project.
     expect(project({ ...good, arrived: { stones: 25_000 } })).toBe("bad");
-    expect(project({ ...good, arrived: { clay: 1 } })).toBe("bad");
+    expect(project({ ...good, arrived: { brick: 1 } })).toBe("bad");
     expect(project({ ...good, state: 7 })).toBe("bad");
     expect(project(good, { operational: ["lightTower"] })).toBe("bad");
     expect(project({ ...good, state: "rushing" })).toBe("newer");
@@ -313,23 +290,17 @@ describe("the game map (#558)", () => {
     expect(read({ owned: { helper: 5 }, jobs: { crushers: 1 } })).toBe("newer");
   });
 
-  it("keys each fact by id, in the five maps", () => {
+  it("keys each fact by id, in the three maps", () => {
     const fresh = createMountain();
     const game = writeGame({
       ...fresh,
       owned: { ...fresh.owned, helper: 3, hoist: 1 },
       stock: { ...fresh.stock, stones: 40 },
       upgrades: { ...fresh.upgrades, cartSyn: 1 },
-      crafted: { ...fresh.crafted, "iron-rails": 1 },
-      clocks: { ...fresh.clocks, "blasting-charge": 7, "axle-grease": 9 },
     });
     expect(game.owned).toEqual({ helper: 3, hoist: 1 });
     expect(game.stock).toEqual({ stones: 40 });
-    expect(game.levels).toEqual({ cartSyn: 1, "iron-rails": 1 });
-    expect(game.clocks).toEqual({
-      "blasting-charge": 7,
-      "axle-grease": 9,
-    });
+    expect(game.levels).toEqual({ cartSyn: 1 });
   });
 
   it("saves an engineer on a trip in the tunnel, and loads them back on the trip", () => {
@@ -396,73 +367,16 @@ describe("the game map (#558)", () => {
     ).toBe("newer");
   });
 
-  it("a bench with the wrong types is bad; an unknown recipe on it is newer", () => {
-    const bench = { recipe: "iron-rails", startedAt: 10, endsAt: 20 };
-    expect(readGame({ bench }, 0).kind).toBe("ok");
-    expect(readGame({ bench: { ...bench, endsAt: "20" } }, 0).kind).toBe("bad");
-    expect(readGame({ bench: { ...bench, recipe: "kiln" } }, 0).kind).toBe(
-      "newer",
-    );
-  });
-
-  it("a retired stretch past its cap is newer, below 1 is bad", () => {
-    expect(readGame({ run: { stretch: 2_000_000 } }, 0).kind).toBe("newer");
-    expect(readGame({ run: { stretch: 0.5 } }, 0).kind).toBe("bad");
-    expect(readGame({ run: { stretch: 2.5 } }, 0).kind).toBe("ok");
-  });
-
-  it("a retired generation past its cap is newer, a part-run is bad", () => {
-    expect(readGame({ run: { generation: 1000 } }, 0).kind).toBe("ok");
-    expect(readGame({ run: { generation: 1001 } }, 0).kind).toBe("newer");
-    expect(readGame({ run: { generation: 1.5 } }, 0).kind).toBe("bad");
-  });
-
-  it("a v10 save with run.generation 0 and run.stretch 1 reads ok, and the writer writes neither (#729)", () => {
-    const read = readGame(
-      { run: { generation: 0, stretch: 1, dug: 5_000, rock: 12 } },
-      0,
-    );
-    expect(read.kind).toBe("ok");
-    const mountain = read.kind === "ok" ? read.mountain : createMountain();
-    expect(mountain.rockDug).toBe(12);
-    expect(mountain).not.toHaveProperty("legacy");
-    expect(mountain).not.toHaveProperty("stretch");
-    expect(writeGame(mountain).run).toEqual({ rock: 12 });
-  });
-
-  it("a v10 save from a kid run reads ok at the retired caps, and drops both on the next write (#729)", () => {
-    const read = readGame(
-      { run: { generation: 1000, stretch: 1_000_000, rock: 7 } },
-      0,
-    );
-    expect(read.kind).toBe("ok");
-    const mountain = read.kind === "ok" ? read.mountain : createMountain();
-    expect(writeGame(mountain).run).toEqual({ rock: 7 });
-  });
-
-  it("a retired dug reads to the same mountain, with no stones left in it, and is never written (#740)", () => {
-    const today = readGame({ run: { dug: 0, rock: 12 } }, 0);
-    const without = readGame({ run: { rock: 12 } }, 0);
-    expect(today.kind).toBe("ok");
-    expect(today).toEqual(without);
-    const mountain = today.kind === "ok" ? today.mountain : createMountain();
-    expect(mountain).not.toHaveProperty("remaining");
-    expect(writeGame(mountain).run).toEqual({ rock: 12 });
-    const deep = readGame({ run: { dug: 5_000 } }, 0);
-    expect(deep).toEqual(readGame({}, 0));
-    expect(writeGame(createMountain())).not.toHaveProperty("run");
-  });
-
-  it("a retired dug past its cap is newer, a part-stone or a negative is bad (#740)", () => {
-    expect(readGame({ run: { dug: 240_000_000 } }, 0).kind).toBe("ok");
-    expect(readGame({ run: { dug: 240_000_001 } }, 0).kind).toBe("newer");
-    expect(readGame({ run: { dug: 1.5 } }, 0).kind).toBe("bad");
-    expect(readGame({ run: { dug: -1 } }, 0).kind).toBe("bad");
-  });
-
   it("a mark twice is newer", () => {
     expect(
-      readGame({ marks: { seen: ["workshop", "workshop"] } }, 0).kind,
+      readGame({ marks: { seen: ["engineers", "engineers"] } }, 0).kind,
     ).toBe("newer");
+  });
+
+  it("refuses a non-record unknown deeper level entry in mineLevels (#769)", () => {
+    const game = writeGame(createMountain());
+    expect(readGame({ ...game, mineLevels: { crystal: 5 } }, 0).kind).toBe(
+      "bad",
+    );
   });
 });

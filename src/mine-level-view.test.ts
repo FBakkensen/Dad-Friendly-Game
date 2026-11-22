@@ -32,7 +32,6 @@ import {
   partTwo,
 } from "./part-three.harness";
 import { chainFlows } from "./piles";
-import { crewTimer } from "./rates";
 import { readGame } from "./save-format";
 import { LEVEL_JOBS } from "./workforce";
 
@@ -227,44 +226,6 @@ describe("hoisting's row and the strip", () => {
     });
   });
 
-  it("reads hoisting's counts and moves on the cages' one clock while a crew timer runs", () => {
-    partThree(() => {
-      const base = three();
-      const now = 1_000;
-      const m = {
-        ...base,
-        clocks: { ...base.clocks, "blasting-charge": now + 60_000 },
-      };
-      const timer = crewTimer(m, now);
-      expect(timer).toBeGreaterThan(1);
-      const still = hoistingRow(m);
-      const row = hoistingRow(m, now);
-      const running = mineWork(m).cages.filter((cage) => cage.runs);
-      for (const part of row.parts) {
-        if (part.kind === "runs") {
-          expect(part.running).toBe(
-            running.filter((cage) => cage.key.startsWith(`${part.id}:`)).length,
-          );
-        }
-      }
-      row.parts.forEach((part, index) => {
-        expect(part.moves).toBeCloseTo(
-          (still.parts[index]?.moves ?? 0) * timer,
-          9,
-        );
-      });
-      const winch = row.parts
-        .filter((part) => part.kind !== "runs")
-        .reduce((sum, part) => sum + part.moves, 0);
-      const can = row.parts.reduce((sum, part) => sum + part.moves, 0);
-      const rates = hoistStrip(m, now).reduce(
-        (sum, cell) => sum + cell.rateValue,
-        0,
-      );
-      expect(Math.abs(rates - (can - winch))).toBeLessThan(1e-9);
-    });
-  });
-
   it("darkens − at none and + with none left for both", () => {
     partThree(() => {
       const m = levels({
@@ -377,7 +338,7 @@ describe("hoisting's now against its can", () => {
       const read = readGame(
         {
           owned: { helper: 18, cart: 2 },
-          stock: { stones: 420_000, brick: 60_000, clay: 8, iron: 11 },
+          stock: { stones: 420_000, brick: 60_000 },
           jobs: {
             drilling: 4,
             haulage: 3,
@@ -389,9 +350,8 @@ describe("hoisting's now against its can", () => {
           fleet: { horseWagon: 2 },
           marks: { operational: ["lightTower", "warehouse"] },
           makers: { kiln: 1 },
-          granite: {},
-          run: { rock: 30_000_000, granite: 1_000_000 },
-          levels: { "iron-rails": 1 },
+          mineLevels: { granite: {} },
+          run: { rock: 30_000_000 },
         },
         0,
       );

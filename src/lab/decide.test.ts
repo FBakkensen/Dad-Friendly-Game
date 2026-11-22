@@ -88,7 +88,6 @@ describe("sticker", () => {
     expect(sticker(mountain, { kind: "station", index: 0, post: "camp" })).toBe(
       0,
     );
-    expect(sticker(mountain, { kind: "cancelCraft" })).toBe(0);
     // A fresh mine's moves (#654): a wagon and a kiln have their price, an
     // order is free, and the stockyard is paid in brick.
     expect(

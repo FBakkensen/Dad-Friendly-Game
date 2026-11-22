@@ -5,8 +5,7 @@ import { pay, stonesPrice, type Price } from "./stock";
 import { haulageWorkers } from "./workforce";
 
 /** Permanent, one-level-at-a-time purchases. See docs/DESIGN.md "M3: Strategy". */
-export type UpgradeId =
-  "boots" | "cartSyn" | "drillSyn" | "borerSyn" | "machineSyn";
+export type UpgradeId = "boots" | "cartSyn" | "drillSyn" | "borerSyn";
 
 export type Upgrades = Readonly<Record<UpgradeId, number>>;
 
@@ -15,7 +14,6 @@ export const NO_UPGRADES: Upgrades = {
   cartSyn: 0,
   drillSyn: 0,
   borerSyn: 0,
-  machineSyn: 0,
 };
 
 export type Upgrade = {
@@ -71,16 +69,6 @@ const BY_ID: Readonly<Record<UpgradeId, Upgrade>> = {
     maxLevel: 1,
     unlock: { tier: "borer", count: 3 },
     synergy: { from: "drill", to: "borer" },
-  },
-  machineSyn: {
-    id: "machineSyn",
-    name: "Borer tracks",
-    perLevel: "Each borer makes the Great Machine 1% faster.",
-    firstCost: 30_000_000,
-    costGrowth: 1,
-    maxLevel: 1,
-    unlock: { tier: "machine", count: 1 },
-    synergy: { from: "borer", to: "machine" },
   },
 };
 

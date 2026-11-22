@@ -1,31 +1,20 @@
-import type { LayerId, MaterialId, Materials } from "./layers";
-
 /**
  * Everything he can hold, and the one place that takes from it or adds to it
- * (#560, spec "One stock, and prices as lists"). On screen the four
- * materials are still called materials.
+ * (#560, #769): Slice 2 Part 1 retires the small-cap clay/iron/crystal/heartstone
+ * trickle goods so all goods share one stockyard and physical transport network.
+ * Part 2 adds `glass` and `parts` with no save reset.
  */
 
-/**
- * A good: the stones, one band's material, or brick, which the kilns make
- * (slice 1, rule 3, #666).
- */
-export type GoodId = "stones" | MaterialId | "brick" | "cutStone";
+export type GoodId = "stones" | "brick" | "cutStone";
 
 /** One row of the goods table: its id and where it comes from. */
 export type GoodRow = {
   readonly id: GoodId;
-  /** The mountain itself, the band whose digging turns it up, or the maker that makes it. */
-  readonly from: "mountain" | LayerId | "kilns" | "saws";
+  readonly from: "mountain" | "kilns" | "saws";
 };
 
-/** Each material is the one its band names in `layers` (the test holds them together). */
 export const GOOD_ROWS: readonly GoodRow[] = [
   { id: "stones", from: "mountain" },
-  { id: "clay", from: "topsoil" },
-  { id: "iron", from: "granite" },
-  { id: "crystal", from: "crystal" },
-  { id: "heartstone", from: "heart" },
   { id: "brick", from: "kilns" },
   { id: "cutStone", from: "saws" },
 ];
@@ -37,10 +26,6 @@ export type Stock = Readonly<Record<GoodId, number>>;
 
 export const EMPTY_STOCK: Stock = {
   stones: 0,
-  clay: 0,
-  iron: 0,
-  crystal: 0,
-  heartstone: 0,
   brick: 0,
   cutStone: 0,
 };
@@ -60,16 +45,6 @@ export function stonesPrice(amount: number): Price {
  * left). It matches no price, not even a free one, so it buys nothing (#367).
  */
 export const UNSHOWN_PRICE: Price = stonesPrice(Number.NaN);
-
-/** The four materials a stock holds, without the stones. */
-export function materialsOf(stock: Stock): Materials {
-  return {
-    clay: stock.clay,
-    iron: stock.iron,
-    crystal: stock.crystal,
-    heartstone: stock.heartstone,
-  };
-}
 
 /** How much of `good` the price asks: 0 when it asks none. */
 export function priceAmount(price: Price, good: GoodId): number {
@@ -118,10 +93,6 @@ export function pay<T extends { readonly stock: Stock }>(
 export function addedStock(stock: Stock, gains: Partial<Stock>): Stock {
   return {
     stones: stock.stones + (gains.stones ?? 0),
-    clay: stock.clay + (gains.clay ?? 0),
-    iron: stock.iron + (gains.iron ?? 0),
-    crystal: stock.crystal + (gains.crystal ?? 0),
-    heartstone: stock.heartstone + (gains.heartstone ?? 0),
     brick: stock.brick + (gains.brick ?? 0),
     cutStone: stock.cutStone + (gains.cutStone ?? 0),
   };

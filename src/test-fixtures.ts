@@ -4,7 +4,6 @@ import { readSessionSave } from "./session-save";
 import { readGame } from "./save-format";
 import { addedStock } from "./stock";
 import { tierRecord, type TierId } from "./tiers";
-import { recipeById, type RecipeId } from "./workshop";
 
 /** A mountain with `count` stones in the pocket and as much rock dug. */
 export function minedMountain(count: number): Mountain {
@@ -18,20 +17,6 @@ export function minedMountain(count: number): Mountain {
 /** A change that adds `stones` to the pocket: a mutation for the save tests. */
 export function digStones(mountain: Mountain, stones: number): Mountain {
   return { ...mountain, stock: addedStock(mountain.stock, { stones }) };
-}
-
-/**
- * A save's craft on the old bench, paid for, from `startedAt` for the
- * recipe's own time. Play never puts one there since #740 (the bench never
- * opens), but a save may hold one, and it still settles and cancels.
- */
-export function benchCraft(
-  mountain: Mountain,
-  id: RecipeId,
-  startedAt: number,
-): Mountain {
-  const endsAt = startedAt + recipeById(id).craftMs;
-  return { ...mountain, bench: { recipe: id, startedAt, endsAt } };
 }
 
 /** The mountain after a save through JSON and back, or undefined when it does not read `ok`. */

@@ -284,101 +284,27 @@ describe("Next's city count with trucks (#673)", () => {
   });
 });
 
-describe("the factory's site (#681)", () => {
+describe("the factory's site (#769)", () => {
   const partThree = <T>(body: () => T): T =>
     withFactors({ [PART_TWO_OFF]: 0, [PART_THREE_OFF]: 0 }, body);
 
-  /** The Light Tower and the Warehouse up, the shaft sunk or not, and this station. */
-  function sunk(
-    station: Mountain["station"] = { kind: "idle" },
-    shaft = true,
-  ): Mountain {
-    const start = crewedStart();
-    return {
-      ...start,
-      operational: ["lightTower", "warehouse"],
-      mineLevels: shaft
-        ? {
-            granite: {
-              machines: { cart: 0, drill: 0, borer: 0, train: 0 },
-              piles: { face: 0, shaft: 0, saw: 0 },
-            },
-          }
-        : {},
-      project: placeOrder(start).project,
-      station,
-    };
-  }
-
-  it("opens with the shaft in part 3, and never with part 3 off", () => {
+  it("stays hidden in Slice 2 Part 1 until Part 2 opens the steady-flow Factory", () => {
     partThree(() => {
-      expect(siteOpen(sunk(), "factory")).toBe(true);
-      expect(siteOpen(sunk({ kind: "idle" }, false), "factory")).toBe(false);
-    });
-    partTwo(() => {
-      expect(siteOpen(sunk(), "factory")).toBe(false);
-    });
-  });
-
-  it("counts nothing: a work order costs nothing to place", () => {
-    partThree(() => {
-      const rich = {
-        ...sunk(),
-        stock: { ...sunk().stock, stones: 1e9, clay: 10, iron: 35 },
+      const start = crewedStart();
+      const sunk: Mountain = {
+        ...start,
+        operational: ["lightTower", "warehouse"],
+        mineLevels: {
+          granite: {
+            machines: { cart: 0, drill: 0, borer: 0, train: 0 },
+            piles: { face: 0, shaft: 0, saw: 0 },
+          },
+        },
+        project: placeOrder(start).project,
       };
-      expect(siteCounts(rich).factory).toBe(0);
-    });
-  });
-
-  it("is amber while a work order is delivering, green while one waits to be installed", () => {
-    partThree(() => {
-      const arrived = sunk().stock;
-      expect(
-        siteLamp(
-          sunk({ kind: "delivering", blueprint: "reinforce", arrived }),
-          "factory",
-        ),
-      ).toBe("amber");
-      expect(
-        siteLamp(sunk({ kind: "done", blueprint: "reinforce" }), "factory"),
-      ).toBe("green");
-      expect(siteLamp(sunk(), "factory")).toBe("dark");
-    });
-  });
-
-  it("is dark for a done work order that can no longer be installed, as Next and Install say", () => {
-    partThree(() => {
-      const done = sunk({ kind: "done", blueprint: "sturdy-props" });
-      const full = {
-        ...done,
-        crafted: { ...done.crafted, "sturdy-props": 1 },
-      };
-      expect(siteLamp(full, "factory")).toBe("dark");
-      expect(nextView(full).kind).not.toBe("install");
-    });
-  });
-
-  it("has Next point at a work order that waits to be installed", () => {
-    partThree(() => {
-      const view = nextView(sunk({ kind: "done", blueprint: "iron-rails" }));
-      expect(view).toMatchObject({
-        kind: "install",
-        head: "Next · Factory",
-        line: "Install iron rails",
-      });
-    });
-  });
-
-  it("puts a building nobody has ordered first", () => {
-    partThree(() => {
-      const done = sunk({ kind: "done", blueprint: "iron-rails" });
-      // The Warehouse is next once only the Light Tower stands.
-      const view = nextView({
-        ...done,
-        operational: ["lightTower"],
-        project: { kind: "unordered" },
-      });
-      expect(view.kind).toBe("order");
+      expect(siteOpen(sunk, "factory")).toBe(false);
+      expect(siteCounts(sunk).factory).toBe(0);
+      expect(siteLamp(sunk, "factory")).toBe("dark");
     });
   });
 });

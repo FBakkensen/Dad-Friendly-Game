@@ -1,10 +1,4 @@
-import {
-  EMPTY_STOCK,
-  pay,
-  priceAmount,
-  stonesPrice,
-  UNSHOWN_PRICE,
-} from "../stock";
+import { EMPTY_STOCK, priceAmount, stonesPrice, UNSHOWN_PRICE } from "../stock";
 import { describe, expect, it } from "vitest";
 import { buyCrew } from "../crew";
 import { holdOrder, placeOrder } from "../city";
@@ -23,13 +17,7 @@ import { recall, send } from "../expeditions";
 import { markTaught, showsDot } from "../teach";
 import type { Trouble } from "../hazards";
 import { createMountain, type Mountain } from "../mountain";
-import {
-  CREWED_JOBS,
-  crewedStart,
-  minedMountain,
-  benchCraft,
-  patched,
-} from "../test-fixtures";
+import { crewedStart, minedMountain } from "../test-fixtures";
 import { AWAY_PAY_RATE, effectiveRates, paidAwayMs } from "../rates";
 import { owned, tierById, tierCost, tierQuote, type TierId } from "../tiers";
 import {
@@ -41,7 +29,6 @@ import {
   type UpgradeId,
   NO_UPGRADES,
 } from "../upgrades";
-import { cancelCraft, recipePrice } from "../workshop";
 import {
   applyAction,
   applyMove,
@@ -95,7 +82,6 @@ const FIXTURES = {
   send: { kind: "send", index: 0, tunnel: "old-shaft" },
   recall: { kind: "recall", index: 0 },
   fixTrouble: { kind: "fixTrouble", tier: "borer", startedAt: NOW },
-  cancelCraft: { kind: "cancelCraft" },
   placeOrder: { kind: "placeOrder" },
   holdOrder: { kind: "holdOrder" },
   resumeOrder: { kind: "resumeOrder" },
@@ -106,9 +92,6 @@ const FIXTURES = {
   expandStockyard: { kind: "expandStockyard" },
   sinkShaft: { kind: "sinkShaft" },
   buyGraniteMachine: { kind: "buyGraniteMachine", id: "borer", count: 1 },
-  placeWorkOrder: { kind: "placeWorkOrder", blueprint: "iron-rails" },
-  cancelWorkOrder: { kind: "cancelWorkOrder" },
-  installWorkOrder: { kind: "installWorkOrder" },
   assignHoist: { kind: "assignHoist", level: "granite", count: 1 },
   unassignHoist: { kind: "unassignHoist", level: "topsoil", count: 1 },
 } as const satisfies {
@@ -165,8 +148,6 @@ function direct(mountain: Mountain, action: Action, now: number): Mountain {
       return recall(mountain, action.index);
     case "fixTrouble":
       return mountain;
-    case "cancelCraft":
-      return cancelCraft(mountain, now);
     case "placeOrder":
     case "holdOrder":
     case "resumeOrder":
@@ -177,15 +158,11 @@ function direct(mountain: Mountain, action: Action, now: number): Mountain {
     case "expandStockyard":
     case "sinkShaft":
     case "buyGraniteMachine":
-    case "placeWorkOrder":
-    case "cancelWorkOrder":
-    case "installWorkOrder":
     case "assignHoist":
     case "unassignHoist":
-      // Their own suites prove these moves (#654, #689, #666, #673, #674,
+      // Their own suites prove these moves (#654, #689, #666, #673,
       // #724: src/fresh-orders.test.ts, src/workforce.test.ts,
-      // src/part-two.test.ts, src/part-three-moves.test.ts,
-      // src/factory-moves.test.ts).
+      // src/part-two.test.ts, src/part-three-moves.test.ts).
       return applyAction(mountain, action, now);
     default: {
       const unexpected: never = action;
@@ -209,12 +186,6 @@ const withHelper = {
   stock: { ...fresh.stock, stones: 0 },
   owned: { ...fresh.owned, helper: 1 },
 };
-const STOCK = {
-  clay: 500,
-  iron: 500,
-  crystal: 500,
-  heartstone: 500,
-};
 
 const rich: Mountain = {
   ...minedMountain(25_000_000),
@@ -225,7 +196,7 @@ const rich: Mountain = {
     drill: 2,
     borer: 1,
   },
-  stock: { ...minedMountain(25_000_000).stock, stones: 1e15, ...STOCK },
+  stock: { ...minedMountain(25_000_000).stock, stones: 1e15 },
   engineers: [ada],
 };
 const broke: Mountain = { ...rich, stock: { ...rich.stock, stones: 0 } };
@@ -461,15 +432,7 @@ describe("listActions", () => {
 
   it("lists every kind across these mountains", () => {
     const seen = new Set<Action["kind"]>();
-    const onBench: Mountain = {
-      ...rich,
-      bench: {
-        recipe: "iron-rails",
-        startedAt: NOW - 1000,
-        endsAt: NOW + 60_000,
-      },
-    };
-    for (const mountain of [fresh, rich, travelling, crowned, broke, onBench]) {
+    for (const mountain of [fresh, rich, travelling, crowned, broke]) {
       for (const action of listActions(mountain, NOW, trouble)) {
         seen.add(action.kind);
       }
@@ -517,12 +480,7 @@ describe("listActions", () => {
           assigned: { ...lit.cages.assigned, topsoil: 1 },
         },
       };
-      // The factory's station opens with the shaft (#674).
-      const done: Mountain = {
-        ...sunk,
-        station: { kind: "done", blueprint: "reinforce" },
-      };
-      for (const one of [lit, sunk, done]) {
+      for (const one of [lit, sunk]) {
         for (const action of listActions(one, NOW)) {
           seen.add(action.kind);
         }
@@ -893,48 +851,6 @@ describe("valueOf", () => {
       score(working, drillWorker, HORIZON, noTime).gainPerSec,
     ).toBeGreaterThan(0);
   });
-
-  it("keeps a save's craft cancellable, with its refund off the table (#740)", () => {
-    // The old bench never opens (#740), so no craft is offered; a save's
-    // craft still runs, and can be called off until its time is up.
-    const shed = patched(
-      {
-        ...createMountain(),
-        owned: {
-          ...createMountain().owned,
-          helper: 30,
-          cart: 1,
-          hoist: 2,
-          drill: 1,
-          borer: 1,
-        },
-        jobs: CREWED_JOBS,
-        stock: { ...createMountain().stock, stones: 1e15, ...STOCK },
-        engineers: [ada],
-      },
-      {},
-    );
-    const busy = benchCraft(
-      pay(shed, recipePrice("iron-rails")),
-      "iron-rails",
-      NOW,
-    );
-    const refund = score(busy, { kind: "cancelCraft" }, HORIZON, LIVE, NOW);
-    expect(refund.paybackSec).toBe(Number.POSITIVE_INFINITY);
-    // Cancelling loses what the rails add: the stones back are no gain.
-    expect(refund.gainPerSec).toBeLessThan(0);
-    const finishedAt = busy.bench?.endsAt ?? NOW;
-    expect(
-      score(busy, { kind: "cancelCraft" }, HORIZON, LIVE, finishedAt)
-        .gainPerSec,
-    ).toBe(0);
-    expect(score(shed, { kind: "cancelCraft" }).gainPerSec).toBe(0);
-    // A bench whose time is up is collected by the store: no cancel.
-    const benchMoves = (at: number) =>
-      listActions(busy, at).filter((action) => action.kind === "cancelCraft");
-    expect(benchMoves(NOW)).toEqual([{ kind: "cancelCraft" }]);
-    expect(benchMoves(finishedAt)).toEqual([]);
-  });
 });
 
 describe("applyMove (#409)", () => {
@@ -1063,20 +979,20 @@ describe("applyMove (#409)", () => {
   });
 
   it("marks a sheet seen, and refuses a mark already made", () => {
-    const seen = applyMove(fresh, { kind: "markSeen", id: "workshop" }, NOW);
+    const seen = applyMove(fresh, { kind: "markSeen", id: "tending" }, NOW);
     expect(seen.kind).toBe("applied");
     if (seen.kind !== "applied") return;
-    expect(seen.mountain.seen).toContain("workshop");
+    expect(seen.mountain.seen).toContain("tending");
     expect(
-      applyMove(seen.mountain, { kind: "markSeen", id: "workshop" }, NOW),
+      applyMove(seen.mountain, { kind: "markSeen", id: "tending" }, NOW),
     ).toEqual({ kind: "refused" });
     const all = applyMove(
       fresh,
-      { kind: "markAllSeen", ids: ["workshop", "engineers"] },
+      { kind: "markAllSeen", ids: ["tending", "engineers"] },
       NOW,
     );
     expect(all.kind === "applied" && all.mountain.seen).toEqual([
-      "workshop",
+      "tending",
       "engineers",
     ]);
   });
@@ -1138,11 +1054,11 @@ describe("applyMove (#409)", () => {
       ).toEqual({ kind: "refused" });
     }
     // Every good of the shown price must match, not only the stones.
-    const plusClay = {
+    const plusBrick = {
       kind: "promote",
-      price: [...promoteShown, { good: "clay", amount: 1 }],
+      price: [...promoteShown, { good: "brick", amount: 1 }],
     } as const;
-    expect(applyMove(topsoil, plusClay, NOW)).toEqual({
+    expect(applyMove(topsoil, plusBrick, NOW)).toEqual({
       kind: "refused",
     });
     const promoted = applyMove(topsoil, stepUp, NOW);
@@ -1204,15 +1120,8 @@ describe("applyMove (#409)", () => {
     ).toEqual([{ kind: "recalled", name: "Ada", tunnel: "old-shaft" }]);
   });
 
-  it("says nothing for a seen mark or a cancelled craft", () => {
-    expect(eventsOf(fresh, { kind: "markSeen", id: "workshop" })).toEqual([]);
-    // A save's craft (the old bench never opens in play, #740).
-    const crafting = benchCraft(
-      pay(rich, recipePrice("sturdy-props")),
-      "sturdy-props",
-      NOW,
-    );
-    expect(eventsOf(crafting, { kind: "cancelCraft" })).toEqual([]);
+  it("says nothing for a seen mark", () => {
+    expect(eventsOf(fresh, { kind: "markSeen", id: "tending" })).toEqual([]);
   });
 
   it("gives the lab's applyAction the same mountain for every listed move", () => {

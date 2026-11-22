@@ -17,9 +17,6 @@ import {
   DEV_BACKUP_KEY,
   sliceBusySave,
   sliceDoneSave,
-  sliceFactoryDoneSave,
-  sliceFactoryOrderSave,
-  sliceFactorySave,
   sliceGraniteUnsunkSave,
   sliceListSave,
   sliceNightSave,
@@ -72,7 +69,7 @@ const jobsOf = (name) => JOBS[name] ?? 5;
  */
 const STAGE_MACHINES = { face: 2, haul: 2, lift: 1 };
 
-/** The Light Tower's picture, in board px: it has to fit between the plate and the road. */
+/** The Light Tower's picture, in board px: it has to fit between the scene top and the road. */
 const TOWER_H = 182;
 /**
  * The keys a finger can reach inside `roots` (the frame and the save line, or
@@ -204,13 +201,15 @@ async function frameFacts(page) {
       const found = city?.querySelector(selector);
       return found === null || found === undefined ? undefined : px(found);
     };
+    const plateEl = city?.querySelector(".city-plate");
     return {
       city:
         city === null
           ? undefined
           : {
               scene: px(city),
-              plate: part(".city-plate"),
+              plateHidden:
+                plateEl === null || plateEl === undefined || plateEl.hidden,
               tags: part(".city-tags"),
               card: part(".city-card"),
             },
@@ -266,22 +265,22 @@ function mineFits(facts) {
 }
 
 /**
- * The city's plate sits on top, the tags over the card, the card at the
- * scene's foot, and the Light Tower's whole picture fits between the plate
- * and the road.
+ * The legacy city transport plate is hidden under Slice 2 Part 1 (#768, #769);
+ * the tags sit over the card at the scene's foot, and the Light Tower's whole
+ * picture fits between the scene top and the road.
  */
 function cityFits(facts) {
   const city = facts.city;
   if (city === undefined) {
     return false;
   }
-  const { scene, plate, tags, card } = city;
+  const { scene, plateHidden, tags, card } = city;
   return (
-    [scene, plate, tags, card].every((part) => part !== undefined) &&
-    plate.t >= scene.t - 0.5 &&
+    plateHidden &&
+    [scene, tags, card].every((part) => part !== undefined) &&
     tags.b <= card.t + 0.5 &&
     card.b <= scene.b + 0.5 &&
-    plate.b + TOWER_H <= tags.t - ROAD_H + 0.5
+    scene.t + TOWER_H <= tags.t - ROAD_H + 0.5
   );
 }
 
@@ -815,10 +814,11 @@ for (const size of SIZES) {
       );
       const piles = facts.mine?.piles ?? [];
       check(
-        piles.length === 2 &&
+        piles.length === 3 &&
           /^Drilled rock: \d+ of \d+$/.test(piles[0] ?? "") &&
-          /^Rock at the shaft: \d+ of \d+$/.test(piles[1] ?? ""),
-        `${at} mine: drilling and haulage say their piles, hoisting none (${JSON.stringify(piles)})`,
+          /^Rock at the shaft: \d+ of \d+$/.test(piles[1] ?? "") &&
+          /^Pithead rock: \d+ of \d+$/.test(piles[2] ?? ""),
+        `${at} mine: drilling, haulage and hoisting each say their pile (${JSON.stringify(piles)})`,
       );
       check(
         facts.small.length === 0,
@@ -848,15 +848,20 @@ for (const size of SIZES) {
 }
 
 /**
- * The transport plate's row (#754): each shown key's and the trucks' hint's
- * box in board px, the hint's words, and whether any of them is cut.
+ * The global Transport sheet's controls row (#754, #768, #769): each shown
+ * key's and the trucks' hint's box in board px, the hint's words, and whether
+ * any of them is cut.
  */
 async function truckRowFacts(page) {
   return page.evaluate(() => {
     const board = globalThis.__board();
-    const row = document.querySelector(".city-plate-keys");
+    const row = document.querySelector(".transport-controls");
     const cells = [...(row?.children ?? [])]
-      .filter((el) => el.getClientRects().length > 0)
+      .filter(
+        (el) =>
+          el.getClientRects().length > 0 &&
+          !el.classList.contains("transport-driver-count"),
+      )
       .map((el) => {
         const r = el.getBoundingClientRect();
         return {
@@ -871,7 +876,7 @@ async function truckRowFacts(page) {
             el.scrollHeight > el.clientHeight + 1,
         };
       });
-    const hint = document.querySelector(".city-hint");
+    const hint = document.querySelector(".transport-hint");
     return {
       cells,
       hint: hint === null || hint.hidden ? undefined : (hint.textContent ?? ""),
@@ -897,8 +902,8 @@ function truckRowFits(facts, names) {
 
 for (const size of SIZES) {
   const label = `${String(size[0])}x${String(size[1])}`;
-  // Part 3 (#754): the truck key beside the wagon's, and before it the hint.
-  section(`${label} slice city trucks`, async () => {
+  // Part 3 (#754, #769): the truck key beside the wagon's in the Transport sheet, and before it the hint.
+  section(`${label} slice transport trucks`, async () => {
     const rows = [
       {
         name: "key",
@@ -909,7 +914,7 @@ for (const size of SIZES) {
       {
         name: "hint",
         save: sliceWarehouseSave(Date.now()),
-        cells: ["free", "place", "horseWagon", "city-hint"],
+        cells: ["free", "place", "horseWagon", "transport-hint"],
         hint: "Trucks: after the Warehouse",
       },
     ];
@@ -920,11 +925,12 @@ for (const size of SIZES) {
       });
       try {
         await page.waitForSelector(".frame-next-line");
-        await tap(page, '.frame-site[data-site="city"]');
-        const at = `${label} slice city trucks ${row.name}:`;
+        await tap(page, ".frame-transport");
+        await page.waitForSelector(".transport-sheet:not([hidden])");
+        const at = `${label} slice transport trucks ${row.name}:`;
         const facts = await truckRowFacts(page);
-        const frame = await frameFacts(page);
-        await shot(page, `slice-city-trucks-${row.name}-${label}`);
+        const sheet = await transportSheetFacts(page);
+        await shot(page, `slice-transport-trucks-${row.name}-${label}`);
         check(
           truckRowFits(facts, row.cells),
           `${at} − + wagon and the ${row.name} on one row, each at least 48px and none cut (${JSON.stringify(facts.cells)})`,
@@ -935,19 +941,18 @@ for (const size of SIZES) {
         );
         check(
           facts.cells.every(
-            (cell) => cell.button !== (cell.name === "city-hint"),
+            (cell) => cell.button !== (cell.name === "transport-hint"),
           ),
           `${at} every cell but the hint is a key`,
         );
         check(
-          cityFits(frame),
-          `${at} the plate on top, the tags over the card at the foot (${JSON.stringify(frame.city)})`,
+          sheet.open &&
+            sheet.inside &&
+            sheet.small.length === 0 &&
+            sheet.cut.length === 0,
+          `${at} Transport sheet fits above the save line, keys >= 48px, none cut (${JSON.stringify(sheet)})`,
         );
-        check(
-          frame.small.length === 0 && frame.cut.length === 0,
-          `${at} every key is at least 48px and no word is cut (${JSON.stringify([frame.small, frame.cut])})`,
-        );
-        const close8 = await keyGaps(page, FRAME_KEYS);
+        const close8 = await keyGaps(page, ".transport-sheet:not([hidden])");
         check(
           close8.length === 0,
           `${at} every key stands at least 8px from the next (${close8.join("; ")})`,
@@ -1230,212 +1235,6 @@ for (const size of SIZES) {
       await close();
     }
   });
-}
-
-/**
- * The factory in board px (#681): its scene, the station and the strip
- * inside it, every shown key's size, the words that must stay whole, and
- * its words.
- */
-async function factoryFacts(page) {
-  return page.evaluate(() => {
-    const board = globalThis.__board();
-    const px = (el) => {
-      const r = el.getBoundingClientRect();
-      return {
-        t: (r.top - board.top) / board.scale,
-        b: (r.bottom - board.top) / board.scale,
-        w: r.width / board.scale,
-        h: r.height / board.scale,
-      };
-    };
-    const shown = (el) =>
-      el.getClientRects().length > 0 && el.closest("[hidden]") === null;
-    const scene = document.querySelector(".factory:not([hidden])");
-    const station = scene?.querySelector(".factory-station");
-    const strip = scene?.querySelector(".factory-strip");
-    const small = [
-      ...(scene?.querySelectorAll(".factory-station button") ?? []),
-    ]
-      .filter(shown)
-      .map((el) => ({ name: el.className, ...px(el) }))
-      .filter((b) => b.w < 47.5 || b.h < 47.5);
-    const cut = [
-      ...(scene?.querySelectorAll(
-        ".factory-installed, .factory-bin, .factory-station-title, .factory-station-line, .factory-good, .factory-install, .factory-cancel b, .factory-cancel small",
-      ) ?? []),
-    ]
-      .filter(shown)
-      .filter(
-        (el) =>
-          el.scrollWidth > el.clientWidth + 1 ||
-          el.scrollHeight > el.clientHeight + 1,
-      )
-      .map((el) => el.className);
-    // A card's words stay inside the card.
-    const spill = [...(scene?.querySelectorAll(".factory-card") ?? [])]
-      .filter((card) => card.scrollHeight > card.clientHeight + 1)
-      .map((card) => card.dataset.blueprint);
-    return {
-      scene: scene === null ? undefined : px(scene),
-      station:
-        station === null || station === undefined ? undefined : px(station),
-      strip: strip === null || strip === undefined ? undefined : px(strip),
-      cards: scene?.querySelectorAll(".factory-card").length ?? 0,
-      scrolls:
-        strip === null || strip === undefined
-          ? false
-          : strip.scrollWidth > strip.clientWidth,
-      small,
-      cut,
-      spill,
-      kind: station?.getAttribute("data-station") ?? undefined,
-      words: scene?.textContent ?? "",
-    };
-  });
-}
-
-/** A blueprint pressed and dragged up onto the station's middle, with the mouse. */
-async function dragOntoStation(page, blueprint) {
-  const from = await page.$eval(
-    `.factory-card[data-blueprint="${blueprint}"]`,
-    (el) => {
-      const r = el.getBoundingClientRect();
-      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
-    },
-  );
-  const to = await page.$eval(".factory-station", (el) => {
-    const r = el.getBoundingClientRect();
-    return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
-  });
-  await page.mouse.move(from.x, from.y);
-  await page.mouse.down();
-  await page.mouse.move(from.x, from.y - 20, { steps: 2 });
-  await page.mouse.move(to.x, to.y, { steps: 6 });
-  // The copy under the finger is the card's size, and sits on the finger.
-  const held = await page.evaluate(
-    (card, at) => {
-      const ghost = document.querySelector(".factory-ghost");
-      const home = document.querySelector(card);
-      if (ghost === null || home === null) {
-        return undefined;
-      }
-      const g = ghost.getBoundingClientRect();
-      const c = home.getBoundingClientRect();
-      return {
-        height: g.height / c.height,
-        width: g.width / c.width,
-        onFinger:
-          at.x >= g.left - 8 &&
-          at.x <= g.right + 8 &&
-          at.y >= g.top - 8 &&
-          at.y <= g.bottom + 8,
-      };
-    },
-    `.factory-card[data-blueprint="${blueprint}"]`,
-    to,
-  );
-  await page.mouse.up();
-  return held;
-}
-
-const FACTORY_SAVES = [
-  { name: "idle", save: () => sliceFactorySave(Date.now()), kind: "idle" },
-  {
-    name: "order",
-    save: () => sliceFactoryOrderSave(Date.now()),
-    kind: "delivering",
-  },
-  { name: "done", save: () => sliceFactoryDoneSave(Date.now()), kind: "done" },
-];
-
-for (const size of SIZES) {
-  const label = `${String(size[0])}x${String(size[1])}`;
-  for (const { name, save, kind } of FACTORY_SAVES) {
-    section(`${label} slice factory ${name}`, async () => {
-      const { page, close } = await openScreen(size, save(), {
-        search: "?memorySave=1",
-        seedKey: DEV_BACKUP_KEY,
-      });
-      try {
-        await page.waitForSelector('.frame-site[data-site="factory"]');
-        await tap(page, '.frame-site[data-site="factory"]');
-        const at = `${label} slice factory ${name}:`;
-        const facts = await factoryFacts(page);
-        await shot(page, `slice-factory-${name}-${label}`);
-        check(await noScroll(page), `${at} the page does not scroll`);
-        check(
-          facts.kind === kind,
-          `${at} the station is ${kind} (${String(facts.kind)})`,
-        );
-        check(
-          facts.scene !== undefined &&
-            facts.station !== undefined &&
-            facts.strip !== undefined &&
-            facts.station.t >= facts.scene.t - 0.5 &&
-            facts.station.b <= facts.strip.t + 0.5 &&
-            facts.strip.b <= facts.scene.b + 0.5,
-          `${at} the station and the blueprints sit inside the factory, the station above (${JSON.stringify([facts.scene, facts.station, facts.strip])})`,
-        );
-        check(
-          facts.cards === 4 && facts.scrolls,
-          `${at} four blueprints in a strip that scrolls sideways (${String(facts.cards)}, ${String(facts.scrolls)})`,
-        );
-        check(
-          facts.small.length === 0,
-          `${at} every key is at least 48px (${JSON.stringify(facts.small)})`,
-        );
-        check(
-          facts.cut.length === 0 && facts.spill.length === 0,
-          `${at} no word is cut (${[...facts.cut, ...facts.spill].join(", ")})`,
-        );
-        check(
-          !/\bhands?\b|by hand|bottleneck|\blimit|best buy|\bface\b|waiting/i.test(
-            facts.words,
-          ),
-          `${at} no hands, no face, and no bottleneck, limit, best buy or waiting named`,
-        );
-        const near = await keyGaps(page, FRAME_KEYS);
-        check(
-          near.length === 0,
-          `${at} every key stands at least 8px from the next (${near.join("; ")})`,
-        );
-        if (name === "idle") {
-          // The strip's far end: the last blueprint is whole in its box.
-          const last = await page.$eval(".factory-strip", (strip) => {
-            strip.scrollLeft = strip.scrollWidth;
-            const box = strip.getBoundingClientRect();
-            const card = strip.lastElementChild?.getBoundingClientRect();
-            return (
-              card !== undefined &&
-              card.left >= box.left - 0.5 &&
-              card.right <= box.right + 0.5
-            );
-          });
-          await shot(page, `slice-factory-strip-end-${label}`);
-          check(last, `${at} the strip scrolls to its last blueprint, whole`);
-          await page.$eval(".factory-strip", (strip) => {
-            strip.scrollLeft = 0;
-          });
-          const held = await dragOntoStation(page, "blasting-charge");
-          check(
-            held !== undefined &&
-              Math.abs(held.height - 1) < 0.1 &&
-              Math.abs(held.width - 1) < 0.1 &&
-              held.onFinger,
-            `${at} the dragged blueprint's copy is the card's size, on the finger (${JSON.stringify(held)})`,
-          );
-          const after = await factoryFacts(page);
-          check(
-            after.kind === "delivering" && /Blasting charge/i.test(after.words),
-            `${at} a blueprint dragged onto the station places its work order (${String(after.kind)})`,
-          );
-        }
-      } finally {
-        await close();
-      }
-    });
-  }
 }
 
 /**
@@ -1796,7 +1595,7 @@ for (const size of SIZES) {
       size,
       slice2Part1Save(Date.now()),
       {
-        search: "?memorySave=1&slice2Part1=1",
+        search: "?memorySave=1",
         seedKey: DEV_BACKUP_KEY,
       },
     );
@@ -1912,7 +1711,7 @@ for (const size of SIZES) {
       size,
       slice2Part1PitheadFullSave(Date.now()),
       {
-        search: "?memorySave=1&slice2Part1=1",
+        search: "?memorySave=1",
         seedKey: DEV_BACKUP_KEY,
         stopClock: true,
       },

@@ -20,15 +20,10 @@ import { fieldEntry } from "./field-log";
 import { graniteOpen } from "./mine-levels";
 import type { LogEvent } from "./log";
 import { runStartedAt, type AwayReport, type Mountain } from "./mountain";
+import { slice2Part1On } from "./part-switch";
 import { advance, timeInput } from "./session-time";
 import { GOOD_IDS } from "./stock";
 import { recordFirstUse } from "./teach";
-import {
-  RECIPE_IDS,
-  craftedLevel,
-  type Crafted,
-  type RecipeId,
-} from "./workshop";
 import {
   applyMove,
   type Move,
@@ -39,23 +34,10 @@ import {
 /** Shorter absences still pay out, quietly, without the welcome-back card. */
 export const WELCOME_MIN_AWAY_MS = 60 * 1000;
 
-/**
- * One fitted craft, named once. The screen words it from the mountain at
- * the moment it was fitted, so the number is the one the crew felt then.
- */
-type CraftNotice = {
-  readonly id: RecipeId;
-  readonly level: number;
-  readonly mountain: Mountain;
-  readonly at: number;
-};
-
 /** One piece of news this open has not shown yet. */
 export type Notice =
   /** Helpers mined while the game was closed: the welcome-back card. */
   | { readonly kind: "away"; readonly report: AwayReport }
-  /** A craft fitted, with the mountain at the moment it finished. */
-  | { readonly kind: "craft"; readonly craft: CraftNotice }
   /**
    * A building that went operational: its roof went on (#663). A loaded save
    * already running it, or a copy adopted from another device, does not
@@ -95,12 +77,11 @@ export function firstNotice<K extends NoticeKind>(
   return noticesOf(from, kind)[0];
 }
 
-/** The welcome-back card's own news. Closing the card also clears crafts it listed. */
+/** The welcome-back card's own news. */
 const WELCOME_KINDS: readonly NoticeKind[] = ["away"];
-const CARD_KINDS: readonly NoticeKind[] = [...WELCOME_KINDS, "craft"];
 
 /** What the session reached since its baselines: a fresh open or a new run forgets them unread. */
-const ARRIVAL_KINDS: readonly NoticeKind[] = ["craft", "level", "operational"];
+const ARRIVAL_KINDS: readonly NoticeKind[] = ["level", "operational"];
 
 /** What this open has to tell, and has not shown yet. None of it is saved. */
 type SessionNews = {
@@ -112,11 +93,10 @@ type SessionNews = {
 };
 
 /**
- * Where news was last checked. Unset until a save is loaded, so crafts and
- * buildings already in a loaded save are never announced again.
+ * Where news was last checked. Unset until a save is loaded, so buildings
+ * already in a loaded save are never announced again.
  */
 type Baselines = {
-  readonly craft: Crafted | undefined;
   readonly operational: readonly BuildingId[] | undefined;
   /** Whether the Granite was open (the shaft sunk, part 3). */
   readonly granite: boolean | undefined;
@@ -138,7 +118,7 @@ type MountainChange = {
 
 /**
  * What a tap closes: the oldest notice of that kind, or for `"away"` the
- * whole welcome-back card (its crew news, homecomings and crafts).
+ * whole welcome-back card (its crew news and homecomings).
  */
 export type DismissTarget = NoticeKind;
 
@@ -161,7 +141,7 @@ export type SessionInput =
   | { readonly kind: "press" | "fix"; readonly tier: TroubleTier }
   /** Shows trouble at once (the layout check), since trouble is never saved. */
   | { readonly kind: "preview-trouble"; readonly tier: TroubleTier }
-  /** Crafts, levels and buildings reached since the baselines. */
+  /** Levels and buildings reached since the baselines. */
   | { readonly kind: "notice" }
   /** A new run (Start over, or the mine passed down). */
   | { readonly kind: "begin"; readonly mountain: Mountain }
@@ -184,6 +164,8 @@ export type Stepped = {
   readonly effects: readonly SessionEffect[];
   /** Stones the crew mined in this step. */
   readonly mined: number;
+  /** True when away settlement changed mountain state (hoisted rock, produced/delivered goods, or built steps). */
+  readonly awayWork?: boolean;
 };
 
 const NO_NEWS: SessionNews = {
@@ -193,7 +175,6 @@ const NO_NEWS: SessionNews = {
 };
 
 const NO_BASELINES: Baselines = {
-  craft: undefined,
   operational: undefined,
   granite: undefined,
 };
@@ -230,20 +211,19 @@ export function troubleMark(session: Session): string {
     : `${trouble.tier}:${String(trouble.startedAt)}`;
 }
 
-/** The crafted levels, the Granite and the running buildings, before away pay moves them. */
+/** The Granite and the running buildings, before away pay moves them. */
 function primeArrivals(session: Session): Session {
   return {
     ...session,
     baselines: {
       ...session.baselines,
-      craft: { ...session.mountain.crafted },
       operational: session.mountain.operational,
       granite: graniteOpen(session.mountain),
     },
   };
 }
 
-/** A fresh open: no baselines, no unread crafts, levels or buildings. */
+/** A fresh open: no baselines, no unread levels or buildings. */
 export function forgetArrivals(session: Session): Session {
   return {
     ...session,
@@ -296,19 +276,20 @@ export function step(
   now: number,
 ): Stepped {
   const out = new Effects();
-  const done = (next: Session, mined = 0): Stepped => ({
+  const done = (next: Session, mined = 0, awayWork?: boolean): Stepped => ({
     session: next,
     effects: out.list,
     mined,
+    ...(awayWork === true ? { awayWork: true } : {}),
   });
   switch (input.kind) {
     case "tick": {
       const ticked = tick(session, now, out);
-      return done(ticked.session, ticked.mined);
+      return done(ticked.session, ticked.mined, ticked.awayWork);
     }
     case "away": {
       const paid = settleAway(session, input.since, now, out);
-      return done(paid.session, paid.mined);
+      return done(paid.session, paid.mined, paid.awayWork);
     }
     case "move":
       return done(applyPlayerMove(session, input.move, now, out));
@@ -320,7 +301,7 @@ export function step(
     case "preview-trouble":
       return done(previewTrouble(session, input.tier, now, out));
     case "notice":
-      return done(notice(session, now, out));
+      return done(notice(session));
     case "begin":
       return done(beginRun(session, input.mountain, now, out));
     case "recall":
@@ -335,7 +316,7 @@ function tick(
   session: Session,
   now: number,
   out: Effects,
-): { session: Session; mined: number } {
+): { session: Session; mined: number; awayWork?: boolean } {
   const input = timeInput(session.lastSeen, now);
   if (input.kind === "away") {
     return settleAway(session, session.lastSeen, now, out);
@@ -364,7 +345,7 @@ function settleAway(
   since: number | undefined,
   now: number,
   out: Effects,
-): { session: Session; mined: number } {
+): { session: Session; mined: number; awayWork?: boolean } {
   if (since === undefined) {
     return { session: { ...session, lastSeen: now }, mined: 0 };
   }
@@ -385,7 +366,11 @@ function settleAway(
     out,
   );
   if (!anythingHappened(report, moved.mined)) {
-    return { session: paid, mined: 0 };
+    return {
+      session: paid,
+      mined: moved.mined,
+      awayWork: moved.mined > 0,
+    };
   }
   out.log({
     level: "info",
@@ -397,17 +382,23 @@ function settleAway(
     },
   });
   out.record("away.report", { ms: report.awayMs, stones: moved.mined });
-  return { session: welcome(paid, report), mined: moved.mined };
+  return { session: welcome(paid, report), mined: moved.mined, awayWork: true };
 }
 
 /**
- * Whether time away brought news: stones mined, goods delivered or a step
- * built in (#663), with the mine standing.
+ * Whether time away brought reportable news for the shift report: stockpile
+ * goods produced (`night.produced` under Slice 2 Part 1, or `mined` in Slice 1),
+ * goods delivered to orders, or a building step built in (#663, #769).
+ * Intermediate mine buffers filling alone (drilled rock, shaft rock, pithead
+ * rock) stay quiet so a stalled night never opens an empty "No output." card.
  */
 function anythingHappened(report: AwayReport, mined: number): boolean {
   const night = report.night;
+  const produced = slice2Part1On()
+    ? GOOD_IDS.some((good) => night.produced[good] > 0)
+    : mined > 0;
   return (
-    mined > 0 ||
+    produced ||
     night.steps.length > 0 ||
     GOOD_IDS.some((good) => night.delivered[good] > 0)
   );
@@ -415,8 +406,8 @@ function anythingHappened(report: AwayReport, mined: number): boolean {
 
 /**
  * A reload or a quick app switch isn't "away": only greet after a real break.
- * A night is always the shift report (#663), and it is greeted on a live
- * return too: a tab left open overnight (a locked phone, the app in the
+ * A reportable night opens the shift report (#663), and it is greeted on a
+ * live return too: a tab left open overnight (a locked phone, the app in the
  * background) comes back to its report.
  */
 function welcome(session: Session, report: AwayReport): Session {
@@ -451,12 +442,6 @@ function noteHomecomings(
       id: arrival.engineer,
       source: findToken(arrival.find),
     });
-    if (arrival.find.kind === "recipe") {
-      out.record("recipe.found", {
-        id: arrival.find.id,
-        source: arrival.tunnel,
-      });
-    }
   }
   return {
     ...session,
@@ -472,8 +457,6 @@ function findToken(find: Homecoming["find"]): string {
       return find.id;
     case "engineer":
       return find.name;
-    case "recipe":
-      return find.id;
     case "quiet":
       return "quiet";
   }
@@ -575,9 +558,9 @@ function previewTrouble(
   };
 }
 
-/** Crafts, the Granite and buildings reached since the baselines, in that order. */
-function notice(session: Session, now: number, out: Effects): Session {
-  return noteOperational(noteGranite(noteCrafts(session, now, out)));
+/** The Granite and buildings reached since the baselines, in that order. */
+function notice(session: Session): Session {
+  return noteOperational(noteGranite(session));
 }
 
 /** The Granite reached since the baseline: the shaft sunk, announced once (#754). */
@@ -606,42 +589,6 @@ function noteOperational(session: Session): Session {
       lit.map((building) => ({ kind: "operational", building })),
     ),
     baselines: { ...session.baselines, operational: running },
-  };
-}
-
-/** The crafts whose level rose past the baseline, each recorded once. */
-function craftsSince(
-  mountain: Mountain,
-  noted: Crafted,
-  now: number,
-  out: Effects,
-): CraftNotice[] {
-  const fitted: CraftNotice[] = [];
-  for (const id of RECIPE_IDS) {
-    const level = craftedLevel(mountain, id);
-    if (level > noted[id]) {
-      out.record("craft.done", { id, count: level });
-      fitted.push({ id, level, mountain, at: now });
-    }
-  }
-  return fitted;
-}
-
-/** A craft whose level rose since the baseline, with the mountain the screen words it from. */
-function noteCrafts(session: Session, now: number, out: Effects): Session {
-  const noted = session.baselines.craft;
-  const fitted =
-    noted === undefined ? [] : craftsSince(session.mountain, noted, now, out);
-  return {
-    ...session,
-    news: addNotices(
-      session.news,
-      fitted.map((craft) => ({ kind: "craft", craft })),
-    ),
-    baselines: {
-      ...session.baselines,
-      craft: { ...session.mountain.crafted },
-    },
   };
 }
 
@@ -680,7 +627,7 @@ function dismiss(session: Session, what: DismissTarget, out: Effects): Session {
     out.push({ kind: "remember" });
     return {
       ...session,
-      news: { ...dropNotices(news, CARD_KINDS), homecomings: [] },
+      news: { ...dropNotices(news, WELCOME_KINDS), homecomings: [] },
     };
   }
   const first = news.notices.findIndex((notice) => notice.kind === what);
@@ -712,7 +659,7 @@ export function hasNews(session: Session, what: DismissTarget): boolean {
  * from this mountain; otherwise a baseline already set is kept.
  */
 export function openBaselines(session: Session, rebase: boolean): Session {
-  return rebase || session.baselines.craft === undefined
+  return rebase || session.baselines.operational === undefined
     ? primeArrivals(session)
     : session;
 }

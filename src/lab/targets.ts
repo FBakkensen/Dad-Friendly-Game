@@ -291,19 +291,3 @@ export function meetsTarget(target: Target, actual: number): boolean {
   const [low, high] = target.value;
   return actual >= low && actual <= high;
 }
-
-/**
- * The part 3 mine the work orders are sized against (#674,
- * `work-orders.ts`): the lab's player types at the Warehouse's roof (the
- * part 2 replay, seed 1, 16 Nov 2026) have 288 to 351 goods a second of
- * horse wagons and lift 1,800 to 7,272 stone a second. The Granite opens
- * with nobody on it; one drill's 600 a second is its first guess. Not a
- * bound: an input to the sizing, which #675 replays with the whole slice.
- */
-export const PART_THREE_START = {
-  /** Goods a second the fleet carries. */
-  carry: 320,
-  /** Rock a second drilled on the Topsoil (its clay) and on the Granite (its iron). */
-  topsoil: 3_000,
-  granite: 600,
-} as const;

@@ -11,7 +11,7 @@ import {
 } from "./engineers";
 import type { Mountain } from "./mountain";
 import { minedMountain } from "./test-fixtures";
-import { UPGRADES, upgradeById, type UpgradeId, NO_UPGRADES } from "./upgrades";
+import { UPGRADES, upgradeById, NO_UPGRADES } from "./upgrades";
 import {
   awayGoneWords,
   awayMinedWords,
@@ -433,14 +433,6 @@ describe("engineer words", () => {
     ).toBe(
       "Ada came back from the deep dark. The lost engineer had already found a place.",
     );
-    const sketch = cameBack("Nils", "deep-dark", {
-      kind: "recipe",
-      id: "engineers-kit",
-    });
-    expect(sketch).toBe(
-      "Nils came back from the deep dark with a sketch folded in a pocket.",
-    );
-    expect(sketch).not.toMatch(/[0-9?]|lamp|kit|crystal|iron/i);
     expect(
       cameBack("Ada", "old-shaft", {
         kind: "quiet",
@@ -691,18 +683,6 @@ describe("upgrade card before and after (#324)", () => {
     ...minedMountain(1_000_000),
     owned: { ...minedMountain(1_000_000).owned, helper: 12, cart: 5 },
   };
-  const line = (id: UpgradeId, mountain: Mountain): string =>
-    upgradeEffectLine(upgradeById(id), mountain, at);
-
-  it("the Great Machine synergy names the Great Machine", () => {
-    const deep = {
-      ...crew,
-      owned: { ...crew.owned, helper: 200, borer: 3, machine: 1 },
-    };
-    expect(line("machineSyn", deep)).toMatch(
-      /^Great Machine \S+\/s to \S+\/s\.$/,
-    );
-  });
 
   it("no upgrade says taps, since the dig went (#728)", () => {
     const deep = {
@@ -756,8 +736,8 @@ describe("upgrade card why line (#342)", () => {
   });
 
   it("a synergy with none of its source says what makes it count", () => {
-    expect(upgradeWhyLine(upgradeById("machineSyn"), empty)).toBe(
-      "It counts once you have borers.",
+    expect(upgradeWhyLine(upgradeById("borerSyn"), empty)).toBe(
+      "It counts once you have drills.",
     );
   });
 });

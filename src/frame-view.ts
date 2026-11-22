@@ -37,10 +37,6 @@ export const STEP_NAMES: Readonly<Record<StepIndex, string>> = {
 /** A good as the frame says it: "Stone", not "stones". */
 export const GOOD_NAMES: Readonly<Record<GoodId, string>> = {
   stones: "Stone",
-  clay: "Clay",
-  iron: "Iron",
-  crystal: "Crystal",
-  heartstone: "Heartstone",
   brick: "Brick",
   cutStone: "Cut stone",
 };
@@ -48,10 +44,6 @@ export const GOOD_NAMES: Readonly<Record<GoodId, string>> = {
 /** A good inside a line, as the night's report and the refinery's plates say it: "stone". */
 export const GOOD_WORDS = {
   stones: "stone",
-  clay: "clay",
-  iron: "iron",
-  crystal: "crystal",
-  heartstone: "heartstone",
   brick: "brick",
   cutStone: "cut stone",
 } as const satisfies Readonly<Record<GoodId, string>>;

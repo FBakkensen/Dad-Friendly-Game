@@ -67,8 +67,23 @@ test("the shaft: workers on the Granite, a hoist assigned, and the mine works on
 
   // The mine works on as the rules say, the stockpile with it, until the Granite is drilled.
   const start = player.now;
-  const dugAtStart = rules.mountain.graniteDug;
-  while (rules.mountain.graniteDug === dugAtStart) {
+  const graniteRock = () => {
+    const level = rules.mountain.mineLevels.granite;
+    const carried = Object.values(rules.mountain.cages.trips).reduce(
+      (sum, trip) => sum + (trip?.level === "granite" ? trip.carried : 0),
+      0,
+    );
+    return (
+      (level?.piles.face ?? 0) +
+      (level?.piles.shaft ?? 0) +
+      (level?.piles.saw ?? 0) +
+      carried +
+      rules.mountain.pithead.granite +
+      (rules.mountain.makerBuffers.saw.graniteRock ?? 0)
+    );
+  };
+  const atStart = graniteRock();
+  while (graniteRock() === atStart) {
     expect(player.now - start, "the Granite is drilled").toBeLessThan(
       GRANITE_ROCK_WITHIN_MS,
     );

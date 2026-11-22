@@ -18,8 +18,8 @@ function crew(): Mountain {
       borer: 1,
     },
     engineers: [ada],
-    seen: ["workshop"],
-    taught: ["workshop"],
+    seen: [],
+    taught: [],
   };
 }
 

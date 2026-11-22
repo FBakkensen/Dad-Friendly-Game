@@ -26,8 +26,8 @@ function crew(): Mountain {
     jobs: { ...start.jobs, drilling: 1, haulage: 2, hoisting: 2 },
     stock: { ...start.stock, stones: 1e9 },
     engineers: [ada],
-    seen: ["workshop", "engineers"],
-    taught: ["workshop", "engineers", "staffing"],
+    seen: ["engineers"],
+    taught: ["engineers", "staffing"],
   };
 }
 
@@ -53,7 +53,7 @@ describe("promotion teach (#246)", () => {
         {
           ...crew(),
           engineers: [{ ...ada, trips: 0 }],
-          taught: ["workshop", "staffing"],
+          taught: ["staffing"],
         },
         "promotion",
       ),

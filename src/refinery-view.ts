@@ -2,6 +2,8 @@ import { formatCompact, shiftDuration } from "./format";
 import { GOOD_NAMES, GOOD_WORDS, bayOrder, stockpiles } from "./frame-view";
 import {
   MAKER_IDS,
+  makerBuffer,
+  makerInputRoom,
   makerJob,
   makerMakes,
   makerOutput,
@@ -30,9 +32,11 @@ import {
   type LevelHopper,
 } from "./mine-view";
 import { accrueAway, type Mountain } from "./mountain";
+import { slice2Part1On } from "./part-switch";
 import { chainFlows, chainSpill, type Chain } from "./piles";
 import { crewTimer } from "./rates";
 import { MAKER_WORDS, plural } from "./screen-words";
+import { slice2LiveSnapshot } from "./slice2-flow";
 import { canPay, type GoodId } from "./stock";
 import { MAX_STOCKYARD_LEVEL, ROOM_GROWTH, expandPrice } from "./stockyard";
 import { placeable } from "./workforce";
@@ -49,6 +53,10 @@ import { JOB_NAMES, noMakersYet } from "./workforce-view";
  * Part 3 (#754): once the Granite is open, its rock comes up into a hopper
  * of its own over the saws, whose plate reads as the kilns' does, and what
  * the saws' pile cannot take bypasses to stone with the Topsoil's.
+ *
+ * Slice 2 Part 1 (#769): under physical transport, makers draw from their
+ * own finite input buffers (`makerBuffers`), and live output + stone flow
+ * read from `slice2LiveSnapshot`.
  */
 
 /** The bypass chute's recipe: a rock no maker takes is a stone. */
@@ -208,8 +216,9 @@ export function steadySpill(chain: Chain, between: number): number {
 }
 
 /**
- * What reaches the stockpiles a second now: each maker's good, and what no
- * maker takes on either level as stone, read steady (`steadySpill`).
+ * What reaches the stockpiles a second now: each maker's good, and stone
+ * arriving at the stockyard (via physical transport in Slice 2, or steady
+ * spill in Slice 1).
  */
 function incomeNow(
   mountain: Mountain,
@@ -218,6 +227,16 @@ function incomeNow(
   readonly made: Readonly<Record<MakerId, number>>;
   readonly stones: number;
 } {
+  if (slice2Part1On()) {
+    const snap = slice2LiveSnapshot(mountain);
+    return {
+      made: {
+        kiln: snap.makerOut.kiln * timer,
+        saw: snap.makerOut.saw * timer,
+      },
+      stones: snap.runRates.pitToStockyardStones * timer,
+    };
+  }
   const chains = makerChains(mountain);
   const made = (chain: Chain | undefined): number =>
     chain === undefined ? 0 : chainMade(chain) * timer;
@@ -263,16 +282,30 @@ function makerKey(mountain: Mountain, id: MakerId): MakerKey {
   };
 }
 
-/** The rock in a maker's pile: the kilns' on the Topsoil, the saws' on the Granite. */
+/** The rock in a maker's input buffer (Slice 2) or pile (Slice 1). */
 function makerHeld(mountain: Mountain, id: MakerId): number {
+  if (slice2Part1On()) {
+    return makerBuffer(
+      mountain,
+      id,
+      id === "kiln" ? "topsoilRock" : "graniteRock",
+    );
+  }
   return id === "kiln"
     ? mountain.piles.kiln
     : (openGranite(mountain)?.piles.saw ?? 0);
 }
 
+/** Capacity of a maker's input buffer (Slice 2) or pile (Slice 1). */
+function makerRoom(mountain: Mountain, id: MakerId): number {
+  return slice2Part1On()
+    ? makerInputRoom(mountain, id)
+    : makerHolds(mountain, id);
+}
+
 /** A maker's pile's words while he owns one: "Rock at the kilns: 120 of 300". */
 function makerPile(mountain: Mountain, id: MakerId): string | undefined {
-  const holds = makerHolds(mountain, id);
+  const holds = makerRoom(mountain, id);
   return holds > 0
     ? pileWords({
         label: PILE_LABELS[id],
@@ -372,12 +405,11 @@ function expandKey(mountain: Mountain): ExpandKey | undefined {
 }
 
 /**
- * The refinery now. `now` is the clock for the crew's timers, as the mine's
- * rows read it. A kiln is bought one at a time (a maker has no amount key).
+ * The refinery now. A kiln is bought one at a time (a maker has no amount key).
  */
-export function refineryView(mountain: Mountain, now?: number): RefineryView {
-  const hoppers = levelHoppers(mountain, now);
-  const timer = crewTimer(mountain, now);
+export function refineryView(mountain: Mountain): RefineryView {
+  const hoppers = levelHoppers(mountain);
+  const timer = crewTimer();
   const income = incomeNow(mountain, timer);
   const makers = refineryMakers(mountain);
   const yard = bays(mountain);
@@ -420,6 +452,6 @@ const lifted = (
 
 /** A maker's pile, 0..1 of its room: its hopper is as full. */
 function pileFill(mountain: Mountain, id: MakerId): number {
-  const holds = makerHolds(mountain, id);
+  const holds = makerRoom(mountain, id);
   return holds > 0 ? Math.min(1, makerHeld(mountain, id) / holds) : 0;
 }

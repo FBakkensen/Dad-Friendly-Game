@@ -46,7 +46,6 @@ describe("parseBootOptions", () => {
       previewSave: undefined,
       previewCopies: false,
       previewUpdate: false,
-      slice2Part1: false,
     });
   });
 
@@ -57,11 +56,6 @@ describe("parseBootOptions", () => {
 
   it("reads memorySave=1", () => {
     expect(parseBootOptions("?memorySave=1").memorySave).toBe(true);
-  });
-
-  it("reads slice2Part1=1 for the Slice 2 Part 1 dev preview", () => {
-    expect(parseBootOptions("?slice2Part1=1").slice2Part1).toBe(true);
-    expect(parseBootOptions("?slice2Part1=true").slice2Part1).toBe(false);
   });
 
   it("reads trouble=cave-in for the layout check", () => {
@@ -140,7 +134,7 @@ describe("createAppServices", () => {
     }
   });
 
-  it("plays part 3 on every boot, in dev and in the build (#682)", async () => {
+  it("plays part 3 and Slice 2 Part 1 on every boot, in dev and in the build (#682, #769)", async () => {
     for (const devMode of [true, false]) {
       holdFactors({});
       const { progress } = await createAppServices({
@@ -149,29 +143,9 @@ describe("createAppServices", () => {
         devMode,
       });
       expect(partThreeOn()).toBe(true);
-      expect(slice2Part1On()).toBe(false);
+      expect(slice2Part1On()).toBe(true);
       progress.dispose();
     }
-  });
-
-  it("switches on Slice 2 Part 1 only for ?slice2Part1=1 while developing (#768)", async () => {
-    holdFactors({});
-    const dev = await createAppServices({
-      env: {},
-      search: "?slice2Part1=1",
-      devMode: true,
-    });
-    expect(slice2Part1On()).toBe(true);
-    dev.progress.dispose();
-
-    holdFactors({});
-    const prod = await createAppServices({
-      env: {},
-      search: "?slice2Part1=1",
-      devMode: false,
-    });
-    expect(slice2Part1On()).toBe(false);
-    prod.progress.dispose();
   });
 
   it("trouble=cave-in previews a cave-in while developing", async () => {

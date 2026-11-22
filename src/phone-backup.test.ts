@@ -134,7 +134,7 @@ describe("phone backup", () => {
       }),
     );
     expect(readPhoneBackup({ storage, uid: "dad" }).kind).toBe("unreadable");
-    storage.setItem(key, JSON.stringify({ uid: "dad", save: { version: 10 } }));
+    storage.setItem(key, JSON.stringify({ uid: "dad", save: { version: 11 } }));
     expect(readPhoneBackup({ storage, uid: "dad" }).kind).toBe("unreadable");
     expect(readPhoneBackup({ storage, uid: "other" }).kind).toBe("absent");
   });
@@ -142,7 +142,7 @@ describe("phone backup", () => {
   it("reads a later build's backup as newer and writes nothing over it (#558)", () => {
     const storage = memory();
     const key = "dad-friendly-game-backup:dad";
-    const raw = JSON.stringify({ uid: "dad", save: { version: 11 } });
+    const raw = JSON.stringify({ uid: "dad", save: { version: 12 } });
     storage.setItem(key, raw);
     expect(readPhoneBackup({ storage, uid: "dad" })).toEqual({
       kind: "newer",

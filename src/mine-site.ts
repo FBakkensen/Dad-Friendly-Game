@@ -307,7 +307,7 @@ export function createMineSite(
   };
   /** The one-level rows: a + that can place a worker takes the note down. */
   const paintOne = (mountain: Mountain, now: number | undefined): boolean => {
-    const plate = levelPlate(mountain, now);
+    const plate = levelPlate(mountain);
     write(over.name, plate.name);
     write(over.rate, plate.rate);
     paintGate(state, granite, over, mountain);

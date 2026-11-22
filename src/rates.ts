@@ -9,12 +9,6 @@ import {
 } from "./engineers";
 import { slowedSpeed, type Trouble } from "./hazards";
 import { milestoneMultiplier } from "./milestones";
-import {
-  axleCrewMultiplier,
-  chargeCrewMultiplier,
-  emberMachineMultiplier,
-  gearMultiplier,
-} from "./workshop";
 import { callTo } from "./expeditions";
 import { lineRating } from "./line";
 import { nightShiftShare } from "./city";
@@ -68,16 +62,10 @@ export type Rates = {
 };
 
 /**
- * Axle grease and a blasting charge each speed the live crew. The crew runs
- * at the stronger of them. Two timers at ×2 stay ×2. Away pay passes no
- * `now`, and each one is then 1. A stronger recipe still shows on the crew
- * line.
+ * Crew timer multiplier: retired with the old workshop timers (#769), always 1.
  */
-export function crewTimer(mountain: Mountain, now: number | undefined): number {
-  return Math.max(
-    axleCrewMultiplier(mountain, now),
-    chargeCrewMultiplier(mountain, now),
-  );
+export function crewTimer(): number {
+  return 1;
 }
 
 /**
@@ -122,15 +110,11 @@ function readRates(mountain: Mountain, now?: number, trouble?: Trouble): Rates {
   const tierSpeed = Object.fromEntries(
     TIERS.map((tier) => {
       // A sweep scales the tier's own stones a second. The factor is 1 in play.
-      const ember =
-        tier.id === "machine" ? emberMachineMultiplier(mountain, now) : 1;
       const output =
         tier.perSecond *
         lineRating(tier.id) *
         factor(`output.${tier.id}`) *
-        gearMultiplier(mountain, tier.id) *
-        milestoneMultiplier(tier.id, owned(mountain, tier)) *
-        ember;
+        milestoneMultiplier(tier.id, owned(mountain, tier));
       return [
         tier.id,
         tier.id === "helper"
@@ -159,7 +143,7 @@ function readRates(mountain: Mountain, now?: number, trouble?: Trouble): Rates {
   );
   // Whole stones a second, so what the crew line says is what gets mined.
   const baseCrew = Math.floor(exactBase + 1e-9);
-  const timer = crewTimer(mountain, now);
+  const timer = crewTimer();
   return {
     tierSpeed,
     running,

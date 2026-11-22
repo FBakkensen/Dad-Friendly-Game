@@ -16,7 +16,7 @@ import {
 import type { MinePiles } from "./mine-piles";
 import { createMountain, type Mountain } from "./mountain";
 import type { Jobs } from "./workforce";
-import { PART_TWO_OFF, PLAY_FACTORS, SLICE_2_PART_1_OFF } from "./part-switch";
+import { PART_THREE_OFF, PART_TWO_OFF, PLAY_FACTORS } from "./part-switch";
 import { EMPTY_STOCK, type GoodId, type Stock } from "./stock";
 
 /**
@@ -25,8 +25,11 @@ import { EMPTY_STOCK, type GoodId, type Stock } from "./stock";
  * no test writes a sunk Granite by hand.
  */
 
-/** Slice 1 with parts 2 and 3 on: the game's own map since #682. */
-const PART_THREE_FACTORS: Readonly<Record<string, 0>> = PLAY_FACTORS;
+/** Slice 1 with parts 2 and 3 on (before Slice 2 Part 1 physical transport). */
+const PART_THREE_FACTORS: Readonly<Record<string, 0>> = {
+  [PART_TWO_OFF]: 0,
+  [PART_THREE_OFF]: 0,
+};
 
 /** Slice 1 with parts 2 and 3 on, and any other knobs set too. */
 export const partThree = <T>(
@@ -34,15 +37,11 @@ export const partThree = <T>(
   knobs: Readonly<Record<string, number>> = {},
 ): T => withFactors({ ...PART_THREE_FACTORS, ...knobs }, body);
 
-/** Slice 2 Part 1 on (physical transport, pithead buffers, coupled stretches), plus any knobs. */
+/** Slice 2 Part 1 on (the live game since #769), plus any knobs. */
 export const slice2Part1 = <T>(
   body: () => T,
   knobs: Readonly<Record<string, number>> = {},
-): T =>
-  withFactors(
-    { ...PART_THREE_FACTORS, [SLICE_2_PART_1_OFF]: 0, ...knobs },
-    body,
-  );
+): T => withFactors({ ...PLAY_FACTORS, ...knobs }, body);
 
 /**
  * The knobs that put part 3's stages back as #724 built the cages on (#675

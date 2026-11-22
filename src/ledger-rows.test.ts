@@ -5,7 +5,6 @@ import {
   TONIGHT_LINES,
   accountRowView,
   freshLedgerRows,
-  metMaterialChips,
   tonightLines,
   tonightText,
 } from "./ledger-rows";
@@ -47,15 +46,6 @@ describe("tonightText words each event the field log keeps (#375)", () => {
   it("words an upgrade's level", () => {
     expect(text("upgrade.buy", { id: "boots", count: 1 })).toBe(
       "Work boots, level 1.",
-    );
-  });
-
-  it("words a craft started and fitted", () => {
-    expect(text("craft.start", { id: "iron-rails" })).toBe(
-      "Iron rails went on the bench.",
-    );
-    expect(text("craft.done", { id: "iron-rails", count: 1 })).toBe(
-      "Your Iron rails are fitted.",
     );
   });
 
@@ -302,40 +292,5 @@ describe("the Ledger's rows in a fresh mine", () => {
     );
     expect(text("vehicle.buy", { id: "lorry", count: 2 })).toBeUndefined();
     expect(text("vehicle.buy", { id: "horseWagon" })).toBeUndefined();
-  });
-});
-
-describe("the materials the pocket can name (#199)", () => {
-  it("names a material while one is in hand", () => {
-    const shed: Mountain = {
-      ...createMountain(),
-      stock: {
-        ...createMountain().stock,
-        clay: 40,
-        iron: 40,
-        crystal: 0,
-        heartstone: 0,
-      },
-    };
-    expect(metMaterialChips(shed).map((chip) => chip.text)).toEqual([
-      "Clay 40",
-      "Iron 40",
-    ]);
-    expect(metMaterialChips(shed).map((chip) => chip.id)).not.toContain(
-      "crystal",
-    );
-    expect(metMaterialChips(createMountain())).toEqual([]);
-    expect(
-      metMaterialChips({
-        ...createMountain(),
-        stock: {
-          ...createMountain().stock,
-          clay: 3,
-          iron: 0,
-          crystal: 0,
-          heartstone: 0,
-        },
-      }).map((chip) => chip.text),
-    ).toEqual(["Clay 3"]);
   });
 });

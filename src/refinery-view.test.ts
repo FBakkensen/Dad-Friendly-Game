@@ -7,7 +7,7 @@ import {
   tripSeconds,
   type ShaftCage,
 } from "./cages";
-import { makerTakes } from "./makers";
+import { makerInputRoom, makerTakes } from "./makers";
 import { graniteChain, makerHolds, mineWork, topsoilChain } from "./mine-piles";
 import { chainFlows, chainSpill, type Chain } from "./piles";
 import { crewTimer } from "./rates";
@@ -21,7 +21,12 @@ import {
   type RefineryView,
 } from "./refinery-view";
 import { stockpileRoom } from "./stockyard";
-import { levels, partThree, partThreeAsBuilt } from "./part-three.harness";
+import {
+  levels,
+  partThree,
+  partThreeAsBuilt,
+  slice2Part1,
+} from "./part-three.harness";
 import { crewedStart } from "./test-fixtures";
 
 /** The refinery's numbers (slice 1, part 2, #671). */
@@ -54,7 +59,7 @@ function lit({
   };
 }
 
-const view = (mountain: Mountain): RefineryView => refineryView(mountain, 0);
+const view = (mountain: Mountain): RefineryView => refineryView(mountain);
 
 /** The kilns' plate and the Topsoil's hopper: the first of each. */
 function kilns(mountain: Mountain) {
@@ -295,7 +300,7 @@ describe("a steady bypass (#754)", () => {
   /** What the chain spills a second at this instant, as the view read it before. */
   const instant = (mountain: Mountain): string => {
     const chain = topsoilChain(mountain);
-    return `${formatCompact(chainSpill(chain) * crewTimer(mountain, 0))}/s`;
+    return `${formatCompact(chainSpill(chain) * crewTimer())}/s`;
   };
 
   it("reads what the Topsoil lifts past the kilns while their pile is within a load of full", () => {
@@ -383,7 +388,7 @@ describe("a steady bypass (#754)", () => {
       const takes = (flows[from + 1] ?? 0) * makerTakes("kiln");
       const round = shortestRound(mineWork(mountain).cages, "topsoil");
       expect(round).toBe(tripSeconds("topsoil"));
-      const window = takes * round * crewTimer(mountain, 0);
+      const window = takes * round * crewTimer();
       expect(flows[from] ?? 0).toBeGreaterThan(takes);
       const steady = view(mountain).bypass.rate;
       expect(steady).not.toBe("0/s");
@@ -488,6 +493,33 @@ describe("how long a night lasts now (#671)", () => {
       expect(nightForecast(lit({ stones: room - 5_400 }), 0)).toBe(
         "Full after 11 min unattended.",
       );
+    });
+  });
+
+  it("reads makerBuffers, makerInputRoom, and physical transport rates under Slice 2 Part 1 (#769)", () => {
+    slice2Part1(() => {
+      const base = levels({ kilns: 1, saws: 1 });
+      const state: Mountain = {
+        ...base,
+        owned: { ...base.owned, helper: base.owned.helper + 1 },
+        jobs: { ...base.jobs, driving: 1 },
+        pithead: { topsoil: 200, granite: 200 },
+        makerBuffers: {
+          kiln: { topsoilRock: 42 },
+          saw: { graniteRock: 88 },
+        },
+      };
+      const refinery = view(state);
+      const [kilnPlate, sawPlate] = refinery.plates;
+      const kilnRoom = makerInputRoom(state, "kiln");
+      const sawRoom = makerInputRoom(state, "saw");
+      expect(kilnPlate?.pile).toBe(
+        `Rock at the kilns: 42 of ${formatCompact(kilnRoom)}`,
+      );
+      expect(sawPlate?.pile).toBe(
+        `Rock at the saws: 88 of ${formatCompact(sawRoom)}`,
+      );
+      expect(refinery.bypass.rate).not.toBe("0/s");
     });
   });
 });

@@ -82,7 +82,7 @@ export function snapshot(ctx: StoreContext): ProgressSnapshot {
 }
 
 /**
- * Notes the crafts and buildings reached (not while a signed-in save is
+ * Notes the levels and buildings reached (not while a signed-in save is
  * still loading, nor under the conflict sheet), then tells every listener.
  */
 export function emit(ctx: StoreContext): void {

@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { LAYER_IDS, MATERIAL_IDS } from "./layers";
 import {
   EMPTY_STOCK,
   GOOD_IDS,
@@ -12,7 +11,6 @@ import {
   samePrice,
   stockMoved,
   stonesPrice,
-  materialsOf,
   UNSHOWN_PRICE,
   type Price,
   type Stock,
@@ -22,58 +20,44 @@ const holding = (stock: Partial<Stock>) => ({
   stock: { ...EMPTY_STOCK, ...stock },
 });
 
-const rails: Price = [
+const order: Price = [
   { good: "stones", amount: 500 },
-  { good: "iron", amount: 3 },
+  { good: "brick", amount: 3 },
 ];
 
-describe("the goods table (#560)", () => {
-  it("lists the stones and each band's material, in that order", () => {
-    expect(GOOD_IDS).toEqual([
-      "stones",
-      "clay",
-      "iron",
-      "crystal",
-      "heartstone",
-      "brick",
-      "cutStone",
-    ]);
+describe("the goods table (#560, #769)", () => {
+  it("lists stones, brick, and cut stone in order", () => {
+    expect(GOOD_IDS).toEqual(["stones", "brick", "cutStone"]);
     expect(EMPTY_STOCK).toEqual({
       stones: 0,
-      clay: 0,
-      iron: 0,
-      crystal: 0,
-      heartstone: 0,
       brick: 0,
       cutStone: 0,
     });
   });
 
-  it("says where each good comes from: the mountain, or its band", () => {
+  it("says where each good comes from", () => {
     const from = Object.fromEntries(GOOD_ROWS.map((row) => [row.id, row.from]));
     expect(from.stones).toBe("mountain");
     expect(from.brick).toBe("kilns");
     expect(from.cutStone).toBe("saws");
-    expect(GOOD_IDS.slice(-2)).toEqual(["brick", "cutStone"]);
-    expect(MATERIAL_IDS.map((id) => from[id])).toEqual(LAYER_IDS);
   });
 });
 
 describe("prices", () => {
   it("a stones price is one line, and reads back by good", () => {
     expect(stonesPrice(120)).toEqual([{ good: "stones", amount: 120 }]);
-    expect(priceAmount(rails, "stones")).toBe(500);
-    expect(priceAmount(rails, "iron")).toBe(3);
-    expect(priceAmount(rails, "clay")).toBe(0);
+    expect(priceAmount(order, "stones")).toBe(500);
+    expect(priceAmount(order, "brick")).toBe(3);
+    expect(priceAmount(order, "cutStone")).toBe(0);
   });
 
   it("two prices are the same only when every good matches, in any order", () => {
-    expect(samePrice(rails, [rails[1], rails[0]] as Price)).toBe(true);
-    expect(samePrice(rails, stonesPrice(500))).toBe(false);
+    expect(samePrice(order, [order[1], order[0]] as Price)).toBe(true);
+    expect(samePrice(order, stonesPrice(500))).toBe(false);
     expect(
-      samePrice(rails, [
+      samePrice(order, [
         { good: "stones", amount: 500 },
-        { good: "iron", amount: 4 },
+        { good: "brick", amount: 4 },
       ]),
     ).toBe(false);
     expect(samePrice(stonesPrice(0), [])).toBe(true);
@@ -83,30 +67,24 @@ describe("prices", () => {
     expect(samePrice(UNSHOWN_PRICE, [])).toBe(false);
     expect(samePrice(UNSHOWN_PRICE, stonesPrice(0))).toBe(false);
     expect(samePrice(UNSHOWN_PRICE, UNSHOWN_PRICE)).toBe(false);
-    expect(samePrice(UNSHOWN_PRICE, rails)).toBe(false);
-  });
-
-  it("reads the four materials out of a stock, without the stones", () => {
-    expect(
-      materialsOf({ ...EMPTY_STOCK, stones: 9, clay: 1, heartstone: 2 }),
-    ).toEqual({ clay: 1, iron: 0, crystal: 0, heartstone: 2 });
+    expect(samePrice(UNSHOWN_PRICE, order)).toBe(false);
   });
 });
 
 describe("paying and adding", () => {
   it("pays every good at once, and only when each is covered", () => {
-    const rich = holding({ stones: 600, iron: 3 });
-    expect(canPay(rich.stock, rails)).toBe(true);
-    expect(pay(rich, rails).stock).toEqual({
+    const rich = holding({ stones: 600, brick: 3 });
+    expect(canPay(rich.stock, order)).toBe(true);
+    expect(pay(rich, order).stock).toEqual({
       ...EMPTY_STOCK,
       stones: 100,
-      iron: 0,
+      brick: 0,
     });
-    const shortIron = holding({ stones: 1e9, iron: 2 });
-    expect(canPay(shortIron.stock, rails)).toBe(false);
-    expect(pay(shortIron, rails)).toBe(shortIron);
-    const shortStones = holding({ stones: 499, iron: 30 });
-    expect(pay(shortStones, rails)).toBe(shortStones);
+    const shortBrick = holding({ stones: 1e9, brick: 2 });
+    expect(canPay(shortBrick.stock, order)).toBe(false);
+    expect(pay(shortBrick, order)).toBe(shortBrick);
+    const shortStones = holding({ stones: 499, brick: 30 });
+    expect(pay(shortStones, order)).toBe(shortStones);
   });
 
   it("a free price always pays and changes nothing", () => {
@@ -116,25 +94,25 @@ describe("paying and adding", () => {
   });
 
   it("adds gains by good and keeps the rest of the mountain", () => {
-    const mountain = { ...holding({ stones: 10, clay: 1 }), rockDug: 7 };
-    const next = add(mountain, { stones: 5, iron: 2 });
+    const mountain = { ...holding({ stones: 10, cutStone: 1 }), rockDug: 7 };
+    const next = add(mountain, { stones: 5, brick: 2 });
     expect(next.stock).toEqual({
       ...EMPTY_STOCK,
       stones: 15,
-      clay: 1,
-      iron: 2,
+      cutStone: 1,
+      brick: 2,
     });
     expect(next.rockDug).toBe(7);
     expect(mountain.stock.stones).toBe(10);
   });
 
   it("a refund puts every line of a price back", () => {
-    const paid = pay(holding({ stones: 600, iron: 3, clay: 1 }), rails);
-    expect(refund(paid, rails).stock).toEqual({
+    const paid = pay(holding({ stones: 600, brick: 3, cutStone: 1 }), order);
+    expect(refund(paid, order).stock).toEqual({
       ...EMPTY_STOCK,
       stones: 600,
-      iron: 3,
-      clay: 1,
+      brick: 3,
+      cutStone: 1,
     });
     expect(refund(paid, [])).toEqual(paid);
   });
@@ -148,11 +126,11 @@ describe("paying and adding", () => {
   });
 
   it("reports what a move spent and gained, by good", () => {
-    const before = { ...EMPTY_STOCK, stones: 100, clay: 4 };
-    const after = { ...EMPTY_STOCK, stones: 40, clay: 4, iron: 2 };
+    const before = { ...EMPTY_STOCK, stones: 100, cutStone: 4 };
+    const after = { ...EMPTY_STOCK, stones: 40, cutStone: 4, brick: 2 };
     expect(stockMoved(before, after)).toEqual({
       spent: { ...EMPTY_STOCK, stones: 60 },
-      gained: { ...EMPTY_STOCK, iron: 2 },
+      gained: { ...EMPTY_STOCK, brick: 2 },
     });
   });
 });

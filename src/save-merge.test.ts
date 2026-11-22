@@ -8,7 +8,6 @@ import {
 } from "./mine-levels";
 import { createMountain, type Mountain } from "./mountain";
 import { minedMountain } from "./test-fixtures";
-import { NOTHING_CRAFTED } from "./workshop";
 import { NO_UPGRADES } from "./upgrades";
 
 function copy(mountain: Mountain, rev: number, lastSeen = 1): SaveCopy {
@@ -76,7 +75,6 @@ describe("mergeSaves", () => {
       {
         ...minedMountain(10),
         upgrades: { ...NO_UPGRADES, cartSyn: 1 },
-        recipes: ["iron-rails"],
       },
       2,
     );
@@ -84,8 +82,6 @@ describe("mergeSaves", () => {
       {
         ...minedMountain(30),
         upgrades: { ...NO_UPGRADES, cartSyn: 1, drillSyn: 1 },
-        recipes: ["iron-rails", "sturdy-props"],
-        crafted: { ...NOTHING_CRAFTED, "iron-rails": 1 },
         engineers: [{ name: "Ada", rank: 0, trips: 0, post: "borer" }],
         finds: ["map"],
         owned: { ...minedMountain(30).owned, cart: 2, helper: 4 },
@@ -107,8 +103,6 @@ describe("mergeSaves", () => {
       {
         ...minedMountain(100),
         upgrades: { ...NO_UPGRADES, cartSyn: 1 },
-        recipes: ["iron-rails"],
-        crafted: { ...NOTHING_CRAFTED, "iron-rails": 1 },
         engineers: [{ name: "Ada", rank: 1, trips: 4, post: "drill" }],
       },
       6,
@@ -118,8 +112,6 @@ describe("mergeSaves", () => {
       {
         ...minedMountain(40),
         upgrades: { ...NO_UPGRADES, boots: 1 },
-        recipes: ["iron-rails", "diamond-bits"],
-        crafted: { ...NOTHING_CRAFTED, "sturdy-props": 2 },
         engineers: [
           { name: "Ada", rank: 0, trips: 1, post: "cart" },
           { name: "Nils", rank: 0, trips: 0, post: "camp" },

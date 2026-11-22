@@ -4,7 +4,7 @@ import { withFactors } from "./economy/factors";
 import { placeOrder } from "./city";
 import { createMountain, type Mountain } from "./mountain";
 import { PART_THREE_OFF, PART_TWO_OFF } from "./part-switch";
-import { EMPTY_STOCK, priceAmount } from "./stock";
+import { priceAmount } from "./stock";
 import {
   STOCKPILE_GOODS,
   deadStockpiles,
@@ -48,7 +48,7 @@ describe("the stockyard (#666)", () => {
       expect(stockpileRoom(stored, "stones")).toBe(36_000_000);
       expect(stockpileRoom(stored, "brick")).toBe(6_000_000);
       // A good with no stockpile in part 2 has no limit.
-      expect(stockpileRoom(first, "clay")).toBe(Infinity);
+      expect(stockpileRoom(first, "cutStone")).toBe(Infinity);
     });
   });
 
@@ -143,25 +143,6 @@ describe("a dead stockpile (#667)", () => {
         },
       };
       expect(deadStockpiles(roof)).toEqual(["stones"]);
-      // A work order that still requires stone takes it too (#674).
-      const railing: Mountain = {
-        ...roof,
-        station: {
-          kind: "delivering",
-          blueprint: "iron-rails",
-          arrived: EMPTY_STOCK,
-        },
-      };
-      expect(deadStockpiles(railing)).toEqual([]);
-      const greasing: Mountain = {
-        ...roof,
-        station: {
-          kind: "delivering",
-          blueprint: "axle-grease",
-          arrived: EMPTY_STOCK,
-        },
-      };
-      expect(deadStockpiles(greasing)).toEqual(["stones"]);
     });
   });
 });

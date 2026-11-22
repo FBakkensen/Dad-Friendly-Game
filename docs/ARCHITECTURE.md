@@ -47,9 +47,9 @@ page is the map, plus the rules that keep it that way.
    given and scores every measure. `lab/guardrails` turns `targets.ts` into
    one check per entry. `tools/strategy-lab.ts` (`npm run lab`) loads the
    registries, writes the report, and warns on a miss unless `LAB_STRICT=1`.
-   Since #737 it plays only the fresh mine, and since #675 the whole slice
-   with part 3 on (`LAB_FACTORS` in `lab/run`: since #682 it is
-   `PLAY_FACTORS` from `part-switch`, the map boot holds, parts 2 and 3). Since #739 the
+   Since #737 it plays only the fresh mine, and since #769 Slice 2 Part 1
+   (`LAB_FACTORS` in `lab/run` is `PLAY_FACTORS` from `part-switch`, the map
+   boot holds: `part2.off=0`, `part3.off=0`, `slice2Part1.off=0`). Since #739 the
    fresh mine is the rules, so it refuses `fresh.off` and `line.off` by
    name. `TARGETS` holds one row since #675: the five-day floor for the whole
    slice (`slice-five-days`, `sliceDays` at least 5 for every player type;
@@ -64,7 +64,7 @@ page is the map, plus the rules that keep it that way.
    from saves with a crew bought from a small to a large pocket and in a fresh mine (#654: orders, wagons and deliveries), and checks after each step that counts stay whole
    and finite, lifetime figures never fall, an upgrade or a promotion spends
    its shown price and a machine spends some stones, a buy of a
-   machine, upgrade or craft never slows the crew, and the save
+   machine or upgrade never slows the crew, and the save
    round-trips. It also checks, from every start, that time away inside the
    full-pay length pays the same however it is sliced. The band-crossing
    check (#592) went with depth in #740. Its known gap (part-stone) is listed
@@ -87,8 +87,8 @@ page is the map, plus the rules that keep it that way.
    The board's display rules (`ready-now`, `machine-bays`, `buys-rows`,
    `workshop-rows`, `workshop-sheet`, `key-rail`, and the boost and
    found-tool rows) went with the board (#727).
-2. **Saves:** `persist` (the version 10 envelope and `readSave`'s four
-   answers, #558), `save-format` (the game map: the one place the saved shape
+2. **Saves:** `persist` (the version 11 envelope and `readSave`'s four
+   answers, #558, #769), `save-format` (the game map: the one place the saved shape
    meets the complete mountain; `writeGame` leaves out what is zero or empty,
    `readGame` fills it back in, and `shippedFacts` is the ledger of what has
    shipped), `session-save` (guest storage), `phone-backup` (signed-in on-phone
@@ -108,17 +108,15 @@ page is the map, plus the rules that keep it that way.
    and its effects as data (record, log, remember the homecomings, the move's
    result; a band's recipe grant and its save went with depth in #740). It covers ticks, away pay, moves,
    trouble presses and fixes, the news and a new run. The `Mountain` it holds
-   is complete (#415): every field is present, with 0 for a cold clock, and
-   `undefined` only for a free bench. A loaded save
+   is complete (#415): every field is present. A loaded save
    is played as it was: no grant is added on load (#558). The news is one
-   queue of typed `Notice`s (away, craft, operational, level), in arrival
+   queue of typed `Notice`s (away, operational, level), in arrival
    order; screens read it with `firstNotice` and
    `noticesOf`, and `dismiss(kind)` closes the oldest of a kind (`"away"`
    closes the whole welcome card). Homecomings stay their own list, since the
    device remembers them across a reload. `session-time`'s `advance` is the
    one time step it and the lab share: live, away (a gap over ten seconds), or
-   a clock that went back (`timeInput`). A craft notice keeps the mountain at
-   the moment it was fitted. The sync service runs
+   a clock that went back (`timeInput`). The sync service runs
    the effects through the ports, as functions over one `StoreContext`
    (`store-context`): `store-session` (run a step, emit one snapshot),
    `store-actions` (tick, moves, trouble taps, a new run, hide, dispose),
@@ -278,45 +276,53 @@ the phone backup (`dad-friendly-game-backup:{uid}`), the cloud document
 paths from before version 8 are never read or written again; the old cloud
 paths are read-only.
 
-- **The envelope** (`persist.ts`): `version` (10 since #728, the removal of the
-  relics, veins and rush taps; 9 was the fresh mine), `lastSeen`, `startedAt`
+- **The envelope** (`persist.ts`): `version` (11 since #769, Slice 2 Part 1
+  switch-on and cleanup of retired Slice 1 factory/workshop/raw-material keys;
+  10 was #728, 9 was the fresh mine), `lastSeen`, `startedAt`
   (left out at 0), `rev` and `deviceId` (both or neither), `deviceLabel`, and
-  `game`. The rules check only this: `version >= 10` and never lower than the
+  `game`. The rules check only this: `version >= 11` and never lower than the
   stored one, `rev` one past the stored one, `startedAt` never lower,
   `savedAt == request.time`, the device id and label sizes, `game` a map, and
   no other key. A new game fact never needs a rules change.
-- **The game map** (`save-format.ts`): `owned` (by tier id), `stock` (stones
-  and the four materials), `levels` (upgrade and recipe levels), `clocks`
-  (the live craft timers), `marks` (`seen`, `taught`,
-  `recipes`, `finds`, `operational`), `run` (`rock`: rock dug, #664; `granite`: the part of it drilled on the Granite, for its iron, refused past `rock` or while the shaft is unsunk, #674; `generation` and `stretch` (#729) and `dug` (#740, the stones mined from the old mountain) are retired keys, read at their caps and never written),
+- **The game map** (`save-format.ts`): `owned` (by tier id), `stock`
+  (`stones`, `brick`, `cutStone`), `levels` (crew upgrade levels: `boots`,
+  `cartSyn`, `drillSyn`, `borerSyn`), `marks` (`seen`, `taught`, `finds`,
+  `operational`), `run` (`rock`: rock dug, #664),
   `engineers` (post `"tunnel"` while away), `expeditions` (each with the
-  `home` post), `bench`, `fleet` (by vehicle id, #654), `jobs` (workers by job,
-  #689), `piles` (the drilled rock, the rock at the shaft and the rock at the
-  kilns, whole and with no upper bound, #703, #666), `makers` (by maker id, #666), `stockyard` (its level, a whole number up to the ledger's `stockyard` cap, #666), `granite` (`machines` and `piles`, the Granite's share of each level machine and its three piles; written only once the shaft is sunk, `{}` with nothing on it, #673; loaded into `mineLevels.granite` and kept on the version 10 wire until the version 11 reset in #769 renames it to `mineLevels`), `pithead` (pithead rock awaiting physical transport by level, uncapped whole counts, refused on an unsunk level, #766), `makerBuffers` (finite per-maker input buffers by maker and input id, refused on an unsunk level, #766), `cycleMicros` (persisted integer micro-cycles `0..999_999` per maker, refused on an unsunk level, #766), `assignedRuns` (dedicated vehicles per single-good run, reserved for Slice 2 Part 3 and validated `sum <= fleetSize`, #766), `cages` (`assigned`, the hoists assigned to each level, never more than he owns together, and `carried`, what the cages carry by level and not where they are; each left out while all zero, #724) and `project` (the
+  `home` post), `fleet` (by vehicle id: `horseWagon`, `truck`, #654), `jobs`
+  (workers by job, #689), `piles` (the drilled rock, the rock at the shaft and
+  the rock at the kilns, whole and with no upper bound, #703, #666), `makers`
+  (by maker id, #666), `stockyard` (its level, a whole number up to the
+  ledger's `stockyard` cap, #666), `mineLevels` (sunk deeper levels by id,
+  starting with `granite`: `machines` and `piles`; `{}` for a bare sunk level,
+  written only once at least one deeper level is sunk, #766, #769), `pithead`
+  (pithead rock awaiting physical transport by level, uncapped whole counts,
+  refused on an unsunk level, #766), `makerBuffers` (finite per-maker input
+  buffers by maker and input id, refused on an unsunk level, #766),
+  `cycleMicros` (persisted integer micro-cycles `0..999_999` per maker, refused
+  on an unsunk level, #766), `assignedRuns` (dedicated vehicles per single-good
+  run, reserved for Slice 2 Part 3 and validated `sum <= fleetSize`, #766),
+  `cages` (`assigned`, the hoists assigned to each level, never more than he
+  owns together, and `carried`, what the cages carry by level and not where
+  they are; each left out while all zero, #724) and `project` (the
   building, `state` `delivering` or `onHold`, `step` 0 to 2, the goods
-  `arrived` and what of them is `onSite`, not yet built in (#690), bounded per good by `SITE_GOOD_CAP` (#766); left out
-  while nothing is ordered), with `operational` buildings in `marks`. A
-  project for a building that already stands or is not the next one, a step
-  past the roof, more on the site than arrived or than it holds, or a step
-  whose goods are all built in reads `bad`. With part 3 (#673), `stock`
-  gained `cutStone`, `fleet` the `truck`, `jobs` `graniteDrilling`,
-  `graniteHaulage` and `saws`, and `makers` the `saw`. `station` (#674) is
-  the factory's work order: its `blueprint`, `state` `delivering` or `done`,
-  and for a delivering one what has `arrived` of each good in loads (a clay
-  or an iron is 500); left out while the station is idle. A blueprint, state
-  or key this build does not know reads `newer`; more arrived than it
-  requires, a delivering one already all in, a done one with goods, or a
-  work order while the shaft is unsunk reads `bad`.
+  `arrived` and what of them is `onSite`, not yet built in (#690), bounded per
+  good by `SITE_GOOD_CAP` (#766); left out while nothing is ordered), with
+  `operational` buildings in `marks`. A project for a building that already
+  stands or is not the next one, a step past the roof, more on the site than
+  arrived or than it holds, or a step whose goods are all built in reads `bad`.
+  Retired Slice 1 keys (`clocks`, `bench`, `station`, `marks.recipes`,
+  `run.granite`, `run.generation`, `run.stretch`, `run.dug`, raw materials
+  `clay`/`iron`/`crystal`/`heartstone`, `machineSyn`, and top-level `granite`)
+  were dropped at version 11 (#769).
   Zero and empty are left out; a missing key reads
-  as its default, so a new fact needs no version bump. The mountain has no
-  `remaining` since #740: depth went, so a save of today reads back the same
-  without it.
+  as its default, so a new fact needs no version bump.
 - **Four answers** (`readSave`): `ok` plays. `newer` came from a later build:
-  a version above 10, or a right-typed value this build refuses (an unknown id,
+  a version above 11, or a right-typed value this build refuses (an unknown id,
   key or named value, a count past its cap). The store then holds play
   (`playBlock` `"newer"`), records and logs `save.newer`, shows the update
   card once, and writes nothing to the cloud, the phone or the archive
-  (`canWrite`). `older` came before version 10: it is set aside (below).
+  (`canWrite`). `older` came before version 11: it is set aside (below).
   `bad` is nonsense (a wrong type, a negative, a broken number, a missing
   envelope field) and reads like no save. `bad` wins over `newer`.
 - **The ledger** (`save-ledger.test.ts`): every id, named value and cap that

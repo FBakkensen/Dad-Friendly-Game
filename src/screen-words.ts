@@ -17,7 +17,7 @@ import {
   type TunnelId,
 } from "./expeditions";
 import { formatCompact, formatCount, formatDuration } from "./format";
-import type { LayerId, Materials, MaterialId } from "./layers";
+import type { LayerId } from "./layers";
 import type { Mountain } from "./mountain";
 import { AWAY_END_MS, effectiveRates, type Rates } from "./rates";
 import type { Stage } from "./line";
@@ -151,7 +151,7 @@ export function crewPostsShort(total: number, free: number): string {
 }
 
 /** 9:05, or 1:02:03 past an hour. */
-export const formatClock = (ms: number): string => {
+const formatClock = (ms: number): string => {
   const total = Math.ceil(ms / 1000);
   const hours = Math.floor(total / 3600);
   const minutes = Math.floor((total % 3600) / 60);
@@ -251,7 +251,6 @@ export function upgradeEffectLine(
     case "cartSyn":
     case "drillSyn":
     case "borerSyn":
-    case "machineSyn":
       return synergyEffectLine(upgrade, mountain, change);
   }
 }
@@ -291,7 +290,6 @@ const UPGRADE_WHY: Record<UpgradeId, string> = {
   cartSyn: "Each worker on haulage makes carts 1% faster.",
   drillSyn: "Each cart makes the drills a little quicker.",
   borerSyn: "Each drill makes the borers a little quicker.",
-  machineSyn: "Each borer makes the machine a little quicker.",
 };
 
 /** An upgrade's rule, where its `perLevel` does not say it (#661). */
@@ -833,8 +831,6 @@ export const cameBack = (
       return find.joined
         ? `${name} came back from ${from} with ${find.name}, who joined the crew.`
         : `${name} came back from ${from}. The lost engineer had already found a place.`;
-    case "recipe":
-      return `${name} came back from ${from} with a sketch folded in a pocket.`;
     case "quiet":
       return `${name} came back from ${from}. ${find.text}`;
   }
@@ -1173,30 +1169,6 @@ export const MOCK_RECIPES = [
     stones: 800_000,
   },
 ] as const;
-
-/** Pocket order: the shallow ore first. */
-const AWAY_ORE: readonly MaterialId[] = [
-  "clay",
-  "iron",
-  "crystal",
-  "heartstone",
-];
-
-/**
- * The welcome-back ore line (#247): what came up while you were away, and
- * where it goes. Nothing when no ore came up.
- */
-export function awayMaterialsWords(gained: Materials): string | undefined {
-  const parts = AWAY_ORE.filter((id) => gained[id] > 0).map(
-    (id) => `+${formatCompact(gained[id])} ${id}`,
-  );
-  return parts.length === 0
-    ? undefined
-    : `Ore for the Workshop: ${parts.join(" · ")}`;
-}
-
-/** Under the ore line: what the Workshop turns it into. */
-export const AWAY_MATERIALS_USE = "Craft it into gear for the crew.";
 
 /** The Ledger drawer's kick, under its title (#375). */
 export const LEDGER_KICK = "Tonight, and the mine so far";

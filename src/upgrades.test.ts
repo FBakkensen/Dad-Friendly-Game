@@ -105,7 +105,7 @@ describe("crew synergies", () => {
     );
     expect(buyUpgrade(bought, "cartSyn")).toBe(bought);
     expect(
-      ["drillSyn", "borerSyn", "machineSyn"].map((id) => {
+      ["drillSyn", "borerSyn"].map((id) => {
         const upgrade = upgradeById(id as "drillSyn");
         return [upgrade.unlock, upgrade.synergy];
       }),
@@ -117,10 +117,6 @@ describe("crew synergies", () => {
       [
         { tier: "borer", count: 3 },
         { from: "drill", to: "borer" },
-      ],
-      [
-        { tier: "machine", count: 1 },
-        { from: "borer", to: "machine" },
       ],
     ]);
   });
@@ -162,10 +158,10 @@ describe("crew synergies", () => {
   });
 
   it("save and load", () => {
-    expect(parseUpgrades({ cartSyn: 1, machineSyn: 1 })).toEqual({
+    expect(parseUpgrades({ cartSyn: 1, borerSyn: 1 })).toEqual({
       ...NO_UPGRADES,
       cartSyn: 1,
-      machineSyn: 1,
+      borerSyn: 1,
     });
     expect(parseUpgrades({ cartSyn: 2 })).toBeUndefined();
   });

@@ -100,14 +100,12 @@ const pocketArb = fc.oneof(
   fc.nat(100_000_000),
 );
 
-/** The same count of every material: none, a few, or plenty. */
+/** The same count of each refined good: none, a few, or plenty. */
 const materialsArb = fc
   .oneof(fc.constant(0), fc.nat(10), fc.nat(200))
   .map((count) => ({
-    clay: count,
-    iron: count,
-    crystal: count,
-    heartstone: count,
+    brick: count,
+    cutStone: count,
   }));
 
 const stepArb: fc.Arbitrary<Step> = fc.oneof(
@@ -241,9 +239,6 @@ function wholeCounts(mountain: Mountain): readonly [string, number][] {
     ...Object.entries(mountain.upgrades).map(
       ([id, level]) => [`upgrades.${id}`, level] as [string, number],
     ),
-    ...Object.entries(mountain.crafted).map(
-      ([id, level]) => [`crafted.${id}`, level] as [string, number],
-    ),
     ...mountain.engineers.flatMap((hand) => [
       [`${hand.name}.rank`, hand.rank] as [string, number],
       [`${hand.name}.trips`, hand.trips] as [string, number],
@@ -296,7 +291,6 @@ function badNumbers(mountain: Mountain): readonly string[] {
 function lifetime(mountain: Mountain): Record<string, number> {
   return {
     rockDug: mountain.rockDug,
-    recipes: mountain.recipes.length,
     finds: mountain.finds.length,
     taught: mountain.taught.length,
     operational: mountain.operational.length,
@@ -306,12 +300,6 @@ function lifetime(mountain: Mountain): Record<string, number> {
     ...Object.fromEntries(
       Object.entries(mountain.upgrades).map(([id, level]) => [
         `upgrades.${id}`,
-        level,
-      ]),
-    ),
-    ...Object.fromEntries(
-      Object.entries(mountain.crafted).map(([id, level]) => [
-        `crafted.${id}`,
         level,
       ]),
     ),
@@ -419,7 +407,7 @@ describe("economy invariants on random play (#555)", () => {
           let world: World = {
             mountain: {
               ...(STARTS[start] ?? createMountain()),
-              stock: { stones: pocket, brick: 0, cutStone: 0, ...materials },
+              stock: { stones: pocket, ...materials },
             },
             hazards: freshHazards(seed),
             clock: START,

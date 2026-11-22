@@ -57,9 +57,10 @@ import { freeWorker, placeWorker } from "./workforce";
 const SECOND = 1_000;
 const HOUR = 3_600 * SECOND;
 
-describe("slice 2 part 1 switch (#766)", () => {
-  it("stays off in play and requires part2, part3, and slice2Part1 all at 0", () => {
-    expect(SLICE_2_PART_1_OFF in PLAY_FACTORS).toBe(false);
+describe("slice 2 part 1 switch (#766, #769)", () => {
+  it("is on in play (PLAY_FACTORS) and requires part2, part3, and slice2Part1 all at 0", () => {
+    expect(PLAY_FACTORS[SLICE_2_PART_1_OFF]).toBe(0);
+    expect(withFactors(PLAY_FACTORS, slice2Part1On)).toBe(true);
     expect(slice2Part1On()).toBe(false);
     partThree(() => {
       expect(slice2Part1On()).toBe(false);
@@ -497,9 +498,11 @@ describe("v11 save shape & reserved assignedRuns (#766)", () => {
       assignedRuns: { pitToStockyardStones: 2, pitTopsoilToKilns: 1 },
     };
     const game = writeGame(m);
-    expect(game.granite).toEqual({
-      machines: { cart: 1, drill: 1 },
-      piles: { face: 12, shaft: 8 },
+    expect(game.mineLevels).toEqual({
+      granite: {
+        machines: { cart: 1, drill: 1 },
+        piles: { face: 12, shaft: 8 },
+      },
     });
     expect(game.pithead).toEqual({ topsoil: 45, granite: 19 });
     expect(game.makerBuffers).toEqual({
@@ -573,11 +576,11 @@ describe("v11 save shape & reserved assignedRuns (#766)", () => {
     expect(
       readGame({ makerBuffers: { glassworks: { crystalRock: 1 } } }, 0).kind,
     ).toBe("newer");
-    // Bad granite propagates cleanly through pithead, makerBuffers, and cycleMicros.
+    // Bad mineLevels propagates cleanly through pithead, makerBuffers, and cycleMicros.
     expect(
       readGame(
         {
-          granite: "nope",
+          mineLevels: { granite: "nope" },
           pithead: { topsoil: 1 },
           makerBuffers: { kiln: { topsoilRock: 1 } },
           cycleMicros: { kiln: 10 },
@@ -612,14 +615,15 @@ describe("v11 save shape & reserved assignedRuns (#766)", () => {
   });
 });
 
-describe("Part 1 lab & #757 economy rebalance (#767)", () => {
-  it("gates #757 economy retuning behind slice2Part1On() while LAB_FACTORS enables it", () => {
+describe("Part 1 lab & #757 economy rebalance (#767, #769)", () => {
+  it("gates #757 economy retuning behind slice2Part1On() while PLAY_FACTORS and LAB_FACTORS enable it", () => {
+    expect(PLAY_FACTORS[SLICE_2_PART_1_OFF]).toBe(0);
     expect(LAB_FACTORS[SLICE_2_PART_1_OFF]).toBe(0);
     const oneBuilder = {
       ...createMountain(),
       jobs: { ...createMountain().jobs, building: 1, driving: 1 },
     };
-    withFactors(PLAY_FACTORS, () => {
+    partThree(() => {
       expect(buildRate(oneBuilder)).toBe(8);
       expect(fleetRate(oneBuilder)).toBe(9);
       expect(vehicleKeys(oneBuilder, "one")[0]?.face).toBe("+Wagon · 9/s");
@@ -629,19 +633,21 @@ describe("Part 1 lab & #757 economy rebalance (#767)", () => {
       expect(tierCost(tierById("train"), 0)).toBe(60_000);
       expect(vehiclePrice(oneBuilder, "truck")[0]?.amount).toBe(150_000);
     });
-    withFactors(LAB_FACTORS, () => {
-      expect(buildRate(oneBuilder)).toBe(50);
-      expect(fleetRate(oneBuilder)).toBe(18);
-      expect(vehicleKeys(oneBuilder, "one")[0]?.face).toBe("+Wagon · 18/s");
-      expect(transportPlate(oneBuilder).fleet).toContain("18/s");
-      expect(makerMakes("saw")).toBe(50);
-      expect(tierCost(tierById("borer"), 0)).toBe(12_000);
-      expect(tierCost(tierById("train"), 0)).toBe(15_000);
-      expect(vehiclePrice(oneBuilder, "truck")[0]?.amount).toBe(100_000);
-      expect(tierCost(tierById("helper"), 100)).toBeLessThan(
-        withFactors(PLAY_FACTORS, () => tierCost(tierById("helper"), 100)),
-      );
-    });
+    for (const factors of [PLAY_FACTORS, LAB_FACTORS]) {
+      withFactors(factors, () => {
+        expect(buildRate(oneBuilder)).toBe(50);
+        expect(fleetRate(oneBuilder)).toBe(18);
+        expect(vehicleKeys(oneBuilder, "one")[0]?.face).toBe("+Wagon · 18/s");
+        expect(transportPlate(oneBuilder).fleet).toContain("18/s");
+        expect(makerMakes("saw")).toBe(50);
+        expect(tierCost(tierById("borer"), 0)).toBe(12_000);
+        expect(tierCost(tierById("train"), 0)).toBe(15_000);
+        expect(vehiclePrice(oneBuilder, "truck")[0]?.amount).toBe(100_000);
+        expect(tierCost(tierById("helper"), 100)).toBeLessThan(
+          partThree(() => tierCost(tierById("helper"), 100)),
+        );
+      });
+    }
   });
 
   it("computes steady physical transport income and City carry rate under slice2Part1On()", () => {

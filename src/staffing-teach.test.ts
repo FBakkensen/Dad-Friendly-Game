@@ -14,8 +14,8 @@ function crew(): Mountain {
     stock: { ...start.stock, stones: 2_000_000 },
     owned: { ...start.owned, helper: 3, cart: 10 },
     jobs: { ...start.jobs, haulage: 2 },
-    seen: ["workshop"],
-    taught: ["workshop"],
+    seen: [],
+    taught: [],
   };
 }
 
@@ -33,9 +33,9 @@ describe("staffing teach (#246)", () => {
         "staffing",
       ),
     ).toBe(false);
-    expect(
-      showsDot({ ...crew(), taught: ["workshop", "staffing"] }, "staffing"),
-    ).toBe(false);
+    expect(showsDot({ ...crew(), taught: ["staffing"] }, "staffing")).toBe(
+      false,
+    );
   });
 
   it("words the bill without the free count and never asks", () => {

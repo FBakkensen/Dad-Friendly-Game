@@ -2,7 +2,7 @@ import type { Action } from "../economy/actions";
 import type { Mountain } from "../mountain";
 import { nextBuilding } from "../city";
 import { activeFactors } from "../economy/factors";
-import { PART_TWO_OFF, PLAY_FACTORS, SLICE_2_PART_1_OFF } from "../part-switch";
+import { PART_TWO_OFF, PLAY_FACTORS } from "../part-switch";
 import { createWorld, step, type World } from "./world";
 import { sticker } from "./decide";
 import { playFresh } from "./fresh-dad";
@@ -40,14 +40,9 @@ export type RunOptions = {
 };
 
 /**
- * The mine the strategy lab plays (#767): the live game's with Slice 2 Part 1
- * switched on, so the lab tunes physical transport and the #757 economy
- * rebalance before Part 1 switches on in play (#769).
+ * The mine the strategy lab plays (#767, #769): the live game's `PLAY_FACTORS`.
  */
-export const LAB_FACTORS: Readonly<Record<string, 0>> = Object.freeze({
-  ...PLAY_FACTORS,
-  [SLICE_2_PART_1_OFF]: 0,
-});
+export const LAB_FACTORS: Readonly<Record<string, 0>> = PLAY_FACTORS;
 
 /** What a run says when its caller forgot the game's factors (#737). */
 export const NOT_FRESH =

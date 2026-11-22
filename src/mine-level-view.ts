@@ -83,8 +83,7 @@ export const SHAFT_WAITS_LINE =
 
 /** The Sink key, and its small line (the prototype's). */
 export const SINK_KEY = "Sink the shaft to the Granite";
-export const SINK_LINE =
-  "A second level. Opens saws, the factory, locomotives.";
+export const SINK_LINE = "A second level. Opens saws and locomotives.";
 
 /** The machine card (ruling 5): it asks which level a machine is for. */
 export const MACHINE_CARD_STAYS = "It stays on the level it is bought for.";
@@ -192,7 +191,7 @@ type LevelsWork = {
 
 function levelsWork(mountain: Mountain, now: number | undefined): LevelsWork {
   const speed = effectiveRates(mountain, now).tierSpeed;
-  const timer = crewTimer(mountain, now);
+  const timer = crewTimer();
   const { levels } = lineWork(mountain, speed);
   const shaft: ShaftReading = {
     running: mineWork(mountain).cages.filter((cage) => cage.runs),
@@ -217,7 +216,7 @@ function levelsWork(mountain: Mountain, now: number | undefined): LevelsWork {
     hoisting,
     hoistCan,
     cans,
-    flows: mineLevelFlows(mountain, now),
+    flows: mineLevelFlows(mountain),
     // The band's scale is the strongest of all five stages (ruling 2).
     strongest: Math.max(
       1,

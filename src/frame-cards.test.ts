@@ -612,7 +612,7 @@ describe("the Granite's card (#754)", () => {
         "A second level, twice as deep, with its own drilling and its own haulage. Nobody works there yet: put workers on it with − and + on the level.",
         "A hoist serves both levels in turn: down to one, up, then down to the other. A trip to the Granite takes twice as long. Under Hoisting, − and + assign a hoist to one level only.",
         "Topsoil rock goes to the kilns. Granite rock goes to the saws, which have their own pile of rock.",
-        "Opened: saws in the refinery, the factory, and locomotives for haulage.",
+        "Opened: saws in the refinery and locomotives for haulage.",
       ],
     });
     expect(card().key?.textContent).toBe("Continue");
@@ -840,7 +840,7 @@ describe("the cards' words", () => {
     expect(FIRST_EVENING).toEqual({
       title: "The first evening",
       paragraphs: [
-        "One worker, on drilling. Drilled rock waits until haulage carries it to the shaft, and at the shaft until hoisting lifts it up as stone.",
+        "One worker, on drilling. Drilled rock waits until haulage carries it to the shaft, hoisting lifts it to the pithead, and driving hauls it to the stockyard as stone.",
         "Move him between the jobs. Every worker you hire moves more.",
       ],
       key: "Start",

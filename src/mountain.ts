@@ -2,8 +2,13 @@ import { effectiveRates } from "./rates";
 import type { Engineer } from "./engineers";
 import { type Expedition, type FindId, type Homecoming } from "./expeditions";
 import { NO_UPGRADES, type Upgrades } from "./upgrades";
-import { EMPTY_MATERIALS } from "./layers";
-import { EMPTY_STOCK, addedStock, stockMoved, type Stock } from "./stock";
+import {
+  EMPTY_STOCK,
+  GOOD_IDS,
+  addedStock,
+  stockMoved,
+  type Stock,
+} from "./stock";
 import type { TeachId } from "./teach";
 import {
   NO_PROJECT,
@@ -29,7 +34,6 @@ import {
 import { NO_CAGES, type Cages } from "./cages";
 import { flowMineLive, landedMine } from "./mine-cages";
 import { wholeSeconds } from "./piles";
-import { IDLE_STATION, withMaterials, type Station } from "./factory";
 import {
   flowMine,
   mineMakes,
@@ -61,17 +65,6 @@ import {
   type VehicleId,
 } from "./transport";
 import { tierRecord, type TierId } from "./tiers";
-import type { Materials } from "./layers";
-import {
-  COLD_CLOCKS,
-  NOTHING_CRAFTED,
-  STARTING_RECIPE_IDS,
-  settleBench,
-  type Bench,
-  type Clocks,
-  type Crafted,
-  type RecipeId,
-} from "./workshop";
 
 /**
  * One run's state. Never changed in place: every move returns a new object.
@@ -79,15 +72,11 @@ import {
  * on that (#314).
  */
 export type Mountain = {
-  /**
-   * What he holds, by good (src/stock.ts): the stones mined and not yet
-   * spent, and the clay, iron, crystal and heartstone dug with them (#560).
-   */
+  /** What he holds, by good (src/stock.ts): stone, brick, cut stone (#560, #769). */
   readonly stock: Stock;
   /**
    * How many he owns of each row of the tier table (src/tiers.ts), the
-   * save's shape (#559). The line's hoists and pit trains stay 0 until the
-   * line is on.
+   * save's shape (#559).
    */
   readonly owned: Readonly<Record<TierId, number>>;
   /** Permanent upgrade levels (src/upgrades.ts); 0 is none. */
@@ -108,17 +97,6 @@ export type Mountain = {
    * Lost tools and keepsakes already brought home.
    */
   readonly finds: readonly FindId[];
-  /** The craft on the one bench. A required key: undefined is a free bench. */
-  readonly bench: Bench | undefined;
-  /** Levels already crafted; 0 is not made. */
-  readonly crafted: Crafted;
-  /** Recipes found. */
-  readonly recipes: readonly RecipeId[];
-  /**
-   * When each craft's live timer stops (epoch ms); 0 is cold. Saved as four
-   * fields in the workshop map.
-   */
-  readonly clocks: Clocks;
   /** Systems whose "New" note has been opened (M11, src/teach.ts). */
   readonly seen: readonly TeachId[];
   /** Systems used at least once; their dot is gone (M11, src/teach.ts). */
@@ -131,15 +109,15 @@ export type Mountain = {
   readonly project: Project;
   /**
    * Workers on each job (slice 1, rule 2, #689). The free workers are the
-   * rest of `owned.helper`. Always zero in today's game.
+   * rest of `owned.helper`.
    */
   readonly jobs: Jobs;
   /**
    * Drilled rock and rock at the shaft (slice 1, rule 2, #703), in
-   * whole stones. Always empty in today's game.
+   * whole stones.
    */
   readonly piles: MinePiles;
-  /** Makers owned, by kind (slice 1, part 2, src/makers.ts). Always none in today's game. */
+  /** Makers owned, by kind (slice 1, part 2, src/makers.ts). */
   readonly makers: Readonly<Record<MakerId, number>>;
   /** The stockyard's level (slice 1, part 2, src/stockyard.ts); 0 is the first. */
   readonly stockyard: number;
@@ -149,12 +127,6 @@ export type Mountain = {
    * mine, whose mountain never shrinks (#740: the mountain has no depth).
    */
   readonly rockDug: number;
-  /**
-   * The part of `rockDug` drilled on the Granite (slice 1, part 3, rule
-   * 5.13, #674): its iron comes from it, and the Topsoil's clay from the
-   * rest. 0 until the shaft is sunk.
-   */
-  readonly graniteDug: number;
   /** Sunk deeper mine levels (slice 2, #766, src/mine-levels.ts). Empty while only Topsoil is open. */
   readonly mineLevels: MineLevels;
   /** Pithead rock buffers per mine level awaiting physical transport (slice 2, #766). */
@@ -167,11 +139,9 @@ export type Mountain = {
   readonly assignedRuns: AssignedRuns;
   /**
    * The shaft's cages (slice 1, part 3, src/cages.ts, #724): the hoists
-   * assigned to each level and the cages' trips. None in today's game.
+   * assigned to each level and the cages' trips.
    */
   readonly cages: Cages;
-  /** The factory's station and its work order (slice 1, part 3, src/factory.ts). Always idle in today's game. */
-  readonly station: Station;
 };
 
 /** 0 for a first run that was never started over. */
@@ -188,10 +158,6 @@ export const BARE_MOUNTAIN: Mountain = {
   engineers: [],
   expeditions: [],
   finds: [],
-  bench: undefined,
-  crafted: NOTHING_CRAFTED,
-  recipes: [],
-  clocks: COLD_CLOCKS,
   seen: [],
   taught: [],
   fleet: vehicleRecord(0),
@@ -202,14 +168,12 @@ export const BARE_MOUNTAIN: Mountain = {
   makers: makerRecord(0),
   stockyard: 0,
   rockDug: 0,
-  graniteDug: 0,
   mineLevels: NO_MINE_LEVELS,
   pithead: EMPTY_PITHEAD,
   makerBuffers: EMPTY_MAKER_BUFFERS,
   cycleMicros: EMPTY_CYCLE_MICROS,
   assignedRuns: NO_ASSIGNED_RUNS,
   cages: NO_CAGES,
-  station: IDLE_STATION,
 };
 
 /**
@@ -231,11 +195,10 @@ export const FRESH_START_JOBS: Jobs = {
 };
 
 export function createMountain(): Mountain {
-  const start = { ...BARE_MOUNTAIN, recipes: [...STARTING_RECIPE_IDS] };
   return {
-    ...start,
+    ...BARE_MOUNTAIN,
     owned: {
-      ...start.owned,
+      ...BARE_MOUNTAIN.owned,
       helper: workersOnJobs({ jobs: FRESH_START_JOBS }),
     },
     jobs: FRESH_START_JOBS,
@@ -273,31 +236,15 @@ export function accrue({
   if (to <= from) {
     return { mountain, mined: 0, settledAt: Math.max(from, to) };
   }
-  // A craft that finished before this window is on the crew for the whole of it.
-  // One that finishes during the window is fitted at the end, once.
-  const ready = settleBench(mountain, from);
   if (slice2Part1On()) {
-    const worked = live
-      ? accrueSlice2Live(ready, from, to, pay)
-      : accrueSlice2Stretches(ready, from, to, pay);
-    return {
-      mountain: settleBench(worked.mountain, to),
-      mined: worked.mined,
-      settledAt: worked.settledAt,
-    };
+    return live
+      ? accrueSlice2Live(mountain, from, to, pay)
+      : accrueSlice2Stretches(mountain, from, to, pay);
   }
-  if (stockyardOpen(ready)) {
-    const worked = accrueStretches(ready, from, to, pay, live);
-    return { ...worked, mountain: settleBench(worked.mountain, to) };
+  if (stockyardOpen(mountain)) {
+    return accrueStretches(mountain, from, to, pay, live);
   }
-  const worked = withDelivery(
-    accrueMine(ready, from, to, pay, live),
-    from,
-    to,
-    pay,
-  );
-  const fitted = settleBench(worked.mountain, to);
-  return fitted === worked.mountain ? worked : { ...worked, mountain: fitted };
+  return withDelivery(accrueMine(mountain, from, to, pay, live), from, to, pay);
 }
 
 /**
@@ -385,8 +332,6 @@ export type AwayReport = {
   /** Time that actually paid. */
   readonly paidMs: number;
   readonly capped: boolean;
-  /** Ore the crew brought up while you were away. */
-  readonly materials: Materials;
   /** The night, for the shift report (#663). */
   readonly night: NightReport;
 };
@@ -503,18 +448,10 @@ function workStretch(
     pay,
     drilling,
   );
-  // Clay and iron come with the rock drilled (rule 5.13, #674).
-  const dug = withMaterials(mountain, mine.mountain);
   return {
-    mountain: deliver(dug, seconds, pay),
+    mountain: deliver(mine.mountain, seconds, pay),
     mined: mine.mined,
-    gained:
-      dug === mine.mountain
-        ? mine.gained
-        : addedStock(
-            stockMoved(mine.mountain.stock, dug.stock).gained,
-            mine.gained,
-          ),
+    gained: mine.gained,
     settledAt: from + seconds * 1000,
     producing: mine.mined > 0,
   };
@@ -580,7 +517,8 @@ function logStretch(
   const atMs = span.at - span.start;
   log.steps.push(...stepsBuilt(before, part.mountain, atMs));
   log.gained = addedStock(log.gained, part.gained);
-  for (const good of STOCKPILE_GOODS) {
+  const fullGoods = slice2Part1On() ? GOOD_IDS : STOCKPILE_GOODS;
+  for (const good of fullGoods) {
     if (
       log.fullAtMs[good] === undefined &&
       stockpileFull(part.mountain, good)
@@ -630,6 +568,7 @@ export function accrueAway({
   const awayMs = Math.max(0, now - lastSeen);
   const clockStops = lastSeen + Math.min(awayMs, NIGHT_CLOCK_MS);
   const landed = landedMine(mountain);
+  const fullGoods = slice2Part1On() ? GOOD_IDS : STOCKPILE_GOODS;
   const log: NightLog = {
     producedMs: 0,
     producedTo: 0,
@@ -640,9 +579,9 @@ export function accrueAway({
         ? EMPTY_STOCK
         : addedStock(EMPTY_STOCK, landed.gained),
     fullAtMs: Object.fromEntries(
-      STOCKPILE_GOODS.filter((good) =>
-        stockpileFull(landed.mountain, good),
-      ).map((good) => [good, 0]),
+      fullGoods
+        .filter((good) => stockpileFull(landed.mountain, good))
+        .map((good) => [good, 0]),
     ),
     deadMs: 0,
   };
@@ -676,7 +615,6 @@ export function accrueAway({
       awayMs,
       paidMs: clockless ? awayMs : clockStops - lastSeen,
       capped: !clockless && awayMs > NIGHT_CLOCK_MS,
-      materials: EMPTY_MATERIALS,
       night: nightReport(log, mountain, state, awayMs),
     },
   };

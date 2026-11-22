@@ -105,7 +105,6 @@ const MOVE_KIND_ORDER = {
   send: true,
   recall: true,
   fixTrouble: true,
-  cancelCraft: true,
   buyVehicle: true,
   buyMaker: true,
   expandStockyard: true,
@@ -116,9 +115,6 @@ const MOVE_KIND_ORDER = {
   resumeOrder: true,
   sinkShaft: true,
   buyGraniteMachine: true,
-  placeWorkOrder: true,
-  cancelWorkOrder: true,
-  installWorkOrder: true,
   assignHoist: true,
   unassignHoist: true,
 } as const satisfies Record<Action["kind"], true>;

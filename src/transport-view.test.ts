@@ -247,7 +247,6 @@ describe("transport-view (#768)", () => {
         paidMs: 4 * 3_600_000,
         capped: false,
         mined: 0,
-        materials: EMPTY_STOCK,
         night: {
           producedMs: 4 * 3_600_000,
           deadMs: 0,
