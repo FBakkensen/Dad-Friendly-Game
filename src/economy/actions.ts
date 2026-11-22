@@ -863,6 +863,7 @@ function actionEvents(
     case "recall":
     case "station":
       return crewEvents(before, next, action.index);
+    /* v8 ignore next 2 -- fixTrouble never mutates mountain; applyMove refuses before moveEvents */
     case "fixTrouble":
       return [];
     case "placeOrder":

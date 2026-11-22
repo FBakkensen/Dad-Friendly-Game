@@ -46,7 +46,7 @@ import { BARE_MOUNTAIN, type Mountain } from "./mountain";
 import { MAX_STOCKYARD_LEVEL } from "./stockyard";
 import { TEACH_IDS, type TeachId } from "./teach";
 import { TIER_IDS, type TierId } from "./tiers";
-import { NO_UPGRADES, UPGRADES, type UpgradeId } from "./upgrades";
+import { NO_UPGRADES, UPGRADES, upgradeById, type UpgradeId } from "./upgrades";
 import { GOOD_IDS, priceAmount, type GoodId } from "./stock";
 import {
   NO_ASSIGNED_RUNS,
@@ -496,7 +496,7 @@ function readCounts<K extends string>(
 const UNCAPPED = (): number => Number.MAX_SAFE_INTEGER;
 
 function levelCap(id: LevelId): number {
-  return UPGRADES.find((upgrade) => upgrade.id === id)?.maxLevel ?? 0;
+  return upgradeById(id).maxLevel;
 }
 
 /** A list of ids that have happened. An id it does not know, or twice, is `newer`. */

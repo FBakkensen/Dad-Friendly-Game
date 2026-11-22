@@ -372,4 +372,11 @@ describe("the game map (#558)", () => {
       readGame({ marks: { seen: ["engineers", "engineers"] } }, 0).kind,
     ).toBe("newer");
   });
+
+  it("refuses a non-record unknown deeper level entry in mineLevels (#769)", () => {
+    const game = writeGame(createMountain());
+    expect(readGame({ ...game, mineLevels: { crystal: 5 } }, 0).kind).toBe(
+      "bad",
+    );
+  });
 });
