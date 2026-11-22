@@ -53,6 +53,8 @@ describe("one level, no depth (rule 1)", () => {
         graniteDrilling: 0,
         graniteHaulage: 0,
         saws: 0,
+        crystalDrilling: 0,
+        crystalHaulage: 0,
       });
       expect(start.fleet.horseWagon).toBe(1);
       expect(start.piles).toEqual({ face: 0, shaft: 0, kiln: 0 });
@@ -79,6 +81,8 @@ describe("one level, no depth (rule 1)", () => {
           graniteDrilling: 0,
           graniteHaulage: 0,
           saws: 0,
+          crystalDrilling: 0,
+          crystalHaulage: 0,
         },
       };
       const month = accrue({ mountain: crew, from: 0, to: 30 * DAY });

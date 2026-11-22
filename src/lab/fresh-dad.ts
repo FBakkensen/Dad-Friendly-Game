@@ -416,6 +416,7 @@ function slice2PileMove(mountain: Mountain): Plan {
   const chain = undergroundPitheadChains(mountain, 1, true, {
     topsoil: stockFull && mountain.makers.kiln === 0 ? 0 : fleetRate(mountain),
     granite: 0,
+    crystal: 0,
   }).topsoil;
   if (chain === undefined) {
     return [];

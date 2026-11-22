@@ -36,7 +36,7 @@ export function sticker(mountain: Mountain, action: Action): number {
       // Brick, not stone: the fresh dad prices it good by good (#667).
       return 0;
     case "sinkShaft":
-      return priceAmount(shaftPrice(), "stones");
+      return priceAmount(shaftPrice(action.level), "stones");
     case "buyGraniteMachine":
       // As `valueOf` prices it until the lab learns the Granite (#675).
       return 0;

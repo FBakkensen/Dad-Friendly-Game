@@ -21,7 +21,13 @@ import {
   type MakerId,
 } from "./makers";
 import { flowMineToPitheadLive } from "./mine-cages";
-import { graniteOpen, openLevels, type MineLevelId } from "./mine-levels";
+import {
+  MINE_LEVEL_IDS,
+  crystalOpen,
+  graniteOpen,
+  openLevels,
+  type MineLevelId,
+} from "./mine-levels";
 import {
   flowUndergroundToPithead,
   pitheadRoom,
@@ -78,7 +84,7 @@ export type Slice2Step = {
 
 const RATE_EPS = 1e-9;
 const MAX_FIXED_POINT_PASSES = 32;
-const LEVEL_KEYS: readonly MineLevelId[] = ["topsoil", "granite"];
+const LEVEL_KEYS: readonly MineLevelId[] = MINE_LEVEL_IDS;
 
 /** Snapshot of converged continuous rates across the entire Slice 2 chain. */
 type CoupledRates = {
@@ -472,6 +478,8 @@ function hoistRatesFor(
       chains.topsoil === undefined ? 0 : (chainFlows(chains.topsoil)[2] ?? 0),
     granite:
       chains.granite === undefined ? 0 : (chainFlows(chains.granite)[2] ?? 0),
+    crystal:
+      chains.crystal === undefined ? 0 : (chainFlows(chains.crystal)[2] ?? 0),
   };
 }
 
@@ -483,16 +491,19 @@ function runSourcesFor(
   makerOut: Readonly<Record<MakerId, number>>,
 ) {
   const graniteHeld = graniteOpen(mountain) ? mountain.pithead.granite : 0;
+  const crystalHeld = crystalOpen(mountain) ? mountain.pithead.crystal : 0;
   return {
     openLvls,
     pitheadCap: {
       topsoil: mountain.pithead.topsoil > 0 ? Infinity : hoist.topsoil,
       granite: graniteHeld > 0 ? Infinity : hoist.granite,
+      crystal: crystalHeld > 0 ? Infinity : hoist.crystal,
     },
     pitheadWeight: {
       topsoil:
         mountain.pithead.topsoil > 0 ? mountain.pithead.topsoil : hoist.topsoil,
       granite: graniteHeld > 0 ? graniteHeld : hoist.granite,
+      crystal: crystalHeld > 0 ? crystalHeld : hoist.crystal,
     },
     stockCap: {
       stones:
@@ -528,17 +539,23 @@ function coupledRates(
   let pitheadDrain: Readonly<Record<MineLevelId, number>> = {
     topsoil: 0,
     granite: 0,
+    crystal: 0,
   };
   let stoneFromPithead: Readonly<Record<MineLevelId, number>> = {
     topsoil: 0,
     granite: 0,
+    crystal: 0,
   };
   let runRates: Readonly<Record<RunId, number>> = Object.fromEntries(
     RUN_ORDER.map((id) => [id, 0]),
   ) as Record<RunId, number>;
 
   let prevDrain: Readonly<Record<MineLevelId, number>> | undefined;
-  let hoist: Record<MineLevelId, number> = { topsoil: 0, granite: 0 };
+  let hoist: Record<MineLevelId, number> = {
+    topsoil: 0,
+    granite: 0,
+    crystal: 0,
+  };
   let build: Record<CityRunGood, number> = { stones: 0, brick: 0, cutStone: 0 };
   let makerOut: Record<MakerId, number> = { kiln: 0, saw: 0 };
   let settled = false;
@@ -835,14 +852,16 @@ function planStretchPithead(
   const rawStone: Record<MineLevelId, number> = {
     topsoil: stoneWhole("topsoil"),
     granite: graniteOpen(mountain) ? stoneWhole("granite") : 0,
+    crystal: crystalOpen(mountain) ? stoneWhole("crystal") : 0,
   };
   const scaled =
-    rawStone.topsoil + rawStone.granite > stoneCap
+    rawStone.topsoil + rawStone.granite + rawStone.crystal > stoneCap
       ? shareProportional(stoneCap, openLvls, rawStone)
       : rawStone;
   const wantStone: Record<MineLevelId, number> = {
     topsoil: scaled.topsoil ?? 0,
     granite: scaled.granite ?? 0,
+    crystal: scaled.crystal ?? 0,
   };
   const makerWhole = (level: MineLevelId, run: RunId): number => {
     const rate = rates.runRates[run];
@@ -864,13 +883,17 @@ function planStretchPithead(
           stretchMakerRockCap(mountain, "saw", rates, cityOut, seconds, pay),
         )
       : 0,
+    crystal: 0,
   };
   if (seconds === 1) {
     let stoneLeft = Math.max(
       0,
-      stoneCap - wantStone.topsoil - wantStone.granite,
+      stoneCap - wantStone.topsoil - wantStone.granite - wantStone.crystal,
     );
     for (const level of openLvls) {
+      if (level === "crystal") {
+        continue;
+      }
       const mRun: RunId =
         level === "topsoil" ? "pitTopsoilToKilns" : "pitGraniteToSaws";
       const floorMaker = Math.floor(rates.runRates[mRun] + RATE_EPS);
@@ -886,6 +909,7 @@ function planStretchPithead(
     drainRate: {
       topsoil: (wantStone.topsoil + wantMaker.topsoil) / seconds,
       granite: (wantStone.granite + wantMaker.granite) / seconds,
+      crystal: (wantStone.crystal + wantMaker.crystal) / seconds,
     },
   };
 }
@@ -897,8 +921,16 @@ function moveStretchPithead(
   wantMaker: Readonly<Record<MineLevelId, number>>,
 ): { readonly mountain: Mountain; readonly gainedStones: number } {
   const openLvls = openLevels(mountain);
-  const stoneFrom: Record<MineLevelId, number> = { topsoil: 0, granite: 0 };
-  const makerMoved: Record<MineLevelId, number> = { topsoil: 0, granite: 0 };
+  const stoneFrom: Record<MineLevelId, number> = {
+    topsoil: 0,
+    granite: 0,
+    crystal: 0,
+  };
+  const makerMoved: Record<MineLevelId, number> = {
+    topsoil: 0,
+    granite: 0,
+    crystal: 0,
+  };
   for (const level of openLvls) {
     const split = shareProportional(
       mountain.pithead[level],
@@ -908,7 +940,8 @@ function moveStretchPithead(
     stoneFrom[level] = split.stone ?? 0;
     makerMoved[level] = split.maker ?? 0;
   }
-  const gainedStones = stoneFrom.topsoil + stoneFrom.granite;
+  const gainedStones =
+    stoneFrom.topsoil + stoneFrom.granite + stoneFrom.crystal;
   if (gainedStones + makerMoved.topsoil + makerMoved.granite <= 0) {
     return { mountain, gainedStones: 0 };
   }
@@ -965,6 +998,7 @@ function applyStretchCity(
 const ZERO_DRAIN: Readonly<Record<MineLevelId, number>> = {
   topsoil: 0,
   granite: 0,
+  crystal: 0,
 };
 
 /** One discrete 1-second offline stretch: zero assumed pithead drain (matches live Phase (a)->(b)->(c)->(d)). */
@@ -989,7 +1023,7 @@ function applyOneSecondStretch(
   const surface = stepSlice2Surface(mine.mountain, pay, tickIndex);
   return {
     mountain: surface.mountain,
-    mined: mine.hoisted.topsoil + mine.hoisted.granite,
+    mined: mine.hoisted.topsoil + mine.hoisted.granite + mine.hoisted.crystal,
     gained: surface.gained,
   };
 }
@@ -1055,7 +1089,8 @@ export function stretchSlice2(
     pay,
     tickIndex,
   );
-  const mined = mine.hoisted.topsoil + mine.hoisted.granite;
+  const mined =
+    mine.hoisted.topsoil + mine.hoisted.granite + mine.hoisted.crystal;
   const gained: Partial<Stock> = {
     ...made.made,
     ...(moved.gainedStones > 0 ? { stones: moved.gainedStones } : {}),
@@ -1119,6 +1154,7 @@ type SteadyBase = {
   readonly openLvls: readonly MineLevelId[];
   readonly topsoil: number;
   readonly granite: number;
+  readonly crystal: number;
   readonly kilnNeed: number;
   readonly sawNeed: number;
   readonly fleet: number;
@@ -1134,10 +1170,14 @@ function steadyBase(mountain: Mountain): SteadyBase {
   const granite = graniteOpen(mountain)
     ? Math.min(levels.granite.face, levels.granite.haul, levels.granite.lift)
     : 0;
+  const crystal = crystalOpen(mountain)
+    ? Math.min(levels.crystal.face, levels.crystal.haul, levels.crystal.lift)
+    : 0;
   return {
     openLvls: openLevels(mountain),
     topsoil,
     granite,
+    crystal,
     kilnNeed:
       mountain.makers.kiln > 0
         ? makerRate(mountain, "kiln") * makerTakes("kiln")
@@ -1185,8 +1225,16 @@ function runSteadyAlloc(
   };
   return allocateRunRates(base.fleet, open, destCaps, {
     openLvls: base.openLvls,
-    pitheadCap: { topsoil: base.topsoil, granite: base.granite },
-    pitheadWeight: { topsoil: base.topsoil, granite: base.granite },
+    pitheadCap: {
+      topsoil: base.topsoil,
+      granite: base.granite,
+      crystal: base.crystal,
+    },
+    pitheadWeight: {
+      topsoil: base.topsoil,
+      granite: base.granite,
+      crystal: base.crystal,
+    },
     stockCap,
   });
 }
@@ -1271,7 +1319,7 @@ export function slice2OrderRates(mountain: Mountain): {
   };
   const build = buildRate(mountain);
   const canProduce: Record<CityRunGood, boolean> = {
-    stones: base.topsoil + base.granite > 0,
+    stones: base.topsoil + base.granite + base.crystal > 0,
     brick: base.topsoil > 0 && base.kilnNeed > 0,
     cutStone: base.granite > 0 && base.sawNeed > 0,
   };

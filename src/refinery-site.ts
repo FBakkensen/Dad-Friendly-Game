@@ -3,7 +3,10 @@ import { el, hide, icon, mark, setAttr, write } from "./board-dom";
 import type { FrameState } from "./frame-state";
 import { listenSteps, paintSteps, stepper } from "./job-steps";
 import type { MakerId } from "./makers";
-import { MINE_LEVEL_IDS, type MineLevelId } from "./mine-levels";
+import type { MineLevelId } from "./mine-levels";
+
+const REFINERY_LEVELS = ["topsoil", "granite"] as const;
+type RefineryLevelId = (typeof REFINERY_LEVELS)[number];
 import type { LevelHopper } from "./mine-view";
 import { buildKeyFace, paintMachineKey, type KeyParts } from "./mine-site";
 import type { Mountain } from "./mountain";
@@ -263,13 +266,13 @@ function paintIn(parts: InParts, hopper: LevelHopper | undefined): void {
 /** The overlay over the canvas: each level's rock coming up, and the bypass. */
 function buildOverlay(): {
   readonly root: HTMLElement;
-  readonly ins: Readonly<Record<MineLevelId, InParts>>;
+  readonly ins: Readonly<Record<RefineryLevelId, InParts>>;
   readonly bypass: HTMLElement;
 } {
   const root = el("div", "refinery-over");
   const ins = Object.fromEntries(
-    MINE_LEVEL_IDS.map((level) => [level, buildIn(level)]),
-  ) as Record<MineLevelId, InParts>;
+    REFINERY_LEVELS.map((level) => [level, buildIn(level)]),
+  ) as Record<RefineryLevelId, InParts>;
   const chute = el("p", "refinery-bypass");
   const bypass = el("span", "board-num");
   chute.append(
@@ -277,7 +280,7 @@ function buildOverlay(): {
     bypass,
     el("span", "", BYPASS_RECIPE),
   );
-  root.append(...MINE_LEVEL_IDS.map((level) => ins[level].root), chute);
+  root.append(...REFINERY_LEVELS.map((level) => ins[level].root), chute);
   return { root, ins, bypass };
 }
 
@@ -384,7 +387,7 @@ export function createRefinerySite(
         view.stockyard.expand !== undefined,
       );
       mark(root, "two", view.scene.saws !== undefined);
-      for (const level of MINE_LEVEL_IDS) {
+      for (const level of REFINERY_LEVELS) {
         paintIn(
           over.ins[level],
           view.hoppers.find((hopper) => hopper.level === level),

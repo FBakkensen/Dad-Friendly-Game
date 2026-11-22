@@ -205,7 +205,7 @@ describe("which cages the shaft has (rules 5.5, 5.8, 5.10, call 70)", () => {
     expect(
       servesOf(
         cagesOf(owned, hoisting, {
-          assigned: { topsoil: 1, granite: 1 },
+          assigned: { topsoil: 1, granite: 1, crystal: 0 },
           twoLevels: true,
         }),
       ),
@@ -218,7 +218,7 @@ describe("which cages the shaft has (rules 5.5, 5.8, 5.10, call 70)", () => {
     expect(
       servesOf(
         cagesOf(owned, hoisting, {
-          assigned: { topsoil: 0, granite: 2 },
+          assigned: { topsoil: 0, granite: 2, crystal: 0 },
           twoLevels: true,
         }),
       ),
@@ -238,7 +238,7 @@ describe("which cages the shaft has (rules 5.5, 5.8, 5.10, call 70)", () => {
     expect(
       servesOf(
         cagesOf(owned, hoisting, {
-          assigned: { topsoil: 2, granite: 1 },
+          assigned: { topsoil: 2, granite: 1, crystal: 0 },
           twoLevels: true,
         }),
       ),
@@ -250,7 +250,7 @@ describe("which cages the shaft has (rules 5.5, 5.8, 5.10, call 70)", () => {
     });
     // A cage that does not run still holds its place.
     const idle = cagesOf(owned, work({ hoist: 0 }), {
-      assigned: { topsoil: 1, granite: 1 },
+      assigned: { topsoil: 1, granite: 1, crystal: 0 },
       twoLevels: true,
     });
     expect(servesOf(idle)).toEqual({
@@ -263,7 +263,7 @@ describe("which cages the shaft has (rules 5.5, 5.8, 5.10, call 70)", () => {
 
   it("keeps the winch for both even with more assigned than he owns, a state no move makes", () => {
     const cages = cagesOf({ hoist: 1 }, work({ hoist: 1 }, 1), {
-      assigned: { topsoil: 3, granite: 2 },
+      assigned: { topsoil: 3, granite: 2, crystal: 0 },
       twoLevels: true,
     });
     expect(servesOf(cages)).toEqual({ "hoist:0": "topsoil", winch: "both" });
@@ -287,7 +287,7 @@ describe("which cages the shaft has (rules 5.5, 5.8, 5.10, call 70)", () => {
     const cages = cagesOf(
       { machine: 1, hoist: 2 },
       work({ hoist: 2, machine: 1 }, 1),
-      { assigned: { topsoil: 1, granite: 2 }, twoLevels: false },
+      { assigned: { topsoil: 1, granite: 2, crystal: 0 }, twoLevels: false },
     );
     expect(cages.map((cage) => cage.serves)).toEqual([
       "topsoil",
@@ -327,7 +327,7 @@ describe("the cages as rates (rule 5.14)", () => {
   it("lifts a load in one level's trip for a cage with one level, and two loads in both trips for one for both", () => {
     expect(
       cageRates([cage("hoist:0", "granite"), cage("hoist:1", "both")]),
-    ).toEqual({ own: { topsoil: 0, granite: 30 }, loads: 600 });
+    ).toEqual({ own: { topsoil: 0, granite: 30, crystal: 0 }, loads: 600 });
     expect(
       cageRates([
         cage("machine:0", "topsoil", 63_000),
@@ -335,7 +335,7 @@ describe("the cages as rates (rule 5.14)", () => {
         cage("hoist:1", "both"),
         cage("winch", "both", 60),
       ]),
-    ).toEqual({ own: { topsoil: 6_300, granite: 30 }, loads: 660 });
+    ).toEqual({ own: { topsoil: 6_300, granite: 30, crystal: 0 }, loads: 660 });
   });
 
   it("is the hoists' ratings with the Topsoil alone", () => {
@@ -352,13 +352,13 @@ describe("the cages as rates (rule 5.14)", () => {
         cage("hoist:1", "granite", 600, false),
         cage("winch", "both", 30, false),
       ]),
-    ).toEqual({ own: { topsoil: 0, granite: 0 }, loads: 0 });
+    ).toEqual({ own: { topsoil: 0, granite: 0, crystal: 0 }, loads: 0 });
     expect(
       cageRates([
         cage("hoist:0", "topsoil", 600, false),
         cage("hoist:1", "topsoil"),
       ]),
-    ).toEqual({ own: { topsoil: 60, granite: 0 }, loads: 0 });
+    ).toEqual({ own: { topsoil: 60, granite: 0, crystal: 0 }, loads: 0 });
   });
 });
 
@@ -461,17 +461,26 @@ describe("hoists assigned to a level (rule 5.8)", () => {
       const mine = sunkMine({ hoist: 2 });
       expect(unassignedHoists(mine)).toBe(2);
       const after = assignHoists(mine, "granite", 5);
-      expect(after.cages.assigned).toEqual({ topsoil: 0, granite: 2 });
+      expect(after.cages.assigned).toEqual({
+        topsoil: 0,
+        granite: 2,
+        crystal: 0,
+      });
       expect(after.stock).toEqual(mine.stock);
       expect(after.cages.trips).toBe(mine.cages.trips);
       expect(unassignedHoists(after)).toBe(0);
       // None left to assign: the same object.
       expect(assignHoists(after, "topsoil")).toBe(after);
       const one = assignHoists(mine, "topsoil");
-      expect(one.cages.assigned).toEqual({ topsoil: 1, granite: 0 });
+      expect(one.cages.assigned).toEqual({
+        topsoil: 1,
+        granite: 0,
+        crystal: 0,
+      });
       expect(assignHoists(one, "granite").cages.assigned).toEqual({
         topsoil: 1,
         granite: 1,
+        crystal: 0,
       });
     });
   });
@@ -566,7 +575,7 @@ describe("hoists assigned to a level (rule 5.8)", () => {
 
 describe("what the cages carry (call 63)", () => {
   it("adds what every cage carries, level by level", () => {
-    expect(carriedBy({})).toEqual({ topsoil: 0, granite: 0 });
+    expect(carriedBy({})).toEqual({ topsoil: 0, granite: 0, crystal: 0 });
     expect(
       carriedBy({
         "hoist:0": { level: "topsoil", carried: 400, leg: { kind: "top" } },
@@ -582,33 +591,43 @@ describe("what the cages carry (call 63)", () => {
         },
         winch: { level: "granite", carried: 7, leg: { kind: "loading" } },
       }),
-    ).toEqual({ topsoil: 430, granite: 127 });
+    ).toEqual({ topsoil: 430, granite: 127, crystal: 0 });
   });
 
   it("puts each level's carried rock in a cage at the top, the Topsoil's first", () => {
     expect(
-      restoredTrips({ topsoil: 400, granite: 120 }, ["hoist:0", "winch"]),
+      restoredTrips({ topsoil: 400, granite: 120, crystal: 0 }, [
+        "hoist:0",
+        "winch",
+      ]),
     ).toEqual({
       "hoist:0": { level: "topsoil", carried: 400, leg: { kind: "top" } },
       winch: { level: "granite", carried: 120, leg: { kind: "top" } },
     });
     expect(
-      restoredTrips({ topsoil: 0, granite: 120 }, ["hoist:0", "winch"]),
+      restoredTrips({ topsoil: 0, granite: 120, crystal: 0 }, [
+        "hoist:0",
+        "winch",
+      ]),
     ).toEqual({
       "hoist:0": { level: "granite", carried: 120, leg: { kind: "top" } },
     });
-    expect(restoredTrips({ topsoil: 0, granite: 0 }, ["winch"])).toEqual({});
-    expect(restoredTrips({ topsoil: 5, granite: 0 }, ["winch"])).toEqual({
+    expect(
+      restoredTrips({ topsoil: 0, granite: 0, crystal: 0 }, ["winch"]),
+    ).toEqual({});
+    expect(
+      restoredTrips({ topsoil: 5, granite: 0, crystal: 0 }, ["winch"]),
+    ).toEqual({
       winch: { level: "topsoil", carried: 5, leg: { kind: "top" } },
     });
     // The reader refuses this save first: only the winch's cage for both levels' rock.
     expect(() =>
-      restoredTrips({ topsoil: 5, granite: 5 }, ["winch"]),
+      restoredTrips({ topsoil: 5, granite: 5, crystal: 0 }, ["winch"]),
     ).toThrow();
   });
 
   it("carries back what it restored", () => {
-    const carried = { topsoil: 400, granite: 120 };
+    const carried = { topsoil: 400, granite: 120, crystal: 0 };
     expect(carriedBy(restoredTrips(carried, ["hoist:0", "winch"]))).toEqual(
       carried,
     );

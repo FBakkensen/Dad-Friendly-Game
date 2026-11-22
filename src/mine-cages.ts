@@ -18,8 +18,9 @@ import {
 } from "./cages";
 import { makerOutput, makerRate, makerTakes, type MakerId } from "./makers";
 import {
+  DEEPER_LEVEL_IDS,
   MINE_LEVEL_IDS,
-  openGranite,
+  openDeeperLevel,
   openLevels,
   type MineLevelId,
 } from "./mine-levels";
@@ -53,14 +54,14 @@ import { stockpileRoom } from "./stockyard";
  * Between cage instants (`cage-trips`) the rock moves only through `piles`'
  * chains: each open level's drilling, haulage and the loading of the cage
  * waiting there, and (in Slice 1) each maker from its pile into its stockpile.
- * In Slice 2 (`pitheadOnly: true`, #766), cages unload strictly into
- * `pithead[level]` with zero Stone/maker bypass. Unattended time counts the
- * cages as rates (`mine-piles`). With part 3 off, live play is `flowMine`.
- * Imported only by `mountain` and `slice2-flow`.
+ * In Slice 2 (`pitheadOnly: true`, #766, #770), cages unload strictly into
+ * `pithead[level]` with zero Stone/maker bypass across all open levels.
+ * Unattended time counts the cages as rates (`mine-piles`). With part 3 off,
+ * live play is `flowMine`. Imported only by `mountain` and `slice2-flow`.
  */
 
-/** Each level's maker: the kilns on the Topsoil, the saws on the Granite. */
-const MAKER_OF: Readonly<Record<MineLevelId, MakerId>> = {
+/** Each Slice 1 level's maker: the kilns on the Topsoil, the saws on the Granite. */
+const MAKER_OF: Readonly<Partial<Record<MineLevelId, MakerId>>> = {
   topsoil: "kiln",
   granite: "saw",
 };
@@ -146,15 +147,15 @@ function planOf(mountain: Mountain, pay: number, drilling: boolean): Plan {
   const levels: Partial<Record<MineLevelId, LevelPlan>> = {};
   for (const level of openLevels(mountain)) {
     const maker = MAKER_OF[level];
-    const good = makerOutput(maker);
+    const good = maker === undefined ? undefined : makerOutput(maker);
     levels[level] = {
       drill: drilling ? work.levels[level].face * pay : 0,
       haul: work.levels[level].haul * pay,
-      make: makerRate(mountain, maker) * pay,
-      takes: makerTakes(maker),
-      makerHolds: makerHolds(mountain, maker),
-      stockHolds: stockpileRoom(mountain, good),
-      draw: draw[good] ?? 0,
+      make: maker === undefined ? 0 : makerRate(mountain, maker) * pay,
+      takes: maker === undefined ? 1 : makerTakes(maker),
+      makerHolds: maker === undefined ? 0 : makerHolds(mountain, maker),
+      stockHolds: good === undefined ? 0 : stockpileRoom(mountain, good),
+      draw: good === undefined ? 0 : (draw[good] ?? 0),
     };
   }
   return {
@@ -201,7 +202,6 @@ function pitheadPlanOf(
 
 /** The mountain's piles as live play starts them. */
 function startLive(mountain: Mountain, plan: Plan): Live {
-  const granite = openGranite(mountain);
   const levels: Partial<Record<MineLevelId, LevelPiles>> = {
     topsoil: {
       face: mountain.piles.face,
@@ -211,23 +211,26 @@ function startLive(mountain: Mountain, plan: Plan): Live {
       pithead: mountain.pithead.topsoil,
     },
   };
-  if (granite !== undefined && plan.levels.granite !== undefined) {
-    levels.granite = {
-      face: granite.piles.face,
-      shaft: granite.piles.shaft,
-      maker: granite.piles.saw,
-      stock: mountain.stock.cutStone,
-      pithead: mountain.pithead.granite,
-    };
+  for (const level of DEEPER_LEVEL_IDS) {
+    const sunk = openDeeperLevel(mountain, level);
+    if (sunk !== undefined && plan.levels[level] !== undefined) {
+      levels[level] = {
+        face: sunk.piles.face,
+        shaft: sunk.piles.shaft,
+        maker: level === "granite" ? sunk.piles.saw : 0,
+        stock: level === "granite" ? mountain.stock.cutStone : 0,
+        pithead: mountain.pithead[level],
+      };
+    }
   }
   return {
     trips: mountain.cages.trips,
     levels,
     stone: mountain.stock.stones,
-    dug: { topsoil: 0, granite: 0 },
+    dug: { topsoil: 0, granite: 0, crystal: 0 },
     mined: 0,
     stones: 0,
-    made: { topsoil: 0, granite: 0 },
+    made: { topsoil: 0, granite: 0, crystal: 0 },
   };
 }
 
@@ -440,30 +443,61 @@ function runStep(
   return seconds;
 }
 
-/** Pithead-only write-back for Slice 2 (#766): updates underground piles, pithead, trips, and rockDug only. */
+/** Pithead-only write-back for Slice 2 (#766, #770): updates underground piles, pithead, trips, and rockDug across all open levels. */
 function writtenPithead(mountain: Mountain, live: Live): MineFlow {
-  const { topsoil, granite } = live.levels;
-  const openG = openGranite(mountain);
+  const topsoil = live.levels.topsoil;
   const topUnchanged =
     topsoil !== undefined &&
     topsoil.face === mountain.piles.face &&
     topsoil.shaft === mountain.piles.shaft &&
     topsoil.pithead === mountain.pithead.topsoil;
-  const granUnchanged =
-    openG === undefined ||
-    (granite !== undefined &&
-      granite.face === openG.piles.face &&
-      granite.shaft === openG.piles.shaft &&
-      granite.pithead === mountain.pithead.granite);
+  let deeperUnchanged = true;
+  let totalDug = live.dug.topsoil;
+  for (const level of DEEPER_LEVEL_IDS) {
+    totalDug += live.dug[level];
+    const open = openDeeperLevel(mountain, level);
+    const liveLevel = live.levels[level];
+    if (
+      open !== undefined &&
+      (liveLevel === undefined ||
+        liveLevel.face !== open.piles.face ||
+        liveLevel.shaft !== open.piles.shaft ||
+        liveLevel.pithead !== mountain.pithead[level])
+    ) {
+      deeperUnchanged = false;
+    }
+  }
   if (
-    live.dug.topsoil === 0 &&
-    live.dug.granite === 0 &&
+    totalDug === 0 &&
     live.mined === 0 &&
     live.trips === mountain.cages.trips &&
     topUnchanged &&
-    granUnchanged
+    deeperUnchanged
   ) {
     return { mountain, mined: 0, gained: {} };
+  }
+  let nextMineLevels = mountain.mineLevels;
+  for (const level of DEEPER_LEVEL_IDS) {
+    const open = openDeeperLevel(mountain, level);
+    const liveLevel = live.levels[level];
+    if (
+      open !== undefined &&
+      liveLevel !== undefined &&
+      (liveLevel.face !== open.piles.face ||
+        liveLevel.shaft !== open.piles.shaft)
+    ) {
+      nextMineLevels = {
+        ...nextMineLevels,
+        [level]: {
+          ...open,
+          piles: {
+            ...open.piles,
+            face: liveLevel.face,
+            shaft: liveLevel.shaft,
+          },
+        },
+      };
+    }
   }
   return {
     mountain: {
@@ -473,29 +507,17 @@ function writtenPithead(mountain: Mountain, live: Live): MineFlow {
         face: topsoil?.face ?? mountain.piles.face,
         shaft: topsoil?.shaft ?? mountain.piles.shaft,
       },
-      mineLevels:
-        openG === undefined || granite === undefined
-          ? mountain.mineLevels
-          : {
-              ...mountain.mineLevels,
-              granite: {
-                ...openG,
-                piles: {
-                  ...openG.piles,
-                  face: granite.face,
-                  shaft: granite.shaft,
-                },
-              },
-            },
+      mineLevels: nextMineLevels,
       pithead: {
         topsoil: topsoil?.pithead ?? mountain.pithead.topsoil,
-        granite: granite?.pithead ?? mountain.pithead.granite,
+        granite: live.levels.granite?.pithead ?? mountain.pithead.granite,
+        crystal: live.levels.crystal?.pithead ?? mountain.pithead.crystal,
       },
       cages:
         live.trips === mountain.cages.trips
           ? mountain.cages
           : { ...mountain.cages, trips: live.trips },
-      rockDug: mountain.rockDug + live.dug.topsoil + live.dug.granite,
+      rockDug: mountain.rockDug + totalDug,
     },
     mined: live.mined,
     gained: {},
@@ -615,7 +637,11 @@ export function landedMine(mountain: Mountain): MineFlow {
     return { mountain, mined: 0, gained: {} };
   }
   const carried = carriedBy(mountain.cages.trips);
-  if (carried.topsoil + carried.granite <= 0) {
+  const totalCarried = MINE_LEVEL_IDS.reduce(
+    (sum, level) => sum + carried[level],
+    0,
+  );
+  if (totalCarried <= 0) {
     return { mountain, mined: 0, gained: {} };
   }
   const plan = slice2Part1On()

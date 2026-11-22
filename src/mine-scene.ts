@@ -347,7 +347,11 @@ const startLevel = (): LevelMotion => ({
 
 export function startMotion(): Motion {
   return {
-    levels: { topsoil: startLevel(), granite: startLevel() },
+    levels: {
+      topsoil: startLevel(),
+      granite: startLevel(),
+      crystal: startLevel(),
+    },
     wheel: 0,
     last: 0,
     cages: [],

@@ -107,6 +107,8 @@ const LEDGER = {
     "graniteDrilling",
     "graniteHaulage",
     "saws",
+    "crystalDrilling",
+    "crystalHaulage",
   ],
   piles: ["face", "shaft", "kiln"],
   makers: ["kiln", "saw"],
@@ -120,11 +122,11 @@ const LEDGER = {
     stockyard: 18,
   },
   mineLevels: {
-    ids: ["granite"],
+    ids: ["granite", "crystal"],
     machines: ["cart", "drill", "borer", "train"],
     piles: ["face", "shaft", "saw"],
   },
-  pithead: ["topsoil", "granite"],
+  pithead: ["topsoil", "granite", "crystal"],
   makerBuffers: {
     kiln: ["topsoilRock"],
     saw: ["graniteRock"],
@@ -139,8 +141,8 @@ const LEDGER = {
     "stockToCity:cutStone",
   ],
   cages: {
-    assigned: ["topsoil", "granite"],
-    carried: ["topsoil", "granite"],
+    assigned: ["topsoil", "granite", "crystal"],
+    carried: ["topsoil", "granite", "crystal"],
   },
 };
 
@@ -522,7 +524,10 @@ describe("the cages in the save (#724)", () => {
     // Each part is written only when it has a positive entry.
     const carriedOnly = {
       ...mountain,
-      cages: { ...mountain.cages, assigned: { topsoil: 0, granite: 0 } },
+      cages: {
+        ...mountain.cages,
+        assigned: { topsoil: 0, granite: 0, crystal: 0 },
+      },
     };
     expect(writeGame(carriedOnly).cages).toEqual({
       carried: { topsoil: 600, granite: 250 },
@@ -623,7 +628,10 @@ describe("the cages in the save (#724)", () => {
     });
     const bare = {
       ...empty,
-      cages: { ...empty.cages, assigned: { topsoil: 0, granite: 0 } },
+      cages: {
+        ...empty.cages,
+        assigned: { topsoil: 0, granite: 0, crystal: 0 },
+      },
     };
     expect(writeGame(bare)).not.toHaveProperty("cages");
   });
@@ -680,7 +688,7 @@ describe("the cages in the save (#724)", () => {
     // The Topsoil alone plays cages too: its rock carried reads.
     const topsoil = readGame({ owned, cages: { carried: { topsoil: 70 } } }, 0);
     expect(topsoil.kind === "ok" && topsoil.mountain.cages).toEqual({
-      assigned: { topsoil: 0, granite: 0 },
+      assigned: { topsoil: 0, granite: 0, crystal: 0 },
       trips: {
         "hoist:0": { level: "topsoil", carried: 70, leg: { kind: "top" } },
       },

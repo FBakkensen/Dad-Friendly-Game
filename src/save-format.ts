@@ -152,11 +152,11 @@ type SavedCages = {
 /** A sunk deeper level's own keys (#673, #766, #769): its machines and its piles. */
 const LEVEL_KEYS = ["machines", "piles"] as const;
 
-/** The jobs and maker that stand on the Granite: none while it is unsunk (ruling 2). */
-const GRANITE_JOBS: readonly JobId[] = [
-  ...Object.values(LEVEL_JOBS.granite),
-  makerJob("saw"),
-];
+/** The jobs gated on each deeper level: none while that level is unsunk (ruling 2). */
+const LEVEL_GATED_JOBS: Readonly<Record<DeeperLevelId, readonly JobId[]>> = {
+  granite: [...Object.values(LEVEL_JOBS.granite), makerJob("saw")],
+  crystal: [...Object.values(LEVEL_JOBS.crystal)],
+};
 
 /** One sunk deeper level as saved: `{}` with nothing on it. */
 type SavedLevel = {
@@ -785,8 +785,20 @@ function mineLevelsFit(
   jobs: Jobs,
   makers: Makers,
 ): boolean {
-  if (mineLevels.granite === undefined) {
-    if (GRANITE_JOBS.some((job) => jobs[job] !== 0) || makers.saw !== 0) {
+  if (mineLevels.granite === undefined && makers.saw !== 0) {
+    return false;
+  }
+  if (mineLevels.granite === undefined && mineLevels.crystal !== undefined) {
+    return false;
+  }
+  if ((mineLevels.crystal?.piles.saw ?? 0) > 0) {
+    return false;
+  }
+  for (const level of DEEPER_LEVEL_IDS) {
+    if (
+      mineLevels[level] === undefined &&
+      LEVEL_GATED_JOBS[level].some((job) => jobs[job] !== 0)
+    ) {
       return false;
     }
   }
@@ -858,9 +870,10 @@ function readPithead(
   if (typeof pithead === "string" || typeof mineLevels === "string") {
     return pithead;
   }
-  return pithead.granite > 0 && mineLevels.granite === undefined
-    ? "bad"
-    : pithead;
+  const unsunk = DEEPER_LEVEL_IDS.some(
+    (level) => pithead[level] > 0 && mineLevels[level] === undefined,
+  );
+  return unsunk ? "bad" : pithead;
 }
 
 /** One maker's saved input buffer map, with zero entries omitted. */
@@ -1002,15 +1015,26 @@ function cagesFit(
   mineLevels: MineLevels,
 ): boolean {
   const { assigned, carried } = maps;
-  if (assigned.topsoil + assigned.granite > hoistsOwned(owned)) {
+  const totalAssigned = MINE_LEVEL_IDS.reduce(
+    (sum, id) => sum + assigned[id],
+    0,
+  );
+  if (totalAssigned > hoistsOwned(owned)) {
     return false;
   }
-  const unsunk = mineLevels.granite === undefined;
-  if (
-    unsunk &&
-    (assigned.topsoil + assigned.granite > 0 || carried.granite > 0)
-  ) {
+  const anyDeeperSunk = DEEPER_LEVEL_IDS.some(
+    (level) => mineLevels[level] !== undefined,
+  );
+  if (!anyDeeperSunk && assigned.topsoil > 0) {
     return false;
+  }
+  for (const level of DEEPER_LEVEL_IDS) {
+    if (
+      mineLevels[level] === undefined &&
+      (assigned[level] > 0 || carried[level] > 0)
+    ) {
+      return false;
+    }
   }
   const levelsCarried = MINE_LEVEL_IDS.filter((id) => carried[id] > 0).length;
   return levelsCarried <= cageKeys(owned).length;

@@ -16,7 +16,7 @@ import {
   type MakerJob,
 } from "./makers";
 import { shortestRound } from "./cages";
-import { openGranite, type MineLevelId } from "./mine-levels";
+import { openGranite, openLevels, type MineLevelId } from "./mine-levels";
 import {
   chainMade,
   graniteChain,
@@ -171,7 +171,11 @@ const MAKER_LEVELS = {
 /** Each level's chain now: the Granite's only while it is open. */
 const LEVEL_CHAINS: Readonly<
   Record<MineLevelId, (mountain: Mountain) => Chain | undefined>
-> = { topsoil: topsoilChain, granite: graniteChain };
+> = {
+  topsoil: topsoilChain,
+  granite: graniteChain,
+  crystal: () => undefined,
+};
 
 /** Each maker's level's chain now, read through `MAKER_LEVELS`. */
 function makerChains(mountain: Mountain): Record<MakerId, Chain | undefined> {
@@ -241,9 +245,10 @@ function incomeNow(
   const made = (chain: Chain | undefined): number =>
     chain === undefined ? 0 : chainMade(chain) * timer;
   const { cages } = mineWork(mountain);
+  const open = openLevels(mountain);
   /** The longest a maker's pile waits for a load, in the chain's seconds: none with no cage serving its level. */
   const between = (id: MakerId): number => {
-    const round = shortestRound(cages, MAKER_LEVELS[id]);
+    const round = shortestRound(cages, MAKER_LEVELS[id], open);
     return Number.isFinite(round) ? round * timer : 0;
   };
   const stones = MAKER_IDS.reduce((sum, id) => {

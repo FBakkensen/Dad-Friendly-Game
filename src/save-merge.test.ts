@@ -329,7 +329,10 @@ describe("mergeSaves in a fresh mine (#664)", () => {
     const base = dug(1_000, { owned, mineLevels: sunk() });
     const assigned = {
       ...base,
-      cages: { ...base.cages, assigned: { topsoil: 1, granite: 1 } },
+      cages: {
+        ...base.cages,
+        assigned: { topsoil: 1, granite: 1, crystal: 0 },
+      },
     };
     const carried = {
       ...base,

@@ -2,8 +2,8 @@ import { STAGES, narrowStage, type Stage } from "../line";
 import { lineWork } from "../workforce";
 import {
   LEVEL_MACHINE_IDS,
-  MINE_LEVEL_IDS,
   graniteOpen,
+  openLevels,
   type LevelMachineId,
   type MineLevelId,
 } from "../mine-levels";
@@ -33,7 +33,7 @@ export function narrowAt(mountain: Mountain, now: number): Stage {
     const levels = levelsRates(mountain);
     const lineOf = (level: MineLevelId): number =>
       Math.min(...STAGES.map((stage) => levels[level][stage]));
-    const least = MINE_LEVEL_IDS.reduce((low, level) =>
+    const least = openLevels(mountain).reduce((low, level) =>
       lineOf(level) < lineOf(low) ? level : low,
     );
     return narrowStage(levels[least]);

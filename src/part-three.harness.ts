@@ -153,6 +153,8 @@ export function levels({
     graniteDrilling: granite,
     graniteHaulage: granite,
     saws: onSaws,
+    crystalDrilling: 0,
+    crystalHaulage: 0,
     ...jobs,
   };
   return {

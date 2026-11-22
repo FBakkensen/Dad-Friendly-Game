@@ -221,10 +221,10 @@ export function fieldEntry(event: MoveEvent): Omit<FieldEvent, "at"> {
         data: { id: event.job, count: event.count },
       };
     case "shaftSunk":
-      return { code: "shaft.sink", data: { id: "granite" } };
+      return { code: "shaft.sink", data: { id: event.level ?? "granite" } };
     case "graniteMachineBought":
       return {
-        code: "granite.buy",
+        code: event.level === "crystal" ? "crystal.buy" : "granite.buy",
         data: { id: event.id, count: event.count },
       };
     case "hoistAssigned":

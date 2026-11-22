@@ -75,8 +75,9 @@ function movingNow(mountain: Mountain): number[] {
 }
 
 /** The levels' names, as the mine, the strip and the refinery's hoppers say them. */
-export const LEVEL_NAMES: Readonly<Record<MineLevelId, "Topsoil" | "Granite">> =
-  { topsoil: "Topsoil", granite: "Granite" };
+export const LEVEL_NAMES: Readonly<
+  Record<MineLevelId, "Topsoil" | "Granite" | "Crystal Caves">
+> = { topsoil: "Topsoil", granite: "Granite", crystal: "Crystal Caves" };
 
 /** A level's plate from what hoisting lifts from it a second. */
 function liftedPlate(level: MineLevelId, lifted: number): LevelPlate {

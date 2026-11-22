@@ -15,7 +15,9 @@ import {
   type ShaftGate,
   type StripCell,
 } from "./mine-level-view";
-import { MINE_LEVEL_IDS, type MineLevelId } from "./mine-levels";
+import type { MineLevelId } from "./mine-levels";
+
+const TWO_STRIP_LEVELS: readonly MineLevelId[] = ["topsoil", "granite"];
 import { unassignedHoists } from "./cages";
 import {
   atArt,
@@ -349,7 +351,7 @@ export function createLevelsSite(
   const lift = buildRow(state, hoistingRow(mountain));
   const strip = el("div", "mine-strip");
   const cells = [
-    ...MINE_LEVEL_IDS.map((level) => buildLevelCell(state, level, note)),
+    ...TWO_STRIP_LEVELS.map((level) => buildLevelCell(state, level, note)),
     buildBothCell(note),
   ];
   strip.append(...cells.map((cell) => cell.root));

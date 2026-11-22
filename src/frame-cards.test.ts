@@ -57,6 +57,8 @@ function crew(project: Mountain["project"], stones = 0): Mountain {
       graniteDrilling: 0,
       graniteHaulage: 0,
       saws: 0,
+      crystalDrilling: 0,
+      crystalHaulage: 0,
     },
     stock: { ...start.stock, stones },
     project,

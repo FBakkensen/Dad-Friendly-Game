@@ -31,14 +31,16 @@ import {
 } from "../city";
 import { assignHoists, unassignHoists, unassignedHoists } from "../cages";
 import {
+  DEEPER_LEVEL_IDS,
   LEVEL_MACHINE_IDS,
-  MINE_LEVEL_IDS,
-  graniteOpen,
   levelMachines,
+  openDeeperLevel,
+  openLevels,
   shaftOpen,
   shaftPrice,
   sinkShaft,
-  withGraniteMachine,
+  withLevelMachine,
+  type DeeperLevelId,
   type LevelMachineId,
   type MineLevelId,
 } from "../mine-levels";
@@ -153,11 +155,12 @@ export type Action =
  * free and at once (#724, ruling 15).
  */
 type LevelAction =
-  | { readonly kind: "sinkShaft" }
+  | { readonly kind: "sinkShaft"; readonly level?: DeeperLevelId }
   | {
       readonly kind: "buyGraniteMachine";
       readonly id: LevelMachineId;
       readonly count: number;
+      readonly level?: DeeperLevelId;
     }
   | HoistAction;
 
@@ -260,33 +263,35 @@ export function listActions(
 }
 
 /**
- * The shaft while it can be sunk; once the Granite is open, a buy for it of
- * each level machine on sale, in `LEVEL_MACHINE_IDS` order, then the hoist
- * moves.
+ * Any shaft that can be sunk, a buy of each level machine on sale for every
+ * open deeper level, and hoist moves across open levels once two or more are
+ * open (#673, #770).
  */
 function levelActions(mountain: Mountain): readonly Action[] {
-  if (shaftOpen(mountain)) {
-    return [{ kind: "sinkShaft" }];
-  }
-  if (!graniteOpen(mountain)) {
-    return [];
-  }
-  return [
-    ...LEVEL_MACHINE_IDS.filter((id) => tierOnSale(mountain, tierById(id))).map(
-      (id): Action => graniteBuyMove(id, 1),
+  const sinks: Action[] = DEEPER_LEVEL_IDS.filter((level) =>
+    shaftOpen(mountain, level),
+  ).map((level) =>
+    level === "granite" ? { kind: "sinkShaft" } : { kind: "sinkShaft", level },
+  );
+  const machines: Action[] = DEEPER_LEVEL_IDS.filter(
+    (level) => openDeeperLevel(mountain, level) !== undefined,
+  ).flatMap((level) =>
+    LEVEL_MACHINE_IDS.filter((id) => tierOnSale(mountain, tierById(id))).map(
+      (id): Action => levelBuyMove(level, id, 1),
     ),
-    ...hoistActions(mountain),
-  ];
+  );
+  const hoists = openLevels(mountain).length >= 2 ? hoistActions(mountain) : [];
+  return [...sinks, ...machines, ...hoists];
 }
 
 /**
- * For each level in `MINE_LEVEL_IDS` order: a hoist onto it while one is
- * unassigned, then one off it while it has one. Only once the Granite is
- * open, so `mountain.cages` is read only then (#724).
+ * For each open level in depth order: a hoist onto it while one is
+ * unassigned, then one off it while it has one. Only once at least one deeper
+ * level is open, so `mountain.cages` is read only then (#724, #770).
  */
 function hoistActions(mountain: Mountain): readonly Action[] {
   const free = unassignedHoists(mountain) > 0;
-  return MINE_LEVEL_IDS.flatMap((level) => {
+  return openLevels(mountain).flatMap((level) => {
     const moves: Action[] = [];
     if (free) {
       moves.push({ kind: "assignHoist", level, count: 1 });
@@ -299,8 +304,8 @@ function hoistActions(mountain: Mountain): readonly Action[] {
 }
 
 /**
- * A hoist move applied: `assignHoists` guards itself on the Granite, and
- * taking one off has no lock (ruling 5).
+ * A hoist move applied: `assignHoists` guards itself on the open deeper
+ * levels, and taking one off has no lock (ruling 5).
  */
 function hoistApplied(mountain: Mountain, action: HoistAction): Mountain {
   return action.kind === "assignHoist"
@@ -309,9 +314,9 @@ function hoistApplied(mountain: Mountain, action: HoistAction): Mountain {
 }
 
 /**
- * A part 3 move applied. A hoist move returns early, past the Granite's
- * guard below on purpose: taking a hoist off has no lock (ruling 5). A
- * Granite machine is the card buy, then placed on the Granite only if he
+ * A shaft/level move applied. A hoist move returns early, past the deeper
+ * level guard below on purpose: taking a hoist off has no lock (ruling 5). A
+ * deeper-level machine is the card buy, then placed on that level only if he
  * owns one more, so a refused buy changes nothing and the first borer brings
  * the first engineer as on the Topsoil.
  */
@@ -320,22 +325,37 @@ function levelApplied(mountain: Mountain, action: LevelAction): Mountain {
     return hoistApplied(mountain, action);
   }
   if (action.kind === "sinkShaft") {
-    return sinkShaft(mountain);
+    return sinkShaft(mountain, action.level);
   }
-  if (!graniteOpen(mountain)) {
+  const level = action.level ?? "granite";
+  if (openDeeperLevel(mountain, level) === undefined) {
     return mountain;
   }
   return allOf(mountain, action.count, (next) =>
-    graniteBought(next, action.id),
+    levelBought(next, level, action.id),
   );
 }
 
-/** One machine bought as the card does, placed on the Granite only if he owns one more. */
-function graniteBought(mountain: Mountain, id: LevelMachineId): Mountain {
+/** One machine bought as the card does, placed on `level` only if he owns one more. */
+function levelBought(
+  mountain: Mountain,
+  level: DeeperLevelId,
+  id: LevelMachineId,
+): Mountain {
   const bought = buyWithTeach(mountain, id);
   return bought.owned[id] > mountain.owned[id]
-    ? withGraniteMachine(bought, id)
+    ? withLevelMachine(bought, level, id)
     : mountain;
+}
+
+function levelBuyMove(
+  level: DeeperLevelId,
+  id: LevelMachineId,
+  count: number,
+): Extract<Action, { kind: "buyGraniteMachine" }> {
+  return level === "granite"
+    ? { kind: "buyGraniteMachine", id, count }
+    : { kind: "buyGraniteMachine", id, count, level };
 }
 
 /**
@@ -347,7 +367,7 @@ export function graniteBuyMove(
   id: LevelMachineId,
   count: number,
 ): Extract<Action, { kind: "buyGraniteMachine" }> {
-  return { kind: "buyGraniteMachine", id, count };
+  return levelBuyMove("granite", id, count);
 }
 
 /** The makers once they are open, and the next stockyard level until the last. */
@@ -655,12 +675,13 @@ export type MoveEvent =
       /** Workers on the job after the move. */
       readonly count: number;
     }
-  | { readonly kind: "shaftSunk" }
+  | { readonly kind: "shaftSunk"; readonly level?: DeeperLevelId }
   | {
       readonly kind: "graniteMachineBought";
       readonly id: LevelMachineId;
-      /** That machine on the Granite after the move. */
+      /** That machine on the deeper level after the move. */
       readonly count: number;
+      readonly level?: DeeperLevelId;
     }
   | {
       readonly kind: "hoistAssigned" | "hoistUnassigned";
@@ -887,15 +908,28 @@ function actionEvents(
     case "expandStockyard":
       return [{ kind: "stockyardExpanded", level: next.stockyard }];
     case "sinkShaft":
-      return [{ kind: "shaftSunk" }];
-    case "buyGraniteMachine":
       return [
-        {
-          kind: "graniteMachineBought",
-          id: action.id,
-          count: levelMachines(next, "granite")[action.id],
-        },
+        action.level === "crystal"
+          ? { kind: "shaftSunk", level: "crystal" }
+          : { kind: "shaftSunk" },
       ];
+    case "buyGraniteMachine": {
+      const level = action.level ?? "granite";
+      return [
+        level === "crystal"
+          ? {
+              kind: "graniteMachineBought",
+              id: action.id,
+              count: levelMachines(next, level)[action.id],
+              level: "crystal",
+            }
+          : {
+              kind: "graniteMachineBought",
+              id: action.id,
+              count: levelMachines(next, level)[action.id],
+            },
+      ];
+    }
     case "assignHoist":
     case "unassignHoist":
       return [
@@ -1016,10 +1050,10 @@ export function valueOf(
         context,
       );
     case "sinkShaft":
-      // Neither raises stone income: the lab learns what the Granite is worth (#675).
+      // Neither raises stone income: the lab learns what the deeper level is worth (#675, #770).
       return {
         gainPerSec: 0,
-        cost: priceAmount(shaftPrice(), "stones"),
+        cost: priceAmount(shaftPrice(action.level), "stones"),
         paybackSec: Infinity,
       };
     case "buyGraniteMachine":

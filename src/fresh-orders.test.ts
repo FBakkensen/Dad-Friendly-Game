@@ -50,6 +50,8 @@ function mine(
       graniteDrilling: 0,
       graniteHaulage: 0,
       saws: 0,
+      crystalDrilling: 0,
+      crystalHaulage: 0,
     },
     stock: { ...start.stock, stones: pocket },
     fleet: { ...start.fleet, horseWagon: wagons },

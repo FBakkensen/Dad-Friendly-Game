@@ -346,6 +346,7 @@ describe("assigning hoists as moves (#724)", () => {
       expect(result.mountain.cages.assigned).toEqual({
         topsoil: 0,
         granite: 1,
+        crystal: 0,
       });
       expect(result.spent).toEqual(EMPTY_STOCK);
       expect(result.gained).toEqual(EMPTY_STOCK);
@@ -399,6 +400,7 @@ describe("assigning hoists as moves (#724)", () => {
       expect(result.mountain.cages.assigned).toEqual({
         topsoil: 0,
         granite: 0,
+        crystal: 0,
       });
       expect(result.spent).toEqual(EMPTY_STOCK);
       expect(result.events).toEqual([
