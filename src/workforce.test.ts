@@ -81,13 +81,16 @@ function crew(helpers: number, jobs: Partial<Mountain["jobs"]> = {}): Mountain {
       saws: 0,
       crystalDrilling: 0,
       crystalHaulage: 0,
+      glassworks: 0,
+      partsPress: 0,
+      precisionAssembly: 0,
       ...jobs,
     },
   };
 }
 
 describe("one workforce (slice 1, rule 2, #689)", () => {
-  it("has the five jobs of part 1, the kilns of part 2 (#666), the Granite's two (#673), and Crystal's two (#770)", () => {
+  it("has the five jobs of part 1, the kilns of part 2 (#666), the Granite's two (#673), Crystal's two (#770), and Part 2's makers (#771)", () => {
     expect(JOB_IDS).toEqual([
       "drilling",
       "haulage",
@@ -100,6 +103,9 @@ describe("one workforce (slice 1, rule 2, #689)", () => {
       "saws",
       "crystalDrilling",
       "crystalHaulage",
+      "glassworks",
+      "partsPress",
+      "precisionAssembly",
     ]);
   });
 

@@ -404,10 +404,11 @@ describe("economy invariants on random play (#555)", () => {
         fc.nat(1000),
         fc.array(stepArb, { minLength: 1, maxLength: 40, size: "max" }),
         (start, pocket, materials, seed, steps) => {
+          const base = STARTS[start] ?? createMountain();
           let world: World = {
             mountain: {
-              ...(STARTS[start] ?? createMountain()),
-              stock: { stones: pocket, ...materials },
+              ...base,
+              stock: { ...base.stock, stones: pocket, ...materials },
             },
             hazards: freshHazards(seed),
             clock: START,

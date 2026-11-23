@@ -117,6 +117,9 @@ const MOVE_KIND_ORDER = {
   buyGraniteMachine: true,
   assignHoist: true,
   unassignHoist: true,
+  startResearch: true,
+  cancelResearch: true,
+  installResearch: true,
 } as const satisfies Record<Action["kind"], true>;
 
 export const MOVE_KINDS = Object.keys(

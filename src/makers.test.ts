@@ -53,9 +53,20 @@ describe("the kilns (#666)", () => {
     expect(makerPrice(start, "kiln")).toEqual([
       { good: "stones", amount: 15_000 },
     ]);
-    expect(makerPrice({ makers: { kiln: 2, saw: 0 } }, "kiln")).toEqual([
-      { good: "stones", amount: Math.ceil(15_000 * 1.219 ** 2) },
-    ]);
+    expect(
+      makerPrice(
+        {
+          makers: {
+            kiln: 2,
+            saw: 0,
+            glassworks: 0,
+            partsPress: 0,
+            precisionAssembly: 0,
+          },
+        },
+        "kiln",
+      ),
+    ).toEqual([{ good: "stones", amount: Math.ceil(15_000 * 1.219 ** 2) }]);
   });
 
   it("are bought at once from the stock, and not before they open", () => {
@@ -76,7 +87,16 @@ describe("the kilns (#666)", () => {
 
   it("run with one worker each; one with nobody on it is idle", () => {
     const start = createMountain();
-    const three = { ...start, makers: { kiln: 3, saw: 0 } };
+    const three = {
+      ...start,
+      makers: {
+        kiln: 3,
+        saw: 0,
+        glassworks: 0,
+        partsPress: 0,
+        precisionAssembly: 0,
+      },
+    };
     expect(runningKilns({ ...three, jobs: { ...start.jobs, kilns: 0 } })).toBe(
       0,
     );
@@ -95,7 +115,13 @@ describe("the kilns' recipe (#723)", () => {
     const start = createMountain();
     return {
       ...start,
-      makers: { kiln: 3, saw: 0 },
+      makers: {
+        kiln: 3,
+        saw: 0,
+        glassworks: 0,
+        partsPress: 0,
+        precisionAssembly: 0,
+      },
       jobs: { ...start.jobs, kilns: 2 },
     };
   };
@@ -163,7 +189,15 @@ describe("the kilns' job and price under the lab (#666)", () => {
   });
 
   it("moves with a sweep of the machines' growth and the kiln's price", () => {
-    const owned = { makers: { kiln: 1, saw: 0 } };
+    const owned = {
+      makers: {
+        kiln: 1,
+        saw: 0,
+        glassworks: 0,
+        partsPress: 0,
+        precisionAssembly: 0,
+      },
+    };
     withFactors({ "growth.machine": 2, "price.kiln": 0.5 }, () => {
       expect(makerPrice(owned, "kiln")).toEqual([
         { good: "stones", amount: Math.ceil(7_500 * 1.219 * 2) },
@@ -191,9 +225,20 @@ describe("the saws (#673)", () => {
     expect(makerPrice(start, "saw")).toEqual([
       { good: "brick", amount: 25_000 },
     ]);
-    expect(makerPrice({ makers: { kiln: 0, saw: 1 } }, "saw")).toEqual([
-      { good: "brick", amount: 30_475 },
-    ]);
+    expect(
+      makerPrice(
+        {
+          makers: {
+            kiln: 0,
+            saw: 1,
+            glassworks: 0,
+            partsPress: 0,
+            precisionAssembly: 0,
+          },
+        },
+        "saw",
+      ),
+    ).toEqual([{ good: "brick", amount: 30_475 }]);
   });
 
   it("makes 30 cut stone a second from three rock each", () => {
@@ -228,7 +273,13 @@ describe("the saws (#673)", () => {
 
   it("runs a saw only with a worker on the saws' job (rule 2.7)", () => {
     const crew = {
-      makers: { kiln: 0, saw: 3 },
+      makers: {
+        kiln: 0,
+        saw: 3,
+        glassworks: 0,
+        partsPress: 0,
+        precisionAssembly: 0,
+      },
       jobs: { ...createMountain().jobs, saws: 2 },
     };
     expect(runningMakers(crew, "saw")).toBe(2);
@@ -238,7 +289,13 @@ describe("the saws (#673)", () => {
 
   it("leaves the kilns' numbers as they were: runningKilns and kilnRate are the kiln's", () => {
     const crew = {
-      makers: { kiln: 3, saw: 5 },
+      makers: {
+        kiln: 3,
+        saw: 5,
+        glassworks: 0,
+        partsPress: 0,
+        precisionAssembly: 0,
+      },
       jobs: { ...createMountain().jobs, kilns: 2, saws: 5 },
     };
     expect(runningKilns(crew)).toBe(2);

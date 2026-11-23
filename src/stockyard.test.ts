@@ -164,6 +164,12 @@ describe("cut stone's room (#673)", () => {
       expect(stockpileRoom(yard(0, ["lightTower"]), "cutStone")).toBe(Infinity);
       expect(stockpileRoom(yard(0, ["lightTower"]), "brick")).toBe(1_000_000);
     });
-    expect(STOCKPILE_GOODS).toEqual(["stones", "brick"]);
+    expect(STOCKPILE_GOODS).toEqual([
+      "stones",
+      "brick",
+      "cutStone",
+      "glass",
+      "parts",
+    ]);
   });
 });

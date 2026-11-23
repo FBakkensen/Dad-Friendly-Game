@@ -60,6 +60,9 @@ export const JOB_NAMES = {
   saws: "Saws",
   crystalDrilling: "Drilling",
   crystalHaulage: "Haulage",
+  glassworks: "Glassworks",
+  partsPress: "Parts Press",
+  precisionAssembly: "Precision Assembly",
 } as const satisfies Readonly<Record<JobId, string>>;
 
 /**

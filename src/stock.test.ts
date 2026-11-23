@@ -25,13 +25,15 @@ const order: Price = [
   { good: "brick", amount: 3 },
 ];
 
-describe("the goods table (#560, #769)", () => {
-  it("lists stones, brick, and cut stone in order", () => {
-    expect(GOOD_IDS).toEqual(["stones", "brick", "cutStone"]);
+describe("the goods table (#560, #769, #771)", () => {
+  it("lists stones, brick, cut stone, glass, and parts in order", () => {
+    expect(GOOD_IDS).toEqual(["stones", "brick", "cutStone", "glass", "parts"]);
     expect(EMPTY_STOCK).toEqual({
       stones: 0,
       brick: 0,
       cutStone: 0,
+      glass: 0,
+      parts: 0,
     });
   });
 
@@ -40,6 +42,8 @@ describe("the goods table (#560, #769)", () => {
     expect(from.stones).toBe("mountain");
     expect(from.brick).toBe("kilns");
     expect(from.cutStone).toBe("saws");
+    expect(from.glass).toBe("glassworks");
+    expect(from.parts).toBe("factory");
   });
 });
 

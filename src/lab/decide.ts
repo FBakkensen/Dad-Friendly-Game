@@ -53,6 +53,9 @@ export function sticker(mountain: Mountain, action: Action): number {
     case "resumeOrder":
     case "placeWorker":
     case "freeWorker":
+    case "startResearch":
+    case "cancelResearch":
+    case "installResearch":
       return 0;
   }
 }

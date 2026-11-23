@@ -150,7 +150,13 @@ describe("the refinery's jobs (#671)", () => {
       ...start,
       owned: { ...start.owned, helper: start.owned.helper + on },
       operational: ["lightTower"],
-      makers: { kiln: owned, saw: 0 },
+      makers: {
+        kiln: owned,
+        saw: 0,
+        glassworks: 0,
+        partsPress: 0,
+        precisionAssembly: 0,
+      },
       jobs: { ...start.jobs, kilns: on },
     };
   }

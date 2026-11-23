@@ -8,17 +8,32 @@ import {
 } from "./building-site";
 import { buildIn, receive, stillRequired, stillToBuild } from "./city";
 import {
+  FACTORY_LINES_FOR_GOOD,
+  FACTORY_MAKER_IDS,
+  distributeFactoryInput,
+  factoryOutputRoom,
+  hasOwnedFactoryLine,
+  type FactoryInputGood,
+  type FactoryMakerId,
+} from "./factory";
+import {
   MAKER_IDS,
+  REFINERY_MAKER_IDS,
   makerBuffer,
   makerCycleLimit,
   makerInputRoom,
+  makerInputs,
   makerOutput,
-  makerPrimaryInput,
+  makerOutputAmount,
   makerRate,
+  makerRecord,
+  makerSite,
   makerTakes,
   stepMakerCycle,
+  type CycleInput,
   type MakerBuffers,
   type MakerId,
+  type MakerInputId,
 } from "./makers";
 import { flowMineToPitheadLive } from "./mine-cages";
 import {
@@ -35,7 +50,9 @@ import {
   undergroundPitheadChains,
 } from "./mine-piles";
 import type { Mountain } from "./mountain";
+import { slice2Part2On } from "./part-switch";
 import { chainChange, chainFlows, evenShares, stepQuota } from "./piles";
+import { receiveResearch, researchStillRequired } from "./research";
 import {
   EMPTY_STOCK,
   GOOD_IDS,
@@ -48,26 +65,31 @@ import { stockpileRoom } from "./stockyard";
 import {
   CITY_RUN_GOODS,
   RUN_ORDER,
+  STOCK_RUNS_BY_GOOD,
   allocateRunRates,
   applyTransportTransfer,
   cityRunId,
+  factoryRunId,
   fleetRate,
+  isMakerBufferOpen,
   planTransportTransfer,
   priceOf,
+  researchRunId,
+  runRecord,
   runSnapshots,
   type CityRunGood,
   type RunId,
 } from "./transport";
 
 /**
- * Slice 2 Part 1 coupled-stretch simulation engine (#766, spec rule 5.3).
+ * Slice 2 coupled-stretch simulation engine (#766, #771, spec rule 5.3).
  * Runtime stepping is imported by `src/mountain.ts`; steady-state lab queries
  * are also imported by `src/lab/fresh-kit.ts`.
  *
  * - Live play (`accrueSlice2Live`): fixed 1 s 4-phase order:
  *   (a) mine drilling/haulage/hoisting -> pithead (zero Stone bypass),
  *   (b) physical transport runs (water-filling + proportional source contention),
- *   (c) whole-cycle makers with persisted integer `cycleMicros`,
+ *   (c) multi-input Refinery makers & steady-flow Factory lines with integer `cycleMicros`,
  *   (d) City builders (`shareOut`).
  * - Offline / rate play (`stretchSlice2`): deterministic event-driven stretches
  *   using damped fixed-point `coupledRates` and minimum time to next state
@@ -83,8 +105,18 @@ export type Slice2Step = {
 };
 
 const RATE_EPS = 1e-9;
+const FILL_EPS = 1e-6;
 const MAX_FIXED_POINT_PASSES = 32;
 const LEVEL_KEYS: readonly MineLevelId[] = MINE_LEVEL_IDS;
+const FACTORY_INPUT_GOODS: readonly FactoryInputGood[] = [
+  "brick",
+  "cutStone",
+  "glass",
+];
+
+type FactorySplitMap = Readonly<
+  Record<FactoryMakerId, Readonly<Partial<Record<FactoryInputGood, number>>>>
+>;
 
 /** Snapshot of converged continuous rates across the entire Slice 2 chain. */
 type CoupledRates = {
@@ -93,92 +125,209 @@ type CoupledRates = {
   readonly pitheadDrain: Readonly<Record<MineLevelId, number>>;
   readonly stoneFromPithead: Readonly<Record<MineLevelId, number>>;
   readonly makerOut: Readonly<Record<MakerId, number>>;
+  readonly factorySplits: FactorySplitMap;
   readonly build: Readonly<Record<CityRunGood, number>>;
 };
+
+function stockDrainRate(
+  runRates: Readonly<Record<RunId, number>>,
+  good: GoodId,
+): number {
+  let sum = 0;
+  for (const id of STOCK_RUNS_BY_GOOD[good]) {
+    sum += runRates[id];
+  }
+  return sum;
+}
+
+function updatedMakerBuf(
+  mountain: Mountain,
+  id: MakerId,
+  consumed: Readonly<Partial<Record<MakerInputId, number>>>,
+): MakerBuffers[MakerId] {
+  let changed = false;
+  const next: Partial<Record<MakerInputId, number>> = {};
+  for (const spec of makerInputs(id)) {
+    const held = makerBuffer(mountain, id, spec.id);
+    const used = consumed[spec.id] ?? 0;
+    if (used > 0) {
+      changed = true;
+    }
+    const left = held - used;
+    if (left > 0) {
+      next[spec.id] = left;
+    }
+  }
+  return changed ? next : mountain.makerBuffers[id];
+}
 
 function stepSingleMaker(
   mountain: Mountain,
   id: MakerId,
   dt: number,
   pay: number,
-  extraOutputRoom: Readonly<Partial<Record<GoodId, number>>>,
+  outRoom: number,
 ): {
   readonly changed: boolean;
   readonly buffer: MakerBuffers[MakerId];
   readonly nextMicros: number;
-  readonly outGood: GoodId;
   readonly produced: number;
 } {
-  const inputId = makerPrimaryInput(id);
-  const held = makerBuffer(mountain, id, inputId);
-  const outGood = makerOutput(id);
   const prevMicros = mountain.cycleMicros[id] ?? 0;
-  if (mountain.makers[id] <= 0 || (id === "saw" && !graniteOpen(mountain))) {
+  if (!isMakerBufferOpen(mountain, id)) {
     return {
       changed: false,
       buffer: mountain.makerBuffers[id],
       nextMicros: prevMicros,
-      outGood,
       produced: 0,
     };
   }
-  const baseRoom = stockpileRoom(mountain, outGood) - mountain.stock[outGood];
-  const outRoom = Number.isFinite(baseRoom)
-    ? Math.max(0, baseRoom + (extraOutputRoom[outGood] ?? 0))
-    : Number.MAX_SAFE_INTEGER;
+  const inputs: CycleInput[] = makerInputs(id).map((spec) => ({
+    id: spec.id,
+    amount: spec.amount,
+    held: makerBuffer(mountain, id, spec.id),
+  }));
   const result = stepMakerCycle({
-    inputs: [{ id: inputId, amount: makerTakes(id), held }],
-    outputAmount: 1,
+    inputs,
+    outputAmount: makerOutputAmount(id),
     outputRoom: outRoom,
     staffedOutputRate: makerRate(mountain, id) * pay,
     dt,
     cycleMicros: prevMicros,
   });
-  const used = result.consumed[inputId] ?? 0;
-  const left = held - used;
-  const buffer =
-    used > 0
-      ? left > 0
-        ? { [inputId]: left }
-        : {}
-      : mountain.makerBuffers[id];
+  const buffer = updatedMakerBuf(mountain, id, result.consumed);
   const changed =
-    used > 0 || result.produced > 0 || result.nextMicros !== prevMicros;
+    buffer !== mountain.makerBuffers[id] ||
+    result.produced > 0 ||
+    result.nextMicros !== prevMicros;
   return {
     changed,
     buffer,
     nextMicros: result.nextMicros,
-    outGood,
     produced: result.produced,
   };
 }
 
-/** Runs all owned Part 1 makers for `dt` seconds using exact integer `cycleMicros`. */
-function stepSlice2Makers(
+function stockRoomWithExtra(
   mountain: Mountain,
+  good: GoodId,
+  extraStockRoom: Readonly<Partial<Record<GoodId, number>>>,
+): number {
+  const base = stockpileRoom(mountain, good) - mountain.stock[good];
+  return Number.isFinite(base)
+    ? Math.max(0, base + (extraStockRoom[good] ?? 0))
+    : Number.MAX_SAFE_INTEGER;
+}
+
+/** Runs selected makers (`REFINERY_MAKER_IDS`, `FACTORY_MAKER_IDS`, or all) for `dt` seconds. */
+function initialCycleMicrosMap(
+  cycleMicros: Mountain["cycleMicros"],
+): Map<MakerId, number> {
+  const map = new Map<MakerId, number>();
+  for (const id of MAKER_IDS) {
+    const val = cycleMicros[id];
+    if (val !== undefined && val > 0) {
+      map.set(id, val);
+    }
+  }
+  return map;
+}
+
+function factoryOutputQuotas(
+  mountain: Mountain,
+  ids: readonly MakerId[],
   dt: number,
   pay: number,
-  extraOutputRoom: Readonly<Partial<Record<GoodId, number>>> = {},
+  roomLeft: number,
+  tickIndex?: number,
+): Partial<Record<FactoryMakerId, number>> {
+  const active = FACTORY_MAKER_IDS.filter(
+    (id) => ids.includes(id) && isMakerBufferOpen(mountain, id),
+  );
+  if (active.length <= 1 || roomLeft <= 0) {
+    return Object.fromEntries(active.map((id) => [id, roomLeft]));
+  }
+  const wants: Partial<Record<FactoryMakerId, number>> = {};
+  let totalWant = 0;
+  for (const id of active) {
+    const maxOut = stepSingleMaker(mountain, id, dt, pay, roomLeft).produced;
+    wants[id] = maxOut;
+    totalWant += maxOut;
+  }
+  if (totalWant <= roomLeft) {
+    return wants;
+  }
+  const shares = shareOutKeys(roomLeft, active, wants, tickIndex ?? 0);
+  const wPress = wants.partsPress ?? 0;
+  const wPrec = wants.precisionAssembly ?? 0;
+  const sPress = shares.partsPress ?? 0;
+  const sPrec = shares.precisionAssembly ?? 0;
+  if (sPress >= wPress || sPrec >= wPrec) {
+    return shares;
+  }
+  const outAmt = makerOutputAmount("precisionAssembly");
+  const pCycles =
+    tickIndex !== undefined
+      ? stepQuota(sPrec / outAmt, tickIndex)
+      : Math.floor(sPrec / outAmt);
+  const precRoom = Math.min(wPrec, roomLeft, pCycles * outAmt);
+  return {
+    partsPress: Math.min(wPress, Math.max(0, roomLeft - precRoom)),
+    precisionAssembly: precRoom,
+  };
+}
+
+function stepMakersList(
+  mountain: Mountain,
+  ids: readonly MakerId[],
+  dt: number,
+  pay: number,
+  extraStockRoom: Readonly<Partial<Record<GoodId, number>>> = {},
+  extraFactoryRoom = 0,
+  tickIndex?: number,
 ): { readonly mountain: Mountain; readonly made: Partial<Stock> } {
   const made: Partial<Record<GoodId, number>> = {};
   const nextBuffers: Record<MakerId, MakerBuffers[MakerId]> = {
-    kiln: mountain.makerBuffers.kiln,
-    saw: mountain.makerBuffers.saw,
+    ...mountain.makerBuffers,
   };
-  const nextMicros: Partial<Record<MakerId, number>> = {};
+  const nextMicros = initialCycleMicrosMap(mountain.cycleMicros);
+  let factoryProduced = 0;
+  const factoryRoomLeft = Math.max(
+    0,
+    factoryOutputRoom(mountain) -
+      mountain.factoryOutput.parts +
+      extraFactoryRoom,
+  );
+  const factoryQuotas = factoryOutputQuotas(
+    mountain,
+    ids,
+    dt,
+    pay,
+    factoryRoomLeft,
+    tickIndex,
+  );
   let changed = false;
-  for (const id of MAKER_IDS) {
-    const step = stepSingleMaker(mountain, id, dt, pay, extraOutputRoom);
+  for (const id of ids) {
+    const outGood = makerOutput(id);
+    const isFactory = makerSite(id) === "factory";
+    const outRoom = isFactory
+      ? (factoryQuotas[id as FactoryMakerId] ?? 0)
+      : stockRoomWithExtra(mountain, outGood, extraStockRoom);
+    const step = stepSingleMaker(mountain, id, dt, pay, outRoom);
     if (step.nextMicros > 0) {
-      nextMicros[id] = step.nextMicros;
+      nextMicros.set(id, step.nextMicros);
+    } else {
+      nextMicros.delete(id);
     }
     if (!step.changed) {
       continue;
     }
     changed = true;
     nextBuffers[id] = step.buffer;
-    if (step.produced > 0) {
-      made[step.outGood] = (made[step.outGood] ?? 0) + step.produced;
+    if (step.produced > 0 && isFactory) {
+      factoryProduced += step.produced;
+    } else if (step.produced > 0) {
+      made[outGood] = (made[outGood] ?? 0) + step.produced;
     }
   }
   if (!changed) {
@@ -188,7 +337,11 @@ function stepSlice2Makers(
     mountain: {
       ...mountain,
       makerBuffers: nextBuffers,
-      cycleMicros: nextMicros,
+      cycleMicros: Object.fromEntries(nextMicros),
+      factoryOutput:
+        factoryProduced > 0
+          ? { parts: mountain.factoryOutput.parts + factoryProduced }
+          : mountain.factoryOutput,
       stock:
         goodsTotal(made) > 0
           ? addedStock(mountain.stock, made)
@@ -198,12 +351,7 @@ function stepSlice2Makers(
   };
 }
 
-/**
- * Per-good City destination room for a 1 s tick with `buildCap` builder budget.
- * Uses water-filling (`evenShares`) over upper-bound on-site supply entering
- * Phase (d) so uncontested fast goods get full builder throughput while
- * Phase (d) still guarantees `onSite[good] <= SITE_GOOD_CAP`.
- */
+/** Per-good City destination room for a 1 s tick with `buildCap` builder budget. */
 function cityTickDestOverride(
   mountain: Mountain,
   buildCap: number,
@@ -266,16 +414,25 @@ function stepSlice2Surface(
     cityTickDestOverride(mountain, buildCap),
     tickIndex,
   );
-  const moved = applyTransportTransfer(mountain, transfer);
-  const made = stepSlice2Makers(moved.mountain, 1, pay);
+  const moved = applyTransportTransfer(mountain, transfer, tickIndex);
+  const made = stepMakersList(
+    moved.mountain,
+    MAKER_IDS,
+    1,
+    pay,
+    {},
+    0,
+    tickIndex,
+  );
   const after = stepBuildersOnly(made.mountain, buildCap, tickIndex);
-  return {
-    mountain: after,
-    gained: {
-      ...made.made,
-      ...(moved.gainedStones > 0 ? { stones: moved.gainedStones } : {}),
-    },
-  };
+  const gained: Partial<Record<GoodId, number>> = { ...made.made };
+  if (moved.gainedStones > 0) {
+    gained.stones = (gained.stones ?? 0) + moved.gainedStones;
+  }
+  if (moved.gainedParts > 0) {
+    gained.parts = (gained.parts ?? 0) + moved.gainedParts;
+  }
+  return { mountain: after, gained };
 }
 
 /** One live 1-second tick in fixed 4-phase order (spec rule 5.3). */
@@ -341,10 +498,7 @@ export function accrueSlice2Live(
 // Event-driven coupled-stretch solver (offline & rate play)
 
 function openRunMap(mountain: Mountain): Record<RunId, boolean> {
-  const out = Object.fromEntries(RUN_ORDER.map((id) => [id, false])) as Record<
-    RunId,
-    boolean
-  >;
+  const out = runRecord(false);
   for (const snap of runSnapshots(mountain)) {
     out[snap.id] = snap.open;
   }
@@ -356,7 +510,7 @@ function buildRatesFor(
   pay: number,
   runRates: Readonly<Record<RunId, number>>,
 ): Record<CityRunGood, number> {
-  const out: Record<CityRunGood, number> = { stones: 0, brick: 0, cutStone: 0 };
+  const out: Record<CityRunGood, number> = { ...EMPTY_STOCK };
   if (mountain.project.kind === "unordered") {
     return out;
   }
@@ -371,29 +525,370 @@ function buildRatesFor(
   return out;
 }
 
+function makerInputConsPerSec(
+  id: MakerId,
+  inputId: MakerInputId,
+  makerOutRate: number,
+): number {
+  const spec = makerInputs(id).find((entry) => entry.id === inputId);
+  return spec === undefined
+    ? 0
+    : (makerOutRate / makerOutputAmount(id)) * spec.amount;
+}
+
+function tiedTwoLineSplit(
+  r0: number,
+  r1: number,
+  h0: number,
+  h1: number,
+  a0: number,
+  a1: number,
+  c0: number,
+  c1: number,
+  totalRate: number,
+): readonly [number, number] {
+  if (h0 < a0 && h1 < a1 && totalRate <= c0 + c1 + RATE_EPS) {
+    const shares = evenShares(totalRate, [c0, c1]);
+    return [shares[0] ?? 0, shares[1] ?? 0];
+  }
+  if (h0 >= r0 && h1 >= r1) {
+    const sumC = c0 + c1;
+    return sumC > RATE_EPS
+      ? [(totalRate * c0) / sumC, (totalRate * c1) / sumC]
+      : [0, 0];
+  }
+  const k = (totalRate - c0 - c1) / Math.max(1, r0 + r1);
+  const in0 = Math.max(0, Math.min(totalRate, c0 + k * r0));
+  return [in0, Math.max(0, totalRate - in0)];
+}
+
+/** Maximum rate `id` can consume `good` limited only by staffed speed and its other inputs. */
+function factoryLineInputDemand(
+  mountain: Mountain,
+  id: FactoryMakerId,
+  good: FactoryInputGood,
+  pay: number,
+  runRates: Readonly<Record<RunId, number>>,
+  factorySplits: FactorySplitMap,
+): number {
+  const outAmt = makerOutputAmount(id);
+  let maxOut = makerRate(mountain, id) * pay;
+  for (const spec of makerInputs(id)) {
+    if (spec.id === good || makerBuffer(mountain, id, spec.id) >= spec.amount) {
+      continue;
+    }
+    const specGood = spec.id as FactoryInputGood;
+    // Another input also shared by both Factory lines must not feed back via
+    // `prevSplits`, which would lock `brick` and `cutStone` into an arbitrary
+    // room-weighted fixed point instead of the 50/50 starved split.
+    const otherIn =
+      FACTORY_LINES_FOR_GOOD[specGood].length > 1
+        ? runRates[factoryRunId(specGood)]
+        : makerInputRate(id, spec.id, runRates, factorySplits);
+    maxOut = Math.min(maxOut, (otherIn / spec.amount) * outAmt);
+  }
+  return makerInputConsPerSec(id, good, maxOut);
+}
+
+function makerInputAmount(id: MakerId, inputId: MakerInputId): number {
+  return makerInputs(id).find((s) => s.id === inputId)?.amount ?? 1;
+}
+
+/**
+ * Whether a maker input buffer sits at its steady-state ceiling: at exact
+ * capacity (`room === 0`) or within one 1 s tick's discrete consumption
+ * (consumption rate + one cycle's rounding) after a 1 s Phase (b)->(c) step,
+ * preventing `stretchSlice2` from looping 1 s at a time.
+ */
+function makerInputAtCeiling(
+  capacity: number,
+  held: number,
+  consPerSec: number,
+  cycleAmount: number,
+): boolean {
+  const room = capacity - held;
+  if (room === 0) {
+    return true;
+  }
+  return (
+    slice2Part2On() &&
+    room > 0 &&
+    consPerSec > RATE_EPS &&
+    held > 0 &&
+    room <= Math.ceil(consPerSec) + cycleAmount
+  );
+}
+
+function splitTwoFactoryLines(
+  mountain: Mountain,
+  good: FactoryInputGood,
+  totalRate: number,
+  pay: number,
+  runRates: Readonly<Record<RunId, number>>,
+  prevSplits: FactorySplitMap,
+  makerOut: Readonly<Record<MakerId, number>>,
+): readonly [number, number] {
+  const r0 = makerInputRoom(mountain, "partsPress", good);
+  const r1 = makerInputRoom(mountain, "precisionAssembly", good);
+  const h0 = makerBuffer(mountain, "partsPress", good);
+  const h1 = makerBuffer(mountain, "precisionAssembly", good);
+  const a0 = makerInputAmount("partsPress", good);
+  const a1 = makerInputAmount("precisionAssembly", good);
+  if (h0 < a0 && h1 < a1) {
+    const d0 = factoryLineInputDemand(
+      mountain,
+      "partsPress",
+      good,
+      pay,
+      runRates,
+      prevSplits,
+    );
+    const d1 = factoryLineInputDemand(
+      mountain,
+      "precisionAssembly",
+      good,
+      pay,
+      runRates,
+      prevSplits,
+    );
+    return tiedTwoLineSplit(r0, r1, h0, h1, a0, a1, d0, d1, totalRate);
+  }
+  const c0 = makerInputConsPerSec("partsPress", good, makerOut.partsPress);
+  const c1 = makerInputConsPerSec(
+    "precisionAssembly",
+    good,
+    makerOut.precisionAssembly,
+  );
+  if (
+    makerInputAtCeiling(r0, h0, c0, a0) &&
+    makerInputAtCeiling(r1, h1, c1, a1)
+  ) {
+    const sumC = c0 + c1;
+    return sumC > RATE_EPS
+      ? [(totalRate * c0) / sumC, (totalRate * c1) / sumC]
+      : [0, 0];
+  }
+  const f0 = r0 > 0 ? h0 / r0 : 1;
+  const f1 = r1 > 0 ? h1 / r1 : 1;
+  if (f0 < f1 - FILL_EPS && h0 < r0) {
+    return [totalRate, 0];
+  }
+  if (f1 < f0 - FILL_EPS && h1 < r1) {
+    return [0, totalRate];
+  }
+  return tiedTwoLineSplit(r0, r1, h0, h1, a0, a1, c0, c1, totalRate);
+}
+
+/** Splits each `stockToFactory*` rate across owned open Factory lines matching live fill-fraction rules. */
+function factorySplitsFor(
+  mountain: Mountain,
+  pay: number,
+  runRates: Readonly<Record<RunId, number>>,
+  prevSplits: FactorySplitMap,
+  makerOut: Readonly<Record<MakerId, number>>,
+): FactorySplitMap {
+  const splits: Record<
+    FactoryMakerId,
+    Partial<Record<FactoryInputGood, number>>
+  > = { partsPress: {}, precisionAssembly: {} };
+  if (!slice2Part2On()) {
+    return splits;
+  }
+  for (const good of FACTORY_INPUT_GOODS) {
+    const total = runRates[factoryRunId(good)];
+    const openLines = FACTORY_LINES_FOR_GOOD[good].filter((id) =>
+      isMakerBufferOpen(mountain, id),
+    );
+    const [only] = openLines;
+    if (openLines.length === 1 && only !== undefined) {
+      splits[only][good] = total;
+    } else if (openLines.length === 2) {
+      const [s0, s1] = splitTwoFactoryLines(
+        mountain,
+        good,
+        total,
+        pay,
+        runRates,
+        prevSplits,
+        makerOut,
+      );
+      splits.partsPress[good] = s0;
+      splits.precisionAssembly[good] = s1;
+    }
+  }
+  return splits;
+}
+
+function makerInputRate(
+  id: MakerId,
+  inputId: MakerInputId,
+  runRates: Readonly<Record<RunId, number>>,
+  factorySplits: FactorySplitMap,
+): number {
+  if (id === "kiln") {
+    return runRates.pitTopsoilToKilns;
+  }
+  if (id === "saw") {
+    return runRates.pitGraniteToSaws;
+  }
+  if (id === "glassworks") {
+    return inputId === "crystalRock"
+      ? runRates.pitCrystalToGlassworks
+      : runRates.stockToGlassworksStones;
+  }
+  return factorySplits[id][inputId as FactoryInputGood] ?? 0;
+}
+
+function makerInputCap(
+  mountain: Mountain,
+  id: MakerId,
+  runRates: Readonly<Record<RunId, number>>,
+  factorySplits: FactorySplitMap,
+): number {
+  const outAmt = makerOutputAmount(id);
+  let cap = Infinity;
+  for (const spec of makerInputs(id)) {
+    const held = makerBuffer(mountain, id, spec.id);
+    if (held < spec.amount) {
+      const inRate = makerInputRate(id, spec.id, runRates, factorySplits);
+      cap = Math.min(cap, (inRate / spec.amount) * outAmt);
+    }
+  }
+  return cap;
+}
+
 function makerRatesFor(
   mountain: Mountain,
   pay: number,
   runRates: Readonly<Record<RunId, number>>,
+  factorySplits: FactorySplitMap,
 ): Record<MakerId, number> {
-  const out: Record<MakerId, number> = { kiln: 0, saw: 0 };
+  const out = makerRecord(0);
+  const fRoom = factoryOutputRoom(mountain) - mountain.factoryOutput.parts;
+  const fUncapped: Record<FactoryMakerId, number> = {
+    partsPress: 0,
+    precisionAssembly: 0,
+  };
   for (const id of MAKER_IDS) {
-    if (mountain.makers[id] <= 0 || (id === "saw" && !graniteOpen(mountain))) {
+    if (!isMakerBufferOpen(mountain, id)) {
       continue;
     }
-    const takes = makerTakes(id);
-    const inId = makerPrimaryInput(id);
-    const inRun: RunId =
-      id === "kiln" ? "pitTopsoilToKilns" : "pitGraniteToSaws";
-    const held = makerBuffer(mountain, id, inId);
-    const inCap = held >= takes ? Infinity : runRates[inRun] / takes;
+    const baseCap = Math.min(
+      makerRate(mountain, id) * pay,
+      makerInputCap(mountain, id, runRates, factorySplits),
+    );
+    if (makerSite(id) === "factory") {
+      fUncapped[id as FactoryMakerId] = baseCap;
+      continue;
+    }
     const outGood = makerOutput(id);
     const outRoom = stockpileRoom(mountain, outGood) - mountain.stock[outGood];
     const outCap =
-      outRoom > 0 ? Infinity : outRoom === 0 ? runRates[cityRunId(outGood)] : 0;
-    out[id] = Math.min(makerRate(mountain, id) * pay, inCap, outCap);
+      outRoom > 0
+        ? Infinity
+        : outRoom === 0
+          ? stockDrainRate(runRates, outGood)
+          : 0;
+    out[id] = Math.min(baseCap, outCap);
+  }
+  if (fRoom > 0) {
+    out.partsPress = fUncapped.partsPress;
+    out.precisionAssembly = fUncapped.precisionAssembly;
+  } else if (fRoom === 0) {
+    const shares = evenShares(runRates.factoryToStockyardParts, [
+      fUncapped.partsPress,
+      fUncapped.precisionAssembly,
+    ]);
+    out.partsPress = shares[0] ?? 0;
+    out.precisionAssembly = shares[1] ?? 0;
   }
   return out;
+}
+
+function factoryDestCap(
+  mountain: Mountain,
+  good: FactoryInputGood,
+  makerOut: Readonly<Record<MakerId, number>>,
+): number {
+  if (!slice2Part2On()) {
+    return 0;
+  }
+  let cap = 0;
+  for (const id of FACTORY_LINES_FOR_GOOD[good]) {
+    if (!isMakerBufferOpen(mountain, id)) {
+      continue;
+    }
+    const roomCap = makerInputRoom(mountain, id, good);
+    const held = makerBuffer(mountain, id, good);
+    const cons = makerInputConsPerSec(id, good, makerOut[id]);
+    if (roomCap < held) {
+      continue;
+    }
+    if (!makerInputAtCeiling(roomCap, held, cons, makerInputAmount(id, good))) {
+      return Infinity;
+    }
+    cap += cons;
+  }
+  return cap;
+}
+
+function refineryDestCap(
+  mountain: Mountain,
+  id: "kiln" | "saw" | "glassworks",
+  inputId: MakerInputId,
+  makerOut: Readonly<Record<MakerId, number>>,
+): number {
+  if (!isMakerBufferOpen(mountain, id)) {
+    return 0;
+  }
+  const roomCap = makerInputRoom(mountain, id, inputId);
+  const held = makerBuffer(mountain, id, inputId);
+  const cons = makerInputConsPerSec(id, inputId, makerOut[id]);
+  if (roomCap < held) {
+    return 0;
+  }
+  return makerInputAtCeiling(roomCap, held, cons, makerInputAmount(id, inputId))
+    ? cons
+    : Infinity;
+}
+
+function stockpileDestCap(room: number, drainRate: number): number {
+  return room > 0 ? Infinity : room === 0 ? drainRate : 0;
+}
+
+function cityGoodDestCap(onSite: number, buildGood: number): number {
+  if (onSite < SITE_GOOD_CAP) {
+    return Infinity;
+  }
+  return onSite === SITE_GOOD_CAP ? buildGood : 0;
+}
+
+function fillCityAndResearchCaps(
+  mountain: Mountain,
+  build: Readonly<Record<CityRunGood, number>>,
+  caps: Record<RunId, number>,
+): void {
+  const project = mountain.project;
+  if (project.kind === "delivering") {
+    const cityNeed = stillRequired(project.site);
+    for (const good of CITY_RUN_GOODS) {
+      if (cityNeed[good] > 0) {
+        caps[cityRunId(good)] = cityGoodDestCap(
+          project.site.onSite[good],
+          build[good],
+        );
+      }
+    }
+  }
+  const resActive = slice2Part2On() ? mountain.research.active : undefined;
+  if (resActive !== undefined) {
+    const resNeed = researchStillRequired(resActive);
+    for (const good of CITY_RUN_GOODS) {
+      if (resNeed[good] > 0) {
+        caps[researchRunId(good)] = Infinity;
+      }
+    }
+  }
 }
 
 function destCapsFor(
@@ -403,54 +898,47 @@ function destCapsFor(
   build: Readonly<Record<CityRunGood, number>>,
 ): Record<RunId, number> {
   const stoneRoom = stockpileRoom(mountain, "stones") - mountain.stock.stones;
-  const kilnRoom =
-    makerInputRoom(mountain, "kiln") -
-    makerBuffer(mountain, "kiln", "topsoilRock");
-  const sawRoom = graniteOpen(mountain)
-    ? makerInputRoom(mountain, "saw") -
-      makerBuffer(mountain, "saw", "graniteRock")
+  const partsOpen = slice2Part2On() && hasOwnedFactoryLine(mountain);
+  const partsRoom = partsOpen
+    ? stockpileRoom(mountain, "parts") - mountain.stock.parts
+    : -1;
+  const caps = runRecord(0);
+  caps.pitToStockyardStones = stockpileDestCap(
+    stoneRoom,
+    stockDrainRate(runRates, "stones"),
+  );
+  caps.pitTopsoilToKilns = refineryDestCap(
+    mountain,
+    "kiln",
+    "topsoilRock",
+    makerOut,
+  );
+  caps.pitGraniteToSaws = refineryDestCap(
+    mountain,
+    "saw",
+    "graniteRock",
+    makerOut,
+  );
+  caps.pitCrystalToGlassworks = refineryDestCap(
+    mountain,
+    "glassworks",
+    "crystalRock",
+    makerOut,
+  );
+  caps.stockToGlassworksStones = refineryDestCap(
+    mountain,
+    "glassworks",
+    "stones",
+    makerOut,
+  );
+  caps.stockToFactoryBrick = factoryDestCap(mountain, "brick", makerOut);
+  caps.stockToFactoryCutStone = factoryDestCap(mountain, "cutStone", makerOut);
+  caps.stockToFactoryGlass = factoryDestCap(mountain, "glass", makerOut);
+  caps.factoryToStockyardParts = partsOpen
+    ? stockpileDestCap(partsRoom, stockDrainRate(runRates, "parts"))
     : 0;
-  const project = mountain.project;
-  const need =
-    project.kind === "delivering" ? stillRequired(project.site) : undefined;
-  const cityCap = (good: CityRunGood): number => {
-    if (
-      project.kind !== "delivering" ||
-      need === undefined ||
-      need[good] <= 0
-    ) {
-      return 0;
-    }
-    const onSite = project.site.onSite[good];
-    return onSite < SITE_GOOD_CAP
-      ? Infinity
-      : onSite === SITE_GOOD_CAP
-        ? build[good]
-        : 0;
-  };
-  return {
-    pitToStockyardStones:
-      stoneRoom > 0
-        ? Infinity
-        : stoneRoom === 0
-          ? runRates["stockToCity:stones"]
-          : 0,
-    pitTopsoilToKilns:
-      kilnRoom > 0
-        ? Infinity
-        : kilnRoom === 0
-          ? makerOut.kiln * makerTakes("kiln")
-          : 0,
-    pitGraniteToSaws:
-      sawRoom > 0
-        ? Infinity
-        : sawRoom === 0
-          ? makerOut.saw * makerTakes("saw")
-          : 0,
-    "stockToCity:stones": cityCap("stones"),
-    "stockToCity:brick": cityCap("brick"),
-    "stockToCity:cutStone": cityCap("cutStone"),
-  };
+  fillCityAndResearchCaps(mountain, build, caps);
+  return caps;
 }
 
 function recordSettled<K extends string>(
@@ -483,6 +971,14 @@ function hoistRatesFor(
   };
 }
 
+function capOrInflow(held: number, inflow: number): number {
+  return held > 0 ? Infinity : inflow;
+}
+
+function weightOrInflow(held: number, inflow: number): number {
+  return held > 0 ? held : inflow;
+}
+
 function runSourcesFor(
   mountain: Mountain,
   openLvls: readonly MineLevelId[],
@@ -490,27 +986,35 @@ function runSourcesFor(
   runRates: Readonly<Record<RunId, number>>,
   makerOut: Readonly<Record<MakerId, number>>,
 ) {
+  const topHeld = mountain.pithead.topsoil;
   const graniteHeld = graniteOpen(mountain) ? mountain.pithead.granite : 0;
   const crystalHeld = crystalOpen(mountain) ? mountain.pithead.crystal : 0;
+  const factoryPartsOut = makerOut.partsPress + makerOut.precisionAssembly;
   return {
     openLvls,
     pitheadCap: {
-      topsoil: mountain.pithead.topsoil > 0 ? Infinity : hoist.topsoil,
-      granite: graniteHeld > 0 ? Infinity : hoist.granite,
-      crystal: crystalHeld > 0 ? Infinity : hoist.crystal,
+      topsoil: capOrInflow(topHeld, hoist.topsoil),
+      granite: capOrInflow(graniteHeld, hoist.granite),
+      crystal: capOrInflow(crystalHeld, hoist.crystal),
     },
     pitheadWeight: {
-      topsoil:
-        mountain.pithead.topsoil > 0 ? mountain.pithead.topsoil : hoist.topsoil,
-      granite: graniteHeld > 0 ? graniteHeld : hoist.granite,
-      crystal: crystalHeld > 0 ? crystalHeld : hoist.crystal,
+      topsoil: weightOrInflow(topHeld, hoist.topsoil),
+      granite: weightOrInflow(graniteHeld, hoist.granite),
+      crystal: weightOrInflow(crystalHeld, hoist.crystal),
     },
     stockCap: {
-      stones:
-        mountain.stock.stones > 0 ? Infinity : runRates.pitToStockyardStones,
-      brick: mountain.stock.brick > 0 ? Infinity : makerOut.kiln,
-      cutStone: mountain.stock.cutStone > 0 ? Infinity : makerOut.saw,
+      stones: capOrInflow(mountain.stock.stones, runRates.pitToStockyardStones),
+      brick: capOrInflow(mountain.stock.brick, makerOut.kiln),
+      cutStone: capOrInflow(mountain.stock.cutStone, makerOut.saw),
+      glass: capOrInflow(mountain.stock.glass, makerOut.glassworks),
+      parts: capOrInflow(
+        mountain.stock.parts,
+        runRates.factoryToStockyardParts,
+      ),
     },
+    factoryOutputCap: slice2Part2On()
+      ? capOrInflow(mountain.factoryOutput.parts, factoryPartsOut)
+      : 0,
   };
 }
 
@@ -526,7 +1030,7 @@ function dampRecord<K extends string>(
 
 /**
  * Fixed-point solver for instantaneous coupled rates across underground mine,
- * physical transport runs, makers, and City builders (spec rule 5.3).
+ * physical transport runs, Refinery makers, Factory lines, City, and Research.
  */
 function coupledRates(
   mountain: Mountain,
@@ -546,18 +1050,19 @@ function coupledRates(
     granite: 0,
     crystal: 0,
   };
-  let runRates: Readonly<Record<RunId, number>> = Object.fromEntries(
-    RUN_ORDER.map((id) => [id, 0]),
-  ) as Record<RunId, number>;
-
+  let runRates: Readonly<Record<RunId, number>> = runRecord(0);
   let prevDrain: Readonly<Record<MineLevelId, number>> | undefined;
   let hoist: Record<MineLevelId, number> = {
     topsoil: 0,
     granite: 0,
     crystal: 0,
   };
-  let build: Record<CityRunGood, number> = { stones: 0, brick: 0, cutStone: 0 };
-  let makerOut: Record<MakerId, number> = { kiln: 0, saw: 0 };
+  let build: Record<CityRunGood, number> = { ...EMPTY_STOCK };
+  let makerOut: Record<MakerId, number> = makerRecord(0);
+  let factorySplits: FactorySplitMap = {
+    partsPress: {},
+    precisionAssembly: {},
+  };
   let settled = false;
 
   for (let pass = 0; pass < MAX_FIXED_POINT_PASSES; pass += 1) {
@@ -569,7 +1074,14 @@ function coupledRates(
       prevDrain = pitheadDrain;
     }
     build = buildRatesFor(mountain, pay, runRates);
-    makerOut = makerRatesFor(mountain, pay, runRates);
+    factorySplits = factorySplitsFor(
+      mountain,
+      pay,
+      runRates,
+      factorySplits,
+      makerOut,
+    );
+    makerOut = makerRatesFor(mountain, pay, runRates, factorySplits);
     const destCaps = destCapsFor(mountain, runRates, makerOut, build);
     const sources = runSourcesFor(
       mountain,
@@ -604,9 +1116,24 @@ function coupledRates(
   if (!settled) {
     hoist = hoistRatesFor(mountain, pay, drilling, pitheadDrain);
     build = buildRatesFor(mountain, pay, runRates);
-    makerOut = makerRatesFor(mountain, pay, runRates);
+    factorySplits = factorySplitsFor(
+      mountain,
+      pay,
+      runRates,
+      factorySplits,
+      makerOut,
+    );
+    makerOut = makerRatesFor(mountain, pay, runRates, factorySplits);
   }
-  return { hoist, runRates, pitheadDrain, stoneFromPithead, makerOut, build };
+  return {
+    hoist,
+    runRates,
+    pitheadDrain,
+    stoneFromPithead,
+    makerOut,
+    factorySplits,
+    build,
+  };
 }
 
 /** Seconds until a buffer crosses 0, `room`, or `floor` at `net` units/s. */
@@ -661,14 +1188,120 @@ function cityEventTime(mountain: Mountain, rates: CoupledRates): number {
   return soonest;
 }
 
-/** Minimum seconds until any pile, pithead, maker buffer, stockpile, or City step changes state. */
+function researchEventTime(mountain: Mountain, rates: CoupledRates): number {
+  if (!slice2Part2On() || mountain.research.active === undefined) {
+    return Infinity;
+  }
+  const need = researchStillRequired(mountain.research.active);
+  let soonest = Infinity;
+  for (const good of GOOD_IDS) {
+    const rate = rates.runRates[researchRunId(good)];
+    if (need[good] > 0 && rate > RATE_EPS) {
+      soonest = Math.min(soonest, need[good] / rate);
+    }
+  }
+  return soonest;
+}
+
+function factoryTieEventTime(mountain: Mountain, rates: CoupledRates): number {
+  if (
+    !slice2Part2On() ||
+    !isMakerBufferOpen(mountain, "partsPress") ||
+    !isMakerBufferOpen(mountain, "precisionAssembly")
+  ) {
+    return Infinity;
+  }
+  let soonest = Infinity;
+  for (const good of ["brick", "cutStone"] as const) {
+    const r0 = makerInputRoom(mountain, "partsPress", good);
+    const r1 = makerInputRoom(mountain, "precisionAssembly", good);
+    const h0 = makerBuffer(mountain, "partsPress", good);
+    const h1 = makerBuffer(mountain, "precisionAssembly", good);
+    if (
+      h0 < makerInputAmount("partsPress", good) &&
+      h1 < makerInputAmount("precisionAssembly", good)
+    ) {
+      continue;
+    }
+    const f0 = h0 / r0;
+    const f1 = h1 / r1;
+    if (Math.abs(f0 - f1) <= FILL_EPS) {
+      continue;
+    }
+    const df0 =
+      ((rates.factorySplits.partsPress[good] ?? 0) -
+        makerInputConsPerSec("partsPress", good, rates.makerOut.partsPress)) /
+      r0;
+    const df1 =
+      ((rates.factorySplits.precisionAssembly[good] ?? 0) -
+        makerInputConsPerSec(
+          "precisionAssembly",
+          good,
+          rates.makerOut.precisionAssembly,
+        )) /
+      r1;
+    const closing = f0 < f1 ? df0 - df1 : df1 - df0;
+    if (closing > RATE_EPS) {
+      soonest = Math.min(soonest, Math.abs(f1 - f0) / closing);
+    }
+  }
+  return soonest;
+}
+
+function makerAndFactoryEventTime(
+  mountain: Mountain,
+  rates: CoupledRates,
+): number {
+  let soonest = factoryTieEventTime(mountain, rates);
+  for (const id of MAKER_IDS) {
+    if (!isMakerBufferOpen(mountain, id)) {
+      continue;
+    }
+    for (const spec of makerInputs(id)) {
+      const inRate = makerInputRate(
+        id,
+        spec.id,
+        rates.runRates,
+        rates.factorySplits,
+      );
+      const consRate = makerInputConsPerSec(id, spec.id, rates.makerOut[id]);
+      soonest = Math.min(
+        soonest,
+        bufferEventTime(
+          makerBuffer(mountain, id, spec.id),
+          makerInputRoom(mountain, id, spec.id),
+          inRate - consRate,
+          spec.amount - 1,
+        ),
+      );
+    }
+  }
+  if (slice2Part2On() && hasOwnedFactoryLine(mountain)) {
+    const fProd = rates.makerOut.partsPress + rates.makerOut.precisionAssembly;
+    soonest = Math.min(
+      soonest,
+      bufferEventTime(
+        mountain.factoryOutput.parts,
+        factoryOutputRoom(mountain),
+        fProd - rates.runRates.factoryToStockyardParts,
+      ),
+    );
+  }
+  return soonest;
+}
+
+/** Minimum seconds until any pile, pithead, maker/factory buffer, stockpile, Research, or City step changes. */
 function nextEventSeconds(
   mountain: Mountain,
   rates: CoupledRates,
   pay: number,
   drilling: boolean,
 ): number {
-  let soonest = cityEventTime(mountain, rates);
+  let soonest = Math.min(
+    cityEventTime(mountain, rates),
+    researchEventTime(mountain, rates),
+    makerAndFactoryEventTime(mountain, rates),
+  );
   const chains = undergroundPitheadChains(
     mountain,
     pay,
@@ -690,36 +1323,20 @@ function nextEventSeconds(
       ),
     );
   }
-  for (const id of MAKER_IDS) {
-    if (mountain.makers[id] <= 0 || (id === "saw" && !graniteOpen(mountain))) {
-      continue;
-    }
-    const inId = makerPrimaryInput(id);
-    const inRun: RunId =
-      id === "kiln" ? "pitTopsoilToKilns" : "pitGraniteToSaws";
-    const takes = makerTakes(id);
-    soonest = Math.min(
-      soonest,
-      bufferEventTime(
-        makerBuffer(mountain, id, inId),
-        makerInputRoom(mountain, id),
-        rates.runRates[inRun] - rates.makerOut[id] * takes,
-        takes - 1,
-      ),
-    );
-  }
-  const stockIn: Record<CityRunGood, number> = {
+  const stockIn: Record<GoodId, number> = {
     stones: rates.runRates.pitToStockyardStones,
     brick: rates.makerOut.kiln,
     cutStone: rates.makerOut.saw,
+    glass: rates.makerOut.glassworks,
+    parts: rates.runRates.factoryToStockyardParts,
   };
-  for (const good of CITY_RUN_GOODS) {
+  for (const good of GOOD_IDS) {
     soonest = Math.min(
       soonest,
       bufferEventTime(
         mountain.stock[good],
         stockpileRoom(mountain, good),
-        stockIn[good] - rates.runRates[cityRunId(good)],
+        stockIn[good] - stockDrainRate(rates.runRates, good),
       ),
     );
   }
@@ -739,35 +1356,44 @@ function stretchBuildCap(
     : Math.floor(rate * seconds + RATE_EPS);
 }
 
+function wholeOver(
+  rate: number,
+  seconds: number,
+  dryEq: boolean,
+  tickIndex?: number,
+): number {
+  const raw = rate * seconds;
+  if (dryEq) {
+    return Math.ceil(raw - RATE_EPS);
+  }
+  return tickIndex !== undefined
+    ? stepQuota(rate, tickIndex)
+    : Math.floor(raw + RATE_EPS);
+}
+
 /** Whole City deliveries bounded by `applyCityWork` (`stillRequired` + `SITE_GOOD_CAP` headroom). */
 function cityOutCap(
   mountain: Mountain,
   rates: CoupledRates,
+  stockIn: Readonly<Record<GoodId, number>>,
   seconds: number,
   pay: number,
   tickIndex?: number,
-): Record<CityRunGood, number> {
+): Record<GoodId, number> {
   if (mountain.project.kind !== "delivering") {
-    return { stones: 0, brick: 0, cutStone: 0 };
+    return { ...EMPTY_STOCK };
   }
   const need = stillRequired(mountain.project.site);
-  const stockIn: Record<CityRunGood, number> = {
-    stones: rates.runRates.pitToStockyardStones,
-    brick: rates.makerOut.kiln,
-    cutStone: rates.makerOut.saw,
-  };
   const rawDesired: Partial<Record<GoodId, number>> = {};
   for (const good of CITY_RUN_GOODS) {
     const rate = rates.runRates[cityRunId(good)];
-    const raw = rate * seconds;
     const dryEq =
-      mountain.stock[good] === 0 && rate >= stockIn[good] - RATE_EPS;
-    const whole = dryEq
-      ? Math.ceil(raw - RATE_EPS)
-      : tickIndex !== undefined
-        ? stepQuota(rate, tickIndex)
-        : Math.floor(raw + RATE_EPS);
-    const want = Math.min(need[good], Math.max(0, whole));
+      mountain.stock[good] === 0 &&
+      stockDrainRate(rates.runRates, good) >= stockIn[good] - RATE_EPS;
+    const want = Math.min(
+      need[good],
+      Math.max(0, wholeOver(rate, seconds, dryEq, tickIndex)),
+    );
     if (want > 0) {
       rawDesired[good] = want;
     }
@@ -781,48 +1407,85 @@ function cityOutCap(
     stones: accepted.stones ?? 0,
     brick: accepted.brick ?? 0,
     cutStone: accepted.cutStone ?? 0,
+    glass: accepted.glass ?? 0,
+    parts: accepted.parts ?? 0,
   };
 }
 
-/** Exact integer maker input rock budget over `seconds` without overshooting buffer or stockpile caps. */
-function stretchMakerRockCap(
+/** Whole Research deliveries bounded by `researchStillRequired`. */
+function researchOutCap(
+  mountain: Mountain,
+  rates: CoupledRates,
+  stockIn: Readonly<Record<GoodId, number>>,
+  seconds: number,
+  tickIndex?: number,
+): Record<GoodId, number> {
+  if (!slice2Part2On() || mountain.research.active === undefined) {
+    return { ...EMPTY_STOCK };
+  }
+  const need = researchStillRequired(mountain.research.active);
+  const out: Record<GoodId, number> = { ...EMPTY_STOCK };
+  for (const good of GOOD_IDS) {
+    const rate = rates.runRates[researchRunId(good)];
+    const dryEq =
+      mountain.stock[good] === 0 &&
+      stockDrainRate(rates.runRates, good) >= stockIn[good] - RATE_EPS;
+    out[good] = Math.min(
+      need[good],
+      Math.max(0, wholeOver(rate, seconds, dryEq, tickIndex)),
+    );
+  }
+  return out;
+}
+
+/** Exact integer input budget for one maker input over `seconds` without overshooting room. */
+function stretchMakerInputCap(
   mountain: Mountain,
   id: MakerId,
+  inputId: MakerInputId,
   rates: CoupledRates,
-  cityOut: Readonly<Record<CityRunGood, number>>,
+  extraOutRoom: number,
   seconds: number,
   pay: number,
 ): number {
-  if (mountain.makers[id] <= 0 || (id === "saw" && !graniteOpen(mountain))) {
+  if (!isMakerBufferOpen(mountain, id)) {
     return 0;
   }
-  const outGood = makerOutput(id);
-  const stockRoomBase =
-    stockpileRoom(mountain, outGood) - mountain.stock[outGood];
-  const outRoom = Number.isFinite(stockRoomBase)
-    ? Math.max(0, stockRoomBase + cityOut[outGood])
+  const spec = makerInputs(id).find((entry) => entry.id === inputId);
+  if (spec === undefined) {
+    return 0;
+  }
+  const outAmt = makerOutputAmount(id);
+  const outRoomBase =
+    makerSite(id) === "factory"
+      ? factoryOutputRoom(mountain) - mountain.factoryOutput.parts
+      : stockpileRoom(mountain, makerOutput(id)) -
+        mountain.stock[makerOutput(id)];
+  const outRoom = Number.isFinite(outRoomBase)
+    ? Math.max(0, outRoomBase + extraOutRoom)
     : Number.MAX_SAFE_INTEGER;
   const maxByRate = makerCycleLimit(
     makerRate(mountain, id) * pay,
     seconds,
     mountain.cycleMicros[id] ?? 0,
+    outAmt,
   );
-  const cycles = Math.min(
-    Math.ceil(rates.makerOut[id] * seconds - RATE_EPS),
-    outRoom,
-    maxByRate,
-  );
+  const expectedCycles = (rates.makerOut[id] * seconds) / outAmt;
+  const cycleCap =
+    makerSite(id) === "factory"
+      ? Math.floor(expectedCycles + RATE_EPS)
+      : Math.ceil(expectedCycles - RATE_EPS);
+  const cycles = Math.min(cycleCap, Math.floor(outRoom / outAmt), maxByRate);
   const bufRoomBase =
-    makerInputRoom(mountain, id) -
-    makerBuffer(mountain, id, makerPrimaryInput(id));
-  return Math.max(0, bufRoomBase + cycles * makerTakes(id));
+    makerInputRoom(mountain, id, inputId) - makerBuffer(mountain, id, inputId);
+  return Math.max(0, bufRoomBase + cycles * spec.amount);
 }
 
 /** Planned integer pithead withdrawals per level over a multi-second stretch. */
 function planStretchPithead(
   mountain: Mountain,
   rates: CoupledRates,
-  cityOut: Readonly<Record<CityRunGood, number>>,
+  stockOutPlan: Readonly<Record<GoodId, number>>,
   seconds: number,
   pay: number,
   tickIndex?: number,
@@ -835,24 +1498,34 @@ function planStretchPithead(
   const stoneRoomBase =
     stockpileRoom(mountain, "stones") - mountain.stock.stones;
   const stoneCap = Number.isFinite(stoneRoomBase)
-    ? Math.max(0, stoneRoomBase + cityOut.stones)
+    ? Math.max(0, stoneRoomBase + stockOutPlan.stones)
     : Number.MAX_SAFE_INTEGER;
   const dryEq = (level: MineLevelId): boolean =>
     mountain.pithead[level] === 0 &&
     rates.pitheadDrain[level] >= rates.hoist[level] - RATE_EPS;
-  const stoneWhole = (level: MineLevelId): number => {
-    const rate = rates.stoneFromPithead[level];
-    const raw = rate * seconds;
-    return dryEq(level)
-      ? Math.ceil(raw - RATE_EPS)
-      : tickIndex !== undefined
-        ? stepQuota(rate, tickIndex)
-        : Math.floor(raw + RATE_EPS);
-  };
   const rawStone: Record<MineLevelId, number> = {
-    topsoil: stoneWhole("topsoil"),
-    granite: graniteOpen(mountain) ? stoneWhole("granite") : 0,
-    crystal: crystalOpen(mountain) ? stoneWhole("crystal") : 0,
+    topsoil: wholeOver(
+      rates.stoneFromPithead.topsoil,
+      seconds,
+      dryEq("topsoil"),
+      tickIndex,
+    ),
+    granite: graniteOpen(mountain)
+      ? wholeOver(
+          rates.stoneFromPithead.granite,
+          seconds,
+          dryEq("granite"),
+          tickIndex,
+        )
+      : 0,
+    crystal: crystalOpen(mountain)
+      ? wholeOver(
+          rates.stoneFromPithead.crystal,
+          seconds,
+          dryEq("crystal"),
+          tickIndex,
+        )
+      : 0,
   };
   const scaled =
     rawStone.topsoil + rawStone.granite + rawStone.crystal > stoneCap
@@ -863,45 +1536,38 @@ function planStretchPithead(
     granite: scaled.granite ?? 0,
     crystal: scaled.crystal ?? 0,
   };
-  const makerWhole = (level: MineLevelId, run: RunId): number => {
-    const rate = rates.runRates[run];
-    const raw = rate * seconds;
-    return dryEq(level)
-      ? Math.ceil(raw - RATE_EPS)
-      : tickIndex !== undefined
-        ? stepQuota(rate, tickIndex)
-        : Math.floor(raw + RATE_EPS);
-  };
-  const wantMaker: Record<MineLevelId, number> = {
-    topsoil: Math.min(
-      makerWhole("topsoil", "pitTopsoilToKilns"),
-      stretchMakerRockCap(mountain, "kiln", rates, cityOut, seconds, pay),
-    ),
-    granite: graniteOpen(mountain)
+  const makerWant = (
+    level: MineLevelId,
+    id: "kiln" | "saw" | "glassworks",
+    input: "topsoilRock" | "graniteRock" | "crystalRock",
+    run: RunId,
+  ): number =>
+    isMakerBufferOpen(mountain, id)
       ? Math.min(
-          makerWhole("granite", "pitGraniteToSaws"),
-          stretchMakerRockCap(mountain, "saw", rates, cityOut, seconds, pay),
+          wholeOver(rates.runRates[run], seconds, dryEq(level), tickIndex),
+          stretchMakerInputCap(
+            mountain,
+            id,
+            input,
+            rates,
+            stockOutPlan[makerOutput(id)],
+            seconds,
+            pay,
+          ),
         )
-      : 0,
-    crystal: 0,
+      : 0;
+  const wantMaker: Record<MineLevelId, number> = {
+    topsoil: makerWant("topsoil", "kiln", "topsoilRock", "pitTopsoilToKilns"),
+    granite: makerWant("granite", "saw", "graniteRock", "pitGraniteToSaws"),
+    crystal: makerWant(
+      "crystal",
+      "glassworks",
+      "crystalRock",
+      "pitCrystalToGlassworks",
+    ),
   };
   if (seconds === 1) {
-    let stoneLeft = Math.max(
-      0,
-      stoneCap - wantStone.topsoil - wantStone.granite - wantStone.crystal,
-    );
-    for (const level of openLvls) {
-      if (level === "crystal") {
-        continue;
-      }
-      const mRun: RunId =
-        level === "topsoil" ? "pitTopsoilToKilns" : "pitGraniteToSaws";
-      const floorMaker = Math.floor(rates.runRates[mRun] + RATE_EPS);
-      const spill = Math.max(0, floorMaker - wantMaker[level]);
-      const extra = Math.min(spill, stoneLeft);
-      wantStone[level] += extra;
-      stoneLeft -= extra;
-    }
+    spillMakerCapToStone(openLvls, rates, stoneCap, wantStone, wantMaker);
   }
   return {
     wantStone,
@@ -914,7 +1580,33 @@ function planStretchPithead(
   };
 }
 
-/** Moves pithead rock into Stone and maker buffers over a multi-second stretch. */
+function spillMakerCapToStone(
+  openLvls: readonly MineLevelId[],
+  rates: CoupledRates,
+  stoneCap: number,
+  wantStone: Record<MineLevelId, number>,
+  wantMaker: Readonly<Record<MineLevelId, number>>,
+): void {
+  let stoneLeft = Math.max(
+    0,
+    stoneCap - wantStone.topsoil - wantStone.granite - wantStone.crystal,
+  );
+  for (const level of openLvls) {
+    const mRun: RunId =
+      level === "topsoil"
+        ? "pitTopsoilToKilns"
+        : level === "granite"
+          ? "pitGraniteToSaws"
+          : "pitCrystalToGlassworks";
+    const floorMaker = Math.floor(rates.runRates[mRun] + RATE_EPS);
+    const spill = Math.max(0, floorMaker - wantMaker[level]);
+    const extra = Math.min(spill, stoneLeft);
+    wantStone[level] += extra;
+    stoneLeft -= extra;
+  }
+}
+
+/** Moves pithead rock into Stone and Refinery rock buffers over a multi-second stretch. */
 function moveStretchPithead(
   mountain: Mountain,
   wantStone: Readonly<Record<MineLevelId, number>>,
@@ -942,27 +1634,253 @@ function moveStretchPithead(
   }
   const gainedStones =
     stoneFrom.topsoil + stoneFrom.granite + stoneFrom.crystal;
-  if (gainedStones + makerMoved.topsoil + makerMoved.granite <= 0) {
+  if (
+    gainedStones +
+      makerMoved.topsoil +
+      makerMoved.granite +
+      makerMoved.crystal <=
+    0
+  ) {
     return { mountain, gainedStones: 0 };
   }
+  const moved = runRecord(0);
+  moved.pitToStockyardStones = gainedStones;
+  moved.pitTopsoilToKilns = makerMoved.topsoil;
+  moved.pitGraniteToSaws = makerMoved.granite;
+  moved.pitCrystalToGlassworks = makerMoved.crystal;
   const applied = applyTransportTransfer(mountain, {
-    moved: {
-      pitToStockyardStones: gainedStones,
-      pitTopsoilToKilns: makerMoved.topsoil,
-      pitGraniteToSaws: makerMoved.granite,
-      "stockToCity:stones": 0,
-      "stockToCity:brick": 0,
-      "stockToCity:cutStone": 0,
-    },
+    moved,
     stoneFromPithead: stoneFrom,
   });
   return { mountain: applied.mountain, gainedStones: applied.gainedStones };
 }
 
+/** Splits one stockyard good proportionally across a producer feed, City, and Research. */
+function splitStockGood(
+  available: number,
+  feedWant: number,
+  cityWant: number,
+  resWant: number,
+): { readonly feed: number; readonly city: number; readonly research: number } {
+  const split = shareProportional(available, ["feed", "city", "research"], {
+    feed: feedWant,
+    city: cityWant,
+    research: resWant,
+  });
+  return {
+    feed: split.feed ?? 0,
+    city: split.city ?? 0,
+    research: split.research ?? 0,
+  };
+}
+
+/** Moves `stockToGlassworksStones` into Glassworks' stones buffer over a stretch. */
+function moveStretchGlassworksStones(
+  mountain: Mountain,
+  amount: number,
+): Mountain {
+  if (amount <= 0) {
+    return mountain;
+  }
+  const moved = runRecord(0);
+  moved.stockToGlassworksStones = amount;
+  return applyTransportTransfer(mountain, {
+    moved,
+    stoneFromPithead: ZERO_DRAIN,
+  }).mountain;
+}
+
+function splitFactoryStretchGood(
+  mountain: Mountain,
+  good: FactoryInputGood,
+  amt: number,
+  rates: CoupledRates,
+  factoryPartsOutWant: number,
+  seconds: number,
+  pay: number,
+): Partial<Record<FactoryMakerId, number>> {
+  const openLines = FACTORY_LINES_FOR_GOOD[good].filter((id) =>
+    isMakerBufferOpen(mountain, id),
+  );
+  const [only] = openLines;
+  if (only === undefined) {
+    return {};
+  }
+  const lineCap = (line: FactoryMakerId): number =>
+    stretchMakerInputCap(
+      mountain,
+      line,
+      good,
+      rates,
+      factoryPartsOutWant,
+      seconds,
+      pay,
+    );
+  if (openLines.length === 1) {
+    return { [only]: Math.min(amt, lineCap(only)) };
+  }
+  if (seconds > 1) {
+    const w0 = Math.min(
+      lineCap("partsPress"),
+      Math.round((rates.factorySplits.partsPress[good] ?? 0) * seconds),
+    );
+    const w1 = Math.min(
+      lineCap("precisionAssembly"),
+      Math.round((rates.factorySplits.precisionAssembly[good] ?? 0) * seconds),
+    );
+    if (w0 + w1 > 0) {
+      return shareProportional(amt, ["partsPress", "precisionAssembly"], {
+        partsPress: w0,
+        precisionAssembly: w1,
+      });
+    }
+  }
+  return distributeFactoryInput(mountain, good, amt);
+}
+
+/** Moves `stockToFactory*` into Factory input buffers over a stretch. */
+function moveStretchFactoryInputs(
+  mountain: Mountain,
+  amounts: Readonly<Record<FactoryInputGood, number>>,
+  rates: CoupledRates,
+  factoryPartsOutWant: number,
+  seconds: number,
+  pay: number,
+): Mountain {
+  if (amounts.brick + amounts.cutStone + amounts.glass <= 0) {
+    return mountain;
+  }
+  const nextBuffers: Record<MakerId, MakerBuffers[MakerId]> = {
+    ...mountain.makerBuffers,
+  };
+  const stockDelta: Partial<Record<GoodId, number>> = {};
+  for (const good of FACTORY_INPUT_GOODS) {
+    const amt = Math.min(amounts[good], mountain.stock[good]);
+    if (amt <= 0) {
+      continue;
+    }
+    const split = splitFactoryStretchGood(
+      mountain,
+      good,
+      amt,
+      rates,
+      factoryPartsOutWant,
+      seconds,
+      pay,
+    );
+    let taken = 0;
+    for (const line of FACTORY_MAKER_IDS) {
+      const add = split[line] ?? 0;
+      if (add > 0) {
+        nextBuffers[line] = {
+          ...nextBuffers[line],
+          [good]: (nextBuffers[line][good] ?? 0) + add,
+        };
+        taken += add;
+      }
+    }
+    if (taken > 0) {
+      stockDelta[good] = -taken;
+    }
+  }
+  return Object.keys(stockDelta).length === 0
+    ? mountain
+    : {
+        ...mountain,
+        makerBuffers: nextBuffers,
+        stock: addedStock(mountain.stock, stockDelta),
+      };
+}
+
+/**
+ * Returns any multi-second pre-staged Factory input units that were not
+ * consumed during `stepMakersList` and would leave a buffer above its room
+ * (never lowering below a pre-existing over-cap `beforeHeld`), preserving exact
+ * stock conservation.
+ */
+function refundUnconsumedFactoryInputs(
+  before: Mountain,
+  after: Mountain,
+): Mountain {
+  const refund: Partial<Record<GoodId, number>> = {};
+  const nextBuffers: Record<MakerId, MakerBuffers[MakerId]> = {
+    ...after.makerBuffers,
+  };
+  let changed = false;
+  for (const line of FACTORY_MAKER_IDS) {
+    let lineBuf = nextBuffers[line];
+    for (const spec of makerInputs(line)) {
+      const good = spec.id as FactoryInputGood;
+      const ceiling = Math.max(
+        makerInputRoom(after, line, good),
+        makerBuffer(before, line, good),
+      );
+      const held = lineBuf[good] ?? 0;
+      if (held > ceiling) {
+        const excess = held - ceiling;
+        lineBuf = { ...lineBuf, [good]: ceiling };
+        refund[good] = (refund[good] ?? 0) + excess;
+        changed = true;
+      }
+    }
+    nextBuffers[line] = lineBuf;
+  }
+  return changed
+    ? {
+        ...after,
+        makerBuffers: nextBuffers,
+        stock: addedStock(after.stock, refund),
+      }
+    : after;
+}
+
+/** Runs Factory lines and moves `factoryOutput.parts` -> `stock.parts` over a stretch. */
+function applyStretchFactory(
+  beforeInputs: Mountain,
+  mountain: Mountain,
+  budgets: StretchBudgets,
+  seconds: number,
+  pay: number,
+  tickIndex?: number,
+): { readonly mountain: Mountain; readonly gainedParts: number } {
+  if (!slice2Part2On() || !hasOwnedFactoryLine(mountain)) {
+    return { mountain, gainedParts: 0 };
+  }
+  const stepped = stepMakersList(
+    mountain,
+    FACTORY_MAKER_IDS,
+    seconds,
+    pay,
+    {},
+    budgets.factoryPartsOutWant,
+    tickIndex,
+  ).mountain;
+  const state = refundUnconsumedFactoryInputs(beforeInputs, stepped);
+  const partsRoomBase = stockpileRoom(state, "parts") - state.stock.parts;
+  const partsRoom = Number.isFinite(partsRoomBase)
+    ? Math.max(0, partsRoomBase + budgets.cityOut.parts + budgets.resOut.parts)
+    : Number.MAX_SAFE_INTEGER;
+  const partsMove = Math.min(
+    state.factoryOutput.parts,
+    budgets.factoryPartsOutWant,
+    partsRoom,
+  );
+  if (partsMove <= 0) {
+    return { mountain: state, gainedParts: 0 };
+  }
+  const moved = runRecord(0);
+  moved.factoryToStockyardParts = partsMove;
+  const applied = applyTransportTransfer(state, {
+    moved,
+    stoneFromPithead: ZERO_DRAIN,
+  });
+  return { mountain: applied.mountain, gainedParts: applied.gainedParts };
+}
+
 /** Applies City transport + builder work over a multi-second stretch cleanly. */
 function applyStretchCity(
   mountain: Mountain,
-  cityOut: Readonly<Record<CityRunGood, number>>,
+  cityOut: Readonly<Record<GoodId, number>>,
   seconds: number,
   pay: number,
   tickIndex?: number,
@@ -993,6 +1911,27 @@ function applyStretchCity(
     state = buildIn(state, built);
   }
   return state;
+}
+
+/** Applies Research deliveries from stock over a multi-second stretch. */
+function applyStretchResearch(
+  mountain: Mountain,
+  resOut: Readonly<Record<GoodId, number>>,
+): Mountain {
+  if (!slice2Part2On() || mountain.research.active === undefined) {
+    return mountain;
+  }
+  const need = researchStillRequired(mountain.research.active);
+  const delivered: Partial<Record<GoodId, number>> = {};
+  for (const good of GOOD_IDS) {
+    const amt = Math.min(mountain.stock[good], resOut[good], need[good]);
+    if (amt > 0) {
+      delivered[good] = amt;
+    }
+  }
+  return goodsTotal(delivered) > 0
+    ? receiveResearch(payStock(mountain, priceOf(delivered)), delivered)
+    : mountain;
 }
 
 const ZERO_DRAIN: Readonly<Record<MineLevelId, number>> = {
@@ -1028,8 +1967,256 @@ function applyOneSecondStretch(
   };
 }
 
+type StretchBudgets = {
+  readonly cityOut: Record<GoodId, number>;
+  readonly resOut: Record<GoodId, number>;
+  readonly gwStonesWant: number;
+  readonly factoryInWant: Record<FactoryInputGood, number>;
+  readonly factoryPartsOutWant: number;
+  readonly stockOutPlan: Record<GoodId, number>;
+};
+
+function planFactoryPartsOutWant(
+  mountain: Mountain,
+  rates: CoupledRates,
+  cityParts: number,
+  resParts: number,
+  seconds: number,
+  tickIndex?: number,
+): number {
+  if (!slice2Part2On() || !hasOwnedFactoryLine(mountain)) {
+    return 0;
+  }
+  const dryEq =
+    mountain.factoryOutput.parts === 0 &&
+    rates.runRates.factoryToStockyardParts >=
+      rates.makerOut.partsPress + rates.makerOut.precisionAssembly - RATE_EPS;
+  const raw = wholeOver(
+    rates.runRates.factoryToStockyardParts,
+    seconds,
+    dryEq,
+    tickIndex,
+  );
+  const roomBase = stockpileRoom(mountain, "parts") - mountain.stock.parts;
+  const room = Number.isFinite(roomBase)
+    ? Math.max(0, roomBase + cityParts + resParts)
+    : Number.MAX_SAFE_INTEGER;
+  return Math.min(raw, room);
+}
+
+function planFactoryInWants(
+  mountain: Mountain,
+  rates: CoupledRates,
+  stockIn: Readonly<Record<GoodId, number>>,
+  factoryPartsOutWant: number,
+  seconds: number,
+  pay: number,
+  tickIndex?: number,
+): Record<FactoryInputGood, number> {
+  const out: Record<FactoryInputGood, number> = {
+    brick: 0,
+    cutStone: 0,
+    glass: 0,
+  };
+  if (!slice2Part2On()) {
+    return out;
+  }
+  for (const good of FACTORY_INPUT_GOODS) {
+    const run = factoryRunId(good);
+    const dryEq =
+      mountain.stock[good] === 0 &&
+      stockDrainRate(rates.runRates, good) >= stockIn[good] - RATE_EPS;
+    const raw = wholeOver(rates.runRates[run], seconds, dryEq, tickIndex);
+    let cap = 0;
+    for (const line of FACTORY_LINES_FOR_GOOD[good]) {
+      cap += stretchMakerInputCap(
+        mountain,
+        line,
+        good,
+        rates,
+        factoryPartsOutWant,
+        seconds,
+        pay,
+      );
+    }
+    out[good] = Math.min(raw, cap);
+  }
+  return out;
+}
+
+function planStretchBudgets(
+  mountain: Mountain,
+  rates: CoupledRates,
+  seconds: number,
+  pay: number,
+  tickIndex?: number,
+): StretchBudgets {
+  const stockIn: Record<GoodId, number> = {
+    stones: rates.runRates.pitToStockyardStones,
+    brick: rates.makerOut.kiln,
+    cutStone: rates.makerOut.saw,
+    glass: rates.makerOut.glassworks,
+    parts: rates.runRates.factoryToStockyardParts,
+  };
+  const cityOut = cityOutCap(mountain, rates, stockIn, seconds, pay, tickIndex);
+  const resOut = researchOutCap(mountain, rates, stockIn, seconds, tickIndex);
+  const factoryPartsOutWant = planFactoryPartsOutWant(
+    mountain,
+    rates,
+    cityOut.parts,
+    resOut.parts,
+    seconds,
+    tickIndex,
+  );
+  const factoryInWant = planFactoryInWants(
+    mountain,
+    rates,
+    stockIn,
+    factoryPartsOutWant,
+    seconds,
+    pay,
+    tickIndex,
+  );
+  const gwStonesWant =
+    slice2Part2On() && isMakerBufferOpen(mountain, "glassworks")
+      ? Math.min(
+          wholeOver(
+            rates.runRates.stockToGlassworksStones,
+            seconds,
+            mountain.stock.stones === 0 &&
+              stockDrainRate(rates.runRates, "stones") >=
+                stockIn.stones - RATE_EPS,
+            tickIndex,
+          ),
+          stretchMakerInputCap(
+            mountain,
+            "glassworks",
+            "stones",
+            rates,
+            factoryInWant.glass + cityOut.glass + resOut.glass,
+            seconds,
+            pay,
+          ),
+        )
+      : 0;
+  const stockOutPlan: Record<GoodId, number> = {
+    stones: gwStonesWant + cityOut.stones + resOut.stones,
+    brick: factoryInWant.brick + cityOut.brick + resOut.brick,
+    cutStone: factoryInWant.cutStone + cityOut.cutStone + resOut.cutStone,
+    glass: factoryInWant.glass + cityOut.glass + resOut.glass,
+    parts: cityOut.parts + resOut.parts,
+  };
+  return {
+    cityOut,
+    resOut,
+    gwStonesWant,
+    factoryInWant,
+    factoryPartsOutWant,
+    stockOutPlan,
+  };
+}
+
+/** Runs the surface DAG (stones -> Refinery -> Factory -> Research & City) for one stretch. */
+function applyStretchSurface(
+  mountain: Mountain,
+  budgets: StretchBudgets,
+  rates: CoupledRates,
+  seconds: number,
+  pay: number,
+  tickIndex?: number,
+): {
+  readonly mountain: Mountain;
+  readonly refMade: Partial<Stock>;
+  readonly gainedParts: number;
+} {
+  const stoneSplit = splitStockGood(
+    mountain.stock.stones,
+    budgets.gwStonesWant,
+    budgets.cityOut.stones,
+    budgets.resOut.stones,
+  );
+  let state = moveStretchGlassworksStones(mountain, stoneSplit.feed);
+  const refMade = stepMakersList(state, REFINERY_MAKER_IDS, seconds, pay, {
+    brick: budgets.stockOutPlan.brick,
+    cutStone: budgets.stockOutPlan.cutStone,
+    glass: budgets.stockOutPlan.glass,
+  });
+  state = refMade.mountain;
+  const brickSplit = splitStockGood(
+    state.stock.brick,
+    budgets.factoryInWant.brick,
+    budgets.cityOut.brick,
+    budgets.resOut.brick,
+  );
+  const cutSplit = splitStockGood(
+    state.stock.cutStone,
+    budgets.factoryInWant.cutStone,
+    budgets.cityOut.cutStone,
+    budgets.resOut.cutStone,
+  );
+  const glassSplit = splitStockGood(
+    state.stock.glass,
+    budgets.factoryInWant.glass,
+    budgets.cityOut.glass,
+    budgets.resOut.glass,
+  );
+  const beforeFactory = state;
+  state = moveStretchFactoryInputs(
+    state,
+    {
+      brick: brickSplit.feed,
+      cutStone: cutSplit.feed,
+      glass: glassSplit.feed,
+    },
+    rates,
+    budgets.factoryPartsOutWant,
+    seconds,
+    pay,
+  );
+  const factory = applyStretchFactory(
+    beforeFactory,
+    state,
+    budgets,
+    seconds,
+    pay,
+    tickIndex,
+  );
+  state = factory.mountain;
+  const partsSplit = splitStockGood(
+    state.stock.parts,
+    0,
+    budgets.cityOut.parts,
+    budgets.resOut.parts,
+  );
+  state = applyStretchResearch(state, {
+    stones: stoneSplit.research,
+    brick: brickSplit.research,
+    cutStone: cutSplit.research,
+    glass: glassSplit.research,
+    parts: partsSplit.research,
+  });
+  const after = applyStretchCity(
+    state,
+    {
+      stones: stoneSplit.city,
+      brick: brickSplit.city,
+      cutStone: cutSplit.city,
+      glass: glassSplit.city,
+      parts: partsSplit.city,
+    },
+    seconds,
+    pay,
+    tickIndex,
+  );
+  return {
+    mountain: after,
+    refMade: refMade.made,
+    gainedParts: factory.gainedParts,
+  };
+}
+
 /**
- * One event-driven coupled stretch of Slice 2 Part 1 (spec rule 5.3):
+ * One event-driven coupled stretch of Slice 2 (spec rule 5.3):
  * advances up to `end` or the next buffer/stockpile/step state change (1 s floor).
  */
 export function stretchSlice2(
@@ -1050,16 +2237,13 @@ export function stretchSlice2(
   }
   const rates = coupledRates(mountain, pay, drilling);
   const eventSec = nextEventSeconds(mountain, rates, pay, drilling);
-  // Floor multi-second stretches so they stop before crossing any buffer/step
-  // boundary; 1-second stretches use discrete `stepQuota` (with an
-  // `applyOneSecondStretch` fallback if a boundary tick makes no progress).
   const seconds = Math.min(remaining, Math.max(1, Math.floor(eventSec)));
   const tickIndex = seconds === 1 ? Math.floor(from / 1000) : undefined;
-  const cityOut = cityOutCap(mountain, rates, seconds, pay, tickIndex);
+  const budgets = planStretchBudgets(mountain, rates, seconds, pay, tickIndex);
   const pitPlan = planStretchPithead(
     mountain,
     rates,
-    cityOut,
+    budgets.stockOutPlan,
     seconds,
     pay,
     tickIndex,
@@ -1072,19 +2256,15 @@ export function stretchSlice2(
     pitPlan.drainRate,
     tickIndex,
   );
-  const moved = moveStretchPithead(
+  const movedPit = moveStretchPithead(
     mine.mountain,
     pitPlan.wantStone,
     pitPlan.wantMaker,
   );
-  const extraOut: Partial<Record<GoodId, number>> = {
-    brick: cityOut.brick,
-    cutStone: cityOut.cutStone,
-  };
-  const made = stepSlice2Makers(moved.mountain, seconds, pay, extraOut);
-  const after = applyStretchCity(
-    made.mountain,
-    cityOut,
+  const surface = applyStretchSurface(
+    movedPit.mountain,
+    budgets,
+    rates,
     seconds,
     pay,
     tickIndex,
@@ -1092,10 +2272,11 @@ export function stretchSlice2(
   const mined =
     mine.hoisted.topsoil + mine.hoisted.granite + mine.hoisted.crystal;
   const gained: Partial<Stock> = {
-    ...made.made,
-    ...(moved.gainedStones > 0 ? { stones: moved.gainedStones } : {}),
+    ...surface.refMade,
+    ...(movedPit.gainedStones > 0 ? { stones: movedPit.gainedStones } : {}),
+    ...(surface.gainedParts > 0 ? { parts: surface.gainedParts } : {}),
   };
-  if (seconds === 1 && after === mountain) {
+  if (seconds === 1 && surface.mountain === mountain) {
     const one = applyOneSecondStretch(
       mountain,
       pay,
@@ -1109,7 +2290,7 @@ export function stretchSlice2(
     };
   }
   return {
-    mountain: after,
+    mountain: surface.mountain,
     mined,
     gained,
     settledAt: from + seconds * 1000,
@@ -1197,32 +2378,31 @@ function incomeFromRunRates(
     stones: runRates.pitToStockyardStones,
     brick: runRates.pitTopsoilToKilns / makerTakes("kiln"),
     cutStone: runRates.pitGraniteToSaws / makerTakes("saw"),
+    glass: 0,
+    parts: 0,
   };
 }
 
 function runSteadyAlloc(
   mountain: Mountain,
   base: SteadyBase,
-  cityOpen: Readonly<Record<CityRunGood, boolean>>,
-  cityDest: Readonly<Record<CityRunGood, number>>,
-  stockCap: Readonly<Record<CityRunGood, number>>,
+  cityOpen: Readonly<Record<GoodId, boolean>>,
+  cityDest: Readonly<Record<GoodId, number>>,
+  stockCap: Readonly<Record<GoodId, number>>,
 ) {
-  const open: Record<RunId, boolean> = {
-    pitToStockyardStones: true,
-    pitTopsoilToKilns: mountain.makers.kiln > 0,
-    pitGraniteToSaws: graniteOpen(mountain) && mountain.makers.saw > 0,
-    "stockToCity:stones": cityOpen.stones,
-    "stockToCity:brick": cityOpen.brick,
-    "stockToCity:cutStone": cityOpen.cutStone,
-  };
-  const destCaps: Record<RunId, number> = {
-    pitToStockyardStones: Infinity,
-    pitTopsoilToKilns: base.kilnNeed,
-    pitGraniteToSaws: base.sawNeed,
-    "stockToCity:stones": cityOpen.stones ? cityDest.stones : 0,
-    "stockToCity:brick": cityOpen.brick ? cityDest.brick : 0,
-    "stockToCity:cutStone": cityOpen.cutStone ? cityDest.cutStone : 0,
-  };
+  const open = runRecord(false);
+  open.pitToStockyardStones = true;
+  open.pitTopsoilToKilns = mountain.makers.kiln > 0;
+  open.pitGraniteToSaws = graniteOpen(mountain) && mountain.makers.saw > 0;
+  const destCaps = runRecord(0);
+  destCaps.pitToStockyardStones = Infinity;
+  destCaps.pitTopsoilToKilns = base.kilnNeed;
+  destCaps.pitGraniteToSaws = base.sawNeed;
+  for (const good of CITY_RUN_GOODS) {
+    const id = cityRunId(good);
+    open[id] = cityOpen[good];
+    destCaps[id] = cityOpen[good] ? cityDest[good] : 0;
+  }
   return allocateRunRates(base.fleet, open, destCaps, {
     openLvls: base.openLvls,
     pitheadCap: {
@@ -1239,29 +2419,29 @@ function runSteadyAlloc(
   });
 }
 
-const NO_CITY_OPEN: Readonly<Record<CityRunGood, boolean>> = {
+const NO_CITY_OPEN: Readonly<Record<GoodId, boolean>> = {
   stones: false,
   brick: false,
   cutStone: false,
+  glass: false,
+  parts: false,
 };
 
-const ZERO_STOCK_CAP: Readonly<Record<CityRunGood, number>> = {
-  stones: 0,
-  brick: 0,
-  cutStone: 0,
-};
+const ZERO_STOCK_CAP: Readonly<Record<GoodId, number>> = { ...EMPTY_STOCK };
 
-const INF_CITY_DEST: Readonly<Record<CityRunGood, number>> = {
+const INF_CITY_DEST: Readonly<Record<GoodId, number>> = {
   stones: Infinity,
   brick: Infinity,
   cutStone: Infinity,
+  glass: Infinity,
+  parts: Infinity,
 };
 
 function steadyCityDest(
   build: number,
-  cityOpen: Readonly<Record<CityRunGood, boolean>>,
-  stockCap: Readonly<Record<CityRunGood, number>>,
-): Readonly<Record<CityRunGood, number>> {
+  cityOpen: Readonly<Record<GoodId, boolean>>,
+  stockCap: Readonly<Record<GoodId, number>>,
+): Readonly<Record<GoodId, number>> {
   if (build <= 0) {
     return INF_CITY_DEST;
   }
@@ -1273,6 +2453,8 @@ function steadyCityDest(
     stones: shares[0] ?? 0,
     brick: shares[1] ?? 0,
     cutStone: shares[2] ?? 0,
+    glass: shares[3] ?? 0,
+    parts: shares[4] ?? 0,
   };
 }
 
@@ -1283,7 +2465,7 @@ function steadyCityDest(
 export function slice2SteadyIncome(mountain: Mountain): Partial<Stock> {
   const base = steadyBase(mountain);
   if (base.fleet <= 0) {
-    return { stones: 0, brick: 0, cutStone: 0 };
+    return { ...EMPTY_STOCK };
   }
   const alloc = runSteadyAlloc(
     mountain,
@@ -1297,8 +2479,7 @@ export function slice2SteadyIncome(mountain: Mountain): Partial<Stock> {
 
 /**
  * Steady-state production income and City delivery carry rate under Slice 2
- * physical transport when a City project is delivering (two-pass allocation so
- * dry stockpiles return spare fleet capacity to pithead/maker runs).
+ * physical transport when a City project is delivering.
  */
 export function slice2OrderRates(mountain: Mountain): {
   readonly income: Partial<Stock>;
@@ -1309,24 +2490,30 @@ export function slice2OrderRates(mountain: Mountain): {
   }
   const base = steadyBase(mountain);
   if (base.fleet <= 0) {
-    return { income: { stones: 0, brick: 0, cutStone: 0 }, cityCarry: 0 };
+    return { income: { ...EMPTY_STOCK }, cityCarry: 0 };
   }
   const need = stillRequired(mountain.project.site);
-  const cityOpen: Record<CityRunGood, boolean> = {
+  const cityOpen: Record<GoodId, boolean> = {
     stones: need.stones > 0,
     brick: need.brick > 0,
     cutStone: need.cutStone > 0,
+    glass: need.glass > 0,
+    parts: need.parts > 0,
   };
   const build = buildRate(mountain);
-  const canProduce: Record<CityRunGood, boolean> = {
+  const canProduce: Record<GoodId, boolean> = {
     stones: base.topsoil + base.granite + base.crystal > 0,
     brick: base.topsoil > 0 && base.kilnNeed > 0,
     cutStone: base.granite > 0 && base.sawNeed > 0,
+    glass: false,
+    parts: false,
   };
-  const stockCap1: Record<CityRunGood, number> = {
+  const stockCap1: Record<GoodId, number> = {
     stones: mountain.stock.stones > 0 || canProduce.stones ? Infinity : 0,
     brick: mountain.stock.brick > 0 || canProduce.brick ? Infinity : 0,
     cutStone: mountain.stock.cutStone > 0 || canProduce.cutStone ? Infinity : 0,
+    glass: mountain.stock.glass > 0 || canProduce.glass ? Infinity : 0,
+    parts: mountain.stock.parts > 0 || canProduce.parts ? Infinity : 0,
   };
   const pass1 = incomeFromRunRates(
     runSteadyAlloc(
@@ -1337,10 +2524,12 @@ export function slice2OrderRates(mountain: Mountain): {
       stockCap1,
     ).runRates,
   );
-  const stockCap2: Record<CityRunGood, number> = {
+  const stockCap2: Record<GoodId, number> = {
     stones: mountain.stock.stones > 0 ? Infinity : (pass1.stones ?? 0),
     brick: mountain.stock.brick > 0 ? Infinity : (pass1.brick ?? 0),
     cutStone: mountain.stock.cutStone > 0 ? Infinity : (pass1.cutStone ?? 0),
+    glass: mountain.stock.glass > 0 ? Infinity : (pass1.glass ?? 0),
+    parts: mountain.stock.parts > 0 ? Infinity : (pass1.parts ?? 0),
   };
   const pass2 = runSteadyAlloc(
     mountain,
@@ -1370,10 +2559,11 @@ export function slice2LiveSnapshot(mountain: Mountain): {
   readonly runRates: Readonly<Record<RunId, number>>;
   readonly destCaps: Readonly<Record<RunId, number>>;
   readonly pitheadCap: Readonly<Record<MineLevelId, number>>;
-  readonly stockCap: Readonly<Record<CityRunGood, number>>;
+  readonly stockCap: Readonly<Record<GoodId, number>>;
+  readonly factoryOutputCap: number;
   readonly hoist: Readonly<Record<MineLevelId, number>>;
   readonly makerOut: Readonly<Record<MakerId, number>>;
-  readonly build: Readonly<Record<CityRunGood, number>>;
+  readonly build: Readonly<Record<GoodId, number>>;
 } {
   const rates = coupledRates(mountain, 1, true);
   const destCaps = destCapsFor(
@@ -1394,6 +2584,7 @@ export function slice2LiveSnapshot(mountain: Mountain): {
     destCaps,
     pitheadCap: sources.pitheadCap,
     stockCap: sources.stockCap,
+    factoryOutputCap: sources.factoryOutputCap,
     hoist: rates.hoist,
     makerOut: rates.makerOut,
     build: rates.build,

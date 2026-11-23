@@ -300,7 +300,13 @@ describe("the refinery on the frame (#671)", () => {
     const { root, progress, button } = mount((mountain) => ({
       ...lit(mountain),
       owned: { ...mountain.owned, helper: mountain.owned.helper + 1 },
-      makers: { kiln: 1, saw: 0 },
+      makers: {
+        kiln: 1,
+        saw: 0,
+        glassworks: 0,
+        partsPress: 0,
+        precisionAssembly: 0,
+      },
     }));
     button('.frame-site[data-site="refinery"]').click();
     const kilns = () => progress.getSnapshot().mountain.jobs.kilns;

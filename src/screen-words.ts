@@ -78,6 +78,9 @@ export const MAKER_WORDS: Readonly<Record<MakerId, readonly [string, string]>> =
   {
     kiln: ["kiln", "kilns"],
     saw: ["saw", "saws"],
+    glassworks: ["glassworks", "glassworks"],
+    partsPress: ["parts press", "parts presses"],
+    precisionAssembly: ["assembly line", "assembly lines"],
   };
 
 /** Per-unit speed: one decimal while small and fractional (Work boots). */

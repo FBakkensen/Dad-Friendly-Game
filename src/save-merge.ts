@@ -50,6 +50,8 @@ type Facts = {
   readonly finds: readonly string[];
   readonly engineers: Readonly<Record<string, number>>;
   readonly operational: readonly string[];
+  /** Installed Research Lab projects (#771). */
+  readonly researchDone: readonly string[];
   /** Steps built in on the city, then what has arrived for the step in hand. */
   readonly city: readonly [number, number];
   /**
@@ -181,6 +183,7 @@ function facts(mountain: Mountain): Facts {
     finds: [...mountain.finds],
     engineers,
     operational: [...mountain.operational],
+    researchDone: [...mountain.research.done],
     city: cityProgress(mountain),
     owned: ownedCounts(mountain),
     stockyard: mountain.stockyard,
@@ -239,7 +242,7 @@ function cityAhead(
   return left[0] === right[0] ? left[1] - right[1] : left[0] - right[0];
 }
 
-/** Rock, upgrades, finds, trips, the stockyard, the shaft, or buildings. Not machines. */
+/** Rock, upgrades, research, finds, trips, the stockyard, the shaft, or buildings. Not machines. */
 function aheadOnProgress(left: Facts, right: Facts): boolean {
   if (left.mined > right.mined || cityAhead(left.city, right.city) > 0) {
     return true;
@@ -247,7 +250,10 @@ function aheadOnProgress(left: Facts, right: Facts): boolean {
   if (left.stockyard > right.stockyard || left.shaft > right.shaft) {
     return true;
   }
-  if (someOnly(left.operational, right.operational)) {
+  if (
+    someOnly(left.operational, right.operational) ||
+    someOnly(left.researchDone, right.researchDone)
+  ) {
     return true;
   }
   if (someHigher(left.upgrades, right.upgrades)) {
@@ -277,6 +283,7 @@ function covers(left: Facts, right: Facts): boolean {
     coversNames(left.engineers, right.engineers) &&
     coversList(left.finds, right.finds) &&
     coversList(left.operational, right.operational) &&
+    coversList(left.researchDone, right.researchDone) &&
     cityAhead(left.city, right.city) >= 0 &&
     coversNumbers(left.owned, right.owned)
   );

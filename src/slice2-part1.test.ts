@@ -192,12 +192,30 @@ describe("makers input buffers & cycleMicros (#766, rule 3.2)", () => {
     const empty = createMountain();
     expect(makerInputRoom(empty, "kiln")).toBe(0);
     expect(makerInputRoom(empty, "saw")).toBe(0);
-    const oneKiln = { ...empty, makers: { kiln: 1, saw: 0 } };
+    const oneKiln = {
+      ...empty,
+      makers: {
+        kiln: 1,
+        saw: 0,
+        glassworks: 0,
+        partsPress: 0,
+        precisionAssembly: 0,
+      },
+    };
     expect(makerInputRoom(oneKiln, "kiln")).toBeGreaterThanOrEqual(
       BASE_INPUT_BUF,
     );
     expect(makerInputRoom(oneKiln, "kiln")).toBe(12 * 2 * 60);
-    const twoSaws = { ...empty, makers: { kiln: 0, saw: 2 } };
+    const twoSaws = {
+      ...empty,
+      makers: {
+        kiln: 0,
+        saw: 2,
+        glassworks: 0,
+        partsPress: 0,
+        precisionAssembly: 0,
+      },
+    };
     expect(makerInputRoom(twoSaws, "saw")).toBe(2 * 30 * 3 * 60);
   });
 
@@ -335,8 +353,17 @@ describe("physical transport runs: water-filling & source contention (#766, rule
       // With a kiln owned and a tiny kiln room left (3), spare fleet capacity flows to stones.
       const withKiln: Mountain = {
         ...m,
-        makers: { kiln: 1, saw: 0 },
-        makerBuffers: { kiln: { topsoilRock: 12 * 2 * 60 - 3 }, saw: {} },
+        makers: {
+          kiln: 1,
+          saw: 0,
+          glassworks: 0,
+          partsPress: 0,
+          precisionAssembly: 0,
+        },
+        makerBuffers: {
+          ...m.makerBuffers,
+          kiln: { topsoilRock: 12 * 2 * 60 - 3 },
+        },
       };
       const transfer = planTransportTransfer(withKiln, 9);
       expect(transfer.moved.pitTopsoilToKilns).toBe(3);
@@ -497,7 +524,11 @@ describe("v11 save shape & reserved assignedRuns (#766)", () => {
     const m: Mountain = {
       ...start,
       fleet: { horseWagon: 2, truck: 1 },
-      makerBuffers: { kiln: { topsoilRock: 300 }, saw: { graniteRock: 150 } },
+      makerBuffers: {
+        ...start.makerBuffers,
+        kiln: { topsoilRock: 300 },
+        saw: { graniteRock: 150 },
+      },
       cycleMicros: { kiln: 500_000, saw: 999_999 },
       assignedRuns: { pitToStockyardStones: 2, pitTopsoilToKilns: 1 },
     };
@@ -556,7 +587,7 @@ describe("v11 save shape & reserved assignedRuns (#766)", () => {
       readGame(
         {
           fleet: { horseWagon: 2 },
-          assignedRuns: { stockToFactoryBrick: 1 },
+          assignedRuns: { stockToMars: 1 },
         },
         0,
       ).kind,
@@ -566,9 +597,7 @@ describe("v11 save shape & reserved assignedRuns (#766)", () => {
     expect(readGame({ cycleMicros: { kiln: 1_000_000 } }, 0).kind).toBe("bad");
     expect(readGame({ cycleMicros: { kiln: -1 } }, 0).kind).toBe("bad");
     expect(readGame({ cycleMicros: { kiln: 0 } }, 0).kind).toBe("ok");
-    expect(readGame({ cycleMicros: { glassworks: 100 } }, 0).kind).toBe(
-      "newer",
-    );
+    expect(readGame({ cycleMicros: { smelter: 100 } }, 0).kind).toBe("newer");
     // makerBuffers: non-record or bad nested count -> bad; unknown maker or input -> newer.
     expect(readGame({ makerBuffers: "nope" }, 0).kind).toBe("bad");
     expect(
@@ -578,7 +607,7 @@ describe("v11 save shape & reserved assignedRuns (#766)", () => {
       readGame({ makerBuffers: { kiln: { crystalRock: 1 } } }, 0).kind,
     ).toBe("newer");
     expect(
-      readGame({ makerBuffers: { glassworks: { crystalRock: 1 } } }, 0).kind,
+      readGame({ makerBuffers: { smelter: { crystalRock: 1 } } }, 0).kind,
     ).toBe("newer");
     // Bad mineLevels propagates cleanly through pithead, makerBuffers, and cycleMicros.
     expect(
@@ -667,6 +696,8 @@ describe("Part 1 lab & #757 economy rebalance (#767, #769)", () => {
         stones: 0,
         brick: 0,
         cutStone: 0,
+        glass: 0,
+        parts: 0,
       });
       const driven = placeOrder(
         levels({

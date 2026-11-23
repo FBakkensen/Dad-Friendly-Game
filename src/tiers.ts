@@ -2,7 +2,7 @@ import { factor } from "./economy/factors";
 import type { Stage } from "./line";
 import type { Mountain } from "./mountain";
 import { partThreeOn, slice2Part1On } from "./part-switch";
-import { pay, type GoodId, type Price } from "./stock";
+import { pay, canPay, type GoodId, type Price, type Stock } from "./stock";
 
 /** All tier numbers live here. See docs/DESIGN.md "M2: Automation". */
 /** #357: workers climb ×1.06 a unit, and kids share the curve. */
@@ -354,6 +354,95 @@ export function quoteRun(
     bought += 1;
   }
   return { count: bought, cost };
+}
+
+/** One line of a multi-good exponential price curve (Slice 2, spec rule 3.2). */
+type PriceLineCurve = {
+  readonly good: GoodId;
+  readonly firstCost: number;
+};
+
+/** 1- or 2-good price curve shared by multi-good makers and vehicles. */
+export type MultiGoodCurve = readonly PriceLineCurve[];
+
+/** A quoted count and its combined multi-good Price. */
+export type PriceQuote = { readonly count: number; readonly price: Price };
+
+function addPriceInto(
+  totals: Map<GoodId, number>,
+  order: GoodId[],
+  price: Price,
+): void {
+  for (const line of price) {
+    if (!totals.has(line.good)) {
+      order.push(line.good);
+    }
+    totals.set(line.good, (totals.get(line.good) ?? 0) + line.amount);
+  }
+}
+
+function priceFromMap(
+  totals: ReadonlyMap<GoodId, number>,
+  order: readonly GoodId[],
+): Price {
+  return order.map((good) => ({ good, amount: totals.get(good) ?? 0 }));
+}
+
+function canAffordNext(
+  stock: Stock,
+  totals: ReadonlyMap<GoodId, number>,
+  next: Price,
+): boolean {
+  let hasPositive = false;
+  for (const line of next) {
+    if (line.amount > 0) {
+      hasPositive = true;
+    }
+    if ((totals.get(line.good) ?? 0) + line.amount > stock[line.good]) {
+      return false;
+    }
+  }
+  return hasPositive;
+}
+
+/**
+ * Multi-good amount-key quoting (Slice 2, spec rule 3.2): `priceAt(n)` is the
+ * Price of the nth additional unit (0 is the next). `one` quotes 1, `ten`
+ * quotes 10 (affordable or not), and `max` bounds by the minimum affordable
+ * count across every good line (still 1 when none are affordable).
+ */
+export function quotePriceRun(
+  priceAt: (nth: number) => Price,
+  amount: BuyAmount,
+  stock: Stock,
+): PriceQuote {
+  const first = priceAt(0);
+  if (amount === "one") {
+    return { count: 1, price: first };
+  }
+  const totals = new Map<GoodId, number>();
+  const order: GoodId[] = [];
+  addPriceInto(totals, order, first);
+  let bought = 1;
+  if (amount === "ten") {
+    while (bought < 10) {
+      addPriceInto(totals, order, priceAt(bought));
+      bought += 1;
+    }
+    return { count: bought, price: priceFromMap(totals, order) };
+  }
+  if (!canPay(stock, first)) {
+    return { count: 1, price: first };
+  }
+  for (;;) {
+    const next = priceAt(bought);
+    if (!canAffordNext(stock, totals, next)) {
+      break;
+    }
+    addPriceInto(totals, order, next);
+    bought += 1;
+  }
+  return { count: bought, price: priceFromMap(totals, order) };
 }
 
 /** The next one of the tier, as a price (#560): in stones, or cut stone in part 3 (#673). */

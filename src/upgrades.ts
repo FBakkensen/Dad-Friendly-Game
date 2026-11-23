@@ -1,5 +1,7 @@
 import type { Stage } from "./line";
 import type { Mountain } from "./mountain";
+import { slice2Part2On } from "./part-switch";
+import { RESEARCH_FOR_UPGRADE, researchDone } from "./research";
 import { owned, tierById, type TierId } from "./tiers";
 import { pay, stonesPrice, type Price } from "./stock";
 import { haulageWorkers } from "./workforce";
@@ -100,12 +102,13 @@ export function synergyBonus(mountain: Mountain, upgrade: Upgrade): number {
   return count * SYNERGY_PER_UNIT;
 }
 
-/** The bought synergy boosting this tier, if any. */
+/** The bought synergy boosting this tier, if any (honors Part 2 Research equivalents without double-stacking). */
 export function tierSynergy(mountain: Mountain, tier: TierId): number {
   const upgrade = UPGRADES.find(
     (candidate) =>
       candidate.synergy?.to === tier &&
-      upgradeLevel(mountain, candidate.id) > 0,
+      (upgradeLevel(mountain, candidate.id) > 0 ||
+        researchDone(mountain, RESEARCH_FOR_UPGRADE[candidate.id])),
   );
   return upgrade === undefined ? 0 : synergyBonus(mountain, upgrade);
 }
@@ -160,8 +163,11 @@ export function upgradePrice(
   return cost === undefined ? undefined : stonesPrice(cost);
 }
 
-/** Buys the next level if affordable; otherwise the same mountain. */
+/** Buys the next level if affordable; disabled under Slice 2 Part 2 where Research holds all upgrades. */
 export function buyUpgrade(mountain: Mountain, id: UpgradeId): Mountain {
+  if (slice2Part2On()) {
+    return mountain;
+  }
   const level = upgradeLevel(mountain, id);
   const price = upgradePrice(mountain, id);
   if (price === undefined || !upgradeUnlocked(mountain, upgradeById(id))) {
