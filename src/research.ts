@@ -28,7 +28,7 @@ type UpgradeKey = keyof Mountain["upgrades"];
 type ResearchRow = {
   readonly id: string;
   readonly name: string;
-  /** What the project does, in plain words (starting copy; approved in #779). */
+  /** What the project does, in plain words (placeholder copy, off in play; for Flemming's approval in #779). */
   readonly summary: string;
   /** Goods Transport must deliver before Install opens (starting values for #772 lab). */
   readonly price: Price;

@@ -237,6 +237,32 @@ describe("unified 5-good stockyard and deadStockpiles (#771)", () => {
       expect(deadStockpiles(withResearch)).toEqual([]);
     });
   });
+
+  it("prices non-stone makers by the sum of all price lines in sticker and valueOf", () => {
+    slice2Part2(() => {
+      const m = part2Mountain();
+      const ctx = {
+        rates: effectiveRates(m),
+        liveSeconds: 0,
+        awaySeconds: 0,
+      };
+      for (const id of [
+        "saw",
+        "glassworks",
+        "partsPress",
+        "precisionAssembly",
+      ] as const) {
+        const expected = makerPrice(m, id).reduce(
+          (sum, line) => sum + line.amount,
+          0,
+        );
+        expect(expected).toBeGreaterThan(0);
+        const action = { kind: "buyMaker", id } as const;
+        expect(sticker(m, action)).toBe(expected);
+        expect(valueOf(m, action, 3600, ctx).cost).toBe(expected);
+      }
+    });
+  });
 });
 
 describe("multi-input Glassworks & steady-flow Factory (#771)", () => {

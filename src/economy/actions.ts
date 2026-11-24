@@ -117,6 +117,7 @@ import { slice2Part2On } from "../part-switch";
 import {
   add,
   priceAmount,
+  priceTotal,
   samePrice,
   stockMoved,
   UNSHOWN_PRICE,
@@ -1119,10 +1120,10 @@ export function valueOf(
         paybackSec: Infinity,
       };
     case "buyMaker":
-      // A maker raises no stone income: the lab learns what brick is worth (#667).
+      // A maker raises no stone income: the lab learns what its output is worth (#667, #771).
       return {
         gainPerSec: 0,
-        cost: priceAmount(makerPrice(mountain, action.id), "stones"),
+        cost: priceTotal(makerPrice(mountain, action.id)),
         paybackSec: Infinity,
       };
     case "expandStockyard":

@@ -60,6 +60,15 @@ export function priceAmount(price: Price, good: GoodId): number {
   return amount;
 }
 
+/** Total units across every good line in the price. */
+export function priceTotal(price: Price): number {
+  let total = 0;
+  for (const line of price) {
+    total += line.amount;
+  }
+  return total;
+}
+
 /** The same price: every good asks the same amount, whatever the order. */
 export function samePrice(left: Price, right: Price): boolean {
   return GOOD_IDS.every(
