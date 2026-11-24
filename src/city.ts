@@ -99,26 +99,27 @@ const BUILDING_ROWS = [
     power: {},
   },
   {
-    // Slice 2 Part 2 (#771; spec rule 4.1): starting numbers for the #772 lab.
-    // Operational Research Lab opens Research inside the City and ends Part 2.
+    // Slice 2 Part 2 (#771, #772; spec rule 4.1): lab-tuned so Parts is the
+    // centerpiece and Crystal Caves + Glassworks + Precision Assembly pay back
+    // over Parts Press alone while every player type finishes cleanly.
     id: "researchLab",
     name: "The Research Lab",
     part: 4,
     steps: [
       [
-        { good: "brick", amount: 40_000_000 },
-        { good: "cutStone", amount: 25_000_000 },
-        { good: "parts", amount: 200_000 },
+        { good: "brick", amount: 5_000_000 },
+        { good: "cutStone", amount: 3_000_000 },
+        { good: "parts", amount: 1_000_000 },
       ],
       [
-        { good: "brick", amount: 60_000_000 },
-        { good: "cutStone", amount: 40_000_000 },
-        { good: "parts", amount: 600_000 },
+        { good: "brick", amount: 8_000_000 },
+        { good: "cutStone", amount: 5_000_000 },
+        { good: "parts", amount: 3_000_000 },
       ],
       [
-        { good: "brick", amount: 80_000_000 },
-        { good: "cutStone", amount: 60_000_000 },
-        { good: "parts", amount: 1_500_000 },
+        { good: "brick", amount: 12_000_000 },
+        { good: "cutStone", amount: 8_000_000 },
+        { good: "parts", amount: 7_000_000 },
       ],
     ],
     power: {},

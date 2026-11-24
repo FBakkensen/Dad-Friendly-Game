@@ -99,7 +99,7 @@ const MAKER_ROWS = [
     ],
     growth: LINE_MACHINE_COST_GROWTH,
     workersPerUnit: 2,
-    outputPerSecond: 20,
+    outputPerSecond: 25,
     inputs: [
       { id: "crystalRock", amount: 3 },
       { id: "stones", amount: 2 },
@@ -112,12 +112,12 @@ const MAKER_ROWS = [
     name: "Parts Press",
     site: "factory",
     price: [
-      { good: "brick", firstCost: 500_000 },
-      { good: "cutStone", firstCost: 250_000 },
+      { good: "brick", firstCost: 350_000 },
+      { good: "cutStone", firstCost: 175_000 },
     ],
     growth: LINE_MACHINE_COST_GROWTH,
     workersPerUnit: 2,
-    outputPerSecond: 10,
+    outputPerSecond: 4,
     inputs: [
       { id: "brick", amount: 2 },
       { id: "cutStone", amount: 2 },
@@ -130,12 +130,12 @@ const MAKER_ROWS = [
     name: "Precision Assembly",
     site: "factory",
     price: [
-      { good: "cutStone", firstCost: 600_000 },
-      { good: "glass", firstCost: 200_000 },
+      { good: "cutStone", firstCost: 300_000 },
+      { good: "glass", firstCost: 80_000 },
     ],
     growth: LINE_MACHINE_COST_GROWTH,
     workersPerUnit: 3,
-    outputPerSecond: 30,
+    outputPerSecond: 36,
     inputs: [
       { id: "brick", amount: 2 },
       { id: "cutStone", amount: 2 },

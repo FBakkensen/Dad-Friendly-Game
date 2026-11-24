@@ -83,10 +83,10 @@ function readyForCrystal(): Mountain {
   };
 }
 
-describe("Slice 2 Part 2 switch (#770)", () => {
-  it("stays off in PLAY_FACTORS and LAB_FACTORS and requires slice2Part1On()", () => {
+describe("Slice 2 Part 2 switch (#770, #772)", () => {
+  it("stays off in PLAY_FACTORS, turns on in LAB_FACTORS, and requires slice2Part1On()", () => {
     expect(withFactors(PLAY_FACTORS, () => slice2Part2On())).toBe(false);
-    expect(withFactors(LAB_FACTORS, () => slice2Part2On())).toBe(false);
+    expect(withFactors(LAB_FACTORS, () => slice2Part2On())).toBe(true);
     expect(
       withFactors(
         {
@@ -125,14 +125,14 @@ describe("Crystal Caves shaft, machines, workforce, and actions (#770)", () => {
       expect(crystalShaftOpen(noGranite)).toBe(false);
       // Price is Brick + Cut stone scaled by price.crystalShaft.
       expect(crystalShaftPrice()).toEqual([
-        { good: "brick", amount: 25_000_000 },
-        { good: "cutStone", amount: 15_000_000 },
+        { good: "brick", amount: 1_500_000 },
+        { good: "cutStone", amount: 1_000_000 },
       ]);
       expect(shaftPrice("crystal")).toEqual(crystalShaftPrice());
       withFactors({ "price.crystalShaft": 0.5 }, () => {
         expect(crystalShaftPrice()).toEqual([
-          { good: "brick", amount: 12_500_000 },
-          { good: "cutStone", amount: 7_500_000 },
+          { good: "brick", amount: 750_000 },
+          { good: "cutStone", amount: 500_000 },
         ]);
       });
       // Unaffordable stock refuses sink.
@@ -146,8 +146,8 @@ describe("Crystal Caves shaft, machines, workforce, and actions (#770)", () => {
       expect(crystalOpen(sunk)).toBe(true);
       expect(crystalShaftOpen(sunk)).toBe(false);
       expect(openLevels(sunk)).toEqual(["topsoil", "granite", "crystal"]);
-      expect(sunk.stock.brick).toBe(ready.stock.brick - 25_000_000);
-      expect(sunk.stock.cutStone).toBe(ready.stock.cutStone - 15_000_000);
+      expect(sunk.stock.brick).toBe(ready.stock.brick - 1_500_000);
+      expect(sunk.stock.cutStone).toBe(ready.stock.cutStone - 1_000_000);
       expect(sunk.mineLevels.crystal?.machines).toEqual({
         cart: 0,
         drill: 0,
@@ -202,8 +202,8 @@ describe("Crystal Caves shaft, machines, workforce, and actions (#770)", () => {
       expect(
         planPrice(ready, [{ kind: "sinkShaft", level: "crystal" }]),
       ).toEqual([
-        { good: "brick", amount: 25_000_000 },
-        { good: "cutStone", amount: 15_000_000 },
+        { good: "brick", amount: 1_500_000 },
+        { good: "cutStone", amount: 1_000_000 },
       ]);
       expect(sticker(ready, { kind: "sinkShaft", level: "crystal" })).toBe(0);
       expect(

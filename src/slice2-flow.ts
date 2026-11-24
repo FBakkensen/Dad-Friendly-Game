@@ -615,7 +615,7 @@ function makerInputAtCeiling(
     room > 0 &&
     consPerSec > RATE_EPS &&
     held > 0 &&
-    room <= Math.ceil(consPerSec) + cycleAmount
+    room <= Math.ceil(consPerSec) + 2 * cycleAmount
   );
 }
 
@@ -979,6 +979,27 @@ function weightOrInflow(held: number, inflow: number): number {
   return held > 0 ? held : inflow;
 }
 
+/**
+ * Whether a pass-through buffer (`stock[good]` or `factoryOutput.parts`) sits
+ * at its 1-tick pipeline/rounding residue (`<= ceil(inflow) + 3`), so Part 2
+ * stretches treat it as steady pass-through instead of draining at fleet speed
+ * in 1 s loops.
+ */
+function bufferAtFloor(held: number, inflow: number): boolean {
+  return (
+    held === 0 ||
+    (held > 0 && inflow > RATE_EPS && held <= Math.ceil(inflow) + 3)
+  );
+}
+
+function floorSourceCap(held: number, inflow: number): number {
+  return slice2Part2On()
+    ? bufferAtFloor(held, inflow)
+      ? inflow
+      : Infinity
+    : capOrInflow(held, inflow);
+}
+
 function runSourcesFor(
   mountain: Mountain,
   openLvls: readonly MineLevelId[],
@@ -1003,17 +1024,22 @@ function runSourcesFor(
       crystal: weightOrInflow(crystalHeld, hoist.crystal),
     },
     stockCap: {
-      stones: capOrInflow(mountain.stock.stones, runRates.pitToStockyardStones),
-      brick: capOrInflow(mountain.stock.brick, makerOut.kiln),
-      cutStone: capOrInflow(mountain.stock.cutStone, makerOut.saw),
-      glass: capOrInflow(mountain.stock.glass, makerOut.glassworks),
-      parts: capOrInflow(
+      stones: floorSourceCap(
+        mountain.stock.stones,
+        runRates.pitToStockyardStones,
+      ),
+      brick: floorSourceCap(mountain.stock.brick, makerOut.kiln),
+      cutStone: floorSourceCap(mountain.stock.cutStone, makerOut.saw),
+      glass: floorSourceCap(mountain.stock.glass, makerOut.glassworks),
+      parts: floorSourceCap(
         mountain.stock.parts,
         runRates.factoryToStockyardParts,
       ),
     },
     factoryOutputCap: slice2Part2On()
-      ? capOrInflow(mountain.factoryOutput.parts, factoryPartsOut)
+      ? bufferAtFloor(mountain.factoryOutput.parts, factoryPartsOut)
+        ? factoryPartsOut
+        : Infinity
       : 0,
   };
 }
@@ -1278,14 +1304,17 @@ function makerAndFactoryEventTime(
   }
   if (slice2Part2On() && hasOwnedFactoryLine(mountain)) {
     const fProd = rates.makerOut.partsPress + rates.makerOut.precisionAssembly;
-    soonest = Math.min(
-      soonest,
-      bufferEventTime(
-        mountain.factoryOutput.parts,
-        factoryOutputRoom(mountain),
-        fProd - rates.runRates.factoryToStockyardParts,
-      ),
-    );
+    const fNet = fProd - rates.runRates.factoryToStockyardParts;
+    if (fNet > 0 || !bufferAtFloor(mountain.factoryOutput.parts, fProd)) {
+      soonest = Math.min(
+        soonest,
+        bufferEventTime(
+          mountain.factoryOutput.parts,
+          factoryOutputRoom(mountain),
+          fNet,
+        ),
+      );
+    }
   }
   return soonest;
 }
@@ -1331,14 +1360,21 @@ function nextEventSeconds(
     parts: rates.runRates.factoryToStockyardParts,
   };
   for (const good of GOOD_IDS) {
-    soonest = Math.min(
-      soonest,
-      bufferEventTime(
-        mountain.stock[good],
-        stockpileRoom(mountain, good),
-        stockIn[good] - stockDrainRate(rates.runRates, good),
-      ),
-    );
+    const sNet = stockIn[good] - stockDrainRate(rates.runRates, good);
+    if (
+      sNet > 0 ||
+      !slice2Part2On() ||
+      !bufferAtFloor(mountain.stock[good], stockIn[good])
+    ) {
+      soonest = Math.min(
+        soonest,
+        bufferEventTime(
+          mountain.stock[good],
+          stockpileRoom(mountain, good),
+          sNet,
+        ),
+      );
+    }
   }
   return soonest;
 }
@@ -2458,6 +2494,345 @@ function steadyCityDest(
   };
 }
 
+type SteadyPart2Spec = {
+  readonly glassOpen: boolean;
+  readonly pressOpen: boolean;
+  readonly precOpen: boolean;
+  readonly glassMax: number;
+  readonly pressMax: number;
+  readonly precMax: number;
+  readonly glassCrystal: number;
+  readonly glassStones: number;
+  readonly pressBrick: number;
+  readonly pressCut: number;
+  readonly precBrickPerPart: number;
+  readonly precCutPerPart: number;
+  readonly precGlassPerPart: number;
+};
+
+type SteadyPart2State = {
+  readonly gross: Record<GoodId, number>;
+  readonly factoryOutCap: number;
+  readonly glassEffective: number;
+  readonly precEffective: number;
+  readonly runRates: Readonly<Record<RunId, number>>;
+  readonly glassOut: number;
+  readonly pressOut: number;
+  readonly precOut: number;
+};
+
+function steadyPart2Spec(mountain: Mountain): SteadyPart2Spec {
+  const glassOpen = crystalOpen(mountain) && mountain.makers.glassworks > 0;
+  const pressOpen =
+    hasOwnedFactoryLine(mountain) && mountain.makers.partsPress > 0;
+  const precOpen =
+    hasOwnedFactoryLine(mountain) && mountain.makers.precisionAssembly > 0;
+  const glassOut = makerOutputAmount("glassworks");
+  const pressOut = makerOutputAmount("partsPress");
+  const precOut = makerOutputAmount("precisionAssembly");
+  return {
+    glassOpen,
+    pressOpen,
+    precOpen,
+    glassMax: glassOpen ? makerRate(mountain, "glassworks") : 0,
+    pressMax: pressOpen ? makerRate(mountain, "partsPress") : 0,
+    precMax: precOpen ? makerRate(mountain, "precisionAssembly") : 0,
+    glassCrystal: makerInputAmount("glassworks", "crystalRock") / glassOut,
+    glassStones: makerInputAmount("glassworks", "stones") / glassOut,
+    pressBrick: makerInputAmount("partsPress", "brick") / pressOut,
+    pressCut: makerInputAmount("partsPress", "cutStone") / pressOut,
+    precBrickPerPart: makerInputAmount("precisionAssembly", "brick") / precOut,
+    precCutPerPart: makerInputAmount("precisionAssembly", "cutStone") / precOut,
+    precGlassPerPart: makerInputAmount("precisionAssembly", "glass") / precOut,
+  };
+}
+
+function splitSteadyTwo(
+  total: number,
+  d0: number,
+  d1: number,
+): [number, number] {
+  const sum = d0 + d1;
+  if (total <= 0 || sum <= 0) {
+    return [0, 0];
+  }
+  const first = Math.min(d0, (total * d0) / sum);
+  return [first, Math.min(d1, total - first)];
+}
+
+function steadyPart2StockCap(
+  mountain: Mountain,
+  gross: Readonly<Record<GoodId, number>>,
+  includeStock: boolean,
+): Record<GoodId, number> {
+  return {
+    stones: includeStock && mountain.stock.stones > 0 ? Infinity : gross.stones,
+    brick: includeStock && mountain.stock.brick > 0 ? Infinity : gross.brick,
+    cutStone:
+      includeStock && mountain.stock.cutStone > 0 ? Infinity : gross.cutStone,
+    glass: includeStock && mountain.stock.glass > 0 ? Infinity : gross.glass,
+    parts: includeStock && mountain.stock.parts > 0 ? Infinity : gross.parts,
+  };
+}
+
+function runSteadyPart2Alloc(
+  mountain: Mountain,
+  base: SteadyBase,
+  spec: SteadyPart2Spec,
+  state: SteadyPart2State,
+  cityOpen: Readonly<Record<GoodId, boolean>>,
+  cityDest: Readonly<Record<GoodId, number>>,
+  stockCap: Readonly<Record<GoodId, number>>,
+) {
+  const open = runRecord(false);
+  open.pitToStockyardStones = true;
+  open.pitTopsoilToKilns = mountain.makers.kiln > 0;
+  open.pitGraniteToSaws = graniteOpen(mountain) && mountain.makers.saw > 0;
+  open.pitCrystalToGlassworks = spec.glassOpen;
+  open.stockToGlassworksStones = spec.glassOpen;
+  open.stockToFactoryBrick = spec.pressOpen || spec.precOpen;
+  open.stockToFactoryCutStone = spec.pressOpen || spec.precOpen;
+  open.stockToFactoryGlass = spec.precOpen;
+  open.factoryToStockyardParts = spec.pressOpen || spec.precOpen;
+  // Cap production runs by sustainable `state.gross[good]` so `includeStock`
+  // lets City delivery drain existing stockpiles without inventing phantom
+  // permanent Glassworks/Factory supply when a stockpile holds > 0 units.
+  const destCaps = runRecord(0);
+  destCaps.pitToStockyardStones = Infinity;
+  destCaps.pitTopsoilToKilns = base.kilnNeed;
+  destCaps.pitGraniteToSaws = base.sawNeed;
+  destCaps.pitCrystalToGlassworks = spec.glassMax * spec.glassCrystal;
+  destCaps.stockToGlassworksStones = Math.min(
+    state.glassEffective * spec.glassStones,
+    state.gross.stones,
+  );
+  destCaps.stockToFactoryBrick = Math.min(
+    spec.pressMax * spec.pressBrick +
+      state.precEffective * spec.precBrickPerPart,
+    state.gross.brick,
+  );
+  destCaps.stockToFactoryCutStone = Math.min(
+    spec.pressMax * spec.pressCut + state.precEffective * spec.precCutPerPart,
+    state.gross.cutStone,
+  );
+  destCaps.stockToFactoryGlass = Math.min(
+    spec.precMax * spec.precGlassPerPart,
+    state.gross.glass,
+  );
+  destCaps.factoryToStockyardParts = Infinity;
+  for (const good of CITY_RUN_GOODS) {
+    const id = cityRunId(good);
+    open[id] = cityOpen[good];
+    destCaps[id] = cityOpen[good] ? cityDest[good] : 0;
+  }
+  return allocateRunRates(base.fleet, open, destCaps, {
+    openLvls: base.openLvls,
+    pitheadCap: {
+      topsoil: base.topsoil,
+      granite: base.granite,
+      crystal: base.crystal,
+    },
+    pitheadWeight: {
+      topsoil: base.topsoil,
+      granite: base.granite,
+      crystal: base.crystal,
+    },
+    stockCap,
+    factoryOutputCap: state.factoryOutCap,
+  });
+}
+
+function initialSteadyPart2(
+  base: SteadyBase,
+  spec: SteadyPart2Spec,
+): SteadyPart2State {
+  const glassMax = spec.glassOpen
+    ? Math.min(spec.glassMax, base.crystal / spec.glassCrystal)
+    : 0;
+  const precEffective = spec.precOpen
+    ? Math.min(spec.precMax, glassMax / spec.precGlassPerPart)
+    : 0;
+  const partsMax = spec.pressMax + precEffective;
+  return {
+    gross: {
+      stones: base.topsoil + base.granite + base.crystal,
+      brick: Math.min(base.topsoil, base.kilnNeed) / makerTakes("kiln"),
+      cutStone: Math.min(base.granite, base.sawNeed) / makerTakes("saw"),
+      glass: glassMax,
+      parts: partsMax,
+    },
+    factoryOutCap: partsMax,
+    glassEffective: glassMax,
+    precEffective,
+    runRates: runRecord(0),
+    glassOut: 0,
+    pressOut: 0,
+    precOut: 0,
+  };
+}
+
+function steadyPart2Step(
+  mountain: Mountain,
+  base: SteadyBase,
+  spec: SteadyPart2Spec,
+  prev: SteadyPart2State,
+  cityOpen: Readonly<Record<GoodId, boolean>>,
+  build: number,
+  includeStock: boolean,
+): SteadyPart2State {
+  const stockCap = steadyPart2StockCap(mountain, prev.gross, includeStock);
+  const cityDest = steadyCityDest(build, cityOpen, stockCap);
+  const runRates = runSteadyPart2Alloc(
+    mountain,
+    base,
+    spec,
+    prev,
+    cityOpen,
+    cityDest,
+    stockCap,
+  ).runRates;
+  const gStones = runRates.pitToStockyardStones;
+  const gBrick = runRates.pitTopsoilToKilns / makerTakes("kiln");
+  const gCut = runRates.pitGraniteToSaws / makerTakes("saw");
+  const glassCrystalOut = spec.glassOpen
+    ? Math.min(
+        spec.glassMax,
+        runRates.pitCrystalToGlassworks / spec.glassCrystal,
+      )
+    : 0;
+  const glassOut = spec.glassOpen
+    ? Math.min(
+        glassCrystalOut,
+        runRates.stockToGlassworksStones / spec.glassStones,
+      )
+    : 0;
+  const [brickPress, brickPrec] = splitSteadyTwo(
+    runRates.stockToFactoryBrick,
+    spec.pressMax * spec.pressBrick,
+    prev.precEffective * spec.precBrickPerPart,
+  );
+  const [cutPress, cutPrec] = splitSteadyTwo(
+    runRates.stockToFactoryCutStone,
+    spec.pressMax * spec.pressCut,
+    prev.precEffective * spec.precCutPerPart,
+  );
+  const pressOut = spec.pressOpen
+    ? Math.min(
+        spec.pressMax,
+        brickPress / spec.pressBrick,
+        cutPress / spec.pressCut,
+      )
+    : 0;
+  const precGlassOut = spec.precOpen
+    ? Math.min(
+        spec.precMax,
+        runRates.stockToFactoryGlass / spec.precGlassPerPart,
+      )
+    : 0;
+  const precOut = spec.precOpen
+    ? Math.min(
+        precGlassOut,
+        brickPrec / spec.precBrickPerPart,
+        cutPrec / spec.precCutPerPart,
+      )
+    : 0;
+  const partsMade = pressOut + precOut;
+  return {
+    gross: {
+      stones: gStones,
+      brick: gBrick,
+      cutStone: gCut,
+      glass: glassOut,
+      parts: Math.min(partsMade, runRates.factoryToStockyardParts),
+    },
+    factoryOutCap: partsMade,
+    glassEffective: glassCrystalOut,
+    precEffective: precGlassOut,
+    runRates,
+    glassOut,
+    pressOut,
+    precOut,
+  };
+}
+
+function steadyPart2Converged(
+  prev: SteadyPart2State,
+  next: SteadyPart2State,
+): boolean {
+  return (
+    GOOD_IDS.every(
+      (good) => Math.abs(prev.gross[good] - next.gross[good]) <= RATE_EPS,
+    ) &&
+    Math.abs(prev.precEffective - next.precEffective) <= RATE_EPS &&
+    Math.abs(prev.glassEffective - next.glassEffective) <= RATE_EPS
+  );
+}
+
+function steadyPart2Solve(
+  mountain: Mountain,
+  base: SteadyBase,
+  cityOpen: Readonly<Record<GoodId, boolean>>,
+  build: number,
+  includeStock: boolean,
+): { readonly income: Partial<Stock>; readonly cityCarry: number } {
+  const spec = steadyPart2Spec(mountain);
+  let state = initialSteadyPart2(base, spec);
+  for (let pass = 0; pass < 6; pass += 1) {
+    const next = steadyPart2Step(
+      mountain,
+      base,
+      spec,
+      state,
+      cityOpen,
+      build,
+      includeStock,
+    );
+    const done = pass > 0 && steadyPart2Converged(state, next);
+    state = next;
+    if (done) {
+      break;
+    }
+  }
+  const cityUsed = CITY_RUN_GOODS.reduce(
+    (sum, good) => sum + state.runRates[cityRunId(good)],
+    0,
+  );
+  const totalUsed = RUN_ORDER.reduce((sum, id) => sum + state.runRates[id], 0);
+  return {
+    income: {
+      stones: Math.max(
+        0,
+        state.gross.stones - state.glassOut * spec.glassStones,
+      ),
+      brick: Math.max(
+        0,
+        state.gross.brick -
+          (state.pressOut * spec.pressBrick +
+            state.precOut * spec.precBrickPerPart),
+      ),
+      cutStone: Math.max(
+        0,
+        state.gross.cutStone -
+          (state.pressOut * spec.pressCut +
+            state.precOut * spec.precCutPerPart),
+      ),
+      glass: Math.max(
+        0,
+        state.gross.glass - state.precOut * spec.precGlassPerPart,
+      ),
+      parts: state.gross.parts,
+    },
+    cityCarry: cityUsed + Math.max(0, base.fleet - totalUsed),
+  };
+}
+
+function hasPart2Maker(mountain: Mountain): boolean {
+  return (
+    (crystalOpen(mountain) && mountain.makers.glassworks > 0) ||
+    hasOwnedFactoryLine(mountain)
+  );
+}
+
 /**
  * Steady-state good income/s into the stockyard under Slice 2 physical
  * transport (pithead -> stockyard/makers only, ignoring full stockpiles).
@@ -2466,6 +2841,9 @@ export function slice2SteadyIncome(mountain: Mountain): Partial<Stock> {
   const base = steadyBase(mountain);
   if (base.fleet <= 0) {
     return { ...EMPTY_STOCK };
+  }
+  if (slice2Part2On() && hasPart2Maker(mountain)) {
+    return steadyPart2Solve(mountain, base, NO_CITY_OPEN, 0, false).income;
   }
   const alloc = runSteadyAlloc(
     mountain,
@@ -2477,30 +2855,12 @@ export function slice2SteadyIncome(mountain: Mountain): Partial<Stock> {
   return incomeFromRunRates(alloc.runRates);
 }
 
-/**
- * Steady-state production income and City delivery carry rate under Slice 2
- * physical transport when a City project is delivering.
- */
-export function slice2OrderRates(mountain: Mountain): {
-  readonly income: Partial<Stock>;
-  readonly cityCarry: number;
-} {
-  if (mountain.project.kind !== "delivering") {
-    return { income: slice2SteadyIncome(mountain), cityCarry: 0 };
-  }
-  const base = steadyBase(mountain);
-  if (base.fleet <= 0) {
-    return { income: { ...EMPTY_STOCK }, cityCarry: 0 };
-  }
-  const need = stillRequired(mountain.project.site);
-  const cityOpen: Record<GoodId, boolean> = {
-    stones: need.stones > 0,
-    brick: need.brick > 0,
-    cutStone: need.cutStone > 0,
-    glass: need.glass > 0,
-    parts: need.parts > 0,
-  };
-  const build = buildRate(mountain);
+function steadyPart1OrderRates(
+  mountain: Mountain,
+  base: SteadyBase,
+  cityOpen: Readonly<Record<GoodId, boolean>>,
+  build: number,
+): { readonly income: Partial<Stock>; readonly cityCarry: number } {
   const canProduce: Record<GoodId, boolean> = {
     stones: base.topsoil + base.granite + base.crystal > 0,
     brick: base.topsoil > 0 && base.kilnNeed > 0,
@@ -2543,11 +2903,39 @@ export function slice2OrderRates(mountain: Mountain): {
     0,
   );
   const totalUsed = RUN_ORDER.reduce((sum, id) => sum + pass2.runRates[id], 0);
-  const unused = Math.max(0, base.fleet - totalUsed);
   return {
     income: incomeFromRunRates(pass2.runRates),
-    cityCarry: cityUsed + unused,
+    cityCarry: cityUsed + Math.max(0, base.fleet - totalUsed),
   };
+}
+
+/**
+ * Steady-state production income and City delivery carry rate under Slice 2
+ * physical transport when a City project is delivering.
+ */
+export function slice2OrderRates(mountain: Mountain): {
+  readonly income: Partial<Stock>;
+  readonly cityCarry: number;
+} {
+  if (mountain.project.kind !== "delivering") {
+    return { income: slice2SteadyIncome(mountain), cityCarry: 0 };
+  }
+  const base = steadyBase(mountain);
+  if (base.fleet <= 0) {
+    return { income: { ...EMPTY_STOCK }, cityCarry: 0 };
+  }
+  const need = stillRequired(mountain.project.site);
+  const cityOpen: Record<GoodId, boolean> = {
+    stones: need.stones > 0,
+    brick: need.brick > 0,
+    cutStone: need.cutStone > 0,
+    glass: need.glass > 0,
+    parts: need.parts > 0,
+  };
+  const build = buildRate(mountain);
+  return slice2Part2On() && hasPart2Maker(mountain)
+    ? steadyPart2Solve(mountain, base, cityOpen, build, true)
+    : steadyPart1OrderRates(mountain, base, cityOpen, build);
 }
 
 /**

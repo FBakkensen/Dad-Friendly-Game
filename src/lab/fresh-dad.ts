@@ -6,7 +6,12 @@ import {
   resumeOrder,
   stillRequired,
 } from "../city";
-import { graniteOpen, shaftPrice } from "../mine-levels";
+import {
+  crystalOpen,
+  crystalShaftOpen,
+  graniteOpen,
+  shaftPrice,
+} from "../mine-levels";
 import { tierLocked } from "../crew";
 import {
   applyAction,
@@ -18,8 +23,10 @@ import { STAGES, narrowStage, type Stage } from "../line";
 import {
   makerJob,
   makerPrice,
+  makerRate,
   makersOpen,
   makerTakes,
+  makerWorkersPerUnit,
   type MakerId,
 } from "../makers";
 import {
@@ -32,6 +39,14 @@ import type { Mountain } from "../mountain";
 import { slice2Part1On } from "../part-switch";
 import { chainFlows } from "../piles";
 import { effectiveRates } from "../rates";
+import {
+  RESEARCH_IDS,
+  researchAvailable,
+  researchOpen,
+  researchPrice,
+  researchReady,
+  type ResearchId,
+} from "../research";
 import type { GoodId, Price } from "../stock";
 import {
   MAX_STOCKYARD_LEVEL,
@@ -67,12 +82,15 @@ import {
   funded,
   goodsAhead,
   goodsIncome,
+  levelsRates,
   orderRates,
   pays,
   planPrice,
   raiseChain,
+  secondsSooner,
   staffed,
   weighed,
+  withPocket,
   worth,
   type LineReading,
   type Plan,
@@ -81,9 +99,11 @@ import {
   type Weighed,
 } from "./fresh-kit";
 import {
+  buildsOnLevel,
   goodRaise,
   levelMoves,
   levelPlace,
+  levelRaise,
   levelRaises,
   makerWithLevel,
   makersWanted,
@@ -788,12 +808,23 @@ function brickFix(mountain: Mountain): Priced | undefined {
   return brick ? makerBuy(mountain) : undefined;
 }
 
-/** A maker and a worker on it, hired when none is free (rule 2.7, #667): a kiln unless `id` says. */
+/** A maker and the workers it needs, hired when none are free (rule 2.7, #667, #772): a kiln unless `id` says. */
 function makerBuy(mountain: Mountain, id: MakerId = "kiln"): Priced {
-  const worker = staffed(mountain, makerJob(id), freeWorkers(mountain));
+  const job = makerJob(id);
+  const needed = makerWorkersPerUnit(id);
+  const useFree = Math.min(freeWorkers(mountain), needed);
+  const toHire = needed - useFree;
+  const plan: Action[] = [{ kind: "buyMaker", id }];
+  if (useFree > 0) {
+    plan.push({ kind: "placeWorker", job, count: useFree });
+  }
+  for (let hire = 0; hire < toHire; hire += 1) {
+    plan.push({ kind: "buyTier", id: "helper" });
+    plan.push({ kind: "placeWorker", job, count: 1 });
+  }
   return {
-    plan: [{ kind: "buyMaker", id }, ...worker.plan],
-    cost: stonesOf(makerPrice(mountain, id)) + worker.cost,
+    plan,
+    cost: stonesOf(makerPrice(mountain, id)) + helperBill(mountain, toHire),
   };
 }
 
@@ -877,7 +908,30 @@ export function freshPlan(
   return settled.length > 0 ? settled : spendPlan(mountain, habits, hoardK);
 }
 
-/** The free moves first: order, place the free workers, move the idle ones, and room in the stockyard. */
+/** Free Research moves once Building 4 is operational: install when ready, or start the fastest-to-earn open project. */
+function researchPlan(mountain: Mountain): Plan {
+  if (!researchOpen(mountain)) {
+    return [];
+  }
+  if (mountain.research.active !== undefined) {
+    return researchReady(mountain.research.active)
+      ? [{ kind: "installResearch" }]
+      : [];
+  }
+  let best: { id: ResearchId; earn: number } | undefined;
+  for (const id of RESEARCH_IDS) {
+    if (!researchAvailable(mountain, id)) {
+      continue;
+    }
+    const earn = earnSeconds(mountain, researchPrice(id));
+    if (Number.isFinite(earn) && (best === undefined || earn < best.earn)) {
+      best = { id, earn };
+    }
+  }
+  return best === undefined ? [] : [{ kind: "startResearch", id: best.id }];
+}
+
+/** The free moves first: order, research, place the free workers, move the idle ones, and room in the stockyard. */
 function settlePlan(
   mountain: Mountain,
   habits: FreshHabits,
@@ -889,6 +943,10 @@ function settlePlan(
     !waitsForShaft(mountain)
   ) {
     return [{ kind: "placeOrder" }];
+  }
+  const research = researchPlan(mountain);
+  if (research.length > 0) {
+    return research;
   }
   if (freeWorkers(mountain) > 0) {
     return placeFree(mountain, habits);
@@ -1168,6 +1226,119 @@ function levelsSpend(
   return held && !takes ? [{ kind: "resumeOrder" }] : [];
 }
 
+/** Chains Crystal Caves raises on a funded copy until it feeds one Glassworks (up to RAISE_STEPS). */
+function crystalFeedRaises(
+  start: Mountain,
+  habits: FreshHabits,
+  targetRock: number,
+): Plan {
+  let state = funded(start);
+  const plan: Action[] = [];
+  for (let step = 0; step < RAISE_STEPS; step += 1) {
+    const rates = levelsRates(state).crystal;
+    if (
+      Math.min(rates.face, rates.haul, rates.lift) >=
+      targetRock - FRESH_DUST
+    ) {
+      break;
+    }
+    const raise = levelRaise(state, "crystal", habits);
+    if (raise === undefined) {
+      break;
+    }
+    plan.push(...raise);
+    state = applied(state, raise);
+  }
+  return plan;
+}
+
+/**
+ * Evaluates unlocking Crystal Caves -> Glassworks -> Precision Assembly as one
+ * chain (since sinking Crystal or building the first Glassworks only pays back
+ * once Precision Assembly turns glass into parts), returning the next step to
+ * save for and execute now if the whole chain pays back.
+ */
+function crystalBootstrapWeighed(
+  mountain: Mountain,
+  habits: FreshHabits,
+): Weighed | undefined {
+  if (!goodsAhead(mountain).has("parts")) {
+    return undefined;
+  }
+  if (crystalShaftOpen(mountain)) {
+    const shaft: Plan = [{ kind: "sinkShaft", level: "crystal" }];
+    const afterShaft = applied(funded(mountain), shaft);
+    const glassPlan = makerBuy(afterShaft, "glassworks").plan;
+    const withGlass = applied(afterShaft, glassPlan);
+    const targetRock =
+      makerRate(withGlass, "glassworks") * makerTakes("glassworks");
+    const raises = crystalFeedRaises(withGlass, habits, targetRock);
+    const bootstrap: Plan = [...shaft, ...glassPlan, ...raises];
+    const bootstrapCost = planPrice(mountain, bootstrap);
+    const afterGlass = applied(funded(mountain), bootstrap);
+    const precPlan = makerBuy(afterGlass, "precisionAssembly").plan;
+    const precCost = planPrice(afterGlass, precPlan);
+    const totalEarn =
+      earnSeconds(mountain, bootstrapCost) + earnSeconds(afterGlass, precCost);
+    const rich = withPocket(mountain, [...bootstrapCost, ...precCost]);
+    const saved = secondsSooner(
+      buildingSeconds(rich),
+      buildingSeconds(applied(rich, [...bootstrap, ...precPlan])),
+    );
+    const shaftCost = planPrice(mountain, shaft);
+    return {
+      plan: shaft,
+      price: shaftCost,
+      saved,
+      earn: totalEarn,
+      covered: coversPrice(mountain, shaftCost, 1),
+    };
+  }
+  if (crystalOpen(mountain) && mountain.makers.precisionAssembly === 0) {
+    const buyGlass =
+      mountain.makers.glassworks === 0
+        ? makerBuy(mountain, "glassworks").plan
+        : [];
+    const withGlass = applied(funded(mountain), buyGlass);
+    const targetRock =
+      makerRate(withGlass, "glassworks") * makerTakes("glassworks");
+    const raises = crystalFeedRaises(withGlass, habits, targetRock);
+    const stepPlan: Plan = [...buyGlass, ...raises];
+    if (stepPlan.length === 0) {
+      return undefined;
+    }
+    const stepCost = planPrice(mountain, stepPlan);
+    const afterGlass = applied(funded(mountain), stepPlan);
+    const precPlan = makerBuy(afterGlass, "precisionAssembly").plan;
+    const precCost = planPrice(afterGlass, precPlan);
+    const totalEarn =
+      earnSeconds(mountain, stepCost) + earnSeconds(afterGlass, precCost);
+    const rich = withPocket(mountain, [...stepCost, ...precCost]);
+    const saved = secondsSooner(
+      buildingSeconds(rich),
+      buildingSeconds(applied(rich, [...stepPlan, ...precPlan])),
+    );
+    const nextAction =
+      mountain.makers.glassworks === 0
+        ? makerBuy(mountain, "glassworks").plan
+        : buildsOnLevel(mountain, habits, "crystal")
+          ? (levelRaise(mountain, "crystal", habits) ?? [])
+          : [];
+    if (nextAction.length === 0) {
+      return undefined;
+    }
+    const nextCost = planPrice(mountain, nextAction);
+    return {
+      plan: nextAction,
+      price: nextCost,
+      saved,
+      earn: totalEarn,
+      covered: coversPrice(mountain, nextCost, 1),
+    };
+  }
+  return undefined;
+}
+
 /** The plan that pays best now (`levelsSpend`), weighed afresh. */
 function weighBest(
   mountain: Mountain,
@@ -1179,6 +1350,14 @@ function weighBest(
     if (pays(weigh) && (best === undefined || worth(weigh) > worth(best))) {
       best = weigh;
     }
+  }
+  const crystal = crystalBootstrapWeighed(mountain, habits);
+  if (
+    crystal !== undefined &&
+    pays(crystal) &&
+    (best === undefined || worth(crystal) > worth(best))
+  ) {
+    best = crystal;
   }
   return best;
 }
@@ -1214,7 +1393,9 @@ function mineKey(
     mountain.fleet,
     mountain.cages.assigned,
     mountain.mineLevels.granite?.machines ?? 0,
+    mountain.mineLevels.crystal?.machines ?? 0,
     mountain.upgrades,
+    mountain.research.done,
     mountain.stockyard,
     mountain.operational,
     project.kind,

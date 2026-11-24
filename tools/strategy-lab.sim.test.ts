@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { executeLab, parseLabArgs } from "./strategy-lab";
 
 describe("strategy lab, the gate's run", () => {
-  it("the gate's run plays the whole slice: casual-2x10 seed 1 finishes on day 14.51 (#767)", async () => {
+  it("the gate's run plays the whole slice: casual-2x10 seed 1 finishes on day 20.00 (#772)", async () => {
     const outDir = mkdtempSync(path.join(tmpdir(), "strategy-lab-"));
     const parsed = parseLabArgs([
       "--policy",
@@ -23,10 +23,10 @@ describe("strategy lab, the gate's run", () => {
     const row = ledger
       .split("\n")
       .find((line) => line.startsWith("| casual-2x10 | 1 |"));
-    // The Foundry's roof is the slice's end, not the Warehouse's on day 7.50.
-    expect(row?.split(" | ").at(-2)).toBe("14.51");
+    // The Research Lab's roof is Part 2's end, not the Foundry's on day 14.50.
+    expect(row?.split(" | ").at(-2)).toBe("20.00");
     expect(ledger).toContain(
-      "| The Light Tower | The Warehouse | The Foundry |",
+      "| The Light Tower | The Warehouse | The Foundry | The Research Lab |",
     );
-  }, 120_000);
+  }, 180_000);
 });

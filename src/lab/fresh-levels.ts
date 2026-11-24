@@ -5,7 +5,9 @@ import type { Action } from "../economy/actions";
 import { STAGES, narrowStage, type Stage } from "../line";
 import {
   LEVEL_MACHINE_IDS,
+  crystalOpen,
   graniteOpen,
+  openDeeperLevel,
   openGranite,
   openLevels,
   type LevelMachineId,
@@ -14,8 +16,16 @@ import {
 import type { LevelRates } from "../mine-piles";
 import type { Mountain } from "../mountain";
 import { slice2Part1On } from "../part-switch";
-import { makerRate, makerTakes } from "../makers";
-import type { GoodId } from "../stock";
+import {
+  makerInputs,
+  makerOpen,
+  makerOutputAmount,
+  makerPrice,
+  makerRate,
+  makerTakes,
+  type MakerId,
+} from "../makers";
+import { priceAmount, type GoodId } from "../stock";
 import { TIERS, machineStaff, tierInPlay, type Tier } from "../tiers";
 import { unassignedHoists } from "../cages";
 import {
@@ -47,11 +57,11 @@ import {
 } from "./targets";
 
 /**
- * How a fresh dad plays the levels of part 3 (slice 1, Lab, rules 5.1 to
- * 5.8, #675): the shaft he saves for, the raises he weighs on each level,
- * the hoists he assigns, and where he puts the workers of drilling and
- * haulage, by his level habit (`FreshHabits.levels`). Nothing here buys:
- * `fresh-dad` weighs these plans with the rest and spends.
+ * How a fresh dad plays the levels of part 3 and Slice 2 Part 2 (slice 1,
+ * Lab, rules 5.1 to 5.8, #675, #772): the shaft he saves for, the raises he
+ * weighs on each level, the hoists he assigns, and where he puts the workers
+ * of drilling and haulage, by his level habit (`FreshHabits.levels`). Nothing
+ * here buys: `fresh-dad` weighs these plans with the rest and spends.
  */
 
 /**
@@ -66,13 +76,24 @@ export function waitsForShaft(mountain: Mountain): boolean {
   );
 }
 
-/** The goods a building still to build requires that a maker makes: brick (a kiln) and cut stone (a saw). */
-export function makersWanted(mountain: Mountain): readonly ("kiln" | "saw")[] {
+/** The makers a building still to build needs, directly or as Factory inputs. */
+export function makersWanted(mountain: Mountain): readonly MakerId[] {
   const goods = goodsAhead(mountain);
+  const needParts = goods.has("parts");
+  const needGlass = goods.has("glass") || needParts;
   return [
-    ...(goods.has("brick") ? (["kiln"] as const) : []),
-    ...(goods.has("cutStone") && graniteOpen(mountain)
+    ...(goods.has("brick") || needParts ? (["kiln"] as const) : []),
+    ...((goods.has("cutStone") || needParts) && graniteOpen(mountain)
       ? (["saw"] as const)
+      : []),
+    ...(needGlass && makerOpen(mountain, "glassworks")
+      ? (["glassworks"] as const)
+      : []),
+    ...(needParts && makerOpen(mountain, "partsPress")
+      ? (["partsPress"] as const)
+      : []),
+    ...(needParts && makerOpen(mountain, "precisionAssembly")
+      ? (["precisionAssembly"] as const)
       : []),
   ];
 }
@@ -90,13 +111,18 @@ function levelWorkers(mountain: Mountain, level: MineLevelId): number {
   );
 }
 
-/** The level the whole-workforce dad works: the Granite once every level worker is there. */
+/** The level the whole-workforce dad works: the open level holding the most level workers, else Topsoil. */
 function workedLevel(mountain: Mountain): MineLevelId {
-  return graniteOpen(mountain) &&
-    levelWorkers(mountain, "granite") > 0 &&
-    levelWorkers(mountain, "topsoil") === 0
-    ? "granite"
-    : "topsoil";
+  let best: MineLevelId = "topsoil";
+  let bestCount = levelWorkers(mountain, "topsoil");
+  for (const level of openLevels(mountain)) {
+    const count = levelWorkers(mountain, level);
+    if (count > bestCount) {
+      best = level;
+      bestCount = count;
+    }
+  }
+  return best;
 }
 
 /** The levels he builds on: every open one, or the one the whole-workforce dad works. */
@@ -109,7 +135,16 @@ function buildLevels(
     : openLevels(mountain);
 }
 
-/** The job of a stage on a level: hoisting is the shaft's, for both. */
+/** Whether this dad builds machines and workers on `level` right now. */
+export function buildsOnLevel(
+  mountain: Mountain,
+  habits: FreshHabits,
+  level: MineLevelId,
+): boolean {
+  return buildLevels(mountain, habits).includes(level);
+}
+
+/** The job of a stage on a level: hoisting is the shaft's, for all levels. */
 function jobAt(level: MineLevelId, stage: Stage): JobId {
   return stage === "lift" ? STAGE_JOB.lift : LEVEL_JOBS[level][stage];
 }
@@ -118,11 +153,14 @@ function isLevelMachine(id: Tier["id"]): id is LevelMachineId {
   return (LEVEL_MACHINE_IDS as readonly string[]).includes(id);
 }
 
-/** The machine bought for a level: on the Topsoil as before, on the Granite with its own move. */
+/** The machine bought for a level: on the Topsoil as before, on deeper levels with its own move. */
 function machineMove(tier: Tier, level: MineLevelId): Action {
-  return level === "granite" && isLevelMachine(tier.id)
-    ? { kind: "buyGraniteMachine", id: tier.id, count: 1 }
-    : { kind: "buyTier", id: tier.id };
+  if (level !== "topsoil" && isLevelMachine(tier.id)) {
+    return level === "granite"
+      ? { kind: "buyGraniteMachine", id: tier.id, count: 1 }
+      : { kind: "buyGraniteMachine", id: tier.id, count: 1, level };
+  }
+  return { kind: "buyTier", id: tier.id };
 }
 
 /** One hire, onto `job`. */
@@ -167,7 +205,7 @@ function stageBuys(
   return buys;
 }
 
-/** The dad who assigns hoists: by need, with two levels open. */
+/** The dad who assigns hoists: by need, with two or more levels open. */
 function assigns(mountain: Mountain, habits: FreshHabits): boolean {
   return habits.levels === "need" && graniteOpen(mountain);
 }
@@ -182,7 +220,7 @@ function lineOf(rates: LevelRates): number {
  * slowest stage's best buy for the income it costs, then the next slowest,
  * until the level moves more. None when no buy raises it.
  */
-function levelRaise(
+export function levelRaise(
   mountain: Mountain,
   level: MineLevelId,
   habits: FreshHabits,
@@ -201,20 +239,28 @@ function levelRaise(
   )?.plan;
 }
 
+/** The mine level whose rock feeds a refinery maker, if any. */
+const MAKER_LEVEL: Readonly<Partial<Record<MakerId, MineLevelId>>> = {
+  kiln: "topsoil",
+  saw: "granite",
+  glassworks: "crystal",
+};
+
 /**
  * A maker's plan, with a raise for the level its rock comes from while that
  * level moves nothing and he builds there (ruling 7): a saw on a Granite
- * nobody works makes no cut stone, and no Granite raise brings the building
- * sooner without a saw, so the two are weighed together.
+ * nobody works makes no cut stone, and a glassworks on an idle Crystal Caves
+ * makes no glass, so the two are weighed together.
  */
 export function makerWithLevel(
   mountain: Mountain,
   habits: FreshHabits,
-  id: "kiln" | "saw",
+  id: MakerId,
   plan: Plan,
 ): Plan {
-  const level: MineLevelId = id === "saw" ? "granite" : "topsoil";
+  const level = MAKER_LEVEL[id];
   if (
+    level === undefined ||
     lineOf(levelsRates(mountain)[level]) > FRESH_DUST ||
     !buildLevels(mountain, habits).includes(level)
   ) {
@@ -226,25 +272,28 @@ export function makerWithLevel(
 
 /** The level whose rock makes a good, and the maker that makes it. */
 const MAKING: Readonly<
-  Partial<Record<GoodId, { level: MineLevelId; maker: "kiln" | "saw" }>>
+  Partial<Record<GoodId, { level: MineLevelId; maker: MakerId }>>
 > = {
   brick: { level: "topsoil", maker: "kiln" },
   cutStone: { level: "granite", maker: "saw" },
+  glass: { level: "crystal", maker: "glassworks" },
 };
 
 /**
  * The maker of a good the order waits for, while the makers take less rock
  * than its level lifts, else that level's raise (ruling 7): stone is the
- * Topsoil's raise. When the makers take just what the level lifts, more
- * rock only makes stone and another maker has no rock, so the two go
- * together. None when he does not build on that level.
+ * Topsoil's raise; parts picks Precision Assembly once Glassworks runs (or
+ * its glass supply when short), else Parts Press.
  */
 export function goodRaise(
   mountain: Mountain,
   habits: FreshHabits,
   good: GoodId,
-  makerPlan: (id: "kiln" | "saw") => Plan,
+  makerPlan: (id: MakerId) => Plan,
 ): Plan | undefined {
+  if (good === "parts") {
+    return partsRaise(mountain, habits, makerPlan);
+  }
   const making = MAKING[good];
   const level = making?.level ?? "topsoil";
   const raise = buildLevels(mountain, habits).includes(level)
@@ -263,6 +312,38 @@ export function goodRaise(
     return raise;
   }
   return [...makerPlan(making.maker), ...raise];
+}
+
+/** Parts fix: Precision Assembly once glass flows (or more glass when Precision Assembly starves), else Parts Press. */
+function partsRaise(
+  mountain: Mountain,
+  habits: FreshHabits,
+  makerPlan: (id: MakerId) => Plan,
+): Plan | undefined {
+  if (
+    makerOpen(mountain, "precisionAssembly") &&
+    mountain.makers.glassworks > 0
+  ) {
+    const glassPerPart =
+      (makerInputs("precisionAssembly").find((spec) => spec.id === "glass")
+        ?.amount ?? 0) / makerOutputAmount("precisionAssembly");
+    const precNeedsGlass =
+      makerRate(mountain, "precisionAssembly") * glassPerPart;
+    const glassMade = Math.min(
+      makerRate(mountain, "glassworks"),
+      lineOf(levelsRates(mountain).crystal) / makerTakes("glassworks"),
+    );
+    if (
+      mountain.makers.precisionAssembly > 0 &&
+      precNeedsGlass >= glassMade - FRESH_DUST
+    ) {
+      return goodRaise(mountain, habits, "glass", makerPlan);
+    }
+    return makerPlan("precisionAssembly");
+  }
+  return makerOpen(mountain, "partsPress")
+    ? makerPlan("partsPress")
+    : undefined;
 }
 
 /** A raise for each level he builds on (ruling 7). */
@@ -418,7 +499,10 @@ function needMovesKept(mountain: Mountain): Plan {
     mountain.fleet,
     mountain.cages.assigned,
     mountain.mineLevels.granite?.machines ?? 0,
+    mountain.mineLevels.crystal?.machines ?? 0,
     mountain.upgrades,
+    mountain.research.done,
+    mountain.operational,
     mountain.project.kind,
     mountain.project.kind === "unordered" ? 0 : mountain.project.site.step,
   ]);
@@ -436,9 +520,12 @@ function needMovesKept(mountain: Mountain): Plan {
   return plan;
 }
 
-/** Every worker of a level's drilling and haulage moved to the other level. */
-function wholeMove(mountain: Mountain, from: MineLevelId): Plan {
-  const to: MineLevelId = from === "topsoil" ? "granite" : "topsoil";
+/** Every worker of a level's drilling and haulage moved to `to`. */
+function wholeMove(
+  mountain: Mountain,
+  from: MineLevelId,
+  to: MineLevelId,
+): Plan {
   return LEVEL_STAGES.flatMap((stage): Action[] => {
     const count = mountain.jobs[LEVEL_JOBS[from][stage]];
     return count > 0
@@ -454,9 +541,24 @@ function wholeMove(mountain: Mountain, from: MineLevelId): Plan {
 const LEVEL_GOOD: Readonly<Partial<Record<MineLevelId, GoodId>>> = {
   topsoil: "brick",
   granite: "cutStone",
+  crystal: "glass",
 };
 
-/** What the step in hand still requires of a level's good beyond what the stockyard holds. */
+function partsInputPerPart(
+  mountain: Mountain,
+  input: "brick" | "cutStone" | "glass",
+): number {
+  const line: MakerId =
+    mountain.makers.precisionAssembly > 0 ? "precisionAssembly" : "partsPress";
+  if (mountain.makers[line] === 0) {
+    return 0;
+  }
+  const amount =
+    makerInputs(line).find((spec) => spec.id === input)?.amount ?? 0;
+  return amount / makerOutputAmount(line);
+}
+
+/** What the step in hand still requires of a level's good beyond what the stockyard holds, including indirect Factory demand for Parts. */
 function levelShortfall(mountain: Mountain, level: MineLevelId): number {
   const project = mountain.project;
   if (project.kind === "unordered") {
@@ -466,81 +568,150 @@ function levelShortfall(mountain: Mountain, level: MineLevelId): number {
   if (good === undefined) {
     return 0;
   }
-  return Math.max(0, stillRequired(project.site)[good] - mountain.stock[good]);
+  const need = stillRequired(project.site);
+  const direct = Math.max(0, need[good] - mountain.stock[good]);
+  const partsLeft = Math.max(0, need.parts - mountain.stock.parts);
+  if (partsLeft <= 0) {
+    return direct;
+  }
+  if (level === "crystal") {
+    if (!crystalOpen(mountain)) {
+      return direct;
+    }
+    if (mountain.makers.precisionAssembly > 0) {
+      const glassNeed = partsLeft * partsInputPerPart(mountain, "glass");
+      return direct + Math.max(0, glassNeed - mountain.stock.glass);
+    }
+    if (mountain.makers.glassworks > 0) {
+      const precGlass = priceAmount(
+        makerPrice(mountain, "precisionAssembly"),
+        "glass",
+      );
+      return direct + Math.max(0, precGlass - mountain.stock.glass);
+    }
+    return direct;
+  }
+  const factoryInput = good === "brick" ? "brick" : "cutStone";
+  const indirectNeed = partsLeft * partsInputPerPart(mountain, factoryInput);
+  return Math.max(0, need[good] + indirectNeed - mountain.stock[good]);
 }
 
 /**
  * The whole-workforce dad's move (ruling 8): every worker on drilling and
- * haulage to the other level, once the step in hand is short of the other
- * level's good by `WHOLE_MOVE_MARGIN` times what it is short of his, and
- * he could buy its maker there; or at once when he cannot buy his level's.
+ * haulage to another open level, once the step in hand is short of its good
+ * by `WHOLE_MOVE_MARGIN` times what it is short of his, and he could buy its
+ * maker there; or at once when he cannot buy his level's.
  */
 function wholeMoves(mountain: Mountain): Plan {
   const from = workedLevel(mountain);
-  const to: MineLevelId = from === "topsoil" ? "granite" : "topsoil";
   if (levelWorkers(mountain, from) === 0) {
     return [];
   }
-  const both = from === "topsoil" && levelWorkers(mountain, "granite") > 0;
-  if (both) {
-    // A hire placed on the Granite by need joins the level he works.
-    return wholeMove(mountain, "granite");
+  const open = openLevels(mountain);
+  for (const other of open) {
+    if (other !== from && levelWorkers(mountain, other) > 0) {
+      // A hire placed on another level by need joins the level he works.
+      return wholeMove(mountain, other, from);
+    }
   }
-  const move = wholeMove(mountain, from);
-  if (makerStranded(mountain, from)) {
-    return move;
+  const strandedTarget = strandedMakerSource(mountain, from);
+  if (strandedTarget !== undefined) {
+    return wholeMove(mountain, from, strandedTarget);
   }
-  const short = levelShortfall(mountain, to);
-  return short > 0 &&
-    short > WHOLE_MOVE_MARGIN * levelShortfall(mountain, from) &&
-    !makerStranded(applied(mountain, move), to)
-    ? move
-    : [];
+  const fromShort = levelShortfall(mountain, from);
+  let best: { to: MineLevelId; short: number; move: Plan } | undefined;
+  for (const to of open) {
+    if (to === from) {
+      continue;
+    }
+    const short = levelShortfall(mountain, to);
+    if (short <= 0 || short <= WHOLE_MOVE_MARGIN * fromShort) {
+      continue;
+    }
+    const move = wholeMove(mountain, from, to);
+    if (
+      strandedMakerSource(applied(mountain, move), to) === undefined &&
+      (best === undefined || short > best.short)
+    ) {
+      best = { to, short, move };
+    }
+  }
+  return best?.move ?? [];
 }
 
 /**
- * The maker of the level he works cannot be bought: its price is a good
- * the pocket lacks and the level that makes it has nobody on it (a saw's
- * brick with nobody on the Topsoil, the dead end the spec names). He goes
- * where it is made.
+ * The level producing a missing good for `level`'s maker when nobody works it
+ * (e.g. a saw's brick with nobody on Topsoil, or a glassworks's brick/cutStone),
+ * else undefined.
  */
-function makerStranded(mountain: Mountain, level: MineLevelId): boolean {
+function strandedMakerSource(
+  mountain: Mountain,
+  level: MineLevelId,
+): MineLevelId | undefined {
   const good = LEVEL_GOOD[level];
   const maker = good === undefined ? undefined : MAKING[good]?.maker;
   if (maker === undefined) {
-    return false;
+    return undefined;
   }
-  return planPrice(mountain, [{ kind: "buyMaker", id: maker }]).some((line) => {
+  for (const line of planPrice(mountain, [{ kind: "buyMaker", id: maker }])) {
     const making = MAKING[line.good];
-    return (
+    if (
       mountain.stock[line.good] < line.amount &&
       making !== undefined &&
+      making.level !== level &&
       levelWorkers(mountain, making.level) === 0
-    );
-  });
+    ) {
+      return making.level;
+    }
+  }
+  return undefined;
 }
 
-/** The even dad splits once: half of each of the Topsoil's drilling and haulage to the Granite, while the Granite is untouched. */
+/** The even dad splits once when each deeper level opens: half from Topsoil to Granite, then an equal share from earlier open levels to Crystal. */
 function evenMoves(mountain: Mountain): Plan {
   const granite = openGranite(mountain);
   if (
-    granite === undefined ||
-    levelWorkers(mountain, "granite") > 0 ||
-    LEVEL_MACHINE_IDS.some((id) => granite.machines[id] > 0)
+    granite !== undefined &&
+    levelWorkers(mountain, "granite") === 0 &&
+    !LEVEL_MACHINE_IDS.some((id) => granite.machines[id] > 0)
+  ) {
+    return LEVEL_STAGES.flatMap((stage): Action[] => {
+      const count = Math.floor(
+        mountain.jobs[LEVEL_JOBS.topsoil[stage]] / EVEN_SPLIT,
+      );
+      return count > 0
+        ? [
+            { kind: "freeWorker", job: LEVEL_JOBS.topsoil[stage], count },
+            { kind: "placeWorker", job: LEVEL_JOBS.granite[stage], count },
+          ]
+        : [];
+    });
+  }
+  const crystal = openDeeperLevel(mountain, "crystal");
+  if (
+    crystal === undefined ||
+    levelWorkers(mountain, "crystal") > 0 ||
+    LEVEL_MACHINE_IDS.some((id) => crystal.machines[id] > 0)
   ) {
     return [];
   }
-  return LEVEL_STAGES.flatMap((stage): Action[] => {
-    const count = Math.floor(
-      mountain.jobs[LEVEL_JOBS.topsoil[stage]] / EVEN_SPLIT,
+  const open = openLevels(mountain);
+  const share = open.length;
+  return open
+    .filter((source) => source !== "crystal")
+    .flatMap((source) =>
+      LEVEL_STAGES.flatMap((stage): Action[] => {
+        const count = Math.floor(
+          mountain.jobs[LEVEL_JOBS[source][stage]] / share,
+        );
+        return count > 0
+          ? [
+              { kind: "freeWorker", job: LEVEL_JOBS[source][stage], count },
+              { kind: "placeWorker", job: LEVEL_JOBS.crystal[stage], count },
+            ]
+          : [];
+      }),
     );
-    return count > 0
-      ? [
-          { kind: "freeWorker", job: LEVEL_JOBS.topsoil[stage], count },
-          { kind: "placeWorker", job: LEVEL_JOBS.granite[stage], count },
-        ]
-      : [];
-  });
 }
 
 /** The free moves of his level habit, once the Granite is open; none before. */
