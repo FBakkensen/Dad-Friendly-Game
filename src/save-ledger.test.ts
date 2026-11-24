@@ -40,6 +40,8 @@ const LEDGER = {
     "makerBuffers",
     "cycleMicros",
     "assignedRuns",
+    "factoryOutput",
+    "research",
     "cages",
   ],
   owned: [
@@ -52,7 +54,7 @@ const LEDGER = {
     "machine",
     "kid",
   ],
-  stock: ["stones", "brick", "cutStone"],
+  stock: ["stones", "brick", "cutStone", "glass", "parts"],
   levels: {
     boots: 1,
     cartSyn: 1,
@@ -81,7 +83,7 @@ const LEDGER = {
       "upgrade:borerSyn",
     ],
     finds: ["map", "boots", "drawing", "watch", "whistle", "pebble", "ribbon"],
-    operational: ["lightTower", "warehouse", "foundry"],
+    operational: ["lightTower", "warehouse", "foundry", "researchLab"],
   },
   run: {
     rock: Number.MAX_SAFE_INTEGER,
@@ -109,9 +111,12 @@ const LEDGER = {
     "saws",
     "crystalDrilling",
     "crystalHaulage",
+    "glassworks",
+    "partsPress",
+    "precisionAssembly",
   ],
   piles: ["face", "shaft", "kiln"],
-  makers: ["kiln", "saw"],
+  makers: ["kiln", "saw", "glassworks", "partsPress", "precisionAssembly"],
   caps: {
     engineers: 5,
     engineerTrips: 1000000,
@@ -130,15 +135,42 @@ const LEDGER = {
   makerBuffers: {
     kiln: ["topsoilRock"],
     saw: ["graniteRock"],
+    glassworks: ["crystalRock", "stones"],
+    partsPress: ["brick", "cutStone"],
+    precisionAssembly: ["brick", "cutStone", "glass"],
   },
-  cycleMicros: ["kiln", "saw"],
+  cycleMicros: ["kiln", "saw", "glassworks", "partsPress", "precisionAssembly"],
   assignedRuns: [
     "pitToStockyardStones",
     "pitTopsoilToKilns",
     "pitGraniteToSaws",
+    "pitCrystalToGlassworks",
+    "stockToGlassworksStones",
+    "stockToFactoryBrick",
+    "stockToFactoryCutStone",
+    "stockToFactoryGlass",
+    "factoryToStockyardParts",
     "stockToCity:stones",
     "stockToCity:brick",
     "stockToCity:cutStone",
+    "stockToCity:glass",
+    "stockToCity:parts",
+    "stockToResearch:stones",
+    "stockToResearch:brick",
+    "stockToResearch:cutStone",
+    "stockToResearch:glass",
+    "stockToResearch:parts",
+  ],
+  factoryOutput: ["parts"],
+  research: [
+    "workBoots",
+    "loadingCrews",
+    "haulRoads",
+    "drillCrews",
+    "ironRails",
+    "highDraftKilns",
+    "opticalGauges",
+    "heavyCouplings",
   ],
   cages: {
     assigned: ["topsoil", "granite", "crystal"],
@@ -174,6 +206,8 @@ describe("the ledger of what has shipped (#558)", () => {
       ...Object.values(facts.makerBuffers),
       facts.cycleMicros,
       facts.assignedRuns,
+      facts.factoryOutput,
+      facts.research,
       ...Object.values(facts.cages),
     ];
     for (const list of lists) {
@@ -243,7 +277,7 @@ describe("part 2's facts in the save (#666)", () => {
       stock: { ...start.stock, stones: 40, brick: 7 },
       jobs: { ...start.jobs, kilns: 2 },
       piles: { ...start.piles, kiln: 120 },
-      makers: { kiln: 3, saw: 0 },
+      makers: { ...start.makers, kiln: 3, saw: 0 },
       stockyard: 2,
     };
     const game = writeGame(mountain);
@@ -293,7 +327,7 @@ describe("part 3's facts in the save (#673)", () => {
       graniteHaulage: 1,
       saws: 1,
     },
-    makers: { kiln: 1, saw: 2 },
+    makers: { ...start.makers, kiln: 1, saw: 2 },
     mineLevels: {
       granite: {
         machines: { cart: 1, drill: 2, borer: 0, train: 1 },
@@ -349,7 +383,7 @@ describe("part 3's facts in the save (#673)", () => {
       stock: { ...start.stock, stones: 40, brick: 7 },
       jobs: { ...start.jobs, drilling: 1, kilns: 2 },
       piles: { ...start.piles, kiln: 120 },
-      makers: { kiln: 3, saw: 0 },
+      makers: { ...start.makers, kiln: 3, saw: 0 },
       stockyard: 2,
       project: {
         kind: "delivering",

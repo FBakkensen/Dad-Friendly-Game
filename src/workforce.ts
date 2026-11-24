@@ -47,6 +47,9 @@ export const JOB_IDS = [
   "saws",
   "crystalDrilling",
   "crystalHaulage",
+  "glassworks",
+  "partsPress",
+  "precisionAssembly",
 ] as const;
 
 export type JobId = (typeof JOB_IDS)[number];
@@ -65,6 +68,9 @@ export const NO_JOBS: Jobs = {
   saws: 0,
   crystalDrilling: 0,
   crystalHaulage: 0,
+  glassworks: 0,
+  partsPress: 0,
+  precisionAssembly: 0,
 };
 
 /** Each stage of the line and its job. */
@@ -90,8 +96,8 @@ type Crew = Pick<Mountain, "owned" | "jobs">;
 
 /**
  * Whether a job is open (rule 2.3): each deeper level's two with its shaft
- * sunk, the kilns' with the kilns (part 2, the Light Tower operational),
- * every other from the first evening.
+ * sunk, maker & Factory jobs with their maker open, every other from the
+ * first evening.
  */
 export function jobOpen(
   mountain: Pick<Mountain, "operational" | "mineLevels">,
@@ -105,6 +111,12 @@ export function jobOpen(
   }
   if (job === "saws") {
     return makerOpen(mountain, "saw");
+  }
+  if (job === "glassworks") {
+    return makerOpen(mountain, "glassworks");
+  }
+  if (job === "partsPress" || job === "precisionAssembly") {
+    return makerOpen(mountain, job);
   }
   return job !== "kilns" || makerOpen(mountain, "kiln");
 }

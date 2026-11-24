@@ -4,7 +4,7 @@ import { promoteCost } from "../engineers";
 import type { Mountain } from "../mountain";
 import { owned, tierById, tierCost } from "../tiers";
 import { upgradeById, upgradeCost, upgradeLevel } from "../upgrades";
-import { priceAmount } from "../stock";
+import { priceAmount, priceTotal } from "../stock";
 import { vehiclePrice } from "../transport";
 import { makerPrice } from "../makers";
 import { shaftPrice } from "../mine-levels";
@@ -31,7 +31,7 @@ export function sticker(mountain: Mountain, action: Action): number {
     case "buyVehicle":
       return priceAmount(vehiclePrice(mountain, action.id), "stones");
     case "buyMaker":
-      return priceAmount(makerPrice(mountain, action.id), "stones");
+      return priceTotal(makerPrice(mountain, action.id));
     case "expandStockyard":
       // Brick, not stone: the fresh dad prices it good by good (#667).
       return 0;
@@ -53,6 +53,9 @@ export function sticker(mountain: Mountain, action: Action): number {
     case "resumeOrder":
     case "placeWorker":
     case "freeWorker":
+    case "startResearch":
+    case "cancelResearch":
+    case "installResearch":
       return 0;
   }
 }

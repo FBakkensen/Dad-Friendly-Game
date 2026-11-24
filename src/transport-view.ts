@@ -94,6 +94,24 @@ const RUN_META: Readonly<
   pitToStockyardStones: { route: "Mine → Stockyard", good: "Stone" },
   pitTopsoilToKilns: { route: "Topsoil → Kilns", good: "Topsoil rock" },
   pitGraniteToSaws: { route: "Granite → Saws", good: "Granite rock" },
+  pitCrystalToGlassworks: {
+    route: "Crystal → Glassworks",
+    good: "Crystal rock",
+  },
+  stockToGlassworksStones: {
+    route: "Stockyard → Glassworks",
+    good: GOOD_NAMES.stones,
+  },
+  stockToFactoryBrick: { route: "Stockyard → Factory", good: GOOD_NAMES.brick },
+  stockToFactoryCutStone: {
+    route: "Stockyard → Factory",
+    good: GOOD_NAMES.cutStone,
+  },
+  stockToFactoryGlass: { route: "Stockyard → Factory", good: GOOD_NAMES.glass },
+  factoryToStockyardParts: {
+    route: "Factory → Stockyard",
+    good: GOOD_NAMES.parts,
+  },
   "stockToCity:stones": {
     route: "Stockyard → City",
     good: GOOD_NAMES.stones,
@@ -105,6 +123,34 @@ const RUN_META: Readonly<
   "stockToCity:cutStone": {
     route: "Stockyard → City",
     good: GOOD_NAMES.cutStone,
+  },
+  "stockToCity:glass": {
+    route: "Stockyard → City",
+    good: GOOD_NAMES.glass,
+  },
+  "stockToCity:parts": {
+    route: "Stockyard → City",
+    good: GOOD_NAMES.parts,
+  },
+  "stockToResearch:stones": {
+    route: "Stockyard → Research",
+    good: GOOD_NAMES.stones,
+  },
+  "stockToResearch:brick": {
+    route: "Stockyard → Research",
+    good: GOOD_NAMES.brick,
+  },
+  "stockToResearch:cutStone": {
+    route: "Stockyard → Research",
+    good: GOOD_NAMES.cutStone,
+  },
+  "stockToResearch:glass": {
+    route: "Stockyard → Research",
+    good: GOOD_NAMES.glass,
+  },
+  "stockToResearch:parts": {
+    route: "Stockyard → Research",
+    good: GOOD_NAMES.parts,
   },
 };
 
@@ -153,6 +199,16 @@ function fleetSummary(mountain: Mountain): string {
   return parts.join(" · ");
 }
 
+function fillBar(
+  held: number,
+  room: number,
+): { readonly text: string; readonly fill: number } {
+  return {
+    text: `${formatCompact(held)} of ${formatCompact(room)}`,
+    fill: room > 0 ? Math.min(1, held / room) : 1,
+  };
+}
+
 function destInfo(
   mountain: Mountain,
   id: RunId,
@@ -161,44 +217,55 @@ function destInfo(
   readonly fill: number | undefined;
 } {
   if (id === "pitToStockyardStones") {
-    if (!stockyardOpen(mountain)) {
-      return { text: "", fill: undefined };
-    }
-    const held = mountain.stock.stones;
-    const room = stockpileRoom(mountain, "stones");
-    return {
-      text: `${formatCompact(held)} of ${formatCompact(room)}`,
-      fill: room > 0 ? Math.min(1, held / room) : 1,
-    };
+    return stockyardOpen(mountain)
+      ? fillBar(mountain.stock.stones, stockpileRoom(mountain, "stones"))
+      : { text: "", fill: undefined };
+  }
+  if (id === "factoryToStockyardParts") {
+    return stockyardOpen(mountain)
+      ? fillBar(mountain.stock.parts, stockpileRoom(mountain, "parts"))
+      : { text: "", fill: undefined };
   }
   if (id === "pitTopsoilToKilns") {
-    const held = makerBuffer(mountain, "kiln", "topsoilRock");
-    const room = makerInputRoom(mountain, "kiln");
-    return {
-      text: `${formatCompact(held)} of ${formatCompact(room)}`,
-      fill: room > 0 ? Math.min(1, held / room) : 1,
-    };
+    return fillBar(
+      makerBuffer(mountain, "kiln", "topsoilRock"),
+      makerInputRoom(mountain, "kiln", "topsoilRock"),
+    );
   }
   if (id === "pitGraniteToSaws") {
-    const held = makerBuffer(mountain, "saw", "graniteRock");
-    const room = makerInputRoom(mountain, "saw");
-    return {
-      text: `${formatCompact(held)} of ${formatCompact(room)}`,
-      fill: room > 0 ? Math.min(1, held / room) : 1,
-    };
+    return fillBar(
+      makerBuffer(mountain, "saw", "graniteRock"),
+      makerInputRoom(mountain, "saw", "graniteRock"),
+    );
   }
-  const good = id.slice("stockToCity:".length) as CityRunGood;
-  const site =
-    mountain.project.kind === "unordered" ? undefined : mountain.project.site;
-  const held = site === undefined ? 0 : site.onSite[good];
-  return {
-    text: `${formatCompact(held)} of ${formatCompact(SITE_GOOD_CAP)}`,
-    fill: Math.min(1, held / SITE_GOOD_CAP),
-  };
+  if (id === "pitCrystalToGlassworks") {
+    return fillBar(
+      makerBuffer(mountain, "glassworks", "crystalRock"),
+      makerInputRoom(mountain, "glassworks", "crystalRock"),
+    );
+  }
+  if (id === "stockToGlassworksStones") {
+    return fillBar(
+      makerBuffer(mountain, "glassworks", "stones"),
+      makerInputRoom(mountain, "glassworks", "stones"),
+    );
+  }
+  if (id.startsWith("stockToCity:")) {
+    const good = id.slice("stockToCity:".length) as CityRunGood;
+    const site =
+      mountain.project.kind === "unordered" ? undefined : mountain.project.site;
+    const held = site === undefined ? 0 : site.onSite[good];
+    return fillBar(held, SITE_GOOD_CAP);
+  }
+  return { text: "", fill: undefined };
 }
 
 function sourceLabel(snap: RunSnapshot): string {
-  const prefix = snap.id.startsWith("stockToCity:") ? "Stock" : "Pithead";
+  const prefix = snap.id.startsWith("stockTo")
+    ? "Stock"
+    : snap.id === "factoryToStockyardParts"
+      ? "Factory"
+      : "Pithead";
   return `${prefix} ${formatCompact(snap.source)}`;
 }
 
@@ -243,6 +310,7 @@ function hasFlowFor(
   id: RunId,
   pitheadCap: Readonly<Record<MineLevelId, number>>,
   stockCap: Readonly<Record<CityRunGood, number>>,
+  factoryOutputCap: number,
 ): boolean {
   if (id === "pitToStockyardStones") {
     return MINE_LEVEL_IDS.some((level) => pitheadCap[level] > 0);
@@ -253,7 +321,28 @@ function hasFlowFor(
   if (id === "pitGraniteToSaws") {
     return pitheadCap.granite > 0;
   }
-  const good = id.slice("stockToCity:".length) as CityRunGood;
+  if (id === "pitCrystalToGlassworks") {
+    return pitheadCap.crystal > 0;
+  }
+  if (id === "factoryToStockyardParts") {
+    return factoryOutputCap > 0;
+  }
+  if (id === "stockToGlassworksStones") {
+    return stockCap.stones > 0;
+  }
+  if (id === "stockToFactoryBrick") {
+    return stockCap.brick > 0;
+  }
+  if (id === "stockToFactoryCutStone") {
+    return stockCap.cutStone > 0;
+  }
+  if (id === "stockToFactoryGlass") {
+    return stockCap.glass > 0;
+  }
+  const prefix = id.startsWith("stockToCity:")
+    ? "stockToCity:"
+    : "stockToResearch:";
+  const good = id.slice(prefix.length) as CityRunGood;
   return stockCap[good] > 0;
 }
 
@@ -266,7 +355,7 @@ export function transportSheetView(
   const fleet = fleetRate(mountain);
   const driving = mountain.jobs.driving;
   const snaps = runSnapshots(mountain);
-  const { runRates, destCaps, pitheadCap, stockCap } =
+  const { runRates, destCaps, pitheadCap, stockCap, factoryOutputCap } =
     slice2LiveSnapshot(mountain);
   const runs: TransportRunRow[] = snaps
     .filter((snap) => snap.open)
@@ -279,7 +368,7 @@ export function transportSheetView(
         driven,
         destCaps[snap.id],
         rate,
-        hasFlowFor(snap.id, pitheadCap, stockCap),
+        hasFlowFor(snap.id, pitheadCap, stockCap, factoryOutputCap),
       );
       const dest = destInfo(mountain, snap.id);
       const vehShare = fleet > 0 && rate > 0 ? (rate / fleet) * driven : 0;

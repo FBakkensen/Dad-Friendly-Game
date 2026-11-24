@@ -155,6 +155,9 @@ export function levels({
     saws: onSaws,
     crystalDrilling: 0,
     crystalHaulage: 0,
+    glassworks: 0,
+    partsPress: 0,
+    precisionAssembly: 0,
     ...jobs,
   };
   return {
@@ -170,7 +173,7 @@ export function levels({
     fleet: { ...start.fleet, ...fleet },
     jobs: staffed,
     stock: { ...EMPTY_STOCK, ...stock },
-    makers: { kiln: kilns, saw: saws },
+    makers: { ...start.makers, kiln: kilns, saw: saws },
     piles: { face: 0, shaft: 0, kiln: 0, ...piles },
     pithead: { ...EMPTY_PITHEAD, ...pithead },
     mineLevels: sunk

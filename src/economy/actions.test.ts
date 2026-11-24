@@ -4,7 +4,13 @@ import { buyCrew } from "../crew";
 import { holdOrder, placeOrder } from "../city";
 import { freeWorker } from "../workforce";
 import { withFactors } from "./factors";
-import { PART_THREE_OFF, PART_TWO_OFF } from "../part-switch";
+import {
+  PART_THREE_OFF,
+  PART_TWO_OFF,
+  SLICE_2_PART_1_OFF,
+  SLICE_2_PART_2_OFF,
+} from "../part-switch";
+import { researchPrice } from "../research";
 import { NO_GRANITE_PILES, NO_LEVEL_MACHINES } from "../mine-levels";
 import {
   promote,
@@ -94,6 +100,9 @@ const FIXTURES = {
   buyGraniteMachine: { kind: "buyGraniteMachine", id: "borer", count: 1 },
   assignHoist: { kind: "assignHoist", level: "granite", count: 1 },
   unassignHoist: { kind: "unassignHoist", level: "topsoil", count: 1 },
+  startResearch: { kind: "startResearch", id: "ironRails" },
+  cancelResearch: { kind: "cancelResearch" },
+  installResearch: { kind: "installResearch" },
 } as const satisfies {
   [K in Action["kind"]]: Extract<Action, { kind: K }>;
 };
@@ -160,9 +169,12 @@ function direct(mountain: Mountain, action: Action, now: number): Mountain {
     case "buyGraniteMachine":
     case "assignHoist":
     case "unassignHoist":
+    case "startResearch":
+    case "cancelResearch":
+    case "installResearch":
       // Their own suites prove these moves (#654, #689, #666, #673,
-      // #724: src/fresh-orders.test.ts, src/workforce.test.ts,
-      // src/part-two.test.ts, src/part-three-moves.test.ts).
+      // #724, #771: src/fresh-orders.test.ts, src/workforce.test.ts,
+      // src/part-two.test.ts, src/part-three-moves.test.ts, src/slice2-part2-rules.test.ts).
       return applyAction(mountain, action, now);
     default: {
       const unexpected: never = action;
@@ -486,6 +498,41 @@ describe("listActions", () => {
         }
       }
     });
+    // Slice 2 Part 2 lists Research start, cancel, and install once the Research Lab is up (#771).
+    withFactors(
+      {
+        [PART_TWO_OFF]: 0,
+        [PART_THREE_OFF]: 0,
+        [SLICE_2_PART_1_OFF]: 0,
+        [SLICE_2_PART_2_OFF]: 0,
+      },
+      () => {
+        const labUp: Mountain = {
+          ...createMountain(),
+          operational: ["lightTower", "warehouse", "foundry", "researchLab"],
+        };
+        const ironPrice = researchPrice("ironRails");
+        const readyLab: Mountain = {
+          ...labUp,
+          research: {
+            done: [],
+            active: {
+              id: "ironRails",
+              arrived: {
+                ...EMPTY_STOCK,
+                brick: priceAmount(ironPrice, "brick"),
+                parts: priceAmount(ironPrice, "parts"),
+              },
+            },
+          },
+        };
+        for (const one of [labUp, readyLab]) {
+          for (const action of listActions(one, NOW)) {
+            seen.add(action.kind);
+          }
+        }
+      },
+    );
     for (const kind of Object.keys(FIXTURES) as Action["kind"][]) {
       expect(seen.has(kind)).toBe(true);
     }

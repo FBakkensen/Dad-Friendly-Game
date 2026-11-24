@@ -35,7 +35,7 @@ import { effectiveRates } from "../rates";
 import type { GoodId, Price } from "../stock";
 import {
   MAX_STOCKYARD_LEVEL,
-  STOCKPILE_GOODS,
+  activeStockpileGoods,
   expandPrice,
   stockpileRoom,
   stockyardOpen,
@@ -813,7 +813,7 @@ function brings(mountain: Mountain): number {
 
 /** A stockpile holds most of its room (`YARD_NEARLY_FULL`). */
 function nearlyFull(mountain: Mountain): boolean {
-  return STOCKPILE_GOODS.some(
+  return activeStockpileGoods().some(
     (good) =>
       mountain.stock[good] >= stockpileRoom(mountain, good) * YARD_NEARLY_FULL,
   );

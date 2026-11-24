@@ -162,11 +162,12 @@ export type RefineryView = {
 
 const rate = (perSecond: number): string => `${formatCompact(perSecond)}/s`;
 
-/** The level whose rock each maker takes. */
-const MAKER_LEVELS = {
+/** The level whose rock each rock-taking maker consumes (Slice 1 chains & Part 1 view). */
+const MAKER_LEVELS: Readonly<Partial<Record<MakerId, MineLevelId>>> = {
   kiln: "topsoil",
   saw: "granite",
-} as const satisfies Record<MakerId, MineLevelId>;
+  glassworks: "crystal",
+};
 
 /** Each level's chain now: the Granite's only while it is open. */
 const LEVEL_CHAINS: Readonly<
@@ -180,8 +181,11 @@ const LEVEL_CHAINS: Readonly<
 /** Each maker's level's chain now, read through `MAKER_LEVELS`. */
 function makerChains(mountain: Mountain): Record<MakerId, Chain | undefined> {
   return {
-    kiln: LEVEL_CHAINS[MAKER_LEVELS.kiln](mountain),
-    saw: LEVEL_CHAINS[MAKER_LEVELS.saw](mountain),
+    kiln: LEVEL_CHAINS.topsoil(mountain),
+    saw: LEVEL_CHAINS.granite(mountain),
+    glassworks: undefined,
+    partsPress: undefined,
+    precisionAssembly: undefined,
   };
 }
 
@@ -237,6 +241,9 @@ function incomeNow(
       made: {
         kiln: snap.makerOut.kiln * timer,
         saw: snap.makerOut.saw * timer,
+        glassworks: snap.makerOut.glassworks * timer,
+        partsPress: snap.makerOut.partsPress * timer,
+        precisionAssembly: snap.makerOut.precisionAssembly * timer,
       },
       stones: snap.runRates.pitToStockyardStones * timer,
     };
@@ -248,7 +255,11 @@ function incomeNow(
   const open = openLevels(mountain);
   /** The longest a maker's pile waits for a load, in the chain's seconds: none with no cage serving its level. */
   const between = (id: MakerId): number => {
-    const round = shortestRound(cages, MAKER_LEVELS[id], open);
+    const level = MAKER_LEVELS[id];
+    if (level === undefined) {
+      return 0;
+    }
+    const round = shortestRound(cages, level, open);
     return Number.isFinite(round) ? round * timer : 0;
   };
   const stones = MAKER_IDS.reduce((sum, id) => {
@@ -256,7 +267,13 @@ function incomeNow(
     return sum + (chain === undefined ? 0 : steadySpill(chain, between(id)));
   }, 0);
   return {
-    made: { kiln: made(chains.kiln), saw: made(chains.saw) },
+    made: {
+      kiln: made(chains.kiln),
+      saw: made(chains.saw),
+      glassworks: 0,
+      partsPress: 0,
+      precisionAssembly: 0,
+    },
     stones: stones * timer,
   };
 }

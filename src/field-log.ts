@@ -237,6 +237,12 @@ export function fieldEntry(event: MoveEvent): Omit<FieldEvent, "at"> {
         code: "hoist.unassign",
         data: { id: event.level, count: event.count },
       };
+    case "researchStarted":
+      return { code: "research.start", data: { id: event.id } };
+    case "researchCanceled":
+      return { code: "research.cancel", data: { id: event.id } };
+    case "researchInstalled":
+      return { code: "research.install", data: { id: event.id } };
     /* v8 ignore next 3 -- exhaustiveness guard, unreachable */
     default: {
       const unexpected: never = event;

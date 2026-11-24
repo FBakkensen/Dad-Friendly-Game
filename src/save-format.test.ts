@@ -41,6 +41,8 @@ describe("the game map (#558)", () => {
       makerBuffers: "makerBuffers",
       cycleMicros: "cycleMicros",
       assignedRuns: "assignedRuns",
+      factoryOutput: "factoryOutput",
+      research: "research",
       cages: "cages",
     } as const satisfies Record<keyof Mountain, string>;
     const fresh = createMountain();
@@ -51,6 +53,8 @@ describe("the game map (#558)", () => {
         stones: 7,
         brick: 4,
         cutStone: 2,
+        glass: 3,
+        parts: 5,
       },
       owned: {
         ...fresh.owned,
@@ -82,20 +86,16 @@ describe("the game map (#558)", () => {
       operational: ["lightTower"],
       project: { kind: "unordered" },
       jobs: {
+        ...fresh.jobs,
         drilling: 2,
         haulage: 1,
         hoisting: 0,
         driving: 3,
         building: 2,
         kilns: 1,
-        graniteDrilling: 0,
-        graniteHaulage: 0,
-        saws: 0,
-        crystalDrilling: 0,
-        crystalHaulage: 0,
       },
       piles: { face: 40, shaft: 9, kiln: 30 },
-      makers: { kiln: 2, saw: 0 },
+      makers: { ...fresh.makers, kiln: 2 },
       stockyard: 1,
       rockDug: 12_345,
       mineLevels: {
@@ -105,9 +105,21 @@ describe("the game map (#558)", () => {
         },
       },
       pithead: { topsoil: 15, granite: 8, crystal: 0 },
-      makerBuffers: { kiln: { topsoilRock: 20 }, saw: { graniteRock: 12 } },
+      makerBuffers: {
+        ...fresh.makerBuffers,
+        kiln: { topsoilRock: 20 },
+        saw: { graniteRock: 12 },
+      },
       cycleMicros: { kiln: 250_000, saw: 125_000 },
       assignedRuns: { pitToStockyardStones: 1, pitTopsoilToKilns: 1 },
+      factoryOutput: { parts: 42 },
+      research: {
+        active: {
+          id: "ironRails",
+          arrived: { ...fresh.stock, parts: 100, brick: 500 },
+        },
+        done: ["highDraftKilns"],
+      },
       // The cages come back as the save keeps them: what each level's cages
       // carry, in a cage at the top (ruling 12 of #724).
       cages: {
@@ -276,6 +288,9 @@ describe("the game map (#558)", () => {
         saws: 0,
         crystalDrilling: 0,
         crystalHaulage: 0,
+        glassworks: 0,
+        partsPress: 0,
+        precisionAssembly: 0,
       },
     };
     expect(writeGame(crew).jobs).toEqual({

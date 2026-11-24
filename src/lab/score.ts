@@ -98,6 +98,11 @@ function actionId(action: Action): string {
     case "assignHoist":
     case "unassignHoist":
       return `${action.kind}:${action.level}`;
+    case "startResearch":
+      return `startResearch:${action.id}`;
+    case "cancelResearch":
+    case "installResearch":
+      return action.kind;
   }
 }
 

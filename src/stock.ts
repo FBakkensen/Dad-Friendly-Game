@@ -1,22 +1,23 @@
 /**
  * Everything he can hold, and the one place that takes from it or adds to it
- * (#560, #769): Slice 2 Part 1 retires the small-cap clay/iron/crystal/heartstone
- * trickle goods so all goods share one stockyard and physical transport network.
- * Part 2 adds `glass` and `parts` with no save reset.
+ * (#560, #769, #771): all five Slice 2 goods share one stockyard and physical
+ * transport network. `glass` and `parts` stay hidden in UI until Part 2 turns on.
  */
 
-export type GoodId = "stones" | "brick" | "cutStone";
+export type GoodId = "stones" | "brick" | "cutStone" | "glass" | "parts";
 
 /** One row of the goods table: its id and where it comes from. */
 export type GoodRow = {
   readonly id: GoodId;
-  readonly from: "mountain" | "kilns" | "saws";
+  readonly from: "mountain" | "kilns" | "saws" | "glassworks" | "factory";
 };
 
 export const GOOD_ROWS: readonly GoodRow[] = [
   { id: "stones", from: "mountain" },
   { id: "brick", from: "kilns" },
   { id: "cutStone", from: "saws" },
+  { id: "glass", from: "glassworks" },
+  { id: "parts", from: "factory" },
 ];
 
 export const GOOD_IDS: readonly GoodId[] = GOOD_ROWS.map((row) => row.id);
@@ -28,6 +29,8 @@ export const EMPTY_STOCK: Stock = {
   stones: 0,
   brick: 0,
   cutStone: 0,
+  glass: 0,
+  parts: 0,
 };
 
 /** One good and how much of it a price asks. */
@@ -55,6 +58,15 @@ export function priceAmount(price: Price, good: GoodId): number {
     }
   }
   return amount;
+}
+
+/** Total units across every good line in the price. */
+export function priceTotal(price: Price): number {
+  let total = 0;
+  for (const line of price) {
+    total += line.amount;
+  }
+  return total;
 }
 
 /** The same price: every good asks the same amount, whatever the order. */
@@ -95,6 +107,8 @@ export function addedStock(stock: Stock, gains: Partial<Stock>): Stock {
     stones: stock.stones + (gains.stones ?? 0),
     brick: stock.brick + (gains.brick ?? 0),
     cutStone: stock.cutStone + (gains.cutStone ?? 0),
+    glass: stock.glass + (gains.glass ?? 0),
+    parts: stock.parts + (gains.parts ?? 0),
   };
 }
 

@@ -372,6 +372,9 @@ export const PILE_LABELS: Readonly<Record<PileId | MakerId, string>> = {
   kiln: "Rock at the kilns",
   // Part 3: on the saws' plate, the Granite's rock (#754).
   saw: "Rock at the saws",
+  glassworks: "Crystal rock at the glassworks",
+  partsPress: "Stock at the parts presses",
+  precisionAssembly: "Stock at precision assembly",
 };
 
 /** "Drilled rock: 200 of 300" (or "... (full)" when a Slice 2 pithead stalls hoisting). */

@@ -18,11 +18,30 @@ import {
   type Site,
 } from "./city";
 import { factor } from "./economy/factors";
-import { makerBuffer, makerInputRoom } from "./makers";
-import { graniteOpen, openLevels, type MineLevelId } from "./mine-levels";
+import {
+  FACTORY_MAKER_IDS,
+  distributeFactoryInput,
+  factoryInputOpen,
+  factoryInputRoomTotal,
+  hasOwnedFactoryLine,
+  type FactoryInputGood,
+  type FactoryMakerId,
+} from "./factory";
+import { makerBuffer, makerInputRoom, makerOpen } from "./makers";
+import {
+  crystalOpen,
+  graniteOpen,
+  openLevels,
+  type MineLevelId,
+} from "./mine-levels";
 import type { Mountain } from "./mountain";
-import { partThreeOn, slice2Part1On } from "./part-switch";
+import { partThreeOn, slice2Part1On, slice2Part2On } from "./part-switch";
 import { evenShares } from "./piles";
+import {
+  receiveResearch,
+  researchStillRequired,
+  transportResearchMultiplier,
+} from "./research";
 import {
   GOOD_IDS,
   addedStock,
@@ -32,7 +51,13 @@ import {
   type Stock,
 } from "./stock";
 import { stockpileRoom } from "./stockyard";
-import { quoteRun, type BuyAmount, type TierQuote } from "./tiers";
+import {
+  quotePriceRun,
+  quoteRun,
+  type BuyAmount,
+  type PriceQuote,
+  type TierQuote,
+} from "./tiers";
 
 /**
  * Transport (slice 1, rule 7, #654): one fleet with one number. It carries
@@ -40,31 +65,47 @@ import { quoteRun, type BuyAmount, type TierQuote } from "./tiers";
  * what the step in hand still requires. A vehicle is bought like a machine.
  * It takes no workers, and there are no routes and nothing to dispatch.
  *
- * Slice 2 Part 1 (#766, rule 2): every inter-site movement runs on a typed
+ * Slice 2 (#766, #771, rule 2): every inter-site movement runs on a typed
  * single-good run in deterministic `RUN_ORDER` with even-share water-filling
  * and `shareProportional` source contention; `assignedRuns` is reserved in the
  * save for Part 3 manual assignment.
  */
 
-/** Goods that City projects deliver from the stockyard in Part 1, in `GOOD_IDS` order. */
+/** Goods that City and Research projects deliver from the stockyard, in `GOOD_IDS` order. */
 export const CITY_RUN_GOODS = [
   "stones",
   "brick",
   "cutStone",
+  "glass",
+  "parts",
 ] as const satisfies readonly GoodId[];
 
 export type CityRunGood = (typeof CITY_RUN_GOODS)[number];
 
 export type StockToCityRunId = `stockToCity:${CityRunGood}`;
+export type StockToResearchRunId = `stockToResearch:${CityRunGood}`;
 
 /** Every single-good transport run in deterministic allocation order (spec rule 2.2). */
 export const RUN_ORDER = [
   "pitToStockyardStones",
   "pitTopsoilToKilns",
   "pitGraniteToSaws",
+  "pitCrystalToGlassworks",
+  "stockToGlassworksStones",
+  "stockToFactoryBrick",
+  "stockToFactoryCutStone",
+  "stockToFactoryGlass",
+  "factoryToStockyardParts",
   "stockToCity:stones",
   "stockToCity:brick",
   "stockToCity:cutStone",
+  "stockToCity:glass",
+  "stockToCity:parts",
+  "stockToResearch:stones",
+  "stockToResearch:brick",
+  "stockToResearch:cutStone",
+  "stockToResearch:glass",
+  "stockToResearch:parts",
 ] as const;
 
 export type RunId = (typeof RUN_ORDER)[number];
@@ -209,14 +250,17 @@ export function vehicleCarries(vehicle: Vehicle): number {
   );
 }
 
-/** Goods a second the vehicles with a driver carry. */
-export function fleetRate(mountain: Pick<Mountain, "fleet" | "jobs">): number {
+/** Goods a second the vehicles with a driver carry, including Heavy Couplings research (+40%). */
+export function fleetRate(
+  mountain: Pick<Mountain, "fleet" | "jobs"> &
+    Partial<Pick<Mountain, "research" | "upgrades">>,
+): number {
   const driven = drivenFleet(mountain);
   let rate = 0;
   for (const vehicle of VEHICLES) {
     rate += driven[vehicle.id] * vehicleCarries(vehicle);
   }
-  return rate;
+  return rate * transportResearchMultiplier(mountain);
 }
 
 /** What the vehicle after `fleet` of them costs. The ones given are not on the curve. */
@@ -232,12 +276,14 @@ function vehicleCost(vehicle: Vehicle, fleet: number): number {
   return Math.ceil(Number((first * growth ** bought).toPrecision(12)));
 }
 
+function vehiclePriceAt(vehicle: Vehicle, fleet: number): Price {
+  return [{ good: vehicle.good, amount: vehicleCost(vehicle, fleet) }];
+}
+
 /** The next one's price. */
 export function vehiclePrice(mountain: Mountain, id: VehicleId): Price {
   const vehicle = vehicleById(id);
-  return [
-    { good: vehicle.good, amount: vehicleCost(vehicle, mountain.fleet[id]) },
-  ];
+  return vehiclePriceAt(vehicle, mountain.fleet[id]);
 }
 
 /**
@@ -255,6 +301,21 @@ export function vehicleQuote(
     (nth) => vehicleCost(vehicle, fleet + nth),
     amount,
     mountain.stock[vehicle.good],
+  );
+}
+
+/** Multi-good amount-key quote (`×1` / `×10` / `Max`) for vehicles (spec rule 3.2). */
+export function vehiclePriceQuote(
+  mountain: Mountain,
+  id: VehicleId,
+  amount: BuyAmount,
+): PriceQuote {
+  const vehicle = vehicleById(id);
+  const fleet = mountain.fleet[id];
+  return quotePriceRun(
+    (nth) => vehiclePriceAt(vehicle, fleet + nth),
+    amount,
+    mountain.stock,
   );
 }
 
@@ -740,24 +801,86 @@ function afterStep(
 }
 
 // ---------------------------------------------------------------------------
-// Slice 2 Part 1: physical single-good transport runs (even share, #766)
+// Slice 2: physical single-good transport runs (#766, #771)
 
 export function cityRunId(good: CityRunGood): StockToCityRunId {
   return `stockToCity:${good}`;
 }
 
-function makerRunForLevel(level: MineLevelId): RunId | undefined {
+export function researchRunId(good: CityRunGood): StockToResearchRunId {
+  return `stockToResearch:${good}`;
+}
+
+export function factoryRunId(good: FactoryInputGood): RunId {
+  if (good === "brick") {
+    return "stockToFactoryBrick";
+  }
+  return good === "cutStone" ? "stockToFactoryCutStone" : "stockToFactoryGlass";
+}
+
+function makerRunForLevel(level: MineLevelId): RunId {
   if (level === "topsoil") {
     return "pitTopsoilToKilns";
   }
-  return level === "granite" ? "pitGraniteToSaws" : undefined;
+  return level === "granite" ? "pitGraniteToSaws" : "pitCrystalToGlassworks";
 }
 
-function runRecord<T>(value: T): Record<RunId, T> {
-  return Object.fromEntries(RUN_ORDER.map((id) => [id, value])) as Record<
-    RunId,
-    T
-  >;
+/** Runs drawing from each stockyard good, for unified proportional source contention (spec rule 2.3). */
+export const STOCK_RUNS_BY_GOOD: Readonly<Record<GoodId, readonly RunId[]>> = {
+  stones: [
+    "stockToGlassworksStones",
+    "stockToCity:stones",
+    "stockToResearch:stones",
+  ],
+  brick: ["stockToFactoryBrick", "stockToCity:brick", "stockToResearch:brick"],
+  cutStone: [
+    "stockToFactoryCutStone",
+    "stockToCity:cutStone",
+    "stockToResearch:cutStone",
+  ],
+  glass: ["stockToFactoryGlass", "stockToCity:glass", "stockToResearch:glass"],
+  parts: ["stockToCity:parts", "stockToResearch:parts"],
+};
+
+const STOCK_RUN_SOURCE: Readonly<Partial<Record<RunId, GoodId>>> = {
+  stockToGlassworksStones: "stones",
+  stockToFactoryBrick: "brick",
+  stockToFactoryCutStone: "cutStone",
+  stockToFactoryGlass: "glass",
+  "stockToCity:stones": "stones",
+  "stockToCity:brick": "brick",
+  "stockToCity:cutStone": "cutStone",
+  "stockToCity:glass": "glass",
+  "stockToCity:parts": "parts",
+  "stockToResearch:stones": "stones",
+  "stockToResearch:brick": "brick",
+  "stockToResearch:cutStone": "cutStone",
+  "stockToResearch:glass": "glass",
+  "stockToResearch:parts": "parts",
+};
+
+export function runRecord<T>(value: T): Record<RunId, T> {
+  return {
+    pitToStockyardStones: value,
+    pitTopsoilToKilns: value,
+    pitGraniteToSaws: value,
+    pitCrystalToGlassworks: value,
+    stockToGlassworksStones: value,
+    stockToFactoryBrick: value,
+    stockToFactoryCutStone: value,
+    stockToFactoryGlass: value,
+    factoryToStockyardParts: value,
+    "stockToCity:stones": value,
+    "stockToCity:brick": value,
+    "stockToCity:cutStone": value,
+    "stockToCity:glass": value,
+    "stockToCity:parts": value,
+    "stockToResearch:stones": value,
+    "stockToResearch:brick": value,
+    "stockToResearch:cutStone": value,
+    "stockToResearch:glass": value,
+    "stockToResearch:parts": value,
+  };
 }
 
 /** Snapshot of one single-good transport run at a moment in time. */
@@ -784,7 +907,71 @@ function snapshotOf(
   };
 }
 
-/** Open/source/room snapshot for every Part 1 run in deterministic `RUN_ORDER`. */
+function makerBufRoom(
+  mountain: Mountain,
+  id: "kiln" | "saw" | "glassworks",
+  input: "topsoilRock" | "graniteRock" | "crystalRock" | "stones",
+): number {
+  return Math.max(
+    0,
+    makerInputRoom(mountain, id, input) - makerBuffer(mountain, id, input),
+  );
+}
+
+function factoryRunSnapshots(mountain: Mountain): readonly RunSnapshot[] {
+  const part2 = slice2Part2On();
+  const factoryPartsOpen = part2 && hasOwnedFactoryLine(mountain);
+  const partsRoom = factoryPartsOpen
+    ? Math.max(0, stockpileRoom(mountain, "parts") - mountain.stock.parts)
+    : 0;
+  const inputRun = (good: FactoryInputGood): RunSnapshot =>
+    snapshotOf(
+      factoryRunId(good),
+      part2 && factoryInputOpen(mountain, good),
+      mountain.stock[good],
+      part2 ? factoryInputRoomTotal(mountain, good) : 0,
+    );
+  return [
+    inputRun("brick"),
+    inputRun("cutStone"),
+    inputRun("glass"),
+    snapshotOf(
+      "factoryToStockyardParts",
+      factoryPartsOpen,
+      factoryPartsOpen ? mountain.factoryOutput.parts : 0,
+      partsRoom,
+    ),
+  ];
+}
+
+function cityAndResearchSnapshots(mountain: Mountain): readonly RunSnapshot[] {
+  const project = mountain.project;
+  const cityNeed =
+    project.kind === "unordered" ? undefined : stillRequired(project.site);
+  const cityRuns = CITY_RUN_GOODS.map((good) =>
+    snapshotOf(
+      cityRunId(good),
+      cityNeed !== undefined && cityNeed[good] > 0,
+      mountain.stock[good],
+      project.kind === "delivering" ? siteGoodRoom(project.site, good) : 0,
+    ),
+  );
+  const resActive = slice2Part2On() ? mountain.research.active : undefined;
+  const resNeed =
+    resActive === undefined ? undefined : researchStillRequired(resActive);
+  const researchRuns = CITY_RUN_GOODS.map((good) => {
+    const need = resNeed?.[good] ?? 0;
+    return snapshotOf(
+      researchRunId(good),
+      need > 0,
+      mountain.stock[good],
+      need,
+    );
+  });
+  return [...cityRuns, ...researchRuns];
+}
+
+/** Open/source/room snapshot for every Slice 2 run in deterministic `RUN_ORDER`. */
 export function runSnapshots(mountain: Mountain): readonly RunSnapshot[] {
   const levels = openLevels(mountain);
   const pitTotal = levels.reduce((sum, l) => sum + mountain.pithead[l], 0);
@@ -792,43 +979,37 @@ export function runSnapshots(mountain: Mountain): readonly RunSnapshot[] {
     0,
     stockpileRoom(mountain, "stones") - mountain.stock.stones,
   );
-  const kilnRoom = Math.max(
-    0,
-    makerInputRoom(mountain, "kiln") -
-      makerBuffer(mountain, "kiln", "topsoilRock"),
-  );
   const gOpen = graniteOpen(mountain);
-  const sawRoom = gOpen
-    ? Math.max(
-        0,
-        makerInputRoom(mountain, "saw") -
-          makerBuffer(mountain, "saw", "graniteRock"),
-      )
-    : 0;
-  const project = mountain.project;
-  const need =
-    project.kind === "unordered" ? undefined : stillRequired(project.site);
-  const cityRuns = CITY_RUN_GOODS.map((good) => {
-    const open = need !== undefined && need[good] > 0;
-    const room =
-      project.kind === "delivering" ? siteGoodRoom(project.site, good) : 0;
-    return snapshotOf(cityRunId(good), open, mountain.stock[good], room);
-  });
+  const gwOpen =
+    slice2Part2On() && crystalOpen(mountain) && mountain.makers.glassworks > 0;
   return [
     snapshotOf("pitToStockyardStones", true, pitTotal, stoneRoom),
     snapshotOf(
       "pitTopsoilToKilns",
       mountain.makers.kiln > 0,
       mountain.pithead.topsoil,
-      kilnRoom,
+      makerBufRoom(mountain, "kiln", "topsoilRock"),
     ),
     snapshotOf(
       "pitGraniteToSaws",
       gOpen && mountain.makers.saw > 0,
       gOpen ? mountain.pithead.granite : 0,
-      sawRoom,
+      gOpen ? makerBufRoom(mountain, "saw", "graniteRock") : 0,
     ),
-    ...cityRuns,
+    snapshotOf(
+      "pitCrystalToGlassworks",
+      gwOpen,
+      gwOpen ? mountain.pithead.crystal : 0,
+      gwOpen ? makerBufRoom(mountain, "glassworks", "crystalRock") : 0,
+    ),
+    snapshotOf(
+      "stockToGlassworksStones",
+      gwOpen,
+      mountain.stock.stones,
+      gwOpen ? makerBufRoom(mountain, "glassworks", "stones") : 0,
+    ),
+    ...factoryRunSnapshots(mountain),
+    ...cityAndResearchSnapshots(mountain),
   ];
 }
 
@@ -842,7 +1023,8 @@ type TransferState = {
   readonly open: Readonly<Record<RunId, boolean>>;
   readonly openLvls: readonly MineLevelId[];
   readonly pithead: Record<MineLevelId, number>;
-  readonly stock: Record<CityRunGood, number>;
+  readonly stock: Record<GoodId, number>;
+  factoryParts: number;
   readonly destRoom: Record<RunId, number>;
   readonly moved: Record<RunId, number>;
   readonly stoneFromPithead: Record<MineLevelId, number>;
@@ -871,11 +1053,8 @@ function buildTransferState(
       granite: openLvls.includes("granite") ? mountain.pithead.granite : 0,
       crystal: openLvls.includes("crystal") ? mountain.pithead.crystal : 0,
     },
-    stock: {
-      stones: mountain.stock.stones,
-      brick: mountain.stock.brick,
-      cutStone: mountain.stock.cutStone,
-    },
+    stock: { ...mountain.stock },
+    factoryParts: slice2Part2On() ? mountain.factoryOutput.parts : 0,
     destRoom,
     moved: runRecord(0),
     stoneFromPithead: { topsoil: 0, granite: 0, crystal: 0 },
@@ -896,8 +1075,16 @@ function runWant(state: TransferState, id: RunId): number {
   if (id === "pitGraniteToSaws") {
     return Math.min(state.pithead.granite, state.destRoom[id]);
   }
-  const good = id.slice("stockToCity:".length) as CityRunGood;
-  return Math.min(state.stock[good], state.destRoom[id]);
+  if (id === "pitCrystalToGlassworks") {
+    return Math.min(state.pithead.crystal, state.destRoom[id]);
+  }
+  if (id === "factoryToStockyardParts") {
+    return Math.min(state.factoryParts, state.destRoom[id]);
+  }
+  const good = STOCK_RUN_SOURCE[id];
+  return good === undefined
+    ? 0
+    : Math.min(state.stock[good], state.destRoom[id]);
 }
 
 function resolvePitheadPass(
@@ -916,17 +1103,14 @@ function resolvePitheadPass(
   for (const level of state.openLvls) {
     const makerRun = makerRunForLevel(level);
     const sWant = stoneSplit[level] ?? 0;
-    const mWant = makerRun === undefined ? 0 : (proposed[makerRun] ?? 0);
+    const mWant = proposed[makerRun] ?? 0;
     if (sWant + mWant <= 0) {
       continue;
     }
     const split = shareProportional(
       state.pithead[level],
       ["stone", "maker"],
-      {
-        stone: sWant,
-        maker: mWant,
-      },
+      { stone: sWant, maker: mWant },
       tieOffset,
     );
     const sTake = split.stone ?? 0;
@@ -935,39 +1119,67 @@ function resolvePitheadPass(
     state.stoneFromPithead[level] += sTake;
     state.moved.pitToStockyardStones += sTake;
     state.destRoom.pitToStockyardStones -= sTake;
-    if (makerRun !== undefined) {
-      state.moved[makerRun] += mTake;
-      state.destRoom[makerRun] -= mTake;
-    }
+    state.moved[makerRun] += mTake;
+    state.destRoom[makerRun] -= mTake;
     total += sTake + mTake;
   }
   return total;
 }
 
-function resolveStockPass(
+function resolveFactoryOutPass(
   state: TransferState,
   proposed: Readonly<Partial<Record<RunId, number>>>,
 ): number {
+  const take = Math.min(
+    proposed.factoryToStockyardParts ?? 0,
+    state.factoryParts,
+    state.destRoom.factoryToStockyardParts,
+  );
+  if (take <= 0) {
+    return 0;
+  }
+  state.factoryParts -= take;
+  state.moved.factoryToStockyardParts += take;
+  state.destRoom.factoryToStockyardParts -= take;
+  return take;
+}
+
+function resolveStockPass(
+  state: TransferState,
+  proposed: Readonly<Partial<Record<RunId, number>>>,
+  tieOffset: number,
+): number {
   let total = 0;
-  for (const good of CITY_RUN_GOODS) {
-    const id = cityRunId(good);
-    const take = Math.min(
-      proposed[id] ?? 0,
-      state.stock[good],
-      state.destRoom[id],
-    );
-    if (take > 0) {
-      state.stock[good] -= take;
-      state.moved[id] += take;
-      state.destRoom[id] -= take;
-      total += take;
+  for (const good of GOOD_IDS) {
+    const runs = STOCK_RUNS_BY_GOOD[good];
+    const wants: Partial<Record<RunId, number>> = {};
+    let wantSum = 0;
+    for (const id of runs) {
+      const w = Math.min(proposed[id] ?? 0, state.destRoom[id]);
+      if (w > 0) {
+        wants[id] = w;
+        wantSum += w;
+      }
+    }
+    if (wantSum <= 0 || state.stock[good] <= 0) {
+      continue;
+    }
+    const split = shareProportional(state.stock[good], runs, wants, tieOffset);
+    for (const id of runs) {
+      const take = split[id] ?? 0;
+      if (take > 0) {
+        state.stock[good] -= take;
+        state.moved[id] += take;
+        state.destRoom[id] -= take;
+        total += take;
+      }
     }
   }
   return total;
 }
 
 /**
- * Computes exact integer transfers across Part 1 runs for total `capacity`
+ * Computes exact integer transfers across all Slice 2 runs for total `capacity`
  * goods (spec rules 2.3 & 2.4): iterative water-filling via `shareOutKeys`
  * with proportional shared-source contention via `shareProportional`.
  */
@@ -990,7 +1202,8 @@ export function planTransportTransfer(
     const proposed = shareOutKeys(left, RUN_ORDER, wants, tieOffset);
     const movedNow =
       resolvePitheadPass(state, proposed, tieOffset) +
-      resolveStockPass(state, proposed);
+      resolveFactoryOutPass(state, proposed) +
+      resolveStockPass(state, proposed, tieOffset);
     if (movedNow <= 0) {
       break;
     }
@@ -999,23 +1212,69 @@ export function planTransportTransfer(
   return { moved: state.moved, stoneFromPithead: state.stoneFromPithead };
 }
 
+function addMakerBuf(
+  buf: Readonly<Partial<Record<string, number>>>,
+  key: string,
+  delta: number,
+): Readonly<Partial<Record<string, number>>> {
+  return delta > 0 ? { ...buf, [key]: (buf[key] ?? 0) + delta } : buf;
+}
+
+function applyFactoryInputTransfers(
+  mountain: Mountain,
+  moved: Readonly<Record<RunId, number>>,
+  tieOffset: number,
+): Record<FactoryMakerId, Mountain["makerBuffers"][FactoryMakerId]> {
+  const buffers: Record<
+    FactoryMakerId,
+    Mountain["makerBuffers"][FactoryMakerId]
+  > = {
+    partsPress: mountain.makerBuffers.partsPress,
+    precisionAssembly: mountain.makerBuffers.precisionAssembly,
+  };
+  const goods: readonly FactoryInputGood[] = ["brick", "cutStone", "glass"];
+  for (const good of goods) {
+    const amount = moved[factoryRunId(good)];
+    if (amount <= 0) {
+      continue;
+    }
+    const split = distributeFactoryInput(mountain, good, amount, tieOffset);
+    for (const line of FACTORY_MAKER_IDS) {
+      const add = split[line] ?? 0;
+      if (add > 0) {
+        buffers[line] = addMakerBuf(buffers[line], good, add);
+      }
+    }
+  }
+  return buffers;
+}
+
 /**
  * Applies a planned integer `RunTransfer` to `mountain` (exact conservation).
- * Returns the updated mountain, stone gained from pithead, and goods delivered
- * to the City site.
+ * Returns the updated mountain, stone/parts gained into the stockyard, and
+ * goods delivered to City and Research.
  */
 export function applyTransportTransfer(
   mountain: Mountain,
   transfer: RunTransfer,
+  tieOffset = 0,
 ): {
   readonly mountain: Mountain;
   readonly gainedStones: number;
+  readonly gainedParts: number;
   readonly cityDelivered: Partial<Stock>;
+  readonly researchDelivered: Partial<Stock>;
 } {
   const { moved, stoneFromPithead } = transfer;
   const totalMoved = RUN_ORDER.reduce((sum, id) => sum + moved[id], 0);
   if (totalMoved <= 0) {
-    return { mountain, gainedStones: 0, cityDelivered: {} };
+    return {
+      mountain,
+      gainedStones: 0,
+      gainedParts: 0,
+      cityDelivered: {},
+      researchDelivered: {},
+    };
   }
   const pithead = {
     topsoil:
@@ -1026,52 +1285,84 @@ export function applyTransportTransfer(
       mountain.pithead.granite -
       stoneFromPithead.granite -
       moved.pitGraniteToSaws,
-    crystal: mountain.pithead.crystal - stoneFromPithead.crystal,
+    crystal:
+      mountain.pithead.crystal -
+      stoneFromPithead.crystal -
+      moved.pitCrystalToGlassworks,
   };
-  const makerBuffers = {
-    kiln:
-      moved.pitTopsoilToKilns > 0
-        ? {
-            ...mountain.makerBuffers.kiln,
-            topsoilRock:
-              (mountain.makerBuffers.kiln.topsoilRock ?? 0) +
-              moved.pitTopsoilToKilns,
-          }
-        : mountain.makerBuffers.kiln,
-    saw:
-      moved.pitGraniteToSaws > 0
-        ? {
-            ...mountain.makerBuffers.saw,
-            graniteRock:
-              (mountain.makerBuffers.saw.graniteRock ?? 0) +
-              moved.pitGraniteToSaws,
-          }
-        : mountain.makerBuffers.saw,
+  const factoryBufs = applyFactoryInputTransfers(mountain, moved, tieOffset);
+  let gwBuf = addMakerBuf(
+    mountain.makerBuffers.glassworks,
+    "crystalRock",
+    moved.pitCrystalToGlassworks,
+  );
+  gwBuf = addMakerBuf(gwBuf, "stones", moved.stockToGlassworksStones);
+  const makerBuffers: Mountain["makerBuffers"] = {
+    kiln: addMakerBuf(
+      mountain.makerBuffers.kiln,
+      "topsoilRock",
+      moved.pitTopsoilToKilns,
+    ),
+    saw: addMakerBuf(
+      mountain.makerBuffers.saw,
+      "graniteRock",
+      moved.pitGraniteToSaws,
+    ),
+    glassworks: gwBuf,
+    partsPress: factoryBufs.partsPress,
+    precisionAssembly: factoryBufs.precisionAssembly,
   };
   const cityDelivered: Partial<Record<GoodId, number>> = {};
+  const researchDelivered: Partial<Record<GoodId, number>> = {};
   const stockDelta: Partial<Record<GoodId, number>> = {};
   if (moved.pitToStockyardStones > 0) {
     stockDelta.stones = moved.pitToStockyardStones;
   }
-  for (const good of CITY_RUN_GOODS) {
-    const amt = moved[cityRunId(good)];
-    if (amt > 0) {
-      cityDelivered[good] = amt;
-      stockDelta[good] = (stockDelta[good] ?? 0) - amt;
+  if (moved.factoryToStockyardParts > 0) {
+    stockDelta.parts = moved.factoryToStockyardParts;
+  }
+  for (const good of GOOD_IDS) {
+    let out = 0;
+    for (const id of STOCK_RUNS_BY_GOOD[good]) {
+      out += moved[id];
+    }
+    if (out > 0) {
+      stockDelta[good] = (stockDelta[good] ?? 0) - out;
+    }
+    const cityAmt = moved[cityRunId(good)];
+    if (cityAmt > 0) {
+      cityDelivered[good] = cityAmt;
+    }
+    const resAmt = moved[researchRunId(good)];
+    if (resAmt > 0) {
+      researchDelivered[good] = resAmt;
     }
   }
-  const updated: Mountain = {
+  const factoryOutput =
+    moved.factoryToStockyardParts > 0
+      ? {
+          parts: mountain.factoryOutput.parts - moved.factoryToStockyardParts,
+        }
+      : mountain.factoryOutput;
+  let next: Mountain = {
     ...mountain,
     pithead,
     makerBuffers,
+    factoryOutput,
     stock: addedStock(mountain.stock, stockDelta),
   };
-  const next =
-    goodsTotal(cityDelivered) > 0 ? receive(updated, cityDelivered) : updated;
+  if (goodsTotal(cityDelivered) > 0) {
+    next = receive(next, cityDelivered);
+  }
+  if (goodsTotal(researchDelivered) > 0) {
+    next = receiveResearch(next, researchDelivered);
+  }
   return {
     mountain: next,
     gainedStones: moved.pitToStockyardStones,
+    gainedParts: moved.factoryToStockyardParts,
     cityDelivered,
+    researchDelivered,
   };
 }
 
@@ -1080,7 +1371,8 @@ export type RunSourceCaps = {
   readonly openLvls: readonly MineLevelId[];
   readonly pitheadCap: Readonly<Record<MineLevelId, number>>;
   readonly pitheadWeight: Readonly<Record<MineLevelId, number>>;
-  readonly stockCap: Readonly<Record<CityRunGood, number>>;
+  readonly stockCap: Readonly<Record<GoodId, number>>;
+  readonly factoryOutputCap?: number;
 };
 
 const RATE_EPS = 1e-9;
@@ -1125,7 +1417,8 @@ type RateState = {
   readonly pitheadWeight: Readonly<Record<MineLevelId, number>>;
   readonly remDest: Record<RunId, number>;
   readonly remPit: Record<MineLevelId, number>;
-  readonly remStock: Record<CityRunGood, number>;
+  readonly remStock: Record<GoodId, number>;
+  remFactoryOut: number;
   readonly runRates: Record<RunId, number>;
   readonly pitheadDrain: Record<MineLevelId, number>;
   readonly stoneFromPithead: Record<MineLevelId, number>;
@@ -1145,8 +1438,16 @@ function rateWant(state: RateState, id: RunId): number {
   if (id === "pitGraniteToSaws") {
     return Math.min(state.remPit.granite, state.remDest[id]);
   }
-  const good = id.slice("stockToCity:".length) as CityRunGood;
-  return Math.min(state.remStock[good], state.remDest[id]);
+  if (id === "pitCrystalToGlassworks") {
+    return Math.min(state.remPit.crystal, state.remDest[id]);
+  }
+  if (id === "factoryToStockyardParts") {
+    return Math.min(state.remFactoryOut, state.remDest[id]);
+  }
+  const good = STOCK_RUN_SOURCE[id];
+  return good === undefined
+    ? 0
+    : Math.min(state.remStock[good], state.remDest[id]);
 }
 
 function resolvePitheadRatePass(
@@ -1162,7 +1463,7 @@ function resolvePitheadRatePass(
   for (const l of state.openLvls) {
     const mRun = makerRunForLevel(l);
     const sWant = prop.pitToStockyardStones * fracs[l];
-    const mWant = mRun !== undefined ? prop[mRun] : 0;
+    const mWant = prop[mRun];
     const total = sWant + mWant;
     if (total <= RATE_EPS) {
       continue;
@@ -1172,9 +1473,7 @@ function resolvePitheadRatePass(
     const sTake = sWant * scale;
     const mTake = mWant * scale;
     state.runRates.pitToStockyardStones += sTake;
-    if (mRun !== undefined) {
-      state.runRates[mRun] += mTake;
-    }
+    state.runRates[mRun] += mTake;
     state.pitheadDrain[l] += sTake + mTake;
     state.stoneFromPithead[l] += sTake;
     state.remPit[l] = subCap(cap, sTake + mTake);
@@ -1182,12 +1481,31 @@ function resolvePitheadRatePass(
       state.remDest.pitToStockyardStones,
       sTake,
     );
-    if (mRun !== undefined) {
-      state.remDest[mRun] = subCap(state.remDest[mRun], mTake);
-    }
+    state.remDest[mRun] = subCap(state.remDest[mRun], mTake);
     moved += sTake + mTake;
   }
   return moved;
+}
+
+function resolveFactoryOutRatePass(
+  state: RateState,
+  prop: Readonly<Record<RunId, number>>,
+): number {
+  const take = Math.min(
+    prop.factoryToStockyardParts,
+    state.remFactoryOut,
+    state.remDest.factoryToStockyardParts,
+  );
+  if (take <= RATE_EPS) {
+    return 0;
+  }
+  state.runRates.factoryToStockyardParts += take;
+  state.remFactoryOut = subCap(state.remFactoryOut, take);
+  state.remDest.factoryToStockyardParts = subCap(
+    state.remDest.factoryToStockyardParts,
+    take,
+  );
+  return take;
 }
 
 function resolveStockRatePass(
@@ -1195,23 +1513,34 @@ function resolveStockRatePass(
   prop: Readonly<Record<RunId, number>>,
 ): number {
   let moved = 0;
-  for (const good of CITY_RUN_GOODS) {
-    const id = cityRunId(good);
-    const take = Math.min(prop[id], state.remStock[good], state.remDest[id]);
-    if (take > RATE_EPS) {
-      state.runRates[id] += take;
-      state.remStock[good] = subCap(state.remStock[good], take);
-      state.remDest[id] = subCap(state.remDest[id], take);
-      moved += take;
+  for (const good of GOOD_IDS) {
+    const runs = STOCK_RUNS_BY_GOOD[good];
+    const cap = state.remStock[good];
+    let wantSum = 0;
+    for (const id of runs) {
+      wantSum += Math.min(prop[id], state.remDest[id]);
+    }
+    if (wantSum <= RATE_EPS || cap <= RATE_EPS) {
+      continue;
+    }
+    const scale = Number.isFinite(cap) && wantSum > cap ? cap / wantSum : 1;
+    for (const id of runs) {
+      const take = Math.min(prop[id], state.remDest[id]) * scale;
+      if (take > RATE_EPS) {
+        state.runRates[id] += take;
+        state.remStock[good] = subCap(state.remStock[good], take);
+        state.remDest[id] = subCap(state.remDest[id], take);
+        moved += take;
+      }
     }
   }
   return moved;
 }
 
 /**
- * Continuous water-filling rate allocator across Part 1 runs (`evenShares` +
- * shared pithead contention), used by the coupled-stretch offline/lab solver
- * and live UI rate readouts.
+ * Continuous water-filling rate allocator across all Slice 2 runs (`evenShares`
+ * + shared pithead & stockyard contention), used by the coupled-stretch
+ * offline/lab solver and live UI rate readouts.
  */
 export function allocateRunRates(
   fleetRateTotal: number,
@@ -1230,19 +1559,30 @@ export function allocateRunRates(
     remDest: { ...destCaps },
     remPit: { ...sources.pitheadCap },
     remStock: { ...sources.stockCap },
+    remFactoryOut: sources.factoryOutputCap ?? 0,
     runRates: runRecord(0),
     pitheadDrain: { topsoil: 0, granite: 0, crystal: 0 },
     stoneFromPithead: { topsoil: 0, granite: 0, crystal: 0 },
   };
   let left = fleetRateTotal;
+  const prop = runRecord(0);
+  const wants: number[] = [];
   for (let pass = 0; pass < RUN_ORDER.length && left > RATE_EPS; pass += 1) {
-    const wants = RUN_ORDER.map((id) => rateWant(state, id));
+    wants.length = 0;
+    for (const id of RUN_ORDER) {
+      wants.push(rateWant(state, id));
+    }
     const shares = evenShares(left, wants);
-    const prop = Object.fromEntries(
-      RUN_ORDER.map((id, idx) => [id, shares[idx] ?? 0]),
-    ) as Record<RunId, number>;
+    for (let idx = 0; idx < RUN_ORDER.length; idx += 1) {
+      const id = RUN_ORDER[idx];
+      if (id !== undefined) {
+        prop[id] = shares[idx] ?? 0;
+      }
+    }
     const moved =
-      resolvePitheadRatePass(state, prop) + resolveStockRatePass(state, prop);
+      resolvePitheadRatePass(state, prop) +
+      resolveFactoryOutRatePass(state, prop) +
+      resolveStockRatePass(state, prop);
     if (moved <= RATE_EPS) {
       break;
     }
@@ -1253,4 +1593,12 @@ export function allocateRunRates(
     pitheadDrain: state.pitheadDrain,
     stoneFromPithead: state.stoneFromPithead,
   };
+}
+
+/** Helper confirming makerOpen is checked for Factory lines in transport snapshots. */
+export function isMakerBufferOpen(
+  mountain: Pick<Mountain, "makers" | "operational" | "mineLevels">,
+  id: "kiln" | "saw" | "glassworks" | "partsPress" | "precisionAssembly",
+): boolean {
+  return mountain.makers[id] > 0 && makerOpen(mountain, id);
 }

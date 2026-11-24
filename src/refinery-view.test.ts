@@ -53,7 +53,13 @@ function lit({
     owned: { ...start.owned, helper: start.owned.helper + onKilns },
     jobs: { ...start.jobs, kilns: onKilns },
     operational: ["lightTower"],
-    makers: { kiln: kilns, saw: 0 },
+    makers: {
+      kiln: kilns,
+      saw: 0,
+      glassworks: 0,
+      partsPress: 0,
+      precisionAssembly: 0,
+    },
     piles: { face: 300, shaft: 300, kiln: kilnPile },
     stock: { ...start.stock, stones, brick },
   };
@@ -505,6 +511,7 @@ describe("how long a night lasts now (#671)", () => {
         jobs: { ...base.jobs, driving: 1 },
         pithead: { topsoil: 200, granite: 200, crystal: 0 },
         makerBuffers: {
+          ...base.makerBuffers,
           kiln: { topsoilRock: 42 },
           saw: { graniteRock: 88 },
         },

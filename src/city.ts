@@ -1,5 +1,5 @@
 import type { Mountain } from "./mountain";
-import { partThreeOn, partTwoOn } from "./part-switch";
+import { partThreeOn, partTwoOn, slice2Part2On } from "./part-switch";
 import {
   EMPTY_STOCK,
   GOOD_IDS,
@@ -34,8 +34,8 @@ type Power = {
 type BuildingRow = {
   readonly id: string;
   readonly name: string;
-  /** The part of slice 1 that puts it in play (#666): part 2's and part 3's wait for their switches. */
-  readonly part: 1 | 2 | 3;
+  /** The part that puts it in play (#666, #771): 1–3 are Slice 1, 4 is Slice 2 Part 2. */
+  readonly part: 1 | 2 | 3 | 4;
   /** What each step requires, as a short list of goods (#560). */
   readonly steps: readonly [Price, Price, Price];
   readonly power: Power;
@@ -98,6 +98,31 @@ const BUILDING_ROWS = [
     ],
     power: {},
   },
+  {
+    // Slice 2 Part 2 (#771; spec rule 4.1): starting numbers for the #772 lab.
+    // Operational Research Lab opens Research inside the City and ends Part 2.
+    id: "researchLab",
+    name: "The Research Lab",
+    part: 4,
+    steps: [
+      [
+        { good: "brick", amount: 40_000_000 },
+        { good: "cutStone", amount: 25_000_000 },
+        { good: "parts", amount: 200_000 },
+      ],
+      [
+        { good: "brick", amount: 60_000_000 },
+        { good: "cutStone", amount: 40_000_000 },
+        { good: "parts", amount: 600_000 },
+      ],
+      [
+        { good: "brick", amount: 80_000_000 },
+        { good: "cutStone", amount: 60_000_000 },
+        { good: "parts", amount: 1_500_000 },
+      ],
+    ],
+    power: {},
+  },
 ] as const satisfies readonly BuildingRow[];
 
 export type BuildingId = (typeof BUILDING_ROWS)[number]["id"];
@@ -146,7 +171,7 @@ export type Project =
 
 export const NO_PROJECT: Project = { kind: "unordered" };
 
-/** Whether a building is in play: part 1's always, part 2's and part 3's with their switches (#666, #675). */
+/** Whether a building is in play: parts 1–3 on Slice 1 switches, part 4 on Slice 2 Part 2 (#666, #675, #771). */
 function buildingInPlay(building: Pick<Building, "part">): boolean {
   switch (building.part) {
     case 1:
@@ -155,6 +180,8 @@ function buildingInPlay(building: Pick<Building, "part">): boolean {
       return partTwoOn();
     case 3:
       return partThreeOn();
+    case 4:
+      return slice2Part2On();
   }
 }
 

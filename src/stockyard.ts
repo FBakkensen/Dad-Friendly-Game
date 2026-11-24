@@ -1,43 +1,44 @@
 import { stillRequired, stockyardTimes } from "./city";
 import { factor } from "./economy/factors";
 import type { Mountain } from "./mountain";
-import { partThreeOn, partTwoOn } from "./part-switch";
+import { partThreeOn, partTwoOn, slice2Part2On } from "./part-switch";
+import { researchStillRequired } from "./research";
 import { pay, type GoodId, type Price } from "./stock";
 
 /**
- * The stockyard (slice 1, rule 4, #666): one stockpile for each good, and one
- * level that sets the room of all of them. A full stockpile takes no more
- * (src/mine-piles.ts). It opens when the Light Tower is operational, in part
- * 2; before that the pocket has no limit. "Expand the stockyard" costs
- * brick, and the Warehouse doubles the room (rule 6).
+ * The stockyard (slice 1, rule 4, #666; slice 2, rule 3.1, #771): one
+ * stockpile for each of the five goods, and one level that sets the room of
+ * all of them. A full stockpile takes no more (src/mine-piles.ts,
+ * src/slice2-flow.ts). It opens when the Light Tower is operational, in part
+ * 2; before that the pocket has no limit. "Expand the stockyard" costs brick,
+ * and the Warehouse doubles the room (rule 6).
  */
 
 /**
- * Each stockpile's room at level 0, as the lab set it (#667): twice the
- * spec's guess: a casual dad's long night that fills it fills it late, and
- * the dads away a whole day sit on a full stockpile less than at 3M. A good
- * with no row has no limit. The lab sweeps it with `room.stockyard`; above
- * about 1.9 the last level's room is past a safe integer, so a sweep stays
- * below that.
+ * Unified starting stockpile room at level 0 across all five Slice 2 goods
+ * (spec rule 3.1). `cutStone` activates with part 3, and `glass`/`parts` with
+ * Slice 2 Part 2. The lab sweeps them with `room.stockyard`; above about 1.9
+ * the last level's room passes a safe integer, so sweeps stay below that.
  */
-const ROOM_AT_ZERO: Readonly<Partial<Record<GoodId, number>>> = {
+const ROOM_AT_ZERO: Readonly<Record<GoodId, number>> = {
   stones: 6_000_000,
   brick: 1_000_000,
-};
-
-/**
- * Cut stone's room at level 0 (part 3): it has a stockpile only while part 3
- * plays, so it is not in `ROOM_AT_ZERO` or `STOCKPILE_GOODS` (the frame's
- * stockpiles and the night's full time are the screens' and the lab's).
- */
-const PART_THREE_ROOM: Readonly<Partial<Record<GoodId, number>>> = {
   cutStone: 250_000,
+  glass: 150_000,
+  parts: 100_000,
 };
 
-/** The goods with a stockpile in the stockyard: `ROOM_AT_ZERO`'s rows (#667). */
-export const STOCKPILE_GOODS: readonly GoodId[] = (
-  Object.keys(ROOM_AT_ZERO) as GoodId[]
-).filter((good) => ROOM_AT_ZERO[good] !== undefined);
+/** Unified list of all five goods with a stockpile in the stockyard (spec rule 3.1). */
+export const STOCKPILE_GOODS: readonly GoodId[] = [
+  "stones",
+  "brick",
+  "cutStone",
+  "glass",
+  "parts",
+];
+
+/** Part 1 / Slice 1 Part 2 base stockpiles before Part 3 and Slice 2 Part 2. */
+const PART_TWO_STOCKPILES: readonly GoodId[] = ["stones", "brick"];
 
 /** What each level multiplies the room by: "capacity ×3" (#671). */
 export const ROOM_GROWTH = 3;
@@ -59,18 +60,26 @@ export function stockyardOpen(
   return partTwoOn() && mountain.operational.includes("lightTower");
 }
 
-/** A stockpile's room now: Infinity before the stockyard, or for a good with no stockpile. */
+function goodHasStockpile(good: GoodId): boolean {
+  if (good === "stones" || good === "brick") {
+    return true;
+  }
+  if (good === "cutStone") {
+    return partThreeOn();
+  }
+  return slice2Part2On();
+}
+
+/** A stockpile's room now: Infinity before the stockyard, or for a good not yet in play. */
 export function stockpileRoom(
   mountain: Pick<Mountain, "operational" | "stockyard">,
   good: GoodId,
 ): number {
-  const base =
-    ROOM_AT_ZERO[good] ?? (partThreeOn() ? PART_THREE_ROOM[good] : undefined);
-  if (base === undefined || !stockyardOpen(mountain)) {
+  if (!stockyardOpen(mountain) || !goodHasStockpile(good)) {
     return Infinity;
   }
   return (
-    base *
+    ROOM_AT_ZERO[good] *
     factor("room.stockyard") *
     ROOM_GROWTH ** mountain.stockyard *
     stockyardTimes(mountain)
@@ -119,18 +128,47 @@ export function stockpileFull(
   return mountain.stock[good] >= stockpileRoom(mountain, good);
 }
 
+/** Whether Glassworks, Factory, or Research currently draws `good` from the stockyard. */
+function hasPartTwoDemand(mountain: Mountain, good: GoodId): boolean {
+  if (
+    mountain.research.active !== undefined &&
+    researchStillRequired(mountain.research.active)[good] > 0
+  ) {
+    return true;
+  }
+  if (good === "stones") {
+    return mountain.makers.glassworks > 0;
+  }
+  if (good === "brick" || good === "cutStone") {
+    return (
+      mountain.makers.partsPress > 0 || mountain.makers.precisionAssembly > 0
+    );
+  }
+  if (good === "glass") {
+    return mountain.makers.precisionAssembly > 0;
+  }
+  return false;
+}
+
+/** Stockpile goods active for dead/nearly-full checks (Part 1: stones+brick; Part 2: all 5). */
+export function activeStockpileGoods(): readonly GoodId[] {
+  return slice2Part2On() ? STOCKPILE_GOODS : PART_TWO_STOCKPILES;
+}
+
 /**
  * The goods whose stockpile sits dead: full while nothing takes its good, no
- * order delivering or the step in hand requiring none of it (#667). The
- * night log adds up this time stretch by stretch, and the lab's `deadGood`
- * reads it live.
+ * City order delivering it (and under Slice 2 Part 2, no Glassworks, Factory,
+ * or Research demand for it; spec rule 3.1).
  */
 export function deadStockpiles(mountain: Mountain): readonly GoodId[] {
   const project = mountain.project;
   const need =
     project.kind === "delivering" ? stillRequired(project.site) : undefined;
-  return STOCKPILE_GOODS.filter(
+  const part2 = slice2Part2On();
+  return activeStockpileGoods().filter(
     (good) =>
-      stockpileFull(mountain, good) && (need === undefined || need[good] <= 0),
+      stockpileFull(mountain, good) &&
+      (need === undefined || need[good] <= 0) &&
+      (!part2 || !hasPartTwoDemand(mountain, good)),
   );
 }

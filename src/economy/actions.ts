@@ -104,8 +104,20 @@ import {
   type UpgradeId,
 } from "../upgrades";
 import {
+  RESEARCH_IDS,
+  cancelResearch,
+  installResearch,
+  researchAvailable,
+  researchOpen,
+  researchReady,
+  startResearch,
+  type ResearchId,
+} from "../research";
+import { slice2Part2On } from "../part-switch";
+import {
   add,
   priceAmount,
+  priceTotal,
   samePrice,
   stockMoved,
   UNSHOWN_PRICE,
@@ -145,7 +157,14 @@ export type Action =
   | OrderAction
   | WorkerAction
   | YardAction
-  | LevelAction;
+  | LevelAction
+  | ResearchAction;
+
+/** Slice 2 Part 2 Research Lab moves (#771): start, lossless cancel, manual install. */
+type ResearchAction =
+  | { readonly kind: "startResearch"; readonly id: ResearchId }
+  | { readonly kind: "cancelResearch" }
+  | { readonly kind: "installResearch" };
 
 /**
  * Part 3's moves at the shaft (slice 1, rules 1.3 and 5.2, #673), only while
@@ -259,6 +278,56 @@ export function listActions(
     ...workerActions(mountain),
     ...yardActions(mountain),
     ...levelActions(mountain),
+    ...researchActions(mountain),
+  ];
+}
+
+function researchActions(mountain: Mountain): readonly Action[] {
+  if (!researchOpen(mountain)) {
+    return [];
+  }
+  const active = mountain.research.active;
+  if (active === undefined) {
+    return RESEARCH_IDS.filter((id) => researchAvailable(mountain, id)).map(
+      (id): Action => ({ kind: "startResearch", id }),
+    );
+  }
+  return researchReady(active)
+    ? [{ kind: "installResearch" }, { kind: "cancelResearch" }]
+    : [{ kind: "cancelResearch" }];
+}
+
+function researchApplied(mountain: Mountain, action: ResearchAction): Mountain {
+  switch (action.kind) {
+    case "startResearch":
+      return startResearch(mountain, action.id);
+    case "cancelResearch":
+      return cancelResearch(mountain);
+    case "installResearch":
+      return installResearch(mountain);
+  }
+}
+
+function researchEvents(
+  before: Mountain,
+  action: ResearchAction,
+): readonly MoveEvent[] {
+  if (action.kind === "startResearch") {
+    return [{ kind: "researchStarted", id: action.id }];
+  }
+  const active = before.research.active;
+  /* v8 ignore next 3 -- an applied cancel or install always had an active project */
+  if (active === undefined) {
+    return [];
+  }
+  return [
+    {
+      kind:
+        action.kind === "cancelResearch"
+          ? "researchCanceled"
+          : "researchInstalled",
+      id: active.id,
+    },
   ];
 }
 
@@ -490,6 +559,9 @@ function tierActions(mountain: Mountain): readonly Action[] {
  * today's price, as the sheet shows it.
  */
 function upgradeActions(mountain: Mountain): readonly Action[] {
+  if (slice2Part2On()) {
+    return [];
+  }
   return UPGRADES.filter((upgrade) => upgradeShown(mountain, upgrade)).flatMap(
     (upgrade): Action[] => {
       const price = upgradePrice(mountain, upgrade.id);
@@ -688,6 +760,11 @@ export type MoveEvent =
       readonly level: MineLevelId;
       /** The hoists assigned to that level after the move. */
       readonly count: number;
+    }
+  | {
+      readonly kind:
+        "researchStarted" | "researchCanceled" | "researchInstalled";
+      readonly id: ResearchId;
     };
 
 /**
@@ -769,6 +846,10 @@ function actionApplied(
     case "assignHoist":
     case "unassignHoist":
       return levelApplied(mountain, action);
+    case "startResearch":
+    case "cancelResearch":
+    case "installResearch":
+      return researchApplied(mountain, action);
     /* v8 ignore next 3 -- exhaustiveness guard, unreachable */
     default: {
       const unexpected: never = action;
@@ -940,6 +1021,10 @@ function actionEvents(
           count: next.cages.assigned[action.level],
         },
       ];
+    case "startResearch":
+    case "cancelResearch":
+    case "installResearch":
+      return researchEvents(before, action);
     /* v8 ignore next 3 -- exhaustiveness guard, unreachable */
     default: {
       const unexpected: never = action;
@@ -1023,6 +1108,9 @@ export function valueOf(
     case "placeOrder":
     case "holdOrder":
     case "resumeOrder":
+    case "startResearch":
+    case "cancelResearch":
+    case "installResearch":
       return { gainPerSec: 0, cost: 0, paybackSec: Infinity };
     case "buyVehicle":
       // Transport raises no income: the lab learns what it is worth (#655).
@@ -1032,10 +1120,10 @@ export function valueOf(
         paybackSec: Infinity,
       };
     case "buyMaker":
-      // A maker raises no stone income: the lab learns what brick is worth (#667).
+      // A maker raises no stone income: the lab learns what its output is worth (#667, #771).
       return {
         gainPerSec: 0,
-        cost: priceAmount(makerPrice(mountain, action.id), "stones"),
+        cost: priceTotal(makerPrice(mountain, action.id)),
         paybackSec: Infinity,
       };
     case "expandStockyard":

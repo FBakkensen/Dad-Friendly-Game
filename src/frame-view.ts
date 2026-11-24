@@ -12,12 +12,7 @@ import { makerOpen } from "./makers";
 import type { Mountain } from "./mountain";
 import { workforceCount } from "./next-view";
 import { EMPTY_STOCK, priceAmount, type GoodId } from "./stock";
-import {
-  STOCKPILE_GOODS,
-  stockpileFull,
-  stockpileRoom,
-  stockyardOpen,
-} from "./stockyard";
+import { stockpileFull, stockpileRoom, stockyardOpen } from "./stockyard";
 import { tierById, tierQuote, type BuyAmount } from "./tiers";
 import { freeWorkers } from "./workforce";
 
@@ -39,6 +34,8 @@ export const GOOD_NAMES: Readonly<Record<GoodId, string>> = {
   stones: "Stone",
   brick: "Brick",
   cutStone: "Cut stone",
+  glass: "Glass",
+  parts: "Parts",
 };
 
 /** A good inside a line, as the night's report and the refinery's plates say it: "stone". */
@@ -46,6 +43,8 @@ export const GOOD_WORDS = {
   stones: "stone",
   brick: "brick",
   cutStone: "cut stone",
+  glass: "glass",
+  parts: "parts",
 } as const satisfies Readonly<Record<GoodId, string>>;
 
 /** A pip for each of the three steps: built, in hand, or still to come. */
@@ -179,6 +178,9 @@ const withSaws = (
 ): readonly GoodId[] =>
   makerOpen(mountain, "saw") ? [...goods, SAWS_GOOD] : goods;
 
+/** The goods shown in the frame stockpile strip before Part 2 UI (#779). */
+const BASE_STOCKPILE_GOODS: readonly GoodId[] = ["stones", "brick"];
+
 /**
  * The goods he has met: stone, and brick once the stockyard opens with the
  * Light Tower in part 2 (#671), each with its room, and cut stone once the
@@ -190,7 +192,7 @@ export function stockpiles(mountain: Mountain): readonly Stockpile[] {
     const count = mountain.stock.stones;
     return [{ good: "stones", count, text: formatCompact(count) }];
   }
-  return withSaws(mountain, STOCKPILE_GOODS).map((good) => {
+  return withSaws(mountain, BASE_STOCKPILE_GOODS).map((good) => {
     const count = mountain.stock[good];
     const room = stockpileRoom(mountain, good);
     return {

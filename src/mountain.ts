@@ -2,13 +2,7 @@ import { effectiveRates } from "./rates";
 import type { Engineer } from "./engineers";
 import { type Expedition, type FindId, type Homecoming } from "./expeditions";
 import { NO_UPGRADES, type Upgrades } from "./upgrades";
-import {
-  EMPTY_STOCK,
-  GOOD_IDS,
-  addedStock,
-  stockMoved,
-  type Stock,
-} from "./stock";
+import { EMPTY_STOCK, addedStock, stockMoved, type Stock } from "./stock";
 import type { TeachId } from "./teach";
 import {
   NO_PROJECT,
@@ -48,7 +42,9 @@ import {
   stockyardOpen,
 } from "./stockyard";
 import type { GoodId } from "./stock";
-import { partThreeOn, slice2Part1On } from "./part-switch";
+import { EMPTY_FACTORY_OUTPUT, type FactoryOutput } from "./factory";
+import { NO_RESEARCH, type ResearchState } from "./research";
+import { partThreeOn, slice2Part1On, slice2Part2On } from "./part-switch";
 import {
   accrueSlice2Live,
   accrueSlice2Stretches,
@@ -137,6 +133,10 @@ export type Mountain = {
   readonly cycleMicros: CycleMicros;
   /** Dedicated transport vehicle counts per run, reserved in v11 for Part 3 (slice 2, #766). */
   readonly assignedRuns: AssignedRuns;
+  /** Steady-flow Factory output buffer awaiting physical transport to stockyard (slice 2 part 2, #771). */
+  readonly factoryOutput: FactoryOutput;
+  /** Research Lab active delivery & installed projects (slice 2 part 2, #771). */
+  readonly research: ResearchState;
   /**
    * The shaft's cages (slice 1, part 3, src/cages.ts, #724): the hoists
    * assigned to each level and the cages' trips.
@@ -173,6 +173,8 @@ export const BARE_MOUNTAIN: Mountain = {
   makerBuffers: EMPTY_MAKER_BUFFERS,
   cycleMicros: EMPTY_CYCLE_MICROS,
   assignedRuns: NO_ASSIGNED_RUNS,
+  factoryOutput: EMPTY_FACTORY_OUTPUT,
+  research: NO_RESEARCH,
   cages: NO_CAGES,
 };
 
@@ -194,6 +196,9 @@ export const FRESH_START_JOBS: Jobs = {
   saws: 0,
   crystalDrilling: 0,
   crystalHaulage: 0,
+  glassworks: 0,
+  partsPress: 0,
+  precisionAssembly: 0,
 };
 
 export function createMountain(): Mountain {
@@ -509,6 +514,16 @@ type NightLog = {
   deadMs: number;
 };
 
+const PART_1_FULL_GOODS: readonly GoodId[] = ["stones", "brick", "cutStone"];
+const SLICE_1_FULL_GOODS: readonly GoodId[] = ["stones", "brick"];
+
+function activeFullGoods(): readonly GoodId[] {
+  if (slice2Part2On()) {
+    return STOCKPILE_GOODS;
+  }
+  return slice2Part1On() ? PART_1_FULL_GOODS : SLICE_1_FULL_GOODS;
+}
+
 /** One stretch's facts into the log: `at` is where the next stretch starts. */
 function logStretch(
   log: NightLog,
@@ -519,7 +534,7 @@ function logStretch(
   const atMs = span.at - span.start;
   log.steps.push(...stepsBuilt(before, part.mountain, atMs));
   log.gained = addedStock(log.gained, part.gained);
-  const fullGoods = slice2Part1On() ? GOOD_IDS : STOCKPILE_GOODS;
+  const fullGoods = activeFullGoods();
   for (const good of fullGoods) {
     if (
       log.fullAtMs[good] === undefined &&
@@ -570,7 +585,7 @@ export function accrueAway({
   const awayMs = Math.max(0, now - lastSeen);
   const clockStops = lastSeen + Math.min(awayMs, NIGHT_CLOCK_MS);
   const landed = landedMine(mountain);
-  const fullGoods = slice2Part1On() ? GOOD_IDS : STOCKPILE_GOODS;
+  const fullGoods = activeFullGoods();
   const log: NightLog = {
     producedMs: 0,
     producedTo: 0,

@@ -191,6 +191,9 @@ describe("the shift report (#663)", () => {
             saws: 0,
             crystalDrilling: 0,
             crystalHaulage: 0,
+            glassworks: 0,
+            partsPress: 0,
+            precisionAssembly: 0,
           },
           project: {
             kind: "delivering",

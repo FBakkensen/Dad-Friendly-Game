@@ -91,6 +91,16 @@ import {
   type Pithead,
   type SunkLevel,
 } from "./mine-levels";
+import { EMPTY_FACTORY_OUTPUT, type FactoryOutput } from "./factory";
+import {
+  NO_RESEARCH,
+  RESEARCH_IDS,
+  researchById,
+  researchPrice,
+  type ActiveResearch,
+  type ResearchId,
+  type ResearchState,
+} from "./research";
 import {
   carriedBy,
   cageKeys,
@@ -134,8 +144,14 @@ const GAME_KEYS = [
   "makerBuffers",
   "cycleMicros",
   "assignedRuns",
+  "factoryOutput",
+  "research",
   "cages",
 ] as const;
+
+const FACTORY_OUTPUT_KEYS = ["parts"] as const;
+const RESEARCH_KEYS = ["active", "done"] as const;
+const ACTIVE_RESEARCH_KEYS = ["id", "arrived"] as const;
 
 /**
  * The cages' own keys (#724, ruling 12): the hoists assigned to each level,
@@ -155,8 +171,19 @@ const LEVEL_KEYS = ["machines", "piles"] as const;
 /** The jobs gated on each deeper level: none while that level is unsunk (ruling 2). */
 const LEVEL_GATED_JOBS: Readonly<Record<DeeperLevelId, readonly JobId[]>> = {
   granite: [...Object.values(LEVEL_JOBS.granite), makerJob("saw")],
-  crystal: [...Object.values(LEVEL_JOBS.crystal)],
+  crystal: [
+    ...Object.values(LEVEL_JOBS.crystal),
+    makerJob("glassworks"),
+    makerJob("precisionAssembly"),
+  ],
 };
+
+/** The makers gated on each deeper level: none while that level is unsunk. */
+const LEVEL_GATED_MAKERS: Readonly<Record<DeeperLevelId, readonly MakerId[]>> =
+  {
+    granite: ["saw"],
+    crystal: ["glassworks", "precisionAssembly"],
+  };
 
 /** One sunk deeper level as saved: `{}` with nothing on it. */
 type SavedLevel = {
@@ -175,6 +202,16 @@ type SavedProject = {
 };
 
 const PROJECT_STATES = ["delivering", "onHold"] as const;
+
+type SavedActiveResearch = {
+  readonly id: ResearchId;
+  readonly arrived?: Readonly<Partial<Record<GoodId, number>>>;
+};
+
+type SavedResearch = {
+  readonly active?: SavedActiveResearch;
+  readonly done?: readonly ResearchId[];
+};
 
 /** The game map as saved. Every key is left out when it would be zero or empty. */
 export type SaveGame = {
@@ -214,6 +251,10 @@ export type SaveGame = {
   readonly cycleMicros?: Readonly<Partial<Record<MakerId, number>>>;
   /** Dedicated transport vehicles per run, reserved in v11 for Part 3 (#766); zeros left out. */
   readonly assignedRuns?: Readonly<Partial<Record<RunId, number>>>;
+  /** Steady-flow Factory output buffer awaiting transport (#771); omitted when empty. */
+  readonly factoryOutput?: Readonly<Partial<FactoryOutput>>;
+  /** Research Lab active delivery & installed ids (#771); omitted when empty. */
+  readonly research?: SavedResearch;
   /**
    * The shaft's cages (#724, ruling 12): the hoists assigned to each level
    * and what the cages carry from each, never where they are. Left out while
@@ -368,6 +409,33 @@ function savedCages(cages: Cages): Partial<SaveGame> {
   });
 }
 
+function savedFactoryOutput(output: FactoryOutput): Partial<SaveGame> {
+  return some(
+    "factoryOutput",
+    positives(FACTORY_OUTPUT_KEYS, (key) => output[key]),
+  );
+}
+
+function savedResearch(research: ResearchState): Partial<SaveGame> {
+  const current = research.active;
+  const active =
+    current === undefined
+      ? {}
+      : {
+          active: {
+            id: current.id,
+            ...some(
+              "arrived",
+              positives(GOOD_IDS, (id) => current.arrived[id]),
+            ),
+          },
+        };
+  return some("research", {
+    ...active,
+    ...some("done", research.done),
+  });
+}
+
 /** The game map this mountain writes. */
 export function writeGame(mountain: Mountain): SaveGame {
   return {
@@ -422,6 +490,8 @@ export function writeGame(mountain: Mountain): SaveGame {
       "assignedRuns",
       positives(RUN_ORDER, (id) => mountain.assignedRuns[id] ?? 0),
     ),
+    ...savedFactoryOutput(mountain.factoryOutput),
+    ...savedResearch(mountain.research),
     ...savedCages(mountain.cages),
   };
 }
@@ -785,9 +855,6 @@ function mineLevelsFit(
   jobs: Jobs,
   makers: Makers,
 ): boolean {
-  if (mineLevels.granite === undefined && makers.saw !== 0) {
-    return false;
-  }
   if (mineLevels.granite === undefined && mineLevels.crystal !== undefined) {
     return false;
   }
@@ -797,7 +864,8 @@ function mineLevelsFit(
   for (const level of DEEPER_LEVEL_IDS) {
     if (
       mineLevels[level] === undefined &&
-      LEVEL_GATED_JOBS[level].some((job) => jobs[job] !== 0)
+      (LEVEL_GATED_JOBS[level].some((job) => jobs[job] !== 0) ||
+        LEVEL_GATED_MAKERS[level].some((maker) => makers[maker] !== 0))
     ) {
       return false;
     }
@@ -888,7 +956,18 @@ function readMakerBufferEntry(
   return positives(MAKER_INPUT_IDS[id], (input) => counts[input]);
 }
 
-/** Maker input buffers (#766): uncapped whole counts per maker input, none on unsunk levels. */
+function unsunkGatedMaker(
+  mineLevels: MineLevels,
+  hasData: (id: MakerId) => boolean,
+): boolean {
+  return DEEPER_LEVEL_IDS.some(
+    (level) =>
+      mineLevels[level] === undefined &&
+      LEVEL_GATED_MAKERS[level].some(hasData),
+  );
+}
+
+/** Maker input buffers (#766, #771): uncapped whole counts per maker input, none on unsunk levels. */
 function readMakerBuffers(
   value: unknown,
   mineLevels: Part<MineLevels>,
@@ -899,9 +978,8 @@ function readMakerBuffers(
   if (!isRecord(value)) {
     return "bad";
   }
-  const kiln = readMakerBufferEntry("kiln", value["kiln"]);
-  const saw = readMakerBufferEntry("saw", value["saw"]);
-  const failed = worst([kiln, saw]);
+  const entries = MAKER_IDS.map((id) => readMakerBufferEntry(id, value[id]));
+  const failed = worst(entries);
   if (failed === "bad") {
     return "bad";
   }
@@ -911,17 +989,18 @@ function readMakerBuffers(
   if (typeof mineLevels === "string") {
     return mineLevels;
   }
-  const sawMap = saw as Readonly<Partial<Record<MakerInputId, number>>>;
-  if (Object.keys(sawMap).length > 0 && mineLevels.granite === undefined) {
+  const buffers = Object.fromEntries(
+    MAKER_IDS.map((id, idx) => [id, entries[idx]]),
+  ) as MakerBuffers;
+  if (
+    unsunkGatedMaker(mineLevels, (id) => Object.keys(buffers[id]).length > 0)
+  ) {
     return "bad";
   }
-  return {
-    kiln: kiln as Readonly<Partial<Record<MakerInputId, number>>>,
-    saw: sawMap,
-  };
+  return buffers;
 }
 
-/** Persisted integer micro-cycles per maker, 0..999_999 (#766). */
+/** Persisted integer micro-cycles per maker, 0..999_999 (#766, #771). */
 function readCycleMicros(
   value: unknown,
   mineLevels: Part<MineLevels>,
@@ -952,7 +1031,7 @@ function readCycleMicros(
   if (typeof mineLevels === "string") {
     return mineLevels;
   }
-  return (out.saw ?? 0) > 0 && mineLevels.granite === undefined ? "bad" : out;
+  return unsunkGatedMaker(mineLevels, (id) => (out[id] ?? 0) > 0) ? "bad" : out;
 }
 
 /** Reserved Part 3 vehicle run assignments (#766): validated `sum <= fleetSize`. */
@@ -972,6 +1051,75 @@ function readAssignedRuns(
     return "bad";
   }
   return positives(RUN_ORDER, (id) => counts[id]);
+}
+
+/** Steady-flow Factory output buffer (#771): uncapped whole parts awaiting transport. */
+function readFactoryOutput(value: unknown): Part<FactoryOutput> {
+  if (value === undefined) {
+    return EMPTY_FACTORY_OUTPUT;
+  }
+  return readCounts(value, FACTORY_OUTPUT_KEYS, UNCAPPED);
+}
+
+function readActiveResearch(value: unknown): Part<ActiveResearch | undefined> {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (!isRecord(value) || typeof value["id"] !== "string") {
+    return "bad";
+  }
+  const arrived = readCounts(value["arrived"], GOOD_IDS, UNCAPPED);
+  if (arrived === "bad") {
+    return "bad";
+  }
+  if (
+    arrived === "newer" ||
+    !(RESEARCH_IDS as readonly string[]).includes(value["id"]) ||
+    unknownKeys(value, ACTIVE_RESEARCH_KEYS)
+  ) {
+    return "newer";
+  }
+  const id = value["id"] as ResearchId;
+  const price = researchPrice(id);
+  const fits = GOOD_IDS.every(
+    (good) => arrived[good] <= priceAmount(price, good),
+  );
+  return fits ? { id, arrived } : "bad";
+}
+
+/** Research Lab active delivery & installed projects (#771). */
+function readResearch(value: unknown, facts: Part<Facts>): Part<ResearchState> {
+  if (value === undefined) {
+    return NO_RESEARCH;
+  }
+  if (!isRecord(value)) {
+    return "bad";
+  }
+  const done = readIds(value["done"], RESEARCH_IDS);
+  const active = readActiveResearch(value["active"]);
+  const failed = worst([done, active]);
+  if (failed === "bad") {
+    return "bad";
+  }
+  if (failed === "newer" || unknownKeys(value, RESEARCH_KEYS)) {
+    return "newer";
+  }
+  if (typeof facts === "string") {
+    return facts;
+  }
+  const doneList = done as readonly ResearchId[];
+  const activeProject = active as ActiveResearch | undefined;
+  if (activeProject !== undefined) {
+    const eq = researchById(activeProject.id).partOneUpgrade;
+    if (
+      doneList.includes(activeProject.id) ||
+      (eq !== undefined && facts.upgrades[eq] > 0)
+    ) {
+      return "bad";
+    }
+    return { active: activeProject, done: doneList };
+  }
+  return { done: doneList };
 }
 
 type LevelCounts = Record<MineLevelId, number>;
@@ -1117,6 +1265,8 @@ export function readGame(value: unknown, startedAt: number): GameRead {
   const makerBuffers = readMakerBuffers(value["makerBuffers"], mineLevels);
   const cycleMicros = readCycleMicros(value["cycleMicros"], mineLevels);
   const assignedRuns = readAssignedRuns(value["assignedRuns"], fleet);
+  const factoryOutput = readFactoryOutput(value["factoryOutput"]);
+  const research = readResearch(value["research"], facts);
   const cages = readCages(value["cages"], facts, mineLevels);
   const failed = worst([
     facts,
@@ -1134,6 +1284,8 @@ export function readGame(value: unknown, startedAt: number): GameRead {
     makerBuffers,
     cycleMicros,
     assignedRuns,
+    factoryOutput,
+    research,
     cages,
   ]);
   if (failed !== undefined) {
@@ -1161,6 +1313,8 @@ export function readGame(value: unknown, startedAt: number): GameRead {
       makerBuffers: makerBuffers as MakerBuffers,
       cycleMicros: cycleMicros as CycleMicros,
       assignedRuns: assignedRuns as AssignedRuns,
+      factoryOutput: factoryOutput as FactoryOutput,
+      research: research as ResearchState,
       cages: cages as Cages,
       startedAt,
     },
@@ -1195,6 +1349,8 @@ export type ShippedFacts = {
   readonly makerBuffers: Readonly<Record<MakerId, readonly string[]>>;
   readonly cycleMicros: readonly string[];
   readonly assignedRuns: readonly string[];
+  readonly factoryOutput: readonly string[];
+  readonly research: readonly string[];
   readonly cages: Readonly<
     Record<(typeof CAGE_KEYS)[number], readonly string[]>
   >;
@@ -1237,6 +1393,8 @@ export function shippedFacts(): ShippedFacts {
     makerBuffers: MAKER_INPUT_IDS,
     cycleMicros: MAKER_IDS,
     assignedRuns: RUN_ORDER,
+    factoryOutput: FACTORY_OUTPUT_KEYS,
+    research: RESEARCH_IDS,
     cages: { assigned: MINE_LEVEL_IDS, carried: MINE_LEVEL_IDS },
   };
 }

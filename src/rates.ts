@@ -15,7 +15,8 @@ import { nightShiftShare } from "./city";
 import { lineWork } from "./workforce";
 import type { Mountain } from "./mountain";
 import { TIERS, owned, tierById, type TierId } from "./tiers";
-import { BOOTS_SPEED_PER_LEVEL, tierSynergy, upgradeLevel } from "./upgrades";
+import { ironRailsMultiplier, researchDone } from "./research";
+import { BOOTS_SPEED_PER_LEVEL, tierSynergy } from "./upgrades";
 
 /**
  * Share of the crew's speed paid for time away (app closed or in the
@@ -107,6 +108,10 @@ const clocklessRates = new WeakMap<
 
 function readRates(mountain: Mountain, now?: number, trouble?: Trouble): Rates {
   const taught = 1 + mountain.owned.kid * KID_TEACH_PER_KID;
+  const bootsBonus = researchDone(mountain, "workBoots")
+    ? BOOTS_SPEED_PER_LEVEL
+    : 0;
+  const rails = ironRailsMultiplier(mountain);
   const tierSpeed = Object.fromEntries(
     TIERS.map((tier) => {
       // A sweep scales the tier's own stones a second. The factor is 1 in play.
@@ -115,15 +120,14 @@ function readRates(mountain: Mountain, now?: number, trouble?: Trouble): Rates {
         lineRating(tier.id) *
         factor(`output.${tier.id}`) *
         milestoneMultiplier(tier.id, owned(mountain, tier));
+      const railMult = tier.id === "cart" || tier.id === "train" ? rails : 1;
       return [
         tier.id,
         tier.id === "helper"
-          ? output *
-            (1 + upgradeLevel(mountain, "boots") * BOOTS_SPEED_PER_LEVEL) *
-            taught
+          ? output * (1 + bootsBonus) * taught
           : tier.id === "kid"
             ? output * taught
-            : output,
+            : output * railMult,
       ];
     }),
   ) as Record<TierId, number>;
