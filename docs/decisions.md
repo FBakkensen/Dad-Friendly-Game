@@ -79,6 +79,7 @@ The design is `docs/superpowers/specs/2026-11-19-slice-2-design.md` (#763, #764)
 - **The Light Tower and the horse wagon** (#656, #657). His yes on 15 Nov 2026 covered the prompt, the size and the tool. His look at the two finished pictures was asked for the same day, and `docs/ART.md` records where that stands. They landed with the house's black outline.
 - **The kiln, the brick and the Warehouse** (#668 to #670): approved 15 Nov 2026, 16:41.
 - **The saw, the cut stone, the truck and the Foundry** (#676 to #679): approved 16 Nov 2026, 07:51.
+- **The parts icon** (#773): approved 26 Nov 2026. The spend (up to six generations), the size, the tool and the prompt, then the finished gen3 picture.
 - **Three rounds of screen mocks were rejected** (14 Nov 2026, 19:30 to 20:03). They looked almost the same: only the arrangement of boxes changed. "there should be some real difference depending on whether the work is mine, city, refinement, manufacturing". And: "We are wasting the time on generating images, we should do prototypes instead."
 
 ## How we work

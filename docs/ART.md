@@ -161,3 +161,22 @@ All four were made the way the kiln, the brick and the Warehouse were: `create_i
 - `foundry.png`: seed 921, init `mockups/city/art/init-foundry.png` at strength 150, on a 48×64 canvas, then trimmed to its bounding box. Prompt: "iron foundry of an industrial mine works seen from the side: walls of pale cut stone blocks on a grey stone footing, a big arched furnace doorway glowing with bright amber fire, a tall red-brown brick chimney stack with iron bands on the left, a dark riveted iron roof with a raised vent lit amber, two small iron-framed windows lit warm amber, flat 2D side profile". It was the first try. The trimmed picture is `mockups/city/art/foundry-drawn.png`.
 
   It is built of what it costs: cut stone walls and a brick stack. It is 45 wide, and the third plot is 54 (`PLOT_SPANS` in `src/city-scene.ts`), so 4 into its plot (#682) it ends 5 short of the plot's end, the room the Warehouse has on its right. Its furnace mouth is at 22 to 33 across and 41 to 59 down, counted from 0, and the two lights of its roof vent are at 23 to 26 and 29 to 32 across, 22 to 23 down, for the glow once it is operational. Its stack's shaft is at 3 to 11 across. Its cap, 2 to 12 across, is the picture's top five rows, and its base is 1 to 12 across. The city draws it since #682. Its scaffold, 6 out on each side as the first two buildings have, runs from column 152 to 209 of the scene's 212: clear of the Warehouse, and a column into the gap before the third plot. The plots after the first have no free ground, so its yard is the Warehouse's, beside the Light Tower (`siteYard(2)`).
+
+## Slice 2: Parts (#773)
+
+Parts, the Factory's manufactured good, for slice 2's part 2. It is in `src/assets/board/` with the other goods. The icon is in `priceIcon` so Part 2's UI (#779) can show it; the stockpile strip does not show Parts yet, and Slice 2 Part 2 stays off in play until #780. Flemming approved the spend (up to six PixelLab generations), the size, the tool and the prompt, then approved the finished picture, all on 26 Nov 2026.
+
+| File                             | Size  | Use                                                                                             |
+| -------------------------------- | ----- | ----------------------------------------------------------------------------------------------- |
+| `src/assets/board/res-parts.png` | 16×16 | Parts, the Factory's good: on its stockpile, on the order strip, in prices, once #779 draws it. |
+
+The picture is PixelLab `create_image_pixen` through MCP, made the way the brick and the cut stone were: 16×16, transparent background, high top-down view, single color black outline, medium detail. Pixen takes no color image.
+
+- `res-parts.png`: job `b6c74b33-79b5-463e-ade0-266886e9f754`. PixelLab did not return a seed. Prompt: "a machined brass cogwheel gear, flat icon shape with sharp teeth and a dark round center hole, warm golden brass top face and darker bronze rim, single industrial metal part". It was the third of six tries. The others came out as a washer, a four-point diamond, a broken red ring, a smaller dull nut and a soft copper blob.
+
+The picture as it came is `mockups/refinery/art/res-parts-pixellab.png`, in pixen's own golds. `scripts/palette-icon.py` moved every pixel to the nearest of the palette picture's colours (`mockups/city/art/palette.png`, without the black cells that fill its last row): that is `mockups/refinery/art/res-parts-drawn.png`. `scripts/outline-icon.py` then gave it the house outline. The parts icon in the game has nine of the board's brass and bronze colours and the outline colour, and nothing else. The committed files are reproduced by:
+
+```bash
+python3 scripts/palette-icon.py mockups/refinery/art/res-parts-pixellab.png mockups/city/art/palette.png mockups/refinery/art/res-parts-drawn.png
+python3 scripts/outline-icon.py mockups/refinery/art/res-parts-drawn.png src/assets/board/res-parts.png
+```
