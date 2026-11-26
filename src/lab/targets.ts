@@ -196,8 +196,8 @@ export const YARD_NEARLY_FULL = 0.9;
 /** Workers one tap moves with the amount key on ×10 (call 49). */
 export const AMOUNT_KEY_TEN = 10;
 
-/** How many days `runPolicy` plays when the caller does not name a cap. */
-export const DEFAULT_MAX_DAYS = 30;
+/** How many days `runPolicy` plays when the caller does not name a cap (45 for Slice 2's 4-building arc, #772). */
+export const DEFAULT_MAX_DAYS = 45;
 
 /**
  * Seeds a CI run plays, numbered 1 through this count.

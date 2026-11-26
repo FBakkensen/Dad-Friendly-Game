@@ -267,16 +267,20 @@ function samplePolicy(
   placeSittings(samples, sittingLog.flush());
   attach(samples, pending, pendingBuys);
   nights.attach(samples);
+  const entry = ledger.entry({
+    policyId: policy.id,
+    seed,
+    finishDay: run.finishDay,
+    end: run.world,
+  });
   return {
     policy,
     seed,
-    samples: withFinish(samples, run.finishDay),
-    ledger: ledger.entry({
-      policyId: policy.id,
-      seed,
-      finishDay: run.finishDay,
-      end: run.world,
+    samples: withFinish(samples, run.finishDay, {
+      foundryDay: entry.buildings.foundry,
+      researchLabDay: entry.buildings.researchLab,
     }),
+    ledger: entry,
   };
 }
 

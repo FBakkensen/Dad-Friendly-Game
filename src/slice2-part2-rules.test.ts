@@ -378,10 +378,10 @@ describe("multi-input Glassworks & steady-flow Factory (#771)", () => {
       expect(stepped.consumed.stones).toBe(stepped.produced * 2);
 
       // Precision Assembly outputs 3 parts per cycle (2 brick + 2 cutStone + 2 glass -> 3 parts),
-      // at 30 parts/s per running unit, and tracks fractional sub-cycle progress cleanly in
+      // at 36 parts/s per running unit, and tracks fractional sub-cycle progress cleanly in
       // cycleMicros on slow lines (e.g. 0.3 parts/s -> 0.1 cycles/s).
       const precRate = makerRate(m, "precisionAssembly");
-      expect(precRate).toBeCloseTo(30, 8);
+      expect(precRate).toBeCloseTo(36, 8);
       const fullOneSec = stepMakerCycle({
         inputs: [
           { id: "brick", amount: 2, held: 100 },
@@ -394,11 +394,11 @@ describe("multi-input Glassworks & steady-flow Factory (#771)", () => {
         dt: 1,
         cycleMicros: 0,
       });
-      expect(fullOneSec.produced).toBe(30);
+      expect(fullOneSec.produced).toBe(36);
       expect(fullOneSec.consumed).toEqual({
-        brick: 20,
-        cutStone: 20,
-        glass: 20,
+        brick: 24,
+        cutStone: 24,
+        glass: 24,
       });
 
       const slowOneSec = stepMakerCycle({
@@ -461,14 +461,15 @@ describe("multi-input Glassworks & steady-flow Factory (#771)", () => {
         ...m,
         makerBuffers: {
           ...m.makerBuffers,
-          partsPress: { brick: 150 },
+          partsPress: { brick: 100 },
           precisionAssembly: { brick: 0 },
         },
       };
-      // Catch-up for precisionAssembly is 150 (since both rooms are 300), leaving 50 to split 25/25.
-      expect(distributeFactoryInput(uneven, "brick", 200, 0)).toEqual({
+      // Catch-up for precisionAssembly is floor(100 * roomPrec / roomPress), leaving 50 to split 25/25.
+      const catchUp = Math.floor((100 * roomPrec) / roomPress);
+      expect(distributeFactoryInput(uneven, "brick", catchUp + 50, 0)).toEqual({
         partsPress: 25,
-        precisionAssembly: 175,
+        precisionAssembly: catchUp + 25,
       });
 
       // Single-line input (glass -> precisionAssembly only) and zero amount.
@@ -503,7 +504,7 @@ describe("Building 4 (Research Lab) and Research rules (#771)", () => {
           ...ordered.stock,
           brick: 300_000_000,
           cutStone: 200_000_000,
-          parts: 10_000_000,
+          parts: 15_000_000,
         },
         owned: { ...ordered.owned, helper: ordered.owned.helper + 1_000 },
         fleet: { horseWagon: 0, truck: 500 },
@@ -1050,7 +1051,8 @@ describe("8-hour live vs. offline parity across Part 2 chains (#771)", () => {
           cart: 12,
           drill: 8,
           borer: 3,
-          hoist: 6,
+          // Matches cages.assigned (2 + 3 + 3 = 8) so hoist ownership is valid.
+          hoist: 8,
           machine: 2,
         },
         mineLevels: {
@@ -1388,10 +1390,13 @@ describe("8-hour live vs. offline parity across Part 2 chains (#771)", () => {
         away.makerBuffers.precisionAssembly.glass ?? 0,
       ).toBeLessThanOrEqual(makerInputRoom(away, "precisionAssembly", "glass"));
 
-      // Float-dust check: (29 / 1200) * 1200 must still send 1 unit to the lower line (28 vs 29).
+      // Float-dust check: makerInputRoom is max(BASE_INPUT_BUF, ceil(owned * inputPerSecond * 60)).
+      // partsPress (4 parts/s, 2 brick -> 1 part = 8 brick/s) needs 3 units for 1440 room (1 unit is 480),
+      // matching 1 precisionAssembly (36 parts/s, 2 brick -> 3 parts = 24 brick/s -> 1440 room) so equal
+      // 1440:1440 rooms still send 1 leftover brick to the lower line (buffers 28 vs 29).
       const dust: Mountain = {
         ...m,
-        makers: { ...m.makers, partsPress: 1, precisionAssembly: 1 },
+        makers: { ...m.makers, partsPress: 3, precisionAssembly: 1 },
         makerBuffers: {
           ...m.makerBuffers,
           partsPress: { brick: 28 },

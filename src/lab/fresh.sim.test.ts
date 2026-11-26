@@ -84,9 +84,36 @@ describe("the lab plays part 2 (#667)", { timeout: 600_000 }, () => {
   });
 });
 
-// Plays the whole slice to the Foundry's roof for every player type (#675).
+// Plays Slice 2 Part 1 to the Foundry's roof for every player type (#675, #767).
 describe("the lab plays part 3 (#675)", { timeout: 900_000 }, () => {
   it("brings every player type to the Foundry's roof, with the shaft sunk and saws running", async () => {
+    const policies = await discover(
+      path.resolve("src/lab/fresh-policies"),
+      parsePolicyExport,
+    );
+    withFactors(PLAY_FACTORS, () => {
+      for (const policy of policies) {
+        const run = runPolicy({ policy, seed: 1 });
+        const mountain = run.world.mountain;
+        expect(run.finishDay, policy.id).toBeDefined();
+        expect(mountain.operational, policy.id).toEqual([
+          "lightTower",
+          "warehouse",
+          "foundry",
+        ]);
+        expect(mountain.mineLevels.granite, policy.id).toBeDefined();
+        expect(mountain.makers.saw, policy.id).toBeGreaterThan(0);
+        expect(mountain.jobs.saws, policy.id).toBe(mountain.makers.saw);
+      }
+    });
+  });
+});
+
+// Plays Slice 2 Part 2 to the Research Lab's roof for every player type (#772).
+// 30 min: the file is ~12.5 min without coverage; v8 coverage of the lab hot path
+// has already run past the old 15 min bound (~20.7 min on this box).
+describe("the lab plays Slice 2 Part 2 (#772)", { timeout: 1_800_000 }, () => {
+  it("brings every player type to the Research Lab's roof with Factory lines running", async () => {
     const policies = await discover(
       path.resolve("src/lab/fresh-policies"),
       parsePolicyExport,
@@ -100,10 +127,19 @@ describe("the lab plays part 3 (#675)", { timeout: 900_000 }, () => {
           "lightTower",
           "warehouse",
           "foundry",
+          "researchLab",
         ]);
-        expect(mountain.mineLevels.granite, policy.id).toBeDefined();
-        expect(mountain.makers.saw, policy.id).toBeGreaterThan(0);
-        expect(mountain.jobs.saws, policy.id).toBe(mountain.makers.saw);
+        expect(
+          mountain.makers.partsPress + mountain.makers.precisionAssembly,
+          policy.id,
+        ).toBeGreaterThan(0);
+        if (policy.id === "casual-2x10") {
+          expect(mountain.mineLevels.crystal, policy.id).toBeDefined();
+          expect(mountain.makers.glassworks, policy.id).toBeGreaterThan(0);
+          expect(mountain.makers.precisionAssembly, policy.id).toBeGreaterThan(
+            0,
+          );
+        }
       }
     });
   });

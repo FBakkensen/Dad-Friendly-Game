@@ -83,8 +83,8 @@ export function shaftPrice(level: DeeperLevelId = "granite"): Price {
 export function crystalShaftPrice(): Price {
   const scale = factor("price.crystalShaft");
   return [
-    { good: "brick", amount: Math.ceil(25_000_000 * scale) },
-    { good: "cutStone", amount: Math.ceil(15_000_000 * scale) },
+    { good: "brick", amount: Math.ceil(1_500_000 * scale) },
+    { good: "cutStone", amount: Math.ceil(1_000_000 * scale) },
   ];
 }
 

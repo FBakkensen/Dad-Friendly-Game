@@ -2,6 +2,7 @@ import { buildingById, nextBuilding, resumeOrder } from "../city";
 import { applyAction, helperBill, type Action } from "../economy/actions";
 import { activeFactors } from "../economy/factors";
 import { narrowStage, type Stage } from "../line";
+import { makerRate } from "../makers";
 import { steadyIncome, steadyLevels } from "../mine-piles";
 import type { MineLevelId } from "../mine-levels";
 import type { Mountain } from "../mountain";
@@ -260,7 +261,7 @@ export function earnSeconds(mountain: Mountain, price: Price): number {
 }
 
 /** The mountain with `price` added to its pocket. */
-function withPocket(mountain: Mountain, price: Price): Mountain {
+export function withPocket(mountain: Mountain, price: Price): Mountain {
   const stock: Record<GoodId, number> = { ...mountain.stock };
   for (const line of price) {
     stock[line.good] += line.amount;
@@ -306,7 +307,7 @@ export function weighed(mountain: Mountain, plan: Plan): Weighed {
 }
 
 /** Seconds sooner: Infinity when only `after` can finish, none when neither can. */
-function secondsSooner(before: number, after: number): number {
+export function secondsSooner(before: number, after: number): number {
   if (before === Infinity) {
     return after === Infinity ? 0 : Infinity;
   }
@@ -317,6 +318,7 @@ function secondsSooner(before: number, after: number): number {
 const GOOD_LEVEL: Readonly<Partial<Record<GoodId, MineLevelId>>> = {
   brick: "topsoil",
   cutStone: "granite",
+  glass: "crystal",
 };
 
 /** Seconds until the building is up as `buildingSeconds`, with the goods of a level that lifts nothing coming at once. */
@@ -325,7 +327,9 @@ function madeSeconds(mountain: Mountain): number {
   const rates = orderRates(resumed);
   const income: Partial<Record<GoodId, number>> = { ...rates.income };
   const levels = levelsRates(mountain);
-  for (const good of goodsAhead(mountain)) {
+  const ahead = goodsAhead(mountain);
+  let idleLevel = false;
+  for (const good of ahead) {
     const level = GOOD_LEVEL[good];
     const levelRate = level === undefined ? undefined : levels[level];
     if (
@@ -333,6 +337,17 @@ function madeSeconds(mountain: Mountain): number {
       Math.min(levelRate.face, levelRate.haul, levelRate.lift) <= FRESH_DUST
     ) {
       income[good] = AT_ONCE;
+      idleLevel = true;
+    }
+  }
+  if (idleLevel && ahead.has("parts") && (income.parts ?? 0) <= FRESH_DUST) {
+    const factory =
+      makerRate(mountain, "partsPress") +
+      (mountain.makers.glassworks > 0
+        ? makerRate(mountain, "precisionAssembly")
+        : 0);
+    if (factory > FRESH_DUST) {
+      income.parts = factory;
     }
   }
   return secondsToFinish(resumed, 1, income, rates.cityCarry);

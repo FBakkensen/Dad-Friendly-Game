@@ -53,7 +53,10 @@ page is the map, plus the rules that keep it that way.
    fresh mine is the rules, so it refuses `fresh.off` and `line.off` by
    name. `TARGETS` holds one row since #675: the five-day floor for the whole
    slice (`slice-five-days`, `sliceDays` at least 5 for every player type;
-   Flemming's A, 16 Nov 2026). Today's mountain's player types (`lab/policies`), their `decide`, the
+   Flemming's A, 16 Nov 2026). In Slice 2 Part 2 (PR #793), the lab continues to
+   The Research Lab's roof for the pacing ledger and `finishDay`, while
+   `slice-five-days` / `sliceDays` still measure The Foundry's roof and
+   `researchLabDays` reports The Research Lab separately (Flemming, Option A). Today's mountain's player types (`lab/policies`), their `decide`, the
    band report and the sensitivity sweep went in #737.
    `lab/ledger` keeps each run's pacing ledger row (#554); `--ledger check`
    compares the run with the committed `docs/pacing-ledger.md` and fails on a
