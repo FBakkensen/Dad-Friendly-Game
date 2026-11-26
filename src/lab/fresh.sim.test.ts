@@ -110,7 +110,9 @@ describe("the lab plays part 3 (#675)", { timeout: 900_000 }, () => {
 });
 
 // Plays Slice 2 Part 2 to the Research Lab's roof for every player type (#772).
-describe("the lab plays Slice 2 Part 2 (#772)", { timeout: 900_000 }, () => {
+// 30 min: the file is ~12.5 min without coverage; v8 coverage of the lab hot path
+// has already run past the old 15 min bound (~20.7 min on this box).
+describe("the lab plays Slice 2 Part 2 (#772)", { timeout: 1_800_000 }, () => {
   it("brings every player type to the Research Lab's roof with Factory lines running", async () => {
     const policies = await discover(
       path.resolve("src/lab/fresh-policies"),
