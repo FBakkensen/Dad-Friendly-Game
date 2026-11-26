@@ -55,6 +55,10 @@ export type DecisionSample = {
   readonly sittings?: readonly SittingEvent[];
   /** Day the last building in play went operational, when the run finished. Same on every sample. */
   readonly finishDay?: number;
+  /** Day The Foundry first went operational, when reached. Same on every sample. */
+  readonly foundryDay?: number;
+  /** Day The Research Lab first went operational, when reached. Same on every sample. */
+  readonly researchLabDay?: number;
   /**
    * Second-best finite payback divided by the best. 1 when they match.
    * Infinity when nothing else on the table pays back.

@@ -1,6 +1,6 @@
 # Pacing ledger
 
-Written by `npm run lab:ledger` (#554). The day each building's roof is on and each machine first bought, for every player type on the gate's seeds; the day the run ends; and a hash of where it ended. A record to read, not a bound. The gate's `lab` step fails when a fresh run differs, so a change that moves the pace shows here as a diff.
+Written by `npm run lab:ledger` (#554). The day each building's roof is on and each machine first bought, for every player type on the gate's seeds; the day the run ends; and a hash of where it ended. Finish is the run end (The Research Lab's roof when Part 2 is on), while the five-day guardrail (`slice-five-days`) still reads The Foundry column. A record to read, not a bound. The gate's `lab` step fails when a fresh run differs, so a change that moves the pace shows here as a diff.
 
 | Policy | Seed | The Light Tower | The Warehouse | The Foundry | The Research Lab | Mine cart | Hoist | Steam drill | Tunnel borer | Locomotive | Finish | End hash |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |

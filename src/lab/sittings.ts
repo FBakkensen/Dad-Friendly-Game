@@ -301,15 +301,34 @@ export function isSampleSecond(second: number): boolean {
   return second % SAMPLE_INTERVAL_SEC === 0;
 }
 
-/** Stamps the finish day onto every sample. An unfinished run is unchanged. */
+type BuildingDays = {
+  readonly foundryDay?: number | undefined;
+  readonly researchLabDay?: number | undefined;
+};
+
+/** Stamps the finish day and building roof days onto every sample when present. */
 export function withFinish(
   samples: readonly DecisionSample[],
   finishDay: number | undefined,
+  buildings?: BuildingDays,
 ): readonly DecisionSample[] {
-  if (finishDay === undefined) {
+  const stamp: {
+    finishDay?: number;
+    foundryDay?: number;
+    researchLabDay?: number;
+  } = {
+    ...(finishDay === undefined ? {} : { finishDay }),
+    ...(buildings?.foundryDay === undefined
+      ? {}
+      : { foundryDay: buildings.foundryDay }),
+    ...(buildings?.researchLabDay === undefined
+      ? {}
+      : { researchLabDay: buildings.researchLabDay }),
+  };
+  if (Object.keys(stamp).length === 0) {
     return samples;
   }
-  return samples.map((sample) => ({ ...sample, finishDay }));
+  return samples.map((sample) => ({ ...sample, ...stamp }));
 }
 
 /**

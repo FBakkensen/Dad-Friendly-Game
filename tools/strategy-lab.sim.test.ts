@@ -23,10 +23,10 @@ describe("strategy lab, the gate's run", () => {
     const row = ledger
       .split("\n")
       .find((line) => line.startsWith("| casual-2x10 | 1 |"));
-    // The Research Lab's roof is Part 2's end, not the Foundry's on day 14.50.
+    // The Research Lab's roof is Part 2's end (day 20.00), not The Foundry's (day 15.00).
     expect(row?.split(" | ").at(-2)).toBe("20.00");
     expect(ledger).toContain(
       "| The Light Tower | The Warehouse | The Foundry | The Research Lab |",
     );
-  }, 180_000);
+  }, 120_000);
 });

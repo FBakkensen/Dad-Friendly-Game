@@ -30,6 +30,7 @@ import workerMoves from "./measures/workerMoves";
 import cageGapMeasure from "./measures/cageGap";
 import hoistWorkers from "./measures/hoistWorkers";
 import shareMoves from "./measures/shareMoves";
+import researchLabDays from "./measures/researchLabDays";
 import sliceDays from "./measures/sliceDays";
 import { levels, partThree } from "../part-three.harness";
 import type { DecisionSample } from "./measure";
@@ -375,13 +376,34 @@ describe("the part 3 measures (#675)", () => {
   it("reads the slice's days only from a run that plays part 3", () => {
     const finished = (partThree: boolean) =>
       [
-        { fresh: view({ partThree }), finishDay: 16 },
+        { fresh: view({ partThree }), foundryDay: 16, finishDay: 20 },
       ] as unknown as readonly DecisionSample[];
     expect(sliceDays.aggregate(finished(true))).toBe(16);
     expect(sliceDays.aggregate(finished(false))).toBeNaN();
+    expect(
+      sliceDays.aggregate([
+        { fresh: view({ partThree: true }), finishDay: 20 },
+      ] as unknown as readonly DecisionSample[]),
+    ).toBe(Infinity);
     expect(sliceDays.aggregate(samples(view({ partThree: true })))).toBe(
       Infinity,
     );
+  });
+
+  it("measures The Foundry explicitly in sliceDays and reports The Research Lab separately", () => {
+    const partTwoRun = [
+      {
+        fresh: view({ partThree: true }),
+        foundryDay: 15,
+        researchLabDay: 20,
+        finishDay: 20,
+      },
+    ] as unknown as readonly DecisionSample[];
+    expect(sliceDays.aggregate(partTwoRun)).toBe(15);
+    expect(researchLabDays.aggregate(partTwoRun)).toBe(20);
+    expect(
+      researchLabDays.aggregate(samples(view({ partThree: true }))),
+    ).toBeNaN();
   });
 
   it("counts the taps that set the share: the Granite's jobs and the hoists on each level", () => {

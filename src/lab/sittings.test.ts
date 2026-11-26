@@ -295,6 +295,14 @@ describe("the sample clock", () => {
     const bare = withFinish([], undefined);
     expect(bare).toEqual([]);
     expect(withFinish(bare, 5).map((sample) => sample.finishDay)).toEqual([]);
+    const sample = { atMs: 0 } as unknown as DecisionSample;
+    expect(
+      withFinish([sample], 20, { foundryDay: 15, researchLabDay: 20 }),
+    ).toEqual([{ atMs: 0, finishDay: 20, foundryDay: 15, researchLabDay: 20 }]);
+    expect(withFinish([sample], undefined, { foundryDay: 15 })).toEqual([
+      { atMs: 0, foundryDay: 15 },
+    ]);
+    expect(withFinish([sample], undefined, {})).toEqual([sample]);
   });
 
   it("starts a new sitting after time away", () => {

@@ -1051,6 +1051,7 @@ describe("8-hour live vs. offline parity across Part 2 chains (#771)", () => {
           cart: 12,
           drill: 8,
           borer: 3,
+          // Matches cages.assigned (2 + 3 + 3 = 8) so hoist ownership is valid.
           hoist: 8,
           machine: 2,
         },
@@ -1077,8 +1078,8 @@ describe("8-hour live vs. offline parity across Part 2 chains (#771)", () => {
         },
         fleet: { horseWagon: 10, truck: 80 },
         jobs: {
-          drilling: 20,
-          haulage: 20,
+          drilling: 6,
+          haulage: 6,
           graniteDrilling: 6,
           graniteHaulage: 6,
           crystalDrilling: 6,
@@ -1389,7 +1390,10 @@ describe("8-hour live vs. offline parity across Part 2 chains (#771)", () => {
         away.makerBuffers.precisionAssembly.glass ?? 0,
       ).toBeLessThanOrEqual(makerInputRoom(away, "precisionAssembly", "glass"));
 
-      // Float-dust check: equal rooms (both 1440 at 3 partsPress vs 1 precisionAssembly) must still send 1 unit to the lower line (28 vs 29).
+      // Float-dust check: makerInputRoom is max(BASE_INPUT_BUF, ceil(owned * inputPerSecond * 60)).
+      // partsPress (4 parts/s, 2 brick -> 1 part = 8 brick/s) needs 3 units for 1440 room (1 unit is 480),
+      // matching 1 precisionAssembly (36 parts/s, 2 brick -> 3 parts = 24 brick/s -> 1440 room) so equal
+      // 1440:1440 rooms still send 1 leftover brick to the lower line (buffers 28 vs 29).
       const dust: Mountain = {
         ...m,
         makers: { ...m.makers, partsPress: 3, precisionAssembly: 1 },

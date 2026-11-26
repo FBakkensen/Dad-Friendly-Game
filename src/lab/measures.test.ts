@@ -11,6 +11,7 @@ import liveP10 from "./measures/liveP10";
 import { longestDeadHours } from "./stretch";
 import regretMeasure from "./measures/regret";
 import { regret } from "./measures/regret";
+import researchLabDays from "./measures/researchLabDays";
 import singleShare, { singleShareOf } from "./measures/singleShare";
 import { neverBest } from "./measures/typeEverBest";
 import { discover } from "./registry";
@@ -28,6 +29,8 @@ function decision(
     readonly outputShare?: DecisionSample["outputShare"];
     readonly optionKinds?: DecisionSample["optionKinds"];
     readonly finishDay?: number;
+    readonly foundryDay?: number;
+    readonly researchLabDay?: number;
     readonly valueLive?: number;
     readonly valueAffordable?: number;
     readonly stretchLive?: number;
@@ -69,6 +72,10 @@ function decision(
       nextPaybackRatio: 1,
     },
     ...(over.finishDay === undefined ? {} : { finishDay: over.finishDay }),
+    ...(over.foundryDay === undefined ? {} : { foundryDay: over.foundryDay }),
+    ...(over.researchLabDay === undefined
+      ? {}
+      : { researchLabDay: over.researchLabDay }),
   };
 }
 
@@ -100,6 +107,7 @@ describe("measures", () => {
       "nightFull",
       "nightFullAt",
       "regret",
+      "researchLabDays",
       "revealNeverUsed",
       "revealSlowest",
       "revealToUse",
@@ -308,6 +316,11 @@ describe("measures", () => {
         casualFinishDay: 5,
       }),
     ).toBeCloseTo(0.2, 5);
+    expect(researchLabDays.aggregate([decision({ researchLabDay: 20 })])).toBe(
+      20,
+    );
+    expect(researchLabDays.aggregate([decision()])).toBeNaN();
+    expect(researchLabDays.aggregate([])).toBeNaN();
   });
 
   it("filters samples for an after-hour scope and a source that has started", () => {
