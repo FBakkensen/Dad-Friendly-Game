@@ -174,4 +174,9 @@ The picture is PixelLab `create_image_pixen` through MCP, made the way the brick
 
 - `res-parts.png`: job `b6c74b33-79b5-463e-ade0-266886e9f754`. PixelLab did not return a seed. Prompt: "a machined brass cogwheel gear, flat icon shape with sharp teeth and a dark round center hole, warm golden brass top face and darker bronze rim, single industrial metal part". It was the third of six tries. The others came out as a washer, a four-point diamond, a broken red ring, a smaller dull nut and a soft copper blob.
 
-The picture as it came is `mockups/refinery/art/res-parts-pixellab.png`, in pixen's own golds. `scripts/palette-icon.py` moved every pixel to the nearest of the palette picture's colours (`mockups/city/art/palette.png`, without the black cells that fill its last row): that is `mockups/refinery/art/res-parts-drawn.png`. `scripts/outline-icon.py` then gave it the house outline. The parts icon in the game has nine of the board's brass and bronze colours and the outline colour, and nothing else.
+The picture as it came is `mockups/refinery/art/res-parts-pixellab.png`, in pixen's own golds. `scripts/palette-icon.py` moved every pixel to the nearest of the palette picture's colours (`mockups/city/art/palette.png`, without the black cells that fill its last row): that is `mockups/refinery/art/res-parts-drawn.png`. `scripts/outline-icon.py` then gave it the house outline. The parts icon in the game has nine of the board's brass and bronze colours and the outline colour, and nothing else. The committed files are reproduced by:
+
+```bash
+python3 scripts/palette-icon.py mockups/refinery/art/res-parts-pixellab.png mockups/city/art/palette.png mockups/refinery/art/res-parts-drawn.png
+python3 scripts/outline-icon.py mockups/refinery/art/res-parts-drawn.png src/assets/board/res-parts.png
+```
