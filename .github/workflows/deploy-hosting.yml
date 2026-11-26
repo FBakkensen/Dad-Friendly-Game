@@ -16,7 +16,10 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # 90: #793's full gate plays Part 2 to The Research Lab. Locally that
+    # run was 54 min (coverage 29.5 min, strict lab 23 min); the 30 min
+    # cap cancelled deploy 45854238738 still inside Full gate.
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
