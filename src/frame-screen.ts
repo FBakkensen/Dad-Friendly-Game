@@ -230,8 +230,6 @@ function buildTop(state: FrameState): TopParts {
     stonePile.root,
     brickPile.root,
     cutStonePile.root,
-    glassPile.root,
-    partsPile.root,
     workers,
     hire,
     transport,
@@ -274,14 +272,30 @@ function paintTop(
     parts.cutStonePile,
     piles.find((pile) => pile.good === "cutStone"),
   );
-  paintPile(
-    parts.glassPile,
-    piles.find((pile) => pile.good === "glass"),
-  );
-  paintPile(
-    parts.partsPile,
-    piles.find((pile) => pile.good === "parts"),
-  );
+  const part2 = slice2Part2On();
+  if (part2) {
+    if (parts.glassPile.root.parentElement !== parts.root) {
+      parts.root.insertBefore(parts.glassPile.root, parts.workers);
+    }
+    if (parts.partsPile.root.parentElement !== parts.root) {
+      parts.root.insertBefore(parts.partsPile.root, parts.workers);
+    }
+    paintPile(
+      parts.glassPile,
+      piles.find((pile) => pile.good === "glass"),
+    );
+    paintPile(
+      parts.partsPile,
+      piles.find((pile) => pile.good === "parts"),
+    );
+  } else {
+    if (parts.glassPile.root.parentElement === parts.root) {
+      parts.glassPile.root.remove();
+    }
+    if (parts.partsPile.root.parentElement === parts.root) {
+      parts.partsPile.root.remove();
+    }
+  }
   mark(parts.root, "two-piles", piles.length > 1);
   setAttr(parts.root, "data-piles", String(piles.length));
   // The exact count, as the odometer carried it, for the journeys (#664).
@@ -584,6 +598,9 @@ export function mountFrameScreen({
       sheets.transportSheet.open();
     },
     openResearch: () => {
+      if (!slice2Part2On()) {
+        return;
+      }
       sheets.sheet.close();
       sheets.transportSheet.close();
       sheets.researchSheet.open();
@@ -644,7 +661,6 @@ export function mountFrameScreen({
     frame.root,
     sheets.sheet.root,
     sheets.transportSheet.root,
-    sheets.researchSheet.root,
     sheets.stageSheet.root,
     sheets.machineCard.root,
     cards.root,
@@ -657,6 +673,13 @@ export function mountFrameScreen({
     const { mountain, ready } = progress.getSnapshot();
     if (!siteOpen(mountain, site)) {
       site = "mine";
+    }
+    const part2 = slice2Part2On();
+    if (part2 && sheets.researchSheet.root.parentElement !== root) {
+      root.insertBefore(sheets.researchSheet.root, sheets.stageSheet.root);
+    } else if (!part2 && sheets.researchSheet.root.parentElement === root) {
+      sheets.researchSheet.close();
+      sheets.researchSheet.root.remove();
     }
     frame.root.toggleAttribute("data-loading", !ready);
     frame.paint(mountain);

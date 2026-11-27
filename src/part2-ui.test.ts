@@ -108,11 +108,16 @@ describe("Slice 2 Part 2 UI gating & screens (#779)", () => {
         // Mine: only 2 levels and 3 hoist strip cells.
         expect(root.querySelectorAll(".mine-level-rows")).toHaveLength(2);
         expect(root.querySelectorAll(".mine-strip-cell")).toHaveLength(3);
-        // Top strip: only 3 piles (stone, brick, cutStone), glass & parts hidden.
+        // Top strip: only 3 piles (stone, brick, cutStone); glass & parts DOM absent.
         expect(
           root.querySelector(".frame-top")?.getAttribute("data-piles"),
         ).toBe("3");
-        // Factory tab & DOM completely absent.
+        expect(root.querySelectorAll(".frame-top .frame-pile")).toHaveLength(3);
+        expect(root.querySelector('.frame-pile[data-good="glass"]')).toBeNull();
+        expect(root.querySelector('.frame-pile[data-good="parts"]')).toBeNull();
+        // Research sheet DOM absent.
+        expect(root.querySelector(".research-sheet")).toBeNull();
+        // Factory tab hidden & Factory DOM completely absent.
         const factoryTab = root.querySelector<HTMLButtonElement>(
           '.frame-site[data-site="factory"]',
         );
@@ -123,14 +128,12 @@ describe("Slice 2 Part 2 UI gating & screens (#779)", () => {
           .querySelector<HTMLButtonElement>('.frame-site[data-site="refinery"]')
           ?.click();
         expect(root.querySelectorAll(".refinery-plate")).toHaveLength(2);
-        // City: 3 skyline tags, Research Lab door hidden.
+        // City: 3 skyline tags, Research Lab door DOM completely absent.
         root
           .querySelector<HTMLButtonElement>('.frame-site[data-site="city"]')
           ?.click();
         expect(root.querySelectorAll(".city-tag")).toHaveLength(3);
-        expect(
-          root.querySelector<HTMLElement>(".city-research-door")?.hidden,
-        ).toBe(true);
+        expect(root.querySelector(".city-research-door")).toBeNull();
       } finally {
         cleanup();
       }
@@ -156,10 +159,24 @@ describe("Slice 2 Part 2 UI gating & screens (#779)", () => {
 
       const { root, cleanup } = mountWith(m);
       try {
-        // Top strip shows all 5 piles (stone, brick, cutStone, glass, parts).
+        // Top strip attaches and shows all 5 piles (stone, brick, cutStone, glass, parts).
         expect(
           root.querySelector(".frame-top")?.getAttribute("data-piles"),
         ).toBe("5");
+        expect(root.querySelectorAll(".frame-top .frame-pile")).toHaveLength(5);
+        const glassPile = root.querySelector<HTMLElement>(
+          '.frame-pile[data-good="glass"]',
+        );
+        const partsPile = root.querySelector<HTMLElement>(
+          '.frame-pile[data-good="parts"]',
+        );
+        expect(glassPile).not.toBeNull();
+        expect(glassPile?.hidden).toBe(false);
+        expect(partsPile).not.toBeNull();
+        expect(partsPile?.hidden).toBe(false);
+        // Research sheet and Factory DOM are attached.
+        expect(root.querySelector(".research-sheet")).not.toBeNull();
+        expect(root.querySelector(".factory")).not.toBeNull();
         // Mine shows 3 levels + 4-cell hoist strip.
         expect(root.querySelectorAll(".mine-level-rows")).toHaveLength(3);
         expect(root.querySelectorAll(".mine-strip-cell")).toHaveLength(4);

@@ -23,7 +23,7 @@ import type { FrameState } from "./frame-state";
 import { listenSteps, paintSteps, stepper } from "./job-steps";
 import { buildKeyFace, paintMachineKey, type KeyParts } from "./mine-site";
 import type { Mountain } from "./mountain";
-import { slice2Part1On } from "./part-switch";
+import { slice2Part1On, slice2Part2On } from "./part-switch";
 import { priceIcon } from "./price-icons";
 import { researchDoorView, type ResearchDoorView } from "./research-view";
 import { runScene } from "./scene-paint";
@@ -208,6 +208,34 @@ function paintResearchDoor(
   setAttr(parts.lamp, "data-lamp", door.lamp);
   mark(parts.root, "ready", door.lamp === "green");
   setAttr(parts.root, "aria-label", door.label);
+}
+
+function syncResearchDoor(
+  root: HTMLElement,
+  door: ResearchDoorParts,
+  before: HTMLElement,
+  part2: boolean,
+): void {
+  if (part2 && door.root.parentElement !== root) {
+    root.insertBefore(door.root, before);
+  } else if (!part2 && door.root.parentElement === root) {
+    door.root.remove();
+  }
+}
+
+function updateResearchDoor(
+  root: HTMLElement,
+  door: ResearchDoorParts,
+  mountain: Mountain,
+  part2: boolean,
+): void {
+  if (!part2) {
+    mark(root, "has-research-door", false);
+    return;
+  }
+  const doorView = researchDoorView(mountain);
+  paintResearchDoor(door, doorView);
+  mark(root, "has-research-door", doorView.open);
 }
 
 /** Taps on the order key closer than this are one tap. */
@@ -433,7 +461,7 @@ export function createCitySite(
   const card = buildCard(state);
   // Under the transport plate, over the sky: never over the plots' names (#715).
   plate.root.append(note);
-  root.append(canvas, plate.root, door.root, tags.root, card.root);
+  root.append(canvas, plate.root, tags.root, card.root);
   listenSteps(root, state, note);
   let scene = cityScene(state.mountain());
   let cardHeight: number = CITY_FOOT.card;
@@ -448,6 +476,8 @@ export function createCitySite(
   return {
     root,
     paint: (mountain, shown, now) => {
+      const part2 = slice2Part2On();
+      syncResearchDoor(root, door, tags.root, part2);
       visible = shown;
       hide(root, !shown);
       if (!shown) {
@@ -461,9 +491,7 @@ export function createCitySite(
       } else if (!slice2 && note.parentElement !== plate.root) {
         plate.root.append(note);
       }
-      const doorView = researchDoorView(mountain);
-      paintResearchDoor(door, doorView);
-      mark(root, "has-research-door", doorView.open);
+      updateResearchDoor(root, door, mountain, part2);
       const view = projectCard(mountain, now);
       const threeBars = view.kind === "project" && view.bars.length >= 3;
       cardHeight = threeBars ? CITY_FOOT.cardThree : CITY_FOOT.card;

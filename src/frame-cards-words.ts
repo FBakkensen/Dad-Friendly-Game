@@ -142,7 +142,7 @@ export const CRYSTAL_REACHED: CardWords = {
   title: "The Crystal Caves: reached",
   paragraphs: [
     "A third level, deeper still, with its own drilling and its own haulage. Nobody works there yet: put workers on it with − and + on the level.",
-    "Hoists now serve all three levels in turn. A trip to the Crystal Caves takes three times as long as Topsoil. Under Hoisting, − and + assign a hoist to one level only.",
+    "Hoists now serve all three levels in turn. A trip to the Crystal Caves is the longest of the three. Under Hoisting, − and + assign a hoist to one level only.",
     "Crystal rock goes to Glassworks in the refinery, together with stone.",
     "Opened: Glassworks in the refinery and Precision Assembly in the factory.",
   ],
