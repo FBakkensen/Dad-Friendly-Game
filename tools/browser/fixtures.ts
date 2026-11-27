@@ -132,10 +132,10 @@ export function sliceStructureSave(now: number): SeedSave {
 }
 
 /**
- * After the last roof that is live (#662; part 2's in #672, the slice's
- * since #682): the shaft sunk, the Light Tower, the Warehouse and the
- * Foundry operational and nothing to order, so the city's card says the
- * city is planning its next building.
+ * After the last roof that is live (#662; part 2's in #672, part 3's in #682,
+ * Slice 2 Part 2's in #780): the Granite shaft sunk, the Light Tower, the
+ * Warehouse, the Foundry and the Research Lab operational and nothing to order,
+ * so the city's card says the city is planning its next building.
  */
 export function sliceDoneSave(now: number): SeedSave {
   return sliceSave(now, {
@@ -150,7 +150,9 @@ export function sliceDoneSave(now: number): SeedSave {
       kilns: 1,
     },
     fleet: { horseWagon: 2 },
-    marks: { operational: ["lightTower", "warehouse", "foundry"] },
+    marks: {
+      operational: ["lightTower", "warehouse", "foundry", "researchLab"],
+    },
     makers: { kiln: 1 },
     mineLevels: { granite: {} },
     run: { rock: 30_000_000 },
@@ -264,9 +266,9 @@ export function sliceFoundrySave(now: number): SeedSave {
 
 /**
  * The Foundry's roof a thousand cut stone short, closed twelve hours ago
- * (#682): the shaft sunk, the Light Tower and the Warehouse operational. The
- * night delivers it, the builders build it in, and the frame opens on the
- * report, then the slice's end card.
+ * (#682, #780): the shaft sunk, the Light Tower and the Warehouse operational.
+ * The night delivers it, the builders build it in, and the frame opens on the
+ * report, then the Foundry's card opening Crystal Caves and the factory.
  */
 export function sliceFoundryRoofSave(now: number): SeedSave {
   return sliceSave(now - 12 * HOUR, {
@@ -283,6 +285,35 @@ export function sliceFoundryRoofSave(now: number): SeedSave {
       state: "delivering",
       step: 2,
       arrived: { brick: 30_000_000, cutStone: 39_999_000 },
+    },
+  });
+}
+
+/**
+ * The Research Lab's roof a thousand parts short, closed twelve hours ago
+ * (#780): Granite sunk, the Light Tower, Warehouse and Foundry operational.
+ * The night delivers the parts, the builders build the roof in, and the frame
+ * opens on the report, then Part 2's end card.
+ */
+export function sliceResearchLabRoofSave(now: number): SeedSave {
+  return sliceSave(now - 12 * HOUR, {
+    owned: { helper: 16 },
+    jobs: { ...FIRST_EVENING_JOBS, kilns: 1, saws: 1, partsPress: 2 },
+    fleet: { horseWagon: 1 },
+    stock: { parts: 1_000 },
+    marks: { operational: ["lightTower", "warehouse", "foundry"] },
+    makers: { kiln: 1, saw: 1, partsPress: 1 },
+    mineLevels: { granite: {} },
+    run: { rock: 45_000_000 },
+    project: {
+      building: "researchLab",
+      state: "delivering",
+      step: 2,
+      arrived: {
+        brick: 12_000_000,
+        cutStone: 8_000_000,
+        parts: 6_999_000,
+      },
     },
   });
 }
@@ -401,9 +432,8 @@ export function sliceRoofSave(now: number): SeedSave {
 }
 
 /**
- * A grown first stretch: five carts and five drills, so Loading crews and
- * Haul roads are open in their stages' lists, thirty workers for Work
- * boots in the workforce, and the stone for all three (#661).
+ * A grown first stretch: five carts and five drills, three hoists, and thirty
+ * workers for the stage lists and workforce (#661, #780).
  */
 export function sliceListSave(now: number): SeedSave {
   return sliceSave(now, {
@@ -684,5 +714,54 @@ export function slice2Part2Save(now: number): SeedSave {
     },
     cages: { assigned: { topsoil: 1, granite: 1, crystal: 1 } },
     run: { rock: 60_000_000 },
+  });
+}
+
+/**
+ * Slice 2 Part 2 (#780): Foundry operational, Granite sunk, Crystal Caves
+ * unsunk with the brick and cut stone to sink it, free workers ready, and a
+ * legacy Part 1 `boots: 1` upgrade in `levels` proving v11 continuity.
+ */
+export function slice2Part2CrystalUnsunkSave(now: number): SeedSave {
+  return sliceSave(now, {
+    owned: { helper: 32, cart: 3, drill: 2, hoist: 3 },
+    stock: {
+      stones: 2_000_000,
+      brick: 3_000_000,
+      cutStone: 2_000_000,
+    },
+    levels: { boots: 1 },
+    jobs: {
+      drilling: 4,
+      haulage: 3,
+      hoisting: 5,
+      graniteDrilling: 3,
+      graniteHaulage: 2,
+      driving: 3,
+      building: 2,
+      kilns: 2,
+      saws: 2,
+      partsPress: 2,
+    },
+    fleet: { horseWagon: 2, truck: 1 },
+    marks: { operational: ["lightTower", "warehouse", "foundry"] },
+    makers: { kiln: 2, saw: 2, partsPress: 1 },
+    stockyard: 2,
+    piles: { face: 180, shaft: 140 },
+    mineLevels: {
+      granite: {
+        machines: { cart: 1, drill: 1 },
+        piles: { face: 160, shaft: 110 },
+      },
+    },
+    pithead: { topsoil: 240, granite: 180 },
+    makerBuffers: {
+      kiln: { topsoilRock: 420 },
+      saw: { graniteRock: 310 },
+      partsPress: { brick: 300, cutStone: 200 },
+    },
+    factoryOutput: { parts: 40 },
+    cages: { assigned: { topsoil: 1, granite: 1 } },
+    run: { rock: 45_000_000 },
   });
 }

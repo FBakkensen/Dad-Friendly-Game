@@ -29,6 +29,7 @@ import {
   sliceWarehouseRoofSave,
   sliceFoundryRoofSave,
   sliceFoundrySave,
+  sliceResearchLabRoofSave,
   sliceWarehouseSave,
   sliceWarehouseTrucksSave,
   sliceYardFullSave,
@@ -57,10 +58,10 @@ const SAVES = [
 
 /**
  * The workforce's jobs: five, the kilns once the refinery is open (part 2,
- * #672), and with the shaft sunk the Granite's drilling and haulage and the
- * saws too (part 3, #682).
+ * #672), with the Granite shaft sunk its drilling/haulage and saws (part 3,
+ * #682), and with the Foundry operational Parts Press in Factory (#780).
  */
-const JOBS = { warehouse: 6, foundry: 9, done: 9 };
+const JOBS = { warehouse: 6, foundry: 9, done: 10 };
 const jobsOf = (name) => JOBS[name] ?? 5;
 
 /**
@@ -345,7 +346,7 @@ async function stageSheetFacts(page, selector = ".stage-sheet") {
       .filter((b) => b.w < 47.5 || b.h < 47.5);
     const cut = [
       ...sheet.querySelectorAll(
-        ".mine-key-face, .mine-key-small, .stage-buy, .stage-total, .stage-part-name, .stage-part-moves",
+        ".mine-key-face, .mine-key-small, .stage-total, .stage-part-name, .stage-part-moves",
       ),
     ]
       .filter(
@@ -563,8 +564,9 @@ function checkCard(facts, at, kind) {
 
 /**
  * The night saves, and the card behind each night's report: the Light
- * Tower's roof opens the refinery (#672), the Warehouse's opens trucks, and
- * the Foundry's is the end of the slice (#682).
+ * Tower's roof opens the refinery (#672), the Warehouse's opens trucks (#682),
+ * the Foundry's opens Crystal Caves and the factory (#780), and the Research
+ * Lab's is the end of Slice 2 Part 2 (#780).
  */
 const NIGHTS = [
   { name: "night", save: () => sliceNightSave(Date.now()) },
@@ -573,34 +575,39 @@ const NIGHTS = [
     save: () => sliceRoofSave(Date.now()),
     building: "The Light Tower",
     behind: "opens",
+    says: (words) =>
+      words.includes("New site: the refinery.") &&
+      !words.includes("later update"),
   },
   {
     name: "warehouse roof",
     save: () => sliceWarehouseRoofSave(Date.now()),
     building: "The Warehouse",
     behind: "built",
+    says: (words) =>
+      words.includes("Opens trucks.") && !words.includes("later update"),
   },
   {
     name: "foundry roof",
     save: () => sliceFoundryRoofSave(Date.now()),
     building: "The Foundry",
+    behind: "built",
+    says: (words) =>
+      words.includes("Opens Crystal Caves and the factory.") &&
+      !words.includes("later update"),
+  },
+  {
+    name: "research lab roof",
+    save: () => sliceResearchLabRoofSave(Date.now()),
+    building: "The Research Lab",
     behind: "end",
+    says: (words) => words.includes("later update"),
   },
 ];
 
-/** What each card behind a report must say, and must not promise. */
-const BEHIND_SAYS = {
-  opens: (words) =>
-    words.includes("New site: the refinery.") &&
-    !words.includes("later update"),
-  built: (words) =>
-    words.includes("Opens trucks.") && !words.includes("later update"),
-  end: (words) => words.includes("later update"),
-};
-
 for (const size of SIZES) {
   const label = `${String(size[0])}x${String(size[1])}`;
-  for (const { name, save, building, behind } of NIGHTS) {
+  for (const { name, save, building, behind, says } of NIGHTS) {
     section(`${label} slice frame ${name}`, async () => {
       const { page, close } = await openScreen(size, save(), {
         search: "?memorySave=1",
@@ -610,7 +617,7 @@ for (const size of SIZES) {
         await page.waitForSelector(".frame-card:not([hidden])");
         const at = `${label} slice frame ${name}:`;
         const report = await cardFacts(page);
-        const shotName = name.replace(" ", "-");
+        const shotName = name.replaceAll(" ", "-");
         await shot(page, `slice-card-report-${shotName}-${label}`);
         checkCard(report, at, "report");
         check(
@@ -626,10 +633,10 @@ for (const size of SIZES) {
         await tap(page, ".frame-card-key");
         const after = await cardFacts(page);
         if (behind !== undefined) {
-          await shot(page, `slice-card-${behind}-${label}`);
+          await shot(page, `slice-card-${behind}-${shotName}-${label}`);
           checkCard(after, at, behind);
           check(
-            BEHIND_SAYS[behind](after.words),
+            says(after.words),
             `${at} the ${behind} card says what is live, and promises nothing more`,
           );
           check(
@@ -1625,7 +1632,7 @@ for (const size of SIZES) {
       );
       check(
         topInfo.factoryHidden,
-        `${at} Factory tab stays hidden in Slice 2 Part 1`,
+        `${at} Factory tab stays hidden before the Foundry's roof`,
       );
 
       // Open global Transport sheet.
@@ -1921,7 +1928,7 @@ for (const size of SIZES) {
       size,
       slice2Part2Save(Date.now()),
       {
-        search: "?memorySave=1&slice2Part2=1",
+        search: "?memorySave=1",
         seedKey: DEV_BACKUP_KEY,
         stopClock: true,
       },
@@ -2116,6 +2123,28 @@ for (const size of SIZES) {
         resNear.length === 0,
         `${at} research sheet: every key stands at least 8px apart (${resNear.join("; ")})`,
       );
+
+      // 6. Workforce sheet: no old instant-buy upgrade rows (#780).
+      await tap(page, ".research-sheet .frame-sheet-close");
+      await tap(page, ".frame-workers");
+      await page.waitForSelector(
+        ".frame-sheet:not(.stage-sheet):not([hidden])",
+      );
+      await shot(page, `slice2-p2-workforce-${label}`);
+      const wfUpgrades = await page.evaluate(() => ({
+        upgradeRows: document.querySelectorAll(
+          ".frame-sheet:not(.stage-sheet) [data-upgrade]",
+        ).length,
+        hasWorkBoots:
+          document
+            .querySelector(".frame-workers-own")
+            ?.textContent?.includes("Work boots") === true,
+      }));
+      check(
+        wfUpgrades.upgradeRows === 0 && !wfUpgrades.hasWorkBoots,
+        `${at} workforce sheet has no old instant-buy upgrade rows (${JSON.stringify(wfUpgrades)})`,
+      );
+      check(await noScroll(page), `${at} workforce sheet does not scroll page`);
     } finally {
       await close();
     }

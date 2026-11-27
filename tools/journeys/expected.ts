@@ -24,7 +24,7 @@ import {
   type Session,
 } from "../../src/session.ts";
 
-// The game ships the fresh mine (#664) with part 2 (#672): the rules here play it too, as the page does.
+// The game ships Slice 2 Part 2 (#780): the rules here play PLAY_FACTORS, as the page does.
 holdFactors(PLAY_FACTORS);
 
 /** How often the open game folds the crew's work in (src/frame-screen.ts). */
