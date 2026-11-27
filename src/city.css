@@ -311,7 +311,9 @@
   color: var(--frame-quiet);
 }
 
-.city-plate[hidden] {
+.city-tag[hidden],
+.city-plate[hidden],
+.frame .city-research-door[hidden] {
   display: none;
 }
 
@@ -319,4 +321,107 @@
   top: calc(var(--art) * 2);
   left: calc(var(--art) * 3);
   right: calc(var(--art) * 3);
+}
+
+.city.has-research-door > .city-note {
+  top: calc(var(--art) * 30);
+}
+
+/* Research Lab door at the top of the City sky once operational (Slice 2 Part 2, #779). */
+.frame .city-research-door {
+  position: absolute;
+  top: calc(var(--art) * 2);
+  left: calc(var(--art) * 3);
+  right: calc(var(--art) * 3);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(var(--art) * 3);
+  min-height: var(--target-min);
+  padding: calc(var(--art) * 2) calc(var(--art) * 3);
+  background: var(--frame-scrim);
+  border: var(--art) solid var(--frame-edge);
+  color: var(--frame-ink);
+}
+
+.frame .city-research-door.ready {
+  background: var(--frame-go);
+  border-color: var(--frame-green);
+  color: var(--frame-go-ink);
+}
+
+.city-research-info {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.15;
+}
+
+.city-research-head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: calc(var(--art) * 2);
+}
+
+.city-research-head .frame-lamp {
+  position: static;
+}
+
+.city-research-name {
+  font-size: var(--frame-type-15);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.city-research-counts {
+  font-size: var(--board-type-13);
+  color: var(--frame-quiet);
+}
+
+.city-research-status {
+  overflow: hidden;
+  font-size: var(--board-type-13);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--frame-tool);
+}
+
+.frame .city-research-door.ready .city-research-status,
+.frame .city-research-door.ready .city-research-counts {
+  color: var(--frame-go-ink);
+}
+
+.city-research-open {
+  flex: none;
+  padding: calc(var(--art) * 2) calc(var(--art) * 3);
+  background: var(--frame-key);
+  border: var(--art) solid var(--frame-amber);
+  font-size: var(--board-type-14);
+  font-weight: 700;
+  color: var(--frame-amber);
+  white-space: nowrap;
+}
+
+.frame .city-research-door.ready .city-research-open {
+  background: var(--frame-dark);
+  border-color: var(--frame-green);
+  color: var(--frame-go-ink);
+}
+
+/* Compact 3-good project bars for The Research Lab (#779). */
+.city-bars[data-bars="3"] {
+  gap: var(--art);
+}
+
+.city-bars[data-bars="3"] .city-bar-icon {
+  width: calc(var(--art) * 9);
+  height: calc(var(--art) * 9);
+}
+
+.city-bars[data-bars="3"] .city-bar-line {
+  font-size: var(--board-type-13);
+  line-height: 1.05;
 }

@@ -325,12 +325,13 @@ const SLICE_2_MAKER_MAKES: Readonly<Partial<Record<MakerId, number>>> = {
   saw: 50,
 };
 
-/** What one running maker makes a second, at full output before Research bonuses (#671). */
-export function makerMakes(id: MakerId): number {
+/** What one running maker makes a second, at full output with optional Research multiplier (#671, #779). */
+export function makerMakes(id: MakerId, multiplier = 1): number {
   const base = slice2Part1On()
     ? (SLICE_2_MAKER_MAKES[id] ?? makerById(id).outputPerSecond)
     : makerById(id).outputPerSecond;
-  return slice2Part1On() ? base * factor(`maker.${id}.makes`) : base;
+  const scaled = slice2Part1On() ? base * factor(`maker.${id}.makes`) : base;
+  return scaled * multiplier;
 }
 
 /** Units running with multi-worker staffing (spec rule 3.2): `min(owned, floor(workers / workersPerUnit))`. */

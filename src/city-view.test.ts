@@ -12,6 +12,7 @@ import { withFactors } from "./economy/factors";
 import { formatCompact } from "./format";
 import { orderStrip } from "./frame-view";
 import { PART_THREE_OFF, PART_TWO_OFF } from "./part-switch";
+import { slice2Part1, slice2Part2 } from "./part-three.harness";
 import { createMountain, type Mountain } from "./mountain";
 import { EMPTY_STOCK } from "./stock";
 
@@ -475,6 +476,42 @@ describe("what a building opens, in part 2 (#671)", () => {
       expect(card.kind === "project" && card.completion).toBe(
         "On completion: stockyard capacity ×2.",
       );
+    });
+  });
+
+  it("applies transportResearchMultiplier to City transportPlate and vehicleKeys (#779)", () => {
+    slice2Part2(() => {
+      const base = withStones(start(), 10_000);
+      const researched: Mountain = {
+        ...base,
+        research: { done: ["heavyCouplings"] },
+      };
+      // heavyCouplings (+40%) lifts wagon carry from 18/s to 25/s in Slice 2.
+      expect(transportPlate(base).fleet).toContain("18/s");
+      expect(transportPlate(researched).fleet).toContain("25/s");
+      expect(vehicleKeys(base, "one")[0]?.face).toBe("+Wagon · 18/s");
+      expect(vehicleKeys(researched, "one")[0]?.face).toBe("+Wagon · 25/s");
+    });
+  });
+
+  it("adds Research Lab as the 4th skyline plot only when Slice 2 Part 2 is on (#779)", () => {
+    const base = createMountain();
+    slice2Part1(() => {
+      expect(plots(base)).toHaveLength(3);
+    });
+    slice2Part2(() => {
+      const four = plots(base);
+      expect(four).toHaveLength(4);
+      const withLab: Mountain = {
+        ...base,
+        operational: ["lightTower", "warehouse", "foundry", "researchLab"],
+      };
+      expect(plots(withLab).map((p) => p.name)).toEqual([
+        "Light Tower",
+        "Warehouse",
+        "Foundry",
+        "Research Lab",
+      ]);
     });
   });
 });

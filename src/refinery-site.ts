@@ -3,10 +3,10 @@ import { el, hide, icon, mark, setAttr, write } from "./board-dom";
 import type { FrameState } from "./frame-state";
 import { listenSteps, paintSteps, stepper } from "./job-steps";
 import type { MakerId } from "./makers";
-import type { MineLevelId } from "./mine-levels";
+import { MINE_LEVEL_IDS, type MineLevelId } from "./mine-levels";
 
-const REFINERY_LEVELS = ["topsoil", "granite"] as const;
-type RefineryLevelId = (typeof REFINERY_LEVELS)[number];
+const REFINERY_LEVELS = MINE_LEVEL_IDS;
+type RefineryLevelId = MineLevelId;
 import type { LevelHopper } from "./mine-view";
 import { buildKeyFace, paintMachineKey, type KeyParts } from "./mine-site";
 import type { Mountain } from "./mountain";
@@ -16,16 +16,19 @@ import {
   loadRefinerySprites,
   paintWall,
   paintYardGround,
+  type RefineryLayout,
 } from "./refinery-scene";
 import {
   BYPASS_RECIPE,
   nightForecast,
   refineryView,
+  type InputBufferView,
   type MakerPlate,
   type RefineryView,
   type StockyardView,
 } from "./refinery-view";
 import { runScene } from "./scene-paint";
+import { STOCKPILE_GOODS } from "./stockyard";
 import type { BuyAmount } from "./tiers";
 import { NO_FREE_WORKER } from "./workforce-view";
 import "./refinery.css";
@@ -47,14 +50,48 @@ export type RefinerySite = {
   readonly paint: (mountain: Mountain, shown: boolean, now?: number) => void;
 };
 
+/** Reusable DOM parts for a single input buffer bar (Refinery Glassworks and Factory lines, #779). */
+export type BufferParts = {
+  readonly root: HTMLElement;
+  readonly label: HTMLElement;
+  readonly text: HTMLElement;
+  readonly fill: HTMLElement;
+};
+
+export function buildBufferPart(buf: InputBufferView): BufferParts {
+  const root = el("div", "maker-buf");
+  root.dataset["input"] = buf.id;
+  const top = el("div", "maker-buf-top");
+  const label = el("span", "maker-buf-label", buf.label);
+  const text = el("span", "maker-buf-text board-num");
+  top.append(label, text);
+  const track = el("span", "maker-buf-track");
+  const fill = el("i", "maker-buf-fill");
+  track.append(fill);
+  root.append(top, track);
+  return { root, label, text, fill };
+}
+
+export function paintBufferPart(
+  parts: BufferParts,
+  buf: InputBufferView,
+): void {
+  write(parts.label, buf.label);
+  write(parts.text, buf.text);
+  mark(parts.root, "empty", buf.empty);
+  parts.fill.style.width = `${String(Math.round(buf.fill * 1000) / 10)}%`;
+}
+
 type PlateParts = {
   readonly root: HTMLElement;
   readonly recipe: HTMLElement;
+  readonly standing: HTMLElement;
   readonly now: HTMLElement;
   readonly can: HTMLElement;
   readonly machines: HTMLElement;
   readonly idle: HTMLElement;
   readonly pile: HTMLElement;
+  readonly buffers: readonly BufferParts[];
   readonly count: HTMLElement;
   readonly unit: HTMLElement;
   readonly minus: HTMLButtonElement;
@@ -62,7 +99,7 @@ type PlateParts = {
   readonly key: KeyParts;
 };
 
-/** One more kiln or saw, on the mine's own key (a maker is bought one at a time). */
+/** One more kiln, saw, or glassworks, on the mine's own key (a maker is bought one at a time). */
 function buildKey(state: FrameState, id: MakerId): KeyParts {
   return buildKeyFace(`mine-key refinery-maker-key refinery-${id}-key`, () => {
     const plate = refineryView(state.mountain()).plates.find(
@@ -78,7 +115,11 @@ function buildKey(state: FrameState, id: MakerId): KeyParts {
 function buildPlate(state: FrameState, plate: MakerPlate): PlateParts {
   const root = el("div", "refinery-plate");
   root.dataset["maker"] = plate.id;
+  const recipeBar = el("div", "refinery-recipe-bar");
   const recipe = el("p", "refinery-recipe");
+  const standing = el("span", "maker-standing", "standing");
+  standing.hidden = true;
+  recipeBar.append(recipe, standing);
   const row = el("div", "refinery-row");
   const info = el("div", "refinery-info");
   const head = el("span", "mine-stage-head");
@@ -100,16 +141,26 @@ function buildPlate(state: FrameState, plate: MakerPlate): PlateParts {
   const workers = el("span", "mine-stage-count");
   workers.append(count, unit);
   row.append(info, minus, workers, plus);
+  const buffers = (plate.buffers ?? []).map(buildBufferPart);
   const key = buildKey(state, plate.id);
-  root.append(recipe, row, key.root);
+  if (buffers.length > 0) {
+    const bufRow = el("div", "maker-buffers");
+    bufRow.dataset["count"] = String(buffers.length);
+    bufRow.append(...buffers.map((each) => each.root));
+    root.append(recipeBar, row, bufRow, key.root);
+  } else {
+    root.append(recipeBar, row, key.root);
+  }
   return {
     root,
     recipe,
+    standing,
     now,
     can,
     machines,
     idle,
     pile,
+    buffers,
     count,
     unit,
     minus,
@@ -124,6 +175,7 @@ function paintPlate(
   amount: BuyAmount,
 ): void {
   write(parts.recipe, plate.recipe);
+  hide(parts.standing, !plate.standing);
   write(parts.now, plate.now);
   write(parts.can, plate.can);
   write(parts.machines, plate.machines);
@@ -131,10 +183,18 @@ function paintPlate(
   write(parts.idle, plate.idle === undefined ? "" : ` ${plate.idle}`);
   hide(parts.pile, plate.pile === undefined);
   write(parts.pile, plate.pile ?? "");
+  if (plate.buffers !== undefined) {
+    for (const [index, buf] of plate.buffers.entries()) {
+      const target = parts.buffers[index];
+      if (target !== undefined) {
+        paintBufferPart(target, buf);
+      }
+    }
+  }
   write(parts.count, String(plate.workers));
   write(parts.unit, plate.workers === 1 ? "worker" : "workers");
   paintSteps(parts, plate, amount);
-  paintMachineKey(parts.key, plate.key, plate.key.good);
+  paintMachineKey(parts.key, plate.key, plate.key.priceParts ?? plate.key.good);
 }
 
 /**
@@ -190,12 +250,8 @@ function buildYard(state: FrameState): YardParts {
   const canvas = el("canvas", "refinery-yard-canvas");
   canvas.setAttribute("aria-hidden", "true");
   const labels = el("div", "refinery-bays");
-  // Brick, stone, and cut stone once the saws open: a bay with no stockpile is hidden.
-  const bays = [
-    el("span", "refinery-bay"),
-    el("span", "refinery-bay"),
-    el("span", "refinery-bay"),
-  ];
+  // Brick, stone, cut stone, glass, and parts: a bay with no stockpile is hidden.
+  const bays = STOCKPILE_GOODS.map(() => el("span", "refinery-bay"));
   labels.append(...bays);
   const expand = el("button", "refinery-expand");
   expand.type = "button";
@@ -301,6 +357,8 @@ const forecastKey = (mountain: Mountain): string =>
     mountain.jobs.kilns,
     mountain.makers.saw,
     mountain.jobs.saws,
+    mountain.makers.glassworks,
+    mountain.jobs.glassworks,
   ].join(":");
 
 /**
@@ -342,14 +400,20 @@ export function createRefinerySite(
   let visible = false;
   let forecast: Forecast = { at: -Infinity, key: "", words: "" };
   const sprites = loadRefinerySprites();
+  const refineryLayout = (): RefineryLayout =>
+    view.scene.glassworks !== undefined
+      ? 3
+      : view.scene.saws !== undefined
+        ? 2
+        : 1;
   runScene(
     canvas,
     {
       shown: () => visible,
       ground: (c, height) => {
-        paintWall(c, height, view.scene.saws !== undefined);
+        paintWall(c, height, refineryLayout());
       },
-      layout: () => (view.scene.saws === undefined ? 1 : 2),
+      layout: refineryLayout,
       draw: (c, clock) => {
         drawRefinery(c, sprites, view.scene, clock);
       },
@@ -386,7 +450,9 @@ export function createRefinerySite(
         now ?? Date.now(),
         view.stockyard.expand !== undefined,
       );
-      mark(root, "two", view.scene.saws !== undefined);
+      const hasGlassworks = view.scene.glassworks !== undefined;
+      mark(root, "two", view.scene.saws !== undefined && !hasGlassworks);
+      mark(root, "three", hasGlassworks);
       for (const level of REFINERY_LEVELS) {
         paintIn(
           over.ins[level],

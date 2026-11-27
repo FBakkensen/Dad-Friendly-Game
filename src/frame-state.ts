@@ -23,6 +23,8 @@ export type FrameState = {
   readonly openWorkforce: () => void;
   /** Global Transport sheet (#768), sibling to Workforce under Slice 2 Part 1. */
   readonly openTransport: () => void;
+  /** Research Lab sheet (#779), opened from the City's Research Lab door under Slice 2 Part 2. */
+  readonly openResearch: () => void;
   /** A stage's list (#661), from a tap on its row in the mine: with two levels, a level's row opens that level's list (#680). */
   readonly openStage: (stage: Stage, level?: MineLevelId) => void;
   /** The machine card (#680), from a tap on a drilling or haulage machine's key with two levels: which level? */

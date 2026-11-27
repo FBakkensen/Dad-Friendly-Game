@@ -17,7 +17,7 @@ import {
   type TroubleTier,
 } from "./hazards";
 import { fieldEntry } from "./field-log";
-import { graniteOpen } from "./mine-levels";
+import { crystalOpen, graniteOpen, type DeeperLevelId } from "./mine-levels";
 import type { LogEvent } from "./log";
 import { runStartedAt, type AwayReport, type Mountain } from "./mountain";
 import { slice2Part1On } from "./part-switch";
@@ -51,7 +51,7 @@ export type Notice =
    * over while the game is open keeps the baselines, so a shaft sunk on
    * another device is told here, as with `operational`.
    */
-  | { readonly kind: "level"; readonly level: "granite" };
+  | { readonly kind: "level"; readonly level: DeeperLevelId };
 
 export type NoticeKind = Notice["kind"];
 export type NoticeOf<K extends NoticeKind> = Extract<Notice, { kind: K }>;
@@ -100,6 +100,8 @@ type Baselines = {
   readonly operational: readonly BuildingId[] | undefined;
   /** Whether the Granite was open (the shaft sunk, part 3). */
   readonly granite: boolean | undefined;
+  /** Whether the Crystal Caves were open (the shaft sunk, Slice 2 Part 2). */
+  readonly crystal: boolean | undefined;
 };
 
 export type Session = {
@@ -177,6 +179,7 @@ const NO_NEWS: SessionNews = {
 const NO_BASELINES: Baselines = {
   operational: undefined,
   granite: undefined,
+  crystal: undefined,
 };
 
 export function createSession(mountain: Mountain, hazardSeed: number): Session {
@@ -211,7 +214,7 @@ export function troubleMark(session: Session): string {
     : `${trouble.tier}:${String(trouble.startedAt)}`;
 }
 
-/** The Granite and the running buildings, before away pay moves them. */
+/** The Granite, Crystal Caves, and running buildings, before away pay moves them. */
 function primeArrivals(session: Session): Session {
   return {
     ...session,
@@ -219,6 +222,7 @@ function primeArrivals(session: Session): Session {
       ...session.baselines,
       operational: session.mountain.operational,
       granite: graniteOpen(session.mountain),
+      crystal: crystalOpen(session.mountain),
     },
   };
 }
@@ -558,9 +562,9 @@ function previewTrouble(
   };
 }
 
-/** The Granite and buildings reached since the baselines, in that order. */
+/** Levels and buildings reached since the baselines, in that order. */
 function notice(session: Session): Session {
-  return noteOperational(noteGranite(session));
+  return noteOperational(noteCrystal(noteGranite(session)));
 }
 
 /** The Granite reached since the baseline: the shaft sunk, announced once (#754). */
@@ -573,6 +577,19 @@ function noteGranite(session: Session): Session {
       ? addNotices(session.news, [{ kind: "level", level: "granite" }])
       : session.news,
     baselines: { ...session.baselines, granite: open },
+  };
+}
+
+/** Crystal Caves reached since the baseline: the shaft sunk, announced once (#779). */
+function noteCrystal(session: Session): Session {
+  const open = crystalOpen(session.mountain);
+  const reached = session.baselines.crystal === false && open;
+  return {
+    ...session,
+    news: reached
+      ? addNotices(session.news, [{ kind: "level", level: "crystal" }])
+      : session.news,
+    baselines: { ...session.baselines, crystal: open },
   };
 }
 

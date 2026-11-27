@@ -16,7 +16,12 @@ import {
 import type { MinePiles } from "./mine-piles";
 import { createMountain, type Mountain } from "./mountain";
 import type { Jobs } from "./workforce";
-import { PART_THREE_OFF, PART_TWO_OFF, PLAY_FACTORS } from "./part-switch";
+import {
+  PART_THREE_OFF,
+  PART_TWO_OFF,
+  PLAY_FACTORS,
+  SLICE_2_PART_2_OFF,
+} from "./part-switch";
 import { EMPTY_STOCK, type GoodId, type Stock } from "./stock";
 
 /**
@@ -42,6 +47,13 @@ export const slice2Part1 = <T>(
   body: () => T,
   knobs: Readonly<Record<string, number>> = {},
 ): T => withFactors({ ...PLAY_FACTORS, ...knobs }, body);
+
+/** Slice 2 Part 2 on (dev preview / tests, #779), plus any knobs. */
+export const slice2Part2 = <T>(
+  body: () => T,
+  knobs: Readonly<Record<string, number>> = {},
+): T =>
+  withFactors({ ...PLAY_FACTORS, [SLICE_2_PART_2_OFF]: 0, ...knobs }, body);
 
 /**
  * The knobs that put part 3's stages back as #724 built the cages on (#675

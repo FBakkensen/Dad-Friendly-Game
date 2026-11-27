@@ -7,10 +7,12 @@ import {
   type Site,
   type StepIndex,
 } from "./city";
+import { factoryOpen } from "./factory";
 import { formatCompact } from "./format";
 import { makerOpen } from "./makers";
 import type { Mountain } from "./mountain";
 import { workforceCount } from "./next-view";
+import { slice2Part2On } from "./part-switch";
 import { EMPTY_STOCK, priceAmount, type GoodId } from "./stock";
 import { stockpileFull, stockpileRoom, stockyardOpen } from "./stockyard";
 import { tierById, tierQuote, type BuyAmount } from "./tiers";
@@ -171,28 +173,40 @@ export type Stockpile = {
 /** The good the saws make: its stockpile shows once they open (part 3, #754). */
 const SAWS_GOOD: GoodId = "cutStone";
 
-/** `goods`, with cut stone after them once the saws are open. */
-const withSaws = (
+/** `goods`, with cut stone once the saws open, and Part 2 goods (glass, parts) once open (#754, #779). */
+function withOpenGoods(
   mountain: Pick<Mountain, "operational" | "mineLevels">,
   goods: readonly GoodId[],
-): readonly GoodId[] =>
-  makerOpen(mountain, "saw") ? [...goods, SAWS_GOOD] : goods;
+): readonly GoodId[] {
+  const hasSaw = makerOpen(mountain, "saw");
+  const hasGlass = slice2Part2On() && makerOpen(mountain, "glassworks");
+  const hasParts = slice2Part2On() && factoryOpen(mountain);
+  if (!hasSaw && !hasGlass && !hasParts) {
+    return goods;
+  }
+  return [
+    ...goods,
+    ...(hasSaw ? [SAWS_GOOD] : []),
+    ...(hasGlass ? (["glass"] as const) : []),
+    ...(hasParts ? (["parts"] as const) : []),
+  ];
+}
 
 /** The goods shown in the frame stockpile strip before Part 2 UI (#779). */
 const BASE_STOCKPILE_GOODS: readonly GoodId[] = ["stones", "brick"];
 
 /**
  * The goods he has met: stone, and brick once the stockyard opens with the
- * Light Tower in part 2 (#671), each with its room, and cut stone once the
- * saws open with the Granite in part 3 (#754). Part 1 has stone alone, with
- * no room.
+ * Light Tower in part 2 (#671), each with its room, cut stone once the
+ * saws open with the Granite in part 3 (#754), and glass/parts once Part 2
+ * opens them (#779). Part 1 has stone alone, with no room.
  */
 export function stockpiles(mountain: Mountain): readonly Stockpile[] {
   if (!stockyardOpen(mountain)) {
     const count = mountain.stock.stones;
     return [{ good: "stones", count, text: formatCompact(count) }];
   }
-  return withSaws(mountain, BASE_STOCKPILE_GOODS).map((good) => {
+  return withOpenGoods(mountain, BASE_STOCKPILE_GOODS).map((good) => {
     const count = mountain.stock[good];
     const room = stockpileRoom(mountain, good);
     return {
@@ -209,11 +223,11 @@ export function stockpiles(mountain: Mountain): readonly Stockpile[] {
 /** The stockyard's bays left to right, and the shift report's marks: brick, then stone (#671). */
 export const BAY_ORDER: readonly GoodId[] = ["brick", "stones"];
 
-/** The stockyard's bays left to right: brick and stone, and cut stone once the saws open (#754). */
+/** The stockyard's bays left to right: brick and stone, then cut stone, glass, and parts as each opens (#754, #779). */
 export function bayOrder(
   mountain: Pick<Mountain, "operational" | "mineLevels">,
 ): readonly GoodId[] {
-  return withSaws(mountain, BAY_ORDER);
+  return withOpenGoods(mountain, BAY_ORDER);
 }
 
 /** The count of workers in the top row, and the hire key beside it. */

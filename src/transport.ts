@@ -239,15 +239,13 @@ const SLICE_2_VEHICLES: Readonly<
   truck: { firstCost: 100_000, growth: 1.18, carries: 400 },
 };
 
-/** Goods a second one vehicle carries under the active factors and part switch. */
-export function vehicleCarries(vehicle: Vehicle): number {
-  if (!slice2Part1On()) {
-    return vehicle.carries;
-  }
-  return (
-    SLICE_2_VEHICLES[vehicle.id].carries *
-    factor(`vehicle.${vehicle.id}.carries`)
-  );
+/** Goods a second one vehicle carries under the active factors, part switch, and optional research multiplier. */
+export function vehicleCarries(vehicle: Vehicle, multiplier = 1): number {
+  const base = slice2Part1On()
+    ? SLICE_2_VEHICLES[vehicle.id].carries *
+      factor(`vehicle.${vehicle.id}.carries`)
+    : vehicle.carries;
+  return base * multiplier;
 }
 
 /** Goods a second the vehicles with a driver carry, including Heavy Couplings research (+40%). */

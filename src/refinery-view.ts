@@ -4,15 +4,19 @@ import {
   MAKER_IDS,
   makerBuffer,
   makerInputRoom,
+  makerInputs,
   makerJob,
   makerMakes,
   makerOutput,
+  makerOutputAmount,
   makerPrice,
   makerRate,
   makerTakes,
+  makerWorkersPerUnit,
   refineryMakers,
   runningMakers,
   type MakerId,
+  type MakerInputId,
   type MakerJob,
 } from "./makers";
 import { shortestRound } from "./cages";
@@ -24,6 +28,7 @@ import {
   mineWork,
   topsoilChain,
 } from "./mine-piles";
+import type { KeyPricePart } from "./mine-site";
 import {
   PILE_LABELS,
   capital,
@@ -35,7 +40,8 @@ import { accrueAway, type Mountain } from "./mountain";
 import { slice2Part1On } from "./part-switch";
 import { chainFlows, chainSpill, type Chain } from "./piles";
 import { crewTimer } from "./rates";
-import { MAKER_WORDS, plural } from "./screen-words";
+import { makerResearchMultiplier } from "./research";
+import { MAKER_WORDS, formatSpeed, plural } from "./screen-words";
 import { slice2LiveSnapshot } from "./slice2-flow";
 import { canPay, type GoodId } from "./stock";
 import { MAX_STOCKYARD_LEVEL, ROOM_GROWTH, expandPrice } from "./stockyard";
@@ -62,37 +68,57 @@ import { JOB_NAMES, noMakersYet } from "./workforce-view";
 /** The bypass chute's recipe: a rock no maker takes is a stone. */
 export const BYPASS_RECIPE = "1 rock → 1 stone";
 
-/** The key for one more maker, in the mine keys' form. */
-type MakerKey = {
-  /** "+Kiln · 12/s", "+Saw · 30/s". */
+/** One input buffer readout on a multi-input Refinery maker or Factory line (#779). */
+export type InputBufferView = {
+  readonly id: MakerInputId;
+  readonly label: string;
+  readonly held: number;
+  readonly room: number;
+  /** "450 of 4.5K". */
+  readonly text: string;
+  /** 0..1 fill fraction. */
+  readonly fill: number;
+  /** True while held is below one cycle's requirement. */
+  readonly empty: boolean;
+};
+
+/** The key for one more maker or Factory line, in the mine keys' form. */
+export type MakerKey = {
+  /** "+Kiln · 12/s", "+Saw · 30/s", "+Glassworks · 25/s". */
   readonly face: string;
   readonly price: string;
-  /** "1 to run". */
+  /** Present only for 2-good prices (#779). */
+  readonly priceParts?: readonly KeyPricePart[];
+  /** "1 to run", "2 to run", "3 to run". */
   readonly staff: string;
   readonly can: boolean;
   readonly label: string;
-  /** The good its price is in, for the key's icon: stone for a kiln, brick for a saw. */
+  /** Primary good of the price (stone for a kiln, brick for a saw/glassworks/press). */
   readonly good: GoodId;
 };
 
-/** A maker's plate: the kilns', and the saws' once the Granite is open (#754). */
+/** A maker's plate: the kilns', the saws' once Granite is open (#754), and Glassworks once Crystal Caves is open (#779). */
 export type MakerPlate = {
   readonly id: MakerId;
-  /** "Recipe: 2 rock → 1 brick". */
+  /** "Recipe: 2 rock → 1 brick", "Recipe: 3 crystal rock + 2 stone → 1 glass". */
   readonly recipe: string;
-  /** Its job's name: "Kilns", "Saws". */
+  /** Its job's name: "Kilns", "Saws", "Glassworks". */
   readonly name: (typeof JOB_NAMES)[MakerJob];
   /** What the makers make now, and what the running ones can make. */
   readonly now: string;
   readonly can: string;
-  /** "brick/s", "cut stone/s". */
+  /** "brick/s", "cut stone/s", "glass/s". */
   readonly unit: `${(typeof GOOD_WORDS)[ReturnType<typeof makerOutput>]}/s`;
-  /** "4 kilns: 4 of 4 workers", "1 of 2 kilns: 1 of 2 workers", "No kilns yet". */
+  /** "4 kilns: 4 of 4 workers", "1 glassworks: 2 of 2 workers", "No kilns yet". */
   readonly machines: string;
   /** "+ 2 without a kiln": workers on the job with no maker to run. */
   readonly idle?: string;
-  /** "Rock at the kilns: 120 of 300", while he owns one. */
+  /** "Rock at the kilns: 120 of 300", while he owns one (single-input makers). */
   readonly pile?: string;
+  /** Separate input buffers for multi-input makers (Glassworks). */
+  readonly buffers?: readonly InputBufferView[];
+  /** True when staffed units cannot complete a cycle (input empty or output full). */
+  readonly standing: boolean;
   readonly workers: number;
   /** For − and +, as a job's row has them. */
   readonly job: MakerJob;
@@ -135,6 +161,15 @@ type SawScene = {
   readonly making: boolean;
 };
 
+/** The Glassworks side of the scene (#779). */
+type GlassworksScene = {
+  readonly hopper: number;
+  readonly furnaces: number;
+  readonly running: number;
+  readonly lifting: boolean;
+  readonly making: boolean;
+};
+
 /** What the scene draws: how full and how busy each part is. */
 export type RefineryScene = {
   /** The kilns' pile, 0..1 of its room: the hopper is as full. */
@@ -148,6 +183,8 @@ export type RefineryScene = {
   readonly bays: readonly Bay[];
   /** Set only with the saws open. */
   readonly saws?: SawScene;
+  /** Set only with Glassworks open (Slice 2 Part 2, #779). */
+  readonly glassworks?: GlassworksScene;
 };
 
 export type RefineryView = {
@@ -278,28 +315,110 @@ function incomeNow(
   };
 }
 
-function machinesLine(id: MakerId, owned: number, running: number): string {
+const INPUT_LABELS: Readonly<Record<MakerInputId, string>> = {
+  topsoilRock: "Topsoil rock",
+  graniteRock: "Granite rock",
+  crystalRock: "Crystal rock",
+  stones: GOOD_NAMES.stones,
+  brick: GOOD_NAMES.brick,
+  cutStone: GOOD_NAMES.cutStone,
+  glass: GOOD_NAMES.glass,
+};
+
+const INPUT_RECIPE_WORDS: Readonly<Record<MakerInputId, string>> = {
+  topsoilRock: "rock",
+  graniteRock: "rock",
+  crystalRock: "crystal rock",
+  stones: GOOD_WORDS.stones,
+  brick: GOOD_WORDS.brick,
+  cutStone: GOOD_WORDS.cutStone,
+  glass: GOOD_WORDS.glass,
+};
+
+const OUTPUT_RECIPE_WORDS: Readonly<Record<GoodId, readonly [string, string]>> =
+  {
+    stones: [GOOD_WORDS.stones, GOOD_WORDS.stones],
+    brick: [GOOD_WORDS.brick, GOOD_WORDS.brick],
+    cutStone: [GOOD_WORDS.cutStone, GOOD_WORDS.cutStone],
+    glass: [GOOD_WORDS.glass, GOOD_WORDS.glass],
+    parts: ["part", GOOD_WORDS.parts],
+  };
+
+/** Recipe line shared by Refinery makers and Factory lines (#779). */
+export function makerRecipeLine(id: MakerId): string {
+  const inputs = makerInputs(id);
+  const outAmt = makerOutputAmount(id);
+  const output = plural(outAmt, OUTPUT_RECIPE_WORDS[makerOutput(id)]);
+  if (inputs.length === 1) {
+    return `Recipe: ${String(makerTakes(id))} rock → ${String(outAmt)} ${output}`;
+  }
+  const lhs = inputs
+    .map((spec) => `${String(spec.amount)} ${INPUT_RECIPE_WORDS[spec.id]}`)
+    .join(" + ");
+  return `Recipe: ${lhs} → ${String(outAmt)} ${output}`;
+}
+
+/** Separate input buffer views for any multi-input maker or Factory line (#779). */
+export function makerInputBuffers(
+  mountain: Mountain,
+  id: MakerId,
+): readonly InputBufferView[] {
+  return makerInputs(id).map((spec): InputBufferView => {
+    const held = makerBuffer(mountain, id, spec.id);
+    const room = makerInputRoom(mountain, id, spec.id);
+    return {
+      id: spec.id,
+      label: INPUT_LABELS[spec.id],
+      held,
+      room,
+      text: `${formatCompact(held)} of ${formatCompact(room)}`,
+      fill: room > 0 ? Math.min(1, held / room) : 0,
+      empty: held < spec.amount,
+    };
+  });
+}
+
+/** Shared machine-count and staffing line for Refinery makers and Factory lines (#779). */
+export function makerMachinesLine(
+  id: MakerId,
+  owned: number,
+  running: number,
+): string {
   if (owned === 0) {
     return noMakersYet(id);
   }
-  // The mine's runs line (mine-view's partWords): what runs, then who runs it.
+  const perUnit = makerWorkersPerUnit(id);
   const runs =
     running < owned ? `${String(running)} of ${String(owned)}` : String(owned);
-  return `${runs} ${plural(owned, MAKER_WORDS[id])}: ${String(running)} of ${String(owned)} ${plural(owned, ["worker", "workers"])}`;
+  const has = running * perUnit;
+  const takes = owned * perUnit;
+  return `${runs} ${plural(owned, MAKER_WORDS[id])}: ${String(has)} of ${String(takes)} ${plural(takes, ["worker", "workers"])}`;
 }
 
-function makerKey(mountain: Mountain, id: MakerId): MakerKey {
+/** Shared buy key view for Refinery makers and Factory lines (1- or 2-good prices, research multiplier). */
+export function makerKeyView(mountain: Mountain, id: MakerId): MakerKey {
   const price = makerPrice(mountain, id);
-  const amount = formatCompact(price[0]?.amount ?? 0);
-  const good = price[0]?.good ?? "stones";
-  const makes = formatCompact(makerMakes(id));
+  const priceParts: readonly KeyPricePart[] = price.map((line) => ({
+    good: line.good,
+    text: formatCompact(line.amount),
+  }));
+  const amount = priceParts[0]?.text ?? "0";
+  const good = priceParts[0]?.good ?? "stones";
+  const makes = formatSpeed(
+    makerMakes(id, makerResearchMultiplier(mountain, id)),
+  );
+  const perUnit = makerWorkersPerUnit(id);
   const [one] = MAKER_WORDS[id];
+  const priceWords = priceParts
+    .map((part) => `${part.text} ${GOOD_WORDS[part.good]}`)
+    .join(" and ");
   return {
     face: `+${capital(one)} · ${makes}/s`,
     price: amount,
-    staff: "1 to run",
+    ...(priceParts.length > 1 ? { priceParts } : {}),
+    staff: `${String(perUnit)} to run`,
     can: canPay(mountain.stock, price),
-    label: `Buy a ${one} for ${amount} ${GOOD_WORDS[good]}. It makes ${makes} ${GOOD_WORDS[makerOutput(id)]} a second and takes 1 to run.`,
+    label: `Buy a ${one} for ${priceWords}. It makes ${makes} ${GOOD_WORDS[makerOutput(id)]} a second and takes ${String(perUnit)} to run.`,
     good,
   };
 }
@@ -307,11 +426,8 @@ function makerKey(mountain: Mountain, id: MakerId): MakerKey {
 /** The rock in a maker's input buffer (Slice 2) or pile (Slice 1). */
 function makerHeld(mountain: Mountain, id: MakerId): number {
   if (slice2Part1On()) {
-    return makerBuffer(
-      mountain,
-      id,
-      id === "kiln" ? "topsoilRock" : "graniteRock",
-    );
+    const primary = makerInputs(id)[0]?.id ?? "topsoilRock";
+    return makerBuffer(mountain, id, primary);
   }
   return id === "kiln"
     ? mountain.piles.kiln
@@ -346,40 +462,58 @@ function makerPlate(
   const owned = mountain.makers[id];
   const job = makerJob(id);
   const workers = mountain.jobs[job];
-  const extra = workers - owned;
-  const pile = makerPile(mountain, id);
+  const running = runningMakers(mountain, id);
+  const perUnit = makerWorkersPerUnit(id);
+  const extra = workers - owned * perUnit;
+  const multiInput = makerInputs(id).length > 1;
+  const pile = multiInput ? undefined : makerPile(mountain, id);
+  const buffers = multiInput ? makerInputBuffers(mountain, id) : undefined;
   const output = GOOD_WORDS[makerOutput(id)];
   return {
     id,
-    recipe: `Recipe: ${String(makerTakes(id))} rock → 1 ${output}`,
+    recipe: makerRecipeLine(id),
     name: JOB_NAMES[job],
     unit: `${output}/s` as const,
     now: formatCompact(made),
     can: formatCompact(makerRate(mountain, id) * timer),
-    machines: machinesLine(id, owned, runningMakers(mountain, id)),
+    machines: makerMachinesLine(id, owned, running),
     ...(extra > 0
       ? { idle: `+ ${String(extra)} without a ${MAKER_WORDS[id][0]}` }
       : {}),
     ...(pile === undefined ? {} : { pile }),
+    ...(buffers === undefined ? {} : { buffers }),
+    standing: running > 0 && made <= 0,
     workers,
     job,
     canPlace: placeable(mountain, job) > 0,
     canFree: workers > 0,
-    key: makerKey(mountain, id),
+    key: makerKeyView(mountain, id),
   };
 }
 
-/** The stockpiles' bays, brick then stone and then cut stone, read from the top row's own stockpiles. */
+const COMPACT_BAY_NAMES: Readonly<Record<GoodId, string>> = {
+  stones: "Stone",
+  brick: "Brick",
+  cutStone: "Cut",
+  glass: "Glass",
+  parts: "Parts",
+};
+
+/** The stockpiles' bays, read from the top row's own stockpiles (compact labels when 4+ bays). */
 function bays(mountain: Mountain): readonly Bay[] {
   const piles = stockpiles(mountain);
-  return bayOrder(mountain).flatMap((good) => {
+  const order = bayOrder(mountain);
+  const compact = order.length >= 4;
+  return order.flatMap((good) => {
     const pile = piles.find((each) => each.good === good);
     return pile?.room === undefined
       ? []
       : [
           {
             good,
-            text: `${GOOD_NAMES[good]} ${pile.text} ${pile.room}`,
+            text: compact
+              ? `${COMPACT_BAY_NAMES[good]} ${pile.text}`
+              : `${GOOD_NAMES[good]} ${pile.text} ${pile.room}`,
             fill: pile.fill ?? 0,
             full: pile.full === true,
           },
@@ -459,6 +593,17 @@ export function refineryView(mountain: Mountain): RefineryView {
               running: runningMakers(mountain, "saw"),
               lifting: lifted(hoppers, "granite"),
               making: income.made.saw > 0,
+            },
+          }
+        : {}),
+      ...(makers.includes("glassworks")
+        ? {
+            glassworks: {
+              hopper: pileFill(mountain, "glassworks"),
+              furnaces: mountain.makers.glassworks,
+              running: runningMakers(mountain, "glassworks"),
+              lifting: lifted(hoppers, "crystal"),
+              making: income.made.glassworks > 0,
             },
           }
         : {}),

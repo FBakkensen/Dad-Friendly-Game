@@ -167,6 +167,12 @@
   image-rendering: pixelated;
 }
 
+.mine-key-sep[hidden],
+.mine-key-icon[hidden],
+.mine-key-small .board-num[hidden] {
+  display: none;
+}
+
 .mine-stages {
   display: flex;
   flex-direction: column;
@@ -307,7 +313,8 @@
  * Topsoil, and the Sink key under it once the shaft can be sunk. The plate
  * is 22 art px and the key 26, 4 apart (mine-levels-site's GATE_*).
  */
-.mine-over > .mine-granite {
+.mine-over > .mine-granite,
+.mine-levels > .mine-granite {
   left: calc(var(--art) * 3);
   right: calc(var(--art) * 3);
   display: flex;
@@ -315,7 +322,11 @@
   gap: calc(var(--art) * 4);
 }
 
-.mine-over > .mine-granite[hidden] {
+.mine-over > .mine-granite[hidden],
+.mine-levels > .mine-granite[hidden],
+.mine-level-rows[hidden],
+.mine-piles[hidden],
+.frame .mine-strip-cell[hidden] {
   display: none;
 }
 
@@ -429,12 +440,17 @@
 
 .mine-level-rows .mine-stage-name {
   width: auto;
-  font-size: var(--board-type-15);
+  font-size: var(--board-type-14);
+}
+
+.mine-level-rows .mine-stage-rate {
+  font-size: var(--board-type-13);
 }
 
 .mine-level-rows .mine-stage-head {
   overflow: hidden;
-  gap: calc(var(--art) * 2);
+  gap: var(--art);
+  padding-right: calc(var(--art) * 6);
   white-space: nowrap;
 }
 
@@ -451,6 +467,10 @@
   line-height: 1.1;
   white-space: nowrap;
   color: var(--frame-ink);
+}
+
+.mine-levels.compact .mine-piles {
+  text-shadow: 0 var(--art) 0 var(--frame-dark);
 }
 
 /* Hoisting's one row under the keys, and the strip under it. */
@@ -605,7 +625,66 @@
   cursor: pointer;
 }
 
+/*
+ * The 4-cell hoisting strip when 3 levels are open (#779): 2×2 grid so every
+ * level cell keeps 48×48px −/+ targets at least 8px apart at 424px width.
+ */
+.mine-strip.four {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--target-gap);
+}
+
+.frame .mine-strip.four .mine-strip-cell {
+  flex-direction: row;
+  align-items: center;
+  min-height: var(--target-min);
+  padding: 0 0 0 calc(var(--art) * 2);
+}
+
+.mine-strip.four .mine-strip-info {
+  flex: 1;
+  height: auto;
+  align-items: center;
+}
+
+.mine-strip.four .mine-strip-head {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+  line-height: 1.15;
+}
+
+.mine-strip.four .mine-strip-keys {
+  flex: none;
+}
+
+.mine-strip.four .mine-strip-count {
+  flex: none;
+  width: calc(var(--art) * 12);
+}
+
+.frame .mine-strip.four .mine-strip-cell[data-place="both"] {
+  justify-content: space-between;
+  padding: 0 calc(var(--art) * 3);
+  height: var(--target-min);
+}
+
+.frame .mine-strip.four .mine-strip-cell[data-place="both"] .mine-strip-head {
+  height: auto;
+  align-items: flex-start;
+}
+
+.frame .mine-strip.four .mine-strip-cell[data-place="both"] .mine-strip-count {
+  height: auto;
+}
+
 .mine-stage-pile.full {
   color: var(--frame-red);
   font-weight: 700;
+}
+
+.machine-card-has[hidden],
+.frame-app .machine-card-level[hidden] {
+  display: none;
 }

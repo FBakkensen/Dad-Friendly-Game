@@ -55,7 +55,7 @@ export const DEEP_Y = SURF + 84;
  * levels and the hoisting under them fit the phone without a scroll. The
  * site's DOM and the scene both place a level here.
  */
-export const LEVELS = {
+const LEVELS = {
   height: 86,
   rows: 0,
   gallery: 52,
@@ -63,9 +63,31 @@ export const LEVELS = {
   piles: 79,
 } as const;
 
-/** A level's top with two levels: the Topsoil's (0) at the surface, the Granite's (1) under it. */
-export function levelTop(index: number): number {
-  return SURF + index * LEVELS.height;
+/**
+ * Compact multi-level geometry for 3 open levels (Topsoil, Granite, Crystal
+ * Caves) and 2 levels + Crystal Caves gate (#779): fits all three levels
+ * above the keys, Hoisting row and 2×2 4-cell hoisting strip with zero scroll
+ * at 424×924 and 424×830 while keeping every −/+ key at 48px and 8px apart.
+ */
+const COMPACT_LEVELS = {
+  surf: 9,
+  height: 62,
+  rows: 0,
+  gallery: 34,
+  floor: 52,
+  piles: 53,
+} as const;
+
+/** A level's top: normal 2-level spacing (`compact = false`) or 3-level / Crystal-gate compact spacing. */
+export function levelTop(index: number, compact = false): number {
+  return compact
+    ? COMPACT_LEVELS.surf + index * COMPACT_LEVELS.height
+    : SURF + index * LEVELS.height;
+}
+
+/** Where a level's piles line sits below its top. */
+export function levelPilesOffset(compact: boolean): number {
+  return compact ? COMPACT_LEVELS.piles : LEVELS.piles;
 }
 
 type Earth = {
@@ -88,6 +110,13 @@ const GRANITE: Earth = {
   light: "#4c5666",
   pale: "#74808f",
 };
+/** Crystal Caves earth, under the Granite once the 3rd shaft is sunk (#779). */
+const CRYSTAL: Earth = {
+  base: "#1a303b",
+  dark: "#12232c",
+  light: "#254452",
+  pale: "#5ea8b8",
+};
 /** The strata under the last level: not yet surveyed, so not named. */
 const DEEPER: Earth = {
   base: "#2a2f3b",
@@ -108,18 +137,27 @@ function earthAt(earth: Earth, x: number, y: number): string {
   return r < 0.5 || q < 0.05 ? earth.light : earth.base;
 }
 
-/** How many levels the mine shows: the Topsoil, or the Topsoil and the Granite. */
-export type LevelCount = 1 | 2;
+/**
+ * Scene layout key: 1 = Topsoil alone, 2 = Topsoil + Granite, 3 = 3 levels
+ * (compact), 4 = 2 levels + Crystal Caves gate (compact).
+ */
+export type LevelCount = 1 | 2 | 3 | 4;
 
-/** The earth at a row: the Topsoil's, the Granite's with two levels, then the unsurveyed strata. */
+const isCompact = (levels: LevelCount): boolean => levels >= 3;
+
+/** The earth at a row: Topsoil, Granite, Crystal Caves when open, then unsurveyed strata. */
 function earthOf(y: number, levels: LevelCount): Earth {
   if (levels === 1) {
     return y < LEVEL.floor + 10 ? TOPSOIL : DEEPER;
   }
-  if (y < levelTop(1)) {
+  const compact = isCompact(levels);
+  if (y < levelTop(1, compact)) {
     return TOPSOIL;
   }
-  return y < levelTop(2) ? GRANITE : DEEPER;
+  if (y < levelTop(2, compact)) {
+    return GRANITE;
+  }
+  return levels === 3 && y < levelTop(3, true) ? CRYSTAL : DEEPER;
 }
 
 function paintEarth(
@@ -127,7 +165,8 @@ function paintEarth(
   height: number,
   levels: LevelCount,
 ): void {
-  for (let y = SURF; y < height; y += 1) {
+  const surf = isCompact(levels) ? COMPACT_LEVELS.surf : SURF;
+  for (let y = surf; y < height; y += 1) {
     for (let x = 0; x < SCENE_W; x += 1) {
       const wobble = Math.round(
         2 * Math.sin(x / 11) + 1.5 * Math.sin(x / 5 + 2),
@@ -136,20 +175,24 @@ function paintEarth(
     }
   }
   for (let x = 0; x < SCENE_W; x += 1) {
-    rect(c, x, SURF - 1, 1, 2, hash(x, 0, 4) < 0.5 ? "#3d5a2e" : "#2c4423");
+    rect(c, x, surf - 1, 1, 2, hash(x, 0, 4) < 0.5 ? "#3d5a2e" : "#2c4423");
     if (hash(x, 1, 4) < 0.25) {
-      rect(c, x, SURF - 2, 1, 1, "#4d6e38");
+      rect(c, x, surf - 2, 1, 1, "#4d6e38");
     }
   }
 }
 
 /** The shaft from the surface down to `bottom`, the last level's floor. */
-function paintShaft(c: CanvasRenderingContext2D, bottom: number): void {
-  const depth = bottom - SURF + 1;
-  rect(c, 14, SURF - 1, 22, depth, "#0f0c0a");
-  rect(c, 14, SURF - 1, 2, depth, "#6b4a2a");
-  rect(c, 34, SURF - 1, 2, depth, "#6b4a2a");
-  for (let y = SURF + 4; y < bottom; y += 9) {
+function paintShaft(
+  c: CanvasRenderingContext2D,
+  bottom: number,
+  surf = SURF,
+): void {
+  const depth = bottom - surf + 1;
+  rect(c, 14, surf - 1, 22, depth, "#0f0c0a");
+  rect(c, 14, surf - 1, 2, depth, "#6b4a2a");
+  rect(c, 34, surf - 1, 2, depth, "#6b4a2a");
+  for (let y = surf + 4; y < bottom; y += 9) {
     rect(c, 16, y, 18, 1, "#2a1d12");
   }
 }
@@ -175,17 +218,19 @@ const ONE_LEVEL: Floor = {
   zed: [8, -6],
 };
 
-/** A level's floor with two levels: the Topsoil's (0) and the Granite's (1). */
-function levelFloor(index: number): Floor {
+/** A level's floor with two or three levels. */
+function levelFloor(index: number, compact = false): Floor {
+  const geom = compact ? COMPACT_LEVELS : LEVELS;
+  const top = levelTop(index, compact);
   return {
-    gallery: levelTop(index) + LEVELS.gallery,
-    floor: levelTop(index) + LEVELS.floor,
+    gallery: top + geom.gallery,
+    floor: top + geom.floor,
     index,
     zed: [10, -2],
   };
 }
 
-/** A gallery's own colours: the Topsoil's warm, the Granite's cold (the prototype's). */
+/** A gallery's own colours: Topsoil warm, Granite cold, Crystal Caves teal. */
 const GALLERY_LOOK = [
   {
     earth: TOPSOIL,
@@ -200,6 +245,13 @@ const GALLERY_LOOK = [
     back: "#1f2630",
     grain: "#262e3a",
     lamp: "#3b4a5c",
+  },
+  {
+    earth: CRYSTAL,
+    dark: "#0c171d",
+    back: "#142731",
+    grain: "#1c3643",
+    lamp: "#2e6d7d",
   },
 ] as const;
 
@@ -268,23 +320,43 @@ function paintHeadframe(c: CanvasRenderingContext2D): void {
   line(c, [31, 6], [52, 22], "#1a1a1a");
 }
 
-/** The still parts of the scene, painted once for a height and a count of levels. */
+/** Compact headframe for 3-level / Crystal-gate view where the surface sits at y = 9. */
+function paintCompactHeadframe(c: CanvasRenderingContext2D): void {
+  const s = COMPACT_LEVELS.surf;
+  line(c, [13, s - 1], [21, 1], "#7a5530", 2);
+  line(c, [35, s - 1], [28, 1], "#7a5530", 2);
+  rect(c, 19, 1, 13, 2, "#7a5530");
+  rect(c, 16, 5, 18, 1, "#5a3d22");
+  rect(c, 52, 2, 24, s - 3, "#4a3323");
+  rect(c, 58, 4, 5, 3, "#ffcf6a");
+}
+
+/** The still parts of the scene, painted once for a height and a layout. */
 export function paintGround(
   c: CanvasRenderingContext2D,
   height: number,
   levels: LevelCount = 1,
 ): void {
-  paintSky(c, SURF);
+  const compact = isCompact(levels);
+  const surf = compact ? COMPACT_LEVELS.surf : SURF;
+  paintSky(c, surf);
   paintEarth(c, height, levels);
   if (levels === 1) {
-    paintShaft(c, LEVEL.floor);
+    paintShaft(c, LEVEL.floor, SURF);
     paintGallery(c, ONE_LEVEL);
-  } else {
-    paintShaft(c, levelFloor(1).floor);
-    paintGallery(c, levelFloor(0));
-    paintGallery(c, levelFloor(1));
+    paintHeadframe(c);
+    return;
   }
-  paintHeadframe(c);
+  const openCount = levels === 3 ? 3 : 2;
+  paintShaft(c, levelFloor(openCount - 1, compact).floor, surf);
+  for (let i = 0; i < openCount; i += 1) {
+    paintGallery(c, levelFloor(i, compact));
+  }
+  if (compact) {
+    paintCompactHeadframe(c);
+  } else {
+    paintHeadframe(c);
+  }
 }
 
 /** The scene's sprites, loaded once. */
@@ -581,14 +653,21 @@ function drawOneLevel(
   );
 }
 
-/** Where a cage hangs at a depth: 0 at the top, 1 at the Topsoil's floor, 2 at the Granite's. */
-function cageY(depth: number): number {
-  const top = SURF - 26;
-  const first = levelFloor(0).floor - 26;
-  const second = levelFloor(1).floor - 26;
-  return depth <= 1
-    ? top + (first - top) * depth
-    : first + (second - first) * (depth - 1);
+/** Where a cage hangs at a depth: 0 at top, 1 Topsoil, 2 Granite, 3 Crystal Caves. */
+function cageY(depth: number, compact: boolean): number {
+  const surf = compact ? COMPACT_LEVELS.surf : SURF;
+  const stops = [
+    Math.max(2, surf - 26),
+    levelFloor(0, compact).floor - 26,
+    levelFloor(1, compact).floor - 26,
+    levelFloor(2, true).floor - 26,
+  ];
+  const clamped = Math.max(0, Math.min(3, depth));
+  const seg = Math.min(2, Math.floor(clamped));
+  const frac = clamped - seg;
+  const from = stops[seg] ?? stops[0] ?? 2;
+  const to = stops[seg + 1] ?? from;
+  return from + (to - from) * frac;
 }
 
 /** The fastest a cage rides, in levels a second: a level's depth over its leg down. */
@@ -596,6 +675,7 @@ function cageSpeed(): number {
   return Math.max(
     1 / legSeconds("topsoil", "down"),
     2 / legSeconds("granite", "down"),
+    3 / legSeconds("crystal", "down"),
   );
 }
 
@@ -650,6 +730,7 @@ function drawCages(
   scene: TwoLevelScene,
   motion: Motion,
   dt: number,
+  compact: boolean,
 ): void {
   if (rideCages(motion, scene.cages, dt)) {
     motion.wheel += 1;
@@ -657,11 +738,11 @@ function drawCages(
   frame(c, sprites.sheave, 4, Math.floor(motion.wheel / 2) % 4, [16, 0]);
   const loads = [...scene.cages].sort((a, b) => a.depth - b.depth);
   for (const [k, depth] of motion.cages.entries()) {
-    hangCage(c, sprites, cageY(depth), loads[k]?.loaded ?? false);
+    hangCage(c, sprites, cageY(depth, compact), loads[k]?.loaded ?? false);
   }
 }
 
-/** The two levels' moving parts (ruling 8): the cages, hoisting's workers by the shaft, and each level's line. */
+/** The two or three levels' moving parts (ruling 8, #779): cages, hoisting crew, and each level's line. */
 function drawTwoLevels(
   c: CanvasRenderingContext2D,
   sprites: Sprites,
@@ -670,27 +751,41 @@ function drawTwoLevels(
   clock: { readonly t: number; readonly dt: number },
 ): void {
   const { t, dt } = clock;
-  drawCages(c, sprites, scene, motion, dt);
+  const compact =
+    scene.levels.crystal !== undefined || scene.hasCrystalGate === true;
+  drawCages(c, sprites, scene, motion, dt, compact);
   drawCrew(c, sprites, "lift", scene.hoisting, {
-    floor: levelFloor(0),
+    floor: levelFloor(0, compact),
     moving: true,
     t,
   });
-  for (const [index, id] of (["topsoil", "granite"] as const).entries()) {
+  const ids: readonly MineLevelId[] =
+    scene.levels.crystal !== undefined
+      ? ["topsoil", "granite", "crystal"]
+      : ["topsoil", "granite"];
+  for (const [index, id] of ids.entries()) {
     const level = scene.levels[id];
-    drawLevel(
-      c,
-      sprites,
-      { ...level, moving: level.face.busy > 0 || level.haul.busy > 0 },
-      motion.levels[id],
-      { floor: levelFloor(index), t, dt },
-    );
+    if (level !== undefined) {
+      drawLevel(
+        c,
+        sprites,
+        { ...level, moving: level.face.busy > 0 || level.haul.busy > 0 },
+        motion.levels[id],
+        { floor: levelFloor(index, compact), t, dt },
+      );
+    }
   }
 }
 
-/** How many levels a scene draws. */
+/** Scene layout key for ground repainting. */
 export function levelsOf(scene: MineScene | TwoLevelScene): LevelCount {
-  return "levels" in scene ? 2 : 1;
+  if (!("levels" in scene)) {
+    return 1;
+  }
+  if (scene.levels.crystal !== undefined) {
+    return 3;
+  }
+  return scene.hasCrystalGate === true ? 4 : 2;
 }
 
 /** One frame of the scene's moving parts, over the ground. */

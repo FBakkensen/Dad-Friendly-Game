@@ -2,10 +2,12 @@ import workerUrl from "./assets/helper-miner.png";
 import stoneUrl from "./assets/board/res-stone.png";
 import brickUrl from "./assets/board/res-brick.png";
 import cutStoneUrl from "./assets/board/res-cut-stone.png";
+import partsUrl from "./assets/board/res-parts.png";
 import wagonUrl from "./assets/city/horse-wagon.png";
 import pickUrl from "./assets/pick.png";
 import kilnUrl from "./assets/board/mach-kiln.png";
 import workshopUrl from "./assets/board/icon-workshop.png";
+import { PART2_ART } from "./part2-art";
 import type { AuthController } from "./auth";
 import { createSaveLine } from "./board-save";
 import { el, hide, icon, mark, setAttr, write } from "./board-dom";
@@ -37,14 +39,16 @@ import { createFrameSaveCards } from "./frame-save-cards";
 import { createFrameLedger, type FrameLedger } from "./frame-ledger";
 import { createBoardHost } from "./board-host";
 import { createCitySite } from "./city-site";
+import { createFactorySite } from "./factory-site";
 import { createMachineCard } from "./machine-card";
 import { createMineSite } from "./mine-site";
 import { createRefinerySite } from "./refinery-site";
+import { createResearchSheet, type ResearchSheet } from "./research-sheet";
 import { createStageSheet, type StageSheet } from "./stage-sheet";
 import { createTransportSheet, type TransportSheet } from "./transport-sheet";
 import { transportChip } from "./transport-view";
 import { createWorkforceSheet, type WorkforceSheet } from "./workforce-sheet";
-import { slice2Part1On } from "./part-switch";
+import { slice2Part1On, slice2Part2On } from "./part-switch";
 import "./frame.css";
 
 /**
@@ -161,6 +165,10 @@ type TopParts = {
   readonly brickPile: PileParts;
   /** Cut stone's, once the saws open (part 3, #754). */
   readonly cutStonePile: PileParts;
+  /** Glass's, once the glassworks open (Slice 2 Part 2, #779). */
+  readonly glassPile: PileParts;
+  /** Parts', once the factory opens (Slice 2 Part 2, #779). */
+  readonly partsPile: PileParts;
   readonly workers: HTMLButtonElement;
   readonly count: HTMLElement;
   readonly free: HTMLElement;
@@ -183,6 +191,10 @@ function buildTop(state: FrameState): TopParts {
   brickPile.root.dataset["good"] = "brick";
   const cutStonePile = buildPile(cutStoneUrl, "frame-pile-num");
   cutStonePile.root.dataset["good"] = "cutStone";
+  const glassPile = buildPile(PART2_ART.glass, "frame-pile-num");
+  glassPile.root.dataset["good"] = "glass";
+  const partsPile = buildPile(partsUrl, "frame-pile-num");
+  partsPile.root.dataset["good"] = "parts";
   const stones = stonePile.count;
   const workers = el("button", "frame-workers");
   workers.type = "button";
@@ -228,6 +240,8 @@ function buildTop(state: FrameState): TopParts {
     stonePile,
     brickPile,
     cutStonePile,
+    glassPile,
+    partsPile,
     workers,
     count,
     free,
@@ -258,6 +272,30 @@ function paintTop(
     parts.cutStonePile,
     piles.find((pile) => pile.good === "cutStone"),
   );
+  const part2 = slice2Part2On();
+  if (part2) {
+    if (parts.glassPile.root.parentElement !== parts.root) {
+      parts.root.insertBefore(parts.glassPile.root, parts.workers);
+    }
+    if (parts.partsPile.root.parentElement !== parts.root) {
+      parts.root.insertBefore(parts.partsPile.root, parts.workers);
+    }
+    paintPile(
+      parts.glassPile,
+      piles.find((pile) => pile.good === "glass"),
+    );
+    paintPile(
+      parts.partsPile,
+      piles.find((pile) => pile.good === "parts"),
+    );
+  } else {
+    if (parts.glassPile.root.parentElement === parts.root) {
+      parts.glassPile.root.remove();
+    }
+    if (parts.partsPile.root.parentElement === parts.root) {
+      parts.partsPile.root.remove();
+    }
+  }
   mark(parts.root, "two-piles", piles.length > 1);
   setAttr(parts.root, "data-piles", String(piles.length));
   // The exact count, as the odometer carried it, for the journeys (#664).
@@ -300,10 +338,13 @@ type NextParts = {
 function nextTarget(
   mountain: Mountain,
   here: SiteId,
-): SiteId | "workforce" | "transport" | undefined {
+): SiteId | "workforce" | "transport" | "research" | undefined {
   const view = nextView(mountain);
   if (view.kind === "order") {
     return "city";
+  }
+  if (view.kind === "research") {
+    return "research";
   }
   if (view.kind === "nothing") {
     return undefined;
@@ -340,6 +381,9 @@ function buildNext(state: FrameState): NextParts {
       state.openWorkforce();
     } else if (target === "transport") {
       state.openTransport();
+    } else if (target === "research") {
+      state.go("city");
+      state.openResearch();
     } else if (target !== undefined) {
       state.go(target);
     }
@@ -402,6 +446,7 @@ export type FrameScreen = {
   readonly paint: () => void;
   readonly sheet: WorkforceSheet;
   readonly transportSheet: TransportSheet;
+  readonly researchSheet: ResearchSheet;
   readonly stageSheet: StageSheet;
 };
 
@@ -424,6 +469,7 @@ function buildFrame(
   const scene = el("div", "frame-scene");
   const mine = createMineSite(state, signal);
   const refinery = createRefinerySite(state, signal);
+  const factory = createFactorySite(state, signal);
   const city = createCitySite(state, signal);
   scene.append(mine.root, refinery.root, city.root);
   const next = buildNext(state);
@@ -434,6 +480,12 @@ function buildFrame(
     root,
     scene,
     paint: (mountain) => {
+      const part2 = slice2Part2On();
+      if (part2 && factory.root.parentElement !== scene) {
+        scene.insertBefore(factory.root, city.root);
+      } else if (!part2 && factory.root.parentElement === scene) {
+        factory.root.remove();
+      }
       mark(root, "slice2-part1", slice2Part1On());
       paintOrder(order, mountain);
       paintTop(top, mountain, state.amount());
@@ -441,9 +493,59 @@ function buildFrame(
       paintSiteBar(bar, mountain, state.site());
       mine.paint(mountain, state.site() === "mine", now());
       refinery.paint(mountain, state.site() === "refinery", now());
+      if (part2) {
+        factory.paint(mountain, state.site() === "factory", now());
+      }
       city.paint(mountain, state.site() === "city", now());
       setAttr(scene, "data-site", state.site());
       setAttr(scene, "aria-label", SITE_NAMES[state.site()]);
+    },
+  };
+}
+
+type FrameSheets = {
+  readonly sheet: WorkforceSheet;
+  readonly transportSheet: TransportSheet;
+  readonly researchSheet: ResearchSheet;
+  readonly stageSheet: StageSheet;
+  readonly machineCard: ReturnType<typeof createMachineCard>;
+  readonly closeAll: () => void;
+  readonly paint: (mountain: Mountain) => void;
+};
+
+function createFrameSheets(
+  state: FrameState,
+  board: ReturnType<typeof createBoardHost>,
+  now: () => number,
+): FrameSheets {
+  const sheet = createWorkforceSheet(state, now);
+  const transportSheet = createTransportSheet(state);
+  const researchSheet = createResearchSheet(state);
+  const stageSheet = createStageSheet(state, now);
+  const machineCard = createMachineCard(state, board, now);
+  return {
+    sheet,
+    transportSheet,
+    researchSheet,
+    stageSheet,
+    machineCard,
+    closeAll: () => {
+      sheet.close();
+      transportSheet.close();
+      researchSheet.close();
+      stageSheet.close();
+      machineCard.close();
+    },
+    paint: (mountain) => {
+      sheet.paint(mountain);
+      if (slice2Part1On()) {
+        transportSheet.paint(mountain);
+      }
+      if (slice2Part2On()) {
+        researchSheet.paint(mountain);
+      }
+      stageSheet.paint(mountain);
+      machineCard.paint(mountain);
     },
   };
 }
@@ -471,6 +573,7 @@ export function mountFrameScreen({
   let site: SiteId = "mine";
   const amount = deviceAmount(storage);
   let paint = (): void => undefined;
+  const board = createBoardHost({ clock: () => performance.now(), signal });
   const state: FrameState = {
     progress,
     mountain: () => progress.getSnapshot().mountain,
@@ -485,28 +588,31 @@ export function mountFrameScreen({
       paint();
     },
     openWorkforce: () => {
-      transportSheet.close();
-      sheet.open();
+      sheets.transportSheet.close();
+      sheets.researchSheet.close();
+      sheets.sheet.open();
     },
     openTransport: () => {
-      sheet.close();
-      transportSheet.open();
+      sheets.sheet.close();
+      sheets.researchSheet.close();
+      sheets.transportSheet.open();
+    },
+    openResearch: () => {
+      if (!slice2Part2On()) {
+        return;
+      }
+      sheets.sheet.close();
+      sheets.transportSheet.close();
+      sheets.researchSheet.open();
     },
     openStage: (stage, level) => {
-      stageSheet.open(stage, level);
+      sheets.stageSheet.open(stage, level);
     },
     openMachine: (id) => {
-      machineCard.open(id);
+      sheets.machineCard.open(id);
     },
   };
-  // One board host for the Ledger and the save's cards: one settle (#707, #708).
-  const board = createBoardHost({ clock: () => performance.now(), signal });
-  const closeSheets = (): void => {
-    sheet.close();
-    transportSheet.close();
-    stageSheet.close();
-    machineCard.close();
-  };
+  const sheets = createFrameSheets(state, board, now);
   const ledger: FrameLedger = createFrameLedger({
     progress,
     auth,
@@ -514,20 +620,15 @@ export function mountFrameScreen({
     storage,
     now,
     overSave: () => saveLine.isOpen(),
-    onOpen: closeSheets,
+    onOpen: sheets.closeAll,
     requestPaint: () => {
       paint();
     },
     signal,
   });
   const frame = buildFrame(state, now, ledger.key, signal);
-  const sheet = createWorkforceSheet(state, now);
-  const transportSheet = createTransportSheet(state);
-  const stageSheet = createStageSheet(state, now);
-  const machineCard = createMachineCard(state, board, now);
-  /** A card comes up: every sheet and the Ledger close under it. */
   const closeUnderCard = (): void => {
-    closeSheets();
+    sheets.closeAll();
     ledger.close();
   };
   const cards = createFrameCards({
@@ -558,10 +659,10 @@ export function mountFrameScreen({
   root.classList.add("frame-app");
   root.replaceChildren(
     frame.root,
-    sheet.root,
-    transportSheet.root,
-    stageSheet.root,
-    machineCard.root,
+    sheets.sheet.root,
+    sheets.transportSheet.root,
+    sheets.stageSheet.root,
+    sheets.machineCard.root,
     cards.root,
     ...ledger.roots,
     ...saveCards.roots,
@@ -570,21 +671,19 @@ export function mountFrameScreen({
   );
   paint = () => {
     const { mountain, ready } = progress.getSnapshot();
-    // A site that is not open (the refinery, before the Light Tower) is never shown;
-    // a save loaded from the cloud or a Saved copy can close the one in view.
     if (!siteOpen(mountain, site)) {
       site = "mine";
     }
-    // Until a signed-in save is in, the store holds a new mine: its numbers
-    // would say the mine is gone, so the frame shows none (#664).
+    const part2 = slice2Part2On();
+    if (part2 && sheets.researchSheet.root.parentElement !== root) {
+      root.insertBefore(sheets.researchSheet.root, sheets.stageSheet.root);
+    } else if (!part2 && sheets.researchSheet.root.parentElement === root) {
+      sheets.researchSheet.close();
+      sheets.researchSheet.root.remove();
+    }
     frame.root.toggleAttribute("data-loading", !ready);
     frame.paint(mountain);
-    sheet.paint(mountain);
-    if (slice2Part1On()) {
-      transportSheet.paint(mountain);
-    }
-    stageSheet.paint(mountain);
-    machineCard.paint(mountain);
+    sheets.paint(mountain);
     cards.paint();
     ledger.paint();
     saveCards.paint();
@@ -592,7 +691,13 @@ export function mountFrameScreen({
   };
   paint();
   runFrame(progress, paint, signal);
-  return { paint, sheet, transportSheet, stageSheet };
+  return {
+    paint,
+    sheet: sheets.sheet,
+    transportSheet: sheets.transportSheet,
+    researchSheet: sheets.researchSheet,
+    stageSheet: sheets.stageSheet,
+  };
 }
 
 /**

@@ -417,7 +417,7 @@ function levelBought(
     : mountain;
 }
 
-function levelBuyMove(
+export function levelBuyMove(
   level: DeeperLevelId,
   id: LevelMachineId,
   count: number,

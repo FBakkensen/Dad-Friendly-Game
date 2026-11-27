@@ -22,7 +22,8 @@ import {
   type Pip,
 } from "./frame-view";
 import type { Mountain } from "./mountain";
-import { partThreeOn, slice2Part1On } from "./part-switch";
+import { partThreeOn, slice2Part1On, slice2Part2On } from "./part-switch";
+import { transportResearchMultiplier } from "./research";
 import { slice2LiveSnapshot, slice2OrderRates } from "./slice2-flow";
 import type { BuyAmount } from "./tiers";
 import type { GoodId } from "./stock";
@@ -34,8 +35,10 @@ import {
   plural,
 } from "./screen-words";
 import {
+  CITY_RUN_GOODS,
   VEHICLES,
   VEHICLE_IDS,
+  cityRunId,
   drivenFleet,
   fleetRate,
   orderLimit,
@@ -86,7 +89,8 @@ function fleetWords(
   const owned = mountain.fleet[vehicle.id];
   const kind = plural(owned, VEHICLE_WORDS[vehicle.id]);
   const drivers = plural(owned, ["driver", "drivers"]);
-  const carries = formatSpeed(driven * vehicleCarries(vehicle));
+  const mult = transportResearchMultiplier(mountain);
+  const carries = formatSpeed(driven * vehicleCarries(vehicle, mult));
   return `${String(owned)} ${kind}: ${String(driven)} of ${String(owned)} ${drivers} ${carries}/s`;
 }
 
@@ -127,11 +131,12 @@ export function vehicleKeys(
   mountain: Mountain,
   amount: BuyAmount,
 ): readonly VehicleKey[] {
+  const mult = transportResearchMultiplier(mountain);
   return VEHICLES.filter((vehicle) => vehicleOpen(mountain, vehicle.id)).map(
     (vehicle) => {
       const { count, cost } = vehicleQuote(mountain, vehicle.id, amount);
       const one = count === 1;
-      const moves = `${formatSpeed(vehicleCarries(vehicle) * count)}/s`;
+      const moves = `${formatSpeed(vehicleCarries(vehicle, mult) * count)}/s`;
       const key = plural(count, VEHICLE_KEYS[vehicle.id]);
       const words = plural(count, VEHICLE_WORDS[vehicle.id]);
       const price = formatCompact(cost);
@@ -194,8 +199,14 @@ export type Plot = {
   readonly risen: number;
 };
 
-/** The skyline has three plots; part 1 builds on the first. */
-const PLOTS = 3;
+/** The skyline has three plots in Part 1 and four (adding The Research Lab) in Slice 2 Part 2 (#779). */
+const PLOTS_PART_1 = 3;
+const PLOTS_PART_2 = 4;
+
+/** Compact plot tag names when 4 buildings share the skyline so no tag clips at 424px. */
+function plotLabel(name: string, compact: boolean): string {
+  return compact ? name.replace(/^The /, "") : name;
+}
 
 /** The building in hand: the one ordered, or the next to order. */
 function inHand(mountain: Mountain): BuildingId | undefined {
@@ -209,12 +220,14 @@ export function plots(mountain: Mountain): readonly Plot[] {
   const hand = inHand(mountain);
   const project = mountain.project;
   const step = project.kind === "unordered" ? 0 : project.site.step;
-  return Array.from({ length: PLOTS }, (_, at): Plot => {
+  const part2 = slice2Part2On();
+  const count = part2 ? PLOTS_PART_2 : PLOTS_PART_1;
+  return Array.from({ length: count }, (_, at): Plot => {
     const building = BUILDINGS[at];
     if (building !== undefined && mountain.operational.includes(building.id)) {
       return {
         building: building.id,
-        name: building.name,
+        name: plotLabel(building.name, part2),
         state: "operational",
         risen: 3,
       };
@@ -222,7 +235,7 @@ export function plots(mountain: Mountain): readonly Plot[] {
     if (building !== undefined && building.id === hand) {
       return {
         building: building.id,
-        name: building.name,
+        name: plotLabel(building.name, part2),
         state: STEP_NAMES[step].toLowerCase(),
         risen: risen(mountain),
       };
@@ -279,13 +292,13 @@ function slice2CityFlows(mountain: Mountain): {
   readonly builds: number;
 } {
   const snap = slice2LiveSnapshot(mountain);
-  return {
-    brings:
-      snap.runRates["stockToCity:stones"] +
-      snap.runRates["stockToCity:brick"] +
-      snap.runRates["stockToCity:cutStone"],
-    builds: snap.build.stones + snap.build.brick + snap.build.cutStone,
-  };
+  let brings = 0;
+  let builds = 0;
+  for (const good of CITY_RUN_GOODS) {
+    brings += snap.runRates[cityRunId(good)];
+    builds += snap.build[good];
+  }
+  return { brings, builds };
 }
 
 function orderKey(mountain: Mountain, now: number | undefined): OrderKey {
@@ -391,11 +404,12 @@ export type ProjectCard =
 /** The power a building gives, as the card says it, and what it opens. */
 function completion(id: BuildingId): string {
   const words = powerWords(id);
-  if (words.length === 0) {
+  const opened = opensWords(id);
+  if (words.length === 0 && opened === "") {
     return "";
   }
-  const opened = opensWords(id);
-  return `On completion: ${words.join(" ")}${opened === "" ? "" : ` ${opened}`}`;
+  const parts = [...words, ...(opened === "" ? [] : [opened])];
+  return `On completion: ${parts.join(" ")}`;
 }
 
 export function projectCard(mountain: Mountain, now?: number): ProjectCard {

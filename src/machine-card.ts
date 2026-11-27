@@ -1,7 +1,7 @@
 import { el, hide, mark, setAttr, write } from "./board-dom";
 import type { BoardHost } from "./board-host";
 import { forgetAll, pressOnBoard, type PressTracker } from "./card-tap";
-import { graniteBuyMove, tierBuyMove } from "./economy/actions";
+import { levelBuyMove, tierBuyMove } from "./economy/actions";
 import { cardShell } from "./frame-cards";
 import type { FrameState } from "./frame-state";
 import {
@@ -11,6 +11,8 @@ import {
   machineCardTitle,
 } from "./mine-level-view";
 import {
+  MINE_LEVEL_IDS,
+  crystalOpen,
   graniteOpen,
   levelMachines,
   type LevelMachineId,
@@ -21,7 +23,7 @@ import { LEVEL_NAMES, machineKey, type MachineKey } from "./mine-view";
 import type { Mountain } from "./mountain";
 import { tierById } from "./tiers";
 
-const CARD_LEVELS: readonly MineLevelId[] = ["topsoil", "granite"];
+const CARD_LEVELS: readonly MineLevelId[] = MINE_LEVEL_IDS;
 
 export type MachineCard = {
   readonly root: HTMLElement;
@@ -54,6 +56,8 @@ type MachineParts = {
   readonly price: HTMLElement;
   readonly icon: HTMLImageElement;
   readonly staff: HTMLElement;
+  readonly levelLines: HTMLElement;
+  readonly row: HTMLElement;
   readonly has: ReadonlyMap<MineLevelId, HTMLElement>;
   readonly levels: ReadonlyMap<MineLevelId, HTMLButtonElement>;
   readonly notNow: HTMLButtonElement;
@@ -75,7 +79,6 @@ function buildMachineCard(): MachineParts {
     CARD_LEVELS.map((level) => [level, el("span", "machine-card-has")]),
   );
   const levelLines = el("p", "machine-card-line is-quiet");
-  levelLines.append(...has.values());
   body.append(
     machine,
     el("p", "machine-card-line", MACHINE_CARD_STAYS),
@@ -91,11 +94,34 @@ function buildMachineCard(): MachineParts {
     }),
   );
   const row = el("div", "machine-card-levels");
-  row.append(...levels.values());
   const notNow = el("button", "machine-card-not-now", NOT_NOW);
   notNow.type = "button";
   box.append(row, notNow);
-  return { root, title, face, price, icon, staff, has, levels, notNow };
+  return {
+    root,
+    title,
+    face,
+    price,
+    icon,
+    staff,
+    levelLines,
+    row,
+    has,
+    levels,
+    notNow,
+  };
+}
+
+function syncNode(
+  parent: HTMLElement,
+  child: HTMLElement,
+  shown: boolean,
+): void {
+  if (shown && child.parentElement !== parent) {
+    parent.append(child);
+  } else if (!shown && child.parentElement === parent) {
+    child.remove();
+  }
 }
 
 function paintMachine(
@@ -108,10 +134,17 @@ function paintMachine(
   write(parts.price, key.price);
   paintIcon(parts.icon, key.good);
   write(parts.staff, ` · ${key.staff}`);
+  const hasCrystal = crystalOpen(mountain);
   for (const [level, line] of parts.has) {
-    write(line, levelHasLine(level, id, levelMachines(mountain, level)[id]));
+    const shown = level !== "crystal" || hasCrystal;
+    syncNode(parts.levelLines, line, shown);
+    if (shown) {
+      write(line, levelHasLine(level, id, levelMachines(mountain, level)[id]));
+    }
   }
   for (const [level, button] of parts.levels) {
+    const shown = level !== "crystal" || hasCrystal;
+    syncNode(parts.row, button, shown);
     mark(button, "can", key.can);
     setAttr(button, "aria-label", `${LEVEL_NAMES[level]}: ${key.label}`);
   }
@@ -167,9 +200,9 @@ export function createMachineCard(
     }
     const { id, key } = machine;
     void state.progress.dispatch(
-      level === "granite"
-        ? graniteBuyMove(id, key.count)
-        : tierBuyMove(id, key.count),
+      level === "topsoil"
+        ? tierBuyMove(id, key.count)
+        : levelBuyMove(level, id, key.count),
     );
     close();
   };

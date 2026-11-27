@@ -34,6 +34,7 @@ import {
   sliceYardFullSave,
   slice2Part1Save,
   slice2Part1PitheadFullSave,
+  slice2Part2Save,
 } from "../../tools/browser/fixtures.ts";
 import { targetsCloserThan } from "../../src/ui-audit-measure.ts";
 import { check, section } from "./registry.mjs";
@@ -1733,6 +1734,387 @@ for (const size of SIZES) {
           stall.text.includes("Granite pithead") &&
           stall.text.includes("(full)"),
         `${at} Hoisting row flags Granite pithead full stall (${JSON.stringify(stall)})`,
+      );
+    } finally {
+      await close();
+    }
+  });
+}
+
+/**
+ * Three-level mine layout fit check (#779): each level's rows and its pile line
+ * fit cleanly above the panel, with every pile line strictly below its haulage
+ * row and strictly above the next level's row (no overlap, clear visual gap).
+ */
+function threeLevelsFit(facts) {
+  const { scene, panel, rows, piles } = facts;
+  if (scene === undefined || panel === undefined) {
+    return false;
+  }
+  if (rows.length !== 3 || piles.length !== 3) {
+    return false;
+  }
+  const MIN_PILE_GAP = 2;
+  return (
+    rows[0].t >= scene.t - 0.5 &&
+    [0, 1, 2].every((i) => piles[i].t >= rows[i].b + 1) &&
+    [0, 1].every((i) => rows[i + 1].t >= piles[i].b + MIN_PILE_GAP) &&
+    panel.t >= piles[2].b + MIN_PILE_GAP &&
+    panel.b <= scene.b + 0.5
+  );
+}
+
+/** Measures each level's pile line clearance against its haulage row and the next row / panel. */
+async function minePileClearance(page) {
+  return page.evaluate(() => {
+    const board = globalThis.__board();
+    const mine = document.querySelector(".mine:not([hidden])");
+    const shown = (el) => el.closest("[hidden]") === null;
+    const rows = [...(mine?.querySelectorAll(".mine-level-rows") ?? [])]
+      .filter(shown)
+      .map((el) => el.getBoundingClientRect());
+    const piles = [...(mine?.querySelectorAll(".mine-piles") ?? [])]
+      .filter(shown)
+      .map((el) => ({
+        rect: el.getBoundingClientRect(),
+        clipped:
+          el.scrollWidth > el.clientWidth + 1 ||
+          el.scrollHeight > el.clientHeight + 1,
+        text: el.textContent ?? "",
+      }));
+    const panel = mine?.querySelector(".mine-panel")?.getBoundingClientRect();
+    if (rows.length !== 3 || piles.length !== 3 || panel === undefined) {
+      return { ok: false, gaps: [] };
+    }
+    const gaps = [0, 1, 2].map((i) => {
+      const nextTop = i < 2 ? rows[i + 1].top : panel.top;
+      return {
+        above:
+          Math.round(
+            ((piles[i].rect.top - rows[i].bottom) / board.scale) * 10,
+          ) / 10,
+        below:
+          Math.round(((nextTop - piles[i].rect.bottom) / board.scale) * 10) /
+          10,
+        clipped: piles[i].clipped,
+        hasText:
+          piles[i].text.includes("Rock at the shaft:") &&
+          piles[i].text.includes("Drilled rock:"),
+      };
+    });
+    return {
+      ok: gaps.every(
+        (g) => g.above >= 1 && g.below >= 2 && !g.clipped && g.hasText,
+      ),
+      gaps,
+    };
+  });
+}
+
+/** Factory screen measurements in board px (#779). */
+async function factoryFacts(page) {
+  return page.evaluate(() => {
+    const board = globalThis.__board();
+    const px = (el) => {
+      const r = el.getBoundingClientRect();
+      return {
+        t: (r.top - board.top) / board.scale,
+        b: (r.bottom - board.top) / board.scale,
+        l: (r.left - board.left) / board.scale,
+        r: (r.right - board.left) / board.scale,
+        w: r.width / board.scale,
+        h: r.height / board.scale,
+      };
+    };
+    const shown = (el) =>
+      el.getClientRects().length > 0 && el.closest("[hidden]") === null;
+    const scene = document.querySelector(".factory:not([hidden])");
+    const plates = [...(scene?.querySelectorAll(".factory-plate") ?? [])].map(
+      (el) => ({
+        maker: el.dataset.maker ?? "",
+        buffers: el.querySelectorAll(".maker-buf").length,
+        icons: el.querySelectorAll(".factory-line-key .mine-key-icon").length,
+        ...px(el),
+      }),
+    );
+    const small = [...(scene?.querySelectorAll("button") ?? [])]
+      .filter(shown)
+      .map((el) => ({ name: el.className, ...px(el) }))
+      .filter((b) => b.w < 47.5 || b.h < 47.5);
+    const cut = [
+      ...(scene?.querySelectorAll(
+        ".factory-output-name, .factory-output-text, .factory-output-ship, .refinery-recipe, .mine-stage-head, .refinery-machines, .mine-key-face, .mine-key-small, .maker-buf-label, .maker-buf-text",
+      ) ?? []),
+    ]
+      .filter(shown)
+      .filter((el) => el.scrollWidth > el.clientWidth + 1)
+      .map((el) => el.className);
+    const output = scene?.querySelector(".factory-output");
+    const recipes = [
+      ...(scene?.querySelectorAll(".refinery-recipe") ?? []),
+    ].map((el) => el.textContent ?? "");
+    return {
+      scene: scene === null ? undefined : px(scene),
+      output: output === null || output === undefined ? undefined : px(output),
+      plates,
+      recipes,
+      small,
+      cut,
+      words: scene?.textContent ?? "",
+    };
+  });
+}
+
+/** Research Lab sheet measurements in board px (#779). */
+async function researchSheetFacts(page) {
+  return page.evaluate(() => {
+    const board = globalThis.__board();
+    const sheet = document.querySelector(".research-sheet");
+    const box = sheet?.querySelector(".research-sheet-box");
+    const line = document.querySelector(".board-saveline");
+    if (sheet === null || box === null || line === null) {
+      return { open: false };
+    }
+    const shown = (el) =>
+      el.getClientRects().length > 0 && el.closest("[hidden]") === null;
+    const r = box.getBoundingClientRect();
+    const small = [...sheet.querySelectorAll("button")]
+      .filter(shown)
+      .map((el) => {
+        const b = el.getBoundingClientRect();
+        return {
+          name: el.className,
+          w: b.width / board.scale,
+          h: b.height / board.scale,
+        };
+      })
+      .filter((b) => b.w < 47.5 || b.h < 47.5);
+    const cut = [
+      ...sheet.querySelectorAll(
+        ".frame-sheet-title, .research-sheet-counts, .research-sheet-sub, .research-card-name, .research-card-summary, .research-action, .research-good-name, .research-good-text",
+      ),
+    ]
+      .filter(shown)
+      .filter((el) => el.scrollWidth > el.clientWidth + 1)
+      .map((el) => el.className);
+    return {
+      open: !sheet.hidden,
+      inside:
+        r.top >= board.top - 0.5 &&
+        r.bottom <= line.getBoundingClientRect().top + 0.5,
+      cards: sheet.querySelectorAll(".research-card").length,
+      delivering: sheet.querySelectorAll(
+        '.research-card[data-status="delivering"]',
+      ).length,
+      done: sheet.querySelectorAll('.research-card[data-status="done"]').length,
+      small,
+      cut,
+      words: sheet.textContent ?? "",
+    };
+  });
+}
+
+for (const size of SIZES) {
+  const label = `${String(size[0])}x${String(size[1])}`;
+  section(`${label} slice 2 part 2 screens`, async () => {
+    const { page, close } = await openScreen(
+      size,
+      slice2Part2Save(Date.now()),
+      {
+        search: "?memorySave=1&slice2Part2=1",
+        seedKey: DEV_BACKUP_KEY,
+        stopClock: true,
+      },
+    );
+    try {
+      await page.waitForSelector(".mine-levels:not([hidden])");
+      const at = `${label} slice 2 part 2:`;
+
+      // 1. Mine: 3 levels + 4-cell hoisting strip.
+      await shot(page, `slice2-p2-mine-${label}`);
+      const mineFrame = await frameFacts(page);
+      const mineLevels = await levelsFacts(page);
+      check(await noScroll(page), `${at} mine does not scroll`);
+      check(stacked(mineFrame), `${at} mine frame rows stack above save line`);
+      check(
+        threeLevelsFit(mineLevels),
+        `${at} 3 levels and their piles fit above keys (${JSON.stringify(mineLevels)})`,
+      );
+      const pileClearance = await minePileClearance(page);
+      check(
+        pileClearance.ok,
+        `${at} mine: each level's pile line sits clearly below haulage and does not overlap the next row (${JSON.stringify(pileClearance.gaps)})`,
+      );
+      check(
+        mineLevels.strip === 4,
+        `${at} hoisting strip has 4 cells (${String(mineLevels.strip)})`,
+      );
+      check(
+        mineFrame.small.length === 0,
+        `${at} mine: every key is at least 48px (${JSON.stringify(mineFrame.small)})`,
+      );
+      check(
+        mineFrame.cut.length === 0,
+        `${at} mine: no word in the frame is cut (${mineFrame.cut.join(", ")})`,
+      );
+      const mineNear = await keyGaps(page, FRAME_KEYS);
+      check(
+        mineNear.length === 0,
+        `${at} mine: every key stands at least 8px apart (${mineNear.join("; ")})`,
+      );
+
+      // 2. Refinery: Kilns, Saws, Glassworks 2-buffer plate + 5-bay stockyard.
+      await tap(page, '.frame-site[data-site="refinery"]');
+      await page.waitForSelector(".refinery:not([hidden])");
+      await shot(page, `slice2-p2-refinery-${label}`);
+      const ref = await refineryFacts(page);
+      await checkRefinery(page, `${at} refinery`, ref);
+      const gwInfo = await page.evaluate(() => {
+        const gw = document.querySelector(
+          '.refinery-plate[data-maker="glassworks"]',
+        );
+        return {
+          buffers: gw?.querySelectorAll(".maker-buf").length ?? 0,
+          icons:
+            gw?.querySelectorAll(".refinery-glassworks-key .mine-key-icon")
+              .length ?? 0,
+        };
+      });
+      check(
+        ref.plates.length === 3 &&
+          gwInfo.buffers === 2 &&
+          gwInfo.icons === 2 &&
+          ref.bays.length === 5 &&
+          ref.piles === 5,
+        `${at} refinery shows 3 plates, Glassworks 2 buffers + 2-good key, 5 bays, 5 top piles (${JSON.stringify({ plates: ref.plates.length, gwInfo, bays: ref.bays.length, piles: ref.piles })})`,
+      );
+
+      // 3. Factory: steady-flow output buffer + Parts Press (2 buffers) + Precision Assembly (3 buffers).
+      await tap(page, '.frame-site[data-site="factory"]');
+      await page.waitForSelector(".factory:not([hidden])");
+      await shot(page, `slice2-p2-factory-${label}`);
+      const fac = await factoryFacts(page);
+      check(await noScroll(page), `${at} factory does not scroll`);
+      check(
+        fac.scene !== undefined &&
+          fac.output !== undefined &&
+          fac.plates.length === 2 &&
+          fac.plates[0].buffers === 2 &&
+          fac.plates[1].buffers === 3 &&
+          fac.plates.every(
+            (plate) =>
+              plate.icons === 2 &&
+              plate.t >= fac.scene.t - 0.5 &&
+              plate.b <= fac.scene.b + 0.5,
+          ),
+        `${at} factory fits inside scene with 2- and 3-buffer plates and 2-good keys (${JSON.stringify(fac)})`,
+      );
+      check(
+        fac.small.length === 0,
+        `${at} factory: every key is at least 48px (${JSON.stringify(fac.small)})`,
+      );
+      check(
+        fac.cut.length === 0,
+        `${at} factory: no word is cut (${fac.cut.join(", ")})`,
+      );
+      check(
+        !fac.words.includes("?"),
+        `${at} factory: no question mark in player text`,
+      );
+      check(
+        fac.recipes.includes("Recipe: 2 brick + 2 cut stone → 1 part") &&
+          fac.recipes.includes(
+            "Recipe: 2 brick + 2 cut stone + 2 glass → 3 parts",
+          ),
+        `${at} factory: recipe grammar uses "1 part" and "3 parts" (${JSON.stringify(fac.recipes)})`,
+      );
+      const facNear = await keyGaps(page, FRAME_KEYS);
+      check(
+        facNear.length === 0,
+        `${at} factory: every key stands at least 8px apart (${facNear.join("; ")})`,
+      );
+
+      // 4. City: 4-plot skyline + Research Lab door.
+      await tap(page, '.frame-site[data-site="city"]');
+      await page.waitForSelector(".city:not([hidden])");
+      await shot(page, `slice2-p2-city-${label}`);
+      const cityFrame = await frameFacts(page);
+      const cityInfo = await page.evaluate(() => {
+        const board = globalThis.__board();
+        const tags = [...document.querySelectorAll(".city-tag")].map((el) => {
+          const r = el.getBoundingClientRect();
+          return {
+            text: el.textContent ?? "",
+            l: (r.left - board.left) / board.scale,
+            r: (r.right - board.left) / board.scale,
+            t: (r.top - board.top) / board.scale,
+            b: (r.bottom - board.top) / board.scale,
+          };
+        });
+        const door = document.querySelector(".city-research-door");
+        const dr = door?.getBoundingClientRect();
+        return {
+          tags,
+          doorOpen: door !== null && !door.hidden,
+          doorLamp: door
+            ?.querySelector(".frame-lamp")
+            ?.getAttribute("data-lamp"),
+          doorH: dr === undefined ? 0 : dr.height / board.scale,
+        };
+      });
+      check(await noScroll(page), `${at} city does not scroll`);
+      check(stacked(cityFrame), `${at} city frame rows stack above save line`);
+      check(
+        cityInfo.tags.length === 4 &&
+          cityInfo.doorOpen &&
+          cityInfo.doorLamp === "amber" &&
+          cityInfo.doorH >= 47.5,
+        `${at} city shows 4 skyline tags and >=48px Research Lab door (${JSON.stringify(cityInfo)})`,
+      );
+      check(
+        cityFrame.small.length === 0,
+        `${at} city: every key is at least 48px (${JSON.stringify(cityFrame.small)})`,
+      );
+      check(
+        cityFrame.cut.length === 0,
+        `${at} city: no word is cut (${cityFrame.cut.join(", ")})`,
+      );
+      const cityNear = await keyGaps(page, FRAME_KEYS);
+      check(
+        cityNear.length === 0,
+        `${at} city: every key stands at least 8px apart (${cityNear.join("; ")})`,
+      );
+
+      // 5. Research sheet opened from Research Lab door.
+      await tap(page, ".city-research-door");
+      await page.waitForSelector(".research-sheet:not([hidden])");
+      await shot(page, `slice2-p2-research-sheet-${label}`);
+      const sheet = await researchSheetFacts(page);
+      check(await noScroll(page), `${at} research sheet does not scroll page`);
+      check(
+        sheet.open &&
+          sheet.inside &&
+          sheet.cards > 0 &&
+          sheet.delivering === 1 &&
+          sheet.done === 1,
+        `${at} research sheet opens above save line with delivering + done cards (${JSON.stringify(sheet)})`,
+      );
+      check(
+        sheet.small.length === 0,
+        `${at} research sheet: every key is at least 48px (${JSON.stringify(sheet.small)})`,
+      );
+      check(
+        sheet.cut.length === 0,
+        `${at} research sheet: no word is cut (${sheet.cut.join(", ")})`,
+      );
+      check(
+        !sheet.words.includes("?"),
+        `${at} research sheet: no question mark in player text`,
+      );
+      const resNear = await keyGaps(page, ".research-sheet:not([hidden])");
+      check(
+        resNear.length === 0,
+        `${at} research sheet: every key stands at least 8px apart (${resNear.join("; ")})`,
       );
     } finally {
       await close();
