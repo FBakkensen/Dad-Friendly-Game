@@ -15,6 +15,7 @@ import type { Mountain } from "./mountain";
 import { PART_TWO_OFF } from "./part-switch";
 import {
   BYPASS_RECIPE,
+  makerRecipeLine,
   nightForecast,
   refineryView,
   steadySpill,
@@ -612,5 +613,14 @@ describe("how long a night lasts now (#671)", () => {
       expect(boosted.plates[0]?.key.face).toBe("+Kiln · 16/s");
       expect(boosted.plates[2]?.key.face).toBe("+Glassworks · 35/s");
     });
+  });
+
+  it("formats singular and plural parts output in makerRecipeLine (#779)", () => {
+    expect(makerRecipeLine("partsPress")).toBe(
+      "Recipe: 2 brick + 2 cut stone → 1 part",
+    );
+    expect(makerRecipeLine("precisionAssembly")).toBe(
+      "Recipe: 2 brick + 2 cut stone + 2 glass → 3 parts",
+    );
   });
 });

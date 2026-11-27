@@ -397,6 +397,7 @@ export function createLevelsSite(
   const over = el("div", "mine-levels");
   const initialLevels = mineLevels(mountain);
   const initialCompact = initialLevels.length >= 3;
+  mark(over, "compact", initialCompact);
   const levels = new Map<MineLevelId, LevelParts>(
     initialLevels.map((view, index) => [
       view.level,
@@ -429,6 +430,7 @@ export function createLevelsSite(
     paint: (current, view) => {
       const amount = state.amount();
       const compact = view.levels.length >= 3 || view.crystalGate !== undefined;
+      mark(over, "compact", compact);
       for (const [index, level] of view.levels.entries()) {
         let parts = levels.get(level.level);
         if (parts === undefined) {

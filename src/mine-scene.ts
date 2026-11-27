@@ -70,12 +70,12 @@ const LEVELS = {
  * at 424×924 and 424×830 while keeping every −/+ key at 48px and 8px apart.
  */
 const COMPACT_LEVELS = {
-  surf: 14,
-  height: 59,
+  surf: 9,
+  height: 62,
   rows: 0,
   gallery: 34,
   floor: 52,
-  piles: 52,
+  piles: 53,
 } as const;
 
 /** A level's top: normal 2-level spacing (`compact = false`) or 3-level / Crystal-gate compact spacing. */
@@ -320,15 +320,15 @@ function paintHeadframe(c: CanvasRenderingContext2D): void {
   line(c, [31, 6], [52, 22], "#1a1a1a");
 }
 
-/** Compact headframe for 3-level / Crystal-gate view where the surface sits at y = 14. */
+/** Compact headframe for 3-level / Crystal-gate view where the surface sits at y = 9. */
 function paintCompactHeadframe(c: CanvasRenderingContext2D): void {
   const s = COMPACT_LEVELS.surf;
-  line(c, [13, s - 1], [21, 3], "#7a5530", 2);
-  line(c, [35, s - 1], [28, 3], "#7a5530", 2);
-  rect(c, 19, 2, 13, 2, "#7a5530");
-  rect(c, 16, 9, 18, 1, "#5a3d22");
-  rect(c, 52, 5, 24, s - 6, "#4a3323");
-  rect(c, 58, 7, 5, 4, "#ffcf6a");
+  line(c, [13, s - 1], [21, 1], "#7a5530", 2);
+  line(c, [35, s - 1], [28, 1], "#7a5530", 2);
+  rect(c, 19, 1, 13, 2, "#7a5530");
+  rect(c, 16, 5, 18, 1, "#5a3d22");
+  rect(c, 52, 2, 24, s - 3, "#4a3323");
+  rect(c, 58, 4, 5, 3, "#ffcf6a");
 }
 
 /** The still parts of the scene, painted once for a height and a layout. */

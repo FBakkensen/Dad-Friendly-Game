@@ -469,6 +469,10 @@
   color: var(--frame-ink);
 }
 
+.mine-levels.compact .mine-piles {
+  text-shadow: 0 var(--art) 0 var(--frame-dark);
+}
+
 /* Hoisting's one row under the keys, and the strip under it. */
 .mine-hoisting {
   display: flex;

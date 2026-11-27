@@ -70,7 +70,7 @@ describe("factory-view (#779)", () => {
       expect(view.open).toBe(true);
       expect(view.lines.map((line) => line.id)).toEqual(["partsPress"]);
       const press = view.lines[0];
-      expect(press?.recipe).toBe("Recipe: 2 brick + 2 cut stone → 1 parts");
+      expect(press?.recipe).toBe("Recipe: 2 brick + 2 cut stone → 1 part");
       expect(press?.buffers.map((buf) => buf.id)).toEqual([
         "brick",
         "cutStone",
@@ -126,6 +126,12 @@ describe("factory-view (#779)", () => {
         "partsPress",
         "precisionAssembly",
       ]);
+      expect(view.lines[0]?.recipe).toBe(
+        "Recipe: 2 brick + 2 cut stone → 1 part",
+      );
+      expect(view.lines[1]?.recipe).toBe(
+        "Recipe: 2 brick + 2 cut stone + 2 glass → 3 parts",
+      );
       // Parts Press has 0 brick -> starved -> standing.
       expect(view.lines[0]?.standing).toBe(true);
       expect(view.lines[0]?.buffers[0]?.empty).toBe(true);

@@ -335,11 +335,20 @@ const INPUT_RECIPE_WORDS: Readonly<Record<MakerInputId, string>> = {
   glass: GOOD_WORDS.glass,
 };
 
+const OUTPUT_RECIPE_WORDS: Readonly<Record<GoodId, readonly [string, string]>> =
+  {
+    stones: [GOOD_WORDS.stones, GOOD_WORDS.stones],
+    brick: [GOOD_WORDS.brick, GOOD_WORDS.brick],
+    cutStone: [GOOD_WORDS.cutStone, GOOD_WORDS.cutStone],
+    glass: [GOOD_WORDS.glass, GOOD_WORDS.glass],
+    parts: ["part", GOOD_WORDS.parts],
+  };
+
 /** Recipe line shared by Refinery makers and Factory lines (#779). */
 export function makerRecipeLine(id: MakerId): string {
   const inputs = makerInputs(id);
-  const output = GOOD_WORDS[makerOutput(id)];
   const outAmt = makerOutputAmount(id);
+  const output = plural(outAmt, OUTPUT_RECIPE_WORDS[makerOutput(id)]);
   if (inputs.length === 1) {
     return `Recipe: ${String(makerTakes(id))} rock → ${String(outAmt)} ${output}`;
   }

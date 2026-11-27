@@ -1741,7 +1741,11 @@ for (const size of SIZES) {
   });
 }
 
-/** Three-level mine layout fit check (#779). */
+/**
+ * Three-level mine layout fit check (#779): each level's rows and its pile line
+ * fit cleanly above the panel, with every pile line strictly below its haulage
+ * row and strictly above the next level's row (no overlap, clear visual gap).
+ */
 function threeLevelsFit(facts) {
   const { scene, panel, rows, piles } = facts;
   if (scene === undefined || panel === undefined) {
@@ -1750,16 +1754,61 @@ function threeLevelsFit(facts) {
   if (rows.length !== 3 || piles.length !== 3) {
     return false;
   }
-  const order = [rows[0], piles[0], rows[1], piles[1], rows[2], piles[2]];
+  const MIN_PILE_GAP = 2;
   return (
-    order.every(
-      (part, index) =>
-        part.t >= scene.t - 0.5 &&
-        (index === 0 || part.t >= order[index - 1].b - 0.5),
-    ) &&
-    piles[2].b <= panel.t + 0.5 &&
+    rows[0].t >= scene.t - 0.5 &&
+    [0, 1, 2].every((i) => piles[i].t >= rows[i].b + 1) &&
+    [0, 1].every((i) => rows[i + 1].t >= piles[i].b + MIN_PILE_GAP) &&
+    panel.t >= piles[2].b + MIN_PILE_GAP &&
     panel.b <= scene.b + 0.5
   );
+}
+
+/** Measures each level's pile line clearance against its haulage row and the next row / panel. */
+async function minePileClearance(page) {
+  return page.evaluate(() => {
+    const board = globalThis.__board();
+    const mine = document.querySelector(".mine:not([hidden])");
+    const shown = (el) => el.closest("[hidden]") === null;
+    const rows = [...(mine?.querySelectorAll(".mine-level-rows") ?? [])]
+      .filter(shown)
+      .map((el) => el.getBoundingClientRect());
+    const piles = [...(mine?.querySelectorAll(".mine-piles") ?? [])]
+      .filter(shown)
+      .map((el) => ({
+        rect: el.getBoundingClientRect(),
+        clipped:
+          el.scrollWidth > el.clientWidth + 1 ||
+          el.scrollHeight > el.clientHeight + 1,
+        text: el.textContent ?? "",
+      }));
+    const panel = mine?.querySelector(".mine-panel")?.getBoundingClientRect();
+    if (rows.length !== 3 || piles.length !== 3 || panel === undefined) {
+      return { ok: false, gaps: [] };
+    }
+    const gaps = [0, 1, 2].map((i) => {
+      const nextTop = i < 2 ? rows[i + 1].top : panel.top;
+      return {
+        above:
+          Math.round(
+            ((piles[i].rect.top - rows[i].bottom) / board.scale) * 10,
+          ) / 10,
+        below:
+          Math.round(((nextTop - piles[i].rect.bottom) / board.scale) * 10) /
+          10,
+        clipped: piles[i].clipped,
+        hasText:
+          piles[i].text.includes("Rock at the shaft:") &&
+          piles[i].text.includes("Drilled rock:"),
+      };
+    });
+    return {
+      ok: gaps.every(
+        (g) => g.above >= 1 && g.below >= 2 && !g.clipped && g.hasText,
+      ),
+      gaps,
+    };
+  });
 }
 
 /** Factory screen measurements in board px (#779). */
@@ -1801,10 +1850,14 @@ async function factoryFacts(page) {
       .filter((el) => el.scrollWidth > el.clientWidth + 1)
       .map((el) => el.className);
     const output = scene?.querySelector(".factory-output");
+    const recipes = [
+      ...(scene?.querySelectorAll(".refinery-recipe") ?? []),
+    ].map((el) => el.textContent ?? "");
     return {
       scene: scene === null ? undefined : px(scene),
       output: output === null || output === undefined ? undefined : px(output),
       plates,
+      recipes,
       small,
       cut,
       words: scene?.textContent ?? "",
@@ -1887,6 +1940,11 @@ for (const size of SIZES) {
         threeLevelsFit(mineLevels),
         `${at} 3 levels and their piles fit above keys (${JSON.stringify(mineLevels)})`,
       );
+      const pileClearance = await minePileClearance(page);
+      check(
+        pileClearance.ok,
+        `${at} mine: each level's pile line sits clearly below haulage and does not overlap the next row (${JSON.stringify(pileClearance.gaps)})`,
+      );
       check(
         mineLevels.strip === 4,
         `${at} hoisting strip has 4 cells (${String(mineLevels.strip)})`,
@@ -1962,6 +2020,13 @@ for (const size of SIZES) {
       check(
         !fac.words.includes("?"),
         `${at} factory: no question mark in player text`,
+      );
+      check(
+        fac.recipes.includes("Recipe: 2 brick + 2 cut stone → 1 part") &&
+          fac.recipes.includes(
+            "Recipe: 2 brick + 2 cut stone + 2 glass → 3 parts",
+          ),
+        `${at} factory: recipe grammar uses "1 part" and "3 parts" (${JSON.stringify(fac.recipes)})`,
       );
       const facNear = await keyGaps(page, FRAME_KEYS);
       check(
