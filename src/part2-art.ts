@@ -1,19 +1,17 @@
-import machKilnUrl from "./assets/board/mach-kiln.png";
-import machMachineUrl from "./assets/board/mach-machine.png";
-import machSawUrl from "./assets/board/mach-saw.png";
-import resCutStoneUrl from "./assets/board/res-cut-stone.png";
-import foundryUrl from "./assets/city/foundry.png";
+import glassworksUrl from "./assets/board/mach-glassworks.png";
+import partsPressUrl from "./assets/board/mach-parts-press.png";
+import precisionAssemblyUrl from "./assets/board/mach-precision-assembly.png";
+import glassUrl from "./assets/board/res-glass.png";
+import researchLabUrl from "./assets/city/research-lab.png";
 
 /**
- * Single temporary art lookup for Slice 2 Part 2 assets being drawn in
- * #774–#778 (one entry per id). Each borrows the closest shipped PNG so
- * landing real PixelLab art is a one-line swap. (`res-parts.png` already
- * ships in `src/price-icons.ts`.)
+ * The Slice 2 Part 2 art, one entry per id (#774–#778, PixelLab). The screens
+ * read their pictures here so a redrawn asset is a one-line swap.
  */
 export const PART2_ART = {
-  glass: resCutStoneUrl,
-  glassworks: machKilnUrl,
-  partsPress: machSawUrl,
-  precisionAssembly: machMachineUrl,
-  researchLab: foundryUrl,
+  glass: glassUrl,
+  glassworks: glassworksUrl,
+  partsPress: partsPressUrl,
+  precisionAssembly: precisionAssemblyUrl,
+  researchLab: researchLabUrl,
 } as const;
