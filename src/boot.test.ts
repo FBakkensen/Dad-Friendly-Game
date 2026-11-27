@@ -8,6 +8,7 @@ import {
   partThreeOn,
   partTwoOn,
   slice2Part1On,
+  slice2Part2On,
 } from "./part-switch";
 import { minedMountain } from "./test-fixtures";
 
@@ -46,7 +47,13 @@ describe("parseBootOptions", () => {
       previewSave: undefined,
       previewCopies: false,
       previewUpdate: false,
+      slice2Part2: false,
     });
+  });
+
+  it("reads slice2Part2=1 for the Slice 2 Part 2 dev preview (#779)", () => {
+    expect(parseBootOptions("?slice2Part2=1").slice2Part2).toBe(true);
+    expect(parseBootOptions("?slice2Part2=true").slice2Part2).toBe(false);
   });
 
   it("reads update=shown, so play can see the update card", () => {
@@ -144,8 +151,29 @@ describe("createAppServices", () => {
       });
       expect(partThreeOn()).toBe(true);
       expect(slice2Part1On()).toBe(true);
+      expect(slice2Part2On()).toBe(false);
       progress.dispose();
     }
+  });
+
+  it("switches on Slice 2 Part 2 only for ?slice2Part2=1 while developing (#779)", async () => {
+    holdFactors({});
+    const dev = await createAppServices({
+      env: {},
+      search: "?slice2Part2=1",
+      devMode: true,
+    });
+    expect(slice2Part2On()).toBe(true);
+    dev.progress.dispose();
+
+    holdFactors({});
+    const prod = await createAppServices({
+      env: {},
+      search: "?slice2Part2=1",
+      devMode: false,
+    });
+    expect(slice2Part2On()).toBe(false);
+    prod.progress.dispose();
   });
 
   it("trouble=cave-in previews a cave-in while developing", async () => {

@@ -8,9 +8,12 @@ import { pitheadRoom } from "./mine-piles";
 import { pileWords, stageRows } from "./mine-view";
 import { createMountain, type Mountain } from "./mountain";
 import { nextView, siteCounts, siteOpen } from "./next-view";
-import { levels, slice2Part1 } from "./part-three.harness";
+import { levels, slice2Part1, slice2Part2 } from "./part-three.harness";
+import { NO_LEVEL_MACHINES } from "./mine-levels";
+import { makerInputRoom } from "./makers";
+import { researchPrice, startResearch } from "./research";
 import { shiftReport } from "./shift-report-view";
-import { EMPTY_STOCK } from "./stock";
+import { EMPTY_STOCK, priceAmount } from "./stock";
 import { stockpileRoom } from "./stockyard";
 import {
   TRANSPORT_RULE_PART_1,
@@ -375,6 +378,105 @@ describe("transport-view (#768)", () => {
       if (next.kind === "nothing") {
         expect(next.then).toBe("The line stands.");
       }
+    });
+  });
+
+  it("applies transportResearchMultiplier to fleetSummary and renders Factory + Research destInfo (#779)", () => {
+    slice2Part2(() => {
+      const base = levels({
+        sunk: true,
+        operational: ["lightTower", "warehouse", "foundry", "researchLab"],
+        driving: 2,
+        stock: {
+          stones: 50_000,
+          brick: 50_000,
+          cutStone: 50_000,
+          glass: 50_000,
+          parts: 50_000,
+        },
+      });
+      const m: Mountain = {
+        ...base,
+        fleet: { horseWagon: 1, truck: 1 },
+        mineLevels: {
+          ...base.mineLevels,
+          crystal: {
+            machines: NO_LEVEL_MACHINES,
+            piles: { face: 0, shaft: 0, saw: 0 },
+          },
+        },
+        makers: {
+          ...base.makers,
+          partsPress: 1,
+          precisionAssembly: 1,
+        },
+        makerBuffers: {
+          kiln: {},
+          saw: {},
+          glassworks: {},
+          partsPress: { brick: 120, cutStone: 60 },
+          precisionAssembly: { brick: 80, cutStone: 40, glass: 50 },
+        },
+      };
+      const withResearch = startResearch(
+        {
+          ...m,
+          research: {
+            done: ["heavyCouplings"],
+          },
+        },
+        "highDraftKilns",
+      );
+      const active = withResearch.research.active;
+      const withArrived: Mountain =
+        active === undefined
+          ? withResearch
+          : {
+              ...withResearch,
+              research: {
+                ...withResearch.research,
+                active: {
+                  ...active,
+                  arrived: { ...EMPTY_STOCK, brick: 200, parts: 50 },
+                },
+              },
+            };
+
+      const view = transportSheetView(withArrived, "one");
+      // heavyCouplings (+40%) lifts wagon 18 -> 25/s and truck 400 -> 560/s in fleetSummary.
+      expect(view.fleet).toContain("1 of 1 horse wagon (25/s)");
+      expect(view.fleet).toContain("1 of 1 truck (560/s)");
+
+      // Factory destInfo sums across active lines for each good.
+      const brickRun = view.runs.find((r) => r.id === "stockToFactoryBrick");
+      const brickRoom =
+        makerInputRoom(withArrived, "partsPress", "brick") +
+        makerInputRoom(withArrived, "precisionAssembly", "brick");
+      expect(brickRun?.destText).toBe(`200 of ${formatCompact(brickRoom)}`);
+      expect(brickRun?.destFill).toBeCloseTo(200 / brickRoom, 5);
+
+      const cutRun = view.runs.find((r) => r.id === "stockToFactoryCutStone");
+      const cutRoom =
+        makerInputRoom(withArrived, "partsPress", "cutStone") +
+        makerInputRoom(withArrived, "precisionAssembly", "cutStone");
+      expect(cutRun?.destText).toBe(`100 of ${formatCompact(cutRoom)}`);
+      expect(cutRun?.destFill).toBeCloseTo(100 / cutRoom, 5);
+
+      const glassRun = view.runs.find((r) => r.id === "stockToFactoryGlass");
+      const glassRoom = makerInputRoom(
+        withArrived,
+        "precisionAssembly",
+        "glass",
+      );
+      expect(glassRun?.destText).toBe(`50 of ${formatCompact(glassRoom)}`);
+      expect(glassRun?.destFill).toBeCloseTo(50 / glassRoom, 5);
+
+      // Research destInfo shows arrived / required for each needed good (highDraftKilns requires parts + cutStone).
+      const price = researchPrice("highDraftKilns");
+      const resParts = view.runs.find((r) => r.id === "stockToResearch:parts");
+      const reqParts = priceAmount(price, "parts");
+      expect(resParts?.destText).toBe(`50 of ${formatCompact(reqParts)}`);
+      expect(resParts?.destFill).toBeCloseTo(50 / reqParts, 5);
     });
   });
 });

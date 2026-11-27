@@ -1,13 +1,16 @@
 import { SITE_GOOD_CAP } from "./building-site";
 import { vehicleHint, vehicleKeys, type VehicleKey } from "./city-view";
+import { FACTORY_LINES_FOR_GOOD, type FactoryInputGood } from "./factory";
 import { formatCompact } from "./format";
 import { GOOD_NAMES } from "./frame-view";
-import { makerBuffer, makerInputRoom } from "./makers";
+import { makerBuffer, makerInputRoom, makerOpen } from "./makers";
 import { MINE_LEVEL_IDS, type MineLevelId } from "./mine-levels";
 import type { Mountain } from "./mountain";
 import { transportCount, type Lamp } from "./next-view";
+import { researchPrice, transportResearchMultiplier } from "./research";
 import { VEHICLE_WORDS, formatSpeed, plural } from "./screen-words";
 import { slice2LiveSnapshot } from "./slice2-flow";
+import { priceAmount } from "./stock";
 import { stockpileRoom, stockyardOpen } from "./stockyard";
 import type { BuyAmount } from "./tiers";
 import {
@@ -187,13 +190,14 @@ export function transportChip(mountain: Mountain): TransportChip {
 
 function fleetSummary(mountain: Mountain): string {
   const driven = drivenFleet(mountain);
+  const mult = transportResearchMultiplier(mountain);
   const parts = VEHICLES.filter(
     (vehicle) => mountain.fleet[vehicle.id] > 0,
   ).map((vehicle) => {
     const owned = mountain.fleet[vehicle.id];
     const on = driven[vehicle.id];
     const kind = plural(owned, VEHICLE_WORDS[vehicle.id]);
-    const carries = formatSpeed(on * vehicleCarries(vehicle));
+    const carries = formatSpeed(on * vehicleCarries(vehicle, mult));
     return `${String(on)} of ${String(owned)} ${kind} (${carries}/s)`;
   });
   return parts.join(" · ");
@@ -209,6 +213,74 @@ function fillBar(
   };
 }
 
+const FACTORY_DEST_GOOD: Readonly<Partial<Record<RunId, FactoryInputGood>>> = {
+  stockToFactoryBrick: "brick",
+  stockToFactoryCutStone: "cutStone",
+  stockToFactoryGlass: "glass",
+};
+
+function factoryDestInfo(
+  mountain: Mountain,
+  good: FactoryInputGood,
+): { readonly text: string; readonly fill: number | undefined } {
+  let held = 0;
+  let room = 0;
+  for (const lineId of FACTORY_LINES_FOR_GOOD[good]) {
+    if (mountain.makers[lineId] > 0 && makerOpen(mountain, lineId)) {
+      held += makerBuffer(mountain, lineId, good);
+      room += makerInputRoom(mountain, lineId, good);
+    }
+  }
+  return room > 0 ? fillBar(held, room) : { text: "", fill: undefined };
+}
+
+function researchDestInfo(
+  mountain: Mountain,
+  good: CityRunGood,
+): { readonly text: string; readonly fill: number | undefined } {
+  const active = mountain.research.active;
+  if (active === undefined) {
+    return { text: "", fill: undefined };
+  }
+  const required = priceAmount(researchPrice(active.id), good);
+  return required > 0
+    ? fillBar(active.arrived[good], required)
+    : { text: "", fill: undefined };
+}
+
+const STOCKYARD_DEST_GOOD: Readonly<
+  Partial<Record<RunId, "stones" | "parts">>
+> = {
+  pitToStockyardStones: "stones",
+  factoryToStockyardParts: "parts",
+};
+
+const MAKER_BUFFER_DEST: Readonly<
+  Partial<
+    Record<
+      RunId,
+      readonly [
+        "kiln" | "saw" | "glassworks",
+        "topsoilRock" | "graniteRock" | "crystalRock" | "stones",
+      ]
+    >
+  >
+> = {
+  pitTopsoilToKilns: ["kiln", "topsoilRock"],
+  pitGraniteToSaws: ["saw", "graniteRock"],
+  pitCrystalToGlassworks: ["glassworks", "crystalRock"],
+  stockToGlassworksStones: ["glassworks", "stones"],
+};
+
+function cityDestInfo(
+  mountain: Mountain,
+  good: CityRunGood,
+): { readonly text: string; readonly fill: number } {
+  const site =
+    mountain.project.kind === "unordered" ? undefined : mountain.project.site;
+  return fillBar(site === undefined ? 0 : site.onSite[good], SITE_GOOD_CAP);
+}
+
 function destInfo(
   mountain: Mountain,
   id: RunId,
@@ -216,46 +288,37 @@ function destInfo(
   readonly text: string;
   readonly fill: number | undefined;
 } {
-  if (id === "pitToStockyardStones") {
+  const stockyardGood = STOCKYARD_DEST_GOOD[id];
+  if (stockyardGood !== undefined) {
     return stockyardOpen(mountain)
-      ? fillBar(mountain.stock.stones, stockpileRoom(mountain, "stones"))
+      ? fillBar(
+          mountain.stock[stockyardGood],
+          stockpileRoom(mountain, stockyardGood),
+        )
       : { text: "", fill: undefined };
   }
-  if (id === "factoryToStockyardParts") {
-    return stockyardOpen(mountain)
-      ? fillBar(mountain.stock.parts, stockpileRoom(mountain, "parts"))
-      : { text: "", fill: undefined };
-  }
-  if (id === "pitTopsoilToKilns") {
+  const makerDest = MAKER_BUFFER_DEST[id];
+  if (makerDest !== undefined) {
     return fillBar(
-      makerBuffer(mountain, "kiln", "topsoilRock"),
-      makerInputRoom(mountain, "kiln", "topsoilRock"),
+      makerBuffer(mountain, makerDest[0], makerDest[1]),
+      makerInputRoom(mountain, makerDest[0], makerDest[1]),
     );
   }
-  if (id === "pitGraniteToSaws") {
-    return fillBar(
-      makerBuffer(mountain, "saw", "graniteRock"),
-      makerInputRoom(mountain, "saw", "graniteRock"),
-    );
-  }
-  if (id === "pitCrystalToGlassworks") {
-    return fillBar(
-      makerBuffer(mountain, "glassworks", "crystalRock"),
-      makerInputRoom(mountain, "glassworks", "crystalRock"),
-    );
-  }
-  if (id === "stockToGlassworksStones") {
-    return fillBar(
-      makerBuffer(mountain, "glassworks", "stones"),
-      makerInputRoom(mountain, "glassworks", "stones"),
-    );
+  const factoryGood = FACTORY_DEST_GOOD[id];
+  if (factoryGood !== undefined) {
+    return factoryDestInfo(mountain, factoryGood);
   }
   if (id.startsWith("stockToCity:")) {
-    const good = id.slice("stockToCity:".length) as CityRunGood;
-    const site =
-      mountain.project.kind === "unordered" ? undefined : mountain.project.site;
-    const held = site === undefined ? 0 : site.onSite[good];
-    return fillBar(held, SITE_GOOD_CAP);
+    return cityDestInfo(
+      mountain,
+      id.slice("stockToCity:".length) as CityRunGood,
+    );
+  }
+  if (id.startsWith("stockToResearch:")) {
+    return researchDestInfo(
+      mountain,
+      id.slice("stockToResearch:".length) as CityRunGood,
+    );
   }
   return { text: "", fill: undefined };
 }
