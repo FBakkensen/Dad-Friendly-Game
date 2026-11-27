@@ -8,14 +8,16 @@ import {
 } from "./cages";
 import { formatCompact } from "./format";
 import {
+  NO_GRANITE_PILES,
+  crystalShaftOpen,
   levelSunk,
+  openDeeperLevel,
   openGranite,
   openLevels,
   shaftOpen,
   shaftPrice,
   type LevelMachineId,
   type MineLevelId,
-  type SunkLevel,
 } from "./mine-levels";
 import {
   mineLevelFlows,
@@ -64,8 +66,9 @@ import {
  * serve.
  */
 
-/** The strip's third cell: the hoists no level has. */
+/** The strip's last cell: the hoists no level has. */
 export const BOTH_IN_TURN = "Both in turn";
+const ALL_IN_TURN = "All in turn";
 
 /**
  * The strip's one line, on a tap that moves nothing (ruling 10, Flemming's
@@ -74,16 +77,25 @@ export const BOTH_IN_TURN = "Both in turn";
 export const HOIST_WAITS_LINE =
   "A hoist for one level waits there for a whole load, or until no more rock is coming. A hoist for both takes what is there and goes on to the other.";
 
+export const HOIST_WAITS_LINE_ALL =
+  "A hoist for one level waits there for a whole load, or until no more rock is coming. A hoist for all in turn takes what is there and goes on to the next.";
+
 /** The Granite's plate before the shaft (ruling 7). */
 export const GRANITE_NOT_REACHED = "Granite · not reached";
+
+/** The Crystal Caves plate before its shaft (Slice 2 Part 2, #779). */
+export const CRYSTAL_NOT_REACHED = "Crystal Caves · not reached";
 
 /** The shaft's gate before the Light Tower (ruling 7). */
 export const SHAFT_WAITS_LINE =
   "The shaft can be sunk once the Light Tower is operational.";
 
-/** The Sink key, and its small line (the prototype's). */
+/** The Sink keys, and their small lines. */
 export const SINK_KEY = "Sink the shaft to the Granite";
 export const SINK_LINE = "A second level. Opens saws and locomotives.";
+export const CRYSTAL_SINK_KEY = "Sink the shaft to Crystal Caves";
+export const CRYSTAL_SINK_LINE =
+  "A third level. Opens Glassworks and Precision Assembly.";
 
 /** The machine card (ruling 5): it asks which level a machine is for. */
 export const MACHINE_CARD_STAYS = "It stays on the level it is bought for.";
@@ -237,10 +249,12 @@ function levelsWork(mountain: Mountain, now: number | undefined): LevelsWork {
 /** A level's two piles: its drilled rock, and its rock at the shaft (`levelPile`, as the one-level rows have them). */
 function levelPiles(
   mountain: Mountain,
-  granite: SunkLevel,
   level: MineLevelId,
 ): MineLevel["piles"] {
-  const held = level === "topsoil" ? mountain.piles : granite.piles;
+  const held =
+    level === "topsoil"
+      ? mountain.piles
+      : (openDeeperLevel(mountain, level)?.piles ?? NO_GRANITE_PILES);
   return {
     face: levelPile(mountain, "face", level, held.face),
     shaft: levelPile(mountain, "shaft", level, held.shaft),
@@ -275,14 +289,13 @@ function levelRow(
   });
 }
 
-/** Each level's two rows, from the one reading of the mine a paint (`levelsWork`). */
+/** Each open level's two rows, from the one reading of the mine a paint (`levelsWork`). */
 function levelViews(
   mountain: Mountain,
-  granite: SunkLevel,
   work: LevelsWork,
-): readonly [MineLevel, MineLevel] {
-  const view = (level: MineLevelId): MineLevel => {
-    const piles = levelPiles(mountain, granite, level);
+): readonly MineLevel[] {
+  return openLevels(mountain).map((level): MineLevel => {
+    const piles = levelPiles(mountain, level);
     return {
       level,
       name: LEVEL_NAMES[level],
@@ -292,38 +305,43 @@ function levelViews(
       ],
       piles,
     };
-  };
-  return [view("topsoil"), view("granite")];
+  });
 }
 
-/** Pithead readout for the two-level Hoisting row under Slice 2 Part 1 (#768). */
+/** Pithead readout for the multi-level Hoisting row under Slice 2 (#768, #779). */
 function shaftPitheadPile(mountain: Mountain): RowPile | undefined {
   if (!slice2Part1On()) {
     return undefined;
   }
   const holds = pitheadRoom(mountain);
-  const topsoil = mountain.pithead.topsoil;
-  const granite = mountain.pithead.granite;
-  const tFull = topsoil >= holds;
-  const gFull = granite >= holds;
-  if (tFull && gFull) {
+  const open = openLevels(mountain);
+  const full = open.filter((level) => mountain.pithead[level] >= holds);
+  if (full.length > 1) {
     return {
-      label: "Both pitheads",
+      label: full.length >= 3 ? "All pitheads" : "Both pitheads",
       held: holds,
       holds,
       full: true,
     };
   }
-  if (tFull) {
-    return { label: "Topsoil pithead", held: topsoil, holds, full: true };
+  const firstFull = full[0];
+  if (firstFull !== undefined) {
+    return {
+      label: `${LEVEL_NAMES[firstFull]} pithead`,
+      held: mountain.pithead[firstFull],
+      holds,
+      full: true,
+    };
   }
-  if (gFull) {
-    return { label: "Granite pithead", held: granite, holds, full: true };
+  let topLevel: MineLevelId = open[0] ?? "topsoil";
+  for (const level of open) {
+    if (mountain.pithead[level] > mountain.pithead[topLevel]) {
+      topLevel = level;
+    }
   }
-  const level: MineLevelId = granite > topsoil ? "granite" : "topsoil";
   return {
-    label: `${LEVEL_NAMES[level]} pithead`,
-    held: mountain.pithead[level],
+    label: `${LEVEL_NAMES[topLevel]} pithead`,
+    held: mountain.pithead[topLevel],
     holds,
     full: false,
   };
@@ -362,21 +380,22 @@ export type StripCell = {
   readonly canMore: boolean;
 };
 
-const STRIP_PLACES = ["topsoil", "granite", "both"] as const;
+const STRIP_LEVEL_NAMES: Readonly<Record<MineLevelId, string>> = {
+  topsoil: "Topsoil",
+  granite: "Granite",
+  crystal: "Crystal",
+};
 
 /**
- * The strip (ruling 4): the hoists assigned to each level and those for
- * both in turn, adding up to the hoists and engines he owns; and what the
- * running ones lift, adding up to Hoisting's row's hoists and engines. −
- * is dark at none, + dark with none left for both; the both cell has no
- * keys.
+ * The strip (ruling 4, #779): the hoists assigned to each open level and those
+ * for both/all in turn, adding up to the hoists and engines he owns; and what
+ * the running ones lift, adding up to Hoisting's row's hoists and engines.
  */
-function stripOf(
-  mountain: Mountain,
-  work: LevelsWork,
-): readonly [StripCell, StripCell, StripCell] {
+function stripOf(mountain: Mountain, work: LevelsWork): readonly StripCell[] {
+  const open = openLevels(mountain);
+  const places: readonly (MineLevelId | "both")[] = [...open, "both"];
   const hoists = work.shaft.running.filter((cage) => cage.key !== "winch");
-  const values = STRIP_PLACES.map(
+  const values = places.map(
     (place) =>
       liftOf(
         hoists.filter((cage) => cage.serves === place),
@@ -389,13 +408,13 @@ function stripOf(
   );
   const left = unassignedHoists(mountain);
   const { assigned } = mountain.cages;
-  const cell = (index: 0 | 1 | 2): StripCell => {
-    const place = STRIP_PLACES[index];
-    const count = place === "both" ? left : assigned[place];
+  const turnName = open.length >= 3 ? ALL_IN_TURN : BOTH_IN_TURN;
+  return places.map((place, index): StripCell => {
     const level = place !== "both";
+    const count = level ? assigned[place] : left;
     return {
       place,
-      name: level ? LEVEL_NAMES[place] : BOTH_IN_TURN,
+      name: level ? STRIP_LEVEL_NAMES[place] : turnName,
       count,
       unit: count === 1 ? "hoist" : "hoists",
       rate: printed.parts[index] ?? "0",
@@ -403,21 +422,38 @@ function stripOf(
       canLess: level && count > 0,
       canMore: level && left > 0,
     };
-  };
-  return [cell(0), cell(1), cell(2)];
+  });
 }
 
-/** The mine with two levels as one paint reads it: each level, Hoisting's row and the strip. */
+/** The mine with two or three levels as one paint reads it: each level, Hoisting's row, the strip, and optional Crystal gate. */
 export type LevelsView = {
-  readonly levels: readonly [MineLevel, MineLevel];
+  readonly levels: readonly MineLevel[];
   readonly hoisting: StageRow;
-  readonly strip: readonly [StripCell, StripCell, StripCell];
+  readonly strip: readonly StripCell[];
+  readonly crystalGate?: ShaftGate;
 };
 
+/** The Crystal Caves shaft gate once the Foundry is operational under Slice 2 Part 2 (#779). */
+function crystalShaftGate(mountain: Mountain): ShaftGate | undefined {
+  if (!crystalShaftOpen(mountain)) {
+    return undefined;
+  }
+  const price = shaftPrice("crystal");
+  return {
+    kind: "open",
+    price: price.map(({ good, amount }) => ({
+      good,
+      amount,
+      text: formatCompact(amount),
+    })),
+    can: canPay(mountain.stock, price),
+  };
+}
+
 /**
- * The mine with two levels while the shaft is sunk and part 3 plays (ruling
- * 1), worked out once (`levelsWork`) for the rows, the strip and the scene;
- * undefined with one level.
+ * The mine with two or three levels while the Granite shaft is sunk and part 3
+ * plays (ruling 1, #779), worked out once (`levelsWork`) for the rows, the
+ * strip and the scene; undefined with one level.
  */
 export function levelsView(
   mountain: Mountain,
@@ -428,14 +464,16 @@ export function levelsView(
     return undefined;
   }
   const work = levelsWork(mountain, now);
+  const gate = crystalShaftGate(mountain);
   return {
-    levels: levelViews(mountain, granite, work),
+    levels: levelViews(mountain, work),
     hoisting: shaftRow(mountain, work),
     strip: stripOf(mountain, work),
+    ...(gate === undefined ? {} : { crystalGate: gate }),
   };
 }
 
-/** The mine's two levels while the shaft is sunk and part 3 plays (ruling 1), else none. */
+/** The mine's open levels while the shaft is sunk and part 3 plays (ruling 1), else none. */
 export function mineLevels(
   mountain: Mountain,
   now?: number,
@@ -444,7 +482,7 @@ export function mineLevels(
 }
 
 /**
- * Hoisting's row (ruling 3): with two levels the shaft's (`shaftRow`), with
+ * Hoisting's row (ruling 3): with two+ levels the shaft's (`shaftRow`), with
  * one the one-level mine's hoisting row. Hoisting's list reads it too.
  */
 export function hoistingRow(mountain: Mountain, now?: number): StageRow {
@@ -459,11 +497,11 @@ export function hoistingRow(mountain: Mountain, now?: number): StageRow {
   return lift;
 }
 
-/** The strip, while the Granite is open (ruling 4); it throws with one level, which has no strip. */
+/** The strip, while the Granite is open (ruling 4, #779); it throws with one level, which has no strip. */
 export function hoistStrip(
   mountain: Mountain,
   now?: number,
-): readonly [StripCell, StripCell, StripCell] {
+): readonly StripCell[] {
   const view = levelsView(mountain, now);
   if (view === undefined) {
     throw new Error("mine-level-view: the strip has one level");
@@ -517,7 +555,11 @@ export type CageSprite = { readonly depth: number; readonly loaded: boolean };
  * is said in words.
  */
 export type TwoLevelScene = {
-  readonly levels: Readonly<Record<"topsoil" | "granite", LevelScene>>;
+  readonly levels: Readonly<Record<"topsoil" | "granite", LevelScene>> & {
+    readonly crystal?: LevelScene;
+  };
+  /** True when the Crystal Caves shaft gate is shown under Granite (#779). */
+  readonly hasCrystalGate?: boolean;
   readonly cages: readonly CageSprite[];
   readonly hoisting: { readonly workers: number; readonly busy: number };
 };
@@ -577,11 +619,19 @@ export function twoLevelScene(
   if (view === undefined) {
     throw new Error("mine-level-view: the scene has one level");
   }
-  const [topsoil, granite] = view.levels;
+  const [topsoil, granite, crystal] = view.levels;
+  if (topsoil === undefined || granite === undefined) {
+    throw new Error("mine-level-view: the scene needs topsoil and granite");
+  }
   const scene = (level: MineLevel): LevelScene =>
     levelScene(level.rows[0], level.rows[1], level.piles);
   return {
-    levels: { topsoil: scene(topsoil), granite: scene(granite) },
+    levels: {
+      topsoil: scene(topsoil),
+      granite: scene(granite),
+      ...(crystal === undefined ? {} : { crystal: scene(crystal) }),
+    },
+    ...(view.crystalGate === undefined ? {} : { hasCrystalGate: true }),
     cages: cageSprites(mountain),
     hoisting: {
       workers: view.hoisting.workers,

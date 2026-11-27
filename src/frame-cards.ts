@@ -1,6 +1,7 @@
 import { el, write, writeFigures } from "./board-dom";
 import { buildingsInPlay, type BuildingId } from "./city";
 import {
+  CRYSTAL_REACHED,
   FIRST_EVENING,
   LEVEL_REACHED,
   builtCard,
@@ -9,6 +10,7 @@ import {
   type CardWords,
 } from "./frame-cards-words";
 import { makersOpen } from "./makers";
+import type { DeeperLevelId } from "./mine-levels";
 import { FRESH_START_JOBS, type AwayReport, type Mountain } from "./mountain";
 import { partTwoOn } from "./part-switch";
 import type { ProgressSnapshot, ProgressStore } from "./progress-store";
@@ -40,7 +42,7 @@ import {
 
 type FrameCard =
   | { readonly kind: "report"; readonly report: AwayReport }
-  | { readonly kind: "level" }
+  | { readonly kind: "level"; readonly level: DeeperLevelId }
   | { readonly kind: "end"; readonly building: BuildingId }
   | { readonly kind: "built"; readonly building: BuildingId }
   | { readonly kind: "opens" }
@@ -111,8 +113,9 @@ function frameCard(view: CardView, greet: Greeting): FrameCard | undefined {
   if (report !== undefined) {
     return { kind: "report", report };
   }
-  if (firstNotice(view, "level") !== undefined) {
-    return { kind: "level" };
+  const level = firstNotice(view, "level")?.level;
+  if (level !== undefined) {
+    return { kind: "level", level };
   }
   const building = firstNotice(view, "operational")?.building;
   if (building !== undefined) {
@@ -150,6 +153,7 @@ function noticeOf(card: Exclude<FrameCard, { kind: "first" }>): DismissTarget {
 const sameCard = (a: FrameCard | undefined, b: FrameCard | undefined) =>
   a?.kind === b?.kind &&
   (a?.kind !== "report" || b?.kind !== "report" || a.report === b.report) &&
+  (a?.kind !== "level" || b?.kind !== "level" || a.level === b.level) &&
   (a?.kind !== "end" || b?.kind !== "end" || a.building === b.building) &&
   (a?.kind !== "built" || b?.kind !== "built" || a.building === b.building);
 
@@ -260,7 +264,7 @@ function cardWords(card: Exclude<FrameCard, { kind: "report" }>): CardWords {
     return FIRST_EVENING;
   }
   if (card.kind === "level") {
-    return LEVEL_REACHED;
+    return card.level === "crystal" ? CRYSTAL_REACHED : LEVEL_REACHED;
   }
   if (card.kind === "built") {
     return builtCard(card.building);

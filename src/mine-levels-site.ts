@@ -3,8 +3,12 @@ import type { FrameState } from "./frame-state";
 import { GOOD_NAMES } from "./frame-view";
 import { dropNote, flashNote, listenSteps, moveCount } from "./job-steps";
 import {
+  CRYSTAL_NOT_REACHED,
+  CRYSTAL_SINK_KEY,
+  CRYSTAL_SINK_LINE,
   GRANITE_NOT_REACHED,
   HOIST_WAITS_LINE,
+  HOIST_WAITS_LINE_ALL,
   SINK_KEY,
   SINK_LINE,
   hoistingRow,
@@ -15,9 +19,11 @@ import {
   type ShaftGate,
   type StripCell,
 } from "./mine-level-view";
-import type { MineLevelId } from "./mine-levels";
-
-const TWO_STRIP_LEVELS: readonly MineLevelId[] = ["topsoil", "granite"];
+import {
+  MINE_LEVEL_IDS,
+  type DeeperLevelId,
+  type MineLevelId,
+} from "./mine-levels";
 import { unassignedHoists } from "./cages";
 import {
   atArt,
@@ -26,7 +32,7 @@ import {
   type RowHead,
   type RowParts,
 } from "./mine-row";
-import { LEVEL, LEVELS, levelTop } from "./mine-scene";
+import { LEVEL, levelPilesOffset, levelTop } from "./mine-scene";
 import { LEVEL_NAMES, pileWords } from "./mine-view";
 import type { Mountain } from "./mountain";
 import { stageCount } from "./next-view";
@@ -78,20 +84,29 @@ function paintPrice(target: HTMLElement, gate: ShaftGate): void {
   );
 }
 
-/** The Granite's plate under the Topsoil, and the Sink key once the shaft can be sunk (ruling 7). */
-export function createGraniteGate(state: FrameState): GraniteGate {
+type GateCopy = {
+  readonly level: DeeperLevelId;
+  readonly notReached: string;
+  readonly key: string;
+  readonly line: string;
+  readonly at: number;
+};
+
+/** Builds a shaft gate plate + Sink key for Granite or Crystal Caves (#680, #779). */
+function createShaftGate(state: FrameState, copy: GateCopy): GraniteGate {
   const root = el("div", "mine-granite");
-  atArt(root, GATE_AT);
+  root.dataset["gate"] = copy.level;
+  atArt(root, copy.at);
   const plate = el("div", "mine-granite-plate");
-  const name = el("span", "mine-granite-name", GRANITE_NOT_REACHED);
+  const name = el("span", "mine-granite-name", copy.notReached);
   const line = el("span", "mine-granite-line");
   plate.append(name, line);
   const sink = el("button", "mine-sink");
   sink.type = "button";
   const words = el("span", "mine-sink-words");
   words.append(
-    el("span", "mine-sink-title", SINK_KEY),
-    el("small", "mine-sink-small", SINK_LINE),
+    el("span", "mine-sink-title", copy.key),
+    el("small", "mine-sink-small", copy.line),
   );
   const price = el("span", "mine-sink-price");
   sink.append(words, price);
@@ -99,7 +114,11 @@ export function createGraniteGate(state: FrameState): GraniteGate {
   let shown: ShaftGate | undefined;
   sink.addEventListener("click", () => {
     if (shown?.kind === "open" && shown.can) {
-      void state.progress.dispatch({ kind: "sinkShaft" });
+      void state.progress.dispatch(
+        copy.level === "granite"
+          ? { kind: "sinkShaft" }
+          : { kind: "sinkShaft", level: copy.level },
+      );
     }
   });
   return {
@@ -115,17 +134,41 @@ export function createGraniteGate(state: FrameState): GraniteGate {
         sink,
         "aria-label",
         gate.kind === "open"
-          ? `${SINK_KEY}, for ${gate.price.map((part) => `${part.text} ${GOOD_NAMES[part.good].toLowerCase()}`).join(" and ")}. ${SINK_LINE}`
+          ? `${copy.key}, for ${gate.price.map((part) => `${part.text} ${GOOD_NAMES[part.good].toLowerCase()}`).join(" and ")}. ${copy.line}`
           : undefined,
       );
-      const under = GATE_AT + GATE_PLATE + GATE_GAP;
+      const under = copy.at + GATE_PLATE + GATE_GAP;
       return gate.kind === "open" ? under + GATE_KEY + GATE_GAP : under;
     },
   };
 }
 
+/** The Granite's plate under the Topsoil, and the Sink key once the shaft can be sunk (ruling 7). */
+export function createGraniteGate(state: FrameState): GraniteGate {
+  return createShaftGate(state, {
+    level: "granite",
+    notReached: GRANITE_NOT_REACHED,
+    key: SINK_KEY,
+    line: SINK_LINE,
+    at: GATE_AT,
+  });
+}
+
+/** The Crystal Caves plate and Sink key under Granite once the Foundry is up (#779). */
+function createCrystalGate(state: FrameState): GraniteGate {
+  return createShaftGate(state, {
+    level: "crystal",
+    notReached: CRYSTAL_NOT_REACHED,
+    key: CRYSTAL_SINK_KEY,
+    line: CRYSTAL_SINK_LINE,
+    at: levelTop(2, true) + GATE_GAP,
+  });
+}
+
 /** A level on the site: its two rows on the level, and its two piles under its gallery. */
 type LevelParts = {
+  readonly box: HTMLElement;
+  readonly pilesBox: HTMLElement;
   readonly rows: readonly [RowParts, RowParts];
   readonly shaftPile: HTMLElement;
   readonly facePile: HTMLElement;
@@ -149,32 +192,43 @@ function rowHeads(level: MineLevelId): readonly [RowHead, RowHead] {
   ];
 }
 
+function positionLevel(
+  parts: LevelParts,
+  index: number,
+  compact: boolean,
+): void {
+  const top = levelTop(index, compact);
+  atArt(parts.box, top);
+  atArt(parts.pilesBox, top + levelPilesOffset(compact));
+}
+
 function buildLevel(
   state: FrameState,
   view: MineLevel,
   index: number,
+  compact: boolean,
   over: HTMLElement,
 ): LevelParts {
   const heads = rowHeads(view.level);
   const box = el("div", "mine-level-rows");
   box.dataset["level"] = view.level;
-  atArt(box, levelTop(index) + LEVELS.rows);
   const rows = [
     buildRow(state, view.rows[0], heads[0]),
     buildRow(state, view.rows[1], heads[1]),
   ] as const;
   box.append(rows[0].root, rows[1].root);
   // Each pile under its heap: the rock at the shaft by the shaft, the drilled rock at the gallery's end.
-  const piles = el("div", "mine-piles");
-  piles.dataset["level"] = view.level;
-  atArt(piles, levelTop(index) + LEVELS.piles);
+  const pilesBox = el("div", "mine-piles");
+  pilesBox.dataset["level"] = view.level;
   const shaftPile = el("span", "mine-pile");
   shaftPile.dataset["pile"] = "shaft";
   const facePile = el("span", "mine-pile");
   facePile.dataset["pile"] = "face";
-  piles.append(shaftPile, facePile);
-  over.append(box, piles);
-  return { rows, shaftPile, facePile };
+  pilesBox.append(shaftPile, facePile);
+  over.append(box, pilesBox);
+  const parts: LevelParts = { box, pilesBox, rows, shaftPile, facePile };
+  positionLevel(parts, index, compact);
+  return parts;
 }
 
 function paintLevel(
@@ -244,6 +298,7 @@ function buildLevelCell(
   state: FrameState,
   level: MineLevelId,
   note: HTMLElement,
+  waitsLine: () => string,
 ): CellParts {
   const root = el("div", "mine-strip-cell");
   root.dataset["place"] = level;
@@ -253,7 +308,7 @@ function buildLevelCell(
   // A tap on the cell's words, off its keys: the name is too short a line to be a key of its own.
   root.addEventListener("click", (event) => {
     if ((event.target as Element).closest("button") === null) {
-      flashNote(note, HOIST_WAITS_LINE);
+      flashNote(note, waitsLine());
     }
   });
   const less = stripKey("−", "mine-strip-less");
@@ -265,7 +320,7 @@ function buildLevelCell(
         ? mountain.cages.assigned[level]
         : unassignedHoists(mountain);
     if (there === 0) {
-      flashNote(note, HOIST_WAITS_LINE);
+      flashNote(note, waitsLine());
       return;
     }
     dropNote(note);
@@ -284,15 +339,15 @@ function buildLevelCell(
   return { ...words, root, info, keys: { less, more } };
 }
 
-/** The hoists for both in turn: no keys, only the line on a tap. */
-function buildBothCell(note: HTMLElement): CellParts {
+/** The hoists for both/all in turn: no keys, only the line on a tap. */
+function buildBothCell(note: HTMLElement, waitsLine: () => string): CellParts {
   const root = el("button", "mine-strip-cell");
   root.type = "button";
   root.dataset["place"] = "both";
   const words = cellWords();
   root.append(words.head, words.number);
   root.addEventListener("click", () => {
-    flashNote(note, HOIST_WAITS_LINE);
+    flashNote(note, waitsLine());
   });
   return { ...words, root, info: root, keys: undefined };
 }
@@ -333,28 +388,39 @@ export type LevelsSite = {
   readonly paint: (mountain: Mountain, view: LevelsView) => boolean;
 };
 
-/** The two levels, built from the mountain's first view with the Granite open. */
+/** The two or three levels, built from the mountain's first view with the Granite open (#680, #779). */
 export function createLevelsSite(
   state: FrameState,
   note: HTMLElement,
 ): LevelsSite {
   const mountain = state.mountain();
   const over = el("div", "mine-levels");
-  const levels = new Map(
-    mineLevels(mountain).map((view, index) => [
+  const initialLevels = mineLevels(mountain);
+  const initialCompact = initialLevels.length >= 3;
+  const levels = new Map<MineLevelId, LevelParts>(
+    initialLevels.map((view, index) => [
       view.level,
-      buildLevel(state, view, index, over),
+      buildLevel(state, view, index, initialCompact, over),
     ]),
   );
+  let crystalGate: GraniteGate | undefined;
   listenSteps(over, state, note);
   const foot = el("div", "mine-hoisting");
   const lift = buildRow(state, hoistingRow(mountain));
   const strip = el("div", "mine-strip");
-  const cells = [
-    ...TWO_STRIP_LEVELS.map((level) => buildLevelCell(state, level, note)),
-    buildBothCell(note),
-  ];
-  strip.append(...cells.map((cell) => cell.root));
+  let cellCount = 3;
+  const waitsLine = (): string =>
+    cellCount >= 4 ? HOIST_WAITS_LINE_ALL : HOIST_WAITS_LINE;
+  const cellMap = new Map<MineLevelId | "both", CellParts>([
+    ...MINE_LEVEL_IDS.map(
+      (level) =>
+        [level, buildLevelCell(state, level, note, waitsLine)] as const,
+    ),
+    ["both", buildBothCell(note, waitsLine)],
+  ]);
+  for (const parts of cellMap.values()) {
+    strip.append(parts.root);
+  }
   foot.append(lift.root, strip);
   listenSteps(lift.root, state, note);
   return {
@@ -362,11 +428,33 @@ export function createLevelsSite(
     foot,
     paint: (current, view) => {
       const amount = state.amount();
-      for (const level of view.levels) {
-        const parts = levels.get(level.level);
-        if (parts !== undefined) {
-          paintLevel(parts, level, current, amount);
+      const compact = view.levels.length >= 3 || view.crystalGate !== undefined;
+      for (const [index, level] of view.levels.entries()) {
+        let parts = levels.get(level.level);
+        if (parts === undefined) {
+          parts = buildLevel(state, level, index, compact, over);
+          levels.set(level.level, parts);
         }
+        hide(parts.box, false);
+        hide(parts.pilesBox, false);
+        positionLevel(parts, index, compact);
+        paintLevel(parts, level, current, amount);
+      }
+      for (const [id, parts] of levels) {
+        if (!view.levels.some((each) => each.level === id)) {
+          hide(parts.box, true);
+          hide(parts.pilesBox, true);
+        }
+      }
+      if (view.crystalGate !== undefined) {
+        if (crystalGate === undefined) {
+          crystalGate = createCrystalGate(state);
+          over.append(crystalGate.root);
+        }
+        hide(crystalGate.root, false);
+        crystalGate.paint(view.crystalGate);
+      } else if (crystalGate !== undefined) {
+        hide(crystalGate.root, true);
       }
       const row = view.hoisting;
       paintRow(lift, row, {
@@ -374,11 +462,21 @@ export function createLevelsSite(
         lamp: stageCount(current, "lift") > 0,
         pile: row.pile !== undefined,
       });
-      for (const [index, cell] of view.strip.entries()) {
-        const parts = cells[index];
+      cellCount = view.strip.length;
+      mark(strip, "four", cellCount >= 4);
+      const visibleCells: HTMLElement[] = [];
+      for (const cell of view.strip) {
+        const parts = cellMap.get(cell.place);
         if (parts !== undefined) {
           paintCell(parts, cell);
+          visibleCells.push(parts.root);
         }
+      }
+      if (
+        strip.childElementCount !== visibleCells.length ||
+        visibleCells.some((node, index) => strip.children[index] !== node)
+      ) {
+        strip.replaceChildren(...visibleCells);
       }
       return row.canPlace;
     },

@@ -1,5 +1,5 @@
 import { buildingById, type BuildingId } from "./city";
-import { partThreeOn, partTwoOn } from "./part-switch";
+import { partThreeOn, partTwoOn, slice2Part2On } from "./part-switch";
 import { makerTakes } from "./makers";
 import { AWAY_PAY_RATE } from "./rates";
 import { percent } from "./screen-words";
@@ -50,7 +50,16 @@ export function opensWords(id: BuildingId): string {
   if (id === "lightTower" && partTwoOn()) {
     return "Opens the refinery.";
   }
-  return id === "warehouse" && partThreeOn() ? "Opens trucks." : "";
+  if (id === "warehouse" && partThreeOn()) {
+    return "Opens trucks.";
+  }
+  if (id === "foundry" && slice2Part2On()) {
+    return "Opens Crystal Caves and the factory.";
+  }
+  if (id === "researchLab" && slice2Part2On()) {
+    return "Opens Research.";
+  }
+  return "";
 }
 
 const sentence = (words: string): string =>
@@ -121,6 +130,21 @@ export const LEVEL_REACHED: CardWords = {
     "A hoist serves both levels in turn: down to one, up, then down to the other. A trip to the Granite takes twice as long. Under Hoisting, − and + assign a hoist to one level only.",
     "Topsoil rock goes to the kilns. Granite rock goes to the saws, which have their own pile of rock.",
     "Opened: saws in the refinery and locomotives for haulage.",
+  ],
+  key: "Continue",
+};
+
+/**
+ * Slice 2 Part 2 (#779; proposed copy for Flemming's approval): the shaft is
+ * sunk and the Crystal Caves are open.
+ */
+export const CRYSTAL_REACHED: CardWords = {
+  title: "The Crystal Caves: reached",
+  paragraphs: [
+    "A third level, deeper still, with its own drilling and its own haulage. Nobody works there yet: put workers on it with − and + on the level.",
+    "Hoists now serve all three levels in turn. A trip to the Crystal Caves takes three times as long as Topsoil. Under Hoisting, − and + assign a hoist to one level only.",
+    "Crystal rock goes to Glassworks in the refinery, together with stone.",
+    "Opened: Glassworks in the refinery and Precision Assembly in the factory.",
   ],
   key: "Continue",
 };

@@ -195,6 +195,13 @@ describe("hoisting's row and the strip", () => {
       ]);
       const load = hoistLoad(m);
       const [topsoil, granite, both] = strip;
+      if (
+        topsoil === undefined ||
+        granite === undefined ||
+        both === undefined
+      ) {
+        throw new Error("expected 3 hoist strip cells");
+      }
       expect(topsoil.rateValue).toBeCloseTo(load / tripSeconds("topsoil"), 9);
       expect(granite.rateValue).toBeCloseTo(load / tripSeconds("granite"), 9);
       expect(both.rateValue).toBeCloseTo(
@@ -237,6 +244,13 @@ describe("hoisting's row and the strip", () => {
         assigned: { topsoil: 0, granite: 3 },
       });
       const [topsoil, granite, both] = hoistStrip(m);
+      if (
+        topsoil === undefined ||
+        granite === undefined ||
+        both === undefined
+      ) {
+        throw new Error("expected 3 hoist strip cells");
+      }
       expect(topsoil.canLess).toBe(false);
       expect(topsoil.canMore).toBe(false);
       expect(granite.canLess).toBe(true);
@@ -251,6 +265,9 @@ describe("hoisting's row and the strip", () => {
   it("lights + while a hoist is left for both", () => {
     partThree(() => {
       const [topsoil, , both] = hoistStrip(three());
+      if (topsoil === undefined || both === undefined) {
+        throw new Error("expected hoist strip cells");
+      }
       expect(topsoil.canMore).toBe(true);
       expect(both.canLess).toBe(false);
       expect(both.canMore).toBe(false);

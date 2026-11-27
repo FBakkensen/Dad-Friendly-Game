@@ -60,6 +60,19 @@ export type MineSite = {
   readonly paint: (mountain: Mountain, shown: boolean, now?: number) => void;
 };
 
+/** One good in a 1- or 2-good buy key price (#779). */
+export type KeyPricePart = {
+  readonly good: GoodId;
+  readonly text: string;
+};
+
+/** Second price segment appended lazily only for 2-good buy keys (#779). */
+type SecondPriceParts = {
+  readonly sep: HTMLElement;
+  readonly price: HTMLElement;
+  readonly icon: HTMLImageElement;
+};
+
 /** A machine's key: what it is and moves, its price and the workers it takes. */
 export type KeyParts = {
   readonly root: HTMLButtonElement;
@@ -68,6 +81,8 @@ export type KeyParts = {
   /** The price's good's icon: stone, or cut stone for the borer and the locomotive in part 3. */
   readonly icon: HTMLImageElement;
   readonly staff: HTMLElement;
+  readonly small: HTMLElement;
+  second: SecondPriceParts | undefined;
 };
 
 /** What a key in the mine keys' form says: a machine's, or the kiln's (#671). */
@@ -77,8 +92,8 @@ export type KeyFace = Pick<
 >;
 
 /**
- * A key in the mine keys' form: its face, and under it the price in stone and
- * the workers it takes. A tap runs `onTap`.
+ * A key in the mine keys' form: its face, and under it the price (1 or 2
+ * goods with icons) and the workers it takes. A tap runs `onTap`.
  */
 export function buildKeyFace(className: string, onTap: () => void): KeyParts {
   const root = el("button", className);
@@ -93,7 +108,7 @@ export function buildKeyFace(className: string, onTap: () => void): KeyParts {
   small.append(price, icon, staff);
   root.append(face, small);
   root.addEventListener("click", onTap);
-  return { root, face, price, icon, staff };
+  return { root, face, price, icon, staff, small, second: undefined };
 }
 
 /** The good each icon shows now, so a repaint sets its picture only when the good changes. */
@@ -136,15 +151,50 @@ export function buildMachineKey(
   });
 }
 
-/** Paints a key; `good` is what its price is paid in (stone unless the key says). */
+function syncSecondPrice(
+  parts: KeyParts,
+  second: KeyPricePart | undefined,
+): void {
+  if (second === undefined) {
+    if (parts.second !== undefined) {
+      parts.second.sep.remove();
+      parts.second.price.remove();
+      parts.second.icon.remove();
+      parts.second = undefined;
+    }
+    return;
+  }
+  if (parts.second === undefined) {
+    const sep = el("span", "mine-key-sep", " + ");
+    const price = el("span", "board-num");
+    const icon = el("img", "mine-key-icon");
+    icon.alt = "";
+    parts.small.insertBefore(sep, parts.staff);
+    parts.small.insertBefore(price, parts.staff);
+    parts.small.insertBefore(icon, parts.staff);
+    parts.second = { sep, price, icon };
+  }
+  write(parts.second.price, second.text);
+  paintIcon(parts.second.icon, second.good);
+}
+
+/** Paints a key; `goodOrPrice` is a single good or a 1-/2-good price list (#779). */
 export function paintMachineKey(
   parts: KeyParts,
   key: KeyFace,
-  good: GoodId = "stones",
+  goodOrPrice: GoodId | readonly KeyPricePart[] = "stones",
 ): void {
-  paintIcon(parts.icon, good);
+  if (typeof goodOrPrice === "string") {
+    paintIcon(parts.icon, goodOrPrice);
+    write(parts.price, key.price);
+    syncSecondPrice(parts, undefined);
+  } else {
+    const [first, second] = goodOrPrice;
+    paintIcon(parts.icon, first?.good ?? "stones");
+    write(parts.price, first?.text ?? key.price);
+    syncSecondPrice(parts, second);
+  }
   write(parts.face, key.face);
-  write(parts.price, key.price);
   write(parts.staff, ` · ${key.staff}`);
   mark(parts.root, "can", key.can);
   setAttr(parts.root, "aria-label", key.label);
