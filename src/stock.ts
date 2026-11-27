@@ -1,7 +1,7 @@
 /**
  * Everything he can hold, and the one place that takes from it or adds to it
- * (#560, #769, #771): all five Slice 2 goods share one stockyard and physical
- * transport network. `glass` and `parts` stay hidden in UI until Part 2 turns on.
+ * (#560, #769, #771, #780): all five Slice 2 goods share one stockyard and
+ * physical transport network.
  */
 
 export type GoodId = "stones" | "brick" | "cutStone" | "glass" | "parts";

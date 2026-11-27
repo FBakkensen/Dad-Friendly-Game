@@ -15,7 +15,7 @@ import {
 import { mountFrameScreen } from "./frame-screen";
 import { shaftPrice } from "./mine-levels";
 import { levels } from "./part-three.harness";
-import { PART_THREE_OFF, PART_TWO_OFF } from "./part-switch";
+import { PART_THREE_OFF, PART_TWO_OFF, PLAY_FACTORS } from "./part-switch";
 import { createMemoryStorage } from "./test-fixtures";
 import { createMountain, type Mountain } from "./mountain";
 import { createProgressStore } from "./progress-store";
@@ -490,6 +490,40 @@ describe("the end card", () => {
       kind: "end",
       title: "The Foundry: operational",
       lines: endCard("foundry").paragraphs,
+    });
+    expect(card().lines).toEqual([
+      "The city is planning its next building. It comes in a later update.",
+    ]);
+  });
+
+  it("in Slice 2 Part 2 the Foundry's roof opens Crystal Caves and the factory, and the Research Lab's ends Part 2 (#780)", () => {
+    holdFactors(PLAY_FACTORS);
+    const { card, press, progress } = mount({
+      saved: { ...crew(NO_PROJECT), operational: ["lightTower", "warehouse"] },
+      at: 1_000,
+    });
+    progress.applyMutation((mountain) => ({
+      ...mountain,
+      operational: ["lightTower", "warehouse", "foundry"],
+    }));
+    expect(card()).toMatchObject({
+      shown: true,
+      kind: "built",
+      title: "The Foundry: operational",
+    });
+    expect(card().lines).toEqual(["Opens Crystal Caves and the factory."]);
+    expect(card().lines.join(" ")).not.toMatch(/later update/);
+    press();
+    expect(card().shown).toBe(false);
+    progress.applyMutation((mountain) => ({
+      ...mountain,
+      operational: ["lightTower", "warehouse", "foundry", "researchLab"],
+    }));
+    expect(card()).toMatchObject({
+      shown: true,
+      kind: "end",
+      title: "The Research Lab: operational",
+      lines: endCard("researchLab").paragraphs,
     });
     expect(card().lines).toEqual([
       "The city is planning its next building. It comes in a later update.",

@@ -5,21 +5,25 @@ import {
   PART_TWO_OFF,
   PLAY_FACTORS,
   SLICE_2_PART_1_OFF,
+  SLICE_2_PART_2_OFF,
   partThreeOn,
   partTwoOn,
   slice2Part1On,
+  slice2Part2On,
 } from "./part-switch";
 
 describe("part switch", () => {
-  it("PLAY_FACTORS holds Slice 2 Part 1 of the fresh mine (#682, #769)", () => {
+  it("PLAY_FACTORS holds Slice 2 Part 2 of the fresh mine (#682, #769, #780)", () => {
     expect(PLAY_FACTORS).toEqual({
       [PART_TWO_OFF]: 0,
       [PART_THREE_OFF]: 0,
       [SLICE_2_PART_1_OFF]: 0,
+      [SLICE_2_PART_2_OFF]: 0,
     });
     expect(withFactors(PLAY_FACTORS, partTwoOn)).toBe(true);
     expect(withFactors(PLAY_FACTORS, partThreeOn)).toBe(true);
     expect(withFactors(PLAY_FACTORS, slice2Part1On)).toBe(true);
+    expect(withFactors(PLAY_FACTORS, slice2Part2On)).toBe(true);
   });
 
   it("plays part 2 only when its switch is set", () => {

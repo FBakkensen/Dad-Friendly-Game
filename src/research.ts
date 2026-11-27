@@ -28,9 +28,9 @@ type UpgradeKey = keyof Mountain["upgrades"];
 type ResearchRow = {
   readonly id: string;
   readonly name: string;
-  /** What the project does, in plain words (placeholder copy, off in play; for Flemming's approval in #779). */
+  /** What the project does, in plain words. */
   readonly summary: string;
-  /** Goods Transport must deliver before Install opens (starting values for #772 lab). */
+  /** Goods Transport must deliver before Install opens. */
   readonly price: Price;
   /** Part 1 `SaveGame.levels` id honored as equivalent with no double-stacking. */
   readonly partOneUpgrade?: UpgradeKey;

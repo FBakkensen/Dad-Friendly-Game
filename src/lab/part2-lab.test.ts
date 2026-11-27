@@ -3,7 +3,7 @@ import { placeOrder } from "../city";
 import { applyAction, type Action } from "../economy/actions";
 import { withFactors } from "../economy/factors";
 import { createMountain, type Mountain } from "../mountain";
-import { PLAY_FACTORS } from "../part-switch";
+import { PLAY_FACTORS, SLICE_2_PART_2_OFF } from "../part-switch";
 import { RESEARCH_IDS, researchPrice, startResearch } from "../research";
 import { slice2OrderRates, slice2SteadyIncome } from "../slice2-flow";
 import { EMPTY_STOCK, priceAmount } from "../stock";
@@ -158,8 +158,8 @@ describe("Slice 2 Part 2 lab policies and steady flow (#772)", () => {
       expect(slice2SteadyIncome(idleFleet).parts ?? 0).toBe(0);
     });
 
-    // Part 1 invariance: PLAY_FACTORS leaves Part 2 off and returns 0 glass/parts.
-    withFactors(PLAY_FACTORS, () => {
+    // Part 1 invariance: with slice2Part2.off=1, Part 2 stays off and returns 0 glass/parts.
+    withFactors({ ...PLAY_FACTORS, [SLICE_2_PART_2_OFF]: 1 }, () => {
       const m = foundryRoofMountain();
       expect(slice2SteadyIncome(m).glass ?? 0).toBe(0);
       expect(slice2SteadyIncome(m).parts ?? 0).toBe(0);

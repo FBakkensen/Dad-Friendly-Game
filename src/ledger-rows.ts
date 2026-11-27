@@ -37,7 +37,7 @@ import { UPGRADES, upgradeById, type UpgradeId } from "./upgrades";
 /*
  * The Ledger drawer's rows and lines (#375), as pure views: this run's field log as Tonight's
  * lines, the mountain as the stones row, and the account as its row. Display only,
- * no DOM and no art, as upgrade-rows.ts is.
+ * no DOM and no art.
  */
 
 /** Tonight shows this many lines, newest first. */
