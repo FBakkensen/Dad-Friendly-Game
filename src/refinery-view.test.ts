@@ -26,7 +26,9 @@ import {
   partThree,
   partThreeAsBuilt,
   slice2Part1,
+  slice2Part2,
 } from "./part-three.harness";
+import { NO_LEVEL_MACHINES } from "./mine-levels";
 import { crewedStart } from "./test-fixtures";
 
 /** The refinery's numbers (slice 1, part 2, #671). */
@@ -527,6 +529,88 @@ describe("how long a night lasts now (#671)", () => {
         `Rock at the saws: 88 of ${formatCompact(sawRoom)}`,
       );
       expect(refinery.bypass.rate).not.toBe("0/s");
+    });
+  });
+
+  it("applies makerResearchMultiplier to makerKey output and shows Glassworks 2-buffer plate under Slice 2 Part 2 (#779)", () => {
+    const base = levels({
+      sunk: true,
+      operational: ["lightTower", "warehouse", "foundry"],
+      kilns: 1,
+      saws: 1,
+      driving: 2,
+      stock: { stones: 50_000, brick: 200_000, cutStone: 200_000 },
+    });
+    const withCrystal: Mountain = {
+      ...base,
+      mineLevels: {
+        ...base.mineLevels,
+        crystal: {
+          machines: NO_LEVEL_MACHINES,
+          piles: { face: 0, shaft: 0, saw: 0 },
+        },
+      },
+      makers: { ...base.makers, glassworks: 1 },
+      jobs: { ...base.jobs, glassworks: 2 },
+      owned: { ...base.owned, helper: base.owned.helper + 2 },
+      makerBuffers: {
+        kiln: { topsoilRock: 100 },
+        saw: { graniteRock: 100 },
+        glassworks: { crystalRock: 90, stones: 0 },
+        partsPress: {},
+        precisionAssembly: {},
+      },
+    };
+
+    // Part 2 OFF: Glassworks plate stays hidden, only 3 bays.
+    slice2Part1(() => {
+      const off = view(withCrystal);
+      expect(off.plates.map((p) => p.id)).toEqual(["kiln", "saw"]);
+      expect(off.stockyard.bays.map((b) => b.good)).toEqual([
+        "brick",
+        "stones",
+        "cutStone",
+      ]);
+    });
+
+    // Part 2 ON: Glassworks plate appears with 2 input buffers, standing badge (stones buffer empty), 2-good key, 5 bays.
+    slice2Part2(() => {
+      const on = view(withCrystal);
+      expect(on.plates.map((p) => p.id)).toEqual(["kiln", "saw", "glassworks"]);
+      const gw = on.plates[2];
+      expect(gw?.recipe).toBe("Recipe: 3 crystal rock + 2 stone → 1 glass");
+      expect(gw?.buffers?.map((b) => b.id)).toEqual(["crystalRock", "stones"]);
+      // Starved (no drivers feeding empty stones buffer) marks Glassworks standing.
+      const starved = view({
+        ...withCrystal,
+        jobs: { ...withCrystal.jobs, driving: 0 },
+      });
+      expect(starved.plates[2]?.standing).toBe(true);
+      expect(gw?.buffers?.[0]?.held).toBe(90);
+      expect(gw?.buffers?.[1]?.empty).toBe(true);
+      expect(gw?.key.face).toBe("+Glassworks · 25/s");
+      expect(gw?.key.priceParts?.map((p) => p.good)).toEqual([
+        "brick",
+        "cutStone",
+      ]);
+      expect(on.stockyard.bays.map((b) => b.good)).toEqual([
+        "brick",
+        "stones",
+        "cutStone",
+        "glass",
+        "parts",
+      ]);
+
+      // makerResearchMultiplier lifts Kilns (highDraftKilns +35%: 12 -> 16/s) and Glassworks (opticalGauges +40%: 25 -> 35/s).
+      const researched: Mountain = {
+        ...withCrystal,
+        research: {
+          done: ["highDraftKilns", "opticalGauges"],
+        },
+      };
+      const boosted = view(researched);
+      expect(boosted.plates[0]?.key.face).toBe("+Kiln · 16/s");
+      expect(boosted.plates[2]?.key.face).toBe("+Glassworks · 35/s");
     });
   });
 });

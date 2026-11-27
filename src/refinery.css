@@ -54,18 +54,33 @@
  * Beside the saws each level is named at its own edge, in plain letters over
  * the wall as the prototype has them, so its rock is seen falling behind.
  */
-.refinery.two .refinery-in {
+.refinery.two .refinery-in,
+.refinery.three .refinery-in {
   background: none;
   text-shadow: 0 var(--art) 0 var(--frame-dark);
 }
 
-.refinery.two .refinery-in-topsoil {
+.refinery.two .refinery-in-topsoil,
+.refinery.three .refinery-in-topsoil {
   left: calc(var(--art) * 4);
 }
 
 .refinery.two .refinery-in-granite {
   left: auto;
   right: calc(var(--art) * 4);
+}
+
+.refinery.three .refinery-in {
+  font-size: var(--board-type-13);
+}
+
+.refinery.three .refinery-in-granite {
+  left: calc(var(--art) * 68);
+}
+
+.refinery.three .refinery-in-crystal {
+  left: auto;
+  right: calc(var(--art) * 3);
 }
 
 .refinery-bypass {
@@ -85,6 +100,13 @@
   right: auto;
   left: 50%;
   transform: translateX(-50%);
+}
+
+.refinery.three .refinery-bypass {
+  top: calc(var(--art) * 18);
+  right: auto;
+  left: calc(var(--art) * 124);
+  padding: var(--art) calc(var(--art) * 2);
 }
 
 .refinery-bypass > span {
@@ -123,13 +145,106 @@
   border: var(--art) solid var(--frame-edge);
 }
 
-.refinery-recipe {
-  margin: 0;
+.refinery-recipe-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(var(--art) * 2);
   padding: var(--art) calc(var(--art) * 3);
   border-bottom: var(--art) solid var(--frame-edge);
+}
+
+.refinery-recipe {
+  margin: 0;
   font-size: var(--frame-type-12);
   font-weight: 700;
   color: var(--frame-amber);
+}
+
+.maker-standing {
+  flex: none;
+  padding: 0 calc(var(--art) * 2);
+  border: var(--art) solid var(--frame-red);
+  font-size: var(--frame-type-12);
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--frame-red);
+  line-height: 1.1;
+}
+
+.maker-standing[hidden] {
+  display: none;
+}
+
+.maker-buffers {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: calc(var(--art) * 2);
+  padding: 0 calc(var(--art) * 2);
+}
+
+.maker-buffers[data-count="3"] {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.maker-buffers[data-count="3"] .maker-buf-top {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+}
+
+.maker-buf {
+  display: flex;
+  flex-direction: column;
+  gap: var(--art);
+  padding: var(--art) calc(var(--art) * 2);
+  background: var(--frame-dark);
+  border: var(--art) solid var(--frame-edge);
+  min-width: 0;
+}
+
+.maker-buf-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--art);
+  font-size: var(--frame-type-12);
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.maker-buf-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--frame-quiet);
+}
+
+.maker-buf-text {
+  flex: none;
+  color: var(--frame-ink);
+}
+
+.maker-buf.empty .maker-buf-label,
+.maker-buf.empty .maker-buf-text {
+  color: var(--frame-red);
+  font-weight: 700;
+}
+
+.maker-buf-track {
+  position: relative;
+  display: block;
+  height: calc(var(--art) * 2);
+  background: var(--frame-pip);
+}
+
+.maker-buf-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--frame-amber);
+}
+
+.maker-buf.empty .maker-buf-fill {
+  background: var(--frame-red);
 }
 
 .refinery-row {
@@ -194,6 +309,64 @@
 
 .refinery.two .refinery-machines {
   white-space: normal;
+}
+
+/*
+ * Three plates (Slice 2 Part 2, #779): Kilns and Saws side by side in row 1,
+ * full-width Glassworks with its two separate input buffers in row 2.
+ */
+.refinery.three .refinery-panel {
+  gap: calc(var(--art) * 3);
+}
+
+.refinery.three .refinery-plates {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--target-gap);
+}
+
+.refinery.three .refinery-plate {
+  gap: var(--target-gap);
+  padding-bottom: calc(var(--art) * 2);
+}
+
+.refinery.three .refinery-plate[data-maker="glassworks"] {
+  grid-column: 1 / -1;
+}
+
+.refinery.three .refinery-plate[data-maker="kiln"] .refinery-row,
+.refinery.three .refinery-plate[data-maker="saw"] .refinery-row {
+  flex-wrap: wrap;
+  row-gap: calc(var(--art) * 2);
+}
+
+.refinery.three .refinery-plate[data-maker="kiln"] .refinery-info,
+.refinery.three .refinery-plate[data-maker="saw"] .refinery-info {
+  flex-basis: 100%;
+  margin-right: 0;
+}
+
+.refinery.three .mine-stage-head {
+  flex-wrap: wrap;
+  column-gap: calc(var(--art) * 2);
+}
+
+.refinery.three .mine-stage-name {
+  width: auto;
+}
+
+.refinery.three .refinery-machines {
+  white-space: normal;
+}
+
+.refinery.three .refinery-yard-canvas,
+.refinery.three .refinery-bays {
+  height: calc(var(--art) * 24);
+}
+
+.refinery.three .refinery-bay {
+  font-size: var(--frame-type-12);
+  white-space: nowrap;
 }
 
 .refinery-yard {

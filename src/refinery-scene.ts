@@ -4,6 +4,8 @@ import sawDimUrl from "./assets/board/mach-saw-dim.png";
 import sawUrl from "./assets/board/mach-saw.png";
 import brickUrl from "./assets/board/res-brick.png";
 import cutStoneUrl from "./assets/board/res-cut-stone.png";
+import partsUrl from "./assets/board/res-parts.png";
+import { PART2_ART } from "./part2-art";
 import type { Bay, RefineryScene } from "./refinery-view";
 import {
   SCENE_W,
@@ -56,14 +58,40 @@ const KILN = { x: 18, y: 44 };
 /** Where the saw stands: under the Granite's hopper's mouth. */
 const SAW = { x: 130, y: 44 };
 
+/** Three-maker layout (#779): Topsoil, Granite, and Crystal hoppers across the wall. */
+const THREE_TOPSOIL_HOPPER: Hopper = { left: 8, right: 54, top: 18, mouth: 38 };
+const THREE_GRANITE_HOPPER: Hopper = {
+  left: 76,
+  right: 122,
+  top: 18,
+  mouth: 38,
+};
+const THREE_CRYSTAL_HOPPER: Hopper = {
+  left: 158,
+  right: 204,
+  top: 18,
+  mouth: 38,
+};
+const THREE_CHUTE: Chute = { left: 132, right: 146 };
+const CRYSTAL_FURNACE = { x: 165, y: 38 };
+
 /** The rock of each level, as it falls and lies in its hopper. */
 const TOPSOIL_ROCK = ["#7a5a3a", "#5b3b22", "#8a6a44"] as const;
 const GRANITE_ROCK = ["#74808f", "#566170", "#8d99a8"] as const;
+const CRYSTAL_ROCK = ["#5ea8b8", "#2d6d7d", "#8cd8e6"] as const;
 type Rock = readonly [string, string, string];
 
 type Sprites = Readonly<
   Record<
-    "kiln" | "kilnDim" | "saw" | "sawDim" | "brick" | "cutStone",
+    | "kiln"
+    | "kilnDim"
+    | "saw"
+    | "sawDim"
+    | "glassworks"
+    | "brick"
+    | "cutStone"
+    | "glass"
+    | "parts",
     HTMLImageElement
   >
 >;
@@ -74,13 +102,20 @@ export function loadRefinerySprites(): Sprites {
     kilnDim: kilnDimUrl,
     saw: sawUrl,
     sawDim: sawDimUrl,
+    glassworks: PART2_ART.glassworks,
     brick: brickUrl,
     cutStone: cutStoneUrl,
+    glass: PART2_ART.glass,
+    parts: partsUrl,
   });
 }
 
-/** The chute the bypass runs down: between the hoppers once the saws stand beside the kilns. */
-const chuteOf = (saws: boolean): Chute => (saws ? MIDDLE_CHUTE : CHUTE);
+/** Number of maker columns on the refinery wall: 1 (kilns), 2 (kilns+saws), 3 (+glassworks). */
+export type RefineryLayout = 1 | 2 | 3;
+
+/** The chute the bypass runs down for a layout. */
+const chuteOf = (layout: RefineryLayout): Chute =>
+  layout === 1 ? CHUTE : layout === 2 ? MIDDLE_CHUTE : THREE_CHUTE;
 
 /** A hopper's feed: the column its rock comes down. */
 const feedX = (hopper: Hopper): number => (hopper.left + hopper.right) / 2;
@@ -88,15 +123,7 @@ const feedX = (hopper: Hopper): number => (hopper.left + hopper.right) / 2;
 const WALL = { brick: "#5a2c22", dark: "#46211a", light: "#6a3528" };
 const MORTAR = "#2a1612";
 
-/**
- * The refinery's wall: brick in running bond, never quite even, with the
- * Topsoil's hopper, the Granite's too while `saws`, and the bypass chute.
- */
-export function paintWall(
-  c: CanvasRenderingContext2D,
-  height: number,
-  saws = false,
-): void {
+function paintBricks(c: CanvasRenderingContext2D, height: number): void {
   rect(c, 0, 0, SCENE_W, height, MORTAR);
   for (let row = 0; row * 5 < height; row += 1) {
     const offset = row % 2 === 0 ? 0 : 5;
@@ -106,9 +133,13 @@ export function paintWall(
       rect(c, x + 1, row * 5 + 1, 9, 4, colour);
     }
   }
-  const chute = chuteOf(saws);
-  paintChute(c, height, chute);
-  // The overflow from each hopper's side into the chute.
+}
+
+function paintStandardHoppers(
+  c: CanvasRenderingContext2D,
+  chute: Chute,
+  withGranite: boolean,
+): void {
   line(
     c,
     [HOPPER.right - 2, HOPPER.top + 6],
@@ -117,7 +148,7 @@ export function paintWall(
     2,
   );
   paintHopper(c, HOPPER);
-  if (saws) {
+  if (withGranite) {
     line(
       c,
       [chute.right - 2, GRANITE_HOPPER.top + 14],
@@ -127,6 +158,29 @@ export function paintWall(
     );
     paintHopper(c, GRANITE_HOPPER);
   }
+}
+
+/**
+ * The refinery's wall: brick in running bond, never quite even, with one,
+ * two, or three hoppers and the bypass chute.
+ */
+export function paintWall(
+  c: CanvasRenderingContext2D,
+  height: number,
+  layout: boolean | RefineryLayout = false,
+): void {
+  const mode: RefineryLayout =
+    typeof layout === "boolean" ? (layout ? 2 : 1) : layout;
+  paintBricks(c, height);
+  const chute = chuteOf(mode);
+  paintChute(c, height, chute);
+  if (mode === 3) {
+    paintHopper(c, THREE_TOPSOIL_HOPPER);
+    paintHopper(c, THREE_GRANITE_HOPPER);
+    paintHopper(c, THREE_CRYSTAL_HOPPER);
+    return;
+  }
+  paintStandardHoppers(c, chute, mode === 2);
 }
 
 /** The bypass chute, from beside the hoppers down to the stockyard. */
@@ -314,6 +368,90 @@ function drawGraniteSide(
   drawSaws(c, sprites, saws, t);
 }
 
+/** The Crystal Caves Glassworks side (#779): crystal hopper + furnace icon. */
+function drawGlassworksSide(
+  c: CanvasRenderingContext2D,
+  sprites: Sprites,
+  glassworks: NonNullable<RefineryScene["glassworks"]>,
+  t: number,
+): void {
+  drawHopperRock(c, THREE_CRYSTAL_HOPPER, glassworks.hopper, CRYSTAL_ROCK);
+  if (glassworks.lifting) {
+    falling(
+      c,
+      feedX(THREE_CRYSTAL_HOPPER) - 1,
+      0,
+      THREE_CRYSTAL_HOPPER.top,
+      t,
+      CRYSTAL_ROCK[2],
+      6,
+    );
+  }
+  if (glassworks.making) {
+    const flicker = Math.floor(t * 8) % 3;
+    glow(
+      c,
+      CRYSTAL_FURNACE.x + 24,
+      CRYSTAL_FURNACE.y + 24,
+      18 + flicker,
+      "#2e6d7d",
+      66 + flicker,
+    );
+  }
+  const running = glassworks.furnaces > 0 && glassworks.running > 0;
+  c.save();
+  if (!running) {
+    c.globalAlpha = 0.45;
+  }
+  const img = sprites.glassworks;
+  if (img.complete && img.naturalWidth > 0) {
+    c.drawImage(
+      img,
+      CRYSTAL_FURNACE.x,
+      CRYSTAL_FURNACE.y,
+      img.naturalWidth,
+      img.naturalHeight,
+    );
+  }
+  c.restore();
+  if (glassworks.making) {
+    falling(
+      c,
+      CRYSTAL_FURNACE.x + 28,
+      CRYSTAL_FURNACE.y + 46,
+      c.canvas.height,
+      t,
+      "#8cd8e6",
+      7,
+    );
+  }
+}
+
+function drawThreeMakerWall(
+  c: CanvasRenderingContext2D,
+  sprites: Sprites,
+  scene: RefineryScene,
+  t: number,
+): void {
+  if (scene.saws !== undefined) {
+    drawHopperRock(c, THREE_GRANITE_HOPPER, scene.saws.hopper, GRANITE_ROCK);
+    if (scene.saws.lifting) {
+      falling(
+        c,
+        feedX(THREE_GRANITE_HOPPER) - 1,
+        0,
+        THREE_GRANITE_HOPPER.top,
+        t,
+        GRANITE_ROCK[2],
+        5,
+      );
+    }
+  }
+  if (scene.glassworks !== undefined) {
+    drawGlassworksSide(c, sprites, scene.glassworks, t);
+  }
+}
+
 /** One frame of the scene's moving parts, over the wall. */
 export function drawRefinery(
   c: CanvasRenderingContext2D,
@@ -321,21 +459,28 @@ export function drawRefinery(
   scene: RefineryScene,
   t: number,
 ): void {
-  drawHopperRock(c, HOPPER, scene.hopper, TOPSOIL_ROCK);
+  const mode: RefineryLayout =
+    scene.glassworks !== undefined ? 3 : scene.saws !== undefined ? 2 : 1;
+  const topHopper = mode === 3 ? THREE_TOPSOIL_HOPPER : HOPPER;
+  drawHopperRock(c, topHopper, scene.hopper, TOPSOIL_ROCK);
   if (scene.lifting) {
-    falling(c, feedX(HOPPER) - 1, 0, HOPPER.top, t, TOPSOIL_ROCK[2], 1);
+    falling(c, feedX(topHopper) - 1, 0, topHopper.top, t, TOPSOIL_ROCK[2], 1);
   }
-  drawKilns(c, sprites, scene, t);
-  if (scene.saws !== undefined) {
-    drawGraniteSide(c, sprites, scene.saws, t);
+  if (mode === 3) {
+    drawThreeMakerWall(c, sprites, scene, t);
+  } else {
+    drawKilns(c, sprites, scene, t);
+    if (scene.saws !== undefined) {
+      drawGraniteSide(c, sprites, scene.saws, t);
+    }
   }
   const height = c.canvas.height;
-  if (scene.making) {
+  if (scene.making && mode !== 3) {
     falling(c, KILN.x + 31, KILN.y + 64, height, t, "#b0502e", 2);
   }
   if (scene.bypassing) {
-    const chute = chuteOf(scene.saws !== undefined);
-    falling(c, chute.left + 6, HOPPER.top + 14, height, t, "#8f9aa5", 3);
+    const chute = chuteOf(mode);
+    falling(c, chute.left + 6, topHopper.top + 14, height, t, "#8f9aa5", 3);
   }
 }
 
@@ -413,6 +558,10 @@ export function drawYard(
       stack(c, sprites.brick, x0, w, base, bay.fill);
     } else if (bay.good === "cutStone") {
       stack(c, sprites.cutStone, x0, w, base, bay.fill);
+    } else if (bay.good === "glass") {
+      stack(c, sprites.glass, x0, w, base, bay.fill);
+    } else if (bay.good === "parts") {
+      stack(c, sprites.parts, x0, w, base, bay.fill);
     } else {
       heap(c, x0, base, w, bay.fill, 65 + index);
     }

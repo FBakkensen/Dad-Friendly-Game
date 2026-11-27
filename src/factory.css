@@ -1,0 +1,125 @@
+/*
+ * Steady-flow multi-input Factory site (Slice 2 Part 2, #779): conveyor
+ * floor canvas, Parts output buffer, Parts Press (2 input buffers) and
+ * Precision Assembly (3 input buffers). Fits 424×924 and 424×830 with zero
+ * page scroll and >= 48px targets at least 8px apart.
+ */
+.factory {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  padding: calc(var(--art) * 2) calc(var(--art) * 3);
+  gap: var(--target-gap);
+  overflow: hidden;
+  background: var(--frame-ground);
+}
+
+.factory[hidden] {
+  display: none;
+}
+
+.factory-floor {
+  position: relative;
+  flex: none;
+  height: calc(var(--art) * 42);
+  border: var(--art) solid var(--frame-edge);
+  background: var(--frame-dark);
+  overflow: hidden;
+}
+
+.factory-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+}
+
+.factory-output {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--art);
+  padding: calc(var(--art) * 2) calc(var(--art) * 3);
+  background: var(--frame-row);
+  border: var(--art) solid var(--frame-edge);
+}
+
+.factory-output-top {
+  display: flex;
+  align-items: baseline;
+  gap: calc(var(--art) * 3);
+  font-size: var(--board-type-13);
+  white-space: nowrap;
+}
+
+.factory-output-name {
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--frame-amber);
+}
+
+.factory-output-text {
+  color: var(--frame-ink);
+}
+
+.factory-output-ship {
+  margin-left: auto;
+  color: var(--frame-rate);
+}
+
+.factory-output.full .factory-output-text {
+  color: var(--frame-red);
+  font-weight: 700;
+}
+
+.factory-output.full .maker-buf-fill {
+  background: var(--frame-red);
+}
+
+.factory-lines {
+  display: flex;
+  flex-direction: column;
+  gap: var(--target-gap);
+  min-height: 0;
+}
+
+.factory-plate {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--art) * 2);
+  padding: 0 0 calc(var(--art) * 2);
+  background: var(--frame-scrim);
+  border: var(--art) solid var(--frame-edge);
+}
+
+.factory .mine-stage-name {
+  width: auto;
+}
+
+.factory .mine-stage-head {
+  flex-wrap: wrap;
+  column-gap: calc(var(--art) * 3);
+}
+
+.factory .frame-step {
+  flex: none;
+  width: var(--target-min);
+  height: var(--target-min);
+  background: var(--frame-key);
+  color: var(--frame-quiet);
+  font-size: var(--board-type-22);
+  font-weight: 700;
+  text-align: center;
+}
+
+.factory .frame-step.can {
+  color: var(--frame-ink);
+}
+
+.frame .factory-line-key {
+  flex: none;
+  margin: 0 calc(var(--art) * 2);
+}
