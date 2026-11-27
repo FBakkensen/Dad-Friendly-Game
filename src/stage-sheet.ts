@@ -1,5 +1,4 @@
-import stoneUrl from "./assets/board/res-stone.png";
-import { el, hide, mark, setAttr, write } from "./board-dom";
+import { el, hide, setAttr, write } from "./board-dom";
 import { paintAmountKey } from "./buys-amount";
 import type { FrameState } from "./frame-state";
 import { STAGES, type Stage } from "./line";
@@ -10,20 +9,18 @@ import {
   stageList,
   type ListMachine,
   type ListPart,
-  type ListUpgrade,
   type StageList,
 } from "./stage-list-view";
-import type { UpgradeId } from "./upgrades";
 import "./stage-sheet.css";
 
 /**
- * A stage's list (#661; spec, "What the prototype does not show"): a sheet
- * over the frame, in the workforce's form, opened by a tap on a stage's row
- * in the mine. Its head has what the stage moves of what it can move, with
- * the row's band, a line for each part of who works with what, and the
- * amount key; under it are the stage's machines with their marks and keys,
- * and the upgrades that lift them. It paints the pure view (stage-list-view)
- * and changes the game only through `progress.dispatch`.
+ * A stage's list (#661, #780): a sheet over the frame, in the workforce's
+ * form, opened by a tap on a stage's row in the mine. Its head has what the
+ * stage moves of what it can move, with the row's band, a line for each part
+ * of who works with what, and the amount key; under it are the stage's
+ * machines with their marks and keys. Lasting upgrades live in the City's
+ * Research Lab. It paints the pure view (stage-list-view) and changes the
+ * game only through `progress.dispatch`.
  */
 
 export type StageSheet = {
@@ -47,100 +44,6 @@ export function rowText(): {
   const why = el("small", "stage-row-why");
   root.append(name, line, why);
   return { root, name, line, why };
-}
-
-type UpgradeParts = {
-  readonly root: HTMLElement;
-  readonly name: HTMLElement;
-  readonly line: HTMLElement;
-  readonly why: HTMLElement;
-  readonly key: HTMLButtonElement;
-  readonly price: HTMLElement;
-  readonly owned: HTMLElement;
-  /** The row as last painted: a tap buys at the price on its key (#367). */
-  shown: ListUpgrade | undefined;
-};
-
-/**
- * An upgrade's row: its name, what it does in numbers, its second line, and
- * a key with its price, or "Owned". The workforce's workers use it too.
- */
-function buildUpgradeRow(state: FrameState, id: UpgradeId): UpgradeParts {
-  const root = el("div", "stage-row");
-  root.dataset["upgrade"] = id;
-  const text = rowText();
-  const key = el("button", "stage-buy");
-  key.type = "button";
-  const price = el("span", "board-num");
-  const stone = el("img", "mine-key-icon");
-  stone.src = stoneUrl;
-  stone.alt = "";
-  key.append(price, stone);
-  const owned = el("span", "stage-owned", "Owned");
-  root.append(text.root, key, owned);
-  const parts: UpgradeParts = {
-    ...text,
-    root,
-    key,
-    price,
-    owned,
-    shown: undefined,
-  };
-  key.addEventListener("click", () => {
-    const row = parts.shown;
-    if (row?.can === true && row.shownPrice !== undefined) {
-      void state.progress.dispatch({
-        kind: "buyUpgrade",
-        id,
-        price: row.shownPrice,
-      });
-    }
-  });
-  return parts;
-}
-
-function paintUpgradeRow(parts: UpgradeParts, row: ListUpgrade): void {
-  parts.shown = row;
-  write(parts.name, row.name);
-  write(parts.line, row.effect);
-  write(parts.why, row.why);
-  hide(parts.key, row.owned);
-  hide(parts.owned, !row.owned);
-  write(parts.price, row.price);
-  mark(parts.key, "can", row.can);
-  setAttr(parts.key, "aria-label", row.label);
-}
-
-/**
- * Upgrade rows that follow the view: a row is added when its upgrade opens,
- * and the rest are painted in place.
- */
-export function upgradeRows(state: FrameState): {
-  readonly root: HTMLElement;
-  readonly paint: (rows: readonly ListUpgrade[]) => void;
-} {
-  const root = el("div", "stage-rows");
-  const built = new Map<UpgradeId, UpgradeParts>();
-  return {
-    root,
-    paint: (rows) => {
-      const ids = rows.map((row) => row.id);
-      if (ids.join() !== [...built.keys()].join()) {
-        built.clear();
-        for (const id of ids) {
-          built.set(id, buildUpgradeRow(state, id));
-        }
-        root.replaceChildren(...[...built.values()].map((row) => row.root));
-      }
-      hide(root, rows.length === 0);
-      for (const row of rows) {
-        const parts = built.get(row.id);
-        if (parts !== undefined) {
-          paintUpgradeRow(parts, row);
-        }
-      }
-    },
-  };
 }
 
 type MachineParts = {
@@ -180,7 +83,7 @@ function paintMachineRow(parts: MachineParts, machine: ListMachine): void {
   paintMachineKey(parts.key, machine.key, machine.key.good);
 }
 
-/** One stage's rows in the sheet: its machines and its upgrades. */
+/** One stage's rows in the sheet: its machines. */
 type StagePage = {
   readonly root: HTMLElement;
   readonly paint: (view: StageList) => void;
@@ -199,9 +102,7 @@ function buildPage(
   );
   const machineBox = el("div", "stage-rows");
   machineBox.append(...machines.map((row) => row.root));
-  const upgrades = upgradeRows(state);
-  const upgradeHead = el("h3", "frame-jobs-site", "Upgrades");
-  root.append(machineBox, upgradeHead, upgrades.root);
+  root.append(machineBox);
   return {
     root,
     paint: (view) => {
@@ -211,8 +112,6 @@ function buildPage(
           paintMachineRow(parts, machine);
         }
       }
-      upgrades.paint(view.upgrades);
-      hide(upgradeHead, view.upgrades.length === 0);
     },
   };
 }

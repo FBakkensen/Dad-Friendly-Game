@@ -898,6 +898,23 @@ describe("valueOf", () => {
       score(working, drillWorker, HORIZON, noTime).gainPerSec,
     ).toBeGreaterThan(0);
   });
+
+  it("adds the wait to afford a move when the pocket is short", () => {
+    const drill = { kind: "buyTier", id: "drill" } as const;
+    const funded = score(working, drill, HORIZON);
+    const poor: Mountain = {
+      ...working,
+      stock: { ...working.stock, stones: 0 },
+    };
+    const waiting = score(poor, drill, HORIZON);
+    const income = effectiveRates(poor).exactCrewPerSecond;
+    expect(waiting.gainPerSec).toBe(funded.gainPerSec);
+    expect(waiting.cost).toBe(funded.cost);
+    expect(waiting.paybackSec).toBeCloseTo(
+      funded.cost / income + funded.paybackSec,
+      8,
+    );
+  });
 });
 
 describe("applyMove (#409)", () => {

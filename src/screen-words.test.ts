@@ -1,6 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { withFactors } from "./economy/factors";
-import { createMountain } from "./mountain";
 import { KEEPSAKES } from "./expeditions";
 import { LOST_TOOLS } from "./lost-tools";
 import {
@@ -9,9 +7,6 @@ import {
   type DutyEngineer,
   type Engineer,
 } from "./engineers";
-import type { Mountain } from "./mountain";
-import { minedMountain } from "./test-fixtures";
-import { UPGRADES, upgradeById, NO_UPGRADES } from "./upgrades";
 import {
   awayGoneWords,
   awayMinedWords,
@@ -121,8 +116,6 @@ import {
   tendsNote,
   tripDetail,
   tunnelLock,
-  upgradeEffectLine,
-  upgradeWhyLine,
   ENGINEERS_BACK,
   PROMOTE_NOT_YET,
   PROMOTE_STEP_UP,
@@ -677,71 +670,6 @@ describe("a machine's crew", () => {
   });
 });
 
-describe("upgrade card before and after (#324)", () => {
-  const at = Date.now();
-  const crew = {
-    ...minedMountain(1_000_000),
-    owned: { ...minedMountain(1_000_000).owned, helper: 12, cart: 5 },
-  };
-
-  it("no upgrade says taps, since the dig went (#728)", () => {
-    const deep = {
-      ...crew,
-      owned: { ...crew.owned, helper: 200, borer: 3, machine: 1 },
-    };
-    for (const upgrade of Object.values(UPGRADES)) {
-      const maxed = {
-        ...deep,
-        upgrades: { ...NO_UPGRADES, [upgrade.id]: upgrade.maxLevel },
-      };
-      expect(upgradeEffectLine(upgrade, maxed, at)).not.toMatch(/Taps/);
-    }
-  });
-});
-
-describe("upgrade card why line (#342)", () => {
-  const at = Date.now();
-  const crew = {
-    ...minedMountain(1_000_000),
-    owned: { ...minedMountain(1_000_000).owned, helper: 12, cart: 5 },
-  };
-  const empty = {
-    ...minedMountain(0),
-    owned: { ...minedMountain(0).owned, helper: 0, cart: 0 },
-  };
-  const deep = {
-    ...minedMountain(100_000_000),
-    owned: {
-      ...minedMountain(100_000_000).owned,
-      helper: 200,
-      cart: 20,
-      drill: 6,
-      borer: 3,
-      machine: 1,
-    },
-  };
-
-  it("never repeats the effect line, on any card, crewed or not", () => {
-    for (const mountain of [empty, crew, deep]) {
-      for (const upgrade of Object.values(UPGRADES)) {
-        const effect = upgradeEffectLine(upgrade, mountain, at);
-        const why = upgradeWhyLine(upgrade, mountain);
-        expect(why).not.toBe(effect);
-        // Near-duplicates too: the same opening words.
-        expect(why.split(" ").slice(0, 3)).not.toEqual(
-          effect.split(" ").slice(0, 3),
-        );
-      }
-    }
-  });
-
-  it("a synergy with none of its source says what makes it count", () => {
-    expect(upgradeWhyLine(upgradeById("borerSyn"), empty)).toBe(
-      "It counts once you have drills.",
-    );
-  });
-});
-
 describe("the Ledger's words (#375)", () => {
   it("names the drawer's kick, legends and Back", () => {
     expect(LEDGER_KICK).toBe("Tonight, and the mine so far");
@@ -833,52 +761,5 @@ describe("boostOverWords (#527)", () => {
     expect(boostOverWords("Axle grease", 1)).toBe(
       "Axle grease over.\nYour crew mines 1 stone a second now.",
     );
-  });
-});
-
-/** A fresh mine's words for the worker's and the stages' upgrades (#661, the spec's call 41). */
-const freshWords = <T>(body: () => T): T => withFactors({}, body);
-
-const boots = upgradeById("boots");
-const helpers = upgradeById("cartSyn");
-
-const onHaulage = (count: number): Mountain => {
-  const mountain = createMountain();
-  return { ...mountain, jobs: { ...mountain.jobs, haulage: count } };
-};
-
-describe("a fresh mine's upgrade words", () => {
-  it("says Work boots lifts a worker with a tool, with the tool's numbers", () => {
-    freshWords(() => {
-      const mountain = createMountain();
-      expect(boots.name).toBe("Work boots");
-      expect(upgradeEffectLine(boots, mountain, 0)).toBe(
-        "Workers with a tool 3/s to 7.1/s.",
-      );
-      expect(upgradeWhyLine(boots, mountain)).toBe(
-        "Picks, barrows and winches go faster. Machines, drivers and builders do not.",
-      );
-    });
-  });
-
-  it("names Loading crews, and counts the workers on haulage", () => {
-    freshWords(() => {
-      const six = onHaulage(6);
-      expect(helpers.name).toBe("Loading crews");
-      expect(upgradeEffectLine(helpers, six, 0)).toBe("Carts 60/s to 63/s.");
-      expect(upgradeWhyLine(helpers, six)).toBe(
-        "Each worker on haulage makes carts 1% faster.",
-      );
-    });
-  });
-
-  it("says only Loading crews' rule while haulage has nobody", () => {
-    freshWords(() => {
-      const none = onHaulage(0);
-      expect(upgradeEffectLine(helpers, none, 0)).toBe(
-        "Each worker on haulage makes carts 1% faster.",
-      );
-      expect(upgradeWhyLine(helpers, none)).toBe("");
-    });
   });
 });

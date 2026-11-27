@@ -96,24 +96,20 @@ describe("a stage's list", () => {
     expect(progress.getSnapshot().mountain.owned.hoist).toBe(10);
   });
 
-  it("buys an upgrade once, then reads Owned", () => {
-    const { find, progress, text } = mount(withStones(3_000_000, { cart: 5 }));
-    find('.mine-stage[data-stage="haul"] .mine-stage-info').click();
-    const row = `${sheet} [data-upgrade="cartSyn"]`;
-    expect(text(`${row} .stage-row-name`)).toBe("Loading crews");
-    find(`${row} .stage-buy`).click();
-    expect(progress.getSnapshot().mountain.upgrades.cartSyn).toBe(1);
-    expect(find(`${row} .stage-buy`).hidden).toBe(true);
-    expect(find(`${row} .stage-owned`).hidden).toBe(false);
+  it("shows no old instant-buy upgrade rows in stage sheets (#780)", () => {
+    const { find, root } = mount(withStones(5_000_000, { cart: 5, drill: 5 }));
+    for (const stage of ["face", "haul", "lift"]) {
+      find(`.mine-stage[data-stage="${stage}"] .mine-stage-info`).click();
+      expect(root.querySelectorAll(`${sheet} [data-upgrade]`)).toHaveLength(0);
+      expect(find(sheet).textContent).not.toContain("Upgrades");
+    }
   });
 
   it("buys nothing from a dark key", () => {
     const { find, progress } = mount(withStones(0, { cart: 5 }));
     find('.mine-stage[data-stage="haul"] .mine-stage-info').click();
-    find(`${sheet} [data-upgrade="cartSyn"] .stage-buy`).click();
     find(`${sheet} [data-machine="cart"] .stage-key`).click();
     const mountain = progress.getSnapshot().mountain;
-    expect(mountain.upgrades.cartSyn).toBe(0);
     expect(mountain.owned.cart).toBe(5);
   });
 
@@ -140,21 +136,17 @@ describe("a stage's list", () => {
 });
 
 describe("the workers in the workforce", () => {
-  it("has Work boots under the jobs, and buys it", () => {
-    // The 21 workers the start had before #703: Work boots is open.
-    const { find, progress, text } = mount(() =>
+  it("shows the workers' mark under the jobs without old Work boots upgrade rows (#780)", () => {
+    const { find, root, text } = mount(() =>
       withStones(2_000_000)(crewedStart()),
     );
     find(".frame-workers").click();
-    const row = '.frame-sheet [data-upgrade="boots"]';
-    expect(text(`${row} .stage-row-name`)).toBe("Work boots");
-    expect(text(`${row} .stage-row-line`)).toBe(
-      "Workers with a tool 3/s to 7.1/s.",
-    );
     expect(text(".frame-workers-own .stage-row-why")).toBe(
       "21 of 25 · Every worker with a tool works twice as fast.",
     );
-    find(`${row} .stage-buy`).click();
-    expect(progress.getSnapshot().mountain.upgrades.boots).toBe(1);
+    expect(root.querySelectorAll(".frame-sheet [data-upgrade]")).toHaveLength(
+      0,
+    );
+    expect(find(".frame-workers-own").textContent).not.toContain("Work boots");
   });
 });
