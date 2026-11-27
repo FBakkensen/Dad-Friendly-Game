@@ -180,3 +180,53 @@ The picture as it came is `mockups/refinery/art/res-parts-pixellab.png`, in pixe
 python3 scripts/palette-icon.py mockups/refinery/art/res-parts-pixellab.png mockups/city/art/palette.png mockups/refinery/art/res-parts-drawn.png
 python3 scripts/outline-icon.py mockups/refinery/art/res-parts-drawn.png src/assets/board/res-parts.png
 ```
+
+## Slice 2: Parts Press, Glass, Glassworks, Precision Assembly and The Research Lab (#774, #775, #776, #777, #778)
+
+The three new machines, the Glass good and the city's fourth building, for slice 2's part 2. They are in `src/assets/board/` and `src/assets/city/` with the other machines, goods and buildings. The Glass icon is in `priceIcon` so Part 2's UI (#779) can show it; no code draws the machines or the Research Lab yet, the stockpile strip does not show Glass yet, and Slice 2 Part 2 stays off in play until #780. Flemming approved the spend (up to six PixelLab generations each) and then approved the five finished pictures on 27 Nov 2026. 22 generations were used, of 30 allowed.
+
+| File                                               | Size  | Use                                                                                                    |
+| -------------------------------------------------- | ----- | ------------------------------------------------------------------------------------------------------ |
+| `src/assets/board/mach-parts-press.png`            | 32×32 | The Parts Press, the first Factory line: in the Factory and on its key, once #779 draws it.            |
+| `src/assets/board/mach-parts-press-dim.png`        | 32×32 | A Parts Press with no worker on it.                                                                    |
+| `src/assets/board/res-glass.png`                   | 16×16 | Glass, the Refinery's third good: on its stockpile, on the order strip, in prices, once #779 draws it. |
+| `src/assets/board/mach-glassworks.png`             | 32×32 | The Glassworks, the third Refinery furnace: in the refinery and on its key, once #779 draws it.        |
+| `src/assets/board/mach-glassworks-dim.png`         | 32×32 | A Glassworks with no worker on it.                                                                     |
+| `src/assets/board/mach-precision-assembly.png`     | 32×32 | Precision Assembly, the 3-input Factory line: in the Factory and on its key, once #779 draws it.       |
+| `src/assets/board/mach-precision-assembly-dim.png` | 32×32 | A Precision Assembly line with no worker on it.                                                        |
+| `src/assets/city/research-lab.png`                 | 46×64 | The Research Lab, the city's fourth building: on its plot in the skyline, its card, its reveal.        |
+
+The machines and the Research Lab were made the way the kiln, the saw, the Warehouse and the Foundry were: PixelLab `create_image_pixflux` (transparent background, side view, single color black outline, medium shading, highly detailed, the color image `mockups/city/art/palette.png`, and a rough sketch as the init image). Glass was made the way the brick, the cut stone and the parts icon were: PixelLab `create_image_pixen`, 16×16, transparent background, high top-down view, single color black outline, medium detail. Pixen takes no color image. `scripts/outline-icon.py` gave each one the house outline, and `scripts/dim-icon.py` made the dim machine icons, as for the kiln.
+
+- `mach-parts-press.png`: seed 1103, init `mockups/refinery/art/init-parts-press.png` at strength 200, on a 32×32 canvas. Prompt: "parts press of a mine works factory seen from the side: one compact machine, a big toothed brass flywheel on the left fixed to a heavy dark iron press frame on the right, a brass ram stamping a pale cut stone block, timber table, grey stone footing, flat 2D side profile". It was the third of five tries. The first two, from an earlier sketch at strength 130, came out as a wheel and a press with a gap of empty table between them. The fourth turned the wheel into a golden figure, and the fifth was darker and less clear.
+
+  The picture as PixelLab drew it is `mockups/refinery/art/mach-parts-press-pixellab.png`. Nothing was cleared. That is also `mockups/refinery/art/mach-parts-press-drawn.png`. `scripts/dim-icon.py` made `mach-parts-press-dim.png` from the outlined picture, as for the kiln.
+
+- `res-glass.png`: pixen, seed 1204, 16×16, high top-down view, medium detail. Prompt: "a glass brick, a long box shape with hard corners, pale silver top face, cool blue-grey front face, the whole brick is glass". It was the fourth of six tries. The others came out as a rounded shard, a soft puff, a grey cube like cut stone, a cyan gem that the palette turned grey-green, and a cream bun. The corners are a little softer than the brick's. A pale cream-and-grey slab is what tells it from `res-brick.png`, a red box, and from `res-cut-stone.png`, a chunky grey block, at 16. The picture as it came is `mockups/refinery/art/res-glass-pixellab.png`, in pixen's own silvers. `scripts/palette-icon.py` moved it onto the board's colours (`mockups/refinery/art/res-glass-drawn.png`), as for the brick.
+
+- `mach-glassworks.png`: seed 1304, init `mockups/refinery/art/init-glassworks.png` at strength 180, on a 32×32 canvas. Prompt: "glassworks furnace of a mine works seen from the side: a squat rectangular tank furnace of red-brown fired bricks with visible brick courses on a grey stone footing, a wide arched glory hole glowing with pale amber molten glass, a short dark iron chimney with a brass band on the left, iron straps round the tank, a small glass pane standing to the right, flat 2D side profile". It was the fourth of four tries. The first had a messy roofline, the second a cleaner shape but weaker brick texture, and the third a flatter mouth and a lumpy left side.
+
+  The picture as PixelLab drew it is `mockups/refinery/art/mach-glassworks-pixellab.png`. PixelLab drew 18 pixels in pure black, the colour of the cells that fill the palette picture's last row, which is not one of the board's: the right edge and the foot of the glory hole, and the cap of the small stack on the right. `scripts/palette-icon.py` moved those pixels to the nearest board colour, and nothing else moved: that is `mockups/refinery/art/mach-glassworks-drawn.png`. `scripts/dim-icon.py` made `mach-glassworks-dim.png` from the outlined picture, as for the kiln. A squat rectangular tank with a wide pale mouth is what tells it from `mach-kiln.png`, a round beehive dome, at 32.
+
+- `mach-precision-assembly.png`: seed 1403, init `mockups/refinery/art/init-precision-assembly.png` at strength 180, on a 32×32 canvas. Prompt: "precision assembly bench of a mine works factory seen from the side: a timber workbench on a dark iron frame, an iron vise holding a pale stone block on the left, a small brass gear in the middle, a standing glass pane on the right, a small brass architect lamp with a short arm and a dark conical shade over the gear, grey stone footing, flat 2D side profile". It was the third of five tries. The first came out as a yellow blob, the second as a sparse lamp on an empty table, the fourth with a murky left side, and the fifth with a clearer cog but a weaker lamp.
+
+  The picture as PixelLab drew it is `mockups/refinery/art/mach-precision-assembly-pixellab.png`. Nothing was cleared. That is also `mockups/refinery/art/mach-precision-assembly-drawn.png`. `scripts/dim-icon.py` made `mach-precision-assembly-dim.png` from the outlined picture, as for the kiln.
+
+- `research-lab.png`: seed 1502, init `mockups/city/art/init-research-lab.png` at strength 150, on a 48×64 canvas, then trimmed to its bounding box. Prompt: "research laboratory of an industrial mine works seen from the side: two storeys, a lower storey of pale cut stone blocks on a grey stone footing with a dark timber door and two small iron-framed windows lit warm amber, an upper storey of red-brown brick with four small iron-framed windows lit warm amber, a dark riveted iron roof, a small brass-framed glass cupola on the ridge lit warm amber with an iron cap, flat 2D side profile". It was the second of two tries. The first used the full 48-wide canvas and had flatter stone; the second has clearer block texture and is 46 wide, the Warehouse's width.
+
+  It is built of what it costs: pale cut stone on the ground floor, red-brown brick above, and brass and glass in the cupola. It is 46 wide and 64 tall. The city has no fourth plot in `PLOT_SPANS` yet; #779 adds that plot and draws the building. The cupola's light is at 20 to 25 across and 6 to 12 down, counted from 0. The four upper windows are at 6 to 8, 16 to 18, 27 to 29 and 37 to 39 across, 28 to 33 down. The two lower windows are at 6 to 9 and 35 to 38 across, 49 to 54 down, for the glow once it is operational. The trimmed picture is `mockups/city/art/research-lab-drawn.png`. The picture as PixelLab drew it, untrimmed, is `mockups/city/art/research-lab-pixellab.png`.
+
+The committed files are reproduced by:
+
+```bash
+python3 scripts/outline-icon.py mockups/refinery/art/mach-parts-press-drawn.png src/assets/board/mach-parts-press.png
+python3 scripts/dim-icon.py src/assets/board/mach-parts-press.png src/assets/board/mach-parts-press-dim.png
+python3 scripts/palette-icon.py mockups/refinery/art/res-glass-pixellab.png mockups/city/art/palette.png mockups/refinery/art/res-glass-drawn.png
+python3 scripts/outline-icon.py mockups/refinery/art/res-glass-drawn.png src/assets/board/res-glass.png
+python3 scripts/palette-icon.py mockups/refinery/art/mach-glassworks-pixellab.png mockups/city/art/palette.png mockups/refinery/art/mach-glassworks-drawn.png
+python3 scripts/outline-icon.py mockups/refinery/art/mach-glassworks-drawn.png src/assets/board/mach-glassworks.png
+python3 scripts/dim-icon.py src/assets/board/mach-glassworks.png src/assets/board/mach-glassworks-dim.png
+python3 scripts/outline-icon.py mockups/refinery/art/mach-precision-assembly-drawn.png src/assets/board/mach-precision-assembly.png
+python3 scripts/dim-icon.py src/assets/board/mach-precision-assembly.png src/assets/board/mach-precision-assembly-dim.png
+python3 scripts/outline-icon.py mockups/city/art/research-lab-drawn.png src/assets/city/research-lab.png
+```
