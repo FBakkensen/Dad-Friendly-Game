@@ -1,10 +1,11 @@
 import { buildRate } from "./building-site";
+import { factoryMakers, factoryOpen } from "./factory";
 import { formatCompact } from "./format";
 import { STAGES, type Stage } from "./line";
 import type { Mountain } from "./mountain";
 import { levelStageTitle } from "./mine-level-view";
 import { LEVEL_NAMES } from "./mine-view";
-import { graniteOpen, type MineLevelId } from "./mine-levels";
+import { crystalOpen, graniteOpen, type MineLevelId } from "./mine-levels";
 import {
   MAKER_IDS,
   makerJob,
@@ -143,9 +144,29 @@ function refineryJobs(mountain: Mountain): readonly JobId[] {
   return refineryMakers(mountain).map(makerJob);
 }
 
-/** A site's jobs now: the refinery's are its open makers'. */
+/** A site's jobs now: the refinery's and factory's are their open makers'. */
 function siteJobs(mountain: Mountain, site: SiteId): readonly JobId[] {
-  return site === "refinery" ? refineryJobs(mountain) : SITE_JOBS[site];
+  if (site === "refinery") {
+    return refineryJobs(mountain);
+  }
+  if (site === "factory") {
+    return factoryOpen(mountain) ? factoryMakers(mountain).map(makerJob) : [];
+  }
+  return SITE_JOBS[site];
+}
+
+function mineGroups(mountain: Mountain): readonly JobSite[] {
+  const groups = [...MINE_GROUPS];
+  if (crystalOpen(mountain)) {
+    groups.splice(2, 0, {
+      key: "mine:crystal",
+      name: GROUP_NAMES.crystal,
+      jobs: ["crystalDrilling", "crystalHaulage"],
+    });
+  }
+  return groups.map((group) =>
+    siteGroup(group.key, "mine", group.name, group.jobs),
+  );
 }
 
 /** Every site's jobs by name, open or not: the sheet builds them and shows the open ones (#671). */
@@ -153,9 +174,7 @@ export function jobSites(mountain: Mountain): readonly JobSite[] {
   return SITES.filter((site) => siteJobs(mountain, site).length > 0).flatMap(
     (site) =>
       site === "mine" && graniteOpen(mountain)
-        ? MINE_GROUPS.map((group) =>
-            siteGroup(group.key, site, group.name, group.jobs),
-          )
+        ? mineGroups(mountain)
         : [siteGroup(site, site, SITE_NAMES[site], siteJobs(mountain, site))],
   );
 }

@@ -1,11 +1,13 @@
 import { nextBuilding } from "./city";
 import { tierOnSale } from "./crew";
+import { factoryMakers, factoryOpen } from "./factory";
 import type { Mountain } from "./mountain";
 import { STAGES, type Stage } from "./line";
 import { mineMoves } from "./mine-piles";
 import { canPay } from "./stock";
 import { makerPrice, makersOpen, refineryMakers } from "./makers";
-import { partTwoOn, slice2Part1On } from "./part-switch";
+import { partTwoOn, slice2Part1On, slice2Part2On } from "./part-switch";
+import { researchOpen, researchReady } from "./research";
 import { MAX_STOCKYARD_LEVEL, expandPrice, stockyardOpen } from "./stockyard";
 import { TIERS, tierGood, tierQuote } from "./tiers";
 import { VEHICLES, vehicleOpen, vehiclePrice } from "./transport";
@@ -45,7 +47,7 @@ export function siteOpen(
     case "refinery":
       return partTwoOn() && makersOpen(mountain);
     case "factory":
-      return false;
+      return factoryOpen(mountain);
     default:
       return true;
   }
@@ -59,6 +61,9 @@ export function openSites(
 }
 
 function upgradeAffordable(mountain: Mountain, upgrade: Upgrade): boolean {
+  if (slice2Part2On()) {
+    return false;
+  }
   const price = upgradePrice(mountain, upgrade.id);
   return (
     price !== undefined &&
@@ -104,6 +109,16 @@ function refineryCount(mountain: Mountain): number {
   return makers + level;
 }
 
+/** The factory's buys he can afford now: Parts Press and Precision Assembly (#779). */
+function factoryCount(mountain: Mountain): number {
+  if (!siteOpen(mountain, "factory")) {
+    return 0;
+  }
+  return factoryMakers(mountain).filter((id) =>
+    canPay(mountain.stock, makerPrice(mountain, id)),
+  ).length;
+}
+
 /** Open transport vehicles he can afford now (global Transport in Slice 2, City in Slice 1). */
 export function transportCount(mountain: Mountain): number {
   return VEHICLES.filter(
@@ -115,8 +130,9 @@ export function transportCount(mountain: Mountain): number {
 
 /**
  * Every buy on each site he can afford now. The mine counts what its
- * stages' lists hold; the refinery a kiln and a stockyard level; the city
- * counts its vehicles in Slice 1 (moved to global Transport in Slice 2, #768).
+ * stages' lists hold; the refinery its makers and a stockyard level; the
+ * factory its open makers under Part 2; the city counts its vehicles in
+ * Slice 1 (moved to global Transport in Slice 2, #768).
  * Hiring is not counted: a worker is nearly always affordable.
  */
 export function siteCounts(mountain: Mountain): Record<SiteId, number> {
@@ -127,7 +143,7 @@ export function siteCounts(mountain: Mountain): Record<SiteId, number> {
   return {
     mine,
     refinery: refineryCount(mountain),
-    factory: 0,
+    factory: factoryCount(mountain),
     city: slice2Part1On() ? 0 : transportCount(mountain),
   };
 }
@@ -153,6 +169,13 @@ export type NextView =
   /** A building nobody has ordered: what Next points at. */
   | {
       readonly kind: "order";
+      readonly head: string;
+      readonly line: string;
+      readonly ready: number;
+    }
+  /** An active research project has all goods delivered and is ready to install (#779). */
+  | {
+      readonly kind: "research";
       readonly head: string;
       readonly line: string;
       readonly ready: number;
@@ -212,6 +235,18 @@ export function nextView(mountain: Mountain): NextView {
       ready: ready + 1,
     };
   }
+  if (
+    researchOpen(mountain) &&
+    mountain.research.active !== undefined &&
+    researchReady(mountain.research.active)
+  ) {
+    return {
+      kind: "research",
+      head: `Next · ${SITE_NAMES.city}`,
+      line: "Install research",
+      ready: ready + 1,
+    };
+  }
   if (ready > 0) {
     return {
       kind: "affordable",
@@ -238,7 +273,16 @@ export function siteLamp(mountain: Mountain, site: SiteId): Lamp {
   if (siteCounts(mountain)[site] > 0) {
     return "green";
   }
-  return site === "city" && mountain.project.kind === "delivering"
+  if (site !== "city") {
+    return "dark";
+  }
+  const activeResearch = researchOpen(mountain)
+    ? mountain.research.active
+    : undefined;
+  if (activeResearch !== undefined && researchReady(activeResearch)) {
+    return "green";
+  }
+  return mountain.project.kind === "delivering" || activeResearch !== undefined
     ? "amber"
     : "dark";
 }

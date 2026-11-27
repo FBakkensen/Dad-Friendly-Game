@@ -609,3 +609,80 @@ export function slice2Part1PitheadFullSave(now: number): SeedSave {
     run: { rock: 30_000_000 },
   });
 }
+
+/**
+ * Slice 2 Part 2 (#779): all 3 mine levels open (Topsoil, Granite, Crystal
+ * Caves), 4 hoists split across levels + All in turn, Refinery with Kilns,
+ * Saws & Glassworks (2 input buffers), steady-flow Factory with Parts Press
+ * (2 buffers), Precision Assembly (3 buffers) & Parts output buffer, City
+ * with 4 plots (including Research Lab operational) and 1 installed + 1
+ * active delivering research project.
+ */
+export function slice2Part2Save(now: number): SeedSave {
+  return sliceSave(now, {
+    owned: { helper: 42, cart: 4, drill: 3, hoist: 4 },
+    stock: {
+      stones: 3_000_000,
+      brick: 600_000,
+      cutStone: 400_000,
+      glass: 120_000,
+      parts: 80_000,
+    },
+    jobs: {
+      drilling: 4,
+      haulage: 3,
+      hoisting: 6,
+      graniteDrilling: 3,
+      graniteHaulage: 2,
+      crystalDrilling: 3,
+      crystalHaulage: 2,
+      driving: 3,
+      building: 2,
+      kilns: 2,
+      saws: 2,
+      glassworks: 2,
+      partsPress: 2,
+      precisionAssembly: 3,
+    },
+    fleet: { horseWagon: 2, truck: 2 },
+    marks: {
+      operational: ["lightTower", "warehouse", "foundry", "researchLab"],
+    },
+    makers: {
+      kiln: 2,
+      saw: 2,
+      glassworks: 1,
+      partsPress: 1,
+      precisionAssembly: 1,
+    },
+    piles: { face: 180, shaft: 140 },
+    mineLevels: {
+      granite: {
+        machines: { cart: 1, drill: 1 },
+        piles: { face: 160, shaft: 110 },
+      },
+      crystal: {
+        machines: { cart: 1, drill: 1 },
+        piles: { face: 120, shaft: 90 },
+      },
+    },
+    pithead: { topsoil: 240, granite: 180, crystal: 120 },
+    makerBuffers: {
+      kiln: { topsoilRock: 420 },
+      saw: { graniteRock: 310 },
+      glassworks: { crystalRock: 360, stones: 240 },
+      partsPress: { brick: 420, cutStone: 210 },
+      precisionAssembly: { brick: 260, cutStone: 180, glass: 120 },
+    },
+    factoryOutput: { parts: 140 },
+    research: {
+      done: ["workBoots"],
+      active: {
+        id: "heavyCouplings",
+        arrived: { parts: 180_000, glass: 3_500_000 },
+      },
+    },
+    cages: { assigned: { topsoil: 1, granite: 1, crystal: 1 } },
+    run: { rock: 60_000_000 },
+  });
+}

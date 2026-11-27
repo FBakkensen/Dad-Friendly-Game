@@ -6,6 +6,7 @@ import truckUrl from "./assets/city/truck.png";
 import warehouseUrl from "./assets/city/warehouse.png";
 import type { BuildingId } from "./city";
 import type { CityScene, Plot } from "./city-view";
+import { PART2_ART } from "./part2-art";
 import { BY_LOAD, type VehicleId } from "./transport";
 import {
   SCENE_W,
@@ -33,14 +34,19 @@ import {
  * What lies under the road, from the foot up, in art px: the project's card,
  * the plots' tags and the road. The page sets the same rows (city-site).
  */
-export const CITY_FOOT = { card: 88, tags: 15, road: 11 } as const;
+export const CITY_FOOT = {
+  card: 88,
+  cardThree: 98,
+  tags: 15,
+  road: 11,
+} as const;
 
 /** Where the ground meets the sky, for a scene `height` art px tall. */
-function groundY(height: number): number {
-  return height - 2 - CITY_FOOT.card - CITY_FOOT.tags - CITY_FOOT.road;
+function groundY(height: number, cardHeight: number = CITY_FOOT.card): number {
+  return height - 2 - cardHeight - CITY_FOOT.tags - CITY_FOOT.road;
 }
 
-/** The three plots, left to right, in art px: where each starts and its width. */
+/** The three plots (Part 1), left to right, in art px: where each starts and its width. */
 export const PLOT_SPANS: readonly { readonly x: number; readonly w: number }[] =
   [
     { x: 4, w: 88 },
@@ -48,33 +54,38 @@ export const PLOT_SPANS: readonly { readonly x: number; readonly w: number }[] =
     { x: 154, w: 54 },
   ];
 
-/**
- * Where each plot's building stands, in art px from the scene's left: the
- * Light Tower 6 into the first plot, the Warehouse 5 into the second, so
- * its 46-wide picture and its scaffold fit the 56-wide plot (#672), and the
- * Foundry 4 into the third, so its 45-wide picture fits the 54-wide plot
- * with the same room to spare on its right (#682).
- */
-const BUILDING_INSETS: readonly number[] = [6, 5, 4];
+/** Four plots (Slice 2 Part 2, #779): Light Tower, Warehouse, Foundry, Research Lab. */
+const PLOT_SPANS_FOUR: readonly {
+  readonly x: number;
+  readonly w: number;
+}[] = [
+  { x: 2, w: 50 },
+  { x: 54, w: 52 },
+  { x: 108, w: 51 },
+  { x: 161, w: 49 },
+];
 
-export function buildingX(plot: number): number {
-  return (PLOT_SPANS[plot]?.x ?? 0) + (BUILDING_INSETS[plot] ?? 6);
+export function plotSpans(
+  count: number,
+): readonly { readonly x: number; readonly w: number }[] {
+  return count >= 4 ? PLOT_SPANS_FOUR : PLOT_SPANS;
 }
 
-/**
- * The yard of the building in hand, in art px: where its builders stand and
- * where its goods lie, which is where the wagons stop. The first plot has room beside the Light Tower. The
- * second has none beside the Warehouse, so its yard is to its left, on the
- * first plot's free ground beside the Light Tower, operational by then
- * (#672; docs/ART.md, the Warehouse). The third has none beside the
- * Foundry either, and the Warehouse stands between, so the Foundry's yard is
- * the Warehouse's, on the same free ground (#682).
- */
+const BUILDING_INSETS: readonly number[] = [6, 5, 4];
+const BUILDING_INSETS_FOUR: readonly number[] = [10, 3, 3, 2];
+
+export function buildingX(plot: number, count = 3): number {
+  const spans = plotSpans(count);
+  const insets = count >= 4 ? BUILDING_INSETS_FOUR : BUILDING_INSETS;
+  return (spans[plot]?.x ?? 0) + (insets[plot] ?? 6);
+}
+
 const SITE_YARDS: readonly {
   readonly builders: number;
   readonly heap: number;
 }[] = [
   { builders: 46, heap: 74 },
+  { builders: 62, heap: 44 },
   { builders: 62, heap: 44 },
   { builders: 62, heap: 44 },
 ];
@@ -86,11 +97,12 @@ export function siteYard(plot: number): {
   return SITE_YARDS[plot] ?? SITE_YARDS[0] ?? { builders: 0, heap: 0 };
 }
 
-/** The buildings drawn: the Light Tower (#662), the Warehouse (#672) and the Foundry (#682). */
+/** The buildings drawn: Light Tower, Warehouse, Foundry, and Research Lab (#779). */
 const BUILDING_URLS = {
   lightTower: towerUrl,
   warehouse: warehouseUrl,
   foundry: foundryUrl,
+  researchLab: PART2_ART.researchLab,
 } as const satisfies Partial<Record<BuildingId, string>>;
 
 function drawnBuilding(id: BuildingId): id is keyof typeof BUILDING_URLS {
@@ -147,12 +159,13 @@ function paintRoad(
   );
 }
 
-/** The still parts of the city, painted once for a height. */
+/** The still parts of the city, painted once for a height and card height. */
 export function paintCityGround(
   c: CanvasRenderingContext2D,
   height: number,
+  cardHeight: number = CITY_FOOT.card,
 ): void {
-  const g = groundY(height);
+  const g = groundY(height, cardHeight);
   paintSky(c, g);
   paintRoad(c, g, height);
 }
@@ -381,10 +394,13 @@ export function drawCity(
   scene: CityScene,
   height: number,
   t: number,
+  cardHeight: number = CITY_FOOT.card,
 ): void {
-  const g = groundY(height);
+  const g = groundY(height, cardHeight);
+  const count = scene.plots.length;
+  const spans = plotSpans(count);
   scene.plots.forEach((plot: Plot, at) => {
-    const span = PLOT_SPANS[at];
+    const span = spans[at];
     if (span === undefined) {
       return;
     }
@@ -392,7 +408,14 @@ export function drawCity(
       stakes(c, span.x + 6, span.w - 12, g);
       return;
     }
-    drawBuilding(c, sprites[plot.building], buildingX(at), g, plot.risen, t);
+    drawBuilding(
+      c,
+      sprites[plot.building],
+      buildingX(at, count),
+      g,
+      plot.risen,
+      t,
+    );
   });
   drawSite(c, sprites, scene, g, t);
   drawVehicles(c, sprites, scene, g, t);

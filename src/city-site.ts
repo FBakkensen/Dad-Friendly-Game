@@ -3,10 +3,10 @@ import { el, hide, mark, setAttr, write } from "./board-dom";
 import { vehicleBuyMove, type Move } from "./economy/actions";
 import {
   CITY_FOOT,
-  PLOT_SPANS,
   drawCity,
   loadCitySprites,
   paintCityGround,
+  plotSpans,
 } from "./city-scene";
 import {
   cityScene,
@@ -25,6 +25,7 @@ import { buildKeyFace, paintMachineKey, type KeyParts } from "./mine-site";
 import type { Mountain } from "./mountain";
 import { slice2Part1On } from "./part-switch";
 import { priceIcon } from "./price-icons";
+import { researchDoorView, type ResearchDoorView } from "./research-view";
 import { runScene } from "./scene-paint";
 import type { BuyAmount } from "./tiers";
 import { VEHICLE_IDS, type VehicleId } from "./transport";
@@ -138,24 +139,75 @@ function paintPlate(
   write(parts.hint, hint ?? "");
 }
 
-type TagParts = { readonly name: HTMLElement; readonly state: HTMLElement };
+type TagParts = {
+  readonly root: HTMLElement;
+  readonly name: HTMLElement;
+  readonly state: HTMLElement;
+};
 
 function buildTags(): {
   readonly root: HTMLElement;
   readonly tags: TagParts[];
 } {
-  const root = el("div", "city-tags");
-  const tags = PLOT_SPANS.map((span) => {
+  return { root: el("div", "city-tags"), tags: [] };
+}
+
+function syncTags(
+  container: { readonly root: HTMLElement; readonly tags: TagParts[] },
+  count: number,
+): void {
+  while (container.tags.length < count) {
     const tag = el("div", "city-tag");
-    tag.style.setProperty("--x", String(span.x));
-    tag.style.setProperty("--w", String(span.w));
     const name = el("b", "");
     const state = el("small", "");
     tag.append(name, state);
-    root.append(tag);
-    return { name, state };
+    container.root.append(tag);
+    container.tags.push({ root: tag, name, state });
+  }
+  while (container.tags.length > count) {
+    container.tags.pop()?.root.remove();
+  }
+}
+
+type ResearchDoorParts = {
+  readonly root: HTMLButtonElement;
+  readonly lamp: HTMLElement;
+  readonly counts: HTMLElement;
+  readonly status: HTMLElement;
+};
+
+function buildResearchDoor(state: FrameState): ResearchDoorParts {
+  const root = el("button", "city-research-door");
+  root.type = "button";
+  root.hidden = true;
+  const info = el("span", "city-research-info");
+  const head = el("span", "city-research-head");
+  const lamp = el("i", "frame-lamp");
+  const counts = el("span", "city-research-counts board-num");
+  head.append(el("b", "city-research-name", "Research Lab"), counts, lamp);
+  const status = el("span", "city-research-status");
+  info.append(head, status);
+  const open = el("span", "city-research-open", "Research");
+  root.append(info, open);
+  root.addEventListener("click", () => {
+    state.openResearch();
   });
-  return { root, tags };
+  return { root, lamp, counts, status };
+}
+
+function paintResearchDoor(
+  parts: ResearchDoorParts,
+  door: ResearchDoorView,
+): void {
+  hide(parts.root, !door.open);
+  if (!door.open) {
+    return;
+  }
+  write(parts.counts, `${String(door.doneCount)}/${String(door.totalCount)}`);
+  write(parts.status, door.status);
+  setAttr(parts.lamp, "data-lamp", door.lamp);
+  mark(parts.root, "ready", door.lamp === "green");
+  setAttr(parts.root, "aria-label", door.label);
 }
 
 /** Taps on the order key closer than this are one tap. */
@@ -248,6 +300,7 @@ function paintBars(
   target: HTMLElement,
   card: ProjectCard & { kind: "project" },
 ): void {
+  target.dataset["bars"] = String(card.bars.length);
   if (target.childElementCount !== card.bars.length) {
     target.replaceChildren(
       ...card.bars.map(() => {
@@ -337,11 +390,12 @@ function paintCard(
   write(parts.completion, card.completion);
 }
 
-/** The city's canvas: its ground once a height, then its moving parts. */
+/** The city's canvas: its ground once a height and card height, then its moving parts. */
 function runCanvas(
   canvas: HTMLCanvasElement,
   shown: () => boolean,
   scene: () => CityScene,
+  cardHeight: () => number,
   signal: AbortSignal | undefined,
 ): void {
   const sprites = loadCitySprites();
@@ -349,9 +403,12 @@ function runCanvas(
     canvas,
     {
       shown,
-      ground: paintCityGround,
+      ground: (c, height) => {
+        paintCityGround(c, height, cardHeight());
+      },
+      layout: cardHeight,
       draw: (c, clock) => {
-        drawCity(c, sprites, scene(), c.canvas.height, clock);
+        drawCity(c, sprites, scene(), c.canvas.height, clock, cardHeight());
       },
     },
     signal,
@@ -369,20 +426,23 @@ export function createCitySite(
   const canvas = el("canvas", "city-canvas");
   canvas.setAttribute("aria-hidden", "true");
   const plate = buildPlate(state);
+  const door = buildResearchDoor(state);
   const tags = buildTags();
   const note = el("p", "city-note", NO_FREE_WORKER);
   note.hidden = true;
   const card = buildCard(state);
   // Under the transport plate, over the sky: never over the plots' names (#715).
   plate.root.append(note);
-  root.append(canvas, plate.root, tags.root, card.root);
+  root.append(canvas, plate.root, door.root, tags.root, card.root);
   listenSteps(root, state, note);
   let scene = cityScene(state.mountain());
+  let cardHeight: number = CITY_FOOT.card;
   let visible = false;
   runCanvas(
     canvas,
     () => visible,
     () => scene,
+    () => cardHeight,
     signal,
   );
   return {
@@ -401,19 +461,32 @@ export function createCitySite(
       } else if (!slice2 && note.parentElement !== plate.root) {
         plate.root.append(note);
       }
+      const doorView = researchDoorView(mountain);
+      paintResearchDoor(door, doorView);
+      mark(root, "has-research-door", doorView.open);
+      const view = projectCard(mountain, now);
+      const threeBars = view.kind === "project" && view.bars.length >= 3;
+      cardHeight = threeBars ? CITY_FOOT.cardThree : CITY_FOOT.card;
+      root.style.setProperty("--city-card", String(cardHeight));
+      mark(root, "three-bars", threeBars);
       scene = cityScene(mountain, now);
       const amount = state.amount();
       if (!slice2) {
         paintPlate(plate, mountain, amount);
       }
-      plots(mountain).forEach((plot, at) => {
-        const tag = tags.tags[at];
-        if (tag !== undefined) {
+      const shownPlots = plots(mountain);
+      const spans = plotSpans(shownPlots.length);
+      syncTags(tags, shownPlots.length);
+      tags.tags.forEach((tag, at) => {
+        const plot = shownPlots[at];
+        const span = spans[at];
+        if (plot !== undefined && span !== undefined) {
+          tag.root.style.setProperty("--x", String(span.x));
+          tag.root.style.setProperty("--w", String(span.w));
           write(tag.name, plot.name);
           write(tag.state, plot.state);
         }
       });
-      const view = projectCard(mountain, now);
       if (
         view.builders.canPlace ||
         (!slice2 && transportPlate(mountain).steps.canPlace)

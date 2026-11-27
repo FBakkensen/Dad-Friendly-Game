@@ -12,6 +12,7 @@ import {
   type StageRow,
 } from "./mine-view";
 import type { Mountain } from "./mountain";
+import { slice2Part2On } from "./part-switch";
 import { MACHINE_WORDS, TOOL_WORDS, formatSpeed, plural } from "./screen-words";
 import type { Price } from "./stock";
 import { effectiveRates } from "./rates";
@@ -149,6 +150,9 @@ function shownUpgrades(
   stage: Stage | undefined,
   now: number,
 ): readonly ListUpgrade[] {
+  if (slice2Part2On()) {
+    return [];
+  }
   return UPGRADES.filter(
     (upgrade) =>
       upgradeStage(upgrade) === stage && upgradeShown(mountain, upgrade),
