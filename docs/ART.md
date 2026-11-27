@@ -164,7 +164,7 @@ All four were made the way the kiln, the brick and the Warehouse were: `create_i
 
 ## Slice 2: Parts (#773)
 
-Parts, the Factory's manufactured good, for slice 2's part 2. It is in `src/assets/board/` with the other goods. The icon is in `priceIcon` so Part 2's UI (#779) can show it; the stockpile strip does not show Parts yet, and Slice 2 Part 2 stays off in play until #780. Flemming approved the spend (up to six PixelLab generations), the size, the tool and the prompt, then approved the finished picture, all on 26 Nov 2026.
+Parts, the Factory's manufactured good, for slice 2's part 2. It is in `src/assets/board/` with the other goods, registered in `priceIcon`, and live in play since #780. Flemming approved the spend (up to six PixelLab generations), the size, the tool and the prompt, then approved the finished picture, all on 26 Nov 2026.
 
 | File                             | Size  | Use                                                                                             |
 | -------------------------------- | ----- | ----------------------------------------------------------------------------------------------- |
@@ -183,7 +183,7 @@ python3 scripts/outline-icon.py mockups/refinery/art/res-parts-drawn.png src/ass
 
 ## Slice 2: Parts Press, Glass, Glassworks, Precision Assembly and The Research Lab (#774, #775, #776, #777, #778)
 
-The three new machines, the Glass good and the city's fourth building, for slice 2's part 2. They are in `src/assets/board/` and `src/assets/city/` with the other machines, goods and buildings. The Glass icon is in `priceIcon` so Part 2's UI (#779) can show it; no code draws the machines or the Research Lab yet, the stockpile strip does not show Glass yet, and Slice 2 Part 2 stays off in play until #780. Flemming approved the spend (up to six PixelLab generations each) and then approved the five finished pictures on 27 Nov 2026. 22 generations were used, of 30 allowed.
+The three new machines, the Glass good and the city's fourth building, for slice 2's part 2. They are in `src/assets/board/` and `src/assets/city/` with the other machines, goods and buildings, routed through `src/part2-art.ts` and `priceIcon`, and live in play since #780. Flemming approved the spend (up to six PixelLab generations each) and then approved the five finished pictures on 27 Nov 2026. 22 generations were used, of 30 allowed.
 
 | File                                               | Size  | Use                                                                                                    |
 | -------------------------------------------------- | ----- | ------------------------------------------------------------------------------------------------------ |

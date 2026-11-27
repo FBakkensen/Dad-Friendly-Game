@@ -47,9 +47,10 @@ page is the map, plus the rules that keep it that way.
    given and scores every measure. `lab/guardrails` turns `targets.ts` into
    one check per entry. `tools/strategy-lab.ts` (`npm run lab`) loads the
    registries, writes the report, and warns on a miss unless `LAB_STRICT=1`.
-   Since #737 it plays only the fresh mine, and since #769 Slice 2 Part 1
+   Since #737 it plays only the fresh mine, and since #780 Slice 2 Part 2
    (`LAB_FACTORS` in `lab/run` is `PLAY_FACTORS` from `part-switch`, the map
-   boot holds: `part2.off=0`, `part3.off=0`, `slice2Part1.off=0`). Since #739 the
+   boot holds: `part2.off=0`, `part3.off=0`, `slice2Part1.off=0`,
+   `slice2Part2.off=0`). Since #739 the
    fresh mine is the rules, so it refuses `fresh.off` and `line.off` by
    name. `TARGETS` holds one row since #675: the five-day floor for the whole
    slice (`slice-five-days`, `sliceDays` at least 5 for every player type;
@@ -82,11 +83,12 @@ page is the map, plus the rules that keep it that way.
    rock's hardness and its `layer.<n>.<tier>.hardness` factor (#194, #198) went
    with depth in #740.
    Until #738, `pacing` simulated players on top of them and bought through the catalogue.
-   Every number lives here. The drawers read two display rules, none of
-   which imports art: `row-view` (types only: one `RowView` for every drawer
-   row: its words as fit options, lamp, state, and whether a tap acts; every
-   row module sets its lamp by the one lamp rule in `docs/DESIGN.md`, #509)
-   and `upgrade-rows` (a lasting upgrade's row, which the stage list reads).
+   Every number lives here. `row-view` (types only: one `RowView` for every
+   drawer row: its words as fit options, lamp, state, and whether a tap acts;
+   every row module sets its lamp by the one lamp rule in `docs/DESIGN.md`,
+   #509) serves the Ledger drawer. Old instant-buy upgrade rows
+   (`upgrade-rows`) were retired when Slice 2 Part 2 moved all lasting upgrades
+   into The Research Lab (`research`, `research-view`, `research-sheet`, #780).
    The board's display rules (`ready-now`, `machine-bays`, `buys-rows`,
    `workshop-rows`, `workshop-sheet`, `key-rail`, and the boost and
    found-tool rows) went with the board (#727).
@@ -266,10 +268,10 @@ page is the map, plus the rules that keep it that way.
      machines, the relic plate and its note went with the board (#727), and
      the relic art with the relics (#728). `buys-amount`
      is the device's one amount (`deviceAmount`, `paintAmountKey`), kept in
-     device storage, never in the save. `upgrade-rows` is the upgrade rows'
-     view the stage list reads. Shared player-facing wording lives in
-     `screen-words`. The app's styles are `src/tokens.css` and
-     `src/board.css`.
+     device storage, never in the save. Shared player-facing wording lives in
+     `screen-words`. Slice 2 Part 2 screens live in `factory-view`/`factory-site`,
+     `research-view`/`research-sheet`, and `part2-art` (#779, #780). The app's
+     styles are `src/tokens.css` and `src/board.css`.
 
 ## The save (#558)
 
@@ -288,32 +290,41 @@ paths are read-only.
   `savedAt == request.time`, the device id and label sizes, `game` a map, and
   no other key. A new game fact never needs a rules change.
 - **The game map** (`save-format.ts`): `owned` (by tier id), `stock`
-  (`stones`, `brick`, `cutStone`), `levels` (crew upgrade levels: `boots`,
+  (`stones`, `brick`, `cutStone`, `glass`, `parts`), `levels` (Part 1 crew
+  upgrade levels kept readable without reset and honored by Research: `boots`,
   `cartSyn`, `drillSyn`, `borerSyn`), `marks` (`seen`, `taught`, `finds`,
-  `operational`), `run` (`rock`: rock dug, #664),
+  `operational` including `researchLab`), `run` (`rock`: rock dug, #664),
   `engineers` (post `"tunnel"` while away), `expeditions` (each with the
   `home` post), `fleet` (by vehicle id: `horseWagon`, `truck`, #654), `jobs`
-  (workers by job, #689), `piles` (the drilled rock, the rock at the shaft and
-  the rock at the kilns, whole and with no upper bound, #703, #666), `makers`
-  (by maker id, #666), `stockyard` (its level, a whole number up to the
-  ledger's `stockyard` cap, #666), `mineLevels` (sunk deeper levels by id,
-  starting with `granite`: `machines` and `piles`; `{}` for a bare sunk level,
-  written only once at least one deeper level is sunk, #766, #769), `pithead`
-  (pithead rock awaiting physical transport by level, uncapped whole counts,
-  refused on an unsunk level, #766), `makerBuffers` (finite per-maker input
-  buffers by maker and input id, refused on an unsunk level, #766),
-  `cycleMicros` (persisted integer micro-cycles `0..999_999` per maker, refused
-  on an unsunk level, #766), `assignedRuns` (dedicated vehicles per single-good
-  run, reserved for Slice 2 Part 3 and validated `sum <= fleetSize`, #766),
-  `cages` (`assigned`, the hoists assigned to each level, never more than he
-  owns together, and `carried`, what the cages carry by level and not where
-  they are; each left out while all zero, #724) and `project` (the
-  building, `state` `delivering` or `onHold`, `step` 0 to 2, the goods
-  `arrived` and what of them is `onSite`, not yet built in (#690), bounded per
-  good by `SITE_GOOD_CAP` (#766); left out while nothing is ordered), with
-  `operational` buildings in `marks`. A project for a building that already
-  stands or is not the next one, a step past the roof, more on the site than
-  arrived or than it holds, or a step whose goods are all built in reads `bad`.
+  (workers by job, including Crystal Caves, Glassworks, Parts Press, and
+  Precision Assembly, #689, #770, #771), `piles` (the drilled rock, the rock at
+  the shaft and the rock at the kilns, whole and with no upper bound, #703,
+  #666), `makers` (by maker/factory-line id: `kiln`, `saw`, `glassworks`,
+  `partsPress`, `precisionAssembly`, #666, #771), `stockyard` (its level, a
+  whole number up to the ledger's `stockyard` cap, #666), `mineLevels` (sunk
+  deeper levels by id: `granite`, `crystal`, each with `machines` and `piles`;
+  `{}` for a bare sunk level, written only once at least one deeper level is
+  sunk, #766, #769, #770), `pithead` (pithead rock awaiting physical transport
+  by level, uncapped whole counts, refused on an unsunk level, #766),
+  `makerBuffers` (finite per-maker and per-Factory-line input buffers by maker
+  and input id, refused on an unsunk level, #766, #771), `factoryOutput`
+  (manufactured goods awaiting `factoryToStockyardParts` transport, starting
+  with `parts`, #771), `research` (`active?: { id, arrived }` and `done`,
+  validated against `RESEARCH_IDS` and project prices, #771), `cycleMicros`
+  (persisted integer micro-cycles `0..999_999` per maker/Factory line, refused
+  on an unsunk level, #766, #771), `assignedRuns` (dedicated vehicles per
+  single-good run, reserved for Slice 2 Part 3 and validated
+  `sum <= fleetSize`, #766), `cages` (`assigned`, the hoists assigned to each
+  level, never more than he owns together, and `carried`, what the cages carry
+  by level and not where they are; each left out while all zero, #724) and
+  `project` (the building, `state` `delivering` or `onHold`, `step` 0 to 2, the
+  goods `arrived` and what of them is `onSite`, not yet built in (#690), bounded
+  per good by `SITE_GOOD_CAP` (#766); left out while nothing is ordered), with
+  `operational` buildings in `marks`. Slice 2 Part 2 (#780) added its keys with
+  defaults on version 11 with **no save reset**. A project for a building that
+  already stands or is not the next one, a step past the roof, more on the site
+  than arrived or than it holds, or a step whose goods are all built in reads
+  `bad`.
   Retired Slice 1 keys (`clocks`, `bench`, `station`, `marks.recipes`,
   `run.granite`, `run.generation`, `run.stretch`, `run.dug`, raw materials
   `clay`/`iron`/`crystal`/`heartstone`, `machineSyn`, and top-level `granite`)
