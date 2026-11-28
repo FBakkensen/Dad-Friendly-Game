@@ -107,7 +107,7 @@ const RESEARCH_ROWS = [
   {
     id: "heavyCouplings",
     name: "Heavy couplings",
-    summary: "Wagons, trucks and trains carry 40% more.",
+    summary: "Wagons and trucks carry 40% more.",
     price: [
       { good: "parts", amount: 500_000 },
       { good: "glass", amount: 10_000_000 },
