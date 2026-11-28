@@ -18,13 +18,10 @@ import {
 } from "./expeditions";
 import { formatCompact, formatCount, formatDuration } from "./format";
 import type { LayerId } from "./layers";
-import type { Mountain } from "./mountain";
-import { AWAY_END_MS, effectiveRates, type Rates } from "./rates";
+import { AWAY_END_MS } from "./rates";
 import type { Stage } from "./line";
-import { owned, tierById, type MachineId, type TierId } from "./tiers";
+import { tierById, type MachineId, type TierId } from "./tiers";
 import type { VehicleId } from "./transport";
-import { upgradeLevel, type Upgrade, type UpgradeId } from "./upgrades";
-import { haulageWorkers, toolSpeed } from "./workforce";
 
 // Player-facing wording shared by the screen's panels.
 
@@ -187,135 +184,6 @@ export function crewMinesWords(
   return rate >= 1_000
     ? `Your crew mines ${formatCompact(rate)} stones${unit}`
     : `Your crew mines ${stonesASecond(rate)}`;
-}
-
-/** The same mountain with one upgrade at another level. */
-const withLevel = (
-  mountain: Mountain,
-  id: UpgradeId,
-  level: number,
-): Mountain => ({
-  ...mountain,
-  upgrades: { ...mountain.upgrades, [id]: level },
-});
-
-/**
- * What the card's number is before and after one more level, or what it is
- * now once every level is bought. A one-level upgrade keeps showing what it
- * did once it is owned.
- */
-type UpgradeChange =
-  | { readonly kind: "next"; readonly before: Rates; readonly after: Rates }
-  | { readonly kind: "maxed"; readonly now: Rates };
-
-function upgradeChange(
-  upgrade: Upgrade,
-  mountain: Mountain,
-  at: number,
-): UpgradeChange {
-  const level = upgradeLevel(mountain, upgrade.id);
-  if (upgrade.maxLevel === 1) {
-    return {
-      kind: "next",
-      before: effectiveRates(withLevel(mountain, upgrade.id, 0), at),
-      after: effectiveRates(withLevel(mountain, upgrade.id, 1), at),
-    };
-  }
-  return level >= upgrade.maxLevel
-    ? { kind: "maxed", now: effectiveRates(mountain, at) }
-    : {
-        kind: "next",
-        before: effectiveRates(mountain, at),
-        after: effectiveRates(withLevel(mountain, upgrade.id, level + 1), at),
-      };
-}
-
-/** "6/s to 6.7/s", or "now 6.7/s" once every level is bought. */
-function fromTo(change: UpgradeChange, read: (rates: Rates) => string): string {
-  return change.kind === "maxed"
-    ? `now ${read(change.now)}`
-    : `${read(change.before)} to ${read(change.after)}`;
-}
-
-/**
- * One sentence: what this card's number is now, and what buying makes it,
- * from the same rates the game runs on (#324).
- */
-export function upgradeEffectLine(
-  upgrade: Upgrade,
-  mountain: Mountain,
-  at: number,
-): string {
-  const change = upgradeChange(upgrade, mountain, at);
-  switch (upgrade.id) {
-    case "boots":
-      // Work boots lifts only a worker with a tool (rule 2.9).
-      return `Workers with a tool ${fromTo(change, (rates) => `${formatSpeed(toolSpeed(rates.tierSpeed, "face"))}/s`)}.`;
-    case "cartSyn":
-    case "drillSyn":
-    case "borerSyn":
-      return synergyEffectLine(upgrade, mountain, change);
-  }
-}
-
-/**
- * Whether a synergy has any of the tier that feeds it. The workers that
- * feed Loading crews are the ones on haulage (rule 2.9).
- */
-const synergyFed = (upgrade: Upgrade, mountain: Mountain): boolean =>
-  upgrade.synergy !== undefined &&
-  (upgrade.synergy.from === "helper"
-    ? haulageWorkers(mountain)
-    : owned(mountain, tierById(upgrade.synergy.from))) > 0;
-
-function synergyEffectLine(
-  upgrade: Upgrade,
-  mountain: Mountain,
-  change: UpgradeChange,
-): string {
-  if (upgrade.synergy === undefined || !synergyFed(upgrade, mountain)) {
-    return UPGRADE_RULE[upgrade.id] ?? upgrade.perLevel;
-  }
-  const to = tierById(upgrade.synergy.to);
-  const name = to.id === "machine" ? "Great Machine" : `${to.shortName}s`;
-  return `${name} ${fromTo(change, (rates) => `${formatSpeed(rates.tierSpeed[to.id])}/s`)}.`;
-}
-
-/**
- * The card's quiet second line: why it is worth it, never the effect again.
- * Work boots lifts only a worker with a tool, and Loading crews counts the
- * workers on haulage (#661, the spec's call 41). Approved by Flemming on
- * 15 Nov 2026; the names are the engineering ones he chose that day (#711).
- */
-const UPGRADE_WHY: Record<UpgradeId, string> = {
-  boots:
-    "Picks, barrows and winches go faster. Machines, drivers and builders do not.",
-  cartSyn: "Each worker on haulage makes carts 1% faster.",
-  drillSyn: "Each cart makes the drills a little quicker.",
-  borerSyn: "Each drill makes the borers a little quicker.",
-};
-
-/** An upgrade's rule, where its `perLevel` does not say it (#661). */
-const UPGRADE_RULE: Partial<Record<UpgradeId, string>> = {
-  cartSyn: "Each worker on haulage makes carts 1% faster.",
-};
-
-/** "workers", "carts", "borers": the tier a synergy needs, plural. */
-const tierPlural = (id: TierId): string =>
-  id === "helper" ? workerWords(2) : `${tierById(id).shortName.toLowerCase()}s`;
-
-/**
- * The why line under the effect line (#342). A synergy with none of its
- * source already shows its rule, so this says what makes it count.
- */
-export function upgradeWhyLine(upgrade: Upgrade, mountain: Mountain): string {
-  if (upgrade.synergy !== undefined && !synergyFed(upgrade, mountain)) {
-    // A rule is already the effect line, and it has no other approved words.
-    return UPGRADE_RULE[upgrade.id] === undefined
-      ? `It counts once you have ${tierPlural(upgrade.synergy.from)}.`
-      : "";
-  }
-  return UPGRADE_WHY[upgrade.id];
 }
 
 /**

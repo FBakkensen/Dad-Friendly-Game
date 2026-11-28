@@ -40,11 +40,13 @@ import {
   sliceRoofSave,
   sliceStartSave,
   sliceFoundryRoofSave,
+  sliceResearchLabRoofSave,
   sliceWarehouseRoofSave,
   sliceWarehouseSave,
   sliceWarehouseTrucksSave,
   sliceYardFullSave,
   slice2Part1Save,
+  slice2Part2Save,
 } from "../tools/browser/fixtures.ts";
 
 const OUT = "docs/ui-audit";
@@ -795,7 +797,7 @@ async function main() {
   await capture("slice-card-end", async (viewport) => {
     const opened = await openAuditPage(
       viewport,
-      sliceFoundryRoofSave(Date.now()),
+      sliceResearchLabRoofSave(Date.now()),
     );
     await frameCardUp(opened.page);
     await press(opened.page, ".frame-card-key");
@@ -804,6 +806,47 @@ async function main() {
     });
     await new Promise((resolve) => setTimeout(resolve, 500));
     await expectText(opened.page, /planning its next building/i, "end card");
+    return opened;
+  });
+  await capture("slice-card-foundry", async (viewport) => {
+    const opened = await openAuditPage(
+      viewport,
+      sliceFoundryRoofSave(Date.now()),
+    );
+    await frameCardUp(opened.page);
+    await press(opened.page, ".frame-card-key");
+    await opened.page.waitForSelector('.frame-card[data-card="built"]', {
+      visible: true,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    await expectText(
+      opened.page,
+      /Opens Crystal Caves and the factory/i,
+      "the Foundry's card",
+    );
+    return opened;
+  });
+  // Slice 2 Part 2 (#779, #780): 3-level Mine, Glassworks Refinery, steady-flow Factory, Research Lab & sheet.
+  await capture("slice-mine-three-levels", (viewport) =>
+    openFrame(viewport, slice2Part2Save(Date.now()), "mine"),
+  );
+  await capture("slice-refinery-glassworks", (viewport) =>
+    openFrame(viewport, slice2Part2Save(Date.now()), "refinery"),
+  );
+  await capture("slice-factory", (viewport) =>
+    openFrame(viewport, slice2Part2Save(Date.now()), "factory"),
+  );
+  await capture("slice-city-research-lab", (viewport) =>
+    openFrame(viewport, slice2Part2Save(Date.now()), "city"),
+  );
+  await capture("slice-research-sheet", async (viewport) => {
+    const opened = await openFrame(
+      viewport,
+      slice2Part2Save(Date.now()),
+      "city",
+    );
+    await press(opened.page, ".city-research-door");
+    await sheetUp(opened.page, ".research-sheet:not([hidden])");
     return opened;
   });
   // The Warehouse's card in part 3: its power and trucks, the Foundry next (#682).

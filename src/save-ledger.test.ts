@@ -6,11 +6,19 @@ import {
   NO_GRANITE_PILES,
   NO_LEVEL_MACHINES,
   NO_MINE_LEVELS,
+  crystalShaftOpen,
+  sinkShaft,
 } from "./mine-levels";
 import { accrue, createMountain, type Mountain } from "./mountain";
 import { levels, partThree } from "./part-three.harness";
-import { partThreeOn } from "./part-switch";
+import { PLAY_FACTORS, partThreeOn } from "./part-switch";
+import { withFactors } from "./economy/factors";
+import { factoryOpen } from "./factory";
+import { effectiveRates } from "./rates";
+import { researchAvailable, researchDone } from "./research";
+import { nextBuilding } from "./city";
 import { readGame, shippedFacts, writeGame } from "./save-format";
+import { buyUpgrade } from "./upgrades";
 
 /**
  * The ledger of what has shipped (#558, #769; spec, "The ledger of what has
@@ -804,5 +812,137 @@ describe("the cages in the save (#724)", () => {
         },
       ),
     );
+  });
+});
+
+describe("Slice 2 Part 1 -> Part 2 v11 save continuity (#780)", () => {
+  it("loads v11 Part 1 saves before and after Foundry under PLAY_FACTORS, honors bought levels with zero double-stacking, and opens Part 2", () => {
+    withFactors(PLAY_FACTORS, () => {
+      // 1. A v11 Part 1 save BEFORE Foundry's roof with bought Part 1 upgrades.
+      const beforeFoundryRaw = {
+        owned: { helper: 32, cart: 6, drill: 5, borer: 3, hoist: 3 },
+        stock: { stones: 3_000_000, brick: 800_000, cutStone: 200_000 },
+        levels: { boots: 1, cartSyn: 1, drillSyn: 1, borerSyn: 1 },
+        jobs: {
+          drilling: 6,
+          haulage: 6,
+          hoisting: 4,
+          graniteDrilling: 4,
+          graniteHaulage: 4,
+          driving: 3,
+          building: 2,
+          kilns: 2,
+          saws: 1,
+        },
+        fleet: { horseWagon: 2, truck: 1 },
+        makers: { kiln: 2, saw: 1 },
+        marks: { operational: ["lightTower", "warehouse"] },
+        mineLevels: { granite: {} },
+        pithead: { topsoil: 120, granite: 80 },
+        makerBuffers: { kiln: { topsoilRock: 90 }, saw: { graniteRock: 60 } },
+      };
+      const beforeRead = readGame(beforeFoundryRaw, 0);
+      expect(beforeRead.kind).toBe("ok");
+      if (beforeRead.kind !== "ok") {
+        return;
+      }
+      const before = beforeRead.mountain;
+      // Round-trips cleanly with no Part 2 pollution until earned.
+      expect(
+        readGame(JSON.parse(JSON.stringify(writeGame(before))), 0),
+      ).toEqual({
+        kind: "ok",
+        mountain: before,
+      });
+      expect(crystalShaftOpen(before)).toBe(false);
+      expect(factoryOpen(before)).toBe(false);
+      expect(nextBuilding(before)?.id).toBe("foundry");
+      // Part 1 instant upgrades cannot be bought again under PLAY_FACTORS.
+      expect(buyUpgrade(before, "boots")).toBe(before);
+      // Continues ticking cleanly in live play.
+      const tickedBefore = accrue({
+        mountain: before,
+        from: 0,
+        to: 30_000,
+        live: true,
+      });
+      expect(tickedBefore.mountain.rockDug).toBeGreaterThan(before.rockDug);
+
+      // 2. A v11 Part 1 save ALREADY PAST Foundry's roof with all 4 Part 1 levels bought.
+      const afterFoundryRaw = {
+        ...beforeFoundryRaw,
+        stock: { stones: 5_000_000, brick: 2_500_000, cutStone: 1_500_000 },
+        marks: { operational: ["lightTower", "warehouse", "foundry"] },
+      };
+      const afterRead = readGame(afterFoundryRaw, 0);
+      expect(afterRead.kind).toBe("ok");
+      if (afterRead.kind !== "ok") {
+        return;
+      }
+      const after = afterRead.mountain;
+      expect(readGame(JSON.parse(JSON.stringify(writeGame(after))), 0)).toEqual(
+        {
+          kind: "ok",
+          mountain: after,
+        },
+      );
+      // Foundry's roof immediately opens Crystal Caves shaft, Factory, and Building 4 (Research Lab).
+      expect(crystalShaftOpen(after)).toBe(true);
+      expect(factoryOpen(after)).toBe(true);
+      expect(nextBuilding(after)?.id).toBe("researchLab");
+
+      // All 4 legacy Part 1 upgrades are honored as Research done with identical speeds and no double-stacking.
+      for (const id of [
+        "workBoots",
+        "loadingCrews",
+        "haulRoads",
+        "drillCrews",
+      ] as const) {
+        expect(researchDone(after, id)).toBe(true);
+      }
+      const withLab: Mountain = {
+        ...after,
+        operational: ["lightTower", "warehouse", "foundry", "researchLab"],
+      };
+      for (const id of [
+        "workBoots",
+        "loadingCrews",
+        "haulRoads",
+        "drillCrews",
+      ] as const) {
+        expect(researchAvailable(withLab, id)).toBe(false);
+      }
+      const researchOnly: Mountain = {
+        ...after,
+        upgrades: { boots: 0, cartSyn: 0, drillSyn: 0, borerSyn: 0 },
+        research: {
+          done: ["workBoots", "loadingCrews", "haulRoads", "drillCrews"],
+        },
+      };
+      const bothSet: Mountain = {
+        ...after,
+        research: {
+          done: ["workBoots", "loadingCrews", "haulRoads", "drillCrews"],
+        },
+      };
+      const legacyRates = effectiveRates(after).tierSpeed;
+      const researchRates = effectiveRates(researchOnly).tierSpeed;
+      const bothRates = effectiveRates(bothSet).tierSpeed;
+      for (const tier of ["helper", "cart", "drill", "borer"] as const) {
+        expect(legacyRates[tier]).toBeCloseTo(researchRates[tier], 8);
+        expect(bothRates[tier]).toBeCloseTo(researchRates[tier], 8);
+      }
+
+      // Player can immediately sink Crystal Caves and continue accruing.
+      const sunk = sinkShaft(after, "crystal");
+      expect(sunk.mineLevels.crystal).toBeDefined();
+      const tickedAfter = accrue({
+        mountain: sunk,
+        from: 0,
+        to: 30_000,
+        live: true,
+      });
+      expect(tickedAfter.mountain.rockDug).toBeGreaterThan(sunk.rockDug);
+    });
   });
 });

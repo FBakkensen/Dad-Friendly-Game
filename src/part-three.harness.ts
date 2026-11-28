@@ -42,18 +42,18 @@ export const partThree = <T>(
   knobs: Readonly<Record<string, number>> = {},
 ): T => withFactors({ ...PART_THREE_FACTORS, ...knobs }, body);
 
-/** Slice 2 Part 1 on (the live game since #769), plus any knobs. */
+/** Slice 2 Part 1 only (before Part 2, #769), plus any knobs. */
 export const slice2Part1 = <T>(
   body: () => T,
   knobs: Readonly<Record<string, number>> = {},
-): T => withFactors({ ...PLAY_FACTORS, ...knobs }, body);
+): T =>
+  withFactors({ ...PLAY_FACTORS, [SLICE_2_PART_2_OFF]: 1, ...knobs }, body);
 
-/** Slice 2 Part 2 on (dev preview / tests, #779), plus any knobs. */
+/** Slice 2 Part 2 on (the live game since #780), plus any knobs. */
 export const slice2Part2 = <T>(
   body: () => T,
   knobs: Readonly<Record<string, number>> = {},
-): T =>
-  withFactors({ ...PLAY_FACTORS, [SLICE_2_PART_2_OFF]: 0, ...knobs }, body);
+): T => withFactors({ ...PLAY_FACTORS, ...knobs }, body);
 
 /**
  * The knobs that put part 3's stages back as #724 built the cages on (#675

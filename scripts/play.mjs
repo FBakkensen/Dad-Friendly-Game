@@ -46,10 +46,13 @@ import {
   sliceWarehouseRoofSave,
   sliceFoundrySave,
   sliceFoundryRoofSave,
+  sliceResearchLabRoofSave,
   sliceWarehouseSave,
   sliceWarehouseTrucksSave,
   slice2Part1Save,
   slice2Part1PitheadFullSave,
+  slice2Part2Save,
+  slice2Part2CrystalUnsunkSave,
 } from "../tools/browser/fixtures.ts";
 
 /**
@@ -91,7 +94,7 @@ const SAVES = {
     search: MEMORY,
   },
   done: {
-    note: "the Light Tower, the Warehouse and the Foundry operational, nothing to order",
+    note: "the Light Tower, Warehouse, Foundry and Research Lab operational, nothing to order",
     save: () => sliceDoneSave(Date.now()),
     key: DEV_BACKUP_KEY,
     search: MEMORY,
@@ -103,7 +106,7 @@ const SAVES = {
     search: MEMORY,
   },
   list: {
-    note: "five carts and drills, so the stages' lists hold upgrades, and Work boots",
+    note: "thirty workers, six carts, five drills and three hoists for stage lists and workforce",
     save: () => sliceListSave(Date.now()),
     key: DEV_BACKUP_KEY,
     search: MEMORY,
@@ -157,8 +160,14 @@ const SAVES = {
     search: MEMORY,
   },
   foundryroof: {
-    note: "part 3: the Foundry's roof goes on in the night: the shift report, then the slice's end card",
+    note: "the Foundry's roof goes on in the night: the shift report, then Crystal Caves & Factory open",
     save: () => sliceFoundryRoofSave(Date.now()),
+    key: DEV_BACKUP_KEY,
+    search: MEMORY,
+  },
+  researchroof: {
+    note: "slice 2 part 2: the Research Lab's roof goes on in the night, then Part 2's end card",
+    save: () => sliceResearchLabRoofSave(Date.now()),
     key: DEV_BACKUP_KEY,
     search: MEMORY,
   },
@@ -189,6 +198,18 @@ const SAVES = {
   pitheadfull: {
     note: "slice 2 part 1: Granite pithead full stall in Mine",
     save: () => slice2Part1PitheadFullSave(Date.now()),
+    key: DEV_BACKUP_KEY,
+    search: MEMORY,
+  },
+  "crystal-unsunk": {
+    note: "slice 2 part 2: Foundry operational, Crystal Caves unsunk with brick and cut stone to sink it",
+    save: () => slice2Part2CrystalUnsunkSave(Date.now()),
+    key: DEV_BACKUP_KEY,
+    search: MEMORY,
+  },
+  part2: {
+    note: "slice 2 part 2: 3 mine levels, Glassworks, steady-flow Factory, Research Lab operational + active research",
+    save: () => slice2Part2Save(Date.now()),
     key: DEV_BACKUP_KEY,
     search: MEMORY,
   },

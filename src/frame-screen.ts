@@ -518,7 +518,7 @@ function createFrameSheets(
   board: ReturnType<typeof createBoardHost>,
   now: () => number,
 ): FrameSheets {
-  const sheet = createWorkforceSheet(state, now);
+  const sheet = createWorkforceSheet(state);
   const transportSheet = createTransportSheet(state);
   const researchSheet = createResearchSheet(state);
   const stageSheet = createStageSheet(state, now);

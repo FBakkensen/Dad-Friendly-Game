@@ -37,6 +37,7 @@ import {
   type Expedition,
 } from "../src/expeditions";
 import { createMountain, type Mountain } from "../src/mountain";
+import { NO_LEVEL_MACHINES } from "../src/mine-levels";
 import { readSave, serializeSave } from "../src/persist";
 import { effectiveRates } from "../src/rates";
 import { UPGRADES, type Upgrades } from "../src/upgrades";
@@ -145,6 +146,95 @@ describe("firestore.rules: games/{uid} (#558)", () => {
     await expect(
       setDoc(doc(momDb, "games", "dad"), game(2, mountain)),
     ).rejects.toThrow(denied);
+  });
+
+  it("accepts a full Slice 2 Part 2 save with research, glass/parts, factory buffers/output, cycleMicros, crystal level, and researchLab operational (#780)", async () => {
+    await admin().doc("games/dad").delete();
+    const fresh = createMountain();
+    const part2: Mountain = {
+      ...fresh,
+      rockDug: 60_000_000,
+      stock: {
+        stones: 3_000_000,
+        brick: 600_000,
+        cutStone: 400_000,
+        glass: 120_000,
+        parts: 80_000,
+      },
+      owned: { ...fresh.owned, helper: 42, cart: 4, drill: 3, hoist: 4 },
+      jobs: {
+        ...fresh.jobs,
+        drilling: 4,
+        haulage: 3,
+        hoisting: 6,
+        graniteDrilling: 3,
+        graniteHaulage: 2,
+        crystalDrilling: 3,
+        crystalHaulage: 2,
+        driving: 3,
+        building: 2,
+        kilns: 2,
+        saws: 2,
+        glassworks: 2,
+        partsPress: 2,
+        precisionAssembly: 3,
+      },
+      fleet: { horseWagon: 2, truck: 2 },
+      operational: ["lightTower", "warehouse", "foundry", "researchLab"],
+      makers: {
+        kiln: 2,
+        saw: 2,
+        glassworks: 1,
+        partsPress: 1,
+        precisionAssembly: 1,
+      },
+      mineLevels: {
+        granite: {
+          machines: { ...NO_LEVEL_MACHINES, cart: 1, drill: 1 },
+          piles: { face: 160, shaft: 110, saw: 0 },
+        },
+        crystal: {
+          machines: { ...NO_LEVEL_MACHINES, cart: 1, drill: 1 },
+          piles: { face: 120, shaft: 90, saw: 0 },
+        },
+      },
+      pithead: { topsoil: 240, granite: 180, crystal: 120 },
+      makerBuffers: {
+        kiln: { topsoilRock: 420 },
+        saw: { graniteRock: 310 },
+        glassworks: { crystalRock: 360, stones: 240 },
+        partsPress: { brick: 420, cutStone: 210 },
+        precisionAssembly: { brick: 260, cutStone: 180, glass: 120 },
+      },
+      cycleMicros: {
+        kiln: 125_000,
+        saw: 250_000,
+        glassworks: 375_000,
+        partsPress: 500_000,
+        precisionAssembly: 625_000,
+      },
+      factoryOutput: { parts: 140 },
+      research: {
+        done: ["workBoots", "ironRails"],
+        active: {
+          id: "heavyCouplings",
+          arrived: {
+            stones: 0,
+            brick: 0,
+            cutStone: 0,
+            glass: 3_500_000,
+            parts: 180_000,
+          },
+        },
+      },
+      upgrades: { boots: 1, cartSyn: 1, drillSyn: 0, borerSyn: 0 },
+      cages: { assigned: { topsoil: 1, granite: 1, crystal: 1 }, trips: {} },
+    };
+    const payload = game(1, part2);
+    expect(readSave(JSON.parse(JSON.stringify(payload))).kind).toBe("ok");
+    await setDoc(ref(), payload);
+    const read = readSave((await getDoc(ref())).data());
+    expect(read.kind === "ok" && read.save.mountain).toEqual(part2);
   });
 
   it("creates only at rev 1, then moves one rev at a time", async () => {
@@ -793,5 +883,24 @@ describe("firestore.rules: fieldLogs/{uid}", () => {
     await expect(setDoc(doc(db, "fieldLogs", "dad"), legacy)).resolves.toBe(
       undefined,
     );
+  });
+
+  it("accepts Slice 2 Part 2 field-log events (research, crystal, factory makers) (#780)", async () => {
+    const part2Events = [
+      { at: ISO, code: "shaft.sink", data: { id: "crystal" } },
+      { at: ISO, code: "crystal.buy", data: { id: "drill", count: 1 } },
+      {
+        at: ISO,
+        code: "maker.buy",
+        data: { id: "precisionAssembly", count: 1 },
+      },
+      { at: ISO, code: "research.start", data: { id: "heavyCouplings" } },
+      { at: ISO, code: "research.install", data: { id: "highDraftKilns" } },
+    ];
+    for (const part2Event of part2Events) {
+      await expect(
+        setDoc(doc(db, "fieldLogs", "dad"), fieldLog([part2Event])),
+      ).resolves.toBe(undefined);
+    }
   });
 });

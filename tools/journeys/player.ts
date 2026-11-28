@@ -48,9 +48,14 @@ const MINE_JOBS: readonly string[] = [
   "hoisting",
   "graniteDrilling",
   "graniteHaulage",
+  "crystalDrilling",
+  "crystalHaulage",
 ];
 
-type Site = "mine" | "refinery" | "city";
+const REFINERY_JOBS: readonly string[] = ["kilns", "saws", "glassworks"];
+const FACTORY_JOBS: readonly string[] = ["partsPress", "precisionAssembly"];
+
+type Site = "mine" | "refinery" | "factory" | "city";
 
 export class Player {
   private tab: Page;
@@ -216,7 +221,14 @@ export class Player {
           await this.tapShown(".transport-sheet .frame-sheet-close");
           return;
         }
-        await this.site(MINE_JOBS.includes(action.job) ? "mine" : "city");
+        const site: Site = MINE_JOBS.includes(action.job)
+          ? "mine"
+          : REFINERY_JOBS.includes(action.job)
+            ? "refinery"
+            : FACTORY_JOBS.includes(action.job)
+              ? "factory"
+              : "city";
+        await this.site(site);
         await this.tapShown(
           `.frame-scene .frame-step[data-job="${action.job}"][data-way="${way}"]`,
         );
@@ -248,6 +260,30 @@ export class Player {
         );
         return;
       }
+      case "startResearch":
+        await this.site("city");
+        await this.tapShown(".city-research-door");
+        await this.tapShown(
+          `.research-sheet .research-card[data-research="${action.id}"] .research-action`,
+        );
+        await this.tapShown(".research-sheet .frame-sheet-close");
+        return;
+      case "cancelResearch":
+        await this.site("city");
+        await this.tapShown(".city-research-door");
+        await this.tapShown(
+          '.research-sheet .research-card[data-status="delivering"] .research-action',
+        );
+        await this.tapShown(".research-sheet .frame-sheet-close");
+        return;
+      case "installResearch":
+        await this.site("city");
+        await this.tapShown(".city-research-door");
+        await this.tapShown(
+          '.research-sheet .research-card[data-status="ready"] .research-action',
+        );
+        await this.tapShown(".research-sheet .frame-sheet-close");
+        return;
       default:
         throw new Error(`The frame has no key for ${action.kind}`);
     }

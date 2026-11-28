@@ -113,6 +113,7 @@ describe("pacing ledger", () => {
         "lightTower",
         "warehouse",
         "foundry",
+        "researchLab",
       ]);
       expect(markdown.split("\n")).toContain(
         `| ${[
@@ -121,6 +122,7 @@ describe("pacing ledger", () => {
           buildingById("lightTower").name,
           buildingById("warehouse").name,
           buildingById("foundry").name,
+          buildingById("researchLab").name,
           ...machinesInPlay().map((id) => tierById(id).name),
           "Finish",
           "End hash",

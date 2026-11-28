@@ -31,14 +31,23 @@ export const PART_THREE_OFF = "part3.off";
 export const SLICE_2_PART_1_OFF = "slice2Part1.off";
 
 /**
- * The mine the live game plays: Slice 2 Part 1 (#769), built on Slice 1's
- * fresh mine with parts 2 and 3 (#664, #672, #682). Boot holds these on every
- * page, and the strategy lab plays under them (#737, #767).
+ * The sweep factor that switches slice 2's part 2 (#770): Crystal Caves,
+ * 3-level hoisting, multi-input Refinery & Factory, and the Research Lab.
+ * Switched on in play in #780.
+ */
+export const SLICE_2_PART_2_OFF = "slice2Part2.off";
+
+/**
+ * The mine the live game plays: Slice 2 Part 2 (#780), built on Slice 2
+ * Part 1 (#769) and Slice 1's fresh mine with parts 2 and 3 (#664, #672, #682).
+ * Boot holds these on every page, and the strategy lab plays under them (#737,
+ * #767, #772).
  */
 export const PLAY_FACTORS: Readonly<Record<string, 0>> = Object.freeze({
   [PART_TWO_OFF]: 0,
   [PART_THREE_OFF]: 0,
   [SLICE_2_PART_1_OFF]: 0,
+  [SLICE_2_PART_2_OFF]: 0,
 });
 
 /** True when part 3's rules play: part 3 stands on part 2's stockyard and brick. */
@@ -50,13 +59,6 @@ export function partThreeOn(): boolean {
 export function slice2Part1On(): boolean {
   return partThreeOn() && factor(SLICE_2_PART_1_OFF) === 0;
 }
-
-/**
- * The sweep factor that switches slice 2's part 2 (#770): Crystal Caves,
- * 3-level hoisting, multi-input Refinery & Factory, and the Research Lab.
- * Stays off in play until Part 2's switch-on (#780).
- */
-export const SLICE_2_PART_2_OFF = "slice2Part2.off";
 
 /** True when slice 2 part 2's rules play: stands on slice 2 part 1. */
 export function slice2Part2On(): boolean {

@@ -28,9 +28,9 @@ type UpgradeKey = keyof Mountain["upgrades"];
 type ResearchRow = {
   readonly id: string;
   readonly name: string;
-  /** What the project does, in plain words (placeholder copy, off in play; for Flemming's approval in #779). */
+  /** What the project does, in plain words. */
   readonly summary: string;
-  /** Goods Transport must deliver before Install opens (starting values for #772 lab). */
+  /** Goods Transport must deliver before Install opens. */
   readonly price: Price;
   /** Part 1 `SaveGame.levels` id honored as equivalent with no double-stacking. */
   readonly partOneUpgrade?: UpgradeKey;
@@ -107,7 +107,7 @@ const RESEARCH_ROWS = [
   {
     id: "heavyCouplings",
     name: "Heavy couplings",
-    summary: "Wagons, trucks and trains carry 40% more.",
+    summary: "Wagons and trucks carry 40% more.",
     price: [
       { good: "parts", amount: 500_000 },
       { good: "glass", amount: 10_000_000 },

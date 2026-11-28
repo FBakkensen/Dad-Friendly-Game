@@ -34,10 +34,9 @@ export const SITE_NAMES: Readonly<Record<SiteId, string>> = {
 };
 
 /**
- * Whether a site is in the site bar (#671): the mine and the city from the
- * first evening, the refinery with the Light Tower once part 2 is live. The
- * Factory tab stays hidden in Slice 2 Part 1 (#768, #769) until Part 2 opens
- * the steady-flow Factory.
+ * Whether a site is in the site bar (#671, #780): the mine and the city from
+ * the first evening, the refinery with the Light Tower, and the steady-flow
+ * factory once the Foundry is operational.
  */
 export function siteOpen(
   mountain: Pick<Mountain, "operational" | "mineLevels">,

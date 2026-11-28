@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 import type { Engineer } from "./engineers";
 import { BARE_MOUNTAIN, createMountain, type Mountain } from "./mountain";
-import { readSave, serializeSave, type SaveRead } from "./persist";
+import { withFactors } from "./economy/factors";
+import { PLAY_FACTORS } from "./part-switch";
+import {
+  SAVE_VERSION,
+  readSave,
+  serializeSave,
+  type SaveRead,
+} from "./persist";
 import { minedMountain } from "./test-fixtures";
 
 /** Through JSON, as the phone and the cloud store it. */
@@ -238,5 +245,55 @@ describe("the version 11 save (#558, #769)", () => {
   it("ignores the rules' savedAt on a cloud copy", () => {
     const saved = serializeSave({ mountain: lived(), lastSeen: 9 });
     expect(readSave({ ...saved, savedAt: { seconds: 1 } }).kind).toBe("ok");
+  });
+
+  it("keeps SAVE_VERSION at 11 and round-trips v11 Part 1 & Part 2 saves under PLAY_FACTORS (#780)", () => {
+    expect(SAVE_VERSION).toBe(11);
+    withFactors(PLAY_FACTORS, () => {
+      const part1Doc = {
+        version: 11,
+        lastSeen: 1_700_000_000_000,
+        rev: 4,
+        deviceId: "device-dad-1234",
+        game: {
+          owned: { helper: 28, cart: 5, drill: 5, hoist: 3 },
+          stock: { stones: 2_000_000, brick: 1_800_000, cutStone: 1_200_000 },
+          levels: { boots: 1, cartSyn: 1, drillSyn: 1 },
+          marks: { operational: ["lightTower", "warehouse", "foundry"] },
+          makers: { kiln: 2, saw: 1 },
+          mineLevels: { granite: {} },
+          jobs: {
+            drilling: 6,
+            haulage: 5,
+            hoisting: 4,
+            graniteDrilling: 4,
+            graniteHaulage: 3,
+            driving: 3,
+            kilns: 2,
+            saws: 1,
+          },
+          fleet: { horseWagon: 2, truck: 1 },
+        },
+      };
+      const loaded = readSave(stored(part1Doc));
+      expect(loaded.kind).toBe("ok");
+      if (loaded.kind !== "ok") {
+        return;
+      }
+      expect(loaded.save.mountain.upgrades).toEqual({
+        boots: 1,
+        cartSyn: 1,
+        drillSyn: 1,
+        borerSyn: 0,
+      });
+      const reserialized = serializeSave({
+        mountain: loaded.save.mountain,
+        lastSeen: loaded.save.lastSeen ?? 0,
+        rev: loaded.save.rev,
+        deviceId: loaded.save.deviceId,
+      });
+      expect(reserialized.version).toBe(11);
+      expect(readSave(stored(reserialized))).toEqual(loaded);
+    });
   });
 });

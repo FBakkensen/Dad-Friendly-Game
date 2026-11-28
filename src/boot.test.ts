@@ -47,13 +47,7 @@ describe("parseBootOptions", () => {
       previewSave: undefined,
       previewCopies: false,
       previewUpdate: false,
-      slice2Part2: false,
     });
-  });
-
-  it("reads slice2Part2=1 for the Slice 2 Part 2 dev preview (#779)", () => {
-    expect(parseBootOptions("?slice2Part2=1").slice2Part2).toBe(true);
-    expect(parseBootOptions("?slice2Part2=true").slice2Part2).toBe(false);
   });
 
   it("reads update=shown, so play can see the update card", () => {
@@ -141,7 +135,7 @@ describe("createAppServices", () => {
     }
   });
 
-  it("plays part 3 and Slice 2 Part 1 on every boot, in dev and in the build (#682, #769)", async () => {
+  it("plays part 3 and Slice 2 Parts 1 & 2 on every boot, in dev and in the build (#682, #769, #780)", async () => {
     for (const devMode of [true, false]) {
       holdFactors({});
       const { progress } = await createAppServices({
@@ -151,29 +145,9 @@ describe("createAppServices", () => {
       });
       expect(partThreeOn()).toBe(true);
       expect(slice2Part1On()).toBe(true);
-      expect(slice2Part2On()).toBe(false);
+      expect(slice2Part2On()).toBe(true);
       progress.dispose();
     }
-  });
-
-  it("switches on Slice 2 Part 2 only for ?slice2Part2=1 while developing (#779)", async () => {
-    holdFactors({});
-    const dev = await createAppServices({
-      env: {},
-      search: "?slice2Part2=1",
-      devMode: true,
-    });
-    expect(slice2Part2On()).toBe(true);
-    dev.progress.dispose();
-
-    holdFactors({});
-    const prod = await createAppServices({
-      env: {},
-      search: "?slice2Part2=1",
-      devMode: false,
-    });
-    expect(slice2Part2On()).toBe(false);
-    prod.progress.dispose();
   });
 
   it("trouble=cave-in previews a cave-in while developing", async () => {

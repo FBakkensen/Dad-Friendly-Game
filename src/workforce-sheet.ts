@@ -6,7 +6,7 @@ import { hireKey } from "./frame-view";
 import type { Mountain } from "./mountain";
 import type { BuyAmount } from "./tiers";
 import { listenSteps, paintSteps, stepper } from "./job-steps";
-import { rowText, upgradeRows } from "./stage-sheet";
+import { rowText } from "./stage-sheet";
 import { workersList } from "./stage-list-view";
 import type { JobId } from "./workforce";
 import {
@@ -157,13 +157,10 @@ function buildJobs(): {
 }
 
 /**
- * The workers' own upgrades and marks (#661), under the jobs: Work boots,
- * and the workers' next mark.
+ * The workers' own marks (#661, #780), under the jobs. Lasting upgrades live
+ * in the City's Research Lab.
  */
-function buildWorkers(
-  state: FrameState,
-  now: () => number,
-): {
+function buildWorkers(): {
   readonly root: HTMLElement;
   readonly paint: (mountain: Mountain) => void;
 } {
@@ -171,24 +168,19 @@ function buildWorkers(
   const row = el("div", "stage-row");
   const { root: text, name, line: owned, why: mark } = rowText();
   row.append(text);
-  const upgrades = upgradeRows(state);
-  root.append(el("h3", "frame-jobs-site", "The workers"), row, upgrades.root);
+  root.append(el("h3", "frame-jobs-site", "The workers"), row);
   return {
     root,
     paint: (mountain) => {
-      const view = workersList(mountain, now());
+      const view = workersList(mountain);
       write(name, view.name);
       write(owned, view.owned);
       write(mark, view.mark ?? "");
-      upgrades.paint(view.upgrades);
     },
   };
 }
 
-export function createWorkforceSheet(
-  state: FrameState,
-  now: () => number = Date.now,
-): WorkforceSheet {
+export function createWorkforceSheet(state: FrameState): WorkforceSheet {
   const root = el("section", "frame-sheet");
   root.setAttribute("role", "dialog");
   root.setAttribute("aria-label", "Workforce");
@@ -198,7 +190,7 @@ export function createWorkforceSheet(
   const note = el("p", "frame-sheet-note", NO_FREE_WORKER);
   note.hidden = true;
   const jobs = buildJobs();
-  const workers = buildWorkers(state, now);
+  const workers = buildWorkers();
   jobs.root.append(workers.root);
   const close = el("button", "frame-sheet-close", "Close");
   close.type = "button";

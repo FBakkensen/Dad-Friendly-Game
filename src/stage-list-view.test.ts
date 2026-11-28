@@ -107,64 +107,17 @@ describe("a stage's list", () => {
       expect(hoist?.mark).toBe("Twice as fast now.");
     });
   });
-
-  it("shows an upgrade once it opens, with its numbers, and Owned once bought", () => {
-    fresh(() => {
-      const few = rich({ owned: { ...crewedStart().owned, cart: 4 } });
-      expect(stageList(few, "haul", "one", 0).upgrades).toEqual([]);
-      const five = rich({ owned: { ...crewedStart().owned, cart: 5 } });
-      const [helpers] = stageList(five, "haul", "one", 0).upgrades;
-      expect(helpers).toMatchObject({
-        id: "cartSyn",
-        name: "Loading crews",
-        effect: "Carts 60/s to 63/s.",
-        why: "Each worker on haulage makes carts 1% faster.",
-        owned: false,
-        price: "2M",
-        can: true,
-      });
-      const bought = {
-        ...five,
-        upgrades: { ...five.upgrades, cartSyn: 1 },
-      };
-      expect(stageList(bought, "haul", "one", 0).upgrades[0]?.owned).toBe(true);
-    });
-  });
-
-  it("keeps a stage's upgrades in its own list: Haul roads under drilling", () => {
-    fresh(() => {
-      const drills = rich({ owned: { ...crewedStart().owned, drill: 5 } });
-      expect(
-        stageList(drills, "face", "one", 0).upgrades.map((row) => row.id),
-      ).toEqual(["drillSyn"]);
-      expect(stageList(drills, "haul", "one", 0).upgrades).toEqual([]);
-      expect(stageList(drills, "lift", "one", 0).upgrades).toEqual([]);
-    });
-  });
-
-  it("is dark on an upgrade he cannot pay for", () => {
-    fresh(() => {
-      const poor = {
-        ...rich({ owned: { ...crewedStart().owned, cart: 5 } }),
-        stock: { ...crewedStart().stock, stones: 10 },
-      };
-      expect(stageList(poor, "haul", "one", 0).upgrades[0]?.can).toBe(false);
-    });
-  });
 });
 
-describe("the workers' upgrades", () => {
-  it("has Work boots with the tool's numbers, and the workers' next mark", () => {
+describe("the workers' marks (#661, #780)", () => {
+  it("has the workers' count and next mark without old instant-buy upgrade rows", () => {
     fresh(() => {
-      const list = workersList(rich(), 0);
-      expect(list.upgrades.map((row) => row.name)).toEqual(["Work boots"]);
-      expect(list.upgrades[0]?.effect).toBe(
-        "Workers with a tool 3/s to 7.1/s.",
-      );
+      const list = workersList(rich());
       expect(list.mark).toBe(
         "21 of 25 · Every worker with a tool works twice as fast.",
       );
       expect(list.owned).toBe("21 hired");
+      expect("upgrades" in list).toBe(false);
     });
   });
 
@@ -177,7 +130,7 @@ describe("the workers' upgrades", () => {
         stageList(mountain, "face", "one", 0),
         stageList(mountain, "haul", "one", 0),
         stageList(mountain, "lift", "one", 0),
-        workersList(mountain, 0),
+        workersList(mountain),
       ]);
       expect(words).not.toMatch(
         /\bhands?\b|by hand|bottleneck|limit|best buy/i,

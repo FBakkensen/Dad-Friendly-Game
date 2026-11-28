@@ -135,8 +135,8 @@ export const LEVEL_REACHED: CardWords = {
 };
 
 /**
- * Slice 2 Part 2 (#779; proposed copy for Flemming's approval): the shaft is
- * sunk and the Crystal Caves are open.
+ * Slice 2 Part 2 (#779, approved #780): the shaft is sunk and the Crystal
+ * Caves are open.
  */
 export const CRYSTAL_REACHED: CardWords = {
   title: "The Crystal Caves: reached",

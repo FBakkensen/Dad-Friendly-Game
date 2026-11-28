@@ -83,10 +83,11 @@ function readyForCrystal(): Mountain {
   };
 }
 
-describe("Slice 2 Part 2 switch (#770, #772)", () => {
-  it("stays off in PLAY_FACTORS, turns on in LAB_FACTORS, and requires slice2Part1On()", () => {
-    expect(withFactors(PLAY_FACTORS, () => slice2Part2On())).toBe(false);
+describe("Slice 2 Part 2 switch (#770, #772, #780)", () => {
+  it("is on in PLAY_FACTORS and LAB_FACTORS, and requires slice2Part1On()", () => {
+    expect(withFactors(PLAY_FACTORS, () => slice2Part2On())).toBe(true);
     expect(withFactors(LAB_FACTORS, () => slice2Part2On())).toBe(true);
+    expect(LAB_FACTORS).toBe(PLAY_FACTORS);
     expect(
       withFactors(
         {
